@@ -1,5 +1,5 @@
 /*
- * core.h - Copyright (c) 2014 Jan de Visser <jan@finiandarc.com>  
+ * ${file} - Copyright (c) ${year} Jan de Visser <jan@finiandarcy.com>  
  * 
  * This file is part of Obelix.
  *
@@ -16,14 +16,3 @@
  * You should have received a copy of the GNU General Public License
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef __CORE_H__
-#define __CORE_H__
-
-#define NEW(t)   ( (t *) new( sizeof(t) ) )
-
-typedef int (*cmp_t)(void *, void *);
-
-extern void * new(int);
-
-#endif /* __CORE_H__ */

@@ -1,5 +1,5 @@
 /*
- * list.h - Copyright (c) 2014 Jan de Visser <jan@finiandarc.com>
+ * list.h - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of Obelix.
  *
@@ -20,36 +20,43 @@
 #ifndef __LIST_H__
 #define __LIST_H__
 
+#include "core.h"
+
 typedef struct _listnode {
-    struct _listnode *prev;
-    struct _listnode *next;
-    void             *data;
+  struct _listnode *prev;
+  struct _listnode *next;
+  void             *data;
 } listnode_t;
 
 typedef struct _list {
-    listnode_t *head;
-    listnode_t *tail;
-    int         size;
+  listnode_t *head;
+  listnode_t *tail;
+  int         size;
 } list_t;
 
 extern list_t * list_create();
+extern void     list_free(list_t *, visit_t);
 extern int      list_append(list_t *, void *);
 extern int      list_size(list_t *);
+extern void *   list_reduce(list_t *, reduce_t, void *);
+extern void     list_visit(list_t *, visit_t);
+extern void     list_clear(list_t *, visit_t);
 
 typedef struct _listiter {
-    list_t     *list;
-    listnode_t *current;
+  list_t     *list;
+  listnode_t *current;
 } listiterator_t;
 
 extern listiterator_t * li_create(list_t *);
+extern void             li_free(listiterator_t *);
 extern void             li_head(listiterator_t *);
 extern void             li_tail(listiterator_t *);
 extern void *           li_current(listiterator_t *);
 extern int              li_insert(listiterator_t *, void *);
 extern void *           li_remove(listiterator_t *);
-extern int              li_hasnext(listiterator_t *);
-extern int              li_hasprev(listiterator_t *);
-extern int              li_next(listiterator_t *);
-extern int              li_prev(listiterator_t *);
+extern int              li_has_next(listiterator_t *);
+extern int              li_has_prev(listiterator_t *);
+extern void *           li_next(listiterator_t *);
+extern void *           li_prev(listiterator_t *);
 
 #endif /* __LIST_H__ */

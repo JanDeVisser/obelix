@@ -1,5 +1,5 @@
 #
-# Makefile.am - Copyright (c) 2014 Jan de Visser <jan@finiandarc.com>  
+# Makefile.am - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
 # 
 # This file is part of Obelix.
 #
@@ -17,6 +17,6 @@
 # along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
 
 bin_PROGRAMS = obelix
-obelix_SOURCES = core.c list.c obelix.c
+obelix_SOURCES = core.c core.h list.c list.h obelix.c
 
-AM_CPPFLAGS = -I$(srcdir)/../include
+AM_CPPFLAGS = -I$(srcdir)

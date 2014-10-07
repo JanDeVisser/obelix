@@ -1,5 +1,5 @@
 /*
- * core.c - Copyright (c) 2014 Jan de Visser <jan@finiandarc.com>  
+ * core.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
  * 
  * This file is part of Obelix.
  *
@@ -22,7 +22,7 @@
 
 #include <core.h>
 
-void * new(int sz) {
+void *_new(int sz) {
     void * ret = malloc(sz);
     if (sz && !ret) {
         errno = ENOMEM;

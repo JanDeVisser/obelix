@@ -1,5 +1,5 @@
 /*
- * obelix.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
+ * core.h - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
  * 
  * This file is part of Obelix.
  *
@@ -17,12 +17,19 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include "list.h"
+#ifndef __CORE_H__
+#define __CORE_H__
 
-extern void test_suite();
+#define TRUE     1
+#define FALSE	 0
+#define NEW(t)   ( (t *) _new( sizeof(t) ) )
 
-int main(int argc, char **argv) {
-  test_suite();
-  return 0;
-}
+typedef int    (*cmp_t)(void *, void *);
+typedef int    (*hash_t)(void *);
+typedef char * (*tostring_t)(void *);
+typedef void * (*reduce_t)(void *, void *);
+typedef void   (*visit_t)(void *);
+
+extern void * _new(int);
+
+#endif /* __CORE_H__ */
