@@ -1,5 +1,5 @@
 /*
- * core.h - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ * dict.h - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of Obelix.
  *
@@ -17,24 +17,24 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __CORE_H__
-#define __CORE_H__
+#ifndef __ARRAY_H__
+#define __ARRAY_H__
 
-#define TRUE   1
-#define FALSE  0
-#define NEW(t) ( (t *) new( sizeof(t) ) )
+#include "list.h"
 
-typedef int    (*cmp_t)(void *, void *);
-typedef int    (*hash_t)(void *);
-typedef char * (*tostring_t)(void *);
-typedef void * (*reduce_t)(void *, void *);
-typedef void   (*visit_t)(void *);
+typedef struct _array {
+  list_t *      list;
+  listnode_t ** index;
+  int           size;
+} array_t;
 
-extern void * new(int);
-extern void * new_ptrarray(int);
-extern void * resize_block(void *, int);
-extern void * resize_ptrarray(void *, int);
+extern array_t * array_create(int initsize);
+extern void      array_free(array_t *, visit_t);
+extern void      array_clear(array_t *, visit_t);
+extern int       array_size(array_t *);
+extern int       array_set(array_t *, int, void *);
+extern void *    array_get(array_t *, int);
+extern void *    array_reduce(array_t *, reduce_t, void *);
+extern void      array_visit(array_t *, visit_t);
 
-extern int    hash(void *, int);
-
-#endif /* __CORE_H__ */
+#endif /* __ARRAY_H__ */
