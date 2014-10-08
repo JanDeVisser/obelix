@@ -18,11 +18,7 @@
  */
 
 #include <stdio.h>
-#include "list.h"
-
-extern void test_suite();
 
 int main(int argc, char **argv) {
-  test_suite();
   return 0;
 }
