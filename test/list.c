@@ -270,8 +270,15 @@ START_TEST(test_list_reduce)
   teardown(l);
 END_TEST
 
-TCase * tc_list(void) {
+char * get_suite_name() {
+  return "List";
+}
+
+TCase * get_testcase(int ix) {
   TCase *tc;
+
+  if (ix > 0) return NULL;
+
   tc = tcase_create("List");
 
   /* tcase_add_checked_fixture(tc_core, setup, teardown); */
@@ -289,7 +296,6 @@ TCase * tc_list(void) {
   tcase_add_test(tc, test_list_clear);
   tcase_add_test(tc, test_list_visit);
   tcase_add_test(tc, test_list_reduce);
-
   return tc;
 }
  

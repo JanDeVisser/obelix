@@ -39,7 +39,7 @@ listnode_t * _ln_create(void *data) {
   if (node) {
     node -> next = 0L;
     node -> prev = 0L;
-    node -> data = data ? data : "";
+    node -> data = data;
   }
   return node;
 }
@@ -118,7 +118,7 @@ void list_clear(list_t *list, visit_t free_fnc) {
 
   while (_ln_datanode(node)) {
     next = node -> next;
-    if (free_fnc) {
+    if (free_fnc && node -> data) {
       free_fnc(node -> data);
     }
     free(node);

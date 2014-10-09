@@ -1,12 +1,19 @@
-TESTS = collections
-check_PROGRAMS = collections
+TESTS = list array
+check_PROGRAMS = list array
 
-collections_SOURCES = collections.c \
+list_SOURCES = collections.c \
 list.c \
-array.c \
 $(top_builddir)/src/list.h \
-$(top_builddir)/src/array.h \
 $(top_builddir)/src/core.h
-collections_CFLAGS = @CHECK_CFLAGS@
-collections_LDFLAGS = -pthread
-collections_LDADD = $(top_builddir)/src/libobelix.la @CHECK_LIBS@ -lm -lrt
+list_CFLAGS = @CHECK_CFLAGS@
+list_LDFLAGS = -pthread
+list_LDADD = $(top_builddir)/src/libobelix.la @CHECK_LIBS@ -lm -lrt
+
+array_SOURCES = collections.c \
+array.c \
+$(top_builddir)/src/array.h \
+$(top_builddir)/src/list.h \
+$(top_builddir)/src/core.h
+array_CFLAGS = @CHECK_CFLAGS@
+array_LDFLAGS = -pthread
+array_LDADD = $(top_builddir)/src/libobelix.la @CHECK_LIBS@ -lm -lrt

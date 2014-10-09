@@ -105,27 +105,25 @@ int array_set(array_t *array, int ix, void *data) {
   if (ix < 0) {
     ix = list_size(array -> list);
   }
-
   if (!_array_resize(array, ix)) {
     return FALSE;
   }
-
   for (i = list_size(array -> list); i <= ix; i++) {
     if (list_append(array -> list, NULL)) {
-      array -> index[i+1] = array -> index[i] -> next;
+      array -> index[i] = array -> list -> tail -> prev;
     } else {
-      break;
+      return FALSE;
     }
   }
-  if (i <= ix) {
-    return FALSE;
-  }
   array -> index[ix] -> data = data;
+  return TRUE;
 }
 
 void * array_get(array_t *array, int ix) {
+  errno = 0;
   if ((ix < 0) || (ix >= list_size(array -> list))) {
     errno = EFAULT;
+    return NULL;
   }
   return array -> index[ix] -> data;
 }

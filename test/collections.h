@@ -27,5 +27,5 @@ typedef struct _test {
 extern test_t * test_create(char *data);
 extern void     test_free(test_t *);
 
-extern TCase *  tc_list(void);
-extern TCase *  tc_array(void);
+extern char *	get_suite_name();
+extern TCase *  get_testcase(int ix);

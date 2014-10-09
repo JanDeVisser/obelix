@@ -26,12 +26,6 @@
 #include "../src/array.h"
 #include "collections.h"
 
-static void     test_raw_print_list(list_t *, char *);
-static void     test_print_list(list_t *, char *);
-static list_t * setup();
-static list_t * setup2();
-static void     teardown(list_t *);
-
 test_t * test_create(char *data) {
   test_t *ret = NEW(test_t);
   if (ret) {
@@ -51,13 +45,21 @@ int main(void){
   int number_failed;
   Suite *s;
   SRunner *sr;
+  TCase *tc;
+  int ix;
 
-  s = suite_create("Collections");
-  suite_add_tcase(s, tc_list());
-  suite_add_tcase(s, tc_array());
+  s = suite_create(get_suite_name());
+  for (ix = 0; 1; ix++) {
+	  tc = get_testcase(ix);
+	  if (tc) {
+		  suite_add_tcase(s, tc);
+	  } else {
+		  break;
+	  }
+  }
   sr = srunner_create(s);
 
-  srunner_run_all(sr, CK_NORMAL);
+  srunner_run_all(sr, CK_VERBOSE);
   number_failed = srunner_ntests_failed(sr);
   srunner_free(sr);
   return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
