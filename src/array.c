@@ -20,28 +20,36 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "core.h"
 #include "array.h"
 
-#define ARRAY_DEF_INITSIZE    8
+#define ARRAY_DEF_CAPACITY    8
 
 static int _array_resize(array_t *, int);
 
 // ---------------------------
 // array_t static functions
 
-int _array_resize(array_t *array, int newsize) {
+int _array_resize(array_t *array, int mincap) {
   listnode_t **newindex;
+  int newcap;
   int i;
 
-  if (newsize != array -> size) {
-    newindex = (listnode_t **) resize_ptrarray(
-          array -> index, newsize);
+  mincap = (mincap > 0) ? mincap : ARRAY_DEF_CAPACITY;
+  if (mincap <= array -> capacity) {
+    return TRUE;
   }
+  newcap = array -> capacity ? array -> capacity : mincap;
+  
+  while(newcap < mincap) {
+    newcap *= 2;
+  }
+  newindex = (listnode_t **) resize_ptrarray(array -> index, newcap);
   if (newindex) {
     array -> index = newindex;
-    array -> size = newsize;
+    array -> capacity = newcap;
   }
   return newindex != NULL;
 }
@@ -49,18 +57,17 @@ int _array_resize(array_t *array, int newsize) {
 // ---------------------------
 // array_t
 
-array_t * array_create(int initsize) {
+array_t * array_create(int capacity) {
   array_t *ret = NULL;
   array_t *a;
 
-  if (initsize <= 0) {
-    initsize = ARRAY_DEF_INITSIZE;
-  }
   a = NEW(array_t);
   if (a) {
+    a -> capacity = 0;
+    a -> index = NULL;
     a -> list = list_create();
     if (a -> list) {
-      if (_array_resize(NULL, initsize)) {
+      if (_array_resize(a, capacity)) {
         ret = a;
       } else {
         list_free(a -> list, NULL);
@@ -77,6 +84,10 @@ int array_size(array_t *array) {
   return array -> list -> size;
 }
 
+int array_capacity(array_t *array) {
+  return array -> capacity;
+}
+
 void array_free(array_t *array, visit_t freefnc) {
   list_free(array -> list, freefnc);
   free(array -> index);  
@@ -85,19 +96,17 @@ void array_free(array_t *array, visit_t freefnc) {
 
 void array_clear(array_t *array, visit_t freefnc) {
   list_clear(array -> list, freefnc);
-  memset(array -> index, 0, array -> size * sizeof(listnode_t *));
+  memset(array -> index, 0, array -> capacity * sizeof(listnode_t *));
 }
 
 int array_set(array_t *array, int ix, void *data) {
   int i;
-  int ok;
 
   if (ix < 0) {
     ix = list_size(array -> list);
   }
 
-  if ((ix >= array -> size) &&
-      !_array_resize(array, array -> size * 2)) {
+  if (!_array_resize(array, ix)) {
     return FALSE;
   }
 

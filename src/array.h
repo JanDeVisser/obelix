@@ -25,13 +25,14 @@
 typedef struct _array {
   list_t *      list;
   listnode_t ** index;
-  int           size;
+  int           capacity;
 } array_t;
 
-extern array_t * array_create(int initsize);
+extern array_t * array_create(int);
 extern void      array_free(array_t *, visit_t);
 extern void      array_clear(array_t *, visit_t);
 extern int       array_size(array_t *);
+extern int       array_capacity(array_t *);
 extern int       array_set(array_t *, int, void *);
 extern void *    array_get(array_t *, int);
 extern void *    array_reduce(array_t *, reduce_t, void *);

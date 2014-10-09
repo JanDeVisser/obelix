@@ -19,42 +19,75 @@
 
 #include <check.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 
 #include "../src/list.h"
+#include "collections.h"
 
 static void     test_raw_print_list(list_t *, char *);
 static void     test_print_list(list_t *, char *);
+static list_t * setup();
+static list_t * setup2();
+static void     teardown(list_t *);
 
-list_t *test_list;
-
-typedef struct _test {
-  char *data;
-  int flag;
-} test_t;
-
-test_t * test_create(char *data) {
-  test_t *ret = NEW(test_t);
-  if (ret) {
-    ret -> data = (data) ? strdup(data) : NULL;
-  }
+list_t * setup(void) {
+  list_t *ret;
+  
+  ret = list_create();
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(list_size(ret), 0);
   return ret;
 }
 
-void test_free(test_t *test) {
-  if (test -> data) {
-    free(test -> data);
-  }
-  free(test);
+list_t * setup2(void) {
+  list_t *ret;
+  
+  ret = setup();
+  list_append(ret, test_create("test1"));
+  ck_assert_int_eq(list_size(ret), 1);
+  list_append(ret, test_create("test2"));
+  ck_assert_int_eq(list_size(ret), 2);
+  return ret;
 }
 
-void setup(void) {
-  test_list = list_create();
+list_t * setup3(void) {
+  list_t *ret;
+  listiterator_t *iter;
+  
+  ret = setup2();
+  iter = li_create(ret);
+  li_insert(iter, test_create("test0"));
+  ck_assert_int_eq(list_size(ret), 3);
+  return ret;
 }
 
-void teardown(void) {
-  list_free(test_list, (visit_t) test_free);
+list_t * setup4(void) {
+  list_t *ret;
+  listiterator_t *iter;
+  
+  ret = setup3();
+  iter = li_create(ret);
+  li_next(iter);
+  li_insert(iter, test_create("test0.1"));
+  ck_assert_int_eq(list_size(ret), 4);
+  return ret;
+}
+
+list_t * setup5(void) {
+  list_t *ret;
+  listiterator_t *iter;
+  
+  ret = setup4();
+  iter = li_create(ret);
+  li_tail(iter);
+  li_prev(iter);
+  li_insert(iter, test_create("test2.1"));
+  ck_assert_int_eq(list_size(ret), 5);
+  return ret;
+}
+
+void teardown(list_t *list) {
+  list_free(list, (visit_t) test_free);
 }
 
 void test_print_list(list_t *list, char *header) {
@@ -85,163 +118,178 @@ void test_raw_print_list(list_t *list, char *header) {
 } 
 
 START_TEST(test_list_create)
-  printf("zz");
-  list_t *list = list_create();
-  test_raw_print_list(test_list, "============================");
-  ck_assert_ptr_ne(list, NULL);
-  ck_assert_int_eq(list_size(list), 0);
+  list_t *l = setup();
+  teardown(l);
 END_TEST
 
 START_TEST(test_list_append)
-  list_append(test_list, test_create("test1"));
-  ck_assert_int_eq(list_size(test_list), 1);
-  list_append(test_list, test_create("test2"));
-  ck_assert_int_eq(list_size(test_list), 2);
+  list_t *l;
+  
+  l = setup2();
+  teardown(l);
 END_TEST
 
 START_TEST(test_list_prepend)
-  listiterator_t *iter = li_create(test_list);
-  li_insert(iter, test_create("test0"));
-  ck_assert_int_eq(list_size(test_list), 3);
+  list_t *l;
+  
+  l = setup3();
+  teardown(l);
 END_TEST
 
 START_TEST(test_list_insert)
-  listiterator_t *iter = li_create(test_list);
-  li_next(iter);
-  li_insert(iter, test_create("test0.1"));
-  ck_assert_int_eq(list_size(test_list), 3);
+  list_t *l;
+  
+  l = setup4();
+  teardown(l);
 END_TEST
 
 START_TEST(test_list_tail_insert)
-  listiterator_t *iter = li_create(test_list);
+  list_t *l;
+  listiterator_t *iter;
+  
+  l = setup4();
+  iter = li_create(l);
   li_tail(iter);
   li_insert(iter, test_create("test2.xx"));
-  ck_assert_int_eq(list_size(test_list), 3);
+  ck_assert_int_eq(list_size(l), 4);
+  teardown(l);
 END_TEST
 
 START_TEST(test_list_last_insert)
-  listiterator_t *iter = li_create(test_list);
-  li_tail(iter);
-  li_prev(iter);
-  li_insert(iter, test_create("test2.1"));
-  ck_assert_int_eq(list_size(test_list), 4);
-test_print_list(test_list, "==-=-=-=-=-=-=-=-=-==");
+  list_t *l;
+  
+  l = setup5();
+  teardown(l);
 END_TEST
 
-void test_list_del_second(list_t *list) {
-  listiterator_t *iter = li_create(list);
+START_TEST(test_list_del_second)
+  list_t *l;
+  listiterator_t *iter;
+  
+  l = setup5();
+  iter = li_create(l);
   li_next(iter);
   li_next(iter);
   li_remove(iter);
-  test_print_list(list, "After list_del_second");
-}
+  ck_assert_int_eq(list_size(l), 4);
+  teardown(l);
+END_TEST
 
-void test_list_del_first(list_t *list) {
-  listiterator_t *iter = li_create(list);
+START_TEST(test_list_del_first)
+  list_t *l;
+  listiterator_t *iter;
+  
+  l = setup5();
+  iter = li_create(l);
   li_next(iter);
   li_remove(iter);
-  test_print_list(list, "After list_del_first");
-}
+  ck_assert_int_eq(list_size(l), 4);
+  teardown(l);
+END_TEST
 
-void test_list_del_last(list_t *list) {
-  listiterator_t *iter = li_create(list);
+START_TEST(test_list_del_last)
+  list_t *l;
+  listiterator_t *iter;
+  
+  l = setup5();
+  iter = li_create(l);
   li_tail(iter);
   li_prev(iter);
   li_remove(iter);
-  test_print_list(list, "After list_del_last");
-}
+  ck_assert_int_eq(list_size(l), 4);
+  teardown(l);
+END_TEST
 
-void test_list_del_tail(list_t *list) {
-  listiterator_t *iter = li_create(list);
+START_TEST(test_list_del_tail)
+  list_t *l;
+  listiterator_t *iter;
+  
+  l = setup5();
+  iter = li_create(l);
   li_tail(iter);
   li_remove(iter);
-  test_print_list(list, "After list_del_tail");
-}
+  ck_assert_int_eq(list_size(l), 5);
+  teardown(l);
+END_TEST
 
-void test_list_del_head(list_t *list) {
-  listiterator_t *iter = li_create(list);
+START_TEST(test_list_del_head)
+  list_t *l;
+  listiterator_t *iter;
+  
+  l = setup5();
+  iter = li_create(l);
   li_head(iter);
   li_remove(iter);
-  test_print_list(list, "After list_del_head");
-}
+  ck_assert_int_eq(list_size(l), 5);
+  teardown(l);
+END_TEST
 
-void test_list_clear(list_t *list) {
-  list_clear(list, NULL);
-  test_print_list(list, "After list_clear");
-}
-
-void test_list_clear_free(list_t *list) {
-  list_append(list, strdup("strdupped"));
-  test_print_list(list, "After append(strdupped)");
-  list_clear(list, free);
-  test_print_list(list, "After list_clear(free)");
-}
+START_TEST(test_list_clear)
+  list_t *l;
+  
+  l = setup5();
+  list_clear(l, (visit_t) test_free);
+  ck_assert_int_eq(list_size(l), 0);
+  teardown(l);
+END_TEST
 
 void test_list_visitor(void *data) {
-  printf("%s = %d\n", (char *) data, strlen((char *) data));
+  test_t *t = (test_t *) data;
+  t -> flag = 1;
 }
 
-test_list_visit(list_t *list) {
-  list_visit(list, test_list_visitor);
-}
+START_TEST(test_list_visit)
+  list_t *l;
+  listiterator_t *iter;
+  
+  l = setup5();
+  list_visit(l, test_list_visitor);
+  iter = li_create(l);
+  while (li_has_next(iter)) {
+    test_t *test = (test_t *) li_next(iter);
+    ck_assert_int_eq(test -> flag, 1);
+  }
+  teardown(l);
+END_TEST
 
 void * test_list_reducer(void *data, void *curr) {
   long count = (long) curr;
-  count += strlen((char *) data);
+  test_t *t = (test_t *) data;
+  
+  count += t -> flag;
   return (void *) count;
 }
 
-test_list_reduce(list_t *list) {
-  long count = (long) list_reduce(list, test_list_reducer, (void *) 0L);
-  printf("list_reduce counted %d characters\n", count);
-}
+START_TEST(test_list_reduce)
+  list_t *l;
+  
+  l = setup5();
+  list_visit(l, test_list_visitor);
+  long count = (long) list_reduce(l, test_list_reducer, (void *) 0L);
+  ck_assert_int_eq(count, 5);
+  teardown(l);
+END_TEST
 
-Suite * list_suite(void) {
-  Suite *s;
-  TCase *tc_create;
-  TCase *tc_manip;
-  
-  s = suite_create("List");
-  
-  /* Core test case */
-  tc_create = tcase_create("Create");
-  
-  tcase_add_test(tc_create, test_list_create);
-  suite_add_tcase(s, tc_create);
-  
-  /* Manipulate test case */
-  tc_manip = tcase_create("Manipulate");
- 
-  tcase_add_checked_fixture(tc_manip, setup, teardown);
-  tcase_add_test(tc_manip, test_list_append);
-  tcase_add_test(tc_manip, test_list_prepend);
-  tcase_add_test(tc_manip, test_list_insert);
-  tcase_add_test(tc_manip, test_list_tail_insert);
-  tcase_add_test(tc_manip, test_list_last_insert);
-  /* test_list_visit(list); */
-  /* test_list_reduce(list); */
-  /* test_list_del_second(list); */
-  /* test_list_del_first(list); */
-  /* test_list_del_last(list); */
-  /* test_list_del_tail(list); */
-  /* test_list_del_head(list); */
-  /* test_list_clear(list); */
-  suite_add_tcase(s, tc_manip);
-  return s;
-}
+TCase * tc_list(void) {
+  TCase *tc;
+  tc = tcase_create("List");
 
-int main(void) {
-  int number_failed;
-  Suite *s;
-  SRunner *sr;
- 
-  s = list_suite();
-  sr = srunner_create(s);
- 
-  printf("xx\n");
-  srunner_run_all(sr, CK_NORMAL);
-  printf("yy\n");
-  number_failed = srunner_ntests_failed(sr);
-  srunner_free(sr);
-  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+  /* tcase_add_checked_fixture(tc_core, setup, teardown); */
+  tcase_add_test(tc, test_list_create);
+  tcase_add_test(tc, test_list_append);
+  tcase_add_test(tc, test_list_prepend);
+  tcase_add_test(tc, test_list_insert);
+  tcase_add_test(tc, test_list_tail_insert);
+  tcase_add_test(tc, test_list_last_insert);
+  tcase_add_test(tc, test_list_del_second);
+  tcase_add_test(tc, test_list_del_first);
+  tcase_add_test(tc, test_list_del_last);
+  tcase_add_test(tc, test_list_del_tail);
+  tcase_add_test(tc, test_list_del_head);
+  tcase_add_test(tc, test_list_clear);
+  tcase_add_test(tc, test_list_visit);
+  tcase_add_test(tc, test_list_reduce);
+
+  return tc;
 }
+ 
