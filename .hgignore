@@ -15,12 +15,12 @@ db/.*
 stamp-h1
 libtool
 m4/.*
-config.*
-autom4te.cache/.*
-.*Makefile.in
-.*Makefile
+config
+autom4te.cache
+Makefile.in
+Makefile
 aclocal.m4
 .kdev4*
-(.?/)*([^.]+)$
+(.?/)?([^.]+)$
 
 
