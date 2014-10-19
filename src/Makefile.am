@@ -19,7 +19,8 @@
 lib_LTLIBRARIES = libobelix.la
 libobelix_la_SOURCES = core.c core.h \
 list.c list.h \
-array.c array.h
+array.c array.h \
+dict.c dict.h
 
 bin_PROGRAMS = obelix
 obelix_SOURCES = obelix.c

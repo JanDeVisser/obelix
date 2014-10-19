@@ -270,6 +270,22 @@ START_TEST(test_list_reduce)
   teardown(l);
 END_TEST
 
+START_TEST(test_list_replace)
+  list_t *l;
+  listiterator_t *iter;
+  
+  l = setup5();
+  iter = li_create(l);
+  while (li_has_next(iter)) {
+    test_t *test = test_create("test--");
+    test -> flag = 2;
+    li_replace(iter, test);
+  }
+  long count = (long) list_reduce(l, test_list_reducer, (void *) 0L);
+  ck_assert_int_eq(count, 10);
+  teardown(l);
+END_TEST
+
 char * get_suite_name() {
   return "List";
 }
@@ -296,6 +312,7 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_list_clear);
   tcase_add_test(tc, test_list_visit);
   tcase_add_test(tc, test_list_reduce);
+  tcase_add_test(tc, test_list_replace);
   return tc;
 }
  

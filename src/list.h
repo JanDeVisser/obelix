@@ -52,6 +52,7 @@ extern void             li_free(listiterator_t *);
 extern void             li_head(listiterator_t *);
 extern void             li_tail(listiterator_t *);
 extern void *           li_current(listiterator_t *);
+extern void             li_replace(listiterator_t *, void *);
 extern int              li_insert(listiterator_t *, void *);
 extern void *           li_remove(listiterator_t *);
 extern int              li_has_next(listiterator_t *);

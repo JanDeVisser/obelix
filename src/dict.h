@@ -23,20 +23,30 @@
 #include "list.h"
 #include "array.h"
 
-typedef struct _entry {
-  void *key;
-  void *value;
-} entry_t;
-
 typedef struct _dict {
-  cmp_t    comp;
+  cmp_t    cmp;
+  hash_t   hash;
+  visit_t  free_key;
+  visit_t  free_data;
   array_t *buckets;
+  int      num_buckets;
   int      size;
+  float    loadfactor;
 } dict_t;
 
+typedef struct _entry {
+  dict_t *dict;
+  void   *key;
+  void   *value;
+  int     hash;
+} entry_t;
+
 extern dict_t * dict_create(cmp_t); /* No hash - Use key point mod something */
-extern void     dict_free(dict_t *, visit_t);
-extern void     dict_clear(dict_t *, visit_t);
+extern void     dict_set_hash(dict_t *, hash_t);
+extern void     dict_set_free_key(dict_t *, visit_t);
+extern void     dict_set_free_data(dict_t *, visit_t);
+extern void     dict_free(dict_t *);
+extern void     dict_clear(dict_t *);
 extern int      dict_put(dict_t *, void *, void *);
 extern void *   dict_get(dict_t *, void *);
 extern void *   dict_remove(dict_t *, void *);

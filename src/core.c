@@ -19,8 +19,10 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
-#include <core.h>
+#include "core.h"
 
 void * new(int sz) {
   void * ret = malloc(sz);
@@ -63,3 +65,15 @@ int hash(void *buf, int size) {
   return hash;
 }
 
+void debug(char *msg, ...) {
+  va_list args;
+
+  va_start(args, msg);
+  vfprintf(stderr, msg, args);
+  fprintf(stderr, "\n");
+  va_end(args);
+}
+
+int strhash(char *str) {
+  return hash(str, strlen(str));
+}

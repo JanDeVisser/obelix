@@ -20,6 +20,8 @@
 #ifndef __CORE_H__
 #define __CORE_H__
 
+#include <stdarg.h>
+
 #define TRUE   1
 #define FALSE  0
 #define NEW(t) ( (t *) new( sizeof(t) ) )
@@ -36,5 +38,8 @@ extern void * resize_block(void *, int);
 extern void * resize_ptrarray(void *, int);
 
 extern int    hash(void *, int);
+extern void   debug(char *, ...);
+
+extern int    strhash(char *);
 
 #endif /* __CORE_H__ */

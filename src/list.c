@@ -161,6 +161,12 @@ void * li_current(listiterator_t *iter) {
     : NULL;
 }
 
+void li_replace(listiterator_t *iter, void *data) {
+  if (_ln_datanode(iter -> current)) {
+    iter -> current -> data = data;
+  }
+}
+
 int li_has_next(listiterator_t *iter) {
   return iter -> current -> next &&
     _ln_datanode(iter -> current -> next);

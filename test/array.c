@@ -1,5 +1,5 @@
 /*
- * list.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
+ * array.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
  * 
  * This file is part of Obelix.
  *
