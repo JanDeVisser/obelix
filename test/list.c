@@ -275,8 +275,8 @@ START_TEST(test_list_replace)
   listiterator_t *iter;
   
   l = setup5();
-  iter = li_create(l);
-  while (li_has_next(iter)) {
+  for(iter = li_create(l); li_has_next(iter); ) {
+    li_next(iter);
     test_t *test = test_create("test--");
     test -> flag = 2;
     li_replace(iter, test);

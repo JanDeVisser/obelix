@@ -23,7 +23,6 @@
 #include "core.h"
 #include "dict.h"
 
-
 static entry_t * _entry_create(dict_t *, void *, void  *);
 static void      _entry_free(entry_t *);
 static int       _entry_hash(entry_t *);
@@ -32,6 +31,7 @@ static void      _dict_clear_bucket(list_t *);
 static void      _dict_free_bucket(list_t *);
 static int       _dict_rehash(dict_t *);
 static int       _dict_add_to_bucket(array_t *, entry_t *);
+static void      _dict_find_in_bucket(array_t *, void *);
 
 // ---------------------------
 // entry_t static functions
@@ -154,6 +154,9 @@ int _dict_add_to_bucket(array_t *buckets, entry_t *entry) {
   return ok;
 }
 
+void _dict_find_in_bucket(array_t *buckets, void *key) {
+}
+
 // ---------------------------
 // dict_t
 
@@ -242,4 +245,11 @@ int dict_put(dict_t *dict, void *key, void *data) {
   _dict_add_to_bucket(dict -> buckets, entry);
   dict -> size++;
   return TRUE;
+}
+
+void dict_get(dict_t *dict, void *key) {
+  void *ret;
+  
+  ret = _dict_find_in_bucket(dict -> buckets, key);
+  return ret;
 }
