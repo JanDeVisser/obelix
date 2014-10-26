@@ -35,10 +35,8 @@ typedef struct _dict {
 } dict_t;
 
 typedef struct _entry {
-  dict_t *dict;
-  void   *key;
-  void   *value;
-  int     hash;
+  void         *key;
+  void         *value;
 } entry_t;
 
 extern dict_t * dict_create(cmp_t); /* No hash - Use key point mod something */
@@ -57,5 +55,7 @@ extern list_t * dict_items(dict_t *);
 extern int      dict_has_key(dict_t *, void *);
 extern void *   dict_reduce(dict_t *, reduce_t, void *);
 extern void     dict_visit(dict_t *, visit_t);
+
+extern void     dict_dump(dict_t *);
 
 #endif /* __DICT_H__ */

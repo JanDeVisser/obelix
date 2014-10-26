@@ -52,7 +52,7 @@ void * resize_ptrarray(void *array, int newsz) {
   return resize_block(array, newsz * sizeof(void *));
 }
 
-int hash(void *buf, int size) {
+unsigned int hash(void *buf, size_t size) {
   int hash = 5381;
   int i;
   int c;
@@ -74,6 +74,31 @@ void debug(char *msg, ...) {
   va_end(args);
 }
 
-int strhash(char *str) {
+unsigned int strhash(char *str) {
   return hash(str, strlen(str));
+}
+
+static int rand_initialized = 0;
+static char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK...";
+static int my_seed = 3425674;
+
+static void initialize_random(void) {
+  if (!rand_initialized++) {
+    srand(time(NULL) + my_seed);
+  }
+}
+
+char * strrand(char *buf, size_t numchars) {
+  size_t n;
+  int key;
+  
+  initialize_random();
+  if (numchars) {
+    for (n = 0; n < numchars; n++) {
+      key = rand() % (int) (sizeof charset - 1);
+      buf[n] = charset[key];
+    }
+    buf[numchars] = '\0';
+  }
+  return buf;
 }

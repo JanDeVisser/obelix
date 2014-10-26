@@ -22,8 +22,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../src/list.h"
-#include "../src/array.h"
+#include "../src/core.h"
 #include "collections.h"
 
 test_t * test_create(char *data) {
@@ -49,13 +48,13 @@ int main(void){
   int ix;
 
   s = suite_create(get_suite_name());
-  for (ix = 0; 1; ix++) {
-	  tc = get_testcase(ix);
-	  if (tc) {
-		  suite_add_tcase(s, tc);
-	  } else {
-		  break;
-	  }
+  for (ix = 0; TRUE; ix++) {
+    tc = get_testcase(ix);
+    if (tc) {
+      suite_add_tcase(s, tc);
+    } else {
+      break;
+    }
   }
   sr = srunner_create(s);
 

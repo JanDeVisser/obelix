@@ -37,9 +37,10 @@ extern void * new_ptrarray(int);
 extern void * resize_block(void *, int);
 extern void * resize_ptrarray(void *, int);
 
-extern int    hash(void *, int);
-extern void   debug(char *, ...);
+extern unsigned int hash(void *, size_t);
+extern void         debug(char *, ...);
 
-extern int    strhash(char *);
+extern char *       strrand(char *, size_t);
+extern unsigned int strhash(char *);
 
 #endif /* __CORE_H__ */

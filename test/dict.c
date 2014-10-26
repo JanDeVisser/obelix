@@ -50,6 +50,70 @@ START_TEST(test_dict_put_one)
 END_TEST
 
 
+START_TEST(test_dict_put_one_get_one)
+  dict_t *dict;
+  void *d;
+  
+  dict = dict_create((cmp_t) strcmp);
+  ck_assert_ptr_ne(dict, NULL);
+  ck_assert_int_eq(dict_size(dict), 0);
+  dict_set_hash(dict, (hash_t) strhash);
+  dict_set_free_key(dict, (visit_t) free);
+  dict_set_free_data(dict, (visit_t) free);
+  dict_put(dict, strdup("key1"), strdup("data1"));
+  ck_assert_int_eq(dict_size(dict), 1);
+  d = dict_get(dict, "key1");
+  ck_assert_ptr_ne(d, NULL);
+  ck_assert_str_eq(d, "data1");
+  dict_free(dict);
+END_TEST
+
+START_TEST(test_dict_put_many)
+  dict_t *dict;
+  int ix;
+  char valbuf[10];
+  char **keys;
+  char *valptr;
+
+  mark_point();
+  dict = dict_create((cmp_t) strcmp);
+  ck_assert_ptr_ne(dict, NULL);
+  ck_assert_int_eq(dict_size(dict), 0);
+  dict_set_hash(dict, (hash_t) strhash);
+  dict_set_free_key(dict, (visit_t) free);
+  dict_set_free_data(dict, (visit_t) free);
+  keys = (char **) resize_ptrarray(NULL, 500);
+  mark_point();
+  for (ix = 0; ix < 500; ix++) {
+    mark_point();
+    keys[ix] = malloc(11);
+    mark_point();
+    strrand(keys[ix], 10);
+    mark_point();
+    sprintf(valbuf, "%d", ix);
+    mark_point();
+    ck_assert_int_ne(dict_put(dict, strdup(keys[ix]), strdup(valbuf)), FALSE);
+    mark_point();
+    ck_assert_int_eq(dict_size(dict), ix + 1);
+  }
+  
+  /* dict_dump(dict); */
+  
+  for (ix = 0; ix < 500; ix++) {
+    mark_point();
+    debug("ix: %d key: %s", ix, keys[ix]);
+    mark_point();
+    valptr = dict_get(dict, keys[ix]);
+    debug("valptr: %s", valptr);
+    mark_point();
+    ck_assert_int_eq(atoi(valptr), ix);
+    free(keys[ix]);
+  }
+  
+  mark_point();
+  dict_free(dict);
+END_TEST
+
 char * get_suite_name() {
   return "Dict";
 }
@@ -62,5 +126,7 @@ TCase * get_testcase(int ix) {
 
   tcase_add_test(tc, test_dict_create);
   tcase_add_test(tc, test_dict_put_one);
+  tcase_add_test(tc, test_dict_put_one_get_one);
+  tcase_add_test(tc, test_dict_put_many);
   return tc;
 }
