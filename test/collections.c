@@ -26,7 +26,9 @@
 #include "collections.h"
 
 test_t * test_create(char *data) {
-  test_t *ret = NEW(test_t);
+  test_t *ret;
+
+  ret = NEW(test_t);
   if (ret) {
     ret -> data = (data) ? strdup(data) : NULL;
   }

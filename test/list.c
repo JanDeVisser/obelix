@@ -36,6 +36,7 @@ list_t * setup(void) {
   ret = list_create();
   ck_assert_ptr_ne(ret, NULL);
   ck_assert_int_eq(list_size(ret), 0);
+  list_set_free(ret, (visit_t) test_free);
   return ret;
 }
 
@@ -87,7 +88,7 @@ list_t * setup5(void) {
 }
 
 void teardown(list_t *list) {
-  list_free(list, (visit_t) test_free);
+  list_free(list);
 }
 
 void test_print_list(list_t *list, char *header) {
@@ -228,7 +229,7 @@ START_TEST(test_list_clear)
   list_t *l;
   
   l = setup5();
-  list_clear(l, (visit_t) test_free);
+  list_clear(l);
   ck_assert_int_eq(list_size(l), 0);
   teardown(l);
 END_TEST

@@ -25,6 +25,50 @@
 #include "../src/dict.h"
 #include "collections.h"
 
+#define MANY 500
+
+typedef struct _test_dict {
+  dict_t *dict;
+  char **keys;
+  int size;
+} test_dict_t;
+
+test_dict_t * fill_many() {
+  test_t *test;
+  test_dict_t *ret;
+  dict_t *dict;
+  int ix;
+  char valbuf[10];
+  char **keys;
+
+  mark_point();
+  dict = dict_create((cmp_t) strcmp);
+  ck_assert_ptr_ne(dict, NULL);
+  ck_assert_int_eq(dict_size(dict), 0);
+  dict_set_hash(dict, (hash_t) strhash);
+  dict_set_free_key(dict, (visit_t) free);
+  dict_set_free_data(dict, (visit_t) test_free);
+  keys = (char **) resize_ptrarray(NULL, MANY);
+  ck_assert_ptr_ne(keys, NULL);
+  mark_point();
+  for (ix = 0; ix < MANY; ix++) {
+    keys[ix] = malloc(11);
+    strrand(keys[ix], 10);
+    sprintf(valbuf, "%d", ix);
+    test = test_create(valbuf);
+    ck_assert_ptr_ne(test, NULL);
+    ck_assert_int_ne(dict_put(dict, strdup(keys[ix]), test), FALSE);
+    ck_assert_int_eq(dict_size(dict), ix + 1);
+  }
+  ret = NEW(test_dict_t);
+  ck_assert_ptr_ne(ret, NULL);
+  ret -> dict = dict;
+  ret -> keys = keys;
+  ret -> size = MANY;
+  return ret;
+}
+
+
 START_TEST(test_dict_create)
   dict_t *dict;
   
@@ -69,49 +113,105 @@ START_TEST(test_dict_put_one_get_one)
 END_TEST
 
 START_TEST(test_dict_put_many)
+  test_dict_t *td;
+  test_t *test;
   dict_t *dict;
   int ix;
-  char valbuf[10];
   char **keys;
-  char *valptr;
 
-  mark_point();
-  dict = dict_create((cmp_t) strcmp);
-  ck_assert_ptr_ne(dict, NULL);
-  ck_assert_int_eq(dict_size(dict), 0);
-  dict_set_hash(dict, (hash_t) strhash);
-  dict_set_free_key(dict, (visit_t) free);
-  dict_set_free_data(dict, (visit_t) free);
-  keys = (char **) resize_ptrarray(NULL, 500);
-  mark_point();
-  for (ix = 0; ix < 500; ix++) {
-    mark_point();
-    keys[ix] = malloc(11);
-    mark_point();
-    strrand(keys[ix], 10);
-    mark_point();
-    sprintf(valbuf, "%d", ix);
-    mark_point();
-    ck_assert_int_ne(dict_put(dict, strdup(keys[ix]), strdup(valbuf)), FALSE);
-    mark_point();
-    ck_assert_int_eq(dict_size(dict), ix + 1);
-  }
-  
+  td = fill_many();
+  dict = td -> dict;
+  keys = td -> keys;
   /* dict_dump(dict); */
   
-  for (ix = 0; ix < 500; ix++) {
+  for (ix = 0; ix < td -> size; ix++) {
     mark_point();
-    debug("ix: %d key: %s", ix, keys[ix]);
-    mark_point();
-    valptr = dict_get(dict, keys[ix]);
-    debug("valptr: %s", valptr);
-    mark_point();
-    ck_assert_int_eq(atoi(valptr), ix);
+    test = (test_t *) dict_get(dict, keys[ix]);
+    ck_assert_ptr_ne(test, NULL);
+    ck_assert_int_eq(atoi((char *) test -> data), ix);
     free(keys[ix]);
   }
   
   mark_point();
   dict_free(dict);
+  free(keys);
+  free(td);
+END_TEST
+
+START_TEST(test_dict_clear)
+  test_dict_t *td;
+  test_t *test;
+  dict_t *dict;
+  int ix;
+  char **keys;
+
+  td = fill_many();
+  dict = td -> dict;
+  keys = td -> keys;
+
+  dict_clear(dict);
+  ck_assert_int_eq(dict_size(dict), 0);
+  dict_dump(dict);
+  
+  mark_point();
+  dict_free(dict);
+  free(keys);
+  free(td);
+END_TEST
+
+START_TEST(test_dict_has_key)
+  test_dict_t *td;
+  dict_t *dict;
+  int ix;
+  char **keys;
+  char keybuf[21];
+  int success;
+
+  td = fill_many();
+  dict = td -> dict;
+  keys = td -> keys;
+
+  for (ix = 0; ix < td -> size; ix++) {
+    mark_point();
+    success = dict_has_key(dict, keys[ix]);
+    ck_assert_int_eq(success, TRUE);
+    sprintf(keybuf, "%s%s", keys[ix], keys[ix]);
+    success = dict_has_key(dict, keybuf);
+    ck_assert_int_eq(success, FALSE);
+    free(keys[ix]);
+  }
+  
+  mark_point();
+  dict_free(dict);
+  free(keys);
+  free(td);
+END_TEST
+
+START_TEST(test_dict_remove)
+  test_dict_t *td;
+  dict_t *dict;
+  int ix;
+  char **keys;
+  int success;
+
+  td = fill_many();
+  dict = td -> dict;
+  keys = td -> keys;
+
+  for (ix = 0; ix < td -> size; ix++) {
+    mark_point();
+    success = dict_remove(dict, keys[ix]);
+    ck_assert_int_eq(success, TRUE);
+    ck_assert_int_eq(dict_size(dict), td -> size - ix - 1);
+    success = dict_remove(dict, keys[ix]);
+    ck_assert_int_eq(success, FALSE);
+    free(keys[ix]);
+  }
+  
+  mark_point();
+  dict_free(dict);
+  free(keys);
+  free(td);
 END_TEST
 
 char * get_suite_name() {
@@ -128,5 +228,8 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_dict_put_one);
   tcase_add_test(tc, test_dict_put_one_get_one);
   tcase_add_test(tc, test_dict_put_many);
+  tcase_add_test(tc, test_dict_clear);
+  tcase_add_test(tc, test_dict_has_key);
+  tcase_add_test(tc, test_dict_remove);
   return tc;
 }

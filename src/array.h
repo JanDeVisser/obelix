@@ -29,13 +29,16 @@ typedef struct _array {
 } array_t;
 
 extern array_t * array_create(int);
-extern void      array_free(array_t *, visit_t);
-extern void      array_clear(array_t *, visit_t);
+extern array_t * array_set_free(array_t *, visit_t);
+extern array_t * array_set_cmp(array_t *, cmp_t);
+extern void      array_free(array_t *);
+extern array_t * array_clear(array_t *);
 extern int       array_size(array_t *);
 extern int       array_capacity(array_t *);
 extern int       array_set(array_t *, int, void *);
 extern void *    array_get(array_t *, int);
 extern void *    array_reduce(array_t *, reduce_t, void *);
-extern void      array_visit(array_t *, visit_t);
+extern array_t * array_visit(array_t *, visit_t);
+extern array_t * array_add_all(array_t *, array_t *);
 
 #endif /* __ARRAY_H__ */

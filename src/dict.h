@@ -40,21 +40,24 @@ typedef struct _entry {
 } entry_t;
 
 extern dict_t * dict_create(cmp_t); /* No hash - Use key point mod something */
-extern void     dict_set_hash(dict_t *, hash_t);
-extern void     dict_set_free_key(dict_t *, visit_t);
-extern void     dict_set_free_data(dict_t *, visit_t);
+extern dict_t * dict_set_hash(dict_t *, hash_t);
+extern dict_t * dict_set_free_key(dict_t *, visit_t);
+extern dict_t * dict_set_free_data(dict_t *, visit_t);
 extern void     dict_free(dict_t *);
-extern void     dict_clear(dict_t *);
+extern dict_t * dict_clear(dict_t *);
 extern int      dict_put(dict_t *, void *, void *);
+extern int      dict_has_key(dict_t *, void *);
 extern void *   dict_get(dict_t *, void *);
-extern void *   dict_remove(dict_t *, void *);
+extern int      dict_remove(dict_t *, void *);
 extern int      dict_size(dict_t *);
 extern list_t * dict_keys(dict_t *);
 extern list_t * dict_values(dict_t *);
 extern list_t * dict_items(dict_t *);
 extern int      dict_has_key(dict_t *, void *);
 extern void *   dict_reduce(dict_t *, reduce_t, void *);
-extern void     dict_visit(dict_t *, visit_t);
+extern void *   _dict_reduce_entries(dict_t *, reduce_t, void *);
+extern dict_t * dict_visit(dict_t *, visit_t);
+extern dict_t * dict_put_all(dict_t *, dict_t *);
 
 extern void     dict_dump(dict_t *);
 

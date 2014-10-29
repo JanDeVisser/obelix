@@ -32,15 +32,20 @@ typedef struct _list {
   listnode_t *head;
   listnode_t *tail;
   int         size;
+  visit_t     freefnc;
+  cmp_t       cmp;
 } list_t;
 
 extern list_t * list_create();
-extern void     list_free(list_t *, visit_t);
+extern list_t * list_set_free(list_t *, visit_t);
+extern list_t * list_set_cmp(list_t *, cmp_t);
+extern void     list_free(list_t *);
 extern int      list_append(list_t *, void *);
+extern list_t * list_add_all(list_t *, list_t *);
 extern int      list_size(list_t *);
 extern void *   list_reduce(list_t *, reduce_t, void *);
-extern void     list_visit(list_t *, visit_t);
-extern void     list_clear(list_t *, visit_t);
+extern list_t * list_visit(list_t *, visit_t);
+extern list_t * list_clear(list_t *);
 
 typedef struct _listiter {
   list_t     *list;
@@ -54,7 +59,7 @@ extern void             li_tail(listiterator_t *);
 extern void *           li_current(listiterator_t *);
 extern void             li_replace(listiterator_t *, void *);
 extern int              li_insert(listiterator_t *, void *);
-extern void *           li_remove(listiterator_t *);
+extern void             li_remove(listiterator_t *);
 extern int              li_has_next(listiterator_t *);
 extern int              li_has_prev(listiterator_t *);
 extern void *           li_next(listiterator_t *);

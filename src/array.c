@@ -27,7 +27,8 @@
 
 #define ARRAY_DEF_CAPACITY    8
 
-static int _array_resize(array_t *, int);
+static int       _array_resize(array_t *, int);
+static array_t * _array_add_all_reducer(void *, array_t *);
 
 // ---------------------------
 // array_t static functions
@@ -54,6 +55,11 @@ int _array_resize(array_t *array, int mincap) {
   return newindex != NULL;
 }
 
+array_t * _array_add_all_reducer(void *data, array_t *array) {
+  array_set(array, -1, data);
+  return array;
+}
+
 // ---------------------------
 // array_t
 
@@ -70,7 +76,7 @@ array_t * array_create(int capacity) {
       if (_array_resize(a, capacity)) {
         ret = a;
       } else {
-        list_free(a -> list, NULL);
+        list_free(a -> list);
       }
     }
     if (!ret) {
@@ -78,6 +84,16 @@ array_t * array_create(int capacity) {
     }
   }
   return ret;
+}
+
+array_t * array_set_free(array_t *array, visit_t freefnc) {
+  list_set_free(array -> list, freefnc);
+  return array;
+}
+
+array_t * array_set_cmp(array_t *array, cmp_t cmp) {
+  list_set_cmp(array -> list, cmp);
+  return array;
 }
 
 int array_size(array_t *array) {
@@ -88,15 +104,16 @@ int array_capacity(array_t *array) {
   return array -> capacity;
 }
 
-void array_free(array_t *array, visit_t freefnc) {
-  list_free(array -> list, freefnc);
+void array_free(array_t *array) {
+  list_free(array -> list);
   free(array -> index);  
   free(array);
 }
 
-void array_clear(array_t *array, visit_t freefnc) {
-  list_clear(array -> list, freefnc);
+array_t * array_clear(array_t *array) {
+  list_clear(array -> list);
   memset(array -> index, 0, array -> capacity * sizeof(listnode_t *));
+  return array;
 }
 
 int array_set(array_t *array, int ix, void *data) {
@@ -128,10 +145,15 @@ void * array_get(array_t *array, int ix) {
   return array -> index[ix] -> data;
 }
 
-void array_visit(array_t *array, visit_t visitor) {
+array_t * array_visit(array_t *array, visit_t visitor) {
   list_visit(array -> list, visitor);
+  return array;
 }
 
 void * array_reduce(array_t *array, reduce_t reducer, void *data) {
   return list_reduce(array -> list, reducer, data);
+}
+
+array_t * array_add_all(array_t *array, array_t *other) {
+  return list_reduce(other -> list, (reduce_t) _array_add_all_reducer, array);
 }

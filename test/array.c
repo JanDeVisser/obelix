@@ -32,7 +32,7 @@ START_TEST(test_array_create)
   ck_assert_ptr_ne(array, NULL);
   ck_assert_int_eq(array_size(array), 0);
   ck_assert_int_eq(array_capacity(array), 4);
-  array_free(array, NULL);
+  array_free(array);
 END_TEST
 
 
@@ -42,7 +42,8 @@ START_TEST(test_array_set)
   array = array_create(4);
   ck_assert_int_ne(array_set(array, 0, test_create("test1")), FALSE);
   ck_assert_int_eq(array_size(array), 1);
-  array_free(array, (visit_t) test_free);
+  array_set_free(array, (visit_t) test_free);
+  array_free(array);
 END_TEST
 
 
@@ -52,7 +53,8 @@ START_TEST(test_array_set_append)
   array = array_create(4);
   ck_assert_int_ne(array_set(array, -1, test_create("test2")), FALSE);
   ck_assert_int_eq(array_size(array), 1);
-  array_free(array, (visit_t) test_free);
+  array_set_free(array, (visit_t) test_free);
+  array_free(array);
 END_TEST
 
 
@@ -65,7 +67,8 @@ START_TEST(test_array_get)
   t = (test_t *) array_get(array, 0);
   ck_assert_ptr_ne(t, NULL);
   ck_assert_str_eq(t -> data, "test1");
-  array_free(array, (visit_t) test_free);
+  array_set_free(array, (visit_t) test_free);
+  array_free(array);
 END_TEST
 
 
@@ -73,11 +76,12 @@ START_TEST(test_array_get_error)
   array_t *array;
 
   array = array_create(4);
+  array_set_free(array, (visit_t) test_free);
   ck_assert_int_ne(array_set(array, 0, test_create("test1")), FALSE);
   test_t *t = (test_t *) array_get(array, 1);
   ck_assert_ptr_eq(t, NULL);
   ck_assert_int_eq(errno, EFAULT);
-  array_free(array, (visit_t) test_free);
+  array_free(array);
 END_TEST
 
 
@@ -86,6 +90,7 @@ START_TEST(test_array_set_extend)
   test_t *t;
 
   array = array_create(4);
+  array_set_free(array, (visit_t) test_free);
   ck_assert_int_ne(array_set(array, 0, test_create("test1")), FALSE);
   ck_assert_int_ne(array_set(array, 9, test_create("test2")), FALSE);
   ck_assert_int_eq(array_size(array), 10);
@@ -97,7 +102,7 @@ START_TEST(test_array_set_extend)
 
   t = (test_t *) array_get(array, 5);
   ck_assert_ptr_eq(t, NULL);
-  array_free(array, (visit_t) test_free);
+  array_free(array);
 END_TEST
 
 
@@ -114,6 +119,7 @@ START_TEST(test_array_visit)
   char buf[10];
 
   array = array_create(4);
+  array_set_free(array, (visit_t) test_free);
   for (ix = 0; ix < 100; ix++) {
     sprintf(buf, "test%d", ix);
     ck_assert_int_ne(array_set(array, -1, test_create(buf)), FALSE);
@@ -123,7 +129,7 @@ START_TEST(test_array_visit)
     test = (test_t *) array_get(array, ix);
     ck_assert_int_eq(test -> flag, 1);
   }
-  array_free(array, (visit_t) test_free);
+  array_free(array);
 END_TEST
 
 
@@ -143,6 +149,7 @@ START_TEST(test_array_reduce)
   char buf[10];
 
   array = array_create(4);
+  array_set_free(array, (visit_t) test_free);
   for (ix = 0; ix < 100; ix++) {
     sprintf(buf, "test%d", ix);
     ck_assert_int_ne(array_set(array, -1, test_create(buf)), FALSE);
@@ -150,7 +157,7 @@ START_TEST(test_array_reduce)
   array_visit(array, test_array_visitor);
   long count = (long) array_reduce(array, test_array_reducer, (void *) 0L);
   ck_assert_int_eq(count, 100);
-  array_free(array, (visit_t) test_free);
+  array_free(array);
 END_TEST
 
 
@@ -162,12 +169,13 @@ START_TEST(test_array_clear)
   char buf[10];
 
   array = array_create(4);
+  array_set_free(array, (visit_t) test_free);
   for (ix = 0; ix < 100; ix++) {
     sprintf(buf, "test%d", ix);
     ck_assert_int_ne(array_set(array, -1, test_create(buf)), FALSE);
   }
   cap = array_capacity(array);
-  array_clear(array, (visit_t) test_free);
+  array_clear(array);
   ck_assert_int_eq(array_size(array), 0);
   ck_assert_int_eq(array_capacity(array), cap);
   for (ix = 0; ix < 100; ix++) {
@@ -180,7 +188,7 @@ START_TEST(test_array_clear)
     test = (test_t *) array_get(array, ix);
     ck_assert_str_eq(test -> data, buf);
   }
-  array_free(array, (visit_t) test_free);
+  array_free(array);
 END_TEST
 
 
@@ -205,6 +213,3 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_array_clear);
   return tc;
 }
- 
-
-

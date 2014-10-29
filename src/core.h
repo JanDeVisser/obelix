@@ -26,11 +26,20 @@
 #define FALSE  0
 #define NEW(t) ( (t *) new( sizeof(t) ) )
 
-typedef int    (*cmp_t)(void *, void *);
-typedef int    (*hash_t)(void *);
-typedef char * (*tostring_t)(void *);
-typedef void * (*reduce_t)(void *, void *);
-typedef void   (*visit_t)(void *);
+typedef int     (*cmp_t)(void *, void *);
+typedef int     (*hash_t)(void *);
+typedef char *  (*tostring_t)(void *);
+typedef void *  (*reduce_t)(void *, void *);
+typedef void *  (*obj_reduce_t)(void *, reduce_t, void *);
+typedef void    (*visit_t)(void *);
+typedef visit_t free_t;
+
+typedef struct _reduce_ctx {
+  void     *obj;
+  void     *data;
+  reduce_t reducer;
+  void     *user;
+} reduce_ctx;
 
 extern void * new(int);
 extern void * new_ptrarray(int);
@@ -42,5 +51,7 @@ extern void         debug(char *, ...);
 
 extern char *       strrand(char *, size_t);
 extern unsigned int strhash(char *);
+
+extern void *       _reduce(void *, obj_reduce_t, reduce_t, void *, void *);
 
 #endif /* __CORE_H__ */

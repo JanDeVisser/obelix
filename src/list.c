@@ -24,10 +24,13 @@
 #include "list.h"
 
 // -------------------
-// listnode_t
+// static declarations
 
 static listnode_t * _ln_create(void *);
 static int          _ln_datanode(listnode_t *);
+
+static list_t *     _list_add_all_reducer(void *, list_t *);
+static visit_t      _list_visitor(void *data, visit_t visitor);
 
 // ---------------------------
 // listnode_t static functions
@@ -65,8 +68,18 @@ list_t * list_create() {
   return ret;
 }
 
-void list_free(list_t *list, visit_t free_fnc) {
-  list_clear(list, free_fnc);
+list_t * list_set_free(list_t *list, visit_t freefnc) {
+  list -> freefnc = freefnc;
+  return list;
+}
+
+list_t * list_set_cmp(list_t *list, cmp_t cmp) {
+  list -> cmp = cmp;
+  return list;
+}
+
+void list_free(list_t *list) {
+  list_clear(list);
   free(list -> head);
   free(list -> tail);
   free(list);
@@ -88,6 +101,15 @@ int list_append(list_t *list, void *data) {
   return ret;
 }
 
+list_t * _list_add_all_reducer(void *data, list_t *list) {
+  list_append(list, data);
+  return list;
+}
+
+list_t * list_add_all(list_t *list, list_t *other) {
+  return list_reduce(other, (reduce_t) _list_add_all_reducer, list);
+}
+
 int list_size(list_t *list) {
   return list -> size;
 }
@@ -102,24 +124,25 @@ void * list_reduce(list_t *list, reduce_t reducer, void *data) {
   return data;
 }
 
-void list_visit(list_t *list, visit_t visitor) {
-  listiterator_t *iter = li_create(list);
-
-  while (li_has_next(iter)) {
-    visitor(li_next(iter));
-  }
-  li_free(iter);
+visit_t _list_visitor(void *data, visit_t visitor) {
+  visitor(data);
+  return visitor;
 }
 
-void list_clear(list_t *list, visit_t free_fnc) {
+list_t * list_visit(list_t *list, visit_t visitor) {
+  list_reduce(list, (reduce_t) _list_visitor, visitor);
+  return list;
+}
+
+list_t * list_clear(list_t *list) {
   listnode_t *node = list -> head -> next;
   listnode_t *next;
   void *data;
 
   while (_ln_datanode(node)) {
     next = node -> next;
-    if (free_fnc && node -> data) {
-      free_fnc(node -> data);
+    if (list -> freefnc && node -> data) {
+      list -> freefnc(node -> data);
     }
     free(node);
     node = next;
@@ -127,6 +150,7 @@ void list_clear(list_t *list, visit_t free_fnc) {
   list -> head -> next = list -> tail;
   list -> tail -> prev = list -> head;
   list -> size = 0;
+  return list;
 }
 
 // -------------------
@@ -220,19 +244,21 @@ int li_insert(listiterator_t *iter, void *data) {
   return ret;
 }
 
-void * li_remove(listiterator_t *iter) {
-  void *ret = NULL;
+void li_remove(listiterator_t *iter) {
+  void *data = NULL;
   listnode_t *node = NULL;
 
   if (_ln_datanode(iter -> current)) {
     node = iter -> current;
-    ret = node -> data;
+    data = node -> data;
+    if (iter -> list -> freefnc && data) {
+      iter -> list -> freefnc(data);
+    }
     node -> prev -> next = node -> next;
     node -> next -> prev = node -> prev;
     iter -> list -> size--;
     iter -> current = node -> next;
     free(node);
   }
-  return ret;
 }
 
