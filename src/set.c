@@ -22,8 +22,8 @@
 #include "core.h"
 #include "set.h"
 
-static void *       _set_reduce_reducer(entry_t *, reduce_ctx *);
-static visit_t      _set_visitor(void *data, visit_t visitor);
+static reduce_ctx * _set_reduce_reducer(entry_t *, reduce_ctx *);
+static reduce_ctx * _set_visitor(entry_t *, reduce_ctx *);
 static set_t *      _set_union_reducer(void *, set_t *);
 static reduce_ctx * _set_intersect_reducer(void *, reduce_ctx *);
 static set_t *      _set_remover(void *, set_t *);
@@ -32,14 +32,14 @@ static reduce_ctx * _set_minus_reducer(void *, reduce_ctx *);
 // --------------------
 // set_t static methods
 
-void * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
-  ctx -> data = ctx -> reducer(entry -> key, ctx -> data);
+reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
+  ctx -> data = ctx -> fnc.reducer(entry -> key, ctx -> data);
   return ctx;
 }
 
-visit_t _set_visitor(void *data, visit_t visitor) {
-  visitor(data);
-  return visitor;
+reduce_ctx * _set_visitor(entry_t *entry, reduce_ctx *ctx) {
+  ctx -> fnc.visitor(entry -> key);
+  return ctx;
 }
 
 set_t * _set_union_reducer(void *elem, set_t *set) {
@@ -134,14 +134,32 @@ int set_size(set_t *set) {
 }
 
 void * set_reduce(set_t *set, reduce_t reducer, void *data) {
-  return _reduce(set -> dict, (obj_reduce_t) dict_reduce, 
-		 (reduce_t) _set_reduce_reducer, 
-		 NULL, data);
+  reduce_ctx *ctx;
+  void *ret;
+  function_ptr_t fnc;
+
+  fnc.reducer = reducer;
+  ctx = reduce_ctx_create(NULL, data, fnc);
+  if (ctx) {
+    ret = dict_reduce(set -> dict, (reduce_t) _set_reduce_reducer, ctx);
+    free(ctx);
+    return ret;
+  }
+  return NULL;
 }
 
 set_t * set_visit(set_t *set, visit_t visitor) {
-  set_reduce(set, (reduce_t) _set_visitor, visitor);
-  return set;
+  reduce_ctx *ctx;
+  function_ptr_t fnc;
+
+  fnc.visitor = visitor;
+  ctx = reduce_ctx_create(NULL, NULL, fnc );
+  if (ctx) {
+    dict_reduce(set -> dict, (reduce_t) _set_visitor, ctx);
+    free(ctx);
+    return set;
+  }
+  return NULL;
 }
 
 set_t * set_clear(set_t *set) {
@@ -155,31 +173,37 @@ set_t * set_union(set_t *set, set_t *other) {
 
 set_t * set_intersect(set_t *set, set_t *other) {
   set_t *remove;
+  reduce_ctx *ctx;
 
   remove = set_create(set -> dict -> cmp);
   if (remove) {
-    remove = _reduce(set, (obj_reduce_t) set_reduce, 
-		     (reduce_t) _set_intersect_reducer, other, remove);
-    set_reduce(remove, (reduce_t) _set_remover, set);
-    set_free(remove);
-    return set;
-  } else {
-    return NULL;
+    ctx = reduce_ctx_create(other, remove, NOFUNCPTR);
+    if (ctx) {
+      remove = set_reduce(set, (reduce_t) _set_intersect_reducer, ctx);
+      free(ctx);
+      set_reduce(remove, (reduce_t) _set_remover, set);
+      set_free(remove);
+      return set;
+    }
   }
+  return NULL;
 }
 
 set_t * set_minus(set_t *set, set_t *other) {
   set_t *remove;
+  reduce_ctx *ctx;
 
   remove = set_create(set -> dict -> cmp);
   if (remove) {
-    remove = _reduce(set, (obj_reduce_t) set_reduce, 
-		     (reduce_t) _set_minus_reducer, other, remove);
-    set_reduce(remove, (reduce_t) _set_remover, set);
-    set_free(remove);
-    return set;
-  } else {
-    return NULL;
+    ctx = reduce_ctx_create(other, remove, NOFUNCPTR);
+    if (ctx) {
+      remove = set_reduce(set, (reduce_t) _set_minus_reducer, ctx);
+      free(ctx);
+      set_reduce(remove, (reduce_t) _set_remover, set);
+      set_free(remove);
+      return set;
+    }
   }
+  return NULL;
 }
 

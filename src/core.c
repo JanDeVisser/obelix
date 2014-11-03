@@ -103,22 +103,18 @@ char * strrand(char *buf, size_t numchars) {
   return buf;
 }
 
-void * _reduce(void *obj, obj_reduce_t reduce, reduce_t reducer, 
-	       void *user, void *data) {
+function_ptr_t no_func_ptr = { void_fnc: (void_t) NULL };
+function_t no_func = { type: Void, fnc: (void_t) NULL };
+
+reduce_ctx * reduce_ctx_create(void *user, void *data, function_ptr_t fnc) {
   reduce_ctx *ctx;
 
   ctx = NEW(reduce_ctx);
   if (ctx) {
-    ctx -> obj = obj;
-    ctx -> reducer = reducer;
     ctx -> data = data;
+    ctx -> fnc = fnc;
     ctx -> user = user;
-    ctx = (reduce_ctx *) reduce(obj, reducer, ctx);
-    data = ctx -> data;
-    free(ctx);
-    return data;
-  } else {
-    return NULL;
   }
-
+  return ctx;
 }
+

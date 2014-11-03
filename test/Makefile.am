@@ -1,36 +1,34 @@
-TESTS = 	 core list array dict
-check_PROGRAMS = core list array dict
+TESTS = 	 core list array dict set
+check_PROGRAMS = core list array dict set
 
-core_SOURCES =	collections.c \
-		core.c \
+AM_CFLAGS =	@CHECK_CFLAGS@
+AM_LDFLAGS =	-pthread
+LDADD =		$(top_builddir)/src/libobelix.la libtest.la @CHECK_LIBS@ -lm -lrt
+
+lib_LTLIBRARIES    = libtest.la
+libtest_la_SOURCES = collections.c
+
+core_SOURCES =	core.c \
 		$(top_builddir)/src/core.h
-core_CFLAGS =	@CHECK_CFLAGS@
-core_LDFLAGS =	-pthread
-core_LDADD =	$(top_builddir)/src/libobelix.la @CHECK_LIBS@ -lm -lrt
 
-list_SOURCES =	collections.c \
-		list.c \
+list_SOURCES =	list.c \
 		$(top_builddir)/src/list.h \
 		$(top_builddir)/src/core.h
-list_CFLAGS =	@CHECK_CFLAGS@
-list_LDFLAGS =	-pthread
-list_LDADD =	$(top_builddir)/src/libobelix.la @CHECK_LIBS@ -lm -lrt
 
-array_SOURCES =	collections.c \
-		array.c \
+array_SOURCES =	array.c \
 		$(top_builddir)/src/array.h \
 		$(top_builddir)/src/list.h \
 		$(top_builddir)/src/core.h
-array_CFLAGS =	@CHECK_CFLAGS@
-array_LDFLAGS =	-pthread
-array_LDADD =	$(top_builddir)/src/libobelix.la @CHECK_LIBS@ -lm -lrt
 
-dict_SOURCES =	collections.c \
-		dict.c \
+dict_SOURCES =	dict.c \
 		$(top_builddir)/src/dict.h \
 		$(top_builddir)/src/array.h \
 		$(top_builddir)/src/list.h \
 		$(top_builddir)/src/core.h
-dict_CFLAGS =	@CHECK_CFLAGS@
-dict_LDFLAGS =	-pthread
-dict_LDADD =	$(top_builddir)/src/libobelix.la @CHECK_LIBS@ -lm -lrt
+
+set_SOURCES =	set.c \
+		$(top_builddir)/src/set.h \
+		$(top_builddir)/src/dict.h \
+		$(top_builddir)/src/array.h \
+		$(top_builddir)/src/list.h \
+		$(top_builddir)/src/core.h

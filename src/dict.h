@@ -41,8 +41,8 @@ typedef struct _entry {
 
 extern dict_t * dict_create(cmp_t); /* No hash - Use key point mod something */
 extern dict_t * dict_set_hash(dict_t *, hash_t);
-extern dict_t * dict_set_free_key(dict_t *, visit_t);
-extern dict_t * dict_set_free_data(dict_t *, visit_t);
+extern dict_t * dict_set_free_key(dict_t *, free_t);
+extern dict_t * dict_set_free_data(dict_t *, free_t);
 extern void     dict_free(dict_t *);
 extern dict_t * dict_clear(dict_t *);
 extern int      dict_put(dict_t *, void *, void *);

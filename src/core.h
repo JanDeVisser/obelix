@@ -26,6 +26,7 @@
 #define FALSE  0
 #define NEW(t) ( (t *) new( sizeof(t) ) )
 
+typedef void *  (*void_t)(void);
 typedef int     (*cmp_t)(void *, void *);
 typedef int     (*hash_t)(void *);
 typedef char *  (*tostring_t)(void *);
@@ -34,11 +35,34 @@ typedef void *  (*obj_reduce_t)(void *, reduce_t, void *);
 typedef void    (*visit_t)(void *);
 typedef visit_t free_t;
 
+typedef enum _enum_function_type {
+  Void, Visitor, Reducer, Stringifier, Destructor
+} function_type_t; 
+
+typedef struct _function_union {
+  void_t     void_fnc;
+  visit_t    visitor;
+  reduce_t   reducer;
+  tostring_t stringfier;
+  free_t     destructor;
+} function_ptr_t;
+
+typedef struct _function {
+  function_type_t type;
+  function_ptr_t  fnc;
+} function_t;
+
+extern function_ptr_t no_func_ptr;
+extern function_t no_func;
+
+#define NOFUNCPTR no_func_ptr
+#define NOFUNC no_func
+
 typedef struct _reduce_ctx {
-  void     *obj;
-  void     *data;
-  reduce_t reducer;
-  void     *user;
+  void           *obj;
+  void           *user;
+  void           *data;
+  function_ptr_t fnc;
 } reduce_ctx;
 
 extern void * new(int);
@@ -52,6 +76,6 @@ extern void         debug(char *, ...);
 extern char *       strrand(char *, size_t);
 extern unsigned int strhash(char *);
 
-extern void *       _reduce(void *, obj_reduce_t, reduce_t, void *, void *);
+extern reduce_ctx * reduce_ctx_create(void *, void *, function_ptr_t);
 
 #endif /* __CORE_H__ */

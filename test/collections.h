@@ -24,8 +24,11 @@ typedef struct _test {
   int flag;
 } test_t;
 
-extern test_t * test_create(char *data);
-extern void     test_free(test_t *);
+extern test_t *     test_create(char *);
+extern test_t *     test_copy(test_t *);
+extern unsigned int test_hash(test_t *);
+extern int          test_cmp(test_t *, test_t *);
+extern void         test_free(test_t *);
 
-extern char *	get_suite_name();
-extern TCase *  get_testcase(int ix);
+extern char *	    get_suite_name();
+extern TCase *      get_testcase(int ix);

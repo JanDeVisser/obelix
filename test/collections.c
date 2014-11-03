@@ -31,8 +31,21 @@ test_t * test_create(char *data) {
   ret = NEW(test_t);
   if (ret) {
     ret -> data = (data) ? strdup(data) : NULL;
+    ret -> flag = 0;
   }
   return ret;
+}
+
+test_t * test_copy(test_t *test) {
+  return test_create(test -> data);
+}
+
+int test_cmp(test_t *test, test_t *other) {
+  return strcmp(test -> data, other -> data);
+}
+
+unsigned int test_hash(test_t *test) {
+  return (test -> data) ? strhash(test -> data) : 0;
 }
 
 void test_free(test_t *test) {
