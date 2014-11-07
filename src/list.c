@@ -79,15 +79,17 @@ list_t * list_set_cmp(list_t *list, cmp_t cmp) {
 }
 
 void list_free(list_t *list) {
-  list_clear(list);
-  free(list -> head);
-  free(list -> tail);
-  free(list);
+  if (list) {
+    list_clear(list);
+    if (list -> head) free(list -> head);
+    if (list -> tail) free(list -> tail);
+    free(list);
+  }
 }
 
-int list_append(list_t *list, void *data) {
+list_t * list_append(list_t *list, void *data) {
   listnode_t *node;
-  int ret = FALSE;
+  list_t *ret = NULL;
 
   node = _ln_create(data);
   if (node) {
@@ -96,7 +98,7 @@ int list_append(list_t *list, void *data) {
     list -> tail -> prev -> next = node;
     list -> tail -> prev = node;
     list -> size++;
-    ret = TRUE;
+    ret = list;
   }
   return ret;
 }

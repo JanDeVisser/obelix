@@ -18,7 +18,53 @@
  */
 
 #include <stdio.h>
+#include <expr.h>
+
+static data_t * _add(context_t *ctx, void *data, list_t *params) {
+  int sum, val;
+  listiterator_t *iter;
+  data_t *cur, *ret;
+
+  debug("+");
+  sum = 0;
+  for(iter = li_create(params); li_has_next(iter); ) {
+    cur = (data_t *) li_next(iter);
+    data_get(cur, &val);
+    sum += val;
+  }
+  return data_create(Int, &sum);
+}
+
+static data_t * _mult(context_t *ctx, void *data, list_t *params) {
+  int prod, val;
+  listiterator_t *iter;
+  data_t *cur, *ret;
+  
+  debug("*");
+  prod = 1;
+  for(iter = li_create(params); li_has_next(iter); ) {
+    cur = (data_t *) li_next(iter);
+    data_get(cur, &val);
+    prod *= val;
+  }
+  return data_create(Int, &prod);
+}
 
 int main(int argc, char **argv) {
-  return 0;
+  expr_t *expr, *e;
+  data_t *result;
+  int res;
+  
+  expr = expr_funccall(NULL, _add);
+  expr_int_literal(expr, 1);
+  expr_int_literal(expr, 2);
+  e = expr_funccall(expr, _mult);
+  expr_int_literal(e, 2);
+  expr_int_literal(e, 3);
+  
+  result = expr_evaluate(expr);
+  data_get(result, &res);
+  printf("result: %d\n", res);
+  data_free(result);
+  expr_free(expr);
 }

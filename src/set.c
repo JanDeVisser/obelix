@@ -141,7 +141,8 @@ void * set_reduce(set_t *set, reduce_t reducer, void *data) {
   fnc.reducer = reducer;
   ctx = reduce_ctx_create(NULL, data, fnc);
   if (ctx) {
-    ret = dict_reduce(set -> dict, (reduce_t) _set_reduce_reducer, ctx);
+    dict_reduce(set -> dict, (reduce_t) _set_reduce_reducer, ctx);
+    ret = ctx -> data;
     free(ctx);
     return ret;
   }

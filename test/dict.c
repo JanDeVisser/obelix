@@ -200,10 +200,21 @@ void test_dict_visitor(entry_t *entry) {
 }
 
 
-START_TEST(test_dict_visit)
+int * test_dict_reducer(entry_t *entry, int *sum) {
+  test_t *t;
+
+  mark_point();
+  t = (test_t *) entry -> value;
+  *sum += t -> flag;
+  return sum;
+}
+
+
+START_TEST(test_dict_visit_reduce)
   test_dict_ctx_t *ctx;
   test_t *test;
   int ix;
+  int sum;
 
   ctx = ctx_create(MANY);
   mark_point();
@@ -214,6 +225,9 @@ START_TEST(test_dict_visit)
     ck_assert_ptr_ne(test, NULL);
     ck_assert_int_eq(test -> flag, 1);
   }
+  sum = 0;
+  dict_reduce(ctx -> dict, (reduce_t) test_dict_reducer, &sum);
+  ck_assert_int_eq(sum, MANY);
   ctx_free(ctx);
 END_TEST
 
@@ -235,6 +249,6 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_dict_clear);
   tcase_add_test(tc, test_dict_has_key);
   tcase_add_test(tc, test_dict_remove);
-  tcase_add_test(tc, test_dict_visit);
+  tcase_add_test(tc, test_dict_visit_reduce);
   return tc;
 }

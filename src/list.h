@@ -40,7 +40,7 @@ extern list_t * list_create();
 extern list_t * list_set_free(list_t *, visit_t);
 extern list_t * list_set_cmp(list_t *, cmp_t);
 extern void     list_free(list_t *);
-extern int      list_append(list_t *, void *);
+extern list_t * list_append(list_t *, void *);
 extern list_t * list_add_all(list_t *, list_t *);
 extern int      list_size(list_t *);
 extern void *   list_reduce(list_t *, reduce_t, void *);

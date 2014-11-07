@@ -21,6 +21,7 @@
 #define __CORE_H__
 
 #include <stdarg.h>
+#include <stdlib.h>
 
 #define TRUE   1
 #define FALSE  0
@@ -36,7 +37,7 @@ typedef void    (*visit_t)(void *);
 typedef visit_t free_t;
 
 typedef enum _enum_function_type {
-  Void, Visitor, Reducer, Stringifier, Destructor
+  Void, Visitor, Reducer, Stringifier, Destructor, Evaluator
 } function_type_t; 
 
 typedef struct _function_union {
