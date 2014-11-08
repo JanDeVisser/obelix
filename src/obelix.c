@@ -19,6 +19,10 @@
 
 #include <stdio.h>
 #include <expr.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+#include "lexer.h"
 
 static data_t * _add(context_t *ctx, void *data, list_t *params) {
   int sum, val;
@@ -50,7 +54,7 @@ static data_t * _mult(context_t *ctx, void *data, list_t *params) {
   return data_create(Int, &prod);
 }
 
-int main(int argc, char **argv) {
+void test_expr() {
   expr_t *expr, *e;
   data_t *result;
   int res;
@@ -67,4 +71,28 @@ int main(int argc, char **argv) {
   printf("result: %d\n", res);
   data_free(result);
   expr_free(expr);
+}
+
+void test_lexer(char *fname) {
+  int fh;
+  lexer_t *lexer;
+  token_t *token;
+
+  fh = open(fname, O_RDONLY);
+  if (fh) {
+    lexer = lexer_create(fh);
+    if (lexer) {
+      for (token = lexer_next_token(lexer); token; token = lexer_next_token(lexer)) {
+        printf("[%d]%s", token_code(token), token_token(token));
+        token_free(token);
+      }
+      lexer_free(lexer);
+    }
+    close(fh);
+  }
+}
+
+int main(int argc, char **argv) {
+  test_expr();
+  test_lexer((argc > 1) ? argv[1] : "obelix.c");
 }

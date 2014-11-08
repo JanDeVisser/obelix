@@ -21,92 +21,208 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "core.h"
+#include "lexer.h"
+
+static void _dequotify(char *);
 
 
-typedef struct _tokendef {
-  int code;
-  char *pattern;
-} tokendef_t;
+/*
+ * static utility functions
+ */
 
-typedef struct _token {
-  tokendef_t *tokendef;
-  char *token;
-} token_t;
+void _dequotify(char *str) {
+  int len, ix;
 
-#define LEXER_BUFSIZE    	16384
-#define LEXER_SHORT_TOKEN_SZ	256
+  len = strlen(str);
+  if ((len >= 2) && (str[0] == str[1])) {
+    switch (len) {
+      case 2:
+        str[0] = str[1] = 0;
+        break;
+      default:
+        for (ix = 1; ix < (len - 1); ix++) {
+          str[ix - 1] = str[ix];
+        }
+        str[len-2] = str[len-1] = 0;
+        break;
+    }
+  }
+}
 
-typedef struct _lexer {
-  int   fh;
-  char  buf[BUFSIZE];
-  int   buflen;
-  int   bufpos;
-  char  short_token[256];
-} lexer_t;
+/*
+ * token_t - public interface
+ */
 
-extern lexer_t * lexer_create(int);
-extern token_t * lexer_next_token(lexer_t *);
+token_t *token_create(int code, char *token) {
+  token_t *ret;
 
-#define		CODE_TOKEN_WHITESPACE   -1
-#define		CODE_TOKEN_STRING	0
-#define		CODE_TOKEN_INTEGER	1
-#define		CODE_TOKEN_PLUS		((int) '+')
-#define		CODE_TOKEN_MINUS	((int) '-')
-#define		CODE_TOKEN_DOT		((int) '.')
-#define		CODE_TOKEN_OPENPAR	((int) '(')
-#define		CODE_TOKEN_CLOSEPAR	((int) ')')
-#define		CODE_TOKEN_OPENBRACE	((int) '{')
-#define		CODE_TOKEN_CLOSEBRACE	((int) '}')
-#define		CODE_TOKEN_OPENBRACKET	((int) '[')
-#define		CODE_TOKEN_CLOSEBRACKET	((int) ']')
+  ret = NEW(token_t);
+  if (ret) {
+    ret -> code = code;
+    ret -> token = strdup(token);
+    if (!ret -> token) {
+      free(ret);
+      ret = NULL;
+    }
+  }
+  return ret;
+}
 
+void token_free(token_t *token) {
+  free(token -> token);
+  free(token);
+}
 
-static tokendef_t _token_definitions[] = {
-  { code: CODE_TOKEN_WHITESPACE,   pattern: ":W+" },
-  { code: CODE_TOKEN_STRING,       pattern: "[:A_][:X_]*" },
-  { code: CODE_TOKEN_INTEGER,      pattern: "0+" },
-  { code: CODE_TOKEN_PLUS,         pattern: "+" },
-  { code: CODE_TOKEN_MINUS,        pattern: "-" },
-  { code: CODE_TOKEN_ASTERISK,     pattern: "*" },
-  { code: CODE_TOKEN_SLASH,        pattern: "/" },
-  { code: CODE_TOKEN_DOT,          pattern: "." },
-  { code: CODE_TOKEN_COMMA,        pattern: "," },
-  { code: CODE_TOKEN_OPENPAR,      pattern: "(" },
-  { code: CODE_TOKEN_CLOSEPAR,     pattern: ")" },
-  { code: CODE_TOKEN_OPENBRACE,    pattern: "{" },
-  { code: CODE_TOKEN_CLOSEBRACE,   pattern: "}" },
-  { code: CODE_TOKEN_OPENBRACKET,  pattern: "[" },
-  { code: CODE_TOKEN_CLOSEBRACKET, pattern: "]" }
-};
+int token_code(token_t *token) {
+  return token -> code;
+}
+
+char * token_token(token_t *token) {
+  return token -> token;
+}
+
+/*
+ * lexer_t - static methods
+ */
 
 int _lexer_get_char(lexer_t *lexer) {
-  if ((lexer -> buflen <= 0) || (lexer -> bufpos >= lexer -> buflen)) {
+  int ch;
+  char *newtok;
+
+  if ((lexer -> buflen <= 0) || (lexer -> bufpos > lexer -> buflen)) {
+    memset(lexer -> buf, 0, LEXER_BUFSIZE);
     lexer -> buflen = read(lexer -> fh, lexer -> buf, LEXER_BUFSIZE);
+    debug("lexer -> buflen: %d", lexer -> buflen);
     if (lexer -> buflen <= 0) {
       return lexer -> buflen;
     }
     lexer -> bufpos = 0;
   }
+  if (strlen(lexer -> current_token) >= (lexer -> token_size - 2)) {
+    newtok = malloc(2 * lexer -> token_size);
+    if (!newtok) {
+      return -1;
+    }
+    strcpy(newtok, lexer -> current_token);
+    if (lexer -> current_token != lexer -> short_token) {
+      free(lexer -> current_token);
+    }
+    lexer -> current_token = newtok;
+    lexer -> token_size *= 2;
+  }
   return (int) lexer -> buf[lexer -> bufpos++];
 }
 
-void _lexer_push_back(lexer_t *lexer, int ch) {
+void _lexer_push_back(lexer_t *lexer, char *tok) {
+  tok[strlen(tok) - 1] = 0;
   lexer -> bufpos--;
 }
 
-token_t * _lexer_match_token(lexer_t *lexer, char *tok, int ch, list_t *candidates) {
-  int ix;
-  char *pat;
+token_t * _lexer_match_token(lexer_t *lexer, int ch) {
+  int      code;
+  token_t *ret;
+  char    *tok;
   
-  if (!list_size(candidates)) {
-    for (ix = 0; ix < sizeof(_token_definitions) / sizeof(tokendef_t)); ix++) {
-      pat = _token_definitions[ix].pattern;
-      
-    }
+  tok = lexer -> current_token;
+  tok[strlen(tok)] = ch;
+  code = CODE_TOKEN_NOTOKEN;
+  ret = NULL;
+  switch (lexer -> state) {
+    case LexerTokenInit:
+      if (isspace(ch)) {
+        lexer -> state = LexerTokenWhitespace;
+      } else if (isalpha(ch) || (ch == '_')) {
+        lexer -> state = LexerTokenIdentifier;
+      } else if (isdigit(ch)) {
+        lexer -> state = LexerTokenInteger;
+      } else if ((ch == '\'') || (ch == '"')) {
+        lexer -> state = LexerTokenQuotedStr;
+        lexer -> quote = ch;
+      } else if (ch == '/') {
+        lexer -> state = LexerTokenSlash;
+      } else if (!ch) {
+        /*
+         * This function is called with ch = 0 to clear up any pending stuff.
+         * Therefore we return a NULL token.
+\         */
+        return NULL;
+      } else {
+        code = ch;
+      }
+      break;
+    case LexerTokenWhitespace:
+      if (!isspace(ch)) {
+        _lexer_push_back(lexer, tok);
+        code = CODE_TOKEN_WHITESPACE;
+      }
+      break;
+    case LexerTokenIdentifier:
+      if (!isalnum(ch) && (ch != '_')) {
+        _lexer_push_back(lexer, tok);
+        code = CODE_TOKEN_IDENTIFIER;
+      }
+      break;
+    case LexerTokenInteger:
+      if (!isdigit(ch)) {
+        _lexer_push_back(lexer, tok);
+        code = CODE_TOKEN_INTEGER;
+      }
+      break;
+    case LexerTokenQuotedStr:
+      if (ch == lexer -> quote) {
+        code = (lexer -> quote == '"')
+            ? CODE_TOKEN_DQUOTED_STR
+            : CODE_TOKEN_SQUOTED_STR;
+        _dequotify(tok);
+      } else if (ch == '\\') {
+        lexer -> state = LexerTokenQuotedStrEscape;
+        tok[strlen(tok) - 1] = 0;
+      }
+      break;
+    case LexerTokenQuotedStrEscape:
+      lexer -> state = LexerTokenQuotedStr;
+      break;
+    case LexerTokenSlash:
+      if (ch == '*') {
+        memset(tok, 0, lexer -> token_size);
+        lexer -> state = LexerTokenBlockComment;
+      } else if (ch == '/') {
+        memset(tok, 0, lexer -> token_size);
+        lexer -> state = LexerTokenLineComment;
+      } else {
+        _lexer_push_back(lexer, tok);
+        code = CODE_TOKEN_SLASH;
+      }
+      break;
+    case LexerTokenBlockComment:
+      tok[0] = 0;
+      if (ch == '*') {
+        lexer -> state = LexerTokenStar;
+      }
+      break;
+    case LexerTokenStar:
+      tok[0] = 0;
+      lexer -> state = (ch == '/') ? LexerTokenInit : LexerTokenBlockComment;
+      break;
+    case LexerTokenLineComment:
+      tok[0] = 0;
+      if ((ch == '\r') || (ch == '\n')) {
+        lexer -> state = LexerTokenInit;
+      }
+      break;
   }
+  if (code != CODE_TOKEN_NOTOKEN) {
+    ret = token_create(code, tok);
+  }
+  return ret;
 }
+
+/*
+ * lexer_t - public interface
+ */
 
 lexer_t * lexer_create(int fh) {
   lexer_t *ret;
@@ -115,43 +231,36 @@ lexer_t * lexer_create(int fh) {
   if (ret) {
     ret -> fh = fh;
     ret -> buflen = ret -> bufpos = 0;
+    ret -> state = LexerTokenFresh;
   }
   return ret;
 }
 
+void lexer_free(lexer_t *lexer) {
+  free(lexer);
+}
+
 token_t * lexer_next_token(lexer_t *lexer) {
-  list_t *candidates;
-  char *tok, *newtok;
-  int tokbufsize = 256;
+  char *newtok;
   int ch;
   token_t *ret;
   
-  candidates = list_create();
-  if (!candidates) {
-    return NULL;
-  }
   ret = NULL;
-  tok = lexer -> short_token;
+  lexer -> token_size = sizeof(lexer -> short_token);
+  lexer -> current_token = lexer -> short_token;
+  lexer -> state = LexerTokenInit;
   newtok = NULL;
-  memset(tok, '\0', tokbufsize);
+  memset(lexer -> current_token, '\0', lexer -> token_size);
   do {
     ch = _lexer_get_char(lexer);
-    if (ch < 0) {
+    if (ch <= 0) {
+      ret = _lexer_match_token(lexer, 0);
       break;
     }
-    if (ch && strlen(tok) >= tokbufsize - 2) {
-      newtok = malloc(2 * tokbufsize);
-      if (!newtok) break;
-      strcpy(newtok, tok);
-      if (tokbufsize > LEXER_SHORT_TOKEN_SZ) {
-	free(tok);
-      }
-      tok = newtok;
-      tokbufsize *= 2;
-    }
-    ret = _lexer_match_token(lexer, tok, ch, candidates);
+    ret = _lexer_match_token(lexer, ch);
   } while (ret == NULL);
-  list_free(candidates);
-  free(newtok);
+  if (lexer -> current_token != lexer -> short_token) {
+    free(lexer -> current_token);
+  }
   return ret;
 }

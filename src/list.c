@@ -155,6 +155,35 @@ list_t * list_clear(list_t *list) {
   return list;
 }
 
+void * list_pop(list_t *list) {
+  listiterator_t *iter;
+  void *ret;
+
+  ret = NULL;
+  iter = li_create(list);
+  li_tail(iter);
+  if (li_has_prev(iter)) {
+    ret = li_prev(iter);
+    li_remove(iter);
+    li_free(iter);
+  }
+  return ret;
+}
+
+void * list_shift(list_t *list) {
+  listiterator_t *iter;
+  void *ret;
+
+  ret = NULL;
+  iter = li_create(list);
+  if (li_has_next(iter)) {
+    ret = li_next(iter);
+    li_remove(iter);
+    li_free(iter);
+  }
+  return ret;
+}
+
 // -------------------
 // listiterator_t
 

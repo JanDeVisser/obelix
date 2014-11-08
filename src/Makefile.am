@@ -23,7 +23,8 @@ array.c array.h \
 dict.c dict.h \
 set.c set.h \
 tree.c tree.h \
-expr.c
+expr.c expr.h \
+lexer.c lexer.h
 
 bin_PROGRAMS = obelix
 obelix_SOURCES = obelix.c
