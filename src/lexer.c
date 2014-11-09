@@ -17,14 +17,15 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/lexer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 
-#include "core.h"
-#include "lexer.h"
+#include <lexer.h>
 
 static void _dequotify(char *);
 
@@ -56,7 +57,7 @@ void _dequotify(char *str) {
  * token_t - public interface
  */
 
-token_t *token_create(int code, char *token) {
+token_t *token_create(token_code_t code, char *token) {
   token_t *ret;
 
   ret = NEW(token_t);
@@ -76,12 +77,17 @@ void token_free(token_t *token) {
   free(token);
 }
 
-int token_code(token_t *token) {
+token_code_t token_code(token_t *token) {
   return token -> code;
 }
 
 char * token_token(token_t *token) {
   return token -> token;
+}
+
+int token_iswhitespace(token_t *token) {
+  return (token -> code == TokenCodeWhitespace) ||
+         (token -> code == TokenCodeNewLine);
 }
 
 /*
@@ -94,8 +100,10 @@ int _lexer_get_char(lexer_t *lexer) {
 
   if ((lexer -> buflen <= 0) || (lexer -> bufpos > lexer -> buflen)) {
     memset(lexer -> buf, 0, LEXER_BUFSIZE);
-    lexer -> buflen = read(lexer -> fh, lexer -> buf, LEXER_BUFSIZE);
-    debug("lexer -> buflen: %d", lexer -> buflen);
+    lexer -> buflen = reader_read(lexer -> reader, lexer -> buf, LEXER_BUFSIZE);
+    if (0) {
+      debug("lexer -> buflen: %d", lexer -> buflen);
+    }
     if (lexer -> buflen <= 0) {
       return lexer -> buflen;
     }
@@ -116,106 +124,187 @@ int _lexer_get_char(lexer_t *lexer) {
   return (int) lexer -> buf[lexer -> bufpos++];
 }
 
-void _lexer_push_back(lexer_t *lexer, char *tok) {
-  tok[strlen(tok) - 1] = 0;
+void _lexer_push_back(lexer_t *lexer) {
+  lexer -> current_token[strlen(lexer -> current_token) - 1] = 0;
   lexer -> bufpos--;
 }
 
 token_t * _lexer_match_token(lexer_t *lexer, int ch) {
-  int      code;
-  token_t *ret;
-  char    *tok;
+  token_code_t  code;
+  token_t      *ret;
+  char         *tok;
+  int           ignore_nl;
   
   tok = lexer -> current_token;
-  tok[strlen(tok)] = ch;
-  code = CODE_TOKEN_NOTOKEN;
+  ignore_nl = lexer_get_option(lexer, LexerOptionIgnoreNewLines);
+  if (0) {
+    debug("matcher in - state: %d tok: %s ch: %c", lexer -> state, tok, ch);
+  }
+  if (ch > 0) {
+    tok[strlen(tok)] = ch;
+  }
+  code = TokenCodeNone;
   ret = NULL;
   switch (lexer -> state) {
-    case LexerTokenInit:
-      if (isspace(ch)) {
-        lexer -> state = LexerTokenWhitespace;
+    case LexerStateInit:
+      if (!ignore_nl && ((ch == '\r') || (ch == '\n'))) {
+        lexer -> state = LexerStateNewLine;
+      } else if (isspace(ch)) {
+        lexer -> state = LexerStateWhitespace;
       } else if (isalpha(ch) || (ch == '_')) {
-        lexer -> state = LexerTokenIdentifier;
+        lexer -> state = LexerStateIdentifier;
+      } else if (ch == '0') {
+        lexer -> state = LexerStateZero;
       } else if (isdigit(ch)) {
-        lexer -> state = LexerTokenInteger;
-      } else if ((ch == '\'') || (ch == '"')) {
-        lexer -> state = LexerTokenQuotedStr;
+        lexer -> state = LexerStateNumber;
+      } else if ((ch == '\'') || (ch == '"') || (ch == '`')) {
+        lexer -> state = LexerStateQuotedStr;
         lexer -> quote = ch;
       } else if (ch == '/') {
-        lexer -> state = LexerTokenSlash;
-      } else if (!ch) {
-        /*
-         * This function is called with ch = 0 to clear up any pending stuff.
-         * Therefore we return a NULL token.
-\         */
-        return NULL;
-      } else {
+        lexer -> state = LexerStateSlash;
+      } else if (ch > 0) {
         code = ch;
       }
       break;
-    case LexerTokenWhitespace:
-      if (!isspace(ch)) {
-        _lexer_push_back(lexer, tok);
-        code = CODE_TOKEN_WHITESPACE;
+    case LexerStateNewLine:
+      if ((ch != '\n') && (ch != '\r')) {
+        _lexer_push_back(lexer);
+        code = TokenCodeNewLine;
       }
       break;
-    case LexerTokenIdentifier:
+    case LexerStateWhitespace:
+      if (!isspace(ch) ||
+          (!ignore_nl && ((ch == '\r') || (ch == '\n')))) {
+        _lexer_push_back(lexer);
+        code = TokenCodeWhitespace;
+      }
+      break;
+    case LexerStateIdentifier:
       if (!isalnum(ch) && (ch != '_')) {
-        _lexer_push_back(lexer, tok);
-        code = CODE_TOKEN_IDENTIFIER;
+        _lexer_push_back(lexer);
+        code = TokenCodeIdentifier;
       }
       break;
-    case LexerTokenInteger:
-      if (!isdigit(ch)) {
-        _lexer_push_back(lexer, tok);
-        code = CODE_TOKEN_INTEGER;
+    case LexerStateZero:
+      if (isdigit(ch)) {
+        lexer -> state = LexerStateNumber;
+      } else if (ch == '.') {
+        lexer -> state = LexerStateFloat;
+      } else if ((ch == 'x') || (ch == 'X')) {
+        memset(tok, 0, lexer -> token_size);
+        lexer -> state = LexerStateHexInteger;
+      } else {
+        _lexer_push_back(lexer);
+        code = TokenCodeInteger;
       }
       break;
-    case LexerTokenQuotedStr:
+    case LexerStateNumber:
+      if (ch == '.') {
+        lexer -> state = LexerStateFloat;
+      } else if ((ch == 'e') || (ch == 'E')) {
+        tok[strlen(tok) - 1] = 'e';
+        lexer -> state = LexerStateSciFloat;
+      } else if (!isdigit(ch)) {
+        _lexer_push_back(lexer);
+        code = TokenCodeInteger;
+      }
+      break;
+    case LexerStateFloat:
+      if ((ch == 'e') || (ch == 'E')) {
+        tok[strlen(tok) - 1] = 'e';
+        lexer -> state = LexerStateSciFloat;
+      } else if (!isdigit(ch)) {
+        _lexer_push_back(lexer);
+        code = TokenCodeFloat;
+      }
+      break;
+    case LexerStateSciFloat:
+      if (((ch == '+') || (ch == '-')) && (tok[strlen(tok) - 2] == 'e')) {
+        // Nothing
+      } else if (!isdigit(ch)) {
+        _lexer_push_back(lexer);
+        code = TokenCodeFloat;
+      }
+      break;
+    case LexerStateHexInteger:
+      if (!isxdigit(ch)) {
+        _lexer_push_back(lexer);
+        code = TokenCodeHexNumber;
+      }
+      break;
+    case LexerStateQuotedStr:
       if (ch == lexer -> quote) {
-        code = (lexer -> quote == '"')
-            ? CODE_TOKEN_DQUOTED_STR
-            : CODE_TOKEN_SQUOTED_STR;
+        code = (token_code_t) lexer -> quote;
         _dequotify(tok);
       } else if (ch == '\\') {
-        lexer -> state = LexerTokenQuotedStrEscape;
+        lexer -> state = LexerStateQuotedStrEscape;
         tok[strlen(tok) - 1] = 0;
       }
       break;
-    case LexerTokenQuotedStrEscape:
-      lexer -> state = LexerTokenQuotedStr;
+    case LexerStateQuotedStrEscape:
+      if (ch == 'n') {
+        tok[strlen(tok) - 1] = '\n';
+      } else if (ch == 'r') {
+        tok[strlen(tok) - 1] = '\r';
+      } else if (ch == 't') {
+        tok[strlen(tok) - 1] = '\t';
+      }
+      lexer -> state = LexerStateQuotedStr;
       break;
-    case LexerTokenSlash:
+    case LexerStateSlash:
       if (ch == '*') {
         memset(tok, 0, lexer -> token_size);
-        lexer -> state = LexerTokenBlockComment;
+        lexer -> state = LexerStateBlockComment;
       } else if (ch == '/') {
         memset(tok, 0, lexer -> token_size);
-        lexer -> state = LexerTokenLineComment;
+        lexer -> state = LexerStateLineComment;
       } else {
-        _lexer_push_back(lexer, tok);
-        code = CODE_TOKEN_SLASH;
+        _lexer_push_back(lexer);
+        code = TokenCodeSlash;
       }
       break;
-    case LexerTokenBlockComment:
+    case LexerStateBlockComment:
       tok[0] = 0;
       if (ch == '*') {
-        lexer -> state = LexerTokenStar;
+        lexer -> state = LexerStateStar;
       }
       break;
-    case LexerTokenStar:
+    case LexerStateStar:
       tok[0] = 0;
-      lexer -> state = (ch == '/') ? LexerTokenInit : LexerTokenBlockComment;
+      lexer -> state = (ch == '/') ? LexerStateInit : LexerStateBlockComment;
       break;
-    case LexerTokenLineComment:
+    case LexerStateLineComment:
       tok[0] = 0;
-      if ((ch == '\r') || (ch == '\n')) {
-        lexer -> state = LexerTokenInit;
+      if ((ch == '\r') || (ch == '\n') || (ch <= 0)) {
+        lexer -> state = LexerStateInit;
       }
       break;
   }
-  if (code != CODE_TOKEN_NOTOKEN) {
+  if (code != TokenCodeNone) {
     ret = token_create(code, tok);
+    lexer -> state = LexerStateInit;
+  }
+  if (ch <= 0) {
+    if (!ret) {
+      switch (lexer -> state) {
+        case LexerStateBlockComment:
+        case LexerStateSlash:
+          ret = token_create(TokenCodeError, "Unterminated block comment");
+          break;
+        case LexerStateQuotedStr:
+        case LexerStateQuotedStrEscape:
+          ret = token_create(TokenCodeError, "Unterminated string");
+          break;
+      }
+      lexer -> state = LexerStateDone;
+    }
+  }
+  if (0) {
+    if (ret) {
+      debug("          matcher out - state: %d token: %d/%s", lexer -> state, (ret) ? ret -> code : TokenCodeNone, (ret) ? ret -> token : "");
+    } else {
+      debug("  matcher out - state: %d", lexer -> state);
+    }
   }
   return ret;
 }
@@ -224,16 +313,30 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
  * lexer_t - public interface
  */
 
-lexer_t * lexer_create(int fh) {
+lexer_t * lexer_create(void *reader) {
   lexer_t *ret;
   
   ret = NEW(lexer_t);
   if (ret) {
-    ret -> fh = fh;
-    ret -> buflen = ret -> bufpos = 0;
-    ret -> state = LexerTokenFresh;
+    ret -> reader = reader;
+    ret -> buflen = ret -> bufpos = -1;
+    ret -> state = LexerStateFresh;
+    ret -> options = array_create((int) LexerOptionLAST);
+    if (!ret -> options) {
+      free(ret);
+      ret = NULL;
+    }
   }
   return ret;
+}
+
+lexer_t * lexer_set_option(lexer_t *lexer, lexer_option_t option, int value) {
+  array_set(lexer -> options, (int) option, (void *) value);
+  return lexer;
+}
+
+int lexer_get_option(lexer_t *lexer, lexer_option_t option) {
+  return (int) array_get(lexer -> options, (int) option);
 }
 
 void lexer_free(lexer_t *lexer) {
@@ -244,23 +347,34 @@ token_t * lexer_next_token(lexer_t *lexer) {
   char *newtok;
   int ch;
   token_t *ret;
+  int ignore_ws;
   
   ret = NULL;
   lexer -> token_size = sizeof(lexer -> short_token);
   lexer -> current_token = lexer -> short_token;
-  lexer -> state = LexerTokenInit;
+  lexer -> state = LexerStateInit;
   newtok = NULL;
+  ignore_ws = lexer_get_option(lexer, LexerOptionIgnoreWhitespace);
+
   memset(lexer -> current_token, '\0', lexer -> token_size);
   do {
     ch = _lexer_get_char(lexer);
-    if (ch <= 0) {
-      ret = _lexer_match_token(lexer, 0);
-      break;
-    }
     ret = _lexer_match_token(lexer, ch);
-  } while (ret == NULL);
+  } while (((lexer -> state != LexerStateDone) && (lexer -> state != LexerStateInit)) ||
+           (ignore_ws && ret && token_iswhitespace(ret)));
+
+  if (!ret && (lexer -> state == LexerStateDone)) {
+    ret = token_create(TokenCodeEnd, "");
+  }
+
   if (lexer -> current_token != lexer -> short_token) {
     free(lexer -> current_token);
+  }
+
+  if (0) {
+    if (ret) {
+      debug("              next token: %d/%s/", ret -> code, ret -> token);
+    }
   }
   return ret;
 }

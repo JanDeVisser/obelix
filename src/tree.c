@@ -18,7 +18,8 @@
  */
 
 #include <stdlib.h>
-#include "tree.h"
+
+#include <tree.h>
 
 static reduce_ctx * _tree_visitor(tree_t *, reduce_ctx *);
 static reduce_ctx * _tree_reducer(tree_t *, reduce_ctx *);

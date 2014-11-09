@@ -17,13 +17,14 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-#include "core.h"
-#include "array.h"
+#include <core.h>
+#include <array.h>
 
 #define ARRAY_DEF_CAPACITY    8
 

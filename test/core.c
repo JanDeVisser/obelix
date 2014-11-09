@@ -17,13 +17,14 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #include <check.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../src/core.h"
+#include <core.h>
 #include "collections.h"
 
 START_TEST(test_strrand)

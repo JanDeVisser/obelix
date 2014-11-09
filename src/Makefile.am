@@ -16,18 +16,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
 
+AM_CPPFLAGS = -I$(top_srcdir)/include
+
 lib_LTLIBRARIES = libobelix.la
-libobelix_la_SOURCES = core.c core.h \
-list.c list.h \
-array.c array.h \
-dict.c dict.h \
-set.c set.h \
-tree.c tree.h \
-expr.c expr.h \
-lexer.c lexer.h
+libobelix_la_SOURCES = core.c \
+list.c \
+array.c \
+dict.c \
+set.c \
+tree.c \
+expr.c \
+file.c \
+stringbuffer.c \
+lexer.c
 
 bin_PROGRAMS = obelix
 obelix_SOURCES = obelix.c
 obelix_LDADD = libobelix.la
-
-AM_CPPFLAGS = -I$(srcdir)

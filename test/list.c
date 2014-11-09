@@ -17,11 +17,12 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #include <check.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../src/list.h"
+#include <list.h>
 #include "collections.h"
 
 static void     test_raw_print_list(list_t *, char *);

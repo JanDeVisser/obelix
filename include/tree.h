@@ -20,8 +20,7 @@
 #ifndef __TREE_H__
 #define __TREE_H__
 
-#include "core.h"
-#include "list.h"
+#include <list.h>
 
 typedef struct _tree {
   struct _tree *up;

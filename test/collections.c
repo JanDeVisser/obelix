@@ -22,7 +22,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../src/core.h"
+#include <core.h>
+
 #include "collections.h"
 
 test_t * test_create(char *data) {

@@ -35,6 +35,7 @@ typedef void *  (*reduce_t)(void *, void *);
 typedef void *  (*obj_reduce_t)(void *, reduce_t, void *);
 typedef void    (*visit_t)(void *);
 typedef visit_t free_t;
+typedef int     (*read_t)(void *, char *, int);
 
 typedef enum _enum_function_type {
   Void, Visitor, Reducer, Stringifier, Destructor, Evaluator
@@ -65,6 +66,12 @@ typedef struct _reduce_ctx {
   void           *data;
   function_ptr_t fnc;
 } reduce_ctx;
+
+typedef struct _reader {
+  read_t read_fnc;
+} reader_t;
+
+#define reader_read(reader, buf, n)  (((reader_t *) reader) -> read_fnc(reader, buf, n))
 
 extern void * new(int);
 extern void * new_ptrarray(int);

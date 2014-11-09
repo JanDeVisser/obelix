@@ -20,8 +20,7 @@
 #ifndef __SET_H__
 #define __SET_H__
 
-#include "core.h"
-#include "dict.h"
+#include <dict.h>
 
 typedef struct _set {
   dict_t  *dict;

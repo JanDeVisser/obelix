@@ -20,8 +20,8 @@
 #ifndef __DICT_H__
 #define __DICT_H__
 
-#include "list.h"
-#include "array.h"
+#include <array.h>
+#include <list.h>
 
 typedef struct _dict {
   cmp_t    cmp;

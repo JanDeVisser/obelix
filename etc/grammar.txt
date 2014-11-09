@@ -1,0 +1,16 @@
+program        := expr
+
+expr           := terminal_expr add_op terminal_expr | terminal_expr
+
+terminal_expr  := atom_expr | mult_expr
+
+mult_expr      := atom_expr mult_op atom_expr
+
+atom_expr      := *( expr *) | number
+
+number         := *int | *- *int
+
+mult_op        := ** | */
+
+add_op         := *+ | *-
+
