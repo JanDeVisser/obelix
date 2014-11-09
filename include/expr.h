@@ -20,7 +20,7 @@
 #ifndef __EXPR_H__
 #define __EXPR_H__
 
-#include "dict.h"
+#include <dict.h>
 
 typedef enum _datatype {
   String, Int, Float, Bool, Function
@@ -77,6 +77,7 @@ typedef struct _expr {
 extern expr_t * expr_create(expr_t *, eval_t, void *);
 extern expr_t * expr_set_context(expr_t *, context_t *);
 extern expr_t * expr_set_data_free(expr_t *, free_t);
+extern expr_t * expr_add_node(expr_t *, expr_t *);
 extern void     expr_free(expr_t *);
 extern data_t * expr_evaluate(expr_t *);
 

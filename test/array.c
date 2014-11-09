@@ -22,7 +22,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../src/array.h"
+#include <array.h>
+
 #include "collections.h"
 
 START_TEST(test_array_create)

@@ -17,11 +17,12 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/list.h"
+
 #include <errno.h>
 #include <stdlib.h>
 
-#include "core.h"
-#include "list.h"
+#include <list.h>
 
 // -------------------
 // static declarations

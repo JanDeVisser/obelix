@@ -17,12 +17,13 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/core.h"
+
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "core.h"
 
 void * new(int sz) {
   void * ret = malloc(sz);

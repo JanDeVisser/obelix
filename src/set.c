@@ -19,8 +19,7 @@
 
 #include <stdlib.h>
 
-#include "core.h"
-#include "set.h"
+#include <set.h>
 
 static reduce_ctx * _set_reduce_reducer(entry_t *, reduce_ctx *);
 static reduce_ctx * _set_visitor(entry_t *, reduce_ctx *);

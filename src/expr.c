@@ -17,8 +17,9 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <expr.h>
+
 #include <string.h>
-#include "expr.h"
 
 #define COPY_BYTES(ptr, type)  _memcpy_bytes((ptr), sizeof(type))
 
@@ -264,10 +265,8 @@ expr_t * expr_create(expr_t *expr, eval_t eval, void *data) {
   expr_t *ret;
   
   ret = _expr_create(expr, eval, data, (expr) ? expr -> context : NULL);
-  if (ret && expr) {
-    if (!list_append(expr -> nodes, ret)) {
-      ret = NULL;
-    }
+  if (ret) {
+    ret = expr_add_node(expr, ret);
   }
   return ret;
 }
@@ -279,6 +278,21 @@ expr_t * expr_set_context(expr_t *expr, context_t *ctx) {
 
 expr_t * expr_set_data_free(expr_t *expr, free_t data_free) {
   expr -> data_free = data_free;
+  return expr;
+}
+
+expr_t * expr_add_node(expr_t *expr, expr_t *node) {
+  expr_t *ret;
+
+  ret = expr;
+  if (expr) {
+    if (!list_append(expr -> nodes, ret)) {
+      ret = NULL;
+    } else {
+      node -> up = expr;
+    }
+  }
+  return ret;
 }
 
 void expr_free(expr_t *expr) {

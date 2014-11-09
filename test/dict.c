@@ -17,12 +17,13 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #include <check.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../src/dict.h"
+#include <dict.h>
 #include "collections.h"
 
 #define MANY 500

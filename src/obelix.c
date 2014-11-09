@@ -18,51 +18,20 @@
  */
 
 #include <stdio.h>
+
 #include <expr.h>
-#include <unistd.h>
-#include <fcntl.h>
-
-#include "lexer.h"
-
-static data_t * _add(context_t *ctx, void *data, list_t *params) {
-  int sum, val;
-  listiterator_t *iter;
-  data_t *cur, *ret;
-
-  debug("+");
-  sum = 0;
-  for(iter = li_create(params); li_has_next(iter); ) {
-    cur = (data_t *) li_next(iter);
-    data_get(cur, &val);
-    sum += val;
-  }
-  return data_create(Int, &sum);
-}
-
-static data_t * _mult(context_t *ctx, void *data, list_t *params) {
-  int prod, val;
-  listiterator_t *iter;
-  data_t *cur, *ret;
-  
-  debug("*");
-  prod = 1;
-  for(iter = li_create(params); li_has_next(iter); ) {
-    cur = (data_t *) li_next(iter);
-    data_get(cur, &val);
-    prod *= val;
-  }
-  return data_create(Int, &prod);
-}
+#include <file.h>
+#include <lexer.h>
 
 void test_expr() {
   expr_t *expr, *e;
   data_t *result;
   int res;
   
-  expr = expr_funccall(NULL, _add);
+  //expr = expr_funccall(NULL, _add);
   expr_int_literal(expr, 1);
   expr_int_literal(expr, 2);
-  e = expr_funccall(expr, _mult);
+  //e = expr_funccall(expr, _mult);
   expr_int_literal(e, 2);
   expr_int_literal(e, 3);
   
@@ -74,18 +43,19 @@ void test_expr() {
 }
 
 void test_lexer(char *fname) {
-  int fh;
+  file_t *fh;
   lexer_t *lexer;
   token_t *token;
 
-  fh = open(fname, O_RDONLY);
-  if (fh) {
+  fh = (fname) ? file_open(fname) : file_create(fileno(stdin));
+  if (fh >= 0) {
     lexer = lexer_create(fh);
     if (lexer) {
       for (token = lexer_next_token(lexer); token; token = lexer_next_token(lexer)) {
         printf("[%d]%s", token_code(token), token_token(token));
         token_free(token);
       }
+      printf("\n");
       lexer_free(lexer);
     }
     close(fh);
@@ -93,6 +63,5 @@ void test_lexer(char *fname) {
 }
 
 int main(int argc, char **argv) {
-  test_expr();
-  test_lexer((argc > 1) ? argv[1] : "obelix.c");
+  test_lexer((argc > 1) ? argv[1] : NULL);
 }

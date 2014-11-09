@@ -17,11 +17,12 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../include/dict.h"
+
 #include <errno.h>
 #include <stdlib.h>
 
-#include "core.h"
-#include "dict.h"
+#include <dict.h>
 
 typedef struct _dictentry {
   dict_t       *dict;
