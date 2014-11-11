@@ -71,19 +71,25 @@ typedef struct _reader {
   read_t read_fnc;
 } reader_t;
 
-#define reader_read(reader, buf, n)  (((reader_t *) reader) -> read_fnc(reader, buf, n))
 
-extern void * new(int);
-extern void * new_ptrarray(int);
-extern void * resize_block(void *, int);
-extern void * resize_ptrarray(void *, int);
+extern void *       new(int);
+extern void *       new_ptrarray(int);
+extern void *       resize_block(void *, int);
+extern void *       resize_ptrarray(void *, int);
 
 extern unsigned int hash(void *, size_t);
-extern void         debug(char *, ...);
+extern void         _debug(char *file, int line, char *, ...);
 
 extern char *       strrand(char *, size_t);
 extern unsigned int strhash(char *);
 
 extern reduce_ctx * reduce_ctx_create(void *, void *, function_ptr_t);
+
+#define reader_read(reader, buf, n)  (((reader_t *) reader) -> read_fnc(reader, buf, n))
+#ifndef NDEBUG
+#define debug(fmt, args...)          _debug(__FILE__, __LINE__, fmt, ## args)
+#else /* NDEBUG */
+#define debug(fmt, args...)
+#endif /* NDEBUG */
 
 #endif /* __CORE_H__ */

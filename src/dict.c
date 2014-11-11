@@ -17,8 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../include/dict.h"
-
+#define NDEBUG
 #include <errno.h>
 #include <stdlib.h>
 
@@ -73,13 +72,15 @@ dictentry_t * _dictentry_create(dict_t *dict, void *key, void *value) {
 }
 
 void _dictentry_free(dictentry_t *entry) {
-  if (entry -> dict -> free_key) {
-    entry -> dict -> free_key(entry -> key);
+  if (entry) {
+    if (entry -> dict -> free_key) {
+      entry -> dict -> free_key(entry -> key);
+    }
+    if (entry -> dict -> free_data) {
+      entry -> dict -> free_data(entry -> value);
+    }
+    free(entry);
   }
-  if (entry -> dict -> free_data) {
-    entry -> dict -> free_data(entry -> value);
-  }
-  free(entry);
 }
 
 unsigned int _dictentry_hash(dictentry_t *entry) {
@@ -113,6 +114,12 @@ entry_t * _entry_from_entry(entry_t *e) {
     ret -> value = e -> value;
   }
   return ret;
+}
+
+void entry_free(entry_t *e) {
+  if (e) {
+    free(e);
+  }
 }
 
 // ---------------------------
@@ -258,13 +265,9 @@ int _dict_remove_from_bucket(dict_t *dict, void *key) {
 void * _dict_entry_reducer(dictentry_t *e, reduce_ctx *ctx) {
   void *entry;
 
-  debug("_dict_entry_reducer 1");
   entry = (ctx -> user) ? (void *) e : (void *) _entry_from_dictentry(e);
-  debug("_dict_entry_reducer 2 %p %p", _dict_visitor, ctx -> fnc);
   ctx -> data = ctx -> fnc.reducer(entry, ctx -> data);
-  debug("_dict_entry_reducer 3");
   if (!ctx -> user) free(entry);
-  debug("_dict_entry_reducer 4");
   return ctx;
 }
 
@@ -377,8 +380,10 @@ int dict_size(dict_t *dict) {
 }
 
 void dict_free(dict_t *dict) {
-  array_free(dict -> buckets);
-  free(dict);
+  if (dict) {
+    array_free(dict -> buckets);
+    free(dict);
+  }
 }
 
 dict_t * dict_clear(dict_t *dict) {
@@ -466,21 +471,27 @@ list_t * dict_keys(dict_t *dict) {
   list_t *ret;
   
   ret = list_create();
-  return dict_reduce(dict, (reduce_t) _dict_keys_reducer, ret);
+  if (ret) {
+    ret = (list_t *) dict_reduce(dict, (reduce_t) _dict_keys_reducer, ret);
+  }
+  return ret;
 }
 
 list_t * dict_values(dict_t *dict) {
   list_t *ret;
   
   ret = list_create();
-  return dict_reduce(dict, (reduce_t) _dict_values_reducer, ret);
+  if (ret) {
+    ret = (list_t *) dict_reduce(dict, (reduce_t) _dict_values_reducer, ret);
+  }
+  return ret;
 }
 
 list_t * dict_items(dict_t *dict) {
   list_t *ret;
   
   ret = list_create();
-  list_set_free(ret, (visit_t) free);
+  list_set_free(ret, (visit_t) entry_free);
   return dict_reduce(dict, (reduce_t) _dict_items_reducer, ret);
 }
 

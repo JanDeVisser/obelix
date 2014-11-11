@@ -83,10 +83,12 @@ data_t * data_create(datatype_t type, void *value) {
 }
 
 void data_free(data_t *data) {
-  if (descriptors[data -> type].release) {
-    descriptors[data -> type].release(data -> value);
+  if (data) {
+    if (descriptors[data -> type].release) {
+      descriptors[data -> type].release(data -> value);
+    }
+    free(data);
   }
-  free(data);
 }
 
 data_t * data_copy(data_t *src) {
@@ -134,8 +136,10 @@ context_t * context_create(context_t *up) {
 }
 
 void context_free(context_t *ctx) {
-  dict_free(ctx -> vars);
-  free(ctx);
+  if (ctx) {
+    dict_free(ctx -> vars);
+    free(ctx);
+  }
 }
 
 context_t * context_up(context_t *ctx) {

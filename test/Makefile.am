@@ -1,5 +1,5 @@
-TESTS = 	 core list array dict buffer
-check_PROGRAMS = core list array dict buffer
+TESTS = 	 core list array dict set buffer
+check_PROGRAMS = core list array dict set buffer
 
 AM_CPPFLAGS =   -I$(top_srcdir)/include
 AM_CFLAGS =	@CHECK_CFLAGS@
@@ -13,4 +13,5 @@ core_SOURCES =	 core.c
 list_SOURCES =	 list.c
 array_SOURCES =	 array.c
 dict_SOURCES =	 dict.c
+set_SOURCES =    set.c
 buffer_SOURCES = buffer.c

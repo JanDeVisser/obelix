@@ -62,6 +62,7 @@ reduce_ctx * _set_intersect_reducer(void *elem, reduce_ctx *ctx) {
 
 set_t * _set_remover(void *elem, set_t *set) {
   set_remove(set, elem);
+  return set;
 }
 
 reduce_ctx * _set_minus_reducer(void *elem, reduce_ctx *ctx) {
@@ -106,8 +107,10 @@ set_t * set_set_hash(set_t *set, hash_t hash) {
 }
 
 void set_free(set_t *set) {
-  dict_free(set -> dict);
-  free(set);
+  if (set) {
+    dict_free(set -> dict);
+    free(set);
+  }
 }
 
 int set_add(set_t *set, void *elem) {

@@ -46,8 +46,10 @@ extern int      list_size(list_t *);
 extern void *   list_reduce(list_t *, reduce_t, void *);
 extern list_t * list_visit(list_t *, visit_t);
 extern list_t * list_clear(list_t *);
-extern void *   list_pop(list_t *);
+extern void *   list_head(list_t *);
+extern void *   list_tail(list_t *);
 extern void *   list_shift(list_t *);
+extern void *   list_pop(list_t *);
 
 #define list_push(l, d)         list_append((l), (d))
 

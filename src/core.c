@@ -66,10 +66,11 @@ unsigned int hash(void *buf, size_t size) {
   return hash;
 }
 
-void debug(char *msg, ...) {
+void _debug(char *file, int line, char *msg, ...) {
   va_list args;
 
   va_start(args, msg);
+  fprintf(stderr, "%s:%d ", file, line);
   vfprintf(stderr, msg, args);
   fprintf(stderr, "\n");
   va_end(args);
