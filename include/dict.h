@@ -39,6 +39,8 @@ typedef struct _entry {
   void         *value;
 } entry_t;
 
+extern void     entry_free(entry_t *e);
+
 extern dict_t * dict_create(cmp_t); /* No hash - Use key point mod something */
 extern dict_t * dict_set_hash(dict_t *, hash_t);
 extern dict_t * dict_set_free_key(dict_t *, free_t);

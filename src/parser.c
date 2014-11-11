@@ -17,86 +17,175 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <array.h>
+#include <dict.h>
 #include <expr.h>
 #include <lexer.h>
 #include <list.h>
+#include <parser.h>
+#include <set.h>
 
-typedef enum _parse_rule {
-  ParserStateProgram,
-  ParserStateError,
-  ParserStateEmpty,
-  ParserStateExpr,
-  ParserStateTerminalExpr,
-  ParserStateAtomExpr,
-  ParserStateNumber,
-  ParserStateMult,
-  ParserStateParExpr
-} parser_state_t;
+typedef struct _grammar_parser {
+  grammar_t     *grammar;
+  rule_t        *rule;
+  rule_option_t *option;
+  rule_item_t   *item;
+} grammar_parser_t;
 
-typedef struct _grammar_rule {
-  parser_state_t   state;
-  array_t         *options;
-} grammar_rule_t;
+static rule_item_t *   _rule_item_create(rule_option_t *, int);
+static void            _grammar_dump_rule(entry_t *);
+static void *          _parser_token_handler(token_t *, parser_t *);
 
-typedef struct _rule_option {
-  array_t      *items;
-} rule_option_t;
+/*
+ * rule_t public functions
+ */
 
-rule_option_t * rule_option_create(grammar_rule_t *rule) {
-  rule_option_t *ret;
+rule_t * rule_create(grammar_t *grammar, char *name) {
+  rule_t *ret;
 
-  ret = NEW(rule_option_t);
+  ret = NEW(rule_t);
   if (ret) {
-    ret -> items = array_create(3);
-    if (!ret -> items) {
+    ret -> name = strdup(name);
+    if (ret -> name) {
+      ret -> options = array_create(2);
+      if (!ret -> options) {
+        free(ret -> name);
+        ret -> name = NULL;
+      } else {
+        ret -> state = strhash(name);
+        array_set_free(ret -> options, (free_t) rule_option_free);
+        dict_put(grammar -> rules, ret -> name, ret);
+        if (!grammar -> entrypoint) {
+          grammar -> entrypoint = ret;
+        }
+        ret -> grammar = grammar;
+      }
+    }
+    if (!ret -> name) {
       free(ret);
       ret = NULL;
-    } else {
-      array_push(rule -> options, ret);
     }
   }
   return ret;
 }
 
+void rule_free(rule_t *rule) {
+  if (rule) {
+    free(rule -> name);
+    array_free(rule -> options);
+    free(rule);
+  }
+}
 
-typedef struct _rule_item {
-  int      *terminal;
-  union {
-    token_code_t   code;
-    parser_state_t state;
-  };
-} rule_item_t;
+void rule_dump(rule_t *rule) {
+  fprintf(stderr, "%s%s :=", (rule -> grammar -> entrypoint == rule) ? "(*) " : "", rule -> name);
+  array_visit(rule -> options, (visit_t) rule_option_dump);
+  fprintf(stderr, "\b;\n\n");
+}
 
-rule_item_t _rule_item_create(rule_option_t *option, int terminal) {
+/*
+ * rule_option_t public functions
+ */
+
+rule_option_t * rule_option_create(rule_t *rule) {
+  rule_option_t *ret;
+
+  ret = NEW(rule_option_t);
+  if (ret) {
+    ret -> items = array_create(3);
+    if (ret -> items) {
+      ret -> rule = rule;
+      array_set_free(ret -> items, (free_t) rule_item_free);
+      if (!array_push(rule -> options, ret)) {
+        array_free(ret -> items);
+        ret -> items = NULL;
+      }
+    }
+    if (!ret -> items) {
+      free(ret);
+      ret = NULL;
+    }
+  }
+  return ret;
+}
+
+void rule_option_free(rule_option_t *option) {
+  if (option) {
+    array_free(option -> items);
+    free(option);
+  }
+}
+
+void rule_option_dump(rule_option_t *option) {
+  array_visit(option -> items, (visit_t) rule_item_dump);
+  fprintf(stderr, " |");
+}
+
+/*
+ * rule_item_t static functions
+ */
+
+rule_item_t * _rule_item_create(rule_option_t *option, int terminal) {
   rule_item_t *ret;
 
   ret = NEW(rule_item_t);
   if (ret) {
     ret -> terminal = terminal;
-    array_push(option -> items, ret);
+    ret -> option = option;
+    if (!array_push(option -> items, ret)) {
+      free(ret);
+      ret = NULL;
+    }
   }
   return ret;
 }
 
-rule_item_t * rule_item_non_terminal(rule_option_t *option, parser_state_t state) {
+/*
+ * rule_item_t public functions
+ */
+
+void rule_item_free(rule_item_t *item) {
+  if (item) {
+    if (item -> terminal) {
+      token_free(item -> token);
+    } else {
+      free(item -> rule);
+    }
+    free(item);
+  }
+}
+
+rule_item_t * rule_item_non_terminal(rule_option_t *option, char *rule) {
   rule_item_t *ret;
 
   ret = _rule_item_create(option, FALSE);
   if (ret) {
-    ret -> state = state;
+    ret -> rule = strdup(rule);
   }
   return ret;
 }
 
-rule_item_t * rule_item_terminal(rule_option_t *option, token_code_t code) {
+rule_item_t * rule_item_terminal(rule_option_t *option, token_t *token) {
   rule_item_t *ret;
+  int          code;
+  char        *str;
+  token_t     *terminal_token;
 
   ret = _rule_item_create(option, TRUE);
   if (ret) {
-    ret -> code = code;
+    code = token_code(token);
+    str = token_token(token);
+    if (code == TokenCodeDQuotedStr) {
+      code = (int) strhash(str);
+      ret -> token = token_create(code, str);
+      set_add(option -> rule -> grammar -> keywords, ret -> token);
+    } else {
+      ret -> token = token_copy(token);
+    }
   }
   return ret;
 }
@@ -106,22 +195,229 @@ rule_item_t * rule_item_empty(rule_option_t *option) {
 
   ret = _rule_item_create(option, TRUE);
   if (ret) {
-    ret -> code = TokenCodeEmpty;
+    ret -> token = token_create(TokenCodeEmpty, "$");
   }
   return ret;
 }
 
+parser_fnc_t rule_item_get_function(rule_item_t *item) {
+  return item -> fnc;
+}
 
-extern grammar_rule_t * grammar_rule_create(parser_rule_t);
+rule_item_t * rule_item_set_function(rule_item_t *item, parser_fnc_t fnc) {
+  item -> fnc = fnc;
+  return item;
+}
 
-grammar_rule_t * grammar_rule_create(parser_state_t state) {
-  grammar_rule_t *ret;
+void rule_item_dump(rule_item_t *item) {
+  fprintf(stderr, " ");
+  if (item -> terminal) {
+    fprintf(stderr, "'%s' (%d)", token_token(item -> token), token_code(item -> token));
+  } else {
+    fprintf(stderr, "%s", item -> rule);
+  }
+}
 
-  ret = NEW(grammar_rule_t);
+/*
+ * grammar_t static functions
+ */
+
+grammar_parser_t * _grammar_token_handler(token_t *token, grammar_parser_t *grammar_parser) {
+  int  code;
+  char *str;
+  char terminal_str[2];
+
+  code = token_code(token);
+  str = token_token(token);
+  switch (token_code(token)) {
+    case TokenCodeIdentifier:
+      if (grammar_parser -> rule == NULL) {
+        assert(code == TokenCodeIdentifier);
+        grammar_parser -> rule = rule_create(grammar_parser -> grammar, str);
+        grammar_parser -> option = NULL;
+        grammar_parser -> item = NULL;
+      } else {
+        assert(grammar_parser -> option != NULL);
+        grammar_parser -> item = rule_item_non_terminal(grammar_parser -> option, str);
+      }
+      break;
+    case 200:
+      assert(grammar_parser -> option == NULL);
+      grammar_parser -> option = rule_option_create(grammar_parser -> rule);
+      break;
+    case TokenCodePipe:
+      assert(grammar_parser -> option != NULL);
+      grammar_parser -> option = rule_option_create(grammar_parser -> rule);
+      break;
+    case TokenCodeDQuotedStr:
+      assert(grammar_parser -> option != NULL);
+      grammar_parser -> item = rule_item_terminal(grammar_parser -> option, token);
+      break;
+    case TokenCodeSQuotedStr:
+      if (strlen(str) == 1) {
+        assert(grammar_parser -> option != NULL);
+        code = str[0];
+        strcpy(terminal_str, str);
+        token_free(token);
+        token = token_create(code, terminal_str);
+        grammar_parser -> item = rule_item_terminal(grammar_parser -> option, token);
+      } else {
+        assert(0);
+      }
+      break;
+    case TokenCodeDollar:
+      assert(grammar_parser -> option != NULL);
+      grammar_parser -> item = rule_item_empty(grammar_parser -> option);
+      break;
+    case TokenCodeSemiColon:
+      assert(grammar_parser -> option != NULL);
+      assert(grammar_parser -> rule != NULL);
+      grammar_parser -> rule = NULL;
+      grammar_parser -> option = NULL;
+      grammar_parser -> item = NULL;
+      break;
+    default:
+      assert(grammar_parser -> option != NULL);
+      if ((code >= '!') && (code <= '~')) {
+        grammar_parser -> item = rule_item_terminal(grammar_parser -> option, token);
+      } else {
+        assert(0);
+      }
+      break;
+  }
+  return grammar_parser;
+}
+
+void _grammar_dump_rule(entry_t *entry) {
+  rule_dump((rule_t *) entry -> value);
+}
+
+/*
+ * grammar_t public functions
+ */
+
+grammar_t * grammar_create() {
+  grammar_t *ret;
+  int ix;
+  int ok = TRUE;
+
+  ret = NEW(grammar_t);
   if (ret) {
-    ret -> state = state;
-    ret -> options = array_create(2);
-    if (!ret -> options) {
+    ret -> keywords = set_create((cmp_t) token_cmp);
+    if (ok = (ret != NULL)) {
+      set_set_hash(ret -> keywords, (hash_t) strhash);
+      set_set_free(ret -> keywords, (free_t) token_free);
+    }
+    if (ok) {
+      ret -> rules = dict_create((cmp_t) strcmp);
+      if (ok = (ret -> rules != NULL)) {
+        dict_set_hash(ret -> rules, (hash_t) token_hash);
+        dict_set_free_data(ret -> rules, (free_t) rule_free);
+      }
+    }
+    if (ok) {
+      ret -> lexer_options = array_create((int) LexerOptionLAST);
+      if (ok == (ret -> lexer_options != NULL)) {
+        for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
+          grammar_set_option(ret, ix, 0L);
+        }
+      }
+    }
+    if (!ok) {
+      grammar_free(ret);
+      ret = NULL;
+    }
+  }
+  return ret;
+}
+
+grammar_t * _grammar_read(reader_t *reader) {
+  grammar_t *grammar;
+  lexer_t *lexer;
+  grammar_parser_t grammar_parser;
+
+  grammar = grammar_create();
+  if (grammar) {
+    lexer = lexer_create(reader);
+    if (lexer) {
+      lexer_add_keyword(lexer, token_create(200, ":="));
+      lexer_set_option(lexer, LexerOptionIgnoreWhitespace, TRUE);
+      grammar_parser.grammar = grammar;
+      grammar_parser.rule = NULL;
+      grammar_parser.option = NULL;
+      grammar_parser.item = NULL;
+      lexer_tokenize(lexer, _grammar_token_handler, &grammar_parser);
+      lexer_free(lexer);
+    }
+  }
+  return grammar;
+}
+
+void grammar_free(grammar_t *grammar) {
+  if (grammar) {
+    dict_free(grammar -> rules);
+    free(grammar);
+  }
+}
+
+grammar_t * grammar_set_initializer(grammar_t *grammar, parser_fnc_t init) {
+  grammar -> initializer = init;
+  return grammar;
+}
+
+parser_fnc_t grammar_get_initializer(grammar_t *grammar) {
+  return grammar -> initializer;
+}
+
+grammar_t * grammar_set_finalizer(grammar_t *grammar, parser_fnc_t finalizer) {
+  grammar -> initializer = finalizer;
+  return grammar;
+}
+
+parser_fnc_t grammar_get_finalizer(grammar_t *grammar) {
+  return grammar -> finalizer;
+}
+
+grammar_t * grammar_set_option(grammar_t *grammar, lexer_option_t option, long value) {
+  array_set(grammar -> lexer_options, (int) option, (void *) value);
+  return grammar;
+}
+
+long grammar_get_option(grammar_t *grammar, lexer_option_t option) {
+  return (long) array_get(grammar -> lexer_options, (int) option);
+}
+
+void grammar_dump(grammar_t *grammar) {
+  if (set_size(grammar -> keywords)) {
+    fprintf(stderr, "< ");
+    set_visit(grammar -> keywords, (visit_t) token_dump);
+    fprintf(stderr, " >\n");
+  }
+  dict_visit(grammar -> rules, (visit_t) _grammar_dump_rule);
+}
+
+/*
+ * parser_t static functions
+ */
+
+void * _parser_token_handler(token_t *token, parser_t *parser) {
+  list_push(parser -> tokens, token_copy(token));
+  return parser;
+}
+
+/*
+ * parser_t public functions
+ */
+
+parser_t * parser_create(grammar_t *grammar) {
+  parser_t *ret;
+
+  if (ret) {
+    ret -> grammar = grammar;
+    ret -> tokens = list_create();
+    if (ret -> tokens) {
+      list_set_free(ret -> tokens, (free_t) token_free);
+    } else {
       free(ret);
       ret = NULL;
     }
@@ -129,184 +425,50 @@ grammar_rule_t * grammar_rule_create(parser_state_t state) {
   return ret;
 }
 
+parser_t * _parser_read_grammar(reader_t *reader) {
+  parser_t  *ret;
+  grammar_t *grammar;
 
-static list_t *grammar = NULL;
-
-void _init_grammar(char *fname) {
-  grammar_rule_t *rule;
-  rule_option_t *option;
-  rule_item_t *item;
-
-
-
-  grammar = list_create();
-
-  rule = grammar_rule_create(ParserStateProgram);
-  rule_item_non_terminal(rule_option_create(rule), ParserStateExpr);
-  rule_item_empty(rule_option_create(rule));
-  list_append(grammar, rule);
-
-  rule = grammar_rule_create(ParserStateExpr);
-  grammar_rule_add_item(rule, rule_item_non_terminal(ParserStateTerminalExpr));
-  grammar_rule_add_item(rule, rule_item_non_terminal(ParserStateTerminalExpr));
-  list_append(grammar, rule);
-
-
-}
-
-
-typedef struct _parser {
-  lexer_t         *lexer;
-  parser_state_t  *state;
-  expr_t          *atom_expr;
-  expr_t          *atom_expr_1;
-  expr_t          *expr;
-  int              factor;
-  int              param_level;
-} parser_t;
-
-typedef parser_state_t * (*parser_state_handler_fnc_)(parser_t  *, token_t *);
-
-typedef struct _parser_state_handler {
-  parser_state_t            state;
-  parser_state_handler_fnc_ handler;
-} parser_state_handler_t;
-
-
-static parser_state_t handle_expr(parser_t *, token_t *);
-static parser_state_t handle_error(parser_t *, token_t *);
-static parser_state_t handle_number(parser_t *, token_t *);
-static parser_state_t handle_mult(parser_t *, token_t *);
-static parser_state_t handle_atom(parser_t *, token_t *);
-
-static parser_state_handler_t parser_state_handlers[] = {
-    { state: ParserStateProgram, handler: handle_expr },
-    { state: ParserStateExpr, handler: handle_expr },
-    { state: ParserStateError, handler: handle_error },
-    { state: ParserStateNumber, handler: handle_number },
-    { state: ParserStateMult, handler: handle_mult },
-    { state: ParserStateAtomExpr, handler: handle_expr }
-};
-
-/*
- * expression functions
- */
-
-static data_t * _add(context_t *ctx, void *data, list_t *params, int factor) {
-  int sum, val;
-  listiterator_t *iter;
-  data_t *cur, *ret;
-
-  sum = 0;
-  for(iter = li_create(params); li_has_next(iter); ) {
-    cur = (data_t *) li_next(iter);
-    data_get(cur, &val);
-    sum += factor * val;
-  }
-  return data_create(Int, &sum);
-}
-static data_t * _plus(context_t *ctx, void *data, list_t *params) {
-  return _add(ctx, data, 1);
-}
-
-static data_t * _minus(context_t *ctx, void *data, list_t *params) {
-  return _add(ctx, data, -1);
-}
-
-static data_t * _mult(context_t *ctx, void *data, list_t *params) {
-  int prod, val;
-  listiterator_t *iter;
-  data_t *cur, *ret;
-
-  debug("*");
-  prod = 1;
-  for(iter = li_create(params); li_has_next(iter); ) {
-    cur = (data_t *) li_next(iter);
-    data_get(cur, &val);
-    prod *= val;
-  }
-  return data_create(Int, &prod);
-}
-
-/*
- * Parser state handlers
- */
-
-parser_state_t handle_expr(parser_t *parser, token_t *token) {
-  expr_t *expr;
-
-  switch (token_code(token)) {
-    case TokenCodeInteger:
-      return handle_number(parser, token);
-    case TokenCodePlus:
-      parser -> factor = 1;
-      return ParserStateNumber;
-    case TokenCodeMinus:
-      parser -> factor = -1;
-      return ParserStateNumber;
-    case TokenCodeOpenPar:
-      parser -> param_level++;
-      return ParserStateParExpr;
-    default:
-      return ParserStateError;
-  }
-}
-
-parser_state_t handle_number(parser_t *parser, token_t *token) {
-  if (token_code(token) == TokenCodeInteger) {
-    parser -> atom_expr = expr_int_literal(parser -> factor * atoi(token -> token));
-    parser -> factor = 1;
-    return ParserStateAtomExpr;
-  } else {
-    return ParserStateError;
-  }
-}
-
-parser_state_t handle_atom(parser_t *parser, token_t *token) {
-  if ((token_code(token) == TokenCodeAsterisk) || (token_code(token) == TokenCodeSlash)) {
-    parser -> factor = (token_code(token) == TokenCodeAsterisk) ? 1 : -1;
-    parser -> atom_expr_1 = parser -> atom_expr;
-    return ParserStateMult;
-  } else {
-    return ParserStateExpr;
-  }
-}
-
-parser_state_t handle_mult(parser_t *parser, token_t *token) {
-  if (token_code(token) == TokenCodeInteger) {
-    parser -> atom_expr = expr_int_literal(parser -> factor * atoi(token -> token));
-    parser -> factor = 1;
-    return ParserStateAtomExpr;
-  } else {
-    return ParserStateError;
-  }
-}
-
-
-parser_t * parser_create(lexer_t *lexer) {
-  parser_t *ret;
-
-  if (ret) {
-    ret -> lexer = lexer;
-    ret -> factor = 1;
-    ret -> param_level = 0;
+  grammar = grammar_read(reader);
+  if (grammar) {
+    ret = NEW(parser_t);
+    if (ret) {
+      ret -> grammar = grammar;
+    } else {
+      grammar_free(grammar);
+    }
   }
   return ret;
 }
 
-void parser_parse(parser_t *parser) {
-  token_t *token;
-  int ix;
+lexer_t * _parser_set_keywords(token_t *keyword, lexer_t *lexer) {
+  lexer_add_keyword(lexer, keyword);
+  return lexer;
+}
 
-  for (token = lexer_next_token(parser -> lexer); token;
-       token = lexer_next_token(parser -> lexer)) {
-    if (token_code(token) != TokenCodeWhitespace) {
-      for (ix = 0; ix < sizeof(parser_state_handlers) / sizeof(parser_state_handler_t); ix++) {
-        if (parser_state_handlers[ix].state == parser -> state) {
-          parser -> state = parser_state_handlers[ix].handler(parser, token);
-          break;
-        }
-      }
-    }
+void _parser_parse(parser_t *parser, reader_t *reader) {
+  lexer_t        *lexer;
+  lexer_option_t  ix;
+
+  lexer = lexer_create(reader);
+  set_reduce(parser -> grammar -> keywords, (reduce_t) _parser_set_keywords, lexer);
+  for (ix = 0; ix < LexerOptionLAST; ix++) {
+    lexer_set_option(lexer, ix, grammar_get_option(parser -> grammar, ix));
+  }
+  if (grammar_get_initializer(parser -> grammar)) {
+    grammar_get_initializer(parser -> grammar)(parser);
+  }
+  lexer_tokenize(lexer, _parser_token_handler, parser);
+  if (grammar_get_finalizer(parser -> grammar)) {
+    grammar_get_finalizer(parser -> grammar)(parser);
+  }
+  lexer_free(lexer);
+}
+
+void parser_free(parser_t *parser) {
+  if (parser) {
+    list_free(parser -> tokens);
+    grammar_free(parser -> grammar);
+    free(parser);
   }
 }

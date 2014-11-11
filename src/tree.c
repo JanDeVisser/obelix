@@ -28,11 +28,13 @@ static reduce_ctx * _tree_reducer(tree_t *, reduce_ctx *);
 // tree_t static methods
 
 void _tree_free(tree_t *tree) {
-  list_free(tree -> down);
-  if (tree -> free_data) {
-    tree -> free_data(tree -> data);
+  if (tree) {
+    list_free(tree -> down);
+    if (tree -> free_data && tree -> data) {
+      tree -> free_data(tree -> data);
+    }
+    free(tree);
   }
-  free(tree);
 }
 
 reduce_ctx * _tree_visitor(tree_t *tree, reduce_ctx *ctx) {

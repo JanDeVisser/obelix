@@ -19,16 +19,18 @@
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 lib_LTLIBRARIES = libobelix.la
-libobelix_la_SOURCES = core.c \
-list.c \
-array.c \
-dict.c \
-set.c \
-tree.c \
-expr.c \
-file.c \
-stringbuffer.c \
-lexer.c
+libobelix_la_SOURCES = \
+		core.c \
+		list.c \
+		array.c \
+		dict.c \
+		set.c \
+		tree.c \
+		expr.c \
+		file.c \
+		stringbuffer.c \
+		lexer.c \
+		parser.c
 
 bin_PROGRAMS = obelix
 obelix_SOURCES = obelix.c

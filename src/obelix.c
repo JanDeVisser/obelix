@@ -22,6 +22,24 @@
 #include <expr.h>
 #include <file.h>
 #include <lexer.h>
+#include <parser.h>
+#include <stringbuffer.h>
+
+static char *bnf_grammar =
+    "# name=simple_expr init=dummy_init ignore_ws #"
+    "program        := expr | $;"
+    "expr           := add_expr | terminal_expr;"
+    "add_expr       := terminal_expr add_op terminal_expr;"
+    "terminal_expr  := atom_expr | mult_expr;"
+    "mult_expr      := atom_expr mult_op atom_expr;"
+    "atom_expr      := par_expr | number | func_call;"
+    "par_expr       := ( expr );"
+    "number         := 'd' | - 'd';"
+    "mult_op        := * | /;"
+    "add_op         := + | -;"
+    "func_call      := func_name ( parlist ) ;"
+    "func_name      := \"sin\" | \"cos\" | \"tan\" | \"exp\" | \"log\" ;"
+    "parlist        := expr | expr, parlist ;";
 
 void test_expr() {
   expr_t *expr, *e;
@@ -42,26 +60,21 @@ void test_expr() {
   expr_free(expr);
 }
 
-void test_lexer(char *fname) {
-  file_t *fh;
-  lexer_t *lexer;
-  token_t *token;
+void test_parser(char *fname) {
+  stringbuffer_t *sb_grammar;
+  parser_t       *parser;
 
-  fh = (fname) ? file_open(fname) : file_create(fileno(stdin));
-  if (fh >= 0) {
-    lexer = lexer_create(fh);
-    if (lexer) {
-      for (token = lexer_next_token(lexer); token; token = lexer_next_token(lexer)) {
-        printf("[%d]%s", token_code(token), token_token(token));
-        token_free(token);
-      }
-      printf("\n");
-      lexer_free(lexer);
+  sb_grammar = sb_create(bnf_grammar);
+  if (sb_grammar) {
+    parser = parser_read_grammar(sb_grammar);
+    if (parser) {
+      grammar_dump(parser -> grammar);
+      parser_free(parser);
     }
-    close(fh);
+    sb_free(sb);
   }
 }
 
 int main(int argc, char **argv) {
-  test_lexer((argc > 1) ? argv[1] : NULL);
+  test_parser((argc > 1) ? argv[1] : NULL);
 }

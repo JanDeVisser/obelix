@@ -1,16 +1,11 @@
-program        := expr
+program        := statements $ ;
+statements     := statements statement | ~ ;
+statement      := 'i' ":=" expr | "read" 'i' | "write" expr ;
+expr           := term | expr add_op term ;
+term           := factor | term mult_op factor ;
+factor         := ( expr ) | 'i' | 'd' ;
+add_op         := + | - ;
+mult_op        := * | / ; 
 
-expr           := terminal_expr add_op terminal_expr | terminal_expr
-
-terminal_expr  := atom_expr | mult_expr
-
-mult_expr      := atom_expr mult_op atom_expr
-
-atom_expr      := *( expr *) | number
-
-number         := *int | *- *int
-
-mult_op        := ** | */
-
-add_op         := *+ | *-
-
+// $ --> end of text
+// ~ --> empty, nothing

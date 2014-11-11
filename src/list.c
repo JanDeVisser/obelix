@@ -156,7 +156,20 @@ list_t * list_clear(list_t *list) {
   return list;
 }
 
-void * list_pop(list_t *list) {
+void * list_head(list_t *list) {
+  listiterator_t *iter;
+  void *ret;
+
+  ret = NULL;
+  iter = li_create(list);
+  if (li_has_next(iter)) {
+    ret = li_next(iter);
+    li_free(iter);
+  }
+  return ret;
+}
+
+void * list_tail(list_t *list) {
   listiterator_t *iter;
   void *ret;
 
@@ -165,7 +178,6 @@ void * list_pop(list_t *list) {
   li_tail(iter);
   if (li_has_prev(iter)) {
     ret = li_prev(iter);
-    li_remove(iter);
     li_free(iter);
   }
   return ret;
@@ -179,6 +191,21 @@ void * list_shift(list_t *list) {
   iter = li_create(list);
   if (li_has_next(iter)) {
     ret = li_next(iter);
+    li_remove(iter);
+    li_free(iter);
+  }
+  return ret;
+}
+
+void * list_pop(list_t *list) {
+  listiterator_t *iter;
+  void *ret;
+
+  ret = NULL;
+  iter = li_create(list);
+  li_tail(iter);
+  if (li_has_prev(iter)) {
+    ret = li_prev(iter);
     li_remove(iter);
     li_free(iter);
   }
@@ -200,7 +227,9 @@ listiterator_t * li_create(list_t *list) {
 }
 
 void li_free(listiterator_t *iter) {
-  free(iter);
+  if (iter) {
+    free(iter);
+  }
 }
 
 void li_head(listiterator_t *iter) {

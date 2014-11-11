@@ -29,6 +29,12 @@
 
 static void _dequotify(char *);
 
+static int        _lexer_get_char(lexer_t *);
+static void       _lexer_push_back(lexer_t *);
+static void       _lexer_push_all_back(lexer_t *);
+static lexer_t *  _lexer_keyword_match_reducer(token_t *, lexer_t *);
+static int        _lexer_keyword_match(lexer_t *);
+static token_t *  _lexer_match_token(lexer_t *, int);
 
 /*
  * static utility functions
@@ -38,7 +44,7 @@ void _dequotify(char *str) {
   int len, ix;
 
   len = strlen(str);
-  if ((len >= 2) && (str[0] == str[1])) {
+  if ((len >= 2) && (str[0] == str[len - 1])) {
     switch (len) {
       case 2:
         str[0] = str[1] = 0;
@@ -57,7 +63,7 @@ void _dequotify(char *str) {
  * token_t - public interface
  */
 
-token_t *token_create(token_code_t code, char *token) {
+token_t *token_create(int code, char *token) {
   token_t *ret;
 
   ret = NEW(token_t);
@@ -72,12 +78,26 @@ token_t *token_create(token_code_t code, char *token) {
   return ret;
 }
 
-void token_free(token_t *token) {
-  free(token -> token);
-  free(token);
+token_t * token_copy(token_t *token) {
+  return token_create(token -> code, token -> token);
 }
 
-token_code_t token_code(token_t *token) {
+void token_free(token_t *token) {
+  if (token) {
+    free(token -> token);
+    free(token);
+  }
+}
+
+unsigned int token_hash(token_t *token) {
+  return token -> code;
+}
+
+int token_cmp(token_t *token, token_t *other) {
+  return token -> code - other -> code;
+}
+
+int token_code(token_t *token) {
   return token -> code;
 }
 
@@ -90,6 +110,10 @@ int token_iswhitespace(token_t *token) {
          (token -> code == TokenCodeNewLine);
 }
 
+void token_dump(token_t *token) {
+  fprintf(stderr, " '%s' (%d)", token_token(token), token_code(token));
+}
+
 /*
  * lexer_t - static methods
  */
@@ -98,6 +122,15 @@ int _lexer_get_char(lexer_t *lexer) {
   int ch;
   char *newtok;
 
+  if (lexer -> old_token) {
+    if (lexer -> old_token[lexer -> old_token_pos]) {
+      return lexer -> old_token[lexer -> old_token_pos++];
+    } else {
+      free(lexer -> old_token);
+      lexer -> old_token = NULL;
+      lexer -> old_token_pos = 0;
+    }
+  }
   if ((lexer -> buflen <= 0) || (lexer -> bufpos > lexer -> buflen)) {
     memset(lexer -> buf, 0, LEXER_BUFSIZE);
     lexer -> buflen = reader_read(lexer -> reader, lexer -> buf, LEXER_BUFSIZE);
@@ -125,15 +158,61 @@ int _lexer_get_char(lexer_t *lexer) {
 }
 
 void _lexer_push_back(lexer_t *lexer) {
-  lexer -> current_token[strlen(lexer -> current_token) - 1] = 0;
+  lexer -> current_token[--(lexer -> current_token_len)] = 0;
   lexer -> bufpos--;
 }
 
+void _lexer_push_all_back(lexer_t *lexer) {
+  lexer -> old_token = strdup(lexer -> current_token);
+  memset(lexer -> current_token, 0, lexer -> token_size);
+}
+
+lexer_t * _lexer_keyword_match_reducer(token_t *token, lexer_t *lexer) {
+  char *kw;
+  kw = token_token(token);
+
+
+  if ((lexer -> current_token_len <= strlen(kw)) &&
+      !strncmp(lexer -> current_token, kw, lexer -> current_token_len)) {
+    list_append(lexer -> matches, token);
+  }
+  return lexer;
+}
+
+int _lexer_keyword_match(lexer_t *lexer) {
+  int      ret;
+  token_t *match;
+
+  ret = TokenCodeNone;
+  if (!lexer -> current_token[0]) return ret;
+
+  lexer -> matches = list_create();
+  if (lexer -> matches) {
+    list_reduce(lexer -> keywords,
+                (reduce_t) _lexer_keyword_match_reducer, lexer);
+    if (list_size(lexer -> matches) == 1) {
+      match = (token_t *) list_head(lexer -> matches);
+      if (strlen(token_token(match)) == lexer -> current_token_len) {
+        ret = token_code(match);
+      }
+      lexer -> state = LexerStateKeyword;
+    } else if (list_size(lexer -> matches) > 1) {
+      lexer -> state = LexerStateKeyword;
+    } else {
+      lexer -> state = LexerStateInit;
+    }
+    list_free(lexer -> matches);
+  }
+  return ret;
+}
+
 token_t * _lexer_match_token(lexer_t *lexer, int ch) {
-  token_code_t  code;
-  token_t      *ret;
-  char         *tok;
-  int           ignore_nl;
+  token_code_t    code;
+  token_t        *ret;
+  char           *tok;
+  int             ignore_nl;
+  list_t *        matches;
+  listiterator_t *iter;
   
   tok = lexer -> current_token;
   ignore_nl = lexer_get_option(lexer, LexerOptionIgnoreNewLines);
@@ -141,29 +220,34 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
     debug("matcher in - state: %d tok: %s ch: %c", lexer -> state, tok, ch);
   }
   if (ch > 0) {
-    tok[strlen(tok)] = ch;
+    tok[lexer -> current_token_len++] = ch;
   }
   code = TokenCodeNone;
   ret = NULL;
   switch (lexer -> state) {
     case LexerStateInit:
-      if (!ignore_nl && ((ch == '\r') || (ch == '\n'))) {
-        lexer -> state = LexerStateNewLine;
-      } else if (isspace(ch)) {
-        lexer -> state = LexerStateWhitespace;
-      } else if (isalpha(ch) || (ch == '_')) {
-        lexer -> state = LexerStateIdentifier;
-      } else if (ch == '0') {
-        lexer -> state = LexerStateZero;
-      } else if (isdigit(ch)) {
-        lexer -> state = LexerStateNumber;
-      } else if ((ch == '\'') || (ch == '"') || (ch == '`')) {
-        lexer -> state = LexerStateQuotedStr;
-        lexer -> quote = ch;
-      } else if (ch == '/') {
-        lexer -> state = LexerStateSlash;
-      } else if (ch > 0) {
-        code = ch;
+      if (!lexer -> no_kw_match) {
+        code = _lexer_keyword_match(lexer);
+      }
+      if (!code && (lexer -> state == LexerStateInit)) {
+        if (!ignore_nl && ((ch == '\r') || (ch == '\n'))) {
+          lexer -> state = LexerStateNewLine;
+        } else if (isspace(ch)) {
+          lexer -> state = LexerStateWhitespace;
+        } else if (isalpha(ch) || (ch == '_')) {
+          lexer -> state = LexerStateIdentifier;
+        } else if (ch == '0') {
+          lexer -> state = LexerStateZero;
+        } else if (isdigit(ch)) {
+          lexer -> state = LexerStateNumber;
+        } else if ((ch == '\'') || (ch == '"') || (ch == '`')) {
+          lexer -> state = LexerStateQuotedStr;
+          lexer -> quote = ch;
+        } else if (ch == '/') {
+          lexer -> state = LexerStateSlash;
+        } else if (ch > 0) {
+          code = ch;
+        }
       }
       break;
     case LexerStateNewLine:
@@ -279,6 +363,13 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
         lexer -> state = LexerStateInit;
       }
       break;
+    case LexerStateKeyword:
+      code = _lexer_keyword_match(lexer);
+      if (!code && (lexer -> state == LexerStateInit)) {
+        _lexer_push_all_back(lexer);
+        lexer -> no_kw_match = 1;
+      }
+      break;
   }
   if (code != TokenCodeNone) {
     ret = token_create(code, tok);
@@ -315,6 +406,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
 
 lexer_t * lexer_create(void *reader) {
   lexer_t *ret;
+  int      ix;
   
   ret = NEW(lexer_t);
   if (ret) {
@@ -325,51 +417,90 @@ lexer_t * lexer_create(void *reader) {
     if (!ret -> options) {
       free(ret);
       ret = NULL;
+    } else {
+      for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
+        lexer_set_option(ret, ix, 0L);
+      }
+      ret -> keywords = list_create();
+      if (!ret -> keywords) {
+        array_free(ret -> options);
+        free(ret);
+        ret = NULL;
+      }
     }
   }
   return ret;
 }
 
-lexer_t * lexer_set_option(lexer_t *lexer, lexer_option_t option, int value) {
+lexer_t * lexer_set_option(lexer_t *lexer, lexer_option_t option, long value) {
   array_set(lexer -> options, (int) option, (void *) value);
   return lexer;
 }
 
-int lexer_get_option(lexer_t *lexer, lexer_option_t option) {
-  return (int) array_get(lexer -> options, (int) option);
+long lexer_get_option(lexer_t *lexer, lexer_option_t option) {
+  return (long) array_get(lexer -> options, (int) option);
+}
+
+lexer_t * lexer_add_keyword(lexer_t *lexer, token_t *token) {
+  list_append(lexer -> keywords, token);
+  return lexer;
 }
 
 void lexer_free(lexer_t *lexer) {
-  free(lexer);
+  if (lexer) {
+    array_free(lexer -> options);
+    list_free(lexer -> keywords);
+    free(lexer);
+  }
+}
+
+void _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
+  token_t *token;
+
+  debug("--------------------------");
+  debug("  --  lexer_tokenize  --");
+  debug("--------------------------");
+  for (token = lexer_next_token(lexer); token_code(token) != TokenCodeEnd; token = lexer_next_token(lexer)) {
+    debug("[%d] '%s'", token_code(token), token_token(token));
+    data = parser(token, data);
+    token_free(token);
+  }
+  debug("---------------------");
 }
 
 token_t * lexer_next_token(lexer_t *lexer) {
-  char *newtok;
   int ch;
   token_t *ret;
   int ignore_ws;
+  int first;
   
+  first = lexer -> state == LexerStateFresh;
   ret = NULL;
-  lexer -> token_size = sizeof(lexer -> short_token);
-  lexer -> current_token = lexer -> short_token;
-  lexer -> state = LexerStateInit;
-  newtok = NULL;
   ignore_ws = lexer_get_option(lexer, LexerOptionIgnoreWhitespace);
 
-  memset(lexer -> current_token, '\0', lexer -> token_size);
   do {
-    ch = _lexer_get_char(lexer);
-    ret = _lexer_match_token(lexer, ch);
-  } while (((lexer -> state != LexerStateDone) && (lexer -> state != LexerStateInit)) ||
-           (ignore_ws && ret && token_iswhitespace(ret)));
+    lexer -> state = LexerStateInit;
+    lexer -> token_size = sizeof(lexer -> short_token);
+    lexer -> current_token = lexer -> short_token;
+    memset(lexer -> current_token, '\0', lexer -> token_size);
+    lexer -> current_token_len = 0;
+    lexer -> old_token = NULL;
+    lexer -> old_token_pos = 0;
+    lexer -> no_kw_match = 0;
+
+    do {
+      ch = _lexer_get_char(lexer);
+      ret = _lexer_match_token(lexer, ch);
+    } while ((lexer -> state != LexerStateDone) && (lexer -> state != LexerStateInit));
+    if (lexer -> current_token != lexer -> short_token) {
+      free(lexer -> current_token);
+    }
+  } while (ignore_ws && ret && token_iswhitespace(ret));
 
   if (!ret && (lexer -> state == LexerStateDone)) {
-    ret = token_create(TokenCodeEnd, "");
+    ret = token_create((first) ? TokenCodeEmpty : TokenCodeEnd, "");
   }
 
-  if (lexer -> current_token != lexer -> short_token) {
-    free(lexer -> current_token);
-  }
 
   if (0) {
     if (ret) {
