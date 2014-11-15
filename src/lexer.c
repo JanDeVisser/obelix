@@ -17,14 +17,13 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../include/lexer.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 
+#include <dict.h>
 #include <lexer.h>
 
 static void _dequotify(char *);
@@ -165,13 +164,13 @@ void _lexer_push_back(lexer_t *lexer) {
 void _lexer_push_all_back(lexer_t *lexer) {
   lexer -> old_token = strdup(lexer -> current_token);
   memset(lexer -> current_token, 0, lexer -> token_size);
+  lexer -> current_token_len = 0;
 }
 
 lexer_t * _lexer_keyword_match_reducer(token_t *token, lexer_t *lexer) {
   char *kw;
+
   kw = token_token(token);
-
-
   if ((lexer -> current_token_len <= strlen(kw)) &&
       !strncmp(lexer -> current_token, kw, lexer -> current_token_len)) {
     list_append(lexer -> matches, token);
@@ -201,7 +200,9 @@ int _lexer_keyword_match(lexer_t *lexer) {
     } else {
       lexer -> state = LexerStateInit;
     }
+    list_set_free(lexer -> matches, NULL);
     list_free(lexer -> matches);
+    lexer -> matches = NULL;
   }
   return ret;
 }
@@ -373,7 +374,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
   }
   if (code != TokenCodeNone) {
     ret = token_create(code, tok);
-    lexer -> state = LexerStateInit;
+    lexer -> state = LexerStateSuccess;
   }
   if (ch <= 0) {
     if (!ret) {
@@ -457,15 +458,10 @@ void lexer_free(lexer_t *lexer) {
 void _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
   token_t *token;
 
-  debug("--------------------------");
-  debug("  --  lexer_tokenize  --");
-  debug("--------------------------");
   for (token = lexer_next_token(lexer); token_code(token) != TokenCodeEnd; token = lexer_next_token(lexer)) {
-    debug("[%d] '%s'", token_code(token), token_token(token));
     data = parser(token, data);
     token_free(token);
   }
-  debug("---------------------");
 }
 
 token_t * lexer_next_token(lexer_t *lexer) {
@@ -491,14 +487,14 @@ token_t * lexer_next_token(lexer_t *lexer) {
     do {
       ch = _lexer_get_char(lexer);
       ret = _lexer_match_token(lexer, ch);
-    } while ((lexer -> state != LexerStateDone) && (lexer -> state != LexerStateInit));
+    } while ((lexer -> state != LexerStateDone) && (lexer -> state != LexerStateSuccess));
     if (lexer -> current_token != lexer -> short_token) {
       free(lexer -> current_token);
     }
   } while (ignore_ws && ret && token_iswhitespace(ret));
 
   if (!ret && (lexer -> state == LexerStateDone)) {
-    ret = token_create((first) ? TokenCodeEmpty : TokenCodeEnd, "");
+    ret = token_create(TokenCodeEnd, "$$");
   }
 
 

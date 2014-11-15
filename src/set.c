@@ -17,6 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 
 #include <set.h>
@@ -27,6 +28,8 @@ static set_t *      _set_union_reducer(void *, set_t *);
 static reduce_ctx * _set_intersect_reducer(void *, reduce_ctx *);
 static set_t *      _set_remover(void *, set_t *);
 static reduce_ctx * _set_minus_reducer(void *, reduce_ctx *);
+static reduce_ctx * _set_disjoint_reducer(void *, reduce_ctx *);
+static reduce_ctx * _set_subsetof_reducer(void *, reduce_ctx *);
 
 // --------------------
 // set_t static methods
@@ -76,6 +79,30 @@ reduce_ctx * _set_minus_reducer(void *elem, reduce_ctx *ctx) {
   if (set_has(other, elem)) {
     set_add(remove, elem);
   }
+  return ctx;
+}
+
+reduce_ctx * _set_disjoint_reducer(void *elem, reduce_ctx *ctx) {
+  set_t *set;
+  set_t *other;
+  int   *disjoint;
+
+  set = (set_t *) ctx -> obj;
+  other = (set_t *) ctx -> user;
+  disjoint = (int *) ctx -> data;
+  *disjoint &= !set_has(other, elem);
+  return ctx;
+}
+
+reduce_ctx * _set_subsetof_reducer(void *elem, reduce_ctx *ctx) {
+  set_t *set;
+  set_t *other;
+  int   *hasall;
+
+  set = (set_t *) ctx -> obj;
+  other = (set_t *) ctx -> user;
+  hasall = (int *) ctx -> data;
+  *hasall &= set_has(other, elem);
   return ctx;
 }
 
@@ -182,7 +209,7 @@ set_t * set_intersect(set_t *set, set_t *other) {
   if (remove) {
     ctx = reduce_ctx_create(other, remove, NOFUNCPTR);
     if (ctx) {
-      remove = set_reduce(set, (reduce_t) _set_intersect_reducer, ctx);
+      set_reduce(set, (reduce_t) _set_intersect_reducer, ctx);
       free(ctx);
       set_reduce(remove, (reduce_t) _set_remover, set);
       set_free(remove);
@@ -200,7 +227,7 @@ set_t * set_minus(set_t *set, set_t *other) {
   if (remove) {
     ctx = reduce_ctx_create(other, remove, NOFUNCPTR);
     if (ctx) {
-      remove = set_reduce(set, (reduce_t) _set_minus_reducer, ctx);
+      set_reduce(set, (reduce_t) _set_minus_reducer, ctx);
       free(ctx);
       set_reduce(remove, (reduce_t) _set_remover, set);
       set_free(remove);
@@ -210,3 +237,57 @@ set_t * set_minus(set_t *set, set_t *other) {
   return NULL;
 }
 
+int set_disjoint(set_t *s1, set_t *s2) {
+  int         disjoint;
+  reduce_ctx *ctx;
+
+  ctx = reduce_ctx_create(s2, &disjoint, NOFUNCPTR);
+  disjoint = 1;
+  if (ctx) {
+    set_reduce(s1, (reduce_t) _set_disjoint_reducer, ctx);
+    free(ctx);
+    return disjoint;
+  }
+  return FALSE;
+}
+
+int set_subsetof(set_t *s1, set_t *s2) {
+  int         hasall;
+  reduce_ctx *ctx;
+
+  ctx = reduce_ctx_create(s2, &hasall, NOFUNCPTR);
+  hasall = 1;
+  if (ctx) {
+    set_reduce(s1, (reduce_t) _set_subsetof_reducer, ctx);
+    free(ctx);
+    return hasall;
+  }
+  return FALSE;
+}
+
+int set_cmp(set_t *s1, set_t *s2) {
+  int   ret;
+
+  ret = set_size(s1) - set_size(s2);
+  if (!ret) {
+    ret = !set_subsetof(s1, s2);
+  }
+  return ret;
+}
+
+FILE * _set_dump_reducer(void *elem, FILE *stream) {
+  fprintf(stream, " %ld,", (long) elem);
+  return stream;
+}
+
+void set_dump(set_t *set, void *f) {
+  FILE *stream;
+
+  stream = (FILE *) f;
+  fprintf(stream, "[");
+  set_reduce(set, (reduce_t) _set_dump_reducer, stream);
+  if (!set_empty(set)) {
+    fprintf(stream, "\b ");
+  }
+  fprintf(f, "]");
+}

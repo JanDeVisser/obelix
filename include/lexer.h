@@ -29,6 +29,7 @@
 typedef enum _lexer_state {
   LexerStateFresh,
   LexerStateInit,
+  LexerStateSuccess,
   LexerStateWhitespace,
   LexerStateNewLine,
   LexerStateIdentifier,

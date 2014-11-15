@@ -20,12 +20,23 @@
 #ifndef __CORE_H__
 #define __CORE_H__
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
 #define TRUE   1
 #define FALSE  0
 #define NEW(t) ( (t *) new( sizeof(t) ) )
+
+typedef enum _log_level {
+  LogLevelDebug,
+  LogLevelInfo,
+  LogLevelWarning,
+  LogLevelError,
+  LogLevelFatal
+} log_level_t;
+
+
 
 typedef void *  (*void_t)(void);
 typedef int     (*cmp_t)(void *, void *);
@@ -78,18 +89,25 @@ extern void *       resize_block(void *, int);
 extern void *       resize_ptrarray(void *, int);
 
 extern unsigned int hash(void *, size_t);
-extern void         _debug(char *file, int line, char *, ...);
 
+extern char *       _log_level_str(log_level_t);
+extern void         _logmsg(log_level_t, char *, int, char *, ...);
+
+extern void         initialize_random(void);
 extern char *       strrand(char *, size_t);
 extern unsigned int strhash(char *);
+extern int          atob(char *);
 
 extern reduce_ctx * reduce_ctx_create(void *, void *, function_ptr_t);
 
 #define reader_read(reader, buf, n)  (((reader_t *) reader) -> read_fnc(reader, buf, n))
 #ifndef NDEBUG
-#define debug(fmt, args...)          _debug(__FILE__, __LINE__, fmt, ## args)
+#define debug(fmt, args...)          _logmsg(LogLevelDebug, __FILE__, __LINE__, fmt, ## args)
 #else /* NDEBUG */
 #define debug(fmt, args...)
 #endif /* NDEBUG */
+#define info(fmt, args...)           _logmsg(LogLevelInfo, __FILE__, __LINE__, fmt, ## args)
+#define warning(fmt, args...)        _logmsg(LogLevelWarning, __FILE__, __LINE__, fmt, ## args)
+#define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, fmt, ## args)
 
 #endif /* __CORE_H__ */

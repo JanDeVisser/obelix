@@ -176,6 +176,124 @@ START_TEST(test_set_visit)
   free(td);
 END_TEST
 
+START_TEST(test_int_set)
+  set_t *set;
+  int ix;
+  int values[MANY];
+
+  initialize_random();
+  set = set_create((cmp_t) NULL);
+  ck_assert_ptr_ne(set, NULL);
+  for (ix = 0; ix < MANY; ix++) {
+    values[ix] = rand();
+    set_add(set, (void *) ((long) values[ix]));
+  }
+  ck_assert_int_eq(set_size(set), MANY);
+
+  for (ix = 0; ix < MANY; ix++) {
+    ck_assert(set_has(set, (void *) ((long) values[ix])));
+  }
+  set_free(set);
+END_TEST
+
+START_TEST(test_set_union)
+  set_t *s1, *s2;
+  int ix;
+
+  s1 = intset_create();
+  ck_assert_ptr_ne(s1, NULL);
+  s2 = intset_create();
+  ck_assert_ptr_ne(s2, NULL);
+  for (ix = 0; ix < MANY; ix++) {
+    set_add_int(((ix % 2) == 0) ? s1 : s2, ix);
+  }
+  ck_assert_int_eq(set_size(s1), MANY/2);
+  ck_assert_int_eq(set_size(s2), MANY/2);
+  ck_assert(set_disjoint(s1, s2));
+  ck_assert(set_cmp(s1, s2));
+  set_union(s1, s2);
+  ck_assert_int_eq(set_size(s1), MANY);
+  for (ix = 0; ix < MANY; ix++) {
+    ck_assert(set_has_int(s1, ix));
+  }
+  set_free(s1);
+  set_free(s2);
+END_TEST
+
+START_TEST(test_set_intersect)
+  set_t *s1, *s2;
+  int ix;
+
+  s1 = intset_create();
+  ck_assert_ptr_ne(s1, NULL);
+  s2 = intset_create();
+  ck_assert_ptr_ne(s2, NULL);
+  /*
+   * s1: All evens (750) + the odd multiples of 3 (500/2) = 1000
+   * s2: All odds (750) + the even multiples of 3 (500/2) = 1000
+   *
+   * intersect: all multiples of 3 (1000)
+   */
+  for (ix = 0; ix < 1500; ix++) {
+    if ((ix % 3) == 0) {
+      set_add_int(s1, ix);
+      set_add_int(s2, ix);
+    } else {
+      set_add_int(((ix % 2) == 0) ? s1 : s2, ix);
+    }
+  }
+  ck_assert_int_eq(set_size(s1), 1000);
+  ck_assert_int_eq(set_size(s2), 1000);
+  set_intersect(s1, s2);
+  ck_assert_int_eq(set_size(s1), 500);
+  for (ix = 0; ix < MANY; ix++) {
+    if ((ix % 3) == 0) {
+      ck_assert(set_has_int(s1, ix));
+    } else {
+      ck_assert(!set_has_int(s1, ix));
+    }
+  }
+  set_free(s1);
+  set_free(s2);
+END_TEST
+
+START_TEST(test_set_subsetof)
+  set_t *s1, *s2;
+  int ix;
+
+  s1 = intset_create();
+  ck_assert_ptr_ne(s1, NULL);
+  s2 = intset_create();
+  ck_assert_ptr_ne(s2, NULL);
+  for (ix = 0; ix < MANY; ix++) {
+    set_add_int(s2, ix);
+    if ((ix % 2) == 0) {
+      set_add_int(s1, ix);
+    }
+  }
+  ck_assert(set_subsetof(s1, s2));
+  ck_assert(set_cmp(s1, s2));
+  set_free(s1);
+  set_free(s2);
+END_TEST
+
+START_TEST(test_set_cmp)
+  set_t *s1, *s2;
+  int ix;
+
+  s1 = intset_create();
+  ck_assert_ptr_ne(s1, NULL);
+  s2 = intset_create();
+  ck_assert_ptr_ne(s2, NULL);
+  for (ix = 0; ix < MANY; ix++) {
+    set_add_int(s2, ix);
+    set_add_int(s1, ix);
+  }
+  ck_assert(!set_cmp(s1, s2));
+  set_free(s1);
+  set_free(s2);
+END_TEST
+
 char * get_suite_name() {
   return "Set";
 }
@@ -192,5 +310,10 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_set_clear);
   tcase_add_test(tc, test_set_remove);
   tcase_add_test(tc, test_set_visit);
+  tcase_add_test(tc, test_int_set);
+  tcase_add_test(tc, test_set_union);
+  tcase_add_test(tc, test_set_intersect);
+  tcase_add_test(tc, test_set_subsetof);
+  tcase_add_test(tc, test_set_cmp);
   return tc;
 }

@@ -4,7 +4,7 @@ check_PROGRAMS = core list array dict set buffer
 AM_CPPFLAGS =   -I$(top_srcdir)/include
 AM_CFLAGS =	@CHECK_CFLAGS@
 AM_LDFLAGS =	-pthread
-LDADD =		$(top_builddir)/src/libobelix.la libtest.la @CHECK_LIBS@ -lm -lrt
+LDADD =		$(top_builddir)/src/libobelix.la libtest.la @CHECK_LIBS@ -lm -lrt -ldl
 
 lib_LTLIBRARIES    = libtest.la
 libtest_la_SOURCES = collections.c
