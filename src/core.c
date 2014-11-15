@@ -66,11 +66,26 @@ unsigned int hash(void *buf, size_t size) {
   return hash;
 }
 
-void _debug(char *file, int line, char *msg, ...) {
+char * _log_level_str(log_level_t lvl) {
+  switch (lvl) {
+    case LogLevelDebug:
+      return "DEBUG";
+    case LogLevelInfo:
+      return "INFO ";
+    case LogLevelWarning:
+      return "WARN ";
+    case LogLevelError:
+      return "ERROR";
+    case LogLevelFatal:
+      return "FATAL";
+  }
+}
+
+void _logmsg(log_level_t lvl, char *file, int line, char *msg, ...) {
   va_list args;
 
   va_start(args, msg);
-  fprintf(stderr, "%s:%d ", file, line);
+  fprintf(stderr, "%s:%d:%s:", file, line, _log_level_str(lvl));
   vfprintf(stderr, msg, args);
   fprintf(stderr, "\n");
   va_end(args);
@@ -80,11 +95,23 @@ unsigned int strhash(char *str) {
   return hash(str, strlen(str));
 }
 
+int atob(char *str) {
+  int ret;
+
+  if (!strcasecmp(str, "true")) {
+    return 1;
+  }
+  if (!strcasecmp(str, "false")) {
+    return 0;
+  }
+  return atoi(str);
+}
+
 static int rand_initialized = 0;
 static char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK...";
 static int my_seed = 3425674;
 
-static void initialize_random(void) {
+void initialize_random(void) {
   if (!rand_initialized++) {
     srand(time(NULL) + my_seed);
   }

@@ -65,6 +65,8 @@ list_t * list_create() {
     ret -> head -> next = ret -> tail;
     ret -> tail -> prev = ret -> head;
     ret -> size = 0;
+    ret -> freefnc = NULL;
+    ret -> cmp = NULL;
   } 
   return ret;
 }

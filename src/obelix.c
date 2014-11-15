@@ -23,11 +23,11 @@
 #include <file.h>
 #include <lexer.h>
 #include <parser.h>
+#include <resolve.h>
 #include <stringbuffer.h>
 
 static char *bnf_grammar =
-    "# name=simple_expr init=dummy_init ignore_ws #"
-    "program        := expr | $;"
+    "% name: simple_expr init: dummy_init ignore_ws: true %"
     "expr           := add_expr | terminal_expr;"
     "add_expr       := terminal_expr add_op terminal_expr;"
     "terminal_expr  := atom_expr | mult_expr;"
@@ -40,6 +40,11 @@ static char *bnf_grammar =
     "func_call      := func_name ( parlist ) ;"
     "func_name      := \"sin\" | \"cos\" | \"tan\" | \"exp\" | \"log\" ;"
     "parlist        := expr | expr, parlist ;";
+
+parser_t * dummy_init(parser_t *parser) {
+  debug("---> init <-----");
+  return parser;
+}
 
 void test_expr() {
   expr_t *expr, *e;
@@ -71,8 +76,12 @@ void test_parser(char *fname) {
       grammar_dump(parser -> grammar);
       parser_free(parser);
     }
-    sb_free(sb);
+    sb_free(sb_grammar);
   }
+}
+
+extern void foo(void) {
+  puts("foo!");
 }
 
 int main(int argc, char **argv) {

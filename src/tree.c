@@ -121,7 +121,7 @@ void * tree_reduce(tree_t *tree, reduce_t reducer, void *data) {
   fnc.reducer = reducer;
   ctx = reduce_ctx_create(NULL, data, fnc);
   if (ctx) {
-    ctx -> data = dict_reduce(tree -> down, (reduce_t) _tree_reducer, ctx);
+    ctx -> data = list_reduce(tree -> down, (reduce_t) _tree_reducer, ctx);
     ret = reducer(tree -> data, ctx -> data);
     free(ctx);
     return ret;

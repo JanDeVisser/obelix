@@ -215,7 +215,7 @@ int _dict_add_to_bucket(array_t *buckets, dictentry_t *entry) {
   }
   li_free(iter);
   if (!ok) {
-    ok = list_append(bucket, entry);
+    ok = (list_append(bucket, entry) != NULL);
     if (ok) ok = 2;
   }
   return ok;
@@ -281,7 +281,7 @@ void * _dict_reduce(dict_t *dict, reduce_t reducer, void *data, int entrytype) {
   function_ptr_t fnc;
 
   fnc.reducer = reducer;
-  ctx = reduce_ctx_create((void *) entrytype, data, fnc);
+  ctx = reduce_ctx_create((void *) ((long) entrytype), data, fnc);
   if (ctx) {
     ret = array_reduce(dict -> buckets, (reduce_t) _dict_bucket_reducer, ctx);
     free(ctx);

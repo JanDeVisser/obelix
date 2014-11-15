@@ -17,6 +17,8 @@
 # along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_LDFLAGS  = -rdynamic
+LDADD       = -ldl
 
 lib_LTLIBRARIES = libobelix.la
 libobelix_la_SOURCES = \
@@ -29,9 +31,10 @@ libobelix_la_SOURCES = \
 		expr.c \
 		file.c \
 		stringbuffer.c \
+		resolve.c \
 		lexer.c \
 		parser.c
 
 bin_PROGRAMS = obelix
 obelix_SOURCES = obelix.c
-obelix_LDADD = libobelix.la
+obelix_LDADD = libobelix.la -ldl

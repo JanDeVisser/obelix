@@ -63,4 +63,13 @@ extern dict_t * dict_put_all(dict_t *, dict_t *);
 
 extern void     dict_dump(dict_t *);
 
+#define intdict_create()        dict_create(NULL)
+#define dict_put_int(d, i, v)   dict_put((d), (void *)((long) (i)), (v))
+#define dict_get_int(d, i)      dict_get((d), (void *)((long) (i)))
+#define dict_has_int(d, i)      dict_has_key((d), (void *)((long) (i)))
+#define dict_remove_int(d, i)   dict_remove((d), (void *)((long) (i)))
+#define dict_empty(s)           (dict_size((d)) == 0)
+
+
+
 #endif /* __DICT_H__ */

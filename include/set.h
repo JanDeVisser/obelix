@@ -40,5 +40,15 @@ extern set_t *  set_clear(set_t *);
 extern set_t *  set_intersect(set_t *, set_t *);
 extern set_t *  set_union(set_t *, set_t *);
 extern set_t *  set_minus(set_t *, set_t *);
+extern int      set_disjoint(set_t *, set_t *);
+extern int      set_subsetof(set_t *, set_t *);
+extern int      set_cmp(set_t *, set_t *);
+extern void     set_dump(set_t *, void *);
+
+#define intset_create()       set_create(NULL)
+#define set_add_int(s, i)     set_add((s), (void *)((long) (i)))
+#define set_has_int(s, i)     set_has((s), (void *)((long) (i)))
+#define set_remove_int(s, i)  set_remove((s), (void *)((long) (i)))
+#define set_empty(s)          (set_size((s)) == 0)
 
 #endif /* __SET_H__ */
