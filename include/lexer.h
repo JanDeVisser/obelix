@@ -124,6 +124,9 @@ typedef struct _lexer {
   char           quote;
 } lexer_t;
 
+extern char *       lexer_state_name(lexer_state_t);
+extern char *       token_code_name(token_code_t);
+
 extern token_t *    token_create(int, char *);
 extern token_t *    token_copy(token_t *);
 extern void         token_free(token_t *);
@@ -133,6 +136,7 @@ extern int          token_code(token_t *);
 extern char *       token_token(token_t *);
 extern int          token_iswhitespace(token_t *);
 extern void         token_dump(token_t *);
+extern char *       token_tostring(token_t *, char *, int);
 
 extern lexer_t *    lexer_create(void *);
 extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, long);

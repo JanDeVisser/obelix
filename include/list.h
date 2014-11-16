@@ -52,6 +52,8 @@ extern void *   list_shift(list_t *);
 extern void *   list_pop(list_t *);
 
 #define list_push(l, d)         list_append((l), (d))
+#define list_empty(l)           (list_size((l)) == 0)
+#define list_not_empty(l)       (list_size((l)) > 0)
 
 typedef struct _listiter {
   list_t     *list;

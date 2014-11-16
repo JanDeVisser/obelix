@@ -137,7 +137,7 @@ char * get_suite_name() {
 TCase * get_testcase(int ix) {
   TCase *tc;
   if (ix > 0) return NULL;
-  tc = tcase_create("Dict");
+  tc = tcase_create("Buffer");
 
   tcase_add_test(tc, test_file_create);
   tcase_add_test(tc, test_file_open);

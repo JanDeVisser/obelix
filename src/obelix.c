@@ -65,15 +65,32 @@ void test_expr() {
   expr_free(expr);
 }
 
-void test_parser(char *fname) {
+void test_parser(char *gname, char *tname) {
   stringbuffer_t *sb_grammar;
+  file_t *       *file_grammar;
+  reader_t       *greader;
+  stringbuffer_t *sb_text;
+  reader_t       *treader;
   parser_t       *parser;
 
-  sb_grammar = sb_create(bnf_grammar);
-  if (sb_grammar) {
-    parser = parser_read_grammar(sb_grammar);
+  if (!gname) {
+    greader = (reader_t *) sb_create(bnf_grammar);
+  } else {
+    greader = (reader_t *) file_open(gname);
+  }
+  if (!tname) {
+    treader = (reader_t *) file_create(fileno(stdin));
+  } else {
+    treader = (reader_t *) file_open(tname);
+  }
+  sb_text = sb_create("test := 1 + 1");
+  if (greader) {
+    parser = parser_read_grammar(greader);
     if (parser) {
       grammar_dump(parser -> grammar);
+
+      parser_parse(parser, treader);
+
       parser_free(parser);
     }
     sb_free(sb_grammar);
@@ -85,5 +102,5 @@ extern void foo(void) {
 }
 
 int main(int argc, char **argv) {
-  test_parser((argc > 1) ? argv[1] : NULL);
+  test_parser((argc > 1) ? argv[1] : NULL, (argc > 2) ? argv[2] : NULL);
 }
