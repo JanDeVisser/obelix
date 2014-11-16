@@ -38,7 +38,8 @@ typedef enum _log_level {
 
 
 
-typedef void *  (*void_t)(void);
+typedef void    (*void_t)(void);
+typedef void *  (*voidptr_t)(void *);
 typedef int     (*cmp_t)(void *, void *);
 typedef int     (*hash_t)(void *);
 typedef char *  (*tostring_t)(void *);

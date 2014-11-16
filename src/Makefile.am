@@ -33,6 +33,7 @@ libobelix_la_SOURCES = \
 		stringbuffer.c \
 		resolve.c \
 		lexer.c \
+		grammar.c \
 		parser.c
 
 bin_PROGRAMS = obelix

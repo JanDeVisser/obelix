@@ -492,7 +492,8 @@ list_t * dict_items(dict_t *dict) {
   
   ret = list_create();
   list_set_free(ret, (visit_t) entry_free);
-  return dict_reduce(dict, (reduce_t) _dict_items_reducer, ret);
+  dict_reduce(dict, (reduce_t) _dict_items_reducer, ret);
+  return ret;
 }
 
 dict_t * dict_put_all(dict_t *dict, dict_t *other) {

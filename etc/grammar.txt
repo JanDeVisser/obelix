@@ -1,11 +1,16 @@
-program        := statements $ ;
-statements     := statements statement | ~ ;
+%
+name: simple_expr
+init: dummy_init 
+ignore_ws: true
+%
+program        := statements ;
+statements     := statement statements | ;
 statement      := 'i' ":=" expr | "read" 'i' | "write" expr ;
-expr           := term | expr add_op term ;
-term           := factor | term mult_op factor ;
+expr           := term termtail ;
+termtail       := add_op term termtail | ;
+term           := factor factortail ; 
+factortail     := mult_op factor factortail | ;
 factor         := ( expr ) | 'i' | 'd' ;
 add_op         := + | - ;
-mult_op        := * | / ; 
-
-// $ --> end of text
-// ~ --> empty, nothing
+mult_op        := * | / ;
+ 
