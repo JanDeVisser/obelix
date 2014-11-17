@@ -27,7 +27,8 @@
 typedef enum {
   PSETypeRule,
   PSETypeOption,
-  PSETypeItem
+  PSETypeItem,
+  PSETypeFunction
 } parser_stack_entry_type_t;
 
 typedef struct _parser_stack_entry {
@@ -36,12 +37,14 @@ typedef struct _parser_stack_entry {
     rule_t        *rule;
     rule_option_t *option;
     rule_item_t   *item;
+    parser_fnc_t   fnc;
   };
 } parser_stack_entry_t;
 
 static parser_stack_entry_t * _parser_stack_entry_for_rule(rule_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_option(rule_option_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_item(rule_item_t *);
+static parser_stack_entry_t * _parser_stack_entry_for_function(voidptr_t);
 static void                   _parser_stack_entry_free(parser_stack_entry_t *);
 static char *                 _parser_stack_entry_tostring(parser_stack_entry_t *, char *, int);
 
@@ -78,6 +81,15 @@ parser_stack_entry_t * _parser_stack_entry_for_item(rule_item_t *item) {
   return ret;
 }
 
+parser_stack_entry_t * _parser_stack_entry_for_function(voidptr_t function) {
+  parser_stack_entry_t *ret;
+
+  ret = NEW(parser_stack_entry_t);
+  ret -> type = PSETypeFunction;
+  ret -> fnc = (parser_fnc_t) function;
+  return ret;
+}
+
 void _parser_stack_entry_free(parser_stack_entry_t *entry) {
   free(entry);
 }
@@ -85,7 +97,12 @@ void _parser_stack_entry_free(parser_stack_entry_t *entry) {
 char * _parser_stack_entry_tostring(parser_stack_entry_t *entry, char *buf, int maxlen) {
   rule_t      *rule;
   rule_item_t *item;
+  static char  localbuf[128];
 
+  if (!buf) {
+    buf = localbuf;
+    maxlen = 128;
+  }
   switch (entry -> type) {
     case PSETypeRule:
       snprintf(buf, maxlen, "R {%s}", entry -> rule -> name);
@@ -99,6 +116,10 @@ char * _parser_stack_entry_tostring(parser_stack_entry_t *entry, char *buf, int 
       } else {
         snprintf(buf, maxlen, "I {%s}", item -> rule);
       }
+      break;
+    case PSETypeFunction:
+      strncpy(buf, "Function", maxlen - 1);
+      buf[maxlen - 1] = 0;
       break;
   }
   return buf;
@@ -117,8 +138,6 @@ void * _parser_token_handler(token_t *token, parser_t *parser) {
   parser_stack_entry_t *new_entry;
   int                   code;
   int                   i;
-  char                  token_buf[40];
-  char                  entry_buf[40];
   listiterator_t       *iter;
   static int            count = 0;
 
@@ -128,7 +147,7 @@ void * _parser_token_handler(token_t *token, parser_t *parser) {
   debug("_parser_token_handler - Parser Stack");
   for(iter = li_create(parser -> prod_stack); li_has_next(iter); ) {
     entry = li_next(iter);
-    debug("[ %s ]", _parser_stack_entry_tostring(entry, entry_buf, 20));
+    debug("[ %s ]", _parser_stack_entry_tostring(entry, NULL, 0));
   }
   code = token_code(token);
   entry = list_pop(parser -> prod_stack);
@@ -140,37 +159,43 @@ void * _parser_token_handler(token_t *token, parser_t *parser) {
     // end of the input but we're getting more stuff.
   } else {
     debug("_parser_token_handler: Token: %s Stack Entry: %s",
-          token_tostring(token, token_buf, 40),
-          _parser_stack_entry_tostring(entry, entry_buf, 20));
+          token_tostring(token, NULL, 0),
+          _parser_stack_entry_tostring(entry, NULL, 0));
     switch (entry -> type) {
       case PSETypeRule:
         rule = entry -> rule;
         option = dict_get_int(rule -> parse_table, code);
-        //if (option) {
-          // TODO: Error Handling.
-          // If assert trips we've received a terminal that
-          // doesn't match any production for the rule.
-          // This is what normal people call a syntax error :-)
-          for (i = array_size(option -> items) - 1; i >= 0; i--) {
-            item = (rule_item_t *) array_get(option -> items, i);
-            if (item -> terminal) {
-              debug("Pushing terminal '%s' onto parser stack",
-                    token_tostring(item -> token, token_buf, 40));
-              list_push(parser -> prod_stack,
-                        _parser_stack_entry_for_item(item));
-            } else {
-              if (i || strcmp(item -> rule, rule -> name)) {
-                debug("Pushing non-terminal '%s' onto parser stack", item -> rule);
-                new_rule = grammar_get_rule(parser -> grammar, item -> rule);
-                new_entry = _parser_stack_entry_for_rule(new_rule);
-                list_push(parser -> prod_stack, new_entry);
-              } else {
-                error("Non-terminal '%s' expands to itself", rule -> name);
-                assert(0);
+        // TODO: Error Handling.
+        // If assert trips we've received a terminal that
+        // doesn't match any production for the rule.
+        // This is what normal people call a syntax error :-)
+        for (i = array_size(option -> items) - 1; i >= 0; i--) {
+          item = (rule_item_t *) array_get(option -> items, i);
+          if (item -> terminal) {
+            debug("Pushing terminal '%s' onto parser stack",
+                  token_tostring(item -> token, NULL, 0));
+            list_push(parser -> prod_stack,
+                      _parser_stack_entry_for_item(item));
+          } else {
+            if (i || strcmp(item -> rule, rule -> name)) {
+              debug("Pushing non-terminal '%s' onto parser stack", item -> rule);
+              new_rule = grammar_get_rule(parser -> grammar, item -> rule);
+              if (rule_get_finalizer(new_rule)) {
+                list_push(parser -> prod_stack,
+                          _parser_stack_entry_for_function(rule_get_finalizer(new_rule)));
               }
+              new_entry = _parser_stack_entry_for_rule(new_rule);
+              if (rule_get_initializer(new_rule)) {
+                list_push(parser -> prod_stack,
+                          _parser_stack_entry_for_function(rule_get_initializer(new_rule)));
+              }
+              list_push(parser -> prod_stack, new_entry);
+            } else {
+              error("Non-terminal '%s' expands to itself", rule -> name);
+              assert(0);
             }
           }
-        //}
+        }
         _parser_token_handler(token, parser);
         break;
       case PSETypeItem:
@@ -190,6 +215,11 @@ void * _parser_token_handler(token_t *token, parser_t *parser) {
           list_push(parser -> prod_stack, new_entry);
           _parser_token_handler(token, parser);
         }
+        break;
+      case PSETypeFunction:
+        assert(entry -> fnc);
+        entry -> fnc(parser);
+        _parser_token_handler(token, parser);
         break;
     }
     _parser_stack_entry_free(entry);

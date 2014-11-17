@@ -228,6 +228,12 @@ void token_dump(token_t *token) {
 }
 
 char * token_tostring(token_t *token, char *buf, int maxlen) {
+  static char  localbuf[128];
+
+  if (!buf) {
+    buf = localbuf;
+    maxlen = 128;
+  }
   snprintf(buf, maxlen, "[%s] '%s'",
            token_code_name(token -> code), token -> token);
   return buf;

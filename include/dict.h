@@ -57,12 +57,24 @@ extern list_t * dict_values(dict_t *);
 extern list_t * dict_items(dict_t *);
 extern int      dict_has_key(dict_t *, void *);
 extern void *   dict_reduce(dict_t *, reduce_t, void *);
-extern void *   _dict_reduce_entries(dict_t *, reduce_t, void *);
+extern void *   dict_reduce_keys(dict_t *, reduce_t, void *);
+extern void *   dict_reduce_values(dict_t *, reduce_t, void *);
+extern void *   _dict_reduce_dictentries(dict_t *, reduce_t, void *);
 extern dict_t * dict_visit(dict_t *, visit_t);
+extern dict_t * dict_visit_keys(dict_t *, visit_t);
+extern dict_t * dict_visit_values(dict_t *, visit_t);
+extern dict_t * _dict_visit_dictentries(dict_t *, visit_t);
 extern dict_t * dict_put_all(dict_t *, dict_t *);
 
 extern void     dict_dump(dict_t *);
 
+#define strstr_dict_create()    dict_set_free_data( \
+                                  dict_set_free_key( \
+                                    dict_set_hash( \
+                                      dict_create((cmp_t) strcmp),\
+                                      (hash_t) strhash), \
+                                    (free_t) free), \
+                                  (free_t) free)
 #define intdict_create()        dict_create(NULL)
 #define dict_put_int(d, i, v)   dict_put((d), (void *)((long) (i)), (v))
 #define dict_get_int(d, i)      dict_get((d), (void *)((long) (i)))
