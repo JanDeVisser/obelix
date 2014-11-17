@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include <expr.h>
 #include <file.h>
@@ -27,22 +28,29 @@
 #include <stringbuffer.h>
 
 static char *bnf_grammar =
-    "% name: simple_expr init: dummy_init ignore_ws: true %"
-    "expr           := add_expr | terminal_expr;"
-    "add_expr       := terminal_expr add_op terminal_expr;"
-    "terminal_expr  := atom_expr | mult_expr;"
-    "mult_expr      := atom_expr mult_op atom_expr;"
-    "atom_expr      := par_expr | number | func_call;"
-    "par_expr       := ( expr );"
-    "number         := 'd' | - 'd';"
-    "mult_op        := * | /;"
-    "add_op         := + | -;"
-    "func_call      := func_name ( parlist ) ;"
-    "func_name      := \"sin\" | \"cos\" | \"tan\" | \"exp\" | \"log\" ;"
-    "parlist        := expr | expr, parlist ;";
+    "%\n"
+    "name: simple_expr\n"
+    "init: dummy_init \n"
+    "ignore_ws: true\n"
+    "%\n"
+    "program                   := statements ;\n"
+    "statements                := statement statements | ;\n"
+    "statement                 := 'i' \":=\" expr | \"read\" 'i' | \"write\" expr ;\n"
+    "expr [ init: start_expr ] := term termtail ;\n"
+    "termtail                  := add_op term termtail | ;\n"
+    "term                      := factor factortail ; \n"
+    "factortail                := mult_op factor factortail | ;\n"
+    "factor                    := ( expr ) | 'i' | 'd' ;\n"
+    "add_op                    := + | - ;\n"
+    "mult_op                   := * | / ;\n";
 
 parser_t * dummy_init(parser_t *parser) {
   debug("---> init <-----");
+  return parser;
+}
+
+parser_t * start_expr(parser_t *parser) {
+  debug("---> start_expr <-----");
   return parser;
 }
 
@@ -66,7 +74,6 @@ void test_expr() {
 }
 
 void test_parser(char *gname, char *tname) {
-  stringbuffer_t *sb_grammar;
   file_t *       *file_grammar;
   reader_t       *greader;
   stringbuffer_t *sb_text;
@@ -83,17 +90,13 @@ void test_parser(char *gname, char *tname) {
   } else {
     treader = (reader_t *) file_open(tname);
   }
-  sb_text = sb_create("test := 1 + 1");
   if (greader) {
     parser = parser_read_grammar(greader);
     if (parser) {
       grammar_dump(parser -> grammar);
-
       parser_parse(parser, treader);
-
       parser_free(parser);
     }
-    sb_free(sb_grammar);
   }
 }
 
@@ -102,5 +105,16 @@ extern void foo(void) {
 }
 
 int main(int argc, char **argv) {
-  test_parser((argc > 1) ? argv[1] : NULL, (argc > 2) ? argv[2] : NULL);
+  char *grammar;
+  int   opt;
+
+  grammar = NULL;
+  while ((opt = getopt(argc, argv, "g:")) != -1) {
+    switch (opt) {
+      case 'g':
+        grammar = optarg;
+        break;
+    }
+  }
+  test_parser(grammar, (argc > optind) ? argv[optind] : NULL);
 }

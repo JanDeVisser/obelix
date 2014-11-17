@@ -6,7 +6,7 @@ ignore_ws: true
 program        := statements ;
 statements     := statement statements | ;
 statement      := 'i' ":=" expr | "read" 'i' | "write" expr ;
-expr           := term termtail ;
+expr [ init: start_expr ] := term termtail ;
 termtail       := add_op term termtail | ;
 term           := factor factortail ; 
 factortail     := mult_op factor factortail | ;
