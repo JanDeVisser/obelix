@@ -27,10 +27,23 @@ typedef struct _stringbuffer {
   char   *buffer;
   int     pos;
   int     len;
+  int     bufsize;
 } stringbuffer_t;
 
 extern stringbuffer_t * sb_create(char *);
+extern stringbuffer_t * sb_copy_str(char *);
+extern stringbuffer_t * sb_copy(stringbuffer_t *);
+extern stringbuffer_t * sb_init(int);
 extern void             sb_free(stringbuffer_t *);
+
+extern int              sb_len(stringbuffer_t *);
+extern char *           sb_str(stringbuffer_t *);
+extern stringbuffer_t * sb_append_char(stringbuffer_t *, int);
+extern stringbuffer_t * sb_append_str(stringbuffer_t *, char *);
+extern stringbuffer_t * sb_append(stringbuffer_t *, stringbuffer_t *);
+extern stringbuffer_t * sb_chop(stringbuffer_t *, int);
+extern stringbuffer_t * sb_erase(stringbuffer_t *);
+
 extern int              sb_read(stringbuffer_t *, char *, int);
 
 #endif /* __STRINGBUFFER_H__ */

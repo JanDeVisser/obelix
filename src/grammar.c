@@ -668,7 +668,8 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
     case 200:
       if (grammar_parser -> rule) {
         //rule_set_options(grammar_parser -> rule, grammar_parser -> options);
-        dict_clear(grammar_parser -> options);
+        //dict_clear(grammar_parser -> options);
+	grammar_parser -> options = strstr_dict_create();
 
         grammar_parser -> option = rule_option_create(grammar_parser -> rule);
         grammar_parser -> state = GPStateRuleOption;
