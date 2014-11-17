@@ -17,8 +17,6 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../include/list.h"
-
 #include <errno.h>
 #include <stdlib.h>
 
@@ -41,8 +39,8 @@ listnode_t * _ln_create(void *data) {
   
   node = NEW(listnode_t);
   if (node) {
-    node -> next = 0L;
-    node -> prev = 0L;
+    node -> next = NULL;
+    node -> prev = NULL;
     node -> data = data;
   }
   return node;
@@ -98,7 +96,7 @@ list_t * list_append(list_t *list, void *data) {
   if (node) {
     node -> prev = list -> tail -> prev;
     node -> next = list -> tail;
-    list -> tail -> prev -> next = node;
+    node -> prev -> next = node;
     list -> tail -> prev = node;
     list -> size++;
     ret = list;
@@ -142,7 +140,6 @@ list_t * list_visit(list_t *list, visit_t visitor) {
 list_t * list_clear(list_t *list) {
   listnode_t *node = list -> head -> next;
   listnode_t *next;
-  void *data;
 
   while (_ln_datanode(node)) {
     next = node -> next;
@@ -159,57 +156,43 @@ list_t * list_clear(list_t *list) {
 }
 
 void * list_head(list_t *list) {
-  listiterator_t *iter;
-  void *ret;
+  listnode_t *node = list -> head -> next;
 
-  ret = NULL;
-  iter = li_create(list);
-  if (li_has_next(iter)) {
-    ret = li_next(iter);
-    li_free(iter);
-  }
-  return ret;
+  return (_ln_datanode(node)) ? node -> data : NULL;
 }
 
 void * list_tail(list_t *list) {
-  listiterator_t *iter;
-  void *ret;
+  listnode_t *node = list -> tail -> prev;
 
-  ret = NULL;
-  iter = li_create(list);
-  li_tail(iter);
-  if (li_has_prev(iter)) {
-    ret = li_prev(iter);
-    li_free(iter);
-  }
-  return ret;
+  return (_ln_datanode(node)) ? node -> data : NULL;
 }
 
 void * list_shift(list_t *list) {
-  listiterator_t *iter;
-  void *ret;
+  listnode_t *node = list -> head -> next;
+  listnode_t *next;
+  void *ret = NULL;
 
-  ret = NULL;
-  iter = li_create(list);
-  if (li_has_next(iter)) {
-    ret = li_next(iter);
-    li_remove(iter);
-    li_free(iter);
+  if (_ln_datanode(node)) {
+    next = node -> next;
+    ret = node -> data;
+    free(node);
+    list -> head -> next = next;
+    next -> prev = list -> head;
   }
   return ret;
 }
 
 void * list_pop(list_t *list) {
-  listiterator_t *iter;
-  void *ret;
+  listnode_t *node = list -> tail -> prev;
+  listnode_t *prev;
+  void *ret = NULL;
 
-  ret = NULL;
-  iter = li_create(list);
-  li_tail(iter);
-  if (li_has_prev(iter)) {
-    ret = li_prev(iter);
-    li_remove(iter);
-    li_free(iter);
+  if (_ln_datanode(node)) {
+    prev = node -> prev;
+    ret = node -> data;
+    free(node);
+    list -> tail -> prev = prev;
+    prev -> next = list -> tail;
   }
   return ret;
 }
@@ -250,6 +233,9 @@ void * li_current(listiterator_t *iter) {
 
 void li_replace(listiterator_t *iter, void *data) {
   if (_ln_datanode(iter -> current)) {
+    if (iter -> list -> freefnc) {
+      iter -> list -> freefnc(iter -> current -> data);
+    }
     iter -> current -> data = data;
   }
 }
