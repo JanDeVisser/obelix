@@ -24,9 +24,9 @@
 #define COPY_BYTES(ptr, type)  _memcpy_bytes((ptr), sizeof(type))
 
 static void *   _memcpy_bytes(void *, size_t);
-static void *   _copy_int(int *);
-static void *   _copy_float(double *);
-static void *   _copy_bool(unsigned char *);
+static void *   _copy_long(int *);
+static void *   _copy_double(double *);
+
 static expr_t * _expr_create(expr_t *, eval_t, void *, context_t *);
 static list_t * _expr_eval_node(expr_t *, list_t *);
 static expr_t * _expr_literal(expr_t *, datatype_t, void *);
@@ -39,11 +39,11 @@ static data_t * _evaluate_call(context_t *ctx, void *data, list_t *params);
 // Data conversion support
 
 static typedescr_t descriptors[] = {
-  { type: String,   assign: (assignment_t) strdup,      release: (free_t) free, size: sizeof(char *) },
-  { type: Int,      assign: (assignment_t) _copy_int,   release: (free_t) free, size: sizeof(int) },
-  { type: Float,    assign: (assignment_t) _copy_float, release: (free_t) free, size: sizeof(float) },
-  { type: Bool,     assign: (assignment_t) _copy_bool,  release: (free_t) free, size: sizeof(unsigned char) },
-  { type: Function, assign: NULL,                       release: NULL }
+  { type: String,   assign: (assignment_t) strdup,       release: (free_t) free, size: sizeof(char *),  tostring: chars },
+  { type: Int,      assign: (assignment_t) _copy_long,   release: (free_t) free, size: sizeof(long),    tostring: itoa },
+  { type: Float,    assign: (assignment_t) _copy_double, release: (free_t) free, size: sizeof(double),  tostring: dtoa },
+  { type: Bool,     assign: (assignment_t) _copy_long,   release: (free_t) free, size: sizeof(long),    tostring: btoa },
+  { type: Function, assign: NULL,                        release: NULL }
 };
 
 void * _memcpy_bytes(void *val, size_t bytes) {
@@ -54,16 +54,12 @@ void * _memcpy_bytes(void *val, size_t bytes) {
   return ret;
 }
 
-void * _copy_int(int *val) {
-  return COPY_BYTES(val, int);
+void * _copy_long(long *val) {
+  return COPY_BYTES(val, long);
 }
 
-void * _copy_float(double *val) {
+void * _copy_double(double *val) {
   return COPY_BYTES(val, double);
-}
-
-void * _copy_bool(unsigned char *val) {
-  return COPY_BYTES(val, unsigned char);
 }
 
 // --------------------
@@ -111,6 +107,14 @@ data_t * data_get(data_t *data, void *ptr) {
     memcpy(ptr, data -> value, descriptors[data -> type].size);
   }
   return data;
+}
+
+char * data_tostring(data_t *data) {
+  if (descriptors[data -> type].tostring) {
+    descriptors[data -> type].tostring(data -> value);
+  } else {
+    return "<<??>>";
+  }
 }
 
 // --------------------
@@ -377,3 +381,29 @@ expr_t * expr_funccall(expr_t *expr, eval_t fnc) {
   }
   return ret;
 }
+
+
+/* Move me */
+
+static void expr_test(void)
+
+void expr_test(void) {
+  expr_t *expr, *e;
+  data_t *result;
+  int res;
+
+  //expr = expr_funccall(NULL, _add);
+  expr_int_literal(expr, 1);
+  expr_int_literal(expr, 2);
+  //e = expr_funccall(expr, _mult);
+  expr_int_literal(e, 2);
+  expr_int_literal(e, 3);
+
+  result = expr_evaluate(expr);
+  data_get(result, &res);
+  debug("result: %d", res);
+  data_free(result);
+  expr_free(expr);
+}
+
+

@@ -30,6 +30,7 @@ typedef struct _resolve {
 } resolve_t;
 
 extern resolve_t * resolve_get();
+extern void        resolve_free();
 extern resolve_t * resolve_open(resolve_t *, char *);
 extern void_t      resolve_resolve(resolve_t *, char *);
 

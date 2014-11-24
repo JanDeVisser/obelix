@@ -23,6 +23,7 @@
 #include <set.h>
 
 static reduce_ctx * _set_reduce_reducer(entry_t *, reduce_ctx *);
+static void *       _set_reduce(set_t *, reduce_t, void *, char *);
 static reduce_ctx * _set_visitor(entry_t *, reduce_ctx *);
 static set_t *      _set_union_reducer(void *, set_t *);
 static reduce_ctx * _set_intersect_reducer(void *, reduce_ctx *);
@@ -35,8 +36,46 @@ static reduce_ctx * _set_subsetof_reducer(void *, reduce_ctx *);
 // set_t static methods
 
 reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
-  ctx -> data = ctx -> fnc.reducer(entry -> key, ctx -> data);
+  void   *elem;
+  set_t  *set;
+  free_t  f;
+
+  set = (set_t *) ctx -> obj;
+  f = NULL;
+  switch (((char *) ctx -> user)[0]) {
+    case 'c':
+      elem =  set -> dict -> tostring_key(entry -> key);
+      break;
+    case 's':
+      elem =  str_wrap(set -> dict -> tostring_key(entry -> key));
+      f = (free_t) str_free;
+      break;
+    default:
+      elem = entry -> key;
+      break;
+  }
+  ctx -> data = ctx -> fnc.reducer(elem, ctx -> data);
+  if (f) {
+    f(elem);
+  }
   return ctx;
+}
+
+void * _set_reduce(set_t *set, reduce_t reducer, void *data, char *type) {
+  reduce_ctx *ctx;
+  void *ret;
+  function_ptr_t fnc;
+
+  fnc.reducer = reducer;
+  ctx = reduce_ctx_create(type, data, fnc);
+  if (ctx) {
+    ctx -> obj = set;
+    dict_reduce(set -> dict, (reduce_t) _set_reduce_reducer, ctx);
+    ret = ctx -> data;
+    free(ctx);
+    return ret;
+  }
+  return NULL;
 }
 
 reduce_ctx * _set_visitor(entry_t *entry, reduce_ctx *ctx) {
@@ -133,6 +172,11 @@ set_t * set_set_hash(set_t *set, hash_t hash) {
   return set;
 }
 
+set_t * set_set_tostring(set_t *set, tostring_t tostring) {
+  dict_set_tostring_key(set -> dict, tostring);
+  return set;
+}
+
 void set_free(set_t *set) {
   if (set) {
     dict_free(set -> dict);
@@ -140,18 +184,16 @@ void set_free(set_t *set) {
   }
 }
 
-int set_add(set_t *set, void *elem) {
+set_t * set_add(set_t *set, void *elem) {
   if (!set_has(set, elem)) {
-    return dict_put(set -> dict, elem, NULL);
+    return dict_put(set -> dict, elem, NULL) ? set : NULL;
   } else {
-    return TRUE;
+    return set;
   }
 }
 
-void set_remove(set_t *set, void *elem) {
-  if (set_has(set, elem)) {
-    dict_remove(set -> dict, elem);
-  }
+set_t * set_remove(set_t *set, void *elem) {
+  return (set_has(set, elem) && dict_remove(set -> dict, elem)) ? set : NULL;
 }
 
 int set_has(set_t *set, void *elem) {
@@ -163,19 +205,15 @@ int set_size(set_t *set) {
 }
 
 void * set_reduce(set_t *set, reduce_t reducer, void *data) {
-  reduce_ctx *ctx;
-  void *ret;
-  function_ptr_t fnc;
+  return _set_reduce(set, reducer, data, "o");
+}
 
-  fnc.reducer = reducer;
-  ctx = reduce_ctx_create(NULL, data, fnc);
-  if (ctx) {
-    dict_reduce(set -> dict, (reduce_t) _set_reduce_reducer, ctx);
-    ret = ctx -> data;
-    free(ctx);
-    return ret;
-  }
-  return NULL;
+void * set_reduce_chars(set_t *set, reduce_t reducer, void *data) {
+  return _set_reduce(set, reducer, data, "c");
+}
+
+void * set_reduce_str(set_t *set, reduce_t reducer, void *data) {
+  return _set_reduce(set, reducer, data, "s");
 }
 
 set_t * set_visit(set_t *set, visit_t visitor) {
@@ -275,19 +313,16 @@ int set_cmp(set_t *s1, set_t *s2) {
   return ret;
 }
 
-FILE * _set_dump_reducer(void *elem, FILE *stream) {
-  fprintf(stream, " %ld,", (long) elem);
-  return stream;
-}
+str_t * set_tostr(set_t *set) {
+  str_t *ret;
+  str_t *catted;
 
-void set_dump(set_t *set, void *f) {
-  FILE *stream;
-
-  stream = (FILE *) f;
-  fprintf(stream, "[");
-  set_reduce(set, (reduce_t) _set_dump_reducer, stream);
-  if (!set_empty(set)) {
-    fprintf(stream, "\b ");
+  ret = str_copy_chars("{");
+  catted = str_join(", ", set, set_reduce_chars);
+  if (ret && catted) {
+    str_append(ret, catted);
+    str_append_chars(ret, "}");
   }
-  fprintf(f, "]");
+  str_free(catted);
+  return ret;
 }

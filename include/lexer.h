@@ -22,9 +22,10 @@
 #define __LEXER_H__
 
 #include <array.h>
+#include <str.h>
 
 #define LEXER_BUFSIZE    	16384
-#define LEXER_SHORT_TOKEN_SZ	256
+#define LEXER_INIT_TOKEN_SZ	256
 
 typedef enum _lexer_state {
   LexerStateFresh,
@@ -103,25 +104,25 @@ typedef enum _lexer_option {
 typedef struct _token {
   int   code;
   char *token;
+  int   line;
+  int   column;
 } token_t;
 
 typedef struct _lexer {
-  void          *reader;
+  reader_t      *reader;
   list_t        *keywords;
-  char           buf[LEXER_BUFSIZE];
-  int            buflen;
-  int            bufpos;
-  char          *old_token;
-  int            old_token_pos;
   array_t       *options;
-  char           short_token[LEXER_SHORT_TOKEN_SZ];
-  char          *current_token;
-  int            token_size;
-  int            current_token_len;
+  str_t         *buffer;
+  str_t         *pushed_back;
+  str_t         *token;
   lexer_state_t  state;
+  token_t       *last_match;
   list_t        *matches;
   int            no_kw_match;
   char           quote;
+  int            prev_char;
+  int            line;
+  int            column;
 } lexer_t;
 
 extern char *       lexer_state_name(lexer_state_t);
@@ -138,14 +139,15 @@ extern int          token_iswhitespace(token_t *);
 extern void         token_dump(token_t *);
 extern char *       token_tostring(token_t *, char *, int);
 
-extern lexer_t *    lexer_create(void *);
+extern lexer_t *    _lexer_create(reader_t *);
 extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, long);
 extern long         lexer_get_option(lexer_t *, lexer_option_t);
-extern lexer_t *    lexer_add_keyword(lexer_t *, token_t *);
+extern lexer_t *    lexer_add_keyword(lexer_t *, int, char *);
 extern void         lexer_free(lexer_t *);
 extern void         _lexer_tokenize(lexer_t *, reduce_t, void *);
 extern token_t *    lexer_next_token(lexer_t *);
 
+#define lexer_create(r)         _lexer_create((reader_t *) (r))
 #define lexer_tokenize(l, r, d) _lexer_tokenize((l), (reduce_t) (r), (d))
 
 #endif /* __LEXER_H__ */

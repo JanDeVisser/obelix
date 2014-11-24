@@ -67,24 +67,31 @@ test_set_t * fill_many() {
 
 START_TEST(test_set_create)
   set_t *set;
+  str_t *str;
   
   set = set_create((cmp_t) strcmp);
   ck_assert_ptr_ne(set, NULL);
   ck_assert_int_eq(set_size(set), 0);
+  str = set_tostr(set);
+  ck_assert_str_eq(str_chars(str), "{}");
   set_free(set);
 END_TEST
 
 
 START_TEST(test_set_add_one)
   set_t *set;
+  str_t *str;
   
   set = set_create((cmp_t) strcmp);
   ck_assert_ptr_ne(set, NULL);
   ck_assert_int_eq(set_size(set), 0);
   set_set_hash(set, (hash_t) strhash);
   set_set_free(set, (free_t) free);
+  set_set_tostring(set, (tostring_t) chars);
   set_add(set, strdup("key1"));
   ck_assert_int_eq(set_size(set), 1);
+  str = set_tostr(set);
+  ck_assert_str_eq(str_chars(str), "{key1}");
   set_free(set);
 END_TEST
 

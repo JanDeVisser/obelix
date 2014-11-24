@@ -42,6 +42,8 @@ extern void *    array_reduce(array_t *, reduce_t, void *);
 extern array_t * array_visit(array_t *, visit_t);
 extern array_t * array_add_all(array_t *, array_t *);
 
-#define array_push(a, d) array_set((a), -1, (d))
+#define array_push(a, d)   array_set((a), -1, (d))
+#define array_empty(a)     (array_size((a)) == 0)
+#define array_notempty(a)  (array_size((a)) > 0)
 
 #endif /* __ARRAY_H__ */

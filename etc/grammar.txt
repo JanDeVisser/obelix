@@ -1,16 +1,63 @@
 %
 name: simple_expr
-init: dummy_init 
+prefix: script_parse_
+init: init
 ignore_ws: true
 %
-program        := statements ;
-statements     := statement statements | ;
-statement      := 'i' ":=" expr | "read" 'i' | "write" expr ;
-expr [ init: start_expr ] := term termtail ;
-termtail       := add_op term termtail | ;
-term           := factor factortail ; 
-factortail     := mult_op factor factortail | ;
-factor         := ( expr ) | 'i' | 'd' ;
-add_op         := + | - ;
-mult_op        := * | / ;
+
+program                     := statements 
+                             ;
+                             
+statements                  := statement statements 
+                             | 
+                             ;
+                             
+statement                   := 'i'             [ done: push_last_token ] 
+                               ":=" 
+                               expr            [ done: emit_assign     ]
+                             ;
+                             
+expr                        := 'i' := term termtail 
+                             ;
+                             
+termtail                    := add_op term [ done: emit_mathop ] termtail 
+                             | 
+                             ;
+                             
+term                        := factor factortail 
+                             ;
+                              
+factortail                  := mult_op factor [ done: emit_mathop ] factortail 
+                             | 
+                             ;
+                             
+factor                      := ( expr ) 
+                             | 'i'         [ done: emit_pushvar   ]
+                             | 'd'         [ done: emit_pushval   ]
+                             | func_call 
+                             ;
+                             
+add_op                      := +           [ done: push_last_token ]
+                             | -           [ done: push_last_token ]
+                             ;
+                             
+mult_op                     := *           [ done: push_last_token ]
+                             | /           [ done: push_last_token ]
+                             ;
+                             
+func_call                   := func_name ( parlist )
+                             ;
+                             
+func_name                   := @ 'i'
+                             ;
+                             
+parlist                     := param parlist_tail
+                             ;
+                             
+param                       := expr
+                             ;
+                             
+parlist_tail                := , parlist
+                             |
+                             ;
  

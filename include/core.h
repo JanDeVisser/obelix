@@ -36,18 +36,25 @@ typedef enum _log_level {
   LogLevelFatal
 } log_level_t;
 
-
-
 typedef void    (*void_t)(void);
 typedef void *  (*voidptr_t)(void *);
 typedef int     (*cmp_t)(void *, void *);
 typedef int     (*hash_t)(void *);
 typedef char *  (*tostring_t)(void *);
 typedef void *  (*reduce_t)(void *, void *);
-typedef void *  (*obj_reduce_t)(void *, reduce_t, void *);
 typedef void    (*visit_t)(void *);
+typedef void *  (*obj_reduce_t)(void *, reduce_t, void *);
+typedef void    (*obj_visit_t)(void *, visit_t);
 typedef visit_t free_t;
 typedef int     (*read_t)(void *, char *, int);
+typedef int     (*write_t)(void *, char *, int);
+typedef void *  (*parse_t)(char *);
+
+typedef enum _reduce_type {
+  RTObjects = 1,
+  RTChars = 2,
+  RTStrs = 4
+} reduce_type_t;
 
 typedef enum _enum_function_type {
   Void, Visitor, Reducer, Stringifier, Destructor, Evaluator
@@ -72,6 +79,38 @@ extern function_t no_func;
 #define NOFUNCPTR no_func_ptr
 #define NOFUNC no_func
 
+typedef enum _abstract_function_type {
+  AFTFree,
+  AFTToString,
+  AFTCmp,
+  AFTHash,
+  AFTReduce,
+  AFTVisit,
+  AFTRead,
+  AFTWrite
+} abstract_function_type_t;
+
+typedef union _abstract_function_ptr {
+  free_t        free;
+  tostring_t    tostring;
+  cmp_t         cmp;
+  hash_t        hash;
+  obj_reduce_t  reduce;
+  obj_visit_t   visit;
+  read_t        read;
+  write_t       write;
+} abstract_function_ptr_t;
+
+typedef struct _abstract_function {
+  abstract_function_type_t type;
+  abstract_function_ptr_t  fnc;
+} abstract_function_t;
+
+typedef struct _type {
+  char                *name;
+  abstract_function_t  functions[];
+} type_t;
+
 typedef struct _reduce_ctx {
   void           *obj;
   void           *user;
@@ -82,7 +121,6 @@ typedef struct _reduce_ctx {
 typedef struct _reader {
   read_t read_fnc;
 } reader_t;
-
 
 extern void *       new(int);
 extern void *       new_ptrarray(int);
@@ -97,7 +135,11 @@ extern void         _logmsg(log_level_t, char *, int, char *, ...);
 extern void         initialize_random(void);
 extern char *       strrand(char *, size_t);
 extern unsigned int strhash(char *);
+extern char *       chars(void *);
 extern int          atob(char *);
+extern char *       btoa(long);
+extern char *       itoa(long);
+extern char *       dtoa(double);
 
 extern reduce_ctx * reduce_ctx_create(void *, void *, function_ptr_t);
 

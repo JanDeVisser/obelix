@@ -21,6 +21,7 @@
 #define __SET_H__
 
 #include <dict.h>
+#include <str.h>
 
 typedef struct _set {
   dict_t  *dict;
@@ -29,12 +30,15 @@ typedef struct _set {
 extern set_t *  set_create(cmp_t cmp);
 extern set_t *  set_set_free(set_t *, free_t);
 extern set_t *  set_set_hash(set_t *, hash_t);
+extern set_t *  set_set_tostring(set_t *, tostring_t);
 extern void     set_free(set_t *);
-extern int      set_add(set_t *, void *);
-extern void     set_remove(set_t *, void *);
+extern set_t *  set_add(set_t *, void *);
+extern set_t *  set_remove(set_t *, void *);
 extern int      set_has(set_t *, void *);
 extern int      set_size(set_t *);
 extern void *   set_reduce(set_t *, reduce_t, void *);
+extern void *   set_reduce_chars(set_t *, reduce_t, void *);
+extern void *   set_reduce_str(set_t *, reduce_t, void *);
 extern set_t *  set_visit(set_t *, visit_t);
 extern set_t *  set_clear(set_t *);
 extern set_t *  set_intersect(set_t *, set_t *);
@@ -43,7 +47,7 @@ extern set_t *  set_minus(set_t *, set_t *);
 extern int      set_disjoint(set_t *, set_t *);
 extern int      set_subsetof(set_t *, set_t *);
 extern int      set_cmp(set_t *, set_t *);
-extern void     set_dump(set_t *, void *);
+extern str_t *  set_tostr(set_t *);
 
 #define intset_create()       set_create(NULL)
 #define set_add_int(s, i)     set_add((s), (void *)((long) (i)))

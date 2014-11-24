@@ -25,7 +25,6 @@
 static resolve_t *_resolve_create();
 static resolve_t *singleton = NULL;
 
-
 resolve_t * _resolve_create() {
   resolve_t *ret;
   int ok;
@@ -58,6 +57,7 @@ resolve_t * _resolve_create() {
       ret = NULL;
     }
     singleton = ret;
+    atexit(resolve_free);
   }
   return ret;
 }
@@ -70,6 +70,16 @@ resolve_t * resolve_get() {
     ret = _resolve_create();
   }
   return ret;
+}
+
+void resolve_free() {
+  debug("Bye...");
+  if (singleton) {
+    list_free(singleton -> images);
+    dict_free(singleton -> functions);
+    free(singleton);
+    singleton = NULL;
+  }
 }
 
 resolve_t * resolve_open(resolve_t *resolve, char *image) {

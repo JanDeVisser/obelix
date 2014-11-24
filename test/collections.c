@@ -49,6 +49,12 @@ unsigned int test_hash(test_t *test) {
   return (test -> data) ? strhash(test -> data) : 0;
 }
 
+char * test_tostring(test_t *test) {
+  static char buf[100];
+  snprintf(buf, 100, "%s [%d]", test -> data, test -> flag);
+  return buf;
+}
+
 void test_free(test_t *test) {
   if (test -> data) {
     free(test -> data);

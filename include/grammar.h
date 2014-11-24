@@ -27,6 +27,11 @@
 #include <resolve.h>
 #include <set.h>
 
+typedef enum _parsing_strategy {
+  ParsingStrategyTopDown,
+  ParsingStrategyBottomUp
+} strategy_t;
+
 struct _rule;
 
 typedef struct _grammar {
@@ -34,9 +39,10 @@ typedef struct _grammar {
   struct _rule *entrypoint;
   dict_t       *keywords;
   array_t      *lexer_options;
+  strategy_t    strategy;
+  char         *prefix;
   voidptr_t     initializer;
   voidptr_t     finalizer;
-  resolve_t    *resolve;
 } grammar_t;
 
 typedef struct _rule {
@@ -73,7 +79,9 @@ typedef struct _rule_item {
 extern grammar_t *     grammar_create();
 extern grammar_t *     _grammar_read(reader_t *);
 extern void            grammar_free(grammar_t *);
-extern void            grammar_set_options(grammar_t *, dict_t *);
+extern grammar_t *     grammar_set_parsing_strategy(grammar_t *, strategy_t);
+extern strategy_t      grammar_get_parsing_strategy(grammar_t *);
+extern grammar_t *     grammar_set_options(grammar_t *, dict_t *);
 extern rule_t *        grammar_get_rule(grammar_t *, char *);
 extern grammar_t *     grammar_set_initializer(grammar_t *, voidptr_t);
 extern voidptr_t       grammar_get_initializer(grammar_t *);
@@ -82,6 +90,7 @@ extern voidptr_t       grammar_get_finalizer(grammar_t *);
 extern grammar_t *     grammar_set_option(grammar_t *, lexer_option_t, long);
 extern long            grammar_get_option(grammar_t *, lexer_option_t);
 extern void            grammar_dump(grammar_t *);
+extern voidptr_t       grammar_resolve_function(grammar_t *, char *);
 
 extern rule_t *        rule_create(grammar_t *, char *);
 extern void            rule_free(rule_t *rule);
