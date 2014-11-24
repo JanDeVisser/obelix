@@ -28,6 +28,7 @@ extern test_t *     test_create(char *);
 extern test_t *     test_copy(test_t *);
 extern unsigned int test_hash(test_t *);
 extern int          test_cmp(test_t *, test_t *);
+extern char *       test_tostring(test_t *);
 extern void         test_free(test_t *);
 
 extern char *	    get_suite_name();

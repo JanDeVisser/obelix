@@ -38,6 +38,7 @@ typedef struct _typedescr {
   assignment_t   assign;
   copyvalue_t    copy;
   free_t         release;
+  tostring_t     tostring;
   int            size;
 } typedescr_t;
 

@@ -176,14 +176,14 @@ END_TEST
 
 START_TEST(test_dict_remove)
   test_dict_ctx_t *ctx;
-  int ix;
-  int success;
+  int              ix;
+  dict_t          *success;
 
   ctx = ctx_create(MANY);
   for (ix = 0; ix < ctx -> size; ix++) {
     mark_point();
     success = dict_remove(ctx -> dict, ctx -> keys[ix]);
-    ck_assert_int_eq(success, TRUE);
+    ck_assert_ptr_eq(success, ctx -> dict);
     ck_assert_int_eq(dict_size(ctx -> dict), ctx -> size - ix - 1);
     success = dict_remove(ctx -> dict, ctx -> keys);
     ck_assert_int_eq(success, FALSE);

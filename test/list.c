@@ -38,6 +38,7 @@ list_t * setup(void) {
   ck_assert_ptr_ne(ret, NULL);
   ck_assert_int_eq(list_size(ret), 0);
   list_set_free(ret, (visit_t) test_free);
+  list_set_tostring(ret, (tostring_t) test_tostring);
   return ret;
 }
 
@@ -120,14 +121,24 @@ void test_raw_print_list(list_t *list, char *header) {
 } 
 
 START_TEST(test_list_create)
-  list_t *l = setup();
+  list_t *l;
+  str_t *str;
+
+  l = setup();
+  str = list_tostr(l);
+  ck_assert_str_eq(str_chars(str), "[]");
+  str_free(str);
   teardown(l);
 END_TEST
 
 START_TEST(test_list_append)
   list_t *l;
+  str_t *str;
   
   l = setup2();
+  str = list_tostr(l);
+  ck_assert_str_eq(str_chars(str), "[test1 [0], test2 [0]]");
+  str_free(str);
   teardown(l);
 END_TEST
 

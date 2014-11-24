@@ -1,5 +1,5 @@
-TESTS = 	 core list array dict set buffer resolve lexer
-check_PROGRAMS = core list array dict set buffer resolve lexer
+TESTS = 	 core list array dict set str buffer resolve lexer
+check_PROGRAMS = core list array dict set str buffer resolve lexer
 
 AM_CPPFLAGS =   -I$(top_srcdir)/include
 AM_CFLAGS =	@CHECK_CFLAGS@
@@ -15,6 +15,7 @@ list_SOURCES    = list.c
 array_SOURCES   = array.c
 dict_SOURCES    = dict.c
 set_SOURCES     = set.c
+str_SOURCES     = str.c
 buffer_SOURCES  = buffer.c
 resolve_SOURCES = resolve.c
 lexer_SOURCES   = lexer.c

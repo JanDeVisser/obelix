@@ -106,9 +106,11 @@ int array_capacity(array_t *array) {
 }
 
 void array_free(array_t *array) {
-  list_free(array -> list);
-  free(array -> index);  
-  free(array);
+  if (array) {
+    list_free(array -> list);
+    free(array -> index);
+    free(array);
+  }
 }
 
 array_t * array_clear(array_t *array) {

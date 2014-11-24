@@ -22,34 +22,34 @@
 
 #include <check.h>
 #include <file.h>
-#include <stringbuffer.h>
+#include <str.h>
 
-START_TEST(test_sb_create)
-  stringbuffer_t *sb;
+START_TEST(test_str_create)
+  str_t *str;
 
-  sb = sb_create("0123456789abcdefghijklmnopqrstuvwxyz\n");
-  ck_assert_ptr_ne(sb, NULL);
-  sb_free(sb);
+  str = str_wrap("0123456789abcdefghijklmnopqrstuvwxyz\n");
+  ck_assert_ptr_ne(str, NULL);
+  str_free(str);
 END_TEST
 
-START_TEST(test_sb_read)
-  stringbuffer_t *sb;
+START_TEST(test_str_read)
+  str_t *str;
   char buf[21];
   int ret;
 
-  sb = sb_create("0123456789abcdefghijklmnopqrstuvwxyz\n");
-  ck_assert_ptr_ne(sb, NULL);
+  str = str_wrap("0123456789abcdefghijklmnopqrstuvwxyz\n");
+  ck_assert_ptr_ne(str, NULL);
   memset(buf, 0, 21);
-  ret = sb_read(sb, buf, 20);
+  ret = str_read(str, buf, 20);
   ck_assert_int_eq(ret, 20);
   ck_assert_str_eq(buf, "0123456789abcdefghij");
   memset(buf, 0, 21);
-  ret = sb_read(sb, buf, 20);
+  ret = str_read(str, buf, 20);
   ck_assert_int_eq(ret, 17);
   ck_assert_str_eq(buf, "klmnopqrstuvwxyz\n");
-  ret = sb_read(sb, buf, 21);
+  ret = str_read(str, buf, 21);
   ck_assert_int_eq(ret, 0);
-  sb_free(sb);
+  str_free(str);
 END_TEST
 
 
@@ -113,18 +113,18 @@ void read_from_reader(reader_t *reader) {
 
 START_TEST(test_reader_read)
   file_t *file;
-  stringbuffer_t *sb;
+  str_t *str;
 
   file = file_open("buffertest.txt");
   ck_assert_ptr_ne(file, NULL);
   ck_assert_int_gt(file -> fh, 0);
-  read_from_reader(file);
+  read_from_reader((reader_t *) file);
   file_free(file);
 
-  sb = sb_create("0123456789abcdefghijklmnopqrstuvwxyz\n");
-  ck_assert_ptr_ne(sb, NULL);
-  read_from_reader(sb);
-  sb_free(sb);
+  str = str_wrap("0123456789abcdefghijklmnopqrstuvwxyz\n");
+  ck_assert_ptr_ne(str, NULL);
+  read_from_reader((reader_t *) str);
+  str_free(str);
 END_TEST
 
 
@@ -142,8 +142,8 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_file_create);
   tcase_add_test(tc, test_file_open);
   tcase_add_test(tc, test_file_read);
-  tcase_add_test(tc, test_sb_create);
-  tcase_add_test(tc, test_sb_read);
+  tcase_add_test(tc, test_str_create);
+  tcase_add_test(tc, test_str_read);
   tcase_add_test(tc, test_reader_read);
   return tc;
 }

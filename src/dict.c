@@ -17,7 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define NDEBUG
+//#define NDEBUG
 #include <errno.h>
 #include <stdlib.h>
 
@@ -48,12 +48,12 @@ static entry_t *        _entry_from_entry(entry_t *);
 
 static unsigned int     _dict_hash(dict_t *, void *);
 static int              _dict_cmp_keys(dict_t *, void *, void *);
-static int              _dict_rehash(dict_t *);
+static dict_t *         _dict_rehash(dict_t *);
 static list_t *         _dict_get_bucket(dict_t *, void *);
-static int              _dict_add_to_bucket(array_t *, dictentry_t *);
+static dict_t *         _dict_add_to_bucket(array_t *, dictentry_t *);
 static listiterator_t * _dict_position_in_bucket(dict_t *, void *);
 static dictentry_t *    _dict_find_in_bucket(dict_t *, void *);
-static int              _dict_remove_from_bucket(dict_t *, void *);
+static dict_t *         _dict_remove_from_bucket(dict_t *, void *);
 static list_t *         _dict_append_reducer(void *, list_t *);
 static void *           _dict_visitor(void *, reduce_ctx *);
 static dict_t *         _dict_visit(dict_t *, visit_t, dict_reduce_type_t);
@@ -144,48 +144,49 @@ int _dict_cmp_keys(dict_t *dict, void *key1, void *key2) {
     : (long) key1 - (long) key2;
 }
 
-int _dict_rehash(dict_t *dict) {
-  array_t *new_buckets;
-  int num, i, bucket, ok;
-  list_t *l;
+dict_t * _dict_rehash(dict_t *dict) {
+  array_t        *new_buckets;
+  dict_t         *ret;
+  int             num, i, bucket;
+  list_t         *l;
   listiterator_t *iter;
 
   num = dict -> num_buckets * 2;
   new_buckets = array_create(num);
   if (!new_buckets) {
-    return FALSE;
+    return NULL;
   }
   array_set_free(new_buckets, (visit_t) list_free);
-  ok = TRUE;
+  ret = dict;
   num = array_capacity(new_buckets);
   for (i = 0; i < num; i++) {
     l = list_create();
     if (!l) {
-      ok = FALSE;
+      ret = NULL;
       break;
     }
     list_set_free(l, (visit_t) _dictentry_free);
     array_set(new_buckets, i, l);
   }
-  if (ok) {
+  if (ret) {
     for (i = 0; i < dict -> num_buckets; i++) {
       for(iter = li_create((list_t *) array_get(dict -> buckets, i));
 	  li_has_next(iter); ) {
-	ok = _dict_add_to_bucket(new_buckets, (dictentry_t *) li_next(iter));
-	if (!ok) break;
+	ret = _dict_add_to_bucket(new_buckets, (dictentry_t *) li_next(iter));
+	if (!ret) break;
       }
       li_free(iter);
-      if (!ok) break;
+      if (!ret) break;
     }
   }
-  if (ok) {
+  if (ret) {
     dict -> buckets = new_buckets;
     dict -> num_buckets = num;
   } else {
     array_free(new_buckets);
     free(new_buckets);
   }
-  return ok;
+  return ret;
 }
 
 list_t * _dict_get_bucket(dict_t *dict, void *key) {
@@ -198,44 +199,43 @@ list_t * _dict_get_bucket(dict_t *dict, void *key) {
   return (list_t *) array_get(dict -> buckets, bucket_num);
 }
 
-int _dict_add_to_bucket(array_t *buckets, dictentry_t *entry) {
+dict_t * _dict_add_to_bucket(array_t *buckets, dictentry_t *entry) {
   int bucket_num;
   list_t *bucket;
   listiterator_t *iter;
-  int ok;
-  dictentry_t *e;
+  dict_t         *ret;
+  dictentry_t    *e;
 
   bucket_num = (int) (entry -> hash % (unsigned int) array_capacity(buckets));
   bucket = (list_t *) array_get(buckets, bucket_num);
   if (!bucket) {
-    return FALSE;
+    return NULL;
   }
-  ok = FALSE;
-  for(iter = li_create((list_t *) bucket); li_has_next(iter); ) {
+  ret = NULL;
+  for (iter = li_create((list_t *) bucket); li_has_next(iter); ) {
     e = (dictentry_t *) li_next(iter);
     if (_dictentry_cmp_key(e, entry -> key) == 0) {
       li_replace(iter, entry);
       _dictentry_free(e);
-      ok = 1;
+      ret = entry -> dict;
       break;
     }
   }
   li_free(iter);
-  if (!ok) {
-    ok = (list_append(bucket, entry) != NULL);
-    if (ok) ok = 2;
+  if (!ret) {
+    ret = (list_append(bucket, entry) != NULL) ? entry -> dict : NULL;
   }
-  return ok;
+  return ret;
 }
 
 listiterator_t * _dict_position_in_bucket(dict_t *dict, void *key) {
-  list_t *bucket;
+  list_t         *bucket;
   listiterator_t *iter;
-  dictentry_t *e, *ret;
+  dictentry_t    *e, *ret;
 
   ret = NULL;
   bucket = _dict_get_bucket(dict, key);
-  for(iter = li_create((list_t *) bucket); li_has_next(iter); ) {
+  for (iter = li_create((list_t *) bucket); li_has_next(iter); ) {
     e = (dictentry_t *) li_next(iter);
     if (_dict_cmp_keys(dict, e -> key, key) == 0) {
       return iter;
@@ -247,7 +247,7 @@ listiterator_t * _dict_position_in_bucket(dict_t *dict, void *key) {
 
 dictentry_t * _dict_find_in_bucket(dict_t *dict, void *key) {
   listiterator_t *iter;
-  dictentry_t *ret;
+  dictentry_t    *ret;
 
   iter = _dict_position_in_bucket(dict, key);
   ret = (iter) ? li_current(iter) : NULL;
@@ -255,16 +255,16 @@ dictentry_t * _dict_find_in_bucket(dict_t *dict, void *key) {
   return ret;
 }
 
-int _dict_remove_from_bucket(dict_t *dict, void *key) {
+dict_t * _dict_remove_from_bucket(dict_t *dict, void *key) {
   listiterator_t *iter;
-  int ret;
+  dict_t         *ret;
 
   iter = _dict_position_in_bucket(dict, key);
-  ret = FALSE;
+  ret = NULL;
   if (iter) {
     li_remove(iter);
     li_free(iter);
-    ret = TRUE;
+    ret = dict;
   }
   return ret;
 }
@@ -348,6 +348,7 @@ list_t * _dict_append_reducer(void *elem, list_t *list) {
 
 dict_t * _dict_put_all_reducer(entry_t *e, dict_t *dict) {
   dict_put(dict, e -> key, e -> value);
+  return dict;
 }
 
 // ---------------------------
@@ -356,7 +357,7 @@ dict_t * _dict_put_all_reducer(entry_t *e, dict_t *dict) {
 dict_t * dict_create(cmp_t cmp) {
   dict_t *ret;
   dict_t *d;
-  int i, ok;
+  int     i, ok;
   list_t *l;
 
   ret = NULL;
@@ -409,6 +410,16 @@ dict_t * dict_set_free_data(dict_t *dict, free_t free_data) {
   return dict;
 }
 
+dict_t * dict_set_tostring_key(dict_t *dict, tostring_t tostring_key) {
+  dict -> tostring_key = tostring_key;
+  return dict;
+}
+
+dict_t * dict_set_tostring_data(dict_t *dict, tostring_t tostring_data) {
+  dict -> tostring_data = tostring_data;
+  return dict;
+}
+
 int dict_size(dict_t *dict) {
   return dict -> size;
 }
@@ -421,41 +432,45 @@ void dict_free(dict_t *dict) {
 }
 
 dict_t * dict_clear(dict_t *dict) {
-  array_visit(dict -> buckets, (visit_t) list_clear);
-  dict -> size = 0;
+  if (dict_notempty(dict)) {
+    array_visit(dict -> buckets, (visit_t) list_clear);
+    dict -> size = 0;
+  }
   return dict;
 }
 
-int dict_put(dict_t *dict, void *key, void *data) {
+dict_t * dict_put(dict_t *dict, void *key, void *data) {
   dictentry_t *entry;
   dictentry_t *e;
-  int bucket;
-  float lf;
-  int ret;
+  int          bucket;
+  float        lf;
+  dict_t      *ret;
+  int          had_key;
 
   lf = dict -> size / dict -> num_buckets;
   if (lf > dict -> loadfactor) {
     if (!_dict_rehash(dict)) {
-      return FALSE;
+      return NULL;
     }
   }
 
   entry = _dictentry_create(dict, key, data);
   if (!entry) {
-    return FALSE;
+    return NULL;
   }
 
+  had_key = dict_has_key(dict, key);
   ret = _dict_add_to_bucket(dict -> buckets, entry);
-  if (ret) {
-    dict -> size += ret - 1;
+  if (ret && !had_key) {
+    dict -> size++;
   }
-  return TRUE;
+  return ret;
 }
 
-int dict_remove(dict_t *dict, void *key) {
-  int ret;
+dict_t * dict_remove(dict_t *dict, void *key) {
+  dict_t *ret;
 
-  ret =  _dict_remove_from_bucket(dict, key);
+  ret = _dict_remove_from_bucket(dict, key);
   if (ret) {
     dict -> size--;
   }
@@ -463,18 +478,14 @@ int dict_remove(dict_t *dict, void *key) {
 }
 
 void * dict_get(dict_t *dict, void *key) {
-
   dictentry_t *entry;
-  void *ret;
+  void        *ret;
   
   entry = _dict_find_in_bucket(dict, key);
   return (entry) ? entry -> value : NULL;
 }
 
 int dict_has_key(dict_t *dict, void *key) {
-  dictentry_t *entry;
-  void *ret;
-  
   return _dict_find_in_bucket(dict, key) != NULL;
 }
 
@@ -543,13 +554,13 @@ dict_t * dict_put_all(dict_t *dict, dict_t *other) {
   return dict_reduce(other, (reduce_t) _dict_put_all_reducer, dict);
 }
 
-void dict_dump(dict_t *dict) {
+void dict_dump(dict_t *dict, char *title) {
   list_t *bucket;
   int cap, len, i, j;
   listiterator_t *iter;
   dictentry_t *entry;
   
-  debug("dict_dump");
+  debug("dict_dump -- %s", title);
   debug("==============================================");
   debug("Size: %d", dict_size(dict));
   cap = array_capacity(dict -> buckets);

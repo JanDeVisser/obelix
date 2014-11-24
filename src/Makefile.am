@@ -30,7 +30,7 @@ libobelix_la_SOURCES = \
 		tree.c \
 		expr.c \
 		file.c \
-		stringbuffer.c \
+		str.c \
 		resolve.c \
 		lexer.c \
 		grammar.c \

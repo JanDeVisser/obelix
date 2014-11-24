@@ -17,34 +17,73 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../include/core.h"
-
 #include <errno.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
+
+#include <core.h>
+
+static void    __init(void);
+static void    _outofmemory(int, siginfo_t *, void *);
+
+static int _initialized = 0;
+
+static void _outofmemory(int sig, siginfo_t *siginfo, void *context) {
+  error("Out of Memory. Terminating...");
+  exit(1);
+}
+
+void __init(void) {
+  struct sigaction act;
+
+  memset (&act, 0, sizeof(act));
+
+  /* Use the sa_sigaction field because the handles has two additional parameters */
+  act.sa_sigaction = &_outofmemory;
+
+  /* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
+  act.sa_flags = SA_SIGINFO;
+
+  if (sigaction(SIGUSR1, &act, NULL) < 0) {
+    error("Could not install SIGUSR signal handler. Bailing...");
+    exit(1);
+  }
+  _initialized = 1;
+}
 
 
 void * new(int sz) {
+  if (!_initialized) {
+    __init();
+  }
   void * ret = malloc(sz);
   if (sz && !ret) {
-    errno = ENOMEM;
+    kill(0, SIGUSR1);
   }
   return ret;
 }
 
 void * new_ptrarray(int sz) {
+  if (!_initialized) {
+    __init();
+  }
   void * ret = calloc(sz, sizeof(void *));
   if (sz && !ret) {
-    errno = ENOMEM;
+    kill(0, SIGUSR1);
   }
   return ret;
 }
 
 void * resize_block(void *block, int newsz) {
+  if (!_initialized) {
+    __init();
+  }
   void * ret = realloc(block, newsz);
   if (newsz && !ret) {
-    errno = ENOMEM;
+    kill(0, SIGUSR1);
   }
   return ret;
 }
@@ -85,7 +124,7 @@ void _logmsg(log_level_t lvl, char *file, int line, char *msg, ...) {
   va_list args;
 
   va_start(args, msg);
-  fprintf(stderr, "%s:%d:%s:", file, line, _log_level_str(lvl));
+  fprintf(stderr, "%-12.12s:%4d:%-5.5s:", file, line, _log_level_str(lvl));
   vfprintf(stderr, msg, args);
   fprintf(stderr, "\n");
   va_end(args);
@@ -105,6 +144,26 @@ int atob(char *str) {
     return 0;
   }
   return atoi(str);
+}
+
+char * btoa(long b) {
+  return (b) ? "true" : "false";
+}
+
+char * chars(void *str) {
+  return (char *) str;
+}
+
+char * itoa(long i) {
+  static char buf[12];
+  sprintf(buf, "%ld", i);
+  return buf;
+}
+
+char * dtoa(double d) {
+  static char buf[12];
+  sprintf(buf, "%f", d);
+  return buf;
 }
 
 static int rand_initialized = 0;
