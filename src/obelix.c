@@ -71,7 +71,7 @@ typedef struct _instruction {
   int                 num;
 } instruction_t;
 
-extern instruction_t * instruction_create_assign(void);
+extern instruction_t * instruction_create_assign(char *);
 
 extern script_t *      script_create();
 extern void            script_free(script_t *);
@@ -84,9 +84,6 @@ extern data_t *        script_pop(script_t *);
 extern script_t *      script_push(script_t *, data_t *);
 extern script_t *      script_set(script_t *, char *, data_t *);
 extern data_t *        script_get(script_t *, char *);
-
-extern parser_t *      script_parse_init(parser_t *);
-
 
 static instruction_t * _instruction_create(instruction_type_t);
 static script_t *      _instruction_execute_assign(instruction_t *, script_t *);
@@ -160,8 +157,8 @@ script_t * _instruction_execute_function(instruction_t *instr, script_t *script)
   int       ix;
 
   assert(instr -> function);
-  params = array_create();
-  array_set_free(data_free);
+  params = array_create(instr -> num);
+  array_set_free(params, (free_t) data_free);
   for (ix = 0; ix < instr -> num; ix++) {
     value = script_pop(script);
     assert(value);
@@ -201,7 +198,7 @@ instruction_t * instruction_create_pushval(data_t *value) {
   return ret;
 }
 
-instruction_t * instruction_create_function(script_fnc_t fnc, int num_params) {
+instruction_t * instruction_create_function(obelix_fnc_t fnc, int num_params) {
   instruction_t *ret;
 
   ret = _instruction_create(ITFunction);
@@ -255,7 +252,7 @@ long _modulo(long l1, long l2) {
   return l1 % l2;
 }
 
-script_t * _script_function_mathop(array_t *params, mathop_t mathop) {
+data_t * _script_function_mathop(array_t *params, mathop_t mathop) {
   char          *varname;
   data_t        *value;
   long           l1, l2, result;
@@ -263,10 +260,10 @@ script_t * _script_function_mathop(array_t *params, mathop_t mathop) {
   assert(array_size(params) == 2);
   value = array_get(params, 0);
   assert(value);
-  data_get(value, &l1);
+  l1 = value -> intval;
   value = array_get(params, 1);
   assert(value);
-  data_get(value, &l2);
+  l2 = value -> intval;
   result = mathop(l1, l2);
   return data_create(Int, &result);
 }
@@ -308,11 +305,12 @@ script_t * _script_function_read(instruction_t *instr, script_t *script) {
   double         d;
   long           l;
   int            ix;
+  int            num;
   datatype_t     dt;
   char           ch;
   void           *ptr;
 
-  getline(&line, 0, stdin);
+  num = getline(&line, 0, stdin);
   while (strlen(line) && isspace(line[strlen(line)])) {
     line[strlen(line)] = 0;
   }
@@ -329,18 +327,17 @@ script_t * _script_function_read(instruction_t *instr, script_t *script) {
   switch (dt) {
     case Int:
       l = atol(line);
-      ptr = (void *) l;
+      value = data_create(dt, l);
       break;
     case Float:
       d = atof(line);
-      ptr = (void *) d;
+      value = data_create(dt, d);
       break;
     case String:
-      ptr = line;
+      value = data_create(dt, line);
       break;
   }
-  value = data_create(dt, ptr);
-  script_push(value);
+  script_push(script, value);
   free(line);
   return script;
 }
@@ -355,9 +352,10 @@ script_t * script_create() {
   ret = NEW(script_t);
   ret -> variables = strvoid_dict_create();
   ret -> stack = list_create();
-  list_set_free(ret -> stack, data_free);
+  list_set_free(ret -> stack, (free_t) data_free);
+  list_set_tostring(ret -> stack, (tostring_t) data_tostring);
   ret -> instructions = list_create();
-  list_set_free(ret -> instructions, instruction_free);
+  list_set_free(ret -> instructions, (free_t) instruction_free);
   return ret;
 }
 
@@ -395,7 +393,7 @@ parser_t * script_parse_emit_assign(parser_t *parser) {
   script = parser -> data;
   data = script_pop(script);
   list_push(script -> instructions,
-            instruction_create_assign(data -> value));
+            instruction_create_assign((char *) data -> ptrval));
   data_free(data);
   return parser;
 }
@@ -427,23 +425,23 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
 
 parser_t * script_parse_emit_mathop(parser_t *parser) {
   char     *op;
-  script_fnc_t func;
+  obelix_fnc_t func;
   data_t   *data;
   script_t *script;
 
   script = parser -> data;
   data = script_pop(script);
-  op = data -> value;
+  op = (char *) data -> ptrval;
   if (!strcmp(op, "+")) {
-    func = resolve_function(_script_function_plus);
+    func = (obelix_fnc_t) _script_function_plus;
   } else if (!strcmp(op, "-")) {
-      func = resolve_function(_script_function_minus);
+    func = (obelix_fnc_t) _script_function_minus;
   } else if (!strcmp(op, "*")) {
-      func = resolve_function(_script_function_times);
+    func = (obelix_fnc_t) _script_function_times;
   } else if (!strcmp(op, "/")) {
-      func = resolve_function(_script_function_div);
+    func = (obelix_fnc_t) _script_function_div;
   } else if (!strcmp(op, "%")) {
-      func = resolve_function(_script_function_div);
+    func = (obelix_fnc_t) _script_function_modulo;
   }
   assert(func);
   list_push(script -> instructions,
@@ -473,11 +471,38 @@ data_t * script_get(script_t *script, char *varname) {
   return (data_t *) dict_get(script -> variables, varname);
 }
 
+data_t * script_execute(script_t *script) {
+  list_clear(script -> stack);
+  list_reduce(script -> instructions, (reduce_t) instruction_execute, script);
+  return (list_notempty(script -> stack)) ? script_pop(script) : NULL;
+}
+
+parser_t * script_parse_execute(reader_t *grammar, reader_t *text) {
+  parser_t     *parser;
+  script_t     *script;
+  str_t        *stack;
+
+  parser = parser_read_grammar(grammar);
+  if (parser) {
+    grammar_dump(parser -> grammar);
+    parser_parse(parser, text);
+    script = (script_t *) parser -> data;
+    if (list_notempty(script -> stack)) {
+      stack = list_tostr(script -> stack);
+      error("Script stack not empty after parse!\n%s", str_chars(stack));
+      str_free(stack);
+    }
+    script_execute(script);
+  }
+  return parser;
+}
+
 void test_parser(char *gname, char *tname) {
   file_t *     *file_grammar;
   reader_t     *greader;
   reader_t     *treader;
   parser_t     *parser;
+  script_t     *script;
   free_t        gfree, tfree;
 
   if (!gname) {
@@ -494,19 +519,13 @@ void test_parser(char *gname, char *tname) {
     treader = (reader_t *) file_open(tname);
   }
   if (greader) {
-    parser = parser_read_grammar(greader);
+    parser = script_parse_execute(greader, treader);
     if (parser) {
-      grammar_dump(parser -> grammar);
-      parser_parse(parser, treader);
       parser_free(parser);
     }
     file_free((file_t *) treader);
     gfree(greader);
   }
-}
-
-extern void foo(void) {
-  puts("foo!");
 }
 
 int main(int argc, char **argv) {

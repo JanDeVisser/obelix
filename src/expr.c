@@ -20,12 +20,21 @@
 #include <expr.h>
 
 #include <string.h>
+#include <stdio.h>
 
-#define COPY_BYTES(ptr, type)  _memcpy_bytes((ptr), sizeof(type))
+typedef data_t * (*copydata_t)(void *, void *);
 
-static void *   _memcpy_bytes(void *, size_t);
-static void *   _copy_long(int *);
-static void *   _copy_double(double *);
+static data_t * _data_create(datatype_t);
+static data_t * _data_copy_string(data_t *, data_t *);
+static int      _data_cmp_string(data_t *, data_t *);
+static int      _data_cmp_int(data_t *, data_t *);
+static int      _data_cmp_float(data_t *, data_t *);
+static int      _data_cmp_function(data_t *, data_t *);
+static char *   _data_tostring_string(data_t *);
+static char *   _data_tostring_int(data_t *);
+static char *   _data_tostring_float(data_t *);
+static char *   _data_tostring_bool(data_t *);
+static char *   _data_tostring_function(data_t *);
 
 static expr_t * _expr_create(expr_t *, eval_t, void *, context_t *);
 static list_t * _expr_eval_node(expr_t *, list_t *);
@@ -38,50 +47,176 @@ static data_t * _evaluate_call(context_t *ctx, void *data, list_t *params);
 // -----------------------
 // Data conversion support
 
+typedef struct _typedescr {
+  datatype_t    type;
+  copydata_t    copy;
+  cmp_t         cmp;
+  free_t        free;
+  tostring_t    tostring;
+} typedescr_t;
+
 static typedescr_t descriptors[] = {
-  { type: String,   assign: (assignment_t) strdup,       release: (free_t) free, size: sizeof(char *),  tostring: chars },
-  { type: Int,      assign: (assignment_t) _copy_long,   release: (free_t) free, size: sizeof(long),    tostring: itoa },
-  { type: Float,    assign: (assignment_t) _copy_double, release: (free_t) free, size: sizeof(double),  tostring: dtoa },
-  { type: Bool,     assign: (assignment_t) _copy_long,   release: (free_t) free, size: sizeof(long),    tostring: btoa },
-  { type: Function, assign: NULL,                        release: NULL }
+  {
+    type: String,
+    copy: (copydata_t) _data_copy_string,
+    cmp: (cmp_t) _data_cmp_string,
+    free: (free_t) free,
+    tostring: (tostring_t) _data_tostring_string
+  },
+  {
+    type: Int,
+    copy: NULL,
+    cmp: (cmp_t) _data_cmp_int,
+    free: NULL,
+    tostring: (tostring_t) _data_tostring_int
+  },
+  {
+    type: Float,
+    copy: NULL,
+    cmp: (cmp_t) _data_cmp_float,
+    free: NULL,
+    tostring: (tostring_t) _data_tostring_float
+  },
+  {
+    type: Bool,
+    copy: NULL,
+    cmp: (cmp_t) _data_cmp_int,
+    free: NULL,
+    tostring: (tostring_t) _data_tostring_bool
+  },
+  {
+    type: Function,
+    copy: NULL,
+    cmp: (cmp_t) _data_cmp_function,
+    free: NULL,
+    tostring: (tostring_t) _data_tostring_function
+  }
 };
 
-void * _memcpy_bytes(void *val, size_t bytes) {
-  void *ret = malloc(bytes);
-  if (ret) {
-    memcpy(ret, val, bytes);
-  }
-  return ret;
-}
+/*
+ * data_t static functions
+ */
 
-void * _copy_long(long *val) {
-  return COPY_BYTES(val, long);
-}
-
-void * _copy_double(double *val) {
-  return COPY_BYTES(val, double);
-}
-
-// --------------------
-// data_t
-
-data_t * data_create(datatype_t type, void *value) {
+data_t * _data_create(datatype_t type) {
   data_t *ret;
 
   ret = NEW(data_t);
-  if (ret) {
-    ret -> type = type;
-    ret -> value = (descriptors[type].assign)
-      ? descriptors[type].assign(value)
-      : value;
+  ret -> type = type;
+  return ret;
+}
+
+data_t * _data_copy_string(data_t *target, data_t *src) {
+  target -> ptrval = strdup(src -> ptrval);
+  return target;
+}
+
+int _data_cmp_string(data_t *d1, data_t *d2) {
+  return strcmp((char *) d1 -> ptrval, (char *) d2 -> ptrval);
+}
+
+int _data_cmp_int(data_t *d1, data_t *d2) {
+  return d1 -> intval - d2 -> intval;
+}
+
+int _data_cmp_float(data_t *d1, data_t *d2) {
+  return (d1 -> dblval == d2 -> dblval)
+      ? 0
+      : (d1 -> dblval > d2 -> dblval) ? 1 : -1;
+}
+
+int _data_cmp_function(data_t *d1, data_t *d2) {
+  return (d1 -> fnc == d2 -> fnc) ? 0 : 1;
+}
+
+char * _data_tostring_string(data_t *data) {
+  return (char *) data -> ptrval;
+}
+
+char * _data_tostring_int(data_t *data) {
+  return itoa(data -> intval);
+}
+
+char * _data_tostring_float(data_t *data) {
+  return dtoa(data -> dblval);
+}
+
+char * _data_tostring_bool(data_t *data) {
+  return btoa(data -> intval);
+}
+
+char * _data_tostring_function(data_t *data) {
+  static char buf[32];
+
+  snprintf(buf, 32, "<<function %p>>", (void *) data -> fnc);
+  return buf;
+}
+
+/*
+ * data_t public functions
+ */
+
+data_t * data_create(datatype_t type, ...) {
+  va_list  arg;
+
+  va_start(arg, type);
+  switch (type) {
+    case Int:
+      return data_create_int(va_arg(arg, long));
+    case Float:
+      return data_create_float(va_arg(arg, double));
+    case Bool:
+      return data_create_bool(va_arg(arg, long));
+    case String:
+      return data_create_string(va_arg(arg, char *));
+    case Function:
+      return data_create_function(va_arg(arg, voidptr_t));
   }
-  return ret; 
+}
+
+data_t * data_create_int(long value) {
+  data_t *ret;
+
+  ret = _data_create(Int);
+  ret -> intval = value;
+  return ret;
+}
+
+data_t * data_create_float(double value) {
+  data_t *ret;
+
+  ret = _data_create(Float);
+  ret -> dblval = value;
+  return ret;
+}
+
+data_t * data_create_bool(long value) {
+  data_t *ret;
+
+  ret = _data_create(Bool);
+  ret -> intval = value ? 1 : 0;
+  return ret;
+}
+
+data_t * data_create_string(char * value) {
+  data_t *ret;
+
+  ret = _data_create(String);
+  ret -> ptrval = strdup(value);
+  return ret;
+}
+
+data_t * data_create_function(voidptr_t fnc) {
+  data_t *ret;
+
+  ret = _data_create(Function);
+  ret -> fnc = fnc;
+  return ret;
 }
 
 void data_free(data_t *data) {
   if (data) {
-    if (descriptors[data -> type].release) {
-      descriptors[data -> type].release(data -> value);
+    if (descriptors[data -> type].free) {
+      descriptors[data -> type].free(data -> ptrval);
     }
     free(data);
   }
@@ -93,27 +228,18 @@ data_t * data_copy(data_t *src) {
   ret = NEW(data_t);
   if (ret) {
     memcpy(ret, src, sizeof(data_t));
-    if (descriptors[src -> type].assign) {
-      ret -> value = descriptors[src -> type].assign(src -> value);
+    if (descriptors[src -> type].copy) {
+      descriptors[src -> type].copy(ret, src);
     }
   }
   return ret;
 }
 
-data_t * data_get(data_t *data, void *ptr) {
-  if (descriptors[data -> type].copy) {
-    descriptors[data -> type].copy(ptr, data -> value);
-  } else {
-    memcpy(ptr, data -> value, descriptors[data -> type].size);
-  }
-  return data;
-}
-
 char * data_tostring(data_t *data) {
   if (descriptors[data -> type].tostring) {
-    descriptors[data -> type].tostring(data -> value);
+    return descriptors[data -> type].tostring(data);
   } else {
-    return "<<??>>";
+    return "<< ?? >>";
   }
 }
 
@@ -217,22 +343,9 @@ list_t * _expr_eval_node(expr_t *node, list_t *params) {
 
 data_t * _evaluate_literal(context_t *ctx, void *data, list_t *params) {
   data_t *d;
-  char *fmt;
   
   d = (data_t *) data;
-  switch (d -> type) {
-    case Int:
-    case Bool:
-      fmt = "%d";
-      break;
-    case Float:
-      fmt = "%f";
-      break;
-    case String:
-      fmt = "%s";
-      break;
-  }
-  debug(fmt, *((int *) d -> value));
+  debug("%s", data_tostring(d));
   return d;
 }
 
@@ -368,24 +481,16 @@ expr_t * expr_funccall(expr_t *expr, eval_t fnc) {
   expr_t *ret;
   data_t *data;
   
-  ret = NULL;
-  data = data_create(Function, NULL);
-  if (data) {
-    data -> fnc = (eval_t) fnc;
-    ret = expr_create(expr, _evaluate_call, data);
-    if (ret) {
-      expr_set_data_free(ret, (free_t) data_free);
-    } else {
-      data_free(data);
-    }
-  }
+  data = data_create(Function, (voidptr_t) fnc);
+  ret = expr_create(expr, _evaluate_call, data);
+  expr_set_data_free(ret, (free_t) data_free);
   return ret;
 }
 
 
 /* Move me */
 
-static void expr_test(void)
+static void expr_test(void);
 
 void expr_test(void) {
   expr_t *expr, *e;
