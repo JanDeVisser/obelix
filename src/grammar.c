@@ -1040,7 +1040,7 @@ voidptr_t grammar_resolve_function(grammar_t *grammar, char *func_name) {
   } else {
     fname = func_name;
   }
-  ret = (voidptr_t) resolve_function(func_name);
+  ret = (voidptr_t) resolve_function(fname);
   if (grammar -> prefix) {
     free(func_name);
   }

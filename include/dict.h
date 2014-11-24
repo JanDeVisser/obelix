@@ -20,6 +20,8 @@
 #ifndef __DICT_H__
 #define __DICT_H__
 
+#include <string.h>
+
 #include <array.h>
 #include <list.h>
 

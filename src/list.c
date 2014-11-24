@@ -157,7 +157,7 @@ list_t * list_append(list_t *list, void *data) {
   return list;
 }
 
-void * list_unshift(list_t *list, void *data) {
+list_t * list_unshift(list_t *list, void *data) {
   listnode_t *node;
 
   node = _ln_create(list, data);

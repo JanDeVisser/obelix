@@ -29,31 +29,27 @@ typedef enum _datatype {
 struct _data;
 struct _context;
 
-typedef void *   (*assignment_t)(void *);
-typedef void     (*copyvalue_t)(void *, void *);
 typedef struct _data * (*eval_t)(struct _context *, void *, list_t *);
-
-typedef struct _typedescr {
-  datatype_t     type;
-  assignment_t   assign;
-  copyvalue_t    copy;
-  free_t         release;
-  tostring_t     tostring;
-  int            size;
-} typedescr_t;
 
 typedef struct _data {
   datatype_t type;
   union {
-    void       *value;
-    eval_t     fnc;
+    void      *ptrval;
+    long       intval;
+    double     dblval;
+    voidptr_t  fnc;
   };
 } data_t;
 
-extern data_t * data_create(datatype_t, void *);
+extern data_t * data_create(datatype_t, ...);
+extern data_t * data_create_int(long value);
+extern data_t * data_create_float(double value);
+extern data_t * data_create_bool(long value);
+extern data_t * data_create_string(char * value);
+extern data_t * data_create_function(voidptr_t);
 extern void     data_free(data_t *);
 extern data_t * data_copy(data_t *);
-extern data_t * data_get(data_t *, void *);
+extern char *   data_tostring(data_t *);
 
 typedef struct _context {
   dict_t          *vars;
