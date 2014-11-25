@@ -48,9 +48,7 @@ typedef enum _instruction_type {
   ITAssign,
   ITPushVar,
   ITPushVal,
-  ITFunction,
-  ITRead,
-  ITWrite
+  ITFunction
 } instruction_type_t;
 
 typedef struct _script {
@@ -151,6 +149,7 @@ script_t * _instruction_execute_pushval(instruction_t *instr, script_t *script) 
   assert(instr -> value);
   debug("Executing Pushval instruction: value '%s'", data_tostring(instr -> value));
   script_push(script, instr -> value);
+  instr -> value = NULL;
   return script;
 }
 
@@ -181,8 +180,8 @@ script_t * _instruction_execute_function(instruction_t *instr, script_t *script)
 instruction_t * instruction_create_assign(char *varname) {
   instruction_t *ret;
 
-  ret = _instruction_create(ITWrite);
-  ret -> name = varname;
+  ret = _instruction_create(ITAssign);
+  ret -> name = strdup(varname);
   return ret;
 }
 
@@ -190,7 +189,7 @@ instruction_t * instruction_create_pushvar(char *varname) {
   instruction_t *ret;
 
   ret = _instruction_create(ITPushVar);
-  ret -> name = varname;
+  ret -> name = strdup(varname);
   return ret;
 }
 
@@ -225,6 +224,9 @@ void instruction_free(instruction_t *instruction) {
       case ITAssign:
         free(instruction -> name);
         break;
+      case ITPushVal:
+        data_free(instruction -> value);
+	break;
     }
     free(instruction);
   }
@@ -356,6 +358,7 @@ script_t * script_create() {
 
   ret = NEW(script_t);
   ret -> variables = strvoid_dict_create();
+  dict_set_free_data(ret -> variables, (free_t) data_free);
   ret -> stack = list_create();
   list_set_free(ret -> stack, (free_t) data_free);
   list_set_tostring(ret -> stack, (tostring_t) data_tostring);
@@ -366,10 +369,11 @@ script_t * script_create() {
 
 void script_free(script_t *script) {
   if (script) {
-    dict_free(script -> variables);
+     dict_free(script -> variables);
     list_free(script -> stack);
     list_free(script -> instructions);
-  }
+    free(script);
+   }
 }
 
 /* ----------------------------------------------------------------------- */
@@ -500,18 +504,23 @@ data_t * script_get(script_t *script, char *varname) {
 }
 
 data_t * script_execute(script_t *script) {
+  data_t *ret;
   list_clear(script -> stack);
   list_reduce(script -> instructions, (reduce_t) instruction_execute, script);
-  debug("Execution done");
-  return (list_notempty(script -> stack)) ? script_pop(script) : NULL;
+  ret = (list_notempty(script -> stack)) ? script_pop(script) : NULL;
+  debug("Execution done: %s", data_tostring(ret));
+  return ret;
 }
 
-parser_t * script_parse_execute(reader_t *grammar, reader_t *text) {
+int script_parse_execute(reader_t *grammar, reader_t *text) {
   parser_t     *parser;
   script_t     *script;
   str_t        *stack;
+  data_t       *ret;
+  int           retval;
 
   parser = parser_read_grammar(grammar);
+  retval = -1;
   if (parser) {
     grammar_dump(parser -> grammar);
     parser_parse(parser, text);
@@ -521,23 +530,27 @@ parser_t * script_parse_execute(reader_t *grammar, reader_t *text) {
       error("Script stack not empty after parse!\n%s", str_chars(stack));
       str_free(stack);
     }
-    script_execute(script);
+    ret = script_execute(script);
+    script_free(script);
+    parser_free(parser);
+    retval = (ret && (ret -> type == Int)) ? (int) ret -> intval : 0;
   }
-  return parser;
+  return retval;
 }
 
-void test_parser(char *gname, char *tname) {
+int parse(char *gname, char *tname) {
   file_t *     *file_grammar;
   reader_t     *greader;
   reader_t     *treader;
   parser_t     *parser;
   script_t     *script;
   free_t        gfree, tfree;
+  int           ret;
 
   if (!gname) {
     //greader = (reader_t *) str_wrap(bnf_grammar);
     greader = (reader_t *) file_open("/home/jan/Projects/obelix/etc/grammar.txt");
-    gfree = (free_t) str_free;
+    gfree = (free_t) file_free;
   } else {
     greader = (reader_t *) file_open(gname);
     gfree = (free_t) file_free;
@@ -547,19 +560,19 @@ void test_parser(char *gname, char *tname) {
   } else {
     treader = (reader_t *) file_open(tname);
   }
-  if (greader) {
-    parser = script_parse_execute(greader, treader);
-    if (parser) {
-      parser_free(parser);
-    }
+  ret = -1;
+  if (greader && treader) {
+    ret = script_parse_execute(greader, treader);
     file_free((file_t *) treader);
     gfree(greader);
   }
+  return ret;
 }
 
 int main(int argc, char **argv) {
   char *grammar;
   int   opt;
+  int   ret;
 
   grammar = NULL;
   while ((opt = getopt(argc, argv, "g:")) != -1) {
@@ -569,5 +582,7 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  test_parser(grammar, (argc > optind) ? argv[optind] : NULL);
+  ret = parse(grammar, (argc > optind) ? argv[optind] : NULL);
+  debug("Exiting with exit code %d", ret);
+  return ret;
 }

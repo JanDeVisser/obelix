@@ -224,7 +224,7 @@ rule_t * rule_create(grammar_t *grammar, char *name) {
       } else {
         array_set_free(ret -> options, (free_t) rule_option_free);
         ret -> state = strhash(name);
-        dict_put(grammar -> rules, ret -> name, ret);
+        dict_put(grammar -> rules, strdup(ret -> name), ret);
         if (!grammar -> entrypoint) {
           grammar -> entrypoint = ret;
         }
@@ -898,41 +898,26 @@ grammar_t * _grammar_analyze(grammar_t *grammar) {
 
 grammar_t * grammar_create() {
   grammar_t *ret;
-  int ix;
-  int ok = TRUE;
+  int        ix;
 
   ret = NEW(grammar_t);
-  if (ret) {
-    ret -> entrypoint = NULL;
-    ret -> initializer = NULL;
-    ret -> finalizer = NULL;
-    ret -> strategy = ParsingStrategyTopDown;
-    ret -> keywords = intdict_create();
-    ok = (ret != NULL);
-    if (ok) {
-      dict_set_free_data(ret -> keywords, (free_t) token_free);
-    }
-    if (ok) {
-      ret -> rules = dict_create((cmp_t) strcmp);
-      ok = (ret -> rules != NULL);
-      if (ok) {
-        dict_set_hash(ret -> rules, (hash_t) strhash);
-        dict_set_free_data(ret -> rules, (free_t) rule_free);
-      }
-    }
-    if (ok) {
-      ret -> lexer_options = array_create((int) LexerOptionLAST);
-      if (ok == (ret -> lexer_options != NULL)) {
-        for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
-          grammar_set_option(ret, ix, 0L);
-        }
-      }
-    }
-    if (!ok) {
-      grammar_free(ret);
-      ret = NULL;
-    }
+  ret -> entrypoint = NULL;
+  ret -> initializer = NULL;
+  ret -> finalizer = NULL;
+  ret -> prefix = NULL;
+  ret -> strategy = ParsingStrategyTopDown;
+
+  ret -> keywords = intdict_create();
+  dict_set_free_data(ret -> keywords, (free_t) token_free);
+
+  ret -> rules = strvoid_dict_create();
+  dict_set_free_data(ret -> rules, (free_t) rule_free);
+
+  ret -> lexer_options = array_create((int) LexerOptionLAST);
+  for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
+    grammar_set_option(ret, ix, 0L);
   }
+
   return ret;
 }
 
@@ -974,6 +959,9 @@ void grammar_free(grammar_t *grammar) {
     dict_free(grammar -> rules);
     dict_free(grammar -> keywords);
     array_free(grammar -> lexer_options);
+    if (grammar -> prefix) {
+      free(grammar -> prefix);
+    }
     free(grammar);
   }
 }

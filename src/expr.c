@@ -236,7 +236,9 @@ data_t * data_copy(data_t *src) {
 }
 
 char * data_tostring(data_t *data) {
-  if (descriptors[data -> type].tostring) {
+  if (!data) {
+    return "<<null>>";
+  } else if (descriptors[data -> type].tostring) {
     return descriptors[data -> type].tostring(data);
   } else {
     return "<< ?? >>";
@@ -487,7 +489,6 @@ expr_t * expr_funccall(expr_t *expr, eval_t fnc) {
   return ret;
 }
 
-
 #ifdef FOOKNARF
 
 /* Move me */
@@ -507,7 +508,7 @@ void expr_test(void) {
   expr_int_literal(e, 3);
 
   result = expr_evaluate(expr);
-  data_get(result, &res);
+  //data_get(result, &res);
   debug("result: %d", res);
   data_free(result);
   expr_free(expr);
