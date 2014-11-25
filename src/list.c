@@ -71,8 +71,8 @@ void * _list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t ty
   void           *elem;
 
   iter = li_create(list);
+  f = (type == RTStrs) ? (free_t) str_free : NULL;
   while (li_has_next(iter)) {
-    f = NULL;
     elem = li_next(iter);
     switch (type) {
       case RTChars:
@@ -80,7 +80,6 @@ void * _list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t ty
         break;
       case RTStrs:
         elem =  str_wrap(list -> tostring(elem));
-        f = (free_t) str_free;
         break;
     }
     data = reducer(elem, data);

@@ -304,6 +304,7 @@ void _parser_parse(parser_t *parser, reader_t *reader) {
 
 void parser_free(parser_t *parser) {
   if (parser) {
+    token_free(parser -> last_token);
     list_free(parser -> prod_stack);
     grammar_free(parser -> grammar);
     free(parser);

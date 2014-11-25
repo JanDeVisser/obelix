@@ -153,38 +153,33 @@ dict_t * _dict_rehash(dict_t *dict) {
 
   num = dict -> num_buckets * 2;
   new_buckets = array_create(num);
-  if (!new_buckets) {
-    return NULL;
-  }
   array_set_free(new_buckets, (visit_t) list_free);
+
   ret = dict;
   num = array_capacity(new_buckets);
   for (i = 0; i < num; i++) {
     l = list_create();
-    if (!l) {
-      ret = NULL;
-      break;
-    }
     list_set_free(l, (visit_t) _dictentry_free);
     array_set(new_buckets, i, l);
   }
-  if (ret) {
-    for (i = 0; i < dict -> num_buckets; i++) {
-      for(iter = li_create((list_t *) array_get(dict -> buckets, i));
-	  li_has_next(iter); ) {
-	ret = _dict_add_to_bucket(new_buckets, (dictentry_t *) li_next(iter));
-	if (!ret) break;
-      }
-      li_free(iter);
+
+  for (i = 0; i < dict -> num_buckets; i++) {
+    l = (list_t *) array_get(dict -> buckets, i);
+    for(iter = li_create(l); li_has_next(iter); ) {
+      ret = _dict_add_to_bucket(new_buckets, (dictentry_t *) li_next(iter));
       if (!ret) break;
     }
+    li_free(iter);
+    if (!ret) break;
+    list_set_free(l, NULL);
   }
+
   if (ret) {
+    array_free(dict -> buckets);
     dict -> buckets = new_buckets;
     dict -> num_buckets = num;
   } else {
     array_free(new_buckets);
-    free(new_buckets);
   }
   return ret;
 }
@@ -208,9 +203,8 @@ dict_t * _dict_add_to_bucket(array_t *buckets, dictentry_t *entry) {
 
   bucket_num = (int) (entry -> hash % (unsigned int) array_capacity(buckets));
   bucket = (list_t *) array_get(buckets, bucket_num);
-  if (!bucket) {
-    return NULL;
-  }
+  assert(bucket);
+
   ret = NULL;
   for (iter = li_create((list_t *) bucket); li_has_next(iter); ) {
     e = (dictentry_t *) li_next(iter);
