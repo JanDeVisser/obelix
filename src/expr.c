@@ -488,6 +488,8 @@ expr_t * expr_funccall(expr_t *expr, eval_t fnc) {
 }
 
 
+#ifdef FOOKNARF
+
 /* Move me */
 
 static void expr_test(void);
@@ -511,4 +513,4 @@ void expr_test(void) {
   expr_free(expr);
 }
 
-
+#endif /* FOOKNARF */

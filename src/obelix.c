@@ -63,12 +63,12 @@ typedef data_t * (*obelix_fnc_t)(script_t *, array_t *);
 
 typedef struct _instruction {
   instruction_type_t  type;
+  int                 num;
   union {
     char             *name;
     obelix_fnc_t      function;
     data_t           *value;
   };
-  int                 num;
 } instruction_t;
 
 extern instruction_t * instruction_create_assign(char *);
@@ -91,10 +91,9 @@ static script_t *      _instruction_execute_pushvar(instruction_t *, script_t *)
 static script_t *      _instruction_execute_pushval(instruction_t *, script_t *);
 static script_t *      _instruction_execute_function(instruction_t *, script_t *);
 
-
 typedef script_t * (*script_fnc_t)(instruction_t *, script_t *);
 
-typedef struct _instruction_type_execute {
+typedef struct _instruction_type_descr {
   instruction_type_t  type;
   script_fnc_t        function;
   char               *name;
@@ -125,9 +124,11 @@ script_t * _instruction_execute_assign(instruction_t *instr, script_t *script) {
   char          *varname;
   data_t        *value;
 
+  debug("Executing Assign instruction");
   value = script_pop(script);
   assert(value);
   assert(instr -> name);
+  debug(" -- varname '%s', value '%s'", instr -> name, data_tostring(value));
 
   script_set(script, instr -> name, value);
   return script;
@@ -139,6 +140,7 @@ script_t * _instruction_execute_pushvar(instruction_t *instr, script_t *script) 
   assert(instr -> name);
   value = script_get(script, instr -> name);
   assert(value);
+  debug("Executing Pushvar instruction: varname '%s', value '%s'", instr -> name, data_tostring(value));
   script_push(script, value);
   return script;
 }
@@ -147,6 +149,7 @@ script_t * _instruction_execute_pushval(instruction_t *instr, script_t *script) 
   data_t        *value;
 
   assert(instr -> value);
+  debug("Executing Pushval instruction: value '%s'", data_tostring(instr -> value));
   script_push(script, instr -> value);
   return script;
 }
@@ -155,14 +158,15 @@ script_t * _instruction_execute_function(instruction_t *instr, script_t *script)
   data_t   *value;
   array_t  *params;
   int       ix;
-
+  
+  debug("Executing Function instruction: parameters: %d", instr -> num);
   assert(instr -> function);
   params = array_create(instr -> num);
   array_set_free(params, (free_t) data_free);
   for (ix = 0; ix < instr -> num; ix++) {
     value = script_pop(script);
     assert(value);
-    array_set(params, instr -> num - ix, value);
+    array_set(params, instr -> num - ix - 1, value);
   }
   value = instr -> function(script, params);
   script_push(script, value);
@@ -257,6 +261,7 @@ data_t * _script_function_mathop(array_t *params, mathop_t mathop) {
   data_t        *value;
   long           l1, l2, result;
 
+  debug("_script_function_mathop: num params: %d", array_size(params));
   assert(array_size(params) == 2);
   value = array_get(params, 0);
   assert(value);
@@ -265,7 +270,7 @@ data_t * _script_function_mathop(array_t *params, mathop_t mathop) {
   assert(value);
   l2 = value -> intval;
   result = mathop(l1, l2);
-  return data_create(Int, &result);
+  return data_create_int(result);
 }
 
 data_t * _script_function_plus(script_t *script, array_t *params) {
@@ -368,9 +373,15 @@ void script_free(script_t *script) {
 }
 
 /* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
 
 parser_t * script_parse_init(parser_t *parser) {
-  script_t *script = script_create();
+  script_t *script;
+
+  debug("script_parse_init");
+  script = script_create();
   parser -> data = script;
   return parser;
 }
@@ -381,6 +392,8 @@ parser_t * script_parse_push_last_token(parser_t *parser) {
 
   script = parser -> data;
   token = parser -> last_token;
+  debug("script_parse_push_last_token - last_token: %s", 
+	(token) ? token_tostring(token, NULL, 0) : "--NULL--");
   script_push(script, data_create(String, token_token(token)));
   return parser;
 }
@@ -390,10 +403,13 @@ parser_t * script_parse_emit_assign(parser_t *parser) {
   data_t   *data;
   script_t *script;
 
+  debug("script_parse_emit_assign");
   script = parser -> data;
   data = script_pop(script);
+  varname = (char *) data -> ptrval;
+  debug("  -- varname: %s", varname);
   list_push(script -> instructions,
-            instruction_create_assign((char *) data -> ptrval));
+            instruction_create_assign(varname));
   data_free(data);
   return parser;
 }
@@ -401,11 +417,15 @@ parser_t * script_parse_emit_assign(parser_t *parser) {
 parser_t * script_parse_emit_pushvar(parser_t *parser) {
   token_t  *token;
   script_t *script;
+  char     *varname;
 
+  debug("script_parse_emit_pushvar");
   script = parser -> data;
   token = parser -> last_token;
+  varname = token_token(token);
+  debug("  -- varname: %s", varname);
   list_push(script -> instructions,
-            instruction_create_pushvar(token_token(token)));
+            instruction_create_pushvar(varname));
   return parser;
 }
 
@@ -414,9 +434,11 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
   script_t *script;
   long      val;
 
+  debug("script_parse_emit_pushval");
   script = parser -> data;
   token = parser -> last_token;
   val = strtol(token_token(token), NULL, 10);
+  debug(" -- val: %ld", val);
 
   list_push(script -> instructions,
             instruction_create_pushval(data_create(Int, (void *) val)));
@@ -428,10 +450,12 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
   obelix_fnc_t func;
   data_t   *data;
   script_t *script;
-
+  
+  debug("script_parse_emit_mathop");
   script = parser -> data;
   data = script_pop(script);
   op = (char *) data -> ptrval;
+  debug(" -- op: %s", op);
   if (!strcmp(op, "+")) {
     func = (obelix_fnc_t) _script_function_plus;
   } else if (!strcmp(op, "-")) {
@@ -452,6 +476,10 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
 
 
 /* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+
 
 data_t * script_pop(script_t *script) {
   return (data_t *) list_pop(script -> stack);
@@ -474,6 +502,7 @@ data_t * script_get(script_t *script, char *varname) {
 data_t * script_execute(script_t *script) {
   list_clear(script -> stack);
   list_reduce(script -> instructions, (reduce_t) instruction_execute, script);
+  debug("Execution done");
   return (list_notempty(script -> stack)) ? script_pop(script) : NULL;
 }
 

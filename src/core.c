@@ -56,12 +56,17 @@ void __init(void) {
 
 
 void * new(int sz) {
+  void *ret;
+
   if (!_initialized) {
     __init();
   }
-  void * ret = malloc(sz);
+
+  ret = malloc(sz);
   if (sz && !ret) {
     kill(0, SIGUSR1);
+  } else {
+    memset(ret, 0, sz);
   }
   return ret;
 }
