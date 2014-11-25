@@ -145,14 +145,14 @@ void _dequotify(str_t *str) {
 
 char * token_code_name(token_code_t code) {
   int ix;
-  static char buf[20];
+  static char buf[100];
 
   for (ix = 0; ix < sizeof(token_code_names) / sizeof(token_code_str_t); ix++) {
     if (token_code_names[ix].code == code) {
       return token_code_names[ix].name;
     }
   }
-  sprintf(buf, "[Custom code %d]", code);
+  snprintf(buf, 100, "[Custom code %d]", code);
   return buf;
 }
 

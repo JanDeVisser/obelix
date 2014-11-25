@@ -181,60 +181,56 @@ void * _parser_ll1_token_handler(token_t *token, parser_t *parser) {
         // This is what normal people call a syntax error :-)
         for (i = array_size(option -> items) - 1; i >= 0; i--) {
           item = (rule_item_t *) array_get(option -> items, i);
-          if (rule_item_get_finalizer(item)) {
-            list_push(parser -> prod_stack,
-                      _parser_stack_entry_for_function(rule_item_get_finalizer(item)));
-          }
           if (item -> terminal) {
             debug("Pushing terminal '%s' onto parser stack",
                   token_tostring(item -> token, NULL, 0));
             list_push(parser -> prod_stack,
                       _parser_stack_entry_for_item(item));
           } else {
-            if (i || strcmp(item -> rule, rule -> name)) {
-              debug("Pushing non-terminal '%s' onto parser stack", item -> rule);
-              new_rule = grammar_get_rule(parser -> grammar, item -> rule);
-              if (rule_get_finalizer(new_rule)) {
-                list_push(parser -> prod_stack,
-                          _parser_stack_entry_for_function(rule_get_finalizer(new_rule)));
-              }
-              new_entry = _parser_stack_entry_for_rule(new_rule);
-              if (rule_get_initializer(new_rule)) {
-                list_push(parser -> prod_stack,
-                          _parser_stack_entry_for_function(rule_get_initializer(new_rule)));
-              }
-              list_push(parser -> prod_stack, new_entry);
-            } else {
-              error("Non-terminal '%s' expands to itself", rule -> name);
-              assert(0);
-            }
-          }
-          if (rule_item_get_initializer(item)) {
-            list_push(parser -> prod_stack,
-                      _parser_stack_entry_for_function(rule_item_get_initializer(item)));
+	    debug("Pushing non-terminal '%s' onto parser stack", item -> rule);
+	    if (rule_item_get_finalizer(item)) {
+	      debug("Pushing non-terminal item finalizer onto parser stack");
+	      list_push(parser -> prod_stack,
+			_parser_stack_entry_for_function(rule_item_get_finalizer(item)));
+	    }
+	    new_rule = grammar_get_rule(parser -> grammar, item -> rule);
+	    if (rule_get_finalizer(new_rule)) {
+	      debug("Pushing rule finalizer onto parser stack");
+	      list_push(parser -> prod_stack,
+			_parser_stack_entry_for_function(rule_get_finalizer(new_rule)));
+	    }
+	    new_entry = _parser_stack_entry_for_rule(new_rule);
+	    list_push(parser -> prod_stack, new_entry);
+	    if (rule_get_initializer(new_rule)) {
+	      debug("Pushing rule initializer onto parser stack");
+	      list_push(parser -> prod_stack,
+			_parser_stack_entry_for_function(rule_get_initializer(new_rule)));
+	    }
+	    if (rule_item_get_initializer(item)) {
+	      debug("Pushing non-terminal item initializer onto parser stack");
+	      list_push(parser -> prod_stack,
+			_parser_stack_entry_for_function(rule_item_get_initializer(item)));
+	    }
           }
         }
         _parser_ll1_token_handler(token, parser);
         break;
       case PSETypeItem:
         item = entry -> item;
-        if (item -> terminal) {
-          assert(!token_cmp(item -> token, token));
-          debug("Encountered terminal '%s'", token_code_name(code));
-          // TODO: Error Handling.
-          // If assert trips we've received a terminal that has a different
-          // code than the one we're expecting. Syntax error.
-
-          // TODO: Handle terminal.
-        } else {
-          debug("Pushing non-terminal '%s' onto parser stack", item -> rule);
-          new_rule = grammar_get_rule(parser -> grammar, item -> rule);
-          new_entry = _parser_stack_entry_for_rule(new_rule);
-          list_push(parser -> prod_stack, new_entry);
-          _parser_ll1_token_handler(token, parser);
-        }
+        assert(item -> terminal);
+	assert(!token_cmp(item -> token, token));
+	debug("Encountered terminal '%s'", token_code_name(code));
+	// TODO: Error Handling.
+	// If assert trips we've received a terminal that has a different
+	// code than the one we're expecting. Syntax error.
+	
+	if (rule_item_get_finalizer(item)) {
+	  debug("Executing terminal finalizer");
+	  rule_item_get_finalizer(item)(parser);
+	}
         break;
       case PSETypeFunction:
+	debug("Executing function");
         assert(entry -> fnc);
         entry -> fnc(parser);
         _parser_ll1_token_handler(token, parser);
@@ -255,6 +251,7 @@ parser_t * parser_create(grammar_t *grammar) {
   ret = NEW(parser_t);
   ret -> grammar = grammar;
   ret -> prod_stack = list_create();
+  ret -> last_token = NULL;
   return ret;
 }
 
