@@ -13,7 +13,15 @@ statements                  := statement
                              | 
                              ;
 
-statement                   := 'i'             [ done: push_last_token ] 
+statement                   := 'i' 
+                               assignment_or_call
+                             ;
+
+assignment_or_call         := assignment
+                            | func_call
+                            ;
+
+assignment                 := 'i'             [ done: push_last_token ] 
                                ":="
                                expr            [ done: emit_assign     ]
                              ;
@@ -40,7 +48,6 @@ factortail                  := mult_op
 factor                      := ( expr ) 
                              | 'i'         [ done: emit_pushvar   ]
                              | 'd'         [ done: emit_pushval   ]
-                             | func_call 
                              ;
 
 add_op                      := +           [ done: push_last_token ]
@@ -49,23 +56,20 @@ add_op                      := +           [ done: push_last_token ]
 
 mult_op                     := *           [ done: push_last_token ]
                              | /           [ done: push_last_token ]
+                             | ^           [ done: push_last_token ]
+                             | %           [ done: push_last_token ]
                              ;
 
-func_call                   := func_name 
-                               ( 
+func_call                   := (           [ done: init_param_count ]
                                parlist
-                               )
-                             ;
-
-func_name                   := @ 
-                               'i'
+                               )           [ done: emit_func_call  ]
                              ;
 
 parlist                     := param
                                parlist_tail
                              ;
 
-param                       := expr
+param                       := expr        [ done: param_count     ] 
                              ;
 
 parlist_tail                := ,

@@ -17,6 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -51,13 +52,24 @@ typedef enum _instruction_type {
   ITFunction
 } instruction_type_t;
 
+struct _script;
+
+typedef data_t * (*obelix_fnc_t)(struct _script *, array_t *);
+typedef long (*mathop_t)(long, long);
+
+typedef struct _function_def {
+  char         *name;
+  obelix_fnc_t  fnc;
+  int           min_params;
+  int           max_params;
+} function_def_t;
+
 typedef struct _script {
   dict_t   *variables;
   list_t   *stack;
   list_t   *instructions;
+  dict_t   *functions;
 } script_t;
-
-typedef data_t * (*obelix_fnc_t)(script_t *, array_t *);
 
 typedef struct _instruction {
   instruction_type_t  type;
@@ -78,16 +90,38 @@ extern void            script_free(script_t *);
 extern parser_t *      script_parse_init(parser_t *parser);
 
 /* Execution functions */
-extern data_t *        script_pop(script_t *);
-extern script_t *      script_push(script_t *, data_t *);
-extern script_t *      script_set(script_t *, char *, data_t *);
-extern data_t *        script_get(script_t *, char *);
+extern data_t *         script_pop(script_t *);
+extern script_t *       script_push(script_t *, data_t *);
+extern script_t *       script_set(script_t *, char *, data_t *);
+extern data_t *         script_get(script_t *, char *);
+extern script_t *       script_register(script_t *, function_def_t *);
+extern function_def_t * script_get_function(script_t *, char *);
+
+extern function_def_t * function_def_create(char *, obelix_fnc_t, int, int);
+extern function_def_t * function_def_copy(function_def_t *);
+extern void             function_def_free(function_def_t *);
 
 static instruction_t * _instruction_create(instruction_type_t);
 static script_t *      _instruction_execute_assign(instruction_t *, script_t *);
 static script_t *      _instruction_execute_pushvar(instruction_t *, script_t *);
 static script_t *      _instruction_execute_pushval(instruction_t *, script_t *);
 static script_t *      _instruction_execute_function(instruction_t *, script_t *);
+
+static long            _plus(long, long);
+static long            _minus(long, long);
+static long            _times(long, long);
+static long            _div(long, long);
+static long            _modulo(long, long);
+static long            _pow(long, long);
+
+static data_t *        _script_function_print(script_t *, array_t *);
+static data_t *        _script_function_mathop(array_t *, mathop_t);
+static data_t *        _script_function_plus(script_t *, array_t *);
+static data_t *        _script_function_minus(script_t *, array_t *);
+static data_t *        _script_function_times(script_t *, array_t *);
+static data_t *        _script_function_div(script_t *, array_t *);
+static data_t *        _script_function_modulo(script_t *, array_t *params);
+static data_t *        _script_function_pow(script_t *, array_t *params);
 
 typedef script_t * (*script_fnc_t)(instruction_t *, script_t *);
 
@@ -97,7 +131,6 @@ typedef struct _instruction_type_descr {
   char               *name;
 } instruction_type_descr_t;
 
-
 static instruction_type_descr_t instruction_descr_map[] = {
     { type: ITAssign,   function: _instruction_execute_assign,   name: "ITAssign" },
     { type: ITPushVar,  function: _instruction_execute_pushvar,  name: "ITPushVar" },
@@ -105,6 +138,36 @@ static instruction_type_descr_t instruction_descr_map[] = {
     { type: ITFunction, function: _instruction_execute_function, name: "ITFunction" }
 };
 
+static function_def_t _builtins[] = {
+    { name: "print", fnc: _script_function_print, min_params: 1, max_params: -1 },
+    { name: NULL,    fnc: NULL,                   min_params: 0, max_params: -0 }
+};
+
+/*
+ * function_def_t public functions
+ */
+
+function_def_t * function_def_create(char *name, obelix_fnc_t fnc, int min_params, int max_params) {
+  function_def_t *def;
+
+  def = NEW(function_def_t);
+  def -> name = strdup(name);
+  def -> fnc = fnc;
+  def -> min_params = min_params;
+  def -> max_params = max_params;
+  return def;
+}
+
+function_def_t * function_def_copy(function_def_t *src) {
+  return function_def_create(src -> name, src -> fnc, src -> min_params, src -> max_params);
+}
+
+void function_def_free(function_def_t *def) {
+  if (def) {
+    free(def -> name);
+    free(def);
+  }
+}
 
 /*
  * instruction_t static functions
@@ -236,8 +299,6 @@ void instruction_free(instruction_t *instruction) {
  * script_t static functions
  */
 
-typedef long (*mathop_t)(long, long);
-
 long _plus(long l1, long l2) {
   return l1 + l2;
 }
@@ -256,6 +317,10 @@ long _div(long l1, long l2) {
 
 long _modulo(long l1, long l2) {
   return l1 % l2;
+}
+
+long _pow(long l1, long l2) {
+  return (long) pow(l1, l2);
 }
 
 data_t * _script_function_mathop(array_t *params, mathop_t mathop) {
@@ -295,58 +360,35 @@ data_t * _script_function_modulo(script_t *script, array_t *params) {
   return _script_function_mathop(params, _modulo);
 }
 
-script_t * _script_function_print(instruction_t *instr, script_t *script) {
-  char          *varname;
-  data_t        *value;
-
-  value = script_pop(script);
-  assert(value);
-  printf("%s\n", data_tostring(value));
-  free(varname);
-  return script;
+data_t * _script_function_pow(script_t *script, array_t *params) {
+  return _script_function_mathop(params, _pow);
 }
 
-script_t * _script_function_read(instruction_t *instr, script_t *script) {
+data_t * _script_function_print(script_t *script, array_t *params) {
+  char          *varname;
   data_t        *value;
-  char          *line;
-  double         d;
-  long           l;
-  int            ix;
-  int            num;
-  datatype_t     dt;
-  char           ch;
-  void           *ptr;
+  char          *fmt;
+  char          *ptr;
+  char           buf[1000], tmp[1000];
 
-  num = getline(&line, 0, stdin);
-  while (strlen(line) && isspace(line[strlen(line)])) {
-    line[strlen(line)] = 0;
-  }
-  dt = Int;
-  for (ix = 0; ((dt == Int) || (dt == Float)) && (ix < strlen(line)); ix++) {
-    if (isdigit(ch) || (ch == '.')) {
-      if (ch == '.') {
-        dt = (dt == Int) ? Float : String;
-      }
-    } else {
-      dt = String;
-    }
-  }
-  switch (dt) {
-    case Int:
-      l = atol(line);
-      value = data_create(dt, l);
-      break;
-    case Float:
-      d = atof(line);
-      value = data_create(dt, d);
-      break;
-    case String:
-      value = data_create(dt, line);
-      break;
-  }
-  script_push(script, value);
-  free(line);
-  return script;
+  assert(array_size(params));
+  value = (data_t *) array_get(params, 0);
+  assert(value);
+  assert(value -> type == String);
+
+  /*
+   * Ideally we want to do a printf-style function. The idea is to have the
+   * first argument as the format string, and following parameters as values.
+   * Since there is no API for sprintf that takes a user-accessible data
+   * structure, just the va_list one, we will have to go through the format
+   * string and do it one by one.
+   *
+   * But that's future. Now we just print the first parameter :-)
+   */
+  fmt = (char *) value -> ptrval;
+  ptr = strstr(fmt, "%");
+  debug(fmt);
+  return data_create_int(0);
 }
 
 /*
@@ -354,22 +396,29 @@ script_t * _script_function_read(instruction_t *instr, script_t *script) {
  */
 
 script_t * script_create() {
-  script_t *ret;
+  script_t       *ret;
+  function_def_t *def;
 
   ret = NEW(script_t);
   ret -> variables = strvoid_dict_create();
   dict_set_free_data(ret -> variables, (free_t) data_free);
+  dict_set_tostring_data(ret -> variables, (tostring_t) data_tostring);
   ret -> stack = list_create();
   list_set_free(ret -> stack, (free_t) data_free);
   list_set_tostring(ret -> stack, (tostring_t) data_tostring);
   ret -> instructions = list_create();
   list_set_free(ret -> instructions, (free_t) instruction_free);
+  ret -> functions = strvoid_dict_create();
+  dict_set_free_data(ret -> functions, (free_t) function_def_free);
+  for (def = _builtins; def -> name; def++) {
+    script_register(ret, def);
+  }
   return ret;
 }
 
 void script_free(script_t *script) {
   if (script) {
-     dict_free(script -> variables);
+    dict_free(script -> variables);
     list_free(script -> stack);
     list_free(script -> instructions);
     free(script);
@@ -398,7 +447,29 @@ parser_t * script_parse_push_last_token(parser_t *parser) {
   token = parser -> last_token;
   debug("script_parse_push_last_token - last_token: %s", 
 	(token) ? token_tostring(token, NULL, 0) : "--NULL--");
-  script_push(script, data_create(String, token_token(token)));
+  script_push(script, data_create_string(token_token(token)));
+  return parser;
+}
+
+parser_t * script_parse_init_param_count(parser_t *parser) {
+  script_t *script;
+
+  script = parser -> data;
+  debug("script_parse_init_param_count");
+  script_push(script, data_create_int(0));
+  return parser;
+}
+
+parser_t * script_parse_param_count(parser_t *parser) {
+  script_t *script;
+  data_t   *data;
+
+  script = parser -> data;
+  debug("script_parse_param_count");
+  data = script_pop(script);
+  data -> intval++;
+  debug("  -- count: %d", data -> intval);
+  script_push(script, data);
   return parser;
 }
 
@@ -470,6 +541,8 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
     func = (obelix_fnc_t) _script_function_div;
   } else if (!strcmp(op, "%")) {
     func = (obelix_fnc_t) _script_function_modulo;
+  } else if (!strcmp(op, "^")) {
+    func = (obelix_fnc_t) _script_function_pow;
   }
   assert(func);
   list_push(script -> instructions,
@@ -478,12 +551,32 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
   return parser;
 }
 
+parser_t * script_parse_emit_func_call(parser_t *parser) {
+  obelix_fnc_t    func;
+  data_t         *func_name;
+  data_t         *param_count;
+  function_def_t *def;
+  script_t       *script;
+  
+  debug("script_parse_emit_func_call");
+  script = parser -> data;
+  param_count = script_pop(script);
+  debug(" -- param_count: %d", param_count -> intval);
+  func_name = script_pop(script);
+  debug(" -- func_name: %s", (char *) func_name -> ptrval);
+  def = script_get_function(script, (char *) func_name -> ptrval);
+  assert(def);
+  list_push(script -> instructions,
+            instruction_create_function(def -> fnc, param_count -> intval));
+  data_free(param_count);
+  data_free(func_name);
+  return parser;
+}
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
-
 
 data_t * script_pop(script_t *script) {
   return (data_t *) list_pop(script -> stack);
@@ -495,7 +588,7 @@ script_t * script_push(script_t *script, data_t *entry) {
 }
 
 script_t * script_set(script_t *script, char *varname, data_t *value) {
-  dict_put(script -> variables, strdup(varname), value);
+  dict_put(script -> variables, strdup(varname), data_copy(value));
   return script;
 }
 
@@ -503,11 +596,20 @@ data_t * script_get(script_t *script, char *varname) {
   return (data_t *) dict_get(script -> variables, varname);
 }
 
+script_t * script_register(script_t *script, function_def_t *def) {
+  dict_put(script -> functions, strdup(def -> name), function_def_copy(def));
+  return script;
+}
+
+function_def_t * script_get_function(script_t *script, char *name) {
+  return (function_def_t *) dict_get(script -> functions, name);
+}
+
 data_t * script_execute(script_t *script) {
   data_t *ret;
   list_clear(script -> stack);
   list_reduce(script -> instructions, (reduce_t) instruction_execute, script);
-  ret = (list_notempty(script -> stack)) ? script_pop(script) : NULL;
+  ret = (list_notempty(script -> stack)) ? data_copy(script_pop(script)) : NULL;
   debug("Execution done: %s", data_tostring(ret));
   return ret;
 }
@@ -515,7 +617,7 @@ data_t * script_execute(script_t *script) {
 int script_parse_execute(reader_t *grammar, reader_t *text) {
   parser_t     *parser;
   script_t     *script;
-  str_t        *stack;
+  str_t        *debugstr;
   data_t       *ret;
   int           retval;
 
@@ -526,11 +628,14 @@ int script_parse_execute(reader_t *grammar, reader_t *text) {
     parser_parse(parser, text);
     script = (script_t *) parser -> data;
     if (list_notempty(script -> stack)) {
-      stack = list_tostr(script -> stack);
-      error("Script stack not empty after parse!\n%s", str_chars(stack));
-      str_free(stack);
+      debugstr = list_tostr(script -> stack);
+      error("Script stack not empty after parse!\n%s", str_chars(debugstr));
+      str_free(debugstr);
     }
     ret = script_execute(script);
+    debug("Return value: %s", data_tostring(ret));
+    debugstr = dict_tostr(script -> variables);
+    debug("Script variables on exit:\n%s", str_chars(debugstr));
     script_free(script);
     parser_free(parser);
     retval = (ret && (ret -> type == Int)) ? (int) ret -> intval : 0;

@@ -238,7 +238,9 @@ data_t * data_copy(data_t *src) {
 char * data_tostring(data_t *data) {
   if (!data) {
     return "<<null>>";
-  } else if (descriptors[data -> type].tostring) {
+  }
+  debug("data_tostring: type %d", data -> type);
+  if (descriptors[data -> type].tostring) {
     return descriptors[data -> type].tostring(data);
   } else {
     return "<< ?? >>";

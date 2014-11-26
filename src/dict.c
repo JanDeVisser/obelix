@@ -27,7 +27,7 @@ typedef struct _dictentry {
   dict_t       *dict;
   void         *key;
   void         *value;
-  unsigned int hash;
+  unsigned int  hash;
 } dictentry_t;
 
 typedef enum _dict_reduce_type {
@@ -35,7 +35,8 @@ typedef enum _dict_reduce_type {
   DRTEntriesNoFree,
   DRTDictEntries,
   DRTKeys,
-  DRTValues
+  DRTValues,
+  DRTStringString
 } dict_reduce_type_t;
 
 static dictentry_t *    _dictentry_create(dict_t *, void *, void  *);
@@ -61,6 +62,7 @@ static void *           _dict_entry_reducer(dictentry_t *, reduce_ctx *);
 static void *           _dict_reduce(dict_t *, reduce_t, void *, dict_reduce_type_t);
 static void *           _dict_bucket_reducer(list_t *, reduce_ctx *);
 static dict_t *         _dict_put_all_reducer(entry_t *, dict_t *);
+static str_t *          _dict_entry_formatter(entry_t *, str_t *);
 
 // ---------------------------
 // dictentry_t static functions
@@ -116,10 +118,19 @@ entry_t * _entry_from_entry(entry_t *e) {
   entry_t *ret;
   
   ret = NEW(entry_t);
-  if (ret) {
-    ret -> key = e -> key;
-    ret -> value = e -> value;
-  }
+  ret -> key = e -> key;
+  ret -> value = e -> value;
+  return ret;
+}
+
+entry_t * _entry_from_strings(dictentry_t *e) {
+  entry_t *ret;
+  
+  ret = NEW(entry_t);
+  assert(e -> dict -> tostring_key);
+  assert(e -> dict -> tostring_data);
+  ret -> key = strdup(e -> dict -> tostring_key(e -> key));
+  ret -> value = strdup(e -> dict -> tostring_data(e -> value));
   return ret;
 }
 
@@ -281,18 +292,31 @@ void * _dict_reduce_param(dictentry_t *e, dict_reduce_type_t reducetype) {
     case DRTValues:
       elem = e -> value;
       break;
+    case DRTStringString:
+      elem = _entry_from_strings(e);
+      break;
   }
   return elem;
 }
 
 void * _dict_entry_reducer(dictentry_t *e, reduce_ctx *ctx) {
   void               *elem;
+  entry_t            *entry;
   dict_reduce_type_t  type;
 
   type = (dict_reduce_type_t) ((int) ((long) ctx -> user));
   elem = _dict_reduce_param(e, type);
   ctx -> data = ctx -> fnc.reducer(elem, ctx -> data);
-  if (type == DRTEntries) free(elem);
+  switch (type) {
+    case DRTStringString:
+      entry = (entry_t *) elem;
+      free(entry -> key);
+      free(entry -> value);
+      /* Fall Through */
+    case DRTEntries:
+      free(elem);
+      break;
+  }
   return ctx;
 }
 
@@ -343,6 +367,16 @@ list_t * _dict_append_reducer(void *elem, list_t *list) {
 dict_t * _dict_put_all_reducer(entry_t *e, dict_t *dict) {
   dict_put(dict, e -> key, e -> value);
   return dict;
+}
+
+str_t * _dict_entry_formatter(entry_t *e, str_t *entries) {
+  if (str_len(entries)) {
+    str_append_chars(entries, ", ");
+  }
+  str_append_chars(entries, e -> key);
+  str_append_chars(entries, ": ");
+  str_append_chars(entries, e -> value);
+  return entries;
 }
 
 // ---------------------------
@@ -495,6 +529,10 @@ void * dict_reduce_values(dict_t *dict, reduce_t reducer, void *data) {
   return _dict_reduce(dict, reducer, data, DRTValues);
 }
 
+void * dict_reduce_chars(dict_t *dict, reduce_t reducer, void *data) {
+  return _dict_reduce(dict, reducer, data, DRTStringString);
+}
+
 void * _dict_reduce_dictentries(dict_t *dict, reduce_t reducer, void *data) {
   return _dict_reduce(dict, reducer, data, DRTDictEntries);
 }
@@ -546,6 +584,19 @@ list_t * dict_items(dict_t *dict) {
 
 dict_t * dict_put_all(dict_t *dict, dict_t *other) {
   return dict_reduce(other, (reduce_t) _dict_put_all_reducer, dict);
+}
+
+str_t * dict_tostr(dict_t *dict) {
+  str_t *ret;
+  str_t *entries;
+
+  ret = str_copy_chars("{");
+  entries = str_create(0);
+  entries = dict_reduce_chars(dict, (reduce_t) _dict_entry_formatter, entries);
+  str_append(ret, entries);
+  str_append_chars(ret, "}");
+  str_free(entries);
+  return ret;
 }
 
 void dict_dump(dict_t *dict, char *title) {

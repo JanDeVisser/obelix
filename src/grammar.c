@@ -66,8 +66,6 @@ static gp_state_rec_t _gp_state_recs[] = {
     { "GPStateItem",       (reduce_t) _grammar_parser_state_item }
 };
 
-static void            _grammar_parser_set_option(grammar_parser_t *, char *);
-
 static set_t *         _rule_get_firsts(rule_t *);
 static set_t *         _rule_get_follows(rule_t *);
 static int             _rule_check_LL1(rule_t *);
@@ -202,8 +200,6 @@ void _rule_build_parse_table(rule_t *rule) {
 /*
  * rule_t public functions
  */
-
-static int rules_created = 0;
 
 rule_t * rule_create(grammar_t *grammar, char *name) {
   rule_t *ret;
