@@ -18,7 +18,7 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
-LDADD       = -ldl
+LDADD       = -ldl -lm
 
 lib_LTLIBRARIES = libobelix.la
 libobelix_la_SOURCES = \
