@@ -1,0 +1,7 @@
+#!/home/jan/Projects/obelix/install/bin/obelix
+
+test := 0
+while test < 10
+  print(test)
+  test := test + 1
+end
