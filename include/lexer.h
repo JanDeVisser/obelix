@@ -43,6 +43,7 @@ typedef enum _lexer_state {
   LexerStateSciFloat,
   LexerStateQuotedStr,
   LexerStateQuotedStrEscape,
+  LexerStateHashPling,
   LexerStateSlash,
   LexerStateBlockComment,
   LexerStateLineComment,
@@ -98,6 +99,7 @@ typedef enum _lexer_option {
   LexerOptionIgnoreWhitespace,
   LexerOptionIgnoreNewLines,
   LexerOptionCaseSensitive,
+  LexerOptionHashPling,
   LexerOptionLAST
 } lexer_option_t;
 

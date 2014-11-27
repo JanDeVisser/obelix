@@ -3,6 +3,7 @@ name: simple_expr
 prefix: script_parse_
 init: init
 ignore_ws: true
+hashpling: true
 %
 
 program                     := statements 
@@ -13,24 +14,64 @@ statements                  := statement
                              | 
                              ;
 
-statement                   := 'i' 
+statement                   := conditional
+                             | while_loop
+                             | for_loop
+                             | 'i'            [ done: push_last_token ]
                                assignment_or_call
                              ;
 
-assignment_or_call         := assignment
-                            | func_call
-                            ;
+conditional                 := "if"
+                               expr
+                               "then"         [ done: emit_test       ]
+                               statements
+                               else_clause
+                               end_stmt       [ done: emit_end        ]
+                             ;
 
-assignment                 := 'i'             [ done: push_last_token ] 
-                               ":="
+else_clause                 := "else"         [ done: emit_else       ]
+                               statements
+                             ;
+                             
+end_stmt                    := "end"
+                             ;
+
+while_loop                  := "while"        [ done: push_label      ]
+                               expr           [ done: emit_test       ]
+                               statements
+                               end_stmt       [ done: emit_end_while  ]
+                             ;
+
+for_loop                    := "for"
+                               'i'
+                               "in"
+                               expr
+                               statements
+                               end_stmt
+                             ;
+
+assignment_or_call          := assignment
+                             | func_call       [ done: emit_pop       ]
+                             ;
+
+assignment                  := ":="
                                expr            [ done: emit_assign     ]
                              ;
 
-expr                        := term
+expr                        := predicate
+                               predicatetail
+                             ;
+                         
+predicatetail               := logic_op        [ done: push_last_token ]
+                               predicate       [ done: emit_mathop     ]
+                             |
+                             ;
+                               
+predicate                   := term
                                termtail
                              ;
 
-termtail                    := add_op
+termtail                    := add_op          [ done: push_last_token ]
                                term            [ done: emit_mathop     ]
                                termtail
                              | 
@@ -39,7 +80,7 @@ termtail                    := add_op
 term                        := factor factortail 
                              ;
 
-factortail                  := mult_op
+factortail                  := mult_op         [ done: push_last_token ]
                                factor          [ done: emit_mathop     ]
                                factortail
                              | 
@@ -50,15 +91,11 @@ factor                      := ( expr )
                              | 'd'         [ done: emit_pushval   ]
                              ;
 
-add_op                      := +           [ done: push_last_token ]
-                             | -           [ done: push_last_token ]
-                             ;
+logic_op                    := > | ">=" | < | "<=" | "==" | "!=" ;
+                             
+add_op                      := + | - ;
 
-mult_op                     := *           [ done: push_last_token ]
-                             | /           [ done: push_last_token ]
-                             | ^           [ done: push_last_token ]
-                             | %           [ done: push_last_token ]
-                             ;
+mult_op                     := * | / | ^ | % ;
 
 func_call                   := (           [ done: init_param_count ]
                                parlist

@@ -239,7 +239,6 @@ char * data_tostring(data_t *data) {
   if (!data) {
     return "<<null>>";
   }
-  debug("data_tostring: type %d", data -> type);
   if (descriptors[data -> type].tostring) {
     return descriptors[data -> type].tostring(data);
   } else {
