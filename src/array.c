@@ -97,6 +97,11 @@ array_t * array_set_cmp(array_t *array, cmp_t cmp) {
   return array;
 }
 
+array_t * array_set_tostring(array_t *array, tostring_t tostring) {
+  list_set_tostring(array -> list, tostring);
+  return array;
+}
+
 int array_size(array_t *array) {
   return array -> list -> size;
 }
@@ -157,6 +162,29 @@ void * array_reduce(array_t *array, reduce_t reducer, void *data) {
   return list_reduce(array -> list, reducer, data);
 }
 
+void * array_reduce_chars(array_t *array, reduce_t reducer, void *data) {
+  return list_reduce_chars(array -> list, reducer, data);
+}
+
+void * array_reduce_str(array_t *array, reduce_t reducer, void *data) {
+  return list_reduce_str(array -> list, reducer, data);
+}
+
 array_t * array_add_all(array_t *array, array_t *other) {
   return list_reduce(other -> list, (reduce_t) _array_add_all_reducer, array);
 }
+
+str_t * array_tostr(array_t *array) {
+  str_t *ret;
+  str_t *catted;
+
+  ret = str_copy_chars("[");
+  catted = str_join(", ", array, array_reduce_chars);
+  if (ret && catted) {
+    str_append(ret, catted);
+    str_append_chars(ret, "]");
+  }
+  str_free(catted);
+  return ret;
+}
+

@@ -193,6 +193,24 @@ list_t * list_visit(list_t *list, visit_t visitor) {
   return list;
 }
 
+void * list_process(list_t *list, reduce_t reducer, void *data) {
+  listnode_t *node;
+  void       *elem;
+  listnode_t *next;
+
+  node = list_head_pointer(list);
+  while (node && _ln_datanode(node)) {
+    elem = node -> data;
+    next = (listnode_t *) reducer(elem, data);
+    if (next) {
+      node = next;
+    } else {
+      node = node -> next;
+    }
+  }
+  return data;
+}
+
 list_t * list_clear(list_t *list) {
   listnode_t *node;
   listnode_t *next;
@@ -217,6 +235,18 @@ void * list_tail(list_t *list) {
   listnode_t *node = list -> tail -> prev;
 
   return (_ln_datanode(node)) ? node -> data : NULL;
+}
+
+listnode_t * list_head_pointer(list_t *list) {
+  listnode_t *node = list -> head -> next;
+
+  return (_ln_datanode(node)) ? node : NULL;
+}
+
+listnode_t * list_tail_pointer(list_t *list) {
+  listnode_t *node = list -> tail -> prev;
+
+  return (_ln_datanode(node)) ? node : NULL;
 }
 
 void * list_shift(list_t *list) {
@@ -298,6 +328,12 @@ void li_tail(listiterator_t *iter) {
 void * li_current(listiterator_t *iter) {
   return (_ln_datanode(iter -> current))
     ? iter -> current -> data 
+    : NULL;
+}
+
+listnode_t * li_pointer(listiterator_t *iter) {
+  return (_ln_datanode(iter -> current))
+    ? iter -> current
     : NULL;
 }
 

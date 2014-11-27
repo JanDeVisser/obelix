@@ -62,6 +62,7 @@ static lexer_state_str_t lexer_state_names[] = {
     { LexerStateSciFloat,        "LexerStateSciFloat" },
     { LexerStateQuotedStr,       "LexerStateQuotedStr" },
     { LexerStateQuotedStrEscape, "LexerStateQuotedStrEscape" },
+    { LexerStateHashPling,       "LexerStateHashPling" },
     { LexerStateSlash,           "LexerStateSlash" },
     { LexerStateBlockComment,    "LexerStateBlockComment" },
     { LexerStateLineComment,     "LexerStateLineComment" },
@@ -194,6 +195,7 @@ token_t * token_copy(token_t *token) {
   ret = token_create(token -> code, token -> token);
   ret -> line = token -> line;
   ret -> column = token -> column;
+  return ret;
 }
 
 void token_free(token_t *token) {
@@ -230,13 +232,17 @@ void token_dump(token_t *token) {
 
 char * token_tostring(token_t *token, char *buf, int maxlen) {
   static char  localbuf[128];
+  char        *ptr;
 
   if (!buf) {
     buf = localbuf;
     maxlen = 128;
   }
-  snprintf(buf, maxlen, "[%s] '%s'",
-           token_code_name(token -> code), token -> token);
+  snprintf(buf, maxlen, "[%s]",
+    (token -> code < 200) ? token_code_name(token -> code) : token -> token);
+  if (token -> code < 200) {
+    snprintf(buf + strlen(buf), maxlen - strlen(buf), " '%s'", token -> token);
+  }
   return buf;
 }
 
@@ -412,13 +418,17 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
           lexer -> quote = ch;
         } else if (ch == '/') {
           lexer -> state = LexerStateSlash;
+        } else if ((ch == '#') && ((lexer -> line == 1) &&
+                   (lexer -> column == 1)) &&
+                   lexer_get_option(lexer, LexerOptionHashPling)) {
+          lexer -> state = LexerStateHashPling;
         } else if (ch > 0) {
           code = ch;
         }
       }
       break;
     case LexerStateNewLine:
-      if ((ch <= 0) || (ch != '\n') && (ch != '\r')) {
+      if ((ch <= 0) || ((ch != '\n') && (ch != '\r'))) {
         _lexer_push_back(lexer, ch);
         code = TokenCodeNewLine;
       }
@@ -501,6 +511,15 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
         str_append_char(lexer -> token, '\t');
       }
       lexer -> state = LexerStateQuotedStr;
+      break;
+    case LexerStateHashPling:
+      if (ch == '!') {
+        str_erase(lexer -> token);
+        lexer -> state = LexerStateLineComment;
+      } else {
+        _lexer_push_back(lexer, ch);
+        code = TokenCodeHash;
+      }
       break;
     case LexerStateSlash:
       if (ch == '*') {

@@ -70,12 +70,10 @@ reduce_ctx * _str_join_reducer(char *elem, reduce_ctx *ctx) {
   str_t *target;
   char  *glue;
 
-  debug("_str_join_reducer: elem %s", elem);
   target = (str_t *) ctx -> data;
   glue = (char *) ctx -> user;
   str_append_chars(target, elem);
   str_append_chars(target, glue);
-  debug("_str_join_reducer: target %s", str_chars(target));
   return ctx;
 }
 
@@ -382,11 +380,10 @@ str_t * _str_join(char *glue, void *collection, obj_reduce_t reducer) {
   ret = str_create(0);
   ctx = reduce_ctx_create(glue, ret, no_func_ptr);
   reducer(collection, (reduce_t) _str_join_reducer, ctx);
-  debug("str_join: after reduce: '%s'", str_chars(ret));
   if (str_len(ret)) {
     str_chop(ret, strlen(glue));
-    debug("str_join: after chop: '%s'", str_chars(ret));
   }
+  free(ctx);
   return ret;
 }
 

@@ -41,27 +41,31 @@ typedef struct _list {
   tostring_t  tostring;
 } list_t;
 
-extern list_t * list_create();
-extern list_t * list_set_free(list_t *, visit_t);
-extern list_t * list_set_cmp(list_t *, cmp_t);
-extern list_t * list_set_tostring(list_t *, tostring_t);
-extern void     list_free(list_t *);
-extern list_t * list_append(list_t *, void *);
-extern list_t * list_unshift(list_t *, void *);
-extern list_t * list_add_all(list_t *, list_t *);
-extern int      list_size(list_t *);
-extern void *   list_reduce(list_t *, reduce_t, void *);
-extern void *   list_reduce_chars(list_t *, reduce_t, void *);
-extern void *   list_reduce_str(list_t *, reduce_t, void *);
-extern list_t * list_visit(list_t *, visit_t);
-extern list_t * list_clear(list_t *);
-extern void *   list_head(list_t *);
-extern void *   list_tail(list_t *);
-extern void *   list_shift(list_t *);
-extern void *   list_pop(list_t *);
-extern str_t *  list_tostr(list_t *);
+extern list_t *     list_create();
+extern list_t *     list_set_free(list_t *, visit_t);
+extern list_t *     list_set_cmp(list_t *, cmp_t);
+extern list_t *     list_set_tostring(list_t *, tostring_t);
+extern void         list_free(list_t *);
+extern list_t *     list_append(list_t *, void *);
+extern list_t *     list_unshift(list_t *, void *);
+extern list_t *     list_add_all(list_t *, list_t *);
+extern int          list_size(list_t *);
+extern void *       list_reduce(list_t *, reduce_t, void *);
+extern void *       list_reduce_chars(list_t *, reduce_t, void *);
+extern void *       list_reduce_str(list_t *, reduce_t, void *);
+extern list_t *     list_visit(list_t *, visit_t);
+extern void *       list_process(list_t *, reduce_t, void *);
+extern list_t *     list_clear(list_t *);
+extern void *       list_head(list_t *);
+extern void *       list_tail(list_t *);
+extern listnode_t * list_head_pointer(list_t *);
+extern listnode_t * list_tail_pointer(list_t *);
+extern void *       list_shift(list_t *);
+extern void *       list_pop(list_t *);
+extern str_t *      list_tostr(list_t *);
 
 #define list_push(l, d)         list_append((l), (d))
+#define list_peek(l)            list_tail((l))
 #define list_empty(l)           (list_size((l)) == 0)
 #define list_notempty(l)        (list_size((l)) > 0)
 
@@ -75,6 +79,7 @@ extern void             li_free(listiterator_t *);
 extern void             li_head(listiterator_t *);
 extern void             li_tail(listiterator_t *);
 extern void *           li_current(listiterator_t *);
+extern listnode_t *     li_pointer(listiterator_t *);
 extern void             li_replace(listiterator_t *, void *);
 extern int              li_insert(listiterator_t *, void *);
 extern void             li_remove(listiterator_t *);

@@ -221,7 +221,7 @@ dict_t * _dict_add_to_bucket(array_t *buckets, dictentry_t *entry) {
     e = (dictentry_t *) li_next(iter);
     if (_dictentry_cmp_key(e, entry -> key) == 0) {
       li_replace(iter, entry);
-      _dictentry_free(e);
+      /* _dictentry_free(e); */
       ret = entry -> dict;
       break;
     }
@@ -332,7 +332,8 @@ void * _dict_reduce(dict_t *dict, reduce_t reducer, void *data, dict_reduce_type
   fnc.reducer = reducer;
   ctx = reduce_ctx_create((void *) ((long) reducetype), data, fnc);
   if (ctx) {
-    ret = array_reduce(dict -> buckets, (reduce_t) _dict_bucket_reducer, ctx);
+    ctx = array_reduce(dict -> buckets, (reduce_t) _dict_bucket_reducer, ctx);
+    ret = ctx -> data;
     free(ctx);
     return ret;
   }

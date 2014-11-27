@@ -38,4 +38,4 @@ libobelix_la_SOURCES = \
 
 bin_PROGRAMS = obelix
 obelix_SOURCES = obelix.c
-obelix_LDADD = libobelix.la -ldl
+obelix_LDADD = libobelix.la -ldl -lm
