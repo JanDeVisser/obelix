@@ -46,7 +46,7 @@ test_set_t * fill_many() {
   ck_assert_int_eq(set_size(set), 0);
   set_set_hash(set, (hash_t) test_hash);
   set_set_free(set, (free_t) test_free);
-  tests = (test_t **) resize_ptrarray(NULL, MANY);
+  tests = (test_t **) resize_ptrarray(NULL, MANY, 0);
   ck_assert_ptr_ne(tests, NULL);
   mark_point();
   for (ix = 0; ix < MANY; ix++) {
