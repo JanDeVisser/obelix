@@ -49,7 +49,7 @@ test_dict_ctx_t * ctx_create(int num) {
   dict_set_hash(dict, (hash_t) strhash);
   dict_set_free_key(dict, (visit_t) free);
   dict_set_free_data(dict, (visit_t) test_free);
-  keys = (char **) resize_ptrarray(NULL, MANY);
+  keys = (char **) resize_ptrarray(NULL, MANY, 0);
   ck_assert_ptr_ne(keys, NULL);
   mark_point();
   for (ix = 0; ix < num; ix++) {

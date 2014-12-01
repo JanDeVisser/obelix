@@ -530,7 +530,7 @@ rule_item_t * rule_item_terminal(rule_option_t *option, token_t *token) {
   if (ret) {
     code = token_code(token);
     str = token_token(token);
-    if (code == TokenCodeDQuotedStr) {
+    if ((code == TokenCodeDQuotedStr) && strcmp(str, "\"")) {
       code = (int) strhash(str);
       ret -> token = token_create(code, str);
       dict_put_int(option -> rule -> grammar -> keywords, code, token_copy(ret -> token));

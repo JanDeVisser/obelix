@@ -253,6 +253,34 @@ START_TEST(test_lexer_tokenize_overlapping_keywords)
   lexer_free(lexer);
 END_TEST
 
+int * _test_lexer_tokenizer_quotedstrings(token_t *token, int *count) {
+  int   code;
+  char *t;
+  char  buf[50];
+
+  code = token_code(token);
+  t = token_token(token);
+  debug("Token #%d: %s", *count, token_tostring(token, buf, 50));
+  if ((code == TokenCodeDQuotedStr) || (code == TokenCodeSQuotedStr)) *count += 1;
+  return count;
+}
+
+START_TEST(test_lexer_tokenize_quotedstrings)
+  reader_t *rdr;
+  lexer_t  *lexer;
+  int       count;
+
+  rdr = (reader_t *) str_wrap("foo \"double quotes\" + 'single quotes' /* \"INCOMMENT\" */");
+  lexer = lexer_create(rdr);
+  ck_assert(lexer != NULL);
+  lexer_add_keyword(lexer, 200, ":=");
+  lexer_set_option(lexer, LexerOptionIgnoreWhitespace, 1);
+  count = 0;
+  lexer_tokenize(lexer, _test_lexer_tokenizer_quotedstrings, &count);
+  ck_assert_int_eq(count, 2);
+  lexer_free(lexer);
+END_TEST
+
 
 char * get_suite_name() {
   return "Lexer";
@@ -272,6 +300,7 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_lexer_tokenize_line_comment);
   tcase_add_test(tc, test_lexer_tokenize_keywords);
   tcase_add_test(tc, test_lexer_tokenize_overlapping_keywords);
+  tcase_add_test(tc, test_lexer_tokenize_quotedstrings);
   return tc;
 }
 

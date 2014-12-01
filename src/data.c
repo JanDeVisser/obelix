@@ -395,7 +395,6 @@ data_t * data_create_function(voidptr_t fnc) {
 }
 
 data_t * data_parse(int type, char *str) {
-  debug("data_parse type: %d, str: '%s'", type, str);
   return (descriptors[type].parse) 
     ? descriptors[type].parse(str) 
     : NULL;

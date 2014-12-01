@@ -93,7 +93,6 @@ data_t * _data_new_script(data_t *ret, va_list arg) {
   script_t *script;
 
   script = va_arg(arg, script_t *);
-  debug("data_create_script(%s)", script -> name);
   ret -> ptrval = script;
   return ret;
 }
@@ -128,7 +127,6 @@ data_t * data_create_script(script_t *script) {
   data_t *ret;
 
   _data_script_register();
-  debug("data_create_script(%s)", script -> name);
   return data_create(Script, script);
 }
 
