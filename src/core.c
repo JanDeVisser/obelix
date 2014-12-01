@@ -82,19 +82,21 @@ void * new_ptrarray(int sz) {
   return ret;
 }
 
-void * resize_block(void *block, int newsz) {
+void * resize_block(void *block, int newsz, int oldsz) {
   if (!_initialized) {
     __init();
   }
   void * ret = realloc(block, newsz);
   if (newsz && !ret) {
     kill(0, SIGUSR1);
+  } else if (oldsz) {
+    memset(ret + oldsz, 0, newsz - oldsz);
   }
   return ret;
 }
 
-void * resize_ptrarray(void *array, int newsz) {
-  return resize_block(array, newsz * sizeof(void *));
+void * resize_ptrarray(void *array, int newsz, int oldsz) {
+  return resize_block(array, newsz * sizeof(void *), oldsz * sizeof(void *));
 }
 
 unsigned int hash(void *buf, size_t size) {

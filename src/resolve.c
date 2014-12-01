@@ -73,7 +73,6 @@ resolve_t * resolve_get() {
 }
 
 void resolve_free() {
-  debug("Bye...");
   if (singleton) {
     list_free(singleton -> images);
     dict_free(singleton -> functions);

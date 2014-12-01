@@ -17,6 +17,8 @@ statements                  := statement
 statement                   := conditional
                              | while_loop
                              | for_loop
+                             | func_def
+                             | return_stmt
                              | 'i'            [ done: push_last_token ]
                                assignment_or_call
                              ;
@@ -31,6 +33,7 @@ conditional                 := "if"
 
 else_clause                 := "else"         [ done: emit_else       ]
                                statements
+                             |
                              ;
                              
 end_stmt                    := "end"
@@ -49,12 +52,38 @@ for_loop                    := "for"
                                statements
                                end_stmt
                              ;
+                             
+func_def                    := "func"
+                               'i'            [ done: push_last_token  ]
+                               (              [ done: init_param_count ]
+                               parlist
+                               )              [ done: start_function   ]
+                               statements
+                               end_stmt       [ done: end_function     ]
+                             ;
+                             
+parlist                     := param
+                               parlist_tail
+                             |
+                             ;
+
+param                       := 'i'            [ done: push_param     ] 
+                             ;
+
+parlist_tail                := ,
+                               parlist
+                             |
+                             ;
+
+return_stmt                 := "return"
+                               expr 
+                             ;
 
 assignment_or_call          := assignment
                              | func_call       [ done: emit_pop       ]
                              ;
 
-assignment                  := ":="
+assignment                  := =
                                expr            [ done: emit_assign     ]
                              ;
 
@@ -86,9 +115,16 @@ factortail                  := mult_op         [ done: push_last_token ]
                              | 
                              ;
 
-factor                      := ( expr ) 
+factor                      := ( expr )
                              | 'i'         [ done: emit_pushvar   ]
-                             | 'd'         [ done: emit_pushval   ]
+                             | constant    [ done: emit_pushval   ]  
+                             ;
+                             
+constant                    := '"'
+                             | '\''
+                             | 'd'
+                             | 'f'
+                             | 'x'
                              ;
 
 logic_op                    := > | ">=" | < | "<=" | "==" | "!=" ;
@@ -98,19 +134,19 @@ add_op                      := + | - ;
 mult_op                     := * | / | ^ | % ;
 
 func_call                   := (           [ done: init_param_count ]
-                               parlist
+                               arglist
                                )           [ done: emit_func_call  ]
                              ;
 
-parlist                     := param
-                               parlist_tail
+arglist                     := argument
+                               arglist_tail
                              ;
 
-param                       := expr        [ done: param_count     ] 
+argument                    := expr        [ done: param_count     ] 
                              ;
 
-parlist_tail                := ,
-                               parlist
+arglist_tail                := ,
+                               arglist
                              |
                              ;
  

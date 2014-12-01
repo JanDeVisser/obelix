@@ -41,6 +41,9 @@ typedef void *  (*voidptr_t)(void *);
 typedef int     (*cmp_t)(void *, void *);
 typedef int     (*hash_t)(void *);
 typedef char *  (*tostring_t)(void *);
+typedef void *  (*parse_t)(char *);
+typedef void *  (*copydata_t)(void *, void *);
+typedef void *  (*new_t)(void *, va_list);
 typedef void *  (*reduce_t)(void *, void *);
 typedef void    (*visit_t)(void *);
 typedef void *  (*obj_reduce_t)(void *, reduce_t, void *);
@@ -124,8 +127,8 @@ typedef struct _reader {
 
 extern void *       new(int);
 extern void *       new_ptrarray(int);
-extern void *       resize_block(void *, int);
-extern void *       resize_ptrarray(void *, int);
+extern void *       resize_block(void *, int, int);
+extern void *       resize_ptrarray(void *, int, int);
 
 extern unsigned int hash(void *, size_t);
 
