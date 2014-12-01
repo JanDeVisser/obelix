@@ -17,13 +17,14 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grammar.h>
-
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
+#include <grammar.h>
 #include <list.h>
+
+int grammar_debug = 0;
 
 typedef enum _gp_state_ {
   GPStateStart,
@@ -189,7 +190,9 @@ int _rule_check_LL1(rule_t *rule) {
   set_t          *f_i, *f_j, *follows;
 
   ret = 1;
-  debug("Checking LL(1) conditions for rule %s [%d options]", rule -> name, array_size(rule -> options));
+  if (grammar_debug) {
+    debug("Checking LL(1) conditions for rule %s [%d options]", rule -> name, array_size(rule -> options));
+  }
   for (i = 0; i < array_size(rule -> options); i++) {
     o_i = array_get(rule -> options, i);
     f_i = _rule_option_get_firsts(o_i);
@@ -211,12 +214,16 @@ int _rule_check_LL1(rule_t *rule) {
       }
     }
   }
-  debug("rule %s checks %sOK for LL(1) conditions", rule -> name, (ret) ? "": "NOT ");
+  if (grammar_debug) {
+    debug("rule %s checks %sOK for LL(1) conditions", rule -> name, (ret) ? "": "NOT ");
+  }
   return ret;
 }
 
 void _rule_build_parse_table(rule_t *rule) {
-  debug("Building parse table for rule %s", rule -> name);
+  if (grammar_debug) {
+    debug("Building parse table for rule %s", rule -> name);
+  }
   rule -> parse_table = intdict_create();
   if (rule -> parse_table) {
     array_visit(rule -> options, (visit_t) _rule_option_build_parse_table);
@@ -813,7 +820,9 @@ grammar_parser_t * _grammar_token_handler(token_t *token, grammar_parser_t *gram
   code = token_code(token);
   str = token_token(token);
 
-  debug("%-18.18s %s", _gp_state_recs[state].name, token_tostring(token, NULL, 0));
+  if (grammar_debug) {
+    debug("%-18.18s %s", _gp_state_recs[state].name, token_tostring(token, NULL, 0));
+  }
   _gp_state_recs[state].handler(token, grammar_parser);
   return grammar_parser;
 }
@@ -822,7 +831,9 @@ void _grammar_get_firsts_visitor(entry_t *entry) {
   rule_t *rule;
 
   rule = (rule_t *) entry -> value;
-  debug("Building FIRST sets for rule %s", rule -> name);
+  if (grammar_debug) {
+    debug("Building FIRST sets for rule %s", rule -> name);
+  }
   _rule_get_firsts(rule);
 }
 
@@ -846,7 +857,9 @@ void * _grammar_follows_reducer(entry_t *entry, int *current_sum) {
 
   rule = (rule_t *) entry -> value;
 
-  debug("Building FOLLOW sets for rule %s", rule -> name);
+  if (grammar_debug) {
+    debug("Building FOLLOW sets for rule %s", rule -> name);
+  }
   follows = _rule_get_follows(rule);
   for (i = 0; i < array_size(rule -> options); i++) {
     option = (rule_option_t *) array_get(rule -> options, i);
@@ -892,26 +905,38 @@ void _grammar_build_parse_table_visitor(entry_t *entry) {
 grammar_t * _grammar_analyze(grammar_t *grammar) {
   int sum, prev_sum, iter, ll_1;
 
-  debug("Building FIRST sets");
+  if (grammar_debug) {
+    debug("Building FIRST sets");
+  }
   dict_visit(grammar -> rules, (visit_t) _grammar_get_firsts_visitor);
 
-  debug("Building FOLLOW sets");
+  if (grammar_debug) {
+    debug("Building FOLLOW sets");
+  }
   sum = 0;
   iter = 1;
   do {
     prev_sum = sum;
     sum = 0;
     dict_reduce(grammar -> rules, (reduce_t) _grammar_follows_reducer, &sum);
-    info("_grammar_analyze - build follows: iter: %d sum: %d", iter++, sum);
+    if (grammar_debug) {
+      debug("_grammar_analyze - build follows: iter: %d sum: %d", iter++, sum);
+    }
   } while (sum != prev_sum);
 
-  debug("Checking grammar for LL(1)-ness");
+  if (grammar_debug) {
+    debug("Checking grammar for LL(1)-ness");
+  }
   ll_1 = 1;
   dict_reduce(grammar -> rules, (reduce_t) _grammar_check_LL1_reducer, &ll_1);
   if (ll_1) {
-    info("Grammar is LL(1)");
+    if (grammar_debug) {
+      info("Grammar is LL(1)");
+    }
     dict_visit(grammar -> rules, (visit_t) _grammar_build_parse_table_visitor);
-    debug("Built parse tables");
+    if (grammar_debug) {
+      debug("Parse tables built");
+    }
   } else {
     error("Grammar is not LL(1)");
   }
@@ -969,7 +994,10 @@ grammar_t * _grammar_read(reader_t *reader) {
         lexer_tokenize(lexer, _grammar_token_handler, &grammar_parser);
         dict_free(grammar_parser.obj_options);
         if (_grammar_analyze(grammar)) {
-          info("Grammar successfully analyzed");
+          if (grammar_debug) {
+            grammar_dump(grammar);
+            info("Grammar successfully analyzed");
+          }
         } else {
           error("Error(s) analyzing grammar");
         }

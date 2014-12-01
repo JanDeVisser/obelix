@@ -448,11 +448,22 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
       break;
     case LexerStateZero:
       if (isdigit(ch)) {
+	/*
+	 * We don't want octal numbers. Therefore we strip
+         * leading zeroes. Erasing the token leads to funny 
+	 * business like '00x23' being recognized as Hex. We
+	 * may fix that later, or maybe not.
+	 */
+        str_erase(lexer -> token);
         lexer -> state = LexerStateNumber;
       } else if (ch == '.') {
         lexer -> state = LexerStateFloat;
       } else if ((ch == 'x') || (ch == 'X')) {
-        str_erase(lexer -> token);
+	/*
+	 * Heaxdecimals are returned including the leading
+         * 0x. This allows us to send both base-10 and hex ints
+         * to strtol and friends.
+	 */
         lexer -> state = LexerStateHexInteger;
       } else {
         _lexer_push_back(lexer, ch);
@@ -463,6 +474,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
       if (ch == '.') {
         lexer -> state = LexerStateFloat;
       } else if ((ch == 'e') || (ch == 'E')) {
+	str_chop(lexer -> token, 1);
         str_append_char(lexer -> token, 'e');
         lexer -> state = LexerStateSciFloat;
       } else if (!isdigit(ch)) {
@@ -472,6 +484,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
       break;
     case LexerStateFloat:
       if ((ch == 'e') || (ch == 'E')) {
+	str_chop(lexer -> token, 1);
         str_append_char(lexer -> token, 'e');
         lexer -> state = LexerStateSciFloat;
       } else if (!isdigit(ch)) {

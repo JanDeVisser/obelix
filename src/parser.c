@@ -24,6 +24,8 @@
 #include <lexer.h>
 #include <parser.h>
 
+int parser_debug = 0;
+
 typedef enum {
   PSETypeRule,
   PSETypeOption,
@@ -137,29 +139,33 @@ parser_t * _parser_lr1(token_t *token, parser_t *parser) {
 
 parser_t * _parser_ll1(token_t *token, parser_t *parser) {
   parser_stack_entry_t *entry;
-  int                   consumed;
+  int                   consuming;
+  listiterator_t       *iter;
 
   if (parser -> last_token) {
     token_free(parser -> last_token);
   }
   parser -> last_token = token_copy(token);
-  debug("== Last Token: %s", token_tostring(parser -> last_token, NULL, 0));
-  do {
-    consumed = _parser_ll1_token_handler(token, parser, 0);
-    for (entry = (parser_stack_entry_t *) list_peek(parser -> prod_stack);
-         entry && (entry -> type == PSETypeFunction);
-         entry = (parser_stack_entry_t *) list_peek(parser -> prod_stack)) {
-      entry = list_pop(parser -> prod_stack);
-      debug("Stack Entry: %s", _parser_stack_entry_tostring(entry, NULL, 0));
-      assert(entry -> fnc -> fnc);
-      entry -> fnc -> fnc(parser);
-      _parser_stack_entry_free(entry);
+  if (parser_debug) {
+    debug("== Last Token: %s    Line %d Column %d",
+          token_tostring(parser -> last_token, NULL, 0),
+          parser -> last_token -> line,
+          parser -> last_token -> column);
+    debug("Parser Stack =====================================================");
+    for(iter = li_create(parser -> prod_stack); li_has_next(iter); ) {
+      entry = li_next(iter);
+      debug("[ %-32.32s ]", _parser_stack_entry_tostring(entry, NULL, 0));
     }
-  } while (!consumed);
+    li_free(iter);
+  }
+  consuming = 2;
+  do {
+    consuming = _parser_ll1_token_handler(token, parser, consuming);
+  } while (consuming);
   return parser;
 }
 
-int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consumed) {
+int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
   rule_t               *rule;
   rule_t               *new_rule;
   rule_option_t        *option;
@@ -168,32 +174,25 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consumed) {
   parser_stack_entry_t *new_entry;
   int                   code;
   int                   i;
-  listiterator_t       *iter;
 
-  entry = list_peek(parser -> prod_stack);
-  if (entry && ((parser_stack_entry_t *) list_peek(parser -> prod_stack)) -> type == PSETypeFunction) {
-    return 0;
-  }
-
-  debug("Parser Stack =====================================================", "");
-  for(iter = li_create(parser -> prod_stack); li_has_next(iter); ) {
-    entry = li_next(iter);
-    debug("[ %-32.32s ]", _parser_stack_entry_tostring(entry, NULL, 0));
-  }
-  li_free(iter);
   code = token_code(token);
   entry = list_pop(parser -> prod_stack);
   if (entry == NULL) {
-    debug("Parser stack exhausted");
+    if (parser_debug) {
+      debug("Parser stack exhausted");
+    }
     assert(code == TokenCodeEnd);
-    consumed = 1;
+    consuming = 0;
     // TODO: Error Handling.
     // If assert trips we've reached what should have been the
     // end of the input but we're getting more stuff.
+  } else if ((consuming == 1) && (entry -> type != PSETypeFunction)) {
+      list_push(parser -> prod_stack, entry);
+      consuming = 0;
   } else {
-    debug("Token:       %s", token_tostring(token, NULL, 0));
-    debug("Stack Entry: %s", _parser_stack_entry_tostring(entry, NULL, 0));
-    debug("==================================================================\n");
+    if (parser_debug) {
+      debug("    Popped  %s", _parser_stack_entry_tostring(entry, NULL, 0));
+    }
     switch (entry -> type) {
       case PSETypeRule:
         rule = entry -> rule;
@@ -207,32 +206,50 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consumed) {
           for (i = array_size(option -> items) - 1; i >= 0; i--) {
             item = (rule_item_t *) array_get(option -> items, i);
             if (item -> terminal) {
-              list_push(parser -> prod_stack,
-                        _parser_stack_entry_for_item(item));
+              new_entry = _parser_stack_entry_for_item(item);
+              list_push(parser -> prod_stack, new_entry);
+              if (parser_debug) {
+                debug("    Pushed   %s", _parser_stack_entry_tostring(new_entry, NULL, 0));
+              }
             } else {
               new_rule = grammar_get_rule(parser -> grammar, item -> rule);
               if (rule_item_get_finalizer(item)) {
-                list_push(parser -> prod_stack,
-                          _parser_stack_entry_for_function(rule_item_get_finalizer(item)));
+                new_entry = _parser_stack_entry_for_function(rule_item_get_finalizer(item));
+                list_push(parser -> prod_stack, new_entry);
+                if (parser_debug) {
+                  debug("    Pushed   %s", _parser_stack_entry_tostring(new_entry, NULL, 0));
+                }
               }
               if (rule_get_finalizer(new_rule)) {
-                list_push(parser -> prod_stack,
-                          _parser_stack_entry_for_function(rule_get_finalizer(new_rule)));
+                new_entry = _parser_stack_entry_for_function(rule_get_finalizer(new_rule));
+                list_push(parser -> prod_stack, new_entry);
+                if (parser_debug) {
+                  debug("    Pushed   %s", _parser_stack_entry_tostring(new_entry, NULL, 0));
+                }
               }
               new_entry = _parser_stack_entry_for_rule(new_rule);
               list_push(parser -> prod_stack, new_entry);
+              if (parser_debug) {
+                debug("    Pushed   %s", _parser_stack_entry_tostring(new_entry, NULL, 0));
+              }
               if (rule_get_initializer(new_rule)) {
-                list_push(parser -> prod_stack,
-                          _parser_stack_entry_for_function(rule_get_initializer(new_rule)));
+                new_entry = _parser_stack_entry_for_function(rule_get_initializer(new_rule));
+                list_push(parser -> prod_stack, new_entry);
+                if (parser_debug) {
+                  debug("    Pushed   %s", _parser_stack_entry_tostring(new_entry, NULL, 0));
+                }
               }
               if (rule_item_get_initializer(item)) {
-                list_push(parser -> prod_stack,
-                          _parser_stack_entry_for_function(rule_item_get_initializer(item)));
+                new_entry = _parser_stack_entry_for_function(rule_item_get_initializer(item));
+                list_push(parser -> prod_stack, new_entry);
+                if (parser_debug) {
+                  debug("    Pushed   %s", _parser_stack_entry_tostring(new_entry, NULL, 0));
+                }
               }
             }
           }
         }
-        consumed = 0;
+        consuming = 2;
         break;
       case PSETypeItem:
         item = entry -> item;
@@ -243,16 +260,26 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consumed) {
 	// code than the one we're expecting. Syntax error.
 	
 	if (rule_item_get_finalizer(item)) {
-          debug("Execution terminal item finalizer %s",
-                grammar_fnc_tostring(rule_item_get_finalizer(item)));
+	  if (parser_debug) {
+            debug("    Executing terminal item finalizer %s",
+                  grammar_fnc_tostring(rule_item_get_finalizer(item)));
+	  }
 	  rule_item_get_finalizer(item) -> fnc(parser);
 	}
-	consumed = 1;
+	consuming = 1;
+        break;
+      case PSETypeFunction:
+        assert(entry -> fnc -> fnc);
+        if (parser_debug) {
+          debug("    Executing non-terminal function %s",
+                grammar_fnc_tostring(entry -> fnc));
+        }
+        entry -> fnc -> fnc(parser);
         break;
     }
     _parser_stack_entry_free(entry);
   }
-  return consumed;
+  return consuming;
 }
 
 /*

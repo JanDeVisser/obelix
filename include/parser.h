@@ -24,6 +24,8 @@
 #include <grammar.h>
 #include <list.h>
 
+extern int parser_debug;
+
 typedef struct _parser {
   grammar_t     *grammar;
   void          *data;

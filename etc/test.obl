@@ -1,7 +1,25 @@
 #!/home/jan/Projects/obelix/install/bin/obelix
 
-test := 0
-while test < 10
-  print(test)
-  test := test + 1
+func foo(quux)
+  print(quux)
+  return 12
 end
+
+s = "jan "
+s = s + " de visser"
+
+test = 0
+jan = 2
+while test < 2
+  print(test)
+  if jan == 2 then
+    print(jan)
+    jan = 0
+  else
+    jan = 2
+  end
+  test = test + 1
+end
+
+foo(42)
+

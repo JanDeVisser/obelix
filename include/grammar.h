@@ -27,6 +27,8 @@
 #include <resolve.h>
 #include <set.h>
 
+extern int grammar_debug;
+
 typedef enum _parsing_strategy {
   ParsingStrategyTopDown,
   ParsingStrategyBottomUp

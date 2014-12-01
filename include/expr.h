@@ -21,35 +21,7 @@
 #define __EXPR_H__
 
 #include <dict.h>
-
-typedef enum _datatype {
-  String, Int, Float, Bool, Function
-} datatype_t; 
-
-struct _data;
-struct _context;
-
-typedef struct _data * (*eval_t)(struct _context *, void *, list_t *);
-
-typedef struct _data {
-  datatype_t type;
-  union {
-    void      *ptrval;
-    long       intval;
-    double     dblval;
-    voidptr_t  fnc;
-  };
-} data_t;
-
-extern data_t * data_create(datatype_t, ...);
-extern data_t * data_create_int(long value);
-extern data_t * data_create_float(double value);
-extern data_t * data_create_bool(long value);
-extern data_t * data_create_string(char * value);
-extern data_t * data_create_function(voidptr_t);
-extern void     data_free(data_t *);
-extern data_t * data_copy(data_t *);
-extern char *   data_tostring(data_t *);
+#include <data.h>
 
 typedef struct _context {
   dict_t          *vars;
@@ -62,6 +34,8 @@ extern context_t * context_up(context_t *);
 extern data_t *    context_resolve(context_t *, char *);
 extern context_t * context_set(context_t *, char *, data_t *);
 
+typedef data_t * (*eval_t)(context_t *, void *, list_t *);
+
 typedef struct _expr {
   struct _expr *up;
   eval_t        eval;
@@ -70,6 +44,7 @@ typedef struct _expr {
   context_t    *context;
   list_t       *nodes;
 } expr_t;
+
 
 extern expr_t * expr_create(expr_t *, eval_t, void *);
 extern expr_t * expr_set_context(expr_t *, context_t *);

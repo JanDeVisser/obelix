@@ -48,7 +48,7 @@ int _array_resize(array_t *array, int mincap) {
   while(newcap < mincap) {
     newcap *= 2;
   }
-  newindex = (listnode_t **) resize_ptrarray(array -> index, newcap);
+  newindex = (listnode_t **) resize_ptrarray(array -> index, newcap, array -> capacity);
   if (newindex) {
     array -> index = newindex;
     array -> capacity = newcap;
