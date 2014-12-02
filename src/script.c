@@ -352,9 +352,11 @@ data_t * _script_function_script(script_ctx_t *script, char *name, array_t *para
  * script_t public functions
  */
 
-script_t * script_create(script_t *up) {
+script_t * script_create(script_t *up, char *name) {
   script_t       *ret;
   function_def_t *def;
+  char            buf[20];
+  data_t         *data;
 
   ret = NEW(script_t);
   ret -> variables = strvoid_dict_create();
@@ -370,24 +372,55 @@ script_t * script_create(script_t *up) {
   ret -> labels = strvoid_dict_create();
   ret -> label = NULL;
   ret -> params = NULL;
-  ret -> name = NULL;
 
   ret -> functions = strvoid_dict_create();
   dict_set_free_data(ret -> functions, (free_t) function_def_free);
 
   ret -> up = up;
   if (!up) {
+    ret -> name = NULL;
     for (def = _builtins; def -> name; def++) {
       script_register(ret, def);
     }
+  } else {
+    if (!name || !name[0]) {
+      snprintf(buf, sizeof(buf), "__anon__%d__", hashptr(ret));
+      name = buf;
+    }
+    ret -> name = strdup(name);
+    data = data_create_script(ret);
+    script_set(up, ret -> name, data);
   }
   return ret;
 }
 
-script_t * script_set_name(script_t *script, char *name) {
-  free(script -> name);
-  script -> name = strdup((name && strlen(name)) ? name : "__main__");
-  return script;
+char * script_get_fullname(script_t *script) {
+  char *upname;
+  int   sz;
+
+  if (!script -> up) {
+    return NULL;
+  }
+  
+  if (!script -> fullname) {
+    upname = script_get_fullname(script -> up);
+    sz = ((upname && upname[0]) ? strlen(upname) + 1 : 0) + strlen(script -> name) + 1;
+    script -> fullname = new(sz);
+    if (upname && upname[0]) {
+      snprintf(script -> fullname, sz, "%s.%s", upname, script -> name);
+    } else {
+      strcpy(script -> fullname, script -> name);
+    }
+  }
+  return script -> fullname;
+}
+
+char * script_get_modulename(script_t *script) {
+  return (script -> up) ? script_get_fullname(script -> up) : NULL;
+}
+
+char * script_get_classname(script_t *script) {
+  return script -> name;
 }
 
 void script_free(script_t *script) {
@@ -399,6 +432,7 @@ void script_free(script_t *script) {
     dict_free(script -> labels);
     array_free(script -> params);
     free(script -> name);
+    free(script -> fullname);
     free(script);
    }
 }
@@ -412,8 +446,6 @@ parser_t * script_parse_init(parser_t *parser) {
   if (script_debug) {
     debug("script_parse_init");
   }
-  parser -> data = script_set_name(
-    script_create(NULL), NULL);
   return parser;
 }
 
@@ -702,27 +734,25 @@ parser_t * script_parse_start_function(parser_t *parser) {
   char     *name;
 
   up = (script_t *) parser -> data;
-  func = script_create(up);
 
   data = script_pop(up);
   count = data -> intval;
   data_free(data);
-  func -> params = array_create(count);
-  array_set_free(func -> params, (free_t) free);
-  array_set_tostring(func -> params, (tostring_t) chars);
+  params = array_create(count);
+  array_set_free(params, (free_t) free);
+  array_set_tostring(params, (tostring_t) chars);
   for (ix = count - 1; ix >= 0; ix--) {
     data = script_pop(up);
-    array_set(func -> params, ix, strdup(data -> ptrval));
+    array_set(params, ix, strdup(data -> ptrval));
     data_free(data);
   }
   data = script_pop(up);
-  script_set(up, (char *) data -> ptrval, data_create_script(func));
-  script_set_name(func, (char *) data -> ptrval);
+  func = script_create(up, (char *) data -> ptrval);
+  func -> params = params;
   data_free(data);
   if (script_debug) {
     debug(" -- definining function %s, #params %d", func -> name, count);
   }
-
   parser -> data = func;
   return parser;
 }
@@ -861,22 +891,25 @@ void script_list(script_t *script) {
 
 scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   scriptloader_t *ret;
-  file_t *       *grammarfile;
+  file_t         *grammarfile;
 
   assert(!_loader);
-  ret = NEW(scriptloader_t *);
+  ret = NEW(scriptloader_t);
   ret -> path = strdup(obl_path);
+  debug("grammar file: %s", grammarpath);
   if (!grammarpath) {
     grammarpath = (char *) new(strlen(ret -> path) + strlen(GRAMMAR_PATH) + 1);
     strcpy(grammarpath, ret -> path);
     strcat(grammarpath, GRAMMAR_PATH);
   }
+  debug("obelix path: %s", obl_path);
+  debug("grammar file: %s", grammarpath);
   grammarfile = file_open(grammarpath);
   assert(grammarfile);
   ret -> grammar = grammar_read(grammarfile);
   assert(ret -> grammar);
   file_free(grammarfile);
-  ret -> rootscript = script_create(NULL);
+  ret -> rootscript = script_create(NULL, NULL);
   _loader = ret;
   return ret;
 }
@@ -895,78 +928,84 @@ void scriptloader_free(scriptloader_t *loader) {
 }
 
 script_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader_t *reader) {
-  reader_t       *reader;
   parser_t       *parser;
   script_t       *script;
   script_t       *modscript;
   char           *curname;
   char           *modname;
+  char           *classname;
   char           *sepptr;
   data_t         *data;
+  str_t          *debugstr;
 
-  if (!name || !name[0]) {
-    return NULL;
-  }
-  curname = strdup(name);
-  modname = curname;
   script = loader -> rootscript;
-  for (sepptr = strchr(modname, '.'); sepptr; modname = sepptr + 1) {
-    *sepptr = 0;
-    data = script_get_local(script, modname);
-    assert(!data || data_type(data) == Script);
-    modscript = (data) ? (script_t *) data -> ptrval : NULL;
-    modscript = scriptloader_load(loader, curname);
-    *sepptr = '.';
+  if (name && name[0]) {
+    curname = strdup(name);
+    modname = curname;
+    for (sepptr = strchr(modname, '.'); sepptr; modname = sepptr + 1) {
+      *sepptr = 0;
+      data = (data_t *) dict_get(script -> variables,  modname);
+      assert(!data || data_type(data) == Script);
+      modscript = (data) ? (script_t *) data -> ptrval : NULL;
+      if (!modscript) {
+	modscript = scriptloader_load(loader, curname);
+      }
+      script = modscript;
+      *sepptr = '.';
+    }
+    classname = modname;
+  } else {
+    classname = NULL;
   }
-  free(curname);
-
 
   parser = parser_create(loader -> grammar);
+  parser -> data = script_create(script, classname);
   parser_parse(parser, reader);
   script = (script_t *) parser -> data;
   if (script -> label) {
     script_parse_emit_nop(parser);
   }
-
-
-  if (!tname) {
-    treader = (reader_t *) file_create(fileno(stdin));
-  } else {
-    treader = (reader_t *) file_open(tname);
+  if (list_notempty(script -> stack)) {
+    debugstr = list_tostr(script -> stack);
+    error("Script stack not empty after parse!\n%s", str_chars(debugstr));
+    str_free(debugstr);
   }
-  ret = -1;
-  if (greader && treader) {
-    ret = script_parse_execute(greader, treader);
-    file_free((file_t *) treader);
-    gfree(greader);
+  if (script_debug) {
+    script_list(script);
   }
+  parser_free(parser);
+  free(curname);
+  return script;
+}
+
+script_t * scriptloader_load(scriptloader_t *loader, char *name) {
+  file_t   *text;
+  char     *fname;
+  char     *ptr;
+  script_t *ret;
+
+  fname = new(strlen(loader -> path) + strlen(name) + 6);
+  sprintf(fname, "%s/%s", loader -> path, name);
+  for (ptr = strchr(fname, '.'); ptr; ptr = strchr(ptr, '.')) {
+    *ptr = '/';
+  }
+  strcat(fname, ".obl");
+  text = file_open(fname);
+  assert(text -> fh > 0);
+  ret = scriptloader_load_fromreader(loader, name, (reader_t *) text);
+  file_free(text);
+  free(fname);
   return ret;
 }
 
 
-int script_parse_execute(reader_t *grammar, reader_t *text) {
-  parser_t     *parser;
+data_t * scriptloader_execute(scriptloader_t *loader, char *name) {
   script_t     *script;
   str_t        *debugstr;
   data_t       *ret;
-  int           retval;
-
-  parser = parser_read_grammar(grammar);
-  retval = -1;
-  if (parser) {
-    parser_parse(parser, text);
-    script = (script_t *) parser -> data;
-    if (script -> label) {
-      script_parse_emit_nop(parser);
-    }
-    if (list_notempty(script -> stack)) {
-      debugstr = list_tostr(script -> stack);
-      error("Script stack not empty after parse!\n%s", str_chars(debugstr));
-      str_free(debugstr);
-    }
-    if (script_debug) {
-      script_list(script);
-    }
+  
+  script = scriptloader_load(loader, name);
+  if (script) {
     ret = script_execute(script);
     if (script_debug) {
       debug("Return value: %s", data_tostring(ret));
@@ -975,11 +1014,8 @@ int script_parse_execute(reader_t *grammar, reader_t *text) {
       str_free(debugstr);
     }
     script_free(script);
-    parser_free(parser);
-    retval = (ret && (ret -> type == Int)) ? (int) ret -> intval : 0;
-    data_free(ret);
   }
-  return retval;
+  return ret;
 }
 
 

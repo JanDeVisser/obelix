@@ -36,6 +36,7 @@ typedef data_t * (*mathop_t)(data_t *, data_t *);
 typedef struct _script {
   struct _script *up;
   char           *name;
+  char           *fullname;
   array_t        *params;
   dict_t         *variables;
   list_t         *stack;
@@ -54,9 +55,11 @@ typedef struct _script_loader {
 
 extern data_t *         data_create_script(script_t *);
 
-extern script_t *       script_create(script_t *);
-extern script_t *       script_set_name(script_t *, char *);
+extern script_t *       script_create(script_t *, char *);
 extern void             script_free(script_t *);
+extern char *           script_get_fullname(script_t *);
+extern char *           script_get_modulename(script_t *);
+extern char *           script_get_classname(script_t *);
 
 /* Parsing functions */
 extern parser_t *       script_parse_init(parser_t *);
@@ -100,7 +103,8 @@ extern int              script_parse_execute(reader_t *, reader_t *);
 extern scriptloader_t * scriptloader_create(char *, char *);
 extern scriptloader_t * scriptloader_get(void);
 extern void             scriptloader_free(scriptloader_t *);
-extern script_t *       scriptloader_load(char *);
-extern data_t *         scriptloader_execute(char *);
+extern script_t *       scriptloader_load_fromreader(scriptloader_t *, char *, reader_t *);
+extern script_t *       scriptloader_load(scriptloader_t *, char *);
+extern data_t *         scriptloader_execute(scriptloader_t *, char *);
 
 #endif /* __SCRIPT_H__ */
