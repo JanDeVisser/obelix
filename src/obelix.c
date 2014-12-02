@@ -17,22 +17,21 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
-#include <file.h>
-#include <grammar.h>
-#include <parser.h>
+#include <data.h>
 #include <script.h>
-#include <str.h>
 
 int main(int argc, char **argv) {
-  char *grammar;
-  char *debug;
-  char *basepath;
-  int   opt;
-  int   ret;
+  char           *grammar;
+  char           *debug;
+  char           *basepath;
+  int             opt;
+  scriptloader_t *loader;
+  data_t         *ret;
+  int             retval;
 
   grammar = NULL;
   debug = NULL;
@@ -40,7 +39,7 @@ int main(int argc, char **argv) {
   if (getenv("OBL_PATH")) {
     basepath = strdup(getenv("OBL_PATH"));
   } else {
-    basepath = get_current_dir_name();
+    basepath = getcwd(NULL, 0);
   }
   while ((opt = getopt(argc, argv, "g:d:")) != -1) {
     switch (opt) {
@@ -77,7 +76,9 @@ int main(int argc, char **argv) {
   }
   loader = scriptloader_create(basepath, grammar);
   free(basepath);
-  ret = scriptloader_execute(argv[optind]);
-  debug("Exiting with exit code %d", ret);
-  return ret;
+  ret = scriptloader_execute(loader, argv[optind]);
+  debug("Exiting with exit code %s", data_tostring(ret));
+  retval = (ret && data_type(ret) == Int) ? (int) ret -> intval : 0;
+  data_free(ret);
+  return retval;
 }

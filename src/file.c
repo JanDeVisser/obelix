@@ -48,6 +48,7 @@ file_t * file_open(char *fname) {
       ok = 0;
     } else {
       ret -> fh = open(ret -> fname, O_RDONLY);
+      debug("file_open(%s): %d", ret -> fname, ret -> fh);
       if (ret -> fh < 0) {
         ok = 0;
       }

@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include <str.h>
+#include <list.h>
 
 static str_t *      _str_initialize(void);
 static str_t *      _str_expand(str_t *, int);
