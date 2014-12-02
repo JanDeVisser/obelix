@@ -45,6 +45,13 @@ typedef struct _script {
   char           *label;
 } script_t;
 
+typedef struct _script_loader {
+  char      *path;
+  grammar_t *grammar;
+  parser_t  *parser;
+  script_t  *rootscript;
+} scriptloader_t;
+
 extern data_t *         data_create_script(script_t *);
 
 extern script_t *       script_create(script_t *);
@@ -89,5 +96,11 @@ extern int              script_parse_execute(reader_t *, reader_t *);
 #define script_push(s, v)   (_script_push((script_t *) (s), (v)))
 #define script_set(s, v, d) (_script_set((script_t *) (s), (v), (d)))
 #define script_get(s, v)    (_script_get((script_t *) (s), (v)))
+
+extern scriptloader_t * scriptloader_create(char *, char *);
+extern scriptloader_t * scriptloader_get(void);
+extern void             scriptloader_free(scriptloader_t *);
+extern script_t *       scriptloader_load(char *);
+extern data_t *         scriptloader_execute(char *);
 
 #endif /* __SCRIPT_H__ */

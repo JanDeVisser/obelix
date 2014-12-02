@@ -53,6 +53,7 @@ static char *                 _parser_stack_entry_tostring(parser_stack_entry_t 
 static int                    _parser_ll1_token_handler(token_t *, parser_t *, int);
 static parser_t *             _parser_ll1(token_t *, parser_t *);
 static parser_t *             _parser_lr1(token_t *, parser_t *);
+static lexer_t *              _parser_set_keywords(token_t *, lexer_t *);
 
 /*
  * parser_stack_entry_t static functions
@@ -282,6 +283,11 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
   return consuming;
 }
 
+lexer_t * _parser_set_keywords(token_t *token, lexer_t *lexer) {
+  lexer_add_keyword(lexer, token_code(token), token_token(token));
+  return lexer;
+}
+
 /*
  * parser_t public functions
  */
@@ -294,25 +300,6 @@ parser_t * parser_create(grammar_t *grammar) {
   ret -> prod_stack = list_create();
   ret -> last_token = NULL;
   return ret;
-}
-
-parser_t * _parser_read_grammar(reader_t *reader) {
-  parser_t  *ret;
-  grammar_t *grammar;
-
-  grammar = grammar_read(reader);
-  if (grammar) {
-    ret = parser_create(grammar);
-    if (!ret) {
-      grammar_free(grammar);
-    }
-  }
-  return ret;
-}
-
-lexer_t * _parser_set_keywords(token_t *token, lexer_t *lexer) {
-  lexer_add_keyword(lexer, token_code(token), token_token(token));
-  return lexer;
 }
 
 void _parser_parse(parser_t *parser, reader_t *reader) {
@@ -347,7 +334,6 @@ void parser_free(parser_t *parser) {
   if (parser) {
     token_free(parser -> last_token);
     list_free(parser -> prod_stack);
-    grammar_free(parser -> grammar);
     free(parser);
   }
 }

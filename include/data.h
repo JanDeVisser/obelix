@@ -31,10 +31,11 @@ typedef struct _typedescr {
   free_t        free;
   tostring_t    tostring;
   parse_t       parse;
+  hash_t        hash;
 } typedescr_t;
 
 typedef enum _datatype {
-  Pointer, String, Int, Float, Bool, Function
+  Pointer, String, Int, Float, Bool, List, Function
 } datatype_t;
 
 typedef struct _data {
@@ -47,21 +48,22 @@ typedef struct _data {
   };
 } data_t;
 
-extern int      datatype_register(typedescr_t *);
-extern data_t * data_create(int, ...);
-extern data_t * data_create_pointer(void *);
-extern data_t * data_create_int(long);
-extern data_t * data_create_float(double);
-extern data_t * data_create_bool(long);
-extern data_t * data_create_string(char *);
-extern data_t * data_create_pointer(void *);
-extern data_t * data_create_function(voidptr_t);
-extern data_t * data_parse(int, char *);
-extern void     data_free(data_t *);
-extern int      data_type(data_t *);
-extern int      data_is_numeric(data_t *);
-extern data_t * data_copy(data_t *);
-extern char *   data_tostring(data_t *);
-extern int      data_cmp(data_t *, data_t *);
+extern int            datatype_register(typedescr_t *);
+extern data_t *       data_create(int, ...);
+extern data_t *       data_create_pointer(void *);
+extern data_t *       data_create_int(long);
+extern data_t *       data_create_float(double);
+extern data_t *       data_create_bool(long);
+extern data_t *       data_create_string(char *);
+extern data_t *       data_create_pointer(void *);
+extern data_t *       data_create_function(voidptr_t);
+extern data_t *       data_parse(int, char *);
+extern void           data_free(data_t *);
+extern int            data_type(data_t *);
+extern int            data_is_numeric(data_t *);
+extern data_t *       data_copy(data_t *);
+extern unsigned int   data_hash(data_t *);
+extern char *         data_tostring(data_t *);
+extern int            data_cmp(data_t *, data_t *);
 
 #endif /* __DATA_H__ */

@@ -31,7 +31,8 @@ static void         _ln_free(listnode_t *);
 
 static list_t *     _list_add_all_reducer(void *, list_t *);
 static visit_t      _list_visitor(void *, visit_t);
-static void *       _list_reduce(list_t *, reduce_t, void *, reduce_type_t);
+static reduce_ctx * _list_hash_reducer(void *, reduce_ctx *);
+static void *       _list_reduce_chars(list_t *, reduce_t, void *);
 
 // ---------------------------
 // listnode_t static functions
@@ -65,32 +66,6 @@ void _ln_free(listnode_t *node) {
 // ------------------------
 // list_t static functions
 
-void * _list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t type) {
-  listiterator_t *iter;
-  free_t          f;
-  void           *elem;
-
-  iter = li_create(list);
-  f = (type == RTStrs) ? (free_t) str_free : NULL;
-  while (li_has_next(iter)) {
-    elem = li_next(iter);
-    switch (type) {
-      case RTChars:
-        elem =  list -> tostring(elem);
-        break;
-      case RTStrs:
-        elem =  str_wrap(list -> tostring(elem));
-        break;
-    }
-    data = reducer(elem, data);
-    if (f) {
-      f(elem);
-    }
-  }
-  li_free(iter);
-  return data;
-}
-
 list_t * _list_add_all_reducer(void *data, list_t *list) {
   list_append(list, data);
   return list;
@@ -101,6 +76,15 @@ visit_t _list_visitor(void *data, visit_t visitor) {
   return visitor;
 }
 
+reduce_ctx * _list_hash_reducer(void *elem, reduce_ctx *ctx) {
+  ctx -> longdata += ((list_t *) ctx -> obj) -> hash(elem);
+  return ctx;
+}
+
+void * _list_reduce_chars(list_t *list, reduce_t reducer, void *data) {
+  _list_reduce(list, reducer, data, RTChars);
+  return data;
+}
 // ------------------------
 // list_t public functions
 
@@ -120,18 +104,23 @@ list_t * list_create() {
   return ret;
 }
 
-list_t * list_set_free(list_t *list, visit_t freefnc) {
+list_t * _list_set_free(list_t *list, visit_t freefnc) {
   list -> freefnc = freefnc;
   return list;
 }
 
-list_t * list_set_cmp(list_t *list, cmp_t cmp) {
+list_t * _list_set_cmp(list_t *list, cmp_t cmp) {
   list -> cmp = cmp;
   return list;
 }
 
-list_t * list_set_tostring(list_t *list, tostring_t tostring) {
+list_t * _list_set_tostring(list_t *list, tostring_t tostring) {
   list -> tostring = tostring;
+  return list;
+}
+
+list_t * _list_set_hash(list_t *list, hash_t hash) {
+  list -> hash = hash;
   return list;
 }
 
@@ -142,6 +131,23 @@ void list_free(list_t *list) {
     _ln_free(list -> tail);
     free(list);
   }
+}
+
+unsigned int list_hash(list_t *list) {
+  unsigned int hash;
+  reduce_ctx *ctx;
+
+  if (!list -> hash) {
+    hash = hashptr(list);
+  } else {
+    ctx = NEW(reduce_ctx);
+    ctx -> obj = list;
+    ctx -> longdata = 0;
+    list_reduce(list, (reduce_t) _list_hash_reducer, ctx);
+    hash = (unsigned int) ctx -> longdata;
+    free(ctx);
+  }
+  return hash;
 }
 
 list_t * list_append(list_t *list, void *data) {
@@ -176,24 +182,38 @@ int list_size(list_t *list) {
   return list -> size;
 }
 
-void * list_reduce(list_t *list, reduce_t reducer, void *data) {
-  return _list_reduce(list, reducer, data, RTObjects);
+void * _list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t type) {
+  listiterator_t *iter;
+  free_t          f;
+  void           *elem;
+
+  iter = li_create(list);
+  f = (type == RTStrs) ? (free_t) str_free : NULL;
+  while (li_has_next(iter)) {
+    elem = li_next(iter);
+    switch (type) {
+      case RTChars:
+        elem =  list -> tostring(elem);
+        break;
+      case RTStrs:
+        elem =  str_wrap(list -> tostring(elem));
+        break;
+    }
+    data = reducer(elem, data);
+    if (f) {
+      f(elem);
+    }
+  }
+  li_free(iter);
+  return data;
 }
 
-void * list_reduce_chars(list_t *list, reduce_t reducer, void *data) {
-  return _list_reduce(list, reducer, data, RTChars);
-}
-
-void * list_reduce_str(list_t *list, reduce_t reducer, void *data) {
-  return _list_reduce(list, reducer, data, RTStrs);
-}
-
-list_t * list_visit(list_t *list, visit_t visitor) {
+list_t * _list_visit(list_t *list, visit_t visitor) {
   list_reduce(list, (reduce_t) _list_visitor, visitor);
   return list;
 }
 
-void * list_process(list_t *list, reduce_t reducer, void *data) {
+void * _list_process(list_t *list, reduce_t reducer, void *data) {
   listnode_t *node;
   void       *elem;
   listnode_t *next;
@@ -288,7 +308,7 @@ str_t * list_tostr(list_t *list) {
   str_t *catted;
 
   ret = str_copy_chars("[");
-  catted = str_join(", ", list, list_reduce_chars);
+  catted = str_join(", ", list, _list_reduce_chars);
   if (ret && catted) {
     str_append(ret, catted);
     str_append_chars(ret, "]");

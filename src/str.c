@@ -131,6 +131,20 @@ str_t * str_copy_chars(char *buffer) {
   return ret;
 }
 
+str_t * str_copy_nchars(int len, char *buffer) {
+  str_t *ret;
+  char  *b;
+
+  len = (len <= strlen(buffer)) ? len : strlen(buffer);
+  ret = _str_initialize();
+  b = (char *) new(len + 1);
+  strncpy(b, buffer, len);
+  ret -> buffer = b;
+  ret -> len = len;
+  ret -> bufsize = ret -> len + 1;
+  return ret;
+}
+
 str_t * str_copy(str_t *str) {
   str_t *ret;
   char  *b;
@@ -405,3 +419,25 @@ str_t * str_slice(str_t *str, int from, int upto) {
   return ret;
 }
 
+list_t * str_split(str_t *str, char *sep) {
+  char   *ptr;
+  char   *sepptr;
+  list_t *ret;
+  str_t  *c;
+
+  ret = list_create();
+  list_set_free(
+      list_set_hash(
+          list_set_tostring(
+              list_set_cmp(ret, (cmp_t) str_cmp),
+              (tostring_t) str_chars),
+          (hash_t) str_hash),
+      (free_t) str_free);
+
+  ptr = str -> buffer;
+  for (sepptr = strstr(ptr, sep); sepptr; ptr = sepptr + strlen(sep)) {
+    c = str_copy_nchars(sepptr - ptr, ptr);
+    list_push(ret, c);
+  }
+  return ret;
+}
