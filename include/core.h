@@ -118,6 +118,7 @@ typedef struct _reduce_ctx {
   void           *obj;
   void           *user;
   void           *data;
+  long            longdata;
   function_ptr_t fnc;
 } reduce_ctx;
 
@@ -131,6 +132,9 @@ extern void *       resize_block(void *, int, int);
 extern void *       resize_ptrarray(void *, int, int);
 
 extern unsigned int hash(void *, size_t);
+extern unsigned int hashptr(void *);
+extern unsigned int hashlong(long);
+extern unsigned int hashdouble(double);
 
 extern char *       _log_level_str(log_level_t);
 extern void         _logmsg(log_level_t, char *, int, char *, ...);

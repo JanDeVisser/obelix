@@ -21,6 +21,7 @@
 #define __STR_H__
 
 #include <core.h>
+#include <list.h>
 
 typedef struct _str {
   read_t  read_fnc;
@@ -37,6 +38,7 @@ typedef str_t stringbuffer_t;
  */
 extern str_t *     str_wrap(char *);
 extern str_t *     str_copy_chars(char *);
+extern str_t *     str_copy_nchars(int, char *);
 extern str_t *     str_copy(str_t *);
 extern str_t *     str_create(int);
 extern void        str_free(str_t *);
@@ -73,6 +75,7 @@ extern int          str_indexof(str_t *, str_t *);
 extern int          str_indexof_chars(str_t *, char *);
 extern int          str_rindexof(str_t *, str_t *);
 extern int          str_rindexof_chars(str_t *, char *);
+extern list_t *     str_split(str_t *, char *);
 
 extern int          str_read(str_t *, char *, int);
 extern int          str_readchar(str_t *);

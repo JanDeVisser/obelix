@@ -9,6 +9,8 @@ s = "jan "
 s = s + " de visser"
 print(s)
 
+x = "jan" * 3 print(x)
+
 test = 0
 jan = 2
 while test < 2

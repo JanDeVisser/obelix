@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include <data.h>
+#include <file.h>
 #include <script.h>
 #include <str.h>
 
@@ -55,6 +56,11 @@ static data_t *         _script_function_script(script_ctx_t *, char *, array_t 
 static listnode_t *     _script_execute_instruction(instruction_t *, script_t *);
 static void             _script_list_visitor(instruction_t *);
 
+typedef struct _mathop_def {
+  char     *token;
+  mathop_t  fnc;
+} mathop_def_t;
+
 static function_def_t _builtins[] = {
     { name: "print",      fnc: _script_function_print,  min_params: 1, max_params: -1 },
     { name: "$$script$$", fnc: _script_function_script, min_params: 0, max_params: -1 },
@@ -72,6 +78,24 @@ static function_def_t _builtins[] = {
     { name: "!=",         fnc: _script_function_mathop, min_params: 2, max_params:  2 },
     { name: NULL,         fnc: NULL,                    min_params: 0, max_params:  0 }
 };
+
+static mathop_def_t mathops[] = {
+  { token: "+",   fnc: _plus },
+  { token: "-",   fnc: _minus },
+  { token: "*",   fnc: _times },
+  { token: "/",   fnc: _div },
+  { token: "%",   fnc: _modulo },
+  { token: "^",   fnc: _pow },
+  { token: ">",   fnc: _gt },
+  { token: ">=",  fnc: _geq },
+  { token: "<",   fnc: _lt },
+  { token: "<=",  fnc: _leq },
+  { token: "==",  fnc: _lt },
+  { token: "!=",  fnc: _leq },
+  { token: NULL,  fnc: NULL }
+};
+
+static scriptloader_t * _loader = NULL;
 
 /*
  * data_t Script type 
@@ -255,27 +279,6 @@ data_t * _eq(data_t *d1, data_t *d2) {
 data_t * _neq(data_t *d1, data_t *d2) {
   return data_create_bool(data_cmp(d1, d2));
 }
-
-typedef struct _mathop_def {
-  char     *token;
-  mathop_t  fnc;
-} mathop_def_t;
-
-static mathop_def_t mathops[] = {
-  { token: "+",   fnc: _plus },
-  { token: "-",   fnc: _minus },
-  { token: "*",   fnc: _times },
-  { token: "/",   fnc: _div },
-  { token: "%",   fnc: _modulo },
-  { token: "^",   fnc: _pow },
-  { token: ">",   fnc: _gt },
-  { token: ">=",  fnc: _geq },
-  { token: "<",   fnc: _lt },
-  { token: "<=",  fnc: _leq },
-  { token: "==",  fnc: _lt },
-  { token: "!=",  fnc: _leq },
-  { token: NULL,  fnc: NULL }
-};
 
 data_t * _script_function_mathop(script_ctx_t *script, char *op, array_t *params) {
   char     *varname;
@@ -849,6 +852,97 @@ void script_list(script_t *script) {
   list_visit(script -> instructions, (visit_t) _script_list_visitor);
   debug("==================================================================");
 }
+
+/*
+ * scriptloader_t -
+ */
+
+#define GRAMMAR_PATH    "/etc/grammar.txt"
+
+scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
+  scriptloader_t *ret;
+  file_t *       *grammarfile;
+
+  assert(!_loader);
+  ret = NEW(scriptloader_t *);
+  ret -> path = strdup(obl_path);
+  if (!grammarpath) {
+    grammarpath = (char *) new(strlen(ret -> path) + strlen(GRAMMAR_PATH) + 1);
+    strcpy(grammarpath, ret -> path);
+    strcat(grammarpath, GRAMMAR_PATH);
+  }
+  grammarfile = file_open(grammarpath);
+  assert(grammarfile);
+  ret -> grammar = grammar_read(grammarfile);
+  assert(ret -> grammar);
+  file_free(grammarfile);
+  ret -> rootscript = script_create(NULL);
+  _loader = ret;
+  return ret;
+}
+
+scriptloader_t * scriptloader_get(void) {
+  return _loader;
+}
+
+void scriptloader_free(scriptloader_t *loader) {
+  if (loader) {
+    free(loader -> path);
+    grammar_free(loader -> grammar);
+    script_free(loader -> rootscript);
+    free(loader);
+  }
+}
+
+script_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader_t *reader) {
+  reader_t       *reader;
+  parser_t       *parser;
+  script_t       *script;
+  script_t       *modscript;
+  char           *curname;
+  char           *modname;
+  char           *sepptr;
+  data_t         *data;
+
+  if (!name || !name[0]) {
+    return NULL;
+  }
+  curname = strdup(name);
+  modname = curname;
+  script = loader -> rootscript;
+  for (sepptr = strchr(modname, '.'); sepptr; modname = sepptr + 1) {
+    *sepptr = 0;
+    data = script_get_local(script, modname);
+    assert(!data || data_type(data) == Script);
+    modscript = (data) ? (script_t *) data -> ptrval : NULL;
+    modscript = scriptloader_load(loader, curname);
+    *sepptr = '.';
+  }
+  free(curname);
+
+
+  parser = parser_create(loader -> grammar);
+  parser_parse(parser, reader);
+  script = (script_t *) parser -> data;
+  if (script -> label) {
+    script_parse_emit_nop(parser);
+  }
+
+
+  if (!tname) {
+    treader = (reader_t *) file_create(fileno(stdin));
+  } else {
+    treader = (reader_t *) file_open(tname);
+  }
+  ret = -1;
+  if (greader && treader) {
+    ret = script_parse_execute(greader, treader);
+    file_free((file_t *) treader);
+    gfree(greader);
+  }
+  return ret;
+}
+
 
 int script_parse_execute(reader_t *grammar, reader_t *text) {
   parser_t     *parser;

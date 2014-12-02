@@ -27,44 +27,21 @@
 #include <script.h>
 #include <str.h>
 
-int parse(char *gname, char *tname) {
-  file_t *     *file_grammar;
-  reader_t     *greader;
-  reader_t     *treader;
-  script_t     *script;
-  free_t        gfree, tfree;
-  int           ret;
-
-  if (!gname) {
-    //greader = (reader_t *) str_wrap(bnf_grammar);
-    greader = (reader_t *) file_open("/home/jan/Projects/obelix/etc/grammar.txt");
-    gfree = (free_t) file_free;
-  } else {
-    greader = (reader_t *) file_open(gname);
-    gfree = (free_t) file_free;
-  }
-  if (!tname) {
-    treader = (reader_t *) file_create(fileno(stdin));
-  } else {
-    treader = (reader_t *) file_open(tname);
-  }
-  ret = -1;
-  if (greader && treader) {
-    ret = script_parse_execute(greader, treader);
-    file_free((file_t *) treader);
-    gfree(greader);
-  }
-  return ret;
-}
-
 int main(int argc, char **argv) {
   char *grammar;
   char *debug;
+  char *basepath;
   int   opt;
   int   ret;
 
   grammar = NULL;
   debug = NULL;
+  basepath = NULL;
+  if (getenv("OBL_PATH")) {
+    basepath = strdup(getenv("OBL_PATH"));
+  } else {
+    basepath = get_current_dir_name();
+  }
   while ((opt = getopt(argc, argv, "g:d:")) != -1) {
     switch (opt) {
       case 'g':
@@ -72,6 +49,10 @@ int main(int argc, char **argv) {
         break;
       case 'd':
         debug = optarg;
+        break;
+      case 'p':
+        free(basepath);
+        basepath = strdup(optarg);
         break;
     }
   }
@@ -90,7 +71,13 @@ int main(int argc, char **argv) {
       debug("Turned on script debugging");
     }
   }
-  ret = parse(grammar, (argc > optind) ? argv[optind] : NULL);
+  if (argc == optind) {
+    fprintf(stderr, "Usage: obelix <filename>\n");
+    exit(1);
+  }
+  loader = scriptloader_create(basepath, grammar);
+  free(basepath);
+  ret = scriptloader_execute(argv[optind]);
   debug("Exiting with exit code %d", ret);
   return ret;
 }

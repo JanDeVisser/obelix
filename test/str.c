@@ -213,6 +213,36 @@ START_TEST(test_str_indexof)
   str_free(str);
 END_TEST
 
+START_TEST(test_str_ncopy)
+  str_t *str1, str2;
+  char *test = "1234567890abcdefghijklmnopqrstuvwxyz";
+  
+  str1 = str_copy_nchars(10, text);
+  ck_assert_ptr_ne(str1, NULL);
+  ck_assert_int_eq(str_len(str1), 10);
+  ck_assert_str_eq(str_chars(str1), "1234567890");
+  str2 = str_copy_nchars(10, str_chars(str1));
+  ck_assert_ptr_ne(str2, NULL);
+  ck_assert_int_eq(str_len(str2), 10);
+  ck_assert_str_eq(str_chars(str2), "1234567890");
+  str_free(str1);
+  str_free(str2);
+END_TEST
+
+START_TEST(test_str_split)
+  list_t *list;
+  str_t *str;
+  char *test = "this,is,a,test,string";
+
+  str = str_copy(test);
+  list = str_split(str, ",");
+  ck_assert_ptr_ne(list, NULL);
+  ck_assert_int_eq(list_size(list), 5);
+  list_free(list);
+  str_free(str);
+END_TEST
+
+
 char * get_suite_name() {
   return "Str";
 }
@@ -224,11 +254,13 @@ TCase * get_testcase(int ix) {
 
   tcase_add_test(tc, test_str_copy_chars);
   tcase_add_test(tc, test_str_copy);
+  tcase_add_test(tc, test_str_ncopy);
   tcase_add_test(tc, test_str_slice);
   tcase_add_test(tc, test_str_chop);
   tcase_add_test(tc, test_str_lchop);
   tcase_add_test(tc, test_str_erase);
   tcase_add_test(tc, test_str_indexof);
+  tcase_add_test(tc, test_str_split);
   return tc;
 }
 

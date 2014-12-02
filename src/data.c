@@ -24,35 +24,44 @@
 
 #include <core.h>
 #include <data.h>
-#include <script.h>
+#include <list.h>
 
-static data_t * _data_create(datatype_t);
+static data_t *      _data_create(datatype_t);
 
-static data_t * _data_new_pointer(data_t *, va_list);
-static int      _data_cmp_pointer(data_t *, data_t *);
-static char *   _data_tostring_pointer(data_t *);
+static data_t *      _data_new_pointer(data_t *, va_list);
+static int           _data_cmp_pointer(data_t *, data_t *);
+static unsigned int  _data_hash_pointer(data_t *);
+static char *        _data_tostring_pointer(data_t *);
 
-static data_t * _data_new_string(data_t *, va_list);
-static data_t * _data_copy_string(data_t *, data_t *);
-static int      _data_cmp_string(data_t *, data_t *);
-static char *   _data_tostring_string(data_t *);
+static data_t *      _data_new_string(data_t *, va_list);
+static data_t *      _data_copy_string(data_t *, data_t *);
+static int           _data_cmp_string(data_t *, data_t *);
+static unsigned int  _data_hash_string(data_t *);
+static char *        _data_tostring_string(data_t *);
 
-static data_t * _data_new_int(data_t *, va_list);
-static int      _data_cmp_int(data_t *, data_t *);
-static char *   _data_tostring_int(data_t *);
-static data_t * _data_parse_int(char *);
+static data_t *      _data_new_int(data_t *, va_list);
+static int           _data_cmp_int(data_t *, data_t *);
+static char *        _data_tostring_int(data_t *);
+static unsigned int  _data_hash_int(data_t *);
+static data_t *      _data_parse_int(char *);
 
-static data_t * _data_new_float(data_t *, va_list);
-static int      _data_cmp_float(data_t *, data_t *);
-static char *   _data_tostring_float(data_t *);
-static data_t * _data_parse_float(char *);
+static data_t *      _data_new_float(data_t *, va_list);
+static int           _data_cmp_float(data_t *, data_t *);
+static char *        _data_tostring_float(data_t *);
+static unsigned int  _data_hash_float(data_t *);
+static data_t *      _data_parse_float(char *);
 
-static char *   _data_tostring_bool(data_t *);
-static data_t * _data_parse_bool(char *);
+static char *        _data_tostring_bool(data_t *);
+static data_t *      _data_parse_bool(char *);
 
-static data_t * _data_new_function(data_t *, va_list);
-static int      _data_cmp_function(data_t *, data_t *);
-static char *   _data_tostring_function(data_t *);
+static data_t *      _data_new_list(data_t *, va_list);
+static data_t *      _data_copy_list(data_t *, data_t *);
+static int           _data_cmp_list(data_t *, data_t *);
+static char *        _data_tostring_list(data_t *);
+static unsigned int  _data_hash_list(data_t *);
+
+static data_t *      _data_new_function(data_t *, va_list);
+static int           _data_cmp_function(data_t *, data_t *);
 
 // -----------------------
 // Data conversion support
@@ -67,6 +76,7 @@ static typedescr_t builtins[] = {
     free:                  NULL,
     tostring: (tostring_t) _data_tostring_pointer,
     parse:                 NULL,
+    hash:     (hash_t)     _data_hash_pointer
   },
   {
     type:                  String,
@@ -75,7 +85,8 @@ static typedescr_t builtins[] = {
     cmp:      (cmp_t)      _data_cmp_string,
     free:     (free_t)     free,
     tostring: (tostring_t) _data_tostring_string,
-    parse:    (parse_t)    data_create_string
+    parse:    (parse_t)    data_create_string,
+    hash:     (hash_t)     _data_hash_string
   },
   {
     type:                  Int,
@@ -84,7 +95,8 @@ static typedescr_t builtins[] = {
     cmp:      (cmp_t)      _data_cmp_int,
     free:                  NULL,
     tostring: (tostring_t) _data_tostring_int,
-    parse:    (parse_t)    _data_parse_int
+    parse:    (parse_t)    _data_parse_int,
+    hash:     (hash_t)     _data_hash_int
   },
   {
     type:                  Float,
@@ -93,7 +105,8 @@ static typedescr_t builtins[] = {
     cmp:      (cmp_t)      _data_cmp_float,
     free:                  NULL,
     tostring: (tostring_t) _data_tostring_float,
-    parse:    (parse_t)     _data_parse_float
+    parse:    (parse_t)     _data_parse_float,
+    hash:     (hash_t)     _data_hash_float
   },
   {
     type:                  Bool,
@@ -102,7 +115,18 @@ static typedescr_t builtins[] = {
     cmp:      (cmp_t)      _data_cmp_int,
     free:                  NULL,
     tostring: (tostring_t) _data_tostring_bool,
-    parse:    (parse_t)    _data_parse_bool
+    parse:    (parse_t)    _data_parse_bool,
+    hash:     (hash_t)     _data_hash_int
+  },
+  {
+    type:                  List,
+    new:      (new_t)      _data_new_list,
+    copy:     (copydata_t) _data_copy_list,
+    cmp:      (cmp_t)      _data_cmp_list,
+    free:     (free_t)     list_free,
+    tostring: (tostring_t) _data_tostring_list,
+    parse:                 NULL,
+    hash:     (hash_t)     _data_hash_list
   },
   {
     type:                  Function,
@@ -112,6 +136,7 @@ static typedescr_t builtins[] = {
     free:                  NULL,
     tostring: (tostring_t) _data_tostring_pointer,
     parse:                 NULL,
+    hash:     (hash_t)     _data_hash_pointer
   }
 };
 
@@ -155,6 +180,10 @@ char * _data_tostring_pointer(data_t *data) {
   return buf;
 }
 
+unsigned int _data_hash_pointer(data_t *data) {
+  return hash(&(data -> ptrval), sizeof(void *));
+}
+
 
 /*
  * --------------------------------------------------------------------------
@@ -168,6 +197,10 @@ data_t * _data_new_string(data_t *target, va_list arg) {
   str = va_arg(arg, char *);
   target -> ptrval = str ? strdup(str) : NULL;
   return target;
+}
+
+unsigned int _data_hash_string(data_t *data) {
+  return strhash(data -> ptrval);
 }
 
 data_t * _data_copy_string(data_t *target, data_t *src) {
@@ -195,6 +228,10 @@ data_t * _data_new_int(data_t *target, va_list arg) {
   val = va_arg(arg, long);
   target -> intval = val;
   return target;
+}
+
+unsigned int _data_hash_int(data_t *data) {
+  return hash(&(data -> intval), sizeof(long));
 }
 
 int _data_cmp_int(data_t *d1, data_t *d2) {
@@ -249,6 +286,10 @@ data_t * _data_new_float(data_t *target, va_list arg) {
   return target;
 }
 
+unsigned int _data_hash_float(data_t *data) {
+  return hash(&(data -> dblval), sizeof(double));
+}
+
 int _data_cmp_float(data_t *d1, data_t *d2) {
   return (d1 -> dblval == d2 -> dblval)
       ? 0
@@ -284,6 +325,86 @@ data_t * _data_parse_bool(char *str) {
   return data_create_bool(atob(str));
 }
 
+
+/*
+ * --------------------------------------------------------------------------
+ * List
+ * --------------------------------------------------------------------------
+ */
+
+data_t * _data_new_list(data_t *target, va_list arg) {
+  list_t *list;
+  int     count;
+  int     ix;
+  data_t *elem;
+
+  list = list_create();
+  list_set_free(list, data_free);
+  list_set_tostring(list, data_tostring);
+  list_set_hash(list, data_hash);
+  target -> ptrval = list;
+  count = va_arg(arg, int);
+  for (ix = 0; ix < count; ix++) {
+    elem = va_arg(arg, data_t *);
+    list_append(list, elem);
+  }
+  return target;
+}
+
+int _data_cmp_list(data_t *d1, data_t *d2) {
+  list_t         *l1;
+  list_t         *l2;
+  listiterator_t *iter1;
+  listiterator_t *iter2;
+  data_t         *e1;
+  data_t         *e2;
+  int             cmp;
+
+  l1 = d1 -> ptrval;
+  l2 = d2 -> ptrval;
+  if (list_size(l1) != list_size(l2)) {
+    return list_size(l1) - list_size(l2);
+  }
+  iter1 = li_create(l1);
+  iter2 = li_create(l2);
+  while (li_has_next(iter1)) {
+    e1 = li_next(iter1);
+    e2 = li_next(iter2);
+    cmp = data_cmp(e1, e2);
+    if (!cmp) {
+      break;
+    }
+  }
+  li_free(iter1);
+  li_free(iter2);
+  return cmp;
+}
+
+data_t * _data_copy_list(data_t *dest, data_t *src) {
+  list_t         *dest_list;
+  list_t         *src_list;
+
+  dest_list = dest -> ptrval;
+  src_list = src -> ptrval;
+  list_add_all(dest_list, src_list);
+  return dest;
+}
+
+char * _data_tostring_list(data_t *data) {
+  list_t         *list;
+  str_t          *s;
+  static char     buf[1024];
+
+  list = data -> ptrval;
+  s = list_tostr(list);
+  strncpy(buf, str_chars(s), 1023);
+  buf[1023] = 0;
+  return buf;
+}
+
+unsigned int _data_hash_list(data_t *data) {
+  return list_hash(data -> ptrval);
+}
 
 /*
  * --------------------------------------------------------------------------
@@ -428,6 +549,12 @@ data_t * data_copy(data_t *src) {
     }
   }
   return ret;
+}
+
+unsigned int data_hash(data_t *data) {
+  return (descriptors[data -> type].hash)
+    ? descriptors[data -> type].hash(data)
+    : hashptr(data);
 }
 
 char * data_tostring(data_t *data) {

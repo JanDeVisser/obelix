@@ -38,11 +38,9 @@ typedef parser_t * (*parser_fnc_t)(parser_t *);
 extern parser_t *      parser_create(grammar_t *);
 extern void *          parser_get_data(parser_t *);
 extern parser_t        parser_set_data(parser_t *, void *);
-extern parser_t *      _parser_read_grammar(reader_t *);
 extern void            _parser_parse(parser_t *, reader_t *);
 extern void            parser_free(parser_t *);
 
-#define parser_read_grammar(r) _parser_read_grammar(((reader_t *) (r)))
 #define parser_parse(p, r)     _parser_parse((p), ((reader_t *) (r)))
 
 #endif /* __PARSER_H__ */

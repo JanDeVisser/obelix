@@ -112,6 +112,18 @@ unsigned int hash(void *buf, size_t size) {
   return hash;
 }
 
+unsigned int hashptr(void *ptr) {
+  return hash(&ptr, sizeof(void *));
+}
+
+unsigned int hashlong(long val) {
+  return hash(&val, sizeof(long));
+}
+
+unsigned int hashdouble(double val) {
+  return hash(&val, sizeof(double));
+}
+
 char * _log_level_str(log_level_t lvl) {
   switch (lvl) {
     case LogLevelDebug:
