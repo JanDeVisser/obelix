@@ -836,32 +836,20 @@ data_t * script_resolve(script_t *script, array_t *name_components) {
   data_t   *ret;
   char     *name;
   script_t *up;
-  script_t *s;
   int       ix;
 
   assert(array_size(name_components));
   for (up = script; up -> up; up = up -> up);
-  if (array_size(name_components) == 1) {
-    name = (char *) array_get(name_components, 0);
-    ret = (data_t *) dict_get(script -> variables, name);
-    if (!ret) {
-      ret = (data_t *) dict_get(root, name);
-    }
-    return ret;
-  } else {
-    for (ix = 0; ix < array_size(name_components); ix++) {
-      name = (char *) array_get(name_components, ix);
-      ret = _script_get(up, name);
-
-      if (ix < array_size(name_components) - 1) {
-        if (!ret || data_type(ret) != Script) {
-          return NULL;
-        } else {
-          up = (script_t *) ret -> ptrval;
-        }
-      }
+  for (ix = 0; ix < array_size(name_components); ix++) {
+    name = (char *) array_get(name_components, ix);
+    ret = _script_get(up, name);    
+    if (ret && data_type(ret) == Script) {
+      up = (script_t *) ret -> ptrval;
+    } else {
+      assert(ix == (array_size(name_components) - 1));
     }
   }
+  return ret;
 }
 
 script_t * script_register(script_t *script, function_def_t *def) {
