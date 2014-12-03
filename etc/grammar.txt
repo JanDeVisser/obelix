@@ -19,7 +19,7 @@ statement                   := conditional
                              | for_loop
                              | func_def
                              | return_stmt
-                             | 'i'            [ done: push_last_token ]
+                             | identifier
                                assignment_or_call
                              ;
 
@@ -116,8 +116,16 @@ factortail                  := mult_op         [ done: push_last_token ]
                              ;
 
 factor                      := ( expr )
-                             | 'i'         [ done: emit_pushvar   ]
+                             | identifier  [ done: emit_pushvar   ]
                              | constant    [ done: emit_pushval   ]  
+                             ;
+
+identifier                  := 'i'         [ init_push_identifier ]
+			       identifier_tail
+
+identifier_tail             := '.'
+                               'i'         [ push_identifier_comp ]
+                             |
                              ;
                              
 constant                    := '"'
