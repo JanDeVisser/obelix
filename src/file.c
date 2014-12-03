@@ -17,11 +17,123 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <file.h>
+
+/*
+ * fsentry_t -
+ */
+
+fsentry_t * fsentry_create(char *name) {
+  fsentry_t *ret;
+
+  ret = NEW(fsentry_t);
+  ret -> name = strdup(name);
+  ret -> exists = (stat(ret -> name, &ret -> statbuf)) ? errno : 0;
+  return ret;
+}
+
+fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
+  char      *n;
+  fsentry_t *ret;
+
+  if (!fsentry_isdir(dir)) {
+    return NULL;
+  }
+  n = new(strlen(dir -> name) + strlen(name) + 2);
+  sprintf(n, "%s/%s", dir -> name, name);
+  ret = fsentry_create(n);
+  free(n);
+  return ret;
+}
+
+void fsentry_free(fsentry_t *e) {
+  if (e) {
+    free(e -> name);
+    free(e);
+  }
+}
+
+unsigned int fsentry_hash(fsentry_t *e) {
+  return strhash(e -> name);
+}
+
+char * fsentry_tostring(fsentry_t *e) {
+  return e -> name;
+}
+
+int fsentry_cmp(fsentry_t *e1, fsentry_t *e2) {
+  return strcmp(e1 -> name, e2 -> name);
+}
+
+int fsentry_exists(fsentry_t *e) {
+  return e -> exists == 0;
+}
+
+int fsentry_isfile(fsentry_t *e) {
+  return !e -> exists && (e -> statbuf.st_mode & S_IFREG);
+}
+
+int fsentry_isdir(fsentry_t *e) {
+  return !e -> exists && (e -> statbuf.st_mode & S_IFDIR);
+}
+
+extern int fsentry_canread(fsentry_t *e) {
+  return !access(e -> name, R_OK);
+}
+
+extern int fsentry_canwrite(fsentry_t *e) {
+  return !access(e -> name, W_OK);
+}
+
+extern int fsentry_canexecute(fsentry_t *e) {
+  return !access(e -> name, X_OK);
+}
+
+list_t * fsentry_getentries(fsentry_t *dir) {
+  list_t        *ret;
+  DIR           *dirpointer;
+  struct dirent *entrypointer;
+
+  if (!fsentry_isdir(dir)) {
+    return NULL;
+  }
+
+  ret = NULL;
+  dirpointer = opendir(dir -> name);
+  if (dirpointer) {
+    ret = list_create();
+    list_set_free(ret, fsentry_free);
+    list_set_hash(ret, fsentry_hash);
+    list_set_tostring(ret, fsentry_tostring);
+    list_set_cmp(ret, fsentry_cmp);
+    for (entrypointer = readdir(dirpointer);
+         entrypointer;
+         entrypointer = readdir(dirpointer)) {
+      list_push(ret, fsentry_getentry(dir, entrypointer -> d_name));
+    }
+    closedir(dirpointer);
+  }
+  return ret;
+}
+
+file_t * fsentry_open(fsentry_t *e) {
+  if (!fsentry_isfile(e)) {
+    return NULL;
+  }
+  return file_open(e -> name);
+}
+
+/*
+ * fsentry_t -
+ */
 
 file_t * file_create(int fh) {
   file_t *ret;

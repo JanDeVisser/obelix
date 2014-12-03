@@ -378,7 +378,7 @@ script_t * script_create(script_t *up, char *name) {
 
   ret -> up = up;
   if (!up) {
-    ret -> name = NULL;
+    ret -> name = "<<root>>";
     for (def = _builtins; def -> name; def++) {
       script_register(ret, def);
     }
@@ -829,10 +829,39 @@ data_t * _script_get(script_t *script, char *varname) {
   data_t *ret;
 
   ret = (data_t *) dict_get(script -> variables, varname);
-  if (!ret && script -> up) {
-    ret = script_get(script -> up, varname);
-  }
   return ret;
+}
+
+data_t * script_resolve(script_t *script, array_t *name_components) {
+  data_t   *ret;
+  char     *name;
+  script_t *up;
+  script_t *s;
+  int       ix;
+
+  assert(array_size(name_components));
+  for (up = script; up -> up; up = up -> up);
+  if (array_size(name_components) == 1) {
+    name = (char *) array_get(name_components, 0);
+    ret = (data_t *) dict_get(script -> variables, name);
+    if (!ret) {
+      ret = (data_t *) dict_get(root, name);
+    }
+    return ret;
+  } else {
+    for (ix = 0; ix < array_size(name_components); ix++) {
+      name = (char *) array_get(name_components, ix);
+      ret = _script_get(up, name);
+
+      if (ix < array_size(name_components) - 1) {
+        if (!ret || data_type(ret) != Script) {
+          return NULL;
+        } else {
+          up = (script_t *) ret -> ptrval;
+        }
+      }
+    }
+  }
 }
 
 script_t * script_register(script_t *script, function_def_t *def) {
@@ -896,7 +925,6 @@ scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   assert(!_loader);
   ret = NEW(scriptloader_t);
   ret -> path = strdup(obl_path);
-  debug("grammar file: %s", grammarpath);
   if (!grammarpath) {
     grammarpath = (char *) new(strlen(ret -> path) + strlen(GRAMMAR_PATH) + 1);
     strcpy(grammarpath, ret -> path);
@@ -938,20 +966,33 @@ script_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, read
   data_t         *data;
   str_t          *debugstr;
 
+  if (script_debug) {
+    debug("scriptloader_load_fromreader(%s)", name);
+  }
   script = loader -> rootscript;
   if (name && name[0]) {
     curname = strdup(name);
     modname = curname;
-    for (sepptr = strchr(modname, '.'); sepptr; modname = sepptr + 1) {
+    sepptr = strchr(modname, '.');
+    while (sepptr != NULL) {
       *sepptr = 0;
       data = (data_t *) dict_get(script -> variables,  modname);
       assert(!data || data_type(data) == Script);
       modscript = (data) ? (script_t *) data -> ptrval : NULL;
       if (!modscript) {
+        if (script_debug) {
+          debug("script %s does not have class %s yet", script -> name, curname);
+        }
 	modscript = scriptloader_load(loader, curname);
+      } else {
+        if (script_debug) {
+          debug("script %s already has class %s", script -> name, curname);
+        }
       }
       script = modscript;
       *sepptr = '.';
+      modname = sepptr + 1;
+      sepptr = strchr(modname, '.');
     }
     classname = modname;
   } else {
@@ -979,21 +1020,43 @@ script_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, read
 }
 
 script_t * scriptloader_load(scriptloader_t *loader, char *name) {
-  file_t   *text;
-  char     *fname;
-  char     *ptr;
-  script_t *ret;
+  file_t    *text;
+  char      *fname;
+  fsentry_t *e;
+  fsentry_t *init;
+  str_t     *dummy;
+  char      *ptr;
+  script_t  *ret;
 
+  if (script_debug) {
+    debug("scriptloader_load(%s)", name);
+  }
   fname = new(strlen(loader -> path) + strlen(name) + 6);
   sprintf(fname, "%s/%s", loader -> path, name);
   for (ptr = strchr(fname, '.'); ptr; ptr = strchr(ptr, '.')) {
     *ptr = '/';
   }
-  strcat(fname, ".obl");
-  text = file_open(fname);
-  assert(text -> fh > 0);
-  ret = scriptloader_load_fromreader(loader, name, (reader_t *) text);
-  file_free(text);
+  e = fsentry_create(fname);
+  if (fsentry_isdir(e)) {
+    init = fsentry_getentry(e, "__init__.obl");
+    e = (fsentry_exists(init)) ? init : NULL;
+  } else {
+    strcat(fname, ".obl");
+    e = fsentry_create(fname);
+  }
+  ret = NULL;
+  if (e != NULL) {
+    if (fsentry_isfile(e) && fsentry_canread(e)) {
+      text = fsentry_open(e);
+      assert(text -> fh > 0);
+      ret = scriptloader_load_fromreader(loader, name, (reader_t *) text);
+      file_free(text);
+    }
+  } else {
+    dummy = str_wrap("");
+    ret = scriptloader_load_fromreader(loader, name, (reader_t *) dummy);
+    str_free(dummy);
+  }
   free(fname);
   return ret;
 }
