@@ -22,6 +22,15 @@
 #define __FILE_H__
 
 #include <core.h>
+#include <sys/stat.h>
+
+#include <list.h>
+
+typedef struct _fsentry {
+  char        *name;
+  struct stat  statbuf;
+  int          exists;
+} fsentry_t;
 
 typedef struct _file {
   read_t  read_fnc;
@@ -29,10 +38,25 @@ typedef struct _file {
   char   *fname;
 } file_t;
 
-extern file_t * file_create(int);
-extern file_t * file_open(char *);
-extern void     file_free(file_t *);
-extern void     file_close(file_t *);
-extern int      file_read(file_t *, char *, int);
+extern fsentry_t *  fsentry_create(char *);
+extern fsentry_t *  fsentry_getentry(fsentry_t *, char *name);
+extern void         fsentry_free(fsentry_t *);
+extern unsigned int fsentry_hash(fsentry_t *);
+extern char *       fsentry_tostring(fsentry_t *);
+extern int          fsentry_cmp(fsentry_t *, fsentry_t *);
+extern int          fsentry_exists(fsentry_t *);
+extern int          fsentry_isfile(fsentry_t *);
+extern int          fsentry_isdir(fsentry_t *);
+extern int          fsentry_canread(fsentry_t *);
+extern int          fsentry_canwrite(fsentry_t *);
+extern int          fsentry_canexecute(fsentry_t *);
+extern list_t *     fsentry_getentries(fsentry_t *);
+extern file_t *     fsentry_open(fsentry_t *);
+
+extern file_t *     file_create(int);
+extern file_t *     file_open(char *);
+extern void         file_free(file_t *);
+extern void         file_close(file_t *);
+extern int          file_read(file_t *, char *, int);
 
 #endif /* __FILE_H__ */
