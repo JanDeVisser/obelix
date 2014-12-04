@@ -61,7 +61,11 @@ static char *        _data_tostring_list(data_t *);
 static unsigned int  _data_hash_list(data_t *);
 
 static data_t *      _data_new_function(data_t *, va_list);
+static data_t *      _data_copy_function(data_t *, data_t *);
 static int           _data_cmp_function(data_t *, data_t *);
+static char *        _data_tostring_function(data_t *);
+/* static data_t *      _data_parse_function(char *); */
+static unsigned int  _data_hash_function(data_t *);
 
 // -----------------------
 // Data conversion support
@@ -131,12 +135,12 @@ static typedescr_t builtins[] = {
   {
     type:                  Function,
     new:      (new_t)      _data_new_function,
-    copy:                  NULL,
+    copy:     (copydata_t) _data_copy_function,
     cmp:      (cmp_t)      _data_cmp_function,
-    free:                  NULL,
-    tostring: (tostring_t) _data_tostring_pointer,
-    parse:                 NULL,
-    hash:     (hash_t)     _data_hash_pointer
+    free:     (free_t)     function_free,
+    tostring: (tostring_t) _data_tostring_function,
+    parse:                 /* _data_parse_function, */ NULL,
+    hash:     (hash_t)     _data_hash_function
   }
 };
 
@@ -170,14 +174,18 @@ data_t * _data_new_pointer(data_t *target, va_list arg) {
 }
 
 int _data_cmp_pointer(data_t *d1, data_t *d2) {
-  return (d1 -> ptrval == d2 -> ptrval) ? 0 : 1;
+  return (int)((long) d1 -> ptrval) - ((long) d2 -> ptrval);
 }
 
 char * _data_tostring_pointer(data_t *data) {
   static char buf[32];
 
-  snprintf(buf, 32, "<<pointer %p>>", (void *) data -> ptrval);
-  return buf;
+  if (data -> ptrval) {
+    snprintf(buf, 32, "<<pointer %p>>", (void *) data -> ptrval);
+    return buf;
+  } else {
+    return "Null";
+  }
 }
 
 unsigned int _data_hash_pointer(data_t *data) {
@@ -413,12 +421,39 @@ unsigned int _data_hash_list(data_t *data) {
  */
 
 data_t * _data_new_function(data_t *target, va_list arg) {
-  target -> fnc = va_arg(arg, voidptr_t);
+  function_t *fnc;
+
+  fnc = va_arg(arg, function_t *);
+  target -> ptrval = function_copy(fnc);
+  return target;
+}
+
+data_t * _data_copy_function(data_t *target, data_t *src) {
+  target -> ptrval = function_copy(src -> ptrval);
   return target;
 }
 
 int _data_cmp_function(data_t *d1, data_t *d2) {
-  return (d1 -> fnc == d2 -> fnc) ? 0 : 1;
+  function_t *fnc1;
+  function_t *fnc2;
+
+  fnc1 = d1 -> ptrval;
+  fnc2 = d2 -> ptrval;
+  return (int) ((long) fnc1 -> fnc) - ((long) fnc2 -> fnc);
+}
+
+char * _data_tostring_function(data_t *data) {
+  function_t     *fnc;
+
+  fnc = data -> ptrval;
+  return fnc -> name;
+}
+
+unsigned int _data_hash_function(data_t *data) {
+  function_t     *fnc;
+
+  fnc = data -> ptrval;
+  return hashptr(fnc -> fnc);
 }
 
 /*
@@ -475,6 +510,10 @@ data_t * data_create_pointer(void *ptr) {
   return ret;
 }
 
+data_t * data_null(void) {
+  return data_create_pointer(NULL);
+}
+
 data_t * data_create_int(long value) {
   data_t *ret;
 
@@ -507,11 +546,11 @@ data_t * data_create_string(char * value) {
   return ret;
 }
 
-data_t * data_create_function(voidptr_t fnc) {
+data_t * data_create_function(function_t *fnc) {
   data_t *ret;
 
   ret = _data_create(Function);
-  ret -> fnc = fnc;
+  ret -> ptrval = function_copy(fnc);
   return ret;
 }
 

@@ -80,6 +80,15 @@ extern str_t *      list_tostr(list_t *);
 #define list_visit(l, v)              (_list_visit((l), (visit_t) (v)))
 #define list_process(l, r, d)         (_list_process((l), (reduce_t) (r), (d)))
 
+#define str_list_create()   _list_set_tostring( \
+                              _list_set_free( \
+                                _list_set_hash( \
+                                  _list_set_cmp( \
+                                    list_create(), (cmp_t) strcmp), \
+                                      (hash_t) strhash), \
+                                    (free_t) free), \
+                                  (tostring_t) chars)
+
 typedef struct _listiter {
   list_t     *list;
   listnode_t *current;

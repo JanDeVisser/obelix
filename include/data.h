@@ -44,19 +44,19 @@ typedef struct _data {
     void      *ptrval;
     long       intval;
     double     dblval;
-    voidptr_t  fnc;
   };
 } data_t;
 
 extern int            datatype_register(typedescr_t *);
 extern data_t *       data_create(int, ...);
 extern data_t *       data_create_pointer(void *);
+extern data_t *       data_null(void);
 extern data_t *       data_create_int(long);
 extern data_t *       data_create_float(double);
 extern data_t *       data_create_bool(long);
 extern data_t *       data_create_string(char *);
 extern data_t *       data_create_pointer(void *);
-extern data_t *       data_create_function(voidptr_t);
+extern data_t *       data_create_function(function_t *);
 extern data_t *       data_parse(int, char *);
 extern void           data_free(data_t *);
 extern int            data_type(data_t *);

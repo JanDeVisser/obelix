@@ -87,36 +87,6 @@ static void            _grammar_build_parse_table_visitor(entry_t *);
 static grammar_t *     _grammar_analyze(grammar_t *);
 
 /*
- * grammar_fnc_t public functions
- */
-
-grammar_fnc_t * grammar_fnc_create(char *name, voidptr_t fnc) {
-  grammar_fnc_t *ret;
-
-  ret = NEW(grammar_fnc_t);
-  ret -> name = strdup(name);
-  ret -> fnc = fnc;
-  return ret;
-}
-
-grammar_fnc_t * grammar_fnc_copy(grammar_fnc_t *src) {
-  return grammar_fnc_create(src -> name, src -> fnc);
-}
-
-void grammar_fnc_free(grammar_fnc_t *fnc) {
-  if (fnc) {
-    free(fnc -> name);
-    free(fnc);
-  }
-}
-
-char * grammar_fnc_tostring(grammar_fnc_t *fnc) {
-  static char buf[100];
-  snprintf(buf, 100, "%s()", fnc -> name);
-  return buf;
-}
-
-/*
  * rule_t static functions
  */
 
@@ -271,8 +241,8 @@ rule_t * rule_create(grammar_t *grammar, char *name) {
 void rule_free(rule_t *rule) {
   if (rule) {
     free(rule -> name);
-    grammar_fnc_free(rule -> initializer);
-    grammar_fnc_free(rule -> finalizer);
+    function_free(rule -> initializer);
+    function_free(rule -> finalizer);
     array_free(rule -> options);
     set_free(rule -> firsts);
     set_free(rule -> follows);
@@ -295,20 +265,20 @@ void rule_set_options(rule_t *rule, dict_t *options) {
   dict_clear(options);
 }
 
-grammar_fnc_t * rule_get_initializer(rule_t *rule) {
+function_t * rule_get_initializer(rule_t *rule) {
   return rule -> initializer;
 }
 
-rule_t * rule_set_initializer(rule_t *rule, grammar_fnc_t *fnc) {
+rule_t * rule_set_initializer(rule_t *rule, function_t *fnc) {
   rule -> initializer = fnc;
   return rule;
 }
 
-grammar_fnc_t * rule_get_finalizer(rule_t *rule) {
+function_t * rule_get_finalizer(rule_t *rule) {
   return rule -> finalizer;
 }
 
-rule_t * rule_set_finalizer(rule_t *rule, grammar_fnc_t *fnc) {
+rule_t * rule_set_finalizer(rule_t *rule, function_t *fnc) {
   rule -> finalizer = fnc;
   return rule;
 }
@@ -499,8 +469,8 @@ set_t * _rule_item_get_follows(rule_item_t *item, set_t *follows) {
 
 void rule_item_free(rule_item_t *item) {
   if (item) {
-    grammar_fnc_free(item -> initializer);
-    grammar_fnc_free(item -> finalizer);
+    function_free(item -> initializer);
+    function_free(item -> finalizer);
     if (item -> terminal) {
       token_free(item -> token);
     } else {
@@ -551,20 +521,20 @@ rule_item_t * rule_item_empty(rule_option_t *option) {
   return ret;
 }
 
-grammar_fnc_t * rule_item_get_initializer(rule_item_t *item) {
+function_t * rule_item_get_initializer(rule_item_t *item) {
   return item -> initializer;
 }
 
-rule_item_t * rule_item_set_initializer(rule_item_t *item, grammar_fnc_t *fnc) {
+rule_item_t * rule_item_set_initializer(rule_item_t *item, function_t *fnc) {
   item -> initializer = fnc;
   return item;
 }
 
-grammar_fnc_t * rule_item_get_finalizer(rule_item_t *item) {
+function_t * rule_item_get_finalizer(rule_item_t *item) {
   return item -> finalizer;
 }
 
-rule_item_t * rule_item_set_finalizer(rule_item_t *item, grammar_fnc_t *fnc) {
+rule_item_t * rule_item_set_finalizer(rule_item_t *item, function_t *fnc) {
   item -> finalizer = fnc;
   return item;
 }
@@ -669,6 +639,11 @@ grammar_parser_t * _grammar_parser_state_options(token_t *token, grammar_parser_
       }
       break;
     case TokenCodeCloseBracket:
+      /* Hack - need to revisit the whole options thing. */
+      if (grammar_parser -> string) {
+        dict_put(grammar_parser -> obj_options, strdup("done"), strdup(grammar_parser -> string));
+        grammar_parser -> string = NULL;
+      }
       if (grammar_parser -> old_state != GPStateStart) {
         grammar_parser -> state = grammar_parser -> old_state;
       }
@@ -1010,8 +985,8 @@ grammar_t * _grammar_read(reader_t *reader) {
 
 void grammar_free(grammar_t *grammar) {
   if (grammar) {
-    grammar_fnc_free(grammar -> initializer);
-    grammar_fnc_free(grammar -> finalizer);
+    function_free(grammar -> initializer);
+    function_free(grammar -> finalizer);
     dict_free(grammar -> rules);
     dict_free(grammar -> keywords);
     array_free(grammar -> lexer_options);
@@ -1035,21 +1010,21 @@ strategy_t grammar_get_parsing_strategy(grammar_t *grammar) {
   return grammar -> strategy;
 }
 
-grammar_t * grammar_set_initializer(grammar_t *grammar, grammar_fnc_t *init) {
+grammar_t * grammar_set_initializer(grammar_t *grammar, function_t *init) {
   grammar -> initializer = init;
   return grammar;
 }
 
-grammar_fnc_t * grammar_get_initializer(grammar_t *grammar) {
+function_t * grammar_get_initializer(grammar_t *grammar) {
   return grammar -> initializer;
 }
 
-grammar_t * grammar_set_finalizer(grammar_t *grammar, grammar_fnc_t *finalizer) {
+grammar_t * grammar_set_finalizer(grammar_t *grammar, function_t *finalizer) {
   grammar -> initializer = finalizer;
   return grammar;
 }
 
-grammar_fnc_t * grammar_get_finalizer(grammar_t *grammar) {
+function_t * grammar_get_finalizer(grammar_t *grammar) {
   return grammar -> finalizer;
 }
 
@@ -1071,11 +1046,11 @@ void grammar_dump(grammar_t *grammar) {
   dict_visit_values(grammar -> rules, (visit_t) rule_dump);
 }
 
-grammar_fnc_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
+function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
   char          *fname;
   int            len;
   voidptr_t      fnc;
-  grammar_fnc_t *ret;
+  function_t *ret;
 
   if (grammar -> prefix) {
     len = strlen(grammar -> prefix) + strlen(func_name);
@@ -1087,7 +1062,7 @@ grammar_fnc_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
   }
   fnc = (voidptr_t) resolve_function(fname);
   assert(fnc);
-  ret = grammar_fnc_create(fname, fnc);
+  ret = function_create(fname, fnc);
   if (grammar -> prefix) {
     free(fname);
   }

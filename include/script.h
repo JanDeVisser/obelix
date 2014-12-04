@@ -31,20 +31,25 @@
 extern int script_debug;
 extern int Script;  // data_t typecode
 
-typedef data_t * (*mathop_t)(data_t *, data_t *);
-
 typedef struct _script {
   struct _script *up;
   char           *name;
   char           *fullname;
-  array_t        *params;
   dict_t         *variables;
   list_t         *stack;
+  array_t        *params;
   list_t         *instructions;
-  dict_t         *functions;
   dict_t         *labels;
   char           *label;
+  int             refs;
 } script_t;
+
+typedef struct _closure {
+  script_t *script;
+  dict_t   *variables;
+  list_t   *stack;
+  int       refs;
+} closure_t;
 
 typedef struct _script_loader {
   char      *path;
@@ -60,6 +65,9 @@ extern void             script_free(script_t *);
 extern char *           script_get_fullname(script_t *);
 extern char *           script_get_modulename(script_t *);
 extern char *           script_get_classname(script_t *);
+extern script_t *       script_set(script_t *, char *, data_t *);
+extern data_t *         script_get(script_t *, char *);
+extern void             script_list(script_t *script);
 
 /* Parsing functions */
 extern parser_t *       script_parse_init(parser_t *);
@@ -85,20 +93,16 @@ extern parser_t *       script_parse_end_function(parser_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
 
 /* Execution functions */
-extern data_t *         _script_pop(script_t *);
-extern script_t *       _script_push(script_t *, data_t *);
-extern script_t *       _script_set(script_t *, char *, data_t *);
-extern data_t *         _script_get(script_t *, char *);
-extern script_t *       script_register(script_t *, function_def_t *);
-extern function_def_t * script_get_function(script_t *, char *);
-extern void             script_list(script_t *script);
-extern data_t *         script_execute(script_t *);
-extern int              script_parse_execute(reader_t *, reader_t *);
+extern closure_t *      script_create_closure(script_t *, array_t *);
+extern data_t *         script_execute(script_t *, array_t *);
 
-#define script_pop(s)       (_script_pop((script_t *) (s)))
-#define script_push(s, v)   (_script_push((script_t *) (s), (v)))
-#define script_set(s, v, d) (_script_set((script_t *) (s), (v), (d)))
-#define script_get(s, v)    (_script_get((script_t *) (s), (v)))
+extern void             closure_free(closure_t *);
+extern data_t *         closure_pop(closure_t *);
+extern closure_t *      closure_push(closure_t *, data_t *);
+extern closure_t *      closure_set(closure_t *, char *, data_t *);
+extern data_t *         closure_get(closure_t *, char *);
+extern data_t *         closure_resolve(closure_t *, char *);
+extern data_t *         closure_execute(closure_t *);
 
 extern scriptloader_t * scriptloader_create(char *, char *);
 extern scriptloader_t * scriptloader_get(void);

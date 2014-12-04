@@ -25,13 +25,13 @@ statement                   := conditional
 
 conditional                 := "if"
                                expr
-                               "then"         [ done: emit_test       ]
+                               "then"         [ emit_test       ]
                                statements
                                else_clause
-                               end_stmt       [ done: emit_end        ]
+                               end_stmt       [ emit_end        ]
                              ;
 
-else_clause                 := "else"         [ done: emit_else       ]
+else_clause                 := "else"         [ emit_else       ]
                                statements
                              |
                              ;
@@ -39,10 +39,10 @@ else_clause                 := "else"         [ done: emit_else       ]
 end_stmt                    := "end"
                              ;
 
-while_loop                  := "while"        [ done: push_label      ]
-                               expr           [ done: emit_test       ]
+while_loop                  := "while"        [ push_label      ]
+                               expr           [ emit_test       ]
                                statements
-                               end_stmt       [ done: emit_end_while  ]
+                               end_stmt       [ emit_end_while  ]
                              ;
 
 for_loop                    := "for"
@@ -54,12 +54,12 @@ for_loop                    := "for"
                              ;
                              
 func_def                    := "func"
-                               'i'            [ done: push_last_token  ]
-                               (              [ done: init_param_count ]
+                               'i'            [ push_last_token  ]
+                               (              [ init_param_count ]
                                parlist
-                               )              [ done: start_function   ]
+                               )              [ start_function   ]
                                statements
-                               end_stmt       [ done: end_function     ]
+                               end_stmt       [ end_function     ]
                              ;
                              
 parlist                     := param
@@ -67,7 +67,7 @@ parlist                     := param
                              |
                              ;
 
-param                       := 'i'            [ done: push_param     ] 
+param                       := 'i'            [ push_param     ] 
                              ;
 
 parlist_tail                := ,
@@ -80,19 +80,19 @@ return_stmt                 := "return"
                              ;
 
 assignment_or_call          := assignment
-                             | func_call       [ done: emit_pop       ]
+                             | func_call       [ emit_pop       ]
                              ;
 
 assignment                  := =
-                               expr            [ done: emit_assign     ]
+                               expr            [ emit_assign     ]
                              ;
 
 expr                        := predicate
                                predicatetail
                              ;
                          
-predicatetail               := logic_op        [ done: push_last_token ]
-                               predicate       [ done: emit_mathop     ]
+predicatetail               := logic_op        [ push_last_token ]
+                               predicate       [ emit_mathop     ]
                              |
                              ;
                                
@@ -100,8 +100,8 @@ predicate                   := term
                                termtail
                              ;
 
-termtail                    := add_op          [ done: push_last_token ]
-                               term            [ done: emit_mathop     ]
+termtail                    := add_op          [ push_last_token ]
+                               term            [ emit_mathop     ]
                                termtail
                              | 
                              ;
@@ -109,22 +109,30 @@ termtail                    := add_op          [ done: push_last_token ]
 term                        := factor factortail 
                              ;
 
-factortail                  := mult_op         [ done: push_last_token ]
-                               factor          [ done: emit_mathop     ]
+factortail                  := mult_op         [ push_last_token ]
+                               factor          [ emit_mathop     ]
                                factortail
                              | 
                              ;
 
 factor                      := ( expr )
-                             | identifier  [ done: emit_pushvar   ]
-                             | constant    [ done: emit_pushval   ]  
+                             | var_or_call 
+                             | constant          [ emit_pushval              ]  
                              ;
 
-identifier                  := 'i'         [ init_push_identifier ]
+var_or_call:                 := identifier       
+                                call_or_empty
+                              ;
+                              
+call_or_empty:              := func_call
+                             |                   [ emit_pushvar              ]
+                             ;
+
+identifier                  := 'i'               [ init_identifier           ]
 			       identifier_tail
 
-identifier_tail             := '.'
-                               'i'         [ push_identifier_comp ]
+identifier_tail             := .
+                               identifier        [ push_identifier_comp      ]
                              |
                              ;
                              
@@ -141,16 +149,16 @@ add_op                      := + | - ;
 
 mult_op                     := * | / | ^ | % ;
 
-func_call                   := (           [ done: init_param_count ]
+func_call                   := (           [ init_param_count ]
                                arglist
-                               )           [ done: emit_func_call  ]
+                               )           [ emit_func_call  ]
                              ;
 
 arglist                     := argument
                                arglist_tail
                              ;
 
-argument                    := expr        [ done: param_count     ] 
+argument                    := expr        [ param_count     ] 
                              ;
 
 arglist_tail                := ,
