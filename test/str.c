@@ -243,7 +243,6 @@ START_TEST(test_str_split)
   ck_assert_int_eq(list_size(list), 5);
   for (iter = li_create(list); li_has_next(iter); ) {
     c = (str_t *) li_next(iter);
-    debug("comp: %s", str_chars(c));
     ck_assert(str_indexof_chars(c, ",") < 0);
   }
   list_free(list);
