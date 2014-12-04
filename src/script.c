@@ -27,11 +27,20 @@
 
 int script_debug = 0;
 
+typedef data_t * (*mathop_t)(data_t *, data_t *);
+
+typedef struct _mathop_def {
+  char     *token;
+  mathop_t  fnc;
+} mathop_def_t;
+
+
 /*
  * S T A T I C  F U N C T I O N S
  */
 
 static data_t *         _data_new_script(data_t *, va_list);
+static data_t *         _data_copy_script(data_t *, data_t *);
 static int              _data_cmp_script(data_t *, data_t *);
 static char *           _data_tostring_script(data_t *);
 static void             _data_script_register(void);
@@ -49,33 +58,32 @@ static data_t *         _leq(data_t *, data_t *);
 static data_t *         _eq(data_t *, data_t *);
 static data_t *         _neq(data_t *, data_t *);
 
-static data_t *         _script_function_print(script_ctx_t *, char *, array_t *);
-static data_t *         _script_function_mathop(script_ctx_t *, char *, array_t *);
-static data_t *         _script_function_script(script_ctx_t *, char *, array_t *);
+static data_t *         _script_function_print(closure_t *, char *, array_t *);
+static data_t *         _script_function_mathop(closure_t *, char *, array_t *);
 
-static listnode_t *     _script_execute_instruction(instruction_t *, script_t *);
 static void             _script_list_visitor(instruction_t *);
+static closure_t *      _script_variable_copier(entry_t *, closure_t *);
 
-typedef struct _mathop_def {
-  char     *token;
-  mathop_t  fnc;
-} mathop_def_t;
+static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
+static void             _closure_stack(closure_t *);
+static script_t *       _closure_get_script(closure_t *, char *);
 
-static function_def_t _builtins[] = {
-    { name: "print",      fnc: _script_function_print,  min_params: 1, max_params: -1 },
-    { name: "$$script$$", fnc: _script_function_script, min_params: 0, max_params: -1 },
-    { name: "+",          fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: "-",          fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: "*",          fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: "/",          fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: "%",          fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: "^",          fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: ">=",         fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: ">",          fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: "<=",         fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: "<",          fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: "==",         fnc: _script_function_mathop, min_params: 2, max_params:  2 },
-    { name: "!=",         fnc: _script_function_mathop, min_params: 2, max_params:  2 },
+
+#define FUNCTION_MATHOP  ((voidptr_t) _script_function_mathop)
+static function_t _builtins[] = {
+    { name: "print",      fnc: ((voidptr_t) _script_function_print),  min_params: 1, max_params: -1 },
+    { name: "+",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "-",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "*",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "/",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "%",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "^",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: ">=",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: ">",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "<=",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "<",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "==",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "!=",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
     { name: NULL,         fnc: NULL,                    min_params: 0, max_params:  0 }
 };
 
@@ -106,7 +114,7 @@ int Script = 0;
 static typedescr_t typedescr_script = {
   type:                  -1,
   new:      (new_t)      _data_new_script,
-  copy:                  NULL,
+  copy:     (copydata_t) _data_copy_script,
   cmp:      (cmp_t)      _data_cmp_script,
   free:     (free_t)     script_free,
   tostring: (tostring_t) _data_tostring_script,
@@ -118,7 +126,14 @@ data_t * _data_new_script(data_t *ret, va_list arg) {
 
   script = va_arg(arg, script_t *);
   ret -> ptrval = script;
+  ((script_t *) ret -> ptrval) -> refs++;
   return ret;
+}
+
+data_t * _data_copy_script(data_t *target, data_t *src) {
+  target -> ptrval = src -> ptrval;
+  ((script_t *) target -> ptrval) -> refs++;
+  return target;
 }
 
 int _data_cmp_script(data_t *d1, data_t *d2) {
@@ -280,7 +295,7 @@ data_t * _neq(data_t *d1, data_t *d2) {
   return data_create_bool(data_cmp(d1, d2));
 }
 
-data_t * _script_function_mathop(script_ctx_t *script, char *op, array_t *params) {
+data_t * _script_function_mathop(closure_t *script, char *op, array_t *params) {
   char     *varname;
   data_t   *d1;
   data_t   *d2;
@@ -305,7 +320,7 @@ data_t * _script_function_mathop(script_ctx_t *script, char *op, array_t *params
   return fnc(d1, d2);
 }
 
-data_t * _script_function_print(script_ctx_t *script, char *name, array_t *params) {
+data_t * _script_function_print(closure_t *script, char *name, array_t *params) {
   char          *varname;
   data_t        *value;
   char          *fmt;
@@ -329,23 +344,17 @@ data_t * _script_function_print(script_ctx_t *script, char *name, array_t *param
   return data_create_int(1);
 }
 
-data_t * _script_function_script(script_ctx_t *script, char *name, array_t *params) {
-  data_t   *value;
-  int       ix;
-  script_t *func;
+/*
+ * script_t static functions
+ */
 
-  func = (script_t *) script;
-  assert(array_size(func -> params) == array_size(params));
-  for (ix = 0; ix < array_size(params); ix++) {
-    script_set(func, array_get(func -> params, ix),
-                     array_get(params, ix));
-  }
-  value = script_execute(func);
-  value = value ? value : data_create_int(0);
-  if (script_debug) {
-    debug(" -- return: '%s'", data_tostring(value));
-  }
-  return value;
+void _script_list_visitor(instruction_t *instruction) {
+  debug(instruction_tostring(instruction));
+}
+
+closure_t * _script_variable_copier(entry_t *e, closure_t *closure) {
+  closure_set(closure, e -> key, data_copy(e -> value));
+  return closure;
 }
 
 /*
@@ -354,17 +363,14 @@ data_t * _script_function_script(script_ctx_t *script, char *name, array_t *para
 
 script_t * script_create(script_t *up, char *name) {
   script_t       *ret;
-  function_def_t *def;
   char            buf[20];
   data_t         *data;
+  function_t     *builtin;
 
   ret = NEW(script_t);
   ret -> variables = strvoid_dict_create();
   dict_set_free_data(ret -> variables, (free_t) data_free);
   dict_set_tostring_data(ret -> variables, (tostring_t) data_tostring);
-  ret -> stack = list_create();
-  list_set_free(ret -> stack, (free_t) data_free);
-  list_set_tostring(ret -> stack, (tostring_t) data_tostring);
   ret -> instructions = list_create();
   list_set_free(ret -> instructions, (free_t) instruction_free);
   list_set_tostring(ret -> instructions, (tostring_t) instruction_tostring);
@@ -373,14 +379,11 @@ script_t * script_create(script_t *up, char *name) {
   ret -> label = NULL;
   ret -> params = NULL;
 
-  ret -> functions = strvoid_dict_create();
-  dict_set_free_data(ret -> functions, (free_t) function_def_free);
-
   ret -> up = up;
   if (!up) {
     ret -> name = "<<root>>";
-    for (def = _builtins; def -> name; def++) {
-      script_register(ret, def);
+    for (builtin = _builtins; builtin -> name; builtin++) {
+      script_set(ret, builtin -> name, data_create_function(builtin));
     }
   } else {
     if (!name || !name[0]) {
@@ -391,6 +394,7 @@ script_t * script_create(script_t *up, char *name) {
     data = data_create_script(ret);
     script_set(up, ret -> name, data);
   }
+  ret -> refs++;
   return ret;
 }
 
@@ -425,16 +429,18 @@ char * script_get_classname(script_t *script) {
 
 void script_free(script_t *script) {
   if (script) {
-    dict_free(script -> variables);
-    list_free(script -> stack);
-    list_free(script -> instructions);
-    dict_free(script -> functions);
-    dict_free(script -> labels);
-    array_free(script -> params);
-    free(script -> name);
-    free(script -> fullname);
-    free(script);
-   }
+    script -> refs--;
+    if (script -> refs <= 0) {
+      dict_free(script -> variables);
+      list_free(script -> stack);
+      list_free(script -> instructions);
+      dict_free(script -> labels);
+      array_free(script -> params);
+      free(script -> name);
+      free(script -> fullname);
+      free(script);
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------- */
@@ -460,7 +466,7 @@ parser_t * script_parse_push_last_token(parser_t *parser) {
           (token) ? token_tostring(token, NULL, 0) : "--NULL--");
   }
   assert(token);
-  script_push(script, data_create_string(token_token(token)));
+  list_push(parser -> stack, data_create_string(token_token(token)));
   return parser;
 }
 
@@ -468,7 +474,7 @@ parser_t * script_parse_init_param_count(parser_t *parser) {
   script_t *script;
 
   script = parser -> data;
-  script_push(script, data_create_int(0));
+  list_push(parser -> stack, data_create_int(0));
   return parser;
 }
 
@@ -477,12 +483,12 @@ parser_t * script_parse_param_count(parser_t *parser) {
   data_t   *data;
 
   script = parser -> data;
-  data = script_pop(script);
+  data = (data_t *) list_pop(parser -> stack);
   data -> intval++;
   if (script_debug) {
     debug("  -- count: %d", data -> intval);
   }
-  script_push(script, data);
+  list_push(parser -> stack, data);
   return parser;
 }
 
@@ -491,29 +497,84 @@ parser_t * script_parse_push_param(parser_t *parser) {
   data_t   *data;
 
   script = parser -> data;
-  data = script_pop(script);
+  data = (data_t *) list_pop(parser -> stack);
   data -> intval++;
   if (script_debug) {
     debug("  -- count: %d", data -> intval);
   }
   script_parse_push_last_token(parser);
-  script_push(script, data);
+  list_push(parser -> stack, data);
   return parser;
+}
+
+parser_t * script_parse_init_identifier(parser_t *parser) {
+  data_t   *data;
+
+  script_parse_push_last_token(parser);
+  list_push(parser -> stack, data_create_int(1));
+  return parser;
+}
+
+parser_t * script_parse_push_identifier_comp(parser_t *parser) {
+  data_t   *data;
+
+  data = (data_t *) list_pop(parser -> stack);
+  data -> intval++;
+  if (script_debug) {
+    debug("  -- count: %d", data -> intval);
+  }
+  script_parse_push_last_token(parser);
+  list_push(parser -> stack, data);
+  return parser;
+}
+
+char * _script_pop_and_build_varname(parser_t *parser) {
+  char           *varname;
+  data_t         *data;
+  data_t         *count;
+  int             ix;
+  int             len;
+  list_t         *components;
+  listiterator_t *iter;
+
+  count = (data_t *) list_pop(parser -> stack);
+  if (script_debug) {
+    debug("  -- components: %s", count -> intval);
+  }
+  assert(count -> intval);
+  components = str_list_create();
+  len = 0;
+  for (ix = 0; ix < count -> intval; ix++) {
+    data = (data_t *) list_pop(parser -> stack);
+    list_push(components, strdup((char *) data -> ptrval));
+    len += strlen((char *) data -> ptrval);
+    data_free(data);
+  }
+  data_free(count);
+  varname = (char *) new(len + list_size(components));
+  iter = li_create(components);
+  for (li_tail(iter); li_has_prev(iter); ) {
+    strcat(varname, (char *) li_prev(iter));
+    if (li_has_prev(iter)) {
+      strcat(varname, ".");
+    }
+  }
+  li_free(iter);
+  list_free(components);
+  if (script_debug) {
+    debug("  -- varname: %s", varname);
+  }
+  return varname;
 }
 
 parser_t * script_parse_emit_assign(parser_t *parser) {
   char     *varname;
-  data_t   *data;
   script_t *script;
 
   script = parser -> data;
-  data = script_pop(script);
-  varname = (char *) data -> ptrval;
-  if (script_debug) {
-    debug("  -- varname: %s", varname);
-  }
+  varname = _script_pop_and_build_varname(parser);
   script_push_instruction(script, instruction_create_assign(varname));
-  data_free(data);
+  free(varname);
   return parser;
 }
 
@@ -523,12 +584,9 @@ parser_t * script_parse_emit_pushvar(parser_t *parser) {
   char     *varname;
 
   script = parser -> data;
-  token = parser -> last_token;
-  varname = token_token(token);
-  if (script_debug) {
-    debug("  -- varname: %s", varname);
-  }
+  varname = _script_pop_and_build_varname(parser);
   script_push_instruction(script, instruction_create_pushvar(varname));
+  free(varname);
   return parser;
 }
 
@@ -559,7 +617,7 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
   data = data_parse(type, str);
   assert(data);
   if (script_debug) {
-    debug(" -- val: %ld", data_tostring(data));
+    debug(" -- val: %s", data_tostring(data));
   }
   script_push_instruction(script, instruction_create_pushval(data));
   return parser;
@@ -571,7 +629,7 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
   script_t *script;
 
   script = parser -> data;
-  data = script_pop(script);
+  data = (data_t *) list_pop(parser -> stack);
   op = (char *) data -> ptrval;
   if (script_debug) {
     debug(" -- op: %s", op);
@@ -588,8 +646,8 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
   data_t         *param_count;
 
   script = parser -> data;
-  param_count = script_pop(script);
-  func_name = script_pop(script);
+  param_count = (data_t *) list_pop(parser -> stack);
+  func_name = (data_t *) list_pop(parser -> stack);
   if (script_debug) {
     debug(" -- param_count: %d", param_count -> intval);
     debug(" -- func_name: %s", (char *) func_name -> ptrval);
@@ -610,7 +668,7 @@ parser_t * script_parse_emit_test(parser_t *parser) {
   script = parser -> data;
   strrand(label, 9);
   test = instruction_create_test(label);
-  script_push(script, data_create_string(label));
+  list_push(parser -> stack, data_create_string(label));
   script_push_instruction(script, test);
   return parser;
 }
@@ -623,7 +681,7 @@ parser_t * script_parse_emit_jump(parser_t *parser) {
   script = parser -> data;
   strrand(label, 9);
   test = instruction_create_jump(label);
-  script_push(script, data_create_string(test -> name));
+  list_push(parser -> stack, data_create_string(test -> name));
   script_push_instruction(script, test);
   return parser;
 }
@@ -650,7 +708,7 @@ parser_t * script_parse_push_label(parser_t *parser) {
   script = parser -> data;
   script -> label = new(10);
   strrand(script -> label, 9);
-  script_push(script, data_create_string(script -> label));
+  list_push(parser -> stack, data_create_string(script -> label));
   return parser;
 }
 
@@ -661,7 +719,7 @@ parser_t * script_parse_emit_else(parser_t *parser) {
   char           newlabel[10];
 
   script = parser -> data;
-  label = script_pop(script);
+  label = (data_t *) list_pop(parser -> stack);
   if (script_debug) {
     debug(" -- label: %s", (char *) label -> ptrval);
   }
@@ -669,7 +727,7 @@ parser_t * script_parse_emit_else(parser_t *parser) {
   data_free(label);
   strrand(newlabel, 9);
   jump = instruction_create_jump(newlabel);
-  script_push(script, data_create_string(newlabel));
+  list_push(parser -> stack, data_create_string(newlabel));
   script_push_instruction(script, jump);
   return parser;
 }
@@ -679,7 +737,7 @@ parser_t * script_parse_emit_end(parser_t *parser) {
   data_t        *label;
 
   script = parser -> data;
-  label = script_pop(script);
+  label = (data_t *) list_pop(parser -> stack);
   if (script_debug) {
     debug(" -- label: %s", (char *) label -> ptrval);
   }
@@ -700,7 +758,7 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    * First label: The one pushed at the end of the expression. This is the
    * label to be set at the end of the loop:
    */
-  label = script_pop(script);
+  label = (data_t *) list_pop(parser -> stack);
   if (script_debug) {
     debug(" -- end block label: %s", (char *) label -> ptrval);
   }
@@ -711,7 +769,7 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    * Second label: The one pushed after the while statement. This is the one
    * we have to jump back to:
    */
-  label = script_pop(script);
+  label = (data_t *) list_pop(parser -> stack);
   if (script_debug) {
     debug(" -- jump back label: %s", (char *) label -> ptrval);
   }
@@ -735,18 +793,18 @@ parser_t * script_parse_start_function(parser_t *parser) {
 
   up = (script_t *) parser -> data;
 
-  data = script_pop(up);
+  data = (data_t *) list_pop(parser -> stack);
   count = data -> intval;
   data_free(data);
   params = array_create(count);
   array_set_free(params, (free_t) free);
   array_set_tostring(params, (tostring_t) chars);
   for (ix = count - 1; ix >= 0; ix--) {
-    data = script_pop(up);
+    data = (data_t *) list_pop(parser -> stack);
     array_set(params, ix, strdup(data -> ptrval));
     data_free(data);
   }
-  data = script_pop(up);
+  data = (data_t *) list_pop(parser -> stack);
   func = script_create(up, (char *) data -> ptrval);
   func -> params = params;
   data_free(data);
@@ -802,92 +860,14 @@ void script_stack(script_t *script) {
   debug("------------------------------------------------------------------");
 }
 
-data_t * _script_pop(script_t *script) {
-  data_t *ret;
-  ret = (data_t *) list_pop(script -> stack);
-  assert(ret);
-  if (script_debug) {
-    debug("  Popped %s", data_tostring(ret));
-  }
+data_t * script_execute(script_t *script, array_t *params) {
+  data_t    *ret;
+  closure_t *closure;
+
+  closure = script_create_closure(script, params);
+  ret = closure_execute(closure);
+  closure_free(closure);
   return ret;
-}
-
-script_t * _script_push(script_t *script, data_t *entry) {
-  list_push(script -> stack, entry);
-  if (script_debug) {
-    script_stack(script);
-  }
-  return script;
-}
-
-script_t * _script_set(script_t *script, char *varname, data_t *value) {
-  dict_put(script -> variables, strdup(varname), data_copy(value));
-  return script;
-}
-
-data_t * _script_get(script_t *script, char *varname) {
-  data_t *ret;
-
-  ret = (data_t *) dict_get(script -> variables, varname);
-  return ret;
-}
-
-data_t * script_resolve(script_t *script, array_t *name_components) {
-  data_t   *ret;
-  char     *name;
-  script_t *up;
-  int       ix;
-
-  assert(array_size(name_components));
-  for (up = script; up -> up; up = up -> up);
-  for (ix = 0; ix < array_size(name_components); ix++) {
-    name = (char *) array_get(name_components, ix);
-    ret = _script_get(up, name);    
-    if (ret && data_type(ret) == Script) {
-      up = (script_t *) ret -> ptrval;
-    } else {
-      assert(ix == (array_size(name_components) - 1));
-    }
-  }
-  return ret;
-}
-
-script_t * script_register(script_t *script, function_def_t *def) {
-  dict_put(script -> functions, strdup(def -> name), function_def_copy(def));
-  return script;
-}
-
-function_def_t * script_get_function(script_t *script, char *name) {
-  function_def_t *ret;
-
-  ret = (function_def_t *) dict_get(script -> functions, name);
-  if (!ret && script -> up) {
-    ret = script_get_function(script -> up, name);
-  }
-  return ret;
-}
-
-listnode_t * _script_execute_instruction(instruction_t *instr, script_t *script) {
-  char       *label;
-  listnode_t *node;
-
-  label = instruction_execute(instr, script);
-  return (label) ? (listnode_t *) dict_get(script -> labels, label) : NULL;
-}
-
-data_t * script_execute(script_t *script) {
-  data_t *ret;
-  list_clear(script -> stack);
-  list_process(script -> instructions, (reduce_t) _script_execute_instruction, script);
-  ret = (list_notempty(script -> stack)) ? script_pop(script) : NULL;
-  if (script_debug) {
-    debug("    Execution of %s done: %s", script -> name, data_tostring(ret));
-  }
-  return ret;
-}
-
-void _script_list_visitor(instruction_t *instruction) {
-  debug(instruction_tostring(instruction));
 }
 
 void script_list(script_t *script) {
@@ -898,6 +878,202 @@ void script_list(script_t *script) {
   debug("------------------------------------------------------------------");
   list_visit(script -> instructions, (visit_t) _script_list_visitor);
   debug("==================================================================");
+}
+
+script_t * script_set(script_t *script, char *varname, data_t *value) {
+  dict_put(script -> variables, strdup(varname), data_copy(value));
+  return script;
+}
+
+data_t * script_get(script_t *script, char *varname) {
+  data_t *ret;
+
+  ret = (data_t *) dict_get(script -> variables, varname);
+  return ret;
+}
+
+closure_t * script_create_closure(script_t *script, array_t *params) {
+  closure_t *ret;
+  int        ix;
+
+  if (params || array_size(script -> params)) {
+    assert(params && (array_size(script -> params) == array_size(params)));
+  }
+  ret = NEW(closure_t);
+  ret -> script = script;
+  script -> refs++;
+
+  ret -> variables = strvoid_dict_create();
+  dict_set_free_data(ret -> variables, (free_t) data_free);
+  dict_set_tostring_data(ret -> variables, (tostring_t) data_tostring);
+  ret -> stack = list_create();
+  list_set_free(ret -> stack, (free_t) data_free);
+  list_set_tostring(ret -> stack, (tostring_t) data_tostring);
+
+  if (params) {
+    for (ix = 0; ix < array_size(params); ix++) {
+      closure_set(ret, array_get(script -> params, ix),
+                       array_get(params, ix));
+    }
+  }
+  ret -> refs++;
+  return ret;
+}
+
+/*
+ * closure_t - static functions
+ */
+
+listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closure) {
+  char       *label;
+  listnode_t *node;
+
+  label = instruction_execute(instr, closure);
+  return (label)
+      ? (listnode_t *) dict_get(closure -> script -> labels, label)
+      : NULL;
+}
+
+void _closure_stack(closure_t *closure) {
+  debug("-- Closure Stack --------------------------------------------------");
+  list_visit(closure -> stack, (visit_t) _script_stack_visitor);
+  debug("------------------------------------------------------------------");
+}
+
+/**
+ * Returns the script in which the identifier <name> belongs. If name does
+ * not contain a dot, it is either local to the closure or lives at the
+ * root level. Otherwise we split the name, and walk down from the
+ * root level.
+ */
+script_t * _closure_get_script(closure_t *closure, char *name) {
+  script_t *script;
+  data_t   *s;
+  char     *n;
+  char     *c;
+  char     *ptr;
+
+  for (script = closure -> script; script -> up; script = script -> up);
+  if (!strchr(name, '.')) {
+    /*
+     * NOTE: This ensures that assignment of a name that doesn't live locally
+     * but does live at the root level gets assigned at the root level. So
+     *
+     * print = 42
+     *
+     * Results in the print function being clobbered.
+     */
+    if (closure_get(closure, name) || !script_get(script, name)) {
+      return NULL; /* NULL = closure-local */
+    } else {
+      return script;
+    }
+  }
+
+  /* Copy the name - it may be a static string */
+  n = strdup(name);
+  c = n;
+  ptr = strchr(c, '.');
+  while (ptr) {
+    *ptr = 0;
+    s = script_get(script, c);
+    c = ptr + 1;
+
+    /*
+     * This is not the last path element - therefore this must exist and
+     * must be a script
+     *
+     * FIXME Error Handling
+     */
+    assert(s && (data_type(s) == Script));
+    script = s -> ptrval;
+    c = ptr + 1;
+    ptr = strchr(c, '.');
+  }
+  free(n);
+  return script;
+}
+
+/*
+ * closure_t - public functions
+ */
+
+void closure_free(closure_t *closure) {
+  if (closure) {
+    closure -> refs--;
+    if (closure <= 0) {
+      script_free(closure -> script);
+      list_free(closure -> stack);
+      dict_free(closure -> variables);
+      free(closure);
+    }
+  }
+}
+
+data_t * closure_pop(closure_t *closure) {
+  data_t *ret;
+  ret = (data_t *) list_pop(closure -> stack);
+  assert(ret);
+  if (script_debug) {
+    debug("  Popped %s", data_tostring(ret));
+  }
+  return ret;
+}
+
+closure_t * closure_push(closure_t *closure, data_t *entry) {
+  list_push(closure -> stack, entry);
+  if (script_debug) {
+    _closure_stack(closure);
+  }
+  return closure;
+}
+
+closure_t * closure_set(closure_t *closure, char *varname, data_t *value) {
+  script_t *s = _closure_get_script(closure, varname);
+  char     *ptr;
+
+  if (!s) {
+    dict_put(closure -> variables, strdup(varname), data_copy(value));
+  } else {
+    ptr = strrchr(varname, '.');
+    ptr = (ptr) ? ptr + 1 : varname;
+    script_set(s, varname, value);
+  }
+  return closure;
+}
+
+data_t * closure_get(closure_t *closure, char *varname) {
+  data_t *ret;
+
+  ret = (data_t *) dict_get(closure -> variables, varname);
+  return ret;
+}
+
+/* FIXME: error handling */
+data_t * closure_resolve(closure_t *closure, char *name) {
+  script_t *s;
+  char     *ptr;
+
+  s = _closure_get_script(closure, name);
+  if (!s) {
+    return closure_get(closure, name);
+  } else {
+    ptr = strrchr(name, '.');
+    ptr = (ptr) ? ptr + 1 : name;
+    return script_get(s, ptr);
+  }
+}
+
+data_t * closure_execute(closure_t *closure) {
+  data_t *ret;
+
+  list_clear(closure -> stack);
+  list_process(closure -> script -> instructions, (reduce_t) _closure_execute_instruction, closure);
+  ret = (list_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
+  if (script_debug) {
+    debug("    Execution of %s done: %s", closure -> script -> name, data_tostring(ret));
+  }
+  return ret;
 }
 
 /*
@@ -994,11 +1170,6 @@ script_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, read
   if (script -> label) {
     script_parse_emit_nop(parser);
   }
-  if (list_notempty(script -> stack)) {
-    debugstr = list_tostr(script -> stack);
-    error("Script stack not empty after parse!\n%s", str_chars(debugstr));
-    str_free(debugstr);
-  }
   if (script_debug) {
     script_list(script);
   }
@@ -1057,7 +1228,7 @@ data_t * scriptloader_execute(scriptloader_t *loader, char *name) {
   
   script = scriptloader_load(loader, name);
   if (script) {
-    ret = script_execute(script);
+    ret = script_execute(script, NULL);
     if (script_debug) {
       debug("Return value: %s", data_tostring(ret));
       debugstr = dict_tostr(script -> variables);

@@ -436,9 +436,12 @@ list_t * str_split(str_t *str, char *sep) {
       (free_t) str_free);
 
   ptr = str -> buffer;
-  for (sepptr = strstr(ptr, sep); sepptr; ptr = sepptr + strlen(sep)) {
+  for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     c = str_copy_nchars(sepptr - ptr, ptr);
     list_push(ret, c);
+    ptr = sepptr + strlen(sep);
   }
+  c = str_copy_chars(ptr);
+  list_push(ret, c);
   return ret;
 }

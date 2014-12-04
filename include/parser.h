@@ -31,6 +31,7 @@ typedef struct _parser {
   void          *data;
   list_t        *prod_stack;
   token_t       *last_token;
+  list_t        *stack;
 } parser_t;
 
 typedef parser_t * (*parser_fnc_t)(parser_t *);

@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <data.h>
 #include <lexer.h>
 #include <parser.h>
 
@@ -39,14 +40,14 @@ typedef struct _parser_stack_entry {
     rule_t        *rule;
     rule_option_t *option;
     rule_item_t   *item;
-    grammar_fnc_t *fnc;
+    function_t    *fnc;
   };
 } parser_stack_entry_t;
 
 static parser_stack_entry_t * _parser_stack_entry_for_rule(rule_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_option(rule_option_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_item(rule_item_t *);
-static parser_stack_entry_t * _parser_stack_entry_for_function(grammar_fnc_t *fnc);
+static parser_stack_entry_t * _parser_stack_entry_for_function(function_t *fnc);
 static void                   _parser_stack_entry_free(parser_stack_entry_t *);
 static char *                 _parser_stack_entry_tostring(parser_stack_entry_t *, char *, int);
 
@@ -86,7 +87,7 @@ parser_stack_entry_t * _parser_stack_entry_for_item(rule_item_t *item) {
   return ret;
 }
 
-parser_stack_entry_t * _parser_stack_entry_for_function(grammar_fnc_t *function) {
+parser_stack_entry_t * _parser_stack_entry_for_function(function_t *function) {
   parser_stack_entry_t *ret;
 
   ret = NEW(parser_stack_entry_t);
@@ -122,7 +123,7 @@ char * _parser_stack_entry_tostring(parser_stack_entry_t *entry, char *buf, int 
       }
       break;
     case PSETypeFunction:
-      snprintf(buf, maxlen, "F %s", grammar_fnc_tostring(entry -> fnc));
+      snprintf(buf, maxlen, "F %s", function_tostring(entry -> fnc));
       buf[maxlen - 1] = 0;
       break;
   }
@@ -263,7 +264,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
 	if (rule_item_get_finalizer(item)) {
 	  if (parser_debug) {
             debug("    Executing terminal item finalizer %s",
-                  grammar_fnc_tostring(rule_item_get_finalizer(item)));
+                  function_tostring(rule_item_get_finalizer(item)));
 	  }
 	  rule_item_get_finalizer(item) -> fnc(parser);
 	}
@@ -273,7 +274,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
         assert(entry -> fnc -> fnc);
         if (parser_debug) {
           debug("    Executing non-terminal function %s",
-                grammar_fnc_tostring(entry -> fnc));
+                function_tostring(entry -> fnc));
         }
         entry -> fnc -> fnc(parser);
         break;
@@ -299,18 +300,23 @@ parser_t * parser_create(grammar_t *grammar) {
   ret -> grammar = grammar;
   ret -> prod_stack = list_create();
   ret -> last_token = NULL;
+  ret -> stack = list_create();
+  list_set_free(ret -> stack, (free_t) data_free);
+  list_set_tostring(ret -> stack, (tostring_t) data_tostring);
   return ret;
 }
 
 void _parser_parse(parser_t *parser, reader_t *reader) {
   lexer_t        *lexer;
   lexer_option_t  ix;
+  str_t          *debugstr;
 
   lexer = lexer_create(reader);
   dict_reduce_values(parser -> grammar -> keywords, (reduce_t) _parser_set_keywords, lexer);
   for (ix = 0; ix < LexerOptionLAST; ix++) {
     lexer_set_option(lexer, ix, grammar_get_option(parser -> grammar, ix));
   }
+  list_clear(parser -> stack);
   if (grammar_get_initializer(parser -> grammar)) {
     grammar_get_initializer(parser -> grammar) -> fnc(parser);
   }
@@ -327,6 +333,12 @@ void _parser_parse(parser_t *parser, reader_t *reader) {
   if (grammar_get_finalizer(parser -> grammar)) {
     grammar_get_finalizer(parser -> grammar) -> fnc(parser);
   }
+  if (list_notempty(parser -> stack)) {
+    debugstr = list_tostr(parser -> stack);
+    error("Parser stack not empty after parse!\n%s", str_chars(debugstr));
+    str_free(debugstr);
+    list_clear(parser -> stack);
+  }
   lexer_free(lexer);
 }
 
@@ -334,6 +346,7 @@ void parser_free(parser_t *parser) {
   if (parser) {
     token_free(parser -> last_token);
     list_free(parser -> prod_stack);
+    list_free(parser -> stack);
     free(parser);
   }
 }

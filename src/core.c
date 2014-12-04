@@ -211,7 +211,43 @@ char * strrand(char *buf, size_t numchars) {
 }
 
 function_ptr_t no_func_ptr = { void_fnc: (void_t) NULL };
-function_t no_func = { type: Void, fnc: (void_t) NULL };
+
+/*
+ * function_t public functions
+ */
+
+function_t * function_create(char *name, voidptr_t fnc) {
+  function_t *ret;
+
+  ret = NEW(function_t);
+  ret -> name = strdup(name);
+  ret -> fnc = fnc;
+  return ret;
+}
+
+function_t * function_copy(function_t *src) {
+  return function_create(src -> name, src -> fnc);
+}
+
+void function_free(function_t *fnc) {
+  if (fnc) {
+    free(fnc -> name);
+    free(fnc);
+  }
+}
+
+char * function_tostring(function_t *fnc) {
+  /* FIXME: Not Threadsafe */
+  static char buf[100];
+  snprintf(buf, 100, "%s()", fnc -> name);
+  return buf;
+}
+
+
+/*
+ * reduce_ctx public functions
+ */
+
 
 reduce_ctx * reduce_ctx_create(void *user, void *data, function_ptr_t fnc) {
   reduce_ctx *ctx;

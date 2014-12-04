@@ -141,11 +141,13 @@ data_t * _evaluate_deref(context_t *ctx, void *data, list_t *params) {
 }
 
 data_t * _evaluate_call(context_t *ctx, void *data, list_t *params) {
-  data_t *fnc;
-  eval_t eval;
+  data_t     *fnc;
+  function_t *f;
+  eval_t      eval;
   
   fnc = (data_t *) data;
-  eval = (eval_t) (fnc -> fnc);
+  f = (function_t *) fnc -> ptrval;
+  eval = (eval_t) (f -> fnc);
   return eval(ctx, data, params);
 }
 

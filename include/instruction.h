@@ -21,7 +21,6 @@
 #ifndef __INSTRUCTION_H__
 #define __INSTRUCTION_H__
 
-#include <array.h>
 #include <core.h>
 #include <data.h>
 
@@ -36,33 +35,15 @@ typedef enum _instruction_type {
   ITNop
 } instruction_type_t;
 
-typedef void script_ctx_t;
-
-typedef data_t * (*native_t)(script_ctx_t *, char *, array_t *);
-
-typedef struct _function_def {
-  char         *name;
-  native_t      fnc;
-  int           min_params;
-  int           max_params;
-} function_def_t;
-
 typedef struct _instruction {
   instruction_type_t  type;
   char               *label;
   char               *name;
   int                 num;
-  union {
-    native_t          function;
-    data_t           *value;
-  };
+  data_t             *value;
 } instruction_t;
 
-typedef char * (*instr_fnc_t)(instruction_t *, script_ctx_t *);
-
-extern function_def_t * function_def_create(char *, native_t, int, int);
-extern function_def_t * function_def_copy(function_def_t *);
-extern void             function_def_free(function_def_t *);
+struct _closure;
 
 extern instruction_t *  instruction_create_assign(char *);
 extern instruction_t *  instruction_create_pushvar(char *);
@@ -74,7 +55,7 @@ extern instruction_t *  instruction_create_pop(void);
 extern instruction_t *  instruction_create_nop(void);
 extern char *           instruction_assign_label(instruction_t *);
 extern instruction_t *  instruction_set_label(instruction_t *, char *);
-extern char *           instruction_execute(instruction_t *, script_ctx_t *);
+extern char *           instruction_execute(instruction_t *, struct _closure *);
 extern char *           instruction_tostring(instruction_t *);
 extern void             instruction_free(instruction_t *);
 

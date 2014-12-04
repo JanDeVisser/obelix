@@ -20,8 +20,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <array.h>
 #include <instruction.h>
 #include <script.h>
+
+typedef char *   (*instr_fnc_t)(instruction_t *, closure_t *);
+typedef data_t * (*native_t)(closure_t *, char *, array_t *);
 
 typedef struct _instruction_type_descr {
   instruction_type_t  type;
@@ -37,14 +41,15 @@ static void             _instruction_free_value(instruction_t *);
 static void             _instruction_free_name_value(instruction_t *);
 static char *           _instruction_tostring_name(instruction_t *);
 static char *           _instruction_tostring_value(instruction_t *);
-static char *           _instruction_execute_assign(instruction_t *, script_ctx_t *);
-static char *           _instruction_execute_pushvar(instruction_t *, script_ctx_t *);
-static char *           _instruction_execute_pushval(instruction_t *, script_ctx_t *);
-static char *           _instruction_execute_function(instruction_t *, script_ctx_t *);
-static char *           _instruction_execute_test(instruction_t *, script_ctx_t *);
-static char *           _instruction_execute_jump(instruction_t *, script_ctx_t *);
-static char *           _instruction_execute_pop(instruction_t *, script_ctx_t *);
-static char *           _instruction_execute_nop(instruction_t *, script_ctx_t *);
+static data_t *         _instruction_execute_script(closure_t *, char *, array_t *);
+static char *           _instruction_execute_assign(instruction_t *, closure_t *);
+static char *           _instruction_execute_pushvar(instruction_t *, closure_t *);
+static char *           _instruction_execute_pushval(instruction_t *, closure_t *);
+static char *           _instruction_execute_function(instruction_t *, closure_t *);
+static char *           _instruction_execute_test(instruction_t *, closure_t *);
+static char *           _instruction_execute_jump(instruction_t *, closure_t *);
+static char *           _instruction_execute_pop(instruction_t *, closure_t *);
+static char *           _instruction_execute_nop(instruction_t *, closure_t *);
 
 static instruction_type_descr_t instruction_descr_map[] = {
     { type: ITAssign,   function: _instruction_execute_assign,
@@ -74,32 +79,6 @@ static instruction_type_descr_t instruction_descr_map[] = {
 };
 
 /*
- * function_def_t public functions
- */
-
-function_def_t * function_def_create(char *name, native_t fnc, int min_params, int max_params) {
-  function_def_t *def;
-
-  def = NEW(function_def_t);
-  def -> name = strdup(name);
-  def -> fnc = fnc;
-  def -> min_params = min_params;
-  def -> max_params = max_params;
-  return def;
-}
-
-function_def_t * function_def_copy(function_def_t *src) {
-  return function_def_create(src -> name, src -> fnc, src -> min_params, src -> max_params);
-}
-
-void function_def_free(function_def_t *def) {
-  if (def) {
-    free(def -> name);
-    free(def);
-  }
-}
-
-/*
  * instruction_t static functions
  */
 
@@ -110,6 +89,9 @@ instruction_t * _instruction_create(instruction_type_t type) {
   ret -> type = type;
   return ret;
 }
+
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
 
 void _instruction_free_name(instruction_t *instruction) {
   free(instruction -> name);
@@ -124,6 +106,9 @@ void _instruction_free_name_value(instruction_t *instruction) {
   data_free(instruction -> value);
 }
 
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+
 char * _instruction_tostring_name(instruction_t *instruction) {
   return instruction -> name;
 }
@@ -132,74 +117,79 @@ char * _instruction_tostring_value(instruction_t *instruction) {
   return data_tostring(instruction -> value);
 }
 
-char * _instruction_execute_assign(instruction_t *instr, script_ctx_t *script) {
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+
+data_t * _instruction_execute_script(closure_t *closure, char *name, array_t *params) {
+  data_t    *value;
+
+  value = closure_execute(closure);
+  value = value ? value : data_create_pointer(NULL);
+  if (script_debug) {
+    debug(" -- return: '%s'", data_tostring(value));
+  }
+  return value;
+}
+
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+
+char * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
   char          *varname;
   data_t        *value;
 
-  value = script_pop(script);
+  value = closure_pop(closure);
   assert(value);
   assert(instr -> name);
   if (script_debug) {
     debug(" -- value '%s'", data_tostring(value));
   }
 
-  script_set(script, instr -> name, value);
+  closure_set(closure, instr -> name, value);
   data_free(value);
   return NULL;
 }
 
-char * _instruction_execute_pushvar(instruction_t *instr, script_ctx_t *script) {
+char * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) {
   data_t        *value;
 
   assert(instr -> name);
-  value = script_get(script, instr -> name);
+  value = closure_resolve(closure, instr -> name);
   assert(value);
   if (script_debug) {
     debug(" -- value '%s'", data_tostring(value));
   }
-  script_push(script, data_copy(value));
+  closure_push(closure, data_copy(value));
   return NULL;
 }
 
-char * _instruction_execute_pushval(instruction_t *instr, script_ctx_t *script) {
+char * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) {
   data_t        *value;
 
   assert(instr -> value);
-  script_push(script, data_copy(instr -> value));
+  closure_push(closure, data_copy(instr -> value));
   return NULL;
 }
 
-char * _instruction_execute_function(instruction_t *instr, script_ctx_t *script) {
-  data_t   *value;
-  array_t  *params;
-  int       ix;
-  str_t    *debugstr;
-  function_def_t *def;
-  script_t       *func_script;
-  data_t         *script_data;
+char * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
+  data_t         *value;
+  array_t        *params;
+  int             ix;
+  str_t          *debugstr;
+  native_t        fnc;
+  closure_t      *func_closure;
+  data_t         *func_data;
   char           *func_name;
 
   if (script_debug) {
     debug(" -- #parameters: %d", instr -> num);
   }
 
-  script_data = script_get(script, instr -> name);
-  if (script_data) {
-    assert(script_data -> type == Script);
-    func_name = "$$script$$";
-    func_script = (script_t *) script_data -> ptrval;
-  } else {
-    func_name = instr -> name;
-    func_script = (script_t *) script;
-  }
-  def = script_get_function(script, func_name);
-  assert(def);
-
   params = array_create(instr -> num);
   array_set_free(params, (free_t) data_free);
   array_set_tostring(params, (tostring_t) data_tostring);
   for (ix = 0; ix < instr -> num; ix++) {
-    value = script_pop(script);
+    value = closure_pop(closure);
     assert(value);
     array_set(params, instr -> num - ix - 1, value);
   }
@@ -208,21 +198,40 @@ char * _instruction_execute_function(instruction_t *instr, script_ctx_t *script)
     debug(" -- parameters: %s", str_chars(debugstr));
     str_free(debugstr);
   }
-  value = def -> fnc(func_script, instr -> name, params);
-  value = value ? value : data_create_int(0);
+
+  func_data = closure_resolve(closure, instr -> name);
+  // FIXME: Error handling
+  assert(func_data);
+
+  if (data_type(func_data) == Script) {
+    func_closure = script_create_closure(
+        (script_t *) func_data -> ptrval, params);
+    func_name = script_get_fullname((script_t *) func_data -> ptrval);
+    fnc = (native_t) _instruction_execute_script;
+  } else if (data_type(func_data) == Function) {
+    func_closure = closure;
+    func_name = instr -> name;
+    fnc = (native_t) (((function_t *) func_data -> ptrval) -> fnc);
+  } else {
+    error("_instruction_execute_function got a non-callable");
+    assert(0);
+  }
+
+  value = fnc(func_closure, instr -> name, params);
+  value = value ? value : data_null();
   if (script_debug) {
     debug(" -- return: '%s'", data_tostring(value));
   }
-  script_push(script, value);
+  closure_push(closure, value);
   array_free(params);
   return NULL;
 }
 
-char * _instruction_execute_test(instruction_t *instr, script_ctx_t *script) {
+char * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
   char          *ret;
   data_t        *value;
 
-  value = script_pop(script);
+  value = closure_pop(closure);
   assert(value);
   assert(instr -> name);
 
@@ -232,21 +241,21 @@ char * _instruction_execute_test(instruction_t *instr, script_ctx_t *script) {
   return ret;
 }
 
-char * _instruction_execute_jump(instruction_t *instr, script_ctx_t *script) {
+char * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
   assert(instr -> name);
   return instr -> name;
 }
 
-char * _instruction_execute_pop(instruction_t *instr, script_ctx_t *script) {
+char * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {
   char          *ret;
   data_t        *value;
 
-  value = script_pop(script);
+  value = closure_pop(closure);
   data_free(value);
   return NULL;
 }
 
-char * _instruction_execute_nop(instruction_t *instr, script_ctx_t *script) {
+char * _instruction_execute_nop(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
@@ -333,14 +342,14 @@ instruction_t * instruction_set_label(instruction_t *instruction, char *label) {
   return instruction;
 }
 
-char * instruction_execute(instruction_t *instr, script_ctx_t *script) {
+char * instruction_execute(instruction_t *instr, closure_t *closure) {
   instr_fnc_t fnc;
 
   if (script_debug) {
     debug("Executing %s", instruction_tostring(instr));
   }
   fnc = instruction_descr_map[instr -> type].function;
-  return fnc(instr, script);
+  return fnc(instr, closure);
 }
 
 char * instruction_tostring(instruction_t *instruction) {

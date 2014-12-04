@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <list.h>
 #include <str.h>
 #include "collections.h"
 
@@ -214,8 +215,8 @@ START_TEST(test_str_indexof)
 END_TEST
 
 START_TEST(test_str_ncopy)
-  str_t *str1, str2;
-  char *test = "1234567890abcdefghijklmnopqrstuvwxyz";
+  str_t *str1, *str2;
+  char *text = "1234567890abcdefghijklmnopqrstuvwxyz";
   
   str1 = str_copy_nchars(10, text);
   ck_assert_ptr_ne(str1, NULL);
@@ -230,14 +231,21 @@ START_TEST(test_str_ncopy)
 END_TEST
 
 START_TEST(test_str_split)
-  list_t *list;
-  str_t *str;
-  char *test = "this,is,a,test,string";
+  list_t         *list;
+  listiterator_t *iter;
+  str_t          *str;
+  str_t          *c;
+  char           *test = "this,is,a,test,string";
 
-  str = str_copy(test);
+  str = str_wrap(test);
   list = str_split(str, ",");
   ck_assert_ptr_ne(list, NULL);
   ck_assert_int_eq(list_size(list), 5);
+  for (iter = li_create(list); li_has_next(iter); ) {
+    c = (str_t *) li_next(iter);
+    debug("comp: %s", str_chars(c));
+    ck_assert(str_indexof_chars(c, ",") < 0);
+  }
   list_free(list);
   str_free(str);
 END_TEST
