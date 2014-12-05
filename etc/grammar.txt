@@ -125,11 +125,14 @@ var_or_call:                 := identifier
                               ;
                               
 call_or_empty:              := func_call
-                             |                   [ emit_pushvar              ]
+                             | dummy             [ emit_pushvar              ]
                              ;
+                             
+dummy                       := ;
 
 identifier                  := 'i'               [ init_identifier           ]
 			       identifier_tail
+			     ;
 
 identifier_tail             := .
                                identifier        [ push_identifier_comp      ]

@@ -153,7 +153,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
           token_tostring(parser -> last_token, NULL, 0),
           parser -> last_token -> line,
           parser -> last_token -> column);
-    debug("Parser Stack =====================================================");
+    debug("Production Stack =================================================");
     for(iter = li_create(parser -> prod_stack); li_has_next(iter); ) {
       entry = li_next(iter);
       debug("[ %-32.32s ]", _parser_stack_entry_tostring(entry, NULL, 0));
@@ -300,23 +300,20 @@ parser_t * parser_create(grammar_t *grammar) {
   ret -> grammar = grammar;
   ret -> prod_stack = list_create();
   ret -> last_token = NULL;
-  ret -> stack = list_create();
-  list_set_free(ret -> stack, (free_t) data_free);
-  list_set_tostring(ret -> stack, (tostring_t) data_tostring);
+  ret -> stack = datastack_create("__parser__");
   return ret;
 }
 
 void _parser_parse(parser_t *parser, reader_t *reader) {
   lexer_t        *lexer;
   lexer_option_t  ix;
-  str_t          *debugstr;
 
   lexer = lexer_create(reader);
   dict_reduce_values(parser -> grammar -> keywords, (reduce_t) _parser_set_keywords, lexer);
   for (ix = 0; ix < LexerOptionLAST; ix++) {
     lexer_set_option(lexer, ix, grammar_get_option(parser -> grammar, ix));
   }
-  list_clear(parser -> stack);
+  datastack_clear(parser -> stack);
   if (grammar_get_initializer(parser -> grammar)) {
     grammar_get_initializer(parser -> grammar) -> fnc(parser);
   }
@@ -333,11 +330,10 @@ void _parser_parse(parser_t *parser, reader_t *reader) {
   if (grammar_get_finalizer(parser -> grammar)) {
     grammar_get_finalizer(parser -> grammar) -> fnc(parser);
   }
-  if (list_notempty(parser -> stack)) {
-    debugstr = list_tostr(parser -> stack);
-    error("Parser stack not empty after parse!\n%s", str_chars(debugstr));
-    str_free(debugstr);
-    list_clear(parser -> stack);
+  if (datastack_notempty(parser -> stack)) {
+    error("Parser stack not empty after parse!");
+    datastack_list(parser -> stack);
+    datastack_clear(parser -> stack);
   }
   lexer_free(lexer);
 }
@@ -346,7 +342,7 @@ void parser_free(parser_t *parser) {
   if (parser) {
     token_free(parser -> last_token);
     list_free(parser -> prod_stack);
-    list_free(parser -> stack);
+    datastack_free(parser -> stack);
     free(parser);
   }
 }
