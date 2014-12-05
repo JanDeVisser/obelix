@@ -466,44 +466,37 @@ parser_t * script_parse_push_last_token(parser_t *parser) {
           (token) ? token_tostring(token, NULL, 0) : "--NULL--");
   }
   assert(token);
-  list_push(parser -> stack, data_create_string(token_token(token)));
+  datastack_push_string(parser -> stack, token_token(token));
   return parser;
 }
 
 parser_t * script_parse_init_param_count(parser_t *parser) {
-  script_t *script;
-
-  script = parser -> data;
-  list_push(parser -> stack, data_create_int(0));
+  datastack_push_int(parser -> stack, 0);
   return parser;
 }
 
 parser_t * script_parse_param_count(parser_t *parser) {
-  script_t *script;
   data_t   *data;
 
-  script = parser -> data;
-  data = (data_t *) list_pop(parser -> stack);
+  data = datastack_pop(parser -> stack);
   data -> intval++;
   if (script_debug) {
     debug("  -- count: %d", data -> intval);
   }
-  list_push(parser -> stack, data);
+  datastack_push(parser -> stack, data);
   return parser;
 }
 
 parser_t * script_parse_push_param(parser_t *parser) {
-  script_t *script;
   data_t   *data;
 
-  script = parser -> data;
-  data = (data_t *) list_pop(parser -> stack);
+  data = datastack_pop(parser -> stack);
   data -> intval++;
   if (script_debug) {
     debug("  -- count: %d", data -> intval);
   }
   script_parse_push_last_token(parser);
-  list_push(parser -> stack, data);
+  datastack_push(parser -> stack, data);
   return parser;
 }
 
@@ -511,20 +504,20 @@ parser_t * script_parse_init_identifier(parser_t *parser) {
   data_t   *data;
 
   script_parse_push_last_token(parser);
-  list_push(parser -> stack, data_create_int(1));
+  datastack_push_int(parser -> stack, 1);
   return parser;
 }
 
 parser_t * script_parse_push_identifier_comp(parser_t *parser) {
   data_t   *data;
 
-  data = (data_t *) list_pop(parser -> stack);
+  data = datastack_pop(parser -> stack);
   data -> intval++;
   if (script_debug) {
     debug("  -- count: %d", data -> intval);
   }
   script_parse_push_last_token(parser);
-  list_push(parser -> stack, data);
+  datastack_push(parser -> stack, data);
   return parser;
 }
 
@@ -537,15 +530,15 @@ char * _script_pop_and_build_varname(parser_t *parser) {
   list_t         *components;
   listiterator_t *iter;
 
-  count = (data_t *) list_pop(parser -> stack);
+  count = datastack_pop(parser -> stack);
   if (script_debug) {
-    debug("  -- components: %s", count -> intval);
+    debug("  -- components: %d", count -> intval);
   }
   assert(count -> intval);
   components = str_list_create();
   len = 0;
   for (ix = 0; ix < count -> intval; ix++) {
-    data = (data_t *) list_pop(parser -> stack);
+    data = datastack_pop(parser -> stack);
     list_push(components, strdup((char *) data -> ptrval));
     len += strlen((char *) data -> ptrval);
     data_free(data);
@@ -629,7 +622,7 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
   script_t *script;
 
   script = parser -> data;
-  data = (data_t *) list_pop(parser -> stack);
+  data = datastack_pop(parser -> stack);
   op = (char *) data -> ptrval;
   if (script_debug) {
     debug(" -- op: %s", op);
@@ -646,10 +639,13 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
   data_t         *param_count;
 
   script = parser -> data;
-  param_count = (data_t *) list_pop(parser -> stack);
-  func_name = (data_t *) list_pop(parser -> stack);
+  datastack_list(parser -> stack);
+  param_count = datastack_pop(parser -> stack);
+  func_name = datastack_pop(parser -> stack);
   if (script_debug) {
     debug(" -- param_count: %d", param_count -> intval);
+    debug(" -- func_name: %p", (char *) func_name);
+    debug(" -- func_name: %p", (char *) func_name -> ptrval);
     debug(" -- func_name: %s", (char *) func_name -> ptrval);
   }
   script_push_instruction(script,
@@ -668,7 +664,7 @@ parser_t * script_parse_emit_test(parser_t *parser) {
   script = parser -> data;
   strrand(label, 9);
   test = instruction_create_test(label);
-  list_push(parser -> stack, data_create_string(label));
+  datastack_push_string(parser -> stack, label);
   script_push_instruction(script, test);
   return parser;
 }
@@ -681,7 +677,7 @@ parser_t * script_parse_emit_jump(parser_t *parser) {
   script = parser -> data;
   strrand(label, 9);
   test = instruction_create_jump(label);
-  list_push(parser -> stack, data_create_string(test -> name));
+  datastack_push_string(parser -> stack, test -> name);
   script_push_instruction(script, test);
   return parser;
 }
@@ -708,7 +704,7 @@ parser_t * script_parse_push_label(parser_t *parser) {
   script = parser -> data;
   script -> label = new(10);
   strrand(script -> label, 9);
-  list_push(parser -> stack, data_create_string(script -> label));
+  datastack_push_string(parser -> stack, script -> label);
   return parser;
 }
 
@@ -719,7 +715,7 @@ parser_t * script_parse_emit_else(parser_t *parser) {
   char           newlabel[10];
 
   script = parser -> data;
-  label = (data_t *) list_pop(parser -> stack);
+  label = datastack_pop(parser -> stack);
   if (script_debug) {
     debug(" -- label: %s", (char *) label -> ptrval);
   }
@@ -727,7 +723,7 @@ parser_t * script_parse_emit_else(parser_t *parser) {
   data_free(label);
   strrand(newlabel, 9);
   jump = instruction_create_jump(newlabel);
-  list_push(parser -> stack, data_create_string(newlabel));
+  datastack_push_string(parser -> stack, newlabel);
   script_push_instruction(script, jump);
   return parser;
 }
@@ -737,7 +733,7 @@ parser_t * script_parse_emit_end(parser_t *parser) {
   data_t        *label;
 
   script = parser -> data;
-  label = (data_t *) list_pop(parser -> stack);
+  label = datastack_pop(parser -> stack);
   if (script_debug) {
     debug(" -- label: %s", (char *) label -> ptrval);
   }
@@ -758,7 +754,7 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    * First label: The one pushed at the end of the expression. This is the
    * label to be set at the end of the loop:
    */
-  label = (data_t *) list_pop(parser -> stack);
+  label = datastack_pop(parser -> stack);
   if (script_debug) {
     debug(" -- end block label: %s", (char *) label -> ptrval);
   }
@@ -769,7 +765,7 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    * Second label: The one pushed after the while statement. This is the one
    * we have to jump back to:
    */
-  label = (data_t *) list_pop(parser -> stack);
+  label = datastack_pop(parser -> stack);
   if (script_debug) {
     debug(" -- jump back label: %s", (char *) label -> ptrval);
   }
@@ -793,7 +789,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
 
   up = (script_t *) parser -> data;
 
-  data = (data_t *) list_pop(parser -> stack);
+  data = datastack_pop(parser -> stack);
   count = data -> intval;
   data_free(data);
   params = array_create(count);
@@ -804,7 +800,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
     array_set(params, ix, strdup(data -> ptrval));
     data_free(data);
   }
-  data = (data_t *) list_pop(parser -> stack);
+  data = datastack_pop(parser -> stack);
   func = script_create(up, (char *) data -> ptrval);
   func -> params = params;
   data_free(data);
@@ -906,9 +902,7 @@ closure_t * script_create_closure(script_t *script, array_t *params) {
   ret -> variables = strvoid_dict_create();
   dict_set_free_data(ret -> variables, (free_t) data_free);
   dict_set_tostring_data(ret -> variables, (tostring_t) data_tostring);
-  ret -> stack = list_create();
-  list_set_free(ret -> stack, (free_t) data_free);
-  list_set_tostring(ret -> stack, (tostring_t) data_tostring);
+  ret -> stack = datastack_create(script_get_fullname(script));
 
   if (params) {
     for (ix = 0; ix < array_size(params); ix++) {
@@ -932,12 +926,6 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   return (label)
       ? (listnode_t *) dict_get(closure -> script -> labels, label)
       : NULL;
-}
-
-void _closure_stack(closure_t *closure) {
-  debug("-- Closure Stack --------------------------------------------------");
-  list_visit(closure -> stack, (visit_t) _script_stack_visitor);
-  debug("------------------------------------------------------------------");
 }
 
 /**
@@ -1003,7 +991,7 @@ void closure_free(closure_t *closure) {
     closure -> refs--;
     if (closure <= 0) {
       script_free(closure -> script);
-      list_free(closure -> stack);
+      datastack_free(closure -> stack);
       dict_free(closure -> variables);
       free(closure);
     }
@@ -1011,20 +999,11 @@ void closure_free(closure_t *closure) {
 }
 
 data_t * closure_pop(closure_t *closure) {
-  data_t *ret;
-  ret = (data_t *) list_pop(closure -> stack);
-  assert(ret);
-  if (script_debug) {
-    debug("  Popped %s", data_tostring(ret));
-  }
-  return ret;
+  return datastack_pop(closure -> stack);
 }
 
 closure_t * closure_push(closure_t *closure, data_t *entry) {
-  list_push(closure -> stack, entry);
-  if (script_debug) {
-    _closure_stack(closure);
-  }
+  datastack_push(closure -> stack, entry);
   return closure;
 }
 
@@ -1067,9 +1046,9 @@ data_t * closure_resolve(closure_t *closure, char *name) {
 data_t * closure_execute(closure_t *closure) {
   data_t *ret;
 
-  list_clear(closure -> stack);
+  datastack_clear(closure -> stack);
   list_process(closure -> script -> instructions, (reduce_t) _closure_execute_instruction, closure);
-  ret = (list_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
+  ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
   if (script_debug) {
     debug("    Execution of %s done: %s", closure -> script -> name, data_tostring(ret));
   }

@@ -21,6 +21,7 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
 
+#include <datastack.h>
 #include <grammar.h>
 #include <list.h>
 
@@ -31,7 +32,7 @@ typedef struct _parser {
   void          *data;
   list_t        *prod_stack;
   token_t       *last_token;
-  list_t        *stack;
+  datastack_t   *stack;
 } parser_t;
 
 typedef parser_t * (*parser_fnc_t)(parser_t *);

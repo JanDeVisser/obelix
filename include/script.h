@@ -23,6 +23,7 @@
 
 #include <core.h>
 #include <data.h>
+#include <datastack.h>
 #include <dict.h>
 #include <instruction.h>
 #include <list.h>
@@ -45,10 +46,10 @@ typedef struct _script {
 } script_t;
 
 typedef struct _closure {
-  script_t *script;
-  dict_t   *variables;
-  list_t   *stack;
-  int       refs;
+  script_t    *script;
+  dict_t      *variables;
+  datastack_t *stack;
+  int          refs;
 } closure_t;
 
 typedef struct _script_loader {

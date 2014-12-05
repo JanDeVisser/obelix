@@ -30,6 +30,7 @@ libobelix_la_SOURCES = \
 		set.c \
 		tree.c \
 		data.c \
+		datastack.c \
 		expr.c \
 		file.c \
 		str.c \
