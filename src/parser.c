@@ -301,6 +301,7 @@ parser_t * parser_create(grammar_t *grammar) {
   ret -> prod_stack = list_create();
   ret -> last_token = NULL;
   ret -> stack = datastack_create("__parser__");
+  datastack_set_debug(ret -> stack, parser_debug);
   return ret;
 }
 

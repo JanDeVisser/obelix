@@ -17,6 +17,8 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include <datastack.h>
 
 static void _stack_list_visitor(data_t *);
@@ -26,7 +28,7 @@ static void _stack_list_visitor(data_t *);
  */
 
 void _stack_list_visitor(data_t *entry) {
-  debug("   . %s", data_tostring(entry));
+  info("   . %s", data_tostring(entry));
 }
 
 /*
@@ -38,12 +40,18 @@ datastack_t * datastack_create(char *name) {
 
   ret = NEW(datastack_t);
   ret -> name = strdup(name);
+  ret -> debug = 0;
   ret -> list = list_create();
   list_set_free(ret -> list, (free_t) data_free);
   list_set_tostring(ret -> list, (tostring_t) data_tostring);
   list_set_hash(ret -> list, (hash_t) data_hash);
   list_set_cmp(ret -> list, (cmp_t) data_cmp);
   return ret;
+}
+
+datastack_t * datastack_set_debug(datastack_t *stack, int debug) {
+  stack -> debug = debug;
+  return stack;
 }
 
 void datastack_free(datastack_t *stack) {
@@ -71,7 +79,13 @@ int datastack_depth(datastack_t *stack) {
 }
 
 data_t * datastack_pop(datastack_t *stack) {
-  return (data_t *) list_pop(stack -> list);
+  data_t *ret;
+
+  ret = (data_t *) list_pop(stack -> list);
+  if (stack -> debug) {
+    debug("  - %s", data_tostring(ret));
+  }
+  return ret;
 }
 
 data_t * datastack_peek(datastack_t *stack) {
@@ -80,6 +94,10 @@ data_t * datastack_peek(datastack_t *stack) {
 
 datastack_t * datastack_push(datastack_t *stack, data_t *data) {
   list_push(stack -> list, data);
+  if (stack -> debug) {
+    info("After push:");
+    datastack_list(stack);
+  }
   return stack;
 }
 
@@ -96,13 +114,13 @@ datastack_t * datastack_push_float(datastack_t *stack, double value) {
 }
 
 datastack_t * datastack_list(datastack_t *stack) {
-  debug("-- Stack '%s' ---------------------------------------------", stack -> name);
+  info("-- Stack '%s' ---------------------------------------------", stack -> name);
   list_visit(stack -> list, (visit_t) _stack_list_visitor);
-  debug("------------------------------------------------------------------");
-  return stack
+  info("------------------------------------------------------------------");
+  return stack;
 }
 
 datastack_t * datastack_clear(datastack_t *stack) {
   list_clear(stack -> list);
-  return stack
+  return stack;
 }
