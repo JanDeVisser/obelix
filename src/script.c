@@ -449,7 +449,7 @@ void script_free(script_t *script) {
 /* ----------------------------------------------------------------------- */
 
 parser_t * script_parse_init(parser_t *parser) {
-  if (script_debug) {
+  if (parser_debug) {
     debug("script_parse_init");
   }
   return parser;
@@ -457,12 +457,10 @@ parser_t * script_parse_init(parser_t *parser) {
 
 parser_t * script_parse_push_last_token(parser_t *parser) {
   token_t  *token;
-  script_t *script;
 
-  script = parser -> data;
   token = parser -> last_token;
-  if (script_debug) {
-    debug("last_token: %s",
+  if (parser_debug) {
+    debug("      last_token: %s",
           (token) ? token_tostring(token, NULL, 0) : "--NULL--");
   }
   assert(token);
@@ -480,7 +478,7 @@ parser_t * script_parse_param_count(parser_t *parser) {
 
   data = datastack_pop(parser -> stack);
   data -> intval++;
-  if (script_debug) {
+  if (parser_debug) {
     debug("  -- count: %d", data -> intval);
   }
   datastack_push(parser -> stack, data);
@@ -492,7 +490,7 @@ parser_t * script_parse_push_param(parser_t *parser) {
 
   data = datastack_pop(parser -> stack);
   data -> intval++;
-  if (script_debug) {
+  if (parser_debug) {
     debug("  -- count: %d", data -> intval);
   }
   script_parse_push_last_token(parser);
@@ -509,15 +507,15 @@ parser_t * script_parse_init_identifier(parser_t *parser) {
 }
 
 parser_t * script_parse_push_identifier_comp(parser_t *parser) {
-  data_t   *data;
+  data_t   *count;
 
-  data = datastack_pop(parser -> stack);
-  data -> intval++;
-  if (script_debug) {
-    debug("  -- count: %d", data -> intval);
+  count = datastack_pop(parser -> stack);
+  count -> intval++;
+  if (parser_debug) {
+    debug("  -- count: %d", count -> intval);
   }
   script_parse_push_last_token(parser);
-  datastack_push(parser -> stack, data);
+  datastack_push(parser -> stack, count);
   return parser;
 }
 
@@ -531,7 +529,7 @@ char * _script_pop_and_build_varname(parser_t *parser) {
   listiterator_t *iter;
 
   count = datastack_pop(parser -> stack);
-  if (script_debug) {
+  if (parser_debug) {
     debug("  -- components: %d", count -> intval);
   }
   assert(count -> intval);
@@ -554,7 +552,7 @@ char * _script_pop_and_build_varname(parser_t *parser) {
   }
   li_free(iter);
   list_free(components);
-  if (script_debug) {
+  if (parser_debug) {
     debug("  -- varname: %s", varname);
   }
   return varname;
@@ -609,7 +607,7 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
   }
   data = data_parse(type, str);
   assert(data);
-  if (script_debug) {
+  if (parser_debug) {
     debug(" -- val: %s", data_tostring(data));
   }
   script_push_instruction(script, instruction_create_pushval(data));
@@ -624,7 +622,7 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
   script = parser -> data;
   data = datastack_pop(parser -> stack);
   op = (char *) data -> ptrval;
-  if (script_debug) {
+  if (parser_debug) {
     debug(" -- op: %s", op);
   }
   script_push_instruction(script,
@@ -634,25 +632,22 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
 }
 
 parser_t * script_parse_emit_func_call(parser_t *parser) {
-  script_t       *script;
-  data_t         *func_name;
-  data_t         *param_count;
+  script_t *script;
+  char     *func_name;
+  data_t   *param_count;
 
   script = parser -> data;
   datastack_list(parser -> stack);
   param_count = datastack_pop(parser -> stack);
-  func_name = datastack_pop(parser -> stack);
-  if (script_debug) {
+  func_name = _script_pop_and_build_varname(parser);
+  if (parser_debug) {
     debug(" -- param_count: %d", param_count -> intval);
-    debug(" -- func_name: %p", (char *) func_name);
-    debug(" -- func_name: %p", (char *) func_name -> ptrval);
-    debug(" -- func_name: %s", (char *) func_name -> ptrval);
+    debug(" -- func_name: %s", func_name);
   }
   script_push_instruction(script,
-    instruction_create_function((char *) func_name -> ptrval,
-                                param_count -> intval));
+    instruction_create_function(func_name, param_count -> intval));
   data_free(param_count);
-  data_free(func_name);
+  free(func_name);
   return parser;
 }
 
@@ -716,7 +711,7 @@ parser_t * script_parse_emit_else(parser_t *parser) {
 
   script = parser -> data;
   label = datastack_pop(parser -> stack);
-  if (script_debug) {
+  if (parser_debug) {
     debug(" -- label: %s", (char *) label -> ptrval);
   }
   script -> label = strdup(label -> ptrval);
@@ -734,7 +729,7 @@ parser_t * script_parse_emit_end(parser_t *parser) {
 
   script = parser -> data;
   label = datastack_pop(parser -> stack);
-  if (script_debug) {
+  if (parser_debug) {
     debug(" -- label: %s", (char *) label -> ptrval);
   }
   script -> label = strdup(label -> ptrval);
@@ -755,7 +750,7 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    * label to be set at the end of the loop:
    */
   label = datastack_pop(parser -> stack);
-  if (script_debug) {
+  if (parser_debug) {
     debug(" -- end block label: %s", (char *) label -> ptrval);
   }
   block_label = strdup(label -> ptrval);
@@ -766,7 +761,7 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    * we have to jump back to:
    */
   label = datastack_pop(parser -> stack);
-  if (script_debug) {
+  if (parser_debug) {
     debug(" -- jump back label: %s", (char *) label -> ptrval);
   }
   jump = instruction_create_jump((char *) label -> ptrval);
@@ -796,7 +791,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
   array_set_free(params, (free_t) free);
   array_set_tostring(params, (tostring_t) chars);
   for (ix = count - 1; ix >= 0; ix--) {
-    data = (data_t *) list_pop(parser -> stack);
+    data = datastack_pop(parser -> stack);
     array_set(params, ix, strdup(data -> ptrval));
     data_free(data);
   }
@@ -804,7 +799,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
   func = script_create(up, (char *) data -> ptrval);
   func -> params = params;
   data_free(data);
-  if (script_debug) {
+  if (parser_debug) {
     debug(" -- definining function %s, #params %d", func -> name, count);
   }
   parser -> data = func;
@@ -846,16 +841,6 @@ script_t * script_push_instruction(script_t *script, instruction_t *instruction)
   return script;
 }
 
-void _script_stack_visitor(data_t *entry) {
-  debug("   . %s", data_tostring(entry));
-}
-
-void script_stack(script_t *script) {
-  debug("-- Script Stack --------------------------------------------------");
-  list_visit(script -> stack, (visit_t) _script_stack_visitor);
-  debug("------------------------------------------------------------------");
-}
-
 data_t * script_execute(script_t *script, array_t *params) {
   data_t    *ret;
   closure_t *closure;
@@ -892,7 +877,7 @@ closure_t * script_create_closure(script_t *script, array_t *params) {
   closure_t *ret;
   int        ix;
 
-  if (params || array_size(script -> params)) {
+  if (params || (script -> params &&array_size(script -> params))) {
     assert(params && (array_size(script -> params) == array_size(params)));
   }
   ret = NEW(closure_t);
@@ -903,6 +888,7 @@ closure_t * script_create_closure(script_t *script, array_t *params) {
   dict_set_free_data(ret -> variables, (free_t) data_free);
   dict_set_tostring_data(ret -> variables, (tostring_t) data_tostring);
   ret -> stack = datastack_create(script_get_fullname(script));
+  datastack_set_debug(ret -> stack, script_debug);
 
   if (params) {
     for (ix = 0; ix < array_size(params); ix++) {
@@ -923,6 +909,9 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   listnode_t *node;
 
   label = instruction_execute(instr, closure);
+  if (label && script_debug) {
+    debug("  Jumping to '%s'", label);
+  }
   return (label)
       ? (listnode_t *) dict_get(closure -> script -> labels, label)
       : NULL;
@@ -941,6 +930,9 @@ script_t * _closure_get_script(closure_t *closure, char *name) {
   char     *c;
   char     *ptr;
 
+  if (script_debug) {
+    debug("  Getting script for %s", name);
+  }
   for (script = closure -> script; script -> up; script = script -> up);
   if (!strchr(name, '.')) {
     /*
@@ -949,11 +941,18 @@ script_t * _closure_get_script(closure_t *closure, char *name) {
      *
      * print = 42
      *
-     * Results in the print function being clobbered.
+     * Results in the print function being clobbered. This may or may not be
+     * what the hacker intended.
      */
     if (closure_get(closure, name) || !script_get(script, name)) {
+      if (script_debug) {
+	debug("   is closure-local");
+      }
       return NULL; /* NULL = closure-local */
     } else {
+      if (script_debug) {
+	debug("   is root-level");
+      }
       return script;
     }
   }
@@ -964,8 +963,14 @@ script_t * _closure_get_script(closure_t *closure, char *name) {
   ptr = strchr(c, '.');
   while (ptr) {
     *ptr = 0;
+    if (script_debug) {
+      debug("  Looking for component '%s' in script '%s'", c, script_get_fullname(script));
+    }
     s = script_get(script, c);
     c = ptr + 1;
+    if (script_debug) {
+      debug("   found '%s'", data_tostring(s));
+    }	
 
     /*
      * This is not the last path element - therefore this must exist and
