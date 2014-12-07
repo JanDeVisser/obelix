@@ -22,6 +22,7 @@
 #include <unistd.h>
 
 #include <data.h>
+#include <file.h>
 #include <script.h>
 
 int main(int argc, char **argv) {
@@ -68,6 +69,10 @@ int main(int argc, char **argv) {
     if (strstr(debug, "script")) {
       script_debug = 1;
       debug("Turned on script debugging");
+    }
+    if (strstr(debug, "file")) {
+      file_debug = 1;
+      debug("Turned on file debugging");
     }
   }
   if (argc == optind) {

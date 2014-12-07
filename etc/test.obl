@@ -5,6 +5,8 @@ func foo(quux)
   return 12
 end
 
+import etc.imptest
+
 s = "jan "
 s = s + " de visser"
 print(s)
@@ -22,7 +24,13 @@ while test < 2
     jan = 2
   end
   test = test + 1
+  print(test)
 end
 
-etc.test.foo(42)
-
+foo(42)
+print(1)
+etc.imptest.baz("knor")
+etc.test.bar = "x"
+print(2)
+etc.test.foo(43)
+print(3)

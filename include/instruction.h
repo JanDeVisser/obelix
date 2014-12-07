@@ -32,6 +32,7 @@ typedef enum _instruction_type {
   ITTest,
   ITPop,
   ITJump,
+  ITImport,
   ITNop
 } instruction_type_t;
 
@@ -39,18 +40,19 @@ typedef struct _instruction {
   instruction_type_t  type;
   char               *label;
   char               *name;
-  int                 num;
   data_t             *value;
 } instruction_t;
 
 struct _closure;
 
+extern instruction_t *  instruction_create(int, char *, data_t *);
 extern instruction_t *  instruction_create_assign(char *);
 extern instruction_t *  instruction_create_pushvar(char *);
 extern instruction_t *  instruction_create_pushval(data_t *);
 extern instruction_t *  instruction_create_function(char *, int);
 extern instruction_t *  instruction_create_test(char *);
 extern instruction_t *  instruction_create_jump(char *);
+extern instruction_t *  instruction_create_import(char *);
 extern instruction_t *  instruction_create_pop(void);
 extern instruction_t *  instruction_create_nop(void);
 extern char *           instruction_assign_label(instruction_t *);

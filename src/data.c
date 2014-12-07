@@ -74,6 +74,7 @@ int data_numtypes = Function + 1;
 static typedescr_t builtins[] = {
   {
     type:                  Pointer,
+    typecode:              "P",
     new:      (new_t)      _data_new_pointer,
     copy:                  NULL,
     cmp:      (cmp_t)      _data_cmp_pointer,
@@ -84,6 +85,7 @@ static typedescr_t builtins[] = {
   },
   {
     type:                  String,
+    typecode:              "C",
     new:      (new_t)      _data_new_string,
     copy:     (copydata_t) _data_copy_string,
     cmp:      (cmp_t)      _data_cmp_string,
@@ -94,6 +96,7 @@ static typedescr_t builtins[] = {
   },
   {
     type:                  Int,
+    typecode:              "I",
     new:      (new_t)      _data_new_int,
     copy:                  NULL,
     cmp:      (cmp_t)      _data_cmp_int,
@@ -104,6 +107,7 @@ static typedescr_t builtins[] = {
   },
   {
     type:                  Float,
+    typecode:              "F",
     new:      (new_t)      _data_new_float,
     copy:                  NULL,
     cmp:      (cmp_t)      _data_cmp_float,
@@ -114,6 +118,7 @@ static typedescr_t builtins[] = {
   },
   {
     type:                  Bool,
+    typecode:              "B",
     new:      (new_t)      _data_new_int,
     copy:                  NULL,
     cmp:      (cmp_t)      _data_cmp_int,
@@ -124,6 +129,7 @@ static typedescr_t builtins[] = {
   },
   {
     type:                  List,
+    typecode:              "L",
     new:      (new_t)      _data_new_list,
     copy:     (copydata_t) _data_copy_list,
     cmp:      (cmp_t)      _data_cmp_list,
@@ -134,6 +140,7 @@ static typedescr_t builtins[] = {
   },
   {
     type:                  Function,
+    typecode:              "U",
     new:      (new_t)      _data_new_function,
     copy:     (copydata_t) _data_copy_function,
     cmp:      (cmp_t)      _data_cmp_function,
@@ -181,7 +188,7 @@ char * _data_tostring_pointer(data_t *data) {
   static char buf[32];
 
   if (data -> ptrval) {
-    snprintf(buf, 32, "<<pointer %p>>", (void *) data -> ptrval);
+    snprintf(buf, 32, "%p", (void *) data -> ptrval);
     return buf;
   } else {
     return "Null";
@@ -574,7 +581,7 @@ int data_type(data_t *data) {
 }
 
 int data_is_numeric(data_t *data) {
-  return (data -> type == Int) && (data -> type == Float);
+  return (data -> type == Int) || (data -> type == Float);
 }
 
 data_t * data_copy(data_t *src) {
@@ -601,10 +608,21 @@ char * data_tostring(data_t *data) {
     return "<<null>>";
   }
   if (descriptors[data -> type].tostring) {
-    return descriptors[data -> type].tostring(data);
+    return  descriptors[data -> type].tostring(data);
   } else {
     return "<< ?? >>";
   }
+}
+
+char * data_debugstr(data_t *data) {
+  static char buf[10][128];
+  static int  ix = 0;
+  int         i;
+
+  i = ix++;
+  snprintf(buf[i], 128, "%c %s", descriptors[data -> type].typecode[0], data_tostring(data));
+  ix %= 10;
+  return buf[i];
 }
 
 int data_cmp(data_t *d1, data_t *d2) {

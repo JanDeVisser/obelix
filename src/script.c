@@ -65,7 +65,6 @@ static void             _script_list_visitor(instruction_t *);
 static closure_t *      _script_variable_copier(entry_t *, closure_t *);
 
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
-static void             _closure_stack(closure_t *);
 static script_t *       _closure_get_script(closure_t *, char *);
 
 
@@ -98,7 +97,7 @@ static mathop_def_t mathops[] = {
   { token: ">=",  fnc: _geq },
   { token: "<",   fnc: _lt },
   { token: "<=",  fnc: _leq },
-  { token: "==",  fnc: _lt },
+  { token: "==",  fnc: _eq },
   { token: "!=",  fnc: _leq },
   { token: NULL,  fnc: NULL }
 };
@@ -113,6 +112,7 @@ int Script = 0;
 
 static typedescr_t typedescr_script = {
   type:                  -1,
+  typecode:              "S",
   new:      (new_t)      _data_new_script,
   copy:     (copydata_t) _data_copy_script,
   cmp:      (cmp_t)      _data_cmp_script,
@@ -152,7 +152,7 @@ char * _data_tostring_script(data_t *d) {
   static char buf[32];
 
   _data_script_register();
-  snprintf(buf, 32, "<<script %s>>", ((script_t *) d) -> name);
+  snprintf(buf, 32, "<<script %s>>", ((script_t *) d -> ptrval) -> name);
   return buf;
 }
 
@@ -181,9 +181,13 @@ data_t * _plus(data_t *d1, data_t *d2) {
   if (data_is_numeric(d1) && data_is_numeric(d2)) {
     type = ((data_type(d1) == data_type(d2)) && (data_type(d1) == Int))
       ? Int : Float;
-    ret = data_create(type, 
-		((data_type(d1) == Int) ? d1 -> intval : d1 -> dblval) + 
-		((data_type(d2) == Int) ? d2 -> intval : d2 -> dblval));
+    if (type == Int) {
+      ret = data_create_int(d1 -> intval + d2 -> intval);
+    } else {
+      ret = data_create_float(
+        (double) ((data_type(d1) == Int) ? d1 -> intval : d1 -> dblval) +
+        (double) ((data_type(d2) == Int) ? d2 -> intval : d2 -> dblval));
+    }
   } else {
     s = str_copy_chars(data_tostring(d1));
     str_append_chars(s, data_tostring(d2));
@@ -317,7 +321,11 @@ data_t * _script_function_mathop(closure_t *script, char *op, array_t *params) {
     }
   }
   assert(fnc);
-  return fnc(d1, d2);
+  ret = fnc(d1, d2);
+  if (script_debug) {
+    debug("   %s %s %s = %s", data_debugstr(d1), op, data_debugstr(d2), data_debugstr(ret));
+  }
+  return ret;
 }
 
 data_t * _script_function_print(closure_t *script, char *name, array_t *params) {
@@ -403,7 +411,7 @@ char * script_get_fullname(script_t *script) {
   int   sz;
 
   if (!script -> up) {
-    return NULL;
+    return "";
   }
   
   if (!script -> fullname) {
@@ -420,7 +428,7 @@ char * script_get_fullname(script_t *script) {
 }
 
 char * script_get_modulename(script_t *script) {
-  return (script -> up) ? script_get_fullname(script -> up) : NULL;
+  return (script -> up) ? script_get_fullname(script -> up) : "";
 }
 
 char * script_get_classname(script_t *script) {
@@ -432,7 +440,6 @@ void script_free(script_t *script) {
     script -> refs--;
     if (script -> refs <= 0) {
       dict_free(script -> variables);
-      list_free(script -> stack);
       list_free(script -> instructions);
       dict_free(script -> labels);
       array_free(script -> params);
@@ -468,7 +475,7 @@ parser_t * script_parse_push_last_token(parser_t *parser) {
   return parser;
 }
 
-parser_t * script_parse_init_param_count(parser_t *parser) {
+parser_t * script_parse_init_count(parser_t *parser) {
   datastack_push_int(parser -> stack, 0);
   return parser;
 }
@@ -495,14 +502,6 @@ parser_t * script_parse_push_param(parser_t *parser) {
   }
   script_parse_push_last_token(parser);
   datastack_push(parser -> stack, data);
-  return parser;
-}
-
-parser_t * script_parse_init_identifier(parser_t *parser) {
-  data_t   *data;
-
-  script_parse_push_last_token(parser);
-  datastack_push_int(parser -> stack, 1);
   return parser;
 }
 
@@ -637,7 +636,6 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
   data_t   *param_count;
 
   script = parser -> data;
-  datastack_list(parser -> stack);
   param_count = datastack_pop(parser -> stack);
   func_name = _script_pop_and_build_varname(parser);
   if (parser_debug) {
@@ -648,6 +646,21 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
     instruction_create_function(func_name, param_count -> intval));
   data_free(param_count);
   free(func_name);
+  return parser;
+}
+
+parser_t * script_parse_import(parser_t *parser) {
+  script_t *script;
+  char     *module;
+
+  script = parser -> data;
+  module = _script_pop_and_build_varname(parser);
+  if (parser_debug) {
+    debug(" -- module: %s", module);
+  }
+  script_push_instruction(script,
+    instruction_create_import(module));
+  free(module);
   return parser;
 }
 
@@ -944,16 +957,26 @@ script_t * _closure_get_script(closure_t *closure, char *name) {
      * Results in the print function being clobbered. This may or may not be
      * what the hacker intended.
      */
-    if (closure_get(closure, name) || !script_get(script, name)) {
+    if (closure_get(closure, name)) {
       if (script_debug) {
 	debug("   is closure-local");
       }
       return NULL; /* NULL = closure-local */
-    } else {
+    } else if (script_get(closure -> script, name)) {
+      if (script_debug) {
+        debug("   is script-local");
+      }
+      return closure -> script;
+    } else if (script_get(script, name)) {
       if (script_debug) {
 	debug("   is root-level");
       }
       return script;
+    } else {
+      if (script_debug) {
+        debug("   doesn't (yet) exist - making it closure-local");
+      }
+      return NULL;
     }
   }
 
@@ -1013,15 +1036,22 @@ closure_t * closure_push(closure_t *closure, data_t *entry) {
 }
 
 closure_t * closure_set(closure_t *closure, char *varname, data_t *value) {
-  script_t *s = _closure_get_script(closure, varname);
+  script_t *s;
   char     *ptr;
 
+  s = _closure_get_script(closure, varname);
   if (!s) {
+    if (script_debug) {
+      debug("  Setting local '%s' = %s", varname, data_debugstr(value));
+    }
     dict_put(closure -> variables, strdup(varname), data_copy(value));
   } else {
     ptr = strrchr(varname, '.');
     ptr = (ptr) ? ptr + 1 : varname;
-    script_set(s, varname, value);
+    if (script_debug) {
+      debug("  Setting '%s' -> '%s' = %s", script_get_fullname(s), ptr, data_debugstr(value));
+    }
+    script_set(s, ptr, value);
   }
   return closure;
 }

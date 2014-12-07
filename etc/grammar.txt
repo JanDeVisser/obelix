@@ -19,7 +19,8 @@ statement                   := conditional
                              | for_loop
                              | func_def
                              | return_stmt
-                             | identifier
+                             | import_stmt
+                             | identifier        [ init: init_count          ]
                                assignment_or_call
                              ;
 
@@ -54,12 +55,12 @@ for_loop                    := "for"
                              ;
                              
 func_def                    := "func"
-                               'i'            [ push_last_token  ]
-                               (              [ init_param_count ]
+                               'i'               [ push_last_token           ]
+                               (                 [ init_count                ]
                                parlist
-                               )              [ start_function   ]
+                               )                 [ start_function            ]
                                statements
-                               end_stmt       [ end_function     ]
+                               end_stmt          [ end_function              ]
                              ;
                              
 parlist                     := param
@@ -67,7 +68,7 @@ parlist                     := param
                              |
                              ;
 
-param                       := 'i'            [ push_param     ] 
+param                       := 'i'               [ push_param                ] 
                              ;
 
 parlist_tail                := ,
@@ -79,12 +80,16 @@ return_stmt                 := "return"
                                expr 
                              ;
 
+import_stmt                 := "import"          [ init_count                ]
+                               identifier        [ import                    ]
+                             ;
+
 assignment_or_call          := assignment
-                             | func_call       [ emit_pop       ]
+                             | func_call         [ emit_pop                  ]
                              ;
 
 assignment                  := =
-                               expr            [ emit_assign     ]
+                               expr              [ emit_assign               ]
                              ;
 
 expr                        := predicate
@@ -120,7 +125,7 @@ factor                      := ( expr )
                              | constant          [ emit_pushval              ]  
                              ;
 
-var_or_call:                 := identifier       
+var_or_call:                 := identifier       [ init: init_count          ]
                                 call_or_empty
                               ;
                               
@@ -130,12 +135,12 @@ call_or_empty:              := func_call
                              
 dummy                       := ;
 
-identifier                  := 'i'               [ init_identifier           ]
+identifier                  := 'i'               [ push_identifier_comp      ]
 			       identifier_tail
 			     ;
 
 identifier_tail             := .
-                               identifier        [ push_identifier_comp      ]
+                               identifier
                              |
                              ;
                              
@@ -152,9 +157,9 @@ add_op                      := + | - ;
 
 mult_op                     := * | / | ^ | % ;
 
-func_call                   := (           [ init_param_count ]
+func_call                   := (                 [ init_count                ]
                                arglist
-                               )           [ emit_func_call  ]
+                               )                 [ emit_func_call            ]
                              ;
 
 arglist                     := argument

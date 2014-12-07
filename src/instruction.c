@@ -35,7 +35,6 @@ typedef struct _instruction_type_descr {
   tostring_t          tostring;
 } instruction_type_descr_t;
 
-static instruction_t *  _instruction_create(instruction_type_t);
 static void             _instruction_free_name(instruction_t *);
 static void             _instruction_free_value(instruction_t *);
 static void             _instruction_free_name_value(instruction_t *);
@@ -48,6 +47,7 @@ static char *           _instruction_execute_pushval(instruction_t *, closure_t 
 static char *           _instruction_execute_function(instruction_t *, closure_t *);
 static char *           _instruction_execute_test(instruction_t *, closure_t *);
 static char *           _instruction_execute_jump(instruction_t *, closure_t *);
+static char *           _instruction_execute_import(instruction_t *, closure_t *);
 static char *           _instruction_execute_pop(instruction_t *, closure_t *);
 static char *           _instruction_execute_nop(instruction_t *, closure_t *);
 
@@ -73,6 +73,9 @@ static instruction_type_descr_t instruction_descr_map[] = {
     { type: ITJump, function: _instruction_execute_jump,
       name: "Jump", free: (free_t) _instruction_free_name,
       tostring: (tostring_t) _instruction_tostring_name },
+    { type: ITImport, function: _instruction_execute_import,
+      name: "Import", free: (free_t) _instruction_free_name,
+      tostring: (tostring_t) _instruction_tostring_name },
     { type: ITNop, function: _instruction_execute_nop,
       name: "Nop", free: (free_t) _instruction_free_name,
       tostring: (tostring_t) _instruction_tostring_name },
@@ -81,14 +84,6 @@ static instruction_type_descr_t instruction_descr_map[] = {
 /*
  * instruction_t static functions
  */
-
-instruction_t * _instruction_create(instruction_type_t type) {
-  instruction_t *ret;
-
-  ret = NEW(instruction_t);
-  ret -> type = type;
-  return ret;
-}
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -180,18 +175,20 @@ char * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
   closure_t      *func_closure;
   data_t         *func_data;
   char           *func_name;
+  int             num_params;
 
+  num_params = instr -> value -> intval;
   if (script_debug) {
-    debug(" -- #parameters: %d", instr -> num);
+    debug(" -- #parameters: %d", num_params);
   }
 
-  params = array_create(instr -> num);
+  params = array_create(num_params);
   array_set_free(params, (free_t) data_free);
   array_set_tostring(params, (tostring_t) data_tostring);
-  for (ix = 0; ix < instr -> num; ix++) {
+  for (ix = 0; ix < num_params; ix++) {
     value = closure_pop(closure);
     assert(value);
-    array_set(params, instr -> num - ix - 1, value);
+    array_set(params, num_params - ix - 1, value);
   }
   if (script_debug) {
     debugstr = array_tostr(params);
@@ -246,6 +243,18 @@ char * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
   return instr -> name;
 }
 
+char * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
+  scriptloader_t *loader;
+  script_t       *module;
+
+  loader = scriptloader_get();
+  module = scriptloader_load(loader, instr -> name);
+  if (module) {
+    script_execute(module, NULL);
+  }
+  return NULL;
+}
+
 char * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {
   char          *ret;
   data_t        *value;
@@ -263,70 +272,55 @@ char * _instruction_execute_nop(instruction_t *instr, closure_t *closure) {
  * instruction_t public functions
  */
 
-instruction_t * instruction_create_assign(char *varname) {
+instruction_t * instruction_create(int type, char *name, data_t *value) {
   instruction_t *ret;
 
-  ret = _instruction_create(ITAssign);
-  ret -> name = strdup(varname);
+  ret = NEW(instruction_t);
+  ret -> type = type;
+  if (name) {
+    ret -> name = strdup(name);
+  }
+  if (value) {
+    ret -> value = data_copy(value);
+  }
   return ret;
+
+}
+
+instruction_t * instruction_create_assign(char *varname) {
+  return instruction_create(ITAssign, varname, NULL);
 }
 
 instruction_t * instruction_create_pushvar(char *varname) {
-  instruction_t *ret;
-
-  ret = _instruction_create(ITPushVar);
-  ret -> name = strdup(varname);
-  return ret;
+  return instruction_create(ITPushVar, varname, NULL);
 }
 
 instruction_t * instruction_create_pushval(data_t *value) {
-  instruction_t *ret;
-
-  ret = _instruction_create(ITPushVal);
-  ret -> value = value;
-  return ret;
+  return instruction_create(ITPushVal, NULL, value);
 }
 
 instruction_t * instruction_create_function(char *name, int num_params) {
-  instruction_t *ret;
-
-  ret = _instruction_create(ITFunction);
-  ret -> name = strdup(name);
-  ret -> num = num_params;
-  return ret;
+  return instruction_create(ITFunction, name, data_create_int(num_params));
 }
 
 instruction_t * instruction_create_test(char *label) {
-  instruction_t *ret;
-
-  ret = _instruction_create(ITTest);
-  ret -> name = strdup(label);
-  return ret;
+  return instruction_create(ITTest, label, NULL);
 }
 
 instruction_t * instruction_create_jump(char *label) {
-  instruction_t *ret;
-
-  ret = _instruction_create(ITJump);
-  ret -> name = strdup(label);
-  return ret;
+  return instruction_create(ITJump, label, NULL);
 }
 
+instruction_t * instruction_create_import(char *module) {
+  return instruction_create(ITImport, module, NULL);
+}
 
 instruction_t * instruction_create_pop(void) {
-  instruction_t *ret;
-
-  ret = _instruction_create(ITPop);
-  ret -> name = strdup("Discard top-of-stack");
-  return ret;
+  return instruction_create(ITPop, "Discard top-of-stack", NULL);
 }
 
 instruction_t * instruction_create_nop(void) {
-  instruction_t *ret;
-
-  ret = _instruction_create(ITNop);
-  ret -> name = strdup("Nothing");
-  return ret;
+  return instruction_create(ITNop, "Nothing", NULL);
 }
 
 char * instruction_assign_label(instruction_t *instruction) {
