@@ -37,7 +37,6 @@ typedef struct _script {
   char           *name;
   char           *fullname;
   dict_t         *variables;
-  list_t         *stack;
   array_t        *params;
   list_t         *instructions;
   dict_t         *labels;
@@ -73,7 +72,6 @@ extern void             script_list(script_t *script);
 /* Parsing functions */
 extern parser_t *       script_parse_init(parser_t *);
 extern parser_t *       script_parse_push_last_token(parser_t *);
-extern parser_t *       script_parse_init_param_count(parser_t *);
 extern parser_t *       script_parse_param_count(parser_t *);
 extern parser_t *       script_parse_push_param(parser_t *);
 extern parser_t *       script_parse_emit_assign(parser_t *);
@@ -81,6 +79,7 @@ extern parser_t *       script_parse_emit_pushvar(parser_t *);
 extern parser_t *       script_parse_emit_pushval(parser_t *);
 extern parser_t *       script_parse_emit_mathop(parser_t *);
 extern parser_t *       script_parse_emit_func_call(parser_t *);
+extern parser_t *       script_parse_emit_import(parser_t *);
 extern parser_t *       script_parse_emit_jump(parser_t *);
 extern parser_t *       script_parse_emit_pop(parser_t *);
 extern parser_t *       script_parse_emit_nop(parser_t *);

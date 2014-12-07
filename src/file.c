@@ -27,16 +27,18 @@
 
 #include <file.h>
 
+int file_debug = 0;
+
 /*
  * fsentry_t -
  */
 
-fsentry_t * fsentry_create(char *name) {
+fsentry_t * fsentry_create (char *name) {
   fsentry_t *ret;
 
   ret = NEW(fsentry_t);
   ret -> name = strdup(name);
-  ret -> exists = (stat(ret -> name, &ret -> statbuf)) ? errno : 0;
+  ret -> exists = (stat(ret->name, &ret->statbuf)) ? errno : 0;
   return ret;
 }
 
@@ -44,17 +46,17 @@ fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
   char      *n;
   fsentry_t *ret;
 
-  if (!fsentry_isdir(dir)) {
+  if (!fsentry_isdir (dir)) {
     return NULL;
   }
-  n = new(strlen(dir -> name) + strlen(name) + 2);
-  sprintf(n, "%s/%s", dir -> name, name);
+  n = (char *) new(strlen(dir->name) + strlen (name) + 2);
+  sprintf(n, "%s/%s", dir->name, name);
   ret = fsentry_create(n);
   free(n);
   return ret;
 }
 
-void fsentry_free(fsentry_t *e) {
+void fsentry_free (fsentry_t *e) {
   if (e) {
     free(e -> name);
     free(e);
@@ -81,19 +83,19 @@ int fsentry_isfile(fsentry_t *e) {
   return !e -> exists && (e -> statbuf.st_mode & S_IFREG);
 }
 
-int fsentry_isdir(fsentry_t *e) {
+int fsentry_isdir (fsentry_t *e) {
   return !e -> exists && (e -> statbuf.st_mode & S_IFDIR);
 }
 
-extern int fsentry_canread(fsentry_t *e) {
+int fsentry_canread(fsentry_t *e) {
   return !access(e -> name, R_OK);
 }
 
-extern int fsentry_canwrite(fsentry_t *e) {
+int fsentry_canwrite(fsentry_t *e) {
   return !access(e -> name, W_OK);
 }
 
-extern int fsentry_canexecute(fsentry_t *e) {
+int fsentry_canexecute(fsentry_t *e) {
   return !access(e -> name, X_OK);
 }
 
@@ -119,7 +121,7 @@ list_t * fsentry_getentries(fsentry_t *dir) {
          entrypointer = readdir(dirpointer)) {
       list_push(ret, fsentry_getentry(dir, entrypointer -> d_name));
     }
-    closedir(dirpointer);
+    closedir (dirpointer);
   }
   return ret;
 }
@@ -149,7 +151,7 @@ file_t * file_create(int fh) {
 
 file_t * file_open(char *fname) {
   file_t *ret;
-  int ok;
+  int     ok;
 
   ret = NEW(file_t);
   ok = 1;
@@ -160,7 +162,9 @@ file_t * file_open(char *fname) {
       ok = 0;
     } else {
       ret -> fh = open(ret -> fname, O_RDONLY);
-      debug("file_open(%s): %d", ret -> fname, ret -> fh);
+      if (file_debug) {
+        debug("file_open(%s): %d", ret->fname, ret->fh);
+      }
       if (ret -> fh < 0) {
         ok = 0;
       }

@@ -1,0 +1,6 @@
+
+func baz(knor)
+  print(knor)
+end
+
+print("imptest loaded")

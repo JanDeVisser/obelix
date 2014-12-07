@@ -28,7 +28,7 @@ static void _stack_list_visitor(data_t *);
  */
 
 void _stack_list_visitor(data_t *entry) {
-  info("   . %s", data_tostring(entry));
+  info("   . %s", data_debugstr(entry));
 }
 
 /*

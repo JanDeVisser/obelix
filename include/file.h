@@ -26,6 +26,8 @@
 
 #include <list.h>
 
+extern int file_debug;
+
 typedef struct _fsentry {
   char        *name;
   struct stat  statbuf;

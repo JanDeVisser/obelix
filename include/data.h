@@ -25,6 +25,7 @@
 
 typedef struct _typedescr {
   int           type;
+  char         *typecode;
   new_t         new;
   copydata_t    copy;
   cmp_t         cmp;
@@ -65,5 +66,6 @@ extern data_t *       data_copy(data_t *);
 extern unsigned int   data_hash(data_t *);
 extern char *         data_tostring(data_t *);
 extern int            data_cmp(data_t *, data_t *);
+extern char *         data_debugstr(data_t *);
 
 #endif /* __DATA_H__ */
