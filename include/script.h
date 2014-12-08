@@ -30,19 +30,27 @@
 #include <parser.h>
 
 extern int script_debug;
-extern int Script;  // data_t typecode
+
+/* data_t typecodes */
+extern int Script;
+extern int Object;
 
 typedef struct _script {
   struct _script *up;
   char           *name;
   char           *fullname;
-  dict_t         *variables;
   array_t        *params;
   list_t         *instructions;
   dict_t         *labels;
   char           *label;
   int             refs;
 } script_t;
+
+typedef struct _object {
+  script_t   *script;
+  dict_t     *variables;
+  int         refs;
+} object_t;
 
 typedef struct _closure {
   script_t    *script;
@@ -59,14 +67,16 @@ typedef struct _script_loader {
 } scriptloader_t;
 
 extern data_t *         data_create_script(script_t *);
+extern data_t *         data_create_object(object_t *);
 
+/*
+ * script_t prototypes
+ */
 extern script_t *       script_create(script_t *, char *);
 extern void             script_free(script_t *);
 extern char *           script_get_fullname(script_t *);
 extern char *           script_get_modulename(script_t *);
 extern char *           script_get_classname(script_t *);
-extern script_t *       script_set(script_t *, char *, data_t *);
-extern data_t *         script_get(script_t *, char *);
 extern void             script_list(script_t *script);
 
 /* Parsing functions */
@@ -79,6 +89,7 @@ extern parser_t *       script_parse_emit_pushvar(parser_t *);
 extern parser_t *       script_parse_emit_pushval(parser_t *);
 extern parser_t *       script_parse_emit_mathop(parser_t *);
 extern parser_t *       script_parse_emit_func_call(parser_t *);
+extern parser_t *       script_parse_emit_new_list(parser_t *);
 extern parser_t *       script_parse_emit_import(parser_t *);
 extern parser_t *       script_parse_emit_jump(parser_t *);
 extern parser_t *       script_parse_emit_pop(parser_t *);
@@ -93,9 +104,21 @@ extern parser_t *       script_parse_end_function(parser_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
 
 /* Execution functions */
+extern object_t *       script_create_object(script_t *, array_t *);
 extern closure_t *      script_create_closure(script_t *, array_t *);
 extern data_t *         script_execute(script_t *, array_t *);
 
+/*
+ * object_t prototypes
+ */
+extern void             object_free(object_t *);
+extern object_t *       object_set(object_t *, char *, data_t *);
+extern data_t *         object_get(object_t *, char *);
+extern data_t *         object_execute(object_t *, char *, array_t *);
+
+/*
+ * closure_t prototypes
+ */
 extern void             closure_free(closure_t *);
 extern data_t *         closure_pop(closure_t *);
 extern closure_t *      closure_push(closure_t *, data_t *);
