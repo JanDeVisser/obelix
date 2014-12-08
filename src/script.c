@@ -83,6 +83,7 @@ static function_t _builtins[] = {
     { name: "<",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
     { name: "==",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
     { name: "!=",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
+    { name: "list",       fnc: ((voidptr_t) _script_function_list), min_params: 0, max_params: -1 },
     { name: NULL,         fnc: NULL,                    min_params: 0, max_params:  0 }
 };
 
@@ -300,11 +301,9 @@ data_t * _neq(data_t *d1, data_t *d2) {
 }
 
 data_t * _script_function_mathop(closure_t *script, char *op, array_t *params) {
-  char     *varname;
   data_t   *d1;
   data_t   *d2;
   data_t   *ret;
-  long      l1, l2, result;
   int       ix;
   mathop_t  fnc;
 
@@ -350,6 +349,23 @@ data_t * _script_function_print(closure_t *script, char *name, array_t *params) 
    */
   info(data_tostring(value));
   return data_create_int(1);
+}
+
+data_t * _script_function_list(closure_t *script, char *op, array_t *params) {
+  data_t   *value;
+  data_t   *ret;
+  int       ix;
+  object_t *obj;
+
+  obj = object_create("list");
+  obj -> ptr = list_create();
+  list_set_free(obj -> ptr, (free_t) data_free);
+  list_set_tostring(obj -> ptr, (tostring_t) data_tostring);
+  for (ix = 0; ix < array_size(params); ix++) {
+    list_push(obj -> ptr, data_copy(array_get(params, ix)));
+  }
+  ret = data_create(Object, obj);
+  return ret;
 }
 
 /*
@@ -646,6 +662,21 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
     instruction_create_function(func_name, param_count -> intval));
   data_free(param_count);
   free(func_name);
+  return parser;
+}
+
+parser_t * script_parse_emit_new_list(parser_t *parser) {
+  script_t *script;
+  data_t   *count;
+
+  script = parser -> data;
+  count = datastack_pop(parser -> stack);
+  if (parser_debug) {
+    debug(" -- #entries: %d", count -> intval);
+  }
+  script_push_instruction(script,
+    instruction_create_function("list", count -> intval));
+  data_free(param_count);
   return parser;
 }
 

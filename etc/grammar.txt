@@ -57,15 +57,18 @@ for_loop                    := "for"
 func_def                    := "func"
                                'i'               [ push_last_token           ]
                                (                 [ init_count                ]
-                               parlist
+                               parlist_or_void
                                )                 [ start_function            ]
                                statements
                                end_stmt          [ end_function              ]
                              ;
+
+parlist_or_void             := parlist
+                             |
+                             ;
                              
 parlist                     := param
                                parlist_tail
-                             |
                              ;
 
 param                       := 'i'               [ push_param                ] 
@@ -149,7 +152,26 @@ constant                    := '"'
                              | 'd'
                              | 'f'
                              | 'x'
+			     | list
                              ;
+
+list                        := {                    [ init_count ]
+                               entrylist_or_empty
+                               }                    [ emit_new_list ]
+                             ;
+
+entrylist_or_empty          := entrylist
+                             |
+                             ;
+
+entrylist                   := constant             [ param_count ]
+                               entrylist_tail
+                             ;
+
+entrylist_tail              := ,
+			       entrylist
+                             |
+			     ;
 
 logic_op                    := > | ">=" | < | "<=" | "==" | "!=" ;
                              
@@ -158,12 +180,17 @@ add_op                      := + | - ;
 mult_op                     := * | / | ^ | % ;
 
 func_call                   := (                 [ init_count                ]
-                               arglist
+                               arglist_or_void
                                )                 [ emit_func_call            ]
+                             ;
+
+arglist_or_void             := arglist
+                             |
                              ;
 
 arglist                     := argument
                                arglist_tail
+                             |
                              ;
 
 argument                    := expr        [ param_count     ] 
