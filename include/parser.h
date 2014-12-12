@@ -33,6 +33,7 @@ typedef struct _parser {
   list_t        *prod_stack;
   token_t       *last_token;
   datastack_t   *stack;
+  dict_t        *variables;
 } parser_t;
 
 typedef parser_t * (*parser_fnc_t)(parser_t *);

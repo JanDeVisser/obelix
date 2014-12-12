@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include <array.h>
+#include <data.h>
 #include <list.h>
 #include <str.h>
 
@@ -58,6 +59,7 @@ extern dict_t * dict_put(dict_t *, void *, void *);
 extern int      dict_has_key(dict_t *, void *);
 extern void *   dict_get(dict_t *, void *);
 extern dict_t * dict_remove(dict_t *, void *);
+extern dict_t * dict_pop(dict_t *, void *);
 extern int      dict_size(dict_t *);
 extern list_t * dict_keys(dict_t *);
 extern list_t * dict_values(dict_t *);
@@ -86,8 +88,9 @@ extern void     dict_dump(dict_t *, char *);
                                           (hash_t) strhash), \
                                         (free_t) free), \
                                       (free_t) free), \
-				    (tostring_t) chars), \
-				  (tostring_t) chars)
+                                    (tostring_t) chars), \
+                                  (tostring_t) chars)
+
 #define strvoid_dict_create()   dict_set_tostring_key( \
                                   dict_set_free_key( \
                                     dict_set_hash( \
@@ -95,7 +98,9 @@ extern void     dict_dump(dict_t *, char *);
                                       (hash_t) strhash), \
                                     (free_t) free), \
 				  (tostring_t) chars)
+
 #define intdict_create()        dict_create(NULL)
+
 #define dict_put_int(d, i, v)   dict_put((d), (void *)((long) (i)), (v))
 #define dict_get_int(d, i)      dict_get((d), (void *)((long) (i)))
 #define dict_has_int(d, i)      dict_has_key((d), (void *)((long) (i)))

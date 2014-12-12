@@ -26,790 +26,183 @@
 
 int grammar_debug = 0;
 
-typedef enum _gp_state_ {
-  GPStateStart,
-  GPStateOptions,
-  GPStateHeader,
-  GPStateRule,
-  GPStateRuleOption,
-  GPStateItem,
-} gp_state_t;
+static ge_t *              _ge_create(grammar_t *, ge_t *, grammar_element_type_t, ...);
 
-typedef struct _gp_state_rec {
-  char     *name;
-  reduce_t  handler;
-} gp_state_rec_t;
+static grammar_t *         _grammar_create(ge_t *, va_list);
+static void                _grammar_free(grammar_t *);
+static void                _grammar_get_firsts_visitor(entry_t *);
+static int *               _grammar_check_LL1_reducer(entry_t *, int *);
+static void                _grammar_build_parse_table_visitor(entry_t *);
+static ge_t *              _grammar_set_option(ge_t *, char *, token_t *);
 
-typedef struct _grammar_parser {
-  grammar_t     *grammar;
-  gp_state_t     state;
-  gp_state_t     old_state;
-  char          *string;
-  dict_t        *obj_options;
-  rule_t        *rule;
-  rule_option_t *option;
-  rule_item_t   *item;
-} grammar_parser_t;
+static nonterminal_t *     _nonterminal_create(ge_t *, va_list);
+static void                _nonterminal_free(nonterminal_t *);
+static set_t *             _nonterminal_get_firsts(nonterminal_t *);
+static set_t *             _nonterminal_get_follows(nonterminal_t *);
+static int                 _nonterminal_check_LL1(nonterminal_t *);
+static void                _nonterminal_build_parse_table(nonterminal_t *);
+static grammar_t *         _nonterminal_dump_terminal(long, grammar_t *);
 
-static grammar_parser_t * _grammar_parser_state_start(token_t *, grammar_parser_t *);
-static grammar_parser_t * _grammar_parser_state_options(token_t *, grammar_parser_t *);
-static grammar_parser_t * _grammar_parser_state_header(token_t *, grammar_parser_t *);
-static grammar_parser_t * _grammar_parser_state_rule(token_t *, grammar_parser_t *);
-static grammar_parser_t * _grammar_parser_state_rule_option(token_t *, grammar_parser_t *);
-static grammar_parser_t * _grammar_parser_state_item(token_t *, grammar_parser_t *);
+static rule_t *            _rule_create(ge_t *, va_list);
+static void                _rule_free(rule_t *);
+static set_t *             _rule_get_firsts(rule_t *);
+static set_t *             _rule_get_follows(rule_t *);
+static void                _rule_build_parse_table(rule_t *);
+static rule_t *            _rule_add_parse_table_entry(long, rule_t *);
 
-static gp_state_rec_t _gp_state_recs[] = {
-    { "GPStateStart",      (reduce_t) _grammar_parser_state_start },
-    { "GPStateOptions",    (reduce_t) _grammar_parser_state_options },
-    { "GPStateHeader",     (reduce_t) _grammar_parser_state_header },
-    { "GPStateRule",       (reduce_t) _grammar_parser_state_rule },
-    { "GPStateRuleOption", (reduce_t) _grammar_parser_state_rule_option },
-    { "GPStateItem",       (reduce_t) _grammar_parser_state_item }
+static rule_entry_t *      _rule_entry_new(ge_t *, va_list);
+static rule_entry_t *      _rule_entry_create(rule_t *, int, void *);
+static void                _rule_entry_free(rule_entry_t *);
+static set_t *             _rule_entry_get_firsts(rule_entry_t *, set_t *);
+static set_t *             _rule_entry_get_follows(rule_entry_t *, set_t *);
+
+static typedescr_t elements[] = {
+  {
+    type:                  GETGrammar,
+    typecode:              "G",
+    new:      (new_t)      _grammar_create,
+    copy:                  NULL,
+    cmp:      (cmp_t)      NULL,
+    free:     (free_t)     _grammar_free,
+    tostring: (tostring_t) NULL,
+    parse:                 NULL,
+    hash:                  NULL
+  },
+  {
+    type:                  GETNonTerminal,
+    typecode:              "N",
+    new:      (new_t)      _nonterminal_create,
+    copy:                  NULL,
+    cmp:      (cmp_t)      NULL,
+    free:     (free_t)     _nonterminal_free,
+    tostring: (tostring_t) NULL,
+    parse:                 NULL,
+    hash:                  NULL
+  },
+  {
+    type:                  GETRule,
+    typecode:              "N",
+    new:      (new_t)      _rule_create,
+    copy:                  NULL,
+    cmp:      (cmp_t)      NULL,
+    free:     (free_t)     _rule_free,
+    tostring: (tostring_t) NULL,
+    parse:                 NULL,
+    hash:                  NULL
+  },
+  {
+    type:                  GETRuleEntry,
+    typecode:              "N",
+    new:      (new_t)      _rule_entry_new,
+    copy:                  NULL,
+    cmp:      (cmp_t)      NULL,
+    free:     (free_t)     _rule_entry_free,
+    tostring: (tostring_t) NULL,
+    parse:                 NULL,
+    hash:                  NULL
+  },
 };
 
-static set_t *         _rule_get_firsts(rule_t *);
-static set_t *         _rule_get_follows(rule_t *);
-static int             _rule_check_LL1(rule_t *);
-static void            _rule_build_parse_table(rule_t *);
-
-static set_t *         _rule_option_get_firsts(rule_option_t *);
-static set_t *         _rule_option_get_follows(rule_option_t *);
-static void            _rule_option_build_parse_table(rule_option_t *);
-static rule_option_t * _rule_option_add_parse_table_entry(long, rule_option_t *);
-
-static rule_item_t *   _rule_item_create(rule_option_t *, int);
-static set_t *         _rule_item_get_firsts(rule_item_t *, set_t *);
-static set_t *         _rule_item_get_follows(rule_item_t *, set_t *);
-
-static void            _grammar_get_firsts_visitor(entry_t *);
-static int *           _grammar_check_LL1_reducer(entry_t *, int *);
-static void            _grammar_build_parse_table_visitor(entry_t *);
-static grammar_t *     _grammar_analyze(grammar_t *);
 
 /*
- * rule_t static functions
+ * ge_t - static functions
  */
 
-/*
-    Rules for First Sets
+ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, ...) {
+  ge_t    *ret;
+  va_list  args;
 
-    If X is a terminal then First(X) is just X!
-    If there is a Production X → ε then add ε to first(X)
-    If there is a Production X → Y1Y2..Yk then add first(Y1Y2..Yk) to first(X)
-      First(Y1Y2..Yk) is -
-        if First(Y1) doesn't contain ε
-          First(Y1)
-        else if First(Y1) does contain ε
-          First (Y1Y2..Yk) is everything in First(Y1) <except for ε >
-          as well as everything in First(Y2..Yk)
-        If First(Y1) First(Y2)..First(Yk) all contain ε
-          add ε to First(Y1Y2..Yk) as well.
-*/
-
-set_t * _rule_get_firsts(rule_t *rule) {
-  int            i;
-  rule_option_t *option;
-
-  if (!rule -> firsts) {
-    rule -> firsts = intset_create();
-    if (rule -> firsts) {
-      for (i = 0; i < array_size(rule -> options); i++) {
-        option = array_get(rule -> options, i);
-        set_union(rule -> firsts, _rule_option_get_firsts(option));
-      }
-      if (set_empty(rule -> firsts)){
-        set_add_int(rule -> firsts, TokenCodeEmpty);
-      }
-    }
+  ret = NEW(ge_t);
+  ret -> type = type;
+  ret -> grammar = grammar;
+  ret -> owner = owner;
+  ret -> initializer = NULL;
+  ret -> finalizer = NULL;
+  ret -> pushvalues = set_create((cmp_t) token_cmp);
+  ret -> incrs = strset_create();
+  ret -> variables = strtoken_dict_create();
+  va_start(args, type);
+  if (elements[type].new) {
+    ret -> ptr = elements[type].new(ret, args);
   }
-  return rule -> firsts;
-}
-
-/*
-    Rules for Follow Sets
-
-    First put $ (the end of input marker) in Follow(S) (S is the start symbol)
-    If there is a production A → aBb, (where a can be a whole string)
-      then everything in FIRST(b) except for ε is placed in FOLLOW(B).
-    If there is a production A → aB,
-      then everything in FOLLOW(A) is in FOLLOW(B)
-    If there is a production A → aBb, where FIRST(b) contains ε,
-      then everything in FOLLOW(A) is in FOLLOW(B)
-*/
-
-set_t * _rule_get_follows(rule_t *rule) {
-  int            i;
-  int            j;
-  rule_t         r;
-  rule_option_t *option;
-  rule_item_t   *item;
-  rule_item_t   *next;
-
-  if (!rule -> follows) {
-    rule -> follows = intset_create();
-    if (rule == rule -> grammar -> entrypoint) {
-      set_add_int(rule -> follows, TokenCodeEnd);
-    }
-  }
-  return rule -> follows;
-}
-
-int _rule_check_LL1(rule_t *rule) {
-  int            i, j, ret, ok;
-  rule_option_t *o_i, *o_j;
-  set_t          *f_i, *f_j, *follows;
-
-  ret = 1;
-  if (grammar_debug) {
-    debug("Checking LL(1) conditions for rule %s [%d options]", rule -> name, array_size(rule -> options));
-  }
-  for (i = 0; i < array_size(rule -> options); i++) {
-    o_i = array_get(rule -> options, i);
-    f_i = _rule_option_get_firsts(o_i);
-    for (j = i + 1; j < array_size(rule -> options); j++) {
-      o_j = array_get(rule -> options, j);
-      f_j = _rule_option_get_firsts(o_j);
-      ok = set_disjoint(f_i, f_j);
-      if (!ok) {
-        error("Grammar not LL(1): Rule %s - Firsts for option %d and %d not disjoint", rule -> name, i, j);
-      }
-      ret &= ok;
-      if (set_has_int(f_j, TokenCodeEnd)) {
-        ok = set_disjoint(f_i, follows);
-        if (!ok) {
-          error("Grammar not LL(1): Rule %s - Firsts for option %d follows not disjoint", rule -> name, i);
-        }
-        ret &= ok;
-        ret = ret && set_disjoint(f_i, rule -> follows);
-      }
-    }
-  }
-  if (grammar_debug) {
-    debug("rule %s checks %sOK for LL(1) conditions", rule -> name, (ret) ? "": "NOT ");
-  }
+  va_end(args);
   return ret;
 }
 
-void _rule_build_parse_table(rule_t *rule) {
-  if (grammar_debug) {
-    debug("Building parse table for rule %s", rule -> name);
-  }
-  rule -> parse_table = intdict_create();
-  if (rule -> parse_table) {
-    array_visit(rule -> options, (visit_t) _rule_option_build_parse_table);
-  }
-}
-
 /*
- * rule_t public functions
+ * ge_t - public functions
  */
 
-rule_t * rule_create(grammar_t *grammar, char *name) {
-  rule_t *ret;
-
-  ret = NEW(rule_t);
-  if (ret) {
-    ret -> firsts = NULL;
-    ret -> follows = NULL;
-    ret -> parse_table = NULL;
-    ret -> initializer = NULL;
-    ret -> finalizer = NULL;
-    ret -> name = strdup(name);
-    if (ret -> name) {
-      ret -> options = array_create(2);
-      if (!ret -> options) {
-        free(ret -> name);
-        ret -> name = NULL;
-      } else {
-        array_set_free(ret -> options, (free_t) rule_option_free);
-        ret -> state = strhash(name);
-        dict_put(grammar -> rules, strdup(ret -> name), ret);
-        if (!grammar -> entrypoint) {
-          grammar -> entrypoint = ret;
-        }
-        ret -> grammar = grammar;
-      }
+void ge_free(ge_t *ge) {
+  if (ge) {
+    dict_free(ge -> variables);
+    token_free(ge -> pushvalue);
+    function_free(ge -> initializer);
+    function_free(ge -> finalizer);
+    if (elements[ge -> type].free) {
+      elements[ge -> type].free(ge -> ptr);
     }
-    if (!ret -> name) {
-      free(ret);
-      ret = NULL;
-    }
-  }
-  return ret;
-}
-
-void rule_free(rule_t *rule) {
-  if (rule) {
-    free(rule -> name);
-    function_free(rule -> initializer);
-    function_free(rule -> finalizer);
-    array_free(rule -> options);
-    set_free(rule -> firsts);
-    set_free(rule -> follows);
-    dict_free(rule -> parse_table);
-    free(rule);
+    free(ge);
   }
 }
 
-void rule_set_options(rule_t *rule, dict_t *options) {
-  char *val;
-
-  val = dict_get(options, "init");
-  if (val) {
-    rule_set_initializer(rule, grammar_resolve_function(rule -> grammar, val));
-  }
-  val = dict_get(options, "done");
-  if (val) {
-    rule_set_finalizer(rule, grammar_resolve_function(rule -> grammar, val));
-  }
-  dict_clear(options);
+ge_t * ge_add_pushvalue(ge_t *ge, token_t *token) {
+  set_add(ge -> pushvalues, token_copy(token))
+  return ge;
 }
 
-function_t * rule_get_initializer(rule_t *rule) {
-  return rule -> initializer;
+ge_t * ge_add_incr(ge_t *ge, token_t *token) {
+  set_add(ge -> incrs, strdup(token_token(token)));
+  return ge;
 }
 
-rule_t * rule_set_initializer(rule_t *rule, function_t *fnc) {
-  rule -> initializer = fnc;
-  return rule;
+ge_t * ge_set_initializer(ge_t *ge, function_t *fnc) {
+  ge -> initializer = fnc;
+  return ge;
 }
 
-function_t * rule_get_finalizer(rule_t *rule) {
-  return rule -> finalizer;
+function_t * ge_get_initializer(ge_t *ge) {
+  return ge -> initializer;
 }
 
-rule_t * rule_set_finalizer(rule_t *rule, function_t *fnc) {
-  rule -> finalizer = fnc;
-  return rule;
+ge_t * ge_set_finalizer(ge_t *ge, function_t *fnc) {
+  ge -> finalizer = fnc;
+  return ge;
 }
 
-static grammar_t * _rule_dump_terminal(long code, grammar_t *grammar) {
-  token_t *token;
+function_t * ge_get_finalizer(ge_t *ge) {
+  return ge -> finalizer;
+}
 
-  if (code < 200) {
-    fprintf(stderr, " %s", token_code_name(code));
+ge_t * ge_set_option(ge_t *ge, char *name, token_t *val) {
+  if (!strcmp(name, "init")) {
+    ge_set_initializer(ge, grammar_resolve_function(ge -> grammar, token_token(val)));
+  } else if (!strcmp(name, "done")) {
+    ge_set_finalizer(ge, grammar_resolve_function(ge -> grammar, token_token(val)));
+  } else if (!strcmp(name, "push")) {
+    ge_add_pushvalue(ge, val);
+  } else if (!strcmp(name, "incr")) {
+    ge_add_incr(ge, val);
+  } else if (ge -> set_option_delegate && ge -> set_option_delegate(ge, name, val)) {
+    //
   } else {
-    token = (token_t *) dict_get_int(grammar -> keywords, code);
-    if (token) {
-      fprintf(stderr, " \"%s\"", token_token(token));
-    } else {
-      fprintf(stderr, " [?%ld]", code);
-    }
+    dict_put(ge -> variables, strdup(name), token_copy(val));
   }
-  return grammar;
-}
-
-void rule_dump(rule_t *rule) {
-  int             i, j;
-  rule_option_t  *option;
-  list_t         *parse_table;
-  listiterator_t *iter;
-  entry_t        *entry;
-
-  fprintf(stderr, "%s%s :=", (rule -> grammar -> entrypoint == rule) ? "(*) " : "", rule -> name);
-  array_visit(rule -> options, (visit_t) rule_option_dump);
-  fprintf(stderr, "\b;\n  Firsts:\n");
-  for (i = 0; i < array_size(rule -> options); i++) {
-    option = (rule_option_t *) array_get(rule -> options, i);
-    fprintf(stderr, "  [ ");
-    set_reduce(option -> firsts, (reduce_t) _rule_dump_terminal, rule -> grammar);
-    fprintf(stderr, " ]\n");
-  }
-  fprintf(stderr, "  Follows:\n");
-  fprintf(stderr, "  [ ");
-  set_reduce(rule -> follows, (reduce_t) _rule_dump_terminal, rule -> grammar);
-  fprintf(stderr, " ]\n  Parse Table:\n  [");
-  dict_reduce_keys(rule -> parse_table, (reduce_t) _rule_dump_terminal, rule -> grammar);
-  fprintf(stderr, " ]\n\n");
-}
-
-/*
- * rule_option_t static functions
- */
-
-/*
-    Rules for First Sets
-
-    If X is a terminal then First(X) is just X!
-    If there is a Production X → ε then add ε to first(X)
-    If there is a Production X → Y1Y2..Yk then add first(Y1Y2..Yk) to first(X)
-      First(Y1Y2..Yk) is -
-        if First(Y1) doesn't contain ε
-          First(Y1)
-        else if First(Y1) does contain ε
-          First (Y1Y2..Yk) is everything in First(Y1) <except for ε >
-          as well as everything in First(Y2..Yk)
-        If First(Y1) First(Y2)..First(Yk) all contain ε
-          add ε to First(Y1Y2..Yk) as well.
-*/
-set_t * _rule_option_get_firsts(rule_option_t *option) {
-  rule_item_t *item;
-  int j;
-
-  if (!option -> firsts) {
-    option -> firsts = intset_create();
-    if (option -> firsts) {
-      set_add_int(option -> firsts, TokenCodeEmpty);
-      for (j = 0; set_has_int(option -> firsts, TokenCodeEmpty) && (j < array_size(option -> items)); j++) {
-        set_remove_int(option -> firsts, TokenCodeEmpty);
-        item = (rule_item_t *) array_get(option -> items, j);
-        _rule_item_get_firsts(item, option -> firsts);
-      }
-    }
-  }
-  return option -> firsts;
-}
-
-set_t * _rule_option_get_follows(rule_option_t *option) {
-  return option -> follows;
-}
-
-rule_option_t * _rule_option_add_parse_table_entry(long tokencode,
-                                                   rule_option_t *option) {
-  if (tokencode != TokenCodeEmpty) {
-    if (!dict_has_int(option -> rule -> parse_table, (int) tokencode)) {
-      dict_put_int(option -> rule -> parse_table, (int) tokencode, option);
-    }
-  } else {
-    set_reduce(option -> rule -> follows,
-               (reduce_t) _rule_option_add_parse_table_entry, option);
-  }
-  return option;
-}
-
-void _rule_option_build_parse_table(rule_option_t *option) {
-  if (option -> firsts) {
-    set_reduce(option -> firsts, (reduce_t) _rule_option_add_parse_table_entry, option);
-  }
-}
-
-/*
- * rule_option_t public functions
- */
-
-rule_option_t * rule_option_create(rule_t *rule) {
-  rule_option_t *ret;
-
-  ret = NEW(rule_option_t);
-  if (ret) {
-    ret -> firsts = NULL;
-    ret -> follows = NULL;
-    ret -> items = array_create(3);
-    if (ret -> items) {
-      ret -> rule = rule;
-      array_set_free(ret -> items, (free_t) rule_item_free);
-      if (!array_push(rule -> options, ret)) {
-        array_free(ret -> items);
-        ret -> items = NULL;
-      } else {
-        ret -> seqnr = array_size(rule -> options);
-      }
-    }
-    if (!ret -> items) {
-      free(ret);
-      ret = NULL;
-    }
-  }
-  return ret;
-}
-
-void rule_option_free(rule_option_t *option) {
-  if (option) {
-    array_free(option -> items);
-    set_free(option -> firsts);
-    set_free(option -> follows);
-    free(option);
-  }
-}
-
-void rule_option_dump(rule_option_t *option) {
-  array_visit(option -> items, (visit_t) rule_item_dump);
-  fprintf(stderr, " |");
-}
-
-/*
- * rule_item_t static functions
- */
-
-rule_item_t * _rule_item_create(rule_option_t *option, int terminal) {
-  rule_item_t *ret;
-
-  ret = NEW(rule_item_t);
-  if (ret) {
-    ret -> terminal = terminal;
-    ret -> option = option;
-    if (!array_push(option -> items, ret)) {
-      free(ret);
-      ret = NULL;
-    }
-  }
-  return ret;
-}
-
-set_t * _rule_item_get_firsts(rule_item_t *item, set_t *firsts) {
-  rule_t *rule;
-
-  if (item -> terminal) {
-    set_add_int(firsts, token_code(item -> token));
-  } else {
-    rule = grammar_get_rule(item -> option -> rule -> grammar, item -> rule);
-    assert(rule);
-    set_union(firsts, _rule_get_firsts(rule));
-  }
-  return firsts;
-}
-
-set_t * _rule_item_get_follows(rule_item_t *item, set_t *follows) {
-  return follows;
-}
-
-/*
- * rule_item_t public functions
- */
-
-void rule_item_free(rule_item_t *item) {
-  if (item) {
-    function_free(item -> initializer);
-    function_free(item -> finalizer);
-    if (item -> terminal) {
-      token_free(item -> token);
-    } else {
-      free(item -> rule);
-    }
-    free(item);
-  }
-}
-
-rule_item_t * rule_item_non_terminal(rule_option_t *option, char *rule) {
-  rule_item_t *ret;
-
-  ret = _rule_item_create(option, FALSE);
-  if (ret) {
-    ret -> rule = strdup(rule);
-  }
-  return ret;
-}
-
-rule_item_t * rule_item_terminal(rule_option_t *option, token_t *token) {
-  rule_item_t *ret;
-  int          code;
-  char        *str;
-  token_t     *terminal_token;
-
-  ret = _rule_item_create(option, TRUE);
-  if (ret) {
-    code = token_code(token);
-    str = token_token(token);
-    if ((code == TokenCodeDQuotedStr) && strcmp(str, "\"")) {
-      code = (int) strhash(str);
-      ret -> token = token_create(code, str);
-      dict_put_int(option -> rule -> grammar -> keywords, code, token_copy(ret -> token));
-    } else {
-      ret -> token = token_copy(token);
-    }
-  }
-  return ret;
-}
-
-rule_item_t * rule_item_empty(rule_option_t *option) {
-  rule_item_t *ret;
-
-  ret = _rule_item_create(option, TRUE);
-  if (ret) {
-    ret -> token = token_create(TokenCodeEmpty, "E");
-  }
-  return ret;
-}
-
-function_t * rule_item_get_initializer(rule_item_t *item) {
-  return item -> initializer;
-}
-
-rule_item_t * rule_item_set_initializer(rule_item_t *item, function_t *fnc) {
-  item -> initializer = fnc;
-  return item;
-}
-
-function_t * rule_item_get_finalizer(rule_item_t *item) {
-  return item -> finalizer;
-}
-
-rule_item_t * rule_item_set_finalizer(rule_item_t *item, function_t *fnc) {
-  item -> finalizer = fnc;
-  return item;
-}
-
-void rule_item_set_options(rule_item_t *item, dict_t *options) {
-  char *val;
-
-  val = dict_get(options, "init");
-  if (val) {
-    rule_item_set_initializer(item,
-      grammar_resolve_function(item -> option -> rule -> grammar, val));
-  }
-  val = dict_get(options, "done");
-  if (val) {
-    rule_item_set_finalizer(item,
-      grammar_resolve_function(item -> option -> rule -> grammar, val));
-  }
-  dict_clear(options);
-}
-
-void rule_item_dump(rule_item_t *item) {
-  int      code;
-  token_t *kw;
-
-  fprintf(stderr, " ");
-  if (item -> terminal) {
-    code = token_code(item -> token);
-    if (code < 32) {
-      fprintf(stderr, " %d", code);
-    } else if (code < 200) {
-      fprintf(stderr, " '%s'", token_token(item -> token));
-    } else {
-      kw = (token_t *) dict_get_int(item -> option -> rule -> grammar -> keywords, code);
-      fprintf(stderr, " \"%s\"", token_token(kw));
-    }
-  } else {
-    fprintf(stderr, "%s", item -> rule);
-  }
+  return ge;
 }
 
 /*
  * grammar_t static functions
  */
 
-grammar_parser_t * _grammar_parser_state_start(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  grammar_t *g;
-  gp_state_t state;
-
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-  switch (code) {
-    case TokenCodeIdentifier:
-      grammar_parser -> state = GPStateRule;
-      grammar_parser -> rule = rule_create(grammar_parser -> grammar, str);
-      grammar_parser -> option = NULL;
-      grammar_parser -> item = NULL;
-      break;
-    case TokenCodeOpenBracket:
-      grammar_parser -> old_state = GPStateRule;
-      grammar_parser -> state = GPStateOptions;
-      break;
-    case TokenCodePercent:
-      grammar_parser -> old_state = GPStateStart;
-      grammar_parser -> state = GPStateOptions;
-      break;
-  }
-  return grammar_parser;
-}
-
-grammar_parser_t * _grammar_parser_state_options(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  grammar_t *g;
-  gp_state_t state;
-
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-
-  switch (code) {
-    case TokenCodeIdentifier:
-      if (!grammar_parser -> string) {
-        grammar_parser -> string = strdup(str);
-      } else {
-        dict_put(grammar_parser -> obj_options, grammar_parser -> string, strdup(str));
-        grammar_parser -> string = NULL;
-      }
-      break;
-    case TokenCodeColon:
-      break;
-    case TokenCodePercent:
-      if (grammar_parser -> old_state == GPStateStart) {
-        grammar_set_options(g, grammar_parser -> obj_options);
-        grammar_parser -> state = grammar_parser -> old_state;
-      }
-      break;
-    case TokenCodeCloseBracket:
-      /* Hack - need to revisit the whole options thing. */
-      if (grammar_parser -> string) {
-        dict_put(grammar_parser -> obj_options, strdup("done"), strdup(grammar_parser -> string));
-        grammar_parser -> string = NULL;
-      }
-      if (grammar_parser -> old_state != GPStateStart) {
-        grammar_parser -> state = grammar_parser -> old_state;
-      }
-      break;
-  }
-  return grammar_parser;
-}
-
-grammar_parser_t * _grammar_parser_state_header(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  grammar_t *g;
-  gp_state_t state;
-
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-  return grammar_parser;
-}
-
-grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  char       buf[100];
-  grammar_t *g;
-  gp_state_t state;
-
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-
-  switch (code) {
-    case TokenCodeIdentifier:
-      grammar_parser -> rule = rule_create(grammar_parser -> grammar, str);
-      grammar_parser -> option = NULL;
-      grammar_parser -> item = NULL;
-      break;
-    case TokenCodeOpenBracket:
-      grammar_parser -> old_state = GPStateRule;
-      grammar_parser -> state = GPStateOptions;
-      break;
-    case 200:
-      if (grammar_parser -> rule) {
-        rule_set_options(grammar_parser -> rule, grammar_parser -> obj_options);
-        grammar_parser -> option = rule_option_create(grammar_parser -> rule);
-        grammar_parser -> state = GPStateRuleOption;
-      }
-      break;
-  }
-  return grammar_parser;
-}
-
-grammar_parser_t * _grammar_parser_state_rule_option(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  grammar_t *g;
-  gp_state_t state;
-
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-
-  switch (code) {
-    case TokenCodePipe:
-      if ((grammar_parser -> state == GPStateItem) && (grammar_parser -> item)) {
-        rule_item_set_options(grammar_parser -> item, grammar_parser -> obj_options);
-      }
-      grammar_parser -> option = rule_option_create(grammar_parser -> rule);
-      grammar_parser -> state = GPStateRuleOption;
-      break;
-    case TokenCodeSemiColon:
-      if ((grammar_parser -> state == GPStateItem) && (grammar_parser -> item)) {
-        rule_item_set_options(grammar_parser -> item, grammar_parser -> obj_options);
-      }
-      grammar_parser -> rule = NULL;
-      grammar_parser -> option = NULL;
-      grammar_parser -> item = NULL;
-      grammar_parser -> state = GPStateRule;
-      break;
-    case TokenCodeOpenBracket:
-      if (grammar_parser -> state == GPStateItem) {
-        grammar_parser -> old_state = grammar_parser -> state;
-        grammar_parser -> state = GPStateOptions;
-      }
-      break;
-    case TokenCodeIdentifier:
-      if ((grammar_parser -> state == GPStateItem) && (grammar_parser -> item)) {
-        rule_item_set_options(grammar_parser -> item, grammar_parser -> obj_options);
-      }
-      grammar_parser -> item = rule_item_non_terminal(grammar_parser -> option, str);
-      grammar_parser -> state = GPStateItem;
-      break;
-    case TokenCodeDQuotedStr:
-      if ((grammar_parser -> state == GPStateItem) && (grammar_parser -> item)) {
-        rule_item_set_options(grammar_parser -> item, grammar_parser -> obj_options);
-      }
-      grammar_parser -> item = rule_item_terminal(grammar_parser -> option, token);
-      grammar_parser -> state = GPStateItem;
-      break;
-    case TokenCodeSQuotedStr:
-      if ((grammar_parser -> state == GPStateItem) && (grammar_parser -> item)) {
-        rule_item_set_options(grammar_parser -> item, grammar_parser -> obj_options);
-      }
-      if (strlen(str) == 1) {
-        code = str[0];
-        strcpy(terminal_str, str);
-        token = token_create(code, terminal_str);
-        grammar_parser -> item = rule_item_terminal(grammar_parser -> option, token);
-        token_free(token);
-      } else {
-        assert(0);
-      }
-      grammar_parser -> state = GPStateItem;
-      break;
-    default:
-      if ((grammar_parser -> state == GPStateItem) && (grammar_parser -> item)) {
-        rule_item_set_options(grammar_parser -> item, grammar_parser -> obj_options);
-      }
-      if ((code >= '!') && (code <= '~')) {
-        grammar_parser -> item = rule_item_terminal(grammar_parser -> option, token);
-        grammar_parser -> state = GPStateItem;
-      } else {
-        assert(0);
-      }
-      break;
-  }
-  return grammar_parser;
-}
-
-grammar_parser_t * _grammar_parser_state_item(token_t *token, grammar_parser_t *grammar_parser) {
-  return _grammar_parser_state_rule_option(token, grammar_parser);
-}
-
-grammar_parser_t * _grammar_token_handler(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  grammar_t *g;
-  gp_state_t state;
-
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-
-  if (grammar_debug) {
-    debug("%-18.18s %s", _gp_state_recs[state].name, token_tostring(token, NULL, 0));
-  }
-  _gp_state_recs[state].handler(token, grammar_parser);
-  return grammar_parser;
-}
-
 void _grammar_get_firsts_visitor(entry_t *entry) {
-  rule_t *rule;
+  nonterminal_t *nonterminal;
 
-  rule = (rule_t *) entry -> value;
+  nonterminal = (nonterminal_t *) entry -> value;
   if (grammar_debug) {
-    debug("Building FIRST sets for rule %s", rule -> name);
+    debug("Building FIRST sets for rule %s", nonterminal -> name);
   }
-  _rule_get_firsts(rule);
+  _nonterminal_get_firsts(nonterminal);
 }
 
 /*
@@ -824,37 +217,39 @@ void _grammar_get_firsts_visitor(entry_t *entry) {
       then everything in FOLLOW(A) is in FOLLOW(B)
 */
 void * _grammar_follows_reducer(entry_t *entry, int *current_sum) {
-  rule_t        *rule, *r;
+  nonterminal_t *nonterminal, *nt;
   int            i, j, k;
-  rule_option_t *option;
-  rule_item_t   *item, *it, *next;
+  rule_t        *rule;
+  rule_entry_t  *rule_entry, *it, *next;
   set_t         *follows, *f, *next_firsts;
 
-  rule = (rule_t *) entry -> value;
+  nonterminal = (nonterminal_t *) entry -> value;
 
   if (grammar_debug) {
-    debug("Building FOLLOW sets for rule %s", rule -> name);
+    debug("Building FOLLOW sets for rule %s", nonterminal -> name);
   }
-  follows = _rule_get_follows(rule);
-  for (i = 0; i < array_size(rule -> options); i++) {
-    option = (rule_option_t *) array_get(rule -> options, i);
-    for (j = 0; j < array_size(option -> items); j++) {
-      item = (rule_item_t *) array_get(option -> items, j);
-      if (!item -> terminal) {
+  follows = _nonterminal_get_follows(nonterminal);
+  for (i = 0; i < array_size(nonterminal -> rules); i++) {
+    rule = (rule_t *) array_get(nonterminal -> rules, i);
+    for (j = 0; j < array_size(rule -> entries); j++) {
+      rule_entry = (rule_entry_t *) array_get(rule -> entries, j);
+      if (!rule_entry -> terminal) {
         next_firsts = intset_create();
         next = NULL;
-        for (k = j + 1; k < array_size(option -> items); k++) {
-          it = (rule_item_t *) array_get(option -> items, k);
+        for (k = j + 1; k < array_size(rule -> entries); k++) {
+          it = (rule_entry_t *) array_get(rule -> entries, k);
           if (!next) {
             next = it;
           }
-          _rule_item_get_firsts(it, next_firsts);
+          _rule_entry_get_firsts(it, next_firsts);
           if (!set_has_int(next_firsts, TokenCodeEmpty)) {
             break;
           }
         }
-        r = grammar_get_rule(rule -> grammar, item -> rule);
-        f = _rule_get_follows(r);
+        nt = grammar_get_nonterminal(
+               nonterminal_get_grammar(nt),
+               rule_entry -> nonterminal);
+        f = _nonterminal_get_follows(nt);
         if ((next == NULL) || set_has_int(next_firsts, TokenCodeEmpty)) {
           set_union(f, follows);
         }
@@ -869,125 +264,44 @@ void * _grammar_follows_reducer(entry_t *entry, int *current_sum) {
 }
 
 int * _grammar_check_LL1_reducer(entry_t *entry, int *ok) {
-  *ok &= _rule_check_LL1((rule_t *) entry -> value);
+  *ok &= _nonterminal_check_LL1((nonterminal_t *) entry -> value);
   return ok;
 }
 
 void _grammar_build_parse_table_visitor(entry_t *entry) {
-  _rule_build_parse_table(entry -> value);
+  _nonterminal_build_parse_table(entry -> value);
 }
 
-grammar_t * _grammar_analyze(grammar_t *grammar) {
-  int sum, prev_sum, iter, ll_1;
-
-  if (grammar_debug) {
-    debug("Building FIRST sets");
-  }
-  dict_visit(grammar -> rules, (visit_t) _grammar_get_firsts_visitor);
-
-  if (grammar_debug) {
-    debug("Building FOLLOW sets");
-  }
-  sum = 0;
-  iter = 1;
-  do {
-    prev_sum = sum;
-    sum = 0;
-    dict_reduce(grammar -> rules, (reduce_t) _grammar_follows_reducer, &sum);
-    if (grammar_debug) {
-      debug("_grammar_analyze - build follows: iter: %d sum: %d", iter++, sum);
-    }
-  } while (sum != prev_sum);
-
-  if (grammar_debug) {
-    debug("Checking grammar for LL(1)-ness");
-  }
-  ll_1 = 1;
-  dict_reduce(grammar -> rules, (reduce_t) _grammar_check_LL1_reducer, &ll_1);
-  if (ll_1) {
-    if (grammar_debug) {
-      info("Grammar is LL(1)");
-    }
-    dict_visit(grammar -> rules, (visit_t) _grammar_build_parse_table_visitor);
-    if (grammar_debug) {
-      debug("Parse tables built");
-    }
-  } else {
-    error("Grammar is not LL(1)");
-  }
-  return (ll_1) ? grammar : NULL;
-}
-
-/*
- * grammar_t public functions
- */
-
-grammar_t * grammar_create() {
+grammar_t * _grammar_create(ge_t *ge, va_list args) {
   grammar_t *ret;
   int        ix;
 
   ret = NEW(grammar_t);
+  ret -> ge = ge;
   ret -> entrypoint = NULL;
-  ret -> initializer = NULL;
-  ret -> finalizer = NULL;
   ret -> prefix = NULL;
   ret -> strategy = ParsingStrategyTopDown;
 
   ret -> keywords = intdict_create();
   dict_set_free_data(ret -> keywords, (free_t) token_free);
 
-  ret -> rules = strvoid_dict_create();
-  dict_set_free_data(ret -> rules, (free_t) rule_free);
+  ret -> nonterminals = strvoid_dict_create();
+  dict_set_free_data(ret -> nonterminals, (free_t) nonterminal_free);
 
   ret -> lexer_options = array_create((int) LexerOptionLAST);
   for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
-    grammar_set_option(ret, ix, 0L);
+    grammar_set_lexer_option(ret, ix, 0L);
   }
 
+  ge -> grammar = ret;
+  ge -> owner = NULL;
+  ge -> set_option_delegate = (set_option_t) _grammar_set_option;
   return ret;
 }
 
-grammar_t * _grammar_read(reader_t *reader) {
-  grammar_t        *grammar;
-  lexer_t          *lexer;
-  grammar_parser_t  grammar_parser;
-
-  grammar = grammar_create();
+void _grammar_free(grammar_t *grammar) {
   if (grammar) {
-    lexer = lexer_create(reader);
-    if (lexer) {
-      grammar_parser.obj_options = strstr_dict_create();
-      if (grammar_parser.obj_options) {
-        grammar_parser.grammar = grammar;
-        grammar_parser.state = GPStateStart;
-        grammar_parser.string = NULL;
-        grammar_parser.rule = NULL;
-        grammar_parser.option = NULL;
-        grammar_parser.item = NULL;
-        lexer_add_keyword(lexer, 200, ":=");
-        lexer_set_option(lexer, LexerOptionIgnoreWhitespace, TRUE);
-        lexer_tokenize(lexer, _grammar_token_handler, &grammar_parser);
-        dict_free(grammar_parser.obj_options);
-        if (_grammar_analyze(grammar)) {
-          if (grammar_debug) {
-            grammar_dump(grammar);
-            info("Grammar successfully analyzed");
-          }
-        } else {
-          error("Error(s) analyzing grammar");
-        }
-      }
-      lexer_free(lexer);
-    }
-  }
-  return grammar;
-}
-
-void grammar_free(grammar_t *grammar) {
-  if (grammar) {
-    function_free(grammar -> initializer);
-    function_free(grammar -> finalizer);
-    dict_free(grammar -> rules);
+    dict_free(grammar -> nonterminals);
     dict_free(grammar -> keywords);
     array_free(grammar -> lexer_options);
     if (grammar -> prefix) {
@@ -997,8 +311,58 @@ void grammar_free(grammar_t *grammar) {
   }
 }
 
-rule_t * grammar_get_rule(grammar_t *grammar, char *rule) {
-  return (rule_t *) dict_get(grammar -> rules, rule);
+ge_t * _grammar_set_option(ge_t *ge, char *name, token_t *val) {
+  int        b;
+  grammar_t *g = ge -> grammar;
+  char      *str;
+
+  if (!strcmp(name, "lib")) {
+    resolve_library(token_token(val));
+  } else if (!strcmp(name, "prefix")) {
+    g -> prefix = strdup(token_token(val));
+  } else if (!strcmp(name, "strategy")) {
+    str = token_token(val);
+    if (!strncmp(str, "topdown", 7)|| !strncmp(str, "ll(1)", 5)) {
+      grammar_set_parsing_strategy(g, ParsingStrategyTopDown);
+    } else if (!strncmp(str, "bottomup", 8) || !strncmp(str, "lr(1)", 5)) {
+      grammar_set_parsing_strategy(g, ParsingStrategyBottomUp);
+    }
+  } else if (!strcmp(name, "ignore_ws")) {
+    grammar_set_lexer_option(g, LexerOptionIgnoreWhitespace,
+                       atob(token_token(val)));
+  } else if (!strcmp(name, "ignore_nl")) {
+    grammar_set_lexer_option(g, LexerOptionIgnoreNewLines,
+                       atob(token_token(val)));
+  } else if (!strcmp(name, "case_sensitive")) {
+    grammar_set_lexer_option(g, LexerOptionCaseSensitive,
+                       atob(token_token(val)));
+  } else if (!strcmp(name, "hashpling")) {
+    grammar_set_lexer_option(g, LexerOptionHashPling,
+                       atob(token_token(val)));
+  } else {
+    ge = NULL;
+  }
+  return ge;
+}
+
+
+/*
+ * grammar_t public functions
+ */
+
+grammar_t * grammar_create() {
+  ge_t *ge;
+
+  ge = _ge_create(NULL, NULL, GETGrammar);
+  return (grammar_t *) ge -> ptr;
+}
+
+void grammar_free(grammar_t *grammar) {
+  ge_free(grammar -> ge);
+}
+
+nonterminal_t * grammar_get_nonterminal(grammar_t *grammar, char *rule) {
+  return (nonterminal_t *) dict_get(grammar -> nonterminals, rule);
 }
 
 grammar_t * grammar_set_parsing_strategy(grammar_t *grammar, strategy_t strategy) {
@@ -1010,30 +374,12 @@ strategy_t grammar_get_parsing_strategy(grammar_t *grammar) {
   return grammar -> strategy;
 }
 
-grammar_t * grammar_set_initializer(grammar_t *grammar, function_t *init) {
-  grammar -> initializer = init;
-  return grammar;
-}
-
-function_t * grammar_get_initializer(grammar_t *grammar) {
-  return grammar -> initializer;
-}
-
-grammar_t * grammar_set_finalizer(grammar_t *grammar, function_t *finalizer) {
-  grammar -> initializer = finalizer;
-  return grammar;
-}
-
-function_t * grammar_get_finalizer(grammar_t *grammar) {
-  return grammar -> finalizer;
-}
-
-grammar_t * grammar_set_option(grammar_t *grammar, lexer_option_t option, long value) {
+grammar_t * grammar_set_lexer_option(grammar_t *grammar, lexer_option_t option, long value) {
   array_set(grammar -> lexer_options, (int) option, (void *) value);
   return grammar;
 }
 
-long grammar_get_option(grammar_t *grammar, lexer_option_t option) {
+long grammar_get_lexer_option(grammar_t *grammar, lexer_option_t option) {
   return (long) array_get(grammar -> lexer_options, (int) option);
 }
 
@@ -1043,7 +389,7 @@ void grammar_dump(grammar_t *grammar) {
     dict_visit_values(grammar -> keywords, (visit_t) token_dump);
     fprintf(stderr, " >\n");
   }
-  dict_visit_values(grammar -> rules, (visit_t) rule_dump);
+  dict_visit_values(grammar -> nonterminals, (visit_t) rule_dump);
 }
 
 function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
@@ -1069,52 +415,468 @@ function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
   return ret;
 }
 
-grammar_t * grammar_set_options(grammar_t *grammar, dict_t *options) {
-  char *val;
-  char *fname;
-  int   b;
+grammar_t * grammar_analyze(grammar_t *grammar) {
+  int sum, prev_sum, iter, ll_1;
 
-  val = dict_get(options, "lib");
-  if (val) {
-    resolve_library(val);
+  if (grammar_debug) {
+    debug("Building FIRST sets");
   }
-  val = dict_get(options, "prefix");
-  if (val) {
-    grammar -> prefix = strdup(val);
+  dict_visit(grammar -> nonterminals, (visit_t) _grammar_get_firsts_visitor);
+
+  if (grammar_debug) {
+    debug("Building FOLLOW sets");
   }
-  val = dict_get(options, "init");
-  if (val) {
-    grammar_set_initializer(grammar, grammar_resolve_function(grammar, val));
+  sum = 0;
+  iter = 1;
+  do {
+    prev_sum = sum;
+    sum = 0;
+    dict_reduce(grammar -> nonterminals, (reduce_t) _grammar_follows_reducer, &sum);
+    if (grammar_debug) {
+      debug("_grammar_analyze - build follows: iter: %d sum: %d", iter++, sum);
+    }
+  } while (sum != prev_sum);
+
+  if (grammar_debug) {
+    debug("Checking grammar for LL(1)-ness");
   }
-  val = dict_get(options, "done");
-  if (val) {
-    grammar_set_finalizer(grammar, grammar_resolve_function(grammar, val));
+  ll_1 = 1;
+  dict_reduce(grammar -> nonterminals, (reduce_t) _grammar_check_LL1_reducer, &ll_1);
+  if (ll_1) {
+    if (grammar_debug) {
+      info("Grammar is LL(1)");
+    }
+    dict_visit(grammar -> nonterminals, (visit_t) _grammar_build_parse_table_visitor);
+    if (grammar_debug) {
+      debug("Parse tables built");
+    }
+  } else {
+    error("Grammar is not LL(1)");
   }
-  val = dict_get(options, "strategy");
-  if (val) {
-    if (!strncmp(val, "topdown", 7)|| !strncmp(val, "ll(1)", 5)) {
-      grammar_set_parsing_strategy(grammar, ParsingStrategyTopDown);
-    } else if (!strncmp(val, "bottomup", 8) || !strncmp(val, "lr(1)", 5)) {
-      grammar_set_parsing_strategy(grammar, ParsingStrategyBottomUp);
+  return (ll_1) ? grammar : NULL;
+}
+
+/*
+ * nonterminal_t static functions
+ */
+
+nonterminal_t * _nonterminal_create(ge_t *ge, va_list args) {
+  nonterminal_t *ret;
+  char          *name;
+
+  name = va_arg(args, char *);
+  ret = NEW(nonterminal_t);
+  ret -> firsts = NULL;
+  ret -> follows = NULL;
+  ret -> parse_table = NULL;
+  ret -> name = strdup(name);
+  ret -> rules = array_create(2);
+  array_set_free(ret -> rules, (free_t) ge_free);
+  ret -> state = strhash(name);
+  dict_put(ge -> grammar -> nonterminals, strdup(ret -> name), ret);
+  if (!ge -> grammar -> entrypoint) {
+    ge -> grammar -> entrypoint = ret;
+  }
+  return ret;
+}
+
+void _nonterminal_free(nonterminal_t *nonterminal) {
+  if (nonterminal) {
+    free(nonterminal -> name);
+    array_free(nonterminal -> rules);
+    set_free(nonterminal -> firsts);
+    set_free(nonterminal -> follows);
+    dict_free(nonterminal -> parse_table);
+    free(nonterminal);
+  }
+}
+
+/*
+    Rules for First Sets
+
+    If X is a terminal then First(X) is just X!
+    If there is a Production X → ε then add ε to first(X)
+    If there is a Production X → Y1Y2..Yk then add first(Y1Y2..Yk) to first(X)
+      First(Y1Y2..Yk) is -
+        if First(Y1) doesn't contain ε
+          First(Y1)
+        else if First(Y1) does contain ε
+          First (Y1Y2..Yk) is everything in First(Y1) <except for ε >
+          as well as everything in First(Y2..Yk)
+        If First(Y1) First(Y2)..First(Yk) all contain ε
+          add ε to First(Y1Y2..Yk) as well.
+*/
+
+set_t * _nonterminal_get_firsts(nonterminal_t *nonterminal) {
+  int            i;
+  rule_t *option;
+
+  if (!nonterminal -> firsts) {
+    nonterminal -> firsts = intset_create();
+    if (nonterminal -> firsts) {
+      for (i = 0; i < array_size(nonterminal -> rules); i++) {
+        option = array_get(nonterminal -> rules, i);
+        set_union(nonterminal -> firsts, _rule_get_firsts(option));
+      }
+      if (set_empty(nonterminal -> firsts)){
+        set_add_int(nonterminal -> firsts, TokenCodeEmpty);
+      }
     }
   }
-  val = dict_get(options, "ignore_ws");
-  if (val) {
-    grammar_set_option(grammar, LexerOptionIgnoreWhitespace, atob(val));
+  return nonterminal -> firsts;
+}
+
+/*
+    Rules for Follow Sets
+
+    First put $ (the end of input marker) in Follow(S) (S is the start symbol)
+    If there is a production A → aBb, (where a can be a whole string)
+      then everything in FIRST(b) except for ε is placed in FOLLOW(B).
+    If there is a production A → aB,
+      then everything in FOLLOW(A) is in FOLLOW(B)
+    If there is a production A → aBb, where FIRST(b) contains ε,
+      then everything in FOLLOW(A) is in FOLLOW(B)
+*/
+
+set_t * _nonterminal_get_follows(nonterminal_t *nonterminal) {
+  int            i;
+  int            j;
+  nonterminal_t  r;
+  rule_t *option;
+  rule_entry_t   *item;
+  rule_entry_t   *next;
+
+  if (!nonterminal -> follows) {
+    nonterminal -> follows = intset_create();
+    if (nonterminal == nonterminal -> ge -> grammar -> entrypoint) {
+      set_add_int(nonterminal -> follows, TokenCodeEnd);
+    }
   }
-  val = dict_get(options, "ignore_nl");
-  if (val) {
-    grammar_set_option(grammar, LexerOptionIgnoreNewLines, atob(val));
+  return nonterminal -> follows;
+}
+
+int _nonterminal_check_LL1(nonterminal_t *nonterminal) {
+  int     i, j, ret, ok;
+  rule_t *r_i, *r_j;
+  set_t  *f_i, *f_j, *follows;
+
+  ret = 1;
+  if (grammar_debug) {
+    debug("Checking LL(1) conditions for rule %s [%d rules]",
+          nonterminal -> name, array_size(nonterminal -> rules));
   }
-  val = dict_get(options, "case_sensitive");
-  if (val) {
-    grammar_set_option(grammar, LexerOptionCaseSensitive, atob(val));
+  for (i = 0; i < array_size(nonterminal -> rules); i++) {
+    r_i = array_get(nonterminal -> rules, i);
+    f_i = _rule_get_firsts(r_i);
+    for (j = i + 1; j < array_size(nonterminal -> rules); j++) {
+      r_j = array_get(nonterminal -> rules, j);
+      f_j = _rule_get_firsts(r_j);
+      ok = set_disjoint(f_i, f_j);
+      if (!ok) {
+        error("Grammar not LL(1): non-terminal %s - Firsts for rules %d and %d not disjoint", nonterminal -> name, i, j);
+      }
+      ret &= ok;
+      if (set_has_int(f_j, TokenCodeEnd)) {
+        ok = set_disjoint(f_i, follows);
+        if (!ok) {
+          error("Grammar not LL(1): non-terminal %s - Firsts for rule %d follows not disjoint", nonterminal -> name, i);
+        }
+        ret &= ok;
+        ret = ret && set_disjoint(f_i, nonterminal -> follows);
+      }
+    }
   }
-  val = dict_get(options, "hashpling");
-  if (val) {
-    grammar_set_option(grammar, LexerOptionHashPling, atob(val));
+  if (grammar_debug) {
+    debug("Non-terminal %s checks %sOK for LL(1) conditions", nonterminal -> name, (ret) ? "": "NOT ");
   }
-  dict_clear(options);
+  return ret;
+}
+
+void _nonterminal_build_parse_table(nonterminal_t *nonterminal) {
+  if (grammar_debug) {
+    debug("Building parse table for non-terminal %s", nonterminal -> name);
+  }
+  nonterminal -> parse_table = intdict_create();
+  if (nonterminal -> parse_table) {
+    array_visit(nonterminal -> rules, (visit_t) _rule_build_parse_table);
+  }
+}
+
+grammar_t * _nonterminal_dump_terminal(long code, grammar_t *grammar) {
+  token_t *token;
+
+  if (code < 200) {
+    fprintf(stderr, " %s", token_code_name(code));
+  } else {
+    token = (token_t *) dict_get_int(grammar -> keywords, code);
+    if (token) {
+      fprintf(stderr, " \"%s\"", token_token(token));
+    } else {
+      fprintf(stderr, " [?%ld]", code);
+    }
+  }
   return grammar;
+}
+
+/*
+ * nonterminal_t public functions
+ */
+
+nonterminal_t * nonterminal_create(grammar_t *grammar, char *name) {
+  ge_t *ge;
+
+  ge = _ge_create(grammar, grammar -> ge, GETNonTerminal, name);
+  return (nonterminal_t *) ge -> ptr;
+}
+
+void nonterminal_free(nonterminal_t *nonterminal) {
+  ge_free(nonterminal -> ge);
+}
+
+void nonterminal_dump(nonterminal_t *nonterminal) {
+  int             i, j;
+  rule_t  *option;
+  list_t         *parse_table;
+  listiterator_t *iter;
+  entry_t        *entry;
+
+  fprintf(stderr, "%s%s :=", (nonterminal -> ge -> grammar -> entrypoint == nonterminal) ? "(*) " : "", nonterminal -> name);
+  array_visit(nonterminal -> rules, (visit_t) rule_dump);
+  fprintf(stderr, "\b;\n  Firsts:\n");
+  for (i = 0; i < array_size(nonterminal -> rules); i++) {
+    option = (rule_t *) array_get(nonterminal -> rules, i);
+    fprintf(stderr, "  [ ");
+    set_reduce(option -> firsts, (reduce_t) _nonterminal_dump_terminal, nonterminal -> ge -> grammar);
+    fprintf(stderr, " ]\n");
+  }
+  fprintf(stderr, "  Follows:\n");
+  fprintf(stderr, "  [ ");
+  set_reduce(nonterminal -> follows, (reduce_t) _nonterminal_dump_terminal, nonterminal -> ge -> grammar);
+  fprintf(stderr, " ]\n  Parse Table:\n  [");
+  dict_reduce_keys(nonterminal -> parse_table, (reduce_t) _nonterminal_dump_terminal, nonterminal -> ge -> grammar);
+  fprintf(stderr, " ]\n\n");
+}
+
+/*
+ * rule_t static functions
+ */
+
+rule_t * _rule_create(ge_t *ge, va_list args) {
+  nonterminal_t *nonterminal;
+  rule_t        *ret;
+
+  nonterminal = (nonterminal_t *) (ge -> owner -> ptr);
+  ret = NEW(rule_t);
+  ret -> firsts = NULL;
+  ret -> follows = NULL;
+  ret -> entries = array_create(3);
+  array_set_free(ret -> entries, (free_t) rule_entry_free);
+  array_push(nonterminal -> rules, ret);
+  ret -> ge = ge;
+  return ret;
+}
+
+void _rule_free(rule_t *rule) {
+  if (rule) {
+    array_free(rule -> entries);
+    set_free(rule -> firsts);
+    set_free(rule -> follows);
+    free(rule);
+  }
+}
+
+/*
+    Rules for First Sets
+
+    If X is a terminal then First(X) is just X!
+    If there is a Production X → ε then add ε to first(X)
+    If there is a Production X → Y1Y2..Yk then add first(Y1Y2..Yk) to first(X)
+      First(Y1Y2..Yk) is -
+        if First(Y1) doesn't contain ε
+          First(Y1)
+        else if First(Y1) does contain ε
+          First (Y1Y2..Yk) is everything in First(Y1) <except for ε >
+          as well as everything in First(Y2..Yk)
+        If First(Y1) First(Y2)..First(Yk) all contain ε
+          add ε to First(Y1Y2..Yk) as well.
+*/
+set_t * _rule_get_firsts(rule_t *rule) {
+  rule_entry_t *e;
+  int           j;
+
+  if (!rule -> firsts) {
+    rule -> firsts = intset_create();
+    if (rule -> firsts) {
+      set_add_int(rule -> firsts, TokenCodeEmpty);
+      for (j = 0; set_has_int(rule -> firsts, TokenCodeEmpty) && (j < array_size(rule -> entries)); j++) {
+        set_remove_int(rule -> firsts, TokenCodeEmpty);
+        e = (rule_entry_t *) array_get(rule -> entries, j);
+        _rule_entry_get_firsts(e, rule -> firsts);
+      }
+    }
+  }
+  return rule -> firsts;
+}
+
+set_t * _rule_get_follows(rule_t *rule) {
+  return rule -> follows;
+}
+
+rule_t * _rule_add_parse_table_entry(long tokencode, rule_t *rule) {
+  nonterminal_t *nonterminal;
+
+  nonterminal = rule_get_nonterminal(rule);
+  if (tokencode != TokenCodeEmpty) {
+    if (!dict_has_int(nonterminal -> parse_table, (int) tokencode)) {
+      dict_put_int(nonterminal -> parse_table, (int) tokencode, rule);
+    }
+  } else {
+    set_reduce(nonterminal -> follows,
+               (reduce_t) _rule_add_parse_table_entry, rule);
+  }
+  return rule;
+}
+
+void _rule_build_parse_table(rule_t *rule) {
+  if (rule -> firsts) {
+    set_reduce(rule -> firsts, (reduce_t) _rule_add_parse_table_entry, rule);
+  }
+}
+
+/*
+ * rule_t public functions
+ */
+
+rule_t * rule_create(nonterminal_t *nonterminal) {
+  ge_t *ge;
+
+  ge = _ge_create(nonterminal_get_grammar(nonterminal), nonterminal -> ge, GETRule);
+  return (rule_t *) ge -> ptr;
+}
+
+void rule_free(rule_t *rule) {
+  ge_free(rule -> ge);
+}
+
+void rule_dump(rule_t *rule) {
+  array_visit(rule -> entries, (visit_t) rule_entry_dump);
+  fprintf(stderr, " |");
+}
+
+/*
+ * rule_entry_t static functions
+ */
+
+rule_entry_t * _rule_entry_new(ge_t *ge, va_list args) {
+  rule_t        *rule;
+  rule_entry_t  *ret;
+  int            terminal;
+  void          *ptr;
+
+  terminal = va_arg(args, int);
+  ptr = va_arg(args, void *);
+  rule = (rule_t *) (ge -> owner -> ptr);
+  ret = NEW(rule_entry_t);
+  ret -> terminal = terminal;
+  if (terminal) {
+    ret -> token =
+        (ptr) ? token_copy((token_t *) ptr)
+              : token_create(TokenCodeEmpty, "E");
+  } else {
+    ret -> nonterminal = strdup((char *) ptr);
+  }
+  array_push(rule -> entries, ret);
+  ret -> ge = ge;
+  return ret;
+}
+
+rule_entry_t * _rule_entry_create(rule_t *rule, int terminal, void *ptr) {
+  ge_t *ge;
+
+  ge = _ge_create(rule_get_grammar(rule), rule -> ge,
+                  GETNonTerminal, terminal, ptr);
+  return (rule_entry_t *) ge -> ptr;
+}
+
+void _rule_entry_free(rule_entry_t *entry) {
+  if (entry) {
+    if (entry -> terminal) {
+      token_free(entry -> token);
+    } else {
+      free(entry -> nonterminal);
+    }
+    free(entry);
+  }
+}
+
+set_t * _rule_entry_get_firsts(rule_entry_t *entry, set_t *firsts) {
+  nonterminal_t *nonterminal;
+
+  if (entry -> terminal) {
+    set_add_int(firsts, token_code(entry -> token));
+  } else {
+    nonterminal = grammar_get_nonterminal(rule_entry_get_grammar(entry),
+                                          entry -> nonterminal);
+    assert(nonterminal);
+    set_union(firsts, _nonterminal_get_firsts(nonterminal));
+  }
+  return firsts;
+}
+
+set_t * _rule_entry_get_follows(rule_entry_t *entry, set_t *follows) {
+  return follows;
+}
+
+/*
+ * rule_entry_t public functions
+ */
+
+void rule_entry_free(rule_entry_t *entry) {
+  ge_free(entry -> ge);
+}
+
+rule_entry_t * rule_entry_non_terminal(rule_t *rule, char *nonterminal) {
+  return _rule_entry_create(rule, 0, nonterminal);
+}
+
+rule_entry_t * rule_entry_terminal(rule_t *rule, token_t *token) {
+  rule_entry_t *ret;
+  int          code;
+  char        *str;
+  token_t     *t;
+
+  code = token_code(token);
+  str = token_token(token);
+  if ((code == TokenCodeDQuotedStr) && strcmp(str, "\"")) {
+    code = (int) strhash(str);
+    token = token_create(code, str);
+    dict_put_int(rule_get_grammar(rule) -> keywords, code, token);
+  }
+  return _rule_entry_create(rule, TRUE, token);
+}
+
+rule_entry_t * rule_entry_empty(rule_t *rule) {
+  return _rule_entry_create(rule, 1, NULL);
+}
+
+void rule_entry_dump(rule_entry_t *entry) {
+  int      code;
+  token_t *kw;
+
+  fprintf(stderr, " ");
+  if (entry -> terminal) {
+    code = token_code(entry -> token);
+    if (code < 32) {
+      fprintf(stderr, " %d", code);
+    } else if (code < 200) {
+      fprintf(stderr, " '%s'", token_token(entry -> token));
+    } else {
+      kw = (token_t *) dict_get_int(rule_entry_get_grammar(entry) -> keywords,
+                                    code);
+      fprintf(stderr, " \"%s\"", token_token(kw));
+    }
+  } else {
+    fprintf(stderr, "%s", entry -> nonterminal);
+  }
 }
 

@@ -26,7 +26,11 @@
 #include <data.h>
 #include <list.h>
 
-static data_t *      _data_create(datatype_t);
+static data_t *      _data_new_error(data_t *, va_list);
+static unsigned int  _data_hash_error(data_t *);
+static data_t *      _data_copy_error(data_t *, data_t *);
+static int           _data_cmp_error(data_t *, data_t *);
+static char *        _data_tostring_error(data_t *)
 
 static data_t *      _data_new_pointer(data_t *, va_list);
 static int           _data_cmp_pointer(data_t *, data_t *);
@@ -44,6 +48,7 @@ static int           _data_cmp_int(data_t *, data_t *);
 static char *        _data_tostring_int(data_t *);
 static unsigned int  _data_hash_int(data_t *);
 static data_t *      _data_parse_int(char *);
+static data_t *      _data_add_int(data_t *, char *, array_t *, dict_t *);
 
 static data_t *      _data_new_float(data_t *, va_list);
 static int           _data_cmp_float(data_t *, data_t *);
@@ -67,11 +72,25 @@ static char *        _data_tostring_function(data_t *);
 /* static data_t *      _data_parse_function(char *); */
 static unsigned int  _data_hash_function(data_t *);
 
+static void          _data_initialize_types(void);
+static data_t *      _data_create(datatype_t);
+
 // -----------------------
 // Data conversion support
 
 int data_numtypes = Function + 1;
 static typedescr_t builtins[] = {
+  {
+    type:                  Error,
+    typecode:              "E",
+    new:      (new_t)      _data_new_error,
+    copy:     (copydata_t) _data_copy_error,
+    cmp:      (cmp_t)      _data_cmp_error,
+    free:     (free_t)     error_free,
+    tostring: (tostring_t) _data_tostring_error,
+    parse:                 NULL,
+    hash:     (hash_t)     _data_hash_error
+  },
   {
     type:                  Pointer,
     typecode:              "P",
@@ -154,17 +173,108 @@ static typedescr_t builtins[] = {
 static typedescr_t *descriptors = builtins;
 
 /*
- * data_t static functions
+ * error_t functions
  */
 
-data_t * _data_create(datatype_t type) {
-  data_t *ret;
+error_t * error_create(int code, ...) {
+  error_t *ret;
+  va_list *args;
 
-  ret = NEW(data_t);
-  ret -> type = type;
+  va_start(args, code);
+  ret = error_vcreate(code, args);
+  va_end(args);
   return ret;
 }
 
+error_t * error_vcreate(int code, va_list args) {
+  int      size;
+  char    *msg;
+  error_t *ret;
+  va_list *args_copy;
+
+  ret = NEW(error_t);
+  ret -> code = code;
+  msg = va_arg(args, char *);
+  va_copy(args_copy, args);
+  size = vsnprintf(NULL, 0, msg, args);
+  va_end(args_copy);
+  ret -> msg = (char *) new(size + 1);
+  vsprintf(ret -> msg, msg, args);
+  return ret;
+}
+
+error_t * error_copy(error_t *src) {
+  error_t *ret;
+
+  ret = NEW(error_t);
+  ret -> code = src -> code;
+  ret -> msg = strdup(src -> msg);
+  return ret;
+}
+
+void error_free(error_t *error) {
+  if (error) {
+    free(error -> msg);
+    free(error -> str);
+    free(error);
+  }
+}
+
+unsigned int error_hash(error_t *error) {
+  return hashptr(error);
+}
+
+int error_cmp(error_t *e1, error_t *e2) {
+  return (e1 -> code != e2 -> code)
+    ? e1 -> code - e2 -> code
+    : strcmp(e1 -> msg, e2 -> msg);
+}
+
+char * error_tostring(error_t *error) {
+  int sz;
+
+  if (!error -> str) {
+    error -> str = (char *) new(snprintf(NULL, 0, "Error %d: %s", error -> code, error -> msg));
+    sprintf(error -> str, "Error %d: %s", error -> code, error -> msg);
+  }
+  return error -> str;
+}
+
+/*
+ * --------------------------------------------------------------------------
+ * Error
+ * --------------------------------------------------------------------------
+ */
+
+data_t * _data_new_error(data_t *target, va_list args) {
+  int      code;
+  error_t *e;
+
+  code = va_arg(args, int);
+  e = error_vcreate(code, args);
+  target -> ptrval = e;
+  return target;
+}
+
+unsigned int _data_hash_error(data_t *data) {
+  return error_hash((error_t *) data -> ptrval);
+}
+
+data_t * _data_copy_error(data_t *target, data_t *src) {
+  error_t *e;
+
+  e = error_copy((error_t *) src -> ptrval);
+  target -> ptrval = e;
+  return target;
+}
+
+int _data_cmp_error(data_t *d1, data_t *d2) {
+  return error_cmp((error_t *) d1 -> ptrval, (error_t *) d2 -> ptrval);
+}
+
+char * _data_tostring_error(data_t *data) {
+  return error_tostring((error_t *) data -> ptrval);
+}
 
 /*
  * --------------------------------------------------------------------------
@@ -287,6 +397,32 @@ data_t * _data_parse_int(char *str) {
   }
 }
 
+data_t * _data_add_int(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
+  str_t  *s;
+  data_t *d2;
+  data_t *ret;
+  int     type;
+
+  if (array_size(args) != 1) {
+    return data_error(ErrorArgCount, "int(+) requires two parameters");
+  }
+  d2 = (data_t) array_get(args, 0);
+  if (data_is_numeric(d2)) {
+    type = (data_type(d2) == Int) ? Int : Float;
+    if (type == Int) {
+      ret = data_create_int(d1 -> intval + d2 -> intval);
+    } else {
+      ret = data_create_float(((double) d1 -> intval) + d2 -> dblval));
+    }
+  } else {
+    ret = data_error(ErrorType,
+                     "Cannot add an integer and an object of type '%s'",
+                     descriptors[d2 -> type].typecode);
+  }
+  return ret;
+
+}
+
 /*
  * --------------------------------------------------------------------------
  * Float
@@ -325,6 +461,28 @@ data_t * _data_parse_float(char *str) {
       : NULL;
 }
 
+data_t * _data_add_float(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
+  str_t  *s;
+  data_t *d2;
+  data_t *ret;
+  int     type;
+
+  if (array_size(args) != 1) {
+    return data_error(ErrorArgCount, "int(+) requires two parameters");
+  }
+  d2 = (data_t) array_get(args, 0);
+  if (data_is_numeric(d2)) {
+    ret = data_create_float(
+        d2 -> dblval +
+        ((d2 -> type == Float) ? (d2 -> dblval) : ((double) d2 -> intval)));
+  } else {
+    ret = data_error(ErrorType,
+                     "Cannot add a float and an object of type '%s'",
+                     descriptors[d2 -> type].typecode);
+  }
+  return ret;
+
+}
 
 /*
  * --------------------------------------------------------------------------
@@ -464,10 +622,10 @@ unsigned int _data_hash_function(data_t *data) {
 }
 
 /*
- * data_t public functions
+ * typedescr_t public functions
  */
 
-int datatype_register(typedescr_t *descr) {
+int typedescr_register(typedescr_t *descr) {
   typedescr_t *new_descriptors;
   int          newsz;
   int          cursz;
@@ -491,6 +649,53 @@ int datatype_register(typedescr_t *descr) {
   memcpy(descriptors + descr -> type, descr, sizeof(typedescr_t));
   return descr -> type;
 }
+
+typedescr_t * typedescr_get(int datatype) {
+  if ((datatype >= 0) && (datatype < data_numtypes)) {
+    return &descriptors[datatype];
+  } else {
+    return NULL;
+  }
+}
+
+typedescr_t *  typedescr_add_method(typedescr_t *descr, char *name, method_t method) {
+  if (!descr -> methods) {
+    descr -> methods = strvoid_dict_create();
+  }
+  dict_put(descr -> methods, strdup(name), method);
+  return descr;
+}
+
+method_t typedescr_get_method(typedescr_t *descr, char *name) {
+  if (!descr -> methods) {
+    descr -> methods = strvoid_dict_create();
+  }
+  (method_t) dict_gut(descr -> methods, name);
+}
+
+
+/*
+ * data_t static functions
+ */
+
+void _data_initialize_types(void) {
+  typedescr_add_method(typedescr_get(Int), "+", _data_add_int);
+  typedescr_add_method(typedescr_get(Float), "+", _data_add_float);
+}
+
+data_t * _data_create(datatype_t type) {
+  data_t *ret;
+
+  _data_initialize_types();
+  ret = NEW(data_t);
+  ret -> type = type;
+  return ret;
+}
+
+
+/*
+ * data_t public functions
+ */
 
 data_t * data_create(int type, ...) {
   va_list  arg;
@@ -519,6 +724,32 @@ data_t * data_create_pointer(void *ptr) {
 
 data_t * data_null(void) {
   return data_create_pointer(NULL);
+}
+
+data_t * data_error(int code, char * msg, ...) {
+  char    buf[256];
+  char   *ptr;
+  int     size;
+  va_list args;
+  va_list args_copy;
+  data_t *ret;
+
+  va_start(args, msg);
+  va_copy(args_copy, args);
+  size = vsnprintf(buf, 256, msg, args);
+  if (size > 256) {
+    ptr = (char *) new(size);
+    vsprintf(ptr, msg, args_copy);
+  } else {
+    ptr = buf;
+  }
+  va_end(args);
+  va_end(args_copy);
+  ret = data_create(Error, code, ptr);
+  if (size > 256) {
+    free(ptr);
+  }
+  return ret;
 }
 
 data_t * data_create_int(long value) {
@@ -593,6 +824,26 @@ data_t * data_copy(data_t *src) {
     if (descriptors[src -> type].copy) {
       descriptors[src -> type].copy(ret, src);
     }
+  }
+  return ret;
+}
+
+method_t data_method(data_t *data, char *name) {
+  return typedescr_get_method(typedescr_get(data -> type), name);
+}
+
+data_t * data_execute(data_t *data, char *name, array_t *args, dict_t *kwargs) {
+  method_t  m;
+  data_t   *ret;
+
+  m = data_method(data, name);
+  if (!m) {
+    m = typedescr_get(data -> type) -> fallback;
+  }
+  if (m) {
+    ret = m(data, name, args, kwargs);
+  } else {
+    ret = data_error(ErrorName, "data element '%s' has no method '%s", data_tostring(data), name);
   }
   return ret;
 }

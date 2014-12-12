@@ -52,4 +52,10 @@ extern str_t *   array_tostr(array_t *);
 #define array_empty(a)           (array_size((a)) == 0)
 #define array_notempty(a)        (array_size((a)) > 0)
 
+#define str_array_create(i)     array_set_tostring( \
+                                  array_set_free( \
+                                    array_create((i)), \
+                                    (free_t) free), \
+                                  (tostring_t) chars)
+
 #endif /* __ARRAY_H__ */

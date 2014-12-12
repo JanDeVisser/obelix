@@ -22,6 +22,22 @@
 #define __DATA_H__
 
 #include <core.h>
+#include <array.h>
+#include <dict.h>
+
+typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
+
+typedef enum _errorcode {
+  ErrorArgCount,
+  ErrorType,
+  ErrorName
+} errorcode_t;
+
+typedef struct _error {
+  errorcode_t  code;
+  char        *msg;
+  char        *str;
+} error_t;
 
 typedef struct _typedescr {
   int           type;
@@ -33,10 +49,19 @@ typedef struct _typedescr {
   tostring_t    tostring;
   parse_t       parse;
   hash_t        hash;
+  dict_t       *methods;
+  method_t      fallback;
 } typedescr_t;
 
 typedef enum _datatype {
-  Pointer, String, Int, Float, Bool, List, Function
+  Error,
+  Pointer,
+  String,
+  Int,
+  Float,
+  Bool,
+  List,
+  Function
 } datatype_t;
 
 typedef struct _data {
@@ -48,10 +73,24 @@ typedef struct _data {
   };
 } data_t;
 
-extern int            datatype_register(typedescr_t *);
+
+extern error_t *      error_create(int , ...);
+extern error_t *      error_vcreate(int, va_list);
+extern error_t *      error_copy(error_t *);
+extern void           error_free(error_t *);
+extern unsigned int   error_hash(error_t *);
+extern int            error_cmp(error_t *, error_t *);
+extern char *         error_tostring(error_t *);
+
+extern int            typedescr_register(typedescr_t *);
+extern typedescr_t *  typedescr_get(int);
+extern typedescr_t *  typedescr_add_method(typedescr_t *, char *, method_t);
+extern method_t       typedescr_get_method(typedescr_t *, char *);
+
 extern data_t *       data_create(int, ...);
 extern data_t *       data_create_pointer(void *);
 extern data_t *       data_null(void);
+extern data_t *       data_error(int, char *, ...);
 extern data_t *       data_create_int(long);
 extern data_t *       data_create_float(double);
 extern data_t *       data_create_bool(long);
@@ -66,6 +105,25 @@ extern data_t *       data_copy(data_t *);
 extern unsigned int   data_hash(data_t *);
 extern char *         data_tostring(data_t *);
 extern int            data_cmp(data_t *, data_t *);
+extern method_t       data_method(data_t *, char *);
+extern data_t *       data_execute(data_t *, char *, array_t *, dict_t *);
 extern char *         data_debugstr(data_t *);
+
+#define strdata_dict_create()   dict_set_tostring_data( \
+                                  dict_set_tostring_key( \
+                                    dict_set_free_data( \
+                                      dict_set_free_key( \
+                                        dict_set_hash( \
+                                          dict_create((cmp_t) strcmp),\
+                                          (hash_t) strhash), \
+                                        (free_t) free), \
+                                      (free_t) data_free), \
+                                    (tostring_t) chars), \
+                                  (tostring_t) data_tostring)
+#define data_array_create(i)    array_set_tostring( \
+                                  array_set_free( \
+                                    array_create((i)), \
+                                    (free_t) data_free), \
+                                  (tostring_t) data_tostring)
 
 #endif /* __DATA_H__ */
