@@ -161,9 +161,6 @@ char * _data_tostring_script(data_t *d) {
 }
 
 void _data_script_register(void) {
-  if (!Script) {
-    Script = datatype_register(&typedescr_script);
-  }
 }
 
 data_t * data_create_script(script_t *script) {
@@ -395,6 +392,9 @@ script_t * script_create(script_t *up, char *name) {
   function_t     *builtin;
   script_t       *bi;
 
+  if (!Script) {
+    Script = typedescr_register(&typedescr_script);
+  }
   ret = NEW(script_t);
   ret -> instructions = list_create();
   list_set_free(ret -> instructions, (free_t) instruction_free);
@@ -412,9 +412,7 @@ script_t * script_create(script_t *up, char *name) {
   if (!up) {
     ret -> name = "<<root>>";
     for (builtin = _builtins; builtin -> name; builtin++) {
-      bi = script_create_function(builtin);
-      dict_put(ret -> functions, builtin -> name, bi);
-      bi -> refs++;
+      bi = script_create_native(ret, builtin);
     }
   } else {
     if (!name || !name[0]) {
@@ -471,6 +469,14 @@ void script_free(script_t *script) {
       free(script);
     }
   }
+}
+
+script_t script_create_native(script_t *script, function_t *function) {
+  script_t *ret;
+  
+  ret = script_create(script, function -> name);
+  ret -> native = 1;
+  ret -> native_method = (method_t) function -> fnc;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -801,13 +807,17 @@ script_t * script_push_instruction(script_t *script, instruction_t *instruction)
   return script;
 }
 
-data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
+data_t * script_execute(script_t *script, data_t *this, array_t *args, dict_t *kwargs) {
   data_t    *ret;
   closure_t *closure;
 
-  closure = script_create_closure(script, args, kwargs);
-  ret = closure_execute(closure);
-  closure_free(closure);
+  if (script -> native) {
+    ret = script -> native_method(this, script -> name, args, kwargs);
+  } else {
+    closure = script_create_closure(script, this, args, kwargs);
+    ret = closure_execute(closure);
+    closure_free(closure);
+  }
   return ret;
 }
 
@@ -821,7 +831,19 @@ void script_list(script_t *script) {
   debug("==================================================================");
 }
 
-closure_t * script_create_closure(script_t *script, array_t *args, dict_t *kwargs) {
+data_t * script_create_object(script_t *script, array_t *args, dict_t *kwargs) {
+  object_t  *ret;
+  closure_t *closure;
+  data_t    *retval;
+  data_t    *this;
+  
+  ret = object_create(script);
+  this = data_create_object(ret);
+  retval = script_execute(script, this, args, kwargs);
+  return (retval && (retval -> type == Error)) ? retval : this;
+}
+
+closure_t * script_create_closure(script_t *script, data_t *this, array_t *args, dict_t *kwargs) {
   closure_t *ret;
   int        ix;
 
@@ -844,6 +866,9 @@ closure_t * script_create_closure(script_t *script, array_t *args, dict_t *kwarg
   }
   if (kwargs) {
     dict_reduce(kwargs, (reduce_t) _script_variable_copier, ret);
+  }
+  if (this) {
+    closure_set(ret, "this", this);
   }
   ret -> refs++;
   return ret;

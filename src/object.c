@@ -18,6 +18,7 @@
  */
 
 #include <object.h>
+#include <script.h>
 
 static data_t *         _data_new_object(data_t *, va_list);
 static data_t *         _data_copy_object(data_t *, data_t *);
@@ -122,19 +123,14 @@ object_t * object_set(object_t *object, char *name, data_t *value) {
 
 data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwargs) {
   script_t *func;
-  dict_t   *new_kwargs;
   data_t   *ret;
+  data_t   *this;
 
-  if (!kwargs) {
-    new_kwargs = strdata_dict_create();
-    kwargs = new_kwargs;
-  } else {
-    new_kwargs = NULL;
-  }
-  dict_put(kwargs, strdup("this"), data_create(Object, object));
   func = script_get_function(object -> script, name);
   if (func) {
-    ret = script_execute(func, args, kwargs);
+    this = data_create_object(object);
+    ret = script_execute(func, this, args, kwargs);
+    data_free(this);
   } else {
     ret = data_error(ErrorName,
                      "Object '%s' of type '%s' has no method '%s'",
@@ -142,7 +138,6 @@ data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwa
                      script_get_fullname(object -> script),
                      name);
   }
-  dict_free(new_kwargs);
   return ret;
 }
 

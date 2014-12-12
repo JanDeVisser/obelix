@@ -40,7 +40,11 @@ typedef struct _script {
   char           *name;
   char           *fullname;
   array_t        *params;
-  list_t         *instructions;
+  int             native;
+  union {
+    list_t       *instructions;
+    method_t      native_method;
+  };
   dict_t         *functions;
   dict_t         *labels;
   char           *label;
@@ -67,6 +71,7 @@ extern data_t *         data_create_script(script_t *);
  * script_t prototypes
  */
 extern script_t *       script_create(script_t *, char *);
+extern script_t *       script_create_native(script_t *, function_t *);
 extern void             script_free(script_t *);
 extern char *           script_get_fullname(script_t *);
 extern char *           script_get_modulename(script_t *);
@@ -100,9 +105,9 @@ extern parser_t *       script_parse_end_function(parser_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
 
 /* Execution functions */
-extern object_t *       script_create_object(script_t *, array_t *, dict_t *);
-extern closure_t *      script_create_closure(script_t *, array_t *, dict_t *);
-extern data_t *         script_execute(script_t *, array_t *, dict_t *);
+extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
+extern closure_t *      script_create_closure(script_t *, data_t *, array_t *, dict_t *);
+extern data_t *         script_execute(script_t *, data_t *, array_t *, dict_t *);
 
 /*
  * closure_t prototypes
