@@ -82,10 +82,10 @@ dictentry_t * _dictentry_create(dict_t *dict, void *key, void *value) {
 
 void _dictentry_free(dictentry_t *entry) {
   if (entry) {
-    if (entry -> dict -> free_key) {
+    if (entry -> dict -> free_key && entry -> key) {
       entry -> dict -> free_key(entry -> key);
     }
-    if (entry -> dict -> free_data) {
+    if (entry -> dict -> free_data && entry -> value) {
       entry -> dict -> free_data(entry -> value);
     }
     free(entry);
@@ -496,6 +496,15 @@ dict_t * dict_put(dict_t *dict, void *key, void *data) {
   return ret;
 }
 
+/**
+ * Removes the entry associated with the given key from the dict. The free
+ * functions, if set, for both the key and the value are called.
+ *
+ * @param dict Dictionary to remove the entry from.
+ * @param key Key to remove from the dictionary.
+ *
+ * @return The dictionary.
+ */
 dict_t * dict_remove(dict_t *dict, void *key) {
   dict_t *ret;
 
@@ -512,6 +521,30 @@ void * dict_get(dict_t *dict, void *key) {
   
   entry = _dict_find_in_bucket(dict, key);
   return (entry) ? entry -> value : NULL;
+}
+
+/**
+ * Removes the entry for the given key from the dict, and returns the value
+ * associated with that key. The free function, if set, for the key us called,
+ * but not the free function for the value.
+ *
+ * @param dict Dictionary to remove the entry from.
+ * @param key Key to remove from the dictionary.
+ *
+ * @return The value associated with the key prior to removal, or NULL if the
+ * key was not present in the dictionary.
+ */
+void * dict_pop(dict_t *dict, void *key) {
+  dictentry_t *entry;
+  void        *ret;
+
+  entry = _dict_find_in_bucket(dict, key);
+  ret = (entry) ? entry -> value : NULL;
+  if (entry) {
+    entry -> value = NULL;
+    dict_remove(dict, key);
+  }
+  return ret;
 }
 
 int dict_has_key(dict_t *dict, void *key) {

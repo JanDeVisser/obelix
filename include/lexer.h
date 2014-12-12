@@ -22,6 +22,7 @@
 #define __LEXER_H__
 
 #include <array.h>
+#include <dict.h>
 #include <str.h>
 
 #define LEXER_BUFSIZE    	16384
@@ -139,7 +140,8 @@ extern int          token_code(token_t *);
 extern char *       token_token(token_t *);
 extern int          token_iswhitespace(token_t *);
 extern void         token_dump(token_t *);
-extern char *       token_tostring(token_t *, char *, int);
+extern data_t *     token_todata(token_t *);
+extern char *       token_tostring(token_t *);
 
 extern lexer_t *    _lexer_create(reader_t *);
 extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, long);
@@ -151,5 +153,24 @@ extern token_t *    lexer_next_token(lexer_t *);
 
 #define lexer_create(r)         _lexer_create((reader_t *) (r))
 #define lexer_tokenize(l, r, d) _lexer_tokenize((l), (reduce_t) (r), (d))
+
+#define strtoken_dict_create()  dict_set_tostring_data( \
+                                  dict_set_tostring_key( \
+                                    dict_set_free_data( \
+                                      dict_set_free_key( \
+                                        dict_set_hash( \
+                                          dict_create((cmp_t) strcmp),\
+                                          (hash_t) strhash), \
+                                        (free_t) free), \
+                                      (free_t) token_free), \
+                                    (tostring_t) chars), \
+                                  (tostring_t) token_tostring)
+#define tokenset_create()     set_set_tostring( \
+                                set_set_hash( \
+                                  set_set_free( \
+                                    set_create((cmp_t) token_cmp), \
+                                    (free_t) free), \
+                                  hashptr), \
+                                token_tostring)
 
 #endif /* __LEXER_H__ */

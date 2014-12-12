@@ -23,6 +23,23 @@
 
 #include <data.h>
 #include <file.h>
+
+#include <grammarparser.h>
+
+int main(int argc, char **argv) {
+  file_t           *gf;
+  grammar_parser_t *gp;
+  grammar_t        *g;
+
+  grammar_debug = 1;
+
+  gf = file_open("/home/jan/Projects/obelix/etc/grammar.txt");
+  gp = grammar_parser_create(gf);
+  g = grammar_parser_parse(gp);
+  file_free(gf);
+}
+
+#if 0
 #include <script.h>
 
 int main(int argc, char **argv) {
@@ -87,3 +104,4 @@ int main(int argc, char **argv) {
   data_free(ret);
   return retval;
 }
+#endif

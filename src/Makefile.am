@@ -37,10 +37,8 @@ libobelix_la_SOURCES = \
 		resolve.c \
 		lexer.c \
 		grammar.c \
-		parser.c \
-		instruction.c \
-		script.c
-
+		grammarparser.c 
+		
 bin_PROGRAMS = obelix
 obelix_SOURCES = obelix.c
 obelix_LDADD = libobelix.la -ldl -lm

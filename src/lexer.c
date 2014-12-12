@@ -230,22 +230,56 @@ void token_dump(token_t *token) {
   fprintf(stderr, " '%s' (%d)", token_token(token), token_code(token));
 }
 
-char * token_tostring(token_t *token, char *buf, int maxlen) {
-  static char  localbuf[128];
-  char        *ptr;
+data_t * token_todata(token_t *token) {
+  data_t   *data;
+  char     *str;
+  int       type;
 
-  if (!buf) {
-    buf = localbuf;
-    maxlen = 128;
+  data = NULL;
+  str = token_token(token);
+  type = -1;
+  switch (token_code(token)) {
+    case TokenCodeIdentifier:
+    case TokenCodeDQuotedStr:
+    case TokenCodeSQuotedStr:
+    case TokenCodeBQuotedStr:
+      type = String;
+      break;
+    case TokenCodeHexNumber:
+    case TokenCodeInteger:
+      type = Int;
+      break;
+    case TokenCodeFloat:
+      type = Float;
+      break;
+    default:
+      data = data_create(Int, token_code(token));
+      break;
   }
-  snprintf(buf, maxlen, "[%s]",
-    (token -> code < 200) ? token_code_name(token -> code) : token -> token);
-  if (token -> code < 200) {
-    snprintf(buf + strlen(buf), maxlen - strlen(buf), " '%s'", token -> token);
+  if (!data) {
+    data = data_parse(type, str);
   }
-  return buf;
+  assert(data);
+#ifdef LEXER_DEBUG
+  debug("token_todata: converted token [%s] to data value [%s]", token_tostring(token), data_tostring(data));
+#endif
+  return data;
 }
 
+char * token_tostring(token_t *token) {
+  static char buf[10][128];
+  static int  ix = 0;
+  char        *ptr;
+
+  ptr = buf[ix++];
+  snprintf(ptr, 128, "[%s]",
+    (token -> code < 200) ? token_code_name(token -> code) : token -> token);
+  if (token -> code < 200) {
+    snprintf(ptr + strlen(ptr), 128 - strlen(ptr), " '%s'", token -> token);
+  }
+  ix %= 10;
+  return ptr;
+}
 
 /*
  * lexer_t - static methods
@@ -687,7 +721,7 @@ void _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
     data = parser(lexer -> last_match, data);
     token_free(lexer -> last_match);
     lexer -> last_match = NULL;
-  } while (code != TokenCodeEnd);
+  } while (data && (code != TokenCodeEnd));
 }
 
 token_t * lexer_next_token(lexer_t *lexer) {

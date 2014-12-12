@@ -54,13 +54,18 @@ for_loop                    := "for"
                                end_stmt
                              ;
                              
-func_def                    := "func"
+func_def                    := native_opt
+                               "func"
                                'i'               [ push_last_token           ]
-                               (                 [ init_count                ]
+                               (                 [ push: 0                   ]
                                parlist_or_void
                                )                 [ start_function            ]
                                statements
                                end_stmt          [ end_function              ]
+                             ;
+                             
+native_opt                  := "native"          [ push: 1                   ]
+                             | dummy             [ push: 0                   ]
                              ;
 
 parlist_or_void             := parlist
@@ -83,7 +88,7 @@ return_stmt                 := "return"
                                expr 
                              ;
 
-import_stmt                 := "import"          [ init_count                ]
+import_stmt                 := "import"          [ push: 0                   ]
                                identifier        [ import                    ]
                              ;
 
@@ -99,7 +104,7 @@ expr                        := predicate
                                predicatetail
                              ;
                          
-predicatetail               := logic_op        [ push_last_token ]
+predicatetail               := logic_op        [ push: $         ]
                                predicate       [ emit_mathop     ]
                              |
                              ;
@@ -108,7 +113,7 @@ predicate                   := term
                                termtail
                              ;
 
-termtail                    := add_op          [ push_last_token ]
+termtail                    := add_op          [ push: $         ]
                                term            [ emit_mathop     ]
                                termtail
                              | 
@@ -117,7 +122,7 @@ termtail                    := add_op          [ push_last_token ]
 term                        := factor factortail 
                              ;
 
-factortail                  := mult_op         [ push_last_token ]
+factortail                  := mult_op         [ push: $         ]
                                factor          [ emit_mathop     ]
                                factortail
                              | 
@@ -125,7 +130,7 @@ factortail                  := mult_op         [ push_last_token ]
 
 factor                      := ( expr )
                              | var_or_call 
-                             | constant          [ emit_pushval              ]  
+                             | constant          [ push: $                   ]  
                              ;
 
 var_or_call:                 := identifier       [ init: init_count          ]
@@ -155,7 +160,7 @@ constant                    := '"'
 			     | list
                              ;
 
-list                        := {                    [ init_count ]
+list                        := {                    [ push: 0                ]
                                entrylist_or_empty
                                }                    [ emit_new_list ]
                              ;

@@ -50,6 +50,13 @@ extern int      set_cmp(set_t *, set_t *);
 extern str_t *  set_tostr(set_t *);
 
 #define intset_create()       set_create(NULL)
+#define strset_create()       set_set_tostring( \
+                                set_set_hash( \
+                                  set_set_free( \
+                                    set_create((cmp_t) strcmp), \
+                                    (free_t) free), \
+                                  strhash), \
+                                chars)
 #define set_add_int(s, i)     set_add((s), (void *)((long) (i)))
 #define set_has_int(s, i)     set_has((s), (void *)((long) (i)))
 #define set_remove_int(s, i)  set_remove((s), (void *)((long) (i)))
