@@ -65,6 +65,9 @@ static int           _data_cmp_list(data_t *, data_t *);
 static char *        _data_tostring_list(data_t *);
 static unsigned int  _data_hash_list(data_t *);
 
+static data_t *      _data_list_len(data_t *, char *, array_t *, dict_t *);
+
+
 static data_t *      _data_new_function(data_t *, va_list);
 static data_t *      _data_copy_function(data_t *, data_t *);
 static int           _data_cmp_function(data_t *, data_t *);
@@ -172,13 +175,50 @@ static typedescr_t builtins[] = {
 
 static typedescr_t *descriptors = builtins;
 
+typedef struct _errordescr {
+  int   code;
+  char *str;
+} errordescr_t;
+
+static errordescr_t builtin_errors[] = {
+    { code: ErrorArgCount,    str: "ErrorArgCount" },
+    { code: ErrorType,        str: "ErrorType" },
+    { code: ErrorName,        str: "ErrorName" }
+};
+
+static int           num_errors = sizeof(builtin_errors) / sizeof(errordescr_t);
+static errordescr_t *errors = builtin_errors;
+
 /*
  * error_t functions
  */
 
+int error_register(char *str) {
+  errordescr_t *new_errors;
+  errordescr_t  descr;
+  int           newsz;
+  int           cursz;
+
+  descr.code = num_errors;
+  descr.str = str;
+  newsz = (num_errors + 1) * sizeof(errordescr_t);
+  cursz = num_errors * sizeof(errordescr_t);
+  if (errors == builtin_errors) {
+    new_errors = (typedescr_t *) new(newsz);
+    memcpy(new_errors, errors, cursz);
+  } else {
+    new_errors = (typedescr_t *) resize_block(descriptors, newsz, cursz);
+  }
+  errors = new_errors;
+  num_errors++;
+  memcpy(errors + descr.code, &descr, sizeof(typedescr_t));
+  return descr.code;
+}
+
 error_t * error_create(int code, ...) {
   error_t *ret;
   va_list *args;
+
 
   va_start(args, code);
   ret = error_vcreate(code, args);
@@ -234,10 +274,20 @@ char * error_tostring(error_t *error) {
   int sz;
 
   if (!error -> str) {
-    error -> str = (char *) new(snprintf(NULL, 0, "Error %d: %s", error -> code, error -> msg));
-    sprintf(error -> str, "Error %d: %s", error -> code, error -> msg);
+    error -> str = (char *) new(snprintf(NULL, 0, "Error %s (%s): %s",
+                                         errors[error -> code].str,
+                                         error -> code,
+                                         error -> msg));
+    sprintf(error -> str, "Error %s (%d): %s",
+            errors[error -> code].str,
+            error -> code,
+            error -> msg);
   }
   return error -> str;
+}
+
+void error_report(error_t *e) {
+  error(error_tostring(e));
 }
 
 /*
@@ -412,7 +462,7 @@ data_t * _data_add_int(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
     if (type == Int) {
       ret = data_create_int(d1 -> intval + d2 -> intval);
     } else {
-      ret = data_create_float(((double) d1 -> intval) + d2 -> dblval));
+      ret = data_create_float(((double) d1 -> intval) + d2 -> dblval);
     }
   } else {
     ret = data_error(ErrorType,
@@ -511,10 +561,7 @@ data_t * _data_new_list(data_t *target, va_list arg) {
   int     ix;
   data_t *elem;
 
-  list = list_create();
-  list_set_free(list, data_free);
-  list_set_tostring(list, data_tostring);
-  list_set_hash(list, data_hash);
+  list = data_list_create();
   target -> ptrval = list;
   count = va_arg(arg, int);
   for (ix = 0; ix < count; ix++) {
@@ -579,6 +626,10 @@ unsigned int _data_hash_list(data_t *data) {
   return list_hash(data -> ptrval);
 }
 
+data_t * _data_list_len(data_t *d1, char *, array_t *, dict_t *) {
+  return data_create_int(list_size((list_t *) d1 -> ptrval));
+}
+
 /*
  * --------------------------------------------------------------------------
  * Function
@@ -636,7 +687,7 @@ int typedescr_register(typedescr_t *descr) {
   assert((descr -> type >= data_numtypes) || descriptors[descr -> type].type == 0);
   if (descr -> type >= data_numtypes) {
     newsz = (descr -> type + 1) * sizeof(typedescr_t);
-    cursz = (data_numtypes - 1) * sizeof(typedescr_t);
+    cursz = data_numtypes * sizeof(typedescr_t);
     if (descriptors == builtins) {
       new_descriptors = (typedescr_t *) new(newsz);
       memcpy(new_descriptors, descriptors, cursz);
@@ -646,7 +697,8 @@ int typedescr_register(typedescr_t *descr) {
     descriptors = new_descriptors;
     data_numtypes = descr -> type + 1;
   }
-  memcpy(descriptors + descr -> type, descr, sizeof(typedescr_t));
+  memcpy(descriptors + descr -> type * sizeof(typedescr_t),
+         descr, sizeof(typedescr_t));
   return descr -> type;
 }
 
@@ -670,7 +722,7 @@ method_t typedescr_get_method(typedescr_t *descr, char *name) {
   if (!descr -> methods) {
     descr -> methods = strvoid_dict_create();
   }
-  (method_t) dict_gut(descr -> methods, name);
+  return (method_t) dict_get(descr -> methods, name);
 }
 
 
@@ -678,9 +730,15 @@ method_t typedescr_get_method(typedescr_t *descr, char *name) {
  * data_t static functions
  */
 
+static int _types_initialized = 0;
+
 void _data_initialize_types(void) {
-  typedescr_add_method(typedescr_get(Int), "+", _data_add_int);
-  typedescr_add_method(typedescr_get(Float), "+", _data_add_float);
+  if (!_types_initialized) {
+    typedescr_add_method(typedescr_get(Int), "+", _data_add_int);
+    typedescr_add_method(typedescr_get(Float), "+", _data_add_float);
+    typedescr_add_method(typedescr_get(List), "len", _data_list_len);
+    _types_initialized = 1;
+  }
 }
 
 data_t * _data_create(datatype_t type) {
@@ -784,6 +842,31 @@ data_t * data_create_string(char * value) {
   return ret;
 }
 
+data_t * data_create_list(list_t *list) {
+  data_t *ret;
+  list_t *l;
+
+  ret = _data_create(List);
+  l = data_list_create();
+  list_add_all(l, list);
+  ret -> ptrval = l;
+  return ret;
+}
+
+data_t * data_create_list_fromarray(array_t *array) {
+  data_t *ret;
+  list_t *l;
+  int     ix;
+
+  ret = _data_create(List);
+  l = data_list_create();
+  for (ix = 0; ix < array_size(array); ix++) {
+    list_append(l, array_get(array, ix));
+  }
+  ret -> ptrval = l;
+  return ret;
+}
+
 data_t * data_create_function(function_t *fnc) {
   data_t *ret;
 
@@ -813,6 +896,10 @@ int data_type(data_t *data) {
 
 int data_is_numeric(data_t *data) {
   return (data -> type == Int) || (data -> type == Float);
+}
+
+int data_is_error(data_t *data) {
+  return (!data || (data -> type == Error));
 }
 
 data_t * data_copy(data_t *src) {

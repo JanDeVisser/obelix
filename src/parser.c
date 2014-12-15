@@ -446,12 +446,59 @@ parser_t * parser_create(grammar_t *grammar) {
   ret -> prod_stack = list_create();
   ret -> last_token = NULL;
   ret -> stack = datastack_create("__parser__");
-  ret -> variables = strvoid_dict_create();
-  dict_set_free_data(ret -> variables, (free_t) data_free);
-  dict_set_tostring_data(ret -> variables, (tostring_t) data_tostring);
+  ret -> variables = strdata_dict_create();
   datastack_set_debug(ret -> stack, parser_debug);
   return ret;
 }
+
+/**
+ * Clears the parser state, i.e. the stack and variables used during the
+ * parsing process. This function will also clear the internal stack
+ * with production rules, and therefore this function should not be used 
+ * in the middle of a parsing sequence.
+ */
+parser_t * parser_clear(parser_t *parser) {
+  datastack_clear(parser -> stack);
+  list_clear(parser -> prod_stack);
+  dict_clear(parser -> variables);
+  token_free(parser -> last_token);
+  return parser;
+}
+
+/**
+ * Sets a parser variable. Note the the data object is not copied but added to
+ * the parser as-is, therefore the caller should not free it. The key string
+ * is copied however.
+ */
+parser_t * parser_set(parser_t *parser, char *name, data_t *data) {
+  dict_put(parser -> variables, strdup(name), data);
+  return parser;
+}
+  
+/**
+ * Retrieves a parser variable. The variable remains part of the parser and
+ * therefore the caller should not free the returned value.
+ * 
+ * @return The parser variable with the given name, or NULL if the parser has
+ * no variable with that name.
+ */
+data_t * parser_get(parser_t *parser, char *name) {
+  return (data_t *) dict_get(parser -> variables, name);
+}
+
+/**
+ * Retrieves a parser variable and removes it from the parser and therefore 
+ * the caller is responsible for freeing the return value.
+ * 
+ * @return The parser variable with the given name, or NULL if the parser has
+ * no variable with that name.
+ * 
+ * @see
+ */
+data_t * parser_pop(parser_t *, char *) {
+  return (data_t *) dict_pop(parser -> variables, name);
+}
+
 
 void _parser_parse(parser_t *parser, reader_t *reader) {
   lexer_t        *lexer;
@@ -462,7 +509,6 @@ void _parser_parse(parser_t *parser, reader_t *reader) {
   for (ix = 0; ix < LexerOptionLAST; ix++) {
     lexer_set_option(lexer, ix, grammar_get_option(parser -> grammar, ix));
   }
-  datastack_clear(parser -> stack);
   if (grammar_get_initializer(parser -> grammar)) {
     grammar_get_initializer(parser -> grammar) -> fnc(parser);
   }

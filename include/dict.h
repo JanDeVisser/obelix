@@ -79,6 +79,14 @@ extern str_t *  dict_tostr(dict_t *);
 
 extern void     dict_dump(dict_t *, char *);
 
+#define intstr_dict_create()    dict_set_tostring_data( \
+                                  dict_set_tostring_key( \
+                                    dict_set_free_data( \
+                                      dict_create(NULL),\
+                                      (free_t) free), \
+                                    (tostring_t) itoa), \
+                                  (tostring_t) chars)
+
 #define strstr_dict_create()    dict_set_tostring_data( \
                                   dict_set_tostring_key( \
                                     dict_set_free_data( \
