@@ -24,6 +24,7 @@
 #include <file.h>
 #include <grammarparser.h>
 #include <script.h>
+
 #include <str.h>
 
 int script_debug = 0;
@@ -59,8 +60,9 @@ static data_t *         _leq(data_t *, data_t *);
 static data_t *         _eq(data_t *, data_t *);
 static data_t *         _neq(data_t *, data_t *);
 
-static data_t *         _script_function_print(closure_t *, char *, array_t *);
-static data_t *         _script_function_mathop(closure_t *, char *, array_t *);
+static data_t *         _script_function_print(closure_t *, char *, array_t *, dict_t *);
+static data_t *         _script_function_mathop(closure_t *, char *, array_t *, dict_t *);
+static data_t *         _script_function_list(closure_t *, char *, array_t *, dict_t *);
 
 static void             _script_list_visitor(instruction_t *);
 static closure_t *      _script_variable_copier(entry_t *, closure_t *);
@@ -71,9 +73,17 @@ static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t 
 static script_t *       _closure_get_script(closure_t *, char *);
 
 
+static file_t *         _scriptloader_open_systemfile(scriptloader_t *, char *);
+static file_t *         _scriptloader_open_userfile(scriptloader_t *, char *);
+static file_t *         _scriptloader_open_from_basedir(scriptloader_t *, char *, char *);
+static script_t *       _scriptloader_parse_reader(script_loader_t *, reader_t *, script_t *, char *);
+static data_t *         _scriptloader_load(scriptloader_t *, char *, int);
+
+
 #define FUNCTION_MATHOP  ((voidptr_t) _script_function_mathop)
 static function_t _builtins[] = {
     { name: "print",      fnc: ((voidptr_t) _script_function_print),  min_params: 1, max_params: -1 },
+    { name: "list",       fnc: ((voidptr_t) _script_function_list),   min_params: 0, max_params: -1 },
     { name: "+",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
     { name: "-",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
     { name: "*",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
@@ -147,9 +157,7 @@ int _data_cmp_script(data_t *d1, data_t *d2) {
   _data_script_register();
   s1 = d1 -> ptrval;
   s2 = d2 -> ptrval;
-  return (s1 -> up == s2 -> up) 
-    ? strcmp(s1 -> name, s2 -> name)
-    : s1 -> up - s2 -> up;
+  return strcmp(s1 -> name, s2 -> name);
 }
 
 char * _data_tostring_script(data_t *d) {
@@ -300,17 +308,17 @@ data_t * _neq(data_t *d1, data_t *d2) {
   return data_create_bool(data_cmp(d1, d2));
 }
 
-data_t * _script_function_mathop(closure_t *script, char *op, array_t *params) {
-  data_t   *d1;
-  data_t   *d2;
-  data_t   *ret;
-  int       ix;
-  mathop_t  fnc;
+data_t * _script_function_mathop(data_t *, char *op, array_t *params, dict_t *) {
+  data_t         *d1;
+  data_t         *d2;
+  data_t         *ret;
+  int             ix;
+  mathop_t        fnc;
 
   assert(array_size(params) == 2);
-  d1 = array_get(params, 0);
+  d1 = (data_t *) array_get(params, 0);
   assert(d1);
-  d2 = array_get(params, 1);
+  d2 = (data_t *) array_get(params, 1);
   assert(d2);
   fnc = NULL;
   for (ix = 0; mathops[ix].token; ix++) {
@@ -327,7 +335,7 @@ data_t * _script_function_mathop(closure_t *script, char *op, array_t *params) {
   return ret;
 }
 
-data_t * _script_function_print(closure_t *script, char *name, array_t *params) {
+data_t * _script_function_print(data_t *, char *, array_t *params, dict_t *kwargs) {
   char          *varname;
   data_t        *value;
   char          *fmt;
@@ -351,21 +359,8 @@ data_t * _script_function_print(closure_t *script, char *name, array_t *params) 
   return data_create_int(1);
 }
 
-data_t * _script_function_list(closure_t *script, char *op, array_t *params) {
-  data_t   *value;
-  data_t   *ret;
-  int       ix;
-  object_t *obj;
-
-  obj = object_create("list");
-  obj -> ptr = list_create();
-  list_set_free(obj -> ptr, (free_t) data_free);
-  list_set_tostring(obj -> ptr, (tostring_t) data_tostring);
-  for (ix = 0; ix < array_size(params); ix++) {
-    list_push(obj -> ptr, data_copy(array_get(params, ix)));
-  }
-  ret = data_create(Object, obj);
-  return ret;
+data_t * _script_function_list(data_t *, char *, array_t *params, dict_t *) {
+  return data_create_list_fromarray(params);
 }
 
 /*
@@ -377,7 +372,7 @@ void _script_list_visitor(instruction_t *instruction) {
 }
 
 closure_t * _script_variable_copier(entry_t *e, closure_t *closure) {
-  closure_set(closure, e -> key, data_copy(e -> value));
+  closure_set(closure, e -> key, e -> value);
   return closure;
 }
 
@@ -385,12 +380,14 @@ closure_t * _script_variable_copier(entry_t *e, closure_t *closure) {
  * script_t public functions
  */
 
-script_t * script_create(script_t *up, char *name) {
-  script_t       *ret;
-  char            buf[20];
-  data_t         *data;
-  function_t     *builtin;
-  script_t       *bi;
+script_t * script_create(ns_t *ns, script_t *up, char *name) {
+  script_t   *ret;
+  char       *shortname_buf;
+  char       *fullname_buf;
+  data_t     *data;
+  function_t *builtin;
+  script_t   *bi;
+  int         len;
 
   if (!Script) {
     Script = typedescr_register(&typedescr_script);
@@ -408,52 +405,46 @@ script_t * script_create(script_t *up, char *name) {
   ret -> label = NULL;
   ret -> params = NULL;
 
-  ret -> up = up;
-  if (!up) {
-    ret -> name = "<<root>>";
+  if (!ns) {
+    name = "__root__";
     for (builtin = _builtins; builtin -> name; builtin++) {
       bi = script_create_native(ret, builtin);
     }
-  } else {
-    if (!name || !name[0]) {
-      snprintf(buf, sizeof(buf), "__anon__%d__", hashptr(ret));
-      name = buf;
-    }
-    ret -> name = strdup(name);
-    data = data_create_script(ret);
-    dict_put(up -> functions, ret -> name, ret);
+    ret -> up = NULL;
   }
+  ret -> ns = ns;
+  
+  shortname_buf = fullname_buf = NULL;
+  if (!name) {
+    len = snprintf(NULL, 0, "__anon__%d__", hashptr(ret));
+    shortname_buf = (char *) new(len);
+    sprintf(shortname_buf, "__anon__%d__", hashptr(ret));
+    name = shortname_buf;
+  }
+  if (up) {
+    dict_put(up -> functions, strdup(name), ret);
+    len = snprintf(NULL, 0, "%s/%s", up -> name, name);
+    fullname_buf = (char *) new(len);
+    sprintf(fullname_buf, "%s/%s", up -> name, name);
+    name = fullname_buf;
+    ret -> up = up;
+    if (!ret -> ns) {
+      ret -> ns = up -> ns;
+    }
+  }
+  ret -> name = strdup(name);
+  free(shortname_buf);
+  free(fullname_buf);
   ret -> refs++;
   return ret;
 }
 
-char * script_get_fullname(script_t *script) {
-  char *upname;
-  int   sz;
-
-  if (!script -> up) {
-    return "";
-  }
-  
-  if (!script -> fullname) {
-    upname = script_get_fullname(script -> up);
-    sz = ((upname && upname[0]) ? strlen(upname) + 1 : 0) + strlen(script -> name) + 1;
-    script -> fullname = new(sz);
-    if (upname && upname[0]) {
-      snprintf(script -> fullname, sz, "%s.%s", upname, script -> name);
-    } else {
-      strcpy(script -> fullname, script -> name);
-    }
-  }
-  return script -> fullname;
-}
-
-char * script_get_modulename(script_t *script) {
-  return (script -> up) ? script_get_fullname(script -> up) : "";
-}
-
-char * script_get_classname(script_t *script) {
+char * script_get_name(script_t *script) {
   return script -> name;
+}
+
+char * script_tostring(script_t *script) {
+  return script_get_name(script);
 }
 
 void script_free(script_t *script) {
@@ -478,318 +469,6 @@ script_t script_create_native(script_t *script, function_t *function) {
   ret -> native = 1;
   ret -> native_method = (method_t) function -> fnc;
 }
-
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-
-parser_t * script_parse_init(parser_t *parser) {
-  if (parser_debug) {
-    debug("script_parse_init");
-  }
-  return parser;
-}
-
-array_t * _script_pop_and_build_varname(parser_t *parser) {
-  data_t         *data;
-  data_t         *count;
-  int             ix;
-  array_t        *ret;
-  str_t          *debugstr;
-
-  count = (data_t *) dict_pop(parser -> variables, "count");
-  if (parser_debug) {
-    debug("  -- components: %d", count -> intval);
-  }
-  ret = str_array_create(count -> intval);
-  for (ix = count -> intval - 1; ix >= 0; ix--) {
-    data = datastack_pop(parser -> stack);
-    array_set(ret, ix, strdup((char *) data -> ptrval))
-    data_free(data);
-  }
-  data_free(count);
-  if (parser_debug) {
-    debugstr = array_tostr(ret)
-    debug("  -- varname: %s", str_chars(ret));
-    str_free(debugstr);
-  }
-  return ret;
-}
-
-parser_t * script_parse_emit_assign(parser_t *parser) {
-  array_t  *varname;
-  script_t *script;
-
-  script = parser -> data;
-  varname = _script_pop_and_build_varname(parser);
-  script_push_instruction(script, instruction_create_assign(varname));
-  array_free(varname);
-  return parser;
-}
-
-parser_t * script_parse_emit_pushvar(parser_t *parser) {
-  script_t *script;
-  array_t  *varname;
-
-  script = parser -> data;
-  varname = _script_pop_and_build_varname(parser);
-  script_push_instruction(script, instruction_create_pushvar(varname));
-  array_free(varname);
-  return parser;
-}
-
-parser_t * script_parse_emit_pushval(parser_t *parser) {
-  script_t *script;
-  data_t   *data;
-
-  script = parser -> data;
-  data = token_todata(parser -> last_token);
-  assert(data);
-  if (parser_debug) {
-    debug(" -- val: %s", data_tostring(data));
-  }
-  script_push_instruction(script, instruction_create_pushval(data));
-  return parser;
-}
-
-parser_t * script_parse_emit_mathop(parser_t *parser) {
-  char     *op;
-  data_t   *data;
-  script_t *script;
-
-  script = parser -> data;
-  data = datastack_pop(parser -> stack);
-  op = (char *) data -> ptrval;
-  if (parser_debug) {
-    debug(" -- op: %s", op);
-  }
-  script_push_instruction(script,
-    instruction_create_function(op, 2));
-  data_free(data);
-  return parser;
-}
-
-parser_t * script_parse_emit_func_call(parser_t *parser) {
-  script_t *script;
-  array_t  *func_name;
-  data_t   *param_count;
-
-  script = parser -> data;
-  param_count = (data_t *) dict_pop(parser -> variables, "param_count");
-  func_name = _script_pop_and_build_varname(parser);
-  if (parser_debug) {
-    debug(" -- param_count: %d", param_count -> intval);
-    debug(" -- func_name: %s", func_name);
-  }
-  script_push_instruction(script,
-    instruction_create_function(func_name, param_count -> intval));
-  data_free(param_count);
-  array_free(func_name);
-  return parser;
-}
-
-parser_t * script_parse_emit_new_list(parser_t *parser) {
-  script_t *script;
-  data_t   *count;
-
-  script = parser -> data;
-  count = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- #entries: %d", count -> intval);
-  }
-  script_push_instruction(script,
-    instruction_create_function("list", count -> intval));
-  data_free(count);
-  return parser;
-}
-
-parser_t * script_parse_import(parser_t *parser) {
-  script_t *script;
-  array_t  *module;
-
-  script = parser -> data;
-  module = _script_pop_and_build_varname(parser);
-  if (parser_debug) {
-    debug(" -- module: %s", module);
-  }
-  script_push_instruction(script,
-    instruction_create_import(module));
-  free(module);
-  return parser;
-}
-
-parser_t * script_parse_emit_test(parser_t *parser) {
-  script_t      *script;
-  instruction_t *test;
-  char           label[9];
-
-  script = parser -> data;
-  strrand(label, 8);
-  test = instruction_create_test(label);
-  datastack_push_string(parser -> stack, label);
-  script_push_instruction(script, test);
-  return parser;
-}
-
-parser_t * script_parse_emit_jump(parser_t *parser) {
-  script_t      *script;
-  instruction_t *test;
-  char           label[9];
-
-  script = parser -> data;
-  strrand(label, 8);
-  test = instruction_create_jump(label);
-  datastack_push_string(parser -> stack, test -> name);
-  script_push_instruction(script, test);
-  return parser;
-}
-
-parser_t * script_parse_emit_pop(parser_t *parser) {
-  script_t      *script;
-
-  script = parser -> data;
-  script_push_instruction(script, instruction_create_pop());
-  return parser;
-}
-
-parser_t * script_parse_emit_nop(parser_t *parser) {
-  script_t      *script;
-
-  script = parser -> data;
-  script_push_instruction(script, instruction_create_nop());
-  return parser;
-}
-
-parser_t * script_parse_push_label(parser_t *parser) {
-  script_t      *script;
-
-  script = parser -> data;
-  script -> label = new(9);
-  strrand(script -> label, 8);
-  datastack_push_string(parser -> stack, script -> label);
-  return parser;
-}
-
-parser_t * script_parse_emit_else(parser_t *parser) {
-  script_t      *script;
-  instruction_t *jump;
-  data_t        *label;
-  char           newlabel[9];
-
-  script = parser -> data;
-  label = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- label: %s", (char *) label -> ptrval);
-  }
-  script -> label = strdup(label -> ptrval);
-  data_free(label);
-  strrand(newlabel, 8);
-  jump = instruction_create_jump(newlabel);
-  datastack_push_string(parser -> stack, newlabel);
-  script_push_instruction(script, jump);
-  return parser;
-}
-
-parser_t * script_parse_emit_end(parser_t *parser) {
-  script_t      *script;
-  data_t        *label;
-
-  script = parser -> data;
-  label = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- label: %s", (char *) label -> ptrval);
-  }
-  script -> label = strdup(label -> ptrval);
-  data_free(label);
-  return parser;
-}
-
-parser_t * script_parse_emit_end_while(parser_t *parser) {
-  script_t      *script;
-  data_t        *label;
-  instruction_t *jump;
-  char          *block_label;
-
-  script = parser -> data;
-
-  /*
-   * First label: The one pushed at the end of the expression. This is the
-   * label to be set at the end of the loop:
-   */
-  label = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- end block label: %s", (char *) label -> ptrval);
-  }
-  block_label = strdup(label -> ptrval);
-  data_free(label);
-
-  /*
-   * Second label: The one pushed after the while statement. This is the one
-   * we have to jump back to:
-   */
-  label = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- jump back label: %s", (char *) label -> ptrval);
-  }
-  jump = instruction_create_jump((char *) label -> ptrval);
-  script_push_instruction(script, jump);
-  data_free(label);
-
-  script -> label = block_label;
-
-  return parser;
-}
-
-parser_t * script_parse_start_function(parser_t *parser) {
-  script_t *up;
-  script_t *func;
-  long      count;
-  data_t   *data;
-  int       ix;
-  array_t  *params;
-  char     *name;
-
-  up = (script_t *) parser -> data;
-
-  data = datastack_pop(parser -> stack);
-  count = data -> intval;
-  data_free(data);
-  params = str_array_create(count);
-  for (ix = count - 1; ix >= 0; ix--) {
-    data = datastack_pop(parser -> stack);
-    array_set(params, ix, strdup(data -> ptrval));
-    data_free(data);
-  }
-  data = datastack_pop(parser -> stack);
-  func = script_create(up, (char *) data -> ptrval);
-  func -> params = params;
-  data_free(data);
-  if (parser_debug) {
-    debug(" -- definining function %s, #params %d", func -> name, count);
-  }
-  parser -> data = func;
-  return parser;
-}
-
-parser_t * script_parse_end_function(parser_t *parser) {
-  script_t *func;
-
-  func = (script_t *) parser -> data;
-  if (func -> label) {
-    script_parse_emit_nop(parser);
-  }
-  if (script_debug) {
-    script_list(func);
-  }
-  parser -> data = func -> up;
-  return parser;
-}
-
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
 
 script_t * script_push_instruction(script_t *script, instruction_t *instruction) {
   listnode_t *node;
@@ -898,7 +577,7 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
  * root level. Otherwise we split the name, and walk down from the
  * root level.
  */
-script_t * _closure_get_script(closure_t *closure, array_t *name) {
+script_t * _closure_get_object(closure_t *closure, array_t *name) {
   script_t *script;
   data_t   *s;
   char     *n;
@@ -906,11 +585,17 @@ script_t * _closure_get_script(closure_t *closure, array_t *name) {
   char     *ptr;
   str_t    *debugstr;
 
+  assert(array_size(name));
   if (script_debug) {
     debugstr = array_tostr(name);
     debug("  Getting script for %s", str_chars(debugstr));
     str_free(debugstr);
   }
+  ix = 0;
+  n = (char *) array_get(name, ix);
+  if (
+  
+  
   for (script = closure -> script; script -> up; script = script -> up);
   if (!strchr(name, '.')) {
     /*
@@ -1000,14 +685,14 @@ closure_t * closure_push(closure_t *closure, data_t *entry) {
   return closure;
 }
 
-closure_t * closure_set(closure_t *closure, char *varname, data_t *value) {
+closure_t * closure_set(closure_t *closure, list_t *varname, data_t *value) {
   script_t *s;
   char     *ptr;
 
-  s = _closure_get_script(closure, varname);
+  s = _closure_get_object(closure, varname);
   if (!s) {
     if (script_debug) {
-      debug("  Setting local '%s' = %s", varname, data_debugstr(value));
+      debug("  Setting local '%s' = %s", list_join(varname, "."), data_debugstr(value));
     }
     dict_put(closure -> variables, strdup(varname), data_copy(value));
   } else {
@@ -1016,7 +701,7 @@ closure_t * closure_set(closure_t *closure, char *varname, data_t *value) {
     if (script_debug) {
       debug("  Setting '%s' -> '%s' = %s", script_get_fullname(s), ptr, data_debugstr(value));
     }
-    script_set(s, ptr, value);
+    script_set(s, ptr, data_copy(value));
   }
   return closure;
 }
@@ -1056,35 +741,191 @@ data_t * closure_execute(closure_t *closure) {
 }
 
 /*
- * scriptloader_t -
+ * scriptloader_t - static functions
  */
 
-#define GRAMMAR_PATH    "/etc/grammar.txt"
+static file_t * _scriptloader_open_systemfile(scriptloader_t *loader, char *path) {
+  if (script_debug) {
+    debug("scriptloader_open_systemfile(%s)", path);
+  }
+  if (!path) {
+    return NULL;
+  } else {
+    return _scriptloader_open_from_basedir(loader, loader -> system_dir, path);
+  }
+}
+
+static file_t * _scriptloader_open_userfile(scriptloader_t *loader, char *path) {
+  if (script_debug) {
+    debug("scriptloader_open_userfile(%s)", path);
+  }
+  if (!path) {
+    return NULL;
+  } else {
+    return _scriptloader_open_from_basedir(loader, loader -> userpath, path);
+  }
+}
+
+static file_t * _scriptloader_open_from_basedir(scriptloader_t *loader, char *basedir, char *name) {
+  char      *fname;
+  char      *ptr;
+  fsentry_t *e;
+  fsentry_t *init;
+  file_t  *ret;
+
+  if (script_debug) {
+    debug("_scriptloader_open_from_basedir(%s, %s)", basedir, name);
+  }
+  assert(*(basedir + (strlen(basedir) - 1)) == '/');
+  if ((*name == '/') || (*name == '.')) {
+    name++;
+  }
+  fname = new(strlen(loader -> system_dir) + strlen(name) + 5);
+  sprintf(fname, "%s%s", loader -> system_dir, name);
+  for (ptr = strchr(fname, '.'); ptr; ptr = strchr(ptr, '.')) {
+    *ptr = '/';
+  }
+  e = fsentry_create(fname);
+  init = NULL;
+  if (fsentry_isdir(e)) {
+    init = fsentry_getentry(e, "__init__.obl");
+    fsentry_free(e);
+    if (fsentry_exists(init)) {
+      e = init;
+    } else {
+      e = NULL;
+      fsentry_free(init);
+    }
+  } else {
+    strcat(fname, ".obl");
+    e = fsentry_create(fname);
+  }
+  if ((e != NULL) && fsentry_isfile(e) && fsentry_canread(e)) {
+    ret = fsentry_open(e);
+    assert(ret -> fh > 0);
+  } else {
+    ret = NULL;
+  }
+  fsentry_free(e);
+  free(fname);
+  return ret;
+}
+
+static script_t * _scriptloader_parse_reader(script_loader_t *loader, 
+                                             reader_t * rdr, script_t *up, char *name) {
+  parser_clear(loader -> parser);
+  parser_set(loader -> parser, "name", data_create_string(name));
+  parser_set(loader -> parser, "up", data_create_script(up));
+  return parser_parse(loader -> parser, rdr);
+}
+
+static data_t * _scriptloader_load(scriptloader_t *loader, char *name, int empty_allowed) {
+  file_t    *text;
+  str_t     *dummy;
+  reader_t  *rdr;
+  char      *fname;
+  fsentry_t *e;
+  fsentry_t *init;
+  char      *ptr;
+  object_t  *ret;
+
+  if (script_debug) {
+    debug("scriptloader_load(%s)", name);
+  }
+  assert(name);
+  text = _scriptloader_open_userfile(loader, name);
+  if (!text) {
+    text = _scriptloader_open_systemfile(loader, name);
+  }
+  if (!text) {
+    if (empty_allowed) {
+      dummy = str_wrap("");
+      rdr = (reader_t *) dummy;
+    } else {
+      return NULL;
+    }
+  } else {
+    rdr = (reader_t *) rdr;
+  }
+  ret = scriptloader_load_fromreader(loader, name, (reader_t *) text);
+  str_free(dummy);
+  file_free(text);
+  return ret;
+}
+
+/*
+ * scriptloader_t - public functions
+ */
+
+#define GRAMMAR_PATH    "etc/grammar.txt"
+/* #define OBELIX_SYS_PATH "/usr/share/obelix" */
+#define OBELIX_SYS_PATH "share"
 
 scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   scriptloader_t   *ret;
-  file_t           *grammarfile;
+  file_t           *file;
   grammar_parser_t *gp;
+  script_t         *root;
+  char             *sysdir;
+  int               len;
+  script_t          root;
 
   assert(!_loader);
   ret = NEW(scriptloader_t);
-  ret -> path = strdup(obl_path);
+  sysdir = getenv("OBELIX_SYS_PATH");
+  if (!sysdir) {
+    sysdir = OBELIX_SYS_PATH;
+  }
+  len = strlen(sysdir);
+  ret -> system_dir = (char *) new (len + ((*(sysdir + (len - 1)) != '/') ? 2 : 1));
+  strcpy(ret -> system_dir, sysdir);
+  if (*(ret -> system_dir + (strlen(ret -> system_dir) - 1)) != '/') {
+    strcat(ret -> system_dir, "/");
+  }
+  if (!obl_path) {
+    obl_path = "./"
+  }
+  len = strlen(obl_path);
+  ret -> userpath = (char *) new (len + ((*(obl_path + (len - 1)) != '/') ? 2 : 1));
+  strcpy(ret -> userpath, obl_path);
+  if (*(ret -> userpath + (strlen(ret -> userpath) - 1)) != '/') {
+    strcat(ret -> userpath, "/");
+  }
+
   if (!grammarpath) {
-    grammarpath = (char *) new(strlen(ret -> path) + strlen(GRAMMAR_PATH) + 1);
-    strcpy(grammarpath, ret -> path);
+    grammarpath = (char *) new(strlen(ret -> system_dir) + strlen(GRAMMAR_PATH) + 1);
+    strcpy(grammarpath, ret -> system_dir);
     strcat(grammarpath, GRAMMAR_PATH);
   }
-  debug("obelix path: %s", obl_path);
+  debug("system dir: %s", ret -> system_dir);
+  debug("user path: %s", ret -> userpath);
   debug("grammar file: %s", grammarpath);
-  grammarfile = file_open(grammarpath);
-  assert(grammarfile);
-  gp = grammar_parser_create(grammarfile);
+
+  file = file_open(grammarpath);
+  assert(file);
+  gp = grammar_parser_create(file);
   ret -> grammar = grammar_parser_parse(gp);
   assert(ret -> grammar);
   grammar_parser_free(gp);
-  file_free(grammarfile);
-  ret -> root = scriptloader_load(ret, "/__root__.obl");
-  _loader = ret;
+  file_free(file);
+
+  ret -> parser = parser_create(ret -> grammar);
+
+  ret -> ns = NULL;
+  file = _scriptloader_open_systemfile(ret, "");
+  if (file) {
+    root = _scriptloader_parse_reader(ret, (reader_t *) file, NULL, NULL);
+    file_free(file);
+    if (root) {
+      ret -> ns = ns_create(root);
+    }
+  }
+  if (!ret -> ns) {
+    scriptloader_free(ret);
+    ret = NULL;
+  } else {
+    _loader = ret;
+  }
   return ret;
 }
 
@@ -1096,12 +937,13 @@ void scriptloader_free(scriptloader_t *loader) {
   if (loader) {
     free(loader -> path);
     grammar_free(loader -> grammar);
-    object_free(loader -> root);
+    parser_free(loader -> parser);
+    ns_free(loader -> ns);
     free(loader);
   }
 }
 
-object_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader_t *reader) {
+data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader_t *reader) {
   parser_t       *parser;
   script_t       *script;
   script_t       *modscript;
@@ -1115,7 +957,7 @@ object_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, read
   if (script_debug) {
     debug("scriptloader_load_fromreader(%s)", name);
   }
-  script = loader -> root;
+  script = NULL;
   if (name && name[0]) {
     curname = strdup(name);
     modname = curname;
@@ -1148,60 +990,14 @@ object_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, read
   parser = parser_create(loader -> grammar);
   parser -> data = script_create(script, classname);
   parser_parse(parser, reader);
-  script = (script_t *) parser -> data;
-  if (script -> label) {
-    script_parse_emit_nop(parser);
-  }
-  if (script_debug) {
-    script_list(script);
-  }
   parser_free(parser);
   free(curname);
   return script;
 }
 
-object_t * scriptloader_load(scriptloader_t *loader, char *name) {
-  file_t    *text;
-  char      *fname;
-  fsentry_t *e;
-  fsentry_t *init;
-  str_t     *dummy;
-  char      *ptr;
-  object_t  *ret;
-
-  if (script_debug) {
-    debug("scriptloader_load(%s)", name);
-  }
-  fname = new(strlen(loader -> path) + strlen(name) + 6);
-  sprintf(fname, "%s/%s", loader -> path, name);
-  for (ptr = strchr(fname, '.'); ptr; ptr = strchr(ptr, '.')) {
-    *ptr = '/';
-  }
-  e = fsentry_create(fname);
-  if (fsentry_isdir(e)) {
-    init = fsentry_getentry(e, "__init__.obl");
-    e = (fsentry_exists(init)) ? init : NULL;
-  } else {
-    strcat(fname, ".obl");
-    e = fsentry_create(fname);
-  }
-  ret = NULL;
-  if (e != NULL) {
-    if (fsentry_isfile(e) && fsentry_canread(e)) {
-      text = fsentry_open(e);
-      assert(text -> fh > 0);
-      ret = scriptloader_load_fromreader(loader, name, (reader_t *) text);
-      file_free(text);
-    }
-  } else {
-    dummy = str_wrap("");
-    ret = scriptloader_load_fromreader(loader, name, (reader_t *) dummy);
-    str_free(dummy);
-  }
-  free(fname);
-  return ret;
+data_t * scriptloader_load(scriptloader_t *loader, char *name) {
+  return _scriptloader_load(loader, name, 0);
 }
-
 
 data_t * scriptloader_execute(scriptloader_t *loader, char *name) {
   script_t     *script;
@@ -1209,7 +1005,7 @@ data_t * scriptloader_execute(scriptloader_t *loader, char *name) {
   
   script = scriptloader_load(loader, name);
   if (script) {
-    ret = script_execute(script, NULL);
+    ret = script_execute(script, NULL, NULL, NULL);
     if (script_debug) {
       debug("Return value: %s", data_tostring(ret));
     }

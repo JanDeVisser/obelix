@@ -74,6 +74,7 @@ typedef struct _data {
 } data_t;
 
 
+extern int            error_register(char *str);
 extern error_t *      error_create(int , ...);
 extern error_t *      error_vcreate(int, va_list);
 extern error_t *      error_copy(error_t *);
@@ -81,6 +82,7 @@ extern void           error_free(error_t *);
 extern unsigned int   error_hash(error_t *);
 extern int            error_cmp(error_t *, error_t *);
 extern char *         error_tostring(error_t *);
+extern void           error_report(error_t *);
 
 extern int            typedescr_register(typedescr_t *);
 extern typedescr_t *  typedescr_get(int);
@@ -95,12 +97,14 @@ extern data_t *       data_create_int(long);
 extern data_t *       data_create_float(double);
 extern data_t *       data_create_bool(long);
 extern data_t *       data_create_string(char *);
-extern data_t *       data_create_pointer(void *);
+extern data_t *       data_create_list(list_t *);
+extern data_t *       data_create_list_fromarray(array_t *);
 extern data_t *       data_create_function(function_t *);
 extern data_t *       data_parse(int, char *);
 extern void           data_free(data_t *);
 extern int            data_type(data_t *);
 extern int            data_is_numeric(data_t *);
+extern int            data_is_error(data_t *t);
 extern data_t *       data_copy(data_t *);
 extern unsigned int   data_hash(data_t *);
 extern char *         data_tostring(data_t *);
@@ -125,5 +129,15 @@ extern char *         data_debugstr(data_t *);
                                     array_create((i)), \
                                     (free_t) data_free), \
                                   (tostring_t) data_tostring)
+
+#define data_list_create()     _list_set_tostring( \
+                                 _list_set_hash( \
+                                   _list_set_cmp( \
+                                     _list_set_free( \
+                                       list_create(), \
+                                       (free_t) data_free), \
+                                     (cmp_t) data_cmp, \
+                                   (hash_t) data_hash, \
+                                 (tostring_t) data_tostring)
 
 #endif /* __DATA_H__ */

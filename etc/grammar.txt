@@ -2,6 +2,7 @@
 name: simple_expr
 prefix: script_parse_
 init: init
+done: done
 ignore_ws: true
 hashpling: true
 %

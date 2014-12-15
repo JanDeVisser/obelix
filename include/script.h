@@ -38,7 +38,6 @@ extern int Script;
 typedef struct _script {
   struct _script *up;
   char           *name;
-  char           *fullname;
   array_t        *params;
   int             native;
   union {
@@ -48,6 +47,7 @@ typedef struct _script {
   dict_t         *functions;
   dict_t         *labels;
   char           *label;
+  ns_t           *ns;
   int             refs;
 } script_t;
 
@@ -59,10 +59,11 @@ typedef struct _closure {
 } closure_t;
 
 typedef struct _script_loader {
-  char      *path;
-  grammar_t *grammar;
-  parser_t  *parser;
-  object_t  *root;
+  char        *userpath;
+  char        *system_dir;
+  grammar_t   *grammar;
+  parser_t    *parser;
+  ns_t        *ns;
 } scriptloader_t;
 
 extern data_t *         data_create_script(script_t *);
@@ -70,41 +71,15 @@ extern data_t *         data_create_script(script_t *);
 /*
  * script_t prototypes
  */
-extern script_t *       script_create(script_t *, char *);
+extern script_t *       script_create(ns_t *, script_t *, char *);
 extern script_t *       script_create_native(script_t *, function_t *);
 extern void             script_free(script_t *);
-extern char *           script_get_fullname(script_t *);
-extern char *           script_get_modulename(script_t *);
-extern char *           script_get_classname(script_t *);
+extern char *           script_tostring(script_t *);
+extern char *           script_get_name(script_t *);
 extern void             script_list(script_t *script);
 
-/* Parsing functions */
-extern parser_t *       script_parse_init(parser_t *);
-extern parser_t *       script_parse_push_last_token(parser_t *);
-extern parser_t *       script_parse_push_false(parser_t *);
-extern parser_t *       script_parse_push_true(parser_t *);
-extern parser_t *       script_parse_param_count(parser_t *);
-extern parser_t *       script_parse_push_param(parser_t *);
-extern parser_t *       script_parse_emit_assign(parser_t *);
-extern parser_t *       script_parse_emit_pushvar(parser_t *);
-extern parser_t *       script_parse_emit_pushval(parser_t *);
-extern parser_t *       script_parse_emit_mathop(parser_t *);
-extern parser_t *       script_parse_emit_func_call(parser_t *);
-extern parser_t *       script_parse_emit_new_list(parser_t *);
-extern parser_t *       script_parse_emit_import(parser_t *);
-extern parser_t *       script_parse_emit_jump(parser_t *);
-extern parser_t *       script_parse_emit_pop(parser_t *);
-extern parser_t *       script_parse_emit_nop(parser_t *);
-extern parser_t *       script_parse_emit_test(parser_t *);
-extern parser_t *       script_parse_push_label(parser_t *);
-extern parser_t *       script_parse_emit_else(parser_t *);
-extern parser_t *       script_parse_emit_end(parser_t *);
-extern parser_t *       script_parse_emit_end_while(parser_t *);
-extern parser_t *       script_parse_start_function(parser_t *);
-extern parser_t *       script_parse_end_function(parser_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
-
-/* Execution functions */
+extern script_t *       script_create_native(script_t *, function_t *);
 extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
 extern closure_t *      script_create_closure(script_t *, data_t *, array_t *, dict_t *);
 extern data_t *         script_execute(script_t *, data_t *, array_t *, dict_t *);
