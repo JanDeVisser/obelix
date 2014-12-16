@@ -30,7 +30,8 @@ typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
 typedef enum _errorcode {
   ErrorArgCount,
   ErrorType,
-  ErrorName
+  ErrorName,
+  ErrorNotCallable
 } errorcode_t;
 
 typedef struct _error {
@@ -113,6 +114,8 @@ extern int            data_cmp(data_t *, data_t *);
 extern method_t       data_method(data_t *, char *);
 extern data_t *       data_execute(data_t *, char *, array_t *, dict_t *);
 extern char *         data_debugstr(data_t *);
+
+extern dict_t *       data_add_all_reducer(entry_t *, dict_t *);
 
 #define strdata_dict_create()   dict_set_tostring_data( \
                                   dict_set_tostring_key( \

@@ -23,6 +23,7 @@
 #include <data.h>
 #include <file.h>
 #include <grammarparser.h>
+#include <namespace.h>
 #include <script.h>
 
 #include <str.h>
@@ -426,11 +427,6 @@ void _script_list_visitor(instruction_t *instruction) {
   debug(instruction_tostring(instruction));
 }
 
-closure_t * _script_variable_copier(entry_t *e, closure_t *closure) {
-  closure_set(closure, e -> key, e -> value);
-  return closure;
-}
-
 /*
  * script_t public functions
  */
@@ -585,7 +581,8 @@ closure_t * script_create_closure(script_t *script, data_t *this, array_t *args,
   script -> refs++;
 
   ret -> variables = strdata_dict_create();
-  ret -> stack = datastack_create(script_get_fullname(script));
+  dict_reduce(ret -> variables, (reduce_t) data_add_all_reducer, script -> functions);
+  ret -> stack = datastack_create(script_tostring(script));
   datastack_set_debug(ret -> stack, script_debug);
 
   if (args) {
@@ -595,7 +592,7 @@ closure_t * script_create_closure(script_t *script, data_t *this, array_t *args,
     }
   }
   if (kwargs) {
-    dict_reduce(kwargs, (reduce_t) _script_variable_copier, ret);
+    dict_reduce(kwargs, (reduce_t) data_add_all_reducer, ret -> variables);
   }
   if (this) {
     assert(data_type(this) == Object);
@@ -622,67 +619,6 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   return (label)
       ? (listnode_t *) dict_get(closure -> script -> labels, label)
       : NULL;
-}
-
-/**
- * Returns the object in which the identifier <name> belongs. Names resolution
- * starts at the current closure, then up the chain of nested closures. If the
- * first element of the name cannot be found in the chain of nested closures,
- * the first part is resolved at the namespace root level.
- *
- * @param closure Closure to resolve the name in
- * @param name List of name components
- *
- * @return If the name can be resolved, a data_t wrapping that object. If
- * the name cannot be resolved but only consists of one element, NULL,
- * indicating the name is a local variable of the closure. If the name
- * consists of more than one element but the path is broken, a
- * data_error(ErrorName) is returned.
- */
-data_t * _closure_get_object(closure_t *closure, array_t *name) {
-  closure_t *c;
-  data_t    *data;
-  array_t   *tail;
-  char      *n;
-  char      *first;
-  char      *ptr;
-
-  assert(array_size(name));
-  if (script_debug) {
-    array_debug(name, "  Getting object for %s");
-  }
-  tail = array_slice(name, 1, -1);
-  
-  first = (char *) (((data_t *) array_get(name, 0)) -> ptrval);
-  data = NULL;
-  for (c = closure; c && !data; c = c -> up) {
-    data = (data_t *) dict_get(c -> variables, first);
-  }
-  if (data) {
-    /* Found a match in the closure chain. Now walk the name: */
-    if (tail) {
-      /* There are more components in the name. data must be object: */
-      if (data -> type == Object) {
-        return object_resolve((object_t *) data -> ptrval, tail);
-      } else {
-        /* FIXME error message */
-        return data_error(ErrorName, "xx");
-      }
-    } else {
-      /* Name is local to the closure we found it in: */
-      data = data_create_closure(c);
-    }
-  } else {
-    /* No match. Delegate to the namespace. If the namespace returns
-     * NULL, the name must be local.
-     */
-    data = ns_get(closure -> script -> ns, name);
-    if (!data) {
-      data = data_create_closure(closure);
-    }
-  }
-  array_free(tail);
-  return data;
 }
 
 /*
@@ -714,6 +650,80 @@ closure_t * closure_push(closure_t *closure, data_t *entry) {
   return closure;
 }
 
+/**
+ * Returns the object in which the identifier <name> belongs. Names resolution
+ * starts at the current closure, then up the chain of nested closures. If the
+ * first element of the name cannot be found in the chain of nested closures,
+ * the first part is resolved at the namespace root level.
+ *
+ * @param closure Closure to resolve the name in
+ * @param name List of name components
+ *
+ * @return If the name can be resolved, a data_t wrapping that object. If
+ * the name cannot be resolved but only consists of one element, NULL,
+ * indicating the name is a local variable of the closure. If the name
+ * consists of more than one element but the path is broken, a
+ * data_error(ErrorName) is returned.
+ */
+data_t * closure_get_container_for(closure_t *closure, array_t *name) {
+  closure_t *c;
+  data_t    *data;
+  data_t    *ret;
+  array_t   *tail;
+  char      *n;
+  char      *first;
+  char      *ptr;
+
+  assert(array_size(name));
+  if (script_debug) {
+    array_debug(name, "  Getting object for %s");
+  }
+  tail = array_slice(name, 1, -1);
+  
+  first = (char *) (((data_t *) array_get(name, 0)) -> ptrval);
+  data = NULL;
+  c = closure;
+  while(c) {
+    data = closure_get(c, first);
+    if (!data_is_error(data)) {
+      break;
+    } else {
+      data_free(data);
+      data = NULL:
+      c = c -> up;
+    }
+  }
+  if (c) {
+    /* Found a match in the closure chain. Now walk the name: */
+    if (tail) {
+      /* There are more components in the name. data must be object: */
+      if (data -> type == Object) {
+        ret = object_resolve((object_t *) data -> ptrval, tail);
+      } else {
+        ret = data_error(ErrorName,
+                         "Variable '%s' of function '%s' is not an object",
+                         name,
+                         closure_tostring(c));
+      }
+    } else {
+      /* Name is local to the closure we found it in: */
+      ret = data_create_closure(c);
+    }
+  } else {
+    /* No match. Delegate to the namespace. If the namespace returns
+     * NULL, the name must be local.
+     */
+    ret = ns_resolve(closure -> script -> ns, name);
+    if (data_is_error(ret)) {
+      data_free(ret);
+      ret = data_create_closure(closure);
+    }
+  }
+  data_free(data);
+  array_free(tail);
+  return ret;
+}
+
 data_t * closure_set(closure_t *closure, array_t *varname, data_t *value) {
   data_t    *d;
   data_t    *ret;
@@ -725,7 +735,7 @@ data_t * closure_set(closure_t *closure, array_t *varname, data_t *value) {
   assert(value);
   assert(!varname || !array_size(varname));
 
-  d = _closure_get_object(closure, varname);
+  d = closure_get_container_for(closure, varname);
   switch (data_type(d)) {
     case Closure:
       c = (closure_t *) d -> ptrval;
@@ -780,7 +790,7 @@ data_t * closure_resolve(closure_t *closure, array_t *varname) {
   assert(closure);
   assert(!varname || !array_size(varname));
 
-  d = _closure_get_object(closure, varname);
+  d = closure_get_container_for(closure, varname);
   switch (data_type(d)) {
     case Closure:
       c = (closure_t *) d -> ptrval;
@@ -820,6 +830,26 @@ data_t * closure_execute(closure_t *closure) {
   ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
   if (script_debug) {
     debug("    Execution of %s done: %s", closure -> script -> name, data_tostring(ret));
+  }
+  return ret;
+}
+
+data_t * closure_execute_function(closure_t *closure, char *name, array_t *args, dict_t *kwargs) {
+  data_t *func;
+  
+  func = closure_get(closure, name);
+  if (!data_is_error(func)) {
+    if (data_type(func) != Script)  {
+      ret = data_error(ErrorName,
+                       "Variable '%s' of function '%s' is not callable",
+                       name,
+                       closure_tostring(closure));
+    } else {
+      ret = script_execute(func, closure -> this, args, kwargs);
+    }
+    data_free(func);
+  } else {
+    ret = func;
   }
   return ret;
 }

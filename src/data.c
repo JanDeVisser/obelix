@@ -183,7 +183,8 @@ typedef struct _errordescr {
 static errordescr_t builtin_errors[] = {
     { code: ErrorArgCount,    str: "ErrorArgCount" },
     { code: ErrorType,        str: "ErrorType" },
-    { code: ErrorName,        str: "ErrorName" }
+    { code: ErrorName,        str: "ErrorName" },
+    { code: ErrorNotCallable, str: "ErrorNotCallable" }
 };
 
 static int           num_errors = sizeof(builtin_errors) / sizeof(errordescr_t);
@@ -991,5 +992,8 @@ int data_cmp(data_t *d1, data_t *d2) {
   }
 }
 
-
+dict_t * data_add_all_reducer(entry_t *e, dict_t *target) {
+  dict_put(target, strdup(e -> key), data_copy(e -> value));
+  return target;
+}
 

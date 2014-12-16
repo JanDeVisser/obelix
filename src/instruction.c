@@ -173,17 +173,18 @@ char * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) {
 }
 
 data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
-  data_t         *value;
-  array_t        *params;
-  int             ix;
-  str_t          *debugstr;
-  native_t        fnc;
-  closure_t      *func_closure;
-  data_t         *func_data;
-  array_t        *name;
-  int             num_params;
+  data_t    *func_container;
+  data_t    *value;
+  data_t    *ret;
+  object_t  *o;
+  closure_t *c;
+  char      *n;
+  array_t   *params;
+  array_t   *name;
+  int        num_params;
+  int        ix;
 
-  num_params = instr -> value -> intval;
+  num_params = instr -> num;
   if (script_debug) {
     debug(" -- #parameters: %d", num_params);
   }
@@ -199,34 +200,24 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   }
 
   name = data_list_toarray(instr -> value);
-  func_data = closure_resolve(closure, instr -> name);
-  if (data_is_error(func_data)) {
-    array_free(name);
-    return func_data;
-  }
-
-  if (data_type(func_data) == Script) {
-    func_closure = script_create_closure(
-        (script_t *) func_data -> ptrval, params);
-    func_name = script_get_fullname((script_t *) func_data -> ptrval);
-    fnc = (native_t) _instruction_execute_script;
-  } else if (data_type(func_data) == Function) {
-    func_closure = closure;
-    func_name = instr -> name;
-    fnc = (native_t) (((function_t *) func_data -> ptrval) -> fnc);
+  func_container = closure_get_container_for(closure, name);
+  if (data_is_error(func_container)) {
+    ret = func_container;
   } else {
-    error("_instruction_execute_function got a non-callable");
-    assert(0);
+    n = data_tostring((data_t *) array_get(name, -1));
+    switch (data_type(func_container)) {
+      case Object:
+        o = (object_t *) func_container -> ptrval;
+        ret = object_execute(o, n, params, NULL);
+        break;
+      case Closure:
+        c = (closure_t *) func_container -> ptrval;
+        ret = closure_execute_function(c, n, params, NULL);
+        break;
+    }
   }
-
-  value = fnc(func_closure, instr -> name, params);
-  value = value ? value : data_null();
-  if (script_debug) {
-    debug(" -- return: '%s'", data_tostring(value));
-  }
-  closure_push(closure, value);
-  array_free(params);
-  return NULL;
+  data_free(func_container);
+  return ret;
 }
 
 data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
@@ -289,7 +280,6 @@ instruction_t * instruction_create(int type, char *name, data_t *value) {
     ret -> value = data_copy(value);
   }
   return ret;
-
 }
 
 instruction_t * instruction_create_assign(array_t *varname) {
@@ -305,7 +295,13 @@ instruction_t * instruction_create_pushval(data_t *value) {
 }
 
 instruction_t * instruction_create_function(array_t *name, int num_params) {
-  return instruction_create(ITFunction, name, data_create_list_fromarray(name));
+  instruction_t *ret;
+  
+  ret = instruction_create(ITFunction, 
+                           data_tostring((data_t *) array_get(name, -1)),
+                           data_create_list_fromarray(name));
+  ret -> num = num_params;
+  return ret;
 }
 
 instruction_t * instruction_create_test(char *label) {
