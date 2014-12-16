@@ -17,6 +17,8 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+
 #include <object.h>
 #include <script.h>
 
@@ -89,7 +91,7 @@ object_t * object_create(script_t *script) {
   ret -> script = script;
   ret -> ptr = NULL;
   ret -> variables = strdata_dict_create();
-  dict_put_all(ret -> variables, script -> functions);
+  dict_reduce(ret -> variables, (reduce_t) data_add_all_reducer, script -> functions);
   ret -> refs = 0;
 }
 
@@ -97,7 +99,7 @@ void object_free(object_t *object) {
   if (object) {
     object -> refs--;
     if (--object -> refs <= 0) {
-      object_finalize(object, "__finalize__", NULL, NULL);
+      object_execute(object, "__finalize__", NULL, NULL);
       dict_free(object -> variables);
       free(object -> str);
     }
@@ -114,7 +116,7 @@ data_t * object_get(object_t *object, char *name) {
     ret = data_error(ErrorName,
                      "Object '%s' of type '%s' has no attribute '%s'",
                      object_tostring(object),
-                     script_get_fullname(object -> script),
+                     script_tostring(object -> script),
                      name);
   }
   return ret;
@@ -130,17 +132,22 @@ data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwa
   data_t   *ret;
   data_t   *this;
 
-  func = script_get_function(object -> script, name);
-  if (func) {
-    this = data_create_object(object);
-    ret = script_execute(func, this, args, kwargs);
-    data_free(this);
+  func = object_get(object, name);
+  if (!data_is_error(func)) {
+    if (data_type(func) != Script)  {
+      ret = data_error(ErrorName,
+                       "Attribute '%s' of object '%s' of type '%s' is not callable",
+                       name,
+                       object_tostring(object),
+                       script_tostring(object -> script));
+    } else {
+      this = data_create_object(object);
+      ret = script_execute(func, this, args, kwargs);
+      data_free(this);
+    }
+    data_free(func);
   } else {
-    ret = data_error(ErrorName,
-                     "Object '%s' of type '%s' has no method '%s'",
-                     object_tostring(object),
-                     script_get_fullname(object -> script),
-                     name);
+    ret = func;
   }
   return ret;
 }
@@ -153,10 +160,10 @@ char * object_tostring(object_t *object) {
     object -> str = strdup((char *) data -> ptrval);
   } else {
     object -> str = (char *) new(snprintf(NULL, 0, "<%s object at %p>",
-                                          script_get_fullname(object -> script),
+                                          script_tostring(object -> script),
                                           object));
     sprintf(object -> str, "<%s object at %p>",
-            script_get_fullname(object -> script),
+            script_tostring(object -> script),
             object);
   }
   data_free(data);
@@ -216,18 +223,24 @@ data_t * object_resolve(object_t *object, array_t *name) {
   }
   o = object;
   for (ix = 0; o && (ix < array_size(name) - 1); ix++) {
-    ret = object_get(o, (char *) (((data_t *) array_get(name, ix)) -> ptrval));
-    if (!ret)
-    o = (data_type(ret) == Object) ? (object_t *) ret -> ptrval : NULL;
-  }
-  /* FIXME Error message */
-  if (o) {
-    ret = data_create_object(o) ;
-  } else {
+    char *n = (char *) (((data_t *) array_get(name, ix)) -> ptrval);
+    ret = object_get(o, n);
+    if (data_is_error(ret)) {
+      break;
+    }
+    if (data_type(ret) != Object) {
+      data_free(ret);
       ret = data_error(ErrorName,
-                       "Object '%s' of type '%s' has no method '%s'",
-                       object_tostring(object),
-                       script_get_fullname(object -> script),
-                       name);
+                       "Attribute '%s' of object '%s' of type '%s' is not an object",
+                       n,
+                       object_tostring(o),
+                       script_tostring(object -> script));
+      break;
+    }
+    o = (object_t *) (ret -> ptrval);
+    data_free(ret);
+  }
+  if (!data_is_error(ret)) {
+    ret = data_create_object(o) ;
   }
 }
