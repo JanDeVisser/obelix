@@ -45,7 +45,11 @@ static data_t *         _data_new_script(data_t *, va_list);
 static data_t *         _data_copy_script(data_t *, data_t *);
 static int              _data_cmp_script(data_t *, data_t *);
 static char *           _data_tostring_script(data_t *);
-static void             _data_script_register(void);
+
+static data_t *         _data_new_closure(data_t *, va_list);
+static data_t *         _data_copy_closure(data_t *, data_t *);
+static int              _data_cmp_closure(data_t *, data_t *);
+static char *           _data_tostring_closure(data_t *);
 
 static data_t *         _plus(data_t *, data_t *);
 static data_t *         _minus(data_t *, data_t *);
@@ -118,10 +122,11 @@ static mathop_def_t mathops[] = {
 static scriptloader_t * _loader = NULL;
 
 /*
- * data_t Script type 
+ * data_t Script and Closure types
  */
 
 int Script = 0;
+int Closure = 0;
 
 static typedescr_t typedescr_script = {
   type:                  -1,
@@ -134,6 +139,22 @@ static typedescr_t typedescr_script = {
   hash:                  NULL,
   parse:                 NULL,
 };
+
+static typedescr_t typedescr_closure = {
+  type:                  -1,
+  typecode:              "R",
+  new:      (new_t)      _data_new_closure,
+  copy:     (copydata_t) _data_copy_closure,
+  cmp:      (cmp_t)      _data_cmp_closure,
+  free:     (free_t)     closure_free,
+  tostring: (tostring_t) _data_tostring_closure,
+  hash:                  NULL,
+  parse:                 NULL,
+};
+
+/*
+ * Closure data functions
+ */
 
 data_t * _data_new_script(data_t *ret, va_list arg) {
   script_t *script;
@@ -154,7 +175,6 @@ int _data_cmp_script(data_t *d1, data_t *d2) {
   script_t *s1;
   script_t *s2;
 
-  _data_script_register();
   s1 = d1 -> ptrval;
   s2 = d2 -> ptrval;
   return strcmp(s1 -> name, s2 -> name);
@@ -163,19 +183,54 @@ int _data_cmp_script(data_t *d1, data_t *d2) {
 char * _data_tostring_script(data_t *d) {
   static char buf[32];
 
-  _data_script_register();
   snprintf(buf, 32, "<<script %s>>", ((script_t *) d -> ptrval) -> name);
   return buf;
-}
-
-void _data_script_register(void) {
 }
 
 data_t * data_create_script(script_t *script) {
   data_t *ret;
 
-  _data_script_register();
   return data_create(Script, script);
+}
+
+/*
+ * Closure data functions
+ */
+
+data_t * _data_new_closure(data_t *ret, va_list arg) {
+  closure_t *closure;
+
+  closure = va_arg(arg, closure_t *);
+  ret -> ptrval = closure;
+  ((closure_t *) ret -> ptrval) -> refs++;
+  return ret;
+}
+
+data_t * _data_copy_closure(data_t *target, data_t *src) {
+  target -> ptrval = src -> ptrval;
+  ((closure_t *) target -> ptrval) -> refs++;
+  return target;
+}
+
+int _data_cmp_closure(data_t *d1, data_t *d2) {
+  closure_t *c1;
+  closure_t *c2;
+
+  c1 = d1 -> ptrval;
+  c2 = d2 -> ptrval;
+  return strcmp(c1 -> script -> name, c2 -> script -> name);
+}
+
+char * _data_tostring_closure(data_t *d) {
+  static char buf[32];
+
+  snprintf(buf, 32, "<<closure %s>>",
+           ((closure_t *) d -> ptrval) -> script -> name);
+  return buf;
+}
+
+data_t * data_create_closure(closure_t *closure) {
+  return data_create(Closure, closure);
 }
 
 /*
@@ -391,16 +446,14 @@ script_t * script_create(ns_t *ns, script_t *up, char *name) {
 
   if (!Script) {
     Script = typedescr_register(&typedescr_script);
+    Closure = typedescr_register(&typedescr_closure);
   }
   ret = NEW(script_t);
   ret -> instructions = list_create();
   list_set_free(ret -> instructions, (free_t) instruction_free);
   list_set_tostring(ret -> instructions, (tostring_t) instruction_tostring);
 
-  ret -> functions = strvoid_dict_create();
-  dict_set_tostring_data(ret -> functions, (tostring_t) script_get_fullname);
-  dict_set_free_data(ret -> functions, (free_t) script_free);
-
+  ret -> functions = strdata_dict_create();
   ret -> labels = strvoid_dict_create();
   ret -> label = NULL;
   ret -> params = NULL;
@@ -422,7 +475,7 @@ script_t * script_create(ns_t *ns, script_t *up, char *name) {
     name = shortname_buf;
   }
   if (up) {
-    dict_put(up -> functions, strdup(name), ret);
+    dict_put(up -> functions, strdup(name), data_create_script(ret));
     len = snprintf(NULL, 0, "%s/%s", up -> name, name);
     fullname_buf = (char *) new(len);
     sprintf(fullname_buf, "%s/%s", up -> name, name);
@@ -435,7 +488,6 @@ script_t * script_create(ns_t *ns, script_t *up, char *name) {
   ret -> name = strdup(name);
   free(shortname_buf);
   free(fullname_buf);
-  ret -> refs++;
   return ret;
 }
 
@@ -456,7 +508,6 @@ void script_free(script_t *script) {
       array_free(script -> params);
       dict_free(script -> functions);
       free(script -> name);
-      free(script -> fullname);
       free(script);
     }
   }
@@ -547,6 +598,8 @@ closure_t * script_create_closure(script_t *script, data_t *this, array_t *args,
     dict_reduce(kwargs, (reduce_t) _script_variable_copier, ret);
   }
   if (this) {
+    assert(data_type(this) == Object);
+    ret -> this = (object_t *) this -> ptrval;
     closure_set(ret, "this", this);
   }
   ret -> refs++;
@@ -572,92 +625,64 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
 }
 
 /**
- * Returns the script in which the identifier <name> belongs. If name does
- * not contain a dot, it is either local to the closure or lives at the
- * root level. Otherwise we split the name, and walk down from the
- * root level.
+ * Returns the object in which the identifier <name> belongs. Names resolution
+ * starts at the current closure, then up the chain of nested closures. If the
+ * first element of the name cannot be found in the chain of nested closures,
+ * the first part is resolved at the namespace root level.
+ *
+ * @param closure Closure to resolve the name in
+ * @param name List of name components
+ *
+ * @return If the name can be resolved, a data_t wrapping that object. If
+ * the name cannot be resolved but only consists of one element, NULL,
+ * indicating the name is a local variable of the closure. If the name
+ * consists of more than one element but the path is broken, a
+ * data_error(ErrorName) is returned.
  */
-script_t * _closure_get_object(closure_t *closure, array_t *name) {
-  script_t *script;
-  data_t   *s;
-  char     *n;
-  char     *c;
-  char     *ptr;
-  str_t    *debugstr;
+data_t * _closure_get_object(closure_t *closure, array_t *name) {
+  closure_t *c;
+  data_t    *data;
+  array_t   *tail;
+  char      *n;
+  char      *first;
+  char      *ptr;
 
   assert(array_size(name));
   if (script_debug) {
-    debugstr = array_tostr(name);
-    debug("  Getting script for %s", str_chars(debugstr));
-    str_free(debugstr);
+    array_debug(name, "  Getting object for %s");
   }
-  ix = 0;
-  n = (char *) array_get(name, ix);
-  if (
+  tail = array_slice(name, 1, -1);
   
-  
-  for (script = closure -> script; script -> up; script = script -> up);
-  if (!strchr(name, '.')) {
-    /*
-     * NOTE: This ensures that assignment of a name that doesn't live locally
-     * but does live at the root level gets assigned at the root level. So
-     *
-     * print = 42
-     *
-     * Results in the print function being clobbered. This may or may not be
-     * what the hacker intended.
-     */
-    if (closure_get(closure, name)) {
-      if (script_debug) {
-	debug("   is closure-local");
+  first = (char *) (((data_t *) array_get(name, 0)) -> ptrval);
+  data = NULL;
+  for (c = closure; c && !data; c = c -> up) {
+    data = (data_t *) dict_get(c -> variables, first);
+  }
+  if (data) {
+    /* Found a match in the closure chain. Now walk the name: */
+    if (tail) {
+      /* There are more components in the name. data must be object: */
+      if (data -> type == Object) {
+        return object_resolve((object_t *) data -> ptrval, tail);
+      } else {
+        /* FIXME error message */
+        return data_error(ErrorName, "xx");
       }
-      return NULL; /* NULL = closure-local */
-    } else if (script_get(closure -> script, name)) {
-      if (script_debug) {
-        debug("   is script-local");
-      }
-      return closure -> script;
-    } else if (script_get(script, name)) {
-      if (script_debug) {
-	debug("   is root-level");
-      }
-      return script;
     } else {
-      if (script_debug) {
-        debug("   doesn't (yet) exist - making it closure-local");
-      }
-      return NULL;
+      /* Name is local to the closure we found it in: */
+      data = data_create_closure(c);
     }
-  }
-
-  /* Copy the name - it may be a static string */
-  n = strdup(name);
-  c = n;
-  ptr = strchr(c, '.');
-  while (ptr) {
-    *ptr = 0;
-    if (script_debug) {
-      debug("  Looking for component '%s' in script '%s'", c, script_get_fullname(script));
-    }
-    s = script_get(script, c);
-    c = ptr + 1;
-    if (script_debug) {
-      debug("   found '%s'", data_tostring(s));
-    }	
-
-    /*
-     * This is not the last path element - therefore this must exist and
-     * must be a script
-     *
-     * FIXME Error Handling
+  } else {
+    /* No match. Delegate to the namespace. If the namespace returns
+     * NULL, the name must be local.
      */
-    assert(s && (data_type(s) == Script));
-    script = s -> ptrval;
-    c = ptr + 1;
-    ptr = strchr(c, '.');
+    data = ns_get(closure -> script -> ns, name);
+    if (!data) {
+      data = data_create_closure(closure);
+    }
   }
-  free(n);
-  return script;
+  array_free(tail);
+  return data;
 }
 
 /*
@@ -676,6 +701,10 @@ void closure_free(closure_t *closure) {
   }
 }
 
+char * closure_tostring(closure_t *closure) {
+  return script_get_name(closure -> script);
+}
+
 data_t * closure_pop(closure_t *closure) {
   return datastack_pop(closure -> stack);
 }
@@ -685,47 +714,102 @@ closure_t * closure_push(closure_t *closure, data_t *entry) {
   return closure;
 }
 
-closure_t * closure_set(closure_t *closure, list_t *varname, data_t *value) {
-  script_t *s;
-  char     *ptr;
+data_t * closure_set(closure_t *closure, array_t *varname, data_t *value) {
+  data_t    *d;
+  data_t    *ret;
+  closure_t *c;
+  object_t  *o;
+  char      *n;
 
-  s = _closure_get_object(closure, varname);
-  if (!s) {
-    if (script_debug) {
-      debug("  Setting local '%s' = %s", list_join(varname, "."), data_debugstr(value));
-    }
-    dict_put(closure -> variables, strdup(varname), data_copy(value));
-  } else {
-    ptr = strrchr(varname, '.');
-    ptr = (ptr) ? ptr + 1 : varname;
-    if (script_debug) {
-      debug("  Setting '%s' -> '%s' = %s", script_get_fullname(s), ptr, data_debugstr(value));
-    }
-    script_set(s, ptr, data_copy(value));
+  assert(closure);
+  assert(value);
+  assert(!varname || !array_size(varname));
+
+  d = _closure_get_object(closure, varname);
+  switch (data_type(d)) {
+    case Closure:
+      c = (closure_t *) d -> ptrval;
+      n = (char *) array_get(varname, 0);
+      if (script_debug) {
+        debug("  Setting local '%s' = %s in closure for %s",
+              n, data_debugstr(value), data_tostring(d));
+      }
+      ret = data_copy(value);
+      dict_put(c -> variables, strdup(n), ret);
+      data_free(d);
+      break;
+    case Script:
+      o = (object_t *) d -> ptrval;
+      n = (char *) array_get(varname, -1);
+      ret = data_copy(value);
+      object_set(o, n, ret);
+      data_free(d);
+      break;
+    case Error:
+      ret = d;
+      break;
+    default:
+      assert(0);
+      break;
   }
-  return closure;
+  return ret;
 }
 
 data_t * closure_get(closure_t *closure, char *varname) {
   data_t *ret;
 
   ret = (data_t *) dict_get(closure -> variables, varname);
+  if (ret) {
+    ret = data_copy(ret);
+  } else {
+    ret = data_error(ErrorName,
+                     "Closure '%s' has no attribute '%s'",
+                     closure_tostring(closure),
+                     varname);
+  }
   return ret;
 }
 
-/* FIXME: error handling */
-data_t * closure_resolve(closure_t *closure, char *name) {
-  script_t *s;
-  char     *ptr;
+data_t * closure_resolve(closure_t *closure, array_t *varname) {
+  data_t    *d;
+  data_t    *ret;
+  closure_t *c;
+  object_t  *o;
+  char      *n;
 
-  s = _closure_get_script(closure, name);
-  if (!s) {
-    return closure_get(closure, name);
-  } else {
-    ptr = strrchr(name, '.');
-    ptr = (ptr) ? ptr + 1 : name;
-    return script_get(s, ptr);
+  assert(closure);
+  assert(!varname || !array_size(varname));
+
+  d = _closure_get_object(closure, varname);
+  switch (data_type(d)) {
+    case Closure:
+      c = (closure_t *) d -> ptrval;
+      n = (char *) array_get(varname, 0);
+      if (script_debug) {
+        debug("  Getting local '%s' in closure for %s",
+              n, data_tostring(d));
+      }
+      ret = closure_get(c, n);
+      data_free(d);
+      break;
+    case Object:
+      o = (object_t *) d -> ptrval;
+      n = (char *) array_get(varname, -1);
+      if (script_debug) {
+        debug("  Getting object property '%s' in object %s",
+              n, data_tostring(d));
+      }
+      ret = object_get(o, n);
+      data_free(d);
+      break;
+    case Error:
+      ret = d;
+      break;
+    default:
+      assert(0);
+      break;
   }
+  return ret;
 }
 
 data_t * closure_execute(closure_t *closure) {
@@ -811,7 +895,7 @@ static file_t * _scriptloader_open_from_basedir(scriptloader_t *loader, char *ba
   return ret;
 }
 
-static script_t * _scriptloader_parse_reader(script_loader_t *loader, 
+static script_t * _scriptloader_parse_reader(scriptloader_t *loader,
                                              reader_t * rdr, script_t *up, char *name) {
   parser_clear(loader -> parser);
   parser_set(loader -> parser, "name", data_create_string(name));

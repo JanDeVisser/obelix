@@ -603,10 +603,15 @@ int _data_cmp_list(data_t *d1, data_t *d2) {
 data_t * _data_copy_list(data_t *dest, data_t *src) {
   list_t         *dest_list;
   list_t         *src_list;
+  listiterator_t *iter;
+  data_t         *data;
 
   dest_list = dest -> ptrval;
   src_list = src -> ptrval;
-  list_add_all(dest_list, src_list);
+  for (iter = li_create(src_list); li_has_next(iter); ) {
+    data = (data_t *) li_next(iter);
+    list_push(dest_list, data_copy(data));
+  }
   return dest;
 }
 
@@ -861,9 +866,20 @@ data_t * data_create_list_fromarray(array_t *array) {
   ret = _data_create(List);
   l = data_list_create();
   for (ix = 0; ix < array_size(array); ix++) {
-    list_append(l, array_get(array, ix));
+    list_append(l, data_copy((data_t *) array_get(array, ix)));
   }
   ret -> ptrval = l;
+  return ret;
+}
+
+array_t * data_list_toarray(data_t *data) {
+  listiterator_t *iter;
+  array_t        *ret;
+
+  ret = data_array_create(list_size((list_t *) data -> ptrval));
+  for (iter = li_create((list_t *) data -> ptrval); li_has_next(iter); ) {
+    array_push(ret, data_copy((data_t *) li_next()));
+  }
   return ret;
 }
 

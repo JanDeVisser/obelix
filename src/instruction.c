@@ -38,18 +38,18 @@ typedef struct _instruction_type_descr {
 static void             _instruction_free_name(instruction_t *);
 static void             _instruction_free_value(instruction_t *);
 static void             _instruction_free_name_value(instruction_t *);
-static char *           _instruction_tostring_name(instruction_t *);
-static char *           _instruction_tostring_value(instruction_t *);
-static data_t *         _instruction_execute_script(closure_t *, char *, array_t *);
-static char *           _instruction_execute_assign(instruction_t *, closure_t *);
-static char *           _instruction_execute_pushvar(instruction_t *, closure_t *);
-static char *           _instruction_execute_pushval(instruction_t *, closure_t *);
-static char *           _instruction_execute_function(instruction_t *, closure_t *);
-static char *           _instruction_execute_test(instruction_t *, closure_t *);
-static char *           _instruction_execute_jump(instruction_t *, closure_t *);
-static char *           _instruction_execute_import(instruction_t *, closure_t *);
-static char *           _instruction_execute_pop(instruction_t *, closure_t *);
-static char *           _instruction_execute_nop(instruction_t *, closure_t *);
+static data_t *         _instruction_tostring_name(instruction_t *);
+static data_t *         _instruction_tostring_value(instruction_t *);
+static data_t *         _instruction_execute_script(closure_t *, data_t *, array_t *);
+static data_t *         _instruction_execute_assign(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_function(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_test(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_jump(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_import(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_pop(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_nop(instruction_t *, closure_t *);
 
 static instruction_type_descr_t instruction_descr_map[] = {
     { type: ITAssign,   function: _instruction_execute_assign,
@@ -115,7 +115,7 @@ char * _instruction_tostring_value(instruction_t *instruction) {
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-data_t * _instruction_execute_script(closure_t *closure, char *name, array_t *params) {
+data_t * _instruction_execute_script(closure_t *closure, char *name, array_t *params, dict_t *kwargs) {
   data_t    *value;
 
   value = closure_execute(closure);
@@ -129,33 +129,39 @@ data_t * _instruction_execute_script(closure_t *closure, char *name, array_t *pa
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-char * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
-  char          *varname;
-  data_t        *value;
+data_t * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
+  array_t   *path;
+  data_t    *value;
+  data_t    *ret;
 
   value = closure_pop(closure);
   assert(value);
-  assert(instr -> name);
   if (script_debug) {
     debug(" -- value '%s'", data_tostring(value));
   }
-
-  closure_set(closure, instr -> name, value);
+  path = data_list_toarray(instr -> value);
+  ret = closure_set(closure, path, value);
   data_free(value);
-  return NULL;
+  array_free(path);
+  return (data_is_error(ret)) ? ret : NULL;
 }
 
-char * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) {
-  data_t        *value;
+data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) {
+  data_t    *value;
+  array_t   *path;
 
-  assert(instr -> name);
-  value = closure_resolve(closure, instr -> name);
-  assert(value);
-  if (script_debug) {
-    debug(" -- value '%s'", data_tostring(value));
+  path = data_list_toarray(instr -> value);
+  value = closure_resolve(closure, path);
+  array_free(path);
+  if (!data_is_error(value)) {
+    if (script_debug) {
+      debug(" -- value '%s'", data_tostring(value));
+    }
+    closure_push(closure, value);
+    return NULL;
+  } else {
+    return value;
   }
-  closure_push(closure, data_copy(value));
-  return NULL;
 }
 
 char * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) {
@@ -166,7 +172,7 @@ char * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
-char * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
+data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
   data_t         *value;
   array_t        *params;
   int             ix;
@@ -174,7 +180,7 @@ char * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
   native_t        fnc;
   closure_t      *func_closure;
   data_t         *func_data;
-  char           *func_name;
+  array_t        *name;
   int             num_params;
 
   num_params = instr -> value -> intval;
@@ -182,23 +188,22 @@ char * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
     debug(" -- #parameters: %d", num_params);
   }
 
-  params = array_create(num_params);
-  array_set_free(params, (free_t) data_free);
-  array_set_tostring(params, (tostring_t) data_tostring);
+  params = data_array_create(num_params);
   for (ix = 0; ix < num_params; ix++) {
     value = closure_pop(closure);
     assert(value);
     array_set(params, num_params - ix - 1, value);
   }
   if (script_debug) {
-    debugstr = array_tostr(params);
-    debug(" -- parameters: %s", str_chars(debugstr));
-    str_free(debugstr);
+    array_debug(params, " -- parameters: %s");
   }
 
+  name = data_list_toarray(instr -> value);
   func_data = closure_resolve(closure, instr -> name);
-  // FIXME: Error handling
-  assert(func_data);
+  if (data_is_error(func_data)) {
+    array_free(name);
+    return func_data;
+  }
 
   if (data_type(func_data) == Script) {
     func_closure = script_create_closure(
@@ -224,26 +229,26 @@ char * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
-char * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
-  char          *ret;
-  data_t        *value;
+data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
+  data_t  *ret;
+  data_t  *value;
 
   value = closure_pop(closure);
   assert(value);
   assert(instr -> name);
 
   /* FIXME - Convert other objects to boolean */
-  ret = (!value -> intval) ? instr -> name : NULL;
+  ret = (!value -> intval) ? data_create_string(instr -> name) : NULL;
   data_free(value);
   return ret;
 }
 
-char * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
+data_t * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
   assert(instr -> name);
-  return instr -> name;
+  return data_create_string(instr -> name);
 }
 
-char * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
+data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
   scriptloader_t *loader;
   script_t       *module;
 
@@ -255,7 +260,7 @@ char * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
-char * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {
+data_t * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {
   char          *ret;
   data_t        *value;
 
@@ -264,7 +269,7 @@ char * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
-char * _instruction_execute_nop(instruction_t *instr, closure_t *closure) {
+data_t * _instruction_execute_nop(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
@@ -287,20 +292,20 @@ instruction_t * instruction_create(int type, char *name, data_t *value) {
 
 }
 
-instruction_t * instruction_create_assign(char *varname) {
-  return instruction_create(ITAssign, varname, NULL);
+instruction_t * instruction_create_assign(array_t *varname) {
+  return instruction_create(ITAssign, NULL, data_create_list_fromarray(varname));
 }
 
-instruction_t * instruction_create_pushvar(char *varname) {
-  return instruction_create(ITPushVar, varname, NULL);
+instruction_t * instruction_create_pushvar(array_t *varname) {
+  return instruction_create(ITPushVar, NULL, data_create_list_fromarray(varname));
 }
 
 instruction_t * instruction_create_pushval(data_t *value) {
   return instruction_create(ITPushVal, NULL, value);
 }
 
-instruction_t * instruction_create_function(char *name, int num_params) {
-  return instruction_create(ITFunction, name, data_create_int(num_params));
+instruction_t * instruction_create_function(array_t *name, int num_params) {
+  return instruction_create(ITFunction, name, data_create_list_fromarray(name));
 }
 
 instruction_t * instruction_create_test(char *label) {
@@ -311,8 +316,8 @@ instruction_t * instruction_create_jump(char *label) {
   return instruction_create(ITJump, label, NULL);
 }
 
-instruction_t * instruction_create_import(char *module) {
-  return instruction_create(ITImport, module, NULL);
+instruction_t * instruction_create_import(array_t *module) {
+  return instruction_create(ITImport, NULL, data_create_list_fromarray(module));
 }
 
 instruction_t * instruction_create_pop(void) {
@@ -336,7 +341,7 @@ instruction_t * instruction_set_label(instruction_t *instruction, char *label) {
   return instruction;
 }
 
-char * instruction_execute(instruction_t *instr, closure_t *closure) {
+data_t * instruction_execute(instruction_t *instr, closure_t *closure) {
   instr_fnc_t fnc;
 
   if (script_debug) {

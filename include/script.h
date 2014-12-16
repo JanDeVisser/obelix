@@ -52,13 +52,15 @@ typedef struct _script {
 } script_t;
 
 typedef struct _closure {
-  script_t    *script;
-  dict_t      *variables;
-  datastack_t *stack;
-  int          refs;
+  struct _closure *up;
+  script_t        *script;
+  object_t        *this;
+  dict_t          *variables;
+  datastack_t     *stack;
+  int              refs;
 } closure_t;
 
-typedef struct _script_loader {
+typedef struct _scriptloader {
   char        *userpath;
   char        *system_dir;
   grammar_t   *grammar;
@@ -67,6 +69,7 @@ typedef struct _script_loader {
 } scriptloader_t;
 
 extern data_t *         data_create_script(script_t *);
+extern data_t *         data_create_closure(script_t *);
 
 /*
  * script_t prototypes
@@ -88,13 +91,20 @@ extern data_t *         script_execute(script_t *, data_t *, array_t *, dict_t *
  * closure_t prototypes
  */
 extern void             closure_free(closure_t *);
+extern char *           closure_tostring(script_t *);
+extern char *           closure_get_name(script_t *);
 extern data_t *         closure_pop(closure_t *);
 extern closure_t *      closure_push(closure_t *, data_t *);
-extern closure_t *      closure_set(closure_t *, char *, data_t *);
+extern data_t *         closure_set(closure_t *, array_t *, data_t *);
 extern data_t *         closure_get(closure_t *, char *);
-extern data_t *         closure_resolve(closure_t *, char *);
+extern data_t *         closure_resolve(closure_t *, array_t *);
 extern data_t *         closure_execute(closure_t *);
 
+#define closure_get_name(c)   closure_tostring((c))
+
+/*
+ * scriptloader_t prototypes
+ */
 extern scriptloader_t * scriptloader_create(char *, char *);
 extern scriptloader_t * scriptloader_get(void);
 extern void             scriptloader_free(scriptloader_t *);

@@ -45,6 +45,6 @@ void ns_free(ns_t *ns) {
   }
 }
 
-object_t * ns_get(ns_t *ns, array_t *name) {
-  return object_get(ns -> root, name);
+data_t * ns_resolve(ns_t *ns, array_t *name) {
+  return object_resolve(ns -> root, name);
 }
