@@ -87,6 +87,45 @@ array_t * array_create(int capacity) {
   return ret;
 }
 
+/**
+ * Returns a new array that is a subset of an existing array. Array elements
+ * are copied as-is; no free functions are being called. The return array
+ * has the same hash, cmp, and tostring functions as the existing array, but
+ * not the free function. This allows the slice array to be used for processing
+ * activities and safely deleted at the end of those without destroying the
+ * data held in it.
+ *
+ * @param array The array to return a subset of.
+ * @param from The index to start copying from.
+ * @param num The number of elements to copy. If less or equal to zero,
+ * the tail of the array from the <i>from</i> index will be copied.
+ *
+ * @return A newly created array with the same hash, cmp, and tostring
+ * functions as <i>array</i>, but with no free function set, and the
+ * element pointers copied from <i>array</i> according to the index
+ * specification. If <i>from</i> is beyond the end of the array, or if no
+ * elements would be copied, <b>NULL</b> is returned.
+ */
+array_t * array_slice(array_t *array, int from, int num) {
+  array_t *ret;
+  int      ix;
+
+  if (num <= 0) {
+    num = array_size(array) - from;
+  }
+  if ((from >= array_size(array)) || (num <= 0)) {
+    return NULL;
+  }
+  ret = array_create(num);
+  array_set_cmp(ret, array -> list -> cmp);
+  array_set_hash(ret, array -> list -> hash);
+  array_set_tostring(ret, array -> list -> tostring);
+  for (ix = 0; ix < num; ix++) {
+    array_set(ret, ix, array_get(array, from + num));
+  }
+  return ret;
+}
+
 array_t * array_set_free(array_t *array, visit_t freefnc) {
   list_set_free(array -> list, freefnc);
   return array;
@@ -94,6 +133,11 @@ array_t * array_set_free(array_t *array, visit_t freefnc) {
 
 array_t * array_set_cmp(array_t *array, cmp_t cmp) {
   list_set_cmp(array -> list, cmp);
+  return array;
+}
+
+array_t * array_set_hash(array_t *array, hash_t hash) {
+  list_set_hash(array -> list, hash);
   return array;
 }
 
@@ -146,7 +190,10 @@ int array_set(array_t *array, int ix, void *data) {
 
 void * array_get(array_t *array, int ix) {
   errno = 0;
-  if ((ix < 0) || (ix >= list_size(array -> list))) {
+  if (ix < 0) {
+    ix = array_size(array) + ix;
+  }
+  if (ix >= list_size(array -> list)) {
     errno = EFAULT;
     return NULL;
   }
@@ -188,3 +235,10 @@ str_t * array_tostr(array_t *array) {
   return ret;
 }
 
+void array_debug(array_t *array, char *msg) {
+  str_t *str;
+
+  str = array_tostr(array);
+  debug(msg, str_chars(str));
+  str_free(str);
+}

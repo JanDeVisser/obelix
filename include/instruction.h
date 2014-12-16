@@ -41,13 +41,14 @@ typedef struct _instruction {
   char               *label;
   char               *name;
   data_t             *value;
+  int                 num;
 } instruction_t;
 
 struct _closure;
 
 extern instruction_t *  instruction_create(int, char *, data_t *);
-extern instruction_t *  instruction_create_assign(char *);
-extern instruction_t *  instruction_create_pushvar(char *);
+extern instruction_t *  instruction_create_assign(array_t *);
+extern instruction_t *  instruction_create_pushvar(array_t *);
 extern instruction_t *  instruction_create_pushval(data_t *);
 extern instruction_t *  instruction_create_function(char *, int);
 extern instruction_t *  instruction_create_test(char *);
@@ -57,7 +58,7 @@ extern instruction_t *  instruction_create_pop(void);
 extern instruction_t *  instruction_create_nop(void);
 extern char *           instruction_assign_label(instruction_t *);
 extern instruction_t *  instruction_set_label(instruction_t *, char *);
-extern char *           instruction_execute(instruction_t *, struct _closure *);
+extern data_t *         instruction_execute(instruction_t *, struct _closure *);
 extern char *           instruction_tostring(instruction_t *);
 extern void             instruction_free(instruction_t *);
 

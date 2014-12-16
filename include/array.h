@@ -29,8 +29,10 @@ typedef struct _array {
 } array_t;
 
 extern array_t * array_create(int);
+extern array_t * array_slice(array_t *, int, int);
 extern array_t * array_set_free(array_t *, visit_t);
 extern array_t * array_set_cmp(array_t *, cmp_t);
+extern array_t * array_set_hash(array_t *, hash_t);
 extern array_t * array_set_tostring(array_t *, tostring_t);
 extern void      array_free(array_t *);
 extern array_t * array_clear(array_t *);
@@ -45,6 +47,7 @@ extern void *    array_reduce_str(array_t *, reduce_t, void *);
 extern array_t * array_visit(array_t *, visit_t);
 extern array_t * array_add_all(array_t *, array_t *);
 extern str_t *   array_tostr(array_t *);
+extern void      array_debug(array_t *, char *);
 
 #define array_set_int(a, i, v)   array_put((a), (i), (void *)((long) (v)))
 #define array_get_int(a, i)      ((long) array_get((a), (i)));

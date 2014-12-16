@@ -99,6 +99,7 @@ extern data_t *       data_create_bool(long);
 extern data_t *       data_create_string(char *);
 extern data_t *       data_create_list(list_t *);
 extern data_t *       data_create_list_fromarray(array_t *);
+extern array_t *      data_list_toarray(data_t *);
 extern data_t *       data_create_function(function_t *);
 extern data_t *       data_parse(int, char *);
 extern void           data_free(data_t *);
@@ -124,6 +125,7 @@ extern char *         data_debugstr(data_t *);
                                       (free_t) data_free), \
                                     (tostring_t) chars), \
                                   (tostring_t) data_tostring)
+
 #define data_array_create(i)    array_set_tostring( \
                                   array_set_free( \
                                     array_create((i)), \
@@ -136,8 +138,8 @@ extern char *         data_debugstr(data_t *);
                                      _list_set_free( \
                                        list_create(), \
                                        (free_t) data_free), \
-                                     (cmp_t) data_cmp, \
-                                   (hash_t) data_hash, \
+                                     (cmp_t) data_cmp), \
+                                   (hash_t) data_hash), \
                                  (tostring_t) data_tostring)
 
 #endif /* __DATA_H__ */

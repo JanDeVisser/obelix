@@ -44,5 +44,6 @@ extern object_t *      object_set(object_t *, char *, data_t *);
 extern data_t *        object_execute(object_t *, char *, array_t *, dict_t *);
 extern char *          object_tostring(object_t *);
 extern unsigned int    object_hash(object_t *);
+extern data_t *        object_resolve(object_t *, array_t *);
 
 #endif /* __OBJECT_H__ */

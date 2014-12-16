@@ -31,6 +31,6 @@ typedef struct _namespace {
 
 extern ns_t *     ns_create(script_t *);
 extern void       ns_free(ns_t *);
-extern object_t * ns_get(ns_t *, array_t *);
+extern data_t *   ns_resolve(ns_t *, array_t *);
 
 #endif /* __NAMESPACE_H__ */

@@ -89,6 +89,7 @@ object_t * object_create(script_t *script) {
   ret -> script = script;
   ret -> ptr = NULL;
   ret -> variables = strdata_dict_create();
+  dict_put_all(ret -> variables, script -> functions);
   ret -> refs = 0;
 }
 
@@ -105,8 +106,11 @@ void object_free(object_t *object) {
 
 data_t * object_get(object_t *object, char *name) {
   data_t *ret;
+
   ret = (data_t *) dict_get(object -> variables, name);
-  if (!ret) {
+  if (ret) {
+    ret = data_copy(ret);
+  } else {
     ret = data_error(ErrorName,
                      "Object '%s' of type '%s' has no attribute '%s'",
                      object_tostring(object),
@@ -185,4 +189,45 @@ int object_cmp(object_t *o1, object_t *o2) {
   data_free(data);
   array_free(args);
   return ret;
+}
+
+/**
+ * Resolves a name path rooted in the specified object.
+ *
+ * @param object The root object for name resolution.
+ * @param name The name to resolve.
+ *
+ * @return A data_t object containing the object referenced by the
+ * second-to-last component in the name path. The last component
+ * is an attribute of that object, and can itself reference an
+ * object again, but does not necessarily need to exist or could
+ * reference a data_t of a different type. If the name array only
+ * holds one element, the object specified is wrapped. If the path
+ * is broken along the way, or is empty, a data_error(ErrorName) is returned.
+ * Note that the caller is responsible for freeing the data_t.
+ */
+data_t * object_resolve(object_t *object, array_t *name) {
+  data_t   *ret;
+  object_t *o;
+  int       ix;
+
+  if (!name || !array_size(name)) {
+    return data_error(ErrorName, "Empty name");
+  }
+  o = object;
+  for (ix = 0; o && (ix < array_size(name) - 1); ix++) {
+    ret = object_get(o, (char *) (((data_t *) array_get(name, ix)) -> ptrval));
+    if (!ret)
+    o = (data_type(ret) == Object) ? (object_t *) ret -> ptrval : NULL;
+  }
+  /* FIXME Error message */
+  if (o) {
+    ret = data_create_object(o) ;
+  } else {
+      ret = data_error(ErrorName,
+                       "Object '%s' of type '%s' has no method '%s'",
+                       object_tostring(object),
+                       script_get_fullname(object -> script),
+                       name);
+  }
 }
