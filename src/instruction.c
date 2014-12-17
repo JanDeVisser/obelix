@@ -24,7 +24,7 @@
 #include <instruction.h>
 #include <script.h>
 
-typedef char *   (*instr_fnc_t)(instruction_t *, closure_t *);
+typedef data_t * (*instr_fnc_t)(instruction_t *, closure_t *);
 typedef data_t * (*native_t)(closure_t *, char *, array_t *);
 
 typedef struct _instruction_type_descr {
@@ -38,9 +38,8 @@ typedef struct _instruction_type_descr {
 static void             _instruction_free_name(instruction_t *);
 static void             _instruction_free_value(instruction_t *);
 static void             _instruction_free_name_value(instruction_t *);
-static data_t *         _instruction_tostring_name(instruction_t *);
-static data_t *         _instruction_tostring_value(instruction_t *);
-static data_t *         _instruction_execute_script(closure_t *, data_t *, array_t *);
+static char *           _instruction_tostring_name(instruction_t *);
+static char *           _instruction_tostring_value(instruction_t *);
 static data_t *         _instruction_execute_assign(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
@@ -115,17 +114,6 @@ char * _instruction_tostring_value(instruction_t *instruction) {
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
-data_t * _instruction_execute_script(closure_t *closure, char *name, array_t *params, dict_t *kwargs) {
-  data_t    *value;
-
-  value = closure_execute(closure);
-  value = value ? value : data_create_pointer(NULL);
-  if (script_debug) {
-    debug(" -- return: '%s'", data_tostring(value));
-  }
-  return value;
-}
-
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
@@ -164,7 +152,7 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
   }
 }
 
-char * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) {
+data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) {
   data_t        *value;
 
   assert(instr -> value);
@@ -242,13 +230,10 @@ data_t * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
 
 data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
   scriptloader_t *loader;
-  script_t       *module;
+  data_t         *data;
 
   loader = scriptloader_get();
-  module = scriptloader_load(loader, instr -> name);
-  if (module) {
-    script_execute(module, NULL);
-  }
+  scriptloader_load(loader, instr -> name);
   return NULL;
 }
 
