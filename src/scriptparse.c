@@ -17,12 +17,13 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <namespace.h>
 #include <script.h>
 
 parser_t * script_parse_init(parser_t *parser) {
   char     *name;
   script_t *up;
-  object_t *ns;
+  ns_t     *ns;
   data_t   *data;
 
   if (parser_debug) {
@@ -33,7 +34,7 @@ parser_t * script_parse_init(parser_t *parser) {
   data = parser_get(parser, "up");
   up = (script_t *) data -> ptrval;
   data = parser_get(parser, "ns");
-  ns = (object_t *) data -> ptrval;
+  ns = (ns_t *) data -> ptrval;
   parser -> data = script_create(ns, up, name);
   return parser;
 }
@@ -83,7 +84,7 @@ array_t * _script_pop_and_build_varname(parser_t *parser) {
   }
   data_free(count);
   if (parser_debug) {
-    array_debug("  -- varname: %s", ret);
+    array_debug(ret, "  -- varname: %s");
   }
   return ret;
 }

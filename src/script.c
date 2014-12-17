@@ -994,7 +994,7 @@ data_t * _scriptloader_parse_reader(scriptloader_t *loader, reader_t *rdr, scrip
   parser_clear(loader -> parser);
   parser_set(loader -> parser, "name", data_create_string(name));
   parser_set(loader -> parser, "up", data_create_script(up));
-  parser_set(loader -> parser, "ns", data_create_object(loader -> ns -> root));
+  parser_set(loader -> parser, "ns", data_create_pointer(loader -> ns -> root));
   parser_parse(loader -> parser, rdr);
   script = (script_t *) loader -> parser -> data;
   return script_create_object(script, NULL, NULL);
