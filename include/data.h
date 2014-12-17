@@ -25,6 +25,29 @@
 #include <array.h>
 #include <dict.h>
 
+typedef enum _datatype {
+  Error,
+  Pointer,
+  String,
+  Int,
+  Float,
+  Bool,
+  List,
+  Function,
+  Object,
+  Script,
+  Closure
+} datatype_t;
+
+typedef struct _data {
+  datatype_t type;
+  union {
+    void      *ptrval;
+    long       intval;
+    double     dblval;
+  };
+} data_t;
+
 typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
 
 typedef enum _errorcode {
@@ -53,27 +76,6 @@ typedef struct _typedescr {
   dict_t       *methods;
   method_t      fallback;
 } typedescr_t;
-
-typedef enum _datatype {
-  Error,
-  Pointer,
-  String,
-  Int,
-  Float,
-  Bool,
-  List,
-  Function
-} datatype_t;
-
-typedef struct _data {
-  datatype_t type;
-  union {
-    void      *ptrval;
-    long       intval;
-    double     dblval;
-  };
-} data_t;
-
 
 extern int            error_register(char *str);
 extern error_t *      error_create(int , ...);

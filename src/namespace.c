@@ -18,23 +18,17 @@
  */
 
 #include <namespace.h>
+#include <script.h>
 
-ns_t * ns_create(script_t *script) {
+ns_t * ns_create(object_t *root) {
   ns_t *ret;
   data_t      *data;
 
   ret = NEW(ns_t);
   ret -> native_allowed = 1;
-  data = script_create_object(script, NULL, NULL);
-  if (data_is_error(data)) {
-    error_report((error_t *) data -> ptrval);
-    free(ret);
-    ret = NULL;
-  } else {
-    ret -> root = (object_t *) data -> ptrval;
-    ret -> root -> refs++;
-    script -> ns = ret;
-  }
+  ret -> root = (object_t *) data -> ptrval;
+  ret -> root -> refs++;
+  ret -> root -> script -> ns = ret;
   data_free(data);
   return ret;
 }

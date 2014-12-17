@@ -29,6 +29,7 @@ typedef struct _array {
 } array_t;
 
 extern array_t * array_create(int);
+extern array_t * array_split(char *, char *);
 extern array_t * array_slice(array_t *, int, int);
 extern array_t * array_set_free(array_t *, visit_t);
 extern array_t * array_set_cmp(array_t *, cmp_t);

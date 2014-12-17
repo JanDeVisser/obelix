@@ -18,24 +18,26 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include <object.h>
 #include <script.h>
 
-static data_t *         _data_new_object(data_t *, va_list);
-static data_t *         _data_copy_object(data_t *, data_t *);
-static int              _data_cmp_object(data_t *, data_t *);
-static char *           _data_tostring_object(data_t *);
-static unsigned int     _data_hash_object(data_t *);
+static typedescr_t typedescr_object;
+
+static data_t *     _data_new_object(data_t *, va_list);
+static data_t *     _data_copy_object(data_t *, data_t *);
+static int          _data_cmp_object(data_t *, data_t *);
+static char *       _data_tostring_object(data_t *);
+static unsigned int _data_hash_object(data_t *);
+static data_t *     _data_execute_object(data_t *, char *, array_t *, dict_t *);
 
 /*
  * data_t Object type
  */
 
-int Object = 0;
-
 static typedescr_t typedescr_object = {
-  type:                  -1,
+  type:                  Object,
   typecode:              "O",
   new:      (new_t)      _data_new_object,
   copy:     (copydata_t) _data_copy_object,
@@ -44,6 +46,7 @@ static typedescr_t typedescr_object = {
   tostring: (tostring_t) _data_tostring_object,
   hash:     (hash_t)     _data_hash_object,
   parse:                 NULL,
+  fallback: (method_t)   _data_execute_object
 };
 
 data_t * _data_new_object(data_t *ret, va_list arg) {
@@ -69,8 +72,13 @@ char * _data_tostring_object(data_t *d) {
   return object_tostring((object_t *) d -> ptrval);
 }
 
-int _data_hash_object(data_t *d) {
+unsigned int _data_hash_object(data_t *d) {
   return object_hash((object_t *) d -> ptrval);
+}
+
+data_t * _data_execute_object(data_t *self, char *name, array_t *params, dict_t *kwargs) {
+  object_t *o = (object_t *) self -> ptrval;
+  return object_execute(o, name, params, kwargs);
 }
 
 data_t * data_create_object(object_t *object) {
@@ -81,11 +89,14 @@ data_t * data_create_object(object_t *object) {
  * object_t public functions
  */
 
+static int _initialized = 0;
+
 object_t * object_create(script_t *script) {
   object_t *ret;
 
-  if (!Object) {
-    Object = datatype_register(&typedescr_object);
+  if (!_initialized) {
+    datatype_register(&typedescr_object);
+    _initialized = 1;
   }
   ret = NEW(object_t);
   ret -> script = script;
@@ -128,9 +139,10 @@ object_t * object_set(object_t *object, char *name, data_t *value) {
 }
 
 data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwargs) {
-  script_t *func;
+  script_t *script;
+  data_t   *func;
   data_t   *ret;
-  data_t   *this;
+  data_t   *self;
 
   func = object_get(object, name);
   if (!data_is_error(func)) {
@@ -141,9 +153,10 @@ data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwa
                        object_tostring(object),
                        script_tostring(object -> script));
     } else {
-      this = data_create_object(object);
-      ret = script_execute(func, this, args, kwargs);
-      data_free(this);
+      script = (script_t *) func -> ptrval;
+      self = data_create_object(object);
+      ret = script_execute(script, self, args, kwargs);
+      data_free(self);
     }
     data_free(func);
   } else {

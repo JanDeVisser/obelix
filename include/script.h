@@ -27,14 +27,11 @@
 #include <dict.h>
 #include <instruction.h>
 #include <list.h>
+#include <namespace.h>
 #include <parser.h>
 #include <object.h>
 
 extern int script_debug;
-
-/* data_t typecodes */
-extern int Script;
-extern int Closure;
 
 typedef struct _script {
   struct _script *up;
@@ -55,7 +52,7 @@ typedef struct _script {
 typedef struct _closure {
   struct _closure *up;
   script_t        *script;
-  object_t        *this;
+  object_t        *self;
   dict_t          *variables;
   datastack_t     *stack;
   int              refs;
@@ -70,7 +67,7 @@ typedef struct _scriptloader {
 } scriptloader_t;
 
 extern data_t *         data_create_script(script_t *);
-extern data_t *         data_create_closure(script_t *);
+extern data_t *         data_create_closure(closure_t *);
 
 /*
  * script_t prototypes
@@ -92,8 +89,8 @@ extern data_t *         script_execute(script_t *, data_t *, array_t *, dict_t *
  * closure_t prototypes
  */
 extern void             closure_free(closure_t *);
-extern char *           closure_tostring(script_t *);
-extern char *           closure_get_name(script_t *);
+extern char *           closure_tostring(closure_t *);
+extern char *           closure_get_name(closure_t *);
 extern data_t *         closure_pop(closure_t *);
 extern closure_t *      closure_push(closure_t *, data_t *);
 extern data_t *         closure_get_container_for(closure_t *closure, array_t *name);
@@ -103,7 +100,6 @@ extern data_t *         closure_resolve(closure_t *, array_t *);
 extern data_t *         closure_execute(closure_t *);
 extern data_t *         closure_execute_function(closure_t *, char *, array_t *, dict_t *);
   
-}
 #define closure_get_name(c)   closure_tostring((c))
 
 /*
@@ -112,8 +108,7 @@ extern data_t *         closure_execute_function(closure_t *, char *, array_t *,
 extern scriptloader_t * scriptloader_create(char *, char *);
 extern scriptloader_t * scriptloader_get(void);
 extern void             scriptloader_free(scriptloader_t *);
-extern object_t *       scriptloader_load_fromreader(scriptloader_t *, char *, reader_t *);
-extern object_t *       scriptloader_load(scriptloader_t *, char *);
-extern data_t *         scriptloader_execute(scriptloader_t *, char *);
+extern data_t *         scriptloader_load_fromreader(scriptloader_t *, char *, reader_t *);
+extern data_t *         scriptloader_load(scriptloader_t *, char *);
 
 #endif /* __SCRIPT_H__ */

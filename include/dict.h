@@ -23,7 +23,6 @@
 #include <string.h>
 
 #include <array.h>
-#include <data.h>
 #include <list.h>
 #include <str.h>
 
@@ -59,7 +58,7 @@ extern dict_t * dict_put(dict_t *, void *, void *);
 extern int      dict_has_key(dict_t *, void *);
 extern void *   dict_get(dict_t *, void *);
 extern dict_t * dict_remove(dict_t *, void *);
-extern dict_t * dict_pop(dict_t *, void *);
+extern void *   dict_pop(dict_t *, void *);
 extern int      dict_size(dict_t *);
 extern list_t * dict_keys(dict_t *);
 extern list_t * dict_values(dict_t *);

@@ -55,8 +55,8 @@ extern str_t *  set_tostr(set_t *);
                                   set_set_free( \
                                     set_create((cmp_t) strcmp), \
                                     (free_t) free), \
-                                  strhash), \
-                                chars)
+                                  (hash_t) strhash), \
+                                (tostring_t) chars)
 #define set_add_int(s, i)     set_add((s), (void *)((long) (i)))
 #define set_has_int(s, i)     set_has((s), (void *)((long) (i)))
 #define set_remove_int(s, i)  set_remove((s), (void *)((long) (i)))

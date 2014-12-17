@@ -18,7 +18,7 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
-# AM_CFLAGS   = -Wall
+# AM_CFLAGS   = -ansi
 LDADD       = -ldl -lm
 
 lib_LTLIBRARIES = libobelix.la
@@ -37,7 +37,13 @@ libobelix_la_SOURCES = \
 		resolve.c \
 		lexer.c \
 		grammar.c \
-		grammarparser.c 
+		grammarparser.c \
+		parser.c \
+		script.c \
+		instruction.c \
+		scriptparse.c \
+		object.c \
+		namespace.c
 		
 bin_PROGRAMS = obelix
 obelix_SOURCES = obelix.c

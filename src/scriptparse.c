@@ -22,21 +22,25 @@
 parser_t * script_parse_init(parser_t *parser) {
   char     *name;
   script_t *up;
+  object_t *ns;
   data_t   *data;
 
   if (parser_debug) {
     debug("script_parse_init");
   }
-  data = (data_t *) dict_get(parser -> variables, "name");
+  data = parser_get(parser, "name");
   name = (char *) data -> ptrval;
-  data = (data_t *) dict_get(parser -> variables, "up");
+  data = parser_get(parser, "up");
   up = (script_t *) data -> ptrval;
-  parser -> data = script_create(up, name);
+  data = parser_get(parser, "ns");
+  ns = (object_t *) data -> ptrval;
+  parser -> data = script_create(ns, up, name);
   return parser;
 }
 
 parser_t * script_parse_done(parser_t *parser) {
-  script_t *script;
+  script_t      *script;
+  instruction_t *jump;
 
   if (parser_debug) {
     debug("script_parse_done");
@@ -45,6 +49,15 @@ parser_t * script_parse_done(parser_t *parser) {
   if (script -> label) {
     script_parse_emit_nop(parser);
   }
+  jump = instruction_create_jump("END");
+  script_push_instruction(script, jump);
+  script -> label = strdup("ERROR");
+  /*
+   * TODO Error handling code
+   */
+  script_parse_emit_nop(parser);
+  script -> label = strdup("END");
+  script_parse_emit_nop(parser);
   if (script_debug) {
     script_list(script);
   }
@@ -70,9 +83,7 @@ array_t * _script_pop_and_build_varname(parser_t *parser) {
   }
   data_free(count);
   if (parser_debug) {
-    debugstr = array_tostr(ret);
-    debug("  -- varname: %s", str_chars(ret));
-    str_free(debugstr);
+    array_debug("  -- varname: %s", ret);
   }
   return ret;
 }
@@ -194,14 +205,14 @@ parser_t * script_parse_emit_test(parser_t *parser) {
 
 parser_t * script_parse_emit_jump(parser_t *parser) {
   script_t      *script;
-  instruction_t *test;
+  instruction_t *jump;
   char           label[9];
 
   script = parser -> data;
   strrand(label, 8);
-  test = instruction_create_jump(label);
-  datastack_push_string(parser -> stack, test -> name);
-  script_push_instruction(script, test);
+  jump = instruction_create_jump(label);
+  datastack_push_string(parser -> stack, jump -> name);
+  script_push_instruction(script, jump);
   return parser;
 }
 
