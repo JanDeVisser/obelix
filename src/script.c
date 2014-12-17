@@ -18,7 +18,9 @@
  */
 
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <data.h>
 #include <file.h>
@@ -37,6 +39,12 @@ typedef struct _mathop_def {
   mathop_t  fnc;
 } mathop_def_t;
 
+static typedescr_t      typedescr_script;
+static typedescr_t      typedescr_closure;
+static function_t       _builtins[];
+static mathop_def_t     mathops[];
+static scriptloader_t * _loader;
+
 
 /*
  * S T A T I C  F U N C T I O N S
@@ -46,11 +54,13 @@ static data_t *         _data_new_script(data_t *, va_list);
 static data_t *         _data_copy_script(data_t *, data_t *);
 static int              _data_cmp_script(data_t *, data_t *);
 static char *           _data_tostring_script(data_t *);
+static data_t *         _data_execute_script(data_t *, char *, array_t *, dict_t *);
 
 static data_t *         _data_new_closure(data_t *, va_list);
 static data_t *         _data_copy_closure(data_t *, data_t *);
 static int              _data_cmp_closure(data_t *, data_t *);
 static char *           _data_tostring_closure(data_t *);
+static data_t *         _data_execute_closure(data_t *, char *, array_t *, dict_t *);
 
 static data_t *         _plus(data_t *, data_t *);
 static data_t *         _minus(data_t *, data_t *);
@@ -65,9 +75,9 @@ static data_t *         _leq(data_t *, data_t *);
 static data_t *         _eq(data_t *, data_t *);
 static data_t *         _neq(data_t *, data_t *);
 
-static data_t *         _script_function_print(closure_t *, char *, array_t *, dict_t *);
-static data_t *         _script_function_mathop(closure_t *, char *, array_t *, dict_t *);
-static data_t *         _script_function_list(closure_t *, char *, array_t *, dict_t *);
+static data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
+static data_t *         _script_function_mathop(data_t *, char *, array_t *, dict_t *);
+static data_t *         _script_function_list(data_t *, char *, array_t *, dict_t *);
 
 static void             _script_list_visitor(instruction_t *);
 static closure_t *      _script_variable_copier(entry_t *, closure_t *);
@@ -75,13 +85,12 @@ static closure_t *      _script_variable_copier(entry_t *, closure_t *);
 static object_t *       _object_create_root(void);
 
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
-static script_t *       _closure_get_script(closure_t *, char *);
-
+static data_t *         _closure_set_local(closure_t *, char *, data_t *);
 
 static file_t *         _scriptloader_open_systemfile(scriptloader_t *, char *);
 static file_t *         _scriptloader_open_userfile(scriptloader_t *, char *);
 static file_t *         _scriptloader_open_from_basedir(scriptloader_t *, char *, char *);
-static script_t *       _scriptloader_parse_reader(script_loader_t *, reader_t *, script_t *, char *);
+static data_t *         _scriptloader_parse_reader(scriptloader_t *, reader_t *, script_t *, char *);
 static data_t *         _scriptloader_load(scriptloader_t *, char *, int);
 
 
@@ -126,11 +135,8 @@ static scriptloader_t * _loader = NULL;
  * data_t Script and Closure types
  */
 
-int Script = 0;
-int Closure = 0;
-
 static typedescr_t typedescr_script = {
-  type:                  -1,
+  type:                  Script,
   typecode:              "S",
   new:      (new_t)      _data_new_script,
   copy:     (copydata_t) _data_copy_script,
@@ -139,10 +145,11 @@ static typedescr_t typedescr_script = {
   tostring: (tostring_t) _data_tostring_script,
   hash:                  NULL,
   parse:                 NULL,
+  fallback: (method_t)   _data_execute_script
 };
 
 static typedescr_t typedescr_closure = {
-  type:                  -1,
+  type:                  Closure,
   typecode:              "R",
   new:      (new_t)      _data_new_closure,
   copy:     (copydata_t) _data_copy_closure,
@@ -151,6 +158,7 @@ static typedescr_t typedescr_closure = {
   tostring: (tostring_t) _data_tostring_closure,
   hash:                  NULL,
   parse:                 NULL,
+  fallback: (method_t)   _data_execute_closure
 };
 
 /*
@@ -186,6 +194,11 @@ char * _data_tostring_script(data_t *d) {
 
   snprintf(buf, 32, "<<script %s>>", ((script_t *) d -> ptrval) -> name);
   return buf;
+}
+
+data_t * _data_execute_script(data_t *self, char *name, array_t *params, dict_t *kwargs) {
+  script_t *script = (script_t *) self -> ptrval;
+  return script_execute(script, NULL, params, kwargs);
 }
 
 data_t * data_create_script(script_t *script) {
@@ -228,6 +241,11 @@ char * _data_tostring_closure(data_t *d) {
   snprintf(buf, 32, "<<closure %s>>",
            ((closure_t *) d -> ptrval) -> script -> name);
   return buf;
+}
+
+data_t * _data_execute_closure(data_t *self, char *name, array_t *params, dict_t *kwargs) {
+  closure_t *closure = (closure_t *) self -> ptrval;
+  return closure_execute_function(closure, name, params, kwargs);
 }
 
 data_t * data_create_closure(closure_t *closure) {
@@ -364,7 +382,7 @@ data_t * _neq(data_t *d1, data_t *d2) {
   return data_create_bool(data_cmp(d1, d2));
 }
 
-data_t * _script_function_mathop(data_t *, char *op, array_t *params, dict_t *) {
+data_t * _script_function_mathop(data_t *ignored, char *op, array_t *params, dict_t *kwargs) {
   data_t         *d1;
   data_t         *d2;
   data_t         *ret;
@@ -391,7 +409,7 @@ data_t * _script_function_mathop(data_t *, char *op, array_t *params, dict_t *) 
   return ret;
 }
 
-data_t * _script_function_print(data_t *, char *, array_t *params, dict_t *kwargs) {
+data_t * _script_function_print(data_t *ignored, char *name, array_t *params, dict_t *kwargs) {
   char          *varname;
   data_t        *value;
   char          *fmt;
@@ -415,7 +433,7 @@ data_t * _script_function_print(data_t *, char *, array_t *params, dict_t *kwarg
   return data_create_int(1);
 }
 
-data_t * _script_function_list(data_t *, char *, array_t *params, dict_t *) {
+data_t * _script_function_list(data_t *ignored, char *name, array_t *params, dict_t *kwargs) {
   return data_create_list_fromarray(params);
 }
 
@@ -431,6 +449,8 @@ void _script_list_visitor(instruction_t *instruction) {
  * script_t public functions
  */
 
+static int _initialized = 0;
+
 script_t * script_create(ns_t *ns, script_t *up, char *name) {
   script_t   *ret;
   char       *shortname_buf;
@@ -440,9 +460,10 @@ script_t * script_create(ns_t *ns, script_t *up, char *name) {
   script_t   *bi;
   int         len;
 
-  if (!Script) {
-    Script = typedescr_register(&typedescr_script);
-    Closure = typedescr_register(&typedescr_closure);
+  if (!_initialized) {
+    typedescr_register(&typedescr_script);
+    typedescr_register(&typedescr_closure);
+    _initialized = 1;
   }
   ret = NEW(script_t);
   ret -> instructions = list_create();
@@ -509,10 +530,10 @@ void script_free(script_t *script) {
   }
 }
 
-script_t script_create_native(script_t *script, function_t *function) {
+script_t * script_create_native(script_t *script, function_t *function) {
   script_t *ret;
   
-  ret = script_create(script, function -> name);
+  ret = script_create(script -> ns, script, function -> name);
   ret -> native = 1;
   ret -> native_method = (method_t) function -> fnc;
 }
@@ -533,14 +554,14 @@ script_t * script_push_instruction(script_t *script, instruction_t *instruction)
   return script;
 }
 
-data_t * script_execute(script_t *script, data_t *this, array_t *args, dict_t *kwargs) {
+data_t * script_execute(script_t *script, data_t *self, array_t *args, dict_t *kwargs) {
   data_t    *ret;
   closure_t *closure;
 
   if (script -> native) {
-    ret = script -> native_method(this, script -> name, args, kwargs);
+    ret = script -> native_method(self, script -> name, args, kwargs);
   } else {
-    closure = script_create_closure(script, this, args, kwargs);
+    closure = script_create_closure(script, self, args, kwargs);
     ret = closure_execute(closure);
     closure_free(closure);
   }
@@ -561,15 +582,15 @@ data_t * script_create_object(script_t *script, array_t *args, dict_t *kwargs) {
   object_t  *ret;
   closure_t *closure;
   data_t    *retval;
-  data_t    *this;
+  data_t    *self;
   
   ret = object_create(script);
-  this = data_create_object(ret);
-  retval = script_execute(script, this, args, kwargs);
-  return (retval && (retval -> type == Error)) ? retval : this;
+  self = data_create_object(ret);
+  retval = script_execute(script, self, args, kwargs);
+  return (retval && (retval -> type == Error)) ? retval : self;
 }
 
-closure_t * script_create_closure(script_t *script, data_t *this, array_t *args, dict_t *kwargs) {
+closure_t * script_create_closure(script_t *script, data_t *self, array_t *args, dict_t *kwargs) {
   closure_t *ret;
   int        ix;
 
@@ -594,10 +615,22 @@ closure_t * script_create_closure(script_t *script, data_t *this, array_t *args,
   if (kwargs) {
     dict_reduce(kwargs, (reduce_t) data_add_all_reducer, ret -> variables);
   }
-  if (this) {
-    assert(data_type(this) == Object);
-    ret -> this = (object_t *) this -> ptrval;
-    closure_set(ret, "this", this);
+  if (self) {
+    if (data_type(self) == Closure) {
+      closure_t *closure = (closure_t *) self -> ptrval;
+      ret -> up = closure;
+      if (closure -> self) {
+        self = data_create_object(closure -> self);
+      } else {
+        self = NULL;
+      }
+    } else {
+      assert(data_type(self) == Object);
+    }
+    if (self) {
+      ret -> self = (object_t *) self -> ptrval;
+      _closure_set_local(ret, "self", self);
+    }
   }
   ret -> refs++;
   return ret;
@@ -609,16 +642,44 @@ closure_t * script_create_closure(script_t *script, data_t *this, array_t *args,
  */
 
 listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closure) {
-  char       *label;
-  listnode_t *node;
+  data_t     *ret;
+  char       *label = NULL;
+  listnode_t *node = NULL;
 
-  label = instruction_execute(instr, closure);
-  if (label && script_debug) {
-    debug("  Jumping to '%s'", label);
+  ret = instruction_execute(instr, closure);
+  switch (data_type(ret)) {
+    case String:
+      label = data_tostring(ret);
+      data_free(ret);
+      break;
+    case Error:
+      label = "ERROR";
+      _closure_set_local(closure, "$$ERROR", data_copy(ret));
+      break;
+    default:
+      assert(0);
+      break;
   }
-  return (label)
-      ? (listnode_t *) dict_get(closure -> script -> labels, label)
-      : NULL;
+  if (label) {
+    if (script_debug) {
+      debug("  Jumping to '%s'", label);
+    }
+    node = (listnode_t *) dict_get(closure -> script -> labels, label);
+    assert(node);
+  }
+  return node;
+}
+
+data_t * _closure_set_local(closure_t *closure, char *name, data_t *value) {
+  data_t *ret;
+  
+  if (script_debug) {
+    debug("  Setting local '%s' = %s in closure for %s",
+          name, data_debugstr(value), closure_tostring(closure));
+  }
+  ret = data_copy(value);
+  dict_put(closure -> variables, strdup(name), ret);
+  return ret;
 }
 
 /*
@@ -689,7 +750,7 @@ data_t * closure_get_container_for(closure_t *closure, array_t *name) {
       break;
     } else {
       data_free(data);
-      data = NULL:
+      data = NULL;
       c = c -> up;
     }
   }
@@ -740,12 +801,7 @@ data_t * closure_set(closure_t *closure, array_t *varname, data_t *value) {
     case Closure:
       c = (closure_t *) d -> ptrval;
       n = (char *) array_get(varname, 0);
-      if (script_debug) {
-        debug("  Setting local '%s' = %s in closure for %s",
-              n, data_debugstr(value), data_tostring(d));
-      }
-      ret = data_copy(value);
-      dict_put(c -> variables, strdup(n), ret);
+      ret = _closure_set_local(c, n, value);
       data_free(d);
       break;
     case Script:
@@ -835,7 +891,10 @@ data_t * closure_execute(closure_t *closure) {
 }
 
 data_t * closure_execute_function(closure_t *closure, char *name, array_t *args, dict_t *kwargs) {
-  data_t *func;
+  script_t *script;
+  data_t   *func;
+  data_t   *self;
+  data_t   *ret;
   
   func = closure_get(closure, name);
   if (!data_is_error(func)) {
@@ -845,7 +904,10 @@ data_t * closure_execute_function(closure_t *closure, char *name, array_t *args,
                        name,
                        closure_tostring(closure));
     } else {
-      ret = script_execute(func, closure -> this, args, kwargs);
+      script = (script_t *) func -> ptrval;
+      self = data_create_closure(closure);
+      ret = script_execute(script, self, args, kwargs);
+      data_free(self);
     }
     data_free(func);
   } else {
@@ -925,23 +987,24 @@ static file_t * _scriptloader_open_from_basedir(scriptloader_t *loader, char *ba
   return ret;
 }
 
-static script_t * _scriptloader_parse_reader(scriptloader_t *loader,
-                                             reader_t * rdr, script_t *up, char *name) {
+data_t * _scriptloader_parse_reader(scriptloader_t *loader, reader_t *rdr, script_t *up, char *name) {
+  script_t *script;
+  object_t *object;
+  
   parser_clear(loader -> parser);
   parser_set(loader -> parser, "name", data_create_string(name));
   parser_set(loader -> parser, "up", data_create_script(up));
-  return parser_parse(loader -> parser, rdr);
+  parser_set(loader -> parser, "ns", data_create_object(loader -> ns -> root));
+  parser_parse(loader -> parser, rdr);
+  script = (script_t *) loader -> parser -> data;
+  return script_create_object(script, NULL, NULL);
 }
 
-static data_t * _scriptloader_load(scriptloader_t *loader, char *name, int empty_allowed) {
+data_t * _scriptloader_load(scriptloader_t *loader, char *name, int empty_allowed) {
   file_t    *text;
   str_t     *dummy;
   reader_t  *rdr;
-  char      *fname;
-  fsentry_t *e;
-  fsentry_t *init;
-  char      *ptr;
-  object_t  *ret;
+  data_t    *ret;
 
   if (script_debug) {
     debug("scriptloader_load(%s)", name);
@@ -956,12 +1019,14 @@ static data_t * _scriptloader_load(scriptloader_t *loader, char *name, int empty
       dummy = str_wrap("");
       rdr = (reader_t *) dummy;
     } else {
-      return NULL;
+      rdr = NULL;
     }
   } else {
     rdr = (reader_t *) rdr;
   }
-  ret = scriptloader_load_fromreader(loader, name, (reader_t *) text);
+  ret = (rdr) 
+          ? scriptloader_load_fromreader(loader, name, rdr) 
+          : data_error(ErrorName, "Could not locate '%s'", name);
   str_free(dummy);
   file_free(text);
   return ret;
@@ -979,10 +1044,9 @@ scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   scriptloader_t   *ret;
   file_t           *file;
   grammar_parser_t *gp;
-  script_t         *root;
+  data_t           *root;
   char             *sysdir;
   int               len;
-  script_t          root;
 
   assert(!_loader);
   ret = NEW(scriptloader_t);
@@ -997,7 +1061,7 @@ scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
     strcat(ret -> system_dir, "/");
   }
   if (!obl_path) {
-    obl_path = "./"
+    obl_path = "./";
   }
   len = strlen(obl_path);
   ret -> userpath = (char *) new (len + ((*(obl_path + (len - 1)) != '/') ? 2 : 1));
@@ -1022,6 +1086,7 @@ scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   assert(ret -> grammar);
   grammar_parser_free(gp);
   file_free(file);
+  free(grammarpath);
 
   ret -> parser = parser_create(ret -> grammar);
 
@@ -1030,8 +1095,9 @@ scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   if (file) {
     root = _scriptloader_parse_reader(ret, (reader_t *) file, NULL, NULL);
     file_free(file);
-    if (root) {
-      ret -> ns = ns_create(root);
+    if (!data_is_error(root)) {
+      ret -> ns = ns_create((object_t *) root -> ptrval);
+      data_free(root);
     }
   }
   if (!ret -> ns) {
@@ -1049,7 +1115,8 @@ scriptloader_t * scriptloader_get(void) {
 
 void scriptloader_free(scriptloader_t *loader) {
   if (loader) {
-    free(loader -> path);
+    free(loader -> system_dir);
+    free(loader -> userpath);
     grammar_free(loader -> grammar);
     parser_free(loader -> parser);
     ns_free(loader -> ns);
@@ -1060,73 +1127,65 @@ void scriptloader_free(scriptloader_t *loader) {
 data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader_t *reader) {
   parser_t       *parser;
   script_t       *script;
-  script_t       *modscript;
+  object_t       *object;
+  array_t        *components;
+  int             ix;
   char           *curname;
-  char           *modname;
-  char           *classname;
-  char           *sepptr;
-  data_t         *data;
-  str_t          *debugstr;
+  data_t         *ret = NULL;
 
   if (script_debug) {
     debug("scriptloader_load_fromreader(%s)", name);
   }
-  script = NULL;
-  if (name && name[0]) {
-    curname = strdup(name);
-    modname = curname;
-    sepptr = strchr(modname, '.');
-    while (sepptr != NULL) {
-      *sepptr = 0;
-      data = NULL; // (data_t *) dict_get(script -> variables,  modname);
-      assert(!data || data_type(data) == Script);
-      modscript = (data) ? (script_t *) data -> ptrval : NULL;
-      if (!modscript) {
-        if (script_debug) {
-          debug("script %s does not have class %s yet", script -> name, curname);
-        }
-	modscript = scriptloader_load(loader, curname);
-      } else {
-        if (script_debug) {
-          debug("script %s already has class %s", script -> name, curname);
-        }
-      }
-      script = modscript;
-      *sepptr = '.';
-      modname = sepptr + 1;
-      sepptr = strchr(modname, '.');
-    }
-    classname = modname;
-  } else {
-    classname = NULL;
+  if (!name || !name[0]) {
+    return data_error(ErrorName, "Cannot load script with no name");
   }
-
-  parser = parser_create(loader -> grammar);
-  parser -> data = script_create(script, classname);
-  parser_parse(parser, reader);
-  parser_free(parser);
+  components = array_split(name, ".");
+  object = loader -> ns -> root;
+  curname = (char *) new(strlen(name) + 1);
+  curname[0] = 0;
+  for (ix = 0; ix < array_size(components) - 1; ix++) {
+    char *n = (char *) array_get(components, ix);
+    data_t *o = object_get(object, n);
+    if (curname[0]) {
+      strcat(curname, ".");
+    }
+    strcat(curname, n);
+    if (data_is_error(o)) {
+      if (script_debug) {
+        debug("Module %s does not have submodule %s yet", 
+              script_tostring(object->script), n);
+      }
+      o = _scriptloader_load(loader, curname, 1);
+    }
+    if (data_type(o) == Object) {
+      if (script_debug) {
+        debug("Module %s already has submodule %s", 
+              script_tostring(object->script), n);
+      }
+      object = (object_t *) o -> ptrval;
+    } else if (data_is_error(o)) {
+      ret = o;
+    } else {
+      if (script_debug) {
+        debug("Module %s already has attribute %s, but it's not a submodule", 
+              script_tostring(object->script), n);
+      }
+      ret = data_error(ErrorName, "%s is not an object", curname);
+    }
+    if (ret) {
+      ix = array_size(components);
+    }
+  }
   free(curname);
-  return script;
+  array_free(components);
+  
+  if (!ret) {
+    ret = _scriptloader_parse_reader(loader, reader, object -> script -> up, name);
+  }
+  return ret;
 }
 
 data_t * scriptloader_load(scriptloader_t *loader, char *name) {
   return _scriptloader_load(loader, name, 0);
 }
-
-data_t * scriptloader_execute(scriptloader_t *loader, char *name) {
-  script_t     *script;
-  data_t       *ret;
-  
-  script = scriptloader_load(loader, name);
-  if (script) {
-    ret = script_execute(script, NULL, NULL, NULL);
-    if (script_debug) {
-      debug("Return value: %s", data_tostring(ret));
-    }
-    script_free(script);
-  }
-  return ret;
-}
-
-
 

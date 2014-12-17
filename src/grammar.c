@@ -136,7 +136,8 @@ ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, 
 void ge_free(ge_t *ge) {
   if (ge) {
     dict_free(ge -> variables);
-    token_free(ge -> pushvalue);
+    set_free(ge -> pushvalues);
+    set_free(ge -> incrs);
     function_free(ge -> initializer);
     function_free(ge -> finalizer);
     if (elements[ge -> type].free) {
@@ -147,7 +148,7 @@ void ge_free(ge_t *ge) {
 }
 
 ge_t * ge_add_pushvalue(ge_t *ge, token_t *token) {
-  set_add(ge -> pushvalues, token_copy(token))
+  set_add(ge -> pushvalues, token_copy(token));
   return ge;
 }
 

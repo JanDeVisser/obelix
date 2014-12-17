@@ -393,7 +393,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
         }
         break;
       case PSETypeIncr:
-        data = (dict_t *) dict_get(parser -> variables, e -> name);
+        data = (data_t *) dict_get(parser -> variables, e -> name);
         if (data) {
           if (data -> type == Int) {
             data -> intval++;
@@ -495,7 +495,7 @@ data_t * parser_get(parser_t *parser, char *name) {
  * 
  * @see
  */
-data_t * parser_pop(parser_t *, char *) {
+data_t * parser_pop(parser_t *parser, char *name) {
   return (data_t *) dict_pop(parser -> variables, name);
 }
 

@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
   }
   loader = scriptloader_create(basepath, grammar);
   free(basepath);
-  ret = scriptloader_execute(loader, argv[optind]);
+  ret = scriptloader_load(loader, argv[optind]);
   debug("Exiting with exit code %s", data_tostring(ret));
   retval = (ret && data_type(ret) == Int) ? (int) ret -> intval : 0;
   data_free(ret);

@@ -22,6 +22,7 @@
 #define __LEXER_H__
 
 #include <array.h>
+#include <data.h>
 #include <dict.h>
 #include <str.h>
 

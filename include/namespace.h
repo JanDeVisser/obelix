@@ -22,14 +22,13 @@
 #define __NAMESPACE_H__
 
 #include <object.h>
-#include <script.h>
 
 typedef struct _namespace {
   int       native_allowed;
   object_t *root;
 } ns_t;
 
-extern ns_t *     ns_create(script_t *);
+extern ns_t *     ns_create(object_t *);
 extern void       ns_free(ns_t *);
 extern data_t *   ns_resolve(ns_t *, array_t *);
 

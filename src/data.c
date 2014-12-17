@@ -18,19 +18,32 @@
  */
 
 #include <limits.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <core.h>
 #include <data.h>
 #include <list.h>
 
+typedef struct _errordescr {
+  int   code;
+  char *str;
+} errordescr_t;
+
+
+static errordescr_t  builtin_errors[];
+static typedescr_t   builtins[];
+static typedescr_t  *descriptors;
+static int           num_errors;
+static errordescr_t *errors;
+
+
 static data_t *      _data_new_error(data_t *, va_list);
 static unsigned int  _data_hash_error(data_t *);
 static data_t *      _data_copy_error(data_t *, data_t *);
 static int           _data_cmp_error(data_t *, data_t *);
-static char *        _data_tostring_error(data_t *)
+static char *        _data_tostring_error(data_t *);
 
 static data_t *      _data_new_pointer(data_t *, va_list);
 static int           _data_cmp_pointer(data_t *, data_t *);
@@ -175,11 +188,6 @@ static typedescr_t builtins[] = {
 
 static typedescr_t *descriptors = builtins;
 
-typedef struct _errordescr {
-  int   code;
-  char *str;
-} errordescr_t;
-
 static errordescr_t builtin_errors[] = {
     { code: ErrorArgCount,    str: "ErrorArgCount" },
     { code: ErrorType,        str: "ErrorType" },
@@ -205,10 +213,10 @@ int error_register(char *str) {
   newsz = (num_errors + 1) * sizeof(errordescr_t);
   cursz = num_errors * sizeof(errordescr_t);
   if (errors == builtin_errors) {
-    new_errors = (typedescr_t *) new(newsz);
+    new_errors = (errordescr_t *) new(newsz);
     memcpy(new_errors, errors, cursz);
   } else {
-    new_errors = (typedescr_t *) resize_block(descriptors, newsz, cursz);
+    new_errors = (errordescr_t *) resize_block(descriptors, newsz, cursz);
   }
   errors = new_errors;
   num_errors++;
@@ -218,7 +226,7 @@ int error_register(char *str) {
 
 error_t * error_create(int code, ...) {
   error_t *ret;
-  va_list *args;
+  va_list  args;
 
 
   va_start(args, code);
@@ -231,7 +239,7 @@ error_t * error_vcreate(int code, va_list args) {
   int      size;
   char    *msg;
   error_t *ret;
-  va_list *args_copy;
+  va_list  args_copy;
 
   ret = NEW(error_t);
   ret -> code = code;
@@ -275,7 +283,7 @@ char * error_tostring(error_t *error) {
   int sz;
 
   if (!error -> str) {
-    error -> str = (char *) new(snprintf(NULL, 0, "Error %s (%s): %s",
+    error -> str = (char *) new(snprintf(NULL, 0, "Error %s (%d): %s",
                                          errors[error -> code].str,
                                          error -> code,
                                          error -> msg));
@@ -457,7 +465,7 @@ data_t * _data_add_int(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
   if (array_size(args) != 1) {
     return data_error(ErrorArgCount, "int(+) requires two parameters");
   }
-  d2 = (data_t) array_get(args, 0);
+  d2 = (data_t *) array_get(args, 0);
   if (data_is_numeric(d2)) {
     type = (data_type(d2) == Int) ? Int : Float;
     if (type == Int) {
@@ -521,7 +529,7 @@ data_t * _data_add_float(data_t *d1, char *name, array_t *args, dict_t *kwargs) 
   if (array_size(args) != 1) {
     return data_error(ErrorArgCount, "int(+) requires two parameters");
   }
-  d2 = (data_t) array_get(args, 0);
+  d2 = (data_t *) array_get(args, 0);
   if (data_is_numeric(d2)) {
     ret = data_create_float(
         d2 -> dblval +
@@ -632,7 +640,7 @@ unsigned int _data_hash_list(data_t *data) {
   return list_hash(data -> ptrval);
 }
 
-data_t * _data_list_len(data_t *d1, char *, array_t *, dict_t *) {
+data_t * _data_list_len(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
   return data_create_int(list_size((list_t *) d1 -> ptrval));
 }
 
@@ -879,7 +887,7 @@ array_t * data_list_toarray(data_t *data) {
 
   ret = data_array_create(list_size((list_t *) data -> ptrval));
   for (iter = li_create((list_t *) data -> ptrval); li_has_next(iter); ) {
-    array_push(ret, data_copy((data_t *) li_next()));
+    array_push(ret, data_copy((data_t *) li_next(iter)));
   }
   return ret;
 }

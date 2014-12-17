@@ -21,11 +21,10 @@
 #ifndef __OBJECT_H__
 #define __OBJECT_H__
 
+#include <core.h>
 #include <array.h>
 #include <data.h>
 #include <dict.h>
-
-extern int Object;
 
 typedef struct _object {
   struct _script *script;
@@ -37,7 +36,7 @@ typedef struct _object {
 
 extern data_t *        data_create_object(object_t *);
 
-extern object_t *      object_create(script_t *);
+extern object_t *      object_create(struct _script *);
 extern void            object_free(object_t *);
 extern data_t *        object_get(object_t *, char *);
 extern object_t *      object_set(object_t *, char *, data_t *);

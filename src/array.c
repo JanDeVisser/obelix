@@ -88,6 +88,42 @@ array_t * array_create(int capacity) {
 }
 
 /**
+ * Creates a new <code>array_t</code> from the components of <code>str</code>.
+ * The string is split at the occurrences of <code>sep</code>. The individual
+ * components are copied and the return array is set up to free these strings
+ * when the array is freed.
+ * 
+ * @param str The string to be split.
+ * @param sep The separator string.
+ * 
+ * @return A new array with the components of the string as elements.
+ */
+array_t * array_split(char *str, char *sep) {
+  char    *ptr;
+  char    *sepptr;
+  char    *c;
+  array_t *ret;
+  int      count = 1;
+
+  ptr = str;
+  for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
+    count++;
+  }
+  ret = str_array_create(count);
+  ptr = str;
+  for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
+    int len = sepptr - ptr;
+    c = (char *) new(len + 1);
+    strncpy(c, ptr, len);
+    c[len] = 0;
+    array_push(ret, c);
+    ptr = sepptr + strlen(sep);
+  }
+  array_push(ret, strdup(ptr));
+  return ret;
+}
+
+/**
  * Returns a new array that is a subset of an existing array. Array elements
  * are copied as-is; no free functions are being called. The return array
  * has the same hash, cmp, and tostring functions as the existing array, but

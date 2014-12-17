@@ -205,6 +205,7 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     ret = func_container;
   } else {
     n = data_tostring((data_t *) array_get(name, -1));
+    data_execute(func_container, n, params, NULL);
     switch (data_type(func_container)) {
       case Object:
         o = (object_t *) func_container -> ptrval;
