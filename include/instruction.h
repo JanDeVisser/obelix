@@ -50,7 +50,7 @@ extern instruction_t *  instruction_create(int, char *, data_t *);
 extern instruction_t *  instruction_create_assign(array_t *);
 extern instruction_t *  instruction_create_pushvar(array_t *);
 extern instruction_t *  instruction_create_pushval(data_t *);
-extern instruction_t *  instruction_create_function(char *, long);
+extern instruction_t *  instruction_create_function(data_t *, long);
 extern instruction_t *  instruction_create_test(char *);
 extern instruction_t *  instruction_create_jump(char *);
 extern instruction_t *  instruction_create_import(array_t *);

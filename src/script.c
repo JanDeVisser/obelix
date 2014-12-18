@@ -475,7 +475,7 @@ script_t * script_create(ns_t *ns, script_t *up, char *name) {
   ret -> label = NULL;
   ret -> params = NULL;
 
-  if (!ns) {
+  if (!ns && !up) {
     name = "__root__";
     for (builtin = _builtins; builtin -> name; builtin++) {
       bi = script_create_native(ret, builtin);

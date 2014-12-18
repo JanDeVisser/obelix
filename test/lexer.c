@@ -41,7 +41,7 @@ int * _test_lexer_tokenizer(token_t *token, int *count) {
 
   code = token_code(token);
   t = token_token(token);
-  debug("Token #%d: %s", *count, token_tostring(token, buf, 20));
+  debug("Token #%d: %s", *count, token_tostring(token));
   switch (*count) {
     case 0:
       ck_assert_int_eq(code, TokenCodeInteger);
@@ -86,7 +86,7 @@ int * _test_lexer_tokenizer_ignore_ws(token_t *token, int *count) {
 
   code = token_code(token);
   t = token_token(token);
-  debug("Token #%d: %s", *count, token_tostring(token, buf, 20));
+  debug("Token #%d: %s", *count, token_tostring(token));
   ck_assert_int_ne(code, TokenCodeWhitespace);
   *count += 1;
   return count;
@@ -114,7 +114,7 @@ int * _test_lexer_tokenizer_ignore_nl(token_t *token, int *count) {
 
   code = token_code(token);
   t = token_token(token);
-  debug("Token #%d: %s", *count, token_tostring(token, buf, 20));
+  debug("Token #%d: %s", *count, token_tostring(token));
   ck_assert_int_ne(code, TokenCodeNewLine);
   *count += 1;
   return count;
@@ -142,7 +142,7 @@ int * _test_lexer_tokenizer_comment(token_t *token, int *count) {
 
   code = token_code(token);
   t = token_token(token);
-  debug("Token #%d: %s", *count, token_tostring(token, buf, 20));
+  debug("Token #%d: %s", *count, token_tostring(token));
   ck_assert_int_ne(token_token(token), "INCOMMENT");
   *count += 1;
   return count;
@@ -210,7 +210,7 @@ int * _test_lexer_tokenizer_count_keywords(token_t *token, int *count) {
 
   code = token_code(token);
   t = token_token(token);
-  debug("Token #%d: %s", *count, token_tostring(token, buf, 50));
+  debug("Token #%d: %s", *count, token_tostring(token));
   if (code >= 200) *count += 1;
   return count;
 }
@@ -260,7 +260,7 @@ int * _test_lexer_tokenizer_quotedstrings(token_t *token, int *count) {
 
   code = token_code(token);
   t = token_token(token);
-  debug("Token #%d: %s", *count, token_tostring(token, buf, 50));
+  debug("Token #%d: %s", *count, token_tostring(token));
   if ((code == TokenCodeDQuotedStr) || (code == TokenCodeSQuotedStr)) *count += 1;
   return count;
 }

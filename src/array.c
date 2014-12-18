@@ -210,7 +210,7 @@ int array_set(array_t *array, int ix, void *data) {
   if (ix < 0) {
     ix = list_size(array -> list);
   }
-  if (!_array_resize(array, ix)) {
+  if (!_array_resize(array, ix + 1)) {
     return FALSE;
   }
   for (i = list_size(array -> list); i <= ix; i++) {
@@ -229,7 +229,7 @@ void * array_get(array_t *array, int ix) {
   if (ix < 0) {
     ix = array_size(array) + ix;
   }
-  if (ix >= list_size(array -> list)) {
+  if ((ix < 0) || (ix >= list_size(array -> list))) {
     errno = EFAULT;
     return NULL;
   }
