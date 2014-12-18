@@ -507,7 +507,7 @@ void _parser_parse(parser_t *parser, reader_t *reader) {
   lexer = lexer_create(reader);
   dict_reduce_values(parser -> grammar -> keywords, (reduce_t) _parser_set_keywords, lexer);
   for (ix = 0; ix < LexerOptionLAST; ix++) {
-    lexer_set_option(lexer, ix, grammar_get_option(parser -> grammar, ix));
+    lexer_set_option(lexer, ix, grammar_get_lexer_option(parser -> grammar, ix));
   }
   if (grammar_get_initializer(parser -> grammar)) {
     grammar_get_initializer(parser -> grammar) -> fnc(parser);

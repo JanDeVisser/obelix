@@ -187,7 +187,18 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     array_debug(params, " -- parameters: %s");
   }
 
-  name = data_list_toarray(instr -> value);
+  switch (data_type(instr -> value)) {
+    case List:
+      name = data_list_toarray(instr -> value);
+      break;
+    case String:
+      name = str_array_create(1);
+      array_push(name, strdup(data_tostring(instr -> value)));
+      break;
+    default:
+      assert(0);
+      break;
+  }
   func_container = closure_get_container_for(closure, name);
   if (data_is_error(func_container)) {
     ret = func_container;
@@ -204,6 +215,9 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
         ret = closure_execute_function(c, n, params, NULL);
         break;
     }
+  }
+  if (data_type(instr -> value) == String) {
+    array_free(name);
   }
   data_free(func_container);
   return ret;
@@ -280,12 +294,12 @@ instruction_t * instruction_create_pushval(data_t *value) {
   return instruction_create(ITPushVal, NULL, value);
 }
 
-instruction_t * instruction_create_function(array_t *name, int num_params) {
+instruction_t * instruction_create_function(data_t *name, long num_params) {
   instruction_t *ret;
   
   ret = instruction_create(ITFunction, 
-                           data_tostring((data_t *) array_get(name, -1)),
-                           data_create_list_fromarray(name));
+                           data_tostring(name),
+                           name);
   ret -> num = num_params;
   return ret;
 }

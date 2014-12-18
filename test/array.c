@@ -106,10 +106,12 @@ START_TEST(test_array_set_extend)
   array_free(array);
 END_TEST
 
+static int cccount = 0;
 
 void test_array_visitor(void *data) {
   test_t *t = (test_t *) data;
   t -> flag = 1;
+  cccount++;
 }
 
 
@@ -123,11 +125,23 @@ START_TEST(test_array_visit)
   array_set_free(array, (visit_t) test_free);
   for (ix = 0; ix < 100; ix++) {
     sprintf(buf, "test%d", ix);
-    ck_assert_int_ne(array_set(array, -1, test_create(buf)), FALSE);
+    test = test_create(buf);
+    ck_assert_int_ne(array_set(array, -1, test), FALSE);
+    if (ix == 8) {
+      debug("test(8): %p", test);
+    }
   }
+  ck_assert_int_eq(array_size(array), 100);
   array_visit(array, test_array_visitor);
+  debug("cccount %d", cccount);
   for (ix = 0; ix < array_size(array); ix++) {
+    debug("%d ==>", ix);
     test = (test_t *) array_get(array, ix);
+    if (ix == 8) {
+      debug("test(8)");
+      debug("test(8): %p", test);
+    }
+    debug("%d <== %d", ix, test -> flag);
     ck_assert_int_eq(test -> flag, 1);
   }
   array_free(array);
@@ -173,7 +187,8 @@ START_TEST(test_array_clear)
   array_set_free(array, (visit_t) test_free);
   for (ix = 0; ix < 100; ix++) {
     sprintf(buf, "test%d", ix);
-    ck_assert_int_ne(array_set(array, -1, test_create(buf)), FALSE);
+    test = test_create(buf);
+    ck_assert_int_ne(array_set(array, -1, test), FALSE);
   }
   cap = array_capacity(array);
   array_clear(array);
@@ -187,6 +202,9 @@ START_TEST(test_array_clear)
   for (ix = 0; ix < 100; ix++) {
     sprintf(buf, "--test%d", ix);
     test = (test_t *) array_get(array, ix);
+    if (ix == 8) {
+      debug("after test(8): %p", test);
+    }
     ck_assert_str_eq(test -> data, buf);
   }
   array_free(array);

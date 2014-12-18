@@ -19,6 +19,7 @@
 
 #include <namespace.h>
 #include <script.h>
+#include <scriptparse.h>
 
 parser_t * script_parse_init(parser_t *parser) {
   char     *name;
@@ -137,7 +138,7 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
     debug(" -- op: %s", op);
   }
   script_push_instruction(script,
-    instruction_create_function(op, 2));
+    instruction_create_function(data_create_string(op), 2));
   data_free(data);
   return parser;
 }
@@ -155,24 +156,10 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
     debug(" -- func_name: %s", func_name);
   }
   script_push_instruction(script,
-    instruction_create_function(func_name, param_count -> intval));
+    instruction_create_function(data_create_list_fromarray(func_name),
+                                param_count -> intval));
   data_free(param_count);
   array_free(func_name);
-  return parser;
-}
-
-parser_t * script_parse_emit_new_list(parser_t *parser) {
-  script_t *script;
-  data_t   *count;
-
-  script = parser -> data;
-  count = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- #entries: %d", count -> intval);
-  }
-  script_push_instruction(script,
-    instruction_create_function("list", count -> intval));
-  data_free(count);
   return parser;
 }
 
@@ -334,7 +321,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
     data_free(data);
   }
   data = datastack_pop(parser -> stack);
-  func = script_create(up, (char *) data -> ptrval);
+  func = script_create(up -> ns, up, (char *) data -> ptrval);
   func -> params = params;
   data_free(data);
   if (parser_debug) {

@@ -83,10 +83,12 @@ void * new_ptrarray(int sz) {
 }
 
 void * resize_block(void *block, int newsz, int oldsz) {
+  void *ret;
+
   if (!_initialized) {
     __init();
   }
-  void * ret = realloc(block, newsz);
+  ret = realloc(block, newsz);
   if (newsz && !ret) {
     kill(0, SIGUSR1);
   } else if (oldsz) {
