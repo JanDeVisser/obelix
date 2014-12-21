@@ -19,7 +19,7 @@
 AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
 # AM_CFLAGS   = -ansi
-LDADD       = -ldl -lm
+LDADD       = -ldl -lm -lcheck
 
 lib_LTLIBRARIES = libobelix.la
 libobelix_la_SOURCES = \
@@ -29,6 +29,7 @@ libobelix_la_SOURCES = \
 		dict.c \
 		set.c \
 		tree.c \
+		error.c \
 		data.c \
 		datastack.c \
 		expr.c \
@@ -45,6 +46,7 @@ libobelix_la_SOURCES = \
 		object.c \
 		namespace.c
 		
-bin_PROGRAMS = obelix
+bin_PROGRAMS   = obelix
 obelix_SOURCES = obelix.c
-obelix_LDADD = libobelix.la -ldl -lm
+obelix_LDFLAGS = -pthread 
+obelix_LDADD   = libobelix.la -lcheck -ldl -lm

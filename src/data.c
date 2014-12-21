@@ -24,20 +24,8 @@
 
 #include <core.h>
 #include <data.h>
+#include <error.h>
 #include <list.h>
-
-typedef struct _errordescr {
-  int   code;
-  char *str;
-} errordescr_t;
-
-
-static errordescr_t  builtin_errors[];
-static typedescr_t   builtins[];
-static typedescr_t  *descriptors;
-static int           num_errors;
-static errordescr_t *errors;
-
 
 static data_t *      _data_new_error(data_t *, va_list);
 static unsigned int  _data_hash_error(data_t *);
@@ -188,116 +176,7 @@ static typedescr_t builtins[] = {
 
 static typedescr_t *descriptors = builtins;
 
-static errordescr_t builtin_errors[] = {
-    { code: ErrorArgCount,    str: "ErrorArgCount" },
-    { code: ErrorType,        str: "ErrorType" },
-    { code: ErrorName,        str: "ErrorName" },
-    { code: ErrorNotCallable, str: "ErrorNotCallable" }
-};
-
-static int           num_errors = sizeof(builtin_errors) / sizeof(errordescr_t);
-static errordescr_t *errors = builtin_errors;
-
-/*
- * error_t functions
- */
-
-int error_register(char *str) {
-  errordescr_t *new_errors;
-  errordescr_t  descr;
-  int           newsz;
-  int           cursz;
-
-  descr.code = num_errors;
-  descr.str = str;
-  newsz = (num_errors + 1) * sizeof(errordescr_t);
-  cursz = num_errors * sizeof(errordescr_t);
-  if (errors == builtin_errors) {
-    new_errors = (errordescr_t *) new(newsz);
-    memcpy(new_errors, errors, cursz);
-  } else {
-    new_errors = (errordescr_t *) resize_block(descriptors, newsz, cursz);
-  }
-  errors = new_errors;
-  num_errors++;
-  memcpy(errors + descr.code, &descr, sizeof(typedescr_t));
-  return descr.code;
-}
-
-error_t * error_create(int code, ...) {
-  error_t *ret;
-  va_list  args;
-
-
-  va_start(args, code);
-  ret = error_vcreate(code, args);
-  va_end(args);
-  return ret;
-}
-
-error_t * error_vcreate(int code, va_list args) {
-  int      size;
-  char    *msg;
-  error_t *ret;
-  va_list  args_copy;
-
-  ret = NEW(error_t);
-  ret -> code = code;
-  msg = va_arg(args, char *);
-  va_copy(args_copy, args);
-  size = vsnprintf(NULL, 0, msg, args);
-  va_end(args_copy);
-  ret -> msg = (char *) new(size + 1);
-  vsprintf(ret -> msg, msg, args);
-  return ret;
-}
-
-error_t * error_copy(error_t *src) {
-  error_t *ret;
-
-  ret = NEW(error_t);
-  ret -> code = src -> code;
-  ret -> msg = strdup(src -> msg);
-  return ret;
-}
-
-void error_free(error_t *error) {
-  if (error) {
-    free(error -> msg);
-    free(error -> str);
-    free(error);
-  }
-}
-
-unsigned int error_hash(error_t *error) {
-  return hashptr(error);
-}
-
-int error_cmp(error_t *e1, error_t *e2) {
-  return (e1 -> code != e2 -> code)
-    ? e1 -> code - e2 -> code
-    : strcmp(e1 -> msg, e2 -> msg);
-}
-
-char * error_tostring(error_t *error) {
-  int sz;
-
-  if (!error -> str) {
-    error -> str = (char *) new(snprintf(NULL, 0, "Error %s (%d): %s",
-                                         errors[error -> code].str,
-                                         error -> code,
-                                         error -> msg));
-    sprintf(error -> str, "Error %s (%d): %s",
-            errors[error -> code].str,
-            error -> code,
-            error -> msg);
-  }
-  return error -> str;
-}
-
-void error_report(error_t *e) {
-  error(error_tostring(e));
-}
+int data_count = 0;
 
 /*
  * --------------------------------------------------------------------------
@@ -457,29 +336,104 @@ data_t * _data_parse_int(char *str) {
 }
 
 data_t * _data_add_int(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
-  str_t  *s;
-  data_t *d2;
+  data_t *d;
   data_t *ret;
-  int     type;
+  int     type = Int;
+  int     ix;
+  long    intret = 0;
+  double  fltret = 0.0;
+  double  val;
+  int     plus = (name[0] == '+');
 
-  if (array_size(args) != 1) {
-    return data_error(ErrorArgCount, "int(+) requires two parameters");
+  if (!args || !array_size(args)) {
+    return data_error(ErrorArgCount, "int(+) requires at least two parameters");
   }
-  d2 = (data_t *) array_get(args, 0);
-  if (data_is_numeric(d2)) {
-    type = (data_type(d2) == Int) ? Int : Float;
-    if (type == Int) {
-      ret = data_create_int(d1 -> intval + d2 -> intval);
-    } else {
-      ret = data_create_float(((double) d1 -> intval) + d2 -> dblval);
+  for (ix = 0; ix < array_size(args); ix++) {
+    d = (data_t *) array_get(args, ix);
+    if (!data_is_numeric(d)) {
+      type = data_type(d);
+      break;
+    } else if (data_type(d) == Float) {
+      type = Float;
     }
-  } else {
+  }
+  if ((type != Int) && (type != Float)) {
     ret = data_error(ErrorType,
-                     "Cannot add an integer and an object of type '%s'",
-                     descriptors[d2 -> type].typecode);
+                     ((plus)
+                       ? "Cannot add integers and objects of type '%s'"
+                       : "Cannot subtract integers and objects of type '%s'"),
+                     descriptors[type].typecode);
+  } else {
+    if (type == Float) {
+      fltret = (data_type(d1) == Int) ? (double) d1 -> intval : d1 -> dblval;
+    } else {
+      intret = d1 -> intval;
+    }
+    for (ix = 0; ix < array_size(args); ix++) {
+      d = (data_t *) array_get(args, ix);
+      switch(type) {
+        case Int:
+          /* Type of d must be Int, can't be Float */
+          intret += (plus) ? d -> intval : (-(d -> intval));
+          break;
+        case Float:
+          /* Here type of d can be Int or Float */
+          val = (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
+          fltret += (plus) ? val : -val;
+          break;
+      }
+    }
+    ret = (type == Int)
+        ? data_create_int(intret)
+        : data_create_float(fltret);
   }
   return ret;
+}
 
+data_t * _data_mult_int(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
+  data_t *d;
+  data_t *ret;
+  int     type = Int;
+  int     ix;
+  long    intret = 0;
+  double  fltret = 0.0;
+  int     plus = (name[0] == '+');
+
+  if (array_size(args) != 1) {
+    return data_error(ErrorArgCount, "int(*) requires at least two parameters");
+  }
+  for (ix = 0; ix < array_size(args); ix++) {
+    d = (data_t *) array_get(args, ix);
+    if (!data_is_numeric(d)) {
+      type = data_type(d);
+      break;
+    } else if (data_type(d) == Float) {
+      type = Float;
+    }
+  }
+  if ((type != Int) && (type != Float)) {
+    ret = data_error(ErrorType,
+                     "Cannot multiply integers and objects of type '%s'",
+                     descriptors[type].typecode);
+  } else {
+    for (ix = 0; ix < array_size(args); ix++) {
+      d = (data_t *) array_get(args, ix);
+      switch(type) {
+        case Int:
+          /* Type of d must be Int, can't be Float */
+          intret *= d -> intval;
+          break;
+        case Float:
+          /* Here type of d can be Int or Float */
+          fltret *= (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
+          break;
+      }
+    }
+    ret = (type == Int)
+        ? data_create_int(intret)
+        : data_create_float(fltret);
+  }
+  return ret;
 }
 
 /*
@@ -521,26 +475,74 @@ data_t * _data_parse_float(char *str) {
 }
 
 data_t * _data_add_float(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
-  str_t  *s;
-  data_t *d2;
+  data_t *d;
   data_t *ret;
-  int     type;
+  int     ix;
+  int     type = Float;
+  double  retval = 0.0;
+  double  val;
+  int     plus = (name[0] == '+');
 
   if (array_size(args) != 1) {
-    return data_error(ErrorArgCount, "int(+) requires two parameters");
+    return data_error(ErrorArgCount, "float(+) requires at least two parameters");
   }
-  d2 = (data_t *) array_get(args, 0);
-  if (data_is_numeric(d2)) {
-    ret = data_create_float(
-        d2 -> dblval +
-        ((d2 -> type == Float) ? (d2 -> dblval) : ((double) d2 -> intval)));
-  } else {
+
+  for (ix = 0; ix < array_size(args); ix++) {
+    d = (data_t *) array_get(args, ix);
+    if (!data_is_numeric(d)) {
+      type = data_type(d);
+      break;
+    }
+  }
+  if (type != Float) {
     ret = data_error(ErrorType,
-                     "Cannot add a float and an object of type '%s'",
-                     descriptors[d2 -> type].typecode);
+                     ((plus)
+                       ? "Cannot add floats and objects of type '%s'"
+                       : "Cannot subtract floats and objects of type '%s'"),
+                     descriptors[type].typecode);
+  } else {
+    retval = d1 -> dblval;
+    for (ix = 0; ix < array_size(args); ix++) {
+      d = (data_t *) array_get(args, ix);
+      val = (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
+      retval += (plus) ? val : -val;
+    }
+    ret = data_create_float(retval);
   }
   return ret;
+}
 
+data_t * _data_mult_float(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
+  data_t *d;
+  data_t *ret;
+  int     ix;
+  int     type = Float;
+  double  retval = 0.0;
+
+  if (array_size(args) != 1) {
+    return data_error(ErrorArgCount, "float(+) requires at least two parameters");
+  }
+
+  for (ix = 0; ix < array_size(args); ix++) {
+    d = (data_t *) array_get(args, ix);
+    if (!data_is_numeric(d)) {
+      type = data_type(d);
+      break;
+    }
+  }
+  if (type != Float) {
+    ret = data_error(ErrorType,
+                     "Cannot multiply floats and objects of type '%s'",
+                     descriptors[type].typecode);
+  } else {
+    retval = d1 -> dblval;
+    for (ix = 0; ix < array_size(args); ix++) {
+      d = (data_t *) array_get(args, ix);
+      retval *= (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
+    }
+    ret = data_create(type, retval);
+  }
+  return ret;
 }
 
 /*
@@ -749,7 +751,11 @@ static int _types_initialized = 0;
 void _data_initialize_types(void) {
   if (!_types_initialized) {
     typedescr_add_method(typedescr_get(Int), "+", _data_add_int);
+    typedescr_add_method(typedescr_get(Int), "-", _data_add_int);
+    typedescr_add_method(typedescr_get(Int), "*", _data_mult_int);
     typedescr_add_method(typedescr_get(Float), "+", _data_add_float);
+    typedescr_add_method(typedescr_get(Float), "-", _data_add_float);
+    typedescr_add_method(typedescr_get(Float), "*", _data_mult_float);
     typedescr_add_method(typedescr_get(List), "len", _data_list_len);
     _types_initialized = 1;
   }
@@ -761,6 +767,12 @@ data_t * _data_create(datatype_t type) {
   _data_initialize_types();
   ret = NEW(data_t);
   ret -> type = type;
+  ret -> refs = 1;
+  ret -> str = NULL;
+#ifndef NDEBUG
+  data_count++;
+  ret -> debugstr = NULL;
+#endif
   return ret;
 }
 
@@ -825,19 +837,11 @@ data_t * data_error(int code, char * msg, ...) {
 }
 
 data_t * data_create_int(long value) {
-  data_t *ret;
-
-  ret = _data_create(Int);
-  ret -> intval = value;
-  return ret;
+  return data_create(Int, value);
 }
 
 data_t * data_create_float(double value) {
-  data_t *ret;
-
-  ret = _data_create(Float);
-  ret -> dblval = value;
-  return ret;
+  return data_create(Float, value);
 }
 
 data_t * data_create_bool(long value) {
@@ -851,8 +855,10 @@ data_t * data_create_bool(long value) {
 data_t * data_create_string(char * value) {
   data_t *ret;
 
+  debug(" <-- %s", value);
   ret = _data_create(String);
   ret -> ptrval = strdup(value);
+  debug(" --> %d", data_tostring(ret));
   return ret;
 }
 
@@ -901,6 +907,7 @@ data_t * data_create_function(function_t *fnc) {
 }
 
 data_t * data_parse(int type, char *str) {
+  debug(" == %d:%s -- %p", type, str, descriptors[type].parse);
   return (descriptors[type].parse) 
     ? descriptors[type].parse(str) 
     : NULL;
@@ -908,10 +915,18 @@ data_t * data_parse(int type, char *str) {
 
 void data_free(data_t *data) {
   if (data) {
-    if (descriptors[data -> type].free) {
-      descriptors[data -> type].free(data -> ptrval);
+    data -> refs--;
+    if (data -> refs <= 0) {
+      if (descriptors[data -> type].free) {
+	descriptors[data -> type].free(data -> ptrval);
+      }
+      free(data -> str);
+#ifndef NDEBUG
+      free(data -> debugstr);
+      data_count--;
+#endif
+      free(data);
     }
-    free(data);
   }
 }
 
@@ -928,6 +943,11 @@ int data_is_error(data_t *data) {
 }
 
 data_t * data_copy(data_t *src) {
+  if (src) {
+    src -> refs++;
+  }
+  return src;
+#if 0
   data_t *ret;
 
   ret = NEW(data_t);
@@ -938,6 +958,7 @@ data_t * data_copy(data_t *src) {
     }
   }
   return ret;
+#endif
 }
 
 method_t data_method(data_t *data, char *name) {
@@ -947,15 +968,25 @@ method_t data_method(data_t *data, char *name) {
 data_t * data_execute(data_t *data, char *name, array_t *args, dict_t *kwargs) {
   method_t  m;
   data_t   *ret;
+  array_t  *args_shifted = NULL;
+
+  if (!data && array_size(args)) {
+    data = (data_t *) array_get(args, 0);
+    args_shifted = array_slice(args, 1, -1);
+    if (!args_shifted) {
+      args_shifted = data_array_create(1);
+    }
+  }
 
   m = data_method(data, name);
   if (!m) {
     m = typedescr_get(data -> type) -> fallback;
   }
   if (m) {
-    ret = m(data, name, args, kwargs);
+    ret = m(data, name, (args_shifted) ? args_shifted : args, kwargs);
+    array_free(args_shifted);
   } else {
-    ret = data_error(ErrorName, "data element '%s' has no method '%s", data_tostring(data), name);
+    ret = data_error(ErrorName, "data object '%s' has no method '%s", data_tostring(data), name);
   }
   return ret;
 }
@@ -967,25 +998,39 @@ unsigned int data_hash(data_t *data) {
 }
 
 char * data_tostring(data_t *data) {
+  char  buf[20];
+  char *ret;
+
+  free(data -> str);
   if (!data) {
-    return "<<null>>";
+    ret = "data:NULL";
   }
   if (descriptors[data -> type].tostring) {
-    return  descriptors[data -> type].tostring(data);
+    ret =  descriptors[data -> type].tostring(data);
   } else {
-    return "<< ?? >>";
+    snprintf(buf, 20, "data:%s:%p", descriptors[data -> type].typecode, data);
+    ret = buf;
   }
+  data -> str = strdup(ret);
+  return data -> str;
 }
 
 char * data_debugstr(data_t *data) {
-  static char buf[10][128];
-  static int  ix = 0;
-  int         i;
+#ifndef NDEBUG
+  int         len;
 
-  i = ix++;
-  snprintf(buf[i], 128, "%c %s", descriptors[data -> type].typecode[0], data_tostring(data));
-  ix %= 10;
-  return buf[i];
+  free(data -> debugstr);
+  len = snprintf(NULL, 0, "%c %s", 
+		 descriptors[data -> type].typecode[0], 
+		 data_tostring(data));
+  data -> debugstr = (char *) new(len + 1);
+  sprintf(data -> debugstr, "%c %s", 
+	  descriptors[data -> type].typecode[0], 
+	  data_tostring(data));
+  return data -> debugstr;
+#else
+  return data_tostring(data);
+#endif
 }
 
 int data_cmp(data_t *d1, data_t *d2) {

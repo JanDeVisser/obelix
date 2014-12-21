@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include <data.h>
+#include <error.h>
 #include <file.h>
 #include <grammarparser.h>
 #include <namespace.h>

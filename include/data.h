@@ -25,6 +25,10 @@
 #include <array.h>
 #include <dict.h>
 
+#ifndef NDEBUG
+extern int data_count;
+#endif
+
 typedef enum _datatype {
   Error,
   Pointer,
@@ -40,28 +44,18 @@ typedef enum _datatype {
 } datatype_t;
 
 typedef struct _data {
-  datatype_t type;
+  datatype_t   type;
   union {
     void      *ptrval;
     long       intval;
     double     dblval;
   };
+  int          refs;
+  char        *str;
+  char        *debugstr;
 } data_t;
 
 typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
-
-typedef enum _errorcode {
-  ErrorArgCount,
-  ErrorType,
-  ErrorName,
-  ErrorNotCallable
-} errorcode_t;
-
-typedef struct _error {
-  errorcode_t  code;
-  char        *msg;
-  char        *str;
-} error_t;
 
 typedef struct _typedescr {
   int           type;
@@ -76,16 +70,6 @@ typedef struct _typedescr {
   dict_t       *methods;
   method_t      fallback;
 } typedescr_t;
-
-extern int            error_register(char *str);
-extern error_t *      error_create(int , ...);
-extern error_t *      error_vcreate(int, va_list);
-extern error_t *      error_copy(error_t *);
-extern void           error_free(error_t *);
-extern unsigned int   error_hash(error_t *);
-extern int            error_cmp(error_t *, error_t *);
-extern char *         error_tostring(error_t *);
-extern void           error_report(error_t *);
 
 extern int            typedescr_register(typedescr_t *);
 extern typedescr_t *  typedescr_get(int);
