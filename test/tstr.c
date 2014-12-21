@@ -250,6 +250,22 @@ START_TEST(test_str_split)
 END_TEST
 
 
+
+START_TEST(test_str_join)
+  list_t *list;
+  str_t  *str;
+  
+  list = str_list_create();
+  list_push(list, strdup("This"));
+  list_push(list, strdup("is"));
+  list_push(list, strdup("a"));
+  list_push(list, strdup("test"));
+  str = str_join(".", list, _list_reduce_chars);
+  ck_assert_str_eq(str_chars(str), "This.is.a.test");
+  str_free(str);
+END_TEST
+
+
 char * get_suite_name() {
   return "Str";
 }
@@ -268,6 +284,7 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_str_erase);
   tcase_add_test(tc, test_str_indexof);
   tcase_add_test(tc, test_str_split);
+  tcase_add_test(tc, test_str_join);
   return tc;
 }
 

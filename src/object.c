@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <error.h>
 #include <object.h>
 #include <script.h>
 

@@ -32,7 +32,6 @@ static void         _ln_free(listnode_t *);
 static list_t *     _list_add_all_reducer(void *, list_t *);
 static visit_t      _list_visitor(void *, visit_t);
 static reduce_ctx * _list_hash_reducer(void *, reduce_ctx *);
-static void *       _list_reduce_chars(list_t *, reduce_t, void *);
 
 // ---------------------------
 // listnode_t static functions
@@ -81,10 +80,6 @@ reduce_ctx * _list_hash_reducer(void *elem, reduce_ctx *ctx) {
   return ctx;
 }
 
-void * _list_reduce_chars(list_t *list, reduce_t reducer, void *data) {
-  _list_reduce(list, reducer, data, RTChars);
-  return data;
-}
 // ------------------------
 // list_t public functions
 
@@ -182,7 +177,7 @@ int list_size(list_t *list) {
   return list -> size;
 }
 
-void * _list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t type) {
+void * __list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t type) {
   listiterator_t *iter;
   free_t          f;
   void           *elem;
@@ -206,6 +201,20 @@ void * _list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t ty
   }
   li_free(iter);
   return data;
+}
+
+void * _list_reduce(list_t *list, reduce_t reduce, void *data) {
+  __list_reduce(list, (reduce_t) reduce, data, RTObjects);
+}
+
+void * _list_reduce_chars(list_t *list, reduce_t reduce, void *data) {
+  assert(list -> tostring);
+  __list_reduce(list, (reduce_t) reduce, data, RTChars);
+}
+
+void * _list_reduce_str(list_t *list, reduce_t reduce, void *data) {
+  assert(list -> tostring);
+  __list_reduce(list, (reduce_t) reduce, data, RTStrs);
 }
 
 list_t * _list_visit(list_t *list, visit_t visitor) {

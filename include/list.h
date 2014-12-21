@@ -53,7 +53,10 @@ extern list_t *     list_unshift(list_t *, void *);
 extern list_t *     list_add_all(list_t *, list_t *);
 extern int          list_size(list_t *);
 extern unsigned int list_hash(list_t *);
-extern void *       _list_reduce(list_t *, reduce_t, void *, reduce_type_t);
+extern void *       __list_reduce(list_t *, reduce_t, void *, reduce_type_t);
+extern void *       _list_reduce(list_t *, reduce_t, void *);
+extern void *       _list_reduce_chars(list_t *, reduce_t, void *);
+extern void *       _list_reduce_str(list_t *, reduce_t, void *);
 extern list_t *     _list_visit(list_t *, visit_t);
 extern void *       _list_process(list_t *, reduce_t, void *);
 extern list_t *     list_clear(list_t *);
@@ -74,9 +77,9 @@ extern str_t *      list_tostr(list_t *);
 #define list_set_cmp(l, f)            (_list_set_cmp((l), (cmp_t) (f)))
 #define list_set_tostring(l, f)       (_list_set_tostring((l), (tostring_t) (f)))
 #define list_set_hash(l, f)           (_list_set_hash((l), (hash_t) (f)))
-#define list_reduce(l, r, d)          (_list_reduce((l), (reduce_t) (r), (d), RTObjects))
-#define list_reduce_chars(l, r, d)    (_list_reduce((l), (reduce_t) (r), (d), RTChars))
-#define list_reduce_str(l, r, d)      (_list_reduce((l), (reduce_t) (r), (d), RTStrs))
+#define list_reduce(l, r, d)          (_list_reduce((l), (reduce_t) (r), (d)))
+#define list_reduce_chars(l, r, d)    (_list_reduce_chars((l), (reduce_t) (r), (d)))
+#define list_reduce_str(l, r, d)      (_list_reduce_str((l), (reduce_t) (r), (d)))
 #define list_visit(l, v)              (_list_visit((l), (visit_t) (v)))
 #define list_process(l, r, d)         (_list_process((l), (reduce_t) (r), (d)))
 

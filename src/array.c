@@ -104,10 +104,12 @@ array_t * array_split(char *str, char *sep) {
   char    *c;
   array_t *ret;
   int      count = 1;
+  int      seplen = strlen(sep);
 
   ptr = str;
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     count++;
+    ptr = sepptr + seplen;
   }
   ret = str_array_create(count);
   ptr = str;
@@ -117,7 +119,7 @@ array_t * array_split(char *str, char *sep) {
     strncpy(c, ptr, len);
     c[len] = 0;
     array_push(ret, c);
-    ptr = sepptr + strlen(sep);
+    ptr = sepptr + seplen;
   }
   array_push(ret, strdup(ptr));
   return ret;
@@ -134,7 +136,8 @@ array_t * array_split(char *str, char *sep) {
  * @param array The array to return a subset of.
  * @param from The index to start copying from.
  * @param num The number of elements to copy. If less or equal to zero,
- * the tail of the array from the <i>from</i> index will be copied.
+ * the tail of the array from the <i>from</i> index up to index 
+ * <code>-num</code>will be copied.
  *
  * @return A newly created array with the same hash, cmp, and tostring
  * functions as <i>array</i>, but with no free function set, and the
@@ -147,7 +150,7 @@ array_t * array_slice(array_t *array, int from, int num) {
   int      ix;
 
   if (num <= 0) {
-    num = array_size(array) - from;
+    num = array_size(array) - from + num + 1;
   }
   if ((from >= array_size(array)) || (num <= 0)) {
     return NULL;
@@ -157,7 +160,7 @@ array_t * array_slice(array_t *array, int from, int num) {
   array_set_hash(ret, array -> list -> hash);
   array_set_tostring(ret, array -> list -> tostring);
   for (ix = 0; ix < num; ix++) {
-    array_set(ret, ix, array_get(array, from + num));
+    array_set(ret, ix, array_get(array, from + ix));
   }
   return ret;
 }
@@ -258,17 +261,7 @@ array_t * array_add_all(array_t *array, array_t *other) {
 }
 
 str_t * array_tostr(array_t *array) {
-  str_t *ret;
-  str_t *catted;
-
-  ret = str_copy_chars("[");
-  catted = str_join(", ", array, array_reduce_chars);
-  if (ret && catted) {
-    str_append(ret, catted);
-    str_append_chars(ret, "]");
-  }
-  str_free(catted);
-  return ret;
+  return list_tostr(array -> list);
 }
 
 void array_debug(array_t *array, char *msg) {
