@@ -18,6 +18,8 @@
  *
  */
 
+#include <math.h>
+
 #include <array.h>
 #include <data.h>
 #include "collections.h"
@@ -74,8 +76,33 @@ START_TEST(data_parsers)
   data_t *d;
 
   d = data_parse(String, TEST_STRING);
-  ck_assert_str_eq(strcmp((char *) d -> ptrval, TEST_STRING), 0);
+  ck_assert_ptr_ne(d, NULL);
+  ck_assert_int_eq(d -> type, String);
+  ck_assert_str_eq(d -> ptrval, TEST_STRING);
   data_free(d);
+
+  d = data_parse(Int, "42");
+  ck_assert_ptr_ne(d, NULL);
+  ck_assert_int_eq(d -> type, Int);
+  ck_assert_int_eq(d -> intval, 42);
+  data_free(d);
+
+  d = data_parse(Float, "3.14");
+  ck_assert_ptr_ne(d, NULL);
+  ck_assert_int_eq(d -> type, Float);
+  ck_assert(fabs(d -> dblval - 3.14) < 0.001);
+  data_free(d);
+
+  /* We don't parse & round decimals. Is that right? */
+  d = data_parse(Int, "3.14");
+  ck_assert_ptr_eq(d, NULL);
+
+  d = data_parse(Float, "42");
+  ck_assert_ptr_ne(d, NULL);
+  ck_assert_int_eq(d -> type, Float);
+  ck_assert(fabs(d -> dblval - 42.0) < 0.001);
+  data_free(d);
+
 END_TEST
 
 char * get_suite_name() {

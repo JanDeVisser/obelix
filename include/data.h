@@ -44,7 +44,7 @@ typedef enum _datatype {
 } datatype_t;
 
 typedef struct _data {
-  datatype_t   type;
+  int          type;
   union {
     void      *ptrval;
     long       intval;
@@ -55,24 +55,37 @@ typedef struct _data {
   char        *debugstr;
 } data_t;
 
+typedef data_t * (*cast_t)(data_t *, int);
 typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
 
 typedef struct _typedescr {
   int           type;
   char         *typecode;
+  char         *typename;
   new_t         new;
   copydata_t    copy;
   cmp_t         cmp;
   free_t        free;
   tostring_t    tostring;
   parse_t       parse;
+  cast_t        cast;
   hash_t        hash;
   dict_t       *methods;
   method_t      fallback;
 } typedescr_t;
 
+typedef struct _methoddescr {
+  int       type;
+  char     *name;
+  method_t  method;
+  int       min_args;
+  int       max_args;
+} methoddescr_t;
+
 extern int            typedescr_register(typedescr_t *);
 extern typedescr_t *  typedescr_get(int);
+extern void           typedescr_register_methods(methoddescr_t methods[]);
+extern void           typedescr_register_method(methoddescr_t method);
 extern typedescr_t *  typedescr_add_method(typedescr_t *, char *, method_t);
 extern method_t       typedescr_get_method(typedescr_t *, char *);
 
@@ -88,6 +101,7 @@ extern data_t *       data_create_list(list_t *);
 extern data_t *       data_create_list_fromarray(array_t *);
 extern array_t *      data_list_toarray(data_t *);
 extern data_t *       data_create_function(function_t *);
+extern data_t *       data_cast(data_t *, int);
 extern data_t *       data_parse(int, char *);
 extern void           data_free(data_t *);
 extern int            data_type(data_t *);

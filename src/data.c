@@ -38,28 +38,6 @@ static int           _data_cmp_pointer(data_t *, data_t *);
 static unsigned int  _data_hash_pointer(data_t *);
 static char *        _data_tostring_pointer(data_t *);
 
-static data_t *      _data_new_string(data_t *, va_list);
-static data_t *      _data_copy_string(data_t *, data_t *);
-static int           _data_cmp_string(data_t *, data_t *);
-static unsigned int  _data_hash_string(data_t *);
-static char *        _data_tostring_string(data_t *);
-
-static data_t *      _data_new_int(data_t *, va_list);
-static int           _data_cmp_int(data_t *, data_t *);
-static char *        _data_tostring_int(data_t *);
-static unsigned int  _data_hash_int(data_t *);
-static data_t *      _data_parse_int(char *);
-static data_t *      _data_add_int(data_t *, char *, array_t *, dict_t *);
-
-static data_t *      _data_new_float(data_t *, va_list);
-static int           _data_cmp_float(data_t *, data_t *);
-static char *        _data_tostring_float(data_t *);
-static unsigned int  _data_hash_float(data_t *);
-static data_t *      _data_parse_float(char *);
-
-static char *        _data_tostring_bool(data_t *);
-static data_t *      _data_parse_bool(char *);
-
 static data_t *      _data_new_list(data_t *, va_list);
 static data_t *      _data_copy_list(data_t *, data_t *);
 static int           _data_cmp_list(data_t *, data_t *);
@@ -77,10 +55,20 @@ static char *        _data_tostring_function(data_t *);
 static unsigned int  _data_hash_function(data_t *);
 
 static void          _data_initialize_types(void);
-static data_t *      _data_create(datatype_t);
+static data_t *      _data_create(int);
 
 // -----------------------
 // Data conversion support
+
+extern typedescr_t typedescr_int;
+extern typedescr_t typedescr_bool;
+extern typedescr_t typedescr_float;
+extern typedescr_t typedescr_string;
+
+extern methoddescr_t methoddescr_int;
+extern methoddescr_t methoddescr_bool;
+extern methoddescr_t methoddescr_float;
+extern methoddescr_t methoddescr_string;
 
 int data_numtypes = Function + 1;
 static typedescr_t builtins[] = {
@@ -105,50 +93,6 @@ static typedescr_t builtins[] = {
     tostring: (tostring_t) _data_tostring_pointer,
     parse:                 NULL,
     hash:     (hash_t)     _data_hash_pointer
-  },
-  {
-    type:                  String,
-    typecode:              "C",
-    new:      (new_t)      _data_new_string,
-    copy:     (copydata_t) _data_copy_string,
-    cmp:      (cmp_t)      _data_cmp_string,
-    free:     (free_t)     free,
-    tostring: (tostring_t) _data_tostring_string,
-    parse:    (parse_t)    data_create_string,
-    hash:     (hash_t)     _data_hash_string
-  },
-  {
-    type:                  Int,
-    typecode:              "I",
-    new:      (new_t)      _data_new_int,
-    copy:                  NULL,
-    cmp:      (cmp_t)      _data_cmp_int,
-    free:                  NULL,
-    tostring: (tostring_t) _data_tostring_int,
-    parse:    (parse_t)    _data_parse_int,
-    hash:     (hash_t)     _data_hash_int
-  },
-  {
-    type:                  Float,
-    typecode:              "F",
-    new:      (new_t)      _data_new_float,
-    copy:                  NULL,
-    cmp:      (cmp_t)      _data_cmp_float,
-    free:                  NULL,
-    tostring: (tostring_t) _data_tostring_float,
-    parse:    (parse_t)     _data_parse_float,
-    hash:     (hash_t)     _data_hash_float
-  },
-  {
-    type:                  Bool,
-    typecode:              "B",
-    new:      (new_t)      _data_new_int,
-    copy:                  NULL,
-    cmp:      (cmp_t)      _data_cmp_int,
-    free:                  NULL,
-    tostring: (tostring_t) _data_tostring_bool,
-    parse:    (parse_t)    _data_parse_bool,
-    hash:     (hash_t)     _data_hash_int
   },
   {
     type:                  List,
@@ -245,318 +189,6 @@ char * _data_tostring_pointer(data_t *data) {
 
 unsigned int _data_hash_pointer(data_t *data) {
   return hash(&(data -> ptrval), sizeof(void *));
-}
-
-
-/*
- * --------------------------------------------------------------------------
- * String
- * --------------------------------------------------------------------------
- */
-
-data_t * _data_new_string(data_t *target, va_list arg) {
-  char *str;
-
-  str = va_arg(arg, char *);
-  target -> ptrval = str ? strdup(str) : NULL;
-  return target;
-}
-
-unsigned int _data_hash_string(data_t *data) {
-  return strhash(data -> ptrval);
-}
-
-data_t * _data_copy_string(data_t *target, data_t *src) {
-  target -> ptrval = src -> ptrval ? strdup(src -> ptrval) : NULL;
-  return target;
-}
-
-int _data_cmp_string(data_t *d1, data_t *d2) {
-  return strcmp((char *) d1 -> ptrval, (char *) d2 -> ptrval);
-}
-
-char * _data_tostring_string(data_t *data) {
-  return (char *) data -> ptrval;
-}
-
-/*
- * --------------------------------------------------------------------------
- * Int
- * --------------------------------------------------------------------------
- */
-
-data_t * _data_new_int(data_t *target, va_list arg) {
-  long val;
-
-  val = va_arg(arg, long);
-  target -> intval = val;
-  return target;
-}
-
-unsigned int _data_hash_int(data_t *data) {
-  return hash(&(data -> intval), sizeof(long));
-}
-
-int _data_cmp_int(data_t *d1, data_t *d2) {
-  return d1 -> intval - d2 -> intval;
-}
-
-char * _data_tostring_int(data_t *data) {
-  return itoa(data -> intval);
-}
-
-data_t * _data_parse_int(char *str) {
-  char *endptr;
-  char *ptr;
-  long  val;
-
-  /*
-   * Using strtod here instead of strtol. strtol parses a number with a
-   * leading '0' as octal, which nobody wants these days. Also less chance
-   * of overflows.
-   *
-   * After a successful parse we check that the number is within bounds
-   * and that it's actually an long, i.e. that it doesn't have a decimal
-   * point or exponent.
-   */
-  val = strtol(str, &endptr, 0);
-  if ((*endptr == 0) || (isspace(*endptr))) {
-    if ((val < LONG_MIN) || (val > LONG_MAX)) {
-      return NULL;
-    }
-    ptr = strpbrk(str, ".eE");
-    if (ptr && (ptr < endptr)) {
-      return NULL;
-    } else {
-      return data_create_int((int) val);
-    }
-  } else {
-    return NULL;
-  }
-}
-
-data_t * _data_add_int(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
-  data_t *d;
-  data_t *ret;
-  int     type = Int;
-  int     ix;
-  long    intret = 0;
-  double  fltret = 0.0;
-  double  val;
-  int     plus = (name[0] == '+');
-
-  if (!args || !array_size(args)) {
-    return data_error(ErrorArgCount, "int(+) requires at least two parameters");
-  }
-  for (ix = 0; ix < array_size(args); ix++) {
-    d = (data_t *) array_get(args, ix);
-    if (!data_is_numeric(d)) {
-      type = data_type(d);
-      break;
-    } else if (data_type(d) == Float) {
-      type = Float;
-    }
-  }
-  if ((type != Int) && (type != Float)) {
-    ret = data_error(ErrorType,
-                     ((plus)
-                       ? "Cannot add integers and objects of type '%s'"
-                       : "Cannot subtract integers and objects of type '%s'"),
-                     descriptors[type].typecode);
-  } else {
-    if (type == Float) {
-      fltret = (data_type(d1) == Int) ? (double) d1 -> intval : d1 -> dblval;
-    } else {
-      intret = d1 -> intval;
-    }
-    for (ix = 0; ix < array_size(args); ix++) {
-      d = (data_t *) array_get(args, ix);
-      switch(type) {
-        case Int:
-          /* Type of d must be Int, can't be Float */
-          intret += (plus) ? d -> intval : (-(d -> intval));
-          break;
-        case Float:
-          /* Here type of d can be Int or Float */
-          val = (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
-          fltret += (plus) ? val : -val;
-          break;
-      }
-    }
-    ret = (type == Int)
-        ? data_create_int(intret)
-        : data_create_float(fltret);
-  }
-  return ret;
-}
-
-data_t * _data_mult_int(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
-  data_t *d;
-  data_t *ret;
-  int     type = Int;
-  int     ix;
-  long    intret = 0;
-  double  fltret = 0.0;
-  int     plus = (name[0] == '+');
-
-  if (array_size(args) != 1) {
-    return data_error(ErrorArgCount, "int(*) requires at least two parameters");
-  }
-  for (ix = 0; ix < array_size(args); ix++) {
-    d = (data_t *) array_get(args, ix);
-    if (!data_is_numeric(d)) {
-      type = data_type(d);
-      break;
-    } else if (data_type(d) == Float) {
-      type = Float;
-    }
-  }
-  if ((type != Int) && (type != Float)) {
-    ret = data_error(ErrorType,
-                     "Cannot multiply integers and objects of type '%s'",
-                     descriptors[type].typecode);
-  } else {
-    for (ix = 0; ix < array_size(args); ix++) {
-      d = (data_t *) array_get(args, ix);
-      switch(type) {
-        case Int:
-          /* Type of d must be Int, can't be Float */
-          intret *= d -> intval;
-          break;
-        case Float:
-          /* Here type of d can be Int or Float */
-          fltret *= (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
-          break;
-      }
-    }
-    ret = (type == Int)
-        ? data_create_int(intret)
-        : data_create_float(fltret);
-  }
-  return ret;
-}
-
-/*
- * --------------------------------------------------------------------------
- * Float
- * --------------------------------------------------------------------------
- */
-
-data_t * _data_new_float(data_t *target, va_list arg) {
-  double val;
-
-  val = va_arg(arg, double);
-  target -> dblval = val;
-  return target;
-}
-
-unsigned int _data_hash_float(data_t *data) {
-  return hash(&(data -> dblval), sizeof(double));
-}
-
-int _data_cmp_float(data_t *d1, data_t *d2) {
-  return (d1 -> dblval == d2 -> dblval)
-      ? 0
-      : (d1 -> dblval > d2 -> dblval) ? 1 : -1;
-}
-
-char * _data_tostring_float(data_t *data) {
-  return dtoa(data -> dblval);
-}
-
-data_t * _data_parse_float(char *str) {
-  char   *endptr;
-  double  val;
-
-  val = strtod(str, &endptr);
-  return ((*endptr == 0) || (isspace(*endptr)))
-      ? data_create_float(val)
-      : NULL;
-}
-
-data_t * _data_add_float(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
-  data_t *d;
-  data_t *ret;
-  int     ix;
-  int     type = Float;
-  double  retval = 0.0;
-  double  val;
-  int     plus = (name[0] == '+');
-
-  if (array_size(args) != 1) {
-    return data_error(ErrorArgCount, "float(+) requires at least two parameters");
-  }
-
-  for (ix = 0; ix < array_size(args); ix++) {
-    d = (data_t *) array_get(args, ix);
-    if (!data_is_numeric(d)) {
-      type = data_type(d);
-      break;
-    }
-  }
-  if (type != Float) {
-    ret = data_error(ErrorType,
-                     ((plus)
-                       ? "Cannot add floats and objects of type '%s'"
-                       : "Cannot subtract floats and objects of type '%s'"),
-                     descriptors[type].typecode);
-  } else {
-    retval = d1 -> dblval;
-    for (ix = 0; ix < array_size(args); ix++) {
-      d = (data_t *) array_get(args, ix);
-      val = (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
-      retval += (plus) ? val : -val;
-    }
-    ret = data_create_float(retval);
-  }
-  return ret;
-}
-
-data_t * _data_mult_float(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
-  data_t *d;
-  data_t *ret;
-  int     ix;
-  int     type = Float;
-  double  retval = 0.0;
-
-  if (array_size(args) != 1) {
-    return data_error(ErrorArgCount, "float(+) requires at least two parameters");
-  }
-
-  for (ix = 0; ix < array_size(args); ix++) {
-    d = (data_t *) array_get(args, ix);
-    if (!data_is_numeric(d)) {
-      type = data_type(d);
-      break;
-    }
-  }
-  if (type != Float) {
-    ret = data_error(ErrorType,
-                     "Cannot multiply floats and objects of type '%s'",
-                     descriptors[type].typecode);
-  } else {
-    retval = d1 -> dblval;
-    for (ix = 0; ix < array_size(args); ix++) {
-      d = (data_t *) array_get(args, ix);
-      retval *= (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
-    }
-    ret = data_create(type, retval);
-  }
-  return ret;
-}
-
-/*
- * --------------------------------------------------------------------------
- * Bool
- * --------------------------------------------------------------------------
- */
-
-char * _data_tostring_bool(data_t *data) {
-  return btoa(data -> intval);
-}
-
-data_t * _data_parse_bool(char *str) {
-  return data_create_bool(atob(str));
 }
 
 
@@ -726,15 +358,26 @@ typedescr_t * typedescr_get(int datatype) {
   }
 }
 
-typedescr_t *  typedescr_add_method(typedescr_t *descr, char *name, method_t method) {
-  if (!descr -> methods) {
-    descr -> methods = strvoid_dict_create();
+void  typedescr_register_methods(methoddescr_t methods[]) {
+  methoddescr_t *method;
+
+  for (method = methods; method -> type >= 0; method++) {
+    typedescr_register_method(method);
   }
-  dict_put(descr -> methods, strdup(name), method);
-  return descr;
 }
 
-method_t typedescr_get_method(typedescr_t *descr, char *name) {
+void typedescr_register_method(methoddescr_t *method) {
+  typedescr_t *type;
+
+  assert((method -> type >= 0) && method -> name && method -> method);
+  type = typedescr_get(method.type);
+  if (!type -> methods) {
+    type -> methods = strvoid_dict_create();
+  }
+  dict_put(type -> methods, strdup(method.name), &method);
+}
+
+methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   if (!descr -> methods) {
     descr -> methods = strvoid_dict_create();
   }
@@ -750,18 +393,21 @@ static int _types_initialized = 0;
 
 void _data_initialize_types(void) {
   if (!_types_initialized) {
-    typedescr_add_method(typedescr_get(Int), "+", _data_add_int);
-    typedescr_add_method(typedescr_get(Int), "-", _data_add_int);
-    typedescr_add_method(typedescr_get(Int), "*", _data_mult_int);
-    typedescr_add_method(typedescr_get(Float), "+", _data_add_float);
-    typedescr_add_method(typedescr_get(Float), "-", _data_add_float);
-    typedescr_add_method(typedescr_get(Float), "*", _data_mult_float);
-    typedescr_add_method(typedescr_get(List), "len", _data_list_len);
+    typedescr_register(&typedescr_int);
+    typedescr_register(&typedescr_bool);
+    typedescr_register(&typedescr_float);
+    typedescr_register(&typedescr_string);
+
+    typedescr_register_methods(methoddescr_int);
+    typedescr_register_methods(methoddescr_bool);
+    typedescr_register_methods(methoddescr_float);
+    typedescr_register_methods(methoddescr_string);
+
     _types_initialized = 1;
   }
 }
 
-data_t * _data_create(datatype_t type) {
+data_t * _data_create(int type) {
   data_t *ret;
 
   _data_initialize_types();
@@ -836,30 +482,8 @@ data_t * data_error(int code, char * msg, ...) {
   return ret;
 }
 
-data_t * data_create_int(long value) {
-  return data_create(Int, value);
-}
-
-data_t * data_create_float(double value) {
-  return data_create(Float, value);
-}
-
-data_t * data_create_bool(long value) {
-  data_t *ret;
-
-  ret = _data_create(Bool);
-  ret -> intval = value ? 1 : 0;
-  return ret;
-}
-
 data_t * data_create_string(char * value) {
-  data_t *ret;
-
-  debug(" <-- %s", value);
-  ret = _data_create(String);
-  ret -> ptrval = strdup(value);
-  debug(" --> %d", data_tostring(ret));
-  return ret;
+  return data_create(String, value);
 }
 
 data_t * data_create_list(list_t *list) {
@@ -907,10 +531,33 @@ data_t * data_create_function(function_t *fnc) {
 }
 
 data_t * data_parse(int type, char *str) {
-  debug(" == %d:%s -- %p", type, str, descriptors[type].parse);
   return (descriptors[type].parse) 
     ? descriptors[type].parse(str) 
     : NULL;
+}
+
+data_t * data_cast(data_t *data, int totype) {
+  typedescr_t *descr;
+  typedescr_t *totype_descr;
+
+  assert(data);
+  if (data_type(data) == totype) {
+    return data_copy(data);
+  } else {
+    descr = typedescr_get(data_type(data));
+    assert(descr);
+    totype_descr = typedescr_get(totype);
+    assert(totype_descr);
+    if ((totype == String) && descr -> tostring) {
+      return data_create(String, descr -> tostring(data));
+    } else if ((data_type(data) == String) && totype_descr -> parse) {
+      return totype_descr -> parse(data -> ptrval);
+    } else if (descr -> cast) {
+      return descr -> cast(data, totype);
+    } else {
+      return NULL;
+    }
+  }
 }
 
 void data_free(data_t *data) {
@@ -961,33 +608,66 @@ data_t * data_copy(data_t *src) {
 #endif
 }
 
-method_t data_method(data_t *data, char *name) {
-  return typedescr_get_method(typedescr_get(data -> type), name);
+methoddescr_t * data_method(data_t *data, char *name) {
+  return typedescr_get_method(typedescr_get(data_type(data)), name);
 }
 
-data_t * data_execute(data_t *data, char *name, array_t *args, dict_t *kwargs) {
-  method_t  m;
-  data_t   *ret;
-  array_t  *args_shifted = NULL;
+data_t * data_execute_method(data_t *self, methoddescr_t *method, array_t *args, dict_t *kwargs) {
+  typedescr_t *type;
 
-  if (!data && array_size(args)) {
-    data = (data_t *) array_get(args, 0);
+  assert(method);
+  assert(self);
+  assert(args);
+  type = typedescr_get(data_type(self));
+
+  /* -1 because self is an argument as well */
+  if ((method -> min_args == method -> max_args) &&
+      (array_size(args) != (method -> max_args - 1))) {
+    return data_error(ErrorArgCount, "%s.%s requires exactly %d arguments",
+                      type -> typename, method -> name, method -> min_args);
+  } else if (array_size(args) < (method -> min_args - 1)) {
+    return data_error(ErrorArgCount, "%s.%s requires at least %d arguments",
+                      type -> typename, method -> name, method -> min_args);
+  } else if ((method -> max_args > 0) && (array_size(args) > (method -> max_args - 1))) {
+    return data_error(ErrorArgCount, "%s.%s accepts at most %d arguments",
+                      type -> typename, method -> name, method -> max_args);
+  } else {
+    return method -> method(self, method -> name, args, kwargs);
+  }
+}
+
+data_t * data_execute(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  methoddescr_t *method;
+  method_t       m;
+  data_t        *ret = NULL;
+  array_t       *args_shifted = NULL;
+
+  if (!self && array_size(args)) {
+    self = (data_t *) array_get(args, 0);
     args_shifted = array_slice(args, 1, -1);
     if (!args_shifted) {
       args_shifted = data_array_create(1);
     }
   }
+  if (!self) {
+    ret = data_error(ErrorArgCount, "No 'self' object specified for method '%s'", name);
+  }
 
-  m = data_method(data, name);
-  if (!m) {
-    m = typedescr_get(data -> type) -> fallback;
+  method = data_method(self, name);
+  if (method) {
+    ret = data_execute_method(self, method, (args_shifted) ? args_shifted : args, kwargs);
   }
-  if (m) {
-    ret = m(data, name, (args_shifted) ? args_shifted : args, kwargs);
-    array_free(args_shifted);
-  } else {
-    ret = data_error(ErrorName, "data object '%s' has no method '%s", data_tostring(data), name);
+  if (!ret) {
+    m = typedescr_get(data_type(self)) -> fallback;
+    if (m) {
+      ret = m(self, name, (args_shifted) ? args_shifted : args, kwargs);
+    }
   }
+  if (!ret) {
+    ret = data_error(ErrorName, "data object '%s' has no method '%s",
+                     data_tostring(self), name);
+  }
+  array_free(args_shifted);
   return ret;
 }
 
@@ -1008,7 +688,7 @@ char * data_tostring(data_t *data) {
   if (descriptors[data -> type].tostring) {
     ret =  descriptors[data -> type].tostring(data);
   } else {
-    snprintf(buf, 20, "data:%s:%p", descriptors[data -> type].typecode, data);
+    snprintf(buf, sizeof(buf), "data:%s:%p", descriptors[data -> type].typecode, data);
     ret = buf;
   }
   data -> str = strdup(ret);

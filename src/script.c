@@ -138,7 +138,7 @@ static scriptloader_t * _loader = NULL;
 
 static typedescr_t typedescr_script = {
   type:                  Script,
-  typecode:              "S",
+  typecode:              "C",
   new:      (new_t)      _data_new_script,
   copy:     (copydata_t) _data_copy_script,
   cmp:      (cmp_t)      _data_cmp_script,
