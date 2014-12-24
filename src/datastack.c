@@ -102,15 +102,15 @@ datastack_t * datastack_push(datastack_t *stack, data_t *data) {
 }
 
 datastack_t * datastack_push_int(datastack_t *stack, long value) {
-  return datastack_push(stack, data_create_int(value));
+  return datastack_push(stack, data_create(Int, value));
 }
 
 datastack_t * datastack_push_string(datastack_t *stack, char *value) {
-  return datastack_push(stack, data_create_string(value));
+  return datastack_push(stack, data_create(String, value));
 }
 
 datastack_t * datastack_push_float(datastack_t *stack, double value) {
-  return datastack_push(stack, data_create_float(value));
+  return datastack_push(stack, data_create(Float, value));
 }
 
 datastack_t * datastack_list(datastack_t *stack) {

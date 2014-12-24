@@ -404,7 +404,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
             error("Could not increment parser variable '%s' because it is not an integer", e -> name);
           }
         } else {
-          dict_put(parser -> variables, strdup(e -> name), data_create_int(1));
+          dict_put(parser -> variables, strdup(e -> name), data_create(Int, 1));
           if (parser_debug) {
             debug("    Initialized variable %s to %s", e -> name, data_tostring(data));
           }

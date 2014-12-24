@@ -34,6 +34,7 @@ static char *        _int_tostring(data_t *);
 static data_t *      _int_cast(data_t *, int);
 static unsigned int  _int_hash(data_t *);
 static data_t *      _int_parse(char *);
+static data_t *      _int_fallback(data_t *, char *, array_t *, dict_t *);
 
 static data_t *      _int_add(data_t *, char *, array_t *, dict_t *);
 static data_t *      _int_mult(data_t *, char *, array_t *, dict_t *);
@@ -50,7 +51,8 @@ static data_t *      _bool_and(data_t *, char *, array_t *, dict_t *);
 static data_t *      _bool_or(data_t *, char *, array_t *, dict_t *);
 static data_t *      _bool_not(data_t *, char *, array_t *, dict_t *);
 
-extern typedescr_t typedescr_int =   {
+extern typedescr_t typedescr_int;
+typedescr_t typedescr_int =   {
   type:                  Int,
   typecode:              "I",
   typename:              "int",
@@ -65,7 +67,7 @@ extern typedescr_t typedescr_int =   {
   fallback:              _int_fallback
 };
 
-extern typedescr_t typedescr_bool =   {
+typedescr_t typedescr_bool =   {
   type:                  Bool,
   typecode:              "B",
   typename:              "bool",
@@ -79,7 +81,7 @@ extern typedescr_t typedescr_bool =   {
   hash:     (hash_t)     _int_hash
 };
 
-extern methoddescr_t methoddescr_int[] = {
+methoddescr_t methoddescr_int[] = {
   { type: Int, name: "+",    method: _int_add,  min_args: 2, max_args: -1 },
   { type: Int, name: "-",    method: _int_add,  min_args: 2, max_args: -1 },
   { type: Int, name: "sum",  method: _int_add,  min_args: 2, max_args: -1 },
@@ -93,7 +95,7 @@ extern methoddescr_t methoddescr_int[] = {
   { type: -1,  name: NULL,   method: NULL,      min_args: 0, max_args: 0  },
 };
 
-extern methoddescr_t methoddescr_bool[] = {
+methoddescr_t methoddescr_bool[] = {
   { type: Bool, name: "&&",  method: _bool_and, min_args: 2, max_args: 2  },
   { type: Bool, name: "and", method: _bool_and, min_args: 2, max_args: 2  },
   { type: Bool, name: "||",  method: _bool_or,  min_args: 2, max_args: 2  },
@@ -163,7 +165,7 @@ data_t * _int_parse(char *str) {
     if (ptr && (ptr < endptr)) {
       return NULL;
     } else {
-      return data_create_int((int) val);
+      return data_create(Int, (long) val);
     }
   } else {
     return NULL;
