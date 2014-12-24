@@ -49,7 +49,7 @@ static data_t *      _float_trunc(data_t *, char *, array_t *, dict_t *);
 static data_t *      _float_floor(data_t *, char *, array_t *, dict_t *);
 static data_t *      _float_ceil(data_t *, char *, array_t *, dict_t *);
 
-extern typedescr_t typedescr_float =   {
+typedescr_t typedescr_float =   {
   type:                  Float,
   typecode:              "F",
   typename:              "float",
@@ -63,7 +63,7 @@ extern typedescr_t typedescr_float =   {
   hash:     (hash_t)     _float_hash
 };
 
-extern methoddescr_t methoddescr_float[] = {
+methoddescr_t methoddescr_float[] = {
   { type: Float, name: "+",     method: _float_add,    min_args: 2, max_args: -1 },
   { type: Float, name: "-",     method: _float_add,    min_args: 2, max_args: -1 },
   { type: Float, name: "sum",   method: _float_add,    min_args: 2, max_args: -1 },
@@ -124,8 +124,8 @@ data_t * _float_parse(char *str) {
 
   val = strtod(str, &endptr);
   return ((*endptr == 0) || (isspace(*endptr)))
-      ? data_create_float(val)
-      : NULL;
+    ? data_create(Float, val)
+    : NULL;
 }
 
 data_t * _float_cast(data_t *data, int totype) {
@@ -266,7 +266,7 @@ data_t * _float_minmax(data_t *self, char *name, array_t *args, dict_t *kwargs) 
     }
     ret = (maxmin)
       ? ((DBLVAL(ret) > DBLVAL(d)) ? ret : d)
-      : ((DBLVAL(ret) < DBLVAL(d)) ? ret : d)
+      : ((DBLVAL(ret) < DBLVAL(d)) ? ret : d);
   }
   return data_copy(ret);
 }

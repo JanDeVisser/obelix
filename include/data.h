@@ -82,40 +82,40 @@ typedef struct _methoddescr {
   int       max_args;
 } methoddescr_t;
 
-extern int            typedescr_register(typedescr_t *);
-extern typedescr_t *  typedescr_get(int);
-extern void           typedescr_register_methods(methoddescr_t methods[]);
-extern void           typedescr_register_method(methoddescr_t method);
-extern typedescr_t *  typedescr_add_method(typedescr_t *, char *, method_t);
-extern method_t       typedescr_get_method(typedescr_t *, char *);
+extern int             typedescr_register(typedescr_t *);
+extern typedescr_t *   typedescr_get(int);
+extern void            typedescr_register_methods(methoddescr_t methods[]);
+extern void            typedescr_register_method(methoddescr_t *method);
+extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 
-extern data_t *       data_create(int, ...);
-extern data_t *       data_create_pointer(void *);
-extern data_t *       data_null(void);
-extern data_t *       data_error(int, char *, ...);
-extern data_t *       data_create_int(long);
-extern data_t *       data_create_float(double);
-extern data_t *       data_create_bool(long);
-extern data_t *       data_create_string(char *);
-extern data_t *       data_create_list(list_t *);
-extern data_t *       data_create_list_fromarray(array_t *);
-extern array_t *      data_list_toarray(data_t *);
-extern data_t *       data_create_function(function_t *);
-extern data_t *       data_cast(data_t *, int);
-extern data_t *       data_parse(int, char *);
-extern void           data_free(data_t *);
-extern int            data_type(data_t *);
-extern int            data_is_numeric(data_t *);
-extern int            data_is_error(data_t *t);
-extern data_t *       data_copy(data_t *);
-extern unsigned int   data_hash(data_t *);
-extern char *         data_tostring(data_t *);
-extern int            data_cmp(data_t *, data_t *);
-extern method_t       data_method(data_t *, char *);
-extern data_t *       data_execute(data_t *, char *, array_t *, dict_t *);
-extern char *         data_debugstr(data_t *);
+extern data_t *        data_create(int, ...);
+extern data_t *        data_create_pointer(void *);
+extern data_t *        data_null(void);
+extern data_t *        data_error(int, char *, ...);
+extern data_t *        data_create_int(long);
+extern data_t *        data_create_float(double);
+extern data_t *        data_create_bool(long);
+extern data_t *        data_create_string(char *);
+extern data_t *        data_create_list(list_t *);
+extern data_t *        data_create_list_fromarray(array_t *);
+extern array_t *       data_list_toarray(data_t *);
+extern data_t *        data_create_function(function_t *);
+extern data_t *        data_cast(data_t *, int);
+extern data_t *        data_parse(int, char *);
+extern void            data_free(data_t *);
+extern int             data_type(data_t *);
+extern int             data_is_numeric(data_t *);
+extern int             data_is_error(data_t *t);
+extern data_t *        data_copy(data_t *);
+extern unsigned int    data_hash(data_t *);
+extern char *          data_tostring(data_t *);
+extern int             data_cmp(data_t *, data_t *);
+extern methoddescr_t * data_method(data_t *, char *);
+extern data_t *        data_execute_method(data_t *, methoddescr_t *, array_t *, dict_t *);
+extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);
+extern char *          data_debugstr(data_t *);
 
-extern dict_t *       data_add_all_reducer(entry_t *, dict_t *);
+extern dict_t *        data_add_all_reducer(entry_t *, dict_t *);
 
 #define strdata_dict_create()   dict_set_tostring_data( \
                                   dict_set_tostring_key( \

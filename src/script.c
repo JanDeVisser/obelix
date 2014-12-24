@@ -266,16 +266,16 @@ data_t * _plus(data_t *d1, data_t *d2) {
     type = ((data_type(d1) == data_type(d2)) && (data_type(d1) == Int))
       ? Int : Float;
     if (type == Int) {
-      ret = data_create_int(d1 -> intval + d2 -> intval);
+      ret = data_create(Int, d1 -> intval + d2 -> intval);
     } else {
-      ret = data_create_float(
+      ret = data_create(Float, 
         (double) ((data_type(d1) == Int) ? d1 -> intval : d1 -> dblval) +
         (double) ((data_type(d2) == Int) ? d2 -> intval : d2 -> dblval));
     }
   } else {
     s = str_copy_chars(data_tostring(d1));
     str_append_chars(s, data_tostring(d2));
-    ret = data_create_string(str_chars(s));
+    ret = data_create(String, str_chars(s));
     str_free(s);
   }
   return ret;
@@ -314,7 +314,7 @@ data_t * _times(data_t *d1, data_t *d2) {
     for (ix = 0; ix < d2 -> intval; ix++) {
       str_append_chars(s, data_tostring(d1));
     }
-    ret = data_create_string(str_chars(s));
+    ret = data_create(String, str_chars(s));
     str_free(s);    
   }
   return ret;
@@ -340,7 +340,7 @@ data_t * _modulo(data_t *d1, data_t *d2) {
 
   ret = NULL;
   if (data_is_numeric(d1) && data_is_numeric(d2)) {
-    ret = data_create_int(
+    ret = data_create(Int, 
       (long) ((data_type(d1) == Int) ? d1 -> intval : round(d1 -> dblval)) %
       (long) ((data_type(d2) == Int) ? d2 -> intval : round(d2 -> dblval)));
   }
@@ -352,7 +352,7 @@ data_t * _pow(data_t *d1, data_t *d2) {
 
   ret = NULL;
   if (data_is_numeric(d1) && data_is_numeric(d2)) {
-    ret = data_create_float(pow(
+    ret = data_create(Float, pow(
       ((data_type(d1) == Int) ? (double) d1 -> intval : d1 -> dblval),
       ((data_type(d2) == Int) ? (double) d2 -> intval : d2 -> dblval)));
   }
@@ -360,27 +360,27 @@ data_t * _pow(data_t *d1, data_t *d2) {
 }
 
 data_t * _gt(data_t *d1, data_t *d2) {
-  return data_create_bool(data_cmp(d1, d2) > 0);
+  return data_create(Bool, data_cmp(d1, d2) > 0);
 }
 
 data_t * _geq(data_t *d1, data_t *d2) {
-  return data_create_bool(data_cmp(d1, d2) >= 0);
+  return data_create(Bool, data_cmp(d1, d2) >= 0);
 }
 
 data_t * _lt(data_t *d1, data_t *d2) {
-  return data_create_bool(data_cmp(d1, d2) < 0);
+  return data_create(Bool, data_cmp(d1, d2) < 0);
 }
 
 data_t * _leq(data_t *d1, data_t *d2) {
-  return data_create_bool(data_cmp(d1, d2) <= 0);
+  return data_create(Bool, data_cmp(d1, d2) <= 0);
 }
 
 data_t * _eq(data_t *d1, data_t *d2) {
-  return data_create_bool(!data_cmp(d1, d2));
+  return data_create(Bool, !data_cmp(d1, d2));
 }
 
 data_t * _neq(data_t *d1, data_t *d2) {
-  return data_create_bool(data_cmp(d1, d2));
+  return data_create(Bool, data_cmp(d1, d2));
 }
 
 data_t * _script_function_mathop(data_t *ignored, char *op, array_t *params, dict_t *kwargs) {
@@ -431,7 +431,7 @@ data_t * _script_function_print(data_t *ignored, char *name, array_t *params, di
    * But that's future. Now we just print the first parameter :-)
    */
   info(data_tostring(value));
-  return data_create_int(1);
+  return data_create(Int, 1);
 }
 
 data_t * _script_function_list(data_t *ignored, char *name, array_t *params, dict_t *kwargs) {
@@ -993,7 +993,7 @@ data_t * _scriptloader_parse_reader(scriptloader_t *loader, reader_t *rdr, scrip
   object_t *object;
   
   parser_clear(loader -> parser);
-  parser_set(loader -> parser, "name", data_create_string(name));
+  parser_set(loader -> parser, "name", data_create(String, name));
   parser_set(loader -> parser, "up", data_create_script(up));
   parser_set(loader -> parser, "ns", data_create_pointer(loader -> ns -> root));
   parser_parse(loader -> parser, rdr);

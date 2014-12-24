@@ -65,10 +65,10 @@ extern typedescr_t typedescr_bool;
 extern typedescr_t typedescr_float;
 extern typedescr_t typedescr_string;
 
-extern methoddescr_t methoddescr_int;
-extern methoddescr_t methoddescr_bool;
-extern methoddescr_t methoddescr_float;
-extern methoddescr_t methoddescr_string;
+extern methoddescr_t methoddescr_int[];
+extern methoddescr_t methoddescr_bool[];
+extern methoddescr_t methoddescr_float[];
+extern methoddescr_t methoddescr_string[];
 
 int data_numtypes = Function + 1;
 static typedescr_t builtins[] = {
@@ -275,7 +275,7 @@ unsigned int _data_hash_list(data_t *data) {
 }
 
 data_t * _data_list_len(data_t *d1, char *name, array_t *args, dict_t *kwargs) {
-  return data_create_int(list_size((list_t *) d1 -> ptrval));
+  return data_create(Int, list_size((list_t *) d1 -> ptrval));
 }
 
 /*
@@ -370,18 +370,18 @@ void typedescr_register_method(methoddescr_t *method) {
   typedescr_t *type;
 
   assert((method -> type >= 0) && method -> name && method -> method);
-  type = typedescr_get(method.type);
+  type = typedescr_get(method -> type);
   if (!type -> methods) {
     type -> methods = strvoid_dict_create();
   }
-  dict_put(type -> methods, strdup(method.name), &method);
+  dict_put(type -> methods, strdup(method -> name), method);
 }
 
 methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   if (!descr -> methods) {
     descr -> methods = strvoid_dict_create();
   }
-  return (method_t) dict_get(descr -> methods, name);
+  return (methoddescr_t *) dict_get(descr -> methods, name);
 }
 
 
