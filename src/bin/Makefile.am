@@ -21,32 +21,11 @@ AM_LDFLAGS  = -rdynamic
 # AM_CFLAGS   = -ansi
 LDADD       = -ldl -lm -lcheck
 
-lib_LTLIBRARIES = libobelix.la
-libobelix_la_SOURCES = \
-		core.c \
-		list.c \
-		array.c \
-		dict.c \
-		set.c \
-		tree.c \
-		error.c \
-		data.c \
-		datastack.c \
-		expr.c \
-		file.c \
-		str.c \
-		resolve.c \
-		lexer.c \
-		grammar.c \
-		grammarparser.c \
-		parser.c \
-		script.c \
-		instruction.c \
-		scriptparse.c \
-		object.c \
-		namespace.c
-
 bin_PROGRAMS   = obelix
 obelix_SOURCES = obelix.c
 obelix_LDFLAGS = -pthread 
-obelix_LDADD   = libobelix.la types/libobltypes.la -lcheck -ldl -lm
+obelix_LDADD   = \
+	$(top_srcdir)/src/lib/liboblcore.la \
+	$(top_srcdir)/src/types/libobltypes.la \
+	$(top_srcdir)/src/parser/liboblparser.la \
+	-lcheck -ldl -lm

@@ -21,11 +21,15 @@ AM_LDFLAGS  = -rdynamic
 # AM_CFLAGS   = -ansi
 LDADD       = -ldl -lm -lcheck
 
-lib_LTLIBRARIES = libobltypes.la
-libobltypes_la_SOURCES = \
-		data.c \
-		error.c \
-		int.c \
-		float.c \
-		string.c
-
+lib_LTLIBRARIES = liboblparser.la
+liboblparser_la_SOURCES = \
+		datastack.c \
+		lexer.c \
+		grammar.c \
+		grammarparser.c \
+		parser.c \
+		script.c \
+		instruction.c \
+		scriptparse.c \
+		object.c \
+		namespace.c

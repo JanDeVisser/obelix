@@ -1,3 +1,3 @@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = src/types src . test
+SUBDIRS = src/lib src/types src/parser src/bin . test
 EXTRA_DIST = autogen.sh
