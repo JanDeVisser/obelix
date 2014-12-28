@@ -50,6 +50,7 @@ typedef struct _data {
     long       intval;
     double     dblval;
   };
+  int          size;
   int          refs;
   char        *str;
   char        *debugstr;
@@ -82,28 +83,41 @@ typedef struct _methoddescr {
   int       max_args;
 } methoddescr_t;
 
-extern int             typedescr_register(typedescr_t *);
+extern typedescr_t typedescr_int;
+extern typedescr_t typedescr_bool;
+extern typedescr_t typedescr_float;
+extern typedescr_t typedescr_str;
+extern typedescr_t typedescr_ptr;
+extern typedescr_t typedescr_fnc;
+extern typedescr_t typedescr_error;
+
+extern methoddescr_t methoddescr_int[];
+extern methoddescr_t methoddescr_bool[];
+extern methoddescr_t methoddescr_float[];
+extern methoddescr_t methoddescr_str[];
+extern methoddescr_t methoddescr_ptr[];
+extern methoddescr_t methoddescr_fnc[];
+/* extern methoddescr_t methoddescr_error[]; */
+
+
+extern int             typedescr_register(typedescr_t);
 extern typedescr_t *   typedescr_get(int);
 extern void            typedescr_register_methods(methoddescr_t methods[]);
-extern void            typedescr_register_method(methoddescr_t *method);
+extern void            typedescr_register_method(typedescr_t *, methoddescr_t *method);
 extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 
 extern data_t *        data_create(int, ...);
-extern data_t *        data_create_pointer(void *);
+extern data_t *        data_create_pointer(int, void *);
 extern data_t *        data_null(void);
 extern data_t *        data_error(int, char *, ...);
-extern data_t *        data_create_int(long);
-extern data_t *        data_create_float(double);
-extern data_t *        data_create_bool(long);
-extern data_t *        data_create_string(char *);
 extern data_t *        data_create_list(list_t *);
 extern data_t *        data_create_list_fromarray(array_t *);
 extern array_t *       data_list_toarray(data_t *);
-extern data_t *        data_create_function(function_t *);
 extern data_t *        data_cast(data_t *, int);
 extern data_t *        data_parse(int, char *);
 extern void            data_free(data_t *);
 extern int             data_type(data_t *);
+extern typedescr_t *   data_typedescr(data_t *);
 extern int             data_is_numeric(data_t *);
 extern int             data_is_error(data_t *t);
 extern data_t *        data_copy(data_t *);

@@ -33,6 +33,7 @@ static data_t *     _string_copy(data_t *, data_t *);
 static int          _string_cmp(data_t *, data_t *);
 static unsigned int _string_hash(data_t *);
 static char *       _string_tostring(data_t *);
+static data_t *     _string_parse(char *str);
 static data_t *     _string_cast(data_t *, int);
 
 static data_t * _string_len(data_t *, char *, array_t *, dict_t *);
@@ -46,7 +47,7 @@ static data_t * _string_startswith(data_t *, char *, array_t *, dict_t *);
 static data_t * _string_endswith(data_t *, char *, array_t *, dict_t *);
 
 
-typedescr_t typedescr_string =   {
+typedescr_t typedescr_str = {
   type:                  String,
   typecode:              "S",
   typename:              "str",
@@ -55,12 +56,13 @@ typedescr_t typedescr_string =   {
   cmp:      (cmp_t)      _string_cmp,
   free:     (free_t)     free,
   tostring: (tostring_t) _string_tostring,
-  parse:    (parse_t)    data_create_string,
+  parse:    (parse_t)    _string_parse,
   cast:     (cast_t)     _string_cast,
-  hash:     (hash_t)     _string_hash
+  hash:     (hash_t)     _string_hash,
+  fallback:              NULL
 };
 
-methoddescr_t methoddescr_string[] = {
+methoddescr_t methoddescr_str[] = {
   { type: String, name: "len",        method: _string_len,        min_args: 1, max_args: 1  },
   { type: String, name: "at",         method: _string_at,         min_args: 2, max_args: 2  },
   { type: String, name: "slice",      method: _string_slice,      min_args: 2, max_args: 3  },
@@ -103,6 +105,10 @@ int _string_cmp(data_t *d1, data_t *d2) {
 
 char * _string_tostring(data_t *data) {
   return (char *) data -> ptrval;
+}
+
+data_t * _string_parse(char *str) {
+  return data_create(String, str);
 }
 
 data_t * _string_cast(data_t *data, int totype) {
@@ -149,6 +155,7 @@ data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   int     j;
   char    buf[len + 1];
 
+  /* FIXME: second argument (to) is optional; ommiting it gives you the tail */
   if ((data_type(from) != Int) || (data_type(to) != Int)) {
     return data_error(ErrorType, "%s.%s expects an two int arguments",
                                   typedescr_get(data_type(self)) -> typename,

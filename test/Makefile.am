@@ -4,7 +4,11 @@ check_PROGRAMS = tcore tlist tarray tdict tset tstr tbuffer tresolve tlexer tdat
 AM_CPPFLAGS =   -I$(top_srcdir)/include
 AM_CFLAGS =	@CHECK_CFLAGS@
 AM_LDFLAGS =	-pthread
-LDADD =		$(top_builddir)/src/libobelix.la libtest.la @CHECK_LIBS@ -lm -lrt -ldl
+LDADD   =       $(top_builddir)/src/lib/liboblcore.la \
+		$(top_builddir)/src/types/libobltypes.la \
+		$(top_builddir)/src/parser/liboblparser.la \
+		libtest.la \
+		@CHECK_LIBS@ -lm -lrt -ldl
 
 lib_LTLIBRARIES    = libtest.la libtestlib.la
 libtest_la_SOURCES = collections.c

@@ -160,7 +160,7 @@ dict_t * _dict_rehash(dict_t *dict) {
   dict_t         *ret;
   int             num, i, bucket;
   list_t         *l;
-  listiterator_t *iter;
+  dictentry_t    *entry;
 
   num = dict -> num_buckets * 2;
   new_buckets = array_create(num);
@@ -176,13 +176,11 @@ dict_t * _dict_rehash(dict_t *dict) {
 
   for (i = 0; i < dict -> num_buckets; i++) {
     l = (list_t *) array_get(dict -> buckets, i);
-    for(iter = li_create(l); li_has_next(iter); ) {
-      ret = _dict_add_to_bucket(new_buckets, (dictentry_t *) li_next(iter));
+    for (entry = (dictentry_t *) list_pop(l); entry; entry = (dictentry_t *) list_pop(l)) {
+      ret = _dict_add_to_bucket(new_buckets, entry);
       if (!ret) break;
     }
-    li_free(iter);
     if (!ret) break;
-    list_set_free(l, NULL);
   }
 
   if (ret) {

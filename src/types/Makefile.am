@@ -18,8 +18,6 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
-# AM_CFLAGS   = -ansi
-LDADD       = -ldl -lm -lcheck
 
 lib_LTLIBRARIES = libobltypes.la
 libobltypes_la_SOURCES = \
@@ -27,5 +25,11 @@ libobltypes_la_SOURCES = \
 		error.c \
 		int.c \
 		float.c \
-		string.c
+		string.c \
+		pointer.c \
+		list.c \
+		function.c
 
+libobltypes_la_LIBADD = \
+		$(top_srcdir)/src/lib/liboblcore.la
+		

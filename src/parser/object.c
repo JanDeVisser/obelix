@@ -96,7 +96,7 @@ object_t * object_create(script_t *script) {
   object_t *ret;
 
   if (!_initialized) {
-    typedescr_register(&typedescr_object);
+    typedescr_register(typedescr_object);
     _initialized = 1;
   }
   ret = NEW(object_t);

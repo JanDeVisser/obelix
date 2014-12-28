@@ -138,7 +138,7 @@ parser_t * script_parse_emit_mathop(parser_t *parser) {
     debug(" -- op: %s", op);
   }
   script_push_instruction(script,
-    instruction_create_function(data_create_string(op), 2));
+    instruction_create_function(data_create(String, op), 2));
   data_free(data);
   return parser;
 }

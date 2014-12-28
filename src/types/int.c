@@ -51,8 +51,7 @@ static data_t *      _bool_and(data_t *, char *, array_t *, dict_t *);
 static data_t *      _bool_or(data_t *, char *, array_t *, dict_t *);
 static data_t *      _bool_not(data_t *, char *, array_t *, dict_t *);
 
-extern typedescr_t typedescr_int;
-typedescr_t typedescr_int =   {
+typedescr_t typedescr_int = {
   type:                  Int,
   typecode:              "I",
   typename:              "int",
@@ -67,7 +66,7 @@ typedescr_t typedescr_int =   {
   fallback:              _int_fallback
 };
 
-typedescr_t typedescr_bool =   {
+typedescr_t typedescr_bool = {
   type:                  Bool,
   typecode:              "B",
   typename:              "bool",
@@ -183,6 +182,8 @@ data_t * _int_fallback(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   }
 }
 
+/* ----------------------------------------------------------------------- */
+
 data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *d;
   data_t *ret;
@@ -228,7 +229,11 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
           break;
       }
     }
-    ret = data_create(type, (type == Int) ? intret : fltret);
+    ret = (type == Int) 
+      ? data_create(type, intret)
+      : data_create(type, fltret); 
+    /* FIXME Why? Why not data_create(type, (type == Int) ? ...: ...)?
+       Whyt does that not work (gives garbage intval) */
   }
   return ret;
 }
@@ -242,9 +247,6 @@ data_t * _int_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   double  fltret = 0.0;
   int     plus = (name[0] == '+');
 
-  if (!args || !array_size(args)) {
-    return data_error(ErrorArgCount, "int(*) requires at least two parameters");
-  }
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
     if (!data_is_numeric(d)) {
@@ -272,7 +274,9 @@ data_t * _int_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
           break;
       }
     }
-    ret = data_create(type, (type == Int) ? intret : fltret);
+    ret = (type == Int) 
+      ? data_create(type, intret)
+      : data_create(type, fltret);
   }
   return ret;
 }

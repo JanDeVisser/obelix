@@ -232,14 +232,14 @@ data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
   assert(instr -> name);
 
   /* FIXME - Convert other objects to boolean */
-  ret = (!value -> intval) ? data_create_string(instr -> name) : NULL;
+  ret = (!value -> intval) ? data_create(String, instr -> name) : NULL;
   data_free(value);
   return ret;
 }
 
 data_t * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
   assert(instr -> name);
-  return data_create_string(instr -> name);
+  return data_create(String, instr -> name);
 }
 
 data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
