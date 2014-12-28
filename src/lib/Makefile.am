@@ -18,8 +18,6 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
-# AM_CFLAGS   = -ansi
-LDADD       = -ldl -lm -lcheck
 
 lib_LTLIBRARIES = liboblcore.la
 liboblcore_la_SOURCES = \
@@ -33,3 +31,5 @@ liboblcore_la_SOURCES = \
 		file.c \
 		str.c \
 		resolve.c
+		
+liboblcore_la_LIBADD = -ldl

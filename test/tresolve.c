@@ -43,7 +43,7 @@ START_TEST(test_resolve_resolve)
 
   resolve = resolve_get();
   ck_assert_ptr_ne(resolve, NULL);
-  tc = resolve_resolve(resolve, "test_create");
+  tc = (voidptr_t) resolve_resolve(resolve, "test_create");
   ck_assert_ptr_ne(tc, NULL);
   test = tc("test");
   ck_assert_str_eq(test -> data, "test");
@@ -57,7 +57,7 @@ START_TEST(test_resolve_function)
   voidptr_t tc;
   test_t    *test;
 
-  tc = resolve_function("test_create");
+  tc = (voidptr_t) resolve_function("test_create");
   ck_assert_ptr_ne(tc, NULL);
   test = tc("test");
   ck_assert_str_eq(test -> data, "test");
@@ -68,7 +68,7 @@ START_TEST(test_resolve_foreign_function)
   void     *test;
 
   ck_assert_int_ne(resolve_library("libtestlib.so"), 0);
-  hw = resolve_function("testlib_helloworld");
+  hw = (voidptr_t) resolve_function("testlib_helloworld");
   ck_assert_ptr_ne(hw, NULL);
   test = hw("test");
   ck_assert_ptr_ne(test, NULL);

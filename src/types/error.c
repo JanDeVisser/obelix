@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include <core.h>
+#include <data.h>
 #include <error.h>
 
 typedef struct _errordescr {
@@ -36,11 +37,33 @@ static errordescr_t builtin_errors[] = {
     { code: ErrorArgCount,    str: "ErrorArgCount" },
     { code: ErrorType,        str: "ErrorType" },
     { code: ErrorName,        str: "ErrorName" },
-    { code: ErrorNotCallable, str: "ErrorNotCallable" }
+    { code: ErrorNotCallable, str: "ErrorNotCallable" },
+    { code: ErrorRange,       str: "ErrorRange" },
 };
 
 static int           num_errors = sizeof(builtin_errors) / sizeof(errordescr_t);
 static errordescr_t *errors = builtin_errors;
+
+static data_t *      _error_new(data_t *, va_list);
+static unsigned int  _error_hash(data_t *);
+static data_t *      _error_copy(data_t *, data_t *);
+static int           _error_cmp(data_t *, data_t *);
+static char *        _error_tostring(data_t *);
+
+typedescr_t typedescr_error = {
+  type:                  Error,
+  typecode:              "E",
+  typename:              "error",
+  new:      (new_t)      _error_new,
+  copy:     (copydata_t) _error_copy,
+  cmp:      (cmp_t)      _error_cmp,
+  free:     (free_t)     error_free,
+  tostring: (tostring_t) _error_tostring,
+  parse:                 NULL,
+  cast:                  NULL,
+  fallback:              NULL,
+  hash:     (hash_t)     _error_hash
+};
 
 /*
  * error_t functions
@@ -142,5 +165,39 @@ void error_report(error_t *e) {
   error(error_tostring(e));
 }
 
+/*
+ * --------------------------------------------------------------------------
+ * Error datatype functions
+ * --------------------------------------------------------------------------
+ */
 
+data_t * _error_new(data_t *target, va_list args) {
+  int      code;
+  error_t *e;
+
+  code = va_arg(args, int);
+  e = error_vcreate(code, args);
+  target -> ptrval = e;
+  return target;
+}
+
+unsigned int _error_hash(data_t *data) {
+  return error_hash((error_t *) data -> ptrval);
+}
+
+data_t * _error_copy(data_t *target, data_t *src) {
+  error_t *e;
+
+  e = error_copy((error_t *) src -> ptrval);
+  target -> ptrval = e;
+  return target;
+}
+
+int _error_cmp(data_t *d1, data_t *d2) {
+  return error_cmp((error_t *) d1 -> ptrval, (error_t *) d2 -> ptrval);
+}
+
+char * _error_tostring(data_t *data) {
+  return error_tostring((error_t *) data -> ptrval);
+}
 

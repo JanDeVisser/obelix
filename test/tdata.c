@@ -28,7 +28,7 @@
 #define TEST_STRING_LEN 36
 
 START_TEST(data_string)
-  data_t *data = data_create_string(TEST_STRING);
+  data_t *data = data_create(String, TEST_STRING);
   
   ck_assert_ptr_ne(data, NULL);
   ck_assert_int_eq(strcmp((char *) data -> ptrval, TEST_STRING), 0);
@@ -38,8 +38,8 @@ START_TEST(data_string)
 END_TEST
 
 START_TEST(data_int)
-  data_t  *d1 = data_create_int(1);
-  data_t  *d2 = data_create_int(1);
+  data_t  *d1 = data_create(Int, 1);
+  data_t  *d2 = data_create(Int, 1);
   data_t  *sum;
   array_t *args;
 
@@ -57,7 +57,7 @@ START_TEST(data_int)
   ck_assert_int_eq(data_count, 2);
 
   array_clear(args);
-  d2 = data_create_int(1);
+  d2 = data_create(Int, 1);
   array_push(args, data_copy(d1));
   array_push(args, d2);
   array_push(args, data_copy(d2));
