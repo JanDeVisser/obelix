@@ -30,6 +30,7 @@ extern int data_count;
 #endif
 
 typedef enum _datatype {
+  NoType = -1,
   Error,
   Pointer,
   String,
@@ -40,7 +41,9 @@ typedef enum _datatype {
   Function,
   Object,
   Script,
-  Closure
+  Closure,
+  Any = 100,
+  Numeric
 } datatype_t;
 
 typedef struct _data {
@@ -75,12 +78,15 @@ typedef struct _typedescr {
   method_t      fallback;
 } typedescr_t;
 
+#define MAX_METHOD_PARAMS      3
+
 typedef struct _methoddescr {
   int       type;
   char     *name;
   method_t  method;
-  int       min_args;
-  int       max_args;
+  int       argtypes[MAX_METHOD_PARAMS];
+  int       minargs;
+  int       varargs;
 } methoddescr_t;
 
 extern typedescr_t typedescr_int;
@@ -105,18 +111,14 @@ extern typedescr_t *   typedescr_get(int);
 extern void            typedescr_register_methods(methoddescr_t methods[]);
 extern void            typedescr_register_method(typedescr_t *, methoddescr_t *method);
 extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
+extern char *          typedescr_tostring(typedescr_t *);
 
 extern data_t *        data_create(int, ...);
-extern data_t *        data_create_pointer(int, void *);
-extern data_t *        data_null(void);
-extern data_t *        data_error(int, char *, ...);
-extern data_t *        data_create_list(list_t *);
-extern data_t *        data_create_list_fromarray(array_t *);
-extern array_t *       data_list_toarray(data_t *);
 extern data_t *        data_cast(data_t *, int);
 extern data_t *        data_parse(int, char *);
 extern void            data_free(data_t *);
 extern int             data_type(data_t *);
+extern int             data_hastype(data_t *, int);
 extern typedescr_t *   data_typedescr(data_t *);
 extern int             data_is_numeric(data_t *);
 extern int             data_is_error(data_t *t);
@@ -129,7 +131,20 @@ extern data_t *        data_execute_method(data_t *, methoddescr_t *, array_t *,
 extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);
 extern char *          data_debugstr(data_t *);
 
-extern dict_t *        data_add_all_reducer(entry_t *, dict_t *);
+#define data_dblval(d)   ((data_type((d)) == Float) ? (double)((d) -> intval) : (d) -> dblval)
+#define data_longval(d)  ((data_type((d)) == Int) ? (d) -> intval : (long)((d) -> dblval))
+#define data_charval(d)  ((char *) (d) -> ptrval)
+#define data_arrayval(d) ((array_t *) (d) -> ptrval)
+
+extern array_t *       data_add_all_reducer(data_t *, array_t *);
+extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
+
+extern data_t *        data_create_pointer(int, void *);
+extern data_t *        data_null(void);
+extern data_t *        data_error(int, char *, ...);
+extern data_t *        data_create_list(array_t *);
+extern array_t *       data_list_copy(data_t *);
+
 
 #define strdata_dict_create()   dict_set_tostring_data( \
                                   dict_set_tostring_key( \
@@ -148,6 +163,7 @@ extern dict_t *        data_add_all_reducer(entry_t *, dict_t *);
                                     array_create((i)), \
                                     (free_t) data_free), \
                                   (tostring_t) data_tostring)
+#define data_array_get(a, i)    ((data_t *) array_get((a), (i)))
 
 #define data_list_create()     _list_set_tostring( \
                                  _list_set_hash( \

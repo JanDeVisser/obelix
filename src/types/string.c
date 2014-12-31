@@ -45,6 +45,8 @@ static data_t * _string_indexof(data_t *, char *, array_t *, dict_t *);
 static data_t * _string_rindexof(data_t *, char *, array_t *, dict_t *);
 static data_t * _string_startswith(data_t *, char *, array_t *, dict_t *);
 static data_t * _string_endswith(data_t *, char *, array_t *, dict_t *);
+static data_t * _string_concat(data_t *, char *, array_t *, dict_t *);
+static data_t * _string_repeat(data_t *, char *, array_t *, dict_t *);
 
 
 typedescr_t typedescr_str = {
@@ -63,17 +65,21 @@ typedescr_t typedescr_str = {
 };
 
 methoddescr_t methoddescr_str[] = {
-  { type: String, name: "len",        method: _string_len,        min_args: 1, max_args: 1  },
-  { type: String, name: "at",         method: _string_at,         min_args: 2, max_args: 2  },
-  { type: String, name: "slice",      method: _string_slice,      min_args: 2, max_args: 3  },
-  { type: String, name: "upper",      method: _string_forcecase,  min_args: 1, max_args: 1  },
-  { type: String, name: "lower",      method: _string_forcecase,  min_args: 1, max_args: 1  },
-  { type: String, name: "has",        method: _string_has,        min_args: 2, max_args: 2  },
-  { type: String, name: "indexof",    method: _string_indexof,    min_args: 2, max_args: 2  },
-  { type: String, name: "rindexof",   method: _string_indexof,    min_args: 2, max_args: 2  },
-  { type: String, name: "startswith", method: _string_startswith, min_args: 2, max_args: 2  },
-  { type: String, name: "endswith",   method: _string_endswith,   min_args: 2, max_args: 2  },
-  { type: -1,     name: NULL,         method: NULL,               min_args: 0, max_args: 0  },
+  { type: String, name: "len",        method: _string_len,        argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: String, name: "at",         method: _string_at,         argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: String, name: "slice",      method: _string_slice,      argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 1 },
+  { type: String, name: "upper",      method: _string_forcecase,  argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: String, name: "lower",      method: _string_forcecase,  argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: String, name: "has",        method: _string_has,        argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: String, name: "indexof",    method: _string_indexof,    argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: String, name: "rindexof",   method: _string_indexof,    argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: String, name: "startswith", method: _string_startswith, argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: String, name: "endswith",   method: _string_endswith,   argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: String, name: "+",          method: _string_concat,     argtypes: { String, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: String, name: "concat",     method: _string_concat,     argtypes: { String, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: String, name: "*",          method: _string_repeat,     argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: String, name: "repeat",     method: _string_repeat,     argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: NoType, name: NULL,         method: NULL,               argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 }
 };
 
 /*
@@ -120,7 +126,7 @@ data_t * _string_cast(data_t *data, int totype) {
 /* ----------------------------------------------------------------------- */
 
 data_t * _string_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, strlen(self -> ptrval));
+  return data_create(Int, strlen(data_charval(self)));
 }
 
 data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -128,63 +134,51 @@ data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int     i;
   char    buf[2];
 
-  if (data_type(ix) != Int) {
-    return data_error(ErrorType, "%s.%s expects an int argument",
-                                  typedescr_get(data_type(self)) -> typename,
-                                  name);
+  i = data_longval(ix);
+  if ((i < 0) || (i >= strlen(data_charval(self)))) {
+    return data_error(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
+                                    typedescr_get(data_type(self)) -> typename,
+                                    name,
+                                    i, strlen(data_charval(self)) - 1);
   } else {
-    i = ix -> intval;
-    if ((i < 0) || (i >= strlen(self -> ptrval))) {
-      return data_error(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
-                                     typedescr_get(data_type(self)) -> typename,
-                                     name,
-                                     i, strlen(self -> ptrval) - 1);
-    } else {
-      buf[0] = ((char *) self -> ptrval)[i];
-      buf[1] = 0;
-      return data_create(String, buf);
-    }
+    buf[0] = data_charval(self)[i];
+    buf[1] = 0;
+    return data_create(String, buf);
   }
 }
 
 data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *from = (data_t *) array_get(args, 0);
-  data_t *to = (data_t *) array_get(args, 0);
-  int     len = strlen(self -> ptrval);
+  data_t *to = (data_t *) array_get(args, 1);
+  int     len = strlen(data_charval(self));
   int     i;
   int     j;
   char    buf[len + 1];
 
   /* FIXME: second argument (to) is optional; ommiting it gives you the tail */
-  if ((data_type(from) != Int) || (data_type(to) != Int)) {
-    return data_error(ErrorType, "%s.%s expects an two int arguments",
+  i = data_longval(from);
+  j = data_longval(to);
+  if (j <= 0) {
+    j = len + j;
+  }
+  if (i < 0) {
+    i = len + i;
+  }
+  if ((i < 0) || (i >= len)) {
+    return data_error(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
                                   typedescr_get(data_type(self)) -> typename,
-                                  name);
+                                  name,
+                                  i, len - 1);
+  } else if ((j <= i) || (j > len)) {
+    return data_error(ErrorRange, "%s.%s argument out of range: %d not in [%d..%d]",
+                                  typedescr_get(data_type(self)) -> typename,
+                                  name,
+                                  j, i+1, len);
   } else {
-    i = from -> intval;
-    j = to -> intval;
-    if (j < 0) {
-      j = len + j;
-    }
-    if (i < 0) {
-      i = len + i;
-    }
-    if ((i < 0) || (i >= len)) {
-      return data_error(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
-                                    typedescr_get(data_type(self)) -> typename,
-                                    name,
-                                    i, len - 1);
-    } else if ((j <= i) || (j > len)) {
-      return data_error(ErrorRange, "%s.%s argument out of range: %d not in [%d..%d]",
-                                    typedescr_get(data_type(self)) -> typename,
-                                    name,
-                                    j, i+1, len);
-    } else {
-      // FIXME --- Or at least check me.
-      strncpy(buf, ((char *) self -> ptrval) + i, j - i);
-      buf[j-i] = 0;
-      return data_create(String, buf);
-    }
+    // FIXME --- Or at least check me.
+    strncpy(buf, data_charval(self) + i, j - i);
+    buf[j-i] = 0;
+    return data_create(String, buf);
   }
 }
 
@@ -205,13 +199,7 @@ data_t * _string_forcecase(data_t *self, char *name, array_t *args, dict_t *kwar
 data_t * _string_has(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *needle = (data_t *) array_get(args, 0);
 
-  if (data_type(needle) != String) {
-    return data_error(ErrorType, "%s.%s expects a string argument",
-                                  typedescr_get(data_type(self)) -> typename,
-                                  name);
-  } else {
-    return data_create(Bool, strstr(self -> ptrval, needle -> ptrval) != NULL);
-  }
+  return data_create(Bool, strstr(self -> ptrval, needle -> ptrval) != NULL);
 }
 
 data_t * _string_indexof(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -219,15 +207,9 @@ data_t * _string_indexof(data_t *self, char *name, array_t *args, dict_t *kwargs
   char   *pos;
   int     diff;
 
-  if (data_type(needle) != String) {
-    return data_error(ErrorType, "%s.%s expects a string argument",
-                                  typedescr_get(data_type(self)) -> typename,
-                                  name);
-  } else {
-    pos = strstr(self -> ptrval, needle -> ptrval);
-    diff = (pos) ? pos - (char *) self -> ptrval : -1;
-    return data_create(Int, diff);
-  }
+  pos = strstr(self -> ptrval, needle -> ptrval);
+  diff = (pos) ? pos - (char *) self -> ptrval : -1;
+  return data_create(Int, diff);
 }
 
 data_t * _string_rindexof(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -238,28 +220,22 @@ data_t * _string_rindexof(data_t *self, char *name, array_t *args, dict_t *kwarg
   char   *next;
   int     diff;
 
-  if (data_type(needle) != String) {
-    return data_error(ErrorType, "%s.%s expects a string argument",
-                                  typedescr_get(data_type(self)) -> typename,
-                                  name);
-  } else {
-    needle_str = (char *) needle -> ptrval;
-    needle_len = strlen(needle_str);
-    pos = NULL;
-    if (strlen(self -> ptrval) >= needle_len) {
-      next = strstr((char *) self -> ptrval, needle_str);
-      while (next) {
-        pos = next;
-        if (strlen(next) > needle_len) {
-          next = strstr(next + 1, needle_str);
-        } else {
-          next = NULL;
-        }
+  needle_str = (char *) needle -> ptrval;
+  needle_len = strlen(needle_str);
+  pos = NULL;
+  if (strlen(self -> ptrval) >= needle_len) {
+    next = strstr((char *) self -> ptrval, needle_str);
+    while (next) {
+      pos = next;
+      if (strlen(next) > needle_len) {
+        next = strstr(next + 1, needle_str);
+      } else {
+        next = NULL;
       }
     }
-    diff = (pos) ? pos - (char *) self -> ptrval : -1;
-    return data_create(Int, diff);    
   }
+  diff = (pos) ? pos - (char *) self -> ptrval : -1;
+  return data_create(Int, diff);    
 }
 
 data_t * _string_startswith(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -267,18 +243,12 @@ data_t * _string_startswith(data_t *self, char *name, array_t *args, dict_t *kwa
   int     len;
   int     prflen;
   
-  if (data_type(prefix) != String) {
-    return data_error(ErrorType, "%s.%s expects a string argument",
-                                  typedescr_get(data_type(self)) -> typename,
-                                  name);
+  len = strlen(self -> ptrval);
+  prflen = strlen(prefix -> ptrval);
+  if (strlen(prefix -> ptrval) > strlen(self -> ptrval)) {
+    return data_create(Bool, 0);
   } else {
-    len = strlen(self -> ptrval);
-    prflen = strlen(prefix -> ptrval);
-    if (strlen(prefix -> ptrval) > strlen(self -> ptrval)) {
-      return data_create(Bool, 0);
-    } else {
-      return data_create(Bool, strncmp(prefix -> ptrval, self -> ptrval, prflen) == 0);
-    }
+    return data_create(Bool, strncmp(prefix -> ptrval, self -> ptrval, prflen) == 0);
   }
 }
 
@@ -288,19 +258,56 @@ data_t * _string_endswith(data_t *self, char *name, array_t *args, dict_t *kwarg
   int     suflen;
   char   *ptr;
   
-  if (data_type(suffix) != String) {
-    return data_error(ErrorType, "%s.%s expects a string argument",
-                                  typedescr_get(data_type(self)) -> typename,
-                                  name);
+  len = strlen(self -> ptrval);
+  suflen = strlen(suffix -> ptrval);
+  if (suflen > len) {
+    return data_create(Bool, 0);
   } else {
-    len = strlen(self -> ptrval);
-    suflen = strlen(suffix -> ptrval);
-    if (suflen > len) {
-      return data_create(Bool, 0);
-    } else {
-      ptr = ((char *) self -> ptrval) + (len - suflen);
-      return data_create(Bool, strncmp(suffix -> ptrval, ptr, suflen) == 0);
+    ptr = ((char *) self -> ptrval) + (len - suflen);
+    return data_create(Bool, strncmp(suffix -> ptrval, ptr, suflen) == 0);
+  }
+}
+
+data_t * _string_concat(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  int     len = strlen((char *) self -> ptrval);
+  int     ix;
+  data_t *d;
+  char   *buf;
+  
+  for (ix = 0; ix < array_size(args); ix++) {
+    d = (data_t *) array_get(args, ix);
+    len += strlen((char *) d -> ptrval);
+  }
+  buf = (char *) new(len + 1);
+  strcpy(buf, (char *) self -> ptrval);
+  for (ix = 0; ix < array_size(args); ix++) {
+    d = (data_t *) array_get(args, ix);
+    strcat(buf, (char *) d -> ptrval);
+  }
+  d = data_create(String, buf);
+  free(buf);
+  return d;
+}
+
+data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  int     len = strlen((char *) self -> ptrval);
+  data_t *num = (data_t *) array_get(args, 0);
+  int     numval = data_longval(num);
+  int     ix;
+  char   *buf;
+  data_t *ret;
+  
+  len *= numval;
+  if (len < 0) {
+    buf = strdup("");
+  } else {
+    buf = (char *) new(len + 1);
+    for (ix = 0; ix < numval; ix++) {
+      strcat(buf, data_charval(self));
     }
   }
+  ret = data_create(String, buf);
+  free(buf);
+  return ret;
 }
 

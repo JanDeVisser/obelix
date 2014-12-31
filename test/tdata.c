@@ -19,20 +19,157 @@
  */
 
 #include <math.h>
+#include <stdarg.h>
 
 #include <array.h>
 #include <data.h>
+#include <error.h>
 #include "collections.h"
 
 #define TEST_STRING     "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define TEST_STRING_LEN 36
 
+data_t * execute(data_t *self, char *name, int numargs, ...) {
+  va_list  arglist;
+  array_t *args;
+  data_t  *ret;
+  data_t  *d;
+  int      ix;
+  int      type;
+  long     intval;
+  double   dblval;
+  char    *ptr;
+  
+  args = data_array_create(numargs);
+  va_start(arglist, numargs);
+  for (ix = 0; ix < numargs; ix++) {
+    type = va_arg(arglist, int);
+    d = NULL;
+    switch (type) {
+      case Int:
+        intval = va_arg(arglist, long);
+        d = data_create(Int, intval);
+        break;
+      case Float:
+        intval = va_arg(arglist, double);
+        d = data_create(Float, dblval);
+        break;
+      case String:
+        ptr = va_arg(arglist, char *);
+        d = data_create(String, ptr);
+        break;
+      case Bool:
+        intval = va_arg(arglist, long);
+        d = data_create(Bool, intval);
+        break;
+      default:
+        debug("Cannot do type %d. Ignored", type);
+        ptr = va_arg(arglist, char *);
+        break;
+    }
+    if (d) {
+      array_push(args, d);
+    }
+  }
+  va_end(arglist);
+  ret = data_execute(self, name, args, NULL);
+  array_free(args);
+  return ret;
+}
+
 START_TEST(data_string)
-  data_t *data = data_create(String, TEST_STRING);
+  data_t  *data = data_create(String, TEST_STRING);
+  data_t  *ret;
+  error_t *e;
   
   ck_assert_ptr_ne(data, NULL);
   ck_assert_int_eq(strcmp((char *) data -> ptrval, TEST_STRING), 0);
   ck_assert_int_eq(data_count, 1);
+  
+  ret = execute(data, "len", 0);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), Int);
+  ck_assert_int_eq(data_longval(ret), TEST_STRING_LEN);
+  data_free(ret);
+  
+  ret = execute(data, "len", 1, Int, 10);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), Error);
+  e = (error_t *) ret -> ptrval;
+  ck_assert_int_eq(e -> code, ErrorArgCount);
+  data_free(ret);
+
+  ret = execute(data, "at", 1, Int, 10);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), String);
+  ck_assert_str_eq(data_charval(ret), "K");
+  data_free(ret);
+
+  ret = execute(data, "at", 1, Int, 0);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), String);
+  ck_assert_str_eq(data_charval(ret), "A");
+  data_free(ret);
+
+  ret = execute(data, "at", 1, Int, TEST_STRING_LEN-1);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), String);
+  ck_assert_str_eq(data_charval(ret), "9");
+  data_free(ret);
+
+  ret = execute(data, "at", 1, Int, -1);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), Error);
+  e = (error_t *) ret -> ptrval;
+  ck_assert_int_eq(e -> code, ErrorRange);
+  data_free(ret);
+
+  ret = execute(data, "at", 1, Int, TEST_STRING_LEN);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), Error);
+  e = (error_t *) ret -> ptrval;
+  ck_assert_int_eq(e -> code, ErrorRange);
+  data_free(ret);
+
+  ret = execute(data, "at", 2, Int, 10, Int, 20);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), Error);
+  e = (error_t *) ret -> ptrval;
+  ck_assert_int_eq(e -> code, ErrorArgCount);
+  data_free(ret);
+
+  ret = execute(data, "at", 1, String, "string");
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), Error);
+  e = (error_t *) ret -> ptrval;
+  ck_assert_int_eq(e -> code, ErrorType);
+  data_free(ret);
+
+  ret = execute(data, "slice", 2, Int, 0, Int, 1);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), String);
+  ck_assert_str_eq(data_charval(ret), "A");
+  data_free(ret);
+
+  ret = execute(data, "slice", 2, Int, -2, Int, 0);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), String);
+  ck_assert_str_eq(data_charval(ret), "89");
+  data_free(ret);
+
+  ret = execute(data, "+", 2, String, "0123456789", String, "0123456789");
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), String);
+  ck_assert_int_eq(strlen(data_charval(ret)), 56);
+  data_free(ret);
+
+  ret = execute(data, "+", 2, String, "0123456789", Int, 10);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), Error);
+  e = (error_t *) ret -> ptrval;
+  ck_assert_int_eq(e -> code, ErrorType);
+  data_free(ret);
+
   data_free(data);
   ck_assert_int_eq(data_count, 0);
 END_TEST
