@@ -127,7 +127,7 @@ data_t * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
   if (script_debug) {
     debug(" -- value '%s'", data_tostring(value));
   }
-  path = data_list_toarray(instr -> value);
+  path = data_list_copy(instr -> value);
   ret = closure_set(closure, path, value);
   data_free(value);
   array_free(path);
@@ -138,7 +138,7 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
   data_t    *value;
   array_t   *path;
 
-  path = data_list_toarray(instr -> value);
+  path = data_list_copy(instr -> value);
   value = closure_resolve(closure, path);
   array_free(path);
   if (!data_is_error(value)) {
@@ -189,7 +189,7 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
 
   switch (data_type(instr -> value)) {
     case List:
-      name = data_list_toarray(instr -> value);
+      name = data_list_copy(instr -> value);
       break;
     case String:
       name = str_array_create(1);
@@ -283,11 +283,11 @@ instruction_t * instruction_create(int type, char *name, data_t *value) {
 }
 
 instruction_t * instruction_create_assign(array_t *varname) {
-  return instruction_create(ITAssign, NULL, data_create_list_fromarray(varname));
+  return instruction_create(ITAssign, NULL, data_create_list(varname));
 }
 
 instruction_t * instruction_create_pushvar(array_t *varname) {
-  return instruction_create(ITPushVar, NULL, data_create_list_fromarray(varname));
+  return instruction_create(ITPushVar, NULL, data_create_list(varname));
 }
 
 instruction_t * instruction_create_pushval(data_t *value) {
@@ -313,7 +313,7 @@ instruction_t * instruction_create_jump(char *label) {
 }
 
 instruction_t * instruction_create_import(array_t *module) {
-  return instruction_create(ITImport, NULL, data_create_list_fromarray(module));
+  return instruction_create(ITImport, NULL, data_create_list(module));
 }
 
 instruction_t * instruction_create_pop(void) {

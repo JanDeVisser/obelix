@@ -52,8 +52,10 @@ int typedescr_register(typedescr_t descr) {
   int          cursz;
   typedescr_t *d;
 
-  if (descr.type <= 0) {
+  /* debug("Registering typedescr %s", typedescr_tostring(&descr)); */
+  if (descr.type < 0) {
     descr.type = data_numtypes;
+    /* debug("Assigned type %d", descr.type); */
   }
   assert((descr.type >= data_numtypes) || descriptors[descr.type].type == 0);
   if (descr.type >= data_numtypes) {
@@ -95,6 +97,7 @@ void typedescr_register_methods(methoddescr_t methods[]) {
 
 void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
   assert(method -> name && method -> method);
+  //assert((!method -> varargs) || (method -> minargs > 0));
   if (!type -> methods) {
     type -> methods = strvoid_dict_create();
   }
@@ -108,6 +111,13 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   return (methoddescr_t *) dict_get(descr -> methods, name);
 }
 
+char * typedescr_tostring(typedescr_t *type) {
+  static char buf[100];
+  
+  snprintf(buf, 100, "'%s' [%s][%d]",
+           type -> typename, type -> typecode, type -> type);
+  return buf;
+}
 
 /*
  * data_t static functions
@@ -148,7 +158,6 @@ data_t * data_create(int type, ...) {
 
   _data_initialize_types();
   descr = typedescr_get(type);
-  debug("data_create(%d): '%s' [%d][%s]", type, descr -> typename, descr -> type, descr -> typecode);
   
   ret = NEW(data_t);
   ret -> type = type;
@@ -164,6 +173,7 @@ data_t * data_create(int type, ...) {
     ret = descr -> new(ret, arg);
     va_end(arg);
   }
+  /* debug("data_create(%s, ...) = %s", typedescr_tostring(descr), data_tostring(ret)); */
   return ret;
 }
 
@@ -205,37 +215,13 @@ data_t * data_create_string(char * value) {
   return data_create(String, value);
 }
 
-data_t * data_create_list(list_t *list) {
-  data_t *ret;
-  list_t *l;
+data_t * data_create_list(array_t *array) {
+  data_t  *ret;
+  array_t *a;
 
   ret = data_create(List);
-  l = (list_t *) ret -> ptrval;
-  list_add_all(l, list);
-  return ret;
-}
-
-data_t * data_create_list_fromarray(array_t *array) {
-  data_t *ret;
-  list_t *l;
-  int     ix;
-
-  ret = data_create(List);
-  l = (list_t *) ret -> ptrval;
-  for (ix = 0; ix < array_size(array); ix++) {
-    list_append(l, data_copy((data_t *) array_get(array, ix)));
-  }
-  return ret;
-}
-
-array_t * data_list_toarray(data_t *data) {
-  listiterator_t *iter;
-  array_t        *ret;
-
-  ret = data_array_create(list_size((list_t *) data -> ptrval));
-  for (iter = li_create((list_t *) data -> ptrval); li_has_next(iter); ) {
-    array_push(ret, data_copy((data_t *) li_next(iter)));
-  }
+  a = (array_t *) ret -> ptrval;
+  array_add_all(a, array);
   return ret;
 }
 
@@ -307,6 +293,16 @@ int data_is_error(data_t *data) {
   return (!data || (data -> type == Error));
 }
 
+int data_hastype(data_t *data, int type) {
+  if (type == Any) {
+    return TRUE;
+  } else if (type == Numeric) {
+    return data_is_numeric(data);
+  } else {
+    return data_type(data) == type;
+  }
+}
+
 data_t * data_copy(data_t *src) {
   if (src) {
     src -> refs++;
@@ -320,26 +316,52 @@ methoddescr_t * data_method(data_t *data, char *name) {
 
 data_t * data_execute_method(data_t *self, methoddescr_t *method, array_t *args, dict_t *kwargs) {
   typedescr_t *type;
+  int          i;
+  int          len;
+  int          t;
+  int          maxargs = -1;
+  data_t      *arg;
 
   assert(method);
   assert(self);
   assert(args);
   type = data_typedescr(self);
-
-  /* -1 because self is an argument as well */
-  if ((method -> min_args == method -> max_args) &&
-      (array_size(args) != (method -> max_args - 1))) {
-    return data_error(ErrorArgCount, "%s.%s requires exactly %d arguments",
-                      type -> typename, method -> name, method -> min_args);
-  } else if (array_size(args) < (method -> min_args - 1)) {
-    return data_error(ErrorArgCount, "%s.%s requires at least %d arguments",
-                      type -> typename, method -> name, method -> min_args);
-  } else if ((method -> max_args > 0) && (array_size(args) > (method -> max_args - 1))) {
-    return data_error(ErrorArgCount, "%s.%s accepts at most %d arguments",
-                      type -> typename, method -> name, method -> max_args);
-  } else {
-    return method -> method(self, method -> name, args, kwargs);
+  
+  len = array_size(args);
+  if (!method -> varargs) {
+    maxargs = method -> minargs;
   }
+  if (len < method -> minargs) {
+    if (method -> varargs) {
+      return data_error(ErrorArgCount, "%s.%s requires at least %d arguments",
+                       type -> typename, method -> name, method -> minargs);
+    } else {
+      return data_error(ErrorArgCount, "%s.%s requires exactly %d arguments",
+                       type -> typename, method -> name, method -> minargs);
+    }
+  } else if (!method -> varargs && (len > maxargs)) {
+    if (maxargs == 0) {
+      return data_error(ErrorArgCount, "%s.%s accepts no arguments",
+                        type -> typename, method -> name);
+    } else if (maxargs == 1) {
+      return data_error(ErrorArgCount, "%s.%s accepts only one argument",
+                        type -> typename, method -> name);
+    } else {
+      return data_error(ErrorArgCount, "%s.%s accepts only %d arguments",
+                       type -> typename, method -> name, maxargs);
+    }
+  }
+  for (i = 0; i < len; i++) {
+    arg = array_get(args, i);
+    t = (i < method -> minargs)
+      ? method -> argtypes[i]
+      : method -> argtypes[method -> minargs - 1];
+    if (!data_hastype(arg, t)) {
+      return data_error(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
+                        i+1, type -> typename, method -> name, t, data_type(arg));
+    }
+  } 
+  return method -> method(self, method -> name, args, kwargs);
 }
 
 data_t * data_execute(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -389,18 +411,22 @@ char * data_tostring(data_t *data) {
   typedescr_t *type;
 
   if (!data) {
-    ret = "data:NULL";
-  }
-  free(data -> str);
-  type = data_typedescr(data);
-  if (type -> tostring) {
-    ret =  type -> tostring(data);
+    return "data:NULL";
   } else {
-    snprintf(buf, sizeof(buf), "data:%s:%p", descriptors[data -> type].typecode, data);
-    ret = buf;
+    free(data -> str);
+    data -> str = NULL;
+    type = data_typedescr(data);
+    if (type -> tostring) {
+      ret =  type -> tostring(data);
+    } else {
+      snprintf(buf, sizeof(buf), "data:%s:%p", descriptors[data -> type].typecode, data);
+      ret = buf;
+    }
+    if (ret && !data -> str) {
+      data -> str = strdup(ret);
+    }
+    return data -> str;
   }
-  data -> str = strdup(ret);
-  return data -> str;
 }
 
 char * data_debugstr(data_t *data) {
@@ -441,7 +467,12 @@ int data_cmp(data_t *d1, data_t *d2) {
   }
 }
 
-dict_t * data_add_all_reducer(entry_t *e, dict_t *target) {
+array_t * data_add_all_reducer(data_t *data, array_t *target) {
+  array_push(target, data_copy(data));
+  return target;
+}
+
+dict_t * data_put_all_reducer(entry_t *e, dict_t *target) {
   dict_put(target, strdup(e -> key), data_copy(e -> value));
   return target;
 }
