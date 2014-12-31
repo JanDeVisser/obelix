@@ -88,11 +88,15 @@ void * resize_block(void *block, int newsz, int oldsz) {
   if (!_initialized) {
     __init();
   }
-  ret = realloc(block, newsz);
-  if (newsz && !ret) {
-    kill(0, SIGUSR1);
-  } else if (oldsz) {
-    memset(ret + oldsz, 0, newsz - oldsz);
+  if (block) {
+    ret = realloc(block, newsz);
+    if (newsz && !ret) {
+      kill(0, SIGUSR1);
+    } else if (oldsz) {
+      memset(ret + oldsz, 0, newsz - oldsz);
+    }
+  } else {
+    ret = new(newsz);
   }
   return ret;
 }

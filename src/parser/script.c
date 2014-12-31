@@ -78,7 +78,6 @@ static data_t *         _neq(data_t *, data_t *);
 
 static data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
 static data_t *         _script_function_mathop(data_t *, char *, array_t *, dict_t *);
-static data_t *         _script_function_list(data_t *, char *, array_t *, dict_t *);
 
 static void             _script_list_visitor(instruction_t *);
 static closure_t *      _script_variable_copier(entry_t *, closure_t *);
@@ -98,7 +97,6 @@ static data_t *         _scriptloader_load(scriptloader_t *, char *, int);
 #define FUNCTION_MATHOP  ((voidptr_t) _script_function_mathop)
 static function_t _builtins[] = {
     { name: "print",      fnc: ((voidptr_t) _script_function_print),  min_params: 1, max_params: -1 },
-    { name: "list",       fnc: ((voidptr_t) _script_function_list),   min_params: 0, max_params: -1 },
     { name: "+",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
     { name: "-",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
     { name: "*",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
@@ -434,10 +432,6 @@ data_t * _script_function_print(data_t *ignored, char *name, array_t *params, di
   return data_create(Int, 1);
 }
 
-data_t * _script_function_list(data_t *ignored, char *name, array_t *params, dict_t *kwargs) {
-  return data_create_list_fromarray(params);
-}
-
 /*
  * script_t static functions
  */
@@ -603,7 +597,7 @@ closure_t * script_create_closure(script_t *script, data_t *self, array_t *args,
   script -> refs++;
 
   ret -> variables = strdata_dict_create();
-  dict_reduce(ret -> variables, (reduce_t) data_add_all_reducer, script -> functions);
+  dict_reduce(ret -> variables, (reduce_t) data_put_all_reducer, script -> functions);
   ret -> stack = datastack_create(script_tostring(script));
   datastack_set_debug(ret -> stack, script_debug);
 
@@ -614,7 +608,7 @@ closure_t * script_create_closure(script_t *script, data_t *self, array_t *args,
     }
   }
   if (kwargs) {
-    dict_reduce(kwargs, (reduce_t) data_add_all_reducer, ret -> variables);
+    dict_reduce(kwargs, (reduce_t) data_put_all_reducer, ret -> variables);
   }
   if (self) {
     if (data_type(self) == Closure) {

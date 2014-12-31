@@ -18,7 +18,7 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
-# AM_CFLAGS   = -ansi
+# AM_CFLAGS   = -Werror
 LDADD       = -ldl -lm -lcheck
 
 lib_LTLIBRARIES = liboblparser.la

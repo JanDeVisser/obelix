@@ -156,7 +156,7 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
     debug(" -- func_name: %s", func_name);
   }
   script_push_instruction(script,
-    instruction_create_function(data_create_list_fromarray(func_name),
+    instruction_create_function(data_create_list(func_name),
                                 param_count -> intval));
   data_free(param_count);
   array_free(func_name);

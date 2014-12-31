@@ -189,6 +189,10 @@ int array_size(array_t *array) {
   return array -> list -> size;
 }
 
+unsigned int array_hash(array_t *array) {
+  return list_hash(array -> list);
+}
+
 int array_capacity(array_t *array) {
   return array -> capacity;
 }
