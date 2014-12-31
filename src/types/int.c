@@ -81,27 +81,27 @@ typedescr_t typedescr_bool = {
 };
 
 methoddescr_t methoddescr_int[] = {
-  { type: Int, name: "+",    method: _int_add,  min_args: 2, max_args: -1 },
-  { type: Int, name: "-",    method: _int_add,  min_args: 2, max_args: -1 },
-  { type: Int, name: "sum",  method: _int_add,  min_args: 2, max_args: -1 },
-  { type: Int, name: "*",    method: _int_mult, min_args: 2, max_args: -1 },
-  { type: Int, name: "mult", method: _int_mult, min_args: 2, max_args: -1 },
-  { type: Int, name: "/",    method: _int_div,  min_args: 2, max_args: 2  },
-  { type: Int, name: "div",  method: _int_div,  min_args: 2, max_args: 2  },
-  { type: Int, name: "%",    method: _int_mod,  min_args: 2, max_args: 2  },
-  { type: Int, name: "mod",  method: _int_mod,  min_args: 2, max_args: 2  },
-  { type: Int, name: "abs",  method: _int_abs,  min_args: 1, max_args: 1  },
-  { type: -1,  name: NULL,   method: NULL,      min_args: 0, max_args: 0  },
+  { type: Int,    name: "+",    method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Int,    name: "-",    method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Int,    name: "sum",  method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Int,    name: "*",    method: _int_mult, argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Int,    name: "mult", method: _int_mult, argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Int,    name: "/",    method: _int_div,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Int,    name: "div",  method: _int_div,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Int,    name: "%",    method: _int_mod,  argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 0 },
+  { type: Int,    name: "mod",  method: _int_mod,  argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 0 },
+  { type: Int,    name: "abs",  method: _int_abs,  argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 },
+  { type: NoType, name: NULL,   method: NULL,      argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 }
 };
 
 methoddescr_t methoddescr_bool[] = {
-  { type: Bool, name: "&&",  method: _bool_and, min_args: 2, max_args: 2  },
-  { type: Bool, name: "and", method: _bool_and, min_args: 2, max_args: 2  },
-  { type: Bool, name: "||",  method: _bool_or,  min_args: 2, max_args: 2  },
-  { type: Bool, name: "or",  method: _bool_or,  min_args: 2, max_args: 2  },
-  { type: Bool, name: "!",   method: _bool_not, min_args: 1, max_args: 1  },
-  { type: Bool, name: "not", method: _bool_not, min_args: 1, max_args: 1  },
-  { type: -1,  name: NULL,   method: NULL,      min_args: 0, max_args: 0  },
+  { type: Bool, name: "&&",  method: _bool_and, argtypes: { Int, -1, -1 }, minargs: 1, varargs: 1 },
+  { type: Bool, name: "and", method: _bool_and, argtypes: { Int, -1, -1 }, minargs: 1, varargs: 1 },
+  { type: Bool, name: "||",  method: _bool_or,  argtypes: { Int, -1, -1 }, minargs: 1, varargs: 1 },
+  { type: Bool, name: "or",  method: _bool_or,  argtypes: { Int, -1, -1 }, minargs: 1, varargs: 1 },
+  { type: Bool, name: "!",   method: _bool_not, argtypes: { -1, -1, -1 },  minargs: 0, varargs: 0 },
+  { type: Bool, name: "not", method: _bool_not, argtypes: { -1, -1, -1 },  minargs: 0, varargs: 0 },
+  { type: -1,   name: NULL,  method: NULL,      argtypes: { -1, -1, -1 },  minargs: 0, varargs: 0 }
 };
 
 /*
@@ -191,50 +191,47 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int     ix;
   long    intret = 0;
   double  fltret = 0.0;
-  double  val;
+  double  dblval;
+  long    longval;
   int     minus = name && (name[0] == '-');
 
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
-    if (!data_is_numeric(d)) {
-      type = data_type(d);
-      break;
-    } else if (data_type(d) == Float) {
+    if (data_type(d) == Float) {
       type = Float;
+      break;
     }
   }
-  if ((type != Int) && (type != Float)) {
-    ret = data_error(ErrorType,
-                     ((minus)
-                       ? "Cannot subtract integers and objects of type '%s'"
-                       : "Cannot add integers and objects of type '%s'"),
-                     typedescr_get(type) -> typecode);
+  if (type == Float) {
+    fltret = (double) self -> intval;
   } else {
-    if (type == Float) {
-      fltret = (double) self -> intval;
-    } else {
-      intret = self -> intval;
-    }
-    for (ix = 0; ix < array_size(args); ix++) {
-      d = (data_t *) array_get(args, ix);
-      switch(type) {
-        case Int:
-          /* Type of d must be Int, can't be Float */
-          intret += (minus) ? (-(d -> intval)) : d -> intval;
-          break;
-        case Float:
-          /* Here type of d can be Int or Float */
-          val = (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
-          fltret += (minus) ? -val : val;
-          break;
-      }
-    }
-    ret = (type == Int) 
-      ? data_create(type, intret)
-      : data_create(type, fltret); 
-    /* FIXME Why? Why not data_create(type, (type == Int) ? ...: ...)?
-       Whyt does that not work (gives garbage intval) */
+    intret = self -> intval;
   }
+  for (ix = 0; ix < array_size(args); ix++) {
+    d = (data_t *) array_get(args, ix);
+    switch(type) {
+      case Int:
+        /* Type of d must be Int, can't be Float */
+        longval = data_longval(d);
+        if (minus) {
+          longval = -longval;
+        }
+        intret += longval;
+        break;
+      case Float:
+        dblval = data_dblval(d);
+        if (minus) {
+          dblval = -dblval;
+        }
+        fltret += dblval;
+        break;
+    }
+  }
+  ret = (type == Int) 
+    ? data_create(type, intret)
+    : data_create(type, fltret); 
+  /* FIXME Why? Why not data_create(type, (type == Int) ? ...: ...)?
+      Whyt does that not work (gives garbage intval) */
   return ret;
 }
 
@@ -249,35 +246,26 @@ data_t * _int_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
-    if (!data_is_numeric(d)) {
-      type = data_type(d);
-      break;
-    } else if (data_type(d) == Float) {
+    if (data_type(d) == Float) {
       type = Float;
+      break;
     }
   }
-  if ((type != Int) && (type != Float)) {
-    ret = data_error(ErrorType,
-                     "Cannot multiply integers and objects of type '%s'",
-                     typedescr_get(type) -> typename);
-  } else {
-    for (ix = 0; ix < array_size(args); ix++) {
-      d = (data_t *) array_get(args, ix);
-      switch(type) {
-        case Int:
-          /* Type of d must be Int, can't be Float */
-          intret *= d -> intval;
-          break;
-        case Float:
-          /* Here type of d can be Int or Float */
-          fltret *= (data_type(d) == Int) ? (double) d -> intval : d -> dblval;
-          break;
-      }
+  for (ix = 0; ix < array_size(args); ix++) {
+    d = (data_t *) array_get(args, ix);
+    switch(type) {
+      case Int:
+        /* Type of d must be Int, can't be Float */
+        intret *= data_longval(d);
+        break;
+      case Float:
+        fltret *= data_dblval(d);
+        break;
     }
-    ret = (type == Int) 
-      ? data_create(type, intret)
-      : data_create(type, fltret);
   }
+  ret = (type == Int) 
+    ? data_create(type, intret)
+    : data_create(type, fltret);
   return ret;
 }
 
@@ -290,17 +278,12 @@ data_t * _int_div(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   denom = (data_t *) array_get(args, 0);
   switch (data_type(denom)) {
     case Int:
-      intret = self -> intval / denom -> intval;
+      intret = data_longval(self) / data_longval(denom);
       ret = data_create(Int, intret);
       break;
     case Float:
-      fltret = ((double) self -> intval) / denom -> dblval;
+      fltret = data_dblval(self) / data_dblval(denom);
       ret = data_create(Float, fltret);
-      break;
-    default:
-      ret = data_error(ErrorType,
-                       "Cannot divide an integer and an object of type '%s'",
-                       typedescr_get(data_type(denom)) -> typename);
       break;
   }
   return ret;
@@ -310,17 +293,11 @@ data_t * _int_mod(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *denom;
 
   denom = (data_t *) array_get(args, 0);
-  if (data_type(denom) != Int) {
-    return data_error(ErrorType,
-                      "Cannot calculate the remainder of an integer and an object of type '%s'",
-                      typedescr_get(data_type(denom)) -> typename);
-  } else {
-    return data_create(Int, self -> intval % denom -> intval);
-  }
+  return data_create(Int, data_longval(self) % data_longval(denom));
 }
 
 data_t * _int_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, labs(self -> intval));
+  return data_create(Int, labs(data_longval(self)));
 }
 
 /*
@@ -354,33 +331,33 @@ data_t * _bool_cast(data_t *data, int totype) {
   }
 }
 
-data_t * _bool_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *other;
+/* ----------------------------------------------------------------------- */
 
-  other = (data_t *) array_get(args, 0);
-  if (data_type(other) != Bool) {
-    return data_error(ErrorType,
-                      "Cannot AND a boolean and an object of type '%s'",
-                      typedescr_get(data_type(other)) -> typename);
-  } else {
-    return data_create(Bool, self -> intval && other -> intval);
+data_t * _bool_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *d;
+  int     ix;
+  int     retval = data_longval(self);
+
+  for (ix = 0; retval && (ix < array_size(args)); ix++) {
+    d = (data_t *) array_get(args, ix);
+    retval = retval && data_longval(d);
   }
+  return data_create(Bool, retval);
 }
 
 data_t * _bool_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *other;
+  data_t *d;
+  int     ix;
+  int     retval = data_longval(self);
 
-  other = (data_t *) array_get(args, 0);
-  if (data_type(other) != Bool) {
-    return data_error(ErrorType,
-                      "Cannot OR a boolean and an object of type '%s'",
-                      typedescr_get(data_type(other)) -> typename);
-  } else {
-    return data_create(Bool, self -> intval || other -> intval);
+  for (ix = 0; ix < array_size(args); ix++) {
+    d = (data_t *) array_get(args, ix);
+    retval = retval || data_longval(d);
   }
+  return data_create(Bool, retval);
 }
 
 data_t * _bool_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Bool, !(self -> intval));
+  return data_create(Bool, !data_longval(self));
 }
 

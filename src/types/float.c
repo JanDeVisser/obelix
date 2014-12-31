@@ -64,27 +64,27 @@ typedescr_t typedescr_float =   {
 };
 
 methoddescr_t methoddescr_float[] = {
-  { type: Float, name: "+",     method: _float_add,    min_args: 2, max_args: -1 },
-  { type: Float, name: "-",     method: _float_add,    min_args: 2, max_args: -1 },
-  { type: Float, name: "sum",   method: _float_add,    min_args: 2, max_args: -1 },
-  { type: Float, name: "*",     method: _float_mult,   min_args: 2, max_args: -1 },
-  { type: Float, name: "mult",  method: _float_mult,   min_args: 2, max_args: -1 },
-  { type: Float, name: "/",     method: _float_div,    min_args: 2, max_args: 2  },
-  { type: Float, name: "div",   method: _float_div,    min_args: 2, max_args: 2  },
-  { type: Float, name: "abs",   method: _float_abs,    min_args: 1, max_args: 1  },
-  { type: Float, name: "^",     method: _float_pow,    min_args: 2, max_args: 2  },
-  { type: Float, name: "pow",   method: _float_pow,    min_args: 2, max_args: 2  },
-  { type: Float, name: "sin",   method: _float_sin,    min_args: 1, max_args: 1  },
-  { type: Float, name: "cos",   method: _float_cos,    min_args: 1, max_args: 1  },
-  { type: Float, name: "tan",   method: _float_tan,    min_args: 1, max_args: 1  },
-  { type: Float, name: "sqrt",  method: _float_sqrt,   min_args: 1, max_args: 1  },
-  { type: Float, name: "min",   method: _float_minmax, min_args: 1, max_args: -1 },
-  { type: Float, name: "max",   method: _float_minmax, min_args: 1, max_args: -1 },
-  { type: Float, name: "round", method: _float_round,  min_args: 1, max_args: 1  },
-  { type: Float, name: "trunc", method: _float_trunc,  min_args: 1, max_args: 1  },
-  { type: Float, name: "floor", method: _float_floor,  min_args: 1, max_args: 1  },
-  { type: Float, name: "ceil",  method: _float_ceil,   min_args: 1, max_args: 1  },
-  { type: -1,    name: NULL,    method: NULL,          min_args: 0, max_args: 0  },
+  { type: Float,  name: "+",     method: _float_add,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Float,  name: "-",     method: _float_add,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Float,  name: "sum",   method: _float_add,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Float,  name: "*",     method: _float_mult,   argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Float,  name: "mult",  method: _float_mult,   argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Float,  name: "/",     method: _float_div,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Float,  name: "div",   method: _float_div,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Float,  name: "abs",   method: _float_abs,    argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: Float,  name: "^",     method: _float_pow,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Float,  name: "pow",   method: _float_pow,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Float,  name: "sin",   method: _float_sin,    argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: Float,  name: "cos",   method: _float_cos,    argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: Float,  name: "tan",   method: _float_tan,    argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: Float,  name: "sqrt",  method: _float_sqrt,   argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: Float,  name: "min",   method: _float_minmax, argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Float,  name: "max",   method: _float_minmax, argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Float,  name: "round", method: _float_round,  argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: Float,  name: "trunc", method: _float_trunc,  argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: Float,  name: "floor", method: _float_floor,  argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: Float,  name: "ceil",  method: _float_ceil,   argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
+  { type: NoType, name: NULL,    method: NULL,          argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 }
 };
 
 /*
@@ -93,8 +93,6 @@ methoddescr_t methoddescr_float[] = {
  * --------------------------------------------------------------------------
  */
 
-#define DBLVAL(d)  ((data_type((d)) == Float) ? (double)((d) -> intval) : (d) -> dblval)
-#define INTVAL(d)  ((data_type((d)) == Int) ? (d) -> intval : (long)((d) -> dblval))
 
 data_t * _float_new(data_t *target, va_list arg) {
   double val;
@@ -132,87 +130,64 @@ data_t * _float_cast(data_t *data, int totype) {
   return (totype == Int) ? data_create(Int, (long) data -> dblval) : NULL;
 }
 
+/* ----------------------------------------------------------------------- */
+
 data_t * _float_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *d;
-  data_t *ret;
   int     ix;
-  int     type = Float;
-  double  retval = 0.0;
+  double  retval = data_dblval(self);
   double  val;
   int     plus = (name[0] == '+');
 
+  retval = self -> dblval;
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
-    if (!data_is_numeric(d)) {
-      type = data_type(d);
-      break;
+    val = data_dblval(d);
+    if (!plus) {
+      val = -val;
     }
+    retval += val;
   }
-  if (type != Float) {
-    ret = data_error(ErrorType,
-                     ((plus)
-                       ? "Cannot add floats and objects of type '%s'"
-                       : "Cannot subtract floats and objects of type '%s'"),
-                     typedescr_get(type) -> typename);
-  } else {
-    retval = self -> dblval;
-    for (ix = 0; ix < array_size(args); ix++) {
-      d = (data_t *) array_get(args, ix);
-      val = DBLVAL(d);
-      retval += (plus) ? val : -val;
-    }
-    ret = data_create(Float, retval);
-  }
-  return ret;
+  return data_create(Float, retval);
 }
 
 data_t * _float_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *d;
-  data_t *ret;
   int     ix;
-  int     type = Float;
-  double  retval = 0.0;
-
+  double  retval = data_dblval(self);
+  
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
-    if (!data_is_numeric(d)) {
-      type = data_type(d);
-      break;
-    }
+    retval *= data_dblval(d);
   }
-  if (type != Float) {
-    ret = data_error(ErrorType,
-                     "Cannot multiply floats and objects of type '%s'",
-                     typedescr_get(type) -> typename);
-  } else {
-    retval = self -> dblval;
-    for (ix = 0; ix < array_size(args); ix++) {
-      d = (data_t *) array_get(args, ix);
-      retval *= DBLVAL(d);
-    }
-    ret = data_create(type, retval);
-  }
-  return ret;
+  return data_create(Float, retval);
 }
 
 data_t * _float_div(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *denom;
-  data_t *ret;
-  double  retval = 0.0;
 
   denom = (data_t *) array_get(args, 0);
-  if (!data_is_numeric(denom)) {
-    ret = data_error(ErrorType,
-                     "Cannot divide an float by an object of type '%s'",
-                     typedescr_get(data_type(denom)) -> typename);
-  }
-  retval = DBLVAL(self) / DBLVAL(denom);
-  ret = data_create(Float, retval);
-  return ret;
+  return data_create(Float, data_dblval(self) / data_dblval(denom));
 }
 
 data_t * _float_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, fabs(DBLVAL(self)));
+  return data_create(Float, fabs(data_dblval(self)));
+}
+
+data_t * _float_round(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_create(Int, (long) round(data_dblval(self)));
+}
+
+data_t * _float_trunc(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_create(Int, (long) trunc(data_dblval(self)));
+}
+
+data_t * _float_floor(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_create(Int, (long) floor(data_dblval(self)));
+}
+
+data_t * _float_ceil(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_create(Int, (long) ceil(data_dblval(self)));
 }
 
 /*
@@ -222,33 +197,24 @@ data_t * _float_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 data_t * _float_pow(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *exp;
 
-  if (!args || (array_size(args) != 1)) {
-    return data_error(ErrorArgCount, "pow(x,y) requires exactly two arguments");
-  }
   exp = (data_t *) array_get(args, 0);
-  if (!data_is_numeric(exp)) {
-    return data_error(ErrorType,
-                     "Cannot a number to the power of an object of type '%s'",
-                     typedescr_get(data_type(exp)) -> typename);
-  } else {
-    return data_create(Float, pow(DBLVAL(self), DBLVAL(exp)));
-  }
+  return data_create(Float, pow(data_dblval(self), data_dblval(exp)));
 }
 
 data_t * _float_sin(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, sin(DBLVAL(self)));
+  return data_create(Float, sin(data_dblval(self)));
 }
 
 data_t * _float_cos(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, cos(DBLVAL(self)));
+  return data_create(Float, cos(data_dblval(self)));
 }
 
 data_t * _float_tan(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, tan(DBLVAL(self)));
+  return data_create(Float, tan(data_dblval(self)));
 }
 
 data_t * _float_sqrt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, sqrt(DBLVAL(self)));
+  return data_create(Float, sqrt(data_dblval(self)));
 }
 
 data_t * _float_minmax(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -259,31 +225,10 @@ data_t * _float_minmax(data_t *self, char *name, array_t *args, dict_t *kwargs) 
 
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
-    if (!data_is_numeric(d)) {
-      return data_error(ErrorType,
-                       "Object of type '%s' cannot be included in %s() operations",
-                       typedescr_get(data_type(d)) -> typename, name);
-    }
     ret = (maxmin)
-      ? ((DBLVAL(ret) > DBLVAL(d)) ? ret : d)
-      : ((DBLVAL(ret) < DBLVAL(d)) ? ret : d);
+      ? ((data_dblval(ret) > data_dblval(d)) ? ret : d)
+      : ((data_dblval(ret) < data_dblval(d)) ? ret : d);
   }
   return data_copy(ret);
-}
-
-data_t * _float_round(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, round(DBLVAL(self)));
-}
-
-data_t * _float_trunc(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, round(DBLVAL(self)));
-}
-
-data_t * _float_floor(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, floor(DBLVAL(self)));
-}
-
-data_t * _float_ceil(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, ceil(DBLVAL(self)));
 }
 
