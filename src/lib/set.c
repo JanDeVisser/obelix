@@ -39,15 +39,23 @@ reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
   void   *elem;
   set_t  *set;
   free_t  f;
+  char   *c;
+  int     type;
 
   set = (set_t *) ctx -> obj;
   f = NULL;
-  switch (((char *) ctx -> user)[0]) {
+  type = ((char *) ctx -> user)[0];
+  if ((type == 'c') || (type == 's')) {
+    c = (set -> dict -> tostring_key)
+          ? set -> dict -> tostring_key(entry -> key)
+          : itoa((long) entry -> key);
+  }
+  switch (type) {
     case 'c':
-      elem =  set -> dict -> tostring_key(entry -> key);
+      elem = c;
       break;
     case 's':
-      elem =  str_wrap(set -> dict -> tostring_key(entry -> key));
+      elem =  str_wrap(c);
       f = (free_t) str_free;
       break;
     default:

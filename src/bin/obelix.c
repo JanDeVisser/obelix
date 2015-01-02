@@ -27,7 +27,6 @@
 #include <grammarparser.h>
 
 int main(int argc, char **argv) {
-#if 0
   file_t           *gf;
   grammar_parser_t *gp;
   grammar_t        *g;
@@ -36,14 +35,11 @@ int main(int argc, char **argv) {
 
   gf = file_open("/home/jan/Projects/obelix/etc/grammar.txt");
   gp = grammar_parser_create(gf);
+  gp -> dryrun = TRUE;
   g = grammar_parser_parse(gp);
+  grammar_parser_free(gp);
+  grammar_free(g);
   file_free(gf);
-#else
-  data_t *d;
-  
-  d = data_create(Int, 1L);
-  return d -> intval;
-#endif
 }
 
 #if 0

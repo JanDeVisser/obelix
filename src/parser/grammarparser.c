@@ -182,7 +182,7 @@ grammar_parser_t * _grammar_parser_state_option_name(token_t *token, grammar_par
       if (grammar_parser -> old_state != GPStateStart) {
         /* Hack - need to revisit the whole options thing. */
         t = token_create(TokenCodeIdentifier, grammar_parser -> string);
-        ge_set_option(grammar_parser -> ge, strdup("done"), t);
+        ge_set_option(grammar_parser -> ge, "done", t);
         token_free(t);
         free(grammar_parser -> string);
         grammar_parser -> string = NULL;
@@ -383,6 +383,7 @@ grammar_parser_t * _grammar_parser_create(reader_t *reader) {
   grammar_parser -> rule = NULL;
   grammar_parser -> entry = NULL;
   grammar_parser -> ge = NULL;
+  grammar_parser -> dryrun = FALSE;
   return grammar_parser;
 }
 
@@ -398,6 +399,7 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   grammar_parser_t *grammar_parser;
 
   gp -> grammar = grammar_create();
+  gp -> grammar -> dryrun = gp -> dryrun;
   lexer = lexer_create(gp -> reader);
   lexer_add_keyword(lexer, 200, ":=");
   lexer_set_option(lexer, LexerOptionIgnoreWhitespace, TRUE);

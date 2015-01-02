@@ -33,3 +33,8 @@ liboblparser_la_SOURCES = \
 		scriptparse.c \
 		object.c \
 		namespace.c
+		
+liboblparser_la_LIBADD = \
+		$(top_srcdir)/src/lib/liboblcore.la \
+		$(top_srcdir)/src/types/libobltypes.la
+		

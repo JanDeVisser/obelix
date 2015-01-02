@@ -45,6 +45,7 @@ typedef struct _grammar_parser {
   nonterminal_t *nonterminal;
   rule_t        *rule;
   rule_entry_t  *entry;
+  int            dryrun;
 } grammar_parser_t;
 
 extern grammar_parser_t * _grammar_parser_create(reader_t *);

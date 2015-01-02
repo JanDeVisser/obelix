@@ -1,6 +1,29 @@
-TESTS          = tcore tlist tarray tdict tset tstr tbuffer tresolve tlexer tdata
-check_PROGRAMS = tcore tlist tarray tdict tset tstr tbuffer tresolve tlexer tdata
-
+TESTS   = \
+	tcore \
+	tlist \
+	tarray \
+	tdict \
+	tset \
+	tstr \
+	tbuffer \
+	tresolve \
+	tlexer \
+	tdata \
+	tgrammar
+	
+check_PROGRAMS   = \
+	tcore \
+	tlist \
+	tarray \
+	tdict \
+	tset \
+	tstr \
+	tbuffer \
+	tresolve \
+	tlexer \
+	tdata \
+	tgrammar
+	
 AM_CPPFLAGS =   -I$(top_srcdir)/include
 AM_CFLAGS =	@CHECK_CFLAGS@
 AM_LDFLAGS =	-pthread
@@ -24,3 +47,4 @@ tbuffer_SOURCES  = tbuffer.c
 tresolve_SOURCES = tresolve.c
 tlexer_SOURCES   = tlexer.c
 tdata_SOURCES    = tdata.c
+tgrammar_SOURCES = tgrammar.c

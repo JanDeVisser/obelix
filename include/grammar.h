@@ -94,6 +94,7 @@ typedef struct _grammar {
   array_t                 *lexer_options;
   strategy_t               strategy;
   char                    *prefix;
+  int                      dryrun;
 } grammar_t;
 
 extern void            ge_free(ge_t *);
@@ -125,7 +126,8 @@ extern grammar_t *     grammar_analyze(grammar_t *);
 
 extern nonterminal_t * nonterminal_create(grammar_t *, char *);
 extern void            nonterminal_free(nonterminal_t *);
-static void            _nonterminal_dump(nonterminal_t *);
+static void            nonterminal_dump(nonterminal_t *);
+static rule_t *        nonterminal_get_rule(nonterminal_t *, int);
 
 #define nonterminal_get_grammar(e)      (((e) -> ge -> grammar))
 #define nonterminal_add_pushvalue(e)    (((nonterminal_t *) ge_add_pushvalue((e) -> ge)) -> ptr)
@@ -139,6 +141,7 @@ static void            _nonterminal_dump(nonterminal_t *);
 extern rule_t *        rule_create(nonterminal_t *);
 extern void            rule_free(rule_t *);
 static void            rule_dump(rule_t *);
+static rule_entry_t *  rule_get_entry(rule_t *, int);
 
 #define rule_get_nonterminal(e)  ((nonterminal_t *) ((e) -> ge -> owner -> ptr))
 #define rule_get_grammar(e)      (((e) -> ge -> grammar))
