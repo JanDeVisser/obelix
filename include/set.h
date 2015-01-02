@@ -49,7 +49,7 @@ extern int      set_subsetof(set_t *, set_t *);
 extern int      set_cmp(set_t *, set_t *);
 extern str_t *  set_tostr(set_t *);
 
-#define intset_create()       set_create(NULL)
+#define intset_create()       set_create(NULL);
 #define strset_create()       set_set_tostring( \
                                 set_set_hash( \
                                   set_set_free( \

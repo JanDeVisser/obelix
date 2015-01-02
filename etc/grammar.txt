@@ -105,8 +105,8 @@ expr                        := predicate
                                predicatetail
                              ;
                          
-predicatetail               := logic_op        [ push: $         ]
-                               predicate       [ emit_mathop     ]
+predicatetail               := logic_op          [ push: $                   ]
+                               predicate         [ emit_mathop               ]
                              |
                              ;
                                
@@ -114,8 +114,8 @@ predicate                   := term
                                termtail
                              ;
 
-termtail                    := add_op          [ push: $         ]
-                               term            [ emit_mathop     ]
+termtail                    := add_op            [ push: $                   ]
+                               term              [ emit_mathop               ]
                                termtail
                              | 
                              ;
@@ -123,8 +123,8 @@ termtail                    := add_op          [ push: $         ]
 term                        := factor factortail 
                              ;
 
-factortail                  := mult_op         [ push: $         ]
-                               factor          [ emit_mathop     ]
+factortail                  := mult_op           [ push: $                   ]
+                               factor            [ emit_mathop               ]
                                factortail
                              | 
                              ;
@@ -134,11 +134,11 @@ factor                      := ( expr )
                              | constant          [ push: $                   ]  
                              ;
 
-var_or_call:                 := identifier       [ init: init_count          ]
-                                call_or_empty
-                              ;
+var_or_call                 := identifier        [ init_count                ]
+                               call_or_empty
+                             ;
                               
-call_or_empty:              := func_call
+call_or_empty               := func_call
                              | dummy             [ emit_pushvar              ]
                              ;
                              
@@ -161,16 +161,16 @@ constant                    := '"'
 			     | list
                              ;
 
-list                        := {                    [ push: 0                ]
+list                        := {                 [ push: 0                   ]
                                entrylist_or_empty
-                               }                    [ emit_new_list ]
+                               }                 [ emit_new_list             ]
                              ;
 
 entrylist_or_empty          := entrylist
                              |
                              ;
 
-entrylist                   := constant             [ param_count ]
+entrylist                   := constant          [ param_count               ]
                                entrylist_tail
                              ;
 
@@ -186,12 +186,8 @@ add_op                      := + | - ;
 mult_op                     := * | / | ^ | % ;
 
 func_call                   := (                 [ init_count                ]
-                               arglist_or_void
+                               arglist
                                )                 [ emit_func_call            ]
-                             ;
-
-arglist_or_void             := arglist
-                             |
                              ;
 
 arglist                     := argument
@@ -199,7 +195,7 @@ arglist                     := argument
                              |
                              ;
 
-argument                    := expr        [ param_count     ] 
+argument                    := expr              [ param_count               ] 
                              ;
 
 arglist_tail                := ,

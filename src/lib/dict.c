@@ -323,9 +323,9 @@ void * _dict_bucket_reducer(list_t *bucket, reduce_ctx *ctx) {
 }
 
 void * _dict_reduce(dict_t *dict, reduce_t reducer, void *data, dict_reduce_type_t reducetype) {
-  reduce_ctx *ctx;
-  void *ret;
-  function_ptr_t fnc;
+  reduce_ctx     *ctx;
+  void           *ret;
+  function_ptr_t  fnc;
 
   fnc.reducer = reducer;
   ctx = reduce_ctx_create((void *) ((long) reducetype), data, fnc);
