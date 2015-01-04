@@ -60,7 +60,8 @@ typedescr_t typedescr_float =   {
   tostring: (tostring_t) _float_tostring,
   parse:    (parse_t)    _float_parse,
   cast:                  _float_cast,
-  hash:     (hash_t)     _float_hash
+  hash:     (hash_t)     _float_hash,
+  promote_to:            NoType
 };
 
 methoddescr_t methoddescr_float[] = {

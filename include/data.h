@@ -75,6 +75,7 @@ typedef struct _typedescr {
   cast_t        cast;
   hash_t        hash;
   dict_t       *methods;
+  int           promote_to;
   method_t      fallback;
 } typedescr_t;
 
@@ -115,6 +116,7 @@ extern char *          typedescr_tostring(typedescr_t *);
 
 extern data_t *        data_create(int, ...);
 extern data_t *        data_cast(data_t *, int);
+extern data_t *        data_promote(data_t *);
 extern data_t *        data_parse(int, char *);
 extern void            data_free(data_t *);
 extern int             data_type(data_t *);
