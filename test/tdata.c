@@ -73,6 +73,10 @@ data_t * execute(data_t *self, char *name, int numargs, ...) {
   }
   va_end(arglist);
   ret = data_execute(self, name, args, NULL);
+  if (ret && data_is_error(ret)) {
+    debug("Error executing '%s'.'%s': %s", data_debugstr(self),
+	  name, data_tostring(ret));
+  }
   array_free(args);
   return ret;
 }
@@ -242,6 +246,35 @@ START_TEST(data_parsers)
 
 END_TEST
 
+START_TEST(test_data_cmp)
+  data_t *i1 = data_create(Int, 1);
+  data_t *i2 = data_create(Int, 2);
+  data_t *f1 = data_create(Float, 3.14);
+  data_t *b1 = data_create(Bool, FALSE);
+  data_t *ret;
+  int cmp;
+  
+  cmp = data_cmp(i1, i2);
+  ck_assert_int_lt(cmp, 0);
+  cmp = data_cmp(i1, f1);
+  ck_assert_int_lt(cmp, 0);
+  cmp = data_cmp(i1, b1);
+  ck_assert_int_gt(cmp, 0);
+  cmp = data_cmp(f1, b1);
+  ck_assert_int_gt(cmp, 0);
+  
+  ret = execute(f1, ">", 1, Bool, FALSE);
+  ck_assert_ptr_ne(ret, NULL);
+  ck_assert_int_eq(data_type(ret), Bool);
+  ck_assert_int_eq(data_longval(ret), TRUE);
+
+  data_free(ret);
+  data_free(i1);
+  data_free(i2);
+  data_free(f1);
+  data_free(b1);
+END_TEST
+
 char * get_suite_name() {
   return "Data";
 }
@@ -254,6 +287,7 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, data_string);
   tcase_add_test(tc, data_int);
   tcase_add_test(tc, data_parsers);
+  tcase_add_test(tc, test_data_cmp);
   return tc;
 }
 

@@ -63,6 +63,7 @@ typedescr_t typedescr_int = {
   parse:    (parse_t)    _int_parse,
   cast:                  _int_cast,
   hash:     (hash_t)     _int_hash,
+  promote_to:            Float,
   fallback:              _int_fallback
 };
 
@@ -77,7 +78,8 @@ typedescr_t typedescr_bool = {
   tostring: (tostring_t) _bool_tostring,
   parse:    (parse_t)    _bool_parse,
   cast:                  _bool_cast,
-  hash:     (hash_t)     _int_hash
+  hash:     (hash_t)     _int_hash,
+  promote_to:            Int
 };
 
 methoddescr_t methoddescr_int[] = {

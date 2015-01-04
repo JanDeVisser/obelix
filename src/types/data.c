@@ -30,6 +30,9 @@
 
 static void          _data_initialize_types(void);
 
+static data_t *      _any_cmp(data_t *, char *, array_t *, dict_t *);
+static data_t *      _any_hash(data_t *, char *, array_t *, dict_t *);
+
 // -----------------------
 // Data conversion support
 
@@ -41,6 +44,50 @@ static
 #endif
 int data_count = 0;
 
+static typedescr_t typedescr_any = {
+  type:                  Any,
+  typecode:              "A",
+  typename:              "any"
+};
+
+static methoddescr_t methoddescr_any[] = {
+  { type: Any,    name: ">",    method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Any,    name: "<",    method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Any,    name: ">=",   method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Any,    name: "<=",   method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Any,    name: "==",   method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Any,    name: "!=",   method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: Any,    name: "hash", method: _any_hash, argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
+  { type: NoType, name: NULL,   method: NULL,      argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 }
+};
+
+/*
+ * 'any' global methods
+ */
+
+data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  int cmp = data_cmp(self, (data_t *) array_get(args, 0));
+  if (!strcmp(name, "==")) {
+    return data_create(Bool, !cmp);
+  } else if (!strcmp(name, "!=")) {
+    return data_create(Bool, cmp);
+  } else if (!strcmp(name, ">")) {
+    return data_create(Bool, cmp > 0);
+  } else if (!strcmp(name, ">=")) {
+    return data_create(Bool, cmp >= 0);
+  } else if (!strcmp(name, "<")) {
+    return data_create(Bool, cmp < 0);
+  } else if (!strcmp(name, "<=")) {
+    return data_create(Bool, cmp <= 0);
+  } else {
+    assert(0);
+    return data_create(Bool, 0);
+  }
+}
+
+data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_create(Int, data_hash(self));
+}
 
 /*
  * typedescr_t public functions
@@ -73,7 +120,9 @@ int typedescr_register(typedescr_t descr) {
 typedescr_t * typedescr_get(int datatype) {
   typedescr_t *ret = NULL;
   
-  if ((datatype >= 0) && (datatype < data_numtypes)) {
+  if (datatype == Any) {
+    return &typedescr_any;
+  } else if ((datatype >= 0) && (datatype < data_numtypes)) {
     ret = &descriptors[datatype];
   }
   if (!ret) {
@@ -135,6 +184,7 @@ void _data_initialize_types(void) {
     typedescr_register(typedescr_fnc);
     typedescr_register(typedescr_error);
     
+    typedescr_register_methods(methoddescr_any);
     typedescr_register_methods(methoddescr_int);
     typedescr_register_methods(methoddescr_bool);
     typedescr_register_methods(methoddescr_float);
@@ -255,6 +305,14 @@ data_t * data_cast(data_t *data, int totype) {
       return NULL;
     }
   }
+}
+
+data_t * data_promote(data_t *data) {
+  typedescr_t *type = data_typedescr(data);
+  
+  return ((type -> promote_to != NoType) && (type -> promote_to != Error))
+    ? data_cast(data, type -> promote_to)
+    : NULL;
 }
 
 void data_free(data_t *data) {
@@ -392,6 +450,12 @@ data_t * data_execute(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     }
   }
   if (!ret) {
+    method = typedescr_get_method(typedescr_get(Any), name);
+    if (method) {
+      ret = data_execute_method(self, method, (args_shifted) ? args_shifted : args, kwargs);
+    }
+  }
+  if (!ret) {
     ret = data_error(ErrorName, "data object '%s' has no method '%s",
                      data_tostring(self), name);
   }
@@ -406,7 +470,7 @@ unsigned int data_hash(data_t *data) {
 }
 
 char * data_tostring(data_t *data) {
-  char         buf[20];
+  int          len;
   char        *ret;
   typedescr_t *type;
 
@@ -418,12 +482,13 @@ char * data_tostring(data_t *data) {
     type = data_typedescr(data);
     if (type -> tostring) {
       ret =  type -> tostring(data);
+      if (ret && !data -> str) {
+	data -> str = strdup(ret);
+      }
     } else {
-      snprintf(buf, sizeof(buf), "data:%s:%p", descriptors[data -> type].typecode, data);
-      ret = buf;
-    }
-    if (ret && !data -> str) {
-      data -> str = strdup(ret);
+      len = snprintf(NULL, 0, "data:%s:%p", descriptors[data -> type].typecode, data);
+      data -> str = new(len + 1);
+      sprintf(data -> str, "data:%s:%p", descriptors[data -> type].typecode, data);
     }
     return data -> str;
   }
@@ -451,12 +516,42 @@ char * data_debugstr(data_t *data) {
 
 int data_cmp(data_t *d1, data_t *d2) {
   typedescr_t *type;
+  data_t      *p1 = NULL;
+  data_t      *p2 = NULL;
+  int          ret;
+  
+  debug("data_cmp: comparing '%s' and '%s'", data_debugstr(d1), data_debugstr(d2));
   if (!d1 && !d2) {
     return 0;
   } else if (!d1 || !d2) {
-    return 1;
+    return (!d1) ? -1 : 1;
   } else if (d1 -> type != d2 -> type) {
-    return 1;
+    p1 = data_promote(d1);
+    if (p1) {
+      debug("data_cmp: promoted d1 to '%s'", data_debugstr(p1));
+    }
+    if (p1 && (p1 -> type == d2 -> type)) {
+      ret = data_cmp(p1, d2);
+    } else {
+      p2 = data_promote(d2);
+      if (p2) {
+	debug("data_cmp: promoted d2 to '%s'", data_debugstr(p2));
+      }
+      if (p2 && (d1 -> type == p2 -> type)) {
+	ret = data_cmp(d1, p2);
+      } else if (p1 && !p2) {
+	ret = data_cmp(p1, d2);
+      } else if (!p1 && p2) {
+	ret = data_cmp(d1, p2);
+      } else if (p1 && p2) {
+	ret = data_cmp(p1, p2);
+      } else {
+	ret = d1 -> type - d2 -> type;
+      }
+    }
+    data_free(p1);
+    data_free(p2);
+    return ret;
   } else {
     type = data_typedescr(d1);
     if (type -> cmp) {

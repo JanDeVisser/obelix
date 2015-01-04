@@ -180,13 +180,13 @@ char * chars(void *str) {
 }
 
 char * itoa(long i) {
-  static char buf[12];
+  static char buf[20];
   sprintf(buf, "%ld", i);
   return buf;
 }
 
 char * dtoa(double d) {
-  static char buf[12];
+  static char buf[20];
   sprintf(buf, "%f", d);
   return buf;
 }
