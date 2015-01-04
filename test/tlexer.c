@@ -209,8 +209,8 @@ static char * test_numbers_str =
 static token_code_t test_numbers_codes[] = {
   TokenCodeInteger, TokenCodeFloat, TokenCodeHexNumber,
   TokenCodeInteger, TokenCodeFloat, TokenCodeFloat,
-  TokenCodeFloat, /* TokenCodeHexNumber, */ TokenCodeInteger,
-  TokenCodeFloat, TokenCodeFloat, TokenCodeFloat, TokenCodeHexNumber
+  TokenCodeFloat, TokenCodeInteger, TokenCodeFloat,
+  TokenCodeFloat, TokenCodeFloat, TokenCodeHexNumber
 };
 
 START_TEST(test_lexer_tokenize_numbers)
