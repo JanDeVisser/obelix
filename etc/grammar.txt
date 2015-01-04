@@ -1,9 +1,8 @@
 %
-name: simple_expr
 prefix: script_parse_
-init: init
-done: done
-ignore_ws: true
+init: "init"
+done: "done"
+ignore: whitespace
 hashpling: true
 %
 
@@ -21,19 +20,20 @@ statement                   := conditional
                              | func_def
                              | return_stmt
                              | import_stmt
-                             | identifier        [ init: init_count          ]
+                             |                   [ push: 0                   ] 
+                               identifier
                                assignment_or_call
                              ;
 
 conditional                 := "if"
                                expr
-                               "then"         [ emit_test       ]
+                               "then"            [ emit_test                 ]
                                statements
                                else_clause
-                               end_stmt       [ emit_end        ]
+                               end_stmt          [ emit_end                  ]
                              ;
 
-else_clause                 := "else"         [ emit_else       ]
+else_clause                 := "else"            [ emit_else                 ]
                                statements
                              |
                              ;
@@ -41,10 +41,10 @@ else_clause                 := "else"         [ emit_else       ]
 end_stmt                    := "end"
                              ;
 
-while_loop                  := "while"        [ push_label      ]
-                               expr           [ emit_test       ]
+while_loop                  := "while"           [ push_label                ]
+                               expr              [ emit_test                 ]
                                statements
-                               end_stmt       [ emit_end_while  ]
+                               end_stmt          [ emit_end_while            ]
                              ;
 
 for_loop                    := "for"
@@ -57,16 +57,16 @@ for_loop                    := "for"
                              
 func_def                    := native_opt
                                "func"
-                               'i'               [ push_last_token           ]
-                               (                 [ push: 0                   ]
+                               'i'               [ push++: $                 ]
+                               (                 [ push++: 0                 ]
                                parlist_or_void
                                )                 [ start_function            ]
                                statements
                                end_stmt          [ end_function              ]
                              ;
                              
-native_opt                  := "native"          [ push: 1                   ]
-                             | dummy             [ push: 0                   ]
+native_opt                  := "native"          [ push++: 1                 ]
+                             |                   [ push++: 0                 ]
                              ;
 
 parlist_or_void             := parlist
@@ -77,7 +77,7 @@ parlist                     := param
                                parlist_tail
                              ;
 
-param                       := 'i'               [ push_param                ] 
+param                       := 'i'               [ push++: $                 ] 
                              ;
 
 parlist_tail                := ,
@@ -89,7 +89,7 @@ return_stmt                 := "return"
                                expr 
                              ;
 
-import_stmt                 := "import"          [ push: 0                   ]
+import_stmt                 := "import"          [ push++: 0                 ]
                                identifier        [ import                    ]
                              ;
 
@@ -105,8 +105,8 @@ expr                        := predicate
                                predicatetail
                              ;
                          
-predicatetail               := logic_op          [ push: $                   ]
-                               predicate         [ emit_mathop               ]
+predicatetail               := logic_op          [ push++: $                 ]
+                               predicate         [ emit_infix_op             ]
                              |
                              ;
                                
@@ -114,8 +114,8 @@ predicate                   := term
                                termtail
                              ;
 
-termtail                    := add_op            [ push: $                   ]
-                               term              [ emit_mathop               ]
+termtail                    := add_op            [ push++: $                 ]
+                               term              [ emit_infix_op             ]
                                termtail
                              | 
                              ;
@@ -123,28 +123,26 @@ termtail                    := add_op            [ push: $                   ]
 term                        := factor factortail 
                              ;
 
-factortail                  := mult_op           [ push: $                   ]
-                               factor            [ emit_mathop               ]
+factortail                  := mult_op           [ push++: $                 ]
+                               factor            [ emit_infix_op             ] 
                                factortail
                              | 
                              ;
 
 factor                      := ( expr )
                              | var_or_call 
-                             | constant          [ push: $                   ]  
+                             | constant          [ push++: $                 ]  
                              ;
 
-var_or_call                 := identifier        [ init_count                ]
+var_or_call                 := identifier        [ push: 0                   ]
                                call_or_empty
                              ;
                               
 call_or_empty               := func_call
-                             | dummy             [ emit_pushvar              ]
+                             |                   [ emit_pushvar              ]
                              ;
                              
-dummy                       := ;
-
-identifier                  := 'i'               [ push_identifier_comp      ]
+identifier                  := 'i'               [ push++: $                 ]
 			       identifier_tail
 			     ;
 
@@ -161,16 +159,17 @@ constant                    := '"'
 			     | list
                              ;
 
-list                        := {                 [ push: 0                   ]
+list                        :=                   [ push: "list"              ]
+                               '['               [ push: 0                   ]
                                entrylist_or_empty
-                               }                 [ emit_new_list             ]
+                               ']'               [ emit_func_call            ]
                              ;
 
 entrylist_or_empty          := entrylist
                              |
                              ;
 
-entrylist                   := constant          [ param_count               ]
+entrylist                   := expr              [ ++                        ]
                                entrylist_tail
                              ;
 
@@ -185,17 +184,20 @@ add_op                      := + | - ;
 
 mult_op                     := * | / | ^ | % ;
 
-func_call                   := (                 [ init_count                ]
-                               arglist
+func_call                   := (                 [ push: 0                   ]
+                               arglist_or_void
                                )                 [ emit_func_call            ]
+                             ;
+
+arglist_or_void             := arglist
+                             |
                              ;
 
 arglist                     := argument
                                arglist_tail
-                             |
                              ;
 
-argument                    := expr              [ param_count               ] 
+argument                    := expr              [ push++: $                  ] 
                              ;
 
 arglist_tail                := ,

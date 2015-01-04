@@ -27,24 +27,37 @@
 #include <lexer.h>
 
 #ifdef LEXER_DEBUG
-#undef LEXER_DEBUG
+  #undef LEXER_DEBUG
 //#ifndef LEXER_DEBUG
-//#define LEXER_DEBUG
+//  #define LEXER_DEBUG
 #endif
-
-static void       _dequotify(str_t *);
-
-static int        _lexer_get_char(lexer_t *);
-static void       _lexer_push_back(lexer_t *, int);
-static void       _lexer_push_all_back(lexer_t *);
-static lexer_t *  _lexer_keyword_match_reducer(token_t *, lexer_t *);
-static int        _lexer_keyword_match(lexer_t *);
-static token_t *  _lexer_match_token(lexer_t *, int);
 
 typedef struct _lexer_state_str {
   lexer_state_t  state;
   char          *name;
 } lexer_state_str_t;
+
+typedef struct _token_code_str {
+  token_code_t  code;
+  char         *name;
+} token_code_str_t;
+
+typedef struct _kw_match {
+  token_t *kw;
+  int      full;
+} kw_match_t;
+
+static void         _dequotify(str_t *);
+
+static kw_match_t * _kw_match_match(token_t *, str_t *);
+static void         _kw_match_free(kw_match_t *);
+
+static int          _lexer_get_char(lexer_t *);
+static void         _lexer_push_back(lexer_t *, int);
+static void         _lexer_push_all_back(lexer_t *);
+static lexer_t *    _lexer_keyword_match_reducer(token_t *, lexer_t *);
+static int          _lexer_keyword_match(lexer_t *);
+static token_t *    _lexer_match_token(lexer_t *, int);
 
 static lexer_state_str_t lexer_state_names[] = {
     { LexerStateFresh,           "LexerStateFresh" },
@@ -54,6 +67,7 @@ static lexer_state_str_t lexer_state_names[] = {
     { LexerStateNewLine,         "LexerStateNewLine" },
     { LexerStateIdentifier,      "LexerStateIdentifier" },
     { LexerStateKeyword,         "LexerStateKeyword" },
+    { LexerStatePlusMinus,       "LexerStatePlusMinus" },
     { LexerStateZero,            "LexerStateZero" },
     { LexerStateNumber,          "LexerStateNumber" },
     { LexerStateDecimalInteger,  "LexerStateDecimalInteger" },
@@ -69,11 +83,6 @@ static lexer_state_str_t lexer_state_names[] = {
     { LexerStateStar,            "LexerStateStar" },
     { LexerStateDone,            "LexerStateDone" }
 };
-
-typedef struct _token_code_str {
-  token_code_t  code;
-  char         *name;
-} token_code_str_t;
 
 static token_code_str_t token_code_names[] = {
     { TokenCodeError,          "TokenCodeError" },
@@ -168,6 +177,29 @@ char * lexer_state_name(lexer_state_t state) {
   }
   sprintf(buf, "[Unknown state %d]", state);
   return buf;
+}
+
+/*
+ * kw_match_t - static interface
+ */
+
+kw_match_t * _kw_match_match(token_t *kw_token, str_t *lexer_token) {
+  kw_match_t *ret = NULL;
+  char       *kw = token_token(kw_token);
+
+  if ((str_len(lexer_token) <= strlen(kw)) &&
+      !str_ncmp_chars(lexer_token, kw, str_len(lexer_token))) {
+    ret = NEW(kw_match_t);
+    ret -> kw = kw_token;
+    ret -> full = str_len(lexer_token) == strlen(kw);
+  }
+  return ret;
+}
+
+void _kw_match_free(kw_match_t *kw_match) {
+  if (kw_match) {
+    free(kw_match);
+  }
 }
 
 /*
@@ -361,46 +393,93 @@ void _lexer_push_all_back(lexer_t *lexer) {
   str_erase(lexer -> token);
 }
 
-lexer_t * _lexer_keyword_match_reducer(token_t *token, lexer_t *lexer) {
-  char *kw;
+lexer_t * _lexer_keyword_match_reducer(token_t *kw, lexer_t *lexer) {
+  kw_match_t *match = _kw_match_match(kw, lexer -> token);
 
-  kw = token_token(token);
-  if ((str_len(lexer -> token) <= strlen(kw)) &&
-      !str_ncmp_chars(lexer -> token, kw, str_len(lexer -> token))) {
+  if (match) {
 #ifdef LEXER_DEBUG
-    debug("_lexer_keyword_match_reducer: found potential match '%s for keyword '%s'", str_chars(lexer -> token), kw);
+    debug("_lexer_keyword_match_reducer: found potential match '%s for keyword '%s'",
+          str_chars(lexer -> token), token_tostring(kw));
 #endif
-    list_append(lexer -> matches, token);
+    list_push(lexer -> matches, match);
   }
   return lexer;
 }
 
 int _lexer_keyword_match(lexer_t *lexer) {
-  int      ret;
-  token_t *match;
+  int               ret;
+  kw_match_t       *match;
+  kw_match_state_t  new_match_state;
 
   ret = TokenCodeNone;
   if (!str_len(lexer -> token)) return ret;
 
   lexer -> matches = list_create();
-  if (lexer -> matches) {
-    list_reduce(lexer -> keywords,
-                (reduce_t) _lexer_keyword_match_reducer, lexer);
-    if (list_size(lexer -> matches) == 1) {
-      match = (token_t *) list_head(lexer -> matches);
-      if (strlen(token_token(match)) == str_len(lexer -> token)) {
-        ret = token_code(match);
+  list_reduce(lexer -> keywords,
+              (reduce_t) _lexer_keyword_match_reducer, lexer);
+
+  if (list_size(lexer -> matches) == 1) {
+    match = (kw_match_t *) list_head(lexer -> matches);
+    if (match -> full) {
+#ifdef LEXER_DEBUG
+      debug("_lexer_keyword_match: Single FULL match found");
+#endif
+      lexer -> kw_match = KMSFullMatch;
+      ret = token_code(match -> kw);
+    } else {
+#ifdef LEXER_DEBUG
+      debug("_lexer_keyword_match: Single prefix match found");
+#endif
+      lexer -> kw_match = KMSPrefixMatched;
+    }
+    lexer -> state = LexerStateKeyword;
+
+  } else if (list_size(lexer -> matches) > 1) {
+    new_match_state = KMSPrefixesMatched;
+    for (list_start(lexer -> matches); list_has_next(lexer -> matches); ) {
+      match = (kw_match_t *) list_next(lexer -> matches);
+      if (match -> full) {
+#ifdef LEXER_DEBUG
+        debug("_lexer_keyword_match: Multi-match; one is full");
+#endif
+        if (lexer -> kw_match == KMSMatchLost) {
+          new_match_state = KMSFullMatch;
+          ret = token_code(match -> kw);
+        } else {
+          new_match_state = KMSFullMatchAndPrefixes;
+        }
       }
-      lexer -> state = LexerStateKeyword;
-    } else if (list_size(lexer -> matches) > 1) {
+    }
+    if ((lexer -> kw_match == KMSMatchLost) && (new_match_state == KMSPrefixesMatched)) {
+      new_match_state = KMSNoMatch;
+    }
+#ifdef LEXER_DEBUG
+    if (new_match_state == KMSPrefixesMatched) {
+      debug("_lexer_keyword_match: Multi-match; all prefix");
+    }
+#endif
+    lexer -> kw_match = new_match_state;
+    lexer -> state = LexerStateKeyword;
+
+  } else {
+    if (lexer -> kw_match == KMSFullMatchAndPrefixes) {
+#ifdef LEXER_DEBUG
+      debug("_lexer_keyword_match: No match; Lost match, backtracking to full match");
+#endif
+      lexer -> kw_match = KMSMatchLost;
       lexer -> state = LexerStateKeyword;
     } else {
+#ifdef LEXER_DEBUG
+      debug("_lexer_keyword_match: No match");
+#endif
+      lexer -> kw_match = KMSNoMatch;
       lexer -> state = LexerStateInit;
     }
-    list_set_free(lexer -> matches, NULL);
-    list_free(lexer -> matches);
-    lexer -> matches = NULL;
   }
+
+  list_set_free(lexer -> matches, _kw_match_free);
+  list_free(lexer -> matches);
+  lexer -> matches = NULL;
   return ret;
 }
 
@@ -433,16 +512,19 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
   ret = NULL;
   switch (lexer -> state) {
     case LexerStateInit:
-      if (!lexer -> no_kw_match) {
+      if (lexer -> kw_match != KMSNoMatch) {
         code = _lexer_keyword_match(lexer);
       }
-      if (!code && (lexer -> state == LexerStateInit)) {
+      if (lexer -> state != LexerStateKeyword) {
         if (!ignore_nl && ((ch == '\r') || (ch == '\n'))) {
           lexer -> state = LexerStateNewLine;
         } else if (isspace(ch)) {
           lexer -> state = LexerStateWhitespace;
         } else if (isalpha(ch) || (ch == '_')) {
           lexer -> state = LexerStateIdentifier;
+        } else if ((ch == '-') || (ch == '+')) {
+          lexer -> quote = ch;
+          lexer -> state = LexerStatePlusMinus;
         } else if (ch == '0') {
           lexer -> state = LexerStateZero;
         } else if (isdigit(ch)) {
@@ -480,21 +562,31 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
         code = TokenCodeIdentifier;
       }
       break;
+    case LexerStatePlusMinus:
+      if (ch == '0') {
+        lexer -> state = LexerStateZero;
+      } else if (isdigit(ch) || (ch == '.')) {
+        lexer -> state = LexerStateNumber;
+      } else {
+        _lexer_push_back(lexer, ch);
+        code = lexer -> quote;
+      }
+      break;
     case LexerStateZero:
+      /* FIXME: Second leading zero */
       if (isdigit(ch)) {
 	/*
 	 * We don't want octal numbers. Therefore we strip
-         * leading zeroes. Erasing the token leads to funny 
-	 * business like '00x23' being recognized as Hex. We
-	 * may fix that later, or maybe not.
+         * leading zeroes.
 	 */
-        str_erase(lexer -> token);
+        str_chop(lexer -> token, 2);
+        str_append_char(lexer -> token, ch);
         lexer -> state = LexerStateNumber;
       } else if (ch == '.') {
         lexer -> state = LexerStateFloat;
       } else if ((ch == 'x') || (ch == 'X')) {
 	/*
-	 * Heaxdecimals are returned including the leading
+	 * Hexadecimals are returned including the leading
          * 0x. This allows us to send both base-10 and hex ints
          * to strtol and friends.
 	 */
@@ -596,11 +688,20 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
         lexer -> state = LexerStateInit;
       }
       break;
+
     case LexerStateKeyword:
       code = _lexer_keyword_match(lexer);
-      if (!code && (lexer -> state == LexerStateInit)) {
-        _lexer_push_all_back(lexer);
-        lexer -> no_kw_match = 1;
+      switch (lexer -> kw_match) {
+        case KMSFullMatch:
+          assert(code);
+          break;
+        case KMSMatchLost:
+          _lexer_push_back(lexer, ch);
+          code = _lexer_keyword_match(lexer);
+          break;
+        case KMSNoMatch:
+          _lexer_push_all_back(lexer);
+          break;
       }
       break;
   }
@@ -741,7 +842,7 @@ token_t * lexer_next_token(lexer_t *lexer) {
       str_free(lexer -> pushed_back);
       lexer -> pushed_back = NULL;
     }
-    lexer -> no_kw_match = 0;
+    lexer -> kw_match = KMSInit;
 
     do {
       if (ret) {

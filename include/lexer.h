@@ -37,6 +37,7 @@ typedef enum _lexer_state {
   LexerStateNewLine,
   LexerStateIdentifier,
   LexerStateKeyword,
+  LexerStatePlusMinus,
   LexerStateZero,
   LexerStateNumber,
   LexerStateDecimalInteger,
@@ -105,6 +106,16 @@ typedef enum _lexer_option {
   LexerOptionLAST
 } lexer_option_t;
 
+typedef enum _kw_match_state {
+  KMSInit,
+  KMSPrefixMatched,
+  KMSPrefixesMatched,
+  KMSFullMatch,
+  KMSFullMatchAndPrefixes,
+  KMSMatchLost,
+  KMSNoMatch
+} kw_match_state_t;
+
 typedef struct _token {
   int   code;
   char *token;
@@ -113,20 +124,20 @@ typedef struct _token {
 } token_t;
 
 typedef struct _lexer {
-  reader_t      *reader;
-  list_t        *keywords;
-  array_t       *options;
-  str_t         *buffer;
-  str_t         *pushed_back;
-  str_t         *token;
-  lexer_state_t  state;
-  token_t       *last_match;
-  list_t        *matches;
-  int            no_kw_match;
-  char           quote;
-  int            prev_char;
-  int            line;
-  int            column;
+  reader_t         *reader;
+  list_t           *keywords;
+  array_t          *options;
+  str_t            *buffer;
+  str_t            *pushed_back;
+  str_t            *token;
+  lexer_state_t     state;
+  token_t          *last_match;
+  list_t           *matches;
+  kw_match_state_t  kw_match;
+  char              quote;
+  int               prev_char;
+  int               line;
+  int               column;
 } lexer_t;
 
 extern char *       lexer_state_name(lexer_state_t);

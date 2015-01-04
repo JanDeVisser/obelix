@@ -34,7 +34,6 @@ typedef enum {
   PSETypeFunction,
   PSETypePush,
   PSETypeSet,
-  PSETypeIncr
 } parser_stack_entry_type_t;
 
 typedef struct _parser_stack_entry {
@@ -46,6 +45,7 @@ typedef struct _parser_stack_entry {
     rule_entry_t  *entry;
     function_t    *fnc;
     data_t        *value;
+    pushvalue_t   *pushvalue;
   };
 } parser_stack_entry_t;
 
@@ -53,9 +53,8 @@ static parser_stack_entry_t * _parser_stack_entry_for_rule(rule_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_nonterminal(nonterminal_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_entry(rule_entry_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_function(function_t *);
-static parser_stack_entry_t * _parser_stack_entry_for_pushvalue(token_t *);
+static parser_stack_entry_t * _parser_stack_entry_for_pushvalue(pushvalue_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_setvalue(char *, token_t *);
-static parser_stack_entry_t * _parser_stack_entry_for_incrvalue(char *);
 static void                   _parser_stack_entry_free(parser_stack_entry_t *);
 static char *                 _parser_stack_entry_tostring(parser_stack_entry_t *);
 
@@ -105,12 +104,12 @@ parser_stack_entry_t * _parser_stack_entry_for_function(function_t *function) {
   return ret;
 }
 
-parser_stack_entry_t * _parser_stack_entry_for_pushvalue(token_t *token) {
+parser_stack_entry_t * _parser_stack_entry_for_pushvalue(pushvalue_t *pushvalue) {
   parser_stack_entry_t *ret;
 
   ret = NEW(parser_stack_entry_t);
   ret -> type = PSETypePush;
-  ret -> value = (token_code(token) != TokenCodeDollar) ? token_todata(token) : NULL;
+  ret -> pushvalue = pushvalue_copy(pushvalue);
   return ret;
 }
 
@@ -124,26 +123,14 @@ parser_stack_entry_t * _parser_stack_entry_for_setvalue(char *name, token_t *tok
   return ret;
 }
 
-parser_stack_entry_t * _parser_stack_entry_for_incrvalue(char *name) {
-  parser_stack_entry_t *ret;
-
-  ret = NEW(parser_stack_entry_t);
-  ret -> type = PSETypeIncr;
-  ret -> name = strdup(name);
-  return ret;
-}
-
 void _parser_stack_entry_free(parser_stack_entry_t *entry) {
   if (entry) {
     switch (entry -> type) {
-      case PSETypeIncr:
-        free(entry -> name);
-        break;
       case PSETypeSet:
         free(entry -> name);
         /* no break */
       case PSETypePush:
-        data_free(entry -> value);
+        pushvalue_free(entry -> pushvalue);
         break;
       case PSETypeFunction:
         function_free(entry -> fnc);
@@ -178,16 +165,12 @@ char * _parser_stack_entry_tostring(parser_stack_entry_t *e) {
       buf[maxlen - 1] = 0;
       break;
     case PSETypePush:
-      snprintf(buf, maxlen, "P %s", data_tostring(e -> value));
+      snprintf(buf, maxlen, "P %s", pushvalue_tostring(e -> pushvalue));
       buf[maxlen - 1] = 0;
       break;
     case PSETypeSet:
       snprintf(buf, maxlen, "S %s = %s",
                e -> name, data_tostring(e -> value));
-      buf[maxlen - 1] = 0;
-      break;
-    case PSETypeIncr:
-      snprintf(buf, maxlen, "I %s", e -> name);
       buf[maxlen - 1] = 0;
       break;
   }
@@ -200,6 +183,8 @@ char * _parser_stack_entry_tostring(parser_stack_entry_t *e) {
 
 
 parser_t * _parser_lr1(token_t *token, parser_t *parser) {
+  error("Bottom-up parsing is not yet implemented");
+  assert(0);
   return parser;
 }
 
@@ -245,13 +230,7 @@ parser_t * _parser_push_setvalues(entry_t *entry, parser_t *parser) {
       _parser_stack_entry_for_setvalue(entry -> key, entry -> value));
 }
 
-parser_t * _parser_push_incrvalues(char *name, parser_t *parser) {
-  return _parser_push_to_prodstack(
-      parser,
-      _parser_stack_entry_for_incrvalue(name));
-}
-
-parser_t * _parser_push_pushvalues(token_t *value, parser_t *parser) {
+parser_t * _parser_push_pushvalues(pushvalue_t *value, parser_t *parser) {
   return _parser_push_to_prodstack(
       parser,
       _parser_stack_entry_for_pushvalue(value));
@@ -273,7 +252,6 @@ parser_t * _parser_push_grammar_element(parser_t *parser, ge_t *element, int ini
           _parser_stack_entry_for_function(ge_get_finalizer(element)));
     }
     dict_reduce(element -> variables, (reduce_t) _parser_push_setvalues, parser);
-    set_reduce(element -> incrs, (reduce_t) _parser_push_incrvalues, parser);
     set_reduce(element -> pushvalues, (reduce_t) _parser_push_pushvalues, parser);
   }
   return parser;
@@ -289,6 +267,9 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
   int                   code;
   int                   i;
   data_t               *data;
+  data_t               *counter;
+  pushvalue_t          *pushvalue;
+  token_t              *pushtoken;
 
   code = token_code(token);
   e = list_pop(parser -> prod_stack);
@@ -304,7 +285,6 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
   } else if ((consuming == 1) &&
       (e -> type != PSETypeFunction) &&
       (e -> type != PSETypeSet) &&
-      (e -> type != PSETypeIncr) &&
       (e -> type != PSETypePush)) {
     list_push(parser -> prod_stack, e);
     consuming = 0;
@@ -314,7 +294,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
     }
     switch (e -> type) {
       case PSETypeNonTerminal:
-        rule = e -> rule;
+        nonterminal = e -> nonterminal;
         rule = dict_get_int(nonterminal -> parse_table, code);
         assert(rule);
         // TODO: Error Handling.
@@ -323,7 +303,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
         // This is what normal people call a syntax error :-)
         if (array_size(rule -> entries)) {
           for (i = array_size(rule -> entries) - 1; i >= 0; i--) {
-            entry = (rule_entry_t *) array_get(rule -> entries, i);
+            entry = rule_get_entry(rule, i);
             if (entry -> terminal) {
               _parser_push_grammar_element(parser, entry -> ge, 0);
               _parser_push_to_prodstack(
@@ -374,8 +354,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
       case PSETypeFunction:
         assert(e -> fnc -> fnc);
         if (parser_debug) {
-          debug("    Executing non-terminal function %s",
-                function_tostring(e -> fnc));
+          debug("    Executing function %s", function_tostring(e -> fnc));
         }
         e -> fnc -> fnc(parser);
         break;
@@ -392,6 +371,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
           data_free(data);
         }
         break;
+#if 0
       case PSETypeIncr:
         data = (data_t *) dict_get(parser -> variables, e -> name);
         if (data) {
@@ -410,17 +390,28 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
           }
         }
         break;
+#endif
       case PSETypePush:
-        data = e -> value;
-        if (!data) {
-          data = token_todata(parser -> last_token);
+        pushvalue = e -> pushvalue;
+        if (pushvalue -> incr) {
+          counter = datastack_pop(parser -> stack);
+          counter -> intval++;
         }
-        if (parser_debug) {
-          debug("    Pushing value %s", data_tostring(data));
+        if (pushvalue -> value) {
+          pushtoken = (token_code(pushvalue -> value) == TokenCodeDollar)
+            ? parser -> last_token
+            : pushvalue -> value;
+          data = token_todata(pushtoken);
+          if (parser_debug) {
+            debug("    Pushing value %s", data_tostring(data));
+          }
+          datastack_push(parser -> stack, data);
         }
-        datastack_push(parser -> stack, data_copy(data));
-        if (!e -> value) {
-          data_free(data);
+        if (pushvalue -> incr) {
+          if (parser_debug) {
+            debug("    Updated counter to %s and pushing", data_tostring(counter));
+          }
+          datastack_push(parser -> stack, counter);
         }
         break;
     }

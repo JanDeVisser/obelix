@@ -40,7 +40,7 @@ typedef struct _grammar_parser {
   grammar_t     *grammar;
   gp_state_t     state;
   gp_state_t     old_state;
-  char          *string;
+  token_t       *last_token;
   ge_t          *ge;
   nonterminal_t *nonterminal;
   rule_t        *rule;
