@@ -95,6 +95,7 @@ list_t * list_create() {
     ret -> size = 0;
     ret -> freefnc = NULL;
     ret -> cmp = NULL;
+    ret -> iter = li_create(ret);
   } 
   return ret;
 }
@@ -124,6 +125,7 @@ void list_free(list_t *list) {
     list_clear(list);
     _ln_free(list -> head);
     _ln_free(list -> tail);
+    li_free(list -> iter);
     free(list);
   }
 }
@@ -324,6 +326,36 @@ str_t * list_tostr(list_t *list) {
   }
   str_free(catted);
   return ret;
+}
+
+listiterator_t * list_start(list_t *list) {
+  li_head(list -> iter);
+  return list -> iter;
+}
+
+listiterator_t * list_end(list_t *list) {
+  li_tail(list -> iter);
+  return list -> iter;
+}
+
+void * list_current(list_t *list) {
+  return li_current(list -> iter);
+}
+
+int list_has_next(list_t *list) {
+  return li_has_next(list -> iter);
+}
+
+int list_has_prev(list_t *list) {
+  return li_has_prev(list -> iter);
+}
+
+void * list_next(list_t *list) {
+  return li_next(list -> iter);
+}
+
+void * list_prev(list_t *list) {
+  return li_prev(list -> iter);
 }
 
 // -------------------

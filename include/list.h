@@ -32,41 +32,55 @@ typedef struct _listnode {
   void             *data;
 } listnode_t;
 
+typedef struct _listiter {
+  struct _list *list;
+  listnode_t   *current;
+} listiterator_t;
+
 typedef struct _list {
-  listnode_t *head;
-  listnode_t *tail;
-  int         size;
-  free_t      freefnc;
-  cmp_t       cmp;
-  tostring_t  tostring;
-  hash_t      hash;
+  listnode_t     *head;
+  listnode_t     *tail;
+  int             size;
+  free_t          freefnc;
+  cmp_t           cmp;
+  tostring_t      tostring;
+  hash_t          hash;
+  listiterator_t *iter;
 } list_t;
 
-extern list_t *     list_create();
-extern list_t *     _list_set_free(list_t *, visit_t);
-extern list_t *     _list_set_cmp(list_t *, cmp_t);
-extern list_t *     _list_set_tostring(list_t *, tostring_t);
-extern list_t *     _list_set_hash(list_t *, hash_t);
-extern void         list_free(list_t *);
-extern list_t *     list_append(list_t *, void *);
-extern list_t *     list_unshift(list_t *, void *);
-extern list_t *     list_add_all(list_t *, list_t *);
-extern int          list_size(list_t *);
-extern unsigned int list_hash(list_t *);
-extern void *       __list_reduce(list_t *, reduce_t, void *, reduce_type_t);
-extern void *       _list_reduce(list_t *, reduce_t, void *);
-extern void *       _list_reduce_chars(list_t *, reduce_t, void *);
-extern void *       _list_reduce_str(list_t *, reduce_t, void *);
-extern list_t *     _list_visit(list_t *, visit_t);
-extern void *       _list_process(list_t *, reduce_t, void *);
-extern list_t *     list_clear(list_t *);
-extern void *       list_head(list_t *);
-extern void *       list_tail(list_t *);
-extern listnode_t * list_head_pointer(list_t *);
-extern listnode_t * list_tail_pointer(list_t *);
-extern void *       list_shift(list_t *);
-extern void *       list_pop(list_t *);
-extern str_t *      list_tostr(list_t *);
+extern list_t *         list_create();
+extern list_t *         _list_set_free(list_t *, visit_t);
+extern list_t *         _list_set_cmp(list_t *, cmp_t);
+extern list_t *         _list_set_tostring(list_t *, tostring_t);
+extern list_t *         _list_set_hash(list_t *, hash_t);
+extern void             list_free(list_t *);
+extern list_t *         list_append(list_t *, void *);
+extern list_t *         list_unshift(list_t *, void *);
+extern list_t *         list_add_all(list_t *, list_t *);
+extern int              list_size(list_t *);
+extern unsigned int     list_hash(list_t *);
+extern void *           __list_reduce(list_t *, reduce_t, void *, reduce_type_t);
+extern void *           _list_reduce(list_t *, reduce_t, void *);
+extern void *           _list_reduce_chars(list_t *, reduce_t, void *);
+extern void *           _list_reduce_str(list_t *, reduce_t, void *);
+extern list_t *         _list_visit(list_t *, visit_t);
+extern void *           _list_process(list_t *, reduce_t, void *);
+extern list_t *         list_clear(list_t *);
+extern void *           list_head(list_t *);
+extern void *           list_tail(list_t *);
+extern listnode_t *     list_head_pointer(list_t *);
+extern listnode_t *     list_tail_pointer(list_t *);
+extern void *           list_shift(list_t *);
+extern void *           list_pop(list_t *);
+extern str_t *          list_tostr(list_t *);
+
+extern listiterator_t * list_start(list_t *);
+extern listiterator_t * list_end(list_t *);
+extern void *           list_current(list_t *);
+extern int              list_has_next(list_t *);
+extern int              list_has_prev(list_t *);
+extern void *           list_next(list_t *);
+extern void *           list_prev(list_t *);
 
 #define list_push(l, d)         list_append((l), (d))
 #define list_peek(l)            list_tail((l))
@@ -91,11 +105,6 @@ extern str_t *      list_tostr(list_t *);
                                       (hash_t) strhash), \
                                     (free_t) free), \
                                   (tostring_t) chars)
-
-typedef struct _listiter {
-  list_t     *list;
-  listnode_t *current;
-} listiterator_t;
 
 extern listiterator_t * li_create(list_t *);
 extern void             li_free(listiterator_t *);

@@ -36,7 +36,7 @@ static void                _grammar_free(grammar_t *);
 static void                _grammar_get_firsts_visitor(entry_t *);
 static int *               _grammar_check_LL1_reducer(entry_t *, int *);
 static void                _grammar_build_parse_table_visitor(entry_t *);
-static ge_t *              _grammar_set_option(ge_t *, char *, token_t *);
+static ge_t *              _grammar_set_option(ge_t *, token_t *, token_t *);
 
 static nonterminal_t *     _nonterminal_create(ge_t *, va_list);
 static void                _nonterminal_free(nonterminal_t *);
@@ -109,6 +109,62 @@ static typedescr_t elements[] = {
   },
 };
 
+/*
+ * pushvalue_t -
+ */
+
+pushvalue_t * pushvalue_create(token_t *value, int increment) {
+  pushvalue_t *ret;
+
+  ret = NEW(pushvalue_t);
+  ret -> value = (value) ? token_copy(value) : NULL;
+  ret -> incr = increment;
+  return ret;
+}
+
+pushvalue_t * pushvalue_copy(pushvalue_t *pushvalue) {
+  return pushvalue_create(pushvalue -> value, pushvalue -> incr);
+}
+
+void pushvalue_free(pushvalue_t *pushvalue) {
+  if (pushvalue) {
+    token_free(pushvalue -> value);
+    free(pushvalue);
+  }
+}
+
+int pushvalue_cmp(pushvalue_t *pv1, pushvalue_t *pv2) {
+  int ret;
+
+  if (pv1 -> value && pv2 -> value) {
+    ret = token_cmp(pv1 -> value, pv2 -> value);
+    if (!ret) {
+      ret = pv1 -> incr - pv2 -> incr;
+    }
+  } else if (!pv1 -> value && !pv2 -> value) {
+    ret = pv1 -> incr - pv2 -> incr;
+  } else {
+    ret = (pv1 -> value) ? 1 : -1;
+  }
+  return ret;
+}
+
+unsigned int pushvalue_hash(pushvalue_t *pushvalue) {
+  if (pushvalue -> value) {
+    return token_hash(pushvalue -> value);
+  } else {
+    return pushvalue -> incr;
+  }
+}
+
+char * pushvalue_tostring(pushvalue_t *pushvalue) {
+  static char buf[132];
+
+  snprintf(buf, 132, "%s%s",
+           (pushvalue -> value) ? token_tostring(pushvalue -> value) : "",
+           (pushvalue -> incr) ? " [+]" : "");
+  return buf;
+}
 
 /*
  * ge_t - static functions
@@ -124,9 +180,10 @@ ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, 
   ret -> owner = owner;
   ret -> initializer = NULL;
   ret -> finalizer = NULL;
-  ret -> pushvalues = set_create((cmp_t) token_cmp);
-  set_set_free(ret -> pushvalues, (free_t) token_free);
-  ret -> incrs = strset_create();
+  ret -> pushvalues = set_create((cmp_t) pushvalue_cmp);
+  set_set_free(ret -> pushvalues, (free_t) pushvalue_free);
+  set_set_hash(ret -> pushvalues, (hash_t) pushvalue_hash);
+  set_set_tostring(ret -> pushvalues, (tostring_t) pushvalue_tostring);
   ret -> variables = strtoken_dict_create();
   va_start(args, type);
   if (elements[type].new) {
@@ -144,7 +201,6 @@ void ge_free(ge_t *ge) {
   if (ge) {
     dict_free(ge -> variables);
     set_free(ge -> pushvalues);
-    set_free(ge -> incrs);
     function_free(ge -> initializer);
     function_free(ge -> finalizer);
     if (elements[ge -> type].free) {
@@ -154,13 +210,8 @@ void ge_free(ge_t *ge) {
   }
 }
 
-ge_t * ge_add_pushvalue(ge_t *ge, token_t *token) {
-  set_add(ge -> pushvalues, token_copy(token));
-  return ge;
-}
-
-ge_t * ge_add_incr(ge_t *ge, token_t *token) {
-  set_add(ge -> incrs, strdup(token_token(token)));
+ge_t * ge_add_pushvalue(ge_t *ge, pushvalue_t *pushvalue) {
+  set_add(ge -> pushvalues, pushvalue);
   return ge;
 }
 
@@ -182,21 +233,31 @@ function_t * ge_get_finalizer(ge_t *ge) {
   return ge -> finalizer;
 }
 
-ge_t * ge_set_option(ge_t *ge, char *name, token_t *val) {
-  if (!strcmp(name, "init")) {
-    ge_set_initializer(ge, grammar_resolve_function(ge -> grammar, token_token(val)));
-  } else if (!strcmp(name, "done")) {
-    ge_set_finalizer(ge, grammar_resolve_function(ge -> grammar, token_token(val)));
-  } else if (!strcmp(name, "push")) {
-    ge_add_pushvalue(ge, val);
-  } else if (!strcmp(name, "incr")) {
-    ge_add_incr(ge, val);
-  } else if (ge -> set_option_delegate && ge -> set_option_delegate(ge, name, val)) {
-    //
-  } else {
-    dict_put(ge -> variables, strdup(name), token_copy(val));
+ge_t * ge_set_option(ge_t *ge, token_t *name, token_t *val) {
+  pushvalue_t *pushvalue;
+
+  switch (token_code(name)) {
+    case INIT:
+      ge_set_initializer(ge, grammar_resolve_function(ge -> grammar, token_token(val)));
+      break;
+    case DONE:
+      ge_set_finalizer(ge, grammar_resolve_function(ge -> grammar, token_token(val)));
+      break;
+    case PUSH:
+      ge_add_pushvalue(ge, pushvalue_create(val, 0));
+      break;
+    case PUSH_INCR:
+      ge_add_pushvalue(ge, pushvalue_create(val, 1));
+      break;
+    case INCR:
+      ge_add_pushvalue(ge, pushvalue_create(NULL, 1));
+      break;
+    default:
+      if (!ge -> set_option_delegate || !ge -> set_option_delegate(ge, name, val)) {
+        dict_put(ge -> variables, strdup(token_token(name)), token_copy(val));
+      }
+      break;
   }
-  return ge;
 }
 
 /*
@@ -328,36 +389,46 @@ void _grammar_free(grammar_t *grammar) {
   }
 }
 
-ge_t * _grammar_set_option(ge_t *ge, char *name, token_t *val) {
+ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
   int        b;
   grammar_t *g = ge -> grammar;
   char      *str;
 
-  if (!strcmp(name, "lib")) {
-    resolve_library(token_token(val));
-  } else if (!strcmp(name, "prefix")) {
-    g -> prefix = strdup(token_token(val));
-  } else if (!strcmp(name, "strategy")) {
-    str = token_token(val);
-    if (!strncmp(str, "topdown", 7)|| !strncmp(str, "ll(1)", 5)) {
-      grammar_set_parsing_strategy(g, ParsingStrategyTopDown);
-    } else if (!strncmp(str, "bottomup", 8) || !strncmp(str, "lr(1)", 5)) {
-      grammar_set_parsing_strategy(g, ParsingStrategyBottomUp);
-    }
-  } else if (!strcmp(name, "ignore_ws")) {
-    grammar_set_lexer_option(g, LexerOptionIgnoreWhitespace,
-                       atob(token_token(val)));
-  } else if (!strcmp(name, "ignore_nl")) {
-    grammar_set_lexer_option(g, LexerOptionIgnoreNewLines,
-                       atob(token_token(val)));
-  } else if (!strcmp(name, "case_sensitive")) {
-    grammar_set_lexer_option(g, LexerOptionCaseSensitive,
-                       atob(token_token(val)));
-  } else if (!strcmp(name, "hashpling")) {
-    grammar_set_lexer_option(g, LexerOptionHashPling,
-                       atob(token_token(val)));
-  } else {
-    ge = NULL;
+  switch (token_code(name)) {
+    case LIB:
+      resolve_library(token_token(val));
+      break;
+    case PREFIX:
+      g -> prefix = strdup(token_token(val));
+      break;
+    case STRATEGY:
+      str = token_token(val);
+      if (!strncmp(str, "topdown", 7)|| !strncmp(str, "ll(1)", 5)) {
+        grammar_set_parsing_strategy(g, ParsingStrategyTopDown);
+      } else if (!strncmp(str, "bottomup", 8) || !strncmp(str, "lr(1)", 5)) {
+        grammar_set_parsing_strategy(g, ParsingStrategyBottomUp);
+      }
+      break;
+    case IGNORE:
+      str = token_token(val);
+      if (strstr(str, "whitespace")) {
+        grammar_set_lexer_option(g, LexerOptionIgnoreWhitespace, 1);
+      }
+      if (strstr(str, "newlines")) {
+        grammar_set_lexer_option(g, LexerOptionIgnoreNewLines, 1);
+      }
+      break;
+    case CASE_SENSITIVE:
+      grammar_set_lexer_option(g, LexerOptionCaseSensitive,
+                         atob(token_token(val)));
+      break;
+    case HASHPLING:
+      grammar_set_lexer_option(g, LexerOptionHashPling,
+                         atob(token_token(val)));
+      break;
+    default:
+      ge = NULL;
+      break;
   }
   return ge;
 }

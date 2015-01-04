@@ -96,58 +96,88 @@ grammar_parser_t * _grammar_parser_state_start(token_t *token, grammar_parser_t 
 }
 
 grammar_parser_t * _grammar_parser_state_options(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  grammar_t *g;
-  gp_state_t state;
+  grammar_parser_t *ret = NULL;
+  token_t          *t;
 
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-
-  switch (code) {
-    case TokenCodeIdentifier:
-      grammar_parser -> string = strdup(str);
+  switch (token_code(token)) {
+    case PUSH:
+    case PUSH_INCR:
+    case INIT:
+    case DONE:
+      grammar_parser -> last_token = token_copy(token);
       grammar_parser -> state = GPStateOptionName;
+      ret = grammar_parser;
+      break;
+
+    case INCR:
+      t = token_create(TokenCodeIdentifier, "autogen");
+      ge_set_option(grammar_parser -> ge, token, t);
+      token_free(t);
+      ret = grammar_parser;
+      break;
+
+    case LIB:
+    case PREFIX:
+    case STRATEGY:
+    case IGNORE:
+    case CASE_SENSITIVE:
+    case HASHPLING:
+      if (grammar_parser -> old_state == GPStateStart) {
+        grammar_parser -> last_token = token_copy(token);
+        grammar_parser -> state = GPStateOptionName;
+        ret = grammar_parser;
+      }
       break;
 
     case TokenCodePercent:
       if (grammar_parser -> old_state == GPStateStart) {
+        /* Hack - need to revisit the whole options thing. */
+        if (grammar_parser -> last_token) {
+          t = token_create(DONE, "autogen");
+          ge_set_option(grammar_parser -> ge, t,
+                        grammar_parser -> last_token);
+          token_free(t);
+          token_free(grammar_parser -> last_token);
+          grammar_parser -> last_token = NULL;
+        }
         grammar_parser -> state = grammar_parser -> old_state;
+        ret = grammar_parser;
       }
       break;
 
     case TokenCodeCloseBracket:
       if (grammar_parser -> old_state != GPStateStart) {
+        /* Hack - need to revisit the whole options thing. */
+        if (grammar_parser -> last_token) {
+          t = token_create(
+              (grammar_parser -> old_state != GPStateRule) ? DONE : INIT,
+              "autogen");
+          ge_set_option(grammar_parser -> ge, t,
+                        grammar_parser -> last_token);
+          token_free(t);
+          token_free(grammar_parser -> last_token);
+          grammar_parser -> last_token = NULL;
+        }
         grammar_parser -> state = grammar_parser -> old_state;
+        ret = grammar_parser;
       }
       break;
 
-    default:
-      _grammar_parser_syntax_error(
-          grammar_parser,
-          "Unexpected token '%s' in option block",
-          token_tostring(token));
+    case TokenCodeIdentifier:
+      grammar_parser -> last_token = token_copy(token);
+      ret = grammar_parser;
+      break;
+  }
+  if (!ret) {
+    _grammar_parser_syntax_error(grammar_parser,
+                                 "Unexpected token '%s' in option block",
+                                 token_tostring(token));
   }
   return grammar_parser;
 }
 
 grammar_parser_t * _grammar_parser_state_option_name(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  grammar_t *g;
-  gp_state_t state;
-  token_t   *t;
-
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-
-  switch (code) {
+  switch (token_code(token)) {
     case TokenCodeIdentifier:
     case TokenCodeInteger:
     case TokenCodeHexNumber:
@@ -156,38 +186,14 @@ grammar_parser_t * _grammar_parser_state_option_name(token_t *token, grammar_par
     case TokenCodeDQuotedStr:
     case TokenCodeBQuotedStr:
     case TokenCodeDollar:
-      ge_set_option(grammar_parser -> ge, grammar_parser -> string, token);
-      free(grammar_parser -> string);
-      grammar_parser -> string = NULL;
+      ge_set_option(grammar_parser -> ge, grammar_parser -> last_token, token);
+      token_free(grammar_parser -> last_token);
+      grammar_parser -> last_token = NULL;
       grammar_parser -> state = GPStateOptions;
       break;
 
     case TokenCodeColon:
     case TokenCodeEquals:
-      break;
-
-    case TokenCodePercent:
-      if (grammar_parser -> old_state == GPStateStart) {
-        /* Hack - need to revisit the whole options thing. */
-        t = token_create(TokenCodeIdentifier, grammar_parser -> string);
-        ge_set_option(grammar_parser -> ge, strdup("done"), t);
-        token_free(t);
-        free(grammar_parser -> string);
-        grammar_parser -> string = NULL;
-        grammar_parser -> state = grammar_parser -> old_state;
-      }
-      break;
-
-    case TokenCodeCloseBracket:
-      if (grammar_parser -> old_state != GPStateStart) {
-        /* Hack - need to revisit the whole options thing. */
-        t = token_create(TokenCodeIdentifier, grammar_parser -> string);
-        ge_set_option(grammar_parser -> ge, "done", t);
-        token_free(t);
-        free(grammar_parser -> string);
-        grammar_parser -> string = NULL;
-        grammar_parser -> state = grammar_parser -> old_state;
-      }
       break;
 
     default:
@@ -204,21 +210,10 @@ grammar_parser_t * _grammar_parser_state_header(token_t *token, grammar_parser_t
 }
 
 grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  char       buf[100];
-  grammar_t *g;
-  gp_state_t state;
-
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-
-  switch (code) {
+  switch (token_code(token)) {
     case TokenCodeIdentifier:
-      grammar_parser -> nonterminal = nonterminal_create(grammar_parser -> grammar, str);
+      grammar_parser -> nonterminal = nonterminal_create(grammar_parser -> grammar,
+                                                         token_token(token));
       grammar_parser -> rule = NULL;
       grammar_parser -> entry = NULL;
       grammar_parser -> ge = grammar_parser -> nonterminal -> ge;
@@ -229,7 +224,7 @@ grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_par
       grammar_parser -> state = GPStateOptions;
       break;
 
-    case 200:
+    case NONTERMINAL_DEF:
       if (grammar_parser -> nonterminal) {
         grammar_parser -> rule = rule_create(grammar_parser -> nonterminal);
         grammar_parser -> state = GPStateRule;
@@ -239,6 +234,15 @@ grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_par
             grammar_parser,
             "The ':=' operator must be preceded by a non-terminal name",
             token_tostring(token));
+      }
+      break;
+
+    case TokenCodeEnd:
+      if (grammar_parser -> nonterminal) {
+        _grammar_parser_syntax_error(
+            grammar_parser,
+            "Unexpected end-of-file in definition of non-terminal '%s'",
+            grammar_parser -> nonterminal -> name);
       }
       break;
 
@@ -259,45 +263,44 @@ grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_par
 }
 
 grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  grammar_t *g;
-  gp_state_t state;
+  char  *str;
+  int    code;
+  char   terminal_str[2];
 
-  g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
-  code = token_code(token);
   str = token_token(token);
-
+  code = token_code(token);
   switch (code) {
     case TokenCodePipe:
       grammar_parser -> rule = rule_create(grammar_parser -> nonterminal);
       grammar_parser -> state = GPStateRule;
       grammar_parser -> ge = grammar_parser -> rule -> ge;
       break;
+
     case TokenCodeSemiColon:
       grammar_parser -> nonterminal = NULL;
       grammar_parser -> rule = NULL;
       grammar_parser -> entry = NULL;
       grammar_parser -> state = GPStateNonTerminal;
       break;
+
     case TokenCodeOpenBracket:
-      if (grammar_parser -> state == GPStateEntry) {
-        grammar_parser -> old_state = grammar_parser -> state;
-        grammar_parser -> state = GPStateOptions;
-      }
+      grammar_parser -> old_state = grammar_parser -> state;
+      grammar_parser -> state = GPStateOptions;
       break;
+
     case TokenCodeIdentifier:
-      grammar_parser -> entry = rule_entry_non_terminal(grammar_parser -> rule, str);
+      grammar_parser -> entry = rule_entry_non_terminal(grammar_parser -> rule,
+                                                        token_token(token));
       grammar_parser -> ge = grammar_parser -> entry -> ge;
       grammar_parser -> state = GPStateEntry;
       break;
+
     case TokenCodeDQuotedStr:
       grammar_parser -> entry = rule_entry_terminal(grammar_parser -> rule, token);
       grammar_parser -> ge = grammar_parser -> entry -> ge;
       grammar_parser -> state = GPStateEntry;
       break;
+
     case TokenCodeSQuotedStr:
       if (strlen(str) == 1) {
         code = str[0];
@@ -314,12 +317,14 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
             token_tostring(token));
       }
       break;
+
     default:
       if ((code >= '!') && (code <= '~')) {
         grammar_parser -> entry = rule_entry_terminal(grammar_parser -> rule, token);
         grammar_parser -> ge = grammar_parser -> entry -> ge;
         grammar_parser -> state = GPStateEntry;
       } else {
+        debug("code: %c %d", code, code);
         _grammar_parser_syntax_error(
             grammar_parser,
             "Token '%s' cannot be used in a rule or rule entry definition",
@@ -334,8 +339,6 @@ grammar_parser_t * _grammar_parser_state_entry(token_t *token, grammar_parser_t 
   return _grammar_parser_state_rule(token, grammar_parser);
 }
 
-#define  SYNTAX_ERROR
-
 void _grammar_parser_syntax_error(grammar_parser_t *gp, char *msg, ...) {
   va_list  args;
   char     buf[256];
@@ -349,17 +352,9 @@ void _grammar_parser_syntax_error(grammar_parser_t *gp, char *msg, ...) {
 
 
 grammar_parser_t * _grammar_token_handler(token_t *token, grammar_parser_t *grammar_parser) {
-  int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
-  grammar_t *g;
   gp_state_t state;
 
-  g = grammar_parser -> grammar;
   state = grammar_parser -> state;
-  code = token_code(token);
-  str = token_token(token);
-
   if (grammar_debug) {
     debug("%-18.18s %s", _gp_state_recs[state].name, token_tostring(token));
   }
@@ -378,7 +373,7 @@ grammar_parser_t * _grammar_parser_create(reader_t *reader) {
   grammar_parser -> reader = reader;
   grammar_parser -> state = GPStateStart;
   grammar_parser -> grammar = NULL;
-  grammar_parser -> string = NULL;
+  grammar_parser -> last_token = NULL;
   grammar_parser -> nonterminal = NULL;
   grammar_parser -> rule = NULL;
   grammar_parser -> entry = NULL;
@@ -389,7 +384,7 @@ grammar_parser_t * _grammar_parser_create(reader_t *reader) {
 
 void grammar_parser_free(grammar_parser_t *grammar_parser) {
   if (grammar_parser) {
-    free(grammar_parser -> string);
+    token_free(grammar_parser -> last_token);
     free(grammar_parser);
   }
 }
@@ -401,16 +396,31 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   gp -> grammar = grammar_create();
   gp -> grammar -> dryrun = gp -> dryrun;
   lexer = lexer_create(gp -> reader);
-  lexer_add_keyword(lexer, 200, ":=");
+  lexer_add_keyword(lexer, NONTERMINAL_DEF, NONTERMINAL_DEF_STR);
+  lexer_add_keyword(lexer, PUSH, PUSH_STR);
+  lexer_add_keyword(lexer, PUSH_INCR, PUSH_INCR_STR);
+  lexer_add_keyword(lexer, INIT, INIT_STR);
+  lexer_add_keyword(lexer, DONE, DONE_STR);
+  lexer_add_keyword(lexer, INCR, INCR_STR);
+
+  lexer_add_keyword(lexer, LIB, LIB_STR);
+  lexer_add_keyword(lexer, PREFIX, PREFIX_STR);
+  lexer_add_keyword(lexer, STRATEGY, STRATEGY_STR);
+  lexer_add_keyword(lexer, IGNORE, IGNORE_STR);
+  lexer_add_keyword(lexer, CASE_SENSITIVE, CASE_SENSITIVE_STR);
+  lexer_add_keyword(lexer, HASHPLING, HASHPLING_STR);
+
   lexer_set_option(lexer, LexerOptionIgnoreWhitespace, TRUE);
   lexer_tokenize(lexer, _grammar_token_handler, gp);
-  if (grammar_analyze(gp -> grammar)) {
-    if (grammar_debug) {
-      grammar_dump(gp -> grammar);
-      info("Grammar successfully analyzed");
+  if (gp -> state != GPStateError) {
+    if (grammar_analyze(gp -> grammar)) {
+      if (grammar_debug) {
+        grammar_dump(gp -> grammar);
+        info("Grammar successfully analyzed");
+      }
+    } else {
+      error("Error(s) analyzing grammar");
     }
-  } else {
-    error("Error(s) analyzing grammar");
   }
   lexer_free(lexer);
   return gp -> grammar;
