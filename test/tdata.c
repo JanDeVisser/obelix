@@ -266,7 +266,7 @@ START_TEST(test_data_cmp)
   ret = execute(f1, ">", 1, Bool, FALSE);
   ck_assert_ptr_ne(ret, NULL);
   ck_assert_int_eq(data_type(ret), Bool);
-  ck_assert_int_eq(data_longval(ret), TRUE);
+  ck_assert_int_eq(ret -> intval, TRUE);
 
   data_free(ret);
   data_free(i1);

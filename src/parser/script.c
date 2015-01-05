@@ -35,11 +35,6 @@ int script_debug = 0;
 
 typedef data_t * (*mathop_t)(data_t *, data_t *);
 
-typedef struct _mathop_def {
-  char     *token;
-  mathop_t  fnc;
-} mathop_def_t;
-
 static typedescr_t      typedescr_script;
 static typedescr_t      typedescr_closure;
 static function_t       _builtins[];
@@ -63,21 +58,7 @@ static int              _data_cmp_closure(data_t *, data_t *);
 static char *           _data_tostring_closure(data_t *);
 static data_t *         _data_execute_closure(data_t *, char *, array_t *, dict_t *);
 
-static data_t *         _plus(data_t *, data_t *);
-static data_t *         _minus(data_t *, data_t *);
-static data_t *         _times(data_t *, data_t *);
-static data_t *         _div(data_t *, data_t *);
-static data_t *         _modulo(data_t *, data_t *);
-static data_t *         _pow(data_t *, data_t *);
-static data_t *         _gt(data_t *, data_t *);
-static data_t *         _geq(data_t *, data_t *);
-static data_t *         _lt(data_t *, data_t *);
-static data_t *         _leq(data_t *, data_t *);
-static data_t *         _eq(data_t *, data_t *);
-static data_t *         _neq(data_t *, data_t *);
-
 static data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
-static data_t *         _script_function_mathop(data_t *, char *, array_t *, dict_t *);
 
 static void             _script_list_visitor(instruction_t *);
 static closure_t *      _script_variable_copier(entry_t *, closure_t *);
@@ -93,40 +74,6 @@ static file_t *         _scriptloader_open_from_basedir(scriptloader_t *, char *
 static data_t *         _scriptloader_parse_reader(scriptloader_t *, reader_t *, script_t *, char *);
 static data_t *         _scriptloader_load(scriptloader_t *, char *, int);
 
-
-#define FUNCTION_MATHOP  ((voidptr_t) _script_function_mathop)
-static function_t _builtins[] = {
-    { name: "print",      fnc: ((voidptr_t) _script_function_print),  min_params: 1, max_params: -1 },
-    { name: "+",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: "-",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: "*",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: "/",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: "%",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: "^",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: ">=",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: ">",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: "<=",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: "<",          fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: "==",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: "!=",         fnc: FUNCTION_MATHOP,         min_params: 2, max_params:  2 },
-    { name: NULL,         fnc: NULL,                    min_params: 0, max_params:  0 }
-};
-
-static mathop_def_t mathops[] = {
-  { token: "+",   fnc: _plus },
-  { token: "-",   fnc: _minus },
-  { token: "*",   fnc: _times },
-  { token: "/",   fnc: _div },
-  { token: "%",   fnc: _modulo },
-  { token: "^",   fnc: _pow },
-  { token: ">",   fnc: _gt },
-  { token: ">=",  fnc: _geq },
-  { token: "<",   fnc: _lt },
-  { token: "<=",  fnc: _leq },
-  { token: "==",  fnc: _eq },
-  { token: "!=",  fnc: _leq },
-  { token: NULL,  fnc: NULL }
-};
 
 static scriptloader_t * _loader = NULL;
 
@@ -254,159 +201,6 @@ data_t * data_create_closure(closure_t *closure) {
 /*
  * script_t static functions
  */
-
-data_t * _plus(data_t *d1, data_t *d2) {
-  str_t  *s;
-  data_t *ret;
-  int     type;
-
-  if (data_is_numeric(d1) && data_is_numeric(d2)) {
-    type = ((data_type(d1) == data_type(d2)) && (data_type(d1) == Int))
-      ? Int : Float;
-    if (type == Int) {
-      ret = data_create(Int, d1 -> intval + d2 -> intval);
-    } else {
-      ret = data_create(Float, 
-        (double) ((data_type(d1) == Int) ? d1 -> intval : d1 -> dblval) +
-        (double) ((data_type(d2) == Int) ? d2 -> intval : d2 -> dblval));
-    }
-  } else {
-    s = str_copy_chars(data_tostring(d1));
-    str_append_chars(s, data_tostring(d2));
-    ret = data_create(String, str_chars(s));
-    str_free(s);
-  }
-  return ret;
-}
-
-data_t * _minus(data_t *d1, data_t *d2) {
-  data_t *ret;
-  int     type;
-
-  ret = NULL;
-  if (data_is_numeric(d1) && data_is_numeric(d2)) {
-    type = ((data_type(d1) == data_type(d2)) && (data_type(d1) == Int))
-      ? Int : Float;
-    ret = data_create(type, 
-		((data_type(d1) == Int) ? d1 -> intval : d1 -> dblval) + 
-		((data_type(d2) == Int) ? d2 -> intval : d2 -> dblval));
-  }
-  return ret;
-}
-
-data_t * _times(data_t *d1, data_t *d2) {
-  data_t *ret;
-  int     type;
-  str_t  *s;
-  int     ix;
-
-  ret = NULL;
-  if (data_is_numeric(d1) && data_is_numeric(d2)) {
-    type = ((data_type(d1) == data_type(d2)) && (data_type(d1) == Int))
-      ? Int : Float;
-    ret = data_create(type, 
-		((data_type(d1) == Int) ? d1 -> intval : d1 -> dblval) + 
-		((data_type(d2) == Int) ? d2 -> intval : d2 -> dblval));
-  } else if ((data_type(d1) == String) && (data_type(d2) == Int)) {
-    s = str_create(0);
-    for (ix = 0; ix < d2 -> intval; ix++) {
-      str_append_chars(s, data_tostring(d1));
-    }
-    ret = data_create(String, str_chars(s));
-    str_free(s);    
-  }
-  return ret;
-}
-
-data_t * _div(data_t *d1, data_t *d2) {
-  data_t *ret;
-  int     type;
-
-  ret = NULL;
-  if (data_is_numeric(d1) && data_is_numeric(d2)) {
-    type = ((data_type(d1) == data_type(d2)) && (data_type(d1) == Int))
-      ? Int : Float;
-    ret = data_create(type, 
-		((data_type(d1) == Int) ? d1 -> intval : d1 -> dblval) /
-		((data_type(d2) == Int) ? d2 -> intval : d2 -> dblval));
-  }
-  return ret;
-}
-
-data_t * _modulo(data_t *d1, data_t *d2) {
-  data_t *ret;
-
-  ret = NULL;
-  if (data_is_numeric(d1) && data_is_numeric(d2)) {
-    ret = data_create(Int, 
-      (long) ((data_type(d1) == Int) ? d1 -> intval : round(d1 -> dblval)) %
-      (long) ((data_type(d2) == Int) ? d2 -> intval : round(d2 -> dblval)));
-  }
-  return ret;
-}
-
-data_t * _pow(data_t *d1, data_t *d2) {
-  data_t *ret;
-
-  ret = NULL;
-  if (data_is_numeric(d1) && data_is_numeric(d2)) {
-    ret = data_create(Float, pow(
-      ((data_type(d1) == Int) ? (double) d1 -> intval : d1 -> dblval),
-      ((data_type(d2) == Int) ? (double) d2 -> intval : d2 -> dblval)));
-  }
-  return ret;
-}
-
-data_t * _gt(data_t *d1, data_t *d2) {
-  return data_create(Bool, data_cmp(d1, d2) > 0);
-}
-
-data_t * _geq(data_t *d1, data_t *d2) {
-  return data_create(Bool, data_cmp(d1, d2) >= 0);
-}
-
-data_t * _lt(data_t *d1, data_t *d2) {
-  return data_create(Bool, data_cmp(d1, d2) < 0);
-}
-
-data_t * _leq(data_t *d1, data_t *d2) {
-  return data_create(Bool, data_cmp(d1, d2) <= 0);
-}
-
-data_t * _eq(data_t *d1, data_t *d2) {
-  return data_create(Bool, !data_cmp(d1, d2));
-}
-
-data_t * _neq(data_t *d1, data_t *d2) {
-  return data_create(Bool, data_cmp(d1, d2));
-}
-
-data_t * _script_function_mathop(data_t *ignored, char *op, array_t *params, dict_t *kwargs) {
-  data_t         *d1;
-  data_t         *d2;
-  data_t         *ret;
-  int             ix;
-  mathop_t        fnc;
-
-  assert(array_size(params) == 2);
-  d1 = (data_t *) array_get(params, 0);
-  assert(d1);
-  d2 = (data_t *) array_get(params, 1);
-  assert(d2);
-  fnc = NULL;
-  for (ix = 0; mathops[ix].token; ix++) {
-    if (!strcmp(mathops[ix].token, op)) {
-      fnc = mathops[ix].fnc;
-      break;
-    }
-  }
-  assert(fnc);
-  ret = fnc(d1, d2);
-  if (script_debug) {
-    debug("   %s %s %s = %s", data_debugstr(d1), op, data_debugstr(d2), data_debugstr(ret));
-  }
-  return ret;
-}
 
 data_t * _script_function_print(data_t *ignored, char *name, array_t *params, dict_t *kwargs) {
   char          *varname;
