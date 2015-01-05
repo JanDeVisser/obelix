@@ -66,23 +66,31 @@ static methoddescr_t methoddescr_any[] = {
  */
 
 data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  int cmp = data_cmp(self, (data_t *) array_get(args, 0));
+  data_t *other = (data_t *) array_get(args, 0);
+  data_t *ret;
+  int     cmp = data_cmp(self, other);
+  
   if (!strcmp(name, "==")) {
-    return data_create(Bool, !cmp);
+    ret = data_create(Bool, !cmp);
   } else if (!strcmp(name, "!=")) {
-    return data_create(Bool, cmp);
+    ret = data_create(Bool, cmp);
   } else if (!strcmp(name, ">")) {
-    return data_create(Bool, cmp > 0);
+    ret = data_create(Bool, cmp > 0);
   } else if (!strcmp(name, ">=")) {
-    return data_create(Bool, cmp >= 0);
+    ret = data_create(Bool, cmp >= 0);
   } else if (!strcmp(name, "<")) {
-    return data_create(Bool, cmp < 0);
+    ret = data_create(Bool, cmp < 0);
   } else if (!strcmp(name, "<=")) {
-    return data_create(Bool, cmp <= 0);
+    ret = data_create(Bool, cmp <= 0);
   } else {
     assert(0);
-    return data_create(Bool, 0);
+    ret = data_create(Bool, 0);
   }
+  /*
+  debug("_any_cmp('%s' %s '%s') [cmp: %d] = %s", 
+        data_debugstr(self), name, data_debugstr(other), cmp, data_debugstr(ret));
+  */
+  return ret;
 }
 
 data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -520,23 +528,27 @@ int data_cmp(data_t *d1, data_t *d2) {
   data_t      *p2 = NULL;
   int          ret;
   
-  debug("data_cmp: comparing '%s' and '%s'", data_debugstr(d1), data_debugstr(d2));
+  /* debug("data_cmp: comparing '%s' and '%s'", data_debugstr(d1), data_debugstr(d2)); */
   if (!d1 && !d2) {
     return 0;
   } else if (!d1 || !d2) {
     return (!d1) ? -1 : 1;
   } else if (d1 -> type != d2 -> type) {
     p1 = data_promote(d1);
+    /*
     if (p1) {
       debug("data_cmp: promoted d1 to '%s'", data_debugstr(p1));
     }
+    */
     if (p1 && (p1 -> type == d2 -> type)) {
       ret = data_cmp(p1, d2);
     } else {
       p2 = data_promote(d2);
+      /*
       if (p2) {
-	debug("data_cmp: promoted d2 to '%s'", data_debugstr(p2));
+        debug("data_cmp: promoted d2 to '%s'", data_debugstr(p2));
       }
+      */
       if (p2 && (d1 -> type == p2 -> type)) {
 	ret = data_cmp(d1, p2);
       } else if (p1 && !p2) {
@@ -548,9 +560,9 @@ int data_cmp(data_t *d1, data_t *d2) {
       } else {
 	ret = d1 -> type - d2 -> type;
       }
+      data_free(p2);
     }
     data_free(p1);
-    data_free(p2);
     return ret;
   } else {
     type = data_typedescr(d1);
