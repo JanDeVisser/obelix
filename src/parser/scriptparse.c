@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <error.h>
 #include <namespace.h>
 #include <script.h>
 #include <scriptparse.h>
@@ -73,14 +74,14 @@ array_t * _script_pop_and_build_varname(parser_t *parser) {
   array_t        *ret;
   str_t          *debugstr;
 
-  count = (data_t *) dict_pop(parser -> variables, "count");
+  count = (data_t *) datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug("  -- components: %d", count -> intval);
+    debug("  -- components: %d", data_longval(count));
   }
-  ret = str_array_create(count -> intval);
-  for (ix = count -> intval - 1; ix >= 0; ix--) {
+  ret = str_array_create(data_longval(count));
+  for (ix = data_longval(count) - 1; ix >= 0; ix--) {
     data = datastack_pop(parser -> stack);
-    array_set(ret, ix, strdup((char *) data -> ptrval));
+    array_set(ret, ix, strdup(data_charval(data)));
     data_free(data);
   }
   data_free(count);
@@ -120,26 +121,31 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
   data = token_todata(parser -> last_token);
   assert(data);
   if (parser_debug) {
-    debug(" -- val: %s", data_tostring(data));
+    debug(" -- val: %s", data_debugstr(data));
   }
   script_push_instruction(script, instruction_create_pushval(data));
+  data_free(data);
   return parser;
 }
 
-parser_t * script_parse_emit_mathop(parser_t *parser) {
+parser_t * script_parse_emit_infix_op(parser_t *parser) {
   char     *op;
   data_t   *data;
   script_t *script;
+  array_t  *func_name;
 
   script = parser -> data;
   data = datastack_pop(parser -> stack);
-  op = (char *) data -> ptrval;
+  op = data_charval(data);
   if (parser_debug) {
     debug(" -- op: %s", op);
   }
+  func_name = str_array_create(1);
+  array_push(func_name, strdup(op));
   script_push_instruction(script,
-    instruction_create_function(data_create(String, op), 2));
+    instruction_create_function(func_name, 2));
   data_free(data);
+  array_free(func_name);
   return parser;
 }
 
@@ -149,15 +155,13 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
   data_t   *param_count;
 
   script = parser -> data;
-  param_count = (data_t *) dict_pop(parser -> variables, "param_count");
+  param_count = datastack_pop(parser -> stack);
   func_name = _script_pop_and_build_varname(parser);
   if (parser_debug) {
-    debug(" -- param_count: %d", param_count -> intval);
-    debug(" -- func_name: %s", func_name);
+    debug(" -- param_count: %d", data_longval(param_count));
   }
   script_push_instruction(script,
-    instruction_create_function(data_create_list(func_name),
-                                param_count -> intval));
+    instruction_create_function(func_name, data_longval(param_count)));
   data_free(param_count);
   array_free(func_name);
   return parser;
@@ -169,12 +173,8 @@ parser_t * script_parse_import(parser_t *parser) {
 
   script = parser -> data;
   module = _script_pop_and_build_varname(parser);
-  if (parser_debug) {
-    debug(" -- module: %s", module);
-  }
-  script_push_instruction(script,
-    instruction_create_import(module));
-  free(module);
+  script_push_instruction(script, instruction_create_import(module));
+  array_free(module);
   return parser;
 }
 
@@ -239,9 +239,9 @@ parser_t * script_parse_emit_else(parser_t *parser) {
   script = parser -> data;
   label = datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug(" -- label: %s", (char *) label -> ptrval);
+    debug(" -- label: %s", data_debugstr(label));
   }
-  script -> label = strdup(label -> ptrval);
+  script -> label = strdup(data_charval(label));
   data_free(label);
   strrand(newlabel, 8);
   jump = instruction_create_jump(newlabel);
@@ -257,9 +257,9 @@ parser_t * script_parse_emit_end(parser_t *parser) {
   script = parser -> data;
   label = datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug(" -- label: %s", (char *) label -> ptrval);
+    debug(" -- label: %s", data_debugstr(label));
   }
-  script -> label = strdup(label -> ptrval);
+  script -> label = strdup(data_charval(label));
   data_free(label);
   return parser;
 }
@@ -278,9 +278,9 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    */
   label = datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug(" -- end block label: %s", (char *) label -> ptrval);
+    debug(" -- end block label: %s", data_debugstr(label -> ptrval));
   }
-  block_label = strdup(label -> ptrval);
+  block_label = strdup(data_charval(label));
   data_free(label);
 
   /*
@@ -289,9 +289,9 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    */
   label = datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug(" -- jump back label: %s", (char *) label -> ptrval);
+    debug(" -- jump back label: %s", data_debugstr(label -> ptrval));
   }
-  jump = instruction_create_jump((char *) label -> ptrval);
+  jump = instruction_create_jump(data_charval(label));
   script_push_instruction(script, jump);
   data_free(label);
 
@@ -301,33 +301,53 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
 }
 
 parser_t * script_parse_start_function(parser_t *parser) {
-  script_t *up;
-  script_t *func;
-  long      count;
-  data_t   *data;
-  int       ix;
-  array_t  *params;
-  char     *name;
+  script_t  *up;
+  script_t  *func;
+  data_t    *data;
+  char      *fname;
+  int        native;
+  array_t   *params;
+  voidptr_t  fnc;
 
   up = (script_t *) parser -> data;
 
+  /* Top of stack: number of parameters and parameters */
+  /* Note that we abuse the 'build_varname' function   */
+  params = _script_pop_and_build_varname(parser);
+
+  /* Next on stack: function name */
   data = datastack_pop(parser -> stack);
-  count = data -> intval;
+  fname = strdup(data_charval(data));
   data_free(data);
-  params = str_array_create(count);
-  for (ix = count - 1; ix >= 0; ix--) {
-    data = datastack_pop(parser -> stack);
-    array_set(params, ix, strdup(data -> ptrval));
+
+  /* Then 'native' flag */
+  data = datastack_pop(parser -> stack);
+  native = data_longval(data);
+  data_free(data);
+
+  if (native) {
+    fnc = (voidptr_t) resolve_function(fname);
+    if (fnc) {
+      func = script_create_native(up, function_create(fname, fnc));
+      if (parser_debug) {
+        debug(" -- defined native function %s", func -> name);
+      }
+    } else {
+      /* FIXME error handling
+      return data_error(ErrorName,
+                        "Could not find native function '%s'", fname);
+       */
+      return NULL;
+    }
+  } else {
+    func = script_create(up -> ns, up, data_charval(data));
+    func -> params = params;
     data_free(data);
+    if (parser_debug) {
+      debug(" -- defining function %s", func -> name);
+    }
+    parser -> data = func;
   }
-  data = datastack_pop(parser -> stack);
-  func = script_create(up -> ns, up, (char *) data -> ptrval);
-  func -> params = params;
-  data_free(data);
-  if (parser_debug) {
-    debug(" -- definining function %s, #params %d", func -> name, count);
-  }
-  parser -> data = func;
   return parser;
 }
 

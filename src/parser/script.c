@@ -33,12 +33,9 @@
 
 int script_debug = 0;
 
-typedef data_t * (*mathop_t)(data_t *, data_t *);
-
 static typedescr_t      typedescr_script;
 static typedescr_t      typedescr_closure;
 static function_t       _builtins[];
-static mathop_def_t     mathops[];
 static scriptloader_t * _loader;
 
 
@@ -72,10 +69,16 @@ static file_t *         _scriptloader_open_systemfile(scriptloader_t *, char *);
 static file_t *         _scriptloader_open_userfile(scriptloader_t *, char *);
 static file_t *         _scriptloader_open_from_basedir(scriptloader_t *, char *, char *);
 static data_t *         _scriptloader_parse_reader(scriptloader_t *, reader_t *, script_t *, char *);
-static data_t *         _scriptloader_load(scriptloader_t *, char *, int);
+static reader_t *       _scriptloader_open_reader(scriptloader_t *, char *, int, int);
+static data_t *         _scriptloader_load(scriptloader_t *, char *, int, int);
 
 
 static scriptloader_t * _loader = NULL;
+
+static function_t _builtins[] = {
+    { name: "print",      fnc: ((voidptr_t) _script_function_print),  min_params: 1, max_params: -1 },
+    { name: NULL,         fnc: NULL,                                  min_params: 0, max_params:  0 }
+};
 
 /*
  * data_t Script and Closure types
@@ -148,8 +151,6 @@ data_t * _data_execute_script(data_t *self, char *name, array_t *params, dict_t 
 }
 
 data_t * data_create_script(script_t *script) {
-  data_t *ret;
-
   return data_create(Script, script);
 }
 
@@ -373,6 +374,9 @@ data_t * script_create_object(script_t *script, array_t *args, dict_t *kwargs) {
   data_t    *retval;
   data_t    *self;
   
+  if (script_debug) {
+    debug("script_create_object(%s)", script_get_name(script));
+  }
   ret = object_create(script);
   self = data_create_object(ret);
   retval = script_execute(script, self, args, kwargs);
@@ -711,7 +715,7 @@ data_t * closure_execute_function(closure_t *closure, char *name, array_t *args,
 
 static file_t * _scriptloader_open_systemfile(scriptloader_t *loader, char *path) {
   if (script_debug) {
-    debug("scriptloader_open_systemfile(%s)", path);
+    debug("scriptloader_open_systemfile('%s')", path);
   }
   if (!path) {
     return NULL;
@@ -722,11 +726,12 @@ static file_t * _scriptloader_open_systemfile(scriptloader_t *loader, char *path
 
 static file_t * _scriptloader_open_userfile(scriptloader_t *loader, char *path) {
   if (script_debug) {
-    debug("scriptloader_open_userfile(%s)", path);
+    debug("scriptloader_open_userfile('%s')", path);
   }
   if (!path) {
     return NULL;
   } else {
+    debug("3 %p", loader);
     return _scriptloader_open_from_basedir(loader, loader -> userpath, path);
   }
 }
@@ -736,13 +741,13 @@ static file_t * _scriptloader_open_from_basedir(scriptloader_t *loader, char *ba
   char      *ptr;
   fsentry_t *e;
   fsentry_t *init;
-  file_t  *ret;
+  file_t    *ret;
 
   if (script_debug) {
-    debug("_scriptloader_open_from_basedir(%s, %s)", basedir, name);
+    debug("_scriptloader_open_from_basedir('%s', '%s')", basedir, name);
   }
   assert(*(basedir + (strlen(basedir) - 1)) == '/');
-  if ((*name == '/') || (*name == '.')) {
+  while (name && ((*name == '/') || (*name == '.'))) {
     name++;
   }
   fname = new(strlen(loader -> system_dir) + strlen(name) + 5);
@@ -779,45 +784,67 @@ static file_t * _scriptloader_open_from_basedir(scriptloader_t *loader, char *ba
 data_t * _scriptloader_parse_reader(scriptloader_t *loader, reader_t *rdr, script_t *up, char *name) {
   script_t *script;
   object_t *object;
+  data_t   *ns = NULL;
+  data_t   *data_up = NULL;
   
+  if (script_debug) {
+    debug("_scriptloader_parse_reader(up: '%s', name: '%s')",
+          (up) ? script_get_name(up) : "", name);
+  }
   parser_clear(loader -> parser);
   parser_set(loader -> parser, "name", data_create(String, name));
-  parser_set(loader -> parser, "up", data_create_script(up));
-  parser_set(loader -> parser, "ns", data_create(Object, loader -> ns -> root));
+  if (up) {
+    data_up = data_create_script(up);
+  }
+  parser_set(loader -> parser, "up", data_up);
+  if (loader -> ns) {
+    ns = data_create(Object, loader -> ns -> root);
+  }
+  parser_set(loader -> parser, "ns", ns);
   parser_parse(loader -> parser, rdr);
   script = (script_t *) loader -> parser -> data;
   return script_create_object(script, NULL, NULL);
 }
 
-data_t * _scriptloader_load(scriptloader_t *loader, char *name, int empty_allowed) {
-  file_t    *text;
-  str_t     *dummy;
-  reader_t  *rdr;
-  data_t    *ret;
+reader_t * _scriptloader_open_reader(scriptloader_t *loader, char *name, int user_allowed, int empty_allowed) {
+  file_t   *text = NULL;
+  str_t    *dummy;
+  reader_t *rdr = NULL;
+  data_t   *ret;
 
   if (script_debug) {
-    debug("scriptloader_load(%s)", name);
+    debug("_scriptloader_open_reader('%s', %d, %d)", name, user_allowed, empty_allowed);
   }
   assert(name);
-  text = _scriptloader_open_userfile(loader, name);
+  if (user_allowed) {
+    text = _scriptloader_open_userfile(loader, name);
+  }
   if (!text) {
     text = _scriptloader_open_systemfile(loader, name);
   }
-  if (!text) {
-    if (empty_allowed) {
-      dummy = str_wrap("");
-      rdr = (reader_t *) dummy;
-    } else {
-      rdr = NULL;
-    }
+  if (!text && empty_allowed) {
+    dummy = str_wrap("");
+    rdr = (reader_t *) dummy;
   } else {
-    rdr = (reader_t *) rdr;
+    rdr = (reader_t *) text;
   }
+  return rdr;
+}
+
+data_t * _scriptloader_load(scriptloader_t *loader, char *name, int user_allowed, int empty_allowed) {
+  file_t   *text = NULL;
+  str_t    *dummy;
+  reader_t *rdr;
+  data_t   *ret;
+
+  if (script_debug) {
+    debug("_scriptloader_load('%s', %d, %d)", name, user_allowed, empty_allowed);
+  }
+  rdr = _scriptloader_open_reader(loader, name, user_allowed, empty_allowed);
   ret = (rdr) 
           ? scriptloader_load_fromreader(loader, name, rdr) 
           : data_error(ErrorName, "Could not locate '%s'", name);
-  str_free(dummy);
-  file_free(text);
+  reader_free(rdr);
   return ret;
 }
 
@@ -825,18 +852,22 @@ data_t * _scriptloader_load(scriptloader_t *loader, char *name, int empty_allowe
  * scriptloader_t - public functions
  */
 
-#define GRAMMAR_PATH    "etc/grammar.txt"
+#define GRAMMAR_PATH    "grammar.txt"
 /* #define OBELIX_SYS_PATH "/usr/share/obelix" */
-#define OBELIX_SYS_PATH "share"
+#define OBELIX_SYS_PATH "../share/"
 
 scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   scriptloader_t   *ret;
-  file_t           *file;
   grammar_parser_t *gp;
+  file_t           *file;
   data_t           *root;
+  reader_t         *rdr;
   char             *sysdir;
   int               len;
 
+  if (script_debug) {
+    debug("Creating script loader");
+  }
   assert(!_loader);
   ret = NEW(scriptloader_t);
   sysdir = getenv("OBELIX_SYS_PATH");
@@ -880,16 +911,17 @@ scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   ret -> parser = parser_create(ret -> grammar);
 
   ret -> ns = NULL;
-  file = _scriptloader_open_systemfile(ret, "");
-  if (file) {
-    root = _scriptloader_parse_reader(ret, (reader_t *) file, NULL, NULL);
-    file_free(file);
-    if (!data_is_error(root)) {
-      ret -> ns = ns_create((object_t *) root -> ptrval);
-      data_free(root);
-    }
+  rdr = _scriptloader_open_reader(ret, "", FALSE, TRUE);
+  root = _scriptloader_parse_reader(ret, rdr, NULL, "__root__");
+  if (!data_is_error(root)) {
+    ret -> ns = ns_create((object_t *) root -> ptrval);
+  } else if (root) {
+    error("Error initializing loader root namespace: %s", data_tostring(root));
   }
+  reader_free(rdr);
+  data_free(root);
   if (!ret -> ns) {
+    error("Could not initialize loader root namespace");
     scriptloader_free(ret);
     ret = NULL;
   } else {
@@ -944,7 +976,7 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader
         debug("Module %s does not have submodule %s yet", 
               script_tostring(object->script), n);
       }
-      o = _scriptloader_load(loader, curname, 1);
+      o = _scriptloader_load(loader, curname, TRUE, TRUE);
     }
     if (data_type(o) == Object) {
       if (script_debug) {
@@ -975,6 +1007,7 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader
 }
 
 data_t * scriptloader_load(scriptloader_t *loader, char *name) {
-  return _scriptloader_load(loader, name, 0);
+  debug("1 %p", loader);
+  return _scriptloader_load(loader, name, TRUE, FALSE);
 }
 

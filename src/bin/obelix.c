@@ -26,6 +26,7 @@
 
 #include <grammarparser.h>
 
+#if 0
 int main(int argc, char **argv) {
   file_t           *gf;
   grammar_parser_t *gp;
@@ -41,8 +42,8 @@ int main(int argc, char **argv) {
   grammar_free(g);
   file_free(gf);
 }
+#endif
 
-#if 0
 #include <script.h>
 
 int main(int argc, char **argv) {
@@ -53,6 +54,7 @@ int main(int argc, char **argv) {
   scriptloader_t *loader;
   data_t         *ret;
   int             retval;
+  int             debug_all;
 
   grammar = NULL;
   debug = NULL;
@@ -62,7 +64,7 @@ int main(int argc, char **argv) {
   } else {
     basepath = getcwd(NULL, 0);
   }
-  while ((opt = getopt(argc, argv, "g:d:")) != -1) {
+  while ((opt = getopt(argc, argv, "g:d:p:")) != -1) {
     switch (opt) {
       case 'g':
         grammar = optarg;
@@ -78,19 +80,20 @@ int main(int argc, char **argv) {
   }
   if (debug) {
     debug("debug optarg: %s", debug);
-    if (strstr(debug, "grammar")) {
+    debug_all = strstr(debug, "all") != NULL;
+    if (debug_all || strstr(debug, "grammar")) {
       grammar_debug = 1;
       debug("Turned on grammar debugging");
     }
-    if (strstr(debug, "parser")) {
+    if (debug_all || strstr(debug, "parser")) {
       parser_debug = 1;
       debug("Turned on parser debugging");
     }
-    if (strstr(debug, "script")) {
+    if (debug_all || strstr(debug, "script")) {
       script_debug = 1;
       debug("Turned on script debugging");
     }
-    if (strstr(debug, "file")) {
+    if (debug_all || strstr(debug, "file")) {
       file_debug = 1;
       debug("Turned on file debugging");
     }
@@ -107,4 +110,4 @@ int main(int argc, char **argv) {
   data_free(ret);
   return retval;
 }
-#endif
+

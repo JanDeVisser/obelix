@@ -97,7 +97,7 @@ END_TEST
 
 void read_from_reader(reader_t *reader) {
   char buf[21];
-  int ret;
+  int  ret;
 
   memset(buf, 0, sizeof(buf));
   ret = reader_read(reader, buf, sizeof(buf) - 1);
@@ -109,22 +109,21 @@ void read_from_reader(reader_t *reader) {
   ck_assert_str_eq(buf, "klmnopqrstuvwxyz\n");
   ret = reader_read(reader, buf, sizeof(buf) - 1);
   ck_assert_int_eq(ret, 0);
+  reader_free(reader);
 }
 
 START_TEST(test_reader_read)
   file_t *file;
-  str_t *str;
+  str_t  *str;
 
   file = file_open("buffertest.txt");
   ck_assert_ptr_ne(file, NULL);
   ck_assert_int_gt(file -> fh, 0);
   read_from_reader((reader_t *) file);
-  file_free(file);
 
   str = str_wrap("0123456789abcdefghijklmnopqrstuvwxyz\n");
   ck_assert_ptr_ne(str, NULL);
   read_from_reader((reader_t *) str);
-  str_free(str);
 END_TEST
 
 

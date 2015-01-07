@@ -143,6 +143,7 @@ file_t * file_create(int fh) {
   ret = NEW(file_t);
   if (ret) {
     ret -> read_fnc = (read_t) file_read;
+    ret -> free = (free_t) file_free;
     ret -> fh = fh;
     ret -> fname = NULL;
   }

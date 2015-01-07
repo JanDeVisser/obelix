@@ -17,11 +17,10 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <string.h>
-
-#include <str.h>
 #include <list.h>
+#include <stdlib.h>
+#include <str.h>
+#include <string.h>
 
 static str_t *      _str_initialize(void);
 static str_t *      _str_expand(str_t *, int);
@@ -39,6 +38,7 @@ str_t * _str_initialize(void) {
   ret = NEW(str_t);
   if (ret) {
     ret -> read_fnc = (read_t) str_read;
+    ret -> free = (free_t) str_free;
     ret -> buffer = NULL;
     ret -> pos = 0;
     ret -> len = 0;

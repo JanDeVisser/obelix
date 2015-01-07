@@ -27,8 +27,7 @@ libobltypes_la_SOURCES = \
 		float.c \
 		string.c \
 		pointer.c \
-		list.c \
-		function.c
+		list.c 
 
 libobltypes_la_LIBADD = \
 		$(top_srcdir)/src/lib/liboblcore.la

@@ -30,6 +30,7 @@ static data_t *      _list_new(data_t *, va_list);
 static data_t *      _list_copy(data_t *, data_t *);
 static int           _list_cmp(data_t *, data_t *);
 static char *        _list_tostring(data_t *);
+static data_t *      _list_cast(data_t *, int);
 static unsigned int  _list_hash(data_t *);
 
 
@@ -47,7 +48,7 @@ typedescr_t typedescr_list =   {
   free:     (free_t)     list_free,
   tostring: (tostring_t) _list_tostring,
   parse:                 NULL,
-  cast:                  NULL,
+  cast:                  _list_cast,
   fallback:              NULL,
   hash:     (hash_t)     _list_hash
 };
@@ -80,6 +81,18 @@ data_t * _list_new(data_t *target, va_list arg) {
     array_push(array, elem);
   }
   return target;
+}
+
+data_t * _list_cast(data_t *src, int totype) {
+  array_t *array = data_arrayval(src);
+  data_t  *ret = NULL;
+
+  switch (totype) {
+    case Bool:
+      ret = data_create(Bool, array && array_size(array));
+      break;
+  }
+  return ret;
 }
 
 int _list_cmp(data_t *d1, data_t *d2) {

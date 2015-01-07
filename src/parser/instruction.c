@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include <array.h>
+#include <error.h>
 #include <instruction.h>
 #include <script.h>
 
@@ -60,8 +61,8 @@ static instruction_type_descr_t instruction_descr_map[] = {
     { type: ITPushVal,  function: _instruction_execute_pushval,
       name: "PushVal",  free: (free_t) _instruction_free_value,
       tostring: (tostring_t) _instruction_tostring_value },
-    { type: ITFunction, function: _instruction_execute_function,
-      name: "Function", free: (free_t) _instruction_free_name,
+    { type: ITFunctionCall, function: _instruction_execute_function,
+      name: "Call", free: (free_t) _instruction_free_name,
       tostring: (tostring_t) _instruction_tostring_name },
     { type: ITTest, function: _instruction_execute_test,
       name: "Test", free: (free_t) _instruction_free_name,
@@ -118,29 +119,25 @@ char * _instruction_tostring_value(instruction_t *instruction) {
 /* ----------------------------------------------------------------------- */
 
 data_t * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
-  array_t   *path;
-  data_t    *value;
-  data_t    *ret;
+  data_t *path = instr -> value;
+  data_t *value;
+  data_t *ret;
 
   value = closure_pop(closure);
   assert(value);
   if (script_debug) {
     debug(" -- value '%s'", data_tostring(value));
   }
-  path = data_list_copy(instr -> value);
-  ret = closure_set(closure, path, value);
+  ret = closure_set(closure, data_arrayval(path), value);
   data_free(value);
-  array_free(path);
   return (data_is_error(ret)) ? ret : NULL;
 }
 
 data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) {
-  data_t    *value;
-  array_t   *path;
+  data_t  *path = instr -> value;
+  data_t  *value;
 
-  path = data_list_copy(instr -> value);
-  value = closure_resolve(closure, path);
-  array_free(path);
+  value = closure_resolve(closure, data_arrayval(path));
   if (!data_is_error(value)) {
     if (script_debug) {
       debug(" -- value '%s'", data_tostring(value));
@@ -156,83 +153,64 @@ data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) 
   data_t        *value;
 
   assert(instr -> value);
-  closure_push(closure, data_copy(instr -> value));
+  closure_push(closure, instr -> value);
   return NULL;
 }
 
 data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
   data_t    *func_container;
   data_t    *value;
-  data_t    *ret;
+  data_t    *ret = NULL;
   object_t  *o;
   closure_t *c;
   char      *n;
   array_t   *params;
   array_t   *name;
-  int        num_params;
   int        ix;
 
-  num_params = instr -> num;
   if (script_debug) {
-    debug(" -- #parameters: %d", num_params);
+    debug(" -- #parameters: %d", instr -> num);
   }
 
-  params = data_array_create(num_params);
-  for (ix = 0; ix < num_params; ix++) {
+  params = data_array_create(instr -> num);
+  for (ix = 0; ix < instr -> num; ix++) {
     value = closure_pop(closure);
     assert(value);
-    array_set(params, num_params - ix - 1, value);
+    array_set(params, instr -> num - ix - 1, value);
   }
   if (script_debug) {
     array_debug(params, " -- parameters: %s");
   }
 
-  switch (data_type(instr -> value)) {
-    case List:
-      name = data_list_copy(instr -> value);
-      break;
-    case String:
-      name = str_array_create(1);
-      array_push(name, strdup(data_tostring(instr -> value)));
-      break;
-    default:
-      assert(0);
-      break;
-  }
+  name = data_arrayval(instr -> value);
   func_container = closure_get_container_for(closure, name);
   if (data_is_error(func_container)) {
     ret = func_container;
   } else {
-    n = data_tostring((data_t *) array_get(name, -1));
+    n = data_tostring(data_array_get(name, -1));
     data_execute(func_container, n, params, NULL);
-    switch (data_type(func_container)) {
-      case Object:
-        o = (object_t *) func_container -> ptrval;
-        ret = object_execute(o, n, params, NULL);
-        break;
-      case Closure:
-        c = (closure_t *) func_container -> ptrval;
-        ret = closure_execute_function(c, n, params, NULL);
-        break;
-    }
+    data_free(func_container);
   }
-  if (data_type(instr -> value) == String) {
-    array_free(name);
-  }
-  data_free(func_container);
   return ret;
 }
 
 data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
   data_t  *ret;
   data_t  *value;
+  data_t  *casted = NULL;
 
   value = closure_pop(closure);
   assert(value);
   assert(instr -> name);
 
-  /* FIXME - Convert other objects to boolean */
-  ret = (!value -> intval) ? data_create(String, instr -> name) : NULL;
+  casted = data_cast(value, Bool);
+  if (!casted) {
+    ret = data_error(ErrorType, "Cannot convert '%s' to boolean",
+                     data_tostring(value));
+  } else {
+    ret = (!casted -> intval) ? data_create(String, instr -> name) : NULL;
+  }
+  data_free(casted);
   data_free(value);
   return ret;
 }
@@ -294,12 +272,14 @@ instruction_t * instruction_create_pushval(data_t *value) {
   return instruction_create(ITPushVal, NULL, value);
 }
 
-instruction_t * instruction_create_function(data_t *name, long num_params) {
+instruction_t * instruction_create_function(array_t *name, long num_params) {
   instruction_t *ret;
-  
-  ret = instruction_create(ITFunction, 
-                           data_tostring(name),
-                           name);
+  str_t         *n;
+
+  n = array_join(name, ".");
+  ret = instruction_create(ITFunctionCall, 
+                           str_chars(n), data_create_list(name));
+  str_free(n);
   ret -> num = num_params;
   return ret;
 }
