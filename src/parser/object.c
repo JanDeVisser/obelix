@@ -40,6 +40,7 @@ static data_t *     _data_execute_object(data_t *, char *, array_t *, dict_t *);
 static typedescr_t typedescr_object = {
   type:                  Object,
   typecode:              "O",
+  typename:              "object",
   new:      (new_t)      _data_new_object,
   copy:     (copydata_t) _data_copy_object,
   cmp:      (cmp_t)      _data_cmp_object,
@@ -47,6 +48,7 @@ static typedescr_t typedescr_object = {
   tostring: (tostring_t) _data_tostring_object,
   hash:     (hash_t)     _data_hash_object,
   parse:                 NULL,
+  cast:                  NULL,
   fallback: (method_t)   _data_execute_object
 };
 
@@ -90,14 +92,12 @@ data_t * data_create_object(object_t *object) {
  * object_t public functions
  */
 
-static int _initialized = 0;
-
 object_t * object_create(script_t *script) {
-  object_t *ret;
+  static int  type_object = -1;
+  object_t   *ret;
 
-  if (!_initialized) {
-    typedescr_register(typedescr_object);
-    _initialized = 1;
+  if (type_object < 0) {
+    type_object = typedescr_register(typedescr_int);
   }
   ret = NEW(object_t);
   ret -> script = script;

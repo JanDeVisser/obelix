@@ -356,7 +356,8 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
         if (parser_debug) {
           debug("    Executing function %s", function_tostring(e -> fnc));
         }
-        e -> fnc -> fnc(parser);
+        /* FIXME Error mechanism */
+        assert(e -> fnc -> fnc(parser));
         break;
       case PSETypeSet:
         data = e -> value;

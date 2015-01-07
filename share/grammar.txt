@@ -61,12 +61,17 @@ func_def                    := native_opt
                                (                 [ push++: 0                 ]
                                parlist_or_void
                                )                 [ start_function            ]
-                               statements
-                               end_stmt          [ end_function              ]
+                               func_block
                              ;
                              
-native_opt                  := "native"          [ push++: 1                 ]
-                             |                   [ push++: 0                 ]
+func_block                  := "begin"
+                               statements
+                               end_stmt          [ end_function              ]
+                             |
+                             ;
+                             
+native_opt                  := "native"          [ push: 1                   ]
+                             |                   [ push: 0                   ]
                              ;
 
 parlist_or_void             := parlist

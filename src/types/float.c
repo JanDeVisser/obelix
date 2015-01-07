@@ -128,7 +128,17 @@ data_t * _float_parse(char *str) {
 }
 
 data_t * _float_cast(data_t *data, int totype) {
-  return (totype == Int) ? data_create(Int, (long) data -> dblval) : NULL;
+  data_t *ret = NULL;
+
+  switch (totype) {
+    case Int:
+      ret = data_create(Int, (long) data -> dblval);
+      break;
+    case Bool:
+      ret = data_create(Bool, data -> dblval != 0);
+      break;
+  }
+  return ret;
 }
 
 /* ----------------------------------------------------------------------- */

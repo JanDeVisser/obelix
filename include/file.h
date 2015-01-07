@@ -36,6 +36,7 @@ typedef struct _fsentry {
 
 typedef struct _file {
   read_t  read_fnc;
+  free_t  free;
   int     fh;
   char   *fname;
 } file_t;

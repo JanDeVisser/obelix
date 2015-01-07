@@ -124,6 +124,7 @@ typedef struct _reduce_ctx {
 
 typedef struct _reader {
   read_t read_fnc;
+  free_t free;
 } reader_t;
 
 extern void *          new(int);
@@ -156,6 +157,7 @@ extern char *          function_tostring(function_t *);
 extern reduce_ctx *    reduce_ctx_create(void *, void *, function_ptr_t);
 
 #define reader_read(reader, buf, n)  (((reader_t *) reader) -> read_fnc(reader, buf, n))
+#define reader_free(rdr)             if (rdr) (((reader_t *) (rdr)) -> free((rdr)))
 #ifndef NDEBUG
 #define debug(fmt, args...)          _logmsg(LogLevelDebug, __FILE__, __LINE__, fmt, ## args)
 #else /* NDEBUG */

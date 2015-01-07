@@ -10,5 +10,5 @@ AC_PROG_CC
 
 AC_CONFIG_SRCDIR(src/bin/obelix.c)
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile src/lib/Makefile src/types/Makefile src/parser/Makefile src/bin/Makefile test/Makefile])
+AC_CONFIG_FILES([Makefile src/lib/Makefile src/types/Makefile src/parser/Makefile src/bin/Makefile share/Makefile test/Makefile])
 AC_OUTPUT
