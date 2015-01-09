@@ -152,7 +152,7 @@ char * error_tostring(error_t *error) {
     error -> str = (char *) new(snprintf(NULL, 0, "Error %s (%d): %s",
                                          errors[error -> code].str,
                                          error -> code,
-                                         error -> msg));
+                                         error -> msg) + 1);
     sprintf(error -> str, "Error %s (%d): %s",
             errors[error -> code].str,
             error -> code,

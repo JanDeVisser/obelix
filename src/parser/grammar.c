@@ -258,6 +258,7 @@ ge_t * ge_set_option(ge_t *ge, token_t *name, token_t *val) {
       }
       break;
   }
+  return ge;
 }
 
 /*

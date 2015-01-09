@@ -57,8 +57,8 @@ for_loop                    := "for"
                              
 func_def                    := native_opt
                                "func"
-                               'i'               [ push++: $                 ]
-                               (                 [ push++: 0                 ]
+                               'i'               [ push:   $                 ]
+                               (                 [ push:   0                 ]
                                parlist_or_void
                                )                 [ start_function            ]
                                func_block
@@ -71,7 +71,10 @@ func_block                  := "begin"
                              ;
                              
 native_opt                  := "native"          [ push: 1                   ]
-                             |                   [ push: 0                   ]
+                             | dummy             [ push: 0                   ]
+                             ;
+                             
+dummy                       :=
                              ;
 
 parlist_or_void             := parlist
@@ -82,7 +85,7 @@ parlist                     := param
                                parlist_tail
                              ;
 
-param                       := 'i'               [ push++: $                 ] 
+param                       := 'i'               [ push++:   $               ] 
                              ;
 
 parlist_tail                := ,
@@ -94,7 +97,7 @@ return_stmt                 := "return"
                                expr 
                              ;
 
-import_stmt                 := "import"          [ push++: 0                 ]
+import_stmt                 := "import"          [ push:   0                 ]
                                identifier        [ import                    ]
                              ;
 
@@ -110,7 +113,7 @@ expr                        := predicate
                                predicatetail
                              ;
                          
-predicatetail               := logic_op          [ push++: $                 ]
+predicatetail               := logic_op          [ push: $                   ]
                                predicate         [ emit_infix_op             ]
                              |
                              ;
@@ -119,7 +122,7 @@ predicate                   := term
                                termtail
                              ;
 
-termtail                    := add_op            [ push++: $                 ]
+termtail                    := add_op            [ push: $                   ]
                                term              [ emit_infix_op             ]
                                termtail
                              | 
@@ -128,7 +131,7 @@ termtail                    := add_op            [ push++: $                 ]
 term                        := factor factortail 
                              ;
 
-factortail                  := mult_op           [ push++: $                 ]
+factortail                  := mult_op           [ push: $                   ]
                                factor            [ emit_infix_op             ] 
                                factortail
                              | 
@@ -136,10 +139,10 @@ factortail                  := mult_op           [ push++: $                 ]
 
 factor                      := ( expr )
                              | var_or_call 
-                             | constant          [ push++: $                 ]  
+                             | constant          [ emit_pushval              ]  
                              ;
 
-var_or_call                 := identifier        [ push: 0                   ]
+var_or_call                 := [ push: 0 ] identifier
                                call_or_empty
                              ;
                               
@@ -202,7 +205,7 @@ arglist                     := argument
                                arglist_tail
                              ;
 
-argument                    := expr              [ push++: $                  ] 
+argument                    := expr              [ ++                        ] 
                              ;
 
 arglist_tail                := ,

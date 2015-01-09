@@ -28,6 +28,10 @@
 #include <error.h>
 #include <list.h>
 
+static typedescr_t   typedescr_any;
+static methoddescr_t methoddescr_any[];
+
+
 static void          _data_initialize_types(void);
 
 static data_t *      _any_cmp(data_t *, char *, array_t *, dict_t *);
@@ -190,6 +194,7 @@ void _data_initialize_types(void) {
     typedescr_register(typedescr_str);
     typedescr_register(typedescr_ptr);
     typedescr_register(typedescr_fnc);
+    typedescr_register(typedescr_list);
     typedescr_register(typedescr_error);
     
     typedescr_register_methods(methoddescr_any);
@@ -271,16 +276,6 @@ data_t * data_error(int code, char * msg, ...) {
 
 data_t * data_create_string(char * value) {
   return data_create(String, value);
-}
-
-data_t * data_create_list(array_t *array) {
-  data_t  *ret;
-  array_t *a;
-
-  ret = data_create(List);
-  a = (array_t *) ret -> ptrval;
-  array_add_all(a, array);
-  return ret;
 }
 
 data_t * data_parse(int type, char *str) {
@@ -572,6 +567,11 @@ int data_cmp(data_t *d1, data_t *d2) {
       return (d1 -> ptrval == d2 -> ptrval) ? 0 : 1;
     }
   }
+}
+
+array_t * data_add_strings_reducer(data_t *data, array_t *target) {
+  array_push(target, strdup(data_tostring(data)));
+  return target;
 }
 
 array_t * data_add_all_reducer(data_t *data, array_t *target) {

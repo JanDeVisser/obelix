@@ -31,8 +31,7 @@ liboblparser_la_SOURCES = \
 		script.c \
 		instruction.c \
 		scriptparse.c \
-		object.c \
-		namespace.c
+		object.c
 		
 liboblparser_la_LIBADD = \
 		$(top_srcdir)/src/lib/liboblcore.la \

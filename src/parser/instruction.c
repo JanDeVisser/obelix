@@ -36,6 +36,8 @@ typedef struct _instruction_type_descr {
   tostring_t          tostring;
 } instruction_type_descr_t;
 
+static instruction_type_descr_t instruction_descr_map[];
+
 static void             _instruction_free_name(instruction_t *);
 static void             _instruction_free_value(instruction_t *);
 static void             _instruction_free_name_value(instruction_t *);
@@ -53,17 +55,17 @@ static data_t *         _instruction_execute_nop(instruction_t *, closure_t *);
 
 static instruction_type_descr_t instruction_descr_map[] = {
     { type: ITAssign,   function: _instruction_execute_assign,
-      name: "Assign",   free: (free_t) _instruction_free_name,
-      tostring: (tostring_t) _instruction_tostring_name },
+      name: "Assign",   free: (free_t) _instruction_free_value,
+      tostring: (tostring_t) _instruction_tostring_value },
     { type: ITPushVar,  function: _instruction_execute_pushvar,
-      name: "PushVar",  free: (free_t) _instruction_free_name,
-      tostring: (tostring_t) _instruction_tostring_name },
+      name: "PushVar",  free: (free_t) _instruction_free_value,
+      tostring: (tostring_t) _instruction_tostring_value },
     { type: ITPushVal,  function: _instruction_execute_pushval,
       name: "PushVal",  free: (free_t) _instruction_free_value,
       tostring: (tostring_t) _instruction_tostring_value },
     { type: ITFunctionCall, function: _instruction_execute_function,
-      name: "Call", free: (free_t) _instruction_free_name,
-      tostring: (tostring_t) _instruction_tostring_name },
+      name: "Call", free: (free_t) _instruction_free_value,
+      tostring: (tostring_t) _instruction_tostring_value },
     { type: ITTest, function: _instruction_execute_test,
       name: "Test", free: (free_t) _instruction_free_name,
       tostring: (tostring_t) _instruction_tostring_name },
@@ -74,8 +76,8 @@ static instruction_type_descr_t instruction_descr_map[] = {
       name: "Jump", free: (free_t) _instruction_free_name,
       tostring: (tostring_t) _instruction_tostring_name },
     { type: ITImport, function: _instruction_execute_import,
-      name: "Import", free: (free_t) _instruction_free_name,
-      tostring: (tostring_t) _instruction_tostring_name },
+      name: "Import", free: (free_t) _instruction_free_value,
+      tostring: (tostring_t) _instruction_tostring_value },
     { type: ITNop, function: _instruction_execute_nop,
       name: "Nop", free: (free_t) _instruction_free_name,
       tostring: (tostring_t) _instruction_tostring_name },
@@ -119,39 +121,41 @@ char * _instruction_tostring_value(instruction_t *instruction) {
 /* ----------------------------------------------------------------------- */
 
 data_t * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
-  data_t *path = instr -> value;
-  data_t *value;
-  data_t *ret;
+  array_t *path = data_list_to_str_array(instr -> value);
+  data_t  *value;
+  data_t  *ret;
 
   value = closure_pop(closure);
   assert(value);
   if (script_debug) {
     debug(" -- value '%s'", data_tostring(value));
   }
-  ret = closure_set(closure, data_arrayval(path), value);
+  ret = closure_set(closure, path, value);
   data_free(value);
+  array_free(path);
   return (data_is_error(ret)) ? ret : NULL;
 }
 
 data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) {
-  data_t  *path = instr -> value;
   data_t  *value;
+  data_t  *ret;
+  array_t *path = data_list_to_str_array(instr -> value);
 
-  value = closure_resolve(closure, data_arrayval(path));
+  value = closure_resolve(closure, path);
   if (!data_is_error(value)) {
     if (script_debug) {
       debug(" -- value '%s'", data_tostring(value));
     }
     closure_push(closure, value);
-    return NULL;
+    ret = NULL;
   } else {
-    return value;
+    ret = value;
   }
+  array_free(path);
+  return ret;
 }
 
 data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) {
-  data_t        *value;
-
   assert(instr -> value);
   closure_push(closure, instr -> value);
   return NULL;
@@ -165,7 +169,7 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   closure_t *c;
   char      *n;
   array_t   *params;
-  array_t   *name;
+  array_t   *name = data_list_to_str_array(instr -> value);
   int        ix;
 
   if (script_debug) {
@@ -182,15 +186,16 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     array_debug(params, " -- parameters: %s");
   }
 
-  name = data_arrayval(instr -> value);
   func_container = closure_get_container_for(closure, name);
   if (data_is_error(func_container)) {
     ret = func_container;
   } else {
-    n = data_tostring(data_array_get(name, -1));
+    n = str_array_get(name, -1);
     data_execute(func_container, n, params, NULL);
     data_free(func_container);
   }
+  array_free(params);
+  array_free(name);
   return ret;
 }
 
@@ -222,11 +227,13 @@ data_t * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
 
 data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
   scriptloader_t *loader;
-  data_t         *data;
+  array_t        *imp = data_list_to_str_array(instr)
+  data_t         *ret;
 
   loader = scriptloader_get();
-  scriptloader_load(loader, instr -> name);
-  return NULL;
+  ret = scriptloader_import(loader, imp);
+  array_free(imp);
+  return (data_is_error(ret)) ? ret : NULL;
 }
 
 data_t * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {

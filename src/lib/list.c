@@ -206,17 +206,17 @@ void * __list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t t
 }
 
 void * _list_reduce(list_t *list, reduce_t reduce, void *data) {
-  __list_reduce(list, (reduce_t) reduce, data, RTObjects);
+  return __list_reduce(list, (reduce_t) reduce, data, RTObjects);
 }
 
 void * _list_reduce_chars(list_t *list, reduce_t reduce, void *data) {
   assert(list -> tostring);
-  __list_reduce(list, (reduce_t) reduce, data, RTChars);
+  return __list_reduce(list, (reduce_t) reduce, data, RTChars);
 }
 
 void * _list_reduce_str(list_t *list, reduce_t reduce, void *data) {
   assert(list -> tostring);
-  __list_reduce(list, (reduce_t) reduce, data, RTStrs);
+  return __list_reduce(list, (reduce_t) reduce, data, RTStrs);
 }
 
 list_t * _list_visit(list_t *list, visit_t visitor) {

@@ -24,8 +24,8 @@
 
 parser_t * script_parse_init(parser_t *parser) {
   char     *name;
-  script_t *up;
-  ns_t     *ns;
+  script_t *up = NULL;
+  object_t *scope = NULL;
   data_t   *data;
 
   if (parser_debug) {
@@ -34,10 +34,10 @@ parser_t * script_parse_init(parser_t *parser) {
   data = parser_get(parser, "name");
   name = (char *) data -> ptrval;
   data = parser_get(parser, "up");
-  up = (script_t *) data -> ptrval;
-  data = parser_get(parser, "ns");
-  ns = (ns_t *) data -> ptrval;
-  parser -> data = script_create(ns, up, name);
+  up = data_scriptval(data);
+  data = parser_get(parser, "scope");
+  scope = data_objectval(data);
+  parser -> data = script_create(scope, up, name);
   return parser;
 }
 
@@ -78,10 +78,10 @@ array_t * _script_pop_and_build_varname(parser_t *parser) {
   if (parser_debug) {
     debug("  -- components: %d", data_longval(count));
   }
-  ret = str_array_create(data_longval(count));
+  ret = data_array_create(data_longval(count));
   for (ix = data_longval(count) - 1; ix >= 0; ix--) {
     data = datastack_pop(parser -> stack);
-    array_set(ret, ix, strdup(data_charval(data)));
+    array_set(ret, ix, data_copy(data));
     data_free(data);
   }
   data_free(count);
@@ -130,18 +130,28 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
 
 parser_t * script_parse_emit_infix_op(parser_t *parser) {
   char     *op;
+  char      buf[2];
   data_t   *data;
   script_t *script;
   array_t  *func_name;
 
   script = parser -> data;
   data = datastack_pop(parser -> stack);
-  op = data_charval(data);
+  switch (data_type(data)) {
+    case String:
+      op = data_charval(data);
+      break;
+    case Int:
+      buf[0] = data_longval(data);
+      buf[1] = 0;
+      op = buf;
+      break;
+  }
   if (parser_debug) {
     debug(" -- op: %s", op);
   }
-  func_name = str_array_create(1);
-  array_push(func_name, strdup(op));
+  func_name = data_array_create(1);
+  array_push(func_name, data_create(String, op));
   script_push_instruction(script,
     instruction_create_function(func_name, 2));
   data_free(data);
@@ -278,7 +288,7 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    */
   label = datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug(" -- end block label: %s", data_debugstr(label -> ptrval));
+    debug(" -- end block label: %s", data_debugstr(label));
   }
   block_label = strdup(data_charval(label));
   data_free(label);
@@ -289,7 +299,7 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
    */
   label = datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug(" -- jump back label: %s", data_debugstr(label -> ptrval));
+    debug(" -- jump back label: %s", data_debugstr(label));
   }
   jump = instruction_create_jump(data_charval(label));
   script_push_instruction(script, jump);
@@ -308,6 +318,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
   int        native;
   array_t   *params;
   voidptr_t  fnc;
+  int        ix;
 
   up = (script_t *) parser -> data;
 
@@ -340,9 +351,10 @@ parser_t * script_parse_start_function(parser_t *parser) {
       return NULL;
     }
   } else {
-    func = script_create(up -> ns, up, data_charval(data));
-    func -> params = params;
-    data_free(data);
+    func = script_create(up -> scope, up, fname);
+    func -> params = data_list_to_str_array(params);
+    free(fname);
+    array_free(params);
     if (parser_debug) {
       debug(" -- defining function %s", func -> name);
     }

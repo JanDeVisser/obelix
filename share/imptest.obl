@@ -1,5 +1,6 @@
 
 func baz(knor)
+begin
   print(knor)
 end
 
