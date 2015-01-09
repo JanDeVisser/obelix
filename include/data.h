@@ -96,6 +96,7 @@ extern typedescr_t typedescr_float;
 extern typedescr_t typedescr_str;
 extern typedescr_t typedescr_ptr;
 extern typedescr_t typedescr_fnc;
+extern typedescr_t typedescr_list;
 extern typedescr_t typedescr_error;
 
 extern methoddescr_t methoddescr_int[];
@@ -103,6 +104,7 @@ extern methoddescr_t methoddescr_bool[];
 extern methoddescr_t methoddescr_float[];
 extern methoddescr_t methoddescr_str[];
 extern methoddescr_t methoddescr_ptr[];
+extern methoddescr_t methoddescr_list[];
 extern methoddescr_t methoddescr_fnc[];
 /* extern methoddescr_t methoddescr_error[]; */
 
@@ -137,8 +139,10 @@ extern char *          data_debugstr(data_t *);
 #define data_longval(d)  ((data_type((d)) == Int) ? (d) -> intval : (long)((d) -> dblval))
 #define data_charval(d)  ((char *) (d) -> ptrval)
 #define data_arrayval(d) ((array_t *) (d) -> ptrval)
+#define data_errorval(d) (data_is_error((d)) ? ((error_t *) (d) -> ptrval) : NULL)
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
+extern array_t *       data_add_strings_reducer(data_t *, array_t *);
 extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
 extern data_t *        data_create_pointer(int, void *);
@@ -146,6 +150,7 @@ extern data_t *        data_null(void);
 extern data_t *        data_error(int, char *, ...);
 extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
+extern array_t *       data_list_to_str_array(data_t *);
 
 
 #define strdata_dict_create()   dict_set_tostring_data( \

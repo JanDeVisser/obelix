@@ -27,7 +27,6 @@
 #include <dict.h>
 #include <instruction.h>
 #include <list.h>
-#include <namespace.h>
 #include <parser.h>
 #include <object.h>
 
@@ -45,7 +44,7 @@ typedef struct _script {
   dict_t         *functions;
   dict_t         *labels;
   char           *label;
-  ns_t           *ns;
+  object_t       *scope;
   int             refs;
 } script_t;
 
@@ -63,17 +62,23 @@ typedef struct _scriptloader {
   char        *system_dir;
   grammar_t   *grammar;
   parser_t    *parser;
-  ns_t        *ns;
+  object_t    *scope;
 } scriptloader_t;
 
-extern data_t *         data_create_script(script_t *);
-extern data_t *         data_create_closure(closure_t *);
+extern data_t *            data_create_script(script_t *);
+extern data_t *            data_create_closure(closure_t *);
+
+#define data_is_script(d)  ((d) && (data_type((d)) == Script))
+#define data_scriptval(d)  (data_is_script((d)) ? ((script_t *) (d) -> ptrval) : NULL)
+#define data_is_closure(d) ((d) && (data_type((d)) == Closure))
+#define data_closureval(d) (data_is_closure((d)) ? ((closure_t *) (d) -> ptrval) : NULL)
 
 /*
  * script_t prototypes
  */
-extern script_t *       script_create(ns_t *, script_t *, char *);
+extern script_t *       script_create(object_t *, script_t *, char *);
 extern script_t *       script_create_native(script_t *, function_t *);
+extern script_t *       script_copy(script_t *);
 extern void             script_free(script_t *);
 extern char *           script_tostring(script_t *);
 extern char *           script_get_name(script_t *);
@@ -110,5 +115,6 @@ extern scriptloader_t * scriptloader_get(void);
 extern void             scriptloader_free(scriptloader_t *);
 extern data_t *         scriptloader_load_fromreader(scriptloader_t *, char *, reader_t *);
 extern data_t *         scriptloader_load(scriptloader_t *, char *);
+extern data_t *         scriptloader_import(scriptloader_t *, array_t *);
 
 #endif /* __SCRIPT_H__ */

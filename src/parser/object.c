@@ -62,8 +62,7 @@ data_t * _data_new_object(data_t *ret, va_list arg) {
 }
 
 data_t * _data_copy_object(data_t *target, data_t *src) {
-  target -> ptrval = src -> ptrval;
-  ((object_t *) target -> ptrval) -> refs++;
+  target -> ptrval = object_copy(data_objectval(src));
   return target;
 }
 
@@ -92,19 +91,27 @@ data_t * data_create_object(object_t *object) {
  * object_t public functions
  */
 
-object_t * object_create(script_t *script) {
+object_t* object_create(script_t *script) {
   static int  type_object = -1;
   object_t   *ret;
 
   if (type_object < 0) {
-    type_object = typedescr_register(typedescr_int);
+    type_object = typedescr_register(typedescr_object);
   }
   ret = NEW(object_t);
+  ret -> refs = 0;
   ret -> script = script;
   ret -> ptr = NULL;
   ret -> variables = strdata_dict_create();
-  dict_reduce(ret -> variables, (reduce_t) data_add_all_reducer, script -> functions);
-  ret -> refs = 0;
+  if (script) {
+    dict_reduce(ret -> variables, (reduce_t) data_add_all_reducer, script -> functions);
+  }
+  return ret;
+}
+
+object_t* object_copy(object_t* object) {
+  object -> refs++;
+  return object;
 }
 
 void object_free(object_t *object) {
@@ -126,9 +133,7 @@ data_t * object_get(object_t *object, char *name) {
     ret = data_copy(ret);
   } else {
     ret = data_error(ErrorName,
-                     "Object '%s' of type '%s' has no attribute '%s'",
-                     object_tostring(object),
-                     script_tostring(object -> script),
+                     "Object has no attribute '%s'",
                      name);
   }
   return ret;
@@ -147,17 +152,17 @@ data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwa
 
   func = object_get(object, name);
   if (!data_is_error(func)) {
-    if (data_type(func) != Script)  {
+    if (data_is_script(func))  {
+      script = data_scriptval(func);
+      self = data_create_object(object);
+      ret = script_execute(script, self, args, kwargs);
+      data_free(self);
+    } else {
       ret = data_error(ErrorName,
                        "Attribute '%s' of object '%s' of type '%s' is not callable",
                        name,
                        object_tostring(object),
                        script_tostring(object -> script));
-    } else {
-      script = (script_t *) func -> ptrval;
-      self = data_create_object(object);
-      ret = script_execute(script, self, args, kwargs);
-      data_free(self);
     }
     data_free(func);
   } else {
@@ -170,12 +175,12 @@ char * object_tostring(object_t *object) {
   data_t   *data;
 
   data = object_execute(object, "__str__", NULL, NULL);
-  if (data -> type != Error) {
-    object -> str = strdup((char *) data -> ptrval);
+  if (!data_is_error(data)) {
+    object -> str = strdup(data_charval(data));
   } else {
     object -> str = (char *) new(snprintf(NULL, 0, "<%s object at %p>",
                                           script_tostring(object -> script),
-                                          object));
+                                          object) + 1);
     sprintf(object -> str, "<%s object at %p>",
             script_tostring(object -> script),
             object);
@@ -189,8 +194,8 @@ unsigned int object_hash(object_t *object) {
   unsigned int  ret;
 
   data = object_execute(object, "__hash__", NULL, NULL);
-  ret = (data -> type != Error)
-      ? (unsigned int) data -> intval
+  ret = (!data_is_error(data))
+      ? (unsigned int) data_longval(data)
       : hashptr(object);
   data_free(data);
   return ret;
@@ -204,8 +209,8 @@ int object_cmp(object_t *o1, object_t *o2) {
   args = data_array_create(1);
   array_set(args, 0, data_create(Object, o2));
   data = object_execute(o1, "__cmp__", args, NULL);
-  ret = (data -> type != Error)
-      ? data -> intval
+  ret = (!data_is_error(data))
+      ? data_longval(data)
       : (long) o1 - (long) o2;
   data_free(data);
   array_free(args);
@@ -225,7 +230,7 @@ int object_cmp(object_t *o1, object_t *o2) {
  * reference a data_t of a different type. If the name array only
  * holds one element, the object specified is wrapped. If the path
  * is broken along the way, or is empty, a data_error(ErrorName) is returned.
- * Note that the caller is responsible for freeing the data_t.
+ * Note that the caller is responsible for freeing the returned data_t.
  */
 data_t * object_resolve(object_t *object, array_t *name) {
   data_t   *ret;
@@ -235,14 +240,14 @@ data_t * object_resolve(object_t *object, array_t *name) {
   if (!name || !array_size(name)) {
     return data_error(ErrorName, "Empty name");
   }
-  o = object;
+  o = object_copy(object);
   for (ix = 0; o && (ix < array_size(name) - 1); ix++) {
-    char *n = (char *) (((data_t *) array_get(name, ix)) -> ptrval);
+    char *n = str_array_get(name, ix);
     ret = object_get(o, n);
     if (data_is_error(ret)) {
       break;
     }
-    if (data_type(ret) != Object) {
+    if (!data_is_object(ret)) {
       data_free(ret);
       ret = data_error(ErrorName,
                        "Attribute '%s' of object '%s' of type '%s' is not an object",
@@ -251,10 +256,13 @@ data_t * object_resolve(object_t *object, array_t *name) {
                        script_tostring(object -> script));
       break;
     }
-    o = (object_t *) (ret -> ptrval);
+    object_free(o);
+    o = object_copy(data_objectval(ret));
     data_free(ret);
   }
   if (!data_is_error(ret)) {
     ret = data_create_object(o) ;
   }
+  object_free(o);
+  return ret;
 }

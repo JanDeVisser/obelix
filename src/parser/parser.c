@@ -154,8 +154,7 @@ char * _parser_stack_entry_tostring(parser_stack_entry_t *e) {
     case PSETypeEntry:
       entry = e -> entry;
       if (entry -> terminal) {
-        strcpy(buf, "T ");
-        token_tostring(entry -> token);
+        snprintf(buf, maxlen, "T {%s}", token_tostring(entry -> token));
       } else {
         snprintf(buf, maxlen, "N {%s}", entry -> nonterminal);
       }
@@ -195,6 +194,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
 
   if (parser -> last_token) {
     token_free(parser -> last_token);
+    parser -> last_token = NULL;
   }
   parser -> last_token = token_copy(token);
   if (parser_debug) {
@@ -219,7 +219,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
 parser_t * _parser_push_to_prodstack(parser_t *parser, parser_stack_entry_t *entry) {
   list_push(parser -> prod_stack, entry);
   if (parser_debug) {
-    debug("    Pushed   %s", _parser_stack_entry_tostring(entry));
+    debug("      Pushed  %s", _parser_stack_entry_tostring(entry));
   }
   return parser;
 }
@@ -292,6 +292,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
     if (parser_debug) {
       debug("    Popped  %s", _parser_stack_entry_tostring(e));
     }
+    
     switch (e -> type) {
       case PSETypeNonTerminal:
         nonterminal = e -> nonterminal;
@@ -322,8 +323,11 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
             }
           }
         }
+        _parser_push_grammar_element(parser, rule -> ge, 0);
+        _parser_push_grammar_element(parser, rule -> ge, 1);
         consuming = 2;
         break;
+        
       case PSETypeEntry:
         entry = e -> entry;
         assert(entry -> terminal);
@@ -331,26 +335,9 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
 	// TODO: Error Handling.
 	// If assert trips we've received a terminal that has a different
 	// code than the one we're expecting. Syntax error.
-
-#if 0
-        if (rule_item_get_pushvalue(item)) {
-          ne = _parser_stack_entry_for_pushvalue(rule_item_get_pushvalue(item));
-          list_push(parser -> prod_stack, ne);
-          if (parser_debug) {
-            debug("    Pushed   %s", _parser_stack_entry_tostring(ne, NULL, 0));
-          }
-        }
-        dict_reduce(entry -> grammar_element -> variables, (reduce_t) _parser_push_setvalues, parser);
-	if (grammar_element_get_finalizer(entry -> grammar_element)) {
-	  if (parser_debug) {
-            debug("    Executing terminal entry finalizer %s",
-                  function_tostring(rule_item_get_finalizer(entry)));
-	  }
-	  rule_item_get_finalizer(entry) -> fnc(parser);
-	}
-#endif /* 0 */
 	consuming = 1;
         break;
+        
       case PSETypeFunction:
         assert(e -> fnc -> fnc);
         if (parser_debug) {
@@ -359,6 +346,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
         /* FIXME Error mechanism */
         assert(e -> fnc -> fnc(parser));
         break;
+        
       case PSETypeSet:
         data = e -> value;
         if (!data) {
@@ -372,26 +360,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
           data_free(data);
         }
         break;
-#if 0
-      case PSETypeIncr:
-        data = (data_t *) dict_get(parser -> variables, e -> name);
-        if (data) {
-          if (data -> type == Int) {
-            data -> intval++;
-            if (parser_debug) {
-              debug("    Incremented variable %s to %s", e -> name, data_tostring(data));
-            }
-          } else {
-            error("Could not increment parser variable '%s' because it is not an integer", e -> name);
-          }
-        } else {
-          dict_put(parser -> variables, strdup(e -> name), data_create(Int, 1));
-          if (parser_debug) {
-            debug("    Initialized variable %s to %s", e -> name, data_tostring(data));
-          }
-        }
-        break;
-#endif
+
       case PSETypePush:
         pushvalue = e -> pushvalue;
         if (pushvalue -> incr) {
@@ -496,6 +465,8 @@ void _parser_parse(parser_t *parser, reader_t *reader) {
   lexer_t        *lexer;
   lexer_option_t  ix;
 
+  token_free(parser -> last_token);
+  parser -> last_token = NULL;
   lexer = lexer_create(reader);
   dict_reduce_values(parser -> grammar -> keywords, (reduce_t) _parser_set_keywords, lexer);
   for (ix = 0; ix < LexerOptionLAST; ix++) {
@@ -522,6 +493,8 @@ void _parser_parse(parser_t *parser, reader_t *reader) {
     datastack_list(parser -> stack);
     datastack_clear(parser -> stack);
   }
+  token_free(parser -> last_token);
+  parser -> last_token = NULL;
   lexer_free(lexer);
 }
 

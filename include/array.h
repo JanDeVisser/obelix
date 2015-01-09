@@ -62,6 +62,7 @@ extern void         array_debug(array_t *, char *);
                                     array_create((i)), \
                                     (free_t) free), \
                                   (tostring_t) chars)
+#define str_array_get(a, i)     ((char *) array_get((a), (i)))
 #define array_join(a, g)        (_str_join((g), (a), (obj_reduce_t) array_reduce_chars))
 
 #endif /* __ARRAY_H__ */

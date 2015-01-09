@@ -310,7 +310,7 @@ void * _dict_entry_reducer(dictentry_t *e, reduce_ctx *ctx) {
       entry = (entry_t *) elem;
       free(entry -> key);
       free(entry -> value);
-      /* Fall Through */
+      /* no break */
     case DRTEntries:
       free(elem);
       break;

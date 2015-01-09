@@ -34,15 +34,18 @@ typedef struct _object {
   int             refs;
 } object_t;
 
-extern data_t *        data_create_object(object_t *);
+extern data_t *            data_create_object(object_t *);
+#define data_is_object(d)  ((d) && (data_type((d)) == Object))
+#define data_objectval(d)  (data_is_object((d)) ? ((object_t *) (d) -> ptrval) : NULL)
 
-extern object_t *      object_create(struct _script *);
-extern void            object_free(object_t *);
-extern data_t *        object_get(object_t *, char *);
-extern object_t *      object_set(object_t *, char *, data_t *);
-extern data_t *        object_execute(object_t *, char *, array_t *, dict_t *);
-extern char *          object_tostring(object_t *);
-extern unsigned int    object_hash(object_t *);
-extern data_t *        object_resolve(object_t *, array_t *);
+extern object_t *          object_create(struct _script *);
+extern void                object_free(object_t *);
+extern object_t *          object_copy(object_t *);
+extern data_t *            object_get(object_t *, char *);
+extern object_t *          object_set(object_t *, char *, data_t *);
+extern data_t *            object_execute(object_t *, char *, array_t *, dict_t *);
+extern char *              object_tostring(object_t *);
+extern unsigned int        object_hash(object_t *);
+extern data_t *            object_resolve(object_t *, array_t *);
 
 #endif /* __OBJECT_H__ */

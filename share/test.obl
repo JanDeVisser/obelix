@@ -1,11 +1,13 @@
 #!/home/jan/Projects/obelix/install/bin/obelix
 
 func foo(quux)
+begin
   print(quux)
   return 12
 end
 
-import etc.imptest
+/* import etc.imptest */
+import imptest
 
 s = "jan "
 s = s + " de visser"

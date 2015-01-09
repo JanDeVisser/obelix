@@ -73,9 +73,9 @@ data_t * _list_new(data_t *target, va_list arg) {
   int      ix;
   data_t  *elem;
 
-  array = data_array_create(4);
-  target -> ptrval = array;
   count = va_arg(arg, int);
+  array = data_array_create((count > 0) ? count : 4);
+  target -> ptrval = array;
   for (ix = 0; ix < count; ix++) {
     elem = va_arg(arg, data_t *);
     array_push(array, elem);
@@ -148,11 +148,27 @@ unsigned int _list_hash(data_t *data) {
 
 /* ----------------------------------------------------------------------- */
 
+data_t * data_create_list(array_t *array) {
+  data_t  *ret;
+
+  ret = data_create(List, 0);
+  array_reduce(array, (reduce_t) data_add_all_reducer, data_arrayval(ret));
+  return ret;
+}
+
 array_t * data_list_copy(data_t *list) {
   array_t *dest;
   
   dest = data_array_create(array_size(data_arrayval(list)));
   array_reduce(data_arrayval(list), (reduce_t) data_add_all_reducer, dest);
+  return dest;
+}
+
+array_t * data_list_to_str_array(data_t *list) {
+  array_t *dest;
+  
+  dest = str_array_create(array_size(data_arrayval(list)));
+  array_reduce(data_arrayval(list), (reduce_t) data_add_strings_reducer, dest);
   return dest;
 }
 

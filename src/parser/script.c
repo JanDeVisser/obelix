@@ -58,9 +58,9 @@ static data_t *         _data_execute_closure(data_t *, char *, array_t *, dict_
 static data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
 
 static void             _script_list_visitor(instruction_t *);
-static closure_t *      _script_variable_copier(entry_t *, closure_t *);
+// static closure_t *      _script_variable_copier(entry_t *, closure_t *);
 
-static object_t *       _object_create_root(void);
+// static object_t *       _object_create_root(void);
 
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
 static data_t *         _closure_set_local(closure_t *, char *, data_t *);
@@ -68,7 +68,6 @@ static data_t *         _closure_set_local(closure_t *, char *, data_t *);
 static file_t *         _scriptloader_open_systemfile(scriptloader_t *, char *);
 static file_t *         _scriptloader_open_userfile(scriptloader_t *, char *);
 static file_t *         _scriptloader_open_from_basedir(scriptloader_t *, char *, char *);
-static data_t *         _scriptloader_parse_reader(scriptloader_t *, reader_t *, script_t *, char *);
 static reader_t *       _scriptloader_open_reader(scriptloader_t *, char *, int, int);
 static data_t *         _scriptloader_load(scriptloader_t *, char *, int, int);
 
@@ -239,9 +238,9 @@ void _script_list_visitor(instruction_t *instruction) {
  * script_t public functions
  */
 
-static int _initialized = 0;
+script_t * script_create(object_t *scope, script_t *up, char *name) {
+  static int type_script = -1;
 
-script_t * script_create(ns_t *ns, script_t *up, char *name) {
   script_t   *ret;
   char       *shortname_buf;
   char       *fullname_buf;
@@ -250,10 +249,9 @@ script_t * script_create(ns_t *ns, script_t *up, char *name) {
   script_t   *bi;
   int         len;
 
-  if (!_initialized) {
-    typedescr_register(typedescr_script);
+  if (type_script < 0) {
+    type_script = typedescr_register(typedescr_script);
     typedescr_register(typedescr_closure);
-    _initialized = 1;
   }
   ret = NEW(script_t);
   ret -> instructions = list_create();
@@ -265,14 +263,14 @@ script_t * script_create(ns_t *ns, script_t *up, char *name) {
   ret -> label = NULL;
   ret -> params = NULL;
 
-  if (!ns && !up) {
+  if (!scope && !up) {
     name = "__root__";
     for (builtin = _builtins; builtin -> name; builtin++) {
       bi = script_create_native(ret, builtin);
     }
     ret -> up = NULL;
   }
-  ret -> ns = ns;
+  ret -> scope = (scope) ? object_copy(scope) : NULL;
   
   shortname_buf = fullname_buf = NULL;
   if (!name) {
@@ -284,18 +282,23 @@ script_t * script_create(ns_t *ns, script_t *up, char *name) {
   if (up) {
     dict_put(up -> functions, strdup(name), data_create_script(ret));
     len = snprintf(NULL, 0, "%s/%s", up -> name, name);
-    fullname_buf = (char *) new(len);
+    fullname_buf = (char *) new(len + 1);
     sprintf(fullname_buf, "%s/%s", up -> name, name);
     name = fullname_buf;
     ret -> up = up;
-    if (!ret -> ns) {
-      ret -> ns = up -> ns;
+    if (!ret -> scope) {
+      ret -> scope = up -> scope;
     }
   }
   ret -> name = strdup(name);
   free(shortname_buf);
   free(fullname_buf);
   return ret;
+}
+
+script_t * script_copy(script_t *script) {
+  script -> refs++;
+  return script;
 }
 
 char * script_get_name(script_t *script) {
@@ -323,9 +326,10 @@ void script_free(script_t *script) {
 script_t * script_create_native(script_t *script, function_t *function) {
   script_t *ret;
   
-  ret = script_create(script -> ns, script, function -> name);
+  ret = script_create(script -> scope, script, function -> name);
   ret -> native = 1;
   ret -> native_method = (method_t) function -> fnc;
+  return ret;
 }
 
 script_t * script_push_instruction(script_t *script, instruction_t *instruction) {
@@ -391,8 +395,7 @@ closure_t * script_create_closure(script_t *script, data_t *self, array_t *args,
     assert(args && (array_size(script -> params) == array_size(args)));
   }
   ret = NEW(closure_t);
-  ret -> script = script;
-  script -> refs++;
+  ret -> script = script_copy(script);
 
   ret -> variables = strdata_dict_create();
   dict_reduce(ret -> variables, (reduce_t) data_put_all_reducer, script -> functions);
@@ -409,8 +412,8 @@ closure_t * script_create_closure(script_t *script, data_t *self, array_t *args,
     dict_reduce(kwargs, (reduce_t) data_put_all_reducer, ret -> variables);
   }
   if (self) {
-    if (data_type(self) == Closure) {
-      closure_t *closure = (closure_t *) self -> ptrval;
+    if (data_is_closure(self)) {
+      closure_t *closure = data_closureval(self);
       ret -> up = closure;
       if (closure -> self) {
         self = data_create_object(closure -> self);
@@ -418,10 +421,10 @@ closure_t * script_create_closure(script_t *script, data_t *self, array_t *args,
         self = NULL;
       }
     } else {
-      assert(data_type(self) == Object);
+      assert(data_is_object(self));
     }
     if (self) {
-      ret -> self = (object_t *) self -> ptrval;
+      ret -> self = data_objectval(self);
       _closure_set_local(ret, "self", self);
     }
   }
@@ -440,18 +443,20 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   listnode_t *node = NULL;
 
   ret = instruction_execute(instr, closure);
-  switch (data_type(ret)) {
-    case String:
-      label = data_tostring(ret);
-      data_free(ret);
-      break;
-    case Error:
-      label = "ERROR";
-      _closure_set_local(closure, "$$ERROR", data_copy(ret));
-      break;
-    default:
-      assert(0);
-      break;
+  if (ret) {
+    switch (data_type(ret)) {
+      case String:
+        label = strdup(data_tostring(ret));
+        data_free(ret);
+        break;
+      case Error:
+        label = strdup("ERROR");
+        _closure_set_local(closure, "$$ERROR", data_copy(ret));
+        break;
+      default:
+        assert(0);
+        break;
+    }
   }
   if (label) {
     if (script_debug) {
@@ -459,6 +464,7 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
     }
     node = (listnode_t *) dict_get(closure -> script -> labels, label);
     assert(node);
+    free(label);
   }
   return node;
 }
@@ -499,8 +505,16 @@ data_t * closure_pop(closure_t *closure) {
   return datastack_pop(closure -> stack);
 }
 
-closure_t * closure_push(closure_t *closure, data_t *entry) {
-  datastack_push(closure -> stack, entry);
+/**
+ * @brief Pushes a data value onto the closure run-time stack.
+ * 
+ * @param closure The closure on whose stack the value should be
+ * pushed.
+ * @param value The data value to push onto the closure's stack.
+ * @return closure_t* The same closure as the one passed in.
+ */
+closure_t * closure_push(closure_t *closure, data_t *value) {
+  datastack_push(closure -> stack, value);
   return closure;
 }
 
@@ -523,9 +537,11 @@ data_t * closure_get_container_for(closure_t *closure, array_t *name) {
   closure_t *c;
   data_t    *data;
   data_t    *ret;
+  object_t  *obj;
   array_t   *tail;
   char      *n;
   char      *first;
+  char      *last;
   char      *ptr;
 
   assert(array_size(name));
@@ -534,10 +550,11 @@ data_t * closure_get_container_for(closure_t *closure, array_t *name) {
   }
   tail = array_slice(name, 1, -1);
   
-  first = (char *) (((data_t *) array_get(name, 0)) -> ptrval);
+  first = str_array_get(name, 0);
+  last = str_array_get(name, -1);
   data = NULL;
   c = closure;
-  while(c) {
+  while (c) {
     data = closure_get(c, first);
     if (!data_is_error(data)) {
       break;
@@ -548,11 +565,15 @@ data_t * closure_get_container_for(closure_t *closure, array_t *name) {
     }
   }
   if (c) {
+    if (script_debug) {
+      debug("Found first name element '%s' in closure chain: %s", 
+            first, closure_tostring(c));
+    }
     /* Found a match in the closure chain. Now walk the name: */
     if (tail) {
       /* There are more components in the name. data must be object: */
-      if (data -> type == Object) {
-        ret = object_resolve((object_t *) data -> ptrval, tail);
+      if (data_is_object(data)) {
+        ret = object_resolve(data_objectval(data), tail);
       } else {
         ret = data_error(ErrorName,
                          "Variable '%s' of function '%s' is not an object",
@@ -564,11 +585,22 @@ data_t * closure_get_container_for(closure_t *closure, array_t *name) {
       ret = data_create_closure(c);
     }
   } else {
-    /* No match. Delegate to the namespace. If the namespace returns
-     * NULL, the name must be local.
+    if (script_debug) {
+      debug("Did not find first name element '%s' in closure chain", first);
+    }
+    /* No match. Delegate to the scope. If the scope returns
+     * no match, the name must be local.
      */
-    ret = ns_resolve(closure -> script -> ns, name);
-    if (data_is_error(ret)) {
+    data = object_resolve(closure -> script -> scope, name);
+    if (!data_is_error(data)) {
+      obj = data_objectval(data);
+      data_free(data);
+      data = object_get(obj, last);
+      if (data_is_error(data) ) {
+        if (script_debug) {
+          debug("Found name in scope");
+        }
+      FIXME FIXME
       data_free(ret);
       ret = data_create_closure(closure);
     }
@@ -642,8 +674,8 @@ data_t * closure_resolve(closure_t *closure, array_t *varname) {
   d = closure_get_container_for(closure, varname);
   switch (data_type(d)) {
     case Closure:
-      c = (closure_t *) d -> ptrval;
-      n = (char *) array_get(varname, 0);
+      c = data_closureval(d);
+      n = str_array_get(varname, 0);
       if (script_debug) {
         debug("  Getting local '%s' in closure for %s",
               n, data_tostring(d));
@@ -652,8 +684,8 @@ data_t * closure_resolve(closure_t *closure, array_t *varname) {
       data_free(d);
       break;
     case Object:
-      o = (object_t *) d -> ptrval;
-      n = (char *) array_get(varname, -1);
+      o = data_objectval(d);
+      n = str_array_get(varname, -1);
       if (script_debug) {
         debug("  Getting object property '%s' in object %s",
               n, data_tostring(d));
@@ -691,13 +723,13 @@ data_t * closure_execute_function(closure_t *closure, char *name, array_t *args,
   
   func = closure_get(closure, name);
   if (!data_is_error(func)) {
-    if (data_type(func) != Script)  {
+    if (!data_is_script(func))  {
       ret = data_error(ErrorName,
                        "Variable '%s' of function '%s' is not callable",
                        name,
                        closure_tostring(closure));
     } else {
-      script = (script_t *) func -> ptrval;
+      script = data_scriptval(func);
       self = data_create_closure(closure);
       ret = script_execute(script, self, args, kwargs);
       data_free(self);
@@ -731,7 +763,6 @@ static file_t * _scriptloader_open_userfile(scriptloader_t *loader, char *path) 
   if (!path) {
     return NULL;
   } else {
-    debug("3 %p", loader);
     return _scriptloader_open_from_basedir(loader, loader -> userpath, path);
   }
 }
@@ -752,7 +783,7 @@ static file_t * _scriptloader_open_from_basedir(scriptloader_t *loader, char *ba
   }
   fname = new(strlen(loader -> system_dir) + strlen(name) + 5);
   sprintf(fname, "%s%s", loader -> system_dir, name);
-  for (ptr = strchr(fname, '.'); ptr; ptr = strchr(ptr, '.')) {
+  for (ptr = strchr(fname + strlen(loader -> system_dir), '.'); ptr; ptr = strchr(ptr, '.')) {
     *ptr = '/';
   }
   e = fsentry_create(fname);
@@ -779,31 +810,6 @@ static file_t * _scriptloader_open_from_basedir(scriptloader_t *loader, char *ba
   fsentry_free(e);
   free(fname);
   return ret;
-}
-
-data_t * _scriptloader_parse_reader(scriptloader_t *loader, reader_t *rdr, script_t *up, char *name) {
-  script_t *script;
-  object_t *object;
-  data_t   *ns = NULL;
-  data_t   *data_up = NULL;
-  
-  if (script_debug) {
-    debug("_scriptloader_parse_reader(up: '%s', name: '%s')",
-          (up) ? script_get_name(up) : "", name);
-  }
-  parser_clear(loader -> parser);
-  parser_set(loader -> parser, "name", data_create(String, name));
-  if (up) {
-    data_up = data_create_script(up);
-  }
-  parser_set(loader -> parser, "up", data_up);
-  if (loader -> ns) {
-    ns = data_create(Object, loader -> ns -> root);
-  }
-  parser_set(loader -> parser, "ns", ns);
-  parser_parse(loader -> parser, rdr);
-  script = (script_t *) loader -> parser -> data;
-  return script_create_object(script, NULL, NULL);
 }
 
 reader_t * _scriptloader_open_reader(scriptloader_t *loader, char *name, int user_allowed, int empty_allowed) {
@@ -860,7 +866,7 @@ scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   scriptloader_t   *ret;
   grammar_parser_t *gp;
   file_t           *file;
-  data_t           *root;
+  data_t           *scope;
   reader_t         *rdr;
   char             *sysdir;
   int               len;
@@ -910,17 +916,17 @@ scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
 
   ret -> parser = parser_create(ret -> grammar);
 
-  ret -> ns = NULL;
+  ret -> scope = NULL;
   rdr = _scriptloader_open_reader(ret, "", FALSE, TRUE);
-  root = _scriptloader_parse_reader(ret, rdr, NULL, "__root__");
-  if (!data_is_error(root)) {
-    ret -> ns = ns_create((object_t *) root -> ptrval);
-  } else if (root) {
-    error("Error initializing loader root namespace: %s", data_tostring(root));
+  scope = _scriptloader_parse_reader(ret, rdr, NULL, "__root__");
+  if (data_is_object(scope)) {
+    ret -> scope = object_copy(data_objectval(scope));
+  } else {
+    error("Error initializing loader root namespace: %s", data_tostring(scope));
   }
   reader_free(rdr);
-  data_free(root);
-  if (!ret -> ns) {
+  data_free(scope);
+  if (!ret -> scope) {
     error("Could not initialize loader root namespace");
     scriptloader_free(ret);
     ret = NULL;
@@ -940,74 +946,69 @@ void scriptloader_free(scriptloader_t *loader) {
     free(loader -> userpath);
     grammar_free(loader -> grammar);
     parser_free(loader -> parser);
-    ns_free(loader -> ns);
+    object_free(loader -> scope);
     free(loader);
   }
 }
 
 data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader_t *reader) {
-  parser_t       *parser;
-  script_t       *script;
-  object_t       *object;
-  array_t        *components;
-  int             ix;
-  char           *curname;
-  data_t         *ret = NULL;
-
+  data_t   *ret = NULL;
+  script_t *script;
+  
   if (script_debug) {
     debug("scriptloader_load_fromreader(%s)", name);
   }
   if (!name || !name[0]) {
-    return data_error(ErrorName, "Cannot load script with no name");
+    ret = data_error(ErrorName, "Cannot load script with no name");
   }
-  components = array_split(name, ".");
-  object = loader -> ns -> root;
-  curname = (char *) new(strlen(name) + 1);
-  curname[0] = 0;
-  for (ix = 0; ix < array_size(components) - 1; ix++) {
-    char *n = (char *) array_get(components, ix);
-    data_t *o = object_get(object, n);
-    if (curname[0]) {
-      strcat(curname, ".");
-    }
-    strcat(curname, n);
-    if (data_is_error(o)) {
-      if (script_debug) {
-        debug("Module %s does not have submodule %s yet", 
-              script_tostring(object->script), n);
-      }
-      o = _scriptloader_load(loader, curname, TRUE, TRUE);
-    }
-    if (data_type(o) == Object) {
-      if (script_debug) {
-        debug("Module %s already has submodule %s", 
-              script_tostring(object->script), n);
-      }
-      object = (object_t *) o -> ptrval;
-    } else if (data_is_error(o)) {
-      ret = o;
-    } else {
-      if (script_debug) {
-        debug("Module %s already has attribute %s, but it's not a submodule", 
-              script_tostring(object->script), n);
-      }
-      ret = data_error(ErrorName, "%s is not an object", curname);
-    }
-    if (ret) {
-      ix = array_size(components);
-    }
-  }
-  free(curname);
-  array_free(components);
-  
   if (!ret) {
-    ret = _scriptloader_parse_reader(loader, reader, object -> script -> up, name);
+    parser_clear(loader -> parser);
+    parser_set(loader -> parser, "name", data_create(String, name));
+    parser_parse(loader -> parser, rdr);
+    script = (script_t *) loader -> parser -> data;
+    ret = script_create_object(script, NULL, NULL);
   }
   return ret;
 }
 
 data_t * scriptloader_load(scriptloader_t *loader, char *name) {
-  debug("1 %p", loader);
   return _scriptloader_load(loader, name, TRUE, FALSE);
 }
 
+data_t * scriptloader_import(scriptloader_t *loader, array_t *module) {
+  int       ix;
+  object_t *object;
+  data_t    mod = NULL;
+  char     *n;
+  str_t    *path = array_join(module, ".");
+  char      buf[str_len(path) + 1];
+
+  memset(buf, 0, str_len(path))
+  object = loader -> scope;
+  for (ix = 0; ix < array_size(module); ix++) {
+    data_free(mod);
+    n = str_array_get(module, ix);
+    if (ix > 0) {
+      strcat(buf, ".");
+    }
+    strcat(buf, n);
+    mod = object_get(object, n);
+    if (data_is_error(mod) && (data_errorval(mod) -> code == ErrorName)) {
+      mod = scriptloader_load(loader, buf);
+      if (!data_is_error(mod)) {
+        object_set(object, n, mod);
+      }
+    }
+    if (!data_is_object(mod) && !data_is_error(mod)) {
+      data_free(mod);
+      mod = data_error(ErrorType, "Importing '%s': '%s' is not an object",
+                       str_chars(path), buf);
+    }
+    if (data_is_error(mod)) {
+      break;
+    }
+    object = data_objectval(mod);
+  }
+  str_free(path);
+  return mod;
+}
