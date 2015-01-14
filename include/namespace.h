@@ -21,15 +21,45 @@
 #ifndef __NAMESPACE_H__
 #define __NAMESPACE_H__
 
+#include <array.h>
+#include <data.h>
+#include <dict.h>
 #include <object.h>
+#include <script.h>
+
+typedef data_t * (*import_t)(void *, array_t *);
+
+typedef struct _module {
+  object_t  *obj;
+  char      *name;
+  int        refs;
+} module_t;
 
 typedef struct _namespace {
-  int       native_allowed;
-  object_t *root;
-} ns_t;
+  void                *import_ctx;
+  union {
+    struct _namespace *up;
+    import_t           import_fnc;
+  };
+  dict_t              *contents;
+} namespace_t;
 
-extern ns_t *     ns_create(object_t *);
-extern void       ns_free(ns_t *);
-extern data_t *   ns_resolve(ns_t *, array_t *);
+#define data_is_module(d)  ((d) && (data_type((d)) == Module))
+#define data_moduleval(d)  ((module_t *) (data_is_module((d)) ? ((d) -> ptrval) : NULL))
+
+extern data_t *      data_create_module(module_t *);
+
+extern module_t *    mod_create(array_t *, script_t *);
+extern void          mod_free(module_t *);
+extern module_t *    mod_copy(module_t *);
+
+extern namespace_t * ns_create(namespace_t *);
+extern namespace_t * ns_create_root(void *, import_t);
+extern void          ns_free(namespace_t *);
+extern data_t *      ns_import(namespace_t *, array_t *);
+extern data_t *      ns_get(namespace_t *, array_t *);
+extern data_t *      ns_gets(namespace_t *, char *);
+extern int           ns_has(namespace_t *, char *);
+extern data_t *      ns_resolve(namespace_t *, array_t *);
 
 #endif /* __NAMESPACE_H__ */

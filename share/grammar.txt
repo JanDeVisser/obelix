@@ -55,8 +55,7 @@ for_loop                    := "for"
                                end_stmt
                              ;
                              
-func_def                    := native_opt
-                               "func"
+func_def                    := "func"
                                'i'               [ push:   $                 ]
                                (                 [ push:   0                 ]
                                parlist_or_void
@@ -67,11 +66,10 @@ func_def                    := native_opt
 func_block                  := "begin"
                                statements
                                end_stmt          [ end_function              ]
-                             |
+                             | link_clause
                              ;
                              
-native_opt                  := "native"          [ push: 1                   ]
-                             | dummy             [ push: 0                   ]
+link_clause                 := "->" '"'          [ end_native_function       ]
                              ;
                              
 dummy                       :=

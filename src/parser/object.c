@@ -104,7 +104,7 @@ object_t* object_create(script_t *script) {
   ret -> ptr = NULL;
   ret -> variables = strdata_dict_create();
   if (script) {
-    dict_reduce(ret -> variables, (reduce_t) data_add_all_reducer, script -> functions);
+    dict_reduce(ret -> variables, (reduce_t) data_put_all_reducer, script -> functions);
   }
   return ret;
 }
@@ -142,6 +142,10 @@ data_t * object_get(object_t *object, char *name) {
 object_t * object_set(object_t *object, char *name, data_t *value) {
   dict_put(object -> variables, strdup(name), data_copy(value));
   return object;
+}
+
+int object_has(object_t *object, char *name) {
+  return dict_has_key(object -> variables, name);
 }
 
 data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwargs) {
@@ -239,6 +243,9 @@ data_t * object_resolve(object_t *object, array_t *name) {
 
   if (!name || !array_size(name)) {
     return data_error(ErrorName, "Empty name");
+  }
+  if (array_size(name) == 1) {
+    return data_create(Object, object);
   }
   o = object_copy(object);
   for (ix = 0; o && (ix < array_size(name) - 1); ix++) {

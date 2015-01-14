@@ -29,6 +29,7 @@ liboblparser_la_SOURCES = \
 		grammarparser.c \
 		parser.c \
 		script.c \
+		namespace.c \
 		instruction.c \
 		scriptparse.c \
 		object.c

@@ -32,37 +32,40 @@
 
 extern int script_debug;
 
+typedef struct _namespace namespace_t;
+
 typedef struct _script {
-  struct _script *up;
-  char           *name;
-  array_t        *params;
-  int             native;
+  struct _script    *up;
+  char              *name;
+  array_t           *params;
+  int                native;
   union {
-    list_t       *instructions;
-    method_t      native_method;
+    list_t          *instructions;
+    method_t         native_method;
   };
-  dict_t         *functions;
-  dict_t         *labels;
-  char           *label;
-  object_t       *scope;
-  int             refs;
+  dict_t            *functions;
+  dict_t            *labels;
+  char              *label;
+  struct _namespace *ns;
+  int                refs;
 } script_t;
 
 typedef struct _closure {
-  struct _closure *up;
-  script_t        *script;
-  object_t        *self;
-  dict_t          *variables;
-  datastack_t     *stack;
-  int              refs;
+  struct _closure   *up;
+  script_t          *script;
+  object_t          *self;
+  dict_t            *variables;
+  struct _namespace *imports;
+  datastack_t       *stack;
+  int                refs;
 } closure_t;
 
 typedef struct _scriptloader {
-  char        *userpath;
-  char        *system_dir;
-  grammar_t   *grammar;
-  parser_t    *parser;
-  object_t    *scope;
+  list_t            *load_path;
+  char              *system_dir;
+  grammar_t         *grammar;
+  parser_t          *parser;
+  namespace_t       *ns;
 } scriptloader_t;
 
 extern data_t *            data_create_script(script_t *);
@@ -76,13 +79,15 @@ extern data_t *            data_create_closure(closure_t *);
 /*
  * script_t prototypes
  */
-extern script_t *       script_create(object_t *, script_t *, char *);
+extern script_t *       script_create(namespace_t *, script_t *, char *);
 extern script_t *       script_create_native(script_t *, function_t *);
 extern script_t *       script_copy(script_t *);
 extern void             script_free(script_t *);
+extern script_t *       script_make_native(script_t *, function_t *);
 extern char *           script_tostring(script_t *);
 extern char *           script_get_name(script_t *);
-extern void             script_list(script_t *script);
+extern void             script_list(script_t *);
+extern script_t *       script_get_toplevel(script_t *);
 
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
 extern script_t *       script_create_native(script_t *, function_t *);
@@ -98,12 +103,13 @@ extern char *           closure_tostring(closure_t *);
 extern char *           closure_get_name(closure_t *);
 extern data_t *         closure_pop(closure_t *);
 extern closure_t *      closure_push(closure_t *, data_t *);
-extern data_t *         closure_get_container_for(closure_t *closure, array_t *name);
+extern data_t *         closure_get_container_for(closure_t *closure, array_t *name, int);
 extern data_t *         closure_set(closure_t *, array_t *, data_t *);
 extern data_t *         closure_get(closure_t *, char *);
 extern data_t *         closure_resolve(closure_t *, array_t *);
 extern data_t *         closure_execute(closure_t *);
 extern data_t *         closure_execute_function(closure_t *, char *, array_t *, dict_t *);
+extern data_t *         closure_import(closure_t *, array_t *);
   
 #define closure_get_name(c)   closure_tostring((c))
 

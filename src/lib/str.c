@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <list.h>
+#include <array.h>
 #include <stdlib.h>
 #include <str.h>
 #include <string.h>
@@ -420,17 +420,17 @@ str_t * str_slice(str_t *str, int from, int upto) {
   return ret;
 }
 
-list_t * str_split(str_t *str, char *sep) {
-  char   *ptr;
-  char   *sepptr;
-  list_t *ret;
-  str_t  *c;
+array_t * str_split(str_t *str, char *sep) {
+  char    *ptr;
+  char    *sepptr;
+  array_t *ret;
+  str_t   *c;
 
-  ret = list_create();
-  list_set_free(
-      list_set_hash(
-          list_set_tostring(
-              list_set_cmp(ret, (cmp_t) str_cmp),
+  ret = array_create(4);
+  array_set_free(
+      array_set_hash(
+          array_set_tostring(
+              array_set_cmp(ret, (cmp_t) str_cmp),
               (tostring_t) str_chars),
           (hash_t) str_hash),
       (free_t) str_free);
@@ -438,10 +438,10 @@ list_t * str_split(str_t *str, char *sep) {
   ptr = str -> buffer;
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     c = str_copy_nchars(sepptr - ptr, ptr);
-    list_push(ret, c);
+    array_push(ret, c);
     ptr = sepptr + strlen(sep);
   }
   c = str_copy_chars(ptr);
-  list_push(ret, c);
+  array_push(ret, c);
   return ret;
 }

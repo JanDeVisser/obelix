@@ -64,7 +64,7 @@ static instruction_type_descr_t instruction_descr_map[] = {
       name: "PushVal",  free: (free_t) _instruction_free_value,
       tostring: (tostring_t) _instruction_tostring_value },
     { type: ITFunctionCall, function: _instruction_execute_function,
-      name: "Call", free: (free_t) _instruction_free_value,
+      name: "FunctionCall", free: (free_t) _instruction_free_value,
       tostring: (tostring_t) _instruction_tostring_value },
     { type: ITTest, function: _instruction_execute_test,
       name: "Test", free: (free_t) _instruction_free_name,
@@ -165,8 +165,6 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   data_t    *func_container;
   data_t    *value;
   data_t    *ret = NULL;
-  object_t  *o;
-  closure_t *c;
   char      *n;
   array_t   *params;
   array_t   *name = data_list_to_str_array(instr -> value);
@@ -186,13 +184,27 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     array_debug(params, " -- parameters: %s");
   }
 
-  func_container = closure_get_container_for(closure, name);
-  if (data_is_error(func_container)) {
-    ret = func_container;
-  } else {
-    n = str_array_get(name, -1);
-    data_execute(func_container, n, params, NULL);
-    data_free(func_container);
+  /*
+   * If the name consists of a single part, see if the parameters
+   * can deal with this (examples: '+', len, etc):
+   */
+  if ((array_size(name) == 1) && instr -> num) {
+    ret = data_execute(NULL, (char *) array_get(name, 0), params, NULL);
+    if (data_is_error(ret) && (data_errorval(ret) -> code == ErrorName)) {
+      data_free(ret);
+      ret = NULL;
+    }
+  }
+
+  if (!ret) {
+    func_container = closure_get_container_for(closure, name, TRUE);
+    if (data_is_error(func_container)) {
+      ret = func_container;
+    } else {
+      n = str_array_get(name, -1);
+      data_execute(func_container, n, params, NULL);
+      data_free(func_container);
+    }
   }
   array_free(params);
   array_free(name);
@@ -226,13 +238,11 @@ data_t * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
 }
 
 data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
-  scriptloader_t *loader;
-  array_t        *imp = data_list_to_str_array(instr)
+  array_t        *imp = data_list_to_str_array(instr -> value);
   data_t         *ret;
 
-  loader = scriptloader_get();
-  ret = scriptloader_import(loader, imp);
-  array_free(imp);
+  ret = closure_import(closure, imp);
+  arra_free(imp);
   return (data_is_error(ret)) ? ret : NULL;
 }
 
