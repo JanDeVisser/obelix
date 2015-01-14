@@ -231,24 +231,23 @@ START_TEST(test_str_ncopy)
 END_TEST
 
 START_TEST(test_str_split)
-  list_t         *list;
-  listiterator_t *iter;
-  str_t          *str;
-  str_t          *c;
-  char           *test = "this,is,a,test,string";
+  array_t *array;
+  int      ix;
+  str_t   *str;
+  str_t   *c;
+  char    *test = "this,is,a,test,string";
 
   str = str_wrap(test);
-  list = str_split(str, ",");
-  ck_assert_ptr_ne(list, NULL);
-  ck_assert_int_eq(list_size(list), 5);
-  for (iter = li_create(list); li_has_next(iter); ) {
-    c = (str_t *) li_next(iter);
+  array = str_split(str, ",");
+  ck_assert_ptr_ne(array, NULL);
+  ck_assert_int_eq(array_size(array), 5);
+  for (ix = 0; ix < array_size(array); ix++) {
+    c = (str_t *) array_get(array, ix);
     ck_assert(str_indexof_chars(c, ",") < 0);
   }
-  list_free(list);
+  array_free(array);
   str_free(str);
 END_TEST
-
 
 
 START_TEST(test_str_join)

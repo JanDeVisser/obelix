@@ -42,6 +42,7 @@ typedef enum _datatype {
   Object,
   Script,
   Closure,
+  Module,
   Any = 100,
   Numeric
 } datatype_t;
@@ -139,7 +140,7 @@ extern char *          data_debugstr(data_t *);
 #define data_longval(d)  ((data_type((d)) == Int) ? (d) -> intval : (long)((d) -> dblval))
 #define data_charval(d)  ((char *) (d) -> ptrval)
 #define data_arrayval(d) ((array_t *) (d) -> ptrval)
-#define data_errorval(d) (data_is_error((d)) ? ((error_t *) (d) -> ptrval) : NULL)
+#define data_errorval(d) ((error_t *) ((data_is_error((d)) ? (d) -> ptrval : NULL)))
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
 extern array_t *       data_add_strings_reducer(data_t *, array_t *);
@@ -164,6 +165,7 @@ extern array_t *       data_list_to_str_array(data_t *);
                                       (free_t) data_free), \
                                     (tostring_t) chars), \
                                   (tostring_t) data_tostring)
+#define data_dict_get(d, k)     ((data_t *) dict_get((d), (k)))
 
 #define data_array_create(i)    array_set_tostring( \
                                   array_set_free( \

@@ -158,6 +158,7 @@ file_t * file_open(char *fname) {
   ok = 1;
   if (ret) {
     ret -> read_fnc = (read_t) file_read;
+    ret -> free = (free_t) file_free;
     ret -> fname = strdup(fname);
     if (!ret -> fname) {
       ok = 0;

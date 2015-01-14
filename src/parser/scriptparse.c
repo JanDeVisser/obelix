@@ -23,21 +23,19 @@
 #include <scriptparse.h>
 
 parser_t * script_parse_init(parser_t *parser) {
-  char     *name;
-  script_t *up = NULL;
-  object_t *scope = NULL;
-  data_t   *data;
+  char        *name;
+  namespace_t *ns = NULL;
+  data_t      *data;
 
   if (parser_debug) {
     debug("script_parse_init");
   }
   data = parser_get(parser, "name");
-  name = (char *) data -> ptrval;
-  data = parser_get(parser, "up");
-  up = data_scriptval(data);
-  data = parser_get(parser, "scope");
-  scope = data_objectval(data);
-  parser -> data = script_create(scope, up, name);
+  name = data_charval(data);
+  data = parser_get(parser, "ns");
+  ns = (data) ? data -> ptrval : NULL;
+  assert(ns);
+  parser -> data = script_create(ns, NULL, name);
   return parser;
 }
 
@@ -317,7 +315,6 @@ parser_t * script_parse_start_function(parser_t *parser) {
   char      *fname;
   int        native;
   array_t   *params;
-  voidptr_t  fnc;
   int        ix;
 
   up = (script_t *) parser -> data;
@@ -331,40 +328,22 @@ parser_t * script_parse_start_function(parser_t *parser) {
   fname = strdup(data_charval(data));
   data_free(data);
 
-  /* Then 'native' flag */
-  data = datastack_pop(parser -> stack);
-  native = data_longval(data);
-  data_free(data);
-
-  if (native) {
-    fnc = (voidptr_t) resolve_function(fname);
-    if (fnc) {
-      func = script_create_native(up, function_create(fname, fnc));
-      if (parser_debug) {
-        debug(" -- defined native function %s", func -> name);
-      }
-    } else {
-      /* FIXME error handling
-      return data_error(ErrorName,
-                        "Could not find native function '%s'", fname);
-       */
-      return NULL;
-    }
-  } else {
-    func = script_create(up -> scope, up, fname);
-    func -> params = data_list_to_str_array(params);
-    free(fname);
-    array_free(params);
-    if (parser_debug) {
-      debug(" -- defining function %s", func -> name);
-    }
-    parser -> data = func;
+  func = script_create(NULL, up, fname);
+  func -> params = str_array_create(array_size(params));
+  for (ix = 0; ix < array_size(params); ix++) {
+    array_push(func -> params, array_get(params, ix));
   }
+  free(fname);
+  array_free(params);
+  if (parser_debug) {
+    debug(" -- defining function %s", func -> name);
+  }
+  parser -> data = func;
   return parser;
 }
 
 parser_t * script_parse_end_function(parser_t *parser) {
-  script_t *func;
+  script_t  *func;
 
   func = (script_t *) parser -> data;
   if (func -> label) {
@@ -377,5 +356,31 @@ parser_t * script_parse_end_function(parser_t *parser) {
   return parser;
 }
 
+parser_t * script_parse_end_native_function(parser_t *parser) {
+  script_t  *func;
+  char      *c_func_name;
+  voidptr_t  fnc;
+
+  func = (script_t *) parser -> data;
+  c_func_name = strdup(parser -> last_token -> token);
+
+  /* TODO Split c_func_name into lib and func */
+
+  fnc = (voidptr_t) resolve_function(c_func_name);
+  if (fnc) {
+    func = script_make_native(func, function_create(func -> name, fnc));
+    if (parser_debug) {
+      debug(" -- defined native function %s", func -> name);
+    }
+  } else {
+    /* FIXME error handling
+    return data_error(ErrorName,
+                      "Could not find native function '%s'", fname);
+     */
+    return NULL;
+  }
+  parser -> data = func -> up;
+  return parser;
+}
 
 
