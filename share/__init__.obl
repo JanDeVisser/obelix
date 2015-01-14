@@ -1,0 +1,5 @@
+/*
+ * obelix root object declaration -
+ */
+ 
+func print(msg) -> "_script_function_print"
