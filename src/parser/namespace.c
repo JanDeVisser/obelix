@@ -31,9 +31,12 @@ static unsigned int     _data_hash_module(data_t *);
 /* static data_t *         _data_parse_module(char *); */
 static data_t *         _data_execute_module(data_t *, char *, array_t *, dict_t *);
 
+static module_t *       _mod_create(array_t *);
+static module_t *       _mod_create_dummy(array_t *);
 static char *           _ns_get_name_str(array_t *);
 static namespace_t *    _ns_create(void);
 
+int ns_debug = 0;
 
 static typedescr_t typedescr_module = {
   type:                  Module,
@@ -97,22 +100,51 @@ data_t * data_create_module(module_t *module) {
 
 /* ------------------------------------------------------------------------ */
 
-module_t * mod_create(array_t *name, script_t *script) {
+module_t * _mod_create(array_t *name) {
   static int  type_module = -1;
   module_t   *ret;
-  data_t     *data;
-
+  char       *n = _ns_get_name_str(name);
+  
   if (type_module < 0) {
     type_module = typedescr_register(typedescr_module);
   }
-
+  
   ret = NEW(module_t);
   ret -> name = _ns_get_name_str(name);
   ret -> refs = 0;
+  free(n);
+  return ret;
+}
+
+module_t * _mod_create_dummy(array_t *name) {
+  module_t   *ret;
+
+  ret = _mod_create(name);
+  if (ns_debug) {
+    debug("  Creating dummy module '%s'", ret -> name);
+  }
+  ret -> obj = object_create(NULL);
+  return ret;
+}
+
+/* ------------------------------------------------------------------------ */
+
+module_t * mod_create(script_t *script, array_t *name) {
+  module_t   *ret;
+  data_t     *data;
+
+  ret = _mod_create(name);
+  if (ns_debug) {
+    debug("  Creating module '%s'", ret -> name);
+  }
   data = script_create_object(script, NULL, NULL);
   if (data_is_object(data)) {
     ret -> obj = object_copy(data_objectval(data));
+    if (ns_debug) {
+      debug("  module '%s' created", ret -> name);
+    }
   } else {
+    error("ERROR creating module '%s': %s", ret -> name, data_tostring(data));
     mod_free(ret);
     ret = NULL;
   }
@@ -167,6 +199,9 @@ namespace_t * ns_create(namespace_t *up) {
   namespace_t *ret;
 
   assert(up);
+  if (ns_debug) {
+    debug("  Creating subordinate namespace");
+  }
   ret = _ns_create();
   ret -> import_ctx = NULL;
   ret -> up = up;
@@ -177,10 +212,12 @@ namespace_t * ns_create_root(void *importer, import_t import_fnc) {
   namespace_t *ret;
 
   assert(importer && import_fnc);
+  if (ns_debug) {
+    debug("  Creating root namespace");
+  }
   ret = _ns_create();
   ret -> import_ctx = importer;
   ret -> import_fnc = import_fnc;
-  ns_import(ret, NULL);
   return ret;
 }
 
@@ -198,15 +235,35 @@ data_t * ns_import(namespace_t *ns, array_t *name) {
   data_t   *script;
 
   n = _ns_get_name_str(name);
-  if (dict_has_key(ns, n)) {
-    data = data_copy(data_dict_get(ns, n));
+  if (ns_debug) {
+    debug("  Importing module '%s'", n);
+  }
+  if (ns_has(ns, n)) {
+    if (ns_debug) {
+      debug("  Module '%s' already imported", n);
+    }
+    data = data_copy(data_dict_get(ns -> contents, n));
   } else {
     if (!ns -> import_ctx) {
+      if (ns_debug) {
+        debug("  Module '%s' not found - delegating to higher level namespace", n);
+      }
       data = ns_import(ns -> up, name);
     } else {
+      if (ns_debug) {
+        debug("  Module '%s' not found - delegating to loader", n);
+      }
       script = ns -> import_fnc(ns -> import_ctx, name);
       if (data_is_script(script)) {
+        /* 
+         * Create a dummy module and store that in the dictionary while the
+         * script is executed. This prevents endless loops.
+         */
+        dict_put(ns -> contents, strdup(n), 
+                 data_create_module(_mod_create_dummy(name)));
         mod = mod_create(data_scriptval(script), name);
+        dict_remove(ns -> contents, n);
+
         if (mod) {
           data = data_create_module(mod);
         } else {
@@ -218,7 +275,12 @@ data_t * ns_import(namespace_t *ns, array_t *name) {
       }
     }
     if (data_is_module(data)) {
-      dict_put(ns -> contents, n, data_copy(data));
+      if (ns_debug) {
+        debug("  Adding module '%s' to inventory", n);
+      }
+      dict_put(ns -> contents, strdup(n), data_copy(data));
+    } else {
+      error("ERROR importing module '%s': %s", n, data_tostring(data));
     }
   }
   free(n);
@@ -245,7 +307,7 @@ data_t * ns_get(namespace_t *ns, array_t *name) {
 data_t * ns_gets(namespace_t *ns, char *name) {
   data_t *data;
 
-  data = data_dict_get(ns, name);
+  data = data_dict_get(ns -> contents, name);
   if (!data) {
     data = data_error(ErrorName,
                       "Import '%s' not found in namespace", name);
@@ -256,7 +318,13 @@ data_t * ns_gets(namespace_t *ns, char *name) {
 }
 
 int ns_has(namespace_t *ns, char *name) {
-  return dict_has_key(ns -> contents, name);
+  int ret;
+
+  ret = dict_has_key(ns -> contents, name);
+  if (ns_debug) {
+    debug("  ns_has('%s') = %d", name, ret);
+  }
+  return ret;
 }
 
 data_t * ns_resolve(namespace_t *ns, array_t *name) {

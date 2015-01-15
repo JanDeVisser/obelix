@@ -140,6 +140,7 @@ extern char *          data_debugstr(data_t *);
 #define data_longval(d)  ((data_type((d)) == Int) ? (d) -> intval : (long)((d) -> dblval))
 #define data_charval(d)  ((char *) (d) -> ptrval)
 #define data_arrayval(d) ((array_t *) (d) -> ptrval)
+#define data_is_error(d) ((d) && (data_type((d)) == Error))
 #define data_errorval(d) ((error_t *) ((data_is_error((d)) ? (d) -> ptrval : NULL)))
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);

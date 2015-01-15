@@ -631,13 +631,14 @@ str_t * dict_tostr(dict_t *dict) {
   return ret;
 }
 
-void dict_dump(dict_t *dict, char *title) {
-  list_t *bucket;
-  int cap, len, i, j;
+str_t * dict_dump(dict_t *dict, char *title) {
+  list_t         *bucket;
+  int             cap, len, i, j;
   listiterator_t *iter;
-  dictentry_t *entry;
+  dictentry_t    *entry;
+  str_t          *ret;
   
-  debug("dict_dump -- %s", title);
+  ret = str_copy_chars("dict_dump -- %s", title);
   debug("==============================================");
   debug("Size: %d", dict_size(dict));
   cap = array_capacity(dict -> buckets);

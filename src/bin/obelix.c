@@ -44,7 +44,41 @@ int main(int argc, char **argv) {
 }
 #endif
 
+#include <namespace.h>
 #include <script.h>
+
+void debug_settings(char *debug) {
+  int debug_all = 0;
+  
+  if (debug) {
+    debug("debug optarg: %s", debug);
+    debug_all = strstr(debug, "all") != NULL;
+    if (debug_all || strstr(debug, "grammar")) {
+      grammar_debug = 1;
+      debug("Turned on grammar debugging");
+    }
+    if (debug_all || strstr(debug, "parser")) {
+      parser_debug = 1;
+      debug("Turned on parser debugging");
+    }
+    if (debug_all || strstr(debug, "script")) {
+      script_debug = 1;
+      debug("Turned on script debugging");
+    }
+    if (debug_all || strstr(debug, "file")) {
+      file_debug = 1;
+      debug("Turned on file debugging");
+    }
+    if (debug_all || strstr(debug, "namespace")) {
+      ns_debug = 1;
+      debug("Turned on namespace debugging");
+    }
+    if (debug_all || strstr(debug, "resolution")) {
+      res_debug = 1;
+      debug("Turned on name resolution debugging");
+    }
+  }
+}
 
 int main(int argc, char **argv) {
   char           *grammar;
@@ -53,8 +87,8 @@ int main(int argc, char **argv) {
   int             opt;
   scriptloader_t *loader;
   data_t         *ret;
+  script_t       *script;
   int             retval;
-  int             debug_all;
 
   grammar = NULL;
   debug = NULL;
@@ -78,33 +112,20 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  if (debug) {
-    debug("debug optarg: %s", debug);
-    debug_all = strstr(debug, "all") != NULL;
-    if (debug_all || strstr(debug, "grammar")) {
-      grammar_debug = 1;
-      debug("Turned on grammar debugging");
-    }
-    if (debug_all || strstr(debug, "parser")) {
-      parser_debug = 1;
-      debug("Turned on parser debugging");
-    }
-    if (debug_all || strstr(debug, "script")) {
-      script_debug = 1;
-      debug("Turned on script debugging");
-    }
-    if (debug_all || strstr(debug, "file")) {
-      file_debug = 1;
-      debug("Turned on file debugging");
-    }
-  }
   if (argc == optind) {
     fprintf(stderr, "Usage: obelix <filename>\n");
     exit(1);
   }
+  debug_settings(debug);
+  
   loader = scriptloader_create(basepath, grammar);
   free(basepath);
   ret = scriptloader_load(loader, argv[optind]);
+  if (data_is_script(ret)) {
+    script = script_copy(data_scriptval(ret));
+    data_free(ret);
+    ret = script_execute(script, NULL, NULL, NULL);
+  }
   debug("Exiting with exit code %s", data_tostring(ret));
   retval = (ret && data_type(ret) == Int) ? (int) ret -> intval : 0;
   data_free(ret);

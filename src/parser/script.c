@@ -532,7 +532,6 @@ closure_t * closure_push(closure_t *closure, data_t *value) {
 }
 
 data_t * closure_import(closure_t *closure, array_t *module) {
-  assert(module && array_size(module));
   return ns_import(closure -> imports, module);
 }
 
@@ -734,7 +733,7 @@ data_t * closure_resolve(closure_t *closure, array_t *varname) {
   char      *n;
 
   assert(closure);
-  assert(!varname || !array_size(varname));
+  assert(varname && array_size(varname));
 
   d = closure_get_container_for(closure, varname, FALSE);
   switch (data_type(d)) {
@@ -979,7 +978,7 @@ void scriptloader_free(scriptloader_t *loader) {
     list_free(loader -> load_path);
     grammar_free(loader -> grammar);
     parser_free(loader -> parser);
-    namespace_free(loader -> ns);
+    ns_free(loader -> ns);
     free(loader);
   }
 }
@@ -1017,8 +1016,7 @@ data_t * scriptloader_load(scriptloader_t *loader, char *name) {
   if (script_debug) {
     debug("scriptloader_load('%s')", name);
   }
-  ret = ns_gets(loader -> ns, name);
-  if (data_is_error(ret)) {
+  if (!ns_has(loader -> ns, name)) {
     rdr = _scriptloader_open_reader(loader, name);
     script_name = (name && name[0]) ? name : "__root__";
     ret = (rdr)
@@ -1031,8 +1029,11 @@ data_t * scriptloader_load(scriptloader_t *loader, char *name) {
 
 data_t * scriptloader_import(scriptloader_t *loader, array_t *module) {
   data_t   *ret;
-  str_t    *path = array_join(module, ".");
+  str_t    *path;
 
+  path = (module && array_size(module))
+    ? array_join(module, ".")
+    : str_wrap("");
   ret = scriptloader_load(loader, str_chars(path));
   str_free(path);
   return ret;

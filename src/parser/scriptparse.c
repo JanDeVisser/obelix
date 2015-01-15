@@ -40,23 +40,29 @@ parser_t * script_parse_init(parser_t *parser) {
 }
 
 parser_t * script_parse_done(parser_t *parser) {
+  data_t        *data;
   script_t      *script;
   instruction_t *jump;
+  array_t       *error_var;
 
   if (parser_debug) {
     debug("script_parse_done");
   }
   script = (script_t *) parser -> data;
-  if (script -> label) {
-    script_parse_emit_nop(parser);
-  }
-  jump = instruction_create_jump("END");
-  script_push_instruction(script, jump);
+
+  
+  data = data_create(Int, 0);
+  script_push_instruction(script, instruction_create_pushval(data));
+  data_free(data);
+  
+  script_push_instruction(script, instruction_create_jump("END"));
   script -> label = strdup("ERROR");
   /*
    * TODO Error handling code
    */
-  script_parse_emit_nop(parser);
+  error_var = data_array_create(1);
+  array_push(error_var, data_create(String, "$$ERROR"));
+  script_push_instruction(script, instruction_create_pushvar(error_var));
   script -> label = strdup("END");
   script_parse_emit_nop(parser);
   if (script_debug) {
