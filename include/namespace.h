@@ -29,6 +29,8 @@
 
 typedef data_t * (*import_t)(void *, array_t *);
 
+extern int ns_debug;
+
 typedef struct _module {
   object_t  *obj;
   char      *name;
@@ -49,7 +51,7 @@ typedef struct _namespace {
 
 extern data_t *      data_create_module(module_t *);
 
-extern module_t *    mod_create(array_t *, script_t *);
+extern module_t *    mod_create(script_t *, array_t *);
 extern void          mod_free(module_t *);
 extern module_t *    mod_copy(module_t *);
 

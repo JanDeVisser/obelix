@@ -26,11 +26,14 @@
 #include <data.h>
 #include <dict.h>
 
+extern int res_debug;
+
 typedef struct _object {
   struct _script *script;
   void           *ptr;
   dict_t         *variables;
   char           *str;
+  char           *debugstr;
   int             refs;
 } object_t;
 
@@ -46,6 +49,7 @@ extern object_t *          object_set(object_t *, char *, data_t *);
 extern int                 object_has(object_t *, char *);
 extern data_t *            object_execute(object_t *, char *, array_t *, dict_t *);
 extern char *              object_tostring(object_t *);
+extern char *              object_debugstr(object_t *);
 extern unsigned int        object_hash(object_t *);
 extern data_t *            object_resolve(object_t *, array_t *);
 

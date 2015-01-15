@@ -24,6 +24,8 @@
 #include <object.h>
 #include <script.h>
 
+int res_debug = 0;
+
 static typedescr_t typedescr_object;
 
 static data_t *     _data_new_object(data_t *, va_list);
@@ -91,7 +93,7 @@ data_t * data_create_object(object_t *object) {
  * object_t public functions
  */
 
-object_t* object_create(script_t *script) {
+object_t * object_create(script_t *script) {
   static int  type_object = -1;
   object_t   *ret;
 
@@ -102,6 +104,8 @@ object_t* object_create(script_t *script) {
   ret -> refs = 0;
   ret -> script = script;
   ret -> ptr = NULL;
+  ret -> str = NULL;
+  ret -> debugstr = NULL;
   ret -> variables = strdata_dict_create();
   if (script) {
     dict_reduce(ret -> variables, (reduce_t) data_put_all_reducer, script -> functions);
@@ -121,6 +125,7 @@ void object_free(object_t *object) {
       object_execute(object, "__finalize__", NULL, NULL);
       dict_free(object -> variables);
       free(object -> str);
+      free(object -> debugstr);
     }
   }
 }
@@ -145,7 +150,12 @@ object_t * object_set(object_t *object, char *name, data_t *value) {
 }
 
 int object_has(object_t *object, char *name) {
-  return dict_has_key(object -> variables, name);
+  int ret;
+  ret = dict_has_key(object -> variables, name);
+  if (res_debug) {
+    debug("   object_has('%s', '%s'): %d", object_debugstr(object), name, ret);
+  }
+  return ret;
 }
 
 data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwargs) {
@@ -176,21 +186,40 @@ data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwa
 }
 
 char * object_tostring(object_t *object) {
-  data_t   *data;
+  data_t   *data = NULL;
 
-  data = object_execute(object, "__str__", NULL, NULL);
-  if (!data_is_error(data)) {
-    object -> str = strdup(data_charval(data));
+  if (object -> str) {
+    free(object -> str);
+  }
+  if (object_has(object, "__str__")) {
+    data = object_execute(object, "__str__", NULL, NULL);
+  }
+  if (data_is_error(data)) {
+    object -> str = strdup(object_debugstr(object));
   } else {
-    object -> str = (char *) new(snprintf(NULL, 0, "<%s object at %p>",
-                                          script_tostring(object -> script),
-                                          object) + 1);
-    sprintf(object -> str, "<%s object at %p>",
-            script_tostring(object -> script),
-            object);
+    object -> str = strdup(data_charval(data));
   }
   data_free(data);
   return object -> str;
+}
+
+char * object_debugstr(object_t *object) {
+  if (!object -> debugstr) {
+    if (object -> script) {
+      object -> debugstr = (char *) new(snprintf(NULL, 0, "<%s object at %p>",
+                                                 script_tostring(object -> script),
+                                                 object) + 1);
+      sprintf(object -> debugstr, "<%s object at %p>",
+              script_tostring(object -> script),
+              object);
+    } else {
+      object -> debugstr = (char *) new(snprintf(NULL, 0, "<anon object at %p>",
+                                                 object) + 1);
+      sprintf(object -> debugstr, "<anon object at %p>",
+              object);
+    }
+  }
+  return object -> debugstr;
 }
 
 unsigned int object_hash(object_t *object) {
@@ -242,9 +271,16 @@ data_t * object_resolve(object_t *object, array_t *name) {
   int       ix;
 
   if (!name || !array_size(name)) {
+    if (res_debug) {
+      debug("   object_resolve('%s', [empty name])", object_tostring(object));
+    }
     return data_error(ErrorName, "Empty name");
   }
   if (array_size(name) == 1) {
+    if (res_debug) {
+      debug("   object_resolve('%s', '%s')", 
+            object_tostring(object), str_array_get(name, 0));
+    }
     return data_create(Object, object);
   }
   o = object_copy(object);
@@ -269,6 +305,8 @@ data_t * object_resolve(object_t *object, array_t *name) {
   }
   if (!data_is_error(ret)) {
     ret = data_create_object(o) ;
+  } else if (res_debug) {
+    debug("   object_resolve('%s'): %s", object_tostring(object), data_tostring(ret));
   }
   object_free(o);
   return ret;
