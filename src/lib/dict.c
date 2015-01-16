@@ -22,6 +22,7 @@
 #include <stdlib.h>
 
 #include <dict.h>
+#include <str.h>
 
 typedef struct _dictentry {
   dict_t       *dict;
@@ -62,7 +63,7 @@ static void *           _dict_entry_reducer(dictentry_t *, reduce_ctx *);
 static void *           _dict_reduce(dict_t *, reduce_t, void *, dict_reduce_type_t);
 static void *           _dict_bucket_reducer(list_t *, reduce_ctx *);
 static dict_t *         _dict_put_all_reducer(entry_t *, dict_t *);
-static str_t *          _dict_entry_formatter(entry_t *, str_t *);
+static reduce_ctx *     _dict_entry_formatter(entry_t *, reduce_ctx *);
 
 // ---------------------------
 // dictentry_t static functions
@@ -368,14 +369,19 @@ dict_t * _dict_put_all_reducer(entry_t *e, dict_t *dict) {
   return dict;
 }
 
-str_t * _dict_entry_formatter(entry_t *e, str_t *entries) {
+reduce_ctx * _dict_entry_formatter(entry_t *e, reduce_ctx *ctx) {
+  dict_t *dict = (dict_t *) ctx -> user;
+  str_t  *entries = (str_t *) ctx -> data;
+  
   if (str_len(entries)) {
     str_append_chars(entries, ", ");
+  } else {
+    str_append_chars(entries, " ");    
   }
-  str_append_chars(entries, e -> key);
-  str_append_chars(entries, ": ");
-  str_append_chars(entries, e -> value);
-  return entries;
+  str_append_chars(entries, "\"%s\": %s", 
+                   dict -> tostring_key(e -> key), 
+                   dict -> tostring_data(e -> value));
+  return ctx;
 }
 
 // ---------------------------
@@ -619,14 +625,17 @@ dict_t * dict_put_all(dict_t *dict, dict_t *other) {
 }
 
 str_t * dict_tostr(dict_t *dict) {
-  str_t *ret;
-  str_t *entries;
+  str_t      *ret;
+  str_t      *entries;
+  reduce_ctx *ctx;
 
   ret = str_copy_chars("{");
   entries = str_create(0);
-  entries = dict_reduce_chars(dict, (reduce_t) _dict_entry_formatter, entries);
+  
+  ctx = reduce_ctx_create(dict, entries, NOFUNCPTR);
+  dict_reduce_chars(dict, (reduce_t) _dict_entry_formatter, ctx);
   str_append(ret, entries);
-  str_append_chars(ret, "}");
+  str_append_chars(ret, " }");
   str_free(entries);
   return ret;
 }
@@ -634,27 +643,28 @@ str_t * dict_tostr(dict_t *dict) {
 str_t * dict_dump(dict_t *dict, char *title) {
   list_t         *bucket;
   int             cap, len, i, j;
-  listiterator_t *iter;
   dictentry_t    *entry;
   str_t          *ret;
   
-  ret = str_copy_chars("dict_dump -- %s", title);
-  debug("==============================================");
-  debug("Size: %d", dict_size(dict));
+  ret = str_copy_chars("dict_dump -- %s\n", title);
+  str_append_chars(ret, "==============================================\n");
+  str_append_chars(ret, "Size: %d\n", dict_size(dict));
   cap = array_capacity(dict -> buckets);
-  debug("Buckets: %d", cap);
+  str_append_chars(ret, "Buckets: %d\n", cap);
   for (i = 0; i < cap; i++) {
     bucket = (list_t *) array_get((array_t *) dict -> buckets, i);
     len = list_size(bucket);
-    debug("  Bucket: %d bucket size: %d", i, len);
+    str_append_chars(ret, "  Bucket: %d bucket size: %d\n", i, len);
     if (len > 0) {
-      debug("  --------------------------------------------");
-      for (iter = li_create(bucket); li_has_next(iter); ) {
-        entry = (dictentry_t *) li_next(iter);
-        debug("    %s (%u) --> %s", (char *) entry -> key, entry -> hash, (char *) entry -> value);
+      debug("  --------------------------------------------\n");
+      for (list_start(bucket); list_has_next(bucket); ) {
+        entry = (dictentry_t *) list_next(bucket);
+        str_append_chars(ret, "    %s (%u) --> %s\n", 
+                         (char *) entry -> key, entry -> hash, 
+                         (char *) entry -> value);
       }
-      debug("");
-      li_free(iter);
+      str_append_chars(ret, "\n");
     }
   }
+  return ret;
 }

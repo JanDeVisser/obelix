@@ -427,6 +427,10 @@ ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
       grammar_set_lexer_option(g, LexerOptionHashPling,
                          atob(token_token(val)));
       break;
+    case SIGNED_NUMBERS:
+      grammar_set_lexer_option(g, LexerOptionSignedNumbers,
+                         atob(token_token(val)));
+      break;
     default:
       ge = NULL;
       break;

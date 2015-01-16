@@ -106,6 +106,7 @@ extern closure_t *      closure_push(closure_t *, data_t *);
 extern data_t *         closure_get_container_for(closure_t *closure, array_t *name, int);
 extern data_t *         closure_set(closure_t *, array_t *, data_t *);
 extern data_t *         closure_get(closure_t *, char *);
+extern int              closure_has(closure_t *, char *);
 extern data_t *         closure_resolve(closure_t *, array_t *);
 extern data_t *         closure_execute(closure_t *);
 extern data_t *         closure_execute_function(closure_t *, char *, array_t *, dict_t *);

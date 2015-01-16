@@ -212,7 +212,7 @@ data_t * _script_function_print(data_t *ignored, char *name, array_t *params, di
    *
    * But that's future. Now we just print the first parameter :-)
    */
-  info(data_tostring(value));
+  printf("%s\n", data_tostring(value));
   return data_create(Int, 1);
 }
 
@@ -466,6 +466,7 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
         _closure_set_local(closure, "$$ERROR", data_copy(ret));
         break;
       default:
+        debug("Instr '%s' returned '%s'", instruction_tostring(instr), data_tostring(ret));
         assert(0);
         break;
     }
@@ -572,9 +573,7 @@ data_t * closure_get_container_for(closure_t *closure, array_t *name, int must_e
   data = NULL;
   c = closure;
   while (c) {
-    data_free(data);
-    data = closure_get(c, first);
-    if (!data_is_error(data)) {
+    if (closure_has(c, first)) {
       break;
     } else {
       c = c -> up;
@@ -585,6 +584,7 @@ data_t * closure_get_container_for(closure_t *closure, array_t *name, int must_e
       debug("  Found first name element '%s' in closure chain: %s",
             first, closure_tostring(c));
     }
+    data = closure_get(c, first);
     /* Found a match in the closure chain. Now walk the name: */
     if (tail) {
       /* There are more components in the name. data must be object: */
@@ -721,6 +721,16 @@ data_t * closure_get(closure_t *closure, char *varname) {
                      "Closure '%s' has no attribute '%s'",
                      closure_tostring(closure),
                      varname);
+  }
+  return ret;
+}
+
+int closure_has(closure_t *closure, char *name) {
+  int ret;
+
+  ret = dict_has_key(closure -> variables, name);
+  if (res_debug) {
+    debug("   closure_has('%s', '%s'): %d", closure_tostring(closure), name, ret);
   }
   return ret;
 }

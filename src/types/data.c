@@ -350,10 +350,6 @@ int data_is_numeric(data_t *data) {
   return (data -> type == Int) || (data -> type == Float);
 }
 
-int data_is_error(data_t *data) {
-  return (!data || (data -> type == Error));
-}
-
 int data_hastype(data_t *data, int type) {
   if (type == Any) {
     return TRUE;
@@ -416,7 +412,7 @@ data_t * data_execute_method(data_t *self, methoddescr_t *method, array_t *args,
     arg = array_get(args, i);
     t = (i < method -> minargs)
       ? method -> argtypes[i]
-      : method -> argtypes[method -> minargs - 1];
+      : method -> argtypes[(method -> minargs) ? method -> minargs - 1 : 0];
     if (!data_hastype(arg, t)) {
       return data_error(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
                         i+1, type -> typename, method -> name, t, data_type(arg));

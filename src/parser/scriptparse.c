@@ -22,6 +22,62 @@
 #include <script.h>
 #include <scriptparse.h>
 
+static int       _script_pop_operation(parser_t *, char *);
+static array_t * _script_pop_and_build_varname(parser_t *);
+  
+}
+/* ----------------------------------------------------------------------- */
+
+int _script_pop_operation(parser_t *parser, char *buf) {
+  data_t *data;
+  int     op;
+  
+  data = datastack_pop(parser -> stack);
+  switch (data_type(data)) {
+    case String:
+      op = data_charval(data)[0]
+      break;
+    case Int:
+      op = data_longval(data);
+      buf[1] = 0;
+      op = buf;
+      break;
+  }
+  data_free(data);
+  buf[0] = op;
+  buf[1] = 0;
+  if (parser_debug) {
+    debug(" -- operation: %s", buf);
+  }
+  return op;
+}
+
+array_t * _script_pop_and_build_varname(parser_t *parser) {
+  data_t         *data;
+  data_t         *count;
+  int             ix;
+  array_t        *ret;
+  str_t          *debugstr;
+
+  count = (data_t *) datastack_pop(parser -> stack);
+  if (parser_debug) {
+    debug("  -- components: %d", data_longval(count));
+  }
+  ret = data_array_create(data_longval(count));
+  for (ix = data_longval(count) - 1; ix >= 0; ix--) {
+    data = datastack_pop(parser -> stack);
+    array_set(ret, ix, data_copy(data));
+    data_free(data);
+  }
+  data_free(count);
+  if (parser_debug) {
+    array_debug(ret, "  -- varname: %s");
+  }
+  return ret;
+}
+
+/* ----------------------------------------------------------------------- */
+
 parser_t * script_parse_init(parser_t *parser) {
   char        *name;
   namespace_t *ns = NULL;
@@ -50,49 +106,23 @@ parser_t * script_parse_done(parser_t *parser) {
   }
   script = (script_t *) parser -> data;
 
-  
   data = data_create(Int, 0);
   script_push_instruction(script, instruction_create_pushval(data));
   data_free(data);
-  
   script_push_instruction(script, instruction_create_jump("END"));
+  
   script -> label = strdup("ERROR");
-  /*
-   * TODO Error handling code
-   */
   error_var = data_array_create(1);
   array_push(error_var, data_create(String, "$$ERROR"));
   script_push_instruction(script, instruction_create_pushvar(error_var));
+  array_free(error_var);
+  
   script -> label = strdup("END");
   script_parse_emit_nop(parser);
   if (script_debug) {
     script_list(script);
   }
   return parser;
-}
-
-array_t * _script_pop_and_build_varname(parser_t *parser) {
-  data_t         *data;
-  data_t         *count;
-  int             ix;
-  array_t        *ret;
-  str_t          *debugstr;
-
-  count = (data_t *) datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug("  -- components: %d", data_longval(count));
-  }
-  ret = data_array_create(data_longval(count));
-  for (ix = data_longval(count) - 1; ix >= 0; ix--) {
-    data = datastack_pop(parser -> stack);
-    array_set(ret, ix, data_copy(data));
-    data_free(data);
-  }
-  data_free(count);
-  if (parser_debug) {
-    array_debug(ret, "  -- varname: %s");
-  }
-  return ret;
 }
 
 parser_t * script_parse_emit_assign(parser_t *parser) {
@@ -132,30 +162,32 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
   return parser;
 }
 
-parser_t * script_parse_emit_infix_op(parser_t *parser) {
-  char     *op;
+parser_t *script_parse_emit_unary_op(parser_t *parser) {
   char      buf[2];
-  data_t   *data;
   script_t *script;
   array_t  *func_name;
 
   script = parser -> data;
-  data = datastack_pop(parser -> stack);
-  switch (data_type(data)) {
-    case String:
-      op = data_charval(data);
-      break;
-    case Int:
-      buf[0] = data_longval(data);
-      buf[1] = 0;
-      op = buf;
-      break;
-  }
-  if (parser_debug) {
-    debug(" -- op: %s", op);
-  }
+  _script_pop_operation(parser, buf);
   func_name = data_array_create(1);
-  array_push(func_name, data_create(String, op));
+  array_push(func_name, data_create(String, buf));
+  script_push_instruction(script,
+    instruction_create_function(func_name, 1));
+  data_free(data);
+  array_free(func_name);
+  return parser;  
+}
+
+
+parser_t * script_parse_emit_infix_op(parser_t *parser) {
+  char      buf[2];
+  script_t *script;
+  array_t  *func_name;
+
+  script = parser -> data;
+  _script_pop_operation(parser, buf);
+  func_name = data_array_create(1);
+  array_push(func_name, data_create(String, buf));
   script_push_instruction(script,
     instruction_create_function(func_name, 2));
   data_free(data);

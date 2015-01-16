@@ -65,8 +65,8 @@ typedescr_t typedescr_float =   {
 };
 
 methoddescr_t methoddescr_float[] = {
-  { type: Float,  name: "+",     method: _float_add,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
-  { type: Float,  name: "-",     method: _float_add,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Float,  name: "+",     method: _float_add,    argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 1 },
+  { type: Float,  name: "-",     method: _float_add,    argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 1 },
   { type: Float,  name: "sum",   method: _float_add,    argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
   { type: Float,  name: "*",     method: _float_mult,   argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
   { type: Float,  name: "mult",  method: _float_mult,   argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
@@ -85,7 +85,7 @@ methoddescr_t methoddescr_float[] = {
   { type: Float,  name: "trunc", method: _float_trunc,  argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
   { type: Float,  name: "floor", method: _float_floor,  argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
   { type: Float,  name: "ceil",  method: _float_ceil,   argtypes: { NoType,  NoType, NoType }, minargs: 0, varargs: 0 },
-  { type: NoType, name: NULL,    method: NULL,          argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 }
+  { type: NoType, name: NULL,    method: NULL,          argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 }
 };
 
 /*
@@ -150,6 +150,9 @@ data_t * _float_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   double  val;
   int     plus = (name[0] == '+');
 
+  if (!array_size(args)) {
+    return data_create(Int, (plus) ? data_dblval(self) : -1.0 * data_dblval(self));
+  }
   retval = self -> dblval;
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);

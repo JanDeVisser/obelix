@@ -32,6 +32,8 @@
 //  #define LEXER_DEBUG
 #endif
 
+int lexer_debug = 0;
+
 typedef struct _lexer_state_str {
   lexer_state_t  state;
   char          *name;
@@ -522,7 +524,8 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
           lexer -> state = LexerStateWhitespace;
         } else if (isalpha(ch) || (ch == '_')) {
           lexer -> state = LexerStateIdentifier;
-        } else if ((ch == '-') || (ch == '+')) {
+        } else if (lexer_get_option(lexer, LexerOptionSignedNumbers) && 
+                   ((ch == '-') || (ch == '+'))) {
           lexer -> quote = ch;
           lexer -> state = LexerStatePlusMinus;
         } else if (ch == '0') {
@@ -865,11 +868,9 @@ token_t * lexer_next_token(lexer_t *lexer) {
     ret -> column = lexer -> column;
   }
 
-#ifdef LEXER_DEBUG
-  if (ret) {
+  if (ret && lexer_debug) {
     debug("lexer_next_token out: token: %s [%s], state %s",
           token_code_name(ret -> code), ret -> token, lexer_state_name(lexer -> state));
   }
-#endif
   return ret;
 }

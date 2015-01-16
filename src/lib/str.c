@@ -17,10 +17,13 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <array.h>
 #include <stdlib.h>
-#include <str.h>
 #include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
+
+#include <array.h>
+#include <str.h>
 
 static str_t *      _str_initialize(void);
 static str_t *      _str_expand(str_t *, int);
@@ -113,21 +116,29 @@ str_t * str_wrap(char *buffer) {
   return ret;
 }
 
-str_t * str_copy_chars(char *buffer) {
-  str_t *ret;
-  char  *b;
+str_t * str_copy_chars(char *buffer, ...) {
+  str_t   *ret;
+  va_list  args;
 
+  va_start(args, buffer);
+  ret = str_copy_vchars(buffer, args);
+  va_end(args);
+  return ret;
+}
+
+str_t * str_copy_vchars(char *buffer, va_list args) {
+  str_t   *ret;
+  char    *b;
+  va_list  args_copy;
+
+  va_copy(args_copy, args);
   ret = _str_initialize();
   if (ret) {
-    b = strdup(buffer);
-    if (b) {
-      ret -> buffer = b;
-      ret -> len = strlen(buffer);
-      ret -> bufsize = ret -> len + 1;
-    } else {
-      free(ret);
-      ret = NULL;
-    }
+    ret -> len = vsnprintf(NULL, 0, buffer, args);
+    ret -> buffer = (char *) new(ret -> len + 1);
+    vsprintf(ret -> buffer, buffer, args_copy);
+    va_end(args_copy);
+    ret -> bufsize = ret -> len + 1;
   }
   return ret;
 }
@@ -315,13 +326,30 @@ str_t * str_append_char(str_t *str, int ch) {
   return ret;
 }
 
-str_t * str_append_chars(str_t *str, char *other) {
-  str_t *ret = NULL;
+str_t * str_append_chars(str_t *str, char *other, ...) {
+  va_list  args;
+  str_t   *ret;
+  
+  va_start(args, other);
+  ret = str_append_vchars(str, other, args);
+  va_end(args);
+  return ret;
+}
+
+str_t * str_append_vchars(str_t *str, char *other, va_list args) {
+  str_t   *ret = NULL;
+  char    *b;
+  va_list  args_copy;
 
   if (str -> bufsize) {
-    if (_str_expand(str, str_len(str) + strlen(other) + 1)) {
-      strcat(str -> buffer, other);
-      str -> len += strlen(other);
+    va_copy(args_copy, args);
+    b = (char *) new(vsnprintf(NULL, 0, other, args) + 1);
+    vsprintf(b, other, args_copy);
+    va_end(args_copy);
+    if (b && _str_expand(str, str_len(str) + strlen(b) + 1)) {
+      strcat(str -> buffer, b);
+      str -> len += strlen(b);
+      free(b);
       str -> pos = 0;
       ret = str;
     }
