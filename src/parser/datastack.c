@@ -28,7 +28,7 @@ static void _stack_list_visitor(data_t *);
  */
 
 void _stack_list_visitor(data_t *entry) {
-  info("   . %s", data_debugstr(entry));
+  debug("   . %s", data_debugstr(entry));
 }
 
 /*
@@ -95,7 +95,7 @@ data_t * datastack_peek(datastack_t *stack) {
 datastack_t * datastack_push(datastack_t *stack, data_t *data) {
   list_push(stack -> list, data);
   if (stack -> debug) {
-    info("After push:");
+    debug("After push:");
     datastack_list(stack);
   }
   return stack;
@@ -114,9 +114,9 @@ datastack_t * datastack_push_float(datastack_t *stack, double value) {
 }
 
 datastack_t * datastack_list(datastack_t *stack) {
-  info("-- Stack '%s' ---------------------------------------------", stack -> name);
+  debug("-- Stack '%s' ---------------------------------------------", stack -> name);
   list_visit(stack -> list, (visit_t) _stack_list_visitor);
-  info("------------------------------------------------------------------");
+  debug("------------------------------------------------------------------");
   return stack;
 }
 

@@ -31,6 +31,8 @@ static void    _outofmemory(int, siginfo_t *, void *);
 
 static int _initialized = 0;
 
+log_level_t log_level = LogLevelInfo;
+
 static void _outofmemory(int sig, siginfo_t *siginfo, void *context) {
   error("Out of Memory. Terminating...");
   exit(1);
@@ -148,11 +150,13 @@ char * _log_level_str(log_level_t lvl) {
 void _logmsg(log_level_t lvl, char *file, int line, char *msg, ...) {
   va_list args;
 
-  va_start(args, msg);
-  fprintf(stderr, "%-12.12s:%4d:%-5.5s:", file, line, _log_level_str(lvl));
-  vfprintf(stderr, msg, args);
-  fprintf(stderr, "\n");
-  va_end(args);
+  if (lvl >= log_level) {
+    va_start(args, msg);
+    fprintf(stderr, "%-12.12s:%4d:%-5.5s:", file, line, _log_level_str(lvl));
+    vfprintf(stderr, msg, args);
+    fprintf(stderr, "\n");
+    va_end(args);
+  }
 }
 
 unsigned int strhash(char *str) {

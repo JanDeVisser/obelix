@@ -76,7 +76,7 @@ extern dict_t * _dict_visit_dictentries(dict_t *, visit_t);
 extern dict_t * dict_put_all(dict_t *, dict_t *);
 extern str_t *  dict_tostr(dict_t *);
 
-extern void     dict_dump(dict_t *, char *);
+extern str_t *  dict_dump(dict_t *, char *);
 
 #define intstr_dict_create()    dict_set_tostring_data( \
                                   dict_set_tostring_key( \

@@ -83,8 +83,8 @@ typedescr_t typedescr_bool = {
 };
 
 methoddescr_t methoddescr_int[] = {
-  { type: Int,    name: "+",    method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
-  { type: Int,    name: "-",    method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
+  { type: Int,    name: "+",    method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 0, varargs: 1 },
+  { type: Int,    name: "-",    method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 0, varargs: 1 },
   { type: Int,    name: "sum",  method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
   { type: Int,    name: "*",    method: _int_mult, argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
   { type: Int,    name: "mult", method: _int_mult, argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
@@ -97,13 +97,13 @@ methoddescr_t methoddescr_int[] = {
 };
 
 methoddescr_t methoddescr_bool[] = {
-  { type: Bool, name: "&&",  method: _bool_and, argtypes: { Int, -1, -1 }, minargs: 1, varargs: 1 },
-  { type: Bool, name: "and", method: _bool_and, argtypes: { Int, -1, -1 }, minargs: 1, varargs: 1 },
-  { type: Bool, name: "||",  method: _bool_or,  argtypes: { Int, -1, -1 }, minargs: 1, varargs: 1 },
-  { type: Bool, name: "or",  method: _bool_or,  argtypes: { Int, -1, -1 }, minargs: 1, varargs: 1 },
-  { type: Bool, name: "!",   method: _bool_not, argtypes: { -1, -1, -1 },  minargs: 0, varargs: 0 },
-  { type: Bool, name: "not", method: _bool_not, argtypes: { -1, -1, -1 },  minargs: 0, varargs: 0 },
-  { type: -1,   name: NULL,  method: NULL,      argtypes: { -1, -1, -1 },  minargs: 0, varargs: 0 }
+  { type: Bool,   name: "&&",  method: _bool_and,  argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 1 },
+  { type: Bool,   name: "and", method: _bool_and,  argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 1 },
+  { type: Bool,   name: "||",  method: _bool_or,   argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 1 },
+  { type: Bool,   name: "or",  method: _bool_or,   argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 1 },
+  { type: Bool,   name: "!",   method: _bool_not,  argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 },
+  { type: Bool,   name: "not", method: _bool_not,  argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 },
+  { type: NoType, name: NULL,  method: NULL,       argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 }
 };
 
 /*
@@ -187,15 +187,19 @@ data_t * _int_fallback(data_t *self, char *name, array_t *args, dict_t *kwargs) 
 /* ----------------------------------------------------------------------- */
 
 data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *d;
-  data_t *ret;
-  int     type = Int;
-  int     ix;
-  long    intret = 0;
-  double  fltret = 0.0;
-  double  dblval;
-  long    longval;
-  int     minus = name && (name[0] == '-');
+  data_t  *d;
+  data_t  *ret;
+  int      type = Int;
+  int      ix;
+  long     intret = 0;
+  double   fltret = 0.0;
+  double   dblval;
+  long     longval;
+  int      minus = name && (name[0] == '-');
+  
+  if (!array_size(args)) {
+    return data_create(Int, (minus) ? -1 * self -> intval : self -> intval);
+  }
 
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);

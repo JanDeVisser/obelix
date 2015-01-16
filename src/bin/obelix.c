@@ -23,10 +23,10 @@
 
 #include <data.h>
 #include <file.h>
-
-#include <grammarparser.h>
+#include <lexer.h>
 
 #if 0
+#include <grammarparser.h>
 int main(int argc, char **argv) {
   file_t           *gf;
   grammar_parser_t *gp;
@@ -77,6 +77,10 @@ void debug_settings(char *debug) {
       res_debug = 1;
       debug("Turned on name resolution debugging");
     }
+    if (debug_all || strstr(debug, "lexer")) {
+      lexer_debug = 1;
+      debug("Turned on name lexer debugging");
+    }
   }
 }
 
@@ -98,7 +102,7 @@ int main(int argc, char **argv) {
   } else {
     basepath = getcwd(NULL, 0);
   }
-  while ((opt = getopt(argc, argv, "g:d:p:")) != -1) {
+  while ((opt = getopt(argc, argv, "g:d:p:l:")) != -1) {
     switch (opt) {
       case 'g':
         grammar = optarg;
@@ -109,6 +113,9 @@ int main(int argc, char **argv) {
       case 'p':
         free(basepath);
         basepath = strdup(optarg);
+        break;
+      case 'l':
+        log_level = atoi(optarg);
         break;
     }
   }
@@ -129,6 +136,8 @@ int main(int argc, char **argv) {
   debug("Exiting with exit code %s", data_tostring(ret));
   retval = (ret && data_type(ret) == Int) ? (int) ret -> intval : 0;
   data_free(ret);
+  script_free(script);
+  scriptloader_free(loader);
   return retval;
 }
 

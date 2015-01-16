@@ -36,6 +36,8 @@ typedef enum _log_level {
   LogLevelFatal
 } log_level_t;
 
+extern log_level_t log_level;
+
 typedef void    (*void_t)(void);
 typedef void *  (*voidptr_t)(void *);
 typedef int     (*cmp_t)(void *, void *);

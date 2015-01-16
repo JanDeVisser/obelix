@@ -96,6 +96,7 @@ data_t * data_create_object(object_t *object) {
 object_t * object_create(script_t *script) {
   static int  type_object = -1;
   object_t   *ret;
+  str_t      *s;
 
   if (type_object < 0) {
     type_object = typedescr_register(typedescr_object);
@@ -108,7 +109,7 @@ object_t * object_create(script_t *script) {
   ret -> debugstr = NULL;
   ret -> variables = strdata_dict_create();
   if (script) {
-    dict_reduce(ret -> variables, (reduce_t) data_put_all_reducer, script -> functions);
+    dict_reduce(script -> functions, (reduce_t) data_put_all_reducer, ret -> variables);
   }
   return ret;
 }
@@ -145,7 +146,16 @@ data_t * object_get(object_t *object, char *name) {
 }
 
 object_t * object_set(object_t *object, char *name, data_t *value) {
+  str_t *s;
+  
   dict_put(object -> variables, strdup(name), data_copy(value));
+  if (res_debug) {
+    s = dict_tostr(object -> variables);
+    debug("   object_set('%s') -> variables = %s", 
+          object -> script ? script_tostring(object -> script) : "anon", 
+          str_chars(s));
+    str_free(s);
+  }
   return object;
 }
 
@@ -194,7 +204,7 @@ char * object_tostring(object_t *object) {
   if (object_has(object, "__str__")) {
     data = object_execute(object, "__str__", NULL, NULL);
   }
-  if (data_is_error(data)) {
+  if (!data || data_is_error(data)) {
     object -> str = strdup(object_debugstr(object));
   } else {
     object -> str = strdup(data_charval(data));

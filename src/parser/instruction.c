@@ -142,7 +142,8 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
   array_t *path = data_list_to_str_array(instr -> value);
 
   value = closure_resolve(closure, path);
-  if (!data_is_error(value)) {
+  /* FIXME Hack */
+  if (!data_is_error(value) || !strcmp(array_get(path, 0), "$$ERROR")) {
     if (script_debug) {
       debug(" -- value '%s'", data_tostring(value));
     }
@@ -208,6 +209,10 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   }
   array_free(params);
   array_free(name);
+  if (ret && !data_is_error(ret)) {
+    closure_push(closure, ret);
+    ret = NULL;
+  }
   return ret;
 }
 
@@ -215,7 +220,7 @@ data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
   data_t  *ret;
   data_t  *value;
   data_t  *casted = NULL;
-
+ 
   value = closure_pop(closure);
   assert(value);
   assert(instr -> name);

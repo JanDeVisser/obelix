@@ -122,6 +122,7 @@ grammar_parser_t * _grammar_parser_state_options(token_t *token, grammar_parser_
     case IGNORE:
     case CASE_SENSITIVE:
     case HASHPLING:
+    case SIGNED_NUMBERS:
       if (grammar_parser -> old_state == GPStateStart) {
         grammar_parser -> last_token = token_copy(token);
         grammar_parser -> state = GPStateOptionName;
@@ -409,6 +410,7 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   lexer_add_keyword(lexer, IGNORE, IGNORE_STR);
   lexer_add_keyword(lexer, CASE_SENSITIVE, CASE_SENSITIVE_STR);
   lexer_add_keyword(lexer, HASHPLING, HASHPLING_STR);
+  lexer_add_keyword(lexer, SINGED_NUMBERS, SIGNED_NUMBERS_STR);
 
   lexer_set_option(lexer, LexerOptionIgnoreWhitespace, TRUE);
   lexer_tokenize(lexer, _grammar_token_handler, gp);

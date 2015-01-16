@@ -57,6 +57,8 @@ extern int grammar_debug;
 #define CASE_SENSITIVE_STR      "case_sensitive"
 #define HASHPLING               215
 #define HASHPLING_STR           "hashpling"
+#define SIGNED_NUMBERS          216
+#define SIGNED_NUMBERS_STR      "signed_numbers"
 
 typedef enum _parsing_strategy {
   ParsingStrategyTopDown,

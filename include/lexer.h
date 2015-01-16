@@ -29,6 +29,8 @@
 #define LEXER_BUFSIZE    	16384
 #define LEXER_INIT_TOKEN_SZ	256
 
+extern int lexer_debug;
+
 typedef enum _lexer_state {
   LexerStateFresh,
   LexerStateInit,
@@ -103,6 +105,7 @@ typedef enum _lexer_option {
   LexerOptionIgnoreNewLines,
   LexerOptionCaseSensitive,
   LexerOptionHashPling,
+  LexerOptionSignedNumbers,
   LexerOptionLAST
 } lexer_option_t;
 
