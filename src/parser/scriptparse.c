@@ -24,8 +24,7 @@
 
 static int       _script_pop_operation(parser_t *, char *);
 static array_t * _script_pop_and_build_varname(parser_t *);
-  
-}
+
 /* ----------------------------------------------------------------------- */
 
 int _script_pop_operation(parser_t *parser, char *buf) {
@@ -35,12 +34,10 @@ int _script_pop_operation(parser_t *parser, char *buf) {
   data = datastack_pop(parser -> stack);
   switch (data_type(data)) {
     case String:
-      op = data_charval(data)[0]
+      op = data_charval(data)[0];
       break;
     case Int:
       op = data_longval(data);
-      buf[1] = 0;
-      op = buf;
       break;
   }
   data_free(data);
@@ -173,7 +170,6 @@ parser_t *script_parse_emit_unary_op(parser_t *parser) {
   array_push(func_name, data_create(String, buf));
   script_push_instruction(script,
     instruction_create_function(func_name, 1));
-  data_free(data);
   array_free(func_name);
   return parser;  
 }
@@ -190,7 +186,6 @@ parser_t * script_parse_emit_infix_op(parser_t *parser) {
   array_push(func_name, data_create(String, buf));
   script_push_instruction(script,
     instruction_create_function(func_name, 2));
-  data_free(data);
   array_free(func_name);
   return parser;
 }
