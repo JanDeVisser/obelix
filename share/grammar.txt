@@ -157,14 +157,26 @@ identifier_tail             := .
                              |
                              ;
                              
-constant                    := '"'
-                             | '\''
-                             | 'd'
-                             | 'f'
-                             | 'x'
+constant                    := '"'               [ emit_pushval              ]  
+                             | '\''              [ emit_pushval              ]  
+                             | signed_number
 			     | list
                              ;
 
+signed_number               := sign
+                               number            [ push_signed_val           ]
+                            ;
+
+sign                        := +                 [ push: $                   ]
+                             | -                 [ push: $                   ]
+                             |                   [ push: '+'                 ]
+                             ;
+
+number                      := 'd'
+                             | 'f'
+                             | 'x'
+                             ;
+                               
 list                        :=                   [ push: "list"              ]
                                '['               [ push: 0                   ]
                                entrylist_or_empty

@@ -33,6 +33,7 @@ extern parser_t *       script_parse_push_param(parser_t *);
 extern parser_t *       script_parse_emit_assign(parser_t *);
 extern parser_t *       script_parse_emit_pushvar(parser_t *);
 extern parser_t *       script_parse_emit_pushval(parser_t *);
+extern parser_t *       script_parse_push_signed_val(parser_t *);
 extern parser_t *       script_parse_emit_unary_op(parser_t *);
 extern parser_t *       script_parse_emit_infix_op(parser_t *);
 extern parser_t *       script_parse_emit_func_call(parser_t *);

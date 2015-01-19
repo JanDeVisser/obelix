@@ -159,6 +159,27 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
   return parser;
 }
 
+parser_t *script_parse_push_signed_val(parser_t *parser) {
+  data_t   *data;
+  data_t   *signed_val;
+  char      buf[2];
+  script_t *script;
+  array_t  *func_name;
+
+  script = parser -> data;
+  data = token_todata(parser -> last_token);
+  assert(data);
+  _script_pop_operation(parser, buf);
+  if (parser_debug) {
+    debug(" -- val: %s %s", buf, data_debugstr(data));
+  }
+  signed_val = data_execute(data, buf, NULL, NULL);
+  assert(data_type(signed_val) == data_type(data));
+  script_push_instruction(script, instruction_create_pushval(signed_val));
+  data_free(data);
+  return parser;  
+}
+
 parser_t *script_parse_emit_unary_op(parser_t *parser) {
   char      buf[2];
   script_t *script;
@@ -168,12 +189,10 @@ parser_t *script_parse_emit_unary_op(parser_t *parser) {
   _script_pop_operation(parser, buf);
   func_name = data_array_create(1);
   array_push(func_name, data_create(String, buf));
-  script_push_instruction(script,
-    instruction_create_function(func_name, 1));
+  script_push_instruction(script, instruction_create_function(func_name, 1));
   array_free(func_name);
   return parser;  
 }
-
 
 parser_t * script_parse_emit_infix_op(parser_t *parser) {
   char      buf[2];

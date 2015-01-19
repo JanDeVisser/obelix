@@ -31,7 +31,11 @@ static void    _outofmemory(int, siginfo_t *, void *);
 
 static int _initialized = 0;
 
+#ifdef NDEBUG
 log_level_t log_level = LogLevelInfo;
+#else /* ! NDEBUG */
+log_level_t log_level = LogLevelDebug;
+#endif
 
 static void _outofmemory(int sig, siginfo_t *siginfo, void *context) {
   error("Out of Memory. Terminating...");
