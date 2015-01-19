@@ -44,22 +44,26 @@ typedef struct _token_code_str {
   char         *name;
 } token_code_str_t;
 
-typedef struct _kw_match {
-  token_t *kw;
-  int      full;
-} kw_match_t;
+typedef struct _kw_matches {
+  int               matches;
+  int               code;
+  list_t           *keywords;
+  str_t            *token;
+  kw_match_state_t  state;
+} kw_matches_t;
 
-static void         _dequotify(str_t *);
+static void            _dequotify(str_t *);
+static int             _is_identifier(str_t *);
 
-static kw_match_t * _kw_match_match(token_t *, str_t *);
-static void         _kw_match_free(kw_match_t *);
+static kw_matches_t * _kw_matches_create();
+static void           _kw_matches_free(kw_matches_t *);
 
-static int          _lexer_get_char(lexer_t *);
-static void         _lexer_push_back(lexer_t *, int);
-static void         _lexer_push_all_back(lexer_t *);
-static lexer_t *    _lexer_keyword_match_reducer(token_t *, lexer_t *);
-static int          _lexer_keyword_match(lexer_t *);
-static token_t *    _lexer_match_token(lexer_t *, int);
+static int            _lexer_get_char(lexer_t *);
+static void           _lexer_push_back(lexer_t *, int);
+static void           _lexer_push_all_back(lexer_t *);
+static lexer_t *      _lexer_keyword_match_reducer(token_t *, lexer_t *);
+static int            _lexer_keyword_match(lexer_t *);
+static token_t *      _lexer_match_token(lexer_t *, int);
 
 static lexer_state_str_t lexer_state_names[] = {
     { LexerStateFresh,           "LexerStateFresh" },
@@ -151,6 +155,22 @@ void _dequotify(str_t *str) {
   }
 }
 
+int _is_identifier(str_t *str) {
+  char *s = str_chars(str);
+  int   ret = TRUE;
+  int   ix;
+  int   len;
+  int   c;
+  
+  len = str_len(str);
+  for (ix = 0; ix < len; ix++) {
+    c = s[ix];
+    ret = ((!ix) ? isalpha(c) : isalnum(c)) || (c == '_');
+    if (!ret) break;
+  }
+  return ret;
+}
+
 /*
  * public utility functions
  */
@@ -182,26 +202,92 @@ char * lexer_state_name(lexer_state_t state) {
 }
 
 /*
- * kw_match_t - static interface
+ * kw_matches_t - static interface
  */
 
-kw_match_t * _kw_match_match(token_t *kw_token, str_t *lexer_token) {
-  kw_match_t *ret = NULL;
-  char       *kw = token_token(kw_token);
-
-  if ((str_len(lexer_token) <= strlen(kw)) &&
-      !str_ncmp_chars(lexer_token, kw, str_len(lexer_token))) {
-    ret = NEW(kw_match_t);
-    ret -> kw = kw_token;
-    ret -> full = str_len(lexer_token) == strlen(kw);
-  }
+kw_matches_t * _kw_matches_create(list_t *keywords) {
+  kw_matches_t *ret = NEW(kw_matches_t);
+  
+  ret -> matches = 0;
+  ret -> keywords = keywords;
+  ret -> code = TokenCodeNone;
+  ret -> token = NULL;
+  ret -> state = KMSInit;
   return ret;
 }
 
-void _kw_match_free(kw_match_t *kw_match) {
-  if (kw_match) {
-    free(kw_match);
+void _kw_matches_free(kw_matches_t *kw_matches) {
+  if (kw_matches) {
+    str_free(kw_matches -> token);
+    free(kw_matches);
   }
+}
+
+kw_matches_t * _kw_matches_match_reducer(token_t *kw_token, kw_matches_t *kw_matches) {
+  str_t *t = kw_matches -> token;
+  char  *kw = token_token(kw_token);
+
+  if ((str_len(t) <= strlen(kw)) &&
+      !str_ncmp_chars(t, kw, str_len(t))) {
+    kw_matches -> matches++;
+    if (str_len(t) == strlen(kw)) {
+      kw_matches -> code = token_code(kw_token);
+    }
+  }
+  return kw_matches;
+}
+
+kw_matches_t * _kw_matches_match(kw_matches_t *kw_matches, str_t *token) {
+  kw_match_state_t state = kw_matches -> state;
+  
+  kw_matches -> token = str_copy(token);
+  kw_matches -> code = TokenCodeNone;
+  kw_matches -> matches = 0;
+  if (!str_len(kw_matches -> token)) {
+    return kw_matches;
+  }
+
+  list_reduce(kw_matches -> keywords,
+              (reduce_t) _kw_matches_match_reducer, 
+              kw_matches);
+  switch (kw_matches -> matches) {
+    case 0:
+      kw_matches -> state = ((state == KMSFullMatchAndPrefixes) ||
+                             (state == KMSIdentifierFullMatch))
+        ? KMSMatchLost
+        : KMSNoMatch;
+      break;
+    case 1:
+      kw_matches -> state = (kw_matches -> code) 
+        ? KMSFullMatch
+        : KMSPrefixMatched;
+      break;
+    default: /* kw_matches -> matches > 0 */
+      if (state == KMSMatchLost) {
+        kw_matches -> state = (kw_matches -> code)
+          ? KMSFullMatch
+          : KMSNoMatch;
+      } else {
+        kw_matches -> state = (kw_matches -> code)
+          ? KMSFullMatchAndPrefixes
+          : KMSPrefixesMatched;
+      }
+      break;
+  }
+  if ((kw_matches -> state == KMSFullMatch) && 
+      _is_identifier(token)) {
+    kw_matches -> state = KMSIdentifierFullMatch;
+  }
+  return kw_matches;
+}
+
+kw_matches_t * _kw_matches_reset(kw_matches_t *kw_matches) {
+  kw_matches -> state = KMSInit;
+  str_free(kw_matches -> token);
+  kw_matches -> token = NULL;
+  kw_matches -> matches = 0;
+  kw_matches -> code = TokenCodeNone;
+  return kw_matches;
 }
 
 /*
@@ -395,93 +481,26 @@ void _lexer_push_all_back(lexer_t *lexer) {
   str_erase(lexer -> token);
 }
 
-lexer_t * _lexer_keyword_match_reducer(token_t *kw, lexer_t *lexer) {
-  kw_match_t *match = _kw_match_match(kw, lexer -> token);
-
-  if (match) {
-#ifdef LEXER_DEBUG
-    debug("_lexer_keyword_match_reducer: found potential match '%s for keyword '%s'",
-          str_chars(lexer -> token), token_tostring(kw));
-#endif
-    list_push(lexer -> matches, match);
-  }
-  return lexer;
-}
-
 int _lexer_keyword_match(lexer_t *lexer) {
-  int               ret;
-  kw_match_t       *match;
-  kw_match_state_t  new_match_state;
-
-  ret = TokenCodeNone;
-  if (!str_len(lexer -> token)) return ret;
-
-  lexer -> matches = list_create();
-  list_reduce(lexer -> keywords,
-              (reduce_t) _lexer_keyword_match_reducer, lexer);
-
-  if (list_size(lexer -> matches) == 1) {
-    match = (kw_match_t *) list_head(lexer -> matches);
-    if (match -> full) {
-#ifdef LEXER_DEBUG
-      debug("_lexer_keyword_match: Single FULL match found");
-#endif
-      lexer -> kw_match = KMSFullMatch;
-      ret = token_code(match -> kw);
-    } else {
-#ifdef LEXER_DEBUG
-      debug("_lexer_keyword_match: Single prefix match found");
-#endif
-      lexer -> kw_match = KMSPrefixMatched;
-    }
-    lexer -> state = LexerStateKeyword;
-
-  } else if (list_size(lexer -> matches) > 1) {
-    new_match_state = KMSPrefixesMatched;
-    for (list_start(lexer -> matches); list_has_next(lexer -> matches); ) {
-      match = (kw_match_t *) list_next(lexer -> matches);
-      if (match -> full) {
-#ifdef LEXER_DEBUG
-        debug("_lexer_keyword_match: Multi-match; one is full");
-#endif
-        if (lexer -> kw_match == KMSMatchLost) {
-          new_match_state = KMSFullMatch;
-          ret = token_code(match -> kw);
-        } else {
-          new_match_state = KMSFullMatchAndPrefixes;
-        }
-      }
-    }
-    if ((lexer -> kw_match == KMSMatchLost) && (new_match_state == KMSPrefixesMatched)) {
-      new_match_state = KMSNoMatch;
-    }
-#ifdef LEXER_DEBUG
-    if (new_match_state == KMSPrefixesMatched) {
-      debug("_lexer_keyword_match: Multi-match; all prefix");
-    }
-#endif
-    lexer -> kw_match = new_match_state;
-    lexer -> state = LexerStateKeyword;
-
-  } else {
-    if (lexer -> kw_match == KMSFullMatchAndPrefixes) {
-#ifdef LEXER_DEBUG
-      debug("_lexer_keyword_match: No match; Lost match, backtracking to full match");
-#endif
-      lexer -> kw_match = KMSMatchLost;
-      lexer -> state = LexerStateKeyword;
-    } else {
-#ifdef LEXER_DEBUG
-      debug("_lexer_keyword_match: No match");
-#endif
-      lexer -> kw_match = KMSNoMatch;
-      lexer -> state = LexerStateInit;
-    }
+  int   ret = TokenCodeNone;
+  
+  if (!str_len(lexer -> token)) {
+    return ret;
   }
-
-  list_set_free(lexer -> matches, _kw_match_free);
-  list_free(lexer -> matches);
-  lexer -> matches = NULL;
+  
+  _kw_matches_match(lexer -> matches, lexer -> token);
+  switch (lexer -> matches -> state) {
+    case KMSNoMatch:
+      lexer -> state = LexerStateInit;
+      break;
+    case KMSFullMatch:
+    case KMSIdentifierFullMatch:
+      ret = lexer -> matches -> code;
+      /* no break */
+    default:
+      lexer -> state == LexerStateKeyword;
+      break;
+  }
   return ret;
 }
 
@@ -514,7 +533,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
   ret = NULL;
   switch (lexer -> state) {
     case LexerStateInit:
-      if (lexer -> kw_match != KMSNoMatch) {
+      if (lexer -> matches -> state != KMSNoMatch) {
         code = _lexer_keyword_match(lexer);
       }
       if (lexer -> state != LexerStateKeyword) {
@@ -693,18 +712,28 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
       break;
 
     case LexerStateKeyword:
-      code = _lexer_keyword_match(lexer);
-      switch (lexer -> kw_match) {
-        case KMSFullMatch:
-          assert(code);
-          break;
-        case KMSMatchLost:
-          _lexer_push_back(lexer, ch);
-          code = _lexer_keyword_match(lexer);
-          break;
-        case KMSNoMatch:
-          _lexer_push_all_back(lexer);
-          break;
+      if (lexer -> matches -> state == KMSIdentifierFullMatch) {
+        if (isalnum(ch) || (ch == '_')) {
+            _lexer_push_all_back(lexer);
+            _kw_matches_reset(lexer -> matches);
+            lexer -> state = LexerStateInit;
+        }
+      } else {
+        _lexer_keyword_match(lexer);
+        switch (lexer -> matches -> state) {
+          case KMSFullMatch:
+            code = lexer -> matches -> code;
+            _kw_matches_reset(lexer -> matches);
+            break;
+          case KMSMatchLost:
+            _lexer_push_back(lexer, ch);
+            code = _lexer_keyword_match(lexer);
+            break;
+          case KMSNoMatch:
+            _lexer_push_all_back(lexer);
+            _kw_matches_reset(lexer -> matches);
+            break;
+        }
       }
       break;
   }
@@ -819,6 +848,7 @@ void _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
   token_t *token;
   int      code;
 
+  lexer -> matches = _kw_matches_create(lexer -> keywords);
   do {
     lexer -> last_match = lexer_next_token(lexer);
     code = token_code(lexer -> last_match);
@@ -826,6 +856,8 @@ void _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
     token_free(lexer -> last_match);
     lexer -> last_match = NULL;
   } while (data && (code != TokenCodeEnd));
+  _kw_matches_free(lexer -> matches);
+  lexer -> matches = NULL;
 }
 
 token_t * lexer_next_token(lexer_t *lexer) {
@@ -845,7 +877,7 @@ token_t * lexer_next_token(lexer_t *lexer) {
       str_free(lexer -> pushed_back);
       lexer -> pushed_back = NULL;
     }
-    lexer -> kw_match = KMSInit;
+    _kw_matches_reset(lexer -> matches);
 
     do {
       if (ret) {

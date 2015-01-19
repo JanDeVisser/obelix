@@ -24,3 +24,8 @@ aclocal.m4
 (.?/)?([^.]+)$
 
 
+\.orig\..*$
+\.orig$
+\.chg\..*$
+\.rej$
+\.conflict\~$
