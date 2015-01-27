@@ -85,25 +85,21 @@ void debug_settings(char *debug) {
 }
 
 int main(int argc, char **argv) {
-  char           *grammar;
-  char           *debug;
+  char           *grammar = NULL;
+  char           *debug = NULL;
   char           *basepath;
+  char           *syspath = NULL;
   int             opt;
   scriptloader_t *loader;
   data_t         *ret;
   script_t       *script;
   int             retval;
 
-  grammar = NULL;
-  debug = NULL;
-  basepath = NULL;
-  if (getenv("OBL_PATH")) {
-    basepath = strdup(getenv("OBL_PATH"));
-  } else {
-    basepath = getcwd(NULL, 0);
-  }
-  while ((opt = getopt(argc, argv, "g:d:p:l:")) != -1) {
+  while ((opt = getopt(argc, argv, "s:g:d:p:l:")) != -1) {
     switch (opt) {
+      case 's':
+        syspath = optarg;
+        break;
       case 'g':
         grammar = optarg;
         break;
@@ -111,7 +107,6 @@ int main(int argc, char **argv) {
         debug = optarg;
         break;
       case 'p':
-        free(basepath);
         basepath = strdup(optarg);
         break;
       case 'l':
@@ -125,7 +120,11 @@ int main(int argc, char **argv) {
   }
   debug_settings(debug);
   
-  loader = scriptloader_create(basepath, grammar);
+  if (!basepath) {
+    basepath = getcwd(NULL, 0);
+  }
+  
+  loader = scriptloader_create(syspath, basepath, grammar);
   free(basepath);
   ret = scriptloader_load(loader, argv[optind]);
   if (data_is_script(ret)) {

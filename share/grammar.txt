@@ -91,8 +91,8 @@ parlist_tail                := ,
                              |
                              ;
 
-return_stmt                 := "return"
-                               expr 
+return_stmt                 := "return"          [ push: "END"               ]
+                               expr              [ jump                      ]
                              ;
 
 import_stmt                 := "import"          [ push:   0                 ]
@@ -137,7 +137,7 @@ factortail                  := mult_op           [ push: $                   ]
 
 factor                      := ( expr )
                              | var_or_call 
-                             | constant          [ emit_pushval              ]  
+                             | constant  
                              ;
 
 var_or_call                 := [ push: 0 ] identifier
@@ -177,7 +177,7 @@ number                      := 'd'
                              | 'x'
                              ;
                                
-list                        :=                   [ push: "list"              ]
+list                        :=                   [ push: 1 push: "list"      ]
                                '['               [ push: 0                   ]
                                entrylist_or_empty
                                ']'               [ emit_func_call            ]

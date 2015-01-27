@@ -117,7 +117,7 @@ extern data_t *         closure_import(closure_t *, array_t *);
 /*
  * scriptloader_t prototypes
  */
-extern scriptloader_t * scriptloader_create(char *, char *);
+extern scriptloader_t * scriptloader_create(char *, char *, char *);
 extern scriptloader_t * scriptloader_get(void);
 extern void             scriptloader_free(scriptloader_t *);
 extern data_t *         scriptloader_load_fromreader(scriptloader_t *, char *, reader_t *);

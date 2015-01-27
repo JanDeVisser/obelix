@@ -25,6 +25,7 @@
 #include <data.h>
 #include <dict.h>
 #include <str.h>
+#include <token.h>
 
 #define LEXER_BUFSIZE    	16384
 #define LEXER_INIT_TOKEN_SZ	256
@@ -56,50 +57,6 @@ typedef enum _lexer_state {
   LexerStateDone
 } lexer_state_t;
 
-typedef enum _token_code {
-  TokenCodeError = -1,
-  TokenCodeNone = 0,
-  TokenCodeEmpty,
-  TokenCodeWhitespace,
-  TokenCodeNewLine,
-  TokenCodeIdentifier = 'i',
-  TokenCodeInteger = 'd',
-  TokenCodeHexNumber = 'x',
-  TokenCodeFloat = 'f',
-  TokenCodeSQuotedStr = '\'',
-  TokenCodeDQuotedStr = '\"',
-  TokenCodeBQuotedStr = '`',
-  TokenCodePlus = '+',
-  TokenCodeMinus = '-',
-  TokenCodeDot = '.',
-  TokenCodeComma = ',',
-  TokenCodeQMark = '?',
-  TokenCodeExclPoint = '!',
-  TokenCodeOpenPar = '(',
-  TokenCodeClosePar = ')',
-  TokenCodeOpenBrace = '{',
-  TokenCodeCloseBrace = '}',
-  TokenCodeOpenBracket = '[',
-  TokenCodeCloseBracket = ']',
-  TokenCodeLAngle = '<',
-  TokenCodeRangle = '>',
-  TokenCodeAsterisk = '*',
-  TokenCodeSlash = '/',
-  TokenCodeBackslash = '\\',
-  TokenCodeColon = ':',
-  TokenCodeSemiColon = ';',
-  TokenCodeEquals = '=',
-  TokenCodePipe = '|',
-  TokenCodeAt = '@',
-  TokenCodeHash = '#',
-  TokenCodeDollar = '$',
-  TokenCodePercent = '%',
-  TokenCodeHat = '^',
-  TokenCodeAmpersand = '&',
-  TokenCodeTilde = '~',
-  TokenCodeEnd = 199
-} token_code_t;
-
 typedef enum _lexer_option {
   LexerOptionIgnoreWhitespace,
   LexerOptionIgnoreNewLines,
@@ -114,18 +71,12 @@ typedef enum _kw_match_state {
   KMSPrefixMatched,
   KMSPrefixesMatched,
   KMSIdentifierFullMatch,
+  KMSIdentifierFullMatchAndPrefixes,
   KMSFullMatch,
   KMSFullMatchAndPrefixes,
   KMSMatchLost,
   KMSNoMatch
 } kw_match_state_t;
-
-typedef struct _token {
-  int   code;
-  char *token;
-  int   line;
-  int   column;
-} token_t;
 
 typedef struct _lexer {
   reader_t           *reader;
@@ -144,19 +95,6 @@ typedef struct _lexer {
 } lexer_t;
 
 extern char *       lexer_state_name(lexer_state_t);
-extern char *       token_code_name(token_code_t);
-
-extern token_t *    token_create(int, char *);
-extern token_t *    token_copy(token_t *);
-extern void         token_free(token_t *);
-extern unsigned int token_hash(token_t *);
-extern int          token_cmp(token_t *, token_t *);
-extern int          token_code(token_t *);
-extern char *       token_token(token_t *);
-extern int          token_iswhitespace(token_t *);
-extern void         token_dump(token_t *);
-extern data_t *     token_todata(token_t *);
-extern char *       token_tostring(token_t *);
 
 extern lexer_t *    _lexer_create(reader_t *);
 extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, long);
@@ -168,24 +106,5 @@ extern token_t *    lexer_next_token(lexer_t *);
 
 #define lexer_create(r)         _lexer_create((reader_t *) (r))
 #define lexer_tokenize(l, r, d) _lexer_tokenize((l), (reduce_t) (r), (d))
-
-#define strtoken_dict_create()  dict_set_tostring_data( \
-                                  dict_set_tostring_key( \
-                                    dict_set_free_data( \
-                                      dict_set_free_key( \
-                                        dict_set_hash( \
-                                          dict_create((cmp_t) strcmp),\
-                                          (hash_t) strhash), \
-                                        (free_t) free), \
-                                      (free_t) token_free), \
-                                    (tostring_t) chars), \
-                                  (tostring_t) token_tostring)
-#define tokenset_create()     set_set_tostring( \
-                                set_set_hash( \
-                                  set_set_free( \
-                                    set_create((cmp_t) token_cmp), \
-                                    (free_t) free), \
-                                  hashptr), \
-                                token_tostring)
 
 #endif /* __LEXER_H__ */

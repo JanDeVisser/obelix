@@ -30,6 +30,7 @@ liboblcore_la_SOURCES = \
 		expr.c \
 		file.c \
 		str.c \
-		resolve.c
+		resolve.c \
+		user.c
 		
 liboblcore_la_LIBADD = -ldl

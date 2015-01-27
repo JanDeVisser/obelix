@@ -180,10 +180,9 @@ ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, 
   ret -> owner = owner;
   ret -> initializer = NULL;
   ret -> finalizer = NULL;
-  ret -> pushvalues = set_create((cmp_t) pushvalue_cmp);
-  set_set_free(ret -> pushvalues, (free_t) pushvalue_free);
-  set_set_hash(ret -> pushvalues, (hash_t) pushvalue_hash);
-  set_set_tostring(ret -> pushvalues, (tostring_t) pushvalue_tostring);
+  ret -> pushvalues = list_create();
+  list_set_free(ret -> pushvalues, (free_t) pushvalue_free);
+  list_set_tostring(ret -> pushvalues, (tostring_t) pushvalue_tostring);
   ret -> variables = strtoken_dict_create();
   va_start(args, type);
   if (elements[type].new) {
@@ -200,7 +199,7 @@ ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, 
 void ge_free(ge_t *ge) {
   if (ge) {
     dict_free(ge -> variables);
-    set_free(ge -> pushvalues);
+    list_free(ge -> pushvalues);
     function_free(ge -> initializer);
     function_free(ge -> finalizer);
     if (elements[ge -> type].free) {
@@ -211,7 +210,7 @@ void ge_free(ge_t *ge) {
 }
 
 ge_t * ge_add_pushvalue(ge_t *ge, pushvalue_t *pushvalue) {
-  set_add(ge -> pushvalues, pushvalue);
+  list_push(ge -> pushvalues, pushvalue);
   return ge;
 }
 

@@ -27,6 +27,7 @@
 #include <data.h>
 #include <error.h>
 #include <list.h>
+#include <object.h>
 
 static typedescr_t   typedescr_any;
 static methoddescr_t methoddescr_any[];
@@ -64,6 +65,7 @@ static methoddescr_t methoddescr_any[] = {
   { type: Any,    name: "hash", method: _any_hash, argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
   { type: NoType, name: NULL,   method: NULL,      argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 }
 };
+
 
 /*
  * 'any' global methods
@@ -204,6 +206,7 @@ void _data_initialize_types(void) {
     typedescr_register_methods(methoddescr_str);
     typedescr_register_methods(methoddescr_ptr);
     typedescr_register_methods(methoddescr_fnc);
+    typedescr_register_methods(methoddescr_list);
 
     _types_initialized = 1;
   }
@@ -381,10 +384,9 @@ data_t * data_execute_method(data_t *self, methoddescr_t *method, array_t *args,
 
   assert(method);
   assert(self);
-  assert(args);
   type = data_typedescr(self);
   
-  len = array_size(args);
+  len = (args) ? array_size(args) : 0;
   if (!method -> varargs) {
     maxargs = method -> minargs;
   }
@@ -417,7 +419,7 @@ data_t * data_execute_method(data_t *self, methoddescr_t *method, array_t *args,
       return data_error(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
                         i+1, type -> typename, method -> name, t, data_type(arg));
     }
-  } 
+  }
   return method -> method(self, method -> name, args, kwargs);
 }
 
@@ -459,6 +461,43 @@ data_t * data_execute(data_t *self, char *name, array_t *args, dict_t *kwargs) {
                      data_tostring(self), name);
   }
   array_free(args_shifted);
+  return ret;
+}
+
+data_t * data_resolve(data_t *data, arrat_t *name) {
+  typedescr_t *type = data_typedescr(data);
+  data_t      *ret = NULL;
+  str_t       *name_str = NULL;
+  
+  assert(name && array_size(name));
+  if (array_size(name) > 1) {
+    if (!type -> resolve) {
+      name_str = array_join(args, ".");
+      ret = data_error(ErrorType,
+                       "Cannot resolve name '%s' in %s '%s'", 
+                       str_chars(name_str), type -> typename, object_tostring(data)
+                      );
+      str_free(name_str);
+    } else {
+      ret = type -> resolve(data, name);
+    }
+  } else {
+    ret = data_copy(data);
+  }
+  return ret;
+}
+
+data_t * data_invoke(data_t *data, array_t *name, array_t *args, dict_t *kwargs) {
+  data_t      *object;
+  data_t      *ret = NULL;
+  char        *method_name;
+  
+  object = data_resolve(data, name);
+  if (!data_is_error(object)) {
+    method_name = str_array_get(name, -1);
+    ret = data_execute(object, method_name, args, kwargs);
+  }
+  data_free(object);
   return ret;
 }
 

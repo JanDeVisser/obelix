@@ -139,7 +139,8 @@ data_t * object_get(object_t *object, char *name) {
     ret = data_copy(ret);
   } else {
     ret = data_error(ErrorName,
-                     "Object has no attribute '%s'",
+                     "Object '%s' has no attribute '%s'",
+                     object_debugstr(object),
                      name);
   }
   return ret;

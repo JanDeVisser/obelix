@@ -163,7 +163,7 @@ data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) 
 }
 
 data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
-  data_t    *func_container;
+  data_t    *data_closure;
   data_t    *value;
   data_t    *ret = NULL;
   char      *n;
@@ -185,28 +185,10 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     array_debug(params, " -- parameters: %s");
   }
 
-  /*
-   * If the name consists of a single part, see if the parameters
-   * can deal with this (examples: '+', len, etc):
-   */
-  if ((array_size(name) == 1) && instr -> num) {
-    ret = data_execute(NULL, (char *) array_get(name, 0), params, NULL);
-    if (data_is_error(ret) && (data_errorval(ret) -> code == ErrorName)) {
-      data_free(ret);
-      ret = NULL;
-    }
-  }
+  data_closure = data_create(Closure, closure);
+  ret = data_invoke(data_closure, name, params, NULL);
 
-  if (!ret) {
-    func_container = closure_get_container_for(closure, name, TRUE);
-    if (data_is_error(func_container)) {
-      ret = func_container;
-    } else {
-      n = str_array_get(name, -1);
-      data_execute(func_container, n, params, NULL);
-      data_free(func_container);
-    }
-  }
+  data_free(data_closure);
   array_free(params);
   array_free(name);
   if (ret && !data_is_error(ret)) {

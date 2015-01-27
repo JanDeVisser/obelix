@@ -209,6 +209,19 @@ parser_t * script_parse_emit_infix_op(parser_t *parser) {
   return parser;
 }
 
+parser_t * script_parse_jump(parser_t *parser) {
+  script_t *script;
+  data_t   *label;
+
+  script = parser -> data;
+  label = datastack_pop(parser -> stack);
+  if (parser_debug) {
+    debug(" -- label: %s", data_debugstr(label));
+  }
+  script_push_instruction(script, instruction_create_jump(data_charval(label)));
+  return parser;
+}
+
 parser_t * script_parse_emit_func_call(parser_t *parser) {
   script_t *script;
   array_t  *func_name;
