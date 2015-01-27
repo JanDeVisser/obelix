@@ -84,7 +84,7 @@ typedef struct _grammar_element {
   struct _grammar_element *owner;
   function_t              *initializer;
   function_t              *finalizer;
-  set_t                   *pushvalues;
+  list_t                  *pushvalues;
   dict_t                  *variables;
   set_option_t             set_option_delegate;
   void                    *ptr;

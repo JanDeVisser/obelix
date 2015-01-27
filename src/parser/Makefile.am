@@ -24,6 +24,7 @@ LDADD       = -ldl -lm -lcheck
 lib_LTLIBRARIES = liboblparser.la
 liboblparser_la_SOURCES = \
 		datastack.c \
+		token.c \
 		lexer.c \
 		grammar.c \
 		grammarparser.c \

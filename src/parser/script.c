@@ -53,6 +53,7 @@ static data_t *         _data_copy_closure(data_t *, data_t *);
 static int              _data_cmp_closure(data_t *, data_t *);
 static char *           _data_tostring_closure(data_t *);
 static data_t *         _data_execute_closure(data_t *, char *, array_t *, dict_t *);
+static data_t *         _data_resolve_closure(data_t *, array_t *);
 
 extern data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
 
@@ -87,16 +88,17 @@ static typedescr_t typedescr_script = {
 };
 
 static typedescr_t typedescr_closure = {
-  type:                  Closure,
-  typecode:              "R",
-  new:      (new_t)      _data_new_closure,
-  copy:     (copydata_t) _data_copy_closure,
-  cmp:      (cmp_t)      _data_cmp_closure,
-  free:     (free_t)     closure_free,
-  tostring: (tostring_t) _data_tostring_closure,
-  hash:                  NULL,
-  parse:                 NULL,
-  fallback: (method_t)   _data_execute_closure
+  type:                      Closure,
+  typecode:                  "R",
+  new:      (new_t)          _data_new_closure,
+  copy:     (copydata_t)     _data_copy_closure,
+  cmp:      (cmp_t)          _data_cmp_closure,
+  free:     (free_t)         closure_free,
+  tostring: (tostring_t)     _data_tostring_closure,
+  hash:                      NULL,
+  parse:                     NULL,
+  resolve:  (resolve_name_t) _data_resolve_closure,
+  fallback: (method_t)       _data_execute_closure
 };
 
 /*
@@ -182,6 +184,10 @@ char * _data_tostring_closure(data_t *d) {
 data_t * _data_execute_closure(data_t *self, char *name, array_t *params, dict_t *kwargs) {
   closure_t *closure = (closure_t *) self -> ptrval;
   return closure_execute_function(closure, name, params, kwargs);
+}
+
+data_t * _data_resolve_closure(data_t *data, array_t *name) {
+  closure_t *c 
 }
 
 data_t * data_create_closure(closure_t *closure) {
@@ -602,11 +608,10 @@ data_t * closure_get_container_for(closure_t *closure, array_t *name, int must_e
             data = object_get(data_objectval(ret), last);
             if (data_is_error(data)) {
               data_free(ret);
-              ret = data_error(ErrorName,
-                               "Variable '%s' of function '%s' is not an object",
-                               str_chars(name_str), closure_tostring(c));
+              ret = data;
+            } else {
+              data_free(data);
             }
-            data_free(data);
           }
         }
       } else {
@@ -889,17 +894,16 @@ reader_t * _scriptloader_open_reader(scriptloader_t *loader, char *name) {
  * scriptloader_t - public functions
  */
 
-#define GRAMMAR_PATH    "grammar.txt"
+#define GRAMMAR_FILE    "grammar.txt"
 /* #define OBELIX_SYS_PATH "/usr/share/obelix" */
-#define OBELIX_SYS_PATH "../share/"
+#define OBELIX_SYS_PATH "install/share/"
 
-scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
+scriptloader_t * scriptloader_create(char *sys_dir, char *user_path, char *grammarpath) {
   scriptloader_t   *ret;
   grammar_parser_t *gp;
   file_t           *file;
   data_t           *root;
   reader_t         *rdr;
-  char             *sysdir;
   char             *userdir;
   int               len;
 
@@ -908,32 +912,38 @@ scriptloader_t * scriptloader_create(char *obl_path, char *grammarpath) {
   }
   assert(!_loader);
   ret = NEW(scriptloader_t);
-  sysdir = getenv("OBELIX_SYS_PATH");
-  if (!sysdir) {
-    sysdir = OBELIX_SYS_PATH;
+  if (!sys_dir) {
+    sys_dir = getenv("OBELIX_SYS_PATH");
   }
-  len = strlen(sysdir);
-  ret -> system_dir = (char *) new (len + ((*(sysdir + (len - 1)) != '/') ? 2 : 1));
-  strcpy(ret -> system_dir, sysdir);
+  if (!sys_dir) {
+    sys_dir = OBELIX_SYS_PATH;
+  }
+  len = strlen(sys_dir);
+  ret -> system_dir = (char *) new (len + ((*(sys_dir + (len - 1)) != '/') ? 2 : 1));
+  strcpy(ret -> system_dir, sys_dir);
   if (*(ret -> system_dir + (strlen(ret -> system_dir) - 1)) != '/') {
     strcat(ret -> system_dir, "/");
   }
-  if (!obl_path) {
-    obl_path = "./";
+  
+  if (!user_path) {
+    user_path = getenv("OBELIX_USER_PATH");
   }
-  len = strlen(obl_path);
+  if (!user_path) {
+    user_path = "./";
+  }
+  len = strlen(user_path);
 
   ret -> load_path = str_list_create();
-  userdir = (char *) new (len + ((*(obl_path + (len - 1)) != '/') ? 2 : 1));
-  strcpy(userdir, obl_path);
+  userdir = (char *) new (len + ((*(user_path + (len - 1)) != '/') ? 2 : 1));
+  strcpy(userdir, user_path);
   if (*(userdir + (strlen(userdir) - 1)) != '/') {
     strcat(userdir, "/");
   }
 
   if (!grammarpath) {
-    grammarpath = (char *) new(strlen(ret -> system_dir) + strlen(GRAMMAR_PATH) + 1);
+    grammarpath = (char *) new(strlen(ret -> system_dir) + strlen(GRAMMAR_FILE) + 1);
     strcpy(grammarpath, ret -> system_dir);
-    strcat(grammarpath, GRAMMAR_PATH);
+    strcat(grammarpath, GRAMMAR_FILE);
   }
   debug("system dir: %s", ret -> system_dir);
   debug("user path: %s", userdir);

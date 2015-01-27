@@ -39,6 +39,7 @@ typedef enum _datatype {
   Bool,
   List,
   Function,
+  Method,
   Object,
   Script,
   Closure,
@@ -62,22 +63,24 @@ typedef struct _data {
 
 typedef data_t * (*cast_t)(data_t *, int);
 typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
+typedef data_t * (*resolve_name_t)(data_t *, array_t *);
 
 typedef struct _typedescr {
-  int           type;
-  char         *typecode;
-  char         *typename;
-  new_t         new;
-  copydata_t    copy;
-  cmp_t         cmp;
-  free_t        free;
-  tostring_t    tostring;
-  parse_t       parse;
-  cast_t        cast;
-  hash_t        hash;
-  dict_t       *methods;
-  int           promote_to;
-  method_t      fallback;
+  int             type;
+  char           *typecode;
+  char           *typename;
+  new_t           new;
+  copydata_t      copy;
+  cmp_t           cmp;
+  free_t          free;
+  tostring_t      tostring;
+  parse_t         parse;
+  cast_t          cast;
+  hash_t          hash;
+  resolve_name_t  resolve;
+  dict_t         *methods;
+  int             promote_to;
+  method_t        fallback;
 } typedescr_t;
 
 #define MAX_METHOD_PARAMS      3
@@ -109,7 +112,6 @@ extern methoddescr_t methoddescr_list[];
 extern methoddescr_t methoddescr_fnc[];
 /* extern methoddescr_t methoddescr_error[]; */
 
-
 extern int             typedescr_register(typedescr_t);
 extern typedescr_t *   typedescr_get(int);
 extern void            typedescr_register_methods(methoddescr_t methods[]);
@@ -134,6 +136,10 @@ extern int             data_cmp(data_t *, data_t *);
 extern methoddescr_t * data_method(data_t *, char *);
 extern data_t *        data_execute_method(data_t *, methoddescr_t *, array_t *, dict_t *);
 extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);
+extern data_t *        data_resolve(data_t *, array_t *);
+extern data_t *        data_invoke(data_t *, array_t *, array_t *, dict_t *);
+extern data_t *        data_get(data_t *, array_t *);
+extern data_t *        data_set(data_t *, array_t *, data_t *);
 extern char *          data_debugstr(data_t *);
 
 #define data_dblval(d)   ((data_type((d)) == Float) ? (double)((d) -> intval) : (d) -> dblval)

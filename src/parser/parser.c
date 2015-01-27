@@ -252,7 +252,7 @@ parser_t * _parser_push_grammar_element(parser_t *parser, ge_t *element, int ini
           _parser_stack_entry_for_function(ge_get_finalizer(element)));
     }
     dict_reduce(element -> variables, (reduce_t) _parser_push_setvalues, parser);
-    set_reduce(element -> pushvalues, (reduce_t) _parser_push_pushvalues, parser);
+    list_reduce(element -> pushvalues, (reduce_t) _parser_push_pushvalues, parser);
   }
   return parser;
 }

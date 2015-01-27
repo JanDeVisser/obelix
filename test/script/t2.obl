@@ -1,1 +1,1 @@
-fnc_does_not_exist("Hello, Asterix!")
+function_does_not_exist("Hello, Asterix!")

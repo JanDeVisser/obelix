@@ -87,6 +87,26 @@ methoddescr_t methoddescr_fnc[] = {
   { type: NoType,   name: NULL,    method: NULL,      argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
 };
 
+typedescr_t typedescr_method = {
+  type:                  Method,
+  typecode:              "M",
+  typename:              "method",
+  new:      (new_t)      _method_new,
+  copy:     (copydata_t) _method_copy,
+  cmp:      (cmp_t)      _method_cmp,
+  free:     (free_t)     NULL,
+  tostring: (tostring_t) _method_tostring,
+  parse:    (parse_t)    NULL,
+  cast:                  NULL,
+  fallback:              NULL,
+  hash:     (hash_t)     _method_hash
+};
+
+methoddescr_t methoddescr_method[] = {
+  { type: Method,   name: "call",  method: _fnc_call, argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 1 },
+  { type: NoType,   name: NULL,    method: NULL,      argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
+};
+
 /*
  * --------------------------------------------------------------------------
  * Pointer datatype functions

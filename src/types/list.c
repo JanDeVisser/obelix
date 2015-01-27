@@ -34,6 +34,7 @@ static data_t *      _list_cast(data_t *, int);
 static unsigned int  _list_hash(data_t *);
 
 
+static data_t *      _list_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_len(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_at(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_slice(data_t *, char *, array_t *, dict_t *);
@@ -55,6 +56,7 @@ typedescr_t typedescr_list =   {
 
 /* FIXME Add append, delete, head, tail, etc... */
 methoddescr_t methoddescr_list[] = {
+  { type: Any,    name: "list",  method: _list_create,argtypes: { Any, Any, Any },          minargs: 0, varargs: 1 },
   { type: List,   name: "len",   method: _list_len,   argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
   { type: List,   name: "at",    method: _list_at,    argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 0 },
   { type: List,   name: "slice", method: _list_slice, argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 1 },
@@ -173,6 +175,18 @@ array_t * data_list_to_str_array(data_t *list) {
 }
 
 /* ----------------------------------------------------------------------- */
+
+data_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *ret = data_create(List, 0);
+  
+  if (self) {
+    array_push(data_arrayval(ret), self);
+  }
+  if (args) {
+    array_reduce(args, (reduce_t) data_add_all_reducer, data_arrayval(ret));
+  }
+  return ret;
+}
 
 data_t * _list_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return data_create(Int, array_size((array_t *) self -> ptrval));

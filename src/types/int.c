@@ -197,7 +197,7 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   long     longval;
   int      minus = name && (name[0] == '-');
   
-  if (!array_size(args)) {
+  if (!args || !array_size(args)) {
     return data_create(Int, (minus) ? -1 * self -> intval : self -> intval);
   }
 

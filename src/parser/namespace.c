@@ -346,7 +346,6 @@ data_t * ns_resolve(namespace_t *ns, array_t *name) {
     if (object_has(module, n)) {
       ret = data_create_object(module);
     }
-    data_free(mod);
   }
   if (!ret) {
     ret = data_error(ErrorName,
