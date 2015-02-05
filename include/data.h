@@ -88,8 +88,8 @@ typedef data_t * (*resolve_name_t)(data_t *, array_t *);
 typedef data_t * (*call_t)(data_t *, array_t *, dict_t *);
 
 typedef struct _vtable {
-  vtable_entry_id_t id;
-  void_t            fnc;
+  vtable_id_t id;
+  void_t      fnc;
 } vtable_t;
 
 typedef struct _typedescr {
