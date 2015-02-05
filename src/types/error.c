@@ -22,27 +22,22 @@
 
 #include <core.h>
 #include <data.h>
-#include <error.h>
+#include <exception.h>
 
-typedef struct _errordescr {
-  int   code;
-  char *str;
-} errordescr_t;
-
-static errordescr_t  builtin_errors[];
+static code_label_t  builtin_errors[];
 static int           num_errors;
-static errordescr_t *errors;
+static code_label_t *errors;
 
-static errordescr_t builtin_errors[] = {
-    { code: ErrorArgCount,    str: "ErrorArgCount" },
-    { code: ErrorType,        str: "ErrorType" },
-    { code: ErrorName,        str: "ErrorName" },
-    { code: ErrorNotCallable, str: "ErrorNotCallable" },
-    { code: ErrorRange,       str: "ErrorRange" },
+static code_label_t builtin_errors[] = {
+  { .code = ErrorArgCount,    .label = "ErrorArgCount" },
+  { .code = ErrorType,        .label = "ErrorType" },
+  { .code = ErrorName,        .label = "ErrorName" },
+  { .code = ErrorNotCallable, .label = "ErrorNotCallable" },
+  { .code = ErrorRange,       .label = "ErrorRange" },
 };
 
-static int           num_errors = sizeof(builtin_errors) / sizeof(errordescr_t);
-static errordescr_t *errors = builtin_errors;
+static int           num_errors = sizeof(builtin_errors) / sizeof(code_label_t);
+static code_label_t *errors = builtin_errors;
 
 static data_t *      _error_new(data_t *, va_list);
 static unsigned int  _error_hash(data_t *);
@@ -50,19 +45,22 @@ static data_t *      _error_copy(data_t *, data_t *);
 static int           _error_cmp(data_t *, data_t *);
 static char *        _error_tostring(data_t *);
 
+vtable_entry_t _error_vtable[] = {
+  { .id = MethodNew,      .fnc = (void_t) _error_new },
+  { .id = MethodCopy,     .fnc = (void_t) _error_copy },
+  { .id = MethodCmp,      .fnc = (void_t) _error_cmp },
+  { .id = MethodFree,     .fnc = (void_t) error_free },
+  { .id = MethodToString, .fnc = (void_t) _error_tostring },
+  { .id = MethodNone,     .fnc = NULL }
+};
+
+
 typedescr_t typedescr_error = {
-  type:                  Error,
-  typecode:              "E",
-  typename:              "error",
-  new:      (new_t)      _error_new,
-  copy:     (copydata_t) _error_copy,
-  cmp:      (cmp_t)      _error_cmp,
-  free:     (free_t)     error_free,
-  tostring: (tostring_t) _error_tostring,
-  parse:                 NULL,
-  cast:                  NULL,
-  fallback:              NULL,
-  hash:     (hash_t)     _error_hash
+  .type = Error,
+  .typecode = "E",
+  .type_name = "error",
+  .vtable = _error_vtable,
+  .fallback = NULL
 };
 
 /*
@@ -70,24 +68,24 @@ typedescr_t typedescr_error = {
  */
 
 int error_register(char *str) {
-  errordescr_t *new_errors;
-  errordescr_t  descr;
+  code_label_t *new_errors;
+  code_label_t  descr;
   int           newsz;
   int           cursz;
 
   descr.code = num_errors;
-  descr.str = str;
-  newsz = (num_errors + 1) * sizeof(errordescr_t);
-  cursz = num_errors * sizeof(errordescr_t);
+  descr.label = str;
+  newsz = (num_errors + 1) * sizeof(code_label_t);
+  cursz = num_errors * sizeof(code_label_t);
   if (errors == builtin_errors) {
-    new_errors = (errordescr_t *) new(newsz);
+    new_errors = (code_label_t *) new(newsz);
     memcpy(new_errors, errors, cursz);
   } else {
-    new_errors = (errordescr_t *) resize_block(errors, newsz, cursz);
+    new_errors = (code_label_t *) resize_block(errors, newsz, cursz);
   }
   errors = new_errors;
   num_errors++;
-  memcpy(errors + descr.code, &descr, sizeof(errordescr_t));
+  memcpy(errors + descr.code, &descr, sizeof(code_label_t));
   return descr.code;
 }
 
@@ -199,5 +197,31 @@ int _error_cmp(data_t *d1, data_t *d2) {
 
 char * _error_tostring(data_t *data) {
   return error_tostring((error_t *) data -> ptrval);
+}
+
+data_t * data_error(int code, char * msg, ...) {
+  char    buf[256];
+  char   *ptr;
+  int     size;
+  va_list args;
+  va_list args_copy;
+  data_t *ret;
+  
+  va_start(args, msg);
+  va_copy(args_copy, args);
+  size = vsnprintf(buf, 256, msg, args);
+  if (size > 256) {
+    ptr = (char *) new(size);
+    vsprintf(ptr, msg, args_copy);
+  } else {
+    ptr = buf;
+  }
+  va_end(args);
+  va_end(args_copy);
+  ret = data_create(Error, code, ptr);
+  if (size > 256) {
+    free(ptr);
+  }
+  return ret;
 }
 

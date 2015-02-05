@@ -36,50 +36,53 @@ static char *       _string_tostring(data_t *);
 static data_t *     _string_parse(char *str);
 static data_t *     _string_cast(data_t *, int);
 
-static data_t * _string_len(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_slice(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_at(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_forcecase(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_has(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_indexof(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_rindexof(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_startswith(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_endswith(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_concat(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_repeat(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_len(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_slice(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_at(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_forcecase(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_has(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_indexof(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_rindexof(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_startswith(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_endswith(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_concat(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_repeat(data_t *, char *, array_t *, dict_t *);
 
+vtable_entry_t _string_vtable[] = {
+  { .id = MethodNew,      .fnc = (void_t) _string_new },
+  { .id = MethodCopy,     .fnc = (void_t) _string_copy },
+  { .id = MethodCmp,      .fnc = (void_t) _string_cmp },
+  { .id = MethodToString, .fnc = (void_t) _string_tostring },
+  { .id = MethodParse,    .fnc = (void_t) _string_parse },
+  { .id = MethodCast,     .fnc = (void_t) _string_cast },
+  { .id = MethodHash,     .fnc = (void_t) _string_hash },
+  { .id = MethodNone,     .fnc = NULL }
+};
 
 typedescr_t typedescr_str = {
-  type:                  String,
-  typecode:              "S",
-  typename:              "str",
-  new:      (new_t)      _string_new,
-  copy:     (copydata_t) _string_copy,
-  cmp:      (cmp_t)      _string_cmp,
-  free:     (free_t)     free,
-  tostring: (tostring_t) _string_tostring,
-  parse:    (parse_t)    _string_parse,
-  cast:     (cast_t)     _string_cast,
-  hash:     (hash_t)     _string_hash,
-  fallback:              NULL
+  .type =        String,
+  .typecode =    "S",
+  .type_name =   "str",
+  .vtable =      _string_vtable,
+  .fallback =    NULL
 };
 
 methoddescr_t methoddescr_str[] = {
-  { type: String, name: "len",        method: _string_len,        argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
-  { type: String, name: "at",         method: _string_at,         argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: String, name: "slice",      method: _string_slice,      argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 1 },
-  { type: String, name: "upper",      method: _string_forcecase,  argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
-  { type: String, name: "lower",      method: _string_forcecase,  argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
-  { type: String, name: "has",        method: _string_has,        argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: String, name: "indexof",    method: _string_indexof,    argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: String, name: "rindexof",   method: _string_indexof,    argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: String, name: "startswith", method: _string_startswith, argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: String, name: "endswith",   method: _string_endswith,   argtypes: { String, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: String, name: "+",          method: _string_concat,     argtypes: { String, NoType, NoType }, minargs: 1, varargs: 1 },
-  { type: String, name: "concat",     method: _string_concat,     argtypes: { String, NoType, NoType }, minargs: 1, varargs: 1 },
-  { type: String, name: "*",          method: _string_repeat,     argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: String, name: "repeat",     method: _string_repeat,     argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: NoType, name: NULL,         method: NULL,               argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 }
+  { .type = String, .name = "len",        .method = _string_len,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = String, .name = "at",         .method = _string_at,         .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = String, .name = "slice",      .method = _string_slice,      .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = String, .name = "upper",      .method = _string_forcecase,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = String, .name = "lower",      .method = _string_forcecase,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = String, .name = "has",        .method = _string_has,        .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = String, .name = "indexof",    .method = _string_indexof,    .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = String, .name = "rindexof",   .method = _string_indexof,    .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = String, .name = "startswith", .method = _string_startswith, .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = String, .name = "endswith",   .method = _string_endswith,   .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = String, .name = "+",          .method = _string_concat,     .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 1 },
+  { .type = String, .name = "concat",     .method = _string_concat,     .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 1 },
+  { .type = String, .name = "*",          .method = _string_repeat,     .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = String, .name = "repeat",     .method = _string_repeat,     .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = NoType, .name = NULL,         .method = NULL,               .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 /*
@@ -121,6 +124,10 @@ data_t * _string_cast(data_t *data, int totype) {
   typedescr_t *type = typedescr_get(totype);
   
   return (type -> parse) ? type -> parse(data -> ptrval) : NULL;
+}
+
+data_t * data_create_string(char * value) {
+  return data_create(String, value);
 }
 
 /* ----------------------------------------------------------------------- */

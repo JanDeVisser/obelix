@@ -187,7 +187,18 @@ data_t * _data_execute_closure(data_t *self, char *name, array_t *params, dict_t
 }
 
 data_t * _data_resolve_closure(data_t *data, array_t *name) {
-  closure_t *c 
+  closure_t *c;
+  char      *n;
+  
+  assert(name && array_size(name));
+  n = (char *) array_get(name, 0);
+  c = (closure_t *) data -> ptrval;
+  while (c) {
+    if (closure_has(c, n)) {
+      ret = closure_get(c, n);
+    }
+  }
+  
 }
 
 data_t * data_create_closure(closure_t *closure) {

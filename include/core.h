@@ -29,7 +29,7 @@
 #define NEW(t) ( (t *) new( sizeof(t) ) )
 
 typedef enum _log_level {
-  LogLevelDebug,
+  LogLevelDebug = 0,
   LogLevelInfo,
   LogLevelWarning,
   LogLevelError,
@@ -37,6 +37,11 @@ typedef enum _log_level {
 } log_level_t;
 
 extern log_level_t log_level;
+
+typedef struct _code_label {
+  int   code;
+  char *label;
+} code_label_t;
 
 typedef void    (*void_t)(void);
 typedef void *  (*voidptr_t)(void *);
@@ -150,6 +155,9 @@ extern int             atob(char *);
 extern char *          btoa(long);
 extern char *          itoa(long);
 extern char *          dtoa(double);
+
+extern char *          label_for_code(code_label_t *, int);
+extern int             code_for_label(code_label_t *, char *);
 
 extern function_t *    function_create(char *, voidptr_t);
 extern function_t *    function_copy(function_t *);
