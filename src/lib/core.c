@@ -136,19 +136,17 @@ unsigned int hashdouble(double val) {
   return hash(&val, sizeof(double));
 }
 
+static code_label_t _log_level_labels[] = {
+  { .code = LogLevelDebug,   .name = "DEBUG" },
+  { .code = LogLevelInfo,    .name = "INFO" },
+  { .code = LogLevelWarning, .name = "WARN" },
+  { .code = LogLevelError,   .name = "ERROR" },
+  { .code = LogLevelFatal,   .name = "FATAL" }
+}
+
 char * _log_level_str(log_level_t lvl) {
-  switch (lvl) {
-    case LogLevelDebug:
-      return "DEBUG";
-    case LogLevelInfo:
-      return "INFO ";
-    case LogLevelWarning:
-      return "WARN ";
-    case LogLevelError:
-      return "ERROR";
-    case LogLevelFatal:
-      return "FATAL";
-  }
+  assert(log_level_labels[lvl].code == lvl);
+  return _log_level_labels[lvl].name;
 }
 
 void _logmsg(log_level_t lvl, char *file, int line, char *msg, ...) {
@@ -225,6 +223,36 @@ char * strrand(char *buf, size_t numchars) {
 }
 
 function_ptr_t no_func_ptr = { void_fnc: (void_t) NULL };
+
+/*
+ * code_label_t public functions
+ */
+
+char * label_for_code(code_label_t *table, int code) {
+  assert(table);
+  while (table -> label) {
+    if (table -> code == code) {
+      return table -> label;
+    } else {
+      table++;
+    }
+  }
+  return NULL;
+}
+
+int code_for_label(code_label_t *table, char *label) {
+  assert(table);
+  assert(label);
+  while (table -> label) {
+    if (!strcmp(table -> label, label) {
+      return table -> code;
+    } else {
+      table++;
+    }
+  }
+  return -1;
+}
+
 
 /*
  * function_t public functions

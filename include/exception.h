@@ -18,8 +18,8 @@
  */
 
 
-#ifndef __ERROR_H__
-#define __ERROR_H__
+#ifndef __EXCEPTION_H__
+#define __EXCEPTION_H__
 
 #include <stdarg.h>
 
@@ -47,4 +47,4 @@ extern int            error_cmp(error_t *, error_t *);
 extern char *         error_tostring(error_t *);
 extern void           error_report(error_t *);
 
-#endif /* __ERROR_H__ */
+#endif /* __EXCEPTION_H__ */

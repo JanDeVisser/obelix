@@ -34,6 +34,7 @@ static methoddescr_t methoddescr_any[];
 
 
 static void          _data_initialize_types(void);
+static data_t *      _data_init_method(methoddescr_t *method, data_t *data);
 
 static data_t *      _any_cmp(data_t *, char *, array_t *, dict_t *);
 static data_t *      _any_hash(data_t *, char *, array_t *, dict_t *);
@@ -51,21 +52,41 @@ int data_count = 0;
 
 static typedescr_t typedescr_any = {
   type:                  Any,
-  typecode:              "A",
-  typename:              "any"
+  typecode:              "A" },
+  type_name:              "any"
 };
 
 static methoddescr_t methoddescr_any[] = {
-  { type: Any,    name: ">",    method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: Any,    name: "<",    method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: Any,    name: ">=",   method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: Any,    name: "<=",   method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: Any,    name: "==",   method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: Any,    name: "!=",   method: _any_cmp,  argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: Any,    name: "hash", method: _any_hash, argtypes: { Any, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: NoType, name: NULL,   method: NULL,      argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 }
+  { type: Any,    name: ">" },    method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: Any,    name: "<" },    method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: Any,    name: ">=" },   method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: Any,    name: "<=" },   method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: Any,    name: "==" },   method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: Any,    name: "!=" },   method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: Any,    name: "hash" }, method: _any_hash, argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
+  { type: NoType, name: NULL,     method: NULL,      argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 }
 };
 
+static code_label_t _function_id_labels[] = {
+  { .code = MethodNone,     .label = "MethodNone" },
+  { .code = MethodNew,      .label = "MethodNew" },
+  { .code = MethodCopy,     .label = "MethodCopy" },
+  { .code = MethodCmp,      .label = "MethodCmp" },
+  { .code = MethodFree,     .label = "MethodFree" },
+  { .code = MethodToString, .label = "MethodToString" },
+  { .code = MethodParse,    .label = "MethodParse" },
+  { .code = MethodCast,     .label = "MethodCast" },
+  { .code = MethodHash,     .label = "MethodHash" },
+  { .code = MethodLen,      .label = "MethodLen" },
+  { .code = MethodResolve,  .label = "MethodResolve" },
+  { .code = MethodCall,     .label = "MethodCall" },
+  { .code = MethodRead,     .label = "MethodRead" },
+  { .code = MethodWrite,    .label = "MethodWrite" },
+  { .code = MethodOpen,     .label = "MethodOpen" },
+  { .code = MethodIter,     .label = "MethodIter" },
+  { .code = MethodNext,     .label = "MethodNext" },
+  { .code = -1,             .label = NULL }
+};
 
 /*
  * 'any' global methods
@@ -93,7 +114,7 @@ data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     ret = data_create(Bool, 0);
   }
   /*
-  debug("_any_cmp('%s' %s '%s') [cmp: %d] = %s", 
+  debug("_any_cmp('%s' %s '%s') [cmp: %d] = %s" }, 
         data_debugstr(self), name, data_debugstr(other), cmp, data_debugstr(ret));
   */
   return ret;
@@ -108,15 +129,15 @@ data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
  */
 
 int typedescr_register(typedescr_t descr) {
-  typedescr_t *new_descriptors;
-  int          newsz;
-  int          cursz;
-  typedescr_t *d;
+  typedescr_t    *new_descriptors;
+  vtable_t       *vtable;
+  int             newsz;
+  int             cursz;
+  int             ix;
+  typedescr_t    *d;
 
-  /* debug("Registering typedescr %s", typedescr_tostring(&descr)); */
   if (descr.type < 0) {
     descr.type = data_numtypes;
-    /* debug("Assigned type %d", descr.type); */
   }
   assert((descr.type >= data_numtypes) || descriptors[descr.type].type == 0);
   if (descr.type >= data_numtypes) {
@@ -128,7 +149,39 @@ int typedescr_register(typedescr_t descr) {
   }
   d = &descriptors[descr.type];
   memcpy(d, &descr, sizeof(typedescr_t));
+  vtable = d -> vtable;
+  d -> vtable = NULL;
+  d -> vtable_size = 0;
+  typedescr_register_functions(d, vtable);
   return d -> type;
+}
+
+typedescr_t * typedescr_register_functions(typedescr_t *descr, vtable_entry_t vtable[]) {
+  int ix;
+  
+  if (vtable) {
+    for (ix = 0; vtable[ix].fnc; ix++) {
+      typedescr_register_function(descr, vtable[ix].id, vtable[ix].fnc);
+      vtable++;
+    }
+  }
+  return descr;
+}
+
+typedescr_t * typedescr_register_function(typedescr_t *type, int fnc_id, void_t fnc) {
+  int             newsz;
+  int             cursz;
+  vtable_t       *new_vtable;
+  
+  if (fnc_id >= type -> vtable_size) {
+    newsz = (fnc_id + 1) * sizeof(vtable_t);
+    cursz = type -> vtable_size * sizeof(vtable_t);
+    type -> vtable = (vtable_t *) resize_block(type -> vtable, newsz, cursz);
+    type -> vtable_size = fnc_id + 1;
+  }
+  type -> vtable[fnc_id].id = fnc_id;
+  type -> vtable[fnc_id].fnc = fnc;
+  return type;
 }
 
 typedescr_t * typedescr_get(int datatype) {
@@ -140,11 +193,16 @@ typedescr_t * typedescr_get(int datatype) {
     ret = &descriptors[datatype];
   }
   if (!ret) {
-    error("Undefined type %d referenced. Expect crashes", datatype);
+    error("Undefined type %d referenced. Expect crashes" }, datatype);
     return NULL;
   } else {
     return ret;
   }
+}
+
+void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
+  assert(fnc_id > MethodNone);
+  return (fnc_id < (type -> vtable_size)) ? type -> vtable[fnc_id].fnc : NULL;
 }
 
 void typedescr_register_methods(methoddescr_t methods[]) {
@@ -177,7 +235,7 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
 char * typedescr_tostring(typedescr_t *type) {
   static char buf[100];
   
-  snprintf(buf, 100, "'%s' [%s][%d]",
+  snprintf(buf, 100, "'%s' [%s][%d]" },
            type -> typename, type -> typecode, type -> type);
   return buf;
 }
@@ -205,11 +263,18 @@ void _data_initialize_types(void) {
     typedescr_register_methods(methoddescr_float);
     typedescr_register_methods(methoddescr_str);
     typedescr_register_methods(methoddescr_ptr);
-    typedescr_register_methods(methoddescr_fnc);
+    //typedescr_register_methods(methoddescr_fnc);
     typedescr_register_methods(methoddescr_list);
 
     _types_initialized = 1;
   }
+}
+
+data_t * _data_init_method(methoddescr_t *method, data_t *data) {
+  data_t *m = data_create(Method, method, data);
+  
+  dict_put(data -> methods, strdup(method -> name), m);
+  return data;
 }
 
 /*
@@ -221,6 +286,7 @@ data_t * data_create(int type, ...) {
   data_t      *ret;
   void        *value;
   typedescr_t *descr;
+  new_t        n;
 
   _data_initialize_types();
   descr = typedescr_get(type);
@@ -233,13 +299,20 @@ data_t * data_create(int type, ...) {
 #ifndef NDEBUG
   ret -> debugstr = NULL;
 #endif
+  if (descr -> methods && dict_size(descr -> methods)) {
+    ret -> methods = strdata_dict_create();
+    dict_reduce_values(descr -> methods, (reduce_t) _data_init_method, ret);
+  } else {
+    ret -> methods = NULL;
+  }
   
-  if (descr -> new) {
+  n = (new_t) typedescr_get_function(descr, MethodNew);
+  if (n) {
     va_start(arg, type);
-    ret = descr -> new(ret, arg);
+    ret = n(ret, arg);
     va_end(arg);
   }
-  /* debug("data_create(%s, ...) = %s", typedescr_tostring(descr), data_tostring(ret)); */
+  /* debug("data_create(%s, ...) = %s" }, typedescr_tostring(descr), data_tostring(ret)); */
   return ret;
 }
 
@@ -251,47 +324,22 @@ data_t * data_null(void) {
   return data_create_pointer(0, NULL);
 }
 
-data_t * data_error(int code, char * msg, ...) {
-  char    buf[256];
-  char   *ptr;
-  int     size;
-  va_list args;
-  va_list args_copy;
-  data_t *ret;
-
-  va_start(args, msg);
-  va_copy(args_copy, args);
-  size = vsnprintf(buf, 256, msg, args);
-  if (size > 256) {
-    ptr = (char *) new(size);
-    vsprintf(ptr, msg, args_copy);
-  } else {
-    ptr = buf;
-  }
-  va_end(args);
-  va_end(args_copy);
-  ret = data_create(Error, code, ptr);
-  if (size > 256) {
-    free(ptr);
-  }
-  return ret;
-}
-
-data_t * data_create_string(char * value) {
-  return data_create(String, value);
-}
-
 data_t * data_parse(int type, char *str) {
   typedescr_t *descr;
+  parse_t      parse;
 
   _data_initialize_types();
   descr = typedescr_get(type);
-  return (descr -> parse) ? descr -> parse(str) : NULL;
+  parse = (parse_t) typedescr_get_function(descr, MethodParse);
+  return (parse) ? parse(str) : NULL;
 }
 
 data_t * data_cast(data_t *data, int totype) {
   typedescr_t *descr;
   typedescr_t *totype_descr;
+  cast_t       cast;
+  tostring_t   tostring;
+  parse_t      parse;
 
   assert(data);
   if (data_type(data) == totype) {
@@ -301,12 +349,21 @@ data_t * data_cast(data_t *data, int totype) {
     assert(descr);
     totype_descr = typedescr_get(totype);
     assert(totype_descr);
-    if ((totype == String) && descr -> tostring) {
-      return data_create(String, descr -> tostring(data));
-    } else if ((data_type(data) == String) && totype_descr -> parse) {
-      return totype_descr -> parse(data -> ptrval);
-    } else if (descr -> cast) {
-      return descr -> cast(data, totype);
+    if (totype == String) {
+      tostring = (tostring_t) typedescr_get_function(descr, MethodToString);
+      if (tostring) {
+        return data_create(String, tostring(data));
+      }
+    }
+    if (data_type(data) == String) {
+      parse = (parse_t) typedescr_get_function(totype_descr, MethodParse);
+      if (parse) {
+        return parse(data -> ptrval);
+      }
+    }
+    cast = (cast_t) typedescr_get_function(descr, MethodCast);
+    if (cast) {
+      return cast(data, totype);
     } else {
       return NULL;
     }
@@ -323,6 +380,7 @@ data_t * data_promote(data_t *data) {
 
 void data_free(data_t *data) {
   typedescr_t *type;
+  free_t       f;
 
   if (data) {
     data -> refs--;
@@ -353,6 +411,12 @@ int data_is_numeric(data_t *data) {
   return (data -> type == Int) || (data -> type == Float);
 }
 
+int data_is_callable(data_t *data) {
+  typedescr_t *td = data_typedescr(data);
+  
+  return (td && (td -> call != NULL));
+}
+
 int data_hastype(data_t *data, int type) {
   if (type == Any) {
     return TRUE;
@@ -368,6 +432,14 @@ data_t * data_copy(data_t *src) {
     src -> refs++;
   }
   return src;
+}
+
+data_t * data_call(data_t *data, array_t *args, dict_t *kwargs) {
+  typedescr_t *type;
+  
+  assert(data_is_callable(data));
+  type = data_typedescr(self);
+  type -> call(data, args, kwargs);
 }
 
 methoddescr_t * data_method(data_t *data, char *name) {
@@ -392,21 +464,21 @@ data_t * data_execute_method(data_t *self, methoddescr_t *method, array_t *args,
   }
   if (len < method -> minargs) {
     if (method -> varargs) {
-      return data_error(ErrorArgCount, "%s.%s requires at least %d arguments",
+      return data_error(ErrorArgCount, "%s.%s requires at least %d arguments" },
                        type -> typename, method -> name, method -> minargs);
     } else {
-      return data_error(ErrorArgCount, "%s.%s requires exactly %d arguments",
+      return data_error(ErrorArgCount, "%s.%s requires exactly %d arguments" },
                        type -> typename, method -> name, method -> minargs);
     }
   } else if (!method -> varargs && (len > maxargs)) {
     if (maxargs == 0) {
-      return data_error(ErrorArgCount, "%s.%s accepts no arguments",
+      return data_error(ErrorArgCount, "%s.%s accepts no arguments" },
                         type -> typename, method -> name);
     } else if (maxargs == 1) {
-      return data_error(ErrorArgCount, "%s.%s accepts only one argument",
+      return data_error(ErrorArgCount, "%s.%s accepts only one argument" },
                         type -> typename, method -> name);
     } else {
-      return data_error(ErrorArgCount, "%s.%s accepts only %d arguments",
+      return data_error(ErrorArgCount, "%s.%s accepts only %d arguments" },
                        type -> typename, method -> name, maxargs);
     }
   }
@@ -416,7 +488,7 @@ data_t * data_execute_method(data_t *self, methoddescr_t *method, array_t *args,
       ? method -> argtypes[i]
       : method -> argtypes[(method -> minargs) ? method -> minargs - 1 : 0];
     if (!data_hastype(arg, t)) {
-      return data_error(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
+      return data_error(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d" },
                         i+1, type -> typename, method -> name, t, data_type(arg));
     }
   }
@@ -437,7 +509,7 @@ data_t * data_execute(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     }
   }
   if (!self) {
-    ret = data_error(ErrorArgCount, "No 'self' object specified for method '%s'", name);
+    ret = data_error(ErrorArgCount, "No 'self' object specified for method '%s'" }, name);
   }
 
   method = data_method(self, name);
@@ -457,32 +529,36 @@ data_t * data_execute(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     }
   }
   if (!ret) {
-    ret = data_error(ErrorName, "data object '%s' has no method '%s",
+    ret = data_error(ErrorName, "data object '%s' has no method '%s" },
                      data_tostring(self), name);
   }
   array_free(args_shifted);
   return ret;
 }
 
-data_t * data_resolve(data_t *data, arrat_t *name) {
+data_t * data_resolve(data_t *data, array_t *name) {
   typedescr_t *type = data_typedescr(data);
   data_t      *ret = NULL;
   str_t       *name_str = NULL;
   
   assert(name && array_size(name));
-  if (array_size(name) > 1) {
+  if (data -> methods && (array_size(name) == 1)) {
+    n = (char *) array_get(name, 0);
+    if (dict_has_key(data -> methods, n)) {
+      ret = data_copy((data_t *) dict_get(data -> methods, n));
+    }
+  }
+  if (!ret) {
     if (!type -> resolve) {
       name_str = array_join(args, ".");
       ret = data_error(ErrorType,
-                       "Cannot resolve name '%s' in %s '%s'", 
+                       "Cannot resolve name '%s' in %s '%s'" }, 
                        str_chars(name_str), type -> typename, object_tostring(data)
                       );
       str_free(name_str);
     } else {
       ret = type -> resolve(data, name);
     }
-  } else {
-    ret = data_copy(data);
   }
   return ret;
 }
@@ -494,10 +570,27 @@ data_t * data_invoke(data_t *data, array_t *name, array_t *args, dict_t *kwargs)
   
   object = data_resolve(data, name);
   if (!data_is_error(object)) {
-    method_name = str_array_get(name, -1);
-    ret = data_execute(object, method_name, args, kwargs);
+    if (data_is_callable(object)) {
+      ret = data_call(object, args, kwargs);
+      data_free(object);
+    } else {
+      ret = data_error(ErrorNotCallable, 
+                       "Atom '%s' is not callable" },
+                       data_tostring(object));
+    }
+  } else {
+    ret = object;
   }
-  data_free(object);
+  return ret;
+}
+
+data_t * data_execute(data_t *data, char *name, array_t *args, dict_t *kwargs) {
+  array_t *name_arr = array_create(1);
+  data_t  *ret;
+  
+  array_push(name_arr, name);
+  ret = data_invoke(data, name_arr, args, kwargs);
+  array_free(name_arr);
   return ret;
 }
 
@@ -524,9 +617,9 @@ char * data_tostring(data_t *data) {
 	data -> str = strdup(ret);
       }
     } else {
-      len = snprintf(NULL, 0, "data:%s:%p", descriptors[data -> type].typecode, data);
+      len = snprintf(NULL, 0, "data:%s:%p" }, descriptors[data -> type].typecode, data);
       data -> str = new(len + 1);
-      sprintf(data -> str, "data:%s:%p", descriptors[data -> type].typecode, data);
+      sprintf(data -> str, "data:%s:%p" }, descriptors[data -> type].typecode, data);
     }
     return data -> str;
   }
@@ -539,11 +632,11 @@ char * data_debugstr(data_t *data) {
 
   free(data -> debugstr);
   type = data_typedescr(data);
-  len = snprintf(NULL, 0, "%c %s", 
+  len = snprintf(NULL, 0, "%c %s" }, 
 		 type -> typecode[0], 
 		 data_tostring(data));
   data -> debugstr = (char *) new(len + 1);
-  sprintf(data -> debugstr, "%c %s", 
+  sprintf(data -> debugstr, "%c %s" }, 
 	  type -> typecode[0], 
 	  data_tostring(data));
   return data -> debugstr;
@@ -558,7 +651,7 @@ int data_cmp(data_t *d1, data_t *d2) {
   data_t      *p2 = NULL;
   int          ret;
   
-  /* debug("data_cmp: comparing '%s' and '%s'", data_debugstr(d1), data_debugstr(d2)); */
+  /* debug("data_cmp: comparing '%s' and '%s'" }, data_debugstr(d1), data_debugstr(d2)); */
   if (!d1 && !d2) {
     return 0;
   } else if (!d1 || !d2) {
@@ -567,7 +660,7 @@ int data_cmp(data_t *d1, data_t *d2) {
     p1 = data_promote(d1);
     /*
     if (p1) {
-      debug("data_cmp: promoted d1 to '%s'", data_debugstr(p1));
+      debug("data_cmp: promoted d1 to '%s'" }, data_debugstr(p1));
     }
     */
     if (p1 && (p1 -> type == d2 -> type)) {
@@ -576,7 +669,7 @@ int data_cmp(data_t *d1, data_t *d2) {
       p2 = data_promote(d2);
       /*
       if (p2) {
-        debug("data_cmp: promoted d2 to '%s'", data_debugstr(p2));
+        debug("data_cmp: promoted d2 to '%s'" }, data_debugstr(p2));
       }
       */
       if (p2 && (d1 -> type == p2 -> type)) {

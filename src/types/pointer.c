@@ -1,5 +1,5 @@
 /*
- * /obelix/src/data/data_int.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/src/types/pointer.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -43,8 +43,7 @@ static data_t *      _fnc_cast(data_t *, int);
 static char *        _fnc_tostring(data_t *);
 static data_t *      _fnc_parse(char *);
 static unsigned int  _fnc_hash(data_t *);
-
-static data_t *      _fnc_call(data_t *, char *, array_t *, dict_t *);
+static data_t *      _fnc_call(data_t *, array_t *, dict_t *);
 
 typedescr_t typedescr_ptr = {
   type:                  Pointer,
@@ -78,33 +77,9 @@ typedescr_t typedescr_fnc = {
   tostring: (tostring_t) _fnc_tostring,
   parse:    (parse_t)    _fnc_parse,
   cast:                  _fnc_cast,
+  call:     (call_t)     _fnc_call,
   fallback:              NULL,
   hash:     (hash_t)     _fnc_hash
-};
-
-methoddescr_t methoddescr_fnc[] = {
-  { type: Function, name: "call",  method: _fnc_call, argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 1 },
-  { type: NoType,   name: NULL,    method: NULL,      argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
-};
-
-typedescr_t typedescr_method = {
-  type:                  Method,
-  typecode:              "M",
-  typename:              "method",
-  new:      (new_t)      _method_new,
-  copy:     (copydata_t) _method_copy,
-  cmp:      (cmp_t)      _method_cmp,
-  free:     (free_t)     NULL,
-  tostring: (tostring_t) _method_tostring,
-  parse:    (parse_t)    NULL,
-  cast:                  NULL,
-  fallback:              NULL,
-  hash:     (hash_t)     _method_hash
-};
-
-methoddescr_t methoddescr_method[] = {
-  { type: Method,   name: "call",  method: _fnc_call, argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 1 },
-  { type: NoType,   name: NULL,    method: NULL,      argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
 };
 
 /*
@@ -255,12 +230,8 @@ unsigned int _fnc_hash(data_t *data) {
   return hashptr(fnc -> fnc);
 }
 
-
-/* ----------------------------------------------------------------------- */
-
-data_t * _fnc_call(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _fnc_call(data_t *data, array_t *args, dict_t *kwargs) {
   /* FIXME is there a better way? */
-  function_t *fnc = (function_t *) self -> ptrval;
+  function_t *fnc = (function_t *) data -> ptrval;
   return fnc -> fnc(args);
 }
-
