@@ -25,7 +25,7 @@
 
 #include <core.h>
 #include <data.h>
-#include <error.h>
+#include <exception.h>
 #include <list.h>
 #include <object.h>
 
@@ -51,20 +51,20 @@ static
 int data_count = 0;
 
 static typedescr_t typedescr_any = {
-  type:                  Any,
-  typecode:              "A" },
-  type_name:              "any"
+  .type =      Any,
+  .typecode =  "A",
+  .type_name = "any"
 };
 
 static methoddescr_t methoddescr_any[] = {
-  { type: Any,    name: ">" },    method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: Any,    name: "<" },    method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: Any,    name: ">=" },   method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: Any,    name: "<=" },   method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: Any,    name: "==" },   method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: Any,    name: "!=" },   method: _any_cmp,  argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: Any,    name: "hash" }, method: _any_hash, argtypes: { Any, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: NoType, name: NULL,     method: NULL,      argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 }
+  { .type = Any,    .name = ">" ,   .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "<" ,   .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = ">=" ,  .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "<=" ,  .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "==" ,  .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "!=" ,  .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "hash", .method = _any_hash, .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = NoType, .name = NULL,   .method = NULL,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 static code_label_t _function_id_labels[] = {
@@ -87,6 +87,8 @@ static code_label_t _function_id_labels[] = {
   { .code = MethodNext,     .label = "MethodNext" },
   { .code = -1,             .label = NULL }
 };
+
+#define get_function(ftype, tdescr, id) ((ftype) typedescr_get_function((tdescr), (id)))
 
 /*
  * 'any' global methods
@@ -156,7 +158,7 @@ int typedescr_register(typedescr_t descr) {
   return d -> type;
 }
 
-typedescr_t * typedescr_register_functions(typedescr_t *descr, vtable_entry_t vtable[]) {
+typedescr_t * typedescr_register_functions(typedescr_t *descr, vtable_t vtable[]) {
   int ix;
   
   if (vtable) {
@@ -193,7 +195,7 @@ typedescr_t * typedescr_get(int datatype) {
     ret = &descriptors[datatype];
   }
   if (!ret) {
-    error("Undefined type %d referenced. Expect crashes" }, datatype);
+    error("Undefined type %d referenced. Expect crashes", datatype);
     return NULL;
   } else {
     return ret;
@@ -232,11 +234,11 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   return (methoddescr_t *) dict_get(descr -> methods, name);
 }
 
-char * typedescr_tostring(typedescr_t *type) {
+char * typedescr_tostring(typedescr_t *descr) {
   static char buf[100];
   
-  snprintf(buf, 100, "'%s' [%s][%d]" },
-           type -> typename, type -> typecode, type -> type);
+  snprintf(buf, 100, "'%s' [%s][%d]",
+           descr -> type_name, descr -> typecode, descr -> type);
   return buf;
 }
 
@@ -316,14 +318,6 @@ data_t * data_create(int type, ...) {
   return ret;
 }
 
-data_t * data_create_pointer(int sz, void *ptr) {
-  return data_create(Pointer, sz, ptr);
-}
-
-data_t * data_null(void) {
-  return data_create_pointer(0, NULL);
-}
-
 data_t * data_parse(int type, char *str) {
   typedescr_t *descr;
   parse_t      parse;
@@ -386,8 +380,9 @@ void data_free(data_t *data) {
     data -> refs--;
     if (data -> refs <= 0) {
       type = data_typedescr(data);
-      if (type -> free) {
-	type -> free(data -> ptrval);
+      f = (free_t) typedescr_get_function(type, MethodFree);
+      if (f) {
+	f(data -> ptrval);
       }
       free(data -> str);
 #ifndef NDEBUG
@@ -414,7 +409,8 @@ int data_is_numeric(data_t *data) {
 int data_is_callable(data_t *data) {
   typedescr_t *td = data_typedescr(data);
   
-  return (td && (td -> call != NULL));
+  assert(td);
+  return (typedescr_get_function(td, MethodCall) != NULL);
 }
 
 int data_hastype(data_t *data, int type) {
@@ -464,22 +460,22 @@ data_t * data_execute_method(data_t *self, methoddescr_t *method, array_t *args,
   }
   if (len < method -> minargs) {
     if (method -> varargs) {
-      return data_error(ErrorArgCount, "%s.%s requires at least %d arguments" },
-                       type -> typename, method -> name, method -> minargs);
+      return data_error(ErrorArgCount, "%s.%s requires at least %d arguments",
+                       type -> type_name, method -> name, method -> minargs);
     } else {
-      return data_error(ErrorArgCount, "%s.%s requires exactly %d arguments" },
-                       type -> typename, method -> name, method -> minargs);
+      return data_error(ErrorArgCount, "%s.%s requires exactly %d arguments",
+                       type -> type_name, method -> name, method -> minargs);
     }
   } else if (!method -> varargs && (len > maxargs)) {
     if (maxargs == 0) {
-      return data_error(ErrorArgCount, "%s.%s accepts no arguments" },
-                        type -> typename, method -> name);
+      return data_error(ErrorArgCount, "%s.%s accepts no arguments",
+                        type -> type_name, method -> name);
     } else if (maxargs == 1) {
-      return data_error(ErrorArgCount, "%s.%s accepts only one argument" },
-                        type -> typename, method -> name);
+      return data_error(ErrorArgCount, "%s.%s accepts only one argument",
+                        type -> type_name, method -> name);
     } else {
-      return data_error(ErrorArgCount, "%s.%s accepts only %d arguments" },
-                       type -> typename, method -> name, maxargs);
+      return data_error(ErrorArgCount, "%s.%s accepts only %d arguments",
+                       type -> type_name, method -> name, maxargs);
     }
   }
   for (i = 0; i < len; i++) {
@@ -488,8 +484,8 @@ data_t * data_execute_method(data_t *self, methoddescr_t *method, array_t *args,
       ? method -> argtypes[i]
       : method -> argtypes[(method -> minargs) ? method -> minargs - 1 : 0];
     if (!data_hastype(arg, t)) {
-      return data_error(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d" },
-                        i+1, type -> typename, method -> name, t, data_type(arg));
+      return data_error(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
+                        i+1, type -> type_name, method -> name, t, data_type(arg));
     }
   }
   return method -> method(self, method -> name, args, kwargs);
@@ -509,7 +505,7 @@ data_t * data_execute(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     }
   }
   if (!self) {
-    ret = data_error(ErrorArgCount, "No 'self' object specified for method '%s'" }, name);
+    ret = data_error(ErrorArgCount, "No 'self' object specified for method '%s'", name);
   }
 
   method = data_method(self, name);
@@ -529,7 +525,7 @@ data_t * data_execute(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     }
   }
   if (!ret) {
-    ret = data_error(ErrorName, "data object '%s' has no method '%s" },
+    ret = data_error(ErrorName, "data object '%s' has no method '%s",
                      data_tostring(self), name);
   }
   array_free(args_shifted);
@@ -552,8 +548,8 @@ data_t * data_resolve(data_t *data, array_t *name) {
     if (!type -> resolve) {
       name_str = array_join(args, ".");
       ret = data_error(ErrorType,
-                       "Cannot resolve name '%s' in %s '%s'" }, 
-                       str_chars(name_str), type -> typename, object_tostring(data)
+                       "Cannot resolve name '%s' in %s '%s'", 
+                       str_chars(name_str), type -> type_name, object_tostring(data)
                       );
       str_free(name_str);
     } else {
@@ -575,7 +571,7 @@ data_t * data_invoke(data_t *data, array_t *name, array_t *args, dict_t *kwargs)
       data_free(object);
     } else {
       ret = data_error(ErrorNotCallable, 
-                       "Atom '%s' is not callable" },
+                       "Atom '%s' is not callable",
                        data_tostring(object));
     }
   } else {
@@ -617,9 +613,9 @@ char * data_tostring(data_t *data) {
 	data -> str = strdup(ret);
       }
     } else {
-      len = snprintf(NULL, 0, "data:%s:%p" }, descriptors[data -> type].typecode, data);
+      len = snprintf(NULL, 0, "data:%s:%p", descriptors[data -> type].typecode, data);
       data -> str = new(len + 1);
-      sprintf(data -> str, "data:%s:%p" }, descriptors[data -> type].typecode, data);
+      sprintf(data -> str, "data:%s:%p", descriptors[data -> type].typecode, data);
     }
     return data -> str;
   }
@@ -632,11 +628,11 @@ char * data_debugstr(data_t *data) {
 
   free(data -> debugstr);
   type = data_typedescr(data);
-  len = snprintf(NULL, 0, "%c %s" }, 
+  len = snprintf(NULL, 0, "%c %s", 
 		 type -> typecode[0], 
 		 data_tostring(data));
   data -> debugstr = (char *) new(len + 1);
-  sprintf(data -> debugstr, "%c %s" }, 
+  sprintf(data -> debugstr, "%c %s", 
 	  type -> typecode[0], 
 	  data_tostring(data));
   return data -> debugstr;

@@ -45,7 +45,7 @@ static data_t *      _error_copy(data_t *, data_t *);
 static int           _error_cmp(data_t *, data_t *);
 static char *        _error_tostring(data_t *);
 
-vtable_entry_t _error_vtable[] = {
+vtable_t _vtable_error[] = {
   { .id = MethodNew,      .fnc = (void_t) _error_new },
   { .id = MethodCopy,     .fnc = (void_t) _error_copy },
   { .id = MethodCmp,      .fnc = (void_t) _error_cmp },
@@ -56,11 +56,11 @@ vtable_entry_t _error_vtable[] = {
 
 
 typedescr_t typedescr_error = {
-  .type = Error,
-  .typecode = "E",
+  .type      = Error,
+  .typecode  = "E",
   .type_name = "error",
-  .vtable = _error_vtable,
-  .fallback = NULL
+  .vtable    = _vtable_error,
+  .fallback  = NULL
 };
 
 /*
@@ -148,11 +148,11 @@ char * error_tostring(error_t *error) {
 
   if (!error -> str) {
     error -> str = (char *) new(snprintf(NULL, 0, "Error %s (%d): %s",
-                                         errors[error -> code].str,
+                                         errors[error -> code].label,
                                          error -> code,
                                          error -> msg) + 1);
     sprintf(error -> str, "Error %s (%d): %s",
-            errors[error -> code].str,
+            errors[error -> code].label,
             error -> code,
             error -> msg);
   }

@@ -45,42 +45,50 @@ static data_t *      _fnc_parse(char *);
 static unsigned int  _fnc_hash(data_t *);
 static data_t *      _fnc_call(data_t *, array_t *, dict_t *);
 
+vtable_t _vtable_ptr[] = {
+  { .id = MethodNew,      .fnc = (void_t) _ptr_new },
+  { .id = MethodCmp,      .fnc = (void_t) _ptr_cmp },
+  { .id = MethodToString, .fnc = (void_t) _ptr_tostring },
+  { .id = MethodCast,     .fnc = (void_t) _ptr_cast },
+  { .id = MethodHash,     .fnc = (void_t) _ptr_hash },
+  { .id = MethodNone,     .fnc = NULL }
+};
+
 typedescr_t typedescr_ptr = {
-  type:                  Pointer,
-  typecode:              "P",
-  typename:              "ptr",
-  new:      (new_t)      _ptr_new,
-  copy:                  NULL,
-  cmp:      (cmp_t)      _ptr_cmp,
-  free:                  NULL,
-  tostring: (tostring_t) _ptr_tostring,
-  parse:                 NULL,
-  cast:                  _ptr_cast,
-  fallback:              NULL,
-  hash:     (hash_t)     _ptr_hash
+  .type = Pointer,
+  .typecode = "P",
+  .type_name =  "ptr",
+  .vtable = _vtable_ptr,
+  .fallback = NULL,
 };
 
 methoddescr_t methoddescr_ptr[] = {
-  { type: Pointer, name: "copy",  method: _ptr_copy, argtypes: { Pointer, NoType, NoType }, minargs: 0, varargs: 1  },
-  { type: Pointer, name: "fill",  method: _ptr_fill, argtypes: { Pointer, NoType, NoType }, minargs: 1, varargs: 1  },
-  { type: NoType,  name: NULL,    method: NULL,      argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0  },
+  { .type = Pointer, .name = "copy",  .method = _ptr_copy, .argtypes = { Pointer, NoType, NoType }, .minargs = 0, .varargs = 1  },
+  { .type = Pointer, .name = "fill",  .method = _ptr_fill, .argtypes = { Pointer, NoType, NoType }, .minargs = 1, .varargs = 1  },
+  { .type = NoType,  .name = NULL,    .method = NULL,      .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0  },
+};
+
+vtable_t _vtable_fnc[] = {
+  { .id = MethodNew,      .fnc = (void_t) _fnc_new },
+  { .id = MethodCopy,     .fnc = (void_t) _fnc_copy },
+  { .id = MethodCmp,      .fnc = (void_t) _fnc_cmp },
+  { .id = MethodFree,     .fnc = (void_t) function_free },
+  { .id = MethodToString, .fnc = (void_t) _fnc_tostring },
+  { .id = MethodParse,    .fnc = (void_t) _fnc_parse },
+  { .id = MethodCast,     .fnc = (void_t) _fnc_cast },
+  { .id = MethodHash,     .fnc = (void_t) _fnc_hash },
+  { .id = MethodCall,     .fnc = (void_t) _fnc_call },
+  { .id = MethodNone,     .fnc = NULL }
 };
 
 typedescr_t typedescr_fnc = {
-  type:                  Function,
-  typecode:              "U",
-  typename:              "fnc",
-  new:      (new_t)      _fnc_new,
-  copy:     (copydata_t) _fnc_copy,
-  cmp:      (cmp_t)      _fnc_cmp,
-  free:     (free_t)     function_free,
-  tostring: (tostring_t) _fnc_tostring,
-  parse:    (parse_t)    _fnc_parse,
-  cast:                  _fnc_cast,
-  call:     (call_t)     _fnc_call,
-  fallback:              NULL,
-  hash:     (hash_t)     _fnc_hash
+  .type =      Function,
+  .typecode =  "U",
+  .type_name = "fnc",
+  .fallback =  NULL,
+  .vtable =    _vtable_fnc
 };
+
 
 /*
  * --------------------------------------------------------------------------
@@ -136,6 +144,14 @@ char * _ptr_tostring(data_t *data) {
 
 unsigned int _ptr_hash(data_t *data) {
   return hash(data -> ptrval, data -> size);
+}
+
+data_t * data_create_pointer(int sz, void *ptr) {
+  return data_create(Pointer, sz, ptr);
+}
+
+data_t * data_null(void) {
+  return data_create_pointer(0, NULL);
 }
 
 /* ----------------------------------------------------------------------- */

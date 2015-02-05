@@ -26,7 +26,7 @@
 
 #include <core.h>
 #include <data.h>
-#include <error.h>
+#include <exception.h>
 
 static data_t *     _string_new(data_t *, va_list);
 static data_t *     _string_copy(data_t *, data_t *);
@@ -48,7 +48,7 @@ static data_t *     _string_endswith(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_concat(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_repeat(data_t *, char *, array_t *, dict_t *);
 
-vtable_entry_t _string_vtable[] = {
+vtable_t _vtable_string[] = {
   { .id = MethodNew,      .fnc = (void_t) _string_new },
   { .id = MethodCopy,     .fnc = (void_t) _string_copy },
   { .id = MethodCmp,      .fnc = (void_t) _string_cmp },
@@ -63,7 +63,7 @@ typedescr_t typedescr_str = {
   .type =        String,
   .typecode =    "S",
   .type_name =   "str",
-  .vtable =      _string_vtable,
+  .vtable =      _vtable_string,
   .fallback =    NULL
 };
 
@@ -122,8 +122,11 @@ data_t * _string_parse(char *str) {
 
 data_t * _string_cast(data_t *data, int totype) {
   typedescr_t *type = typedescr_get(totype);
+  parse_t     *parse;
   
-  return (type -> parse) ? type -> parse(data -> ptrval) : NULL;
+  assert(type);
+  parse = (parse_t) typedescr_get_function(type, MethodParse);
+  return (parse) ? parse(data -> ptrval) : NULL;
 }
 
 data_t * data_create_string(char * value) {
@@ -144,7 +147,7 @@ data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   i = data_longval(ix);
   if ((i < 0) || (i >= strlen(data_charval(self)))) {
     return data_error(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
-                                    typedescr_get(data_type(self)) -> typename,
+                                    typedescr_get(data_type(self)) -> type_name,
                                     name,
                                     i, strlen(data_charval(self)) - 1);
   } else {
@@ -173,12 +176,12 @@ data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   }
   if ((i < 0) || (i >= len)) {
     return data_error(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
-                                  typedescr_get(data_type(self)) -> typename,
+                                  typedescr_get(data_type(self)) -> type_name,
                                   name,
                                   i, len - 1);
   } else if ((j <= i) || (j > len)) {
     return data_error(ErrorRange, "%s.%s argument out of range: %d not in [%d..%d]",
-                                  typedescr_get(data_type(self)) -> typename,
+                                  typedescr_get(data_type(self)) -> type_name,
                                   name,
                                   j, i+1, len);
   } else {
