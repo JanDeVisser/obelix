@@ -32,21 +32,22 @@ extern int data_count;
 
 typedef enum _datatype {
   NoType = -1,
-  Error,      /* E */
-  Pointer,    /* P */
-  String,     /* S */
-  Number,     /* N */
-  Int,        /* I */
-  Float,      /* F */
-  Bool,       /* B */
-  List,       /* L */
-  Function,   /* U */
-  Method,     /* M */
-  Object,     /* O */
-  Script,     /* R */
-  Closure,    /* C */
-  Module,     /* D */
-  Any = 100
+  Error,      /* E - 0 */
+  Pointer,    /* P - 1 */
+  String,     /* S - 2 */
+  Number,     /* N - 3 */
+  Int,        /* I - 4 */
+  Float,      /* F - 5 */
+  Bool,       /* B - 6 */
+  List,       /* L - 7 */
+  Function,   /* U - 8 */
+  Method,     /* M - 9 */
+  Object,     /* O - 10 */
+  Script,     /* R - 11 */
+  Closure,    /* C - 12 */
+  Module,     /* D - 13 */
+  Any = 100,
+  UserTypeRange = 999
 } datatype_t;
 
 typedef enum _vtable_id {

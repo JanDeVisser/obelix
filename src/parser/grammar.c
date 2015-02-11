@@ -29,6 +29,7 @@
 
 int grammar_debug = 0;
 
+static void                _ge_init(void) __attribute__((constructor));
 static ge_t *              _ge_create(grammar_t *, ge_t *, grammar_element_type_t, ...);
 
 static grammar_t *         _grammar_create(ge_t *, va_list);
@@ -62,51 +63,56 @@ static set_t *             _rule_entry_get_firsts(rule_entry_t *, set_t *);
 static set_t *             _rule_entry_get_follows(rule_entry_t *, set_t *);
 static void                _rule_entry_dump(ge_t *);
 
-static typedescr_t elements[] = {
-  {
-    type:                  GETGrammar,
-    typecode:              "G",
-    new:      (new_t)      _grammar_create,
-    copy:                  NULL,
-    cmp:      (cmp_t)      NULL,
-    free:     (free_t)     _grammar_free,
-    tostring: (tostring_t) NULL,
-    parse:                 NULL,
-    hash:                  NULL
-  },
-  {
-    type:                  GETNonTerminal,
-    typecode:              "N",
-    new:      (new_t)      _nonterminal_create,
-    copy:                  NULL,
-    cmp:      (cmp_t)      NULL,
-    free:     (free_t)     _nonterminal_free,
-    tostring: (tostring_t) NULL,
-    parse:                 NULL,
-    hash:                  NULL
-  },
-  {
-    type:                  GETRule,
-    typecode:              "N",
-    new:      (new_t)      _rule_create,
-    copy:                  NULL,
-    cmp:      (cmp_t)      NULL,
-    free:     (free_t)     _rule_free,
-    tostring: (tostring_t) NULL,
-    parse:                 NULL,
-    hash:                  NULL
-  },
-  {
-    type:                  GETRuleEntry,
-    typecode:              "N",
-    new:      (new_t)      _rule_entry_new,
-    copy:                  NULL,
-    cmp:      (cmp_t)      NULL,
-    free:     (free_t)     _rule_entry_free,
-    tostring: (tostring_t) NULL,
-    parse:                 NULL,
-    hash:                  NULL
-  },
+static vtable_t _vtable_grammar[] = {
+  { .id = MethodNew,      .fnc = (void_t) _grammar_create },
+  { .id = MethodFree,     .fnc = (void_t) _grammar_free },
+  { .id = MethodNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_grammar = {
+  .type      = GETGrammar,
+  .typecode  = "G",
+  .type_name = "grammar",
+  .vtable    = _vtable_grammar
+};
+
+static vtable_t _vtable_nonterminal[] = {
+  { .id = MethodNew,      .fnc = (void_t) _nonterminal_create },
+  { .id = MethodFree,     .fnc = (void_t) _nonterminal_free },
+  { .id = MethodNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_nonterminal = {
+  .type      = GETNonTerminal,
+  .typecode  = "*",
+  .type_name = "nonterminal",
+  .vtable    = _vtable_nonterminal
+};
+
+static vtable_t _vtable_rule[] = {
+  { .id = MethodNew,      .fnc = (void_t) _rule_create },
+  { .id = MethodFree,     .fnc = (void_t) _rule_free },
+  { .id = MethodNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_rule = {
+  .type      = GETRule,
+  .typecode  = "|",
+  .type_name = "rule",
+  .vtable    = _vtable_rule
+};
+
+static vtable_t _vtable_rule_entry[] = {
+  { .id = MethodNew,      .fnc = (void_t) _rule_entry_new },
+  { .id = MethodFree,     .fnc = (void_t) _rule_entry_free },
+  { .id = MethodNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_rule_entry = {
+  .type      = GETRuleEntry,
+  .typecode  = ",",
+  .type_name = "rule_entry",
+  .vtable    = _vtable_rule_entry
 };
 
 /*
@@ -170,9 +176,17 @@ char * pushvalue_tostring(pushvalue_t *pushvalue) {
  * ge_t - static functions
  */
 
+void _ge_init(void) {
+  typedescr_register(&_typedescr_grammar);
+  typedescr_register(&_typedescr_nonterminal);
+  typedescr_register(&_typedescr_rule);
+  typedescr_register(&_typedescr_rule_entry);
+}
+
 ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, ...) {
-  ge_t    *ret;
-  va_list  args;
+  ge_t        *ret;
+  va_list      args;
+  new_t        new_fnc;
 
   ret = NEW(ge_t);
   ret -> type = type;
@@ -185,8 +199,9 @@ ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, 
   list_set_tostring(ret -> pushvalues, (tostring_t) pushvalue_tostring);
   ret -> variables = strtoken_dict_create();
   va_start(args, type);
-  if (elements[type].new) {
-    ret -> ptr = elements[type].new(ret, args);
+  new_fnc = (new_t) ge_function(ret, MethodNew);
+  if (new_fnc) {
+    ret -> ptr = new_fnc(ret, args);
   }
   va_end(args);
   return ret;
@@ -197,16 +212,27 @@ ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, 
  */
 
 void ge_free(ge_t *ge) {
+  free_t free_fnc;
+  
   if (ge) {
     dict_free(ge -> variables);
     list_free(ge -> pushvalues);
     function_free(ge -> initializer);
     function_free(ge -> finalizer);
-    if (elements[ge -> type].free) {
-      elements[ge -> type].free(ge -> ptr);
+    free_fnc = (free_t) ge_function(ge, MethodFree);
+    if (free_fnc) {
+      free_fnc(ge -> ptr);
     }
     free(ge);
   }
+}
+
+typedescr_t * ge_typedescr(ge_t *ge) {
+  return typedescr_get(ge -> type);
+}
+
+void_t ge_function(ge_t *ge, int fnc_id) {
+  return typedescr_get_function(typedescr_get(ge -> type), fnc_id);
 }
 
 ge_t * ge_add_pushvalue(ge_t *ge, pushvalue_t *pushvalue) {
