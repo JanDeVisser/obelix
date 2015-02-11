@@ -66,7 +66,7 @@ typedef enum _parsing_strategy {
 } strategy_t;
 
 typedef enum _grammar_element_type {
-  GETGrammar,
+  GETGrammar = 20,
   GETNonTerminal,
   GETRule,
   GETRuleEntry,
@@ -140,6 +140,8 @@ extern unsigned int    pushvalue_hash(pushvalue_t *);
 extern char *          pushvalue_tostring(pushvalue_t *pushvalue);
 
 extern void            ge_free(ge_t *);
+extern typedescr_t *   ge_typedescr(ge_t *);
+extern void_t          ge_function(ge_t *, int);
 extern ge_t *          ge_add_pushvalue(ge_t *, pushvalue_t *);
 extern ge_t *          ge_set_initializer(ge_t *, function_t *);
 extern function_t *    ge_get_initializer(ge_t *);

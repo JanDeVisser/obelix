@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include <data.h>
-#include <error.h>
+#include <exception.h>
 #include <file.h>
 #include <grammarparser.h>
 #include <namespace.h>
@@ -33,15 +33,12 @@
 
 int script_debug = 0;
 
-static typedescr_t      typedescr_script;
-static typedescr_t      typedescr_closure;
-static scriptloader_t * _loader;
-
 
 /*
  * S T A T I C  F U N C T I O N S
  */
 
+static void             _script_init(void) __attribute__((constructor));
 static data_t *         _data_new_script(data_t *, va_list);
 static data_t *         _data_copy_script(data_t *, data_t *);
 static int              _data_cmp_script(data_t *, data_t *);
@@ -52,7 +49,7 @@ static data_t *         _data_new_closure(data_t *, va_list);
 static data_t *         _data_copy_closure(data_t *, data_t *);
 static int              _data_cmp_closure(data_t *, data_t *);
 static char *           _data_tostring_closure(data_t *);
-static data_t *         _data_execute_closure(data_t *, char *, array_t *, dict_t *);
+static data_t *         _data_call_closure(data_t *, array_t *, dict_t *);
 static data_t *         _data_resolve_closure(data_t *, array_t *);
 
 extern data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
@@ -74,34 +71,48 @@ static scriptloader_t * _loader = NULL;
  * data_t Script and Closure types
  */
 
-static typedescr_t typedescr_script = {
-  type:                  Script,
-  typecode:              "C",
-  new:      (new_t)      _data_new_script,
-  copy:     (copydata_t) _data_copy_script,
-  cmp:      (cmp_t)      _data_cmp_script,
-  free:     (free_t)     script_free,
-  tostring: (tostring_t) _data_tostring_script,
-  hash:                  NULL,
-  parse:                 NULL
+static vtable_t _vtable_script[] = {
+  { .id = MethodNew,      .fnc = (void_t) _data_new_script },
+  { .id = MethodCopy,     .fnc = (void_t) _data_copy_script },
+  { .id = MethodCmp,      .fnc = (void_t) _data_cmp_script },
+  { .id = MethodFree,     .fnc = (void_t) script_free },
+  { .id = MethodToString, .fnc = (void_t) _data_tostring_script },
+  { .id = MethodNone,     .fnc = NULL }
 };
 
-static typedescr_t typedescr_closure = {
-  type:                      Closure,
-  typecode:                  "R",
-  new:      (new_t)          _data_new_closure,
-  copy:     (copydata_t)     _data_copy_closure,
-  cmp:      (cmp_t)          _data_cmp_closure,
-  free:     (free_t)         closure_free,
-  tostring: (tostring_t)     _data_tostring_closure,
-  hash:                      NULL,
-  parse:                     NULL,
-  resolve:  (resolve_name_t) _data_resolve_closure
+static typedescr_t _typedescr_script = {
+  .type =      Script,
+  .typecode =  "R",
+  .type_name = "script",
+  .vtable =    _vtable_script
+};
+
+static vtable_t _vtable_closure[] = {
+  { .id = MethodNew,      .fnc = (void_t) _data_new_closure },
+  { .id = MethodCopy,     .fnc = (void_t) _data_copy_closure },
+  { .id = MethodCmp,      .fnc = (void_t) _data_cmp_closure },
+  { .id = MethodFree,     .fnc = (void_t) closure_free },
+  { .id = MethodToString, .fnc = (void_t) _data_tostring_closure },
+  { .id = MethodResolve,  .fnc = (void_t) _data_resolve_closure },
+  { .id = MethodCall,     .fnc = (void_t) _data_call_closure },
+  { .id = MethodNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_closure = {
+  .type =      Closure,
+  .typecode =  "C",
+  .type_name = "closure",
+  .vtable =    _vtable_closure
 };
 
 /*
  * Script data functions
  */
+
+void _script_init(void) {
+  typedescr_register(&_typedescr_script);
+  typedescr_register(&_typedescr_closure);
+}
 
 data_t * _data_new_script(data_t *ret, va_list arg) {
   script_t *script;
@@ -179,9 +190,9 @@ char * _data_tostring_closure(data_t *d) {
   return buf;
 }
 
-data_t * _data_execute_closure(data_t *self, char *name, array_t *params, dict_t *kwargs) {
+data_t * _data_call_closure(data_t *self, array_t *params, dict_t *kwargs) {
   closure_t *closure = (closure_t *) self -> ptrval;
-  return closure_execute_function(closure, name, params, kwargs);
+  return closure_execute(closure, params, kwargs);
 }
 
 data_t * _data_resolve_closure(data_t *data, array_t *name) {
@@ -244,8 +255,6 @@ void _script_list_visitor(instruction_t *instruction) {
  */
 
 script_t * script_create(namespace_t *ns, script_t *up, char *name) {
-  static int type_script = -1;
-
   script_t   *ret;
   char       *shortname_buf;
   char       *fullname_buf;
@@ -254,10 +263,6 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
   script_t   *bi;
   int         len;
 
-  if (type_script < 0) {
-    type_script = typedescr_register(typedescr_script);
-    typedescr_register(typedescr_closure);
-  }
   ret = NEW(script_t);
   ret -> instructions = list_create();
   list_set_free(ret -> instructions, (free_t) instruction_free);

@@ -24,7 +24,6 @@
 
 #include <core.h>
 #include <data.h>
-#include <error.h>
 
 static void          _list_init(void) __attribute__((constructor));
 static data_t *      _list_new(data_t *, va_list);
@@ -74,7 +73,7 @@ static methoddescr_t _methoddescr_list[] = {
  */
 
 void _list_init(void) {
-  typedescr_register(_typedescr_list);
+  typedescr_register(&_typedescr_list);
   typedescr_register_methods(_methoddescr_list);
 }
 

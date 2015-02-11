@@ -17,7 +17,10 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+
 #include <data.h>
+#include <exception.h>
 
 typedef struct _method {
   methoddescr_t *method;
@@ -68,14 +71,14 @@ mth_t * mth_create(methoddescr_t *md, data_t *self) {
   mth_t *ret = NEW(mth_t);
 
   assert(md);
-  assert(data);
+  assert(self);
   ret -> method = md;
   ret -> self = data_copy(self);
   ret -> str = NULL;
   return ret;
 }
 
-mth_t mth_copy(mth_t *src) {
+mth_t * mth_copy(mth_t *src) {
   return mth_create(src -> method, src -> self);
 }
 
@@ -88,7 +91,7 @@ void mth_free(mth_t *mth) {
 }
 
 data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
-  typedescr_t    type;
+  typedescr_t   *type;
   methoddescr_t *md;
   int            i;
   int            len;
@@ -141,7 +144,7 @@ char * mth_tostring(mth_t *mth) {
   char *s = data_tostring(mth -> self);
   
   free(mth -> str);
-  mth -> str = (char *) new(snprintf(NULL, 0 "%s.%s", s, mth -> method -> name));
+  mth -> str = (char *) new(snprintf(NULL, 0, "%s.%s", s, mth -> method -> name));
   sprintf(mth -> str, "%s.%s", s, mth -> method -> name);
   return mth -> str;
 }
@@ -150,7 +153,7 @@ unsigned int mth_hash(mth_t *mth) {
   return hashblend(strhash(mth -> method -> name), data_hash(mth -> self));
 }
 
-unsigned int mth_cmp(mth_t *m1, mth_t *m2) {
+int mth_cmp(mth_t *m1, mth_t *m2) {
   int cmp = data_cmp(m1 -> self, m2 -> self);
   
   return (!cmp) ? cmp : strcmp(m1 -> method -> name, m2 -> method -> name);
@@ -163,7 +166,7 @@ unsigned int mth_cmp(mth_t *m1, mth_t *m2) {
  */
 
 void _method_init(void) {
-  typedescr_register(_typedescr_method);
+  typedescr_register(&_typedescr_method);
 }
 
 data_t * _method_new(data_t *data, va_list args) {
