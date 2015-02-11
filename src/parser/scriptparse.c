@@ -37,7 +37,7 @@ int _script_pop_operation(parser_t *parser, char *buf) {
       op = data_charval(data)[0];
       break;
     case Int:
-      op = data_longval(data);
+      op = data_intval(data);
       break;
   }
   data_free(data);
@@ -58,10 +58,10 @@ array_t * _script_pop_and_build_varname(parser_t *parser) {
 
   count = (data_t *) datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug("  -- components: %d", data_longval(count));
+    debug("  -- components: %d", data_intval(count));
   }
-  ret = data_array_create(data_longval(count));
-  for (ix = data_longval(count) - 1; ix >= 0; ix--) {
+  ret = data_array_create(data_intval(count));
+  for (ix = data_intval(count) - 1; ix >= 0; ix--) {
     data = datastack_pop(parser -> stack);
     array_set(ret, ix, data_copy(data));
     data_free(data);
@@ -231,10 +231,10 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
   param_count = datastack_pop(parser -> stack);
   func_name = _script_pop_and_build_varname(parser);
   if (parser_debug) {
-    debug(" -- param_count: %d", data_longval(param_count));
+    debug(" -- param_count: %d", data_intval(param_count));
   }
   script_push_instruction(script,
-    instruction_create_function(func_name, data_longval(param_count)));
+    instruction_create_function(func_name, data_intval(param_count)));
   data_free(param_count);
   array_free(func_name);
   return parser;

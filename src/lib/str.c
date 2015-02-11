@@ -421,7 +421,7 @@ str_t * _str_join(char *glue, void *collection, obj_reduce_t reducer) {
   reduce_ctx *ctx;
 
   ret = str_create(0);
-  ctx = reduce_ctx_create(glue, ret, no_func_ptr);
+  ctx = reduce_ctx_create(glue, ret, NULL);
   reducer(collection, (reduce_t) _str_join_reducer, ctx);
   if (str_len(ret)) {
     str_chop(ret, strlen(glue));

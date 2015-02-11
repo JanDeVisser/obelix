@@ -305,7 +305,7 @@ void * _dict_entry_reducer(dictentry_t *e, reduce_ctx *ctx) {
 
   type = (dict_reduce_type_t) ((int) ((long) ctx -> user));
   elem = _dict_reduce_param(e, type);
-  ctx -> data = ctx -> fnc.reducer(elem, ctx -> data);
+  ctx -> data = ((reduce_t) ctx -> fnc)(elem, ctx -> data);
   switch (type) {
     case DRTStringString:
       entry = (entry_t *) elem;
@@ -326,10 +326,8 @@ void * _dict_bucket_reducer(list_t *bucket, reduce_ctx *ctx) {
 void * _dict_reduce(dict_t *dict, reduce_t reducer, void *data, dict_reduce_type_t reducetype) {
   reduce_ctx     *ctx;
   void           *ret;
-  function_ptr_t  fnc;
 
-  fnc.reducer = reducer;
-  ctx = reduce_ctx_create((void *) ((long) reducetype), data, fnc);
+  ctx = reduce_ctx_create((void *) ((long) reducetype), data, (void_t) reducer);
   if (ctx) {
     ctx = array_reduce(dict -> buckets, (reduce_t) _dict_bucket_reducer, ctx);
     ret = ctx -> data;
@@ -340,16 +338,14 @@ void * _dict_reduce(dict_t *dict, reduce_t reducer, void *data, dict_reduce_type
 }
 
 void * _dict_visitor(void *e, reduce_ctx *ctx) {
-  ctx -> fnc.visitor(e);
+  ((visit_t) ctx -> fnc)(e);
   return ctx;
 }
   
 dict_t * _dict_visit(dict_t *dict, visit_t visitor, dict_reduce_type_t visittype) {
   reduce_ctx *ctx;
-  function_ptr_t fnc;
 
-  fnc.visitor = visitor;
-  ctx = reduce_ctx_create(NULL, NULL, fnc);
+  ctx = reduce_ctx_create(NULL, NULL, (void_t) visitor);
   if (dict) {
     _dict_reduce(dict, (reduce_t) _dict_visitor, ctx, visittype);
     free(ctx);
@@ -632,7 +628,7 @@ str_t * dict_tostr(dict_t *dict) {
   ret = str_copy_chars("{");
   entries = str_create(0);
   
-  ctx = reduce_ctx_create(dict, entries, NOFUNCPTR);
+  ctx = reduce_ctx_create(dict, entries, NULL);
   dict_reduce_chars(dict, (reduce_t) _dict_entry_formatter, ctx);
   str_append(ret, entries);
   str_append_chars(ret, " }");

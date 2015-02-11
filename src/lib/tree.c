@@ -38,12 +38,12 @@ void _tree_free(tree_t *tree) {
 }
 
 reduce_ctx * _tree_visitor(tree_t *tree, reduce_ctx *ctx) {
-  tree_visit(tree, ctx -> fnc.visitor);
+  tree_visit(tree, ((visit_t) ctx -> fnc));
   return ctx;
 }
 
 reduce_ctx * _tree_reducer(tree_t *tree, reduce_ctx *ctx) {
-  ctx -> data = tree_reduce(tree, ctx -> fnc.reducer, ctx -> data);
+  ctx -> data = tree_reduce(tree, ((reduce_t) ctx -> fnc), ctx -> data);
   return ctx;
 }
 
@@ -100,10 +100,8 @@ tree_t * tree_append(tree_t *tree, void *data) {
 
 tree_t * tree_visit(tree_t *tree, visit_t visitor) {
   reduce_ctx *ctx;
-  function_ptr_t fnc;
 
-  fnc.visitor = visitor;
-  ctx = reduce_ctx_create(NULL, NULL, fnc );
+  ctx = reduce_ctx_create(NULL, NULL, (void_t) visitor);
   if (ctx) {
     list_reduce(tree -> down, (reduce_t) _tree_visitor, ctx);
     free(ctx);
@@ -115,11 +113,9 @@ tree_t * tree_visit(tree_t *tree, visit_t visitor) {
 
 void * tree_reduce(tree_t *tree, reduce_t reducer, void *data) {
   reduce_ctx *ctx;
-  void *ret;
-  function_ptr_t fnc;
+  void       *ret;
 
-  fnc.reducer = reducer;
-  ctx = reduce_ctx_create(NULL, data, fnc);
+  ctx = reduce_ctx_create(NULL, data, (void_t) reducer);
   if (ctx) {
     ctx -> data = list_reduce(tree -> down, (reduce_t) _tree_reducer, ctx);
     ret = reducer(tree -> data, ctx -> data);

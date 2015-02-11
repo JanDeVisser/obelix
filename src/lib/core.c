@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include <core.h>
 
@@ -137,16 +138,16 @@ unsigned int hashdouble(double val) {
 }
 
 static code_label_t _log_level_labels[] = {
-  { .code = LogLevelDebug,   .name = "DEBUG" },
-  { .code = LogLevelInfo,    .name = "INFO" },
-  { .code = LogLevelWarning, .name = "WARN" },
-  { .code = LogLevelError,   .name = "ERROR" },
-  { .code = LogLevelFatal,   .name = "FATAL" }
-}
+  { .code = LogLevelDebug,   .label = "DEBUG" },
+  { .code = LogLevelInfo,    .label = "INFO" },
+  { .code = LogLevelWarning, .label = "WARN" },
+  { .code = LogLevelError,   .label = "ERROR" },
+  { .code = LogLevelFatal,   .label = "FATAL" }
+};
 
 char * _log_level_str(log_level_t lvl) {
-  assert(log_level_labels[lvl].code == lvl);
-  return _log_level_labels[lvl].name;
+  assert(_log_level_labels[lvl].code == lvl);
+  return _log_level_labels[lvl].label;
 }
 
 void _logmsg(log_level_t lvl, char *file, int line, char *msg, ...) {
@@ -222,8 +223,6 @@ char * strrand(char *buf, size_t numchars) {
   return buf;
 }
 
-function_ptr_t no_func_ptr = { void_fnc: (void_t) NULL };
-
 /*
  * code_label_t public functions
  */
@@ -244,7 +243,7 @@ int code_for_label(code_label_t *table, char *label) {
   assert(table);
   assert(label);
   while (table -> label) {
-    if (!strcmp(table -> label, label) {
+    if (!strcmp(table -> label, label)) {
       return table -> code;
     } else {
       table++;
@@ -291,7 +290,7 @@ char * function_tostring(function_t *fnc) {
  */
 
 
-reduce_ctx * reduce_ctx_create(void *user, void *data, function_ptr_t fnc) {
+reduce_ctx * reduce_ctx_create(void *user, void *data, void_t fnc) {
   reduce_ctx *ctx;
 
   ctx = NEW(reduce_ctx);
