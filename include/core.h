@@ -66,54 +66,6 @@ typedef enum _reduce_type {
   RTStrs = 4
 } reduce_type_t;
 
-typedef enum _enum_function_type {
-  Void, Visitor, Reducer, Stringifier, Destructor, Evaluator
-} function_type_t; 
-
-typedef union _function_union {
-  void_t     void_fnc;
-  visit_t    visitor;
-  reduce_t   reducer;
-  tostring_t stringfier;
-  free_t     destructor;
-} function_ptr_t;
-
-extern function_ptr_t no_func_ptr;
-
-#define NOFUNCPTR no_func_ptr
-
-typedef enum _abstract_function_type {
-  AFTFree,
-  AFTToString,
-  AFTCmp,
-  AFTHash,
-  AFTReduce,
-  AFTVisit,
-  AFTRead,
-  AFTWrite
-} abstract_function_type_t;
-
-typedef union _abstract_function_ptr {
-  free_t        free;
-  tostring_t    tostring;
-  cmp_t         cmp;
-  hash_t        hash;
-  obj_reduce_t  reduce;
-  obj_visit_t   visit;
-  read_t        read;
-  write_t       write;
-} abstract_function_ptr_t;
-
-typedef struct _abstract_function {
-  abstract_function_type_t type;
-  abstract_function_ptr_t  fnc;
-} abstract_function_t;
-
-typedef struct _type {
-  char                *name;
-  abstract_function_t  functions[];
-} type_t;
-
 typedef struct _function {
   char      *name;
   voidptr_t  fnc;
@@ -126,7 +78,7 @@ typedef struct _reduce_ctx {
   void           *user;
   void           *data;
   long            longdata;
-  function_ptr_t fnc;
+  void_t          fnc;
 } reduce_ctx;
 
 typedef struct _reader {
@@ -143,6 +95,7 @@ extern unsigned int    hash(void *, size_t);
 extern unsigned int    hashptr(void *);
 extern unsigned int    hashlong(long);
 extern unsigned int    hashdouble(double);
+#define hashblend(h1, h2)   (((h1) >> 16) | ((h2) << 16))
 
 extern char *          _log_level_str(log_level_t);
 extern void            _logmsg(log_level_t, char *, int, char *, ...);
@@ -164,7 +117,7 @@ extern function_t *    function_copy(function_t *);
 extern void            function_free(function_t *);
 extern char *          function_tostring(function_t *);
 
-extern reduce_ctx *    reduce_ctx_create(void *, void *, function_ptr_t);
+extern reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
 
 #define reader_read(reader, buf, n)  (((reader_t *) reader) -> read_fnc(reader, buf, n))
 #define reader_free(rdr)             if (rdr) (((reader_t *) (rdr)) -> free((rdr)))

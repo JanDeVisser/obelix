@@ -26,15 +26,16 @@
 
 #include <core.h>
 #include <data.h>
-#include <error.h>
 
+static void          _int_init(void) __attribute__((constructor));
 static data_t *      _int_new(data_t *, va_list);
 static int           _int_cmp(data_t *, data_t *);
 static char *        _int_tostring(data_t *);
 static data_t *      _int_cast(data_t *, int);
 static unsigned int  _int_hash(data_t *);
 static data_t *      _int_parse(char *);
-static data_t *      _int_fallback(data_t *, char *, array_t *, dict_t *);
+static double        _int_fltvalue(data_t *);
+static int           _int_intvalue(data_t *);
 
 static data_t *      _int_add(data_t *, char *, array_t *, dict_t *);
 static data_t *      _int_mult(data_t *, char *, array_t *, dict_t *);
@@ -51,59 +52,74 @@ static data_t *      _bool_and(data_t *, char *, array_t *, dict_t *);
 static data_t *      _bool_or(data_t *, char *, array_t *, dict_t *);
 static data_t *      _bool_not(data_t *, char *, array_t *, dict_t *);
 
-typedescr_t typedescr_int = {
-  type:                  Int,
-  typecode:              "I",
-  typename:              "int",
-  new:      (new_t)      _int_new,
-  copy:                  NULL,
-  cmp:      (cmp_t)      _int_cmp,
-  free:                  NULL,
-  tostring: (tostring_t) _int_tostring,
-  parse:    (parse_t)    _int_parse,
-  cast:                  _int_cast,
-  hash:     (hash_t)     _int_hash,
-  promote_to:            Float,
-  fallback:              _int_fallback
+static vtable_t _vtable_int[] = {
+  { .id = MethodNew,      .fnc = (void_t) _int_new },
+  { .id = MethodCmp,      .fnc = (void_t) _int_cmp },
+  { .id = MethodToString, .fnc = (void_t) _int_tostring },
+  { .id = MethodParse,    .fnc = (void_t) _int_parse },
+  { .id = MethodCast,     .fnc = (void_t) _int_cast },
+  { .id = MethodHash,     .fnc = (void_t) _int_hash },
+  { .id = MethodFltValue, .fnc = (void_t) _int_fltvalue },
+  { .id = MethodIntValue, .fnc = (void_t) _int_intvalue },
+  { .id = MethodNone,     .fnc = NULL }
 };
 
-typedescr_t typedescr_bool = {
-  type:                  Bool,
-  typecode:              "B",
-  typename:              "bool",
-  new:      (new_t)      _bool_new,
-  copy:                  NULL,
-  cmp:      (cmp_t)      _int_cmp,
-  free:                  NULL,
-  tostring: (tostring_t) _bool_tostring,
-  parse:    (parse_t)    _bool_parse,
-  cast:                  _bool_cast,
-  hash:     (hash_t)     _int_hash,
-  promote_to:            Int
+static int _inherits_int[] = { Number };
+
+static typedescr_t _typedescr_int = {
+  .type          = Int,
+  .typecode      = "I",
+  .type_name     = "int",
+  .inherits_size = 1,
+  .inherits      = _inherits_int,
+  .promote_to    = Float,
+  .vtable        = _vtable_int
 };
 
-methoddescr_t methoddescr_int[] = {
-  { type: Int,    name: "+",    method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 0, varargs: 1 },
-  { type: Int,    name: "-",    method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 0, varargs: 1 },
-  { type: Int,    name: "sum",  method: _int_add,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
-  { type: Int,    name: "*",    method: _int_mult, argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
-  { type: Int,    name: "mult", method: _int_mult, argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 1 },
-  { type: Int,    name: "/",    method: _int_div,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: Int,    name: "div",  method: _int_div,  argtypes: { Numeric, NoType, NoType }, minargs: 1, varargs: 0 },
-  { type: Int,    name: "%",    method: _int_mod,  argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 0 },
-  { type: Int,    name: "mod",  method: _int_mod,  argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 0 },
-  { type: Int,    name: "abs",  method: _int_abs,  argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 },
-  { type: NoType, name: NULL,   method: NULL,      argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 }
+static vtable_t _vtable_bool[] = {
+  { .id = MethodNew,      .fnc = (void_t) _bool_new },
+  { .id = MethodCmp,      .fnc = (void_t) _int_cmp },
+  { .id = MethodToString, .fnc = (void_t) _bool_tostring },
+  { .id = MethodParse,    .fnc = (void_t) _bool_parse },
+  { .id = MethodCast,     .fnc = (void_t) _bool_cast },
+  { .id = MethodHash,     .fnc = (void_t) _int_hash },
+  { .id = MethodNone,     .fnc = NULL }
 };
 
-methoddescr_t methoddescr_bool[] = {
-  { type: Bool,   name: "&&",  method: _bool_and,  argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 1 },
-  { type: Bool,   name: "and", method: _bool_and,  argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 1 },
-  { type: Bool,   name: "||",  method: _bool_or,   argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 1 },
-  { type: Bool,   name: "or",  method: _bool_or,   argtypes: { Int, NoType, NoType },     minargs: 1, varargs: 1 },
-  { type: Bool,   name: "!",   method: _bool_not,  argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 },
-  { type: Bool,   name: "not", method: _bool_not,  argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 },
-  { type: NoType, name: NULL,  method: NULL,       argtypes: { NoType, NoType, NoType },  minargs: 0, varargs: 0 }
+static int _inherits_bool[] = { Int };
+
+static typedescr_t _typedescr_bool = {
+  .type          = Bool,
+  .typecode      = "B",
+  .type_name     = "bool",
+  .inherits_size = 1,
+  .inherits      = _inherits_bool,
+  .vtable        = _vtable_bool,
+  .promote_to    = Int
+};
+
+static methoddescr_t _methoddescr_int[] = {
+  { .type = Int,    .name = "+",    .method = _int_add,  .argtypes = { Number, NoType, NoType }, .minargs = 0, .varargs = 1 },
+  { .type = Int,    .name = "-",    .method = _int_add,  .argtypes = { Number, NoType, NoType }, .minargs = 0, .varargs = 1 },
+  { .type = Int,    .name = "sum",  .method = _int_add,  .argtypes = { Number, NoType, NoType }, .minargs = 1, .varargs = 1 },
+  { .type = Int,    .name = "*",    .method = _int_mult, .argtypes = { Number, NoType, NoType }, .minargs = 1, .varargs = 1 },
+  { .type = Int,    .name = "mult", .method = _int_mult, .argtypes = { Number, NoType, NoType }, .minargs = 1, .varargs = 1 },
+  { .type = Int,    .name = "/",    .method = _int_div,  .argtypes = { Number, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = Int,    .name = "div",  .method = _int_div,  .argtypes = { Number, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = Int,    .name = "%",    .method = _int_mod,  .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Int,    .name = "mod",  .method = _int_mod,  .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Int,    .name = "abs",  .method = _int_abs,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,   .method = NULL,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+};
+
+static methoddescr_t _methoddescr_bool[] = {
+  { .type = Bool,   .name = "&&",  .method = _bool_and,  .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = Bool,   .name = "and", .method = _bool_and,  .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = Bool,   .name = "||",  .method = _bool_or,   .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = Bool,   .name = "or",  .method = _bool_or,   .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = Bool,   .name = "!",   .method = _bool_not,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = Bool,   .name = "not", .method = _bool_not,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,  .method = NULL,       .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 /*
@@ -111,6 +127,13 @@ methoddescr_t methoddescr_bool[] = {
  * Int datatype functions
  * --------------------------------------------------------------------------
  */
+
+void _int_init(void) {
+  typedescr_register(&_typedescr_int);
+  typedescr_register(&_typedescr_bool);
+  typedescr_register_methods(_methoddescr_int);
+  typedescr_register_methods(_methoddescr_bool);
+}
 
 data_t * _int_new(data_t *target, va_list arg) {
   long val;
@@ -173,15 +196,12 @@ data_t * _int_parse(char *str) {
   }
 }
 
-data_t * _int_fallback(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  methoddescr_t  *float_method;
+double _int_fltvalue(data_t *data) {
+  return (double) data -> intval;
+}
 
-  float_method = typedescr_get_method(typedescr_get(Float), name);
-  if (float_method) {
-    return data_execute_method(self, float_method, args, kwargs);
-  } else {
-    return NULL;
-  }
+int _int_intvalue(data_t *data) {
+  return data -> intval;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -218,14 +238,14 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     switch(type) {
       case Int:
         /* Type of d must be Int, can't be Float */
-        longval = data_longval(d);
+        longval = data_intval(d);
         if (minus) {
           longval = -longval;
         }
         intret += longval;
         break;
       case Float:
-        dblval = data_dblval(d);
+        dblval = data_floatval(d);
         if (minus) {
           dblval = -dblval;
         }
@@ -237,7 +257,7 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     ? data_create(type, intret)
     : data_create(type, fltret); 
   /* FIXME Why? Why not data_create(type, (type == Int) ? ...: ...)?
-      Whyt does that not work (gives garbage intval) */
+      Why does that not work (gives garbage intval) */
   return ret;
 }
 
@@ -262,10 +282,10 @@ data_t * _int_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     switch(type) {
       case Int:
         /* Type of d must be Int, can't be Float */
-        intret *= data_longval(d);
+        intret *= data_intval(d);
         break;
       case Float:
-        fltret *= data_dblval(d);
+        fltret *= data_floatval(d);
         break;
     }
   }
@@ -284,11 +304,11 @@ data_t * _int_div(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   denom = (data_t *) array_get(args, 0);
   switch (data_type(denom)) {
     case Int:
-      intret = data_longval(self) / data_longval(denom);
+      intret = data_intval(self) / data_intval(denom);
       ret = data_create(Int, intret);
       break;
     case Float:
-      fltret = data_dblval(self) / data_dblval(denom);
+      fltret = data_floatval(self) / data_floatval(denom);
       ret = data_create(Float, fltret);
       break;
   }
@@ -299,11 +319,11 @@ data_t * _int_mod(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *denom;
 
   denom = (data_t *) array_get(args, 0);
-  return data_create(Int, data_longval(self) % data_longval(denom));
+  return data_create(Int, data_intval(self) % data_intval(denom));
 }
 
 data_t * _int_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, labs(data_longval(self)));
+  return data_create(Int, labs(data_intval(self)));
 }
 
 /*
@@ -342,11 +362,11 @@ data_t * _bool_cast(data_t *data, int totype) {
 data_t * _bool_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *d;
   int     ix;
-  int     retval = data_longval(self);
+  int     retval = data_intval(self);
 
   for (ix = 0; retval && (ix < array_size(args)); ix++) {
     d = (data_t *) array_get(args, ix);
-    retval = retval && data_longval(d);
+    retval = retval && data_intval(d);
   }
   return data_create(Bool, retval);
 }
@@ -354,16 +374,16 @@ data_t * _bool_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 data_t * _bool_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *d;
   int     ix;
-  int     retval = data_longval(self);
+  int     retval = data_intval(self);
 
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
-    retval = retval || data_longval(d);
+    retval = retval || data_intval(d);
   }
   return data_create(Bool, retval);
 }
 
 data_t * _bool_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Bool, !data_longval(self));
+  return data_create(Bool, !data_intval(self));
 }
 

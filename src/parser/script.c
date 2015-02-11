@@ -83,8 +83,7 @@ static typedescr_t typedescr_script = {
   free:     (free_t)     script_free,
   tostring: (tostring_t) _data_tostring_script,
   hash:                  NULL,
-  parse:                 NULL,
-  fallback: (method_t)   _data_execute_script
+  parse:                 NULL
 };
 
 static typedescr_t typedescr_closure = {
@@ -97,8 +96,7 @@ static typedescr_t typedescr_closure = {
   tostring: (tostring_t)     _data_tostring_closure,
   hash:                      NULL,
   parse:                     NULL,
-  resolve:  (resolve_name_t) _data_resolve_closure,
-  fallback: (method_t)       _data_execute_closure
+  resolve:  (resolve_name_t) _data_resolve_closure
 };
 
 /*

@@ -28,6 +28,7 @@
 #include <data.h>
 #include <exception.h>
 
+static void         _string_init(void) __attribute__((constructor));
 static data_t *     _string_new(data_t *, va_list);
 static data_t *     _string_copy(data_t *, data_t *);
 static int          _string_cmp(data_t *, data_t *);
@@ -59,15 +60,14 @@ vtable_t _vtable_string[] = {
   { .id = MethodNone,     .fnc = NULL }
 };
 
-typedescr_t typedescr_str = {
+static typedescr_t _typedescr_str = {
   .type =        String,
   .typecode =    "S",
   .type_name =   "str",
-  .vtable =      _vtable_string,
-  .fallback =    NULL
+  .vtable =      _vtable_string
 };
 
-methoddescr_t methoddescr_str[] = {
+static methoddescr_t _methoddescr_str[] = {
   { .type = String, .name = "len",        .method = _string_len,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = String, .name = "at",         .method = _string_at,         .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = String, .name = "slice",      .method = _string_slice,      .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
@@ -90,6 +90,11 @@ methoddescr_t methoddescr_str[] = {
  * String
  * --------------------------------------------------------------------------
  */
+
+void _string_init(void) {
+  typedescr_register(&_typedescr_str);
+  typedescr_register_methods(_methoddescr_str);
+}
 
 data_t * _string_new(data_t *target, va_list arg) {
   char *str;
@@ -122,7 +127,7 @@ data_t * _string_parse(char *str) {
 
 data_t * _string_cast(data_t *data, int totype) {
   typedescr_t *type = typedescr_get(totype);
-  parse_t     *parse;
+  parse_t      parse;
   
   assert(type);
   parse = (parse_t) typedescr_get_function(type, MethodParse);
@@ -144,7 +149,7 @@ data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int     i;
   char    buf[2];
 
-  i = data_longval(ix);
+  i = data_intval(ix);
   if ((i < 0) || (i >= strlen(data_charval(self)))) {
     return data_error(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
                                     typedescr_get(data_type(self)) -> type_name,
@@ -166,8 +171,8 @@ data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   char    buf[len + 1];
 
   /* FIXME: second argument (to) is optional; ommiting it gives you the tail */
-  i = data_longval(from);
-  j = data_longval(to);
+  i = data_intval(from);
+  j = data_intval(to);
   if (j <= 0) {
     j = len + j;
   }
@@ -302,7 +307,7 @@ data_t * _string_concat(data_t *self, char *name, array_t *args, dict_t *kwargs)
 data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int     len = strlen((char *) self -> ptrval);
   data_t *num = (data_t *) array_get(args, 0);
-  int     numval = data_longval(num);
+  int     numval = data_intval(num);
   int     ix;
   char   *buf;
   data_t *ret;

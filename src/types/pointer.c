@@ -24,9 +24,9 @@
 
 #include <core.h>
 #include <data.h>
-#include <error.h>
 #include <resolve.h>
 
+static void          _ptr_init(void) __attribute__((constructor));
 static data_t *      _ptr_new(data_t *, va_list);
 static int           _ptr_cmp(data_t *, data_t *);
 static data_t *      _ptr_cast(data_t *, int);
@@ -36,6 +36,7 @@ static char *        _ptr_tostring(data_t *);
 static data_t *      _ptr_copy(data_t *, char *, array_t *, dict_t *);
 static data_t *      _ptr_fill(data_t *, char *, array_t *, dict_t *);
 
+static void          _fnc_init(void) __attribute__((constructor));
 static data_t *      _fnc_new(data_t *, va_list);
 static data_t *      _fnc_copy(data_t *, data_t *);
 static int           _fnc_cmp(data_t *, data_t *);
@@ -45,7 +46,7 @@ static data_t *      _fnc_parse(char *);
 static unsigned int  _fnc_hash(data_t *);
 static data_t *      _fnc_call(data_t *, array_t *, dict_t *);
 
-vtable_t _vtable_ptr[] = {
+static vtable_t _vtable_ptr[] = {
   { .id = MethodNew,      .fnc = (void_t) _ptr_new },
   { .id = MethodCmp,      .fnc = (void_t) _ptr_cmp },
   { .id = MethodToString, .fnc = (void_t) _ptr_tostring },
@@ -54,21 +55,20 @@ vtable_t _vtable_ptr[] = {
   { .id = MethodNone,     .fnc = NULL }
 };
 
-typedescr_t typedescr_ptr = {
+static typedescr_t _typedescr_ptr = {
   .type = Pointer,
   .typecode = "P",
   .type_name =  "ptr",
-  .vtable = _vtable_ptr,
-  .fallback = NULL,
+  .vtable = _vtable_ptr
 };
 
-methoddescr_t methoddescr_ptr[] = {
+static methoddescr_t _methoddescr_ptr[] = {
   { .type = Pointer, .name = "copy",  .method = _ptr_copy, .argtypes = { Pointer, NoType, NoType }, .minargs = 0, .varargs = 1  },
   { .type = Pointer, .name = "fill",  .method = _ptr_fill, .argtypes = { Pointer, NoType, NoType }, .minargs = 1, .varargs = 1  },
   { .type = NoType,  .name = NULL,    .method = NULL,      .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0  },
 };
 
-vtable_t _vtable_fnc[] = {
+static vtable_t _vtable_fnc[] = {
   { .id = MethodNew,      .fnc = (void_t) _fnc_new },
   { .id = MethodCopy,     .fnc = (void_t) _fnc_copy },
   { .id = MethodCmp,      .fnc = (void_t) _fnc_cmp },
@@ -81,11 +81,10 @@ vtable_t _vtable_fnc[] = {
   { .id = MethodNone,     .fnc = NULL }
 };
 
-typedescr_t typedescr_fnc = {
+static typedescr_t _typedescr_fnc = {
   .type =      Function,
   .typecode =  "U",
   .type_name = "fnc",
-  .fallback =  NULL,
   .vtable =    _vtable_fnc
 };
 
@@ -95,6 +94,11 @@ typedescr_t typedescr_fnc = {
  * Pointer datatype functions
  * --------------------------------------------------------------------------
  */
+
+void _ptr_init(void) {
+  typedescr_register(&_typedescr_ptr);
+  typedescr_register_methods(_methoddescr_ptr);
+}
 
 data_t * _ptr_new(data_t *target, va_list arg) {
   void *ptr;
@@ -167,11 +171,6 @@ data_t * _ptr_copy(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 data_t * _ptr_fill(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *fillchar = (data_t *) array_get(args, 0);
   
-  if (data_type(fillchar) != Int) {
-    return data_error(ErrorType, "%s.%s expects an int argument",
-                                  typedescr_get(data_type(self)) -> typename,
-                                  name);
-  }
   memset(self -> ptrval, fillchar -> intval, self -> size);
   return data_copy(self);
 }
@@ -181,6 +180,10 @@ data_t * _ptr_fill(data_t *self, char *name, array_t *args, dict_t *kwargs) {
  * Function datatype functions
  * --------------------------------------------------------------------------
  */
+
+void _fnc_init(void) {
+  typedescr_register(&_typedescr_fnc);
+}
 
 data_t * _fnc_new(data_t *target, va_list arg) {
   function_t *fnc;
@@ -240,7 +243,7 @@ data_t * _fnc_cast(data_t *src, int totype) {
 }
 
 unsigned int _fnc_hash(data_t *data) {
-  function_t     *fnc;
+  function_t *fnc;
 
   fnc = data -> ptrval;
   return hashptr(fnc -> fnc);

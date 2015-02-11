@@ -21,12 +21,14 @@ AM_LDFLAGS  = -rdynamic
 
 lib_LTLIBRARIES = libobltypes.la
 libobltypes_la_SOURCES = \
+		name.c \
 		data.c \
 		error.c \
 		int.c \
 		float.c \
 		string.c \
 		pointer.c \
+		method.c \
 		list.c 
 
 libobltypes_la_LIBADD = \

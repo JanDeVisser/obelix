@@ -62,7 +62,7 @@ reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
       elem = entry -> key;
       break;
   }
-  ctx -> data = ctx -> fnc.reducer(elem, ctx -> data);
+  ctx -> data = ((reduce_t) ctx -> fnc)(elem, ctx -> data);
   if (f) {
     f(elem);
   }
@@ -72,10 +72,8 @@ reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
 void * _set_reduce(set_t *set, reduce_t reducer, void *data, char *type) {
   reduce_ctx *ctx;
   void *ret;
-  function_ptr_t fnc;
 
-  fnc.reducer = reducer;
-  ctx = reduce_ctx_create(type, data, fnc);
+  ctx = reduce_ctx_create(type, data, (void_t) reducer);
   if (ctx) {
     ctx -> obj = set;
     dict_reduce(set -> dict, (reduce_t) _set_reduce_reducer, ctx);
@@ -87,7 +85,7 @@ void * _set_reduce(set_t *set, reduce_t reducer, void *data, char *type) {
 }
 
 reduce_ctx * _set_visitor(entry_t *entry, reduce_ctx *ctx) {
-  ctx -> fnc.visitor(entry -> key);
+  ((visit_t) ctx -> fnc)(entry -> key);
   return ctx;
 }
 
@@ -226,10 +224,8 @@ void * set_reduce_str(set_t *set, reduce_t reducer, void *data) {
 
 set_t * set_visit(set_t *set, visit_t visitor) {
   reduce_ctx *ctx;
-  function_ptr_t fnc;
 
-  fnc.visitor = visitor;
-  ctx = reduce_ctx_create(NULL, NULL, fnc );
+  ctx = reduce_ctx_create(NULL, NULL, (void_t) visitor);
   if (ctx) {
     dict_reduce(set -> dict, (reduce_t) _set_visitor, ctx);
     free(ctx);
@@ -253,7 +249,7 @@ set_t * set_intersect(set_t *set, set_t *other) {
 
   remove = set_create(set -> dict -> cmp);
   if (remove) {
-    ctx = reduce_ctx_create(other, remove, NOFUNCPTR);
+    ctx = reduce_ctx_create(other, remove, NULL);
     if (ctx) {
       set_reduce(set, (reduce_t) _set_intersect_reducer, ctx);
       free(ctx);
@@ -271,7 +267,7 @@ set_t * set_minus(set_t *set, set_t *other) {
 
   remove = set_create(set -> dict -> cmp);
   if (remove) {
-    ctx = reduce_ctx_create(other, remove, NOFUNCPTR);
+    ctx = reduce_ctx_create(other, remove, NULL);
     if (ctx) {
       set_reduce(set, (reduce_t) _set_minus_reducer, ctx);
       free(ctx);
@@ -287,7 +283,7 @@ int set_disjoint(set_t *s1, set_t *s2) {
   int         disjoint;
   reduce_ctx *ctx;
 
-  ctx = reduce_ctx_create(s2, &disjoint, NOFUNCPTR);
+  ctx = reduce_ctx_create(s2, &disjoint, NULL);
   disjoint = 1;
   if (ctx) {
     set_reduce(s1, (reduce_t) _set_disjoint_reducer, ctx);
@@ -301,7 +297,7 @@ int set_subsetof(set_t *s1, set_t *s2) {
   int         hasall;
   reduce_ctx *ctx;
 
-  ctx = reduce_ctx_create(s2, &hasall, NOFUNCPTR);
+  ctx = reduce_ctx_create(s2, &hasall, NULL);
   hasall = 1;
   if (ctx) {
     set_reduce(s1, (reduce_t) _set_subsetof_reducer, ctx);

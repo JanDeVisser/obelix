@@ -39,13 +39,14 @@ static code_label_t builtin_errors[] = {
 static int           num_errors = sizeof(builtin_errors) / sizeof(code_label_t);
 static code_label_t *errors = builtin_errors;
 
+static void          _error_init(void) __attribute__((constructor));
 static data_t *      _error_new(data_t *, va_list);
 static unsigned int  _error_hash(data_t *);
 static data_t *      _error_copy(data_t *, data_t *);
 static int           _error_cmp(data_t *, data_t *);
 static char *        _error_tostring(data_t *);
 
-vtable_t _vtable_error[] = {
+static vtable_t _vtable_error[] = {
   { .id = MethodNew,      .fnc = (void_t) _error_new },
   { .id = MethodCopy,     .fnc = (void_t) _error_copy },
   { .id = MethodCmp,      .fnc = (void_t) _error_cmp },
@@ -55,12 +56,11 @@ vtable_t _vtable_error[] = {
 };
 
 
-typedescr_t typedescr_error = {
+static typedescr_t _typedescr_error = {
   .type      = Error,
   .typecode  = "E",
   .type_name = "error",
-  .vtable    = _vtable_error,
-  .fallback  = NULL
+  .vtable    = _vtable_error
 };
 
 /*
@@ -168,6 +168,10 @@ void error_report(error_t *e) {
  * Error datatype functions
  * --------------------------------------------------------------------------
  */
+
+void _error_init(void) {
+  typedescr_register(&_typedescr_error);
+}
 
 data_t * _error_new(data_t *target, va_list args) {
   int      code;

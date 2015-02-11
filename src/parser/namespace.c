@@ -38,18 +38,35 @@ static namespace_t *    _ns_create(void);
 
 int ns_debug = 0;
 
-static typedescr_t typedescr_module = {
-  type:                  Module,
-  typecode:              "M",
+/*
   new:      (new_t)      _data_new_module,
   copy:     (copydata_t) _data_copy_module,
   cmp:      (cmp_t)      _data_cmp_module,
   free:     (free_t)     mod_free,
   tostring: (tostring_t) _data_tostring_module,
   hash:     (hash_t)     _data_hash_module,
-  parse:                 NULL, /* _data_parse_module, */
-  fallback: (method_t)   _data_execute_module
+  parse:                  NULL, // _data_parse_module,
+*/
+
+vtable_t _vtable_module[] = {
+  { .id = MethodNew,      .fnc = (void_t) _data_new_module },
+  { .id = MethodCopy,     .fnc = (void_t) _data_copy_module },
+  { .id = MethodCmp,      .fnc = (void_t) _data_cmp_module },
+  { .id = MethodFree,     .fnc = (void_t) mod_free },
+  { .id = MethodToString, .fnc = (void_t) _data_tostring_module },
+  { .id = MethodParse,    .fnc = NULL }, /* FIXME */
+  { .id = MethodHash,     .fnc = (void_t) _data_hash_module },
+  { .id = MethodNone,     .fnc = NULL }
 };
+
+static typedescr_t typedescr_module = {
+  .type       = Module,
+  .typecode   = "D",
+  .type_name  = "mod",
+  .vtable     = _vtable_module
+};
+
+
 
 /*
  * Module data functions

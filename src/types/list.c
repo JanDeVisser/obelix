@@ -26,6 +26,7 @@
 #include <data.h>
 #include <error.h>
 
+static void          _list_init(void) __attribute__((constructor));
 static data_t *      _list_new(data_t *, va_list);
 static data_t *      _list_copy(data_t *, data_t *);
 static int           _list_cmp(data_t *, data_t *);
@@ -33,34 +34,37 @@ static char *        _list_tostring(data_t *);
 static data_t *      _list_cast(data_t *, int);
 static unsigned int  _list_hash(data_t *);
 
-
 static data_t *      _list_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_len(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_at(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_slice(data_t *, char *, array_t *, dict_t *);
 
-typedescr_t typedescr_list =   {
-  type:                  List,
-  typecode:              "L",
-  typecode:              "list",
-  new:      (new_t)      _list_new,
-  copy:     (copydata_t) _list_copy,
-  cmp:      (cmp_t)      _list_cmp,
-  free:     (free_t)     list_free,
-  tostring: (tostring_t) _list_tostring,
-  parse:                 NULL,
-  cast:                  _list_cast,
-  fallback:              NULL,
-  hash:     (hash_t)     _list_hash
+static vtable_t _vtable_list[] = {
+  { .id = MethodNew,      .fnc = (void_t) _list_new },
+  { .id = MethodCopy,     .fnc = (void_t) _list_copy },
+  { .id = MethodCmp,      .fnc = (void_t) _list_cmp },
+  { .id = MethodFree,     .fnc = (void_t) array_free },
+  { .id = MethodToString, .fnc = (void_t) _list_tostring },
+  { .id = MethodParse,    .fnc = NULL }, /* FIXME */
+  { .id = MethodCast,     .fnc = (void_t) _list_cast },
+  { .id = MethodHash,     .fnc = (void_t) _list_hash },
+  { .id = MethodNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_list =   {
+  .type      = List,
+  .typecode  = "L",
+  .type_name = "list",
+  .vtable    = _vtable_list,
 };
 
 /* FIXME Add append, delete, head, tail, etc... */
-methoddescr_t methoddescr_list[] = {
-  { type: Any,    name: "list",  method: _list_create,argtypes: { Any, Any, Any },          minargs: 0, varargs: 1 },
-  { type: List,   name: "len",   method: _list_len,   argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
-  { type: List,   name: "at",    method: _list_at,    argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 0 },
-  { type: List,   name: "slice", method: _list_slice, argtypes: { Int, NoType, NoType },    minargs: 1, varargs: 1 },
-  { type: NoType, name: NULL,    method: NULL,        argtypes: { NoType, NoType, NoType }, minargs: 0, varargs: 0 },
+static methoddescr_t _methoddescr_list[] = {
+  { .type = Any,    .name = "list",  .method = _list_create,.argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
+  { .type = List,   .name = "len",   .method = _list_len,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = List,   .name = "at",    .method = _list_at,    .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = List,   .name = "slice", .method = _list_slice, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = NoType, .name = NULL,    .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 /*
@@ -68,6 +72,11 @@ methoddescr_t methoddescr_list[] = {
  * List datatype functions
  * --------------------------------------------------------------------------
  */
+
+void _list_init(void) {
+  typedescr_register(_typedescr_list);
+  typedescr_register_methods(_methoddescr_list);
+}
 
 data_t * _list_new(data_t *target, va_list arg) {
   array_t *array;

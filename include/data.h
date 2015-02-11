@@ -24,6 +24,7 @@
 #include <core.h>
 #include <array.h>
 #include <dict.h>
+#include <name.h>
 
 #ifndef NDEBUG
 extern int data_count;
@@ -31,21 +32,21 @@ extern int data_count;
 
 typedef enum _datatype {
   NoType = -1,
-  Error,
-  Pointer,
-  String,
-  Int,
-  Float,
-  Bool,
-  List,
-  Function,
-  Method,
-  Object,
-  Script,
-  Closure,
-  Module,
-  Any = 100,
-  Numeric
+  Error,      /* E */
+  Pointer,    /* P */
+  String,     /* S */
+  Number,     /* N */
+  Int,        /* I */
+  Float,      /* F */
+  Bool,       /* B */
+  List,       /* L */
+  Function,   /* U */
+  Method,     /* M */
+  Object,     /* O */
+  Script,     /* R */
+  Closure,    /* C */
+  Module,     /* D */
+  Any = 100
 } datatype_t;
 
 typedef enum _vtable_id {
@@ -55,6 +56,8 @@ typedef enum _vtable_id {
   MethodCmp,
   MethodFree,
   MethodToString,
+  MethodFltValue,
+  MethodIntValue,
   MethodParse,
   MethodCast,
   MethodHash,
@@ -84,7 +87,7 @@ typedef struct _data {
 
 typedef data_t * (*cast_t)(data_t *, int);
 typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
-typedef data_t * (*resolve_name_t)(data_t *, array_t *);
+typedef data_t * (*resolve_name_t)(data_t *, name_t *);
 typedef data_t * (*call_t)(data_t *, array_t *, dict_t *);
 
 typedef struct _vtable {
@@ -93,14 +96,15 @@ typedef struct _vtable {
 } vtable_t;
 
 typedef struct _typedescr {
-  int               type;
-  char             *typecode;
-  char             *type_name;
-  int               vtable_size;
-  vtable_t         *vtable;
-  dict_t           *methods;
-  int               promote_to;
-  method_t          fallback;
+  int       type;
+  char     *typecode;
+  char     *type_name;
+  int       vtable_size;
+  vtable_t *vtable;
+  dict_t   *methods;
+  int       promote_to;
+  int       inherits_size;
+  int      *inherits;
 } typedescr_t;
 
 #define MAX_METHOD_PARAMS      3
@@ -114,25 +118,7 @@ typedef struct _methoddescr {
   int       varargs;
 } methoddescr_t;
 
-extern typedescr_t typedescr_int;
-extern typedescr_t typedescr_bool;
-extern typedescr_t typedescr_float;
-extern typedescr_t typedescr_str;
-extern typedescr_t typedescr_ptr;
-extern typedescr_t typedescr_fnc;
-extern typedescr_t typedescr_list;
-extern typedescr_t typedescr_error;
-extern typedescr_t typedescr_method;
-
-extern methoddescr_t methoddescr_int[];
-extern methoddescr_t methoddescr_bool[];
-extern methoddescr_t methoddescr_float[];
-extern methoddescr_t methoddescr_str[];
-extern methoddescr_t methoddescr_ptr[];
-extern methoddescr_t methoddescr_list[];
-/* extern methoddescr_t methoddescr_error[]; */
-
-extern int             typedescr_register(typedescr_t);
+extern int             typedescr_register(typedescr_t *);
 extern typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
 extern typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
 extern typedescr_t *   typedescr_get(int);
@@ -141,6 +127,7 @@ extern void            typedescr_register_method(typedescr_t *, methoddescr_t *)
 extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 extern void_t          typedescr_get_function(typedescr_t *, int);
 extern char *          typedescr_tostring(typedescr_t *);
+extern int             typedescr_is(typedescr_t *, int);
 
 extern data_t *        data_create(int, ...);
 extern data_t *        data_cast(data_t *, int);
@@ -150,6 +137,7 @@ extern void            data_free(data_t *);
 extern int             data_type(data_t *);
 extern int             data_hastype(data_t *, int);
 extern typedescr_t *   data_typedescr(data_t *);
+extern void_t          data_get_function(data_t *, int);
 extern int             data_is_numeric(data_t *);
 extern int             data_is_error(data_t *t);
 extern int             data_is_callable(data_t *);
@@ -158,17 +146,18 @@ extern unsigned int    data_hash(data_t *);
 extern char *          data_tostring(data_t *);
 extern int             data_cmp(data_t *, data_t *);
 extern data_t *        data_call(data_t *, array_t *, dict_t *);
-extern methoddescr_t * data_method(data_t *, char *);
-extern data_t *        data_execute_method(data_t *, methoddescr_t *, array_t *, dict_t *);
-extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);
-extern data_t *        data_resolve(data_t *, array_t *);
-extern data_t *        data_invoke(data_t *, array_t *, array_t *, dict_t *);
+extern data_t *        data_method(data_t *, char *);
+/* extern data_t *        data_execute_method(data_t *, methoddescr_t *, array_t *, dict_t *); */
+/* extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);                 */
+extern data_t *        data_resolve(data_t *, name_t *);
+extern data_t *        data_invoke(data_t *, name_t *, array_t *, dict_t *);
 extern data_t *        data_get(data_t *, array_t *);
 extern data_t *        data_set(data_t *, array_t *, data_t *);
 extern char *          data_debugstr(data_t *);
 
-#define data_dblval(d)   ((data_type((d)) == Float) ? (double)((d) -> intval) : (d) -> dblval)
-#define data_longval(d)  ((data_type((d)) == Int) ? (d) -> intval : (long)((d) -> dblval))
+extern double          data_floatval(data_t *);
+extern int             data_intval(data_t *);
+
 #define data_charval(d)  ((char *) (d) -> ptrval)
 #define data_arrayval(d) ((array_t *) (d) -> ptrval)
 #define data_is_error(d) ((d) && (data_type((d)) == Error))

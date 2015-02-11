@@ -50,8 +50,7 @@ static typedescr_t typedescr_object = {
   tostring: (tostring_t) _data_tostring_object,
   hash:     (hash_t)     _data_hash_object,
   parse:                 NULL,
-  cast:                  NULL,
-  fallback: (method_t)   _data_execute_object
+  cast:                  NULL
 };
 
 data_t * _data_new_object(data_t *ret, va_list arg) {
@@ -239,7 +238,7 @@ unsigned int object_hash(object_t *object) {
 
   data = object_execute(object, "__hash__", NULL, NULL);
   ret = (!data_is_error(data))
-      ? (unsigned int) data_longval(data)
+      ? (unsigned int) data_intval(data)
       : hashptr(object);
   data_free(data);
   return ret;
@@ -254,7 +253,7 @@ int object_cmp(object_t *o1, object_t *o2) {
   array_set(args, 0, data_create(Object, o2));
   data = object_execute(o1, "__cmp__", args, NULL);
   ret = (!data_is_error(data))
-      ? data_longval(data)
+      ? data_intval(data)
       : (long) o1 - (long) o2;
   data_free(data);
   array_free(args);

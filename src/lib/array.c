@@ -155,6 +155,9 @@ array_t * array_slice(array_t *array, int from, int num) {
   if ((from >= array_size(array)) || (num <= 0)) {
     return NULL;
   }
+  if ((from + num) > array_size(array)) {
+    num = array_size(array) - from;
+  }
   ret = array_create(num);
   array_set_cmp(ret, array -> list -> cmp);
   array_set_hash(ret, array -> list -> hash);
