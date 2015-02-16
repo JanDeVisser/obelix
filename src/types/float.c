@@ -54,7 +54,6 @@ static data_t *      _number_ceil(data_t *, char *, array_t *, dict_t *);
 
 static typedescr_t _typedescr_number =   {
   .type           = Number,
-  .typecode       = "N",
   .type_name      = "number",
   .inherits_size  = 0,
   .vtable         = NULL,
@@ -101,7 +100,6 @@ static vtable_t _vtable_float[] = {
 
 static typedescr_t _typedescr_float =   {
   .type           = Float,
-  .typecode       = "F",
   .type_name      = "float",
   .inherits_size  = 1,
   .inherits       = _inherits_float,

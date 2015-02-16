@@ -56,7 +56,6 @@ static vtable_t _vtable_method[] = {
 
 static typedescr_t _typedescr_method = {
   .type =        Method,
-  .typecode =    "M",
   .type_name =   "method",
   .vtable =      _vtable_method
 };

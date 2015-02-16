@@ -24,6 +24,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <config.h>
+
 #define TRUE   1
 #define FALSE  0
 #define NEW(t) ( (t *) new( sizeof(t) ) )
@@ -58,7 +60,6 @@ typedef void    (*obj_visit_t)(void *, visit_t);
 typedef visit_t free_t;
 typedef int     (*read_t)(void *, char *, int);
 typedef int     (*write_t)(void *, char *, int);
-typedef void *  (*parse_t)(char *);
 
 typedef enum _reduce_type {
   RTObjects = 1,
@@ -90,6 +91,13 @@ extern void *          new(int);
 extern void *          new_ptrarray(int);
 extern void *          resize_block(void *, int, int);
 extern void *          resize_ptrarray(void *, int, int);
+
+#ifndef HAVE_ASPRINTF
+extern int             asprintf(char **, const char *, ...);
+#endif
+#ifndef HAVE_VASPRINTF
+extern int             vasprintf(char **, const char *, va_list);
+#endif
 
 extern unsigned int    hash(void *, size_t);
 extern unsigned int    hashptr(void *);

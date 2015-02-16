@@ -58,7 +58,6 @@ static vtable_t _vtable_error[] = {
 
 static typedescr_t _typedescr_error = {
   .type      = Error,
-  .typecode  = "E",
   .type_name = "error",
   .vtable    = _vtable_error
 };

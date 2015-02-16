@@ -53,7 +53,7 @@ typedef struct _script {
 typedef struct _closure {
   struct _closure   *up;
   script_t          *script;
-  object_t          *self;
+  data_t            *self;
   dict_t            *variables;
   struct _namespace *imports;
   datastack_t       *stack;
@@ -92,7 +92,7 @@ extern script_t *       script_get_toplevel(script_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
 extern script_t *       script_create_native(script_t *, function_t *);
 extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
-extern closure_t *      script_create_closure(script_t *, data_t *, array_t *, dict_t *);
+extern closure_t *      script_create_closure(script_t *, data_t *);
 extern data_t *         script_execute(script_t *, data_t *, array_t *, dict_t *);
 
 /*
@@ -103,13 +103,11 @@ extern char *           closure_tostring(closure_t *);
 extern char *           closure_get_name(closure_t *);
 extern data_t *         closure_pop(closure_t *);
 extern closure_t *      closure_push(closure_t *, data_t *);
-extern data_t *         closure_get_container_for(closure_t *closure, array_t *name, int);
-extern data_t *         closure_set(closure_t *, array_t *, data_t *);
+extern data_t *         closure_set(closure_t *, char *, data_t *);
 extern data_t *         closure_get(closure_t *, char *);
 extern int              closure_has(closure_t *, char *);
-extern data_t *         closure_resolve(closure_t *, array_t *);
-extern data_t *         closure_execute(closure_t *);
-extern data_t *         closure_execute_function(closure_t *, char *, array_t *, dict_t *);
+extern data_t *         closure_resolve(closure_t *, char *);
+extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
 extern data_t *         closure_import(closure_t *, array_t *);
   
 #define closure_get_name(c)   closure_tostring((c))

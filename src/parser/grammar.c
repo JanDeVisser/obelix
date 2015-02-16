@@ -63,41 +63,50 @@ static set_t *             _rule_entry_get_firsts(rule_entry_t *, set_t *);
 static set_t *             _rule_entry_get_follows(rule_entry_t *, set_t *);
 static void                _rule_entry_dump(ge_t *);
 
+static vtable_t _vtable_ge[] = {
+  { .id = MethodNew,  .fnc = (void_t) _ge_create },
+  { .id = MethodFree, .fnc = (void_t) ge_free },
+  { .id = MethodNone, .fnc = NULL }
+};
+
+static typedescr_t _typedescr_ge = {
+  .type      = GETGrammarElement,
+  .type_name = "grammarelement",
+  .vtable    = _vtable_ge
+};
+
 static vtable_t _vtable_grammar[] = {
-  { .id = MethodNew,      .fnc = (void_t) _grammar_create },
-  { .id = MethodFree,     .fnc = (void_t) _grammar_free },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = MethodNew,  .fnc = (void_t) _grammar_create },
+  { .id = MethodFree, .fnc = (void_t) _grammar_free },
+  { .id = MethodNone, .fnc = NULL }
 };
 
 static typedescr_t _typedescr_grammar = {
   .type      = GETGrammar,
-  .typecode  = "G",
   .type_name = "grammar",
   .vtable    = _vtable_grammar
 };
 
 static vtable_t _vtable_nonterminal[] = {
-  { .id = MethodNew,      .fnc = (void_t) _nonterminal_create },
-  { .id = MethodFree,     .fnc = (void_t) _nonterminal_free },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = MethodNew,  .fnc = (void_t) _nonterminal_create },
+  { .id = MethodFree, .fnc = (void_t) _nonterminal_free },
+  { .id = MethodNone, .fnc = NULL }
 };
 
 static typedescr_t _typedescr_nonterminal = {
   .type      = GETNonTerminal,
-  .typecode  = "*",
   .type_name = "nonterminal",
   .vtable    = _vtable_nonterminal
 };
 
 static vtable_t _vtable_rule[] = {
-  { .id = MethodNew,      .fnc = (void_t) _rule_create },
-  { .id = MethodFree,     .fnc = (void_t) _rule_free },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = MethodNew,  .fnc = (void_t) _rule_create },
+  { .id = MethodFree, .fnc = (void_t) _rule_free },
+  { .id = MethodNone, .fnc = NULL }
 };
 
 static typedescr_t _typedescr_rule = {
   .type      = GETRule,
-  .typecode  = "|",
   .type_name = "rule",
   .vtable    = _vtable_rule
 };
@@ -110,7 +119,6 @@ static vtable_t _vtable_rule_entry[] = {
 
 static typedescr_t _typedescr_rule_entry = {
   .type      = GETRuleEntry,
-  .typecode  = ",",
   .type_name = "rule_entry",
   .vtable    = _vtable_rule_entry
 };

@@ -47,10 +47,10 @@ extern object_t *          object_copy(object_t *);
 extern data_t *            object_get(object_t *, char *);
 extern object_t *          object_set(object_t *, char *, data_t *);
 extern int                 object_has(object_t *, char *);
-extern data_t *            object_execute(object_t *, char *, array_t *, dict_t *);
+extern data_t *            object_call(object_t *, array_t *, dict_t *);
 extern char *              object_tostring(object_t *);
 extern char *              object_debugstr(object_t *);
 extern unsigned int        object_hash(object_t *);
-extern data_t *            object_resolve(object_t *, array_t *);
+extern data_t *            object_resolve(object_t *, char *);
 
 #endif /* __OBJECT_H__ */

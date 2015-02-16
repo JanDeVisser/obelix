@@ -31,22 +31,23 @@ extern int data_count;
 #endif
 
 typedef enum _datatype {
-  NoType = -1,
-  Error,      /* E - 0 */
-  Pointer,    /* P - 1 */
-  String,     /* S - 2 */
-  Number,     /* N - 3 */
-  Int,        /* I - 4 */
-  Float,      /* F - 5 */
-  Bool,       /* B - 6 */
-  List,       /* L - 7 */
-  Function,   /* U - 8 */
-  Method,     /* M - 9 */
-  Object,     /* O - 10 */
-  Script,     /* R - 11 */
-  Closure,    /* C - 12 */
-  Module,     /* D - 13 */
-  Any = 100,
+  NoType         = -1,
+  Error,        /*  0 */
+  Pointer,      /*  1 */
+  String,       /*  2 */
+  Number,       /*  3 */
+  Int,          /*  4 */
+  Float,        /*  5 */
+  Bool,         /*  6 */
+  List,         /*  7 */
+  Function,     /*  8 */
+  Method,       /*  9 */
+  Object,       /* 10 */
+  Script,       /* 11 */
+  Closure,      /* 12 */
+  Module,       /* 13 */
+  Name,         /* 14 */
+  Any           = 100,
   UserTypeRange = 999
 } datatype_t;
 
@@ -65,6 +66,8 @@ typedef enum _vtable_id {
   MethodLen,
   MethodResolve,
   MethodCall,
+  MethodSet,
+  MethodGet,
   MethodRead,
   MethodWrite,
   MethodOpen,
@@ -88,7 +91,7 @@ typedef struct _data {
 
 typedef data_t * (*cast_t)(data_t *, int);
 typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
-typedef data_t * (*resolve_name_t)(data_t *, name_t *);
+typedef data_t * (*resolve_name_t)(data_t *, char *);
 typedef data_t * (*call_t)(data_t *, array_t *, dict_t *);
 
 typedef struct _vtable {
@@ -98,7 +101,6 @@ typedef struct _vtable {
 
 typedef struct _typedescr {
   int       type;
-  char     *typecode;
   char     *type_name;
   int       vtable_size;
   vtable_t *vtable;
@@ -106,6 +108,7 @@ typedef struct _typedescr {
   int       promote_to;
   int       inherits_size;
   int      *inherits;
+  char     *str;
 } typedescr_t;
 
 #define MAX_METHOD_PARAMS      3
@@ -148,8 +151,7 @@ extern char *          data_tostring(data_t *);
 extern int             data_cmp(data_t *, data_t *);
 extern data_t *        data_call(data_t *, array_t *, dict_t *);
 extern data_t *        data_method(data_t *, char *);
-/* extern data_t *        data_execute_method(data_t *, methoddescr_t *, array_t *, dict_t *); */
-/* extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);                 */
+extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);                 */
 extern data_t *        data_resolve(data_t *, name_t *);
 extern data_t *        data_invoke(data_t *, name_t *, array_t *, dict_t *);
 extern data_t *        data_get(data_t *, array_t *);

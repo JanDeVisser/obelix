@@ -66,7 +66,8 @@ typedef enum _parsing_strategy {
 } strategy_t;
 
 typedef enum _grammar_element_type {
-  GETGrammar = 20,
+  GETGrammarElement = 20,
+  GETGrammar,
   GETNonTerminal,
   GETRule,
   GETRuleEntry,
