@@ -33,12 +33,7 @@
 
 int script_debug = 0;
 
-
-/*
- * S T A T I C  F U N C T I O N S
- */
-
-static void             _script_init(void) __attribute__((constructor));
+static void             _data_script_init(void) __attribute__((constructor));
 static data_t *         _data_new_script(data_t *, va_list);
 static data_t *         _data_copy_script(data_t *, data_t *);
 static int              _data_cmp_script(data_t *, data_t *);
@@ -50,7 +45,7 @@ static data_t *         _data_copy_closure(data_t *, data_t *);
 static int              _data_cmp_closure(data_t *, data_t *);
 static char *           _data_tostring_closure(data_t *);
 static data_t *         _data_call_closure(data_t *, array_t *, dict_t *);
-static data_t *         _data_resolve_closure(data_t *, array_t *);
+static data_t *         _data_resolve_closure(data_t *, char *);
 
 extern data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
 
@@ -82,7 +77,6 @@ static vtable_t _vtable_script[] = {
 
 static typedescr_t _typedescr_script = {
   .type =      Script,
-  .typecode =  "R",
   .type_name = "script",
   .vtable =    _vtable_script
 };
@@ -100,7 +94,6 @@ static vtable_t _vtable_closure[] = {
 
 static typedescr_t _typedescr_closure = {
   .type =      Closure,
-  .typecode =  "C",
   .type_name = "closure",
   .vtable =    _vtable_closure
 };
@@ -109,7 +102,7 @@ static typedescr_t _typedescr_closure = {
  * Script data functions
  */
 
-void _script_init(void) {
+void _data_script_init(void) {
   typedescr_register(&_typedescr_script);
   typedescr_register(&_typedescr_closure);
 }
@@ -145,7 +138,7 @@ char * _data_tostring_script(data_t *d) {
   return buf;
 }
 
-data_t * _data_execute_script(data_t *self, char *name, array_t *params, dict_t *kwargs) {
+data_t * _data_call_script(data_t *self, array_t *params, dict_t *kwargs) {
   script_t *script = (script_t *) self -> ptrval;
   return script_execute(script, NULL, params, kwargs);
 }
@@ -183,11 +176,7 @@ int _data_cmp_closure(data_t *d1, data_t *d2) {
 }
 
 char * _data_tostring_closure(data_t *d) {
-  static char buf[32];
-
-  snprintf(buf, 32, "<<closure %s>>",
-           ((closure_t *) d -> ptrval) -> script -> name);
-  return buf;
+  return closure_tostring((closure_t *) d -> ptrval);
 }
 
 data_t * _data_call_closure(data_t *self, array_t *params, dict_t *kwargs) {
@@ -195,19 +184,8 @@ data_t * _data_call_closure(data_t *self, array_t *params, dict_t *kwargs) {
   return closure_execute(closure, params, kwargs);
 }
 
-data_t * _data_resolve_closure(data_t *data, array_t *name) {
-  closure_t *c;
-  char      *n;
-  
-  assert(name && array_size(name));
-  n = (char *) array_get(name, 0);
-  c = (closure_t *) data -> ptrval;
-  while (c) {
-    if (closure_has(c, n)) {
-      ret = closure_get(c, n);
-    }
-  }
-  
+data_t * _data_resolve_closure(data_t *data, char *name) {
+  return closure_resolve((closure_t *) data -> ptrval, name);
 }
 
 data_t * data_create_closure(closure_t *closure) {
@@ -369,8 +347,8 @@ data_t * script_execute(script_t *script, data_t *self, array_t *args, dict_t *k
   if (script -> native) {
     ret = script -> native_method(self, script -> name, args, kwargs);
   } else {
-    closure = script_create_closure(script, self, args, kwargs);
-    ret = closure_execute(closure);
+    closure = script_create_closure(script, self);
+    ret = closure_execute(closure, args, kwargs);
     closure_free(closure);
   }
   return ret;
@@ -393,7 +371,6 @@ script_t * script_get_toplevel(script_t *script) {
   return ret;
 }
 
-
 data_t * script_create_object(script_t *script, array_t *args, dict_t *kwargs) {
   object_t  *ret;
   closure_t *closure;
@@ -415,53 +392,49 @@ data_t * script_create_object(script_t *script, array_t *args, dict_t *kwargs) {
   return retval;
 }
 
-closure_t * script_create_closure(script_t *script, data_t *self, array_t *args, dict_t *kwargs) {
+/*
+ FIXME: Closures should be created when an object is created, with no arguments
+ */
+
+
+closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
+  char      *name = (char *) entry -> key;
+  script_t  *func = (script_t *) entry -> value;
+  closure_t *c;
+
+  c = script_create_closure(func, closure -> self, closure);
+  c -> up = closure;
+  closure_set(closure, name, data_create(Closure, c));
+  return closure;
+}
+
+closure_t * script_create_closure(script_t *script, data_t *self, closure_t *up) {
   closure_t *ret;
   int        ix;
 
-  if (args || (script -> params && array_size(script -> params))) {
-    assert(args && (array_size(script -> params) == array_size(args)));
-  }
   ret = NEW(closure_t);
   ret -> script = script_copy(script);
   ret -> imports = ns_create(script -> ns);
 
   ret -> variables = strdata_dict_create();
-  dict_reduce(ret -> variables, (reduce_t) data_put_all_reducer, script -> functions);
   ret -> stack = datastack_create(script_tostring(script));
   datastack_set_debug(ret -> stack, script_debug);
+  ret -> up = up;
 
-  if (args) {
-    for (ix = 0; ix < array_size(args); ix++) {
-      closure_set(ret, array_get(script -> params, ix),
-                       array_get(args, ix));
-    }
-  }
-  if (kwargs) {
-    dict_reduce(kwargs, (reduce_t) data_put_all_reducer, ret -> variables);
-  }
   if (self) {
-    if (data_is_closure(self)) {
-      closure_t *closure = data_closureval(self);
-      ret -> up = closure;
-      if (closure -> self) {
-        self = data_create_object(closure -> self);
-      } else {
-        self = NULL;
-      }
-    } else {
-      assert(data_is_object(self));
-    }
-    if (self) {
-      ret -> self = data_objectval(self);
-      _closure_set_local(ret, "self", data_copy(self));
-    }
+    ret -> self = data_copy(self);
+    closure_set(ret, "self", data_copy(self));
   }
+  dict_reduce(script -> functions, 
+              (reduce_t) _script_create_closure_reducer, ret);
   ret -> refs++;
-  /*
-   * Import standard lib:
-   */
-  closure_import(ret, NULL);
+  
+  if (!up) {
+    /*
+     * Import standard lib:
+     */
+    closure_import(ret, NULL);
+  }
   return ret;
 }
 
@@ -502,18 +475,6 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   return node;
 }
 
-data_t * _closure_set_local(closure_t *closure, char *name, data_t *value) {
-  data_t *ret;
-  
-  if (script_debug) {
-    debug("  Setting local '%s' = %s in closure for %s",
-          name, data_debugstr(value), closure_tostring(closure));
-  }
-  ret = data_copy(value);
-  dict_put(closure -> variables, strdup(name), ret);
-  return ret;
-}
-
 /*
  * closure_t - public functions
  */
@@ -525,6 +486,7 @@ void closure_free(closure_t *closure) {
       script_free(closure -> script);
       datastack_free(closure -> stack);
       dict_free(closure -> variables);
+      data_free(closure -> self);
       ns_free(closure -> imports);
       free(closure);
     }
@@ -556,176 +518,15 @@ data_t * closure_import(closure_t *closure, array_t *module) {
   return ns_import(closure -> imports, module);
 }
 
-/**
- * Returns the object in which the identifier <name> belongs. Names resolution
- * starts at the current closure, then up the chain of nested closures. If the
- * first element of the name cannot be found in the chain of nested closures,
- * the first part is resolved at the namespace root level.
- *
- * @param closure Closure to resolve the name in
- * @param name List of name components
- *
- * @return If the name can be resolved, a data_t wrapping that object. If
- * the name cannot be resolved but only consists of one element, NULL,
- * indicating the name is a local variable of the closure. If the name
- * consists of more than one element but the path is broken, a
- * data_error(ErrorName) is returned.
- */
-data_t * closure_get_container_for(closure_t *closure, array_t *name, int must_exist) {
-  closure_t *c;
-  data_t    *data;
-  data_t    *ret;
-  array_t   *tail;
-  char      *n;
-  char      *first;
-  char      *last;
-  char      *ptr;
-  str_t     *name_str = array_join(name, ".");
-
-  assert(array_size(name));
-  if (script_debug) {
-    array_debug(name, "  Getting object for %s");
-  }
-  tail = array_slice(name, 1, -1);
+data_t * closure_set(closure_t *closure, char *name, data_t *value) {
+  data_t *ret;
   
-  first = str_array_get(name, 0);
-  last = str_array_get(name, -1);
-  data = NULL;
-  c = closure;
-  while (c) {
-    if (closure_has(c, first)) {
-      break;
-    } else {
-      c = c -> up;
-    }
+  if (script_debug) {
+    debug("  Setting local '%s' = %s in closure for %s",
+          name, data_debugstr(value), closure_tostring(closure));
   }
-  if (c) {
-    if (script_debug) {
-      debug("  Found first name element '%s' in closure chain: %s",
-            first, closure_tostring(c));
-    }
-    data = closure_get(c, first);
-    /* Found a match in the closure chain. Now walk the name: */
-    if (tail) {
-      /* There are more components in the name. data must be object: */
-      if (data_is_object(data)) {
-        ret = object_resolve(data_objectval(data), tail);
-        data_free(data);
-        if (must_exist && !data_is_error(ret)) {
-          if (!data_is_object(ret)) {
-            /* FIXME message */
-            data_free(ret);
-            ret = data_error(ErrorName,
-                             "Variable '%s' of function '%s' is not an object",
-                             str_chars(name_str), closure_tostring(c));
-          } else {
-            data = object_get(data_objectval(ret), last);
-            if (data_is_error(data)) {
-              data_free(ret);
-              ret = data;
-            } else {
-              data_free(data);
-            }
-          }
-        }
-      } else {
-        data_free(data);
-        ret = data_error(ErrorName,
-                         "Variable '%s' of function '%s' is not an object",
-                         str_chars(name_str), closure_tostring(c));
-      }
-    } else {
-      /* Name is local to the closure we found it in: */
-      data_free(data);
-      ret = data_create_closure(c);
-    }
-  } else {
-    data_free(data);
-    if (script_debug) {
-      debug("  Did not find first name element '%s' in closure chain", first);
-    }
-    /* No match. Delegate to the scope. If the scope returns
-     * no match, the name must be local (but cannot exist).
-     */
-    ret = ns_resolve(closure -> imports, name);
-    debug("  ns_resolve(scope, %s): %s", str_chars(name_str), data_debugstr(ret));
-    if (!data_is_error(ret) && must_exist) {
-      data = object_get(data_objectval(ret), last);
-      debug("  object_get(ret, %s): %s", last, data_debugstr(data));
-      if (data_is_error(data)) {
-        data_free(ret);
-        ret = data;
-      }
-    }
-    if (data_is_error(ret)) {
-      if (script_debug) {
-        debug("  Scope could not resolve '%s'", str_chars(name_str));
-      }
-      /*
-       * Scope couldn't resolve the name. If the name existed in the current
-       * closure, we would have found it earlier. Therefore, if the name
-       * has more than one component, we have to give up. Otherwise (if the
-       * name only has one component) we return this closure.
-       */
-      data_free(ret);
-      if (tail) {
-        if (script_debug) {
-          debug("  Name has more than one component -> error");
-        }
-        ret = data_error(ErrorName,
-                         "Could not resolve name '%s'",
-                         str_chars(name_str));
-      } else if (!must_exist) {
-        if (script_debug) {
-          debug("  Assuming name is local");
-        }
-        ret = data_create_closure(closure);
-      } else {
-        /* must_exist */
-        ret = data_error(ErrorName,
-                         "Could not resolve name '%s'",
-                         str_chars(name_str));
-      }
-    }
-  }
-  array_free(tail);
-  str_free(name_str);
-  return ret;
-}
-
-data_t * closure_set(closure_t *closure, array_t *varname, data_t *value) {
-  data_t    *d;
-  data_t    *ret;
-  closure_t *c;
-  object_t  *o;
-  char      *n;
-
-  assert(closure);
-  assert(value);
-  assert(varname && array_size(varname));
-
-  d = closure_get_container_for(closure, varname, FALSE);
-  switch (data_type(d)) {
-    case Closure:
-      c = (closure_t *) d -> ptrval;
-      n = (char *) array_get(varname, 0);
-      ret = _closure_set_local(c, n, value);
-      data_free(d);
-      break;
-    case Script:
-      o = (object_t *) d -> ptrval;
-      n = (char *) array_get(varname, -1);
-      ret = data_copy(value);
-      object_set(o, n, ret);
-      data_free(d);
-      break;
-    case Error:
-      ret = d;
-      break;
-    default:
-      assert(0);
-      break;
-  }
+  ret = data_copy(value);
+  dict_put(closure -> variables, strdup(name), ret);
   return ret;
 }
 
@@ -754,51 +555,37 @@ int closure_has(closure_t *closure, char *name) {
   return ret;
 }
 
-data_t * closure_resolve(closure_t *closure, array_t *varname) {
-  data_t    *d;
-  data_t    *ret;
-  closure_t *c;
-  object_t  *o;
-  char      *n;
-
-  assert(closure);
-  assert(varname && array_size(varname));
-
-  d = closure_get_container_for(closure, varname, FALSE);
-  switch (data_type(d)) {
-    case Closure:
-      c = data_closureval(d);
-      n = str_array_get(varname, -1);
-      if (script_debug) {
-        debug("  Getting local '%s' in closure for %s",
-              n, data_tostring(d));
-      }
-      ret = closure_get(c, n);
-      data_free(d);
-      break;
-    case Object:
-      o = data_objectval(d);
-      n = str_array_get(varname, -1);
-      if (script_debug) {
-        debug("  Getting object property '%s' in object %s",
-              n, data_tostring(d));
-      }
-      ret = object_get(o, n);
-      data_free(d);
-      break;
-    case Error:
-      ret = d;
-      break;
-    default:
-      assert(0);
-      break;
+data_t * closure_resolve(closure_t *closure, char *name) {
+  data_t *ret;
+  
+  ret = (data_t *) dict_get(closure -> variables, name);
+  if (!ret) {
+    if (closure -> up) {
+      ret = closure_resolve(closure -> up, name);
+    } else {
+      ret = ns_resolve(closure -> imports, name);
+    }
   }
   return ret;
 }
 
-data_t * closure_execute(closure_t *closure) {
-  data_t *ret;
+data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
+  int       ix;
+  data_t   *ret;
+  script_t *script;
 
+  if (args || (script -> params && array_size(script -> params))) {
+    assert(args && (array_size(script -> params) == array_size(args)));
+  }
+  if (args) {
+    for (ix = 0; ix < array_size(args); ix++) {
+      closure_set(closure, array_get(script -> params, ix),
+                           array_get(args, ix));
+    }
+  }
+  if (kwargs) {
+    dict_reduce(kwargs, (reduce_t) data_put_all_reducer, closure -> variables);
+  }
   datastack_clear(closure -> stack);
   list_process(closure -> script -> instructions, (reduce_t) _closure_execute_instruction, closure);
   ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();

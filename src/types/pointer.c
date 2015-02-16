@@ -57,7 +57,6 @@ static vtable_t _vtable_ptr[] = {
 
 static typedescr_t _typedescr_ptr = {
   .type = Pointer,
-  .typecode = "P",
   .type_name =  "ptr",
   .vtable = _vtable_ptr
 };
@@ -83,7 +82,6 @@ static vtable_t _vtable_fnc[] = {
 
 static typedescr_t _typedescr_fnc = {
   .type =      Function,
-  .typecode =  "U",
   .type_name = "fnc",
   .vtable =    _vtable_fnc
 };

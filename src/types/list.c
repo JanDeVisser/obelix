@@ -52,7 +52,6 @@ static vtable_t _vtable_list[] = {
 
 static typedescr_t _typedescr_list =   {
   .type      = List,
-  .typecode  = "L",
   .type_name = "list",
   .vtable    = _vtable_list,
 };

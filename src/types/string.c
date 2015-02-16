@@ -62,7 +62,6 @@ vtable_t _vtable_string[] = {
 
 static typedescr_t _typedescr_str = {
   .type =        String,
-  .typecode =    "S",
   .type_name =   "str",
   .vtable =      _vtable_string
 };

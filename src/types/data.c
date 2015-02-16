@@ -29,12 +29,11 @@
 #include <list.h>
 #include <object.h>
 
-static typedescr_t   typedescr_any;
-static methoddescr_t methoddescr_any[];
-
 static void          _any_init(void) __attribute__((constructor));
 static data_t *      _any_cmp(data_t *, char *, array_t *, dict_t *);
 static data_t *      _any_hash(data_t *, char *, array_t *, dict_t *);
+
+static void          _data_call_free(typedescr_t *, void *);
 
 // -----------------------
 // Data conversion support
@@ -49,7 +48,6 @@ int data_count = 0;
 
 static typedescr_t _typedescr_any = {
   .type =      Any,
-  .typecode =  "A",
   .type_name = "any"
 };
 
@@ -154,6 +152,7 @@ int typedescr_register(typedescr_t *descr) {
   d -> vtable = NULL;
   d -> vtable_size = 0;
   typedescr_register_functions(d, vtable);
+  d -> str = NULL;
   return d -> type;
 }
 
@@ -188,7 +187,7 @@ typedescr_t * typedescr_get(int datatype) {
   typedescr_t *ret = NULL;
   
   if (datatype == Any) {
-    return &typedescr_any;
+    return &_typedescr_any;
   } else if ((datatype >= 0) && (datatype < data_numtypes)) {
     ret = &descriptors[datatype];
   }
@@ -201,9 +200,18 @@ typedescr_t * typedescr_get(int datatype) {
 }
 
 void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
+  void_t ret;
+  int    ix;
+  
   assert(type);
   assert(fnc_id > MethodNone);
-  return (fnc_id < (type -> vtable_size)) ? type -> vtable[fnc_id].fnc : NULL;
+  ret = (fnc_id < (type -> vtable_size)) ? type -> vtable[fnc_id].fnc : NULL;
+  if (!ret && type -> inherits_size) {
+    for (ix = 0; !ret && ix < type -> inherits_size; ix++) {
+      ret = typedescr_get_function(typedescr_get(type -> inherits[ix]), fnc_id);
+    }
+  }
+  return ret;
 }
 
 void typedescr_register_methods(methoddescr_t methods[]) {
@@ -252,11 +260,13 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
 }
 
 char * typedescr_tostring(typedescr_t *descr) {
-  static char buf[100];
-  
-  snprintf(buf, 100, "'%s' [%s][%d]",
-           descr -> type_name, descr -> typecode, descr -> type);
-  return buf;
+  if (!descr -> str) {
+    if (asprintf(&(descr -> str), "'%s' [%d]", 
+                 descr -> type_name, descr -> type) < 0) {
+      descr -> str = "Out of Memory?";
+    }
+  }
+  return descr -> str;
 }
 
 int typedescr_is(typedescr_t *descr, int type) {
@@ -366,19 +376,25 @@ data_t * data_promote(data_t *data) {
     : NULL;
 }
 
-void data_free(data_t *data) {
-  typedescr_t *type;
-  free_t       f;
+void _data_call_free(typedescr_t *type, void *ptr) {
+  free_t f;
+  int    ix;
+  
+  f = (free_t) typedescr_get_function(type, MethodFree);
+  if (f) {
+    f(ptr);
+  }
+  for (ix = 0; ix < type -> inherits_size; ix++) {
+    _data_call_free(typedescr_get(type -> inherits[ix]), ptr);
+  }
+}
 
+void data_free(data_t *data) {
   if (data) {
     data -> refs--;
     if (data -> refs <= 0) {
+      _data_call_free(data_typedescr(data), data -> ptrval);
       dict_free(data -> methods);
-      type = data_typedescr(data);
-      f = (free_t) typedescr_get_function(type, MethodFree);
-      if (f) {
-	f(data -> ptrval);
-      }
       free(data -> str);
 #ifndef NDEBUG
       free(data -> debugstr);
@@ -406,10 +422,15 @@ int data_is_numeric(data_t *data) {
 }
 
 int data_is_callable(data_t *data) {
-  typedescr_t *td = data_typedescr(data);
+  typedescr_t *td;
   
-  assert(td);
-  return (typedescr_get_function(td, MethodCall) != NULL);
+  if (data) {
+    td = data_typedescr(data);
+    assert(td);
+    return (typedescr_get_function(td, MethodCall) != NULL);
+  } else {
+    return 0;
+  }
 }
 
 int data_hastype(data_t *data, int type) {
@@ -463,6 +484,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
   typedescr_t    *type = data_typedescr(data);
   data_t         *ret = NULL;
   resolve_name_t  resolve;
+  name_t         *tail;
   
   assert(type);
   assert(name);
@@ -479,8 +501,13 @@ data_t * data_resolve(data_t *data, name_t *name) {
                        name_tostring(name), type -> type_name, data_tostring(data)
                       );
     } else {
-      ret = resolve(data, name);
+      ret = resolve(data, name_first(name));
     }
+  }
+  if (ret && (name_size(name) > 1)) {
+    tail = name_tail(name);
+    ret = data_resolve(ret, tail);
+    name_free(tail);
   }
   return ret;
 }
@@ -556,9 +583,7 @@ char * data_tostring(data_t *data) {
 	data -> str = strdup(ret);
       }
     } else {
-      len = snprintf(NULL, 0, "data:%s:%p", descriptors[data -> type].typecode, data);
-      data -> str = new(len + 1);
-      sprintf(data -> str, "data:%s:%p", descriptors[data -> type].typecode, data);
+      len = asprintf(&(data -> str), "data:%s:%p", descriptors[data -> type].type_name, data);
     }
     return data -> str;
   }
@@ -571,12 +596,8 @@ char * data_debugstr(data_t *data) {
 
   free(data -> debugstr);
   type = data_typedescr(data);
-  len = snprintf(NULL, 0, "%c %s", 
-		 type -> typecode[0], 
-		 data_tostring(data));
-  data -> debugstr = (char *) new(len + 1);
-  sprintf(data -> debugstr, "%c %s", 
-	  type -> typecode[0], 
+  asprintf(&(data -> debugstr), "%3.3s %s", 
+	  type -> type_name, 
 	  data_tostring(data));
   return data -> debugstr;
 #else

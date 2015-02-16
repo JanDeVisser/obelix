@@ -68,7 +68,6 @@ static int _inherits_int[] = { Number };
 
 static typedescr_t _typedescr_int = {
   .type          = Int,
-  .typecode      = "I",
   .type_name     = "int",
   .inherits_size = 1,
   .inherits      = _inherits_int,
@@ -90,7 +89,6 @@ static int _inherits_bool[] = { Int };
 
 static typedescr_t _typedescr_bool = {
   .type          = Bool,
-  .typecode      = "B",
   .type_name     = "bool",
   .inherits_size = 1,
   .inherits      = _inherits_bool,

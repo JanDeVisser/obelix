@@ -24,34 +24,44 @@
 #include <object.h>
 #include <script.h>
 
+#include "exception.h"
+
 int res_debug = 0;
 
-static typedescr_t typedescr_object;
-
+static void         _data_init_object(void) __attribute__((constructor));
 static data_t *     _data_new_object(data_t *, va_list);
 static data_t *     _data_copy_object(data_t *, data_t *);
 static int          _data_cmp_object(data_t *, data_t *);
 static char *       _data_tostring_object(data_t *);
 static unsigned int _data_hash_object(data_t *);
-static data_t *     _data_execute_object(data_t *, char *, array_t *, dict_t *);
+static data_t *     _data_call_object(data_t *, array_t *, dict_t *);
+static data_t *     _data_resolve_object(data_t *, char *);
 
 /*
  * data_t Object type
  */
 
-static typedescr_t typedescr_object = {
-  type:                  Object,
-  typecode:              "O",
-  typename:              "object",
-  new:      (new_t)      _data_new_object,
-  copy:     (copydata_t) _data_copy_object,
-  cmp:      (cmp_t)      _data_cmp_object,
-  free:     (free_t)     object_free,
-  tostring: (tostring_t) _data_tostring_object,
-  hash:     (hash_t)     _data_hash_object,
-  parse:                 NULL,
-  cast:                  NULL
+static vtable_t _vtable_object[] = {
+  { .id = MethodNew,      .fnc = (void_t) _data_new_object },
+  { .id = MethodCopy,     .fnc = (void_t) _data_copy_object },
+  { .id = MethodCmp,      .fnc = (void_t) _data_cmp_object },
+  { .id = MethodFree,     .fnc = (void_t) object_free },
+  { .id = MethodToString, .fnc = (void_t) _data_tostring_object },
+  { .id = MethodHash,     .fnc = (void_t) _data_hash_object },
+  { .id = MethodResolve,  .fnc = (void_t) _data_resolve_object },
+  { .id = MethodCall,     .fnc = (void_t) _data_call_object },
+  { .id = MethodNone,     .fnc = NULL }
 };
+
+static typedescr_t _typedescr_object = {
+  .type =      Object,
+  .type_name = "object",
+  .vtable =    _vtable_object
+};
+
+void _data_init_object(void) {
+  typedescr_register(&typedescr_object);  
+}
 
 data_t * _data_new_object(data_t *ret, va_list arg) {
   object_t *object;
@@ -79,9 +89,12 @@ unsigned int _data_hash_object(data_t *d) {
   return object_hash((object_t *) d -> ptrval);
 }
 
-data_t * _data_execute_object(data_t *self, char *name, array_t *params, dict_t *kwargs) {
-  object_t *o = (object_t *) self -> ptrval;
-  return object_execute(o, name, params, kwargs);
+data_t * _data_call_object(data_t *self, array_t *args, dict_t *kwargs) {
+  return object_call(data_objectval(self), args, kwargs);
+}
+
+data_t * _data_resolve_object(data_t *data, char *name) {
+  return object_resolve(data_objectval(data), name);
 }
 
 data_t * data_create_object(object_t *object) {
@@ -89,17 +102,53 @@ data_t * data_create_object(object_t *object) {
 }
 
 /*
+ * object_t static functions
+ */
+
+data_t * _object_get(object_t *object, char *name) {
+  data_t *ret;
+
+  ret = (data_t *) dict_get(object -> variables, name);
+  if (ret) {
+    ret = data_copy(ret);
+  }
+  return ret;  
+}
+
+data_t * _object_call_attribute(object_t *object, char *name, array_t *args, dict_t *kwargs) {
+  data_t *func;
+  data_t *ret = NULL;
+  
+  func = _object_get(object, name);
+  if (data_is_callable(func)) {
+    ret = data_call(func, args, kwargs);
+  }
+  data_free(func);
+  if (!ret) {
+    ret = data_error(ErrorNotCallable, "Attribute '%s' of object '%s' is not callable", 
+                     name, object_tostring(object));
+  }
+  return ret;  
+}
+
+object_t * _object_set_closures(entry_t *entry, object_t *object) {
+  data_t *script;
+  char   *name;
+  
+  script = data_create(Script, (script_t *) entry -> value);
+  name = (char *) entry -> key;
+  object_set(object, name, script);
+  return object;
+}
+
+/*
  * object_t public functions
  */
 
 object_t * object_create(script_t *script) {
-  static int  type_object = -1;
   object_t   *ret;
   str_t      *s;
 
-  if (type_object < 0) {
-    type_object = typedescr_register(typedescr_object);
-  }
   ret = NEW(object_t);
   ret -> refs = 0;
   ret -> script = script;
@@ -108,7 +157,7 @@ object_t * object_create(script_t *script) {
   ret -> debugstr = NULL;
   ret -> variables = strdata_dict_create();
   if (script) {
-    dict_reduce(script -> functions, (reduce_t) data_put_all_reducer, ret -> variables);
+    dict_reduce(script -> functions, (reduce_t) _object_set_closures, ret);
   }
   return ret;
 }
@@ -122,7 +171,7 @@ void object_free(object_t *object) {
   if (object) {
     object -> refs--;
     if (--object -> refs <= 0) {
-      object_execute(object, "__finalize__", NULL, NULL);
+      data_free(_object_call_attribute(object, "__finalize__", NULL, NULL));
       dict_free(object -> variables);
       free(object -> str);
       free(object -> debugstr);
@@ -133,10 +182,8 @@ void object_free(object_t *object) {
 data_t * object_get(object_t *object, char *name) {
   data_t *ret;
 
-  ret = (data_t *) dict_get(object -> variables, name);
-  if (ret) {
-    ret = data_copy(ret);
-  } else {
+  ret = _object_get(object, name);
+  if (!ret) {
     ret = data_error(ErrorName,
                      "Object '%s' has no attribute '%s'",
                      object_debugstr(object),
@@ -146,8 +193,13 @@ data_t * object_get(object_t *object, char *name) {
 }
 
 object_t * object_set(object_t *object, char *name, data_t *value) {
-  str_t *s;
+  str_t     *s;
+  closure_t *closure;
   
+  if (data_is_script(value)) {
+    closure = script_create_closure(data_scriptval(value), data_create(Object, object));
+    value = data_create(Closure, closure);
+  }  
   dict_put(object -> variables, strdup(name), data_copy(value));
   if (res_debug) {
     s = dict_tostr(object -> variables);
@@ -168,43 +220,23 @@ int object_has(object_t *object, char *name) {
   return ret;
 }
 
-data_t * object_execute(object_t *object, char *name, array_t *args, dict_t *kwargs) {
-  script_t *script;
-  data_t   *func;
-  data_t   *ret;
-  data_t   *self;
+data_t * object_call(object_t *object, array_t *args, dict_t *kwargs) {
+  data_t *ret;
 
-  func = object_get(object, name);
-  if (!data_is_error(func)) {
-    if (data_is_script(func))  {
-      script = data_scriptval(func);
-      self = data_create_object(object);
-      ret = script_execute(script, self, args, kwargs);
-      data_free(self);
-    } else {
-      ret = data_error(ErrorName,
-                       "Attribute '%s' of object '%s' of type '%s' is not callable",
-                       name,
-                       object_tostring(object),
-                       script_tostring(object -> script));
-    }
-    data_free(func);
-  } else {
-    ret = func;
+  ret = _object_call_attribute(object, "__call__", args, kwargs);
+  if (data_is_error(ret) && (data_errorval(ret) -> code == ErrorNotCallable)) {
+    data_free(ret);
+    ret = data_error(ErrorNotCallable, "Object '%s' is not callable", 
+                     object_tostring(object));
   }
   return ret;
 }
 
 char * object_tostring(object_t *object) {
-  data_t   *data = NULL;
+  data_t  *data;
 
-  if (object -> str) {
-    free(object -> str);
-  }
-  if (object_has(object, "__str__")) {
-    data = object_execute(object, "__str__", NULL, NULL);
-  }
-  if (!data || data_is_error(data)) {
+  data = _object_call_attribute(object, "__str__", NULL, NULL);
+  if (data_is_error(data)) {
     object -> str = strdup(object_debugstr(object));
   } else {
     object -> str = strdup(data_charval(data));
@@ -216,17 +248,10 @@ char * object_tostring(object_t *object) {
 char * object_debugstr(object_t *object) {
   if (!object -> debugstr) {
     if (object -> script) {
-      object -> debugstr = (char *) new(snprintf(NULL, 0, "<%s object at %p>",
-                                                 script_tostring(object -> script),
-                                                 object) + 1);
-      sprintf(object -> debugstr, "<%s object at %p>",
-              script_tostring(object -> script),
-              object);
+      asprintf(&(object -> debugstr), "<%s object at %p>",
+               script_tostring(object -> script), object);
     } else {
-      object -> debugstr = (char *) new(snprintf(NULL, 0, "<anon object at %p>",
-                                                 object) + 1);
-      sprintf(object -> debugstr, "<anon object at %p>",
-              object);
+      asprintf(&(object -> debugstr), "<anon object at %p>", object);
     }
   }
   return object -> debugstr;
@@ -236,10 +261,8 @@ unsigned int object_hash(object_t *object) {
   data_t       *data;
   unsigned int  ret;
 
-  data = object_execute(object, "__hash__", NULL, NULL);
-  ret = (!data_is_error(data))
-      ? (unsigned int) data_intval(data)
-      : hashptr(object);
+  data = _object_call_attribute(object, "__hash__", NULL, NULL);
+  ret = (data_type(data) == Int) ? data_intval(data) : hashptr(object);
   data_free(data);
   return ret;
 }
@@ -251,7 +274,7 @@ int object_cmp(object_t *o1, object_t *o2) {
 
   args = data_array_create(1);
   array_set(args, 0, data_create(Object, o2));
-  data = object_execute(o1, "__cmp__", args, NULL);
+  data = _object_call_attribute(o1, "__cmp__", args, NULL);
   ret = (!data_is_error(data))
       ? data_intval(data)
       : (long) o1 - (long) o2;
@@ -260,64 +283,6 @@ int object_cmp(object_t *o1, object_t *o2) {
   return ret;
 }
 
-/**
- * Resolves a name path rooted in the specified object.
- *
- * @param object The root object for name resolution.
- * @param name The name to resolve.
- *
- * @return A data_t object containing the object referenced by the
- * second-to-last component in the name path. The last component
- * is an attribute of that object, and can itself reference an
- * object again, but does not necessarily need to exist or could
- * reference a data_t of a different type. If the name array only
- * holds one element, the object specified is wrapped. If the path
- * is broken along the way, or is empty, a data_error(ErrorName) is returned.
- * Note that the caller is responsible for freeing the returned data_t.
- */
-data_t * object_resolve(object_t *object, array_t *name) {
-  data_t   *ret;
-  object_t *o;
-  int       ix;
-
-  if (!name || !array_size(name)) {
-    if (res_debug) {
-      debug("   object_resolve('%s', [empty name])", object_tostring(object));
-    }
-    return data_error(ErrorName, "Empty name");
-  }
-  if (array_size(name) == 1) {
-    if (res_debug) {
-      debug("   object_resolve('%s', '%s')", 
-            object_tostring(object), str_array_get(name, 0));
-    }
-    return data_create(Object, object);
-  }
-  o = object_copy(object);
-  for (ix = 0; o && (ix < array_size(name) - 1); ix++) {
-    char *n = str_array_get(name, ix);
-    ret = object_get(o, n);
-    if (data_is_error(ret)) {
-      break;
-    }
-    if (!data_is_object(ret)) {
-      data_free(ret);
-      ret = data_error(ErrorName,
-                       "Attribute '%s' of object '%s' of type '%s' is not an object",
-                       n,
-                       object_tostring(o),
-                       script_tostring(object -> script));
-      break;
-    }
-    object_free(o);
-    o = object_copy(data_objectval(ret));
-    data_free(ret);
-  }
-  if (!data_is_error(ret)) {
-    ret = data_create_object(o) ;
-  } else if (res_debug) {
-    debug("   object_resolve('%s'): %s", object_tostring(object), data_tostring(ret));
-  }
-  object_free(o);
-  return ret;
+data_t * object_resolve(object_t *object, char *name) {
+  return (data_t *) dict_get(object -> variables, name);
 }

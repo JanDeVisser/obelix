@@ -32,20 +32,26 @@ typedef struct _name {
   char    *str;
 } name_t;
 
-extern name_t *        name_create(int, ...);
-extern name_t *        name_vcreate(int, va_list);
-extern name_t *        name_copy(name_t *);
-extern void            name_free(name_t *);
-extern int             name_size(name_t *);
-extern char *          name_first(name_t *);
-extern char *          name_last(name_t *);
-extern name_t *        name_tail(name_t *);
-extern name_t *        name_head(name_t *);
-extern char *          name_tostring(name_t *);
+#define data_is_name(d)  ((d) && (data_type((d)) == Name))
+#define data_nameval(d)  ((name_t *) (data_is_name((d)) ? ((d) -> ptrval) : NULL))
+
+extern name_t *          name_create(int, ...);
+extern name_t *          name_vcreate(int, va_list);
+extern name_t *          name_copy(name_t *);
+extern void              name_free(name_t *);
+extern int               name_size(name_t *);
+extern char *            name_first(name_t *);
+extern char *            name_last(name_t *);
+extern char *            name_get(name_t *, int);
+extern name_t *          name_tail(name_t *);
+extern name_t *          name_head(name_t *);
+extern char *            name_tostring(name_t *);
+extern name_t *          name_extend(name_t *, char *);
+extern int               name_cmp(name_t *, name_t *);
+extern unsigned int      name_hash(name_t *);
 
 #ifdef	__cplusplus
 }
 #endif
 
 #endif	/* __NAME_H__ */
-

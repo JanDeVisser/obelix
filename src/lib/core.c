@@ -112,6 +112,38 @@ void * resize_ptrarray(void *array, int newsz, int oldsz) {
   return resize_block(array, newsz * sizeof(void *), oldsz * sizeof(void *));
 }
 
+#ifndef HAVE_ASPRINTF
+int asprintf(char **strp, const char *fmt, ...) {
+  va_list args;
+  int     ret;
+  
+  va_start(args, fmt);
+  ret = vasprintf(strp, fmt, args);
+  va_end(args);
+  return ret;
+}
+#endif
+
+#ifndef HAVE_VASPRINTF
+int vasprintf(char **strp, const char *fmt, va_list args) {
+  va_list  copy;
+  int      ret;
+  char    *str;
+  
+  va_copy(copy, args);
+  ret = vsnprintf(NULL, 0, fmt, copy)
+  va_end(copy);
+  str = (char *) new(ret + 1);
+  if (!str) {
+    ret = -1;
+  } else {
+    vsnprintf(str, ret, fmt, args);
+    *strp = str;
+  }
+  return ret;
+}
+#endif 
+
 unsigned int hash(void *buf, size_t size) {
   int hash = 5381;
   int i;
