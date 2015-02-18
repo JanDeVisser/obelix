@@ -23,6 +23,7 @@
 
 #include <core.h>
 #include <data.h>
+#include <name.h>
 
 typedef enum _instruction_type {
   ITAssign,
@@ -47,13 +48,13 @@ typedef struct _instruction {
 struct _closure;
 
 extern instruction_t *  instruction_create(int, char *, data_t *);
-extern instruction_t *  instruction_create_assign(array_t *);
-extern instruction_t *  instruction_create_pushvar(array_t *);
+extern instruction_t *  instruction_create_assign(name_t *);
+extern instruction_t *  instruction_create_pushvar(name_t *);
 extern instruction_t *  instruction_create_pushval(data_t *);
-extern instruction_t *  instruction_create_function(array_t *, long);
+extern instruction_t *  instruction_create_function(name_t *, long);
 extern instruction_t *  instruction_create_test(char *);
 extern instruction_t *  instruction_create_jump(char *);
-extern instruction_t *  instruction_create_import(array_t *);
+extern instruction_t *  instruction_create_import(name_t *);
 extern instruction_t *  instruction_create_pop(void);
 extern instruction_t *  instruction_create_nop(void);
 extern char *           instruction_assign_label(instruction_t *);

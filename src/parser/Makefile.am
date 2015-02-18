@@ -32,10 +32,11 @@ liboblparser_la_SOURCES = \
 		script.c \
 		namespace.c \
 		instruction.c \
-		scriptparse.c \
-		object.c
-		
+		object.c \
+		loader.c
+
 liboblparser_la_LIBADD = \
 		$(top_srcdir)/src/lib/liboblcore.la \
 		$(top_srcdir)/src/types/libobltypes.la
-		
+
+SUBDIRS = . test

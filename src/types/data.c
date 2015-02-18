@@ -530,7 +530,9 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
   }
 
   object = data_resolve(self, name);
-  if (!data_is_error(object)) {
+  if (data_is_error(object)) {
+    ret = object;
+  } else if (object) {
     if (data_is_callable(object)) {
       ret = data_call(object, args, kwargs);
       data_free(object);
@@ -540,7 +542,8 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
                        data_tostring(object));
     }
   } else {
-    ret = object;
+    ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
+                     name_tostring(name), data_tostring(self));
   }
   if (args_shifted) {
     array_free(args_shifted);
@@ -554,6 +557,51 @@ data_t * data_execute(data_t *data, char *name, array_t *args, dict_t *kwargs) {
   
   ret = data_invoke(data, n, args, kwargs);
   name_free(n);
+  return ret;
+}
+
+data_t * data_get(data_t *data, name_t *name) {
+  data_t *ret;
+  
+  ret = data_resolve(data, name);
+  if (!ret) {
+    ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
+                     name_tostring(name), data_tostring(data));
+  }
+  return ret;
+}
+
+data_t * data_set(data_t *data, name_t *name, data_t *value) {
+  typedescr_t *type;
+  data_t      *container;
+  name_t      *head;
+  data_t      *ret;
+  setvalue_t   setter;
+
+  if (name_size(name) == 1) {
+    container = data;
+  } else {
+    assert(name_size(name) > 1);
+    head = name_head(name);
+    container = data_resolve(data, head);
+    name_free(head);
+  }
+  if (data_is_error(container)) {
+    ret = container;
+  } else if (container) {
+    type = data_typedescr(container);
+    setter = (setvalue_t) typedescr_get_function(type, MethodSet);
+    if (!setter) {
+      ret = data_error(ErrorType,
+                       "Cannot set values on objects of type '%s'", 
+                       typedescr_tostring(type));
+    } else {
+      ret = setter(container, name_last(name), value);
+    }
+  } else {
+    ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
+                      name_tostring(name), data_tostring(data));
+  }
   return ret;
 }
 

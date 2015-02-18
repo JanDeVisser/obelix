@@ -27,10 +27,8 @@
 
 #include <core.h>
 
-static void    __init(void);
+static void    __init(void) __attribute__((constructor));
 static void    _outofmemory(int, siginfo_t *, void *);
-
-static int _initialized = 0;
 
 #ifdef NDEBUG
 log_level_t log_level = LogLevelInfo;
@@ -58,16 +56,11 @@ void __init(void) {
     error("Could not install SIGUSR signal handler. Bailing...");
     exit(1);
   }
-  _initialized = 1;
 }
 
 
 void * new(int sz) {
   void *ret;
-
-  if (!_initialized) {
-    __init();
-  }
 
   ret = malloc(sz);
   if (sz && !ret) {
@@ -79,9 +72,6 @@ void * new(int sz) {
 }
 
 void * new_ptrarray(int sz) {
-  if (!_initialized) {
-    __init();
-  }
   void * ret = calloc(sz, sizeof(void *));
   if (sz && !ret) {
     kill(0, SIGUSR1);
@@ -92,9 +82,6 @@ void * new_ptrarray(int sz) {
 void * resize_block(void *block, int newsz, int oldsz) {
   void *ret;
 
-  if (!_initialized) {
-    __init();
-  }
   if (block) {
     ret = realloc(block, newsz);
     if (newsz && !ret) {

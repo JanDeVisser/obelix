@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <array.h>
 #include <list.h>
 #include <str.h>
 #include "collections.h"
@@ -28,6 +29,11 @@ START_TEST(test_str_copy_chars)
   str = str_copy_chars(text);
   ck_assert_ptr_ne(str, NULL);
   ck_assert_int_eq(str_len(str), strlen(text));
+  str_free(str);
+  
+  str = str_copy_nchars(0, "0123456789");
+  ck_assert_ptr_ne(str, NULL);
+  ck_assert_int_eq(str_len(str), 0);
   str_free(str);
 END_TEST
 
@@ -235,9 +241,13 @@ START_TEST(test_str_split)
   int      ix;
   str_t   *str;
   str_t   *c;
-  char    *test = "this,is,a,test,string";
+  char    *test1 = "this,is,a,test,string";
+  char    *test2 = ",this,is,a,test,string";
+  char    *test3 = ",this,is,a,test,string,";
+  char    *test4 = "this,is,a,test,string,";
+  char    *test5 = "this,,is,a,test,string";
 
-  str = str_wrap(test);
+  str = str_wrap(test1);
   array = str_split(str, ",");
   ck_assert_ptr_ne(array, NULL);
   ck_assert_int_eq(array_size(array), 5);
@@ -245,6 +255,46 @@ START_TEST(test_str_split)
     c = (str_t *) array_get(array, ix);
     ck_assert(str_indexof_chars(c, ",") < 0);
   }
+  array_free(array);
+  str_free(str);
+  
+  str = str_wrap(test2);
+  array = str_split(str, ",");
+  ck_assert_int_eq(array_size(array), 6);
+  ck_assert_int_eq(strcmp(str_chars(array_get(array, 0)), ""), 0);
+  array_free(array);
+  str_free(str);
+  
+  str = str_wrap(test3);
+  array = str_split(str, ",");
+  ck_assert_int_eq(array_size(array), 7);
+  ck_assert_int_eq(strcmp(str_chars(array_get(array, 6)), ""), 0);
+  array_free(array);
+  str_free(str);
+  
+  str = str_wrap(test4);
+  array = str_split(str, ",");
+  ck_assert_int_eq(array_size(array), 6);
+  ck_assert_int_eq(strcmp(str_chars(array_get(array, 5)), ""), 0);
+  array_free(array);
+  str_free(str);
+  
+  str = str_wrap(test5);
+  array = str_split(str, ",");
+  ck_assert_int_eq(array_size(array), 6);
+  ck_assert_int_eq(strcmp(str_chars(array_get(array, 1)), ""), 0);
+  array_free(array);
+  str_free(str);
+  
+  str = str_wrap("");
+  array = str_split(str, ",");
+  ck_assert_int_eq(array_size(array), 0);
+  array_free(array);
+  str_free(str);
+  
+  str = str_wrap(" ");
+  array = str_split(str, ",");
+  ck_assert_int_eq(array_size(array), 1);
   array_free(array);
   str_free(str);
 END_TEST

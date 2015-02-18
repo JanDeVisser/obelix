@@ -24,8 +24,6 @@
 
 #include <data.h>
 #include <exception.h>
-#include <file.h>
-#include <grammarparser.h>
 #include <namespace.h>
 #include <script.h>
 
@@ -46,21 +44,13 @@ static int              _data_cmp_closure(data_t *, data_t *);
 static char *           _data_tostring_closure(data_t *);
 static data_t *         _data_call_closure(data_t *, array_t *, dict_t *);
 static data_t *         _data_resolve_closure(data_t *, char *);
+static data_t *         _data_set_closure(data_t *, char *, data_t *);
 
 extern data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
 
 static void             _script_list_visitor(instruction_t *);
-// static closure_t *      _script_variable_copier(entry_t *, closure_t *);
-
-// static object_t *       _object_create_root(void);
 
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
-static data_t *         _closure_set_local(closure_t *, char *, data_t *);
-
-static file_t *         _scriptloader_open_file(scriptloader_t *, char *, char *);
-static reader_t *       _scriptloader_open_reader(scriptloader_t *, char *);
-
-static scriptloader_t * _loader = NULL;
 
 /*
  * data_t Script and Closure types
@@ -89,6 +79,7 @@ static vtable_t _vtable_closure[] = {
   { .id = MethodToString, .fnc = (void_t) _data_tostring_closure },
   { .id = MethodResolve,  .fnc = (void_t) _data_resolve_closure },
   { .id = MethodCall,     .fnc = (void_t) _data_call_closure },
+  { .id = MethodSet,      .fnc = (void_t) _data_set_closure },
   { .id = MethodNone,     .fnc = NULL }
 };
 
@@ -186,6 +177,10 @@ data_t * _data_call_closure(data_t *self, array_t *params, dict_t *kwargs) {
 
 data_t * _data_resolve_closure(data_t *data, char *name) {
   return closure_resolve((closure_t *) data -> ptrval, name);
+}
+
+data_t * _data_set_closure(data_t *data, char *name, data_t *value) {
+  return closure_set((closure_t *) data -> ptrval, name, value);
 }
 
 data_t * data_create_closure(closure_t *closure) {
@@ -347,7 +342,7 @@ data_t * script_execute(script_t *script, data_t *self, array_t *args, dict_t *k
   if (script -> native) {
     ret = script -> native_method(self, script -> name, args, kwargs);
   } else {
-    closure = script_create_closure(script, self);
+    closure = script_create_closure(script, self, NULL);
     ret = closure_execute(closure, args, kwargs);
     closure_free(closure);
   }
@@ -456,7 +451,7 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
         break;
       case Error:
         label = strdup("ERROR");
-        _closure_set_local(closure, "$$ERROR", data_copy(ret));
+        closure_set(closure, "$$ERROR", data_copy(ret));
         break;
       default:
         debug("Instr '%s' returned '%s'", instruction_tostring(instr), data_tostring(ret));
@@ -514,20 +509,17 @@ closure_t * closure_push(closure_t *closure, data_t *value) {
   return closure;
 }
 
-data_t * closure_import(closure_t *closure, array_t *module) {
+data_t * closure_import(closure_t *closure, name_t *module) {
   return ns_import(closure -> imports, module);
 }
 
 data_t * closure_set(closure_t *closure, char *name, data_t *value) {
-  data_t *ret;
-  
   if (script_debug) {
     debug("  Setting local '%s' = %s in closure for %s",
           name, data_debugstr(value), closure_tostring(closure));
   }
-  ret = data_copy(value);
-  dict_put(closure -> variables, strdup(name), ret);
-  return ret;
+  dict_put(closure -> variables, strdup(name), data_copy(value));
+  return value;
 }
 
 data_t * closure_get(closure_t *closure, char *varname) {
@@ -561,7 +553,11 @@ data_t * closure_resolve(closure_t *closure, char *name) {
   ret = (data_t *) dict_get(closure -> variables, name);
   if (!ret) {
     if (closure -> up) {
-      ret = closure_resolve(closure -> up, name);
+      if (!strcmp(name, "^") || !strcmp(name, closure -> up -> script -> name)) {
+        ret = data_create(Closure, closure -> up);
+      } else {
+        ret = closure_resolve(closure -> up, name);
+      }
     } else {
       ret = ns_resolve(closure -> imports, name);
     }
@@ -575,6 +571,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   script_t *script;
 
   if (args || (script -> params && array_size(script -> params))) {
+    // FIXME Proper error message
     assert(args && (array_size(script -> params) == array_size(args)));
   }
   if (args) {
@@ -595,267 +592,3 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   return ret;
 }
 
-data_t * closure_execute_function(closure_t *closure, char *name, array_t *args, dict_t *kwargs) {
-  script_t *script;
-  data_t   *func;
-  data_t   *self;
-  data_t   *ret;
-  
-  func = closure_get(closure, name);
-  if (!data_is_error(func)) {
-    if (!data_is_script(func))  {
-      ret = data_error(ErrorName,
-                       "Variable '%s' of function '%s' is not callable",
-                       name,
-                       closure_tostring(closure));
-    } else {
-      script = data_scriptval(func);
-      self = data_create_closure(closure);
-      ret = script_execute(script, self, args, kwargs);
-      data_free(self);
-    }
-    data_free(func);
-  } else {
-    ret = func;
-  }
-  return ret;
-}
-
-/*
- * scriptloader_t - static functions
- */
-
-static file_t * _scriptloader_open_file(scriptloader_t *loader, char *basedir, char *name) {
-  char      *fname;
-  char      *ptr;
-  fsentry_t *e;
-  fsentry_t *init;
-  file_t    *ret;
-
-  if (script_debug) {
-    debug("_scriptloader_open_file('%s', '%s')", basedir, name);
-  }
-  assert(*(basedir + (strlen(basedir) - 1)) == '/');
-  while (name && ((*name == '/') || (*name == '.'))) {
-    name++;
-  }
-  fname = new(strlen(basedir) + strlen(name) + 5);
-  sprintf(fname, "%s%s", basedir, name);
-  for (ptr = strchr(fname + strlen(basedir), '.'); ptr; ptr = strchr(ptr, '.')) {
-    *ptr = '/';
-  }
-  e = fsentry_create(fname);
-  init = NULL;
-  if (fsentry_isdir(e)) {
-    init = fsentry_getentry(e, "__init__.obl");
-    fsentry_free(e);
-    if (fsentry_exists(init)) {
-      e = init;
-    } else {
-      e = NULL;
-      fsentry_free(init);
-    }
-  } else {
-    strcat(fname, ".obl");
-    e = fsentry_create(fname);
-  }
-  if ((e != NULL) && fsentry_isfile(e) && fsentry_canread(e)) {
-    ret = fsentry_open(e);
-    assert(ret -> fh > 0);
-  } else {
-    ret = NULL;
-  }
-  fsentry_free(e);
-  free(fname);
-  return ret;
-}
-
-reader_t * _scriptloader_open_reader(scriptloader_t *loader, char *name) {
-  file_t   *text = NULL;
-  char     *path_entry;
-  str_t    *dummy;
-  reader_t *rdr = NULL;
-  data_t   *ret;
-
-  if (script_debug) {
-    debug("_scriptloader_open_reader('%s')", name);
-  }
-  assert(name);
-  for (list_start(loader -> load_path); !text && list_has_next(loader -> load_path); ) {
-    path_entry = (char *) list_next(loader -> load_path);
-    text = _scriptloader_open_file(loader, path_entry, name);
-  }
-  if (text) {
-    rdr = (reader_t *) text;
-  }
-  return rdr;
-}
-
-/*
- * scriptloader_t - public functions
- */
-
-#define GRAMMAR_FILE    "grammar.txt"
-/* #define OBELIX_SYS_PATH "/usr/share/obelix" */
-#define OBELIX_SYS_PATH "install/share/"
-
-scriptloader_t * scriptloader_create(char *sys_dir, char *user_path, char *grammarpath) {
-  scriptloader_t   *ret;
-  grammar_parser_t *gp;
-  file_t           *file;
-  data_t           *root;
-  reader_t         *rdr;
-  char             *userdir;
-  int               len;
-
-  if (script_debug) {
-    debug("Creating script loader");
-  }
-  assert(!_loader);
-  ret = NEW(scriptloader_t);
-  if (!sys_dir) {
-    sys_dir = getenv("OBELIX_SYS_PATH");
-  }
-  if (!sys_dir) {
-    sys_dir = OBELIX_SYS_PATH;
-  }
-  len = strlen(sys_dir);
-  ret -> system_dir = (char *) new (len + ((*(sys_dir + (len - 1)) != '/') ? 2 : 1));
-  strcpy(ret -> system_dir, sys_dir);
-  if (*(ret -> system_dir + (strlen(ret -> system_dir) - 1)) != '/') {
-    strcat(ret -> system_dir, "/");
-  }
-  
-  if (!user_path) {
-    user_path = getenv("OBELIX_USER_PATH");
-  }
-  if (!user_path) {
-    user_path = "./";
-  }
-  len = strlen(user_path);
-
-  ret -> load_path = str_list_create();
-  userdir = (char *) new (len + ((*(user_path + (len - 1)) != '/') ? 2 : 1));
-  strcpy(userdir, user_path);
-  if (*(userdir + (strlen(userdir) - 1)) != '/') {
-    strcat(userdir, "/");
-  }
-
-  if (!grammarpath) {
-    grammarpath = (char *) new(strlen(ret -> system_dir) + strlen(GRAMMAR_FILE) + 1);
-    strcpy(grammarpath, ret -> system_dir);
-    strcat(grammarpath, GRAMMAR_FILE);
-  }
-  debug("system dir: %s", ret -> system_dir);
-  debug("user path: %s", userdir);
-  debug("grammar file: %s", grammarpath);
-
-  file = file_open(grammarpath);
-  assert(file);
-  gp = grammar_parser_create(file);
-  ret -> grammar = grammar_parser_parse(gp);
-  assert(ret -> grammar);
-  grammar_parser_free(gp);
-  file_free(file);
-  free(grammarpath);
-
-  ret -> parser = parser_create(ret -> grammar);
-
-  ret -> load_path = str_list_create();
-  list_unshift(ret -> load_path, strdup(ret -> system_dir));
-  ret -> ns = ns_create_root(ret, (import_t) scriptloader_import);
-  root = ns_import(ret -> ns, NULL);
-  if (!data_is_module(root)) {
-    error("Error initializing loader scope: %s", data_tostring(root));
-    ns_free(ret -> ns);
-    ret -> ns = NULL;
-  } else {
-    if (script_debug) {
-      debug("  Created loader namespace");
-    }
-    list_unshift(ret -> load_path, strdup(userdir));
-  }
-  data_free(root);
-  if (!ret -> ns) {
-    error("Could not initialize loader root namespace");
-    scriptloader_free(ret);
-    ret = NULL;
-  } else {
-    _loader = ret;
-  }
-  if (script_debug) {
-    debug("scriptloader created");
-  }
-  return ret;
-}
-
-scriptloader_t * scriptloader_get(void) {
-  return _loader;
-}
-
-void scriptloader_free(scriptloader_t *loader) {
-  if (loader) {
-    free(loader -> system_dir);
-    list_free(loader -> load_path);
-    grammar_free(loader -> grammar);
-    parser_free(loader -> parser);
-    ns_free(loader -> ns);
-    free(loader);
-  }
-}
-
-data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader_t *reader) {
-  data_t   *ret = NULL;
-  script_t *script;
-  
-  if (script_debug) {
-    debug("scriptloader_load_fromreader(%s)", name);
-  }
-  if (!name || !name[0]) {
-    ret = data_error(ErrorName, "Cannot load script with no name");
-  }
-  if (!ret) {
-    parser_clear(loader -> parser);
-    parser_set(loader -> parser, "name", data_create(String, name));
-    if (loader -> ns) {
-      parser_set(loader -> parser, "ns", data_create(Pointer, sizeof(namespace_t), loader -> ns));
-    }
-    parser_parse(loader -> parser, reader);
-    script = (script_t *) loader -> parser -> data;
-    ret = data_create(Script, script);
-  }
-  return ret;
-}
-
-data_t * scriptloader_load(scriptloader_t *loader, char *name) {
-  file_t   *text = NULL;
-  str_t    *dummy;
-  reader_t *rdr;
-  data_t   *ret;
-  char     *script_name;
-
-  if (script_debug) {
-    debug("scriptloader_load('%s')", name);
-  }
-  if (!ns_has(loader -> ns, name)) {
-    rdr = _scriptloader_open_reader(loader, name);
-    script_name = (name && name[0]) ? name : "__root__";
-    ret = (rdr)
-            ? scriptloader_load_fromreader(loader, script_name, rdr)
-            : data_error(ErrorName, "Could not load '%s'", script_name);
-    reader_free(rdr);
-  }
-  return ret;
-}
-
-data_t * scriptloader_import(scriptloader_t *loader, array_t *module) {
-  data_t   *ret;
-  str_t    *path;
-
-  path = (module && array_size(module))
-    ? array_join(module, ".")
-    : str_wrap("");
-  ret = scriptloader_load(loader, str_chars(path));
-  str_free(path);
-  return ret;
-}

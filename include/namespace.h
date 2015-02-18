@@ -27,16 +27,16 @@
 #include <object.h>
 #include <script.h>
 
-typedef data_t * (*import_t)(void *, array_t *);
+typedef data_t * (*import_t)(void *, name_t *);
 
 extern int ns_debug;
 
 typedef struct _module {
-  data_t *obj;
-  char   *name;
-  int     refs;
-  char   *str;
-  dict_t *contents;
+  object_t *obj;
+  char     *name;
+  int       refs;
+  char     *str;
+  dict_t   *contents;
 } module_t;
 
 typedef struct _namespace {
@@ -60,7 +60,7 @@ extern char *        mod_tostring(module_t *);
 extern int           mod_has_module(module_t *, char *);
 extern data_t *      mod_get_module(module_t *, char *);
 extern module_t *    mod_add_module(module_t *, name_t *);
-extern data_t *      mod_get(module_t *);
+extern object_t *    mod_get(module_t *);
 extern data_t *      mod_set(module_t *, script_t *);
 extern data_t *      mod_resolve(module_t *, char *);
 
@@ -68,7 +68,7 @@ extern namespace_t * ns_create(namespace_t *);
 extern namespace_t * ns_create_root(void *, import_t);
 extern void          ns_free(namespace_t *);
 extern data_t *      ns_import(namespace_t *, name_t *);
-extern data_t *      ns_get(namespace_t *, char *);
+extern data_t *      ns_get(namespace_t *, name_t *);
 extern data_t *      ns_resolve(namespace_t *, char *);
 
 #endif /* __NAMESPACE_H__ */

@@ -21,10 +21,10 @@
 #include <math.h>
 #include <stdarg.h>
 
+#include <collections.h>
 #include <array.h>
 #include <data.h>
-#include <error.h>
-#include "collections.h"
+#include <exception.h>
 
 #define TEST_STRING     "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define TEST_STRING_LEN 36
@@ -93,7 +93,7 @@ START_TEST(data_string)
   ret = execute(data, "len", 0);
   ck_assert_ptr_ne(ret, NULL);
   ck_assert_int_eq(data_type(ret), Int);
-  ck_assert_int_eq(data_longval(ret), TEST_STRING_LEN);
+  ck_assert_int_eq(data_intval(ret), TEST_STRING_LEN);
   data_free(ret);
   
   ret = execute(data, "len", 1, Int, 10);
@@ -292,3 +292,26 @@ TCase * get_testcase(int ix) {
 }
 
 
+int main(void){
+  int number_failed;
+  Suite *s;
+  SRunner *sr;
+  TCase *tc;
+  int ix;
+
+  s = suite_create(get_suite_name());
+  for (ix = 0; TRUE; ix++) {
+    tc = get_testcase(ix);
+    if (tc) {
+      suite_add_tcase(s, tc);
+    } else {
+      break;
+    }
+  }
+  sr = srunner_create(s);
+
+  srunner_run_all(sr, CK_VERBOSE);
+  number_failed = srunner_ntests_failed(sr);
+  srunner_free(sr);
+  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+}

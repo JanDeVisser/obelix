@@ -45,7 +45,7 @@ extern object_t *          object_create(struct _script *);
 extern void                object_free(object_t *);
 extern object_t *          object_copy(object_t *);
 extern data_t *            object_get(object_t *, char *);
-extern object_t *          object_set(object_t *, char *, data_t *);
+extern data_t *            object_set(object_t *, char *, data_t *);
 extern int                 object_has(object_t *, char *);
 extern data_t *            object_call(object_t *, array_t *, dict_t *);
 extern char *              object_tostring(object_t *);

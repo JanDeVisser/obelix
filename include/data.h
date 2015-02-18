@@ -67,7 +67,6 @@ typedef enum _vtable_id {
   MethodResolve,
   MethodCall,
   MethodSet,
-  MethodGet,
   MethodRead,
   MethodWrite,
   MethodOpen,
@@ -93,6 +92,7 @@ typedef data_t * (*cast_t)(data_t *, int);
 typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
 typedef data_t * (*resolve_name_t)(data_t *, char *);
 typedef data_t * (*call_t)(data_t *, array_t *, dict_t *);
+typedef data_t * (*setvalue_t)(data_t *, char *, data_t *);
 
 typedef struct _vtable {
   vtable_id_t id;
@@ -151,11 +151,11 @@ extern char *          data_tostring(data_t *);
 extern int             data_cmp(data_t *, data_t *);
 extern data_t *        data_call(data_t *, array_t *, dict_t *);
 extern data_t *        data_method(data_t *, char *);
-extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);                 */
+extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);
 extern data_t *        data_resolve(data_t *, name_t *);
 extern data_t *        data_invoke(data_t *, name_t *, array_t *, dict_t *);
-extern data_t *        data_get(data_t *, array_t *);
-extern data_t *        data_set(data_t *, array_t *, data_t *);
+extern data_t *        data_get(data_t *, name_t *);
+extern data_t *        data_set(data_t *, name_t *, data_t *);
 extern char *          data_debugstr(data_t *);
 
 extern double          data_floatval(data_t *);

@@ -36,6 +36,7 @@ static char *       _data_tostring_object(data_t *);
 static unsigned int _data_hash_object(data_t *);
 static data_t *     _data_call_object(data_t *, array_t *, dict_t *);
 static data_t *     _data_resolve_object(data_t *, char *);
+static data_t *     _data_set_object(data_t *, char *, data_t *);
 
 /*
  * data_t Object type
@@ -50,6 +51,7 @@ static vtable_t _vtable_object[] = {
   { .id = MethodHash,     .fnc = (void_t) _data_hash_object },
   { .id = MethodResolve,  .fnc = (void_t) _data_resolve_object },
   { .id = MethodCall,     .fnc = (void_t) _data_call_object },
+  { .id = MethodSet,      .fnc = (void_t) _data_set_object },
   { .id = MethodNone,     .fnc = NULL }
 };
 
@@ -60,7 +62,7 @@ static typedescr_t _typedescr_object = {
 };
 
 void _data_init_object(void) {
-  typedescr_register(&typedescr_object);  
+  typedescr_register(&_typedescr_object);  
 }
 
 data_t * _data_new_object(data_t *ret, va_list arg) {
@@ -95,6 +97,10 @@ data_t * _data_call_object(data_t *self, array_t *args, dict_t *kwargs) {
 
 data_t * _data_resolve_object(data_t *data, char *name) {
   return object_resolve(data_objectval(data), name);
+}
+
+data_t * _data_set_object(data_t *data, char *name, data_t *value) {
+  return object_set(data_objectval(data), name, value);
 }
 
 data_t * data_create_object(object_t *object) {
@@ -192,12 +198,12 @@ data_t * object_get(object_t *object, char *name) {
   return ret;
 }
 
-object_t * object_set(object_t *object, char *name, data_t *value) {
+data_t * object_set(object_t *object, char *name, data_t *value) {
   str_t     *s;
   closure_t *closure;
   
   if (data_is_script(value)) {
-    closure = script_create_closure(data_scriptval(value), data_create(Object, object));
+    closure = script_create_closure(data_scriptval(value), data_create(Object, object), NULL);
     value = data_create(Closure, closure);
   }  
   dict_put(object -> variables, strdup(name), data_copy(value));
@@ -208,7 +214,7 @@ object_t * object_set(object_t *object, char *name, data_t *value) {
           str_chars(s));
     str_free(s);
   }
-  return object;
+  return value;
 }
 
 int object_has(object_t *object, char *name) {
