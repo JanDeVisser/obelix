@@ -29,6 +29,7 @@ extern "C" {
 
 typedef struct _name {
   array_t *name;
+  char    *sep;
   char    *str;
 } name_t;
 
@@ -37,6 +38,8 @@ typedef struct _name {
 
 extern name_t *          name_create(int, ...);
 extern name_t *          name_vcreate(int, va_list);
+extern name_t *          name_split(char *, char *);
+extern name_t *          name_parse(char *);
 extern name_t *          name_copy(name_t *);
 extern void              name_free(name_t *);
 extern int               name_size(name_t *);
@@ -45,8 +48,11 @@ extern char *            name_last(name_t *);
 extern char *            name_get(name_t *, int);
 extern name_t *          name_tail(name_t *);
 extern name_t *          name_head(name_t *);
+extern char *            name_tostring_sep(name_t *, char *);
 extern char *            name_tostring(name_t *);
 extern name_t *          name_extend(name_t *, char *);
+extern name_t *          name_append(name_t *, name_t *);
+extern name_t *          name_append_array(name_t *, array_t *);
 extern int               name_cmp(name_t *, name_t *);
 extern unsigned int      name_hash(name_t *);
 

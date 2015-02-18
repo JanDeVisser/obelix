@@ -44,6 +44,8 @@ int main(int argc, char **argv) {
 }
 #endif
 
+#include <loader.h>
+#include <name.h>
 #include <namespace.h>
 #include <script.h>
 
@@ -84,15 +86,39 @@ void debug_settings(char *debug) {
   }
 }
 
+int run_script(scriptloader_t *loader, name_t *name) {
+  data_t   *data;
+  data_t   *ret;
+  object_t *obj;
+  module_t *mod;
+  int       retval;
+  
+  data = scriptloader_import(loader, name);
+  if (data_is_module(data)) {
+    mod = mod_copy(data_moduleval(data));
+    data_free(data);
+    obj = object_copy(mod_get(mod));
+    data = data_create(Object, obj);
+    ret = data_execute(data, "main", NULL, NULL);
+    data_free(data);
+    object_free(obj);
+    mod_free(mod);
+  }
+  debug("Exiting with exit code %s", data_tostring(ret));
+  retval = (ret && data_type(ret) == Int) ? (int) ret -> intval : 0;
+  data_free(ret);
+  return retval;  
+}
+
 int main(int argc, char **argv) {
   char           *grammar = NULL;
   char           *debug = NULL;
   char           *basepath;
+  name_t         *path;
+  name_t         *name;
   char           *syspath = NULL;
   int             opt;
   scriptloader_t *loader;
-  data_t         *ret;
-  script_t       *script;
   int             retval;
 
   while ((opt = getopt(argc, argv, "s:g:d:p:l:")) != -1) {
@@ -124,18 +150,12 @@ int main(int argc, char **argv) {
     basepath = getcwd(NULL, 0);
   }
   
-  loader = scriptloader_create(syspath, basepath, grammar);
+  path = name_split(basepath, ":");
   free(basepath);
-  ret = scriptloader_load(loader, argv[optind]);
-  if (data_is_script(ret)) {
-    script = script_copy(data_scriptval(ret));
-    data_free(ret);
-    ret = script_execute(script, NULL, NULL, NULL);
-  }
-  debug("Exiting with exit code %s", data_tostring(ret));
-  retval = (ret && data_type(ret) == Int) ? (int) ret -> intval : 0;
-  data_free(ret);
-  script_free(script);
+  name = name_split(argv[optind], ".");
+  
+  loader = scriptloader_create(syspath, path, grammar);
+  retval = run_script(loader, name);
   scriptloader_free(loader);
   return retval;
 }

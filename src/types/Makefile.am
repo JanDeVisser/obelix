@@ -33,4 +33,5 @@ libobltypes_la_SOURCES = \
 
 libobltypes_la_LIBADD = \
 		$(top_srcdir)/src/lib/liboblcore.la
-		
+
+SUBDIRS = . test

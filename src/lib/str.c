@@ -39,14 +39,12 @@ str_t * _str_initialize(void) {
   str_t *ret;
 
   ret = NEW(str_t);
-  if (ret) {
-    ret -> read_fnc = (read_t) str_read;
-    ret -> free = (free_t) str_free;
-    ret -> buffer = NULL;
-    ret -> pos = 0;
-    ret -> len = 0;
-    ret -> bufsize = 0;
-  }
+  ret -> read_fnc = (read_t) str_read;
+  ret -> free = (free_t) str_free;
+  ret -> buffer = NULL;
+  ret -> pos = 0;
+  ret -> len = 0;
+  ret -> bufsize = 0;
   return ret;
 }
 
@@ -87,21 +85,12 @@ reduce_ctx * _str_join_reducer(char *elem, reduce_ctx *ctx) {
 
 str_t * str_create(int size) {
   str_t *ret;
-  char  *b;
 
   ret = _str_initialize();
-  if (ret) {
-    size = size ? size : _DEFAULT_SIZE;
-    b = (char *) malloc(size);
-    if (b) {
-      memset(b, 0, size);
-      ret -> buffer = b;
-      ret -> bufsize = size;
-    } else {
-      free(ret);
-      ret = NULL;
-    }
-  }
+  size = size ? size : _DEFAULT_SIZE;
+  ret -> buffer = (char *) new(size);
+  memset(ret -> buffer, 0, size);
+  ret -> bufsize = size;
   return ret;
 }
 
@@ -456,20 +445,22 @@ array_t * str_split(str_t *str, char *sep) {
 
   ret = array_create(4);
   array_set_free(
-      array_set_hash(
-          array_set_tostring(
-              array_set_cmp(ret, (cmp_t) str_cmp),
-              (tostring_t) str_chars),
-          (hash_t) str_hash),
-      (free_t) str_free);
+    array_set_hash(
+      array_set_tostring(
+        array_set_cmp(ret, (cmp_t) str_cmp),
+        (tostring_t) str_chars),
+      (hash_t) str_hash),
+    (free_t) str_free);
 
-  ptr = str -> buffer;
-  for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
-    c = str_copy_nchars(sepptr - ptr, ptr);
+  if (str_len(str)) {
+    ptr = str -> buffer;
+    for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
+      c = str_copy_nchars(sepptr - ptr, ptr);
+      array_push(ret, c);
+      ptr = sepptr + strlen(sep);
+    }
+    c = str_copy_chars(ptr);
     array_push(ret, c);
-    ptr = sepptr + strlen(sep);
   }
-  c = str_copy_chars(ptr);
-  array_push(ret, c);
   return ret;
 }

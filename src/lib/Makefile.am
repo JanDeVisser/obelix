@@ -26,11 +26,16 @@ liboblcore_la_SOURCES = \
 		array.c \
 		dict.c \
 		set.c \
-		tree.c \
-		expr.c \
 		file.c \
 		str.c \
 		resolve.c \
 		user.c
-		
+
+# Disabled for now. Don't need them and expr needs to be moved to types.		
+#		tree.c 
+#		expr.c 
+
 liboblcore_la_LIBADD = -ldl
+
+SUBDIRS = . test
+

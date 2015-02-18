@@ -98,7 +98,6 @@ extern int             asprintf(char **, const char *, ...);
 #ifndef HAVE_VASPRINTF
 extern int             vasprintf(char **, const char *, va_list);
 #endif
-
 extern unsigned int    hash(void *, size_t);
 extern unsigned int    hashptr(void *);
 extern unsigned int    hashlong(long);

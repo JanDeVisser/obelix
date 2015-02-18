@@ -30,7 +30,7 @@ static int           _data_cmp_module(data_t *, data_t *);
 static char *        _data_tostring_module(data_t *);
 static unsigned int  _data_hash_module(data_t *);
 static data_t *      _data_resolve_module(data_t *, char *);
-static data_t *      _data_call_module(data_t *array_t *, dict_t *);
+static data_t *      _data_call_module(data_t *, array_t *, dict_t *);
 
 static namespace_t * _ns_create(void);
 static module_t *    _ns_add(namespace_t *, name_t *);
@@ -101,7 +101,8 @@ data_t * _data_resolve_module(data_t *mod, char *name) {
 
 data_t * _data_call_module(data_t *mod, array_t *args, dict_t *kwargs) {
   module_t *m = data_moduleval(mod);
-  return data_call(m -> obj, args, kwargs);
+  
+  return object_call(m -> obj, args, kwargs);
 }
 
 data_t * data_create_module(module_t *module) {
@@ -169,8 +170,8 @@ data_t * mod_set(module_t *mod, script_t *script) {
   
   data = script_create_object(script, NULL, NULL);
   if (data_is_object(data)) {
-    data_free(mod -> obj);
-    mod -> obj = data_copy(data);
+    object_free(mod -> obj);
+    mod -> obj = object_copy(data_objectval(data));
     if (ns_debug) {
       debug("  module '%s' initialized", mod -> name);
     }
@@ -180,8 +181,8 @@ data_t * mod_set(module_t *mod, script_t *script) {
   return data;
 }
 
-data_t * mod_get(module_t *mod) {
-  return (mod -> obj) ? data_copy(mod -> obj) : NULL;
+object_t * mod_get(module_t *mod) {
+  return (mod -> obj) ? object_copy(mod -> obj) : NULL;
 }
 
 data_t * mod_resolve(module_t *mod, char *name) {
@@ -191,7 +192,7 @@ data_t * mod_resolve(module_t *mod, char *name) {
    * You can shadow subpackages by explicitely having an attribute in the 
    * object.
    */
-  ret = object_resolve(data_objectval(mod -> obj), name);
+  ret = object_resolve(mod -> obj, name);
   if (!ret) {
     ret = mod_get_module(mod, name);
   }
@@ -203,7 +204,7 @@ namespace_t * _ns_create(void) {
   namespace_t *ret;
 
   ret = NEW(namespace_t);
-  ret -> root = mod_create(name_create(0));
+  ret -> root = data_create(Module, mod_create(name_create(0)));
   ret -> import_ctx = NULL;
   ret -> up = NULL;
   return ret;
@@ -260,7 +261,7 @@ namespace_t * ns_create_root(void *importer, import_t import_fnc) {
 
 void ns_free(namespace_t *ns) {
   if (ns) {
-    mod_free(ns -> root);
+    data_free(ns -> root);
     free(ns);
   }
 }
@@ -268,8 +269,9 @@ void ns_free(namespace_t *ns) {
 data_t * ns_import(namespace_t *ns, name_t *name) {
   char     *n;
   data_t   *data;
-  module_t *mod;
+  data_t   *mod;
   data_t   *script;
+  module_t *module;
 
   if (ns_debug) {
     debug("  Importing module '%s'", name_tostring(name));
@@ -279,8 +281,7 @@ data_t * ns_import(namespace_t *ns, name_t *name) {
     if (ns_debug) {
       debug("  Module '%s' already imported", n);
     }
-    data = mod_get(mod);
-    assert(data);
+    data = mod;
   } else {
     if (!ns -> import_ctx) {
       if (ns_debug) {
@@ -293,11 +294,11 @@ data_t * ns_import(namespace_t *ns, name_t *name) {
       }
       script = ns -> import_fnc(ns -> import_ctx, name);
       if (data_is_script(script)) {
-        mod = _ns_add(ns, name);
-        data = mod_set(mod, data_scriptval(script));
+        module = _ns_add(ns, name);
+        data = mod_set(module, data_scriptval(script));
 
-        if (data_is_object(data)) {
-          data = data_create(Module, mod);
+        if (data_is_module(data)) {
+          data = data_create(Module, module);
         }
       } else {
         data = script; /* !data_is_script(script) => Error */

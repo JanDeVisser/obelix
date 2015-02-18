@@ -22,8 +22,8 @@
 #include <script.h>
 #include <scriptparse.h>
 
-static int       _script_pop_operation(parser_t *, char *);
-static array_t * _script_pop_and_build_varname(parser_t *);
+static int      _script_pop_operation(parser_t *, char *);
+static name_t * _script_pop_and_build_varname(parser_t *);
 
 /* ----------------------------------------------------------------------- */
 
@@ -49,26 +49,27 @@ int _script_pop_operation(parser_t *parser, char *buf) {
   return op;
 }
 
-array_t * _script_pop_and_build_varname(parser_t *parser) {
-  data_t         *data;
-  data_t         *count;
-  int             ix;
-  array_t        *ret;
-  str_t          *debugstr;
+name_t * _script_pop_and_build_varname(parser_t *parser) {
+  data_t *data;
+  data_t *count;
+  int     ix;
+  name_t *ret;
+  str_t  *debugstr;
 
   count = (data_t *) datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug("  -- components: %d", data_intval(count));
+    debug("  -- #components: %d", data_intval(count));
   }
-  ret = data_array_create(data_intval(count));
+  ret = name_create(data_intval(count));
   for (ix = data_intval(count) - 1; ix >= 0; ix--) {
     data = datastack_pop(parser -> stack);
-    array_set(ret, ix, data_copy(data));
+    assert(data_type(data) == String);
+    name_extend(ret, data_charval(data));
     data_free(data);
   }
   data_free(count);
   if (parser_debug) {
-    array_debug(ret, "  -- varname: %s");
+    debug("  -- varname: %s", name_tostring(ret));
   }
   return ret;
 }
@@ -123,7 +124,7 @@ parser_t * script_parse_done(parser_t *parser) {
 }
 
 parser_t * script_parse_emit_assign(parser_t *parser) {
-  array_t  *varname;
+  name_t   *varname;
   script_t *script;
 
   script = parser -> data;
@@ -135,7 +136,7 @@ parser_t * script_parse_emit_assign(parser_t *parser) {
 
 parser_t * script_parse_emit_pushvar(parser_t *parser) {
   script_t *script;
-  array_t  *varname;
+  name_t   *varname;
 
   script = parser -> data;
   varname = _script_pop_and_build_varname(parser);
@@ -224,7 +225,7 @@ parser_t * script_parse_jump(parser_t *parser) {
 
 parser_t * script_parse_emit_func_call(parser_t *parser) {
   script_t *script;
-  array_t  *func_name;
+  name_t   *func_name;
   data_t   *param_count;
 
   script = parser -> data;
@@ -242,7 +243,7 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
 
 parser_t * script_parse_import(parser_t *parser) {
   script_t *script;
-  array_t  *module;
+  name_t   *module;
 
   script = parser -> data;
   module = _script_pop_and_build_varname(parser);

@@ -60,14 +60,6 @@ typedef struct _closure {
   int                refs;
 } closure_t;
 
-typedef struct _scriptloader {
-  list_t            *load_path;
-  char              *system_dir;
-  grammar_t         *grammar;
-  parser_t          *parser;
-  namespace_t       *ns;
-} scriptloader_t;
-
 extern data_t *            data_create_script(script_t *);
 extern data_t *            data_create_closure(closure_t *);
 
@@ -92,7 +84,7 @@ extern script_t *       script_get_toplevel(script_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
 extern script_t *       script_create_native(script_t *, function_t *);
 extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
-extern closure_t *      script_create_closure(script_t *, data_t *);
+extern closure_t *      script_create_closure(script_t *, data_t *, closure_t *);
 extern data_t *         script_execute(script_t *, data_t *, array_t *, dict_t *);
 
 /*
@@ -100,7 +92,6 @@ extern data_t *         script_execute(script_t *, data_t *, array_t *, dict_t *
  */
 extern void             closure_free(closure_t *);
 extern char *           closure_tostring(closure_t *);
-extern char *           closure_get_name(closure_t *);
 extern data_t *         closure_pop(closure_t *);
 extern closure_t *      closure_push(closure_t *, data_t *);
 extern data_t *         closure_set(closure_t *, char *, data_t *);
@@ -108,18 +99,8 @@ extern data_t *         closure_get(closure_t *, char *);
 extern int              closure_has(closure_t *, char *);
 extern data_t *         closure_resolve(closure_t *, char *);
 extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
-extern data_t *         closure_import(closure_t *, array_t *);
+extern data_t *         closure_import(closure_t *, name_t *);
   
 #define closure_get_name(c)   closure_tostring((c))
-
-/*
- * scriptloader_t prototypes
- */
-extern scriptloader_t * scriptloader_create(char *, char *, char *);
-extern scriptloader_t * scriptloader_get(void);
-extern void             scriptloader_free(scriptloader_t *);
-extern data_t *         scriptloader_load_fromreader(scriptloader_t *, char *, reader_t *);
-extern data_t *         scriptloader_load(scriptloader_t *, char *);
-extern data_t *         scriptloader_import(scriptloader_t *, array_t *);
 
 #endif /* __SCRIPT_H__ */
