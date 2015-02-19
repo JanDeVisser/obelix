@@ -63,23 +63,27 @@ static methoddescr_t _methoddescr_any[] = {
 };
 
 static code_label_t _function_id_labels[] = {
-  { .code = MethodNone,     .label = "MethodNone" },
-  { .code = MethodNew,      .label = "MethodNew" },
-  { .code = MethodCopy,     .label = "MethodCopy" },
-  { .code = MethodCmp,      .label = "MethodCmp" },
-  { .code = MethodFree,     .label = "MethodFree" },
-  { .code = MethodToString, .label = "MethodToString" },
-  { .code = MethodParse,    .label = "MethodParse" },
-  { .code = MethodCast,     .label = "MethodCast" },
-  { .code = MethodHash,     .label = "MethodHash" },
-  { .code = MethodLen,      .label = "MethodLen" },
-  { .code = MethodResolve,  .label = "MethodResolve" },
-  { .code = MethodCall,     .label = "MethodCall" },
-  { .code = MethodRead,     .label = "MethodRead" },
-  { .code = MethodWrite,    .label = "MethodWrite" },
-  { .code = MethodOpen,     .label = "MethodOpen" },
-  { .code = MethodIter,     .label = "MethodIter" },
-  { .code = MethodNext,     .label = "MethodNext" },
+  { .code = MethodNone,     .label = "None" },
+  { .code = MethodNew,      .label = "New" },
+  { .code = MethodCopy,     .label = "Copy" },
+  { .code = MethodCmp,      .label = "Cmp" },
+  { .code = MethodFree,     .label = "Free" },
+  { .code = MethodToString, .label = "ToString" },
+  { .code = MethodFltValue, .label = "FltValue" },
+  { .code = MethodIntValue, .label = "IntValue" },
+  { .code = MethodParse,    .label = "Parse" },
+  { .code = MethodCast,     .label = "Cast" },
+  { .code = MethodHash,     .label = "Hash" },
+  { .code = MethodLen,      .label = "Len" },
+  { .code = MethodResolve,  .label = "Resolve" },
+  { .code = MethodCall,     .label = "Call" },
+  { .code = MethodSet,      .label = "Set" },
+  { .code = MethodRead,     .label = "Read" },
+  { .code = MethodWrite,    .label = "Write" },
+  { .code = MethodOpen,     .label = "Open" },
+  { .code = MethodIter,     .label = "Iter" },
+  { .code = MethodNext,     .label = "Next" },
+  { .code = MethodEndOfListDummy, .label = "End" },
   { .code = -1,             .label = NULL }
 };
 
@@ -113,10 +117,6 @@ data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     assert(0);
     ret = data_create(Bool, 0);
   }
-  /*
-  debug("_any_cmp('%s' %s '%s') [cmp: %d] = %s" }, 
-        data_debugstr(self), name, data_debugstr(other), cmp, data_debugstr(ret));
-  */
   return ret;
 }
 
@@ -158,25 +158,25 @@ int typedescr_register(typedescr_t *descr) {
 
 typedescr_t * typedescr_register_functions(typedescr_t *descr, vtable_t vtable[]) {
   int ix;
-  
+
   if (vtable) {
     for (ix = 0; vtable[ix].fnc; ix++) {
       typedescr_register_function(descr, vtable[ix].id, vtable[ix].fnc);
-      vtable++;
     }
   }
   return descr;
 }
 
 typedescr_t * typedescr_register_function(typedescr_t *type, int fnc_id, void_t fnc) {
-  int             newsz;
-  int             cursz;
-  
-  if (fnc_id >= type -> vtable_size) {
-    newsz = (fnc_id + 1) * sizeof(vtable_t);
-    cursz = type -> vtable_size * sizeof(vtable_t);
-    type -> vtable = (vtable_t *) resize_block(type -> vtable, newsz, cursz);
-    type -> vtable_size = fnc_id + 1;
+  int ix;
+
+  if (!type -> vtable) {
+    type -> vtable = (vtable_t *) new((MethodEndOfListDummy + 1) * sizeof(vtable_t));
+    for (ix = 0; ix <= MethodEndOfListDummy; ix++) {
+      type -> vtable[ix].id = ix;
+      type -> vtable[ix].fnc = NULL;
+    }
+    type -> vtable_size = MethodEndOfListDummy + 1;
   }
   type -> vtable[fnc_id].id = fnc_id;
   type -> vtable[fnc_id].fnc = fnc;
@@ -196,6 +196,16 @@ typedescr_t * typedescr_get(int datatype) {
     return NULL;
   } else {
     return ret;
+  }
+}
+
+void typedescr_dump_vtable(typedescr_t *type) {
+  int ix;
+  
+  debug("vtable for %s", typedescr_tostring(type));
+  for (ix = 0; ix < type -> vtable_size; ix++) {
+    assert(ix == type -> vtable[ix].id);
+    debug("%-20.20s %d %p", label_for_code(_function_id_labels, ix), ix, type -> vtable[ix].fnc);
   }
 }
 
@@ -297,11 +307,8 @@ int typedescr_is(typedescr_t *descr, int type) {
 data_t * data_create(int type, ...) {
   va_list      arg;
   data_t      *ret;
-  void        *value;
-  typedescr_t *descr;
+  typedescr_t *descr = typedescr_get(type);
   new_t        n;
-
-  descr = typedescr_get(type);
   
   ret = NEW(data_t);
   ret -> type = type;
@@ -319,7 +326,6 @@ data_t * data_create(int type, ...) {
     ret = n(ret, arg);
     va_end(arg);
   }
-  /* debug("data_create(%s, ...) = %s" }, typedescr_tostring(descr), data_tostring(ret)); */
   return ret;
 }
 
@@ -449,11 +455,9 @@ data_t * data_copy(data_t *src) {
 }
 
 data_t * data_call(data_t *self, array_t *args, dict_t *kwargs) {
-  call_t       call = (call_t) data_get_function(self, MethodCall);
+  call_t call = (call_t) data_get_function(self, MethodCall);
   
   assert(data_is_callable(self));
-  assert(call); // Should be superfluous, data_is_callable uses presence of
-                // the call function to determine its result.
   call(self, args, kwargs);
 }
 
@@ -462,20 +466,18 @@ data_t * data_method(data_t *data, char *name) {
   methoddescr_t *md;
   data_t        *ret = NULL;
   
-  if (type -> methods) {
-    md = typedescr_get_method(type, name);
-    if (md) {
-      if (!data -> methods) {
-        data -> methods = strdata_dict_create();
-      } else {
-        ret = (data_t *) dict_get(data -> methods, name);
-      }
-      if (!ret) {
-        ret = data_create(Method, md, data);
-        dict_put(data -> methods, strdup(name), ret);
-      }
-      ret = data_copy(ret);
+  md = typedescr_get_method(type, name);
+  if (md) {
+    if (!data -> methods) {
+      data -> methods = strdata_dict_create();
+    } else {
+      ret = (data_t *) dict_get(data -> methods, name);
     }
+    if (!ret) {
+      ret = data_create(Method, md, data);
+      dict_put(data -> methods, strdup(name), ret);
+    }
+    ret = data_copy(ret);
   }
   return ret;
 }
@@ -483,6 +485,7 @@ data_t * data_method(data_t *data, char *name) {
 data_t * data_resolve(data_t *data, name_t *name) {
   typedescr_t    *type = data_typedescr(data);
   data_t         *ret = NULL;
+  data_t         *tail_resolve;
   resolve_name_t  resolve;
   name_t         *tail;
   
@@ -498,15 +501,18 @@ data_t * data_resolve(data_t *data, name_t *name) {
     if (!resolve) {
       ret = data_error(ErrorType,
                        "Cannot resolve name '%s' in %s '%s'", 
-                       name_tostring(name), type -> type_name, data_tostring(data)
-                      );
+                       name_tostring(name),
+                       type -> type_name, 
+                       data_tostring(data));
     } else {
       ret = resolve(data, name_first(name));
     }
   }
-  if (ret && (name_size(name) > 1)) {
+  if (ret && !data_is_error(ret) && (name_size(name) > 1)) {
     tail = name_tail(name);
-    ret = data_resolve(ret, tail);
+    tail_resolve = data_resolve(ret, tail);
+    data_free(ret);
+    ret = tail_resolve;
     name_free(tail);
   }
   return ret;
@@ -529,21 +535,23 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
     ret = data_error(ErrorArgCount, "No 'self' object specified for method '%s'", name);
   }
 
-  object = data_resolve(self, name);
-  if (data_is_error(object)) {
-    ret = object;
-  } else if (object) {
-    if (data_is_callable(object)) {
-      ret = data_call(object, args, kwargs);
-      data_free(object);
+  if (!ret) {
+    object = data_resolve(self, name);
+    if (data_is_error(object)) {
+      ret = object;
+    } else if (object) {
+      if (data_is_callable(object)) {
+        ret = data_call(object, args, kwargs);
+        data_free(object);
+      } else {
+        ret = data_error(ErrorNotCallable, 
+                         "Atom '%s' is not callable",
+                         data_tostring(object));
+      }
     } else {
-      ret = data_error(ErrorNotCallable, 
-                       "Atom '%s' is not callable",
-                       data_tostring(object));
+      ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
+                       name_tostring(name), data_tostring(self));
     }
-  } else {
-    ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
-                     name_tostring(name), data_tostring(self));
   }
   if (args_shifted) {
     array_free(args_shifted);
@@ -660,27 +668,16 @@ int data_cmp(data_t *d1, data_t *d2) {
   int          ret;
   cmp_t        cmp;
   
-  /* debug("data_cmp: comparing '%s' and '%s'" }, data_debugstr(d1), data_debugstr(d2)); */
   if (!d1 && !d2) {
     return 0;
   } else if (!d1 || !d2) {
     return (!d1) ? -1 : 1;
   } else if (d1 -> type != d2 -> type) {
     p1 = data_promote(d1);
-    /*
-    if (p1) {
-      debug("data_cmp: promoted d1 to '%s'" }, data_debugstr(p1));
-    }
-    */
     if (p1 && (p1 -> type == d2 -> type)) {
       ret = data_cmp(p1, d2);
     } else {
       p2 = data_promote(d2);
-      /*
-      if (p2) {
-        debug("data_cmp: promoted d2 to '%s'" }, data_debugstr(p2));
-      }
-      */
       if (p2 && (d1 -> type == p2 -> type)) {
 	ret = data_cmp(d1, p2);
       } else if (p1 && !p2) {
@@ -717,4 +714,3 @@ dict_t * data_put_all_reducer(entry_t *e, dict_t *target) {
   dict_put(target, strdup(e -> key), data_copy(e -> value));
   return target;
 }
-

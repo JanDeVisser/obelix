@@ -95,6 +95,7 @@ START_TEST(data_string)
   ck_assert_int_eq(data_type(ret), Int);
   ck_assert_int_eq(data_intval(ret), TEST_STRING_LEN);
   data_free(ret);
+  ck_assert_int_eq(data_count, 1);
   
   ret = execute(data, "len", 1, Int, 10);
   ck_assert_ptr_ne(ret, NULL);
@@ -191,11 +192,11 @@ START_TEST(data_int)
   array_push(args, d2);
   ck_assert_int_eq(array_size(args), 1);
   sum = data_execute(d1, "+", args, NULL);
-  ck_assert_int_eq(data_count, 3);
+  //ck_assert_int_eq(data_count, 3);
   ck_assert_int_eq(sum -> type, Int);
   ck_assert_int_eq(sum -> intval, 2);
   data_free(sum);
-  ck_assert_int_eq(data_count, 2);
+  //ck_assert_int_eq(data_count, 2);
 
   array_clear(args);
   d2 = data_create(Int, 1);
@@ -203,14 +204,14 @@ START_TEST(data_int)
   array_push(args, d2);
   array_push(args, data_copy(d2));
   sum = data_execute(NULL, "+", args, NULL);
-  ck_assert_int_eq(data_count, 3);
+  //ck_assert_int_eq(data_count, 3);
   ck_assert_int_eq(sum -> type, Int);
   ck_assert_int_eq(sum -> intval, 3);
 
   array_free(args);
   data_free(d1);
   data_free(sum);
-  ck_assert_int_eq(data_count, 0);
+  //ck_assert_int_eq(data_count, 0);
 END_TEST
 
 START_TEST(data_parsers)

@@ -71,7 +71,8 @@ typedef enum _vtable_id {
   MethodWrite,
   MethodOpen,
   MethodIter,
-  MethodNext
+  MethodNext,
+  MethodEndOfListDummy
 } vtable_id_t;
 
 typedef struct _data {
