@@ -36,6 +36,7 @@ static unsigned int _string_hash(data_t *);
 static char *       _string_tostring(data_t *);
 static data_t *     _string_parse(char *str);
 static data_t *     _string_cast(data_t *, int);
+static data_t *     _string_resolve(data_t *, char *);
 
 static data_t *     _string_len(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_slice(data_t *, char *, array_t *, dict_t *);
@@ -50,14 +51,15 @@ static data_t *     _string_concat(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_repeat(data_t *, char *, array_t *, dict_t *);
 
 vtable_t _vtable_string[] = {
-  { .id = MethodNew,      .fnc = (void_t) _string_new },
-  { .id = MethodCopy,     .fnc = (void_t) _string_copy },
-  { .id = MethodCmp,      .fnc = (void_t) _string_cmp },
-  { .id = MethodToString, .fnc = (void_t) _string_tostring },
-  { .id = MethodParse,    .fnc = (void_t) _string_parse },
-  { .id = MethodCast,     .fnc = (void_t) _string_cast },
-  { .id = MethodHash,     .fnc = (void_t) _string_hash },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _string_new },
+  { .id = FunctionCopy,     .fnc = (void_t) _string_copy },
+  { .id = FunctionCmp,      .fnc = (void_t) _string_cmp },
+  { .id = FunctionToString, .fnc = (void_t) _string_tostring },
+  { .id = FunctionParse,    .fnc = (void_t) _string_parse },
+  { .id = FunctionCast,     .fnc = (void_t) _string_cast },
+  { .id = FunctionHash,     .fnc = (void_t) _string_hash },
+  { .id = FunctionResolve,  .fnc = (void_t) _string_resolve },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_str = {
@@ -129,8 +131,22 @@ data_t * _string_cast(data_t *data, int totype) {
   parse_t      parse;
   
   assert(type);
-  parse = (parse_t) typedescr_get_function(type, MethodParse);
+  parse = (parse_t) typedescr_get_function(type, FunctionParse);
   return (parse) ? parse(data -> ptrval) : NULL;
+}
+
+data_t * _string_resolve(data_t *data, char *slice) {
+  char    *str = data_charval(data);
+  int      ix = atoi(slice);
+  data_t  *ret;
+  array_t *args;
+  
+  // FIXME Error handling
+  args = data_array_create(1);
+  array_push(args, data_create(Int, ix));
+  ret = _string_at(data, "[]", args, NULL);
+  array_free(args);
+  return ret;
 }
 
 data_t * data_create_string(char * value) {

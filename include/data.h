@@ -26,53 +26,49 @@
 #include <dict.h>
 #include <name.h>
 
-#ifndef NDEBUG
-extern int data_count;
-#endif
-
 typedef enum _datatype {
-  NoType         = -1,
-  Error,        /*  0 */
-  Pointer,      /*  1 */
-  String,       /*  2 */
-  Number,       /*  3 */
-  Int,          /*  4 */
-  Float,        /*  5 */
-  Bool,         /*  6 */
-  List,         /*  7 */
-  Function,     /*  8 */
-  Method,       /*  9 */
-  Object,       /* 10 */
-  Script,       /* 11 */
-  Closure,      /* 12 */
-  Module,       /* 13 */
-  Name,         /* 14 */
+  NoType         = 0,
+  Error,        /*  1 */
+  Pointer,      /*  2 */
+  String,       /*  3 */
+  Number,       /*  4 */
+  Int,          /*  5 */
+  Float,        /*  6 */
+  Bool,         /*  7 */
+  List,         /*  8 */
+  Function,     /*  9 */
+  Method,       /* 10 */
+  Object,       /* 11 */
+  Script,       /* 12 */
+  Closure,      /* 13 */
+  Module,       /* 14 */
+  Name,         /* 15 */
   Any           = 100,
   UserTypeRange = 999
 } datatype_t;
 
 typedef enum _vtable_id {
-  MethodNone = 0,
-  MethodNew,
-  MethodCopy,
-  MethodCmp,
-  MethodFree,
-  MethodToString,
-  MethodFltValue,
-  MethodIntValue,
-  MethodParse,
-  MethodCast,
-  MethodHash,
-  MethodLen,
-  MethodResolve,
-  MethodCall,
-  MethodSet,
-  MethodRead,
-  MethodWrite,
-  MethodOpen,
-  MethodIter,
-  MethodNext,
-  MethodEndOfListDummy
+  FunctionNone = 0,
+  FunctionNew,
+  FunctionCopy,
+  FunctionCmp,
+  FunctionFree,
+  FunctionToString,
+  FunctionFltValue,
+  FunctionIntValue,
+  FunctionParse,
+  FunctionCast,
+  FunctionHash,
+  FunctionLen,
+  FunctionResolve,
+  FunctionCall,
+  FunctionSet,
+  FunctionRead,
+  FunctionWrite,
+  FunctionOpen,
+  FunctionIter,
+  FunctionNext,
+  FunctionEndOfListDummy
 } vtable_id_t;
 
 typedef struct _data {
@@ -101,15 +97,16 @@ typedef struct _vtable {
 } vtable_t;
 
 typedef struct _typedescr {
-  int       type;
-  char     *type_name;
-  int       vtable_size;
-  vtable_t *vtable;
-  dict_t   *methods;
-  int       promote_to;
-  int       inherits_size;
-  int      *inherits;
-  char     *str;
+  int           type;
+  char         *type_name;
+  vtable_t     *vtable;
+  dict_t       *methods;
+  int           promote_to;
+  int           inherits_size;
+  int          *inherits;
+  unsigned int  hash;
+  char         *str;
+  int           count;
 } typedescr_t;
 
 #define MAX_METHOD_PARAMS      3
@@ -127,6 +124,8 @@ extern int             typedescr_register(typedescr_t *);
 extern typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
 extern typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
 extern typedescr_t *   typedescr_get(int);
+extern void            typedescr_count(void);
+extern unsigned int    typedescr_hash(typedescr_t *);
 extern void            typedescr_register_methods(methoddescr_t[]);
 extern void            typedescr_register_method(typedescr_t *, methoddescr_t *);
 extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
@@ -158,6 +157,7 @@ extern data_t *        data_invoke(data_t *, name_t *, array_t *, dict_t *);
 extern data_t *        data_get(data_t *, name_t *);
 extern data_t *        data_set(data_t *, name_t *, data_t *);
 extern char *          data_debugstr(data_t *);
+extern int             data_count(void);
 
 extern double          data_floatval(data_t *);
 extern int             data_intval(data_t *);

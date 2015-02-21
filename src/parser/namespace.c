@@ -38,15 +38,15 @@ static module_t *    _ns_add(namespace_t *, name_t *);
 int ns_debug = 0;
 
 vtable_t _vtable_module[] = {
-  { .id = MethodNew,      .fnc = (void_t) _data_new_module },
-  { .id = MethodCopy,     .fnc = (void_t) _data_copy_module },
-  { .id = MethodCmp,      .fnc = (void_t) _data_cmp_module },
-  { .id = MethodFree,     .fnc = (void_t) mod_free },
-  { .id = MethodToString, .fnc = (void_t) _data_tostring_module },
-  { .id = MethodHash,     .fnc = (void_t) _data_hash_module },
-  { .id = MethodResolve,  .fnc = (void_t) _data_resolve_module },
-  { .id = MethodCall,     .fnc = (void_t) _data_call_module },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_module },
+  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_module },
+  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_module },
+  { .id = FunctionFree,     .fnc = (void_t) mod_free },
+  { .id = FunctionToString, .fnc = (void_t) _data_tostring_module },
+  { .id = FunctionHash,     .fnc = (void_t) _data_hash_module },
+  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_module },
+  { .id = FunctionCall,     .fnc = (void_t) _data_call_module },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t typedescr_module = {
@@ -168,6 +168,10 @@ module_t * mod_add_module(module_t *mod, name_t *name) {
 data_t * mod_set(module_t *mod, script_t *script) {
   data_t *data;
   
+  if (!mod -> obj) {
+    // Prevent endless loops -
+    mod -> obj = object_create(NULL);
+  }
   data = script_create_object(script, NULL, NULL);
   if (data_is_object(data)) {
     object_free(mod -> obj);
@@ -268,44 +272,68 @@ void ns_free(namespace_t *ns) {
 
 data_t * ns_import(namespace_t *ns, name_t *name) {
   char     *n;
-  data_t   *data;
+  data_t   *ret = NULL;
   data_t   *mod;
+  data_t   *obj;
   data_t   *script;
-  module_t *module;
+  module_t *module = NULL;
+  name_t   *dummy = NULL;
 
+  if (!name) {
+    dummy = name_create(0);
+    name = dummy;
+  }
   if (ns_debug) {
     debug("  Importing module '%s'", name_tostring(name));
   }
   mod = ns_get(ns, name);
-  if (mod) {
-    if (ns_debug) {
-      debug("  Module '%s' already imported", n);
+  if (!data_is_error(mod)) {
+    module = data_moduleval(mod);
+    if (module -> obj) {
+      if (ns_debug) {
+        debug("  Module '%s' already imported", n);
+      }
+      ret = mod;
     }
-    data = mod;
   } else {
+    data_free(mod);
+    mod = NULL;
+  }
+  if (!ret) {
     if (!ns -> import_ctx) {
       if (ns_debug) {
         debug("  Module '%s' not found - delegating to higher level namespace", n);
       }
-      data = ns_import(ns -> up, name);
+      ret = ns_import(ns -> up, name);
     } else {
       if (ns_debug) {
         debug("  Module '%s' not found - delegating to loader", n);
       }
       script = ns -> import_fnc(ns -> import_ctx, name);
       if (data_is_script(script)) {
-        module = _ns_add(ns, name);
-        data = mod_set(module, data_scriptval(script));
-
-        if (data_is_module(data)) {
-          data = data_create(Module, module);
+        if (!module) {
+          module = _ns_add(ns, name);
         }
+        obj = mod_set(module, data_scriptval(script));
+
+        if (data_is_object(obj)) {
+          if (!ret) {
+            ret = (mod) ? mod : data_create(Module, module);
+          }
+          data_free(obj);
+        } else {
+          ret = obj; /* !data_is_object(obj) => Error */
+          data_free(mod);
+        }
+        data_free(script);
       } else {
-        data = script; /* !data_is_script(script) => Error */
+        ret = script; /* !data_is_script(script) => Error */
+        data_free(mod);
       }
     }
   }
-  return data;
+  name_free(dummy);
+  return ret;
 }
 
 data_t * ns_get(namespace_t *ns, name_t *name) {

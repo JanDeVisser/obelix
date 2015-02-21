@@ -29,22 +29,18 @@
 #include <list.h>
 #include <object.h>
 
-static void          _any_init(void) __attribute__((constructor));
-static data_t *      _any_cmp(data_t *, char *, array_t *, dict_t *);
-static data_t *      _any_hash(data_t *, char *, array_t *, dict_t *);
+static void     _any_init(void) __attribute__((constructor));
+static data_t * _any_cmp(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_hash(data_t *, char *, array_t *, dict_t *);
 
-static void          _data_call_free(typedescr_t *, void *);
+static void     _data_call_free(typedescr_t *, void *);
 
 // -----------------------
 // Data conversion support
 
 static int          data_numtypes = 0;
 static typedescr_t *descriptors = NULL;
-
-#ifdef NDEBUG
-static
-#endif
-int data_count = 0;
+static int          _data_count = 0;
 
 static typedescr_t _typedescr_any = {
   .type =      Any,
@@ -63,27 +59,27 @@ static methoddescr_t _methoddescr_any[] = {
 };
 
 static code_label_t _function_id_labels[] = {
-  { .code = MethodNone,     .label = "None" },
-  { .code = MethodNew,      .label = "New" },
-  { .code = MethodCopy,     .label = "Copy" },
-  { .code = MethodCmp,      .label = "Cmp" },
-  { .code = MethodFree,     .label = "Free" },
-  { .code = MethodToString, .label = "ToString" },
-  { .code = MethodFltValue, .label = "FltValue" },
-  { .code = MethodIntValue, .label = "IntValue" },
-  { .code = MethodParse,    .label = "Parse" },
-  { .code = MethodCast,     .label = "Cast" },
-  { .code = MethodHash,     .label = "Hash" },
-  { .code = MethodLen,      .label = "Len" },
-  { .code = MethodResolve,  .label = "Resolve" },
-  { .code = MethodCall,     .label = "Call" },
-  { .code = MethodSet,      .label = "Set" },
-  { .code = MethodRead,     .label = "Read" },
-  { .code = MethodWrite,    .label = "Write" },
-  { .code = MethodOpen,     .label = "Open" },
-  { .code = MethodIter,     .label = "Iter" },
-  { .code = MethodNext,     .label = "Next" },
-  { .code = MethodEndOfListDummy, .label = "End" },
+  { .code = FunctionNone,     .label = "None" },
+  { .code = FunctionNew,      .label = "New" },
+  { .code = FunctionCopy,     .label = "Copy" },
+  { .code = FunctionCmp,      .label = "Cmp" },
+  { .code = FunctionFree,     .label = "Free" },
+  { .code = FunctionToString, .label = "ToString" },
+  { .code = FunctionFltValue, .label = "FltValue" },
+  { .code = FunctionIntValue, .label = "IntValue" },
+  { .code = FunctionParse,    .label = "Parse" },
+  { .code = FunctionCast,     .label = "Cast" },
+  { .code = FunctionHash,     .label = "Hash" },
+  { .code = FunctionLen,      .label = "Len" },
+  { .code = FunctionResolve,  .label = "Resolve" },
+  { .code = FunctionCall,     .label = "Call" },
+  { .code = FunctionSet,      .label = "Set" },
+  { .code = FunctionRead,     .label = "Read" },
+  { .code = FunctionWrite,    .label = "Write" },
+  { .code = FunctionOpen,     .label = "Open" },
+  { .code = FunctionIter,     .label = "Iter" },
+  { .code = FunctionNext,     .label = "Next" },
+  { .code = FunctionEndOfListDummy, .label = "End" },
   { .code = -1,             .label = NULL }
 };
 
@@ -138,6 +134,7 @@ int typedescr_register(typedescr_t *descr) {
   if (descr -> type < 0) {
     descr -> type = data_numtypes;
   }
+  //debug("Registering type '%s'", descr -> type_name);
   assert((descr -> type >= data_numtypes) || descriptors[descr -> type].type == 0);
   if (descr -> type >= data_numtypes) {
     newsz = (descr -> type + 1) * sizeof(typedescr_t);
@@ -150,36 +147,29 @@ int typedescr_register(typedescr_t *descr) {
   memcpy(d, descr, sizeof(typedescr_t));
   vtable = d -> vtable;
   d -> vtable = NULL;
-  d -> vtable_size = 0;
   typedescr_register_functions(d, vtable);
   d -> str = NULL;
   return d -> type;
 }
 
-typedescr_t * typedescr_register_functions(typedescr_t *descr, vtable_t vtable[]) {
+typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[]) {
   int ix;
-
-  if (vtable) {
-    for (ix = 0; vtable[ix].fnc; ix++) {
-      typedescr_register_function(descr, vtable[ix].id, vtable[ix].fnc);
-    }
-  }
-  return descr;
-}
-
-typedescr_t * typedescr_register_function(typedescr_t *type, int fnc_id, void_t fnc) {
-  int ix;
+  int fnc_id;
 
   if (!type -> vtable) {
-    type -> vtable = (vtable_t *) new((MethodEndOfListDummy + 1) * sizeof(vtable_t));
-    for (ix = 0; ix <= MethodEndOfListDummy; ix++) {
+    type -> vtable = (vtable_t *) new((FunctionEndOfListDummy + 1) * sizeof(vtable_t));
+    for (ix = 0; ix <= FunctionEndOfListDummy; ix++) {
       type -> vtable[ix].id = ix;
       type -> vtable[ix].fnc = NULL;
     }
-    type -> vtable_size = MethodEndOfListDummy + 1;
   }
-  type -> vtable[fnc_id].id = fnc_id;
-  type -> vtable[fnc_id].fnc = fnc;
+  if (vtable) {
+    for (ix = 0; vtable[ix].fnc; ix++) {
+      fnc_id = vtable[ix].id;
+      type -> vtable[fnc_id].id = fnc_id;
+      type -> vtable[fnc_id].fnc = vtable[ix].fnc;
+    }
+  }
   return type;
 }
 
@@ -199,27 +189,49 @@ typedescr_t * typedescr_get(int datatype) {
   }
 }
 
+unsigned int typedescr_hash(typedescr_t *type) {
+  if (!type -> hash) {
+    type -> hash = strhash(type -> type_name);
+  }
+  return type -> hash;
+}
+
 void typedescr_dump_vtable(typedescr_t *type) {
   int ix;
   
   debug("vtable for %s", typedescr_tostring(type));
-  for (ix = 0; ix < type -> vtable_size; ix++) {
+  for (ix = 0; ix < FunctionEndOfListDummy; ix++) {
     assert(ix == type -> vtable[ix].id);
     debug("%-20.20s %d %p", label_for_code(_function_id_labels, ix), ix, type -> vtable[ix].fnc);
   }
 }
 
+void typedescr_count(void) {
+  int ix;
+  
+  debug("Atom count");
+  debug("-------------------------------------------------------");
+  for (ix = 0; ix < data_numtypes; ix++) {
+    if (descriptors[ix].type > NoType) {
+      debug("%3d. %-20.20s %6d", descriptors[ix].type, descriptors[ix].type_name, descriptors[ix].count);
+    }
+  }
+  debug("-------------------------------------------------------");
+  debug("     %-20.20s %6d", "T O T A L", _data_count);
+}
+
 void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
-  void_t ret;
-  int    ix;
+  void_t       ret;
+  int          ix;
+  typedescr_t *inherits;
   
   assert(type);
-  assert(fnc_id > MethodNone);
-  ret = (fnc_id < (type -> vtable_size)) ? type -> vtable[fnc_id].fnc : NULL;
-  if (!ret && type -> inherits_size) {
-    for (ix = 0; !ret && ix < type -> inherits_size; ix++) {
-      ret = typedescr_get_function(typedescr_get(type -> inherits[ix]), fnc_id);
-    }
+  assert(fnc_id > FunctionNone);
+  assert(fnc_id < FunctionEndOfListDummy);
+  ret = type -> vtable[fnc_id].fnc;
+  for (ix = 0; !ret && ix < type -> inherits_size; ix++) {
+    inherits = typedescr_get(type -> inherits[ix]);
+    ret = typedescr_get_function(inherits, fnc_id);
   }
   return ret;
 }
@@ -228,7 +240,7 @@ void typedescr_register_methods(methoddescr_t methods[]) {
   methoddescr_t *method;
   typedescr_t   *type;
 
-  for (method = methods; method -> type >= 0; method++) {
+  for (method = methods; method -> type > NoType; method++) {
     type = typedescr_get(method -> type);
     assert(type);
     typedescr_register_method(type, method);
@@ -297,10 +309,6 @@ int typedescr_is(typedescr_t *descr, int type) {
 }
 
 /*
- * data_t static functions
- */
-
-/*
  * data_t public functions
  */
 
@@ -314,13 +322,14 @@ data_t * data_create(int type, ...) {
   ret -> type = type;
   ret -> refs = 1;
   ret -> str = NULL;
-  data_count++;
+  descr -> count++;
+  _data_count++;
 #ifndef NDEBUG
   ret -> debugstr = NULL;
 #endif
   ret -> methods = NULL;
   
-  n = (new_t) typedescr_get_function(descr, MethodNew);
+  n = (new_t) typedescr_get_function(descr, FunctionNew);
   if (n) {
     va_start(arg, type);
     ret = n(ret, arg);
@@ -334,7 +343,7 @@ data_t * data_parse(int type, char *str) {
   parse_t      parse;
 
   descr = typedescr_get(type);
-  parse = (parse_t) typedescr_get_function(descr, MethodParse);
+  parse = (parse_t) typedescr_get_function(descr, FunctionParse);
   return (parse) ? parse(str) : NULL;
 }
 
@@ -354,18 +363,18 @@ data_t * data_cast(data_t *data, int totype) {
     totype_descr = typedescr_get(totype);
     assert(totype_descr);
     if (totype == String) {
-      tostring = (tostring_t) typedescr_get_function(descr, MethodToString);
+      tostring = (tostring_t) typedescr_get_function(descr, FunctionToString);
       if (tostring) {
         return data_create(String, tostring(data));
       }
     }
     if (data_type(data) == String) {
-      parse = (parse_t) typedescr_get_function(totype_descr, MethodParse);
+      parse = (parse_t) typedescr_get_function(totype_descr, FunctionParse);
       if (parse) {
         return parse(data -> ptrval);
       }
     }
-    cast = (cast_t) typedescr_get_function(descr, MethodCast);
+    cast = (cast_t) typedescr_get_function(descr, FunctionCast);
     if (cast) {
       return cast(data, totype);
     } else {
@@ -386,7 +395,7 @@ void _data_call_free(typedescr_t *type, void *ptr) {
   free_t f;
   int    ix;
   
-  f = (free_t) typedescr_get_function(type, MethodFree);
+  f = (free_t) typedescr_get_function(type, FunctionFree);
   if (f) {
     f(ptr);
   }
@@ -396,16 +405,20 @@ void _data_call_free(typedescr_t *type, void *ptr) {
 }
 
 void data_free(data_t *data) {
+  typedescr_t *type;
+  
   if (data) {
     data -> refs--;
     if (data -> refs <= 0) {
-      _data_call_free(data_typedescr(data), data -> ptrval);
+      type = data_typedescr(data);
+      _data_call_free(type, data -> ptrval);
       dict_free(data -> methods);
       free(data -> str);
 #ifndef NDEBUG
       free(data -> debugstr);
 #endif
-      data_count--;
+      type -> count--;
+      _data_count--;
       free(data);
     }
   }
@@ -433,7 +446,7 @@ int data_is_callable(data_t *data) {
   if (data) {
     td = data_typedescr(data);
     assert(td);
-    return (typedescr_get_function(td, MethodCall) != NULL);
+    return (typedescr_get_function(td, FunctionCall) != NULL);
   } else {
     return 0;
   }
@@ -455,7 +468,7 @@ data_t * data_copy(data_t *src) {
 }
 
 data_t * data_call(data_t *self, array_t *args, dict_t *kwargs) {
-  call_t call = (call_t) data_get_function(self, MethodCall);
+  call_t call = (call_t) data_get_function(self, FunctionCall);
   
   assert(data_is_callable(self));
   call(self, args, kwargs);
@@ -497,7 +510,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
     ret = data_method(data, name_first(name));
   }
   if (!ret) {
-    resolve = (resolve_name_t) typedescr_get_function(type, MethodResolve);
+    resolve = (resolve_name_t) typedescr_get_function(type, FunctionResolve);
     if (!resolve) {
       ret = data_error(ErrorType,
                        "Cannot resolve name '%s' in %s '%s'", 
@@ -519,7 +532,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
 }
 
 data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) {
-  data_t  *object;
+  data_t  *callable;
   data_t  *ret = NULL;
   array_t *args_shifted = NULL;
   
@@ -536,18 +549,18 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
   }
 
   if (!ret) {
-    object = data_resolve(self, name);
-    if (data_is_error(object)) {
-      ret = object;
-    } else if (object) {
-      if (data_is_callable(object)) {
-        ret = data_call(object, args, kwargs);
-        data_free(object);
+    callable = data_resolve(self, name);
+    if (data_is_error(callable)) {
+      ret = callable;
+    } else if (callable) {
+      if (data_is_callable(callable)) {
+        ret = data_call(callable, args, kwargs);
       } else {
         ret = data_error(ErrorNotCallable, 
                          "Atom '%s' is not callable",
-                         data_tostring(object));
+                         data_tostring(callable));
       }
+      data_free(callable);
     } else {
       ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
                        name_tostring(name), data_tostring(self));
@@ -598,7 +611,7 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
     ret = container;
   } else if (container) {
     type = data_typedescr(container);
-    setter = (setvalue_t) typedescr_get_function(type, MethodSet);
+    setter = (setvalue_t) typedescr_get_function(type, FunctionSet);
     if (!setter) {
       ret = data_error(ErrorType,
                        "Cannot set values on objects of type '%s'", 
@@ -615,7 +628,7 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
 
 unsigned int data_hash(data_t *data) {
   typedescr_t *type = data_typedescr(data);
-  hash_t       hash = (hash_t) typedescr_get_function(type, MethodHash);
+  hash_t       hash = (hash_t) typedescr_get_function(type, FunctionHash);
 
   return (hash) ? hash(data) : hashptr(data);
 }
@@ -632,7 +645,7 @@ char * data_tostring(data_t *data) {
     free(data -> str);
     data -> str = NULL;
     type = data_typedescr(data);
-    tostring = (tostring_t) typedescr_get_function(type, MethodToString);
+    tostring = (tostring_t) typedescr_get_function(type, FunctionToString);
     if (tostring) {
       ret =  tostring(data);
       if (ret && !data -> str) {
@@ -695,10 +708,18 @@ int data_cmp(data_t *d1, data_t *d2) {
     return ret;
   } else {
     type = data_typedescr(d1);
-    cmp = (cmp_t) typedescr_get_function(type, MethodCmp);
+    cmp = (cmp_t) typedescr_get_function(type, FunctionCmp);
     return (cmp) ? cmp(d1, d2) : ((d1 -> ptrval == d2 -> ptrval) ? 0 : 1);
   }
 }
+
+int data_count(void) {
+  return _data_count;
+}
+
+/*
+ * Standard reducer functions
+ */
 
 array_t * data_add_strings_reducer(data_t *data, array_t *target) {
   array_push(target, strdup(data_tostring(data)));

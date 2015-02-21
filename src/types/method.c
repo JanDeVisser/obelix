@@ -45,13 +45,13 @@ static unsigned int  _method_hash(data_t *);
 static data_t *      _method_call(data_t *, array_t *, dict_t *);
 
 static vtable_t _vtable_method[] = {
-  { .id = MethodNew,      .fnc = (void_t) _method_new },
-  { .id = MethodCopy,     .fnc = (void_t) _method_copy },
-  { .id = MethodCmp,      .fnc = (void_t) _method_cmp },
-  { .id = MethodToString, .fnc = (void_t) _method_tostring },
-  { .id = MethodHash,     .fnc = (void_t) _method_hash },
-  { .id = MethodCall,     .fnc = (void_t) _method_call },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _method_new },
+  { .id = FunctionCopy,     .fnc = (void_t) _method_copy },
+  { .id = FunctionCmp,      .fnc = (void_t) _method_cmp },
+  { .id = FunctionToString, .fnc = (void_t) _method_tostring },
+  { .id = FunctionHash,     .fnc = (void_t) _method_hash },
+  { .id = FunctionCall,     .fnc = (void_t) _method_call },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_method = {
@@ -72,7 +72,7 @@ mth_t * mth_create(methoddescr_t *md, data_t *self) {
   assert(md);
   assert(self);
   ret -> method = md;
-  ret -> self = data_copy(self);
+  ret -> self = self;
   ret -> str = NULL;
   return ret;
 }

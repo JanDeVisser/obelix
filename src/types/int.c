@@ -53,15 +53,15 @@ static data_t *      _bool_or(data_t *, char *, array_t *, dict_t *);
 static data_t *      _bool_not(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_int[] = {
-  { .id = MethodNew,      .fnc = (void_t) _int_new },
-  { .id = MethodCmp,      .fnc = (void_t) _int_cmp },
-  { .id = MethodToString, .fnc = (void_t) _int_tostring },
-  { .id = MethodParse,    .fnc = (void_t) _int_parse },
-  { .id = MethodCast,     .fnc = (void_t) _int_cast },
-  { .id = MethodHash,     .fnc = (void_t) _int_hash },
-  { .id = MethodFltValue, .fnc = (void_t) _int_fltvalue },
-  { .id = MethodIntValue, .fnc = (void_t) _int_intvalue },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _int_new },
+  { .id = FunctionCmp,      .fnc = (void_t) _int_cmp },
+  { .id = FunctionToString, .fnc = (void_t) _int_tostring },
+  { .id = FunctionParse,    .fnc = (void_t) _int_parse },
+  { .id = FunctionCast,     .fnc = (void_t) _int_cast },
+  { .id = FunctionHash,     .fnc = (void_t) _int_hash },
+  { .id = FunctionFltValue, .fnc = (void_t) _int_fltvalue },
+  { .id = FunctionIntValue, .fnc = (void_t) _int_intvalue },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static int _inherits_int[] = { Number };
@@ -76,13 +76,13 @@ static typedescr_t _typedescr_int = {
 };
 
 static vtable_t _vtable_bool[] = {
-  { .id = MethodNew,      .fnc = (void_t) _bool_new },
-  { .id = MethodCmp,      .fnc = (void_t) _int_cmp },
-  { .id = MethodToString, .fnc = (void_t) _bool_tostring },
-  { .id = MethodParse,    .fnc = (void_t) _bool_parse },
-  { .id = MethodCast,     .fnc = (void_t) _bool_cast },
-  { .id = MethodHash,     .fnc = (void_t) _int_hash },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _bool_new },
+  { .id = FunctionCmp,      .fnc = (void_t) _int_cmp },
+  { .id = FunctionToString, .fnc = (void_t) _bool_tostring },
+  { .id = FunctionParse,    .fnc = (void_t) _bool_parse },
+  { .id = FunctionCast,     .fnc = (void_t) _bool_cast },
+  { .id = FunctionHash,     .fnc = (void_t) _int_hash },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static int _inherits_bool[] = { Int };

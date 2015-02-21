@@ -47,12 +47,12 @@ static unsigned int  _fnc_hash(data_t *);
 static data_t *      _fnc_call(data_t *, array_t *, dict_t *);
 
 static vtable_t _vtable_ptr[] = {
-  { .id = MethodNew,      .fnc = (void_t) _ptr_new },
-  { .id = MethodCmp,      .fnc = (void_t) _ptr_cmp },
-  { .id = MethodToString, .fnc = (void_t) _ptr_tostring },
-  { .id = MethodCast,     .fnc = (void_t) _ptr_cast },
-  { .id = MethodHash,     .fnc = (void_t) _ptr_hash },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _ptr_new },
+  { .id = FunctionCmp,      .fnc = (void_t) _ptr_cmp },
+  { .id = FunctionToString, .fnc = (void_t) _ptr_tostring },
+  { .id = FunctionCast,     .fnc = (void_t) _ptr_cast },
+  { .id = FunctionHash,     .fnc = (void_t) _ptr_hash },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_ptr = {
@@ -68,16 +68,16 @@ static methoddescr_t _methoddescr_ptr[] = {
 };
 
 static vtable_t _vtable_fnc[] = {
-  { .id = MethodNew,      .fnc = (void_t) _fnc_new },
-  { .id = MethodCopy,     .fnc = (void_t) _fnc_copy },
-  { .id = MethodCmp,      .fnc = (void_t) _fnc_cmp },
-  { .id = MethodFree,     .fnc = (void_t) function_free },
-  { .id = MethodToString, .fnc = (void_t) _fnc_tostring },
-  { .id = MethodParse,    .fnc = (void_t) _fnc_parse },
-  { .id = MethodCast,     .fnc = (void_t) _fnc_cast },
-  { .id = MethodHash,     .fnc = (void_t) _fnc_hash },
-  { .id = MethodCall,     .fnc = (void_t) _fnc_call },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _fnc_new },
+  { .id = FunctionCopy,     .fnc = (void_t) _fnc_copy },
+  { .id = FunctionCmp,      .fnc = (void_t) _fnc_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) function_free },
+  { .id = FunctionToString, .fnc = (void_t) _fnc_tostring },
+  { .id = FunctionParse,    .fnc = (void_t) _fnc_parse },
+  { .id = FunctionCast,     .fnc = (void_t) _fnc_cast },
+  { .id = FunctionHash,     .fnc = (void_t) _fnc_hash },
+  { .id = FunctionCall,     .fnc = (void_t) _fnc_call },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_fnc = {

@@ -22,62 +22,39 @@
 
 #include <resolve.h>
 
-static resolve_t *_resolve_create();
-static resolve_t *singleton = NULL;
+static void _resolve_init(void) __attribute__((constructor));
+static resolve_t *_singleton = NULL;
 
-resolve_t * _resolve_create() {
-  resolve_t *ret;
-  int ok;
+void _resolve_init(void) {
   void *main;
 
-  assert(!singleton);
-  ret = NEW(resolve_t);
-  ok = 0;
-  if (ret) {
-    ret -> images = list_create();
-    ok = (ret -> images != NULL);
-    if (ok) {
-      list_set_free(ret -> images, (free_t) dlclose);
-      ret -> functions = dict_create((cmp_t) strcmp);
-      ok = (ret -> functions != NULL);
-    }
-    if (ok) {
-      dict_set_hash(ret -> functions, (hash_t) strhash);
-      dict_set_free_key(ret -> functions, (free_t) free);
-      main = resolve_open(ret, NULL);
-      ok = (main != NULL);
-    }
-    if (!ok) {
-      if (ret -> images) {
-        list_free(ret -> images);
-      }
-      if (ret -> functions) {
-        dict_free(ret -> functions);
-      }
-      ret = NULL;
-    }
-    singleton = ret;
+  assert(!_singleton);
+  _singleton = NEW(resolve_t);
+
+  _singleton -> images = list_create();
+  list_set_free(_singleton -> images, (free_t) dlclose);
+  _singleton -> functions = strvoid_dict_create();
+  main = resolve_open(_singleton, NULL);
+  if (!main) {
+    error("Could not load main program image");
+    list_free(_singleton -> images);
+    dict_free(_singleton -> functions);
+    _singleton = NULL;
+  } else {
     atexit(resolve_free);
   }
-  return ret;
 }
 
 resolve_t * resolve_get() {
-  resolve_t *ret;
-
-  ret = singleton;
-  if (!ret) {
-    ret = _resolve_create();
-  }
-  return ret;
+  return _singleton;
 }
 
 void resolve_free() {
-  if (singleton) {
-    list_free(singleton -> images);
-    dict_free(singleton -> functions);
-    free(singleton);
-    singleton = NULL;
+  if (_singleton) {
+    list_free(_singleton -> images);
+    dict_free(_singleton -> functions);
+    free(_singleton);
+    _singleton = NULL;
   }
 }
 
@@ -103,15 +80,14 @@ void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   if (ret) return ret;
 
   ret = NULL;
-  for (iter = li_create(resolve -> images); iter && li_has_next(iter); ) {
+  for (iter = li_create(resolve -> images); !ret && iter && li_has_next(iter); ) {
     handle = li_next(iter);
     ret = (void_t) dlsym(handle, func_name);
-    if (ret) {
-      dict_put(resolve -> functions, strdup(func_name), ret);
-      break;
-    }
   }
   li_free(iter);
+  if (ret) {
+    dict_put(resolve -> functions, strdup(func_name), ret);
+  }
   return ret;
 }
 

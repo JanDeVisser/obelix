@@ -33,6 +33,7 @@ liboblparser_la_SOURCES = \
 		namespace.c \
 		instruction.c \
 		object.c \
+		scriptparse.c \
 		loader.c
 
 liboblparser_la_LIBADD = \

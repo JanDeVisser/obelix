@@ -88,14 +88,13 @@ START_TEST(data_string)
   
   ck_assert_ptr_ne(data, NULL);
   ck_assert_int_eq(strcmp((char *) data -> ptrval, TEST_STRING), 0);
-  ck_assert_int_eq(data_count, 1);
+  ck_assert_int_eq(data_count(), 1);
   
   ret = execute(data, "len", 0);
   ck_assert_ptr_ne(ret, NULL);
   ck_assert_int_eq(data_type(ret), Int);
   ck_assert_int_eq(data_intval(ret), TEST_STRING_LEN);
   data_free(ret);
-  ck_assert_int_eq(data_count, 1);
   
   ret = execute(data, "len", 1, Int, 10);
   ck_assert_ptr_ne(ret, NULL);
@@ -176,7 +175,8 @@ START_TEST(data_string)
   data_free(ret);
 
   data_free(data);
-  ck_assert_int_eq(data_count, 0);
+  typedescr_count();
+  ck_assert_int_eq(data_count(), 0);
 END_TEST
 
 START_TEST(data_int)
@@ -187,16 +187,15 @@ START_TEST(data_int)
 
   ck_assert_int_eq(d1 -> intval, 1);
   ck_assert_int_eq(d2 -> intval, 1);
-  ck_assert_int_eq(data_count, 2);
+
   args = data_array_create(1);
   array_push(args, d2);
   ck_assert_int_eq(array_size(args), 1);
+  
   sum = data_execute(d1, "+", args, NULL);
-  //ck_assert_int_eq(data_count, 3);
   ck_assert_int_eq(sum -> type, Int);
   ck_assert_int_eq(sum -> intval, 2);
   data_free(sum);
-  //ck_assert_int_eq(data_count, 2);
 
   array_clear(args);
   d2 = data_create(Int, 1);
@@ -204,14 +203,13 @@ START_TEST(data_int)
   array_push(args, d2);
   array_push(args, data_copy(d2));
   sum = data_execute(NULL, "+", args, NULL);
-  //ck_assert_int_eq(data_count, 3);
   ck_assert_int_eq(sum -> type, Int);
   ck_assert_int_eq(sum -> intval, 3);
 
   array_free(args);
   data_free(d1);
   data_free(sum);
-  //ck_assert_int_eq(data_count, 0);
+  ck_assert_int_eq(data_count(), 0);
 END_TEST
 
 START_TEST(data_parsers)
@@ -290,29 +288,4 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, data_parsers);
   tcase_add_test(tc, test_data_cmp);
   return tc;
-}
-
-
-int main(void){
-  int number_failed;
-  Suite *s;
-  SRunner *sr;
-  TCase *tc;
-  int ix;
-
-  s = suite_create(get_suite_name());
-  for (ix = 0; TRUE; ix++) {
-    tc = get_testcase(ix);
-    if (tc) {
-      suite_add_tcase(s, tc);
-    } else {
-      break;
-    }
-  }
-  sr = srunner_create(s);
-
-  srunner_run_all(sr, CK_VERBOSE);
-  number_failed = srunner_ntests_failed(sr);
-  srunner_free(sr);
-  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
