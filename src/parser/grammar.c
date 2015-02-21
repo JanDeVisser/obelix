@@ -64,9 +64,9 @@ static set_t *             _rule_entry_get_follows(rule_entry_t *, set_t *);
 static void                _rule_entry_dump(ge_t *);
 
 static vtable_t _vtable_ge[] = {
-  { .id = MethodNew,  .fnc = (void_t) _ge_create },
-  { .id = MethodFree, .fnc = (void_t) ge_free },
-  { .id = MethodNone, .fnc = NULL }
+  { .id = FunctionNew,  .fnc = (void_t) _ge_create },
+  { .id = FunctionFree, .fnc = (void_t) ge_free },
+  { .id = FunctionNone, .fnc = NULL }
 };
 
 static typedescr_t _typedescr_ge = {
@@ -76,9 +76,9 @@ static typedescr_t _typedescr_ge = {
 };
 
 static vtable_t _vtable_grammar[] = {
-  { .id = MethodNew,  .fnc = (void_t) _grammar_create },
-  { .id = MethodFree, .fnc = (void_t) _grammar_free },
-  { .id = MethodNone, .fnc = NULL }
+  { .id = FunctionNew,  .fnc = (void_t) _grammar_create },
+  { .id = FunctionFree, .fnc = (void_t) _grammar_free },
+  { .id = FunctionNone, .fnc = NULL }
 };
 
 static typedescr_t _typedescr_grammar = {
@@ -88,9 +88,9 @@ static typedescr_t _typedescr_grammar = {
 };
 
 static vtable_t _vtable_nonterminal[] = {
-  { .id = MethodNew,  .fnc = (void_t) _nonterminal_create },
-  { .id = MethodFree, .fnc = (void_t) _nonterminal_free },
-  { .id = MethodNone, .fnc = NULL }
+  { .id = FunctionNew,  .fnc = (void_t) _nonterminal_create },
+  { .id = FunctionFree, .fnc = (void_t) _nonterminal_free },
+  { .id = FunctionNone, .fnc = NULL }
 };
 
 static typedescr_t _typedescr_nonterminal = {
@@ -100,9 +100,9 @@ static typedescr_t _typedescr_nonterminal = {
 };
 
 static vtable_t _vtable_rule[] = {
-  { .id = MethodNew,  .fnc = (void_t) _rule_create },
-  { .id = MethodFree, .fnc = (void_t) _rule_free },
-  { .id = MethodNone, .fnc = NULL }
+  { .id = FunctionNew,  .fnc = (void_t) _rule_create },
+  { .id = FunctionFree, .fnc = (void_t) _rule_free },
+  { .id = FunctionNone, .fnc = NULL }
 };
 
 static typedescr_t _typedescr_rule = {
@@ -112,9 +112,9 @@ static typedescr_t _typedescr_rule = {
 };
 
 static vtable_t _vtable_rule_entry[] = {
-  { .id = MethodNew,      .fnc = (void_t) _rule_entry_new },
-  { .id = MethodFree,     .fnc = (void_t) _rule_entry_free },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _rule_entry_new },
+  { .id = FunctionFree,     .fnc = (void_t) _rule_entry_free },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_rule_entry = {
@@ -207,7 +207,7 @@ ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, 
   list_set_tostring(ret -> pushvalues, (tostring_t) pushvalue_tostring);
   ret -> variables = strtoken_dict_create();
   va_start(args, type);
-  new_fnc = (new_t) ge_function(ret, MethodNew);
+  new_fnc = (new_t) ge_function(ret, FunctionNew);
   if (new_fnc) {
     ret -> ptr = new_fnc(ret, args);
   }
@@ -227,7 +227,7 @@ void ge_free(ge_t *ge) {
     list_free(ge -> pushvalues);
     function_free(ge -> initializer);
     function_free(ge -> finalizer);
-    free_fnc = (free_t) ge_function(ge, MethodFree);
+    free_fnc = (free_t) ge_function(ge, FunctionFree);
     if (free_fnc) {
       free_fnc(ge -> ptr);
     }

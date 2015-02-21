@@ -36,14 +36,14 @@ static name_t *      _name_create(int);
 static name_t *      _name_extend(name_t *, array_t *);
 
 vtable_t _vtable_name[] = {
-  { .id = MethodNew,      .fnc = (void_t) _data_new_name },
-  { .id = MethodCopy,     .fnc = (void_t) _data_copy_name },
-  { .id = MethodCmp,      .fnc = (void_t) _data_cmp_name },
-  { .id = MethodFree,     .fnc = (void_t) name_free },
-  { .id = MethodToString, .fnc = (void_t) _data_tostring_name },
-  { .id = MethodHash,     .fnc = (void_t) _data_hash_name },
-  { .id = MethodResolve,  .fnc = (void_t) _data_resolve_name },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_name },
+  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_name },
+  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_name },
+  { .id = FunctionFree,     .fnc = (void_t) name_free },
+  { .id = FunctionToString, .fnc = (void_t) _data_tostring_name },
+  { .id = FunctionHash,     .fnc = (void_t) _data_hash_name },
+  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_name },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t typedescr_name = {
@@ -155,12 +155,9 @@ name_t * name_copy(name_t *src) {
 name_t * name_split(char *name, char *sep) {
   name_t  *ret;
   array_t *array;
-  str_t   *s;
 
   if (name && *name) {
-    s = str_wrap(name);
-    array = str_split(s, sep);
-    str_free(s);
+    array = array_split(name, sep);
     ret = _name_create(array_size(array));
     name_append_array(ret, array);
     array_free(array);

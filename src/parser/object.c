@@ -43,16 +43,16 @@ static data_t *     _data_set_object(data_t *, char *, data_t *);
  */
 
 static vtable_t _vtable_object[] = {
-  { .id = MethodNew,      .fnc = (void_t) _data_new_object },
-  { .id = MethodCopy,     .fnc = (void_t) _data_copy_object },
-  { .id = MethodCmp,      .fnc = (void_t) _data_cmp_object },
-  { .id = MethodFree,     .fnc = (void_t) object_free },
-  { .id = MethodToString, .fnc = (void_t) _data_tostring_object },
-  { .id = MethodHash,     .fnc = (void_t) _data_hash_object },
-  { .id = MethodResolve,  .fnc = (void_t) _data_resolve_object },
-  { .id = MethodCall,     .fnc = (void_t) _data_call_object },
-  { .id = MethodSet,      .fnc = (void_t) _data_set_object },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_object },
+  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_object },
+  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_object },
+  { .id = FunctionFree,     .fnc = (void_t) object_free },
+  { .id = FunctionToString, .fnc = (void_t) _data_tostring_object },
+  { .id = FunctionHash,     .fnc = (void_t) _data_hash_object },
+  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_object },
+  { .id = FunctionCall,     .fnc = (void_t) _data_call_object },
+  { .id = FunctionSet,      .fnc = (void_t) _data_set_object },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_object = {

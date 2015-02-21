@@ -87,15 +87,15 @@ static methoddescr_t _methoddescr_number[] = {
 static int _inherits_float[] = { Number };
 
 static vtable_t _vtable_float[] = {
-  { .id = MethodNew,      .fnc = (void_t) _float_new },
-  { .id = MethodCmp,      .fnc = (void_t) _float_cmp },
-  { .id = MethodToString, .fnc = (void_t) _float_tostring },
-  { .id = MethodParse,    .fnc = (void_t) _float_parse },
-  { .id = MethodCast,     .fnc = (void_t) _float_cast },
-  { .id = MethodHash,     .fnc = (void_t) _float_hash },
-  { .id = MethodFltValue, .fnc = (void_t) _float_fltvalue },
-  { .id = MethodIntValue, .fnc = (void_t) _float_intvalue },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _float_new },
+  { .id = FunctionCmp,      .fnc = (void_t) _float_cmp },
+  { .id = FunctionToString, .fnc = (void_t) _float_tostring },
+  { .id = FunctionParse,    .fnc = (void_t) _float_parse },
+  { .id = FunctionCast,     .fnc = (void_t) _float_cast },
+  { .id = FunctionHash,     .fnc = (void_t) _float_hash },
+  { .id = FunctionFltValue, .fnc = (void_t) _float_fltvalue },
+  { .id = FunctionIntValue, .fnc = (void_t) _float_intvalue },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_float =   {
@@ -122,11 +122,11 @@ double data_floatval(data_t *data) {
   if (data_type(data) == Float) {
     return data -> dblval;
   } else {
-    fltvalue = (double (*)(data_t *)) data_get_function(data, MethodFltValue);
+    fltvalue = (double (*)(data_t *)) data_get_function(data, FunctionFltValue);
     if (fltvalue) {
       return fltvalue(data);
     } else {
-      intvalue = (int (*)(data_t *)) data_get_function(data, MethodIntValue);
+      intvalue = (int (*)(data_t *)) data_get_function(data, FunctionIntValue);
       if (intvalue) {
         return (double) intvalue(data);
       } else {
@@ -152,11 +152,11 @@ int data_intval(data_t *data) {
   if ((data_type(data) == Int) || (data_type(data) == Bool)) {
     return data -> intval;
   } else {
-    intvalue = (int (*)(data_t *)) data_get_function(data, MethodIntValue);
+    intvalue = (int (*)(data_t *)) data_get_function(data, FunctionIntValue);
     if (intvalue) {
       return intvalue(data);
     } else {
-      fltvalue = (double (*)(data_t *)) data_get_function(data, MethodFltValue);
+      fltvalue = (double (*)(data_t *)) data_get_function(data, FunctionFltValue);
       if (fltvalue) {
         return (int) fltvalue(data);
       } else {

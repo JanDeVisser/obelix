@@ -48,8 +48,6 @@ static data_t *         _data_set_closure(data_t *, char *, data_t *);
 
 extern data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
 
-static void             _script_list_visitor(instruction_t *);
-
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
 
 /*
@@ -57,12 +55,12 @@ static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t 
  */
 
 static vtable_t _vtable_script[] = {
-  { .id = MethodNew,      .fnc = (void_t) _data_new_script },
-  { .id = MethodCopy,     .fnc = (void_t) _data_copy_script },
-  { .id = MethodCmp,      .fnc = (void_t) _data_cmp_script },
-  { .id = MethodFree,     .fnc = (void_t) script_free },
-  { .id = MethodToString, .fnc = (void_t) _data_tostring_script },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_script },
+  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_script },
+  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_script },
+  { .id = FunctionFree,     .fnc = (void_t) script_free },
+  { .id = FunctionToString, .fnc = (void_t) _data_tostring_script },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_script = {
@@ -72,15 +70,15 @@ static typedescr_t _typedescr_script = {
 };
 
 static vtable_t _vtable_closure[] = {
-  { .id = MethodNew,      .fnc = (void_t) _data_new_closure },
-  { .id = MethodCopy,     .fnc = (void_t) _data_copy_closure },
-  { .id = MethodCmp,      .fnc = (void_t) _data_cmp_closure },
-  { .id = MethodFree,     .fnc = (void_t) closure_free },
-  { .id = MethodToString, .fnc = (void_t) _data_tostring_closure },
-  { .id = MethodResolve,  .fnc = (void_t) _data_resolve_closure },
-  { .id = MethodCall,     .fnc = (void_t) _data_call_closure },
-  { .id = MethodSet,      .fnc = (void_t) _data_set_closure },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_closure },
+  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_closure },
+  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_closure },
+  { .id = FunctionFree,     .fnc = (void_t) closure_free },
+  { .id = FunctionToString, .fnc = (void_t) _data_tostring_closure },
+  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_closure },
+  { .id = FunctionCall,     .fnc = (void_t) _data_call_closure },
+  { .id = FunctionSet,      .fnc = (void_t) _data_set_closure },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_closure = {
@@ -219,10 +217,6 @@ data_t * _script_function_print(data_t *ignored, char *name, array_t *params, di
  * script_t static functions
  */
 
-void _script_list_visitor(instruction_t *instruction) {
-  debug(instruction_tostring(instruction));
-}
-
 /*
  * script_t public functions
  */
@@ -350,12 +344,17 @@ data_t * script_execute(script_t *script, data_t *self, array_t *args, dict_t *k
 }
 
 void script_list(script_t *script) {
+  instruction_t *instr;
+  
   debug("==================================================================");
   debug("Script Listing - %s", (script -> name ? script -> name : "<<anon>>"));
   debug("------------------------------------------------------------------");
   debug("%-11.11s%-15.15s", "label","Instruction");
   debug("------------------------------------------------------------------");
-  list_visit(script -> instructions, (visit_t) _script_list_visitor);
+  for (list_start(script -> instructions); list_has_next(script -> instructions); ) {
+    instr = (instruction_t *) list_next(script -> instructions);
+    debug(instruction_tostring(instr));
+  }
   debug("==================================================================");
 }
 

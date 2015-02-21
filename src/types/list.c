@@ -39,15 +39,15 @@ static data_t *      _list_at(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_slice(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_list[] = {
-  { .id = MethodNew,      .fnc = (void_t) _list_new },
-  { .id = MethodCopy,     .fnc = (void_t) _list_copy },
-  { .id = MethodCmp,      .fnc = (void_t) _list_cmp },
-  { .id = MethodFree,     .fnc = (void_t) array_free },
-  { .id = MethodToString, .fnc = (void_t) _list_tostring },
-  { .id = MethodParse,    .fnc = NULL }, /* FIXME */
-  { .id = MethodCast,     .fnc = (void_t) _list_cast },
-  { .id = MethodHash,     .fnc = (void_t) _list_hash },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _list_new },
+  { .id = FunctionCopy,     .fnc = (void_t) _list_copy },
+  { .id = FunctionCmp,      .fnc = (void_t) _list_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) array_free },
+  { .id = FunctionToString, .fnc = (void_t) _list_tostring },
+  { .id = FunctionParse,    .fnc = NULL }, /* FIXME */
+  { .id = FunctionCast,     .fnc = (void_t) _list_cast },
+  { .id = FunctionHash,     .fnc = (void_t) _list_hash },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_list =   {

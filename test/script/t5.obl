@@ -1,2 +1,3 @@
-x = [ 1, 3, 5 ]
-return len(x)
+func main()
+  print(-1)
+

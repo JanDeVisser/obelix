@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include <array.h>
+
 #include <exception.h>
 #include <instruction.h>
 #include <name.h>
@@ -261,6 +262,7 @@ instruction_t * instruction_create(int type, char *name, data_t *value) {
 
   ret = NEW(instruction_t);
   ret -> type = type;
+  ret -> str = NULL;
   if (name) {
     ret -> name = strdup(name);
   }
@@ -337,18 +339,26 @@ data_t * instruction_execute(instruction_t *instr, closure_t *closure) {
 char * instruction_tostring(instruction_t *instruction) {
   tostring_t   tostring;
   char        *s;
-  static char  buf[100];
   char        *lbl;
 
-  tostring = instruction_descr_map[instruction -> type].tostring;
-  if (tostring) {
-    s = tostring(instruction);
-  } else {
-    s = "";
+  debug("instr -> type: %d", instruction -> type);
+  debug("instr -> label: %s", instruction -> label);
+  debug("instr -> name: %s", instruction -> name);
+  debug("instr -> value: %s", data_tostring(instruction -> value));
+  if (!instruction -> str) {
+    tostring = instruction_descr_map[instruction -> type].tostring;
+    if (tostring) {
+      s = tostring(instruction);
+    } else {
+      s = "";
+    }
+    lbl = (instruction -> label) ? instruction -> label : "";
+    asprintf(&instruction -> str, "%-11.11s%-15.15s%s", 
+             lbl, 
+             instruction_descr_map[instruction -> type].name, 
+             s);
   }
-  lbl = (instruction -> label) ? instruction -> label : "";
-  snprintf(buf, 100, "%-11.11s%-15.15s%s", lbl, instruction_descr_map[instruction -> type].name, s);
-  return buf;
+  return instruction -> str;
 }
 
 void instruction_free(instruction_t *instruction) {
@@ -359,10 +369,9 @@ void instruction_free(instruction_t *instruction) {
     if (freefnc) {
       freefnc(instruction);
     }
-    if (instruction -> label) {
-      free(instruction -> label);
-    }
+    free(instruction -> label);
     data_free(instruction -> value);
+    free(instruction -> str);
     free(instruction);
   }
 }

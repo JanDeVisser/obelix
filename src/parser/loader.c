@@ -192,8 +192,14 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path, char *gra
   grammar_parser_free(gp);
   file_free(file);
   free(grammarpath);
+  if (script_debug) {
+    debug("  Loaded grammar");
+  }
 
   ret -> parser = parser_create(ret -> grammar);
+  if (script_debug) {
+    debug("  Created parser");
+  }
 
   ret -> load_path = name_create(1, ret -> system_dir);
   ret -> ns = ns_create_root(ret, (import_t) scriptloader_load);
@@ -277,7 +283,7 @@ data_t * scriptloader_load(scriptloader_t *loader, name_t *name) {
     debug("scriptloader_load('%s')", script_name);
   }
   ret = ns_get(loader -> ns, name);
-  if (!ret) {
+  if (!data_is_module(ret)) {
     rdr = _scriptloader_open_reader(loader, name);
     ret = (rdr)
             ? scriptloader_load_fromreader(loader, script_name, rdr)

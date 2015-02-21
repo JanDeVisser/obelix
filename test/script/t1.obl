@@ -1,1 +1,4 @@
-print("Hello, Asterix!")
+func main()
+begin
+  print("Hello, Asterix!")
+end

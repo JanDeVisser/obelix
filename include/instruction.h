@@ -43,6 +43,7 @@ typedef struct _instruction {
   char               *name;
   data_t             *value;
   int                 num;
+  char               *str;
 } instruction_t;
 
 struct _closure;

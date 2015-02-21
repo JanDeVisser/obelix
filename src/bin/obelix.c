@@ -113,7 +113,7 @@ int run_script(scriptloader_t *loader, name_t *name) {
 int main(int argc, char **argv) {
   char           *grammar = NULL;
   char           *debug = NULL;
-  char           *basepath;
+  char           *basepath = NULL;
   name_t         *path;
   name_t         *name;
   char           *syspath = NULL;

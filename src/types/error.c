@@ -47,12 +47,12 @@ static int           _error_cmp(data_t *, data_t *);
 static char *        _error_tostring(data_t *);
 
 static vtable_t _vtable_error[] = {
-  { .id = MethodNew,      .fnc = (void_t) _error_new },
-  { .id = MethodCopy,     .fnc = (void_t) _error_copy },
-  { .id = MethodCmp,      .fnc = (void_t) _error_cmp },
-  { .id = MethodFree,     .fnc = (void_t) error_free },
-  { .id = MethodToString, .fnc = (void_t) _error_tostring },
-  { .id = MethodNone,     .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _error_new },
+  { .id = FunctionCopy,     .fnc = (void_t) _error_copy },
+  { .id = FunctionCmp,      .fnc = (void_t) _error_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) error_free },
+  { .id = FunctionToString, .fnc = (void_t) _error_tostring },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 
