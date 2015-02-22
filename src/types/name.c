@@ -19,10 +19,9 @@
 
 #include <string.h>
 
+#include <data.h>
 #include <name.h>
 #include <str.h>
-
-#include "data.h"
 
 static void          _data_init_name(void) __attribute__((constructor));
 static data_t *      _data_new_name(data_t *, va_list);
@@ -62,7 +61,7 @@ data_t * _data_new_name(data_t *ret, va_list arg) {
   name_t *name;
 
   name = va_arg(arg, name_t *);
-  ret -> ptrval = name;
+  ret -> ptrval = name_copy(name);
   return ret;
 }
 
@@ -79,13 +78,13 @@ int _data_cmp_name(data_t *d1, data_t *d2) {
   name_t *n1;
   name_t *n2;
 
-  n1 = (name_t *) d1 -> ptrval;
-  n2 = (name_t *) d2 -> ptrval;
+  n1 = data_nameval(d1);
+  n2 = data_nameval(d2);
   return name_cmp(n1, n2);
 }
 
 char * _data_tostring_name(data_t *d) {
-  return name_tostring((name_t *) d -> ptrval);
+  return name_tostring(data_nameval(d));
 }
 
 unsigned int _data_hash_name(data_t *data) {
@@ -120,6 +119,7 @@ name_t * _name_create(int count) {
   ret -> name = str_array_create(count);
   ret -> str = NULL;
   ret -> sep = NULL;
+  ret -> refs = 1;
   return ret;
 }
 
@@ -147,9 +147,8 @@ name_t * name_vcreate(int count, va_list components) {
 }
 
 name_t * name_copy(name_t *src) {
-  name_t *ret = _name_create(name_size(src));
-  
-  return name_append(ret, src);
+  src -> refs++;
+  return src;
 }
 
 name_t * name_split(char *name, char *sep) {
@@ -161,6 +160,8 @@ name_t * name_split(char *name, char *sep) {
     ret = _name_create(array_size(array));
     name_append_array(ret, array);
     array_free(array);
+    ret -> str = strdup(name);
+    ret -> sep = strdup(sep);
   } else {
     ret = name_create(0);
   }
@@ -173,10 +174,13 @@ name_t * name_parse(char *name) {
 
 void name_free(name_t *name) {
   if (name) {
-    array_free(name -> name);
-    free(name -> str);
-    free(name -> sep);
-    free(name);
+    name -> refs--;
+    if (!name -> refs) {
+      array_free(name -> name);
+      free(name -> str);
+      free(name -> sep);
+      free(name);
+    }
   }
 }
 
@@ -186,12 +190,7 @@ name_t * name_extend(name_t *name, char *n) {
 }
 
 name_t * name_append(name_t *name, name_t *additions) {
-  int ix;
-  
-  for (ix = 0; ix < name_size(additions); ix++) {
-    array_push(name -> name, strdup(name_get(additions, ix)));
-  }
-  return name;
+  return name_append_array(name, additions -> name);
 }
 
 name_t * name_append_array(name_t *name, array_t *additions) {
