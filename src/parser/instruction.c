@@ -267,28 +267,33 @@ instruction_t * instruction_create(int type, char *name, data_t *value) {
     ret -> name = strdup(name);
   }
   if (value) {
-    ret -> value = data_copy(value);
+    ret -> value = value;
   }
   return ret;
 }
 
 instruction_t * instruction_create_assign(name_t *varname) {
-  return instruction_create(ITAssign, NULL, data_create(Name, varname));
+  return instruction_create(ITAssign,
+                            name_tostring(varname), 
+			    data_create(Name, varname));
 }
 
 instruction_t * instruction_create_pushvar(name_t *varname) {
-  return instruction_create(ITPushVar, NULL, data_create(Name, varname));
+  return instruction_create(ITPushVar,
+                            name_tostring(varname), 
+			    data_create(Name, varname));
 }
 
 instruction_t * instruction_create_pushval(data_t *value) {
-  return instruction_create(ITPushVal, NULL, value);
+  return instruction_create(ITPushVal, NULL, data_copy(value));
 }
 
 instruction_t * instruction_create_function(name_t *name, long num_params) {
   instruction_t *ret;
 
   ret = instruction_create(ITFunctionCall,
-                           name_tostring(name), data_create(Name, name));
+                           name_tostring(name), 
+			   data_create(Name, name));
   ret -> num = num_params;
   return ret;
 }
@@ -341,10 +346,6 @@ char * instruction_tostring(instruction_t *instruction) {
   char        *s;
   char        *lbl;
 
-  debug("instr -> type: %d", instruction -> type);
-  debug("instr -> label: %s", instruction -> label);
-  debug("instr -> name: %s", instruction -> name);
-  debug("instr -> value: %s", data_tostring(instruction -> value));
   if (!instruction -> str) {
     tostring = instruction_descr_map[instruction -> type].tostring;
     if (tostring) {

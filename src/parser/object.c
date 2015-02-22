@@ -134,7 +134,7 @@ data_t * _object_call_attribute(object_t *object, char *name, array_t *args, dic
     ret = data_error(ErrorNotCallable, "Attribute '%s' of object '%s' is not callable", 
                      name, object_tostring(object));
   }
-  return ret;  
+  return ret;
 }
 
 object_t * _object_set_closures(entry_t *entry, object_t *object) {

@@ -31,6 +31,7 @@ typedef struct _name {
   array_t *name;
   char    *sep;
   char    *str;
+  int      refs;
 } name_t;
 
 #define data_is_name(d)  ((d) && (data_type((d)) == Name))

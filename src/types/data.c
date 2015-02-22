@@ -663,12 +663,16 @@ char * data_debugstr(data_t *data) {
   int          len;
   typedescr_t *type;
 
-  free(data -> debugstr);
-  type = data_typedescr(data);
-  asprintf(&(data -> debugstr), "%3.3s %s", 
-	  type -> type_name, 
-	  data_tostring(data));
-  return data -> debugstr;
+  if (data) {
+    free(data -> debugstr);
+    type = data_typedescr(data);
+    asprintf(&(data -> debugstr), "%3.3s %s", 
+	     type -> type_name, 
+	     data_tostring(data));
+    return data -> debugstr;
+  } else {
+    return "data:NULL";
+  }
 #else
   return data_tostring(data);
 #endif
