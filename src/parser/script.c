@@ -47,7 +47,7 @@ static data_t *         _data_call_closure(data_t *, array_t *, dict_t *);
 static data_t *         _data_resolve_closure(data_t *, char *);
 static data_t *         _data_set_closure(data_t *, char *, data_t *);
 
-extern data_t *         _script_function_print(data_t *, char *, array_t *, dict_t *);
+extern data_t *         _script_function_print(char *, array_t *, dict_t *);
 
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
 
@@ -191,7 +191,7 @@ data_t * data_create_closure(closure_t *closure) {
  * script_t static functions
  */
 
-data_t * _script_function_print(data_t *ignored, char *name, array_t *params, dict_t *kwargs) {
+data_t * _script_function_print(char *name, array_t *params, dict_t *kwargs) {
   char          *varname;
   data_t        *value;
   char          *fmt;
@@ -587,7 +587,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   list_process(closure -> script -> instructions, (reduce_t) _closure_execute_instruction, closure);
   ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
   if (script_debug) {
-    debug("    Execution of %s done: %s", closure -> script -> name, data_tostring(ret));
+    debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
   }
   return ret;
 }
