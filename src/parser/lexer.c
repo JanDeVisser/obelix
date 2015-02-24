@@ -25,6 +25,7 @@
 
 #include <dict.h>
 #include <lexer.h>
+#include <logging.h>
 
 
 #ifdef LEXER_DEBUG
@@ -50,6 +51,7 @@ typedef struct _kw_matches {
   kw_match_state_t  state;
 } kw_matches_t;
 
+static void           _lexer_init(void) __attribute__((constructor(102)));
 static void           _dequotify(str_t *);
 static int            _is_identifier(str_t *);
 
@@ -105,6 +107,10 @@ static state_str_t matcher_state_names[] = {
 /*
  * static utility functions
  */
+
+void _lexer_init(void) {
+  logging_register_category("lexer", &lexer_debug);
+}
 
 void _dequotify(str_t *str) {
   int len, ix;

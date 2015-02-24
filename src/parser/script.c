@@ -24,19 +24,20 @@
 
 #include <data.h>
 #include <exception.h>
+#include <logging.h>
 #include <namespace.h>
 #include <script.h>
-
 #include <str.h>
+
 
 int script_debug = 0;
 
-static void             _data_script_init(void) __attribute__((constructor));
+static void             _script_init(void) __attribute__((constructor(102)));
+
 static data_t *         _data_new_script(data_t *, va_list);
 static data_t *         _data_copy_script(data_t *, data_t *);
 static int              _data_cmp_script(data_t *, data_t *);
 static char *           _data_tostring_script(data_t *);
-static data_t *         _data_execute_script(data_t *, char *, array_t *, dict_t *);
 
 static data_t *         _data_new_closure(data_t *, va_list);
 static data_t *         _data_copy_closure(data_t *, data_t *);
@@ -87,14 +88,15 @@ static typedescr_t _typedescr_closure = {
   .vtable =    _vtable_closure
 };
 
-/*
- * Script data functions
- */
-
-void _data_script_init(void) {
+void _script_init(void) {
+  logging_register_category("script", &script_debug);
   typedescr_register(&_typedescr_script);
   typedescr_register(&_typedescr_closure);
 }
+
+/*
+ * Script data functions
+ */
 
 data_t * _data_new_script(data_t *ret, va_list arg) {
   script_t *script;
@@ -117,13 +119,13 @@ int _data_cmp_script(data_t *d1, data_t *d2) {
 
   s1 = d1 -> ptrval;
   s2 = d2 -> ptrval;
-  return strcmp(s1 -> name, s2 -> name);
+  return name_cmp(s1 -> name, s2 -> name);
 }
 
 char * _data_tostring_script(data_t *d) {
   static char buf[32];
 
-  snprintf(buf, 32, "<<script %s>>", ((script_t *) d -> ptrval) -> name);
+  snprintf(buf, 32, "<<script %s>>", script_tostring((script_t *) d -> ptrval));
   return buf;
 }
 
@@ -161,7 +163,7 @@ int _data_cmp_closure(data_t *d1, data_t *d2) {
 
   c1 = d1 -> ptrval;
   c2 = d2 -> ptrval;
-  return strcmp(c1 -> script -> name, c2 -> script -> name);
+  return name_cmp(c1 -> script -> name, c2 -> script -> name);
 }
 
 char * _data_tostring_closure(data_t *d) {
@@ -223,13 +225,15 @@ data_t * _script_function_print(data_t *ignored, char *name, array_t *params, di
 
 script_t * script_create(namespace_t *ns, script_t *up, char *name) {
   script_t   *ret;
-  char       *shortname_buf;
-  char       *fullname_buf;
-  data_t     *data;
-  function_t *builtin;
-  script_t   *bi;
-  int         len;
+  char       *anon = NULL;
 
+  if (!name) {
+    asprintf(&anon, "__anon__%d__", hashptr(ret));
+    name = anon;
+  }
+  if (script_debug) {
+    debug("Creating script '%s'", name);
+  }
   ret = NEW(script_t);
   ret -> instructions = list_create();
   list_set_free(ret -> instructions, (free_t) instruction_free);
@@ -240,19 +244,10 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
   ret -> label = NULL;
   ret -> params = NULL;
 
-  shortname_buf = fullname_buf = NULL;
-  if (!name) {
-    len = snprintf(NULL, 0, "__anon__%d__", hashptr(ret));
-    shortname_buf = (char *) new(len);
-    sprintf(shortname_buf, "__anon__%d__", hashptr(ret));
-    name = shortname_buf;
-  }
+  ret -> name = name_create(0);
   if (up) {
     dict_put(up -> functions, strdup(name), data_create_script(ret));
-    len = snprintf(NULL, 0, "%s/%s", up -> name, name);
-    fullname_buf = (char *) new(len + 1);
-    sprintf(fullname_buf, "%s/%s", up -> name, name);
-    name = fullname_buf;
+    name_append(ret -> name, up -> name);
     ret -> up = script_copy(up);
     ret -> ns = ns_create(up -> ns);
   } else {
@@ -260,9 +255,8 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
     ret -> ns = ns_create(ns);
     ret -> up = NULL;
   }
-  ret -> name = strdup(name);
-  free(shortname_buf);
-  free(fullname_buf);
+  name_extend(ret -> name, name);
+  free(anon);
   return ret;
 }
 
@@ -271,12 +265,8 @@ script_t * script_copy(script_t *script) {
   return script;
 }
 
-char * script_get_name(script_t *script) {
-  return script -> name;
-}
-
 char * script_tostring(script_t *script) {
-  return script_get_name(script);
+  return name_tostring(script -> name);
 }
 
 void script_free(script_t *script) {
@@ -289,28 +279,10 @@ void script_free(script_t *script) {
       dict_free(script -> functions);
       script_free(script -> up);
       ns_free(script -> ns);
-      free(script -> name);
+      name_free(script -> name);
       free(script);
     }
   }
-}
-
-script_t * script_make_native(script_t *script, function_t *function) {
-  if (!script -> native) {
-    assert(list_size(script -> instructions) == 0);
-    list_free(script -> instructions);
-    script -> native = 1;
-  }
-  script -> native_method = (method_t) function -> fnc;
-  return script;
-}
-
-script_t * script_create_native(script_t *script, function_t *function) {
-  script_t *ret;
-  
-  ret = script_create(script -> ns, script, function -> name);
-  script_make_native(ret, function);
-  return ret;
 }
 
 script_t * script_push_instruction(script_t *script, instruction_t *instruction) {
@@ -333,13 +305,12 @@ data_t * script_execute(script_t *script, data_t *self, array_t *args, dict_t *k
   data_t    *ret;
   closure_t *closure;
 
-  if (script -> native) {
-    ret = script -> native_method(self, script -> name, args, kwargs);
-  } else {
-    closure = script_create_closure(script, self, NULL);
-    ret = closure_execute(closure, args, kwargs);
-    closure_free(closure);
+  if (script_debug) {
+    debug("Executing script '%s'", script_tostring(script));
   }
+  closure = script_create_closure(script, self, NULL);
+  ret = closure_execute(closure, args, kwargs);
+  closure_free(closure);
   return ret;
 }
 
@@ -347,7 +318,7 @@ void script_list(script_t *script) {
   instruction_t *instr;
   
   debug("==================================================================");
-  debug("Script Listing - %s", (script -> name ? script -> name : "<<anon>>"));
+  debug("Script Listing - %s", script_tostring(script));
   debug("------------------------------------------------------------------");
   debug("%-11.11s%-15.15s", "label","Instruction");
   debug("------------------------------------------------------------------");
@@ -372,12 +343,13 @@ data_t * script_create_object(script_t *script, array_t *args, dict_t *kwargs) {
   data_t    *self;
   
   if (script_debug) {
-    debug("script_create_object(%s)", script_get_name(script));
+    debug("script_create_object(%s)", script_tostring(script));
   }
   ret = object_create(script);
   self = data_create_object(ret);
   retval = script_execute(script, self, args, kwargs);
   if (!data_is_error(retval)) {
+    ret -> retval = retval;
     retval = self;
   }
   if (script_debug) {
@@ -386,26 +358,42 @@ data_t * script_create_object(script_t *script, array_t *args, dict_t *kwargs) {
   return retval;
 }
 
-/*
- FIXME: Closures should be created when an object is created, with no arguments
- */
-
-
 closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
   char      *name = (char *) entry -> key;
-  script_t  *func = (script_t *) entry -> value;
+  data_t    *func = (data_t *) entry -> value;
+  data_t    *value;
   closure_t *c;
 
-  c = script_create_closure(func, closure -> self, closure);
-  c -> up = closure;
-  closure_set(closure, name, data_create(Closure, c));
+  if (data_is_script(func)) {
+    c = script_create_closure(data_scriptval(func), closure -> self, closure);
+    c -> up = closure;
+    value = data_create(Closure, c);
+  } else {
+    /* Native function */
+    /* TODO: Do we have a closure-like structure to bind the function to self? */
+    value = data_copy(func);
+  }
+  closure_set(closure, name, value);
   return closure;
+}
+
+object_t * _object_set_closures(entry_t *entry, object_t *object) {
+  data_t *closure;
+  char   *name;
+  
+  closure = data_copy((data_t *) entry -> value);
+  name = (char *) entry -> key;
+  object_set(object, name, closure);
+  return object;
 }
 
 closure_t * script_create_closure(script_t *script, data_t *self, closure_t *up) {
   closure_t *ret;
   int        ix;
 
+  if (script_debug) {
+    debug("Creating closure for script '%s'", script_tostring(script));
+  }
   ret = NEW(closure_t);
   ret -> script = script_copy(script);
   ret -> imports = ns_create(script -> ns);
@@ -424,6 +412,12 @@ closure_t * script_create_closure(script_t *script, data_t *self, closure_t *up)
   ret -> refs++;
   
   if (!up) {
+    /*
+     * Bind all functions in this closure to the 'self' object:
+     */
+    if (self) {
+      dict_reduce(ret -> variables, (reduce_t) _object_set_closures, data_objectval(self));
+    }
     /*
      * Import standard lib:
      */
@@ -488,7 +482,7 @@ void closure_free(closure_t *closure) {
 }
 
 char * closure_tostring(closure_t *closure) {
-  return script_get_name(closure -> script);
+  return script_tostring(closure -> script);
 }
 
 data_t * closure_pop(closure_t *closure) {
@@ -514,8 +508,13 @@ data_t * closure_import(closure_t *closure, name_t *module) {
 
 data_t * closure_set(closure_t *closure, char *name, data_t *value) {
   if (script_debug) {
-    debug("  Setting local '%s' = %s in closure for %s",
-          name, data_debugstr(value), closure_tostring(closure));
+    if (strcmp(name, "self")) {
+      debug("  Setting local '%s' = '%s' in closure for %s",
+            name, data_debugstr(value), closure_tostring(closure));
+    } else {
+      debug("  Setting local '%s' in closure for %s",
+            name, closure_tostring(closure));
+    }
   }
   dict_put(closure -> variables, strdup(name), data_copy(value));
   return value;
@@ -552,7 +551,8 @@ data_t * closure_resolve(closure_t *closure, char *name) {
   ret = (data_t *) dict_get(closure -> variables, name);
   if (!ret) {
     if (closure -> up) {
-      if (!strcmp(name, "^") || !strcmp(name, closure -> up -> script -> name)) {
+      if (!strcmp(name, "^") ||
+          !strcmp(name, name_last(closure -> up -> script -> name))) {
         ret = data_create(Closure, closure -> up);
       } else {
         ret = closure_resolve(closure -> up, name);
@@ -569,6 +569,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   data_t   *ret;
   script_t *script;
 
+  script = closure -> script;
   if (args || (script -> params && array_size(script -> params))) {
     // FIXME Proper error message
     assert(args && (array_size(script -> params) == array_size(args)));

@@ -31,21 +31,26 @@ typedef data_t * (*import_t)(void *, name_t *);
 
 extern int ns_debug;
 
+typedef enum _modstate {
+  ModStateUninitialized,
+  ModStateLoading,
+  ModStateActive
+} modstate_t;
+
 typedef struct _module {
-  object_t *obj;
-  char     *name;
-  int       refs;
-  char     *str;
-  dict_t   *contents;
+  modstate_t  state;
+  object_t   *obj;
+  char       *name;
+  int         refs;
+  char       *str;
+  dict_t     *contents;
 } module_t;
 
 typedef struct _namespace {
-  void                *import_ctx;
-  union {
-    struct _namespace *up;
-    import_t           import_fnc;
-  };
-  data_t              *root;
+  struct _namespace *up;
+  void              *import_ctx;
+  import_t           import_fnc;
+  data_t            *root;
 } namespace_t;
 
 #define data_is_module(d)  ((d) && (data_type((d)) == Module))

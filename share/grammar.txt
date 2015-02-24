@@ -59,17 +59,17 @@ func_def                    := "func"
                                'i'               [ push:   $                 ]
                                (                 [ push:   0                 ]
                                parlist_or_void
-                               )                 [ start_function            ]
+                               )
                                func_block
                              ;
                              
-func_block                  := "begin"
+func_block                  := "begin"           [ start_function            ]
                                statements
                                end_stmt          [ end_function              ]
-                             | link_clause
+                             | link_clause       [ native_function           ]
                              ;
                              
-link_clause                 := "->" '"'          [ end_native_function       ]
+link_clause                 := "->" '"'
                              ;
                              
 dummy                       :=

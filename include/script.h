@@ -36,14 +36,10 @@ typedef struct _namespace namespace_t;
 
 typedef struct _script {
   struct _script    *up;
-  char              *name;
-  array_t           *params;
-  int                native;
-  union {
-    list_t          *instructions;
-    method_t         native_method;
-  };
+  name_t            *name;
+  list_t            *instructions;
   dict_t            *functions;
+  array_t           *params;
   dict_t            *labels;
   char              *label;
   struct _namespace *ns;
@@ -60,6 +56,16 @@ typedef struct _closure {
   int                refs;
 } closure_t;
 
+typedef data_t * (*native_t)(char *, array_t *, dict_t *);
+
+typedef struct _native_fnc {
+  script_t *script;
+  name_t   *name;
+  native_t  native_method;
+  array_t  *params;
+  int       refs;  
+} native_fnc_t;
+
 extern data_t *            data_create_script(script_t *);
 extern data_t *            data_create_closure(closure_t *);
 
@@ -67,17 +73,13 @@ extern data_t *            data_create_closure(closure_t *);
 #define data_scriptval(d)  (data_is_script((d)) ? ((script_t *) (d) -> ptrval) : NULL)
 #define data_is_closure(d) ((d) && (data_type((d)) == Closure))
 #define data_closureval(d) (data_is_closure((d)) ? ((closure_t *) (d) -> ptrval) : NULL)
+#define data_is_native(d)  ((d) && (data_type((d)) == Native))
+#define data_nativeval(d)  (data_is_native((d)) ? ((native_fnc_t *) (d) -> ptrval) : NULL)
 
-/*
- * script_t prototypes
- */
 extern script_t *       script_create(namespace_t *, script_t *, char *);
-extern script_t *       script_create_native(script_t *, function_t *);
 extern script_t *       script_copy(script_t *);
 extern void             script_free(script_t *);
-extern script_t *       script_make_native(script_t *, function_t *);
 extern char *           script_tostring(script_t *);
-extern char *           script_get_name(script_t *);
 extern void             script_list(script_t *);
 extern script_t *       script_get_toplevel(script_t *);
 
@@ -101,6 +103,11 @@ extern data_t *         closure_resolve(closure_t *, char *);
 extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
 extern data_t *         closure_import(closure_t *, name_t *);
   
-#define closure_get_name(c)   closure_tostring((c))
+extern native_fnc_t *   native_fnc_create(script_t *, char *name, native_t);
+extern native_fnc_t *   native_fnc_copy(native_fnc_t *);
+extern void             native_fnc_free(native_fnc_t *);
+extern data_t *         native_fnc_execute(native_fnc_t *, array_t *, dict_t *);
+extern char *           native_fnc_tostring(native_fnc_t *);
+extern int              native_fnc_cmp(native_fnc_t *, native_fnc_t *);
 
 #endif /* __SCRIPT_H__ */

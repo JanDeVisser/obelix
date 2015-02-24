@@ -32,6 +32,7 @@ typedef struct _object {
   struct _script *script;
   void           *ptr;
   dict_t         *variables;
+  data_t         *retval;
   char           *str;
   char           *debugstr;
   int             refs;

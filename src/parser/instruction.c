@@ -28,7 +28,6 @@
 #include <script.h>
 
 typedef data_t * (*instr_fnc_t)(instruction_t *, closure_t *);
-typedef data_t * (*native_t)(closure_t *, char *, array_t *);
 
 typedef struct _instruction_type_descr {
   instruction_type_t  type;

@@ -23,6 +23,7 @@
 
 #include <data.h>
 #include <lexer.h>
+#include <logging.h>
 #include <parser.h>
 
 int parser_debug = 0;
@@ -49,6 +50,8 @@ typedef struct _parser_stack_entry {
   };
 } parser_stack_entry_t;
 
+static void                   _parser_init(void) __attribute__((constructor(102)));
+
 static parser_stack_entry_t * _parser_stack_entry_for_rule(rule_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_nonterminal(nonterminal_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_entry(rule_entry_t *);
@@ -63,6 +66,10 @@ static int                    _parser_ll1_token_handler(token_t *, parser_t *, i
 static parser_t *             _parser_ll1(token_t *, parser_t *);
 static parser_t *             _parser_lr1(token_t *, parser_t *);
 static lexer_t *              _parser_set_keywords(token_t *, lexer_t *);
+
+void _parser_init(void) {
+  logging_register_category("parser", &parser_debug);
+}
 
 /*
  * parser_stack_entry_t static functions

@@ -130,21 +130,7 @@ data_t * _object_call_attribute(object_t *object, char *name, array_t *args, dic
     ret = data_call(func, args, kwargs);
   }
   data_free(func);
-  if (!ret) {
-    ret = data_error(ErrorNotCallable, "Attribute '%s' of object '%s' is not callable", 
-                     name, object_tostring(object));
-  }
   return ret;
-}
-
-object_t * _object_set_closures(entry_t *entry, object_t *object) {
-  data_t *script;
-  char   *name;
-  
-  script = data_create(Script, (script_t *) entry -> value);
-  name = (char *) entry -> key;
-  object_set(object, name, script);
-  return object;
 }
 
 /*
@@ -162,9 +148,6 @@ object_t * object_create(script_t *script) {
   ret -> str = NULL;
   ret -> debugstr = NULL;
   ret -> variables = strdata_dict_create();
-  if (script) {
-    dict_reduce(script -> functions, (reduce_t) _object_set_closures, ret);
-  }
   return ret;
 }
 
@@ -230,7 +213,7 @@ data_t * object_call(object_t *object, array_t *args, dict_t *kwargs) {
   data_t *ret;
 
   ret = _object_call_attribute(object, "__call__", args, kwargs);
-  if (data_is_error(ret) && (data_errorval(ret) -> code == ErrorNotCallable)) {
+  if (!ret || data_is_error(ret)) {
     data_free(ret);
     ret = data_error(ErrorNotCallable, "Object '%s' is not callable", 
                      object_tostring(object));
@@ -242,7 +225,7 @@ char * object_tostring(object_t *object) {
   data_t  *data;
 
   data = _object_call_attribute(object, "__str__", NULL, NULL);
-  if (data_is_error(data)) {
+  if (!data) {
     object -> str = strdup(object_debugstr(object));
   } else {
     object -> str = strdup(data_charval(data));
@@ -268,7 +251,7 @@ unsigned int object_hash(object_t *object) {
   unsigned int  ret;
 
   data = _object_call_attribute(object, "__hash__", NULL, NULL);
-  ret = (data_type(data) == Int) ? data_intval(data) : hashptr(object);
+  ret = (data && (data_type(data) == Int)) ? data_intval(data) : hashptr(object);
   data_free(data);
   return ret;
 }
@@ -281,7 +264,7 @@ int object_cmp(object_t *o1, object_t *o2) {
   args = data_array_create(1);
   array_set(args, 0, data_create(Object, o2));
   data = _object_call_attribute(o1, "__cmp__", args, NULL);
-  ret = (!data_is_error(data))
+  ret = (data && !data_is_error(data))
       ? data_intval(data)
       : (long) o1 - (long) o2;
   data_free(data);

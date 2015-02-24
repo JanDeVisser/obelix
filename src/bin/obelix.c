@@ -25,63 +25,23 @@
 #include <file.h>
 #include <lexer.h>
 
-#if 0
-#include <grammarparser.h>
-int main(int argc, char **argv) {
-  file_t           *gf;
-  grammar_parser_t *gp;
-  grammar_t        *g;
-
-  grammar_debug = 1;
-
-  gf = file_open("/home/jan/Projects/obelix/etc/grammar.txt");
-  gp = grammar_parser_create(gf);
-  gp -> dryrun = TRUE;
-  g = grammar_parser_parse(gp);
-  grammar_parser_free(gp);
-  grammar_free(g);
-  file_free(gf);
-}
-#endif
-
 #include <loader.h>
 #include <name.h>
 #include <namespace.h>
 #include <script.h>
 
+#include "logging.h"
+
 void debug_settings(char *debug) {
-  int debug_all = 0;
+  int      debug_all = 0;
+  array_t *cats;
+  int      ix;
   
   if (debug) {
     debug("debug optarg: %s", debug);
-    debug_all = strstr(debug, "all") != NULL;
-    if (debug_all || strstr(debug, "grammar")) {
-      grammar_debug = 1;
-      debug("Turned on grammar debugging");
-    }
-    if (debug_all || strstr(debug, "parser")) {
-      parser_debug = 1;
-      debug("Turned on parser debugging");
-    }
-    if (debug_all || strstr(debug, "script")) {
-      script_debug = 1;
-      debug("Turned on script debugging");
-    }
-    if (debug_all || strstr(debug, "file")) {
-      file_debug = 1;
-      debug("Turned on file debugging");
-    }
-    if (debug_all || strstr(debug, "namespace")) {
-      ns_debug = 1;
-      debug("Turned on namespace debugging");
-    }
-    if (debug_all || strstr(debug, "resolution")) {
-      res_debug = 1;
-      debug("Turned on name resolution debugging");
-    }
-    if (debug_all || strstr(debug, "lexer")) {
-      lexer_debug = 1;
-      debug("Turned on name lexer debugging");
+    cats = array_split(debug, ",");
+    for (ix = 0; ix < array_size(cats); ix++) {
+      logging_enable(str_array_get(cats, ix));
     }
   }
 }

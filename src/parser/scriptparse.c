@@ -380,7 +380,6 @@ parser_t * script_parse_start_function(parser_t *parser) {
   script_t  *func;
   data_t    *data;
   char      *fname;
-  int        native;
   name_t    *params;
   int        ix;
 
@@ -423,19 +422,37 @@ parser_t * script_parse_end_function(parser_t *parser) {
   return parser;
 }
 
-parser_t * script_parse_end_native_function(parser_t *parser) {
-  script_t  *func;
-  char      *c_func_name;
-  voidptr_t  fnc;
+parser_t * script_parse_native_function(parser_t *parser) {
+  script_t     *script;
+  native_fnc_t *func;
+  data_t       *data;
+  char         *fname;
+  name_t       *params;
+  int           ix;
+  char         *c_func_name;
+  native_t      c_func;
+  parser_t     *ret = parser;
+  
+  script = (script_t *) parser -> data;
 
-  func = (script_t *) parser -> data;
+  /* Top of stack: number of parameters and parameters */
+  /* Note that we abuse the 'build_varname' function   */
+  params = _script_pop_and_build_varname(parser);
+
+  /* Next on stack: function name */
+  data = datastack_pop(parser -> stack);
+  fname = strdup(data_charval(data));
+  data_free(data);
+  
+    /* TODO Split c_func_name into lib and func */
   c_func_name = strdup(parser -> last_token -> token);
-
-  /* TODO Split c_func_name into lib and func */
-
-  fnc = (voidptr_t) resolve_function(c_func_name);
-  if (fnc) {
-    func = script_make_native(func, function_create(func -> name, fnc));
+  c_func = (native_t) resolve_function(c_func_name);
+  if (c_func) {
+    func = native_fnc_create(script, fname, c_func);
+    func -> params = str_array_create(name_size(params));
+    for (ix = 0; ix < name_size(params); ix++) {
+      array_push(func -> params, name_get(params, ix));
+    }
     if (parser_debug) {
       debug(" -- defined native function %s", func -> name);
     }
@@ -444,10 +461,11 @@ parser_t * script_parse_end_native_function(parser_t *parser) {
     return data_error(ErrorName,
                       "Could not find native function '%s'", fname);
      */
-    return NULL;
+    ret = NULL;
   }
-  parser -> data = func -> up;
-  return parser;
+  free(fname);
+  name_free(params);
+  return ret;
 }
 
 
