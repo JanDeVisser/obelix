@@ -18,16 +18,20 @@
  */
 
 #include <assert.h>
-#include <core.h>
-#include <data.h>
-#include <grammar.h>
-#include <list.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <core.h>
+#include <data.h>
+#include <grammar.h>
+#include <list.h>
+#include <logging.h>
+
 int grammar_debug = 0;
+
+static void                _grammar_init(void) __attribute__((constructor(102)));
 
 static void                _ge_init(void) __attribute__((constructor));
 static ge_t *              _ge_create(grammar_t *, ge_t *, grammar_element_type_t, ...);
@@ -122,6 +126,10 @@ static typedescr_t _typedescr_rule_entry = {
   .type_name = "rule_entry",
   .vtable    = _vtable_rule_entry
 };
+
+void _grammar_init(void) {
+  logging_register_category("grammar", &grammar_debug);
+}
 
 /*
  * pushvalue_t -

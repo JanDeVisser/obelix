@@ -47,7 +47,7 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   char      *name;
 
   assert(*(basedir + (strlen(basedir) - 1)) == '/');
-  name = name_tostring_sep(n, "/");
+  name = strdup(name_tostring_sep(n, "/"));
   if (script_debug) {
     debug("_scriptloader_open_file('%s', '%s')", basedir, name);
   }
@@ -80,6 +80,7 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   } else {
     ret = NULL;
   }
+  free(name);
   fsentry_free(e);
   free(fname);
   return ret;
@@ -94,7 +95,7 @@ reader_t * _scriptloader_open_reader(scriptloader_t *loader, name_t *name) {
   assert(loader);
   assert(name);
   if (script_debug) {
-    debug("_scriptloader_open_reader('%s')", name);
+    debug("_scriptloader_open_reader('%s')", name_tostring(name));
   }
   for (ix = 0; ix < name_size(loader -> load_path); ix++) {
     path_entry = name_get(loader -> load_path, ix);
@@ -278,7 +279,7 @@ data_t * scriptloader_load(scriptloader_t *loader, name_t *name) {
 
   assert(loader);
   assert(name);
-  script_name = (name_size(name)) ? name_tostring(name) : "__root__";
+  script_name = strdup((name_size(name)) ? name_tostring(name) : "__root__");
   if (script_debug) {
     debug("scriptloader_load('%s')", script_name);
   }
@@ -290,5 +291,6 @@ data_t * scriptloader_load(scriptloader_t *loader, name_t *name) {
             : data_error(ErrorName, "Could not load '%s'", script_name);
     reader_free(rdr);
   }
+  free(script_name);
   return ret;
 }

@@ -43,6 +43,7 @@ typedef enum _datatype {
   Closure,      /* 13 */
   Module,       /* 14 */
   Name,         /* 15 */
+  Native,       /* 16 */
   Any           = 100,
   UserTypeRange = 999
 } datatype_t;

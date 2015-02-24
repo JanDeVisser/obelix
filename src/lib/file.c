@@ -26,8 +26,16 @@
 #include <unistd.h>
 
 #include <file.h>
+#include <logging.h>
 
 int file_debug = 0;
+
+static void _file_init(void) __attribute__((constructor(102)));
+
+void _file_init(void) {
+  logging_register_category("file", &file_debug);
+}
+
 
 /*
  * fsentry_t -
