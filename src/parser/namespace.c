@@ -178,7 +178,6 @@ data_t * mod_get_module(module_t *mod, char *name) {
 module_t * mod_add_module(module_t *mod, name_t *name) {
   module_t *ret = mod_create(name);
   
-  ret -> state = ModStateLoading;
   dict_put(mod -> contents, strdup(name_last(name)), data_create(Module, ret));
   return ret;
 }
@@ -228,7 +227,8 @@ namespace_t * _ns_create(void) {
   return ret;
 }
 
-module_t * _ns_add(namespace_t *ns, name_t *name) {
+  
+module_t * _ns_add_module(namespace_t *ns, name_t *name, module_t *mod) {
   name_t   *current = name_create(0);
   int       ix;
   char     *n;
@@ -237,8 +237,7 @@ module_t * _ns_add(namespace_t *ns, name_t *name) {
   
   if (!name_size(name)) {
     assert(!ns -> root);
-    ns -> root = data_create(Module, mod_create(name));
-    node = data_moduleval(ns -> root);
+    ns -> root = data_create(Module, mod);
   } else {
     assert(ns -> root);  
     node = data_moduleval(ns -> root);
@@ -252,11 +251,20 @@ module_t * _ns_add(namespace_t *ns, name_t *name) {
       node = sub;
     }
     name_free(current);
+    mod_add_module(mod, name);
   }
-  node -> state = ModStateLoading;
-  return node;
+  return mod;
 }
 
+module_t * _ns_add(namespace_t *ns, name_t *name) {
+  module_t *mod;
+  
+  mod = mod_create(name);
+  mod -> state = ModStateLoading;
+  _ns_add_module(ns, name, mod);
+  return mod;
+}
+  
 module_t * _ns_get(namespace_t *ns, name_t *name) {
   int       ix;
   char     *n;
@@ -266,10 +274,12 @@ module_t * _ns_get(namespace_t *ns, name_t *name) {
   for (ix = 0; node && (ix < name_size(name)); ix++) {
     n = name_get(name, ix);
     node = data_moduleval(mod_get_module(node, n));
-    if (!node) return NULL;
   }
   if (!node && ns -> up) {
     node = _ns_get(ns -> up, name);
+    if (node) {
+      _ns_add_module(ns, name, node);
+    }
   }
   return node;
 }
@@ -360,8 +370,6 @@ void ns_free(namespace_t *ns) {
 
 data_t * ns_import(namespace_t *ns, name_t *name) {
   data_t   *ret = NULL;
-  data_t   *obj;
-  data_t   *script;
   module_t *module = NULL;
   name_t   *dummy = NULL;
 

@@ -22,8 +22,9 @@
 #include <script.h>
 #include <scriptparse.h>
 
-static int      _script_pop_operation(parser_t *, char *);
-static name_t * _script_pop_and_build_varname(parser_t *);
+static int        _script_pop_operation(parser_t *, char *);
+static name_t *   _script_pop_and_build_varname(parser_t *);
+static parser_t * _script_parse_emit_epilog(parser_t *);
 
 /* ----------------------------------------------------------------------- */
 
@@ -78,6 +79,30 @@ name_t * _script_pop_and_build_varname(parser_t *parser) {
   return ret;
 }
 
+parser_t * _script_parse_emit_epilog(parser_t *parser) {
+  script_t *script;
+  data_t   *data;
+  name_t   *error_var;
+
+  script = (script_t *) parser -> data;
+  data = data_null();
+  script_push_instruction(script, instruction_create_pushval(data_null()));
+  data_free(data);
+  script_push_instruction(script, instruction_create_jump("END"));
+  
+  script -> label = strdup("ERROR");
+  error_var = name_create(1, "$$ERROR");
+  script_push_instruction(script, instruction_create_pushvar(error_var));
+  name_free(error_var);
+  
+  script -> label = strdup("END");
+  script_parse_emit_nop(parser);
+  if (script_debug) {
+    script_list(script);
+  }
+  return parser;
+}
+
 /* ----------------------------------------------------------------------- */
 
 parser_t * script_parse_init(parser_t *parser) {
@@ -100,30 +125,12 @@ parser_t * script_parse_init(parser_t *parser) {
 parser_t * script_parse_done(parser_t *parser) {
   data_t        *data;
   script_t      *script;
-  instruction_t *jump;
-  name_t       *error_var;
+  name_t        *error_var;
 
   if (parser_debug) {
     debug("script_parse_done");
   }
-  script = (script_t *) parser -> data;
-
-  data = data_create(Int, 0);
-  script_push_instruction(script, instruction_create_pushval(data));
-  data_free(data);
-  script_push_instruction(script, instruction_create_jump("END"));
-  
-  script -> label = strdup("ERROR");
-  error_var = name_create(1, "$$ERROR");
-  script_push_instruction(script, instruction_create_pushvar(error_var));
-  name_free(error_var);
-  
-  script -> label = strdup("END");
-  script_parse_emit_nop(parser);
-  if (script_debug) {
-    script_list(script);
-  }
-  return parser;
+  return _script_parse_emit_epilog(parser);
 }
 
 parser_t * script_parse_emit_assign(parser_t *parser) {
@@ -412,12 +419,7 @@ parser_t * script_parse_end_function(parser_t *parser) {
   script_t  *func;
 
   func = (script_t *) parser -> data;
-  if (func -> label) {
-    script_parse_emit_nop(parser);
-  }
-  if (script_debug) {
-    script_list(func);
-  }
+  _script_parse_emit_epilog(parser);
   parser -> data = func -> up;
   return parser;
 }
