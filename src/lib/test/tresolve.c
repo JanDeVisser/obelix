@@ -17,9 +17,10 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <check.h>
-#include "collections.h"
 #include <resolve.h>
+#include <testsuite.h>
+
+static void _init_tresolve(void) __attribute__((constructor(300)));
 
 START_TEST(test_resolve_get)
   resolve_t *resolve;
@@ -74,14 +75,8 @@ START_TEST(test_resolve_foreign_function)
   ck_assert_ptr_ne(test, NULL);
 END_TEST
 
-char * get_suite_name() {
-  return "Resolve";
-}
-
-TCase * get_testcase(int ix) {
-  TCase *tc;
-  if (ix > 0) return NULL;
-  tc = tcase_create("Resolve");
+static void _init_tresolve(void) {
+  TCase *tc = tcase_create("Resolve");
 
   tcase_add_test(tc, test_resolve_get);
   tcase_add_test(tc, test_resolve_open);
@@ -89,7 +84,7 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_resolve_library);
   tcase_add_test(tc, test_resolve_function);
   tcase_add_test(tc, test_resolve_foreign_function);
-  return tc;
+  add_tcase(tc);
 }
 
 

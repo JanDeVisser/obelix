@@ -24,9 +24,11 @@
 #include <stdlib.h>
 
 #include <dict.h>
-#include "collections.h"
+#include <testsuite.h>
 
 #define MANY 500
+
+static void _init_tdict(void) __attribute__((constructor(300)));
 
 typedef struct _test_dict_ctx {
   dict_t *dict;
@@ -233,15 +235,8 @@ START_TEST(test_dict_visit_reduce)
 END_TEST
 
 
-char * get_suite_name() {
-  return "Dict";
-}
-
-
-TCase * get_testcase(int ix) {
-  TCase *tc;
-  if (ix > 0) return NULL;
-  tc = tcase_create("Dict");
+static void _init_tdict(void) {
+  TCase *tc = tcase_create("Dict");
 
   tcase_add_test(tc, test_dict_create);
   tcase_add_test(tc, test_dict_put_one);
@@ -251,5 +246,5 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_dict_has_key);
   tcase_add_test(tc, test_dict_remove);
   tcase_add_test(tc, test_dict_visit_reduce);
-  return tc;
+  add_tcase(tc);
 }

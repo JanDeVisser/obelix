@@ -20,9 +20,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <check.h>
 #include <file.h>
 #include <str.h>
+#include <testsuite.h>
+
+static void _init_tbuffer(void) __attribute__((constructor(300)));
 
 START_TEST(test_str_create)
   str_t *str;
@@ -127,16 +129,8 @@ START_TEST(test_reader_read)
 END_TEST
 
 
-
-
-char * get_suite_name() {
-  return "Buffer";
-}
-
-TCase * get_testcase(int ix) {
-  TCase *tc;
-  if (ix > 0) return NULL;
-  tc = tcase_create("Buffer");
+static void _init_tbuffer(void) {
+  TCase *tc = tcase_create("Buffer");
 
   tcase_add_test(tc, test_file_create);
   tcase_add_test(tc, test_file_open);
@@ -144,6 +138,6 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_str_create);
   tcase_add_test(tc, test_str_read);
   tcase_add_test(tc, test_reader_read);
-  return tc;
+  add_tcase(tc);
 }
 

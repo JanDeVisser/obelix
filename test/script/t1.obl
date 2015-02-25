@@ -1,5 +1,2 @@
-func main()
-begin
-  print("Hello, Asterix!")
-  return 42
-end
+print("Hello, Asterix!")
+return 42

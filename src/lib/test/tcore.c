@@ -25,7 +25,10 @@
 #include <stdlib.h>
 
 #include <core.h>
-#include "collections.h"
+#include <testsuite.h>
+
+static void _set_suite_name(void) __attribute__((constructor(101)));
+static void _init_tcore(void) __attribute__((constructor(300)));
 
 START_TEST(test_strrand)
   char str[11];
@@ -59,16 +62,14 @@ START_TEST(test_strhash)
   debug("test_strhash --> %u - %f %u", min, total/500.0, max);
 END_TEST
 
-char * get_suite_name() {
-  return "Core";
+static void _set_suite_name(void) {
+  set_suite_name("Core Library");
 }
 
-TCase * get_testcase(int ix) {
-  TCase *tc;
-  if (ix > 0) return NULL;
-  tc = tcase_create("Core");
+static void _init_tcore(void) {
+  TCase *tc = tcase_create("Core");
 
   tcase_add_test(tc, test_strrand);
   tcase_add_test(tc, test_strhash);
-  return tc;
+  add_tcase(tc);
 }

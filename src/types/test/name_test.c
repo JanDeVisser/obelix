@@ -18,11 +18,10 @@
  *
  */
 
-#include <check.h>
-#include <stdarg.h>
-
-#include <collections.h>
 #include <name.h>
+#include <testsuite.h>
+
+void _init_name_test(void) __attribute__((constructor(300)));
 
 START_TEST(test_name_create)
   name_t *n = name_create(0);
@@ -271,14 +270,8 @@ START_TEST(test_name_first_empty)
   name_free(n);
 END_TEST
 
-char * get_suite_name() {
-  return "Name";
-}
-
-TCase * get_testcase(int ix) {
-  TCase *tc;
-  if (ix > 0) return NULL;
-  tc = tcase_create("Name");
+void _init_name_test(void) {
+  TCase *tc = tcase_create("Name");
 
   tcase_add_test(tc, test_name_create);
   tcase_add_test(tc, test_name_tostring);
@@ -297,6 +290,6 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_name_first);
   tcase_add_test(tc, test_name_first_one);
   tcase_add_test(tc, test_name_first_empty);
-  return tc;
+  add_tcase(tc);
 }
 
