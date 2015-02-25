@@ -24,7 +24,9 @@
 
 #include <core.h>
 
-#include "collections.h"
+#include "testsuite.h"
+
+static void _init_suite(void) __attribute__((constructor(200)));
 
 test_t * test_create(char *data) {
   test_t *ret;
@@ -62,24 +64,28 @@ void test_free(test_t *test) {
   free(test);
 }
 
+static Suite *_suite = NULL;
+static char  *_suite_name = "default";
+
+void set_suite_name(char *name) {
+  _suite_name = name;
+}
+
+void add_tcase(TCase *tc) {
+  if (_suite && tc) {
+    suite_add_tcase(_suite, tc);
+  }  
+}
+
+void _init_suite(void) {
+  _suite = suite_create(_suite_name);  
+}
+
 int main(void){
   int number_failed;
-  Suite *s;
   SRunner *sr;
-  TCase *tc;
-  int ix;
 
-  s = suite_create(get_suite_name());
-  for (ix = 0; TRUE; ix++) {
-    tc = get_testcase(ix);
-    if (tc) {
-      suite_add_tcase(s, tc);
-    } else {
-      break;
-    }
-  }
-  sr = srunner_create(s);
-
+  sr = srunner_create(_suite);
   srunner_run_all(sr, CK_VERBOSE);
   number_failed = srunner_ntests_failed(sr);
   srunner_free(sr);

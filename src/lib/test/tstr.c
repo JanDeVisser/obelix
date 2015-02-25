@@ -20,7 +20,9 @@
 #include <array.h>
 #include <list.h>
 #include <str.h>
-#include "collections.h"
+#include <testsuite.h>
+
+static void _init_tresolve(void) __attribute__((constructor(300)));
 
 START_TEST(test_str_copy_chars)
   char *text = "This is a test string";
@@ -314,15 +316,8 @@ START_TEST(test_str_join)
   str_free(str);
 END_TEST
 
-
-char * get_suite_name() {
-  return "Str";
-}
-
-TCase * get_testcase(int ix) {
-  TCase *tc;
-  if (ix > 0) return NULL;
-  tc = tcase_create("Str");
+static void _init_tresolve(void) {
+  TCase *tc = tcase_create("Str");
 
   tcase_add_test(tc, test_str_copy_chars);
   tcase_add_test(tc, test_str_copy);
@@ -334,7 +329,7 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_str_indexof);
   tcase_add_test(tc, test_str_split);
   tcase_add_test(tc, test_str_join);
-  return tc;
+  add_tcase(tc);
 }
 
 

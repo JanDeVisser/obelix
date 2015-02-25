@@ -170,11 +170,12 @@ data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) 
 }
 
 data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
-  data_t   *data_closure;
+  data_t   *self;
   data_t   *value;
   data_t   *ret = NULL;
-  char     *n;
   array_t  *params;
+  int       infix;
+  int       num;
   name_t   *name = data_nameval(instr -> value);
   int       ix;
 
@@ -182,20 +183,20 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     debug(" -- #parameters: %d", instr -> num);
   }
 
-  params = data_array_create(instr -> num);
-  for (ix = 0; ix < instr -> num; ix++) {
+  infix = instr -> num < 0;
+  num = (infix) ? - instr -> num : instr -> num;
+  params = data_array_create(num);
+  for (ix = 0; ix < num; ix++) {
     value = closure_pop(closure);
     assert(value);
-    array_set(params, instr -> num - ix - 1, value);
+    array_set(params, num - ix - 1, value);
   }
   if (script_debug) {
     array_debug(params, " -- parameters: %s");
   }
-
-  data_closure = data_create(Closure, closure);
-  ret = data_invoke(data_closure, name, params, NULL);
-
-  data_free(data_closure);
+  self = (infix) ? NULL : data_create(Closure, closure);
+  ret = data_invoke(self, name, params, NULL);
+  data_free(self);
   array_free(params);
   name_free(name);
   if (ret && !data_is_error(ret)) {

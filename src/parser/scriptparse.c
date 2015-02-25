@@ -22,32 +22,37 @@
 #include <script.h>
 #include <scriptparse.h>
 
-static int        _script_pop_operation(parser_t *, char *);
+static name_t *   _script_pop_operation(parser_t *);
 static name_t *   _script_pop_and_build_varname(parser_t *);
 static parser_t * _script_parse_emit_epilog(parser_t *);
 
 /* ----------------------------------------------------------------------- */
 
-int _script_pop_operation(parser_t *parser, char *buf) {
+name_t * _script_pop_operation(parser_t *parser) {
   data_t *data;
-  int     op;
+  char   *opstr;
+  int     opint;
+  char    buf[2];
+  name_t *ret;
   
   data = datastack_pop(parser -> stack);
   switch (data_type(data)) {
     case String:
-      op = data_charval(data)[0];
+      opstr = data_charval(data);
       break;
     case Int:
-      op = data_intval(data);
+      opint = data_intval(data);
+      buf[0] = opint;
+      buf[1] = 0;
+      opstr = buf;
       break;
   }
+  ret = name_create(1, opstr);
   data_free(data);
-  buf[0] = op;
-  buf[1] = 0;
   if (parser_debug) {
-    debug(" -- operation: %s", buf);
+    debug(" -- operation: %s", name_tostring(ret));
   }
-  return op;
+  return ret;
 }
 
 name_t * _script_pop_and_build_varname(parser_t *parser) {
@@ -85,8 +90,8 @@ parser_t * _script_parse_emit_epilog(parser_t *parser) {
   name_t   *error_var;
 
   script = (script_t *) parser -> data;
-  data = data_null();
-  script_push_instruction(script, instruction_create_pushval(data_null()));
+  data = data_create(Int, 0);
+  script_push_instruction(script, instruction_create_pushval(data));
   data_free(data);
   script_push_instruction(script, instruction_create_jump("END"));
   
@@ -123,10 +128,6 @@ parser_t * script_parse_init(parser_t *parser) {
 }
 
 parser_t * script_parse_done(parser_t *parser) {
-  data_t        *data;
-  script_t      *script;
-  name_t        *error_var;
-
   if (parser_debug) {
     debug("script_parse_done");
   }
@@ -173,18 +174,18 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
 parser_t *script_parse_push_signed_val(parser_t *parser) {
   data_t   *data;
   data_t   *signed_val;
-  char      buf[2];
+  name_t   *op;
   script_t *script;
-  array_t  *func_name;
 
   script = parser -> data;
   data = token_todata(parser -> last_token);
   assert(data);
-  _script_pop_operation(parser, buf);
+  op =_script_pop_operation(parser);
   if (parser_debug) {
-    debug(" -- val: %s %s", buf, data_debugstr(data));
+    debug(" -- val: %s %s", name_tostring(op), data_debugstr(data));
   }
-  signed_val = data_execute(data, buf, NULL, NULL);
+  signed_val = data_invoke(data, op, NULL, NULL);
+  name_free(op);
   assert(data_type(signed_val) == data_type(data));
   script_push_instruction(script, instruction_create_pushval(signed_val));
   data_free(data);
@@ -192,29 +193,26 @@ parser_t *script_parse_push_signed_val(parser_t *parser) {
 }
 
 parser_t *script_parse_emit_unary_op(parser_t *parser) {
-  char      buf[2];
-  script_t *script;
-  name_t  *func_name;
-
-  script = parser -> data;
-  _script_pop_operation(parser, buf);
-  func_name = name_create(1, buf);
-  script_push_instruction(script, instruction_create_function(func_name, 1));
-  name_free(func_name);
-  return parser;  
-}
-
-parser_t * script_parse_emit_infix_op(parser_t *parser) {
-  char      buf[2];
+  name_t   *op;
   script_t *script;
   name_t   *func_name;
 
   script = parser -> data;
-  _script_pop_operation(parser, buf);
-  func_name = name_create(1, buf);
+  op = _script_pop_operation(parser);
+  script_push_instruction(script, instruction_create_function(op, -1));
+  name_free(op);
+  return parser;  
+}
+
+parser_t * script_parse_emit_infix_op(parser_t *parser) {
+  script_t *script;
+  name_t   *op;
+
+  script = parser -> data;
+  op = _script_pop_operation(parser);
   script_push_instruction(script,
-    instruction_create_function(func_name, 2));
-  name_free(func_name);
+    instruction_create_function(op, -2));
+  name_free(op);
   return parser;
 }
 

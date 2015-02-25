@@ -17,13 +17,12 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <check.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <set.h>
-#include "collections.h"
+#include <testsuite.h>
 
 #define MANY 500
 
@@ -33,7 +32,10 @@ typedef struct _test_set {
   int size;
 } test_set_t;
 
-test_set_t * fill_many() {
+static void         _init_tresolve(void) __attribute__((constructor(300)));
+static test_set_t * fill_many(void);
+
+test_set_t * fill_many(void) {
   test_set_t *ret;
   set_t *set;
   int ix;
@@ -301,15 +303,8 @@ START_TEST(test_set_cmp)
   set_free(s2);
 END_TEST
 
-char * get_suite_name() {
-  return "Set";
-}
-
-
-TCase * get_testcase(int ix) {
-  TCase *tc;
-  if (ix > 0) return NULL;
-  tc = tcase_create("Set");
+static void _init_tresolve(void) {
+  TCase *tc = tcase_create("Set");
 
   tcase_add_test(tc, test_set_create);
   tcase_add_test(tc, test_set_add_one);
@@ -322,5 +317,5 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_set_intersect);
   tcase_add_test(tc, test_set_subsetof);
   tcase_add_test(tc, test_set_cmp);
-  return tc;
+  add_tcase(tc);
 }

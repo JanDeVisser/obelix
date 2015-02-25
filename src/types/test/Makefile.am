@@ -1,10 +1,5 @@
-TESTS   = \
-	tdata \
-	name
-
-check_PROGRAMS   = \
-	tdata \
-	name
+TESTS          = types
+check_PROGRAMS = types
 
 AM_CPPFLAGS =   -I$(top_srcdir)/include
 AM_CFLAGS =	@CHECK_CFLAGS@
@@ -14,5 +9,4 @@ LDADD   =       $(top_srcdir)/src/lib/liboblcore.la \
 		$(top_srcdir)/src/types/libobltypes.la \
 		@CHECK_LIBS@ -lm -lrt -ldl
 
-tdata_SOURCES     = tdata.c
-name_SOURCES      = name_test.c
+types_SOURCES     = name_test.c types.c str_test.c int_test.c

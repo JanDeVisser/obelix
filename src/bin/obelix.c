@@ -58,14 +58,26 @@ int run_script(scriptloader_t *loader, name_t *name) {
     mod = mod_copy(data_moduleval(data));
     data_free(data);
     obj = object_copy(mod_get(mod));
-    data = data_create(Object, obj);
-    ret = data_execute(data, "main", NULL, NULL);
-    data_free(data);
+    ret = obj -> retval;
     object_free(obj);
     mod_free(mod);
+  } else {
+    ret = data;
   }
   debug("Exiting with exit code %s", data_tostring(ret));
-  retval = (ret && data_type(ret) == Int) ? (int) ret -> intval : 0;
+  switch (data_type(ret)) {
+    case Int:
+    case Float:
+      retval = data_intval(ret);
+      break;
+    case Error:
+      error("Error: %s", data_tostring(ret));
+      retval = -1;
+      break;
+    default:
+      retval = 0;
+      break;
+  }
   data_free(ret);
   return retval;  
 }

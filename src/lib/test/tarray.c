@@ -23,8 +23,9 @@
 #include <stdlib.h>
 
 #include <array.h>
+#include <testsuite.h>
 
-#include "collections.h"
+static void _init_tarray(void) __attribute__((constructor(300)));
 
 array_t * build_test_array() {
   array_t *array;
@@ -295,15 +296,8 @@ START_TEST(test_array_tostr)
   array_free(array);
 END_TEST
 
-char * get_suite_name() {
-  return "Array";
-}
-
-
-TCase * get_testcase(int ix) {
-  TCase *tc;
-  if (ix > 0) return NULL;
-  tc = tcase_create("Array");
+static void _init_tarray(void) {
+  TCase *tc = tcase_create("Array");
 
   tcase_add_test(tc, test_array_create);
   tcase_add_test(tc, test_array_set);
@@ -321,5 +315,5 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_array_slice_neg_num);
   tcase_add_test(tc, test_array_tostr);
   
-  return tc;
+  add_tcase(tc);
 }

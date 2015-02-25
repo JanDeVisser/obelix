@@ -23,8 +23,9 @@
 #include <stdlib.h>
 
 #include <list.h>
-#include "collections.h"
+#include <testsuite.h>
 
+static void     _init_tlist(void) __attribute__((constructor(300)));
 static void     test_raw_print_list(list_t *, char *);
 static void     test_print_list(list_t *, char *);
 static list_t * setup();
@@ -299,16 +300,8 @@ START_TEST(test_list_replace)
   teardown(l);
 END_TEST
 
-char * get_suite_name() {
-  return "List";
-}
-
-TCase * get_testcase(int ix) {
-  TCase *tc;
-
-  if (ix > 0) return NULL;
-
-  tc = tcase_create("List");
+static void _init_tlist(void) {
+  TCase *tc = tcase_create("List");
 
   /* tcase_add_checked_fixture(tc_core, setup, teardown); */
   tcase_add_test(tc, test_list_create);
@@ -326,6 +319,6 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_list_visit);
   tcase_add_test(tc, test_list_reduce);
   tcase_add_test(tc, test_list_replace);
-  return tc;
+  add_tcase(tc);
 }
  
