@@ -22,7 +22,7 @@ AC_CONFIG_FILES([ \
   src/parser/Makefile \
   src/parser/test/Makefile \
   src/bin/Makefile \
+  src/bin/test/Makefile \
   share/Makefile \
-  test/Makefile \
-  test/script/Makefile])
+  ])
 AC_OUTPUT

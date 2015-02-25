@@ -136,7 +136,6 @@ data_t * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
   ret = data_set(c, path, value);
   data_free(c);
   data_free(value);
-  name_free(path);
   return (data_is_error(ret)) ? ret : NULL;
 }
 
@@ -159,7 +158,6 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
   } else {
     ret = value;
   }
-  name_free(path);
   return ret;
 }
 
@@ -198,7 +196,6 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   ret = data_invoke(self, name, params, NULL);
   data_free(self);
   array_free(params);
-  name_free(name);
   if (ret && !data_is_error(ret)) {
     closure_push(closure, ret);
     ret = NULL;
