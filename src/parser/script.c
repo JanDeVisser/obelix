@@ -498,7 +498,7 @@ data_t * closure_pop(closure_t *closure) {
  * @return closure_t* The same closure as the one passed in.
  */
 closure_t * closure_push(closure_t *closure, data_t *value) {
-  datastack_push(closure -> stack, value);
+  datastack_push(closure -> stack, data_copy(value));
   return closure;
 }
 

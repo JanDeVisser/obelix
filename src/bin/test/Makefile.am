@@ -1,5 +1,5 @@
 #
-# src/types/test/Makefile.am - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+# src/bin/test/Makefile.am - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
 #
 # This file is part of Obelix.
 #
@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
 
-TESTS          = types
-check_PROGRAMS = types
+TESTS          = scripts
+check_PROGRAMS = scripts
 
 AM_CPPFLAGS =   -I$(top_srcdir)/include
 AM_CFLAGS =	@CHECK_CFLAGS@
@@ -25,6 +25,7 @@ AM_LDFLAGS =	-pthread
 LDADD   =       $(top_srcdir)/src/lib/liboblcore.la \
 		$(top_srcdir)/src/lib/test/libtest.la \
 		$(top_srcdir)/src/types/libobltypes.la \
+		$(top_srcdir)/src/parser/liboblparser.la \
 		@CHECK_LIBS@ -lm -lrt -ldl
 
-types_SOURCES     = name_test.c types.c str_test.c int_test.c
+types_SOURCES     = scripts.c

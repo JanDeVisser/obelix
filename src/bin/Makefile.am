@@ -29,3 +29,5 @@ obelix_LDADD   = \
 	$(top_srcdir)/src/types/libobltypes.la \
 	$(top_srcdir)/src/parser/liboblparser.la \
 	-lcheck -ldl -lm
+
+SUBDIRS = . test
