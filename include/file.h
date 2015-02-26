@@ -38,7 +38,10 @@ typedef struct _file {
   read_t  read_fnc;
   free_t  free;
   int     fh;
+  FILE   *stream;
   char   *fname;
+  char   *line;
+  int     refs;
 } file_t;
 
 extern fsentry_t *  fsentry_create(char *);
@@ -58,8 +61,12 @@ extern file_t *     fsentry_open(fsentry_t *);
 
 extern file_t *     file_create(int);
 extern file_t *     file_open(char *);
+extern file_t *     file_copy(file_t *);
 extern void         file_free(file_t *);
-extern void         file_close(file_t *);
+extern int          file_close(file_t *);
+extern int          file_cmp(file_t *, file_t *);
 extern int          file_read(file_t *, char *, int);
+extern char *       file_readline(file_t *);
+extern int          file_isopen(file_t *);
 
 #endif /* __FILE_H__ */

@@ -315,6 +315,7 @@ int typedescr_is(typedescr_t *descr, int type) {
 data_t * data_create(int type, ...) {
   va_list      arg;
   data_t      *ret;
+  data_t      *initialized;
   typedescr_t *descr = typedescr_get(type);
   new_t        n;
   
@@ -332,10 +333,15 @@ data_t * data_create(int type, ...) {
   n = (new_t) typedescr_get_function(descr, FunctionNew);
   if (n) {
     va_start(arg, type);
-    ret = n(ret, arg);
+    initialized = n(ret, arg);
     va_end(arg);
+    if (!initialized) {
+      data_free(ret);
+    }
+  } else {
+    initialized = ret;
   }
-  return ret;
+  return initialized;
 }
 
 data_t * data_parse(int type, char *str) {

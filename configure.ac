@@ -21,6 +21,7 @@ AC_CONFIG_FILES([ \
   src/types/test/Makefile \
   src/parser/Makefile \
   src/parser/test/Makefile \
+  src/stdlib/Makefile \
   src/bin/Makefile \
   src/bin/test/Makefile \
   share/Makefile \
