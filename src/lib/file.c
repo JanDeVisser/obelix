@@ -27,15 +27,16 @@
 
 #include <file.h>
 #include <logging.h>
+#include <ctype.h>
 
 int file_debug = 0;
 
-static void _file_init(void) __attribute__((constructor(102)));
+static void   _file_init(void) __attribute__((constructor(102)));
+static FILE * _file_stream(file_t *);
 
 void _file_init(void) {
   logging_register_category("file", &file_debug);
 }
-
 
 /*
  * fsentry_t -
@@ -142,7 +143,18 @@ file_t * fsentry_open(fsentry_t *e) {
 }
 
 /*
- * fsentry_t -
+ * file_t static functions
+ */
+
+FILE * _file_stream(file_t *file) {
+  if (!file -> stream) {
+    file -> stream = fdopen(file -> fh, "r");
+  }
+  return file -> stream;
+}
+
+/*
+ * file_t public functions
  */
 
 file_t * file_create(int fh) {
@@ -153,57 +165,96 @@ file_t * file_create(int fh) {
     ret -> read_fnc = (read_t) file_read;
     ret -> free = (free_t) file_free;
     ret -> fh = fh;
+    ret -> stream = NULL;
     ret -> fname = NULL;
+    ret -> line = NULL;
+    ret -> refs = 1;
   }
   return ret;
 }
 
 file_t * file_open(char *fname) {
-  file_t *ret;
-  int     ok;
-
-  ret = NEW(file_t);
-  ok = 1;
-  if (ret) {
-    ret -> read_fnc = (read_t) file_read;
-    ret -> free = (free_t) file_free;
-    ret -> fname = strdup(fname);
-    if (!ret -> fname) {
-      ok = 0;
-    } else {
-      ret -> fh = open(ret -> fname, O_RDONLY);
-      if (file_debug) {
-        debug("file_open(%s): %d", ret->fname, ret->fh);
-      }
-      if (ret -> fh < 0) {
-        ok = 0;
-      }
-    }
-    if (!ok) {
-      free(ret);
-      ret = NULL;
-    }
+  file_t *ret = NULL;
+  char   *n;
+  int     fh;
+  
+  n = strdup(fname);
+  fh = open(n, O_RDONLY);
+  if (file_debug) {
+    debug("file_open(%s): %d", ret -> fname, ret -> fh);
+  }
+  if (fh >= 0) {
+    ret = file_create(fh);
+    ret -> fname = n;
+  } else {
+    free(n);
   }
   return ret;
 }
 
+file_t * file_copy(file_t *file) {
+  file -> refs++;
+  return file;
+}
+
 void file_free(file_t *file) {
   if (file) {
-    if (file -> fname) {
-      file_close(file);
-      free(file -> fname);
+    file -> refs--;
+    if (file -> refs <= 0) {
+      if (file -> fname) {
+        file_close(file);
+        free(file -> fname);
+      }
+      free(file -> line);
+      free(file);
     }
-    free(file);
   }
 }
 
-void file_close(file_t *file) {
+int file_close(file_t *file) {
+  int ret = 0;
+  
   if (file -> fh >= 0) {
-    close(file -> fh);
+    if (file -> stream) {
+      ret = fclose(file -> stream) != 0;
+      file -> stream = NULL;
+    } else {
+      ret = close(file -> fh);
+    }
     file -> fh = -1;
   }
+  return ret;
 }
+
+int file_cmp(file_t *f1, file_t *f2) {
+  return f1 -> fh - f2 -> fh;
+}
+
 
 int file_read(file_t *file, char *target, int num) {
   return read(file -> fh, target, num);
+}
+
+char * file_readline(file_t *file) {
+  size_t n = 0;
+  int    num;
+  FILE  *stream;
+  
+  free(file -> line);
+  file -> line = NULL;
+  stream = _file_stream(file);
+  num = getline(&file -> line, &n, stream);
+  if (num >= 0) {
+    while ((num >= 0) && iscntrl(*(file -> line + num))) {
+      *(file -> line + num) = 0;
+      num--;
+    }
+    return file -> line;
+  } else {
+    return NULL;
+  }
+}
+
+int file_isopen(file_t *file) {
+  return file -> fh >= 0;
 }
