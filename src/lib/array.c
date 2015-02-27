@@ -201,6 +201,7 @@ void array_free(array_t *array) {
   if (array) {
     list_free(array -> list);
     free(array -> index);
+    free(array -> str);
     free(array);
   }
 }
@@ -265,13 +266,21 @@ array_t * array_add_all(array_t *array, array_t *other) {
 }
 
 str_t * array_tostr(array_t *array) {
-  return list_tostr(array -> list);
+  return (array) ? list_tostr(array -> list) : str_wrap("NULL");
 }
 
-void array_debug(array_t *array, char *msg) {
+char * array_tostring(array_t *array) {
   str_t *str;
 
+  assert(array);
+  free(array -> str);
   str = array_tostr(array);
-  debug(msg, str_chars(str));
+  array -> str = strdup(str_chars(str));
   str_free(str);
+  return array -> str;
+}
+
+
+void array_debug(array_t *array, char *msg) {
+  debug(msg, array_tostring(array));
 }

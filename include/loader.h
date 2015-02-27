@@ -44,5 +44,6 @@ extern void             scriptloader_free(scriptloader_t *);
 extern data_t *         scriptloader_load_fromreader(scriptloader_t *, char *, reader_t *);
 extern data_t *         scriptloader_load(scriptloader_t *, name_t *);
 extern data_t *         scriptloader_import(scriptloader_t *, name_t *);
+extern data_t *         scriptloader_run(scriptloader_t *, name_t *, array_t *, dict_t *);
 
 #endif /* __LOADER_H__ */

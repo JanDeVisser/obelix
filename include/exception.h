@@ -28,7 +28,8 @@ typedef enum _errorcode {
   ErrorType,
   ErrorName,
   ErrorNotCallable,
-  ErrorRange
+  ErrorRange,
+  ErrorIOError
 } errorcode_t;
 
 typedef struct _error {

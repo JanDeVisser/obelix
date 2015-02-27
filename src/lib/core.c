@@ -185,16 +185,12 @@ unsigned int strhash(char *str) {
   return hash(str, strlen(str));
 }
 
+/*
+ * Note that we mirror python here: any string except the empty
+ * string is true.
+ */
 int atob(char *str) {
-  int ret;
-
-  if (!strcasecmp(str, "true")) {
-    return 1;
-  }
-  if (!strcasecmp(str, "false")) {
-    return 0;
-  }
-  return atoi(str);
+  return str && str[0];
 }
 
 char * btoa(long b) {

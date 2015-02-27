@@ -42,7 +42,7 @@ typedef enum _token_code {
   TokenCodeQMark = '?',
   TokenCodeExclPoint = '!',
   TokenCodeOpenPar = '(',
-  TokenCodeClosePar = ')',
+  TokenCodeClosePar = 't)',
   TokenCodeOpenBrace = '{',
   TokenCodeCloseBrace = '}',
   TokenCodeOpenBracket = '[',

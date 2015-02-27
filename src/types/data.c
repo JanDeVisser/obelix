@@ -29,6 +29,8 @@
 #include <list.h>
 #include <object.h>
 
+static int debug_data = 0;
+
 static void     _any_init(void) __attribute__((constructor));
 static data_t * _any_cmp(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hash(data_t *, char *, array_t *, dict_t *);
@@ -88,6 +90,7 @@ static code_label_t _function_id_labels[] = {
  */
 
 void _any_init(void) {
+  logging_register_category("data", &debug_data);
   typedescr_register(&_typedescr_any);
   typedescr_register_methods(_methoddescr_any);
 }
@@ -187,6 +190,21 @@ typedescr_t * typedescr_get(int datatype) {
   } else {
     return ret;
   }
+}
+
+typedescr_t * typedescr_get_byname(char *name) {
+  typedescr_t *ret = NULL;
+  int          ix;
+  
+  if (!strcmp(name, "any")) {
+    return &_typedescr_any;
+  }
+  for (ix = 0; ix < data_numtypes; ix++) {
+    if (descriptors[ix].type_name && !strcmp(name, descriptors[ix].type_name)) {
+      return &descriptors[ix];
+    }
+  }
+  return NULL;
 }
 
 unsigned int typedescr_hash(typedescr_t *type) {
@@ -534,6 +552,9 @@ data_t * data_resolve(data_t *data, name_t *name) {
     ret = tail_resolve;
     name_free(tail);
   }
+  if (debug_data) {
+    debug("data_resolve(%s, %s) = %s", data_debugstr(data), name_tostring(name), data_debugstr(ret));
+  }
   return ret;
 }
 
@@ -542,6 +563,9 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
   data_t  *ret = NULL;
   array_t *args_shifted = NULL;
   
+  if (debug_data) {
+    debug("data_invoke(%s, %s, %s)", data_debugstr(self), name_tostring(name), array_tostring(args));
+  }
   if (!self && array_size(args)) {
     self = (data_t *) array_get(args, 0);
     args_shifted = array_slice(args, 1, -1);
@@ -574,6 +598,9 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
   }
   if (args_shifted) {
     array_free(args_shifted);
+  }
+  if (debug_data) {
+    debug("data_invoke(%s, %s, %s) = %s", data_debugstr(self), name_tostring(name), array_tostring(args), data_debugstr(ret));
   }
   return ret;
 }

@@ -23,6 +23,9 @@
 #include <stdarg.h>
 
 #include <grammar.h>
+#include <testsuite.h>
+
+static void     _init_grammar(void) __attribute__((constructor(300)));
 
 START_TEST(test_grammar_create)
   grammar_t *g;
@@ -31,26 +34,9 @@ START_TEST(test_grammar_create)
   grammar_free(g);
 END_TEST
 
-int main(void){
-  int number_failed;
-  Suite *s;
-  SRunner *sr;
-  TCase *tc;
-  int ix;
-
-  s = suite_create("Grammar");
-  tc = tcase_create("Data");
+void _init_lexer(void) {
+  TCase *tc = tcase_create("Grammar");
 
   tcase_add_test(tc, test_grammar_create);
-  //tcase_add_test(tc, test_nonterminal_create);
-  //tcase_add_test(tc, test_rule_create);
-  //tcase_add_test(tc, test_terminal_create);
-
-  sr = srunner_create(s);
-
-  srunner_run_all(sr, CK_VERBOSE);
-  number_failed = srunner_ntests_failed(sr);
-  srunner_free(sr);
-  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+  add_tcase(tc);
 }
-

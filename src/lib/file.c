@@ -168,6 +168,8 @@ file_t * file_create(int fh) {
     ret -> stream = NULL;
     ret -> fname = NULL;
     ret -> line = NULL;
+    ret -> _errno = 0;
+    ret -> error = NULL;
     ret -> refs = 1;
   }
   return ret;
@@ -187,7 +189,7 @@ file_t * file_open(char *fname) {
     ret = file_create(fh);
     ret -> fname = n;
   } else {
-    free(n);
+    ret -> _errno = errno;
   }
   return ret;
 }
@@ -205,6 +207,7 @@ void file_free(file_t *file) {
         file_close(file);
         free(file -> fname);
       }
+      free(file -> error);
       free(file -> line);
       free(file);
     }
@@ -221,9 +224,26 @@ int file_close(file_t *file) {
     } else {
       ret = close(file -> fh);
     }
+    file -> _errno = errno;
     file -> fh = -1;
   }
   return ret;
+}
+
+char * file_name(file_t *file) {
+  return file -> fname;
+}
+
+char * file_error(file_t *file) {
+  if (file -> _errno) {
+    free(file -> error);
+    file -> error = strdup(strerror(file -> _errno));
+  }
+  return file -> error;
+}
+
+int file_errno(file_t *file) {
+  return file -> _errno;
 }
 
 int file_cmp(file_t *f1, file_t *f2) {
@@ -232,7 +252,11 @@ int file_cmp(file_t *f1, file_t *f2) {
 
 
 int file_read(file_t *file, char *target, int num) {
-  return read(file -> fh, target, num);
+  int ret;
+
+  ret = read(file -> fh, target, num);
+  file -> _errno = errno;
+  return ret;
 }
 
 char * file_readline(file_t *file) {
@@ -243,6 +267,7 @@ char * file_readline(file_t *file) {
   free(file -> line);
   file -> line = NULL;
   stream = _file_stream(file);
+  file -> _errno = 0;
   num = getline(&file -> line, &n, stream);
   if (num >= 0) {
     while ((num >= 0) && iscntrl(*(file -> line + num))) {
@@ -251,6 +276,7 @@ char * file_readline(file_t *file) {
     }
     return file -> line;
   } else {
+    file -> _errno = errno;
     return NULL;
   }
 }

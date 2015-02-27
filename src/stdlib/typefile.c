@@ -56,7 +56,7 @@ static typedescr_t _typedescr_file =   {
 static methoddescr_t _methoddescr_file[] = {
   { .type = Any,    .name = "open",     .method = _file_open,     .argtypes = { String, Int, Any },       .minargs = 1, .varargs = 1 },
   { .type = -1,     .name = "readline", .method = _file_readline, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = -1,     .name = "close",    .method = _file_close,    .argtypes = { NoType, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = -1,     .name = "close",    .method = _file_close,    .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,       .method = NULL,           .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
@@ -71,10 +71,12 @@ static methoddescr_t _methoddescr_file[] = {
 
 void _file_init(void) {
   int ix;
-  
+
   File = typedescr_register(&_typedescr_file);
-  for (ix = 0; _methoddescr_file[ix].type == -1; ix++) {
-    _methoddescr_file[ix].type == File;
+  for (ix = 0; _methoddescr_file[ix].type != NoType; ix++) {
+    if (_methoddescr_file[ix].type == -1) {
+      _methoddescr_file[ix].type = File;
+    }
   }
   typedescr_register_methods(_methoddescr_file);
 }
@@ -85,11 +87,11 @@ data_t * _file_new(data_t *target, va_list arg) {
 
   name = va_arg(arg, char *);
   f = file_open(name);
-  if (f) {
+  if (file_isopen(f)) {
     target -> ptrval = f;
     return target;
   } else {
-    return NULL;
+    return data_create(ErrorIOError, file_error(f));
   }
 }
 
@@ -148,5 +150,5 @@ data_t * _file_readline(data_t *self, char *name, array_t *args, dict_t *kwargs)
 }
 
 data_t * _file_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Bool, file_close(data_fileval(self)) != 0);
+  return data_create(Bool, file_close(data_fileval(self)) == 0);
 }

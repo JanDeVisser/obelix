@@ -26,11 +26,15 @@
 #include <lexer.h>
 
 #include <loader.h>
+#include <logging.h>
 #include <name.h>
 #include <namespace.h>
+#include <resolve.h>
 #include <script.h>
 
-#include "logging.h"
+//void load_stdlib(void) {
+//  resolve_library("liboblstdlib.so");
+//}
 
 void debug_settings(char *debug) {
   int      debug_all = 0;
@@ -53,17 +57,7 @@ int run_script(scriptloader_t *loader, name_t *name) {
   module_t *mod;
   int       retval;
   
-  data = scriptloader_import(loader, name);
-  if (data_is_module(data)) {
-    mod = mod_copy(data_moduleval(data));
-    data_free(data);
-    obj = object_copy(mod_get(mod));
-    ret = obj -> retval;
-    object_free(obj);
-    mod_free(mod);
-  } else {
-    ret = data;
-  }
+  data = scriptloader_run(loader, name, NULL, NULL);
   debug("Exiting with exit code %s", data_tostring(ret));
   switch (data_type(ret)) {
     case Int:
@@ -125,6 +119,8 @@ int main(int argc, char **argv) {
   path = name_split(basepath, ":");
   free(basepath);
   name = name_split(argv[optind], ".");
+
+  // load_stdlib();
   
   loader = scriptloader_create(syspath, path, grammar);
   retval = run_script(loader, name);

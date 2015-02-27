@@ -20,9 +20,12 @@
 #include <stdio.h>
 
 #include <check.h>
-#include "collections.h"
 #include <lexer.h>
 #include <str.h>
+#include <testsuite.h>
+
+static void     _init_parser(void) __attribute__((constructor(101)));
+static void     _init_lexer(void) __attribute__((constructor(300)));
 
 START_TEST(test_lexer_create)
   reader_t *rdr;
@@ -178,7 +181,7 @@ END_TEST
 
 static token_code_t test_lexer_tokenize_overlapping_keywords_codes[] = {
   TokenCodeIdentifier, TokenCodeIdentifier, TokenCodeIdentifier,
-  201, 201, TokenCodeIdentifier, 202
+  201, TokenCodeIdentifier, 202
 };
 
 static lexer_t * _test_lexer_config_overlapping_keywords(lexer_t *lexer) {
@@ -189,7 +192,7 @@ static lexer_t * _test_lexer_config_overlapping_keywords(lexer_t *lexer) {
 
 START_TEST(test_lexer_tokenize_overlapping_keywords)
   _test_lexer("E EL ELS ELSE ELSEE ELSIE",
-              7, test_lexer_tokenize_overlapping_keywords_codes,
+              6, test_lexer_tokenize_overlapping_keywords_codes,
               _test_lexer_config_overlapping_keywords);
 END_TEST
 
@@ -204,7 +207,7 @@ START_TEST(test_lexer_tokenize_quotedstrings)
 END_TEST
 
 static char * test_numbers_str =
-    "1 3.14 0xDEADBEEF -3 -2.72 3.43e13 -23.2e-12 01 01.2 0.3 0.3e+12 -0xFE";
+    "1 3.14 0xDEADBEEF 3 2.72 3.43e13 23.2e12 01 01.2 0.3 0.3e12 0xFE";
 
 static token_code_t test_numbers_codes[] = {
   TokenCodeInteger, TokenCodeFloat, TokenCodeHexNumber,
@@ -217,14 +220,12 @@ START_TEST(test_lexer_tokenize_numbers)
   _test_lexer(test_numbers_str, 12, test_numbers_codes, _test_lexer_config_ignore_ws);
 END_TEST
 
-char * get_suite_name() {
-  return "Lexer";
+  void _init_parser(void) {
+  set_suite_name("Parser");
 }
 
-TCase * get_testcase(int ix) {
-  TCase *tc;
-  if (ix > 0) return NULL;
-  tc = tcase_create("Lexer");
+void _init_lexer(void) {
+  TCase *tc = tcase_create("Lexer");
 
   tcase_add_test(tc, test_lexer_create);
   tcase_add_test(tc, test_lexer_tokenize);
@@ -237,7 +238,7 @@ TCase * get_testcase(int ix) {
   tcase_add_test(tc, test_lexer_tokenize_overlapping_keywords);
   tcase_add_test(tc, test_lexer_tokenize_quotedstrings);
   tcase_add_test(tc, test_lexer_tokenize_numbers);
-  return tc;
+  add_tcase(tc);
 }
 
 
