@@ -15,15 +15,18 @@ AC_CHECK_FUNCS([asprintf])
 AC_CHECK_FUNCS([vasprintf])
 AC_CONFIG_FILES([ \
   Makefile \
+  src/Makefile \
   src/lib/Makefile \
-  src/lib/test/Makefile \
   src/types/Makefile \
-  src/types/test/Makefile \
   src/parser/Makefile \
-  src/parser/test/Makefile \
   src/stdlib/Makefile \
   src/bin/Makefile \
+  src/test/Makefile \
+  src/lib/test/Makefile \
+  src/types/test/Makefile \
+  src/parser/test/Makefile \
   src/bin/test/Makefile \
+  src/stdlib/test/Makefile \
   share/Makefile \
   ])
 AC_OUTPUT

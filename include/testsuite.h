@@ -21,6 +21,7 @@
 #define __TESTSUITE_H__
 
 #include <check.h>
+#include <data.h>
 
 typedef struct _test {
   char *data;
@@ -40,6 +41,8 @@ extern void         test_free(test_t *);
 
 extern void	    set_suite_name(char *);
 extern void         add_tcase(TCase *);
+
+extern data_t *     run_script(char *);
 
 #ifdef __cplusplus
 }

@@ -47,7 +47,6 @@ static data_t *         _data_call_closure(data_t *, array_t *, dict_t *);
 static data_t *         _data_resolve_closure(data_t *, char *);
 static data_t *         _data_set_closure(data_t *, char *, data_t *);
 
-extern data_t *         _script_function_print(char *, array_t *, dict_t *);
 
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
 
@@ -190,30 +189,6 @@ data_t * data_create_closure(closure_t *closure) {
 /*
  * script_t static functions
  */
-
-data_t * _script_function_print(char *name, array_t *params, dict_t *kwargs) {
-  char          *varname;
-  data_t        *value;
-  char          *fmt;
-  char          *ptr;
-  char           buf[1000], tmp[1000];
-
-  assert(array_size(params));
-  value = (data_t *) array_get(params, 0);
-  assert(value);
-
-  /*
-   * Ideally we want to do a printf-style function. The idea is to have the
-   * first argument as the format string, and following parameters as values.
-   * Since there is no API for sprintf that takes a user-accessible data
-   * structure, just the va_list one, we will have to go through the format
-   * string and do it one by one.
-   *
-   * But that's future. Now we just print the first parameter :-)
-   */
-  printf("%s\n", data_tostring(value));
-  return data_create(Int, 1);
-}
 
 /*
  * script_t static functions
@@ -561,7 +536,7 @@ data_t * closure_resolve(closure_t *closure, char *name) {
       ret = ns_resolve(closure -> imports, name);
     }
   }
-  return ret;
+  return data_copy(ret);
 }
 
 data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {

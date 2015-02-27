@@ -402,7 +402,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
   func = script_create(NULL, up, fname);
   func -> params = str_array_create(name_size(params));
   for (ix = 0; ix < name_size(params); ix++) {
-    array_push(func -> params, name_get(params, ix));
+    array_push(func -> params, strdup(name_get(params, ix)));
   }
   free(fname);
   name_free(params);
@@ -429,7 +429,7 @@ parser_t * script_parse_native_function(parser_t *parser) {
   char         *fname;
   name_t       *params;
   int           ix;
-  char         *c_func_name;
+  name_t       *lib_func;
   native_t      c_func;
   parser_t     *ret = parser;
   
@@ -444,27 +444,35 @@ parser_t * script_parse_native_function(parser_t *parser) {
   fname = strdup(data_charval(data));
   data_free(data);
   
-    /* TODO Split c_func_name into lib and func */
-  c_func_name = strdup(parser -> last_token -> token);
-  c_func = (native_t) resolve_function(c_func_name);
-  if (c_func) {
-    func = native_fnc_create(script, fname, c_func);
-    func -> params = str_array_create(name_size(params));
-    for (ix = 0; ix < name_size(params); ix++) {
-      array_push(func -> params, name_get(params, ix));
-    }
-    if (parser_debug) {
-      debug(" -- defined native function %s", func -> name);
-    }
-  } else {
-    /* FIXME error handling
-    return data_error(ErrorName,
-                      "Could not find native function '%s'", fname);
-     */
+  lib_func = name_split(parser -> last_token -> token, ":");
+  if (name_size(lib_func) > 2 || name_size(lib_func) == 0) {
     ret = NULL;
+  } else {
+    if (name_size(lib_func) == 2) {
+      resolve_library(name_get(lib_func, 0));
+      /* TODO Error handling */
+    }
+    c_func = (native_t) resolve_function(name_last(lib_func));
+    if (c_func) {
+      func = native_fnc_create(script, fname, c_func);
+      func -> params = str_array_create(name_size(params));
+      for (ix = 0; ix < name_size(params); ix++) {
+	array_push(func -> params, name_get(params, ix));
+      }
+      if (parser_debug) {
+	debug(" -- defined native function %s", func -> name);
+      }
+    } else {
+      /* FIXME error handling
+	 return data_error(ErrorName,
+	 "Could not find native function '%s'", fname);
+      */
+      ret = NULL;
+    }
   }
   free(fname);
   name_free(params);
+  name_free(lib_func);
   return ret;
 }
 

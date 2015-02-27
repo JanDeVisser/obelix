@@ -26,6 +26,7 @@ typedef struct _array {
   list_t *      list;
   listnode_t ** index;
   int           capacity;
+  char *        str;
 } array_t;
 
 extern array_t *    array_create(int);
@@ -49,6 +50,7 @@ extern void *       array_reduce_str(array_t *, reduce_t, void *);
 extern array_t *    array_visit(array_t *, visit_t);
 extern array_t *    array_add_all(array_t *, array_t *);
 extern str_t *      array_tostr(array_t *);
+extern char *       array_tostring(array_t *);
 extern void         array_debug(array_t *, char *);
 
 #define array_set_int(a, i, v)   array_put((a), (i), (void *)((long) (v)))

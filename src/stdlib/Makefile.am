@@ -18,15 +18,15 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
-# AM_CFLAGS   = -Werror
 LDADD       = -ldl -lm -lcheck
 
 lib_LTLIBRARIES = liboblstdlib.la
 liboblstdlib_la_SOURCES = \
+		builtins.c \
 		typefile.c
 
-liboblparser_la_LIBADD = \
+liboblstdlib_la_LIBADD = \
 		$(top_srcdir)/src/lib/liboblcore.la \
 		$(top_srcdir)/src/types/libobltypes.la
 
-# SUBDIRS = . test
+SUBDIRS = . test

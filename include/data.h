@@ -125,6 +125,7 @@ extern int             typedescr_register(typedescr_t *);
 extern typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
 extern typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
 extern typedescr_t *   typedescr_get(int);
+extern typedescr_t *   typedescr_get_byname(char *);
 extern void            typedescr_count(void);
 extern unsigned int    typedescr_hash(typedescr_t *);
 extern void            typedescr_register_methods(methoddescr_t[]);

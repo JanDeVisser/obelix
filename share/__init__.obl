@@ -2,4 +2,4 @@
  * obelix root object declaration -
  */
  
-func print(msg) -> "_script_function_print"
+func print(msg) -> "liboblstdlib.so:_function_print"

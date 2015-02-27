@@ -21,9 +21,10 @@
 #ifndef __FILE_H__
 #define __FILE_H__
 
-#include <core.h>
+#include <stdio.h>
 #include <sys/stat.h>
 
+#include <core.h>
 #include <list.h>
 
 extern int file_debug;
@@ -41,6 +42,8 @@ typedef struct _file {
   FILE   *stream;
   char   *fname;
   char   *line;
+  int     _errno;
+  char   *error;
   int     refs;
 } file_t;
 
@@ -64,6 +67,9 @@ extern file_t *     file_open(char *);
 extern file_t *     file_copy(file_t *);
 extern void         file_free(file_t *);
 extern int          file_close(file_t *);
+extern char *       file_name(file_t *);
+extern char *       file_error(file_t *);
+extern int          file_errno(file_t *);
 extern int          file_cmp(file_t *, file_t *);
 extern int          file_read(file_t *, char *, int);
 extern char *       file_readline(file_t *);
