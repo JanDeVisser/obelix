@@ -17,6 +17,8 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+
 #include <array.h>
 #include <data.h>
 #include <dict.h>

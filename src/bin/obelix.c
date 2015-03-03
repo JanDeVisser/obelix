@@ -32,10 +32,6 @@
 #include <resolve.h>
 #include <script.h>
 
-//void load_stdlib(void) {
-//  resolve_library("liboblstdlib.so");
-//}
-
 void debug_settings(char *debug) {
   int      debug_all = 0;
   array_t *cats;
@@ -51,13 +47,12 @@ void debug_settings(char *debug) {
 }
 
 int run_script(scriptloader_t *loader, name_t *name) {
-  data_t   *data;
   data_t   *ret;
   object_t *obj;
   module_t *mod;
   int       retval;
   
-  data = scriptloader_run(loader, name, NULL, NULL);
+  ret = scriptloader_run(loader, name, NULL, NULL);
   debug("Exiting with exit code %s", data_tostring(ret));
   switch (data_type(ret)) {
     case Int:
@@ -120,8 +115,6 @@ int main(int argc, char **argv) {
   free(basepath);
   name = name_split(argv[optind], ".");
 
-  // load_stdlib();
-  
   loader = scriptloader_create(syspath, path, grammar);
   retval = run_script(loader, name);
   scriptloader_free(loader);

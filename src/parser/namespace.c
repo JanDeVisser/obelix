@@ -36,7 +36,9 @@ static data_t *      _data_call_module(data_t *, array_t *, dict_t *);
 
 static namespace_t * _ns_create(void);
 static module_t *    _ns_add(namespace_t *, name_t *);
-static data_t *      _ns_delegate_up(namespace_t *, module_t *, name_t *);
+static data_t *      _ns_delegate_up(namespace_t *, module_t *, name_t *, array_t *, dict_t *);
+static data_t *      _ns_delegate_load(namespace_t *, module_t *, name_t *, array_t *, dict_t *);
+static data_t *      _ns_import(namespace_t *, name_t *, array_t *, dict_t *);
 
 int ns_debug = 0;
 
@@ -182,14 +184,14 @@ module_t * mod_add_module(module_t *mod, name_t *name) {
   return ret;
 }
 
-data_t * mod_set(module_t *mod, script_t *script) {
+data_t * mod_set(module_t *mod, script_t *script, array_t *args, dict_t *kwargs) {
   data_t *data;
   
   if (!mod -> obj) {
     // Prevent endless loops -
     mod -> obj = object_create(NULL);
   }
-  data = script_create_object(script, NULL, NULL);
+  data = script_execute(script, args, kwargs);
   if (data_is_object(data)) {
     _mod_copy_object(mod, data_objectval(data));
   } else {
@@ -284,7 +286,8 @@ module_t * _ns_get(namespace_t *ns, name_t *name) {
   return node;
 }
 
-data_t * _ns_delegate_up(namespace_t *ns, module_t *module, name_t *name) {
+data_t * _ns_delegate_up(namespace_t *ns, module_t *module, name_t *name,
+			 array_t *args, dict_t *kwargs) {
   data_t   *updata;
   module_t *upmod;
   
@@ -294,7 +297,7 @@ data_t * _ns_delegate_up(namespace_t *ns, module_t *module, name_t *name) {
   if (!module) {
     module = _ns_add(ns, name);
   }
-  updata = ns_import(ns -> up, name);
+  updata = _ns_import(ns -> up, name, args, kwargs);
   if (data_is_module(updata)) {
     upmod = data_moduleval(updata);
     _mod_copy_object(module, upmod -> obj);
@@ -304,7 +307,8 @@ data_t * _ns_delegate_up(namespace_t *ns, module_t *module, name_t *name) {
   }
 }
 
-data_t * _ns_delegate_load(namespace_t *ns, module_t *module, name_t *name) {
+data_t * _ns_delegate_load(namespace_t *ns, module_t *module, 
+			   name_t *name, array_t *args, dict_t *kwargs) {
   data_t   *ret = NULL;
   data_t   *obj;
   data_t   *script;
@@ -317,7 +321,7 @@ data_t * _ns_delegate_load(namespace_t *ns, module_t *module, name_t *name) {
   }
   script = ns -> import_fnc(ns -> import_ctx, name);
   if (data_is_script(script)) {
-    obj = mod_set(module, data_scriptval(script));
+    obj = mod_set(module, data_scriptval(script), args, kwargs);
     if (data_is_object(obj)) {
       ret = data_create(Module, module);
       data_free(obj);
@@ -328,6 +332,49 @@ data_t * _ns_delegate_load(namespace_t *ns, module_t *module, name_t *name) {
   } else {
     ret = script; /* !data_is_script(script) => Error */
   }
+  return ret;
+}
+
+data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs) {
+  data_t   *ret = NULL;
+  module_t *module = NULL;
+  name_t   *dummy = NULL;
+
+  if (!name) {
+    dummy = name_create(0);
+    name = dummy;
+  }
+  if (ns_debug) {
+    debug("  Importing module '%s'", name_tostring(name));
+  }
+  module = _ns_get(ns, name);
+  if (module) {
+    if (module -> state != ModStateUninitialized) {
+      if (ns_debug) {
+        debug("  Module '%s' %s", name_tostring(name),
+              (module -> state == ModStateLoading) 
+                ? "currently loading"
+                : "already imported");
+      }
+      ret = data_create(Module, module);
+    } else {
+      if (ns_debug) {
+        debug("  Module found but it's Uninitialized");
+      }
+    }
+  } else {
+    if (ns_debug) {
+      debug("  Module not found");
+    }
+  }
+  if (!ret) {
+    if (!ns -> import_ctx) {
+      return _ns_delegate_up(ns, module, name, args, kwargs);
+    } else {
+      return _ns_delegate_load(ns, module, name, args, kwargs);
+    }
+  }
+  name_free(dummy);
   return ret;
 }
 
@@ -368,47 +415,22 @@ void ns_free(namespace_t *ns) {
   }
 }
 
-data_t * ns_import(namespace_t *ns, name_t *name) {
-  data_t   *ret = NULL;
-  module_t *module = NULL;
-  name_t   *dummy = NULL;
+data_t * ns_execute(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs) {
+  data_t *mod = _ns_import(ns, name, args, kwargs);
+  data_t *obj;
 
-  if (!name) {
-    dummy = name_create(0);
-    name = dummy;
-  }
-  if (ns_debug) {
-    debug("  Importing module '%s'", name_tostring(name));
-  }
-  module = _ns_get(ns, name);
-  if (module) {
-    if (module -> state != ModStateUninitialized) {
-      if (ns_debug) {
-        debug("  Module '%s' %s", name_tostring(name),
-              (module -> state == ModStateLoading) 
-                ? "currently loading"
-                : "already imported");
-      }
-      ret = data_create(Module, module);
-    } else {
-      if (ns_debug) {
-        debug("  Module found but it's Uninitialized");
-      }
-    }
+  if (data_is_module(mod)) {
+    obj = data_create(Object, data_moduleval(mod) -> obj);
+    data_free(mod);
+    return obj;
   } else {
-    if (ns_debug) {
-      debug("  Module not found");
-    }
+    assert(data_is_error(mod));
+    return mod;
   }
-  if (!ret) {
-    if (!ns -> import_ctx) {
-      return _ns_delegate_up(ns, module, name);
-    } else {
-      return _ns_delegate_load(ns, module, name);
-    }
-  }
-  name_free(dummy);
-  return ret;
+}
+
+data_t * ns_import(namespace_t *ns, name_t *name) {
+  return _ns_import(ns, name, NULL, NULL);
 }
 
 data_t * ns_get(namespace_t *ns, name_t *name) {

@@ -20,6 +20,7 @@ statement                   := conditional
                              | func_def
                              | return_stmt
                              | import_stmt
+                             | new
                              |                   [ push: 0                   ] 
                                identifier
                                assignment_or_call
@@ -95,12 +96,18 @@ return_stmt                 := "return"          [ push: "END"               ]
                                expr              [ jump                      ]
                              ;
 
-import_stmt                 := "import"          [ push:   0                 ]
+import_stmt                 := "import"          [ push: 0                   ]
                                identifier        [ import                    ]
                              ;
 
+new                         := "new"             [ push: 1                   ]
+                               identifier        [ push: 1                   ]
+                               func_call         [ new_obj                   ]
+                             ;
+
 assignment_or_call          := assignment
-                             | func_call         [ emit_pop                  ]
+                             |                   [ push: 0                   ]
+                               func_call         [ emit_pop                  ]
                              ;
 
 assignment                  := =
@@ -140,11 +147,14 @@ factor                      := ( expr )
                              | constant  
                              ;
 
-var_or_call                 := [ push: 0 ] identifier
+var_or_call                 := new
+                             |                   [ push: 0                   ] 
+                               identifier
                                call_or_empty
                              ;
                               
-call_or_empty               := func_call
+call_or_empty               :=                   [ push: 0                   ] 
+                               func_call
                              |                   [ emit_pushvar              ]
                              ;
                              

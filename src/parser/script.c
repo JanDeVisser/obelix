@@ -130,7 +130,7 @@ char * _data_tostring_script(data_t *d) {
 
 data_t * _data_call_script(data_t *self, array_t *params, dict_t *kwargs) {
   script_t *script = (script_t *) self -> ptrval;
-  return script_execute(script, NULL, params, kwargs);
+  return script_execute(script, params, kwargs);
 }
 
 data_t * data_create_script(script_t *script) {
@@ -187,14 +187,6 @@ data_t * data_create_closure(closure_t *closure) {
 }
 
 /*
- * script_t static functions
- */
-
-/*
- * script_t static functions
- */
-
-/*
  * script_t public functions
  */
 
@@ -236,7 +228,9 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
 }
 
 script_t * script_copy(script_t *script) {
-  script -> refs++;
+  if (script) {
+    script -> refs++;
+  }
   return script;
 }
 
@@ -276,19 +270,6 @@ script_t * script_push_instruction(script_t *script, instruction_t *instruction)
   return script;
 }
 
-data_t * script_execute(script_t *script, data_t *self, array_t *args, dict_t *kwargs) {
-  data_t    *ret;
-  closure_t *closure;
-
-  if (script_debug) {
-    debug("Executing script '%s'", script_tostring(script));
-  }
-  closure = script_create_closure(script, self, NULL);
-  ret = closure_execute(closure, args, kwargs);
-  closure_free(closure);
-  return ret;
-}
-
 void script_list(script_t *script) {
   instruction_t *instr;
   
@@ -311,24 +292,27 @@ script_t * script_get_toplevel(script_t *script) {
   return ret;
 }
 
-data_t * script_create_object(script_t *script, array_t *args, dict_t *kwargs) {
-  object_t  *ret;
+data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
+  object_t  *retobj;
   closure_t *closure;
   data_t    *retval;
   data_t    *self;
   
   if (script_debug) {
-    debug("script_create_object(%s)", script_tostring(script));
+    debug("script_execute(%s)", script_tostring(script));
   }
-  ret = object_create(script);
-  self = data_create_object(ret);
-  retval = script_execute(script, self, args, kwargs);
+  retobj = object_create(script);
+  self = data_create_object(retobj);
+
+  closure = script_create_closure(script, self, NULL);
+  retval = closure_execute(closure, args, kwargs);
+  closure_free(closure);
   if (!data_is_error(retval)) {
-    ret -> retval = retval;
+    retobj -> retval = retval;
     retval = self;
   }
   if (script_debug) {
-    debug("  script_create_object returns %s", data_tostring(retval));
+    debug("  script_execute returns %s", data_tostring(retval));
   }
   return retval;
 }

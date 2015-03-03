@@ -30,6 +30,7 @@ typedef enum _instruction_type {
   ITPushVar,
   ITPushVal,
   ITFunctionCall,
+  ITNewObject,
   ITTest,
   ITPop,
   ITJump,
@@ -53,6 +54,7 @@ extern instruction_t *  instruction_create_assign(name_t *);
 extern instruction_t *  instruction_create_pushvar(name_t *);
 extern instruction_t *  instruction_create_pushval(data_t *);
 extern instruction_t *  instruction_create_function(name_t *, long);
+extern instruction_t *  instruction_create_newobject(name_t *, long);
 extern instruction_t *  instruction_create_test(char *);
 extern instruction_t *  instruction_create_jump(char *);
 extern instruction_t *  instruction_create_import(name_t *);

@@ -22,12 +22,15 @@
 
 #include <resolve.h>
 
+int resolve_debug = 0;
+
 static void _resolve_init(void) __attribute__((constructor));
 static resolve_t *_singleton = NULL;
 
 void _resolve_init(void) {
   void *main;
 
+  logging_register_category("resolve", &resolve_debug);
   assert(!_singleton);
   _singleton = NEW(resolve_t);
 
@@ -51,6 +54,9 @@ resolve_t * resolve_get() {
 
 void resolve_free() {
   if (_singleton) {
+    if (resolve_debug) {
+      debug("resolve_free");
+    }
     list_free(_singleton -> images);
     dict_free(_singleton -> functions);
     free(_singleton);
@@ -61,12 +67,18 @@ void resolve_free() {
 resolve_t * resolve_open(resolve_t *resolve, char *image) {
   void *handle;
 
+  if (resolve_debug) {
+    debug("dlopen('%s')", image);
+  }
   handle = dlopen(image, RTLD_NOW | RTLD_GLOBAL);
   if (handle) {
     if (list_append(resolve -> images, handle)) {
       return resolve;
     }
     dlclose(handle);
+  }
+  if (resolve_debug) {
+    debug("dlopen('%s') FAILED", image);
   }
   return NULL;
 }
@@ -76,17 +88,27 @@ void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   void           *handle;
   void_t          ret;
 
+  // TODO synchronize
   ret = (void_t) dict_get(resolve -> functions, func_name);
-  if (ret) return ret;
+  if (ret) {
+    if (resolve_debug) {
+      debug("Function '%s' was cached", func_name);
+    }
+    return ret;
+  }
 
+  if (resolve_debug) {
+    debug("dlsym('%s')", func_name);
+  }  
   ret = NULL;
-  for (iter = li_create(resolve -> images); !ret && iter && li_has_next(iter); ) {
-    handle = li_next(iter);
+  for (list_start(resolve -> images); !ret && list_has_next(resolve -> images); ) {
+    handle = list_next(resolve -> images);
     ret = (void_t) dlsym(handle, func_name);
   }
-  li_free(iter);
   if (ret) {
     dict_put(resolve -> functions, strdup(func_name), ret);
+  } else {
+    error("Could not resolve function '%s'", func_name);
   }
   return ret;
 }
