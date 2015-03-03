@@ -80,6 +80,42 @@ START_TEST(t6)
   data_free(d);
 END_TEST
 
+START_TEST(t7)
+  data_t *d;
+
+  d = run_script("t7");
+  ck_assert_int_eq(data_type(d), Int);
+  ck_assert_int_eq(data_intval(d), 0);
+  data_free(d);
+END_TEST
+
+START_TEST(t8)
+  data_t *d;
+
+  d = run_script("t8");
+  ck_assert_int_eq(data_type(d), Int);
+  ck_assert_int_eq(data_intval(d), 4);
+  data_free(d);
+END_TEST
+
+START_TEST(t9)
+  data_t *d;
+
+  d = run_script("t9");
+  ck_assert_int_eq(data_type(d), Int);
+  ck_assert_int_eq(data_intval(d), 3);
+  data_free(d);
+END_TEST
+
+START_TEST(t10)
+  data_t *d;
+
+  d = run_script("t10");
+  ck_assert_int_eq(data_type(d), Int);
+  ck_assert_int_eq(data_intval(d), 6);
+  data_free(d);
+END_TEST
+
 void _init_scripts(void) {
   set_suite_name("Scripts");
 }
@@ -93,5 +129,9 @@ void _init_scripts_cases(void) {
   tcase_add_test(tc, t4);
   tcase_add_test(tc, t5);
   tcase_add_test(tc, t6);
+  tcase_add_test(tc, t7);
+  tcase_add_test(tc, t8);
+  tcase_add_test(tc, t9);
+  tcase_add_test(tc, t10);
   add_tcase(tc);
 }

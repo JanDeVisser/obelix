@@ -66,13 +66,14 @@ extern int           mod_has_module(module_t *, char *);
 extern data_t *      mod_get_module(module_t *, char *);
 extern module_t *    mod_add_module(module_t *, name_t *);
 extern object_t *    mod_get(module_t *);
-extern data_t *      mod_set(module_t *, script_t *);
+extern data_t *      mod_set(module_t *, script_t *, array_t *, dict_t *);
 extern data_t *      mod_resolve(module_t *, char *);
 
 extern namespace_t * ns_create(namespace_t *);
 extern namespace_t * ns_create_root(void *, import_t);
 extern void          ns_free(namespace_t *);
 extern data_t *      ns_import(namespace_t *, name_t *);
+extern data_t *      ns_execute(namespace_t *, name_t *, array_t *, dict_t *);
 extern data_t *      ns_get(namespace_t *, name_t *);
 extern data_t *      ns_resolve(namespace_t *, char *);
 

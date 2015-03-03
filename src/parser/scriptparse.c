@@ -233,6 +233,7 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
   script_t *script;
   name_t   *func_name;
   data_t   *param_count;
+  data_t   *new;
 
   script = parser -> data;
   param_count = datastack_pop(parser -> stack);
@@ -240,8 +241,10 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
   if (parser_debug) {
     debug(" -- param_count: %d", data_intval(param_count));
   }
+  new = datastack_pop(parser -> stack);
   script_push_instruction(script,
     instruction_create_function(func_name, data_intval(param_count)));
+  data_free(new);
   data_free(param_count);
   name_free(func_name);
   return parser;
@@ -457,10 +460,10 @@ parser_t * script_parse_native_function(parser_t *parser) {
       func = native_fnc_create(script, fname, c_func);
       func -> params = str_array_create(name_size(params));
       for (ix = 0; ix < name_size(params); ix++) {
-	array_push(func -> params, name_get(params, ix));
+	array_push(func -> params, strdup(name_get(params, ix)));
       }
       if (parser_debug) {
-	debug(" -- defined native function %s", func -> name);
+	debug(" -- defined native function %s", name_tostring(func -> name));
       }
     } else {
       /* FIXME error handling

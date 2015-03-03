@@ -48,6 +48,7 @@ static data_t *         _instruction_execute_assign(instruction_t *, closure_t *
 static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_function(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_new(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_test(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_jump(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_import(instruction_t *, closure_t *);
@@ -66,6 +67,9 @@ static instruction_type_descr_t instruction_descr_map[] = {
       tostring: (tostring_t) _instruction_tostring_value },
     { type: ITFunctionCall, function: _instruction_execute_function,
       name: "FunctionCall", free: (free_t) _instruction_free_value,
+      tostring: (tostring_t) _instruction_tostring_value },
+    { type: ITNewObject, function: _instruction_execute_new,
+      name: "NewObject", free: (free_t) _instruction_free_value,
       tostring: (tostring_t) _instruction_tostring_value },
     { type: ITTest, function: _instruction_execute_test,
       name: "Test", free: (free_t) _instruction_free_name,
@@ -203,6 +207,50 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   return ret;
 }
 
+data_t * _instruction_execute_new(instruction_t *instr, closure_t *closure) {
+  data_t   *self;
+  data_t   *value;
+  data_t   *ret = NULL;
+  array_t  *params;
+  script_t *script = NULL;
+  name_t   *name = data_nameval(instr -> value);
+  int       ix;
+
+  if (script_debug) {
+    debug(" -- #parameters: %d", instr -> num);
+  }
+
+  params = data_array_create(instr -> num);
+  for (ix = 0; ix < instr -> num; ix++) {
+    value = closure_pop(closure);
+    assert(value);
+    array_set(params, instr -> num - ix - 1, value);
+  }
+  if (script_debug) {
+    array_debug(params, " -- parameters: %s");
+  }
+  self = data_create(Closure, closure);
+  value = data_resolve(self, name);
+  if (data_is_object(value)) {
+    script = script_copy(data_objectval(value) -> script);
+  } else if (data_is_closure(value)) {
+    script = script_copy(data_closureval(value) -> script);
+  } else {
+    assert(data_is_error(value));
+    ret = value;
+  }
+  if (script) {
+    ret = script_execute(script, params, NULL);
+    script_free(script);
+  }
+  array_free(params);
+  if (ret && !data_is_error(ret)) {
+    closure_push(closure, ret);
+    ret = NULL;
+  }
+  return ret;
+}
+
 data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
   data_t  *ret;
   data_t  *value;
@@ -289,6 +337,16 @@ instruction_t * instruction_create_function(name_t *name, long num_params) {
   instruction_t *ret;
 
   ret = instruction_create(ITFunctionCall,
+                           name_tostring(name), 
+			   data_create(Name, name));
+  ret -> num = num_params;
+  return ret;
+}
+
+instruction_t * instruction_create_newobject(name_t *name, long num_params) {
+  instruction_t *ret;
+
+  ret = instruction_create(ITNewObject,
                            name_tostring(name), 
 			   data_create(Name, name));
   ret -> num = num_params;

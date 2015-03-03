@@ -186,9 +186,6 @@ array_t * data_list_to_str_array(data_t *list) {
 data_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *ret = data_create(List, 0);
   
-  if (self) {
-    array_push(data_arrayval(ret), self);
-  }
   if (args) {
     array_reduce(args, (reduce_t) data_add_all_reducer, data_arrayval(ret));
   }

@@ -298,16 +298,13 @@ data_t * scriptloader_load(scriptloader_t *loader, name_t *name) {
 data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, dict_t *kwargs) {
   data_t   *data;
   object_t *obj;
-  module_t *mod;
 
-  data = scriptloader_import(loader, name);
-  if (data_is_module(data)) {
-    mod = mod_copy(data_moduleval(data));
+  data = ns_execute(loader -> ns, name, args, kwargs);
+  if (data_is_object(data)) {
+    obj = object_copy(data_objectval(data));
     data_free(data);
-    obj = object_copy(mod_get(mod));
     data = obj -> retval;
     object_free(obj);
-    mod_free(mod);
   }
   return data;
 }

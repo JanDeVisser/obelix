@@ -82,12 +82,9 @@ extern void             script_free(script_t *);
 extern char *           script_tostring(script_t *);
 extern void             script_list(script_t *);
 extern script_t *       script_get_toplevel(script_t *);
-
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
-extern script_t *       script_create_native(script_t *, function_t *);
-extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
 extern closure_t *      script_create_closure(script_t *, data_t *, closure_t *);
-extern data_t *         script_execute(script_t *, data_t *, array_t *, dict_t *);
+extern data_t *         script_execute(script_t *, array_t *, dict_t *);
 
 /*
  * closure_t prototypes

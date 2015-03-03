@@ -1,0 +1,8 @@
+func foo(x) 
+begin
+  return 2*x
+end
+
+y = foo(2)
+return y
+

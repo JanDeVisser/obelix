@@ -227,9 +227,9 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     }
   }
   if (type == Float) {
-    fltret = (double) self -> intval;
+    fltret = data_floatval(self);
   } else {
-    intret = self -> intval;
+    intret = data_intval(self);
   }
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
@@ -264,9 +264,8 @@ data_t * _int_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *ret;
   int     type = Int;
   int     ix;
-  long    intret = 0;
-  double  fltret = 0.0;
-  int     plus = (name[0] == '+');
+  double  fltret;
+  long    intret;
 
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
@@ -274,6 +273,11 @@ data_t * _int_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
       type = Float;
       break;
     }
+  }
+  if (type == Float) {
+    fltret = data_floatval(self);
+  } else {
+    intret = data_intval(self);
   }
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
