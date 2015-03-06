@@ -261,9 +261,11 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader
     if (loader -> ns) {
       parser_set(loader -> parser, "ns", data_create(Pointer, sizeof(namespace_t), loader -> ns));
     }
-    parser_parse(loader -> parser, reader);
-    script = (script_t *) loader -> parser -> data;
-    ret = data_create(Script, script);
+    ret = parser_parse(loader -> parser, reader);
+    if (!ret) {
+      script = (script_t *) loader -> parser -> data;
+      ret = data_create(Script, script);
+    } 
   }
   return ret;
 }

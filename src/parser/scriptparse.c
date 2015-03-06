@@ -230,20 +230,30 @@ parser_t * script_parse_jump(parser_t *parser) {
 }
 
 parser_t * script_parse_emit_func_call(parser_t *parser) {
-  script_t *script;
-  name_t   *func_name;
-  data_t   *param_count;
-  data_t   *new;
+  script_t      *script;
+  name_t        *func_name;
+  data_t        *param_count;
+  data_t        *new;
+  instruction_t *instr;
 
   script = parser -> data;
   param_count = datastack_pop(parser -> stack);
-  func_name = _script_pop_and_build_varname(parser);
   if (parser_debug) {
     debug(" -- param_count: %d", data_intval(param_count));
   }
   new = datastack_pop(parser -> stack);
-  script_push_instruction(script,
-    instruction_create_function(func_name, data_intval(param_count)));
+  if (parser_debug) {
+    debug(" -- %d: %s", data_intval(new), data_intval(new) ? "new object" : "function call");
+  }
+  func_name = _script_pop_and_build_varname(parser);
+  if (data_intval(new)) {
+    instr = instruction_create_newobject(func_name,
+					 data_intval(param_count));
+  } else {
+    instr = instruction_create_function(func_name, 
+					data_intval(param_count));
+  }
+  script_push_instruction(script, instr);
   data_free(new);
   data_free(param_count);
   name_free(func_name);

@@ -305,7 +305,9 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
   self = data_create_object(retobj);
 
   closure = script_create_closure(script, self, NULL);
+  retobj -> constructing = TRUE; // FIXME Ugly
   retval = closure_execute(closure, args, kwargs);
+  retobj -> constructing = FALSE;
   closure_free(closure);
   if (!data_is_error(retval)) {
     retobj -> retval = retval;
@@ -527,6 +529,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   int       ix;
   data_t   *ret;
   script_t *script;
+  object_t *self;
 
   script = closure -> script;
   if (args || (script -> params && array_size(script -> params))) {
@@ -547,6 +550,14 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
   if (script_debug) {
     debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
+  }
+  if (!data_is_error(ret) && closure -> self && 
+      data_is_object(closure -> self)) {
+    self = data_objectval(closure -> self);
+    if (self -> constructing) {
+      dict_reduce(closure -> variables, (reduce_t) data_put_all_reducer, 
+		  self -> variables);
+    }
   }
   return ret;
 }

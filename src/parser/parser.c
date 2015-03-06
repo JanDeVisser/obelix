@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include <data.h>
+#include <exception.h>
 #include <lexer.h>
 #include <logging.h>
 #include <parser.h>
@@ -219,8 +220,8 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
   consuming = 2;
   do {
     consuming = _parser_ll1_token_handler(token, parser, consuming);
-  } while (consuming);
-  return parser;
+  } while (!parser -> error && consuming);
+  return parser -> error ? NULL : parser;
 }
 
 parser_t * _parser_push_to_prodstack(parser_t *parser, parser_stack_entry_t *entry) {
@@ -304,11 +305,12 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
       case PSETypeNonTerminal:
         nonterminal = e -> nonterminal;
         rule = dict_get_int(nonterminal -> parse_table, code);
-        assert(rule);
-        // TODO: Error Handling.
-        // If assert trips we've received a terminal that
-        // doesn't match any production for the rule.
-        // This is what normal people call a syntax error :-)
+	if (!rule) {
+	  parser -> error = data_error(ErrorSyntax, 
+				       "Unexpected token '%s'", 
+				       token_token(token));
+	  break;
+	}
         if (array_size(rule -> entries)) {
           for (i = array_size(rule -> entries) - 1; i >= 0; i--) {
             entry = rule_get_entry(rule, i);
@@ -338,10 +340,12 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
       case PSETypeEntry:
         entry = e -> entry;
         assert(entry -> terminal);
-	assert(!token_cmp(entry -> token, token));
-	// TODO: Error Handling.
-	// If assert trips we've received a terminal that has a different
-	// code than the one we're expecting. Syntax error.
+	if (token_cmp(entry -> token, token)) {
+	  parser -> error = data_error(ErrorSyntax,
+				       "Expected '%s' but got '%s' instead",
+				       token_token(entry -> token),
+				       token_token(token));
+	}
 	consuming = 1;
         break;
         
@@ -413,6 +417,7 @@ parser_t * parser_create(grammar_t *grammar) {
   ret -> grammar = grammar;
   ret -> prod_stack = list_create();
   ret -> last_token = NULL;
+  ret -> error = NULL;
   ret -> stack = datastack_create("__parser__");
   ret -> variables = strdata_dict_create();
   datastack_set_debug(ret -> stack, parser_debug);
@@ -430,6 +435,7 @@ parser_t * parser_clear(parser_t *parser) {
   list_clear(parser -> prod_stack);
   dict_clear(parser -> variables);
   token_free(parser -> last_token);
+  data_free(parser -> error);
   return parser;
 }
 
@@ -468,7 +474,7 @@ data_t * parser_pop(parser_t *parser, char *name) {
 }
 
 
-void _parser_parse(parser_t *parser, reader_t *reader) {
+data_t * _parser_parse(parser_t *parser, reader_t *reader) {
   lexer_t        *lexer;
   lexer_option_t  ix;
 
@@ -492,22 +498,26 @@ void _parser_parse(parser_t *parser, reader_t *reader) {
       lexer_tokenize(lexer, _parser_lr1, parser);
       break;
   }
-  if (grammar_get_finalizer(parser -> grammar)) {
-    grammar_get_finalizer(parser -> grammar) -> fnc(parser);
-  }
-  if (datastack_notempty(parser -> stack)) {
-    error("Parser stack not empty after parse!");
-    datastack_list(parser -> stack);
-    datastack_clear(parser -> stack);
+  if (!parser -> error) {
+    if (grammar_get_finalizer(parser -> grammar)) {
+      grammar_get_finalizer(parser -> grammar) -> fnc(parser);
+    }
+    if (datastack_notempty(parser -> stack)) {
+      error("Parser stack not empty after parse!");
+      datastack_list(parser -> stack);
+      datastack_clear(parser -> stack);
+    }
   }
   token_free(parser -> last_token);
   parser -> last_token = NULL;
   lexer_free(lexer);
+  return data_copy(parser -> error);
 }
 
 void parser_free(parser_t *parser) {
   if (parser) {
     token_free(parser -> last_token);
+    data_free(parser -> error);
     list_free(parser -> prod_stack);
     datastack_free(parser -> stack);
     dict_free(parser -> variables);

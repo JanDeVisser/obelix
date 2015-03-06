@@ -32,6 +32,7 @@ typedef struct _parser {
   void          *data;
   list_t        *prod_stack;
   token_t       *last_token;
+  data_t        *error;
   datastack_t   *stack;
   dict_t        *variables;
 } parser_t;
@@ -43,7 +44,7 @@ extern parser_t *      parser_clear(parser_t *);
 extern parser_t *      parser_set(parser_t *, char *, data_t *);
 extern data_t *        parser_get(parser_t *, char *);
 extern data_t *        parser_pop(parser_t *, char *);
-extern void            _parser_parse(parser_t *, reader_t *);
+extern data_t *        _parser_parse(parser_t *, reader_t *);
 extern void            parser_free(parser_t *);
 
 #define parser_parse(p, r)     _parser_parse((p), ((reader_t *) (r)))

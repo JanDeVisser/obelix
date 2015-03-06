@@ -144,6 +144,7 @@ object_t * object_create(script_t *script) {
   ret = NEW(object_t);
   ret -> refs = 0;
   ret -> script = script;
+  ret -> constructing = FALSE;
   ret -> ptr = NULL;
   ret -> str = NULL;
   ret -> debugstr = NULL;
@@ -159,7 +160,7 @@ object_t* object_copy(object_t* object) {
 void object_free(object_t *object) {
   if (object) {
     object -> refs--;
-    if (--object -> refs <= 0) {
+    if (object -> refs <= 0) {
       data_free(_object_call_attribute(object, "__finalize__", NULL, NULL));
       dict_free(object -> variables);
       free(object -> str);

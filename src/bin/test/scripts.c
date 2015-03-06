@@ -116,6 +116,15 @@ START_TEST(t10)
   data_free(d);
 END_TEST
 
+START_TEST(t11)
+  data_t *d;
+
+  d = run_script("t11");
+  ck_assert_int_eq(data_type(d), Int);
+  ck_assert_int_eq(data_intval(d), 1);
+  data_free(d);
+END_TEST
+
 void _init_scripts(void) {
   set_suite_name("Scripts");
 }
@@ -133,5 +142,6 @@ void _init_scripts_cases(void) {
   tcase_add_test(tc, t8);
   tcase_add_test(tc, t9);
   tcase_add_test(tc, t10);
+  tcase_add_test(tc, t11);
   add_tcase(tc);
 }

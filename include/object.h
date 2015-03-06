@@ -31,6 +31,7 @@ extern int res_debug;
 typedef struct _object {
   struct _script *script;
   void           *ptr;
+  int             constructing;
   dict_t         *variables;
   data_t         *retval;
   char           *str;
