@@ -29,6 +29,7 @@ static int           num_errors;
 static code_label_t *errors;
 
 static code_label_t builtin_errors[] = {
+  { .code = ErrorSyntax,      .label = "ErrorSyntax" },
   { .code = ErrorArgCount,    .label = "ErrorArgCount" },
   { .code = ErrorType,        .label = "ErrorType" },
   { .code = ErrorName,        .label = "ErrorName" },

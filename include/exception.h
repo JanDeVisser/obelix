@@ -24,6 +24,7 @@
 #include <stdarg.h>
 
 typedef enum _errorcode {
+  ErrorSyntax,
   ErrorArgCount,
   ErrorType,
   ErrorName,

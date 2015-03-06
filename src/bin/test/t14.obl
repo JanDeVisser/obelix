@@ -1,0 +1,6 @@
+if 1 
+than
+  print("1")
+else
+  print("not 1")
+end
