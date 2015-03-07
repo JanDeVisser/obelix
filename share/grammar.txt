@@ -171,6 +171,7 @@ constant                    := '"'               [ emit_pushval              ]
                              | '\''              [ emit_pushval              ]  
                              | signed_number
 			     | list
+                             | object
                              ;
 
 signed_number               := sign
@@ -203,6 +204,27 @@ entrylist                   := expr              [ ++                        ]
 
 entrylist_tail              := ,
 			       entrylist
+                             |
+			     ;
+
+object                      :=                   [ push: 1 push: "new"       ]
+                               '{'               [ push: 0 push: 0           ]
+                               attrlist_or_empty
+                               '}'               [ emit_func_call            ]
+                             ;
+
+attrlist_or_empty           := attrlist
+                             |
+                             ;
+
+attrlist                    := 'i'               [ push: $                   ]
+                               ':' 
+                               expr              [ make_nvp                  ]
+                               attrlist_tail
+                             ;
+
+attrlist_tail               := ,
+			       attrlist
                              |
 			     ;
 

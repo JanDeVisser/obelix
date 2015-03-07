@@ -229,6 +229,26 @@ parser_t * script_parse_jump(parser_t *parser) {
   return parser;
 }
 
+parser_t * script_make_nvp(parser_t *parser) {
+  script_t *script;
+  data_t   *name;
+  data_t   *data;
+  data_t   *count;
+
+  script = parser -> data;
+  data = token_todata(parser -> last_token);
+  assert(data);
+  name = datastack_pop(parser -> stack);
+  if (parser_debug) {
+    debug(" -- %s = %s", data_tostring(name), data_tostring(data));
+  }
+  count = datastack_pop(parser -> stack);
+  if (parser_debug) {
+    debug(" -- count: %d", data_tostring(name), data_tostring(data));
+  }
+  script_push_instruction(script, instruction_create_pushval(data));
+}
+
 parser_t * script_parse_emit_func_call(parser_t *parser) {
   script_t      *script;
   name_t        *func_name;
