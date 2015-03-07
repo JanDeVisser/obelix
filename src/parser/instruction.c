@@ -210,11 +210,13 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
 data_t * _instruction_execute_new(instruction_t *instr, closure_t *closure) {
   data_t   *self;
   data_t   *value;
+  object_t *obj;
   data_t   *ret = NULL;
   array_t  *params;
   script_t *script = NULL;
   name_t   *name = data_nameval(instr -> value);
   int       ix;
+  nvp_t    *nvp;
 
   if (script_debug) {
     debug(" -- #parameters: %d", instr -> num);
@@ -229,22 +231,38 @@ data_t * _instruction_execute_new(instruction_t *instr, closure_t *closure) {
   if (script_debug) {
     array_debug(params, " -- parameters: %s");
   }
-  self = data_create(Closure, closure);
-  value = data_resolve(self, name);
-  if (data_is_object(value)) {
-    script = script_copy(data_objectval(value) -> script);
-  } else if (data_is_closure(value)) {
-    script = script_copy(data_closureval(value) -> script);
+  if (name && name_size(name)) {
+    self = data_create(Closure, closure);
+    value = data_resolve(self, name);
+    if (data_is_object(value)) {
+      script = script_copy(data_objectval(value) -> script);
+    } else if (data_is_closure(value)) {
+      script = script_copy(data_closureval(value) -> script);
+    } else {
+      // FIXME Proper error message?
+      assert(data_is_error(value));
+      ret = value;
+    }
+    if (script) {
+      ret = script_execute(script, params, NULL);
+      script_free(script);
+    }
+    if (!ret) {
+      ret = data_error(ErrorSyntax, "Unresolved constructor function '%s'",
+		       name_tostring(name));
+    }
   } else {
-    assert(data_is_error(value));
-    ret = value;
-  }
-  if (script) {
-    ret = script_execute(script, params, NULL);
-    script_free(script);
+    obj = object_create(NULL);
+    for (ix = 0; ix < array_size(params); ix++) {
+      value = data_array_get(params, ix);
+      assert(data_is_nvp(value));
+      nvp = data_get_nvp(value);
+      object_set(ret, nvp_name(nvp), nvp_value(nvp));
+    }
+    ret = data_create(Object, obj);
   }
   array_free(params);
-  if (ret && !data_is_error(ret)) {
+  if (!data_is_error(ret)) {
     closure_push(closure, ret);
     ret = NULL;
   }

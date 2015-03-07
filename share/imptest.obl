@@ -1,7 +1,0 @@
-
-func baz(knor)
-begin
-  print(knor)
-end
-
-print("imptest loaded")
