@@ -26,7 +26,7 @@
 #include <data.h>
 #include <resolve.h>
 
-static void          _ptr_init(void) __attribute__((constructor));
+static void          _ptr_init(void) __attribute__((constructor(101));
 static data_t *      _ptr_new(data_t *, va_list);
 static int           _ptr_cmp(data_t *, data_t *);
 static data_t *      _ptr_cast(data_t *, int);

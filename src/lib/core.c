@@ -156,6 +156,10 @@ unsigned int hashdouble(double val) {
   return hash(&val, sizeof(double));
 }
 
+unsigned int hashblend(unsigned int h1, unsigned int h2) {
+  return (h1 << 1) + h1 + h2;
+}
+
 static code_label_t _log_level_labels[] = {
   { .code = LogLevelDebug,   .label = "DEBUG" },
   { .code = LogLevelInfo,    .label = "INFO" },

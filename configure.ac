@@ -13,6 +13,7 @@ AC_CONFIG_SRCDIR(src/bin/obelix.c)
 AC_CONFIG_HEADERS([config.h])
 AC_CHECK_FUNCS([asprintf])
 AC_CHECK_FUNCS([vasprintf])
+
 AC_CONFIG_FILES([ \
   Makefile \
   src/Makefile \

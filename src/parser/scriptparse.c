@@ -119,7 +119,7 @@ parser_t * script_parse_init(parser_t *parser) {
     debug("script_parse_init");
   }
   data = parser_get(parser, "name");
-  name = data_charval(data);
+  name = data_tostring(data);
   data = parser_get(parser, "ns");
   ns = (data) ? data -> ptrval : NULL;
   assert(ns);
@@ -134,25 +134,95 @@ parser_t * script_parse_done(parser_t *parser) {
   return _script_parse_emit_epilog(parser);
 }
 
+parser_t * script_make_nvp(parser_t *parser) {
+  script_t *script;
+  data_t   *name;
+  data_t   *data;
+
+  data = token_todata(parser -> last_token);
+  assert(data);
+  name = datastack_pop(parser -> stack);
+  assert(name);
+  if (parser_debug) {
+    debug(" -- %s = %s", data_tostring(name), data_tostring(data));
+  }
+  datastack_push(parser -> stack, data_create(NVP, name, data));
+  return parser;
+}
+
+/* ----------------------------------------------------------------------- */
+
+parser_t * script_parse_bookmark(parser_t *parser) {
+  datastack_bookmark(parser -> stack);
+  return parser;
+}
+
+parser_t * script_parse_rollup_to_list(parser_t *parser) {
+  array_t *arr;
+
+  arr = datastack_rollup(parser -> stack);
+  datastack_push(parser -> stack, data_create_list(arr));
+  array_free(arr);
+  return parser;
+}
+
+parser_t * script_parse_rollup_to_name(parser_t *parser) {
+  array_t *arr;
+  name_t  *name;
+
+  name = datastack_rollup_name(parser -> stack);
+  datastack_push(parser -> stack, data_create(Name, name));
+  name_free(name);
+  return parser;
+}
+
+/*
+ * Stack frame for function call:
+ *
+ *   +-----------------+
+ *   | #params         |Int
+ *   +-----------------+
+ *   | 0: func; 1: new |Int 
+ *   +-----------------+
+ *   | func_name       |Name
+ *   +-----------------+
+ *   | . . .           |
+ */
+parser_t * script_parse_setup_function(parser_t *parser) {
+  data_t *func;
+  name_t *name;
+
+  func = datastack_pop(parser -> stack);
+  name = name_create(1, data_tostring(func));
+  datastack_push(parser -> stack, data_create(Name, name));
+  datastack_push(parser -> stack, data_create(Int, 0)); /* Function call */
+  datastack_push(parser -> stack, data_create(Int, 0)); /* #Params       */
+  return parser;
+}
+
+/* ----------------------------------------------------------------------- */
+
 parser_t * script_parse_emit_assign(parser_t *parser) {
-  name_t   *varname;
+  data_t   *varname;
   script_t *script;
 
   script = parser -> data;
-  varname = _script_pop_and_build_varname(parser);
-  script_push_instruction(script, instruction_create_assign(varname));
-  name_free(varname);
+  varname = datastack_pop(parser -> stack);
+  script_push_instruction(script, 
+			  instruction_create_assign(data_nameval(varname)));
+  data_free(varname);
   return parser;
 }
 
 parser_t * script_parse_emit_pushvar(parser_t *parser) {
   script_t *script;
-  name_t   *varname;
+  data_t   *varname;
 
   script = parser -> data;
-  varname = _script_pop_and_build_varname(parser);
-  script_push_instruction(script, instruction_create_pushvar(varname));
-  name_free(varname);
+  varname = datastack_pop(parser -> stack);
+  script_push_instruction(script, 
+			  instruction_create_pushvar(data_nameval(varname)));
+  data_free(varname);
   return parser;
 }
 
@@ -180,7 +250,7 @@ parser_t *script_parse_push_signed_val(parser_t *parser) {
   script = parser -> data;
   data = token_todata(parser -> last_token);
   assert(data);
-  op =_script_pop_operation(parser);
+  op = _script_pop_operation(parser);
   if (parser_debug) {
     debug(" -- val: %s %s", name_tostring(op), data_debugstr(data));
   }
@@ -189,6 +259,7 @@ parser_t *script_parse_push_signed_val(parser_t *parser) {
   assert(data_type(signed_val) == data_type(data));
   script_push_instruction(script, instruction_create_pushval(signed_val));
   data_free(data);
+  data_free(signed_val);
   return parser;  
 }
 
@@ -229,29 +300,9 @@ parser_t * script_parse_jump(parser_t *parser) {
   return parser;
 }
 
-parser_t * script_make_nvp(parser_t *parser) {
-  script_t *script;
-  data_t   *name;
-  data_t   *data;
-  data_t   *count;
-
-  script = parser -> data;
-  data = token_todata(parser -> last_token);
-  assert(data);
-  name = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- %s = %s", data_tostring(name), data_tostring(data));
-  }
-  count = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- count: %d", data_tostring(name), data_tostring(data));
-  }
-  script_push_instruction(script, instruction_create_pushval(data));
-}
-
 parser_t * script_parse_emit_func_call(parser_t *parser) {
   script_t      *script;
-  name_t        *func_name;
+  data_t        *func_name;
   data_t        *param_count;
   data_t        *new;
   instruction_t *instr;
@@ -265,29 +316,30 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
   if (parser_debug) {
     debug(" -- %d: %s", data_intval(new), data_intval(new) ? "new object" : "function call");
   }
-  func_name = _script_pop_and_build_varname(parser);
+  func_name = datastack_pop(parser -> stack);
   if (data_intval(new)) {
-    instr = instruction_create_newobject(func_name,
+    instr = instruction_create_newobject(data_nameval(func_name),
 					 data_intval(param_count));
   } else {
-    instr = instruction_create_function(func_name, 
+    instr = instruction_create_function(data_nameval(func_name),
 					data_intval(param_count));
   }
   script_push_instruction(script, instr);
   data_free(new);
   data_free(param_count);
-  name_free(func_name);
+  data_free(func_name);
   return parser;
 }
 
 parser_t * script_parse_import(parser_t *parser) {
   script_t *script;
-  name_t   *module;
+  data_t   *module;
 
   script = parser -> data;
-  module = _script_pop_and_build_varname(parser);
-  script_push_instruction(script, instruction_create_import(module));
-  name_free(module);
+  module = datastack_pop(parser -> stack);
+  script_push_instruction(script,
+			  instruction_create_import(data_nameval(module)));
+  data_free(module);
   return parser;
 }
 
@@ -418,27 +470,26 @@ parser_t * script_parse_start_function(parser_t *parser) {
   script_t  *func;
   data_t    *data;
   char      *fname;
-  name_t    *params;
+  data_t    *params;
   int        ix;
 
   up = (script_t *) parser -> data;
 
-  /* Top of stack: number of parameters and parameters */
-  /* Note that we abuse the 'build_varname' function   */
-  params = _script_pop_and_build_varname(parser);
+  /* Top of stack: Parameter names as List */
+  params = datastack_pop(parser -> stack);
 
   /* Next on stack: function name */
   data = datastack_pop(parser -> stack);
-  fname = strdup(data_charval(data));
+  fname = strdup(data_tostring(data));
   data_free(data);
 
   func = script_create(NULL, up, fname);
-  func -> params = str_array_create(name_size(params));
-  for (ix = 0; ix < name_size(params); ix++) {
-    array_push(func -> params, strdup(name_get(params, ix)));
-  }
+  func -> params = str_array_create(array_size(params));
+  array_reduce(params, 
+	       (reduce_t) data_add_strings_reducer, 
+	       func -> params);
   free(fname);
-  name_free(params);
+  array_free(params);
   if (parser_debug) {
     debug(" -- defining function %s", func -> name);
   }
@@ -460,7 +511,7 @@ parser_t * script_parse_native_function(parser_t *parser) {
   native_fnc_t *func;
   data_t       *data;
   char         *fname;
-  name_t       *params;
+  array_t      *params;
   int           ix;
   name_t       *lib_func;
   native_t      c_func;
@@ -468,15 +519,14 @@ parser_t * script_parse_native_function(parser_t *parser) {
   
   script = (script_t *) parser -> data;
 
-  /* Top of stack: number of parameters and parameters */
-  /* Note that we abuse the 'build_varname' function   */
-  params = _script_pop_and_build_varname(parser);
+  /* Top of stack: Parameter names as List */
+  params = datastack_pop(parser -> stack);
 
   /* Next on stack: function name */
   data = datastack_pop(parser -> stack);
-  fname = strdup(data_charval(data));
+  fname = strdup(data_tostring(data));
   data_free(data);
-  
+
   lib_func = name_split(parser -> last_token -> token, ":");
   if (name_size(lib_func) > 2 || name_size(lib_func) == 0) {
     ret = NULL;
@@ -489,9 +539,9 @@ parser_t * script_parse_native_function(parser_t *parser) {
     if (c_func) {
       func = native_fnc_create(script, fname, c_func);
       func -> params = str_array_create(name_size(params));
-      for (ix = 0; ix < name_size(params); ix++) {
-	array_push(func -> params, strdup(name_get(params, ix)));
-      }
+      array_reduce(params, 
+		   (reduce_t) data_add_strings_reducer, 
+		   func -> params);
       if (parser_debug) {
 	debug(" -- defined native function %s", name_tostring(func -> name));
       }
@@ -504,9 +554,7 @@ parser_t * script_parse_native_function(parser_t *parser) {
     }
   }
   free(fname);
-  name_free(params);
+  array_free(params);
   name_free(lib_func);
   return ret;
 }
-
-

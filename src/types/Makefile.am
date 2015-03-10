@@ -29,7 +29,8 @@ libobltypes_la_SOURCES = \
 		string.c \
 		pointer.c \
 		method.c \
-		list.c 
+		list.c \
+		nvp.c
 
 libobltypes_la_LIBADD = \
 		$(top_srcdir)/src/lib/liboblcore.la

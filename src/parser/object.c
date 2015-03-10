@@ -20,11 +20,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <error.h>
+#include <exception.h>
 #include <object.h>
 #include <script.h>
-
-#include "exception.h"
 
 int res_debug = 0;
 

@@ -39,6 +39,15 @@ typedef struct _instruction_type_descr {
 
 static instruction_type_descr_t instruction_descr_map[];
 
+static data_t *         _instruction_vanilla_function(instruction_t *,
+						      closure_t *,
+						      array_t *);
+static data_t *         _instruction_constructor(instruction_t *,
+						 closure_t *,
+						 array_t *);
+static data_t *         _instruction_anon_create(instruction_t *,
+						 closure_t *,
+						 array_t *);
 static void             _instruction_free_name(instruction_t *);
 static void             _instruction_free_value(instruction_t *);
 static void             _instruction_free_name_value(instruction_t *);
@@ -56,36 +65,36 @@ static data_t *         _instruction_execute_pop(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_nop(instruction_t *, closure_t *);
 
 static instruction_type_descr_t instruction_descr_map[] = {
-    { type: ITAssign,   function: _instruction_execute_assign,
-      name: "Assign",   free: (free_t) _instruction_free_value,
-      tostring: (tostring_t) _instruction_tostring_value },
-    { type: ITPushVar,  function: _instruction_execute_pushvar,
-      name: "PushVar",  free: (free_t) _instruction_free_value,
-      tostring: (tostring_t) _instruction_tostring_value },
-    { type: ITPushVal,  function: _instruction_execute_pushval,
-      name: "PushVal",  free: (free_t) _instruction_free_value,
-      tostring: (tostring_t) _instruction_tostring_value },
-    { type: ITFunctionCall, function: _instruction_execute_function,
-      name: "FunctionCall", free: (free_t) _instruction_free_value,
-      tostring: (tostring_t) _instruction_tostring_value },
-    { type: ITNewObject, function: _instruction_execute_new,
-      name: "NewObject", free: (free_t) _instruction_free_value,
-      tostring: (tostring_t) _instruction_tostring_value },
-    { type: ITTest, function: _instruction_execute_test,
-      name: "Test", free: (free_t) _instruction_free_name,
-      tostring: (tostring_t) _instruction_tostring_name },
-    { type: ITPop, function: _instruction_execute_pop,
-      name: "Pop", free: (free_t) _instruction_free_name,
-      tostring: (tostring_t) _instruction_tostring_name },
-    { type: ITJump, function: _instruction_execute_jump,
-      name: "Jump", free: (free_t) _instruction_free_name,
-      tostring: (tostring_t) _instruction_tostring_name },
-    { type: ITImport, function: _instruction_execute_import,
-      name: "Import", free: (free_t) _instruction_free_value,
-      tostring: (tostring_t) _instruction_tostring_value },
-    { type: ITNop, function: _instruction_execute_nop,
-      name: "Nop", free: (free_t) _instruction_free_name,
-      tostring: (tostring_t) _instruction_tostring_name },
+  { type: ITAssign,   function: _instruction_execute_assign,
+    name: "Assign",   free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITPushVar,  function: _instruction_execute_pushvar,
+    name: "PushVar",  free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITPushVal,  function: _instruction_execute_pushval,
+    name: "PushVal",  free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITFunctionCall, function: _instruction_execute_function,
+    name: "FunctionCall", free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITNewObject, function: _instruction_execute_new,
+    name: "NewObject", free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITTest, function: _instruction_execute_test,
+    name: "Test", free: (free_t) _instruction_free_name,
+    tostring: (tostring_t) _instruction_tostring_name },
+  { type: ITPop, function: _instruction_execute_pop,
+    name: "Pop", free: (free_t) _instruction_free_name,
+    tostring: (tostring_t) _instruction_tostring_name },
+  { type: ITJump, function: _instruction_execute_jump,
+    name: "Jump", free: (free_t) _instruction_free_name,
+    tostring: (tostring_t) _instruction_tostring_name },
+  { type: ITImport, function: _instruction_execute_import,
+    name: "Import", free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITNop, function: _instruction_execute_nop,
+    name: "Nop", free: (free_t) _instruction_free_name,
+    tostring: (tostring_t) _instruction_tostring_name },
 };
 
 /*
@@ -117,6 +126,71 @@ char * _instruction_tostring_name(instruction_t *instruction) {
 
 char * _instruction_tostring_value(instruction_t *instruction) {
   return data_tostring(instruction -> value);
+}
+
+data_t * _instruction_vanilla_function(instruction_t *instr, 
+				       closure_t *closure, 
+				       array_t *params) {
+  self = (instr -> flag == IFInfix) 
+    ? NULL 
+    : data_create(Closure, closure);
+  ret = data_invoke(self, name, params, NULL);
+  data_free(self);
+  return ret;
+}
+
+data_t * _instruction_constructor(instruction_t *instr, 
+				  closure_t *closure, 
+				  array_t *params) {
+  data_t   *self;
+  data_t   *value;
+  data_t   *ret = NULL;
+  script_t *script = NULL;
+  name_t   *name;
+
+  name = data_nameval(instr -> value);
+  self = data_create(Closure, closure);
+  value = data_resolve(self, name);
+  if (data_is_object(value)) {
+    script = script_copy(data_objectval(value) -> script);
+  } else if (data_is_closure(value)) {
+    script = script_copy(data_closureval(value) -> script);
+  } else {
+    // FIXME Proper error message?
+    assert(data_is_error(value));
+    ret = value;
+  }
+  if (script) {
+    ret = script_execute(script, params, NULL);
+    script_free(script);
+  }
+  if (!ret) {
+    ret = data_error(ErrorSyntax, 
+		     "Unresolved constructor function '%s'",
+		     name_tostring(name));
+  }
+  return ret;
+}
+
+data_t * _instruction_anon_create(instruction_t *instr, 
+				  closure_t *closure, 
+				  array_t *params) {
+  array_t *attributes;
+  int      ix;
+
+  attributes = data_arrayval(instr -> value);
+  if (array_size(attributes) != array_size(params)) {
+    return data_error(ErrorSyntax,
+		      "Parameter count mismatch: %d != %d",
+		      array_size(attributes), array_size(params));
+  }
+  obj = object_create(NULL);
+  for (ix = 0; ix < array_size(params)) {
+    object_set(obj,
+	       data_tostring(data_array_get(attributes, ix)),
+	       data_array_get(params, ix));
+  }	       
+  return data_create(Object, obj);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -172,56 +246,14 @@ data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) 
 }
 
 data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
-  data_t   *self;
   data_t   *value;
   data_t   *ret = NULL;
   array_t  *params;
-  int       infix;
-  int       num;
-  name_t   *name = data_nameval(instr -> value);
   int       ix;
 
   if (script_debug) {
     debug(" -- #parameters: %d", instr -> num);
   }
-
-  infix = instr -> num < 0;
-  num = (infix) ? - instr -> num : instr -> num;
-  params = data_array_create(num);
-  for (ix = 0; ix < num; ix++) {
-    value = closure_pop(closure);
-    assert(value);
-    array_set(params, num - ix - 1, value);
-  }
-  if (script_debug) {
-    array_debug(params, " -- parameters: %s");
-  }
-  self = (infix) ? NULL : data_create(Closure, closure);
-  ret = data_invoke(self, name, params, NULL);
-  data_free(self);
-  array_free(params);
-  if (ret && !data_is_error(ret)) {
-    closure_push(closure, ret);
-    ret = NULL;
-  }
-  return ret;
-}
-
-data_t * _instruction_execute_new(instruction_t *instr, closure_t *closure) {
-  data_t   *self;
-  data_t   *value;
-  object_t *obj;
-  data_t   *ret = NULL;
-  array_t  *params;
-  script_t *script = NULL;
-  name_t   *name = data_nameval(instr -> value);
-  int       ix;
-  nvp_t    *nvp;
-
-  if (script_debug) {
-    debug(" -- #parameters: %d", instr -> num);
-  }
-
   params = data_array_create(instr -> num);
   for (ix = 0; ix < instr -> num; ix++) {
     value = closure_pop(closure);
@@ -231,38 +263,19 @@ data_t * _instruction_execute_new(instruction_t *instr, closure_t *closure) {
   if (script_debug) {
     array_debug(params, " -- parameters: %s");
   }
-  if (name && name_size(name)) {
-    self = data_create(Closure, closure);
-    value = data_resolve(self, name);
-    if (data_is_object(value)) {
-      script = script_copy(data_objectval(value) -> script);
-    } else if (data_is_closure(value)) {
-      script = script_copy(data_closureval(value) -> script);
-    } else {
-      // FIXME Proper error message?
-      assert(data_is_error(value));
-      ret = value;
-    }
-    if (script) {
-      ret = script_execute(script, params, NULL);
-      script_free(script);
-    }
-    if (!ret) {
-      ret = data_error(ErrorSyntax, "Unresolved constructor function '%s'",
-		       name_tostring(name));
-    }
-  } else {
-    obj = object_create(NULL);
-    for (ix = 0; ix < array_size(params); ix++) {
-      value = data_array_get(params, ix);
-      assert(data_is_nvp(value));
-      nvp = data_get_nvp(value);
-      object_set(ret, nvp_name(nvp), nvp_value(nvp));
-    }
-    ret = data_create(Object, obj);
+  switch (instr -> flag) {
+  case IFNew:
+    ret = _instruction_constructor(instr, closure, params);
+    break;
+  case IFAnonCreate:
+    ret = _instruction_anon_create(instr, closure, params);
+    break;
+  default:
+    ret = _instruction_vanilla_function(instr, closure, params);
+    break;
   }
   array_free(params);
-  if (!data_is_error(ret)) {
+  if (ret && !data_is_error(ret)) {
     closure_push(closure, ret);
     ret = NULL;
   }
