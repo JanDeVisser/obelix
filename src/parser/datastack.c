@@ -21,19 +21,42 @@
 
 #include <datastack.h>
 
-static void _stack_list_visitor(data_t *);
+typedef struct _bookmark {
+  int depth;
+} bookmark_t;
 
-/*
- * datastack_t - static functions
- */
+static bookmark_t * _bookmark_create(datastack_t *);
+static void         _bookmark_free(bookmark_t *);
+static int          _bookmark_depth(bookmark_t *);
+
+static void         _stack_list_visitor(data_t *);
+
+/* ------------------------------------------------------------------------ */
+
+bookmark_t _bookmark_create(datastack_t *stack) {
+  bookmark_t *ret = NEW(bookmark_t);
+
+  ret -> depth = datastack_depth(stack);
+  return ret;
+}
+
+void _bookmark_free(bookmark_t *bookmark) {
+  if (bookmark) {
+    free(bookmark);
+  }
+}
+
+int _bookmark_depth(bookmark_t *bookmark) {
+  return bookmark -> depth;
+}
+
+/* ------------------------------------------------------------------------ */
 
 void _stack_list_visitor(data_t *entry) {
   debug("   . %s", data_debugstr(entry));
 }
 
-/*
- * datastack_t - public functions
- */
+/* ------------------------------------------------------------------------ */
 
 datastack_t * datastack_create(char *name) {
   datastack_t *ret;
@@ -42,6 +65,7 @@ datastack_t * datastack_create(char *name) {
   ret -> name = strdup(name);
   ret -> debug = 0;
   ret -> list = list_create();
+  ret -> bookmarks = NULL;
   list_set_free(ret -> list, (free_t) data_free);
   list_set_tostring(ret -> list, (tostring_t) data_tostring);
   list_set_hash(ret -> list, (hash_t) data_hash);
@@ -57,6 +81,7 @@ datastack_t * datastack_set_debug(datastack_t *stack, int debug) {
 void datastack_free(datastack_t *stack) {
   if (stack) {
     list_free(stack -> list);
+    list_free(stack -> bookmarks);
     free(stack -> name);
     free(stack);
   }
@@ -73,7 +98,7 @@ int datastack_hash(datastack_t *stack) {
 int datastack_cmp(datastack_t *s1, datastack_t *s2) {
   return strcmp(s1 -> name, s2 -> name);
 }
-
+							    
 int datastack_depth(datastack_t *stack) {
   return list_size(stack -> list);
 }
@@ -123,4 +148,53 @@ datastack_t * datastack_list(datastack_t *stack) {
 datastack_t * datastack_clear(datastack_t *stack) {
   list_clear(stack -> list);
   return stack;
+}
+
+datastack_t * datastack_bookmark(datastack_t *stack) {
+  if (!stack -> bookmarks) {
+    stack -> bookmarks = data_list_create();
+    list_set_free(stack -> bookmarks, (free_t) _bookmark_free);
+  }
+  list_push(stack -> bookmarks, _bookmark_create(stack));
+  return stack;
+}
+
+array_t * datastack_rollup(datastack_t *stack) {
+  data_t  *bookmark;
+  data_t  *data;
+  array_t *ret;
+  int      num;
+  int      ix;
+
+  if (!stack -> bookmarks || list_empty(stack -> bookmarks)) {
+    return NULL;
+  }
+  bookmark = list_tail(stack -> bookmarks);
+  assert(_bookmark_depth(bookmark) <= datastack_depth(stack));
+  num = datastack_depth(stack) - _bookmark_depth(bookmark);
+  ret = data_array_create(num);
+  for (ix = num - 1; ix >= 0; ix--) {
+    data = datastack_pop(parser -> stack);
+    array_set(ret, ix, data_copy(data));
+    data_free(data);
+  }
+  bookmark = list_pop(stack -> bookmarks);
+  _bookmark_free(bookmark);
+  return ret;
+}
+
+name_t * datastack_rollup_name(datastack_t *stack) {
+  array_t *arr;
+  int      ix;
+  data_t  *data;
+  name_t  *ret;
+
+  arr = datastack_rollup(stack);
+  ret = name_create(0);
+  for (ix = 0; ix < array_size(arr); ix++) {
+    data = data_array_get(arr, ix);
+    name_extend(ret, data_tostring(data));
+  }
+  array_free(arr);
+  return ret;
 }

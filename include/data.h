@@ -44,6 +44,7 @@ typedef enum _datatype {
   Module,       /* 14 */
   Name,         /* 15 */
   Native,       /* 16 */
+  NVP,          /* 17 */
   Any           = 100,
   UserTypeRange = 999
 } datatype_t;
@@ -191,6 +192,17 @@ extern array_t *       data_list_to_str_array(data_t *);
                                         (free_t) free), \
                                       (free_t) data_free), \
                                     (tostring_t) chars), \
+                                  (tostring_t) data_tostring)
+#define datadata_dict_create()   dict_set_tostring_data( \
+                                  dict_set_tostring_key( \
+                                    dict_set_free_data( \
+                                      dict_set_free_key( \
+                                        dict_set_hash( \
+                                          dict_create((cmp_t) strcmp),\
+                                          (hash_t) data_hash), \
+                                        (free_t) data_free), \
+                                      (free_t) data_free), \
+                                    (tostring_t) data_tostring), \
                                   (tostring_t) data_tostring)
 #define data_dict_get(d, k)     ((data_t *) dict_get((d), (k)))
 

@@ -102,7 +102,7 @@ extern unsigned int    hash(void *, size_t);
 extern unsigned int    hashptr(void *);
 extern unsigned int    hashlong(long);
 extern unsigned int    hashdouble(double);
-#define hashblend(h1, h2)   (((h1) >> 16) | ((h2) << 16))
+extern unsigned int    hashblend(unsigned int, unsigned int);
 
 extern char *          _log_level_str(log_level_t);
 extern void            _logmsg(log_level_t, char *, int, char *, ...);
