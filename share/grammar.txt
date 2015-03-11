@@ -203,7 +203,7 @@ entrylist_or_empty          := entrylist
                              |
                              ;
 
-entrylist                   := expr              [ ++                        ]
+entrylist                   := expr              [ incr_counter              ]
                                entrylist_tail
                              ;
 
@@ -212,9 +212,10 @@ entrylist_tail              := ,
                              |
 			     ;
 
-object                      := '{'               [ bookmark                  ]
+object                      :=                   [ push: "object"            ]
+                               '{'               [ setup_function            ]
                                attrlist_or_empty
-                               '}'               [ emit_create_object        ]
+                               '}'               [ emit_func_call            ]
                              ;
 
 attrlist_or_empty           := attrlist
@@ -238,7 +239,7 @@ add_op                      := + | - ;
 
 mult_op                     := * | / | ^ | % ;
 
-func_call                   := (                 [ push: 0                   ]
+func_call                   := (                 [ new_counter               ]
                                arglist_or_void
                                )                 [ emit_func_call            ]
                              ;
@@ -251,11 +252,10 @@ arglist                     := argument
                                arglist_tail
                              ;
 
-argument                    := expr              [ ++                        ] 
+argument                    := expr              [ incr_counter              ] 
                              ;
 
 arglist_tail                := ,
                                arglist
                              |
                              ;
- 

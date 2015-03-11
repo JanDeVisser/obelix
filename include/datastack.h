@@ -30,6 +30,7 @@ typedef struct _datastack {
   int       debug;
   list_t   *list;
   list_t   *bookmarks;
+  list_t   *counters;
 } datastack_t;
 
 extern datastack_t * datastack_create(char *);
@@ -48,8 +49,11 @@ extern datastack_t * datastack_push_float(datastack_t *, double);
 extern datastack_t * datastack_list(datastack_t *);
 extern datastack_t * datastack_clear(datastack_t *);
 extern datastack_t * datastack_bookmark(datastack_t *);
-extern datastack_t * datastack_rollup(datastack_t *, array_t *);
+extern array_t *     datastack_rollup(datastack_t *);
 extern name_t *      datastack_rollup_name(datastack_t *);
+extern datastack_t * datastack_new_counter(datastack_t *);
+extern datastack_t * datastack_increment(datastack_t *);
+extern int           datastack_count(datastack_t *);
 
 #define datastack_empty(l)        (datastack_depth((l)) == 0)
 #define datastack_notempty(l)     (datastack_depth((l)) > 0)
