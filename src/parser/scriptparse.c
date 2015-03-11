@@ -176,12 +176,23 @@ parser_t * script_parse_rollup_to_name(parser_t *parser) {
   return parser;
 }
 
+parser_t * script_parse_new_counter(parser_t *parser) {
+  datastack_new_counter(parser -> stack);
+  return parser;
+}
+
+parser_t * script_parse_incr_counter(parser_t *parser) {
+  datastack_increment(parser -> stack);
+  return parser;
+}
+
 /*
  * Stack frame for function call:
  *
+ *   | kwarg           |
  *   +-----------------+
- *   | #params         |Int
- *   +-----------------+
+ *   | kwarg           |
+ *   +-----------------+    <- Bookmark for kwarg names
  *   | 0: func; 1: new |Int 
  *   +-----------------+
  *   | func_name       |Name
@@ -196,7 +207,8 @@ parser_t * script_parse_setup_function(parser_t *parser) {
   name = name_create(1, data_tostring(func));
   datastack_push(parser -> stack, data_create(Name, name));
   datastack_push(parser -> stack, data_create(Int, 0)); /* Function call */
-  datastack_push(parser -> stack, data_create(Int, 0)); /* #Params       */
+  datastack_new_counter(parser -> stack);
+  datastack_bookmark(parser -> stack);
   return parser;
 }
 
@@ -303,14 +315,16 @@ parser_t * script_parse_jump(parser_t *parser) {
 parser_t * script_parse_emit_func_call(parser_t *parser) {
   script_t      *script;
   data_t        *func_name;
-  data_t        *param_count;
+  int            param_count;
   data_t        *new;
+  array_t       *kwargs;
   instruction_t *instr;
 
   script = parser -> data;
-  param_count = datastack_pop(parser -> stack);
+  kwargs = datastack_rollup(parser -> stack);
+  param_count = datastack_count(parser -> stack);
   if (parser_debug) {
-    debug(" -- param_count: %d", data_intval(param_count));
+    debug(" -- param_count: %d", param_count);
   }
   new = datastack_pop(parser -> stack);
   if (parser_debug) {
@@ -322,7 +336,8 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
 					 data_intval(param_count));
   } else {
     instr = instruction_create_function(data_nameval(func_name),
-					data_intval(param_count));
+					data_intval(param_count),
+                                        kwargs);
   }
   script_push_instruction(script, instr);
   data_free(new);

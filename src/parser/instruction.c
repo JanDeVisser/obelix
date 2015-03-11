@@ -77,9 +77,6 @@ static instruction_type_descr_t instruction_descr_map[] = {
   { type: ITFunctionCall, function: _instruction_execute_function,
     name: "FunctionCall", free: (free_t) _instruction_free_value,
     tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITNewObject, function: _instruction_execute_new,
-    name: "NewObject", free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
   { type: ITTest, function: _instruction_execute_test,
     name: "Test", free: (free_t) _instruction_free_name,
     tostring: (tostring_t) _instruction_tostring_name },
@@ -128,19 +125,18 @@ char * _instruction_tostring_value(instruction_t *instruction) {
   return data_tostring(instruction -> value);
 }
 
-data_t * _instruction_vanilla_function(instruction_t *instr, 
-				       closure_t *closure, 
+data_t * _instruction_vanilla_function(instruction_t *instr, closure_t *closure, 
 				       array_t *params) {
-  self = (instr -> flag == IFInfix) 
+  data_t *self = (instr -> flag == IFInfix) 
     ? NULL 
     : data_create(Closure, closure);
-  ret = data_invoke(self, name, params, NULL);
+  name_t *name = data_nameval(instr -> value);
+  data_t *ret = data_invoke(self, name, params, NULL);
   data_free(self);
   return ret;
 }
 
-data_t * _instruction_constructor(instruction_t *instr, 
-				  closure_t *closure, 
+data_t * _instruction_constructor(instruction_t *instr, closure_t *closure, 
 				  array_t *params) {
   data_t   *self;
   data_t   *value;
@@ -172,11 +168,11 @@ data_t * _instruction_constructor(instruction_t *instr,
   return ret;
 }
 
-data_t * _instruction_anon_create(instruction_t *instr, 
-				  closure_t *closure, 
+data_t * _instruction_anon_create(instruction_t *instr, closure_t *closure, 
 				  array_t *params) {
-  array_t *attributes;
-  int      ix;
+  array_t  *attributes;
+  int       ix;
+  object_t *obj;
 
   attributes = data_arrayval(instr -> value);
   if (array_size(attributes) != array_size(params)) {
@@ -185,7 +181,7 @@ data_t * _instruction_anon_create(instruction_t *instr,
 		      array_size(attributes), array_size(params));
   }
   obj = object_create(NULL);
-  for (ix = 0; ix < array_size(params)) {
+  for (ix = 0; ix < array_size(params); ix++) {
     object_set(obj,
 	       data_tostring(data_array_get(attributes, ix)),
 	       data_array_get(params, ix));

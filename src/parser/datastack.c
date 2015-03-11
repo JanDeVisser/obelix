@@ -25,9 +25,18 @@ typedef struct _bookmark {
   int depth;
 } bookmark_t;
 
+typedef struct _counter {
+  int count;
+} counter_t;
+
 static bookmark_t * _bookmark_create(datastack_t *);
 static void         _bookmark_free(bookmark_t *);
 static int          _bookmark_depth(bookmark_t *);
+
+static counter_t *  _counter_create();
+static void         _counter_free(counter_t *);
+static int          _counter_count(counter_t *);
+static int          _counter_incr(counter_t *);
 
 static void         _stack_list_visitor(data_t *);
 
@@ -52,6 +61,30 @@ int _bookmark_depth(bookmark_t *bookmark) {
 
 /* ------------------------------------------------------------------------ */
 
+counter_t _counter_create(void) {
+  counter_t *ret = NEW(counter_t);
+  
+  ret -> count = 0;
+  return ret;
+}
+
+void _counter_free(counter_t *counter) {
+  if (counter) {
+    free(counter);
+  }
+}
+
+int _counter_count(counter_t *counter) {
+  return counter -> count;
+}
+
+counter_t * _counter_incr(counter_t *counter) {
+  counter -> count++;
+  return counter;
+}
+
+/* ------------------------------------------------------------------------ */
+
 void _stack_list_visitor(data_t *entry) {
   debug("   . %s", data_debugstr(entry));
 }
@@ -64,12 +97,9 @@ datastack_t * datastack_create(char *name) {
   ret = NEW(datastack_t);
   ret -> name = strdup(name);
   ret -> debug = 0;
-  ret -> list = list_create();
+  ret -> list = data_list_create();
   ret -> bookmarks = NULL;
-  list_set_free(ret -> list, (free_t) data_free);
-  list_set_tostring(ret -> list, (tostring_t) data_tostring);
-  list_set_hash(ret -> list, (hash_t) data_hash);
-  list_set_cmp(ret -> list, (cmp_t) data_cmp);
+  ret -> counters = NULL;
   return ret;
 }
 
@@ -150,9 +180,11 @@ datastack_t * datastack_clear(datastack_t *stack) {
   return stack;
 }
 
+/* ------------------------------------------------------------------------ */
+
 datastack_t * datastack_bookmark(datastack_t *stack) {
   if (!stack -> bookmarks) {
-    stack -> bookmarks = data_list_create();
+    stack -> bookmarks = list_create();
     list_set_free(stack -> bookmarks, (free_t) _bookmark_free);
   }
   list_push(stack -> bookmarks, _bookmark_create(stack));
@@ -160,21 +192,21 @@ datastack_t * datastack_bookmark(datastack_t *stack) {
 }
 
 array_t * datastack_rollup(datastack_t *stack) {
-  data_t  *bookmark;
-  data_t  *data;
-  array_t *ret;
-  int      num;
-  int      ix;
+  bookmark_t *bookmark;
+  data_t     *data;
+  array_t    *ret;
+  int         num;
+  int         ix;
 
   if (!stack -> bookmarks || list_empty(stack -> bookmarks)) {
     return NULL;
   }
-  bookmark = list_tail(stack -> bookmarks);
+  bookmark = (bookmark_t *) list_tail(stack -> bookmarks);
   assert(_bookmark_depth(bookmark) <= datastack_depth(stack));
   num = datastack_depth(stack) - _bookmark_depth(bookmark);
   ret = data_array_create(num);
   for (ix = num - 1; ix >= 0; ix--) {
-    data = datastack_pop(parser -> stack);
+    data = datastack_pop(stack);
     array_set(ret, ix, data_copy(data));
     data_free(data);
   }
@@ -197,4 +229,39 @@ name_t * datastack_rollup_name(datastack_t *stack) {
   }
   array_free(arr);
   return ret;
+}
+
+/* ------------------------------------------------------------------------ */
+
+datastack_t * datastack_new_counter(datastack_t *stack) {
+  if (!stack -> counters) {
+    stack -> counters = list_create();
+    list_set_free(stack -> counters, (free_t) _counter_free);
+  }
+  list_push(stack -> counters, _counter_create(stack));
+  return stack;
+}
+
+datastack_t * datastack_increment(datastack_t *stack) {
+  counter_t *counter;
+
+  if (!stack -> counters || list_empty(stack -> counters)) {
+    return NULL;
+  }
+  counter = (counter_t *) list_tail(stack -> counters);
+  _counter_incr(counter);
+  return stack; 
+}
+
+int datastack_count(datastack_t *stack) {
+  counter_t *counter;
+  int        count;
+
+  if (!stack -> counters || list_empty(stack -> counters)) {
+    return -1;
+  }
+  counter = list_pop(stack -> counters);
+  count = counter -> count;
+  _counter_free(counter);
+  return count;
 }
