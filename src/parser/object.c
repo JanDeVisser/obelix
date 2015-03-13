@@ -26,19 +26,24 @@
 
 int res_debug = 0;
 
-static void         _data_init_object(void) __attribute__((constructor));
-static data_t *     _data_new_object(data_t *, va_list);
-static data_t *     _data_copy_object(data_t *, data_t *);
-static int          _data_cmp_object(data_t *, data_t *);
-static char *       _data_tostring_object(data_t *);
-static unsigned int _data_hash_object(data_t *);
-static data_t *     _data_call_object(data_t *, array_t *, dict_t *);
-static data_t *     _data_resolve_object(data_t *, char *);
-static data_t *     _data_set_object(data_t *, char *, data_t *);
+static void          _data_init_object(void) __attribute__((constructor));
+static data_t *      _data_new_object(data_t *, va_list);
+static data_t *      _data_copy_object(data_t *, data_t *);
+static int           _data_cmp_object(data_t *, data_t *);
+static char *        _data_tostring_object(data_t *);
+static unsigned int  _data_hash_object(data_t *);
+static data_t *      _data_call_object(data_t *, array_t *, dict_t *);
+static data_t *      _data_resolve_object(data_t *, char *);
+static data_t *      _data_set_object(data_t *, char *, data_t *);
 
-/*
- * data_t Object type
- */
+static data_t *      _object_create(data_t *, char *, array_t *, dict_t *);
+static data_t *      _object_new(data_t *, char *, array_t *, dict_t *);
+
+static data_t *      _object_get(object_t *, char *);
+static data_t *      _object_call_attribute(object_t *, char *, array_t *, dict_t *);
+static object_t *    _object_set_all_reducer(entry_t *, object_t *);
+
+  /* ----------------------------------------------------------------------- */
 
 static vtable_t _vtable_object[] = {
   { .id = FunctionNew,      .fnc = (void_t) _data_new_object },
@@ -59,8 +64,18 @@ static typedescr_t _typedescr_object = {
   .vtable =    _vtable_object
 };
 
+/* FIXME Add append, delete, head, tail, etc... */
+static methoddescr_t _methoddescr_object[] = {
+  { .type = Any,    .name = "object", .method = _object_create, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
+  { .type = Any,    .name = "new",    .method = _object_new,    .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
+  { .type = NoType, .name = NULL,     .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+};
+
+/* ----------------------------------------------------------------------- */
+
 void _data_init_object(void) {
   typedescr_register(&_typedescr_object);  
+  typedescr_register_methods(_methoddescr_object);
 }
 
 data_t * _data_new_object(data_t *ret, va_list arg) {
@@ -105,9 +120,55 @@ data_t * data_create_object(object_t *object) {
   return data_create(Object, object);
 }
 
-/*
- * object_t static functions
- */
+/* ----------------------------------------------------------------------- */
+
+data_t * _object_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t   *ret;
+  object_t *obj;
+
+  obj = object_create(NULL);
+  dict_reduce(kwargs, (reduce_t) _object_set_all_reducer, obj);
+  ret = data_create(Object, obj);
+  return ret;
+}
+
+data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs) {
+  data_t   *ret;
+  object_t *obj;
+  name_t   *name = NULL;
+  data_t   *n;
+  script_t *script = NULL;
+  
+  n = data_copy(data_array_get(args, 0));
+  if (data_is_name(n)) {
+    name = name_copy(data_nameval(n));
+  } else if (data_type(n) == String) {
+    name = name_parse(data_tostring(n));
+  }
+  if (name) {
+    data_free(n);
+    n = data_resolve(self, name);
+  }
+  if (!data_is_error(n)) {
+    if (data_is_object(n)) {
+      script = data_objectval(n) -> script;
+    } else if (data_is_closure(n)) {
+      script = data_closureval(n) -> script;
+    } else if (data_is_script(n)) {
+      script = data_scriptval(n);
+    }
+    if (script) {
+      ret = script_execute(script, args, kwargs);
+    }
+  } else {
+    ret = data_copy(n);
+  }
+  name_free(name);
+  data_free(n);
+  return ret;
+}
+
+/* ----------------------------------------------------------------------- */
 
 data_t * _object_get(object_t *object, char *name) {
   data_t *ret;
@@ -131,9 +192,12 @@ data_t * _object_call_attribute(object_t *object, char *name, array_t *args, dic
   return ret;
 }
 
-/*
- * object_t public functions
- */
+object_t * _object_set_all_reducer(entry_t *e, object_t *object) {
+  object_set(object, (char *) e -> key, (data_t *) e -> value);
+  return object;
+}
+
+/* ----------------------------------------------------------------------- */
 
 object_t * object_create(script_t *script) {
   object_t   *ret;

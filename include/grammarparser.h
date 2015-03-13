@@ -28,6 +28,7 @@ typedef enum _gp_state_ {
   GPStateStart,
   GPStateOptions,
   GPStateOptionName,
+  GPStateOptionValue,
   GPStateHeader,
   GPStateNonTerminal,
   GPStateRule,

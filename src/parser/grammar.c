@@ -80,9 +80,10 @@ static typedescr_t _typedescr_ge = {
 };
 
 static vtable_t _vtable_grammar[] = {
-  { .id = FunctionNew,  .fnc = (void_t) _grammar_create },
-  { .id = FunctionFree, .fnc = (void_t) _grammar_free },
-  { .id = FunctionNone, .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _grammar_create },
+  { .id = FunctionFree,     .fnc = (void_t) _grammar_free },
+  { .id = FunctionToString, .fnc = (void_t) grammar_tostring },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_grammar = {
@@ -92,9 +93,10 @@ static typedescr_t _typedescr_grammar = {
 };
 
 static vtable_t _vtable_nonterminal[] = {
-  { .id = FunctionNew,  .fnc = (void_t) _nonterminal_create },
-  { .id = FunctionFree, .fnc = (void_t) _nonterminal_free },
-  { .id = FunctionNone, .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _nonterminal_create },
+  { .id = FunctionFree,     .fnc = (void_t) _nonterminal_free },
+  { .id = FunctionToString, .fnc = (void_t) nonterminal_tostring },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_nonterminal = {
@@ -104,9 +106,10 @@ static typedescr_t _typedescr_nonterminal = {
 };
 
 static vtable_t _vtable_rule[] = {
-  { .id = FunctionNew,  .fnc = (void_t) _rule_create },
-  { .id = FunctionFree, .fnc = (void_t) _rule_free },
-  { .id = FunctionNone, .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _rule_create },
+  { .id = FunctionFree,     .fnc = (void_t) _rule_free },
+  { .id = FunctionToString, .fnc = (void_t) rule_tostring },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static typedescr_t _typedescr_rule = {
@@ -118,6 +121,7 @@ static typedescr_t _typedescr_rule = {
 static vtable_t _vtable_rule_entry[] = {
   { .id = FunctionNew,      .fnc = (void_t) _rule_entry_new },
   { .id = FunctionFree,     .fnc = (void_t) _rule_entry_free },
+  { .id = FunctionToString, .fnc = (void_t) rule_entry_tostring },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -132,60 +136,63 @@ void _grammar_init(void) {
 }
 
 /*
- * pushvalue_t -
+ * grammar_action_t -
  */
 
-pushvalue_t * pushvalue_create(token_t *value, int increment) {
-  pushvalue_t *ret;
+grammar_action_t * grammar_action_create(function_t *fnc, data_t *data) {
+  grammar_action_t *ret;
 
-  ret = NEW(pushvalue_t);
-  ret -> value = (value) ? token_copy(value) : NULL;
-  ret -> incr = increment;
+  ret = NEW(grammar_action_t);
+  ret -> fnc = function_copy(fnc);
+  ret -> data = data_copy(data);
+  ret -> refs = 1;
+  ret -> str = NULL;
   return ret;
 }
 
-pushvalue_t * pushvalue_copy(pushvalue_t *pushvalue) {
-  return pushvalue_create(pushvalue -> value, pushvalue -> incr);
+grammar_action_t * grammar_action_copy(grammar_action_t *grammar_action) {
+  return grammar_action_create(grammar_action -> fnc, grammar_action -> data);
 }
 
-void pushvalue_free(pushvalue_t *pushvalue) {
-  if (pushvalue) {
-    token_free(pushvalue -> value);
-    free(pushvalue);
-  }
-}
-
-int pushvalue_cmp(pushvalue_t *pv1, pushvalue_t *pv2) {
-  int ret;
-
-  if (pv1 -> value && pv2 -> value) {
-    ret = token_cmp(pv1 -> value, pv2 -> value);
-    if (!ret) {
-      ret = pv1 -> incr - pv2 -> incr;
+void grammar_action_free(grammar_action_t *grammar_action) {
+  if (grammar_action) {
+    grammar_action -> refs--;
+    if (grammar_action -> refs <= 0) {
+      function_free(grammar_action -> fnc);
+      data_free(grammar_action -> data);
+      free(grammar_action -> str);
+      free(grammar_action);
     }
-  } else if (!pv1 -> value && !pv2 -> value) {
-    ret = pv1 -> incr - pv2 -> incr;
-  } else {
-    ret = (pv1 -> value) ? 1 : -1;
+  }
+}
+
+int grammar_action_cmp(grammar_action_t *ga1, grammar_action_t *ga2) {
+  int ret;
+  
+  ret = function_cmp(ga1 -> fnc, ga2 -> fnc);
+  if (!ret) {
+    ret = data_cmp(ga1 -> data, ga2 -> data);
   }
   return ret;
 }
 
-unsigned int pushvalue_hash(pushvalue_t *pushvalue) {
-  if (pushvalue -> value) {
-    return token_hash(pushvalue -> value);
-  } else {
-    return pushvalue -> incr;
-  }
+unsigned int grammar_action_hash(grammar_action_t *grammar_action) {
+  return hashblend(function_hash(grammar_action -> fnc), 
+                   data_hash(grammar_action -> data));
 }
 
-char * pushvalue_tostring(pushvalue_t *pushvalue) {
-  static char buf[132];
-
-  snprintf(buf, 132, "%s%s",
-           (pushvalue -> value) ? token_tostring(pushvalue -> value) : "",
-           (pushvalue -> incr) ? " [+]" : "");
-  return buf;
+char * grammar_action_tostring(grammar_action_t *grammar_action) {
+  if (!grammar_action -> str) {
+    if (grammar_action -> data) {
+      asprintf(&grammar_action -> str, "%s [%s]", 
+               function_tostring(grammar_action -> fnc),
+               data_tostring(grammar_action -> data));
+    } else {
+      asprintf(&grammar_action -> str, "%s", 
+               function_tostring(grammar_action -> fnc));
+    }
+  }
+  return grammar_action -> str;
 }
 
 /*
@@ -208,12 +215,11 @@ ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, 
   ret -> type = type;
   ret -> grammar = grammar;
   ret -> owner = owner;
-  ret -> initializer = NULL;
-  ret -> finalizer = NULL;
-  ret -> pushvalues = list_create();
-  list_set_free(ret -> pushvalues, (free_t) pushvalue_free);
-  list_set_tostring(ret -> pushvalues, (tostring_t) pushvalue_tostring);
+  ret -> actions = list_create();
+  list_set_free(ret -> actions, (free_t) grammar_action_free);
+  list_set_tostring(ret -> actions, (tostring_t) grammar_action_tostring);
   ret -> variables = strtoken_dict_create();
+  ret -> str = NULL;
   va_start(args, type);
   new_fnc = (new_t) ge_function(ret, FunctionNew);
   if (new_fnc) {
@@ -232,9 +238,8 @@ void ge_free(ge_t *ge) {
   
   if (ge) {
     dict_free(ge -> variables);
-    list_free(ge -> pushvalues);
-    function_free(ge -> initializer);
-    function_free(ge -> finalizer);
+    list_free(ge -> actions);
+    free(ge -> str);
     free_fnc = (free_t) ge_function(ge, FunctionFree);
     if (free_fnc) {
       free_fnc(ge -> ptr);
@@ -251,55 +256,50 @@ void_t ge_function(ge_t *ge, int fnc_id) {
   return typedescr_get_function(typedescr_get(ge -> type), fnc_id);
 }
 
-ge_t * ge_add_pushvalue(ge_t *ge, pushvalue_t *pushvalue) {
-  list_push(ge -> pushvalues, pushvalue);
+ge_t * ge_add_action(ge_t *ge, grammar_action_t *action) {
+  list_push(ge -> actions, action);
   return ge;
-}
-
-ge_t * ge_set_initializer(ge_t *ge, function_t *fnc) {
-  ge -> initializer = fnc;
-  return ge;
-}
-
-function_t * ge_get_initializer(ge_t *ge) {
-  return ge -> initializer;
-}
-
-ge_t * ge_set_finalizer(ge_t *ge, function_t *fnc) {
-  ge -> finalizer = fnc;
-  return ge;
-}
-
-function_t * ge_get_finalizer(ge_t *ge) {
-  return ge -> finalizer;
 }
 
 ge_t * ge_set_option(ge_t *ge, token_t *name, token_t *val) {
-  pushvalue_t *pushvalue;
+  function_t  *fnc;
+  data_t      *data;
 
-  switch (token_code(name)) {
-    case INIT:
-      ge_set_initializer(ge, grammar_resolve_function(ge -> grammar, token_token(val)));
-      break;
-    case DONE:
-      ge_set_finalizer(ge, grammar_resolve_function(ge -> grammar, token_token(val)));
-      break;
-    case PUSH:
-      ge_add_pushvalue(ge, pushvalue_create(val, 0));
-      break;
-    case PUSH_INCR:
-      ge_add_pushvalue(ge, pushvalue_create(val, 1));
-      break;
-    case INCR:
-      ge_add_pushvalue(ge, pushvalue_create(NULL, 1));
-      break;
-    default:
-      if (!ge -> set_option_delegate || !ge -> set_option_delegate(ge, name, val)) {
+  if (grammar_debug) {
+    debug("  Setting option %s on grammar element %s", token_tostring(name), ge_tostring(ge));
+  }
+  if (!ge -> set_option_delegate || !ge -> set_option_delegate(ge, name, val)) {
+    fnc = grammar_resolve_function(ge -> grammar, token_token(name));
+    if (fnc) {
+      data = token_todata(val);
+      ge_add_action(ge, grammar_action_create(fnc, data));
+      data_free(data);
+      function_free(fnc);
+    } else {
+      if (!val) {
+        error("ge_set_option: Cannot set grammar option '%s' on %s", 
+              token_token(name), ge_tostring(ge));
+        ge = NULL;
+      } else {
         dict_put(ge -> variables, strdup(token_token(name)), token_copy(val));
       }
-      break;
+    }
   }
   return ge;
+}
+
+char * ge_tostring(ge_t *ge) {
+  tostring_t fnc;
+
+  if (!ge -> str) {
+    fnc = (tostring_t) ge_function(ge, FunctionToString);
+    if (fnc) {
+      ge -> str = strdup(fnc(ge -> ptr));
+    } else {
+      ge -> str = strdup(typedescr_get(ge -> type)  -> type_name);
+    }
+  }
+  return ge -> str;
 }
 
 /*
@@ -310,9 +310,9 @@ void _grammar_get_firsts_visitor(entry_t *entry) {
   nonterminal_t *nonterminal;
 
   nonterminal = (nonterminal_t *) (((ge_t *) entry -> value) -> ptr);
-  if (grammar_debug) {
-    debug("Building FIRST sets for rule %s", nonterminal -> name);
-  }
+//  if (grammar_debug) {
+//    debug("Building FIRST sets for rule %s", nonterminal -> name);
+//  }
   _nonterminal_get_firsts(nonterminal);
 }
 
@@ -336,9 +336,9 @@ void * _grammar_follows_reducer(entry_t *entry, int *current_sum) {
 
   nonterminal = (nonterminal_t *) (((ge_t *) entry -> value) -> ptr);
 
-  if (grammar_debug) {
-    debug("Building FOLLOW sets for rule %s", nonterminal -> name);
-  }
+//  if (grammar_debug) {
+//    debug("Building FOLLOW sets for rule %s", nonterminal -> name);
+//  }
   follows = _nonterminal_get_follows(nonterminal);
   for (i = 0; i < array_size(nonterminal -> rules); i++) {
     rule = nonterminal_get_rule(nonterminal, i);
@@ -435,46 +435,39 @@ ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
   int        b;
   grammar_t *g = ge -> grammar;
   char      *str;
+  
+  if (!val) return NULL;
 
-  switch (token_code(name)) {
-    case LIB:
-      resolve_library(token_token(val));
-      break;
-    case PREFIX:
-      g -> prefix = strdup(token_token(val));
-      break;
-    case STRATEGY:
-      str = token_token(val);
-      if (!strncmp(str, "topdown", 7)|| !strncmp(str, "ll(1)", 5)) {
-        grammar_set_parsing_strategy(g, ParsingStrategyTopDown);
-      } else if (!strncmp(str, "bottomup", 8) || !strncmp(str, "lr(1)", 5)) {
-        grammar_set_parsing_strategy(g, ParsingStrategyBottomUp);
-      }
-      break;
-    case IGNORE:
-      str = token_token(val);
-      if (strstr(str, "whitespace")) {
-        grammar_set_lexer_option(g, LexerOptionIgnoreWhitespace, 1);
-      }
-      if (strstr(str, "newlines")) {
-        grammar_set_lexer_option(g, LexerOptionIgnoreNewLines, 1);
-      }
-      break;
-    case CASE_SENSITIVE:
-      grammar_set_lexer_option(g, LexerOptionCaseSensitive,
-                         atob(token_token(val)));
-      break;
-    case HASHPLING:
-      grammar_set_lexer_option(g, LexerOptionHashPling,
-                         atob(token_token(val)));
-      break;
-    case SIGNED_NUMBERS:
-      grammar_set_lexer_option(g, LexerOptionSignedNumbers,
-                         atob(token_token(val)));
-      break;
-    default:
-      ge = NULL;
-      break;
+  if (!strcmp(token_token(name), LIB_STR)) {
+    resolve_library(token_token(val));
+  } else if (!strcmp(token_token(name), PREFIX_STR)){
+    g -> prefix = strdup(token_token(val));
+  } else if (!strcmp(token_token(name), STRATEGY_STR)){
+    str = token_token(val);
+    if (!strncmp(str, "topdown", 7)|| !strncmp(str, "ll(1)", 5)) {
+      grammar_set_parsing_strategy(g, ParsingStrategyTopDown);
+    } else if (!strncmp(str, "bottomup", 8) || !strncmp(str, "lr(1)", 5)) {
+      grammar_set_parsing_strategy(g, ParsingStrategyBottomUp);
+    }
+  } else if (!strcmp(token_token(name), IGNORE_STR)){
+    str = token_token(val);
+    if (strstr(str, "whitespace")) {
+      grammar_set_lexer_option(g, LexerOptionIgnoreWhitespace, 1);
+    }
+    if (strstr(str, "newlines")) {
+      grammar_set_lexer_option(g, LexerOptionIgnoreNewLines, 1);
+    }
+  } else if (!strcmp(token_token(name), CASE_SENSITIVE_STR)){
+    grammar_set_lexer_option(g, LexerOptionCaseSensitive,
+                       atob(token_token(val)));
+  } else if (!strcmp(token_token(name), HASHPLING_STR)){
+    grammar_set_lexer_option(g, LexerOptionHashPling,
+                       atob(token_token(val)));
+  } else if (!strcmp(token_token(name), SIGNED_NUMBERS_STR)){
+    grammar_set_lexer_option(g, LexerOptionSignedNumbers,
+                       atob(token_token(val)));
+  } else {
+    ge = NULL;
   }
   return ge;
 }
@@ -493,6 +486,10 @@ grammar_t * grammar_create() {
 
 void grammar_free(grammar_t *grammar) {
   ge_free(grammar -> ge);
+}
+
+char * grammar_tostring(grammar_t *grammar) {
+  return "Grammar";
 }
 
 nonterminal_t * grammar_get_nonterminal(grammar_t *grammar, char *rule) {
@@ -529,27 +526,36 @@ void grammar_dump(grammar_t *grammar) {
   dict_visit_values(grammar -> nonterminals, (visit_t) _nonterminal_dump);
 }
 
-function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
-  char          *fname;
-  int            len;
-  voidptr_t      fnc = NULL;
+function_t * _grammar_resolve_function(grammar_t *grammar, char *prefix, char *func_name) {
+  char       *fname = NULL;
+  int         len;
   function_t *ret;
 
-  if (grammar -> prefix) {
-    len = strlen(grammar -> prefix) + strlen(func_name);
+  if (prefix && prefix[0]) {
+    len = strlen(prefix) + strlen(func_name);
     fname = (char *) new(len + 1);
-    strcpy(fname, grammar -> prefix);
+    strcpy(fname, prefix);
     strcat(fname, func_name);
   } else {
     fname = func_name;
   }
-  if (!grammar -> dryrun) {
-    fnc = (voidptr_t) resolve_function(fname);
-    assert(fnc);
+  ret = function_create(fname, NULL);
+  if (!ret -> fnc && !grammar -> dryrun) {
+    free(ret);
+    ret = NULL;
   }
-  ret = function_create(fname, fnc);
-  if (grammar -> prefix) {
+  if (prefix && prefix[0]) {
     free(fname);
+  }
+  return ret;
+}
+
+function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
+  function_t *ret;
+  
+  ret = _grammar_resolve_function(grammar, grammar -> prefix, func_name);
+  if (!ret) {
+    ret = _grammar_resolve_function(grammar, "parser_", func_name);
   }
   return ret;
 }
@@ -740,9 +746,9 @@ int _nonterminal_check_LL1(nonterminal_t *nonterminal) {
 }
 
 void _nonterminal_build_parse_table(nonterminal_t *nonterminal) {
-  if (grammar_debug) {
-    debug("Building parse table for non-terminal %s", nonterminal -> name);
-  }
+//  if (grammar_debug) {
+//    debug("Building parse table for non-terminal %s", nonterminal -> name);
+//  }
   nonterminal -> parse_table = intdict_create();
   if (nonterminal -> parse_table) {
     array_visit(nonterminal -> rules, (visit_t) _rule_build_parse_table);
@@ -814,6 +820,10 @@ rule_t * nonterminal_get_rule(nonterminal_t *nonterminal, int ix) {
   return (rule_t *) (((ge_t *) array_get(nonterminal -> rules, ix)) -> ptr);
 }
 
+char * nonterminal_tostring(nonterminal_t *nonterminal) {
+  return nonterminal -> name;
+}
+
 /*
  * rule_t static functions
  */
@@ -828,6 +838,7 @@ rule_t * _rule_create(ge_t *ge, va_list args) {
   ret -> follows = NULL;
   ret -> entries = array_create(3);
   array_set_free(ret -> entries, (free_t) ge_free);
+  array_set_tostring(ret -> entries, (tostring_t) ge_tostring);
   array_push(nonterminal -> rules, ge);
   ret -> ge = ge;
   return ret;
@@ -932,6 +943,10 @@ rule_entry_t * rule_get_entry(rule_t *rule, int ix) {
   return (rule_entry_t *) (((ge_t *) array_get(rule -> entries, ix)) -> ptr);
 }
 
+char * rule_tostring(rule_t *rule) {
+  return array_tostring(rule -> entries);
+}
+
 
 /*
  * rule_entry_t static functions
@@ -955,6 +970,7 @@ rule_entry_t * _rule_entry_new(ge_t *ge, va_list args) {
   } else {
     ret -> nonterminal = strdup((char *) ptr);
   }
+  ret -> str = NULL;
   ret -> ge = ge;
   array_push(rule -> entries, ge);
   return ret;
@@ -975,6 +991,7 @@ void _rule_entry_free(rule_entry_t *entry) {
     } else {
       free(entry -> nonterminal);
     }
+    free(entry -> str);
     free(entry);
   }
 }
@@ -1052,5 +1069,16 @@ void rule_entry_dump(rule_entry_t *entry) {
   } else {
     fprintf(stderr, "%s", entry -> nonterminal);
   }
+}
+
+char * rule_entry_tostring(rule_entry_t *entry) {
+  if (!entry -> str) {
+    if (entry -> terminal) {
+      asprintf(&entry -> str, "'%s'", token_token(entry -> token));
+    } else {
+      entry -> str = strdup(entry -> nonterminal);
+    }
+  }
+  return entry -> str;
 }
 

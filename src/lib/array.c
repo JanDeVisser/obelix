@@ -73,6 +73,8 @@ array_t * array_create(int capacity) {
     a -> capacity = 0;
     a -> index = NULL;
     a -> list = list_create();
+    a -> refs = 1;
+    a -> str = NULL;
     if (a -> list) {
       if (_array_resize(a, capacity)) {
         ret = a;
@@ -85,6 +87,11 @@ array_t * array_create(int capacity) {
     }
   }
   return ret;
+}
+
+array_t * array_copy(array_t *src) {
+  src -> refs++;
+  return src;
 }
 
 /**
@@ -199,10 +206,13 @@ int array_capacity(array_t *array) {
 
 void array_free(array_t *array) {
   if (array) {
-    list_free(array -> list);
-    free(array -> index);
-    free(array -> str);
-    free(array);
+    array -> refs--;
+    if (array -> refs <= 0) {
+      list_free(array -> list);
+      free(array -> index);
+      free(array -> str);
+      free(array);
+    }
   }
 }
 

@@ -37,20 +37,11 @@ typedef enum _instruction_type {
   ITNop
 } instruction_type_t;
 
-typedef enum _instruction_flag {
-  IFNoFlag,
-  IFInfix,
-  IFAnonCreate,
-  IFNew
-} instruction_flag_t;
-
 typedef struct _instruction {
   instruction_type_t  type;
   char               *label;
   char               *name;
   data_t             *value;
-  instruction_flag_t  flag;
-  int                 num;
   char               *str;
 } instruction_t;
 
@@ -60,8 +51,7 @@ extern instruction_t *  instruction_create(int, char *, data_t *);
 extern instruction_t *  instruction_create_assign(name_t *);
 extern instruction_t *  instruction_create_pushvar(name_t *);
 extern instruction_t *  instruction_create_pushval(data_t *);
-extern instruction_t *  instruction_create_function(name_t *, long);
-extern instruction_t *  instruction_create_newobject(name_t *, long);
+extern instruction_t *  instruction_create_function(name_t *, int, long, array_t *);
 extern instruction_t *  instruction_create_test(char *);
 extern instruction_t *  instruction_create_jump(char *);
 extern instruction_t *  instruction_create_import(name_t *);

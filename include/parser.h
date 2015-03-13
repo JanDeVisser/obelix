@@ -38,6 +38,7 @@ typedef struct _parser {
 } parser_t;
 
 typedef parser_t * (*parser_fnc_t)(parser_t *);
+typedef parser_t * (*parser_data_fnc_t)(parser_t *, data_t *);
 
 extern parser_t *      parser_create(grammar_t *);
 extern parser_t *      parser_clear(parser_t *);
@@ -48,5 +49,13 @@ extern data_t *        _parser_parse(parser_t *, reader_t *);
 extern void            parser_free(parser_t *);
 
 #define parser_parse(p, r)     _parser_parse((p), ((reader_t *) (r)))
+
+extern parser_t *             parser_pushval(parser_t *, data_t *);
+extern parser_t *             parser_push(parser_t *);
+extern parser_t *             parser_bookmark(parser_t *);
+extern parser_t *             parser_rollup_list(parser_t *);
+extern parser_t *             parser_rollup_name(parser_t *);
+extern parser_t *             parser_new_counter(parser_t *);
+extern parser_t *             parser_incr(parser_t *);
 
 #endif /* __PARSER_H__ */

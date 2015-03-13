@@ -36,13 +36,13 @@ static int          _bookmark_depth(bookmark_t *);
 static counter_t *  _counter_create();
 static void         _counter_free(counter_t *);
 static int          _counter_count(counter_t *);
-static int          _counter_incr(counter_t *);
+static counter_t *  _counter_incr(counter_t *);
 
 static void         _stack_list_visitor(data_t *);
 
 /* ------------------------------------------------------------------------ */
 
-bookmark_t _bookmark_create(datastack_t *stack) {
+bookmark_t * _bookmark_create(datastack_t *stack) {
   bookmark_t *ret = NEW(bookmark_t);
 
   ret -> depth = datastack_depth(stack);
@@ -61,7 +61,7 @@ int _bookmark_depth(bookmark_t *bookmark) {
 
 /* ------------------------------------------------------------------------ */
 
-counter_t _counter_create(void) {
+counter_t * _counter_create(void) {
   counter_t *ret = NEW(counter_t);
   
   ret -> count = 0;
@@ -220,12 +220,13 @@ name_t * datastack_rollup_name(datastack_t *stack) {
   int      ix;
   data_t  *data;
   name_t  *ret;
+  char    *str;
 
   arr = datastack_rollup(stack);
   ret = name_create(0);
   for (ix = 0; ix < array_size(arr); ix++) {
     data = data_array_get(arr, ix);
-    name_extend(ret, data_tostring(data));
+    name_extend_data(ret, data);
   }
   array_free(arr);
   return ret;
@@ -238,7 +239,7 @@ datastack_t * datastack_new_counter(datastack_t *stack) {
     stack -> counters = list_create();
     list_set_free(stack -> counters, (free_t) _counter_free);
   }
-  list_push(stack -> counters, _counter_create(stack));
+  list_push(stack -> counters, _counter_create());
   return stack;
 }
 

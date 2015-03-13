@@ -26,7 +26,7 @@
 #include <data.h>
 #include <resolve.h>
 
-static void          _ptr_init(void) __attribute__((constructor(101));
+static void          _ptr_init(void) __attribute__((constructor(101)));
 static data_t *      _ptr_new(data_t *, va_list);
 static int           _ptr_cmp(data_t *, data_t *);
 static data_t *      _ptr_cast(data_t *, int);
@@ -250,5 +250,5 @@ unsigned int _fnc_hash(data_t *data) {
 data_t * _fnc_call(data_t *data, array_t *args, dict_t *kwargs) {
   /* FIXME is there a better way? */
   function_t *fnc = (function_t *) data -> ptrval;
-  return fnc -> fnc(args);
+  return ((data_t * (*)(array_t *)) fnc -> fnc)(args);
 }

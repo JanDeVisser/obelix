@@ -45,21 +45,22 @@ typedef struct _code_label {
   char *label;
 } code_label_t;
 
-typedef void    (*void_t)(void);
-typedef void *  (*voidptr_t)(void *);
-typedef int     (*cmp_t)(void *, void *);
-typedef int     (*hash_t)(void *);
-typedef char *  (*tostring_t)(void *);
-typedef void *  (*parse_t)(char *);
-typedef void *  (*copydata_t)(void *, void *);
-typedef void *  (*new_t)(void *, va_list);
-typedef void *  (*reduce_t)(void *, void *);
-typedef void    (*visit_t)(void *);
-typedef void *  (*obj_reduce_t)(void *, reduce_t, void *);
-typedef void    (*obj_visit_t)(void *, visit_t);
-typedef visit_t free_t;
-typedef int     (*read_t)(void *, char *, int);
-typedef int     (*write_t)(void *, char *, int);
+typedef void      (*void_t)(void);
+typedef void      (*voidptr_t)(void *);
+typedef voidptr_t visit_t;
+typedef voidptr_t free_t;
+
+typedef int       (*cmp_t)(void *, void *);
+typedef int       (*hash_t)(void *);
+typedef char *    (*tostring_t)(void *);
+typedef void *    (*parse_t)(char *);
+typedef void *    (*copydata_t)(void *, void *);
+typedef void *    (*new_t)(void *, va_list);
+typedef void *    (*reduce_t)(void *, void *);
+typedef int       (*read_t)(void *, char *, int);
+typedef int       (*write_t)(void *, char *, int);
+typedef void      (*obj_visit_t)(void *, visit_t);
+typedef void *    (*obj_reduce_t)(void *, reduce_t, void *);
 
 typedef enum _reduce_type {
   RTObjects = 1,
@@ -72,6 +73,8 @@ typedef struct _function {
   voidptr_t  fnc;
   int        min_params;
   int        max_params;
+  char      *str;
+  int        refs;
 } function_t;
 
 typedef struct _reduce_ctx {
@@ -123,6 +126,9 @@ extern function_t *    function_create(char *, voidptr_t);
 extern function_t *    function_copy(function_t *);
 extern void            function_free(function_t *);
 extern char *          function_tostring(function_t *);
+extern unsigned int    function_hash(function_t *);
+extern int             function_cmp(function_t *, function_t *);
+extern function_t *    function_resolve(function_t *fnc);
 
 extern reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
 

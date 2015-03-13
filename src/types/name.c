@@ -193,11 +193,34 @@ name_t * name_append(name_t *name, name_t *additions) {
   return name_append_array(name, additions -> name);
 }
 
+name_t * name_extend_data(name_t *name, data_t *data) {
+  char *str;
+  
+  if (data_type(data) == Int) {
+    char buf[2];
+    buf[0] = data_intval(data);
+    buf[1] = 0;
+    str = buf;
+  } else {
+    str = data_tostring(data);
+  }
+  return name_extend(name, str);
+}
+
 name_t * name_append_array(name_t *name, array_t *additions) {
   int ix;
   
   for (ix = 0; ix < array_size(additions); ix++) {
     array_push(name -> name, strdup(str_array_get(additions, ix)));
+  }
+  return name;
+}
+
+name_t * name_append_data_array(name_t *name, array_t *additions) {
+  int ix;
+  
+  for (ix = 0; ix < array_size(additions); ix++) {
+    name_extend_data(name, data_array_get(additions, ix));
   }
   return name;
 }
