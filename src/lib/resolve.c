@@ -108,7 +108,9 @@ void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   if (ret) {
     dict_put(resolve -> functions, strdup(func_name), ret);
   } else {
-    error("Could not resolve function '%s'", func_name);
+    if (resolve_debug) {
+      error("Could not resolve function '%s'", func_name);
+    }
   }
   return ret;
 }
@@ -128,8 +130,5 @@ void_t resolve_function(char *func_name) {
   resolve = resolve_get();
   assert(resolve);
   fnc = resolve_resolve(resolve, func_name);
-  if (!fnc) {
-    error("Could not resolve function %s", func_name);
-  }
   return fnc;
 }

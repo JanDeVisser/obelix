@@ -27,9 +27,11 @@ typedef struct _array {
   listnode_t ** index;
   int           capacity;
   char *        str;
+  int           refs;
 } array_t;
 
 extern array_t *    array_create(int);
+extern array_t *    array_copy(array_t *);
 extern array_t *    array_split(char *, char *);
 extern array_t *    array_slice(array_t *, int, int);
 extern array_t *    array_set_free(array_t *, visit_t);

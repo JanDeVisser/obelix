@@ -94,9 +94,83 @@ static instruction_type_descr_t instruction_descr_map[] = {
     tostring: (tostring_t) _instruction_tostring_name },
 };
 
-/*
- * instruction_t static functions
- */
+typedef struct _function_call {
+  name_t  *name;
+  int      infix;
+  int      arg_count;
+  array_t *kwargs;
+} function_call_t;
+
+static void          _data_init_call(void) __attribute__((constructor));
+static data_t *      _call_new(data_t *, va_list);
+static void          _call_free(function_call_t *);
+static data_t *      _call_copy(data_t *, data_t *);
+static char *        _call_tostring(data_t *);
+
+static int Call = -1;
+
+static vtable_t _vtable_call[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _call_new },
+  { .id = FunctionCopy,     .fnc = (void_t) _call_copy },
+  { .id = FunctionFree,     .fnc = (void_t) _call_free },
+  { .id = FunctionToString, .fnc = (void_t) _call_tostring },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_call = {
+  .type =      -1,
+  .type_name = "call",
+  .vtable =    _vtable_call
+};
+
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
+
+void _data_init_call(void) {
+  Call = typedescr_register(&_typedescr_call);  
+}
+
+data_t * _call_new(data_t *ret, va_list arg) {
+  function_call_t *call;
+  array_t         *kwargs;
+
+  call = NEW(function_call_t);
+  call -> name = name_copy(va_arg(arg, name_t *));
+  call -> infix = va_arg(arg, int);
+  call -> arg_count = va_arg(arg, int);
+  kwargs = va_arg(arg, array_t *);
+  call -> kwargs = (kwargs) ? array_copy(kwargs) : NULL;
+  ret -> ptrval = call;
+  return ret;
+}
+
+void _call_free(function_call_t *call) {
+  if (call) {
+    name_free(call -> name);
+    array_free(call -> kwargs);
+    free(call);
+  }
+}
+
+data_t * _call_copy(data_t *target, data_t *src) {
+  function_call_t *newcall;
+  function_call_t *srccall = (function_call_t *) src -> ptrval;
+
+  newcall = NEW(function_call_t);
+  newcall -> name = name_copy(srccall -> name);
+  newcall -> infix = srccall -> infix;
+  newcall -> arg_count = srccall -> arg_count;
+  newcall -> kwargs = array_copy(srccall -> kwargs);
+  target -> ptrval = newcall;
+  return target;
+}
+
+char * _call_tostring(data_t *d) {
+  return name_tostring(((function_call_t *) d -> ptrval) -> name);
+}
+
+/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -123,70 +197,6 @@ char * _instruction_tostring_name(instruction_t *instruction) {
 
 char * _instruction_tostring_value(instruction_t *instruction) {
   return data_tostring(instruction -> value);
-}
-
-data_t * _instruction_vanilla_function(instruction_t *instr, closure_t *closure, 
-				       array_t *params) {
-  data_t *self = (instr -> flag == IFInfix) 
-    ? NULL 
-    : data_create(Closure, closure);
-  name_t *name = data_nameval(instr -> value);
-  data_t *ret = data_invoke(self, name, params, NULL);
-  data_free(self);
-  return ret;
-}
-
-data_t * _instruction_constructor(instruction_t *instr, closure_t *closure, 
-				  array_t *params) {
-  data_t   *self;
-  data_t   *value;
-  data_t   *ret = NULL;
-  script_t *script = NULL;
-  name_t   *name;
-
-  name = data_nameval(instr -> value);
-  self = data_create(Closure, closure);
-  value = data_resolve(self, name);
-  if (data_is_object(value)) {
-    script = script_copy(data_objectval(value) -> script);
-  } else if (data_is_closure(value)) {
-    script = script_copy(data_closureval(value) -> script);
-  } else {
-    // FIXME Proper error message?
-    assert(data_is_error(value));
-    ret = value;
-  }
-  if (script) {
-    ret = script_execute(script, params, NULL);
-    script_free(script);
-  }
-  if (!ret) {
-    ret = data_error(ErrorSyntax, 
-		     "Unresolved constructor function '%s'",
-		     name_tostring(name));
-  }
-  return ret;
-}
-
-data_t * _instruction_anon_create(instruction_t *instr, closure_t *closure, 
-				  array_t *params) {
-  array_t  *attributes;
-  int       ix;
-  object_t *obj;
-
-  attributes = data_arrayval(instr -> value);
-  if (array_size(attributes) != array_size(params)) {
-    return data_error(ErrorSyntax,
-		      "Parameter count mismatch: %d != %d",
-		      array_size(attributes), array_size(params));
-  }
-  obj = object_create(NULL);
-  for (ix = 0; ix < array_size(params); ix++) {
-    object_set(obj,
-	       data_tostring(data_array_get(attributes, ix)),
-	       data_array_get(params, ix));
-  }	       
-  return data_create(Object, obj);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -242,35 +252,48 @@ data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) 
 }
 
 data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
-  data_t   *value;
-  data_t   *ret = NULL;
-  array_t  *params;
-  int       ix;
-
+  function_call_t *call = (function_call_t *) instr -> value -> ptrval;
+  data_t          *value;
+  data_t          *ret = NULL;
+  data_t          *self;
+  data_t          *arg_name;
+  dict_t          *kwargs = NULL;
+  array_t         *args;
+  int              ix;
+  int              num;
+  
+  num = (call -> kwargs) ? array_size(call -> kwargs) : 0;
   if (script_debug) {
-    debug(" -- #parameters: %d", instr -> num);
+    debug(" -- #kwargs: %d", num);
   }
-  params = data_array_create(instr -> num);
-  for (ix = 0; ix < instr -> num; ix++) {
+  if (num) {
+    kwargs = strdata_dict_create();
+    for (ix = 0; ix < num; ix++) {
+      value = closure_pop(closure);
+      assert(value);
+      arg_name = data_array_get(call -> kwargs, num - ix - 1);
+      dict_put(kwargs, data_tostring(arg_name), value);
+    }
+  }
+
+  num = call -> arg_count;
+  if (script_debug) {
+    debug(" -- #arguments: %d", num);
+  }
+  args = data_array_create(num);
+  for (ix = 0; ix < num; ix++) {
     value = closure_pop(closure);
     assert(value);
-    array_set(params, instr -> num - ix - 1, value);
+    array_set(args, num - ix - 1, value);
   }
   if (script_debug) {
-    array_debug(params, " -- parameters: %s");
+    array_debug(args, " -- arguments: %s");
   }
-  switch (instr -> flag) {
-  case IFNew:
-    ret = _instruction_constructor(instr, closure, params);
-    break;
-  case IFAnonCreate:
-    ret = _instruction_anon_create(instr, closure, params);
-    break;
-  default:
-    ret = _instruction_vanilla_function(instr, closure, params);
-    break;
-  }
-  array_free(params);
+  self = (call -> infix) ? NULL : data_create(Closure, closure);
+  ret = data_invoke(self, call -> name, args, kwargs);
+  data_free(self);
+  array_free(args);
+  dict_free(kwargs);
   if (ret && !data_is_error(ret)) {
     closure_push(closure, ret);
     ret = NULL;
@@ -360,23 +383,13 @@ instruction_t * instruction_create_pushval(data_t *value) {
   return instruction_create(ITPushVal, NULL, data_copy(value));
 }
 
-instruction_t * instruction_create_function(name_t *name, long num_params) {
+instruction_t * instruction_create_function(name_t *name, int infix, 
+                                            long num_args, array_t *kwargs) {
   instruction_t *ret;
+  data_t        *call;
 
-  ret = instruction_create(ITFunctionCall,
-                           name_tostring(name), 
-			   data_create(Name, name));
-  ret -> num = num_params;
-  return ret;
-}
-
-instruction_t * instruction_create_newobject(name_t *name, long num_params) {
-  instruction_t *ret;
-
-  ret = instruction_create(ITNewObject,
-                           name_tostring(name), 
-			   data_create(Name, name));
-  ret -> num = num_params;
+  call = data_create(Call, name, infix, num_args, kwargs);
+  ret = instruction_create(ITFunctionCall, name_tostring(name), call);
   return ret;
 }
 

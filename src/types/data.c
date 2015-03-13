@@ -660,10 +660,16 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
 }
 
 unsigned int data_hash(data_t *data) {
-  typedescr_t *type = data_typedescr(data);
-  hash_t       hash = (hash_t) typedescr_get_function(type, FunctionHash);
+  typedescr_t *type;
+  hash_t       hash; 
 
-  return (hash) ? hash(data) : hashptr(data);
+  if (data) {
+    type = data_typedescr(data);
+    hash = (hash_t) typedescr_get_function(type, FunctionHash);
+    return (hash) ? hash(data) : hashptr(data);
+  } else {
+    return 0;
+  }
 }
 
 char * data_tostring(data_t *data) {

@@ -34,6 +34,7 @@ typedef struct _gp_state_rec {
 static grammar_parser_t * _grammar_parser_state_start(token_t *, grammar_parser_t *);
 static grammar_parser_t * _grammar_parser_state_options(token_t *, grammar_parser_t *);
 static grammar_parser_t * _grammar_parser_state_option_name(token_t *, grammar_parser_t *);
+static grammar_parser_t * _grammar_parser_state_option_value(token_t *, grammar_parser_t *);
 static grammar_parser_t * _grammar_parser_state_header(token_t *, grammar_parser_t *);
 static grammar_parser_t * _grammar_parser_state_nonterminal(token_t *, grammar_parser_t *);
 static grammar_parser_t * _grammar_parser_state_rule(token_t *, grammar_parser_t *);
@@ -41,13 +42,14 @@ static grammar_parser_t * _grammar_parser_state_entry(token_t *, grammar_parser_
 static void               _grammar_parser_syntax_error(grammar_parser_t *, char *, ...);
 
 static gp_state_rec_t _gp_state_recs[] = {
-    { "GPStateStart",       (reduce_t) _grammar_parser_state_start },
-    { "GPStateOptions",     (reduce_t) _grammar_parser_state_options },
-    { "GPStateOptionName",  (reduce_t) _grammar_parser_state_option_name },
-    { "GPStateHeader",      (reduce_t) _grammar_parser_state_header },
-    { "GPStateNonTerminal", (reduce_t) _grammar_parser_state_nonterminal },
-    { "GPStateRule",        (reduce_t) _grammar_parser_state_rule },
-    { "GPStateEntry",       (reduce_t) _grammar_parser_state_entry }
+    { "GPStateStart",        (reduce_t) _grammar_parser_state_start },
+    { "GPStateOptions",      (reduce_t) _grammar_parser_state_options },
+    { "GPStateOptionName",   (reduce_t) _grammar_parser_state_option_name },
+    { "GPStateOptionValue",  (reduce_t) _grammar_parser_state_option_value },
+    { "GPStateHeader",       (reduce_t) _grammar_parser_state_header },
+    { "GPStateNonTerminal",  (reduce_t) _grammar_parser_state_nonterminal },
+    { "GPStateRule",         (reduce_t) _grammar_parser_state_rule },
+    { "GPStateEntry",        (reduce_t) _grammar_parser_state_entry }
 };
 
 
@@ -95,78 +97,36 @@ grammar_parser_t * _grammar_parser_state_start(token_t *token, grammar_parser_t 
   return grammar_parser;
 }
 
+grammar_parser_t * _grammar_parser_state_options_end(token_t *token, grammar_parser_t *grammar_parser) {
+  if (grammar_parser -> last_token) {
+    ge_set_option(grammar_parser -> ge, grammar_parser -> last_token, NULL);
+    token_free(grammar_parser -> last_token);
+    grammar_parser -> last_token = NULL;
+  }
+  grammar_parser -> state = grammar_parser -> old_state;
+  return grammar_parser;
+}
+
 grammar_parser_t * _grammar_parser_state_options(token_t *token, grammar_parser_t *grammar_parser) {
   grammar_parser_t *ret = NULL;
-  token_t          *t;
 
   switch (token_code(token)) {
-    case PUSH:
-    case PUSH_INCR:
-    case INIT:
-    case DONE:
+    case TokenCodeIdentifier:
       grammar_parser -> last_token = token_copy(token);
       grammar_parser -> state = GPStateOptionName;
       ret = grammar_parser;
       break;
 
-    case INCR:
-      t = token_create(TokenCodeIdentifier, "autogen");
-      ge_set_option(grammar_parser -> ge, token, t);
-      token_free(t);
-      ret = grammar_parser;
-      break;
-
-    case LIB:
-    case PREFIX:
-    case STRATEGY:
-    case IGNORE:
-    case CASE_SENSITIVE:
-    case HASHPLING:
-    case SIGNED_NUMBERS:
-      if (grammar_parser -> old_state == GPStateStart) {
-        grammar_parser -> last_token = token_copy(token);
-        grammar_parser -> state = GPStateOptionName;
-        ret = grammar_parser;
-      }
-      break;
-
     case TokenCodePercent:
       if (grammar_parser -> old_state == GPStateStart) {
-        /* Hack - need to revisit the whole options thing. */
-        if (grammar_parser -> last_token) {
-          t = token_create(DONE, "autogen");
-          ge_set_option(grammar_parser -> ge, t,
-                        grammar_parser -> last_token);
-          token_free(t);
-          token_free(grammar_parser -> last_token);
-          grammar_parser -> last_token = NULL;
-        }
-        grammar_parser -> state = grammar_parser -> old_state;
-        ret = grammar_parser;
+        ret = _grammar_parser_state_options_end(token, grammar_parser);
       }
       break;
 
     case TokenCodeCloseBracket:
       if (grammar_parser -> old_state != GPStateStart) {
-        /* Hack - need to revisit the whole options thing. */
-        if (grammar_parser -> last_token) {
-          t = token_create(
-              (grammar_parser -> old_state != GPStateRule) ? DONE : INIT,
-              "autogen");
-          ge_set_option(grammar_parser -> ge, t,
-                        grammar_parser -> last_token);
-          token_free(t);
-          token_free(grammar_parser -> last_token);
-          grammar_parser -> last_token = NULL;
-        }
-        grammar_parser -> state = grammar_parser -> old_state;
-        ret = grammar_parser;
+        ret = _grammar_parser_state_options_end(token, grammar_parser);
       }
-      break;
-
-    case TokenCodeIdentifier:
-      grammar_parser -> last_token = token_copy(token);
-      ret = grammar_parser;
       break;
   }
   if (!ret) {
@@ -178,6 +138,41 @@ grammar_parser_t * _grammar_parser_state_options(token_t *token, grammar_parser_
 }
 
 grammar_parser_t * _grammar_parser_state_option_name(token_t *token, grammar_parser_t *grammar_parser) {
+  grammar_parser_t *ret = NULL;
+
+  switch (token_code(token)) {
+    case TokenCodeColon:
+    case TokenCodeEquals:
+      grammar_parser -> state = GPStateOptionValue;
+      ret = grammar_parser;
+      break;
+
+    case TokenCodePercent:
+      if (grammar_parser -> old_state == GPStateStart) {
+        ret = _grammar_parser_state_options_end(token, grammar_parser);
+      }
+      break;
+
+    case TokenCodeCloseBracket:
+      if (grammar_parser -> old_state != GPStateStart) {
+        ret = _grammar_parser_state_options_end(token, grammar_parser);
+      }
+      break;
+      
+    case TokenCodeIdentifier:
+      grammar_parser -> state = GPStateOptionValue;
+      ret = _grammar_parser_state_option_name(token, grammar_parser);
+      break;
+  }
+  if (!ret) {
+    _grammar_parser_syntax_error(grammar_parser,
+                                 "Unexpected token '%s' in option block",
+                                 token_tostring(token));
+  }
+  return ret;
+}
+
+grammar_parser_t * _grammar_parser_state_option_value(token_t *token, grammar_parser_t *grammar_parser) {
   switch (token_code(token)) {
     case TokenCodeIdentifier:
     case TokenCodeInteger:
@@ -186,15 +181,10 @@ grammar_parser_t * _grammar_parser_state_option_name(token_t *token, grammar_par
     case TokenCodeSQuotedStr:
     case TokenCodeDQuotedStr:
     case TokenCodeBQuotedStr:
-    case TokenCodeDollar:
       ge_set_option(grammar_parser -> ge, grammar_parser -> last_token, token);
       token_free(grammar_parser -> last_token);
       grammar_parser -> last_token = NULL;
       grammar_parser -> state = GPStateOptions;
-      break;
-
-    case TokenCodeColon:
-    case TokenCodeEquals:
       break;
 
     default:
@@ -398,11 +388,14 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   gp -> grammar -> dryrun = gp -> dryrun;
   lexer = lexer_create(gp -> reader);
   lexer_add_keyword(lexer, NONTERMINAL_DEF, NONTERMINAL_DEF_STR);
+  
+  /*
   lexer_add_keyword(lexer, PUSH, PUSH_STR);
   lexer_add_keyword(lexer, PUSH_INCR, PUSH_INCR_STR);
   lexer_add_keyword(lexer, INIT, INIT_STR);
   lexer_add_keyword(lexer, DONE, DONE_STR);
   lexer_add_keyword(lexer, INCR, INCR_STR);
+  lexer_add_keyword(lexer, INCR, PUSH_LAST_STR);
 
   lexer_add_keyword(lexer, LIB, LIB_STR);
   lexer_add_keyword(lexer, PREFIX, PREFIX_STR);
@@ -411,6 +404,7 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   lexer_add_keyword(lexer, CASE_SENSITIVE, CASE_SENSITIVE_STR);
   lexer_add_keyword(lexer, HASHPLING, HASHPLING_STR);
   lexer_add_keyword(lexer, SIGNED_NUMBERS, SIGNED_NUMBERS_STR);
+  */
 
   lexer_set_option(lexer, LexerOptionIgnoreWhitespace, TRUE);
   lexer_tokenize(lexer, _grammar_token_handler, gp);
@@ -421,7 +415,7 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
         info("Grammar successfully analyzed");
       }
     } else {
-      error("Error(s) analyzing grammar");
+      error("Error(s) analyzing grammar - re-run with -d grammar for details");
     }
   }
   lexer_free(lexer);

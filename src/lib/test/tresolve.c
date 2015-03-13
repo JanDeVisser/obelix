@@ -20,6 +20,9 @@
 #include <resolve.h>
 #include <testsuite.h>
 
+typedef test_t * (*testfactory_t)(char *);
+typedef void *   (*helloworld_t)(char *);
+
 static void _init_tresolve(void) __attribute__((constructor(300)));
 
 START_TEST(test_resolve_get)
@@ -38,13 +41,13 @@ START_TEST(test_resolve_open)
 END_TEST
 
 START_TEST(test_resolve_resolve)
-  resolve_t *resolve;
-  voidptr_t tc;
-  test_t    *test;
+  resolve_t     *resolve;
+  testfactory_t  tc;
+  test_t        *test;
 
   resolve = resolve_get();
   ck_assert_ptr_ne(resolve, NULL);
-  tc = (voidptr_t) resolve_resolve(resolve, "test_create");
+  tc = (testfactory_t) resolve_resolve(resolve, "test_create");
   ck_assert_ptr_ne(tc, NULL);
   test = tc("test");
   ck_assert_str_eq(test -> data, "test");
@@ -54,22 +57,23 @@ START_TEST(test_resolve_library)
   ck_assert_int_ne(resolve_library("libtestlib.so"), 0);
 END_TEST
 
-START_TEST(test_resolve_function)
-  voidptr_t tc;
-  test_t    *test;
 
-  tc = (voidptr_t) resolve_function("test_create");
+START_TEST(test_resolve_function)
+  testfactory_t  tc;
+  test_t        *test;
+
+  tc = (testfactory_t) resolve_function("test_create");
   ck_assert_ptr_ne(tc, NULL);
   test = tc("test");
   ck_assert_str_eq(test -> data, "test");
 END_TEST
-
+    
 START_TEST(test_resolve_foreign_function)
-  voidptr_t hw;
-  void     *test;
+  helloworld_t  hw;
+  void         *test;
 
   ck_assert_int_ne(resolve_library("libtestlib.so"), 0);
-  hw = (voidptr_t) resolve_function("testlib_helloworld");
+  hw = (helloworld_t) resolve_function("testlib_helloworld");
   ck_assert_ptr_ne(hw, NULL);
   test = hw("test");
   ck_assert_ptr_ne(test, NULL);

@@ -32,38 +32,30 @@ extern int grammar_debug;
 #define NONTERMINAL_DEF         200
 #define NONTERMINAL_DEF_STR     ":="
 
-/* generic options (can be set on any grammar element) */
-#define PUSH                    201
-#define PUSH_STR                "push"
-#define PUSH_INCR               202
-#define PUSH_INCR_STR           "push++"
-#define INIT                    203
-#define INIT_STR                "init"
-#define DONE                    204
-#define DONE_STR                "done"
-#define INCR                    205
-#define INCR_STR                "++"
-
 /* grammar-wide options */
-#define LIB                     210
 #define LIB_STR                 "lib"
-#define PREFIX                  211
 #define PREFIX_STR              "prefix"
-#define STRATEGY                212
 #define STRATEGY_STR            "strategy"
-#define IGNORE                  213
 #define IGNORE_STR              "ignore"
-#define CASE_SENSITIVE          214
 #define CASE_SENSITIVE_STR      "case_sensitive"
-#define HASHPLING               215
 #define HASHPLING_STR           "hashpling"
-#define SIGNED_NUMBERS          216
 #define SIGNED_NUMBERS_STR      "signed_numbers"
+
+/* ----------------------------------------------------------------------- */
 
 typedef enum _parsing_strategy {
   ParsingStrategyTopDown,
   ParsingStrategyBottomUp
 } strategy_t;
+
+typedef struct _grammar_action {
+  function_t *fnc;
+  data_t     *data;
+  char       *str;
+  int         refs;
+} grammar_action_t;
+
+/* ----------------------------------------------------------------------- */
 
 typedef enum _grammar_element_type {
   GETGrammarElement = 20,
@@ -83,12 +75,11 @@ typedef struct _grammar_element {
   grammar_element_type_t   type;
   struct _grammar         *grammar;
   struct _grammar_element *owner;
-  function_t              *initializer;
-  function_t              *finalizer;
-  list_t                  *pushvalues;
+  list_t                  *actions;
   dict_t                  *variables;
   set_option_t             set_option_delegate;
   void                    *ptr;
+  char                    *str;
 } ge_t;
 
 typedef struct _nonterminal {
@@ -111,6 +102,7 @@ typedef struct _rule {
 typedef struct _rule_entry {
   ge_t                    *ge;
   int                      terminal;
+  char                    *str;
   union {
     token_t               *token;
     char                  *nonterminal;
@@ -128,27 +120,21 @@ typedef struct _grammar {
   int                      dryrun;
 } grammar_t;
 
-typedef struct _pushvalue {
-  token_t                 *value;
-  int                      incr;
-} pushvalue_t;
+/* ----------------------------------------------------------------------- */
 
-extern pushvalue_t *   pushvalue_create(token_t *, int);
-extern pushvalue_t *   pushvalue_copy(pushvalue_t *);
-extern void            pushvalue_free(pushvalue_t *);
-extern int             pushvalue_cmp(pushvalue_t *, pushvalue_t *);
-extern unsigned int    pushvalue_hash(pushvalue_t *);
-extern char *          pushvalue_tostring(pushvalue_t *pushvalue);
+extern grammar_action_t * grammar_action_create(function_t *, data_t *);
+extern grammar_action_t * grammar_action_copy(grammar_action_t *);
+extern void               grammar_action_free(grammar_action_t *);
+extern int                grammar_action_cmp(grammar_action_t *, grammar_action_t *);
+extern unsigned int       grammar_action_hash(grammar_action_t *);
+extern char *             grammar_action_tostring(grammar_action_t *);
 
 extern void            ge_free(ge_t *);
 extern typedescr_t *   ge_typedescr(ge_t *);
 extern void_t          ge_function(ge_t *, int);
-extern ge_t *          ge_add_pushvalue(ge_t *, pushvalue_t *);
-extern ge_t *          ge_set_initializer(ge_t *, function_t *);
-extern function_t *    ge_get_initializer(ge_t *);
-extern ge_t *          ge_set_finalizer(ge_t *, function_t *);
-extern function_t *    ge_get_finalizer(ge_t *);
+extern ge_t *          ge_add_action(ge_t *, grammar_action_t *);
 extern ge_t *          ge_set_option(ge_t *, token_t *, token_t *);
+extern char *          ge_tostring(ge_t *);
 
 extern grammar_t *     grammar_create();
 extern void            grammar_free(grammar_t *);
@@ -160,18 +146,16 @@ extern long            grammar_get_lexer_option(grammar_t *, lexer_option_t);
 extern void            grammar_dump(grammar_t *);
 extern function_t *    grammar_resolve_function(grammar_t *, char *);
 extern grammar_t *     grammar_analyze(grammar_t *);
+extern char *          grammar_tostring(grammar_t *);
 
-#define grammar_add_pushvalue(e)    (((grammar_t *) ge_add_pushvalue((e) -> ge)) -> ptr)
-#define grammar_set_initializer(e)  (((grammar_t *) ge_get_initializer((e) -> ge)) -> ptr)
-#define grammar_get_initializer(e)  ge_get_initializer((e) -> ge)
-#define grammar_set_finalizer(e)    (((grammar_t *) ge_get_finalizer((e) -> ge)) -> ptr)
-#define grammar_get_finalizer(e)    ge_get_finalizer((e) -> ge)
+#define grammar_add_action(a)       (((grammar_t *) ge_add_action((a) -> ge)) -> ptr)
 #define grammar_set_option(e, n, t) (((grammar_t *) ge_set_option((e) -> ge, (n), (t))) -> ptr)
 
 extern nonterminal_t * nonterminal_create(grammar_t *, char *);
 extern void            nonterminal_free(nonterminal_t *);
 extern void            nonterminal_dump(nonterminal_t *);
 extern rule_t *        nonterminal_get_rule(nonterminal_t *, int);
+extern char *          nonterminal_tostring(nonterminal_t *);
 
 #define nonterminal_get_grammar(e)      (((e) -> ge -> grammar))
 #define nonterminal_add_pushvalue(e)    (((nonterminal_t *) ge_add_pushvalue((e) -> ge)) -> ptr)
@@ -186,15 +170,11 @@ extern rule_t *        rule_create(nonterminal_t *);
 extern void            rule_free(rule_t *);
 extern void            rule_dump(rule_t *);
 extern rule_entry_t *  rule_get_entry(rule_t *, int);
+extern char *          rule_tostring(rule_t *);
 
 #define rule_get_nonterminal(e)  ((nonterminal_t *) ((e) -> ge -> owner -> ptr))
 #define rule_get_grammar(e)      (((e) -> ge -> grammar))
-#define rule_add_pushvalue(e)    (((rule_t *) ge_add_pushvalue((e) -> ge)) -> ptr)
-#define rule_add_incr(e)         (((rule_t *) ge_add_incr((e) -> ge)) -> ptr)
-#define rule_set_initializer(e)  (((rule_t *) ge_get_initializer((e) -> ge)) -> ptr)
-#define rule_get_initializer(e)  ge_get_initializer((e) -> ge)
-#define rule_set_finalizer(e)    (((rule_t *) ge_get_finalizer((e) -> ge)) -> ptr)
-#define rule_get_finalizer(e)    ge_get_finalizer((e) -> ge)
+#define rule_add_action(a)       (((rule_t *) ge_add_pushvalue((a) -> ge)) -> ptr)
 #define rule_set_option(e, n, t) (((rule_t *) ge_set_option((e) -> ge, (n), (t))) -> ptr)
 
 extern rule_entry_t *  rule_entry_terminal(rule_t *, token_t *);
@@ -202,6 +182,7 @@ extern rule_entry_t *  rule_entry_non_terminal(rule_t *, char *);
 extern rule_entry_t *  rule_entry_empty(rule_t *);
 extern void            rule_entry_free(rule_entry_t *);
 extern void            rule_entry_dump(rule_entry_t *);
+extern char *          rule_entry_tostring(rule_entry_t *);
 
 #define rule_entry_get_rule(e)         ((rule_t *) ((e) -> ge -> owner -> ptr))
 #define rule_entry_get_grammar(e)      (((e) -> ge -> grammar))

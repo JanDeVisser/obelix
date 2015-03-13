@@ -26,6 +26,7 @@
 #include <time.h>
 
 #include <core.h>
+#include <resolve.h>
 
 static void    __init(void) __attribute__((constructor));
 static void    _outofmemory(int, siginfo_t *, void *);
@@ -281,28 +282,50 @@ function_t * function_create(char *name, voidptr_t fnc) {
 
   ret = NEW(function_t);
   ret -> name = strdup(name);
-  ret -> fnc = fnc;
+  if (fnc) {
+    ret -> fnc = fnc;
+  } else {
+    function_resolve(ret);
+  }
+  ret -> refs = 1;
   return ret;
 }
 
 function_t * function_copy(function_t *src) {
-  return function_create(src -> name, src -> fnc);
+  src -> refs++;
+  return src;
 }
 
 void function_free(function_t *fnc) {
   if (fnc) {
-    free(fnc -> name);
-    free(fnc);
+    fnc -> refs--;
+    if (fnc -> refs <= 0) {
+      free(fnc -> name);
+      free(fnc -> str);
+      free(fnc);
+    }
   }
 }
 
-char * function_tostring(function_t *fnc) {
-  /* FIXME: Not Threadsafe */
-  static char buf[100];
-  snprintf(buf, 100, "%s()", fnc -> name);
-  return buf;
+int function_cmp(function_t *fnc1, function_t *fnc2) {
+  return strcmp(fnc1 -> name, fnc2 -> name);
 }
 
+function_t * function_resolve(function_t *fnc) {
+  fnc -> fnc = (voidptr_t) resolve_function(fnc -> name);
+  return (fnc -> fnc) ? fnc : NULL;
+}
+
+char * function_tostring(function_t *fnc) {
+  if (!fnc -> str) {
+    asprintf(&fnc -> str, "%s()", fnc -> name);
+  }
+  return fnc -> str;
+}
+
+unsigned int function_hash(function_t *fnc) {
+  return hashblend(strhash(fnc -> name), hashptr(fnc -> fnc));
+}
 
 /*
  * reduce_ctx public functions

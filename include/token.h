@@ -63,6 +63,7 @@ typedef enum _token_code {
   TokenCodeHat = '^',
   TokenCodeAmpersand = '&',
   TokenCodeTilde = '~',
+  TokenCodeLastToken = 198,
   TokenCodeEnd = 199
 } token_code_t;
 

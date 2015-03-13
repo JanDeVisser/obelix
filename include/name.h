@@ -37,6 +37,8 @@ typedef struct _name {
 #define data_is_name(d)  ((d) && (data_type((d)) == Name))
 #define data_nameval(d)  ((name_t *) (data_is_name((d)) ? ((d) -> ptrval) : NULL))
 
+struct _data;
+
 extern name_t *          name_create(int, ...);
 extern name_t *          name_vcreate(int, va_list);
 extern name_t *          name_split(char *, char *);
@@ -52,8 +54,10 @@ extern name_t *          name_head(name_t *);
 extern char *            name_tostring_sep(name_t *, char *);
 extern char *            name_tostring(name_t *);
 extern name_t *          name_extend(name_t *, char *);
+extern name_t *          name_extend_data(name_t *, struct _data *);
 extern name_t *          name_append(name_t *, name_t *);
 extern name_t *          name_append_array(name_t *, array_t *);
+extern name_t *          name_append_data_array(name_t *, array_t *);
 extern int               name_cmp(name_t *, name_t *);
 extern unsigned int      name_hash(name_t *);
 

@@ -69,6 +69,7 @@ static token_code_str_t token_code_names[] = {
   { TokenCodeHat,            "TokenCodeHat" },
   { TokenCodeAmpersand,      "TokenCodeAmpersand" },
   { TokenCodeTilde,          "TokenCodeTilde" },
+  { TokenCodeLastToken,      "TokenCodeLastToken" },
   { TokenCodeEnd,            "TokenCodeEnd" }
 };
 
@@ -155,33 +156,39 @@ data_t * token_todata(token_t *token) {
   int       type;
 
   data = NULL;
-  str = token_token(token);
-  type = -1;
-  switch (token_code(token)) {
-    case TokenCodeIdentifier:
-    case TokenCodeDQuotedStr:
-    case TokenCodeSQuotedStr:
-    case TokenCodeBQuotedStr:
-      type = String;
-      break;
-    case TokenCodeHexNumber:
-    case TokenCodeInteger:
-      type = Int;
-      break;
-    case TokenCodeFloat:
-      type = Float;
-      break;
-    default:
-      data = data_create(Int, token_code(token));
-      break;
-  }
-  if (!data) {
-    data = data_parse(type, str);
-  }
-  assert(data);
+  if (token) {
+    str = token_token(token);
+    type = -1;
+    switch (token_code(token)) {
+      case TokenCodeIdentifier:
+      case TokenCodeDQuotedStr:
+      case TokenCodeSQuotedStr:
+      case TokenCodeBQuotedStr:
+        type = String;
+        break;
+      case TokenCodeHexNumber:
+      case TokenCodeInteger:
+        type = Int;
+        break;
+      case TokenCodeFloat:
+        type = Float;
+        break;
+      default:
+        data = data_create(Int, token_code(token));
+        break;
+    }
+    if (!data) {
+      data = data_parse(type, str);
+    }
+    assert(data);
 #ifdef LEXER_DEBUG
-  debug("token_todata: converted token [%s] to data value [%s]", token_tostring(token), data_tostring(data));
+    debug("token_todata: converted token [%s] to data value [%s]", token_tostring(token), data_tostring(data));
 #endif
+  } else {
+#ifdef LEXER_DEBUG
+    debug("token_todata: Not converting NULL token. Returning NULL");
+#endif
+  }
   return data;
 }
 
