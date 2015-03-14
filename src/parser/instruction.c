@@ -21,7 +21,6 @@
 #include <stdio.h>
 
 #include <array.h>
-
 #include <exception.h>
 #include <instruction.h>
 #include <name.h>

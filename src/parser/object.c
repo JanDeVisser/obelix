@@ -138,6 +138,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
   name_t   *name = NULL;
   data_t   *n;
   script_t *script = NULL;
+  array_t  *shifted;
   
   n = data_copy(data_array_get(args, 0));
   if (data_is_name(n)) {
@@ -158,7 +159,9 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
       script = data_scriptval(n);
     }
     if (script) {
-      ret = script_execute(script, args, kwargs);
+      shifted = array_slice(args, 1, 0);
+      ret = script_execute(script, shifted, kwargs);
+      array_free(shifted);
     }
   } else {
     ret = data_copy(n);
