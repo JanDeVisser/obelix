@@ -97,8 +97,8 @@ import_stmt                 := "import"
                                identifier        [ import                    ]
                              ;
 
-new                         := "new"             [ setup_function: "new"     ]
-                               identifier        
+new                         := "new"             [ setup_function: "new" incr ]
+                               identifier        [ emit_pushval_from_stack    ]
                                _func_call
                              ;
 

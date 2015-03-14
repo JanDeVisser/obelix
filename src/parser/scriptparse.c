@@ -219,6 +219,21 @@ parser_t * script_parse_emit_pushval(parser_t *parser) {
   return parser;
 }
 
+parser_t * script_parse_emit_pushval_from_stack(parser_t *parser) {
+  script_t *script;
+  data_t   *data;
+
+  script = parser -> data;
+  data = datastack_pop(parser -> stack);
+  assert(data);
+  if (parser_debug) {
+    debug(" -- val: %s", data_debugstr(data));
+  }
+  script_push_instruction(script, instruction_create_pushval(data));
+  data_free(data);
+  return parser;
+}
+
 parser_t *script_parse_push_signed_val(parser_t *parser) {
   data_t   *data;
   data_t   *signed_val;
