@@ -371,6 +371,29 @@ data_t * data_parse(int type, char *str) {
   return (parse) ? parse(str) : NULL;
 }
 
+data_t * data_decode(char *encoded) {
+  char        *ptr;
+  typedescr_t *type;
+  data_t      *ret = NULL;
+  
+  if (!encoded || !encoded[0]) return NULL;
+  ptr = strchr(encoded, ':');
+  if (!ptr) {
+    return data_create(String, encoded);
+  } else {
+    *ptr = 0;
+    type = typedescr_get_byname(encoded);
+    if (type) {
+      ret = data_parse(type -> type, ptr + 1);
+    }
+    *ptr = ':';
+    if (!ret) {
+      ret = data_create(String, encoded);
+    }
+    return ret;
+  }
+}
+
 data_t * data_cast(data_t *data, int totype) {
   typedescr_t *descr;
   typedescr_t *totype_descr;

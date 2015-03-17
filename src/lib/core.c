@@ -18,6 +18,7 @@
  */
 
 #include <errno.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -204,6 +205,38 @@ char * btoa(long b) {
 
 char * chars(void *str) {
   return (char *) str;
+}
+
+int strtoint(char *str, long *val) {
+  char *endptr;
+  char *ptr;
+
+  /*
+   * Using strtod here instead of strtol. strtol parses a number with a
+   * leading '0' as octal, which nobody wants these days. Also less chance
+   * of overflows.
+   *
+   * After a successful parse we check that the number is within bounds
+   * and that it's actually an long, i.e. that it doesn't have a decimal
+   * point or exponent.
+   */
+  *val = strtol(str, &endptr, 0);
+  if ((*endptr == 0) || (isspace(*endptr))) {
+    if ((*val < LONG_MIN) || (*val > LONG_MAX)) {
+      *val = 0;
+      return -1;
+    }
+    ptr = strpbrk(str, ".eE");
+    if (ptr && (ptr < endptr)) {
+      *val = 0;
+      return -1;
+    } else {
+      return 0;
+    }
+  } else {
+      *val = 0;
+      return -1;
+  }
 }
 
 char * itoa(long i) {

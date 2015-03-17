@@ -28,4 +28,4 @@ LDADD   =       $(top_srcdir)/src/lib/liboblcore.la \
 		$(top_srcdir)/src/parser/liboblparser.la \
 		@CHECK_LIBS@ -lm -lrt -ldl
 
-types_SOURCES     = name_test.c types.c str_test.c int_test.c
+types_SOURCES     = name_test.c types.c str_test.c int_test.c format.c

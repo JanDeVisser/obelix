@@ -98,6 +98,7 @@ native_fnc_t * native_fnc_create(script_t *script, char *name, native_t c_func) 
   ret -> native_method = c_func;;
   ret -> params = NULL;
   ret -> name = name_create(0);
+  ret -> async = 0;
   name_append(ret -> name, script -> name);
   name_extend(ret -> name, name);
   dict_put(script -> functions, strdup(name), data_create(Native, ret));

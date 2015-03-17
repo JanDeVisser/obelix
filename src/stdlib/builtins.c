@@ -22,26 +22,22 @@
 #include <array.h>
 #include <data.h>
 #include <dict.h>
+#include <str.h>
 
 extern data_t * _function_print(char *, array_t *, dict_t *);
 
 data_t * _function_print(char *name, array_t *params, dict_t *kwargs) {
-  data_t        *value;
+  data_t  *fmt;
+  data_t  *s;
 
   assert(array_size(params));
-  value = (data_t *) array_get(params, 0);
-  assert(value);
-
-  /*
-   * Ideally we want to do a printf-style function. The idea is to have the
-   * first argument as the format string, and following parameters as values.
-   * Since there is no API for sprintf that takes a user-accessible data
-   * structure, just the va_list one, we will have to go through the format
-   * string and do it one by one.
-   *
-   * But that's future. Now we just print the first parameter :-)
-   */
-  printf("%s\n", data_tostring(value));
+  fmt = (data_t *) array_get(params, 0);
+  assert(fmt);
+  params = array_slice(params, 1, -1);
+  s = data_execute(fmt, "format", params, kwargs);
+  array_free(params);
+ 
+  printf("%s\n", data_tostring(s));
+  data_free(s);
   return data_create(Int, 0);
 }
-

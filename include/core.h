@@ -116,6 +116,7 @@ extern unsigned int    strhash(char *);
 extern char *          chars(void *);
 extern int             atob(char *);
 extern char *          btoa(long);
+extern int             strtoint(char *, long *);
 extern char *          itoa(long);
 extern char *          dtoa(double);
 

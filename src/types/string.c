@@ -38,6 +38,7 @@ static data_t *     _string_parse(char *str);
 static data_t *     _string_cast(data_t *, int);
 static data_t *     _string_resolve(data_t *, char *);
 
+static data_t *     _string_format(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_len(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_slice(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_at(data_t *, char *, array_t *, dict_t *);
@@ -69,6 +70,7 @@ static typedescr_t _typedescr_str = {
 };
 
 static methoddescr_t _methoddescr_str[] = {
+  { .type = String, .name = "format",     .method = _string_format,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
   { .type = String, .name = "len",        .method = _string_len,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = String, .name = "at",         .method = _string_at,         .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = String, .name = "slice",      .method = _string_slice,      .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
@@ -154,6 +156,16 @@ data_t * data_create_string(char * value) {
 }
 
 /* ----------------------------------------------------------------------- */
+
+data_t * _string_format(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  str_t  *s;
+  data_t *ret;
+
+  s = format(data_tostring(self), args, kwargs);
+  ret = data_create(String, str_chars(s));
+  str_free(s);
+  return ret;
+}
 
 data_t * _string_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return data_create(Int, strlen(data_charval(self)));
@@ -341,3 +353,49 @@ data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs)
   return ret;
 }
 
+str_t * format(char *fmt, array_t *args, dict_t *kwargs) {
+  char  *ptr;
+  char  *specstart;
+  long   ix;
+  str_t *ret = str_create(strlen(fmt));
+  char   buf[8];
+  int    bufsize = 8;
+  char  *bigbuf = NULL;
+  char  *spec = buf;
+  int    len;
+  
+  for (ptr = fmt; *ptr; ptr++) {
+    if (!strncmp(ptr, "${", 2)) {
+      ptr += 2;
+      specstart = ptr;
+      for (; *ptr && (*ptr != '}'); ptr++);
+      len = ptr - specstart;
+      if (!*ptr) {
+        str_append_nchars(ret, specstart, len);
+      } else {
+        while (len >= bufsize - 1) {
+          bufsize *= 2;
+        }
+        if (bufsize > 8) {
+          bigbuf = (char *) new(bufsize);
+          spec = bigbuf;
+        }
+        strncpy(spec, specstart, len);
+        spec[len] = 0;
+        if (kwargs && dict_has_key(kwargs, spec)) {
+          str_append_chars(ret, data_tostring(data_dict_get(kwargs, spec)));
+        } else {
+          if (!strtoint(spec, &ix) && (ix >= 0) && (ix < array_size(args))) {
+            str_append_chars(ret, data_tostring(data_array_get(args, ix)));
+          } else {
+            str_append_chars(ret, "${%s}", spec);
+          }
+        }
+      }
+    } else {
+      str_append_char(ret, *ptr);
+    }
+  }
+  if (bigbuf) free(bigbuf);
+  return ret;
+}

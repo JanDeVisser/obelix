@@ -37,6 +37,7 @@ typedef struct _namespace namespace_t;
 typedef struct _script {
   struct _script    *up;
   name_t            *name;
+  int                async;
   list_t            *instructions;
   dict_t            *functions;
   array_t           *params;
@@ -61,6 +62,7 @@ typedef data_t * (*native_t)(char *, array_t *, dict_t *);
 typedef struct _native_fnc {
   script_t *script;
   name_t   *name;
+  int       async;
   native_t  native_method;
   array_t  *params;
   int       refs;  

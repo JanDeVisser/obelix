@@ -168,27 +168,9 @@ data_t * _int_parse(char *str) {
   char *endptr;
   char *ptr;
   long  val;
-
-  /*
-   * Using strtod here instead of strtol. strtol parses a number with a
-   * leading '0' as octal, which nobody wants these days. Also less chance
-   * of overflows.
-   *
-   * After a successful parse we check that the number is within bounds
-   * and that it's actually an long, i.e. that it doesn't have a decimal
-   * point or exponent.
-   */
-  val = strtol(str, &endptr, 0);
-  if ((*endptr == 0) || (isspace(*endptr))) {
-    if ((val < LONG_MIN) || (val > LONG_MAX)) {
-      return NULL;
-    }
-    ptr = strpbrk(str, ".eE");
-    if (ptr && (ptr < endptr)) {
-      return NULL;
-    } else {
-      return data_create(Int, (long) val);
-    }
+  
+  if (!strtoint(str, &val)) {
+    return data_create(Int, (long) val);
   } else {
     return NULL;
   }
@@ -347,7 +329,13 @@ char * _bool_tostring(data_t *data) {
 }
 
 data_t * _bool_parse(char *str) {
-  return data_create(Bool, atob(str));
+  data_t *i = _int_parse(str);
+  
+  if (i) {
+    return data_create(Bool, data_intval(i));
+  } else {
+    return data_create(Bool, atob(str));
+  }
 }
 
 data_t * _bool_cast(data_t *data, int totype) {
