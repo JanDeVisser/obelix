@@ -325,6 +325,20 @@ str_t * str_append_chars(str_t *str, char *other, ...) {
   return ret;
 }
 
+str_t * str_append_nchars(str_t *str, char *other, int n) {
+  va_list  args;
+  str_t   *ret = NULL;
+  
+  if (other && _str_expand(str, str_len(str) + n + 1)) {
+    strncat(str -> buffer, other, n);
+    str -> len += (strlen(other) > n) ? n : strlen(other);
+    str -> buffer[str -> len] = 0;
+    str -> pos = 0;
+    ret = str;
+  }
+  return ret;
+}
+
 str_t * str_append_vchars(str_t *str, char *other, va_list args) {
   str_t   *ret = NULL;
   char    *b;

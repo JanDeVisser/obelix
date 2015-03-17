@@ -22,12 +22,15 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include <file.h>
 #include <logging.h>
 #include <ctype.h>
+
+#include "array.h"
 
 int file_debug = 0;
 
@@ -175,23 +178,139 @@ file_t * file_create(int fh) {
   return ret;
 }
 
-file_t * file_open(char *fname) {
-  file_t *ret = NULL;
-  char   *n;
-  int     fh;
+int file_flags(char *flags) {
+  int ret;
+  
+  if (!strcasecmp(flags, "r")) {
+    ret = O_RDONLY;
+  } else if (!strcasecmp(flags, "r+")) {
+    ret = O_RDWR;
+  } else if (!strcasecmp(flags, "w")) {
+    ret = O_WRONLY | O_TRUNC | O_CREAT;
+  } else if (!strcasecmp(flags, "w+")) {
+    ret = O_RDWR | O_TRUNC | O_CREAT;
+  } else if (!strcasecmp(flags, "a")) {
+    ret = O_WRONLY | O_APPEND | O_CREAT;
+  } else if (!strcasecmp(flags, "a+")) {
+    ret = O_RDWR | O_APPEND | O_CREAT;
+  } else {
+    ret = -1;
+  }
+  return ret;
+}
+
+int file_mode(char *mode) {
+  int      ret = 0;
+  array_t *parts;
+  char    *str;
+  char    *ptr;
+  int      ix;
+  int      mask;
+  
+  parts = array_split(mode, ",");
+  for (ix = 0; (ret != -1) && (ix < array_size(parts)); ix++) {
+    str = str_array_get(parts, ix);
+    mask = 0;
+    for (ptr = str; *ptr && (*ptr != '='); ptr++) {
+      switch (*ptr) {
+        case 'u':
+        case 'U':
+          mask |= S_IRWXU;
+          break;
+        case 'g':
+        case 'G':
+          mask |= S_IRWXG;
+          break;
+        case 'o':
+        case 'O':
+          mask |= S_IRWXO;
+          break;
+        case 'a':
+        case 'A':
+          mask |= S_IRWXU | S_IRWXG | S_IRWXO;
+          break;
+      }
+    }
+    if (*ptr == '=') {
+      for (ptr++; *ptr; ptr++) {
+        switch (*ptr) {
+          case 'r':
+          case 'R':
+            ret |= (mask & (S_IRUSR | S_IRGRP | S_IROTH));
+            break;
+          case 'w':
+          case 'W':
+            ret |= (mask & (S_IWUSR | S_IWGRP | S_IWOTH));
+            break;
+          case 'x':
+          case 'X':
+            ret |= (mask & (S_IXUSR | S_IXGRP | S_IXOTH));
+            break;
+        }
+      }
+    } else {
+      ret = -1;
+    }
+  }
+  return ret;
+}
+
+file_t * file_open_ext(char *fname, ...) {
+  file_t  *ret = NULL;
+  char    *n;
+  int      fh = -1;
+  va_list  args;
+  char    *flags;
+  char    *mode;
+  int      open_flags = 0;
+  int      open_mode = 0;
   
   n = strdup(fname);
-  fh = open(n, O_RDONLY);
-  if (file_debug) {
-    debug("file_open(%s): %d", ret -> fname, ret -> fh);
+  va_start(args, fname);
+  flags = va_arg(args, char *);
+  errno = 0;
+  if (flags && flags[0]) {
+    open_flags = file_flags(flags);
+    if (open_flags == -1) {
+      errno = EINVAL;
+    } else {
+      if (open_flags & O_CREAT) {
+        mode = va_arg(args, char *);
+      }
+      if (mode && mode[0]) {
+        open_mode = file_mode(mode);
+        if (open_mode == -1) {
+          errno = EINVAL;
+        }
+      } else {
+        open_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+      }
+    }
+  } else {
+    open_flags = O_RDONLY;
+    open_mode = 0;
+  }
+  va_end(args);
+  if (!errno) {
+    fh = (open_mode) ? open(n, open_flags, open_mode) : open(n, open_flags);
   }
   if (fh >= 0) {
     ret = file_create(fh);
-    ret -> fname = n;
   } else {
+    debug("File open(%s)", n);
+    perror("error");
+    ret = file_create(-1);
     ret -> _errno = errno;
   }
+  ret -> fname = n;
+  if (file_debug) {
+    debug("file_open(%s): %d", ret -> fname, ret -> fh);
+  }
   return ret;
+}
+
+file_t * file_open(char *fname) {
+  return file_open_ext(fname, NULL);
 }
 
 file_t * file_copy(file_t *file) {
@@ -259,6 +378,20 @@ int file_read(file_t *file, char *target, int num) {
   return ret;
 }
 
+int file_write(file_t *file, char *buf, int num) {
+  int ret = write(file -> fh, buf, num);
+  
+  file -> _errno = errno;
+  return ret;
+}
+
+int file_flush(file_t *file) {
+  int ret = fsync(file -> fh);
+  
+  file -> _errno = errno;
+  return ret;
+}
+
 char * file_readline(file_t *file) {
   size_t n = 0;
   int    num;
@@ -283,4 +416,9 @@ char * file_readline(file_t *file) {
 
 int file_isopen(file_t *file) {
   return file -> fh >= 0;
+}
+
+int file_redirect(file_t *file, char *newname) {
+  assert(0); /* Not yet implemented */
+  return 0;
 }

@@ -125,6 +125,42 @@ START_TEST(t11)
   data_free(d);
 END_TEST
 
+START_TEST(t12)
+  data_t *d;
+
+  d = run_script("t12");
+  ck_assert_int_eq(data_type(d), String);
+  ck_assert_str_eq(data_charval(d), "####");
+  data_free(d);
+END_TEST
+
+START_TEST(t13)
+  data_t *d;
+
+  d = run_script("t13");
+  ck_assert_int_eq(data_type(d), Error);
+  ck_assert_int_eq(data_errorval(d) -> code, ErrorSyntax);
+  data_free(d);
+END_TEST
+
+START_TEST(t14)
+  data_t *d;
+
+  d = run_script("t14");
+  ck_assert_int_eq(data_type(d), Error);
+  ck_assert_int_eq(data_errorval(d) -> code, ErrorSyntax);
+  data_free(d);
+END_TEST
+
+START_TEST(t15)
+  data_t *d;
+
+  d = run_script("t15");
+  ck_assert_int_eq(data_type(d), Int);
+  ck_assert_int_eq(data_intval(d), 4);
+  data_free(d);
+END_TEST
+
 void _init_scripts(void) {
   set_suite_name("Scripts");
 }
@@ -143,5 +179,9 @@ void _init_scripts_cases(void) {
   tcase_add_test(tc, t9);
   tcase_add_test(tc, t10);
   tcase_add_test(tc, t11);
+  tcase_add_test(tc, t12);
+  tcase_add_test(tc, t13);
+  tcase_add_test(tc, t14);
+  tcase_add_test(tc, t15);
   add_tcase(tc);
 }

@@ -62,7 +62,10 @@ extern int          fsentry_canexecute(fsentry_t *);
 extern list_t *     fsentry_getentries(fsentry_t *);
 extern file_t *     fsentry_open(fsentry_t *);
 
+extern int          file_flags(char *);
+extern int          file_mode(char *);
 extern file_t *     file_create(int);
+extern file_t *     file_open_ext(char *, ...);
 extern file_t *     file_open(char *);
 extern file_t *     file_copy(file_t *);
 extern void         file_free(file_t *);
@@ -71,8 +74,10 @@ extern char *       file_name(file_t *);
 extern char *       file_error(file_t *);
 extern int          file_errno(file_t *);
 extern int          file_cmp(file_t *, file_t *);
+extern int          file_write(file_t *, char *, int);
 extern int          file_read(file_t *, char *, int);
 extern char *       file_readline(file_t *);
 extern int          file_isopen(file_t *);
+extern int          file_flush(file_t *);
 
 #endif /* __FILE_H__ */

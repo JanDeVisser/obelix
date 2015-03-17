@@ -234,6 +234,21 @@ parser_t * script_parse_emit_pushval_from_stack(parser_t *parser) {
   return parser;
 }
 
+parser_t * script_parse_emit_pushconst(parser_t *parser, data_t *constval) {
+  script_t *script;
+  data_t   *data;
+
+  script = parser -> data;
+  data = data_decode(data_tostring(constval));
+  assert(data);
+  if (parser_debug) {
+    debug(" -- val: %s", data_debugstr(data));
+  }
+  script_push_instruction(script, instruction_create_pushval(data));
+  data_free(data);
+  return parser;
+}
+
 parser_t *script_parse_push_signed_val(parser_t *parser) {
   data_t   *data;
   data_t   *signed_val;
@@ -451,6 +466,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
   char      *fname;
   data_t    *params;
   int        ix;
+  int        async;
 
   up = (script_t *) parser -> data;
 
@@ -461,8 +477,14 @@ parser_t * script_parse_start_function(parser_t *parser) {
   data = datastack_pop(parser -> stack);
   fname = strdup(data_tostring(data));
   data_free(data);
+  
+  /* sync/async flag */
+  data = datastack_pop(parser -> stack);
+  async = data_intval(data);
+  data_free(data);
 
   func = script_create(NULL, up, fname);
+  func -> async = async;
   func -> params = str_array_create(array_size(data_arrayval(params)));
   array_reduce(data_arrayval(params),
 	       (reduce_t) data_add_strings_reducer, 
@@ -494,6 +516,7 @@ parser_t * script_parse_native_function(parser_t *parser) {
   name_t       *lib_func;
   native_t      c_func;
   parser_t     *ret = parser;
+  int           async;
   
   script = (script_t *) parser -> data;
 
@@ -503,6 +526,11 @@ parser_t * script_parse_native_function(parser_t *parser) {
   /* Next on stack: function name */
   data = datastack_pop(parser -> stack);
   fname = strdup(data_tostring(data));
+  data_free(data);
+
+  /* sync/async flag */
+  data = datastack_pop(parser -> stack);
+  async = data_intval(data);
   data_free(data);
 
   lib_func = name_split(parser -> last_token -> token, ":");
@@ -517,6 +545,7 @@ parser_t * script_parse_native_function(parser_t *parser) {
     if (c_func) {
       func = native_fnc_create(script, fname, c_func);
       func -> params = str_array_create(array_size(data_arrayval(params)));
+      func -> async = async;
       array_reduce(data_arrayval(params),
 		   (reduce_t) data_add_strings_reducer, 
 		   func -> params);

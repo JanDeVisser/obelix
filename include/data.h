@@ -140,6 +140,7 @@ extern data_t *        data_create(int, ...);
 extern data_t *        data_cast(data_t *, int);
 extern data_t *        data_promote(data_t *);
 extern data_t *        data_parse(int, char *);
+extern data_t *        data_decode(char *);
 extern void            data_free(data_t *);
 extern int             data_type(data_t *);
 extern int             data_hastype(data_t *, int);
@@ -181,6 +182,8 @@ extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);
 
+/* FIXME Needs a better home */
+extern str_t *         format(char *, array_t *, dict_t *);
 
 #define strdata_dict_create()   dict_set_tostring_data( \
                                   dict_set_tostring_key( \

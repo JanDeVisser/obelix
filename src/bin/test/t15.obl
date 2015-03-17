@@ -1,0 +1,10 @@
+o = {
+  x: 4,
+  "y": "foo",
+  'z': 3
+}
+
+print(o.y)
+print(o.z)
+
+return o.x

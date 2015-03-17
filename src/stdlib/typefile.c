@@ -33,7 +33,9 @@ static char *        _file_tostring(data_t *);
 static unsigned int  _file_hash(data_t *);
 
 static data_t *      _file_open(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_adopt(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_readline(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_print(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_close(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_file[] = {
@@ -55,8 +57,11 @@ static typedescr_t _typedescr_file =   {
 /* FIXME Add append, delete, head, tail, etc... */
 static methoddescr_t _methoddescr_file[] = {
   { .type = Any,    .name = "open",     .method = _file_open,     .argtypes = { String, Int, Any },       .minargs = 1, .varargs = 1 },
+  { .type = Any,    .name = "adopt",    .method = _file_adopt,    .argtypes = { Int, Any, Any },          .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "readline", .method = _file_readline, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "print",    .method = _file_print,    .argtypes = { String, Any,    NoType }, .minargs = 1, .varargs = 1 },
   { .type = -1,     .name = "close",    .method = _file_close,    .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "redirect", .method = _file_redirect, .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL,       .method = NULL,           .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
@@ -73,6 +78,7 @@ void _file_init(void) {
   int ix;
 
   File = typedescr_register(&_typedescr_file);
+  debug("File type initialized");
   for (ix = 0; _methoddescr_file[ix].type != NoType; ix++) {
     if (_methoddescr_file[ix].type == -1) {
       _methoddescr_file[ix].type = File;
@@ -86,12 +92,18 @@ data_t * _file_new(data_t *target, va_list arg) {
   char   *name;
 
   name = va_arg(arg, char *);
-  f = file_open(name);
-  if (file_isopen(f)) {
+  if (name) {
+    f = file_open(name);
+    if (file_isopen(f)) {
+      target -> ptrval = f;
+      return target;
+    } else {
+      return data_create(ErrorIOError, file_error(f));
+    }
+  } else {
+    f = file_create(-1);
     target -> ptrval = f;
     return target;
-  } else {
-    return data_create(ErrorIOError, file_error(f));
   }
 }
 
@@ -136,6 +148,15 @@ data_t * _file_open(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return ret;
 }
 
+data_t * _file_adopt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *ret = data_create(File, NULL);
+  int     fh = data_intval(data_array_get(args, 0));
+  
+  data_fileval(ret) -> fh = fh;
+  return ret;
+}
+
+
 data_t * _file_readline(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *ret;
   char   *line;
@@ -149,6 +170,34 @@ data_t * _file_readline(data_t *self, char *name, array_t *args, dict_t *kwargs)
   return ret;
 }
 
+data_t * _file_print(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *s;
+  data_t *fmt;
+  char   *line;
+  int     ret = 1;
+
+  fmt = data_array_get(args, 0);
+  assert(fmt);
+  args = array_slice(args, 1, -1);
+  s = data_execute(fmt, "format", args, kwargs);
+  array_free(args);
+ 
+  line = data_tostring(s);
+  if (file_write(data_fileval(self), line, strlen(line)) == strlen(line)) {
+    if (file_write(data_fileval(self), "\n", 1) == 1) {
+      file_flush(data_fileval(self));
+      ret = 1;
+    }
+  }
+  data_free(s);
+  return data_create(Bool, ret);
+}
+
 data_t * _file_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return data_create(Bool, file_close(data_fileval(self)) == 0);
+}
+
+data_t * _file_redirect(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_create(Bool, file_redirect(data_fileval(self), 
+					 data_tostring(data_array_get(args, 0))) == 0);
 }

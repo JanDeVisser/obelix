@@ -56,6 +56,7 @@ extern str_t *      _str_join(char *, void *, obj_reduce_t);
 extern str_t *      str_append_char(str_t *, int);
 extern str_t *      str_append_chars(str_t *, char *, ...);
 extern str_t *      str_append_vchars(str_t *, char *, va_list);
+extern str_t *      str_append_nchars(str_t *, char *, int);
 extern str_t *      str_append(str_t *, str_t *);
 extern str_t *      str_chop(str_t *, int);
 extern str_t *      str_lchop(str_t *, int);

@@ -53,12 +53,17 @@ for_loop                    := "for"
                                end_stmt
                              ;
                              
-func_def                    := "func"
+func_def                    := sync_async
+                               "func"
                                'i'               [ push                      ]
                                (                 [ bookmark                  ]
                                parlist_or_void
                                )                 [ rollup_list               ]
                                func_block
+                             ;
+
+sync_async                  := "async"           [ pushval: 1                ]
+                             |                   [ pushval: 0                ]
                              ;
                              
 func_block                  := "begin"           [ start_function            ]
@@ -171,8 +176,8 @@ constant                    := '"'               [ emit_pushval              ]
                              | signed_number
 			     | list
                              | object
-			     | "true"
-                	     | "false"
+			     | "true"            [ emit_pushconst: "bool:1"  ]
+                	     | "false"           [ emit_pushconst: "bool:0"  ]
                              ;
 
 signed_number               := sign
@@ -216,11 +221,13 @@ attrlist_or_empty           := attrlist
                              |
                              ;
 
-attrlist                    := 'i'               [ push                      ]
+attrlist                    := attrname          [ push                      ]
                                ':' 
                                expr
                                attrlist_tail
                              ;
+
+attrname                    := 'i' | '"' | '\'' ;
 
 attrlist_tail               := ,
 			       attrlist

@@ -3,3 +3,6 @@
  */
  
 func print(msg) -> "liboblstdlib.so:_function_print"
+stdin = adopt(0)
+stdout = adopt(1)
+stderr = adopt(2)

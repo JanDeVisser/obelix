@@ -210,6 +210,7 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
   ret -> labels = strvoid_dict_create();
   ret -> label = NULL;
   ret -> params = NULL;
+  ret -> async = 0;
 
   ret -> name = name_create(0);
   if (up) {

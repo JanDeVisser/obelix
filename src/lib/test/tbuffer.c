@@ -18,6 +18,7 @@
  */
 
 #include <fcntl.h>
+#include <sys/fcntl.h>
 #include <unistd.h>
 
 #include <file.h>
@@ -127,6 +128,22 @@ START_TEST(test_reader_read)
   ck_assert_ptr_ne(str, NULL);
   read_from_reader((reader_t *) str);
 END_TEST
+    
+START_TEST(test_file_flags)
+  int f = file_flags("r");
+  ck_assert_int_eq(f, O_RDONLY);
+  f =  file_flags("r+");
+  ck_assert_int_eq(f, O_RDWR);
+END_TEST
+
+START_TEST(test_file_mode)
+  int m = file_mode("u=rwx,g=rx,o=r");
+  ck_assert_int_eq(m, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH);
+  m = file_mode("ug=rwx,o=r");
+  ck_assert_int_eq(m, S_IRWXU | S_IRWXG |S_IROTH);
+  m = file_mode("a=rwx");
+  ck_assert_int_eq(m, S_IRWXU | S_IRWXG |S_IRWXO);
+END_TEST
 
 
 static void _init_tbuffer(void) {
@@ -138,6 +155,8 @@ static void _init_tbuffer(void) {
   tcase_add_test(tc, test_str_create);
   tcase_add_test(tc, test_str_read);
   tcase_add_test(tc, test_reader_read);
+  tcase_add_test(tc, test_file_flags);
+  tcase_add_test(tc, test_file_mode);
   add_tcase(tc);
 }
 
