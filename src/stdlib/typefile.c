@@ -37,6 +37,7 @@ static data_t *      _file_adopt(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_readline(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_print(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_close(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_redirect(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_file[] = {
   { .id = FunctionNew,      .fnc = (void_t) _file_new },

@@ -34,6 +34,10 @@ static int debug_data = 0;
 static void     _any_init(void) __attribute__((constructor));
 static data_t * _any_cmp(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hash(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_hasattr(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_getattr(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_setattr(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_callable(data_t *, char *, array_t *, dict_t *);
 
 static void     _data_call_free(typedescr_t *, void *);
 
@@ -50,14 +54,18 @@ static typedescr_t _typedescr_any = {
 };
 
 static methoddescr_t _methoddescr_any[] = {
-  { .type = Any,    .name = ">" ,   .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "<" ,   .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = ">=" ,  .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "<=" ,  .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "==" ,  .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "!=" ,  .method = _any_cmp,  .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "hash", .method = _any_hash, .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = NoType, .name = NULL,   .method = NULL,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+  { .type = Any,    .name = ">" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "<" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = ">=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "<=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "==" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "!=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "hash",     .method = _any_hash,     .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "hasattr",  .method = _any_hasattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "setattr",  .method = _any_setattr,  .argtypes = { String, Any, NoType },    .minargs = 2, .varargs = 0 },
+  { .type = Any,    .name = "callable", .method = _any_callable, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
+  { .type = NoType, .name = NULL,       .method = NULL,          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 static code_label_t _function_id_labels[] = {
@@ -121,6 +129,44 @@ data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
 data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return data_create(Int, data_hash(self));
+}
+
+data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
+  data_t  *attrname = data_array_get(args, 0);
+  name_t  *name = name_create(1, data_tostring(attrname));
+  data_t  *ret;
+  
+  ret = data_create(Bool, data_resolve(self, name) != NULL);
+  name_free(name);
+  return ret;
+}
+
+data_t * _any_getattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
+  data_t  *attrname = data_array_get(args, 0);
+  name_t  *name = name_create(1, data_tostring(attrname));
+  data_t  *ret;
+  
+  ret = data_get(self, name);
+  name_free(name);
+  return ret;
+}
+
+data_t * _any_setattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
+  data_t  *attrname = data_array_get(args, 0);
+  data_t  *value = data_array_get(args, 1);
+  name_t  *name = name_create(1, data_tostring(attrname));
+  data_t  *ret;
+
+  ret = data_set(self, name, value);
+  name_free(name);
+  return ret;
+}
+
+data_t * _any_callable(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *obj;
+  
+  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  return data_create(Bool, data_is_callable(obj));
 }
 
 /*
@@ -677,7 +723,7 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
     }
   } else {
     ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
-                      name_tostring(name), data_tostring(data));
+                     name_tostring(name), data_tostring(data));
   }
   return ret;
 }
