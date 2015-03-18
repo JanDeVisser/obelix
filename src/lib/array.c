@@ -282,12 +282,15 @@ str_t * array_tostr(array_t *array) {
 char * array_tostring(array_t *array) {
   str_t *str;
 
-  assert(array);
-  free(array -> str);
-  str = array_tostr(array);
-  array -> str = strdup(str_chars(str));
-  str_free(str);
-  return array -> str;
+  if (array) {
+    free(array -> str);
+    str = array_tostr(array);
+    array -> str = strdup(str_chars(str));
+    str_free(str);
+    return array -> str;
+  } else {
+    return "array:NULL";
+  }
 }
 
 

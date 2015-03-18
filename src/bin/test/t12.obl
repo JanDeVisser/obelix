@@ -11,4 +11,7 @@ begin
 end
 
 o = new obj()
+print("o.hasattr(bar): ${0}", o.hasattr("bar"))
+print("o.bar.callable(): ${0}", o.bar.callable())
+print("callable(o.bar): ${0}", callable(o.bar))
 return o.bar("##")
