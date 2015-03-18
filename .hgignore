@@ -6,9 +6,11 @@ src/logs/.*
 nbproject/private/.*
 users/.*
 db/.*
+install/.*
 .*\.la
 .*\.lo
 .*\.o
+.*\.so(\..*)?
 .*\/.libs/\.*
 .*\/.deps/\.*
 .*\.trs
@@ -21,9 +23,7 @@ Makefile.in
 Makefile
 aclocal.m4
 .kdev4*
-(.?/)?([^.]+)$
-
-
+xxxx(.?/)?([^.]+)$
 \.orig\..*$
 \.orig$
 \.chg\..*$
