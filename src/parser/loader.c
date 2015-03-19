@@ -181,9 +181,11 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path, char *gra
     strcpy(grammarpath, ret -> system_dir);
     strcat(grammarpath, GRAMMAR_FILE);
   }
-  debug("system dir: %s", ret -> system_dir);
-  debug("user path: %s", name_tostring(user_path));
-  debug("grammar file: %s", grammarpath);
+  if (script_debug) {
+    debug("system dir: %s", ret -> system_dir);
+    debug("user path: %s", name_tostring(user_path));
+    debug("grammar file: %s", grammarpath);
+  }
 
   file = file_open(grammarpath);
   assert(file);
