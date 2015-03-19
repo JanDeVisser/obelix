@@ -53,7 +53,9 @@ int run_script(scriptloader_t *loader, name_t *name) {
   int       retval;
   
   ret = scriptloader_run(loader, name, NULL, NULL);
-  debug("Exiting with exit code %s", data_tostring(ret));
+  if (script_debug) {
+    debug("Exiting with exit code %s", data_tostring(ret));
+  }
   switch (data_type(ret)) {
     case Int:
     case Float:
