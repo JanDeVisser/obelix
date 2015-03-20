@@ -32,6 +32,8 @@ typedef struct _parser {
   void          *data;
   list_t        *prod_stack;
   token_t       *last_token;
+  int            line;
+  int            column;
   data_t        *error;
   datastack_t   *stack;
   dict_t        *variables;

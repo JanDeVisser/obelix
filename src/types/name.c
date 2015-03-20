@@ -31,6 +31,9 @@ static char *        _data_tostring_name(data_t *);
 static unsigned int  _data_hash_name(data_t *);
 static data_t *      _data_resolve_name(data_t *, char *);
 
+static data_t *      _name_len(data_t *, char *, array_t *, dict_t *);
+static data_t *      _name_append(data_t *, char *, array_t *, dict_t *);
+
 static name_t *      _name_create(int);
 static name_t *      _name_extend(name_t *, array_t *);
 
@@ -51,10 +54,17 @@ static typedescr_t typedescr_name = {
   .vtable     = _vtable_name
 };
 
+static methoddescr_t _methoddescr_name[] = {
+  { .type = Any,    .name = "len",    .method = _name_len,    .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Any,    .name = "append", .method = _name_append, .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
+  { .type = NoType, .name = NULL,     .method = NULL,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+};
+
 /* ----------------------------------------------------------------------- */
 
 void _data_init_name(void) {
   typedescr_register(&typedescr_name);
+  typedescr_register_methods(_methoddescr_name);
 }
 
 data_t * _data_new_name(data_t *ret, va_list arg) {
@@ -93,17 +103,14 @@ unsigned int _data_hash_name(data_t *data) {
 
 data_t * _data_resolve_name(data_t *data, char *name) {
   data_t *ix_data;
-  int     ix;
+  long    ix;
   name_t *n = data_nameval(data);
   
   /*
    * TODO Isolate error-detecting parsing code from Int parse.
    */
-  ix_data = data_parse(Int, name);
-  if (ix_data) {
-    ix = data_intval(ix_data);
-    data_free(ix_data);
-    return ((ix < 0) || (ix >= name_size(n)))
+  if (!strtoint(name, &ix)) {
+    return ((ix >= 0) && (ix < name_size(n)))
       ? data_create(String, name_get(n, ix))
       : NULL;
   } else {
@@ -112,6 +119,23 @@ data_t * _data_resolve_name(data_t *data, char *name) {
 }
 
 /* ----------------------------------------------------------------------- */
+
+data_t * _name_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_create(Int, name_size(data_nameval(self)));
+}
+
+data_t * _name_append(data_t *self, char *fnc_name, array_t *args, dict_t *kwargs) {
+  name_t *name = data_nameval(self);
+  int     ix;
+  
+  for (ix = 0; ix < array_size(args); ix++) {
+    name_extend(name, data_tostring(data_array_get(args, ix)));
+  }
+  return self;
+}
+
+  
+  /* ----------------------------------------------------------------------- */
 
 name_t * _name_create(int count) {
   name_t *ret = NEW(name_t);

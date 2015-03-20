@@ -29,6 +29,9 @@
 static file_t *         _scriptloader_open_file(scriptloader_t *, char *, name_t *);
 static reader_t *       _scriptloader_open_reader(scriptloader_t *, name_t *);
 static scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *, name_t *);
+static data_t *         _scriptloader_get_object(scriptloader_t *, int, ...);
+static data_t *         _scriptloader_set_value(scriptloader_t *, data_t *, char *, data_t *);
+static data_t *         _scriptloader_import_sys(scriptloader_t *, name_t *);
 
 static scriptloader_t * _loader = NULL;
 
@@ -97,7 +100,7 @@ reader_t * _scriptloader_open_reader(scriptloader_t *loader, name_t *name) {
   if (script_debug) {
     debug("_scriptloader_open_reader('%s')", name_tostring(name));
   }
-  for (ix = 0; ix < name_size(loader -> load_path); ix++) {
+  for (ix = 0; !text && (ix < name_size(loader -> load_path)); ix++) {
     path_entry = name_get(loader -> load_path, ix);
     text = _scriptloader_open_file(loader, path_entry, name);
   }
@@ -130,6 +133,64 @@ scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *loader, name_t *p
   return loader;
 }
 
+static data_t * _scriptloader_get_object(scriptloader_t *loader, int count, ...) {
+  va_list   args;
+  int       ix;
+  object_t *obj;
+  module_t *mod;
+  data_t   *data = NULL;
+  name_t   *name;
+  
+  va_start(args, count);
+  name = name_create(0);
+  for (ix = 0; ix < count; ix++) {
+    name_extend(name, va_arg(args, char *));
+  }
+  va_end(args);
+  data = ns_get(loader -> ns, name);
+  if (data_is_module(data)) {
+    mod = data_moduleval(data);
+    data = data_create(Object, mod -> obj);
+  }
+  return data;
+}
+
+static data_t * _scriptloader_set_value(scriptloader_t *loader, data_t *obj,
+                                        char *name, data_t *value) {
+  name_t *n;
+  data_t *ret;
+  
+  n = name_create(1, name);
+  ret = data_set(obj, n, value);
+  if (!(ret && data_is_error(ret))) {
+    data_free(value);
+    ret = NULL;
+  }
+  name_free(n);
+  return ret;
+}
+
+static data_t * _scriptloader_import_sys(scriptloader_t *loader, 
+                                         name_t *user_path) {
+  name_t *name;
+  data_t *sys;
+  data_t *val;
+  data_t *ret;
+  
+  name = name_create(1, "sys");
+  sys = scriptloader_import(loader, name);
+  name_free(name);
+  if (!data_is_error(sys)) {
+    _scriptloader_extend_loadpath(loader, user_path);
+    ret = _scriptloader_set_value(loader, sys, "path", 
+                                  data_create(Name, loader -> load_path));
+    data_free(sys);
+  } else {
+    ret = sys;
+  }
+  return ret;
+}
+
 /*
  * scriptloader_t - public functions
  */
@@ -138,7 +199,8 @@ scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *loader, name_t *p
 /* #define OBELIX_SYS_PATH "/usr/share/obelix" */
 #define OBELIX_SYS_PATH "install/share/"
 
-scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path, char *grammarpath) {
+scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path, 
+                                     char *grammarpath) {
   scriptloader_t   *ret;
   grammar_parser_t *gp;
   file_t           *file;
@@ -215,7 +277,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path, char *gra
     if (script_debug) {
       debug("  Created loader namespace");
     }
-    _scriptloader_extend_loadpath(ret, user_path);
+    _scriptloader_import_sys(ret, user_path);
   }
   data_free(root);
   if (!ret -> ns) {
@@ -302,13 +364,21 @@ data_t * scriptloader_load(scriptloader_t *loader, name_t *name) {
 data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, dict_t *kwargs) {
   data_t   *data;
   object_t *obj;
-
-  data = ns_execute(loader -> ns, name, args, kwargs);
-  if (data_is_object(data)) {
-    obj = object_copy(data_objectval(data));
-    data_free(data);
-    data = obj -> retval;
-    object_free(obj);
+  data_t   *sys;
+  
+  sys = _scriptloader_get_object(loader, 1, "sys");
+  if (sys && !data_is_error(sys)) {
+    _scriptloader_set_value(loader, sys, "argv", data_create_list(args));
+    data_free(sys);
+    data = ns_execute(loader -> ns, name, args, kwargs);
+    if (data_is_object(data)) {
+      obj = object_copy(data_objectval(data));
+      data_free(data);
+      data = obj -> retval;
+      object_free(obj);
+    }
+  } else {
+    data = (sys) ? sys : data_error(ErrorName, "Could not resolve module 'sys'");
   }
   return data;
 }

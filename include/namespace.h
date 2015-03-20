@@ -48,9 +48,11 @@ typedef struct _module {
 
 typedef struct _namespace {
   struct _namespace *up;
+  int                level;
   void              *import_ctx;
   import_t           import_fnc;
   data_t            *root;
+  char              *str;
 } namespace_t;
 
 #define data_is_module(d)  ((d) && (data_type((d)) == Module))
@@ -76,5 +78,6 @@ extern data_t *      ns_import(namespace_t *, name_t *);
 extern data_t *      ns_execute(namespace_t *, name_t *, array_t *, dict_t *);
 extern data_t *      ns_get(namespace_t *, name_t *);
 extern data_t *      ns_resolve(namespace_t *, char *);
+extern char *        ns_tostring(namespace_t *);
 
 #endif /* __NAMESPACE_H__ */

@@ -23,7 +23,6 @@ Makefile.in
 Makefile
 aclocal.m4
 .kdev4*
-xxxx(.?/)?([^.]+)$
 \.orig\..*$
 \.orig$
 \.chg\..*$
