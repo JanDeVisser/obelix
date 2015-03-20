@@ -1,0 +1,17 @@
+func obj()
+begin
+  x = 1
+  y = "foo"
+
+  func bar(quux)
+  begin
+    print(quux)
+    return quux * 2
+  end
+end
+
+o = new obj()
+print("o.hasattr(bar): ${0}", o.hasattr("bar"))
+print("o.bar.callable(): ${0}", o.bar.callable())
+print("callable(o.bar): ${0}", callable(o.bar))
+return o.bar("##")
