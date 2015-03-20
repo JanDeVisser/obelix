@@ -46,13 +46,13 @@ void debug_settings(char *debug) {
   }
 }
 
-int run_script(scriptloader_t *loader, name_t *name) {
+int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
   data_t   *ret;
   object_t *obj;
   module_t *mod;
   int       retval;
   
-  ret = scriptloader_run(loader, name, NULL, NULL);
+  ret = scriptloader_run(loader, name, argv, NULL);
   if (script_debug) {
     debug("Exiting with exit code %s", data_tostring(ret));
   }
@@ -79,6 +79,8 @@ int main(int argc, char **argv) {
   char           *basepath = NULL;
   name_t         *path;
   name_t         *name;
+  array_t        *obl_argv;
+  int             ix;
   char           *syspath = NULL;
   int             opt;
   scriptloader_t *loader;
@@ -115,10 +117,16 @@ int main(int argc, char **argv) {
   
   path = name_split(basepath, ":");
   free(basepath);
-  name = name_split(argv[optind], ".");
-
   loader = scriptloader_create(syspath, path, grammar);
-  retval = run_script(loader, name);
+
+  name = name_split(argv[optind], ".");
+  obl_argv = str_array_create(argc - optind);
+  for (ix = optind + 1; ix < argc; ix++) {
+    array_push(obl_argv, strdup(argv[ix]));
+  }
+  retval = run_script(loader, name, obl_argv);
+  array_free(obl_argv);
+  name_free(name);
   scriptloader_free(loader);
   return retval;
 }

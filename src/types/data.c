@@ -766,26 +766,6 @@ char * data_tostring(data_t *data) {
   }
 }
 
-char * data_debugstr(data_t *data) {
-#ifndef NDEBUG
-  int          len;
-  typedescr_t *type;
-
-  if (data) {
-    free(data -> debugstr);
-    type = data_typedescr(data);
-    asprintf(&(data -> debugstr), "%3.3s %s", 
-	     type -> type_name, 
-	     data_tostring(data));
-    return data -> debugstr;
-  } else {
-    return "data:NULL";
-  }
-#else
-  return data_tostring(data);
-#endif
-}
-
 int data_cmp(data_t *d1, data_t *d2) {
   typedescr_t *type;
   data_t      *p1 = NULL;

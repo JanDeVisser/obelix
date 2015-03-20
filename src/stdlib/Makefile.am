@@ -23,7 +23,8 @@ LDADD       = -ldl -lm -lcheck
 lib_LTLIBRARIES = liboblstdlib.la
 liboblstdlib_la_SOURCES = \
 		builtins.c \
-		typefile.c
+		typefile.c \
+		getenv.c
 
 liboblstdlib_la_LIBADD = \
 		$(top_srcdir)/src/lib/liboblcore.la \

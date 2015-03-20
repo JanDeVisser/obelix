@@ -82,8 +82,7 @@ data_t * _data_new_object(data_t *ret, va_list arg) {
   object_t *object;
 
   object = va_arg(arg, object_t *);
-  ret -> ptrval = object;
-  ((object_t *) ret -> ptrval) -> refs++;
+  ret -> ptrval = object_copy(object);
   return ret;
 }
 
@@ -207,7 +206,7 @@ object_t * object_create(script_t *script) {
   str_t      *s;
 
   ret = NEW(object_t);
-  ret -> refs = 0;
+  ret -> refs = 1;
   ret -> script = script;
   ret -> constructing = FALSE;
   ret -> ptr = NULL;

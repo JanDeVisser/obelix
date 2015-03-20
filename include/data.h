@@ -160,12 +160,12 @@ extern data_t *        data_resolve(data_t *, name_t *);
 extern data_t *        data_invoke(data_t *, name_t *, array_t *, dict_t *);
 extern data_t *        data_get(data_t *, name_t *);
 extern data_t *        data_set(data_t *, name_t *, data_t *);
-extern char *          data_debugstr(data_t *);
 extern int             data_count(void);
 
 extern double          data_floatval(data_t *);
 extern int             data_intval(data_t *);
 
+#define data_debugstr(d) (data_tostring((d)))
 #define data_charval(d)  ((char *) (d) -> ptrval)
 #define data_arrayval(d) ((array_t *) (d) -> ptrval)
 #define data_is_error(d) ((d) && (data_type((d)) == Error))

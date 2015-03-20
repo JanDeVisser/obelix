@@ -243,7 +243,7 @@ module_t * _ns_add_module(namespace_t *ns, name_t *name, module_t *mod) {
   } else {
     assert(ns -> root);  
     node = data_moduleval(ns -> root);
-    for (ix = 0; ix < name_size(name); ix++) {
+    for (ix = 0; ix < name_size(name) - 1; ix++) {
       n = name_get(name, ix);
       name_extend(current, n);
       sub = data_moduleval(mod_get_module(node, n));
@@ -252,9 +252,9 @@ module_t * _ns_add_module(namespace_t *ns, name_t *name, module_t *mod) {
       }
       node = sub;
     }
-    name_free(current);
-    mod_add_module(mod, name);
+    mod_add_module(node, name, mod);
   }
+  name_free(current);
   return mod;
 }
 
@@ -345,16 +345,16 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
     name = dummy;
   }
   if (ns_debug) {
-    debug("  Importing module '%s'", name_tostring(name));
+    debug("  Importing module '%s' into %s", name_tostring(name), ns_tostring(ns));
   }
   module = _ns_get(ns, name);
   if (module) {
     if (module -> state != ModStateUninitialized) {
       if (ns_debug) {
-        debug("  Module '%s' %s", name_tostring(name),
-              (module -> state == ModStateLoading) 
+        debug("  Module '%s' %s in %s", name_tostring(name),
+              ((module -> state == ModStateLoading) 
                 ? "currently loading"
-                : "already imported");
+                : "already imported"), ns_tostring(ns));
       }
       ret = data_create(Module, module);
     } else {
@@ -385,12 +385,13 @@ namespace_t * ns_create(namespace_t *up) {
 
   assert(up);
   if (ns_debug) {
-    debug("  Creating subordinate namespace");
+    debug("  Creating subordinate namespace level [%d]", up -> level + 1);
   }
   ret = _ns_create();
   ret -> import_ctx = NULL;
   ret -> import_fnc = NULL;
   ret -> up = up;
+  ret -> level = up -> level + 1;
   return ret;
 }
 
@@ -405,6 +406,7 @@ namespace_t * ns_create_root(void *importer, import_t import_fnc) {
   ret -> import_ctx = importer;
   ret -> import_fnc = import_fnc;
   ret -> up = NULL;
+  ret -> level = 0;
   return ret;
 }
 
@@ -446,7 +448,8 @@ data_t * ns_get(namespace_t *ns, name_t *name) {
   }
   if (!node || !node -> obj -> script) {
       return data_error(ErrorName,
-                        "Import '%s' not found in namespace", name);    
+                        "Import '%s' not found in %s", 
+                        name_tostring(name), ns_tostring(ns));
   } else {
     return data_create(Module, node);
   }
@@ -454,4 +457,14 @@ data_t * ns_get(namespace_t *ns, name_t *name) {
 
 data_t * ns_resolve(namespace_t *ns, char *name) {
   return mod_resolve(data_moduleval(ns -> root), name);
+}
+
+char * ns_tostring(namespace_t *ns) {
+  if (ns) {
+    free(ns -> str);
+    asprintf(&ns -> str, "namespace level [%d]", ns -> level);
+    return ns -> str;
+  } else {
+    return "ns:NULL";
+  }
 }

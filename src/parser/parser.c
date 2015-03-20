@@ -226,6 +226,8 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
   parser_t             *ret;
 
   code = token_code(token);
+  parser -> line = token -> line;
+  parser -> column = token -> column;
   e = list_pop(parser -> prod_stack);
   if (e == NULL) {
     if (parser_debug) {
