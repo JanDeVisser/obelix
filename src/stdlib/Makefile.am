@@ -24,7 +24,8 @@ lib_LTLIBRARIES = liboblstdlib.la
 liboblstdlib_la_SOURCES = \
 		builtins.c \
 		typefile.c \
-		getenv.c
+		sys.c \
+		net.c
 
 liboblstdlib_la_LIBADD = \
 		$(top_srcdir)/src/lib/liboblcore.la \

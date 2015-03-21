@@ -172,6 +172,7 @@ extern int             data_intval(data_t *);
 #define data_errorval(d) ((error_t *) ((data_is_error((d)) ? (d) -> ptrval : NULL)))
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
+extern array_t *       data_add_all_as_data_reducer(char *, array_t *);
 extern array_t *       data_add_strings_reducer(data_t *, array_t *);
 extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
@@ -181,6 +182,7 @@ extern data_t *        data_error(int, char *, ...);
 extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);
+extern data_t *        data_str_array_to_list(array_t *);
 
 /* FIXME Needs a better home */
 extern str_t *         format(char *, array_t *, dict_t *);
