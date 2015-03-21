@@ -73,6 +73,25 @@ int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
   return retval;  
 }
 
+name_t * build_name(char *scriptname) {
+  char   *buf;
+  char   *ptr;
+  name_t *name;
+  
+  buf = strdup(scriptname);
+  while (ptr = strchr(buf, '/')) {
+    *ptr = '.';
+  }
+  if (ptr = strrchr(buf, '.')) {
+    if (!strcmp(ptr, ".obl")) {
+      *ptr = 0;
+    }
+  }
+  name = name_split(buf, ".");
+  free(buf);
+  return name;
+}
+
 int main(int argc, char **argv) {
   char           *grammar = NULL;
   char           *debug = NULL;
@@ -98,7 +117,7 @@ int main(int argc, char **argv) {
         debug = optarg;
         break;
       case 'p':
-        basepath = strdup(optarg);
+        basepath = optarg;
         break;
       case 'l':
         log_level = atoi(optarg);
@@ -111,15 +130,18 @@ int main(int argc, char **argv) {
   }
   debug_settings(debug);
   
-  if (!basepath) {
-    basepath = getcwd(NULL, 0);
+  if (basepath) {
+    path = name_split(basepath, ":");
+  } else {
+    path = name_create(0);
   }
-  
-  path = name_split(basepath, ":");
+  basepath = getcwd(NULL, 0);
+  name_extend(path, basepath);
   free(basepath);
+  
   loader = scriptloader_create(syspath, path, grammar);
 
-  name = name_split(argv[optind], ".");
+  name = build_name(argv[optind]);
   obl_argv = str_array_create(argc - optind);
   for (ix = optind + 1; ix < argc; ix++) {
     array_push(obl_argv, data_create(String, argv[ix]));
