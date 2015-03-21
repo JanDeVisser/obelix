@@ -70,6 +70,7 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
   if (resolve_debug) {
     debug("dlopen('%s')", image);
   }
+  dlerror();
   handle = dlopen(image, RTLD_NOW | RTLD_GLOBAL);
   if (handle) {
     if (list_append(resolve -> images, handle)) {
@@ -78,7 +79,7 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
     dlclose(handle);
   }
   if (resolve_debug) {
-    debug("dlopen('%s') FAILED", image);
+    debug("dlopen('%s') FAILED: %s", image, dlerror());
   }
   return NULL;
 }

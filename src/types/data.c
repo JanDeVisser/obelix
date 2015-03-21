@@ -823,6 +823,11 @@ array_t * data_add_all_reducer(data_t *data, array_t *target) {
   return target;
 }
 
+array_t * data_add_all_as_data_reducer(char *str, array_t *target) {
+  array_push(target, data_create(String, str));
+  return target;
+}
+
 dict_t * data_put_all_reducer(entry_t *e, dict_t *target) {
   dict_put(target, strdup(e -> key), data_copy(e -> value));
   return target;

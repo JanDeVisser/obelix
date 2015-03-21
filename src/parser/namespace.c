@@ -177,11 +177,9 @@ data_t * mod_get_module(module_t *mod, char *name) {
   return (data_t *) dict_get(mod -> contents, name);
 }
 
-module_t * mod_add_module(module_t *mod, name_t *name) {
-  module_t *ret = mod_create(name);
-  
-  dict_put(mod -> contents, strdup(name_last(name)), data_create(Module, ret));
-  return ret;
+module_t * mod_add_module(module_t *mod, name_t *name, module_t *sub) {
+  dict_put(mod -> contents, strdup(name_last(name)), data_create(Module, sub));
+  return sub;
 }
 
 data_t * mod_set(module_t *mod, script_t *script, array_t *args, dict_t *kwargs) {
@@ -248,7 +246,8 @@ module_t * _ns_add_module(namespace_t *ns, name_t *name, module_t *mod) {
       name_extend(current, n);
       sub = data_moduleval(mod_get_module(node, n));
       if (!sub) {
-        sub = mod_add_module(node, name_copy(current));
+        sub = mod_create(name);
+        sub = mod_add_module(node, name_copy(current), sub);
       }
       node = sub;
     }
@@ -292,14 +291,15 @@ data_t * _ns_delegate_up(namespace_t *ns, module_t *module, name_t *name,
   module_t *upmod;
   
   if (ns_debug) {
-    debug("  Module '%s' not found - delegating to higher level namespace", name_tostring(name));
-  }
-  if (!module) {
-    module = _ns_add(ns, name);
+    debug("  Module '%s' not found - delegating to higher level %s", 
+          name_tostring(name), ns_tostring(ns));
   }
   updata = _ns_import(ns -> up, name, args, kwargs);
   if (data_is_module(updata)) {
     upmod = data_moduleval(updata);
+    if (!module) {
+      module = _ns_add(ns, name);
+    }
     _mod_copy_object(module, upmod -> obj);
     return data_create(Module, module);
   } else {

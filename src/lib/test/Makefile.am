@@ -15,4 +15,4 @@ lib_LTLIBRARIES    = libtestlib.la
 libtestlib_la_SOURCES = testlib.c
 
 corelib_SOURCES  = tcore.c tlist.c tarray.c tdict.c tset.c tstr.c \
-                   tbuffer.c tresolve.c
+                   tbuffer.c tresolve.c tsocket.c
