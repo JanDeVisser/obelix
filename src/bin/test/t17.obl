@@ -1,0 +1,8 @@
+import net
+
+socket = net.connect("www.google.com", 80)
+f = socket.fd
+f.print("GET /")
+line = f.readline()
+print(line)
+socket.close()

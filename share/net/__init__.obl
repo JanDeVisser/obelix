@@ -1,5 +1,5 @@
 /*
- * /obelix/share/sys/__init__.obl - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/share/net/__init__.obl - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -17,7 +17,4 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-func getenv() -> "liboblstdlib.so:_function_getenv"
-env = getenv()
-
-func uname() -> "liboblstdlib.so:_function_uname"
+func connect() -> "liboblstdlib.so:_function_connect"

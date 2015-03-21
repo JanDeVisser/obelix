@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
   name = name_split(argv[optind], ".");
   obl_argv = str_array_create(argc - optind);
   for (ix = optind + 1; ix < argc; ix++) {
-    array_push(obl_argv, strdup(argv[ix]));
+    array_push(obl_argv, data_create(String, argv[ix]));
   }
   retval = run_script(loader, name, obl_argv);
   array_free(obl_argv);

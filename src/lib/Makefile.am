@@ -30,7 +30,8 @@ liboblcore_la_SOURCES = \
 		str.c \
 		resolve.c \
 		user.c \
-		logging.c
+		logging.c \
+		socket.c
 
 # Disabled for now. Don't need them and expr needs to be moved to types.		
 #		tree.c 

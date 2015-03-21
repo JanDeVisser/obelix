@@ -30,5 +30,6 @@ AC_CONFIG_FILES([ \
   src/stdlib/test/Makefile \
   share/Makefile \
   share/sys/Makefile \
+  share/net/Makefile \
   ])
 AC_OUTPUT
