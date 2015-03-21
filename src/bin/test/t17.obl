@@ -1,8 +1,9 @@
 import net
 
-socket = net.connect("www.google.com", 80)
-f = socket.fd
-f.print("GET /")
-line = f.readline()
+socket = net.connect("www.google.com", "http")
+print("Connected to ${0}, service ${1}", socket.host, socket.service)
+socket.fd.print("GET /")
+line = socket.fd.readline()
 print(line)
 socket.close()
+

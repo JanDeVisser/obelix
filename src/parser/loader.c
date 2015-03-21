@@ -48,9 +48,11 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   fsentry_t *init;
   file_t    *ret;
   char      *name;
+  char      *buf;
 
   assert(*(basedir + (strlen(basedir) - 1)) == '/');
-  name = strdup(name_tostring_sep(n, "/"));
+  buf = strdup(name_tostring_sep(n, "/"));
+  name = buf;
   if (script_debug) {
     debug("_scriptloader_open_file('%s', '%s')", basedir, name);
   }
@@ -83,7 +85,7 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   } else {
     ret = NULL;
   }
-  free(name);
+  free(buf);
   fsentry_free(e);
   free(fname);
   return ret;

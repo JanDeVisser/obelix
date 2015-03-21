@@ -1,6 +1,5 @@
 /*
- * /
-#include "data.h"obelix/src/stdlib/net.c - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
+ * obelix/src/stdlib/net.c - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -26,9 +25,17 @@ static void          _net_init(void) __attribute__((constructor));
 /* -------------------------------------------------------------------------*/
 
 int    Socket;
+int    net_debug = 0;
+
+typedef struct _socket_wrapper {
+  socket_t *socket;
+  data_t   *fd;
+} socket_wrapper_t;
+
+static socket_wrapper_t * _wrapper_create(socket_t *);
+static void               _wrapper_free(socket_wrapper_t *);
 
 static data_t *      _socket_new(data_t *, va_list);
-static data_t *      _socket_copy(data_t *, data_t *);
 static int           _socket_cmp(data_t *, data_t *);
 static char *        _socket_tostring(data_t *);
 static unsigned int  _socket_hash(data_t *);
@@ -38,7 +45,6 @@ static data_t *      _socket_close(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_list[] = {
   { .id = FunctionNew,      .fnc = (void_t) _socket_new },
-  { .id = FunctionCopy,     .fnc = (void_t) _socket_copy },
   { .id = FunctionCmp,      .fnc = (void_t) _socket_cmp },
   { .id = FunctionFree,     .fnc = (void_t) socket_free },
   { .id = FunctionToString, .fnc = (void_t) _socket_tostring },
@@ -59,7 +65,7 @@ static methoddescr_t _methoddescr_socket[] = {
 };
 
 #define data_is_socket(d) ((d) && (data_type((d)) == Socket))
-#define data_socketval(d) ((socket_t *) ((data_is_socket((d)) ? (d) -> ptrval : NULL)))
+#define data_socketval(d) ((socket_wrapper_t *) ((data_is_socket((d)) ? (d) -> ptrval : NULL)))
 
 
 /* -------------------------------------------------------------------------*/
@@ -67,10 +73,8 @@ static methoddescr_t _methoddescr_socket[] = {
 void _net_init(void) {
   int ix;
 
+  logging_register_category("net", &net_debug);
   Socket = typedescr_register(&_typedescr_socket);
-  if (file_debug) {
-    debug("File type initialized");
-  }
   for (ix = 0; _methoddescr_socket[ix].type != NoType; ix++) {
     if (_methoddescr_socket[ix].type == -1) {
       _methoddescr_socket[ix].type = Socket;
@@ -81,10 +85,42 @@ void _net_init(void) {
 
 /* -------------------------------------------------------------------------*/
 
+socket_wrapper_t * _wrapper_create(socket_t *socket) {
+  socket_wrapper_t   *wrapper;
+  static typedescr_t *filetype = NULL;
+  file_t             *f;
+  
+  
+  if (!filetype) {
+    filetype = typedescr_get_byname("file");
+    assert(filetype);
+  }
+  
+  wrapper = NEW(socket_wrapper_t);
+  wrapper -> socket = socket;
+  
+  /* FIXME Need better API to create file atoms from open files */
+  wrapper -> fd = data_create(filetype -> type, NULL);
+  f = (file_t *) wrapper -> fd -> ptrval;
+  file_free(f);
+  wrapper -> fd -> ptrval = file_copy(wrapper -> socket -> sockfile);
+  return wrapper;
+}
+
+void _wrapper_free(socket_wrapper_t *wrapper) {
+  if (wrapper) {
+    data_free(wrapper -> fd);
+    socket_free(wrapper -> socket);
+    free(wrapper);
+  }
+}
+
+/* -------------------------------------------------------------------------*/
+
 data_t * _function_connect(char *name, array_t *params, dict_t *kwargs) {
-  data_t  *host;
-  data_t  *service;
-  data_t  *socket;
+  data_t *host;
+  data_t *service;
+  data_t *socket;
 
   assert(params && (array_size(params) >= 2));
   host = (data_t *) array_get(params, 0);
@@ -97,52 +133,42 @@ data_t * _function_connect(char *name, array_t *params, dict_t *kwargs) {
 /* -------------------------------------------------------------------------*/
 
 data_t * _socket_new(data_t *target, va_list args) {
-  socket_t *socket;
-  char     *host;
-  char     *service;
+  char               *host;
+  char               *service;
+  
   
   host = va_arg(args, char *);
   service = va_arg(args, char *);
-  socket = socket_create_byservice(host, service);
-  target -> ptrval = socket;
+
+  /* FIXME Error handling */
+  target -> ptrval = _wrapper_create(socket_create_byservice(host, service));
   return target;
 }
 
-data_t * _socket_copy(data_t *target, data_t *src) {
-  target -> ptrval = socket_copy(data_socketval(src));
-}
-
 int _socket_cmp(data_t *d1, data_t *d2) {
-  return socket_cmp(data_socketval(d1), data_socketval(d2));
+  return socket_cmp(data_socketval(d1) -> socket, data_socketval(d2) -> socket);
 }
 
 char * _socket_tostring(data_t *data) {
-  return socket_tostring(data_socketval(data));
+  return socket_tostring(data_socketval(data) -> socket);
 }
 
 unsigned int _socket_hash(data_t *data) {
-  return socket_hash(data_socketval(data));
+  return socket_hash(data_socketval(data) -> socket);
 }
 
 data_t * _socket_resolve(data_t *data, char *attr) {
-  data_t      *ret;
-  typedescr_t *filetype;
-  file_t      *f;
-  
   if (!strcmp(attr, "fd")) {
-    filetype = typedescr_get_byname("file");
-    assert(filetype);
-    ret = data_create(filetype -> type, NULL);
-    f = (file_t *) ret -> ptrval;
-    file_free(f);
-    ret -> ptrval = file_copy(data_socketval(data) -> sockfile);
-    return ret;
+    return data_copy(data_socketval(data) -> fd);
+  } else if (!strcmp(attr, "host")) {
+    return data_create(String, data_socketval(data) -> socket -> host);
+  } else if (!strcmp(attr, "service")) {
+    return data_create(String, data_socketval(data) -> socket -> service);
   } else {
     return NULL;
   }
 }
 
 data_t * _socket_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, socket_close(data_socketval(self)));
+  return data_create(Int, socket_close(data_socketval(self) -> socket));
 }
-
