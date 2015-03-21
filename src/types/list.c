@@ -181,6 +181,14 @@ array_t * data_list_to_str_array(data_t *list) {
   return dest;
 }
 
+data_t * data_str_array_to_list(array_t *src) {
+  data_t  *ret;
+
+  ret = data_create(List, 0);
+  array_reduce(src, (reduce_t) data_add_all_as_data_reducer, data_arrayval(ret));
+  return ret;
+}
+
 /* ----------------------------------------------------------------------- */
 
 data_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {

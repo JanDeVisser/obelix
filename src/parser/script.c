@@ -533,11 +533,14 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   object_t *self;
 
   script = closure -> script;
-  if (args || (script -> params && array_size(script -> params))) {
-    // FIXME Proper error message
-    assert(args && (array_size(script -> params) == array_size(args)));
-  }
-  if (args) {
+  if (script -> params && array_size(script -> params)) {
+    if (!args || (array_size(script -> params) > array_size(args))) {
+      return data_error(ErrorArgCount, 
+                        "Function %s takes %d arguments, %d provided",
+                        name_tostring(script -> name), 
+                        array_size(script -> params),
+                        (args) ? array_size(args) : 0);
+    }
     for (ix = 0; ix < array_size(args); ix++) {
       closure_set(closure, array_get(script -> params, ix),
                            array_get(args, ix));

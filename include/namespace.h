@@ -66,7 +66,7 @@ extern module_t *    mod_copy(module_t *);
 extern char *        mod_tostring(module_t *);
 extern int           mod_has_module(module_t *, char *);
 extern data_t *      mod_get_module(module_t *, char *);
-extern module_t *    mod_add_module(module_t *, name_t *);
+extern module_t *    mod_add_module(module_t *, name_t *, module_t *);
 extern object_t *    mod_get(module_t *);
 extern data_t *      mod_set(module_t *, script_t *, array_t *, dict_t *);
 extern data_t *      mod_resolve(module_t *, char *);

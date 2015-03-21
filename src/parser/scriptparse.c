@@ -17,7 +17,10 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <error.h>
+#include <errno.h>
+#include <string.h>
+
+#include <exception.h>
 #include <namespace.h>
 #include <script.h>
 #include <scriptparse.h>
@@ -538,8 +541,16 @@ parser_t * script_parse_native_function(parser_t *parser) {
     ret = NULL;
   } else {
     if (name_size(lib_func) == 2) {
-      resolve_library(name_get(lib_func, 0));
+      if (parser_debug) {
+        debug("Library: %s", name_first(lib_func));
+      }
+      if (!resolve_library(name_first(lib_func))) {
+        error("Error loading library '%s': %s", name_first(lib_func), strerror(errno));
+      }
       /* TODO Error handling */
+    }
+    if (parser_debug) {
+      debug("C Function: %s", name_last(lib_func));
     }
     c_func = (native_t) resolve_function(name_last(lib_func));
     if (c_func) {
@@ -553,6 +564,7 @@ parser_t * script_parse_native_function(parser_t *parser) {
 	debug(" -- defined native function %s", name_tostring(func -> name));
       }
     } else {
+      error("C function '%s' not found", c_func);
       /* FIXME error handling
 	 return data_error(ErrorName,
 	 "Could not find native function '%s'", fname);

@@ -69,6 +69,8 @@ static methoddescr_t _methoddescr_file[] = {
 #define data_is_file(d)  ((d) && (data_type((d)) == File))
 #define data_fileval(d)  ((file_t *) (data_is_file((d)) ? ((d) -> ptrval) : NULL))
 
+extern int file_debug;
+
 /*
  * --------------------------------------------------------------------------
  * List datatype functions
@@ -79,7 +81,9 @@ void _file_init(void) {
   int ix;
 
   File = typedescr_register(&_typedescr_file);
-  debug("File type initialized");
+  if (file_debug) {
+    debug("File type initialized");
+  }
   for (ix = 0; _methoddescr_file[ix].type != NoType; ix++) {
     if (_methoddescr_file[ix].type == -1) {
       _methoddescr_file[ix].type = File;
