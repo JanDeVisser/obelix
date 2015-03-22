@@ -31,7 +31,10 @@ typedef enum _errorcode {
   ErrorNotCallable,
   ErrorRange,
   ErrorIOError,
-  ErrorSysError
+  ErrorSysError,
+  ErrorNotIterable,
+  ErrorNotIterator,
+  ErrorExhausted
 } errorcode_t;
 
 typedef struct _error {

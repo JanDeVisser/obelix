@@ -50,26 +50,27 @@ typedef enum _datatype {
 } datatype_t;
 
 typedef enum _vtable_id {
-  FunctionNone = 0,
-  FunctionNew,
-  FunctionCopy,
-  FunctionCmp,
-  FunctionFree,
-  FunctionToString,
-  FunctionFltValue,
-  FunctionIntValue,
-  FunctionParse,
-  FunctionCast,
-  FunctionHash,
-  FunctionLen,
-  FunctionResolve,
-  FunctionCall,
-  FunctionSet,
-  FunctionRead,
-  FunctionWrite,
-  FunctionOpen,
-  FunctionIter,
-  FunctionNext,
+  FunctionNone        = 0,
+  FunctionNew,       /* 1 */
+  FunctionCopy,      /* 2 */
+  FunctionCmp,       /* 3 */
+  FunctionFree,      /* 4 */
+  FunctionToString,  /* 5 */
+  FunctionFltValue,  /* 6 */
+  FunctionIntValue,  /* 7 */
+  FunctionParse,     /* 8 */
+  FunctionCast,      /* 9 */
+  FunctionHash,      /* 10 */
+  FunctionLen,       /* 11 */
+  FunctionResolve,   /* 12 */
+  FunctionCall,      /* 13 */
+  FunctionSet,       /* 14 */
+  FunctionRead,      /* 15 */
+  FunctionWrite,     /* 16 */
+  FunctionOpen,      /* 17 */
+  FunctionIter,      /* 18 */
+  FunctionHasNext,   /* 19 */
+  FunctionNext,      /* 20 */
   FunctionEndOfListDummy
 } vtable_id_t;
 
@@ -92,6 +93,7 @@ typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
 typedef data_t * (*resolve_name_t)(data_t *, char *);
 typedef data_t * (*call_t)(data_t *, array_t *, dict_t *);
 typedef data_t * (*setvalue_t)(data_t *, char *, data_t *);
+typedef data_t * (*data_fnc_t)(data_t *);
 
 typedef struct _vtable {
   vtable_id_t id;
@@ -135,6 +137,7 @@ extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 extern void_t          typedescr_get_function(typedescr_t *, int);
 extern char *          typedescr_tostring(typedescr_t *);
 extern int             typedescr_is(typedescr_t *, int);
+extern void            typedescr_dump_vtable(typedescr_t *);
 
 extern data_t *        data_create(int, ...);
 extern data_t *        data_cast(data_t *, int);
@@ -149,6 +152,8 @@ extern void_t          data_get_function(data_t *, int);
 extern int             data_is_numeric(data_t *);
 extern int             data_is_error(data_t *t);
 extern int             data_is_callable(data_t *);
+extern int             data_is_iterable(data_t *);
+extern int             data_is_iterator(data_t *);
 extern data_t *        data_copy(data_t *);
 extern unsigned int    data_hash(data_t *);
 extern char *          data_tostring(data_t *);
@@ -160,6 +165,9 @@ extern data_t *        data_resolve(data_t *, name_t *);
 extern data_t *        data_invoke(data_t *, name_t *, array_t *, dict_t *);
 extern data_t *        data_get(data_t *, name_t *);
 extern data_t *        data_set(data_t *, name_t *, data_t *);
+extern data_t *        data_iter(data_t *);
+extern data_t *        data_has_next(data_t *);
+extern data_t *        data_next(data_t *);
 extern int             data_count(void);
 
 extern double          data_floatval(data_t *);
