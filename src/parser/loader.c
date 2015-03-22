@@ -198,8 +198,6 @@ static data_t * _scriptloader_import_sys(scriptloader_t *loader,
  */
 
 #define GRAMMAR_FILE    "grammar.txt"
-/* #define OBELIX_SYS_PATH "/usr/share/obelix" */
-#define OBELIX_SYS_PATH "install/share/"
 
 scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path, 
                                      char *grammarpath) {
@@ -222,7 +220,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
     sys_dir = getenv("OBELIX_SYS_PATH");
   }
   if (!sys_dir) {
-    sys_dir = OBELIX_SYS_PATH;
+    sys_dir = OBELIX_DATADIR;
   }
   len = strlen(sys_dir);
   ret -> system_dir = (char *) new (len + ((*(sys_dir + (len - 1)) != '/') ? 2 : 1));

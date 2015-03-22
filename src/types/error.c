@@ -36,7 +36,10 @@ static code_label_t builtin_errors[] = {
   { .code = ErrorNotCallable, .label = "ErrorNotCallable" },
   { .code = ErrorRange,       .label = "ErrorRange" },
   { .code = ErrorIOError,     .label = "ErrorIOError" },
-  { .code = ErrorSysError,    .label = "ErrorSysError" }
+  { .code = ErrorSysError,    .label = "ErrorSysError" },
+  { .code = ErrorNotIterable, .label = "ErrorNotIterable" },
+  { .code = ErrorExhausted,   .label = "ErrorExhausted" },
+  { .code = ErrorNotIterator, .label = "ErrorNotIterator" }
 };
 
 static int           num_errors = sizeof(builtin_errors) / sizeof(code_label_t);

@@ -38,6 +38,10 @@ static data_t * _any_hasattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_getattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_setattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_callable(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_iterable(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_iter(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_next(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_has_next(data_t *, char *, array_t *, dict_t *);
 
 static void     _data_call_free(typedescr_t *, void *);
 
@@ -65,6 +69,10 @@ static methoddescr_t _methoddescr_any[] = {
   { .type = Any,    .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "setattr",  .method = _any_setattr,  .argtypes = { String, Any, NoType },    .minargs = 2, .varargs = 0 },
   { .type = Any,    .name = "callable", .method = _any_callable, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
+  { .type = Any,    .name = "iterable", .method = _any_iterable, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
+  { .type = Any,    .name = "iter",     .method = _any_iter,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
+  { .type = Any,    .name = "next",     .method = _any_next,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
+  { .type = Any,    .name = "hasnext",  .method = _any_has_next, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
   { .type = NoType, .name = NULL,       .method = NULL,          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
@@ -89,6 +97,7 @@ static code_label_t _function_id_labels[] = {
   { .code = FunctionOpen,     .label = "Open" },
   { .code = FunctionIter,     .label = "Iter" },
   { .code = FunctionNext,     .label = "Next" },
+  { .code = FunctionHasNext,  .label = "HasNext" },
   { .code = FunctionEndOfListDummy, .label = "End" },
   { .code = -1,             .label = NULL }
 };
@@ -167,6 +176,25 @@ data_t * _any_callable(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   
   obj = (array_size(args)) ? data_array_get(args, 0) : self;
   return data_create(Bool, data_is_callable(obj));
+}
+
+data_t * _any_iterable(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *obj;
+  
+  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  return data_create(Bool, data_is_iterable(obj));
+}
+
+data_t * _any_iter(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_iter(self);
+}
+
+data_t * _any_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_next(self);
+}
+
+data_t * _any_has_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_has_next(self);
 }
 
 /*
@@ -804,6 +832,101 @@ int data_cmp(data_t *d1, data_t *d2) {
     return (cmp) ? cmp(d1, d2) : ((d1 -> ptrval == d2 -> ptrval) ? 0 : 1);
   }
 }
+
+/* - I T E R A T O R S -----------------------------------------------------*/
+
+int data_is_iterable(data_t *data) {
+  typedescr_t *td;
+  
+  if (data) {
+    td = data_typedescr(data);
+    assert(td);
+    return (typedescr_get_function(td, FunctionIter) != NULL);
+  } else {
+    return 0;
+  }  
+}
+
+int data_is_iterator(data_t *data) {
+  typedescr_t *td;
+  
+  if (data) {
+    td = data_typedescr(data);
+    assert(td);
+    return (typedescr_get_function(td, FunctionNext) != NULL) &&
+           (typedescr_get_function(td, FunctionHasNext) != NULL);
+  } else {
+    return 0;
+  }  
+}
+
+data_t * data_iter(data_t *data) {
+  typedescr_t *type;
+  data_fnc_t   iter;
+  data_t      *ret = NULL;
+
+  if (data) {
+    type = data_typedescr(data);
+    iter = (data_fnc_t) typedescr_get_function(type, FunctionIter);
+    if (iter) {
+      ret = iter(data);
+    }
+  }
+  if (!ret) {
+    ret = data_error(ErrorNotIterable,
+                     "Atom '%s' is not iterable",
+                     data_tostring(data));
+  }
+  return ret;
+}
+
+data_t * data_has_next(data_t *data) {
+  typedescr_t *type;
+  data_fnc_t   hasnext;
+  data_t      *ret = NULL;
+
+  if (data) {
+    type = data_typedescr(data);
+    hasnext = (data_fnc_t) typedescr_get_function(type, FunctionHasNext);
+    if (hasnext) {
+      ret = hasnext(data);
+    }
+  }
+  if (!ret) {
+    ret = data_error(ErrorNotIterator,
+                     "Atom '%s' is not an iterator",
+                     data_tostring(data));
+  }
+  return ret;  
+}
+
+data_t * data_next(data_t *data) {
+  typedescr_t *type;
+  data_fnc_t   next;
+  data_fnc_t   hasnext;
+  data_t      *ret = NULL;
+  data_t      *hn;
+
+  if (data) {
+    type = data_typedescr(data);
+    hasnext = (data_fnc_t) typedescr_get_function(type, FunctionHasNext);
+    next = (data_fnc_t) typedescr_get_function(type, FunctionNext);
+    if (next && hasnext) {
+      hn = hasnext(data);
+      ret = (hn -> intval)
+        ? next(data)
+        : data_error(ErrorExhausted, "Iterator '%s' exhausted", data_tostring(data));
+    }
+  }
+  if (!ret) {
+    ret = data_error(ErrorNotIterator,
+                     "Atom '%s' is not an iterator",
+                     data_tostring(data));
+  }
+  return ret;
+}
+
+/* -------------------------------------------------------------------------*/
 
 int data_count(void) {
   return _data_count;

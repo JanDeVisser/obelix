@@ -146,7 +146,7 @@ factortail                  := mult_op           [ push                      ]
 
 factor                      := ( expr )
                              | var_or_call 
-                             | constant  
+                             | constant
                              ;
 
 var_or_call                 := new
@@ -236,7 +236,7 @@ attrlist_tail               := ,
 
 logic_op                    := > | ">=" | < | "<=" | "==" | "!=" ;
                              
-add_op                      := + | - ;
+add_op                      := + | - | ~;
 
 mult_op                     := * | / | ^ | % ;
 

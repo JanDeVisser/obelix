@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -DOBELIX_DATADIR=\"$(datadir)\" -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
 # AM_CFLAGS   = -Werror
 LDADD       = -ldl -lm -lcheck

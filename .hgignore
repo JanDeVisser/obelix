@@ -20,7 +20,7 @@ m4/.*
 config
 autom4te.cache
 Makefile.in
-Makefile
+Makefile$
 aclocal.m4
 .kdev4*
 \.orig\..*$
