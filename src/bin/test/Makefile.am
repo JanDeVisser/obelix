@@ -29,4 +29,4 @@ LDADD   =       $(top_srcdir)/src/lib/liboblcore.la \
 		$(top_srcdir)/src/stdlib/liboblstdlib.la \
 		@CHECK_LIBS@ -lm -lrt -ldl
 
-types_SOURCES     = scripts.c
+scripts_SOURCES     = scripts.c
