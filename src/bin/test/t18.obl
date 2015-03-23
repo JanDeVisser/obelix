@@ -1,0 +1,7 @@
+a = 0 ~ 10
+i = a.iter()
+sum = 0
+while i.hasnext()
+  sum = sum + i.next()
+end
+return sum /* 45 */
