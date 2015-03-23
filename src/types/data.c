@@ -427,7 +427,7 @@ data_t * data_create(int type, ...) {
     va_start(arg, type);
     initialized = n(ret, arg);
     va_end(arg);
-    if (!initialized) {
+    if (initialized != ret) {
       data_free(ret);
     }
   } else {
@@ -783,7 +783,7 @@ char * data_tostring(data_t *data) {
     type = data_typedescr(data);
     tostring = (tostring_t) typedescr_get_function(type, FunctionToString);
     if (tostring) {
-      ret =  tostring(data);
+      ret = tostring(data);
       if (ret && !data -> str) {
 	data -> str = strdup(ret);
       }
@@ -916,6 +916,7 @@ data_t * data_next(data_t *data) {
       ret = (hn -> intval)
         ? next(data)
         : data_error(ErrorExhausted, "Iterator '%s' exhausted", data_tostring(data));
+      data_free(hn);
     }
   }
   if (!ret) {

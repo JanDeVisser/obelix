@@ -34,6 +34,8 @@ static char *        _int_tostring(data_t *);
 static data_t *      _int_cast(data_t *, int);
 static unsigned int  _int_hash(data_t *);
 static data_t *      _int_parse(char *);
+static data_t *      _int_incr(data_t *);
+static data_t *      _int_decr(data_t *);
 static double        _int_fltvalue(data_t *);
 static int           _int_intvalue(data_t *);
 
@@ -61,6 +63,8 @@ static vtable_t _vtable_int[] = {
   { .id = FunctionHash,     .fnc = (void_t) _int_hash },
   { .id = FunctionFltValue, .fnc = (void_t) _int_fltvalue },
   { .id = FunctionIntValue, .fnc = (void_t) _int_intvalue },
+  { .id = FunctionDecr,     .fnc = (void_t) _int_decr },
+  { .id = FunctionIncr,     .fnc = (void_t) _int_incr },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -174,6 +178,14 @@ data_t * _int_parse(char *str) {
   } else {
     return NULL;
   }
+}
+
+data_t * _int_incr(data_t *self) {
+  return data_create(Int, self -> intval + 1);
+}
+
+data_t * _int_decr(data_t *self) {
+  return data_create(Int, self -> intval - 1);
 }
 
 double _int_fltvalue(data_t *data) {
