@@ -45,21 +45,22 @@ typedef enum _datatype {
   Name,         /* 15 */
   Native,       /* 16 */
   NVP,          /* 17 */
+  Range,        /* 18 */
   Any           = 100,
   UserTypeRange = 999
 } datatype_t;
 
 typedef enum _vtable_id {
   FunctionNone        = 0,
-  FunctionNew,       /* 1 */
-  FunctionCopy,      /* 2 */
-  FunctionCmp,       /* 3 */
-  FunctionFree,      /* 4 */
-  FunctionToString,  /* 5 */
-  FunctionFltValue,  /* 6 */
-  FunctionIntValue,  /* 7 */
-  FunctionParse,     /* 8 */
-  FunctionCast,      /* 9 */
+  FunctionNew,       /* 1  */
+  FunctionCopy,      /* 2  */
+  FunctionCmp,       /* 3  */
+  FunctionFree,      /* 4  */
+  FunctionToString,  /* 5  */
+  FunctionFltValue,  /* 6  */
+  FunctionIntValue,  /* 7  */
+  FunctionParse,     /* 8  */
+  FunctionCast,      /* 9  */
   FunctionHash,      /* 10 */
   FunctionLen,       /* 11 */
   FunctionResolve,   /* 12 */
@@ -71,6 +72,8 @@ typedef enum _vtable_id {
   FunctionIter,      /* 18 */
   FunctionHasNext,   /* 19 */
   FunctionNext,      /* 20 */
+  FunctionDecr,      /* 21 */
+  FunctionIncr,      /* 22 */
   FunctionEndOfListDummy
 } vtable_id_t;
 

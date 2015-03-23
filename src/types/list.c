@@ -1,5 +1,5 @@
 /*
- * /obelix/src/data/data_int.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/src/types/list.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -67,8 +67,6 @@ static typedescr_t _typedescr_list =   {
 /* FIXME Add append, delete, head, tail, etc... */
 static methoddescr_t _methoddescr_list[] = {
   { .type = Any,    .name = "list",  .method = _list_create,.argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "range", .method = _list_range, .argtypes = { Int, Int, Any },          .minargs = 2, .varargs = 0 },
-  { .type = Int,    .name = "~",     .method = _list_range, .argtypes = { Int, Any, Any },          .minargs = 1, .varargs = 0 },
   { .type = List,   .name = "len",   .method = _list_len,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = List,   .name = "at",    .method = _list_at,    .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = List,   .name = "slice", .method = _list_slice, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
@@ -223,21 +221,6 @@ data_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   
   if (args) {
     array_reduce(args, (reduce_t) data_add_all_reducer, data_arrayval(ret));
-  }
-  return ret;
-}
-
-data_t * _list_range(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *ret;
-  data_t *min;
-  data_t *max;
-  int     ix;
-  
-  min = (data_type(self) == Int) ? self : data_array_get(args, 0);
-  max = data_array_get(args, (data_type(self) == Int) ? 0 : 1);
-  ret = data_create(List, 0);
-  for (ix = data_intval(min); ix < data_intval(max); ix++) {
-    array_push(data_arrayval(ret), data_create(Int, ix));
   }
   return ret;
 }
