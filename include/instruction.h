@@ -27,14 +27,16 @@
 
 typedef enum _instruction_type {
   ITAssign,
-  ITPushVar,
-  ITPushVal,
   ITFunctionCall,
-  ITTest,
-  ITPop,
-  ITJump,
   ITImport,
-  ITNop
+  ITIter,
+  ITJump,
+  ITNext,
+  ITNop,
+  ITPop,
+  ITPushVal,
+  ITPushVar,
+  ITTest,
 } instruction_type_t;
 
 typedef struct _instruction {
@@ -53,6 +55,8 @@ extern instruction_t *  instruction_create_pushvar(name_t *);
 extern instruction_t *  instruction_create_pushval(data_t *);
 extern instruction_t *  instruction_create_function(name_t *, int, long, array_t *);
 extern instruction_t *  instruction_create_test(char *);
+extern instruction_t *  instruction_create_iter();
+extern instruction_t *  instruction_create_next(char *);
 extern instruction_t *  instruction_create_jump(char *);
 extern instruction_t *  instruction_create_import(name_t *);
 extern instruction_t *  instruction_create_pop(void);

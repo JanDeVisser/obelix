@@ -42,15 +42,15 @@ end_stmt                    := "end"
 while_loop                  := "while"           [ push_label                ]
                                expr              [ emit_test                 ]
                                statements
-                               end_stmt          [ emit_end_while            ]
+                               end_stmt          [ emit_end_loop             ]
                              ;
 
 for_loop                    := "for"
-                               'i'
+                               identifier
                                "in"
-                               expr
+                               expr              [ emit_for                  ]
                                statements
-                               end_stmt
+                               end_stmt          [ emit_end_loop             ]
                              ;
                              
 func_def                    := sync_async

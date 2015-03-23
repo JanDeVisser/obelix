@@ -52,44 +52,53 @@ static void             _instruction_free_value(instruction_t *);
 static void             _instruction_free_name_value(instruction_t *);
 static char *           _instruction_tostring_name(instruction_t *);
 static char *           _instruction_tostring_value(instruction_t *);
+
 static data_t *         _instruction_execute_assign(instruction_t *, closure_t *);
-static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
-static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_function(instruction_t *, closure_t *);
-static data_t *         _instruction_execute_new(instruction_t *, closure_t *);
-static data_t *         _instruction_execute_test(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_jump(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_import(instruction_t *, closure_t *);
-static data_t *         _instruction_execute_pop(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_iter(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_next(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_new(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_nop(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_pop(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_test(instruction_t *, closure_t *);
 
 static instruction_type_descr_t instruction_descr_map[] = {
   { type: ITAssign,   function: _instruction_execute_assign,
     name: "Assign",   free: (free_t) _instruction_free_value,
     tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITPushVar,  function: _instruction_execute_pushvar,
-    name: "PushVar",  free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITPushVal,  function: _instruction_execute_pushval,
-    name: "PushVal",  free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
   { type: ITFunctionCall, function: _instruction_execute_function,
     name: "FunctionCall", free: (free_t) _instruction_free_value,
     tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITTest, function: _instruction_execute_test,
-    name: "Test", free: (free_t) _instruction_free_name,
-    tostring: (tostring_t) _instruction_tostring_name },
-  { type: ITPop, function: _instruction_execute_pop,
-    name: "Pop", free: (free_t) _instruction_free_name,
+  { type: ITImport, function: _instruction_execute_import,
+    name: "Import", free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITIter, function: _instruction_execute_iter,
+    name: "Iterator", free: (free_t) _instruction_free_name,
     tostring: (tostring_t) _instruction_tostring_name },
   { type: ITJump, function: _instruction_execute_jump,
     name: "Jump", free: (free_t) _instruction_free_name,
     tostring: (tostring_t) _instruction_tostring_name },
-  { type: ITImport, function: _instruction_execute_import,
-    name: "Import", free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITNext, function: _instruction_execute_next,
+    name: "Next", free: (free_t) _instruction_free_name,
+    tostring: (tostring_t) _instruction_tostring_name },
   { type: ITNop, function: _instruction_execute_nop,
     name: "Nop", free: (free_t) _instruction_free_name,
+    tostring: (tostring_t) _instruction_tostring_name },
+  { type: ITPop, function: _instruction_execute_pop,
+    name: "Pop", free: (free_t) _instruction_free_name,
+    tostring: (tostring_t) _instruction_tostring_name },
+  { type: ITPushVal,  function: _instruction_execute_pushval,
+    name: "PushVal",  free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITPushVar,  function: _instruction_execute_pushvar,
+    name: "PushVar",  free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITTest, function: _instruction_execute_test,
+    name: "Test", free: (free_t) _instruction_free_name,
     tostring: (tostring_t) _instruction_tostring_name },
 };
 
@@ -321,11 +330,6 @@ data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
   return ret;
 }
 
-data_t * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
-  assert(instr -> name);
-  return data_create(String, instr -> name);
-}
-
 data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
   name_t  *imp = data_nameval(instr -> value);
   data_t  *ret;
@@ -335,15 +339,51 @@ data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
   return (data_is_error(ret)) ? ret : NULL;
 }
 
+data_t * _instruction_execute_iter(instruction_t *instr, closure_t *closure) {
+  data_t *value;
+  data_t *iter;
+  
+  value = closure_pop(closure);
+  iter = data_iter(value);
+  closure_push(closure, iter);
+  data_free(value);
+  return NULL;
+}
+
+data_t * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
+  assert(instr -> name);
+  return data_create(String, instr -> name);
+}
+
+data_t * _instruction_execute_next(instruction_t *instr, closure_t *closure) {
+  data_t  *ret = NULL;
+  data_t  *iter;
+  data_t  *next;
+ 
+  iter = closure_pop(closure);
+  assert(iter);
+  assert(instr -> name);
+  next = data_next(iter);
+  
+  if (data_is_error(next) && (data_errorval(next) -> code == ErrorExhausted)) {
+    data_free(iter);
+    ret = data_create(String, instr -> name);
+  } else {
+    closure_push(closure, iter);
+    closure_push(closure, next);
+  }
+  return ret;
+}
+
+data_t * _instruction_execute_nop(instruction_t *instr, closure_t *closure) {
+  return NULL;
+}
+
 data_t * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {
   data_t *value;
 
   value = closure_pop(closure);
   data_free(value);
-  return NULL;
-}
-
-data_t * _instruction_execute_nop(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
@@ -402,6 +442,14 @@ instruction_t * instruction_create_jump(char *label) {
 
 instruction_t * instruction_create_import(name_t *module) {
   return instruction_create(ITImport, NULL, data_create(Name, module));
+}
+
+instruction_t * instruction_create_iter() {
+  return instruction_create(ITIter, "Iterate", NULL);
+}
+
+instruction_t * instruction_create_next(char *end_label) {
+  return instruction_create(ITNext, end_label, NULL);
 }
 
 instruction_t * instruction_create_pop(void) {

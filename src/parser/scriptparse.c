@@ -353,6 +353,26 @@ parser_t * script_parse_emit_test(parser_t *parser) {
   return parser;
 }
 
+parser_t * script_parse_emit_for(parser_t *parser) {
+  script_t      *script;
+  char           next_label[9];
+  char           end_label[9];
+  data_t        *varname;
+
+  script = parser -> data;
+  strrand(next_label, 8);
+  strrand(end_label, 8);
+  varname = datastack_pop(parser -> stack);
+  datastack_push_string(parser -> stack, next_label);
+  script_push_instruction(script, instruction_create_iter());
+  script -> label = next_label;
+  script_push_instruction(script, instruction_create_next(end_label));
+  script_push_instruction(script, instruction_create_assign(data_nameval(varname)));
+  datastack_push_string(parser -> stack, end_label);
+  data_free(varname);
+  return parser;
+}
+
 parser_t * script_parse_emit_jump(parser_t *parser) {
   script_t      *script;
   instruction_t *jump;
@@ -426,7 +446,7 @@ parser_t * script_parse_emit_end(parser_t *parser) {
   return parser;
 }
 
-parser_t * script_parse_emit_end_while(parser_t *parser) {
+parser_t * script_parse_emit_end_loop(parser_t *parser) {
   script_t      *script;
   data_t        *label;
   instruction_t *jump;
@@ -446,7 +466,7 @@ parser_t * script_parse_emit_end_while(parser_t *parser) {
   data_free(label);
 
   /*
-   * Second label: The one pushed after the while statement. This is the one
+   * Second label: The one pushed after the while/for statement. This is the one
    * we have to jump back to:
    */
   label = datastack_pop(parser -> stack);
