@@ -35,6 +35,11 @@ static data_t *         _scriptloader_import_sys(scriptloader_t *, name_t *);
 
 static scriptloader_t * _loader = NULL;
 
+static code_label_t obelix_option_labels[] = {
+  { .code = ObelixOptionList, .label = "ObelixOptionList" },
+  { .code = ObelixOptionLAST, .label = NULL }
+};
+
 /*
  * scriptloader_t - static functions
  */
@@ -260,6 +265,10 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
   if (script_debug) {
     debug("  Loaded grammar");
   }
+  ret -> options = data_array_create((int) ObelixOptionLAST);
+  for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
+    scriptloader_set_option(ret, ix, 0L);
+  }
 
   ret -> parser = parser_create(ret -> grammar);
   if (script_debug) {
@@ -302,11 +311,26 @@ void scriptloader_free(scriptloader_t *loader) {
   if (loader) {
     free(loader -> system_dir);
     name_free(loader -> load_path);
+    array_free(loader -> options);
     grammar_free(loader -> grammar);
     parser_free(loader -> parser);
     ns_free(loader -> ns);
     free(loader);
   }
+}
+
+scriptloader_t * scriptloader_set_option(scriptloader_t *loader, obelix_option_t option, long value) {
+  data_t *opt = data_create(Int, value);
+  
+  array_set(loader -> options, (int) option, opt);
+  return loader;
+}
+
+long scriptloader_get_option(scriptloader_t *loader, obelix_option_t option) {
+  data_t *opt;
+  
+  opt = data_array_get(loader -> options, (int) option);
+  return data_intval(opt);
 }
 
 data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader_t *reader) {
@@ -325,6 +349,7 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader
     if (loader -> ns) {
       parser_set(loader -> parser, "ns", data_create(Pointer, sizeof(namespace_t), loader -> ns));
     }
+    parser_set(loader -> parser, "options", data_create_list(loader -> options));
     ret = parser_parse(loader -> parser, reader);
     if (!ret) {
       script = (script_t *) loader -> parser -> data;

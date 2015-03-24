@@ -1,5 +1,6 @@
 /*
- * /obelix/src/scriptparse.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ * /
+#include "loader.h"obelix/src/scriptparse.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -21,69 +22,24 @@
 #include <string.h>
 
 #include <exception.h>
+#include <loader.h>
 #include <namespace.h>
 #include <script.h>
 #include <scriptparse.h>
 
 static name_t *   _script_pop_operation(parser_t *);
-static name_t *   _script_pop_and_build_varname(parser_t *);
 static parser_t * _script_parse_emit_epilog(parser_t *);
+static long       _script_parse_get_option(parser_t *, obelix_option_t);
 
 /* ----------------------------------------------------------------------- */
 
 name_t * _script_pop_operation(parser_t *parser) {
   data_t *data;
-  char   *opstr;
-  int     opint;
-  char    buf[2];
   name_t *ret;
   
   data = datastack_pop(parser -> stack);
-  switch (data_type(data)) {
-    case String:
-      opstr = data_charval(data);
-      break;
-    case Int:
-      opint = data_intval(data);
-      buf[0] = opint;
-      buf[1] = 0;
-      opstr = buf;
-      break;
-  }
-  ret = name_create(1, opstr);
+  ret = name_create(1, data_charval(data));
   data_free(data);
-  if (parser_debug) {
-    debug(" -- operation: %s", name_tostring(ret));
-  }
-  return ret;
-}
-
-name_t * _script_pop_and_build_varname(parser_t *parser) {
-  data_t  *data;
-  data_t  *count;
-  int      ix;
-  array_t *arr;
-  name_t  *ret;
-  str_t   *debugstr;
-
-  count = (data_t *) datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug("  -- #components: %d", data_intval(count));
-  }
-  arr = str_array_create(data_intval(count));
-  for (ix = data_intval(count) - 1; ix >= 0; ix--) {
-    data = datastack_pop(parser -> stack);
-    assert(data_type(data) == String);
-    array_set(arr, ix, strdup(data_charval(data)));
-    data_free(data);
-  }
-  ret = name_create(0);
-  name_append_array(ret, arr);
-  array_free(arr);
-  data_free(count);
-  if (parser_debug) {
-    debug("  -- varname: %s", name_tostring(ret));
-  }
   return ret;
 }
 
@@ -105,10 +61,18 @@ parser_t * _script_parse_emit_epilog(parser_t *parser) {
   
   script -> label = strdup("END");
   script_parse_emit_nop(parser);
-  if (script_debug) {
+  if (script_debug || _script_parse_get_option(parser, ObelixOptionList)) {
     script_list(script);
   }
   return parser;
+}
+
+long _script_parse_get_option(parser_t *parser, obelix_option_t option) {
+  data_t  *options = parser_get(parser, "options");
+  array_t *list = data_arrayval(options);
+  data_t  *opt = data_array_get(list, option);
+  
+  return data_intval(opt);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -365,7 +329,7 @@ parser_t * script_parse_emit_for(parser_t *parser) {
   varname = datastack_pop(parser -> stack);
   datastack_push_string(parser -> stack, next_label);
   script_push_instruction(script, instruction_create_iter());
-  script -> label = next_label;
+  script -> label = strdup(next_label);
   script_push_instruction(script, instruction_create_next(end_label));
   script_push_instruction(script, instruction_create_assign(data_nameval(varname)));
   datastack_push_string(parser -> stack, end_label);
