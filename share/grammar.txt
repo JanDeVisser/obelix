@@ -66,7 +66,7 @@ sync_async                  := "async"           [ pushval: 1                ]
                              |                   [ pushval: 0                ]
                              ;
                              
-func_block                  := "begin"           [ start_function            ]
+func_block                  :=                   [ start_function            ]
                                statements
                                end_stmt          [ end_function              ]
                              | link_clause       [ native_function           ]
@@ -119,7 +119,7 @@ expr                        := predicate
                                predicatetail
                              ;
                          
-predicatetail               := logic_op          [ push                      ]
+predicatetail               := logic_op          [ push_tokenstring          ]
                                predicate         [ emit_infix_op             ]
                              |
                              ;
@@ -128,7 +128,7 @@ predicate                   := term
                                termtail
                              ;
 
-termtail                    := add_op            [ push                      ]
+termtail                    := add_op            [ push_tokenstring          ]
                                term              [ emit_infix_op             ]
                                termtail
                              | 
@@ -138,7 +138,7 @@ term                        := factor
                                factortail 
                              ;
 
-factortail                  := mult_op           [ push                      ]
+factortail                  := mult_op           [ push_tokenstring          ]
                                factor            [ emit_infix_op             ] 
                                factortail
                              | 
@@ -184,8 +184,8 @@ signed_number               := sign
                                number            [ push_signed_val           ]
                             ;
 
-sign                        := +                 [ push                      ]
-                             | -                 [ push                      ]
+sign                        := +                 [ push_tokenstring          ]
+                             | -                 [ push_tokenstring          ]
                              |                   [ pushval: '+'              ]
                              ;
 

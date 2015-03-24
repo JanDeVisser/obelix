@@ -448,6 +448,14 @@ parser_t * parser_push(parser_t *parser) {
   return ret;
 }
 
+parser_t * parser_push_tokenstring(parser_t *parser) {
+  data_t   *data = data_create(String, token_token(parser -> last_token));
+  parser_t *ret = parser_pushval(parser, data);
+  
+  data_free(data);
+  return ret;
+}
+
 parser_t * parser_bookmark(parser_t *parser) {
   if (parser_debug) {
     debug("    Setting bookmark at depth %d", datastack_depth(parser -> stack));

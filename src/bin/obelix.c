@@ -104,8 +104,9 @@ int main(int argc, char **argv) {
   int             opt;
   scriptloader_t *loader;
   int             retval;
+  int             list = 0;
 
-  while ((opt = getopt(argc, argv, "s:g:d:p:l:")) != -1) {
+  while ((opt = getopt(argc, argv, "s:g:d:p:v:l")) != -1) {
     switch (opt) {
       case 's':
         syspath = optarg;
@@ -119,8 +120,11 @@ int main(int argc, char **argv) {
       case 'p':
         basepath = optarg;
         break;
-      case 'l':
+      case 'v':
         log_level = atoi(optarg);
+        break;
+      case 'l':
+        list = 1;
         break;
     }
   }
@@ -140,6 +144,7 @@ int main(int argc, char **argv) {
   free(basepath);
   
   loader = scriptloader_create(syspath, path, grammar);
+  scriptloader_set_option(loader, ObelixOptionList, list);
 
   name = build_name(argv[optind]);
   obl_argv = str_array_create(argc - optind);

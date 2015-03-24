@@ -26,12 +26,18 @@
 #include <namespace.h>
 #include <script.h>
 
+typedef enum _obelix_option {
+  ObelixOptionList,
+  ObelixOptionLAST
+} obelix_option_t;
+
 typedef struct _scriptloader {
-  name_t            *load_path;
-  char              *system_dir;
-  grammar_t         *grammar;
-  parser_t          *parser;
-  namespace_t       *ns;
+  name_t      *load_path;
+  char        *system_dir;
+  grammar_t   *grammar;
+  parser_t    *parser;
+  namespace_t *ns;
+  array_t     *options;
 } scriptloader_t;
 
 /*
@@ -41,6 +47,7 @@ typedef struct _scriptloader {
 extern scriptloader_t * scriptloader_create(char *, name_t *, char *);
 extern scriptloader_t * scriptloader_get(void);
 extern void             scriptloader_free(scriptloader_t *);
+extern scriptloader_t * scriptloader_set_option(scriptloader_t *, obelix_option_t, long);
 extern data_t *         scriptloader_load_fromreader(scriptloader_t *, char *, reader_t *);
 extern data_t *         scriptloader_load(scriptloader_t *, name_t *);
 extern data_t *         scriptloader_import(scriptloader_t *, name_t *);

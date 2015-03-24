@@ -1,10 +1,8 @@
 func obj()
-begin
   x = 1
   y = "foo"
 
   func bar(quux)
-  begin
     print(quux)
     return quux * 2
   end

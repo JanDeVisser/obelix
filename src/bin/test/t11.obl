@@ -1,5 +1,4 @@
 func obj()
-begin
   x = 1
   y = "foo"
 end
