@@ -39,7 +39,7 @@ static code_label_t builtin_errors[] = {
   { .code = ErrorSysError,    .label = "ErrorSysError" },
   { .code = ErrorNotIterable, .label = "ErrorNotIterable" },
   { .code = ErrorExhausted,   .label = "ErrorExhausted" },
-  { .code = ErrorNotIterator, .label = "ErrorNotIterator" }
+  { .code = ErrorNotIterator, .label = "ErrorNotIterator" },
 };
 
 static int           num_errors = sizeof(builtin_errors) / sizeof(code_label_t);
@@ -51,6 +51,9 @@ static unsigned int  _error_hash(data_t *);
 static data_t *      _error_copy(data_t *, data_t *);
 static int           _error_cmp(data_t *, data_t *);
 static char *        _error_tostring(data_t *);
+
+static data_t *      _error_create(data_t *, char *, array_t *, dict_t *);
+
 
 static vtable_t _vtable_error[] = {
   { .id = FunctionNew,      .fnc = (void_t) _error_new },
@@ -108,16 +111,11 @@ error_t * error_vcreate(int code, va_list args) {
   int      size;
   char    *msg;
   error_t *ret;
-  va_list  args_copy;
 
   ret = NEW(error_t);
   ret -> code = code;
   msg = va_arg(args, char *);
-  va_copy(args_copy, args);
-  size = vsnprintf(NULL, 0, msg, args);
-  va_end(args_copy);
-  ret -> msg = (char *) new(size + 1);
-  vsprintf(ret -> msg, msg, args);
+  vasprintf(&ret -> msg, msg, args);
   return ret;
 }
 
@@ -149,14 +147,8 @@ int error_cmp(error_t *e1, error_t *e2) {
 }
 
 char * error_tostring(error_t *error) {
-  int sz;
-
   if (!error -> str) {
-    error -> str = (char *) new(snprintf(NULL, 0, "Error %s (%d): %s",
-                                         errors[error -> code].label,
-                                         error -> code,
-                                         error -> msg) + 1);
-    sprintf(error -> str, "Error %s (%d): %s",
+    asprintf(&error -> str, "Error %s (%d): %s",
             errors[error -> code].label,
             error -> code,
             error -> msg);

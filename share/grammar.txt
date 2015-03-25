@@ -19,6 +19,8 @@ statement                   := conditional
                              | return_stmt
                              | import_stmt
                              | new
+                             | context_block
+                             | throw
                              | identifier
                                assignment_or_call
                              ;
@@ -105,6 +107,22 @@ import_stmt                 := "import"
 new                         := "new"             [ setup_function: "new" incr ]
                                identifier        [ emit_pushval_from_stack    ]
                                _func_call
+                             ;
+
+context_block               := "context"
+                               identifier
+                               assignment_or_empty [ begin_context_block     ]
+                               statements        
+                               end_stmt          [ end_context_block         ]
+                             ;
+
+assignment_or_empty         :=                   [ dup                       ]
+                                assignment
+                             |
+                             ;
+
+throw                       := "throw"
+                               expr              [ throw_exception           ]
                              ;
 
 assignment_or_call          := assignment

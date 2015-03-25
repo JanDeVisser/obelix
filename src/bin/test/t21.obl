@@ -1,0 +1,21 @@
+func ctx(name)
+  self.name = name
+  
+  func __enter__()
+    print("__enter__ ${0}", self.name)
+  end
+
+  func __catch__(ex)
+    print("__catch__ ${0}: ${1}", self.name, ex.msg)
+    throw ex
+  end
+
+  func __exit__()
+    print("__exit__ ${0}", self.name)
+  end
+  print("new ${0}", self.name)
+end
+
+context c = new ctx("context")
+  throw { msg: "test error" }
+end
