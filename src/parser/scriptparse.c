@@ -574,18 +574,15 @@ parser_t * script_parse_begin_context_block(parser_t *parser) {
   name_t   *varname;
   data_t   *data;
   script_t *script;
-  char      catch_label[9];
-  char      finally_label[9];
+  char      label[9];
 
   script = parser -> data;
-  strrand(catch_label, 8);
-  strrand(finally_label, 8);
+  strrand(label, 8);
   data = datastack_peek(parser -> stack);
   varname = data_nameval(data);
   script_push_instruction(script, 
-			  instruction_create_enter_context(varname, catch_label));
-  datastack_push(parser -> stack, data_create(String, catch_label));
-  datastack_push(parser -> stack, data_create(String, finally_label));
+			  instruction_create_enter_context(varname, label));
+  datastack_push(parser -> stack, data_create(String, label));
   return parser;
 }
 
@@ -594,28 +591,28 @@ parser_t * script_parse_throw_exception(parser_t *parser) {
   script_push_instruction(script, instruction_create_throw());  
 }
 
+parser_t * script_parse_leave(parser_t *parser) {
+  script_t *script = (script_t *) parser -> data;
+  script_push_instruction(script, 
+                          instruction_create_pushval(data_error(ErrorLeave, "Leave")));  
+  script_push_instruction(script, instruction_create_throw());  
+}
+
 parser_t * script_parse_end_context_block(parser_t *parser) {
   name_t   *varname;
   data_t   *data_varname;
-  data_t   *catch_label;
-  data_t   *finally_label;
+  data_t   *label;
   script_t *script;
-  char     *label;
 
   script = parser -> data;
-  finally_label = datastack_pop(parser -> stack);
-  catch_label = datastack_pop(parser -> stack);
+  label = datastack_pop(parser -> stack);
   data_varname = datastack_pop(parser -> stack);
   varname = data_nameval(data_varname);
-  script_push_instruction(script, instruction_create_jump(data_charval(finally_label)));
-  script -> label = data_charval(catch_label);
-  script_push_instruction(script, 
-			  instruction_create_catch(varname));
-  script -> label = data_charval(finally_label);
+  script_push_instruction(script, instruction_create_pushval(data_create(Int, 0)));
+  script -> label = data_charval(label);
   script_push_instruction(script, 
 			  instruction_create_leave_context(varname));
   data_free(data_varname);
-  data_free(catch_label);
-  data_free(finally_label);
+  data_free(label);
   return parser;
 }

@@ -27,7 +27,6 @@
 
 typedef enum _instruction_type {
   ITAssign,
-  ITCatch,
   ITEnterContext,
   ITFunctionCall,
   ITImport,
@@ -55,7 +54,6 @@ struct _closure;
 
 extern instruction_t *  instruction_create(int, char *, data_t *);
 extern instruction_t *  instruction_create_assign(name_t *);
-extern instruction_t *  instruction_create_catch(name_t *);
 extern instruction_t *  instruction_create_enter_context(name_t *, char *);
 extern instruction_t *  instruction_create_leave_context(name_t *);
 extern instruction_t *  instruction_create_pushvar(name_t *);

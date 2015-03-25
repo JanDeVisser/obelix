@@ -21,6 +21,7 @@ statement                   := conditional
                              | new
                              | context_block
                              | throw
+                             | leave
                              | identifier
                                assignment_or_call
                              ;
@@ -123,6 +124,9 @@ assignment_or_empty         :=                   [ dup                       ]
 
 throw                       := "throw"
                                expr              [ throw_exception           ]
+                             ;
+
+leave                       := "leave"           [ leave                     ]
                              ;
 
 assignment_or_call          := assignment

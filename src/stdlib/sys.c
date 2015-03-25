@@ -25,6 +25,7 @@
 #include <data.h>
 #include <exception.h>
 #include <object.h>
+#include <math.h>
 
 extern char   **environ;
 
@@ -88,4 +89,19 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
                      strerror(errno));
   }
   return ret;
+}
+
+data_t * _function_exit(char *name, array_t *params, dict_t *kwargs) {
+  data_t *exit_code;
+  data_t *error;
+  
+  if (params && array_size(params)) {
+    exit_code = data_copy(data_array_get(params, 0));
+  } else {
+    exit_code = data_create(Int, 0);
+  }
+  error = data_error(ErrorExit, "Exit with code '%s'", data_tostring(exit_code));
+  data_errorval(error) -> exception = data_copy(exit_code);
+  data_free(exit_code);
+  return error;
 }

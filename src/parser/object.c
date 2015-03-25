@@ -30,6 +30,7 @@ static void          _data_init_object(void) __attribute__((constructor));
 static data_t *      _data_new_object(data_t *, va_list);
 static data_t *      _data_copy_object(data_t *, data_t *);
 static int           _data_cmp_object(data_t *, data_t *);
+static data_t *      _data_cast_object(data_t *, int);
 static char *        _data_tostring_object(data_t *);
 static unsigned int  _data_hash_object(data_t *);
 static data_t *      _data_call_object(data_t *, array_t *, dict_t *);
@@ -49,6 +50,7 @@ static vtable_t _vtable_object[] = {
   { .id = FunctionNew,      .fnc = (void_t) _data_new_object },
   { .id = FunctionCopy,     .fnc = (void_t) _data_copy_object },
   { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_object },
+  { .id = FunctionCast,     .fnc = (void_t) _data_cast_object },
   { .id = FunctionFree,     .fnc = (void_t) object_free },
   { .id = FunctionToString, .fnc = (void_t) _data_tostring_object },
   { .id = FunctionHash,     .fnc = (void_t) _data_hash_object },
@@ -93,6 +95,18 @@ data_t * _data_copy_object(data_t *target, data_t *src) {
 
 int _data_cmp_object(data_t *d1, data_t *d2) {
   return object_cmp((object_t *) d1 -> ptrval, (object_t *) d2 -> ptrval);
+}
+
+data_t * _data_cast_object(data_t *src, int totype) {
+  object_t *obj = data_objectval(src);
+  data_t   *ret = NULL;
+
+  switch (totype) {
+    case Bool:
+      ret = data_create(Bool, obj && dict_size(obj -> variables));
+      break;
+  }
+  return ret;
 }
 
 char * _data_tostring_object(data_t *d) {

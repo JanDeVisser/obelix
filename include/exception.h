@@ -35,12 +35,16 @@ typedef enum _errorcode {
   ErrorNotIterable,
   ErrorNotIterator,
   ErrorExhausted,
+  ErrorException,
+  ErrorLeave,
+  ErrorExit
 } errorcode_t;
 
 typedef struct _error {
-  errorcode_t  code;
-  char        *msg;
-  char        *str;
+  errorcode_t   code;
+  char         *msg;
+  char         *str;
+  struct _data *exception;
 } error_t;
 
 extern int            error_register(char *str);

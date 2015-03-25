@@ -560,8 +560,9 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
     debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
   }
   datastack_free(closure -> catchpoints);
-  if (!data_is_error(ret) && closure -> self && 
-      data_is_object(closure -> self)) {
+  if (data_is_error(ret) && (data_errorval(ret) -> exception)) {
+    ret = data_errorval(ret) -> exception;
+  } else if (closure -> self && data_is_object(closure -> self)) {
     self = data_objectval(closure -> self);
     if (self -> constructing) {
       dict_reduce(closure -> variables, (reduce_t) data_put_all_reducer, 

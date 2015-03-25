@@ -21,3 +21,4 @@ func getenv() -> "liboblstdlib.so:_function_getenv"
 env = getenv()
 
 func uname() -> "liboblstdlib.so:_function_uname"
+func exit() -> "liboblstdlib.so:_function_exit"
