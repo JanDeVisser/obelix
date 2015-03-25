@@ -23,6 +23,7 @@
 #include <core.h>
 #include <data.h>
 #include <exception.h>
+#include <math.h>
 
 static code_label_t  builtin_errors[];
 static int           num_errors;
@@ -40,6 +41,7 @@ static code_label_t builtin_errors[] = {
   { .code = ErrorNotIterable, .label = "ErrorNotIterable" },
   { .code = ErrorExhausted,   .label = "ErrorExhausted" },
   { .code = ErrorNotIterator, .label = "ErrorNotIterator" },
+  { .code = ErrorException,   .label = "ErrorException" },
 };
 
 static int           num_errors = sizeof(builtin_errors) / sizeof(code_label_t);
@@ -116,6 +118,8 @@ error_t * error_vcreate(int code, va_list args) {
   ret -> code = code;
   msg = va_arg(args, char *);
   vasprintf(&ret -> msg, msg, args);
+  ret -> str = NULL;
+  ret -> exception = NULL;
   return ret;
 }
 
@@ -125,6 +129,8 @@ error_t * error_copy(error_t *src) {
   ret = NEW(error_t);
   ret -> code = src -> code;
   ret -> msg = strdup(src -> msg);
+  ret -> str = NULL;
+  ret -> exception = data_copy(src -> exception);
   return ret;
 }
 
@@ -132,6 +138,7 @@ void error_free(error_t *error) {
   if (error) {
     free(error -> msg);
     free(error -> str);
+    data_free(error -> exception);
     free(error);
   }
 }
@@ -226,3 +233,10 @@ data_t * data_error(int code, char * msg, ...) {
   return ret;
 }
 
+data_t * data_exception(data_t *exception) {
+  data_t *error;
+  
+  error = data_error(ErrorException, data_tostring(exception));
+  data_errorval(error) -> exception = data_copy(exception);
+  return error;
+}

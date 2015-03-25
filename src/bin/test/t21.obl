@@ -5,14 +5,15 @@ func ctx(name)
     print("__enter__ ${0}", self.name)
   end
 
-  func __catch__(ex)
-    print("__catch__ ${0}: ${1}", self.name, ex.msg)
-    throw ex
+  func __exit__(ex)
+    print("__exit__ ${0}", self.name)
+    if ex
+    then
+      print("__catch__ ${0}: ${1}", self.name, ex.msg)
+      throw ex
+    end
   end
 
-  func __exit__()
-    print("__exit__ ${0}", self.name)
-  end
   print("new ${0}", self.name)
 end
 

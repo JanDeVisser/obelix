@@ -67,9 +67,6 @@ static instruction_type_descr_t instruction_descr_map[] = {
   { type: ITAssign,   function: _instruction_execute_assign,
     name: "Assign",   free: (free_t) _instruction_free_value,
     tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITCatch,   function: _instruction_execute_catch,
-    name: "Catch",   free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
   { type: ITEnterContext,   function: _instruction_execute_enter_context,
     name: "Enter",   free: (free_t) _instruction_free_name_value,
     tostring: (tostring_t) _instruction_tostring_name_value },
@@ -289,46 +286,46 @@ data_t * _instruction_execute_enter_context(instruction_t *instr, closure_t *clo
   datastack_push(closure -> catchpoints, data_create(String, instr -> name));
   ret = data_execute(context, "__enter__", NULL, NULL);
   data_free(context);
-  if (!data_is_error(ret) || (data_errorval(ret) == ErrorName)) {
-    ret = NULL;
-  }
-  return ret;
-}
-
-data_t * _instruction_execute_catch(instruction_t *instr, closure_t *closure) {
-  data_t  *context;
-  data_t  *error;
-  data_t  *ret;
-  array_t *params;
-  
-  error = closure_pop(closure);
-  context = _instruction_get_variable(instr, closure);
-  params = data_array_create(1);
-  array_push(params, error);
-  ret = data_execute(context, "__catch__", params, NULL);
-  array_free(params);
-  data_free(context);
-  if (!data_is_error(ret) || (data_errorval(ret) == ErrorName)) {
+  if (!data_is_error(ret) || (data_errorval(ret) -> code == ErrorName)) {
     ret = NULL;
   }
   return ret;
 }
 
 data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *closure) {
-  data_t *context;
-  data_t *ret;
+  data_t  *error;
+  error_t *e = NULL;
+  data_t  *context;
+  data_t  *ret = NULL;
+  data_t  *r;
+  array_t *params;
   
+  error = closure_pop(closure);
   context = _instruction_get_variable(instr, closure);
-  ret = data_execute(context, "__exit__", NULL, NULL);
-  data_free(context);
-  if (!data_is_error(ret) || (data_errorval(ret) == ErrorName)) {
+  params = data_array_create(1);
+  if (data_is_error(error)) {
+    e = data_errorval(error);
+    if ((e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
+      array_push(params, data_copy((e -> exception) ? e -> exception : error));
+    }
+  }
+  if (!array_size(params)) {
+    array_push(params, data_create(Bool, 0));
+  }
+  ret = data_execute(context, "__exit__", params, NULL);
+  array_free(params);
+  if (data_is_error(ret) && (data_errorval(ret) -> code != ErrorName)) {
+    ret = (e && (e -> code == ErrorExit)) ? data_copy(error) : ret;
+  } else {
     ret = NULL;
   }
+  data_free(error);
+  data_free(context);
   return ret;
 }
 
 data_t * _instruction_execute_throw(instruction_t *instr, closure_t *closure) {
-  return datastack_pop(closure -> catchpoints);
+  return data_exception(closure_pop(closure));
 }
 
 /* ----------------------------------------------------------------------- */
@@ -494,12 +491,6 @@ instruction_t * instruction_create_assign(name_t *varname) {
   return instruction_create(ITAssign,
                             name_tostring(varname), 
 			    data_create(Name, varname));
-}
-
-instruction_t *  instruction_create_catch(name_t *varname) {
-  return instruction_create(ITCatch,
-                            name_tostring(varname), 
-			    data_create(Name, varname));  
 }
 
 instruction_t *  instruction_create_enter_context(name_t *varname, char *catchpoint) {
