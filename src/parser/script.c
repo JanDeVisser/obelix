@@ -208,6 +208,7 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
 
   ret -> functions = strdata_dict_create();
   ret -> labels = strvoid_dict_create();
+  ret -> pending_labels = datastack_create("pending labels");
   ret -> label = NULL;
   ret -> params = NULL;
   ret -> async = 0;
@@ -243,6 +244,7 @@ void script_free(script_t *script) {
   if (script) {
     script -> refs--;
     if (script -> refs <= 0) {
+      datastack_free(script -> pending_labels);
       list_free(script -> instructions);
       dict_free(script -> labels);
       array_free(script -> params);
@@ -257,16 +259,18 @@ void script_free(script_t *script) {
 
 script_t * script_push_instruction(script_t *script, instruction_t *instruction) {
   listnode_t *node;
+  data_t     *label;
 
   list_push(script -> instructions, instruction);
-  if (script -> label) {
-    instruction_set_label(instruction, script -> label);
-    free(script -> label);
-    script -> label = NULL;
-  }
-  if (instruction -> label) {
+  if (!datastack_empty(script -> pending_labels)) {
+    label = datastack_peek(script -> pending_labels);
+    instruction_set_label(instruction, data_charval(label));
     node = list_tail_pointer(script -> instructions);
-    dict_put(script -> labels, strdup(instruction ->label), node);
+    while (!datastack_empty(script -> pending_labels)) {
+      label = datastack_pop(script -> pending_labels);
+      dict_put(script -> labels, strdup(data_charval(label)), node);
+      data_free(label);
+    }
   }
   return script;
 }
@@ -533,6 +537,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   data_t   *ret;
   script_t *script;
   object_t *self;
+  error_t  *e;
 
   script = closure -> script;
   if (script -> params && array_size(script -> params)) {
@@ -560,13 +565,10 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
     debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
   }
   datastack_free(closure -> catchpoints);
-  if (data_is_error(ret) && (data_errorval(ret) -> exception)) {
-    ret = data_errorval(ret) -> exception;
-  } else if (closure -> self && data_is_object(closure -> self)) {
-    self = data_objectval(closure -> self);
-    if (self -> constructing) {
-      dict_reduce(closure -> variables, (reduce_t) data_put_all_reducer, 
-		  self -> variables);
+  if (data_is_error(ret)) {
+    e = data_errorval(ret);
+    if ((e -> code == ErrorExit) && (data_errorval(ret) -> exception)) {
+      ret = data_errorval(ret) -> exception;
     }
   }
   return ret;

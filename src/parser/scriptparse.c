@@ -50,22 +50,25 @@ parser_t * _script_parse_emit_epilog(parser_t *parser) {
 
   script = (script_t *) parser -> data;
   instr = list_peek(script -> instructions);
-  if ((instr -> type != ITJump) && !script -> label) {
+  if ((instr -> type != ITJump) && !datastack_empty(script -> pending_labels)) {
     /* 
      * If the previous instruction was a Jump, and there is no label set for the
      * next statement, we can never get here. No point in emitting a push and 
      * jump in that case.
      */
+    while (datastack_depth(script -> pending_labels) > 1) {
+      script_push_instruction(script, instruction_create_nop());
+    }
     data = data_create(Int, 0);
     script_push_instruction(script, instruction_create_pushval(data));
     data_free(data);
     script_push_instruction(script, instruction_create_jump("END"));
   }
   
-  script -> label = strdup("ERROR");
+  datastack_push_string(script -> pending_labels, "ERROR");
   script_parse_emit_nop(parser);
   
-  script -> label = strdup("END");
+  datastack_push_string(script -> pending_labels, "END");
   script_parse_emit_nop(parser);
   if (script_debug || _script_parse_get_option(parser, ObelixOptionList)) {
     script_list(script);
@@ -335,10 +338,10 @@ parser_t * script_parse_emit_for(parser_t *parser) {
   varname = datastack_pop(parser -> stack);
   datastack_push_string(parser -> stack, next_label);
   script_push_instruction(script, instruction_create_iter());
-  script -> label = strdup(next_label);
+  datastack_push_string(script -> pending_labels, next_label);
   script_push_instruction(script, instruction_create_next(end_label));
   script_push_instruction(script, instruction_create_assign(data_nameval(varname)));
-  datastack_push_string(parser -> stack, end_label);
+  datastack_push_string(script -> pending_labels, end_label);
   data_free(varname);
   return parser;
 }
@@ -373,12 +376,15 @@ parser_t * script_parse_emit_nop(parser_t *parser) {
 }
 
 parser_t * script_parse_push_label(parser_t *parser) {
-  script_t      *script;
+  script_t *script;
+  char      label[9];
+  data_t   *data;
 
   script = parser -> data;
-  script -> label = new(9);
-  strrand(script -> label, 8);
-  datastack_push_string(parser -> stack, script -> label);
+  strrand(label, 8);
+  data = data_create(String, label);
+  datastack_push(script -> pending_labels, data_copy(data));
+  datastack_push(parser -> stack, data_copy(data));
   return parser;
 }
 
@@ -393,8 +399,7 @@ parser_t * script_parse_emit_else(parser_t *parser) {
   if (parser_debug) {
     debug(" -- label: %s", data_debugstr(label));
   }
-  script -> label = strdup(data_charval(label));
-  data_free(label);
+  datastack_push(script -> pending_labels, label);
   strrand(newlabel, 8);
   jump = instruction_create_jump(newlabel);
   datastack_push_string(parser -> stack, newlabel);
@@ -411,16 +416,15 @@ parser_t * script_parse_emit_end(parser_t *parser) {
   if (parser_debug) {
     debug(" -- label: %s", data_debugstr(label));
   }
-  script -> label = strdup(data_charval(label));
-  data_free(label);
+  datastack_push(script -> pending_labels, label);
   return parser;
 }
 
 parser_t * script_parse_emit_end_loop(parser_t *parser) {
   script_t      *script;
   data_t        *label;
+  data_t        *block_label;
   instruction_t *jump;
-  char          *block_label;
 
   script = parser -> data;
 
@@ -428,12 +432,10 @@ parser_t * script_parse_emit_end_loop(parser_t *parser) {
    * First label: The one pushed at the end of the expression. This is the
    * label to be set at the end of the loop:
    */
-  label = datastack_pop(parser -> stack);
+  block_label = datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug(" -- end block label: %s", data_debugstr(label));
+    debug(" -- end block label: %s", data_debugstr(block_label));
   }
-  block_label = strdup(data_charval(label));
-  data_free(label);
 
   /*
    * Second label: The one pushed after the while/for statement. This is the one
@@ -447,7 +449,7 @@ parser_t * script_parse_emit_end_loop(parser_t *parser) {
   script_push_instruction(script, jump);
   data_free(label);
 
-  script -> label = block_label;
+  datastack_push(script -> pending_labels, block_label);
 
   return parser;
 }
@@ -609,10 +611,9 @@ parser_t * script_parse_end_context_block(parser_t *parser) {
   data_varname = datastack_pop(parser -> stack);
   varname = data_nameval(data_varname);
   script_push_instruction(script, instruction_create_pushval(data_create(Int, 0)));
-  script -> label = data_charval(label);
+  datastack_push(script -> pending_labels, label);
   script_push_instruction(script, 
 			  instruction_create_leave_context(varname));
   data_free(data_varname);
-  data_free(label);
   return parser;
 }

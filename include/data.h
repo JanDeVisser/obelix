@@ -166,6 +166,8 @@ extern data_t *        data_method(data_t *, char *);
 extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);
 extern data_t *        data_resolve(data_t *, name_t *);
 extern data_t *        data_invoke(data_t *, name_t *, array_t *, dict_t *);
+extern int             data_has(data_t *, name_t *);
+extern int             data_has_callable(data_t *, name_t *);
 extern data_t *        data_get(data_t *, name_t *);
 extern data_t *        data_set(data_t *, name_t *, data_t *);
 extern data_t *        data_iter(data_t *);

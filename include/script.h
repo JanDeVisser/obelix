@@ -41,6 +41,7 @@ typedef struct _script {
   list_t            *instructions;
   dict_t            *functions;
   array_t           *params;
+  datastack_t       *pending_labels;
   dict_t            *labels;
   char              *label;
   struct _namespace *ns;

@@ -214,7 +214,7 @@ char * _instruction_tostring_value(instruction_t *instruction) {
 }
 
 char * _instruction_tostring_name_value(instruction_t *instruction) {
-  asprintf(&instruction -> str, "%s %s", 
+  asprintf(&instruction -> str, "%s, %s", 
            data_tostring(instruction -> value), 
            instruction -> name);
   return NULL;
@@ -280,14 +280,19 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
 
 data_t * _instruction_execute_enter_context(instruction_t *instr, closure_t *closure) {
   data_t *context;
-  data_t *ret;
+  data_t *ret = NULL;
+  name_t *enter = name_create(1, "__enter__");
   
   context = _instruction_get_variable(instr, closure);
-  datastack_push(closure -> catchpoints, data_create(String, instr -> name));
-  ret = data_execute(context, "__enter__", NULL, NULL);
+  if (data_has_callable(context, enter)) {
+    ret = data_invoke(context, enter, NULL, NULL);
+  }
   data_free(context);
-  if (!data_is_error(ret) || (data_errorval(ret) -> code == ErrorName)) {
+  if (ret && !data_is_error(ret)) {
     ret = NULL;
+  }
+  if (!ret) {
+    datastack_push(closure -> catchpoints, data_create(String, instr -> name));
   }
   return ret;
 }
@@ -297,30 +302,36 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
   error_t *e = NULL;
   data_t  *context;
   data_t  *ret = NULL;
-  data_t  *r;
   array_t *params;
+  name_t  *exit = name_create(1, "__exit__");
   
   error = closure_pop(closure);
   context = _instruction_get_variable(instr, closure);
-  params = data_array_create(1);
-  if (data_is_error(error)) {
-    e = data_errorval(error);
-    if ((e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
-      array_push(params, data_copy((e -> exception) ? e -> exception : error));
+  if (data_has_callable(context, exit)) {
+    params = data_array_create(1);
+    if (data_is_error(error)) {
+      e = data_errorval(error);
+      if ((e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
+        array_push(params, data_copy((e -> exception) ? e -> exception : error));
+      }
     }
+    if (!array_size(params)) {
+      array_push(params, data_create(Bool, 0));
+    }
+    ret = data_invoke(context, exit, params, NULL);
+    array_free(params);
+    name_free(exit);
   }
-  if (!array_size(params)) {
-    array_push(params, data_create(Bool, 0));
-  }
-  ret = data_execute(context, "__exit__", params, NULL);
-  array_free(params);
-  if (data_is_error(ret) && (data_errorval(ret) -> code != ErrorName)) {
-    ret = (e && (e -> code == ErrorExit)) ? data_copy(error) : ret;
-  } else {
+  if (e && (e -> code == ErrorExit)) {
+    ret = data_copy(error);
+  } else if (!data_is_error(ret)) {
     ret = NULL;
   }
   data_free(error);
   data_free(context);
+  if (script_debug && ret) {
+    debug("    Leave: retval '%s'", data_tostring(ret));
+  }
   return ret;
 }
 

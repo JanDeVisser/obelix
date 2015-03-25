@@ -722,6 +722,30 @@ data_t * data_get(data_t *data, name_t *name) {
   return ret;
 }
 
+int data_has(data_t *self, name_t *name) {
+  data_t *attr = NULL;
+  int     ret = 0;
+  
+  attr = data_resolve(self, name);
+  if (attr && !data_is_error(attr)) {
+    ret = 1;
+  }
+  data_free(attr);
+  return ret;
+}
+
+int data_has_callable(data_t *self, name_t *name) {
+  data_t *callable = NULL;
+  int     ret = 0;
+  
+  callable = data_resolve(self, name);
+  if (callable && !data_is_error(callable) && data_is_callable(callable)) {
+    ret = 1;
+  }
+  data_free(callable);
+  return ret;
+}
+
 data_t * data_set(data_t *data, name_t *name, data_t *value) {
   typedescr_t *type;
   data_t      *container;
