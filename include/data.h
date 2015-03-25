@@ -190,6 +190,7 @@ extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 extern data_t *        data_create_pointer(int, void *);
 extern data_t *        data_null(void);
 extern data_t *        data_error(int, char *, ...);
+extern data_t *        data_exception(data_t *);
 extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);

@@ -54,6 +54,7 @@ typedef struct _closure {
   dict_t            *variables;
   struct _namespace *imports;
   datastack_t       *stack;
+  datastack_t       *catchpoints;
   int                refs;
 } closure_t;
 

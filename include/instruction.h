@@ -27,16 +27,20 @@
 
 typedef enum _instruction_type {
   ITAssign,
+  ITCatch,
+  ITEnterContext,
   ITFunctionCall,
   ITImport,
   ITIter,
   ITJump,
+  ITLeaveContext,
   ITNext,
   ITNop,
   ITPop,
   ITPushVal,
   ITPushVar,
   ITTest,
+  ITThrow,
 } instruction_type_t;
 
 typedef struct _instruction {
@@ -51,6 +55,9 @@ struct _closure;
 
 extern instruction_t *  instruction_create(int, char *, data_t *);
 extern instruction_t *  instruction_create_assign(name_t *);
+extern instruction_t *  instruction_create_catch(name_t *);
+extern instruction_t *  instruction_create_enter_context(name_t *, char *);
+extern instruction_t *  instruction_create_leave_context(name_t *);
 extern instruction_t *  instruction_create_pushvar(name_t *);
 extern instruction_t *  instruction_create_pushval(data_t *);
 extern instruction_t *  instruction_create_function(name_t *, int, long, array_t *);
@@ -59,8 +66,9 @@ extern instruction_t *  instruction_create_iter();
 extern instruction_t *  instruction_create_next(char *);
 extern instruction_t *  instruction_create_jump(char *);
 extern instruction_t *  instruction_create_import(name_t *);
-extern instruction_t *  instruction_create_pop(void);
 extern instruction_t *  instruction_create_nop(void);
+extern instruction_t *  instruction_create_pop(void);
+extern instruction_t *  instruction_create_throw(void);
 extern char *           instruction_assign_label(instruction_t *);
 extern instruction_t *  instruction_set_label(instruction_t *, char *);
 extern data_t *         instruction_execute(instruction_t *, struct _closure *);

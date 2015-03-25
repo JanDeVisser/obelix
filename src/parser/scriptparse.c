@@ -44,20 +44,26 @@ name_t * _script_pop_operation(parser_t *parser) {
 }
 
 parser_t * _script_parse_emit_epilog(parser_t *parser) {
-  script_t *script;
-  data_t   *data;
-  name_t   *error_var;
+  script_t      *script;
+  data_t        *data;
+  instruction_t *instr;
 
   script = (script_t *) parser -> data;
-  data = data_create(Int, 0);
-  script_push_instruction(script, instruction_create_pushval(data));
-  data_free(data);
-  script_push_instruction(script, instruction_create_jump("END"));
+  instr = list_peek(script -> instructions);
+  if ((instr -> type != ITJump) && !script -> label) {
+    /* 
+     * If the previous instruction was a Jump, and there is no label set for the
+     * next statement, we can never get here. No point in emitting a push and 
+     * jump in that case.
+     */
+    data = data_create(Int, 0);
+    script_push_instruction(script, instruction_create_pushval(data));
+    data_free(data);
+    script_push_instruction(script, instruction_create_jump("END"));
+  }
   
   script -> label = strdup("ERROR");
-  error_var = name_create(1, "$$ERROR");
-  script_push_instruction(script, instruction_create_pushvar(error_var));
-  name_free(error_var);
+  script_parse_emit_nop(parser);
   
   script -> label = strdup("END");
   script_parse_emit_nop(parser);
@@ -560,4 +566,56 @@ parser_t * script_parse_native_function(parser_t *parser) {
   data_free(params);
   name_free(lib_func);
   return ret;
+}
+
+/* -- E X C E P T I O N  H A N D L I N G -----------------------------------*/
+
+parser_t * script_parse_begin_context_block(parser_t *parser) {
+  name_t   *varname;
+  data_t   *data;
+  script_t *script;
+  char      catch_label[9];
+  char      finally_label[9];
+
+  script = parser -> data;
+  strrand(catch_label, 8);
+  strrand(finally_label, 8);
+  data = datastack_peek(parser -> stack);
+  varname = data_nameval(data);
+  script_push_instruction(script, 
+			  instruction_create_enter_context(varname, catch_label));
+  datastack_push(parser -> stack, data_create(String, catch_label));
+  datastack_push(parser -> stack, data_create(String, finally_label));
+  return parser;
+}
+
+parser_t * script_parse_throw_exception(parser_t *parser) {
+  script_t *script = (script_t *) parser -> data;
+  script_push_instruction(script, instruction_create_throw());  
+}
+
+parser_t * script_parse_end_context_block(parser_t *parser) {
+  name_t   *varname;
+  data_t   *data_varname;
+  data_t   *catch_label;
+  data_t   *finally_label;
+  script_t *script;
+  char     *label;
+
+  script = parser -> data;
+  finally_label = datastack_pop(parser -> stack);
+  catch_label = datastack_pop(parser -> stack);
+  data_varname = datastack_pop(parser -> stack);
+  varname = data_nameval(data_varname);
+  script_push_instruction(script, instruction_create_jump(data_charval(finally_label)));
+  script -> label = data_charval(catch_label);
+  script_push_instruction(script, 
+			  instruction_create_catch(varname));
+  script -> label = data_charval(finally_label);
+  script_push_instruction(script, 
+			  instruction_create_leave_context(varname));
+  data_free(data_varname);
+  data_free(catch_label);
+  data_free(finally_label);
+  return parser;
 }

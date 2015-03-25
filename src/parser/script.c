@@ -396,23 +396,25 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   data_t     *ret;
   char       *label = NULL;
   listnode_t *node = NULL;
+  data_t     *catchpoint;
 
   ret = instruction_execute(instr, closure);
   if (ret) {
     switch (data_type(ret)) {
       case String:
         label = strdup(data_tostring(ret));
-        data_free(ret);
         break;
       case Error:
-        label = strdup("ERROR");
-        closure_set(closure, "$$ERROR", data_copy(ret));
+        catchpoint = datastack_pop(closure -> catchpoints);
+        label = strdup(data_charval(catchpoint));
+        closure_push(closure, data_copy(ret));
         break;
       default:
         debug("Instr '%s' returned '%s'", instruction_tostring(instr), data_tostring(ret));
         assert(0);
         break;
     }
+    data_free(ret);
   }
   if (label) {
     if (script_debug) {
@@ -550,11 +552,14 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
     dict_reduce(kwargs, (reduce_t) data_put_all_reducer, closure -> variables);
   }
   datastack_clear(closure -> stack);
+  closure -> catchpoints = datastack_create("catchpoints");
+  datastack_push(closure -> catchpoints, data_create(String, "ERROR"));
   list_process(closure -> script -> instructions, (reduce_t) _closure_execute_instruction, closure);
   ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
   if (script_debug) {
     debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
   }
+  datastack_free(closure -> catchpoints);
   if (!data_is_error(ret) && closure -> self && 
       data_is_object(closure -> self)) {
     self = data_objectval(closure -> self);

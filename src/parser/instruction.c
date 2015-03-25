@@ -38,26 +38,22 @@ typedef struct _instruction_type_descr {
 
 static instruction_type_descr_t instruction_descr_map[];
 
-static data_t *         _instruction_vanilla_function(instruction_t *,
-						      closure_t *,
-						      array_t *);
-static data_t *         _instruction_constructor(instruction_t *,
-						 closure_t *,
-						 array_t *);
-static data_t *         _instruction_anon_create(instruction_t *,
-						 closure_t *,
-						 array_t *);
 static void             _instruction_free_name(instruction_t *);
 static void             _instruction_free_value(instruction_t *);
 static void             _instruction_free_name_value(instruction_t *);
 static char *           _instruction_tostring_name(instruction_t *);
 static char *           _instruction_tostring_value(instruction_t *);
+static char *           _instruction_tostring_name_value(instruction_t *);
+static data_t *         _instruction_get_variable(instruction_t *, closure_t *);
 
 static data_t *         _instruction_execute_assign(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_catch(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_enter_context(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_function(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_jump(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_import(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_iter(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_leave_context(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_next(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_new(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_nop(instruction_t *, closure_t *);
@@ -65,11 +61,18 @@ static data_t *         _instruction_execute_pop(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_test(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_throw(instruction_t *, closure_t *);
 
 static instruction_type_descr_t instruction_descr_map[] = {
   { type: ITAssign,   function: _instruction_execute_assign,
     name: "Assign",   free: (free_t) _instruction_free_value,
     tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITCatch,   function: _instruction_execute_catch,
+    name: "Catch",   free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
+  { type: ITEnterContext,   function: _instruction_execute_enter_context,
+    name: "Enter",   free: (free_t) _instruction_free_name_value,
+    tostring: (tostring_t) _instruction_tostring_name_value },
   { type: ITFunctionCall, function: _instruction_execute_function,
     name: "FunctionCall", free: (free_t) _instruction_free_value,
     tostring: (tostring_t) _instruction_tostring_value },
@@ -82,6 +85,9 @@ static instruction_type_descr_t instruction_descr_map[] = {
   { type: ITJump, function: _instruction_execute_jump,
     name: "Jump", free: (free_t) _instruction_free_name,
     tostring: (tostring_t) _instruction_tostring_name },
+  { type: ITLeaveContext,   function: _instruction_execute_leave_context,
+    name: "Leave",   free: (free_t) _instruction_free_value,
+    tostring: (tostring_t) _instruction_tostring_value },
   { type: ITNext, function: _instruction_execute_next,
     name: "Next", free: (free_t) _instruction_free_name,
     tostring: (tostring_t) _instruction_tostring_name },
@@ -99,6 +105,9 @@ static instruction_type_descr_t instruction_descr_map[] = {
     tostring: (tostring_t) _instruction_tostring_value },
   { type: ITTest, function: _instruction_execute_test,
     name: "Test", free: (free_t) _instruction_free_name,
+    tostring: (tostring_t) _instruction_tostring_name },
+  { type: ITThrow, function: _instruction_execute_throw,
+    name: "Throw", free: (free_t) _instruction_free_name,
     tostring: (tostring_t) _instruction_tostring_name },
 };
 
@@ -207,11 +216,31 @@ char * _instruction_tostring_value(instruction_t *instruction) {
   return data_tostring(instruction -> value);
 }
 
+char * _instruction_tostring_name_value(instruction_t *instruction) {
+  asprintf(&instruction -> str, "%s %s", 
+           data_tostring(instruction -> value), 
+           instruction -> name);
+  return NULL;
+}
+
+data_t * _instruction_get_variable(instruction_t *instr, closure_t *closure) {
+  name_t *path = data_nameval(instr -> value);
+  data_t *variable;
+  data_t *c;
+  
+  c = data_create(Closure, closure);
+  variable = data_get(c, path);
+  data_free(c);
+  return variable;
+}
+
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+
+/* -- V A R I A B L E  M A N A G E M E N T ------------------------------- */
 
 data_t * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
   name_t *path = data_nameval(instr -> value);
@@ -237,11 +266,8 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
   name_t *path = data_nameval(instr -> value);
   data_t *c;
   
-  c = data_create(Closure, closure);
-  value = data_get(c, path);
-  data_free(c);
-  /* FIXME Hack */
-  if (!data_is_error(value) || !strcmp(name_first(path), "$$ERROR")) {
+  value = _instruction_get_variable(instr, closure);
+  if (!data_is_error(value)) {
     if (script_debug) {
       debug(" -- value '%s'", data_tostring(value));
     }
@@ -252,6 +278,60 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
   }
   return ret;
 }
+
+/* -- E X C E P T I O N  H A N D L I N G ---------------------------------- */
+
+data_t * _instruction_execute_enter_context(instruction_t *instr, closure_t *closure) {
+  data_t *context;
+  data_t *ret;
+  
+  context = _instruction_get_variable(instr, closure);
+  datastack_push(closure -> catchpoints, data_create(String, instr -> name));
+  ret = data_execute(context, "__enter__", NULL, NULL);
+  data_free(context);
+  if (!data_is_error(ret) || (data_errorval(ret) == ErrorName)) {
+    ret = NULL;
+  }
+  return ret;
+}
+
+data_t * _instruction_execute_catch(instruction_t *instr, closure_t *closure) {
+  data_t  *context;
+  data_t  *error;
+  data_t  *ret;
+  array_t *params;
+  
+  error = closure_pop(closure);
+  context = _instruction_get_variable(instr, closure);
+  params = data_array_create(1);
+  array_push(params, error);
+  ret = data_execute(context, "__catch__", params, NULL);
+  array_free(params);
+  data_free(context);
+  if (!data_is_error(ret) || (data_errorval(ret) == ErrorName)) {
+    ret = NULL;
+  }
+  return ret;
+}
+
+data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *closure) {
+  data_t *context;
+  data_t *ret;
+  
+  context = _instruction_get_variable(instr, closure);
+  ret = data_execute(context, "__exit__", NULL, NULL);
+  data_free(context);
+  if (!data_is_error(ret) || (data_errorval(ret) == ErrorName)) {
+    ret = NULL;
+  }
+  return ret;
+}
+
+data_t * _instruction_execute_throw(instruction_t *instr, closure_t *closure) {
+  return datastack_pop(closure -> catchpoints);
+}
+
+/* ----------------------------------------------------------------------- */
 
 data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) {
   assert(instr -> value);
@@ -309,6 +389,13 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   return ret;
 }
 
+/* -- F L O W  C O N T R O L ---------------------------------------------- */
+
+data_t * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
+  assert(instr -> name);
+  return data_create(String, instr -> name);
+}
+
 data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
   data_t  *ret;
   data_t  *value;
@@ -330,15 +417,6 @@ data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
   return ret;
 }
 
-data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
-  name_t  *imp = data_nameval(instr -> value);
-  data_t  *ret;
-
-  ret = closure_import(closure, imp);
-  name_free(imp);
-  return (data_is_error(ret)) ? ret : NULL;
-}
-
 data_t * _instruction_execute_iter(instruction_t *instr, closure_t *closure) {
   data_t *value;
   data_t *iter;
@@ -348,11 +426,6 @@ data_t * _instruction_execute_iter(instruction_t *instr, closure_t *closure) {
   closure_push(closure, iter);
   data_free(value);
   return NULL;
-}
-
-data_t * _instruction_execute_jump(instruction_t *instr, closure_t *closure) {
-  assert(instr -> name);
-  return data_create(String, instr -> name);
 }
 
 data_t * _instruction_execute_next(instruction_t *instr, closure_t *closure) {
@@ -375,6 +448,19 @@ data_t * _instruction_execute_next(instruction_t *instr, closure_t *closure) {
   return ret;
 }
 
+/* ----------------------------------------------------------------------- */
+
+data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
+  name_t  *imp = data_nameval(instr -> value);
+  data_t  *ret;
+
+  ret = closure_import(closure, imp);
+  name_free(imp);
+  return (data_is_error(ret)) ? ret : NULL;
+}
+
+/* ----------------------------------------------------------------------- */
+
 data_t * _instruction_execute_nop(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
@@ -387,9 +473,7 @@ data_t * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
-/*
- * instruction_t public functions
- */
+/* -- P U B L I C  F U N C T I O N S -------------------------------------- */
 
 instruction_t * instruction_create(int type, char *name, data_t *value) {
   instruction_t *ret;
@@ -410,6 +494,24 @@ instruction_t * instruction_create_assign(name_t *varname) {
   return instruction_create(ITAssign,
                             name_tostring(varname), 
 			    data_create(Name, varname));
+}
+
+instruction_t *  instruction_create_catch(name_t *varname) {
+  return instruction_create(ITCatch,
+                            name_tostring(varname), 
+			    data_create(Name, varname));  
+}
+
+instruction_t *  instruction_create_enter_context(name_t *varname, char *catchpoint) {
+  return instruction_create(ITEnterContext,
+                            catchpoint, 
+			    data_create(Name, varname));    
+}
+
+instruction_t *  instruction_create_leave_context(name_t *varname) {
+  return instruction_create(ITLeaveContext,
+                            name_tostring(varname), 
+			    data_create(Name, varname));    
 }
 
 instruction_t * instruction_create_pushvar(name_t *varname) {
@@ -460,6 +562,10 @@ instruction_t * instruction_create_nop(void) {
   return instruction_create(ITNop, "Nothing", NULL);
 }
 
+instruction_t * instruction_create_throw(void) {
+  return instruction_create(ITThrow, "Throw Exception", NULL);
+}
+
 char * instruction_assign_label(instruction_t *instruction) {
   char buf[10];
 
@@ -486,12 +592,17 @@ data_t * instruction_execute(instruction_t *instr, closure_t *closure) {
 char * instruction_tostring(instruction_t *instruction) {
   tostring_t   tostring;
   char        *s;
+  char        *free_me = NULL;
   char        *lbl;
 
   if (!instruction -> str) {
     tostring = instruction_descr_map[instruction -> type].tostring;
     if (tostring) {
       s = tostring(instruction);
+      if (!s) {
+        free_me = instruction -> str;
+        s = free_me;
+      }
     } else {
       s = "";
     }
@@ -500,6 +611,7 @@ char * instruction_tostring(instruction_t *instruction) {
              lbl, 
              instruction_descr_map[instruction -> type].name, 
              s);
+    free(free_me);
   }
   return instruction -> str;
 }

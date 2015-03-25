@@ -448,6 +448,20 @@ parser_t * parser_push(parser_t *parser) {
   return ret;
 }
 
+parser_t * parser_discard(parser_t *parser) {
+  data_t   *data = datastack_pop(parser -> stack);
+  
+  if (parser_debug) {
+    debug("    Discarding value %s", data_debugstr(data));
+  }
+  data_free(data);
+  return parser;
+}
+
+parser_t * parser_dup(parser_t *parser) {
+  return parser_pushval(parser, datastack_peek(parser -> stack));
+}
+
 parser_t * parser_push_tokenstring(parser_t *parser) {
   data_t   *data = data_create(String, token_token(parser -> last_token));
   parser_t *ret = parser_pushval(parser, data);

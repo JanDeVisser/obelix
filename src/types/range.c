@@ -167,7 +167,7 @@ data_t * _range_next(data_t *data) {
   data_fnc_t   fnc;
   
   type = data_typedescr(ret);
-  fnc = (data_fnc_t *) typedescr_get_function(type, r -> direction);
+  fnc = (data_fnc_t) typedescr_get_function(type, r -> direction);
   assert(fnc);
   r -> next = fnc(ret);
   return ret;
