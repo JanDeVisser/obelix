@@ -27,8 +27,7 @@ statement                   := conditional
                              ;
 
 conditional                 := "if"
-                               expr
-                               "then"            [ emit_test                 ]
+                               expr              [ emit_test                 ]
                                statements
                                else_clause
                                end_stmt          [ emit_end                  ]
