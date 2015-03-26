@@ -25,6 +25,7 @@
 #include <instruction.h>
 #include <name.h>
 #include <script.h>
+#include <math.h>
 
 typedef data_t * (*instr_fnc_t)(instruction_t *, closure_t *);
 
@@ -307,10 +308,18 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
   
   error = closure_pop(closure);
   context = _instruction_get_variable(instr, closure);
+  if (data_is_error(error)) {
+    e = data_errorval(error);
+  } else {
+    /*
+     * If there is an error the catchpoint was already popped by 
+     * _closure_execute_instruction:
+     */
+    data_free(datastack_pop(closure -> catchpoints));
+  }
   if (data_has_callable(context, exit)) {
     params = data_array_create(1);
-    if (data_is_error(error)) {
-      e = data_errorval(error);
+    if (e) {
       if ((e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
         array_push(params, data_copy((e -> exception) ? e -> exception : error));
       }
@@ -323,6 +332,10 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
     name_free(exit);
   }
   if (e && (e -> code == ErrorExit)) {
+    /*
+     * If the error is ErrorExit it needs to be bubbled up, and we really 
+     * don't care what else happens.
+     */
     ret = data_copy(error);
   } else if (!data_is_error(ret)) {
     ret = NULL;
@@ -336,7 +349,9 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
 }
 
 data_t * _instruction_execute_throw(instruction_t *instr, closure_t *closure) {
-  return data_exception(closure_pop(closure));
+  data_t *exception = closure_pop(closure);
+
+  return !data_is_error(exception) ? data_exception(exception) : exception;
 }
 
 /* ----------------------------------------------------------------------- */
