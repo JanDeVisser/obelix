@@ -27,20 +27,22 @@
 
 extern int parser_debug;
 
+
 typedef struct _parser {
-  grammar_t     *grammar;
-  void          *data;
-  list_t        *prod_stack;
-  token_t       *last_token;
-  int            line;
-  int            column;
-  data_t        *error;
-  datastack_t   *stack;
-  dict_t        *variables;
+  grammar_t   *grammar;
+  void        *data;
+  list_t      *prod_stack;
+  token_t     *last_token;
+  int          line;
+  int          column;
+  data_t      *error;
+  datastack_t *stack;
+  dict_t      *variables;
+  function_t  *on_newline;
 } parser_t;
 
-typedef parser_t * (*parser_fnc_t)(parser_t *);
 typedef parser_t * (*parser_data_fnc_t)(parser_t *, data_t *);
+typedef parser_t * (*parser_fnc_t)(parser_t *);
 
 extern parser_t *      parser_create(grammar_t *);
 extern parser_t *      parser_clear(parser_t *);

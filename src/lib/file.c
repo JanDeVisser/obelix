@@ -164,17 +164,16 @@ file_t * file_create(int fh) {
   file_t *ret;
 
   ret = NEW(file_t);
-  if (ret) {
-    ret -> read_fnc = (read_t) file_read;
-    ret -> free = (free_t) file_free;
-    ret -> fh = fh;
-    ret -> stream = NULL;
-    ret -> fname = NULL;
-    ret -> line = NULL;
-    ret -> _errno = 0;
-    ret -> error = NULL;
-    ret -> refs = 1;
-  }
+  ret -> read_fnc = (read_t) file_read;
+  ret -> free = (free_t) file_free;
+  ret -> fh = fh;
+  ret -> stream = NULL;
+  ret -> fname = NULL;
+  ret -> line = NULL;
+  ret -> _errno = 0;
+  ret -> error = NULL;
+  ret -> str = NULL;
+  ret -> refs = 1;
   return ret;
 }
 
@@ -328,6 +327,7 @@ void file_free(file_t *file) {
       }
       free(file -> error);
       free(file -> line);
+      free(file -> str);
       free(file);
     }
   }
@@ -351,6 +351,15 @@ int file_close(file_t *file) {
 
 char * file_name(file_t *file) {
   return file -> fname;
+}
+
+char * file_tostring(file_t *file) {
+  if (!file -> str) {
+    asprintf(&file -> str, "%s:%d", 
+             (file -> fname) ? file -> fname : "anon", 
+             file -> fh);
+  }
+  return file -> str;
 }
 
 char * file_error(file_t *file) {

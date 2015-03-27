@@ -1,7 +1,8 @@
 %
-prefix: script_parse_
-ignore: whitespace
-hashpling: true
+  prefix:     script_parse_
+  ignore:     allwhitespace
+  hashpling:  true
+  on_newline: mark_line
 %
 
 program                     := [ init ] statements [ done ]

@@ -56,6 +56,8 @@ typedef struct _closure {
   struct _namespace *imports;
   datastack_t       *stack;
   datastack_t       *catchpoints;
+  struct _closure   *caller;
+  int                line;
   int                refs;
 } closure_t;
 
@@ -103,7 +105,8 @@ extern int              closure_has(closure_t *, char *);
 extern data_t *         closure_resolve(closure_t *, char *);
 extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
 extern data_t *         closure_import(closure_t *, name_t *);
-  
+extern closure_t *      closure_set_location(closure_t *, data_t *);
+
 extern native_fnc_t *   native_fnc_create(script_t *, char *name, native_t);
 extern native_fnc_t *   native_fnc_copy(native_fnc_t *);
 extern void             native_fnc_free(native_fnc_t *);

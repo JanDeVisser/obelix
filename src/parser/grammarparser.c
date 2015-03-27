@@ -389,24 +389,7 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   lexer = lexer_create(gp -> reader);
   lexer_add_keyword(lexer, NONTERMINAL_DEF, NONTERMINAL_DEF_STR);
   
-  /*
-  lexer_add_keyword(lexer, PUSH, PUSH_STR);
-  lexer_add_keyword(lexer, PUSH_INCR, PUSH_INCR_STR);
-  lexer_add_keyword(lexer, INIT, INIT_STR);
-  lexer_add_keyword(lexer, DONE, DONE_STR);
-  lexer_add_keyword(lexer, INCR, INCR_STR);
-  lexer_add_keyword(lexer, INCR, PUSH_LAST_STR);
-
-  lexer_add_keyword(lexer, LIB, LIB_STR);
-  lexer_add_keyword(lexer, PREFIX, PREFIX_STR);
-  lexer_add_keyword(lexer, STRATEGY, STRATEGY_STR);
-  lexer_add_keyword(lexer, IGNORE, IGNORE_STR);
-  lexer_add_keyword(lexer, CASE_SENSITIVE, CASE_SENSITIVE_STR);
-  lexer_add_keyword(lexer, HASHPLING, HASHPLING_STR);
-  lexer_add_keyword(lexer, SIGNED_NUMBERS, SIGNED_NUMBERS_STR);
-  */
-
-  lexer_set_option(lexer, LexerOptionIgnoreWhitespace, TRUE);
+  lexer_set_option(lexer, LexerOptionIgnoreAllWhitespace, TRUE);
   lexer_tokenize(lexer, _grammar_token_handler, gp);
   if (gp -> state != GPStateError) {
     if (grammar_analyze(gp -> grammar)) {

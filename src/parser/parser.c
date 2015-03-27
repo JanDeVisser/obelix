@@ -62,6 +62,8 @@ static parser_t *             _parser_ll1(token_t *, parser_t *);
 static parser_t *             _parser_lr1(token_t *, parser_t *);
 static lexer_t *              _parser_set_keywords(token_t *, lexer_t *);
 
+extern lexer_t *              parser_newline(lexer_t *, int);
+
 void _parser_init(void) {
   logging_register_category("parser", &parser_debug);
 }
@@ -233,11 +235,12 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
     if (parser_debug) {
       debug("Parser stack exhausted");
     }
-    assert(code == TokenCodeEnd);
+    if (code != TokenCodeEnd) {
+      parser -> error = data_error(ErrorSyntax, 
+                                   "Expected end of file, read unexpected token '%s'",
+                                   token_token(token));
+    }
     consuming = 0;
-    // TODO: Error Handling.
-    // If assert trips we've reached what should have been the
-    // end of the input but we're getting more stuff.
   } else if ((consuming == 1) && (e -> type != PSETypeAction)) {
     list_push(parser -> prod_stack, e);
     consuming = 0;
@@ -387,6 +390,8 @@ data_t * parser_pop(parser_t *parser, char *name) {
 data_t * _parser_parse(parser_t *parser, reader_t *reader) {
   lexer_t        *lexer;
   lexer_option_t  ix;
+  function_t     *fnc;
+  token_t        *fnc_name;
 
   token_free(parser -> last_token);
   parser -> last_token = NULL;
@@ -395,6 +400,26 @@ data_t * _parser_parse(parser_t *parser, reader_t *reader) {
   for (ix = 0; ix < LexerOptionLAST; ix++) {
     lexer_set_option(lexer, ix, grammar_get_lexer_option(parser -> grammar, ix));
   }
+  
+  parser -> on_newline = NULL;
+  fnc_name = (token_t *) dict_get(parser -> grammar -> ge -> variables, 
+                                  "on_newline");
+  if (fnc_name) {
+    if (parser_debug) {
+      debug("Setting on_newline function '%s'", token_token(fnc_name));
+    }
+    fnc = grammar_resolve_function(parser -> grammar, token_token(fnc_name));
+    if (fnc) {
+      lexer_set_option(lexer, LexerOptionOnNewLine, 
+                       (long) function_create("parser_newline", 
+                                              (voidptr_t) parser_newline));
+      parser -> on_newline = fnc;
+    } else {
+      error("Could not resolve parser on_newline function '%s'", token_token(fnc_name));
+    }
+  }
+  
+  lexer -> data = parser;
   switch (grammar_get_parsing_strategy(parser -> grammar)) {
     case ParsingStrategyTopDown:
       list_append(parser -> prod_stack,
@@ -425,12 +450,29 @@ void parser_free(parser_t *parser) {
     list_free(parser -> prod_stack);
     datastack_free(parser -> stack);
     dict_free(parser -> variables);
+    function_free(parser -> on_newline);
     free(parser);
   }
 }
 
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
+
+lexer_t * parser_newline(lexer_t *lexer, int line) {
+  parser_t          *parser = (parser_t *) lexer -> data;
+  parser_data_fnc_t  f;
+  data_t            *l;
+  
+  if (parser && parser -> on_newline) {
+    f = (parser_data_fnc_t) parser -> on_newline -> fnc;
+    l = data_create(Int, line);
+    parser = f(parser, l);
+    data_free(l);
+    return (parser) ? lexer : NULL;
+  } else {
+    return lexer;
+  }
+}
 
 parser_t * parser_pushval(parser_t *parser, data_t *data) {
   if (parser_debug) {

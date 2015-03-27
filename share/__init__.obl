@@ -22,6 +22,6 @@
  */
  
 func print(msg) -> "liboblstdlib.so:_function_print"
-stdin = adopt(0)
-stdout = adopt(1)
-stderr = adopt(2)
+self.stdin = adopt(0)
+self.stdout = adopt(1)
+self.stderr = adopt(2)

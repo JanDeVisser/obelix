@@ -125,7 +125,7 @@ data_t * _file_copy(data_t *dest, data_t *src) {
 }
 
 char * _file_tostring(data_t *data) {
-  return data_fileval(data) -> fname;
+  return file_tostring(data_fileval(data));
 }
 
 unsigned int _file_hash(data_t *data) {
@@ -157,7 +157,13 @@ data_t * _file_adopt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *ret = data_create(File, NULL);
   int     fh = data_intval(data_array_get(args, 0));
   
+  if (file_debug) {
+    debug("_file_adopt(%d)", fh);
+  }
   data_fileval(ret) -> fh = fh;
+  if (file_debug) {
+    debug("_file_adopt(%d) -> %s", fh, data_tostring(ret));
+  }
   return ret;
 }
 
