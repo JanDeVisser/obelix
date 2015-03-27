@@ -33,18 +33,15 @@ typedef struct _instruction_type_descr {
   instruction_type_t  type;
   instr_fnc_t         function;
   char               *name;
-  free_t              free;
   tostring_t          tostring;
 } instruction_type_descr_t;
 
 static instruction_type_descr_t instruction_descr_map[];
 
-static void             _instruction_free_name(instruction_t *);
-static void             _instruction_free_value(instruction_t *);
-static void             _instruction_free_name_value(instruction_t *);
 static char *           _instruction_tostring_name(instruction_t *);
 static char *           _instruction_tostring_value(instruction_t *);
 static char *           _instruction_tostring_name_value(instruction_t *);
+static char *           _instruction_tostring_value_or_name(instruction_t *);
 static data_t *         _instruction_get_variable(instruction_t *, closure_t *);
 
 static data_t *         _instruction_execute_assign(instruction_t *, closure_t *);
@@ -65,48 +62,62 @@ static data_t *         _instruction_execute_test(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_throw(instruction_t *, closure_t *);
 
 static instruction_type_descr_t instruction_descr_map[] = {
-  { type: ITAssign,   function: _instruction_execute_assign,
-    name: "Assign",   free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITEnterContext,   function: _instruction_execute_enter_context,
-    name: "Enter",   free: (free_t) _instruction_free_name_value,
-    tostring: (tostring_t) _instruction_tostring_name_value },
-  { type: ITFunctionCall, function: _instruction_execute_function,
-    name: "FunctionCall", free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITImport, function: _instruction_execute_import,
-    name: "Import", free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITIter, function: _instruction_execute_iter,
-    name: "Iterator", free: (free_t) _instruction_free_name,
-    tostring: (tostring_t) _instruction_tostring_name },
-  { type: ITJump, function: _instruction_execute_jump,
-    name: "Jump", free: (free_t) _instruction_free_name,
-    tostring: (tostring_t) _instruction_tostring_name },
-  { type: ITLeaveContext,   function: _instruction_execute_leave_context,
-    name: "Leave",   free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITNext, function: _instruction_execute_next,
-    name: "Next", free: (free_t) _instruction_free_name,
-    tostring: (tostring_t) _instruction_tostring_name },
-  { type: ITNop, function: _instruction_execute_nop,
-    name: "Nop", free: (free_t) _instruction_free_name,
-    tostring: (tostring_t) _instruction_tostring_name },
-  { type: ITPop, function: _instruction_execute_pop,
-    name: "Pop", free: (free_t) _instruction_free_name,
-    tostring: (tostring_t) _instruction_tostring_name },
-  { type: ITPushVal,  function: _instruction_execute_pushval,
-    name: "PushVal",  free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITPushVar,  function: _instruction_execute_pushvar,
-    name: "PushVar",  free: (free_t) _instruction_free_value,
-    tostring: (tostring_t) _instruction_tostring_value },
-  { type: ITTest, function: _instruction_execute_test,
-    name: "Test", free: (free_t) _instruction_free_name,
-    tostring: (tostring_t) _instruction_tostring_name },
-  { type: ITThrow, function: _instruction_execute_throw,
-    name: "Throw", free: (free_t) _instruction_free_name,
-    tostring: (tostring_t) _instruction_tostring_name },
+  { .type = ITAssign,   
+    .function = _instruction_execute_assign,
+    .name = "Assign",
+    .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITEnterContext,
+    .function = _instruction_execute_enter_context,
+    .name = "Enter",
+    .tostring = (tostring_t) _instruction_tostring_name_value },
+  { .type = ITFunctionCall, 
+    .function = _instruction_execute_function,
+    .name = "FunctionCall",
+    .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITImport, 
+    .function = _instruction_execute_import,
+    .name = "Import",
+    .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITIter, 
+    .function = _instruction_execute_iter,
+    .name = "Iterator",
+    .tostring = (tostring_t) _instruction_tostring_name },
+  { .type = ITJump, 
+    .function = _instruction_execute_jump,
+    .name = "Jump",
+    .tostring = (tostring_t) _instruction_tostring_name },
+  { .type = ITLeaveContext,
+    .function = _instruction_execute_leave_context,
+    .name = "Leave",
+    .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITNext,
+    .function = _instruction_execute_next,
+    .name = "Next",
+    .tostring = (tostring_t) _instruction_tostring_name },
+  { .type = ITNop,
+    .function = _instruction_execute_nop,
+    .name = "Nop",
+    .tostring = (tostring_t) _instruction_tostring_value_or_name },
+  { .type = ITPop,
+    .function = _instruction_execute_pop,
+    .name = "Pop",
+    .tostring = (tostring_t) _instruction_tostring_name },
+  { .type = ITPushVal,
+    .function = _instruction_execute_pushval,
+    .name = "PushVal",
+    .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITPushVar,
+    .function = _instruction_execute_pushvar,
+    .name = "PushVar",
+    .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITTest,
+    .function = _instruction_execute_test,
+    .name = "Test",
+    .tostring = (tostring_t) _instruction_tostring_name },
+  { .type = ITThrow,
+    .function = _instruction_execute_throw,
+    .name = "Throw",
+    .tostring = (tostring_t) _instruction_tostring_name },
 };
 
 typedef struct _function_call {
@@ -184,27 +195,7 @@ char * _call_tostring(data_t *d) {
   return name_tostring(((function_call_t *) d -> ptrval) -> name);
 }
 
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
-
-void _instruction_free_name(instruction_t *instruction) {
-  free(instruction -> name);
-}
-
-void _instruction_free_value(instruction_t *instruction) {
-  data_free(instruction -> value);
-}
-
-void _instruction_free_name_value(instruction_t *instruction) {
-  free(instruction -> name);
-  data_free(instruction -> value);
-}
-
-/* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
+/* -- T O _ S T R I N G  F U N C T I O N S -------------------------------- */
 
 char * _instruction_tostring_name(instruction_t *instruction) {
   return instruction -> name;
@@ -220,6 +211,16 @@ char * _instruction_tostring_name_value(instruction_t *instruction) {
            instruction -> name);
   return NULL;
 }
+
+char * _instruction_tostring_value_or_name(instruction_t *instruction) {
+  if (instruction -> value) {
+    return _instruction_tostring_value(instruction);
+  } else {
+    return _instruction_tostring_name(instruction);
+  }
+}
+
+/* -- H E L P E R  F U N C T I O N S -------------------------------------- */
 
 data_t * _instruction_get_variable(instruction_t *instr, closure_t *closure) {
   name_t *path = data_nameval(instr -> value);
@@ -368,6 +369,7 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   data_t          *ret = NULL;
   data_t          *self;
   data_t          *arg_name;
+  data_t          *caller;
   dict_t          *kwargs = NULL;
   array_t         *args;
   int              ix;
@@ -383,7 +385,7 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
       value = closure_pop(closure);
       assert(value);
       arg_name = data_array_get(call -> kwargs, num - ix - 1);
-      dict_put(kwargs, data_tostring(arg_name), value);
+      dict_put(kwargs, strdup(data_tostring(arg_name)), value);
     }
   }
 
@@ -400,9 +402,10 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   if (script_debug) {
     array_debug(args, " -- arguments: %s");
   }
-  self = (call -> infix) ? NULL : data_create(Closure, closure);
+  caller = data_create(Closure, closure);
+  self = (call -> infix) ? NULL : caller;
   ret = data_invoke(self, call -> name, args, kwargs);
-  data_free(self);
+  data_free(caller);
   array_free(args);
   dict_free(kwargs);
   if (ret && !data_is_error(ret)) {
@@ -485,6 +488,9 @@ data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
 /* ----------------------------------------------------------------------- */
 
 data_t * _instruction_execute_nop(instruction_t *instr, closure_t *closure) {
+  if (instr -> value) {
+    closure_set_location(closure, instr -> value);
+  }
   return NULL;
 }
 
@@ -504,12 +510,8 @@ instruction_t * instruction_create(int type, char *name, data_t *value) {
   ret = NEW(instruction_t);
   ret -> type = type;
   ret -> str = NULL;
-  if (name) {
-    ret -> name = strdup(name);
-  }
-  if (value) {
-    ret -> value = value;
-  }
+  ret -> name = (name) ? strdup(name) : NULL;
+  ret -> value = value;
   return ret;
 }
 
@@ -575,6 +577,12 @@ instruction_t * instruction_create_pop(void) {
   return instruction_create(ITPop, "Discard top-of-stack", NULL);
 }
 
+instruction_t * instruction_create_mark(int line) {
+  instruction_t *nop = instruction_create_nop();
+  nop -> value = data_create(Int, line);
+  return nop;
+}
+
 instruction_t * instruction_create_nop(void) {
   return instruction_create(ITNop, "Nothing", NULL);
 }
@@ -597,7 +605,7 @@ instruction_t * instruction_set_label(instruction_t *instruction, char *label) {
 }
 
 data_t * instruction_execute(instruction_t *instr, closure_t *closure) {
-  instr_fnc_t fnc;
+  instr_fnc_t  fnc;
 
   if (script_debug) {
     debug("Executing %s", instruction_tostring(instr));
@@ -634,13 +642,8 @@ char * instruction_tostring(instruction_t *instruction) {
 }
 
 void instruction_free(instruction_t *instruction) {
-  free_t freefnc;
-
   if (instruction) {
-    freefnc = instruction_descr_map[instruction -> type].free;
-    if (freefnc) {
-      freefnc(instruction);
-    }
+    free(instruction -> name);
     free(instruction -> label);
     data_free(instruction -> value);
     free(instruction -> str);

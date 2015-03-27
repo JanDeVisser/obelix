@@ -574,3 +574,9 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   return ret;
 }
 
+closure_t * closure_set_location(closure_t *closure, data_t *location) {
+  if (data_type(location) == Int) {
+    closure -> line = data_intval(location);
+  }
+  return closure;
+}

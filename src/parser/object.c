@@ -147,12 +147,12 @@ data_t * _object_create(data_t *self, char *name, array_t *args, dict_t *kwargs)
 
 data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs) {
   data_t   *ret;
-  object_t *obj;
   name_t   *name = NULL;
   data_t   *n;
   script_t *script = NULL;
   array_t  *shifted;
   
+  (void) fncname;
   n = data_copy(data_array_get(args, 0));
   if (data_is_name(n)) {
     name = name_copy(data_nameval(n));

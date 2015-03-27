@@ -60,9 +60,11 @@ typedef enum _lexer_state {
 typedef enum _lexer_option {
   LexerOptionIgnoreWhitespace,
   LexerOptionIgnoreNewLines,
+  LexerOptionIgnoreAllWhitespace,
   LexerOptionCaseSensitive,
   LexerOptionHashPling,
   LexerOptionSignedNumbers,
+  LexerOptionOnNewLine,
   LexerOptionLAST
 } lexer_option_t;
 
@@ -81,7 +83,7 @@ typedef enum _kw_match_state {
 typedef struct _lexer {
   reader_t           *reader;
   list_t             *keywords;
-  array_t            *options;
+  long                options[LexerOptionLAST];
   str_t              *buffer;
   str_t              *pushed_back;
   str_t              *token;
@@ -92,6 +94,7 @@ typedef struct _lexer {
   int                 prev_char;
   int                 line;
   int                 column;
+  void               *data;
 } lexer_t;
 
 extern char *       lexer_state_name(lexer_state_t);

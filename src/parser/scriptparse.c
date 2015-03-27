@@ -90,6 +90,7 @@ parser_t * script_parse_init(parser_t *parser) {
   char        *name;
   namespace_t *ns = NULL;
   data_t      *data;
+  script_t    *script;
 
   if (parser_debug) {
     debug("script_parse_init");
@@ -99,7 +100,9 @@ parser_t * script_parse_init(parser_t *parser) {
   data = parser_get(parser, "ns");
   ns = (data) ? data -> ptrval : NULL;
   assert(ns);
-  parser -> data = script_create(ns, NULL, name);
+  script = script_create(ns, NULL, name);
+  script_push_instruction(script, instruction_create_mark(1));
+  parser -> data = script;
   return parser;
 }
 
@@ -108,6 +111,16 @@ parser_t * script_parse_done(parser_t *parser) {
     debug("script_parse_done");
   }
   return _script_parse_emit_epilog(parser);
+}
+
+parser_t * script_parse_mark_line(parser_t *parser, data_t *line) {
+  script_t *script;
+
+  if (parser -> data) {
+    script = (script_t *) parser -> data;
+    script_push_instruction(script, instruction_create_mark(data_intval(line)));
+  }
+  return parser;
 }
 
 parser_t * script_make_nvp(parser_t *parser) {

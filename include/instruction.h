@@ -64,6 +64,7 @@ extern instruction_t *  instruction_create_iter();
 extern instruction_t *  instruction_create_next(char *);
 extern instruction_t *  instruction_create_jump(char *);
 extern instruction_t *  instruction_create_import(name_t *);
+extern instruction_t *  instruction_create_mark(int);
 extern instruction_t *  instruction_create_nop(void);
 extern instruction_t *  instruction_create_pop(void);
 extern instruction_t *  instruction_create_throw(void);

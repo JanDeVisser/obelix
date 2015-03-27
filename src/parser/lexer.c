@@ -38,6 +38,8 @@
 
 int lexer_debug = 0;
 
+typedef lexer_t * (*newline_fnc)(lexer_t *, int);
+
 typedef struct _lexer_state_str {
   int            state;
   char          *name;
@@ -64,6 +66,8 @@ static void           _lexer_push_all_back(lexer_t *);
 static lexer_t *      _lexer_keyword_match_reducer(token_t *, lexer_t *);
 static int            _lexer_keyword_match(lexer_t *);
 static token_t *      _lexer_match_token(lexer_t *, int);
+static int            _lexer_accept(lexer_t *, token_t *);
+static lexer_t *      _lexer_on_newline(lexer_t *, int);
 
 static state_str_t lexer_state_names[] = {
   { LexerStateFresh,           "LexerStateFresh" },
@@ -653,59 +657,67 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
   return ret;
 }
 
-/*
- * lexer_t - public interface
- */
+int _lexer_accept(lexer_t *lexer, token_t *token) {
+  long ignore_all_ws = lexer_get_option(lexer, LexerOptionIgnoreAllWhitespace);
+  long ignore_ws = ignore_all_ws || lexer_get_option(lexer, LexerOptionIgnoreWhitespace);
+  long ignore_nl = ignore_all_ws || lexer_get_option(lexer, LexerOptionIgnoreNewLines);
+  
+  if (!token) {
+    return 1;
+    /* FIXME Counter-intuitive but lexer_next_token deals with a NULL token */
+  }
+  if (token_code(token) == TokenCodeNewLine) {
+    return !ignore_nl;
+  } else if (token_iswhitespace(token)) {
+    return !ignore_ws;
+  } else {
+    return 1;
+  }
+}
+
+lexer_t * _lexer_on_newline(lexer_t *lexer, int line) {
+  function_t  *fnc;
+  newline_fnc  on_newline;
+  
+  if (fnc = (function_t *) lexer_get_option(lexer, LexerOptionOnNewLine)) {
+    on_newline = (newline_fnc) fnc -> fnc;
+    return on_newline(lexer, line);
+  } else {
+    return lexer;
+  }
+}
+
+/* -- L E X E R  P U B L I C  I N T E R F A C E --------------------------- */
 
 lexer_t * _lexer_create(reader_t *reader) {
   lexer_t *ret;
   int      ix;
   
   ret = NEW(lexer_t);
-  if (ret) {
-    ret -> reader = reader;
-    ret -> pushed_back = NULL;
-    ret -> buffer = NULL;
-    ret -> state = LexerStateFresh;
-    ret -> last_match = NULL;
-    ret -> line = 1;
-    ret -> column = 0;
-    ret -> prev_char = 0;
-    ret -> options = array_create((int) LexerOptionLAST);
-    if (!ret -> options) {
-      free(ret);
-      ret = NULL;
-    } else {
-      for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
-        lexer_set_option(ret, ix, 0L);
-      }
-      ret -> keywords = list_create();
-      if (!ret -> keywords) {
-        array_free(ret -> options);
-        free(ret);
-        ret = NULL;
-      } else {
-        list_set_free(ret -> keywords, (free_t) token_free);
-        ret -> token = str_create(LEXER_INIT_TOKEN_SZ);
-        if (!ret -> token) {
-          list_free(ret -> keywords);
-          array_free(ret -> options);
-          free(ret);
-          ret = NULL;
-        }
-      }
-    }
+  ret -> reader = reader;
+  ret -> pushed_back = NULL;
+  ret -> buffer = NULL;
+  ret -> state = LexerStateFresh;
+  ret -> last_match = NULL;
+  ret -> line = 1;
+  ret -> column = 0;
+  ret -> prev_char = 0;
+  for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
+    lexer_set_option(ret, ix, 0L);
   }
+  ret -> keywords = list_create();
+  list_set_free(ret -> keywords, (free_t) token_free);
+  ret -> token = str_create(LEXER_INIT_TOKEN_SZ);
   return ret;
 }
 
 lexer_t * lexer_set_option(lexer_t *lexer, lexer_option_t option, long value) {
-  array_set(lexer -> options, (int) option, (void *) value);
+  lexer -> options[(int) option] = value;
   return lexer;
 }
 
 long lexer_get_option(lexer_t *lexer, lexer_option_t option) {
-  return (long) array_get(lexer -> options, (int) option);
+  return lexer -> options[(int) option];
 }
 
 lexer_t * lexer_add_keyword(lexer_t *lexer, int code, char *token) {
@@ -716,7 +728,6 @@ lexer_t * lexer_add_keyword(lexer_t *lexer, int code, char *token) {
 void lexer_free(lexer_t *lexer) {
   if (lexer) {
     token_free(lexer -> last_match);
-    array_free(lexer -> options);
     list_free(lexer -> keywords);
     str_free(lexer -> token);
     str_free(lexer -> pushed_back);
@@ -729,6 +740,7 @@ void _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
   token_t *token;
   int      code;
 
+  _lexer_on_newline(lexer, 1);
   lexer -> matches = _kw_matches_create(lexer -> keywords);
   do {
     lexer -> last_match = lexer_next_token(lexer);
@@ -742,14 +754,12 @@ void _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
 }
 
 token_t * lexer_next_token(lexer_t *lexer) {
-  int ch;
-  token_t *ret;
-  int ignore_ws;
-  int first;
+  int          ch;
+  token_t     *ret;
+  int          first;
   
   first = lexer -> state == LexerStateFresh;
   ret = NULL;
-  ignore_ws = lexer_get_option(lexer, LexerOptionIgnoreWhitespace);
 
   do {
     lexer -> state = LexerStateInit;
@@ -769,13 +779,15 @@ token_t * lexer_next_token(lexer_t *lexer) {
       debug("lexer_next_token: matched token: %s [%s]", token_code_name(ret -> code), ret -> token);
     }
 #endif
-  } while (ignore_ws && ret && token_iswhitespace(ret));
-
-  if (!ret && (lexer -> state == LexerStateDone)) {
-    ret = token_create(TokenCodeEnd, "$$");
-    ret -> line = lexer -> line;
-    ret -> column = lexer -> column;
-  }
+    if (!ret && (lexer -> state == LexerStateDone)) {
+      ret = token_create(TokenCodeEnd, "$$");
+      ret -> line = lexer -> line;
+      ret -> column = lexer -> column;
+    }
+    if (ret && (token_code(ret) == TokenCodeNewLine)) {
+      _lexer_on_newline(lexer, ret -> line);
+    }
+  } while (!_lexer_accept(lexer, ret));
 
   if (ret && lexer_debug) {
     debug("lexer_next_token out: token: %s [%s], state %s",

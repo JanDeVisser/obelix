@@ -432,9 +432,10 @@ void _grammar_free(grammar_t *grammar) {
 }
 
 ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
-  int        b;
-  grammar_t *g = ge -> grammar;
-  char      *str;
+  int         b;
+  grammar_t  *g = ge -> grammar;
+  char       *str;
+  function_t *fnc;
   
   if (!val) return NULL;
 
@@ -456,6 +457,9 @@ ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
     }
     if (strstr(str, "newlines")) {
       grammar_set_lexer_option(g, LexerOptionIgnoreNewLines, 1);
+    }
+    if (strstr(str, "allwhitespace")) {
+      grammar_set_lexer_option(g, LexerOptionIgnoreAllWhitespace, 1);
     }
   } else if (!strcmp(token_token(name), CASE_SENSITIVE_STR)){
     grammar_set_lexer_option(g, LexerOptionCaseSensitive,
@@ -556,6 +560,9 @@ function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
   ret = _grammar_resolve_function(grammar, grammar -> prefix, func_name);
   if (!ret) {
     ret = _grammar_resolve_function(grammar, "parser_", func_name);
+    if (!ret) {
+      ret = _grammar_resolve_function(grammar, NULL, func_name);      
+    }
   }
   return ret;
 }

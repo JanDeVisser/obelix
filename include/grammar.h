@@ -40,6 +40,7 @@ extern int grammar_debug;
 #define CASE_SENSITIVE_STR      "case_sensitive"
 #define HASHPLING_STR           "hashpling"
 #define SIGNED_NUMBERS_STR      "signed_numbers"
+#define ON_NEWLINE_STR          "on_newline"
 
 /* ----------------------------------------------------------------------- */
 
