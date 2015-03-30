@@ -139,6 +139,8 @@ data_t * _object_create(data_t *self, char *name, array_t *args, dict_t *kwargs)
   data_t   *ret;
   object_t *obj;
 
+  (void) self;
+  (void) name;
   obj = object_create(NULL);
   dict_reduce(kwargs, (reduce_t) _object_set_all_reducer, obj);
   ret = data_create(Object, obj);
@@ -146,11 +148,13 @@ data_t * _object_create(data_t *self, char *name, array_t *args, dict_t *kwargs)
 }
 
 data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs) {
-  data_t   *ret;
-  name_t   *name = NULL;
-  data_t   *n;
-  script_t *script = NULL;
-  array_t  *shifted;
+  data_t      *ret;
+  name_t      *name = NULL;
+  data_t      *n;
+  script_t    *script = NULL;
+  array_t     *shifted;
+  object_t    *obj;
+  typedescr_t *type;
   
   (void) fncname;
   n = data_copy(data_array_get(args, 0));
@@ -165,16 +169,30 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
   }
   if (!data_is_error(n)) {
     if (data_is_object(n)) {
-      script = data_objectval(n) -> script;
+      script = data_boundmethodval(data_objectval(n) -> constructor) -> script;
     } else if (data_is_closure(n)) {
       script = data_closureval(n) -> script;
     } else if (data_is_script(n)) {
       script = data_scriptval(n);
     }
+    shifted = array_slice(args, 1, 0);
     if (script) {
-      shifted = array_slice(args, 1, 0);
-      ret = script_execute(script, shifted, kwargs);
-      array_free(shifted);
+      ret = script_create_object(script, shifted, kwargs);
+    } else {
+      script = data_boundmethodval(n) -> script;
+      ret = bound_method_execute(data_boundmethodval(n), shifted, kwargs);
+    }
+    array_free(shifted);
+    if (ret) {
+      if (data_is_object(ret)) {
+        obj = data_objectval(ret);
+        dict_reduce(script -> functions, (reduce_t) _object_set_all_reducer, obj);
+      } else {
+        type = data_typedescr(ret);
+        data_free(ret);
+        ret = data_error(ErrorType, "Script '%s' returned an object of type '%s' instead of an object",
+                         script_tostring(script), type -> type_name);
+      }
     }
   } else {
     ret = data_copy(n);
@@ -213,20 +231,29 @@ object_t * _object_set_all_reducer(entry_t *e, object_t *object) {
   return object;
 }
 
+object_t * _object_bind(entry_t *e, object_t *object) {
+  object_set(object, (char *) e -> key, (data_t *) e -> value);
+  return object;
+}
+
 /* ----------------------------------------------------------------------- */
 
-object_t * object_create(script_t *script) {
+object_t * object_create(data_t *constructor) {
   object_t   *ret;
+  script_t   *script;
   str_t      *s;
 
   ret = NEW(object_t);
   ret -> refs = 1;
-  ret -> script = script;
-  ret -> constructing = FALSE;
+  ret -> variables = strdata_dict_create();
   ret -> ptr = NULL;
   ret -> str = NULL;
   ret -> debugstr = NULL;
-  ret -> variables = strdata_dict_create();
+  if (data_is_script(constructor)) {
+    script = data_scriptval(constructor);
+    ret -> constructor = data_create(BoundMethod, script_bind(script, ret));
+    dict_reduce(script -> functions, (reduce_t) _object_bind, ret);
+  }  
   return ret;
 }
 
@@ -261,20 +288,17 @@ data_t * object_get(object_t *object, char *name) {
 }
 
 data_t * object_set(object_t *object, char *name, data_t *value) {
-  str_t     *s;
-  closure_t *closure;
+  bound_method_t *bm;
   
   if (data_is_script(value)) {
-    closure = script_create_closure(data_scriptval(value), data_create(Object, object), NULL);
-    value = data_create(Closure, closure);
+    bm = script_bind(data_scriptval(value), object);
+    value = data_create(BoundMethod, bm);
   }  
   dict_put(object -> variables, strdup(name), data_copy(value));
   if (res_debug) {
-    s = dict_tostr(object -> variables);
     debug("   object_set('%s') -> variables = %s", 
-          object -> script ? script_tostring(object -> script) : "anon", 
-          str_chars(s));
-    str_free(s);
+          object -> constructor ? data_tostring(object -> constructor) : "anon", 
+          dict_tostring(object -> variables));
   }
   return value;
 }
@@ -315,9 +339,9 @@ char * object_tostring(object_t *object) {
 
 char * object_debugstr(object_t *object) {
   if (!object -> debugstr) {
-    if (object -> script) {
+    if (object -> constructor) {
       asprintf(&(object -> debugstr), "<%s object at %p>",
-               script_tostring(object -> script), object);
+               data_tostring(object -> constructor), object);
     } else {
       asprintf(&(object -> debugstr), "<anon object at %p>", object);
     }

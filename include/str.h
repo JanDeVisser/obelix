@@ -43,6 +43,7 @@ extern str_t *     str_copy_nchars(int, char *);
 extern str_t *     str_copy(str_t *);
 extern str_t *     str_create(int);
 extern void        str_free(str_t *);
+extern char *      str_reassign(str_t *);
 
 /*
  * Functions returning new strings:

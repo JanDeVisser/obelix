@@ -37,6 +37,7 @@ typedef struct _dict {
   int         num_buckets;
   int         size;
   float       loadfactor;
+  char       *str;
 } dict_t;
 
 typedef struct _entry {
@@ -75,6 +76,7 @@ extern dict_t * dict_visit_values(dict_t *, visit_t);
 extern dict_t * _dict_visit_dictentries(dict_t *, visit_t);
 extern dict_t * dict_put_all(dict_t *, dict_t *);
 extern str_t *  dict_tostr(dict_t *);
+extern char *   dict_tostring(dict_t *);
 
 extern str_t *  dict_dump(dict_t *, char *);
 
@@ -114,7 +116,5 @@ extern str_t *  dict_dump(dict_t *, char *);
 #define dict_remove_int(d, i)   dict_remove((d), (void *)((long) (i)))
 #define dict_empty(d)           (dict_size((d)) == 0)
 #define dict_notempty(d)        (dict_size((d)) > 0)
-
-
 
 #endif /* __DICT_H__ */

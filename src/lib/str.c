@@ -174,6 +174,23 @@ void str_free(str_t *str) {
   }
 }
 
+/**
+ * Frees the str_t object, but does not free the actual underlying char buffer,
+ * instead making that available for use by the caller. Note that the caller
+ * now becomes responsible for freeing this buffer (if the str_t was not 
+ * obtained using a str_wrap).
+ * 
+ * @param str String to free and return the buffer of.
+ * @return char buffer of the str_t object passed in.
+ */
+char * str_reassign(str_t *str) {
+  char *ret = str -> buffer;
+  
+  str -> bufsize = 0;
+  free(str);
+  return ret;
+}
+
 int str_len(str_t *str) {
   return str -> len;
 }

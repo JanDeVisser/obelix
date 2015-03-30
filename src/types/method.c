@@ -143,8 +143,7 @@ char * mth_tostring(mth_t *mth) {
   char *s = data_tostring(mth -> self);
   
   free(mth -> str);
-  mth -> str = (char *) new(snprintf(NULL, 0, "%s.%s", s, mth -> method -> name));
-  sprintf(mth -> str, "%s.%s", s, mth -> method -> name);
+  asprintf(&mth -> str, "%s.%s", s, mth -> method -> name);
   return mth -> str;
 }
 

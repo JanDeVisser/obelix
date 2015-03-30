@@ -402,6 +402,7 @@ dict_t * dict_create(cmp_t cmp) {
       d -> size = 0;
       d -> loadfactor = 0.75; /* TODO: Make configurable */
       d -> num_buckets = array_capacity(d -> buckets);
+      d -> str = NULL;
       array_set_free(d -> buckets, (visit_t) list_free);
 
       for (i = 0; i < d -> num_buckets; i++) {
@@ -456,6 +457,7 @@ int dict_size(dict_t *dict) {
 void dict_free(dict_t *dict) {
   if (dict) {
     array_free(dict -> buckets);
+    free(dict -> str);
     free(dict);
   }
 }
@@ -634,6 +636,15 @@ str_t * dict_tostr(dict_t *dict) {
   str_append_chars(ret, " }");
   str_free(entries);
   return ret;
+}
+
+char * dict_tostring(dict_t *dict) {
+  str_t *s;
+  
+  free(dict -> str);
+  s = dict_tostr(dict);
+  dict -> str = str_reassign(s);
+  return dict -> str;
 }
 
 str_t * dict_dump(dict_t *dict, char *title) {

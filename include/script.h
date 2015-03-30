@@ -43,10 +43,16 @@ typedef struct _script {
   array_t           *params;
   datastack_t       *pending_labels;
   dict_t            *labels;
-  char              *label;
   struct _namespace *ns;
   int                refs;
 } script_t;
+
+typedef struct _bound_method {
+  script_t *script;
+  object_t *self;
+  char     *str;
+  int       refs;
+} bound_method_t;
 
 typedef struct _closure {
   struct _closure   *up;
@@ -77,24 +83,40 @@ extern data_t *            data_create_closure(closure_t *);
 
 #define data_is_script(d)  ((d) && (data_type((d)) == Script))
 #define data_scriptval(d)  (data_is_script((d)) ? ((script_t *) (d) -> ptrval) : NULL)
+#define data_is_boundmethod(d)  ((d) && (data_type((d)) == BoundMethod))
+#define data_boundmethodval(d)  (data_is_boundmethod((d)) ? ((bound_method_t *) (d) -> ptrval) : NULL)
 #define data_is_closure(d) ((d) && (data_type((d)) == Closure))
 #define data_closureval(d) (data_is_closure((d)) ? ((closure_t *) (d) -> ptrval) : NULL)
 #define data_is_native(d)  ((d) && (data_type((d)) == Native))
 #define data_nativeval(d)  (data_is_native((d)) ? ((native_fnc_t *) (d) -> ptrval) : NULL)
 
+/* -- S C R I P T  P R O T O T Y P E S -------------------------------------*/
+
 extern script_t *       script_create(namespace_t *, script_t *, char *);
 extern script_t *       script_copy(script_t *);
 extern void             script_free(script_t *);
 extern char *           script_tostring(script_t *);
+extern int              script_cmp(script_t *, script_t *);
+extern unsigned int     script_hash(script_t *);
 extern void             script_list(script_t *);
 extern script_t *       script_get_toplevel(script_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
-extern closure_t *      script_create_closure(script_t *, data_t *, closure_t *);
+extern closure_t *      script_create_closure(script_t *, closure_t *);
 extern data_t *         script_execute(script_t *, array_t *, dict_t *);
+extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
+extern bound_method_t * script_bind(script_t *, object_t *);
 
-/*
- * closure_t prototypes
- */
+/* -- B O U N D  M E T H O D  P R O T O T Y P E S ------------------------- */
+
+extern bound_method_t * bound_method_create(script_t *, object_t *);
+extern void             bound_method_free(bound_method_t *);
+extern bound_method_t * bound_method_copy(bound_method_t *);
+extern int              bound_method_cmp(bound_method_t *, bound_method_t *);
+extern char *           bound_method_tostring(bound_method_t *);
+extern data_t *         bound_method_execute(bound_method_t *, array_t *, dict_t *);
+
+/* -- C L O S U R E  P R O T O T Y P E S ---------------------------------- */
+
 extern void             closure_free(closure_t *);
 extern char *           closure_tostring(closure_t *);
 extern data_t *         closure_pop(closure_t *);

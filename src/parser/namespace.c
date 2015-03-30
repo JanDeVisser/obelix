@@ -140,7 +140,8 @@ module_t * mod_create(name_t *name) {
   ret -> name = strdup(name_tostring(name));
   ret -> contents = strdata_dict_create();
   ret -> obj = object_create(NULL);
-  ret -> refs = 0;
+  ret -> str = NULL;
+  ret -> refs = 1;
   return ret;
 }
 
@@ -162,10 +163,9 @@ module_t * mod_copy(module_t *module) {
 }
 
 char * mod_tostring(module_t *module) {
-  free(module -> str);
-  
-  module -> str = (char *) new(snprintf(NULL, 0, "<<module %s>>", module -> name));
-  sprintf(module -> str, "<<module %s>>", module -> name);
+  if (!module -> str) {
+    asprintf(&module -> str, "<<module %s>>", module -> name);
+  }
   return module -> str;
 }
 
@@ -184,12 +184,15 @@ module_t * mod_add_module(module_t *mod, name_t *name, module_t *sub) {
 
 data_t * mod_set(module_t *mod, script_t *script, array_t *args, dict_t *kwargs) {
   data_t *data;
-  
+
+  if (ns_debug) {
+    debug("mod_set(%s, %s)", mod_tostring(mod), script_tostring(script));
+  }
   if (!mod -> obj) {
     // Prevent endless loops -
     mod -> obj = object_create(NULL);
   }
-  data = script_execute(script, args, kwargs);
+  data = script_create_object(script, args, kwargs);
   if (data_is_object(data)) {
     _mod_copy_object(mod, data_objectval(data));
   } else {
@@ -234,7 +237,10 @@ module_t * _ns_add_module(namespace_t *ns, name_t *name, module_t *mod) {
   char     *n;
   module_t *node;
   module_t *sub;
-  
+
+  if (ns_debug) {
+    debug("_ns_add_module(%s, %s)", ns_tostring(ns), name_tostring(name));
+  }
   if (!name_size(name)) {
     assert(!ns -> root);
     ns -> root = data_create(Module, mod);
@@ -446,7 +452,7 @@ data_t * ns_get(namespace_t *ns, name_t *name) {
     node = data_moduleval(mod_get_module(node, n));
     if (!node) break;
   }
-  if (!node || !node -> obj -> script) {
+  if (!node || !node -> obj -> constructor) {
       return data_error(ErrorName,
                         "Import '%s' not found in %s", 
                         name_tostring(name), ns_tostring(ns));
