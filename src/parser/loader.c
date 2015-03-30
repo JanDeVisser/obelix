@@ -375,7 +375,10 @@ data_t * scriptloader_load(scriptloader_t *loader, name_t *name) {
     debug("scriptloader_load('%s')", script_name);
   }
   ret = ns_get(loader -> ns, name);
-  if (!data_is_module(ret)) {
+  if (script_debug) {
+    debug("scriptloader_load('%s'): ns_get: %s", script_name, data_tostring(ret));
+  }
+  if (!data_is_module(ret) || (data_moduleval(ret) -> state != ModStateActive)) {
     rdr = _scriptloader_open_reader(loader, name);
     ret = (rdr)
             ? scriptloader_load_fromreader(loader, script_name, rdr)

@@ -38,6 +38,13 @@ static data_t *         _data_new_script(data_t *, va_list);
 static data_t *         _data_copy_script(data_t *, data_t *);
 static int              _data_cmp_script(data_t *, data_t *);
 static char *           _data_tostring_script(data_t *);
+static data_t *         _data_call_script(data_t *, array_t *, dict_t *);
+
+static data_t *         _data_new_bm(data_t *, va_list);
+static data_t *         _data_copy_bm(data_t *, data_t *);
+static int              _data_cmp_bm(data_t *, data_t *);
+static char *           _data_tostring_bm(data_t *);
+static data_t *         _data_call_bm(data_t *, array_t *, dict_t *);
 
 static data_t *         _data_new_closure(data_t *, va_list);
 static data_t *         _data_copy_closure(data_t *, data_t *);
@@ -47,12 +54,9 @@ static data_t *         _data_call_closure(data_t *, array_t *, dict_t *);
 static data_t *         _data_resolve_closure(data_t *, char *);
 static data_t *         _data_set_closure(data_t *, char *, data_t *);
 
-
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
 
-/*
- * data_t Script and Closure types
- */
+/* -- data_t type description structures ---------------------------------- */
 
 static vtable_t _vtable_script[] = {
   { .id = FunctionNew,      .fnc = (void_t) _data_new_script },
@@ -60,6 +64,7 @@ static vtable_t _vtable_script[] = {
   { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_script },
   { .id = FunctionFree,     .fnc = (void_t) script_free },
   { .id = FunctionToString, .fnc = (void_t) _data_tostring_script },
+  { .id = FunctionCall,     .fnc = (void_t) _data_call_script },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -67,6 +72,22 @@ static typedescr_t _typedescr_script = {
   .type =      Script,
   .type_name = "script",
   .vtable =    _vtable_script
+};
+
+static vtable_t _vtable_bound_method[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_bm },
+  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_bm },
+  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_bm },
+  { .id = FunctionFree,     .fnc = (void_t) bound_method_free },
+  { .id = FunctionToString, .fnc = (void_t) _data_tostring_bm },
+  { .id = FunctionCall,     .fnc = (void_t) _data_call_bm },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_bound_method = {
+  .type =      BoundMethod,
+  .type_name = "boundmethod",
+  .vtable =    _vtable_bound_method
 };
 
 static vtable_t _vtable_closure[] = {
@@ -87,59 +108,74 @@ static typedescr_t _typedescr_closure = {
   .vtable =    _vtable_closure
 };
 
+/* ------------------------------------------------------------------------ */
+
 void _script_init(void) {
   logging_register_category("script", &script_debug);
   typedescr_register(&_typedescr_script);
   typedescr_register(&_typedescr_closure);
+  typedescr_register(&_typedescr_bound_method);
 }
 
-/*
- * Script data functions
- */
+/* -- Script data functions ----------------------------------------------- */
 
 data_t * _data_new_script(data_t *ret, va_list arg) {
   script_t *script;
 
   script = va_arg(arg, script_t *);
-  ret -> ptrval = script;
-  ((script_t *) ret -> ptrval) -> refs++;
+  ret -> ptrval = script_copy(script);
   return ret;
 }
 
 data_t * _data_copy_script(data_t *target, data_t *src) {
-  target -> ptrval = src -> ptrval;
-  ((script_t *) target -> ptrval) -> refs++;
+  target -> ptrval = script_copy(src -> ptrval);
   return target;
 }
 
 int _data_cmp_script(data_t *d1, data_t *d2) {
-  script_t *s1;
-  script_t *s2;
-
-  s1 = d1 -> ptrval;
-  s2 = d2 -> ptrval;
-  return name_cmp(s1 -> name, s2 -> name);
+  return script_cmp(data_scriptval(d1), data_scriptval(d2));
 }
 
 char * _data_tostring_script(data_t *d) {
-  static char buf[32];
-
-  snprintf(buf, 32, "<<script %s>>", script_tostring((script_t *) d -> ptrval));
-  return buf;
+  return script_tostring(data_scriptval(d));
 }
 
 data_t * _data_call_script(data_t *self, array_t *params, dict_t *kwargs) {
-  script_t *script = (script_t *) self -> ptrval;
-  return script_execute(script, params, kwargs);
+  return script_execute(data_scriptval(self), params, kwargs);
 }
 
 data_t * data_create_script(script_t *script) {
   return data_create(Script, script);
 }
 
-/*
- * Closure data functions
- */
+/* -- BoundMethod data functions ------------------------------------------ */
+
+data_t * _data_new_bm(data_t *ret, va_list arg) {
+  bound_method_t *bm;
+
+  bm = va_arg(arg, bound_method_t *);
+  ret -> ptrval = bound_method_copy(bm);
+  return ret;
+}
+
+data_t * _data_copy_bm(data_t *target, data_t *src) {
+  target -> ptrval = bound_method_copy(src -> ptrval);
+  return target;
+}
+
+int _data_cmp_bm(data_t *d1, data_t *d2) {
+  return bound_method_cmp(data_boundmethodval(d1), data_boundmethodval(d2));
+}
+
+char * _data_tostring_bm(data_t *d) {
+  return bound_method_tostring(data_boundmethodval(d));
+}
+
+data_t * _data_call_bm(data_t *self, array_t *params, dict_t *kwargs) {
+  return bound_method_execute(data_boundmethodval(self), params, kwargs);
+}
+
+/* -- Closure data functions ---------------------------------------------- */
 
 data_t * _data_new_closure(data_t *ret, va_list arg) {
   closure_t *closure;
@@ -186,9 +222,7 @@ data_t * data_create_closure(closure_t *closure) {
   return data_create(Closure, closure);
 }
 
-/*
- * script_t public functions
- */
+/* -- script_t public functions ------------------------------------------- */
 
 script_t * script_create(namespace_t *ns, script_t *up, char *name) {
   script_t   *ret;
@@ -209,7 +243,6 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
   ret -> functions = strdata_dict_create();
   ret -> labels = strvoid_dict_create();
   ret -> pending_labels = datastack_create("pending labels");
-  ret -> label = NULL;
   ret -> params = NULL;
   ret -> async = 0;
 
@@ -257,6 +290,22 @@ void script_free(script_t *script) {
   }
 }
 
+int script_cmp(script_t *s1, script_t *s2) {
+  if (s1 && !s2) {
+    return 1;
+  } else if (!s1 && s2) {
+    return -1;
+  } else if (!s1 && !s2) {
+    return 0;
+  } else {
+    return name_cmp(s1 -> name, s2 -> name);
+  }
+}
+
+unsigned int script_hash(script_t *script) {
+  return (script) ? name_hash(script -> name) : 0L;
+}
+
 script_t * script_push_instruction(script_t *script, instruction_t *instruction) {
   listnode_t *node;
   data_t     *label;
@@ -298,30 +347,46 @@ script_t * script_get_toplevel(script_t *script) {
 }
 
 data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
-  object_t  *retobj;
   closure_t *closure;
   data_t    *retval;
-  data_t    *self;
   
   if (script_debug) {
     debug("script_execute(%s)", script_tostring(script));
   }
-  retobj = object_create(script);
-  self = data_create_object(retobj);
-
-  closure = script_create_closure(script, self, NULL);
-  retobj -> constructing = TRUE; // FIXME Ugly
+  closure = script_create_closure(script, NULL);
   retval = closure_execute(closure, args, kwargs);
-  retobj -> constructing = FALSE;
   closure_free(closure);
-  if (!data_is_error(retval)) {
-    retobj -> retval = retval;
-    retval = self;
-  }
   if (script_debug) {
     debug("  script_execute returns %s", data_tostring(retval));
   }
   return retval;
+}
+
+data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparams) {
+  object_t  *retobj;
+  data_t    *retval;
+  data_t    *self;
+  
+  if (script_debug) {
+    debug("script_create_object(%s)", script_tostring(script));
+  }
+  retobj = object_create(data_create(Script, script));
+  retval = bound_method_execute(data_boundmethodval(retobj -> constructor), 
+                                params, kwparams);
+  if (!data_is_error(retval)) {
+    retobj -> retval = retval;
+    retval = data_create(Object, retobj);
+  }
+  if (script_debug) {
+    debug("  script_create_object returns %s", data_tostring(retval));
+  }
+  return retval;
+}
+
+bound_method_t * script_bind(script_t *script, object_t *object) {
+  bound_method_t *ret = bound_method_create(script, object);
+  
+  return ret;
 }
 
 closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
@@ -331,7 +396,7 @@ closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
   closure_t *c;
 
   if (data_is_script(func)) {
-    c = script_create_closure(data_scriptval(func), closure -> self, closure);
+    c = script_create_closure(data_scriptval(func), closure);
     c -> up = closure;
     value = data_create(Closure, c);
   } else {
@@ -343,17 +408,7 @@ closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
   return closure;
 }
 
-object_t * _object_set_closures(entry_t *entry, object_t *object) {
-  data_t *closure;
-  char   *name;
-  
-  closure = data_copy((data_t *) entry -> value);
-  name = (char *) entry -> key;
-  object_set(object, name, closure);
-  return object;
-}
-
-closure_t * script_create_closure(script_t *script, data_t *self, closure_t *up) {
+closure_t * script_create_closure(script_t *script, closure_t *up) {
   closure_t *ret;
   int        ix;
 
@@ -368,33 +423,79 @@ closure_t * script_create_closure(script_t *script, data_t *self, closure_t *up)
   ret -> stack = datastack_create(script_tostring(script));
   datastack_set_debug(ret -> stack, script_debug);
   ret -> up = up;
+  ret -> self = NULL;
 
-  if (self) {
-    ret -> self = data_copy(self);
-    closure_set(ret, "self", data_copy(self));
-  }
   dict_reduce(script -> functions, 
               (reduce_t) _script_create_closure_reducer, ret);
   ret -> refs++;
   
   if (!up) {
-    /*
-     * Bind all functions in this closure to the 'self' object:
-     */
-    if (self) {
-      dict_reduce(ret -> variables, (reduce_t) _object_set_closures, data_objectval(self));
-    }
-    /*
-     * Import standard lib:
-     */
+    /* Import standard lib: */
     closure_import(ret, NULL);
   }
   return ret;
 }
 
-/*
- * closure_t - static functions
- */
+/* -- B O U N D  M E T H O D  F U N C T I O N S   ------------------------- */
+
+bound_method_t * bound_method_create(script_t *script, object_t *self) {
+  bound_method_t *ret = NEW(bound_method_t);
+  
+  ret -> script = script_copy(script);
+  ret -> self = object_copy(self);
+  ret -> refs = 1;
+  return ret;
+}
+
+void bound_method_free(bound_method_t *bm) {
+  if (bm) {
+    bm -> refs--;
+    if (bm -> refs <= 0) {
+      script_free(bm -> script);
+      object_free(bm -> self);
+      free(bm -> str);
+      free(bm);
+    }
+  }
+}
+
+bound_method_t * bound_method_copy(bound_method_t *bm) {
+  if (bm) {
+    bm -> refs++;
+  }
+  return bm;
+}
+
+int bound_method_cmp(bound_method_t *bm1, bound_method_t *bm2) {
+  return (!object_cmp(bm1 -> self, bm2 -> self)) 
+    ? script_cmp(bm1 -> script, bm2 -> script)
+    : 0;
+}
+
+char * bound_method_tostring(bound_method_t *bm) {
+  if (bm -> script) {
+    asprintf(&bm -> str, "%s (bound)", 
+             script_tostring(bm -> script));
+  } else {
+    bm -> str = strdup("uninitialized");
+  }
+  return bm -> str;
+}
+
+data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwparams) {
+  closure_t *closure;
+  data_t    *self;
+  data_t    *ret;
+  
+  self = data_create(Object, bm -> self);
+  closure = script_create_closure(bm -> script, NULL);
+  closure -> self = data_copy(self);
+  ret = closure_execute(closure, params, kwparams);
+  closure_free(closure);
+  return ret;  
+}
+
+/* -- C L O S U R E  S T A T I C  F U N C T I O N S ------------------------*/
 
 listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closure) {
   data_t     *ret;
@@ -491,7 +592,11 @@ data_t * closure_set(closure_t *closure, char *name, data_t *value) {
 data_t * closure_get(closure_t *closure, char *varname) {
   data_t *ret;
 
-  ret = (data_t *) dict_get(closure -> variables, varname);
+  if (closure -> self && !strcmp(varname, "self")) {
+    ret = closure -> self;
+  } else {
+    ret = (data_t *) dict_get(closure -> variables, varname);
+  }
   if (ret) {
     ret = data_copy(ret);
   } else {
@@ -506,7 +611,7 @@ data_t * closure_get(closure_t *closure, char *varname) {
 int closure_has(closure_t *closure, char *name) {
   int ret;
 
-  ret = dict_has_key(closure -> variables, name);
+  ret = dict_has_key(closure -> variables, name) || (closure -> self && !strcmp(name, "self"));
   if (res_debug) {
     debug("   closure_has('%s', '%s'): %d", closure_tostring(closure), name, ret);
   }
@@ -516,7 +621,11 @@ int closure_has(closure_t *closure, char *name) {
 data_t * closure_resolve(closure_t *closure, char *name) {
   data_t *ret;
   
-  ret = (data_t *) dict_get(closure -> variables, name);
+  if (closure -> self && !strcmp(name, "self")) {
+    ret = closure -> self;
+  } else {
+    ret = (data_t *) dict_get(closure -> variables, name);
+  }
   if (!ret) {
     if (closure -> up) {
       if (!strcmp(name, "^") ||

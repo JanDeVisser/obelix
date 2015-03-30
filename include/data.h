@@ -40,12 +40,13 @@ typedef enum _datatype {
   Method,       /* 10 */
   Object,       /* 11 */
   Script,       /* 12 */
-  Closure,      /* 13 */
-  Module,       /* 14 */
-  Name,         /* 15 */
-  Native,       /* 16 */
-  NVP,          /* 17 */
-  Range,        /* 18 */
+  BoundMethod,  /* 13 */
+  Closure,      /* 14 */
+  Module,       /* 15 */
+  Name,         /* 16 */
+  Native,       /* 17 */
+  NVP,          /* 18 */
+  Range,        /* 19 */
   Any           = 100,
   UserTypeRange = 999
 } datatype_t;
