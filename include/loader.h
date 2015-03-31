@@ -28,6 +28,7 @@
 
 typedef enum _obelix_option {
   ObelixOptionList,
+  ObelixOptionTrace,
   ObelixOptionLAST
 } obelix_option_t;
 

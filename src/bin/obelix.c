@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
   scriptloader_t *loader;
   int             retval;
   int             list = 0;
+  int             trace = 0;
 
   while ((opt = getopt(argc, argv, "s:g:d:p:v:l")) != -1) {
     switch (opt) {
@@ -126,10 +127,14 @@ int main(int argc, char **argv) {
       case 'l':
         list = 1;
         break;
+      case 't':
+	trace = 1;
+	list = 1;
+	break;
     }
   }
   if (argc == optind) {
-    fprintf(stderr, "Usage: obelix <filename>\n");
+    fprintf(stderr, "Usage: obelix <filename> [options ...]\n");
     exit(1);
   }
   debug_settings(debug);
@@ -145,6 +150,7 @@ int main(int argc, char **argv) {
   
   loader = scriptloader_create(syspath, path, grammar);
   scriptloader_set_option(loader, ObelixOptionList, list);
+  scriptloader_set_option(loader, ObelixOptionTrace, trace);
 
   name = build_name(argv[optind]);
   obl_argv = str_array_create(argc - optind);

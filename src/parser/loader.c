@@ -36,8 +36,9 @@ static data_t *         _scriptloader_import_sys(scriptloader_t *, name_t *);
 static scriptloader_t * _loader = NULL;
 
 static code_label_t obelix_option_labels[] = {
-  { .code = ObelixOptionList, .label = "ObelixOptionList" },
-  { .code = ObelixOptionLAST, .label = NULL }
+  { .code = ObelixOptionList,  .label = "ObelixOptionList" },
+  { .code = ObelixOptionTrace, .label = "ObelixOptionTrace" },
+  { .code = ObelixOptionLAST,  .label = NULL }
 };
 
 /*
