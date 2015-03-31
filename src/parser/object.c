@@ -258,7 +258,9 @@ object_t * object_create(data_t *constructor) {
 }
 
 object_t* object_copy(object_t* object) {
-  object -> refs++;
+  if (object) {
+    object -> refs++;
+  }
   return object;
 }
 

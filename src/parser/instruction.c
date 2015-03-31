@@ -27,6 +27,8 @@
 #include <script.h>
 #include <math.h>
 
+int script_trace;
+
 typedef data_t * (*instr_fnc_t)(instruction_t *, closure_t *);
 
 typedef struct _instruction_type_descr {
@@ -37,6 +39,8 @@ typedef struct _instruction_type_descr {
 } instruction_type_descr_t;
 
 static instruction_type_descr_t instruction_descr_map[];
+
+static void             _instruction_init(void) __attribute__((constructor(102)));
 
 static char *           _instruction_tostring_name(instruction_t *);
 static char *           _instruction_tostring_value(instruction_t *);
@@ -151,6 +155,10 @@ static typedescr_t _typedescr_call = {
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
+
+void _instruction_init(void) {
+  logging_register_category("trace", &script_trace);
+}
 
 void _data_init_call(void) {
   Call = typedescr_register(&_typedescr_call);  
@@ -509,6 +517,7 @@ instruction_t * instruction_create(int type, char *name, data_t *value) {
 
   ret = NEW(instruction_t);
   ret -> type = type;
+  ret -> line = -1;
   ret -> str = NULL;
   ret -> name = (name) ? strdup(name) : NULL;
   ret -> value = value;
@@ -610,6 +619,9 @@ data_t * instruction_execute(instruction_t *instr, closure_t *closure) {
   if (script_debug) {
     debug("Executing %s", instruction_tostring(instr));
   }
+  if (script_trace) {
+    debug("%-20.20s %s", closure_tostring(closure), instruction_tostring(instr));
+  }
   fnc = instruction_descr_map[instr -> type].function;
   return fnc(instr, closure);
 }
@@ -619,6 +631,7 @@ char * instruction_tostring(instruction_t *instruction) {
   char        *s;
   char        *free_me = NULL;
   char        *lbl;
+  char         line[7];
 
   if (!instruction -> str) {
     tostring = instruction_descr_map[instruction -> type].tostring;
@@ -631,8 +644,14 @@ char * instruction_tostring(instruction_t *instruction) {
     } else {
       s = "";
     }
+    if (instruction -> line > 0) {
+      snprintf(line, 7, "%6d", instruction -> line);
+    } else {
+      line[0] = 0;
+    }
     lbl = (instruction -> label) ? instruction -> label : "";
-    asprintf(&instruction -> str, "%-11.11s%-15.15s%s", 
+    asprintf(&instruction -> str, "%-6s %-11.11s%-15.15s%s", 
+             line,
              lbl, 
              instruction_descr_map[instruction -> type].name, 
              s);
@@ -650,5 +669,3 @@ void instruction_free(instruction_t *instruction) {
     free(instruction);
   }
 }
-
-

@@ -1,0 +1,13 @@
+func fibonacci(n)
+  if n <= 1
+    return n
+  else
+    return fibonacci(n-1) + fibonacci(n-2)
+  end
+end
+
+sum = 0
+for i in 0 ~ 20
+  sum = sum + fibonacci(i)
+end
+print("Sum: ${0}", sum)
