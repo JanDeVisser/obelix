@@ -245,6 +245,7 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
   ret -> pending_labels = datastack_create("pending labels");
   ret -> params = NULL;
   ret -> async = 0;
+  ret -> current_line = -1;
 
   ret -> name = name_create(0);
   if (up) {
@@ -307,9 +308,16 @@ unsigned int script_hash(script_t *script) {
 }
 
 script_t * script_push_instruction(script_t *script, instruction_t *instruction) {
-  listnode_t *node;
-  data_t     *label;
+  listnode_t    *node;
+  data_t        *label;
+  int            line;
+  instruction_t *last;
 
+  last = list_tail(script -> instructions);
+  line = (last) ? last -> line : -1;
+  if (script -> current_line > line) {
+    instruction -> line = script -> current_line;
+  }
   list_push(script -> instructions, instruction);
   if (!datastack_empty(script -> pending_labels)) {
     label = datastack_peek(script -> pending_labels);
@@ -330,7 +338,7 @@ void script_list(script_t *script) {
   debug("==================================================================");
   debug("Script Listing - %s", script_tostring(script));
   debug("------------------------------------------------------------------");
-  debug("%-11.11s%-15.15s", "label","Instruction");
+  debug("%-6s %-11.11s%-15.15s", "Line", "Label", "Instruction");
   debug("------------------------------------------------------------------");
   for (list_start(script -> instructions); list_has_next(script -> instructions); ) {
     instr = (instruction_t *) list_next(script -> instructions);
@@ -390,15 +398,16 @@ bound_method_t * script_bind(script_t *script, object_t *object) {
 }
 
 closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
-  char      *name = (char *) entry -> key;
-  data_t    *func = (data_t *) entry -> value;
-  data_t    *value;
-  closure_t *c;
+  char           *name = (char *) entry -> key;
+  data_t         *func = (data_t *) entry -> value;
+  data_t         *value;
+  bound_method_t *bm;
 
   if (data_is_script(func)) {
-    c = script_create_closure(data_scriptval(func), closure);
-    c -> up = closure;
-    value = data_create(Closure, c);
+    bm = bound_method_create(data_scriptval(func), 
+                             data_objectval(closure -> self));
+    bm -> closure = closure;
+    value = data_create(BoundMethod, bm);
   } else {
     /* Native function */
     /* TODO: Do we have a closure-like structure to bind the function to self? */
@@ -420,6 +429,7 @@ closure_t * script_create_closure(script_t *script, closure_t *up) {
   ret -> imports = ns_create(script -> ns);
 
   ret -> variables = strdata_dict_create();
+  ret -> params = strdata_dict_create();
   ret -> stack = datastack_create(script_tostring(script));
   datastack_set_debug(ret -> stack, script_debug);
   ret -> up = up;
@@ -443,6 +453,8 @@ bound_method_t * bound_method_create(script_t *script, object_t *self) {
   
   ret -> script = script_copy(script);
   ret -> self = object_copy(self);
+  ret -> closure = NULL;
+  ret -> str = NULL;
   ret -> refs = 1;
   return ret;
 }
@@ -487,8 +499,8 @@ data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwpar
   data_t    *self;
   data_t    *ret;
   
-  self = data_create(Object, bm -> self);
-  closure = script_create_closure(bm -> script, NULL);
+  self = (bm -> self) ? data_create(Object, bm -> self) : NULL;
+  closure = script_create_closure(bm -> script, bm -> closure);
   closure -> self = data_copy(self);
   ret = closure_execute(closure, params, kwparams);
   closure_free(closure);
@@ -543,15 +555,29 @@ void closure_free(closure_t *closure) {
       script_free(closure -> script);
       datastack_free(closure -> stack);
       dict_free(closure -> variables);
+      dict_free(closure -> params);
       data_free(closure -> self);
       ns_free(closure -> imports);
+      free(closure -> str);
       free(closure);
     }
   }
 }
 
 char * closure_tostring(closure_t *closure) {
-  return script_tostring(closure -> script);
+  char *params;
+  
+  if (!closure -> str) {
+    params = (dict_size(closure -> params)) 
+               ? dict_tostring_custom(closure -> params, "", "%s=%s", ",", "")
+               : strdup("");
+    asprintf(&closure -> str, "%s(%s)",
+             script_tostring(closure -> script),
+             params);
+    free(params);
+  }
+  return closure -> str;
+           
 }
 
 data_t * closure_pop(closure_t *closure) {
@@ -589,7 +615,7 @@ data_t * closure_set(closure_t *closure, char *name, data_t *value) {
   return value;
 }
 
-data_t * closure_get(closure_t *closure, char *varname) {
+data_t * _closure_get(closure_t *closure, char *varname) {
   data_t *ret;
 
   if (closure -> self && !strcmp(varname, "self")) {
@@ -597,6 +623,20 @@ data_t * closure_get(closure_t *closure, char *varname) {
   } else {
     ret = (data_t *) dict_get(closure -> variables, varname);
   }
+  if (!ret) {
+    /* 
+     * We store the passed-in parameter values. If the parameter variable gets
+     * re-assigned, the new value shadows the old one because it will be set 
+     * in the variables dict, not in the params one.
+     */
+    ret = (data_t *) dict_get(closure -> params, varname);    
+  }
+  return ret;
+}
+
+data_t * closure_get(closure_t *closure, char *varname) {
+  data_t *ret = _closure_get(closure, varname);
+  
   if (ret) {
     ret = data_copy(ret);
   } else {
@@ -611,7 +651,9 @@ data_t * closure_get(closure_t *closure, char *varname) {
 int closure_has(closure_t *closure, char *name) {
   int ret;
 
-  ret = dict_has_key(closure -> variables, name) || (closure -> self && !strcmp(name, "self"));
+  ret = dict_has_key(closure -> variables, name) || 
+        (closure -> self && !strcmp(name, "self")) ||
+        dict_has_key(closure -> params, name);
   if (res_debug) {
     debug("   closure_has('%s', '%s'): %d", closure_tostring(closure), name, ret);
   }
@@ -619,13 +661,8 @@ int closure_has(closure_t *closure, char *name) {
 }
 
 data_t * closure_resolve(closure_t *closure, char *name) {
-  data_t *ret;
+  data_t *ret = _closure_get(closure, name);
   
-  if (closure -> self && !strcmp(name, "self")) {
-    ret = closure -> self;
-  } else {
-    ret = (data_t *) dict_get(closure -> variables, name);
-  }
   if (!ret) {
     if (closure -> up) {
       if (!strcmp(name, "^") ||
@@ -644,6 +681,7 @@ data_t * closure_resolve(closure_t *closure, char *name) {
 data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   int       ix;
   data_t   *ret;
+  data_t   *param;
   script_t *script;
   object_t *self;
   error_t  *e;
@@ -658,12 +696,14 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
                         (args) ? array_size(args) : 0);
     }
     for (ix = 0; ix < array_size(args); ix++) {
-      closure_set(closure, array_get(script -> params, ix),
-                           array_get(args, ix));
+      param = data_copy(data_array_get(args, ix));
+      dict_put(closure -> params, 
+               (char *) array_get(script -> params, ix),
+               param);
     }
   }
   if (kwargs) {
-    dict_reduce(kwargs, (reduce_t) data_put_all_reducer, closure -> variables);
+    dict_reduce(kwargs, (reduce_t) data_put_all_reducer, closure -> params);
   }
   datastack_clear(closure -> stack);
   closure -> catchpoints = datastack_create("catchpoints");

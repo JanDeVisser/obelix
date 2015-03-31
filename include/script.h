@@ -38,6 +38,7 @@ typedef struct _script {
   struct _script    *up;
   name_t            *name;
   int                async;
+  int                current_line;
   list_t            *instructions;
   dict_t            *functions;
   array_t           *params;
@@ -47,17 +48,11 @@ typedef struct _script {
   int                refs;
 } script_t;
 
-typedef struct _bound_method {
-  script_t *script;
-  object_t *self;
-  char     *str;
-  int       refs;
-} bound_method_t;
-
 typedef struct _closure {
   struct _closure   *up;
   script_t          *script;
   data_t            *self;
+  dict_t            *params;
   dict_t            *variables;
   struct _namespace *imports;
   datastack_t       *stack;
@@ -65,7 +60,16 @@ typedef struct _closure {
   struct _closure   *caller;
   int                line;
   int                refs;
+  char              *str;
 } closure_t;
+
+typedef struct _bound_method {
+  script_t  *script;
+  object_t  *self;
+  closure_t *closure;
+  char      *str;
+  int        refs;
+} bound_method_t;
 
 typedef data_t * (*native_t)(char *, array_t *, dict_t *);
 

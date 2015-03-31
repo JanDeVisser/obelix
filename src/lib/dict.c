@@ -63,7 +63,7 @@ static void *           _dict_entry_reducer(dictentry_t *, reduce_ctx *);
 static void *           _dict_reduce(dict_t *, reduce_t, void *, dict_reduce_type_t);
 static void *           _dict_bucket_reducer(list_t *, reduce_ctx *);
 static dict_t *         _dict_put_all_reducer(entry_t *, dict_t *);
-static reduce_ctx *     _dict_entry_formatter(entry_t *, reduce_ctx *);
+static void **          _dict_entry_formatter(entry_t *, void **);
 
 // ---------------------------
 // dictentry_t static functions
@@ -365,18 +365,16 @@ dict_t * _dict_put_all_reducer(entry_t *e, dict_t *dict) {
   return dict;
 }
 
-reduce_ctx * _dict_entry_formatter(entry_t *e, reduce_ctx *ctx) {
-  dict_t *dict = (dict_t *) ctx -> user;
-  str_t  *entries = (str_t *) ctx -> data;
+void ** _dict_entry_formatter(entry_t *e, void **ctx) {
+  dict_t *dict = (dict_t *) ctx[0];
+  str_t  *entries = (str_t *) ctx[1];
+  char   *sep = (char *) ctx[2];
+  char   *fmt = (char *) ctx[3];
   
   if (str_len(entries)) {
-    str_append_chars(entries, ", ");
-  } else {
-    str_append_chars(entries, " ");    
+    str_append_chars(entries, sep);
   }
-  str_append_chars(entries, "\"%s\": %s", 
-                   dict -> tostring_key(e -> key), 
-                   dict -> tostring_data(e -> value));
+  str_append_chars(entries, fmt, e -> key, e -> value);
   return ctx;
 }
 
@@ -622,29 +620,42 @@ dict_t * dict_put_all(dict_t *dict, dict_t *other) {
   return dict_reduce(other, (reduce_t) _dict_put_all_reducer, dict);
 }
 
-str_t * dict_tostr(dict_t *dict) {
+str_t * dict_tostr_custom(dict_t *dict, char *open, char *fmt, char *sep, char *close) {
   str_t      *ret;
   str_t      *entries;
-  reduce_ctx *ctx;
+  void       *ctx[4];
 
-  ret = str_copy_chars("{");
-  entries = str_create(0);
+  assert(dict -> tostring_key);
+  assert(dict -> tostring_data);
   
-  ctx = reduce_ctx_create(dict, entries, NULL);
+  ret = str_copy_chars(open);
+  entries = str_create(0);
+  ctx[0] = dict;
+  ctx[1] = entries;
+  ctx[2] = sep;
+  ctx[3] = fmt;
   dict_reduce_chars(dict, (reduce_t) _dict_entry_formatter, ctx);
   str_append(ret, entries);
-  str_append_chars(ret, " }");
+  str_append_chars(ret, close);
   str_free(entries);
   return ret;
 }
 
-char * dict_tostring(dict_t *dict) {
+str_t * dict_tostr(dict_t *dict) {
+  return dict_tostr_custom(dict, "{ ", "\"%s\": %s", ", ", " }");
+}
+
+char * dict_tostring_custom(dict_t *dict, char *open, char *fmt, char *sep, char *close) {
   str_t *s;
   
   free(dict -> str);
-  s = dict_tostr(dict);
+  s = dict_tostr_custom(dict, open, fmt, sep, close);
   dict -> str = str_reassign(s);
   return dict -> str;
+}
+
+char * dict_tostring(dict_t *dict) {
+  return dict_tostring_custom(dict, "{ ", "\"%s\": %s", ", ", " }");
 }
 
 str_t * dict_dump(dict_t *dict, char *title) {

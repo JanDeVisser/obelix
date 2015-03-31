@@ -1,5 +1,5 @@
 a = 2
-if a > 1 then
+if a > 1
   ret = 0
 else
   ret = 1

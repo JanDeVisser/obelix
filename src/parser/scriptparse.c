@@ -118,7 +118,7 @@ parser_t * script_parse_mark_line(parser_t *parser, data_t *line) {
 
   if (parser -> data) {
     script = (script_t *) parser -> data;
-    script_push_instruction(script, instruction_create_mark(data_intval(line)));
+    script -> current_line = data_intval(line);
   }
   return parser;
 }
@@ -350,11 +350,11 @@ parser_t * script_parse_emit_for(parser_t *parser) {
   strrand(end_label, 8);
   varname = datastack_pop(parser -> stack);
   datastack_push_string(parser -> stack, next_label);
+  datastack_push_string(parser -> stack, end_label);
   script_push_instruction(script, instruction_create_iter());
   datastack_push_string(script -> pending_labels, next_label);
   script_push_instruction(script, instruction_create_next(end_label));
   script_push_instruction(script, instruction_create_assign(data_nameval(varname)));
-  datastack_push_string(script -> pending_labels, end_label);
   data_free(varname);
   return parser;
 }
@@ -403,7 +403,6 @@ parser_t * script_parse_push_label(parser_t *parser) {
 
 parser_t * script_parse_emit_else(parser_t *parser) {
   script_t      *script;
-  instruction_t *jump;
   data_t        *label;
   char           newlabel[9];
 
@@ -412,11 +411,10 @@ parser_t * script_parse_emit_else(parser_t *parser) {
   if (parser_debug) {
     debug(" -- label: %s", data_debugstr(label));
   }
-  datastack_push(script -> pending_labels, label);
   strrand(newlabel, 8);
-  jump = instruction_create_jump(newlabel);
+  script_push_instruction(script, instruction_create_jump(newlabel));
+  datastack_push(script -> pending_labels, label);
   datastack_push_string(parser -> stack, newlabel);
-  script_push_instruction(script, jump);
   return parser;
 }
 
