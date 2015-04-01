@@ -38,14 +38,14 @@ typedef struct _listiter {
 } listiterator_t;
 
 typedef struct _list {
-  listnode_t     *head;
-  listnode_t     *tail;
+  listnode_t      head;
+  listnode_t      tail;
   int             size;
   free_t          freefnc;
   cmp_t           cmp;
   tostring_t      tostring;
   hash_t          hash;
-  listiterator_t *iter;
+  listiterator_t  iter;
 } list_t;
 
 extern list_t *         list_create();
@@ -57,7 +57,6 @@ extern void             list_free(list_t *);
 extern list_t *         list_append(list_t *, void *);
 extern list_t *         list_unshift(list_t *, void *);
 extern list_t *         list_add_all(list_t *, list_t *);
-extern int              list_size(list_t *);
 extern unsigned int     list_hash(list_t *);
 extern void *           __list_reduce(list_t *, reduce_t, void *, reduce_type_t);
 extern void *           _list_reduce(list_t *, reduce_t, void *);
@@ -81,7 +80,9 @@ extern int              list_has_next(list_t *);
 extern int              list_has_prev(list_t *);
 extern void *           list_next(list_t *);
 extern void *           list_prev(list_t *);
+extern void             list_remove(list_t *);
 
+#define list_size(l)            ((l) -> size)
 #define list_push(l, d)         list_append((l), (d))
 #define list_peek(l)            list_tail((l))
 #define list_empty(l)           (list_size((l)) == 0)
