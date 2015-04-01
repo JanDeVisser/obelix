@@ -149,7 +149,6 @@ extern data_t *        data_promote(data_t *);
 extern data_t *        data_parse(int, char *);
 extern data_t *        data_decode(char *);
 extern void            data_free(data_t *);
-extern int             data_type(data_t *);
 extern int             data_hastype(data_t *, int);
 extern typedescr_t *   data_typedescr(data_t *);
 extern void_t          data_get_function(data_t *, int);
@@ -178,6 +177,8 @@ extern int             data_count(void);
 
 extern double          data_floatval(data_t *);
 extern int             data_intval(data_t *);
+
+#define data_type(d)   ((d) -> type)
 
 #define data_debugstr(d) (data_tostring((d)))
 #define data_charval(d)  ((char *) (d) -> ptrval)

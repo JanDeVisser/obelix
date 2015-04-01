@@ -545,10 +545,6 @@ void data_free(data_t *data) {
   }
 }
 
-int data_type(data_t *data) {
-  return data -> type;
-}
-
 typedescr_t * data_typedescr(data_t *data) {
   return (data) ? typedescr_get(data_type(data)) : NULL;
 }

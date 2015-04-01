@@ -40,7 +40,6 @@ extern array_t *    array_set_hash(array_t *, hash_t);
 extern array_t *    array_set_tostring(array_t *, tostring_t);
 extern void         array_free(array_t *);
 extern array_t *    array_clear(array_t *);
-extern int          array_size(array_t *);
 extern unsigned int array_hash(array_t *);
 extern int          array_capacity(array_t *);
 extern int          array_set(array_t *, int, void *);
@@ -54,6 +53,8 @@ extern array_t *    array_add_all(array_t *, array_t *);
 extern str_t *      array_tostr(array_t *);
 extern char *       array_tostring(array_t *);
 extern void         array_debug(array_t *, char *);
+
+#define array_size(a)            ((a) -> list -> size)
 
 #define array_set_int(a, i, v)   array_put((a), (i), (void *)((long) (v)))
 #define array_get_int(a, i)      ((long) array_get((a), (i)));

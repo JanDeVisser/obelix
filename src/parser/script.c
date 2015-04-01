@@ -172,7 +172,7 @@ char * _data_tostring_bm(data_t *d) {
 }
 
 data_t * _data_call_bm(data_t *self, array_t *params, dict_t *kwargs) {
-  return bound_method_execute(data_boundmethodval(self), params, kwargs);
+  return bound_method_execute(data_boundmethodval(self), NULL, params, kwargs);
 }
 
 /* -- Closure data functions ---------------------------------------------- */
@@ -361,7 +361,7 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
   if (script_debug) {
     debug("script_execute(%s)", script_tostring(script));
   }
-  closure = script_create_closure(script, NULL);
+  closure = script_create_closure(script, NULL, NULL);
   retval = closure_execute(closure, args, kwargs);
   closure_free(closure);
   if (script_debug) {
@@ -380,7 +380,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   }
   retobj = object_create(data_create(Script, script));
   retval = bound_method_execute(data_boundmethodval(retobj -> constructor), 
-                                params, kwparams);
+                                NULL, params, kwparams);
   if (!data_is_error(retval)) {
     retobj -> retval = retval;
     retval = data_create(Object, retobj);
@@ -417,12 +417,16 @@ closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
   return closure;
 }
 
-closure_t * script_create_closure(script_t *script, closure_t *up) {
+closure_t * script_create_closure(script_t *script, closure_t *up, closure_t *caller) {
   closure_t *ret;
-  int        ix;
+  int        depth = (caller) ? caller -> depth + 1 : 1;
 
   if (script_debug) {
     debug("Creating closure for script '%s'", script_tostring(script));
+  }
+  if (depth > 100) {
+    error("Maximum stack depth exceeded");
+    return NULL;
   }
   ret = NEW(closure_t);
   ret -> script = script_copy(script);
@@ -433,6 +437,8 @@ closure_t * script_create_closure(script_t *script, closure_t *up) {
   ret -> stack = datastack_create(script_tostring(script));
   datastack_set_debug(ret -> stack, script_debug);
   ret -> up = up;
+  ret -> caller = caller;
+  ret -> depth = depth;
   ret -> self = NULL;
 
   dict_reduce(script -> functions, 
@@ -494,13 +500,13 @@ char * bound_method_tostring(bound_method_t *bm) {
   return bm -> str;
 }
 
-data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwparams) {
+data_t * bound_method_execute(bound_method_t *bm, closure_t *caller, array_t *params, dict_t *kwparams) {
   closure_t *closure;
   data_t    *self;
   data_t    *ret;
   
   self = (bm -> self) ? data_create(Object, bm -> self) : NULL;
-  closure = script_create_closure(bm -> script, bm -> closure);
+  closure = script_create_closure(bm -> script, bm -> closure, caller);
   closure -> self = data_copy(self);
   ret = closure_execute(closure, params, kwparams);
   closure_free(closure);

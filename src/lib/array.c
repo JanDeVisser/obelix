@@ -192,10 +192,6 @@ array_t * array_set_tostring(array_t *array, tostring_t tostring) {
   return array;
 }
 
-int array_size(array_t *array) {
-  return array -> list -> size;
-}
-
 unsigned int array_hash(array_t *array) {
   return list_hash(array -> list);
 }
@@ -233,7 +229,7 @@ int array_set(array_t *array, int ix, void *data) {
   }
   for (i = list_size(array -> list); i <= ix; i++) {
     if (list_append(array -> list, NULL)) {
-      array -> index[i] = array -> list -> tail -> prev;
+      array -> index[i] = array -> list -> tail.prev;
     } else {
       return FALSE;
     }

@@ -53,7 +53,7 @@ static int              _dict_cmp_keys(dict_t *, void *, void *);
 static dict_t *         _dict_rehash(dict_t *);
 static list_t *         _dict_get_bucket(dict_t *, void *);
 static dict_t *         _dict_add_to_bucket(array_t *, dictentry_t *);
-static listiterator_t * _dict_position_in_bucket(dict_t *, void *);
+static list_t *         _dict_position_in_bucket(dict_t *, void *);
 static dictentry_t *    _dict_find_in_bucket(dict_t *, void *);
 static dict_t *         _dict_remove_from_bucket(dict_t *, void *);
 static list_t *         _dict_append_reducer(void *, list_t *);
@@ -157,11 +157,13 @@ int _dict_cmp_keys(dict_t *dict, void *key1, void *key2) {
 }
 
 dict_t * _dict_rehash(dict_t *dict) {
-  array_t        *new_buckets;
-  dict_t         *ret;
-  int             num, i, bucket;
-  list_t         *l;
-  dictentry_t    *entry;
+  array_t     *new_buckets;
+  dict_t      *ret;
+  int          num;
+  int          i;
+  int          bucket;
+  list_t      *l;
+  dictentry_t *entry;
 
   num = dict -> num_buckets * 2;
   new_buckets = array_create(num);
@@ -205,8 +207,8 @@ list_t * _dict_get_bucket(dict_t *dict, void *key) {
 }
 
 dict_t * _dict_add_to_bucket(array_t *buckets, dictentry_t *entry) {
-  int bucket_num;
-  list_t *bucket;
+  int             bucket_num;
+  list_t         *bucket;
   listiterator_t *iter;
   dict_t         *ret;
   dictentry_t    *e;
@@ -216,7 +218,7 @@ dict_t * _dict_add_to_bucket(array_t *buckets, dictentry_t *entry) {
   assert(bucket);
 
   ret = NULL;
-  for (iter = li_create((list_t *) bucket); li_has_next(iter); ) {
+  for (iter = list_start(bucket); li_has_next(iter); ) {
     e = (dictentry_t *) li_next(iter);
     if (_dictentry_cmp_key(e, entry -> key) == 0) {
       li_replace(iter, entry);
@@ -225,49 +227,45 @@ dict_t * _dict_add_to_bucket(array_t *buckets, dictentry_t *entry) {
       break;
     }
   }
-  li_free(iter);
   if (!ret) {
     ret = (list_append(bucket, entry) != NULL) ? entry -> dict : NULL;
   }
   return ret;
 }
 
-listiterator_t * _dict_position_in_bucket(dict_t *dict, void *key) {
-  list_t         *bucket;
-  listiterator_t *iter;
-  dictentry_t    *e, *ret;
+list_t * _dict_position_in_bucket(dict_t *dict, void *key) {
+  list_t      *bucket;
+  dictentry_t *e;
+  dictentry_t *ret;
 
   ret = NULL;
   bucket = _dict_get_bucket(dict, key);
-  for (iter = li_create((list_t *) bucket); li_has_next(iter); ) {
-    e = (dictentry_t *) li_next(iter);
+  for (list_start(bucket); list_has_next(bucket); ) {
+    e = (dictentry_t *) list_next(bucket);
     if (_dict_cmp_keys(dict, e -> key, key) == 0) {
-      return iter;
+      return bucket;
     }
   }
-  li_free(iter);
   return NULL;
 }
 
 dictentry_t * _dict_find_in_bucket(dict_t *dict, void *key) {
-  listiterator_t *iter;
-  dictentry_t    *ret;
+  list_t      *bucket;
+  dictentry_t *ret;
 
-  iter = _dict_position_in_bucket(dict, key);
-  ret = (iter) ? li_current(iter) : NULL;
-  if (iter) li_free(iter);
+  bucket = _dict_position_in_bucket(dict, key);
+  ret = (bucket) ? list_current(bucket) : NULL;
   return ret;
 }
 
 dict_t * _dict_remove_from_bucket(dict_t *dict, void *key) {
-  listiterator_t *iter;
-  dict_t         *ret;
+  list_t *bucket;
+  dict_t *ret;
 
-  iter = _dict_position_in_bucket(dict, key);
+  bucket = _dict_position_in_bucket(dict, key);
   ret = NULL;
-  if (iter) {
-    li_remove(iter);
-    li_free(iter);
+  if (bucket) {
+    list_remove(bucket);
     ret = dict;
   }
   return ret;

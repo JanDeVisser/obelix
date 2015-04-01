@@ -180,7 +180,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
       ret = script_create_object(script, shifted, kwargs);
     } else {
       script = data_boundmethodval(n) -> script;
-      ret = bound_method_execute(data_boundmethodval(n), shifted, kwargs);
+      ret = bound_method_execute(data_boundmethodval(n), NULL, shifted, kwargs);
     }
     array_free(shifted);
     if (ret) {
