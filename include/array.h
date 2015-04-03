@@ -23,18 +23,23 @@
 #include <list.h>
 
 typedef struct _array {
-  list_t *      list;
-  listnode_t ** index;
-  int           capacity;
-  char *        str;
-  int           refs;
+  void       **contents;
+  int          capacity;
+  int          size;
+  int          curix;
+  free_t       freefnc;
+  cmp_t        cmp;
+  tostring_t   tostring;
+  hash_t       hash;
+  char        *str;
+  int          refs;
 } array_t;
 
 extern array_t *    array_create(int);
 extern array_t *    array_copy(array_t *);
 extern array_t *    array_split(char *, char *);
 extern array_t *    array_slice(array_t *, int, int);
-extern array_t *    array_set_free(array_t *, visit_t);
+extern array_t *    array_set_free(array_t *, free_t);
 extern array_t *    array_set_cmp(array_t *, cmp_t);
 extern array_t *    array_set_hash(array_t *, hash_t);
 extern array_t *    array_set_tostring(array_t *, tostring_t);
@@ -43,7 +48,6 @@ extern array_t *    array_clear(array_t *);
 extern unsigned int array_hash(array_t *);
 extern int          array_capacity(array_t *);
 extern int          array_set(array_t *, int, void *);
-extern int          array_push(array_t *, void *);
 extern void *       array_get(array_t *, int);
 extern void *       array_reduce(array_t *, reduce_t, void *);
 extern void *       array_reduce_chars(array_t *, reduce_t, void *);
@@ -54,11 +58,20 @@ extern str_t *      array_tostr(array_t *);
 extern char *       array_tostring(array_t *);
 extern void         array_debug(array_t *, char *);
 
-#define array_size(a)            ((a) -> list -> size)
+extern array_t *    array_start(array_t *);
+extern array_t *    array_end(array_t *);
+extern void *       array_current(array_t *);
+extern int          array_has_next(array_t *);
+extern int          array_has_prev(array_t *);
+extern void *       array_next(array_t *);
+extern void *       array_prev(array_t *);
+
+
+#define array_size(a)            ((a) -> size)
 
 #define array_set_int(a, i, v)   array_put((a), (i), (void *)((long) (v)))
 #define array_get_int(a, i)      ((long) array_get((a), (i)));
-#define array_push(a, d)         array_set((a), -1, (d))
+#define array_push(a, d)         (array_set((a), -1, (d)))
 #define array_empty(a)           (array_size((a)) == 0)
 #define array_notempty(a)        (array_size((a)) > 0)
 

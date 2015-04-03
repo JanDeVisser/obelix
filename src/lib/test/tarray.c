@@ -285,12 +285,12 @@ START_TEST(test_array_tostr)
   array_set_tostring(array, (tostring_t) test_tostring);
   mark_point();
   str = array_tostr(array);
-  ck_assert_int_eq(str_len(str), 1280);
+  ck_assert_int_eq(str_len(str), 1282);
   split = array_split(str_chars(str), ", ");
   ck_assert_int_eq(array_size(split), 100);
-  ck_assert_str_eq((char *) array_get(split, 0), "[test0 [0]");
+  ck_assert_str_eq((char *) array_get(split, 0), "[ test0 [0]");
   ck_assert_str_eq((char *) array_get(split, 10), "test10 [10]");
-  ck_assert_str_eq((char *) array_get(split, 99), "test99 [99]]");
+  ck_assert_str_eq((char *) array_get(split, 99), "test99 [99] ]");
   str_free(str);
   array_free(split);
   array_free(array);

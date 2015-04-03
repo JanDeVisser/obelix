@@ -31,10 +31,6 @@ static void             _ln_free(listnode_t *);
 
 #define _ln_datanode(n) (((n) -> next) && ((n) -> prev))
 
-static list_t *         _list_add_all_reducer(void *, list_t *);
-static visit_t          _list_visitor(void *, visit_t);
-static reduce_ctx *     _list_hash_reducer(void *, reduce_ctx *);
-
 static listiterator_t * _li_init(listiterator_t *, list_t *);
 
 // ---------------------------
@@ -59,24 +55,6 @@ void _ln_free(listnode_t *node) {
     }
     free(node);
   }
-}
-
-// ------------------------
-// list_t static functions
-
-list_t * _list_add_all_reducer(void *data, list_t *list) {
-  list_append(list, data);
-  return list;
-}
-
-visit_t _list_visitor(void *data, visit_t visitor) {
-  visitor(data);
-  return visitor;
-}
-
-reduce_ctx * _list_hash_reducer(void *elem, reduce_ctx *ctx) {
-  ctx -> longdata += ((list_t *) ctx -> obj) -> hash(elem);
-  return ctx;
 }
 
 // ------------------------
@@ -134,9 +112,9 @@ unsigned int list_hash(list_t *list) {
     hash = hashptr(list);
   } else {
     ctx = NEW(reduce_ctx);
-    ctx -> obj = list;
+    ctx -> fnc = (void_t) list -> hash;
     ctx -> longdata = 0;
-    list_reduce(list, (reduce_t) _list_hash_reducer, ctx);
+    list_reduce(list, (reduce_t) collection_hash_reducer, ctx);
     hash = (unsigned int) ctx -> longdata;
     free(ctx);
   }
@@ -168,7 +146,14 @@ list_t * list_unshift(list_t *list, void *data) {
 }
 
 list_t * list_add_all(list_t *list, list_t *other) {
-  return list_reduce(other, (reduce_t) _list_add_all_reducer, list);
+  reduce_ctx *ctx;
+
+  ctx = NEW(reduce_ctx);
+  ctx -> fnc = (void_t) list_append;
+  ctx -> obj = list;
+  ctx = list_reduce(other, (reduce_t) collection_add_all_reducer, list);
+  free(ctx);
+  return list;
 }
 
 void * __list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t type) {
@@ -213,7 +198,7 @@ void * _list_reduce_str(list_t *list, reduce_t reduce, void *data) {
 }
 
 list_t * _list_visit(list_t *list, visit_t visitor) {
-  list_reduce(list, (reduce_t) _list_visitor, visitor);
+  list_reduce(list, (reduce_t) collection_visitor, visitor);
   return list;
 }
 

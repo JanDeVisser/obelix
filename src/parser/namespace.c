@@ -419,6 +419,7 @@ namespace_t * ns_create_root(void *importer, import_t import_fnc) {
 void ns_free(namespace_t *ns) {
   if (ns) {
     data_free(ns -> root);
+    free(ns -> str);
     free(ns);
   }
 }

@@ -21,7 +21,7 @@ AM_LDFLAGS  = -rdynamic
 # AM_CFLAGS   = -ansi
 LDADD       = -ldl -lm -lcheck
 
-bin_PROGRAMS   = obelix
+bin_PROGRAMS   = obelix oblcoretest
 obelix_SOURCES = obelix.c
 obelix_LDFLAGS = -pthread 
 obelix_LDADD   = \
@@ -29,5 +29,10 @@ obelix_LDADD   = \
 	$(top_srcdir)/src/types/libobltypes.la \
 	$(top_srcdir)/src/parser/liboblparser.la \
 	-lcheck -ldl -lm
+	
+oblcoretest_SOURCES = oblcoretest.c
+oblcoretest_LDADD   = $(top_srcdir)/src/lib/liboblcore.la \
+                      $(top_srcdir)/src/test/libtest.la \
+                      -ldl -lm
 
 SUBDIRS = . test

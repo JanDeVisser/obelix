@@ -20,6 +20,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
 
 lib_LTLIBRARIES = liboblcore.la
+
 liboblcore_la_SOURCES = \
 		core.c \
 		list.c \

@@ -72,7 +72,7 @@ mth_t * mth_create(methoddescr_t *md, data_t *self) {
   assert(md);
   assert(self);
   ret -> method = md;
-  ret -> self = self;
+  ret -> self = data_copy(self);
   ret -> str = NULL;
   return ret;
 }

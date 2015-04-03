@@ -26,18 +26,34 @@
 #include <list.h>
 #include <str.h>
 
+typedef struct _dictentry {
+  struct _dict *dict;
+  void         *key;
+  void         *value;
+  unsigned int  hash;
+  int           ix;
+} dictentry_t;
+
+typedef struct _bucket {
+  struct _dict *dict;
+  int           ix;
+  int           capacity;
+  int           size;
+  dictentry_t   entries[];
+} bucket_t;
+
 typedef struct _dict {
-  cmp_t       cmp;
-  hash_t      hash;
-  visit_t     free_key;
-  visit_t     free_data;
-  tostring_t  tostring_key;
-  tostring_t  tostring_data;
-  array_t    *buckets;
-  int         num_buckets;
-  int         size;
-  float       loadfactor;
-  char       *str;
+  cmp_t        cmp;
+  hash_t       hash;
+  visit_t      free_key;
+  visit_t      free_data;
+  tostring_t   tostring_key;
+  tostring_t   tostring_data;
+  bucket_t   **buckets;
+  int          num_buckets;
+  int          size;
+  float        loadfactor;
+  char        *str;
 } dict_t;
 
 typedef struct _entry {

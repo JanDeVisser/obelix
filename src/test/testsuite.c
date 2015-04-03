@@ -58,7 +58,7 @@ char * test_tostring(test_t *test) {
 }
 
 void test_free(test_t *test) {
-  if (test -> data) {
+  if (test && test -> data) {
     free(test -> data);
   }
   free(test);

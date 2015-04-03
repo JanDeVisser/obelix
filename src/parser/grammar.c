@@ -151,7 +151,10 @@ grammar_action_t * grammar_action_create(function_t *fnc, data_t *data) {
 }
 
 grammar_action_t * grammar_action_copy(grammar_action_t *grammar_action) {
-  return grammar_action_create(grammar_action -> fnc, grammar_action -> data);
+  if (grammar_action) {
+    grammar_action -> refs++;
+  }
+  return grammar_action;
 }
 
 void grammar_action_free(grammar_action_t *grammar_action) {
