@@ -73,12 +73,17 @@ void * new(int sz) {
   return ret;
 }
 
-void * new_ptrarray(int sz) {
-  void * ret = calloc(sz, sizeof(void *));
-  if (sz && !ret) {
+void * new_array(int num, int sz) {
+  void * ret = calloc(num, sz);
+
+  if (num && !ret) {
     kill(0, SIGUSR1);
   }
   return ret;
+}
+
+void * new_ptrarray(int num) {
+  return new_array(num, sizeof(void *));
 }
 
 void * resize_block(void *block, int newsz, int oldsz) {
@@ -375,5 +380,20 @@ reduce_ctx * reduce_ctx_create(void *user, void *data, void_t fnc) {
     ctx -> user = user;
   }
   return ctx;
+}
+
+reduce_ctx * collection_hash_reducer(void *elem, reduce_ctx *ctx) {
+  hash_t hash = (hash_t) ctx -> fnc;
+  ctx -> longdata += hash(elem);
+  return ctx;
+}
+
+reduce_ctx * collection_add_all_reducer(void *data, reduce_ctx *ctx) {
+  ((reduce_t) ctx -> fnc)(ctx -> obj, data);
+  return ctx;
+}
+visit_t collection_visitor(void *data, visit_t visitor) {
+  visitor(data);
+  return visitor;
 }
 

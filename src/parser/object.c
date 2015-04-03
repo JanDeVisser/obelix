@@ -270,6 +270,8 @@ void object_free(object_t *object) {
     if (object -> refs <= 0) {
       data_free(_object_call_attribute(object, "__finalize__", NULL, NULL));
       dict_free(object -> variables);
+      data_free(object -> constructor);
+      data_free(object -> retval);
       free(object -> str);
       free(object -> debugstr);
     }

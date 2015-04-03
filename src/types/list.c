@@ -164,20 +164,16 @@ unsigned int _list_hash(data_t *data) {
 }
 
 data_t * _list_iter(data_t *data) {
-  list_start(data_arrayval(data) -> list);
+  array_start(data_arrayval(data));
   return data_copy(data);
 }
 
 data_t * _list_next(data_t *data) {
-  list_t *l = data_arrayval(data) -> list;
-  
-  return data_copy((data_t *) list_next(l));
+  return data_copy((data_t *) array_next(data_arrayval(data)));
 }
 
 data_t * _list_has_next(data_t *data) {
-  list_t *l = data_arrayval(data) -> list;
-  
-  return data_create(Bool, list_has_next(l));
+  return data_create(Bool, array_has_next(data_arrayval(data)));
 }
 
 /* ----------------------------------------------------------------------- */

@@ -29,15 +29,16 @@
 #define ARRAY_DEF_CAPACITY    8
 
 static int       _array_resize(array_t *, int);
-static array_t * _array_add_all_reducer(void *, array_t *);
+static void *    _array_reduce(array_t *, reduce_t, void *, reduce_type_t);
+static array_t * _array_append(array_t *, void *);
 
 // ---------------------------
 // array_t static functions
 
 int _array_resize(array_t *array, int mincap) {
-  listnode_t **newindex;
-  int newcap;
-  int i;
+  void **newcontents;
+  int    newcap;
+  int    i;
 
   mincap = (mincap > 0) ? mincap : ARRAY_DEF_CAPACITY;
   if (mincap <= array -> capacity) {
@@ -48,16 +49,46 @@ int _array_resize(array_t *array, int mincap) {
   while(newcap < mincap) {
     newcap *= 2;
   }
-  newindex = (listnode_t **) resize_ptrarray(array -> index, newcap, array -> capacity);
-  if (newindex) {
-    array -> index = newindex;
+  newcontents = (void **) resize_ptrarray(array -> contents, 
+                                          newcap, 
+                                          array -> capacity);
+  if (newcontents) {
+    array -> contents= newcontents;
     array -> capacity = newcap;
   }
-  return newindex != NULL;
+  return newcontents != NULL;
 }
 
-array_t * _array_add_all_reducer(void *data, array_t *array) {
-  array_set(array, -1, data);
+void * _array_reduce(array_t *array, reduce_t reducer, void *data, reduce_type_t type) {
+  free_t      f;
+  int         ix;
+  void       *elem;
+
+  f = (type == RTStrs) ? (free_t) str_free : NULL;
+  for (ix = 0; ix < array_size(array); ix++) {
+    elem = array -> contents[ix];
+    switch (type) {
+      case RTChars:
+        elem =  array -> tostring(elem);
+        break;
+      case RTStrs:
+        elem =  str_wrap(array -> tostring(elem));
+        break;
+    }
+    data = reducer(elem, data);
+    if (f) {
+      f(elem);
+    }
+  }
+  return data;
+}
+
+/*
+ * Since array_push is a macro, we need a function we can feed into array_reduce
+ * for array_add_all.
+ */
+array_t * _array_append(array_t *array, void *data) {
+  array_push(array, data);
   return array;
 }
 
@@ -71,16 +102,15 @@ array_t * array_create(int capacity) {
   a = NEW(array_t);
   if (a) {
     a -> capacity = 0;
-    a -> index = NULL;
-    a -> list = list_create();
+    a -> contents = NULL;
     a -> refs = 1;
     a -> str = NULL;
-    if (a -> list) {
-      if (_array_resize(a, capacity)) {
-        ret = a;
-      } else {
-        list_free(a -> list);
-      }
+    array_set_cmp(a, NULL);
+    array_set_hash(a, NULL);
+    array_set_tostring(a, NULL);
+    array_set_free(a, NULL);
+    if (_array_resize(a, capacity)) {
+      ret = a;
     }
     if (!ret) {
       free(a);
@@ -163,37 +193,50 @@ array_t * array_slice(array_t *array, int from, int num) {
     num = array_size(array) - from;
   }
   ret = array_create(num);
-  array_set_cmp(ret, array -> list -> cmp);
-  array_set_hash(ret, array -> list -> hash);
-  array_set_tostring(ret, array -> list -> tostring);
+  array_set_cmp(ret, array -> cmp);
+  array_set_hash(ret, array -> hash);
+  array_set_tostring(ret, array -> tostring);
   for (ix = 0; ix < num; ix++) {
     array_set(ret, ix, array_get(array, from + ix));
   }
   return ret;
 }
 
-array_t * array_set_free(array_t *array, visit_t freefnc) {
-  list_set_free(array -> list, freefnc);
+array_t * array_set_free(array_t *array, free_t freefnc) {
+  array -> freefnc = freefnc;
   return array;
 }
 
 array_t * array_set_cmp(array_t *array, cmp_t cmp) {
-  list_set_cmp(array -> list, cmp);
+  array -> cmp = cmp;
   return array;
 }
 
 array_t * array_set_hash(array_t *array, hash_t hash) {
-  list_set_hash(array -> list, hash);
+  array -> hash = hash;
   return array;
 }
 
 array_t * array_set_tostring(array_t *array, tostring_t tostring) {
-  list_set_tostring(array -> list, tostring);
+  array -> tostring = tostring;
   return array;
 }
 
 unsigned int array_hash(array_t *array) {
-  return list_hash(array -> list);
+  unsigned int hash;
+  reduce_ctx *ctx;
+
+  if (!array -> hash) {
+    hash = hashptr(array);
+  } else {
+    ctx = NEW(reduce_ctx);
+    ctx -> fnc = (void_t) array -> hash;
+    ctx -> longdata = 0;
+    array_reduce(array, (reduce_t) collection_hash_reducer, ctx);
+    hash = (unsigned int) ctx -> longdata;
+    free(ctx);
+  }
+  return hash;
 }
 
 int array_capacity(array_t *array) {
@@ -204,8 +247,8 @@ void array_free(array_t *array) {
   if (array) {
     array -> refs--;
     if (array -> refs <= 0) {
-      list_free(array -> list);
-      free(array -> index);
+      array_clear(array);
+      free(array -> contents);
       free(array -> str);
       free(array);
     }
@@ -213,28 +256,34 @@ void array_free(array_t *array) {
 }
 
 array_t * array_clear(array_t *array) {
-  list_clear(array -> list);
-  memset(array -> index, 0, array -> capacity * sizeof(listnode_t *));
+  int ix;
+  
+  if (array -> freefnc) {
+    for (ix = 0; ix < array_size(array); ix++) {
+      if (array -> contents[ix]) {
+        array -> freefnc(array -> contents[ix]);
+      }
+    }
+  }
+  memset(array -> contents, 0, array -> capacity * sizeof(void *));
+  array -> size = 0;
   return array;
 }
 
 int array_set(array_t *array, int ix, void *data) {
-  int i;
-
   if (ix < 0) {
-    ix = list_size(array -> list);
+    ix = array -> size;
   }
   if (!_array_resize(array, ix + 1)) {
     return FALSE;
   }
-  for (i = list_size(array -> list); i <= ix; i++) {
-    if (list_append(array -> list, NULL)) {
-      array -> index[i] = array -> list -> tail.prev;
-    } else {
-      return FALSE;
-    }
+  if (array -> freefnc && array -> contents[ix]) {
+    array -> freefnc(array -> contents[ix]);
   }
-  array -> index[ix] -> data = data;
+  array -> contents[ix] = data;
+  if (ix >= array_size(array)) {
+    array -> size = ix + 1;
+  }
   return TRUE;
 }
 
@@ -243,53 +292,103 @@ void * array_get(array_t *array, int ix) {
   if (ix < 0) {
     ix = array_size(array) + ix;
   }
-  if ((ix < 0) || (ix >= list_size(array -> list))) {
+  if ((ix < 0) || (ix >= array_size(array))) {
     errno = EFAULT;
     return NULL;
   }
-  return array -> index[ix] -> data;
+  return array -> contents[ix];
 }
 
-array_t * array_visit(array_t *array, visit_t visitor) {
-  list_visit(array -> list, visitor);
+void * array_reduce(array_t *array, reduce_t reduce, void *data) {
+  return _array_reduce(array, (reduce_t) reduce, data, RTObjects);
+}
+
+void * array_reduce_chars(array_t *array, reduce_t reduce, void *data) {
+  assert(array -> tostring);
+  return _array_reduce(array, (reduce_t) reduce, data, RTChars);
+}
+
+void * array_reduce_str(array_t *array, reduce_t reduce, void *data) {
+  assert(array -> tostring);
+  return _array_reduce(array, (reduce_t) reduce, data, RTStrs);
+}
+
+array_t *array_visit(array_t *array, visit_t visitor) {
+  array_reduce(array, (reduce_t) collection_visitor, visitor);
   return array;
 }
 
-void * array_reduce(array_t *array, reduce_t reducer, void *data) {
-  return list_reduce(array -> list, reducer, data);
-}
-
-void * array_reduce_chars(array_t *array, reduce_t reducer, void *data) {
-  return list_reduce_chars(array -> list, reducer, data);
-}
-
-void * array_reduce_str(array_t *array, reduce_t reducer, void *data) {
-  return list_reduce_str(array -> list, reducer, data);
-}
-
 array_t * array_add_all(array_t *array, array_t *other) {
-  return list_reduce(other -> list, (reduce_t) _array_add_all_reducer, array);
+  reduce_ctx *ctx = NEW(reduce_ctx);
+  
+  ctx -> fnc = (void_t) _array_append;
+  ctx -> obj = array;
+  ctx = array_reduce(other, (reduce_t) collection_add_all_reducer, array);
+  array_reduce(other, (reduce_t) collection_add_all_reducer, array);
+  free(ctx);
+  return array;
 }
 
 str_t * array_tostr(array_t *array) {
-  return (array) ? list_tostr(array -> list) : str_wrap("NULL");
+  str_t *ret;
+  str_t *s;
+  
+  if (array) {
+    if (!array -> size) {
+      ret = str_wrap("[]");
+    } else {
+      ret = str_copy_chars("[ ");
+      s = array_join(array, ", ");
+      str_append(ret, s);
+      str_free(s);
+      str_append_chars(ret, " ]");
+    }
+  } else {
+    ret = str_wrap("Null");
+  }
+  return ret;
 }
 
 char * array_tostring(array_t *array) {
-  str_t *str;
-
-  if (array) {
-    free(array -> str);
-    str = array_tostr(array);
-    array -> str = strdup(str_chars(str));
-    str_free(str);
-    return array -> str;
-  } else {
-    return "array:NULL";
-  }
+  str_t *str = array_tostr(array);
+  
+  array -> str = strdup(str_chars(str));
+  str_free(str);
+  return array -> str;
 }
-
 
 void array_debug(array_t *array, char *msg) {
   debug(msg, array_tostring(array));
 }
+
+
+array_t * array_start(array_t *array) {
+  array -> curix = (array_size(array)) ? 0 : -1;
+  return array;
+}
+
+array_t * array_end(array_t *array) {
+  array -> curix = array_size(array) - 1;
+  return array;
+}
+
+void * array_current(array_t *array) {
+  return (array -> curix >= 0) ? array -> contents[array -> curix] : 0;
+}
+
+int array_has_next(array_t *array) {
+  return (array -> curix >= 0) && (array -> curix < (array_size(array) - 1));
+}
+
+int array_has_prev(array_t *array) {
+  return (array -> curix >= 0) && (array -> curix > 0);
+}
+
+void * array_next(array_t *array) {
+  return array -> contents[++array -> curix];
+}
+
+void * array_prev(array_t *array) {
+  return array -> contents[--array -> curix];
+}
+

@@ -24,6 +24,7 @@
 
 #include <data.h>
 #include <exception.h>
+#include <list.h>
 #include <logging.h>
 #include <namespace.h>
 #include <script.h>
@@ -373,12 +374,13 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
 data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparams) {
   object_t  *retobj;
   data_t    *retval;
+  data_t    *dscript;
   data_t    *self;
   
   if (script_debug) {
     debug("script_create_object(%s)", script_tostring(script));
   }
-  retobj = object_create(data_create(Script, script));
+  retobj = object_create(dscript = data_create(Script, script));
   retval = bound_method_execute(data_boundmethodval(retobj -> constructor), 
                                 NULL, params, kwparams);
   if (!data_is_error(retval)) {
@@ -388,6 +390,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   if (script_debug) {
     debug("  script_create_object returns %s", data_tostring(retval));
   }
+  data_free(dscript);
   return retval;
 }
 
@@ -432,8 +435,8 @@ closure_t * script_create_closure(script_t *script, closure_t *up, closure_t *ca
   ret -> script = script_copy(script);
   ret -> imports = ns_create(script -> ns);
 
-  ret -> variables = strdata_dict_create();
-  ret -> params = strdata_dict_create();
+  ret -> variables = NULL;
+  ret -> params = NULL;
   ret -> stack = datastack_create(script_tostring(script));
   datastack_set_debug(ret -> stack, script_debug);
   ret -> up = up;
@@ -617,19 +620,22 @@ data_t * closure_set(closure_t *closure, char *name, data_t *value) {
             name, closure_tostring(closure));
     }
   }
+  if (!closure -> variables) {
+    closure -> variables = strdata_dict_create();
+  }
   dict_put(closure -> variables, strdup(name), data_copy(value));
   return value;
 }
 
 data_t * _closure_get(closure_t *closure, char *varname) {
-  data_t *ret;
+  data_t *ret = NULL;
 
   if (closure -> self && !strcmp(varname, "self")) {
     ret = closure -> self;
-  } else {
+  } else if (closure -> variables) {
     ret = (data_t *) dict_get(closure -> variables, varname);
   }
-  if (!ret) {
+  if (!ret && closure -> params) {
     /* 
      * We store the passed-in parameter values. If the parameter variable gets
      * re-assigned, the new value shadows the old one because it will be set 
@@ -657,9 +663,9 @@ data_t * closure_get(closure_t *closure, char *varname) {
 int closure_has(closure_t *closure, char *name) {
   int ret;
 
-  ret = dict_has_key(closure -> variables, name) || 
+  ret = (closure -> variables && dict_has_key(closure -> variables, name)) || 
         (closure -> self && !strcmp(name, "self")) ||
-        dict_has_key(closure -> params, name);
+        (closure -> params && dict_has_key(closure -> params, name));
   if (res_debug) {
     debug("   closure_has('%s', '%s'): %d", closure_tostring(closure), name, ret);
   }
@@ -701,6 +707,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
                         array_size(script -> params),
                         (args) ? array_size(args) : 0);
     }
+    closure -> params = (kwargs) ? kwargs : strdata_dict_create();
     for (ix = 0; ix < array_size(args); ix++) {
       param = data_copy(data_array_get(args, ix));
       dict_put(closure -> params, 
@@ -708,13 +715,12 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
                param);
     }
   }
-  if (kwargs) {
-    dict_reduce(kwargs, (reduce_t) data_put_all_reducer, closure -> params);
-  }
   datastack_clear(closure -> stack);
   closure -> catchpoints = datastack_create("catchpoints");
   datastack_push(closure -> catchpoints, data_create(String, "ERROR"));
-  list_process(closure -> script -> instructions, (reduce_t) _closure_execute_instruction, closure);
+  list_process(closure -> script -> instructions,
+               (reduce_t) _closure_execute_instruction,
+               closure);
   ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
   if (script_debug) {
     debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
@@ -725,6 +731,14 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
     if ((e -> code == ErrorExit) && (data_errorval(ret) -> exception)) {
       ret = data_errorval(ret) -> exception;
     }
+  }
+  if (kwargs) {
+    /*
+     * kwargs was assigned to closure -> params. Freeing the closure should
+     * not free the params in that case, since the owner is responsible for
+     * kwargs,
+     */
+    closure -> params = NULL;
   }
   return ret;
 }

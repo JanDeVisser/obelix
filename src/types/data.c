@@ -598,6 +598,7 @@ data_t * data_method(data_t *data, char *name) {
   
   md = typedescr_get_method(type, name);
   if (md) {
+#ifdef CACHE_METHODS    
     if (!data -> methods) {
       data -> methods = strdata_dict_create();
     } else {
@@ -608,6 +609,9 @@ data_t * data_method(data_t *data, char *name) {
       dict_put(data -> methods, strdup(name), ret);
     }
     ret = data_copy(ret);
+#else /* !CACHE_METHODS */
+    ret = data_create(Method, md, data);
+#endif /* CACHE_METHODS */
   }
   return ret;
 }

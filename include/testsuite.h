@@ -20,7 +20,27 @@
 #ifndef __TESTSUITE_H__
 #define __TESTSUITE_H__
 
+#ifdef NO_CHECK
+
+#define START_TEST(function) void function(void) {
+#define END_TEST }
+
+#define ck_assert_ptr_eq(p1, p2)     if ((p1) != (p2)) { debug("ck_assert_ptr_eq(%s,%s) tripped", #p1, #p2); assert(0); }
+#define ck_assert_ptr_ne(p1, p2)     if ((p1) == (p2)) { debug("ck_assert_ptr_ne(%s,%s) tripped", #p1, #p2); assert(0); }
+#define ck_assert_int_eq(i1, i2)     if ((i1) != (i2)) { debug("ck_assert_int_eq(%s,%s) tripped", #i1, #i2); assert(0); }
+#define ck_assert_int_ne(i1, i2)     if ((i1) == (i2)) { debug("ck_assert_int_ne(%s,%s) tripped", #i1, #i2); assert(0); }
+#define ck_assert_str_eq(s1, s2)     if (strcmp((s1), (s2))) { debug("ck_assert_str_eq(%s,%s) tripped", #s1, #s2); assert(0); }
+#define ck_assert_str_ne(s1, s2)     if (!strcmp((s1), (s2))) { debug("ck_assert_str_ne(%s,%s) tripped", #s1, #s2); assert(0); }
+#define mark_point()                 debug("mark_point")
+#define tcase_add_test(tc, function) function()
+#define add_tcase(tc)
+
+typedef void TCase;
+
+#else
 #include <check.h>
+#endif
+
 #include <data.h>
 
 typedef struct _test {
@@ -39,10 +59,12 @@ extern int          test_cmp(test_t *, test_t *);
 extern char *       test_tostring(test_t *);
 extern void         test_free(test_t *);
 
+#ifndef NO_CHECK
 extern void	    set_suite_name(char *);
 extern void         add_tcase(TCase *);
 
 extern data_t *     run_script(char *);
+#endif
 
 #ifdef __cplusplus
 }

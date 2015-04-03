@@ -26,9 +26,10 @@
 
 #include <config.h>
 
-#define TRUE   1
-#define FALSE  0
-#define NEW(t) ( (t *) new( sizeof(t) ) )
+#define TRUE          1
+#define FALSE         0
+#define NEW(t)        ( (t *) new( sizeof(t) ) )
+#define NEWARR(n, t)  ( (t *) new_array((n), sizeof(t)))
 
 typedef enum _log_level {
   LogLevelDebug = 0,
@@ -91,6 +92,7 @@ typedef struct _reader {
 } reader_t;
 
 extern void *          new(int);
+extern void *          new_array(int, int);
 extern void *          new_ptrarray(int);
 extern void *          resize_block(void *, int, int);
 extern void *          resize_ptrarray(void *, int, int);
@@ -132,6 +134,10 @@ extern int             function_cmp(function_t *, function_t *);
 extern function_t *    function_resolve(function_t *fnc);
 
 extern reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
+extern reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
+extern reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
+extern visit_t         collection_visitor(void *, visit_t);
+
 
 #define reader_read(reader, buf, n)  (((reader_t *) reader) -> read_fnc(reader, buf, n))
 #define reader_free(rdr)             if (rdr) (((reader_t *) (rdr)) -> free((rdr)))

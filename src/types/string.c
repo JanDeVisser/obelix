@@ -60,6 +60,7 @@ vtable_t _vtable_string[] = {
   { .id = FunctionCast,     .fnc = (void_t) _string_cast },
   { .id = FunctionHash,     .fnc = (void_t) _string_hash },
   { .id = FunctionResolve,  .fnc = (void_t) _string_resolve },
+  { .id = FunctionFree,     .fnc = (void_t) free },
   { .id = FunctionNone,     .fnc = NULL }
 };
 

@@ -10,14 +10,22 @@
             <sourceEncoding>UTF-8</sourceEncoding>
             <make-dep-projects/>
             <sourceRootList>
-                <sourceRootElem>include</sourceRootElem>
-                <sourceRootElem>src</sourceRootElem>
+                <sourceRootElem>src/bin</sourceRootElem>
+                <sourceRootElem>src/lib</sourceRootElem>
+                <sourceRootElem>src/parser</sourceRootElem>
+                <sourceRootElem>src/types</sourceRootElem>
                 <sourceRootElem>share</sourceRootElem>
+                <sourceRootElem>include</sourceRootElem>
                 <sourceRootElem>test/script</sourceRootElem>
+                <sourceRootElem>src/stdlib</sourceRootElem>
             </sourceRootList>
             <confList>
                 <confElem>
                     <name>Default</name>
+                    <type>0</type>
+                </confElem>
+                <confElem>
+                    <name>Check</name>
                     <type>0</type>
                 </confElem>
             </confList>

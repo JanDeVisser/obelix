@@ -105,7 +105,7 @@ void test_print_list(list_t *list, char *header) {
 } 
 
 void test_raw_print_list(list_t *list, char *header) {
-  listnode_t *node = list -> head;
+  listnode_t *node = list_head_pointer(list);
 
   printf("%s:\n{ ", header);
   while (node) {
