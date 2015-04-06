@@ -98,6 +98,7 @@ typedef struct _lexer {
 } lexer_t;
 
 extern char *       lexer_state_name(lexer_state_t);
+extern char *       lexer_option_name(lexer_option_t);
 
 extern lexer_t *    _lexer_create(reader_t *);
 extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, long);

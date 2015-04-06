@@ -49,6 +49,7 @@ extern unsigned int array_hash(array_t *);
 extern int          array_capacity(array_t *);
 extern int          array_set(array_t *, int, void *);
 extern void *       array_get(array_t *, int);
+extern void *       array_pop(array_t *);
 extern void *       array_reduce(array_t *, reduce_t, void *);
 extern void *       array_reduce_chars(array_t *, reduce_t, void *);
 extern void *       array_reduce_str(array_t *, reduce_t, void *);

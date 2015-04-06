@@ -299,6 +299,17 @@ void * array_get(array_t *array, int ix) {
   return array -> contents[ix];
 }
 
+void * array_pop(array_t *array) {
+  void *ret = NULL;
+  
+  if (array -> size) {
+    array -> size--;
+    ret = array -> contents[array -> size];
+    array -> contents[array -> size] = NULL;
+  }
+  return ret;
+}
+
 void * array_reduce(array_t *array, reduce_t reduce, void *data) {
   return _array_reduce(array, (reduce_t) reduce, data, RTObjects);
 }
@@ -350,11 +361,16 @@ str_t * array_tostr(array_t *array) {
 }
 
 char * array_tostring(array_t *array) {
-  str_t *str = array_tostr(array);
+  str_t *str;
   
-  array -> str = strdup(str_chars(str));
-  str_free(str);
-  return array -> str;
+  if (array) {
+    str = array_tostr(array);
+    array -> str = strdup(str_chars(str));
+    str_free(str);
+    return array -> str;
+  } else {
+    return NULL;
+  }
 }
 
 void array_debug(array_t *array, char *msg) {

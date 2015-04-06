@@ -661,7 +661,10 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
   array_t *args_shifted = NULL;
   
   if (debug_data) {
-    debug("data_invoke(%s, %s, %s)", data_debugstr(self), name_tostring(name), array_tostring(args));
+    debug("data_invoke(%s, %s, %s)", 
+          data_debugstr(self), 
+          name_tostring(name), 
+          (args) ? array_tostring(args) : "''");
   }
   if (!self && array_size(args)) {
     self = (data_t *) array_get(args, 0);

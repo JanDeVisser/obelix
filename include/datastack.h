@@ -22,15 +22,15 @@
 #define __DATASTACK_H__
 
 #include <data.h>
-#include <list.h>
+#include <array.h>
 #include <name.h>
 
 typedef struct _datastack {
-  char     *name;
-  int       debug;
-  list_t   *list;
-  list_t   *bookmarks;
-  list_t   *counters;
+  char    *name;
+  int      debug;
+  array_t *list;
+  array_t *bookmarks;
+  array_t *counters;
 } datastack_t;
 
 extern datastack_t * datastack_create(char *);

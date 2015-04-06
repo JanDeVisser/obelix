@@ -33,7 +33,6 @@ libobltypes_la_SOURCES = \
 		nvp.c \
 		range.c
 
-libobltypes_la_LIBADD = \
-		$(top_srcdir)/src/lib/liboblcore.la
+libobltypes_la_LIBADD = ../lib/liboblcore.la -lm
 
 SUBDIRS = . test

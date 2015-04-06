@@ -394,7 +394,6 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   if (gp -> state != GPStateError) {
     if (grammar_analyze(gp -> grammar)) {
       if (grammar_debug) {
-        grammar_dump(gp -> grammar);
         info("Grammar successfully analyzed");
       }
     } else {

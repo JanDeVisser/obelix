@@ -1,0 +1,288 @@
+%
+  prefix:      script_parse_
+  ignore:      allwhitespace
+  hashpling:   true
+  _on_newline: mark_line
+%
+
+program                     := [ init ] statements [ done ]
+                             ;
+
+statements                  := statement
+                               statements 
+                             | 
+                             ;
+
+statement                   := conditional
+                             | while_loop
+                             | for_loop
+                             | func_def
+                             | return_stmt
+                             | import_stmt
+                             | new
+                             | context_block
+                             | throw
+                             | leave
+                             | identifier
+                               assignment_or_call
+                             ;
+
+conditional                 := "if"
+                               expr              [ emit_test                 ]
+                               statements
+                               else_clause
+                               end_stmt          [ emit_end                  ]
+                             ;
+
+else_clause                 := "else"            [ emit_else                 ]
+                               statements
+                             |
+                             ;
+                             
+end_stmt                    := "end"
+                             ;
+
+while_loop                  := "while"           [ push_label                ]
+                               expr              [ emit_test                 ]
+                               statements
+                               end_stmt          [ emit_end_loop             ]
+                             ;
+
+for_loop                    := "for"
+                               identifier
+                               "in"
+                               expr              [ emit_for                  ]
+                               statements
+                               end_stmt          [ emit_end_loop             ]
+                             ;
+                             
+func_def                    := sync_async
+                               "func"
+                               'i'               [ push                      ]
+                               (                 [ bookmark                  ]
+                               parlist_or_void
+                               )                 [ rollup_list               ]
+                               func_block
+                             ;
+
+sync_async                  := "async"           [ pushval: 1                ]
+                             |                   [ pushval: 0                ]
+                             ;
+                             
+func_block                  :=                   [ start_function            ]
+                               statements
+                               end_stmt          [ end_function              ]
+                             | link_clause       [ native_function           ]
+                             ;
+                             
+link_clause                 := "->" '"'
+                             ;
+                             
+dummy                       :=
+                             ;
+
+parlist_or_void             := parlist
+                             |
+                             ;
+                             
+parlist                     := param
+                               parlist_tail
+                             ;
+
+param                       := 'i'               [ push                      ] 
+                             ;
+
+parlist_tail                := ,
+                               parlist
+                             |
+                             ;
+
+return_stmt                 := "return"
+                               expr              [ jump: "END"               ]
+                             ;
+
+import_stmt                 := "import"
+                               identifier        [ import                    ]
+                             ;
+
+new                         := "new"             [ setup_function: "new" incr ]
+                               identifier        [ emit_pushval_from_stack    ]
+                               _func_call
+                             ;
+
+context_block               := "context"
+                               identifier
+                               assignment_or_empty [ begin_context_block     ]
+                               statements        
+                               end_stmt          [ end_context_block         ]
+                             ;
+
+assignment_or_empty         :=                   [ dup                       ]
+                                assignment
+                             |
+                             ;
+
+throw                       := "throw"
+                               expr              [ throw_exception           ]
+                             ;
+
+leave                       := "leave"           [ leave                     ]
+                             ;
+
+assignment_or_call          := assignment
+                             | func_call         [ emit_pop                  ]
+                             ;
+
+assignment                  := =
+                               expr              [ emit_assign               ]
+                             ;
+
+expr                        := predicate
+                               predicatetail
+                             ;
+                         
+predicatetail               := logic_op          [ push_tokenstring          ]
+                               predicate         [ emit_infix_op             ]
+                             |
+                             ;
+                               
+predicate                   := term
+                               termtail
+                             ;
+
+termtail                    := add_op            [ push_tokenstring          ]
+                               term              [ emit_infix_op             ]
+                               termtail
+                             | 
+                             ;
+
+term                        := factor 
+                               factortail 
+                             ;
+
+factortail                  := mult_op           [ push_tokenstring          ]
+                               factor            [ emit_infix_op             ] 
+                               factortail
+                             | 
+                             ;
+
+factor                      := ( expr )
+                             | var_or_call 
+                             | constant
+                             ;
+
+var_or_call                 := new
+                             | identifier
+                               call_or_empty
+                             ;
+                              
+call_or_empty               := func_call
+                             |                   [ emit_pushvar              ]
+                             ;
+                             
+identifier                  :=                   [ bookmark                  ]
+                               _identifier       [ rollup_name               ]
+                             ;
+
+_identifier                 := 'i'               [ push                      ]
+			       _identifier_tail
+			     ;
+
+_identifier_tail            := .
+                               _identifier
+                             |
+                             ;
+                             
+constant                    := '"'               [ emit_pushval              ]  
+                             | '\''              [ emit_pushval              ]  
+                             | signed_number
+			     | list
+                             | object
+			     | "true"            [ emit_pushconst: "bool:1"  ]
+                	     | "false"           [ emit_pushconst: "bool:0"  ]
+                             ;
+
+signed_number               := sign
+                               number            [ push_signed_val           ]
+                            ;
+
+sign                        := +                 [ push_tokenstring          ]
+                             | -                 [ push_tokenstring          ]
+                             |                   [ pushval: '+'              ]
+                             ;
+
+number                      := 'd'
+                             | 'f'
+                             | 'x'
+                             ;
+                               
+list                        := '['               [ setup_function: "list"    ]
+                               entrylist_or_empty
+                               ']'               [ emit_func_call            ]
+                             ;
+
+entrylist_or_empty          := entrylist
+                             |
+                             ;
+
+entrylist                   := expr              [ incr                      ]
+                               entrylist_tail
+                             ;
+
+entrylist_tail              := ,
+			       entrylist
+                             |
+			     ;
+
+object                      := '{'               [ setup_function: "object"  ]
+                               attrlist_or_empty
+                               '}'               [ emit_func_call            ]
+                             ;
+
+attrlist_or_empty           := attrlist
+                             |
+                             ;
+
+attrlist                    := attrname          [ push                      ]
+                               ':' 
+                               expr
+                               attrlist_tail
+                             ;
+
+attrname                    := 'i' | '"' | '\'' ;
+
+attrlist_tail               := ,
+			       attrlist
+                             |
+			     ;
+
+logic_op                    := > | ">=" | < | "<=" | "==" | "!=" ;
+                             
+add_op                      := + | - | ~;
+
+mult_op                     := * | / | ^ | % ;
+
+func_call                   :=                   [ init_function             ]
+                               _func_call
+                             ;
+
+_func_call                  := (
+                               arglist_or_void
+                               )                 [ emit_func_call            ]
+                             ;
+
+arglist_or_void             := arglist
+                             |
+                             ;
+
+arglist                     := argument
+                               arglist_tail
+                             ;
+
+argument                    := expr              [ incr                      ] 
+                             ;
+
+arglist_tail                := ,
+                               arglist
+                             |
+                             ;

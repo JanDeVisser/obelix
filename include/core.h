@@ -126,6 +126,7 @@ extern char *          label_for_code(code_label_t *, int);
 extern int             code_for_label(code_label_t *, char *);
 
 extern function_t *    function_create(char *, voidptr_t);
+extern function_t *    function_create_noresolve(char *);
 extern function_t *    function_copy(function_t *);
 extern void            function_free(function_t *);
 extern char *          function_tostring(function_t *);
