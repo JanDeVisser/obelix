@@ -205,6 +205,8 @@ static data_t * _scriptloader_import_sys(scriptloader_t *loader,
 
 #define GRAMMAR_FILE    "grammar.txt"
 
+typedef grammar_t * (*build_grammar_t)(void);
+
 scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path, 
                                      char *grammarpath) {
   scriptloader_t   *ret;
@@ -216,6 +218,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
   int               ix;
   int               len;
   name_t           *upath = NULL;
+  build_grammar_t   build_grammar;
 
   if (script_debug) {
     debug("Creating script loader");
@@ -244,25 +247,31 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
     user_path = upath;
   }
 
-  if (!grammarpath) {
-    grammarpath = (char *) new(strlen(ret -> system_dir) + strlen(GRAMMAR_FILE) + 1);
-    strcpy(grammarpath, ret -> system_dir);
-    strcat(grammarpath, GRAMMAR_FILE);
-  }
   if (script_debug) {
     debug("system dir: %s", ret -> system_dir);
     debug("user path: %s", name_tostring(user_path));
-    debug("grammar file: %s", grammarpath);
   }
 
-  file = file_open(grammarpath);
-  assert(file);
-  gp = grammar_parser_create(file);
-  ret -> grammar = grammar_parser_parse(gp);
-  assert(ret -> grammar);
-  grammar_parser_free(gp);
-  file_free(file);
-  free(grammarpath);
+  if (!grammarpath) {
+    if (script_debug) {
+      debug("Using stock, compiled-in grammar");
+    }
+    build_grammar = (build_grammar_t) resolve_function("build_grammar");
+    ret -> grammar = build_grammar();
+  } else {
+    if (script_debug) {
+      debug("grammar file: %s", grammarpath);
+    }
+    file = file_open(grammarpath);
+    assert(file);
+    gp = grammar_parser_create(file);
+    ret -> grammar = grammar_parser_parse(gp);
+    assert(ret -> grammar);
+    grammar_parser_free(gp);
+    file_free(file);
+    //free(grammarpath);
+  }
+
   if (script_debug) {
     debug("  Loaded grammar");
   }

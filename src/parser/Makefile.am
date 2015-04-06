@@ -19,9 +19,11 @@
 AM_CPPFLAGS = -DOBELIX_DATADIR=\"$(datadir)\" -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
 # AM_CFLAGS   = -Werror
-LDADD       = -ldl -lm -lcheck
+LDADD       = ../parser/liboblparser.la ../types/libobltypes.la ../lib/liboblcore.la
 
 lib_LTLIBRARIES = liboblparser.la
+bin_PROGRAMS = panoramix
+
 liboblparser_la_SOURCES = \
 		datastack.c \
 		token.c \
@@ -33,12 +35,9 @@ liboblparser_la_SOURCES = \
 		native.c \
 		namespace.c \
 		instruction.c \
-		object.c \
-		scriptparse.c \
-		loader.c
+		object.c
+liboblparser_la_LIBADD = ../types/libobltypes.la
 
-liboblparser_la_LIBADD = \
-		$(top_srcdir)/src/lib/liboblcore.la \
-		$(top_srcdir)/src/types/libobltypes.la
+panoramix_SOURCES = panoramix.c
 
 # SUBDIRS = . test

@@ -379,7 +379,7 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   data_t          *arg_name;
   data_t          *caller;
   dict_t          *kwargs = NULL;
-  array_t         *args;
+  array_t         *args = NULL;
   int              ix;
   int              num;
   
@@ -401,14 +401,16 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   if (script_debug) {
     debug(" -- #arguments: %d", num);
   }
-  args = data_array_create(num);
-  for (ix = 0; ix < num; ix++) {
-    value = closure_pop(closure);
-    assert(value);
-    array_set(args, num - ix - 1, value);
-  }
-  if (script_debug) {
-    array_debug(args, " -- arguments: %s");
+  if (num) {
+    args = data_array_create(num);
+    for (ix = 0; ix < num; ix++) {
+      value = closure_pop(closure);
+      assert(value);
+      array_set(args, num - ix - 1, value);
+    }
+    if (script_debug) {
+      array_debug(args, " -- arguments: %s");
+    }
   }
   caller = data_create(Closure, closure);
   self = (call -> infix) ? NULL : caller;

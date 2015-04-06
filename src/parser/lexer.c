@@ -108,6 +108,17 @@ static state_str_t matcher_state_names[] = {
   { -1,                                NULL }
 };
 
+static code_label_t lexer_option_labels[] = {
+  { .code = LexerOptionIgnoreWhitespace,    .label = "LexerOptionIgnoreWhitespace" },
+  { .code = LexerOptionIgnoreNewLines,      .label = "LexerOptionIgnoreNewLines" },
+  { .code = LexerOptionIgnoreAllWhitespace, .label = "LexerOptionIgnoreAllWhitespace" },
+  { .code = LexerOptionCaseSensitive,       .label = "LexerOptionCaseSensitive" },
+  { .code = LexerOptionHashPling,           .label = "LexerOptionHashPling" },
+  { .code = LexerOptionSignedNumbers,       .label = "LexerOptionSignedNumbers" },
+  { .code = LexerOptionOnNewLine,           .label = "LexerOptionOnNewLine" },
+  { .code = LexerOptionLAST,                .label = NULL }
+};
+
 /*
  * static utility functions
  */
@@ -168,6 +179,10 @@ char * _state_name(state_str_t *str_table, int state) {
 
 char * lexer_state_name(lexer_state_t state) {
   return _state_name(lexer_state_names, state);
+}
+
+char * lexer_option_name(lexer_option_t option) {
+  return label_for_code(lexer_option_labels, option);
 }
 
 /*

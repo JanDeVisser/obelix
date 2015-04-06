@@ -222,9 +222,6 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
   parser_stack_entry_t *ne;
   int                   code;
   int                   i;
-  data_t               *data;
-  data_t               *counter;
-  token_t              *pushtoken;
   parser_t             *ret;
 
   code = token_code(token);
@@ -238,7 +235,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
     if (code != TokenCodeEnd) {
       parser -> error = data_error(ErrorSyntax, 
                                    "Expected end of file, read unexpected token '%s'",
-                                   token_token(token));
+                                   token_tostring(token));
     }
     consuming = 0;
   } else if ((consuming == 1) && (e -> type != PSETypeAction)) {
@@ -256,7 +253,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
 	if (!rule) {
 	  parser -> error = data_error(ErrorSyntax, 
 				       "Unexpected token '%s'", 
-				       token_token(token));
+				       token_tostring(token));
 	  break;
 	}
         if (array_size(rule -> entries)) {
@@ -286,8 +283,8 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
 	if (token_cmp(entry -> token, token)) {
 	  parser -> error = data_error(ErrorSyntax,
 				       "Expected '%s' but got '%s' instead",
-				       token_token(entry -> token),
-				       token_token(token));
+				       token_tostring(entry -> token),
+				       token_tostring(token));
 	}
 	consuming = 1;
         break;

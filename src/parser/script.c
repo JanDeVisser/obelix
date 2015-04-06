@@ -577,7 +577,7 @@ char * closure_tostring(closure_t *closure) {
   char *params;
   
   if (!closure -> str) {
-    params = (dict_size(closure -> params)) 
+    params = (closure -> params && dict_size(closure -> params)) 
                ? dict_tostring_custom(closure -> params, "", "%s=%s", ",", "")
                : strdup("");
     asprintf(&closure -> str, "%s(%s)",

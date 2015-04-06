@@ -97,7 +97,7 @@ datastack_t * datastack_create(char *name) {
   ret = NEW(datastack_t);
   ret -> name = strdup(name);
   ret -> debug = 0;
-  ret -> list = data_list_create();
+  ret -> list = data_array_create(4);
   ret -> bookmarks = NULL;
   ret -> counters = NULL;
   return ret;
@@ -110,8 +110,9 @@ datastack_t * datastack_set_debug(datastack_t *stack, int debug) {
 
 void datastack_free(datastack_t *stack) {
   if (stack) {
-    list_free(stack -> list);
-    list_free(stack -> bookmarks);
+    array_free(stack -> list);
+    array_free(stack -> bookmarks);
+    array_free(stack -> counters);
     free(stack -> name);
     free(stack);
   }
@@ -130,13 +131,13 @@ int datastack_cmp(datastack_t *s1, datastack_t *s2) {
 }
 							    
 int datastack_depth(datastack_t *stack) {
-  return list_size(stack -> list);
+  return array_size(stack -> list);
 }
 
 data_t * datastack_pop(datastack_t *stack) {
   data_t *ret;
 
-  ret = (data_t *) list_pop(stack -> list);
+  ret = (data_t *) array_pop(stack -> list);
   if (stack -> debug) {
     debug("  - %s", data_tostring(ret));
   }
@@ -144,11 +145,11 @@ data_t * datastack_pop(datastack_t *stack) {
 }
 
 data_t * datastack_peek(datastack_t *stack) {
-  return (data_t *) list_tail(stack -> list);
+  return (data_t *) array_get(stack -> list, -1);
 }
 
 datastack_t * datastack_push(datastack_t *stack, data_t *data) {
-  list_push(stack -> list, data);
+  array_push(stack -> list, data);
   if (stack -> debug) {
     debug("After push:");
     datastack_list(stack);
@@ -170,13 +171,13 @@ datastack_t * datastack_push_float(datastack_t *stack, double value) {
 
 datastack_t * datastack_list(datastack_t *stack) {
   debug("-- Stack '%s' ---------------------------------------------", stack -> name);
-  list_visit(stack -> list, (visit_t) _stack_list_visitor);
+  array_visit(stack -> list, (visit_t) _stack_list_visitor);
   debug("------------------------------------------------------------------");
   return stack;
 }
 
 datastack_t * datastack_clear(datastack_t *stack) {
-  list_clear(stack -> list);
+  array_clear(stack -> list);
   return stack;
 }
 
@@ -184,10 +185,10 @@ datastack_t * datastack_clear(datastack_t *stack) {
 
 datastack_t * datastack_bookmark(datastack_t *stack) {
   if (!stack -> bookmarks) {
-    stack -> bookmarks = list_create();
-    list_set_free(stack -> bookmarks, (free_t) _bookmark_free);
+    stack -> bookmarks = array_create(4);
+    array_set_free(stack -> bookmarks, (free_t) _bookmark_free);
   }
-  list_push(stack -> bookmarks, _bookmark_create(stack));
+  array_push(stack -> bookmarks, _bookmark_create(stack));
   return stack;
 }
 
@@ -198,10 +199,10 @@ array_t * datastack_rollup(datastack_t *stack) {
   int         num;
   int         ix;
 
-  if (!stack -> bookmarks || list_empty(stack -> bookmarks)) {
+  if (!stack -> bookmarks || array_empty(stack -> bookmarks)) {
     return NULL;
   }
-  bookmark = (bookmark_t *) list_tail(stack -> bookmarks);
+  bookmark = (bookmark_t *) array_pop(stack -> bookmarks);
   assert(_bookmark_depth(bookmark) <= datastack_depth(stack));
   num = datastack_depth(stack) - _bookmark_depth(bookmark);
   ret = data_array_create(num);
@@ -210,7 +211,6 @@ array_t * datastack_rollup(datastack_t *stack) {
     array_set(ret, ix, data_copy(data));
     data_free(data);
   }
-  bookmark = list_pop(stack -> bookmarks);
   _bookmark_free(bookmark);
   return ret;
 }
@@ -236,10 +236,10 @@ name_t * datastack_rollup_name(datastack_t *stack) {
 
 datastack_t * datastack_new_counter(datastack_t *stack) {
   if (!stack -> counters) {
-    stack -> counters = list_create();
-    list_set_free(stack -> counters, (free_t) _counter_free);
+    stack -> counters = array_create(4);
+    array_set_free(stack -> counters, (free_t) _counter_free);
   }
-  list_push(stack -> counters, _counter_create());
+  array_push(stack -> counters, _counter_create());
   return stack;
 }
 
@@ -249,7 +249,7 @@ datastack_t * datastack_increment(datastack_t *stack) {
   if (!stack -> counters || list_empty(stack -> counters)) {
     return NULL;
   }
-  counter = (counter_t *) list_tail(stack -> counters);
+  counter = (counter_t *) array_get(stack -> counters, -1);
   _counter_incr(counter);
   return stack; 
 }
@@ -258,10 +258,10 @@ int datastack_count(datastack_t *stack) {
   counter_t *counter;
   int        count;
 
-  if (!stack -> counters || list_empty(stack -> counters)) {
+  if (!stack -> counters || array_empty(stack -> counters)) {
     return -1;
   }
-  counter = list_pop(stack -> counters);
+  counter = (counter_t *) array_pop(stack -> counters);
   count = counter -> count;
   _counter_free(counter);
   return count;

@@ -18,7 +18,6 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
-LDADD       = -ldl -lm -lcheck
 
 lib_LTLIBRARIES = liboblstdlib.la
 liboblstdlib_la_SOURCES = \
@@ -27,8 +26,6 @@ liboblstdlib_la_SOURCES = \
 		sys.c \
 		net.c
 
-liboblstdlib_la_LIBADD = \
-		$(top_srcdir)/src/lib/liboblcore.la \
-		$(top_srcdir)/src/types/libobltypes.la
+liboblstdlib_la_LIBADD = $(top_srcdir)/src/types/libobltypes.la
 
 SUBDIRS = . test

@@ -329,6 +329,16 @@ function_t * function_create(char *name, voidptr_t fnc) {
   return ret;
 }
 
+function_t * function_create_noresolve(char *name) {
+  function_t *ret;
+
+  ret = NEW(function_t);
+  ret -> name = strdup(name);
+  ret -> fnc = NULL;
+  ret -> refs = 1;
+  return ret;
+}
+
 function_t * function_copy(function_t *src) {
   src -> refs++;
   return src;

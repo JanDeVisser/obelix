@@ -16,23 +16,20 @@
 # You should have received a copy of the GNU General Public License
 # along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
-AM_LDFLAGS  = -rdynamic
-# AM_CFLAGS   = -ansi
-LDADD       = -ldl -lm -lcheck
+.grammar.c:
+	../parser/panoramix -g $< > $@
 
-bin_PROGRAMS   = obelix oblcoretest
-obelix_SOURCES = obelix.c
-obelix_LDFLAGS = -pthread 
-obelix_LDADD   = \
-	$(top_srcdir)/src/lib/liboblcore.la \
-	$(top_srcdir)/src/types/libobltypes.la \
-	$(top_srcdir)/src/parser/liboblparser.la \
-	-lcheck -ldl -lm
+AM_CPPFLAGS = -DOBELIX_DATADIR=\"$(datadir)\" -I$(top_srcdir)/include
+AM_LDFLAGS  = -rdynamic -pthread
+# AM_CFLAGS   = -ansi
+LDADD   = ../parser/liboblparser.la ../types/libobltypes.la ../lib/liboblcore.la
+
+bin_PROGRAMS        = obelix oblcoretest
+obelix_SOURCES      = obelix.c \
+		      grammar.grammar \
+		      loader.c \
+	              scriptparse.c
 	
 oblcoretest_SOURCES = oblcoretest.c
-oblcoretest_LDADD   = $(top_srcdir)/src/lib/liboblcore.la \
-                      $(top_srcdir)/src/test/libtest.la \
-                      -ldl -lm
 
 SUBDIRS = . test
