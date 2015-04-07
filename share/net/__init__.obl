@@ -18,3 +18,4 @@
  */
 
 func connect() -> "liboblstdlib.so:_function_connect"
+func listen() -> "liboblstdlib.so:_function_listen"

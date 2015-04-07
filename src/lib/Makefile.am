@@ -17,7 +17,7 @@
 # along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
 
 AM_CPPFLAGS = -I$(top_srcdir)/include
-AM_LDFLAGS  = -rdynamic
+AM_LDFLAGS  = -rdynamic -pthread
 
 lib_LTLIBRARIES = liboblcore.la
 
@@ -38,7 +38,7 @@ liboblcore_la_SOURCES = \
 #		tree.c 
 #		expr.c 
 
-liboblcore_la_LIBADD = -ldl
+liboblcore_la_LIBADD = -lpthread -ldl
 
 SUBDIRS = . test
 

@@ -43,6 +43,10 @@ extern unsigned int  socket_hash(socket_t *);
 extern int           socket_cmp(socket_t *, socket_t *);
 extern char *        socket_tostring(socket_t *);
 
+extern socket_t *    serversocket_create(int);
+extern socket_t *    serversocket_create_byservice(char *);
+extern int           socket_listen(int, service_t, void *);
+
 #ifdef	__cplusplus
 }
 #endif
