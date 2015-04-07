@@ -60,8 +60,8 @@ static typedescr_t _typedescr_socket =   {
 };
 
 static methoddescr_t _methoddescr_socket[] = {
-  { .type = -1,     .name = "close", .method = _socket_close, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = NoType, .name = NULL,    .method = NULL,          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "close", .method = _socket_close,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,    .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 #define data_is_socket(d) ((d) && (data_type((d)) == Socket))
@@ -130,6 +130,36 @@ data_t * _function_connect(char *name, array_t *params, dict_t *kwargs) {
   return socket;
 }
 
+void * _listener_service(void **params) {
+  data_t   *server = (data_t) params[0];
+  socket_t *client = (socket_t) params[1];
+  data_t   *socket = data_create(Socket, NULL, NULL);
+  data_t   *ret;
+  array_t  *p;
+  
+  socket -> ptrval = _wrapper_create(client);
+  p = data_array_create(1);
+  array_push(p, socket);
+  ret = data_call(server, p, NULL);
+  array_free(p);
+  return ret;
+}
+
+data_t * _function_listen(char *name, array_t *params, dict_t *kwargs) {
+  data_t *service;
+  data_t *server;
+  data_t *ret;
+
+  assert(params && (array_size(params) >= 2));
+  service = data_array_get(params, 0);
+  server = data_array_get(params, 0);
+  assert(data_is_callable(server));
+  
+  ret = data_create(Int, socket_listen(data_intval(service), 
+                                       _listener_service, 
+                                       server));
+}
+
 /* -------------------------------------------------------------------------*/
 
 data_t * _socket_new(data_t *target, va_list args) {
@@ -141,7 +171,9 @@ data_t * _socket_new(data_t *target, va_list args) {
   service = va_arg(args, char *);
 
   /* FIXME Error handling */
-  target -> ptrval = _wrapper_create(socket_create_byservice(host, service));
+  if (host && service) {
+    target -> ptrval = _wrapper_create(socket_create_byservice(host, service));
+  }
   return target;
 }
 

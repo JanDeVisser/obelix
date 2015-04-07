@@ -17,9 +17,9 @@
 # along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
 
 AM_CPPFLAGS = -DOBELIX_DATADIR=\"$(datadir)\" -I$(top_srcdir)/include
-AM_LDFLAGS  = -rdynamic
+AM_LDFLAGS  = -rdynamic -pthread
 # AM_CFLAGS   = -Werror
-LDADD       = ../parser/liboblparser.la ../types/libobltypes.la ../lib/liboblcore.la
+LDADD       = ../parser/liboblparser.la ../types/libobltypes.la ../lib/liboblcore.la 
 
 lib_LTLIBRARIES = liboblparser.la
 bin_PROGRAMS = panoramix
@@ -36,7 +36,6 @@ liboblparser_la_SOURCES = \
 		namespace.c \
 		instruction.c \
 		object.c
-liboblparser_la_LIBADD = ../types/libobltypes.la
 
 panoramix_SOURCES = panoramix.c
 
