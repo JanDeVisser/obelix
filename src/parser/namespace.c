@@ -420,6 +420,7 @@ void ns_free(namespace_t *ns) {
   if (ns) {
     data_free(ns -> root);
     free(ns -> str);
+    data_free(ns -> exit_code);
     free(ns);
   }
 }
@@ -474,4 +475,30 @@ char * ns_tostring(namespace_t *ns) {
   } else {
     return "ns:NULL";
   }
+}
+
+namespace_t * ns_exit(namespace_t *ns, data_t *code) {
+  ns -> exit_code = data_copy(code);
+  if (ns -> up) {
+    ns_exit(ns -> up, code);
+  } else if (ns_debug) {
+    debug("Setting exit code %s", data_tostring(ns -> exit_code));
+  }
+  return ns;
+}
+
+data_t * ns_exit_code(namespace_t *ns) {
+  data_t *ret;
+  
+  if (!ns -> exit_code) {
+    if (ns -> up) {
+      ret = ns_exit_code(ns -> up);
+      ns -> exit_code = data_copy(ret);
+    } else {
+      return NULL;
+    }
+  } else {
+    ret = ns -> exit_code;
+  }
+  return ret;
 }

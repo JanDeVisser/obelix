@@ -51,6 +51,7 @@ typedef struct _namespace {
   int                level;
   void              *import_ctx;
   import_t           import_fnc;
+  data_t            *exit_code;
   data_t            *root;
   char              *str;
 } namespace_t;
@@ -79,5 +80,7 @@ extern data_t *      ns_execute(namespace_t *, name_t *, array_t *, dict_t *);
 extern data_t *      ns_get(namespace_t *, name_t *);
 extern data_t *      ns_resolve(namespace_t *, char *);
 extern char *        ns_tostring(namespace_t *);
+extern namespace_t * ns_exit(namespace_t *, data_t *);
+extern data_t *      ns_exit_code(namespace_t *);
 
 #endif /* __NAMESPACE_H__ */

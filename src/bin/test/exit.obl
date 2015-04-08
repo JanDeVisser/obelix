@@ -1,0 +1,9 @@
+func a()
+  sys.exit(2)
+end
+
+func b()
+  a()
+end
+
+b()
