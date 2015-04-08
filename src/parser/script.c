@@ -524,7 +524,10 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   listnode_t *node = NULL;
   data_t     *catchpoint;
 
-  ret = instruction_execute(instr, closure);
+  ret = ns_exit_code(closure -> imports);
+  if (!ret) {
+    ret = instruction_execute(instr, closure);
+  }
   if (ret) {
     switch (data_type(ret)) {
       case String:
@@ -533,6 +536,7 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
       case Error:
         catchpoint = datastack_pop(closure -> catchpoints);
         label = strdup(data_charval(catchpoint));
+        data_free(catchpoint);
         closure_push(closure, data_copy(ret));
         break;
       default:
@@ -729,7 +733,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   if (data_is_error(ret)) {
     e = data_errorval(ret);
     if ((e -> code == ErrorExit) && (data_errorval(ret) -> exception)) {
-      ret = data_errorval(ret) -> exception;
+      ns_exit(closure ->  imports, ret);
     }
   }
   if (kwargs) {

@@ -43,6 +43,8 @@ static code_label_t builtin_errors[] = {
   { .code = ErrorExhausted,   .label = "ErrorExhausted" },
   { .code = ErrorNotIterator, .label = "ErrorNotIterator" },
   { .code = ErrorException,   .label = "ErrorException" },
+  { .code = ErrorLeave,       .label = "ErrorLeave", },
+  { .code = ErrorExit,        .label = "ErrorExit", },
 };
 
 static int           num_errors = sizeof(builtin_errors) / sizeof(code_label_t);

@@ -22,22 +22,31 @@
 #include <array.h>
 #include <data.h>
 #include <dict.h>
+#include <name.h>
 #include <str.h>
 
 extern data_t * _function_print(char *, array_t *, dict_t *);
 
-data_t * _function_print(char *name, array_t *params, dict_t *kwargs) {
+data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
   data_t  *fmt;
   data_t  *s;
+  name_t  *name;
 
+  (void) func_name;
   assert(array_size(params));
   fmt = (data_t *) array_get(params, 0);
   assert(fmt);
-  params = array_slice(params, 1, -1);
-  s = data_execute(fmt, "format", params, kwargs);
-  array_free(params);
- 
-  printf("%s\n", data_tostring(s));
-  data_free(s);
+  name = name_create(1, "format");
+  if (data_has_callable(fmt, name)) {
+    params = array_slice(params, 1, -1);
+    s = data_execute(fmt, "format", params, kwargs);
+    array_free(params);
+
+    printf("%s\n", data_tostring(s));
+    data_free(s);
+  } else {
+    printf("%s\n", data_tostring(fmt));
+  }
+  name_free(name);
   return data_create(Int, 0);
 }

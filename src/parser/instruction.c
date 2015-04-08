@@ -422,6 +422,9 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     closure_push(closure, ret);
     ret = NULL;
   }
+  if (script_debug) {
+    debug(" -- return value '%s'", data_tostring(ret));
+  }
   return ret;
 }
 
