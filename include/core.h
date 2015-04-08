@@ -48,7 +48,7 @@ typedef struct _code_label {
 
 typedef void      (*void_t)(void);
 typedef void      (*voidptr_t)(void *);
-typedef void *    (*service_t)(void *);
+typedef void *    (*voidptrvoidptr_t)(void *);
 typedef voidptr_t visit_t;
 typedef voidptr_t free_t;
 

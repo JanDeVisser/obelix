@@ -1,0 +1,37 @@
+import net
+
+func srv()
+  self.socket = net.server(12345)
+  print("Server socket created")
+
+  func listen()
+    self.socket.listen(self)
+  end
+
+  func __call__(client)
+    print("${0} connected", client.host)
+    carry_on = true
+    while carry_on
+      cmd = client.fd.readline()
+      print("Command: ${0}", cmd)
+      if cmd == "HELLO"
+        client.fd.print("Hello, ${0}.", client.host)
+      end
+      if cmd.startswith("ECHO")
+        client.fd.print(cmd.slice(5, 0))
+      end
+      if cmd == "BYE"
+        client.fd.print("Bye to you to!")
+        carry_on = false
+      end
+      if cmd == "SHUTDOWN"
+        client.fd.print("Farewell, cruel world...")        
+        self.socket.interrupt()
+      end        
+    end
+    return 0
+  end
+end
+
+s = new srv()
+s.listen()

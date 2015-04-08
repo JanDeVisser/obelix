@@ -50,26 +50,28 @@ parser_t * _script_parse_emit_epilog(parser_t *parser) {
 
   script = (script_t *) parser -> data;
   instr = list_peek(script -> instructions);
-  if ((instr -> type != ITJump) && !datastack_empty(script -> pending_labels)) {
-    /* 
-     * If the previous instruction was a Jump, and there is no label set for the
-     * next statement, we can never get here. No point in emitting a push and 
-     * jump in that case.
-     */
-    while (datastack_depth(script -> pending_labels) > 1) {
-      script_push_instruction(script, instruction_create_nop());
+  if (instr) {
+    if ((instr -> type != ITJump) && !datastack_empty(script -> pending_labels)) {
+      /* 
+       * If the previous instruction was a Jump, and there is no label set for the
+       * next statement, we can never get here. No point in emitting a push and 
+       * jump in that case.
+       */
+      while (datastack_depth(script -> pending_labels) > 1) {
+        script_push_instruction(script, instruction_create_nop());
+      }
+      data = data_create(Int, 0);
+      script_push_instruction(script, instruction_create_pushval(data));
+      data_free(data);
+      script_push_instruction(script, instruction_create_jump("END"));
     }
-    data = data_create(Int, 0);
-    script_push_instruction(script, instruction_create_pushval(data));
-    data_free(data);
-    script_push_instruction(script, instruction_create_jump("END"));
+
+    datastack_push_string(script -> pending_labels, "ERROR");
+    script_parse_emit_nop(parser);
+
+    datastack_push_string(script -> pending_labels, "END");
+    script_parse_emit_nop(parser);
   }
-  
-  datastack_push_string(script -> pending_labels, "ERROR");
-  script_parse_emit_nop(parser);
-  
-  datastack_push_string(script -> pending_labels, "END");
-  script_parse_emit_nop(parser);
   if (script_debug || _script_parse_get_option(parser, ObelixOptionList)) {
     script_list(script);
   }

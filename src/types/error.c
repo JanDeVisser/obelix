@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -55,6 +56,7 @@ static int           _error_cmp(data_t *, data_t *);
 static char *        _error_tostring(data_t *);
 
 static data_t *      _error_create(data_t *, char *, array_t *, dict_t *);
+static data_t *      _data_error_from_error(error_t *);
 
 
 static vtable_t _vtable_error[] = {
@@ -65,7 +67,6 @@ static vtable_t _vtable_error[] = {
   { .id = FunctionToString, .fnc = (void_t) _error_tostring },
   { .id = FunctionNone,     .fnc = NULL }
 };
-
 
 static typedescr_t _typedescr_error = {
   .type      = Error,
@@ -99,43 +100,43 @@ int error_register(char *str) {
   return descr.code;
 }
 
-error_t * error_create(int code, ...) {
+error_t * error_create(int code, char *msg, ...) {
   error_t *ret;
   va_list  args;
 
-  va_start(args, code);
-  ret = error_vcreate(code, args);
+  va_start(args, msg);
+  ret = error_vcreate(code, msg, args);
   va_end(args);
   return ret;
 }
 
-error_t * error_vcreate(int code, va_list args) {
+error_t * error_vcreate(int code, char *msg, va_list args) {
   int      size;
-  char    *msg;
   error_t *ret;
 
   ret = NEW(error_t);
   ret -> code = code;
-  msg = va_arg(args, char *);
   vasprintf(&ret -> msg, msg, args);
   ret -> str = NULL;
   ret -> exception = NULL;
+  ret -> refs = 1;
   return ret;
+}
+
+error_t * error_from_errno(void) {
+  // FIXME Map errno to ErrorXXX. It's not always an IOError.
+  error_create(ErrorIOError, strerror(errno));
 }
 
 error_t * error_copy(error_t *src) {
-  error_t *ret;
-
-  ret = NEW(error_t);
-  ret -> code = src -> code;
-  ret -> msg = strdup(src -> msg);
-  ret -> str = NULL;
-  ret -> exception = data_copy(src -> exception);
-  return ret;
+  if (src) {
+    src -> refs++;
+  }
+  return src;
 }
 
 void error_free(error_t *error) {
-  if (error) {
+  if (error && (--error -> refs <= 0)) {
     free(error -> msg);
     free(error -> str);
     data_free(error -> exception);
@@ -178,11 +179,8 @@ void _error_init(void) {
 }
 
 data_t * _error_new(data_t *target, va_list args) {
-  int      code;
-  error_t *e;
-
-  code = va_arg(args, int);
-  e = error_vcreate(code, args);
+  error_t *e = error_vcreate(va_arg(args, int), va_arg(args, char *), args);
+  
   target -> ptrval = e;
   return target;
 }
@@ -207,30 +205,24 @@ char * _error_tostring(data_t *data) {
   return error_tostring((error_t *) data -> ptrval);
 }
 
+data_t * _data_error_from_error(error_t *error) {
+  data_t *ret = data_create_noinit(Error);
+  ret -> ptrval = error_copy(error);
+}
+
 data_t * data_error(int code, char * msg, ...) {
-  char    buf[256];
-  char   *ptr;
-  int     size;
-  va_list args;
-  va_list args_copy;
-  data_t *ret;
+  error_t *error;
+  va_list  args;
   
   va_start(args, msg);
-  va_copy(args_copy, args);
-  size = vsnprintf(buf, 256, msg, args);
-  if (size > 256) {
-    ptr = (char *) new(size);
-    vsprintf(ptr, msg, args_copy);
-  } else {
-    ptr = buf;
-  }
+  error = error_vcreate(code, msg, args);
   va_end(args);
-  va_end(args_copy);
-  ret = data_create(Error, code, ptr);
-  if (size > 256) {
-    free(ptr);
-  }
-  return ret;
+  return _data_error_from_error(error);
+}
+
+data_t * data_error_from_errno(void) {
+  error_t *error = error_from_errno();
+  return _data_error_from_error(error);
 }
 
 data_t * data_exception(data_t *exception) {

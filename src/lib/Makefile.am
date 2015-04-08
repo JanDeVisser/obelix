@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_srcdir)/include -D_GNU_SOURCE
 AM_LDFLAGS  = -rdynamic -pthread
 
 lib_LTLIBRARIES = liboblcore.la

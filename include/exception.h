@@ -45,11 +45,13 @@ typedef struct _error {
   char         *msg;
   char         *str;
   struct _data *exception;
+  int           refs;
 } error_t;
 
 extern int            error_register(char *str);
-extern error_t *      error_create(int , ...);
-extern error_t *      error_vcreate(int, va_list);
+extern error_t *      error_create(int, char *, ...);
+extern error_t *      error_vcreate(int, char *, va_list);
+extern error_t *      error_from_errno(void);
 extern error_t *      error_copy(error_t *);
 extern void           error_free(error_t *);
 extern unsigned int   error_hash(error_t *);
