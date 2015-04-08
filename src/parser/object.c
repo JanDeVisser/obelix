@@ -174,16 +174,13 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
       script = data_closureval(n) -> script;
     } else if (data_is_script(n)) {
       script = data_scriptval(n);
-    }
-    shifted = array_slice(args, 1, 0);
-    if (script) {
-      ret = script_create_object(script, shifted, kwargs);
-    } else {
+    } else if (data_is_boundmethod(n)) {
       script = data_boundmethodval(n) -> script;
-      ret = bound_method_execute(data_boundmethodval(n), NULL, shifted, kwargs);
     }
-    array_free(shifted);
-    if (ret) {
+    if (script) {
+      shifted = array_slice(args, 1, 0);
+      ret = script_create_object(script, shifted, kwargs);
+      array_free(shifted);
       if (data_is_object(ret)) {
         obj = data_objectval(ret);
         dict_reduce(script -> functions, (reduce_t) _object_set_all_reducer, obj);
@@ -193,6 +190,9 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
         ret = data_error(ErrorType, "Script '%s' returned an object of type '%s' instead of an object",
                          script_tostring(script), type -> type_name);
       }
+    } else {
+      ret = data_error(ErrorType, "Cannot use '%s' of type 's' as an object factory",
+                       data_tostring(n), data_typedescr(n) -> type_name);
     }
   } else {
     ret = data_copy(n);

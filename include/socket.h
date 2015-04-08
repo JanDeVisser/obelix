@@ -25,27 +25,41 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
+
+typedef struct _connection {
+  struct _socket *server;
+  struct _socket *client;
+  void           *context;
+} connection_t;
+
+  
+typedef void * (*service_t)(connection_t *);
     
 typedef struct _socket {
   file_t *sockfile;
-  char   *host;
-  char   *service;
-  char   *str;
-  int     refs;
+  int        fh;
+  char      *host;
+  char      *service;
+  service_t  service_handler;
+  void      *context;
+  char      *str;
+  int        refs;
 } socket_t;
 
 extern socket_t *    socket_create(char *, int);
 extern socket_t *    socket_create_byservice(char *, char *);
+extern socket_t *    serversocket_create(int);
+extern socket_t *    serversocket_create_byservice(char *);
 extern socket_t *    socket_copy(socket_t *);
 extern void          socket_free(socket_t *);
 extern int           socket_close(socket_t *);
 extern unsigned int  socket_hash(socket_t *);
 extern int           socket_cmp(socket_t *, socket_t *);
 extern char *        socket_tostring(socket_t *);
-
-extern socket_t *    serversocket_create(int);
-extern socket_t *    serversocket_create_byservice(char *);
-extern int           socket_listen(int, service_t, void *);
+extern int           socket_listen(socket_t *, service_t, void *);
+extern int           socket_listen_detach(socket_t *, service_t, void *);
+extern socket_t *    socket_interrupt(socket_t *);
+extern socket_t *    socket_nonblock(socket_t *);
 
 #ifdef	__cplusplus
 }

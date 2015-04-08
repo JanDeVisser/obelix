@@ -47,6 +47,7 @@ typedef enum _datatype {
   Native,       /* 17 */
   NVP,          /* 18 */
   Range,        /* 19 */
+  Callable      = 99,
   Any           = 100,
   UserTypeRange = 999
 } datatype_t;
@@ -143,6 +144,7 @@ extern char *          typedescr_tostring(typedescr_t *);
 extern int             typedescr_is(typedescr_t *, int);
 extern void            typedescr_dump_vtable(typedescr_t *);
 
+extern data_t *        data_create_noinit(int);
 extern data_t *        data_create(int, ...);
 extern data_t *        data_cast(data_t *, int);
 extern data_t *        data_promote(data_t *);
@@ -194,6 +196,7 @@ extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 extern data_t *        data_create_pointer(int, void *);
 extern data_t *        data_null(void);
 extern data_t *        data_error(int, char *, ...);
+extern data_t *        data_error_from_errno(void);
 extern data_t *        data_exception(data_t *);
 extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);

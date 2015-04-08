@@ -404,14 +404,10 @@ int typedescr_is(typedescr_t *descr, int type) {
  * data_t public functions
  */
 
-data_t * data_create(int type, ...) {
-  va_list      arg;
-  data_t      *ret;
-  data_t      *initialized;
+data_t * data_create_noinit(int type) {
   typedescr_t *descr = typedescr_get(type);
-  new_t        n;
+  data_t      *ret = NEW(data_t);
   
-  ret = NEW(data_t);
   ret -> type = type;
   ret -> refs = 1;
   ret -> str = NULL;
@@ -421,7 +417,17 @@ data_t * data_create(int type, ...) {
   ret -> debugstr = NULL;
 #endif
   ret -> methods = NULL;
+  return ret;
+}
+
+data_t * data_create(int type, ...) {
+  va_list      arg;
+  data_t      *ret;
+  data_t      *initialized;
+  typedescr_t *descr = typedescr_get(type);
+  new_t        n;
   
+  ret = data_create_noinit(type);
   n = (new_t) typedescr_get_function(descr, FunctionNew);
   if (n) {
     va_start(arg, type);
@@ -572,6 +578,8 @@ int data_is_callable(data_t *data) {
 int data_hastype(data_t *data, int type) {
   if (type == Any) {
     return TRUE;
+  } else if (type == Callable) {
+    return data_is_callable(data);
   } else {
     return data && typedescr_is(data_typedescr(data), type);
   }
