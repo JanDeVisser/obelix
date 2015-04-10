@@ -39,6 +39,7 @@ typedef struct _script {
   name_t            *name;
   int                async;
   int                current_line;
+  list_t            *baseclasses;
   list_t            *instructions;
   dict_t            *functions;
   array_t           *params;
@@ -106,7 +107,7 @@ extern unsigned int     script_hash(script_t *);
 extern void             script_list(script_t *);
 extern script_t *       script_get_toplevel(script_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
-extern closure_t *      script_create_closure(script_t *, closure_t *, closure_t *);
+extern closure_t *      script_create_closure(script_t *, closure_t *, closure_t *, data_t *);
 extern data_t *         script_execute(script_t *, array_t *, dict_t *);
 extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
 extern bound_method_t * script_bind(script_t *, object_t *);

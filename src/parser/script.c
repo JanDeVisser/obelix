@@ -237,10 +237,15 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
     debug("Creating script '%s'", name);
   }
   ret = NEW(script_t);
+  
   ret -> instructions = list_create();
   list_set_free(ret -> instructions, (free_t) instruction_free);
   list_set_tostring(ret -> instructions, (tostring_t) instruction_tostring);
 
+  ret -> baseclasses = list_create();
+  list_set_free(ret -> baseclasses, (free_t) script_free);
+  list_set_tostring(ret -> baseclasses, (tostring_t) script_tostring);
+  
   ret -> functions = strdata_dict_create();
   ret -> labels = strvoid_dict_create();
   ret -> pending_labels = datastack_create("pending labels");
@@ -308,6 +313,11 @@ unsigned int script_hash(script_t *script) {
   return (script) ? name_hash(script -> name) : 0L;
 }
 
+script_t * script_add_baseclass(script_t *script, script_t *baseclass) {
+  list_push(script -> baseclasses, script_copy(baseclass));
+  return script;
+}
+
 script_t * script_push_instruction(script_t *script, instruction_t *instruction) {
   listnode_t    *node;
   data_t        *label;
@@ -362,7 +372,7 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
   if (script_debug) {
     debug("script_execute(%s)", script_tostring(script));
   }
-  closure = script_create_closure(script, NULL, NULL);
+  closure = script_create_closure(script, NULL, NULL, NULL);
   retval = closure_execute(closure, args, kwargs);
   closure_free(closure);
   if (script_debug) {
@@ -375,6 +385,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   object_t  *retobj;
   data_t    *retval;
   data_t    *dscript;
+  data_t    *bm;
   data_t    *self;
   
   if (script_debug) {
@@ -382,7 +393,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   }
   retobj = object_create(dscript = data_create(Script, script));
   retval = bound_method_execute(data_boundmethodval(retobj -> constructor), 
-                                NULL, params, kwparams);
+                                  NULL, params, kwparams);
   if (!data_is_error(retval)) {
     retobj -> retval = retval;
     retval = data_create(Object, retobj);
@@ -420,7 +431,8 @@ closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
   return closure;
 }
 
-closure_t * script_create_closure(script_t *script, closure_t *up, closure_t *caller) {
+closure_t * script_create_closure(script_t *script, closure_t *up, 
+                                  closure_t *caller, data_t *self) {
   closure_t *ret;
   int        depth = (caller) ? caller -> depth + 1 : 1;
 
@@ -442,7 +454,7 @@ closure_t * script_create_closure(script_t *script, closure_t *up, closure_t *ca
   ret -> up = up;
   ret -> caller = caller;
   ret -> depth = depth;
-  ret -> self = NULL;
+  ret -> self = data_copy(self);
 
   dict_reduce(script -> functions, 
               (reduce_t) _script_create_closure_reducer, ret);
@@ -509,8 +521,7 @@ data_t * bound_method_execute(bound_method_t *bm, closure_t *caller, array_t *pa
   data_t    *ret;
   
   self = (bm -> self) ? data_create(Object, bm -> self) : NULL;
-  closure = script_create_closure(bm -> script, bm -> closure, caller);
-  closure -> self = data_copy(self);
+  closure = script_create_closure(bm -> script, bm -> closure, caller, self);
   ret = closure_execute(closure, params, kwparams);
   closure_free(closure);
   return ret;  

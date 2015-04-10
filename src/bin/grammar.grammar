@@ -70,9 +70,30 @@ sync_async                  := "async"           [ pushval: 1                ]
                              ;
                              
 func_block                  :=                   [ start_function            ]
+                               baseclasses
                                statements
                                end_stmt          [ end_function              ]
                              | link_clause       [ native_function           ]
+                             ;
+
+baseclasses                 := :                 [ baseclass_constructors    ]
+                               _baseclasses      [ end_constructors          ]
+                             |
+                             ;
+
+_baseclasses                :=                   [ setup_constructor         ]
+                               baseclass         [ emit_func_call            ]
+                               baseclass_tail
+                             ;
+
+baseclass                   := identifier
+                               (
+                               arglist_or_void
+                               )
+                             ;
+
+baseclass_tail              := ,
+                               _baseclasses
                              ;
                              
 link_clause                 := "->" '"'
@@ -114,7 +135,7 @@ context_block               := "context"
                                identifier
                                assignment_or_empty [ begin_context_block     ]
                                statements        
-                               end_stmt          [ end_context_block         ]
+                               end_stmt            [ end_context_block       ]
                              ;
 
 assignment_or_empty         :=                   [ dup                       ]

@@ -181,15 +181,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
       shifted = array_slice(args, 1, 0);
       ret = script_create_object(script, shifted, kwargs);
       array_free(shifted);
-      if (data_is_object(ret)) {
-        obj = data_objectval(ret);
-        dict_reduce(script -> functions, (reduce_t) _object_set_all_reducer, obj);
-      } else {
-        type = data_typedescr(ret);
-        data_free(ret);
-        ret = data_error(ErrorType, "Script '%s' returned an object of type '%s' instead of an object",
-                         script_tostring(script), type -> type_name);
-      }
+      assert(data_is_object(ret));
     } else {
       ret = data_error(ErrorType, "Cannot use '%s' of type 's' as an object factory",
                        data_tostring(n), data_typedescr(n) -> type_name);
@@ -231,16 +223,27 @@ object_t * _object_set_all_reducer(entry_t *e, object_t *object) {
   return object;
 }
 
-object_t * _object_bind(entry_t *e, object_t *object) {
-  object_set(object, (char *) e -> key, (data_t *) e -> value);
+/* ----------------------------------------------------------------------- */
+
+object_t * _object_add_baseclasses(object_t *object, script_t *script) {
+  listiterator_t *iter;
+  script_t       *baseclass;
+  
+  for (iter = li_create(script -> baseclasses); li_has_next(iter); ) {
+    baseclass = (script_t *) li_next(iter);
+    _object_add_baseclasses(object, baseclass);
+    list_push(object -> constructors, 
+              data_create(BoundMethod, script_bind(baseclass, object)));
+    dict_reduce(baseclass -> functions, (reduce_t) _object_set_all_reducer, object);
+  }
+  li_free(iter);
   return object;
 }
 
-/* ----------------------------------------------------------------------- */
-
 object_t * object_create(data_t *constructor) {
   object_t   *ret;
-  script_t   *script;
+  script_t   *script = NULL;;
+  object_t   *obj;
   str_t      *s;
 
   ret = NEW(object_t);
@@ -251,8 +254,15 @@ object_t * object_create(data_t *constructor) {
   ret -> debugstr = NULL;
   if (data_is_script(constructor)) {
     script = data_scriptval(constructor);
-    ret -> constructor = data_create(BoundMethod, script_bind(script, ret));
-    dict_reduce(script -> functions, (reduce_t) _object_bind, ret);
+  } else if (data_is_object(constructor)) {
+    obj = data_objectval(constructor);
+    if (data_boundmethodval(obj -> constructor)) {
+      script = data_boundmethodval(obj -> constructor) -> script;
+    }
+  }
+  if (script) {
+    ret -> constructors = data_list_create();
+    _object_add_baseclasses(ret, script);
   }  
   return ret;
 }
@@ -271,6 +281,7 @@ void object_free(object_t *object) {
       data_free(_object_call_attribute(object, "__finalize__", NULL, NULL));
       dict_free(object -> variables);
       data_free(object -> constructor);
+      list_free(object -> constructors);
       data_free(object -> retval);
       free(object -> str);
       free(object -> debugstr);

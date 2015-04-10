@@ -157,6 +157,14 @@ parser_t * script_make_nvp(parser_t *parser) {
 parser_t * script_parse_init_function(parser_t *parser) {
   datastack_new_counter(parser -> stack);
   datastack_bookmark(parser -> stack);
+  parser_set(parser, "constructor", data_create(Bool, False));
+  return parser;
+}
+
+parser_t * script_parse_setup_constructor(parser_t *parser, data_t *func) {
+  datastack_new_counter(parser -> stack);
+  datastack_bookmark(parser -> stack);
+  parser_set(parser, "constructor", data_create(Bool, True));
   return parser;
 }
 
@@ -302,6 +310,8 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
   int            arg_count;
   array_t       *kwargs;
   instruction_t *instr;
+  data_t        *is_constr = parser_get(parser, "constructor");
+  callflag_t     flags = 0;
 
   script = parser -> data;
   kwargs = datastack_rollup(parser -> stack);
@@ -310,7 +320,10 @@ parser_t * script_parse_emit_func_call(parser_t *parser) {
     debug(" -- arg_count: %d", arg_count);
   }
   func_name = datastack_pop(parser -> stack);
-  instr = instruction_create_function(data_nameval(func_name), 0, arg_count, kwargs);
+  if (is_constr && data_intval(is_constr)) {
+    flags |= CFConstructor;
+  }
+  instr = instruction_create_function(data_nameval(func_name), flags, arg_count, kwargs);
   script_push_instruction(script, instr);
   data_free(func_name);
   return parser;
@@ -503,6 +516,28 @@ parser_t * script_parse_start_function(parser_t *parser) {
     debug(" -- defining function %s", func -> name);
   }
   parser -> data = func;
+  return parser;
+}
+
+parser_t script_parse_baseclass_constructors(parser_t *parser) {
+  script_t *script = (script_t *) parser -> data;
+  name_t   *hasattr = name_create(1, "hasattr");
+  name_t   *not = name_create(1, "not");
+  data_t   *self = data_create(String, "self");
+  
+  parser_pushval(parser, self);
+  script_push_instruction(script,
+                          instruction_create_function(hasattr, 0, 1, NULL));
+  script_push_instruction(script,
+                          instruction_create_function(not, 1, 1, NULL));
+  script_parse_emit_test(parser);
+  return parser;
+}
+
+parser_t * script_parse_end_constructors(parser_t *parser) {
+  script_t *script = (script_t *) parser -> data;
+  
+  datastack_push(script -> pending_labels, datastack_pop(parser -> stack));
   return parser;
 }
 
