@@ -28,3 +28,9 @@ aclocal.m4
 \.chg\..*$
 \.rej$
 \.conflict\~$
+src/bin/grammar.c
+obelix$
+oblcoretest$
+panoramix$
+callgrind.out
+
