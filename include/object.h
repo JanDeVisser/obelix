@@ -30,6 +30,7 @@ extern int res_debug;
 
 typedef struct _object {
   data_t  *constructor;
+  list_t  *constructors;
   void    *ptr;
   dict_t  *variables;
   data_t  *retval;

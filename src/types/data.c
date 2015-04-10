@@ -33,6 +33,7 @@ static int debug_data = 0;
 
 static void     _any_init(void) __attribute__((constructor));
 static data_t * _any_cmp(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_not(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hash(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hasattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_getattr(data_t *, char *, array_t *, dict_t *);
@@ -64,6 +65,7 @@ static methoddescr_t _methoddescr_any[] = {
   { .type = Any,    .name = "<=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "==" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "!=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "not",      .method = _any_not,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "hash",     .method = _any_hash,     .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "hasattr",  .method = _any_hasattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
@@ -134,6 +136,22 @@ data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     ret = data_create(Bool, 0);
   }
   return ret;
+}
+
+data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *asbool = data_cast(self, Bool);
+  
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  if (!asbool) {
+    return data_error(ErrorSyntax, 
+                      "not(): Cannot convert value '%s' of type '%s' to boolean",
+                      data_tostring(self),
+                      data_typedescr(self) -> type_name);
+  } else {
+    return data_create(Int, data_intval(asbool) == 0);
+  }
 }
 
 data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {

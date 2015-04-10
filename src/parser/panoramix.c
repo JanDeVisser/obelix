@@ -80,13 +80,15 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
   gp = grammar_parser_create(file);
   gp -> dryrun = 1;
   ret = grammar_parser_parse(gp);
-  assert(ret);
   grammar_parser_free(gp);
+  if (!grammar_analyze(ret)) {
+    grammar_free(ret);
+    ret = NULL;
+  } else {
+    info("  Loaded grammar");    
+  }
   file_free(file);
   free(grammar_p);
-  if (panoramix_debug) {
-    debug("  Loaded grammar");
-  }
   return ret;
 }
 
@@ -117,8 +119,10 @@ int main(int argc, char **argv) {
   debug_settings(debug);
 
   grammar = load(syspath, grammarfile);
-  grammar_dump(grammar);
-  grammar_free(grammar);
+  if (grammar) {
+    grammar_dump(grammar);
+    grammar_free(grammar);
+  }
   return 0;
 }
 

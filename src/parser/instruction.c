@@ -124,11 +124,17 @@ static instruction_type_descr_t instruction_descr_map[] = {
     .tostring = (tostring_t) _instruction_tostring_name },
 };
 
+typedef enum _callflag {
+  CFNone = 0x0000,
+  CFInfix = 0x0001,
+  CFConstructor = 0x0002
+} callflag_t;
+
 typedef struct _function_call {
-  name_t  *name;
-  int      infix;
-  int      arg_count;
-  array_t *kwargs;
+  name_t     *name;
+  callflag_t  flags;
+  int         arg_count;
+  array_t    *kwargs;
 } function_call_t;
 
 static void          _data_init_call(void) __attribute__((constructor));
@@ -170,7 +176,7 @@ data_t * _call_new(data_t *ret, va_list arg) {
 
   call = NEW(function_call_t);
   call -> name = name_copy(va_arg(arg, name_t *));
-  call -> infix = va_arg(arg, int);
+  call -> flags = va_arg(arg, int);
   call -> arg_count = va_arg(arg, int);
   kwargs = va_arg(arg, array_t *);
   call -> kwargs = (kwargs) ? array_copy(kwargs) : NULL;
@@ -192,7 +198,7 @@ data_t * _call_copy(data_t *target, data_t *src) {
 
   newcall = NEW(function_call_t);
   newcall -> name = name_copy(srccall -> name);
-  newcall -> infix = srccall -> infix;
+  newcall -> flags = srccall -> flags;
   newcall -> arg_count = srccall -> arg_count;
   newcall -> kwargs = array_copy(srccall -> kwargs);
   target -> ptrval = newcall;
@@ -371,6 +377,31 @@ data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) 
   return NULL;
 }
 
+name_t * _instruction_setup_constructor(data_t *closure, 
+                                        function_call_t *constructor) {
+  data_t         *self;
+  data_t         *s = NULL;
+  bound_method_t *bm;
+  char           *name;
+  char           *ptr;
+  name_t         *ret = NULL;
+  
+  self = data_get(closure, "self");
+  if (data_is_object(self)) {
+    s = data_get(closure, constructor -> name);
+    if (data_is_script(s)) {
+      bm = script_bind(data_scriptval(s), data_objectval(self));
+      name = asprintf(&name, "$%s", name_tostring(constructor -> name));
+      for (ptr = strchr(name, '.'); ptr; ptr = strchr(name, '.')) {
+        *ptr = "_";
+      }
+      ret = name_create(1, name);
+      data_set(closure, ret, data_create(BoundMethod, bm));
+    }
+  }
+  return ret;
+}
+
 data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure) {
   function_call_t *call = (function_call_t *) instr -> value -> ptrval;
   data_t          *value;
@@ -382,6 +413,7 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   array_t         *args = NULL;
   int              ix;
   int              num;
+  name_t          *name;
   
   num = (call -> kwargs) ? array_size(call -> kwargs) : 0;
   if (script_debug) {
@@ -413,8 +445,14 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     }
   }
   caller = data_create(Closure, closure);
-  self = (call -> infix) ? NULL : caller;
-  ret = data_invoke(self, call -> name, args, kwargs);
+  self = (call -> flags & CFInfix) ? NULL : caller;
+  if (call -> flags & CFConstructor) {
+    name = _instruction_setup_constructor(self, call);
+  } else {
+    name = name_copy(call -> name);
+  }
+  ret = data_invoke(self, name, args, kwargs);
+  name_free(name);
   data_free(caller);
   array_free(args);
   dict_free(kwargs);
@@ -557,12 +595,12 @@ instruction_t * instruction_create_pushval(data_t *value) {
   return instruction_create(ITPushVal, NULL, data_copy(value));
 }
 
-instruction_t * instruction_create_function(name_t *name, int infix, 
+instruction_t * instruction_create_function(name_t *name, int flags, 
                                             long num_args, array_t *kwargs) {
   instruction_t *ret;
   data_t        *call;
 
-  call = data_create(Call, name, infix, num_args, kwargs);
+  call = data_create(Call, name, flags, num_args, kwargs);
   ret = instruction_create(ITFunctionCall, name_tostring(name), call);
   return ret;
 }
