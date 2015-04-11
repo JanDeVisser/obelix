@@ -51,6 +51,12 @@ typedef struct _instruction {
   char               *str;
 } instruction_t;
 
+typedef enum _callflag {
+  CFNone = 0x0000,
+  CFInfix = 0x0001,
+  CFConstructor = 0x0002
+} callflag_t;
+
 struct _closure;
 
 extern instruction_t *  instruction_create(int, char *, data_t *);
@@ -59,7 +65,7 @@ extern instruction_t *  instruction_create_enter_context(name_t *, char *);
 extern instruction_t *  instruction_create_leave_context(name_t *);
 extern instruction_t *  instruction_create_pushvar(name_t *);
 extern instruction_t *  instruction_create_pushval(data_t *);
-extern instruction_t *  instruction_create_function(name_t *, int, long, array_t *);
+extern instruction_t *  instruction_create_function(name_t *, callflag_t, long, array_t *);
 extern instruction_t *  instruction_create_test(char *);
 extern instruction_t *  instruction_create_iter();
 extern instruction_t *  instruction_create_next(char *);

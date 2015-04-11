@@ -157,14 +157,14 @@ parser_t * script_make_nvp(parser_t *parser) {
 parser_t * script_parse_init_function(parser_t *parser) {
   datastack_new_counter(parser -> stack);
   datastack_bookmark(parser -> stack);
-  parser_set(parser, "constructor", data_create(Bool, False));
+  parser_set(parser, "constructor", data_create(Bool, FALSE));
   return parser;
 }
 
 parser_t * script_parse_setup_constructor(parser_t *parser, data_t *func) {
   datastack_new_counter(parser -> stack);
   datastack_bookmark(parser -> stack);
-  parser_set(parser, "constructor", data_create(Bool, True));
+  parser_set(parser, "constructor", data_create(Bool, TRUE));
   return parser;
 }
 
@@ -275,7 +275,7 @@ parser_t *script_parse_emit_unary_op(parser_t *parser) {
   name_t *name = name_create(1, data_tostring(op));
 
   script_push_instruction(parser -> data,
-    instruction_create_function(name, 1, 1, NULL));
+    instruction_create_function(name, CFInfix, 1, NULL));
   name_free(name);
   data_free(op);
   return parser;  
@@ -287,7 +287,7 @@ parser_t * script_parse_emit_infix_op(parser_t *parser) {
   
   name_extend_data(name, op);
   script_push_instruction(parser -> data,
-    instruction_create_function(name, 1, 2, NULL));
+    instruction_create_function(name, CFInfix, 2, NULL));
   name_free(name);
   data_free(op);
   return parser;
@@ -513,23 +513,26 @@ parser_t * script_parse_start_function(parser_t *parser) {
   free(fname);
   data_free(params);
   if (parser_debug) {
-    debug(" -- defining function %s", func -> name);
+    debug(" -- defining function %s", name_tostring(func -> name));
   }
   parser -> data = func;
   return parser;
 }
 
-parser_t script_parse_baseclass_constructors(parser_t *parser) {
+parser_t * script_parse_baseclass_constructors(parser_t *parser) {
   script_t *script = (script_t *) parser -> data;
   name_t   *hasattr = name_create(1, "hasattr");
   name_t   *not = name_create(1, "not");
   data_t   *self = data_create(String, "self");
   
-  parser_pushval(parser, self);
+  script_push_instruction(script, instruction_create_pushval(self));
+  data_free(self);
   script_push_instruction(script,
-                          instruction_create_function(hasattr, 0, 1, NULL));
+                          instruction_create_function(hasattr, CFNone, 1, NULL));
+  name_free(hasattr);
   script_push_instruction(script,
-                          instruction_create_function(not, 1, 1, NULL));
+                          instruction_create_function(not, CFInfix, 1, NULL));
+  name_free(not);
   script_parse_emit_test(parser);
   return parser;
 }

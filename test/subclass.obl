@@ -1,0 +1,25 @@
+func A(x)
+  self.x = x
+
+  func get_x()
+    return self.x
+  end
+end
+
+func B(y)
+  self.y = y
+
+  func get_y()
+    return self.y
+  end
+end
+
+func C(x, y) : A(x), B(y)
+  func do()
+    print("X: ${0}", self.get_x())
+    print("Y: ${0}", self.get_y())
+  end
+end
+
+c = new C("foo", "bar")
+c.do()

@@ -124,12 +124,6 @@ static instruction_type_descr_t instruction_descr_map[] = {
     .tostring = (tostring_t) _instruction_tostring_name },
 };
 
-typedef enum _callflag {
-  CFNone = 0x0000,
-  CFInfix = 0x0001,
-  CFConstructor = 0x0002
-} callflag_t;
-
 typedef struct _function_call {
   name_t     *name;
   callflag_t  flags;
@@ -385,15 +379,17 @@ name_t * _instruction_setup_constructor(data_t *closure,
   char           *name;
   char           *ptr;
   name_t         *ret = NULL;
+  name_t         *name_self = name_create(1, "self");
   
-  self = data_get(closure, "self");
+  self = data_get(closure, name_self);
+  name_free(name_self);
   if (data_is_object(self)) {
     s = data_get(closure, constructor -> name);
     if (data_is_script(s)) {
       bm = script_bind(data_scriptval(s), data_objectval(self));
-      name = asprintf(&name, "$%s", name_tostring(constructor -> name));
+      asprintf(&name, "$%s", name_tostring(constructor -> name));
       for (ptr = strchr(name, '.'); ptr; ptr = strchr(name, '.')) {
-        *ptr = "_";
+        *ptr = '_';
       }
       ret = name_create(1, name);
       data_set(closure, ret, data_create(BoundMethod, bm));
@@ -595,7 +591,7 @@ instruction_t * instruction_create_pushval(data_t *value) {
   return instruction_create(ITPushVal, NULL, data_copy(value));
 }
 
-instruction_t * instruction_create_function(name_t *name, int flags, 
+instruction_t * instruction_create_function(name_t *name, callflag_t flags, 
                                             long num_args, array_t *kwargs) {
   instruction_t *ret;
   data_t        *call;
