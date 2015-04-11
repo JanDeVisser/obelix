@@ -225,26 +225,11 @@ object_t * _object_set_all_reducer(entry_t *e, object_t *object) {
 
 /* ----------------------------------------------------------------------- */
 
-object_t * _object_add_baseclasses(object_t *object, script_t *script) {
-  listiterator_t *iter;
-  script_t       *baseclass;
-  
-  for (iter = li_create(script -> baseclasses); li_has_next(iter); ) {
-    baseclass = (script_t *) li_next(iter);
-    _object_add_baseclasses(object, baseclass);
-    list_push(object -> constructors, 
-              data_create(BoundMethod, script_bind(baseclass, object)));
-    dict_reduce(baseclass -> functions, (reduce_t) _object_set_all_reducer, object);
-  }
-  li_free(iter);
-  return object;
-}
-
 object_t * object_create(data_t *constructor) {
-  object_t   *ret;
-  script_t   *script = NULL;;
-  object_t   *obj;
-  str_t      *s;
+  object_t       *ret;
+  object_t       *obj;
+  data_t         *c = NULL;
+  bound_method_t *bm;
 
   ret = NEW(object_t);
   ret -> refs = 1;
@@ -253,17 +238,15 @@ object_t * object_create(data_t *constructor) {
   ret -> str = NULL;
   ret -> debugstr = NULL;
   if (data_is_script(constructor)) {
-    script = data_scriptval(constructor);
+    c = data_create(BoundMethod, script_bind(data_scriptval(constructor), ret));
   } else if (data_is_object(constructor)) {
     obj = data_objectval(constructor);
-    if (data_boundmethodval(obj -> constructor)) {
-      script = data_boundmethodval(obj -> constructor) -> script;
+    bm = data_boundmethodval(obj -> constructor);
+    if (bm) {
+      c = data_create(BoundMethod, script_bind(bm -> script, ret));
     }
   }
-  if (script) {
-    ret -> constructors = data_list_create();
-    _object_add_baseclasses(ret, script);
-  }  
+  ret -> constructor = c;
   return ret;
 }
 
@@ -281,7 +264,6 @@ void object_free(object_t *object) {
       data_free(_object_call_attribute(object, "__finalize__", NULL, NULL));
       dict_free(object -> variables);
       data_free(object -> constructor);
-      list_free(object -> constructors);
       data_free(object -> retval);
       free(object -> str);
       free(object -> debugstr);

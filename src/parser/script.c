@@ -393,7 +393,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   }
   retobj = object_create(dscript = data_create(Script, script));
   retval = bound_method_execute(data_boundmethodval(retobj -> constructor), 
-                                  NULL, params, kwparams);
+                                NULL, params, kwparams);
   if (!data_is_error(retval)) {
     retobj -> retval = retval;
     retval = data_create(Object, retobj);
