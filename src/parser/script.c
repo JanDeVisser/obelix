@@ -392,8 +392,10 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
     debug("script_create_object(%s)", script_tostring(script));
   }
   retobj = object_create(dscript = data_create(Script, script));
+  retobj -> constructing = TRUE;
   retval = bound_method_execute(data_boundmethodval(retobj -> constructor), 
                                 NULL, params, kwparams);
+  retobj -> constructing = FALSE;
   if (!data_is_error(retval)) {
     retobj -> retval = retval;
     retval = data_create(Object, retobj);
@@ -414,12 +416,17 @@ bound_method_t * script_bind(script_t *script, object_t *object) {
 closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
   char           *name = (char *) entry -> key;
   data_t         *func = (data_t *) entry -> value;
-  data_t         *value;
+  data_t         *value = NULL;
   bound_method_t *bm;
+  object_t       *self;
 
   if (data_is_script(func)) {
-    bm = bound_method_create(data_scriptval(func), 
-                             data_objectval(closure -> self));
+    debug("func %s", data_tostring(func));
+    self = data_objectval(closure -> self);
+    if (self && self -> constructing) {
+      object_set(self, name, func);
+    }
+    bm = bound_method_create(data_scriptval(func), self);
     bm -> closure = closure;
     value = data_create(BoundMethod, bm);
   } else {
@@ -427,7 +434,9 @@ closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
     /* TODO: Do we have a closure-like structure to bind the function to self? */
     value = data_copy(func);
   }
-  closure_set(closure, name, value);
+  if (value) {
+    closure_set(closure, name, value);
+  }
   return closure;
 }
 

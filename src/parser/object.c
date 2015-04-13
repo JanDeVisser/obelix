@@ -233,6 +233,7 @@ object_t * object_create(data_t *constructor) {
 
   ret = NEW(object_t);
   ret -> refs = 1;
+  ret -> constructing = FALSE;
   ret -> variables = strdata_dict_create();
   ret -> ptr = NULL;
   ret -> str = NULL;
@@ -275,6 +276,9 @@ data_t * object_get(object_t *object, char *name) {
   data_t *ret;
 
   ret = _object_get(object, name);
+  if (!ret && !strcmp(name, "$constructing")) {
+    ret = data_create(Bool, object -> constructing);
+  }
   if (!ret) {
     ret = data_error(ErrorName,
                      "Object '%s' has no attribute '%s'",
