@@ -81,19 +81,19 @@ baseclasses                 := :                 [ baseclass_constructors    ]
                              |
                              ;
 
-_baseclasses                :=                   [ setup_constructor         ]
-                               baseclass         [ emit_func_call            ]
+_baseclasses                := baseclass
                                baseclass_tail
                              ;
 
 baseclass                   := identifier
-                               (
+                               (                 [ setup_constructor         ]
                                arglist_or_void
-                               )
+                               )                 [ emit_func_call            ]
                              ;
 
 baseclass_tail              := ,
                                _baseclasses
+                             |
                              ;
                              
 link_clause                 := "->" '"'

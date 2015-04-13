@@ -6,20 +6,12 @@ func A(x)
   end
 end
 
-func B(y)
-  self.y = y
-
-  func get_y()
-    return self.y
-  end
-end
-
-func C(x, y) : A(x), B(y)
+func B(x) : A(x)
   func do()
     print("X: ${0}", self.get_x())
-    print("Y: ${0}", self.get_y())
   end
 end
 
-c = new C("foo", "bar")
-c.do()
+b = new B("foo")
+b.do()
+

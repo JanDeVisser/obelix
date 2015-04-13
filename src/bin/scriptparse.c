@@ -522,7 +522,6 @@ parser_t * script_parse_start_function(parser_t *parser) {
 parser_t * script_parse_baseclass_constructors(parser_t *parser) {
   script_t *script = (script_t *) parser -> data;
   name_t   *hasattr = name_create(1, "hasattr");
-  name_t   *not = name_create(1, "not");
   data_t   *self = data_create(String, "self");
   
   script_push_instruction(script, instruction_create_pushval(self));
@@ -530,9 +529,6 @@ parser_t * script_parse_baseclass_constructors(parser_t *parser) {
   script_push_instruction(script,
                           instruction_create_function(hasattr, CFNone, 1, NULL));
   name_free(hasattr);
-  script_push_instruction(script,
-                          instruction_create_function(not, CFInfix, 1, NULL));
-  name_free(not);
   script_parse_emit_test(parser);
   return parser;
 }
