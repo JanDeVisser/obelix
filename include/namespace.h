@@ -37,15 +37,6 @@ typedef enum _modstate {
   ModStateActive
 } modstate_t;
 
-typedef struct _module {
-  modstate_t  state;
-  object_t   *obj;
-  char       *name;
-  int         refs;
-  char       *str;
-  dict_t     *contents;
-} module_t;
-
 typedef struct _namespace {
   struct _namespace *up;
   int                level;
@@ -56,6 +47,18 @@ typedef struct _namespace {
   char              *str;
 } namespace_t;
 
+typedef struct _module {
+  modstate_t    state;
+  object_t     *obj;
+  namespace_t  *ns;
+  name_t       *name;
+  dict_t       *contents;
+  set_t        *imports;
+  int           refs;
+  char         *str;
+  unsigned int  hash;
+} module_t;
+
 #define data_is_module(d)  ((d) && (data_type((d)) == Module))
 #define data_moduleval(d)  ((module_t *) (data_is_module((d)) ? ((d) -> ptrval) : NULL))
 
@@ -64,6 +67,9 @@ extern data_t *      data_create_module(module_t *);
 extern module_t *    mod_create(name_t *);
 extern void          mod_free(module_t *);
 extern module_t *    mod_copy(module_t *);
+extern unsigned int  mod_hash(module_t *);
+extern int           mod_cmp(module_t *, module_t *);
+extern int           mod_cmp_name(module_t *, name_t *);
 extern char *        mod_tostring(module_t *);
 extern int           mod_has_module(module_t *, char *);
 extern data_t *      mod_get_module(module_t *, char *);
@@ -71,6 +77,7 @@ extern module_t *    mod_add_module(module_t *, name_t *, module_t *);
 extern object_t *    mod_get(module_t *);
 extern data_t *      mod_set(module_t *, script_t *, array_t *, dict_t *);
 extern data_t *      mod_resolve(module_t *, char *);
+extern name_t *      mod_name(module_t *);
 
 extern namespace_t * ns_create(namespace_t *);
 extern namespace_t * ns_create_root(void *, import_t);

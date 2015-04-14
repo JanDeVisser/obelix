@@ -24,7 +24,8 @@
 #include <str.h>
 
 typedef struct _set {
-  dict_t  *dict;
+  dict_t *dict;
+  char   *str;
 } set_t;
 
 extern set_t *  set_create(cmp_t cmp);
@@ -47,7 +48,9 @@ extern set_t *  set_minus(set_t *, set_t *);
 extern int      set_disjoint(set_t *, set_t *);
 extern int      set_subsetof(set_t *, set_t *);
 extern int      set_cmp(set_t *, set_t *);
+extern void *   set_find(set_t *, cmp_t, void *);
 extern str_t *  set_tostr(set_t *);
+extern char *   set_tostring(set_t *);
 
 #define intset_create()       set_create(NULL);
 #define strset_create()       set_set_tostring( \

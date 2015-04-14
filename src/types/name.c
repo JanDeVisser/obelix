@@ -170,6 +170,13 @@ name_t * name_vcreate(int count, va_list components) {
   return ret;
 }
 
+name_t * name_deepcopy(name_t *src) {
+  name_t *ret = _name_create(name_size(src));
+  
+  name_append(ret, src);
+  return ret;
+}
+
 name_t * name_copy(name_t *src) {
   src -> refs++;
   return src;
@@ -321,6 +328,22 @@ int name_cmp(name_t *n1, name_t *n2) {
     }
   }
   return 0;
+}
+
+int name_startswith(name_t *name, name_t *start) {
+  int ix;
+  int cmp;
+
+  if (name_size(name) < name_size(start)) {
+    return FALSE;
+  } else {
+  for (ix = 0; ix < name_size(start); ix++) {
+    cmp = strcmp(name_get(name, ix), name_get(start, ix));
+    if (cmp) {
+      return FALSE;
+    }
+    return TRUE;
+  }
 }
 
 unsigned int name_hash(name_t *name) {
