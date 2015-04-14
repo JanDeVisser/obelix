@@ -22,9 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <data.h>
 #include <exception.h>
-#include <list.h>
 #include <logging.h>
 #include <namespace.h>
 #include <script.h>
@@ -111,11 +109,54 @@ static typedescr_t _typedescr_closure = {
 
 /* ------------------------------------------------------------------------ */
 
+typedef struct _pnm {
+  name_t   *name;
+  char     *next;
+  set_t    *matches;
+  set_t    *match_lost;
+  void     *match;
+  int       refs;
+} pnm_t;
+
+static pnm_t *     _pnm_create(char *);
+static void        _pnm_free(pnm_t *);
+static pnm_t *     _pnm_add(pnm_t *, entry_t *);
+
+static data_t *    _data_new_pnm(data_t *, va_list);
+static data_t *    _data_copy_pnm(data_t *, data_t *);
+static int         _data_cmp_pnm(data_t *, data_t *);
+static char *      _data_tostring_pnm(data_t *);
+static data_t *    _data_resolve_pnm(data_t *, char *);
+
+int PartialNameMatch;
+
+static vtable_t _vtable_pnm[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_pnm },
+  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_pnm },
+  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_pnm },
+  { .id = FunctionFree,     .fnc = (void_t) _pnm_free },
+  { .id = FunctionToString, .fnc = (void_t) _data_tostring_pnm },
+  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_pnm },
+  { .id = FunctionCall,     .fnc = (void_t) _data_call_pnm },
+  { .id = FunctionSet,      .fnc = (void_t) _data_set_pnm },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_pnm = {
+  .type =      -1,
+  .type_name = "pnm",
+  .vtable =    _vtable_pnm
+};
+
+
+/* ------------------------------------------------------------------------ */
+
 void _script_init(void) {
   logging_register_category("script", &script_debug);
   typedescr_register(&_typedescr_script);
   typedescr_register(&_typedescr_closure);
   typedescr_register(&_typedescr_bound_method);
+  PartialNameMatch = typedescr_register(&_typedescr_pnm);
 }
 
 /* -- Script data functions ----------------------------------------------- */
@@ -223,9 +264,149 @@ data_t * data_create_closure(closure_t *closure) {
   return data_create(Closure, closure);
 }
 
+/* -- Partial Name Match data functions ----------------------------------- */
+
+pnm_t * _pnm_create(char *name) {
+  pnm_t *ret;
+  
+  ret = NEW(pnm_t);
+  ret -> refs = 1;
+  ret -> name = name_create(1, name);
+  ret -> matches = set_create((cmp_t) mod_cmp);
+  set_set_hash(ret -> matches, (hash_t) mod_hash);
+  set_set_free(ret -> matches, (free_t) mod_free);
+  set_set_tostring(ret -> matches, (tostring_t) mod_tostring);
+  return ret;
+}
+
+void _pnm_free(pnm_t *pnm) {
+  if (pnm && --pnm -> refs <= 0) {
+    name_free(pnm -> name);
+    set_free(pnm -> matches);
+  }
+}
+
+static pnm_t * _pnm_add(pnm_t *pnm, module_t *mod) {
+  set_add(pnm, mod_copy(mod));
+  return pnm;
+}
+
+pnm_t * _pnm_find_mod_reducer(module_t *mod, pnm_t *pnm) {
+  data_t   *match;
+  module_t *mod;
+  
+  if (!pnm -> match && !name_cmp(mod -> name, pnm -> name)) {
+    pnm -> match = mod;
+  }
+  return pnm;
+}
+
+module_t * _pnm_find_mod(pnm_t *pnm) {
+  pnm -> match = NULL;
+  set_reduce(pnm -> matches, (reduce_t) _pnm_find_mod_reducer, pnm);
+  return (module_t *) pnm -> match;
+}
+
+data_t * _data_new_pnm(data_t *ret, va_list arg) {
+  pnm_t *pnm;
+  char  *name;
+  
+  name = va_arg(arg, char *);
+  pnm = _pnm_create(name);
+  
+  ret -> ptrval = pnm;
+  return ret;
+}
+
+data_t * _data_copy_pnm(data_t *target, data_t *src) {
+  target -> ptrval = src -> ptrval;
+  ((pnm_t *) target -> ptrval) -> refs++;
+  return target;
+}
+
+int _data_cmp_pnm(data_t *d1, data_t *d2) {
+  pnm_t *pnm1;
+  pnm_t *pnm2;
+
+  pnm1 = d1 -> ptrval;
+  pnm2 = d2 -> ptrval;
+  return name_cmp(pnm1 -> name, pnm2 -> name);
+}
+
+char * _data_tostring_pnm(data_t *d) {
+  return name_tostring(((pnm_t *) d -> ptrval) -> name);
+}
+
+pnm_t * _pnm_find_in_mod_reducer(module_t *mod, pnm_t *pnm) {
+  data_t   *match;
+  module_t *mod;
+  
+  if (!name_cmp(mod -> name, pnm -> name)) {
+    match = mod_resolve(mod, pnm -> next);
+    if (match) {
+      pnm -> match = match;
+    }
+  }
+  return pnm;
+}
+
+pnm_t * _pnm_matches_reducer(module_t * mod, pnm_t *pnm) {
+  if (!name_startswith(mod -> name, pnm -> name)) {
+    if (!pnm -> match_lost) {
+      pnm -> match_lost = set_create((cmp_t) mod_cmp);
+      set_set_hash(pnm -> match_lost, (hash_t) mod_hash);
+      set_set_free(pnm -> match_lost, (free_t) mod_free);
+      set_set_tostring(pnm -> match_lost, (tostring_t) mod_tostring);
+    }
+    set_add(pnm -> match_lost, mod);
+  }
+  return pnm;
+}
+
+data_t * _data_resolve_pnm(data_t *data, char *name) {
+  pnm_t *pnm = (pnm_t *) data -> ptrval;
+  
+  pnm -> next = name;
+  pnm -> match = NULL;
+  if (pnm -> match_lost) {
+    set_clear(pnm -> match_lost);
+  }
+  
+  set_reduce(pnm -> matches, (reduce_t) _pnm_find_in_mod_reducer, pnm);
+  if (pnm -> match) {
+    return (data_t *) pnm -> match;
+  } else {
+    name_extend(pnm -> name, name);
+    set_reduce(pnm -> matches, (reduce_t) _pnm_matches_reducer, pnm);
+    set_minus(pnm -> matches, pnm -> match_lost);
+    pnm -> next = NULL;
+    return pnm;
+  }
+}
+
+data_t * _data_call_pnm(data_t *self, array_t *params, dict_t *kwargs) {
+  pnm_t    *pnm = (pnm_t *) self -> ptrval;
+  module_t *mod = _pnm_find_mod(pnm);
+  
+  return (mod)
+    ? object_call(mod -> obj, params, kwargs) 
+    : data_error(ErrorName);
+}
+
+data_t * _data_set_pnm(data_t *data, char *name, data_t *value) {
+  pnm_t    *pnm = (pnm_t *) data -> ptrval;
+  module_t *mod = _pnm_find_mod(pnm);
+  
+  return (mod)
+    ? object_set(mod -> obj, name, value) 
+    : data_error(ErrorName);
+}
+
+
+
 /* -- script_t public functions ------------------------------------------- */
 
-script_t * script_create(namespace_t *ns, script_t *up, char *name) {
+script_t * script_create(module_t *mod, script_t *up, char *name) {
   script_t   *ret;
   char       *anon = NULL;
 
@@ -258,13 +439,16 @@ script_t * script_create(namespace_t *ns, script_t *up, char *name) {
     dict_put(up -> functions, strdup(name), data_create_script(ret));
     name_append(ret -> name, up -> name);
     ret -> up = script_copy(up);
-    ret -> ns = ns_create(up -> ns);
+    ret -> mod = mod_copy(up -> mod);
   } else {
-    assert(ns);
-    ret -> ns = ns_create(ns);
+    assert(mod);
+    ret -> mod = mod_copy(mod);
     ret -> up = NULL;
   }
   name_extend(ret -> name, name);
+  ret -> fullname = NULL;
+  ret -> str = NULL;
+  ret -> refs = 1;
   free(anon);
   return ret;
 }
@@ -276,24 +460,34 @@ script_t * script_copy(script_t *script) {
   return script;
 }
 
+name_t * script_fullname(script_t *script) {
+  if (!script -> fullname) {
+    script -> fullname = name_deepcopy(mod_name(script -> mod));
+    name_append(script -> fullname, script -> name);
+  }
+  return script -> fullname;
+}
+
 char * script_tostring(script_t *script) {
-  return name_tostring(script -> name);
+  if (!script -> str) {
+    script -> str = strdup(name_tostring(script_fullname(script)));
+  }
+  return script -> str;
 }
 
 void script_free(script_t *script) {
-  if (script) {
-    script -> refs--;
-    if (script -> refs <= 0) {
-      datastack_free(script -> pending_labels);
-      list_free(script -> instructions);
-      dict_free(script -> labels);
-      array_free(script -> params);
-      dict_free(script -> functions);
-      script_free(script -> up);
-      ns_free(script -> ns);
-      name_free(script -> name);
-      free(script);
-    }
+  if (script && (--script -> refs <= 0)) {
+    datastack_free(script -> pending_labels);
+    list_free(script -> instructions);
+    dict_free(script -> labels);
+    array_free(script -> params);
+    dict_free(script -> functions);
+    script_free(script -> up);
+    mod_free(script -> mod);
+    name_free(script -> name);
+    name_free(script -> fullname);
+    free(script -> str);
+    free(script);
   }
 }
 
@@ -305,12 +499,12 @@ int script_cmp(script_t *s1, script_t *s2) {
   } else if (!s1 && !s2) {
     return 0;
   } else {
-    return name_cmp(s1 -> name, s2 -> name);
+    return name_cmp(script_fullname(s1), script_fullname(s2));
   }
 }
 
 unsigned int script_hash(script_t *script) {
-  return (script) ? name_hash(script -> name) : 0L;
+  return (script) ? name_hash(script_fullname(script)) : 0L;
 }
 
 script_t * script_add_baseclass(script_t *script, script_t *baseclass) {
@@ -441,27 +635,32 @@ closure_t * _script_create_closure_reducer(entry_t *entry, closure_t *closure) {
 }
 
 closure_t * script_create_closure(script_t *script, closure_t *up, 
-                                  closure_t *caller, data_t *self) {
+                                  data_t *caller, data_t *self) {
   closure_t *ret;
-  int        depth = (caller) ? caller -> depth + 1 : 1;
+  int        depth;
 
   if (script_debug) {
     debug("Creating closure for script '%s'", script_tostring(script));
   }
+  depth = (data_is_closure(caller)) ? data_closureval(caller) -> depth + 1 : 1;
   if (depth > 100) {
     error("Maximum stack depth exceeded");
     return NULL;
   }
+  
   ret = NEW(closure_t);
   ret -> script = script_copy(script);
-  ret -> imports = ns_create(script -> ns);
+  ret -> imports = set_create((cmp_t) name_cmp);
+  set_set_hash(ret -> imports, (hash_t) name_hash);
+  set_set_free(ret -> imports, (free_t) name_free);
+  set_set_tostring(ret -> imports, (tostring_t) name_tostring);
 
   ret -> variables = NULL;
   ret -> params = NULL;
-  ret -> stack = datastack_create(script_tostring(script));
-  datastack_set_debug(ret -> stack, script_debug);
+  ret -> stack = NULL;
+  ret -> catchpoints = NULL;
   ret -> up = up;
-  ret -> caller = caller;
+  ret -> caller = data_copy(caller);
   ret -> depth = depth;
   ret -> self = data_copy(self);
 
@@ -495,6 +694,7 @@ void bound_method_free(bound_method_t *bm) {
     if (bm -> refs <= 0) {
       script_free(bm -> script);
       object_free(bm -> self);
+      closure_free(bm -> closure);
       free(bm -> str);
       free(bm);
     }
@@ -524,7 +724,7 @@ char * bound_method_tostring(bound_method_t *bm) {
   return bm -> str;
 }
 
-data_t * bound_method_execute(bound_method_t *bm, closure_t *caller, array_t *params, dict_t *kwparams) {
+data_t * bound_method_execute(bound_method_t *bm, data_t *caller, array_t *params, dict_t *kwparams) {
   closure_t *closure;
   data_t    *self;
   data_t    *ret;
@@ -544,7 +744,7 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   listnode_t *node = NULL;
   data_t     *catchpoint;
 
-  ret = ns_exit_code(closure -> imports);
+  ret = ns_exit_code(closure -> script -> mod -> ns);
   if (!ret) {
     ret = instruction_execute(instr, closure);
   }
@@ -577,9 +777,7 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   return node;
 }
 
-/*
- * closure_t - public functions
- */
+/* -- C L O S U R E  P U B L I C  F U N C T I O N S ------------------------*/
 
 void closure_free(closure_t *closure) {
   if (closure) {
@@ -587,10 +785,12 @@ void closure_free(closure_t *closure) {
     if (closure <= 0) {
       script_free(closure -> script);
       datastack_free(closure -> stack);
+      datastack_free(closure -> catchpoints);
       dict_free(closure -> variables);
       dict_free(closure -> params);
       data_free(closure -> self);
-      ns_free(closure -> imports);
+      data_free(closure -> caller);
+      set_free(closure -> imports);
       free(closure -> str);
       free(closure);
     }
@@ -631,7 +831,9 @@ closure_t * closure_push(closure_t *closure, data_t *value) {
 }
 
 data_t * closure_import(closure_t *closure, name_t *module) {
-  return ns_import(closure -> imports, module);
+  data_t *ret;
+  
+  ret = script_import(closure -> script, module);
 }
 
 data_t * closure_set(closure_t *closure, char *name, data_t *value) {
@@ -687,8 +889,8 @@ data_t * closure_get(closure_t *closure, char *varname) {
 int closure_has(closure_t *closure, char *name) {
   int ret;
 
-  ret = (closure -> variables && dict_has_key(closure -> variables, name)) || 
-        (closure -> self && !strcmp(name, "self")) ||
+  ret = (closure -> self && !strcmp(name, "self")) ||
+        (closure -> variables && dict_has_key(closure -> variables, name)) || 
         (closure -> params && dict_has_key(closure -> params, name));
   if (res_debug) {
     debug("   closure_has('%s', '%s'): %d", closure_tostring(closure), name, ret);
@@ -696,8 +898,19 @@ int closure_has(closure_t *closure, char *name) {
   return ret;
 }
 
+void ** _closure_find_import(module_t *import, void **ctx) {
+  if (!strcmp((char *) ctx[0], name_head(import -> name))) {
+    if (!ctx[1]) {
+      ctx[1] = data_create(PartialNameMatch, name_head(name));
+    }
+    _pnm_add((pnm_t *) (((data_t *) ctx[1]) -> ptrval), import);
+  }
+  return ctx;
+}
+
 data_t * closure_resolve(closure_t *closure, char *name) {
-  data_t *ret = _closure_get(closure, name);
+  data_t  *ret = _closure_get(closure, name);
+  void   *ctx[2];
   
   if (!ret) {
     if (closure -> up) {
@@ -708,7 +921,10 @@ data_t * closure_resolve(closure_t *closure, char *name) {
         ret = closure_resolve(closure -> up, name);
       }
     } else {
-      ret = ns_resolve(closure -> imports, name);
+      ctx[0] = name;
+      ctx[1] = NULL;
+      ctx = set_reduce(closure -> imports, _closure_find_import, ctx)
+      ret = (data_t *) ctx[1];
     }
   }
   return data_copy(ret);
@@ -739,8 +955,21 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
                param);
     }
   }
-  datastack_clear(closure -> stack);
-  closure -> catchpoints = datastack_create("catchpoints");
+  
+  if (!closure -> stack) {
+    closure -> stack = datastack_create(script_tostring(script));
+    datastack_set_debug(closure -> stack, script_debug);
+  } else {
+    datastack_clear(closure -> stack);
+  }
+  
+  if (!closure -> catchpoints) {
+    closure -> catchpoints = datastack_create("catchpoints");
+    datastack_set_debug(closure -> catchpoints, script_debug);
+  } else {
+    datastack_clear(closure -> catchpoints);
+  }
+  
   datastack_push(closure -> catchpoints, data_create(String, "ERROR"));
   list_process(closure -> script -> instructions,
                (reduce_t) _closure_execute_instruction,
@@ -749,13 +978,13 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   if (script_debug) {
     debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
   }
-  datastack_free(closure -> catchpoints);
   if (data_is_error(ret)) {
     e = data_errorval(ret);
     if ((e -> code == ErrorExit) && (data_errorval(ret) -> exception)) {
-      ns_exit(closure ->  imports, ret);
+      ns_exit(closure -> script -> mod -> ns, ret);
     }
   }
+  
   if (kwargs) {
     /*
      * kwargs was assigned to closure -> params. Freeing the closure should

@@ -29,40 +29,44 @@
 #include <list.h>
 #include <parser.h>
 #include <object.h>
+#include <set.h>
 
 extern int script_debug;
 
 typedef struct _namespace namespace_t;
+typedef struct _module module_t;
 
 typedef struct _script {
-  struct _script    *up;
-  name_t            *name;
-  int                async;
-  int                current_line;
-  list_t            *baseclasses;
-  list_t            *instructions;
-  dict_t            *functions;
-  array_t           *params;
-  datastack_t       *pending_labels;
-  dict_t            *labels;
-  struct _namespace *ns;
-  int                refs;
+  struct _script *up;
+  name_t         *name;
+  name_t         *fullname;
+  int             async;
+  int             current_line;
+  list_t         *baseclasses;
+  list_t         *instructions;
+  dict_t         *functions;
+  array_t        *params;
+  datastack_t    *pending_labels;
+  dict_t         *labels;
+  module_t       *mod;
+  char           *str;
+  int             refs;
 } script_t;
 
 typedef struct _closure {
-  struct _closure   *up;
-  script_t          *script;
-  data_t            *self;
-  dict_t            *params;
-  dict_t            *variables;
-  struct _namespace *imports;
-  datastack_t       *stack;
-  datastack_t       *catchpoints;
-  struct _closure   *caller;
-  int                depth;
-  int                line;
-  int                refs;
-  char              *str;
+  struct _closure *up;
+  script_t        *script;
+  data_t          *self;
+  dict_t          *params;
+  dict_t          *variables;
+  set_t           *imports;
+  datastack_t     *stack;
+  datastack_t     *catchpoints;
+  data_t          *caller;
+  int              depth;
+  int              line;
+  int              refs;
+  char            *str;
 } closure_t;
 
 typedef struct _bound_method {
@@ -98,9 +102,10 @@ extern data_t *            data_create_closure(closure_t *);
 
 /* -- S C R I P T  P R O T O T Y P E S -------------------------------------*/
 
-extern script_t *       script_create(namespace_t *, script_t *, char *);
+extern script_t *       script_create(module_t *, script_t *, char *);
 extern script_t *       script_copy(script_t *);
 extern void             script_free(script_t *);
+extern name_t           script_fullname(script_t *);
 extern char *           script_tostring(script_t *);
 extern int              script_cmp(script_t *, script_t *);
 extern unsigned int     script_hash(script_t *);

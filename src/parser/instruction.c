@@ -528,8 +528,11 @@ data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
   data_t  *ret;
 
   ret = closure_import(closure, imp);
-  name_free(imp);
-  return (data_is_error(ret)) ? ret : NULL;
+  if (!data_is_error(ret)) {
+    data_free(ret);
+    ret = NULL;
+  }
+  return ret;
 }
 
 /* ----------------------------------------------------------------------- */

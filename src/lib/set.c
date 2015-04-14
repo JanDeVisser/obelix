@@ -158,13 +158,8 @@ set_t * set_create(cmp_t cmp) {
   set_t *ret;
 
   ret = NEW(set_t);
-  if (ret) {
-    ret -> dict = dict_create(cmp);
-    if (!ret -> dict) {
-      free(ret);
-      ret = NULL;
-    }
-  } 
+  ret -> dict = dict_create(cmp);
+  ret -> str = NULL;
   return ret;
 }
 
@@ -186,6 +181,7 @@ set_t * set_set_tostring(set_t *set, tostring_t tostring) {
 void set_free(set_t *set) {
   if (set) {
     dict_free(set -> dict);
+    free(set -> str);
     free(set);
   }
 }
@@ -317,6 +313,25 @@ int set_cmp(set_t *s1, set_t *s2) {
   return ret;
 }
 
+void ** _set_find_reducer(void *element, void **ctx) {
+  cmp_t finder = (cmp_t) ctx[0];
+  
+  if (!finder(element, ctx[1])) {
+    ctx[2] = element;
+  }
+  return ctx;
+}
+
+void * set_find(set_t *haystack, cmp_t finder, void *needle) {
+  void *ctx[3];
+  
+  ctx[0] = (void *) finder;
+  ctx[1] = needle;
+  ctx[2] = NULL;
+  set_reduce(haystack, (reduce_t) _set_find_reducer, ctx);
+  return ctx[2];
+}
+
 str_t * set_tostr(set_t *set) {
   str_t *ret;
   str_t *catted;
@@ -329,4 +344,12 @@ str_t * set_tostr(set_t *set) {
   }
   str_free(catted);
   return ret;
+}
+
+char * set_tostring(set_t *set) {
+  str_t *s = set_tostr(set);
+  
+  set -> str = strdup(str_chars(s));
+  str_free(s);
+  return set -> str;
 }

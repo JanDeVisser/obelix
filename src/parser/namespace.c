@@ -85,12 +85,12 @@ data_t * _data_copy_module(data_t *target, data_t *src) {
 }
 
 int _data_cmp_module(data_t *d1, data_t *d2) {
-  module_t *s1;
-  module_t *s2;
+  module_t *m1;
+  module_t *m2;
 
-  s1 = (module_t *) d1 -> ptrval;
-  s2 = (module_t *) d2 -> ptrval;
-  return strcmp(s1 -> name, s2 -> name);
+  m1 = (module_t *) d1 -> ptrval;
+  m2 = (module_t *) d2 -> ptrval;
+  return mod_cmp(m1, m2);
 }
 
 char * _data_tostring_module(data_t *d) {
@@ -98,7 +98,7 @@ char * _data_tostring_module(data_t *d) {
 }
 
 unsigned int _data_hash_module(data_t *data) {
-  return object_hash(data_moduleval(data) -> obj);
+  return mod_hash(data_moduleval(data));
 }
 
 data_t * _data_resolve_module(data_t *mod, char *name) {
@@ -106,9 +106,7 @@ data_t * _data_resolve_module(data_t *mod, char *name) {
 }
 
 data_t * _data_call_module(data_t *mod, array_t *args, dict_t *kwargs) {
-  module_t *m = data_moduleval(mod);
-  
-  return object_call(m -> obj, args, kwargs);
+  return object_call(data_moduleval(mod) -> obj, args, kwargs);
 }
 
 data_t * data_create_module(module_t *module) {
@@ -137,11 +135,12 @@ module_t * mod_create(name_t *name) {
     debug("  Creating module '%s'", name_tostring(name));
   }
   ret -> state = ModStateUninitialized;
-  ret -> name = strdup(name_tostring(name));
+  ret -> name = name_copy(name);
   ret -> contents = strdata_dict_create();
   ret -> obj = object_create(NULL);
   ret -> str = NULL;
   ret -> refs = 1;
+  ret -> hash = 0;
   return ret;
 }
 
@@ -167,6 +166,27 @@ char * mod_tostring(module_t *module) {
     asprintf(&module -> str, "<<module %s>>", module -> name);
   }
   return module -> str;
+}
+
+unsigned int mod_hash(module_t *mod) {
+  /*
+   * We keep the hash value. The object can change during loading, but we want
+   * the hash to be stable because other object may have this module stashed 
+   * in a set or dict somewhere. We don't want those to become zombie because
+   * the object (and therefore the object's hash) changes.
+   */
+  if (mod -> hash) {
+    mod -> hash = object_hash(mod -> obj);
+  }
+  return mod -> hash;
+}
+
+int mod_cmp(module_t *m1, module_t *m2) {
+  return name_cmp(m1 -> name, m2 -> name);
+}
+
+int mod_cmp_name(module_t *mod, name_t *name) {
+  return name_cmp(mod -> name, name);
 }
 
 int mod_has_module(module_t *mod, char *name) {
@@ -216,6 +236,10 @@ data_t * mod_resolve(module_t *mod, char *name) {
   if (!ret) {
     ret = mod_get_module(mod, name);
   }
+}
+
+module_t * mod_import(module_t *mod, name_t *name) {
+  
 }
 
 /* ------------------------------------------------------------------------ */
