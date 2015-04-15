@@ -311,7 +311,7 @@ char * name_tostring_sep(name_t *name, char *sep) {
 }
 
 char * name_tostring(name_t *name) {
-  return name_tostring_sep(name, ".");
+  return (name) ? name_tostring_sep(name, ".") : "";
 }
 
 int name_cmp(name_t *n1, name_t *n2) {
@@ -337,12 +337,13 @@ int name_startswith(name_t *name, name_t *start) {
   if (name_size(name) < name_size(start)) {
     return FALSE;
   } else {
-  for (ix = 0; ix < name_size(start); ix++) {
-    cmp = strcmp(name_get(name, ix), name_get(start, ix));
-    if (cmp) {
-      return FALSE;
+    for (ix = 0; ix < name_size(start); ix++) {
+      cmp = strcmp(name_get(name, ix), name_get(start, ix));
+      if (cmp) {
+        return FALSE;
+      }
+      return TRUE;
     }
-    return TRUE;
   }
 }
 

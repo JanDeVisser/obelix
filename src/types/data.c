@@ -227,7 +227,7 @@ int typedescr_register(typedescr_t *descr) {
   typedescr_t    *d;
 
   if (descr -> type < 0) {
-    descr -> type = data_numtypes;
+    descr -> type = (data_numtypes > Dynamic) ? data_numtypes : Dynamic;
   }
   //debug("Registering type '%s'", descr -> type_name);
   assert((descr -> type >= data_numtypes) || descriptors[descr -> type].type == 0);
@@ -423,19 +423,22 @@ int typedescr_is(typedescr_t *descr, int type) {
  */
 
 data_t * data_create_noinit(int type) {
+  return data_settype(NEW(data_t), type);
+}
+
+data_t * data_settype(data_t *data, int type) {
   typedescr_t *descr = typedescr_get(type);
-  data_t      *ret = NEW(data_t);
-  
-  ret -> type = type;
-  ret -> refs = 1;
-  ret -> str = NULL;
+
+  data -> type = type;
+  data -> refs++;
+  data -> str = NULL;
   descr -> count++;
   _data_count++;
 #ifndef NDEBUG
-  ret -> debugstr = NULL;
+  data -> debugstr = NULL;
 #endif
-  ret -> methods = NULL;
-  return ret;
+  data -> methods = NULL;
+  return data;
 }
 
 data_t * data_create(int type, ...) {
@@ -444,18 +447,28 @@ data_t * data_create(int type, ...) {
   data_t      *initialized;
   typedescr_t *descr = typedescr_get(type);
   new_t        n;
+  factory_t    f;
   
-  ret = data_create_noinit(type);
-  n = (new_t) typedescr_get_function(descr, FunctionNew);
-  if (n) {
+  f = (factory_t) typedescr_get_function(descr, FunctionFactory);
+  if (f) {
     va_start(arg, type);
-    initialized = n(ret, arg);
+    initialized = f(type, arg);
+    initialized -> free_me = FALSE;
     va_end(arg);
-    if (initialized != ret) {
-      data_free(ret);
-    }
   } else {
-    initialized = ret;
+    ret = data_create_noinit(type);
+    n = (new_t) typedescr_get_function(descr, FunctionNew);
+    if (n) {
+      va_start(arg, type);
+      initialized = n(ret, arg);
+      va_end(arg);
+      if (initialized != ret) {
+        data_free(ret);
+      }
+    } else {
+      initialized = ret;
+    }
+    initialized -> free_me = TRUE;
   }
   return initialized;
 }
@@ -564,7 +577,9 @@ void data_free(data_t *data) {
 #endif
       type -> count--;
       _data_count--;
-      free(data);
+      if (data -> free_me) {
+        free(data);
+      }
     }
   }
 }

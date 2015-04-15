@@ -49,8 +49,8 @@ extern scriptloader_t * scriptloader_create(char *, name_t *, char *);
 extern scriptloader_t * scriptloader_get(void);
 extern void             scriptloader_free(scriptloader_t *);
 extern scriptloader_t * scriptloader_set_option(scriptloader_t *, obelix_option_t, long);
-extern data_t *         scriptloader_load_fromreader(scriptloader_t *, char *, reader_t *);
-extern data_t *         scriptloader_load(scriptloader_t *, name_t *);
+extern data_t *         scriptloader_load_fromreader(scriptloader_t *, module_t *, reader_t *);
+extern data_t *         scriptloader_load(scriptloader_t *, module_t *);
 extern data_t *         scriptloader_import(scriptloader_t *, name_t *);
 extern data_t *         scriptloader_run(scriptloader_t *, name_t *, array_t *, dict_t *);
 

@@ -26,8 +26,13 @@
 #include <name.h>
 #include <object.h>
 #include <script.h>
+#include <set.h>
 
-typedef data_t * (*import_t)(void *, name_t *);
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
+typedef data_t * (*import_t)(void *, module_t *);
 
 extern int ns_debug;
 
@@ -38,25 +43,23 @@ typedef enum _modstate {
 } modstate_t;
 
 typedef struct _namespace {
-  struct _namespace *up;
-  int                level;
-  void              *import_ctx;
-  import_t           import_fnc;
-  data_t            *exit_code;
-  data_t            *root;
-  char              *str;
+  char     *name;
+  void     *import_ctx;
+  import_t  import_fnc;
+  data_t   *exit_code;
+  dict_t   *modules;
+  int       refs;
+  char     *str;
 } namespace_t;
 
 typedef struct _module {
-  modstate_t    state;
-  object_t     *obj;
-  namespace_t  *ns;
-  name_t       *name;
-  dict_t       *contents;
-  set_t        *imports;
-  int           refs;
-  char         *str;
-  unsigned int  hash;
+  data_t       data;
+  name_t      *name;
+  namespace_t *ns;
+  modstate_t   state;
+  object_t    *obj;
+  set_t       *imports;
+  int          refs;
 } module_t;
 
 #define data_is_module(d)  ((d) && (data_type((d)) == Module))
@@ -64,30 +67,32 @@ typedef struct _module {
 
 extern data_t *      data_create_module(module_t *);
 
-extern module_t *    mod_create(name_t *);
+extern module_t *    mod_create(namespace_t *, name_t *);
 extern void          mod_free(module_t *);
 extern module_t *    mod_copy(module_t *);
 extern unsigned int  mod_hash(module_t *);
 extern int           mod_cmp(module_t *, module_t *);
 extern int           mod_cmp_name(module_t *, name_t *);
 extern char *        mod_tostring(module_t *);
-extern int           mod_has_module(module_t *, char *);
-extern data_t *      mod_get_module(module_t *, char *);
-extern module_t *    mod_add_module(module_t *, name_t *, module_t *);
 extern object_t *    mod_get(module_t *);
 extern data_t *      mod_set(module_t *, script_t *, array_t *, dict_t *);
 extern data_t *      mod_resolve(module_t *, char *);
-extern name_t *      mod_name(module_t *);
+extern data_t *      mod_import(module_t *, name_t *);
+extern module_t *    mod_exit(module_t *, data_t *);
+extern data_t *      mod_exit_code(module_t *);
 
-extern namespace_t * ns_create(namespace_t *);
-extern namespace_t * ns_create_root(void *, import_t);
+extern namespace_t * ns_create(char *, void *, import_t);
 extern void          ns_free(namespace_t *);
+extern namespace_t * ns_copy(namespace_t *);
 extern data_t *      ns_import(namespace_t *, name_t *);
 extern data_t *      ns_execute(namespace_t *, name_t *, array_t *, dict_t *);
 extern data_t *      ns_get(namespace_t *, name_t *);
-extern data_t *      ns_resolve(namespace_t *, char *);
 extern char *        ns_tostring(namespace_t *);
 extern namespace_t * ns_exit(namespace_t *, data_t *);
 extern data_t *      ns_exit_code(namespace_t *);
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif /* __NAMESPACE_H__ */

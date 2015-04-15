@@ -47,40 +47,42 @@ typedef enum _datatype {
   Native,       /* 17 */
   NVP,          /* 18 */
   Range,        /* 19 */
-  Callable      = 99,
-  Any           = 100,
-  UserTypeRange = 999
+  Dynamic       = 25,
+  Callable      = 999,
+  Any           = 1000
 } datatype_t;
 
 typedef enum _vtable_id {
   FunctionNone        = 0,
-  FunctionNew,       /* 1  */
-  FunctionCopy,      /* 2  */
-  FunctionCmp,       /* 3  */
-  FunctionFree,      /* 4  */
-  FunctionToString,  /* 5  */
-  FunctionFltValue,  /* 6  */
-  FunctionIntValue,  /* 7  */
-  FunctionParse,     /* 8  */
-  FunctionCast,      /* 9  */
-  FunctionHash,      /* 10 */
-  FunctionLen,       /* 11 */
-  FunctionResolve,   /* 12 */
-  FunctionCall,      /* 13 */
-  FunctionSet,       /* 14 */
-  FunctionRead,      /* 15 */
-  FunctionWrite,     /* 16 */
-  FunctionOpen,      /* 17 */
-  FunctionIter,      /* 18 */
-  FunctionHasNext,   /* 19 */
-  FunctionNext,      /* 20 */
-  FunctionDecr,      /* 21 */
-  FunctionIncr,      /* 22 */
+  FunctionFactory,   /* 1  */
+  FunctionNew,       /* 2  */
+  FunctionCopy,      /* 3  */
+  FunctionCmp,       /* 4  */
+  FunctionFree,      /* 5  */
+  FunctionToString,  /* 6  */
+  FunctionFltValue,  /* 7  */
+  FunctionIntValue,  /* 8  */
+  FunctionParse,     /* 9  */
+  FunctionCast,      /* 10  */
+  FunctionHash,      /* 11 */
+  FunctionLen,       /* 12 */
+  FunctionResolve,   /* 13 */
+  FunctionCall,      /* 14 */
+  FunctionSet,       /* 15 */
+  FunctionRead,      /* 16 */
+  FunctionWrite,     /* 17 */
+  FunctionOpen,      /* 18 */
+  FunctionIter,      /* 19 */
+  FunctionHasNext,   /* 20 */
+  FunctionNext,      /* 21 */
+  FunctionDecr,      /* 22 */
+  FunctionIncr,      /* 23 */
   FunctionEndOfListDummy
 } vtable_id_t;
 
 typedef struct _data {
   int          type;
+  int          free_me;
   union {
     void      *ptrval;
     long       intval;
@@ -93,6 +95,7 @@ typedef struct _data {
   char        *debugstr;
 } data_t;
 
+typedef data_t * (*factory_t)(int, va_list);
 typedef data_t * (*cast_t)(data_t *, int);
 typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
 typedef data_t * (*resolve_name_t)(data_t *, char *);
@@ -146,6 +149,7 @@ extern void            typedescr_dump_vtable(typedescr_t *);
 
 extern data_t *        data_create_noinit(int);
 extern data_t *        data_create(int, ...);
+extern data_t *        data_settype(data_t *, int);
 extern data_t *        data_cast(data_t *, int);
 extern data_t *        data_promote(data_t *);
 extern data_t *        data_parse(int, char *);
