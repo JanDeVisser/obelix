@@ -8,10 +8,9 @@ end
 
 func B(x) : A(x)
   func do()
-    print("X: ${0}", self.get_x())
+    print("b.get_x(): ${0}", self.get_x())
   end
 end
 
 b = new B("foo")
 b.do()
-

@@ -203,8 +203,6 @@ static data_t * _scriptloader_import_sys(scriptloader_t *loader,
  * scriptloader_t - public functions
  */
 
-#define GRAMMAR_FILE    "grammar.txt"
-
 typedef grammar_t * (*build_grammar_t)(void);
 
 scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path, 
@@ -286,7 +284,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
   }
 
   ret -> load_path = name_create(1, ret -> system_dir);
-  ret -> ns = ns_create_root(ret, (import_t) scriptloader_load);
+  ret -> ns = ns_create("loader", ret, (import_t) scriptloader_load);
   root = ns_import(ret -> ns, NULL);
   if (!data_is_module(root)) {
     error("Error initializing loader scope: %s", data_tostring(root));
@@ -343,22 +341,19 @@ long scriptloader_get_option(scriptloader_t *loader, obelix_option_t option) {
   return data_intval(opt);
 }
 
-data_t * scriptloader_load_fromreader(scriptloader_t *loader, char *name, reader_t *reader) {
+data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, reader_t *reader) {
   data_t   *ret = NULL;
   script_t *script;
+  char     *name;
   
   if (script_debug) {
-    debug("scriptloader_load_fromreader(%s)", name);
-  }
-  if (!name || !name[0]) {
-    ret = data_error(ErrorName, "Cannot load script with no name");
+    debug("scriptloader_load_fromreader('%s')", name_tostring(mod -> name));
   }
   if (!ret) {
     parser_clear(loader -> parser);
+    parser_set(loader -> parser, "module", data_create(Module, mod));
+    name = strdup((name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__");
     parser_set(loader -> parser, "name", data_create(String, name));
-    if (loader -> ns) {
-      parser_set(loader -> parser, "ns", data_create(Pointer, sizeof(namespace_t), loader -> ns));
-    }
     parser_set(loader -> parser, "options", data_create_list(loader -> options));
     ret = parser_parse(loader -> parser, reader);
     if (!ret) {
@@ -373,27 +368,27 @@ data_t * scriptloader_import(scriptloader_t *loader, name_t *name) {
   return ns_import(loader -> ns, name);
 }
 
-data_t * scriptloader_load(scriptloader_t *loader, name_t *name) {
+data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
   reader_t *rdr;
   data_t   *ret;
   char     *script_name;
+  name_t   *name = mod -> name;
 
   assert(loader);
   assert(name);
-  script_name = strdup((name_size(name)) ? name_tostring(name) : "__root__");
+  script_name = strdup((name && name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__");
   if (script_debug) {
     debug("scriptloader_load('%s')", script_name);
   }
-  ret = ns_get(loader -> ns, name);
-  if (script_debug) {
-    debug("scriptloader_load('%s'): ns_get: %s", script_name, data_tostring(ret));
-  }
-  if (!data_is_module(ret) || (data_moduleval(ret) -> state != ModStateActive)) {
-    rdr = _scriptloader_open_reader(loader, name);
+  if (mod -> state == ModStateLoading) {
+    rdr = _scriptloader_open_reader(loader, mod -> name);
     ret = (rdr)
-            ? scriptloader_load_fromreader(loader, script_name, rdr)
+            ? scriptloader_load_fromreader(loader, mod, rdr)
             : data_error(ErrorName, "Could not load '%s'", script_name);
     reader_free(rdr);
+  } else {
+    debug("Module '%s' is already active. Skipped.", 
+          name_tostring(mod -> name));
   }
   free(script_name);
   return ret;

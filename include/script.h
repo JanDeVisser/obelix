@@ -31,6 +31,10 @@
 #include <object.h>
 #include <set.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int script_debug;
 
 typedef struct _namespace namespace_t;
@@ -59,7 +63,6 @@ typedef struct _closure {
   data_t          *self;
   dict_t          *params;
   dict_t          *variables;
-  set_t           *imports;
   datastack_t     *stack;
   datastack_t     *catchpoints;
   data_t          *caller;
@@ -105,14 +108,14 @@ extern data_t *            data_create_closure(closure_t *);
 extern script_t *       script_create(module_t *, script_t *, char *);
 extern script_t *       script_copy(script_t *);
 extern void             script_free(script_t *);
-extern name_t           script_fullname(script_t *);
+extern name_t *         script_fullname(script_t *);
 extern char *           script_tostring(script_t *);
 extern int              script_cmp(script_t *, script_t *);
 extern unsigned int     script_hash(script_t *);
 extern void             script_list(script_t *);
 extern script_t *       script_get_toplevel(script_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
-extern closure_t *      script_create_closure(script_t *, closure_t *, closure_t *, data_t *);
+extern closure_t *      script_create_closure(script_t *, closure_t *, data_t *, data_t *);
 extern data_t *         script_execute(script_t *, array_t *, dict_t *);
 extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
 extern bound_method_t * script_bind(script_t *, object_t *);
@@ -124,10 +127,11 @@ extern void             bound_method_free(bound_method_t *);
 extern bound_method_t * bound_method_copy(bound_method_t *);
 extern int              bound_method_cmp(bound_method_t *, bound_method_t *);
 extern char *           bound_method_tostring(bound_method_t *);
-extern data_t *         bound_method_execute(bound_method_t *, closure_t *, array_t *, dict_t *);
+extern data_t *         bound_method_execute(bound_method_t *, data_t *, array_t *, dict_t *);
 
 /* -- C L O S U R E  P R O T O T Y P E S ---------------------------------- */
 
+extern closure_t *      closure_create(script_t *, closure_t *, data_t *, data_t *);
 extern void             closure_free(closure_t *);
 extern char *           closure_tostring(closure_t *);
 extern data_t *         closure_pop(closure_t *);
@@ -140,11 +144,17 @@ extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
 extern data_t *         closure_import(closure_t *, name_t *);
 extern closure_t *      closure_set_location(closure_t *, data_t *);
 
+/* -- N A T I V E  F N C  P R O T O T Y P E S ----------------------------- */
+
 extern native_fnc_t *   native_fnc_create(script_t *, char *name, native_t);
 extern native_fnc_t *   native_fnc_copy(native_fnc_t *);
 extern void             native_fnc_free(native_fnc_t *);
 extern data_t *         native_fnc_execute(native_fnc_t *, array_t *, dict_t *);
 extern char *           native_fnc_tostring(native_fnc_t *);
 extern int              native_fnc_cmp(native_fnc_t *, native_fnc_t *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __SCRIPT_H__ */

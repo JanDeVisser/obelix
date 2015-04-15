@@ -26,7 +26,7 @@
 
 static void          _namespace_init(void) __attribute__((constructor));
 
-static data_t *      _data_new_module(data_t *, va_list);
+static data_t *      _data_new_module(int, va_list);
 static data_t *      _data_copy_module(data_t *, data_t *);
 static int           _data_cmp_module(data_t *, data_t *);
 static char *        _data_tostring_module(data_t *);
@@ -43,7 +43,7 @@ static data_t *      _ns_import(namespace_t *, name_t *, array_t *, dict_t *);
 int ns_debug = 0;
 
 vtable_t _vtable_module[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_module },
+  { .id = FunctionFactory,  .fnc = (void_t) _data_new_module },
   { .id = FunctionCopy,     .fnc = (void_t) _data_copy_module },
   { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_module },
   { .id = FunctionFree,     .fnc = (void_t) mod_free },
@@ -60,21 +60,206 @@ static typedescr_t typedescr_module = {
   .vtable     = _vtable_module
 };
 
+/* ------------------------------------------------------------------------ */
+
+typedef struct _pnm {
+  name_t   *name;
+  char     *next;
+  set_t    *matches;
+  set_t    *match_lost;
+  void     *match;
+  int       refs;
+} pnm_t;
+
+static pnm_t *     _pnm_create(char *);
+static void        _pnm_free(pnm_t *);
+static pnm_t *     _pnm_add(pnm_t *, module_t *);
+static pnm_t *     _pnm_find_mod_reducer(module_t *, pnm_t *);
+static module_t *  _pnm_find_mod(pnm_t *);
+static pnm_t *     _pnm_matches_reducer(module_t * , pnm_t *);
+static pnm_t *     _pnm_find_in_mod_reducer(module_t *, pnm_t *);
+
+static data_t *    _data_new_pnm(data_t *, va_list);
+static data_t *    _data_copy_pnm(data_t *, data_t *);
+static int         _data_cmp_pnm(data_t *, data_t *);
+static char *      _data_tostring_pnm(data_t *);
+static data_t *    _data_resolve_pnm(data_t *, char *);
+static data_t *    _data_call_pnm(data_t *, array_t *, dict_t *);
+static data_t *    _data_resolve_pnm(data_t *, char *);
+static data_t *    _data_set_pnm(data_t *, char *, data_t *);
+
+int PartialNameMatch;
+
+static vtable_t _vtable_pnm[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_pnm },
+  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_pnm },
+  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_pnm },
+  { .id = FunctionFree,     .fnc = (void_t) _pnm_free },
+  { .id = FunctionToString, .fnc = (void_t) _data_tostring_pnm },
+  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_pnm },
+  { .id = FunctionCall,     .fnc = (void_t) _data_call_pnm },
+  { .id = FunctionSet,      .fnc = (void_t) _data_set_pnm },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_pnm = {
+  .type =      -1,
+  .type_name = "pnm",
+  .vtable =    _vtable_pnm
+};
+
+/* ------------------------------------------------------------------------ */
+
 void _namespace_init(void) {
   logging_register_category("namespace", &ns_debug);
   typedescr_register(&typedescr_module);
+  PartialNameMatch = typedescr_register(&_typedescr_pnm);
 }
 
-/*
- * Module data functions
- */
+/* -- Partial Name Match data functions ----------------------------------- */
 
-data_t * _data_new_module(data_t *ret, va_list arg) {
+pnm_t * _pnm_create(char *name) {
+  pnm_t *ret;
+  
+  ret = NEW(pnm_t);
+  ret -> refs = 1;
+  ret -> name = name_create(1, name);
+  ret -> matches = set_create((cmp_t) mod_cmp);
+  set_set_hash(ret -> matches, (hash_t) mod_hash);
+  set_set_free(ret -> matches, (free_t) mod_free);
+  set_set_tostring(ret -> matches, (tostring_t) mod_tostring);
+  return ret;
+}
+
+void _pnm_free(pnm_t *pnm) {
+  if (pnm && --pnm -> refs <= 0) {
+    name_free(pnm -> name);
+    set_free(pnm -> matches);
+  }
+}
+
+static pnm_t * _pnm_add(pnm_t *pnm, module_t *mod) {
+  set_add(pnm -> matches, mod_copy(mod));
+  return pnm;
+}
+
+pnm_t * _pnm_find_mod_reducer(module_t *mod, pnm_t *pnm) {
+  data_t   *match;
+  
+  if (!pnm -> match && !name_cmp(mod -> name, pnm -> name)) {
+    pnm -> match = mod;
+  }
+  return pnm;
+}
+
+module_t * _pnm_find_mod(pnm_t *pnm) {
+  pnm -> match = NULL;
+  set_reduce(pnm -> matches, (reduce_t) _pnm_find_mod_reducer, pnm);
+  return (module_t *) pnm -> match;
+}
+
+pnm_t * _pnm_find_in_mod_reducer(module_t *mod, pnm_t *pnm) {
+  data_t   *match;
+  
+  if (!name_cmp(mod -> name, pnm -> name)) {
+    pnm -> match = mod_resolve(mod, pnm -> next);
+  }
+  return pnm;
+}
+
+pnm_t * _pnm_matches_reducer(module_t * mod, pnm_t *pnm) {
+  if (!name_startswith(mod -> name, pnm -> name)) {
+    if (!pnm -> match_lost) {
+      pnm -> match_lost = set_create((cmp_t) mod_cmp);
+      set_set_hash(pnm -> match_lost, (hash_t) mod_hash);
+      set_set_free(pnm -> match_lost, (free_t) mod_free);
+      set_set_tostring(pnm -> match_lost, (tostring_t) mod_tostring);
+    }
+    set_add(pnm -> match_lost, mod);
+  }
+  return pnm;
+}
+
+/* ------------------------------------------------------------------------ */
+
+data_t * _data_new_pnm(data_t *ret, va_list arg) {
+  pnm_t *pnm;
+  char  *name;
+  
+  name = va_arg(arg, char *);
+  pnm = _pnm_create(name);
+  
+  ret -> ptrval = pnm;
+  return ret;
+}
+
+data_t * _data_copy_pnm(data_t *target, data_t *src) {
+  target -> ptrval = src -> ptrval;
+  ((pnm_t *) target -> ptrval) -> refs++;
+  return target;
+}
+
+int _data_cmp_pnm(data_t *d1, data_t *d2) {
+  pnm_t *pnm1;
+  pnm_t *pnm2;
+
+  pnm1 = d1 -> ptrval;
+  pnm2 = d2 -> ptrval;
+  return name_cmp(pnm1 -> name, pnm2 -> name);
+}
+
+char * _data_tostring_pnm(data_t *d) {
+  return name_tostring(((pnm_t *) d -> ptrval) -> name);
+}
+
+data_t * _data_resolve_pnm(data_t *data, char *name) {
+  pnm_t *pnm = (pnm_t *) data -> ptrval;
+  
+  pnm -> next = name;
+  pnm -> match = NULL;
+  if (pnm -> match_lost) {
+    set_clear(pnm -> match_lost);
+  }
+  
+  set_reduce(pnm -> matches, (reduce_t) _pnm_find_in_mod_reducer, pnm);
+  if (pnm -> match) {
+    return (data_t *) pnm -> match;
+  } else {
+    name_extend(pnm -> name, name);
+    set_reduce(pnm -> matches, (reduce_t) _pnm_matches_reducer, pnm);
+    set_minus(pnm -> matches, pnm -> match_lost);
+    return data;
+  }
+}
+
+data_t * _data_call_pnm(data_t *self, array_t *params, dict_t *kwargs) {
+  pnm_t    *pnm = (pnm_t *) self -> ptrval;
+  module_t *mod = _pnm_find_mod(pnm);
+  
+  return (mod)
+    ? object_call(mod -> obj, params, kwargs) 
+    : data_error(ErrorName, "Trouble locating '%s'", name_tostring(pnm -> name));
+}
+
+data_t * _data_set_pnm(data_t *data, char *name, data_t *value) {
+  pnm_t    *pnm = (pnm_t *) data -> ptrval;
+  module_t *mod = _pnm_find_mod(pnm);
+  
+  return (mod)
+    ? object_set(mod -> obj, name, value) 
+    : data_error(ErrorName, "Trouble locating '%s'", name_tostring(pnm -> name));
+}
+
+/* -- M O D U L E  D A T A  F U N C T I O N S ----------------------------- */
+
+data_t * _data_new_module(int type, va_list arg) {
   module_t *module;
+  data_t   *ret;
 
   module = va_arg(arg, module_t *);
-  ret -> ptrval = module;
-  ((module_t *) ret -> ptrval) -> refs++;
+  ret = &module -> data;
+  data_settype(ret, type);
+  ret -> ptrval = mod_copy(module);
   return ret;
 }
 
@@ -115,19 +300,7 @@ data_t * data_create_module(module_t *module) {
 
 /* ------------------------------------------------------------------------ */
 
-module_t * _mod_copy_object(module_t *mod, object_t *obj) {
-  object_free(mod -> obj);
-  mod -> obj = object_copy(obj);
-  mod -> state = ModStateActive;
-  if (ns_debug) {
-    debug("  module '%s' initialized", mod -> name);
-  }
-  return mod;
-}
-
-/* ------------------------------------------------------------------------ */
-
-module_t * mod_create(name_t *name) {
+module_t * mod_create(namespace_t *ns, name_t *name) {
   module_t   *ret;
   
   ret = NEW(module_t);
@@ -136,49 +309,42 @@ module_t * mod_create(name_t *name) {
   }
   ret -> state = ModStateUninitialized;
   ret -> name = name_copy(name);
-  ret -> contents = strdata_dict_create();
+  ret -> ns = ns_copy(ns);
   ret -> obj = object_create(NULL);
-  ret -> str = NULL;
+  ret -> imports = set_create((cmp_t) mod_cmp);
+  set_set_hash(ret -> imports, (hash_t) mod_hash);
+  set_set_free(ret -> imports, (free_t) mod_free);
+  set_set_tostring(ret -> imports, (tostring_t) mod_tostring);
   ret -> refs = 1;
-  ret -> hash = 0;
   return ret;
 }
 
 void mod_free(module_t *mod) {
-  if (mod) {
-    mod -> refs--;
-    if (mod -> refs <= 0) {
-      dict_free(mod -> contents);
-      object_free(mod -> obj);
-      free(mod -> name);
-      free(mod);
-    }
+  if (mod && (--mod -> refs) <= 0) {
+    object_free(mod -> obj);
+    ns_free(mod -> ns);
+    free(mod -> name);
+    free(mod);
   }
 }
 
 module_t * mod_copy(module_t *module) {
-  module -> refs++;
+  if (module) {
+    module -> refs++;
+  }
   return module;
 }
 
 char * mod_tostring(module_t *module) {
-  if (!module -> str) {
-    asprintf(&module -> str, "<<module %s>>", module -> name);
+  if (module) {
+    return name_tostring(module -> name);
+  } else {
+    return "mod:NULL";
   }
-  return module -> str;
 }
 
 unsigned int mod_hash(module_t *mod) {
-  /*
-   * We keep the hash value. The object can change during loading, but we want
-   * the hash to be stable because other object may have this module stashed 
-   * in a set or dict somewhere. We don't want those to become zombie because
-   * the object (and therefore the object's hash) changes.
-   */
-  if (mod -> hash) {
-    mod -> hash = object_hash(mod -> obj);
-  }
-  return mod -> hash;
+  return name_hash(mod -> name);
 }
 
 int mod_cmp(module_t *m1, module_t *m2) {
@@ -189,34 +355,23 @@ int mod_cmp_name(module_t *mod, name_t *name) {
   return name_cmp(mod -> name, name);
 }
 
-int mod_has_module(module_t *mod, char *name) {
-  return dict_has_key(mod -> contents, name);
-}
-
-data_t * mod_get_module(module_t *mod, char *name) {
-  return (data_t *) dict_get(mod -> contents, name);
-}
-
-module_t * mod_add_module(module_t *mod, name_t *name, module_t *sub) {
-  dict_put(mod -> contents, strdup(name_last(name)), data_create(Module, sub));
-  return sub;
-}
-
 data_t * mod_set(module_t *mod, script_t *script, array_t *args, dict_t *kwargs) {
   data_t *data;
 
   if (ns_debug) {
     debug("mod_set(%s, %s)", mod_tostring(mod), script_tostring(script));
   }
-  if (!mod -> obj) {
-    // Prevent endless loops -
-    mod -> obj = object_create(NULL);
-  }
   data = script_create_object(script, args, kwargs);
   if (data_is_object(data)) {
-    _mod_copy_object(mod, data_objectval(data));
+    mod -> state = ModStateActive;
+    if (ns_debug) {
+      debug("  %s initialized: %s \n%s", mod_tostring(mod), 
+            object_tostring(mod -> obj),
+            dict_tostring(mod -> obj -> variables));
+    }
   } else {
-    error("ERROR initializing module '%s': %s", mod -> name, data_tostring(data));
+    assert(data_is_error(data));
+    object_free(mod -> obj);
   }
   return data;
 }
@@ -225,119 +380,114 @@ object_t * mod_get(module_t *mod) {
   return (mod -> obj) ? object_copy(mod -> obj) : NULL;
 }
 
-data_t * mod_resolve(module_t *mod, char *name) {
-  data_t *ret;
+void ** _mod_resolve_reducer(module_t *import, void **ctx) {
+  char *needle = (char *) ctx[0];
   
-  /* 
-   * You can shadow subpackages by explicitely having an attribute in the 
-   * object.
+  if (needle[0] && (name_size(import -> name) > 0) && 
+      !strcmp(needle, name_first(import -> name))) {
+    if (!ctx[1]) {
+      ctx[1] = data_create(PartialNameMatch, needle);
+    }
+    _pnm_add((pnm_t *) (((data_t *) ctx[1]) -> ptrval), import);
+  }
+  return ctx;
+}
+
+data_t * mod_resolve(module_t *mod, char *name) {
+  data_t   *ret;
+  void     *ctx[2];
+  module_t *root;
+  data_t   *droot;
+  
+  if (ns_debug) {
+    debug("mod_resolve('%s', '%s')", mod_tostring(mod), name);
+  }
+  
+  /*
+   * First see if the name sought is local to this module:
    */
   ret = object_resolve(mod -> obj, name);
   if (!ret) {
-    ret = mod_get_module(mod, name);
+    
+    if (ns_debug) {
+      debug("mod_resolve('%s', '%s'): Not local.", mod_tostring(mod), name);
+    }
+    /*
+     * Not local. Check if it's the first part of the name of one of the 
+     * modules imported in this module:
+     */
+    ctx[0] = name;
+    ctx[1] = NULL;
+    set_reduce(mod -> imports, (reduce_t) _mod_resolve_reducer, ctx);
+    ret = (data_t *) ctx[1];
+    if (!ret && ns_debug) {
+      debug("mod_resolve('%s', '%s'): Not an import", mod_tostring(mod), name);
+    }
   }
+  
+  if (!ret && (name_size(mod -> name) > 0)) {
+    
+    if (ns_debug) {
+      debug("mod_resolve('%s', '%s'): Check root module", mod_tostring(mod), name);
+    }
+    /*
+     * Not local and does not start one of the imports. If this is not the 
+     * root module, check the root module:
+     */
+    droot = ns_get(mod -> ns, NULL);
+    if (!data_is_module(droot)) {
+      error("mod_resolve(%s): root module not found", mod_tostring(mod));
+    } else {
+      ret = object_resolve(data_moduleval(droot) -> obj, name);
+    }
+    data_free(droot);
+  }
+  if (ns_debug) {
+    debug("mod_resolve('%s', '%s'): %s", mod_tostring(mod), name, data_tostring(ret));
+  }
+  return ret;
 }
 
-module_t * mod_import(module_t *mod, name_t *name) {
-  
+data_t * mod_import(module_t *mod, name_t *name) {
+  data_t *imp = ns_import(mod -> ns, name);
+
+  if (data_is_module(imp)) {
+    set_add(mod -> imports, data_moduleval(imp));
+  }
+  return imp;
+}
+
+module_t * mod_exit(module_t *mod, data_t *code) {
+  return (ns_exit(mod -> ns, code)) ? mod : NULL;
+}
+
+data_t * mod_exit_code(module_t *mod) {
+  return ns_exit_code(mod -> ns);
 }
 
 /* ------------------------------------------------------------------------ */
 
-namespace_t * _ns_create(void) {
-  namespace_t *ret;
-
-  ret = NEW(namespace_t);
-  ret -> root = NULL;
-  ret -> import_ctx = NULL;
-  ret -> up = NULL;
-  return ret;
-}
-
-  
 module_t * _ns_add_module(namespace_t *ns, name_t *name, module_t *mod) {
-  name_t   *current = name_create(0);
-  int       ix;
-  char     *n;
-  module_t *node;
-  module_t *sub;
-
   if (ns_debug) {
     debug("_ns_add_module(%s, %s)", ns_tostring(ns), name_tostring(name));
   }
-  if (!name_size(name)) {
-    assert(!ns -> root);
-    ns -> root = data_create(Module, mod);
-  } else {
-    assert(ns -> root);  
-    node = data_moduleval(ns -> root);
-    for (ix = 0; ix < name_size(name) - 1; ix++) {
-      n = name_get(name, ix);
-      name_extend(current, n);
-      sub = data_moduleval(mod_get_module(node, n));
-      if (!sub) {
-        sub = mod_create(name);
-        sub = mod_add_module(node, name_copy(current), sub);
-      }
-      node = sub;
-    }
-    mod_add_module(node, name, mod);
-  }
-  name_free(current);
+  dict_put(ns -> modules, strdup(name_tostring(name)), mod);
   return mod;
 }
 
 module_t * _ns_add(namespace_t *ns, name_t *name) {
   module_t *mod;
   
-  mod = mod_create(name);
-  mod -> state = ModStateLoading;
+  mod = mod_create(ns, name);
   _ns_add_module(ns, name, mod);
   return mod;
 }
   
 module_t * _ns_get(namespace_t *ns, name_t *name) {
-  int       ix;
-  char     *n;
-  module_t *node;
-  
-  node = data_moduleval(ns -> root);
-  for (ix = 0; node && (ix < name_size(name)); ix++) {
-    n = name_get(name, ix);
-    node = data_moduleval(mod_get_module(node, n));
-  }
-  if (!node && ns -> up) {
-    node = _ns_get(ns -> up, name);
-    if (node) {
-      _ns_add_module(ns, name, node);
-    }
-  }
-  return node;
+  return dict_get(ns -> modules, (name) ? name_tostring(name) : "");
 }
 
-data_t * _ns_delegate_up(namespace_t *ns, module_t *module, name_t *name,
-			 array_t *args, dict_t *kwargs) {
-  data_t   *updata;
-  module_t *upmod;
-  
-  if (ns_debug) {
-    debug("  Module '%s' not found - delegating to higher level %s", 
-          name_tostring(name), ns_tostring(ns));
-  }
-  updata = _ns_import(ns -> up, name, args, kwargs);
-  if (data_is_module(updata)) {
-    upmod = data_moduleval(updata);
-    if (!module) {
-      module = _ns_add(ns, name);
-    }
-    _mod_copy_object(module, upmod -> obj);
-    return data_create(Module, module);
-  } else {
-    return updata;
-  }
-}
-
-data_t * _ns_delegate_load(namespace_t *ns, module_t *module, 
+data_t * _ns_load(namespace_t *ns, module_t *module, 
 			   name_t *name, array_t *args, dict_t *kwargs) {
   data_t   *ret = NULL;
   data_t   *obj;
@@ -349,18 +499,21 @@ data_t * _ns_delegate_load(namespace_t *ns, module_t *module,
   if (!module) {
     module = _ns_add(ns, name);
   }
-  script = ns -> import_fnc(ns -> import_ctx, name);
+  module -> state = ModStateLoading;
+  script = ns -> import_fnc(ns -> import_ctx, module);
   if (data_is_script(script)) {
     obj = mod_set(module, data_scriptval(script), args, kwargs);
     if (data_is_object(obj)) {
       ret = data_create(Module, module);
       data_free(obj);
     } else {
-      ret = obj; /* !data_is_object(obj) => Error */
+      assert(data_is_error(obj));
+      ret = obj;
     }
     data_free(script);
   } else {
-    ret = script; /* !data_is_script(script) => Error */
+    assert(data_is_error(script));
+    ret = script;
   }
   return ret;
 }
@@ -389,7 +542,7 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
       ret = data_create(Module, module);
     } else {
       if (ns_debug) {
-        debug("  Module found but it's Uninitialized");
+        debug("  Module found but it's Uninitialized. Somebody must be busy loading it.");
       }
     }
   } else {
@@ -398,11 +551,7 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
     }
   }
   if (!ret) {
-    if (!ns -> import_ctx) {
-      return _ns_delegate_up(ns, module, name, args, kwargs);
-    } else {
-      return _ns_delegate_load(ns, module, name, args, kwargs);
-    }
+    ret = _ns_load(ns, module, name, args, kwargs);
   }
   name_free(dummy);
   return ret;
@@ -410,43 +559,42 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
 
 /* ------------------------------------------------------------------------ */
 
-namespace_t * ns_create(namespace_t *up) {
-  namespace_t *ret;
-
-  assert(up);
-  if (ns_debug) {
-    debug("  Creating subordinate namespace level [%d]", up -> level + 1);
-  }
-  ret = _ns_create();
-  ret -> import_ctx = NULL;
-  ret -> import_fnc = NULL;
-  ret -> up = up;
-  ret -> level = up -> level + 1;
-  return ret;
-}
-
-namespace_t * ns_create_root(void *importer, import_t import_fnc) {
+namespace_t * ns_create(char *name, void *importer, import_t import_fnc) {
   namespace_t *ret;
 
   assert(importer && import_fnc);
   if (ns_debug) {
     debug("  Creating root namespace");
   }
-  ret = _ns_create();
+
+  ret = NEW(namespace_t);
+  ret -> name = strdup(name);
   ret -> import_ctx = importer;
   ret -> import_fnc = import_fnc;
-  ret -> up = NULL;
-  ret -> level = 0;
+  ret -> exit_code = NULL;
+  ret -> modules = strvoid_dict_create();
+  dict_set_free_data(ret -> modules, (free_t) mod_free);
+  dict_set_tostring_data(ret -> modules, (tostring_t) mod_tostring);
+  ret -> str = NULL;
+  ret -> refs = 1;
   return ret;
 }
 
 void ns_free(namespace_t *ns) {
-  if (ns) {
-    data_free(ns -> root);
+  if (ns && (--ns -> refs <= 0)) {
+    dict_free(ns -> modules);
     free(ns -> str);
+    free(ns -> name);
     data_free(ns -> exit_code);
     free(ns);
   }
+}
+
+namespace_t * ns_copy(namespace_t *src) {
+  if (src) {
+    src -> refs++;
+  }
+  return src;
 }
 
 data_t * ns_execute(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs) {
@@ -468,33 +616,23 @@ data_t * ns_import(namespace_t *ns, name_t *name) {
 }
 
 data_t * ns_get(namespace_t *ns, name_t *name) {
-  int       ix;
-  char     *n;
-  module_t *node;
+  module_t *mod;
   
-  node = data_moduleval(ns -> root);
-  for (ix = 0; ix < name_size(name); ix++) {
-    n = name_get(name, ix);
-    node = data_moduleval(mod_get_module(node, n));
-    if (!node) break;
-  }
-  if (!node || !node -> obj -> constructor) {
+  mod = dict_get(ns -> modules, (name) ? name_tostring(name) : "");
+  if (!mod || !mod -> obj -> constructor) {
       return data_error(ErrorName,
                         "Import '%s' not found in %s", 
                         name_tostring(name), ns_tostring(ns));
   } else {
-    return data_create(Module, node);
+    return data_create(Module, mod);
   }
-}
-
-data_t * ns_resolve(namespace_t *ns, char *name) {
-  return mod_resolve(data_moduleval(ns -> root), name);
 }
 
 char * ns_tostring(namespace_t *ns) {
   if (ns) {
-    free(ns -> str);
-    asprintf(&ns -> str, "namespace level [%d]", ns -> level);
+    if (!ns -> str) {
+      asprintf(&ns -> str, "Namespace '%s'", ns -> name);
+    }
     return ns -> str;
   } else {
     return "ns:NULL";
@@ -503,26 +641,12 @@ char * ns_tostring(namespace_t *ns) {
 
 namespace_t * ns_exit(namespace_t *ns, data_t *code) {
   ns -> exit_code = data_copy(code);
-  if (ns -> up) {
-    ns_exit(ns -> up, code);
-  } else if (ns_debug) {
+  if (ns_debug) {
     debug("Setting exit code %s", data_tostring(ns -> exit_code));
   }
   return ns;
 }
 
 data_t * ns_exit_code(namespace_t *ns) {
-  data_t *ret;
-  
-  if (!ns -> exit_code) {
-    if (ns -> up) {
-      ret = ns_exit_code(ns -> up);
-      ns -> exit_code = data_copy(ret);
-    } else {
-      return NULL;
-    }
-  } else {
-    ret = ns -> exit_code;
-  }
-  return ret;
+  return ns -> exit_code;
 }

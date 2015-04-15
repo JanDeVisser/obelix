@@ -26,8 +26,6 @@
 #include <data.h>
 #include <dict.h>
 
-extern int res_debug;
-
 typedef struct _object {
   data_t  *constructor;
   int      constructing;

@@ -21,10 +21,11 @@
 #include <string.h>
 
 #include <exception.h>
+#include <logging.h>
 #include <object.h>
 #include <script.h>
 
-int res_debug = 0;
+int obj_debug = 0;
 
 static void          _data_init_object(void) __attribute__((constructor));
 static data_t *      _data_new_object(data_t *, va_list);
@@ -76,6 +77,7 @@ static methoddescr_t _methoddescr_object[] = {
 /* ----------------------------------------------------------------------- */
 
 void _data_init_object(void) {
+  logging_register_category("object", &obj_debug);
   typedescr_register(&_typedescr_object);  
   typedescr_register_methods(_methoddescr_object);
 }
@@ -227,9 +229,10 @@ object_t * _object_set_all_reducer(entry_t *e, object_t *object) {
 
 object_t * object_create(data_t *constructor) {
   object_t       *ret;
-  object_t       *obj;
+  object_t       *obj = NULL;
   data_t         *c = NULL;
   bound_method_t *bm;
+  dict_t         *template = NULL;
 
   ret = NEW(object_t);
   ret -> refs = 1;
@@ -239,15 +242,22 @@ object_t * object_create(data_t *constructor) {
   ret -> str = NULL;
   ret -> debugstr = NULL;
   if (data_is_script(constructor)) {
-    c = data_create(BoundMethod, script_bind(data_scriptval(constructor), ret));
+    bm = script_bind(data_scriptval(constructor), ret);
+    c = data_create(BoundMethod, bm);
+    template = data_scriptval(constructor) -> functions;
   } else if (data_is_object(constructor)) {
     obj = data_objectval(constructor);
     bm = data_boundmethodval(obj -> constructor);
     if (bm) {
-      c = data_create(BoundMethod, script_bind(bm -> script, ret));
+      bm = script_bind(bm -> script, ret);
+      c = data_create(BoundMethod, bm);
     }
+    template = obj -> variables;
   }
   ret -> constructor = c;
+  if (template) {
+    dict_reduce(template, (reduce_t) _object_set_all_reducer, ret);
+  }
   return ret;
 }
 
@@ -294,9 +304,15 @@ data_t * object_set(object_t *object, char *name, data_t *value) {
   if (data_is_script(value)) {
     bm = script_bind(data_scriptval(value), object);
     value = data_create(BoundMethod, bm);
-  }  
+  } else if (data_is_boundmethod(value)) {
+    bm = script_bind(data_boundmethodval(value) -> script, object);
+    value = data_create(BoundMethod, bm);
+  } else if (data_is_closure(value)) {
+    bm = script_bind(data_closureval(value) -> script, object);
+    value = data_create(BoundMethod, bm);
+  }
   dict_put(object -> variables, strdup(name), data_copy(value));
-  if (res_debug) {
+  if (obj_debug) {
     debug("   object_set('%s') -> variables = %s", 
           object -> constructor ? data_tostring(object -> constructor) : "anon", 
           dict_tostring(object -> variables));
@@ -307,7 +323,7 @@ data_t * object_set(object_t *object, char *name, data_t *value) {
 int object_has(object_t *object, char *name) {
   int ret;
   ret = dict_has_key(object -> variables, name);
-  if (res_debug) {
+  if (obj_debug) {
     debug("   object_has('%s', '%s'): %d", object_debugstr(object), name, ret);
   }
   return ret;

@@ -90,7 +90,7 @@ long _script_parse_get_option(parser_t *parser, obelix_option_t option) {
 
 parser_t * script_parse_init(parser_t *parser) {
   char        *name;
-  namespace_t *ns = NULL;
+  module_t    *mod;
   data_t      *data;
   script_t    *script;
 
@@ -99,10 +99,13 @@ parser_t * script_parse_init(parser_t *parser) {
   }
   data = parser_get(parser, "name");
   name = data_tostring(data);
-  data = parser_get(parser, "ns");
-  ns = (data) ? data -> ptrval : NULL;
-  assert(ns);
-  script = script_create(ns, NULL, name);
+  data = parser_get(parser, "module");
+  assert(data);
+  mod = data_moduleval(data);
+  if (script_debug) {
+    debug("Parsing module '%s'", name_tostring(mod -> name));
+  }
+  script = script_create(mod, NULL, name);
   script_push_instruction(script, instruction_create_mark(1));
   parser -> data = script;
   return parser;
