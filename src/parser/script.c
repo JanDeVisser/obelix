@@ -496,9 +496,6 @@ closure_t * _closure_create_closure_reducer(entry_t *entry, closure_t *closure) 
 
   if (data_is_script(func)) {
     self = data_objectval(closure -> self);
-    if (self && self -> constructing) {
-      object_set(self, name, func);
-    }
     bm = bound_method_create(data_scriptval(func), self);
     bm -> closure = closure;
     value = data_create(BoundMethod, bm);
