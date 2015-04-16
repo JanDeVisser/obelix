@@ -377,6 +377,8 @@ name_t * _instruction_setup_constructor(data_t *closure,
                                         function_call_t *constructor) {
   data_t         *self;
   data_t         *s = NULL;
+  script_t       *script;
+  data_t         *dscript;
   bound_method_t *bm = NULL;
   char           *name;
   char           *ptr;
@@ -388,19 +390,22 @@ name_t * _instruction_setup_constructor(data_t *closure,
   if (data_is_object(self)) {
     s = data_resolve(closure, constructor -> name);
     if (data_is_script(s)) {
-      bm = script_bind(data_scriptval(s), data_objectval(self));
+      script = data_scriptval(s);
     } else if (data_is_boundmethod(s)) {
-      bm = script_bind(data_boundmethodval(s) -> script, data_objectval(self));
+      script = data_boundmethodval(s) -> script;
     } else if (data_is_closure(s)) {
-      bm = script_bind(data_closureval(s) -> script, data_objectval(self));
+      script = data_closureval(s) -> script;
     }
-    if (bm) {
+    if (script) {
+      bm = script_bind(script, data_objectval(self));
       asprintf(&name, "$%s", name_tostring(constructor -> name));
       for (ptr = strchr(name, '.'); ptr; ptr = strchr(ptr + 1, '.')) {
         *ptr = '_';
       }
       ret = name_create(1, name);
       data_set(closure, ret, data_create(BoundMethod, bm));
+      object_bind_all(data_objectval(self), dscript = data_create(Script, script));
+      data_free(dscript);
     }
   }
   return ret;

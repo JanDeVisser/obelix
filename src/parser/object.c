@@ -261,6 +261,22 @@ object_t * object_create(data_t *constructor) {
   return ret;
 }
 
+object_t * object_bind_all(object_t *object, data_t *template) {
+  dict_t *variables = NULL;
+  
+  if (data_is_script(template)) {
+    variables = data_scriptval(template) -> functions;
+  } else if (data_is_object(template)) {
+    variables = data_objectval(template) -> variables;
+  } else if (data_is_closure(template)) {
+    variables = data_closureval(template) -> script -> functions;
+  }
+  if (variables) {
+    dict_reduce(variables, (reduce_t) _object_set_all_reducer, object);
+  }
+  return object;
+}
+
 object_t* object_copy(object_t* object) {
   if (object) {
     object -> refs++;

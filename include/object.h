@@ -53,5 +53,6 @@ extern char *              object_debugstr(object_t *);
 extern unsigned int        object_hash(object_t *);
 extern int                 object_cmp(object_t *, object_t *);
 extern data_t *            object_resolve(object_t *, char *);
+extern object_t *          object_bind_all(object_t *, data_t *);
 
 #endif /* __OBJECT_H__ */
