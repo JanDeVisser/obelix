@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <math.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -604,6 +604,13 @@ void closure_free(closure_t *closure) {
   }
 }
 
+closure_t * closure_copy(closure_t *closure) {
+  if (closure) {
+    closure -> refs++;
+  }
+  return closure;
+}
+
 char * closure_tostring(closure_t *closure) {
   char *params;
   
@@ -723,15 +730,44 @@ data_t * closure_resolve(closure_t *closure, char *name) {
   return data_copy(ret);
 }
 
-data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
-  int       ix;
+data_t * _closure_start(closure_t *closure) {
   data_t   *ret;
-  data_t   *param;
-  script_t *script;
-  object_t *self;
   error_t  *e;
 
+  list_process(closure -> script -> instructions,
+               (reduce_t) _closure_execute_instruction,
+               closure);
+  ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
+  if (script_debug) {
+    debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
+  }
+  if (data_is_error(ret)) {
+    e = data_errorval(ret);
+    if ((e -> code == ErrorExit) && (data_errorval(ret) -> exception)) {
+      ns_exit(closure -> script -> mod -> ns, ret);
+    }
+  }
+  
+  if (closure -> free_params) {
+    /*
+     * kwargs was assigned to closure -> params. Freeing the closure should
+     * not free the params in that case, since the owner is responsible for
+     * kwargs,
+     */
+    closure -> params = NULL;
+  }
+  return ret;
+}
+
+data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
+  int        ix;
+  data_t    *param;
+  script_t  *script;
+  object_t  *self;
+  pthread_t  thr_id;
+
   script = closure -> script;
+  closure -> free_params = FALSE;
   if (script -> params && array_size(script -> params)) {
     if (!args || (array_size(script -> params) > array_size(args))) {
       return data_error(ErrorArgCount, 
@@ -740,7 +776,12 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
                         array_size(script -> params),
                         (args) ? array_size(args) : 0);
     }
-    closure -> params = (kwargs) ? kwargs : strdata_dict_create();
+    if (script -> async || !kwargs) {
+      closure -> params = strdata_dict_create();
+      closure -> free_params = TRUE;
+    } else {
+      closure -> params = kwargs;
+    }
     for (ix = 0; ix < array_size(args); ix++) {
       param = data_copy(data_array_get(args, ix));
       dict_put(closure -> params, 
@@ -764,29 +805,25 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   }
   
   datastack_push(closure -> catchpoints, data_create(String, "ERROR"));
-  list_process(closure -> script -> instructions,
-               (reduce_t) _closure_execute_instruction,
-               closure);
-  ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
-  if (script_debug) {
-    debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
+  if (closure -> caller && data_is_closure(closure -> caller) && data_closureval(closure -> caller) -> thread) {
+    closure -> thread = data_copy(data_closureval(closure -> caller) -> thread);
+  } else {
+    closure -> thread = NULL;
   }
-  if (data_is_error(ret)) {
-    e = data_errorval(ret);
-    if ((e -> code == ErrorExit) && (data_errorval(ret) -> exception)) {
-      ns_exit(closure -> script -> mod -> ns, ret);
+  if (script -> async) {
+    if ((errno = pthread_create(&thr_id, NULL, 
+                                (voidptrvoidptr_t) _closure_start, 
+                                closure_copy(closure))) < 0) {
+      return data_error_from_errno();
     }
-  }
-  
-  if (kwargs) {
-    /*
-     * kwargs was assigned to closure -> params. Freeing the closure should
-     * not free the params in that case, since the owner is responsible for
-     * kwargs,
-     */
-    closure -> params = NULL;
-  }
-  return ret;
+    if (errno = pthread_detach(thr_id)) {
+      return data_error_from_errno();
+    }
+    closure -> thread = data_create(Thread, thr_id, closure_tostring(closure));
+    return closure -> thread;
+  } else {
+    return _closure_start(closure);
+  }  
 }
 
 closure_t * closure_set_location(closure_t *closure, data_t *location) {

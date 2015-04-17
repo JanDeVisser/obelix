@@ -1,3 +1,7 @@
+/* -*-obelix-*- */
+
+/* This is a comment */
+
 func A(x)
   self.x = x
 
@@ -23,4 +27,3 @@ end
 
 c = new C("foo", "bar")
 c.do()
-
