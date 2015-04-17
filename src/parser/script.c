@@ -18,6 +18,7 @@
  */
 
 #include <errno.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -781,6 +782,9 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
       closure -> free_params = TRUE;
     } else {
       closure -> params = kwargs;
+    }
+    if (script -> async && kwargs) {
+      dict_reduce(kwargs, (reduce_t) data_put_all_reducer, closure -> params)
     }
     for (ix = 0; ix < array_size(args); ix++) {
       param = data_copy(data_array_get(args, ix));
