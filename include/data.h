@@ -47,6 +47,7 @@ typedef enum _datatype {
   Native,       /* 17 */
   NVP,          /* 18 */
   Range,        /* 19 */
+  Thread,       /* 20 */
   Dynamic       = 25,
   Callable      = 999,
   Any           = 1000

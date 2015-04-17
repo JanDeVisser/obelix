@@ -62,10 +62,12 @@ typedef struct _closure {
   script_t        *script;
   data_t          *self;
   dict_t          *params;
+  int             *free_params;
   dict_t          *variables;
   datastack_t     *stack;
   datastack_t     *catchpoints;
   data_t          *caller;
+  data_t          *thread;
   int              depth;
   int              line;
   int              refs;
@@ -133,6 +135,7 @@ extern data_t *         bound_method_execute(bound_method_t *, data_t *, array_t
 
 extern closure_t *      closure_create(script_t *, closure_t *, data_t *, data_t *);
 extern void             closure_free(closure_t *);
+extern closure_t *      closure_copy(closure_t *);
 extern char *           closure_tostring(closure_t *);
 extern data_t *         closure_pop(closure_t *);
 extern closure_t *      closure_push(closure_t *, data_t *);
