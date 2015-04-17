@@ -16,7 +16,10 @@
  * You should have received a copy of the GNU General Public License
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include <pthread.h>
+#include <string.h>
+
 #include <data.h>
 
 typedef struct _thread {
@@ -31,6 +34,8 @@ static thread_t *    threat_copy(thread_t *);
 static unsigned int  thread_hash(thread_t *);
 static int           thread_cmp(thread_t *, thread_t *);
 static char *        thread_tostring(thread_t *);
+static int           thread_interrupt(thread_t *);
+static int           thread_yield(thread_t *);
 
 static void          _data_init_thread(void) __attribute__((constructor));
 static data_t *      _data_new_thread(data_t *, va_list);
@@ -65,3 +70,36 @@ static methoddescr_t _methoddescr_thread[] = {
   { .type = Thread, .name = "yield",     .method = _thread_yield,     .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,        .method = NULL,              .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
+
+
+thread_t * thread_create(pthread_t thr_id, char *name) {
+  thread_t *ret = NEW(thread_t);
+
+  ret -> thr_id = thr_id;
+  ret -> name = (name) ? strdup(name) : strdup("");
+  ret -> refs = 1;
+  return ret;
+}
+
+void thread_free(thread_t *thread) {
+  if (thread && (--thread -> refs <= 0)) {
+    free(thread -> name);
+    free(thread);
+  }
+}
+
+thread_t * threat_copy(thread_t *thread) {
+  if (thread) {
+    thread -> refs++;
+  }
+  return thread;
+}
+
+unsigned int thread_hash(thread_t *thread) {
+  return (thread) ? (unsigned int) thread -> thread : 0;
+}
+
+static int           thread_cmp(thread_t *, thread_t *);
+static char *        thread_tostring(thread_t *);
+static int           thread_interrupt(thread_t *);
+static int           thread_yield(thread_t *);
