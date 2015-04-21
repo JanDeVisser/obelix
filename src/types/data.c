@@ -229,7 +229,9 @@ int typedescr_register(typedescr_t *descr) {
   if (descr -> type < 0) {
     descr -> type = (data_numtypes > Dynamic) ? data_numtypes : Dynamic;
   }
-  debug("Registering type '%s' [%d]", descr -> type_name, descr -> type);
+  if (debug_data) {
+    debug("Registering type '%s' [%d]", descr -> type_name, descr -> type);
+  }
   assert((descr -> type >= data_numtypes) || descriptors[descr -> type].type == 0);
   if (descr -> type >= data_numtypes) {
     newsz = (descr -> type + 1) * sizeof(typedescr_t);

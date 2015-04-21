@@ -45,7 +45,7 @@ typedef enum _instruction_type {
 typedef struct _instruction {
   instruction_type_t  type;
   int                 line;
-  char               *label;
+  char                label[9];
   char               *name;
   data_t             *value;
   char               *str;

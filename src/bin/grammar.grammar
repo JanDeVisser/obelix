@@ -23,10 +23,14 @@ statement                   := conditional
                              | context_block
                              | throw
                              | leave
+                             | pass
                              | identifier
                                assignment_or_call
                              ;
 
+pass                        := "pass"            [ nop                       ]
+                             ;
+                             
 conditional                 := "if"              [ if                        ]
                                expr              [ test                      ]
                                statements
@@ -225,8 +229,8 @@ _identifier_tail            := .
                              |
                              ;
                              
-constant                    := '"'               [ pushval                   ]
-                             | '\''              [ pushval                   ]
+constant                    := '"'               [ push_token                ]
+                             | '\''              [ push_token                ]
                              | signed_number
 			     | list
                              | object

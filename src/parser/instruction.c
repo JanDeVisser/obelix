@@ -576,6 +576,7 @@ instruction_t * instruction_create(int type, char *name, data_t *value) {
   ret -> str = NULL;
   ret -> name = (name) ? strdup(name) : NULL;
   ret -> value = value;
+  memset(ret -> label, 0, 9);
   return ret;
 }
 
@@ -656,15 +657,13 @@ instruction_t * instruction_create_throw(void) {
 }
 
 char * instruction_assign_label(instruction_t *instruction) {
-  char buf[10];
-
-  strrand(buf, 9);
-  instruction_set_label(instruction, buf);
+  strrand(instruction -> label, 8);
   return instruction -> label;
 }
 
 instruction_t * instruction_set_label(instruction_t *instruction, data_t *label) {
-  instruction -> label = strdup(data_charval(label));
+  memset(instruction -> label, 0, 9);
+  strncpy(instruction -> label, data_charval(label), 8);
   return instruction;
 }
 
@@ -704,10 +703,9 @@ char * instruction_tostring(instruction_t *instruction) {
     } else {
       line[0] = 0;
     }
-    lbl = (instruction -> label) ? instruction -> label : "";
     asprintf(&instruction -> str, "%-6s %-11.11s%-15.15s%s", 
              line,
-             lbl, 
+             instruction -> label, 
              instruction_descr_map[instruction -> type].name, 
              s);
     free(free_me);
@@ -718,7 +716,6 @@ char * instruction_tostring(instruction_t *instruction) {
 void instruction_free(instruction_t *instruction) {
   if (instruction) {
     free(instruction -> name);
-    free(instruction -> label);
     data_free(instruction -> value);
     free(instruction -> str);
     free(instruction);
