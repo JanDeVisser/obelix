@@ -363,6 +363,9 @@ int function_cmp(function_t *fnc1, function_t *fnc2) {
 
 function_t * function_resolve(function_t *fnc) {
   fnc -> fnc = (voidptr_t) resolve_function(fnc -> name);
+  if (!fnc) {
+    error("Could not resolve function '%s'", fnc -> name);
+  }
   return (fnc -> fnc) ? fnc : NULL;
 }
 

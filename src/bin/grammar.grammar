@@ -28,45 +28,45 @@ statement                   := conditional
                              ;
 
 conditional                 := "if"              [ if                        ]
-                               expr              [ emit_test                 ]
+                               expr              [ test                      ]
                                statements
                                elif_seq
                                else
-                               end               [ emit_end_if               ]
+                               end               [ end_if                    ]
                              ;
 
 elif_seq                    := elif
                                elif_seq
                              |
                              ;
-                             
+
 elif                        := "elif"            [ elif                      ]
-                               expr              [ emit_test                 ]
+                               expr              [ test                      ]
                                statements
                              ;
-                             
+
 else                        := "else"            [ else                      ]
                                statements
                              |
                              ;
-                             
+
 end                         := "end"
                              ;
 
 while_loop                  := "while"           [ start_loop                ]
-                               expr              [ emit_test                 ]
+                               expr              [ test                      ]
                                statements
-                               end               [ emit_end_loop             ]
+                               end               [ end_loop                  ]
                              ;
 
 for_loop                    := "for"
                                identifier
                                "in"
-                               expr              [ emit_for                  ]
+                               expr              [ for                       ]
                                statements
-                               end               [ emit_end_loop             ]
+                               end               [ end_loop                  ]
                              ;
-                             
+
 func_def                    := sync_async
                                "func"
                                'i'               [ push                      ]
@@ -79,7 +79,7 @@ func_def                    := sync_async
 sync_async                  := "async"           [ pushval: 1                ]
                              |                   [ pushval: 0                ]
                              ;
-                             
+
 func_block                  :=                   [ start_function            ]
                                baseclasses
                                statements
@@ -99,24 +99,24 @@ _baseclasses                := baseclass
 baseclass                   := identifier
                                (                 [ setup_constructor         ]
                                arglist_or_void
-                               )                 [ emit_func_call            ]
+                               )                 [ func_call                 ]
                              ;
 
 baseclass_tail              := ,
                                _baseclasses
                              |
                              ;
-                             
+
 link_clause                 := "->" '"'
                              ;
-                             
+
 dummy                       :=
                              ;
 
 parlist_or_void             := parlist
                              |
                              ;
-                             
+
 parlist                     := param
                                parlist_tail
                              ;
@@ -138,7 +138,7 @@ import_stmt                 := "import"
                              ;
 
 new                         := "new"             [ setup_function: "new" incr ]
-                               identifier        [ emit_pushval_from_stack    ]
+                               identifier        [ pushval_from_stack         ]
                                _func_call
                              ;
 
@@ -162,28 +162,28 @@ leave                       := "leave"           [ leave                     ]
                              ;
 
 assignment_or_call          := assignment
-                             | func_call         [ emit_pop                  ]
+                             | func_call         [ pop                       ]
                              ;
 
 assignment                  := =
-                               expr              [ emit_assign               ]
+                               expr              [ assign                    ]
                              ;
 
 expr                        := predicate
                                predicatetail
                              ;
-                         
+
 predicatetail               := logic_op          [ push_tokenstring          ]
-                               predicate         [ emit_infix_op             ]
+                               predicate         [ infix_op                  ]
                              |
                              ;
-                               
+
 predicate                   := term
                                termtail
                              ;
 
 termtail                    := add_op            [ push_tokenstring          ]
-                               term              [ emit_infix_op             ]
+                               term              [ infix_op                  ]
                                termtail
                              | 
                              ;
@@ -193,7 +193,7 @@ term                        := factor
                              ;
 
 factortail                  := mult_op           [ push_tokenstring          ]
-                               factor            [ emit_infix_op             ] 
+                               factor            [ infix_op                  ] 
                                factortail
                              | 
                              ;
@@ -209,7 +209,7 @@ var_or_call                 := new
                              ;
                               
 call_or_empty               := func_call
-                             |                   [ emit_pushvar              ]
+                             |                   [ pushvar                   ]
                              ;
                              
 identifier                  :=                   [ bookmark                  ]
@@ -225,13 +225,13 @@ _identifier_tail            := .
                              |
                              ;
                              
-constant                    := '"'               [ emit_pushval              ]  
-                             | '\''              [ emit_pushval              ]  
+constant                    := '"'               [ pushval                   ]
+                             | '\''              [ pushval                   ]
                              | signed_number
 			     | list
                              | object
-			     | "true"            [ emit_pushconst: "bool:1"  ]
-                	     | "false"           [ emit_pushconst: "bool:0"  ]
+			     | "true"            [ pushconst: "bool:1"       ]
+                	     | "false"           [ pushconst: "bool:0"       ]
                              ;
 
 signed_number               := sign
@@ -250,7 +250,7 @@ number                      := 'd'
                                
 list                        := '['               [ setup_function: "list"    ]
                                entrylist_or_empty
-                               ']'               [ emit_func_call            ]
+                               ']'               [ func_call                 ]
                              ;
 
 entrylist_or_empty          := entrylist
@@ -268,7 +268,7 @@ entrylist_tail              := ,
 
 object                      := '{'               [ setup_function: "object"  ]
                                attrlist_or_empty
-                               '}'               [ emit_func_call            ]
+                               '}'               [ func_call                 ]
                              ;
 
 attrlist_or_empty           := attrlist
@@ -300,7 +300,7 @@ func_call                   :=                   [ init_function             ]
 
 _func_call                  := (
                                arglist_or_void
-                               )                 [ emit_func_call            ]
+                               )                 [ func_call                 ]
                              ;
 
 arglist_or_void             := arglist

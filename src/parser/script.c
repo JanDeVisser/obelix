@@ -337,7 +337,7 @@ script_t * script_push_instruction(script_t *script, instruction_t *instruction)
   list_push(script -> instructions, instruction);
   if (!datastack_empty(script -> pending_labels)) {
     label = datastack_peek(script -> pending_labels);
-    instruction_set_label(instruction, data_charval(label));
+    instruction_set_label(instruction, label);
     node = list_tail_pointer(script -> instructions);
     while (!datastack_empty(script -> pending_labels)) {
       label = datastack_pop(script -> pending_labels);

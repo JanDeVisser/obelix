@@ -585,9 +585,9 @@ instruction_t * instruction_create_assign(name_t *varname) {
 			    data_create(Name, varname));
 }
 
-instruction_t *  instruction_create_enter_context(name_t *varname, char *catchpoint) {
+instruction_t *  instruction_create_enter_context(name_t *varname, data_t *catchpoint) {
   return instruction_create(ITEnterContext,
-                            catchpoint, 
+                            data_charval(catchpoint), 
 			    data_create(Name, varname));    
 }
 
@@ -617,12 +617,12 @@ instruction_t * instruction_create_function(name_t *name, callflag_t flags,
   return ret;
 }
 
-instruction_t * instruction_create_test(char *label) {
-  return instruction_create(ITTest, label, NULL);
+instruction_t * instruction_create_test(data_t *label) {
+  return instruction_create(ITTest, data_charval(label), NULL);
 }
 
-instruction_t * instruction_create_jump(char *label) {
-  return instruction_create(ITJump, label, NULL);
+instruction_t * instruction_create_jump(data_t *label) {
+  return instruction_create(ITJump, data_charval(label), NULL);
 }
 
 instruction_t * instruction_create_import(name_t *module) {
@@ -633,8 +633,8 @@ instruction_t * instruction_create_iter() {
   return instruction_create(ITIter, "Iterate", NULL);
 }
 
-instruction_t * instruction_create_next(char *end_label) {
-  return instruction_create(ITNext, end_label, NULL);
+instruction_t * instruction_create_next(data_t *end_label) {
+  return instruction_create(ITNext, data_charval(end_label), NULL);
 }
 
 instruction_t * instruction_create_pop(void) {
@@ -663,8 +663,8 @@ char * instruction_assign_label(instruction_t *instruction) {
   return instruction -> label;
 }
 
-instruction_t * instruction_set_label(instruction_t *instruction, char *label) {
-  instruction -> label = strdup(label);
+instruction_t * instruction_set_label(instruction_t *instruction, data_t *label) {
+  instruction -> label = strdup(data_charval(label));
   return instruction;
 }
 

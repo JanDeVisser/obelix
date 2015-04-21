@@ -291,10 +291,10 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
         break;
         
       case PSETypeAction:
-        assert(e -> action && e -> action -> fnc && e -> action -> fnc -> fnc);
         if (parser_debug) {
           debug("    Executing action %s", grammar_action_tostring(e -> action));
         }
+        assert(e -> action && e -> action -> fnc && e -> action -> fnc -> fnc);
         if (e -> action -> data) {
           ret = ((parser_data_fnc_t) e -> action -> fnc -> fnc)(parser, e -> action -> data);
         } else {
