@@ -20,18 +20,9 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
 
 lib_LTLIBRARIES = libobltypes.la
-libobltypes_la_SOURCES = \
-		name.c \
-		data.c \
-		error.c \
-		int.c \
-		float.c \
-		string.c \
-		pointer.c \
-		method.c \
-		list.c \
-		nvp.c \
-		range.c
+libobltypes_la_SOURCES = name.c data.c error.c int.c float.c string.c \
+			 pointer.c method.c list.c nvp.c range.c thread.c \
+			 mutex.c
 
 libobltypes_la_LIBADD = ../lib/liboblcore.la -lm
 

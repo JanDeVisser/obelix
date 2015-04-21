@@ -34,7 +34,7 @@ static data_t *      _thread_current_thread(data_t *, char *, array_t *, dict_t 
 static data_t *      _thread_interrupt(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_yield(data_t *, char *, array_t *, dict_t *);
 
-vtable_t _vtable_thread[] = {
+static vtable_t _vtable_thread[] = {
   { .id = FunctionNew,      .fnc = (void_t) _data_new_thread },
   { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_thread },
   { .id = FunctionFree,     .fnc = (void_t) thread_free },
@@ -63,8 +63,6 @@ static methoddescr_t _methoddescr_thread[] = {
 /* ------------------------------------------------------------------------ */
 
 void _data_init_thread(void) {
-  thread_t *main;
-  
   typedescr_register(&typedescr_thread);
   typedescr_register_methods(_methoddescr_thread);
 }

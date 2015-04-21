@@ -27,7 +27,8 @@
 #include <logging.h>
 #include <parser.h>
 
-int parser_debug = 0;
+       int parser_debug = 0;
+extern int script_debug;
 
 typedef enum {
   PSETypeNonTerminal,

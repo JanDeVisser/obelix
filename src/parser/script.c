@@ -28,6 +28,7 @@
 #include <namespace.h>
 #include <script.h>
 #include <str.h>
+#include <thread.h>
 
 
 int script_debug = 0;
@@ -784,7 +785,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
       closure -> params = kwargs;
     }
     if (script -> async && kwargs) {
-      dict_reduce(kwargs, (reduce_t) data_put_all_reducer, closure -> params)
+      dict_reduce(kwargs, (reduce_t) data_put_all_reducer, closure -> params);
     }
     for (ix = 0; ix < array_size(args); ix++) {
       param = data_copy(data_array_get(args, ix));
@@ -809,25 +810,21 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   }
   
   datastack_push(closure -> catchpoints, data_create(String, "ERROR"));
-  if (closure -> caller && data_is_closure(closure -> caller) && data_closureval(closure -> caller) -> thread) {
+  if (closure -> caller && data_is_closure(closure -> caller) && 
+      data_closureval(closure -> caller) -> thread) {
     closure -> thread = data_copy(data_closureval(closure -> caller) -> thread);
   } else {
     closure -> thread = NULL;
   }
   if (script -> async) {
-    if ((errno = pthread_create(&thr_id, NULL, 
-                                (voidptrvoidptr_t) _closure_start, 
-                                closure_copy(closure))) < 0) {
-      return data_error_from_errno();
-    }
-    if (errno = pthread_detach(thr_id)) {
-      return data_error_from_errno();
-    }
-    closure -> thread = data_create(Thread, thr_id, closure_tostring(closure));
+    closure -> thread = data_create(Thread, 
+				    closure_tostring(closure),
+				    (threadproc_t) _closure_start,
+				    closure_copy(closure));
     return closure -> thread;
   } else {
     return _closure_start(closure);
-  }  
+  }
 }
 
 closure_t * closure_set_location(closure_t *closure, data_t *location) {

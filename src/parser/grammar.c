@@ -74,7 +74,7 @@ static vtable_t _vtable_ge[] = {
 };
 
 static typedescr_t _typedescr_ge = {
-  .type      = GETGrammarElement,
+  .type      = -1,
   .type_name = "grammarelement",
   .vtable    = _vtable_ge
 };
@@ -87,7 +87,7 @@ static vtable_t _vtable_grammar[] = {
 };
 
 static typedescr_t _typedescr_grammar = {
-  .type      = GETGrammar,
+  .type      = -1,
   .type_name = "grammar",
   .vtable    = _vtable_grammar
 };
@@ -100,7 +100,7 @@ static vtable_t _vtable_nonterminal[] = {
 };
 
 static typedescr_t _typedescr_nonterminal = {
-  .type      = GETNonTerminal,
+  .type      = -1,
   .type_name = "nonterminal",
   .vtable    = _vtable_nonterminal
 };
@@ -113,7 +113,7 @@ static vtable_t _vtable_rule[] = {
 };
 
 static typedescr_t _typedescr_rule = {
-  .type      = GETRule,
+  .type      = -1,
   .type_name = "rule",
   .vtable    = _vtable_rule
 };
@@ -126,10 +126,18 @@ static vtable_t _vtable_rule_entry[] = {
 };
 
 static typedescr_t _typedescr_rule_entry = {
-  .type      = GETRuleEntry,
+  .type      = -1,
   .type_name = "rule_entry",
   .vtable    = _vtable_rule_entry
 };
+
+grammar_element_type_t   GETGrammarElement = -1;
+grammar_element_type_t   GETGrammar = -1;
+grammar_element_type_t   GETNonTerminal = -1;
+grammar_element_type_t   GETRule = -1;
+grammar_element_type_t   GETRuleEntry = -1;
+grammar_element_type_t   GETTerminal = -1;
+
 
 void _grammar_init(void) {
   logging_register_category("grammar", &grammar_debug);
@@ -203,10 +211,10 @@ char * grammar_action_tostring(grammar_action_t *grammar_action) {
  */
 
 void _ge_init(void) {
-  typedescr_register(&_typedescr_grammar);
-  typedescr_register(&_typedescr_nonterminal);
-  typedescr_register(&_typedescr_rule);
-  typedescr_register(&_typedescr_rule_entry);
+  GETGrammar = typedescr_register(&_typedescr_grammar);
+  GETNonTerminal = typedescr_register(&_typedescr_nonterminal);
+  GETRule = typedescr_register(&_typedescr_rule);
+  GETRuleEntry = typedescr_register(&_typedescr_rule_entry);
 }
 
 ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, ...) {

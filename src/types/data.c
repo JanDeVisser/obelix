@@ -229,7 +229,7 @@ int typedescr_register(typedescr_t *descr) {
   if (descr -> type < 0) {
     descr -> type = (data_numtypes > Dynamic) ? data_numtypes : Dynamic;
   }
-  //debug("Registering type '%s'", descr -> type_name);
+  debug("Registering type '%s' [%d]", descr -> type_name, descr -> type);
   assert((descr -> type >= data_numtypes) || descriptors[descr -> type].type == 0);
   if (descr -> type >= data_numtypes) {
     newsz = (descr -> type + 1) * sizeof(typedescr_t);
@@ -868,8 +868,8 @@ int data_cmp(data_t *d1, data_t *d2) {
   data_t      *p2 = NULL;
   int          ret;
   cmp_t        cmp;
-  
-  if (!d1 && !d2) {
+
+  if (d1 == d2) {
     return 0;
   } else if (!d1 || !d2) {
     return (!d1) ? -1 : 1;

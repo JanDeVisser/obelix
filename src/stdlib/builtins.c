@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include <array.h>
 #include <data.h>
@@ -26,6 +27,7 @@
 #include <str.h>
 
 extern data_t * _function_print(char *, array_t *, dict_t *);
+extern data_t * _function_sleep(char *, array_t *, dict_t *);
 
 data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
   data_t  *fmt;
@@ -49,4 +51,16 @@ data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
   }
   name_free(name);
   return data_create(Int, 0);
+}
+
+
+data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
+  data_t  *naptime;
+
+  (void) func_name;
+  (void) kwargs;
+  assert(array_size(args));
+  naptime = (data_t *) array_get(args, 0);
+  assert(naptime);
+  return data_create(Int, sleep(data_intval(naptime)));
 }

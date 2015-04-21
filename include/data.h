@@ -27,7 +27,7 @@
 #include <name.h>
 
 typedef enum _datatype {
-  NoType         = 0,
+  NoType          = 0,
   Error,        /*  1 */
   Pointer,      /*  2 */
   String,       /*  3 */
@@ -48,9 +48,10 @@ typedef enum _datatype {
   NVP,          /* 18 */
   Range,        /* 19 */
   Thread,       /* 20 */
-  Dynamic       = 25,
+  Mutex,        /* 21 */
+  Any,          /* 22 */
+  Dynamic        = 23,
   Callable      = 999,
-  Any           = 1000
 } datatype_t;
 
 typedef enum _vtable_id {

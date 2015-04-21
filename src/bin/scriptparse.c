@@ -344,19 +344,6 @@ parser_t * script_parse_import(parser_t *parser) {
   return parser;
 }
 
-parser_t * script_parse_emit_test(parser_t *parser) {
-  script_t      *script;
-  instruction_t *test;
-  char           label[9];
-
-  script = parser -> data;
-  strrand(label, 8);
-  test = instruction_create_test(label);
-  datastack_push_string(parser -> stack, label);
-  script_push_instruction(script, test);
-  return parser;
-}
-
 parser_t * script_parse_emit_for(parser_t *parser) {
   script_t      *script;
   char           next_label[9];
@@ -374,78 +361,6 @@ parser_t * script_parse_emit_for(parser_t *parser) {
   script_push_instruction(script, instruction_create_next(end_label));
   script_push_instruction(script, instruction_create_assign(data_nameval(varname)));
   data_free(varname);
-  return parser;
-}
-
-parser_t * script_parse_emit_jump(parser_t *parser) {
-  script_t      *script;
-  instruction_t *jump;
-  char           label[9];
-
-  script = parser -> data;
-  strrand(label, 8);
-  jump = instruction_create_jump(label);
-  datastack_push_string(parser -> stack, jump -> name);
-  script_push_instruction(script, jump);
-  return parser;
-}
-
-parser_t * script_parse_emit_pop(parser_t *parser) {
-  script_t      *script;
-
-  script = parser -> data;
-  script_push_instruction(script, instruction_create_pop());
-  return parser;
-}
-
-parser_t * script_parse_emit_nop(parser_t *parser) {
-  script_t      *script;
-
-  script = parser -> data;
-  script_push_instruction(script, instruction_create_nop());
-  return parser;
-}
-
-parser_t * script_parse_push_label(parser_t *parser) {
-  script_t *script;
-  char      label[9];
-  data_t   *data;
-
-  script = parser -> data;
-  strrand(label, 8);
-  data = data_create(String, label);
-  datastack_push(script -> pending_labels, data_copy(data));
-  datastack_push(parser -> stack, data_copy(data));
-  return parser;
-}
-
-parser_t * script_parse_emit_else(parser_t *parser) {
-  script_t      *script;
-  data_t        *label;
-  char           newlabel[9];
-
-  script = parser -> data;
-  label = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- label: %s", data_debugstr(label));
-  }
-  strrand(newlabel, 8);
-  script_push_instruction(script, instruction_create_jump(newlabel));
-  datastack_push(script -> pending_labels, label);
-  datastack_push_string(parser -> stack, newlabel);
-  return parser;
-}
-
-parser_t * script_parse_emit_end(parser_t *parser) {
-  script_t      *script;
-  data_t        *label;
-
-  script = parser -> data;
-  label = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- label: %s", data_debugstr(label));
-  }
-  datastack_push(script -> pending_labels, label);
   return parser;
 }
 
@@ -480,6 +395,120 @@ parser_t * script_parse_emit_end_loop(parser_t *parser) {
 
   datastack_push(script -> pending_labels, block_label);
 
+  return parser;
+}
+
+parser_t * script_parse_emit_jump(parser_t *parser) {
+  script_t      *script;
+  instruction_t *jump;
+  char           label[9];
+
+  script = parser -> data;
+  strrand(label, 8);
+  jump = instruction_create_jump(label);
+  datastack_push_string(parser -> stack, jump -> name);
+  script_push_instruction(script, jump);
+  return parser;
+}
+
+parser_t * script_parse_emit_pop(parser_t *parser) {
+  script_t      *script;
+
+  script = parser -> data;
+  script_push_instruction(script, instruction_create_pop());
+  return parser;
+}
+
+parser_t * script_parse_emit_nop(parser_t *parser) {
+  script_t      *script;
+
+  script = parser -> data;
+  script_push_instruction(script, instruction_create_nop());
+  return parser;
+}
+
+parser_t * script_parse_start_loop(parser_t *parser) {
+  script_t *script;
+  char      label[9];
+
+  script = parser -> data;
+  strrand(label, 8);
+  datastack_push_string(script -> pending_labels, label);
+  datastack_push_string(parser -> stack, label);
+  return parser;
+}
+
+parser_t * script_parse_if(parser_t *parser) {
+  char      endlabel[9];
+  data_t   *data;
+
+  strrand(endlabel, 8);
+  datastack_push_string(parser -> stack, endlabel);
+  return parser;
+}
+
+parser_t * script_parse_emit_test(parser_t *parser) {
+  script_t      *script;
+  char           endlabel[9];
+  char           elselabel[9];
+
+  debug(" -- test --");
+  script = parser -> data;
+  strrand(elselabel, 8);
+  datastack_push_string(parser -> stack, elselabel);
+  script_push_instruction(script, instruction_create_test(elselabel));
+  return parser;
+}
+
+parser_t * script_parse_elif(parser_t *parser) {
+  script_t      *script;
+  data_t        *elselabel;
+  char           newlabel[9];
+  char           endlabel[9];
+
+  script = parser -> data;
+  elselabel = datastack_pop(parser -> stack);
+  //if (parser_debug) {
+    debug(" -- elif   elselabel: '%s'", data_tostring(elselabel));
+  //}
+  script_push_instruction(script, instruction_create_jump(data_tostring(endlabel)));
+  datastack_push(script -> pending_labels, elselabel);
+  return parser;
+}
+
+parser_t * script_parse_emit_else(parser_t *parser) {
+  script_t      *script;
+  data_t        *endlabel;
+  data_t        *elselabel;
+
+  script = parser -> data;
+  elselabel = datastack_pop(parser -> stack);
+  endlabel = datastack_pop(parser -> stack);
+  //if (parser_debug) {
+    debug(" -- else   elselabel: '%s' endlabel: '%s'", data_tostring(elselabel), data_tostring(endlabel));
+  //}
+  script_push_instruction(script, instruction_create_jump(data_tostring(endlabel)));
+  datastack_push(script -> pending_labels, elselabel);
+  datastack_push(parser -> stack, endlabel);
+  datastack_push(parser -> stack, elselabel);
+  return parser;
+}
+
+parser_t * script_parse_emit_end_if(parser_t *parser) {
+  script_t      *script;
+  data_t        *endlabel;
+  data_t        *elselabel;
+
+  script = parser -> data;
+  elselabel = datastack_pop(parser -> stack);
+  endlabel = datastack_pop(parser -> stack);
+  //if (parser_debug) {
+    debug(" -- end     elselabel: '%s' endlabel: '%s'", data_tostring(elselabel), data_tostring(endlabel));
+  //}
+  datastack_push(script -> pending_labels, elselabel);
+  if (data_cmp(endlabel, elselabel)) {
+    datastack_push(script -> pending_labels, endlabel);
+  }
   return parser;
 }
 

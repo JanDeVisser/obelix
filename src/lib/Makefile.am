@@ -21,18 +21,8 @@ AM_LDFLAGS  = -rdynamic -pthread
 
 lib_LTLIBRARIES = liboblcore.la
 
-liboblcore_la_SOURCES = \
-		core.c \
-		list.c \
-		array.c \
-		dict.c \
-		set.c \
-		file.c \
-		str.c \
-		resolve.c \
-		user.c \
-		logging.c \
-		socket.c
+liboblcore_la_SOURCES = core.c list.c array.c dict.c set.c file.c str.c \
+		        resolve.c user.c logging.c socket.c thread.c
 
 # Disabled for now. Don't need them and expr needs to be moved to types.		
 #		tree.c 
@@ -41,4 +31,3 @@ liboblcore_la_SOURCES = \
 liboblcore_la_LIBADD = -lpthread -ldl
 
 SUBDIRS = . test
-

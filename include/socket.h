@@ -21,6 +21,7 @@
 #define	__SOCKET_H__
 
 #include <file.h>
+#include <thread.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -30,17 +31,19 @@ typedef struct _connection {
   struct _socket *server;
   struct _socket *client;
   void           *context;
+  thread_t       *thread;
 } connection_t;
 
   
 typedef void * (*service_t)(connection_t *);
     
 typedef struct _socket {
-  file_t *sockfile;
+  file_t    *sockfile;
   int        fh;
   char      *host;
   char      *service;
   service_t  service_handler;
+  thread_t  *thread;
   void      *context;
   char      *str;
   int        refs;

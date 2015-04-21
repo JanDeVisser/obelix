@@ -20,12 +20,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #include <socket.h>
+#include <thread.h>
 
 typedef int         (*socket_fnc_t)(int, const struct sockaddr *, socklen_t);
 
@@ -107,6 +107,8 @@ void * _socket_connection_handler(connection_t *connection) {
   
   ret = connection -> server -> service_handler(connection);
   socket_free(connection -> client);
+  socket_free(connection -> server);
+  thread_free(connection -> thread);
   return ret;
 }
 
@@ -126,19 +128,15 @@ int _socket_accept(socket_t *socket) {
       error("Could not retrieve client name");
       return -1;
     }
-    client_socket = _socket_create(client_fd, hoststr, portstr);
     connection = NEW(connection_t);
-    connection -> server = socket;
-    connection -> client = client_socket;
+    connection -> server = socket_copy(socket);
+    connection -> client = _socket_create(client_fd, hoststr, portstr);
     connection -> context = socket -> context;
-    if (pthread_create(&thr_id, NULL, 
-                       (voidptrvoidptr_t) _socket_connection_handler, 
-                       connection) < 0) {
+    connection -> thread = thread_new("Socket Connection Handler",
+                                      (threadproc_t) _socket_connection_handler, 
+                                      connection);
+    if (!connection -> thread) {
       error("Could not create connection service thread");
-      return -1;
-    }
-    if (pthread_detach(thr_id)) {
-      error("Could not detach connection service thread");
       return -1;
     }
   } else {
@@ -172,7 +170,7 @@ int _socket_accept_loop(socket_t *socket) {
 }
 
 int _socket_listen(socket_t *socket, service_t service, void *context, int async) {
-  pthread_t          thr_id;
+  thread_t  *thread;
   if (TEMP_FAILURE_RETRY(listen(socket -> fh, 5))) {
     error("Error setting up listener");
     return -1;
@@ -183,16 +181,13 @@ int _socket_listen(socket_t *socket, service_t service, void *context, int async
     if (!async) {
       _socket_accept_loop(socket);
     } else {
-      if (pthread_create(&thr_id, NULL, 
-                         (voidptrvoidptr_t) _socket_accept_loop, 
-                         socket) < 0) {
+      socket -> thread = thread_new("Socket Listener Thread", 
+		                    (threadproc_t) _socket_accept_loop, 
+                                    socket);
+      if (!socket -> thread) {
         error("Could not create listener thread");
         return -1;
       }
-      if (pthread_detach(thr_id)) {
-        error("Could not detach listener thread");
-        return -1;
-      }      
     }
     return 0;
   }
@@ -246,20 +241,19 @@ socket_t * socket_copy(socket_t *socket) {
 }
 
 void socket_free(socket_t *socket) {
-  if (socket) {
-    socket -> refs--;
-    if (socket -> refs <= 0) {
-      file_close(socket -> sockfile);
-      file_free(socket -> sockfile);
-      free(socket -> str);
-      free(socket -> host);
-      free(socket -> service);
-      free(socket);
-    }
+  if (socket && (--socket -> refs <= 0)) {
+    socket_close(socket);
+    file_free(socket -> sockfile);
+    free(socket -> str);
+    free(socket -> host);
+    free(socket -> service);
+    thread_free(socket -> thread);
+    free(socket);
   }
 }
 
 int socket_close(socket_t *socket) {
+  socket_interrupt(socket);
   return file_close(socket -> sockfile);  
 }
 
@@ -291,6 +285,9 @@ int socket_listen_detach(socket_t *socket, service_t service, void *context) {
 }
 
 socket_t * socket_interrupt(socket_t *socket) {
+  if (socket -> thread) {
+    thread_interrupt(socket -> thread);
+  }
   socket -> service_handler = NULL;
   return socket;
 }

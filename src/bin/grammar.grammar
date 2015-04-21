@@ -27,25 +27,36 @@ statement                   := conditional
                                assignment_or_call
                              ;
 
-conditional                 := "if"
+conditional                 := "if"              [ if                        ]
                                expr              [ emit_test                 ]
                                statements
-                               else_clause
-                               end_stmt          [ emit_end                  ]
+                               elif_seq
+                               else
+                               end               [ emit_end_if               ]
                              ;
 
-else_clause                 := "else"            [ emit_else                 ]
+elif_seq                    := elif
+                               elif_seq
+                             |
+                             ;
+                             
+elif                        := "elif"            [ elif                      ]
+                               expr              [ emit_test                 ]
+                               statements
+                             ;
+                             
+else                        := "else"            [ else                      ]
                                statements
                              |
                              ;
                              
-end_stmt                    := "end"
+end                         := "end"
                              ;
 
-while_loop                  := "while"           [ push_label                ]
+while_loop                  := "while"           [ start_loop                ]
                                expr              [ emit_test                 ]
                                statements
-                               end_stmt          [ emit_end_loop             ]
+                               end               [ emit_end_loop             ]
                              ;
 
 for_loop                    := "for"
@@ -53,7 +64,7 @@ for_loop                    := "for"
                                "in"
                                expr              [ emit_for                  ]
                                statements
-                               end_stmt          [ emit_end_loop             ]
+                               end               [ emit_end_loop             ]
                              ;
                              
 func_def                    := sync_async
@@ -72,7 +83,7 @@ sync_async                  := "async"           [ pushval: 1                ]
 func_block                  :=                   [ start_function            ]
                                baseclasses
                                statements
-                               end_stmt          [ end_function              ]
+                               end               [ end_function              ]
                              | link_clause       [ native_function           ]
                              ;
 
@@ -135,7 +146,7 @@ context_block               := "context"
                                identifier
                                assignment_or_empty [ begin_context_block     ]
                                statements        
-                               end_stmt            [ end_context_block       ]
+                               end                 [ end_context_block       ]
                              ;
 
 assignment_or_empty         :=                   [ dup                       ]

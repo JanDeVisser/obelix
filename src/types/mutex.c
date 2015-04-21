@@ -32,7 +32,9 @@ static char *        _mutex_tostring(data_t *);
 static unsigned int  _mutex_hash(data_t *);
 static data_t *      _mutex_resolve(data_t *, char *);
 
+static data_t *      _mutex_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _mutex_lock(data_t *, char *, array_t *, dict_t *);
+static data_t *      _mutex_trylock(data_t *, char *, array_t *, dict_t *);
 static data_t *      _mutex_unlock(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_mutex[] = {
@@ -52,10 +54,11 @@ static typedescr_t typedescr_mutex = {
 };
 
 static methoddescr_t _methoddescr_mutex[] = {
-  { .type = Mutex,  .name = "lock",    .method = _mutex_lock,   .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Mutex,  .name = "trylock", .method = _mutex_unlock, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Mutex,  .name = "unlock",  .method = _mutex_unlock, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = NoType, .name = NULL,      .method = NULL,          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = Any,    .name = "mutex",   .method = _mutex_create,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Mutex,  .name = "lock",    .method = _mutex_lock,    .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Mutex,  .name = "trylock", .method = _mutex_trylock, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Mutex,  .name = "unlock",  .method = _mutex_unlock,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,      .method = NULL,           .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 #define data_is_mutex(d) ((d) && (data_type((d)) == Mutex))
@@ -114,6 +117,10 @@ data_t * _mutex_resolve(data_t *self, char *name) {
 }
 
 /* ------------------------------------------------------------------------ */
+
+data_t * _mutex_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_create(Mutex);
+}
 
 data_t * _mutex_lock(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   pthread_mutex_t *mutex = data_mutexval(self);

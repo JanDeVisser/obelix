@@ -340,7 +340,9 @@ function_t * function_create_noresolve(char *name) {
 }
 
 function_t * function_copy(function_t *src) {
-  src -> refs++;
+  if (src) {
+    src -> refs++;
+  }
   return src;
 }
 

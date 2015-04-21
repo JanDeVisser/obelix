@@ -58,14 +58,13 @@ typedef struct _grammar_action {
 
 /* ----------------------------------------------------------------------- */
 
-typedef enum _grammar_element_type {
-  GETGrammarElement = 20,
-  GETGrammar,
-  GETNonTerminal,
-  GETRule,
-  GETRuleEntry,
-  GETTerminal
-} grammar_element_type_t;
+typedef int grammar_element_type_t;
+extern grammar_element_type_t   GETGrammarElement;
+extern grammar_element_type_t   GETGrammar;
+extern grammar_element_type_t   GETNonTerminal;
+extern grammar_element_type_t   GETRule;
+extern grammar_element_type_t   GETRuleEntry;
+extern grammar_element_type_t   GETTerminal;
 
 struct _grammar;
 struct _grammar_element;

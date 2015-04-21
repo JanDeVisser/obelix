@@ -62,7 +62,7 @@ typedef struct _closure {
   script_t        *script;
   data_t          *self;
   dict_t          *params;
-  int             *free_params;
+  int              free_params;
   dict_t          *variables;
   datastack_t     *stack;
   datastack_t     *catchpoints;

@@ -22,6 +22,7 @@
  */
  
 func print(msg) -> "liboblstdlib.so:_function_print"
+func sleep(naptime) -> "liboblstdlib.so:_function_sleep"
 
 self.stdin = adopt(0)
 self.stdout = adopt(1)
