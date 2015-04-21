@@ -17,42 +17,27 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <pthread.h>
 #include <string.h>
 
 #include <data.h>
-
-typedef struct _thread {
-  pthread_t  thr_id;
-  char      *name;
-  int        refs;
-} thread_t;
-
-static thread_t *    thread_create(pthread_t, char *);
-static void          thread_free(thread_t *);
-static thread_t *    threat_copy(thread_t *);
-static unsigned int  thread_hash(thread_t *);
-static int           thread_cmp(thread_t *, thread_t *);
-static char *        thread_tostring(thread_t *);
-static int           thread_interrupt(thread_t *);
-static int           thread_yield(thread_t *);
+#include <exception.h>
+#include <thread.h>
 
 static void          _data_init_thread(void) __attribute__((constructor));
 static data_t *      _data_new_thread(data_t *, va_list);
-static data_t *      _data_copy_thread(data_t *, data_t *);
 static int           _data_cmp_thread(data_t *, data_t *);
 static char *        _data_tostring_thread(data_t *);
 static unsigned int  _data_hash_thread(data_t *);
 static data_t *      _data_resolve_thread(data_t *, char *);
 
+static data_t *      _thread_current_thread(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_interrupt(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_yield(data_t *, char *, array_t *, dict_t *);
 
 vtable_t _vtable_thread[] = {
   { .id = FunctionNew,      .fnc = (void_t) _data_new_thread },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_thread },
   { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_thread },
-  { .id = FunctionFree,     .fnc = (void_t) _thread_free },
+  { .id = FunctionFree,     .fnc = (void_t) thread_free },
   { .id = FunctionToString, .fnc = (void_t) _data_tostring_thread },
   { .id = FunctionHash,     .fnc = (void_t) _data_hash_thread },
   { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_thread },
@@ -66,40 +51,90 @@ static typedescr_t typedescr_thread = {
 };
 
 static methoddescr_t _methoddescr_thread[] = {
-  { .type = Thread, .name = "interrupt", .method = _thread_interrupt, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Thread, .name = "yield",     .method = _thread_yield,     .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = NoType, .name = NULL,        .method = NULL,              .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = Any,    .name = "current_thread", .method = _thread_current_thread, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Thread, .name = "interrupt",      .method = _thread_interrupt,      .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Thread, .name = "yield",          .method = _thread_yield,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,             .method = NULL,                   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
+#define data_is_thread(d) ((d) && (data_type((d)) == Thread))
+#define data_threadval(d) ((thread_t *) ((data_is_thread((d)) ? (d) -> ptrval : NULL)))
 
-thread_t * thread_create(pthread_t thr_id, char *name) {
-  thread_t *ret = NEW(thread_t);
+/* ------------------------------------------------------------------------ */
 
-  ret -> thr_id = thr_id;
-  ret -> name = (name) ? strdup(name) : strdup("");
-  ret -> refs = 1;
-  return ret;
+void _data_init_thread(void) {
+  thread_t *main;
+  
+  typedescr_register(&typedescr_thread);
+  typedescr_register_methods(_methoddescr_thread);
 }
 
-void thread_free(thread_t *thread) {
-  if (thread && (--thread -> refs <= 0)) {
-    free(thread -> name);
-    free(thread);
-  }
-}
-
-thread_t * threat_copy(thread_t *thread) {
+data_t * _data_new_thread(data_t *data, va_list args) {
+  char         *name = va_arg(args, char *);
+  threadproc_t  handler = va_arg(args, threadproc_t);
+  void         *context = va_arg(args, void *);
+  thread_t     *thread = thread_new(name, handler, context);
+  
   if (thread) {
-    thread -> refs++;
+    data -> ptrval = thread;
+    return data;
+  } else {
+    return data_error_from_errno();
   }
-  return thread;
 }
 
-unsigned int thread_hash(thread_t *thread) {
-  return (thread) ? (unsigned int) thread -> thread : 0;
+int _data_cmp_thread(data_t *d1, data_t *d2) {
+  return thread_cmp(data_threadval(d1), data_threadval(d2));
 }
 
-static int           thread_cmp(thread_t *, thread_t *);
-static char *        thread_tostring(thread_t *);
-static int           thread_interrupt(thread_t *);
-static int           thread_yield(thread_t *);
+char * _data_tostring_thread(data_t *data) {
+  return thread_tostring(data_threadval(data));
+}
+
+unsigned int _data_hash_thread(data_t *data) {
+  return thread_hash(data_threadval(data));
+}
+
+data_t * _data_resolve_thread(data_t *self, char *name) {
+  if (!strcmp(name, "name")) {
+    return data_create(String, data_threadval(self) -> name);
+  }
+  return NULL;
+}
+
+/* ------------------------------------------------------------------------ */
+
+data_t * _thread_current_thread(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  thread_t *current;
+  data_t   *data;
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  
+  current = thread_self();
+  data = data_create_noinit(Thread);
+  data -> ptrval = thread_copy(current);
+  return data;
+}
+
+data_t * _thread_interrupt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  
+  thread_interrupt(data_threadval(self));
+  return self;
+}
+
+data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  
+  if (!thread_cmp(data_threadval(self), thread_self())) {
+    thread_yield();
+    return self;
+  } else {
+    return data_error(ErrorType, "Can only call yield on current thread");
+  }
+}
