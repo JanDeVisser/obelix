@@ -1,0 +1,10 @@
+async func foo()
+  for i in 0 ~ 9
+    print(i)
+  end
+end
+
+t = foo()
+print("threadname: ${0}", t.name)
+sleep(1)
+print("done")
