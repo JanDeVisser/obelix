@@ -252,6 +252,15 @@ parser_t * script_parse_pushval_from_stack(parser_t *parser) {
   return parser;
 }
 
+parser_t * script_parse_dupval(parser_t *parser) {
+  script_t *script;
+  
+  script = parser -> data;
+  script_push_instruction(script, 
+                          instruction_create_dup());  
+  return parser;
+}
+
 parser_t * script_parse_pushconst(parser_t *parser, data_t *constval) {
   script_t *script;
   data_t   *data;
@@ -309,6 +318,12 @@ parser_t * script_parse_infix_op(parser_t *parser) {
     instruction_create_function(name, CFInfix, 2, NULL));
   name_free(name);
   data_free(op);
+  return parser;
+}
+
+parser_t * script_parse_op(parser_t *parser, name_t *op) {
+  script_push_instruction(parser -> data,
+                          instruction_create_function(op, CFNone, 2, NULL));
   return parser;
 }
 
@@ -504,7 +519,7 @@ parser_t * script_parse_else(parser_t *parser) {
   return parser;
 }
 
-parser_t * script_parse_end_if(parser_t *parser) {
+parser_t * script_parse_end_conditional(parser_t *parser) {
   script_t *script;
   data_t   *endlabel;
   data_t   *elselabel;
@@ -523,6 +538,24 @@ parser_t * script_parse_end_if(parser_t *parser) {
   data_free(endlabel);
   return parser;
 }
+
+/* -- S W I T C H  S T A T E M E N T ---------------------------------------*/
+
+parser_t * script_parse_case(parser_t *parser) {
+  script_t      *script;
+  static name_t *equals = NULL;
+  
+  if (!equals) {
+    equals = name_create(1, "==");
+  }
+  script = parser -> data;
+  script_parse_op(parser, equals);
+  script_parse_test(parser);
+  return parser;
+}
+
+
+/* -- F U N C T I O N  D E F I N I T I O N S -------------------------------*/
 
 parser_t * script_parse_start_function(parser_t *parser) {
   script_t  *up;

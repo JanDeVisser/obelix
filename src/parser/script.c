@@ -633,6 +633,10 @@ data_t * closure_pop(closure_t *closure) {
   return datastack_pop(closure -> stack);
 }
 
+data_t * closure_peek(closure_t *closure) {
+  return datastack_peek(closure -> stack);
+}
+
 /**
  * @brief Pushes a data value onto the closure run-time stack.
  * 

@@ -27,6 +27,7 @@
 
 typedef enum _instruction_type {
   ITAssign,
+  ITDup,
   ITEnterContext,
   ITFunctionCall,
   ITImport,
@@ -74,6 +75,7 @@ extern instruction_t *  instruction_create_import(name_t *);
 extern instruction_t *  instruction_create_mark(int);
 extern instruction_t *  instruction_create_nop(void);
 extern instruction_t *  instruction_create_pop(void);
+extern instruction_t *  instruction_create_dup(void);
 extern instruction_t *  instruction_create_throw(void);
 extern char *           instruction_assign_label(instruction_t *);
 extern instruction_t *  instruction_set_label(instruction_t *, data_t *);

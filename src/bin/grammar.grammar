@@ -16,6 +16,7 @@ statements                  := statement
 statement                   := conditional
                              | while_loop
                              | for_loop
+                             | switch
                              | func_def
                              | return_stmt
                              | import_stmt
@@ -28,15 +29,16 @@ statement                   := conditional
                                assignment_or_call
                              ;
 
-pass                        := "pass"            [ nop                       ]
+pass                [ nop ] := ';'
+                             | "pass"
                              ;
-                             
+
 conditional                 := "if"              [ if                        ]
                                expr              [ test                      ]
                                statements
                                elif_seq
                                else
-                               end               [ end_if                    ]
+                               end               [ end_conditional           ]
                              ;
 
 elif_seq                    := elif
@@ -69,6 +71,39 @@ for_loop                    := "for"
                                expr              [ for                       ]
                                statements
                                end               [ end_loop                  ]
+                             ;
+switch                      := "switch"          [ if                        ]
+                               expr
+                               cases
+                               end               [ end_conditional           ]
+                             ;
+
+cases                       := cases_seq
+                               default
+                             ;
+
+cases_seq                   := case_block
+                               cases_seq
+                             |
+                             ;
+
+case_block                  := case_stmts
+                               statements
+                               end
+                              ;
+
+case_stmts                  := case_stmt
+                               case_stmts
+                             |
+                             ;
+
+case_stmt                   := "case"           [ dupval                     ]
+                               expr             [ case                       ]
+                             ;
+
+default                     := "default"        [ default_case               ]
+                               statements
+                               end
                              ;
 
 func_def                    := sync_async
@@ -292,7 +327,8 @@ attrlist_tail               := ,
                              |
 			     ;
 
-logic_op                    := > | ">=" | < | "<=" | "==" | "!=" ;
+logic_op                    := > | ">=" | < | "<=" | "==" | "!=" | "||" | "&&"
+                             ;
                              
 add_op                      := + | - | ~;
 

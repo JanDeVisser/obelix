@@ -62,6 +62,7 @@ static data_t *         _instruction_execute_next(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_new(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_nop(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pop(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_dup(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_test(instruction_t *, closure_t *);
@@ -72,6 +73,10 @@ static instruction_type_descr_t instruction_descr_map[] = {
     .function = _instruction_execute_assign,
     .name = "Assign",
     .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITAssign,   
+    .function = _instruction_execute_dup,
+    .name = "Dup",
+    .tostring = (tostring_t) _instruction_tostring_name },
   { .type = ITEnterContext,
     .function = _instruction_execute_enter_context,
     .name = "Enter",
@@ -565,6 +570,11 @@ data_t * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
+data_t * _instruction_execute_dup(instruction_t *instr, closure_t *closure) {
+  closure_push(data_copy(closure_peek(closure)));
+  return NULL;
+}
+
 /* -- P U B L I C  F U N C T I O N S -------------------------------------- */
 
 instruction_t * instruction_create(int type, char *name, data_t *value) {
@@ -640,6 +650,10 @@ instruction_t * instruction_create_next(data_t *end_label) {
 
 instruction_t * instruction_create_pop(void) {
   return instruction_create(ITPop, "Discard top-of-stack", NULL);
+}
+
+instruction_t * instruction_create_dup(void) {
+  return instruction_create(ITPop, "Duplicate top-of-stack", NULL);
 }
 
 instruction_t * instruction_create_mark(int line) {

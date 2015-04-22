@@ -34,6 +34,8 @@ static int debug_data = 0;
 static void     _any_init(void) __attribute__((constructor));
 static data_t * _any_cmp(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_not(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_and(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_or(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hash(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hasattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_getattr(data_t *, char *, array_t *, dict_t *);
@@ -66,6 +68,10 @@ static methoddescr_t _methoddescr_any[] = {
   { .type = Any,    .name = "==" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "!=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "not",      .method = _any_not,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "and",      .method = _any_and,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = Any,    .name = "&&",       .method = _any_and,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = Any,    .name = "or",       .method = _any_or,       .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = Any,    .name = "||",       .method = _any_or,       .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
   { .type = Any,    .name = "hash",     .method = _any_hash,     .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "hasattr",  .method = _any_hasattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
@@ -140,6 +146,7 @@ data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
 data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *asbool = data_cast(self, Bool);
+  data_t *ret;
   
   (void) name;
   (void) args;
@@ -150,8 +157,81 @@ data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
                       data_tostring(self),
                       data_typedescr(self) -> type_name);
   } else {
-    return data_create(Int, data_intval(asbool) == 0);
+    ret = data_create(Int, data_intval(asbool) == 0);
+    data_free(asbool);
   }
+}
+
+data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *asbool;
+  int     boolval;
+  int     ix;
+  
+  (void) name;
+  (void) kwargs;
+  for (ix = -1; ix < array_size(ix); ix++) {
+    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix));
+    if (!asbool) {
+      return data_error(ErrorSyntax, 
+                        "and(): Cannot convert value '%s' of type '%s' to boolean",
+                        data_tostring(data_array_get(args, ix)),
+                        data_typedescr(data_array_get(args, ix)) -> type_name);
+    }
+    boolval = data_intval(asbool);
+    data_free(asbool);
+    if (!boolval) {
+      return data_create(Bool, FALSE);
+    }
+  }
+  return data_create(Bool, TRUE);
+}
+
+data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *asbool;
+  int     boolval;
+  int     ix;
+  
+  (void) name;
+  (void) kwargs;
+  for (ix = -1; ix < array_size(ix); ix++) {
+    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix));
+    if (!asbool) {
+      return data_error(ErrorSyntax, 
+                        "or(): Cannot convert value '%s' of type '%s' to boolean",
+                        data_tostring(data_array_get(args, ix)),
+                        data_typedescr(data_array_get(args, ix)) -> type_name);
+    }
+    boolval = data_intval(asbool);
+    data_free(asbool);
+    if (boolval) {
+      return data_create(Bool, TRUE);
+    }
+  }
+  return data_create(Bool, FALSE);
+}
+
+data_t * _any_xor(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *asbool;
+  int     boolval;
+  int     ix;
+  
+  (void) name;
+  (void) kwargs;
+  for (ix = -1; ix < array_size(ix); ix++) {
+    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix));
+    if (!asbool) {
+      return data_error(ErrorSyntax, 
+                        "or(): Cannot convert value '%s' of type '%s' to boolean",
+                        data_tostring(data_array_get(args, ix)),
+                        data_typedescr(data_array_get(args, ix)) -> type_name);
+    }
+    boolval = data_intval(asbool);
+    data_free(asbool);
+    if (boolval) {
+      return data_create(Bool, TRUE);
+    }
+  }
+  return data_create(Bool, FALSE);
 }
 
 data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {

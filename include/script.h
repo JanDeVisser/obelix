@@ -138,6 +138,7 @@ extern void             closure_free(closure_t *);
 extern closure_t *      closure_copy(closure_t *);
 extern char *           closure_tostring(closure_t *);
 extern data_t *         closure_pop(closure_t *);
+extern data_t *         closure_peek(closure_t *);
 extern closure_t *      closure_push(closure_t *, data_t *);
 extern data_t *         closure_set(closure_t *, char *, data_t *);
 extern data_t *         closure_get(closure_t *, char *);
