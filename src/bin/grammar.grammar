@@ -87,9 +87,9 @@ cases_seq                   := case_block
                              |
                              ;
 
-case_block                  := case_stmts
+case_block                  := case_stmt
+                               case_stmts
                                statements
-                               end
                               ;
 
 case_stmts                  := case_stmt
@@ -101,9 +101,8 @@ case_stmt                   := "case"           [ dupval                     ]
                                expr             [ case                       ]
                              ;
 
-default                     := "default"        [ default_case               ]
+default                     := "default"        [ else                       ]
                                statements
-                               end
                              ;
 
 func_def                    := sync_async
@@ -184,7 +183,7 @@ new                         := "new"             [ setup_function: "new" incr ]
 context_block               := "context"
                                identifier
                                assignment_or_empty [ begin_context_block     ]
-                               statements        
+                               statements
                                end                 [ end_context_block       ]
                              ;
 
@@ -246,31 +245,31 @@ var_or_call                 := new
                              | identifier
                                call_or_empty
                              ;
-                              
+
 call_or_empty               := func_call
                              |                   [ pushvar                   ]
                              ;
-                             
+
 identifier                  :=                   [ bookmark                  ]
                                _identifier       [ rollup_name               ]
                              ;
 
 _identifier                 := 'i'               [ push                      ]
-			       _identifier_tail
-			     ;
+                               _identifier_tail
+                             ;
 
 _identifier_tail            := .
                                _identifier
                              |
                              ;
-                             
+
 constant                    := '"'               [ push_token                ]
                              | '\''              [ push_token                ]
                              | signed_number
-			     | list
+                             | list
                              | object
-			     | "true"            [ pushconst: "bool:1"       ]
-                	     | "false"           [ pushconst: "bool:0"       ]
+                             | "true"            [ pushconst: "bool:1"       ]
+                             | "false"           [ pushconst: "bool:0"       ]
                              ;
 
 signed_number               := sign
@@ -286,7 +285,7 @@ number                      := 'd'
                              | 'f'
                              | 'x'
                              ;
-                               
+
 list                        := '['               [ setup_function: "list"    ]
                                entrylist_or_empty
                                ']'               [ func_call                 ]
@@ -301,9 +300,9 @@ entrylist                   := expr              [ incr                      ]
                              ;
 
 entrylist_tail              := ,
-			       entrylist
+                               entrylist
                              |
-			     ;
+                             ;
 
 object                      := '{'               [ setup_function: "object"  ]
                                attrlist_or_empty
@@ -323,16 +322,18 @@ attrlist                    := attrname          [ push                      ]
 attrname                    := 'i' | '"' | '\'' ;
 
 attrlist_tail               := ,
-			       attrlist
+                               attrlist
                              |
-			     ;
+                             ;
 
 logic_op                    := > | ">=" | < | "<=" | "==" | "!=" | "||" | "&&"
                              ;
-                             
-add_op                      := + | - | ~;
 
-mult_op                     := * | / | ^ | % ;
+add_op                      := + | - | ~ 
+                             ;
+
+mult_op                     := * | / | ^ | %
+                             ;
 
 func_call                   :=                   [ init_function             ]
                                _func_call
