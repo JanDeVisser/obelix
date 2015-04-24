@@ -31,6 +31,9 @@ typedef struct _gp_state_rec {
   reduce_t  handler;
 } gp_state_rec_t;
 
+static grammar_parser_t * _grammar_parser_set_option(grammar_parser_t *);
+static grammar_parser_t * _grammar_parser_state_options_end(token_t *, grammar_parser_t *);
+
 static grammar_parser_t * _grammar_parser_state_start(token_t *, grammar_parser_t *);
 static grammar_parser_t * _grammar_parser_state_options(token_t *, grammar_parser_t *);
 static grammar_parser_t * _grammar_parser_state_option_name(token_t *, grammar_parser_t *);
@@ -97,12 +100,17 @@ grammar_parser_t * _grammar_parser_state_start(token_t *token, grammar_parser_t 
   return grammar_parser;
 }
 
-grammar_parser_t * _grammar_parser_state_options_end(token_t *token, grammar_parser_t *grammar_parser) {
+grammar_parser_t * _grammar_parser_set_option(grammar_parser_t *grammar_parser) {
   if (grammar_parser -> last_token) {
     ge_set_option(grammar_parser -> ge, grammar_parser -> last_token, NULL);
     token_free(grammar_parser -> last_token);
     grammar_parser -> last_token = NULL;
   }
+  return grammar_parser;
+}
+
+grammar_parser_t * _grammar_parser_state_options_end(token_t *token, grammar_parser_t *grammar_parser) {
+  _grammar_parser_set_option(grammar_parser);
   grammar_parser -> state = grammar_parser -> old_state;
   return grammar_parser;
 }
@@ -160,8 +168,8 @@ grammar_parser_t * _grammar_parser_state_option_name(token_t *token, grammar_par
       break;
       
     case TokenCodeIdentifier:
-      grammar_parser -> state = GPStateOptionValue;
-      ret = _grammar_parser_state_option_name(token, grammar_parser);
+      _grammar_parser_set_option(grammar_parser);
+      ret = _grammar_parser_state_options(token, grammar_parser);
       break;
   }
   if (!ret) {

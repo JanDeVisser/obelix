@@ -266,3 +266,16 @@ int datastack_count(datastack_t *stack) {
   _counter_free(counter);
   return count;
 }
+
+int datastack_current_count(datastack_t *stack) {
+  counter_t *counter;
+  int        count;
+
+  if (!stack -> counters || array_empty(stack -> counters)) {
+    return -1;
+  }
+  counter = (counter_t *) array_get(stack -> counters, -1);
+  count = counter -> count;
+  return count;
+}
+

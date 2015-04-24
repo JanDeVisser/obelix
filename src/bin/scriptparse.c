@@ -323,7 +323,7 @@ parser_t * script_parse_infix_op(parser_t *parser) {
 
 parser_t * script_parse_op(parser_t *parser, name_t *op) {
   script_push_instruction(parser -> data,
-                          instruction_create_function(op, CFNone, 2, NULL));
+                          instruction_create_function(op, CFInfix, 2, NULL));
   return parser;
 }
 
@@ -335,6 +335,24 @@ parser_t * script_parse_jump(parser_t *parser, data_t *label) {
     debug(" -- label: %s", data_debugstr(label));
   }
   script_push_instruction(script, instruction_create_jump(data_copy(label)));
+  return parser;
+}
+
+parser_t * script_parse_stash(parser_t *parser, data_t *stash) {
+  script_t *script;
+  
+  script = parser -> data;
+  script_push_instruction(script, 
+                          instruction_create_stash(data_intval(stash)));  
+  return parser;
+}
+
+parser_t * script_parse_unstash(parser_t *parser, data_t *stash) {
+  script_t *script;
+  
+  script = parser -> data;
+  script_push_instruction(script, 
+                          instruction_create_unstash(data_intval(stash)));  
   return parser;
 }
 
@@ -541,6 +559,44 @@ parser_t * script_parse_end_conditional(parser_t *parser) {
 
 /* -- S W I T C H  S T A T E M E N T ---------------------------------------*/
 
+parser_t * script_parse_case_prolog(parser_t *parser) {
+  script_t *script;
+  data_t   *endlabel;
+  data_t   *elselabel;
+  int       count;
+
+  script = parser -> data;
+  
+  /*
+   * Get number of case sequences we've had up to now. We only need to 
+   * emit a Jump if this is not the first case sequence.
+   */
+  count = datastack_current_count(parser -> stack);
+  
+  /*
+   * Increment the case sequences counter.
+   */
+  datastack_increment(parser -> stack);
+  
+  /*
+   * Initialize counter for the number of cases in this sequence:
+   */
+  datastack_new_counter(parser -> stack);
+  if (parser_debug) {
+    debug(" -- elif   elselabel: '%s' endlabel '%s'", 
+          data_tostring(elselabel), data_tostring(endlabel));
+  }
+  if (count) {
+    elselabel = datastack_pop(parser -> stack);
+    endlabel = data_copy(datastack_peek(parser -> stack));
+    script_push_instruction(script, instruction_create_jump(endlabel));
+    datastack_push(script -> pending_labels, data_copy(elselabel));
+    data_free(elselabel);
+    data_free(endlabel);
+  }
+  return parser;
+}
+
 parser_t * script_parse_case(parser_t *parser) {
   script_t      *script;
   static name_t *equals = NULL;
@@ -549,11 +605,27 @@ parser_t * script_parse_case(parser_t *parser) {
     equals = name_create(1, "==");
   }
   script = parser -> data;
+  script_push_instruction(script, instruction_create_unstash(0));
   script_parse_op(parser, equals);
-  script_parse_test(parser);
   return parser;
 }
 
+parser_t * script_parse_rollup_cases(parser_t *parser) {
+  script_t      *script;
+  static name_t *or = NULL;
+  int            count;
+  
+  script = parser -> data;
+  count = datastack_count(parser -> stack);
+  if (count > 1) {
+    if (!or) {
+      or = name_create(1, "or");
+    }
+    script_push_instruction(parser -> data,
+                            instruction_create_function(or, CFInfix, count, NULL));
+  }
+  return parser;
+}
 
 /* -- F U N C T I O N  D E F I N I T I O N S -------------------------------*/
 
@@ -575,7 +647,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
   data = datastack_pop(parser -> stack);
   fname = strdup(data_tostring(data));
   data_free(data);
-  
+
   /* sync/async flag */
   data = datastack_pop(parser -> stack);
   async = data_intval(data);
@@ -585,8 +657,8 @@ parser_t * script_parse_start_function(parser_t *parser) {
   func -> async = async;
   func -> params = str_array_create(array_size(data_arrayval(params)));
   array_reduce(data_arrayval(params),
-	       (reduce_t) data_add_strings_reducer, 
-	       func -> params);
+               (reduce_t) data_add_strings_reducer,
+               func -> params);
   free(fname);
   data_free(params);
   if (parser_debug) {
@@ -600,7 +672,7 @@ parser_t * script_parse_baseclass_constructors(parser_t *parser) {
   script_t      *script = (script_t *) parser -> data;
   static name_t *hasattr = NULL;
   static data_t *self = NULL;
-  
+
   if (!hasattr) {
     hasattr = name_create(1, "hasattr");
   }
@@ -616,7 +688,7 @@ parser_t * script_parse_baseclass_constructors(parser_t *parser) {
 
 parser_t * script_parse_end_constructors(parser_t *parser) {
   script_t *script = (script_t *) parser -> data;
-  
+
   datastack_push(script -> pending_labels, datastack_pop(parser -> stack));
   return parser;
 }
@@ -640,7 +712,7 @@ parser_t * script_parse_native_function(parser_t *parser) {
   native_t      c_func;
   parser_t     *ret = parser;
   int           async;
-  
+
   script = (script_t *) parser -> data;
 
   /* Top of stack: Parameter names as List */

@@ -169,8 +169,8 @@ data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   
   (void) name;
   (void) kwargs;
-  for (ix = -1; ix < array_size(ix); ix++) {
-    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix));
+  for (ix = -1; ix < array_size(args); ix++) {
+    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix), Bool);
     if (!asbool) {
       return data_error(ErrorSyntax, 
                         "and(): Cannot convert value '%s' of type '%s' to boolean",
@@ -193,32 +193,8 @@ data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   
   (void) name;
   (void) kwargs;
-  for (ix = -1; ix < array_size(ix); ix++) {
-    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix));
-    if (!asbool) {
-      return data_error(ErrorSyntax, 
-                        "or(): Cannot convert value '%s' of type '%s' to boolean",
-                        data_tostring(data_array_get(args, ix)),
-                        data_typedescr(data_array_get(args, ix)) -> type_name);
-    }
-    boolval = data_intval(asbool);
-    data_free(asbool);
-    if (boolval) {
-      return data_create(Bool, TRUE);
-    }
-  }
-  return data_create(Bool, FALSE);
-}
-
-data_t * _any_xor(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *asbool;
-  int     boolval;
-  int     ix;
-  
-  (void) name;
-  (void) kwargs;
-  for (ix = -1; ix < array_size(ix); ix++) {
-    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix));
+  for (ix = -1; ix < array_size(args); ix++) {
+    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix), Bool);
     if (!asbool) {
       return data_error(ErrorSyntax, 
                         "or(): Cannot convert value '%s' of type '%s' to boolean",

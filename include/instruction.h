@@ -39,8 +39,10 @@ typedef enum _instruction_type {
   ITPop,
   ITPushVal,
   ITPushVar,
+  ITStash,
   ITTest,
   ITThrow,
+  ITUnstash
 } instruction_type_t;
 
 typedef struct _instruction {
@@ -77,6 +79,10 @@ extern instruction_t *  instruction_create_nop(void);
 extern instruction_t *  instruction_create_pop(void);
 extern instruction_t *  instruction_create_dup(void);
 extern instruction_t *  instruction_create_throw(void);
+
+extern instruction_t *  instruction_create_stash(unsigned int);
+extern instruction_t *  instruction_create_unstash(unsigned int);
+
 extern char *           instruction_assign_label(instruction_t *);
 extern instruction_t *  instruction_set_label(instruction_t *, data_t *);
 extern data_t *         instruction_execute(instruction_t *, struct _closure *);

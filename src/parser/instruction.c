@@ -63,6 +63,10 @@ static data_t *         _instruction_execute_new(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_nop(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pop(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_dup(instruction_t *, closure_t *);
+
+static data_t *         _instruction_execute_stash(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_unstash(instruction_t *, closure_t *);
+
 static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_test(instruction_t *, closure_t *);
@@ -121,6 +125,10 @@ static instruction_type_descr_t instruction_descr_map[] = {
     .function = _instruction_execute_pushvar,
     .name = "PushVar",
     .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITStash,
+    .function = _instruction_execute_stash,
+    .name = "Stash",
+    .tostring = (tostring_t) _instruction_tostring_value },
   { .type = ITTest,
     .function = _instruction_execute_test,
     .name = "Test",
@@ -129,6 +137,10 @@ static instruction_type_descr_t instruction_descr_map[] = {
     .function = _instruction_execute_throw,
     .name = "Throw",
     .tostring = (tostring_t) _instruction_tostring_name },
+  { .type = ITUnstash,
+    .function = _instruction_execute_unstash,
+    .name = "Unstash",
+    .tostring = (tostring_t) _instruction_tostring_value },
 };
 
 typedef struct _function_call {
@@ -571,7 +583,25 @@ data_t * _instruction_execute_pop(instruction_t *instr, closure_t *closure) {
 }
 
 data_t * _instruction_execute_dup(instruction_t *instr, closure_t *closure) {
-  closure_push(data_copy(closure_peek(closure)));
+  closure_push(closure, data_copy(closure_peek(closure)));
+  return NULL;
+}
+
+/* ----------------------------------------------------------------------- */
+
+data_t * _instruction_execute_stash(instruction_t *instr, closure_t *closure) {
+  assert(data_intval(instr -> value) < NUM_STASHES);
+  closure_stash(closure,
+                data_intval(instr -> value),
+                data_copy(closure_pop(closure)));
+  return NULL;
+}
+
+data_t * _instruction_execute_unstash(instruction_t *instr, closure_t *closure) {
+  assert(data_intval(instr -> value) < NUM_STASHES);
+  closure_push(closure, 
+               data_copy(closure_unstash(closure,
+                                         data_intval(instr -> value))));
   return NULL;
 }
 
@@ -668,6 +698,16 @@ instruction_t * instruction_create_nop(void) {
 
 instruction_t * instruction_create_throw(void) {
   return instruction_create(ITThrow, "Throw Exception", NULL);
+}
+
+instruction_t * instruction_create_stash(unsigned int stash) {
+  assert(stash < NUM_STASHES);
+  return instruction_create(ITStash, "Stash", data_create(Int, stash));
+}
+
+instruction_t * instruction_create_unstash(unsigned int stash) {
+  assert(stash < NUM_STASHES);
+  return instruction_create(ITUnstash, "Unstash", data_create(Int, stash));
 }
 
 char * instruction_assign_label(instruction_t *instruction) {

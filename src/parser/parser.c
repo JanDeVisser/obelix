@@ -559,3 +559,21 @@ parser_t * parser_incr(parser_t *parser) {
   datastack_increment(parser -> stack);
   return parser;
 }
+
+parser_t * parser_count(parser_t *parser) {
+  if (parser_debug) {
+    debug("    Pushing count to stack");
+  }
+  datastack_push(parser -> stack, 
+                 data_create(Int, datastack_count(parser -> stack)));
+  return parser;
+}
+
+parser_t * parser_discard_counter(parser_t *parser) {
+  if (parser_debug) {
+    debug("    Discarding counter");
+  }
+  datastack_count(parser -> stack);
+  return parser;
+}
+

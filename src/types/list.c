@@ -226,13 +226,26 @@ data_t * _list_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _list_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  /* TODO */
-  return data_create(Int, list_size((list_t *) self -> ptrval));
+  array_t *list = data_arrayval(self);
+  int      sz = array_size(list);
+  int      ix = data_intval(data_array_get(args, 0));
+  
+  if ((ix >= sz) || (ix < -sz)) {
+    return data_error(ErrorRange, 
+                      "list.at(): Index %d is not in range %d ~ %d", 
+                      ix, -sz, sz -1);
+  } else {
+    return data_copy(data_array_get(list, ix));
+  }
 }
 
 data_t * _list_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  /* TODO */
-  return data_create(Int, list_size((list_t *) self -> ptrval));
+  array_t *slice = array_slice(data_arrayval(self), 
+                               data_intval(data_array_get(args, 1)),
+                               data_intval(data_array_get(args, 1)));
+  data_t  *ret = data_create_list(slice);
+  
+  array_free(slice);
+  return ret;
 }
-
  

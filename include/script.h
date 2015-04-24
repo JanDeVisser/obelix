@@ -57,6 +57,8 @@ typedef struct _script {
   int             refs;
 } script_t;
 
+#define NUM_STASHES 4
+
 typedef struct _closure {
   struct _closure *up;
   script_t        *script;
@@ -64,6 +66,7 @@ typedef struct _closure {
   dict_t          *params;
   int              free_params;
   dict_t          *variables;
+  data_t          *stashes[NUM_STASHES];
   datastack_t     *stack;
   datastack_t     *catchpoints;
   data_t          *caller;
@@ -147,6 +150,8 @@ extern data_t *         closure_resolve(closure_t *, char *);
 extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
 extern data_t *         closure_import(closure_t *, name_t *);
 extern closure_t *      closure_set_location(closure_t *, data_t *);
+extern data_t *         closure_stash(closure_t *, unsigned int, data_t *);
+extern data_t *         closure_unstash(closure_t *, unsigned int);
 
 /* -- N A T I V E  F N C  P R O T O T Y P E S ----------------------------- */
 

@@ -370,10 +370,14 @@ function_t * function_resolve(function_t *fnc) {
 }
 
 char * function_tostring(function_t *fnc) {
-  if (!fnc -> str) {
-    asprintf(&fnc -> str, "%s()", fnc -> name);
+  if (fnc) {
+    if (!fnc -> str) {
+      asprintf(&fnc -> str, "%s()", fnc -> name);
+    }
+    return fnc -> str;
+  } else {
+    return "func:NULL";
   }
-  return fnc -> str;
 }
 
 unsigned int function_hash(function_t *fnc) {

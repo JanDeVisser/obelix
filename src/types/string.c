@@ -50,6 +50,7 @@ static data_t *     _string_startswith(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_endswith(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_concat(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_repeat(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_split(data_t *, char *, array_t *, dict_t *);
 
 vtable_t _vtable_string[] = {
   { .id = FunctionNew,      .fnc = (void_t) _string_new },
@@ -86,6 +87,7 @@ static methoddescr_t _methoddescr_str[] = {
   { .type = String, .name = "concat",     .method = _string_concat,     .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 1 },
   { .type = String, .name = "*",          .method = _string_repeat,     .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = String, .name = "repeat",     .method = _string_repeat,     .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = String, .name = "split",      .method = _string_split,      .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL,         .method = NULL,               .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
@@ -354,6 +356,14 @@ data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs)
   return ret;
 }
 
+data_t * _string_split(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  array_t *split = array_split(data_charval(self), data_charval(data_array_get(args, 0)));
+  data_t  *ret = data_str_array_to_list(split);
+  
+  array_free(split);
+  return ret;
+}
+
 str_t * format(char *fmt, array_t *args, dict_t *kwargs) {
   char  *ptr;
   char  *specstart;
@@ -400,3 +410,4 @@ str_t * format(char *fmt, array_t *args, dict_t *kwargs) {
   if (bigbuf) free(bigbuf);
   return ret;
 }
+

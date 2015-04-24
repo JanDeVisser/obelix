@@ -54,6 +54,7 @@ extern name_t *      datastack_rollup_name(datastack_t *);
 extern datastack_t * datastack_new_counter(datastack_t *);
 extern datastack_t * datastack_increment(datastack_t *);
 extern int           datastack_count(datastack_t *);
+extern int           datastack_current_count(datastack_t *);
 
 #define datastack_empty(l)        (datastack_depth((l)) == 0)
 #define datastack_notempty(l)     (datastack_depth((l)) > 0)

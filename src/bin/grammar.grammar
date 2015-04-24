@@ -73,8 +73,8 @@ for_loop                    := "for"
                                end               [ end_loop                  ]
                              ;
 switch                      := "switch"          [ if                        ]
-                               expr
-                               cases
+                               expr              [ stash: 0 new_counter      ]
+                               cases             [ discard_counter           ]
                                end               [ end_conditional           ]
                              ;
 
@@ -87,8 +87,9 @@ cases_seq                   := case_block
                              |
                              ;
 
-case_block                  := case_stmt
-                               case_stmts
+case_block                  :=                  [ case_prolog                ]
+                               case_stmt
+                               case_stmts       [ rollup_cases test          ]
                                statements
                               ;
 
@@ -97,11 +98,13 @@ case_stmts                  := case_stmt
                              |
                              ;
 
-case_stmt                   := "case"           [ dupval                     ]
+case_stmt                   := "case"           [ incr                       ]
                                expr             [ case                       ]
+                               ':'
                              ;
 
 default                     := "default"        [ else                       ]
+                               ':'
                                statements
                              ;
 

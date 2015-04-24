@@ -837,3 +837,20 @@ closure_t * closure_set_location(closure_t *closure, data_t *location) {
   }
   return closure;
 }
+
+data_t* closure_stash(closure_t *closure, unsigned int stash, data_t *data) {
+  if (stash < NUM_STASHES) {
+    closure -> stashes[stash] = data;
+    return data;
+  } else {
+    return NULL;
+  }
+}
+
+data_t* closure_unstash(closure_t *closure, unsigned int stash) {
+  if (stash < NUM_STASHES) {
+    return closure -> stashes[stash];
+  } else {
+    return NULL;
+  }
+}
