@@ -120,7 +120,7 @@ extern unsigned int     script_hash(script_t *);
 extern void             script_list(script_t *);
 extern script_t *       script_get_toplevel(script_t *);
 extern script_t *       script_push_instruction(script_t *, instruction_t *);
-extern closure_t *      script_create_closure(script_t *, closure_t *, data_t *, data_t *);
+extern closure_t *      script_create_closure(script_t *, closure_t *, data_t *);
 extern data_t *         script_execute(script_t *, array_t *, dict_t *);
 extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
 extern bound_method_t * script_bind(script_t *, object_t *);
@@ -132,11 +132,11 @@ extern void             bound_method_free(bound_method_t *);
 extern bound_method_t * bound_method_copy(bound_method_t *);
 extern int              bound_method_cmp(bound_method_t *, bound_method_t *);
 extern char *           bound_method_tostring(bound_method_t *);
-extern data_t *         bound_method_execute(bound_method_t *, data_t *, array_t *, dict_t *);
+extern data_t *         bound_method_execute(bound_method_t *, array_t *, dict_t *);
 
 /* -- C L O S U R E  P R O T O T Y P E S ---------------------------------- */
 
-extern closure_t *      closure_create(script_t *, closure_t *, data_t *, data_t *);
+extern closure_t *      closure_create(script_t *, closure_t *, data_t *);
 extern void             closure_free(closure_t *);
 extern closure_t *      closure_copy(closure_t *);
 extern char *           closure_tostring(closure_t *);

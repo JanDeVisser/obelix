@@ -28,6 +28,8 @@ extern "C" {
 
 typedef struct _thread {
   pthread_t  thr_id;
+  void      *frame;
+  free_t     onfree;
   char      *name;
   int        refs;
 } thread_t;

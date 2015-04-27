@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include <data.h>
+#include <datastack.h>
 #include <exception.h>
 #include <thread.h>
 
@@ -33,6 +34,7 @@ static data_t *      _data_resolve_thread(data_t *, char *);
 static data_t *      _thread_current_thread(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_interrupt(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_yield(data_t *, char *, array_t *, dict_t *);
+static data_t *      _thread_stack(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_thread[] = {
   { .id = FunctionNew,      .fnc = (void_t) _data_new_thread },
@@ -54,6 +56,7 @@ static methoddescr_t _methoddescr_thread[] = {
   { .type = Any,    .name = "current_thread", .method = _thread_current_thread, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = Thread, .name = "interrupt",      .method = _thread_interrupt,      .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = Thread, .name = "yield",          .method = _thread_yield,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Thread, .name = "stack",          .method = _thread_stack,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,             .method = NULL,                   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
@@ -103,16 +106,12 @@ data_t * _data_resolve_thread(data_t *self, char *name) {
 /* ------------------------------------------------------------------------ */
 
 data_t * _thread_current_thread(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  thread_t *current;
-  data_t   *data;
+  (void) self;
   (void) name;
   (void) args;
   (void) kwargs;
   
-  current = thread_self();
-  data = data_create_noinit(Thread);
-  data -> ptrval = thread_copy(current);
-  return data;
+  return data_current_thread();
 }
 
 data_t * _thread_interrupt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -135,4 +134,55 @@ data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   } else {
     return data_error(ErrorType, "Can only call yield on current thread");
   }
+}
+
+data_t * _thread_stack(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) self;
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  
+  return data_thread_stacktrace(self);
+}
+
+/* ------------------------------------------------------------------------ */
+
+data_t * data_current_thread(void) {
+  thread_t *current;
+  data_t   *data;
+  
+  current = thread_self();
+  if (!current -> frame) {
+    current -> frame = datastack_create(current -> name);
+    current -> onfree = (free_t) datastack_free;
+  }
+  data = data_create_noinit(Thread);
+  data -> ptrval = thread_copy(current);
+  return data;
+}
+
+data_t * data_thread_frame_element(data_t *element) {
+  data_t   *data = data_current_thread();
+  thread_t *thread = data_threadval(data);
+  
+  datastack_push((datastack_t *) thread -> frame, element);
+  data_free(data);
+  return element;
+}
+
+data_t * data_thread_stacktrace(data_t *thread) {
+  data_t      *data = NULL;
+  thread_t    *thr;
+  datastack_t *stack;
+  data_t      *ret;
+  
+  if (!thread) {
+    data = data_current_thread();
+    thread = data;
+  }
+  thr = data_threadval(data);
+  stack = (datastack_t *) thr -> frame;
+  ret =  data_create_list(stack -> list);
+  data_free(data);
+  return ret;
 }

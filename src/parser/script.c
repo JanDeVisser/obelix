@@ -58,6 +58,17 @@ static data_t *         _data_set_closure(data_t *, char *, data_t *);
 static closure_t *      _closure_create_closure_reducer(entry_t *, closure_t *);
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
 
+static stackframe_t *   _stackframe_create(closure_t *, int);
+static stackframe_t *   _stackframe_copy(stackframe_t *);
+static void             _stackframe_free(stackframe_t *);
+static char *           _stackframe_tostring(stackframe_t *);
+static char *           _stackframe_set_line(stackframe_t *, int);
+
+static data_t *         _data_new_stackframe(data_t *, va_list);
+static data_t *         _data_copy_stackframe(data_t *, data_t *);
+static int              _data_cmp_stackframe(data_t *, data_t *);
+static char *           _data_tostring_stackframe(data_t *);
+
 /* -- data_t type description structures ---------------------------------- */
 
 static vtable_t _vtable_script[] = {
@@ -110,6 +121,33 @@ static typedescr_t _typedescr_closure = {
   .vtable =    _vtable_closure
 };
 
+typedef struct _stackframe {
+  closure_t *closure;
+  int        line;
+  int        refs;
+  char      *str;
+} stackframe_t;
+
+static vtable_t _vtable_stackframe[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_stackframe },
+  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_stackframe },
+  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_stackframe },
+  { .id = FunctionFree,     .fnc = (void_t) _stackframe_free },
+  { .id = FunctionToString, .fnc = (void_t) _data_tostring_stackframe },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+int Stackframe = -1;
+
+static typedescr_t _typedescr_stackframe = {
+  .type =      Stackframe,
+  .type_name = "stackframe",
+  .vtable =    _vtable_stackframe
+};
+
+#define data_is_stackframe(d) ((d) && (data_type((d)) == Stackframe))
+#define data_stackframe(d)    (data_is_stackframe((d)) ? ((stackframe_t *) (d) -> ptrval) : NULL)
+
 /* ------------------------------------------------------------------------ */
 
 void _script_init(void) {
@@ -117,6 +155,7 @@ void _script_init(void) {
   typedescr_register(&_typedescr_script);
   typedescr_register(&_typedescr_closure);
   typedescr_register(&_typedescr_bound_method);
+  typedescr_register(&_typedescr_stackframe);
 }
 
 /* -- Script data functions ----------------------------------------------- */
@@ -174,7 +213,7 @@ char * _data_tostring_bm(data_t *d) {
 }
 
 data_t * _data_call_bm(data_t *self, array_t *params, dict_t *kwargs) {
-  return bound_method_execute(data_boundmethodval(self), NULL, params, kwargs);
+  return bound_method_execute(data_boundmethodval(self), params, kwargs);
 }
 
 /* -- Closure data functions ---------------------------------------------- */
@@ -377,7 +416,7 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
   if (script_debug) {
     debug("script_execute(%s)", script_tostring(script));
   }
-  closure = script_create_closure(script, NULL, NULL, NULL);
+  closure = script_create_closure(script, NULL, NULL);
   retval = closure_execute(closure, args, kwargs);
   closure_free(closure);
   if (script_debug) {
@@ -392,7 +431,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   data_t    *dscript;
   data_t    *bm;
   data_t    *self;
-  
+
   if (script_debug) {
     debug("script_create_object(%s)", script_tostring(script));
   }
@@ -402,7 +441,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   }
   retobj -> constructing = TRUE;
   retval = bound_method_execute(data_boundmethodval(retobj -> constructor), 
-                                NULL, params, kwparams);
+                                params, kwparams);
   retobj -> constructing = FALSE;
   if (!data_is_error(retval)) {
     retobj -> retval = retval;
@@ -421,9 +460,8 @@ bound_method_t * script_bind(script_t *script, object_t *object) {
   return ret;
 }
 
-closure_t * script_create_closure(script_t *script, closure_t *up, 
-                                  data_t *caller, data_t *self) {
-  return closure_create(script, up, caller, self);
+closure_t * script_create_closure(script_t *script, closure_t *up, data_t *self) {
+  return closure_create(script, up, self);
 }
 
 /* -- B O U N D  M E T H O D  F U N C T I O N S   ------------------------- */
@@ -475,13 +513,13 @@ char * bound_method_tostring(bound_method_t *bm) {
   return bm -> str;
 }
 
-data_t * bound_method_execute(bound_method_t *bm, data_t *caller, array_t *params, dict_t *kwparams) {
+data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwparams) {
   closure_t *closure;
   data_t    *self;
   data_t    *ret;
-  
+
   self = (bm -> self) ? data_create(Object, bm -> self) : NULL;
-  closure = closure_create(bm -> script, bm -> closure, caller, self);
+  closure = closure_create(bm -> script, bm -> closure, self);
   ret = closure_execute(closure, params, kwparams);
   closure_free(closure);
   return ret;  
@@ -553,17 +591,12 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
 
 /* -- C L O S U R E  P U B L I C  F U N C T I O N S ------------------------*/
 
-closure_t * closure_create(script_t *script, closure_t *up, data_t *caller, data_t *self) {
+closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
   closure_t *ret;
   int        depth;
 
   if (script_debug) {
     debug("Creating closure for script '%s'", script_tostring(script));
-  }
-  depth = (data_is_closure(caller)) ? data_closureval(caller) -> depth + 1 : 1;
-  if (depth > 100) {
-    error("Maximum stack depth exceeded");
-    return NULL;
   }
   
   ret = NEW(closure_t);
@@ -574,7 +607,6 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *caller, data
   ret -> stack = NULL;
   ret -> catchpoints = NULL;
   ret -> up = up;
-  ret -> caller = data_copy(caller);
   ret -> depth = depth;
   ret -> self = data_copy(self);
 
@@ -599,7 +631,7 @@ void closure_free(closure_t *closure) {
       dict_free(closure -> variables);
       dict_free(closure -> params);
       data_free(closure -> self);
-      data_free(closure -> caller);
+      data_free(closure -> thread);
       free(closure -> str);
       free(closure);
     }
@@ -812,21 +844,16 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   } else {
     datastack_clear(closure -> catchpoints);
   }
-  
   datastack_push(closure -> catchpoints, data_create(String, "ERROR"));
-  if (closure -> caller && data_is_closure(closure -> caller) && 
-      data_closureval(closure -> caller) -> thread) {
-    closure -> thread = data_copy(data_closureval(closure -> caller) -> thread);
-  } else {
-    closure -> thread = NULL;
-  }
+  
   if (script -> async) {
     closure -> thread = data_create(Thread, 
-				    closure_tostring(closure),
-				    (threadproc_t) _closure_start,
-				    closure_copy(closure));
+                                    closure_tostring(closure),
+                                    (threadproc_t) _closure_start,
+                                    closure_copy(closure));
     return closure -> thread;
   } else {
+    closure -> thread = data_current_thread();
     return _closure_start(closure);
   }
 }
@@ -854,3 +881,62 @@ data_t* closure_unstash(closure_t *closure, unsigned int stash) {
     return NULL;
   }
 }
+
+/* -- S T A C K  F R A M E ------------------------------------------------ */
+
+static stackframe_t *   _stackframe_create(closure_t *closure, int line) {
+  stackframe_t *frame = NEW(stackframe_t);
+
+  frame -> closure = closure;
+  frame -> line = line;
+  frame -> refs = 1;
+  frame -> str = NULL;
+  return frame;
+}
+
+stackframe_t * _stackframe_copy(stackframe_t *frame) {
+  if (frame) {
+    frame -> refs++;
+  }
+  return frame;
+}
+
+void _stackframe_free(stackframe_t *frame) {
+  if (frame && (--frame -> refs <= 0)) {
+    free(frame);
+  }
+}
+
+stackframe_t * _stackframe_set_line(stackframe_t *frame, int line) {
+  if (frame) {
+    frame -> line = line;
+    frame -> str = NULL;
+  }
+  return frame;
+}
+
+char * _stackframe_tostring(stackframe_t *frame) {
+  if (!frame -> str) {
+    asprintf(&frame -> str, "%s:%d", 
+             closure_tostring(frame -> closure),
+             frame -> line);
+  }
+  return frame -> str;
+}
+
+data_t * _data_new_stackframe(data_t *data, va_list args) {
+  closure_t    *closure = va_arg(args, closure_t *);
+  int           line = va_arg(args, int);
+  stackframe_t *sf = _stackframe_create(closure, line);
+
+  data -> ptrval = sf;
+  return data;
+}
+
+data_t * _data_copy_stackframe(data_t *, data_t *) {
+  
+}
+
+static int              _data_cmp_stackframe(data_t *, data_t *);
+static char *           _data_tostring_stackframe(data_t *);
+

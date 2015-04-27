@@ -208,6 +208,9 @@ extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);
 extern data_t *        data_str_array_to_list(array_t *);
+extern data_t *        data_current_thread(void);
+extern data_t *        data_thread_stacktrace(data_t *);
+extern data_t *        data_thread_frame_element(data_t *);
 
 /* FIXME Needs a better home */
 extern str_t *         format(char *, array_t *, dict_t *);

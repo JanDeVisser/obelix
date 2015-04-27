@@ -30,17 +30,14 @@ static int           _pthread_cmp(pthread_t *, pthread_t *);
 static unsigned int  _pthread_hash(pthread_t *);
 static void *        _thread_start_routine_wrapper(void **);
 
-static dict_t       *_threads;
+static pthread_key_t  self_obj;
 
 /* ------------------------------------------------------------------------ */
 
 void _init_thread(void) {
   thread_t *main;
   
-  _threads = dict_create((cmp_t) _pthread_cmp);
-  dict_set_hash(_threads, (hash_t) _pthread_hash);
-  dict_set_free_key(_threads, (free_t) free);
-  dict_set_free_data(_threads, (free_t) thread_free);
+  pthread_key_create(&self_obj, (void (*)(void *)) thread_free);
   main = thread_create(pthread_self(), "Main");
 }
 
@@ -56,14 +53,10 @@ void * _thread_start_routine_wrapper(void **arg) {
   threadproc_t  start_routine;
   void         *ret; 
   thread_t     *thread = thread_self();
-  pthread_t    *key;
   
   if (arg[0]) {
     thread_setname(thread, arg[0]);
   }
-  key = NEW(pthread_t);
-  memcpy(key, &thread -> thr_id, sizeof(pthread_t));
-  dict_put(_threads, key, thread_copy(thread));
   arg[3] = thread;
 
   pthread_setcancelstate(thread -> thr_id, PTHREAD_CANCEL_ENABLE);
@@ -78,11 +71,11 @@ void * _thread_start_routine_wrapper(void **arg) {
 /* ------------------------------------------------------------------------ */
 
 thread_t * thread_self(void) {
-  pthread_t  thr_id = pthread_self();
-  thread_t  *thread = (thread_t *) dict_get(_threads, &thr_id);
+  thread_t  *thread = (thread_t *) pthread_getspecific(self_obj);
   
   if (!thread) {
-    thread = thread_create(thr_id, NULL);
+    thread = thread_create(pthread_self(), NULL);
+    pthread_setspecific(self_obj, thread);
   }
   return thread;
 }
@@ -121,10 +114,12 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
   thread_t  *ret = NEW(thread_t);
 
   ret -> thr_id = thr_id;
+  ret -> frame = NULL;
+  ret -> onfree = NULL;
   if (name) {
     ret -> name = strdup(name);
   } else {
-    asprintf(&ret -> name, "Thread %d", dict_size(_threads));    
+    asprintf(&ret -> name, "Thread %ld", (long) thr_id);
   }
   ret -> refs = 1;
   return ret;
@@ -132,7 +127,9 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
 
 void thread_free(thread_t *thread) {
   if (thread && (--thread -> refs <= 0)) {
-    dict_pop(_threads, &thread -> thr_id);
+    if (thread -> onfree) {
+      thread -> onfree(thread -> frame);
+    }
     free(thread -> name);
     free(thread);
   }
