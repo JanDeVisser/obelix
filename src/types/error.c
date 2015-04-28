@@ -31,20 +31,22 @@ static int           num_errors;
 static code_label_t *errors;
 
 static code_label_t builtin_errors[] = {
-  { .code = ErrorSyntax,      .label = "ErrorSyntax" },
-  { .code = ErrorArgCount,    .label = "ErrorArgCount" },
-  { .code = ErrorType,        .label = "ErrorType" },
-  { .code = ErrorName,        .label = "ErrorName" },
-  { .code = ErrorNotCallable, .label = "ErrorNotCallable" },
-  { .code = ErrorRange,       .label = "ErrorRange" },
-  { .code = ErrorIOError,     .label = "ErrorIOError" },
-  { .code = ErrorSysError,    .label = "ErrorSysError" },
-  { .code = ErrorNotIterable, .label = "ErrorNotIterable" },
-  { .code = ErrorExhausted,   .label = "ErrorExhausted" },
-  { .code = ErrorNotIterator, .label = "ErrorNotIterator" },
-  { .code = ErrorException,   .label = "ErrorException" },
-  { .code = ErrorLeave,       .label = "ErrorLeave", },
-  { .code = ErrorExit,        .label = "ErrorExit", },
+  { .code = ErrorSyntax,                .label = "ErrorSyntax" },
+  { .code = ErrorArgCount,              .label = "ErrorArgCount" },
+  { .code = ErrorMaxStackDepthExceeded, .label = "ErrorMaxStackDepthExceeded" },
+  { .code = ErrorInternalError,         .label = "ErrorInternalError" },
+  { .code = ErrorType,                  .label = "ErrorType" },
+  { .code = ErrorName,                  .label = "ErrorName" },
+  { .code = ErrorNotCallable,           .label = "ErrorNotCallable" },
+  { .code = ErrorRange,                 .label = "ErrorRange" },
+  { .code = ErrorIOError,               .label = "ErrorIOError" },
+  { .code = ErrorSysError,              .label = "ErrorSysError" },
+  { .code = ErrorNotIterable,           .label = "ErrorNotIterable" },
+  { .code = ErrorExhausted,             .label = "ErrorExhausted" },
+  { .code = ErrorNotIterator,           .label = "ErrorNotIterator" },
+  { .code = ErrorException,             .label = "ErrorException" },
+  { .code = ErrorLeave,                 .label = "ErrorLeave", },
+  { .code = ErrorExit,                  .label = "ErrorExit", },
 };
 
 static int           num_errors = sizeof(builtin_errors) / sizeof(code_label_t);

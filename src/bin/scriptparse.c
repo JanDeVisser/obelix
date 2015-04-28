@@ -230,7 +230,7 @@ parser_t * script_parse_push_token(parser_t *parser) {
   data = token_todata(parser -> last_token);
   assert(data);
   if (parser_debug) {
-    debug(" -- val: %s", data_debugstr(data));
+    debug(" -- val: %s", data_tostring(data));
   }
   script_push_instruction(script, instruction_create_pushval(data));
   data_free(data);
@@ -245,7 +245,7 @@ parser_t * script_parse_pushval_from_stack(parser_t *parser) {
   data = datastack_pop(parser -> stack);
   assert(data);
   if (parser_debug) {
-    debug(" -- val: %s", data_debugstr(data));
+    debug(" -- val: %s", data_tostring(data));
   }
   script_push_instruction(script, instruction_create_pushval(data));
   data_free(data);
@@ -269,7 +269,7 @@ parser_t * script_parse_pushconst(parser_t *parser, data_t *constval) {
   data = data_decode(data_tostring(constval));
   assert(data);
   if (parser_debug) {
-    debug(" -- val: %s", data_debugstr(data));
+    debug(" -- val: %s", data_tostring(data));
   }
   script_push_instruction(script, instruction_create_pushval(data));
   data_free(data);
@@ -287,7 +287,7 @@ parser_t *script_parse_push_signed_val(parser_t *parser) {
   assert(data);
   op = _script_pop_operation(parser);
   if (parser_debug) {
-    debug(" -- val: %s %s", name_tostring(op), data_debugstr(data));
+    debug(" -- val: %s %s", name_tostring(op), data_tostring(data));
   }
   signed_val = data_invoke(data, op, NULL, NULL);
   name_free(op);
@@ -332,7 +332,7 @@ parser_t * script_parse_jump(parser_t *parser, data_t *label) {
 
   script = parser -> data;
   if (parser_debug) {
-    debug(" -- label: %s", data_debugstr(label));
+    debug(" -- label: %s", data_tostring(label));
   }
   script_push_instruction(script, instruction_create_jump(data_copy(label)));
   return parser;
@@ -455,7 +455,7 @@ parser_t * script_parse_end_loop(parser_t *parser) {
    */
   block_label = datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug(" -- end loop label: %s", data_debugstr(block_label));
+    debug(" -- end loop label: %s", data_tostring(block_label));
   }
 
   /*
@@ -464,7 +464,7 @@ parser_t * script_parse_end_loop(parser_t *parser) {
    */
   label = datastack_pop(parser -> stack);
   if (parser_debug) {
-    debug(" -- end loop jump back label: %s", data_debugstr(label));
+    debug(" -- end loop jump back label: %s", data_tostring(label));
   }
   script_push_instruction(script, instruction_create_jump(label));
   data_free(label);

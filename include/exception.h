@@ -26,6 +26,8 @@
 typedef enum _errorcode {
   ErrorSyntax,
   ErrorArgCount,
+  ErrorMaxStackDepthExceeded,
+  ErrorInternalError,
   ErrorType,
   ErrorName,
   ErrorNotCallable,

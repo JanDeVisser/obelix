@@ -25,10 +25,14 @@
 #include <array.h>
 #include <dict.h>
 #include <name.h>
+#include <typedescr.h>
+
+#ifdef  __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 typedef enum _datatype {
-  NoType          = 0,
-  Error,        /*  1 */
+  Error           = 1,
   Pointer,      /*  2 */
   String,       /*  3 */
   Number,       /*  4 */
@@ -48,39 +52,15 @@ typedef enum _datatype {
   NVP,          /* 18 */
   Range,        /* 19 */
   Thread,       /* 20 */
-  Mutex,        /* 21 */
-  Any,          /* 22 */
-  Dynamic        = 23,
-  Callable      = 999,
+  Mutex         /* 21 */
+  /* 
+   * Any must be the last type. Therefore, after adding types here Any and 
+   * Dynamic in typedescr must be updated as well.
+   * 
+   * FIXME this link between this enum and the constants in typedescr should 
+   * be fixed.
+   */
 } datatype_t;
-
-typedef enum _vtable_id {
-  FunctionNone        = 0,
-  FunctionFactory,   /* 1  */
-  FunctionNew,       /* 2  */
-  FunctionCopy,      /* 3  */
-  FunctionCmp,       /* 4  */
-  FunctionFree,      /* 5  */
-  FunctionToString,  /* 6  */
-  FunctionFltValue,  /* 7  */
-  FunctionIntValue,  /* 8  */
-  FunctionParse,     /* 9  */
-  FunctionCast,      /* 10  */
-  FunctionHash,      /* 11 */
-  FunctionLen,       /* 12 */
-  FunctionResolve,   /* 13 */
-  FunctionCall,      /* 14 */
-  FunctionSet,       /* 15 */
-  FunctionRead,      /* 16 */
-  FunctionWrite,     /* 17 */
-  FunctionOpen,      /* 18 */
-  FunctionIter,      /* 19 */
-  FunctionHasNext,   /* 20 */
-  FunctionNext,      /* 21 */
-  FunctionDecr,      /* 22 */
-  FunctionIncr,      /* 23 */
-  FunctionEndOfListDummy
-} vtable_id_t;
 
 typedef struct _data {
   int          type;
@@ -92,62 +72,15 @@ typedef struct _data {
   };
   int          size;
   int          refs;
-  dict_t      *methods;
   char        *str;
-  char        *debugstr;
 } data_t;
 
 typedef data_t * (*factory_t)(int, va_list);
 typedef data_t * (*cast_t)(data_t *, int);
-typedef data_t * (*method_t)(data_t *, char *, array_t *, dict_t *);
-typedef data_t * (*resolve_name_t)(data_t *, char *);
-typedef data_t * (*call_t)(data_t *, array_t *, dict_t *);
-typedef data_t * (*setvalue_t)(data_t *, char *, data_t *);
+typedef data_t * (*resolve_name_t)(void *, char *);
+typedef data_t * (*call_t)(void *, array_t *, dict_t *);
+typedef data_t * (*setvalue_t)(void *, char *, data_t *);
 typedef data_t * (*data_fnc_t)(data_t *);
-
-typedef struct _vtable {
-  vtable_id_t id;
-  void_t      fnc;
-} vtable_t;
-
-typedef struct _typedescr {
-  int           type;
-  char         *type_name;
-  vtable_t     *vtable;
-  dict_t       *methods;
-  int           promote_to;
-  int           inherits_size;
-  int          *inherits;
-  unsigned int  hash;
-  char         *str;
-  int           count;
-} typedescr_t;
-
-#define MAX_METHOD_PARAMS      3
-
-typedef struct _methoddescr {
-  int       type;
-  char     *name;
-  method_t  method;
-  int       argtypes[MAX_METHOD_PARAMS];
-  int       minargs;
-  int       varargs;
-} methoddescr_t;
-
-extern int             typedescr_register(typedescr_t *);
-extern typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
-extern typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
-extern typedescr_t *   typedescr_get(int);
-extern typedescr_t *   typedescr_get_byname(char *);
-extern void            typedescr_count(void);
-extern unsigned int    typedescr_hash(typedescr_t *);
-extern void            typedescr_register_methods(methoddescr_t[]);
-extern void            typedescr_register_method(typedescr_t *, methoddescr_t *);
-extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
-extern void_t          typedescr_get_function(typedescr_t *, int);
-extern char *          typedescr_tostring(typedescr_t *);
-extern int             typedescr_is(typedescr_t *, int);
-extern void            typedescr_dump_vtable(typedescr_t *);
 
 extern data_t *        data_create_noinit(int);
 extern data_t *        data_create(int, ...);
@@ -188,7 +121,6 @@ extern int             data_intval(data_t *);
 
 #define data_type(d)   ((d) -> type)
 
-#define data_debugstr(d) (data_tostring((d)))
 #define data_charval(d)  ((char *) (d) -> ptrval)
 #define data_arrayval(d) ((array_t *) (d) -> ptrval)
 #define data_is_error(d) ((d) && (data_type((d)) == Error))
@@ -255,5 +187,9 @@ extern str_t *         format(char *, array_t *, dict_t *);
                                      (cmp_t) data_cmp), \
                                    (hash_t) data_hash), \
                                  (tostring_t) data_tostring)
+
+#ifdef  __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* __DATA_H__ */

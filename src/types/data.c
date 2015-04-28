@@ -27,458 +27,23 @@
 #include <data.h>
 #include <exception.h>
 #include <list.h>
+#include <logging.h>
 #include <object.h>
 
-static int debug_data = 0;
 
-static void     _any_init(void) __attribute__((constructor));
-static data_t * _any_cmp(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_not(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_and(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_or(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_hash(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_hasattr(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_getattr(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_setattr(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_callable(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_iterable(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_iter(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_next(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_has_next(data_t *, char *, array_t *, dict_t *);
+static void     _data_init(void) __attribute__((constructor));
+static void     _data_call_free(typedescr_t *, data_t *);
 
-static void     _data_call_free(typedescr_t *, void *);
+int             debug_data = 0;
+int             _data_count = 0;
 
-// -----------------------
-// Data conversion support
+/* -- D A T A  S T A T I C  F U N C T I O N S ----------------------------- */
 
-static int          data_numtypes = 0;
-static typedescr_t *descriptors = NULL;
-static int          _data_count = 0;
-
-static typedescr_t _typedescr_any = {
-  .type =      Any,
-  .type_name = "any"
-};
-
-static methoddescr_t _methoddescr_any[] = {
-  { .type = Any,    .name = ">" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "<" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = ">=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "<=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "==" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "!=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "not",      .method = _any_not,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "and",      .method = _any_and,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "&&",       .method = _any_and,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "or",       .method = _any_or,       .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "||",       .method = _any_or,       .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "hash",     .method = _any_hash,     .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "hasattr",  .method = _any_hasattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "setattr",  .method = _any_setattr,  .argtypes = { String, Any, NoType },    .minargs = 2, .varargs = 0 },
-  { .type = Any,    .name = "callable", .method = _any_callable, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "iterable", .method = _any_iterable, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "iter",     .method = _any_iter,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "next",     .method = _any_next,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "hasnext",  .method = _any_has_next, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = NoType, .name = NULL,       .method = NULL,          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
-};
-
-static code_label_t _function_id_labels[] = {
-  { .code = FunctionNone,     .label = "None" },
-  { .code = FunctionNew,      .label = "New" },
-  { .code = FunctionCopy,     .label = "Copy" },
-  { .code = FunctionCmp,      .label = "Cmp" },
-  { .code = FunctionFree,     .label = "Free" },
-  { .code = FunctionToString, .label = "ToString" },
-  { .code = FunctionFltValue, .label = "FltValue" },
-  { .code = FunctionIntValue, .label = "IntValue" },
-  { .code = FunctionParse,    .label = "Parse" },
-  { .code = FunctionCast,     .label = "Cast" },
-  { .code = FunctionHash,     .label = "Hash" },
-  { .code = FunctionLen,      .label = "Len" },
-  { .code = FunctionResolve,  .label = "Resolve" },
-  { .code = FunctionCall,     .label = "Call" },
-  { .code = FunctionSet,      .label = "Set" },
-  { .code = FunctionRead,     .label = "Read" },
-  { .code = FunctionWrite,    .label = "Write" },
-  { .code = FunctionOpen,     .label = "Open" },
-  { .code = FunctionIter,     .label = "Iter" },
-  { .code = FunctionNext,     .label = "Next" },
-  { .code = FunctionHasNext,  .label = "HasNext" },
-  { .code = FunctionEndOfListDummy, .label = "End" },
-  { .code = -1,             .label = NULL }
-};
-
-/*
- * 'any' global methods
- */
-
-void _any_init(void) {
+void _data_init(void) {
   logging_register_category("data", &debug_data);
-  typedescr_register(&_typedescr_any);
-  typedescr_register_methods(_methoddescr_any);
 }
 
-data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *other = (data_t *) array_get(args, 0);
-  data_t *ret;
-  int     cmp = data_cmp(self, other);
-  
-  if (!strcmp(name, "==")) {
-    ret = data_create(Bool, !cmp);
-  } else if (!strcmp(name, "!=")) {
-    ret = data_create(Bool, cmp);
-  } else if (!strcmp(name, ">")) {
-    ret = data_create(Bool, cmp > 0);
-  } else if (!strcmp(name, ">=")) {
-    ret = data_create(Bool, cmp >= 0);
-  } else if (!strcmp(name, "<")) {
-    ret = data_create(Bool, cmp < 0);
-  } else if (!strcmp(name, "<=")) {
-    ret = data_create(Bool, cmp <= 0);
-  } else {
-    assert(0);
-    ret = data_create(Bool, 0);
-  }
-  return ret;
-}
-
-data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *asbool = data_cast(self, Bool);
-  data_t *ret;
-  
-  (void) name;
-  (void) args;
-  (void) kwargs;
-  if (!asbool) {
-    return data_error(ErrorSyntax, 
-                      "not(): Cannot convert value '%s' of type '%s' to boolean",
-                      data_tostring(self),
-                      data_typedescr(self) -> type_name);
-  } else {
-    ret = data_create(Int, data_intval(asbool) == 0);
-    data_free(asbool);
-  }
-}
-
-data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *asbool;
-  int     boolval;
-  int     ix;
-  
-  (void) name;
-  (void) kwargs;
-  for (ix = -1; ix < array_size(args); ix++) {
-    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix), Bool);
-    if (!asbool) {
-      return data_error(ErrorSyntax, 
-                        "and(): Cannot convert value '%s' of type '%s' to boolean",
-                        data_tostring(data_array_get(args, ix)),
-                        data_typedescr(data_array_get(args, ix)) -> type_name);
-    }
-    boolval = data_intval(asbool);
-    data_free(asbool);
-    if (!boolval) {
-      return data_create(Bool, FALSE);
-    }
-  }
-  return data_create(Bool, TRUE);
-}
-
-data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *asbool;
-  int     boolval;
-  int     ix;
-  
-  (void) name;
-  (void) kwargs;
-  for (ix = -1; ix < array_size(args); ix++) {
-    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix), Bool);
-    if (!asbool) {
-      return data_error(ErrorSyntax, 
-                        "or(): Cannot convert value '%s' of type '%s' to boolean",
-                        data_tostring(data_array_get(args, ix)),
-                        data_typedescr(data_array_get(args, ix)) -> type_name);
-    }
-    boolval = data_intval(asbool);
-    data_free(asbool);
-    if (boolval) {
-      return data_create(Bool, TRUE);
-    }
-  }
-  return data_create(Bool, FALSE);
-}
-
-data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, data_hash(self));
-}
-
-data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
-  data_t  *attrname = data_array_get(args, 0);
-  name_t  *name = name_create(1, data_tostring(attrname));
-  data_t  *ret;
-  
-  ret = data_create(Bool, data_resolve(self, name) != NULL);
-  name_free(name);
-  return ret;
-}
-
-data_t * _any_getattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
-  data_t  *attrname = data_array_get(args, 0);
-  name_t  *name = name_create(1, data_tostring(attrname));
-  data_t  *ret;
-  
-  ret = data_get(self, name);
-  name_free(name);
-  return ret;
-}
-
-data_t * _any_setattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
-  data_t  *attrname = data_array_get(args, 0);
-  data_t  *value = data_array_get(args, 1);
-  name_t  *name = name_create(1, data_tostring(attrname));
-  data_t  *ret;
-
-  ret = data_set(self, name, value);
-  name_free(name);
-  return ret;
-}
-
-data_t * _any_callable(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *obj;
-  
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
-  return data_create(Bool, data_is_callable(obj));
-}
-
-data_t * _any_iterable(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *obj;
-  
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
-  return data_create(Bool, data_is_iterable(obj));
-}
-
-data_t * _any_iter(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_iter(self);
-}
-
-data_t * _any_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_next(self);
-}
-
-data_t * _any_has_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_has_next(self);
-}
-
-/*
- * typedescr_t public functions
- */
-
-int typedescr_register(typedescr_t *descr) {
-  typedescr_t    *new_descriptors;
-  vtable_t       *vtable;
-  int             newsz;
-  int             cursz;
-  typedescr_t    *d;
-
-  if (descr -> type < 0) {
-    descr -> type = (data_numtypes > Dynamic) ? data_numtypes : Dynamic;
-  }
-  if (debug_data) {
-    debug("Registering type '%s' [%d]", descr -> type_name, descr -> type);
-  }
-  assert((descr -> type >= data_numtypes) || descriptors[descr -> type].type == 0);
-  if (descr -> type >= data_numtypes) {
-    newsz = (descr -> type + 1) * sizeof(typedescr_t);
-    cursz = data_numtypes * sizeof(typedescr_t);
-    new_descriptors = (typedescr_t *) resize_block(descriptors, newsz, cursz);
-    descriptors = new_descriptors;
-    data_numtypes = descr -> type + 1;
-  }
-  d = &descriptors[descr -> type];
-  memcpy(d, descr, sizeof(typedescr_t));
-  vtable = d -> vtable;
-  d -> vtable = NULL;
-  typedescr_register_functions(d, vtable);
-  d -> str = NULL;
-  return d -> type;
-}
-
-typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[]) {
-  int ix;
-  int fnc_id;
-
-  if (!type -> vtable) {
-    type -> vtable = (vtable_t *) new((FunctionEndOfListDummy + 1) * sizeof(vtable_t));
-    for (ix = 0; ix <= FunctionEndOfListDummy; ix++) {
-      type -> vtable[ix].id = ix;
-      type -> vtable[ix].fnc = NULL;
-    }
-  }
-  if (vtable) {
-    for (ix = 0; vtable[ix].fnc; ix++) {
-      fnc_id = vtable[ix].id;
-      type -> vtable[fnc_id].id = fnc_id;
-      type -> vtable[fnc_id].fnc = vtable[ix].fnc;
-    }
-  }
-  return type;
-}
-
-typedescr_t * typedescr_get(int datatype) {
-  typedescr_t *ret = NULL;
-  
-  if (datatype == Any) {
-    return &_typedescr_any;
-  } else if ((datatype >= 0) && (datatype < data_numtypes)) {
-    ret = &descriptors[datatype];
-  }
-  if (!ret) {
-    error("Undefined type %d referenced. Expect crashes", datatype);
-    return NULL;
-  } else {
-    return ret;
-  }
-}
-
-typedescr_t * typedescr_get_byname(char *name) {
-  typedescr_t *ret = NULL;
-  int          ix;
-  
-  if (!strcmp(name, "any")) {
-    return &_typedescr_any;
-  }
-  for (ix = 0; ix < data_numtypes; ix++) {
-    if (descriptors[ix].type_name && !strcmp(name, descriptors[ix].type_name)) {
-      return &descriptors[ix];
-    }
-  }
-  return NULL;
-}
-
-unsigned int typedescr_hash(typedescr_t *type) {
-  if (!type -> hash) {
-    type -> hash = strhash(type -> type_name);
-  }
-  return type -> hash;
-}
-
-void typedescr_dump_vtable(typedescr_t *type) {
-  int ix;
-  
-  debug("vtable for %s", typedescr_tostring(type));
-  for (ix = 0; ix < FunctionEndOfListDummy; ix++) {
-    assert(ix == type -> vtable[ix].id);
-    debug("%-20.20s %d %p", label_for_code(_function_id_labels, ix), ix, type -> vtable[ix].fnc);
-  }
-}
-
-void typedescr_count(void) {
-  int ix;
-  
-  debug("Atom count");
-  debug("-------------------------------------------------------");
-  for (ix = 0; ix < data_numtypes; ix++) {
-    if (descriptors[ix].type > NoType) {
-      debug("%3d. %-20.20s %6d", descriptors[ix].type, descriptors[ix].type_name, descriptors[ix].count);
-    }
-  }
-  debug("-------------------------------------------------------");
-  debug("     %-20.20s %6d", "T O T A L", _data_count);
-}
-
-void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
-  void_t       ret;
-  int          ix;
-  typedescr_t *inherits;
-  
-  assert(type);
-  assert(fnc_id > FunctionNone);
-  assert(fnc_id < FunctionEndOfListDummy);
-  ret = type -> vtable[fnc_id].fnc;
-  for (ix = 0; !ret && ix < type -> inherits_size; ix++) {
-    inherits = typedescr_get(type -> inherits[ix]);
-    ret = typedescr_get_function(inherits, fnc_id);
-  }
-  return ret;
-}
-
-void typedescr_register_methods(methoddescr_t methods[]) {
-  methoddescr_t *method;
-  typedescr_t   *type;
-
-  for (method = methods; method -> type > NoType; method++) {
-    type = typedescr_get(method -> type);
-    assert(type);
-    typedescr_register_method(type, method);
-  }
-}
-
-void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
-  assert(method -> name && method -> method);
-  //assert((!method -> varargs) || (method -> minargs > 0));
-  if (!type -> methods) {
-    type -> methods = strvoid_dict_create();
-  }
-  dict_put(type -> methods, strdup(method -> name), method);
-}
-
-methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
-  methoddescr_t *ret;
-  int            ix;
-  
-  assert(descr);
-  if (!descr -> methods) {
-    descr -> methods = strvoid_dict_create();
-  }
-  ret =  (methoddescr_t *) dict_get(descr -> methods, name);
-  if (!ret) {
-    if (descr -> inherits_size) {
-      for (ix = 0; !ret && ix < descr -> inherits_size; ix++) {
-        ret = typedescr_get_method(typedescr_get(descr -> inherits[ix]), name);
-      }
-    }
-    if (!ret && (descr -> type != Any)) {
-      ret = typedescr_get_method(typedescr_get(Any), name);
-    }
-    if (ret) {
-      dict_put(descr -> methods, name, ret);
-    }
-  }
-  return ret;
-}
-
-char * typedescr_tostring(typedescr_t *descr) {
-  if (!descr -> str) {
-    if (asprintf(&(descr -> str), "'%s' [%d]", 
-                 descr -> type_name, descr -> type) < 0) {
-      descr -> str = "Out of Memory?";
-    }
-  }
-  return descr -> str;
-}
-
-int typedescr_is(typedescr_t *descr, int type) {
-  int ix;
-  int ret;
-  
-  if (type == descr -> type) {
-    return 1;
-  } else if (descr -> inherits_size) {
-    ret = 0;
-    for (ix = 0; !ret && ix < descr -> inherits_size; ix++) {
-      ret = typedescr_is(typedescr_get(descr -> inherits[ix]), type);
-    }
-    return ret;
-  } else {
-    return 0;
-  }
-}
-
-/*
- * data_t public functions
- */
+/* -- D A T A  P U B L I C  F U N C T I O N S ----------------------------- */
 
 data_t * data_create_noinit(int type) {
   return data_settype(NEW(data_t), type);
@@ -492,10 +57,6 @@ data_t * data_settype(data_t *data, int type) {
   data -> str = NULL;
   descr -> count++;
   _data_count++;
-#ifndef NDEBUG
-  data -> debugstr = NULL;
-#endif
-  data -> methods = NULL;
   return data;
 }
 
@@ -607,37 +168,34 @@ data_t * data_promote(data_t *data) {
     : NULL;
 }
 
-void _data_call_free(typedescr_t *type, void *ptr) {
+void _data_call_free(typedescr_t *type, data_t *data) {
   free_t f;
   int    ix;
   
+  f = (free_t) typedescr_get_function(type, FunctionFreeData);
+  if (f) {
+    f(data);
+  }
   f = (free_t) typedescr_get_function(type, FunctionFree);
   if (f) {
-    f(ptr);
+    f(data -> ptrval);
   }
   for (ix = 0; ix < type -> inherits_size; ix++) {
-    _data_call_free(typedescr_get(type -> inherits[ix]), ptr);
+    _data_call_free(typedescr_get(type -> inherits[ix]), data);
   }
 }
 
 void data_free(data_t *data) {
   typedescr_t *type;
   
-  if (data) {
-    data -> refs--;
-    if (data -> refs <= 0) {
-      type = data_typedescr(data);
-      _data_call_free(type, data -> ptrval);
-      dict_free(data -> methods);
-      free(data -> str);
-#ifndef NDEBUG
-      free(data -> debugstr);
-#endif
-      type -> count--;
-      _data_count--;
-      if (data -> free_me) {
-        free(data);
-      }
+  if (data && (--data -> refs <= 0)) {
+    type = data_typedescr(data);
+    _data_call_free(type, data);
+    free(data -> str);
+    type -> count--;
+    _data_count--;
+    if (data -> free_me) {
+      free(data);
     }
   }
 }
@@ -697,20 +255,7 @@ data_t * data_method(data_t *data, char *name) {
   
   md = typedescr_get_method(type, name);
   if (md) {
-#ifdef CACHE_METHODS    
-    if (!data -> methods) {
-      data -> methods = strdata_dict_create();
-    } else {
-      ret = (data_t *) dict_get(data -> methods, name);
-    }
-    if (!ret) {
-      ret = data_create(Method, md, data);
-      dict_put(data -> methods, strdup(name), ret);
-    }
-    ret = data_copy(ret);
-#else /* !CACHE_METHODS */
     ret = data_create(Method, md, data);
-#endif /* CACHE_METHODS */
   }
   return ret;
 }
@@ -749,7 +294,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
     name_free(tail);
   }
   if (debug_data) {
-    debug("data_resolve(%s, %s) = %s", data_debugstr(data), name_tostring(name), data_debugstr(ret));
+    debug("data_resolve(%s, %s) = %s", data_tostring(data), name_tostring(name), data_tostring(ret));
   }
   return ret;
 }
@@ -761,7 +306,7 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
   
   if (debug_data) {
     debug("data_invoke(%s, %s, %s)", 
-          data_debugstr(self), 
+          data_tostring(self), 
           name_tostring(name), 
           (args) ? array_tostring(args) : "''");
   }
@@ -799,7 +344,7 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
     array_free(args_shifted);
   }
   if (debug_data) {
-    debug("data_invoke(%s, %s, %s) = %s", data_debugstr(self), name_tostring(name), array_tostring(args), data_debugstr(ret));
+    debug("data_invoke(%s, %s, %s) = %s", data_tostring(self), name_tostring(name), array_tostring(args), data_tostring(ret));
   }
   return ret;
 }
@@ -914,7 +459,7 @@ char * data_tostring(data_t *data) {
 	data -> str = strdup(ret);
       }
     } else {
-      len = asprintf(&(data -> str), "data:%s:%p", descriptors[data -> type].type_name, data);
+      len = asprintf(&(data -> str), "data:%s:%p", data_typedescr(data) -> type_name, data);
     }
     return data -> str;
   }
@@ -1082,3 +627,4 @@ dict_t * data_put_all_reducer(entry_t *e, dict_t *target) {
   dict_put(target, strdup(e -> key), data_copy(e -> value));
   return target;
 }
+

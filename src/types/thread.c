@@ -24,6 +24,8 @@
 #include <exception.h>
 #include <thread.h>
 
+#define MAX_STACKDEPTH      200
+
 static void          _data_init_thread(void) __attribute__((constructor));
 static data_t *      _data_new_thread(data_t *, va_list);
 static int           _data_cmp_thread(data_t *, data_t *);
@@ -152,8 +154,8 @@ data_t * data_current_thread(void) {
   data_t   *data;
   
   current = thread_self();
-  if (!current -> frame) {
-    current -> frame = datastack_create(current -> name);
+  if (!current -> stack) {
+    current -> stack = datastack_create(current -> name);
     current -> onfree = (free_t) datastack_free;
   }
   data = data_create_noinit(Thread);
@@ -162,12 +164,21 @@ data_t * data_current_thread(void) {
 }
 
 data_t * data_thread_frame_element(data_t *element) {
-  data_t   *data = data_current_thread();
-  thread_t *thread = data_threadval(data);
+  data_t      *data = data_current_thread();
+  thread_t    *thread = data_threadval(data);
+  datastack_t *stack = thread -> stack;
+  data_t      *ret;
   
-  datastack_push((datastack_t *) thread -> frame, element);
-  data_free(data);
-  return element;
+  if (datastack_depth(stack) > MAX_STACKDEPTH) {
+    ret =  data_error(ErrorMaxStackDepthExceeded, 
+                      "Maximum stack depth (%d) exceeded, most likely due to infinite recursion",
+                      MAX_STACKDEPTH);
+  } else {
+    datastack_push((datastack_t *) thread -> stack, element);
+    data_free(data);
+    ret = element;
+  }
+  return ret;
 }
 
 data_t * data_thread_stacktrace(data_t *thread) {
@@ -181,7 +192,7 @@ data_t * data_thread_stacktrace(data_t *thread) {
     thread = data;
   }
   thr = data_threadval(data);
-  stack = (datastack_t *) thr -> frame;
+  stack = (datastack_t *) thr -> stack;
   ret =  data_create_list(stack -> list);
   data_free(data);
   return ret;

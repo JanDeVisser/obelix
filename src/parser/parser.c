@@ -474,7 +474,7 @@ lexer_t * parser_newline(lexer_t *lexer, int line) {
 
 parser_t * parser_pushval(parser_t *parser, data_t *data) {
   if (parser_debug) {
-    debug("    Pushing value %s", data_debugstr(data));
+    debug("    Pushing value %s", data_tostring(data));
   }
   datastack_push(parser -> stack, data_copy(data));
   return parser;
@@ -484,7 +484,7 @@ parser_t * parser_push(parser_t *parser) {
   data_t   *data = token_todata(parser -> last_token);
   parser_t *ret = parser_pushval(parser, data);
   
-  data_free(data);
+  data_free(data);      
   return ret;
 }
 
@@ -492,7 +492,7 @@ parser_t * parser_discard(parser_t *parser) {
   data_t   *data = datastack_pop(parser -> stack);
   
   if (parser_debug) {
-    debug("    Discarding value %s", data_debugstr(data));
+    debug("    Discarding value %s", data_tostring(data));
   }
   data_free(data);
   return parser;

@@ -140,6 +140,8 @@ extern closure_t *      closure_create(script_t *, closure_t *, data_t *);
 extern void             closure_free(closure_t *);
 extern closure_t *      closure_copy(closure_t *);
 extern char *           closure_tostring(closure_t *);
+extern int              closure_cmp(closure_t *, closure_t *);
+extern unsigned int     closure_hash(closure_t *);
 extern data_t *         closure_pop(closure_t *);
 extern data_t *         closure_peek(closure_t *);
 extern closure_t *      closure_push(closure_t *, data_t *);

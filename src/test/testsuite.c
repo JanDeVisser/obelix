@@ -23,8 +23,7 @@
 #include <stdlib.h>
 
 #include <core.h>
-
-#include "testsuite.h"
+#include <testsuite.h>
 
 static void _init_suite(void) __attribute__((constructor(200)));
 

@@ -29,234 +29,64 @@
 #include <script.h>
 #include <str.h>
 #include <thread.h>
+#include <wrapper.h>
 
+#define  MAX_STACKDEPTH         200
 
 int script_debug = 0;
 
 static void             _script_init(void) __attribute__((constructor(102)));
 
-static data_t *         _data_new_script(data_t *, va_list);
-static data_t *         _data_copy_script(data_t *, data_t *);
-static int              _data_cmp_script(data_t *, data_t *);
-static char *           _data_tostring_script(data_t *);
-static data_t *         _data_call_script(data_t *, array_t *, dict_t *);
-
-static data_t *         _data_new_bm(data_t *, va_list);
-static data_t *         _data_copy_bm(data_t *, data_t *);
-static int              _data_cmp_bm(data_t *, data_t *);
-static char *           _data_tostring_bm(data_t *);
-static data_t *         _data_call_bm(data_t *, array_t *, dict_t *);
-
-static data_t *         _data_new_closure(data_t *, va_list);
-static data_t *         _data_copy_closure(data_t *, data_t *);
-static int              _data_cmp_closure(data_t *, data_t *);
-static char *           _data_tostring_closure(data_t *);
-static data_t *         _data_call_closure(data_t *, array_t *, dict_t *);
-static data_t *         _data_resolve_closure(data_t *, char *);
-static data_t *         _data_set_closure(data_t *, char *, data_t *);
-
 static closure_t *      _closure_create_closure_reducer(entry_t *, closure_t *);
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
-
-static stackframe_t *   _stackframe_create(closure_t *, int);
-static stackframe_t *   _stackframe_copy(stackframe_t *);
-static void             _stackframe_free(stackframe_t *);
-static char *           _stackframe_tostring(stackframe_t *);
-static char *           _stackframe_set_line(stackframe_t *, int);
-
-static data_t *         _data_new_stackframe(data_t *, va_list);
-static data_t *         _data_copy_stackframe(data_t *, data_t *);
-static int              _data_cmp_stackframe(data_t *, data_t *);
-static char *           _data_tostring_stackframe(data_t *);
+static data_t *         _closure_get(closure_t *, char *);
+static data_t *         _closure_start(closure_t *);
 
 /* -- data_t type description structures ---------------------------------- */
 
-static vtable_t _vtable_script[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_script },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_script },
-  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_script },
+static vtable_t _wrapper_vtable_script[] = {
+  { .id = FunctionCopy,     .fnc = (void_t) script_copy },
+  { .id = FunctionCmp,      .fnc = (void_t) script_cmp },
   { .id = FunctionFree,     .fnc = (void_t) script_free },
-  { .id = FunctionToString, .fnc = (void_t) _data_tostring_script },
-  { .id = FunctionCall,     .fnc = (void_t) _data_call_script },
+  { .id = FunctionToString, .fnc = (void_t) script_tostring },
+  { .id = FunctionCall,     .fnc = (void_t) script_execute },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t _typedescr_script = {
-  .type =      Script,
-  .type_name = "script",
-  .vtable =    _vtable_script
-};
-
-static vtable_t _vtable_bound_method[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_bm },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_bm },
-  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_bm },
+static vtable_t _wrapper_vtable_bound_method[] = {
+  { .id = FunctionCopy,     .fnc = (void_t) bound_method_copy },
+  { .id = FunctionCmp,      .fnc = (void_t) bound_method_cmp },
   { .id = FunctionFree,     .fnc = (void_t) bound_method_free },
-  { .id = FunctionToString, .fnc = (void_t) _data_tostring_bm },
-  { .id = FunctionCall,     .fnc = (void_t) _data_call_bm },
+  { .id = FunctionToString, .fnc = (void_t) bound_method_tostring },
+  { .id = FunctionCall,     .fnc = (void_t) bound_method_execute },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t _typedescr_bound_method = {
-  .type =      BoundMethod,
-  .type_name = "boundmethod",
-  .vtable =    _vtable_bound_method
-};
-
-static vtable_t _vtable_closure[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_closure },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_closure },
-  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_closure },
+static vtable_t _wrapper_vtable_closure[] = {
+  { .id = FunctionCopy,     .fnc = (void_t) closure_copy },
+  { .id = FunctionCmp,      .fnc = (void_t) closure_cmp },
+  { .id = FunctionHash,     .fnc = (void_t) closure_hash },
   { .id = FunctionFree,     .fnc = (void_t) closure_free },
-  { .id = FunctionToString, .fnc = (void_t) _data_tostring_closure },
-  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_closure },
-  { .id = FunctionCall,     .fnc = (void_t) _data_call_closure },
-  { .id = FunctionSet,      .fnc = (void_t) _data_set_closure },
+  { .id = FunctionToString, .fnc = (void_t) closure_tostring },
+  { .id = FunctionResolve,  .fnc = (void_t) closure_resolve },
+  { .id = FunctionCall,     .fnc = (void_t) closure_execute },
+  { .id = FunctionSet,      .fnc = (void_t) closure_set },
   { .id = FunctionNone,     .fnc = NULL }
 };
-
-static typedescr_t _typedescr_closure = {
-  .type =      Closure,
-  .type_name = "closure",
-  .vtable =    _vtable_closure
-};
-
-typedef struct _stackframe {
-  closure_t *closure;
-  int        line;
-  int        refs;
-  char      *str;
-} stackframe_t;
-
-static vtable_t _vtable_stackframe[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_stackframe },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_stackframe },
-  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_stackframe },
-  { .id = FunctionFree,     .fnc = (void_t) _stackframe_free },
-  { .id = FunctionToString, .fnc = (void_t) _data_tostring_stackframe },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-int Stackframe = -1;
-
-static typedescr_t _typedescr_stackframe = {
-  .type =      Stackframe,
-  .type_name = "stackframe",
-  .vtable =    _vtable_stackframe
-};
-
-#define data_is_stackframe(d) ((d) && (data_type((d)) == Stackframe))
-#define data_stackframe(d)    (data_is_stackframe((d)) ? ((stackframe_t *) (d) -> ptrval) : NULL)
 
 /* ------------------------------------------------------------------------ */
 
 void _script_init(void) {
   logging_register_category("script", &script_debug);
-  typedescr_register(&_typedescr_script);
-  typedescr_register(&_typedescr_closure);
-  typedescr_register(&_typedescr_bound_method);
-  typedescr_register(&_typedescr_stackframe);
+  wrapper_register(Script, "script", _wrapper_vtable_script);
+  wrapper_register(Closure, "closure", _wrapper_vtable_closure);
+  wrapper_register(BoundMethod, "boundmethod", _wrapper_vtable_bound_method);
 }
 
 /* -- Script data functions ----------------------------------------------- */
 
-data_t * _data_new_script(data_t *ret, va_list arg) {
-  script_t *script;
-
-  script = va_arg(arg, script_t *);
-  ret -> ptrval = script_copy(script);
-  return ret;
-}
-
-data_t * _data_copy_script(data_t *target, data_t *src) {
-  target -> ptrval = script_copy(src -> ptrval);
-  return target;
-}
-
-int _data_cmp_script(data_t *d1, data_t *d2) {
-  return script_cmp(data_scriptval(d1), data_scriptval(d2));
-}
-
-char * _data_tostring_script(data_t *d) {
-  return script_tostring(data_scriptval(d));
-}
-
-data_t * _data_call_script(data_t *self, array_t *params, dict_t *kwargs) {
-  return script_execute(data_scriptval(self), params, kwargs);
-}
-
 data_t * data_create_script(script_t *script) {
   return data_create(Script, script);
-}
-
-/* -- BoundMethod data functions ------------------------------------------ */
-
-data_t * _data_new_bm(data_t *ret, va_list arg) {
-  bound_method_t *bm;
-
-  bm = va_arg(arg, bound_method_t *);
-  ret -> ptrval = bound_method_copy(bm);
-  return ret;
-}
-
-data_t * _data_copy_bm(data_t *target, data_t *src) {
-  target -> ptrval = bound_method_copy(src -> ptrval);
-  return target;
-}
-
-int _data_cmp_bm(data_t *d1, data_t *d2) {
-  return bound_method_cmp(data_boundmethodval(d1), data_boundmethodval(d2));
-}
-
-char * _data_tostring_bm(data_t *d) {
-  return bound_method_tostring(data_boundmethodval(d));
-}
-
-data_t * _data_call_bm(data_t *self, array_t *params, dict_t *kwargs) {
-  return bound_method_execute(data_boundmethodval(self), params, kwargs);
-}
-
-/* -- Closure data functions ---------------------------------------------- */
-
-data_t * _data_new_closure(data_t *ret, va_list arg) {
-  closure_t *closure;
-
-  closure = va_arg(arg, closure_t *);
-  ret -> ptrval = closure;
-  ((closure_t *) ret -> ptrval) -> refs++;
-  return ret;
-}
-
-data_t * _data_copy_closure(data_t *target, data_t *src) {
-  target -> ptrval = src -> ptrval;
-  ((closure_t *) target -> ptrval) -> refs++;
-  return target;
-}
-
-int _data_cmp_closure(data_t *d1, data_t *d2) {
-  closure_t *c1;
-  closure_t *c2;
-
-  c1 = d1 -> ptrval;
-  c2 = d2 -> ptrval;
-  return name_cmp(c1 -> script -> name, c2 -> script -> name);
-}
-
-char * _data_tostring_closure(data_t *d) {
-  return closure_tostring((closure_t *) d -> ptrval);
-}
-
-data_t * _data_call_closure(data_t *self, array_t *params, dict_t *kwargs) {
-  closure_t *closure = (closure_t *) self -> ptrval;
-  return closure_execute(closure, params, kwargs);
-}
-
-data_t * _data_resolve_closure(data_t *data, char *name) {
-  return closure_resolve((closure_t *) data -> ptrval, name);
-}
-
-data_t * _data_set_closure(data_t *data, char *name, data_t *value) {
-  return closure_set((closure_t *) data -> ptrval, name, value);
 }
 
 data_t * data_create_closure(closure_t *closure) {
@@ -558,6 +388,9 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
 
   ret = ns_exit_code(closure -> script -> mod -> ns);
   if (!ret) {
+    if (instr -> line > 0) {
+      closure -> line = instr->line;
+    }
     ret = instruction_execute(instr, closure);
   }
   if (ret) {
@@ -587,6 +420,57 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
     free(label);
   }
   return node;
+}
+
+data_t * _closure_get(closure_t *closure, char *varname) {
+  data_t *ret = NULL;
+
+  if (closure -> self && !strcmp(varname, "self")) {
+    ret = closure -> self;
+  } else if (closure -> variables) {
+    ret = (data_t *) dict_get(closure -> variables, varname);
+  }
+  if (!ret && closure -> params) {
+    /* 
+     * We store the passed-in parameter values. If the parameter variable gets
+     * re-assigned, the new value shadows the old one because it will be set 
+     * in the variables dict, not in the params one.
+     */
+    ret = (data_t *) dict_get(closure -> params, varname);    
+  }
+  return ret;
+}
+
+data_t * _closure_start(closure_t *closure) {
+  data_t   *ret;
+  error_t  *e;
+
+  ret = data_thread_frame_element(data_create_closure(closure));
+  if (!data_is_error(ret)) {
+    list_process(closure -> script -> instructions,
+                (reduce_t) _closure_execute_instruction,
+                closure);
+    ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
+    if (script_debug) {
+      debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
+    }
+    if (data_is_error(ret)) {
+      e = data_errorval(ret);
+      if ((e -> code == ErrorExit) && (data_errorval(ret) -> exception)) {
+        ns_exit(closure -> script -> mod -> ns, ret);
+      }
+    }
+  }
+  
+  if (closure -> free_params) {
+    /*
+     * kwargs was assigned to closure -> params. Freeing the closure should
+     * not free the params in that case, since the owner is responsible for
+     * kwargs,
+     */
+    closure -> params = NULL;
+  }
+  return ret;
 }
 
 /* -- C L O S U R E  P U B L I C  F U N C T I O N S ------------------------*/
@@ -661,6 +545,14 @@ char * closure_tostring(closure_t *closure) {
            
 }
 
+int closure_cmp(closure_t *c1, closure_t *c2) {
+  return name_cmp(c1 -> script -> name, c2 -> script -> name);
+}
+
+unsigned int closure_hash(closure_t *closure) {
+  return hashptr(closure);
+}
+
 data_t * closure_pop(closure_t *closure) {
   return datastack_pop(closure -> stack);
 }
@@ -692,7 +584,7 @@ data_t * closure_set(closure_t *closure, char *name, data_t *value) {
   if (script_debug) {
     if (strcmp(name, "self")) {
       debug("  Setting local '%s' = '%s' in closure for %s",
-            name, data_debugstr(value), closure_tostring(closure));
+            name, data_tostring(value), closure_tostring(closure));
     } else {
       debug("  Setting local '%s' in closure for %s",
             name, closure_tostring(closure));
@@ -703,25 +595,6 @@ data_t * closure_set(closure_t *closure, char *name, data_t *value) {
   }
   dict_put(closure -> variables, strdup(name), data_copy(value));
   return value;
-}
-
-data_t * _closure_get(closure_t *closure, char *varname) {
-  data_t *ret = NULL;
-
-  if (closure -> self && !strcmp(varname, "self")) {
-    ret = closure -> self;
-  } else if (closure -> variables) {
-    ret = (data_t *) dict_get(closure -> variables, varname);
-  }
-  if (!ret && closure -> params) {
-    /* 
-     * We store the passed-in parameter values. If the parameter variable gets
-     * re-assigned, the new value shadows the old one because it will be set 
-     * in the variables dict, not in the params one.
-     */
-    ret = (data_t *) dict_get(closure -> params, varname);    
-  }
-  return ret;
 }
 
 data_t * closure_get(closure_t *closure, char *varname) {
@@ -766,35 +639,6 @@ data_t * closure_resolve(closure_t *closure, char *name) {
     }
   }
   return data_copy(ret);
-}
-
-data_t * _closure_start(closure_t *closure) {
-  data_t   *ret;
-  error_t  *e;
-
-  list_process(closure -> script -> instructions,
-               (reduce_t) _closure_execute_instruction,
-               closure);
-  ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
-  if (script_debug) {
-    debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
-  }
-  if (data_is_error(ret)) {
-    e = data_errorval(ret);
-    if ((e -> code == ErrorExit) && (data_errorval(ret) -> exception)) {
-      ns_exit(closure -> script -> mod -> ns, ret);
-    }
-  }
-  
-  if (closure -> free_params) {
-    /*
-     * kwargs was assigned to closure -> params. Freeing the closure should
-     * not free the params in that case, since the owner is responsible for
-     * kwargs,
-     */
-    closure -> params = NULL;
-  }
-  return ret;
 }
 
 data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
@@ -865,7 +709,7 @@ closure_t * closure_set_location(closure_t *closure, data_t *location) {
   return closure;
 }
 
-data_t* closure_stash(closure_t *closure, unsigned int stash, data_t *data) {
+data_t * closure_stash(closure_t *closure, unsigned int stash, data_t *data) {
   if (stash < NUM_STASHES) {
     closure -> stashes[stash] = data;
     return data;
@@ -874,69 +718,10 @@ data_t* closure_stash(closure_t *closure, unsigned int stash, data_t *data) {
   }
 }
 
-data_t* closure_unstash(closure_t *closure, unsigned int stash) {
+data_t * closure_unstash(closure_t *closure, unsigned int stash) {
   if (stash < NUM_STASHES) {
     return closure -> stashes[stash];
   } else {
     return NULL;
   }
 }
-
-/* -- S T A C K  F R A M E ------------------------------------------------ */
-
-static stackframe_t *   _stackframe_create(closure_t *closure, int line) {
-  stackframe_t *frame = NEW(stackframe_t);
-
-  frame -> closure = closure;
-  frame -> line = line;
-  frame -> refs = 1;
-  frame -> str = NULL;
-  return frame;
-}
-
-stackframe_t * _stackframe_copy(stackframe_t *frame) {
-  if (frame) {
-    frame -> refs++;
-  }
-  return frame;
-}
-
-void _stackframe_free(stackframe_t *frame) {
-  if (frame && (--frame -> refs <= 0)) {
-    free(frame);
-  }
-}
-
-stackframe_t * _stackframe_set_line(stackframe_t *frame, int line) {
-  if (frame) {
-    frame -> line = line;
-    frame -> str = NULL;
-  }
-  return frame;
-}
-
-char * _stackframe_tostring(stackframe_t *frame) {
-  if (!frame -> str) {
-    asprintf(&frame -> str, "%s:%d", 
-             closure_tostring(frame -> closure),
-             frame -> line);
-  }
-  return frame -> str;
-}
-
-data_t * _data_new_stackframe(data_t *data, va_list args) {
-  closure_t    *closure = va_arg(args, closure_t *);
-  int           line = va_arg(args, int);
-  stackframe_t *sf = _stackframe_create(closure, line);
-
-  data -> ptrval = sf;
-  return data;
-}
-
-data_t * _data_copy_stackframe(data_t *, data_t *) {
-  
-}
-
-static int              _data_cmp_stackframe(data_t *, data_t *);
-static char *           _data_tostring_stackframe(data_t *);
-

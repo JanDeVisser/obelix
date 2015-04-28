@@ -114,7 +114,7 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
   thread_t  *ret = NEW(thread_t);
 
   ret -> thr_id = thr_id;
-  ret -> frame = NULL;
+  ret -> stack = NULL;
   ret -> onfree = NULL;
   if (name) {
     ret -> name = strdup(name);
@@ -128,7 +128,7 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
 void thread_free(thread_t *thread) {
   if (thread && (--thread -> refs <= 0)) {
     if (thread -> onfree) {
-      thread -> onfree(thread -> frame);
+      thread -> onfree(thread -> stack);
     }
     free(thread -> name);
     free(thread);
