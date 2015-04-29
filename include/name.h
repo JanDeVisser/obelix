@@ -37,8 +37,6 @@ typedef struct _name {
 #define data_is_name(d)  ((d) && (data_type((d)) == Name))
 #define data_nameval(d)  ((name_t *) (data_is_name((d)) ? ((d) -> ptrval) : NULL))
 
-struct _data;
-
 extern name_t *          name_create(int, ...);
 extern name_t *          name_vcreate(int, va_list);
 extern name_t *          name_split(char *, char *);

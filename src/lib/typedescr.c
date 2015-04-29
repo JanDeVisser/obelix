@@ -79,6 +79,9 @@ int typedescr_register(typedescr_t *descr) {
   int             cursz;
   typedescr_t    *d;
 
+  if (!_numtypes && (descr -> type != Any)) {
+    any_init();
+  }
   if (descr -> type < 0) {
     descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
   }

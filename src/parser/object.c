@@ -169,7 +169,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
     data_free(n);
     n = data_resolve(self, name);
   }
-  if (!data_is_error(n)) {
+  if (!data_is_exception(n)) {
     if (data_is_object(n)) {
       script = data_boundmethodval(data_objectval(n) -> constructor) -> script;
     } else if (data_is_closure(n)) {
@@ -185,7 +185,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
       array_free(shifted);
       assert(data_is_object(ret));
     } else {
-      ret = data_error(ErrorType, "Cannot use '%s' of type 's' as an object factory",
+      ret = data_exception(ErrorType, "Cannot use '%s' of type 's' as an object factory",
                        data_tostring(n), data_typedescr(n) -> type_name);
     }
   } else {
@@ -306,7 +306,7 @@ data_t * object_get(object_t *object, char *name) {
     ret = data_create(Bool, object -> constructing);
   }
   if (!ret) {
-    ret = data_error(ErrorName,
+    ret = data_exception(ErrorName,
                      "Object '%s' has no attribute '%s'",
                      object_debugstr(object),
                      name);
@@ -349,9 +349,9 @@ data_t * object_call(object_t *object, array_t *args, dict_t *kwargs) {
   data_t *ret;
 
   ret = _object_call_attribute(object, "__call__", args, kwargs);
-  if (!ret || data_is_error(ret)) {
+  if (!ret || data_is_exception(ret)) {
     data_free(ret);
-    ret = data_error(ErrorNotCallable, "Object '%s' is not callable", 
+    ret = data_exception(ErrorNotCallable, "Object '%s' is not callable", 
                      object_tostring(object));
   }
   return ret;
@@ -400,7 +400,7 @@ int object_cmp(object_t *o1, object_t *o2) {
   args = data_array_create(1);
   array_set(args, 0, data_create(Object, o2));
   data = _object_call_attribute(o1, "__cmp__", args, NULL);
-  ret = (data && !data_is_error(data))
+  ret = (data && !data_is_exception(data))
       ? data_intval(data)
       : (long) o1 - (long) o2;
   data_free(data);

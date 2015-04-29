@@ -39,7 +39,7 @@ START_TEST(t2)
 
   d = run_script("t2");
   ck_assert_int_eq(data_type(d), Error);
-  e = data_errorval(d);
+  e = data_exceptionval(d);
   ck_assert_int_eq(e -> code, ErrorName);
   data_free(d);
 END_TEST
@@ -139,7 +139,7 @@ START_TEST(t13)
 
   d = run_script("t13");
   ck_assert_int_eq(data_type(d), Error);
-  ck_assert_int_eq(data_errorval(d) -> code, ErrorSyntax);
+  ck_assert_int_eq(data_exceptionval(d) -> code, ErrorSyntax);
   data_free(d);
 END_TEST
 
@@ -148,7 +148,7 @@ START_TEST(t14)
 
   d = run_script("t14");
   ck_assert_int_eq(data_type(d), Error);
-  ck_assert_int_eq(data_errorval(d) -> code, ErrorSyntax);
+  ck_assert_int_eq(data_exceptionval(d) -> code, ErrorSyntax);
   data_free(d);
 END_TEST
 

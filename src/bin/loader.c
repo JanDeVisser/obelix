@@ -170,7 +170,7 @@ static data_t * _scriptloader_set_value(scriptloader_t *loader, data_t *obj,
   
   n = name_create(1, name);
   ret = data_set(obj, n, value);
-  if (!(ret && data_is_error(ret))) {
+  if (!(ret && data_is_exception(ret))) {
     data_free(value);
     ret = NULL;
   }
@@ -188,7 +188,7 @@ static data_t * _scriptloader_import_sys(scriptloader_t *loader,
   name = name_create(1, "sys");
   sys = scriptloader_import(loader, name);
   name_free(name);
-  if (!data_is_error(sys)) {
+  if (!data_is_exception(sys)) {
     _scriptloader_extend_loadpath(loader, user_path);
     ret = _scriptloader_set_value(loader, sys, "path", 
                                   data_create(Name, loader -> load_path));
@@ -384,7 +384,7 @@ data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
     rdr = _scriptloader_open_reader(loader, mod -> name);
     ret = (rdr)
             ? scriptloader_load_fromreader(loader, mod, rdr)
-            : data_error(ErrorName, "Could not load '%s'", script_name);
+            : data_exception(ErrorName, "Could not load '%s'", script_name);
     reader_free(rdr);
   } else {
     debug("Module '%s' is already active. Skipped.", 
@@ -400,7 +400,7 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
   data_t   *sys;
   
   sys = _scriptloader_get_object(loader, 1, "sys");
-  if (sys && !data_is_error(sys)) {
+  if (sys && !data_is_exception(sys)) {
     _scriptloader_set_value(loader, sys, "argv", data_create_list(args));
     data_free(sys);
     data = ns_execute(loader -> ns, name, args, kwargs);
@@ -411,7 +411,7 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
       object_free(obj);
     }
   } else {
-    data = (sys) ? sys : data_error(ErrorName, "Could not resolve module 'sys'");
+    data = (sys) ? sys : data_exception(ErrorName, "Could not resolve module 'sys'");
   }
   return data;
 }

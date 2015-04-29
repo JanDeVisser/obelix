@@ -142,7 +142,7 @@ data_t * _file_open(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     n = data_tostring(self);
   } else if (array_size(args) > 1) {
     // FIXME open mode!
-    return data_error(ErrorArgCount, "open() takes exactly one argument");
+    return data_exception(ErrorArgCount, "open() takes exactly one argument");
   } else {
     n = data_tostring(array_get(args, 0));
   }

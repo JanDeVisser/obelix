@@ -82,7 +82,7 @@ data_t * _data_new_thread(data_t *data, va_list args) {
     data -> ptrval = thread;
     return data;
   } else {
-    return data_error_from_errno();
+    return data_exception_from_errno();
   }
 }
 
@@ -134,7 +134,7 @@ data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) 
     thread_yield();
     return self;
   } else {
-    return data_error(ErrorType, "Can only call yield on current thread");
+    return data_exception(ErrorType, "Can only call yield on current thread");
   }
 }
 
@@ -170,7 +170,7 @@ data_t * data_thread_frame_element(data_t *element) {
   data_t      *ret;
   
   if (datastack_depth(stack) > MAX_STACKDEPTH) {
-    ret =  data_error(ErrorMaxStackDepthExceeded, 
+    ret =  data_exception(ErrorMaxStackDepthExceeded, 
                       "Maximum stack depth (%d) exceeded, most likely due to infinite recursion",
                       MAX_STACKDEPTH);
   } else {

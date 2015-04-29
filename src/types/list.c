@@ -49,7 +49,6 @@ static vtable_t _vtable_list[] = {
   { .id = FunctionCmp,      .fnc = (void_t) _list_cmp },
   { .id = FunctionFree,     .fnc = (void_t) array_free },
   { .id = FunctionToString, .fnc = (void_t) _list_tostring },
-  /* { .id = FunctionParse,    .fnc = NULL }, FIXME */
   { .id = FunctionCast,     .fnc = (void_t) _list_cast },
   { .id = FunctionHash,     .fnc = (void_t) _list_hash },
   { .id = FunctionIter,     .fnc = (void_t) _list_iter },
@@ -231,7 +230,7 @@ data_t * _list_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int      ix = data_intval(data_array_get(args, 0));
   
   if ((ix >= sz) || (ix < -sz)) {
-    return data_error(ErrorRange, 
+    return data_exception(ErrorRange, 
                       "list.at(): Index %d is not in range %d ~ %d", 
                       ix, -sz, sz -1);
   } else {

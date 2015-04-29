@@ -42,7 +42,7 @@ static data_t *      _fnc_copy(data_t *, data_t *);
 static int           _fnc_cmp(data_t *, data_t *);
 static data_t *      _fnc_cast(data_t *, int);
 static char *        _fnc_tostring(data_t *);
-static data_t *      _fnc_parse(char *);
+static data_t *      _fnc_parse(typedescr_t *, char *);
 static unsigned int  _fnc_hash(data_t *);
 static data_t *      _fnc_call(data_t *, array_t *, dict_t *);
 
@@ -212,11 +212,12 @@ char * _fnc_tostring(data_t *data) {
   return fnc -> name;
 }
 
-data_t * _fnc_parse(char *str) {
+data_t * _fnc_parse(typedescr_t *type, char *str) {
   void_t      f = resolve_function(str);
   function_t *fnc;
   data_t     *ret = NULL;
 
+  (void) type;
   if (f) {
     fnc = function_create(str, (voidptr_t) f);
     ret = data_create(Function, fnc);

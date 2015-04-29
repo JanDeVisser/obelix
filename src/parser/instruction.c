@@ -283,7 +283,7 @@ data_t * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
   ret = data_set(c, path, value);
   data_free(c);
   data_free(value);
-  return (data_is_error(ret)) ? ret : NULL;
+  return (data_is_exception(ret)) ? ret : NULL;
 }
 
 data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) {
@@ -293,7 +293,7 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
   data_t *c;
   
   value = _instruction_get_variable(instr, closure);
-  if (!data_is_error(value)) {
+  if (!data_is_exception(value)) {
     if (script_debug) {
       debug(" -- value '%s'", data_tostring(value));
     }
@@ -317,7 +317,7 @@ data_t * _instruction_execute_enter_context(instruction_t *instr, closure_t *clo
     ret = data_invoke(context, enter, NULL, NULL);
   }
   data_free(context);
-  if (ret && !data_is_error(ret)) {
+  if (ret && !data_is_exception(ret)) {
     ret = NULL;
   }
   if (!ret) {
@@ -327,17 +327,17 @@ data_t * _instruction_execute_enter_context(instruction_t *instr, closure_t *clo
 }
 
 data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *closure) {
-  data_t  *error;
-  error_t *e = NULL;
-  data_t  *context;
-  data_t  *ret = NULL;
-  array_t *params;
-  name_t  *exit = name_create(1, "__exit__");
+  data_t      *error;
+  exception_t *e = NULL;
+  data_t      *context;
+  data_t      *ret = NULL;
+  array_t     *params;
+  name_t      *exit = name_create(1, "__exit__");
   
   error = closure_pop(closure);
   context = _instruction_get_variable(instr, closure);
-  if (data_is_error(error)) {
-    e = data_errorval(error);
+  if (data_is_exception(error)) {
+    e = data_exceptionval(error);
   } else {
     /*
      * If there is an error the catchpoint was already popped by 
@@ -349,7 +349,7 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
     params = data_array_create(1);
     if (e) {
       if ((e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
-        array_push(params, data_copy((e -> exception) ? e -> exception : error));
+        array_push(params, data_copy((e -> throwable) ? e -> throwable : error));
       }
     }
     if (!array_size(params)) {
@@ -365,7 +365,7 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
      * don't care what else happens.
      */
     ret = data_copy(error);
-  } else if (!data_is_error(ret)) {
+  } else if (!data_is_exception(ret)) {
     ret = NULL;
   }
   data_free(error);
@@ -379,7 +379,7 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
 data_t * _instruction_execute_throw(instruction_t *instr, closure_t *closure) {
   data_t *exception = closure_pop(closure);
 
-  return !data_is_error(exception) ? data_exception(exception) : exception;
+  return !data_is_exception(exception) ? data_throwable(exception) : exception;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -482,7 +482,7 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
   data_free(caller);
   array_free(args);
   dict_free(kwargs);
-  if (ret && !data_is_error(ret)) {
+  if (ret && !data_is_exception(ret)) {
     closure_push(closure, ret);
     ret = NULL;
   }
@@ -510,7 +510,7 @@ data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
 
   casted = data_cast(value, Bool);
   if (!casted) {
-    ret = data_error(ErrorType, "Cannot convert '%s' to boolean",
+    ret = data_exception(ErrorType, "Cannot convert '%s' to boolean",
                      data_tostring(value));
   } else {
     ret = (!casted -> intval) ? data_create(String, instr -> name) : NULL;
@@ -541,7 +541,7 @@ data_t * _instruction_execute_next(instruction_t *instr, closure_t *closure) {
   assert(instr -> name);
   next = data_next(iter);
   
-  if (data_is_error(next) && (data_errorval(next) -> code == ErrorExhausted)) {
+  if (data_is_exception(next) && (data_exceptionval(next) -> code == ErrorExhausted)) {
     data_free(iter);
     ret = data_create(String, instr -> name);
   } else {
@@ -558,7 +558,7 @@ data_t * _instruction_execute_import(instruction_t *instr, closure_t *closure) {
   data_t  *ret;
 
   ret = closure_import(closure, imp);
-  if (!data_is_error(ret)) {
+  if (!data_is_exception(ret)) {
     data_free(ret);
     ret = NULL;
   }

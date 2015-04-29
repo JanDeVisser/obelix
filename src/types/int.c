@@ -33,7 +33,7 @@ static int           _int_cmp(data_t *, data_t *);
 static char *        _int_tostring(data_t *);
 static data_t *      _int_cast(data_t *, int);
 static unsigned int  _int_hash(data_t *);
-static data_t *      _int_parse(char *);
+static data_t *      _int_parse(typedescr_t *, char *);
 static data_t *      _int_incr(data_t *);
 static data_t *      _int_decr(data_t *);
 static double        _int_fltvalue(data_t *);
@@ -47,7 +47,7 @@ static data_t *      _int_abs(data_t *, char *, array_t *, dict_t *);
 
 static data_t *      _bool_new(data_t *, va_list);
 static char *        _bool_tostring(data_t *);
-static data_t *      _bool_parse(char *);
+static data_t *      _bool_parse(typedescr_t *, char *);
 static data_t *      _bool_cast(data_t *, int);
 
 static data_t *      _bool_and(data_t *, char *, array_t *, dict_t *);
@@ -168,11 +168,12 @@ data_t * _int_cast(data_t *data, int totype) {
   }
 }
 
-data_t * _int_parse(char *str) {
+data_t * _int_parse(typedescr_t *type, char *str) {
   char *endptr;
   char *ptr;
   long  val;
   
+  (void) type;
   if (!strtoint(str, &val)) {
     return data_create(Int, (long) val);
   } else {
@@ -340,9 +341,9 @@ char * _bool_tostring(data_t *data) {
   return btoa(data -> intval);
 }
 
-data_t * _bool_parse(char *str) {
-  data_t *i = _int_parse(str);
-  
+data_t * _bool_parse(typedescr_t *type, char *str) {
+  data_t *i = _int_parse(type, str);
+
   if (i) {
     return data_create(Bool, data_intval(i));
   } else {

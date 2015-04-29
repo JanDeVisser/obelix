@@ -273,7 +273,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   retval = bound_method_execute(data_boundmethodval(retobj -> constructor), 
                                 params, kwparams);
   retobj -> constructing = FALSE;
-  if (!data_is_error(retval)) {
+  if (!data_is_exception(retval)) {
     retobj -> retval = retval;
     retval = data_create(Object, retobj);
   }
@@ -398,7 +398,7 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
       case String:
         label = strdup(data_tostring(ret));
         break;
-      case Error:
+      case Exception:
         catchpoint = datastack_pop(closure -> catchpoints);
         label = strdup(data_charval(catchpoint));
         data_free(catchpoint);
@@ -442,11 +442,11 @@ data_t * _closure_get(closure_t *closure, char *varname) {
 }
 
 data_t * _closure_start(closure_t *closure) {
-  data_t   *ret;
-  error_t  *e;
+  data_t      *ret;
+  exception_t *e;
 
   ret = data_thread_frame_element(data_create_closure(closure));
-  if (!data_is_error(ret)) {
+  if (!data_is_exception(ret)) {
     list_process(closure -> script -> instructions,
                 (reduce_t) _closure_execute_instruction,
                 closure);
@@ -454,9 +454,9 @@ data_t * _closure_start(closure_t *closure) {
     if (script_debug) {
       debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
     }
-    if (data_is_error(ret)) {
-      e = data_errorval(ret);
-      if ((e -> code == ErrorExit) && (data_errorval(ret) -> exception)) {
+    if (data_is_exception(ret)) {
+      e = data_exceptionval(ret);
+      if ((e -> code == ErrorExit) && (data_exceptionval(ret) -> throwable)) {
         ns_exit(closure -> script -> mod -> ns, ret);
       }
     }
@@ -603,7 +603,7 @@ data_t * closure_get(closure_t *closure, char *varname) {
   if (ret) {
     ret = data_copy(ret);
   } else {
-    ret = data_error(ErrorName,
+    ret = data_exception(ErrorName,
                      "Closure '%s' has no attribute '%s'",
                      closure_tostring(closure),
                      varname);
@@ -652,7 +652,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   closure -> free_params = FALSE;
   if (script -> params && array_size(script -> params)) {
     if (!args || (array_size(script -> params) > array_size(args))) {
-      return data_error(ErrorArgCount, 
+      return data_exception(ErrorArgCount, 
                         "Function %s takes %d arguments, %d provided",
                         name_tostring(script -> name), 
                         array_size(script -> params),

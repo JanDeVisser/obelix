@@ -108,21 +108,21 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
   }
   if (len < mth -> method -> minargs) {
     if (md -> varargs) {
-      return data_error(ErrorArgCount, "%s.%s requires at least %d arguments",
+      return data_exception(ErrorArgCount, "%s.%s requires at least %d arguments",
                        type -> type_name, md -> name, md -> minargs);
     } else {
-      return data_error(ErrorArgCount, "%s.%s requires exactly %d arguments",
+      return data_exception(ErrorArgCount, "%s.%s requires exactly %d arguments",
                        type -> type_name, md -> name, md -> minargs);
     }
   } else if (!md -> varargs && (len > maxargs)) {
     if (maxargs == 0) {
-      return data_error(ErrorArgCount, "%s.%s accepts no arguments",
+      return data_exception(ErrorArgCount, "%s.%s accepts no arguments",
                         type -> type_name, md -> name);
     } else if (maxargs == 1) {
-      return data_error(ErrorArgCount, "%s.%s accepts only one argument",
+      return data_exception(ErrorArgCount, "%s.%s accepts only one argument",
                         type -> type_name, md -> name);
     } else {
-      return data_error(ErrorArgCount, "%s.%s accepts only %d arguments",
+      return data_exception(ErrorArgCount, "%s.%s accepts only %d arguments",
                        type -> type_name, md -> name, maxargs);
     }
   }
@@ -132,7 +132,7 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
       ? md -> argtypes[i]
       : md -> argtypes[(md -> minargs) ? md -> minargs - 1 : 0];
     if (!data_hastype(arg, t)) {
-      return data_error(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
+      return data_exception(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
                         i+1, type -> type_name, md -> name, t, data_type(arg));
     }
   }

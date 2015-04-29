@@ -238,7 +238,7 @@ data_t * _data_call_pnm(data_t *self, array_t *params, dict_t *kwargs) {
   
   return (mod)
     ? object_call(mod -> obj, params, kwargs) 
-    : data_error(ErrorName, "Trouble locating '%s'", name_tostring(pnm -> name));
+    : data_exception(ErrorName, "Trouble locating '%s'", name_tostring(pnm -> name));
 }
 
 data_t * _data_set_pnm(data_t *data, char *name, data_t *value) {
@@ -247,7 +247,7 @@ data_t * _data_set_pnm(data_t *data, char *name, data_t *value) {
   
   return (mod)
     ? object_set(mod -> obj, name, value) 
-    : data_error(ErrorName, "Trouble locating '%s'", name_tostring(pnm -> name));
+    : data_exception(ErrorName, "Trouble locating '%s'", name_tostring(pnm -> name));
 }
 
 /* -- M O D U L E  D A T A  F U N C T I O N S ----------------------------- */
@@ -370,7 +370,7 @@ data_t * mod_set(module_t *mod, script_t *script, array_t *args, dict_t *kwargs)
             dict_tostring(mod -> obj -> variables));
     }
   } else {
-    assert(data_is_error(data));
+    assert(data_is_exception(data));
     object_free(mod -> obj);
   }
   return data;
@@ -507,12 +507,12 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
       ret = data_create(Module, module);
       data_free(obj);
     } else {
-      assert(data_is_error(obj));
+      assert(data_is_exception(obj));
       ret = obj;
     }
     data_free(script);
   } else {
-    assert(data_is_error(script));
+    assert(data_is_exception(script));
     ret = script;
   }
   return ret;
@@ -606,7 +606,7 @@ data_t * ns_execute(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
     data_free(mod);
     return obj;
   } else {
-    assert(data_is_error(mod));
+    assert(data_is_exception(mod));
     return mod;
   }
 }
@@ -620,7 +620,7 @@ data_t * ns_get(namespace_t *ns, name_t *name) {
   
   mod = dict_get(ns -> modules, (name) ? name_tostring(name) : "");
   if (!mod || !mod -> obj -> constructor) {
-      return data_error(ErrorName,
+      return data_exception(ErrorName,
                         "Import '%s' not found in %s", 
                         name_tostring(name), ns_tostring(ns));
   } else {

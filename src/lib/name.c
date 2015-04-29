@@ -22,100 +22,39 @@
 #include <data.h>
 #include <name.h>
 #include <str.h>
+#include <wrapper.h>
 
 static void          _data_init_name(void) __attribute__((constructor));
-static data_t *      _data_new_name(data_t *, va_list);
-static data_t *      _data_copy_name(data_t *, data_t *);
-static int           _data_cmp_name(data_t *, data_t *);
-static char *        _data_tostring_name(data_t *);
-static unsigned int  _data_hash_name(data_t *);
-static data_t *      _data_resolve_name(data_t *, char *);
 
 static data_t *      _name_len(data_t *, char *, array_t *, dict_t *);
 static data_t *      _name_append(data_t *, char *, array_t *, dict_t *);
 
 static name_t *      _name_create(int);
-static name_t *      _name_extend(name_t *, array_t *);
+static data_t *      _name_resolve(name_t *, char *);
 
-vtable_t _vtable_name[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_name },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_name },
-  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_name },
+vtable_t _wrapper_vtable_name[] = {
+  { .id = FunctionCopy,     .fnc = (void_t) name_copy },
+  { .id = FunctionParse,    .fnc = (void_t) name_parse },
+  { .id = FunctionCmp,      .fnc = (void_t) name_cmp },
   { .id = FunctionFree,     .fnc = (void_t) name_free },
-  { .id = FunctionToString, .fnc = (void_t) _data_tostring_name },
-  { .id = FunctionHash,     .fnc = (void_t) _data_hash_name },
-  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_name },
+  { .id = FunctionToString, .fnc = (void_t) name_tostring },
+  { .id = FunctionHash,     .fnc = (void_t) name_hash },
+  { .id = FunctionResolve,  .fnc = (void_t) name_resolve },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t typedescr_name = {
-  .type       = Name,
-  .type_name  = "name",
-  .vtable     = _vtable_name
-};
 
 static methoddescr_t _methoddescr_name[] = {
-  { .type = Any,    .name = "len",    .method = _name_len,    .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Any,    .name = "append", .method = _name_append, .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
+  { .type = Name,   .name = "len",    .method = _name_len,    .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Name,   .name = "append", .method = _name_append, .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 /* ----------------------------------------------------------------------- */
 
 void _data_init_name(void) {
-  typedescr_register(&typedescr_name);
+  wrapper_register(Name, "name", _wrapper_vtable_name);
   typedescr_register_methods(_methoddescr_name);
-}
-
-data_t * _data_new_name(data_t *ret, va_list arg) {
-  name_t *name;
-
-  name = va_arg(arg, name_t *);
-  ret -> ptrval = name_copy(name);
-  return ret;
-}
-
-data_t * _data_parse_name(char *str) {
-  return data_create(Name, name_parse(str));
-}
-
-data_t * _data_copy_name(data_t *target, data_t *src) {
-  target -> ptrval = name_copy(data_nameval(src));
-  return target;
-}
-
-int _data_cmp_name(data_t *d1, data_t *d2) {
-  name_t *n1;
-  name_t *n2;
-
-  n1 = data_nameval(d1);
-  n2 = data_nameval(d2);
-  return name_cmp(n1, n2);
-}
-
-char * _data_tostring_name(data_t *d) {
-  return name_tostring(data_nameval(d));
-}
-
-unsigned int _data_hash_name(data_t *data) {
-  return name_hash(data_nameval(data));
-}
-
-data_t * _data_resolve_name(data_t *data, char *name) {
-  data_t *ix_data;
-  long    ix;
-  name_t *n = data_nameval(data);
-  
-  /*
-   * TODO Isolate error-detecting parsing code from Int parse.
-   */
-  if (!strtoint(name, &ix)) {
-    return ((ix >= 0) && (ix < name_size(n)))
-      ? data_create(String, name_get(n, ix))
-      : NULL;
-  } else {
-    return NULL;
-  }
 }
 
 /* ----------------------------------------------------------------------- */
@@ -134,8 +73,7 @@ data_t * _name_append(data_t *self, char *fnc_name, array_t *args, dict_t *kwarg
   return self;
 }
 
-  
-  /* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- */
 
 name_t * _name_create(int count) {
   name_t *ret = NEW(name_t);
@@ -145,6 +83,19 @@ name_t * _name_create(int count) {
   ret -> sep = NULL;
   ret -> refs = 1;
   return ret;
+}
+
+data_t * _name_resolve(name_t *n, char *name) {
+  data_t *ix_data;
+  long    ix;
+  
+  if (!strtoint(name, &ix)) {
+    return ((ix >= 0) && (ix < name_size(n)))
+    ? data_create(String, name_get(n, ix))
+    : NULL;
+  } else {
+    return NULL;
+  }
 }
 
 /* ----------------------------------------------------------------------- */

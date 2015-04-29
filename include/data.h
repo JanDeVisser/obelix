@@ -32,7 +32,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum _datatype {
-  Error           = 1,
+  Exception       = 1,
   Pointer,      /*  2 */
   String,       /*  3 */
   Number,       /*  4 */
@@ -94,7 +94,7 @@ extern int             data_hastype(data_t *, int);
 extern typedescr_t *   data_typedescr(data_t *);
 extern void_t          data_get_function(data_t *, int);
 extern int             data_is_numeric(data_t *);
-extern int             data_is_error(data_t *t);
+extern int             data_is_exception(data_t *t);
 extern int             data_is_callable(data_t *);
 extern int             data_is_iterable(data_t *);
 extern int             data_is_iterator(data_t *);
@@ -123,8 +123,6 @@ extern int             data_intval(data_t *);
 
 #define data_charval(d)  ((char *) (d) -> ptrval)
 #define data_arrayval(d) ((array_t *) (d) -> ptrval)
-#define data_is_error(d) ((d) && (data_type((d)) == Error))
-#define data_errorval(d) ((error_t *) ((data_is_error((d)) ? (d) -> ptrval : NULL)))
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
 extern array_t *       data_add_all_as_data_reducer(char *, array_t *);
@@ -133,9 +131,6 @@ extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
 extern data_t *        data_create_pointer(int, void *);
 extern data_t *        data_null(void);
-extern data_t *        data_error(int, char *, ...);
-extern data_t *        data_error_from_errno(void);
-extern data_t *        data_exception(data_t *);
 extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);

@@ -79,13 +79,13 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
     object_set(obj, "release", data_create(String, buf.release));
     object_set(obj, "version", data_create(String, buf.version));
     object_set(obj, "machine", data_create(String, buf.machine));
-//#ifdef _GNU_SOURCE
-//    object_set(obj, "domainname", data_create(String, buf.domainname));
-//#endif
+#ifdef _GNU_SOURCE
+    object_set(obj, "domainname", data_create(String, buf.domainname));
+#endif
     ret = data_create(Object, obj);
     object_free(obj);
   } else {
-    ret = data_error(ErrorSysError, "Error executing uname(): %s",
+    ret = data_exception(ErrorSysError, "Error executing uname(): %s",
                      strerror(errno));
   }
   return ret;
@@ -100,8 +100,8 @@ data_t * _function_exit(char *name, array_t *params, dict_t *kwargs) {
   } else {
     exit_code = data_create(Int, 0);
   }
-  error = data_error(ErrorExit, "Exit with code '%s'", data_tostring(exit_code));
-  data_errorval(error) -> exception = data_copy(exit_code);
-  data_free(exit_code);
+  
+  error = data_exception(ErrorExit, "Exit with code '%s'", data_tostring(exit_code));
+  data_exceptionval(error) -> throwable = exit_code;
   return error;
 }

@@ -61,7 +61,7 @@ int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
     case Float:
       retval = data_intval(ret);
       break;
-    case Error:
+    case Exception:
       error("Error: %s", data_tostring(ret));
       retval = -1;
       break;

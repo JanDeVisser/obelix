@@ -18,7 +18,9 @@
  */
 
 #include <limits.h>
+#include <math.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,11 +96,11 @@ data_t * data_create(int type, ...) {
 
 data_t * data_parse(int type, char *str) {
   typedescr_t *descr;
-  parse_t      parse;
+  void_t       parse;
 
   descr = typedescr_get(type);
-  parse = (parse_t) typedescr_get_function(descr, FunctionParse);
-  return (parse) ? parse(str) : NULL;
+  parse = typedescr_get_function(descr, FunctionParse);
+  return (parse) ? ((data_t * (*)(typedescr_t *, char *)) parse)(descr, str) : NULL;
 }
 
 data_t * data_decode(char *encoded) {
@@ -129,7 +131,7 @@ data_t * data_cast(data_t *data, int totype) {
   typedescr_t *totype_descr;
   cast_t       cast;
   tostring_t   tostring;
-  parse_t      parse;
+  void_t       parse;
 
   assert(data);
   if (data_type(data) == totype) {
@@ -146,9 +148,9 @@ data_t * data_cast(data_t *data, int totype) {
       }
     }
     if (data_type(data) == String) {
-      parse = (parse_t) typedescr_get_function(totype_descr, FunctionParse);
+      parse = typedescr_get_function(totype_descr, FunctionParse);
       if (parse) {
-        return parse(data -> ptrval);
+        return ((data_t * (*)(typedescr_t *, char *)) parse)(totype_descr, data -> ptrval);
       }
     }
     cast = (cast_t) typedescr_get_function(descr, FunctionCast);
@@ -163,7 +165,7 @@ data_t * data_cast(data_t *data, int totype) {
 data_t * data_promote(data_t *data) {
   typedescr_t *type = data_typedescr(data);
   
-  return ((type -> promote_to != NoType) && (type -> promote_to != Error))
+  return ((type -> promote_to != NoType) && (type -> promote_to != Exception))
     ? data_cast(data, type -> promote_to)
     : NULL;
 }
@@ -277,7 +279,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
   if (!ret) {
     resolve = (resolve_name_t) typedescr_get_function(type, FunctionResolve);
     if (!resolve) {
-      ret = data_error(ErrorType,
+      ret = data_exception(ErrorType,
                        "Cannot resolve name '%s' in %s '%s'", 
                        name_tostring(name),
                        type -> type_name, 
@@ -286,7 +288,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
       ret = resolve(data, name_first(name));
     }
   }
-  if (ret && !data_is_error(ret) && (name_size(name) > 1)) {
+  if (ret && !data_is_exception(ret) && (name_size(name) > 1)) {
     tail = name_tail(name);
     tail_resolve = data_resolve(ret, tail);
     data_free(ret);
@@ -319,24 +321,24 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
     args = args_shifted;
   }
   if (!self) {
-    ret = data_error(ErrorArgCount, "No 'self' object specified for method '%s'", name);
+    ret = data_exception(ErrorArgCount, "No 'self' object specified for method '%s'", name);
   }
 
   if (!ret) {
     callable = data_resolve(self, name);
-    if (data_is_error(callable)) {
+    if (data_is_exception(callable)) {
       ret = callable;
     } else if (callable) {
       if (data_is_callable(callable)) {
         ret = data_call(callable, args, kwargs);
       } else {
-        ret = data_error(ErrorNotCallable, 
+        ret = data_exception(ErrorNotCallable, 
                          "Atom '%s' is not callable",
                          data_tostring(callable));
       }
       data_free(callable);
     } else {
-      ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
+      ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'", 
                        name_tostring(name), data_tostring(self));
     }
   }
@@ -363,7 +365,7 @@ data_t * data_get(data_t *data, name_t *name) {
   
   ret = data_resolve(data, name);
   if (!ret) {
-    ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
+    ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'", 
                      name_tostring(name), data_tostring(data));
   }
   return ret;
@@ -374,7 +376,7 @@ int data_has(data_t *self, name_t *name) {
   int     ret = 0;
   
   attr = data_resolve(self, name);
-  if (attr && !data_is_error(attr)) {
+  if (attr && !data_is_exception(attr)) {
     ret = 1;
   }
   data_free(attr);
@@ -386,7 +388,7 @@ int data_has_callable(data_t *self, name_t *name) {
   int     ret = 0;
   
   callable = data_resolve(self, name);
-  if (callable && !data_is_error(callable) && data_is_callable(callable)) {
+  if (callable && !data_is_exception(callable) && data_is_callable(callable)) {
     ret = 1;
   }
   data_free(callable);
@@ -408,20 +410,20 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
     container = data_resolve(data, head);
     name_free(head);
   }
-  if (data_is_error(container)) {
+  if (data_is_exception(container)) {
     ret = container;
   } else if (container) {
     type = data_typedescr(container);
     setter = (setvalue_t) typedescr_get_function(type, FunctionSet);
     if (!setter) {
-      ret = data_error(ErrorType,
+      ret = data_exception(ErrorType,
                        "Cannot set values on objects of type '%s'", 
                        typedescr_tostring(type));
     } else {
       ret = setter(container, name_last(name), value);
     }
   } else {
-    ret = data_error(ErrorName, "Could not resolve '%s' in '%s'", 
+    ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'", 
                      name_tostring(name), data_tostring(data));
   }
   return ret;
@@ -544,7 +546,7 @@ data_t * data_iter(data_t *data) {
     }
   }
   if (!ret) {
-    ret = data_error(ErrorNotIterable,
+    ret = data_exception(ErrorNotIterable,
                      "Atom '%s' is not iterable",
                      data_tostring(data));
   }
@@ -564,7 +566,7 @@ data_t * data_has_next(data_t *data) {
     }
   }
   if (!ret) {
-    ret = data_error(ErrorNotIterator,
+    ret = data_exception(ErrorNotIterator,
                      "Atom '%s' is not an iterator",
                      data_tostring(data));
   }
@@ -586,16 +588,68 @@ data_t * data_next(data_t *data) {
       hn = hasnext(data);
       ret = (hn -> intval)
         ? next(data)
-        : data_error(ErrorExhausted, "Iterator '%s' exhausted", data_tostring(data));
+        : data_exception(ErrorExhausted, "Iterator '%s' exhausted", data_tostring(data));
       data_free(hn);
     }
   }
   if (!ret) {
-    ret = data_error(ErrorNotIterator,
+    ret = data_exception(ErrorNotIterator,
                      "Atom '%s' is not an iterator",
                      data_tostring(data));
   }
   return ret;
+}
+
+double data_floatval(data_t *data) {
+  double (*fltvalue)(data_t *);
+  int    (*intvalue)(data_t *);
+  data_t  *flt;
+  double   ret;
+  
+  fltvalue = (double (*)(data_t *)) data_get_function(data, FunctionFltValue);
+  if (fltvalue) {
+    return fltvalue(data);
+  } else {
+    intvalue = (int (*)(data_t *)) data_get_function(data, FunctionIntValue);
+    if (intvalue) {
+      return (double) intvalue(data);
+    } else {
+      flt = data_cast(data, Float);
+      if (flt && !data_is_exception(flt)) {
+        ret = flt -> dblval;
+        data_free(flt);
+        return ret;
+      } else {
+        return nan("Can't convert atom to float");
+      }
+    }
+  }
+}
+
+int data_intval(data_t *data) {
+  int    (*intvalue)(data_t *);
+  double (*fltvalue)(data_t *);
+  data_t  *i;
+  int      ret;
+  
+  intvalue = (int (*)(data_t *)) data_get_function(data, FunctionIntValue);
+  if (intvalue) {
+    return intvalue(data);
+  } else {
+    fltvalue = (double (*)(data_t *)) data_get_function(data, FunctionFltValue);
+    if (fltvalue) {
+      return (int) fltvalue(data);
+    } else {
+      i = data_cast(data, Int);
+      if (i && !data_is_exception(i)) {
+        ret = i -> intval;
+        data_free(i);
+        return ret;
+      } else {
+        return 0;
+      }
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------*/

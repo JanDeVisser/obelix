@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -25,14 +26,14 @@
 
 #include <core.h>
 #include <data.h>
-#include <stdint.h>
+#include <exception.h>
 
 static void          _float_init(void) __attribute__((constructor));
 static data_t *      _float_new(data_t *, va_list);
 static int           _float_cmp(data_t *, data_t *);
 static char *        _float_tostring(data_t *);
 static unsigned int  _float_hash(data_t *);
-static data_t *      _float_parse(char *);
+static data_t *      _float_parse(typedescr_t *, char *);
 static data_t *      _float_cast(data_t *, int);
 static double        _float_fltvalue(data_t *);
 static int           _float_intvalue(data_t *);
@@ -113,66 +114,6 @@ static typedescr_t _typedescr_float =   {
  * --------------------------------------------------------------------------
  */
 
-double data_floatval(data_t *data) {
-  double (*fltvalue)(data_t *);
-  int    (*intvalue)(data_t *);
-  data_t  *flt;
-  double   ret;
-  
-  if (data_type(data) == Float) {
-    return data -> dblval;
-  } else {
-    fltvalue = (double (*)(data_t *)) data_get_function(data, FunctionFltValue);
-    if (fltvalue) {
-      return fltvalue(data);
-    } else {
-      intvalue = (int (*)(data_t *)) data_get_function(data, FunctionIntValue);
-      if (intvalue) {
-        return (double) intvalue(data);
-      } else {
-        flt = data_cast(data, Float);
-        if (flt && !data_is_error(flt)) {
-          ret = flt -> dblval;
-          data_free(flt);
-          return ret;
-        } else {
-          return nan("Can't convert atom to float");
-        }
-      }
-    }
-  }
-}
-
-int data_intval(data_t *data) {
-  int    (*intvalue)(data_t *);
-  double (*fltvalue)(data_t *);
-  data_t  *i;
-  int      ret;
-  
-  if ((data_type(data) == Int) || (data_type(data) == Bool)) {
-    return data -> intval;
-  } else {
-    intvalue = (int (*)(data_t *)) data_get_function(data, FunctionIntValue);
-    if (intvalue) {
-      return intvalue(data);
-    } else {
-      fltvalue = (double (*)(data_t *)) data_get_function(data, FunctionFltValue);
-      if (fltvalue) {
-        return (int) fltvalue(data);
-      } else {
-        i = data_cast(data, Int);
-        if (i && !data_is_error(i)) {
-          ret = i -> intval;
-          data_free(i);
-          return ret;
-        } else {
-          return 0;
-        }
-      }
-    }
-  }
-}
-
 void _float_init(void) {
   typedescr_register(&_typedescr_number);
   typedescr_register(&_typedescr_float);
@@ -201,10 +142,11 @@ char * _float_tostring(data_t *data) {
   return dtoa(data -> dblval);
 }
 
-data_t * _float_parse(char *str) {
+data_t * _float_parse(typedescr_t *type, char *str) {
   char   *endptr;
   double  val;
 
+  (void) type;
   val = strtod(str, &endptr);
   return ((*endptr == 0) || (isspace(*endptr)))
     ? data_create(Float, val)

@@ -80,7 +80,7 @@ data_t * _mutex_new(data_t *data, va_list args) {
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   mutex = NEW(pthread_mutex_t);
   if (errno = pthread_mutex_init(mutex, &attr)) {
-    ret = data_error_from_errno();
+    ret = data_exception_from_errno();
   } else {
     data -> ptrval = mutex;
     ret = data;
@@ -129,7 +129,7 @@ data_t * _mutex_lock(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) args;
   (void) kwargs;
   if (errno = pthread_mutex_lock(mutex)) {
-    return data_error_from_errno();
+    return data_exception_from_errno();
   } else {
     return data_create(Bool, TRUE);
   }
@@ -142,7 +142,7 @@ data_t * _mutex_trylock(data_t *self, char *name, array_t *args, dict_t *kwargs)
   (void) args;
   (void) kwargs;
   if (errno = pthread_mutex_lock(mutex)) {
-    return (errno == EBUSY) ? data_create(Bool, FALSE) : data_error_from_errno();
+    return (errno == EBUSY) ? data_create(Bool, FALSE) : data_exception_from_errno();
   } else {
     return data_create(Bool, TRUE);
   }
@@ -155,7 +155,7 @@ data_t * _mutex_unlock(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   (void) args;
   (void) kwargs;
   if (errno = pthread_mutex_unlock(mutex)) {
-    return data_error_from_errno();
+    return data_exception_from_errno();
   } else {
     return data_create(Bool, TRUE);
   }

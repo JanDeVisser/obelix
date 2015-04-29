@@ -89,14 +89,14 @@ data_t * _range_new(data_t *target, va_list args) {
   from = va_arg(args, data_t *);
   to = va_arg(args, data_t *);
   if (data_type(from) != data_type(to)) {
-    return data_error(ErrorType, 
+    return data_exception(ErrorType, 
                       "Cannot build range: atoms '%s' and '%s' are of different type",
                       data_tostring(from), data_tostring(to));
   }
   type = data_typedescr(from);
   if (!typedescr_get_function(type, FunctionIncr) || 
       !typedescr_get_function(type, FunctionDecr)) {
-    return data_error(ErrorType,
+    return data_exception(ErrorType,
                       "Cannot build range: type '%s' is not incrementable",
                       typedescr_tostring(type));
   }

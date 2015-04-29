@@ -234,7 +234,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
       debug("Parser stack exhausted");
     }
     if (code != TokenCodeEnd) {
-      parser -> error = data_error(ErrorSyntax, 
+      parser -> error = data_exception(ErrorSyntax, 
                                    "Expected end of file, read unexpected token '%s'",
                                    token_tostring(token));
     }
@@ -252,7 +252,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
         nonterminal = e -> nonterminal;
         rule = dict_get_int(nonterminal -> parse_table, code);
 	if (!rule) {
-	  parser -> error = data_error(ErrorSyntax, 
+	  parser -> error = data_exception(ErrorSyntax, 
 				       "Unexpected token '%s'", 
 				       token_tostring(token));
 	  break;
@@ -282,7 +282,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
         entry = e -> entry;
         assert(entry -> terminal);
 	if (token_cmp(entry -> token, token)) {
-	  parser -> error = data_error(ErrorSyntax,
+	  parser -> error = data_exception(ErrorSyntax,
 				       "Expected '%s' but got '%s' instead",
 				       token_tostring(entry -> token),
 				       token_tostring(token));
@@ -301,7 +301,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
           ret = ((parser_fnc_t) e -> action -> fnc -> fnc)(parser);
         }
         if (!ret) {
-	  parser -> error = data_error(ErrorSyntax,
+	  parser -> error = data_exception(ErrorSyntax,
 				       "Error executing grammar action %s",
 				       grammar_action_tostring(e -> action));
         }

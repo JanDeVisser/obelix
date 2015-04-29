@@ -73,7 +73,7 @@ data_t * execute(data_t *self, char *name, int numargs, ...) {
   }
   va_end(arglist);
   ret = data_execute(self, name, args, NULL);
-  if (ret && data_is_error(ret)) {
+  if (ret && data_is_exception(ret)) {
     debug("Error executing '%s'.'%s': %s", data_tostring(self),
 	  name, data_tostring(ret));
   }

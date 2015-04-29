@@ -22,7 +22,6 @@
 
 /* ------------------------------------------------------------------------ */
 
-static void     _any_init(void) __attribute__((constructor));
 static data_t * _any_cmp(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_not(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_and(data_t *, char *, array_t *, dict_t *);
@@ -72,7 +71,7 @@ static methoddescr_t _methoddescr_any[] = {
 
 /* -- 'any' G L O B A L  M E T H O D S ------------------------------------ */
 
-void _any_init(void) {
+void any_init(void) {
   typedescr_register(&_typedescr_any);
   typedescr_register_methods(_methoddescr_any);
 }
@@ -109,7 +108,7 @@ data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) args;
   (void) kwargs;
   if (!asbool) {
-    return data_error(ErrorSyntax, 
+    return data_exception(ErrorSyntax, 
                       "not(): Cannot convert value '%s' of type '%s' to boolean",
                       data_tostring(self),
                       data_typedescr(self) -> type_name);
@@ -129,7 +128,7 @@ data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   for (ix = -1; ix < array_size(args); ix++) {
     asbool = data_cast((ix < 0) ? self : data_array_get(args, ix), Bool);
     if (!asbool) {
-      return data_error(ErrorSyntax, 
+      return data_exception(ErrorSyntax, 
                         "and(): Cannot convert value '%s' of type '%s' to boolean",
                         data_tostring(data_array_get(args, ix)),
                         data_typedescr(data_array_get(args, ix)) -> type_name);
@@ -153,7 +152,7 @@ data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   for (ix = -1; ix < array_size(args); ix++) {
     asbool = data_cast((ix < 0) ? self : data_array_get(args, ix), Bool);
     if (!asbool) {
-      return data_error(ErrorSyntax, 
+      return data_exception(ErrorSyntax, 
                         "or(): Cannot convert value '%s' of type '%s' to boolean",
                         data_tostring(data_array_get(args, ix)),
                         data_typedescr(data_array_get(args, ix)) -> type_name);

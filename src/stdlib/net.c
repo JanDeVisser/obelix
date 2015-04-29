@@ -176,7 +176,7 @@ data_t * _function_listener(char *name, array_t *params, dict_t *kwargs) {
   if (listener) {
     socket_listen(listener, _listener_service, server);
   }
-  return data_error_from_errno();
+  return data_exception_from_errno();
 }
 
 /* -------------------------------------------------------------------------*/
@@ -230,10 +230,10 @@ data_t * _socket_listen(data_t *self, char *name, array_t *args, dict_t *kwargs)
   socket_t         *socket = wrapper -> socket;
   
   if (socket -> host) {
-    return data_error(ErrorIOError, "Cannot listen - socket is not a server socket");
+    return data_exception(ErrorIOError, "Cannot listen - socket is not a server socket");
   } else {
     if (socket_listen(socket, _listener_service, data_array_get(args, 0))) {
-      return data_error_from_errno();
+      return data_exception_from_errno();
     } else {
       return data_create(Bool, 1);
     }
@@ -245,7 +245,7 @@ data_t * _socket_interrupt(data_t *self, char *name, array_t *args, dict_t *kwar
   socket_t         *socket = wrapper -> socket;
   
   if (socket -> host) {
-    return data_error(ErrorIOError, "Cannot interrupt - socket is not a server socket");
+    return data_exception(ErrorIOError, "Cannot interrupt - socket is not a server socket");
   } else {
     socket_interrupt(socket);
     return data_create(Bool, 1);

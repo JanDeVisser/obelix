@@ -23,6 +23,12 @@
 
 #include <stdarg.h>
 
+#include <data.h>
+
+#ifdef  __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+  
 typedef enum _errorcode {
   ErrorSyntax,
   ErrorArgCount,
@@ -37,28 +43,39 @@ typedef enum _errorcode {
   ErrorNotIterable,
   ErrorNotIterator,
   ErrorExhausted,
-  ErrorException,
+  ErrorThrowable,
   ErrorLeave,
   ErrorExit
 } errorcode_t;
 
-typedef struct _error {
+typedef struct _exception {
   errorcode_t   code;
   char         *msg;
   char         *str;
-  struct _data *exception;
+  struct _data *throwable;
   int           refs;
-} error_t;
+} exception_t;
 
-extern int            error_register(char *str);
-extern error_t *      error_create(int, char *, ...);
-extern error_t *      error_vcreate(int, char *, va_list);
-extern error_t *      error_from_errno(void);
-extern error_t *      error_copy(error_t *);
-extern void           error_free(error_t *);
-extern unsigned int   error_hash(error_t *);
-extern int            error_cmp(error_t *, error_t *);
-extern char *         error_tostring(error_t *);
-extern void           error_report(error_t *);
+extern int            exception_register(char *str);
+extern exception_t *  exception_create(int, char *, ...);
+extern exception_t *  exception_vcreate(int, char *, va_list);
+extern exception_t *  exception_from_errno(void);
+extern exception_t *  exception_copy(exception_t *);
+extern void           exception_free(exception_t *);
+extern unsigned int   exception_hash(exception_t *);
+extern int            exception_cmp(exception_t *, exception_t *);
+extern char *         exception_tostring(exception_t *);
+extern void           exception_report(exception_t *);
+
+extern data_t *        data_exception(int, char *, ...);
+extern data_t *        data_exception_from_errno(void);
+extern data_t *        data_throwable(data_t *);
+
+#define data_is_exception(d) ((d) && (data_type((d)) == Exception))
+#define data_exceptionval(d) ((exception_t *) ((data_is_exception((d)) ? (d) -> ptrval : NULL)))
+
+#ifdef  __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* __EXCEPTION_H__ */

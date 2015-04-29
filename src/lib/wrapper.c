@@ -23,6 +23,7 @@
 static data_t *     _wrapper_new(data_t *, va_list);
 static void         _wrapper_free(data_t *);
 static data_t *     _wrapper_copy(data_t *, data_t *);
+static data_t *     _wrapper_parse(typedescr_t *, char *);
 static int          _wrapper_cmp(data_t *, data_t *);
 static unsigned int _wrapper_hash(data_t *);
 static char *       _wrapper_tostring(data_t *);
@@ -33,6 +34,7 @@ static data_t *     _wrapper_set(data_t *, char *, data_t *);
 static vtable_t _vtable_wrapper[] = {
   { .id = FunctionNew,      .fnc = (void_t) _wrapper_new },
   { .id = FunctionCopy,     .fnc = (void_t) _wrapper_copy },
+  { .id = FunctionParse,    .fnc = (void_t) _wrapper_parse },
   { .id = FunctionCmp,      .fnc = (void_t) _wrapper_cmp },
   { .id = FunctionHash,     .fnc = (void_t) _wrapper_hash },
   { .id = FunctionFreeData, .fnc = (void_t) _wrapper_free },
@@ -120,13 +122,27 @@ unsigned int _wrapper_hash(data_t *data) {
 
 char * _wrapper_tostring(data_t *data) {
   typedescr_t *type = data_typedescr(data);
-  void_t       fnc;
+  void_t       fnc = wrapper_function(type, FunctionToString);
   
-  fnc = wrapper_function(type, FunctionToString);
   if (fnc) {
     return ((tostring_t) fnc)(data -> ptrval);
   } else {
     return (char *) data -> ptrval;
+  }
+}
+
+data_t * _wrapper_parse(typedescr_t *type, char *str) {
+  void_t  fnc = wrapper_function(type, FunctionParse);
+  data_t *ret;
+  
+  if (fnc) {
+    ret = data_create_noinit(type -> type);
+    ret -> ptrval = ((parse_t) fnc)(str);
+    return ret;
+  } else {
+    return data_exception(ErrorInternalError,
+                          "No 'parse' method defined for wrapper type '%s'", 
+                          type -> type_name);
   }
 }
 
@@ -136,7 +152,7 @@ data_t * _wrapper_call(data_t *self, array_t *params, dict_t *kwargs) {
   
   fnc = wrapper_function(type, FunctionCall);
   if (!fnc) {
-    return data_error(ErrorInternalError,
+    return data_exception(ErrorInternalError,
                       "No 'call' method defined for wrapper type '%s'", 
                       type -> type_name);
   } else {
@@ -150,7 +166,7 @@ data_t * _wrapper_resolve(data_t *data, char *name) {
   
   fnc = wrapper_function(type, FunctionResolve);
   if (!fnc) {
-    return data_error(ErrorInternalError,
+    return data_exception(ErrorInternalError,
                       "No 'resolve' method defined for wrapper type '%s'", 
                       type -> type_name);
   } else {
@@ -164,7 +180,7 @@ data_t * _wrapper_set(data_t *data, char *name, data_t *value) {
   
   fnc = wrapper_function(type, FunctionResolve);
   if (!fnc) {
-    return data_error(ErrorInternalError,
+    return data_exception(ErrorInternalError,
                       "No 'set' method defined for wrapper type '%s'", 
                       type -> type_name);
   } else {

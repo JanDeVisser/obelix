@@ -758,7 +758,7 @@ parser_t * script_parse_native_function(parser_t *parser) {
     } else {
       error("C function '%s' not found", c_func);
       /* FIXME error handling
-	 return data_error(ErrorName,
+	 return data_exception(ErrorName,
 	 "Could not find native function '%s'", fname);
       */
       ret = NULL;
@@ -797,7 +797,7 @@ parser_t * script_parse_leave(parser_t *parser) {
   script_t *script = (script_t *) parser -> data;
 
   script_push_instruction(script, 
-                          instruction_create_pushval(data_error(ErrorLeave, "Leave")));  
+                          instruction_create_pushval(data_exception(ErrorLeave, "Leave")));  
   script_push_instruction(script, instruction_create_throw());  
 }
 

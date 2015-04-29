@@ -34,7 +34,7 @@ static data_t *     _string_copy(data_t *, data_t *);
 static int          _string_cmp(data_t *, data_t *);
 static unsigned int _string_hash(data_t *);
 static char *       _string_tostring(data_t *);
-static data_t *     _string_parse(char *str);
+static data_t *     _string_parse(typedescr_t *, char *);
 static data_t *     _string_cast(data_t *, int);
 static data_t *     _string_resolve(data_t *, char *);
 
@@ -127,8 +127,8 @@ char * _string_tostring(data_t *data) {
   return (char *) data -> ptrval;
 }
 
-data_t * _string_parse(char *str) {
-  return data_create(String, str);
+data_t * _string_parse(typedescr_t *type, char *str) {
+  return data_create(type -> type, str);
 }
 
 data_t * _string_cast(data_t *data, int totype) {
@@ -181,7 +181,7 @@ data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
   i = data_intval(ix);
   if ((i < 0) || (i >= strlen(data_charval(self)))) {
-    return data_error(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
+    return data_exception(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
                                     typedescr_get(data_type(self)) -> type_name,
                                     name,
                                     i, strlen(data_charval(self)) - 1);
@@ -210,12 +210,12 @@ data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) 
     i = len + i;
   }
   if ((i < 0) || (i >= len)) {
-    return data_error(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
+    return data_exception(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
                                   typedescr_get(data_type(self)) -> type_name,
                                   name,
                                   i, len - 1);
   } else if ((j <= i) || (j > len)) {
-    return data_error(ErrorRange, "%s.%s argument out of range: %d not in [%d..%d]",
+    return data_exception(ErrorRange, "%s.%s argument out of range: %d not in [%d..%d]",
                                   typedescr_get(data_type(self)) -> type_name,
                                   name,
                                   j, i+1, len);
