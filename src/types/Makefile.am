@@ -21,7 +21,7 @@ AM_LDFLAGS  = -rdynamic
 
 lib_LTLIBRARIES = libobltypes.la
 libobltypes_la_SOURCES = int.c float.c string.c pointer.c method.c \
-			 list.c nvp.c range.c thread.c mutex.c 
+			 nvp.c range.c mutex.c 
 
 libobltypes_la_LIBADD = ../lib/liboblcore.la -lm
 

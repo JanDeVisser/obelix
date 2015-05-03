@@ -22,13 +22,52 @@
 #include <string.h>
 #include <time.h>
 
+#include <data.h>
+#include <datastack.h>
+#include <exception.h>
 #include <dict.h>
 #include <thread.h>
+#include <wrapper.h>
+
+#define MAX_STACKDEPTH      200
 
 static void          _init_thread(void) __attribute__((constructor));
 static int           _pthread_cmp(pthread_t *, pthread_t *);
 static unsigned int  _pthread_hash(pthread_t *);
 static void *        _thread_start_routine_wrapper(void **);
+
+static data_t *      _data_new_thread(data_t *, va_list);
+static int           _data_cmp_thread(data_t *, data_t *);
+static char *        _data_tostring_thread(data_t *);
+static unsigned int  _data_hash_thread(data_t *);
+static data_t *      _data_resolve_thread(data_t *, char *);
+
+static data_t *      _thread_current_thread(data_t *, char *, array_t *, dict_t *);
+static data_t *      _thread_interrupt(data_t *, char *, array_t *, dict_t *);
+static data_t *      _thread_yield(data_t *, char *, array_t *, dict_t *);
+static data_t *      _thread_stack(data_t *, char *, array_t *, dict_t *);
+
+static vtable_t _vtable_thread[] = {
+  { .id = FunctionCmp,      .fnc = (void_t) thread_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) thread_free },
+  { .id = FunctionToString, .fnc = (void_t) thread_tostring },
+  { .id = FunctionHash,     .fnc = (void_t) thread_hash },
+  { .id = FunctionResolve,  .fnc = (void_t) thread_resolve },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static vtable_t _overrides_thread[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _data_new_thread },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static methoddescr_t _methoddescr_thread[] = {
+  { .type = Any,    .name = "current_thread", .method = _thread_current_thread, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Thread, .name = "interrupt",      .method = _thread_interrupt,      .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Thread, .name = "yield",          .method = _thread_yield,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = Thread, .name = "stack",          .method = _thread_stack,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,             .method = NULL,                   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+};
 
 static pthread_key_t  self_obj;
 
@@ -39,6 +78,9 @@ void _init_thread(void) {
   
   pthread_key_create(&self_obj, (void (*)(void *)) thread_free);
   main = thread_create(pthread_self(), "Main");
+  wrapper_register_with_overrides(Thread, "thread", 
+                                  _vtable_thread, _overrides_thread);
+  typedescr_register_methods(_methoddescr_thread);
 }
 
 int _pthread_cmp(pthread_t *t1, pthread_t *t2) {
@@ -172,4 +214,138 @@ thread_t * thread_setname(thread_t *thread, char *name) {
   pthread_setname_np(thread -> thr_id, thread -> name);
 #endif
   return thread;
+}
+
+data_t * thread_resolve(thread_t *thread, char *name) {
+  if (!strcmp(name, "name")) {
+    return data_create(String, thread -> name);
+  } else if (!strcmp(name, "id")) {
+    return data_create(Int, (long) thread -> thr_id);
+  }
+  return NULL;
+}
+
+/* ------------------------------------------------------------------------ */
+
+data_t * _data_new_thread(data_t *data, va_list args) {
+  char         *name = va_arg(args, char *);
+  threadproc_t  handler = va_arg(args, threadproc_t);
+  void         *context = va_arg(args, void *);
+  thread_t     *thread = thread_new(name, handler, context);
+    
+  if (thread) {
+    data -> ptrval = thread;
+    return data;
+  } else {
+    return data_exception_from_errno();
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+
+data_t * _thread_current_thread(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) self;
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  
+  return data_current_thread();
+}
+
+data_t * _thread_interrupt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  
+  thread_interrupt(data_threadval(self));
+  return self;
+}
+
+data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  
+  if (!thread_cmp(data_threadval(self), thread_self())) {
+    thread_yield();
+    return self;
+  } else {
+    return data_exception(ErrorType, "Can only call yield on current thread");
+  }
+}
+
+data_t * _thread_stack(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) self;
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  
+  return data_thread_stacktrace(self);
+}
+
+/* ------------------------------------------------------------------------ */
+
+data_t * data_current_thread(void) {
+  thread_t *current;
+  data_t   *data;
+  
+  current = thread_self();
+  if (!current -> stack) {
+    current -> stack = datastack_create(current -> name);
+    current -> onfree = (free_t) datastack_free;
+  }
+  data = data_create_noinit(Thread);
+  data -> ptrval = thread_copy(current);
+  return data;
+}
+
+data_t * data_thread_push_stackframe(data_t *frame) {
+  data_t      *data = data_current_thread();
+  thread_t    *thread = data_threadval(data);
+  datastack_t *stack = thread -> stack;
+  data_t      *ret;
+  
+  if (datastack_depth(stack) > MAX_STACKDEPTH) {
+    ret =  data_exception(ErrorMaxStackDepthExceeded, 
+                      "Maximum stack depth (%d) exceeded, most likely due to infinite recursion",
+                      MAX_STACKDEPTH);
+  } else {
+    datastack_push((datastack_t *) thread -> stack, frame);
+    ret = frame;
+  }
+  data_free(data);
+  return ret;
+}
+
+data_t * data_thread_pop_stackframe(void) {
+  data_t      *data = data_current_thread();
+  thread_t    *thread = data_threadval(data);
+  datastack_t *stack = thread -> stack;
+  data_t      *ret;
+  
+  if (!datastack_depth(stack) > MAX_STACKDEPTH) {
+    ret =  data_exception(ErrorInternalError, 
+                          "Call stack empty?");
+  } else {
+    ret = datastack_pop((datastack_t *) thread -> stack);
+  }
+  data_free(data);
+  return ret;
+}
+
+data_t * data_thread_stacktrace(data_t *thread) {
+  data_t      *data = NULL;
+  thread_t    *thr;
+  datastack_t *stack;
+  data_t      *ret;
+  
+  if (!thread) {
+    data = data_current_thread();
+    thread = data;
+  }
+  thr = data_threadval(data);
+  stack = (datastack_t *) thr -> stack;
+  ret =  data_create_list(stack -> list);
+  data_free(data);
+  return ret;
 }

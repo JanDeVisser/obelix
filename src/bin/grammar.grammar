@@ -174,13 +174,13 @@ return_stmt                 := "return"
                                expr              [ jump: "END"               ]
                              ;
 
-import_stmt                 := "import"
-                               identifier        [ import                    ]
-                             ;
-
 new                         := "new"             [ setup_function: "new" incr ]
                                identifier        [ pushval_from_stack         ]
                                _func_call
+                             ;
+
+import_stmt                 := "import"
+                               identifier        [ import                    ]
                              ;
 
 context_block               := "context"

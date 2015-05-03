@@ -8,7 +8,11 @@ func ctx(name)
   func __exit__(ex)
     print("__exit__ ${0}", self.name)
     if ex
-      print("__catch__ ${0}: ${1}", self.name, ex.msg)
+      print("__catch__ ${0}: ${1}", self.name, ex.message)
+      print("code: ${0}", ex.code)
+      print("msg: ${0}", ex.msg)
+      print("Stack:")
+      print(ex.stacktrace)
       if ex.hasattr("rethrow")
         if ex.rethrow
 	  print("rethrow!")
@@ -24,9 +28,6 @@ func ctx(name)
 end
 
 context c1 = new ctx("c1")
-  context c2 = new ctx("c2")
-    context c3 = new ctx("c3")
-      throw { msg: "test error", rethrow: true }
-    end
-  end
+  print("c1.name: ${0}", c1.name)
+  throw { msg: "test error", rethrow: true }
 end

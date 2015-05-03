@@ -52,7 +52,9 @@ typedef struct _exception {
   errorcode_t   code;
   char         *msg;
   char         *str;
+  int           handled;
   struct _data *throwable;
+  struct _data *trace;
   int           refs;
 } exception_t;
 
@@ -67,9 +69,9 @@ extern int            exception_cmp(exception_t *, exception_t *);
 extern char *         exception_tostring(exception_t *);
 extern void           exception_report(exception_t *);
 
-extern data_t *        data_exception(int, char *, ...);
-extern data_t *        data_exception_from_errno(void);
-extern data_t *        data_throwable(data_t *);
+extern data_t *       data_exception(int, char *, ...);
+extern data_t *       data_exception_from_errno(void);
+extern data_t *       data_throwable(data_t *);
 
 #define data_is_exception(d) ((d) && (data_type((d)) == Exception))
 #define data_exceptionval(d) ((exception_t *) ((data_is_exception((d)) ? (d) -> ptrval : NULL)))

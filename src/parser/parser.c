@@ -167,7 +167,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
   }
   parser -> last_token = token_copy(token);
   if (parser_debug) {
-    debug("== Last Token: %s    Line %d Column %d",
+    warning("== Last Token: %-40.40sLine %d Column %d",
           token_tostring(parser -> last_token),
           parser -> last_token -> line,
           parser -> last_token -> column);
@@ -250,6 +250,9 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
     switch (e -> type) {
       case PSETypeNonTerminal:
         nonterminal = e -> nonterminal;
+        if (parser_debug) {
+          info("[NT] %s", nonterminal -> name);
+        }
         rule = dict_get_int(nonterminal -> parse_table, code);
 	if (!rule) {
 	  parser -> error = data_exception(ErrorSyntax, 
@@ -287,6 +290,9 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
 				       token_tostring(entry -> token),
 				       token_tostring(token));
 	}
+        if (parser_debug) {
+          info("[ T] %s", token_tostring(entry -> token));
+        }
 	consuming = 1;
         break;
         
@@ -470,6 +476,11 @@ lexer_t * parser_newline(lexer_t *lexer, int line) {
   } else {
     return lexer;
   }
+}
+
+parser_t * parser_log(parser_t *parser, data_t *msg) {
+  debug("parser_log: %s", data_tostring(msg));
+  return parser;
 }
 
 parser_t * parser_pushval(parser_t *parser, data_t *data) {

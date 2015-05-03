@@ -55,6 +55,7 @@ typedef struct _namespace {
 typedef struct _module {
   data_t       data;
   name_t      *name;
+  data_t      *source;
   namespace_t *ns;
   modstate_t   state;
   object_t    *obj;

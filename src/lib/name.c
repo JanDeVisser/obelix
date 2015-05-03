@@ -21,6 +21,7 @@
 
 #include <data.h>
 #include <name.h>
+#include <logging.h>
 #include <str.h>
 #include <wrapper.h>
 
@@ -39,7 +40,7 @@ vtable_t _wrapper_vtable_name[] = {
   { .id = FunctionFree,     .fnc = (void_t) name_free },
   { .id = FunctionToString, .fnc = (void_t) name_tostring },
   { .id = FunctionHash,     .fnc = (void_t) name_hash },
-  { .id = FunctionResolve,  .fnc = (void_t) name_resolve },
+  { .id = FunctionResolve,  .fnc = (void_t) _name_resolve },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -50,9 +51,12 @@ static methoddescr_t _methoddescr_name[] = {
   { .type = NoType, .name = NULL,     .method = NULL,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
+int name_debug;
+
 /* ----------------------------------------------------------------------- */
 
 void _data_init_name(void) {
+  logging_register_category("name", &name_debug);
   wrapper_register(Name, "name", _wrapper_vtable_name);
   typedescr_register_methods(_methoddescr_name);
 }
@@ -75,6 +79,12 @@ data_t * _name_append(data_t *self, char *fnc_name, array_t *args, dict_t *kwarg
 
 /* ----------------------------------------------------------------------- */
 
+char * _name_debug(name_t *name, char *msg) {
+  if (name_debug) {
+    debug("%s: %p = %s (%d)", msg, name, name_tostring(name), name -> refs);
+  }
+}
+
 name_t * _name_create(int count) {
   name_t *ret = NEW(name_t);
   
@@ -82,6 +92,7 @@ name_t * _name_create(int count) {
   ret -> str = NULL;
   ret -> sep = NULL;
   ret -> refs = 1;
+  _name_debug(ret, "_name_create");
   return ret;
 }
 
@@ -107,6 +118,7 @@ name_t * name_create(int count, ...) {
   va_start(components, count);
   ret = name_vcreate(count, components);
   va_end(components);
+  _name_debug(ret, "name_create");
   return ret;
 }
 
@@ -118,6 +130,7 @@ name_t * name_vcreate(int count, va_list components) {
   for (ix = 0; ix < count; ix++) {
     name_extend(ret, va_arg(components, char *));
   }
+  _name_debug(ret, "name_vcreate");
   return ret;
 }
 
@@ -129,7 +142,10 @@ name_t * name_deepcopy(name_t *src) {
 }
 
 name_t * name_copy(name_t *src) {
-  src -> refs++;
+  if (src) {
+    src -> refs++;
+  }
+  _name_debug(src, "name_copy");
   return src;
 }
 
@@ -155,19 +171,22 @@ name_t * name_parse(char *name) {
 }
 
 void name_free(name_t *name) {
-  if (name) {
-    name -> refs--;
-    if (!name -> refs) {
-      array_free(name -> name);
-      free(name -> str);
-      free(name -> sep);
-      free(name);
-    }
+  if (name && (--name -> refs <= 0)) {
+    _name_debug(name, "name_free (doing it)");
+    array_free(name -> name);
+    free(name -> str);
+    free(name -> sep);
+    free(name);
+  } else if (name) {
+    _name_debug(name, "name_free (not yet)");
   }
 }
 
 name_t * name_extend(name_t *name, char *n) {
-  array_push(name -> name, strdup(n));  
+  array_push(name -> name, strdup(n));
+  free(name -> str);
+  name -> str = NULL;
+  _name_debug(name, "name_extend");
   return name;
 }
 
@@ -195,6 +214,9 @@ name_t * name_append_array(name_t *name, array_t *additions) {
   for (ix = 0; ix < array_size(additions); ix++) {
     array_push(name -> name, strdup(str_array_get(additions, ix)));
   }
+  free(name -> str);
+  name -> str = NULL;
+  _name_debug(name, "name_append_array");
   return name;
 }
 
@@ -253,9 +275,11 @@ char * name_tostring_sep(name_t *name, char *sep) {
     name -> str = NULL;
   }
   if (!name -> sep) {
-    s = array_join(name -> name, sep);
-    name -> str = strdup(str_chars(s));
     name -> sep = strdup(sep);
+  }
+  if (!name -> str) {
+    s = array_join(name -> name, name -> sep);
+    name -> str = strdup(str_chars(s));
     str_free(s);
   }
   return name -> str;

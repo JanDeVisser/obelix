@@ -22,9 +22,9 @@
 #include <unistd.h>
 
 #include <data.h>
+#include <exception.h>
 #include <file.h>
 #include <lexer.h>
-
 #include <loader.h>
 #include <logging.h>
 #include <name.h>
@@ -47,10 +47,11 @@ void debug_settings(char *debug) {
 }
 
 int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
-  data_t   *ret;
-  object_t *obj;
-  module_t *mod;
-  int       retval;
+  data_t      *ret;
+  object_t    *obj;
+  module_t    *mod;
+  int          retval;
+  exception_t *ex;
   
   ret = scriptloader_run(loader, name, argv, NULL);
   if (script_debug) {
@@ -62,8 +63,13 @@ int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
       retval = data_intval(ret);
       break;
     case Exception:
-      error("Error: %s", data_tostring(ret));
-      retval = -1;
+      ex = data_exceptionval(ret);
+      if (!ex -> handled) {
+        error("Error: %s", data_tostring(ret));
+        retval = -1;
+      } else {
+        retval = 0;
+      }
       break;
     default:
       retval = 0;

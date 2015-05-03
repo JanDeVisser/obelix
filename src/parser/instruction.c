@@ -144,6 +144,7 @@ static instruction_type_descr_t instruction_descr_map[] = {
 };
 
 typedef struct _function_call {
+  data_t      data;
   name_t     *name;
   callflag_t  flags;
   int         arg_count;
@@ -151,7 +152,7 @@ typedef struct _function_call {
 } function_call_t;
 
 static void          _data_init_call(void) __attribute__((constructor));
-static data_t *      _call_new(data_t *, va_list);
+static data_t *      _call_new(int, va_list);
 static void          _call_free(function_call_t *);
 static data_t *      _call_copy(data_t *, data_t *);
 static char *        _call_tostring(data_t *);
@@ -159,7 +160,7 @@ static char *        _call_tostring(data_t *);
 static int Call = -1;
 
 static vtable_t _vtable_call[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _call_new },
+  { .id = FunctionFactory,  .fnc = (void_t) _call_new },
   { .id = FunctionCopy,     .fnc = (void_t) _call_copy },
   { .id = FunctionFree,     .fnc = (void_t) _call_free },
   { .id = FunctionToString, .fnc = (void_t) _call_tostring },
@@ -183,7 +184,7 @@ void _data_init_call(void) {
   Call = typedescr_register(&_typedescr_call);  
 }
 
-data_t * _call_new(data_t *ret, va_list arg) {
+data_t * _call_new(int type, va_list arg) {
   function_call_t *call;
   array_t         *kwargs;
 
@@ -193,8 +194,8 @@ data_t * _call_new(data_t *ret, va_list arg) {
   call -> arg_count = va_arg(arg, int);
   kwargs = va_arg(arg, array_t *);
   call -> kwargs = (kwargs) ? array_copy(kwargs) : NULL;
-  ret -> ptrval = call;
-  return ret;
+  call -> data.ptrval = call;
+  return &call -> data;
 }
 
 void _call_free(function_call_t *call) {
@@ -257,6 +258,9 @@ data_t * _instruction_get_variable(instruction_t *instr, closure_t *closure) {
   c = data_create(Closure, closure);
   variable = data_get(c, path);
   data_free(c);
+  if (script_debug) {
+    debug("%s.get(%s) = %s", closure_tostring(closure), name_tostring(path), data_tostring(variable));
+  }
   return variable;
 }
 
@@ -293,14 +297,14 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
   data_t *c;
   
   value = _instruction_get_variable(instr, closure);
-  if (!data_is_exception(value)) {
+  if (data_is_exception(value) && !data_exceptionval(value) -> handled) {
+    ret = value;
+  } else {
     if (script_debug) {
       debug(" -- value '%s'", data_tostring(value));
     }
     closure_push(closure, value);
     ret = NULL;
-  } else {
-    ret = value;
   }
   return ret;
 }
@@ -327,17 +331,17 @@ data_t * _instruction_execute_enter_context(instruction_t *instr, closure_t *clo
 }
 
 data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *closure) {
-  data_t      *error;
-  exception_t *e = NULL;
-  data_t      *context;
-  data_t      *ret = NULL;
-  array_t     *params;
-  name_t      *exit = name_create(1, "__exit__");
+  data_t        *error;
+  exception_t   *e = NULL;
+  data_t        *context;
+  data_t        *ret = NULL;
+  array_t       *params;
+  static name_t *exit = NULL;
   
   error = closure_pop(closure);
-  context = _instruction_get_variable(instr, closure);
   if (data_is_exception(error)) {
     e = data_exceptionval(error);
+    e -> handled = TRUE;
   } else {
     /*
      * If there is an error the catchpoint was already popped by 
@@ -345,25 +349,29 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
      */
     data_free(datastack_pop(closure -> catchpoints));
   }
-  if (data_has_callable(context, exit)) {
-    params = data_array_create(1);
-    if (e) {
-      if ((e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
-        array_push(params, data_copy((e -> throwable) ? e -> throwable : error));
+  context = _instruction_get_variable(instr, closure);
+  if (data_is_exception(context)) {
+    ret = data_copy(context);
+  } else {
+    if (!exit) {
+      exit = name_create(1, "__exit__");  
+    }
+    if (data_has_callable(context, exit)) {
+      params = data_array_create(1);
+      if (e && (e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
+        array_push(params, data_copy(error));
+      } else {
+        array_push(params, data_create(Bool, 0));
       }
+      ret = data_invoke(context, exit, params, NULL);
+      array_free(params);
     }
-    if (!array_size(params)) {
-      array_push(params, data_create(Bool, 0));
-    }
-    ret = data_invoke(context, exit, params, NULL);
-    array_free(params);
-    name_free(exit);
   }
   if (e && (e -> code == ErrorExit)) {
     /*
-     * If the error is ErrorExit it needs to be bubbled up, and we really 
-     * don't care what else happens.
-     */
+    * If the error is ErrorExit it needs to be bubbled up, and we really 
+    * don't care what else happens.
+    */
     ret = data_copy(error);
   } else if (!data_is_exception(ret)) {
     ret = NULL;

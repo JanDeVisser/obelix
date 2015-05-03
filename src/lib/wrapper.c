@@ -18,8 +18,10 @@
  */
 
 #include <exception.h>
+#include <logging.h>
 #include <wrapper.h>
 
+static void         _wrapper_init(void) __attribute__((constructor));
 static data_t *     _wrapper_new(data_t *, va_list);
 static void         _wrapper_free(data_t *);
 static data_t *     _wrapper_copy(data_t *, data_t *);
@@ -45,26 +47,50 @@ static vtable_t _vtable_wrapper[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
+int wrapper_debug = 0;
+int Wrapper = -1;
+
+static typedescr_t typedescr_wrapper = {
+  .type       = -1,
+  .type_name  = "wrapper",
+  .vtable     = _vtable_wrapper
+};
+
 #define wrapper_function(type, fnc_id) (((type) -> ptr) \
   ? vtable_get((vtable_t *) (type) -> ptr, (fnc_id)) \
   : NULL)
-
+  
 /* -- W R A P P E R  S T A T I C  F U N C T I O N S ----------------------- */
+
+void _wrapper_init(void) {
+  logging_register_category("wrapper", &wrapper_debug);
+  Wrapper = typedescr_register(&typedescr_wrapper);
+}
 
 data_t * _wrapper_new(data_t *ret, va_list arg) {
   typedescr_t *type = data_typedescr(ret);
   void_t       fnc;
   void        *src;
   
+  if (wrapper_debug) {
+    debug("wrapper_new(%s)", type -> type_name);
+  }
   fnc = wrapper_function(type, FunctionFactory);
   if (fnc) {
+    if (wrapper_debug) {
+      debug("wrapper(%s) - FunctionFactory", type -> type_name);
+    }
     ret -> ptrval = ((vcreate_t) fnc)(arg);
   } else {
     src = va_arg(arg, void *);
     fnc = wrapper_function(type, FunctionCopy);
     if (fnc) {
+      if (wrapper_debug) {
+        debug("wrapper(%s) - FunctionCopy", type -> type_name);
+      }
       ret -> ptrval = ((voidptrvoidptr_t) fnc)(src);
     } else {
+      info("wrapper(%s) - Direct pointer assignment", type -> type_name);
       ret -> ptrval = src;
     }
   }
@@ -75,8 +101,14 @@ void _wrapper_free(data_t *data) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc;
   
+  if (wrapper_debug) {
+    debug("wrapper_free(%s)", type -> type_name);
+  }
   fnc = wrapper_function(type, FunctionFree);
   if (fnc) {
+    if (wrapper_debug) {
+      debug("wrapper(%s) - FunctionFree", type -> type_name);
+    }
     ((free_t) fnc)(data -> ptrval);
   } else {
     warning("No free method defined for wrapper type '%s'", type -> type_name);
@@ -87,8 +119,14 @@ data_t * _wrapper_copy(data_t *target, data_t *src) {
   typedescr_t *type = data_typedescr(src);
   void_t       fnc;
   
+  if (wrapper_debug) {
+    debug("wrapper_copy(%s)", type -> type_name);
+  }
   fnc = wrapper_function(type, FunctionCopy);
   if (fnc) {
+    if (wrapper_debug) {
+      debug("wrapper(%s) - FunctionCopy", type -> type_name);
+    }
     target -> ptrval = ((voidptrvoidptr_t) fnc)(src -> ptrval);
   } else {
     target -> ptrval = src -> ptrval;
@@ -100,6 +138,9 @@ int _wrapper_cmp(data_t *d1, data_t *d2) {
   typedescr_t *type = data_typedescr(d1);
   void_t       fnc;
   
+  if (wrapper_debug) {
+    debug("wrapper_cmp(%s)", type -> type_name);
+  }
   fnc = wrapper_function(type, FunctionCmp);
   if (fnc) {
     return ((cmp_t) fnc)(d1 -> ptrval, d2 -> ptrval);
@@ -112,6 +153,9 @@ unsigned int _wrapper_hash(data_t *data) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc;
   
+  if (wrapper_debug) {
+    debug("wrapper_hash(%s)", type -> type_name);
+  }
   fnc = wrapper_function(type, FunctionHash);
   if (fnc) {
     return ((hash_t) fnc)(data -> ptrval);
@@ -124,6 +168,9 @@ char * _wrapper_tostring(data_t *data) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc = wrapper_function(type, FunctionToString);
   
+  if (wrapper_debug) {
+    debug("wrapper_tostring(%s)", type -> type_name);
+  }
   if (fnc) {
     return ((tostring_t) fnc)(data -> ptrval);
   } else {
@@ -135,6 +182,9 @@ data_t * _wrapper_parse(typedescr_t *type, char *str) {
   void_t  fnc = wrapper_function(type, FunctionParse);
   data_t *ret;
   
+  if (wrapper_debug) {
+    debug("wrapper_parse(%s)", type -> type_name);
+  }
   if (fnc) {
     ret = data_create_noinit(type -> type);
     ret -> ptrval = ((parse_t) fnc)(str);
@@ -150,6 +200,9 @@ data_t * _wrapper_call(data_t *self, array_t *params, dict_t *kwargs) {
   typedescr_t *type = data_typedescr(self);
   void_t       fnc;
   
+  if (wrapper_debug) {
+    debug("wrapper_call(%s)", type -> type_name);
+  }
   fnc = wrapper_function(type, FunctionCall);
   if (!fnc) {
     return data_exception(ErrorInternalError,
@@ -163,6 +216,7 @@ data_t * _wrapper_call(data_t *self, array_t *params, dict_t *kwargs) {
 data_t * _wrapper_resolve(data_t *data, char *name) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc;
+  data_t      *ret;
   
   fnc = wrapper_function(type, FunctionResolve);
   if (!fnc) {
@@ -170,7 +224,12 @@ data_t * _wrapper_resolve(data_t *data, char *name) {
                       "No 'resolve' method defined for wrapper type '%s'", 
                       type -> type_name);
   } else {
-    return ((resolve_name_t) fnc)(data -> ptrval, name);
+    ret = ((resolve_name_t) fnc)(data -> ptrval, name);
+    if (wrapper_debug) {
+      debug("wrapper_resolve(%s, %s) = %s", 
+            type -> type_name, name, data_tostring(ret));
+    }
+    return ret;
   }
 }
 
@@ -178,7 +237,10 @@ data_t * _wrapper_set(data_t *data, char *name, data_t *value) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc;
   
-  fnc = wrapper_function(type, FunctionResolve);
+  if (wrapper_debug) {
+    debug("wrapper_set(%s)", type -> type_name);
+  }
+  fnc = wrapper_function(type, FunctionSet);
   if (!fnc) {
     return data_exception(ErrorInternalError,
                       "No 'set' method defined for wrapper type '%s'", 
@@ -195,8 +257,30 @@ int wrapper_register(int type, char *name, vtable_t *vtable) {
   
   descr.type = type;
   descr.type_name = name;
-  descr.ptr = vtable;
+  descr.ptr = vtable_build(vtable);
   descr.vtable = _vtable_wrapper;
+  descr.inherits_size = 0;
+  descr.inherits = NULL;
+  descr.promote_to = 0;
+  descr.methods = NULL;
+  descr.hash = 0;
+  descr.str = NULL;
+  descr.count = 0;
   return typedescr_register(&descr);
 }
+
+int wrapper_register_with_overrides(int type, char *name, vtable_t *vtable, vtable_t *overrides) {
+  int          ret = wrapper_register(type, name, vtable);
+  typedescr_t *td = typedescr_get(ret);
+  int          ix;
+  
+  if (overrides) {
+    for (ix = 0; overrides[ix].id != FunctionNone; ix++) {
+      td -> vtable[overrides[ix].id].fnc = overrides[ix].fnc;
+    }
+  }
+  return ret;
+}
+
+
 

@@ -126,7 +126,7 @@ extern str_t *  dict_dump(dict_t *, char *);
                                     (free_t) free), \
 				  (tostring_t) chars)
 
-#define intdict_create()        dict_create(NULL)
+#define intdict_create()        dict_set_tostring_key(dict_create(NULL), (tostring_t) itoa)
 
 #define dict_put_int(d, i, v)   dict_put((d), (void *)((long) (i)), (v))
 #define dict_get_int(d, i)      dict_get((d), (void *)((long) (i)))

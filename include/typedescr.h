@@ -97,6 +97,7 @@ typedef struct _methoddescr {
 
 extern void            any_init(void);
 
+extern vtable_t *      vtable_build(vtable_t[]);
 extern void            vtable_dump(vtable_t *);
 extern void_t          vtable_get(vtable_t *, int);
 

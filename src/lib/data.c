@@ -57,6 +57,7 @@ data_t * data_settype(data_t *data, int type) {
   data -> type = type;
   data -> refs++;
   data -> str = NULL;
+  data -> free_me = TRUE;
   descr -> count++;
   _data_count++;
   return data;
@@ -74,6 +75,7 @@ data_t * data_create(int type, ...) {
   if (f) {
     va_start(arg, type);
     initialized = f(type, arg);
+    data_settype(initialized, type);
     initialized -> free_me = FALSE;
     va_end(arg);
   } else {
@@ -247,7 +249,7 @@ data_t * data_call(data_t *self, array_t *args, dict_t *kwargs) {
   call_t call = (call_t) data_get_function(self, FunctionCall);
   
   assert(data_is_callable(self));
-  call(self, args, kwargs);
+  return call(self, args, kwargs);
 }
 
 data_t * data_method(data_t *data, char *name) {
@@ -288,7 +290,8 @@ data_t * data_resolve(data_t *data, name_t *name) {
       ret = resolve(data, name_first(name));
     }
   }
-  if (ret && !data_is_exception(ret) && (name_size(name) > 1)) {
+  if (ret && (!data_is_exception(ret) || data_exceptionval(ret) -> handled) 
+          && (name_size(name) > 1)) {
     tail = name_tail(name);
     tail_resolve = data_resolve(ret, tail);
     data_free(ret);
@@ -296,7 +299,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
     name_free(tail);
   }
   if (debug_data) {
-    debug("data_resolve(%s, %s) = %s", data_tostring(data), name_tostring(name), data_tostring(ret));
+    debug("%s.resolve(%s) = %s", data_tostring(data), name_tostring(name), data_tostring(ret));
   }
   return ret;
 }
@@ -326,7 +329,7 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
 
   if (!ret) {
     callable = data_resolve(self, name);
-    if (data_is_exception(callable)) {
+    if (data_is_exception(callable) && !data_exceptionval(callable) -> handled) {
       ret = callable;
     } else if (callable) {
       if (data_is_callable(callable)) {

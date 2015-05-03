@@ -94,18 +94,13 @@ char * token_code_name(token_code_t code) {
  * token_t - public interface
  */
 
-token_t *token_create(int code, char *token) {
+token_t *token_create(unsigned int code, char *token) {
   token_t *ret;
 
   ret = NEW(token_t);
-  if (ret) {
-    ret -> code = code;
-    ret -> token = strdup(token);
-    if (!ret -> token) {
-      free(ret);
-      ret = NULL;
-    }
-  }
+  ret -> code = code;
+  ret -> token = strdup(token);
+  ret -> str = NULL;
   return ret;
 }
 
@@ -121,6 +116,7 @@ token_t * token_copy(token_t *token) {
 void token_free(token_t *token) {
   if (token) {
     free(token -> token);
+    free(token -> str);
     free(token);
   }
 }
@@ -133,7 +129,7 @@ int token_cmp(token_t *token, token_t *other) {
   return token -> code - other -> code;
 }
 
-int token_code(token_t *token) {
+unsigned int token_code(token_t *token) {
   return token -> code;
 }
 
@@ -193,18 +189,15 @@ data_t * token_todata(token_t *token) {
 }
 
 char * token_tostring(token_t *token) {
-  static char buf[10][128];
-  static int  ix = 0;
-  char        *ptr;
-
-  ptr = buf[ix++];
-  snprintf(ptr, 128, "[%s]",
-    (token -> code < 200) ? token_code_name(token -> code) : token -> token);
-  if (token -> code < 200) {
-    snprintf(ptr + strlen(ptr), 128 - strlen(ptr), " '%s'", token -> token);
+  if (!token -> str) {
+    if (token -> code < 200) {
+      asprintf(&token -> str, "[%-21.21s] '%s'",
+               token_code_name(token -> code), token -> token);
+    } else {
+      asprintf(&token -> str, "[%-21.21s]", token -> token);
+    }
   }
-  ix %= 10;
-  return ptr;
+  return token -> str;
 }
 
 

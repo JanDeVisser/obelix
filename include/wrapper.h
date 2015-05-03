@@ -26,8 +26,9 @@
 extern "C" {
 #endif
 
-int wrapper_register(int, char *, vtable_t *);  
-  
+extern int wrapper_register(int, char *, vtable_t *);  
+extern int wrapper_register_with_overrides(int, char *, vtable_t *, vtable_t *);
+
 #ifdef  __cplusplus
 }
 #endif

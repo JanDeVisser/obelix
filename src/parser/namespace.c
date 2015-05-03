@@ -44,7 +44,6 @@ int ns_debug = 0;
 
 vtable_t _vtable_module[] = {
   { .id = FunctionFactory,  .fnc = (void_t) _data_new_module },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_module },
   { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_module },
   { .id = FunctionFree,     .fnc = (void_t) mod_free },
   { .id = FunctionToString, .fnc = (void_t) _data_tostring_module },
@@ -258,15 +257,10 @@ data_t * _data_new_module(int type, va_list arg) {
 
   module = va_arg(arg, module_t *);
   ret = &module -> data;
-  data_settype(ret, type);
-  ret -> ptrval = mod_copy(module);
+  if (!ret -> ptrval) {
+    ret -> ptrval = mod_copy(module);
+  }
   return ret;
-}
-
-data_t * _data_copy_module(data_t *target, data_t *src) {
-  target -> ptrval = src -> ptrval;
-  ((module_t *) target -> ptrval) -> refs++;
-  return target;
 }
 
 int _data_cmp_module(data_t *d1, data_t *d2) {
@@ -312,6 +306,8 @@ module_t * mod_create(namespace_t *ns, name_t *name) {
   ret -> ns = ns_copy(ns);
   ret -> obj = object_create(NULL);
   ret -> imports = set_create((cmp_t) mod_cmp);
+  ret -> data.refs = 0;
+  ret -> data.ptrval = ret;
   set_set_hash(ret -> imports, (hash_t) mod_hash);
   set_set_free(ret -> imports, (free_t) mod_free);
   set_set_tostring(ret -> imports, (tostring_t) mod_tostring);

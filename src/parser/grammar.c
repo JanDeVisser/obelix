@@ -49,7 +49,7 @@ static set_t *             _nonterminal_get_firsts(nonterminal_t *);
 static set_t *             _nonterminal_get_follows(nonterminal_t *);
 static int                 _nonterminal_check_LL1(nonterminal_t *);
 static void                _nonterminal_build_parse_table(nonterminal_t *);
-static grammar_t *         _nonterminal_dump_terminal(long, grammar_t *);
+static grammar_t *         _nonterminal_dump_terminal(unsigned int, grammar_t *);
 static void                _nonterminal_dump(ge_t *);
 
 static rule_t *            _rule_create(ge_t *, va_list);
@@ -459,6 +459,7 @@ grammar_t * _grammar_create(ge_t *ge, va_list args) {
 
   ret -> keywords = intdict_create();
   dict_set_free_data(ret -> keywords, (free_t) token_free);
+  dict_set_tostring_data(ret -> keywords, (tostring_t) token_tostring);
 
   ret -> nonterminals = strvoid_dict_create();
   dict_set_free_data(ret -> nonterminals, (free_t) ge_free);
@@ -692,6 +693,7 @@ grammar_t * grammar_analyze(grammar_t *grammar) {
     dict_visit(grammar -> nonterminals, (visit_t) _grammar_build_parse_table_visitor);
     if (grammar_debug) {
       debug("Parse tables built");
+      warning("Keywords: %s", dict_tostring(grammar->keywords));
     }
   } else {
     error("Grammar is not LL(1)");
@@ -853,7 +855,7 @@ void _nonterminal_build_parse_table(nonterminal_t *nonterminal) {
   }
 }
 
-grammar_t * _nonterminal_dump_terminal(long code, grammar_t *grammar) {
+grammar_t * _nonterminal_dump_terminal(unsigned int code, grammar_t *grammar) {
   token_t *token;
 
   if (code < 200) {
@@ -1126,9 +1128,9 @@ rule_entry_t * rule_entry_non_terminal(rule_t *rule, char *nonterminal) {
 
 rule_entry_t * rule_entry_terminal(rule_t *rule, token_t *token) {
   rule_entry_t *ret;
-  int          code;
-  char        *str;
-  token_t     *t;
+  unsigned int  code;
+  char         *str;
+  token_t      *t;
 
   code = token_code(token);
   str = token_token(token);

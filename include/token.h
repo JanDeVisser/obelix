@@ -23,8 +23,8 @@
 #include <data.h>
 
 typedef enum _token_code {
-  TokenCodeError = -1,
   TokenCodeNone = 0,
+  TokenCodeError,
   TokenCodeEmpty,
   TokenCodeWhitespace,
   TokenCodeNewLine,
@@ -68,20 +68,21 @@ typedef enum _token_code {
 } token_code_t;
 
 typedef struct _token {
-  int   code;
-  char *token;
-  int   line;
-  int   column;
+  unsigned int  code;
+  char         *token;
+  char         *str;
+  int           line;
+  int           column;
 } token_t;
 
 extern char *       token_code_name(token_code_t);
 
-extern token_t *    token_create(int, char *);
+extern token_t *    token_create(unsigned int, char *);
 extern token_t *    token_copy(token_t *);
 extern void         token_free(token_t *);
 extern unsigned int token_hash(token_t *);
 extern int          token_cmp(token_t *, token_t *);
-extern int          token_code(token_t *);
+extern unsigned int token_code(token_t *);
 extern char *       token_token(token_t *);
 extern int          token_iswhitespace(token_t *);
 extern void         token_dump(token_t *);

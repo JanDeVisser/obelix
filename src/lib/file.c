@@ -61,8 +61,7 @@ fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
   if (!fsentry_isdir (dir)) {
     return NULL;
   }
-  n = (char *) new(strlen(dir->name) + strlen (name) + 2);
-  sprintf(n, "%s/%s", dir->name, name);
+  asprintf(&n, "%s/%s", dir -> name, name);
   ret = fsentry_create(n);
   free(n);
   return ret;

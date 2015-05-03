@@ -60,6 +60,9 @@ static int           _exception_cmp(data_t *, data_t *);
 static char *        _exception_tostring(data_t *);
 
 static data_t *      _exception_create(data_t *, char *, array_t *, dict_t *);
+static data_t *      _exception_resolve(data_t *, char *);
+static data_t *      _exception_call(data_t *, array_t *, dict_t *);
+static data_t *      _exception_cast(data_t *, int);
 static data_t *      _data_exception_from_exception(exception_t *);
 
 
@@ -69,6 +72,9 @@ static vtable_t _vtable_exception[] = {
   { .id = FunctionCmp,      .fnc = (void_t) _exception_cmp },
   { .id = FunctionFree,     .fnc = (void_t) exception_free },
   { .id = FunctionToString, .fnc = (void_t) _exception_tostring },
+  { .id = FunctionResolve,  .fnc = (void_t) _exception_resolve },
+  { .id = FunctionCall,     .fnc = (void_t) _exception_call },
+  { .id = FunctionCast,     .fnc = (void_t) _exception_cast },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -122,7 +128,9 @@ exception_t * exception_vcreate(int code, char *msg, va_list args) {
   ret -> code = code;
   vasprintf(&ret -> msg, msg, args);
   ret -> str = NULL;
+  ret -> handled = 0;
   ret -> throwable = NULL;
+  ret -> trace = NULL;
   ret -> refs = 1;
   return ret;
 }
@@ -201,6 +209,18 @@ data_t * _exception_copy(data_t *target, data_t *src) {
   return target;
 }
 
+data_t * _exception_cast(data_t *src, int totype) {
+  exception_t *ex = data_exceptionval(src);
+  data_t      *ret = NULL;
+
+  switch (totype) {
+    case Bool:
+      ret = data_create(Bool, ex != NULL);
+      break;
+  }
+  return ret;
+}
+
 int _exception_cmp(data_t *d1, data_t *d2) {
   return exception_cmp((exception_t *) d1 -> ptrval, (exception_t *) d2 -> ptrval);
 }
@@ -208,6 +228,41 @@ int _exception_cmp(data_t *d1, data_t *d2) {
 char * _exception_tostring(data_t *data) {
   return exception_tostring((exception_t *) data -> ptrval);
 }
+
+data_t * _exception_resolve(data_t *exception, char *name) {
+  exception_t *e = data_exceptionval(exception);
+  name_t      *n = NULL;
+  data_t      *ret;
+  
+  if (!strcmp(name, "message")) {
+    return data_create(String, e -> msg);
+  } else if (!strcmp(name, "stacktrace")) {
+    return data_copy(e -> trace);
+  } else if (!strcmp(name, "code")) {
+    return data_create(Int, e -> code);
+  } else if (!strcmp(name, "codename")) {
+    return data_create(String, exceptions[e -> code].label);
+  } else if (!strcmp(name, "")) {
+  } else if (e -> throwable) {
+    ret = data_resolve(e -> throwable, n = name_create(1, name));
+    name_free(n);
+    return ret;
+  } else {
+    return NULL;
+  }
+}
+
+data_t * _exception_call(data_t *exception, array_t *args, dict_t *kwargs) {
+  exception_t *e = data_exceptionval(exception);
+
+  if ((e -> throwable) && data_is_callable(e -> throwable)) {
+    return data_call(e -> throwable, args, kwargs);
+  } else {
+    return NULL;
+  } 
+}
+
+/* -- E X C E P T I O N  F A C T O R Y  F U N C T I O N S ----------------- */
 
 data_t * _data_exception_from_exception(exception_t *exception) {
   data_t *ret = data_create_noinit(Exception);

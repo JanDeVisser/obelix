@@ -26,8 +26,8 @@
 #include <loader.h>
 #include <namespace.h>
 
-static file_t *         _scriptloader_open_file(scriptloader_t *, char *, name_t *);
-static reader_t *       _scriptloader_open_reader(scriptloader_t *, name_t *);
+static file_t *         _scriptloader_open_file(scriptloader_t *, char *, module_t *);
+static reader_t *       _scriptloader_open_reader(scriptloader_t *, module_t *);
 static scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *, name_t *);
 static data_t *         _scriptloader_get_object(scriptloader_t *, int, ...);
 static data_t *         _scriptloader_set_value(scriptloader_t *, data_t *, char *, data_t *);
@@ -47,7 +47,7 @@ static code_label_t obelix_option_labels[] = {
 
 static file_t * _scriptloader_open_file(scriptloader_t *loader, 
                                         char *basedir, 
-                                        name_t *n) {
+                                        module_t *mod) {
   char      *fname;
   char      *ptr;
   fsentry_t *e;
@@ -55,6 +55,7 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   file_t    *ret;
   char      *name;
   char      *buf;
+  name_t    *n = mod -> name;
 
   assert(*(basedir + (strlen(basedir) - 1)) == '/');
   buf = strdup(name_tostring_sep(n, "/"));
@@ -87,6 +88,7 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   }
   if ((e != NULL) && fsentry_isfile(e) && fsentry_canread(e)) {
     ret = fsentry_open(e);
+    mod -> source = data_create(String, e -> name);
     assert(ret -> fh > 0);
   } else {
     ret = NULL;
@@ -97,8 +99,9 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   return ret;
 }
 
-reader_t * _scriptloader_open_reader(scriptloader_t *loader, name_t *name) {
+reader_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
   file_t   *text = NULL;
+  name_t   *name = mod -> name;
   char     *path_entry;
   reader_t *rdr = NULL;
   int       ix;
@@ -110,7 +113,7 @@ reader_t * _scriptloader_open_reader(scriptloader_t *loader, name_t *name) {
   }
   for (ix = 0; !text && (ix < name_size(loader -> load_path)); ix++) {
     path_entry = name_get(loader -> load_path, ix);
-    text = _scriptloader_open_file(loader, path_entry, name);
+    text = _scriptloader_open_file(loader, path_entry, mod);
   }
   if (text) {
     rdr = (reader_t *) text;
@@ -381,7 +384,7 @@ data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
     debug("scriptloader_load('%s')", script_name);
   }
   if (mod -> state == ModStateLoading) {
-    rdr = _scriptloader_open_reader(loader, mod -> name);
+    rdr = _scriptloader_open_reader(loader, mod);
     ret = (rdr)
             ? scriptloader_load_fromreader(loader, mod, rdr)
             : data_exception(ErrorName, "Could not load '%s'", script_name);

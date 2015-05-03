@@ -25,17 +25,18 @@ lib_LTLIBRARIES = liboblparser.la
 bin_PROGRAMS = panoramix
 
 liboblparser_la_SOURCES = \
-		datastack.c \
 		token.c \
 		lexer.c \
 		grammar.c \
 		grammarparser.c \
 		parser.c \
 		script.c \
+		closure.c \
 		native.c \
 		namespace.c \
 		instruction.c \
-		object.c
+		object.c \
+		stacktrace.c
 
 panoramix_SOURCES = panoramix.c
 

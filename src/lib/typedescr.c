@@ -26,9 +26,11 @@ extern int          _data_count;
 
 static code_label_t _function_id_labels[] = {
   { .code = FunctionNone,           .label = "None" },
+  { .code = FunctionFactory,        .label = "Factory" },
   { .code = FunctionNew,            .label = "New" },
   { .code = FunctionCopy,           .label = "Copy" },
   { .code = FunctionCmp,            .label = "Cmp" },
+  { .code = FunctionFreeData,       .label = "FreeData" },
   { .code = FunctionFree,           .label = "Free" },
   { .code = FunctionToString,       .label = "ToString" },
   { .code = FunctionFltValue,       .label = "FltValue" },
@@ -46,6 +48,8 @@ static code_label_t _function_id_labels[] = {
   { .code = FunctionIter,           .label = "Iter" },
   { .code = FunctionNext,           .label = "Next" },
   { .code = FunctionHasNext,        .label = "HasNext" },
+  { .code = FunctionDecr,           .label = "Decr" },
+  { .code = FunctionIncr,           .label = "Incr" },
   { .code = FunctionEndOfListDummy, .label = "End" },
   { .code = -1,                     .label = NULL }
 };
@@ -57,18 +61,41 @@ void vtable_dump(vtable_t *vtable) {
   
   for (ix = 0; ix < FunctionEndOfListDummy; ix++) {
     assert(ix == vtable[ix].id);
-    debug("%-20.20s %d %p", label_for_code(_function_id_labels, ix), ix, vtable[ix].fnc);
+    if (vtable[ix].fnc) {
+      debug("%-20.20s %d %p", 
+            label_for_code(_function_id_labels, ix), 
+            ix, vtable[ix].fnc);
+    }
   }
 }
 
 void_t vtable_get(vtable_t *vtable, int fnc_id) {
-  void_t ret;
-  int    ix;
-  
   assert(fnc_id > FunctionNone);
   assert(fnc_id < FunctionEndOfListDummy);
   return vtable[fnc_id].fnc;
 }
+
+vtable_t * vtable_build(vtable_t vtable[]) {
+  int       ix;
+  int       fnc_id;
+  vtable_t *ret;
+
+  ret = (vtable_t *) new((FunctionEndOfListDummy + 1) * sizeof(vtable_t));
+  for (ix = 0; ix <= FunctionEndOfListDummy; ix++) {
+    ret[ix].id = ix;
+    ret[ix].fnc = NULL;
+  }
+  if (vtable) {
+    for (ix = 0; vtable[ix].fnc; ix++) {
+      fnc_id = vtable[ix].id;
+      ret[fnc_id].id = fnc_id;
+      ret[fnc_id].fnc = vtable[ix].fnc;
+    }
+  }
+  return ret;
+}
+
+
 
 /* -- T Y P E D E S C R  P U B L I C  F U N C T I O N S ------------------- */
 
@@ -102,6 +129,8 @@ int typedescr_register(typedescr_t *descr) {
   d -> vtable = NULL;
   typedescr_register_functions(d, vtable);
   d -> str = NULL;
+  d -> methods = NULL;
+  d -> hash = 0;
   return d -> type;
 }
 
@@ -109,20 +138,10 @@ typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[])
   int ix;
   int fnc_id;
 
-  if (!type -> vtable) {
-    type -> vtable = (vtable_t *) new((FunctionEndOfListDummy + 1) * sizeof(vtable_t));
-    for (ix = 0; ix <= FunctionEndOfListDummy; ix++) {
-      type -> vtable[ix].id = ix;
-      type -> vtable[ix].fnc = NULL;
-    }
+  if (type -> vtable) {
+    free(type -> vtable);
   }
-  if (vtable) {
-    for (ix = 0; vtable[ix].fnc; ix++) {
-      fnc_id = vtable[ix].id;
-      type -> vtable[fnc_id].id = fnc_id;
-      type -> vtable[fnc_id].fnc = vtable[ix].fnc;
-    }
-  }
+  type -> vtable = vtable_build(vtable);
   return type;
 }
 
@@ -160,8 +179,6 @@ unsigned int typedescr_hash(typedescr_t *type) {
 }
 
 void typedescr_dump_vtable(typedescr_t *type) {
-  int ix;
-  
   debug("vtable for %s", typedescr_tostring(type));
   vtable_dump(type -> vtable);
 }

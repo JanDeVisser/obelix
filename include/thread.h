@@ -20,7 +20,7 @@
 #ifndef __THREAD_H__
 #define	__THREAD_H__
 
-#include <file.h>
+#include <data.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -48,6 +48,15 @@ extern int           thread_interruptable(thread_t *);
 extern int           thread_interrupt(thread_t *);
 extern int           thread_yield(void);
 extern thread_t *    thread_setname(thread_t *, char *);
+extern data_t *      thread_resolve(thread_t *, char *);
+
+extern data_t *      data_current_thread(void);
+extern data_t *      data_thread_stacktrace(data_t *);
+extern data_t *      data_thread_push_stackframe(data_t *);
+extern data_t *      data_thread_pop_stackframe(void);
+
+#define data_is_thread(d) ((d) && (data_type((d)) == Thread))
+#define data_threadval(d) ((thread_t *) ((data_is_thread((d)) ? (d) -> ptrval : NULL)))
 
 #ifdef	__cplusplus
 }
