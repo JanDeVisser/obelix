@@ -360,7 +360,10 @@ data_t * object_call(object_t *object, array_t *args, dict_t *kwargs) {
 char * object_tostring(object_t *object) {
   data_t  *data;
 
-  data = _object_call_attribute(object, "__str__", NULL, NULL);
+  data = _object_get(object, "name");
+  if (!data) {
+    data = _object_call_attribute(object, "__str__", NULL, NULL);
+  }
   if (!data) {
     object -> str = strdup(object_debugstr(object));
   } else {

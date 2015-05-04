@@ -74,6 +74,7 @@ extern data_t *       data_exception_from_errno(void);
 extern data_t *       data_throwable(data_t *);
 
 #define data_is_exception(d) ((d) && (data_type((d)) == Exception))
+#define data_is_unhandled_exception(d) ((d) && (data_type((d)) == Exception) && !((exception_t *) (d) -> ptrval) -> handled)
 #define data_exceptionval(d) ((exception_t *) ((data_is_exception((d)) ? (d) -> ptrval : NULL)))
 
 #ifdef  __cplusplus

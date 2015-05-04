@@ -1,0 +1,6 @@
+
+o = { foo: "bar", quux: true }
+
+if o.hasattr("quux") and o.quux
+  print("Quux: ${0}", o.quux)
+end

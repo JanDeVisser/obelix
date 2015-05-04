@@ -54,6 +54,12 @@ static code_label_t _function_id_labels[] = {
   { .code = -1,                     .label = NULL }
 };
 
+/* ------------------------------------------------------------------------ */
+
+char * _methoddescr_tostring(methoddescr_t *mth) {
+  return mth -> name;
+}
+
 /* -- V T A B L E  H E L P E R S ------------------------------------------ */
 
 void vtable_dump(vtable_t *vtable) {
@@ -229,6 +235,7 @@ void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
   //assert((!method -> varargs) || (method -> minargs > 0));
   if (!type -> methods) {
     type -> methods = strvoid_dict_create();
+    dict_set_tostring_data(type -> methods, (tostring_t) _methoddescr_tostring);
   }
   dict_put(type -> methods, strdup(method -> name), method);
 }
@@ -240,6 +247,7 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   assert(descr);
   if (!descr -> methods) {
     descr -> methods = strvoid_dict_create();
+    dict_set_tostring_data(descr->methods, (tostring_t) _methoddescr_tostring);
   }
   ret =  (methoddescr_t *) dict_get(descr -> methods, name);
   if (!ret) {
@@ -252,7 +260,7 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
       ret = typedescr_get_method(typedescr_get(Any), name);
     }
     if (ret) {
-      dict_put(descr -> methods, name, ret);
+      dict_put(descr -> methods, strdup(name), ret);
     }
   }
   return ret;

@@ -865,7 +865,7 @@ grammar_t * _nonterminal_dump_terminal(unsigned int code, grammar_t *grammar) {
     if (token) {
       fprintf(stderr, " \"%s\"", token_token(token));
     } else {
-      fprintf(stderr, " [?%ld]", code);
+      fprintf(stderr, " [?%u]", code);
     }
   }
   return grammar;

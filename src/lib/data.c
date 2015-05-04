@@ -273,6 +273,9 @@ data_t * data_resolve(data_t *data, name_t *name) {
   
   assert(type);
   assert(name);
+  if (debug_data) {
+    debug("%s.resolve(%s:%d)", data_tostring(data), name_tostring(name), name_size(name));
+  }
   if (name_size(name) == 0) {
     ret = data_copy(data);
   } else if (name_size(name) == 1) {
@@ -282,10 +285,10 @@ data_t * data_resolve(data_t *data, name_t *name) {
     resolve = (resolve_name_t) typedescr_get_function(type, FunctionResolve);
     if (!resolve) {
       ret = data_exception(ErrorType,
-                       "Cannot resolve name '%s' in %s '%s'", 
-                       name_tostring(name),
-                       type -> type_name, 
-                       data_tostring(data));
+                           "Cannot resolve name '%s' in %s '%s'", 
+                           name_tostring(name),
+                           type -> type_name, 
+                           data_tostring(data));
     } else {
       ret = resolve(data, name_first(name));
     }

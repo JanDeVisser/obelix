@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <core.h>
 #include <data.h>
 #include <exception.h>
 
@@ -171,11 +172,11 @@ data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
-  data_t  *attrname = data_array_get(args, 0);
-  name_t  *name = name_create(1, data_tostring(attrname));
-  data_t  *ret;
-  
-  ret = data_create(Bool, data_resolve(self, name) != NULL);
+  data_t *attrname = data_array_get(args, 0);
+  name_t *name = name_create(1, data_tostring(attrname));
+  data_t *r = data_resolve(self, name);
+  data_t *ret = data_create(Bool, r != NULL);
+
   name_free(name);
   return ret;
 }
