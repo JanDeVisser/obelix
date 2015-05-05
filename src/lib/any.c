@@ -28,6 +28,7 @@ static data_t * _any_not(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_and(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_or(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hash(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_len(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hasattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_getattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_setattr(data_t *, char *, array_t *, dict_t *);
@@ -56,7 +57,9 @@ static methoddescr_t _methoddescr_any[] = {
   { .type = Any,    .name = "&&",       .method = _any_and,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
   { .type = Any,    .name = "or",       .method = _any_or,       .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
   { .type = Any,    .name = "||",       .method = _any_or,       .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "hash",     .method = _any_hash,     .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "hash",     .method = _any_hash,     .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = Any,    .name = "len",      .method = _any_len,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = Any,    .name = "size",     .method = _any_len,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = Any,    .name = "hasattr",  .method = _any_hasattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "setattr",  .method = _any_setattr,  .argtypes = { String, Any, NoType },    .minargs = 2, .varargs = 0 },
@@ -168,7 +171,17 @@ data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) args;
+  (void) kwargs;
   return data_create(Int, data_hash(self));
+}
+
+data_t * _any_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  return data_create(Int, data_len(self));
 }
 
 data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
@@ -176,7 +189,9 @@ data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwar
   name_t *name = name_create(1, data_tostring(attrname));
   data_t *r = data_resolve(self, name);
   data_t *ret = data_create(Bool, r != NULL);
-
+  
+  (void) func_name;
+  (void) kwargs;
   name_free(name);
   return ret;
 }

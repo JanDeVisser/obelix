@@ -33,13 +33,14 @@ static int           _list_cmp(data_t *, data_t *);
 static char *        _list_tostring(data_t *);
 static data_t *      _list_cast(data_t *, int);
 static unsigned int  _list_hash(data_t *);
+static int           _list_len(data_t *);
+static data_t *      _list_resolve(data_t *, char *);
 static data_t *      _list_iter(data_t *);
 static data_t *      _list_next(data_t *);
 static data_t *      _list_has_next(data_t *);
 
 static data_t *      _list_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_range(data_t *, char *, array_t *, dict_t *);
-static data_t *      _list_len(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_at(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_slice(data_t *, char *, array_t *, dict_t *);
 
@@ -51,6 +52,8 @@ static vtable_t _vtable_list[] = {
   { .id = FunctionToString, .fnc = (void_t) _list_tostring },
   { .id = FunctionCast,     .fnc = (void_t) _list_cast },
   { .id = FunctionHash,     .fnc = (void_t) _list_hash },
+  { .id = FunctionLen,      .fnc = (void_t) _list_len },
+  { .id = FunctionResolve,  .fnc = (void_t) _list_resolve },
   { .id = FunctionIter,     .fnc = (void_t) _list_iter },
   { .id = FunctionNext,     .fnc = (void_t) _list_next },
   { .id = FunctionHasNext,  .fnc = (void_t) _list_has_next },
@@ -66,7 +69,6 @@ static typedescr_t _typedescr_list =   {
 /* FIXME Add append, delete, head, tail, etc... */
 static methoddescr_t _methoddescr_list[] = {
   { .type = Any,    .name = "list",  .method = _list_create,.argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
-  { .type = List,   .name = "len",   .method = _list_len,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = List,   .name = "at",    .method = _list_at,    .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = List,   .name = "slice", .method = _list_slice, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,    .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -162,6 +164,28 @@ unsigned int _list_hash(data_t *data) {
   return array_hash(data -> ptrval);
 }
 
+int _list_len(data_t *self) {
+  return array_size(data_arrayval(self));
+}
+
+data_t * _list_resolve(data_t *self, char *name) {
+  array_t *list = data_arrayval(self);
+  int      sz = array_size(list);
+  long     ix;
+  
+  if (!strtoint(name, &ix)) {
+    if ((ix >= sz) || (ix < -sz)) {
+      return data_exception(ErrorRange, 
+                            "Index %d is not in range %d ~ %d", 
+                            ix, -sz, sz - 1);
+    } else {
+      return data_copy(data_array_get(list, ix));
+    }
+  } else {
+    return NULL;
+  }
+}
+
 data_t * _list_iter(data_t *data) {
   array_start(data_arrayval(data));
   return data_copy(data);
@@ -220,22 +244,14 @@ data_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return ret;
 }
 
-data_t * _list_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, array_size((array_t *) self -> ptrval));
-}
-
 data_t * _list_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   array_t *list = data_arrayval(self);
   int      sz = array_size(list);
   int      ix = data_intval(data_array_get(args, 0));
-  
-  if ((ix >= sz) || (ix < -sz)) {
-    return data_exception(ErrorRange, 
-                      "list.at(): Index %d is not in range %d ~ %d", 
-                      ix, -sz, sz -1);
-  } else {
-    return data_copy(data_array_get(list, ix));
-  }
+
+  (void) name;
+  (void) kwargs;
+  return _list_resolve(self, data_tostring(data_array_get(args, 0)));
 }
 
 data_t * _list_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {

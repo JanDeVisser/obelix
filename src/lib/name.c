@@ -97,13 +97,12 @@ name_t * _name_create(int count) {
 }
 
 data_t * _name_resolve(name_t *n, char *name) {
-  data_t *ix_data;
   long    ix;
   
   if (!strtoint(name, &ix)) {
     return ((ix >= 0) && (ix < name_size(n)))
-    ? data_create(String, name_get(n, ix))
-    : NULL;
+      ? data_create(String, name_get(n, ix))
+      : NULL;
   } else {
     return NULL;
   }

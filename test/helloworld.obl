@@ -6,3 +6,13 @@ stdout.print("Hello from stdout, ${0}!", "Asterix")
 stderr.print("Hello from stderr, ${0}!", "Asterix")
 
 return 0
+
+/*
+--stdout--
+Hello from stdout, Asterix!
+Hello Asterix!
+--stderr--
+Hello from stderr, Asterix!
+--exit--
+0
+*/

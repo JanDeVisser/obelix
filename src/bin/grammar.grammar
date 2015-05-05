@@ -239,7 +239,15 @@ factortail                  := mult_op           [ push_tokenstring          ]
                              | 
                              ;
 
-factor                      := ( expr )
+factor                      := expr_atom
+                               subscript
+                             ;
+
+subscript                   := '[' expr ']'      [ subscript                 ]
+                             |
+                             ;
+
+expr_atom                   := ( expr )
                              | var_or_call 
                              | constant
                              ;

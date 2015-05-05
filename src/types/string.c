@@ -37,9 +37,9 @@ static char *       _string_tostring(data_t *);
 static data_t *     _string_parse(typedescr_t *, char *);
 static data_t *     _string_cast(data_t *, int);
 static data_t *     _string_resolve(data_t *, char *);
+static int          _string_len(data_t *);
 
 static data_t *     _string_format(data_t *, char *, array_t *, dict_t *);
-static data_t *     _string_len(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_slice(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_at(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_forcecase(data_t *, char *, array_t *, dict_t *);
@@ -60,6 +60,7 @@ vtable_t _vtable_string[] = {
   { .id = FunctionParse,    .fnc = (void_t) _string_parse },
   { .id = FunctionCast,     .fnc = (void_t) _string_cast },
   { .id = FunctionHash,     .fnc = (void_t) _string_hash },
+  { .id = FunctionLen,      .fnc = (void_t) _string_len },
   { .id = FunctionResolve,  .fnc = (void_t) _string_resolve },
   { .id = FunctionFree,     .fnc = (void_t) free },
   { .id = FunctionNone,     .fnc = NULL }
@@ -73,7 +74,6 @@ static typedescr_t _typedescr_str = {
 
 static methoddescr_t _methoddescr_str[] = {
   { .type = String, .name = "format",     .method = _string_format,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = String, .name = "len",        .method = _string_len,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = String, .name = "at",         .method = _string_at,         .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = String, .name = "slice",      .method = _string_slice,      .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
   { .type = String, .name = "upper",      .method = _string_forcecase,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -114,6 +114,10 @@ unsigned int _string_hash(data_t *data) {
   return strhash(data -> ptrval);
 }
 
+int _string_len(data_t *self) {
+  return strlen(data_charval(self));
+}
+
 data_t * _string_copy(data_t *target, data_t *src) {
   target -> ptrval = src -> ptrval ? strdup(src -> ptrval) : NULL;
   return target;
@@ -141,17 +145,27 @@ data_t * _string_cast(data_t *data, int totype) {
 }
 
 data_t * _string_resolve(data_t *data, char *slice) {
-  char    *str = data_charval(data);
-  int      ix = atoi(slice);
-  data_t  *ret;
-  array_t *args;
+  char *str = data_charval(data);
+  int   sz = strlen(str);
+  long  ix;
+  char  buf[2];
   
-  // FIXME Error handling
-  args = data_array_create(1);
-  array_push(args, data_create(Int, ix));
-  ret = _string_at(data, "[]", args, NULL);
-  array_free(args);
-  return ret;
+  if (!strtoint(slice, &ix)) {
+    if ((ix >= sz) || (ix < -sz)) {
+      return data_exception(ErrorRange, 
+                            "Index %d is not in range %d ~ %d", 
+                            ix, -sz, sz - 1);
+    } else {
+      if (ix < 0) {
+        ix = sz + ix;
+      }
+      buf[0] = str[ix];
+      buf[1] = 0;
+      return data_create(String, buf);
+    }
+  } else {
+    return NULL;
+  }
 }
 
 data_t * data_create_string(char * value) {
@@ -170,26 +184,10 @@ data_t * _string_format(data_t *self, char *name, array_t *args, dict_t *kwargs)
   return ret;
 }
 
-data_t * _string_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, strlen(data_charval(self)));
-}
-
 data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *ix = (data_t *) array_get(args, 0);
-  int     i;
-  char    buf[2];
-
-  i = data_intval(ix);
-  if ((i < 0) || (i >= strlen(data_charval(self)))) {
-    return data_exception(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
-                                    typedescr_get(data_type(self)) -> type_name,
-                                    name,
-                                    i, strlen(data_charval(self)) - 1);
-  } else {
-    buf[0] = data_charval(self)[i];
-    buf[1] = 0;
-    return data_create(String, buf);
-  }
+  (void) name;
+  (void) kwargs;
+  return _string_resolve(self, data_tostring(data_array_get(args, 0)));
 }
 
 data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {

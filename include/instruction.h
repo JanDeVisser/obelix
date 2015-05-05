@@ -40,6 +40,7 @@ typedef enum _instruction_type {
   ITPushVal,
   ITPushVar,
   ITStash,
+  ITSubscript,
   ITTest,
   ITThrow,
   ITUnstash

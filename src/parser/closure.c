@@ -82,6 +82,9 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   char         *label = NULL;
   listnode_t   *node = NULL;
   data_t       *catchpoint;
+  int           datatype;
+  exception_t  *ex;
+  data_t       *ex_data;
 
   ret = ns_exit_code(closure -> script -> mod -> ns);
   if (!ret) {
@@ -91,21 +94,26 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
     ret = instruction_execute(instr, closure);
   }
   if (ret) {
-    switch (data_type(ret)) {
-      case String:
-        label = strdup(data_tostring(ret));
-        break;
-      case Exception:
-        data_exceptionval(ret) -> trace = data_create(Stacktrace, stacktrace_create());
-        catchpoint = datastack_pop(closure -> catchpoints);
-        label = strdup(data_charval(catchpoint));
-        data_free(catchpoint);
-        closure_push(closure, data_copy(ret));
-        break;
-      default:
-        debug("Instr '%s' returned '%s'", instruction_tostring(instr), data_tostring(ret));
-        assert(0);
-        break;
+    datatype = data_type(ret);
+    if (datatype == String) {
+      label = strdup(data_tostring(ret));
+    } else {
+      if (datatype == Exception) {
+        ex = data_exceptionval(ret);
+      } else {
+        ex_data = data_exception(ErrorInternalError,
+                                 "Instruction '%s' returned %s '%s'",
+                                 instruction_tostring(instr),
+                                 data_typedescr(ret) -> type_name,
+                                 data_tostring(ret));
+        ex = data_exceptionval(ex_data);
+        ret = ex_data;
+      }
+      ex -> trace = data_create(Stacktrace, stacktrace_create());
+      catchpoint = datastack_pop(closure -> catchpoints);
+      label = strdup(data_charval(catchpoint));
+      data_free(catchpoint);
+      closure_push(closure, data_copy(ret));
     }
     data_free(ret);
   }

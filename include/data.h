@@ -100,6 +100,7 @@ extern int             data_is_iterable(data_t *);
 extern int             data_is_iterator(data_t *);
 extern data_t *        data_copy(data_t *);
 extern unsigned int    data_hash(data_t *);
+extern data_t *        data_len(data_t *);
 extern char *          data_tostring(data_t *);
 extern int             data_cmp(data_t *, data_t *);
 extern data_t *        data_call(data_t *, array_t *, dict_t *);

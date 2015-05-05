@@ -1,6 +1,5 @@
 /*
- * /
-#include "loader.h"obelix/src/scriptparse.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ * obelix/src/scriptparse.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -380,6 +379,17 @@ parser_t * script_parse_func_call(parser_t *parser) {
   data_free(func_name);
   return parser;
 }
+
+parser_t* script_parse_subscript(parser_t *parser) {
+  script_t      *script;
+  instruction_t *instr;
+  
+  script = parser -> data;
+  instr = instruction_create(ITSubscript, "", NULL);
+  script_push_instruction(script, instr);
+  return parser;
+}
+
 
 parser_t * script_parse_import(parser_t *parser) {
   script_t *script;

@@ -512,6 +512,28 @@ int data_cmp(data_t *d1, data_t *d2) {
   }
 }
 
+/* - G E N E R A L  M E T H O D S ------------------------------------------*/
+
+data_t * data_len(data_t *data) {
+  typedescr_t  *type;
+  int         (*len)(data_t *);
+  data_t       *ret = NULL;
+
+  if (data) {
+    type = data_typedescr(data);
+    len = (int (*)(data_t *)) typedescr_get_function(type, FunctionLen);
+    if (len) {
+      ret = data_create(Int, len(data));
+    }
+  }
+  if (!ret) {
+    ret = data_exception(ErrorFunctionUndefined,
+                     "Atom '%s' is has no size function",
+                     data_tostring(data));
+  }
+  return ret;
+}
+
 /* - I T E R A T O R S -----------------------------------------------------*/
 
 int data_is_iterable(data_t *data) {

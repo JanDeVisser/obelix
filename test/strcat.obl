@@ -1,0 +1,11 @@
+b = "second"
+a = "first" + " " + b;
+print(a)
+
+/*
+--stdout--
+first second
+--stderr--
+--exit--
+0
+*/

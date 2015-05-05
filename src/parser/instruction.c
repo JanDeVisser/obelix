@@ -69,6 +69,7 @@ static data_t *         _instruction_execute_unstash(instruction_t *, closure_t 
 
 static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_subscript(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_test(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_throw(instruction_t *, closure_t *);
 
@@ -129,6 +130,10 @@ static instruction_type_descr_t instruction_descr_map[] = {
     .function = _instruction_execute_stash,
     .name = "Stash",
     .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITSubscript,
+    .function = _instruction_execute_subscript,
+    .name = "Subscript",
+    .tostring = (tostring_t) _instruction_tostring_name },
   { .type = ITTest,
     .function = _instruction_execute_test,
     .name = "Test",
@@ -287,7 +292,7 @@ data_t * _instruction_execute_assign(instruction_t *instr, closure_t *closure) {
   ret = data_set(c, path, value);
   data_free(c);
   data_free(value);
-  return (data_is_exception(ret)) ? ret : NULL;
+  return (data_is_unhandled_exception(ret)) ? ret : NULL;
 }
 
 data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) {
@@ -297,7 +302,7 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
   data_t *c;
   
   value = _instruction_get_variable(instr, closure);
-  if (data_is_exception(value) && !data_exceptionval(value) -> handled) {
+  if (data_is_unhandled_exception(value)) {
     ret = value;
   } else {
     if (script_debug) {
@@ -307,6 +312,31 @@ data_t * _instruction_execute_pushvar(instruction_t *instr, closure_t *closure) 
     ret = NULL;
   }
   return ret;
+}
+
+data_t * _instruction_execute_subscript(instruction_t *instr, closure_t *closure) {
+  data_t *subscript = closure_pop(closure);
+  data_t *subscripted  = closure_pop(closure);
+  name_t *name = name_create(1, data_tostring(subscript));
+  data_t *slice;
+  data_t *ret;
+
+  slice = data_resolve(subscripted, name);
+  if (!slice) {
+    ret = data_exception(ErrorName,
+                         "Subscript '%s' not valid for %s '%s'",
+                         data_tostring(subscript),
+                         data_typedescr(subscript) -> type_name,
+                         data_tostring(subscripted));
+  } else if (data_is_unhandled_exception(slice)) {
+    ret = slice;
+  } else {
+    closure_push(closure, slice);
+  }
+  name_free(name);
+  data_free(subscript);
+  data_free(subscripted);
+  return NULL;
 }
 
 /* -- E X C E P T I O N  H A N D L I N G ---------------------------------- */
@@ -518,8 +548,9 @@ data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
 
   casted = data_cast(value, Bool);
   if (!casted) {
-    ret = data_exception(ErrorType, "Cannot convert '%s' to boolean",
-                     data_tostring(value));
+    ret = data_exception(ErrorType, "Cannot convert %s '%s' to boolean",
+                         data_typedescr(value) -> type_name,
+                         data_tostring(value));
   } else {
     ret = (!casted -> intval) ? data_create(String, instr -> name) : NULL;
   }
