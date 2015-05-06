@@ -61,9 +61,9 @@ static vtable_t _vtable_list[] = {
 };
 
 static typedescr_t _typedescr_list =   {
-  .type      = List,
-  .type_name = "list",
-  .vtable    = _vtable_list,
+  .type          = List,
+  .type_name     = "list",
+  .vtable        = _vtable_list
 };
 
 /* FIXME Add append, delete, head, tail, etc... */

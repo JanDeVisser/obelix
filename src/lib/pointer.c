@@ -56,9 +56,9 @@ static vtable_t _vtable_ptr[] = {
 };
 
 static typedescr_t _typedescr_ptr = {
-  .type = Pointer,
-  .type_name =  "ptr",
-  .vtable = _vtable_ptr
+  .type =      Pointer,
+  .type_name = "ptr",
+  .vtable =    _vtable_ptr
 };
 
 static methoddescr_t _methoddescr_ptr[] = {
@@ -93,9 +93,13 @@ static typedescr_t _typedescr_fnc = {
  * --------------------------------------------------------------------------
  */
 
+static data_t _null;
+
 void _ptr_init(void) {
   typedescr_register(&_typedescr_ptr);
   typedescr_register_methods(_methoddescr_ptr);
+  data_settype(&_null, Pointer);
+  _null.free_me = FALSE;
 }
 
 data_t * _ptr_new(data_t *target, va_list arg) {
@@ -112,13 +116,10 @@ data_t * _ptr_new(data_t *target, va_list arg) {
 data_t * _ptr_cast(data_t *src, int totype) {
   data_t *ret = NULL;
 
-  switch (totype) {
-    case Bool:
-      ret = data_create(Bool, src -> ptrval != NULL);
-      break;
-    case Int:
-      ret = data_create(Int, (long) src -> ptrval);
-      break;
+  if (totype == Bool) {
+    ret = data_create(Bool, src -> ptrval != NULL);
+  } else if (totype == Int) {
+    ret = data_create(Int, (long) src -> ptrval);
   }
   return ret;
 }
@@ -153,7 +154,7 @@ data_t * data_create_pointer(int sz, void *ptr) {
 }
 
 data_t * data_null(void) {
-  return data_create_pointer(0, NULL);
+  return &_null;
 }
 
 /* ----------------------------------------------------------------------- */

@@ -22,6 +22,7 @@
 #include <wrapper.h>
 
 static void         _wrapper_init(void) __attribute__((constructor));
+static int          _wrapper_is(typedescr_t *, int);
 static data_t *     _wrapper_new(data_t *, va_list);
 static void         _wrapper_free(data_t *);
 static data_t *     _wrapper_copy(data_t *, data_t *);
@@ -32,8 +33,13 @@ static char *       _wrapper_tostring(data_t *);
 static data_t *     _wrapper_call(data_t *, array_t *, dict_t *);
 static data_t *     _wrapper_resolve(data_t *, char *);
 static data_t *     _wrapper_set(data_t *, char *, data_t *);
+static int          _wrapper_len(data_t *);
+static data_t *     _wrapper_iter(data_t *);
+static data_t *     _wrapper_next(data_t *);
+static data_t *     _wrapper_has_next(data_t *);
 
 static vtable_t _vtable_wrapper[] = {
+  { .id = FunctionIs,       .fnc = (void_t) _wrapper_is },
   { .id = FunctionNew,      .fnc = (void_t) _wrapper_new },
   { .id = FunctionCopy,     .fnc = (void_t) _wrapper_copy },
   { .id = FunctionParse,    .fnc = (void_t) _wrapper_parse },
@@ -44,6 +50,10 @@ static vtable_t _vtable_wrapper[] = {
   { .id = FunctionResolve,  .fnc = (void_t) _wrapper_resolve },
   { .id = FunctionCall,     .fnc = (void_t) _wrapper_call },
   { .id = FunctionSet,      .fnc = (void_t) _wrapper_set },
+  { .id = FunctionLen,      .fnc = (void_t) _wrapper_len },
+  { .id = FunctionIter,     .fnc = (void_t) _wrapper_iter },
+  { .id = FunctionNext,     .fnc = (void_t) _wrapper_next },
+  { .id = FunctionHasNext,  .fnc = (void_t) _wrapper_has_next },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -65,6 +75,12 @@ static typedescr_t typedescr_wrapper = {
 void _wrapper_init(void) {
   logging_register_category("wrapper", &wrapper_debug);
   Wrapper = typedescr_register(&typedescr_wrapper);
+}
+
+int _wrapper_is(typedescr_t *descr, int type) {
+  return (type > Interface) 
+    ? vtable_implements((vtable_t *) type -> ptr, type) 
+    : FALSE;
 }
 
 data_t * _wrapper_new(data_t *ret, va_list arg) {
@@ -250,11 +266,77 @@ data_t * _wrapper_set(data_t *data, char *name, data_t *value) {
   }
 }
 
+int _wrapper_len(data_t *data) {
+  typedescr_t *type = data_typedescr(data);
+  int        (*fnc)(void *);
+  
+  if (wrapper_debug) {
+    debug("_wrapper_len(%s)", type -> type_name);
+  }
+  fnc = (int (*)(void *)) wrapper_function(type, FunctionHash);
+  if (fnc) {
+    return fnc(data -> ptrval);
+  } else {
+    return -1;
+  }
+}
+
+data_t * _wrapper_iter(data_t *data) {
+  typedescr_t *type = data_typedescr(data);
+  data_t     (*fnc)(void *);
+  
+  if (wrapper_debug) {
+    debug("_wrapper_iter(%s)", type -> type_name);
+  }
+  fnc = (data_t * (*)(void *)) wrapper_function(type, FunctionIter);
+  if (fnc) {
+    return fnc(data -> ptrval);
+  } else {
+    return data_exception(ErrorInternalError,
+                          "No 'iter' method defined for wrapper type '%s'", 
+                          type -> type_name);
+  }
+}
+
+data_t * _wrapper_next(data_t *data) {
+  typedescr_t *type = data_typedescr(data);
+  data_t     (*fnc)(void *);
+  
+  if (wrapper_debug) {
+    debug("_wrapper_next(%s)", type -> type_name);
+  }
+  fnc = (data_t * (*)(void *)) wrapper_function(type, FunctionNext);
+  if (fnc) {
+    return fnc(data -> ptrval);
+  } else {
+    return data_exception(ErrorInternalError,
+                          "No 'next' method defined for wrapper type '%s'", 
+                          type -> type_name);
+  }
+}
+
+data_t * _wrapper_has_next(data_t *data) {
+  typedescr_t  *type = data_typedescr(data);
+  int         (*fnc)(void *);
+  
+  if (wrapper_debug) {
+    debug("_wrapper_has_next(%s)", type -> type_name);
+  }
+  fnc = (int (*)(void *)) wrapper_function(type, FunctionHasNext);
+  if (fnc) {
+    return data_create(Bool, fnc(data -> ptrval));
+  } else {
+    return data_exception(ErrorInternalError,
+                          "No 'has_next' method defined for wrapper type '%s'", 
+                          type -> type_name);
+  }
+}
+
 /* -- W R A P P E R  P U B L I C  F U N C T I O N S ----------------------- */
 
 int wrapper_register(int type, char *name, vtable_t *vtable) {
-  typedescr_t    descr;
-  
+  typedescr_t  descr;
+
   descr.type = type;
   descr.type_name = name;
   descr.ptr = vtable_build(vtable);

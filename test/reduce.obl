@@ -1,0 +1,12 @@
+l = [ 2, 4, 6, 8 ]
+
+func add(sum, x)
+  if sum
+    return sum + x
+  else
+    return x
+  end
+end
+
+s = l.reduce(add)
+print(s)

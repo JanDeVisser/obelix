@@ -28,10 +28,15 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum _metatype {
-  NoType   = 0,
-  Any      = 22,
-  Dynamic  = 23,
-  Callable = 999
+  NoType       = 0,
+  Any          = 22,
+  Dynamic      = 23,
+  Interface    = 900, /* Marker */
+  InputStream  = 996,
+  OutputStream = 997,
+  Iterable     = 997,
+  Iterator     = 998,
+  Callable     = 999
 } metatype_t;
 
 typedef enum _vtable_id {
@@ -60,6 +65,9 @@ typedef enum _vtable_id {
   FunctionNext,      /* 22 */
   FunctionDecr,      /* 23 */
   FunctionIncr,      /* 24 */
+  FunctionVisit,     /* 25 */
+  FunctionReduce,    /* 26 */
+  FunctionIs,        /* 27 */
   FunctionEndOfListDummy
 } vtable_id_t;
 
@@ -100,8 +108,10 @@ extern void            any_init(void);
 extern vtable_t *      vtable_build(vtable_t[]);
 extern void            vtable_dump(vtable_t *);
 extern void_t          vtable_get(vtable_t *, int);
+extern int             vtable_implements(vtable_t *, int);
 
 extern int             typedescr_register(typedescr_t *);
+extern void            typedescr_register_types(typedescr_t *);
 extern int             typedescr_register_wrapper(int, char *, vtable_t *);
 extern typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
 extern typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);

@@ -34,51 +34,60 @@ static data_t * _any_getattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_setattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_callable(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_iterable(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_iterator(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_iter(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_next(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_has_next(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_reduce(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_visit(data_t *, char *, array_t *, dict_t *);
 
 /* ------------------------------------------------------------------------ */
 
-static typedescr_t _typedescr_any = {
-  .type =      Any,
-  .type_name = "any"
+static typedescr_t _typedescr_interfaces[] = {
+  { .type =      Any,        .type_name = "any"      },
+  { .type =      Callable,   .type_name = "callable" },
+  { .type =      Iterator,   .type_name = "iterator" },
+  { .type =      Iterable,   .type_name = "iterable" },
+  { .type =      NoType,     .type_name = NULL       },
 };
 
-static methoddescr_t _methoddescr_any[] = {
-  { .type = Any,    .name = ">" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "<" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = ">=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "<=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "==" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "!=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "not",      .method = _any_not,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "and",      .method = _any_and,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "&&",       .method = _any_and,      .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "or",       .method = _any_or,       .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "||",       .method = _any_or,       .argtypes = { Any, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "hash",     .method = _any_hash,     .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = Any,    .name = "len",      .method = _any_len,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = Any,    .name = "size",     .method = _any_len,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = Any,    .name = "hasattr",  .method = _any_hasattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
-  { .type = Any,    .name = "setattr",  .method = _any_setattr,  .argtypes = { String, Any, NoType },    .minargs = 2, .varargs = 0 },
-  { .type = Any,    .name = "callable", .method = _any_callable, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "iterable", .method = _any_iterable, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "iter",     .method = _any_iter,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "next",     .method = _any_next,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "hasnext",  .method = _any_has_next, .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
-  { .type = NoType, .name = NULL,       .method = NULL,          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+static methoddescr_t _methoddescr_interfaces[] = {
+  { .type = Any,      .name = ">" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = "<" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = ">=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = "<=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = "==" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = "!=" ,      .method = _any_cmp,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = "not",      .method = _any_not,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = "and",      .method = _any_and,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 1 },
+  { .type = Any,      .name = "&&",       .method = _any_and,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 1 },
+  { .type = Any,      .name = "or",       .method = _any_or,       .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 1 },
+  { .type = Any,      .name = "||",       .method = _any_or,       .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 1 },
+  { .type = Any,      .name = "hash",     .method = _any_hash,     .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
+  { .type = Any,      .name = "len",      .method = _any_len,      .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
+  { .type = Any,      .name = "size",     .method = _any_len,      .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
+  { .type = Any,      .name = "hasattr",  .method = _any_hasattr,  .argtypes = { String, NoType, NoType },   .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType },   .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = "setattr",  .method = _any_setattr,  .argtypes = { String, Any, NoType },      .minargs = 2, .varargs = 0 },
+  { .type = Any,      .name = "callable", .method = _any_callable, .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
+  { .type = Any,      .name = "iterable", .method = _any_iterable, .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
+  { .type = Any,      .name = "iterator", .method = _any_iterator, .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
+  { .type = Iterable, .name = "iter",     .method = _any_iter,     .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
+  { .type = Iterator, .name = "next",     .method = _any_next,     .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
+  { .type = Iterator, .name = "hasnext",  .method = _any_has_next, .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
+  { .type = Iterable, .name = "reduce",   .method = _any_reduce,   .argtypes = { Callable, Any, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = Iterable, .name = "visit",    .method = _any_visit,    .argtypes = { Callable, NoType, NoType }, .minargs = 2, .varargs = 0 },
+  { .type = NoType,   .name = NULL,       .method = NULL,          .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 }
 };
 
 /* ------------------------------------------------------------------------ */
-
-/* -- 'any' G L O B A L  M E T H O D S ------------------------------------ */
 
 void any_init(void) {
-  typedescr_register(&_typedescr_any);
-  typedescr_register_methods(_methoddescr_any);
+  typedescr_register_types(_typedescr_interfaces);
+  typedescr_register_methods(_methoddescr_interfaces);
 }
+
+/* ------------------------------------------------------------------------ */
 
 data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *other = (data_t *) array_get(args, 0);
@@ -113,9 +122,9 @@ data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) kwargs;
   if (!asbool) {
     return data_exception(ErrorSyntax, 
-                      "not(): Cannot convert value '%s' of type '%s' to boolean",
-                      data_tostring(self),
-                      data_typedescr(self) -> type_name);
+                          "not(): Cannot convert value '%s' of type '%s' to boolean",
+                          data_tostring(self),
+                          data_typedescr(self) -> type_name);
   } else {
     ret = data_create(Int, data_intval(asbool) == 0);
     data_free(asbool);
@@ -171,17 +180,21 @@ data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *obj;
+
   (void) name;
-  (void) args;
   (void) kwargs;
-  return data_create(Int, data_hash(self));
+  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  return data_create(Int, data_hash(obj));
 }
 
 data_t * _any_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *obj;
+  
   (void) name;
-  (void) args;
   (void) kwargs;
-  return data_create(Int, data_len(self));
+  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  return data_create(Int, data_len(obj));
 }
 
 data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
@@ -231,15 +244,47 @@ data_t * _any_iterable(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   return data_create(Bool, data_is_iterable(obj));
 }
 
+data_t * _any_iterator(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *obj;
+  
+  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  return data_create(Bool, data_is_iterator(obj));
+}
+
 data_t * _any_iter(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_iter(self);
+  data_t *obj;
+  
+  (void) name;
+  (void) kwargs;
+  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  return data_iter(obj);
 }
 
 data_t * _any_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_next(self);
+  data_t *obj;
+  
+  (void) name;
+  (void) kwargs;
+  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  return data_next(obj);
 }
 
 data_t * _any_has_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_has_next(self);
+  data_t *obj;
+  
+  (void) name;
+  (void) kwargs;
+  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  return data_has_next(obj);
+}
+
+data_t * _any_reduce(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *initial = (array_size(args) > 1) ? data_array_get(args, 1) : data_null();
+
+  return data_reduce(self, data_array_get(args, 0), initial);
+}
+
+data_t * _any_visit(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return data_visit(self, data_array_get(args, 0));
 }
 

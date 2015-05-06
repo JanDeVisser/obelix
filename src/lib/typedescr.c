@@ -17,12 +17,18 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <core.h>
+#include <logging.h>
 #include <typedescr.h>
 
 static int          _numtypes = 0;
 static typedescr_t *descriptors = NULL;
 extern int          debug_data;
 extern int          _data_count;
+       int          type_debug;
+
+static void         _typedescr_init(void) __attribute__((constructor));
+static char *       _methoddescr_tostring(methoddescr_t *);
 
 static code_label_t _function_id_labels[] = {
   { .code = FunctionNone,           .label = "None" },
@@ -50,11 +56,18 @@ static code_label_t _function_id_labels[] = {
   { .code = FunctionHasNext,        .label = "HasNext" },
   { .code = FunctionDecr,           .label = "Decr" },
   { .code = FunctionIncr,           .label = "Incr" },
+  { .code = FunctionVisit,          .label = "Visit" },
+  { .code = FunctionReduce,         .label = "Reduce" },
+  { .code = FunctionIs,             .label = "Is" },
   { .code = FunctionEndOfListDummy, .label = "End" },
   { .code = -1,                     .label = NULL }
 };
 
 /* ------------------------------------------------------------------------ */
+
+void _typedescr_init(void) {
+  logging_register_category("type", &type_debug);
+}
 
 char * _methoddescr_tostring(methoddescr_t *mth) {
   return mth -> name;
@@ -101,7 +114,17 @@ vtable_t * vtable_build(vtable_t vtable[]) {
   return ret;
 }
 
-
+int vtable_implements(vtable_t *vtable, int type) {
+  if (type == Callable) {
+    return vtable[FunctionCall];
+  } else if (type == Iterable) {
+    return vtable[FunctionIter];
+  } else if (type == Iterator) {
+    return vtable[FunctionNext] && vtable[FunctionHasNext];
+  } else {
+    return 0;
+  }
+}
 
 /* -- T Y P E D E S C R  P U B L I C  F U N C T I O N S ------------------- */
 
@@ -118,7 +141,7 @@ int typedescr_register(typedescr_t *descr) {
   if (descr -> type < 0) {
     descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
   }
-  if (debug_data) {
+  if (type_debug) {
     debug("Registering type '%s' [%d]", descr -> type_name, descr -> type);
   }
   assert((descr -> type >= _numtypes) || descriptors[descr -> type].type == 0);
@@ -139,6 +162,15 @@ int typedescr_register(typedescr_t *descr) {
   d -> hash = 0;
   return d -> type;
 }
+
+void typedescr_register_types(typedescr_t *types) {
+  typedescr_t *type;
+
+  for (type = types; type -> type_name; type++) {
+    typedescr_register(type);
+  }
+}
+
 
 typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[]) {
   int ix;
@@ -161,6 +193,9 @@ typedescr_t * typedescr_get(int datatype) {
     error("Undefined type %d referenced. Expect crashes", datatype);
     return NULL;
   } else {
+    if (type_debug) {
+      debug("typedescr_get(%d) = %s", datatype, ret -> type_name);
+    }
     return ret;
   }
 }
@@ -173,6 +208,9 @@ typedescr_t * typedescr_get_byname(char *name) {
     if (descriptors[ix].type_name && !strcmp(name, descriptors[ix].type_name)) {
       return &descriptors[ix];
     }
+  }
+  if (type_debug) {
+    debug("typedescr_get_byname(%s) = %d", name, (ret) ? ret -> type : -1);
   }
   return NULL;
 }
@@ -204,17 +242,25 @@ void typedescr_count(void) {
 }
 
 void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
-  void_t       ret;
+  void_t       ret = NULL;
   int          ix;
   typedescr_t *inherits;
   
   assert(type);
   assert(fnc_id > FunctionNone);
   assert(fnc_id < FunctionEndOfListDummy);
-  ret = type -> vtable[fnc_id].fnc;
-  for (ix = 0; !ret && ix < type -> inherits_size; ix++) {
-    inherits = typedescr_get(type -> inherits[ix]);
-    ret = typedescr_get_function(inherits, fnc_id);
+  if (type -> vtable) {
+    ret = type -> vtable[fnc_id].fnc;
+    for (ix = 0; !ret && ix < type -> inherits_size; ix++) {
+      inherits = typedescr_get(type -> inherits[ix]);
+      ret = typedescr_get_function(inherits, fnc_id);
+    }
+    if (type_debug) {
+      debug("typedescr_get_function(%s, %s) = %p", 
+            type -> type_name, label_for_code(_function_id_labels, fnc_id), ret);
+    }
+  } else {
+    error("Type '%s' has no vtable. Quite odd.", type -> type_name);
   }
   return ret;
 }
@@ -277,19 +323,25 @@ char * typedescr_tostring(typedescr_t *descr) {
 }
 
 int typedescr_is(typedescr_t *descr, int type) {
-  int ix;
-  int ret;
+  int   ix;
+  int   ret;
+  int (*fnc)(typedescr_t *, int);
   
-  if (type == descr -> type) {
-    return 1;
-  } else if (descr -> inherits_size) {
+  if ((type == descr -> type) || (type == Any)) {
+    ret = TRUE;
+  } else {
+    if (descr -> vtable[FunctionIs]) {
+      fnc = (int (*)(typedescr_t *, int)) descr -> vtable[FunctionIs];
+      ret = fnc(descr, type);
+    } else {
+      ret = (type > Interface) && vtable_implements(type -> vtable, type);
+    }
+  }
+  if (!ret && descr -> inherits_size) {
     ret = 0;
     for (ix = 0; !ret && ix < descr -> inherits_size; ix++) {
       ret = typedescr_is(typedescr_get(descr -> inherits[ix]), type);
     }
-    return ret;
-  } else {
-    return 0;
   }
+  return ret;
 }
-

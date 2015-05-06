@@ -110,14 +110,15 @@ typedef struct _rule_entry {
 } rule_entry_t;
 
 typedef struct _grammar {
-  ge_t                    *ge;
-  dict_t                  *nonterminals;
-  nonterminal_t           *entrypoint;
-  dict_t                  *keywords;
-  array_t                 *lexer_options;
-  strategy_t               strategy;
-  char                    *prefix;
-  int                      dryrun;
+  ge_t          *ge;
+  dict_t        *nonterminals;
+  nonterminal_t *entrypoint;
+  dict_t        *keywords;
+  array_t       *lexer_options;
+  strategy_t     strategy;
+  char          *prefix;
+  array_t       *libs;
+  int            dryrun;
 } grammar_t;
 
 /* ----------------------------------------------------------------------- */

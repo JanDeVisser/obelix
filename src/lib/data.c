@@ -222,20 +222,14 @@ int data_is_callable(data_t *data) {
   if (data) {
     td = data_typedescr(data);
     assert(td);
-    return (typedescr_get_function(td, FunctionCall) != NULL);
+    return typedescr_is(td, Callable);
   } else {
     return 0;
   }
 }
 
 int data_hastype(data_t *data, int type) {
-  if (type == Any) {
-    return TRUE;
-  } else if (type == Callable) {
-    return data_is_callable(data);
-  } else {
-    return data && typedescr_is(data_typedescr(data), type);
-  }
+  return data && typedescr_is(data_typedescr(data), type);
 }
 
 data_t * data_copy(data_t *src) {
@@ -247,7 +241,7 @@ data_t * data_copy(data_t *src) {
 
 data_t * data_call(data_t *self, array_t *args, dict_t *kwargs) {
   call_t call = (call_t) data_get_function(self, FunctionCall);
-  
+
   assert(data_is_callable(self));
   return call(self, args, kwargs);
 }
@@ -256,7 +250,7 @@ data_t * data_method(data_t *data, char *name) {
   typedescr_t   *type = data_typedescr(data);
   methoddescr_t *md;
   data_t        *ret = NULL;
-  
+
   md = typedescr_get_method(type, name);
   if (md) {
     ret = data_create(Method, md, data);
@@ -473,161 +467,6 @@ char * data_tostring(data_t *data) {
   }
 }
 
-int data_cmp(data_t *d1, data_t *d2) {
-  typedescr_t *type;
-  data_t      *p1 = NULL;
-  data_t      *p2 = NULL;
-  int          ret;
-  cmp_t        cmp;
-
-  if (d1 == d2) {
-    return 0;
-  } else if (!d1 || !d2) {
-    return (!d1) ? -1 : 1;
-  } else if (d1 -> type != d2 -> type) {
-    p1 = data_promote(d1);
-    if (p1 && (p1 -> type == d2 -> type)) {
-      ret = data_cmp(p1, d2);
-    } else {
-      p2 = data_promote(d2);
-      if (p2 && (d1 -> type == p2 -> type)) {
-	ret = data_cmp(d1, p2);
-      } else if (p1 && !p2) {
-	ret = data_cmp(p1, d2);
-      } else if (!p1 && p2) {
-	ret = data_cmp(d1, p2);
-      } else if (p1 && p2) {
-	ret = data_cmp(p1, p2);
-      } else {
-	ret = d1 -> type - d2 -> type;
-      }
-      data_free(p2);
-    }
-    data_free(p1);
-    return ret;
-  } else {
-    type = data_typedescr(d1);
-    cmp = (cmp_t) typedescr_get_function(type, FunctionCmp);
-    return (cmp) ? cmp(d1, d2) : ((d1 -> ptrval == d2 -> ptrval) ? 0 : 1);
-  }
-}
-
-/* - G E N E R A L  M E T H O D S ------------------------------------------*/
-
-data_t * data_len(data_t *data) {
-  typedescr_t  *type;
-  int         (*len)(data_t *);
-  data_t       *ret = NULL;
-
-  if (data) {
-    type = data_typedescr(data);
-    len = (int (*)(data_t *)) typedescr_get_function(type, FunctionLen);
-    if (len) {
-      ret = data_create(Int, len(data));
-    }
-  }
-  if (!ret) {
-    ret = data_exception(ErrorFunctionUndefined,
-                     "Atom '%s' is has no size function",
-                     data_tostring(data));
-  }
-  return ret;
-}
-
-/* - I T E R A T O R S -----------------------------------------------------*/
-
-int data_is_iterable(data_t *data) {
-  typedescr_t *td;
-  
-  if (data) {
-    td = data_typedescr(data);
-    assert(td);
-    return (typedescr_get_function(td, FunctionIter) != NULL);
-  } else {
-    return 0;
-  }  
-}
-
-int data_is_iterator(data_t *data) {
-  typedescr_t *td;
-  
-  if (data) {
-    td = data_typedescr(data);
-    assert(td);
-    return (typedescr_get_function(td, FunctionNext) != NULL) &&
-           (typedescr_get_function(td, FunctionHasNext) != NULL);
-  } else {
-    return 0;
-  }  
-}
-
-data_t * data_iter(data_t *data) {
-  typedescr_t *type;
-  data_fnc_t   iter;
-  data_t      *ret = NULL;
-
-  if (data) {
-    type = data_typedescr(data);
-    iter = (data_fnc_t) typedescr_get_function(type, FunctionIter);
-    if (iter) {
-      ret = iter(data);
-    }
-  }
-  if (!ret) {
-    ret = data_exception(ErrorNotIterable,
-                     "Atom '%s' is not iterable",
-                     data_tostring(data));
-  }
-  return ret;
-}
-
-data_t * data_has_next(data_t *data) {
-  typedescr_t *type;
-  data_fnc_t   hasnext;
-  data_t      *ret = NULL;
-
-  if (data) {
-    type = data_typedescr(data);
-    hasnext = (data_fnc_t) typedescr_get_function(type, FunctionHasNext);
-    if (hasnext) {
-      ret = hasnext(data);
-    }
-  }
-  if (!ret) {
-    ret = data_exception(ErrorNotIterator,
-                     "Atom '%s' is not an iterator",
-                     data_tostring(data));
-  }
-  return ret;  
-}
-
-data_t * data_next(data_t *data) {
-  typedescr_t *type;
-  data_fnc_t   next;
-  data_fnc_t   hasnext;
-  data_t      *ret = NULL;
-  data_t      *hn;
-
-  if (data) {
-    type = data_typedescr(data);
-    hasnext = (data_fnc_t) typedescr_get_function(type, FunctionHasNext);
-    next = (data_fnc_t) typedescr_get_function(type, FunctionNext);
-    if (next && hasnext) {
-      hn = hasnext(data);
-      ret = (hn -> intval)
-        ? next(data)
-        : data_exception(ErrorExhausted, "Iterator '%s' exhausted", data_tostring(data));
-      data_free(hn);
-    }
-  }
-  if (!ret) {
-    ret = data_exception(ErrorNotIterator,
-                     "Atom '%s' is not an iterator",
-                     data_tostring(data));
-  }
-  return ret;
-}
-
 double data_floatval(data_t *data) {
   double (*fltvalue)(data_t *);
   int    (*intvalue)(data_t *);
@@ -679,6 +518,221 @@ int data_intval(data_t *data) {
     }
   }
 }
+
+int data_cmp(data_t *d1, data_t *d2) {
+  typedescr_t *type;
+  data_t      *p1 = NULL;
+  data_t      *p2 = NULL;
+  int          ret;
+  cmp_t        cmp;
+
+  if (d1 == d2) {
+    return 0;
+  } else if (!d1 || !d2) {
+    return (!d1) ? -1 : 1;
+  } else if (d1 -> type != d2 -> type) {
+    p1 = data_promote(d1);
+    if (p1 && (p1 -> type == d2 -> type)) {
+      ret = data_cmp(p1, d2);
+    } else {
+      p2 = data_promote(d2);
+      if (p2 && (d1 -> type == p2 -> type)) {
+	ret = data_cmp(d1, p2);
+      } else if (p1 && !p2) {
+	ret = data_cmp(p1, d2);
+      } else if (!p1 && p2) {
+	ret = data_cmp(d1, p2);
+      } else if (p1 && p2) {
+	ret = data_cmp(p1, p2);
+      } else {
+	ret = d1 -> type - d2 -> type;
+      }
+      data_free(p2);
+    }
+    data_free(p1);
+    return ret;
+  } else {
+    type = data_typedescr(d1);
+    cmp = (cmp_t) typedescr_get_function(type, FunctionCmp);
+    return (cmp) ? cmp(d1, d2) : ((d1 -> ptrval == d2 -> ptrval) ? 0 : 1);
+  }
+}
+
+/* - G E N E R A L  M E T H O D S ------------------------------------------*/
+
+data_t * data_len(data_t *data) {
+  typedescr_t  *type;
+  int         (*len)(data_t *);
+  data_t       *ret = NULL;
+
+  if (data) {
+    type = data_typedescr(data);
+    len = (int (*)(data_t *)) typedescr_get_function(type, FunctionLen);
+    if (len && (len >= 0)) {
+      ret = data_create(Int, len(data));
+    }
+  }
+  if (!ret) {
+    ret = data_exception(ErrorFunctionUndefined,
+                         "%s '%s' is has no len function",
+                         data_typedescr(data) -> type_name,
+                         data_tostring(data));
+  }
+  return ret;
+}
+
+/* - I T E R A T O R S -----------------------------------------------------*/
+
+int data_is_iterable(data_t *data) {
+  typedescr_t *td;
+  
+  if (data) {
+    td = data_typedescr(data);
+    assert(td);
+    return typedescr_is(td, Iterable);
+  } else {
+    return 0;
+  }  
+}
+
+int data_is_iterator(data_t *data) {
+  typedescr_t *td;
+  
+  if (data) {
+    td = data_typedescr(data);
+    assert(td);
+    return typedescr_is(td, Iterator);
+  } else {
+    return 0;
+  }  
+}
+
+data_t * data_iter(data_t *data) {
+  typedescr_t *type;
+  data_fnc_t   iter;
+  data_t      *ret = NULL;
+
+  if (data) {
+    type = data_typedescr(data);
+    iter = (data_fnc_t) typedescr_get_function(type, FunctionIter);
+    if (iter) {
+      ret = iter(data);
+    }
+  }
+  if (!ret) {
+    ret = data_exception(ErrorNotIterable,
+                     "Atom '%s' is not iterable",
+                     data_tostring(data));
+  }
+  return ret;
+}
+
+data_t * data_has_next(data_t *data) {
+  typedescr_t *type;
+  data_fnc_t   hasnext;
+  data_t      *ret = NULL;
+
+  if (data) {
+    type = data_typedescr(data);
+    hasnext = (data_fnc_t) typedescr_get_function(type, FunctionHasNext);
+    if (hasnext) {
+      ret = hasnext(data);
+    }
+  }
+  if (!ret) {
+    ret = data_exception(ErrorNotIterator,
+                         "Atom '%s' is not an iterator",
+                         data_tostring(data));
+  }
+  return ret;  
+}
+
+data_t * data_next(data_t *data) {
+  typedescr_t *type;
+  data_fnc_t   next;
+  data_fnc_t   hasnext;
+  data_t      *ret = NULL;
+  data_t      *hn;
+
+  if (data) {
+    type = data_typedescr(data);
+    hasnext = (data_fnc_t) typedescr_get_function(type, FunctionHasNext);
+    next = (data_fnc_t) typedescr_get_function(type, FunctionNext);
+    if (next && hasnext) {
+      hn = hasnext(data);
+      ret = (hn -> intval)
+        ? next(data)
+        : data_exception(ErrorExhausted, "Iterator '%s' exhausted", data_tostring(data));
+      data_free(hn);
+    }
+  }
+  if (!ret) {
+    ret = data_exception(ErrorNotIterator,
+                         "Atom '%s' is not an iterator",
+                         data_tostring(data));
+  }
+  return ret;
+}
+
+data_t * data_visit(data_t *iterable, data_t *visitor) {
+  data_t *ret = data_reduce(iterable, visitor, data_null());
+
+  return (data_is_unhandled_exception(ret)) ? ret : iterable;
+}
+
+data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
+  data_t  *iterator = data_iter(iterable);
+  data_t  *has_next = NULL;
+  data_t  *current = NULL;
+  data_t  *accum = NULL;
+  data_t  *ret = iterable;
+  array_t *args = NULL;
+  
+  /* 
+   * TODO: Allow types to provide their own FunctionReduce. Could be have
+   * performance benefits.
+   */
+  
+  if (data_is_unhandled_exception(iterator)) {
+    return iterator;
+  }
+  has_next = data_has_next(iterator);
+  if (data_is_unhandled_exception(has_next)) {
+    ret = data_copy(has_next);
+  } else {
+    args = data_array_create(1);
+    array_set(args, 0, data_copy(initial));
+    while (data_intval(has_next)) {
+      current = data_next(iterator);
+      if (data_is_unhandled_exception(current)) {
+        ret = data_copy(current);
+        break;
+      }
+      array_set(args, 1, data_copy(current));
+      accum = data_call(reducer, args, NULL);
+      if (data_is_unhandled_exception(accum)) {
+        ret = data_copy(accum);
+        break;
+      }
+      data_free(has_next);
+      has_next = data_has_next(iterator);
+      if (data_is_unhandled_exception(has_next)) {
+        ret = data_copy(has_next);
+        break;
+      }
+      array_set(args, 0, data_copy(accum));
+      data_free(ret);
+      ret = data_copy(accum);
+    }
+  }
+  array_free(args);
+  data_free(accum);
+  data_free(current);
+  data_free(has_next);
+  data_free(iterator);
+  return ret;
+}
+
 
 /* -------------------------------------------------------------------------*/
 

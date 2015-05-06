@@ -27,7 +27,6 @@
 
 static void          _data_init_name(void) __attribute__((constructor));
 
-static data_t *      _name_len(data_t *, char *, array_t *, dict_t *);
 static data_t *      _name_append(data_t *, char *, array_t *, dict_t *);
 
 static name_t *      _name_create(int);
@@ -41,12 +40,12 @@ vtable_t _wrapper_vtable_name[] = {
   { .id = FunctionToString, .fnc = (void_t) name_tostring },
   { .id = FunctionHash,     .fnc = (void_t) name_hash },
   { .id = FunctionResolve,  .fnc = (void_t) _name_resolve },
+  { .id = FunctionLen,      .fnc = (void_t) name_size },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 
 static methoddescr_t _methoddescr_name[] = {
-  { .type = Name,   .name = "len",    .method = _name_len,    .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = Name,   .name = "append", .method = _name_append, .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
@@ -62,10 +61,6 @@ void _data_init_name(void) {
 }
 
 /* ----------------------------------------------------------------------- */
-
-data_t * _name_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, name_size(data_nameval(self)));
-}
 
 data_t * _name_append(data_t *self, char *fnc_name, array_t *args, dict_t *kwargs) {
   name_t *name = data_nameval(self);

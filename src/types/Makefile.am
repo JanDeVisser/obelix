@@ -20,7 +20,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic
 
 lib_LTLIBRARIES = libobltypes.la
-libobltypes_la_SOURCES = int.c float.c string.c pointer.c method.c \
+libobltypes_la_SOURCES = int.c float.c string.c method.c \
 			 nvp.c range.c mutex.c 
 
 libobltypes_la_LIBADD = ../lib/liboblcore.la -lm

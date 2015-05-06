@@ -3,6 +3,7 @@
   ignore:      allwhitespace
   hashpling:   true
   _on_newline: mark_line
+  lib:         "libobltypes.so"
 %
 
 program                     := [ init ] statements [ done ]

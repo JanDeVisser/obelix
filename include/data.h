@@ -115,6 +115,8 @@ extern data_t *        data_set(data_t *, name_t *, data_t *);
 extern data_t *        data_iter(data_t *);
 extern data_t *        data_has_next(data_t *);
 extern data_t *        data_next(data_t *);
+extern data_t *        data_visit(data_t *, data_t *);
+extern data_t *        data_reduce(data_t *, data_t *, data_t *);
 extern int             data_count(void);
 
 extern double          data_floatval(data_t *);

@@ -37,6 +37,7 @@ static unsigned int  _data_hash_object(data_t *);
 static data_t *      _data_call_object(data_t *, array_t *, dict_t *);
 static data_t *      _data_resolve_object(data_t *, char *);
 static data_t *      _data_set_object(data_t *, char *, data_t *);
+static int           _data_len_object(data_t *);
 
 static data_t *      _object_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _object_new(data_t *, char *, array_t *, dict_t *);
@@ -58,6 +59,7 @@ static vtable_t _vtable_object[] = {
   { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_object },
   { .id = FunctionCall,     .fnc = (void_t) _data_call_object },
   { .id = FunctionSet,      .fnc = (void_t) _data_set_object },
+  { .id = FunctionLen,      .fnc = (void_t) _data_len_object },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -130,6 +132,12 @@ data_t * _data_resolve_object(data_t *data, char *name) {
 data_t * _data_set_object(data_t *data, char *name, data_t *value) {
   return object_set(data_objectval(data), name, value);
 }
+
+int _data_len_object(data_t *data) {
+  object_t *obj = data_objectval(data);
+  return dict_size(obj -> variables);
+}
+
 
 data_t * data_create_object(object_t *object) {
   return data_create(Object, object);

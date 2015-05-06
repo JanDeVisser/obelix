@@ -454,6 +454,7 @@ grammar_t * _grammar_create(ge_t *ge, va_list args) {
   ret -> ge = ge;
   ret -> entrypoint = NULL;
   ret -> prefix = NULL;
+  ret -> libs = NULL;
   ret -> strategy = ParsingStrategyTopDown;
   ret -> dryrun = FALSE;
 
@@ -497,6 +498,11 @@ ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
 
   if (!strcmp(token_token(name), LIB_STR)) {
     resolve_library(token_token(val));
+    if (!g -> libs) {
+      g -> libs = array_create(4);
+      array_set_free(g -> libs, (free_t) free);
+    }
+    array_push(g -> libs, strdup(token_token(val)));
   } else if (!strcmp(token_token(name), PREFIX_STR)){
     g -> prefix = strdup(token_token(val));
   } else if (!strcmp(token_token(name), STRATEGY_STR)){
@@ -519,13 +525,13 @@ ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
     }
   } else if (!strcmp(token_token(name), CASE_SENSITIVE_STR)){
     grammar_set_lexer_option(g, LexerOptionCaseSensitive,
-                       atob(token_token(val)));
+                             atob(token_token(val)));
   } else if (!strcmp(token_token(name), HASHPLING_STR)){
     grammar_set_lexer_option(g, LexerOptionHashPling,
-                       atob(token_token(val)));
+                             atob(token_token(val)));
   } else if (!strcmp(token_token(name), SIGNED_NUMBERS_STR)){
     grammar_set_lexer_option(g, LexerOptionSignedNumbers,
-                       atob(token_token(val)));
+                             atob(token_token(val)));
   } else {
     ge = NULL;
   }
@@ -577,7 +583,8 @@ long grammar_get_lexer_option(grammar_t *grammar, lexer_option_t option) {
 }
 
 void grammar_dump(grammar_t *grammar) {
-  int ix;
+  int   ix;
+  char *lib;
   
   printf("#include <grammar.h>\n"
          "\n"
@@ -600,6 +607,17 @@ void grammar_dump(grammar_t *grammar) {
            "  token_free(token_name);\n"
            "  token_free(token_value);\n",
            grammar -> prefix);
+  }
+  if (grammar -> libs && array_size(grammar -> libs)) {
+    for (ix = array_size(grammar -> libs) - 1; ix >= 0; ix--) {
+      lib = (char *) array_get(grammar -> libs, ix);
+      printf("  token_name = token_create(TokenCodeIdentifier, LIB_STR);\n"
+             "  token_value = token_create(TokenCodeDQuotedStr, \"%s\");\n"
+             "  grammar_set_option(grammar, token_name, token_value);\n"
+             "  token_free(token_name);\n"
+             "  token_free(token_value);\n",
+             lib);
+    }
   }
   _ge_dump(grammar -> ge, "grammar", "grammar");
   printf("\n");
