@@ -24,7 +24,7 @@
 #include <data.h>
 #include <exception.h>
 
-static void          _mutex_init(void) __attribute__((constructor));
+static void          _mutex_init(void) __attribute__((constructor(120)));
 static void          _mutex_free(pthread_mutex_t *);
 static data_t *      _mutex_new(data_t *, va_list);
 static int           _mutex_cmp(data_t *, data_t *);

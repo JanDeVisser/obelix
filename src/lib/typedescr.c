@@ -20,15 +20,20 @@
 #include <core.h>
 #include <logging.h>
 #include <typedescr.h>
+#include <stdio.h>
 
 static int          _numtypes = 0;
 static typedescr_t *descriptors = NULL;
+static interface_t *_interfaces = NULL;
+static int          _next_interface = NextInterface;
+static int          _num_interfaces = 0;
+
 extern int          debug_data;
 extern int          _data_count;
-       int          type_debug;
+       int          type_debug = 1;
 
-static void         _typedescr_init(void) __attribute__((constructor));
-static char *       _methoddescr_tostring(methoddescr_t *);
+static void          _typedescr_init(void) __attribute__((constructor(101)));
+static char *        _methoddescr_tostring(methoddescr_t *);
 
 static code_label_t _function_id_labels[] = {
   { .code = FunctionNone,           .label = "None" },
@@ -73,7 +78,73 @@ char * _methoddescr_tostring(methoddescr_t *mth) {
   return mth -> name;
 }
 
-/* -- V T A B L E  H E L P E R S ------------------------------------------ */
+/* -- I N T E R F A C E   F U N C T I O N S-------------------------------- */
+
+int interface_register(int type, char *name, int numfncs, ...) {
+  int          ix;
+  int          iix;
+  int          cursz;
+  int          newsz;
+  interface_t *new_interfaces;
+  interface_t *iface;
+  va_list      fncs;
+  int          fnc_id;
+  
+  if (type < Interface) {
+    type = _next_interface++;
+  }
+  ix = type - Interface - 1;
+  if (type_debug) {
+    debug("Registering interface '%s' [%d]", name, type);
+  }
+  if (ix >= _num_interfaces) {
+    newsz = (ix + 1) * sizeof(interface_t);
+    cursz = _num_interfaces * sizeof(interface_t);
+    new_interfaces = (interface_t *) resize_block(_interfaces, newsz, cursz);
+    _interfaces = new_interfaces;
+    _numtypes = ix + 1;
+  }
+  iface = &_interfaces[ix];
+  iface -> type = type;
+  iface -> name = strdup(name);
+  iface -> methods = NULL;
+  if (numfncs) {
+    iface -> fncs = (int *) new_array(numfncs + 1, sizeof(int));
+    va_start(fncs, numfncs);
+    for (iix = 0; iix < numfncs; iix++) {
+      fnc_id = va_arg(fncs, int);
+      iface -> fncs[iix] = fnc_id;
+    }
+    va_end(fncs);
+  }
+  return type;  
+}
+
+interface_t * interface_get(int type) {
+  int ifix = type - Interface - 1;
+  
+  if ((type > Interface) && (type < _next_interface)) {
+    return &_interfaces[ifix];
+  } else {
+    return NULL;
+  }
+}
+
+void interface_register_method(interface_t *iface, methoddescr_t *method) {
+  if (!iface -> methods) {
+    iface -> methods = strvoid_dict_create();
+    dict_set_tostring_data(iface -> methods, (tostring_t) _methoddescr_tostring);
+  }
+  dict_put(iface -> methods, strdup(method -> name), method);
+}
+
+methoddescr_t * interface_get_method(interface_t *iface, char *name) {
+  return (iface -> methods) 
+    ? (methoddescr_t *) dict_get(iface -> methods, name) 
+    : NULL;
+}
+
+/* -- V T A B L E  F U N C T I O N S -------------------------------------- */
 
 void vtable_dump(vtable_t *vtable) {
   int ix;
@@ -115,15 +186,21 @@ vtable_t * vtable_build(vtable_t vtable[]) {
 }
 
 int vtable_implements(vtable_t *vtable, int type) {
-  if (type == Callable) {
-    return vtable[FunctionCall];
-  } else if (type == Iterable) {
-    return vtable[FunctionIter];
-  } else if (type == Iterator) {
-    return vtable[FunctionNext] && vtable[FunctionHasNext];
-  } else {
-    return 0;
+  int          ret;
+  interface_t *interface;
+  int          ix;
+  int          fnc_id;
+  
+  interface = interface_get(type);
+  if (!interface) {
+    return FALSE;
   }
+  ret = TRUE;
+  for (ix = 0; ret && interface -> fncs[ix]; ix++) {
+    fnc_id = interface -> fncs[ix];
+    ret &= (vtable[fnc_id].fnc != NULL);
+  }
+  return ret;
 }
 
 /* -- T Y P E D E S C R  P U B L I C  F U N C T I O N S ------------------- */
@@ -134,23 +211,27 @@ int typedescr_register(typedescr_t *descr) {
   int             newsz;
   int             cursz;
   typedescr_t    *d;
+  interface_t    *interface;
+  int             interfaces[sizeof(_interfaces) / sizeof(interface_t)];
+  int             num_interfaces = 0;
 
-  if (!_numtypes && (descr -> type != Any)) {
-    any_init();
-  }
   if (descr -> type < 0) {
     descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
   }
   if (type_debug) {
     debug("Registering type '%s' [%d]", descr -> type_name, descr -> type);
   }
-  assert((descr -> type >= _numtypes) || descriptors[descr -> type].type == 0);
-  if (descr -> type >= _numtypes) {
-    newsz = (descr -> type + 1) * sizeof(typedescr_t);
-    cursz = _numtypes * sizeof(typedescr_t);
-    new_descriptors = (typedescr_t *) resize_block(descriptors, newsz, cursz);
-    descriptors = new_descriptors;
-    _numtypes = descr -> type + 1;
+  if (!descriptors) {
+    descriptors = (typedescr_t *) new_array(Dynamic, sizeof(typedescr_t));
+    _numtypes = Dynamic;
+  } else {
+    if (descr -> type >= _numtypes) {
+      newsz = (descr -> type + 1) * sizeof(typedescr_t);
+      cursz = _numtypes * sizeof(typedescr_t);
+      new_descriptors = (typedescr_t *) resize_block(descriptors, newsz, cursz);
+      descriptors = new_descriptors;
+      _numtypes = descr -> type + 1;
+    }
   }
   d = &descriptors[descr -> type];
   memcpy(d, descr, sizeof(typedescr_t));
@@ -268,11 +349,18 @@ void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
 void typedescr_register_methods(methoddescr_t methods[]) {
   methoddescr_t *method;
   typedescr_t   *type;
+  interface_t   *interface;
 
   for (method = methods; method -> type > NoType; method++) {
-    type = typedescr_get(method -> type);
-    assert(type);
-    typedescr_register_method(type, method);
+    if (method -> type < Interface) {
+      type = typedescr_get(method -> type);
+      assert(type);
+      typedescr_register_method(type, method);
+    } else {
+      interface = interface_get(method -> type);
+      assert(interface);
+      interface_register_method(interface, method);
+    }
   }
 }
 
@@ -288,7 +376,9 @@ void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
 
 methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   methoddescr_t *ret;
+  interface_t   *interface;
   int            ix;
+  int            iftype;
   
   assert(descr);
   if (!descr -> methods) {
@@ -297,13 +387,15 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   }
   ret =  (methoddescr_t *) dict_get(descr -> methods, name);
   if (!ret) {
+    for (ix = 0; ix < _num_interfaces; ix++) {
+      if (typedescr_is(descr, _interfaces[ix].type)) {
+        ret = interface_get_method(&_interfaces[ix], name);
+      }
+    }
     if (descr -> inherits_size) {
       for (ix = 0; !ret && ix < descr -> inherits_size; ix++) {
         ret = typedescr_get_method(typedescr_get(descr -> inherits[ix]), name);
       }
-    }
-    if (!ret && (descr -> type != Any)) {
-      ret = typedescr_get_method(typedescr_get(Any), name);
     }
     if (ret) {
       dict_put(descr -> methods, strdup(name), ret);
@@ -330,11 +422,11 @@ int typedescr_is(typedescr_t *descr, int type) {
   if ((type == descr -> type) || (type == Any)) {
     ret = TRUE;
   } else {
-    if (descr -> vtable[FunctionIs]) {
-      fnc = (int (*)(typedescr_t *, int)) descr -> vtable[FunctionIs];
+    if (descr -> vtable[FunctionIs].fnc) {
+      fnc = (int (*)(typedescr_t *, int)) descr -> vtable[FunctionIs].fnc;
       ret = fnc(descr, type);
     } else {
-      ret = (type > Interface) && vtable_implements(type -> vtable, type);
+      ret = (type > Interface) && vtable_implements(descr -> vtable, type);
     }
   }
   if (!ret && descr -> inherits_size) {

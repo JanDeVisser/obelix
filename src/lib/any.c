@@ -23,6 +23,7 @@
 
 /* ------------------------------------------------------------------------ */
 
+static void     _any_init(void) __attribute__((constructor(110)));
 static data_t * _any_cmp(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_not(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_and(data_t *, char *, array_t *, dict_t *);
@@ -43,13 +44,7 @@ static data_t * _any_visit(data_t *, char *, array_t *, dict_t *);
 
 /* ------------------------------------------------------------------------ */
 
-static typedescr_t _typedescr_interfaces[] = {
-  { .type =      Any,        .type_name = "any"      },
-  { .type =      Callable,   .type_name = "callable" },
-  { .type =      Iterator,   .type_name = "iterator" },
-  { .type =      Iterable,   .type_name = "iterable" },
-  { .type =      NoType,     .type_name = NULL       },
-};
+static typedescr_t _typedescr_any = { .type = Any, .type_name = "any" };
 
 static methoddescr_t _methoddescr_interfaces[] = {
   { .type = Any,      .name = ">" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
@@ -82,8 +77,13 @@ static methoddescr_t _methoddescr_interfaces[] = {
 
 /* ------------------------------------------------------------------------ */
 
-void any_init(void) {
-  typedescr_register_types(_typedescr_interfaces);
+void _any_init(void) {
+  interface_register(Any,          "any",          1, FunctionCmp );
+  interface_register(Callable,     "callable",     1, FunctionCall);
+  interface_register(InputStream,  "inputstream",  0);
+  interface_register(OutputStream, "outputstream", 0);
+  interface_register(Iterable,     "iterable",     1, FunctionIter);
+  interface_register(Iterator,     "iterator",     2, FunctionNext, FunctionHasNext);
   typedescr_register_methods(_methoddescr_interfaces);
 }
 

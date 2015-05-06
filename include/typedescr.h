@@ -29,14 +29,15 @@ extern "C" {
 
 typedef enum _metatype {
   NoType       = 0,
-  Any          = 22,
-  Dynamic      = 23,
-  Interface    = 900, /* Marker */
-  InputStream  = 996,
-  OutputStream = 997,
-  Iterable     = 997,
-  Iterator     = 998,
-  Callable     = 999
+  Dynamic      = 22,
+  Interface    = 1000,  /* Marker */
+  Any,
+  InputStream,
+  OutputStream,
+  Iterable,
+  Iterator,
+  Callable,
+  NextInterface         /* Marker */
 } metatype_t;
 
 typedef enum _vtable_id {
@@ -72,6 +73,13 @@ typedef enum _vtable_id {
 } vtable_id_t;
 
 typedef struct _data * (*method_t)(struct _data *, char *, array_t *, dict_t *);
+
+typedef struct _interface {
+  int     type;
+  char   *name;
+  dict_t *methods;
+  int    *fncs;
+} interface_t;
   
 typedef struct _vtable {
   vtable_id_t id;
@@ -103,7 +111,10 @@ typedef struct _methoddescr {
   int       varargs;
 } methoddescr_t;
 
-extern void            any_init(void);
+extern int             interface_register(int, char *, int, ...);
+extern interface_t *   interface_get(int);
+extern void            interface_register_method(interface_t *, methoddescr_t *);
+extern methoddescr_t * interface_get_method(interface_t *, char *);
 
 extern vtable_t *      vtable_build(vtable_t[]);
 extern void            vtable_dump(vtable_t *);

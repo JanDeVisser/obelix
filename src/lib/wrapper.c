@@ -79,7 +79,7 @@ void _wrapper_init(void) {
 
 int _wrapper_is(typedescr_t *descr, int type) {
   return (type > Interface) 
-    ? vtable_implements((vtable_t *) type -> ptr, type) 
+    ? vtable_implements((vtable_t *) descr -> ptr, type) 
     : FALSE;
 }
 
@@ -282,8 +282,8 @@ int _wrapper_len(data_t *data) {
 }
 
 data_t * _wrapper_iter(data_t *data) {
-  typedescr_t *type = data_typedescr(data);
-  data_t     (*fnc)(void *);
+  typedescr_t  *type = data_typedescr(data);
+  data_t *    (*fnc)(void *);
   
   if (wrapper_debug) {
     debug("_wrapper_iter(%s)", type -> type_name);
@@ -299,8 +299,8 @@ data_t * _wrapper_iter(data_t *data) {
 }
 
 data_t * _wrapper_next(data_t *data) {
-  typedescr_t *type = data_typedescr(data);
-  data_t     (*fnc)(void *);
+  typedescr_t  *type = data_typedescr(data);
+  data_t *    (*fnc)(void *);
   
   if (wrapper_debug) {
     debug("_wrapper_next(%s)", type -> type_name);

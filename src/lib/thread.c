@@ -31,7 +31,7 @@
 
 #define MAX_STACKDEPTH      200
 
-static void          _init_thread(void) __attribute__((constructor));
+static void          _init_thread(void) __attribute__((constructor(120)));
 static int           _pthread_cmp(pthread_t *, pthread_t *);
 static unsigned int  _pthread_hash(pthread_t *);
 static void *        _thread_start_routine_wrapper(void **);

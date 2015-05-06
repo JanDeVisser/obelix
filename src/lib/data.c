@@ -204,6 +204,19 @@ void data_free(data_t *data) {
   }
 }
 
+unsigned int data_hash(data_t *data) {
+  typedescr_t *type;
+  hash_t       hash; 
+
+  if (data) {
+    type = data_typedescr(data);
+    hash = (hash_t) typedescr_get_function(type, FunctionHash);
+    return (hash) ? hash(data) : hashptr(data);
+  } else {
+    return 0;
+  }
+}
+
 typedescr_t * data_typedescr(data_t *data) {
   return (data) ? typedescr_get(data_type(data)) : NULL;
 }
@@ -427,19 +440,6 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
                      name_tostring(name), data_tostring(data));
   }
   return ret;
-}
-
-unsigned int data_hash(data_t *data) {
-  typedescr_t *type;
-  hash_t       hash; 
-
-  if (data) {
-    type = data_typedescr(data);
-    hash = (hash_t) typedescr_get_function(type, FunctionHash);
-    return (hash) ? hash(data) : hashptr(data);
-  } else {
-    return 0;
-  }
 }
 
 char * data_tostring(data_t *data) {

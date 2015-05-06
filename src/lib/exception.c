@@ -52,7 +52,7 @@ static code_label_t builtin_exceptions[] = {
 static int           num_exceptions = sizeof(builtin_exceptions) / sizeof(code_label_t);
 static code_label_t *exceptions = builtin_exceptions;
 
-static void          _exception_init(void) __attribute__((constructor));
+static void          _exception_init(void) __attribute__((constructor(105)));
 static data_t *      _exception_new(data_t *, va_list);
 static unsigned int  _exception_hash(data_t *);
 static data_t *      _exception_copy(data_t *, data_t *);
