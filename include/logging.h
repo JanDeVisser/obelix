@@ -25,6 +25,7 @@ extern "C" {
 #endif
 
 extern void logging_register_category(char *, int *);
+extern void logging_reset(void);
 extern void logging_enable(char *);
 extern void logging_disable(char *);
 

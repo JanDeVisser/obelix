@@ -31,12 +31,12 @@ typedef enum _metatype {
   NoType       = 0,
   Dynamic      = 22,
   Interface    = 1000,  /* Marker */
-  Any,
   InputStream,
   OutputStream,
   Iterable,
   Iterator,
   Callable,
+  Any,
   NextInterface         /* Marker */
 } metatype_t;
 

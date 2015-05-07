@@ -78,10 +78,10 @@ static methoddescr_t _methoddescr_interfaces[] = {
 /* ------------------------------------------------------------------------ */
 
 void _any_init(void) {
-  interface_register(Any,          "any",          1, FunctionCmp );
+  interface_register(Any,          "any",          0);
   interface_register(Callable,     "callable",     1, FunctionCall);
-  interface_register(InputStream,  "inputstream",  0);
-  interface_register(OutputStream, "outputstream", 0);
+  interface_register(InputStream,  "inputstream",  1, FunctionRead);
+  interface_register(OutputStream, "outputstream", 1, FunctionWrite);
   interface_register(Iterable,     "iterable",     1, FunctionIter);
   interface_register(Iterator,     "iterator",     2, FunctionNext, FunctionHasNext);
   typedescr_register_methods(_methoddescr_interfaces);

@@ -37,7 +37,9 @@ void _logging_init(void) {
 }
 
 int * _logging_set_reducer(logcategory_t *cat, int *value) {
-  debug("%s %s logging", (*value) ? "Enabling" : "Disabling", cat -> name);
+  if (*value) {
+    debug("Enabling %s logging", cat -> name);
+  }
   *(cat -> flag) = *value;
   return value;
 }
@@ -63,7 +65,13 @@ void logging_register_category(char *name, int *flag) {
   
   cat -> name = strdup(name);
   cat -> flag = flag;
+  *flag = 0;
   dict_put(_categories, strdup(name), cat);
+}
+
+void logging_reset(void) {
+  int value = 0;
+  dict_reduce_values(_categories, (reduce_t) _logging_set_reducer, &value);
 }
 
 void logging_enable(char *category) {

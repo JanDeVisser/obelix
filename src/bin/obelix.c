@@ -37,6 +37,7 @@ void debug_settings(char *debug) {
   array_t *cats;
   int      ix;
   
+  logging_reset();
   if (debug) {
     debug("debug optarg: %s", debug);
     cats = array_split(debug, ",");
@@ -109,7 +110,7 @@ int main(int argc, char **argv) {
   char           *syspath = NULL;
   int             opt;
   scriptloader_t *loader;
-  int             retval;
+  int             retval = 0;
   int             list = 0;
   int             trace = 0;
 
@@ -155,18 +156,20 @@ int main(int argc, char **argv) {
   free(basepath);
   
   loader = scriptloader_create(syspath, path, grammar);
-  scriptloader_set_option(loader, ObelixOptionList, list);
-  scriptloader_set_option(loader, ObelixOptionTrace, trace);
+  if (loader) {
+    scriptloader_set_option(loader, ObelixOptionList, list);
+    scriptloader_set_option(loader, ObelixOptionTrace, trace);
 
-  name = build_name(argv[optind]);
-  obl_argv = str_array_create(argc - optind);
-  for (ix = optind + 1; ix < argc; ix++) {
-    array_push(obl_argv, data_create(String, argv[ix]));
+    name = build_name(argv[optind]);
+    obl_argv = str_array_create(argc - optind);
+    for (ix = optind + 1; ix < argc; ix++) {
+      array_push(obl_argv, data_create(String, argv[ix]));
+    }
+    retval = run_script(loader, name, obl_argv);
+    array_free(obl_argv);
+    name_free(name);
+    scriptloader_free(loader);
   }
-  retval = run_script(loader, name, obl_argv);
-  array_free(obl_argv);
-  name_free(name);
-  scriptloader_free(loader);
   return retval;
 }
 

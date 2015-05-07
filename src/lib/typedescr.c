@@ -28,12 +28,11 @@ static interface_t *_interfaces = NULL;
 static int          _next_interface = NextInterface;
 static int          _num_interfaces = 0;
 
-extern int          debug_data;
 extern int          _data_count;
-       int          type_debug = 1;
+       int          type_debug = 0;
 
-static void          _typedescr_init(void) __attribute__((constructor(101)));
-static char *        _methoddescr_tostring(methoddescr_t *);
+static void         _typedescr_init(void) __attribute__((constructor(101)));
+static char *       _methoddescr_tostring(methoddescr_t *);
 
 static code_label_t _function_id_labels[] = {
   { .code = FunctionNone,           .label = "None" },
@@ -95,14 +94,14 @@ int interface_register(int type, char *name, int numfncs, ...) {
   }
   ix = type - Interface - 1;
   if (type_debug) {
-    debug("Registering interface '%s' [%d]", name, type);
+    info("Registering interface '%s' [%d:%d]", name, type, ix);
   }
   if (ix >= _num_interfaces) {
     newsz = (ix + 1) * sizeof(interface_t);
     cursz = _num_interfaces * sizeof(interface_t);
     new_interfaces = (interface_t *) resize_block(_interfaces, newsz, cursz);
     _interfaces = new_interfaces;
-    _numtypes = ix + 1;
+    _num_interfaces = ix + 1;
   }
   iface = &_interfaces[ix];
   iface -> type = type;
@@ -124,20 +123,44 @@ interface_t * interface_get(int type) {
   
   if ((type > Interface) && (type < _next_interface)) {
     ret = &_interfaces[ifix];
-    assert(ret -> type == type);
+    if (!ret) {
+      error("Undefined interface type %d referenced. Expect crashes", type);
+      return NULL;
+    } else {
+      //if (type_debug) {
+      //  debug("interface_get(%d:%d) = %s", type, ifix, ret -> name);
+      //}
+      assert(ret -> type == type);
+    }
+  } else {
+    error("Type %d referenced as interface, but it cannot be. Expect crashes", type);
   }
   return ret;
 }
 
 void interface_register_method(interface_t *iface, methoddescr_t *method) {
+  if (type_debug) {
+    info("interface_register_method(%s, %s)", iface -> name, method -> name);
+  }
   if (!iface -> methods) {
     iface -> methods = strvoid_dict_create();
     dict_set_tostring_data(iface -> methods, (tostring_t) _methoddescr_tostring);
   }
-  dict_put(iface -> methods, strdup(method -> name), method);
+  dict_put(iface -> methods, method -> name, method);
+  if (type_debug) {
+    debug(" Out: #methods %d   methods: %s", dict_size(iface -> methods), dict_tostring(iface -> methods));
+  }
 }
 
 methoddescr_t * interface_get_method(interface_t *iface, char *name) {
+  if (type_debug) {
+    debug("interface_get_method(%s, %s)", iface -> name, name);
+    if (iface -> methods) {
+      debug(" #methods %d   methods: %s", dict_size(iface -> methods), dict_tostring(iface -> methods));
+    } else {
+      debug(" '%s' -> methods unset", iface -> name);
+    }
+  }
   return (iface -> methods) 
     ? (methoddescr_t *) dict_get(iface -> methods, name) 
     : NULL;
@@ -218,7 +241,7 @@ int typedescr_register(typedescr_t *descr) {
     descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
   }
   if (type_debug) {
-    debug("Registering type '%s' [%d]", descr -> type_name, descr -> type);
+    info("Registering type '%s' [%d]", descr -> type_name, descr -> type);
   }
   if (!descriptors) {
     descriptors = (typedescr_t *) new_array(Dynamic, sizeof(typedescr_t));
@@ -273,9 +296,9 @@ typedescr_t * typedescr_get(int datatype) {
     error("Undefined type %d referenced. Expect crashes", datatype);
     return NULL;
   } else {
-    if (type_debug) {
-      debug("typedescr_get(%d) = %s", datatype, ret -> type_name);
-    }
+    //if (type_debug) {
+    //  debug("typedescr_get(%d) = %s", datatype, ret -> type_name);
+    //}
     return ret;
   }
 }
@@ -335,10 +358,10 @@ void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
       inherits = typedescr_get(type -> inherits[ix]);
       ret = typedescr_get_function(inherits, fnc_id);
     }
-    if (type_debug) {
-      debug("typedescr_get_function(%s, %s) = %p", 
-            type -> type_name, label_for_code(_function_id_labels, fnc_id), ret);
-    }
+    //if (type_debug) {
+    //  debug("typedescr_get_function(%s, %s) = %p", 
+    //        type -> type_name, label_for_code(_function_id_labels, fnc_id), ret);
+    //}
   } else {
     error("Type '%s' has no vtable. Quite odd.", type -> type_name);
   }
@@ -364,40 +387,42 @@ void typedescr_register_methods(methoddescr_t methods[]) {
 }
 
 void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
-  assert(method -> name && method -> method);
-  //assert((!method -> varargs) || (method -> minargs > 0));
+  if (type_debug) {
+    info("typedescr_register_method(%s, %s)", type -> type_name, method -> name);
+  }
   if (!type -> methods) {
     type -> methods = strvoid_dict_create();
     dict_set_tostring_data(type -> methods, (tostring_t) _methoddescr_tostring);
   }
-  dict_put(type -> methods, strdup(method -> name), method);
+  dict_put(type -> methods, method -> name, method);
 }
 
 methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
-  methoddescr_t *ret;
+  methoddescr_t *ret = NULL;
   interface_t   *interface;
   int            ix;
   int            iftype;
   
   assert(descr);
-  if (!descr -> methods) {
-    descr -> methods = strvoid_dict_create();
-    dict_set_tostring_data(descr->methods, (tostring_t) _methoddescr_tostring);
+  if (type_debug) {
+    info("typedescr_get_method(%s, %s)", descr -> type_name, name);
   }
-  ret =  (methoddescr_t *) dict_get(descr -> methods, name);
+  if (descr -> methods) {
+    ret = (methoddescr_t *) dict_get(descr -> methods, name);
+  }
   if (!ret) {
-    for (ix = 0; ix < _num_interfaces; ix++) {
+    for (ix = 0; !ret && ix < _num_interfaces; ix++) {
       if (typedescr_is(descr, _interfaces[ix].type)) {
         ret = interface_get_method(&_interfaces[ix], name);
       }
     }
-    if (descr -> inherits_size) {
+    if (!ret && descr -> inherits_size) {
       for (ix = 0; !ret && ix < descr -> inherits_size; ix++) {
         ret = typedescr_get_method(typedescr_get(descr -> inherits[ix]), name);
       }
     }
     if (ret) {
-      dict_put(descr -> methods, strdup(name), ret);
+      typedescr_register_method(descr, ret);
     }
   }
   return ret;

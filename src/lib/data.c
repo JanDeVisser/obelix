@@ -401,7 +401,7 @@ int data_has_callable(data_t *self, name_t *name) {
   int     ret = 0;
   
   callable = data_resolve(self, name);
-  if (callable && !data_is_exception(callable) && data_is_callable(callable)) {
+  if (callable && !data_is_unhandled_exception(callable) && data_is_callable(callable)) {
     ret = 1;
   }
   data_free(callable);
@@ -415,6 +415,11 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
   data_t      *ret;
   setvalue_t   setter;
 
+  if (debug_data) {
+    debug("%s.set(%s:%d, %s)", 
+          data_tostring(data), name_tostring(name), 
+          name_size(name), data_tostring(value));
+  }
   if (name_size(name) == 1) {
     container = data;
   } else {

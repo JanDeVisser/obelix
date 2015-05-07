@@ -1,5 +1,7 @@
 #!/home/jan/Projects/obelix/install/bin/obelix
 
+a = 18
+print(a)
 print("Hello ${0}!", "Asterix")
 
 stdout.print("Hello from stdout, ${0}!", "Asterix")
