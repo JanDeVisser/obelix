@@ -108,26 +108,25 @@ int interface_register(int type, char *name, int numfncs, ...) {
   iface -> type = type;
   iface -> name = strdup(name);
   iface -> methods = NULL;
-  if (numfncs) {
-    iface -> fncs = (int *) new_array(numfncs + 1, sizeof(int));
-    va_start(fncs, numfncs);
-    for (iix = 0; iix < numfncs; iix++) {
-      fnc_id = va_arg(fncs, int);
-      iface -> fncs[iix] = fnc_id;
-    }
-    va_end(fncs);
+  iface -> fncs = (int *) new_array(numfncs + 1, sizeof(int));
+  va_start(fncs, numfncs);
+  for (iix = 0; iix < numfncs; iix++) {
+    fnc_id = va_arg(fncs, int);
+    iface -> fncs[iix] = fnc_id;
   }
+  va_end(fncs);
   return type;  
 }
 
 interface_t * interface_get(int type) {
-  int ifix = type - Interface - 1;
+  int          ifix = type - Interface - 1;
+  interface_t *ret = NULL;
   
   if ((type > Interface) && (type < _next_interface)) {
-    return &_interfaces[ifix];
-  } else {
-    return NULL;
+    ret = &_interfaces[ifix];
+    assert(ret -> type == type);
   }
+  return ret;
 }
 
 void interface_register_method(interface_t *iface, methoddescr_t *method) {
@@ -326,7 +325,7 @@ void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
   void_t       ret = NULL;
   int          ix;
   typedescr_t *inherits;
-  
+
   assert(type);
   assert(fnc_id > FunctionNone);
   assert(fnc_id < FunctionEndOfListDummy);
