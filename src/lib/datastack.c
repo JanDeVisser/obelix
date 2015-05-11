@@ -176,6 +176,23 @@ datastack_t * datastack_list(datastack_t *stack) {
   return stack;
 }
 
+data_t * datastack_find(datastack_t *stack, cmp_t comparator, void *target) {
+  int     ix;
+  data_t *data;
+  
+  for (ix = array_size(stack -> list) - 1; ix >= 0; ix--) {
+    data = data_array_get(stack -> list, ix);
+    if (!comparator(data, target)) {
+      return data;
+    }
+  }
+  return NULL;
+}
+
+int datastack_find_type(data_t *data, long type) {
+  return (data_hastype(data, (int) type)) ? 0 : 1;
+}
+
 datastack_t * datastack_clear(datastack_t *stack) {
   array_clear(stack -> list);
   return stack;

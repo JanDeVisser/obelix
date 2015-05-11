@@ -26,6 +26,7 @@
 #include <instruction.h>
 #include <logging.h>
 #include <name.h>
+#include <nvp.h>
 #include <script.h>
 #include <math.h>
 
@@ -63,6 +64,7 @@ static data_t *         _instruction_execute_new(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_nop(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pop(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_dup(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_swap(instruction_t *, closure_t *);
 
 static data_t *         _instruction_execute_stash(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_unstash(instruction_t *, closure_t *);
@@ -78,7 +80,7 @@ static instruction_type_descr_t instruction_descr_map[] = {
     .function = _instruction_execute_assign,
     .name = "Assign",
     .tostring = (tostring_t) _instruction_tostring_value },
-  { .type = ITAssign,   
+  { .type = ITDup,   
     .function = _instruction_execute_dup,
     .name = "Dup",
     .tostring = (tostring_t) _instruction_tostring_name },
@@ -133,6 +135,10 @@ static instruction_type_descr_t instruction_descr_map[] = {
   { .type = ITSubscript,
     .function = _instruction_execute_subscript,
     .name = "Subscript",
+    .tostring = (tostring_t) _instruction_tostring_name },
+  { .type = ITSwap,   
+    .function = _instruction_execute_swap,
+    .name = "Swap",
     .tostring = (tostring_t) _instruction_tostring_name },
   { .type = ITTest,
     .function = _instruction_execute_test,
@@ -231,7 +237,7 @@ char * _call_tostring(data_t *d) {
 /* -- T O _ S T R I N G  F U N C T I O N S -------------------------------- */
 
 char * _instruction_tostring_name(instruction_t *instruction) {
-  return instruction -> name;
+  return instruction -> name ? instruction -> name : "";
 }
 
 char * _instruction_tostring_value(instruction_t *instruction) {
@@ -342,21 +348,25 @@ data_t * _instruction_execute_subscript(instruction_t *instr, closure_t *closure
 /* -- E X C E P T I O N  H A N D L I N G ---------------------------------- */
 
 data_t * _instruction_execute_enter_context(instruction_t *instr, closure_t *closure) {
-  data_t *context;
-  data_t *ret = NULL;
-  name_t *enter = name_create(1, "__enter__");
+  data_t    *context;
+  data_t    *ret = NULL;
+  data_t * (*fnc)(data_t *);
+  data_t    *catchpoint;
+  nvp_t     *nvp_cp;
   
   context = _instruction_get_variable(instr, closure);
-  if (data_has_callable(context, enter)) {
-    ret = data_invoke(context, enter, NULL, NULL);
+  fnc = (data_t * (*)(data_t *)) data_get_function(context, FunctionEnter);
+  if (fnc) {
+    ret = fnc(context);
   }
-  data_free(context);
   if (ret && !data_is_exception(ret)) {
     ret = NULL;
   }
   if (!ret) {
-    datastack_push(closure -> catchpoints, data_create(String, instr -> name));
+    catchpoint = data_create(NVP, data_create(String, instr -> name), data_copy(context));
+    datastack_push(closure -> catchpoints, catchpoint);
   }
+  data_free(context);
   return ret;
 }
 
@@ -364,37 +374,32 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
   data_t        *error;
   exception_t   *e = NULL;
   data_t        *context;
+  data_t        *param;
   data_t        *ret = NULL;
-  array_t       *params;
-  static name_t *exit = NULL;
+  data_t *     (*fnc)(data_t *, data_t *);
+  nvp_t         *cp;
+  data_t        *cp_data;
   
   error = closure_pop(closure);
   if (data_is_exception(error)) {
     e = data_exceptionval(error);
     e -> handled = TRUE;
-  } else {
-    /*
-     * If there is an error the catchpoint was already popped by 
-     * _closure_execute_instruction:
-     */
-    data_free(datastack_pop(closure -> catchpoints));
   }
-  context = _instruction_get_variable(instr, closure);
+  cp_data = datastack_pop(closure -> catchpoints);
+  cp = data_nvpval(cp_data);
+  context = data_copy(cp -> value);
+  data_free(cp_data);
   if (data_is_exception(context)) {
     ret = data_copy(context);
   } else {
-    if (!exit) {
-      exit = name_create(1, "__exit__");  
-    }
-    if (data_has_callable(context, exit)) {
-      params = data_array_create(1);
+    fnc = (data_t * (*)(data_t *, data_t *)) data_get_function(context, FunctionLeave);
+    if (fnc) {
       if (e && (e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
-        array_push(params, data_copy(error));
+        param = data_copy(error);
       } else {
-        array_push(params, data_create(Bool, 0));
+        param = data_create(Bool, 0);
       }
-      ret = data_invoke(context, exit, params, NULL);
-      array_free(params);
+      ret = fnc(context, param);
     }
   }
   if (e && (e -> code == ErrorExit)) {
@@ -626,6 +631,17 @@ data_t * _instruction_execute_dup(instruction_t *instr, closure_t *closure) {
   return NULL;
 }
 
+data_t * _instruction_execute_swap(instruction_t *instr, closure_t *closure) {
+  data_t *v1;
+  data_t *v2;
+
+  v1 = closure_pop(closure);
+  v2 = closure_pop(closure);
+  closure_push(closure, v1);
+  closure_push(closure, v2);
+  return NULL;
+}
+
 /* ----------------------------------------------------------------------- */
 
 data_t * _instruction_execute_stash(instruction_t *instr, closure_t *closure) {
@@ -709,34 +725,14 @@ instruction_t * instruction_create_import(name_t *module) {
   return instruction_create(ITImport, NULL, data_create(Name, module));
 }
 
-instruction_t * instruction_create_iter() {
-  return instruction_create(ITIter, "Iterate", NULL);
-}
-
 instruction_t * instruction_create_next(data_t *end_label) {
   return instruction_create(ITNext, data_charval(end_label), NULL);
-}
-
-instruction_t * instruction_create_pop(void) {
-  return instruction_create(ITPop, "Discard top-of-stack", NULL);
-}
-
-instruction_t * instruction_create_dup(void) {
-  return instruction_create(ITPop, "Duplicate top-of-stack", NULL);
 }
 
 instruction_t * instruction_create_mark(int line) {
   instruction_t *nop = instruction_create_nop();
   nop -> value = data_create(Int, line);
   return nop;
-}
-
-instruction_t * instruction_create_nop(void) {
-  return instruction_create(ITNop, "Nothing", NULL);
-}
-
-instruction_t * instruction_create_throw(void) {
-  return instruction_create(ITThrow, "Throw Exception", NULL);
 }
 
 instruction_t * instruction_create_stash(unsigned int stash) {

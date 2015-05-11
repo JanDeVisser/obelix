@@ -191,10 +191,10 @@ data_t * token_todata(token_t *token) {
 char * token_tostring(token_t *token) {
   if (!token -> str) {
     if (token -> code < 200) {
-      asprintf(&token -> str, "[%-21.21s] '%s'",
+      asprintf(&token -> str, "[%s] '%s'",
                token_code_name(token -> code), token -> token);
     } else {
-      asprintf(&token -> str, "[%-21.21s]", token -> token);
+      asprintf(&token -> str, "[%s]", token -> token);
     }
   }
   return token -> str;

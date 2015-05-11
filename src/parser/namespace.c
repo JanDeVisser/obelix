@@ -306,17 +306,16 @@ module_t * mod_create(namespace_t *ns, name_t *name) {
   ret -> ns = ns_copy(ns);
   ret -> obj = object_create(NULL);
   ret -> imports = set_create((cmp_t) mod_cmp);
-  ret -> data.refs = 0;
+  ret -> data.refs = 1;
   ret -> data.ptrval = ret;
   set_set_hash(ret -> imports, (hash_t) mod_hash);
   set_set_free(ret -> imports, (free_t) mod_free);
   set_set_tostring(ret -> imports, (tostring_t) mod_tostring);
-  ret -> refs = 1;
   return ret;
 }
 
 void mod_free(module_t *mod) {
-  if (mod && (--mod -> refs) <= 0) {
+  if (mod && (--mod -> data.refs) <= 0) {
     object_free(mod -> obj);
     ns_free(mod -> ns);
     free(mod -> name);
@@ -326,7 +325,7 @@ void mod_free(module_t *mod) {
 
 module_t * mod_copy(module_t *module) {
   if (module) {
-    module -> refs++;
+    module -> data.refs++;
   }
   return module;
 }

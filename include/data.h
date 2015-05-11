@@ -93,6 +93,7 @@ extern void            data_free(data_t *);
 extern int             data_hastype(data_t *, int);
 extern typedescr_t *   data_typedescr(data_t *);
 extern void_t          data_get_function(data_t *, int);
+extern int             data_implements(data_t *, int);
 extern int             data_is_numeric(data_t *);
 extern int             data_is_exception(data_t *t);
 extern int             data_is_callable(data_t *);

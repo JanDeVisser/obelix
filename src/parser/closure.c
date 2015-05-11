@@ -21,6 +21,7 @@
 
 #include <exception.h>
 #include <namespace.h>
+#include <nvp.h>
 #include <script.h>
 #include <stacktrace.h>
 #include <thread.h>
@@ -110,9 +111,9 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
         ret = ex_data;
       }
       ex -> trace = data_create(Stacktrace, stacktrace_create());
-      catchpoint = datastack_pop(closure -> catchpoints);
-      label = strdup(data_charval(catchpoint));
-      data_free(catchpoint);
+      catchpoint = datastack_peek(closure -> catchpoints);
+      assert(catchpoint);
+      label = strdup(data_charval(data_nvpval(catchpoint) -> name));
       closure_push(closure, data_copy(ret));
     }
     data_free(ret);
@@ -395,7 +396,10 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   } else {
     datastack_clear(closure -> catchpoints);
   }
-  datastack_push(closure -> catchpoints, data_create(String, "ERROR"));
+  datastack_push(closure -> catchpoints, 
+                 data_create(NVP, 
+                             data_create(String, "ERROR"),
+                             data_create(Bool, 0)));
   
   if (script -> async) {
     closure -> thread = data_create(Thread, 

@@ -701,6 +701,7 @@ grammar_t * grammar_analyze(grammar_t *grammar) {
 
   if (grammar_debug) {
     debug("Checking grammar for LL(1)-ness");
+    debug("Keywords: %s", dict_tostring(grammar->keywords));
   }
   ll_1 = 1;
   dict_reduce(grammar -> nonterminals, (reduce_t) _grammar_check_LL1_reducer, &ll_1);
@@ -711,7 +712,6 @@ grammar_t * grammar_analyze(grammar_t *grammar) {
     dict_visit(grammar -> nonterminals, (visit_t) _grammar_build_parse_table_visitor);
     if (grammar_debug) {
       debug("Parse tables built");
-      warning("Keywords: %s", dict_tostring(grammar->keywords));
     }
   } else {
     error("Grammar is not LL(1)");
@@ -826,10 +826,10 @@ int _nonterminal_check_LL1(nonterminal_t *nonterminal) {
   str_t  *s;
 
   ret = 1;
-  if (grammar_debug) {
-    debug("Checking LL(1) conditions for rule %s [%d rules]",
-          nonterminal -> name, array_size(nonterminal -> rules));
-  }
+  //if (grammar_debug) {
+  //  debug("Checking LL(1) conditions for rule %s [%d rules]",
+  //        nonterminal -> name, array_size(nonterminal -> rules));
+  //}
   for (i = 0; i < array_size(nonterminal -> rules); i++) {
     r_i = nonterminal_get_rule(nonterminal, i);
     f_i = _rule_get_firsts(r_i);
@@ -839,12 +839,8 @@ int _nonterminal_check_LL1(nonterminal_t *nonterminal) {
       ok = set_disjoint(f_i, f_j);
       if (!ok) {
         error("Grammar not LL(1): non-terminal %s - Firsts for rules %d and %d not disjoint", nonterminal -> name, i, j);
-        s = set_tostr(f_i);
-        error("FIRSTS(%d): %s", i, str_chars(s));
-        str_free(s);
-        s = set_tostr(f_j);
-        error("FIRSTS(%d): %s", j, str_chars(s));
-        str_free(s);
+        error("FIRSTS(%d): %s", i, set_tostring(f_i));
+        error("FIRSTS(%d): %s", j, set_tostring(f_j));
       }
       ret &= ok;
       if (set_has_int(f_j, TokenCodeEnd)) {
@@ -857,9 +853,9 @@ int _nonterminal_check_LL1(nonterminal_t *nonterminal) {
       }
     }
   }
-  if (grammar_debug) {
-    debug("Non-terminal %s checks %sOK for LL(1) conditions", nonterminal -> name, (ret) ? "": "NOT ");
-  }
+  //if (grammar_debug) {
+  //  debug("Non-terminal %s checks %sOK for LL(1) conditions", nonterminal -> name, (ret) ? "": "NOT ");
+  //}
   return ret;
 }
 

@@ -1,9 +1,6 @@
 #!/home/jan/Projects/obelix/install/bin/obelix
 
-a = 18
-print(a)
 print("Hello ${0}!", "Asterix")
-
 stdout.print("Hello from stdout, ${0}!", "Asterix")
 stderr.print("Hello from stderr, ${0}!", "Asterix")
 
@@ -11,8 +8,8 @@ return 0
 
 /*
 --stdout--
-Hello from stdout, Asterix!
 Hello Asterix!
+Hello from stdout, Asterix!
 --stderr--
 Hello from stderr, Asterix!
 --exit--

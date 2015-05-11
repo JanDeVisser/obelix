@@ -38,6 +38,8 @@ static data_t *      _data_call_object(data_t *, array_t *, dict_t *);
 static data_t *      _data_resolve_object(data_t *, char *);
 static data_t *      _data_set_object(data_t *, char *, data_t *);
 static int           _data_len_object(data_t *);
+static data_t *      _data_ctx_enter(data_t *);
+static data_t *      _data_ctx_leave(data_t *, data_t *);
 
 static data_t *      _object_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _object_new(data_t *, char *, array_t *, dict_t *);
@@ -60,6 +62,8 @@ static vtable_t _vtable_object[] = {
   { .id = FunctionCall,     .fnc = (void_t) _data_call_object },
   { .id = FunctionSet,      .fnc = (void_t) _data_set_object },
   { .id = FunctionLen,      .fnc = (void_t) _data_len_object },
+  { .id = FunctionEnter,    .fnc = (void_t) _data_ctx_enter },
+  { .id = FunctionLeave,    .fnc = (void_t) _data_ctx_leave },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -79,6 +83,8 @@ static methoddescr_t _methoddescr_object[] = {
 /* ----------------------------------------------------------------------- */
 
 void _data_init_object(void) {
+  data_t *name;
+  
   logging_register_category("object", &obj_debug);
   typedescr_register(&_typedescr_object);  
   typedescr_register_methods(_methoddescr_object);
@@ -138,6 +144,13 @@ int _data_len_object(data_t *data) {
   return dict_size(obj -> variables);
 }
 
+data_t* _data_ctx_enter(data_t *data) {
+  return object_ctx_enter(data_objectval(data));
+}
+
+data_t* _data_ctx_leave(data_t *data, data_t *param) {
+  return object_ctx_leave(data_objectval(data), param);
+}
 
 data_t * data_create_object(object_t *object) {
   return data_create(Object, object);
@@ -421,4 +434,26 @@ int object_cmp(object_t *o1, object_t *o2) {
 
 data_t * object_resolve(object_t *object, char *name) {
   return (data_t *) dict_get(object -> variables, name);
+}
+
+data_t * object_ctx_enter(object_t *object) {
+  data_t *ret = NULL;
+  
+  ret = _object_call_attribute(object, "__enter__", NULL, NULL);
+  if (ret && !data_is_exception(ret)) {
+    ret = NULL;
+  }
+  return ret;
+
+}
+
+data_t *  object_ctx_leave(object_t *object, data_t *param) {
+  array_t  *params;
+  data_t   *ret;
+
+  params = data_array_create(1);
+  array_push(params, data_copy(param));
+  ret = _object_call_attribute(object, "__exit__", params, NULL);
+  array_free(params);
+  return ret;
 }

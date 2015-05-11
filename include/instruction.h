@@ -17,7 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #ifndef __INSTRUCTION_H__
 #define __INSTRUCTION_H__
 
@@ -41,6 +40,7 @@ typedef enum _instruction_type {
   ITPushVar,
   ITStash,
   ITSubscript,
+  ITSwap,
   ITTest,
   ITThrow,
   ITUnstash
@@ -56,8 +56,8 @@ typedef struct _instruction {
 } instruction_t;
 
 typedef enum _callflag {
-  CFNone = 0x0000,
-  CFInfix = 0x0001,
+  CFNone        = 0x0000,
+  CFInfix       = 0x0001,
   CFConstructor = 0x0002
 } callflag_t;
 
@@ -71,16 +71,10 @@ extern instruction_t *  instruction_create_pushvar(name_t *);
 extern instruction_t *  instruction_create_pushval(data_t *);
 extern instruction_t *  instruction_create_function(name_t *, callflag_t, long, array_t *);
 extern instruction_t *  instruction_create_test(data_t *);
-extern instruction_t *  instruction_create_iter();
 extern instruction_t *  instruction_create_next(data_t *);
 extern instruction_t *  instruction_create_jump(data_t *);
 extern instruction_t *  instruction_create_import(name_t *);
 extern instruction_t *  instruction_create_mark(int);
-extern instruction_t *  instruction_create_nop(void);
-extern instruction_t *  instruction_create_pop(void);
-extern instruction_t *  instruction_create_dup(void);
-extern instruction_t *  instruction_create_throw(void);
-
 extern instruction_t *  instruction_create_stash(unsigned int);
 extern instruction_t *  instruction_create_unstash(unsigned int);
 
@@ -89,5 +83,11 @@ extern instruction_t *  instruction_set_label(instruction_t *, data_t *);
 extern data_t *         instruction_execute(instruction_t *, struct _closure *);
 extern char *           instruction_tostring(instruction_t *);
 extern void             instruction_free(instruction_t *);
+
+#define instruction_create_iter()  instruction_create(ITIter, NULL, NULL)
+#define instruction_create_pop()   instruction_create(ITPop, NULL, NULL)
+#define instruction_create_dup()   instruction_create(ITDup, NULL, NULL)
+#define instruction_create_nop()   instruction_create(ITNop, NULL, NULL)
+#define instruction_create_throw() instruction_create(ITThrow, NULL, NULL)
 
 #endif /* __INSTRUCTION_H__ */

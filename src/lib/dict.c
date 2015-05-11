@@ -695,7 +695,7 @@ str_t * dict_tostr_custom(dict_t *dict, char *open, char *fmt, char *sep, char *
 }
 
 str_t * dict_tostr(dict_t *dict) {
-  return dict_tostr_custom(dict, "{ ", "\"%s\": %s", ", ", " }");
+  return dict_tostr_custom(dict, "{\n", "  \"%s\": %s", ",\n", "\n}");
 }
 
 char * dict_tostring_custom(dict_t *dict, char *open, char *fmt, char *sep, char *close) {
@@ -708,7 +708,7 @@ char * dict_tostring_custom(dict_t *dict, char *open, char *fmt, char *sep, char
 }
 
 char * dict_tostring(dict_t *dict) {
-  return dict_tostring_custom(dict, "{ ", "\"%s\": %s", ", ", " }");
+  return dict_tostring_custom(dict, "{\n", "  \"%s\": %s", ",\n", "\n}");
 }
 
 str_t * dict_dump(dict_t *dict, char *title) {

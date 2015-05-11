@@ -355,6 +355,32 @@ parser_t * script_parse_unstash(parser_t *parser, data_t *stash) {
   return parser;
 }
 
+parser_t* script_parse_reduce(parser_t *parser, data_t *initial) {
+  static name_t *reduce = NULL;
+  script_t      *script;
+  int            init = data_intval(initial);
+
+  if (!reduce) {
+    reduce = name_create(1, "reduce");
+  }
+  script = parser -> data;
+  if (init) {
+    /*
+    * reduce() expects the function first and then the initial value. Here we 
+    * have the function on the top of the stack so we need to swap the
+    * function and the initial value.
+    */
+    script_push_instruction(script, 
+                            instruction_create(ITSwap, NULL, NULL));
+    script_push_instruction(script, 
+                            instruction_create_function(reduce, CFInfix, 3, NULL));
+  } else {
+    script_push_instruction(script, 
+                            instruction_create_function(reduce, CFInfix, 2, NULL));
+  }
+  return parser;
+}
+
 parser_t * script_parse_func_call(parser_t *parser) {
   script_t      *script;
   data_t        *func_name;

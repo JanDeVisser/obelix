@@ -10,3 +10,6 @@ end
 
 s = l.reduce(add)
 print(s)
+
+s = (@ l <- add) + 1
+print(s)

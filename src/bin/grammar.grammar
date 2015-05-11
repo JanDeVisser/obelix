@@ -214,6 +214,17 @@ assignment                  := =
 expr                        := predicate
                                predicatetail
                              ;
+                             
+reduction                   := "@" expr 
+                               "<-"
+                               expr
+                               reduction2
+                             ;
+
+reduction2                  := "<-" 
+                               expr              [ reduce: 1                 ]
+                             |                   [ reduce: 0                 ]
+                             ;
 
 predicatetail               := logic_op          [ push_tokenstring          ]
                                predicate         [ infix_op                  ]
@@ -222,6 +233,7 @@ predicatetail               := logic_op          [ push_tokenstring          ]
 
 predicate                   := term
                                termtail
+                             | reduction
                              ;
 
 termtail                    := add_op            [ push_tokenstring          ]
@@ -251,6 +263,7 @@ subscript                   := '[' expr ']'      [ subscript                 ]
 expr_atom                   := ( expr )
                              | var_or_call 
                              | constant
+                             | query
                              ;
 
 var_or_call                 := new
@@ -274,6 +287,9 @@ _identifier_tail            := .
                                _identifier
                              |
                              ;
+
+query                       := '`'
+                            ;
 
 constant                    := '"'               [ push_token                ]
                              | '\''              [ push_token                ]

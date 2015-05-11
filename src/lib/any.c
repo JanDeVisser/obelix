@@ -70,8 +70,8 @@ static methoddescr_t _methoddescr_interfaces[] = {
   { .type = Iterable, .name = "iter",     .method = _any_iter,     .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
   { .type = Iterator, .name = "next",     .method = _any_next,     .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
   { .type = Iterator, .name = "hasnext",  .method = _any_has_next, .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
-  { .type = Iterable, .name = "reduce",   .method = _any_reduce,   .argtypes = { Callable, Any, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Iterable, .name = "visit",    .method = _any_visit,    .argtypes = { Callable, NoType, NoType }, .minargs = 2, .varargs = 0 },
+  { .type = Iterable, .name = "reduce",   .method = _any_reduce,   .argtypes = { Callable, Any, NoType },    .minargs = 1, .varargs = 1, .maxargs = 2 },
+  { .type = Iterable, .name = "visit",    .method = _any_visit,    .argtypes = { Callable, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = NoType,   .name = NULL,       .method = NULL,          .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 }
 };
 
@@ -84,6 +84,8 @@ void _any_init(void) {
   interface_register(OutputStream, "outputstream", 1, FunctionWrite);
   interface_register(Iterable,     "iterable",     1, FunctionIter);
   interface_register(Iterator,     "iterator",     2, FunctionNext, FunctionHasNext);
+  interface_register(Connector,    "connector",    1, FunctionQuery);
+  interface_register(CtxHandler,   "ctxhandler",   2, FunctionEnter, FunctionLeave);
   typedescr_register_methods(_methoddescr_interfaces);
 }
 

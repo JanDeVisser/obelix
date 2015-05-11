@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include <limits.h>
 
 #include <data.h>
 #include <exception.h>
@@ -93,6 +94,7 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
   typedescr_t   *type;
   methoddescr_t *md;
   int            i;
+  int            j;
   int            len;
   int            t;
   int            maxargs = -1;
@@ -103,10 +105,12 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
   type = data_typedescr(mth -> self);
   
   len = (args) ? array_size(args) : 0;
-  if (!md -> varargs) {
-    maxargs = md -> minargs;
+  maxargs = md -> maxargs;
+  if (!maxargs) {
+    maxargs = (md -> varargs) ? INT_MAX : md -> minargs;
   }
-  if (len < mth -> method -> minargs) {
+  assert(maxargs >= md -> minargs);
+  if (len < md -> minargs) {
     if (md -> varargs) {
       return data_exception(ErrorArgCount, "%s.%s requires at least %d arguments",
                        type -> type_name, md -> name, md -> minargs);
@@ -114,7 +118,7 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
       return data_exception(ErrorArgCount, "%s.%s requires exactly %d arguments",
                        type -> type_name, md -> name, md -> minargs);
     }
-  } else if (!md -> varargs && (len > maxargs)) {
+  } else if (len > maxargs) {
     if (maxargs == 0) {
       return data_exception(ErrorArgCount, "%s.%s accepts no arguments",
                         type -> type_name, md -> name);
@@ -128,12 +132,19 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
   }
   for (i = 0; i < len; i++) {
     arg = array_get(args, i);
-    t = (i < md -> minargs)
-      ? md -> argtypes[i]
-      : md -> argtypes[(md -> minargs) ? md -> minargs - 1 : 0];
+    if (i < md -> minargs) {
+      t = md -> argtypes[i];
+    } else {
+      for (j = (i >= MAX_METHOD_PARAMS) ? MAX_METHOD_PARAMS - 1 : i; 
+           (j >= 0) && (md -> argtypes[j] == NoType); 
+           j--);
+      t = md -> argtypes[j];
+    }
     if (!data_hastype(arg, t)) {
       return data_exception(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
-                        i+1, type -> type_name, md -> name, t, data_type(arg));
+                        i+1, type -> type_name, md -> name, 
+                        typedescr_get(t) -> type_name, 
+                        data_typedescr(arg) -> type_name);
     }
   }
   return md -> method(mth -> self, md -> name, args, kwargs);  

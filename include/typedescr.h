@@ -36,6 +36,8 @@ typedef enum _metatype {
   Iterable,
   Iterator,
   Callable,
+  Connector,
+  CtxHandler,
   Any,
   NextInterface         /* Marker */
 } metatype_t;
@@ -69,6 +71,9 @@ typedef enum _vtable_id {
   FunctionVisit,     /* 25 */
   FunctionReduce,    /* 26 */
   FunctionIs,        /* 27 */
+  FunctionQuery,     /* 28 */
+  FunctionEnter,     /* 29 */
+  FunctionLeave,     /* 30 */
   FunctionEndOfListDummy
 } vtable_id_t;
 
@@ -108,6 +113,7 @@ typedef struct _methoddescr {
   method_t  method;
   int       argtypes[MAX_METHOD_PARAMS];
   int       minargs;
+  int       maxargs;
   int       varargs;
 } methoddescr_t;
 

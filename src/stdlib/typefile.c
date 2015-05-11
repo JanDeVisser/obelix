@@ -58,7 +58,7 @@ static typedescr_t _typedescr_file =   {
 /* FIXME Add append, delete, head, tail, etc... */
 static methoddescr_t _methoddescr_file[] = {
   { .type = Any,    .name = "open",     .method = _file_open,     .argtypes = { String, Int, Any },       .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "adopt",    .method = _file_adopt,    .argtypes = { Int, Any, Any },          .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "adopt",    .method = _file_adopt,    .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "readline", .method = _file_readline, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "print",    .method = _file_print,    .argtypes = { String, Any,    NoType }, .minargs = 1, .varargs = 1 },
   { .type = -1,     .name = "close",    .method = _file_close,    .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },

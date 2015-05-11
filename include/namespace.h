@@ -60,7 +60,6 @@ typedef struct _module {
   modstate_t   state;
   object_t    *obj;
   set_t       *imports;
-  int          refs;
 } module_t;
 
 #define data_is_module(d)  ((d) && (data_type((d)) == Module))

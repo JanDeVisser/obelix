@@ -155,9 +155,11 @@ char * stacktrace_tostring(stacktrace_t *stacktrace) {
     str = str_create(74 * datastack_depth(stacktrace -> stack));
     stack = stacktrace -> stack -> list;
     for (ix = 0; ix < array_size(stack); ix++) {
+      if (ix > 0) {
+        str_append_chars(str, "\n");
+      }
       frame = (data_t *) array_get(stack, ix);
       str_append_chars(str, data_tostring(frame));
-      str_append_chars(str, "\n");
     }
     stacktrace -> str = strdup(str_chars(str));
     str_free(str);

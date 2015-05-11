@@ -48,6 +48,7 @@ extern datastack_t * datastack_push_string(datastack_t *, char *);
 extern datastack_t * datastack_push_float(datastack_t *, double);
 extern datastack_t * datastack_list(datastack_t *);
 extern datastack_t * datastack_clear(datastack_t *);
+extern data_t *      datastack_find(datastack_t *, cmp_t, void *);
 extern datastack_t * datastack_bookmark(datastack_t *);
 extern array_t *     datastack_rollup(datastack_t *);
 extern name_t *      datastack_rollup_name(datastack_t *);
@@ -56,8 +57,10 @@ extern datastack_t * datastack_increment(datastack_t *);
 extern int           datastack_count(datastack_t *);
 extern int           datastack_current_count(datastack_t *);
 
-#define datastack_empty(l)        (datastack_depth((l)) == 0)
-#define datastack_notempty(l)     (datastack_depth((l)) > 0)
+extern int           datastack_find_type(data_t *, long);
 
+#define datastack_empty(l)            (datastack_depth((l)) == 0)
+#define datastack_notempty(l)         (datastack_depth((l)) > 0)
+#define datastack_find_bytype(s, t)   (datastack_find((s), (cmp_t) datastack_find_type, (void *)((long) (t))))
 
 #endif /* __DATASTACK_H__ */
