@@ -32,6 +32,11 @@ static int           _file_cmp(data_t *, data_t *);
 static char *        _file_tostring(data_t *);
 static unsigned int  _file_hash(data_t *);
 static data_t *      _file_leave(data_t *, data_t *);
+static data_t *      _file_query(data_t *, data_t *);
+static data_t *      _file_iter(data_t *);
+static data_t *      _file_has_next(data_t *);
+static data_t *      _file_next(data_t *);
+static data_t *      _file_resolve(data_t *, char *);
 
 static data_t *      _file_open(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_adopt(data_t *, char *, array_t *, dict_t *);
@@ -39,6 +44,7 @@ static data_t *      _file_readline(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_print(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_close(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_redirect(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_seek(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_file[] = {
   { .id = FunctionNew,      .fnc = (void_t) _file_new },
@@ -48,6 +54,11 @@ static vtable_t _vtable_file[] = {
   { .id = FunctionToString, .fnc = (void_t) _file_tostring },
   { .id = FunctionHash,     .fnc = (void_t) _file_hash },
   { .id = FunctionLeave,    .fnc = (void_t) _file_leave },
+  { .id = FunctionIter,     .fnc = (void_t) _file_iter },
+  { .id = FunctionHasNext,  .fnc = (void_t) _file_has_next },
+  { .id = FunctionNext,     .fnc = (void_t) _file_next },
+  { .id = FunctionQuery,    .fnc = (void_t) _file_query },
+  { .id = FunctionResolve,  .fnc = (void_t) _file_resolve },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -65,6 +76,7 @@ static methoddescr_t _methoddescr_file[] = {
   { .type = -1,     .name = "print",    .method = _file_print,    .argtypes = { String, Any,    NoType }, .minargs = 1, .varargs = 1 },
   { .type = -1,     .name = "close",    .method = _file_close,    .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "redirect", .method = _file_redirect, .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = -1,     .name = "seek",     .method = _file_seek,     .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL,       .method = NULL,           .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
@@ -134,7 +146,7 @@ unsigned int _file_hash(data_t *data) {
   return strhash(data_fileval(data) -> fname);
 }
 
-data_t* _file_leave(data_t *data, data_t *param) {
+data_t * _file_leave(data_t *data, data_t *param) {
   data_t *ret = param;
   
   if (!file_close(data_fileval(self))) {
@@ -142,6 +154,11 @@ data_t* _file_leave(data_t *data, data_t *param) {
   }
   return ret;
 }
+
+data_t* _file_resolve(data_t *, char*) {
+
+}
+
 
 
 /* ----------------------------------------------------------------------- */
@@ -179,6 +196,19 @@ data_t * _file_adopt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return ret;
 }
 
+data_t * _file_seek(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  int     offset = data_intval(data_array_get(args, 0));
+  int     retval;
+  data_t *ret;
+  
+  retval = file_seek(data_fileval(self), offset);
+  if (retval >= 0) {
+    ret = data_create(Int, retval);
+  } else {
+    ret = data_exception_from_my_errno(data_fileval(self) -> _errno);
+  }
+  return ret;
+}
 
 data_t * _file_readline(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *ret;
@@ -188,7 +218,7 @@ data_t * _file_readline(data_t *self, char *name, array_t *args, dict_t *kwargs)
   if (line) {
     ret = data_create(String, line);
   } else {
-    ret = data_create(Bool, 0);
+    ret = data_exception_from_my_errno(data_fileval(self) -> _errno);
   }
   return ret;
 }

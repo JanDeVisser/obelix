@@ -377,6 +377,14 @@ int file_cmp(file_t *f1, file_t *f2) {
   return f1 -> fh - f2 -> fh;
 }
 
+int file_seek(file_t *file, int offset) {
+  int    whence = (offset >= 0) ? SEEK_SET : SEEK_END;
+  off_t  o = (whence == SEEK_SET) ? offset : -offset;
+  int    ret = lseek(file -> fh, o, whence);
+
+  file -> _errno = errno;
+  return ret;
+} 
 
 int file_read(file_t *file, char *target, int num) {
   int ret;

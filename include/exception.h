@@ -63,6 +63,7 @@ typedef struct _exception {
 extern int            exception_register(char *str);
 extern exception_t *  exception_create(int, char *, ...);
 extern exception_t *  exception_vcreate(int, char *, va_list);
+extern exception_t *  exception_from_my_errno(int);
 extern exception_t *  exception_from_errno(void);
 extern exception_t *  exception_copy(exception_t *);
 extern void           exception_free(exception_t *);
@@ -72,6 +73,7 @@ extern char *         exception_tostring(exception_t *);
 extern void           exception_report(exception_t *);
 
 extern data_t *       data_exception(int, char *, ...);
+extern data_t *       data_exception_from_my_errno(int);
 extern data_t *       data_exception_from_errno(void);
 extern data_t *       data_throwable(data_t *);
 

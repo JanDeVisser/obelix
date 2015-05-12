@@ -136,8 +136,12 @@ exception_t * exception_vcreate(int code, char *msg, va_list args) {
 }
 
 exception_t * exception_from_errno(void) {
+  return exception_from_my_errno(errno)
+}
+
+exception_t * exception_from_my_errno(int err) {
   // FIXME Map errno to ErrorXXX. It's not always an IOError.
-  exception_create(ErrorIOError, strerror(errno));
+  exception_create(ErrorIOError, strerror(err));
 }
 
 exception_t * exception_copy(exception_t *src) {
@@ -276,6 +280,11 @@ data_t * data_exception(int code, char * msg, ...) {
   va_start(args, msg);
   exception = exception_vcreate(code, msg, args);
   va_end(args);
+  return _data_exception_from_exception(exception);
+}
+
+data_t * data_exception_from_my_errno(int err) {
+  exception_t *exception = exception_from_my_errno(err);
   return _data_exception_from_exception(exception);
 }
 
