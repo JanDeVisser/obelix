@@ -37,6 +37,8 @@ static int          _wrapper_len(data_t *);
 static data_t *     _wrapper_iter(data_t *);
 static data_t *     _wrapper_next(data_t *);
 static data_t *     _wrapper_has_next(data_t *);
+static data_t *     _wrapper_enter(data_t *);
+static data_t *     _wrapper_leave(data_t *, data_t *);
 
 static vtable_t _vtable_wrapper[] = {
   { .id = FunctionIs,       .fnc = (void_t) _wrapper_is },
@@ -328,6 +330,40 @@ data_t * _wrapper_has_next(data_t *data) {
   } else {
     return data_exception(ErrorInternalError,
                           "No 'has_next' method defined for wrapper type '%s'", 
+                          type -> type_name);
+  }
+}
+
+data_t * _wrapper_enter(data_t *data) {
+  typedescr_t  *type = data_typedescr(data);
+  data_t *    (*fnc)(void *);
+  
+  if (wrapper_debug) {
+    debug("_wrapper_enter(%s)", type -> type_name);
+  }
+  fnc = (data_t * (*)(void *)) wrapper_function(type, FunctionEnter);
+  if (fnc) {
+    return fnc(data -> ptrval);
+  } else {
+    return data_exception(ErrorInternalError,
+                          "No 'enter' method defined for wrapper type '%s'", 
+                          type -> type_name);
+  }
+}
+
+data_t * _wrapper_leave(data_t *data, data_t *ex) {
+  typedescr_t  *type = data_typedescr(data);
+  data_t *    (*fnc)(void *, data_t *);
+  
+  if (wrapper_debug) {
+    debug("_wrapper_leave(%s)", type -> type_name);
+  }
+  fnc = (data_t * (*)(void *, data_t *)) wrapper_function(type, FunctionLeave);
+  if (fnc) {
+    return fnc(data -> ptrval, ex);
+  } else {
+    return data_exception(ErrorInternalError,
+                          "No 'leave' method defined for wrapper type '%s'", 
                           type -> type_name);
   }
 }

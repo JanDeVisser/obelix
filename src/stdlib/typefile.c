@@ -31,6 +31,7 @@ static data_t *      _file_copy(data_t *, data_t *);
 static int           _file_cmp(data_t *, data_t *);
 static char *        _file_tostring(data_t *);
 static unsigned int  _file_hash(data_t *);
+static data_t *      _file_leave(data_t *, data_t *);
 
 static data_t *      _file_open(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_adopt(data_t *, char *, array_t *, dict_t *);
@@ -46,6 +47,7 @@ static vtable_t _vtable_file[] = {
   { .id = FunctionFree,     .fnc = (void_t) file_free },
   { .id = FunctionToString, .fnc = (void_t) _file_tostring },
   { .id = FunctionHash,     .fnc = (void_t) _file_hash },
+  { .id = FunctionLeave,    .fnc = (void_t) _file_leave },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -131,6 +133,16 @@ char * _file_tostring(data_t *data) {
 unsigned int _file_hash(data_t *data) {
   return strhash(data_fileval(data) -> fname);
 }
+
+data_t* _file_leave(data_t *data, data_t *param) {
+  data_t *ret = param;
+  
+  if (!file_close(data_fileval(self))) {
+    ret = data_exception_from_errno();
+  }
+  return ret;
+}
+
 
 /* ----------------------------------------------------------------------- */
 

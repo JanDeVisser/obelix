@@ -41,6 +41,7 @@ typedef enum _errorcode {
   ErrorIOError,
   ErrorSysError,
   ErrorFunctionUndefined,
+  ErrorParameterValue,
   ErrorNotIterable,
   ErrorNotIterator,
   ErrorExhausted,

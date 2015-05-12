@@ -355,9 +355,11 @@ data_t * _instruction_execute_enter_context(instruction_t *instr, closure_t *clo
   nvp_t     *nvp_cp;
   
   context = _instruction_get_variable(instr, closure);
-  fnc = (data_t * (*)(data_t *)) data_get_function(context, FunctionEnter);
-  if (fnc) {
-    ret = fnc(context);
+  if (data_hastype(context, CtxHandler)) {
+    fnc = (data_t * (*)(data_t *)) data_get_function(context, FunctionEnter);
+    if (fnc) {
+      ret = fnc(context);
+    }
   }
   if (ret && !data_is_exception(ret)) {
     ret = NULL;
@@ -391,7 +393,7 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
   data_free(cp_data);
   if (data_is_exception(context)) {
     ret = data_copy(context);
-  } else {
+  } else if (data_hastype(context, CtxHandler)) {
     fnc = (data_t * (*)(data_t *, data_t *)) data_get_function(context, FunctionLeave);
     if (fnc) {
       if (e && (e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
