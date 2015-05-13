@@ -393,15 +393,17 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
   data_free(cp_data);
   if (data_is_exception(context)) {
     ret = data_copy(context);
-  } else if (data_hastype(context, CtxHandler)) {
-    fnc = (data_t * (*)(data_t *, data_t *)) data_get_function(context, FunctionLeave);
-    if (fnc) {
-      if (e && (e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
-        param = data_copy(error);
-      } else {
-        param = data_create(Bool, 0);
+  } else {
+    if (data_hastype(context, CtxHandler)) {
+      fnc = (data_t * (*)(data_t *, data_t *)) data_get_function(context, FunctionLeave);
+      if (fnc) {
+        if (e && (e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
+          param = data_copy(error);
+        } else {
+          param = data_create(Bool, 0);
+        }
+        ret = fnc(context, param);
       }
-      ret = fnc(context, param);
     }
   }
   if (e && (e -> code == ErrorExit)) {
@@ -569,12 +571,17 @@ data_t * _instruction_execute_test(instruction_t *instr, closure_t *closure) {
 data_t * _instruction_execute_iter(instruction_t *instr, closure_t *closure) {
   data_t *value;
   data_t *iter;
+  data_t *ret = NULL;
   
   value = closure_pop(closure);
   iter = data_iter(value);
-  closure_push(closure, iter);
+  if (data_is_exception(iter)) {
+    ret = iter;
+  } else {
+    closure_push(closure, iter);
+  }
   data_free(value);
-  return NULL;
+  return ret;
 }
 
 data_t * _instruction_execute_next(instruction_t *instr, closure_t *closure) {
@@ -585,8 +592,8 @@ data_t * _instruction_execute_next(instruction_t *instr, closure_t *closure) {
   iter = closure_pop(closure);
   assert(iter);
   assert(instr -> name);
-  next = data_next(iter);
   
+  next = data_next(iter);
   if (data_is_exception(next) && (data_exceptionval(next) -> code == ErrorExhausted)) {
     data_free(iter);
     ret = data_create(String, instr -> name);

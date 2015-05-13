@@ -28,18 +28,18 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum _metatype {
-  NoType       = 0,
-  Dynamic      = 22,
-  Interface    = 1000,  /* Marker */
-  InputStream,
-  OutputStream,
-  Iterable,
-  Iterator,
-  Callable,
-  Connector,
-  CtxHandler,
-  Any,
-  NextInterface         /* Marker */
+  NoType         = 0,
+  Dynamic        = 22,
+  Interface      = 1000, /* Marker */
+  InputStream,  /* 1001 */
+  OutputStream, /* 1002 */
+  Iterable,     /* 1003 */
+  Iterator,     /* 1004 */
+  Callable,     /* 1005 */
+  Connector,    /* 1006 */
+  CtxHandler,   /* 1007 */
+  Any,          /* 1008 */
+  NextInterface /* 1009 - Marker */
 } metatype_t;
 
 typedef enum _vtable_id {

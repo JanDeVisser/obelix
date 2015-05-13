@@ -1,0 +1,19 @@
+print("Using readline:")
+print("")
+
+context fd = open("readfile.obl")
+  line = fd.readline()
+  while line || (line == "")
+    print(line)
+    line = fd.readline()
+  end
+end
+
+print("Using iterator:")
+print("")
+
+context fd = open("readfile.obl")
+  for line in fd
+    print(line)
+  end
+end

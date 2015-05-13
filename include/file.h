@@ -80,7 +80,9 @@ extern int          file_write(file_t *, char *, int);
 extern int          file_read(file_t *, char *, int);
 extern int          file_seek(file_t *, int);
 extern char *       file_readline(file_t *);
+extern int          file_eof(file_t *);
 extern int          file_isopen(file_t *);
 extern int          file_flush(file_t *);
+extern int          file_redirect(file_t *, char *);
 
 #endif /* __FILE_H__ */

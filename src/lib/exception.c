@@ -136,7 +136,7 @@ exception_t * exception_vcreate(int code, char *msg, va_list args) {
 }
 
 exception_t * exception_from_errno(void) {
-  return exception_from_my_errno(errno)
+  return exception_from_my_errno(errno);
 }
 
 exception_t * exception_from_my_errno(int err) {

@@ -378,11 +378,13 @@ int file_cmp(file_t *f1, file_t *f2) {
 }
 
 int file_seek(file_t *file, int offset) {
-  int    whence = (offset >= 0) ? SEEK_SET : SEEK_END;
-  off_t  o = (whence == SEEK_SET) ? offset : -offset;
-  int    ret = lseek(file -> fh, o, whence);
+  int   whence = (offset >= 0) ? SEEK_SET : SEEK_END;
+  off_t o = (whence == SEEK_SET) ? offset : -offset;
+  int   ret = lseek(file -> fh, o, whence);
 
-  file -> _errno = errno;
+  if (ret < 0) {
+    file -> _errno = errno;
+  }
   return ret;
 } 
 
@@ -390,7 +392,9 @@ int file_read(file_t *file, char *target, int num) {
   int ret;
 
   ret = read(file -> fh, target, num);
-  file -> _errno = errno;
+  if (ret < 0) {
+    file -> _errno = errno;
+  }
   return ret;
 }
 
@@ -404,7 +408,9 @@ int file_write(file_t *file, char *buf, int num) {
 int file_flush(file_t *file) {
   int ret = fsync(file -> fh);
   
-  file -> _errno = errno;
+  if (ret < 0) {
+    file -> _errno = errno;
+  }
   return ret;
 }
 
@@ -418,7 +424,7 @@ char * file_readline(file_t *file) {
   stream = _file_stream(file);
   file -> _errno = 0;
   num = getline(&file -> line, &n, stream);
-  if (num >= 0) {
+  if (num != -1) {
     while ((num >= 0) && iscntrl(*(file -> line + num))) {
       *(file -> line + num) = 0;
       num--;
@@ -428,6 +434,10 @@ char * file_readline(file_t *file) {
     file -> _errno = errno;
     return NULL;
   }
+}
+
+int file_eof(file_t *file) {
+  return feof(_file_stream(file));
 }
 
 int file_isopen(file_t *file) {

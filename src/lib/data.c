@@ -75,8 +75,10 @@ data_t * data_create(int type, ...) {
   if (f) {
     va_start(arg, type);
     initialized = f(type, arg);
-    data_settype(initialized, type);
-    initialized -> free_me = FALSE;
+    if (initialized) {
+      data_settype(initialized, type);
+      initialized -> free_me = FALSE;
+    }
     va_end(arg);
   } else {
     ret = data_create_noinit(type);
@@ -91,7 +93,9 @@ data_t * data_create(int type, ...) {
     } else {
       initialized = ret;
     }
-    initialized -> free_me = TRUE;
+    if (initialized) {
+      initialized -> free_me = TRUE;
+    }
   }
   return initialized;
 }
@@ -147,12 +151,6 @@ data_t * data_cast(data_t *data, int totype) {
       tostring = (tostring_t) typedescr_get_function(descr, FunctionToString);
       if (tostring) {
         return data_create(String, tostring(data));
-      }
-    }
-    if (data_type(data) == String) {
-      parse = typedescr_get_function(totype_descr, FunctionParse);
-      if (parse) {
-        return ((data_t * (*)(typedescr_t *, char *)) parse)(totype_descr, data -> ptrval);
       }
     }
     cast = (cast_t) typedescr_get_function(descr, FunctionCast);

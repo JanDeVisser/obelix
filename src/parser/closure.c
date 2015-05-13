@@ -25,6 +25,7 @@
 #include <script.h>
 #include <stacktrace.h>
 #include <thread.h>
+#include <wrapper.h>
 
 static void             _closure_init(void) __attribute__((constructor(102)));
 

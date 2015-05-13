@@ -159,13 +159,15 @@ data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
 data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *asbool;
+  data_t *data;
   int     boolval;
   int     ix;
   
   (void) name;
   (void) kwargs;
   for (ix = -1; ix < array_size(args); ix++) {
-    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix), Bool);
+    data = (ix < 0) ? self : data_array_get(args, ix);
+    asbool = data_cast(data, Bool);
     if (!asbool) {
       return data_exception(ErrorSyntax, 
                         "or(): Cannot convert value '%s' of type '%s' to boolean",

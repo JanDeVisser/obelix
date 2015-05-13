@@ -99,6 +99,9 @@ data_t * _wrapper_new(data_t *ret, va_list arg) {
       debug("wrapper(%s) - FunctionFactory", type -> type_name);
     }
     ret -> ptrval = ((vcreate_t) fnc)(arg);
+    if (!ret -> ptrval) {
+      ret = NULL;
+    }
   } else {
     src = va_arg(arg, void *);
     fnc = wrapper_function(type, FunctionCopy);

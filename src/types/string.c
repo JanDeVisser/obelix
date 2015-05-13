@@ -136,12 +136,18 @@ data_t * _string_parse(typedescr_t *type, char *str) {
 }
 
 data_t * _string_cast(data_t *data, int totype) {
-  typedescr_t *type = typedescr_get(totype);
+  typedescr_t *type;
   parse_t      parse;
+  char        *str = data_charval(data);
   
-  assert(type);
-  parse = (parse_t) typedescr_get_function(type, FunctionParse);
-  return (parse) ? parse(data -> ptrval) : NULL;
+  if (totype == Bool) {
+    return data_create(Bool, str && strlen(str));
+  } else {
+    type = typedescr_get(totype);
+    assert(type);
+    parse = (parse_t) typedescr_get_function(type, FunctionParse);
+    return (parse) ? parse(data -> ptrval) : NULL;
+  }
 }
 
 data_t * _string_resolve(data_t *data, char *slice) {

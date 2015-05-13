@@ -20,6 +20,7 @@
 #include <dlfcn.h>
 #include <string.h>
 
+#include <logging.h>
 #include <resolve.h>
 
 int resolve_debug = 0;
@@ -78,9 +79,7 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
     }
     dlclose(handle);
   }
-  if (resolve_debug) {
-    debug("dlopen('%s') FAILED: %s", image, dlerror());
-  }
+  error("dlopen('%s') FAILED: %s", image, dlerror());
   return NULL;
 }
 

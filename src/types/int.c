@@ -45,7 +45,7 @@ static data_t *      _int_div(data_t *, char *, array_t *, dict_t *);
 static data_t *      _int_mod(data_t *, char *, array_t *, dict_t *);
 static data_t *      _int_abs(data_t *, char *, array_t *, dict_t *);
 
-static data_t *      _bool_new(data_t *, va_list);
+static data_t *      _bool_factory(data_t *, va_list);
 static char *        _bool_tostring(data_t *);
 static data_t *      _bool_parse(typedescr_t *, char *);
 static data_t *      _bool_cast(data_t *, int);
@@ -80,7 +80,7 @@ static typedescr_t _typedescr_int = {
 };
 
 static vtable_t _vtable_bool[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _bool_new },
+  { .id = FunctionFactory,  .fnc = (void_t) _bool_factory },
   { .id = FunctionCmp,      .fnc = (void_t) _int_cmp },
   { .id = FunctionToString, .fnc = (void_t) _bool_tostring },
   { .id = FunctionParse,    .fnc = (void_t) _bool_parse },
@@ -114,15 +114,8 @@ static methoddescr_t _methoddescr_int[] = {
   { .type = NoType, .name = NULL,   .method = NULL,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
-static methoddescr_t _methoddescr_bool[] = {
-  { .type = Bool,   .name = "&&",  .method = _bool_and,  .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Bool,   .name = "and", .method = _bool_and,  .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Bool,   .name = "||",  .method = _bool_or,   .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Bool,   .name = "or",  .method = _bool_or,   .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = Bool,   .name = "!",   .method = _bool_not,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = Bool,   .name = "not", .method = _bool_not,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = NoType, .name = NULL,  .method = NULL,       .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
-};
+static data_t _bool_true;
+static data_t _bool_false;
 
 /*
  * --------------------------------------------------------------------------
@@ -134,7 +127,10 @@ void _int_init(void) {
   typedescr_register(&_typedescr_int);
   typedescr_register(&_typedescr_bool);
   typedescr_register_methods(_methoddescr_int);
-  typedescr_register_methods(_methoddescr_bool);
+  data_settype(&_bool_true, Bool);
+  _bool_true.intval = 1;
+  data_settype(&_bool_false, Bool);
+  _bool_false.intval = 0;
 }
 
 data_t * _int_new(data_t *target, va_list arg) {
@@ -329,12 +325,11 @@ data_t * _int_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
  * --------------------------------------------------------------------------
  */
 
-data_t * _bool_new(data_t *target, va_list arg) {
+data_t * _bool_factory(data_t *target, va_list arg) {
   long val;
 
   val = va_arg(arg, long);
-  target -> intval = val ? 1 : 0;
-  return target;
+  return (val) ? &_bool_true : &_bool_false;
 }
 
 char * _bool_tostring(data_t *data) {
@@ -360,33 +355,13 @@ data_t * _bool_cast(data_t *data, int totype) {
   }
 }
 
+data_t * data_true(void) {
+  return &_bool_true;
+}
+
+data_t * data_false(void) {
+  return &_bool_false;
+}
+
 /* ----------------------------------------------------------------------- */
-
-data_t * _bool_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *d;
-  int     ix;
-  int     retval = data_intval(self);
-
-  for (ix = 0; retval && (ix < array_size(args)); ix++) {
-    d = (data_t *) array_get(args, ix);
-    retval = retval && data_intval(d);
-  }
-  return data_create(Bool, retval);
-}
-
-data_t * _bool_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *d;
-  int     ix;
-  int     retval = data_intval(self);
-
-  for (ix = 0; ix < array_size(args); ix++) {
-    d = (data_t *) array_get(args, ix);
-    retval = retval || data_intval(d);
-  }
-  return data_create(Bool, retval);
-}
-
-data_t * _bool_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Bool, !data_intval(self));
-}
 

@@ -442,22 +442,40 @@ int typedescr_is(typedescr_t *descr, int type) {
   int   ix;
   int   ret;
   int (*fnc)(typedescr_t *, int);
-  
+
+  //if (type_debug) {
+  //  debug("'%s'.is(%d)", descr -> type_name, type);
+  //}
   if ((type == descr -> type) || (type == Any)) {
+    if (type_debug) {
+      debug("'%s'.is(%d) = by definition", descr -> type_name, type);
+    }
     ret = TRUE;
   } else {
     if (descr -> vtable[FunctionIs].fnc) {
       fnc = (int (*)(typedescr_t *, int)) descr -> vtable[FunctionIs].fnc;
       ret = fnc(descr, type);
+      //if (type_debug) {
+      //  debug("'%s'.is(%d) = %d by delegation", descr -> type_name, type, ret);
+      //}
     } else {
       ret = (type > Interface) && vtable_implements(descr -> vtable, type);
+      //if (type_debug) {
+      //  debug("'%s'.is(%d) = %d by implementation", descr -> type_name, type, ret);
+      //}
     }
   }
   if (!ret && descr -> inherits_size) {
+    //if (type_debug) {
+    //  debug("'%s'.is(%d) checking parents", descr -> type_name, type);
+    //}
     ret = 0;
     for (ix = 0; !ret && ix < descr -> inherits_size; ix++) {
       ret = typedescr_is(typedescr_get(descr -> inherits[ix]), type);
     }
   }
+  //if (type_debug) {
+  //  debug("Survey says: '%s'.is(%d) = %d", descr -> type_name, type, ret);
+  //}
   return ret;
 }

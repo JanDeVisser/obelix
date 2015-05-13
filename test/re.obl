@@ -1,0 +1,3 @@
+re = regex("j.*n")
+match = re.match("asjdasgdfjanwgdwqmcmvnx");
+print(match)
