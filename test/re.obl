@@ -1,3 +1,4 @@
 re = regex("j.*n")
+print("re: ${0}", re);
 match = re.match("asjdasgdfjanwgdwqmcmvnx");
-print(match)
+print("match: ${0}", match)
