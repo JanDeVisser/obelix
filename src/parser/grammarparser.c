@@ -365,7 +365,7 @@ grammar_parser_t * _grammar_token_handler(token_t *token, grammar_parser_t *gram
  * grammar_parser_t public functions
  */
 
-grammar_parser_t * _grammar_parser_create(reader_t *reader) {
+grammar_parser_t * grammar_parser_create(data_t *reader) {
   grammar_parser_t *grammar_parser;
 
   grammar_parser = NEW(grammar_parser_t);
@@ -396,7 +396,7 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   gp -> grammar -> dryrun = gp -> dryrun;
   lexer = lexer_create(gp -> reader);
   lexer_add_keyword(lexer, NONTERMINAL_DEF, NONTERMINAL_DEF_STR);
-  
+
   lexer_set_option(lexer, LexerOptionIgnoreAllWhitespace, TRUE);
   lexer_tokenize(lexer, _grammar_token_handler, gp);
   if (gp -> state != GPStateError) {

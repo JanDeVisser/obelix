@@ -43,6 +43,8 @@ static data_t *      _file_leave(data_t *, data_t *);
 static data_t *      _file_query(data_t *, data_t *);
 static data_t *      _file_iter(data_t *);
 static data_t *      _file_resolve(data_t *, char *);
+static int           _file_read(data_t *, char *, int);
+static int           _file_write(data_t *, char *, int);
 
 static data_t *      _file_open(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_adopt(data_t *, char *, array_t *, dict_t *);
@@ -64,6 +66,8 @@ static vtable_t _vtable_file[] = {
   { .id = FunctionIter,     .fnc = (void_t) _file_iter },
   { .id = FunctionQuery,    .fnc = (void_t) _file_query },
   { .id = FunctionResolve,  .fnc = (void_t) _file_resolve },
+  { .id = FunctionRead,     .fnc = (void_t) _file_read },
+  { .id = FunctionWrite,    .fnc = (void_t) _file_write },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -227,6 +231,13 @@ data_t * _fileiter_next(fileiter_t *fi) {
 
 /* -- F I L E  D A T A T Y P E -------------------------------------------- */
 
+data_t * data_wrap_file(file_t *file) {
+  data_t *ret = data_create_noinit(File);
+  
+  ret -> ptrval = file;
+  return ret;
+}
+
 data_t * _file_new(data_t *target, va_list arg) {
   file_t *f;
   char   *name;
@@ -273,7 +284,6 @@ data_t * _file_enter(data_t *file) {
   }
   return file;
 }
-
 
 data_t * _file_leave(data_t *data, data_t *param) {
   data_t *ret = param;
@@ -329,6 +339,19 @@ data_t * _file_query(data_t *file, data_t *regex) {
   return data_null();
 }
 
+int _file_read(data_t *file, char *buf, int num) {
+  if (file_debug) {
+    debug("%s.read(%d)", data_tostring(file), num);
+  }
+  return file_read(data_fileval(file), buf, num);
+}
+
+int _file_write(data_t *file, char *buf, int num) {
+  if (file_debug) {
+    debug("%s.write(%d)", data_tostring(file), num);
+  }
+  return file_write(data_fileval(file), buf, num);
+}
 
 /* ----------------------------------------------------------------------- */
 

@@ -36,8 +36,6 @@ typedef struct _fsentry {
 } fsentry_t;
 
 typedef struct _file {
-  read_t  read_fnc;
-  free_t  free;
   int     fh;
   FILE   *stream;
   char   *fname;
@@ -84,5 +82,8 @@ extern int          file_eof(file_t *);
 extern int          file_isopen(file_t *);
 extern int          file_flush(file_t *);
 extern int          file_redirect(file_t *, char *);
+
+extern data_t *     data_wrap_file(file_t *file);
+extern int          File;
 
 #endif /* __FILE_H__ */

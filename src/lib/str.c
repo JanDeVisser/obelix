@@ -23,6 +23,7 @@
 #include <stdio.h>
 
 #include <array.h>
+#include <data.h>
 #include <str.h>
 
 static str_t *      _str_initialize(void);
@@ -291,11 +292,11 @@ int str_pushback(str_t *str, int num) {
   return num;
 }
 
-int str_readinto(str_t *str, reader_t *rdr) {
+int str_readinto(str_t *str, data_t *rdr) {
   int ret;
 
   str_erase(str);
-  ret = reader_read(rdr, str -> buffer, str -> bufsize);
+  ret = data_read(rdr, str -> buffer, str -> bufsize);
   if (ret >= 0) {
     str -> buffer[ret] = '\0';
     str -> len = ret;

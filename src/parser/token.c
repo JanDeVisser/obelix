@@ -156,6 +156,7 @@ data_t * token_todata(token_t *token) {
     str = token_token(token);
     type = -1;
     switch (token_code(token)) {
+      case TokenCodeRawString:
       case TokenCodeIdentifier:
       case TokenCodeDQuotedStr:
       case TokenCodeSQuotedStr:

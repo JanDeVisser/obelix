@@ -99,12 +99,12 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   return ret;
 }
 
-reader_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
-  file_t   *text = NULL;
-  name_t   *name = mod -> name;
-  char     *path_entry;
-  reader_t *rdr = NULL;
-  int       ix;
+data_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
+  file_t *text = NULL;
+  name_t *name = mod -> name;
+  char   *path_entry;
+  data_t *rdr = NULL;
+  int     ix;
 
   assert(loader);
   assert(name);
@@ -116,7 +116,7 @@ reader_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
     text = _scriptloader_open_file(loader, path_entry, mod);
   }
   if (text) {
-    rdr = (reader_t *) text;
+    rdr = data_wrap_file(text);
   }
   return rdr;
 }
@@ -265,7 +265,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
     }
     file = file_open(grammarpath);
     assert(file);
-    gp = grammar_parser_create(file);
+    gp = grammar_parser_create(data_wrap_file(file));
     ret -> grammar = grammar_parser_parse(gp);
     assert(ret -> grammar);
     grammar_parser_free(gp);
@@ -344,7 +344,7 @@ long scriptloader_get_option(scriptloader_t *loader, obelix_option_t option) {
   return data_intval(opt);
 }
 
-data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, reader_t *reader) {
+data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, data_t *reader) {
   data_t   *ret = NULL;
   script_t *script;
   char     *name;
@@ -388,7 +388,7 @@ data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
     ret = (rdr)
             ? scriptloader_load_fromreader(loader, mod, rdr)
             : data_exception(ErrorName, "Could not load '%s'", script_name);
-    reader_free(rdr);
+    data_free(rdr);
   } else {
     debug("Module '%s' is already active. Skipped.", 
           name_tostring(mod -> name));

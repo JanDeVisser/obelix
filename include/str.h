@@ -83,7 +83,7 @@ extern struct _array * str_split(str_t *, char *);
 
 extern int             str_read(str_t *, char *, int);
 extern int             str_readchar(str_t *);
-extern int             str_readinto(str_t *, reader_t *);
+extern int             str_readinto(str_t *, data_t *);
 extern int             str_pushback(str_t *, int);
 
 #define str_join(g,c,r) _str_join((g), (c), (obj_reduce_t) (r))

@@ -284,18 +284,18 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
       case PSETypeEntry:
         entry = e -> entry;
         assert(entry -> terminal);
-	if (token_cmp(entry -> token, token)) {
-	  parser -> error = data_exception(ErrorSyntax,
-				       "Expected '%s' but got '%s' instead",
-				       token_tostring(entry -> token),
-				       token_tostring(token));
-	}
+        if (token_cmp(entry -> token, token)) {
+          parser -> error = data_exception(ErrorSyntax,
+                                           "Expected '%s' but got '%s' instead",
+                                           token_tostring(entry -> token),
+                                           token_tostring(token));
+        }
         if (parser_debug) {
           info("[ T] %s", token_tostring(entry -> token));
         }
-	consuming = 1;
+        consuming = 1;
         break;
-        
+
       case PSETypeAction:
         if (parser_debug) {
           debug("    Executing action %s", grammar_action_tostring(e -> action));
@@ -307,9 +307,9 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
           ret = ((parser_fnc_t) e -> action -> fnc -> fnc)(parser);
         }
         if (!ret) {
-	  parser -> error = data_exception(ErrorSyntax,
-				       "Error executing grammar action %s",
-				       grammar_action_tostring(e -> action));
+          parser -> error = data_exception(ErrorSyntax,
+                                           "Error executing grammar action %s",
+                                           grammar_action_tostring(e -> action));
         }
         break;
     }        
@@ -391,7 +391,7 @@ data_t * parser_pop(parser_t *parser, char *name) {
 }
 
 
-data_t * _parser_parse(parser_t *parser, reader_t *reader) {
+data_t * parser_parse(parser_t *parser, data_t *reader) {
   lexer_t        *lexer;
   lexer_option_t  ix;
   function_t     *fnc;
@@ -424,6 +424,7 @@ data_t * _parser_parse(parser_t *parser, reader_t *reader) {
   }
   
   lexer -> data = parser;
+  parser -> lexer = lexer;
   switch (grammar_get_parsing_strategy(parser -> grammar)) {
     case ParsingStrategyTopDown:
       list_append(parser -> prod_stack,
@@ -443,6 +444,7 @@ data_t * _parser_parse(parser_t *parser, reader_t *reader) {
   }
   token_free(parser -> last_token);
   parser -> last_token = NULL;
+  parser -> lexer = NULL;
   lexer_free(lexer);
   return data_copy(parser -> error);
 }
@@ -481,6 +483,27 @@ lexer_t * parser_newline(lexer_t *lexer, int line) {
 parser_t * parser_log(parser_t *parser, data_t *msg) {
   debug("parser_log: %s", data_tostring(msg));
   return parser;
+}
+
+parser_t * parser_rollup_to(parser_t *parser, data_t *marker) {
+  char    *m = data_tostring(marker);
+  token_t *rolled_up;
+
+  if (m && *m) {
+    if (parser_debug) {
+      debug("    Rolling up to %c", *m);
+    }
+    rolled_up = lexer_rollup_to(parser -> lexer, *m);
+    if (token_code(rolled_up) == TokenCodeEnd) {
+      // FIXME report decent error.
+      return NULL;
+    } else {
+      datastack_push(parser -> stack, token_todata(rolled_up));
+    }
+    return parser;
+  } else {
+    return NULL;
+  }
 }
 
 parser_t * parser_pushval(parser_t *parser, data_t *data) {

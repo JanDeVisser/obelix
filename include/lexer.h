@@ -81,7 +81,7 @@ typedef enum _kw_match_state {
 } kw_match_state_t;
 
 typedef struct _lexer {
-  reader_t           *reader;
+  data_t             *reader;
   list_t             *keywords;
   long                options[LexerOptionLAST];
   str_t              *buffer;
@@ -100,15 +100,15 @@ typedef struct _lexer {
 extern char *       lexer_state_name(lexer_state_t);
 extern char *       lexer_option_name(lexer_option_t);
 
-extern lexer_t *    _lexer_create(reader_t *);
+extern lexer_t *    lexer_create(data_t *);
 extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, long);
 extern long         lexer_get_option(lexer_t *, lexer_option_t);
 extern lexer_t *    lexer_add_keyword(lexer_t *, int, char *);
 extern void         lexer_free(lexer_t *);
 extern void         _lexer_tokenize(lexer_t *, reduce_t, void *);
 extern token_t *    lexer_next_token(lexer_t *);
+extern token_t *    lexer_rollup_to(lexer_t *, int);
 
-#define lexer_create(r)         _lexer_create((reader_t *) (r))
 #define lexer_tokenize(l, r, d) _lexer_tokenize((l), (reduce_t) (r), (d))
 
 #endif /* __LEXER_H__ */

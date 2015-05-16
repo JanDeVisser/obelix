@@ -22,7 +22,7 @@
 AM_CPPFLAGS = -DOBELIX_DATADIR=\"$(datadir)\" -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic -pthread
 # AM_CFLAGS   = -ansi
-LDADD   = ../parser/liboblparser.la ../types/libobltypes.la ../lib/liboblcore.la
+LDADD   = ../parser/liboblparser.la ../lib/liboblcore.la
 
 bin_PROGRAMS        = obelix oblcoretest
 obelix_SOURCES      = obelix.c \

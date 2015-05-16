@@ -77,7 +77,7 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
 
   file = file_open(grammarpath);
   assert(file);
-  gp = grammar_parser_create(file);
+  gp = grammar_parser_create(data_wrap_file(file));
   gp -> dryrun = 1;
   ret = grammar_parser_parse(gp);
   grammar_parser_free(gp);

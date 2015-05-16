@@ -22,6 +22,7 @@
 #define __GRAMMARPARSER_H__
 
 #include <core.h>
+#include <data.h>
 #include <grammar.h>
 
 typedef enum _gp_state_ {
@@ -37,7 +38,7 @@ typedef enum _gp_state_ {
 } gp_state_t;
 
 typedef struct _grammar_parser {
-  reader_t      *reader;
+  data_t        *reader;
   grammar_t     *grammar;
   gp_state_t     state;
   gp_state_t     old_state;
@@ -49,10 +50,8 @@ typedef struct _grammar_parser {
   int            dryrun;
 } grammar_parser_t;
 
-extern grammar_parser_t * _grammar_parser_create(reader_t *);
+extern grammar_parser_t * grammar_parser_create(data_t *);
 extern void               grammar_parser_free(grammar_parser_t *);
 extern grammar_t *        grammar_parser_parse(grammar_parser_t *);
-
-#define grammar_parser_create(r) _grammar_parser_create(((reader_t *) (r)))
 
 #endif /* __GRAMMARPARSER_H__ */

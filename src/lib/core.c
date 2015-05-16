@@ -167,31 +167,6 @@ unsigned int hashblend(unsigned int h1, unsigned int h2) {
   return (h1 << 1) + h1 + h2;
 }
 
-static code_label_t _log_level_labels[] = {
-  { .code = LogLevelDebug,   .label = "DEBUG" },
-  { .code = LogLevelInfo,    .label = "INFO" },
-  { .code = LogLevelWarning, .label = "WARN" },
-  { .code = LogLevelError,   .label = "ERROR" },
-  { .code = LogLevelFatal,   .label = "FATAL" }
-};
-
-char * _log_level_str(log_level_t lvl) {
-  assert(_log_level_labels[lvl].code == lvl);
-  return _log_level_labels[lvl].label;
-}
-
-void _logmsg(log_level_t lvl, char *file, int line, char *msg, ...) {
-  va_list args;
-
-  if (lvl >= log_level) {
-    va_start(args, msg);
-    fprintf(stderr, "%-12.12s:%4d:%-5.5s:", file, line, _log_level_str(lvl));
-    vfprintf(stderr, msg, args);
-    fprintf(stderr, "\n");
-    va_end(args);
-  }
-}
-
 unsigned int strhash(char *str) {
   return hash(str, strlen(str));
 }

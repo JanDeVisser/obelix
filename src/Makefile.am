@@ -1,1 +1,1 @@
-SUBDIRS = test lib types parser bin stdlib 
+SUBDIRS = test lib parser bin stdlib 

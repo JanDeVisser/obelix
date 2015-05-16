@@ -1,4 +1,13 @@
-re = regex("j.*n")
-print("re: ${0}", re);
-match = re.match("asjdasgdfjanwgdwqmcmvnx");
-print("match: ${0}", match)
+re = regexp("j.n")
+print("regexp('j.n') = ${0}", re);
+match = re.match("abcdejanfghij")
+print("match(${0}) = ${1}", "abcdejanfghij", match)
+
+re = /j.n/
+print("/j.n/ = ${0}", re);
+print("match(${0}) = ${1}", "abcdejanfghij", re.match("abcdejanfghij"))
+print("match(${0}) = ${1}", "abcdejanfghijanklmn", re.match("abcdejanfghijanklmn"))
+print("match(${0}) = ${1}", "abcdejamfghijamklmn", re.match("abcdejamfghijamklmn"))
+
+b = 8 / 4
+print(b)

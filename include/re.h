@@ -28,25 +28,25 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef struct _re {
-  char    *pattern;
   regex_t  compiled;
-  char     flags[5];
+  char    *pattern;
+  char    *flags;
   int      refs;
   char    *str;
 } re_t;
   
-extern re_t *   re_create(va_list);
-extern void     re_free(re_t *);
-extern re_t *   re_copy(re_t *);
-extern int      re_cmp(re_t *, re_t *);
-extern char *   re_tostring(re_t *);
-extern data_t * re_match(re_t *, char *);
-extern data_t * re_replace(re_t *, char *, array_t *);
+extern re_t *   regexp_create(va_list);
+extern void     regexp_free(re_t *);
+extern re_t *   regexp_copy(re_t *);
+extern int      regexp_cmp(re_t *, re_t *);
+extern char *   regexp_tostring(re_t *);
+extern data_t * regexp_match(re_t *, char *);
+extern data_t * regexp_replace(re_t *, char *, array_t *);
 
-extern int Regex;
+extern int Regexp;
 
-#define data_is_regex(d)  ((d) && (data_type((d)) == Regex))
-#define data_regexval(d)  ((re_t *) (data_is_regex((d)) ? ((d) -> ptrval) : NULL))
+#define data_is_regexp(d)  ((d) && (data_type((d)) == Regexp))
+#define data_regexpval(d)  ((re_t *) (data_is_regexp((d)) ? ((d) -> ptrval) : NULL))
   
 #ifdef  __cplusplus
 }

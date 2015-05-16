@@ -704,7 +704,7 @@ lexer_t * _lexer_on_newline(lexer_t *lexer, int line) {
 
 /* -- L E X E R  P U B L I C  I N T E R F A C E --------------------------- */
 
-lexer_t * _lexer_create(reader_t *reader) {
+lexer_t * lexer_create(data_t *reader) {
   lexer_t *ret;
   int      ix;
   
@@ -808,5 +808,33 @@ token_t * lexer_next_token(lexer_t *lexer) {
     debug("lexer_next_token out: token: %s [%s], state %s",
           token_code_name(ret -> code), ret -> token, lexer_state_name(lexer -> state));
   }
+  return ret;
+}
+
+token_t * lexer_rollup_to(lexer_t *lexer, int marker) {
+  token_t *ret;
+  str_t   *str;
+  int      ch;
+  char    *msgbuf;
+  
+  str = str_create(10);
+  for (ch = _lexer_get_char(lexer); 
+       ch && (ch != marker); 
+       ch = _lexer_get_char(lexer)) {
+    if (ch == '\\') {
+      ch = _lexer_get_char(lexer);
+      if (!ch) {
+        break;
+      }
+    }
+    str_append_char(str, ch);
+  }
+  if (ch == marker) {
+    ret = token_create(TokenCodeRawString, str_chars(str));
+  } else {
+    asprintf(&msgbuf, "Unterminated '%c'", marker);
+    ret = token_create(TokenCodeError, msgbuf);
+  }
+  str_free(str);
   return ret;
 }

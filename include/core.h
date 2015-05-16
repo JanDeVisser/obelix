@@ -25,21 +25,12 @@
 #include <stdlib.h>
 
 #include <config.h>
+#include <logging.h>
 
 #define TRUE          1
 #define FALSE         0
 #define NEW(t)        ( (t *) new( sizeof(t) ) )
 #define NEWARR(n, t)  ( (t *) new_array((n), sizeof(t)))
-
-typedef enum _log_level {
-  LogLevelDebug = 0,
-  LogLevelInfo,
-  LogLevelWarning,
-  LogLevelError,
-  LogLevelFatal
-} log_level_t;
-
-extern log_level_t log_level;
 
 typedef struct _code_label {
   int   code;
@@ -111,9 +102,6 @@ extern unsigned int    hashlong(long);
 extern unsigned int    hashdouble(double);
 extern unsigned int    hashblend(unsigned int, unsigned int);
 
-extern char *          _log_level_str(log_level_t);
-extern void            _logmsg(log_level_t, char *, int, char *, ...);
-
 extern void            initialize_random(void);
 extern char *          strrand(char *, size_t);
 extern unsigned int    strhash(char *);
@@ -144,13 +132,5 @@ extern visit_t         collection_visitor(void *, visit_t);
 
 #define reader_read(reader, buf, n)  (((reader_t *) reader) -> read_fnc(reader, buf, n))
 #define reader_free(rdr)             if (rdr) (((reader_t *) (rdr)) -> free((rdr)))
-#ifndef NDEBUG
-#define debug(fmt, args...)          _logmsg(LogLevelDebug, __FILE__, __LINE__, fmt, ## args)
-#else /* NDEBUG */
-#define debug(fmt, args...)
-#endif /* NDEBUG */
-#define info(fmt, args...)           _logmsg(LogLevelInfo, __FILE__, __LINE__, fmt, ## args)
-#define warning(fmt, args...)        _logmsg(LogLevelWarning, __FILE__, __LINE__, fmt, ## args)
-#define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, fmt, ## args)
 
 #endif /* __CORE_H__ */

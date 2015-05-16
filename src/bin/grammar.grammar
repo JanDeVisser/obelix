@@ -296,6 +296,7 @@ constant                    := '"'               [ push_token                ]
                              | signed_number
                              | list
                              | object
+                             | regexp
                              | "true"            [ pushconst: "bool:1"       ]
                              | "false"           [ pushconst: "bool:0"       ]
                              ;
@@ -352,6 +353,13 @@ attrname                    := 'i' | '"' | '\'' ;
 attrlist_tail               := ,
                                attrlist
                              |
+                             ;
+
+regexp                      := '/'               [ setup_function: "regexp"
+                                                   rollup_to: "/"
+                                                   pushval_from_stack
+                                                   incr
+                                                   func_call                 ]
                              ;
 
 logic_op                    := > | ">=" | < | "<=" | "==" | "!=" | "||" | "&&" | "and" | "or"

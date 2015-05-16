@@ -21,8 +21,10 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
 
+#include <data.h>
 #include <datastack.h>
 #include <grammar.h>
+#include <lexer.h>
 #include <list.h>
 
 extern int parser_debug;
@@ -30,6 +32,7 @@ extern int parser_debug;
 
 typedef struct _parser {
   grammar_t   *grammar;
+  lexer_t     *lexer;
   void        *data;
   list_t      *prod_stack;
   token_t     *last_token;
@@ -44,22 +47,20 @@ typedef struct _parser {
 typedef parser_t * (*parser_data_fnc_t)(parser_t *, data_t *);
 typedef parser_t * (*parser_fnc_t)(parser_t *);
 
-extern parser_t *      parser_create(grammar_t *);
-extern parser_t *      parser_clear(parser_t *);
-extern parser_t *      parser_set(parser_t *, char *, data_t *);
-extern data_t *        parser_get(parser_t *, char *);
-extern data_t *        parser_pop(parser_t *, char *);
-extern data_t *        _parser_parse(parser_t *, reader_t *);
-extern void            parser_free(parser_t *);
+extern parser_t * parser_create(grammar_t *);
+extern parser_t * parser_clear(parser_t *);
+extern parser_t * parser_set(parser_t *, char *, data_t *);
+extern data_t *   parser_get(parser_t *, char *);
+extern data_t *   parser_pop(parser_t *, char *);
+extern data_t *   parser_parse(parser_t *, data_t *);
+extern void       parser_free(parser_t *);
 
-#define parser_parse(p, r)     _parser_parse((p), ((reader_t *) (r)))
-
-extern parser_t *             parser_pushval(parser_t *, data_t *);
-extern parser_t *             parser_push(parser_t *);
-extern parser_t *             parser_bookmark(parser_t *);
-extern parser_t *             parser_rollup_list(parser_t *);
-extern parser_t *             parser_rollup_name(parser_t *);
-extern parser_t *             parser_new_counter(parser_t *);
-extern parser_t *             parser_incr(parser_t *);
+extern parser_t * parser_pushval(parser_t *, data_t *);
+extern parser_t * parser_push(parser_t *);
+extern parser_t * parser_bookmark(parser_t *);
+extern parser_t * parser_rollup_list(parser_t *);
+extern parser_t * parser_rollup_name(parser_t *);
+extern parser_t * parser_new_counter(parser_t *);
+extern parser_t * parser_incr(parser_t *);
 
 #endif /* __PARSER_H__ */

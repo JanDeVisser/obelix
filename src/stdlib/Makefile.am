@@ -22,10 +22,9 @@ AM_LDFLAGS  = -rdynamic
 lib_LTLIBRARIES = liboblstdlib.la
 liboblstdlib_la_SOURCES = \
 		builtins.c \
-		typefile.c \
 		sys.c \
 		net.c
 
-liboblstdlib_la_LIBADD = $(top_srcdir)/src/types/libobltypes.la
+liboblstdlib_la_LIBADD = $(top_srcdir)/src/lib/liboblcore.la
 
 SUBDIRS = . test

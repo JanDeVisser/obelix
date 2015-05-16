@@ -18,13 +18,11 @@ AC_CONFIG_FILES([ \
   Makefile \
   src/Makefile \
   src/lib/Makefile \
-  src/types/Makefile \
   src/parser/Makefile \
   src/stdlib/Makefile \
   src/bin/Makefile \
   src/test/Makefile \
   src/lib/test/Makefile \
-  src/types/test/Makefile \
   src/parser/test/Makefile \
   src/bin/test/Makefile \
   src/stdlib/test/Makefile \

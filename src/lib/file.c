@@ -163,8 +163,6 @@ file_t * file_create(int fh) {
   file_t *ret;
 
   ret = NEW(file_t);
-  ret -> read_fnc = (read_t) file_read;
-  ret -> free = (free_t) file_free;
   ret -> fh = fh;
   ret -> stream = NULL;
   ret -> fname = NULL;
@@ -312,23 +310,22 @@ file_t * file_open(char *fname) {
 }
 
 file_t * file_copy(file_t *file) {
-  file -> refs++;
+  if (file) {
+    file -> refs++;
+  }
   return file;
 }
 
 void file_free(file_t *file) {
-  if (file) {
-    file -> refs--;
-    if (file -> refs <= 0) {
-      if (file -> fname) {
-        file_close(file);
-        free(file -> fname);
-      }
-      free(file -> error);
-      free(file -> line);
-      free(file -> str);
-      free(file);
+  if (file && (--file -> refs <= 0)) {
+    if (file -> fname) {
+      file_close(file);
+      free(file -> fname);
     }
+    free(file -> error);
+    free(file -> line);
+    free(file -> str);
+    free(file);
   }
 }
 
@@ -389,9 +386,8 @@ int file_seek(file_t *file, int offset) {
 } 
 
 int file_read(file_t *file, char *target, int num) {
-  int ret;
-
-  ret = read(file -> fh, target, num);
+  int ret = read(file -> fh, target, num);
+  
   if (ret < 0) {
     file -> _errno = errno;
   }
@@ -401,7 +397,9 @@ int file_read(file_t *file, char *target, int num) {
 int file_write(file_t *file, char *buf, int num) {
   int ret = write(file -> fh, buf, num);
   
-  file -> _errno = errno;
+  if (ret < 0) {
+    file -> _errno = errno;
+  }
   return ret;
 }
 

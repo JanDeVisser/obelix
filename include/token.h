@@ -27,6 +27,7 @@ typedef enum _token_code {
   TokenCodeError,
   TokenCodeEmpty,
   TokenCodeWhitespace,
+  TokenCodeRawString,
   TokenCodeNewLine,
   TokenCodeIdentifier = 'i',
   TokenCodeInteger = 'd',

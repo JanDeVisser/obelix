@@ -19,7 +19,7 @@
 AM_CPPFLAGS = -DOBELIX_DATADIR=\"$(datadir)\" -I$(top_srcdir)/include
 AM_LDFLAGS  = -rdynamic -pthread
 # AM_CFLAGS   = -Werror
-LDADD       = ../parser/liboblparser.la ../types/libobltypes.la ../lib/liboblcore.la 
+LDADD       = ../parser/liboblparser.la ../lib/liboblcore.la 
 
 lib_LTLIBRARIES = liboblparser.la
 bin_PROGRAMS = panoramix

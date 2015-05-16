@@ -584,6 +584,30 @@ data_t * data_len(data_t *data) {
   return ret;
 }
 
+/* - R E A D E R S / W R I T E R S ---------------------------------------- */
+
+/**
+ * @brief Read <code>num</code> bytes from reader <code>reader</code> into
+ * buffer <code>buf</code>.
+ */
+int data_read(data_t *reader, char *buf, int num) {
+  typedescr_t *type = data_typedescr(reader);
+  read_t read_fnc = (read_t) typedescr_get_function(type, FunctionRead);
+
+  return read_fnc(reader, buf, num);
+}
+
+/**
+ * @brief Write <code>num</code> bytes from <code>buf</code> to writer 
+ * <code>writer</code>. 
+ */
+int data_write(data_t *writer, char *buf, int num) {
+  typedescr_t *type = data_typedescr(writer);
+  write_t      write_fnc = (write_t) typedescr_get_function(type, FunctionWrite);
+  
+  return write_fnc(writer, buf, num);
+}
+
 /* - I T E R A T O R S -----------------------------------------------------*/
 
 int data_is_iterable(data_t *data) {

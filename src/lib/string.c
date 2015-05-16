@@ -38,6 +38,7 @@ static data_t *     _string_parse(typedescr_t *, char *);
 static data_t *     _string_cast(data_t *, int);
 static data_t *     _string_resolve(data_t *, char *);
 static int          _string_len(data_t *);
+static int          _string_read(data_t *, char *, int);
 
 static data_t *     _string_format(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_slice(data_t *, char *, array_t *, dict_t *);
@@ -63,6 +64,7 @@ vtable_t _vtable_string[] = {
   { .id = FunctionLen,      .fnc = (void_t) _string_len },
   { .id = FunctionResolve,  .fnc = (void_t) _string_resolve },
   { .id = FunctionFree,     .fnc = (void_t) free },
+  { .id = FunctionRead,     .fnc = (void_t) _string_read },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -172,6 +174,10 @@ data_t * _string_resolve(data_t *data, char *slice) {
   } else {
     return NULL;
   }
+}
+
+int _string_read(data_t *data, char *buf, int num) {
+  //
 }
 
 data_t * data_create_string(char * value) {
