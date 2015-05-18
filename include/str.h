@@ -32,6 +32,8 @@ typedef struct _str {
 } str_t;
 
 typedef str_t stringbuffer_t;
+struct _array;
+struct _data;
 
 /*
  * Constructor functions:
@@ -83,7 +85,7 @@ extern struct _array * str_split(str_t *, char *);
 
 extern int             str_read(str_t *, char *, int);
 extern int             str_readchar(str_t *);
-extern int             str_readinto(str_t *, data_t *);
+extern int             str_readinto(str_t *, struct _data *);
 extern int             str_pushback(str_t *, int);
 
 #define str_join(g,c,r) _str_join((g), (c), (obj_reduce_t) (r))

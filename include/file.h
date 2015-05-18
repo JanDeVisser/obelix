@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 
 #include <core.h>
+#include <data.h>
 #include <list.h>
 
 extern int file_debug;
@@ -85,5 +86,8 @@ extern int          file_redirect(file_t *, char *);
 
 extern data_t *     data_wrap_file(file_t *file);
 extern int          File;
+
+#define data_is_file(d)  ((d) && (data_type((d)) == File))
+#define data_fileval(d)  ((file_t *) (data_is_file((d)) ? ((d) -> ptrval) : NULL))
 
 #endif /* __FILE_H__ */

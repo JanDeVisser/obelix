@@ -3,7 +3,6 @@
   ignore:      allwhitespace
   hashpling:   true
   _on_newline: mark_line
-  lib:         "libobltypes.so"
 %
 
 program                     := [ init ] statements [ done ]
@@ -321,6 +320,7 @@ list                        := '['               [ setup_function: "list"    ]
                              ;
 
 entrylist_or_empty          := entrylist
+                             | comprehension
                              |
                              ;
 
@@ -332,6 +332,11 @@ entrylist_tail              := ,
                                entrylist
                              |
                              ;
+
+comprehension               := "for"
+                               expr
+                               "in"
+                               expr              [ comprehension             ]
 
 object                      := '{'               [ setup_function: "object"  ]
                                attrlist_or_empty

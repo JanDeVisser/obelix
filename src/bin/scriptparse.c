@@ -381,6 +381,10 @@ parser_t* script_parse_reduce(parser_t *parser, data_t *initial) {
   return parser;
 }
 
+parser_t * script_parse_comprehension(parser_t *parser) {
+  return parser;
+}
+
 parser_t * script_parse_func_call(parser_t *parser) {
   script_t      *script;
   data_t        *func_name;

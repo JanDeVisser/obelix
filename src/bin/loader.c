@@ -27,7 +27,7 @@
 #include <namespace.h>
 
 static file_t *         _scriptloader_open_file(scriptloader_t *, char *, module_t *);
-static reader_t *       _scriptloader_open_reader(scriptloader_t *, module_t *);
+static data_t *         _scriptloader_open_reader(scriptloader_t *, module_t *);
 static scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *, name_t *);
 static data_t *         _scriptloader_get_object(scriptloader_t *, int, ...);
 static data_t *         _scriptloader_set_value(scriptloader_t *, data_t *, char *, data_t *);
@@ -212,7 +212,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
                                      char *grammarpath) {
   scriptloader_t   *ret;
   grammar_parser_t *gp;
-  file_t           *file;
+  data_t           *file;
   data_t           *root;
   reader_t         *rdr;
   char             *userdir;
@@ -263,14 +263,13 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
     if (script_debug) {
       debug("grammar file: %s", grammarpath);
     }
-    file = file_open(grammarpath);
-    assert(file);
-    gp = grammar_parser_create(data_wrap_file(file));
+    file = data_create(File, grammarpath);
+    assert(file_isopen(data_fileval(file)));
+    gp = grammar_parser_create(file);
     ret -> grammar = grammar_parser_parse(gp);
     assert(ret -> grammar);
     grammar_parser_free(gp);
-    file_free(file);
-    //free(grammarpath);
+    data_free(file);
   }
 
   if (script_debug) {
@@ -372,10 +371,10 @@ data_t * scriptloader_import(scriptloader_t *loader, name_t *name) {
 }
 
 data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
-  reader_t *rdr;
-  data_t   *ret;
-  char     *script_name;
-  name_t   *name = mod -> name;
+  data_t *rdr;
+  data_t *ret;
+  char   *script_name;
+  name_t *name = mod -> name;
 
   assert(loader);
   assert(name);

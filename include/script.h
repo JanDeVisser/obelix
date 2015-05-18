@@ -48,6 +48,8 @@ typedef struct _script {
   int             current_line;
   list_t         *baseclasses;
   list_t         *instructions;
+  list_t         *main_block;
+  datastack_t    *deferred_blocks;
   dict_t         *functions;
   array_t        *params;
   datastack_t    *pending_labels;

@@ -439,7 +439,7 @@ int file_eof(file_t *file) {
 }
 
 int file_isopen(file_t *file) {
-  return file -> fh >= 0;
+  return (file) ? (file -> fh >= 0) : 0;
 }
 
 int file_redirect(file_t *file, char *newname) {

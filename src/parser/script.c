@@ -88,9 +88,11 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
   }
   ret = NEW(script_t);
   
-  ret -> instructions = list_create();
-  list_set_free(ret -> instructions, (free_t) instruction_free);
-  list_set_tostring(ret -> instructions, (tostring_t) instruction_tostring);
+  ret -> main_block = list_create();
+  list_set_free(ret -> main_block, (free_t) instruction_free);
+  list_set_tostring(ret -> main_block, (tostring_t) instruction_tostring);
+  ret -> instructions = ret -> main_block;
+  ret -> deferred_blocks = datastack_create("deferred blocks")
 
   ret -> functions = strdata_dict_create();
   ret -> labels = strvoid_dict_create();
@@ -194,6 +196,10 @@ script_t * script_push_instruction(script_t *script, instruction_t *instruction)
       data_free(label);
     }
   }
+  return script;
+}
+
+script_t * script_start_deferred_block(script_t *script) {
   return script;
 }
 

@@ -293,15 +293,19 @@ int str_pushback(str_t *str, int num) {
 }
 
 int str_readinto(str_t *str, data_t *rdr) {
-  int ret;
+  data_t * ret;
+  int      retval;
 
   str_erase(str);
   ret = data_read(rdr, str -> buffer, str -> bufsize);
-  if (ret >= 0) {
-    str -> buffer[ret] = '\0';
-    str -> len = ret;
+  if (data_type(ret) == Int) {
+    retval = data_intval(ret);
+    str -> buffer[retval] = '\0';
+    str -> len = retval;
+  } else {
+    retval = -1;
   }
-  return ret;
+  return retval;
 }
 
 str_t * str_set(str_t* str, int i, int ch) {

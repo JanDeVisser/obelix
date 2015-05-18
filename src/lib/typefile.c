@@ -43,8 +43,8 @@ static data_t *      _file_leave(data_t *, data_t *);
 static data_t *      _file_query(data_t *, data_t *);
 static data_t *      _file_iter(data_t *);
 static data_t *      _file_resolve(data_t *, char *);
-static int           _file_read(data_t *, char *, int);
-static int           _file_write(data_t *, char *, int);
+static data_t *      _file_read(data_t *, char *, int);
+static data_t *      _file_write(data_t *, char *, int);
 
 static data_t *      _file_open(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_adopt(data_t *, char *, array_t *, dict_t *);
@@ -87,9 +87,6 @@ static methoddescr_t _methoddescr_file[] = {
   { .type = -1,     .name = "seek",     .method = _file_seek,     .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL,       .method = NULL,           .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
-
-#define data_is_file(d)  ((d) && (data_type((d)) == File))
-#define data_fileval(d)  ((file_t *) (data_is_file((d)) ? ((d) -> ptrval) : NULL))
 
 typedef struct _fileiter {
   file_t  *file;
@@ -234,7 +231,7 @@ data_t * _fileiter_next(fileiter_t *fi) {
 data_t * data_wrap_file(file_t *file) {
   data_t *ret = data_create_noinit(File);
   
-  ret -> ptrval = file;
+  ret -> ptrval = file_copy(file);
   return ret;
 }
 
@@ -339,18 +336,32 @@ data_t * _file_query(data_t *file, data_t *regex) {
   return data_null();
 }
 
-int _file_read(data_t *file, char *buf, int num) {
+data_t * _file_read(data_t *file, char *buf, int num) {
+  int retval;
+  
   if (file_debug) {
     debug("%s.read(%d)", data_tostring(file), num);
   }
-  return file_read(data_fileval(file), buf, num);
+  retval = file_read(data_fileval(file), buf, num);
+  if (retval >= 0) {
+    return data_create(Int, retval);
+  } else {
+    return data_exception_from_errno();
+  }
 }
 
-int _file_write(data_t *file, char *buf, int num) {
+data_t * _file_write(data_t *file, char *buf, int num) {
+  int retval;
+  
   if (file_debug) {
     debug("%s.write(%d)", data_tostring(file), num);
   }
-  return file_write(data_fileval(file), buf, num);
+  retval = file_write(data_fileval(file), buf, num);
+  if (retval >= 0) {
+    return data_create(Int, retval);
+  } else {
+    return data_exception_from_errno();
+  }
 }
 
 /* ----------------------------------------------------------------------- */
