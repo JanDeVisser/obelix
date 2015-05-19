@@ -195,6 +195,54 @@ parser_t * script_parse_setup_function(parser_t *parser, data_t *func) {
   return parser;
 }
 
+parser_t *script_parse_start_deferred_block(parser_t *parser) {
+  script_t *script;
+  
+  script = parser -> data;
+  script_start_deferred_block(script);
+  return parser;
+}
+
+parser_t *script_parse_end_deferred_block(parser_t *parser) {
+  script_t *script;
+  
+  script = parser -> data;
+  script_end_deferred_block(script);
+  return parser;
+}
+
+parser_t *script_parse_pop_deferred_block(parser_t *parser) {
+  script_t *script;
+  
+  script = parser -> data;
+  script_pop_deferred_block(script);
+  return parser;
+}
+
+parser_t *script_parse_instruction_bookmark(parser_t *parser) {
+  script_t *script;
+  
+  script = parser -> data;
+  script_bookmark(script);
+  return parser;
+}
+
+parser_t *script_parse_discard_instruction_bookmark(parser_t *parser) {
+  script_t *script;
+  
+  script = parser -> data;
+  script_discard_bookmark(script);
+  return parser;
+}
+
+parser_t *script_parse_defer_bookmarked_block(parser_t *parser) {
+  script_t *script;
+  
+  script = parser -> data;
+  script_defer_bookmarked_block(script);
+  return parser;
+}
+
 /* ----------------------------------------------------------------------- */
 
 parser_t * script_parse_assign(parser_t *parser) {

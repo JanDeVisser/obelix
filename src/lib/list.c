@@ -22,9 +22,6 @@
 
 #include <list.h>
 
-// -------------------
-// static declarations
-
 static listnode_t *     _ln_init(listnode_t *, list_t *, void *);
 static listnode_t *     _ln_create(list_t *, void *);
 static void             _ln_free(listnode_t *);
@@ -33,8 +30,7 @@ static void             _ln_free(listnode_t *);
 
 static listiterator_t * _li_init(listiterator_t *, list_t *);
 
-// ---------------------------
-// listnode_t static functions
+/* -- L I S T N O D E ----------------------------------------------------- */
 
 listnode_t * _ln_init(listnode_t *node, list_t *list, void *data) {
   node -> next = NULL;
@@ -57,8 +53,7 @@ void _ln_free(listnode_t *node) {
   }
 }
 
-// ------------------------
-// list_t public functions
+/* -- L I S T ------------------------------------------------------------- */
 
 list_t * list_create() {
   list_t *ret;
@@ -316,6 +311,12 @@ listiterator_t * list_end(list_t *list) {
   return &list -> iter;
 }
 
+listiterator_t * list_position(listnode_t *node) {
+  list_t *list = node -> list;
+  li_position(&list -> iter, node);
+  return &list -> iter;
+}
+
 void * list_current(list_t *list) {
   return li_current(&list -> iter);
 }
@@ -340,8 +341,15 @@ void list_remove(list_t *list) {
   li_remove(&list -> iter);
 }
 
-// -------------------
-// listiterator_t
+int list_atstart(list_t *list) {
+  return li_atstart(&list -> iter);
+}
+  
+int list_atend(list_t *list) {
+  return li_atend(&list -> iter);
+}
+
+/* -- L I S T I T E R A T O R --------------------------------------------- */
 
 listiterator_t * _li_init(listiterator_t *iter, list_t *list) {
   iter -> list = list;
@@ -368,6 +376,11 @@ void li_head(listiterator_t *iter) {
 
 void li_tail(listiterator_t *iter) {
   iter -> current = &iter -> list -> tail;
+}
+
+void li_position(listiterator_t *iter, listnode_t *node) {
+  assert(iter -> list == node -> list);
+  iter -> current = node;
 }
 
 void * li_current(listiterator_t *iter) {
@@ -456,4 +469,12 @@ void li_remove(listiterator_t *iter) {
     _ln_free(node);
     iter -> list -> size--;
   }
+}
+
+int li_atstart(listiterator_t *iter) {
+  return !iter -> current -> prev;
+}
+
+int li_atend(listiterator_t *iter) {
+  return !iter -> current -> next;
 }

@@ -75,12 +75,15 @@ extern str_t *          list_tostr(list_t *);
 
 extern listiterator_t * list_start(list_t *);
 extern listiterator_t * list_end(list_t *);
+extern listiterator_t * list_position(listnode_t *);
 extern void *           list_current(list_t *);
 extern int              list_has_next(list_t *);
 extern int              list_has_prev(list_t *);
 extern void *           list_next(list_t *);
 extern void *           list_prev(list_t *);
 extern void             list_remove(list_t *);
+extern int              list_atstart(list_t *);
+extern int              list_atend(list_t *);
 
 #define list_size(l)            ((l) -> size)
 #define list_push(l, d)         list_append((l), (d))
@@ -111,6 +114,7 @@ extern listiterator_t * li_create(list_t *);
 extern void             li_free(listiterator_t *);
 extern void             li_head(listiterator_t *);
 extern void             li_tail(listiterator_t *);
+extern void             li_position(listiterator_t *, listnode_t *);
 extern void *           li_current(listiterator_t *);
 extern listnode_t *     li_pointer(listiterator_t *);
 extern void             li_replace(listiterator_t *, void *);
@@ -120,5 +124,7 @@ extern int              li_has_next(listiterator_t *);
 extern int              li_has_prev(listiterator_t *);
 extern void *           li_next(listiterator_t *);
 extern void *           li_prev(listiterator_t *);
+extern int              li_atstart(listiterator_t *);
+extern int              li_atend(listiterator_t *);
 
 #endif /* __LIST_H__ */

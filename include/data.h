@@ -74,6 +74,11 @@ typedef struct _data {
   char        *str;
 } data_t;
 
+typedef struct _pointer {
+  void *ptr;
+  int   size;
+} pointer_t;
+
 typedef data_t * (*factory_t)(int, va_list);
 typedef data_t * (*cast_t)(data_t *, int);
 typedef data_t * (*resolve_name_t)(void *, char *);
@@ -126,8 +131,12 @@ extern int             data_intval(data_t *);
 
 #define data_type(d)   ((d) -> type)
 
-#define data_charval(d)  ((char *) (d) -> ptrval)
-#define data_arrayval(d) ((array_t *) (d) -> ptrval)
+#define data_charval(d)     ((char *) (d) -> ptrval)
+#define data_arrayval(d)    ((array_t *) (d) -> ptrval)
+
+#define data_is_pointer(d)  ((d) && (data_type((d)) == Pointer))
+#define data_pointerval(d)  (data_is_pointer((d)) ? ((pointer_t *) (d) -> ptrval) : NULL)
+#define data_unwrap(d)      (data_is_pointer((d)) ? data_pointerval(d) -> ptr : NULL)
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
 extern array_t *       data_add_all_as_data_reducer(char *, array_t *);

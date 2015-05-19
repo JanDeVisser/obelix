@@ -52,6 +52,7 @@ typedef struct _instruction {
   char                label[9];
   char               *name;
   data_t             *value;
+  int                 refs;
   char               *str;
 } instruction_t;
 
@@ -81,6 +82,7 @@ extern instruction_t *  instruction_create_unstash(unsigned int);
 extern char *           instruction_assign_label(instruction_t *);
 extern instruction_t *  instruction_set_label(instruction_t *, data_t *);
 extern data_t *         instruction_execute(instruction_t *, struct _closure *);
+extern instruction_t *  instruction_copy(instruction_t *);
 extern char *           instruction_tostring(instruction_t *);
 extern void             instruction_free(instruction_t *);
 

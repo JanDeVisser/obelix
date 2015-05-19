@@ -46,11 +46,6 @@ static data_t *      _fnc_parse(typedescr_t *, char *);
 static unsigned int  _fnc_hash(data_t *);
 static data_t *      _fnc_call(data_t *, array_t *, dict_t *);
 
-typedef struct _pointer {
-  void *ptr;
-  int   size;
-} pointer_t;
-
 static vtable_t _vtable_ptr[] = {
   { .id = FunctionNew,      .fnc = (void_t) _ptr_new },
   { .id = FunctionCmp,      .fnc = (void_t) _ptr_cmp },
@@ -71,9 +66,6 @@ static methoddescr_t _methoddescr_ptr[] = {
   { .type = Pointer, .name = "fill",  .method = _ptr_fill, .argtypes = { Pointer, NoType, NoType }, .minargs = 1, .varargs = 1  },
   { .type = NoType,  .name = NULL,    .method = NULL,      .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0  },
 };
-
-#define data_is_pointer(d)  ((d) && (data_type((d)) == Pointer))
-#define data_pointerval(d)  ((pointer_t *) (data_is_pointer((d)) ? ((d) -> ptrval) : NULL))
 
 static vtable_t _vtable_fnc[] = {
   { .id = FunctionNew,      .fnc = (void_t) _fnc_new },

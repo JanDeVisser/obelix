@@ -677,6 +677,7 @@ instruction_t * instruction_create(int type, char *name, data_t *value) {
   ret = NEW(instruction_t);
   ret -> type = type;
   ret -> line = -1;
+  ret -> refs = 1;
   ret -> str = NULL;
   ret -> name = (name) ? strdup(name) : NULL;
   ret -> value = value;
@@ -759,6 +760,13 @@ char * instruction_assign_label(instruction_t *instruction) {
   return instruction -> label;
 }
 
+instruction_t * instruction_copy(instruction_t *instr) {
+  if (instr) {
+    instr -> refs++;
+  }
+  return instr;
+}
+
 instruction_t * instruction_set_label(instruction_t *instruction, data_t *label) {
   memset(instruction -> label, 0, 9);
   strncpy(instruction -> label, data_charval(label), 8);
@@ -812,7 +820,7 @@ char * instruction_tostring(instruction_t *instruction) {
 }
 
 void instruction_free(instruction_t *instruction) {
-  if (instruction) {
+  if (instruction && (--instruction -> refs <= 0)) {
     free(instruction -> name);
     data_free(instruction -> value);
     free(instruction -> str);

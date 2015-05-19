@@ -24,12 +24,12 @@ statement                   := conditional
                              | context_block
                              | throw
                              | leave
-                             | pass
+                             | pass              [ nop                       ]
                              | identifier
                                assignment_or_call
                              ;
 
-pass                [ nop ] := ';'
+pass                        := ';'
                              | "pass"
                              ;
 
@@ -319,12 +319,22 @@ list                        := '['               [ setup_function: "list"    ]
                                ']'               [ func_call                 ]
                              ;
 
-entrylist_or_empty          := entrylist
-                             | comprehension
+entrylist_or_empty          :=                   [ instruction_bookmark      ]
+                               entry
+                               comprehension_or_tail
                              |
                              ;
 
-entrylist                   := expr              [ incr                      ]
+
+entry                       := expr              [ incr                      ]
+                             ;
+                             
+comprehension_or_tail       := comprehension
+                             |                [ discard_instruction_bookmark ]
+                               entrylist_tail
+                             ;
+
+entrylist                   := entry
                                entrylist_tail
                              ;
 
@@ -334,9 +344,13 @@ entrylist_tail              := ,
                              ;
 
 comprehension               := "for"
-                               expr
+                               identifier
                                "in"
-                               expr              [ comprehension             ]
+                               expr              [ defer_bookmarked_block
+                                                   for
+                                                   pop_deferred_block
+                                                   end_loop                  ]
+                             ;
 
 object                      := '{'               [ setup_function: "object"  ]
                                attrlist_or_empty
