@@ -8,10 +8,11 @@ return 0
 
 /*
 --stdout--
-Hello Asterix!
 Hello from stdout, Asterix!
+Hello Asterix!
+--
 --stderr--
 Hello from stderr, Asterix!
---exit--
-0
+--
+--exit-- 0
 */

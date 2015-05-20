@@ -188,7 +188,7 @@ data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
   (void) name;
   (void) kwargs;
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  obj = (args && array_size(args)) ? data_array_get(args, 0) : self;
   return data_create(Int, data_hash(obj));
 }
 
@@ -197,8 +197,8 @@ data_t * _any_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   
   (void) name;
   (void) kwargs;
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
-  return data_create(Int, data_len(obj));
+  obj = (args && array_size(args)) ? data_array_get(args, 0) : self;
+  return data_len(obj);
 }
 
 data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {

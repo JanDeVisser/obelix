@@ -1,0 +1,51 @@
+#!/bin/bash
+
+scripts="helloworld doesnotexist oneplusone minusone iterate_list \
+         
+
+check_output() {
+  f=$1
+  expected=$(awk -v tag="--$f--" '
+BEGIN {
+  s = 0
+}
+
+$0 == tag {
+  s = 1
+  next
+}
+
+/^--$/ {
+  s = 0
+  next
+}
+
+s == 1 {
+  print $0
+}
+' $file)
+  result=$(cat $f)
+  if [ "$result" != "$expected" ] ; then
+    echo "${script}: Unexpected $f"
+    cat $f
+  fi
+}
+
+for script in $scripts ; do
+  file=${script}.obl
+  rm -rf stdout stderr
+
+  expected_code=$(grep -- "--exit--" ${file} | awk '{print $2}')
+  [ -z $expected_code ] && expected_code=0
+  fail=""
+
+  obelix $script > stdout 2> stderr
+  code=$?
+  if [ "$code" != "$expected_code" ] ; then
+    echo "${script}: Exit code ${code} != ${expected_code}"
+  fi
+  check_output stdout
+  check_output stderr
+done
+
+rm -rf stdout stderr

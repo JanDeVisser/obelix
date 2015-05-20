@@ -10,3 +10,6 @@ for i in 0 ~ 10
 end
 
 return sum /* 90 */
+/*
+--exit-- 90
+*/

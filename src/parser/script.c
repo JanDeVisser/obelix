@@ -75,16 +75,13 @@ data_t * data_create_closure(closure_t *closure) {
 
 /* -- S C R I P T  P U B L I C  F U N C T I O N S  ------------------------ */
 
-script_t * __script_set_instructions(script_t *script, list_t *block, const char *caller) {
+script_t * _script_set_instructions(script_t *script, list_t *block) {
   if (!block) {
     block = script -> main_block;
   }
-  debug("%s: %p", caller, block);
   script -> instructions = block;
   return script;
 }
-
-#define _script_set_instructions(s, b) __script_set_instructions((s), (b), __PRETTY_FUNCTION__)
 
 script_t * script_create(module_t *mod, script_t *up, char *name) {
   script_t   *ret;
@@ -237,7 +234,6 @@ script_t * script_pop_deferred_block(script_t *script) {
   
   data = datastack_pop(script -> deferred_blocks);
   block = data_unwrap(data);
-  debug("%s: %p", __PRETTY_FUNCTION__, block);
   list_join(script -> instructions, block);
   data_free(data);
   return script;
@@ -247,8 +243,6 @@ script_t * script_bookmark(script_t *script) {
   listnode_t *node = list_tail_pointer(script -> instructions);
   data_t     *data = data_create(Pointer, sizeof(listnode_t), node);
   
-  debug("data: %p data_pointerval: %p data_unwrap: %p: node %p -> list = %p", 
-        data, data_pointerval(data), data_unwrap(data), node, node -> list);
   assert(data_unwrap(data) == node);
   datastack_push(script -> bookmarks, data);
   return script;
@@ -259,7 +253,6 @@ script_t * script_discard_bookmark(script_t *script) {
   listnode_t    *node = data_unwrap(data);
 
   datastack_pop(script -> bookmarks);  
-  debug("data: %p node: %p -> %p", data, node, (node) ? node -> list : NULL);
   return script;
 }
 

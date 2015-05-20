@@ -393,18 +393,18 @@ void * array_current(array_t *array) {
 }
 
 int array_has_next(array_t *array) {
-  return (array -> curix >= 0) && (array -> curix < (array_size(array) - 1));
+  return (array -> curix >= 0) && (array -> curix < array_size(array));
 }
 
 int array_has_prev(array_t *array) {
-  return (array -> curix >= 0) && (array -> curix > 0);
+  return (array -> curix > 0) && (array -> curix <= array_size(array) - 1);
 }
 
 void * array_next(array_t *array) {
-  return array -> contents[++array -> curix];
+  return array -> contents[array -> curix++];
 }
 
 void * array_prev(array_t *array) {
-  return array -> contents[--array -> curix];
+  return array -> contents[array -> curix--];
 }
 

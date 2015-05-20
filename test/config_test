@@ -1,0 +1,24 @@
+#!/bin/bash
+
+script=$1
+file=${script}.obl
+rm -rf stdout stderr
+
+obelix $script > stdout 2> stderr
+code=$?
+
+echo "/*" >> $file
+echo "--exit-- $code" >> $file
+if [ -s stdout ] ; then
+    echo "--stdout--" >> $file
+    cat stdout >> $file
+    echo "--" >> $file
+fi
+if [ -s stderr ] ; then
+    echo "--stderr--" >> $file
+    cat stderr >> $file
+    echo "--" >> $file
+fi
+echo "*/" >> $file
+
+rm -rf stdout stderr

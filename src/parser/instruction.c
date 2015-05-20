@@ -160,6 +160,7 @@ typedef struct _function_call {
   callflag_t  flags;
   int         arg_count;
   array_t    *kwargs;
+  char       *str;
 } function_call_t;
 
 static void          _data_init_call(void) __attribute__((constructor));
@@ -206,6 +207,7 @@ data_t * _call_new(int type, va_list arg) {
   kwargs = va_arg(arg, array_t *);
   call -> kwargs = (kwargs) ? array_copy(kwargs) : NULL;
   call -> data.ptrval = call;
+  call -> str = NULL;
   return &call -> data;
 }
 
@@ -231,7 +233,13 @@ data_t * _call_copy(data_t *target, data_t *src) {
 }
 
 char * _call_tostring(data_t *d) {
-  return name_tostring(((function_call_t *) d -> ptrval) -> name);
+  function_call_t *call = (function_call_t *) d -> ptrval;
+  
+  asprintf(&call -> data.str, "%s(argv[%d], %s)", 
+           name_tostring(call -> name),
+           call -> arg_count, 
+           (call -> kwargs) ? array_tostring(call -> kwargs) : "");
+  return NULL;
 }
 
 /* -- T O _ S T R I N G  F U N C T I O N S -------------------------------- */
