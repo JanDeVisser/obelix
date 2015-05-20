@@ -40,8 +40,6 @@ str_t * _str_initialize(void) {
   str_t *ret;
 
   ret = NEW(str_t);
-  ret -> read_fnc = (read_t) str_read;
-  ret -> free = (free_t) str_free;
   ret -> buffer = NULL;
   ret -> pos = 0;
   ret -> len = 0;

@@ -28,6 +28,8 @@ static void             _ln_free(listnode_t *);
 
 #define _ln_datanode(n) (((n) -> next) && ((n) -> prev))
 
+static int              _list_append_fragment(list_t *, listnode_t *, listnode_t *);
+
 static listiterator_t * _li_init(listiterator_t *, list_t *);
 
 /* -- L I S T N O D E ----------------------------------------------------- */
@@ -54,6 +56,36 @@ void _ln_free(listnode_t *node) {
 }
 
 /* -- L I S T ------------------------------------------------------------- */
+
+int _list_append_fragment(list_t *list, listnode_t *start, listnode_t *end) {
+  listnode_t *w;
+  int         count;
+
+  start -> prev = NULL;
+  end -> next = NULL;
+
+  /*
+   * Count elements in tail and update listnode_t -> list pointers:
+   */
+  for (w = start; w; w = w -> next) {
+    count++;
+    w -> list = list;
+  }
+
+  /*
+   * Insert tail into return list:
+   */
+  start -> prev = list -> tail.prev;
+  end -> next = &(list -> tail);
+  list -> tail.prev -> next = start;
+  list -> tail.prev = end;
+  
+  /*
+   * Update counters:
+   */
+  list -> size += count;
+  return count;
+}
 
 list_t * list_create() {
   list_t *ret;
@@ -149,6 +181,20 @@ list_t * list_add_all(list_t *list, list_t *other) {
   ctx = list_reduce(other, (reduce_t) collection_add_all_reducer, list);
   free(ctx);
   return list;
+}
+
+list_t * list_join(list_t *target, list_t *src) {
+  listnode_t *start = src -> head.next;
+  listnode_t *end = src -> tail.prev;
+  
+  if (list_size(src)) {
+    src -> head.next = &src -> tail;
+    src -> tail.prev = &src -> head;
+    src -> size = 0;
+    _list_append_fragment(target, start, end);
+  }
+  list_free(src);
+  return target;
 }
 
 void * __list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t type) {
@@ -347,6 +393,29 @@ int list_atstart(list_t *list) {
   
 int list_atend(list_t *list) {
   return li_atend(&list -> iter);
+}
+
+list_t * list_split(list_t *list) {
+  listnode_t *start = li_pointer(&list -> iter);
+  listnode_t *end = list -> tail.prev;
+  listnode_t *w;
+  list_t     *ret = list_create();
+  int         count = 0;
+  
+  list_set_cmp(ret, list -> cmp);
+  list_set_free(ret, list -> freefnc);
+  list_set_hash(ret, list -> hash);
+  list_set_tostring(ret, list -> tostring);
+  if (!list_atstart(list) && !list_atend(list)) {
+    /*
+     * Cut tail out of list:
+     */
+    start -> prev -> next = &list -> tail;
+    list -> tail.prev = start -> prev;
+
+    list -> size -= _list_append_fragment(ret, start, end);
+  }
+  return ret;
 }
 
 /* -- L I S T I T E R A T O R --------------------------------------------- */

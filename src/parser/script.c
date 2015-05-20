@@ -75,6 +75,17 @@ data_t * data_create_closure(closure_t *closure) {
 
 /* -- S C R I P T  P U B L I C  F U N C T I O N S  ------------------------ */
 
+script_t * __script_set_instructions(script_t *script, list_t *block, const char *caller) {
+  if (!block) {
+    block = script -> main_block;
+  }
+  debug("%s: %p", caller, block);
+  script -> instructions = block;
+  return script;
+}
+
+#define _script_set_instructions(s, b) __script_set_instructions((s), (b), __PRETTY_FUNCTION__)
+
 script_t * script_create(module_t *mod, script_t *up, char *name) {
   script_t   *ret;
   char       *anon = NULL;
@@ -91,7 +102,7 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
   ret -> main_block = list_create();
   list_set_free(ret -> main_block, (free_t) instruction_free);
   list_set_tostring(ret -> main_block, (tostring_t) instruction_tostring);
-  ret -> instructions = ret -> main_block;
+  _script_set_instructions(ret, NULL);
   ret -> deferred_blocks = datastack_create("deferred blocks");
   ret -> bookmarks = datastack_create("bookmarks");
   
@@ -208,14 +219,14 @@ script_t * script_start_deferred_block(script_t *script) {
   block = list_create();
   list_set_free(block, (free_t) instruction_free);
   list_set_tostring(block, (tostring_t) instruction_tostring);
-  script -> instructions = block;
+  _script_set_instructions(script, block);
   return script;
 }
 
 script_t * script_end_deferred_block(script_t *script) {
   datastack_push(script -> deferred_blocks, 
-                 data_create(Pointer, script -> instructions));
-  script -> instructions = script -> main_block;
+                 data_create(Pointer, sizeof(list_t), script -> instructions));
+  _script_set_instructions(script, NULL);
   return script;
 }
 
@@ -226,24 +237,29 @@ script_t * script_pop_deferred_block(script_t *script) {
   
   data = datastack_pop(script -> deferred_blocks);
   block = data_unwrap(data);
-  for (list_start(block); list_has_next(block); ) {
-    instr = (instruction_t *) list_next(script -> instructions);
-    script_push_instruction(script, instruction_copy(instr));
-  }
-  list_free(block);
+  debug("%s: %p", __PRETTY_FUNCTION__, block);
+  list_join(script -> instructions, block);
   data_free(data);
   return script;
 }
 
 script_t * script_bookmark(script_t *script) {
   listnode_t *node = list_tail_pointer(script -> instructions);
+  data_t     *data = data_create(Pointer, sizeof(listnode_t), node);
   
-  datastack_push(script -> bookmarks, data_create(Pointer, node));
+  debug("data: %p data_pointerval: %p data_unwrap: %p: node %p -> list = %p", 
+        data, data_pointerval(data), data_unwrap(data), node, node -> list);
+  assert(data_unwrap(data) == node);
+  datastack_push(script -> bookmarks, data);
   return script;
 }
 
 script_t * script_discard_bookmark(script_t *script) {
+  data_t        *data = datastack_pop(script -> bookmarks);
+  listnode_t    *node = data_unwrap(data);
+
   datastack_pop(script -> bookmarks);  
+  debug("data: %p node: %p -> %p", data, node, (node) ? node -> list : NULL);
   return script;
 }
 
@@ -255,11 +271,13 @@ script_t * script_defer_bookmarked_block(script_t *script) {
   
   data = datastack_pop(script -> bookmarks);
   node = data_unwrap(data);
+  debug("%p -> %p", node, (node) ? node -> list : NULL);
   script_start_deferred_block(script);
-  for ((node) ? list_position(node) : list_start(block); !list_atend(block); ) {
-    instr = (instruction_t *) list_next(block);
-    list_push(script -> instructions, instr);
+  if (node) {
+    list_position(node);
+    block = list_split(block);
   }
+  list_join(script -> instructions, block);
   script_end_deferred_block(script);
   return script;
 }

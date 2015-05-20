@@ -136,7 +136,7 @@ extern int             data_intval(data_t *);
 
 #define data_is_pointer(d)  ((d) && (data_type((d)) == Pointer))
 #define data_pointerval(d)  (data_is_pointer((d)) ? ((pointer_t *) (d) -> ptrval) : NULL)
-#define data_unwrap(d)      (data_is_pointer((d)) ? data_pointerval(d) -> ptr : NULL)
+#define data_unwrap(d)      (data_is_pointer((d)) ? (data_pointerval(d) -> ptr) : NULL)
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
 extern array_t *       data_add_all_as_data_reducer(char *, array_t *);

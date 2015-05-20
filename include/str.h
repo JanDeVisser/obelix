@@ -23,8 +23,6 @@
 #include <core.h>
 
 typedef struct _str {
-  read_t  read_fnc;
-  free_t  free;
   char   *buffer;
   int     pos;
   int     len;

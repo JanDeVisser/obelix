@@ -57,6 +57,7 @@ extern void             list_free(list_t *);
 extern list_t *         list_append(list_t *, void *);
 extern list_t *         list_unshift(list_t *, void *);
 extern list_t *         list_add_all(list_t *, list_t *);
+extern list_t *         list_join(list_t *, list_t *);
 extern unsigned int     list_hash(list_t *);
 extern void *           __list_reduce(list_t *, reduce_t, void *, reduce_type_t);
 extern void *           _list_reduce(list_t *, reduce_t, void *);
@@ -84,6 +85,7 @@ extern void *           list_prev(list_t *);
 extern void             list_remove(list_t *);
 extern int              list_atstart(list_t *);
 extern int              list_atend(list_t *);
+extern list_t *         list_split(list_t *);
 
 #define list_size(l)            ((l) -> size)
 #define list_push(l, d)         list_append((l), (d))

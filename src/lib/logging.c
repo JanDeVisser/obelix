@@ -174,12 +174,12 @@ void logging_disable(char *category) {
   _logging_set(category, 0);
 }
 
-void _logmsg(log_level_t lvl, char *file, int line, char *msg, ...) {
+void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, const char *msg, ...) {
   va_list args;
   
   if (lvl >= log_level) {
     va_start(args, msg);
-    fprintf(stderr, "%-12.12s:%4d:%-5.5s:", file, line, _log_level_str(lvl));
+    fprintf(stderr, "%-12.12s:%4d:%-20.20s:%-5.5s:", file, line, caller, _log_level_str(lvl));
     vfprintf(stderr, msg, args);
     fprintf(stderr, "\n");
     va_end(args);

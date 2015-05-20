@@ -36,18 +36,18 @@ extern void   logging_register_category(char *, int *);
 extern void   logging_reset(void);
 extern void   logging_enable(char *);
 extern void   logging_disable(char *);
-extern void   _logmsg(log_level_t, char *, int, char *, ...);
+extern void   _logmsg(log_level_t, const char *, int, const char *, const char *, ...);
 
 extern log_level_t log_level;
 
 #ifndef NDEBUG
-#define debug(fmt, args...)          _logmsg(LogLevelDebug, __FILE__, __LINE__, fmt, ## args)
+#define debug(fmt, args...)          _logmsg(LogLevelDebug, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
 #else /* NDEBUG */
 #define debug(fmt, args...)
 #endif /* NDEBUG */
-#define info(fmt, args...)           _logmsg(LogLevelInfo, __FILE__, __LINE__, fmt, ## args)
-#define warning(fmt, args...)        _logmsg(LogLevelWarning, __FILE__, __LINE__, fmt, ## args)
-#define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, fmt, ## args)
+#define info(fmt, args...)           _logmsg(LogLevelInfo, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
+#define warning(fmt, args...)        _logmsg(LogLevelWarning, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
+#define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
 
 #ifdef	__cplusplus
 }

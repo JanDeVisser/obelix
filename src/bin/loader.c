@@ -214,7 +214,6 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
   grammar_parser_t *gp;
   data_t           *file;
   data_t           *root;
-  reader_t         *rdr;
   char             *userdir;
   int               ix;
   int               len;
