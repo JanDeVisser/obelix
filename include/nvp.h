@@ -34,6 +34,7 @@ typedef struct _nvp {
 #define data_nvpval(d) ((nvp_t *) (data_is_nvp((d)) ? ((d) -> ptrval) : NULL))
 
 extern nvp_t *      nvp_create(data_t *, data_t *);
+extern nvp_t *      nvp_parse(char *);
 extern void         nvp_free(nvp_t *);
 extern nvp_t *      nvp_copy(nvp_t *);
 extern int          nvp_cmp(nvp_t *, nvp_t *);

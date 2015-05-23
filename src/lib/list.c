@@ -474,8 +474,7 @@ void li_replace(listiterator_t *iter, void *data) {
 }
 
 int li_has_next(listiterator_t *iter) {
-  return iter -> current -> next &&
-    _ln_datanode(iter -> current -> next);
+  return iter -> current -> next && _ln_datanode(iter -> current -> next);
 }
 
 void * li_next(listiterator_t *iter) {
@@ -488,8 +487,7 @@ void * li_next(listiterator_t *iter) {
 }
 
 int li_has_prev(listiterator_t *iter) {
-  return iter -> current -> prev &&
-    _ln_datanode(iter -> current -> prev);
+  return iter -> current -> prev && _ln_datanode(iter -> current -> prev);
 }
 
 void * li_prev(listiterator_t *iter) {

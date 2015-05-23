@@ -33,7 +33,9 @@
 
 int script_debug = 0;
 
-static void             _script_init(void) __attribute__((constructor(102)));
+static void       _script_init(void) __attribute__((constructor(102)));
+static script_t * _script_set_instructions(script_t *, list_t *);
+static void       _script_list_block(list_t *);
 
 /* -- data_t type description structures ---------------------------------- */
 
@@ -73,7 +75,7 @@ data_t * data_create_closure(closure_t *closure) {
   return data_create(Closure, closure);
 }
 
-/* -- S C R I P T  P U B L I C  F U N C T I O N S  ------------------------ */
+/* -- S C R I P T  S T A T I C  F U N C T I O N S  ------------------------ */
 
 script_t * _script_set_instructions(script_t *script, list_t *block) {
   if (!block) {
@@ -82,6 +84,17 @@ script_t * _script_set_instructions(script_t *script, list_t *block) {
   script -> instructions = block;
   return script;
 }
+
+void _script_list_block(list_t *block) {
+  instruction_t *instr;
+  
+  for (list_start(block); list_has_next(block); ) {
+    instr = (instruction_t *) list_next(block);
+    fprintf(stderr, "%s\n", instruction_tostring(instr));
+  }
+}
+
+/* -- S C R I P T  P U B L I C  F U N C T I O N S  ------------------------ */
 
 script_t * script_create(module_t *mod, script_t *up, char *name) {
   script_t   *ret;
@@ -231,7 +244,7 @@ script_t * script_pop_deferred_block(script_t *script) {
   list_t        *block;
   data_t        *data;
   instruction_t *instr;
-  
+
   data = datastack_pop(script -> deferred_blocks);
   block = data_unwrap(data);
   list_join(script -> instructions, block);
@@ -249,10 +262,7 @@ script_t * script_bookmark(script_t *script) {
 }
 
 script_t * script_discard_bookmark(script_t *script) {
-  data_t        *data = datastack_pop(script -> bookmarks);
-  listnode_t    *node = data_unwrap(data);
-
-  datastack_pop(script -> bookmarks);  
+  datastack_pop(script -> bookmarks);
   return script;
 }
 
@@ -261,13 +271,13 @@ script_t * script_defer_bookmarked_block(script_t *script) {
   data_t        *data;
   list_t        *block = script -> instructions;
   instruction_t *instr;
-  
+
   data = datastack_pop(script -> bookmarks);
   node = data_unwrap(data);
-  debug("%p -> %p", node, (node) ? node -> list : NULL);
   script_start_deferred_block(script);
   if (node) {
     list_position(node);
+    list_next(node -> list);
     block = list_split(block);
   }
   list_join(script -> instructions, block);
@@ -276,18 +286,13 @@ script_t * script_defer_bookmarked_block(script_t *script) {
 }
 
 void script_list(script_t *script) {
-  instruction_t *instr;
-  
-  debug("==================================================================");
-  debug("Script Listing - %s", script_tostring(script));
-  debug("------------------------------------------------------------------");
-  debug("%-6s %-11.11s%-15.15s", "Line", "Label", "Instruction");
-  debug("------------------------------------------------------------------");
-  for (list_start(script -> instructions); list_has_next(script -> instructions); ) {
-    instr = (instruction_t *) list_next(script -> instructions);
-    debug(instruction_tostring(instr));
-  }
-  debug("==================================================================");
+  fprintf(stderr, "==================================================================\n");
+  fprintf(stderr, "Script Listing - %s\n", script_tostring(script));
+  fprintf(stderr, "------------------------------------------------------------------\n");
+  fprintf(stderr, "%-6s %-11.11s%-15.15s\n", "Line", "Label", "Instruction");
+  fprintf(stderr, "------------------------------------------------------------------\n");
+  _script_list_block(script -> instructions);
+  fprintf(stderr, "==================================================================\n");
 }
 
 script_t * script_get_toplevel(script_t *script) {

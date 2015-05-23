@@ -213,7 +213,7 @@ assignment                  := =
 expr                        := predicate
                                predicatetail
                              ;
-                             
+
 reduction                   := "@" expr 
                                "<-"
                                expr
@@ -325,10 +325,9 @@ entrylist_or_empty          :=                   [ instruction_bookmark      ]
                              |
                              ;
 
-
 entry                       := expr              [ incr                      ]
                              ;
-                             
+
 comprehension_or_tail       := comprehension
                              |                [ discard_instruction_bookmark ]
                                entrylist_tail
@@ -345,11 +344,12 @@ entrylist_tail              := ,
 
 comprehension               := "for"
                                identifier
-                               "in"
-                               expr              [ defer_bookmarked_block
-                                                   for
-                                                   pop_deferred_block
-                                                   end_loop                  ]
+                               "in"              [ defer_bookmarked_block
+                                                   pushconst: "int:0"        ]
+                               expr              [ for
+                                                   comprehension
+                                                   end_loop
+                                                   set_variable: "varargs"   ]
                              ;
 
 object                      := '{'               [ setup_function: "object"  ]

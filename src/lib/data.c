@@ -110,21 +110,22 @@ data_t * data_parse(int type, char *str) {
 }
 
 data_t * data_decode(char *encoded) {
+  char         cpy[(encoded && encoded[0]) ? strlen(encoded) + 1 : 0];
   char        *ptr;
   typedescr_t *type;
   data_t      *ret = NULL;
   
   if (!encoded || !encoded[0]) return NULL;
-  ptr = strchr(encoded, ':');
+  strcpy(cpy, encoded);
+  ptr = strchr(cpy, ':');
   if (!ptr) {
     return data_create(String, encoded);
   } else {
     *ptr = 0;
-    type = typedescr_get_byname(encoded);
+    type = typedescr_get_byname(cpy);
     if (type) {
       ret = data_parse(type -> type, ptr + 1);
     }
-    *ptr = ':';
     if (!ret) {
       ret = data_create(String, encoded);
     }
@@ -502,6 +503,9 @@ int data_intval(data_t *data) {
   data_t  *i;
   int      ret;
   
+  if (!data) {
+    return 0;
+  }
   intvalue = (int (*)(data_t *)) data_get_function(data, FunctionIntValue);
   if (intvalue) {
     return intvalue(data);
@@ -510,14 +514,9 @@ int data_intval(data_t *data) {
     if (fltvalue) {
       return (int) fltvalue(data);
     } else {
-      i = data_cast(data, Int);
-      if (i && !data_is_exception(i)) {
-        ret = i -> intval;
-        data_free(i);
-        return ret;
-      } else {
-        return 0;
-      }
+      ret = data_intval(i = data_cast(data, Int));
+      data_free(i);
+      return ret;
     }
   }
 }

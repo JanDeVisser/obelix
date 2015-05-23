@@ -1,6 +1,8 @@
-a = [1,3,5,7,11]
-for i in a
-  j = i
-end
-b = [ 2*i for i in a ]
-print("b: ${0}", b)
+b = [ 2*i for i in [ 2*j for j in [ 2*k for k in 1 ~ 5 ] ] ]
+print(b)
+/*
+--exit-- 0
+--stdout--
+[ 8, 16, 24, 32 ]
+--
+*/

@@ -26,12 +26,27 @@
 #include <script.h>
 #include <scriptparse.h>
 
+static void       _script_parse_create_statics(void) __attribute__((constructor));
 static data_t *   _script_parse_gen_label(void);
 static name_t *   _script_pop_operation(parser_t *);
+static parser_t * _script_parse_prolog(parser_t *);
 static parser_t * _script_parse_epilog(parser_t *);
 static long       _script_parse_get_option(parser_t *, obelix_option_t);
 
+static data_t    *end_data = NULL;
+static data_t    *error_data = NULL;
+static name_t    *error_name = NULL;
+static name_t    *end_name = NULL;
+
 /* ----------------------------------------------------------------------- */
+
+void _script_parse_create_statics(void) {
+  end_data = data_create(String, "END");
+  error_data = data_create(String, "ERROR");
+  end_name = name_create(1, data_tostring(end_data));
+  error_name = name_create(1, data_tostring(error_data));
+}
+
 
 data_t* _script_parse_gen_label(void) {
   char      label[9];
@@ -50,19 +65,22 @@ name_t * _script_pop_operation(parser_t *parser) {
   return ret;
 }
 
+parser_t * _script_parse_prolog(parser_t *parser) {
+  script_t      *script;
+  data_t        *data;
+  instruction_t *instr;
+  
+  script = (script_t *) parser -> data;
+  script_push_instruction(script, 
+                          instruction_create_enter_context(NULL, error_data));
+  return parser;
+}
+
 parser_t * _script_parse_epilog(parser_t *parser) {
   script_t      *script;
   data_t        *data;
   instruction_t *instr;
-  static data_t *end = NULL;
-  static data_t *error = NULL;
   
-  if (!end) {
-    end = data_create(String, "END");
-  }
-  if (!error) {
-    error = data_create(String, "ERROR");
-  }
   script = (script_t *) parser -> data;
   instr = list_peek(script -> instructions);
   if (instr) {
@@ -78,13 +96,13 @@ parser_t * _script_parse_epilog(parser_t *parser) {
       data = data_create(Int, 0);
       script_push_instruction(script, instruction_create_pushval(data));
       data_free(data);
-      script_push_instruction(script, instruction_create_jump(end));
     }
 
-    datastack_push(script -> pending_labels, data_copy(error));
-    script_parse_nop(parser);
-
-    datastack_push(script -> pending_labels, data_copy(end));
+    datastack_push(script -> pending_labels, data_copy(error_data));
+    script_push_instruction(script, 
+                            instruction_create_leave_context(error_name));
+    
+    datastack_push(script -> pending_labels, data_copy(end_data));
     script_parse_nop(parser);
   }
   if (script_debug || _script_parse_get_option(parser, ObelixOptionList)) {
@@ -104,11 +122,11 @@ long _script_parse_get_option(parser_t *parser, obelix_option_t option) {
 /* ----------------------------------------------------------------------- */
 
 parser_t * script_parse_init(parser_t *parser) {
-  char        *name;
-  module_t    *mod;
-  data_t      *data;
-  script_t    *script;
-
+  char     *name;
+  module_t *mod;
+  data_t   *data;
+  script_t *script;
+  
   if (parser_debug) {
     debug("script_parse_init");
   }
@@ -121,8 +139,8 @@ parser_t * script_parse_init(parser_t *parser) {
     debug("Parsing module '%s'", name_tostring(mod -> name));
   }
   script = script_create(mod, NULL, name);
-  script_push_instruction(script, instruction_create_mark(1));
   parser -> data = script;
+  _script_parse_prolog(parser);
   return parser;
 }
 
@@ -430,23 +448,61 @@ parser_t* script_parse_reduce(parser_t *parser, data_t *initial) {
 }
 
 parser_t * script_parse_comprehension(parser_t *parser) {
+  script_t      *script;
+  
+  script = parser -> data;
+  
+  /*
+   * Paste in the deferred generator expression:
+   */
+  script_pop_deferred_block(script);
+  
+  /*
+   * Deconstruct the stack:
+   * 
+   * Stash 0: Last generated value
+   * Stash 1: Iterator
+   * Stash 2: #values
+   */
+  script_push_instruction(script, instruction_create_stash(0));
+  script_push_instruction(script, instruction_create_stash(1));
+  script_push_instruction(script, instruction_create_stash(2));
+  
+  /*
+   * Rebuild stack. Also increment #values.
+   * 
+   * Iterator
+   * #values
+   * ... values ...
+   */
+  script_push_instruction(script, instruction_create_unstash(0));
+  
+  /* Get #values, increment. Put iterator back on top */
+  script_push_instruction(script, instruction_create_unstash(2));
+  script_push_instruction(script, instruction_create_incr());
+  script_push_instruction(script, instruction_create_unstash(1));
   return parser;
 }
 
 parser_t * script_parse_func_call(parser_t *parser) {
   script_t      *script;
   data_t        *func_name;
-  int            arg_count;
+  int            arg_count = 0;
   array_t       *kwargs;
   instruction_t *instr;
   data_t        *is_constr = parser_get(parser, "constructor");
+  data_t        *varargs = parser_get(parser, "varargs");
   callflag_t     flags = 0;
 
   script = parser -> data;
   kwargs = datastack_rollup(parser -> stack);
-  arg_count = datastack_count(parser -> stack);
-  if (parser_debug) {
-    debug(" -- arg_count: %d", arg_count);
+  if (varargs && data_intval(varargs)) {
+    flags |= CFVarargs;
+  } else {
+    arg_count = datastack_count(parser -> stack);
+    if (parser_debug) {
+      debug(" -- arg_count: %d", arg_count);
+    }
   }
   func_name = datastack_pop(parser -> stack);
   if (is_constr && data_intval(is_constr)) {
@@ -455,6 +511,8 @@ parser_t * script_parse_func_call(parser_t *parser) {
   instr = instruction_create_function(data_nameval(func_name), flags, arg_count, kwargs);
   script_push_instruction(script, instr);
   data_free(func_name);
+  parser_set(parser, "varargs", data_false());
+  parser_set(parser, "constructor", data_false());
   return parser;
 }
 
@@ -753,6 +811,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
     debug(" -- defining function %s", name_tostring(func -> name));
   }
   parser -> data = func;
+  _script_parse_prolog(parser);
   return parser;
 }
 

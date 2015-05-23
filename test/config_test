@@ -21,4 +21,6 @@ if [ -s stderr ] ; then
 fi
 echo "*/" >> $file
 
+echo $script >> tests
+
 rm -rf stdout stderr

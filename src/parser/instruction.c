@@ -30,7 +30,7 @@
 #include <script.h>
 #include <math.h>
 
-int script_trace;
+int script_trace = 0;
 
 typedef data_t * (*instr_fnc_t)(instruction_t *, closure_t *);
 
@@ -65,6 +65,8 @@ static data_t *         _instruction_execute_nop(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pop(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_dup(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_swap(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_incr(instruction_t *, closure_t *);
+static data_t *         _instruction_execute_decr(instruction_t *, closure_t *);
 
 static data_t *         _instruction_execute_stash(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_unstash(instruction_t *, closure_t *);
@@ -80,6 +82,10 @@ static instruction_type_descr_t instruction_descr_map[] = {
     .function = _instruction_execute_assign,
     .name = "Assign",
     .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITDecr,
+    .function = _instruction_execute_decr,
+    .name = "Decr",
+    .tostring = (tostring_t) _instruction_tostring_name },
   { .type = ITDup,   
     .function = _instruction_execute_dup,
     .name = "Dup",
@@ -96,6 +102,10 @@ static instruction_type_descr_t instruction_descr_map[] = {
     .function = _instruction_execute_import,
     .name = "Import",
     .tostring = (tostring_t) _instruction_tostring_value },
+  { .type = ITIncr, 
+    .function = _instruction_execute_incr,
+    .name = "Incr",
+    .tostring = (tostring_t) _instruction_tostring_name },
   { .type = ITIter, 
     .function = _instruction_execute_iter,
     .name = "Iterator",
@@ -253,10 +263,15 @@ char * _instruction_tostring_value(instruction_t *instruction) {
 }
 
 char * _instruction_tostring_name_value(instruction_t *instruction) {
-  asprintf(&instruction -> str, "%s, %s", 
-           data_tostring(instruction -> value), 
-           instruction -> name);
-  return NULL;
+  char *v = data_tostring(instruction -> value);
+
+  if (v && strlen(v)) {
+    asprintf(&instruction -> str, "%s, %s", 
+             v, _instruction_tostring_name(instruction));
+    return NULL;
+  } else {
+    return _instruction_tostring_name(instruction);
+  }
 }
 
 char * _instruction_tostring_value_or_name(instruction_t *instruction) {
@@ -271,14 +286,16 @@ char * _instruction_tostring_value_or_name(instruction_t *instruction) {
 
 data_t * _instruction_get_variable(instruction_t *instr, closure_t *closure) {
   name_t *path = data_nameval(instr -> value);
-  data_t *variable;
+  data_t *variable = NULL;
   data_t *c;
   
-  c = data_create(Closure, closure);
-  variable = data_get(c, path);
-  data_free(c);
-  if (script_debug) {
-    debug("%s.get(%s) = %s", closure_tostring(closure), name_tostring(path), data_tostring(variable));
+  if (path && name_size(path)) {
+    c = data_create(Closure, closure);
+    variable = data_get(c, path);
+    data_free(c);
+    if (script_debug) {
+      debug("%s.get(%s) = %s", closure_tostring(closure), name_tostring(path), data_tostring(variable));
+    }
   }
   return variable;
 }
@@ -363,7 +380,7 @@ data_t * _instruction_execute_enter_context(instruction_t *instr, closure_t *clo
   nvp_t     *nvp_cp;
   
   context = _instruction_get_variable(instr, closure);
-  if (data_hastype(context, CtxHandler)) {
+  if (context && data_hastype(context, CtxHandler)) {
     fnc = (data_t * (*)(data_t *)) data_get_function(context, FunctionEnter);
     if (fnc) {
       ret = fnc(context);
@@ -402,16 +419,18 @@ data_t * _instruction_execute_leave_context(instruction_t *instr, closure_t *clo
   if (data_is_exception(context)) {
     ret = data_copy(context);
   } else {
-    if (data_hastype(context, CtxHandler)) {
+    if (context && data_hastype(context, CtxHandler)) {
       fnc = (data_t * (*)(data_t *, data_t *)) data_get_function(context, FunctionLeave);
       if (fnc) {
         if (e && (e -> code != ErrorLeave) && (e -> code != ErrorExit)) {
           param = data_copy(error);
         } else {
-          param = data_create(Bool, 0);
+          param = data_false();
         }
         ret = fnc(context, param);
       }
+    } else {
+      closure_push(closure, data_copy(error));
     }
   }
   if (e && (e -> code == ErrorExit)) {
@@ -510,7 +529,13 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     }
   }
 
-  num = call -> arg_count;
+  if (call -> flags & CFVarargs) {
+    value = closure_pop(closure);
+    num = data_intval(value);
+    data_free(value);    
+  } else {
+    num = call -> arg_count;
+  }
   if (script_debug) {
     debug(" -- #arguments: %d", num);
   }
@@ -545,6 +570,22 @@ data_t * _instruction_execute_function(instruction_t *instr, closure_t *closure)
     debug(" -- return value '%s'", data_tostring(ret));
   }
   return ret;
+}
+
+data_t * _instruction_execute_decr(instruction_t *instr, closure_t *closure) {
+  data_t *value = closure_pop(closure);
+  
+  closure_push(closure, data_create(Int, data_intval(value) - 1));
+  data_free(value);
+  return NULL;
+}
+
+data_t * _instruction_execute_incr(instruction_t *instr, closure_t *closure) {
+  data_t *value = closure_pop(closure);
+  
+  closure_push(closure, data_create(Int, data_intval(value) + 1));
+  data_free(value);
+  return NULL;
 }
 
 /* -- F L O W  C O N T R O L ---------------------------------------------- */
@@ -700,8 +741,16 @@ instruction_t * instruction_create_assign(name_t *varname) {
 }
 
 instruction_t *  instruction_create_enter_context(name_t *varname, data_t *catchpoint) {
+  static name_t *empty = NULL;
+  
+  if (!varname) {
+    if (!empty) {
+      empty = name_create(0);
+    }
+    varname = empty;
+  }
   return instruction_create(ITEnterContext,
-                            data_charval(catchpoint), 
+                            data_tostring(catchpoint), 
 			    data_create(Name, varname));    
 }
 
@@ -788,7 +837,7 @@ data_t * instruction_execute(instruction_t *instr, closure_t *closure) {
     debug("Executing %s", instruction_tostring(instr));
   }
   if (script_trace) {
-    debug("%-20.20s %s", closure_tostring(closure), instruction_tostring(instr));
+    fprintf(stderr, "%-60.60s%s\n", instruction_tostring(instr), closure_tostring(closure));
   }
   fnc = instruction_descr_map[instr -> type].function;
   return fnc(instr, closure);
@@ -817,7 +866,7 @@ char * instruction_tostring(instruction_t *instruction) {
     } else {
       line[0] = 0;
     }
-    asprintf(&instruction -> str, "%-6s %-11.11s%-15.15s%s", 
+    asprintf(&instruction -> str, "%-6s %-11.11s%-15.15s%-27.27s", 
              line,
              instruction -> label, 
              instruction_descr_map[instruction -> type].name, 

@@ -111,6 +111,32 @@ nvp_t * nvp_create(data_t *name, data_t *value) {
   return ret;
 }
 
+nvp_t * nvp_parse(char *str) {
+  char    cpy[strlen(str) + 1];
+  char   *ptr;
+  char   *name;
+  char   *val;
+  data_t *n;
+  data_t *v;
+  nvp_t  *ret;
+  
+  // FIXME Woefully inadequate.
+  strcpy(cpy, str);
+  ptr = strchr(cpy, '=');
+  name = cpy;
+  val = NULL;
+  if (ptr) {
+    *ptr = 0;
+    val = ptr + 1;
+  }
+  n = data_create(String, name);
+  v = (val) ? data_decode(val) : data_true();
+  ret = nvp_create(n, v);
+  data_free(n);
+  data_free(v);
+  return ret;
+}
+
 nvp_t * nvp_copy(nvp_t *src) {
   src -> refs++;
   return src;

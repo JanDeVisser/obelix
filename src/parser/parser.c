@@ -25,6 +25,7 @@
 #include <exception.h>
 #include <lexer.h>
 #include <logging.h>
+#include <nvp.h>
 #include <parser.h>
 
        int parser_debug = 0;
@@ -482,6 +483,18 @@ lexer_t * parser_newline(lexer_t *lexer, int line) {
 
 parser_t * parser_log(parser_t *parser, data_t *msg) {
   debug("parser_log: %s", data_tostring(msg));
+  return parser;
+}
+
+parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
+  nvp_t *nvp = nvp_parse(data_tostring(keyval));
+  
+  if (nvp) {
+    parser_set(parser, data_tostring(nvp -> name), data_copy(nvp -> value));
+    nvp_free(nvp);
+  } else {
+    parser = NULL;
+  }
   return parser;
 }
 

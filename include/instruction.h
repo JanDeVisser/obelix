@@ -26,10 +26,12 @@
 
 typedef enum _instruction_type {
   ITAssign,
+  ITDecr,
   ITDup,
   ITEnterContext,
   ITFunctionCall,
   ITImport,
+  ITIncr,
   ITIter,
   ITJump,
   ITLeaveContext,
@@ -59,7 +61,8 @@ typedef struct _instruction {
 typedef enum _callflag {
   CFNone        = 0x0000,
   CFInfix       = 0x0001,
-  CFConstructor = 0x0002
+  CFConstructor = 0x0002,
+  CFVarargs     = 0x0004
 } callflag_t;
 
 struct _closure;
@@ -86,9 +89,12 @@ extern instruction_t *  instruction_copy(instruction_t *);
 extern char *           instruction_tostring(instruction_t *);
 extern void             instruction_free(instruction_t *);
 
+#define instruction_create_decr()  instruction_create(ITDecr, NULL, NULL)
+#define instruction_create_incr()  instruction_create(ITIncr, NULL, NULL)
 #define instruction_create_iter()  instruction_create(ITIter, NULL, NULL)
 #define instruction_create_pop()   instruction_create(ITPop, NULL, NULL)
 #define instruction_create_dup()   instruction_create(ITDup, NULL, NULL)
+#define instruction_create_swap()  instruction_create(ITSwap, NULL, NULL)
 #define instruction_create_nop()   instruction_create(ITNop, NULL, NULL)
 #define instruction_create_throw() instruction_create(ITThrow, NULL, NULL)
 

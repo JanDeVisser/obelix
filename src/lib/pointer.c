@@ -96,9 +96,14 @@ static typedescr_t _typedescr_fnc = {
 static data_t _null;
 
 void _ptr_init(void) {
+  pointer_t *p = NEW(pointer_t);
+
   typedescr_register(&_typedescr_ptr);
   typedescr_register_methods(_methoddescr_ptr);
   data_settype(&_null, Pointer);
+  p -> size = 0;
+  p -> ptr = NULL;
+  _null.ptrval = p;
   _null.free_me = FALSE;
 }
 
@@ -141,11 +146,11 @@ char * _ptr_tostring(data_t *data) {
   pointer_t   *p = data_pointerval(data);
   static char  buf[32];
 
-  if (data -> ptrval) {
+  if ((data == &_null) || !p) {
+    return "Null";    
+  } else {
     snprintf(buf, 32, "%p", p -> ptr);
     return buf;
-  } else {
-    return "Null";
   }
 }
 

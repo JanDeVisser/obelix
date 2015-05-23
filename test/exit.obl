@@ -8,4 +8,12 @@ func b()
   a()
 end
 
+print("About to exit")
 b()
+print("Should be skipped")
+/*
+--exit-- 2
+--stdout--
+About to exit
+--
+*/

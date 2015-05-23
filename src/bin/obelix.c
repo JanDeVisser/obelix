@@ -53,28 +53,18 @@ int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
   module_t    *mod;
   int          retval;
   exception_t *ex;
+  int          type;
   
   ret = scriptloader_run(loader, name, argv, NULL);
   if (script_debug) {
     debug("Exiting with exit code %s", data_tostring(ret));
   }
-  switch (data_type(ret)) {
-    case Int:
-    case Float:
-      retval = data_intval(ret);
-      break;
-    case Exception:
-      ex = data_exceptionval(ret);
-      if (!ex -> handled) {
-        error("Error: %s", data_tostring(ret));
-        retval = -1;
-      } else {
-        retval = 0;
-      }
-      break;
-    default:
-      retval = 0;
-      break;
+  retval = data_intval(ret);
+  if (data_is_exception(ret)) {
+    ex = data_exceptionval(ret);
+    if (ex -> code != ErrorExit) {
+      error("Error: %s", data_tostring(ret));
+    }
   }
   data_free(ret);
   return retval;  

@@ -1,8 +1,7 @@
 #!/bin/bash
 
-scripts="helloworld doesnotexist oneplusone minusone iterate_list \
+scripts=$(cat tests)
          
-
 check_output() {
   f=$1
   expected=$(awk -v tag="--$f--" '
@@ -32,6 +31,7 @@ s == 1 {
 }
 
 for script in $scripts ; do
+  echo $script
   file=${script}.obl
   rm -rf stdout stderr
 

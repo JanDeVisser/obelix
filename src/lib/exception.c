@@ -58,6 +58,7 @@ static unsigned int  _exception_hash(data_t *);
 static data_t *      _exception_copy(data_t *, data_t *);
 static int           _exception_cmp(data_t *, data_t *);
 static char *        _exception_tostring(data_t *);
+static int           _exception_intval(data_t *);
 
 static data_t *      _exception_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _exception_resolve(data_t *, char *);
@@ -72,6 +73,7 @@ static vtable_t _vtable_exception[] = {
   { .id = FunctionCmp,      .fnc = (void_t) _exception_cmp },
   { .id = FunctionFree,     .fnc = (void_t) exception_free },
   { .id = FunctionToString, .fnc = (void_t) _exception_tostring },
+  { .id = FunctionIntValue, .fnc = (void_t) _exception_intval },
   { .id = FunctionResolve,  .fnc = (void_t) _exception_resolve },
   { .id = FunctionCall,     .fnc = (void_t) _exception_call },
   { .id = FunctionCast,     .fnc = (void_t) _exception_cast },
@@ -173,7 +175,7 @@ int exception_cmp(exception_t *e1, exception_t *e2) {
 char * exception_tostring(exception_t *exception) {
   if (!exception -> str) {
     asprintf(&exception -> str, "Error %s (%d): %s",
-            exceptions[exception -> code].label,
+            label_for_code(exceptions, exception -> code),
             exception -> code,
             exception -> msg);
   }
@@ -213,14 +215,25 @@ data_t * _exception_copy(data_t *target, data_t *src) {
   return target;
 }
 
+int _exception_intval(data_t *data) {
+  exception_t *ex = data_exceptionval(data);
+  data_t      *throwable = (ex) ? ex -> throwable : NULL;
+  int          ret = 0;
+  
+  if (throwable) {
+    ret = data_intval(throwable);
+  } else if (ex) {
+    ret = - ex -> code;
+  }
+  return ret;
+}
+
 data_t * _exception_cast(data_t *src, int totype) {
   exception_t *ex = data_exceptionval(src);
   data_t      *ret = NULL;
 
-  switch (totype) {
-    case Bool:
-      ret = data_create(Bool, ex != NULL);
-      break;
+  if (totype == Bool) {
+    ret = data_create(Bool, ex != NULL);
   }
   return ret;
 }

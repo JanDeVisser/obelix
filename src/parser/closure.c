@@ -83,15 +83,23 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
   data_t       *ret;
   char         *label = NULL;
   listnode_t   *node = NULL;
-  data_t       *catchpoint;
+  data_t       *catchpoint = NULL;
   int           datatype;
   exception_t  *ex;
   data_t       *ex_data;
 
   ret = ns_exit_code(closure -> script -> mod -> ns);
-  if (!ret) {
+  
+  /*
+   * If we're exiting, we still need to unwind the context stack, but no other
+   * instructions are executed.
+   * 
+   * FIXME: What we're effectively doing here is disable __exit__ handlers in
+   * obelix objects, since they will pick up the exit code.
+   */
+  if (!ret || (instr -> type == ITLeaveContext)) {
     if (instr -> line > 0) {
-      closure -> line = instr->line;
+      closure -> line = instr -> line;
     }
     ret = instruction_execute(instr, closure);
   }
@@ -112,9 +120,19 @@ listnode_t * _closure_execute_instruction(instruction_t *instr, closure_t *closu
         ret = ex_data;
       }
       ex -> trace = data_create(Stacktrace, stacktrace_create());
-      catchpoint = datastack_peek(closure -> catchpoints);
-      assert(catchpoint);
-      label = strdup(data_charval(data_nvpval(catchpoint) -> name));
+      if (datastack_depth(closure -> catchpoints)) {
+        catchpoint = datastack_peek(closure -> catchpoints);
+        label = strdup(data_charval(data_nvpval(catchpoint) -> name));
+      } else {
+        /*
+         * This is ugly. There should be a way to interrupt list_process.
+         * What we do here is get the last node (which exists, because 
+         * otherwise we wouldn't be here, processing a node), fondle that 
+         * node to get it's next pointer (which points to the tail marker
+         * node), and return that. 
+         */
+        node = list_tail_pointer(closure -> script -> instructions) -> next;
+      }
       closure_push(closure, data_copy(ret));
     }
     data_free(ret);
@@ -356,6 +374,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   script_t  *script;
   object_t  *self;
   pthread_t  thr_id;
+  char      *str;
 
   script = closure -> script;
   closure -> free_params = FALSE;
@@ -392,15 +411,13 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   }
   
   if (!closure -> catchpoints) {
-    closure -> catchpoints = datastack_create("catchpoints");
+    asprintf(&str, "%s catchpoints", script_tostring(script));
+    closure -> catchpoints = datastack_create(str);
+    free(str);
     datastack_set_debug(closure -> catchpoints, script_debug);
   } else {
     datastack_clear(closure -> catchpoints);
   }
-  datastack_push(closure -> catchpoints, 
-                 data_create(NVP, 
-                             data_create(String, "ERROR"),
-                             data_create(Bool, 0)));
   
   if (script -> async) {
     closure -> thread = data_create(Thread, 
