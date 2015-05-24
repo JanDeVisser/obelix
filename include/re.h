@@ -34,8 +34,9 @@ typedef struct _re {
   int      refs;
   char    *str;
 } re_t;
-  
-extern re_t *   regexp_create(va_list);
+
+extern re_t *   regexp_create(char *, char *);
+extern re_t *   regexp_vcreate(va_list);
 extern void     regexp_free(re_t *);
 extern re_t *   regexp_copy(re_t *);
 extern int      regexp_cmp(re_t *, re_t *);

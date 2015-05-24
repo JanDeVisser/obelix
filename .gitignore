@@ -21,6 +21,9 @@ autom4te.cache
 **/Makefile
 aclocal.m4
 .kdev4*
+.settings
+.project
+.cproject
 src/bin/grammar.c
 obelix
 oblcoretest

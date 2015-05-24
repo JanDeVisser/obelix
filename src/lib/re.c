@@ -34,7 +34,7 @@ static data_t * _regexp_replace(data_t *, char *, array_t *, dict_t *);
 
 
 static vtable_t _wrapper_vtable_re[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) regexp_create },
+  { .id = FunctionFactory,  .fnc = (void_t) regexp_vcreate },
   { .id = FunctionCopy,     .fnc = (void_t) regexp_copy },
   { .id = FunctionCmp,      .fnc = (void_t) regexp_cmp },
   { .id = FunctionFree,     .fnc = (void_t) regexp_free },
@@ -49,7 +49,7 @@ static methoddescr_t _methoddescr_re[] = {
   { .type = Any,    .name = "regexp",  .method = _regexp_create,  .argtypes = { String, String, Any },    .minargs = 1, .maxargs = 2, .varargs = 0 },
   { .type = -1,     .name = "match",   .method = _regexp_match,   .argtypes = { String, Any, Any },       .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "replace", .method = _regexp_replace, .argtypes = { String, List, NoType },   .minargs = 2, .varargs = 0 },
-  { .type = NoType, .name = NULL,      .method = NULL,        .argtypes = { NoType, NoType, NoType },     .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,      .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 /* ------------------------------------------------------------------------ */
@@ -69,31 +69,39 @@ void _regexp_init(void) {
 
 /* ------------------------------------------------------------------------ */
 
-re_t * regexp_create(va_list args) {
+re_t * regexp_create(char *pattern, char *flags) {
   re_t *ret = NEW(re_t);
   int   icase;
-  int   flags = REG_EXTENDED;
+  int   f = REG_EXTENDED;
   char  msgbuf[100];
   int   retval;
 
-  ret -> pattern = strdup(va_arg(args, char *));
-  ret -> flags = va_arg(args, char *);
-  if (ret -> flags) {
-    ret -> flags = strdup(ret -> flags);
+  ret -> pattern = strdup(pattern);
+  if (flags) {
+    ret -> flags = strdup(flags);
     if (strchr(ret -> flags, 'i')) {
-      flags |= REG_ICASE;
+      f |= REG_ICASE;
     }
   }
   if (debug_regexp) {
     debug("Created re %s", regexp_tostring(ret));
   }
-  if (retval = regcomp(&ret -> compiled, ret -> pattern, flags)) {
+  if (retval = regcomp(&ret -> compiled, ret -> pattern, f)) {
     regerror(retval, &ret -> compiled, msgbuf, sizeof(msgbuf));
     debug("Error: %s", msgbuf);
   }
   ret -> refs = 1;
   ret -> str = NULL;
   return ret;
+}
+
+re_t * regexp_vcreate(va_list args) {
+  char *pattern;
+  char *flags;
+  
+  pattern = va_arg(args, char *);
+  flags = va_arg(args, char *);
+  return regexp_create(pattern, flags);
 }
 
 void regexp_free(re_t *regex) {

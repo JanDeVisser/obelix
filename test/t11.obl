@@ -1,7 +1,0 @@
-func obj()
-  x = 1
-  y = "foo"
-end
-
-o = new obj()
-return o.x

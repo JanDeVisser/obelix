@@ -18,7 +18,6 @@
  */
 
 #include <errno.h>
-#include <regex.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -26,6 +25,8 @@
 #include <data.h>
 #include <exception.h>
 #include <file.h>
+#include <list.h>
+#include <re.h>
 #include <typedescr.h>
 #include <wrapper.h>
 
@@ -90,8 +91,8 @@ static methoddescr_t _methoddescr_file[] = {
 
 typedef struct _fileiter {
   file_t  *file;
-  regex_t *regex;
-  data_t  *next;
+  re_t    *regex;
+  list_t  *next;
   int      refs;
   char    *str;
 } fileiter_t;
@@ -101,6 +102,7 @@ static void         _fileiter_free(fileiter_t *);
 static fileiter_t * _fileiter_copy(fileiter_t *);
 static int          _fileiter_cmp(fileiter_t *, fileiter_t *);
 static char *       _fileiter_tostring(fileiter_t *);
+static data_t *     _fileiter_iter(fileiter_t *);
 static data_t *     _fileiter_has_next(fileiter_t *);
 static data_t *     _fileiter_next(fileiter_t *);
 
@@ -110,6 +112,7 @@ static vtable_t _wrapper_vtable_fileiter[] = {
   { .id = FunctionCmp,      .fnc = (void_t) _fileiter_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _fileiter_free },
   { .id = FunctionToString, .fnc = (void_t) _fileiter_tostring },
+  { .id = FunctionIter,     .fnc = (void_t) _fileiter_iter },
   { .id = FunctionHasNext,  .fnc = (void_t) _fileiter_has_next },
   { .id = FunctionNext,     .fnc = (void_t) _fileiter_next },
   { .id = FunctionNone,     .fnc = NULL }
@@ -138,24 +141,61 @@ void _file_init(void) {
 
 /* -- F I L E  I T E R A T O R -------------------------------------------- */
 
+fileiter_t * _fileiter_readnext(fileiter_t *iter) {
+  data_t  *matches;
+  array_t *matchvals;
+  int      ix;
+
+  while (list_empty(iter -> next)) {
+    if (file_readline(iter -> file)) {
+      if (!iter -> regex) {
+        list_push(iter -> next, data_create(String, iter -> file -> line));
+      } else {
+        matches = regexp_match(iter -> regex, iter -> file -> line);
+        if (data_type(matches) == String) {
+          list_push(iter -> next, data_copy(matches));
+        } else if (data_type(matches) == List) {
+          matchvals = data_arrayval(matches);
+          for (ix = 0; ix < array_size(matchvals); ix++) {
+            list_push(iter -> next, data_copy(data_array_get(matchvals, ix)));
+          }
+        }
+        data_free(matches);
+      }
+    } else if (!file_errno(iter -> file)) {
+      list_push(iter -> next, 
+                data_exception(ErrorExhausted, "Iterator exhausted"));
+    } else {
+      list_push(iter -> next, 
+                data_exception_from_my_errno(file_errno(iter -> file)));
+    }
+  }
+  return iter;
+}
+
 fileiter_t * _fileiter_create(va_list args) {
   fileiter_t *ret = NEW(fileiter_t);
-  char       *regex;
+  data_t     *regex;
+  re_t       *re = NULL;
   int         retval;
   
   ret -> file = va_arg(args, file_t *);
-  regex = va_arg(args, char *);
-  retval = file_seek(ret -> file, 0);
-  if (retval >= 0) {
-    if (file_readline(ret -> file)) {
-      ret -> next = data_create(String, ret -> file -> line);
-    } else if (!file_errno(ret -> file)) {
-      ret -> next = data_exception(ErrorExhausted, "Iterator exhausted");
-    } else {
-      ret -> next = data_exception_from_my_errno(file_errno(ret -> file));
-    }
+  regex = va_arg(args, data_t *);
+  if (data_is_regexp(regex)) {
+    ret -> regex = data_regexpval(regex);
+  } else if (regex) {
+    ret -> regex = regexp_create(data_tostring(regex), NULL);
   } else {
-    ret -> next = data_exception_from_my_errno(file_errno(ret -> file));
+    ret -> regex = NULL;
+  }
+  // FIXME: Error handling for bad regexp.
+  retval = file_seek(ret -> file, 0);
+  ret -> next = data_list_create();
+  if (retval >= 0) {
+    _fileiter_readnext(ret);
+  } else {
+    list_push(ret -> next, 
+              data_exception_from_my_errno(file_errno(ret -> file)));
   }
   ret -> refs = 1;
   ret -> str = NULL;
@@ -164,7 +204,7 @@ fileiter_t * _fileiter_create(va_list args) {
 
 void _fileiter_free(fileiter_t *fileiter) {
   if (fileiter && (--fileiter -> refs <= 0)) {
-    data_free(fileiter -> next);
+    list_free(fileiter -> next);
     free(fileiter -> str);
     free(fileiter);
   }
@@ -188,15 +228,25 @@ char * _fileiter_tostring(fileiter_t *fileiter) {
   return fileiter -> str;
 }
 
-data_t * _fileiter_has_next(fileiter_t *fi) {
-  exception_t *ex;
-  data_t      *ret;
+data_t * _fileiter_iter(fileiter_t *fi) {
+  data_t *ret = data_create_noinit(FileIter);
   
-  if (data_hastype(fi -> next, String)) {
-    ret = data_create(Bool, 1);
-  } else if (data_is_exception(fi -> next)) {
-    ex = data_exceptionval(fi -> next);
-    ret = (ex -> code == ErrorExhausted) ? data_create(Bool, 0) : data_copy(fi -> next);
+  ret -> ptrval = _fileiter_copy(fi);
+  return ret;
+}
+
+data_t * _fileiter_has_next(fileiter_t *fi) {
+  data_t      *next;
+  data_t      *ret;
+  exception_t *ex;
+  
+  _fileiter_readnext(fi);
+  next = list_head(fi -> next);
+  if (data_is_exception(next)) {
+    ex = data_exceptionval(next);
+    ret = (ex -> code == ErrorExhausted) ? data_create(Bool, 0) : data_copy(next);
+  } else {
+    ret = data_true();
   }
   if (file_debug) {
     debug("%s._fileiter_has_next() -> %s", _fileiter_tostring(fi), data_tostring(ret));
@@ -205,22 +255,8 @@ data_t * _fileiter_has_next(fileiter_t *fi) {
 }
 
 data_t * _fileiter_next(fileiter_t *fi) {
-  data_t *ret = data_copy(fi -> next);
-  
-  if (data_hastype(ret, String)) {
-    data_free(fi -> next);
-    if (file_readline(fi -> file)) {
-      fi -> next = data_create(String, fi -> file -> line);
-    } else if (!file_errno(fi -> file)) {
-      fi -> next = data_exception(ErrorExhausted, "Iterator exhausted");
-    } else {
-      fi -> next = data_exception_from_my_errno(file_errno(fi -> file));
-    }
-  }
-  if (file_debug) {
-    debug("%s._fileiter_next() -> %s", _fileiter_tostring(fi), data_tostring(ret));
-  }
-  return ret;
+  _fileiter_readnext(fi);
+  return list_shift(fi -> next);
 }
 
 
@@ -314,15 +350,8 @@ data_t * _file_resolve(data_t *file, char *name) {
 
 data_t * _file_iter(data_t *file) {
   file_t     *f = data_fileval(file);
-  data_t     *ret = data_create(FileIter, f);
-  fileiter_t *fi = _fileiter_copy(data_fileiterval(ret));
-  
-  if (data_is_exception(fi -> next) && 
-      (data_exceptionval(fi -> next) -> code != ErrorExhausted)) {
-    data_free(ret);
-    ret = data_copy(fi -> next);
-    _fileiter_free(fi);
-  }
+  data_t     *ret = data_create(FileIter, f, NULL);
+
   if (file_debug) {
     debug("%s._file_iter() -> %s", data_tostring(file), data_tostring(ret));
   }
@@ -330,10 +359,16 @@ data_t * _file_iter(data_t *file) {
 }
 
 data_t * _file_query(data_t *file, data_t *regex) {
+  file_t     *f = data_fileval(file);
+  data_t     *ret = data_create(FileIter, f, regex);
+  
   if (file_debug) {
-    debug("%s._file_query(%s)", data_tostring(file), data_tostring(regex));
+    debug("%s._file_query(%s) -> %s", 
+          data_tostring(file), 
+          data_tostring(regex),
+          data_tostring(ret));
   }
-  return data_null();
+  return ret;
 }
 
 data_t * _file_read(data_t *file, char *buf, int num) {

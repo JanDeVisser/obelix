@@ -38,6 +38,7 @@ typedef enum _instruction_type {
   ITNext,
   ITNop,
   ITPop,
+  ITPushCtx,
   ITPushVal,
   ITPushVar,
   ITStash,
@@ -89,13 +90,14 @@ extern instruction_t *  instruction_copy(instruction_t *);
 extern char *           instruction_tostring(instruction_t *);
 extern void             instruction_free(instruction_t *);
 
-#define instruction_create_decr()  instruction_create(ITDecr, NULL, NULL)
-#define instruction_create_incr()  instruction_create(ITIncr, NULL, NULL)
-#define instruction_create_iter()  instruction_create(ITIter, NULL, NULL)
-#define instruction_create_pop()   instruction_create(ITPop, NULL, NULL)
-#define instruction_create_dup()   instruction_create(ITDup, NULL, NULL)
-#define instruction_create_swap()  instruction_create(ITSwap, NULL, NULL)
-#define instruction_create_nop()   instruction_create(ITNop, NULL, NULL)
-#define instruction_create_throw() instruction_create(ITThrow, NULL, NULL)
+#define instruction_create_decr()    instruction_create(ITDecr, NULL, NULL)
+#define instruction_create_incr()    instruction_create(ITIncr, NULL, NULL)
+#define instruction_create_iter()    instruction_create(ITIter, NULL, NULL)
+#define instruction_create_pop()     instruction_create(ITPop, NULL, NULL)
+#define instruction_create_dup()     instruction_create(ITDup, NULL, NULL)
+#define instruction_create_swap()    instruction_create(ITSwap, NULL, NULL)
+#define instruction_create_nop()     instruction_create(ITNop, NULL, NULL)
+#define instruction_create_pushctx() instruction_create(ITPushCtx, NULL, NULL)
+#define instruction_create_throw()   instruction_create(ITThrow, NULL, NULL)
 
 #endif /* __INSTRUCTION_H__ */

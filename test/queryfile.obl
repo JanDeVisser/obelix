@@ -1,0 +1,9 @@
+  /* First comment */
+context fd = open("queryfile.obl")
+  for comment in `/\*.*\*/`
+    print(comment)
+  end
+end
+     /* Second comment */
+
+

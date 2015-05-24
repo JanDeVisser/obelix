@@ -85,6 +85,7 @@ typedef data_t * (*resolve_name_t)(void *, char *);
 typedef data_t * (*call_t)(void *, array_t *, dict_t *);
 typedef data_t * (*setvalue_t)(void *, char *, data_t *);
 typedef data_t * (*data_fnc_t)(data_t *);
+typedef data_t * (*data2_fnc_t)(data_t *, data_t *);
 
 extern data_t *        data_create_noinit(int);
 extern data_t *        data_create(int, ...);
@@ -120,6 +121,7 @@ extern data_t *        data_set(data_t *, name_t *, data_t *);
 extern data_t *        data_iter(data_t *);
 extern data_t *        data_has_next(data_t *);
 extern data_t *        data_next(data_t *);
+extern data_t *        data_query(data_t *, data_t *);
 extern data_t *        data_visit(data_t *, data_t *);
 extern data_t *        data_reduce(data_t *, data_t *, data_t *);
 extern data_t *        data_read(data_t *, char *, int);
@@ -194,6 +196,8 @@ extern str_t *         format(char *, array_t *, dict_t *);
                                      (cmp_t) data_cmp), \
                                    (hash_t) data_hash), \
                                  (tostring_t) data_tostring)
+#define data_list_pop(l)      (data_t *) list_pop((l))
+#define data_list_shift(l)    (data_t *) list_shift((l))
 
 #ifdef  __cplusplus
 }

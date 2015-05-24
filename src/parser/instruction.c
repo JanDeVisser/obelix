@@ -71,6 +71,7 @@ static data_t *         _instruction_execute_decr(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_stash(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_unstash(instruction_t *, closure_t *);
 
+static data_t *         _instruction_execute_pushctx(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushval(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_pushvar(instruction_t *, closure_t *);
 static data_t *         _instruction_execute_subscript(instruction_t *, closure_t *);
@@ -129,6 +130,10 @@ static instruction_type_descr_t instruction_descr_map[] = {
   { .type = ITPop,
     .function = _instruction_execute_pop,
     .name = "Pop",
+    .tostring = (tostring_t) _instruction_tostring_name },
+  { .type = ITPushCtx,
+    .function = _instruction_execute_pushctx,
+    .name = "PushCtx",
     .tostring = (tostring_t) _instruction_tostring_name },
   { .type = ITPushVal,
     .function = _instruction_execute_pushval,
@@ -457,6 +462,24 @@ data_t * _instruction_execute_throw(instruction_t *instr, closure_t *closure) {
 }
 
 /* ----------------------------------------------------------------------- */
+
+data_t * _instruction_execute_pushctx(instruction_t *instr, closure_t *closure) {
+  data_t *cp_data;
+  data_t *context;
+  nvp_t  *cp;
+  
+  if (datastack_depth(closure -> catchpoints)) {
+    cp_data = datastack_peek(closure -> catchpoints);
+    cp = data_nvpval(cp_data);
+    context = data_copy(cp -> value);
+    closure_push(closure, context);
+    return NULL;
+  } else {
+    return data_exception(ErrorInternalError,
+                          "%s: No context set",
+                          instruction_tostring(instr));
+  }
+}
 
 data_t * _instruction_execute_pushval(instruction_t *instr, closure_t *closure) {
   assert(instr -> value);

@@ -37,6 +37,7 @@ static data_t    *end_data = NULL;
 static data_t    *error_data = NULL;
 static name_t    *error_name = NULL;
 static name_t    *end_name = NULL;
+static name_t    *query_name = NULL;
 
 /* ----------------------------------------------------------------------- */
 
@@ -45,6 +46,7 @@ void _script_parse_create_statics(void) {
   error_data = data_create(String, "ERROR");
   end_name = name_create(1, data_tostring(end_data));
   error_name = name_create(1, data_tostring(error_data));
+  query_name = name_create(1, "query");
 }
 
 
@@ -964,5 +966,22 @@ parser_t * script_parse_end_context_block(parser_t *parser) {
 			  instruction_create_leave_context(varname));
   data_free(data_varname);
   data_free(label);
+  return parser;
+}
+
+/* -- Q U E R Y ----------------------------------------------------------- */
+
+parser_t * script_parse_query(parser_t *parser) {
+  script_t *script;
+  data_t   *query;
+  
+  script = parser -> data;
+  query = token_todata(parser -> last_token);
+  script_push_instruction(script,
+                          instruction_create_pushctx());
+  script_push_instruction(script,
+                          instruction_create_pushval(query));
+  script_push_instruction(script,
+                          instruction_create_function(query_name, CFInfix, 2, NULL));
   return parser;
 }
