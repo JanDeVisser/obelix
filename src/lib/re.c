@@ -76,7 +76,7 @@ re_t * regexp_create(char *pattern, char *flags) {
   char  msgbuf[100];
   int   retval;
 
-  ret -> pattern = strdup(pattern);
+  asprintf(&ret -> pattern, "(%s)", pattern);
   if (flags) {
     ret -> flags = strdup(flags);
     if (strchr(ret -> flags, 'i')) {
@@ -127,7 +127,9 @@ int regexp_cmp(re_t *regex1, re_t *regex2) {
 
 char * regexp_tostring(re_t *regex) {
   if (!regex -> str) {
-    asprintf(&regex -> str, "/%s/%s", regex -> pattern, regex -> flags);
+    asprintf(&regex -> str, "/%s/%s", 
+             regex -> pattern, 
+             (regex -> flags) ? (regex -> flags) : "");
   }
   return regex -> str;
 }

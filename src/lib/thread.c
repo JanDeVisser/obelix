@@ -20,7 +20,6 @@
 #include <errno.h>
 #include <pthread.h>
 #include <string.h>
-#include <time.h>
 
 #include <data.h>
 #include <datastack.h>
@@ -31,10 +30,19 @@
 
 #define MAX_STACKDEPTH      200
 
+typedef struct _thread_ctx {
+  char            *name;
+  threadproc_t     start_routine;
+  void            *arg;
+  thread_t        *creator;
+  thread_t        *child;
+  pthread_cond_t   condition;
+} thread_ctx_t;
+
 static void          _init_thread(void) __attribute__((constructor(120)));
 static int           _pthread_cmp(pthread_t *, pthread_t *);
 static unsigned int  _pthread_hash(pthread_t *);
-static void *        _thread_start_routine_wrapper(void **);
+static void *        _thread_start_routine_wrapper(thread_ctx_t *);
 
 static data_t *      _data_new_thread(data_t *, va_list);
 static int           _data_cmp_thread(data_t *, data_t *);
@@ -91,21 +99,28 @@ unsigned int _pthread_hash(pthread_t *t) {
   return hash(t, sizeof(pthread_t));
 }
 
-void * _thread_start_routine_wrapper(void **arg) {
+void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   threadproc_t  start_routine;
   void         *ret; 
   thread_t     *thread = thread_self();
   
-  if (arg[0]) {
-    thread_setname(thread, arg[0]);
+  if (ctx -> name) {
+    thread_setname(thread, ctx -> name);
   }
-  arg[3] = thread;
-
+  ctx -> child = thread;
+  errno = pthread_mutex_lock(&ctx -> creator -> mutex);
+  if (!errno) {
+    errno = pthread_cond_signal(&ctx -> condition);
+  }
+  if (!errno) {
+    pthread_cond_destroy(&ctx -> condition);
+    free(ctx);
+  }
+    
   pthread_setcancelstate(thread -> thr_id, PTHREAD_CANCEL_ENABLE);
   pthread_setcanceltype(thread -> thr_id, PTHREAD_CANCEL_DEFERRED);
   pthread_cleanup_push(thread_free, thread);
-  start_routine = (threadproc_t) arg[1];
-  ret = start_routine(arg[2]);
+  ret = ctx -> start_routine(ctx -> arg);
   pthread_cleanup_pop(1);
   return ret;
 }
@@ -123,27 +138,47 @@ thread_t * thread_self(void) {
 }
 
 thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
-  void            *wrapper_args[4];
-  pthread_t        thr_id;
-  thread_t        *ret;
-  struct timespec  ts;
-  
-  wrapper_args[0] = name;
-  wrapper_args[1] = (void *) start_routine;
-  wrapper_args[2] = arg;
-  wrapper_args[3] = NULL;
-  
-  if (errno = pthread_create(&thr_id, NULL,
-			     (threadproc_t) _thread_start_routine_wrapper, 
-			     wrapper_args)) {
-    return NULL;
+  thread_t           *self = thread_self();
+  thread_ctx_t       *ctx;
+  pthread_t           thr_id;
+  thread_t           *ret;
+  pthread_condattr_t  attr;
+
+  ctx = NEW(thread_ctx_t);  
+  ctx -> name = name;
+  ctx -> start_routine = start_routine;
+  ctx -> arg = arg;
+  ctx -> creator = self;
+  ctx -> child = NULL;
+
+  errno = pthread_condattr_init(&attr);
+  if (!errno) {
+    errno = pthread_cond_init(&ctx -> condition, &attr);
   }
-  while (!wrapper_args[3]) {
-    ts.tv_sec = 0;
-    ts.tv_nsec = (long) 1000000;
-    nanosleep(&ts, &ts);
+  if (!errno) {
+    errno = pthread_mutex_lock(&self -> mutex);
   }
-  ret = (thread_t *) wrapper_args[3];
+  if (!errno) {
+    errno = pthread_create(&thr_id, NULL,
+                           (threadproc_t) _thread_start_routine_wrapper, 
+			   ctx);
+  }
+  if (!errno) {
+    for (errno = pthread_cond_wait(&ctx -> condition, &self -> mutex);
+         !errno && !ctx -> child; 
+         errno = pthread_mutex_lock(&self -> mutex)) {
+      if (!errno) {
+        errno = pthread_cond_wait(&ctx -> condition, &self -> mutex);
+      }
+    }
+  }
+  if (errno) {
+    ret = NULL;
+  } else {
+    ret = ctx -> child;
+  }
+  pthread_condattr_destroy(&attr);
+  
   assert(pthread_equal(ret -> thr_id, thr_id));
   if (errno = pthread_detach(thr_id)) {
     pthread_cancel(thr_id);
@@ -153,8 +188,9 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
 }
 
 thread_t * thread_create(pthread_t thr_id, char *name) {
-  thread_t  *ret = NEW(thread_t);
-
+  thread_t            *ret = NEW(thread_t);
+  pthread_mutexattr_t  attr;
+  
   ret -> thr_id = thr_id;
   ret -> stack = NULL;
   ret -> onfree = NULL;
@@ -162,6 +198,13 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
     ret -> name = strdup(name);
   } else {
     asprintf(&ret -> name, "Thread %ld", (long) thr_id);
+  }
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  if (errno = pthread_mutex_init(&ret -> mutex, &attr)) {
+    free(ret -> name);
+    free(ret);
+    return NULL;
   }
   ret -> refs = 1;
   return ret;
@@ -323,7 +366,7 @@ data_t * data_thread_pop_stackframe(void) {
   datastack_t *stack = thread -> stack;
   data_t      *ret;
   
-  if (!datastack_depth(stack) > MAX_STACKDEPTH) {
+  if (!datastack_depth(stack)) {
     ret =  data_exception(ErrorInternalError, 
                           "Call stack empty?");
   } else {

@@ -27,11 +27,12 @@ extern "C" {
 #endif
 
 typedef struct _thread {
-  pthread_t  thr_id;
-  void      *stack;
-  free_t     onfree;
-  char      *name;
-  int        refs;
+  pthread_t        thr_id;
+  void            *stack;
+  free_t           onfree;
+  pthread_mutex_t  mutex;
+  char            *name;
+  int              refs;
 } thread_t;
 
 typedef void * (*threadproc_t)(void *);

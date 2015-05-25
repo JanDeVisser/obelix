@@ -1,9 +1,21 @@
-  /* First comment */
+  /* first occurence quyryfile  */
 context fd = open("queryfile.obl")
-  for comment in `/\*.*\*/`
-    print(comment)
+  for str in `qu.?ryfile`
+    print("--${0}--", str)
   end
 end
-     /* Second comment */
+     /* quuryfile and another one quaryfile*/
 
-
+/*
+--exit-- 0
+--stdout--
+--quyryfile--
+--queryfile--
+--quuryfile--
+--quaryfile--
+--quyryfile--
+--queryfile--
+--quuryfile--
+--quaryfile--
+--
+*/
