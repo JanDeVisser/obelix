@@ -57,7 +57,7 @@ data_t * data_settype(data_t *data, int type) {
   data -> type = type;
   data -> refs++;
   data -> str = NULL;
-  data -> free_me = TRUE;
+  data -> free_me = Normal;
   descr -> count++;
   _data_count++;
   return data;
@@ -77,7 +77,7 @@ data_t * data_create(int type, ...) {
     initialized = f(type, arg);
     if (initialized) {
       data_settype(initialized, type);
-      initialized -> free_me = FALSE;
+      initialized -> free_me = DontFreeData;
     }
     va_end(arg);
   } else {
@@ -92,9 +92,6 @@ data_t * data_create(int type, ...) {
       }
     } else {
       initialized = ret;
-    }
-    if (initialized) {
-      initialized -> free_me = TRUE;
     }
   }
   return initialized;
@@ -191,13 +188,13 @@ void _data_call_free(typedescr_t *type, data_t *data) {
 void data_free(data_t *data) {
   typedescr_t *type;
   
-  if (data && (--data -> refs <= 0)) {
+  if (data && (data -> free_me == Constant) && (--data -> refs <= 0)) {
     type = data_typedescr(data);
     _data_call_free(type, data);
     free(data -> str);
     type -> count--;
     _data_count--;
-    if (data -> free_me) {
+    if (data -> free_me != DontFreeData) {
       free(data);
     }
   }

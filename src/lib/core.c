@@ -232,7 +232,7 @@ char * dtoa(double d) {
 }
 
 static int rand_initialized = 0;
-static char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK...";
+static char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY";
 static int my_seed = 3425674;
 
 void initialize_random(void) {
@@ -248,7 +248,7 @@ char * strrand(char *buf, size_t numchars) {
   initialize_random();
   if (numchars) {
     for (n = 0; n < numchars; n++) {
-      key = rand() % (int) (sizeof charset - 1);
+      key = rand() % (int) (sizeof(charset) - 1);
       buf[n] = charset[key];
     }
     buf[numchars] = '\0';

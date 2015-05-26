@@ -62,16 +62,22 @@ typedef enum _datatype {
    */
 } datatype_t;
 
+typedef enum _free_semantics {
+  Normal,
+  DontFreeData,
+  Constant
+} free_semantics_t;
+
 typedef struct _data {
-  int          type;
-  int          free_me;
+  int               type;
+  free_semantics_t  free_me;
   union {
-    void      *ptrval;
-    long       intval;
-    double     dblval;
+    void           *ptrval;
+    long            intval;
+    double          dblval;
   };
-  int          refs;
-  char        *str;
+  int               refs;
+  char             *str;
 } data_t;
 
 typedef struct _pointer {

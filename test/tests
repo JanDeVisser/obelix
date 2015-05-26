@@ -6,5 +6,6 @@ exit
 iterate_list
 addition
 object
-comprehension
 queryfile
+comprehension
+comprehension_where

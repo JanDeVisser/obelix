@@ -32,6 +32,7 @@ static int           _ptr_cmp(data_t *, data_t *);
 static data_t *      _ptr_cast(data_t *, int);
 static unsigned int  _ptr_hash(data_t *);
 static char *        _ptr_tostring(data_t *);
+static data_t *      _ptr_parse(typedescr_t *, char *);
 
 static data_t *      _ptr_copy(data_t *, char *, array_t *, dict_t *);
 static data_t *      _ptr_fill(data_t *, char *, array_t *, dict_t *);
@@ -52,6 +53,7 @@ static vtable_t _vtable_ptr[] = {
   { .id = FunctionToString, .fnc = (void_t) _ptr_tostring },
   { .id = FunctionCast,     .fnc = (void_t) _ptr_cast },
   { .id = FunctionHash,     .fnc = (void_t) _ptr_hash },
+  { .id = FunctionParse,    .fnc = (void_t) _ptr_parse },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -104,7 +106,7 @@ void _ptr_init(void) {
   p -> size = 0;
   p -> ptr = NULL;
   _null.ptrval = p;
-  _null.free_me = FALSE;
+  _null.free_me = Constant;
 }
 
 data_t * _ptr_new(data_t *target, va_list arg) {
@@ -151,6 +153,21 @@ char * _ptr_tostring(data_t *data) {
   } else {
     snprintf(buf, 32, "%p", p -> ptr);
     return buf;
+  }
+}
+
+data_t * _ptr_parse(typedescr_t *type, char *str) {
+  data_t *i;
+  
+  if (!strcmp(str, "null")) {
+    return data_null();
+  } else {
+    i = data_parse(Int, str);
+    if (i) {
+      return data_create(Pointer, 0, data_intval(i));
+    } else {
+      return data_null();
+    }
   }
 }
 

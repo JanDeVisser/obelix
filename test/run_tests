@@ -3,8 +3,7 @@
 scripts=$(cat tests)
          
 check_output() {
-  f=$1
-  expected=$(awk -v tag="--$f--" '
+  expected=$(awk -v tag="--$1--" '
 BEGIN {
   s = 0
 }
@@ -22,11 +21,11 @@ $0 == tag {
 s == 1 {
   print $0
 }
-' $file)
-  result=$(cat $f)
+' $2)
+  result=$(cat $1)
   if [ "$result" != "$expected" ] ; then
-    echo "${script}: Unexpected $f"
-    cat $f
+    echo "${script}: Unexpected $1"
+    cat $1
   fi
 }
 
@@ -44,8 +43,8 @@ for script in $scripts ; do
   if [ "$code" != "$expected_code" ] ; then
     echo "${script}: Exit code ${code} != ${expected_code}"
   fi
-  check_output stdout
-  check_output stderr
+  check_output stdout $file
+  check_output stderr $file
 done
 
 rm -rf stdout stderr

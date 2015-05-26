@@ -1,8 +1,13 @@
+b = [ 2*i for i in 1 ~ 5 ]
+print(b)
+
 b = [ 2*i for i in [ 2*j for j in [ 2*k for k in 1 ~ 5 ] ] ]
 print(b)
-/*
+
+/* EXPECTED
 --exit-- 0
 --stdout--
+[ 2, 4, 6, 8 ]
 [ 8, 16, 24, 32 ]
 --
-*/
+EXPECTED */

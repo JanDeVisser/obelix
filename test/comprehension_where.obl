@@ -1,0 +1,16 @@
+b = [ i for i in 0 ~ 9 where i % 2 == 0 ]
+print(b)
+ret = b.len()
+
+b = [ 2*i for i in [ j for j in 0 ~ 19 where j % 3 == 0 ]  where i % 2 == 0 ]
+print(b)
+
+return ret + b.len()
+
+/* EXPECTED
+--exit-- 9
+--stdout--
+[ 0, 2, 4, 6, 8 ]
+[ 0, 12, 24, 36 ]
+--
+EXPECTED */

@@ -298,6 +298,7 @@ constant                    := '"'               [ push_token                ]
                              | regexp
                              | "true"            [ pushconst: "bool:1"       ]
                              | "false"           [ pushconst: "bool:0"       ]
+                             | "null"            [ pushconst: "ptr:null"     ]
                              ;
 
 signed_number               := sign
@@ -346,10 +347,18 @@ comprehension               := "for"
                                identifier
                                "in"              [ defer_bookmarked_block
                                                    pushconst: "int:0"        ]
-                               expr              [ for
-                                                   comprehension
+                               expr              [ for                       ]
+                               where_or_empty    [ comprehension
                                                    end_loop
                                                    set_variable: "varargs"   ]
+                              ;
+
+where_or_empty              := where
+                             |
+                             ;
+
+where                       := "where"
+                               expr              [ where                     ]
                              ;
 
 object                      := '{'               [ setup_function: "object"  ]

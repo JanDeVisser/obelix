@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <string.h>
 
@@ -53,7 +54,9 @@ void _script_parse_create_statics(void) {
 data_t* _script_parse_gen_label(void) {
   char      label[9];
   
-  strrand(label, 8);
+  do {
+    strrand(label, 8);
+  } while (isupper(label[0]));
   return data_create(String, label);
 }
 
@@ -450,10 +453,13 @@ parser_t* script_parse_reduce(parser_t *parser, data_t *initial) {
 }
 
 parser_t * script_parse_comprehension(parser_t *parser) {
-  script_t      *script;
+  script_t *script;
   
   script = parser -> data;
   
+  if (parser_debug) {
+    debug(" -- Comprehension");
+  }
   /*
    * Paste in the deferred generator expression:
    */
@@ -469,7 +475,7 @@ parser_t * script_parse_comprehension(parser_t *parser) {
   script_push_instruction(script, instruction_create_stash(0));
   script_push_instruction(script, instruction_create_stash(1));
   script_push_instruction(script, instruction_create_stash(2));
-  
+
   /*
    * Rebuild stack. Also increment #values.
    * 
@@ -483,6 +489,23 @@ parser_t * script_parse_comprehension(parser_t *parser) {
   script_push_instruction(script, instruction_create_unstash(2));
   script_push_instruction(script, instruction_create_incr());
   script_push_instruction(script, instruction_create_unstash(1));
+  
+  return parser;
+}
+
+parser_t * script_parse_where(parser_t *parser) {
+  script_t *script;
+  data_t   *label;
+  
+  script = parser -> data;
+  if (parser_debug) {
+    debug(" -- Comprehension Where");
+  }
+  label = data_copy(datastack_peek_deep(parser -> stack, 1));
+  if (parser_debug) {
+    debug(" -- 'next' label: %s", data_tostring(label));
+  }
+  script_push_instruction(script, instruction_create_test(label));
   return parser;
 }
 

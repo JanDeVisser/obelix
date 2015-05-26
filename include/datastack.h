@@ -41,6 +41,7 @@ extern int           datastack_hash(datastack_t *);
 extern int           datastack_cmp(datastack_t *, datastack_t *);
 extern int           datastack_depth(datastack_t *);
 extern data_t *      datastack_pop(datastack_t *);
+extern data_t *      datastack_peek_deep(datastack_t *, int);
 extern data_t *      datastack_peek(datastack_t *);
 extern datastack_t * datastack_push(datastack_t *, data_t *);
 extern datastack_t * datastack_push_int(datastack_t *, long);

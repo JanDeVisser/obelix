@@ -144,8 +144,12 @@ data_t * datastack_pop(datastack_t *stack) {
   return ret;
 }
 
+data_t * datastack_peek_deep(datastack_t *stack, int depth) {
+  return (data_t *) array_get(stack -> list, -1 - depth);
+}
+
 data_t * datastack_peek(datastack_t *stack) {
-  return (data_t *) array_get(stack -> list, -1);
+  return datastack_peek_deep(stack, 0);
 }
 
 datastack_t * datastack_push(datastack_t *stack, data_t *data) {
