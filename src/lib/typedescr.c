@@ -354,7 +354,7 @@ void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
   assert(fnc_id < FunctionEndOfListDummy);
   if (type -> vtable) {
     ret = type -> vtable[fnc_id].fnc;
-    for (ix = 0; !ret && ix < type -> inherits_size; ix++) {
+    for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
       inherits = typedescr_get(type -> inherits[ix]);
       ret = typedescr_get_function(inherits, fnc_id);
     }
@@ -362,8 +362,6 @@ void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
     //  debug("typedescr_get_function(%s, %s) = %p", 
     //        type -> type_name, label_for_code(_function_id_labels, fnc_id), ret);
     //}
-  } else {
-    error("Type '%s' has no vtable. Quite odd.", type -> type_name);
   }
   return ret;
 }
@@ -416,10 +414,8 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
         ret = interface_get_method(&_interfaces[ix], name);
       }
     }
-    if (!ret && descr -> inherits_size) {
-      for (ix = 0; !ret && ix < descr -> inherits_size; ix++) {
-        ret = typedescr_get_method(typedescr_get(descr -> inherits[ix]), name);
-      }
+    for (ix = 0; !ret && (ix < MAX_INHERITS) && descr -> inherits[ix]; ix++) {
+      ret = typedescr_get_method(typedescr_get(descr -> inherits[ix]), name);
     }
     if (ret) {
       typedescr_register_method(descr, ret);
@@ -465,14 +461,11 @@ int typedescr_is(typedescr_t *descr, int type) {
       //}
     }
   }
-  if (!ret && descr -> inherits_size) {
-    //if (type_debug) {
-    //  debug("'%s'.is(%d) checking parents", descr -> type_name, type);
-    //}
-    ret = 0;
-    for (ix = 0; !ret && ix < descr -> inherits_size; ix++) {
-      ret = typedescr_is(typedescr_get(descr -> inherits[ix]), type);
-    }
+  //if (type_debug) {
+  //  debug("'%s'.is(%d) checking parents", descr -> type_name, type);
+  //}
+  for (ix = 0; !ret && (ix < MAX_INHERITS) && descr -> inherits[ix]; ix++) {
+    ret = typedescr_is(typedescr_get(descr -> inherits[ix]), type);
   }
   //if (type_debug) {
   //  debug("Survey says: '%s'.is(%d) = %d", descr -> type_name, type, ret);

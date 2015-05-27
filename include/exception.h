@@ -47,7 +47,8 @@ typedef enum _errorcode {
   ErrorExhausted,
   ErrorThrowable,
   ErrorLeave,
-  ErrorExit
+  ErrorReturn,
+  ErrorExit,
 } errorcode_t;
 
 typedef struct _exception {

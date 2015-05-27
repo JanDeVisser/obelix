@@ -180,7 +180,7 @@ void _data_call_free(typedescr_t *type, data_t *data) {
   if (f) {
     f(data -> ptrval);
   }
-  for (ix = 0; ix < type -> inherits_size; ix++) {
+  for (ix = 0; (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
     _data_call_free(typedescr_get(type -> inherits[ix]), data);
   }
 }
@@ -188,7 +188,7 @@ void _data_call_free(typedescr_t *type, data_t *data) {
 void data_free(data_t *data) {
   typedescr_t *type;
   
-  if (data && (data -> free_me == Constant) && (--data -> refs <= 0)) {
+  if (data && (data -> free_me != Constant) && (--data -> refs <= 0)) {
     type = data_typedescr(data);
     _data_call_free(type, data);
     free(data -> str);

@@ -46,6 +46,7 @@ static code_label_t builtin_exceptions[] = {
   { .code = ErrorNotIterator,           .label = "ErrorNotIterator" },
   { .code = ErrorThrowable,             .label = "ErrorThrowable" },
   { .code = ErrorLeave,                 .label = "ErrorLeave", },
+  { .code = ErrorReturn,                .label = "ErrorReturn", },
   { .code = ErrorExit,                  .label = "ErrorExit", },
 };
 
@@ -259,7 +260,8 @@ data_t * _exception_resolve(data_t *exception, char *name) {
     return data_create(Int, e -> code);
   } else if (!strcmp(name, "codename")) {
     return data_create(String, exceptions[e -> code].label);
-  } else if (!strcmp(name, "")) {
+  } else if (!strcmp(name, "throwable")) {
+    return data_copy(e -> throwable);
   } else if (e -> throwable) {
     ret = data_resolve(e -> throwable, n = name_create(1, name));
     name_free(n);
@@ -286,7 +288,7 @@ data_t * _data_exception_from_exception(exception_t *exception) {
   ret -> ptrval = exception_copy(exception);
 }
 
-data_t * data_exception(int code, char * msg, ...) {
+data_t * data_exception(int code, char *msg, ...) {
   exception_t *exception;
   va_list      args;
   

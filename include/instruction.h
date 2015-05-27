@@ -24,39 +24,22 @@
 #include <data.h>
 #include <name.h>
 
+#ifdef  __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+    
 typedef enum _instruction_type {
-  ITAssign,
-  ITDecr,
-  ITDup,
-  ITEnterContext,
-  ITFunctionCall,
-  ITImport,
-  ITIncr,
-  ITIter,
-  ITJump,
-  ITLeaveContext,
-  ITNext,
-  ITNop,
-  ITPop,
-  ITPushCtx,
-  ITPushVal,
-  ITPushVar,
-  ITStash,
-  ITSubscript,
-  ITSwap,
-  ITTest,
-  ITThrow,
-  ITUnstash
+  Instruction = 22,
+  ITByName = 23,
+  ITByValue = 24,
 } instruction_type_t;
 
 typedef struct _instruction {
-  instruction_type_t  type;
-  int                 line;
-  char                label[9];
-  char               *name;
-  data_t             *value;
-  int                 refs;
-  char               *str;
+  data_t    data;
+  int       line;
+  char      label[9];
+  char     *name;
+  data_t   *value;
 } instruction_t;
 
 typedef enum _callflag {
@@ -65,6 +48,8 @@ typedef enum _callflag {
   CFConstructor = 0x0002,
   CFVarargs     = 0x0004
 } callflag_t;
+
+extern int Instruction;
 
 struct _closure;
 
@@ -79,9 +64,6 @@ extern instruction_t *  instruction_create_test(data_t *);
 extern instruction_t *  instruction_create_next(data_t *);
 extern instruction_t *  instruction_create_jump(data_t *);
 extern instruction_t *  instruction_create_import(name_t *);
-extern instruction_t *  instruction_create_mark(int);
-extern instruction_t *  instruction_create_stash(unsigned int);
-extern instruction_t *  instruction_create_unstash(unsigned int);
 
 extern char *           instruction_assign_label(instruction_t *);
 extern instruction_t *  instruction_set_label(instruction_t *, data_t *);
@@ -90,14 +72,22 @@ extern instruction_t *  instruction_copy(instruction_t *);
 extern char *           instruction_tostring(instruction_t *);
 extern void             instruction_free(instruction_t *);
 
-#define instruction_create_decr()    instruction_create(ITDecr, NULL, NULL)
-#define instruction_create_incr()    instruction_create(ITIncr, NULL, NULL)
-#define instruction_create_iter()    instruction_create(ITIter, NULL, NULL)
-#define instruction_create_pop()     instruction_create(ITPop, NULL, NULL)
-#define instruction_create_dup()     instruction_create(ITDup, NULL, NULL)
-#define instruction_create_swap()    instruction_create(ITSwap, NULL, NULL)
-#define instruction_create_nop()     instruction_create(ITNop, NULL, NULL)
-#define instruction_create_pushctx() instruction_create(ITPushCtx, NULL, NULL)
-#define instruction_create_throw()   instruction_create(ITThrow, NULL, NULL)
+#define instruction_create_decr()     data_create(ITDecr, NULL, NULL)
+#define instruction_create_incr()     data_create(ITIncr, NULL, NULL)
+#define instruction_create_iter()     data_create(ITIter, NULL, NULL)
+#define instruction_create_pop()      data_create(ITPop, NULL, NULL)
+#define instruction_create_dup()      data_create(ITDup, NULL, NULL)
+#define instruction_create_swap()     data_create(ITSwap, NULL, NULL)
+#define instruction_create_mark(l)    data_create(ITNop, NULL, data_create(Int, (l)))
+#define instruction_create_nop()      data_create(ITNop, NULL, NULL)
+#define instruction_create_pushctx()  data_create(ITPushCtx, NULL, NULL)
+#define instruction_create_stash(s)   data_create(ITStash, NULL, data_create(Int, (s)))
+#define instruction_create_throw()    data_create(ITThrow, NULL, NULL)
+#define instruction_create_return()   data_create(ITReturn, NULL, NULL)
+#define instruction_create_unstash(s) data_create(ITUnstash, NULL, data_create(Int, (s)))
+
+#ifdef  __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* __INSTRUCTION_H__ */

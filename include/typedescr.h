@@ -27,19 +27,23 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#define MAX_METHOD_PARAMS      3
+#define MAX_INHERITS           3
+
 typedef enum _metatype {
   NoType         = 0,
-  Dynamic        = 22,
+  Dynamic        = 100,
   Interface      = 1000, /* Marker */
-  InputStream,  /* 1001 */
-  OutputStream, /* 1002 */
-  Iterable,     /* 1003 */
-  Iterator,     /* 1004 */
-  Callable,     /* 1005 */
-  Connector,    /* 1006 */
-  CtxHandler,   /* 1007 */
-  Any,          /* 1008 */
-  NextInterface /* 1009 - Marker */
+  Number,       /* 1001 */
+  InputStream,  /* 1002 */
+  OutputStream, /* 1003 */
+  Iterable,     /* 1004 */
+  Iterator,     /* 1005 */
+  Callable,     /* 1006 */
+  Connector,    /* 1007 */
+  CtxHandler,   /* 1008 */
+  Any,          /* 1009 */
+  NextInterface /* 1010 - Marker */
 } metatype_t;
 
 typedef enum _vtable_id {
@@ -98,14 +102,11 @@ typedef struct _typedescr {
   dict_t       *methods;
   void         *ptr;
   int           promote_to;
-  int           inherits_size;
-  int          *inherits;
+  int           inherits[MAX_INHERITS];
   unsigned int  hash;
   char         *str;
   int           count;
 } typedescr_t;
-
-#define MAX_METHOD_PARAMS      3
 
 typedef struct _methoddescr {
   int       type;

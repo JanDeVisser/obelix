@@ -35,31 +35,23 @@ typedef enum _datatype {
   Exception       = 1,
   Pointer,      /*  2 */
   String,       /*  3 */
-  Number,       /*  4 */
-  Int,          /*  5 */
-  Float,        /*  6 */
-  Bool,         /*  7 */
-  List,         /*  8 */
-  Function,     /*  9 */
-  Method,       /* 10 */
-  Object,       /* 11 */
-  Script,       /* 12 */
-  BoundMethod,  /* 13 */
-  Closure,      /* 14 */
-  Module,       /* 15 */
-  Name,         /* 16 */
-  Native,       /* 17 */
-  NVP,          /* 18 */
-  Range,        /* 19 */
-  Thread,       /* 20 */
-  Mutex         /* 21 */
-  /* 
-   * Any must be the last type. Therefore, after adding types here Any and 
-   * Dynamic in typedescr must be updated as well.
-   * 
-   * FIXME this link between this enum and the constants in typedescr should 
-   * be fixed.
-   */
+  Int,          /*  4 */
+  Float,        /*  5 */
+  Bool,         /*  6 */
+  List,         /*  7 */
+  Function,     /*  8 */
+  Method,       /*  9 */
+  Object,       /* 10 */
+  Script,       /* 11 */
+  BoundMethod,  /* 12 */
+  Closure,      /* 13 */
+  Module,       /* 14 */
+  Name,         /* 15 */
+  Native,       /* 16 */
+  NVP,          /* 17 */
+  Range,        /* 18 */
+  Thread,       /* 19 */
+  Mutex         /* 20 */
 } datatype_t;
 
 typedef enum _free_semantics {

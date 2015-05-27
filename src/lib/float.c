@@ -53,14 +53,6 @@ static data_t *      _number_trunc(data_t *, char *, array_t *, dict_t *);
 static data_t *      _number_floor(data_t *, char *, array_t *, dict_t *);
 static data_t *      _number_ceil(data_t *, char *, array_t *, dict_t *);
 
-static typedescr_t _typedescr_number =   {
-  .type           = Number,
-  .type_name      = "number",
-  .inherits_size  = 0,
-  .vtable         = NULL,
-  .promote_to     = NoType
-};
-
 static methoddescr_t _methoddescr_number[] = {
   { .type = Number,  .name = "+",     .method = _number_add,    .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 1 },
   { .type = Number,  .name = "-",     .method = _number_add,    .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 1 },
@@ -85,8 +77,6 @@ static methoddescr_t _methoddescr_number[] = {
   { .type = NoType,  .name = NULL,    .method = NULL,           .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0 }
 };
 
-static int _inherits_float[] = { Number };
-
 static vtable_t _vtable_float[] = {
   { .id = FunctionNew,      .fnc = (void_t) _float_new },
   { .id = FunctionCmp,      .fnc = (void_t) _float_cmp },
@@ -102,8 +92,6 @@ static vtable_t _vtable_float[] = {
 static typedescr_t _typedescr_float =   {
   .type           = Float,
   .type_name      = "float",
-  .inherits_size  = 1,
-  .inherits       = _inherits_float,
   .vtable         = _vtable_float,
   .promote_to     = NoType
 };
@@ -115,7 +103,7 @@ static typedescr_t _typedescr_float =   {
  */
 
 void _float_init(void) {
-  typedescr_register(&_typedescr_number);
+  interface_register(Number, "number", 2, FunctionFltValue, FunctionIntValue);
   typedescr_register(&_typedescr_float);
   typedescr_register_methods(_methoddescr_number);
 }

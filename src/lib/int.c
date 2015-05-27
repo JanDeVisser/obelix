@@ -68,13 +68,10 @@ static vtable_t _vtable_int[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static int _inherits_int[] = { Number };
-
 static typedescr_t _typedescr_int = {
   .type          = Int,
   .type_name     = "int",
-  .inherits_size = 1,
-  .inherits      = _inherits_int,
+  .inherits      = { Number, NoType, NoType },
   .promote_to    = Float,
   .vtable        = _vtable_int
 };
@@ -94,8 +91,7 @@ static int _inherits_bool[] = { Int };
 static typedescr_t _typedescr_bool = {
   .type          = Bool,
   .type_name     = "bool",
-  .inherits_size = 1,
-  .inherits      = _inherits_bool,
+  .inherits      = { Int, NoType, NoType },
   .vtable        = _vtable_bool,
   .promote_to    = Int
 };
@@ -129,8 +125,10 @@ void _int_init(void) {
   typedescr_register_methods(_methoddescr_int);
   data_settype(&_bool_true, Bool);
   _bool_true.intval = 1;
+  _bool_true.free_me = Constant;
   data_settype(&_bool_false, Bool);
   _bool_false.intval = 0;
+  _bool_false.free_me = Constant;
 }
 
 data_t * _int_new(data_t *target, va_list arg) {
