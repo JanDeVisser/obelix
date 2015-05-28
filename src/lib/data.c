@@ -796,6 +796,48 @@ data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
   return ret;
 }
 
+/* - S C O P E -------------------------------------------------------------*/
+
+data_t * data_push(data_t *scope, data_t *value) {
+  typedescr_t *type;
+  data2_fnc_t  pushfnc;
+  data_t      *ret = NULL;
+  
+  if (scope) {
+    type = data_typedescr(scope);
+    pushfnc = (data2_fnc_t) typedescr_get_function(scope, FunctionPush);
+    if (pushfnc) {
+      (void) pushfnc(scope, value);
+      ret = scope;
+    }
+  }
+  if (!ret) {
+    ret = data_exception(ErrorType,
+                         "Atom '%s' is not a Scope",
+                         data_tostring(scope));
+  }
+  return ret;
+}
+
+data_t * data_pop(data_t *scope) {
+  typedescr_t *type;
+  data_fnc_t   popfnc;
+  data_t      *ret = NULL;
+  
+  if (scope) {
+    type = data_typedescr(scope);
+    popfnc = (data_fnc_t) typedescr_get_function(scope, FunctionPush);
+    if (popfnc) {
+      ret = popfnc(scope);
+    }
+  }
+  if (!ret) {
+    ret = data_exception(ErrorType,
+                         "Atom '%s' is not a Scope",
+                         data_tostring(scope));
+  }
+  return ret;
+}
 
 /* -------------------------------------------------------------------------*/
 

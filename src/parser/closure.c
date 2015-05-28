@@ -40,9 +40,11 @@ static vtable_t _wrapper_vtable_closure[] = {
   { .id = FunctionHash,     .fnc = (void_t) closure_hash },
   { .id = FunctionFree,     .fnc = (void_t) closure_free },
   { .id = FunctionToString, .fnc = (void_t) closure_tostring },
-  { .id = FunctionResolve,  .fnc = (void_t) closure_resolve },
   { .id = FunctionCall,     .fnc = (void_t) closure_execute },
   { .id = FunctionSet,      .fnc = (void_t) closure_set },
+  { .id = FunctionResolve,  .fnc = (void_t) closure_resolve },
+  { .id = FunctionPush,     .fnc = (void_t) closure_push },
+  { .id = FunctionPop,      .fnc = (void_t) closure_pop },
   { .id = FunctionNone,     .fnc = NULL }
 };
 

@@ -39,11 +39,12 @@ typedef enum _metatype {
   OutputStream, /* 1003 */
   Iterable,     /* 1004 */
   Iterator,     /* 1005 */
-  Callable,     /* 1006 */
-  Connector,    /* 1007 */
-  CtxHandler,   /* 1008 */
-  Any,          /* 1009 */
-  NextInterface /* 1010 - Marker */
+  Scope,        /* 1006 */
+  Callable,     /* 1007 */
+  Connector,    /* 1008 */
+  CtxHandler,   /* 1009 */
+  Any,          /* 1010 */
+  NextInterface /* 1011 - Marker */
 } metatype_t;
 
 typedef enum _vtable_id {
@@ -78,6 +79,8 @@ typedef enum _vtable_id {
   FunctionQuery,     /* 28 */
   FunctionEnter,     /* 29 */
   FunctionLeave,     /* 30 */
+  FunctionPush,      /* 31 */
+  FunctionPop,       /* 32 */
   FunctionEndOfListDummy
 } vtable_id_t;
 

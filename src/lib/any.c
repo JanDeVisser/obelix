@@ -45,8 +45,6 @@ static data_t * _any_query(data_t *, char *, array_t *, dict_t *);
 
 /* ------------------------------------------------------------------------ */
 
-static typedescr_t _typedescr_any = { .type = Any, .type_name = "any" };
-
 static methoddescr_t _methoddescr_interfaces[] = {
   { .type = Any,      .name = ">" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
   { .type = Any,      .name = "<" ,       .method = _any_cmp,      .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
@@ -86,6 +84,7 @@ void _any_init(void) {
   interface_register(OutputStream, "outputstream", 1, FunctionWrite);
   interface_register(Iterable,     "iterable",     1, FunctionIter);
   interface_register(Iterator,     "iterator",     2, FunctionNext, FunctionHasNext);
+  interface_register(Scope,        "scope",        4, FunctionPush, FunctionPop, FunctionResolve, FunctionSet);
   interface_register(Connector,    "connector",    1, FunctionQuery);
   interface_register(CtxHandler,   "ctxhandler",   2, FunctionEnter, FunctionLeave);
   typedescr_register_methods(_methoddescr_interfaces);

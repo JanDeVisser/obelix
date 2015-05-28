@@ -42,6 +42,8 @@ static data_t *     _wrapper_leave(data_t *, data_t *);
 static data_t *     _wrapper_read(data_t *, char *, int);
 static data_t *     _wrapper_write(data_t *, char *, int);
 static data_t *     _wrapper_query(data_t *, data_t *);
+static data_t *     _wrapper_push(data_t *, data_t *);
+static data_t *     _wrapper_pop(data_t *);
 
 static vtable_t _vtable_wrapper[] = {
   { .id = FunctionIs,       .fnc = (void_t) _wrapper_is },
@@ -52,9 +54,7 @@ static vtable_t _vtable_wrapper[] = {
   { .id = FunctionHash,     .fnc = (void_t) _wrapper_hash },
   { .id = FunctionFreeData, .fnc = (void_t) _wrapper_free },
   { .id = FunctionToString, .fnc = (void_t) _wrapper_tostring },
-  { .id = FunctionResolve,  .fnc = (void_t) _wrapper_resolve },
   { .id = FunctionCall,     .fnc = (void_t) _wrapper_call },
-  { .id = FunctionSet,      .fnc = (void_t) _wrapper_set },
   { .id = FunctionLen,      .fnc = (void_t) _wrapper_len },
   { .id = FunctionIter,     .fnc = (void_t) _wrapper_iter },
   { .id = FunctionNext,     .fnc = (void_t) _wrapper_next },
@@ -62,6 +62,10 @@ static vtable_t _vtable_wrapper[] = {
   { .id = FunctionQuery,    .fnc = (void_t) _wrapper_query },
   { .id = FunctionRead,     .fnc = (void_t) _wrapper_read },
   { .id = FunctionWrite,    .fnc = (void_t) _wrapper_write },
+  { .id = FunctionPush,     .fnc = (void_t) _wrapper_push },
+  { .id = FunctionPop,      .fnc = (void_t) _wrapper_pop },
+  { .id = FunctionResolve,  .fnc = (void_t) _wrapper_resolve },
+  { .id = FunctionSet,      .fnc = (void_t) _wrapper_set },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -240,43 +244,6 @@ data_t * _wrapper_call(data_t *self, array_t *params, dict_t *kwargs) {
   }
 }
 
-data_t * _wrapper_resolve(data_t *data, char *name) {
-  typedescr_t *type = data_typedescr(data);
-  void_t       fnc;
-  data_t      *ret;
-  
-  fnc = wrapper_function(type, FunctionResolve);
-  if (!fnc) {
-    return data_exception(ErrorInternalError,
-                      "No 'resolve' method defined for wrapper type '%s'", 
-                      type -> type_name);
-  } else {
-    ret = ((resolve_name_t) fnc)(data -> ptrval, name);
-    if (wrapper_debug) {
-      debug("wrapper_resolve(%s, %s) = %s", 
-            type -> type_name, name, data_tostring(ret));
-    }
-    return ret;
-  }
-}
-
-data_t * _wrapper_set(data_t *data, char *name, data_t *value) {
-  typedescr_t *type = data_typedescr(data);
-  void_t       fnc;
-  
-  if (wrapper_debug) {
-    debug("wrapper_set(%s)", type -> type_name);
-  }
-  fnc = wrapper_function(type, FunctionSet);
-  if (!fnc) {
-    return data_exception(ErrorInternalError,
-                      "No 'set' method defined for wrapper type '%s'", 
-                      type -> type_name);
-  } else {
-    return ((setvalue_t) fnc)(data -> ptrval, name, value);
-  }
-}
-
 int _wrapper_len(data_t *data) {
   typedescr_t *type = data_typedescr(data);
   int        (*fnc)(void *);
@@ -431,6 +398,77 @@ data_t * _wrapper_write(data_t *data, char *buf, int num) {
   }
 }
 
+data_t * _wrapper_push(data_t *data, data_t *value) {
+  typedescr_t  *type = data_typedescr(data);
+  data_t *    (*fnc)(void *, data_t *);
+  
+  if (wrapper_debug) {
+    debug("_wrapper_push(%s:%s)", typedescr_tostring(type), data_tostring(data));
+  }
+  fnc = (data_t * (*)(void *, data_t *)) wrapper_function(type, FunctionPush);
+  if (fnc) {
+    return fnc(data -> ptrval, value);
+  } else {
+    return data_exception(ErrorFunctionUndefined,
+                          "No 'push' method defined for wrapper type '%s'", 
+                          typedescr_tostring(type));
+  }
+}
+
+data_t * _wrapper_pop(data_t *data) {
+  typedescr_t  *type = data_typedescr(data);
+  data_t *    (*fnc)(void *);
+  
+  if (wrapper_debug) {
+    debug("_wrapper_pop(%s:%s)", typedescr_tostring(type), data_tostring(data));
+  }
+  fnc = (data_t * (*)(void *)) wrapper_function(type, FunctionPop);
+  if (fnc) {
+    return fnc(data -> ptrval);
+  } else {
+    return data_exception(ErrorFunctionUndefined,
+                          "No 'pop' method defined for wrapper type '%s'", 
+                          typedescr_tostring(type));
+  }
+}
+
+data_t * _wrapper_resolve(data_t *data, char *name) {
+  typedescr_t *type = data_typedescr(data);
+  void_t       fnc;
+  data_t      *ret;
+  
+  fnc = wrapper_function(type, FunctionResolve);
+  if (!fnc) {
+    return data_exception(ErrorInternalError,
+                          "No 'resolve' method defined for wrapper type '%s'", 
+                          type -> type_name);
+  } else {
+    ret = ((resolve_name_t) fnc)(data -> ptrval, name);
+    if (wrapper_debug) {
+      debug("wrapper_resolve(%s, %s) = %s", 
+            type -> type_name, name, data_tostring(ret));
+    }
+    return ret;
+  }
+}
+
+data_t * _wrapper_set(data_t *data, char *name, data_t *value) {
+  typedescr_t *type = data_typedescr(data);
+  void_t       fnc;
+  
+  if (wrapper_debug) {
+    debug("wrapper_set(%s)", type -> type_name);
+  }
+  fnc = wrapper_function(type, FunctionSet);
+  if (!fnc) {
+    return data_exception(ErrorInternalError,
+                          "No 'set' method defined for wrapper type '%s'", 
+                          type -> type_name);
+  } else {
+    return ((setvalue_t) fnc)(data -> ptrval, name, value);
+  }
+}
+
 
 /* -- W R A P P E R  P U B L I C  F U N C T I O N S ----------------------- */
 
@@ -441,8 +479,7 @@ int wrapper_register(int type, char *name, vtable_t *vtable) {
   descr.type_name = name;
   descr.ptr = vtable_build(vtable);
   descr.vtable = _vtable_wrapper;
-  descr.inherits_size = 0;
-  descr.inherits = NULL;
+  descr.inherits = { NoType, NoType, NoType };
   descr.promote_to = 0;
   descr.methods = NULL;
   descr.hash = 0;
