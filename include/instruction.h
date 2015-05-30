@@ -54,7 +54,6 @@ extern int ITDecr;
 extern int ITDup;
 extern int ITEnterContext;
 extern int ITFunctionCall;
-extern int ITImport;
 extern int ITIncr;
 extern int ITIter;
 extern int ITJump;
@@ -87,7 +86,6 @@ extern instruction_t * instruction_set_label(instruction_t *, data_t *);
 #define instruction_create_assign(n)        data_create(ITAssign, name_tostring((n)), data_create(Name, (n)))
 #define instruction_create_decr()           data_create(ITDecr, NULL, NULL)
 #define instruction_create_dup()            data_create(ITDup, NULL, NULL)
-#define instruction_create_import(m)        data_create(ITImport, NULL, data_create(Name, (m)))
 #define instruction_create_incr()           data_create(ITIncr, NULL, NULL)
 #define instruction_create_iter()           data_create(ITIter, NULL, NULL)
 #define instruction_create_jump(l)          data_create(ITJump, data_charval((l)), NULL)

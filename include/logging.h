@@ -37,6 +37,7 @@ extern void   logging_reset(void);
 extern void   logging_enable(char *);
 extern void   logging_disable(char *);
 extern void   _logmsg(log_level_t, const char *, int, const char *, const char *, ...);
+extern int    logging_status(char *);
 
 extern log_level_t log_level;
 

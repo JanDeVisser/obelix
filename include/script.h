@@ -151,9 +151,6 @@ extern closure_t *      closure_copy(closure_t *);
 extern char *           closure_tostring(closure_t *);
 extern int              closure_cmp(closure_t *, closure_t *);
 extern unsigned int     closure_hash(closure_t *);
-extern data_t *         closure_pop(closure_t *);
-extern data_t *         closure_peek(closure_t *);
-extern closure_t *      closure_push(closure_t *, data_t *);
 extern data_t *         closure_set(closure_t *, char *, data_t *);
 extern data_t *         closure_get(closure_t *, char *);
 extern int              closure_has(closure_t *, char *);
@@ -161,8 +158,6 @@ extern data_t *         closure_resolve(closure_t *, char *);
 extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
 extern data_t *         closure_import(closure_t *, name_t *);
 extern closure_t *      closure_set_location(closure_t *, data_t *);
-extern data_t *         closure_stash(closure_t *, unsigned int, data_t *);
-extern data_t *         closure_unstash(closure_t *, unsigned int);
 
 /* -- N A T I V E  F N C  P R O T O T Y P E S ----------------------------- */
 

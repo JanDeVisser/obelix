@@ -84,7 +84,6 @@ void _any_init(void) {
   interface_register(OutputStream, "outputstream", 1, FunctionWrite);
   interface_register(Iterable,     "iterable",     1, FunctionIter);
   interface_register(Iterator,     "iterator",     2, FunctionNext, FunctionHasNext);
-  interface_register(Scope,        "scope",        4, FunctionPush, FunctionPop, FunctionResolve, FunctionSet);
   interface_register(Connector,    "connector",    1, FunctionQuery);
   interface_register(CtxHandler,   "ctxhandler",   2, FunctionEnter, FunctionLeave);
   typedescr_register_methods(_methoddescr_interfaces);

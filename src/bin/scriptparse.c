@@ -34,20 +34,24 @@ static parser_t * _script_parse_prolog(parser_t *);
 static parser_t * _script_parse_epilog(parser_t *);
 static long       _script_parse_get_option(parser_t *, obelix_option_t);
 
-static data_t    *end_data = NULL;
-static data_t    *error_data = NULL;
-static name_t    *error_name = NULL;
-static name_t    *end_name = NULL;
-static name_t    *query_name = NULL;
+static data_t    *name_end = NULL;
+static data_t    *data_error = NULL;
+static name_t    *name_error = NULL;
+static name_t    *name_end = NULL;
+static name_t    *name_query = NULL;
+static name_t    *name_hasattr = NULL;
+static name_t    *name_self = NULL;
 
 /* ----------------------------------------------------------------------- */
 
 void _script_parse_create_statics(void) {
-  end_data = data_create(String, "END");
-  error_data = data_create(String, "ERROR");
-  end_name = name_create(1, data_tostring(end_data));
-  error_name = name_create(1, data_tostring(error_data));
-  query_name = name_create(1, "query");
+  name_end = data_create(String, "END");
+  data_error = data_create(String, "ERROR");
+  name_end = name_create(1, data_tostring(name_end));
+  name_error = name_create(1, data_tostring(data_error));
+  name_query = name_create(1, "query");
+  name_hasattr = name_create(1, "hasattr");
+  name_self = name_create(1, "self");
 }
 
 
@@ -77,7 +81,7 @@ parser_t * _script_parse_prolog(parser_t *parser) {
   
   script = (script_t *) parser -> data;
   script_push_instruction(script, 
-                          instruction_create_enter_context(NULL, error_data));
+                          instruction_create_enter_context(NULL, data_error));
   return parser;
 }
 
@@ -103,11 +107,11 @@ parser_t * _script_parse_epilog(parser_t *parser) {
       data_free(data);
     }
 
-    datastack_push(script -> pending_labels, data_copy(error_data));
+    datastack_push(script -> pending_labels, data_copy(data_error));
     script_push_instruction(script, 
-                            instruction_create_leave_context(error_name));
+                            instruction_create_leave_context(name_error));
     
-    datastack_push(script -> pending_labels, data_copy(end_data));
+    datastack_push(script -> pending_labels, data_copy(name_end));
     script_parse_nop(parser);
   }
   if (script_debug || _script_parse_get_option(parser, ObelixOptionList)) {
@@ -264,6 +268,19 @@ parser_t *script_parse_defer_bookmarked_block(parser_t *parser) {
   script = parser -> data;
   script_defer_bookmarked_block(script);
   return parser;
+}
+
+parser_t * script_parse_instruction(parser_t *parser, data_t *type) {
+  typedescr_t *type;
+  
+  type = typedescr_get_byname(data_tostring(type));
+  if (!type) {
+    return NULL;
+  } else {
+    script_push_instruction((script_t *) parser -> data, 
+                            data_create(type -> type, NULL, NULL));
+    return parser;
+  }
 }
 
 /* ----------------------------------------------------------------------- */
@@ -442,7 +459,7 @@ parser_t* script_parse_reduce(parser_t *parser, data_t *initial) {
     * function and the initial value.
     */
     script_push_instruction(script, 
-                            instruction_create(ITSwap, NULL, NULL));
+                            data_create(ITSwap, NULL, NULL));
     script_push_instruction(script, 
                             instruction_create_function(reduce, CFInfix, 3, NULL));
   } else {
@@ -510,14 +527,13 @@ parser_t * script_parse_where(parser_t *parser) {
 }
 
 parser_t * script_parse_func_call(parser_t *parser) {
-  script_t      *script;
-  data_t        *func_name;
-  int            arg_count = 0;
-  array_t       *kwargs;
-  instruction_t *instr;
-  data_t        *is_constr = parser_get(parser, "constructor");
-  data_t        *varargs = parser_get(parser, "varargs");
-  callflag_t     flags = 0;
+  script_t   *script;
+  data_t     *func_name;
+  int         arg_count = 0;
+  array_t    *kwargs;
+  data_t     *is_constr = parser_get(parser, "constructor");
+  data_t     *varargs = parser_get(parser, "varargs");
+  callflag_t  flags = 0;
 
   script = parser -> data;
   kwargs = datastack_rollup(parser -> stack);
@@ -533,24 +549,16 @@ parser_t * script_parse_func_call(parser_t *parser) {
   if (is_constr && data_intval(is_constr)) {
     flags |= CFConstructor;
   }
-  instr = instruction_create_function(data_nameval(func_name), flags, arg_count, kwargs);
-  script_push_instruction(script, instr);
+  script_push_instruction(script,
+                          instruction_create_function(data_nameval(func_name), 
+                                                      flags, 
+                                                      arg_count, 
+                                                      kwargs));
   data_free(func_name);
   parser_set(parser, "varargs", data_false());
   parser_set(parser, "constructor", data_false());
   return parser;
 }
-
-parser_t* script_parse_subscript(parser_t *parser) {
-  script_t      *script;
-  instruction_t *instr;
-  
-  script = parser -> data;
-  instr = instruction_create(ITSubscript, "", NULL);
-  script_push_instruction(script, instr);
-  return parser;
-}
-
 
 parser_t * script_parse_import(parser_t *parser) {
   script_t *script;
@@ -842,18 +850,10 @@ parser_t * script_parse_start_function(parser_t *parser) {
 
 parser_t * script_parse_baseclass_constructors(parser_t *parser) {
   script_t      *script = (script_t *) parser -> data;
-  static name_t *hasattr = NULL;
-  static data_t *self = NULL;
 
-  if (!hasattr) {
-    hasattr = name_create(1, "hasattr");
-  }
-  if (!self) {
-    self = data_create(String, "self");
-  }
-  script_push_instruction(script, instruction_create_pushval(self));
+  script_push_instruction(script, instruction_create_pushval(name_self));
   script_push_instruction(script,
-                          instruction_create_function(hasattr, CFNone, 1, NULL));
+                          instruction_create_function(name_hasattr, CFNone, 1, NULL));
   script_parse_test(parser);
   return parser;
 }
@@ -1005,6 +1005,6 @@ parser_t * script_parse_query(parser_t *parser) {
   script_push_instruction(script,
                           instruction_create_pushval(query));
   script_push_instruction(script,
-                          instruction_create_function(query_name, CFInfix, 2, NULL));
+                          instruction_create_function(name_query, CFInfix, 2, NULL));
   return parser;
 }

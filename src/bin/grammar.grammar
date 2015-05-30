@@ -171,7 +171,7 @@ parlist_tail                := ,
                              ;
 
 return_stmt                 := "return"
-                               expr              [ instruction: "ITReturn"   ]
+                               expr              [ instruction: "Return"      ]
                              ;
 
 new                         := "new"             [ setup_function: "new" incr ]
@@ -179,8 +179,8 @@ new                         := "new"             [ setup_function: "new" incr ]
                                _func_call
                              ;
 
-import_stmt                 := "import"
-                               identifier        [ import                    ]
+import_stmt                 := "import"          [ setup_function: "import"  ]
+                               identifier        [ func_call                 ]
                              ;
 
 context_block               := "context"
@@ -255,7 +255,7 @@ factor                      := expr_atom
                                subscript
                              ;
 
-subscript                   := '[' expr ']'      [ subscript                 ]
+subscript                   := '[' expr ']'      [ instruction: "Subscript"  ]
                              |
                              ;
 

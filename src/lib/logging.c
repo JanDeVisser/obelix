@@ -186,3 +186,14 @@ void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, co
   }
 }
 
+int logging_status(char *category) {
+  logcategory_t *cat;
+  int            ret;
+  
+  cat = dict_get(_categories, category);
+  if (!cat) {
+    cat = _logcategory_create(category, NULL);
+    cat -> enabled = FALSE;
+  }
+  return cat -> enabled;  
+}

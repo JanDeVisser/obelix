@@ -50,8 +50,6 @@ static methoddescr_t _methoddescr_nvp[] = {
   { .type = NoType, .name = NULL,    .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
-
-
 static typedescr_t _typedescr_nvp = {
   .type =      NVP,
   .type_name = "nvp",

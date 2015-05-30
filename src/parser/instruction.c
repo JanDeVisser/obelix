@@ -27,7 +27,7 @@
 #include <logging.h>
 #include <name.h>
 #include <nvp.h>
-#include <math.h>
+#include <script.h>
 
 int script_trace = 0;
 extern int script_debug;
@@ -194,7 +194,8 @@ static typedescr_t _typedescr_call = {
   .vtable =    _vtable_call
 };
 
-static name_t *empty = NULL;
+static name_t *name_empty = NULL;
+static name_t *name_self = NULL;
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -206,9 +207,12 @@ void _instruction_init(void) {
   logging_register_category("trace", &script_trace);
 
   Instruction = typedescr_register(&_typedescr_instruction);
+  interface_register(Scope, "scope",        
+                     4, FunctionPush, FunctionPop, FunctionResolve, FunctionSet);
   // ...
   Call = typedescr_register(&_typedescr_call);
-  empty = name_create(0);
+  name_empty = name_create(0);
+  name_self = name_create(1, "self");
 }
 
 data_t * _call_new(int type, va_list arg) {
@@ -519,7 +523,7 @@ data_t * _instruction_execute_PushCtx(instruction_t *instr, data_t *scope) {
   } else {
     return data_exception(ErrorInternalError,
                           "%s: No context set",
-                          instruction_tostring(instr));
+                          data_tostring(&instr -> data));
   }
 }
 
@@ -529,9 +533,10 @@ data_t * _instruction_execute_PushVal(instruction_t *instr, data_t *scope) {
   return NULL;
 }
 
-name_t * _instruction_setup_constructor(data_t *closure, 
+name_t * _instruction_setup_constructor(data_t *scope, 
                                         function_call_t *constructor) {
   data_t         *self;
+  object_t       *obj;
   data_t         *s = NULL;
   script_t       *script;
   data_t         *dscript;
@@ -539,12 +544,12 @@ name_t * _instruction_setup_constructor(data_t *closure,
   char           *name;
   char           *ptr;
   name_t         *ret = NULL;
-  name_t         *name_self = name_create(1, "self");
   
-  self = data_get(closure, name_self);
+  self = data_get(scope, name_self);
   name_free(name_self);
   if (data_is_object(self)) {
-    s = data_resolve(closure, constructor -> name);
+    obj = data_objectval(self);
+    s = data_resolve(scope, constructor -> name);
     if (data_is_script(s)) {
       script = data_scriptval(s);
     } else if (data_is_boundmethod(s)) {
@@ -553,14 +558,15 @@ name_t * _instruction_setup_constructor(data_t *closure,
       script = data_closureval(s) -> script;
     }
     if (script) {
-      bm = script_bind(script, data_objectval(self));
       asprintf(&name, "$%s", name_tostring(constructor -> name));
       for (ptr = strchr(name, '.'); ptr; ptr = strchr(ptr + 1, '.')) {
         *ptr = '_';
       }
       ret = name_create(1, name);
-      data_set(closure, ret, data_create(BoundMethod, bm));
-      object_bind_all(data_objectval(self), dscript = data_create(Script, script));
+      free(name);
+      data_set(scope, ret, 
+               data_create(BoundMethod, script_bind(script, obj)));
+      object_bind_all(self, dscript = data_create(Script, script));
       data_free(dscript);
     }
   }
@@ -717,22 +723,6 @@ data_t * _instruction_execute_Next(instruction_t *instr, data_t *scope) {
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _instruction_execute_Import(instruction_t *instr, data_t *scope) {
-  array_t *args = data_array_create(1);
-  data_t  *ret;
-
-  array_push(args, data_copy(instr -> value))
-  ret = data_execute(scope, "import", args, NULL);
-  array_free(args);
-  if (!data_is_exception(ret)) {
-    data_free(ret);
-    ret = NULL;
-  }
-  return ret;
-}
-
-/* ----------------------------------------------------------------------- */
-
 data_t * _instruction_execute_Nop(instruction_t *instr, data_t *scope) {
   if (instr -> value) {
     closure_set_location(closure, instr -> value);
@@ -743,13 +733,17 @@ data_t * _instruction_execute_Nop(instruction_t *instr, data_t *scope) {
 data_t * _instruction_execute_Pop(instruction_t *instr, data_t *scope) {
   data_t *value;
 
-  value = closure_pop(closure);
+  value = data_pop(scope);
   data_free(value);
   return NULL;
 }
 
 data_t * _instruction_execute_Dup(instruction_t *instr, data_t *scope) {
-  closure_push(closure, data_copy(closure_peek(closure)));
+  data_t *value;
+  
+  value = data_pop(scope);
+  data_push(scope, data_copy(value));
+  data_push(scope, value);
   return NULL;
 }
 
@@ -757,10 +751,10 @@ data_t * _instruction_execute_Swap(instruction_t *instr, data_t *scope) {
   data_t *v1;
   data_t *v2;
 
-  v1 = closure_pop(closure);
-  v2 = closure_pop(closure);
-  closure_push(closure, v1);
-  closure_push(closure, v2);
+  v1 = data_pop(scope);
+  v2 = data_pop(scope);
+  data_push(scope, v1);
+  data_push(scope, v2);
   return NULL;
 }
 
@@ -770,15 +764,15 @@ data_t * _instruction_execute_Stash(instruction_t *instr, data_t *scope) {
   assert(data_intval(instr -> value) < NUM_STASHES);
   closure_stash(closure,
                 data_intval(instr -> value),
-                data_copy(closure_pop(closure)));
+                data_copy(data_pop(scope)));
   return NULL;
 }
 
 data_t * _instruction_execute_Unstash(instruction_t *instr, data_t *scope) {
   assert(data_intval(instr -> value) < NUM_STASHES);
-  closure_push(closure, 
-               data_copy(closure_unstash(closure,
-                                         data_intval(instr -> value))));
+  data_push(scope, 
+            data_copy(closure_unstash(closure,
+                                      data_intval(instr -> value))));
   return NULL;
 }
 
@@ -807,23 +801,22 @@ void _instr_free(instruction_t *instr) {
   free(instr);
 }
 
-instruction_t *  instruction_create_enter_context(name_t *varname, data_t *catchpoint) {
-  
+data_t *  instruction_create_enter_context(name_t *varname, data_t *catchpoint) {
   if (!varname) {
-    varname = empty;
+    varname = name_empty;
   }
-  return instruction_create(ITEnterContext,
-                            data_tostring(catchpoint), 
-			    data_create(Name, varname));    
+  return data_create(ITEnterContext, 
+                     data_tostring(catchpoint),
+                     data_create(Name, varname));    
 }
 
-instruction_t * instruction_create_function(name_t *name, callflag_t flags, 
-                                            long num_args, array_t *kwargs) {
+data_t * instruction_create_function(name_t *name, callflag_t flags, 
+                                     long num_args, array_t *kwargs) {
   instruction_t *ret;
   data_t        *call;
 
   call = data_create(Call, name, flags, num_args, kwargs);
-  ret = instruction_create(ITFunctionCall, name_tostring(name), call);
+  ret = data_create(ITFunctionCall, name_tostring(name), call);
   return ret;
 }
 
