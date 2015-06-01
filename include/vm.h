@@ -34,15 +34,14 @@ extern "C" {
 #define NUM_STASHES     8
 
 typedef struct _vm {
+  data_t       data;
   data_t      *stashes[NUM_STASHES];
   bytecode_t  *bytecode;
   datastack_t *stack;
   datastack_t *contexts;
-  int          refs;
-  char *       str;
 } vm_t;
 
-extern vm_t *   vm_create(va_list);
+extern vm_t *   vm_create(bytecode_t *);
 extern void     vm_free(vm_t *);
 extern vm_t *   vm_copy(vm_t *);
 extern char *   vm_tostring(vm_t *);

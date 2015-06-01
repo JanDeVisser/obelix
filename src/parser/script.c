@@ -77,23 +77,6 @@ data_t * data_create_closure(closure_t *closure) {
 
 /* -- S C R I P T  S T A T I C  F U N C T I O N S  ------------------------ */
 
-script_t * _script_set_instructions(script_t *script, list_t *block) {
-  if (!block) {
-    block = script -> main_block;
-  }
-  script -> instructions = block;
-  return script;
-}
-
-void _script_list_block(list_t *block) {
-  instruction_t *instr;
-  
-  for (list_start(block); list_has_next(block); ) {
-    instr = (instruction_t *) list_next(block);
-    fprintf(stderr, "%s\n", instruction_tostring(instr));
-  }
-}
-
 /* -- S C R I P T  P U B L I C  F U N C T I O N S  ------------------------ */
 
 script_t * script_create(module_t *mod, script_t *up, char *name) {
@@ -108,20 +91,12 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
     debug("Creating script '%s'", name);
   }
   ret = NEW(script_t);
-  
-  ret -> main_block = list_create();
-  list_set_free(ret -> main_block, (free_t) instruction_free);
-  list_set_tostring(ret -> main_block, (tostring_t) instruction_tostring);
-  _script_set_instructions(ret, NULL);
-  ret -> deferred_blocks = datastack_create("deferred blocks");
-  ret -> bookmarks = datastack_create("bookmarks");
+  data_settype(&ret -> data, Script);
+  ret -> data.ptrval = ret;
   
   ret -> functions = strdata_dict_create();
-  ret -> labels = strvoid_dict_create();
-  ret -> pending_labels = datastack_create("pending labels");
   ret -> params = NULL;
   ret -> async = 0;
-  ret -> current_line = -1;
 
   if (up) {
     dict_put(up -> functions, strdup(name), data_create_script(ret));
@@ -136,17 +111,12 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
     ret -> name = name_create(0);
   }
   ret -> fullname = NULL;
-  ret -> str = NULL;
-  ret -> refs = 1;
   free(anon);
   return ret;
 }
 
 script_t * script_copy(script_t *script) {
-  if (script) {
-    script -> refs++;
-  }
-  return script;
+  return (script) ? data_copy(&script -> data) -> ptrval : NULL;
 }
 
 name_t * script_fullname(script_t *script) {
@@ -166,18 +136,13 @@ char * script_tostring(script_t *script) {
 
 void script_free(script_t *script) {
   if (script && (--script -> refs <= 0)) {
-    datastack_free(script -> pending_labels);
-    datastack_free(script -> bookmarks);
-    datastack_free(script -> deferred_blocks);
-    list_free(script -> instructions);
-    dict_free(script -> labels);
+    bytecode_free(script -> bytecode);
     array_free(script -> params);
     dict_free(script -> functions);
     script_free(script -> up);
     mod_free(script -> mod);
     name_free(script -> name);
     name_free(script -> fullname);
-    free(script -> str);
     free(script);
   }
 }
@@ -196,103 +161,6 @@ int script_cmp(script_t *s1, script_t *s2) {
 
 unsigned int script_hash(script_t *script) {
   return (script) ? name_hash(script_fullname(script)) : 0L;
-}
-
-script_t * script_push_instruction(script_t *script, instruction_t *instruction) {
-  listnode_t    *node;
-  data_t        *label;
-  int            line;
-  instruction_t *last;
-
-  last = list_tail(script -> instructions);
-  line = (last) ? last -> line : -1;
-  if (script -> current_line > line) {
-    instruction -> line = script -> current_line;
-  }
-  list_push(script -> instructions, instruction);
-  if (!datastack_empty(script -> pending_labels)) {
-    label = datastack_peek(script -> pending_labels);
-    instruction_set_label(instruction, label);
-    node = list_tail_pointer(script -> instructions);
-    while (!datastack_empty(script -> pending_labels)) {
-      label = datastack_pop(script -> pending_labels);
-      dict_put(script -> labels, strdup(data_charval(label)), node);
-      data_free(label);
-    }
-  }
-  return script;
-}
-
-script_t * script_start_deferred_block(script_t *script) {
-  list_t *block;
-
-  block = list_create();
-  list_set_free(block, (free_t) instruction_free);
-  list_set_tostring(block, (tostring_t) instruction_tostring);
-  _script_set_instructions(script, block);
-  return script;
-}
-
-script_t * script_end_deferred_block(script_t *script) {
-  datastack_push(script -> deferred_blocks, 
-                 data_create(Pointer, sizeof(list_t), script -> instructions));
-  _script_set_instructions(script, NULL);
-  return script;
-}
-
-script_t * script_pop_deferred_block(script_t *script) {
-  list_t        *block;
-  data_t        *data;
-  instruction_t *instr;
-
-  data = datastack_pop(script -> deferred_blocks);
-  block = data_unwrap(data);
-  list_join(script -> instructions, block);
-  data_free(data);
-  return script;
-}
-
-script_t * script_bookmark(script_t *script) {
-  listnode_t *node = list_tail_pointer(script -> instructions);
-  data_t     *data = data_create(Pointer, sizeof(listnode_t), node);
-  
-  assert(data_unwrap(data) == node);
-  datastack_push(script -> bookmarks, data);
-  return script;
-}
-
-script_t * script_discard_bookmark(script_t *script) {
-  datastack_pop(script -> bookmarks);
-  return script;
-}
-
-script_t * script_defer_bookmarked_block(script_t *script) {
-  listnode_t    *node;
-  data_t        *data;
-  list_t        *block = script -> instructions;
-  instruction_t *instr;
-
-  data = datastack_pop(script -> bookmarks);
-  node = data_unwrap(data);
-  script_start_deferred_block(script);
-  if (node) {
-    list_position(node);
-    list_next(node -> list);
-    block = list_split(block);
-  }
-  list_join(script -> instructions, block);
-  script_end_deferred_block(script);
-  return script;
-}
-
-void script_list(script_t *script) {
-  fprintf(stderr, "==================================================================\n");
-  fprintf(stderr, "Script Listing - %s\n", script_tostring(script));
-  fprintf(stderr, "------------------------------------------------------------------\n");
-  fprintf(stderr, "%-6s %-11.11s%-15.15s\n", "Line", "Label", "Instruction");
-  fprintf(stderr, "------------------------------------------------------------------\n");
-  _script_list_block(script -> instructions);
-  fprintf(stderr, "==================================================================\n");
 }
 
 script_t * script_get_toplevel(script_t *script) {

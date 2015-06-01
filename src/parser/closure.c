@@ -25,6 +25,7 @@
 #include <script.h>
 #include <stacktrace.h>
 #include <thread.h>
+#include <vm.h>
 #include <wrapper.h>
 
 static void             _closure_init(void) __attribute__((constructor(102)));
@@ -33,8 +34,11 @@ static closure_t *      _closure_create_closure_reducer(entry_t *, closure_t *);
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
 static data_t *         _closure_get(closure_t *, char *);
 static data_t *         _closure_start(closure_t *);
+static data_t *         _closure_create(int, va_list);
+static data_t *         _closure_import(data_t *, char *, array_t *, dict_t *);
 
-static vtable_t _wrapper_vtable_closure[] = {
+static vtable_t _vtable_closure[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) _closure_create },
   { .id = FunctionCopy,     .fnc = (void_t) closure_copy },
   { .id = FunctionCmp,      .fnc = (void_t) closure_cmp },
   { .id = FunctionHash,     .fnc = (void_t) closure_hash },
@@ -43,8 +47,6 @@ static vtable_t _wrapper_vtable_closure[] = {
   { .id = FunctionCall,     .fnc = (void_t) closure_execute },
   { .id = FunctionSet,      .fnc = (void_t) closure_set },
   { .id = FunctionResolve,  .fnc = (void_t) closure_resolve },
-  { .id = FunctionPush,     .fnc = (void_t) closure_push },
-  { .id = FunctionPop,      .fnc = (void_t) closure_pop },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -56,7 +58,7 @@ static methoddescr_t _methoddescr_number[] = {
 /* ------------------------------------------------------------------------ */
 
 void _closure_init(void) {
-  wrapper_register(Closure, "closure", _wrapper_vtable_closure);
+  typedescr_register(Closure, "closure", _vtable_closure);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -108,28 +110,21 @@ data_t * _closure_get(closure_t *closure, char *varname) {
 data_t * _closure_start(closure_t *closure) {
   data_t      *ret;
   exception_t *e;
-
-  ret = data_thread_push_stackframe(data_create_closure(closure));
-  if (!data_is_exception(ret)) {
-    list_process(closure -> script -> instructions,
-                (reduce_t) _closure_execute_instruction,
-                closure);
-    ret = (datastack_notempty(closure -> stack)) ? closure_pop(closure) : data_null();
-    if (script_debug) {
-      debug("    Execution of %s done: %s", closure_tostring(closure), data_tostring(ret));
-    }
-    if (data_is_exception(ret)) {
-      e = data_exceptionval(ret);
-      if ((e -> code == ErrorExit) && (e -> throwable)) {
-        ns_exit(closure -> script -> mod -> ns, ret);
-      } else if (e -> code == ErrorReturn) {
-        data_t *error = ret;
-        ret = (e -> throwable) ? data_copy(e -> throwable) : data_null();
-        data_free(error);
-      }
+  data_t      *d;
+  vm_t        *vm = vm_create(closure -> bytecode);
+  
+  ret = vm_execute(vm, d = data_create(Closure, closure));
+  if (data_is_exception(ret)) {
+    e = data_exceptionval(ret);
+    if ((e -> code == ErrorExit) && (e -> throwable)) {
+      ns_exit(closure -> script -> mod -> ns, ret);
+    } else if (e -> code == ErrorReturn) {
+      data_t *error = ret;
+      ret = (e -> throwable) ? data_copy(e -> throwable) : data_null();
+      data_free(error);
     }
   }
-  data_thread_pop_stackframe();
+  data_free(d);
   
   if (closure -> free_params) {
     /*
@@ -140,6 +135,12 @@ data_t * _closure_start(closure_t *closure) {
     closure -> params = NULL;
   }
   return ret;
+}
+
+data_t * _closure_create(int type, va_list args) {
+  closure_t *closure = va_arg(args, closure_t *);
+
+  return &closure -> data;
 }
 
 /* -- C L O S U R E  P U B L I C  F U N C T I O N S ------------------------*/
@@ -153,19 +154,18 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
   }
   
   ret = NEW(closure_t);
+  data_settype(&ret -> data, Closure);
+  ret -> data.ptrval = ret;
   ret -> script = script_copy(script);
 
   ret -> variables = NULL;
   ret -> params = NULL;
-  ret -> stack = NULL;
-  ret -> catchpoints = NULL;
   ret -> up = up;
   ret -> depth = depth;
   ret -> self = data_copy(self);
 
   dict_reduce(script -> functions, 
               (reduce_t) _closure_create_closure_reducer, ret);
-  ret -> refs++;
   
   if (!up) {
     /* Import standard lib: */
@@ -176,24 +176,21 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
 
 void closure_free(closure_t *closure) {
   if (closure) {
-    closure -> refs--;
-    if (closure <= 0) {
-      script_free(closure -> script);
-      datastack_free(closure -> stack);
-      datastack_free(closure -> catchpoints);
-      dict_free(closure -> variables);
-      dict_free(closure -> params);
-      data_free(closure -> self);
-      data_free(closure -> thread);
-      free(closure -> str);
-      free(closure);
-    }
+    script_free(closure -> script);
+    datastack_free(closure -> stack);
+    datastack_free(closure -> catchpoints);
+    dict_free(closure -> variables);
+    dict_free(closure -> params);
+    data_free(closure -> self);
+    data_free(closure -> thread);
+    free(closure -> str);
+    free(closure);
   }
 }
 
 closure_t * closure_copy(closure_t *closure) {
   if (closure) {
-    closure -> refs++;
+    closure -> data.refs++;
   }
   return closure;
 }
@@ -201,17 +198,16 @@ closure_t * closure_copy(closure_t *closure) {
 char * closure_tostring(closure_t *closure) {
   char *params;
   
-  if (!closure -> str) {
+  if (!closure -> data.str) {
     params = (closure -> params && dict_size(closure -> params)) 
                ? dict_tostring_custom(closure -> params, "", "%s=%s", ",", "")
                : strdup("");
-    asprintf(&closure -> str, "%s(%s)",
+    asprintf(&closure -> data.str, "%s(%s)",
              script_tostring(closure -> script),
              params);
     free(params);
   }
-  return closure -> str;
-           
+  return NULL;
 }
 
 int closure_cmp(closure_t *c1, closure_t *c2) {

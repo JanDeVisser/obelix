@@ -21,6 +21,7 @@
 #ifndef __SCRIPT_H__
 #define __SCRIPT_H__
 
+#include <bytecode.h>
 #include <core.h>
 #include <data.h>
 #include <datastack.h>
@@ -41,43 +42,31 @@ typedef struct _namespace namespace_t;
 typedef struct _module module_t;
 
 typedef struct _script {
+  data_t          data;
   struct _script *up;
   name_t         *name;
   name_t         *fullname;
   int             async;
-  int             current_line;
   list_t         *baseclasses;
-  list_t         *instructions;
-  list_t         *main_block;
-  datastack_t    *deferred_blocks;
-  datastack_t    *bookmarks;
   dict_t         *functions;
   array_t        *params;
-  datastack_t    *pending_labels;
-  dict_t         *labels;
   module_t       *mod;
-  char           *str;
-  int             refs;
+  bytecode_t     *bytecode;
 } script_t;
 
 #define NUM_STASHES 4
 
 typedef struct _closure {
+  data_t           data;
   struct _closure *up;
   script_t        *script;
   data_t          *self;
   dict_t          *params;
   int              free_params;
   dict_t          *variables;
-  data_t          *stashes[NUM_STASHES];
-  datastack_t     *stack;
-  datastack_t     *catchpoints;
-  data_t          *caller;
   data_t          *thread;
   int              depth;
   int              line;
-  int              refs;
-  char            *str;
 } closure_t;
 
 typedef struct _bound_method {

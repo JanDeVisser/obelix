@@ -17,15 +17,18 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <exception.h>
+#include <namespace.h>
 #include <typedescr.h>
+#include <thread.h>
 #include <vm.h>
 #include <wrapper.h>
 
 static void     _vm_init(void) __attribute__((constructor));
+static data_t * _vm_create(int, va_list);
 
-static vtable_t _wrapper_vtable_vm[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) vm_create },
-  { .id = FunctionCopy,     .fnc = (void_t) vm_copy },
+static vtable_t _vtable_vm[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) _vm_create },
   { .id = FunctionFree,     .fnc = (void_t) vm_free },
   { .id = FunctionToString, .fnc = (void_t) vm_tostring },
   /* No cmp function. All vm-s are different */
@@ -39,12 +42,12 @@ int vm_debug = 0;
 
 void _vm_init(void) {
   logging_register_category("vm", &vm_debug);
-  VM = wrapper_register(VM, "vm", _wrapper_vtable_vm);
+  VM = typedescr_register(VM, "vm", _vtable_vm);
 }
 
 /* ------------------------------------------------------------------------ */
 
-listnode_t * _vm_execute_instruction(instruction_t *instr, closure_t *closure) {
+listnode_t * _vm_execute_instruction(instruction_t *instr, data_t *scope) {
   data_t       *ret;
   char         *label = NULL;
   listnode_t   *node = NULL;
@@ -113,40 +116,34 @@ listnode_t * _vm_execute_instruction(instruction_t *instr, closure_t *closure) {
   return node;
 }
 
-
+data_t * _vm_create(int type, va_list args) {
+  vm_t *vm = va_arg(args, vm_t *);
+  
+  return &vm -> data;
+}
 
 /* ------------------------------------------------------------------------ */
 
-vm_t * vm_create(va_list args) {
+vm_t * vm_create(bytecode_t *bytecode) {
   vm_t *ret = NEW(vm_t);
   
-  ret -> bytecode = bytecode_copy(va_arg(args, bytecode_t *));
-  ret -> refs = 1;
-  ret -> str = NULL;
+  ret -> bytecode = bytecode_copy(bytecode);
+  data_settype(&ret -> data, VM);
+  ret -> data.ptrval = ret;
   return ret;
 }
 
 void vm_free(vm_t *vm) {
-  if (vm && (--vm -> refs <= 0)) {
-    /* Do not free bytecode. It is a straight copy from script */
+  if (vm) {
+    bytecode_free(vm -> bytecode);
     datastack_free(vm -> contexts);
-    free(vm -> str);
+    datastack_free(vm -> stack);
     free(vm);
   }
 }
 
-vm_t * vm_copy(vm_t *vm) {
-  if (vm) {
-    vm -> refs++;
-  }
-  return vm;
-}
-
 char * vm_tostring(vm_t *vm) {
-  if (!vm -> str) {
-    
-  }
-  return vm -> str;
+  return bytecode_tostring(vm -> bytecode);
 }
 
 data_t * vm_pop(vm_t *vm) {
@@ -204,9 +201,11 @@ nvp_t * vm_pop_context(vm_t *vm) {
   return data_nvpval(datastack_pop(vm -> contexts));
 }
 
-data_t * vm_execute(vm_t *vm, array_t *args, dict_t *kwargs) {
-  char *str;
-  int   dbg = logging_status("script");
+data_t * vm_execute(vm_t *vm, data_t *scope) {
+  char        *str;
+  int          dbg = logging_status("script");
+  data_t      *ret;
+  exception_t *e;
   
   if (!vm -> stack) {
     asprintf(&str, "%s run-time stack", vm_tostring(vm));
@@ -225,6 +224,16 @@ data_t * vm_execute(vm_t *vm, array_t *args, dict_t *kwargs) {
   } else {
     datastack_clear(vm -> contexts);
   }
+  
+  ret = data_thread_push_stackframe(&vm -> data);
+  if (!data_is_exception(ret)) {
+    bytecode_execute(vm -> bytecode, vm, scope);
+    ret = (datastack_notempty(vm -> stack)) ? vm_pop(vm) : data_null();
+    if (dbg) {
+      debug("    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));
+    }
+  }
+  data_thread_pop_stackframe();
 }
 
 /* ------------------------------------------------------------------------ */
