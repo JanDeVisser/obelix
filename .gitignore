@@ -5,6 +5,8 @@ nbproject/private/*
 users/*
 db/*
 install/*
+doxygen/*
+doxygen_sqlite3.db
 **/*.la
 **/*.lo
 **/*.o
