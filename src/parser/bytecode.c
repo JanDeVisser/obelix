@@ -18,21 +18,28 @@
  */
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #include <bytecode.h>
+#include <exception.h>
 #include <instruction.h>
+#include <stacktrace.h>
+#include <thread.h>
 #include <vm.h>
 
 static void         _bytecode_init(void) __attribute__((constructor));
 
 static data_t *     _bytecode_create(int, va_list);
+static void         _bytecode_free(bytecode_t *);
+static char *       _bytecode_tostring(bytecode_t *);
+
 static bytecode_t * _bytecode_set_instructions(bytecode_t *, list_t *);
 static void         _bytecode_list_block(list_t *);
 
 static vtable_t _vtable_bytecode[] = {
   { .id = FunctionFactory,  .fnc = (void_t) _bytecode_create },
-  { .id = FunctionFree,     .fnc = (void_t) bytecode_free },
-  { .id = FunctionToString, .fnc = (void_t) bytecode_tostring },
+  { .id = FunctionFree,     .fnc = (void_t) _bytecode_free },
+  { .id = FunctionToString, .fnc = (void_t) _bytecode_tostring },
   /* No cmp function. All bytecodes are different */
   { .id = FunctionNone,     .fnc = NULL }
 };
@@ -44,7 +51,7 @@ int bytecode_debug = 0;
 
 void _bytecode_init(void) {
   logging_register_category("bytecode", &bytecode_debug);
-  Bytecode = typedescr_register(VM, "bytecode", _vtable_bytecode);
+  Bytecode = typedescr_register(Bytecode, "bytecode", _vtable_bytecode);
 }
 
 /* -- S T A T I C  F U N C T I O N S -------------------------------------- */
@@ -52,7 +59,25 @@ void _bytecode_init(void) {
 data_t * _bytecode_create(int type, va_list args) {
   bytecode_t *bytecode = va_arg(args, bytecode_t *);
   
-  return &bytecode -> data;
+  return data_copy(&bytecode -> data);
+}
+
+void _bytecode_free(bytecode_t *bytecode) {
+  if (bytecode) {
+    list_free(bytecode -> main_block);
+    datastack_free(bytecode -> deferred_blocks);
+    datastack_free(bytecode -> pending_labels);
+    datastack_free(bytecode -> bookmarks);
+    free(bytecode);
+  }
+}
+
+char * _bytecode_tostring(bytecode_t *bytecode) {
+  if (!bytecode -> data.str) {
+    asprintf(&bytecode -> data.str, "Bytecode for %s",
+             data_tostring(bytecode -> owner));
+  }
+  return NULL;
 }
 
 bytecode_t * _bytecode_set_instructions(bytecode_t *bytecode, list_t *block) {
@@ -64,26 +89,27 @@ bytecode_t * _bytecode_set_instructions(bytecode_t *bytecode, list_t *block) {
 }
 
 void _bytecode_list_block(list_t *block) {
-  instruction_t *instr;
+  data_t *instr;
   
   for (list_start(block); list_has_next(block); ) {
     instr = (instruction_t *) list_next(block);
-    fprintf(stderr, "%s\n", instruction_tostring(instr));
+    fprintf(stderr, "%s\n", data_tostring(instr));
   }
 }
 
-listnode_t * _bytecode_execute_instruction(instruction_t *instr, reduce_ctx *ctx) {
+listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
   data_t       *ret;
   char         *label = NULL;
   listnode_t   *node = NULL;
-  vm_t         *vm = ctx -> data;
-  data_t       *scope = ctx -> obj;
+  data_t       *scope = data_array_get(args, 0);
+  vm_t         *vm = data_vmval(data_array_get(args, 1));
+  bytecode_t   *bytecode = data_bytecodeval(data_array_get(args, 1));
   data_t       *catchpoint = NULL;
   int           datatype;
   exception_t  *ex;
   data_t       *ex_data;
   
-  ret = ns_exit_code(closure -> script -> mod -> ns);
+  ret = data_thread_exit_code();
   
   /*
    * If we're exiting, we still need to unwind the context stack, but no other
@@ -93,10 +119,7 @@ listnode_t * _bytecode_execute_instruction(instruction_t *instr, reduce_ctx *ctx
    * obelix objects, since they will pick up the exit code.
    */
   if (!ret || (instr -> type == ITLeaveContext)) {
-    if (instr -> line > 0) {
-      closure -> line = instr -> line;
-    }
-    ret = instruction_execute(instr, closure);
+    ret = data_call(instr, args, NULL);
   }
   if (ret) {
     datatype = data_type(ret);
@@ -108,27 +131,20 @@ listnode_t * _bytecode_execute_instruction(instruction_t *instr, reduce_ctx *ctx
       } else {
         ex_data = data_exception(ErrorInternalError,
                                  "Instruction '%s' returned %s '%s'",
-                                 instruction_tostring(instr),
+                                 data_tostring(instr),
                                  data_typedescr(ret) -> type_name,
                                  data_tostring(ret));
         ex = data_exceptionval(ex_data);
         ret = ex_data;
       }
       ex -> trace = data_create(Stacktrace, stacktrace_create());
-      if (datastack_depth(closure -> catchpoints)) {
-        catchpoint = datastack_peek(closure -> catchpoints);
+      if (datastack_depth(vm -> contexts)) {
+        catchpoint = datastack_peek(vm -> contexts);
         label = strdup(data_charval(data_nvpval(catchpoint) -> name));
       } else {
-        /*
-         * This is ugly. There should be a way to interrupt list_process.
-         * What we do here is get the last node (which exists, because 
-         * otherwise we wouldn't be here, processing a node), fondle that 
-         * node to get it's next pointer (which points to the tail marker
-         * node), and return that. 
-         */
-        node = list_tail_pointer(closure -> script -> instructions) -> next;
+        node = ProcessEnd;
       }
-      closure_push(closure, data_copy(ret));
+      data_push(scope, data_copy(ret));
     }
     data_free(ret);
   }
@@ -136,13 +152,12 @@ listnode_t * _bytecode_execute_instruction(instruction_t *instr, reduce_ctx *ctx
     if (script_debug) {
       debug("  Jumping to '%s'", label);
     }
-    node = (listnode_t *) dict_get(closure -> script -> labels, label);
+    node = (listnode_t *) dict_get(bytecode -> labels, label);
     assert(node);
     free(label);
   }
   return node;
 }
-
 
 /* -- P U B L I C  F U N C T I O N S -------------------------------------- */
 
@@ -171,39 +186,22 @@ bytecode_t * bytecode_create(data_t *owner) {
   return ret;
 }
 
-void bytecode_free(bytecode_t *bytecode) {
-  if (bytecode) {
-    list_free(bytecode -> main_block);
-    datastack_free(bytecode -> deferred_blocks);
-    datastack_free(bytecode -> pending_labels);
-    datastack_free(bytecode -> bookmarks);
-    free(bytecode);
-  }
-}
-
-char * bytecode_tostring(bytecode_t *bytecode) {
-  if (!bytecode -> data.str) {
-    asprintf(&bytecode -> data.str, "Bytecode for %s",
-             data_tostring(bytecode -> owner));
-  }
-  return NULL;
-}
-
-bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, instruction_t *instruction) {
+bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction) {
   listnode_t    *node;
   data_t        *label;
   int            line;
-  instruction_t *last;
+  data_t        *last;
+  instruction_t *instr = data_instructionval(instruction);
   
   last = list_tail(bytecode -> instructions);
-  line = (last) ? last -> line : -1;
+  line = (last) ? data_instructionval(last) -> line : -1;
   if (bytecode -> current_line > line) {
-    instruction -> line = bytecode -> current_line;
+    instr -> line = bytecode -> current_line;
   }
   list_push(bytecode -> instructions, instruction);
   if (!datastack_empty(bytecode -> pending_labels)) {
     label = datastack_peek(bytecode -> pending_labels);
-    instruction_set_label(instruction, label);
+    instruction_set_label(instr, label);
     node = list_tail_pointer(bytecode -> instructions);
     while (!datastack_empty(bytecode -> pending_labels)) {
       label = datastack_pop(bytecode -> pending_labels);
@@ -286,12 +284,15 @@ void bytecode_list(bytecode_t *bytecode) {
   fprintf(stderr, "// ===============================================================\n");
 }
 
-data_t * bytecode_execute(bytecode_t *bytecode, vm_t *vm, data_t *scope) {
-  reduce_ctx ctx;
-  
-  ctx.data = vm;
-  ctx.obj = scope;
+void bytecode_execute(bytecode_t *bytecode, vm_t *vm, data_t *scope) {
+  data_t  *d = data_create(VM, vm);
+  array_t *args = data_array_create(2);
+
+  array_push(args, data_copy(scope));
+  array_push(args, data_create(VM, vm));
+  array_push(args, data_create(Bytecode, bytecode));
   list_process(bytecode -> instructions,
                (reduce_t) _bytecode_execute_instruction,
-               &ctx);
+               args);
+  array_free(args);
 }

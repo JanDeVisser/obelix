@@ -28,9 +28,12 @@ extern "C" {
 
 typedef struct _thread {
   pthread_t        thr_id;
+  thread_t        *parent;
+  data_t          *kernel;
   void            *stack;
   free_t           onfree;
   pthread_mutex_t  mutex;
+  data_t          *exit_code;
   char            *name;
   int              refs;
 } thread_t;
@@ -55,6 +58,10 @@ extern data_t *      data_current_thread(void);
 extern data_t *      data_thread_stacktrace(data_t *);
 extern data_t *      data_thread_push_stackframe(data_t *);
 extern data_t *      data_thread_pop_stackframe(void);
+extern data_t *      data_thread_set_kernel(data_t *);
+extern data_t *      data_thread_kernel(void);
+extern data_t *      data_thread_set_exit_code(data_t *);
+extern data_t *      data_thread_exit_code(void);
 
 #define data_is_thread(d) ((d) && (data_type((d)) == Thread))
 #define data_threadval(d) ((thread_t *) ((data_is_thread((d)) ? (d) -> ptrval : NULL)))

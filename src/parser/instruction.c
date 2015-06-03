@@ -198,7 +198,6 @@ static name_t *name_empty = NULL;
 static name_t *name_self = NULL;
 
 /* ----------------------------------------------------------------------- */
-/* ----------------------------------------------------------------------- */
 
 void _instruction_init(void) {
   int         ix;
@@ -214,6 +213,8 @@ void _instruction_init(void) {
   name_empty = name_create(0);
   name_self = name_create(1, "self");
 }
+
+/* ----------------------------------------------------------------------- */
 
 data_t * _call_new(int type, va_list arg) {
   function_call_t *call;
@@ -788,6 +789,7 @@ data_t * _instr_new(int type, va_list args) {
   data = &ret -> data;
   data_settype(data, type);
   data -> free_me = DontFreeData;
+  data -> ptrval = ret;
   ret -> line = -1;
   ret -> name = (name) ? strdup(name) : NULL;
   ret -> value = value;

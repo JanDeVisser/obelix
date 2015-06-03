@@ -32,6 +32,9 @@ static int              _list_append_fragment(list_t *, listnode_t *, listnode_t
 
 static listiterator_t * _li_init(listiterator_t *, list_t *);
 
+static listnode_t  _ProcessEnd;
+       listnode_t *ProcessEnd = &_ProcessEnd;
+
 /* -- L I S T N O D E ----------------------------------------------------- */
 
 listnode_t * _ln_init(listnode_t *node, list_t *list, void *data) {
@@ -249,7 +252,7 @@ void * _list_process(list_t *list, reduce_t reducer, void *data) {
   listnode_t *next;
 
   node = list_head_pointer(list);
-  while (node && _ln_datanode(node)) {
+  while (node && (node != ProcessEnd) && _ln_datanode(node)) {
     elem = node -> data;
     next = (listnode_t *) reducer(elem, data);
     if (next) {

@@ -42,9 +42,6 @@ typedef struct _vm {
 } vm_t;
 
 extern vm_t *   vm_create(bytecode_t *);
-extern void     vm_free(vm_t *);
-extern vm_t *   vm_copy(vm_t *);
-extern char *   vm_tostring(vm_t *);
 extern data_t * vm_pop(vm_t *);
 extern data_t * vm_peek(vm_t *);
 extern data_t * vm_push(vm_t *, data_t *);
@@ -53,12 +50,15 @@ extern data_t * vm_unstash(vm_t *, unsigned int);
 extern nvp_t *  vm_push_context(vm_t *, char *, data_t *);
 extern nvp_t *  vm_peek_context(vm_t *);
 extern nvp_t *  vm_pop_context(vm_t *);
-extern data_t * vm_execute(vm_t *, array_t *, dict_t *);
+extern data_t * vm_execute(vm_t *, data_t *);
 
 extern int VM;
 
-#define data_is_vm(d)  ((d) && data_hastype((d), VM))
-#define data_vmval(d)  (data_is_vm((d)) ? ((vm_t *) ((d) -> ptrval)) : NULL)
+#define data_is_vm(d)   ((d) && data_hastype((d), VM))
+#define data_vmval(d)   (data_is_vm((d)) ? ((vm_t *) ((d) -> ptrval)) : NULL)
+#define vm_copy(vm)     ((closure_t *) data_copy((vm)))
+#define vm_free(vm)     (data_free((data_t *) (vm)))
+#define vm_tostring(vm) (data_tostring((data_t *) (vm)))
 
 #ifdef  __cplusplus
 }

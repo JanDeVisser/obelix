@@ -54,21 +54,6 @@ typedef struct _script {
   bytecode_t     *bytecode;
 } script_t;
 
-#define NUM_STASHES 4
-
-typedef struct _closure {
-  data_t           data;
-  struct _closure *up;
-  script_t        *script;
-  data_t          *self;
-  dict_t          *params;
-  int              free_params;
-  dict_t          *variables;
-  data_t          *thread;
-  int              depth;
-  int              line;
-} closure_t;
-
 typedef struct _bound_method {
   script_t  *script;
   object_t  *self;
@@ -93,20 +78,20 @@ extern data_t *            data_create_closure(closure_t *);
 
 #define data_is_script(d)  ((d) && (data_type((d)) == Script))
 #define data_scriptval(d)  (data_is_script((d)) ? ((script_t *) (d) -> ptrval) : NULL)
+#define script_copy(s)     ((script_t *) data_copy((s)))
+#define script_tostring(s) (data_tostring((data_t *) (s)))
+#define script_free(s)     (data_free((data_t *) (s)))
+
 #define data_is_boundmethod(d)  ((d) && (data_type((d)) == BoundMethod))
 #define data_boundmethodval(d)  (data_is_boundmethod((d)) ? ((bound_method_t *) (d) -> ptrval) : NULL)
-#define data_is_closure(d) ((d) && (data_type((d)) == Closure))
-#define data_closureval(d) (data_is_closure((d)) ? ((closure_t *) (d) -> ptrval) : NULL)
+
 #define data_is_native(d)  ((d) && (data_type((d)) == Native))
 #define data_nativeval(d)  (data_is_native((d)) ? ((native_fnc_t *) (d) -> ptrval) : NULL)
 
 /* -- S C R I P T  P R O T O T Y P E S -------------------------------------*/
 
 extern script_t *       script_create(module_t *, script_t *, char *);
-extern script_t *       script_copy(script_t *);
-extern void             script_free(script_t *);
 extern name_t *         script_fullname(script_t *);
-extern char *           script_tostring(script_t *);
 extern int              script_cmp(script_t *, script_t *);
 extern unsigned int     script_hash(script_t *);
 extern void             script_list(script_t *);
@@ -131,22 +116,6 @@ extern bound_method_t * bound_method_copy(bound_method_t *);
 extern int              bound_method_cmp(bound_method_t *, bound_method_t *);
 extern char *           bound_method_tostring(bound_method_t *);
 extern data_t *         bound_method_execute(bound_method_t *, array_t *, dict_t *);
-
-/* -- C L O S U R E  P R O T O T Y P E S ---------------------------------- */
-
-extern closure_t *      closure_create(script_t *, closure_t *, data_t *);
-extern void             closure_free(closure_t *);
-extern closure_t *      closure_copy(closure_t *);
-extern char *           closure_tostring(closure_t *);
-extern int              closure_cmp(closure_t *, closure_t *);
-extern unsigned int     closure_hash(closure_t *);
-extern data_t *         closure_set(closure_t *, char *, data_t *);
-extern data_t *         closure_get(closure_t *, char *);
-extern int              closure_has(closure_t *, char *);
-extern data_t *         closure_resolve(closure_t *, char *);
-extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
-extern data_t *         closure_import(closure_t *, name_t *);
-extern closure_t *      closure_set_location(closure_t *, data_t *);
 
 /* -- N A T I V E  F N C  P R O T O T Y P E S ----------------------------- */
 

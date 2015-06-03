@@ -129,4 +129,6 @@ extern void *           li_prev(listiterator_t *);
 extern int              li_atstart(listiterator_t *);
 extern int              li_atend(listiterator_t *);
 
+extern listnode_t      *ProcessEnd;
+
 #endif /* __LIST_H__ */

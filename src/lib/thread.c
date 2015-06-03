@@ -107,7 +107,8 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   if (ctx -> name) {
     thread_setname(thread, ctx -> name);
   }
-  ctx -> child = thread;
+  ctx -> child = thread_copy(thread);
+  thread -> parent = thread_copy(ctx -> creator)
   errno = pthread_mutex_lock(&ctx -> creator -> mutex);
   if (!errno) {
     errno = pthread_cond_signal(&ctx -> condition);
@@ -192,6 +193,8 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
   pthread_mutexattr_t  attr;
   
   ret -> thr_id = thr_id;
+  ret -> exit_code = NULL;
+  ret -> kernel = NULL;
   ret -> stack = NULL;
   ret -> onfree = NULL;
   if (name) {
@@ -212,6 +215,9 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
 
 void thread_free(thread_t *thread) {
   if (thread && (--thread -> refs <= 0)) {
+    thread_free(thread -> parent);
+    data_free(thread -> kernel);
+    data_free(thread -> exit_code);
     if (thread -> onfree) {
       thread -> onfree(thread -> stack);
     }
@@ -390,5 +396,45 @@ data_t * data_thread_stacktrace(data_t *thread) {
   stack = (datastack_t *) thr -> stack;
   ret =  data_create_list(stack -> list);
   data_free(data);
+  return ret;
+}
+
+data_t * data_thread_set_kernel(data_t *kernel) {
+  data_t      *data = data_current_thread();
+  thread_t    *thread = data_threadval(data);
+  
+  thread -> kernel = data_copy(kernel);
+  return kernel;
+}
+
+data_t * data_thread_kernel(void) {
+  data_t      *data = data_current_thread();
+  thread_t    *thread = data_threadval(data);
+  data_t      *ret = NULL;
+  
+  while (!ret && thread) {
+    ret = data_copy(thread -> kernel);
+    thread = thread -> parent;
+  }
+  return ret;
+}
+
+data_t * data_thread_set_exit_code(data_t *code) {
+  data_t      *data = data_current_thread();
+  thread_t    *thread = data_threadval(data);
+  
+  thread -> exit_code = data_copy(code);
+  return code;
+}
+
+data_t *data_thread_exit_code (void) {
+  data_t      *data = data_current_thread();
+  thread_t    *thread = data_threadval(data);
+  data_t      *ret = NULL;
+  
+  while (!ret && thread) {
+    ret = data_copy(thread -> exit_code);
+    thread = thread -> parent;
+  }
   return ret;
 }

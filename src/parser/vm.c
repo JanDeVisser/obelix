@@ -17,8 +17,11 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+
+#include <closure.h>
 #include <exception.h>
-#include <namespace.h>
+#include <stacktrace.h>
 #include <typedescr.h>
 #include <thread.h>
 #include <vm.h>
@@ -26,11 +29,13 @@
 
 static void     _vm_init(void) __attribute__((constructor));
 static data_t * _vm_create(int, va_list);
+static void     _vm_free(vm_t *);
+static char *   _vm_tostring(vm_t *);
 
 static vtable_t _vtable_vm[] = {
   { .id = FunctionFactory,  .fnc = (void_t) _vm_create },
-  { .id = FunctionFree,     .fnc = (void_t) vm_free },
-  { .id = FunctionToString, .fnc = (void_t) vm_tostring },
+  { .id = FunctionFree,     .fnc = (void_t) _vm_free },
+  { .id = FunctionToString, .fnc = (void_t) _vm_tostring },
   /* No cmp function. All vm-s are different */
   { .id = FunctionNone,     .fnc = NULL }
 };
@@ -47,79 +52,23 @@ void _vm_init(void) {
 
 /* ------------------------------------------------------------------------ */
 
-listnode_t * _vm_execute_instruction(instruction_t *instr, data_t *scope) {
-  data_t       *ret;
-  char         *label = NULL;
-  listnode_t   *node = NULL;
-  data_t       *catchpoint = NULL;
-  int           datatype;
-  exception_t  *ex;
-  data_t       *ex_data;
-  
-  ret = ns_exit_code(closure -> script -> mod -> ns);
-  
-  /*
-   * If we're exiting, we still need to unwind the context stack, but no other
-   * instructions are executed.
-   * 
-   * FIXME: What we're effectively doing here is disable __exit__ handlers in
-   * obelix objects, since they will pick up the exit code.
-   */
-  if (!ret || (instr -> type == ITLeaveContext)) {
-    if (instr -> line > 0) {
-      closure -> line = instr -> line;
-    }
-    ret = instruction_execute(instr, closure);
-  }
-  if (ret) {
-    datatype = data_type(ret);
-    if (datatype == String) {
-      label = strdup(data_tostring(ret));
-    } else {
-      if (datatype == Exception) {
-        ex = data_exceptionval(ret);
-      } else {
-        ex_data = data_exception(ErrorInternalError,
-                                 "Instruction '%s' returned %s '%s'",
-                                 instruction_tostring(instr),
-                                 data_typedescr(ret) -> type_name,
-                                 data_tostring(ret));
-        ex = data_exceptionval(ex_data);
-        ret = ex_data;
-      }
-      ex -> trace = data_create(Stacktrace, stacktrace_create());
-      if (datastack_depth(closure -> catchpoints)) {
-        catchpoint = datastack_peek(closure -> catchpoints);
-        label = strdup(data_charval(data_nvpval(catchpoint) -> name));
-      } else {
-        /*
-         * This is ugly. There should be a way to interrupt list_process.
-         * What we do here is get the last node (which exists, because 
-         * otherwise we wouldn't be here, processing a node), fondle that 
-         * node to get it's next pointer (which points to the tail marker
-         * node), and return that. 
-         */
-        node = list_tail_pointer(closure -> script -> instructions) -> next;
-      }
-      closure_push(closure, data_copy(ret));
-    }
-    data_free(ret);
-  }
-  if (label) {
-    if (script_debug) {
-      debug("  Jumping to '%s'", label);
-    }
-    node = (listnode_t *) dict_get(closure -> script -> labels, label);
-    assert(node);
-    free(label);
-  }
-  return node;
-}
-
 data_t * _vm_create(int type, va_list args) {
   vm_t *vm = va_arg(args, vm_t *);
   
-  return &vm -> data;
+  return data_copy(&vm -> data);
+}
+
+void _vm_free(vm_t *vm) {
+  if (vm) {
+    bytecode_free(vm -> bytecode);
+    datastack_free(vm -> contexts);
+    datastack_free(vm -> stack);
+    free(vm);
+  }
+}
+
+char * _vm_tostring(vm_t *vm) {
+  return bytecode_tostring(vm -> bytecode);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -131,19 +80,6 @@ vm_t * vm_create(bytecode_t *bytecode) {
   data_settype(&ret -> data, VM);
   ret -> data.ptrval = ret;
   return ret;
-}
-
-void vm_free(vm_t *vm) {
-  if (vm) {
-    bytecode_free(vm -> bytecode);
-    datastack_free(vm -> contexts);
-    datastack_free(vm -> stack);
-    free(vm);
-  }
-}
-
-char * vm_tostring(vm_t *vm) {
-  return bytecode_tostring(vm -> bytecode);
 }
 
 data_t * vm_pop(vm_t *vm) {
@@ -234,6 +170,7 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
     }
   }
   data_thread_pop_stackframe();
+  return ret;
 }
 
 /* ------------------------------------------------------------------------ */

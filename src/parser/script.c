@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <closure.h>
 #include <exception.h>
 #include <logging.h>
 #include <namespace.h>
@@ -34,16 +35,19 @@
 int script_debug = 0;
 
 static void       _script_init(void) __attribute__((constructor(102)));
+
 static script_t * _script_set_instructions(script_t *, list_t *);
 static void       _script_list_block(list_t *);
+
+static void       _script_free(script_t *);
+extern char *     _script_tostring(script_t *);
 
 /* -- data_t type description structures ---------------------------------- */
 
 static vtable_t _wrapper_vtable_script[] = {
-  { .id = FunctionCopy,     .fnc = (void_t) script_copy },
   { .id = FunctionCmp,      .fnc = (void_t) script_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) script_free },
-  { .id = FunctionToString, .fnc = (void_t) script_tostring },
+  { .id = FunctionFree,     .fnc = (void_t) _script_free },
+  { .id = FunctionToString, .fnc = (void_t) _script_tostring },
   { .id = FunctionCall,     .fnc = (void_t) script_execute },
   { .id = FunctionNone,     .fnc = NULL }
 };
@@ -77,6 +81,23 @@ data_t * data_create_closure(closure_t *closure) {
 
 /* -- S C R I P T  S T A T I C  F U N C T I O N S  ------------------------ */
 
+char * _script_tostring(script_t *script) {
+  return name_tostring(script_fullname(script));
+}
+
+void _script_free(script_t *script) {
+  if (script) {
+    bytecode_free(script -> bytecode);
+    array_free(script -> params);
+    dict_free(script -> functions);
+    script_free(script -> up);
+    mod_free(script -> mod);
+    name_free(script -> name);
+    name_free(script -> fullname);
+    free(script);
+  }
+}
+
 /* -- S C R I P T  P U B L I C  F U N C T I O N S  ------------------------ */
 
 script_t * script_create(module_t *mod, script_t *up, char *name) {
@@ -97,6 +118,7 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
   ret -> functions = strdata_dict_create();
   ret -> params = NULL;
   ret -> async = 0;
+  ret -> bytecode = bytecode_create(ret);
 
   if (up) {
     dict_put(up -> functions, strdup(name), data_create_script(ret));
@@ -115,36 +137,12 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
   return ret;
 }
 
-script_t * script_copy(script_t *script) {
-  return (script) ? data_copy(&script -> data) -> ptrval : NULL;
-}
-
 name_t * script_fullname(script_t *script) {
   if (!script -> fullname) {
     script -> fullname = name_deepcopy(script -> mod -> name);
     name_append(script -> fullname, script -> name);
   }
   return script -> fullname;
-}
-
-char * script_tostring(script_t *script) {
-  if (!script -> str) {
-    script -> str = strdup(name_tostring(script_fullname(script)));
-  }
-  return script -> str;
-}
-
-void script_free(script_t *script) {
-  if (script && (--script -> refs <= 0)) {
-    bytecode_free(script -> bytecode);
-    array_free(script -> params);
-    dict_free(script -> functions);
-    script_free(script -> up);
-    mod_free(script -> mod);
-    name_free(script -> name);
-    name_free(script -> fullname);
-    free(script);
-  }
 }
 
 int script_cmp(script_t *s1, script_t *s2) {

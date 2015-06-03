@@ -50,7 +50,7 @@ extern int bytecode_debug;
 extern bytecode_t * bytecode_create(data_t *owner);
 extern void         bytecode_free(bytecode_t *);
 extern char *       bytecode_tostring(bytecode_t *);
-extern data_t *     bytecode_execute(bytecode_t *, struct _vm *, data_t *);
+extern void         bytecode_execute(bytecode_t *, struct _vm *, data_t *);
 extern bytecode_t * bytecode_push_instruction(bytecode_t *, instruction_t *);
 extern bytecode_t * bytecode_start_deferred_block(bytecode_t *);
 extern bytecode_t * bytecode_end_deferred_block(bytecode_t *);
@@ -59,6 +59,12 @@ extern bytecode_t * bytecode_bookmark(bytecode_t *);
 extern bytecode_t * bytecode_discard_bookmark(bytecode_t *);
 extern bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *);
 extern void         bytecode_list(bytecode_t *);
+
+#define data_is_bytecode(d)   ((d) && data_hastype((d), Bytecode))
+#define data_bytecodeval(d)   (data_is_bytecode((d)) ? ((vm_t *) ((d) -> ptrval)) : NULL)
+#define bytecode_copy(bc)     ((bytecode_t *) data_copy((bc)))
+#define bytecode_free(bc)     (data_free((data_t *) (bc)))
+#define bytecode_tostring(bc) (data_tostring((data_t *) (bc)))
 
 #ifdef  __cplusplus
 }

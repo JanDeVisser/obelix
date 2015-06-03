@@ -19,6 +19,7 @@
 
 #include <string.h>
 
+#include <closure.h>
 #include <exception.h>
 #include <namespace.h>
 #include <nvp.h>
@@ -35,15 +36,17 @@ static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t 
 static data_t *         _closure_get(closure_t *, char *);
 static data_t *         _closure_start(closure_t *);
 static data_t *         _closure_create(int, va_list);
+static char *           _closure_tostring(closure_t *closure);
+static void             _closure_free(closure_t *);
+
 static data_t *         _closure_import(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_closure[] = {
   { .id = FunctionFactory,  .fnc = (void_t) _closure_create },
-  { .id = FunctionCopy,     .fnc = (void_t) closure_copy },
   { .id = FunctionCmp,      .fnc = (void_t) closure_cmp },
   { .id = FunctionHash,     .fnc = (void_t) closure_hash },
-  { .id = FunctionFree,     .fnc = (void_t) closure_free },
-  { .id = FunctionToString, .fnc = (void_t) closure_tostring },
+  { .id = FunctionFree,     .fnc = (void_t) _closure_free },
+  { .id = FunctionToString, .fnc = (void_t) _closure_tostring },
   { .id = FunctionCall,     .fnc = (void_t) closure_execute },
   { .id = FunctionSet,      .fnc = (void_t) closure_set },
   { .id = FunctionResolve,  .fnc = (void_t) closure_resolve },
@@ -140,14 +143,39 @@ data_t * _closure_start(closure_t *closure) {
 data_t * _closure_create(int type, va_list args) {
   closure_t *closure = va_arg(args, closure_t *);
 
-  return &closure -> data;
+  return data_copy(&closure -> data);
+}
+
+char * _closure_tostring(closure_t *closure) {
+  char *params;
+  
+  if (!closure -> data.str) {
+    params = (closure -> params && dict_size(closure -> params)) 
+    ? dict_tostring_custom(closure -> params, "", "%s=%s", ",", "")
+    : strdup("");
+    asprintf(&closure -> data.str, "%s(%s)",
+             script_tostring(closure -> script),
+             params);
+    free(params);
+  }
+  return NULL;
+}
+
+void _closure_free(closure_t *closure) {
+  if (closure) {
+    script_free(closure -> script);
+    dict_free(closure -> variables);
+    dict_free(closure -> params);
+    data_free(closure -> self);
+    data_free(closure -> thread);
+    free(closure);
+  }
 }
 
 /* -- C L O S U R E  P U B L I C  F U N C T I O N S ------------------------*/
 
 closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
   closure_t *ret;
-  int        depth;
 
   if (script_debug) {
     debug("Creating closure for script '%s'", script_tostring(script));
@@ -157,11 +185,11 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
   data_settype(&ret -> data, Closure);
   ret -> data.ptrval = ret;
   ret -> script = script_copy(script);
+  ret -> bytecode = bytecode_copy(script -> bytecode);
 
   ret -> variables = NULL;
   ret -> params = NULL;
   ret -> up = up;
-  ret -> depth = depth;
   ret -> self = data_copy(self);
 
   dict_reduce(script -> functions, 
@@ -172,42 +200,6 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
     closure_import(ret, NULL);
   }
   return ret;
-}
-
-void closure_free(closure_t *closure) {
-  if (closure) {
-    script_free(closure -> script);
-    datastack_free(closure -> stack);
-    datastack_free(closure -> catchpoints);
-    dict_free(closure -> variables);
-    dict_free(closure -> params);
-    data_free(closure -> self);
-    data_free(closure -> thread);
-    free(closure -> str);
-    free(closure);
-  }
-}
-
-closure_t * closure_copy(closure_t *closure) {
-  if (closure) {
-    closure -> data.refs++;
-  }
-  return closure;
-}
-
-char * closure_tostring(closure_t *closure) {
-  char *params;
-  
-  if (!closure -> data.str) {
-    params = (closure -> params && dict_size(closure -> params)) 
-               ? dict_tostring_custom(closure -> params, "", "%s=%s", ",", "")
-               : strdup("");
-    asprintf(&closure -> data.str, "%s(%s)",
-             script_tostring(closure -> script),
-             params);
-    free(params);
-  }
-  return NULL;
 }
 
 int closure_cmp(closure_t *c1, closure_t *c2) {
@@ -321,22 +313,12 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   }
   
   if (script -> async) {
-    closure -> thread = data_create(Thread, 
-                                    closure_tostring(closure),
-                                    (threadproc_t) _closure_start,
-                                    closure_copy(closure));
-    return closure -> thread;
+    return data_create(Thread, closure_tostring(closure),
+                               (threadproc_t) _closure_start,
+                               closure_copy(closure));
   } else {
-    closure -> thread = data_current_thread();
     return _closure_start(closure);
   }
-}
-
-closure_t * closure_set_location(closure_t *closure, data_t *location) {
-  if (data_type(location) == Int) {
-    closure -> line = data_intval(location);
-  }
-  return closure;
 }
 
 /* -- C L O S U R E  D A T A  M E T H O D S --------------------------------*/
