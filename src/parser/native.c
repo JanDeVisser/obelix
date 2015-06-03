@@ -18,6 +18,7 @@
  */
 
 #include <script.h>
+#include <native.h>
 
 static void             _native_init(void) __attribute__((constructor));
 static data_t *         _data_new_native(data_t *, va_list);

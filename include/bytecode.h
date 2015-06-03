@@ -33,15 +33,15 @@ extern "C" {
 struct _vm;
 
 typedef struct _bytecode {
-  data_t          data;
-  data_t         *owner;
-  list_t         *instructions;
-  list_t         *main_block;
-  datastack_t    *deferred_blocks;
-  datastack_t    *bookmarks;
-  datastack_t    *pending_labels;
-  dict_t         *labels;
-  int             current_line;
+  data_t       data;
+  data_t      *owner;
+  list_t      *instructions;
+  list_t      *main_block;
+  datastack_t *deferred_blocks;
+  datastack_t *bookmarks;
+  datastack_t *pending_labels;
+  dict_t      *labels;
+  int          current_line;
 } bytecode_t;
 
 extern int Bytecode;
@@ -62,7 +62,7 @@ extern void         bytecode_list(bytecode_t *);
 
 #define data_is_bytecode(d)   ((d) && data_hastype((d), Bytecode))
 #define data_bytecodeval(d)   (data_is_bytecode((d)) ? ((vm_t *) ((d) -> ptrval)) : NULL)
-#define bytecode_copy(bc)     ((bytecode_t *) data_copy((bc)))
+#define bytecode_copy(bc)     ((bytecode_t *) data_copy((data_t *) (bc)))
 #define bytecode_free(bc)     (data_free((data_t *) (bc)))
 #define bytecode_tostring(bc) (data_tostring((data_t *) (bc)))
 

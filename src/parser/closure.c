@@ -19,6 +19,7 @@
 
 #include <string.h>
 
+#include <boundmethod.h>
 #include <closure.h>
 #include <exception.h>
 #include <namespace.h>
@@ -35,6 +36,7 @@ static closure_t *      _closure_create_closure_reducer(entry_t *, closure_t *);
 static listnode_t *     _closure_execute_instruction(instruction_t *, closure_t *);
 static data_t *         _closure_get(closure_t *, char *);
 static data_t *         _closure_start(closure_t *);
+
 static data_t *         _closure_create(int, va_list);
 static char *           _closure_tostring(closure_t *closure);
 static void             _closure_free(closure_t *);
@@ -183,7 +185,6 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
   
   ret = NEW(closure_t);
   data_settype(&ret -> data, Closure);
-  ret -> data.ptrval = ret;
   ret -> script = script_copy(script);
   ret -> bytecode = bytecode_copy(script -> bytecode);
 

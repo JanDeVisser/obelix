@@ -28,7 +28,7 @@ extern "C" {
 
 typedef struct _thread {
   pthread_t        thr_id;
-  thread_t        *parent;
+  struct _thread  *parent;
   data_t          *kernel;
   void            *stack;
   free_t           onfree;

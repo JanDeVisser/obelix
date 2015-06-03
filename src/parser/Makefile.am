@@ -32,11 +32,14 @@ liboblparser_la_SOURCES = \
 		parser.c \
 		script.c \
 		closure.c \
+		bytecode.c \
+		boundmethod.c \
 		native.c \
 		namespace.c \
 		instruction.c \
 		object.c \
-		stacktrace.c
+		stacktrace.c \
+		vm.c
 
 panoramix_SOURCES = panoramix.c
 

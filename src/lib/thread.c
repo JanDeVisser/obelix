@@ -108,7 +108,7 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
     thread_setname(thread, ctx -> name);
   }
   ctx -> child = thread_copy(thread);
-  thread -> parent = thread_copy(ctx -> creator)
+  thread -> parent = thread_copy(ctx -> creator);
   errno = pthread_mutex_lock(&ctx -> creator -> mutex);
   if (!errno) {
     errno = pthread_cond_signal(&ctx -> condition);

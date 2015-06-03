@@ -125,7 +125,7 @@ extern data_t *        data_reduce(data_t *, data_t *, data_t *);
 extern data_t *        data_read(data_t *, char *, int);
 extern data_t *        data_write(data_t *, char *, int);
 extern data_t *        data_push(data_t *, data_t *);
-extern data_t *        data_pop(data_t *, data_t *);
+extern data_t *        data_pop(data_t *);
 extern int             data_count(void);
 
 extern double          data_floatval(data_t *);

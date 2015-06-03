@@ -58,6 +58,7 @@ data_t * data_settype(data_t *data, int type) {
   data -> refs++;
   data -> str = NULL;
   data -> free_me = Normal;
+  data -> ptrval = data;
   descr -> count++;
   _data_count++;
   return data;
@@ -805,7 +806,7 @@ data_t * data_push(data_t *scope, data_t *value) {
   
   if (scope) {
     type = data_typedescr(scope);
-    pushfnc = (data2_fnc_t) typedescr_get_function(scope, FunctionPush);
+    pushfnc = (data2_fnc_t) typedescr_get_function(type, FunctionPush);
     if (pushfnc) {
       (void) pushfnc(scope, value);
       ret = scope;
@@ -826,7 +827,7 @@ data_t * data_pop(data_t *scope) {
   
   if (scope) {
     type = data_typedescr(scope);
-    popfnc = (data_fnc_t) typedescr_get_function(scope, FunctionPush);
+    popfnc = (data_fnc_t) typedescr_get_function(type, FunctionPush);
     if (popfnc) {
       ret = popfnc(scope);
     }

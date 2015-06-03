@@ -22,10 +22,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <boundmethod.h>
 #include <closure.h>
 #include <exception.h>
 #include <logging.h>
 #include <namespace.h>
+#include <native.h>
 #include <script.h>
 #include <str.h>
 #include <stacktrace.h>
@@ -39,25 +41,18 @@ static void       _script_init(void) __attribute__((constructor(102)));
 static script_t * _script_set_instructions(script_t *, list_t *);
 static void       _script_list_block(list_t *);
 
+static data_t *   _script_create(int, va_list);
 static void       _script_free(script_t *);
-extern char *     _script_tostring(script_t *);
+static char *     _script_tostring(script_t *);
 
 /* -- data_t type description structures ---------------------------------- */
 
 static vtable_t _wrapper_vtable_script[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) _script_create },
   { .id = FunctionCmp,      .fnc = (void_t) script_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _script_free },
   { .id = FunctionToString, .fnc = (void_t) _script_tostring },
   { .id = FunctionCall,     .fnc = (void_t) script_execute },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-static vtable_t _wrapper_vtable_bound_method[] = {
-  { .id = FunctionCopy,     .fnc = (void_t) bound_method_copy },
-  { .id = FunctionCmp,      .fnc = (void_t) bound_method_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) bound_method_free },
-  { .id = FunctionToString, .fnc = (void_t) bound_method_tostring },
-  { .id = FunctionCall,     .fnc = (void_t) bound_method_execute },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -66,20 +61,15 @@ static vtable_t _wrapper_vtable_bound_method[] = {
 void _script_init(void) {
   logging_register_category("script", &script_debug);
   wrapper_register(Script, "script", _wrapper_vtable_script);
-  wrapper_register(BoundMethod, "boundmethod", _wrapper_vtable_bound_method);
-}
-
-/* -- Script data functions ----------------------------------------------- */
-
-data_t * data_create_script(script_t *script) {
-  return data_create(Script, script);
-}
-
-data_t * data_create_closure(closure_t *closure) {
-  return data_create(Closure, closure);
 }
 
 /* -- S C R I P T  S T A T I C  F U N C T I O N S  ------------------------ */
+
+data_t * _script_create(int type, va_list args) {
+  script_t *script = va_arg(args, script_t *);
+  
+  return data_copy(&script -> data);
+}
 
 char * _script_tostring(script_t *script) {
   return name_tostring(script_fullname(script));
@@ -113,12 +103,11 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
   }
   ret = NEW(script_t);
   data_settype(&ret -> data, Script);
-  ret -> data.ptrval = ret;
   
   ret -> functions = strdata_dict_create();
   ret -> params = NULL;
   ret -> async = 0;
-  ret -> bytecode = bytecode_create(ret);
+  ret -> bytecode = bytecode_create(data_create(Script, ret));
 
   if (up) {
     dict_put(up -> functions, strdup(name), data_create_script(ret));
@@ -222,65 +211,3 @@ bound_method_t * script_bind(script_t *script, object_t *object) {
 closure_t * script_create_closure(script_t *script, closure_t *up, data_t *self) {
   return closure_create(script, up, self);
 }
-
-/* -- B O U N D  M E T H O D  F U N C T I O N S   ------------------------- */
-
-bound_method_t * bound_method_create(script_t *script, object_t *self) {
-  bound_method_t *ret = NEW(bound_method_t);
-  
-  ret -> script = script_copy(script);
-  ret -> self = object_copy(self);
-  ret -> closure = NULL;
-  ret -> str = NULL;
-  ret -> refs = 1;
-  return ret;
-}
-
-void bound_method_free(bound_method_t *bm) {
-  if (bm) {
-    bm -> refs--;
-    if (bm -> refs <= 0) {
-      script_free(bm -> script);
-      object_free(bm -> self);
-      closure_free(bm -> closure);
-      free(bm -> str);
-      free(bm);
-    }
-  }
-}
-
-bound_method_t * bound_method_copy(bound_method_t *bm) {
-  if (bm) {
-    bm -> refs++;
-  }
-  return bm;
-}
-
-int bound_method_cmp(bound_method_t *bm1, bound_method_t *bm2) {
-  return (!object_cmp(bm1 -> self, bm2 -> self)) 
-    ? script_cmp(bm1 -> script, bm2 -> script)
-    : 0;
-}
-
-char * bound_method_tostring(bound_method_t *bm) {
-  if (bm -> script) {
-    asprintf(&bm -> str, "%s (bound)", 
-             script_tostring(bm -> script));
-  } else {
-    bm -> str = strdup("uninitialized");
-  }
-  return bm -> str;
-}
-
-data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwparams) {
-  closure_t *closure;
-  data_t    *self;
-  data_t    *ret;
-
-  self = (bm -> self) ? data_create(Object, bm -> self) : NULL;
-  closure = closure_create(bm -> script, bm -> closure, self);
-  ret = closure_execute(closure, params, kwparams);
-  closure_free(closure);
-  return ret;  
-}
-

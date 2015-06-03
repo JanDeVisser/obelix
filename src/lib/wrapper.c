@@ -473,13 +473,16 @@ data_t * _wrapper_set(data_t *data, char *name, data_t *value) {
 /* -- W R A P P E R  P U B L I C  F U N C T I O N S ----------------------- */
 
 int wrapper_register(int type, char *name, vtable_t *vtable) {
-  typedescr_t  descr;
+  int         ix;
+  typedescr_t descr;
 
   descr.type = type;
   descr.type_name = name;
   descr.ptr = vtable_build(vtable);
   descr.vtable = _vtable_wrapper;
-  descr.inherits = { NoType, NoType, NoType };
+  for (ix = 0; ix < MAX_INHERITS; ix++) {
+    descr.inherits[ix] = NoType;
+  }
   descr.promote_to = 0;
   descr.methods = NULL;
   descr.hash = 0;

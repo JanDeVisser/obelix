@@ -21,6 +21,7 @@
 #define __CLOSURE_H__
 
 #include <data.h>
+#include <script.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -57,6 +58,8 @@ extern data_t *         closure_import(closure_t *, name_t *);
 #define closure_copy(c)     ((closure_t *) data_copy((c)))
 #define closure_tostring(c) (data_tostring((data_t *) (c)))
 #define closure_free(c)     (data_free((data_t *) (c)))
+
+#define data_create_closure(c) data_create(Closure, (c))
 
 #ifdef  __cplusplus
 }
