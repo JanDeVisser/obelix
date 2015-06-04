@@ -20,8 +20,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <boundmethod.h>
+#include <closure.h>
 #include <exception.h>
 #include <logging.h>
+#include <native.h>
 #include <object.h>
 #include <script.h>
 

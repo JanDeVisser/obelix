@@ -55,7 +55,7 @@ extern data_t *         closure_import(closure_t *, name_t *);
 
 #define data_is_closure(d)  ((d) && (data_type((d)) == Closure))
 #define data_closureval(d)  (data_is_closure((d)) ? ((closure_t *) (d) -> ptrval) : NULL)
-#define closure_copy(c)     ((closure_t *) data_copy((c)))
+#define closure_copy(c)     ((closure_t *) data_copy((data_t *) (c)))
 #define closure_tostring(c) (data_tostring((data_t *) (c)))
 #define closure_free(c)     (data_free((data_t *) (c)))
 

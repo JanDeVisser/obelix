@@ -55,6 +55,12 @@ static vtable_t _vtable_closure[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
+static typedescr_t _typedescr_closure = {
+  .type = Closure,
+  .type_name = "closure",
+  .vtable = _vtable_closure
+};
+
 static methoddescr_t _methoddescr_number[] = {
   { .type = Closure, .name = "import", .method = _closure_import, .argtypes = { Name, NoType, NoType },   .minargs = 1, .varargs = 1 },
   { .type = NoType,  .name = NULL,     .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
@@ -63,7 +69,7 @@ static methoddescr_t _methoddescr_number[] = {
 /* ------------------------------------------------------------------------ */
 
 void _closure_init(void) {
-  typedescr_register(Closure, "closure", _vtable_closure);
+  typedescr_register(&_typedescr_closure);
 }
 
 /* ------------------------------------------------------------------------ */

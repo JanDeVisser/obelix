@@ -36,6 +36,8 @@ static char *       _bytecode_tostring(bytecode_t *);
 static bytecode_t * _bytecode_set_instructions(bytecode_t *, list_t *);
 static void         _bytecode_list_block(list_t *);
 
+int Bytecode = -1;
+
 static vtable_t _vtable_bytecode[] = {
   { .id = FunctionFactory,  .fnc = (void_t) _bytecode_create },
   { .id = FunctionFree,     .fnc = (void_t) _bytecode_free },
@@ -44,14 +46,19 @@ static vtable_t _vtable_bytecode[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-int Bytecode = -1;
+static typedescr_t _typedescr_bytecode = {
+  .type = -1,
+  .type_name = "bytecode",
+  .vtable = _vtable_bytecode
+};
+
 int bytecode_debug = 0;
 
 /* ------------------------------------------------------------------------ */
 
 void _bytecode_init(void) {
   logging_register_category("bytecode", &bytecode_debug);
-  Bytecode = typedescr_register(Bytecode, "bytecode", _vtable_bytecode);
+  Bytecode = typedescr_register(&_typedescr_bytecode);
 }
 
 /* -- S T A T I C  F U N C T I O N S -------------------------------------- */
@@ -92,7 +99,7 @@ void _bytecode_list_block(list_t *block) {
   data_t *instr;
   
   for (list_start(block); list_has_next(block); ) {
-    instr = (instruction_t *) list_next(block);
+    instr = (data_t *) list_next(block);
     fprintf(stderr, "%s\n", data_tostring(instr));
   }
 }
@@ -172,9 +179,7 @@ bytecode_t * bytecode_create(data_t *owner) {
   ret -> data.ptrval = ret;
   ret -> owner = data_copy(owner);
   
-  ret -> main_block = list_create();
-  list_set_free(ret -> main_block, (free_t) instruction_free);
-  list_set_tostring(ret -> main_block, (tostring_t) instruction_tostring);
+  ret -> main_block = data_list_create();
   _bytecode_set_instructions(ret, NULL);
   ret -> deferred_blocks = datastack_create("deferred blocks");
   ret -> bookmarks = datastack_create("bookmarks");
@@ -215,9 +220,7 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
 bytecode_t * bytecode_start_deferred_block(bytecode_t *bytecode) {
   list_t *block;
   
-  block = list_create();
-  list_set_free(block, (free_t) instruction_free);
-  list_set_tostring(block, (tostring_t) instruction_tostring);
+  block = data_list_create();
   _bytecode_set_instructions(bytecode, block);
   return bytecode;
 }
