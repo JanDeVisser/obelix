@@ -27,12 +27,12 @@ extern "C" {
 typedef data_t * (*native_t)(char *, array_t *, dict_t *);
 
 typedef struct _native_fnc {
+  data_t    _d;
   script_t *script;
   name_t   *name;
   int       async;
   native_t  native_method;
   array_t  *params;
-  int       refs;  
 } native_fnc_t;
 
 /* -- N A T I V E  F N C  P R O T O T Y P E S ----------------------------- */

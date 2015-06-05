@@ -266,6 +266,18 @@ int typedescr_register(typedescr_t *descr) {
   return d -> type;
 }
 
+int typedescr_register_type(typedescr_t *td, methoddescr_t *md) {
+  int ret = typedescr_register_type(td);
+  int ix;
+  
+  for (ix = 0; md[ix].type != NoType; ix++) {
+    md[ix].type = ret;
+  }
+  typedescr_register_methods(md);
+  return ret;
+}
+
+
 void typedescr_register_types(typedescr_t *types) {
   typedescr_t *type;
 

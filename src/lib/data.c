@@ -54,13 +54,15 @@ data_t * data_create_noinit(int type) {
 data_t * data_settype(data_t *data, int type) {
   typedescr_t *descr = typedescr_get(type);
 
-  data -> type = type;
-  data -> refs++;
-  data -> str = NULL;
-  data -> free_me = Normal;
-  data -> ptrval = data;
-  descr -> count++;
-  _data_count++;
+  if (!data -> type) {
+    data -> type = type;
+    data -> refs++;
+    data -> str = NULL;
+    data -> free_me = Normal;
+    data -> ptrval = data;
+    descr -> count++;
+    _data_count++;
+  }
   return data;
 }
 
@@ -190,9 +192,9 @@ void data_free(data_t *data) {
   typedescr_t *type;
   
   if (data && (data -> free_me != Constant) && (--data -> refs <= 0)) {
+    free(data -> str);
     type = data_typedescr(data);
     _data_call_free(type, data);
-    free(data -> str);
     type -> count--;
     _data_count--;
     if (data -> free_me != DontFreeData) {
@@ -656,14 +658,15 @@ data_t * data_iter(data_t *data) {
   data_fnc_t   iter;
   data_t      *ret = NULL;
 
-  if (data) {
+  if (data_is_iterable(data)) {
     type = data_typedescr(data);
     iter = (data_fnc_t) typedescr_get_function(type, FunctionIter);
     if (iter) {
       ret = iter(data);
     }
-  }
-  if (!ret) {
+  } else if (data_is_iterator(data)) {
+    ret = data_copy(data);
+  } else {
     ret = data_exception(ErrorNotIterable,
                      "Atom '%s' is not iterable",
                      data_tostring(data));
@@ -676,7 +679,7 @@ data_t * data_has_next(data_t *data) {
   data_fnc_t   hasnext;
   data_t      *ret = NULL;
 
-  if (data) {
+  if (data_is_iterator(data)) {
     type = data_typedescr(data);
     hasnext = (data_fnc_t) typedescr_get_function(type, FunctionHasNext);
     if (hasnext) {
@@ -698,7 +701,7 @@ data_t * data_next(data_t *data) {
   data_t      *ret = NULL;
   data_t      *hn;
 
-  if (data) {
+  if (data_is_iterator(data)) {
     type = data_typedescr(data);
     hasnext = (data_fnc_t) typedescr_get_function(type, FunctionHasNext);
     next = (data_fnc_t) typedescr_get_function(type, FunctionNext);

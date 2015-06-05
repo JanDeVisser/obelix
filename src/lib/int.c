@@ -71,7 +71,6 @@ static vtable_t _vtable_int[] = {
 static typedescr_t _typedescr_int = {
   .type          = Int,
   .type_name     = "int",
-  .inherits      = { Number, NoType, NoType },
   .promote_to    = Float,
   .vtable        = _vtable_int
 };

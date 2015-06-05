@@ -86,25 +86,58 @@ data_t * _data_call_native(data_t *data, array_t *params, dict_t *kwargs) {
 
 /* ------------------------------------------------------------------------ */
 
+native_fnc_t * _native_fnc_resolve(native_fnc_t *fnc) {
+  native_t      cfunc;
+  name_t       *lib_func;
+  
+  if (fnc -> native_method) {
+    return fnc;
+  }
+  lib_func = name_split(name_first(fnc -> name), ":");
+  name_free(fnc -> name);
+  fnc -> name = lib_func;
+  if (name_size(lib_func) > 2 || name_size(lib_func) == 0) {
+    return fnc;
+  } else {
+    if (name_size(lib_func) == 2) {
+      if (parser_debug) {
+        debug("Library: %s", name_first(lib_func));
+      }
+      if (!resolve_library(name_first(lib_func))) {
+        error("Error loading library '%s': %s", name_first(lib_func), strerror(errno));
+        return fnc;
+      }
+    }
+    if (parser_debug) {
+      debug("C Function: %s", name_last(lib_func));
+    }
+    fnc -> native_method = (native_t) resolve_function(name_last(lib_func));
+  }
+  return fnc;
+}
+  
+
+/* ------------------------------------------------------------------------ */
+
 native_fnc_t * native_fnc_create(script_t *script, char *name, native_t c_func) {
   native_fnc_t *ret;
   
-  assert(c_func);
   assert(name);
-  assert(script);
   if (script_debug) {
     debug("Creating native function '%s'", name);
   }
   ret = NEW(native_fnc_t);
   ret -> native_method = c_func;;
   ret -> params = NULL;
-  ret -> name = name_create(0);
+  ret -> name = name_create(1, name);
   ret -> async = 0;
-  name_append(ret -> name, script -> name);
-  name_extend(ret -> name, name);
-  dict_put(script -> functions, strdup(name), data_create(Native, ret));
-  ret -> script = script_copy(script);
   ret -> refs = 1;
+  if (script) {
+    name_append(ret -> name, script -> name);
+    dict_put(script -> functions, strdup(name), data_create(Native, ret));
+    ret -> script = script_copy(script);
+  }
+  _native_fnc_resolve(ret);
   return ret;
 }
 
@@ -126,7 +159,11 @@ void native_fnc_free(native_fnc_t *fnc) {
 }
 
 data_t * native_fnc_execute(native_fnc_t *fnc, array_t *args, dict_t *kwargs) {
-  return fnc -> native_method(name_last(fnc -> name), args, kwargs);  
+  if (fnc -> native_method) {
+    return fnc -> native_method(name_last(fnc -> name), args, kwargs);  
+  } else {
+    return data_exception();
+  }
 }
 
 char * native_fnc_tostring(native_fnc_t *fnc) {

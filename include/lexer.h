@@ -30,8 +30,6 @@
 #define LEXER_BUFSIZE    	16384
 #define LEXER_INIT_TOKEN_SZ	256
 
-extern int lexer_debug;
-
 typedef enum _lexer_state {
   LexerStateFresh,
   LexerStateInit,
@@ -81,6 +79,7 @@ typedef enum _kw_match_state {
 } kw_match_state_t;
 
 typedef struct _lexer {
+  data_t              _d;
   data_t             *reader;
   list_t             *keywords;
   long                options[LexerOptionLAST];
@@ -109,6 +108,15 @@ extern void         _lexer_tokenize(lexer_t *, reduce_t, void *);
 extern token_t *    lexer_next_token(lexer_t *);
 extern token_t *    lexer_rollup_to(lexer_t *, int);
 
+extern int Lexer = -1;
+extern int lexer_debug;
+
 #define lexer_tokenize(l, r, d) _lexer_tokenize((l), (reduce_t) (r), (d))
+
+#define data_is_lexer(d)     ((d) && data_hastype((d), Lexer))
+#define data_lexerval(d)     (data_is_lexer((d)) ? ((lexer_t *) ((d) -> ptrval)) : NULL)
+#define lexer_copy(l)        ((lexer_t *) data_copy((data_t *) (l)))
+#define lexer_free(l)        (data_free((data_t *) (l)))
+#define lexer_tostring(l)    (data_tostring((data_t *) (l)))
 
 #endif /* __LEXER_H__ */

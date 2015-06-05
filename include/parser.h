@@ -27,10 +27,11 @@
 #include <lexer.h>
 #include <list.h>
 
+extern int Parser;
 extern int parser_debug;
 
-
 typedef struct _parser {
+  data_t       _d;
   grammar_t   *grammar;
   lexer_t     *lexer;
   void        *data;
@@ -44,6 +45,12 @@ typedef struct _parser {
   function_t  *on_newline;
 } parser_t;
 
+#define data_is_parser(d)     ((d) && data_hastype((d), Parser))
+#define data_parserval(d)     (data_is_parser((d)) ? ((parser_t *) ((d) -> ptrval)) : NULL)
+#define parser_copy(p)        ((parser_t *) data_copy((data_t *) (p)))
+#define parser_free(p)        (data_free((data_t *) (p)))
+#define parser_tostring(p)    (data_tostring((data_t *) (p)))
+
 typedef parser_t * (*parser_data_fnc_t)(parser_t *, data_t *);
 typedef parser_t * (*parser_fnc_t)(parser_t *);
 
@@ -53,7 +60,6 @@ extern parser_t * parser_set(parser_t *, char *, data_t *);
 extern data_t *   parser_get(parser_t *, char *);
 extern data_t *   parser_pop(parser_t *, char *);
 extern data_t *   parser_parse(parser_t *, data_t *);
-extern void       parser_free(parser_t *);
 
 extern parser_t * parser_pushval(parser_t *, data_t *);
 extern parser_t * parser_push(parser_t *);

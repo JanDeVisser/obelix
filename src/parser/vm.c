@@ -32,6 +32,9 @@ static data_t * _vm_create(int, va_list);
 static void     _vm_free(vm_t *);
 static char *   _vm_tostring(vm_t *);
 
+int VM = -1;
+int vm_debug = 0;
+
 static vtable_t _vtable_vm[] = {
   { .id = FunctionFactory,  .fnc = (void_t) _vm_create },
   { .id = FunctionFree,     .fnc = (void_t) _vm_free },
@@ -40,14 +43,17 @@ static vtable_t _vtable_vm[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-int VM = -1;
-int vm_debug = 0;
+static typedescr_t _typedescr_vm = {
+  .type = -1,
+  .type_name = "vm",
+  .vtable = _vtable_vm
+};
 
 /* ------------------------------------------------------------------------ */
 
 void _vm_init(void) {
   logging_register_category("vm", &vm_debug);
-  VM = typedescr_register(VM, "vm", _vtable_vm);
+  VM = typedescr_register(&_typedescr_vm);
 }
 
 /* ------------------------------------------------------------------------ */

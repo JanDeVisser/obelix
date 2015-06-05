@@ -28,9 +28,6 @@
 #include <nvp.h>
 #include <parser.h>
 
-       int parser_debug = 0;
-extern int script_debug;
-
 typedef enum {
   PSETypeNonTerminal,
   PSETypeRule,
@@ -58,6 +55,7 @@ static parser_stack_entry_t * _parser_stack_entry_for_action(grammar_action_t *)
 static void                   _parser_stack_entry_free(parser_stack_entry_t *);
 static char *                 _parser_stack_entry_tostring(parser_stack_entry_t *);
 
+static parser_t *             _parser_set(entry_t *, parser_t *);
 static parser_t *             _parser_push_setvalues(entry_t *, parser_t *);
 static int                    _parser_ll1_token_handler(token_t *, parser_t *, int);
 static parser_t *             _parser_ll1(token_t *, parser_t *);
@@ -66,13 +64,39 @@ static lexer_t *              _parser_set_keywords(token_t *, lexer_t *);
 
 extern lexer_t *              parser_newline(lexer_t *, int);
 
+static data_t *               _parser_create(int, va_list);
+static void                   _parser_free(parser_t *);
+static char *                 _parser_tostring(parser_t *);
+static data_t *               _parser_call(parser_t *, array_t *, dict_t *);
+  
+       int parser_debug = 0;
+extern int script_debug;
+       int Parser = -1;
+
+/* ------------------------------------------------------------------------ */
+
+static vtable_t _vtable_parser[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) _parser_create },
+  { .id = FunctionFree,     .fnc = (void_t) _parser_free },
+  { .id = FunctionToString, .fnc = (void_t) _parser_tostring },
+  { .id = FunctionCall,     .fnc = (void_t) _parser_call },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_parser = {
+  .type = -1,
+  .type_name = "parser",
+  .vtable = _vtable_parser
+};
+
+/* ------------------------------------------------------------------------ */
+
 void _parser_init(void) {
   logging_register_category("parser", &parser_debug);
+  Parser = typedescr_register(&_typedescr_parser);
 }
 
-/*
- * parser_stack_entry_t static functions
- */
+/* -- P A R S E R _ S T A C K _ E N T R Y --------------------------------- */
 
 parser_stack_entry_t * _parser_stack_entry_for_nonterminal(nonterminal_t *nonterminal) {
   parser_stack_entry_t *ret;
@@ -146,10 +170,64 @@ char * _parser_stack_entry_tostring(parser_stack_entry_t *e) {
   return e -> str;
 }
 
-/*
- * parser_t static functions
- */
+/* -- P A R S E R  D A T A  F U N C T I O N S ----------------------------- */
 
+data_t * _parser_create(int type, va_list args) {
+  parser_t *parser = va_arg(args, parser_t *);
+  
+  return data_copy(&parser -> _d);
+}
+
+void _parser_free(parser_t *parser) {
+  if (parser) {
+    token_free(parser -> last_token);
+    data_free(parser -> error);
+    list_free(parser -> prod_stack);
+    datastack_free(parser -> stack);
+    dict_free(parser -> variables);
+    function_free(parser -> on_newline);
+    free(parser);
+  }
+}
+
+char * _parser_tostring(parser_t *parser) {
+  if (!parser -> _d.str) {
+    asprintf(&parser -> _d.str, "Parser for '%s'", 
+             data_tostring(parser -> lexer -> reader));
+  }
+  return NULL;
+}
+
+parser_t * _parser_set(entry_t *e, parser_t *parser) {
+  parser_set(parser, (char *) e -> key, data_copy((data_t *) e -> value));
+  return parser;
+}
+
+data_t * _parser_call(parser_t *parser, array_t *args, dict_t *kwargs) {
+  data_t *reader = data_array_get(args, 0);
+  
+  parser_clear(parser);
+  if (kwargs) {
+    dict_reduce(kwargs, _parser_set, parser);
+  }
+  return parser_parse(parser, reader);
+}
+
+data_t * _parser_resolve(parser_t *parser, char *name) {
+  if (!strcmp(name, "lexer")) {
+    return data_create(Lexer, parser -> lexer);
+  } else if (!strcmp(name, "grammar")) {
+    return data_null(); // FIXME data_create(Grammar, parser -> grammar)
+  } else if (!strcmp(name, "line")) {
+    return data_create(Int, parser -> line);
+  } else if (!strcmp(name, "column")) {
+    return data_create(Int, parser -> column);
+  } else {
+    return data_copy(parser_get(parser, name));
+  }
+}
+
+/* -- P A R S E R  S T A T I C  F U N C T I O N S ------------------------- */
 
 parser_t * _parser_lr1(token_t *token, parser_t *parser) {
   error("Bottom-up parsing is not yet implemented");
@@ -332,6 +410,8 @@ parser_t * parser_create(grammar_t *grammar) {
   parser_t *ret;
 
   ret = NEW(parser_t);
+  data_settype(&ret -> _d, Parser);
+  ret -> _d.str = strdup("Parser");
   ret -> grammar = grammar;
   ret -> prod_stack = list_create();
   ret -> last_token = NULL;
@@ -448,18 +528,6 @@ data_t * parser_parse(parser_t *parser, data_t *reader) {
   parser -> lexer = NULL;
   lexer_free(lexer);
   return data_copy(parser -> error);
-}
-
-void parser_free(parser_t *parser) {
-  if (parser) {
-    token_free(parser -> last_token);
-    data_free(parser -> error);
-    list_free(parser -> prod_stack);
-    datastack_free(parser -> stack);
-    dict_free(parser -> variables);
-    function_free(parser -> on_newline);
-    free(parser);
-  }
 }
 
 /* ------------------------------------------------------------------------ */

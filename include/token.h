@@ -69,9 +69,9 @@ typedef enum _token_code {
 } token_code_t;
 
 typedef struct _token {
+  data_t        _d;
   unsigned int  code;
   char         *token;
-  char         *str;
   int           line;
   int           column;
 } token_t;
@@ -79,8 +79,6 @@ typedef struct _token {
 extern char *       token_code_name(token_code_t);
 
 extern token_t *    token_create(unsigned int, char *);
-extern token_t *    token_copy(token_t *);
-extern void         token_free(token_t *);
 extern unsigned int token_hash(token_t *);
 extern int          token_cmp(token_t *, token_t *);
 extern unsigned int token_code(token_t *);
@@ -88,7 +86,14 @@ extern char *       token_token(token_t *);
 extern int          token_iswhitespace(token_t *);
 extern void         token_dump(token_t *);
 extern data_t *     token_todata(token_t *);
-extern char *       token_tostring(token_t *);
+
+extern int Token = -1;
+
+#define data_is_token(d)     ((d) && data_hastype((d), Token))
+#define data_tokenval(d)     (data_is_token((d)) ? ((lexer_t *) ((d) -> ptrval)) : NULL)
+#define token_copy(t)        ((token_t *) data_copy((data_t *) (t)))
+#define token_free(t)        (data_free((data_t *) (t)))
+#define token_tostring(t)    (data_tostring((data_t *) (t)))
 
 #define strtoken_dict_create()  dict_set_tostring_data( \
                                   dict_set_tostring_key( \

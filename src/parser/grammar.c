@@ -32,18 +32,19 @@
 int grammar_debug = 0;
 
 static void                _grammar_init(void) __attribute__((constructor(102)));
-
 static void                _ge_init(void) __attribute__((constructor));
-static ge_t *              _ge_create(grammar_t *, ge_t *, grammar_element_type_t, ...);
+static data_t *            _create(int, va_list);
 
-static grammar_t *         _grammar_create(ge_t *, va_list);
+static ge_t *              _ge_initialize(ge_t *, grammar_t *, ge_t *, grammar_element_type_t);
+static void                _ge_free(ge_t *);
+
 static void                _grammar_free(grammar_t *);
+static char *              _grammar_tostring(grammar_t *);
 static void                _grammar_get_firsts_visitor(entry_t *);
 static int *               _grammar_check_LL1_reducer(entry_t *, int *);
 static void                _grammar_build_parse_table_visitor(entry_t *);
 static ge_t *              _grammar_set_option(ge_t *, token_t *, token_t *);
 
-static nonterminal_t *     _nonterminal_create(ge_t *, va_list);
 static void                _nonterminal_free(nonterminal_t *);
 static set_t *             _nonterminal_get_firsts(nonterminal_t *);
 static set_t *             _nonterminal_get_follows(nonterminal_t *);
@@ -51,25 +52,44 @@ static int                 _nonterminal_check_LL1(nonterminal_t *);
 static void                _nonterminal_build_parse_table(nonterminal_t *);
 static grammar_t *         _nonterminal_dump_terminal(unsigned int, grammar_t *);
 static void                _nonterminal_dump(ge_t *);
+static char *              _nonterminal_tostring(nonterminal_t *);
 
-static rule_t *            _rule_create(ge_t *, va_list);
 static void                _rule_free(rule_t *);
+static char *              _rule_tostring(rule_t *);
 static set_t *             _rule_get_firsts(rule_t *);
 static set_t *             _rule_get_follows(rule_t *);
 static void                _rule_build_parse_table(ge_t *);
 static rule_t *            _rule_add_parse_table_entry(long, rule_t *);
 static void                _rule_dump(ge_t *);
 
-static rule_entry_t *      _rule_entry_new(ge_t *, va_list);
+static rule_entry_t *      _rule_entry_new(int, va_list);
 static rule_entry_t *      _rule_entry_create(rule_t *, int, void *);
 static void                _rule_entry_free(rule_entry_t *);
 static set_t *             _rule_entry_get_firsts(rule_entry_t *, set_t *);
 static set_t *             _rule_entry_get_follows(rule_entry_t *, set_t *);
 static void                _rule_entry_dump(ge_t *);
 
+static data_t *            _ga_create(int, va_list);
+static char *              _ga_tostring(grammar_action_t *);
+static void                _ga_free(grammar_action_t *);
+
+static vtable_t _vtable_ga[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) _create },
+  { .id = FunctionFree,     .fnc = (void_t) _ga_free },
+  { .id = FunctionCmp,      .fnc = (void_t) grammar_action_cmp },
+  { .id = FunctionHash,     .fnc = (void_t) grammar_action_hash },
+  { .id = FunctionToString, .fnc = (void_t) _ga_tostring },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_ga = {
+  .type      = -1,
+  .type_name = "grammaraction",
+  .vtable    = _vtable_ga
+};
+
 static vtable_t _vtable_ge[] = {
-  { .id = FunctionNew,  .fnc = (void_t) _ge_create },
-  { .id = FunctionFree, .fnc = (void_t) ge_free },
+  { .id = FunctionFree, .fnc = (void_t) _ge_free },
   { .id = FunctionNone, .fnc = NULL }
 };
 
@@ -80,9 +100,9 @@ static typedescr_t _typedescr_ge = {
 };
 
 static vtable_t _vtable_grammar[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _grammar_create },
+  { .id = FunctionFactory,  .fnc = (void_t) _create },
   { .id = FunctionFree,     .fnc = (void_t) _grammar_free },
-  { .id = FunctionToString, .fnc = (void_t) grammar_tostring },
+  { .id = FunctionToString, .fnc = (void_t) _grammar_tostring },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -93,9 +113,9 @@ static typedescr_t _typedescr_grammar = {
 };
 
 static vtable_t _vtable_nonterminal[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _nonterminal_create },
+  { .id = FunctionFactory,  .fnc = (void_t) _create },
   { .id = FunctionFree,     .fnc = (void_t) _nonterminal_free },
-  { .id = FunctionToString, .fnc = (void_t) nonterminal_tostring },
+  { .id = FunctionToString, .fnc = (void_t) _nonterminal_tostring },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -106,9 +126,9 @@ static typedescr_t _typedescr_nonterminal = {
 };
 
 static vtable_t _vtable_rule[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _rule_create },
+  { .id = FunctionFactory,  .fnc = (void_t) _create },
   { .id = FunctionFree,     .fnc = (void_t) _rule_free },
-  { .id = FunctionToString, .fnc = (void_t) rule_tostring },
+  { .id = FunctionToString, .fnc = (void_t) _rule_tostring },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -131,21 +151,62 @@ static typedescr_t _typedescr_rule_entry = {
   .vtable    = _vtable_rule_entry
 };
 
-grammar_element_type_t   GETGrammarElement = -1;
-grammar_element_type_t   GETGrammar = -1;
-grammar_element_type_t   GETNonTerminal = -1;
-grammar_element_type_t   GETRule = -1;
-grammar_element_type_t   GETRuleEntry = -1;
-grammar_element_type_t   GETTerminal = -1;
+grammar_element_type_t GrammarElement = -1;
+grammar_element_type_t Grammar = -1;
+grammar_element_type_t NonTerminal = -1;
+grammar_element_type_t Rule = -1;
+grammar_element_type_t RuleEntry = -1;
+grammar_element_type_t Terminal = -1;
 
+/* ------------------------------------------------------------------------ */
 
 void _grammar_init(void) {
   logging_register_category("grammar", &grammar_debug);
 }
 
-/*
- * grammar_action_t -
- */
+void _ge_init(void) {
+  GrammarAction = typedescr_register(&_typedescr_ga);
+  GrammarElement = typedescr_register(&_typedescr_ge);
+  _typedescr_grammar.inherits[0] = GrammarElement;
+  _typedescr_nonterminal.inherits[0] = GrammarElement;
+  _typedescr_rule.inherits[0] = GrammarElement;
+  _typedescr_rule_entry.inherits[0] = GrammarElement;
+  
+  Grammar = typedescr_register(&_typedescr_grammar);
+  NonTerminal = typedescr_register(&_typedescr_nonterminal);
+  Rule = typedescr_register(&_typedescr_rule);
+  RuleEntry = typedescr_register(&_typedescr_rule_entry);
+}
+
+data_t * _create(int type, va_list args) {
+  return data_copy(va_arg(args, data_t *));
+}
+
+/* -- G R A M M A R _ A C T I O N ----------------------------------------- */
+
+void _ga_free(grammar_action_t *grammar_action) {
+  if (grammar_action) {
+    function_free(grammar_action -> fnc);
+    data_free(grammar_action -> data);
+    free(grammar_action);
+  }
+}
+
+char * _ga_tostring(grammar_action_t *grammar_action) {
+  if (!grammar_action -> _d.str) {
+    if (grammar_action -> data) {
+      asprintf(&grammar_action -> _d.str, "%s [%s]", 
+               function_tostring(grammar_action -> fnc),
+               data_tostring(grammar_action -> data));
+    } else {
+      asprintf(&grammar_action -> _d.str, "%s", 
+               function_tostring(grammar_action -> fnc));
+    }
+  }
+  return NULL;
+}
+
+/* ------------------------------------------------------------------------ */
 
 grammar_action_t * grammar_action_create(function_t *fnc, data_t *data) {
   grammar_action_t *ret;
@@ -153,28 +214,7 @@ grammar_action_t * grammar_action_create(function_t *fnc, data_t *data) {
   ret = NEW(grammar_action_t);
   ret -> fnc = function_copy(fnc);
   ret -> data = data_copy(data);
-  ret -> refs = 1;
-  ret -> str = NULL;
   return ret;
-}
-
-grammar_action_t * grammar_action_copy(grammar_action_t *grammar_action) {
-  if (grammar_action) {
-    grammar_action -> refs++;
-  }
-  return grammar_action;
-}
-
-void grammar_action_free(grammar_action_t *grammar_action) {
-  if (grammar_action) {
-    grammar_action -> refs--;
-    if (grammar_action -> refs <= 0) {
-      function_free(grammar_action -> fnc);
-      data_free(grammar_action -> data);
-      free(grammar_action -> str);
-      free(grammar_action);
-    }
-  }
 }
 
 int grammar_action_cmp(grammar_action_t *ga1, grammar_action_t *ga2) {
@@ -192,52 +232,27 @@ unsigned int grammar_action_hash(grammar_action_t *grammar_action) {
                    data_hash(grammar_action -> data));
 }
 
-char * grammar_action_tostring(grammar_action_t *grammar_action) {
-  if (!grammar_action -> str) {
-    if (grammar_action -> data) {
-      asprintf(&grammar_action -> str, "%s [%s]", 
-               function_tostring(grammar_action -> fnc),
-               data_tostring(grammar_action -> data));
-    } else {
-      asprintf(&grammar_action -> str, "%s", 
-               function_tostring(grammar_action -> fnc));
-    }
-  }
-  return grammar_action -> str;
-}
+/* -- G R A M M A R _ E L E M E N T --------------------------------------- */
 
-/*
- * ge_t - static functions
- */
-
-void _ge_init(void) {
-  GETGrammar = typedescr_register(&_typedescr_grammar);
-  GETNonTerminal = typedescr_register(&_typedescr_nonterminal);
-  GETRule = typedescr_register(&_typedescr_rule);
-  GETRuleEntry = typedescr_register(&_typedescr_rule_entry);
-}
-
-ge_t * _ge_create(grammar_t *grammar, ge_t *owner, grammar_element_type_t type, ...) {
-  ge_t        *ret;
+ge_t * _ge_initialize(ge_t *ge, grammar_t *grammar, ge_t *owner, grammar_element_type_t type) {
   va_list      args;
-  new_t        new_fnc;
 
-  ret = NEW(ge_t);
-  ret -> type = type;
-  ret -> grammar = grammar;
-  ret -> owner = owner;
-  ret -> actions = list_create();
-  list_set_free(ret -> actions, (free_t) grammar_action_free);
-  list_set_tostring(ret -> actions, (tostring_t) grammar_action_tostring);
-  ret -> variables = strtoken_dict_create();
-  ret -> str = NULL;
-  va_start(args, type);
-  new_fnc = (new_t) ge_function(ret, FunctionNew);
-  if (new_fnc) {
-    ret -> ptr = new_fnc(ret, args);
+  data_settype(&ge -> _d, type);
+  ge -> grammar = grammar;
+  ge -> owner = owner;
+  ge -> actions = data_list_create();
+  ge -> variables = strtoken_dict_create();
+  return ge;
+}
+
+void _ge_free(ge_t *ge) {
+  free_t free_fnc;
+  
+  if (ge) {
+    dict_free(ge -> variables);
+    list_free(ge -> actions);
+    free(ge);
   }
-  va_end(args);
-  return ret;
 }
 
 char * _ge_dump_variable(entry_t *entry, char *varname) {
@@ -276,28 +291,7 @@ void _ge_dump(ge_t *ge, char *prefix, char *varname) {
   list_reduce(ge -> actions, (reduce_t) _ge_dump_action, ctx);
 }
 
-/*
- * ge_t - public functions
- */
-
-void ge_free(ge_t *ge) {
-  free_t free_fnc;
-  
-  if (ge) {
-    dict_free(ge -> variables);
-    list_free(ge -> actions);
-    free(ge -> str);
-    free_fnc = (free_t) ge_function(ge, FunctionFree);
-    if (free_fnc) {
-      free_fnc(ge -> ptr);
-    }
-    free(ge);
-  }
-}
-
-typedescr_t * ge_typedescr(ge_t *ge) {
-  return typedescr_get(ge -> type);
-}
+/* ------------------------------------------------------------------------ */
 
 void_t ge_function(ge_t *ge, int fnc_id) {
   return typedescr_get_function(typedescr_get(ge -> type), fnc_id);
@@ -343,23 +337,22 @@ ge_t * ge_set_option(ge_t *ge, token_t *name, token_t *val) {
   return ge;
 }
 
-char * ge_tostring(ge_t *ge) {
-  tostring_t fnc;
+/* -- G R A M M A R ------------------------------------------------------- */
 
-  if (!ge -> str) {
-    fnc = (tostring_t) ge_function(ge, FunctionToString);
-    if (fnc) {
-      ge -> str = strdup(fnc(ge -> ptr));
-    } else {
-      ge -> str = strdup(typedescr_get(ge -> type)  -> type_name);
-    }
+void _grammar_free(grammar_t *grammar) {
+  if (grammar) {
+    dict_free(grammar -> nonterminals);
+    dict_free(grammar -> keywords);
+    array_free(grammar -> lexer_options);
+    free(grammar -> prefix);
   }
-  return ge -> str;
 }
 
-/*
- * grammar_t static functions
- */
+char * _grammar_tostring(grammar_t *grammar) {
+  return "Grammar";
+}
+
+/* ------------------------------------------------------------------------ */
 
 void _grammar_get_firsts_visitor(entry_t *entry) {
   nonterminal_t *nonterminal;
@@ -446,48 +439,6 @@ void _grammar_build_parse_table_visitor(entry_t *entry) {
   _nonterminal_build_parse_table(nonterminal);
 }
 
-grammar_t * _grammar_create(ge_t *ge, va_list args) {
-  grammar_t *ret;
-  int        ix;
-
-  ret = NEW(grammar_t);
-  ret -> ge = ge;
-  ret -> entrypoint = NULL;
-  ret -> prefix = NULL;
-  ret -> libs = NULL;
-  ret -> strategy = ParsingStrategyTopDown;
-  ret -> dryrun = FALSE;
-
-  ret -> keywords = intdict_create();
-  dict_set_free_data(ret -> keywords, (free_t) token_free);
-  dict_set_tostring_data(ret -> keywords, (tostring_t) token_tostring);
-
-  ret -> nonterminals = strvoid_dict_create();
-  dict_set_free_data(ret -> nonterminals, (free_t) ge_free);
-
-  ret -> lexer_options = array_create((int) LexerOptionLAST);
-  for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
-    grammar_set_lexer_option(ret, ix, 0L);
-  }
-
-  ge -> grammar = ret;
-  ge -> owner = NULL;
-  ge -> set_option_delegate = (set_option_t) _grammar_set_option;
-  return ret;
-}
-
-void _grammar_free(grammar_t *grammar) {
-  if (grammar) {
-    dict_free(grammar -> nonterminals);
-    dict_free(grammar -> keywords);
-    array_free(grammar -> lexer_options);
-    if (grammar -> prefix) {
-      free(grammar -> prefix);
-    }
-    free(grammar);
-  }
-}
-
 ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
   int         b;
   grammar_t  *g = ge -> grammar;
@@ -543,25 +494,31 @@ ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
  */
 
 grammar_t * grammar_create() {
-  ge_t *ge;
-
-  ge = _ge_create(NULL, NULL, GETGrammar);
-  return (grammar_t *) ge -> ptr;
-}
-
-void grammar_free(grammar_t *grammar) {
-  ge_free(grammar -> ge);
-}
-
-char * grammar_tostring(grammar_t *grammar) {
-  return "Grammar";
+  grammar_t *ret;
+  int        ix;
+  
+  ret = NEW(grammar_t);
+  ret -> entrypoint = NULL;
+  ret -> prefix = NULL;
+  ret -> libs = NULL;
+  ret -> strategy = ParsingStrategyTopDown;
+  ret -> dryrun = FALSE;
+  
+  ret -> keywords = intdata_dict_create();
+  ret -> nonterminals = strdata_dict_create();
+  
+  ret -> lexer_options = array_create((int) LexerOptionLAST);
+  for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
+    grammar_set_lexer_option(ret, ix, 0L);
+  }
+  
+  ret -> ge -> set_option_delegate = (set_option_t) _grammar_set_option;
+  ret = _ge_initialize(ret, ret, NULL, Grammar);
+  return ret;
 }
 
 nonterminal_t * grammar_get_nonterminal(grammar_t *grammar, char *rule) {
-  ge_t *ge;
-
-  ge = (ge_t *) dict_get(grammar -> nonterminals, rule);
-  return (ge) ? (nonterminal_t *) (ge -> ptr) : NULL;
+  return (nonterminal_t *) dict_get(grammar -> nonterminals, rule);
 }
 
 grammar_t * grammar_set_parsing_strategy(grammar_t *grammar, strategy_t strategy) {
@@ -723,25 +680,8 @@ grammar_t * grammar_analyze(grammar_t *grammar) {
  * nonterminal_t static functions
  */
 
-nonterminal_t * _nonterminal_create(ge_t *ge, va_list args) {
-  nonterminal_t *ret;
-  char          *name;
-
-  name = va_arg(args, char *);
-  ret = NEW(nonterminal_t);
-  ret -> firsts = NULL;
-  ret -> follows = NULL;
-  ret -> parse_table = NULL;
-  ret -> name = strdup(name);
-  ret -> rules = array_create(2);
-  ret -> ge = ge;
-  array_set_free(ret -> rules, (free_t) ge_free);
-  ret -> state = strhash(name);
-  dict_put(ge -> grammar -> nonterminals, strdup(ret -> name), ge);
-  if (!ge -> grammar -> entrypoint) {
-    ge -> grammar -> entrypoint = ret;
-  }
-  return ret;
+char * _nonterminal_tostring(nonterminal_t *nonterminal) {
+  return nonterminal -> name;
 }
 
 void _nonterminal_free(nonterminal_t *nonterminal) {
@@ -751,7 +691,6 @@ void _nonterminal_free(nonterminal_t *nonterminal) {
     set_free(nonterminal -> firsts);
     set_free(nonterminal -> follows);
     dict_free(nonterminal -> parse_table);
-    free(nonterminal);
   }
 }
 
@@ -900,14 +839,21 @@ void _nonterminal_dump(ge_t *ge_nt) {
  */
 
 nonterminal_t * nonterminal_create(grammar_t *grammar, char *name) {
-  ge_t *ge;
+  nonterminal_t *ret;
 
-  ge = _ge_create(grammar, grammar -> ge, GETNonTerminal, name);
-  return (nonterminal_t *) ge -> ptr;
-}
-
-void nonterminal_free(nonterminal_t *nonterminal) {
-  ge_free(nonterminal -> ge);
+  ret = NEW(nonterminal_t);
+  ret = _ge_initialize(ret, grammar, grammar, NonTerminal);
+  ret -> firsts = NULL;
+  ret -> follows = NULL;
+  ret -> parse_table = NULL;
+  ret -> name = strdup(name);
+  ret -> rules = data_array_create(2);
+  ret -> state = strhash(name);
+  dict_put(grammar -> nonterminals, strdup(ret -> name), ret);
+  if (!grammar -> entrypoint) {
+    grammar -> entrypoint = ret;
+  }
+  return ret;
 }
 
 void nonterminal_dump(nonterminal_t *nonterminal) {
@@ -929,37 +875,20 @@ rule_t * nonterminal_get_rule(nonterminal_t *nonterminal, int ix) {
   return (rule_t *) (((ge_t *) array_get(nonterminal -> rules, ix)) -> ptr);
 }
 
-char * nonterminal_tostring(nonterminal_t *nonterminal) {
-  return nonterminal -> name;
-}
-
 /*
  * rule_t static functions
  */
-
-rule_t * _rule_create(ge_t *ge, va_list args) {
-  nonterminal_t *nonterminal;
-  rule_t        *ret;
-
-  nonterminal = (nonterminal_t *) (ge -> owner -> ptr);
-  ret = NEW(rule_t);
-  ret -> firsts = NULL;
-  ret -> follows = NULL;
-  ret -> entries = array_create(3);
-  array_set_free(ret -> entries, (free_t) ge_free);
-  array_set_tostring(ret -> entries, (tostring_t) ge_tostring);
-  array_push(nonterminal -> rules, ge);
-  ret -> ge = ge;
-  return ret;
-}
 
 void _rule_free(rule_t *rule) {
   if (rule) {
     array_free(rule -> entries);
     set_free(rule -> firsts);
     set_free(rule -> follows);
-    free(rule);
   }
+}
+
+char * _rule_tostring(rule_t *rule) {
+  return array_tostring(rule -> entries);
 }
 
 /*
@@ -1030,15 +959,18 @@ void _rule_dump(ge_t *ge_rule) {
  * rule_t public functions
  */
 
-rule_t * rule_create(nonterminal_t *nonterminal) {
-  ge_t *ge;
-
-  ge = _ge_create(nonterminal_get_grammar(nonterminal), nonterminal -> ge, GETRule);
-  return (rule_t *) ge -> ptr;
-}
-
-void rule_free(rule_t *rule) {
-  ge_free(rule -> ge);
+rule_t * _rule_create(ge_t *ge, va_list args) {
+  nonterminal_t *nonterminal;
+  rule_t        *ret;
+  
+  nonterminal = (nonterminal_t *) (ge -> owner -> ptr);
+  ret = NEW(rule_t);
+  ret = _ge_initialize(ret, nonterminal_get_grammar(nonterminal), nonterminal, Rule);)
+  ret -> firsts = NULL;
+  ret -> follows = NULL;
+  ret -> entries = data_array_create(3);
+  array_push(nonterminal -> rules, ret);
+  return ret;
 }
 
 void rule_dump(rule_t *rule) {
@@ -1051,10 +983,6 @@ rule_entry_t * rule_get_entry(rule_t *rule, int ix) {
   assert(ix >= 0);
   assert(ix < array_size(rule -> entries));
   return (rule_entry_t *) (((ge_t *) array_get(rule -> entries, ix)) -> ptr);
-}
-
-char * rule_tostring(rule_t *rule) {
-  return array_tostring(rule -> entries);
 }
 
 
@@ -1090,7 +1018,7 @@ rule_entry_t * _rule_entry_create(rule_t *rule, int terminal, void *ptr) {
   ge_t *ge;
 
   ge = _ge_create(rule_get_grammar(rule), rule -> ge,
-                  GETRuleEntry, terminal, ptr);
+                  RuleEntry, terminal, ptr);
   return (rule_entry_t *) ge -> ptr;
 }
 

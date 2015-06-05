@@ -92,8 +92,7 @@ static vtable_t _vtable_float[] = {
 static typedescr_t _typedescr_float =   {
   .type           = Float,
   .type_name      = "float",
-  .vtable         = _vtable_float,
-  .promote_to     = NoType
+  .vtable         = _vtable_float
 };
 
 /*

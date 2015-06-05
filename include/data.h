@@ -167,6 +167,15 @@ extern str_t *         format(char *, array_t *, dict_t *);
                                       (free_t) data_free), \
                                     (tostring_t) chars), \
                                   (tostring_t) data_tostring)
+
+#define intdata_dict_create()   dict_set_tostring_data( \
+                                  dict_set_tostring_key( \
+                                    dict_set_free_data( \
+                                      dict_create(NULL),\
+                                      (free_t) data_free), \
+                                    (tostring_t) itoa), \
+                                  (tostring_t) data_tostring)
+
 #define datadata_dict_create()   dict_set_tostring_data( \
                                   dict_set_tostring_key( \
                                     dict_set_free_data( \

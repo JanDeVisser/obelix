@@ -28,7 +28,14 @@ typedef struct _token_code_str {
   char         *name;
 } token_code_str_t;
 
-static token_code_str_t token_code_names[] = {
+static void     _token_init(void) __attribute__((constructor(102)));
+static data_t * _token_create(int, va_list);
+static void     _token_free(token_t *);
+static char *   _token_tostring(token_t *);
+static data_t * _token_resolve(token_t *, char *);
+static data_t * _token_iswhitespace(token_t *, char *, array_t *, dict_t *);
+
+static code_label_t token_code_names[] = {
   { TokenCodeError,          "TokenCodeError" },
   { TokenCodeNone,           "TokenCodeNone" },
   { TokenCodeEmpty,          "TokenCodeEmpty" },
@@ -70,25 +77,116 @@ static token_code_str_t token_code_names[] = {
   { TokenCodeAmpersand,      "TokenCodeAmpersand" },
   { TokenCodeTilde,          "TokenCodeTilde" },
   { TokenCodeLastToken,      "TokenCodeLastToken" },
-  { TokenCodeEnd,            "TokenCodeEnd" }
+  { TokenCodeEnd,            "TokenCodeEnd" },
+  { -1,                      NULL }
 };
+
+       int     Token = -1;
+static dict_t *custom_codes = NULL;
+
+/* ------------------------------------------------------------------------ */
+
+static vtable_t _vtable_token[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) _token_create },
+  { .id = FunctionFree,     .fnc = (void_t) _token_free },
+  { .id = FunctionToString, .fnc = (void_t) _token_tostring },
+  { .id = FunctionResolve,  .fnc = (void_t) _token_resolve },
+  { .id = FunctionHash,     .fnc = (void_t) token_hash },
+  { .id = FunctionCmp,      .fnc = (void_t) token_cmp },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static methoddescr_t _methoddescr_token[] = {
+  { .type = -1,     .name = "iswhitespace", .method = _token_iswhitespace, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,           .method = NULL,                .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+};
+
+static typedescr_t _typedescr_token = {
+  .type = -1,
+  .type_name = "token",
+  .vtable = _vtable_token
+};
+
+/* ------------------------------------------------------------------------ */
+
+void _token_init(void) {
+  Token = typedescr_register_type(&_typedescr_token, _methoddescr_token);
+}
 
 /*
  * public utility functions
  */
 
 char * token_code_name(token_code_t code) {
-  int ix;
-  static char buf[100];
+  int   ix;
+  char *ret = label_for_code(token_code_names, code);
 
-  for (ix = 0; ix < sizeof(token_code_names) / sizeof(token_code_str_t); ix++) {
+  for (ix = 0; token_code_names[ix].label; ix++) {
     if (token_code_names[ix].code == code) {
-      return token_code_names[ix].name;
+      return token_code_names[ix].label;
     }
   }
-  snprintf(buf, 100, "[Custom code %d]", code);
-  return buf;
+  if (!ret) {
+    if (!custom_codes) {
+      custom_codes = intstr_dict_create();
+    }
+    ret = (char *) dict_get_int(custom_codes, code);
+    if (!ret) {
+      snprintf(&ret, "[Custom code %d]", code);
+      dict_put_int(custom_codes, code, ret);
+    }
+  }
+  return ret;
 }
+
+/* ------------------------------------------------------------------------ */
+
+data_t * _token_create(int type, va_list args) {
+  token_t *token = va_arg(args, token_t *);
+  
+  return data_copy(&token -> _d);
+}
+
+void _token_free(token_t *token) {
+  if (token) {
+    free(token -> token);
+    free(token);
+  }
+}
+
+char * _token_tostring(token_t *token) {
+  if (!token -> _d.str) {
+    if (token -> code < 200) {
+      asprintf(&token -> _d.str, "[%s] '%s'",
+               token_code_name(token -> code), token -> token);
+    } else {
+      asprintf(&token -> _d.str, "[%s]", token -> token);
+    }
+  }
+  return NULL;
+}
+
+data_t * _token_resolve(token_t *token, char *name) {
+  if (!strcmp(name, "code")) {
+    return data_create(Int, token -> code);
+  } else if (!strcmp(name, "codename")) {
+    return data_create(Int, token_code_name(token -> code));
+  } else if (!strcmp(name, "tokenstring")) {
+    return data_create(String, token -> token);
+  } else if (!strcmp(name, "token")) {
+    return token_todata(token);
+  } else if (!strcmp(name, "line")) {
+    return data_create(Int, token -> line);
+  } else if (!strcmp(name, "column")) {
+    return data_create(Int, token -> column);
+  }
+}
+
+data_t * _token_iswhitespace(token_t *self, char *n, array_t *args, dict_t *kwargs) {
+  return data_create(Int, token_iswhitespace(self));
+}
+
+/* ------------------------------------------------------------------------ */
 
 /*
  * token_t - public interface
@@ -98,27 +196,10 @@ token_t *token_create(unsigned int code, char *token) {
   token_t *ret;
 
   ret = NEW(token_t);
+  data_settype(&ret -> _d, Token);
   ret -> code = code;
   ret -> token = strdup(token);
-  ret -> str = NULL;
   return ret;
-}
-
-token_t * token_copy(token_t *token) {
-  token_t *ret;
-
-  ret = token_create(token -> code, token -> token);
-  ret -> line = token -> line;
-  ret -> column = token -> column;
-  return ret;
-}
-
-void token_free(token_t *token) {
-  if (token) {
-    free(token -> token);
-    free(token -> str);
-    free(token);
-  }
 }
 
 unsigned int token_hash(token_t *token) {
@@ -188,17 +269,4 @@ data_t * token_todata(token_t *token) {
   }
   return data;
 }
-
-char * token_tostring(token_t *token) {
-  if (!token -> str) {
-    if (token -> code < 200) {
-      asprintf(&token -> str, "[%s] '%s'",
-               token_code_name(token -> code), token -> token);
-    } else {
-      asprintf(&token -> str, "[%s]", token -> token);
-    }
-  }
-  return token -> str;
-}
-
 

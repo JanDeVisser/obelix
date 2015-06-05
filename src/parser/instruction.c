@@ -38,7 +38,7 @@ extern int script_debug;
 
 static void             _instruction_init(void) __attribute__((constructor(102)));
 
-static data_t *         _instr_new(int, ...);
+static data_t *         _instr_new(int, va_list);
 static void             _instr_free(instruction_t *);
 
 static char *           _instruction_tostring_name(data_t *);
@@ -159,7 +159,6 @@ InstructionType(Decr,         Name);
 InstructionType(Dup,          Name);
 InstructionType(EnterContext, NameValue);
 InstructionType(FunctionCall, Value);
-InstructionType(Import,       Value);
 InstructionType(Incr,         Name);
 InstructionType(Iter,         Name);
 InstructionType(Jump,         Name);
@@ -433,8 +432,6 @@ data_t * _instruction_execute_EnterContext(instruction_t *instr, data_t *scope, 
   data_t     *context;
   data_t     *ret = NULL;
   data_t *  (*fnc)(data_t *);
-  data_t     *catchpoint;
-  nvp_t      *nvp_cp;
   vm_t       *v;
   
   context = _instruction_get_variable(instr, scope);
@@ -448,9 +445,7 @@ data_t * _instruction_execute_EnterContext(instruction_t *instr, data_t *scope, 
     ret = NULL;
   }
   if (!ret) {
-    catchpoint = data_create(NVP, data_create(String, instr -> name), data_copy(context));
-    v = data_vmval(vm);
-    datastack_push(v -> contexts, catchpoint);
+    vm_push_context(vm, instr -> name, context);
   }
   data_free(context);
   return ret;
@@ -465,14 +460,13 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
   data_t *   (*fnc)(data_t *, data_t *);
   nvp_t       *cp;
   data_t      *cp_data;
-  vm_t        *v = data_vmval(vm);
   
   error = vm_pop(vm);
   if (data_is_exception(error)) {
     e = data_exceptionval(error);
     e -> handled = TRUE;
   }
-  cp_data = datastack_pop(data_vmval(vm) -> contexts);
+  cp_data = vm_pop(vm);
   cp = data_nvpval(cp_data);
   context = data_copy(cp -> value);
   data_free(cp_data);
@@ -533,13 +527,10 @@ data_t * _instruction_execute_PushCtx(instruction_t *instr, data_t *scope, vm_t 
   data_t *cp_data;
   data_t *context;
   nvp_t  *cp;
-  vm_t   *v = data_vmval(vm);
   
-  if (datastack_depth(v -> contexts)) {
-    cp_data = vm_peek_context(v);
-    cp = data_nvpval(cp_data);
+  if (datastack_depth(vm -> contexts)) {
+    cp = vm_peek_context(vm);
     context = data_copy(cp -> value);
-    vm_push(v, context);
     vm_push(vm, context);
     return NULL;
   } else {
@@ -588,7 +579,7 @@ name_t * _instruction_setup_constructor(data_t *scope,
       free(name);
       data_set(scope, ret, 
                data_create(BoundMethod, script_bind(script, obj)));
-      object_bind_all(self, dscript = data_create(Script, script));
+      object_bind_all(obj, dscript = data_create(Script, script));
       data_free(dscript);
     }
   }
@@ -761,10 +752,7 @@ data_t * _instruction_execute_Pop(instruction_t *instr, data_t *scope, vm_t *vm,
 }
 
 data_t * _instruction_execute_Dup(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
-  data_t *value;
-  
-  value = vm_peek(vm);
-  vm_push(scope, data_copy(value));
+  vm_push(vm, data_copy(vm_peek(vm)));
   return NULL;
 }
 
@@ -830,8 +818,8 @@ data_t *  instruction_create_enter_context(name_t *varname, data_t *catchpoint) 
 
 data_t * instruction_create_function(name_t *name, callflag_t flags, 
                                      long num_args, array_t *kwargs) {
-  instruction_t *ret;
-  data_t        *call;
+  data_t *ret;
+  data_t *call;
 
   call = data_create(Call, name, flags, num_args, kwargs);
   ret = data_create(ITFunctionCall, name_tostring(name), call);

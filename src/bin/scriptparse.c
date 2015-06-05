@@ -25,6 +25,7 @@
 #include <exception.h>
 #include <loader.h>
 #include <namespace.h>
+#include <native.h>
 #include <script.h>
 #include <scriptparse.h>
 
@@ -38,9 +39,8 @@ static long       _script_parse_get_option(parser_t *, obelix_option_t);
 static data_t    *data_error = NULL;
 static data_t    *data_end = NULL;
 
-static data_t    *name_end = NULL;
-static name_t    *name_error = NULL;
 static name_t    *name_end = NULL;
+static name_t    *name_error = NULL;
 static name_t    *name_query = NULL;
 static name_t    *name_hasattr = NULL;
 static name_t    *name_self = NULL;
@@ -55,7 +55,7 @@ void _script_parse_create_statics(void) {
   data_error   = data_create(String, "ERROR");
   data_end     = data_create(String, "END");
 
-  name_end     = name_create(1, data_tostring(name_end));
+  name_end     = name_create(1, data_tostring(data_end));
   name_error   = name_create(1, data_tostring(data_error));
   name_query   = name_create(1, "query");
   name_hasattr = name_create(1, "hasattr");
@@ -98,14 +98,14 @@ parser_t * _script_parse_prolog(parser_t *parser) {
 }
 
 parser_t * _script_parse_epilog(parser_t *parser) {
-  bytecode_t    *bytecode;
-  data_t        *data;
-  instruction_t *instr;
+  bytecode_t *bytecode;
+  data_t     *data;
+  data_t     *instr;
 
   bytecode = (bytecode_t *) parser -> data;
-  instr = list_peek(script -> instructions);
+  instr = list_peek(bytecode -> instructions);
   if (instr) {
-    if ((data_type((data_t *) instr) != ITJump) && !datastack_empty(script -> pending_labels)) {
+    if ((data_type(instr) != ITJump) && !datastack_empty(bytecode -> pending_labels)) {
       /*
        * If the previous instruction was a Jump, and there is no label set for the
        * next statement, we can never get here. No point in emitting a push and
@@ -266,14 +266,14 @@ parser_t * script_parse_defer_bookmarked_block(parser_t *parser) {
 }
 
 parser_t * script_parse_instruction(parser_t *parser, data_t *type) {
-  typedescr_t *type;
+  typedescr_t *td;
 
-  type = typedescr_get_byname(data_tostring(type));
+  td = typedescr_get_byname(data_tostring(type));
   if (!type) {
     return NULL;
   } else {
     bytecode_push_instruction((bytecode_t *) parser -> data,
-                              data_create(type -> type, NULL, NULL));
+                              data_create(td -> type, NULL, NULL));
     return parser;
   }
 }
@@ -537,11 +537,11 @@ parser_t * script_parse_nop(parser_t *parser) {
 
 parser_t * script_parse_for(parser_t *parser) {
   bytecode_t *bytecode;
-  data_t   *next_label = _script_parse_gen_label();
-  data_t   *end_label = _script_parse_gen_label();
-  data_t   *varname;
+  data_t     *next_label = _script_parse_gen_label();
+  data_t     *end_label = _script_parse_gen_label();
+  data_t     *varname;
 
-  bytecode = ;
+  bytecode = (bytecode_t *) parser -> data;
   varname = datastack_pop(parser -> stack);
   datastack_push(parser -> stack, data_copy(next_label));
   datastack_push(parser -> stack, data_copy(end_label));
@@ -781,7 +781,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
 
 parser_t * script_parse_baseclass_constructors(parser_t *parser) {
   bytecode_push_instruction((bytecode_t *) parser -> data, 
-                            instruction_create_pushval(name_self));
+                            instruction_create_pushvar(name_self));
   bytecode_push_instruction((bytecode_t *) parser -> data,
                             instruction_create_function(name_hasattr, CFNone, 1, NULL));
   script_parse_test(parser);

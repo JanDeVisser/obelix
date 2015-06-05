@@ -36,14 +36,7 @@
 //  #define LEXER_DEBUG
 //#endif
 
-int lexer_debug = 0;
-
 typedef lexer_t * (*newline_fnc)(lexer_t *, int);
-
-typedef struct _lexer_state_str {
-  int            state;
-  char          *name;
-} state_str_t;
 
 typedef struct _kw_matches {
   int               matches;
@@ -69,7 +62,14 @@ static token_t *      _lexer_match_token(lexer_t *, int);
 static int            _lexer_accept(lexer_t *, token_t *);
 static lexer_t *      _lexer_on_newline(lexer_t *, int);
 
-static state_str_t lexer_state_names[] = {
+static data_t *       _lexer_create(int, va_list);
+static void           _lexer_free(lexer_t *);
+static char *         _lexer_tostring(lexer_t *);
+static data_t *       _lexer_resolve(lexer_t *, char *);
+//static data_t *       _lexer_set(lexer_t *, char *);
+static data_t *       _lexer_rollup(token_t *, char *, array_t *, dict_t *);
+
+static code_label_t lexer_state_names[] = {
   { LexerStateFresh,           "LexerStateFresh" },
   { LexerStateInit,            "LexerStateInit" },
   { LexerStateSuccess,         "LexerStateSuccess" },
@@ -95,7 +95,7 @@ static state_str_t lexer_state_names[] = {
   { -1,                        NULL }
 };
 
-static state_str_t matcher_state_names[] = {
+static code_label_t matcher_state_names[] = {
   { KMSInit,                           "KMSInit" },
   { KMSPrefixMatched,                  "KMSPrefixMatched" },
   { KMSPrefixesMatched,                "KMSPrefixesMatched" },
@@ -119,12 +119,35 @@ static code_label_t lexer_option_labels[] = {
   { .code = LexerOptionLAST,                .label = NULL }
 };
 
-/*
- * static utility functions
- */
+int lexer_debug = 0;
+int Lexer = -1;
+
+/* ------------------------------------------------------------------------ */
+
+static vtable_t _vtable_lexer[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) _lexer_create },
+  { .id = FunctionFree,     .fnc = (void_t) _lexer_free },
+  { .id = FunctionToString, .fnc = (void_t) _lexer_tostring },
+  { .id = FunctionResolve,  .fnc = (void_t) _lexer_resolve },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static methoddescr_t _methoddescr_lexer[] = {
+  { .type = -1,     .name = "rollup", .method = _lexer_rollup, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = NoType, .name = NULL,     .method = NULL,          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+};
+
+static typedescr_t _typedescr_lexer = {
+  .type = -1,
+  .type_name = "lexer",
+  .vtable = _vtable_lexer
+};
+
+/* ------------------------------------------------------------------------ */
 
 void _lexer_init(void) {
   logging_register_category("lexer", &lexer_debug);
+  Lexer = typedescr_register_type(&_typedescr_lexer, _methoddescr_lexer);
 }
 
 void _dequotify(str_t *str) {
@@ -178,7 +201,7 @@ char * _state_name(state_str_t *str_table, int state) {
 }
 
 char * lexer_state_name(lexer_state_t state) {
-  return _state_name(lexer_state_names, state);
+  return label_for_code(lexer_state_names, state);
 }
 
 char * lexer_option_name(lexer_option_t option) {
@@ -273,9 +296,81 @@ kw_matches_t * _kw_matches_reset(kw_matches_t *kw_matches) {
   return kw_matches;
 }
 
-/*
- * lexer_t - static methods
- */
+/* -- L E X  E R  D A T A  F U N C T I O N S ------------------------------ */
+
+data_t * _lexer_create(int type, va_list args) {
+  lexer_t *lexer = va_arg(args, lexer_t *);
+  
+  return data_copy(&lexer -> _d);
+}
+
+void _lexer_free(lexer_t *lexer) {
+  if (lexer) {
+    token_free(lexer -> last_match);
+    list_free(lexer -> keywords);
+    str_free(lexer -> token);
+    str_free(lexer -> pushed_back);
+    str_free(lexer -> buffer);
+    free(lexer);
+  }
+}
+
+char * _lexer_tostring(lexer_t *lexer) {
+  if (!lexer -> _d.str) {
+    asprintf(&lexer -> _d.str, "Lexer for '%s'", 
+             data_tostring(lexer -> reader));
+  }
+  return NULL;
+}
+
+// data_t * _lexer_call(lexer_t *lexer, array_t *args, dict_t *kwargs) {
+//   data_t *parser = data_array_get(args, 0);
+//   
+//   // TODO - Call tokenize with the 'parser' data object as parser. Ideally 
+//   // we can use the iterator infrastructure.
+//   return data_null();
+// }
+
+data_t * _lexer_keyword_list(lexer_t *lexer) {
+  array_t *kw = data_array_create(list_size(lexer -> keywords));
+  data_t  *ret;
+  
+  for (list_start(lexer -> keywords); list_has_next(lexer -> keywords)) {
+    array_push(kw, data_copy(list_next(lexer -> keywords)));
+  }
+  ret = data_create_list(kw);
+  array_free(ret);
+  return ret;
+}
+
+data_t * _lexer_resolve_option(lexer_t *lexer, char *name) {
+  int opt = code_for_label(lexer_option_labels, name);
+  return (opt >= 0) ? data_create(Int, lexer_get_option(opt)) : NULL;
+}
+
+data_t * _lexer_resolve(lexer_t *lexer, char *name) {
+  if (!strcmp(name, "reader")) {
+    return data_copy(lexer -> reader);
+  } else if (!strcmp(name, "statename")) {
+    return data_create(String, lexer_state_name(lexer -> state));
+  } else if (!strcmp(name, "state")) {
+    return data_create(Int, lexer -> state);
+  } else if (!strcmp(name, "line")) {
+    return data_create(Int, lexer -> line);
+  } else if (!strcmp(name, "column")) {
+    return data_create(Int, lexer -> column);
+  } else if (!strcmp(name, "keywords")) {
+    return _lexer_keyword_list(lexer);
+  } else {
+    return _lexer_resolve_option(lexer, name);
+  }
+}
+
+data_t * _lexer_rollup(lexer_t *lexer, char *n, array_t *args, dict_t *kwargs) {
+  return (data_t *) lexer_rollup_to(lexer, data_intval(data_array_get(args, 0)));
+}
+
+/* -- L E X E R  S T A T I C  F U N C T I O N S --------------------------- */
 
 int _lexer_get_char(lexer_t *lexer) {
   int   ch;
@@ -709,6 +804,7 @@ lexer_t * lexer_create(data_t *reader) {
   int      ix;
   
   ret = NEW(lexer_t);
+  data_settype(&ret -> _d, Token);
   ret -> reader = reader;
   ret -> pushed_back = NULL;
   ret -> buffer = NULL;
@@ -738,17 +834,6 @@ long lexer_get_option(lexer_t *lexer, lexer_option_t option) {
 lexer_t * lexer_add_keyword(lexer_t *lexer, int code, char *token) {
   list_append(lexer -> keywords, token_create(code, token));
   return lexer;
-}
-
-void lexer_free(lexer_t *lexer) {
-  if (lexer) {
-    token_free(lexer -> last_match);
-    list_free(lexer -> keywords);
-    str_free(lexer -> token);
-    str_free(lexer -> pushed_back);
-    str_free(lexer -> buffer);
-    free(lexer);
-  }
 }
 
 void _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
