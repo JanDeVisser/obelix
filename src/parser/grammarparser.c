@@ -77,13 +77,13 @@ grammar_parser_t * _grammar_parser_state_start(token_t *token, grammar_parser_t 
       grammar_parser -> nonterminal = nonterminal_create(grammar_parser -> grammar, str);
       grammar_parser -> rule = NULL;
       grammar_parser -> entry = NULL;
-      grammar_parser -> ge = grammar_parser -> nonterminal -> ge;
+      grammar_parser -> ge = (ge_t *) grammar_parser -> nonterminal;
       break;
 
     case TokenCodePercent:
       grammar_parser -> old_state = GPStateStart;
       grammar_parser -> state = GPStateOptions;
-      grammar_parser -> ge = g -> ge;
+      grammar_parser -> ge = (ge_t *) g;
       break;
 
     case TokenCodeOpenBracket:
@@ -215,7 +215,7 @@ grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_par
                                                          token_token(token));
       grammar_parser -> rule = NULL;
       grammar_parser -> entry = NULL;
-      grammar_parser -> ge = grammar_parser -> nonterminal -> ge;
+      grammar_parser -> ge = (ge_t *) grammar_parser -> nonterminal;
       break;
 
     case TokenCodeOpenBracket:
@@ -227,7 +227,7 @@ grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_par
       if (grammar_parser -> nonterminal) {
         grammar_parser -> rule = rule_create(grammar_parser -> nonterminal);
         grammar_parser -> state = GPStateRule;
-        grammar_parser -> ge = grammar_parser -> rule -> ge;
+        grammar_parser -> ge = (ge_t *) grammar_parser -> rule;
       } else {
         _grammar_parser_syntax_error(
             grammar_parser,
@@ -272,7 +272,7 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
     case TokenCodePipe:
       grammar_parser -> rule = rule_create(grammar_parser -> nonterminal);
       grammar_parser -> state = GPStateRule;
-      grammar_parser -> ge = grammar_parser -> rule -> ge;
+      grammar_parser -> ge = (ge_t *) grammar_parser -> rule;
       break;
 
     case TokenCodeSemiColon:
@@ -290,13 +290,13 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
     case TokenCodeIdentifier:
       grammar_parser -> entry = rule_entry_non_terminal(grammar_parser -> rule,
                                                         token_token(token));
-      grammar_parser -> ge = grammar_parser -> entry -> ge;
+      grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
       grammar_parser -> state = GPStateEntry;
       break;
 
     case TokenCodeDQuotedStr:
       grammar_parser -> entry = rule_entry_terminal(grammar_parser -> rule, token);
-      grammar_parser -> ge = grammar_parser -> entry -> ge;
+      grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
       grammar_parser -> state = GPStateEntry;
       break;
 
@@ -306,7 +306,7 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
         strcpy(terminal_str, str);
         token = token_create(code, terminal_str);
         grammar_parser -> entry = rule_entry_terminal(grammar_parser -> rule, token);
-        grammar_parser -> ge = grammar_parser -> entry -> ge;
+        grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
         token_free(token);
         grammar_parser -> state = GPStateEntry;
       } else {
@@ -320,7 +320,7 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
     default:
       if ((code >= '!') && (code <= '~')) {
         grammar_parser -> entry = rule_entry_terminal(grammar_parser -> rule, token);
-        grammar_parser -> ge = grammar_parser -> entry -> ge;
+        grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
         grammar_parser -> state = GPStateEntry;
       } else {
         debug("code: %c %d", code, code);

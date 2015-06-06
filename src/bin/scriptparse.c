@@ -804,17 +804,17 @@ parser_t * script_parse_end_function(parser_t *parser) {
 }
 
 parser_t * script_parse_native_function(parser_t *parser) {
-  bytecode_t *bytecode;
+  bytecode_t   *bytecode;
+  script_t     *script;
   native_fnc_t *func;
   data_t       *data;
   char         *fname;
   data_t       *params;
-  name_t       *lib_func;
-  native_t      c_func;
   parser_t     *ret = parser;
   int           async;
 
   bytecode = (bytecode_t *) parser -> data;
+  script = data_scriptval(bytecode -> owner);
 
   /* Top of stack: Parameter names as List */
   params = datastack_pop(parser -> stack);
@@ -829,45 +829,20 @@ parser_t * script_parse_native_function(parser_t *parser) {
   async = data_intval(data);
   data_free(data);
 
-  lib_func = name_split(parser -> last_token -> token, ":");
-  if (name_size(lib_func) > 2 || name_size(lib_func) == 0) {
-    ret = NULL;
-  } else {
-    if (name_size(lib_func) == 2) {
-      if (parser_debug) {
-        debug("Library: %s", name_first(lib_func));
-      }
-      if (!resolve_library(name_first(lib_func))) {
-        error("Error loading library '%s': %s", name_first(lib_func), strerror(errno));
-      }
-      /* TODO Error handling */
-    }
-    if (parser_debug) {
-      debug("C Function: %s", name_last(lib_func));
-    }
-    c_func = (native_t) resolve_function(name_last(lib_func));
-    if (c_func) {
-      func = native_fnc_create(data_scriptval(bytecode -> owner), fname, c_func);
-      func -> params = str_array_create(array_size(data_arrayval(params)));
-      func -> async = async;
-      array_reduce(data_arrayval(params),
-		   (reduce_t) data_add_strings_reducer,
-		   func -> params);
-      if (parser_debug) {
-	debug(" -- defined native function %s", name_tostring(func -> name));
-      }
-    } else {
-      error("C function '%s' not found", c_func);
-      /* FIXME error handling
-	 return data_exception(ErrorName,
-	 "Could not find native function '%s'", fname);
-      */
-      ret = NULL;
-    }
+  func = native_fnc_create(fname, NULL);
+  func -> params = str_array_create(array_size(data_arrayval(params)));
+  func -> async = async;
+  array_reduce(data_arrayval(params),
+               (reduce_t) data_add_strings_reducer,
+               func -> params);
+  dict_put(script -> functions, 
+           strdup(name_last(func -> name)),
+           data_create(Native, func));
+  if (parser_debug) {
+    debug(" -- defined native function %s", native_fnc_tostring(func));
   }
   free(fname);
   data_free(params);
-  name_free(lib_func);
   return ret;
 }
 

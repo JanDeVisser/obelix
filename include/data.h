@@ -153,6 +153,9 @@ extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);
 extern data_t *        data_str_array_to_list(array_t *);
 
+/* -- Standard vtable functions ------------------------------------------ */
+extern data_t *        data_embedded(int, va_list);
+
 /* FIXME Needs a better home */
 extern str_t *         format(char *, array_t *, dict_t *);
 

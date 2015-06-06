@@ -27,6 +27,10 @@
 #include <resolve.h>
 #include <set.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int grammar_debug;
 
 #define NONTERMINAL_DEF         200
@@ -78,7 +82,6 @@ typedef struct _grammar_element {
   list_t                  *actions;
   dict_t                  *variables;
   set_option_t             set_option_delegate;
-  void                    *ptr;
 } ge_t;
 
 typedef struct _nonterminal {
@@ -121,40 +124,42 @@ typedef struct _grammar {
 
 /* ----------------------------------------------------------------------- */
 
-extern grammar_action_t * grammar_action_create(function_t *, data_t *);
-extern int                grammar_action_cmp(grammar_action_t *, grammar_action_t *);
-extern unsigned int       grammar_action_hash(grammar_action_t *);
+extern grammar_action_t *                grammar_action_create(function_t *, data_t *);
+extern int                               grammar_action_cmp(grammar_action_t *, grammar_action_t *);
+extern unsigned int                      grammar_action_hash(grammar_action_t *);
 
-#define grammar_action_copy(ga)      ((grammar_action_t *) data_copy((data_t *) (ga)))
-#define grammar_action_free(ga)      (data_free((data_t *) (ga)))
-#define grammar_action_tostring(ga)  (data_tostring((data_t *) (ga)))
+#define grammar_action_copy(ga)          ((grammar_action_t *) data_copy((data_t *) (ga)))
+#define grammar_action_free(ga)          (data_free((data_t *) (ga)))
+#define grammar_action_tostring(ga)      (data_tostring((data_t *) (ga)))
 
-extern void_t          ge_function(ge_t *, int);
-extern ge_t *          ge_add_action(ge_t *, grammar_action_t *);
-extern ge_t *          ge_set_option(ge_t *, token_t *, token_t *);
+extern void_t                            ge_function(ge_t *, int);
+extern ge_t *                            ge_add_action(ge_t *, grammar_action_t *);
+extern ge_t *                            ge_set_option(ge_t *, token_t *, token_t *);
 
-#define ge_typedescr(ge) (data_typedescr((data_t *) (ge)))
-#define ge_free(ge)      (data_free((data_t *) (ge)))
+#define ge_typedescr(ge)                 (data_typedescr((data_t *) (ge)))
+#define ge_copy(ge)                      ((ge_t *) data_copy((data_t *) (ge)))
+#define ge_free(ge)                      (data_free((data_t *) (ge)))
+#define ge_tostring(ge)                  (data_tostring((data_t *) (ge)))
 
-extern grammar_t *     grammar_create();
-extern grammar_t *     grammar_set_parsing_strategy(grammar_t *, strategy_t);
-extern strategy_t      grammar_get_parsing_strategy(grammar_t *);
-extern nonterminal_t * grammar_get_nonterminal(grammar_t *, char *);
-extern grammar_t *     grammar_set_lexer_option(grammar_t *, lexer_option_t, long);
-extern long            grammar_get_lexer_option(grammar_t *, lexer_option_t);
-extern void            grammar_dump(grammar_t *);
-extern function_t *    grammar_resolve_function(grammar_t *, char *);
-extern grammar_t *     grammar_analyze(grammar_t *);
+extern grammar_t *                       grammar_create();
+extern grammar_t *                       grammar_set_parsing_strategy(grammar_t *, strategy_t);
+extern strategy_t                        grammar_get_parsing_strategy(grammar_t *);
+extern nonterminal_t *                   grammar_get_nonterminal(grammar_t *, char *);
+extern grammar_t *                       grammar_set_lexer_option(grammar_t *, lexer_option_t, long);
+extern long                              grammar_get_lexer_option(grammar_t *, lexer_option_t);
+extern void                              grammar_dump(grammar_t *);
+extern function_t *                      grammar_resolve_function(grammar_t *, char *);
+extern grammar_t *                       grammar_analyze(grammar_t *);
 
-#define grammar_add_action(g, a)    ((grammar_t *) ge_add_action((ge_t *) (g), (a)))
-#define grammar_set_option(g, n, t) ((grammar_t *) ge_set_option((ge_t *) (g), (n), (t)))
-#define grammar_copy(g)             ((grammar_t *) data_copy((data_t *) (g)))
-#define grammar_free(g)             (data_free((data_t *) (g)))
-#define grammar_tostring(g)         (data_tostring((data_t *) (g)))
+#define grammar_add_action(g, a)         ((grammar_t *) ge_add_action((ge_t *) (g), (a)))
+#define grammar_set_option(g, n, t)      ((grammar_t *) ge_set_option((ge_t *) (g), (n), (t)))
+#define grammar_copy(g)                  ((grammar_t *) data_copy((data_t *) (g)))
+#define grammar_free(g)                  (data_free((data_t *) (g)))
+#define grammar_tostring(g)              (data_tostring((data_t *) (g)))
 
-extern nonterminal_t * nonterminal_create(grammar_t *, char *);
-extern void            nonterminal_dump(nonterminal_t *);
-extern rule_t *        nonterminal_get_rule(nonterminal_t *, int);
+extern nonterminal_t *                   nonterminal_create(grammar_t *, char *);
+extern void                              nonterminal_dump(nonterminal_t *);
+extern rule_t *                          nonterminal_get_rule(nonterminal_t *, int);
 
 #define nonterminal_get_grammar(nt)      ((((ge_t *) (nt)) -> grammar))
 #define nonterminal_set_option(nt, n, t) ((nonterminal_t *) ge_set_option((ge_t *) (nt), (n), (t)))
@@ -163,27 +168,33 @@ extern rule_t *        nonterminal_get_rule(nonterminal_t *, int);
 #define nonterminal_free(nt)             (data_free((data_t *) (nt)))
 #define nonterminal_tostring(nt)         (data_tostring((data_t *) (nt)))
 
-extern rule_t *        rule_create(nonterminal_t *);
-extern void            rule_dump(rule_t *);
-extern rule_entry_t *  rule_get_entry(rule_t *, int);
+extern rule_t *                          rule_create(nonterminal_t *);
+extern void                              rule_dump(rule_t *);
+extern rule_entry_t *                    rule_get_entry(rule_t *, int);
 
-#define rule_get_grammar(r)      ((((ge_t *) (r)) -> grammar))
-#define rule_set_option(r, n, t) ((rule_t *) ge_set_option((ge_t *) (r), (n), (t)))
-#define rule_add_action(r, a)    ((rule_t *) ge_add_action((ge_t *) (r), (a)))
-#define rule_copy(r)             ((rule_t *) data_copy((data_t *) (r)))
-#define rule_free(r)             (data_free((data_t *) (r)))
-#define rule_tostring(r)         (data_tostring((data_t *) (r)))
+#define rule_get_grammar(r)              ((((ge_t *) (r)) -> grammar))
+#define rule_get_nonterminal(r)          ((nonterminal_t *) ((((ge_t *) (r)) -> owner)))
+#define rule_set_option(r, n, t)         ((rule_t *) ge_set_option((ge_t *) (r), (n), (t)))
+#define rule_add_action(r, a)            ((rule_t *) ge_add_action((ge_t *) (r), (a)))
+#define rule_copy(r)                     ((rule_t *) data_copy((data_t *) (r)))
+#define rule_free(r)                     (data_free((data_t *) (r)))
+#define rule_tostring(r)                 (data_tostring((data_t *) (r)))
 
-extern rule_entry_t *  rule_entry_terminal(rule_t *, token_t *);
-extern rule_entry_t *  rule_entry_non_terminal(rule_t *, char *);
-extern rule_entry_t *  rule_entry_empty(rule_t *);
-extern void            rule_entry_free(rule_entry_t *);
-extern void            rule_entry_dump(rule_entry_t *);
-extern char *          rule_entry_tostring(rule_entry_t *);
+extern rule_entry_t *                    rule_entry_terminal(rule_t *, token_t *);
+extern rule_entry_t *                    rule_entry_non_terminal(rule_t *, char *);
+extern rule_entry_t *                    rule_entry_empty(rule_t *);
+extern void                              rule_entry_dump(rule_entry_t *);
 
-#define rule_entry_get_rule(e)         ((rule_t *) ((e) -> ge -> owner -> ptr))
-#define rule_entry_get_grammar(e)      ((e) -> ge -> grammar)
-#define rule_entry_add_action(e, a)    ((rule_entry_t *) ge_add_action((e) -> ge, (a)) -> ptr)
-#define rule_entry_set_option(e, n, t) ((rule_entry_t *) ge_set_option((e) -> ge, (n), (t)) -> ptr)
+#define rule_entry_get_rule(re)          ((rule_t *) ((re) -> owner))
+#define rule_entry_get_grammar(re)       ((((ge_t *) (re)) -> grammar))
+#define rule_entry_set_option(re, n, t)  ((rule_entry_t *) ge_set_option((ge_t *) (re), (n), (t)))
+#define rule_entry_add_action(re, a)     ((rule_entry_t *) ge_add_action((ge_t *) (re), (a)))
+#define rule_entry_copy(re)              ((rule_entry_t *) data_copy((data_t *) (re)))
+#define rule_entry_free(re)              (data_free((data_t *) (re)))
+#define rule_entry_tostring(re)          (data_tostring((data_t *) (re)))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __GRAMMAR_H__ */

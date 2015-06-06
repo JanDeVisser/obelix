@@ -23,6 +23,7 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <array.h>
 #include <dict.h>
 #include <lexer.h>
 #include <logging.h>
@@ -38,6 +39,11 @@
 
 typedef lexer_t * (*newline_fnc)(lexer_t *, int);
 
+typedef struct _tokenize_ctx {
+  data_t  *parser;
+  array_t *args;
+} tokenize_ctx_t;
+
 typedef struct _kw_matches {
   int               matches;
   int               code;
@@ -46,28 +52,31 @@ typedef struct _kw_matches {
   kw_match_state_t  state;
 } kw_matches_t;
 
-static void           _lexer_init(void) __attribute__((constructor(102)));
-static void           _dequotify(str_t *);
-static int            _is_identifier(str_t *);
+static void             _lexer_init(void) __attribute__((constructor(102)));
+static void             _dequotify(str_t *);
+static int              _is_identifier(str_t *);
 
-static kw_matches_t * _kw_matches_create();
-static void           _kw_matches_free(kw_matches_t *);
+static kw_matches_t *   _kw_matches_create();
+static void             _kw_matches_free(kw_matches_t *);
 
-static int            _lexer_get_char(lexer_t *);
-static void           _lexer_push_back(lexer_t *, int);
-static void           _lexer_push_all_back(lexer_t *);
-static lexer_t *      _lexer_keyword_match_reducer(token_t *, lexer_t *);
-static int            _lexer_keyword_match(lexer_t *);
-static token_t *      _lexer_match_token(lexer_t *, int);
-static int            _lexer_accept(lexer_t *, token_t *);
-static lexer_t *      _lexer_on_newline(lexer_t *, int);
+static int              _lexer_get_char(lexer_t *);
+static void             _lexer_push_back(lexer_t *, int);
+static void             _lexer_push_all_back(lexer_t *);
+static lexer_t *        _lexer_keyword_match_reducer(token_t *, lexer_t *);
+static int              _lexer_keyword_match(lexer_t *);
+static token_t *        _lexer_match_token(lexer_t *, int);
+static int              _lexer_accept(lexer_t *, token_t *);
+static lexer_t *        _lexer_on_newline(lexer_t *, int);
 
-static data_t *       _lexer_create(int, va_list);
-static void           _lexer_free(lexer_t *);
-static char *         _lexer_tostring(lexer_t *);
-static data_t *       _lexer_resolve(lexer_t *, char *);
+static void             _lexer_free(lexer_t *);
+static char *           _lexer_tostring(lexer_t *);
+static data_t *         _lexer_resolve(lexer_t *, char *);
+static data_t *         _lexer_has_next(lexer_t *);
+static data_t *         _lexer_next(lexer_t *);
 //static data_t *       _lexer_set(lexer_t *, char *);
-static data_t *       _lexer_rollup(token_t *, char *, array_t *, dict_t *);
+static data_t *         _lexer_mth_rollup(lexer_t *, char *, array_t *, dict_t *);
+static tokenize_ctx_t * _lexer_tokenize_reducer(token_t *, tokenize_ctx_t *);
+static data_t *         _lexer_mth_tokenize(lexer_t *, char *, array_t *, dict_t *);
 
 static code_label_t lexer_state_names[] = {
   { LexerStateFresh,           "LexerStateFresh" },
@@ -125,16 +134,19 @@ int Lexer = -1;
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_lexer[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _lexer_create },
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionFree,     .fnc = (void_t) _lexer_free },
   { .id = FunctionToString, .fnc = (void_t) _lexer_tostring },
   { .id = FunctionResolve,  .fnc = (void_t) _lexer_resolve },
+  { .id = FunctionNext,     .fnc = (void_t) _lexer_next },
+  { .id = FunctionHasNext,  .fnc = (void_t) _lexer_has_next },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_lexer[] = {
-  { .type = -1,     .name = "rollup", .method = _lexer_rollup, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = NoType, .name = NULL,     .method = NULL,          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+  { .type = -1,     .name = "rollup",   .method = (method_t) _lexer_mth_rollup,   .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = -1,     .name = "tokenize", .method = (method_t) _lexer_mth_tokenize, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = NoType, .name = NULL,       .method = NULL,                .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 static typedescr_t _typedescr_lexer = {
@@ -187,17 +199,13 @@ int _is_identifier(str_t *str) {
  * public utility functions
  */
 
-char * _state_name(state_str_t *str_table, int state) {
-  int         ix;
-  static char buf[20];
+char * _state_name(code_label_t *str_table, int state) {
+  char *ret = label_for_code(str_table, state);
 
-  for (ix = 0; str_table[ix].name; ix++) {
-    if (str_table[ix].state == state) {
-      return str_table[ix].name;
-    }
+  if (!ret) {
+    ret = "[Unknown state]";
   }
-  sprintf(buf, "[Unknown state %d]", state);
-  return buf;
+  return ret;
 }
 
 char * lexer_state_name(lexer_state_t state) {
@@ -298,15 +306,9 @@ kw_matches_t * _kw_matches_reset(kw_matches_t *kw_matches) {
 
 /* -- L E X  E R  D A T A  F U N C T I O N S ------------------------------ */
 
-data_t * _lexer_create(int type, va_list args) {
-  lexer_t *lexer = va_arg(args, lexer_t *);
-  
-  return data_copy(&lexer -> _d);
-}
-
 void _lexer_free(lexer_t *lexer) {
   if (lexer) {
-    token_free(lexer -> last_match);
+    token_free(lexer -> last_token);
     list_free(lexer -> keywords);
     str_free(lexer -> token);
     str_free(lexer -> pushed_back);
@@ -323,29 +325,21 @@ char * _lexer_tostring(lexer_t *lexer) {
   return NULL;
 }
 
-// data_t * _lexer_call(lexer_t *lexer, array_t *args, dict_t *kwargs) {
-//   data_t *parser = data_array_get(args, 0);
-//   
-//   // TODO - Call tokenize with the 'parser' data object as parser. Ideally 
-//   // we can use the iterator infrastructure.
-//   return data_null();
-// }
-
 data_t * _lexer_keyword_list(lexer_t *lexer) {
   array_t *kw = data_array_create(list_size(lexer -> keywords));
   data_t  *ret;
   
-  for (list_start(lexer -> keywords); list_has_next(lexer -> keywords)) {
+  for (list_start(lexer -> keywords); list_has_next(lexer -> keywords); ) {
     array_push(kw, data_copy(list_next(lexer -> keywords)));
   }
   ret = data_create_list(kw);
-  array_free(ret);
+  array_free(kw);
   return ret;
 }
 
 data_t * _lexer_resolve_option(lexer_t *lexer, char *name) {
   int opt = code_for_label(lexer_option_labels, name);
-  return (opt >= 0) ? data_create(Int, lexer_get_option(opt)) : NULL;
+  return (opt >= 0) ? data_create(Int, lexer_get_option(lexer, opt)) : NULL;
 }
 
 data_t * _lexer_resolve(lexer_t *lexer, char *name) {
@@ -366,8 +360,49 @@ data_t * _lexer_resolve(lexer_t *lexer, char *name) {
   }
 }
 
-data_t * _lexer_rollup(lexer_t *lexer, char *n, array_t *args, dict_t *kwargs) {
+data_t * _lexer_has_next(lexer_t *lexer) {
+  return data_create(Int, lexer_next_token(lexer) ? TRUE : FALSE);
+}
+
+data_t * _lexer_next(lexer_t *lexer) {
+  return data_create(Token, lexer -> last_token);
+}
+
+data_t * _lexer_mth_rollup(lexer_t *lexer, char *n, array_t *args, dict_t *kwargs) {
   return (data_t *) lexer_rollup_to(lexer, data_intval(data_array_get(args, 0)));
+}
+
+tokenize_ctx_t * _lexer_tokenize_reducer(token_t *token, tokenize_ctx_t *ctx) {
+  data_t *d;
+  
+  array_set(ctx -> args, 0, data_create(Token, token));
+  d = data_call(ctx -> parser, ctx -> args, NULL);
+  if (d != data_array_get(ctx -> args, 0)) {
+    array_set(ctx -> args, 0, d);
+  }
+  if (!data_cmp(d, data_null()) || ((data_type(d) == Bool) && !data_intval(d))) {
+    return NULL;
+  } else {
+    return ctx;
+  }
+}
+
+data_t * _lexer_mth_tokenize(lexer_t *lexer, char *n, array_t *args, dict_t *kwargs) {
+  tokenize_ctx_t  ctx;
+  data_t         *ret;
+  void           *retval;
+  
+  ctx.parser = data_copy(data_array_get(args, 0));
+  ctx.args = data_array_create(3);
+  
+  array_set(ctx.args, 0, NULL);
+  array_set(ctx.args, 1, data_copy(data_array_get(args, 1)));
+  array_set(ctx.args, 2, data_create(Lexer, lexer));
+  lexer_tokenize(lexer, (reduce_t) _lexer_tokenize_reducer, (void *) &ctx);
+  ret = data_copy(data_array_get(ctx.args, 0));
+  array_free(ctx.args);
+  data_free(ctx.parser);
+  return ret;
 }
 
 /* -- L E X E R  S T A T I C  F U N C T I O N S --------------------------- */
@@ -809,7 +844,7 @@ lexer_t * lexer_create(data_t *reader) {
   ret -> pushed_back = NULL;
   ret -> buffer = NULL;
   ret -> state = LexerStateFresh;
-  ret -> last_match = NULL;
+  ret -> last_token = NULL;
   ret -> line = 1;
   ret -> column = 0;
   ret -> prev_char = 0;
@@ -817,7 +852,7 @@ lexer_t * lexer_create(data_t *reader) {
     lexer_set_option(ret, ix, 0L);
   }
   ret -> keywords = list_create();
-  list_set_free(ret -> keywords, (free_t) token_free);
+  list_set_free(ret -> keywords, (free_t) data_free);
   ret -> token = str_create(LEXER_INIT_TOKEN_SZ);
   return ret;
 }
@@ -836,21 +871,14 @@ lexer_t * lexer_add_keyword(lexer_t *lexer, int code, char *token) {
   return lexer;
 }
 
-void _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
-  token_t *token;
-  int      code;
-
-  _lexer_on_newline(lexer, 1);
-  lexer -> matches = _kw_matches_create(lexer -> keywords);
-  do {
-    lexer -> last_match = lexer_next_token(lexer);
-    code = token_code(lexer -> last_match);
-    data = parser(lexer -> last_match, data);
-    token_free(lexer -> last_match);
-    lexer -> last_match = NULL;
-  } while (data && (code != TokenCodeEnd));
-  _kw_matches_free(lexer -> matches);
-  lexer -> matches = NULL;
+void * _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
+  while (lexer_next_token(lexer)) {
+    data = parser(lexer -> last_token, data);
+    if (!data) {
+      break;
+    }
+  }
+  return data;
 }
 
 token_t * lexer_next_token(lexer_t *lexer) {
@@ -858,9 +886,23 @@ token_t * lexer_next_token(lexer_t *lexer) {
   token_t     *ret;
   int          first;
   
+  if (!lexer -> last_token) {
+    _lexer_on_newline(lexer, 1);
+    lexer -> matches = _kw_matches_create(lexer -> keywords);
+  } else if (token_code(lexer -> last_token) == TokenCodeEnd) {
+    token_free(lexer -> last_token);
+    lexer -> last_token = token_create(TokenCodeExhausted, "$$$$");
+    return NULL;
+  } else if (token_code(lexer -> last_token) == TokenCodeExhausted) {
+    return NULL;
+  } else {
+    token_free(lexer -> last_token);
+    lexer -> last_token = NULL;
+  }
+  
   first = lexer -> state == LexerStateFresh;
   ret = NULL;
-
+  
   do {
     lexer -> state = LexerStateInit;
     str_erase(lexer -> token);
@@ -889,6 +931,12 @@ token_t * lexer_next_token(lexer_t *lexer) {
     }
   } while (!_lexer_accept(lexer, ret));
 
+  lexer -> last_token = ret;
+  if (token_code(ret) == TokenCodeEnd) {
+    _kw_matches_free(lexer -> matches);
+    lexer -> matches = NULL;
+  }
+  
   if (ret && lexer_debug) {
     debug("lexer_next_token out: token: %s [%s], state %s",
           token_code_name(ret -> code), ret -> token, lexer_state_name(lexer -> state));

@@ -87,7 +87,7 @@ typedef struct _lexer {
   str_t              *pushed_back;
   str_t              *token;
   lexer_state_t       state;
-  token_t            *last_match;
+  token_t            *last_token;
   struct _kw_matches *matches;
   char                quote;
   int                 prev_char;
@@ -104,11 +104,11 @@ extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, long);
 extern long         lexer_get_option(lexer_t *, lexer_option_t);
 extern lexer_t *    lexer_add_keyword(lexer_t *, int, char *);
 extern void         lexer_free(lexer_t *);
-extern void         _lexer_tokenize(lexer_t *, reduce_t, void *);
+extern void *       _lexer_tokenize(lexer_t *, reduce_t, void *);
 extern token_t *    lexer_next_token(lexer_t *);
 extern token_t *    lexer_rollup_to(lexer_t *, int);
 
-extern int Lexer = -1;
+extern int Lexer;
 extern int lexer_debug;
 
 #define lexer_tokenize(l, r, d) _lexer_tokenize((l), (reduce_t) (r), (d))

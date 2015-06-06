@@ -29,6 +29,9 @@ typedef enum _token_code {
   TokenCodeWhitespace,
   TokenCodeRawString,
   TokenCodeNewLine,
+  TokenCodeLastToken,
+  TokenCodeEnd,
+  TokenCodeExhausted,
   TokenCodeIdentifier = 'i',
   TokenCodeInteger = 'd',
   TokenCodeHexNumber = 'x',
@@ -63,9 +66,7 @@ typedef enum _token_code {
   TokenCodePercent = '%',
   TokenCodeHat = '^',
   TokenCodeAmpersand = '&',
-  TokenCodeTilde = '~',
-  TokenCodeLastToken = 198,
-  TokenCodeEnd = 199
+  TokenCodeTilde = '~'
 } token_code_t;
 
 typedef struct _token {
@@ -87,7 +88,7 @@ extern int          token_iswhitespace(token_t *);
 extern void         token_dump(token_t *);
 extern data_t *     token_todata(token_t *);
 
-extern int Token = -1;
+extern int Token;
 
 #define data_is_token(d)     ((d) && data_hastype((d), Token))
 #define data_tokenval(d)     (data_is_token((d)) ? ((lexer_t *) ((d) -> ptrval)) : NULL)
@@ -103,17 +104,17 @@ extern int Token = -1;
                                           dict_create((cmp_t) strcmp),\
                                           (hash_t) strhash), \
                                         (free_t) free), \
-                                      (free_t) token_free), \
+                                      (free_t) data_free), \
                                     (tostring_t) chars), \
-                                  (tostring_t) token_tostring)
+                                  (tostring_t) data_tostring)
 
 #define tokenset_create()     set_set_tostring( \
                                 set_set_hash( \
                                   set_set_free( \
                                     set_create((cmp_t) token_cmp), \
-                                    (free_t) free), \
-                                  hashptr), \
-                                token_tostring)
+                                    (free_t) data_free), \
+                                  token_hash), \
+                                data_tostring)
 
 #endif /* TOKEN_H */
 

@@ -267,7 +267,7 @@ int typedescr_register(typedescr_t *descr) {
 }
 
 int typedescr_register_type(typedescr_t *td, methoddescr_t *md) {
-  int ret = typedescr_register_type(td);
+  int ret = typedescr_register(td);
   int ix;
   
   for (ix = 0; md[ix].type != NoType; ix++) {

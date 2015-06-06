@@ -48,7 +48,10 @@ void _data_init(void) {
 /* -- D A T A  P U B L I C  F U N C T I O N S ----------------------------- */
 
 data_t * data_create_noinit(int type) {
-  return data_settype(NEW(data_t), type);
+  data_t *ret = data_settype(NEW(data_t), type);
+  
+  ret -> free_me = Normal;
+  return ret;
 }
 
 data_t * data_settype(data_t *data, int type) {
@@ -58,7 +61,7 @@ data_t * data_settype(data_t *data, int type) {
     data -> type = type;
     data -> refs++;
     data -> str = NULL;
-    data -> free_me = Normal;
+    data -> free_me = DontFreeData;
     data -> ptrval = data;
     descr -> count++;
     _data_count++;
@@ -80,7 +83,6 @@ data_t * data_create(int type, ...) {
     initialized = f(type, arg);
     if (initialized) {
       data_settype(initialized, type);
-      initialized -> free_me = DontFreeData;
     }
     va_end(arg);
   } else {
@@ -190,14 +192,16 @@ void _data_call_free(typedescr_t *type, data_t *data) {
 
 void data_free(data_t *data) {
   typedescr_t *type;
+  int          free_me;
   
   if (data && (data -> free_me != Constant) && (--data -> refs <= 0)) {
+    free_me = data -> free_me;
     free(data -> str);
     type = data_typedescr(data);
     _data_call_free(type, data);
     type -> count--;
     _data_count--;
-    if (data -> free_me != DontFreeData) {
+    if (free_me != DontFreeData) {
       free(data);
     }
   }
@@ -664,6 +668,11 @@ data_t * data_iter(data_t *data) {
     if (iter) {
       ret = iter(data);
     }
+    if (!ret) {
+      ret = data_exception(ErrorExhausted,
+                           "Iterator '%s' exhausted",
+                           data_tostring(data));
+    }
   } else if (data_is_iterator(data)) {
     ret = data_copy(data);
   } else {
@@ -849,10 +858,15 @@ int data_count(void) {
   return _data_count;
 }
 
-/*
- * Standard reducer functions
- */
+/* -- Standard vtable functions ----------------------------------------- */
 
+data_t * data_embedded(int type, va_list args) {
+  (void) type;
+  return data_copy(va_arg(args, data_t *));
+}
+
+/* -- Standard reducer functions ----------------------------------------- */
+ 
 array_t * data_add_strings_reducer(data_t *data, array_t *target) {
   array_push(target, strdup(data_tostring(data)));
   return target;

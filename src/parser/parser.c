@@ -208,7 +208,7 @@ data_t * _parser_call(parser_t *parser, array_t *args, dict_t *kwargs) {
   
   parser_clear(parser);
   if (kwargs) {
-    dict_reduce(kwargs, _parser_set, parser);
+    dict_reduce(kwargs, (reduce_t) _parser_set, parser);
   }
   return parser_parse(parser, reader);
 }
@@ -343,20 +343,20 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
           for (i = array_size(rule -> entries) - 1; i >= 0; i--) {
             entry = rule_get_entry(rule, i);
             if (entry -> terminal) {
-              _parser_push_grammar_element(parser, entry -> ge);
+              _parser_push_grammar_element(parser, (ge_t *) entry);
               _parser_push_to_prodstack(
                   parser, _parser_stack_entry_for_entry(entry));
             } else {
-              _parser_push_grammar_element(parser, entry -> ge);
+              _parser_push_grammar_element(parser, (ge_t *) entry);
               new_nt = grammar_get_nonterminal(parser -> grammar, entry -> nonterminal);
               _parser_push_to_prodstack(
                   parser,
                   _parser_stack_entry_for_nonterminal(new_nt));
-              _parser_push_grammar_element(parser, new_nt -> ge);
+              _parser_push_grammar_element(parser, (ge_t *) new_nt);
             }
           }
         }
-        _parser_push_grammar_element(parser, rule -> ge);
+        _parser_push_grammar_element(parser, (ge_t *) rule);
         consuming = 2;
         break;
         
@@ -487,7 +487,7 @@ data_t * parser_parse(parser_t *parser, data_t *reader) {
   }
   
   parser -> on_newline = NULL;
-  fnc_name = (token_t *) dict_get(parser -> grammar -> ge -> variables, 
+  fnc_name = (token_t *) dict_get(parser -> grammar -> ge.variables, 
                                   "on_newline");
   if (fnc_name) {
     if (parser_debug) {

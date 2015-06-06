@@ -87,7 +87,7 @@ static dict_t *custom_codes = NULL;
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_token[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _token_create },
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionFree,     .fnc = (void_t) _token_free },
   { .id = FunctionToString, .fnc = (void_t) _token_tostring },
   { .id = FunctionResolve,  .fnc = (void_t) _token_resolve },
@@ -97,8 +97,8 @@ static vtable_t _vtable_token[] = {
 };
 
 static methoddescr_t _methoddescr_token[] = {
-  { .type = -1,     .name = "iswhitespace", .method = _token_iswhitespace, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = NoType, .name = NULL,           .method = NULL,                .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+  { .type = -1,     .name = "iswhitespace", .method = (method_t) _token_iswhitespace, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,           .method = NULL,                           .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 static typedescr_t _typedescr_token = {
@@ -121,18 +121,13 @@ char * token_code_name(token_code_t code) {
   int   ix;
   char *ret = label_for_code(token_code_names, code);
 
-  for (ix = 0; token_code_names[ix].label; ix++) {
-    if (token_code_names[ix].code == code) {
-      return token_code_names[ix].label;
-    }
-  }
   if (!ret) {
     if (!custom_codes) {
       custom_codes = intstr_dict_create();
     }
     ret = (char *) dict_get_int(custom_codes, code);
     if (!ret) {
-      snprintf(&ret, "[Custom code %d]", code);
+      asprintf(&ret, "[Custom code %d]", code);
       dict_put_int(custom_codes, code, ret);
     }
   }
@@ -141,16 +136,9 @@ char * token_code_name(token_code_t code) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _token_create(int type, va_list args) {
-  token_t *token = va_arg(args, token_t *);
-  
-  return data_copy(&token -> _d);
-}
-
 void _token_free(token_t *token) {
   if (token) {
     free(token -> token);
-    free(token);
   }
 }
 

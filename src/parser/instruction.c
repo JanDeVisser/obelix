@@ -792,8 +792,6 @@ data_t * _instr_new(int type, va_list args) {
   ret = NEW(instruction_t);
   data = &ret -> data;
   data_settype(data, type);
-  data -> free_me = DontFreeData;
-  data -> ptrval = ret;
   ret -> line = -1;
   ret -> name = (name) ? strdup(name) : NULL;
   ret -> value = value;

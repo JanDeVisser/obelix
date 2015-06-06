@@ -28,7 +28,6 @@ typedef data_t * (*native_t)(char *, array_t *, dict_t *);
 
 typedef struct _native_fnc {
   data_t    _d;
-  script_t *script;
   name_t   *name;
   int       async;
   native_t  native_method;
@@ -37,15 +36,16 @@ typedef struct _native_fnc {
 
 /* -- N A T I V E  F N C  P R O T O T Y P E S ----------------------------- */
 
-extern native_fnc_t *   native_fnc_create(script_t *, char *name, native_t);
+extern native_fnc_t *   native_fnc_create(char *name, native_t);
 extern native_fnc_t *   native_fnc_copy(native_fnc_t *);
-extern void             native_fnc_free(native_fnc_t *);
 extern data_t *         native_fnc_execute(native_fnc_t *, array_t *, dict_t *);
-extern char *           native_fnc_tostring(native_fnc_t *);
 extern int              native_fnc_cmp(native_fnc_t *, native_fnc_t *);
+extern char *           native_fnc_tostring(native_fnc_t *);
 
-#define data_is_native(d)  ((d) && (data_type((d)) == Native))
-#define data_nativeval(d)  (data_is_native((d)) ? ((native_fnc_t *) (d) -> ptrval) : NULL)
+#define data_is_native(d)      ((d) && data_hastype((d), Native))
+#define data_nativeval(d)      (data_is_native((d)) ? ((native_fnc_t *) (d)) : NULL)
+#define native_fnc_copy(f)     ((native_fnc_t *) data_copy((data_t *) (f)))
+#define native_fnc_free(f)     (data_free((data_t *) (f)))
 
 #ifdef  __cplusplus
 }
