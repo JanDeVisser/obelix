@@ -79,13 +79,19 @@ native_fnc_t * _native_fnc_resolve(native_fnc_t *fnc) {
     }
     fnc -> native_method = (native_t) resolve_function(name_last(lib_func));
     if (!fnc -> native_method) {
-      error("Error resolving function '%s': %s", name_tostring(lib_func), strerror(errno));
+      if (errno) {
+        error("Error resolving function '%s': %s", name_tostring(lib_func), strerror(errno));
+      } else {
+        error("Could not resolve function '%s'", 
+              name_tostring_sep(lib_func, ":"), 
+              strerror(errno));
+      }
     }
   }
   return fnc;
 }
 
-/* --------------------------- -> --------------------------------------------- */
+/* ------------------------------------------------------------------------ */
 
 native_fnc_t * native_fnc_create(char *name, native_t c_func) {
   native_fnc_t *ret;

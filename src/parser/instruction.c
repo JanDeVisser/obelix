@@ -37,6 +37,7 @@ int script_trace = 0;
 extern int script_debug;
 
 static void             _instruction_init(void) __attribute__((constructor(102)));
+static int              _instruction_type_register(char *, int, vtable_t *);
 
 static data_t *         _instr_new(int, va_list);
 static void             _instr_free(instruction_t *);
@@ -130,14 +131,7 @@ static vtable_t _vtable_ ## t [] = {                                         \
   { .id = FunctionNone, .fnc = NULL }                                        \
 };                                                                           \
 void _register_ ## t(void) {                                                 \
-  static typedescr_t td;                                                     \
-  td.type = -1;                                                              \
-  td.type_name = #t;                                                         \
-  td.inherits[0] = Instruction;                                              \
-  td.inherits[1] = ITBy ## s;                                                \
-  td.inherits[2] = NoType;                                                   \
-  td.vtable = _vtable_ ## t;                                                 \
-  typedescr_register(&td);                                                   \
+  IT ## t = _instruction_type_register(#t, ITBy ## s, _vtable_ ## t);        \
 }                                                                            \
 data_t * _instruction_call_ ## t(data_t *data, array_t *p, dict_t *kw) {     \
   instruction_t *instr = data_instructionval(data);                          \
@@ -227,6 +221,18 @@ void _instruction_init(void) {
   interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
   name_empty = name_create(0);
   name_self = name_create(1, "self");
+}
+
+void _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
+  static typedescr_t td;
+  
+  td.type = -1;
+  td.type_name = name;
+  td.inherits[0] = Instruction;
+  td.inherits[1] = inherits;
+  td.inherits[2] = NoType;
+  td.vtable = vtable;
+  return typedescr_register(&td);                                                   \
 }
 
 /* ----------------------------------------------------------------------- */

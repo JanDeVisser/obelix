@@ -28,15 +28,20 @@
 #include <data.h>
 #include <exception.h>
 
+typedef struct _float {
+  data_t _d;
+  double dbl;
+} float_t;
+
 static void          _float_init(void) __attribute__((constructor));
-static data_t *      _float_new(data_t *, va_list);
-static int           _float_cmp(data_t *, data_t *);
-static char *        _float_tostring(data_t *);
-static unsigned int  _float_hash(data_t *);
+static data_t *      _float_new(int, va_list);
+static int           _float_cmp(float_t *, float_t *);
+static char *        _float_tostring(float_t *);
+static unsigned int  _float_hash(float_t *);
 static data_t *      _float_parse(typedescr_t *, char *);
-static data_t *      _float_cast(data_t *, int);
-static double        _float_fltvalue(data_t *);
-static int           _float_intvalue(data_t *);
+static data_t *      _float_cast(float_t *, int);
+static double        _float_fltvalue(float_t *);
+static int           _float_intvalue(float_t *);
 
 static data_t *      _number_add(data_t *, char *, array_t *, dict_t *);
 static data_t *      _number_mult(data_t *, char *, array_t *, dict_t *);
@@ -78,7 +83,7 @@ static methoddescr_t _methoddescr_number[] = {
 };
 
 static vtable_t _vtable_float[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _float_new },
+  { .id = FunctionFactory,  .fnc = (void_t) _float_new },
   { .id = FunctionCmp,      .fnc = (void_t) _float_cmp },
   { .id = FunctionToString, .fnc = (void_t) _float_tostring },
   { .id = FunctionParse,    .fnc = (void_t) _float_parse },
@@ -107,26 +112,25 @@ void _float_init(void) {
   typedescr_register_methods(_methoddescr_number);
 }
 
-data_t * _float_new(data_t *target, va_list arg) {
-  double val;
-
-  val = va_arg(arg, double);
-  target -> dblval = val;
-  return target;
+data_t * _float_new(int type, va_list arg) {
+  float_t *ret = data_new(Float, float_t);
+  
+  ret -> dbl = va_arg(arg, double);
+  return ret;
 }
 
-unsigned int _float_hash(data_t *data) {
-  return hash(&(data -> dblval), sizeof(double));
+unsigned int _float_hash(int_t *data) {
+  return hash(&(data -> dbl), sizeof(double));
 }
 
-int _float_cmp(data_t *self, data_t *d2) {
-  return (self -> dblval == d2 -> dblval)
+int _float_cmp(float_t *self, float_t *d2) {
+  return (self -> dbl == d2 -> dbl)
       ? 0
-      : (self -> dblval > d2 -> dblval) ? 1 : -1;
+      : (self -> dbl > d2 -> dbl) ? 1 : -1;
 }
 
-char * _float_tostring(data_t *data) {
-  return dtoa(data -> dblval);
+char * _float_tostring(float_t *data) {
+  return dtoa(data -> dbl);
 }
 
 data_t * _float_parse(typedescr_t *type, char *str) {
@@ -140,26 +144,26 @@ data_t * _float_parse(typedescr_t *type, char *str) {
     : NULL;
 }
 
-data_t * _float_cast(data_t *data, int totype) {
+data_t * _float_cast(float_t *data, int totype) {
   data_t *ret = NULL;
 
   switch (totype) {
     case Int:
-      ret = data_create(Int, (long) data -> dblval);
+      ret = data_create(Int, (long) data -> dbl);
       break;
     case Bool:
-      ret = data_create(Bool, data -> dblval != 0);
+      ret = data_create(Bool, data -> dbl != 0);
       break;
   }
   return ret;
 }
 
-double _float_fltvalue(data_t *data) {
-  return data -> dblval;
+double _float_fltvalue(float_t *data) {
+  return data -> dbl;
 }
 
-int _float_intvalue(data_t *data) {
-  return (int) data -> dblval;
+int _float_intvalue(float_t *data) {
+  return (int) data -> dbl;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -169,7 +173,7 @@ data_t * _number_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int     ix;
   double  retval = data_floatval(self);
   double  val;
-  int     plus = (name[0] == '+');
+  int     plus = (name[0] == '+') || !strcmp(name, "sum");
 
   if (!array_size(args)) {
     return data_create(Int, (plus) ? data_floatval(self) : -1.0 * data_floatval(self));

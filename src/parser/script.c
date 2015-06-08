@@ -41,14 +41,13 @@ static void       _script_init(void) __attribute__((constructor(102)));
 static script_t * _script_set_instructions(script_t *, list_t *);
 static void       _script_list_block(list_t *);
 
-static data_t *   _script_create(int, va_list);
 static void       _script_free(script_t *);
 static char *     _script_tostring(script_t *);
 
 /* -- data_t type description structures ---------------------------------- */
 
-static vtable_t _wrapper_vtable_script[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _script_create },
+static vtable_t _vtable_script[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) script_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _script_free },
   { .id = FunctionToString, .fnc = (void_t) _script_tostring },
@@ -56,20 +55,20 @@ static vtable_t _wrapper_vtable_script[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
+static typedescr_t _typedescr_script = {
+  .type      = Script,
+  .type_name = "script",
+  .vtable    = _vtable_script
+};
+
 /* ------------------------------------------------------------------------ */
 
 void _script_init(void) {
   logging_register_category("script", &script_debug);
-  wrapper_register(Script, "script", _wrapper_vtable_script);
+  typedescr_register(&_typedescr_script);
 }
 
 /* -- S C R I P T  S T A T I C  F U N C T I O N S  ------------------------ */
-
-data_t * _script_create(int type, va_list args) {
-  script_t *script = va_arg(args, script_t *);
-  
-  return data_copy(&script -> data);
-}
 
 char * _script_tostring(script_t *script) {
   return name_tostring(script_fullname(script));
@@ -102,7 +101,7 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
     debug("Creating script '%s'", name);
   }
   ret = NEW(script_t);
-  data_settype(&ret -> data, Script);
+  data_settype(&ret -> _d, Script);
   
   ret -> functions = strdata_dict_create();
   ret -> params = NULL;
@@ -174,11 +173,11 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
 }
 
 data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparams) {
-  object_t  *retobj;
-  data_t    *retval;
-  data_t    *dscript;
-  data_t    *bm;
-  data_t    *self;
+  object_t *retobj;
+  data_t   *retval;
+  data_t   *dscript;
+  data_t   *bm;
+  data_t   *self;
 
   if (script_debug) {
     debug("script_create_object(%s)", script_tostring(script));
@@ -203,9 +202,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
 }
 
 bound_method_t * script_bind(script_t *script, object_t *object) {
-  bound_method_t *ret = bound_method_create(script, object);
-  
-  return ret;
+  return bound_method_create(script, object);
 }
 
 closure_t * script_create_closure(script_t *script, closure_t *up, data_t *self) {

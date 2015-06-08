@@ -829,19 +829,16 @@ parser_t * script_parse_native_function(parser_t *parser) {
   async = data_intval(data);
   data_free(data);
 
-  func = native_fnc_create(fname, NULL);
+  func = native_fnc_create(token_token(parser -> last_token), NULL);
   func -> params = str_array_create(array_size(data_arrayval(params)));
   func -> async = async;
   array_reduce(data_arrayval(params),
                (reduce_t) data_add_strings_reducer,
                func -> params);
-  dict_put(script -> functions, 
-           strdup(name_last(func -> name)),
-           data_create(Native, func));
+  dict_put(script -> functions, fname, data_create(Native, func));
   if (parser_debug) {
     debug(" -- defined native function %s", native_fnc_tostring(func));
   }
-  free(fname);
   data_free(params);
   return ret;
 }

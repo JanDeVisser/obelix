@@ -17,6 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <signal.h>
@@ -61,7 +62,7 @@ void __init(void) {
 }
 
 
-void * new(int sz) {
+void * _new(int sz) {
   void *ret;
 
   ret = malloc(sz);
@@ -214,8 +215,8 @@ int strtoint(char *str, long *val) {
       return 0;
     }
   } else {
-      *val = 0;
-      return -1;
+    *val = 0;
+    return -1;
   }
 }
 

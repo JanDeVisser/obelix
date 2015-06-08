@@ -63,19 +63,10 @@ typedef enum _free_semantics {
 typedef struct _data {
   int               type;
   free_semantics_t  free_me;
-  union {
-    void           *ptrval;
-    long            intval;
-    double          dblval;
-  };
+  void             *ptrval;
   int               refs;
   char             *str;
 } data_t;
-
-typedef struct _pointer {
-  void *ptr;
-  int   size;
-} pointer_t;
 
 typedef data_t * (*factory_t)(int, va_list);
 typedef data_t * (*cast_t)(data_t *, int);
@@ -86,6 +77,7 @@ typedef data_t * (*data_fnc_t)(data_t *);
 typedef data_t * (*data2_fnc_t)(data_t *, data_t *);
 
 extern data_t *        data_create_noinit(int);
+extern data_t *        _data_new(int, size_t);
 extern data_t *        data_create(int, ...);
 extern data_t *        data_settype(data_t *, int);
 extern data_t *        data_cast(data_t *, int);
@@ -131,7 +123,8 @@ extern int             data_count(void);
 extern double          data_floatval(data_t *);
 extern int             data_intval(data_t *);
 
-#define data_type(d)   ((d) -> type)
+#define data_new(dt,st)     ((st *) _data_new((dt), sizeof(st)))
+#define data_type(d)        ((d) -> type)
 
 #define data_charval(d)     ((char *) (d) -> ptrval)
 #define data_arrayval(d)    ((array_t *) (d) -> ptrval)

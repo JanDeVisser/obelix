@@ -54,6 +54,13 @@ data_t * data_create_noinit(int type) {
   return ret;
 }
 
+data_t * _data_new(int type, size_t sz) {
+  data_t *ret = data_settype((data_t *) new(sz), type);
+  
+  ret -> free_me = DontFreeData;
+  return ret;
+}
+
 data_t * data_settype(data_t *data, int type) {
   typedescr_t *descr = typedescr_get(type);
 
@@ -81,10 +88,10 @@ data_t * data_create(int type, ...) {
   if (f) {
     va_start(arg, type);
     initialized = f(type, arg);
+    va_end(arg);
     if (initialized) {
       data_settype(initialized, type);
     }
-    va_end(arg);
   } else {
     ret = data_create_noinit(type);
     n = (new_t) typedescr_get_function(descr, FunctionNew);

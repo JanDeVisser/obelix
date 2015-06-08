@@ -28,26 +28,14 @@
 #include <nvp.h>
 #include <parser.h>
 
-typedef enum {
-  PSETypeNonTerminal,
-  PSETypeRule,
-  PSETypeEntry,
-  PSETypeAction
-} parser_stack_entry_type_t;
-
 typedef struct _parser_stack_entry {
-  parser_stack_entry_type_t type;
-  union {
-    nonterminal_t    *nonterminal;
-    rule_t           *rule;
-    rule_entry_t     *entry;
-    grammar_action_t *action;
-  };
-  char               *str;
+  data_t  _d;
+  data_t *subject;
 } parser_stack_entry_t;
 
 static void                   _parser_init(void) __attribute__((constructor(102)));
 
+static parser_stack_entry_t * _parser_stack_create(data_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_rule(rule_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_nonterminal(nonterminal_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_entry(rule_entry_t *);
@@ -72,6 +60,11 @@ static data_t *               _parser_call(parser_t *, array_t *, dict_t *);
        int parser_debug = 0;
 extern int script_debug;
        int Parser = -1;
+       int ParserStackEntry = -1;
+       int PSETypeNonTerminal = -1;
+       int PSETypeRule = -1;
+       int PSETypeEntry = -1;
+       int PSETypeAction = -1;
 
 /* ------------------------------------------------------------------------ */
 
@@ -89,11 +82,51 @@ static typedescr_t _typedescr_parser = {
   .vtable = _vtable_parser
 };
 
+static vtable_t _vtable_parser_stack_entry[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionFree,     .fnc = (void_t) _parser_stack_entry_free },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_parser_stack_entry = {
+  .type = -1,
+  .type_name = "parserstackentry",
+  .vtable = _vtable_parser_stack_entry
+};
+
+#define PSEType(t)                                                           \
+int             PSEType ## t = -1;                                           \
+static data_t * _pse_call_ ## t(data_t *, array_t *, dict_t *);              \
+static data_t * _pse_execute_ ## t(parser_stack_entry_t *, parser_t *);      \
+static void     _register_ ## t(void) __attribute__((constructor(200)));     \
+static vtable_t _vtable_ ## t [] = {                                         \
+  { .id = FunctionCall,     .fnc = (void_t) _pse_call_ ## t },               \
+  { .id = FunctionToString, .fnc = (void_t) _pse_tostring_ ## t },           \
+  { .id = FunctionNone, .fnc = NULL }                                        \
+};                                                                           \
+void _register_ ## t(void) {                                                 \
+  IT ## t = _pse_type_register(#t, _vtable_ ## t);                           \
+}                                                                            \
+data_t * _pse_call_ ## t(data_t *data, array_t *p, dict_t *kw) {             \
+  parser_stack_entry_t *pse = (parser_stack_entry_t *) data;                 \
+  data_t               *parser = data_array_get(p, 0);                       \
+  if (parser_debug) {                                                        \
+    debug("Executing %s", data_tostring(data));                              \
+  }                                                                          \
+  return _pse_execute_ ## t(pse, (parser_t *) parser);                       \
+}
+
+PSEType(NonTerminal);
+PSEType(Rule);
+PSEType(Entry);
+PSEType(Action)
+
 /* ------------------------------------------------------------------------ */
 
 void _parser_init(void) {
   logging_register_category("parser", &parser_debug);
   Parser = typedescr_register(&_typedescr_parser);
+  ParserStackEntry = typedescr_register(&_typedescr_parser_stack_entry);
 }
 
 /* -- P A R S E R _ S T A C K _ E N T R Y --------------------------------- */
@@ -391,7 +424,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
                                            grammar_action_tostring(e -> action));
         }
         break;
-    }        
+    }
     _parser_stack_entry_free(e);
   }
   return consuming;
@@ -598,8 +631,8 @@ parser_t * parser_pushval(parser_t *parser, data_t *data) {
 parser_t * parser_push(parser_t *parser) {
   data_t   *data = token_todata(parser -> last_token);
   parser_t *ret = parser_pushval(parser, data);
-  
-  data_free(data);      
+
+  data_free(data);
   return ret;
 }
 

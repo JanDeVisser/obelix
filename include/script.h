@@ -44,7 +44,7 @@ typedef struct _closure      closure_t;
 typedef struct _bound_method bound_method_t;
 
 typedef struct _script {
-  data_t          data;
+  data_t          _d;
   struct _script *up;
   name_t         *name;
   name_t         *fullname;
@@ -56,8 +56,8 @@ typedef struct _script {
   bytecode_t     *bytecode;
 } script_t;
 
-#define data_is_script(d)     ((d) && (data_type((d)) == Script))
-#define data_scriptval(d)     (data_is_script((d)) ? ((script_t *) (d) -> ptrval) : NULL)
+#define data_is_script(d)     ((d) && data_hastype((d), Script))
+#define data_scriptval(d)     (data_is_script((d)) ? ((script_t *) (d)) : NULL)
 #define script_copy(s)        ((script_t *) data_copy((data_t *) (s)))
 #define script_tostring(s)    (data_tostring((data_t *) (s)))
 #define script_free(s)        (data_free((data_t *) (s)))

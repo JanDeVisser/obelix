@@ -26,13 +26,19 @@
 #include <data.h>
 #include <resolve.h>
 
+typedef struct _pointer {
+  data_t  _d;
+  void   *ptr;
+  int     size;
+} pointer_t;
+
 static void          _ptr_init(void) __attribute__((constructor(101)));
-static data_t *      _ptr_new(data_t *, va_list);
-static int           _ptr_cmp(data_t *, data_t *);
-static data_t *      _ptr_cast(data_t *, int);
-static unsigned int  _ptr_hash(data_t *);
-static char *        _ptr_tostring(data_t *);
-static data_t *      _ptr_parse(typedescr_t *, char *);
+static pointer_t *   _ptr_new(int, va_list);
+static int           _ptr_cmp(pointer_t *, pointer_t *);
+static data_t *      _ptr_cast(pointer_t *, int);
+static unsigned int  _ptr_hash(pointer_t *);
+static char *        _ptr_tostring(pointer_t *);
+static pointer_t *   _ptr_parse(typedescr_t *, char *);
 
 static data_t *      _ptr_copy(data_t *, char *, array_t *, dict_t *);
 static data_t *      _ptr_fill(data_t *, char *, array_t *, dict_t *);
@@ -48,7 +54,7 @@ static unsigned int  _fnc_hash(data_t *);
 static data_t *      _fnc_call(data_t *, array_t *, dict_t *);
 
 static vtable_t _vtable_ptr[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _ptr_new },
+  { .id = FunctionFactory,  .fnc = (void_t) _ptr_new },
   { .id = FunctionCmp,      .fnc = (void_t) _ptr_cmp },
   { .id = FunctionToString, .fnc = (void_t) _ptr_tostring },
   { .id = FunctionCast,     .fnc = (void_t) _ptr_cast },
@@ -95,46 +101,35 @@ static typedescr_t _typedescr_fnc = {
  * --------------------------------------------------------------------------
  */
 
-static data_t _null;
+static pointer_t * _null;
 
 void _ptr_init(void) {
-  pointer_t *p = NEW(pointer_t);
-
   typedescr_register(&_typedescr_ptr);
   typedescr_register_methods(_methoddescr_ptr);
-  data_settype(&_null, Pointer);
-  p -> size = 0;
-  p -> ptr = NULL;
-  _null.ptrval = p;
-  _null.free_me = Constant;
+  _null = data_create(Pointer, 0, NULL);
+  _null -> _d.free_me = Constant;
 }
 
-data_t * _ptr_new(data_t *target, va_list arg) {
-  void      *ptr;
-  int        size;
-  pointer_t *p = NEW(pointer_t);
+pointer_t * _ptr_new(data_t *target, va_list arg) {
+  pointer_t *ret = data_new(Pointer, pointer_t);
 
-  p -> size = va_arg(arg, int);
-  p -> ptr = va_arg(arg, void *);
-  target -> ptrval = p;
-  return target;
+  ret -> size = va_arg(arg, int);
+  ret -> ptr = va_arg(arg, void *);
+  return ret;
 }
 
-data_t * _ptr_cast(data_t *src, int totype) {
+data_t * _ptr_cast(pointer_t *src, int totype) {
   data_t *ret = NULL;
 
   if (totype == Bool) {
-    ret = data_create(Bool, data_pointerval(src) -> ptr != NULL);
+    ret = data_create(Bool, src -> ptr != NULL);
   } else if (totype == Int) {
-    ret = data_create(Int, (long) data_pointerval(src) -> ptr);
+    ret = data_create(Int, (int) src -> ptr);
   }
   return ret;
 }
 
-int _ptr_cmp(data_t *d1, data_t *d2) {
-  pointer_t *p1 = data_pointerval(d1);
-  pointer_t *p2 = data_pointerval(d2);
-  
+int _ptr_cmp(pointer_t *p1, pointer_t *p2) {
   if (p1 -> ptr == p2 -> ptr) {
     return 0;
   } else if (p1 -> size != p2 -> size) {
@@ -144,46 +139,44 @@ int _ptr_cmp(data_t *d1, data_t *d2) {
   }
 }
 
-char * _ptr_tostring(data_t *data) {
-  pointer_t   *p = data_pointerval(data);
-  static char  buf[32];
-
-  if ((data == &_null) || !p) {
-    return "Null";    
-  } else {
-    snprintf(buf, 32, "%p", p -> ptr);
-    return buf;
+char * _ptr_tostring(pointer_t *p) {
+  if (!p -> _d.str) {
+    if (p == &_null) {
+      p -> _d.str = strdup("Null");
+    } else {
+      asprintf(&p -> _d.str, "%p", p -> ptr);
+    }
   }
+  return NULL;
 }
 
-data_t * _ptr_parse(typedescr_t *type, char *str) {
-  data_t *i;
+pointer_t * _ptr_parse(typedescr_t *type, char *str) {
+  long l;
   
   if (!strcmp(str, "null")) {
     return data_null();
   } else {
-    i = data_parse(Int, str);
-    if (i) {
-      return data_create(Pointer, 0, data_intval(i));
+    if (strtoint(str, &l)) {
+      return data_create(Pointer, 0, (void *) l);
     } else {
       return data_null();
     }
   }
 }
 
-unsigned int _ptr_hash(data_t *data) {
-  return hash(data_pointerval(data) -> ptr, data_pointerval(data) -> size);
+unsigned int _ptr_hash(pointer_t *data) {
+  return hash(data -> ptr, data -> size);
 }
 
 data_t * data_null(void) {
-  return &_null;
+  return _null;
 }
 
 /* ----------------------------------------------------------------------- */
 
 data_t * _ptr_copy(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   void      *newbuf;
-  pointer_t *p = data_pointerval(self);
+  pointer_t *p = (pointer_t *) self;
   
   newbuf = (void *) new(p -> size);
   memcpy(newbuf, p -> ptr, p -> size);
@@ -191,8 +184,8 @@ data_t * _ptr_copy(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _ptr_fill(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  pointer_t *p = data_pointerval(self);
-  data_t    *fillchar = (data_t *) array_get(args, 0);
+  pointer_t *p = (pointer_t *) self;
+  data_t    *fillchar = data_array_get(args, 0);
   
   memset(p -> ptr, data_intval(fillchar), p -> size);
   return data_copy(self);

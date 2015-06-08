@@ -27,17 +27,22 @@
 #include <core.h>
 #include <data.h>
 
+typedef struct _int {
+  data_t _d;
+  long   i;
+} int_t;
+
 static void          _int_init(void) __attribute__((constructor));
-static data_t *      _int_new(data_t *, va_list);
-static int           _int_cmp(data_t *, data_t *);
-static char *        _int_tostring(data_t *);
-static data_t *      _int_cast(data_t *, int);
-static unsigned int  _int_hash(data_t *);
+static data_t *      _int_new(int, va_list);
+static int           _int_cmp(int_t *, int_t *);
+static char *        _int_tostring(int_t *);
+static data_t *      _int_cast(int_t *, int);
+static unsigned int  _int_hash(int_t *);
 static data_t *      _int_parse(typedescr_t *, char *);
-static data_t *      _int_incr(data_t *);
-static data_t *      _int_decr(data_t *);
-static double        _int_fltvalue(data_t *);
-static int           _int_intvalue(data_t *);
+static data_t *      _int_incr(int_t *);
+static data_t *      _int_decr(int_t *);
+static double        _int_fltvalue(int_t *);
+static int           _int_intvalue(int_t *);
 
 static data_t *      _int_add(data_t *, char *, array_t *, dict_t *);
 static data_t *      _int_mult(data_t *, char *, array_t *, dict_t *);
@@ -45,7 +50,7 @@ static data_t *      _int_div(data_t *, char *, array_t *, dict_t *);
 static data_t *      _int_mod(data_t *, char *, array_t *, dict_t *);
 static data_t *      _int_abs(data_t *, char *, array_t *, dict_t *);
 
-static data_t *      _bool_factory(data_t *, va_list);
+static data_t *      _bool_new(int, va_list);
 static char *        _bool_tostring(data_t *);
 static data_t *      _bool_parse(typedescr_t *, char *);
 static data_t *      _bool_cast(data_t *, int);
@@ -55,7 +60,7 @@ static data_t *      _bool_or(data_t *, char *, array_t *, dict_t *);
 static data_t *      _bool_not(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_int[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _int_new },
+  { .id = FunctionFactory,  .fnc = (void_t) _int_new },
   { .id = FunctionCmp,      .fnc = (void_t) _int_cmp },
   { .id = FunctionToString, .fnc = (void_t) _int_tostring },
   { .id = FunctionParse,    .fnc = (void_t) _int_parse },
@@ -76,7 +81,7 @@ static typedescr_t _typedescr_int = {
 };
 
 static vtable_t _vtable_bool[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _bool_factory },
+  { .id = FunctionFactory,  .fnc = (void_t) _bool_new },
   { .id = FunctionCmp,      .fnc = (void_t) _int_cmp },
   { .id = FunctionToString, .fnc = (void_t) _bool_tostring },
   { .id = FunctionParse,    .fnc = (void_t) _bool_parse },
@@ -109,8 +114,8 @@ static methoddescr_t _methoddescr_int[] = {
   { .type = NoType, .name = NULL,   .method = NULL,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
-static data_t _bool_true;
-static data_t _bool_false;
+static int_t * _bool_true;
+static int_t * _bool_false;
 
 /*
  * --------------------------------------------------------------------------
@@ -122,40 +127,37 @@ void _int_init(void) {
   typedescr_register(&_typedescr_int);
   typedescr_register(&_typedescr_bool);
   typedescr_register_methods(_methoddescr_int);
-  data_settype(&_bool_true, Bool);
-  _bool_true.intval = 1;
-  _bool_true.free_me = Constant;
-  data_settype(&_bool_false, Bool);
-  _bool_false.intval = 0;
-  _bool_false.free_me = Constant;
+  _bool_true = data_create(Bool, 1);
+  _bool_true -> _d.free_me = Constant;
+  _bool_false = data_create(Bool, 0);
+  _bool_false -> _d.free_me = Constant;
 }
 
-data_t * _int_new(data_t *target, va_list arg) {
-  long val;
+data_t * _int_new(int type, va_list arg) {
+  int_t *ret = data_new(Int, int_t);
 
-  val = va_arg(arg, long);
-  target -> intval = val;
-  return target;
+  ret -> i = va_arg(arg, long);
+  return ret;
 }
 
-unsigned int _int_hash(data_t *data) {
-  return hash(&(data -> intval), sizeof(long));
+unsigned int _int_hash(int_t *data) {
+  return hash(&(data -> i), sizeof(long));
 }
 
-int _int_cmp(data_t *self, data_t *other) {
-  return self -> intval - other -> intval;
+int _int_cmp(int_t *self, int_t *other) {
+  return self -> i - other -> i;
 }
 
-char * _int_tostring(data_t *data) {
-  return itoa(data -> intval);
+char * _int_tostring(int_t *data) {
+  return itoa(data -> i);
 }
 
-data_t * _int_cast(data_t *data, int totype) {
+data_t * _int_cast(int_t *data, int totype) {
   switch (totype) {
     case Float:
-      return data_create(Float, (double) data -> intval);
+      return data_create(Float, (double) data -> i);
     case Bool:
-      return data_create(Bool, data -> intval);
+      return data_create(Bool, data -> i);
     default:
       return NULL;
   }
@@ -174,20 +176,20 @@ data_t * _int_parse(typedescr_t *type, char *str) {
   }
 }
 
-data_t * _int_incr(data_t *self) {
-  return data_create(Int, self -> intval + 1);
+data_t * _int_incr(int_t *self) {
+  return data_create(Int, self -> i + 1);
 }
 
-data_t * _int_decr(data_t *self) {
-  return data_create(Int, self -> intval - 1);
+data_t * _int_decr(int_t *self) {
+  return data_create(Int, self -> i - 1);
 }
 
-double _int_fltvalue(data_t *data) {
-  return (double) data -> intval;
+double _int_fltvalue(int_t *data) {
+  return (double) data -> i;
 }
 
-int _int_intvalue(data_t *data) {
-  return data -> intval;
+int _int_intvalue(int_t *data) {
+  return data -> i;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -322,15 +324,15 @@ data_t * _int_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
  * --------------------------------------------------------------------------
  */
 
-data_t * _bool_factory(data_t *target, va_list arg) {
+data_t * _bool_new(int type, va_list arg) {
   long val;
 
   val = va_arg(arg, long);
-  return (val) ? &_bool_true : &_bool_false;
+  return (val) ? _bool_true : _bool_false;
 }
 
-char * _bool_tostring(data_t *data) {
-  return btoa(data -> intval);
+char * _bool_tostring(int_t *data) {
+  return btoa(data -> i);
 }
 
 data_t * _bool_parse(typedescr_t *type, char *str) {
@@ -343,21 +345,21 @@ data_t * _bool_parse(typedescr_t *type, char *str) {
   }
 }
 
-data_t * _bool_cast(data_t *data, int totype) {
+data_t * _bool_cast(int_t *data, int totype) {
   switch (totype) {
     case Int:
-      return data_create(Int, data -> intval);
+      return data_create(Int, data -> i);
     default:
       return NULL;
   }
 }
 
 data_t * data_true(void) {
-  return &_bool_true;
+  return data_copy(_bool_true);
 }
 
 data_t * data_false(void) {
-  return &_bool_false;
+  return data_copy(_bool_false);
 }
 
 /* ----------------------------------------------------------------------- */

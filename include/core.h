@@ -79,7 +79,7 @@ typedef struct _reduce_ctx {
   void_t          fnc;
 } reduce_ctx;
 
-extern void *          new(int);
+extern void *          _new(int);
 extern void *          new_array(int, int);
 extern void *          new_ptrarray(int);
 extern void *          resize_block(void *, int, int);
@@ -123,5 +123,7 @@ extern reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
 extern reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
 extern reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
 extern visit_t         collection_visitor(void *, visit_t);
+
+#define new(i)         (_new((i)))
 
 #endif /* __CORE_H__ */

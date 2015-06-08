@@ -46,7 +46,7 @@ typedef struct _parser {
 } parser_t;
 
 #define data_is_parser(d)     ((d) && data_hastype((d), Parser))
-#define data_parserval(d)     (data_is_parser((d)) ? ((parser_t *) ((d) -> ptrval)) : NULL)
+#define data_parserval(d)     (data_is_parser((d)) ? ((parser_t *) (d)) : NULL)
 #define parser_copy(p)        ((parser_t *) data_copy((data_t *) (p)))
 #define parser_free(p)        (data_free((data_t *) (p)))
 #define parser_tostring(p)    (data_tostring((data_t *) (p)))

@@ -366,15 +366,15 @@ void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
   assert(fnc_id < FunctionEndOfListDummy);
   if (type -> vtable) {
     ret = type -> vtable[fnc_id].fnc;
-    for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
-      inherits = typedescr_get(type -> inherits[ix]);
-      ret = typedescr_get_function(inherits, fnc_id);
-    }
-    //if (type_debug) {
-    //  debug("typedescr_get_function(%s, %s) = %p", 
-    //        type -> type_name, label_for_code(_function_id_labels, fnc_id), ret);
-    //}
   }
+  for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
+    inherits = typedescr_get(type -> inherits[ix]);
+    ret = typedescr_get_function(inherits, fnc_id);
+  }
+  //if (type_debug) {
+  //  debug("typedescr_get_function(%s, %s) = %p", 
+  //        type -> type_name, label_for_code(_function_id_labels, fnc_id), ret);
+  //}
   return ret;
 }
 
