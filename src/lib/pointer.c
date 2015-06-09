@@ -43,16 +43,6 @@ static pointer_t *   _ptr_parse(typedescr_t *, char *);
 static data_t *      _ptr_copy(data_t *, char *, array_t *, dict_t *);
 static data_t *      _ptr_fill(data_t *, char *, array_t *, dict_t *);
 
-static void          _fnc_init(void) __attribute__((constructor));
-static data_t *      _fnc_new(data_t *, va_list);
-static data_t *      _fnc_copy(data_t *, data_t *);
-static int           _fnc_cmp(data_t *, data_t *);
-static data_t *      _fnc_cast(data_t *, int);
-static char *        _fnc_tostring(data_t *);
-static data_t *      _fnc_parse(typedescr_t *, char *);
-static unsigned int  _fnc_hash(data_t *);
-static data_t *      _fnc_call(data_t *, array_t *, dict_t *);
-
 static vtable_t _vtable_ptr[] = {
   { .id = FunctionFactory,  .fnc = (void_t) _ptr_new },
   { .id = FunctionCmp,      .fnc = (void_t) _ptr_cmp },
@@ -73,25 +63,6 @@ static methoddescr_t _methoddescr_ptr[] = {
   { .type = Pointer, .name = "copy",  .method = _ptr_copy, .argtypes = { Pointer, NoType, NoType }, .minargs = 0, .varargs = 1  },
   { .type = Pointer, .name = "fill",  .method = _ptr_fill, .argtypes = { Pointer, NoType, NoType }, .minargs = 1, .varargs = 1  },
   { .type = NoType,  .name = NULL,    .method = NULL,      .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0  },
-};
-
-static vtable_t _vtable_fnc[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _fnc_new },
-  { .id = FunctionCopy,     .fnc = (void_t) _fnc_copy },
-  { .id = FunctionCmp,      .fnc = (void_t) _fnc_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) function_free },
-  { .id = FunctionToString, .fnc = (void_t) _fnc_tostring },
-  { .id = FunctionParse,    .fnc = (void_t) _fnc_parse },
-  { .id = FunctionCast,     .fnc = (void_t) _fnc_cast },
-  { .id = FunctionHash,     .fnc = (void_t) _fnc_hash },
-  { .id = FunctionCall,     .fnc = (void_t) _fnc_call },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_fnc = {
-  .type =      Function,
-  .type_name = "fnc",
-  .vtable =    _vtable_fnc
 };
 
 
@@ -176,7 +147,7 @@ data_t * data_null(void) {
 
 data_t * _ptr_copy(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   void      *newbuf;
-  pointer_t *p = (pointer_t *) self;
+  pointer_t *p = data_pointerval(self);
   
   newbuf = (void *) new(p -> size);
   memcpy(newbuf, p -> ptr, p -> size);
@@ -184,90 +155,10 @@ data_t * _ptr_copy(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _ptr_fill(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  pointer_t *p = (pointer_t *) self;
+  pointer_t *p = data_pointerval(self);
   data_t    *fillchar = data_array_get(args, 0);
   
   memset(p -> ptr, data_intval(fillchar), p -> size);
   return data_copy(self);
 }
 
-/*
- * --------------------------------------------------------------------------
- * Function datatype functions
- * --------------------------------------------------------------------------
- */
-
-void _fnc_init(void) {
-  typedescr_register(&_typedescr_fnc);
-}
-
-data_t * _fnc_new(data_t *target, va_list arg) {
-  function_t *fnc;
-
-  fnc = va_arg(arg, function_t *);
-  target -> ptrval = function_copy(fnc);
-  return target;
-}
-
-data_t * _fnc_copy(data_t *target, data_t *src) {
-  target -> ptrval = function_copy(src -> ptrval);
-  return target;
-}
-
-int _fnc_cmp(data_t *d1, data_t *d2) {
-  function_t *fnc1;
-  function_t *fnc2;
-
-  fnc1 = d1 -> ptrval;
-  fnc2 = d2 -> ptrval;
-  return (int) ((long) fnc1 -> fnc) - ((long) fnc2 -> fnc);
-}
-
-char * _fnc_tostring(data_t *data) {
-  function_t     *fnc;
-
-  fnc = data -> ptrval;
-  return fnc -> name;
-}
-
-data_t * _fnc_parse(typedescr_t *type, char *str) {
-  void_t      f = resolve_function(str);
-  function_t *fnc;
-  data_t     *ret = NULL;
-
-  (void) type;
-  if (f) {
-    fnc = function_create(str, (voidptr_t) f);
-    ret = data_create(Function, fnc);
-    function_free(fnc);
-  }
-  return ret;
-}
-
-data_t * _fnc_cast(data_t *src, int totype) {
-  data_t     *ret = NULL;
-  function_t *fnc = (function_t *) src -> ptrval;
-
-  switch (totype) {
-    case Bool:
-      ret = data_create(Bool, fnc -> fnc != NULL);
-      break;
-    case Int:
-      ret = data_create(Int, (long) fnc -> fnc);
-      break;
-  }
-  return ret;
-}
-
-unsigned int _fnc_hash(data_t *data) {
-  function_t *fnc;
-
-  fnc = data -> ptrval;
-  return hashptr(fnc -> fnc);
-}
-
-data_t * _fnc_call(data_t *data, array_t *args, dict_t *kwargs) {
-  /* FIXME is there a better way? */
-  function_t *fnc = (function_t *) data -> ptrval;
-  return ((data_t * (*)(array_t *)) fnc -> fnc)(args);
-}

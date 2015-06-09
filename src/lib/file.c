@@ -35,6 +35,7 @@
 int file_debug = 0;
 
 static void   _file_init(void) __attribute__((constructor(102)));
+static void   _file_free(file_t *);
 static FILE * _file_stream(file_t *);
 
 void _file_init(void) {
@@ -42,111 +43,20 @@ void _file_init(void) {
 }
 
 /*
- * fsentry_t -
- */
-
-fsentry_t * fsentry_create (char *name) {
-  fsentry_t *ret;
-
-  ret = NEW(fsentry_t);
-  ret -> name = strdup(name);
-  ret -> exists = (stat(ret->name, &ret->statbuf)) ? errno : 0;
-  return ret;
-}
-
-fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
-  char      *n;
-  fsentry_t *ret;
-
-  if (!fsentry_isdir (dir)) {
-    return NULL;
-  }
-  asprintf(&n, "%s/%s", dir -> name, name);
-  ret = fsentry_create(n);
-  free(n);
-  return ret;
-}
-
-void fsentry_free (fsentry_t *e) {
-  if (e) {
-    free(e -> name);
-    free(e);
-  }
-}
-
-unsigned int fsentry_hash(fsentry_t *e) {
-  return strhash(e -> name);
-}
-
-char * fsentry_tostring(fsentry_t *e) {
-  return e -> name;
-}
-
-int fsentry_cmp(fsentry_t *e1, fsentry_t *e2) {
-  return strcmp(e1 -> name, e2 -> name);
-}
-
-int fsentry_exists(fsentry_t *e) {
-  return e -> exists == 0;
-}
-
-int fsentry_isfile(fsentry_t *e) {
-  return !e -> exists && (e -> statbuf.st_mode & S_IFREG);
-}
-
-int fsentry_isdir (fsentry_t *e) {
-  return !e -> exists && (e -> statbuf.st_mode & S_IFDIR);
-}
-
-int fsentry_canread(fsentry_t *e) {
-  return !access(e -> name, R_OK);
-}
-
-int fsentry_canwrite(fsentry_t *e) {
-  return !access(e -> name, W_OK);
-}
-
-int fsentry_canexecute(fsentry_t *e) {
-  return !access(e -> name, X_OK);
-}
-
-list_t * fsentry_getentries(fsentry_t *dir) {
-  list_t        *ret;
-  DIR           *dirpointer;
-  struct dirent *entrypointer;
-
-  if (!fsentry_isdir(dir)) {
-    return NULL;
-  }
-
-  ret = NULL;
-  dirpointer = opendir(dir -> name);
-  if (dirpointer) {
-    ret = list_create();
-    list_set_free(ret, fsentry_free);
-    list_set_hash(ret, fsentry_hash);
-    list_set_tostring(ret, fsentry_tostring);
-    list_set_cmp(ret, fsentry_cmp);
-    for (entrypointer = readdir(dirpointer);
-         entrypointer;
-         entrypointer = readdir(dirpointer)) {
-      list_push(ret, fsentry_getentry(dir, entrypointer -> d_name));
-    }
-    closedir (dirpointer);
-  }
-  return ret;
-}
-
-file_t * fsentry_open(fsentry_t *e) {
-  if (!fsentry_isfile(e)) {
-    return NULL;
-  }
-  return file_open(e -> name);
-}
-
-/*
  * file_t static functions
  */
+
+void _file_free(file_t *file) {
+  if (file ) {
+    if (file -> fname) {
+      file_close(file);
+      free(file -> fname);
+    }
+    free(file -> error);
+    free(file -> line);
+    free(file);
+  }
+}
 
 FILE * _file_stream(file_t *file) {
   if (!file -> stream) {
@@ -162,15 +72,13 @@ FILE * _file_stream(file_t *file) {
 file_t * file_create(int fh) {
   file_t *ret;
 
-  ret = NEW(file_t);
+  ret = data_new(File, file_t);
   ret -> fh = fh;
   ret -> stream = NULL;
   ret -> fname = NULL;
   ret -> line = NULL;
   ret -> _errno = 0;
   ret -> error = NULL;
-  ret -> str = NULL;
-  ret -> refs = 1;
   return ret;
 }
 
@@ -307,26 +215,6 @@ file_t * file_open_ext(char *fname, ...) {
 
 file_t * file_open(char *fname) {
   return file_open_ext(fname, NULL);
-}
-
-file_t * file_copy(file_t *file) {
-  if (file) {
-    file -> refs++;
-  }
-  return file;
-}
-
-void file_free(file_t *file) {
-  if (file && (--file -> refs <= 0)) {
-    if (file -> fname) {
-      file_close(file);
-      free(file -> fname);
-    }
-    free(file -> error);
-    free(file -> line);
-    free(file -> str);
-    free(file);
-  }
 }
 
 int file_close(file_t *file) {

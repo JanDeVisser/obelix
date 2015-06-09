@@ -39,7 +39,6 @@ typedef enum _datatype {
   Float,        /*  5 */
   Bool,         /*  6 */
   List,         /*  7 */
-  Function,     /*  8 */
   Method,       /*  9 */
   Object,       /* 10 */
   Script,       /* 11 */
@@ -47,7 +46,6 @@ typedef enum _datatype {
   Closure,      /* 13 */
   Module,       /* 14 */
   Name,         /* 15 */
-  Native,       /* 16 */
   NVP,          /* 17 */
   Range,        /* 18 */
   Thread,       /* 19 */
@@ -125,13 +123,14 @@ extern int             data_intval(data_t *);
 
 #define data_new(dt,st)     ((st *) _data_new((dt), sizeof(st)))
 #define data_type(d)        ((d) -> type)
+#define data_typename(d)    (typedescr_get(data_type((d) -> type)) -> type_name)
 
 #define data_charval(d)     ((char *) (d) -> ptrval)
 #define data_arrayval(d)    ((array_t *) (d) -> ptrval)
 
-#define data_is_pointer(d)  ((d) && (data_type((d)) == Pointer))
-#define data_pointerval(d)  (data_is_pointer((d)) ? ((pointer_t *) (d) -> ptrval) : NULL)
-#define data_unwrap(d)      (data_is_pointer((d)) ? (data_pointerval(d) -> ptr) : NULL)
+#define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
+#define data_pointerval(d)  ((data_is_pointer((d)) ? ((pointer_t *) (d) : NULL))
+#define data_unwrap(d)      ((data_is_pointer((d)) ? (data_pointerval(d) -> ptr) : NULL)
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
 extern array_t *       data_add_all_as_data_reducer(char *, array_t *);
@@ -148,9 +147,6 @@ extern data_t *        data_str_array_to_list(array_t *);
 
 /* -- Standard vtable functions ------------------------------------------ */
 extern data_t *        data_embedded(int, va_list);
-
-/* FIXME Needs a better home */
-extern str_t *         format(char *, array_t *, dict_t *);
 
 #define strdata_dict_create()   dict_set_tostring_data( \
                                   dict_set_tostring_key( \

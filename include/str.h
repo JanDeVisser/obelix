@@ -21,8 +21,10 @@
 #define __STR_H__
 
 #include <core.h>
+#include <data.h>
 
 typedef struct _str {
+  data_t  _d;
   char   *buffer;
   int     pos;
   int     len;
@@ -40,7 +42,7 @@ extern str_t *     str_wrap(char *);
 extern str_t *     str_copy_chars(char *, ...);
 extern str_t *     str_copy_vchars(char *, va_list);
 extern str_t *     str_copy_nchars(int, char *);
-extern str_t *     str_copy(str_t *);
+extern str_t *     str_deepcopy(str_t *);
 extern str_t *     str_create(int);
 extern void        str_free(str_t *);
 extern char *      str_reassign(str_t *);
@@ -63,6 +65,7 @@ extern str_t *      str_chop(str_t *, int);
 extern str_t *      str_lchop(str_t *, int);
 extern str_t *      str_erase(str_t *);
 extern str_t *      str_set(str_t *, int, int);
+extern str_t *      str_forcecase(str_t *, int);
 
 /*
  * Functions returning characteristics of strings:
@@ -85,7 +88,18 @@ extern int             str_read(str_t *, char *, int);
 extern int             str_readchar(str_t *);
 extern int             str_readinto(str_t *, struct _data *);
 extern int             str_pushback(str_t *, int);
+extern int             str_write(str_t *, char *, int);
 
-#define str_join(g,c,r) _str_join((g), (c), (obj_reduce_t) (r))
+extern str_t *         str_format(char *, array_t *, dict_t *);
+
+#define str_toupper(s)    (str_forcecase((s), 1))
+#define str_tolower(s)    (str_forcecase((s), 0))
+#define str_join(g,c,r)   _str_join((g), (c), (obj_reduce_t) (r))
+
+#define data_is_string(d) ((d) && (data_hastype((d), String)))
+#define data_as_string(d) ((str_t *) (data_is_string((d)) ? ((str_t *) (d)) : NULL))
+#define str_free(s)       (data_free((data_t *) (s)))
+#define str_tostring(s)   (data_tostring((data_t *) (s)))
+#define str_copy(s)       ((str_t *) data_copy((data_t *) (s)))
 
 #endif /* __STR_H__ */

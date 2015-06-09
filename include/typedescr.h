@@ -134,7 +134,7 @@ extern int             vtable_implements(vtable_t *, int);
 extern int             typedescr_register(typedescr_t *);
 extern int             typedescr_register_type(typedescr_t *, methoddescr_t *);
 extern void            typedescr_register_types(typedescr_t *);
-extern int             typedescr_register_wrapper(int, char *, vtable_t *);
+extern int             typedescr_create_and_register(int, char *, vtable_t *, methoddescr_t *);
 extern typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
 extern typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
 extern typedescr_t *   typedescr_get(int);

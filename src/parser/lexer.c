@@ -255,7 +255,7 @@ kw_matches_t * _kw_matches_match_reducer(token_t *kw_token, kw_matches_t *kw_mat
 kw_matches_t * _kw_matches_match(kw_matches_t *kw_matches, str_t *token) {
   kw_match_state_t state = kw_matches -> state;
   
-  kw_matches -> token = str_copy(token);
+  kw_matches -> token = str_deepcopy(token);
   kw_matches -> code = TokenCodeNone;
   kw_matches -> matches = 0;
   if (!str_len(kw_matches -> token)) {
@@ -484,7 +484,7 @@ void _lexer_push_all_back(lexer_t *lexer) {
   if (lexer -> pushed_back) {
     str_append(lexer -> pushed_back, lexer -> token);
   } else {
-    lexer -> pushed_back = str_copy(lexer -> token);
+    lexer -> pushed_back = str_deepcopy(lexer -> token);
   }
 #ifdef LEXER_DEBUG
   debug("_lexer_push_all_back: pushed_back: '%s'", 

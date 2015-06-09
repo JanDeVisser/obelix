@@ -90,14 +90,13 @@ static methoddescr_t _methoddescr_file[] = {
 };
 
 typedef struct _fileiter {
+  data_d   _d;
   file_t  *file;
   re_t    *regex;
   list_t  *next;
-  int      refs;
-  char    *str;
 } fileiter_t;
 
-static fileiter_t * _fileiter_create(va_list);
+static fileiter_t * _fileiter_create(file_t *, data_t *);
 static void         _fileiter_free(fileiter_t *);
 static fileiter_t * _fileiter_copy(fileiter_t *);
 static int          _fileiter_cmp(fileiter_t *, fileiter_t *);
@@ -106,13 +105,11 @@ static data_t *     _fileiter_iter(fileiter_t *);
 static data_t *     _fileiter_has_next(fileiter_t *);
 static data_t *     _fileiter_next(fileiter_t *);
 
-static vtable_t _wrapper_vtable_fileiter[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _fileiter_create },
-  { .id = FunctionCopy,     .fnc = (void_t) _fileiter_copy },
+static vtable_t _vtable_fileiter[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) _fileiter_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _fileiter_free },
   { .id = FunctionToString, .fnc = (void_t) _fileiter_tostring },
-  { .id = FunctionIter,     .fnc = (void_t) _fileiter_iter },
   { .id = FunctionHasNext,  .fnc = (void_t) _fileiter_has_next },
   { .id = FunctionNext,     .fnc = (void_t) _fileiter_next },
   { .id = FunctionNone,     .fnc = NULL }
@@ -126,17 +123,12 @@ static vtable_t _wrapper_vtable_fileiter[] = {
 void _file_init(void) {
   int ix;
   
-  File = typedescr_register(&_typedescr_file);
+  File = typedescr_create_and_register(File, "file", _vtable_file, _methoddescr_file);
   if (file_debug) {
     debug("File type initialized");
   }
-  for (ix = 0; _methoddescr_file[ix].type != NoType; ix++) {
-    if (_methoddescr_file[ix].type == -1) {
-      _methoddescr_file[ix].type = File;
-    }
-  }
-  typedescr_register_methods(_methoddescr_file);
-  FileIter = wrapper_register(FileIter, "fileiterator", _wrapper_vtable_fileiter);
+ typedescr_register_methods(_methoddescr_file);
+  FileIter = typedescr_create_and_register(FileIter, "fileiterator", _vtable_fileiter);
 }
 
 /* -- F I L E  I T E R A T O R -------------------------------------------- */
@@ -173,16 +165,15 @@ fileiter_t * _fileiter_readnext(fileiter_t *iter) {
   return iter;
 }
 
-fileiter_t * _fileiter_create(va_list args) {
-  fileiter_t *ret = NEW(fileiter_t);
+fileiter_t * _fileiter_create(file_t *file, data_t *regex) {
+  fileiter_t *ret = data_new(FileIter, fileiter_t);
   data_t     *regex;
   re_t       *re = NULL;
   int         retval;
   
-  ret -> file = va_arg(args, file_t *);
-  regex = va_arg(args, data_t *);
+  ret -> file = file;
   if (data_is_regexp(regex)) {
-    ret -> regex = data_regexpval(regex);
+    ret -> regex = data_as_regexp(regex);
   } else if (regex) {
     ret -> regex = regexp_create(data_tostring(regex), NULL);
   } else {
@@ -205,16 +196,8 @@ fileiter_t * _fileiter_create(va_list args) {
 void _fileiter_free(fileiter_t *fileiter) {
   if (fileiter && (--fileiter -> refs <= 0)) {
     list_free(fileiter -> next);
-    free(fileiter -> str);
     free(fileiter);
   }
-}
-
-fileiter_t * _fileiter_copy(fileiter_t *fileiter) {
-  if (fileiter) {
-    fileiter -> refs++;
-  }
-  return fileiter;
 }
 
 int _fileiter_cmp(fileiter_t *fileiter1, fileiter_t *fileiter2) {
@@ -222,17 +205,7 @@ int _fileiter_cmp(fileiter_t *fileiter1, fileiter_t *fileiter2) {
 }
 
 char * _fileiter_tostring(fileiter_t *fileiter) {
-  if (!fileiter -> str) {
-    fileiter -> str = strdup(file_tostring(fileiter -> file));
-  }
-  return fileiter -> str;
-}
-
-data_t * _fileiter_iter(fileiter_t *fi) {
-  data_t *ret = data_create_noinit(FileIter);
-  
-  ret -> ptrval = _fileiter_copy(fi);
-  return ret;
+  return file_tostring(fileiter -> file);
 }
 
 data_t * _fileiter_has_next(fileiter_t *fi) {

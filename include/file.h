@@ -31,27 +31,25 @@
 extern int file_debug;
 
 typedef struct _fsentry {
+  data_t       _d;
   char        *name;
   struct stat  statbuf;
   int          exists;
 } fsentry_t;
 
 typedef struct _file {
+  data_t  _d;
   int     fh;
   FILE   *stream;
   char   *fname;
   char   *line;
   int     _errno;
   char   *error;
-  char   *str;
-  int     refs;
 } file_t;
 
 extern fsentry_t *  fsentry_create(char *);
 extern fsentry_t *  fsentry_getentry(fsentry_t *, char *name);
-extern void         fsentry_free(fsentry_t *);
 extern unsigned int fsentry_hash(fsentry_t *);
-extern char *       fsentry_tostring(fsentry_t *);
 extern int          fsentry_cmp(fsentry_t *, fsentry_t *);
 extern int          fsentry_exists(fsentry_t *);
 extern int          fsentry_isfile(fsentry_t *);
@@ -86,8 +84,18 @@ extern int          file_redirect(file_t *, char *);
 
 extern data_t *     data_wrap_file(file_t *file);
 extern int          File;
+extern int          FSEntry;
 
-#define data_is_file(d)  ((d) && (data_type((d)) == File))
-#define data_fileval(d)  ((file_t *) (data_is_file((d)) ? ((d) -> ptrval) : NULL))
+#define data_is_file(d)    ((d) && (data_hastype((d), File)))
+#define data_as_file(d)    ((file_t *) (data_is_file((d)) ? ((file_t *) (d)) : NULL))
+#define file_free(f)       (data_free((data_t *) (f)))
+#define file_tostring(f)   (data_tostring((data_t *) (f)))
+#define file_copy(f)       ((file_t *) data_copy((data_t *) (f)))
+
+#define data_is_fsentry(d)  ((d) && (data_hastype((d), FSEntry)))
+#define data_as_fsentry(d)  ((fsentry_t *) (data_is_fsentry((d)) ? ((fsentry_t *) (d)) : NULL))
+#define fsentry_free(f)     (data_free((data_t *) (f)))
+#define fsentry_tostring(f) (data_tostring((data_t *) (f)))
+#define fsentry_copy(f)     ((fsentry_t *) data_copy((data_t *) (f)))
 
 #endif /* __FILE_H__ */

@@ -120,7 +120,9 @@ array_t * array_create(int capacity) {
 }
 
 array_t * array_copy(array_t *src) {
-  src -> refs++;
+  if (src) {
+    src -> refs++;
+  }
   return src;
 }
 

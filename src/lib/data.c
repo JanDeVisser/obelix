@@ -32,7 +32,6 @@
 #include <logging.h>
 #include <object.h>
 
-
 static void     _data_init(void) __attribute__((constructor));
 static void     _data_call_free(typedescr_t *, data_t *);
 
@@ -110,12 +109,12 @@ data_t * data_create(int type, ...) {
 }
 
 data_t * data_parse(int type, char *str) {
-  typedescr_t *descr;
-  void_t       parse;
+  typedescr_t *descr = typedescr_get(type);
+  void_t       parse = typedescr_get_function(descr, FunctionParse);
 
-  descr = typedescr_get(type);
-  parse = typedescr_get_function(descr, FunctionParse);
-  return (parse) ? ((data_t * (*)(typedescr_t *, char *)) parse)(descr, str) : NULL;
+  return (parse) 
+    ? ((data_t * (*)(typedescr_t *, char *)) parse)(descr, str) 
+    : NULL;
 }
 
 data_t * data_decode(char *encoded) {

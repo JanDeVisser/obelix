@@ -268,12 +268,21 @@ int typedescr_register(typedescr_t *descr) {
 
 int typedescr_register_type(typedescr_t *td, methoddescr_t *md) {
   int ret = typedescr_register(td);
-  int ix;
+  int i, j;
   
-  for (ix = 0; md[ix].type != NoType; ix++) {
-    md[ix].type = ret;
+  if (md) {
+    for (i = 0; md[i].type != NoType; i++) {
+      if (md[i] < 0) {
+        md[i].type = ret;
+      }
+      for (j = 0; j < MAX_METHOD_PARAMS; j++) {
+        if (md[i].argtypes[j] < 0) {
+          md[j].argtypes[j] = ret;
+        }
+      }
+    }
+    typedescr_register_methods(md);
   }
-  typedescr_register_methods(md);
   return ret;
 }
 
@@ -286,6 +295,14 @@ void typedescr_register_types(typedescr_t *types) {
   }
 }
 
+int typedescr_create_and_register(char *type_name, vtable_t *vtable, methoddescr_t *methods) {
+  typedescr_t td;
+  
+  td.type = -1;
+  td.type_name = type_name;
+  td.vtable = vtable;
+  return typedescr_register_type(&td, methods);
+}
 
 typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[]) {
   int ix;

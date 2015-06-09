@@ -62,15 +62,6 @@ typedef enum _reduce_type {
   RTStrs = 4
 } reduce_type_t;
 
-typedef struct _function {
-  char      *name;
-  voidptr_t  fnc;
-  int        min_params;
-  int        max_params;
-  char      *str;
-  int        refs;
-} function_t;
-
 typedef struct _reduce_ctx {
   void           *obj;
   void           *user;
@@ -109,15 +100,6 @@ extern char *          dtoa(double);
 
 extern char *          label_for_code(code_label_t *, int);
 extern int             code_for_label(code_label_t *, char *);
-
-extern function_t *    function_create(char *, voidptr_t);
-extern function_t *    function_create_noresolve(char *);
-extern function_t *    function_copy(function_t *);
-extern void            function_free(function_t *);
-extern char *          function_tostring(function_t *);
-extern unsigned int    function_hash(function_t *);
-extern int             function_cmp(function_t *, function_t *);
-extern function_t *    function_resolve(function_t *fnc);
 
 extern reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
 extern reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);

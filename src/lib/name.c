@@ -27,17 +27,19 @@
 
 static void          _data_init_name(void) __attribute__((constructor));
 
+static void          _name_free(name_t *);
+static char *        _name_tostring(name_t *);
 static data_t *      _name_append(data_t *, char *, array_t *, dict_t *);
-
-static name_t *      _name_create(int);
 static data_t *      _name_resolve(name_t *, char *);
 
-vtable_t _wrapper_vtable_name[] = {
-  { .id = FunctionCopy,     .fnc = (void_t) name_copy },
+static name_t *      _name_create(int);
+
+vtable_t _vtable_name[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionParse,    .fnc = (void_t) name_parse },
   { .id = FunctionCmp,      .fnc = (void_t) name_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) name_free },
-  { .id = FunctionToString, .fnc = (void_t) name_tostring },
+  { .id = FunctionFree,     .fnc = (void_t) _name_free },
+  { .id = FunctionToString, .fnc = (void_t) _name_tostring },
   { .id = FunctionHash,     .fnc = (void_t) name_hash },
   { .id = FunctionResolve,  .fnc = (void_t) _name_resolve },
   { .id = FunctionLen,      .fnc = (void_t) name_size },
@@ -46,18 +48,19 @@ vtable_t _wrapper_vtable_name[] = {
 
 
 static methoddescr_t _methoddescr_name[] = {
-  { .type = Name,   .name = "append", .method = _name_append, .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
+  { .type = -1,     .name = "append", .method = _name_append, .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 int name_debug;
+int Name;
 
 /* ----------------------------------------------------------------------- */
 
 void _data_init_name(void) {
   logging_register_category("name", &name_debug);
-  wrapper_register(Name, "name", _wrapper_vtable_name);
-  typedescr_register_methods(_methoddescr_name);
+  Name = typedescr_create_and_register(Name, "name", _vtable_name, 
+                                       _methoddescr_name);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -81,14 +84,25 @@ char * _name_debug(name_t *name, char *msg) {
 }
 
 name_t * _name_create(int count) {
-  name_t *ret = NEW(name_t);
+  name_t *ret = data_new(Name, name_t);
   
   ret -> name = str_array_create(count);
-  ret -> str = NULL;
   ret -> sep = NULL;
-  ret -> refs = 1;
   _name_debug(ret, "_name_create");
   return ret;
+}
+
+void _name_free(name_t *name) {
+  if (name) {
+    array_free(name -> name);
+    free(name -> sep);
+    free(name);
+  }
+}
+
+char * _name_tostring(name_t *name) {
+  name_tostring_sep(name, ".");
+  return NULL;
 }
 
 data_t * _name_resolve(name_t *n, char *name) {
@@ -135,14 +149,6 @@ name_t * name_deepcopy(name_t *src) {
   return ret;
 }
 
-name_t * name_copy(name_t *src) {
-  if (src) {
-    src -> refs++;
-  }
-  _name_debug(src, "name_copy");
-  return src;
-}
-
 name_t * name_split(char *name, char *sep) {
   name_t  *ret;
   array_t *array;
@@ -152,7 +158,7 @@ name_t * name_split(char *name, char *sep) {
     ret = _name_create(array_size(array));
     name_append_array(ret, array);
     array_free(array);
-    ret -> str = strdup(name);
+    ret -> _d.str = strdup(name);
     ret -> sep = strdup(sep);
   } else {
     ret = name_create(0);
@@ -164,22 +170,10 @@ name_t * name_parse(char *name) {
   return name_split(name, ".");
 }
 
-void name_free(name_t *name) {
-  if (name && (--name -> refs <= 0)) {
-    _name_debug(name, "name_free (doing it)");
-    array_free(name -> name);
-    free(name -> str);
-    free(name -> sep);
-    free(name);
-  } else if (name) {
-    _name_debug(name, "name_free (not yet)");
-  }
-}
-
 name_t * name_extend(name_t *name, char *n) {
   array_push(name -> name, strdup(n));
-  free(name -> str);
-  name -> str = NULL;
+  free(name -> _d.str);
+  name -> _d.str = NULL;
   _name_debug(name, "name_extend");
   return name;
 }
@@ -208,8 +202,8 @@ name_t * name_append_array(name_t *name, array_t *additions) {
   for (ix = 0; ix < array_size(additions); ix++) {
     array_push(name -> name, strdup(str_array_get(additions, ix)));
   }
-  free(name -> str);
-  name -> str = NULL;
+  free(name -> _d.str);
+  name -> _d.str = NULL;
   _name_debug(name, "name_append_array");
   return name;
 }
@@ -239,6 +233,10 @@ char * name_get(name_t *name, int ix) {
   return str_array_get(name -> name, ix);
 }
 
+array_t * name_as_array(name_t *name) {
+  return array_copy(name -> name);
+}
+
 name_t * name_tail(name_t *name) {
   name_t  *ret = NEW(name_t);
   array_t *tail = array_slice(name -> name, 1, -1);
@@ -250,7 +248,7 @@ name_t * name_tail(name_t *name) {
 }
 
 name_t * name_head(name_t *name) {
-  name_t  *ret = NEW(name_t);
+  name_t  *ret = data_new(Name, name_t);
   array_t *head = array_slice(name -> name, 0, -2);
 
   ret -> name = str_array_create(name_size(name) - 1);
@@ -263,24 +261,24 @@ char * name_tostring_sep(name_t *name, char *sep) {
   str_t *s;
   
   if (name -> sep && strcmp(name -> sep, sep)) {
-    free(name -> str);
+    free(name -> _d.str);
     free(name -> sep);
     name -> sep = NULL;
-    name -> str = NULL;
+    name -> _d.str = NULL;
   }
   if (!name -> sep) {
     name -> sep = strdup(sep);
   }
-  if (!name -> str) {
-    s = array_join(name -> name, name -> sep);
-    name -> str = strdup(str_chars(s));
+  if (!name -> _d.str) {
+    if (name && name_size(name)) {
+      s = array_join(name -> name, name -> sep);
+      name -> _d.str = strdup(str_chars(s));
+    } else {
+      name -> _d.str = strdup("");
+    }
     str_free(s);
   }
-  return name -> str;
-}
-
-char * name_tostring(name_t *name) {
-  return (name) ? name_tostring_sep(name, ".") : "";
+  return name -> _d.str;
 }
 
 int name_cmp(name_t *n1, name_t *n2) {
