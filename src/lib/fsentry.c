@@ -17,6 +17,11 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <dirent.h>
+#include <exception.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <file.h>
 
 static void     _fsentry_init(void) __attribute__((constructor));
@@ -157,10 +162,10 @@ list_t * fsentry_getentries(fsentry_t *dir) {
     list_set_cmp(ret, fsentry_cmp);
     for (entrypointer = readdir(dirpointer);
          entrypointer;
-    entrypointer = readdir(dirpointer)) {
+         entrypointer = readdir(dirpointer)) {
       list_push(ret, fsentry_getentry(dir, entrypointer -> d_name));
     }
-    closedir (dirpointer);
+    closedir(dirpointer);
   }
   return ret;
 }
@@ -170,6 +175,64 @@ file_t * fsentry_open(fsentry_t *e) {
     return NULL;
   }
   return file_open(e -> name);
+}
+
+/* -- F S E N T R Y I T E R ----------------------------------------------- */
+
+typedef struct _fsentry_iter {
+  data_t         _d;
+  fsentry_t     *dir;
+  DIR           *dirptr;
+  struct dirent *entryptr;
+} fsentry_iter_t;
+
+int FSEntryIter = -1;
+
+static vtable_t _fsentry_string[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,      .fnc = (void_t) fsentry_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) _fsentry_free },
+  { .id = FunctionToString, .fnc = (void_t) _fsentry_tostring },
+  { .id = FunctionHash,     .fnc = (void_t) fsentry_hash },
+  { .id = FunctionResolve,  .fnc = (void_t) _fsentry_resolve },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+fsentry_iter_t * _fsentry_iter_readnext(fsentry_iter_t *iter) {
+  iter -> entryptr = readdir(iter -> dirptr);
+  if (!iter -> entryptr) {
+    closedir(iter -> dirptr);
+    iter -> dirptr = NULL;
+  }
+  return iter;
+}
+
+fsentry_iter_t * _fsentry_iter_create(fsentry_t *dir) {
+  fsentry_iter_t *ret = NULL;
+  DIR            *d;
+
+  d = opendir(dir -> name);
+  if (d) {
+    ret = data_new(FSEntryIter, fsentry_iter_t);
+    ret -> dir = dir;
+    ret -> dirptr = d;
+    ret = _fsentry_iter_readnext(ret);
+  }
+  return ret;
+}
+
+data_t * _fsentry_iter_has_next(fsentry_iter_t *iter) {
+  return data_create(Bool, iter -> entryptr != NULL);
+}
+
+data_t * _fsentry_iter_next(fsentry_iter_t *iter) {
+  if (iter -> entryptr) {
+    return data_create(FSEntry, 
+                       fsentry_getentry(iter -> dir, 
+                                        iter -> entryptr -> d_name));
+  } else {
+    return data_exception(ErrorExhausted, "Iterator exhausted");
+  }
 }
 
 /* -- F S E N T R Y   D A T A   T Y P E   M E T H O D S ------------------- */

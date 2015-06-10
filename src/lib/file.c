@@ -17,7 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>

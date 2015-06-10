@@ -322,7 +322,7 @@ data_t * _file_resolve(data_t *file, char *name) {
 }
 
 data_t * _file_iter(data_t *file) {
-  file_t     *f = data_fileval(file);
+  file_t     *f = data_as_file(file);
   data_t     *ret = data_create(FileIter, f, NULL);
 
   if (file_debug) {
