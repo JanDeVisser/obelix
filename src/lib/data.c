@@ -30,7 +30,8 @@
 #include <exception.h>
 #include <list.h>
 #include <logging.h>
-#include <object.h>
+#include <method.h>
+#include <name.h>
 
 static void     _data_init(void) __attribute__((constructor));
 static void     _data_call_free(typedescr_t *, data_t *);
@@ -48,14 +49,14 @@ void _data_init(void) {
 
 data_t * data_create_noinit(int type) {
   data_t *ret = data_settype(NEW(data_t), type);
-  
+
   ret -> free_me = Normal;
   return ret;
 }
 
 data_t * _data_new(int type, size_t sz) {
   data_t *ret = data_settype((data_t *) new(sz), type);
-  
+
   ret -> free_me = DontFreeData;
   return ret;
 }
@@ -68,7 +69,6 @@ data_t * data_settype(data_t *data, int type) {
     data -> refs++;
     data -> str = NULL;
     data -> free_me = DontFreeData;
-    data -> ptrval = data;
     descr -> count++;
     _data_count++;
   }
@@ -82,7 +82,7 @@ data_t * data_create(int type, ...) {
   typedescr_t *descr = typedescr_get(type);
   new_t        n;
   factory_t    f;
-  
+
   f = (factory_t) typedescr_get_function(descr, FunctionFactory);
   if (f) {
     va_start(arg, type);
@@ -112,8 +112,8 @@ data_t * data_parse(int type, char *str) {
   typedescr_t *descr = typedescr_get(type);
   void_t       parse = typedescr_get_function(descr, FunctionParse);
 
-  return (parse) 
-    ? ((data_t * (*)(typedescr_t *, char *)) parse)(descr, str) 
+  return (parse)
+    ? ((data_t * (*)(char *)) parse)(str)
     : NULL;
 }
 
@@ -122,7 +122,7 @@ data_t * data_decode(char *encoded) {
   char        *ptr;
   typedescr_t *type;
   data_t      *ret = NULL;
-  
+
   if (!encoded || !encoded[0]) return NULL;
   strcpy(cpy, encoded);
   ptr = strchr(cpy, ':');
@@ -173,7 +173,7 @@ data_t * data_cast(data_t *data, int totype) {
 
 data_t * data_promote(data_t *data) {
   typedescr_t *type = data_typedescr(data);
-  
+
   return ((type -> promote_to != NoType) && (type -> promote_to != Exception))
     ? data_cast(data, type -> promote_to)
     : NULL;
@@ -182,14 +182,10 @@ data_t * data_promote(data_t *data) {
 void _data_call_free(typedescr_t *type, data_t *data) {
   free_t f;
   int    ix;
-  
-  f = (free_t) typedescr_get_function(type, FunctionFreeData);
-  if (f) {
-    f(data);
-  }
+
   f = (free_t) typedescr_get_function(type, FunctionFree);
   if (f) {
-    f(data -> ptrval);
+    f(data);
   }
   for (ix = 0; (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
     _data_call_free(typedescr_get(type -> inherits[ix]), data);
@@ -199,7 +195,7 @@ void _data_call_free(typedescr_t *type, data_t *data) {
 void data_free(data_t *data) {
   typedescr_t *type;
   int          free_me;
-  
+
   if (data && (data -> free_me != Constant) && (--data -> refs <= 0)) {
     free_me = data -> free_me;
     free(data -> str);
@@ -215,7 +211,7 @@ void data_free(data_t *data) {
 
 unsigned int data_hash(data_t *data) {
   typedescr_t *type;
-  hash_t       hash; 
+  hash_t       hash;
 
   if (data) {
     type = data_typedescr(data);
@@ -240,7 +236,7 @@ int data_is_numeric(data_t *data) {
 
 int data_is_callable(data_t *data) {
   typedescr_t *td;
-  
+
   if (data) {
     td = data_typedescr(data);
     assert(td);
@@ -275,7 +271,7 @@ data_t * data_method(data_t *data, char *name) {
 
   md = typedescr_get_method(type, name);
   if (md) {
-    ret = data_create(Method, md, data);
+    ret = (data_t *) mth_create(md, data);
   }
   return ret;
 }
@@ -286,7 +282,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
   data_t         *tail_resolve;
   resolve_name_t  resolve;
   name_t         *tail;
-  
+
   assert(type);
   assert(name);
   if (debug_data) {
@@ -301,15 +297,15 @@ data_t * data_resolve(data_t *data, name_t *name) {
     resolve = (resolve_name_t) typedescr_get_function(type, FunctionResolve);
     if (!resolve) {
       ret = data_exception(ErrorType,
-                           "Cannot resolve name '%s' in %s '%s'", 
+                           "Cannot resolve name '%s' in %s '%s'",
                            name_tostring(name),
-                           type -> type_name, 
+                           type -> type_name,
                            data_tostring(data));
     } else {
       ret = resolve(data, name_first(name));
     }
   }
-  if (ret && (!data_is_exception(ret) || data_exceptionval(ret) -> handled) 
+  if (ret && (!data_is_exception(ret) || data_as_exception(ret) -> handled)
           && (name_size(name) > 1)) {
     tail = name_tail(name);
     tail_resolve = data_resolve(ret, tail);
@@ -327,11 +323,11 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
   data_t  *callable;
   data_t  *ret = NULL;
   array_t *args_shifted = NULL;
-  
+
   if (debug_data) {
-    debug("data_invoke(%s, %s, %s)", 
-          data_tostring(self), 
-          name_tostring(name), 
+    debug("data_invoke(%s, %s, %s)",
+          data_tostring(self),
+          name_tostring(name),
           (args) ? array_tostring(args) : "''");
   }
   if (!self && array_size(args)) {
@@ -348,19 +344,19 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
 
   if (!ret) {
     callable = data_resolve(self, name);
-    if (data_is_exception(callable) && !data_exceptionval(callable) -> handled) {
+    if (data_is_exception(callable) && !data_as_exception(callable) -> handled) {
       ret = callable;
     } else if (callable) {
       if (data_is_callable(callable)) {
         ret = data_call(callable, args, kwargs);
       } else {
-        ret = data_exception(ErrorNotCallable, 
+        ret = data_exception(ErrorNotCallable,
                          "Atom '%s' is not callable",
                          data_tostring(callable));
       }
       data_free(callable);
     } else {
-      ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'", 
+      ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'",
                        name_tostring(name), data_tostring(self));
     }
   }
@@ -376,7 +372,7 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
 data_t * data_execute(data_t *data, char *name, array_t *args, dict_t *kwargs) {
   name_t *n = name_create(1, name);
   data_t *ret;
-  
+
   ret = data_invoke(data, n, args, kwargs);
   name_free(n);
   return ret;
@@ -384,10 +380,10 @@ data_t * data_execute(data_t *data, char *name, array_t *args, dict_t *kwargs) {
 
 data_t * data_get(data_t *data, name_t *name) {
   data_t *ret;
-  
+
   ret = data_resolve(data, name);
   if (!ret) {
-    ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'", 
+    ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'",
                      name_tostring(name), data_tostring(data));
   }
   return ret;
@@ -396,7 +392,7 @@ data_t * data_get(data_t *data, name_t *name) {
 int data_has(data_t *self, name_t *name) {
   data_t *attr = NULL;
   int     ret = 0;
-  
+
   attr = data_resolve(self, name);
   if (attr && !data_is_exception(attr)) {
     ret = 1;
@@ -408,7 +404,7 @@ int data_has(data_t *self, name_t *name) {
 int data_has_callable(data_t *self, name_t *name) {
   data_t *callable = NULL;
   int     ret = 0;
-  
+
   callable = data_resolve(self, name);
   if (callable && !data_is_unhandled_exception(callable) && data_is_callable(callable)) {
     ret = 1;
@@ -425,8 +421,8 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
   setvalue_t   setter;
 
   if (debug_data) {
-    debug("%s.set(%s:%d, %s)", 
-          data_tostring(data), name_tostring(name), 
+    debug("%s.set(%s:%d, %s)",
+          data_tostring(data), name_tostring(name),
           name_size(name), data_tostring(value));
   }
   if (name_size(name) == 1) {
@@ -444,13 +440,13 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
     setter = (setvalue_t) typedescr_get_function(type, FunctionSet);
     if (!setter) {
       ret = data_exception(ErrorType,
-                       "Cannot set values on objects of type '%s'", 
+                       "Cannot set values on objects of type '%s'",
                        typedescr_tostring(type));
     } else {
       ret = setter(container, name_last(name), value);
     }
   } else {
-    ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'", 
+    ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'",
                      name_tostring(name), data_tostring(data));
   }
   return ret;
@@ -486,7 +482,7 @@ double data_floatval(data_t *data) {
   int    (*intvalue)(data_t *);
   data_t  *flt;
   double   ret;
-  
+
   fltvalue = (double (*)(data_t *)) data_get_function(data, FunctionFltValue);
   if (fltvalue) {
     return fltvalue(data);
@@ -497,7 +493,7 @@ double data_floatval(data_t *data) {
     } else {
       flt = data_cast(data, Float);
       if (flt && !data_is_exception(flt)) {
-        ret = flt -> dblval;
+        ret = ((flt_t *) flt) -> dbl;
         data_free(flt);
         return ret;
       } else {
@@ -511,8 +507,8 @@ int data_intval(data_t *data) {
   int    (*intvalue)(data_t *);
   double (*fltvalue)(data_t *);
   data_t  *i;
-  int      ret;
-  
+  int      ret = 0;
+
   if (!data) {
     return 0;
   }
@@ -524,11 +520,14 @@ int data_intval(data_t *data) {
     if (fltvalue) {
       return (int) fltvalue(data);
     } else {
-      ret = data_intval(i = data_cast(data, Int));
-      data_free(i);
-      return ret;
+      if ((i = data_cast(data, Int)) && !data_is_exception(i)) {
+        ret = ((int_t *) i) -> i;
+        data_free(i);
+        return ret;
+      }
     }
   }
+  return 0;
 }
 
 int data_cmp(data_t *d1, data_t *d2) {
@@ -566,7 +565,7 @@ int data_cmp(data_t *d1, data_t *d2) {
   } else {
     type = data_typedescr(d1);
     cmp = (cmp_t) typedescr_get_function(type, FunctionCmp);
-    return (cmp) ? cmp(d1, d2) : ((d1 -> ptrval == d2 -> ptrval) ? 0 : 1);
+    return (cmp) ? cmp(d1, d2) : (d1 == d2);
   }
 }
 
@@ -617,14 +616,14 @@ data_t * data_read(data_t *reader, char *buf, int num) {
 }
 
 /**
- * @brief Write <code>num</code> bytes from <code>buf</code> to writer 
- * <code>writer</code>. 
+ * @brief Write <code>num</code> bytes from <code>buf</code> to writer
+ * <code>writer</code>.
  */
 data_t * data_write(data_t *writer, char *buf, int num) {
   typedescr_t  *type = data_typedescr(writer);
   data_t *    (*fnc)(data_t *, char *, int);
   data_t       *ret;
-  
+
   fnc = (data_t * (*)(data_t *, char *, int)) typedescr_get_function(type, FunctionWrite);
   if (fnc) {
     ret = fnc(writer, buf, num);
@@ -641,26 +640,26 @@ data_t * data_write(data_t *writer, char *buf, int num) {
 
 int data_is_iterable(data_t *data) {
   typedescr_t *td;
-  
+
   if (data) {
     td = data_typedescr(data);
     assert(td);
     return typedescr_is(td, Iterable);
   } else {
     return 0;
-  }  
+  }
 }
 
 int data_is_iterator(data_t *data) {
   typedescr_t *td;
-  
+
   if (data) {
     td = data_typedescr(data);
     assert(td);
     return typedescr_is(td, Iterator);
   } else {
     return 0;
-  }  
+  }
 }
 
 data_t * data_iter(data_t *data) {
@@ -706,7 +705,7 @@ data_t * data_has_next(data_t *data) {
                          "Atom '%s' is not an iterator",
                          data_tostring(data));
   }
-  return ret;  
+  return ret;
 }
 
 data_t * data_next(data_t *data) {
@@ -722,7 +721,7 @@ data_t * data_next(data_t *data) {
     next = (data_fnc_t) typedescr_get_function(type, FunctionNext);
     if (next && hasnext) {
       hn = hasnext(data);
-      ret = (hn -> intval)
+      ret = data_intval(hn)
         ? next(data)
         : data_exception(ErrorExhausted, "Iterator '%s' exhausted", data_tostring(data));
       data_free(hn);
@@ -740,7 +739,7 @@ data_t * data_query(data_t *data, data_t *query) {
   typedescr_t *type;
   data2_fnc_t  queryfnc;
   data_t      *ret = NULL;
-  
+
   if (data) {
     type = data_typedescr(data);
     queryfnc = (data2_fnc_t) typedescr_get_function(type, FunctionQuery);
@@ -769,12 +768,12 @@ data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
   data_t  *accum = NULL;
   data_t  *ret = iterable;
   array_t *args = NULL;
-  
-  /* 
+
+  /*
    * TODO: Allow types to provide their own FunctionReduce. Could be have
    * performance benefits.
    */
-  
+
   if (data_is_unhandled_exception(iterator)) {
     return iterator;
   }
@@ -821,7 +820,7 @@ data_t * data_push(data_t *scope, data_t *value) {
   typedescr_t *type;
   data2_fnc_t  pushfnc;
   data_t      *ret = NULL;
-  
+
   if (scope) {
     type = data_typedescr(scope);
     pushfnc = (data2_fnc_t) typedescr_get_function(type, FunctionPush);
@@ -842,7 +841,7 @@ data_t * data_pop(data_t *scope) {
   typedescr_t *type;
   data_fnc_t   popfnc;
   data_t      *ret = NULL;
-  
+
   if (scope) {
     type = data_typedescr(scope);
     popfnc = (data_fnc_t) typedescr_get_function(type, FunctionPush);
@@ -872,7 +871,7 @@ data_t * data_embedded(int type, va_list args) {
 }
 
 /* -- Standard reducer functions ----------------------------------------- */
- 
+
 array_t * data_add_strings_reducer(data_t *data, array_t *target) {
   array_push(target, strdup(data_tostring(data)));
   return target;

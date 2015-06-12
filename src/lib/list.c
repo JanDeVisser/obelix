@@ -1,6 +1,6 @@
 /*
- * list.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * list.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@
 #include <stdlib.h>
 
 #include <list.h>
+#include <str.h>
 
 static listnode_t *     _ln_init(listnode_t *, list_t *, void *);
 static listnode_t *     _ln_create(list_t *, void *);
@@ -82,7 +83,7 @@ int _list_append_fragment(list_t *list, listnode_t *start, listnode_t *end) {
   end -> next = &(list -> tail);
   list -> tail.prev -> next = start;
   list -> tail.prev = end;
-  
+
   /*
    * Update counters:
    */
@@ -103,7 +104,7 @@ list_t * list_create() {
     ret -> freefnc = NULL;
     ret -> cmp = NULL;
     _li_init(&ret -> iter, ret);
-  } 
+  }
   return ret;
 }
 
@@ -189,7 +190,7 @@ list_t * list_add_all(list_t *list, list_t *other) {
 list_t * list_join(list_t *target, list_t *src) {
   listnode_t *start = src -> head.next;
   listnode_t *end = src -> tail.prev;
-  
+
   if (list_size(src)) {
     src -> head.next = &src -> tail;
     src -> tail.prev = &src -> head;
@@ -393,7 +394,7 @@ void list_remove(list_t *list) {
 int list_atstart(list_t *list) {
   return li_atstart(&list -> iter);
 }
-  
+
 int list_atend(list_t *list) {
   return li_atend(&list -> iter);
 }
@@ -404,7 +405,7 @@ list_t * list_split(list_t *list) {
   listnode_t *w;
   list_t     *ret = list_create();
   int         count = 0;
-  
+
   list_set_cmp(ret, list -> cmp);
   list_set_free(ret, list -> freefnc);
   list_set_hash(ret, list -> hash);
@@ -425,7 +426,7 @@ list_t * list_split(list_t *list) {
 
 listiterator_t * _li_init(listiterator_t *iter, list_t *list) {
   iter -> list = list;
-  iter -> current = &list -> head;  
+  iter -> current = &list -> head;
   return iter;
 }
 
@@ -457,7 +458,7 @@ void li_position(listiterator_t *iter, listnode_t *node) {
 
 void * li_current(listiterator_t *iter) {
   return (_ln_datanode(iter -> current))
-    ? iter -> current -> data 
+    ? iter -> current -> data
     : NULL;
 }
 
@@ -506,7 +507,7 @@ int li_insert(listiterator_t *iter, void *data) {
   int         ret = FALSE;
   list_t     *list = iter -> list;
   listnode_t *node;
-    
+
   /* If we're at the tail we can't insert a new node: */
   if (iter -> current -> next) {
     /* Not at end. Create node: */

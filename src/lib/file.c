@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -25,25 +26,117 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <array.h>
+#include <data.h>
+#include <exception.h>
 #include <file.h>
 #include <logging.h>
-#include <ctype.h>
-
-#include "array.h"
+#include <re.h>
 
 int file_debug = 0;
 
-static void   _file_init(void) __attribute__((constructor(102)));
-static void   _file_free(file_t *);
-static FILE * _file_stream(file_t *);
+/* ------------------------------------------------------------------------ */
+
+static void          _file_init(void) __attribute__((constructor));
+static FILE *        _file_stream(file_t *);
+
+static void          _file_free(file_t *);
+static char *        _file_tostring(file_t *file);
+static int           _file_intval(file_t *);
+static data_t *      _file_cast(file_t *, int);
+static file_t *      _file_enter(file_t *);
+static data_t *      _file_leave(file_t *, data_t *);
+static data_t *      _file_query(file_t *, data_t *);
+static data_t *      _file_iter(file_t *);
+static data_t *      _file_resolve(file_t *, char *);
+static data_t *      _file_read(file_t *, char *, int);
+static data_t *      _file_write(file_t *, char *, int);
+
+static data_t *      _file_open(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_adopt(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_readline(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_print(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_close(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_isopen(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_redirect(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_seek(data_t *, char *, array_t *, dict_t *);
+
+static vtable_t _vtable_file[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,      .fnc = (void_t) file_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) _file_free },
+  { .id = FunctionToString, .fnc = (void_t) _file_tostring },
+  { .id = FunctionIntValue, .fnc = (void_t) _file_intval },
+  { .id = FunctionCast,     .fnc = (void_t) _file_cast },
+  { .id = FunctionHash,     .fnc = (void_t) file_hash },
+  { .id = FunctionEnter,    .fnc = (void_t) _file_enter },
+  { .id = FunctionLeave,    .fnc = (void_t) _file_leave },
+  { .id = FunctionIter,     .fnc = (void_t) _file_iter },
+  { .id = FunctionQuery,    .fnc = (void_t) _file_query },
+  { .id = FunctionResolve,  .fnc = (void_t) _file_resolve },
+  { .id = FunctionRead,     .fnc = (void_t) _file_read },
+  { .id = FunctionWrite,    .fnc = (void_t) _file_write },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static typedescr_t _typedescr_file =   {
+  .type      = -1,
+  .type_name = "file",
+  .vtable    = _vtable_file,
+};
+
+static methoddescr_t _methoddescr_file[] = {
+  { .type = Any,    .name = "open",     .method = _file_open,     .argtypes = { String, Int, Any },       .minargs = 1, .varargs = 1 },
+  { .type = Any,    .name = "adopt",    .method = _file_adopt,    .argtypes = { Number, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = -1,     .name = "readline", .method = _file_readline, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "print",    .method = _file_print,    .argtypes = { String, Any,    NoType }, .minargs = 1, .varargs = 1 },
+  { .type = -1,     .name = "close",    .method = _file_close,    .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "isopen",   .method = _file_isopen,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "redirect", .method = _file_redirect, .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = -1,     .name = "seek",     .method = _file_seek,     .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = NoType, .name = NULL,       .method = NULL,           .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+};
+
+/* ------------------------------------------------------------------------ */
+
+typedef struct _fileiter {
+  data_t   _d;
+  file_t  *file;
+  re_t    *regex;
+  list_t  *next;
+} fileiter_t;
+
+static fileiter_t * _fileiter_create(file_t *, data_t *);
+static void         _fileiter_free(fileiter_t *);
+static fileiter_t * _fileiter_copy(fileiter_t *);
+static int          _fileiter_cmp(fileiter_t *, fileiter_t *);
+static char *       _fileiter_tostring(fileiter_t *);
+static data_t *     _fileiter_iter(fileiter_t *);
+static data_t *     _fileiter_has_next(fileiter_t *);
+static data_t *     _fileiter_next(fileiter_t *);
+
+static vtable_t _vtable_fileiter[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,      .fnc = (void_t) _fileiter_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) _fileiter_free },
+  { .id = FunctionToString, .fnc = (void_t) _fileiter_tostring },
+  { .id = FunctionHasNext,  .fnc = (void_t) _fileiter_has_next },
+  { .id = FunctionNext,     .fnc = (void_t) _fileiter_next },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+int File = -1;
+int FileIter = -1;
+
+/* ------------------------------------------------------------------------ */
 
 void _file_init(void) {
   logging_register_category("file", &file_debug);
+  File = typedescr_create_and_register(File, "file", _vtable_file, _methoddescr_file);
+  FileIter = typedescr_create_and_register(FileIter, "fileiterator", _vtable_fileiter, NULL);
 }
 
-/*
- * file_t static functions
- */
+/* -- F I L E _ T  S T A T I C  F U N C T I O N S ------------------------- */
 
 void _file_free(file_t *file) {
   if (file ) {
@@ -57,6 +150,113 @@ void _file_free(file_t *file) {
   }
 }
 
+char * _file_tostring(file_t *file) {
+  if (!file -> _d.str) {
+    asprintf(&file -> _d.str, "%s:%d",
+             (file -> fname) ? file -> fname : "anon",
+             file -> fh);
+  }
+  return NULL;
+}
+
+int _file_intval(file_t *file) {
+  return file -> fh;
+}
+
+data_t * _file_cast(file_t *file, int totype) {
+  if (totype == Bool) {
+    return data_create(Bool, file_isopen(file));
+  }
+  return NULL;
+}
+
+file_t * _file_enter(file_t *file) {
+  if (file_debug) {
+    debug("%s._file_enter()", file_tostring(file));
+  }
+  return file;
+}
+
+data_t * _file_leave(file_t *file, data_t *param) {
+  data_t *ret = param;
+
+  if (file_close(file)) {
+    ret = data_exception_from_my_errno(file_errno(file));
+  }
+  if (file_debug) {
+    debug("%s._file_leave() -> %s", file_tostring(file), data_tostring(ret));
+  }
+  return ret;
+}
+
+data_t * _file_resolve(file_t *file, char *name) {
+  if (!strcmp(name, "errno")) {
+    return data_create(Int, file_errno(file));
+  } else if (!strcmp(name, "errormsg")) {
+    return data_create(String, file_error(file));
+  } else if (!strcmp(name, "name")) {
+    return data_create(String, file_name(file));
+  } else if (!strcmp(name, "fh")) {
+    return data_create(Int, file -> fh);
+  } else if (!strcmp(name, "eof")) {
+    return data_create(Bool, file_eof(file));
+  } else {
+    return NULL;
+  }
+}
+
+data_t * _file_iter(file_t *file) {
+  file_t     *f = data_as_file(file);
+  data_t     *ret = data_create(FileIter, f, NULL);
+
+  if (file_debug) {
+    debug("%s._file_iter() -> %s", file_tostring(file), data_tostring(ret));
+  }
+  return ret;
+}
+
+data_t * _file_query(file_t *file, data_t *regex) {
+  data_t     *ret = data_create(FileIter, file, regex);
+
+  if (file_debug) {
+    debug("%s._file_query(%s) -> %s",
+          file_tostring(file),
+          data_tostring(regex),
+          data_tostring(ret));
+  }
+  return ret;
+}
+
+data_t * _file_read(file_t *file, char *buf, int num) {
+  int retval;
+
+  if (file_debug) {
+    debug("%s.read(%d)", file_tostring(file), num);
+  }
+  retval = file_read(file, buf, num);
+  if (retval >= 0) {
+    return data_create(Int, retval);
+  } else {
+    return data_exception_from_errno();
+  }
+}
+
+data_t * _file_write(file_t *file, char *buf, int num) {
+  int retval;
+
+  if (file_debug) {
+    debug("%s.write(%d)", file_tostring(file), num);
+  }
+  retval = file_write(file, buf, num);
+  if (retval >= 0) {
+    return data_create(Int, retval);
+  } else {
+    return data_exception_from_errno();
+  }
+}
+
+/* -- F I L E _ T  S T A T I C  F U N C T I O N S ------------------------- */
+
 FILE * _file_stream(file_t *file) {
   if (!file -> stream) {
     file -> stream = fdopen(file -> fh, "r");
@@ -64,9 +264,7 @@ FILE * _file_stream(file_t *file) {
   return file -> stream;
 }
 
-/*
- * file_t public functions
- */
+/* -- F I L E _ T  P U B L I C  F U N C T I O N S ------------------------- */
 
 file_t * file_create(int fh) {
   file_t *ret;
@@ -83,7 +281,7 @@ file_t * file_create(int fh) {
 
 int file_flags(char *flags) {
   int ret;
-  
+
   if (!strcasecmp(flags, "r")) {
     ret = O_RDONLY;
   } else if (!strcasecmp(flags, "r+")) {
@@ -109,7 +307,7 @@ int file_mode(char *mode) {
   char    *ptr;
   int      ix;
   int      mask;
-  
+
   parts = array_split(mode, ",");
   for (ix = 0; (ret != -1) && (ix < array_size(parts)); ix++) {
     str = str_array_get(parts, ix);
@@ -167,7 +365,7 @@ file_t * file_open_ext(char *fname, ...) {
   char    *mode;
   int      open_flags = 0;
   int      open_mode = 0;
-  
+
   n = strdup(fname);
   va_start(args, fname);
   flags = va_arg(args, char *);
@@ -218,7 +416,7 @@ file_t * file_open(char *fname) {
 
 int file_close(file_t *file) {
   int ret = 0;
-  
+
   if (file -> fh >= 0) {
     if (file -> stream) {
       ret = fclose(file -> stream) != 0;
@@ -236,13 +434,8 @@ char * file_name(file_t *file) {
   return file -> fname;
 }
 
-char * file_tostring(file_t *file) {
-  if (!file -> str) {
-    asprintf(&file -> str, "%s:%d", 
-             (file -> fname) ? file -> fname : "anon", 
-             file -> fh);
-  }
-  return file -> str;
+unsigned int file_hash(file_t *file) {
+  return strhash(file -> fname);
 }
 
 char * file_error(file_t *file) {
@@ -270,11 +463,11 @@ int file_seek(file_t *file, int offset) {
     file -> _errno = errno;
   }
   return ret;
-} 
+}
 
 int file_read(file_t *file, char *target, int num) {
   int ret = read(file -> fh, target, num);
-  
+
   if (ret < 0) {
     file -> _errno = errno;
   }
@@ -283,7 +476,7 @@ int file_read(file_t *file, char *target, int num) {
 
 int file_write(file_t *file, char *buf, int num) {
   int ret = write(file -> fh, buf, num);
-  
+
   if (ret < 0) {
     file -> _errno = errno;
   }
@@ -292,7 +485,7 @@ int file_write(file_t *file, char *buf, int num) {
 
 int file_flush(file_t *file) {
   int ret = fsync(file -> fh);
-  
+
   if (ret < 0) {
     file -> _errno = errno;
   }
@@ -303,7 +496,7 @@ char * file_readline(file_t *file) {
   size_t n = 0;
   int    num;
   FILE  *stream;
-  
+
   free(file -> line);
   file -> line = NULL;
   stream = _file_stream(file);
@@ -332,4 +525,227 @@ int file_isopen(file_t *file) {
 int file_redirect(file_t *file, char *newname) {
   assert(0); /* Not yet implemented */
   return 0;
+}
+
+/* -- F I L E  I T E R A T O R -------------------------------------------- */
+
+fileiter_t * _fileiter_readnext(fileiter_t *iter) {
+  data_t  *matches;
+  array_t *matchvals;
+  int      ix;
+
+  while (list_empty(iter -> next)) {
+    if (file_readline(iter -> file)) {
+      if (!iter -> regex) {
+        list_push(iter -> next, data_create(String, iter -> file -> line));
+      } else {
+        matches = regexp_match(iter -> regex, iter -> file -> line);
+        if (data_type(matches) == String) {
+          list_push(iter -> next, data_copy(matches));
+        } else if (data_type(matches) == List) {
+          matchvals = data_arrayval(matches);
+          for (ix = 0; ix < array_size(matchvals); ix++) {
+            list_push(iter -> next, data_copy(data_array_get(matchvals, ix)));
+          }
+        }
+        data_free(matches);
+      }
+    } else if (!file_errno(iter -> file)) {
+      list_push(iter -> next,
+                data_exception(ErrorExhausted, "Iterator exhausted"));
+    } else {
+      list_push(iter -> next,
+                data_exception_from_my_errno(file_errno(iter -> file)));
+    }
+  }
+  return iter;
+}
+
+fileiter_t * _fileiter_create(file_t *file, data_t *regex) {
+  fileiter_t *ret = data_new(FileIter, fileiter_t);
+  re_t       *re = NULL;
+  int         retval;
+
+  ret -> file = file;
+  if (data_is_regexp(regex)) {
+    ret -> regex = regexp_copy(data_as_regexp(regex));
+  } else if (regex) {
+    ret -> regex = regexp_create(data_tostring(regex), NULL);
+  } else {
+    ret -> regex = NULL;
+  }
+  // FIXME: Error handling for bad regexp.
+  retval = file_seek(ret -> file, 0);
+  ret -> next = data_list_create();
+  if (retval >= 0) {
+    _fileiter_readnext(ret);
+  } else {
+    list_push(ret -> next,
+              data_exception_from_my_errno(file_errno(ret -> file)));
+  }
+  return ret;
+}
+
+void _fileiter_free(fileiter_t *fileiter) {
+  if (fileiter) {
+    regexp_free(fileiter -> regex);
+    list_free(fileiter -> next);
+    free(fileiter);
+  }
+}
+
+int _fileiter_cmp(fileiter_t *fileiter1, fileiter_t *fileiter2) {
+  return fileiter1 -> file -> fh - fileiter2 -> file -> fh;
+}
+
+char * _fileiter_tostring(fileiter_t *fileiter) {
+  return file_tostring(fileiter -> file);
+}
+
+data_t * _fileiter_has_next(fileiter_t *fi) {
+  data_t      *next;
+  data_t      *ret;
+  exception_t *ex;
+
+  _fileiter_readnext(fi);
+  next = list_head(fi -> next);
+  if (data_is_exception(next)) {
+    ex = data_as_exception(next);
+    ret = (ex -> code == ErrorExhausted) ? data_create(Bool, 0) : data_copy(next);
+  } else {
+    ret = data_true();
+  }
+  if (file_debug) {
+    debug("%s._fileiter_has_next() -> %s", _fileiter_tostring(fi), data_tostring(ret));
+  }
+  return ret;
+}
+
+data_t * _fileiter_next(fileiter_t *fi) {
+  _fileiter_readnext(fi);
+  return list_shift(fi -> next);
+}
+
+/* -- F I L E  D A T A T Y P E  M E T H O D S ----------------------------- */
+
+data_t * _file_open(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  char   *n;
+  data_t *file;
+
+  (void) name;
+  (void) kwargs;
+  if (!args || !array_size(args)) {
+    n = data_tostring(self);
+  } else if (array_size(args) > 1) {
+    // FIXME open mode!
+    return data_exception(ErrorArgCount, "open() takes exactly one argument");
+  } else {
+    n = data_tostring(array_get(args, 0));
+  }
+  file = (data_t *) file_open(n);
+  if (!file) {
+    file = data_create(Bool, 0);
+  }
+  return file;
+}
+
+data_t * _file_adopt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t *handle = data_array_get(args, 0);
+  file_t *ret = file_create(data_intval(handle));
+
+  (void) name;
+  (void) kwargs;
+  if (file_debug) {
+    debug("_file_adopt(%d) -> %s", data_intval(handle), file_tostring(ret));
+  }
+  return (data_t *) ret;
+}
+
+data_t * _file_seek(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  file_t *file = (file_t *) self;
+  int     offset = data_intval(data_array_get(args, 0));
+  int     retval;
+  data_t *ret;
+
+  (void) name;
+  (void) kwargs;
+  retval = file_seek(file, offset);
+  if (retval >= 0) {
+    ret = data_create(Int, retval);
+  } else {
+    ret = data_exception_from_my_errno(file_errno(file));
+  }
+  return ret;
+}
+
+data_t * _file_readline(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  file_t *file = (file_t *) self;
+  data_t *ret;
+  char   *line;
+
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  if (line = file_readline(file)) {
+    ret = data_create(String, line);
+  } else if (!file_errno(file)) {
+    ret = data_null();
+  } else {
+    ret = data_exception_from_my_errno(file_errno(file));
+  }
+  return ret;
+}
+
+data_t * _file_print(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  file_t *file = (file_t *) self;
+  data_t *s;
+  data_t *fmt;
+  char   *line;
+  int     ret = 1;
+
+  fmt = data_array_get(args, 0);
+  assert(fmt);
+  args = array_slice(args, 1, -1);
+  s = data_execute(fmt, "format", args, kwargs);
+  array_free(args);
+
+  line = data_tostring(s);
+  if (file_write(file, line, strlen(line)) == strlen(line)) {
+    if (file_write(file, "\n", 1) == 1) {
+      file_flush(file);
+      ret = 1;
+    }
+  }
+  data_free(s);
+  return data_create(Bool, ret);
+}
+
+data_t * _file_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  file_t *file = (file_t *) self;
+  int     retval = file_close(file);
+
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  if (!retval) {
+    return data_create(Bool,  1);
+  } else {
+    return data_exception_from_my_errno(file_errno(file));
+  }
+}
+
+data_t * _file_isopen(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  file_t *file = (file_t *) self;
+
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  return data_create(Bool, file_isopen(file));
+}
+
+data_t * _file_redirect(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) args;
+  return data_create(Bool, file_redirect((file_t *) self,
+					 data_tostring(data_array_get(args, 0))) == 0);
 }

@@ -30,14 +30,14 @@ extern "C" {
 typedef struct _connection {
   struct _socket *server;
   struct _socket *client;
-  void           *context;
+  data_t         *context;
   thread_t       *thread;
 } connection_t;
 
-  
 typedef void * (*service_t)(connection_t *);
     
 typedef struct _socket {
+  data_t     _d;
   file_t    *sockfile;
   int        fh;
   char      *host;
@@ -45,28 +45,33 @@ typedef struct _socket {
   service_t  service_handler;
   thread_t  *thread;
   void      *context;
-  char      *str;
-  int        refs;
 } socket_t;
 
 extern socket_t *    socket_create(char *, int);
 extern socket_t *    socket_create_byservice(char *, char *);
 extern socket_t *    serversocket_create(int);
 extern socket_t *    serversocket_create_byservice(char *);
-extern socket_t *    socket_copy(socket_t *);
-extern void          socket_free(socket_t *);
 extern int           socket_close(socket_t *);
 extern unsigned int  socket_hash(socket_t *);
 extern int           socket_cmp(socket_t *, socket_t *);
-extern char *        socket_tostring(socket_t *);
 extern int           socket_listen(socket_t *, service_t, void *);
 extern int           socket_listen_detach(socket_t *, service_t, void *);
 extern socket_t *    socket_interrupt(socket_t *);
 extern socket_t *    socket_nonblock(socket_t *);
+
+extern void *        connection_listener_service(connection_t *);
+
+#define data_is_socket(d)  ((d) && (data_hastype((d), Socket)))
+#define data_as_socket(d)  ((socket_t *) (data_is_socket((data_t *) (d)) ? (d) : NULL))
+#define socket_free(o)     (data_free((data_t *) (o)))
+#define socket_tostring(o) (data_tostring((data_t *) (o)))
+#define socket_copy(o)     ((socket_t *) data_copy((data_t *) (o)))
+
+
+extern int Socket;
 
 #ifdef	__cplusplus
 }
 #endif
 
 #endif	/* __SOCKET_H__ */
-

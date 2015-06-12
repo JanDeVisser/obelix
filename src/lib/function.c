@@ -29,14 +29,13 @@ static void         _function_init(void) __attribute__((constructor));
 static void         _function_free(function_t *);
 static char *       _function_tostring(function_t *);
 static data_t *     _function_cast(function_t *, int);
-static function_t * _function_parse(typedescr_t *type, char *str);
 
 static vtable_t _vtable_function[] = {
   { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) function_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _function_free },
   { .id = FunctionToString, .fnc = (void_t) _function_tostring },
-  { .id = FunctionParse,    .fnc = (void_t) _function_parse },
+  { .id = FunctionParse,    .fnc = (void_t) function_parse },
   { .id = FunctionCast,     .fnc = (void_t) _function_cast },
   { .id = FunctionHash,     .fnc = (void_t) function_hash },
   { .id = FunctionCall,     .fnc = (void_t) function_call },
@@ -54,9 +53,9 @@ void _function_init(void) {
 char * _function_tostring(function_t *fnc) {
   if (fnc) {
     if (!fnc -> _d.str) {
-      asprintf(&fnc -> _d.str, "%s(%s)", 
+      asprintf(&fnc -> _d.str, "%s(%s)",
                 name_tostring(fnc -> name),
-                ((fnc -> params && array_size(fnc -> params)) 
+                ((fnc -> params && array_size(fnc -> params))
                   ? array_tostring(fnc -> params)
                   : ""));
     }
@@ -74,7 +73,7 @@ void _function_free(function_t *fnc) {
 
 data_t * _function_cast(function_t *fnc, int totype) {
   data_t     *ret = NULL;
-  
+
   if (totype == Bool) {
     ret = data_create(Bool, fnc -> fnc != NULL);
   } else if (totype == Int) {
@@ -83,16 +82,11 @@ data_t * _function_cast(function_t *fnc, int totype) {
   return ret;
 }
 
-function_t * _function_parse(typedescr_t *type, char *str) {
-  (void) type;
-  return function_parse(str);
-}
-
 /* -- F U N C T I O N  P U B L I C  F U N C T I O N S --------------------- */
 
 function_t * function_create(char *name, void_t fnc) {
   function_t *ret = function_create_noresolve(name);
-  
+
   if (fnc) {
     ret -> fnc = fnc;
   } else {
@@ -104,7 +98,7 @@ function_t * function_create(char *name, void_t fnc) {
 function_t * function_create_noresolve(char *name) {
   function_t *ret;
   name_t     *n;
-  
+
   assert(name);
   ret = data_new(Function, function_t);
   ret -> params = NULL;
@@ -119,7 +113,7 @@ function_t * function_parse(char *str) {
   function_t *ret;
   char       *p;
   name_t     *params = NULL;
-  
+
   if (!name_size(name_params) || (name_size(name_params) > 2)) {
     return NULL;
   }
@@ -156,7 +150,7 @@ function_t * function_resolve(function_t *fnc) {
   } else {
     if (name_size(fnc -> name) == 2) {
       if (!resolve_library(name_first(fnc -> name))) {
-        error("Error loading library '%s': %s", 
+        error("Error loading library '%s': %s",
               name_first(fnc -> name), strerror(errno));
         return fnc;
       }
@@ -164,11 +158,11 @@ function_t * function_resolve(function_t *fnc) {
     fnc -> fnc = (void_t) resolve_function(name_last(fnc -> name));
     if (!fnc -> fnc) {
       if (errno) {
-        error("Error resolving function '%s': %s", 
+        error("Error resolving function '%s': %s",
               name_tostring(fnc -> name), strerror(errno));
       } else {
-        error("Could not resolve function '%s'", 
-              name_tostring_sep(fnc -> name, ":"), 
+        error("Could not resolve function '%s'",
+              name_tostring_sep(fnc -> name, ":"),
               strerror(errno));
       }
     }

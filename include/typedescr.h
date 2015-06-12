@@ -31,56 +31,58 @@ extern "C" {
 #define MAX_INHERITS           3
 
 typedef enum _metatype {
-  NoType         = 0,
-  Dynamic        = 100,
-  Interface      = 1000, /* Marker */
-  Number,       /* 1001 */
-  InputStream,  /* 1002 */
-  OutputStream, /* 1003 */
-  Iterable,     /* 1004 */
-  Iterator,     /* 1005 */
-  Scope,        /* 1006 */
-  Callable,     /* 1007 */
-  Connector,    /* 1008 */
-  CtxHandler,   /* 1009 */
-  Any,          /* 1010 */
-  NextInterface /* 1011 - Marker */
+  NoType          = 0,
+  Dynamic         = 100,
+  Interface       = 1000, /* Marker */
+  Number,        /* 1001 */
+  InputStream,   /* 1002 */
+  OutputStream,  /* 1003 */
+  Iterable,      /* 1004 */
+  Iterator,      /* 1005 */
+  Scope,         /* 1006 */
+  Callable,      /* 1007 */
+  Connector,     /* 1008 */
+  CtxHandler,    /* 1009 */
+  Incrementable, /* 1010 */
+  Any,           /* 1011 */
+  NextInterface  /* 1012 - Marker */
 } metatype_t;
 
 typedef enum _vtable_id {
-  FunctionNone        = 0,
-  FunctionFactory,   /* 1  */
-  FunctionNew,       /* 2  */
-  FunctionCopy,      /* 3  */
-  FunctionCmp,       /* 4  */
-  FunctionFreeData,  /* 5  */
-  FunctionFree,      /* 6  */
-  FunctionToString,  /* 7  */
-  FunctionFltValue,  /* 8  */
-  FunctionIntValue,  /* 9  */
-  FunctionParse,     /* 10 */
-  FunctionCast,      /* 11 */
-  FunctionHash,      /* 12 */
-  FunctionLen,       /* 13 */
-  FunctionResolve,   /* 14 */
-  FunctionCall,      /* 15 */
-  FunctionSet,       /* 16 */
-  FunctionRead,      /* 17 */
-  FunctionWrite,     /* 18 */
-  FunctionOpen,      /* 19 */
-  FunctionIter,      /* 20 */
-  FunctionHasNext,   /* 21 */
-  FunctionNext,      /* 22 */
-  FunctionDecr,      /* 23 */
-  FunctionIncr,      /* 24 */
-  FunctionVisit,     /* 25 */
-  FunctionReduce,    /* 26 */
-  FunctionIs,        /* 27 */
-  FunctionQuery,     /* 28 */
-  FunctionEnter,     /* 29 */
-  FunctionLeave,     /* 30 */
-  FunctionPush,      /* 31 */
-  FunctionPop,       /* 32 */
+  FunctionNone          = 0,
+  FunctionFactory,     /* 1  */
+  FunctionNew,         /* 2  */
+  FunctionCopy,        /* 3  */
+  FunctionCmp,         /* 4  */
+  FunctionFreeData,    /* 5  */
+  FunctionFree,        /* 6  */
+  FunctionToString,    /* 7  */
+  FunctionFltValue,    /* 8  */
+  FunctionIntValue,    /* 9  */
+  FunctionParse,       /* 10 */
+  FunctionCast,        /* 11 */
+  FunctionHash,        /* 12 */
+  FunctionLen,         /* 13 */
+  FunctionResolve,     /* 14 */
+  FunctionCall,        /* 15 */
+  FunctionSet,         /* 16 */
+  FunctionRead,        /* 17 */
+  FunctionWrite,       /* 18 */
+  FunctionOpen,        /* 19 */
+  FunctionIter,        /* 20 */
+  FunctionHasNext,     /* 21 */
+  FunctionNext,        /* 22 */
+  FunctionDecr,        /* 23 */
+  FunctionIncr,        /* 24 */
+  FunctionVisit,       /* 25 */
+  FunctionReduce,      /* 26 */
+  FunctionIs,          /* 27 */
+  FunctionQuery,       /* 28 */
+  FunctionEnter,       /* 29 */
+  FunctionLeave,       /* 30 */
+  FunctionPush,        /* 31 */
+  FunctionPop,         /* 32 */
+  FunctionConstructor, /* 33 */
   FunctionEndOfListDummy
 } vtable_id_t;
 
@@ -98,19 +100,6 @@ typedef struct _vtable {
   void_t      fnc;
 } vtable_t;
 
-typedef struct _typedescr {
-  int           type;
-  char         *type_name;
-  vtable_t     *vtable;
-  dict_t       *methods;
-  void         *ptr;
-  int           promote_to;
-  int           inherits[MAX_INHERITS];
-  unsigned int  hash;
-  char         *str;
-  int           count;
-} typedescr_t;
-
 typedef struct _methoddescr {
   int       type;
   char     *name;
@@ -120,6 +109,20 @@ typedef struct _methoddescr {
   int       maxargs;
   int       varargs;
 } methoddescr_t;
+
+typedef struct _typedescr {
+  int            type;
+  char          *type_name;
+  vtable_t      *vtable;
+  dict_t        *methods;
+  methoddescr_t *constructor;
+  void          *ptr;
+  int            promote_to;
+  int            inherits[MAX_INHERITS];
+  unsigned int   hash;
+  char          *str;
+  int            count;
+} typedescr_t;
 
 extern int             interface_register(int, char *, int, ...);
 extern interface_t *   interface_get(int);

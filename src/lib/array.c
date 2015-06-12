@@ -23,8 +23,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <core.h>
 #include <array.h>
+#include <core.h>
+#include <str.h>
 
 #define ARRAY_DEF_CAPACITY    8
 
@@ -45,12 +46,12 @@ int _array_resize(array_t *array, int mincap) {
     return TRUE;
   }
   newcap = array -> capacity ? array -> capacity : mincap;
-  
+
   while(newcap < mincap) {
     newcap *= 2;
   }
-  newcontents = (void **) resize_ptrarray(array -> contents, 
-                                          newcap, 
+  newcontents = (void **) resize_ptrarray(array -> contents,
+                                          newcap,
                                           array -> capacity);
   if (newcontents) {
     array -> contents= newcontents;
@@ -131,10 +132,10 @@ array_t * array_copy(array_t *src) {
  * The string is split at the occurrences of <code>sep</code>. The individual
  * components are copied and the return array is set up to free these strings
  * when the array is freed.
- * 
+ *
  * @param str The string to be split.
  * @param sep The separator string.
- * 
+ *
  * @return A new array with the components of the string as elements.
  */
 array_t * array_split(char *str, char *sep) {
@@ -175,7 +176,7 @@ array_t * array_split(char *str, char *sep) {
  * @param array The array to return a subset of.
  * @param from The index to start copying from.
  * @param num The number of elements to copy. If less or equal to zero,
- * the tail of the array from the <i>from</i> index up to index 
+ * the tail of the array from the <i>from</i> index up to index
  * <code>-num</code>will be copied.
  *
  * @return A newly created array with the same hash, cmp, and tostring
@@ -259,7 +260,7 @@ void array_free(array_t *array) {
 
 array_t * array_clear(array_t *array) {
   int ix;
-  
+
   if (array -> freefnc) {
     for (ix = 0; ix < array_size(array); ix++) {
       if (array -> contents[ix]) {
@@ -303,7 +304,7 @@ void * array_get(array_t *array, int ix) {
 
 void * array_pop(array_t *array) {
   void *ret = NULL;
-  
+
   if (array -> size) {
     array -> size--;
     ret = array -> contents[array -> size];
@@ -333,7 +334,7 @@ array_t *array_visit(array_t *array, visit_t visitor) {
 
 array_t * array_add_all(array_t *array, array_t *other) {
   reduce_ctx *ctx = NEW(reduce_ctx);
-  
+
   ctx -> fnc = (void_t) _array_append;
   ctx -> obj = array;
   ctx = array_reduce(other, (reduce_t) collection_add_all_reducer, array);
@@ -345,7 +346,7 @@ array_t * array_add_all(array_t *array, array_t *other) {
 str_t * array_tostr(array_t *array) {
   str_t *ret;
   str_t *s;
-  
+
   if (array) {
     if (!array -> size) {
       ret = str_wrap("[]");
@@ -364,7 +365,7 @@ str_t * array_tostr(array_t *array) {
 
 char * array_tostring(array_t *array) {
   str_t *str;
-  
+
   if (array) {
     str = array_tostr(array);
     array -> str = strdup(str_chars(str));

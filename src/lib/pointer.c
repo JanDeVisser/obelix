@@ -26,19 +26,13 @@
 #include <data.h>
 #include <resolve.h>
 
-typedef struct _pointer {
-  data_t  _d;
-  void   *ptr;
-  int     size;
-} pointer_t;
-
 static void          _ptr_init(void) __attribute__((constructor(101)));
 static pointer_t *   _ptr_new(int, va_list);
 static int           _ptr_cmp(pointer_t *, pointer_t *);
 static data_t *      _ptr_cast(pointer_t *, int);
 static unsigned int  _ptr_hash(pointer_t *);
 static char *        _ptr_tostring(pointer_t *);
-static pointer_t *   _ptr_parse(typedescr_t *, char *);
+static pointer_t *   _ptr_parse(char *);
 
 static data_t *      _ptr_copy(data_t *, char *, array_t *, dict_t *);
 static data_t *      _ptr_fill(data_t *, char *, array_t *, dict_t *);
@@ -77,11 +71,11 @@ static pointer_t * _null;
 void _ptr_init(void) {
   typedescr_register(&_typedescr_ptr);
   typedescr_register_methods(_methoddescr_ptr);
-  _null = data_create(Pointer, 0, NULL);
+  _null = (pointer_t *) data_create(Pointer, 0, NULL);
   _null -> _d.free_me = Constant;
 }
 
-pointer_t * _ptr_new(data_t *target, va_list arg) {
+pointer_t * _ptr_new(int type, va_list arg) {
   pointer_t *ret = data_new(Pointer, pointer_t);
 
   ret -> size = va_arg(arg, int);
@@ -95,7 +89,7 @@ data_t * _ptr_cast(pointer_t *src, int totype) {
   if (totype == Bool) {
     ret = data_create(Bool, src -> ptr != NULL);
   } else if (totype == Int) {
-    ret = data_create(Int, (int) src -> ptr);
+    ret = data_create(Int, (long) src -> ptr);
   }
   return ret;
 }
@@ -112,7 +106,7 @@ int _ptr_cmp(pointer_t *p1, pointer_t *p2) {
 
 char * _ptr_tostring(pointer_t *p) {
   if (!p -> _d.str) {
-    if (p == &_null) {
+    if (p == _null) {
       p -> _d.str = strdup("Null");
     } else {
       asprintf(&p -> _d.str, "%p", p -> ptr);
@@ -121,16 +115,16 @@ char * _ptr_tostring(pointer_t *p) {
   return NULL;
 }
 
-pointer_t * _ptr_parse(typedescr_t *type, char *str) {
+pointer_t * _ptr_parse(char *str) {
   long l;
-  
+
   if (!strcmp(str, "null")) {
-    return data_null();
+    return (pointer_t *) data_null();
   } else {
     if (strtoint(str, &l)) {
-      return data_create(Pointer, 0, (void *) l);
+      return (pointer_t *) data_create(Pointer, 0, (void *) l);
     } else {
-      return data_null();
+      return (pointer_t *) data_null();
     }
   }
 }
@@ -140,24 +134,24 @@ unsigned int _ptr_hash(pointer_t *data) {
 }
 
 data_t * data_null(void) {
-  return _null;
+  return (data_t *) _null;
 }
 
 /* ----------------------------------------------------------------------- */
 
 data_t * _ptr_copy(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   void      *newbuf;
-  pointer_t *p = data_pointerval(self);
-  
+  pointer_t *p = data_as_pointer(self);
+
   newbuf = (void *) new(p -> size);
   memcpy(newbuf, p -> ptr, p -> size);
   return data_create(Pointer, p -> size, newbuf);
 }
 
 data_t * _ptr_fill(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  pointer_t *p = data_pointerval(self);
+  pointer_t *p = data_as_pointer(self);
   data_t    *fillchar = data_array_get(args, 0);
-  
+
   memset(p -> ptr, data_intval(fillchar), p -> size);
   return data_copy(self);
 }

@@ -1,0 +1,525 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="95">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <logicalFolder name="f2" displayName="Includes" projectFiles="true">
+      <logicalFolder name="include" displayName="include" projectFiles="true">
+        <logicalFolder name="include" displayName="include" projectFiles="true">
+        </logicalFolder>
+      </logicalFolder>
+    </logicalFolder>
+    <df root="." name="0">
+      <df name="src">
+        <df name="lib">
+          <df name="test">
+            <in>testlib.c</in>
+          </df>
+          <in>any.c</in>
+          <in>array.c</in>
+          <in>core.c</in>
+          <in>data.c</in>
+          <in>datalist.c</in>
+          <in>datastack.c</in>
+          <in>dict.c</in>
+          <in>exception.c</in>
+          <in>file.c</in>
+          <in>float.c</in>
+          <in>int.c</in>
+          <in>list.c</in>
+          <in>logging.c</in>
+          <in>method.c</in>
+          <in>mutex.c</in>
+          <in>name.c</in>
+          <in>nvp.c</in>
+          <in>pointer.c</in>
+          <in>range.c</in>
+          <in>re.c</in>
+          <in>resolve.c</in>
+          <in>set.c</in>
+          <in>socket.c</in>
+          <in>str.c</in>
+          <in>thread.c</in>
+          <in>typedescr.c</in>
+          <in>user.c</in>
+          <in>wrapper.c</in>
+        </df>
+        <df name="parser">
+          <in>lexer.c</in>
+          <in>token.c</in>
+        </df>
+        <df name="test">
+          <in>testsuite.c</in>
+        </df>
+      </df>
+    </df>
+    <logicalFolder name="f1" displayName="Sources" projectFiles="true">
+      <logicalFolder name="bin" displayName="bin" projectFiles="true">
+        <logicalFolder name="test" displayName="test" projectFiles="true">
+          <itemPath>src/bin/test/Makefile</itemPath>
+          <itemPath>src/bin/test/Makefile.am</itemPath>
+          <itemPath>src/bin/test/Makefile.in</itemPath>
+        </logicalFolder>
+        <itemPath>src/bin/Makefile</itemPath>
+        <itemPath>src/bin/Makefile.am</itemPath>
+        <itemPath>src/bin/Makefile.in</itemPath>
+        <itemPath>src/bin/grammar.grammar</itemPath>
+      </logicalFolder>
+      <logicalFolder name="lib" displayName="lib" projectFiles="true">
+        <logicalFolder name="test" displayName="test" projectFiles="true">
+          <itemPath>src/lib/test/Makefile</itemPath>
+          <itemPath>src/lib/test/Makefile.am</itemPath>
+          <itemPath>src/lib/test/Makefile.in</itemPath>
+          <itemPath>src/lib/test/buffertest.txt</itemPath>
+        </logicalFolder>
+        <itemPath>src/lib/Makefile</itemPath>
+        <itemPath>src/lib/Makefile.am</itemPath>
+        <itemPath>src/lib/Makefile.in</itemPath>
+      </logicalFolder>
+      <logicalFolder name="parser" displayName="parser" projectFiles="true">
+        <logicalFolder name="test" displayName="test" projectFiles="true">
+          <itemPath>src/parser/test/Makefile</itemPath>
+          <itemPath>src/parser/test/Makefile.am</itemPath>
+          <itemPath>src/parser/test/Makefile.in</itemPath>
+        </logicalFolder>
+        <itemPath>src/parser/Makefile</itemPath>
+        <itemPath>src/parser/Makefile.am</itemPath>
+        <itemPath>src/parser/Makefile.in</itemPath>
+      </logicalFolder>
+      <logicalFolder name="stdlib" displayName="stdlib" projectFiles="true">
+        <logicalFolder name="test" displayName="test" projectFiles="true">
+          <itemPath>src/stdlib/test/Makefile</itemPath>
+          <itemPath>src/stdlib/test/Makefile.am</itemPath>
+          <itemPath>src/stdlib/test/Makefile.in</itemPath>
+          <itemPath>src/stdlib/test/file.obl</itemPath>
+          <itemPath>src/stdlib/test/file.txt</itemPath>
+        </logicalFolder>
+        <itemPath>src/stdlib/Makefile</itemPath>
+        <itemPath>src/stdlib/Makefile.am</itemPath>
+        <itemPath>src/stdlib/Makefile.in</itemPath>
+      </logicalFolder>
+    </logicalFolder>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+      <itemPath>configure</itemPath>
+    </logicalFolder>
+    <itemPath>include/method.h</itemPath>
+  </logicalFolder>
+  <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
+  <sourceRootList>
+    <Elem>.</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Default" type="0">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>false</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <flagsDictionary>
+        <element flagsID="0" commonFlags="-g -fPIC"/>
+      </flagsDictionary>
+      <codeAssistance>
+      </codeAssistance>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>.</buildCommandWorkingDir>
+          <buildCommand>${MAKE} -f Makefile install</buildCommand>
+          <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
+          <executablePath></executablePath>
+          <cTool>
+            <preprocessorList>
+              <Elem>DEBUG</Elem>
+              <Elem>HAVE_CONFIG_H</Elem>
+              <Elem>PIC</Elem>
+            </preprocessorList>
+          </cTool>
+        </makeTool>
+      </makefileType>
+      <folder path="0/src/lib/test">
+        <cTool>
+          <incDir>
+            <pElem>src/lib/test</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="0/src/parser">
+        <cTool>
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>OBELIX_DATADIR="/home/jan/Projects/obelix/install/share"</Elem>
+          </preprocessorList>
+        </cTool>
+      </folder>
+      <folder path="0/src/test">
+        <cTool>
+          <incDir>
+            <pElem>src/test</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <item path="src/lib/any.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/array.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/core.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/data.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/datalist.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/datastack.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/dict.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/exception.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/file.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/float.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/int.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/list.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/logging.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/method.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/mutex.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/name.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/nvp.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/pointer.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/range.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/re.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/resolve.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/set.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/socket.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/str.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/test/testlib.c" ex="false" tool="0" flavor2="0">
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <item path="src/lib/thread.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/typedescr.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/user.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/wrapper.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/parser/lexer.c" ex="false" tool="0" flavor2="0">
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <item path="src/parser/token.c" ex="false" tool="0" flavor2="0">
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <item path="src/test/testsuite.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+        </cTool>
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>

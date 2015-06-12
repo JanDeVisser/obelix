@@ -21,9 +21,9 @@
 #define __LIST_H__
 
 #include <core.h>
-#include <str.h>
 
 struct _list;
+struct _str;
 
 typedef struct _listnode {
   struct _listnode *prev;
@@ -72,7 +72,7 @@ extern listnode_t *     list_head_pointer(list_t *);
 extern listnode_t *     list_tail_pointer(list_t *);
 extern void *           list_shift(list_t *);
 extern void *           list_pop(list_t *);
-extern str_t *          list_tostr(list_t *);
+extern struct _str *    list_tostr(list_t *);
 
 extern listiterator_t * list_start(list_t *);
 extern listiterator_t * list_end(list_t *);

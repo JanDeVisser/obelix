@@ -25,87 +25,63 @@
 
 /* ------------------------------------------------------------------------ */
 
-static void         _data_init_nvp(void) __attribute__((constructor));
-static data_t *     _data_new_nvp(data_t *, va_list);
-static data_t *     _data_copy_nvp(data_t *, data_t *);
-static int          _data_cmp_nvp(data_t *, data_t *);
-static char *       _data_tostring_nvp(data_t *);
-static unsigned int _data_hash_nvp(data_t *);
+static void         _nvp_init(void) __attribute__((constructor));
+static void         _nvp_free(nvp_t *);
+static char *       _nvp_tostring(nvp_t *);
+static nvp_t *      _nvp_parse(char *);
+
 static data_t *     _nvp_create(data_t *, char *, array_t *, dict_t *);
 
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_nvp[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_nvp },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_nvp },
-  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_nvp },
-  { .id = FunctionFree,     .fnc = (void_t) nvp_free },
-  { .id = FunctionToString, .fnc = (void_t) _data_tostring_nvp },
-  { .id = FunctionHash,     .fnc = (void_t) _data_hash_nvp },
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,      .fnc = (void_t) nvp_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) _nvp_free },
+  { .id = FunctionToString, .fnc = (void_t) _nvp_tostring },
+  { .id = FunctionParse,    .fnc = (void_t) nvp_parse },
+  { .id = FunctionHash,     .fnc = (void_t) nvp_hash },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_nvp[] = {
-  { .type = Any,    .name = "nvp",  .method = _nvp_create,  .argtypes = { Any, Any, NoType },       .minargs = 2, .varargs = 0 },
-  { .type = NoType, .name = NULL,    .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = Any,    .name = "nvp", .method = _nvp_create,  .argtypes = { Any, Any, NoType },       .minargs = 2, .varargs = 0 },
+  { .type = NoType, .name = NULL,  .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
-static typedescr_t _typedescr_nvp = {
-  .type =      NVP,
-  .type_name = "nvp",
-  .vtable =    _vtable_nvp
-};
+int NVP = -1;
 
 /* ------------------------------------------------------------------------ */
 
-void _data_init_nvp(void) {
-  typedescr_register(&_typedescr_nvp);  
-  typedescr_register_methods(_methoddescr_nvp);
+void _nvp_int(void) {
+  NVP = typedescr_create_and_register(NVP, "nvp", _vtable_nvp, _methoddescr_nvp);
 }
 
-data_t * _data_new_nvp(data_t *ret, va_list arg) {
-  data_t *name;
-  data_t *value;
-
-  name = va_arg(arg, data_t *);
-  value = va_arg(arg, data_t *);
-  ret -> ptrval = nvp_create(name, value);
-  return ret;
+void _nvp_free(nvp_t *nvp) {
+  if (nvp) {
+    data_free(nvp -> name);
+    data_free(nvp -> value);
+    free(nvp);
+  }
 }
 
-data_t * _data_copy_nvp(data_t *target, data_t *src) {
-  target -> ptrval = nvp_copy(data_nvpval(src));
-  return target;
-}
-
-int _data_cmp_nvp(data_t *d1, data_t *d2) {
-  return nvp_cmp(data_nvpval(d1), data_nvpval(d2));
-}
-
-char * _data_tostring_nvp(data_t *d) {
-  return nvp_tostring(data_nvpval(d));
-}
-
-unsigned int _data_hash_nvp(data_t *d) {
-  return nvp_hash(data_nvpval(d));
-}
-
-/* ------------------------------------------------------------------------ */
-
-data_t * _nvp_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(NVP, data_array_get(args, 0), data_array_get(args, 1));
+char * _nvp_tostring(nvp_t *nvp) {
+  if (!nvp -> _d.str) {
+    asprintf(&nvp -> _d.str, "%s: %s",
+             data_tostring(nvp -> name),
+             data_tostring(nvp -> value));
+  }
+  return NULL;
 }
 
 /* ------------------------------------------------------------------------ */
 
 nvp_t * nvp_create(data_t *name, data_t *value) {
   nvp_t *ret;
-  
-  ret = NEW(nvp_t);
+
+  ret = data_new(NVP, nvp_t);
   ret -> name = data_copy(name);
   ret -> value = data_copy(value);
-  ret -> refs = 1;
-  ret -> str = NULL;
   return ret;
 }
 
@@ -117,7 +93,7 @@ nvp_t * nvp_parse(char *str) {
   data_t *n;
   data_t *v;
   nvp_t  *ret;
-  
+
   // FIXME Woefully inadequate.
   strcpy(cpy, str);
   ptr = strchr(cpy, '=');
@@ -135,31 +111,6 @@ nvp_t * nvp_parse(char *str) {
   return ret;
 }
 
-nvp_t * nvp_copy(nvp_t *src) {
-  src -> refs++;
-  return src;
-}
-
-void nvp_free(nvp_t *nvp) {
-  if (nvp) {
-    nvp -> refs--;
-    if (!nvp -> refs) {
-      free(nvp -> str);
-      data_free(nvp -> name);
-      data_free(nvp -> value);
-      free(nvp);
-    }
-  }
-}
-
-char * nvp_tostring(nvp_t *nvp) {
-  free(nvp -> str);
-  asprintf(&nvp -> str, "%s: %s", 
-	   data_tostring(nvp -> name),
-	   data_tostring(nvp -> value));
-  return nvp -> str;
-}
-
 int nvp_cmp(nvp_t *nvp1, nvp_t *nvp2) {
   int ret = data_cmp(nvp1 -> name, nvp2 -> name);
   if (!ret) {
@@ -170,4 +121,10 @@ int nvp_cmp(nvp_t *nvp1, nvp_t *nvp2) {
 
 unsigned int nvp_hash(nvp_t *nvp) {
   return hashblend(data_hash(nvp -> name), data_hash(nvp -> value));
+}
+
+/* ------------------------------------------------------------------------ */
+
+data_t * _nvp_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return (data_t *) nvp_create(data_array_get(args, 0), data_array_get(args, 1));
 }

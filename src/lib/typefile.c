@@ -30,9 +30,6 @@
 #include <typedescr.h>
 #include <wrapper.h>
 
-int File = -1;
-int FileIter = -1;
-
 static void          _file_init(void) __attribute__((constructor));
 static data_t *      _file_new(data_t *, va_list);
 static data_t *      _file_copy(data_t *, data_t *);
@@ -118,11 +115,14 @@ static vtable_t _vtable_fileiter[] = {
 #define data_is_fileiter(d)  ((d) && (data_type((d)) == FileIter))
 #define data_fileiterval(d)  ((fileiter_t *) (data_is_fileiter((d)) ? ((d) -> ptrval) : NULL))
 
+int File = -1;
+int FileIter = -1;
+
 /* ------------------------------------------------------------------------ */
 
 void _file_init(void) {
   int ix;
-  
+
   File = typedescr_create_and_register(File, "file", _vtable_file, _methoddescr_file);
   if (file_debug) {
     debug("File type initialized");
@@ -155,10 +155,10 @@ fileiter_t * _fileiter_readnext(fileiter_t *iter) {
         data_free(matches);
       }
     } else if (!file_errno(iter -> file)) {
-      list_push(iter -> next, 
+      list_push(iter -> next,
                 data_exception(ErrorExhausted, "Iterator exhausted"));
     } else {
-      list_push(iter -> next, 
+      list_push(iter -> next,
                 data_exception_from_my_errno(file_errno(iter -> file)));
     }
   }
@@ -170,7 +170,7 @@ fileiter_t * _fileiter_create(file_t *file, data_t *regex) {
   data_t     *regex;
   re_t       *re = NULL;
   int         retval;
-  
+
   ret -> file = file;
   if (data_is_regexp(regex)) {
     ret -> regex = data_as_regexp(regex);
@@ -185,7 +185,7 @@ fileiter_t * _fileiter_create(file_t *file, data_t *regex) {
   if (retval >= 0) {
     _fileiter_readnext(ret);
   } else {
-    list_push(ret -> next, 
+    list_push(ret -> next,
               data_exception_from_my_errno(file_errno(ret -> file)));
   }
   ret -> refs = 1;
@@ -212,7 +212,7 @@ data_t * _fileiter_has_next(fileiter_t *fi) {
   data_t      *next;
   data_t      *ret;
   exception_t *ex;
-  
+
   _fileiter_readnext(fi);
   next = list_head(fi -> next);
   if (data_is_exception(next)) {
@@ -239,7 +239,7 @@ data_t * _fileiter_next(fileiter_t *fi) {
 
 data_t * data_wrap_file(file_t *file) {
   data_t *ret = data_create_noinit(File);
-  
+
   ret -> ptrval = file_copy(file);
   return ret;
 }
@@ -293,7 +293,7 @@ data_t * _file_enter(data_t *file) {
 
 data_t * _file_leave(data_t *data, data_t *param) {
   data_t *ret = param;
-  
+
   if (file_close(data_fileval(data))) {
     ret = data_exception_from_my_errno(file_errno(data_fileval(data)));
   }
@@ -305,7 +305,7 @@ data_t * _file_leave(data_t *data, data_t *param) {
 
 data_t * _file_resolve(data_t *file, char *name) {
   file_t *f = data_fileval(file);
-  
+
   if (!strcmp(name, "errno")) {
     return data_create(Int, file_errno(f));
   } else if (!strcmp(name, "errormsg")) {
@@ -334,10 +334,10 @@ data_t * _file_iter(data_t *file) {
 data_t * _file_query(data_t *file, data_t *regex) {
   file_t     *f = data_fileval(file);
   data_t     *ret = data_create(FileIter, f, regex);
-  
+
   if (file_debug) {
-    debug("%s._file_query(%s) -> %s", 
-          data_tostring(file), 
+    debug("%s._file_query(%s) -> %s",
+          data_tostring(file),
           data_tostring(regex),
           data_tostring(ret));
   }
@@ -346,7 +346,7 @@ data_t * _file_query(data_t *file, data_t *regex) {
 
 data_t * _file_read(data_t *file, char *buf, int num) {
   int retval;
-  
+
   if (file_debug) {
     debug("%s.read(%d)", data_tostring(file), num);
   }
@@ -360,7 +360,7 @@ data_t * _file_read(data_t *file, char *buf, int num) {
 
 data_t * _file_write(data_t *file, char *buf, int num) {
   int retval;
-  
+
   if (file_debug) {
     debug("%s.write(%d)", data_tostring(file), num);
   }
@@ -377,7 +377,7 @@ data_t * _file_write(data_t *file, char *buf, int num) {
 data_t * _file_open(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   char   *n;
   data_t *ret;
-  
+
   if (!args || !array_size(args)) {
     n = data_tostring(self);
   } else if (array_size(args) > 1) {
@@ -396,7 +396,7 @@ data_t * _file_open(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 data_t * _file_adopt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *ret = data_create(File, NULL);
   int     fh = data_intval(data_array_get(args, 0));
-  
+
   data_fileval(ret) -> fh = fh;
   if (file_debug) {
     debug("_file_adopt(%d) -> %s", fh, data_tostring(ret));
@@ -408,7 +408,7 @@ data_t * _file_seek(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int     offset = data_intval(data_array_get(args, 0));
   int     retval;
   data_t *ret;
-  
+
   retval = file_seek(data_fileval(self), offset);
   if (retval >= 0) {
     ret = data_create(Int, retval);
@@ -422,7 +422,7 @@ data_t * _file_readline(data_t *self, char *name, array_t *args, dict_t *kwargs)
   file_t *file = data_fileval(self);
   data_t *ret;
   char   *line;
-  
+
   (void) name;
   (void) args;
   (void) kwargs;
@@ -447,7 +447,7 @@ data_t * _file_print(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   args = array_slice(args, 1, -1);
   s = data_execute(fmt, "format", args, kwargs);
   array_free(args);
- 
+
   line = data_tostring(s);
   if (file_write(data_fileval(self), line, strlen(line)) == strlen(line)) {
     if (file_write(data_fileval(self), "\n", 1) == 1) {
@@ -461,7 +461,7 @@ data_t * _file_print(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
 data_t * _file_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int retval = file_close(data_fileval(self));
-  
+
   if (!retval) {
     return data_create(Bool,  1);
   } else {
@@ -470,6 +470,6 @@ data_t * _file_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _file_redirect(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Bool, file_redirect(data_fileval(self), 
+  return data_create(Bool, file_redirect(data_fileval(self),
 					 data_tostring(data_array_get(args, 0))) == 0);
 }

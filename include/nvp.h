@@ -24,21 +24,22 @@
 #include <data.h>
 
 typedef struct _nvp {
+  data_t  _d;
   data_t *name;
   data_t *value;
-  int     refs;
-  char   *str;
 } nvp_t;
-
-#define data_is_nvp(d) ((d) && (data_type((d)) == NVP))
-#define data_nvpval(d) ((nvp_t *) (data_is_nvp((d)) ? ((d) -> ptrval) : NULL))
 
 extern nvp_t *      nvp_create(data_t *, data_t *);
 extern nvp_t *      nvp_parse(char *);
-extern void         nvp_free(nvp_t *);
-extern nvp_t *      nvp_copy(nvp_t *);
 extern int          nvp_cmp(nvp_t *, nvp_t *);
 extern unsigned int nvp_hash(nvp_t *);
-extern char *       nvp_tostring(nvp_t *);
+
+extern int NVP;
+
+#define data_is_nvp(d)   ((d) && (data_hastype((d), NVP)))
+#define data_as_nvp(d)   ((nvp_t *) (data_is_nvp((d)) ? (d) : NULL))
+#define nvp_free(o)      (data_free((data_t *) (o)))
+#define nvp_tostring(o)  (data_tostring((data_t *) (o)))
+#define nvp_copy(o)      ((data_t *) data_copy((data_t *) (o)))
 
 #endif /* __NVP_H__ */

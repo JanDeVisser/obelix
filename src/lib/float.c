@@ -28,20 +28,15 @@
 #include <data.h>
 #include <exception.h>
 
-typedef struct _float {
-  data_t _d;
-  double dbl;
-} float_t;
-
 static void          _float_init(void) __attribute__((constructor));
 static data_t *      _float_new(int, va_list);
-static int           _float_cmp(float_t *, float_t *);
-static char *        _float_tostring(float_t *);
-static unsigned int  _float_hash(float_t *);
-static data_t *      _float_parse(typedescr_t *, char *);
-static data_t *      _float_cast(float_t *, int);
-static double        _float_fltvalue(float_t *);
-static int           _float_intvalue(float_t *);
+static int           _float_cmp(flt_t *, flt_t *);
+static char *        _float_tostring(flt_t *);
+static unsigned int  _float_hash(flt_t *);
+static data_t *      _float_parse(char *);
+static data_t *      _float_cast(flt_t *, int);
+static double        _float_fltvalue(flt_t *);
+static int           _float_intvalue(flt_t *);
 
 static data_t *      _number_add(data_t *, char *, array_t *, dict_t *);
 static data_t *      _number_mult(data_t *, char *, array_t *, dict_t *);
@@ -113,38 +108,37 @@ void _float_init(void) {
 }
 
 data_t * _float_new(int type, va_list arg) {
-  float_t *ret = data_new(Float, float_t);
-  
+  flt_t *ret = data_new(Float, flt_t);
+
   ret -> dbl = va_arg(arg, double);
-  return ret;
+  return (data_t *) ret;
 }
 
-unsigned int _float_hash(int_t *data) {
+unsigned int _float_hash(flt_t *data) {
   return hash(&(data -> dbl), sizeof(double));
 }
 
-int _float_cmp(float_t *self, float_t *d2) {
+int _float_cmp(flt_t *self, flt_t *d2) {
   return (self -> dbl == d2 -> dbl)
       ? 0
       : (self -> dbl > d2 -> dbl) ? 1 : -1;
 }
 
-char * _float_tostring(float_t *data) {
+char * _float_tostring(flt_t *data) {
   return dtoa(data -> dbl);
 }
 
-data_t * _float_parse(typedescr_t *type, char *str) {
+data_t * _float_parse(char *str) {
   char   *endptr;
   double  val;
 
-  (void) type;
   val = strtod(str, &endptr);
   return ((*endptr == 0) || (isspace(*endptr)))
     ? data_create(Float, val)
     : NULL;
 }
 
-data_t * _float_cast(float_t *data, int totype) {
+data_t * _float_cast(flt_t *data, int totype) {
   data_t *ret = NULL;
 
   switch (totype) {
@@ -158,11 +152,11 @@ data_t * _float_cast(float_t *data, int totype) {
   return ret;
 }
 
-double _float_fltvalue(float_t *data) {
+double _float_fltvalue(flt_t *data) {
   return data -> dbl;
 }
 
-int _float_intvalue(float_t *data) {
+int _float_intvalue(flt_t *data) {
   return (int) data -> dbl;
 }
 
@@ -178,7 +172,7 @@ data_t * _number_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   if (!array_size(args)) {
     return data_create(Int, (plus) ? data_floatval(self) : -1.0 * data_floatval(self));
   }
-  retval = self -> dblval;
+  retval = ((flt_t *) self) -> dbl;
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
     val = data_floatval(d);
@@ -194,7 +188,7 @@ data_t * _number_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *d;
   int     ix;
   double  retval = data_floatval(self);
-  
+
   for (ix = 0; ix < array_size(args); ix++) {
     d = (data_t *) array_get(args, ix);
     retval *= data_floatval(d);

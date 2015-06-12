@@ -20,6 +20,7 @@
 #ifndef __RE_H__
 #define __RE_H__
 
+#include <data.h>
 #include <regex.h>
 #include <stdarg.h>
 
@@ -28,27 +29,26 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef struct _re {
+  data_t   _d;
   regex_t  compiled;
   char    *pattern;
   char    *flags;
-  int      refs;
-  char    *str;
 } re_t;
 
 extern re_t *   regexp_create(char *, char *);
 extern re_t *   regexp_vcreate(va_list);
-extern void     regexp_free(re_t *);
-extern re_t *   regexp_copy(re_t *);
 extern int      regexp_cmp(re_t *, re_t *);
-extern char *   regexp_tostring(re_t *);
 extern data_t * regexp_match(re_t *, char *);
 extern data_t * regexp_replace(re_t *, char *, array_t *);
 
 extern int Regexp;
 
-#define data_is_regexp(d)  ((d) && (data_type((d)) == Regexp))
-#define data_regexpval(d)  ((re_t *) (data_is_regexp((d)) ? ((d) -> ptrval) : NULL))
-  
+#define data_is_regexp(d)   ((d) && data_hastype((data_t *) (d), Regexp))
+#define data_as_regexp(d)   ((re_t *) (data_is_regexp((d)) ? (d) : NULL))
+#define regexp_free(re)     (data_free((data_t *) (re)))
+#define regexp_tostring(re) (data_tostring((data_t *) (re)))
+#define regexp_copy(re)     ((re_t *) data_copy((data_t *) (re)))
+
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */

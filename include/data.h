@@ -24,7 +24,6 @@
 #include <core.h>
 #include <array.h>
 #include <dict.h>
-#include <name.h>
 #include <typedescr.h>
 
 #ifdef  __cplusplus
@@ -32,24 +31,13 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum _datatype {
-  Exception       = 1,
-  Pointer,      /*  2 */
-  String,       /*  3 */
-  Int,          /*  4 */
-  Float,        /*  5 */
-  Bool,         /*  6 */
-  List,         /*  7 */
-  Method,       /*  9 */
-  Object,       /* 10 */
-  Script,       /* 11 */
-  BoundMethod,  /* 12 */
-  Closure,      /* 13 */
-  Module,       /* 14 */
-  Name,         /* 15 */
-  NVP,          /* 17 */
-  Range,        /* 18 */
-  Thread,       /* 19 */
-  Mutex         /* 20 */
+  Exception,
+  Pointer,
+  String,
+  Int,
+  Float,
+  Bool,
+  List
 } datatype_t;
 
 typedef enum _free_semantics {
@@ -61,10 +49,27 @@ typedef enum _free_semantics {
 typedef struct _data {
   int               type;
   free_semantics_t  free_me;
-  void             *ptrval;
   int               refs;
   char             *str;
 } data_t;
+
+typedef struct _pointer {
+  data_t  _d;
+  void   *ptr;
+  int     size;
+} pointer_t;
+
+typedef struct _flt {
+  data_t _d;
+  double dbl;
+} flt_t;
+
+typedef struct _int {
+  data_t _d;
+  long   i;
+} int_t;
+
+struct _name;
 
 typedef data_t * (*factory_t)(int, va_list);
 typedef data_t * (*cast_t)(data_t *, int);
@@ -100,12 +105,12 @@ extern int             data_cmp(data_t *, data_t *);
 extern data_t *        data_call(data_t *, array_t *, dict_t *);
 extern data_t *        data_method(data_t *, char *);
 extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);
-extern data_t *        data_resolve(data_t *, name_t *);
-extern data_t *        data_invoke(data_t *, name_t *, array_t *, dict_t *);
-extern int             data_has(data_t *, name_t *);
-extern int             data_has_callable(data_t *, name_t *);
-extern data_t *        data_get(data_t *, name_t *);
-extern data_t *        data_set(data_t *, name_t *, data_t *);
+extern data_t *        data_resolve(data_t *, struct _name *);
+extern data_t *        data_invoke(data_t *, struct _name *, array_t *, dict_t *);
+extern int             data_has(data_t *, struct _name *);
+extern int             data_has_callable(data_t *, struct _name *);
+extern data_t *        data_get(data_t *, struct _name *);
+extern data_t *        data_set(data_t *, struct _name *, data_t *);
 extern data_t *        data_iter(data_t *);
 extern data_t *        data_has_next(data_t *);
 extern data_t *        data_next(data_t *);
@@ -122,15 +127,15 @@ extern double          data_floatval(data_t *);
 extern int             data_intval(data_t *);
 
 #define data_new(dt,st)     ((st *) _data_new((dt), sizeof(st)))
-#define data_type(d)        ((d) -> type)
-#define data_typename(d)    (typedescr_get(data_type((d) -> type)) -> type_name)
-
-#define data_charval(d)     ((char *) (d) -> ptrval)
-#define data_arrayval(d)    ((array_t *) (d) -> ptrval)
+#define data_type(d)        (((data_t *) (d)) -> type)
+#define data_typename(d)    (typedescr_get(data_type((data_t *) (d))) -> type_name)
 
 #define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
-#define data_pointerval(d)  ((data_is_pointer((d)) ? ((pointer_t *) (d) : NULL))
-#define data_unwrap(d)      ((data_is_pointer((d)) ? (data_pointerval(d) -> ptr) : NULL)
+#define data_is_list(d)     ((d) && (data_hastype((d), List)))
+
+#define data_arrayval(d)    ((array_t *) (((pointer_t *) (d)) -> ptr))
+#define data_as_pointer(d)  (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
+#define data_unwrap(d)      ((data_is_pointer((d)) ? (data_as_pointer(d) -> ptr) : NULL)
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
 extern array_t *       data_add_all_as_data_reducer(char *, array_t *);
@@ -138,12 +143,18 @@ extern array_t *       data_add_strings_reducer(data_t *, array_t *);
 extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
 extern data_t *        data_null(void);
-extern data_t *        data_true(void);
-extern data_t *        data_false(void);
+//extern data_t *        data_true(void);
+//extern data_t *        data_false(void);
 extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);
 extern data_t *        data_str_array_to_list(array_t *);
+
+extern int_t *         bool_true;
+extern int_t *         bool_false;
+
+#define data_true()    ((data_t *) bool_true)
+#define data_false()   ((data_t *) bool_false)
 
 /* -- Standard vtable functions ------------------------------------------ */
 extern data_t *        data_embedded(int, va_list);

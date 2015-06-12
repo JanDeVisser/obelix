@@ -24,18 +24,30 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <data.h>
+#include <exception.h>
 #include <socket.h>
 #include <thread.h>
 
 typedef int         (*socket_fnc_t)(int, const struct sockaddr *, socklen_t);
 
+static void         _socket_init(void) __attribute__((constructor));
 static socket_t *   _socket_create(int, char *, char *);
 static socket_t *   _socket_open(char *, char *, socket_fnc_t);
+static char *       _socket_tostring(socket_t *);
+static void         _socket_free(socket_t *);
 static int          _socket_listen(socket_t *, service_t, void *, int);
 static int          _socket_accept_loop(socket_t *);
 static int          _socket_accept(socket_t *);
 static void *       _socket_connection_handler(connection_t *);
 static socket_t *   _socket_setopt(socket_t *, int);
+
+static data_t *     _socket_resolve(socket_t *, char *);
+
+static data_t *     _socket_close(data_t *, char *, array_t *, dict_t *);
+static data_t *     _socket_listen_mth(data_t *, char *, array_t *, dict_t *);
+static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
+
 
 /*
  * TODO:
@@ -43,18 +55,44 @@ static socket_t *   _socket_setopt(socket_t *, int);
  *   - Allow UDP connections (and unix streams?)
  */
 
+static vtable_t _vtable_socket[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,      .fnc = (void_t) socket_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) _socket_free },
+  { .id = FunctionToString, .fnc = (void_t) _socket_tostring },
+  { .id = FunctionHash,     .fnc = (void_t) socket_hash },
+  { .id = FunctionResolve,  .fnc = (void_t) _socket_resolve },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+static methoddescr_t _methoddescr_socket[] = {
+  { .type = -1,     .name = "close",     .method = _socket_close,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "listen",    .method = _socket_listen_mth, .argtypes = { Callable, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = -1,     .name = "interrupt", .method = _socket_interrupt,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,        .method = NULL,               .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+};
+
+int Socket;
+int socket_debug;
+
+/* ------------------------------------------------------------------------ */
+
+void _net_init(void) {
+  logging_register_category("socket", &socket_debug);
+  Socket = typedescr_create_and_register(Socket, "socket",
+                                         _vtable_socket, _methoddescr_socket);
+}
+
 /* -- S O C K E T  S T A T I C  F U N C T I O N S  ------------------------ */
 
 socket_t * _socket_create(int fh, char *host, char *service) {
-  socket_t *ret = NEW(socket_t);
-  
+  socket_t *ret = data_new(Socket, socket_t);
+
   // TODO: Add other bits from struct addrinfo into socket_t
   ret -> sockfile = file_create(fh);
   ret -> host = (host) ? strdup(host) : NULL;
   ret -> service = strdup(service);
   ret -> fh = fh;
-  ret -> str = NULL;
-  ret -> refs = 1;
   return ret;
 }
 
@@ -78,10 +116,10 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
     return NULL;
   }
 
-  /* 
+  /*
    * getaddrinfo() returns a list of address structures.
-   * Try each address until we successfully connect(2). If socket(2) (or 
-   * connect(2) fails, we close the socket and try the next address. 
+   * Try each address until we successfully connect(2). If socket(2) (or
+   * connect(2) fails, we close the socket and try the next address.
    */
   for (rp = result; rp != NULL; rp = rp -> ai_next) {
     sfd = socket(rp -> ai_family, rp -> ai_socktype, rp -> ai_protocol);
@@ -102,9 +140,39 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
   return ret;
 }
 
+void _socket_free(socket_t *socket) {
+  if (socket) {
+    socket_close(socket);
+    file_free(socket -> sockfile);
+    free(socket -> host);
+    free(socket -> service);
+    thread_free(socket -> thread);
+    free(socket);
+  }
+}
+
+char * _socket_tostring(socket_t *socket) {
+  if (!socket -> _d.str) {
+    asprintf(&socket -> _d.str, "%s:%s", socket -> host, socket -> service);
+  }
+  return NULL;
+}
+
+data_t * _socket_resolve(socket_t *s, char *attr) {
+  if (!strcmp(attr, "fd")) {
+    return data_copy((data_t *) s -> sockfile);
+  } else if (!strcmp(attr, "host") && s -> host) {
+    return data_create(String, s -> host);
+  } else if (!strcmp(attr, "service")) {
+    return data_create(String, s -> service);
+  } else {
+    return NULL;
+  }
+}
+
 void * _socket_connection_handler(connection_t *connection) {
   void *ret;
-  
+
   ret = connection -> server -> service_handler(connection);
   socket_free(connection -> client);
   socket_free(connection -> server);
@@ -133,7 +201,7 @@ int _socket_accept(socket_t *socket) {
     connection -> client = _socket_create(client_fd, hoststr, portstr);
     connection -> context = socket -> context;
     connection -> thread = thread_new("Socket Connection Handler",
-                                      (threadproc_t) _socket_connection_handler, 
+                                      (threadproc_t) _socket_connection_handler,
                                       connection);
     if (!connection -> thread) {
       error("Could not create connection service thread");
@@ -142,14 +210,14 @@ int _socket_accept(socket_t *socket) {
   } else {
     error("Error accepting");
     return -1;
-  }  
+  }
 }
 
 int _socket_accept_loop(socket_t *socket) {
   fd_set         set;
   struct timeval timeout;
   int            err;
-  
+
   while (socket -> service_handler) {
     FD_ZERO (&set);
     FD_SET (socket -> fh, &set);
@@ -181,8 +249,8 @@ int _socket_listen(socket_t *socket, service_t service, void *context, int async
     if (!async) {
       _socket_accept_loop(socket);
     } else {
-      socket -> thread = thread_new("Socket Listener Thread", 
-		                    (threadproc_t) _socket_accept_loop, 
+      socket -> thread = thread_new("Socket Listener Thread",
+		                    (threadproc_t) _socket_accept_loop,
                                     socket);
       if (!socket -> thread) {
         error("Could not create listener thread");
@@ -212,7 +280,7 @@ socket_t * _socket_setopt(socket_t *socket, int opt) {
 
 socket_t * socket_create(char *host, int port) {
   char service[32];
-  
+
   snprintf(service, 32, "%d", port);
   return socket_create_byservice(host, service);
 }
@@ -226,7 +294,7 @@ socket_t * socket_create_byservice(char *host, char *service) {
 
 socket_t * serversocket_create(int port) {
   char service[32];
-  
+
   snprintf(service, 32, "%d", port);
   return serversocket_create_byservice(service);
 }
@@ -235,37 +303,9 @@ socket_t * serversocket_create_byservice(char *service) {
   return _socket_open(NULL, service, bind);
 }
 
-socket_t * socket_copy(socket_t *socket) {
-  socket -> refs++;
-  return socket;
-}
-
-void socket_free(socket_t *socket) {
-  if (socket && (--socket -> refs <= 0)) {
-    socket_close(socket);
-    file_free(socket -> sockfile);
-    free(socket -> str);
-    free(socket -> host);
-    free(socket -> service);
-    thread_free(socket -> thread);
-    free(socket);
-  }
-}
-
 int socket_close(socket_t *socket) {
   socket_interrupt(socket);
-  return file_close(socket -> sockfile);  
-}
-
-char * socket_tostring(socket_t *socket) {
-  if (!socket) {
-    return "socket:NULL";
-  } else {
-    if (!socket -> str) {
-      asprintf(&socket -> str, "%s:%s", socket -> host, socket -> service);
-    }
-    return socket -> str;
-  }
+  return file_close(socket -> sockfile);
 }
 
 int socket_cmp(socket_t *s1, socket_t *s2) {
@@ -295,3 +335,56 @@ socket_t * socket_interrupt(socket_t *socket) {
 socket_t * socket_nonblock(socket_t *socket) {
   return _socket_setopt(socket, O_NONBLOCK);
 }
+
+/* ------------------------------------------------------------------------ */
+
+data_t * _socket_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  socket_t *s = (socket_t *) self;
+
+  return data_create(Int, socket_close(s));
+}
+
+data_t * _socket_listen_mth(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  socket_t *socket = (socket_t *) self;
+
+  (void) name;
+  (void) kwargs;
+  if (socket -> host) {
+    return data_exception(ErrorIOError, "Cannot listen - socket is not a server socket");
+  } else {
+    if (socket_listen(socket, connection_listener_service, data_array_get(args, 0))) {
+      return data_exception_from_errno();
+    } else {
+      return data_create(Bool, 1);
+    }
+  }
+}
+
+data_t * _socket_interrupt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  socket_t *socket = (socket_t *) self;
+
+  (void) name;
+  (void) kwargs;
+  if (socket -> host) {
+    return data_exception(ErrorIOError, "Cannot interrupt - socket is not a server socket");
+  } else {
+    socket_interrupt(socket);
+    return data_create(Bool, 1);
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+
+void * connection_listener_service(connection_t *connection) {
+  data_t   *server = connection -> context;
+  socket_t *client = (socket_t* ) connection -> client;
+  data_t   *ret;
+  array_t  *p;
+
+  p = data_array_create(1);
+  array_push(p, data_copy((data_t *) client));
+  ret = data_call(server, p, NULL);
+  array_free(p);
+  return ret;
+}
+

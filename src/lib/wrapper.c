@@ -26,7 +26,6 @@ static int          _wrapper_is(typedescr_t *, int);
 static data_t *     _wrapper_new(data_t *, va_list);
 static void         _wrapper_free(data_t *);
 static data_t *     _wrapper_copy(data_t *, data_t *);
-static data_t *     _wrapper_parse(typedescr_t *, char *);
 static int          _wrapper_cmp(data_t *, data_t *);
 static unsigned int _wrapper_hash(data_t *);
 static char *       _wrapper_tostring(data_t *);
@@ -49,7 +48,6 @@ static vtable_t _vtable_wrapper[] = {
   { .id = FunctionIs,       .fnc = (void_t) _wrapper_is },
   { .id = FunctionNew,      .fnc = (void_t) _wrapper_new },
   { .id = FunctionCopy,     .fnc = (void_t) _wrapper_copy },
-  { .id = FunctionParse,    .fnc = (void_t) _wrapper_parse },
   { .id = FunctionCmp,      .fnc = (void_t) _wrapper_cmp },
   { .id = FunctionHash,     .fnc = (void_t) _wrapper_hash },
   { .id = FunctionFreeData, .fnc = (void_t) _wrapper_free },
@@ -81,7 +79,7 @@ static typedescr_t typedescr_wrapper = {
 #define wrapper_function(type, fnc_id) (((type) -> ptr) \
   ? vtable_get((vtable_t *) (type) -> ptr, (fnc_id)) \
   : NULL)
-  
+
 /* -- W R A P P E R  S T A T I C  F U N C T I O N S ----------------------- */
 
 void _wrapper_init(void) {
@@ -90,8 +88,8 @@ void _wrapper_init(void) {
 }
 
 int _wrapper_is(typedescr_t *descr, int type) {
-  return (type > Interface) 
-    ? vtable_implements((vtable_t *) descr -> ptr, type) 
+  return (type > Interface)
+    ? vtable_implements((vtable_t *) descr -> ptr, type)
     : FALSE;
 }
 
@@ -99,7 +97,7 @@ data_t * _wrapper_new(data_t *ret, va_list arg) {
   typedescr_t *type = data_typedescr(ret);
   void_t       fnc;
   void        *src;
-  
+
   if (wrapper_debug) {
     debug("wrapper_new(%s)", type -> type_name);
   }
@@ -131,7 +129,7 @@ data_t * _wrapper_new(data_t *ret, va_list arg) {
 void _wrapper_free(data_t *data) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc;
-  
+
   if (wrapper_debug) {
     debug("wrapper_free(%s)", type -> type_name);
   }
@@ -149,7 +147,7 @@ void _wrapper_free(data_t *data) {
 data_t * _wrapper_copy(data_t *target, data_t *src) {
   typedescr_t *type = data_typedescr(src);
   void_t       fnc;
-  
+
   if (wrapper_debug) {
     debug("wrapper_copy(%s)", type -> type_name);
   }
@@ -168,7 +166,7 @@ data_t * _wrapper_copy(data_t *target, data_t *src) {
 int _wrapper_cmp(data_t *d1, data_t *d2) {
   typedescr_t *type = data_typedescr(d1);
   void_t       fnc;
-  
+
   if (wrapper_debug) {
     debug("wrapper_cmp(%s)", type -> type_name);
   }
@@ -183,7 +181,7 @@ int _wrapper_cmp(data_t *d1, data_t *d2) {
 unsigned int _wrapper_hash(data_t *data) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc;
-  
+
   if (wrapper_debug) {
     debug("wrapper_hash(%s)", type -> type_name);
   }
@@ -198,7 +196,7 @@ unsigned int _wrapper_hash(data_t *data) {
 char * _wrapper_tostring(data_t *data) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc = wrapper_function(type, FunctionToString);
-  
+
   if (wrapper_debug) {
     debug("wrapper_tostring(%s)", type -> type_name);
   }
@@ -209,35 +207,17 @@ char * _wrapper_tostring(data_t *data) {
   }
 }
 
-data_t * _wrapper_parse(typedescr_t *type, char *str) {
-  void_t  fnc = wrapper_function(type, FunctionParse);
-  data_t *ret;
-  
-  if (wrapper_debug) {
-    debug("wrapper_parse(%s)", type -> type_name);
-  }
-  if (fnc) {
-    ret = data_create_noinit(type -> type);
-    ret -> ptrval = ((parse_t) fnc)(str);
-    return ret;
-  } else {
-    return data_exception(ErrorInternalError,
-                          "No 'parse' method defined for wrapper type '%s'", 
-                          type -> type_name);
-  }
-}
-
 data_t * _wrapper_call(data_t *self, array_t *params, dict_t *kwargs) {
   typedescr_t *type = data_typedescr(self);
   void_t       fnc;
-  
+
   if (wrapper_debug) {
     debug("wrapper_call(%s)", type -> type_name);
   }
   fnc = wrapper_function(type, FunctionCall);
   if (!fnc) {
     return data_exception(ErrorInternalError,
-                      "No 'call' method defined for wrapper type '%s'", 
+                      "No 'call' method defined for wrapper type '%s'",
                       type -> type_name);
   } else {
     return ((call_t) fnc)(self -> ptrval, params, kwargs);
@@ -247,7 +227,7 @@ data_t * _wrapper_call(data_t *self, array_t *params, dict_t *kwargs) {
 int _wrapper_len(data_t *data) {
   typedescr_t *type = data_typedescr(data);
   int        (*fnc)(void *);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_len(%s)", type -> type_name);
   }
@@ -262,7 +242,7 @@ int _wrapper_len(data_t *data) {
 data_t * _wrapper_iter(data_t *data) {
   typedescr_t  *type = data_typedescr(data);
   data_t *    (*fnc)(void *);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_iter(%s)", type -> type_name);
   }
@@ -271,7 +251,7 @@ data_t * _wrapper_iter(data_t *data) {
     return fnc(data -> ptrval);
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'iter' method defined for wrapper type '%s'", 
+                          "No 'iter' method defined for wrapper type '%s'",
                           typedescr_tostring(type));
   }
 }
@@ -279,7 +259,7 @@ data_t * _wrapper_iter(data_t *data) {
 data_t * _wrapper_next(data_t *data) {
   typedescr_t  *type = data_typedescr(data);
   data_t *    (*fnc)(void *);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_next(%s)", type -> type_name);
   }
@@ -288,7 +268,7 @@ data_t * _wrapper_next(data_t *data) {
     return fnc(data -> ptrval);
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'next' method defined for wrapper type '%s'", 
+                          "No 'next' method defined for wrapper type '%s'",
                           typedescr_tostring(type));
   }
 }
@@ -296,7 +276,7 @@ data_t * _wrapper_next(data_t *data) {
 data_t * _wrapper_has_next(data_t *data) {
   typedescr_t  *type = data_typedescr(data);
   int         (*fnc)(void *);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_has_next(%s)", type -> type_name);
   }
@@ -305,7 +285,7 @@ data_t * _wrapper_has_next(data_t *data) {
     return data_create(Bool, fnc(data -> ptrval));
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'has_next' method defined for wrapper type '%s'", 
+                          "No 'has_next' method defined for wrapper type '%s'",
                           typedescr_tostring(type));
   }
 }
@@ -313,10 +293,10 @@ data_t * _wrapper_has_next(data_t *data) {
 data_t * _wrapper_query(data_t *data, data_t *query) {
   typedescr_t  *type = data_typedescr(data);
   data_t *    (*fnc)(void *, data_t *);
-  
+
   if (wrapper_debug) {
-    debug("_wrapper_query(%s:%s, %s)", 
-          typedescr_tostring(type), 
+    debug("_wrapper_query(%s:%s, %s)",
+          typedescr_tostring(type),
           data_tostring(data),
           data_tostring(query));
   }
@@ -325,7 +305,7 @@ data_t * _wrapper_query(data_t *data, data_t *query) {
     return fnc(data -> ptrval, query);
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'query' method defined for wrapper type '%s'", 
+                          "No 'query' method defined for wrapper type '%s'",
                           typedescr_tostring(type));
   }
 }
@@ -333,7 +313,7 @@ data_t * _wrapper_query(data_t *data, data_t *query) {
 data_t * _wrapper_enter(data_t *data) {
   typedescr_t  *type = data_typedescr(data);
   data_t *    (*fnc)(void *);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_enter(%s)", type -> type_name);
   }
@@ -342,7 +322,7 @@ data_t * _wrapper_enter(data_t *data) {
     return fnc(data -> ptrval);
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'enter' method defined for wrapper type '%s'", 
+                          "No 'enter' method defined for wrapper type '%s'",
                           typedescr_tostring(type));
   }
 }
@@ -350,7 +330,7 @@ data_t * _wrapper_enter(data_t *data) {
 data_t * _wrapper_leave(data_t *data, data_t *ex) {
   typedescr_t  *type = data_typedescr(data);
   data_t *    (*fnc)(void *, data_t *);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_leave(%s)", type -> type_name);
   }
@@ -359,7 +339,7 @@ data_t * _wrapper_leave(data_t *data, data_t *ex) {
     return fnc(data -> ptrval, ex);
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'leave' method defined for wrapper type '%s'", 
+                          "No 'leave' method defined for wrapper type '%s'",
                           typedescr_tostring(type));
   }
 }
@@ -367,7 +347,7 @@ data_t * _wrapper_leave(data_t *data, data_t *ex) {
 data_t * _wrapper_read(data_t *data, char *buf, int num) {
   typedescr_t  *type = data_typedescr(data);
   data_t *    (*fnc)(void *, char *, int);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_read(%s:%s)", typedescr_tostring(type), data_tostring(data));
   }
@@ -376,7 +356,7 @@ data_t * _wrapper_read(data_t *data, char *buf, int num) {
     return fnc(data -> ptrval, buf, num);
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'read' method defined for wrapper type '%s'", 
+                          "No 'read' method defined for wrapper type '%s'",
                           type -> type_name);
   }
 }
@@ -384,7 +364,7 @@ data_t * _wrapper_read(data_t *data, char *buf, int num) {
 data_t * _wrapper_write(data_t *data, char *buf, int num) {
   typedescr_t  *type = data_typedescr(data);
   data_t *    (*fnc)(void *, char *, int);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_write(%s:%s)", typedescr_tostring(type), data_tostring(data));
   }
@@ -393,7 +373,7 @@ data_t * _wrapper_write(data_t *data, char *buf, int num) {
     return fnc(data -> ptrval, buf, num);
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'write' method defined for wrapper type '%s'", 
+                          "No 'write' method defined for wrapper type '%s'",
                           typedescr_tostring(type));
   }
 }
@@ -401,7 +381,7 @@ data_t * _wrapper_write(data_t *data, char *buf, int num) {
 data_t * _wrapper_push(data_t *data, data_t *value) {
   typedescr_t  *type = data_typedescr(data);
   data_t *    (*fnc)(void *, data_t *);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_push(%s:%s)", typedescr_tostring(type), data_tostring(data));
   }
@@ -410,7 +390,7 @@ data_t * _wrapper_push(data_t *data, data_t *value) {
     return fnc(data -> ptrval, value);
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'push' method defined for wrapper type '%s'", 
+                          "No 'push' method defined for wrapper type '%s'",
                           typedescr_tostring(type));
   }
 }
@@ -418,7 +398,7 @@ data_t * _wrapper_push(data_t *data, data_t *value) {
 data_t * _wrapper_pop(data_t *data) {
   typedescr_t  *type = data_typedescr(data);
   data_t *    (*fnc)(void *);
-  
+
   if (wrapper_debug) {
     debug("_wrapper_pop(%s:%s)", typedescr_tostring(type), data_tostring(data));
   }
@@ -427,7 +407,7 @@ data_t * _wrapper_pop(data_t *data) {
     return fnc(data -> ptrval);
   } else {
     return data_exception(ErrorFunctionUndefined,
-                          "No 'pop' method defined for wrapper type '%s'", 
+                          "No 'pop' method defined for wrapper type '%s'",
                           typedescr_tostring(type));
   }
 }
@@ -436,16 +416,16 @@ data_t * _wrapper_resolve(data_t *data, char *name) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc;
   data_t      *ret;
-  
+
   fnc = wrapper_function(type, FunctionResolve);
   if (!fnc) {
     return data_exception(ErrorInternalError,
-                          "No 'resolve' method defined for wrapper type '%s'", 
+                          "No 'resolve' method defined for wrapper type '%s'",
                           type -> type_name);
   } else {
     ret = ((resolve_name_t) fnc)(data -> ptrval, name);
     if (wrapper_debug) {
-      debug("wrapper_resolve(%s, %s) = %s", 
+      debug("wrapper_resolve(%s, %s) = %s",
             type -> type_name, name, data_tostring(ret));
     }
     return ret;
@@ -455,14 +435,14 @@ data_t * _wrapper_resolve(data_t *data, char *name) {
 data_t * _wrapper_set(data_t *data, char *name, data_t *value) {
   typedescr_t *type = data_typedescr(data);
   void_t       fnc;
-  
+
   if (wrapper_debug) {
     debug("wrapper_set(%s)", type -> type_name);
   }
   fnc = wrapper_function(type, FunctionSet);
   if (!fnc) {
     return data_exception(ErrorInternalError,
-                          "No 'set' method defined for wrapper type '%s'", 
+                          "No 'set' method defined for wrapper type '%s'",
                           type -> type_name);
   } else {
     return ((setvalue_t) fnc)(data -> ptrval, name, value);
@@ -495,7 +475,7 @@ int wrapper_register_with_overrides(int type, char *name, vtable_t *vtable, vtab
   int          ret = wrapper_register(type, name, vtable);
   typedescr_t *td = typedescr_get(ret);
   int          ix;
-  
+
   if (overrides) {
     for (ix = 0; overrides[ix].id != FunctionNone; ix++) {
       td -> vtable[overrides[ix].id].fnc = overrides[ix].fnc;

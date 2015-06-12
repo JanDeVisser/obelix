@@ -35,37 +35,39 @@ typedef struct _array {
   int          refs;
 } array_t;
 
-extern array_t *    array_create(int);
-extern array_t *    array_copy(array_t *);
-extern array_t *    array_split(char *, char *);
-extern array_t *    array_slice(array_t *, int, int);
-extern array_t *    array_set_free(array_t *, free_t);
-extern array_t *    array_set_cmp(array_t *, cmp_t);
-extern array_t *    array_set_hash(array_t *, hash_t);
-extern array_t *    array_set_tostring(array_t *, tostring_t);
-extern void         array_free(array_t *);
-extern array_t *    array_clear(array_t *);
-extern unsigned int array_hash(array_t *);
-extern int          array_capacity(array_t *);
-extern int          array_set(array_t *, int, void *);
-extern void *       array_get(array_t *, int);
-extern void *       array_pop(array_t *);
-extern void *       array_reduce(array_t *, reduce_t, void *);
-extern void *       array_reduce_chars(array_t *, reduce_t, void *);
-extern void *       array_reduce_str(array_t *, reduce_t, void *);
-extern array_t *    array_visit(array_t *, visit_t);
-extern array_t *    array_add_all(array_t *, array_t *);
-extern str_t *      array_tostr(array_t *);
-extern char *       array_tostring(array_t *);
-extern void         array_debug(array_t *, char *);
+struct _str;
 
-extern array_t *    array_start(array_t *);
-extern array_t *    array_end(array_t *);
-extern void *       array_current(array_t *);
-extern int          array_has_next(array_t *);
-extern int          array_has_prev(array_t *);
-extern void *       array_next(array_t *);
-extern void *       array_prev(array_t *);
+extern array_t *     array_create(int);
+extern array_t *     array_copy(array_t *);
+extern array_t *     array_split(char *, char *);
+extern array_t *     array_slice(array_t *, int, int);
+extern array_t *     array_set_free(array_t *, free_t);
+extern array_t *     array_set_cmp(array_t *, cmp_t);
+extern array_t *     array_set_hash(array_t *, hash_t);
+extern array_t *     array_set_tostring(array_t *, tostring_t);
+extern void          array_free(array_t *);
+extern array_t *     array_clear(array_t *);
+extern unsigned int  array_hash(array_t *);
+extern int           array_capacity(array_t *);
+extern int           array_set(array_t *, int, void *);
+extern void *        array_get(array_t *, int);
+extern void *        array_pop(array_t *);
+extern void *        array_reduce(array_t *, reduce_t, void *);
+extern void *        array_reduce_chars(array_t *, reduce_t, void *);
+extern void *        array_reduce_str(array_t *, reduce_t, void *);
+extern array_t *     array_visit(array_t *, visit_t);
+extern array_t *     array_add_all(array_t *, array_t *);
+extern struct _str * array_tostr(array_t *);
+extern char *        array_tostring(array_t *);
+extern void          array_debug(array_t *, char *);
+
+extern array_t *     array_start(array_t *);
+extern array_t *     array_end(array_t *);
+extern void *        array_current(array_t *);
+extern int           array_has_next(array_t *);
+extern int           array_has_prev(array_t *);
+extern void *        array_next(array_t *);
+extern void *        array_prev(array_t *);
 
 
 #define array_size(a)            ((a) -> size)

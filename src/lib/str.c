@@ -36,7 +36,7 @@ static reduce_ctx * _str_join_reducer(char *, reduce_ctx *);
 
 static void         _str_free(str_t *);
 static data_t *     _str_cast(str_t *, int);
-static str_t *      _str_parse(typedescr_t *type, char *str);
+static str_t *      _str_parse(char *str);
 static data_t *     _str_resolve(str_t *, char *);
 
 static data_t *     _string_format(data_t *, char *, array_t *, dict_t *);
@@ -90,7 +90,7 @@ static methoddescr_t _methoddescr_str[] = {
 /* ------------------------------------------------------------------------ */
 
 void _str_init(void) {
-  typedescr_create_and_register("string", _vtable_string, _methoddescr_str);
+  typedescr_create_and_register(String, "string", _vtable_string, _methoddescr_str);
 }
 
 /* -- S T R I N G   D A T A   F U N C T I O N S --------------------------- */
@@ -104,15 +104,15 @@ void _str_free(str_t *str) {
   }
 }
 
-data_t * _string_resolve(str_t *str, char *slice) {
+data_t * _str_resolve(str_t *str, char *slice) {
   int   sz = str_len(str);
   long  ix;
   char  buf[2];
-  
+
   if (!strtoint(slice, &ix)) {
     if ((ix >= sz) || (ix < -sz)) {
-      return data_exception(ErrorRange, 
-                            "Index %d is not in range %d ~ %d", 
+      return data_exception(ErrorRange,
+                            "Index %d is not in range %d ~ %d",
                             ix, -sz, sz - 1);
     } else {
       if (ix < 0) {
@@ -130,27 +130,27 @@ data_t * _string_resolve(str_t *str, char *slice) {
 data_t * _str_cast(str_t *data, int totype) {
   typedescr_t *type;
   parse_t      parse;
-  char        *str = data_charval(data);
-  
+  char        *str = str_chars(data);
+
   if (totype == Bool) {
     return data_create(Bool, str && strlen(str));
   } else {
     type = typedescr_get(totype);
     assert(type);
     parse = (parse_t) typedescr_get_function(type, FunctionParse);
-    return (parse) ? parse(type, str_chars(data)) : NULL;
+    return (parse) ? parse(str_chars(data)) : NULL;
   }
 }
 
-data_t * _str_parse(typedescr_t *type, char *str) {
-  return data_create(type -> type, str);
+str_t * _str_parse(char *str) {
+  return str_copy_chars(str);
 }
 
 /* -- S T R _ T   S T A T I C   F U N C T I O N S ------------------------- */
 
 str_t * _str_initialize(void) {
   str_t *ret = data_new(String, str_t);
-  
+
   ret -> buffer = NULL;
   ret -> pos = 0;
   ret -> len = 0;
@@ -277,15 +277,15 @@ str_t * str_deepcopy(str_t *str) {
 /**
  * Frees the str_t object, but does not free the actual underlying char buffer,
  * instead making that available for use by the caller. Note that the caller
- * now becomes responsible for freeing this buffer (if the str_t was not 
+ * now becomes responsible for freeing this buffer (if the str_t was not
  * obtained using a str_wrap).
- * 
+ *
  * @param str String to free and return the buffer of.
  * @return char buffer of the str_t object passed in.
  */
 char * str_reassign(str_t *str) {
   char *ret = str -> buffer;
-  
+
   str -> bufsize = 0;
   free(str);
   return ret;
@@ -430,7 +430,8 @@ str_t * str_set(str_t* str, int i, int ch) {
 str_t * str_forcecase(str_t *str, int upper) {
   int len = str_len(str);
   int c;
-  
+  int ix;
+
   for (ix = 0; ix < len; ix++) {
     c = str_at(str, ix);
     str_set(str, ix, upper ? toupper(c) : tolower(c));
@@ -454,7 +455,7 @@ str_t * str_append_char(str_t *str, int ch) {
 str_t * str_append_chars(str_t *str, char *other, ...) {
   va_list  args;
   str_t   *ret;
-  
+
   va_start(args, other);
   ret = str_append_vchars(str, other, args);
   va_end(args);
@@ -464,7 +465,7 @@ str_t * str_append_chars(str_t *str, char *other, ...) {
 str_t * str_append_nchars(str_t *str, char *other, int n) {
   va_list  args;
   str_t   *ret = NULL;
-  
+
   if (other && _str_expand(str, str_len(str) + n + 1)) {
     strncat(str -> buffer, other, n);
     str -> len += (strlen(other) > n) ? n : strlen(other);
@@ -625,7 +626,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
   char  *bigbuf = NULL;
   char  *spec = buf;
   int    len;
-  
+
   for (ptr = fmt; *ptr; ptr++) {
     if (!strncmp(ptr, "${", 2)) {
       ptr += 2;
@@ -667,7 +668,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
 data_t * _string_format(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   str_t  *s;
   data_t *ret;
-  
+
   s = str_format(data_tostring(self), args, kwargs);
   ret = data_create(String, str_chars(s));
   str_free(s);
@@ -681,13 +682,13 @@ data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *from = (data_t *) array_get(args, 0);
-  data_t *to = (data_t *) array_get(args, 1);
+  data_t *from = data_array_get(args, 0);
+  data_t *to = data_array_get(args, 1);
   int     len = strlen(data_tostring(self));
   int     i;
   int     j;
   char    buf[len + 1];
-  
+
   /* FIXME: second argument (to) is optional; ommiting it gives you the tail */
   i = data_intval(from);
   j = data_intval(to);
@@ -718,25 +719,25 @@ data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) 
 data_t * _string_forcecase(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int  upper = name[0] == 'u';
   str_t *ret = str_copy_chars(data_tostring(self));
-  
+
   return (data_t *) str_forcecase(ret, upper);
-}  
-  
+}
+
 data_t * _string_has(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   char *needle = data_tostring(data_array_get(args, 0));
-  
+
   return data_create(Bool, str_indexof_chars((str_t *) self, needle) >= 0);
 }
 
 data_t * _string_indexof(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   char *needle = data_tostring(data_array_get(args, 0));
-  
+
   return data_create(Int, str_indexof_chars((str_t *) self, needle));
 }
 
 data_t * _string_rindexof(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   char *needle = data_tostring(data_array_get(args, 0));
-  
+
   return data_create(Int, str_rindexof_chars((str_t *) self, needle));
 }
 
@@ -744,7 +745,7 @@ data_t * _string_startswith(data_t *self, char *name, array_t *args, dict_t *kwa
   char *prefix = data_tostring(data_array_get(args, 0));
   int   len;
   int   prflen;
-  
+
   len = str_len((str_t *) self);
   prflen = strlen(prefix);
   if (prflen > len) {
@@ -774,7 +775,7 @@ data_t * _string_concat(data_t *self, char *name, array_t *args, dict_t *kwargs)
   str_t  *ret = str_copy_chars(data_tostring(self));
   int     ix;
   int     len = str_len(ret);
-  
+
   for (ix = 0; ix < array_size(args); ix++) {
     len += strlen(data_tostring(data_array_get(args, ix)));
   }
@@ -782,7 +783,7 @@ data_t * _string_concat(data_t *self, char *name, array_t *args, dict_t *kwargs)
   for (ix = 0; ix < array_size(args); ix++) {
     str_append_chars(ret, data_tostring(data_array_get(args, ix)));
   }
-  return ret;
+  return (data_t *) ret;
 }
 
 data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -792,8 +793,7 @@ data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs)
   int     numval = data_intval(data_array_get(args, 0));
   int     ix;
   char   *buf;
-  data_t *ret;
-  
+
   len *= numval;
   if (len < 0) {
     str_erase(ret);
@@ -803,14 +803,14 @@ data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs)
       str_append_chars(ret, s);
     }
   }
-  return ret;
+  return (data_t *) ret;
 }
 
 data_t * _string_split(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  array_t *split = array_split(data_tostring(self), 
+  array_t *split = array_split(data_tostring(self),
                                data_tostring(data_array_get(args, 0)));
   data_t  *ret = data_str_array_to_list(split);
-  
+
   array_free(split);
   return ret;
 }

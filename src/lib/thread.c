@@ -19,6 +19,7 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <data.h>
@@ -26,7 +27,6 @@
 #include <exception.h>
 #include <dict.h>
 #include <thread.h>
-#include <wrapper.h>
 
 #define MAX_STACKDEPTH      200
 
@@ -44,7 +44,9 @@ static int           _pthread_cmp(pthread_t *, pthread_t *);
 static unsigned int  _pthread_hash(pthread_t *);
 static void *        _thread_start_routine_wrapper(thread_ctx_t *);
 
-static data_t *      _data_new_thread(data_t *, va_list);
+extern void          _thread_free(thread_t *);
+extern char *        _thread_tostring(thread_t *);
+
 static int           _data_cmp_thread(data_t *, data_t *);
 static char *        _data_tostring_thread(data_t *);
 static unsigned int  _data_hash_thread(data_t *);
@@ -56,39 +58,37 @@ static data_t *      _thread_yield(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_stack(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_thread[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) thread_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) thread_free },
-  { .id = FunctionToString, .fnc = (void_t) thread_tostring },
+  { .id = FunctionFree,     .fnc = (void_t) _thread_free },
+  { .id = FunctionToString, .fnc = (void_t) _thread_tostring },
   { .id = FunctionHash,     .fnc = (void_t) thread_hash },
   { .id = FunctionResolve,  .fnc = (void_t) thread_resolve },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static vtable_t _overrides_thread[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_thread },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
 static methoddescr_t _methoddescr_thread[] = {
   { .type = Any,    .name = "current_thread", .method = _thread_current_thread, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Thread, .name = "interrupt",      .method = _thread_interrupt,      .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Thread, .name = "yield",          .method = _thread_yield,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Thread, .name = "stack",          .method = _thread_stack,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1, .name = "interrupt",      .method = _thread_interrupt,      .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1, .name = "yield",          .method = _thread_yield,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1, .name = "stack",          .method = _thread_stack,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,             .method = NULL,                   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 static pthread_key_t  self_obj;
 
+int Thread;
+
 /* ------------------------------------------------------------------------ */
 
 void _init_thread(void) {
   thread_t *main;
-  
-  pthread_key_create(&self_obj, (void (*)(void *)) thread_free);
+
+  pthread_key_create(&self_obj, (void (*)(void *)) _thread_free);
   main = thread_create(pthread_self(), "Main");
-  wrapper_register_with_overrides(Thread, "thread", 
-                                  _vtable_thread, _overrides_thread);
-  typedescr_register_methods(_methoddescr_thread);
+  logging_register_category("thread", &thread_debug);
+  typedescr_create_and_register(Thread, "thread",
+                                _vtable_thread, _methoddescr_thread);
 }
 
 int _pthread_cmp(pthread_t *t1, pthread_t *t2) {
@@ -101,9 +101,9 @@ unsigned int _pthread_hash(pthread_t *t) {
 
 void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   threadproc_t  start_routine;
-  void         *ret; 
+  void         *ret;
   thread_t     *thread = thread_self();
-  
+
   if (ctx -> name) {
     thread_setname(thread, ctx -> name);
   }
@@ -117,20 +117,37 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
     pthread_cond_destroy(&ctx -> condition);
     free(ctx);
   }
-    
+
   pthread_setcancelstate(thread -> thr_id, PTHREAD_CANCEL_ENABLE);
   pthread_setcanceltype(thread -> thr_id, PTHREAD_CANCEL_DEFERRED);
-  pthread_cleanup_push(thread_free, thread);
+  pthread_cleanup_push(_thread_free, thread);
   ret = ctx -> start_routine(ctx -> arg);
   pthread_cleanup_pop(1);
   return ret;
+}
+
+void _thread_free(thread_t *thread) {
+  if (thread) {
+    thread_free(thread -> parent);
+    data_free(thread -> kernel);
+    data_free(thread -> exit_code);
+    if (thread -> onfree) {
+      thread -> onfree(thread -> stack);
+    }
+    free(thread -> name);
+    free(thread);
+  }
+}
+
+char * _thread_tostring(thread_t *thread) {
+  return thread -> name;
 }
 
 /* ------------------------------------------------------------------------ */
 
 thread_t * thread_self(void) {
   thread_t  *thread = (thread_t *) pthread_getspecific(self_obj);
-  
+
   if (!thread) {
     thread = thread_create(pthread_self(), NULL);
     pthread_setspecific(self_obj, thread);
@@ -145,7 +162,7 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
   thread_t           *ret;
   pthread_condattr_t  attr;
 
-  ctx = NEW(thread_ctx_t);  
+  ctx = NEW(thread_ctx_t);
   ctx -> name = name;
   ctx -> start_routine = start_routine;
   ctx -> arg = arg;
@@ -161,12 +178,12 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
   }
   if (!errno) {
     errno = pthread_create(&thr_id, NULL,
-                           (threadproc_t) _thread_start_routine_wrapper, 
+                           (threadproc_t) _thread_start_routine_wrapper,
 			   ctx);
   }
   if (!errno) {
     for (errno = pthread_cond_wait(&ctx -> condition, &self -> mutex);
-         !errno && !ctx -> child; 
+         !errno && !ctx -> child;
          errno = pthread_mutex_lock(&self -> mutex)) {
       if (!errno) {
         errno = pthread_cond_wait(&ctx -> condition, &self -> mutex);
@@ -179,7 +196,7 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
     ret = ctx -> child;
   }
   pthread_condattr_destroy(&attr);
-  
+
   assert(pthread_equal(ret -> thr_id, thr_id));
   if (errno = pthread_detach(thr_id)) {
     pthread_cancel(thr_id);
@@ -189,19 +206,19 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
 }
 
 thread_t * thread_create(pthread_t thr_id, char *name) {
-  thread_t            *ret = NEW(thread_t);
+  thread_t            *ret = data_new(Thread, thread_t);
   pthread_mutexattr_t  attr;
-  
+  char                 buf[32];
+
   ret -> thr_id = thr_id;
   ret -> exit_code = NULL;
   ret -> kernel = NULL;
   ret -> stack = NULL;
   ret -> onfree = NULL;
-  if (name) {
-    ret -> name = strdup(name);
-  } else {
-    asprintf(&ret -> name, "Thread %ld", (long) thr_id);
+  if (!name) {
+    snprintf(buf, sizeof(buf), "Thread %ld", (long) thr_id);
   }
+  thread_setname(ret, (name) ? name : buf);
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   if (errno = pthread_mutex_init(&ret -> mutex, &attr)) {
@@ -209,28 +226,7 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
     free(ret);
     return NULL;
   }
-  ret -> refs = 1;
   return ret;
-}
-
-void thread_free(thread_t *thread) {
-  if (thread && (--thread -> refs <= 0)) {
-    thread_free(thread -> parent);
-    data_free(thread -> kernel);
-    data_free(thread -> exit_code);
-    if (thread -> onfree) {
-      thread -> onfree(thread -> stack);
-    }
-    free(thread -> name);
-    free(thread);
-  }
-}
-
-thread_t * thread_copy(thread_t *thread) {
-  if (thread) {
-    thread -> refs++;
-  }
-  return thread;
 }
 
 unsigned int thread_hash(thread_t *thread) {
@@ -239,10 +235,6 @@ unsigned int thread_hash(thread_t *thread) {
 
 int thread_cmp(thread_t *t1, thread_t *t2) {
   return (_pthread_cmp(&t1 -> thr_id, &t2 -> thr_id));
-}
-
-char * thread_tostring(thread_t *thread) {
-  return thread -> name;
 }
 
 int thread_interrupt(thread_t *thread) {
@@ -276,28 +268,12 @@ data_t * thread_resolve(thread_t *thread, char *name) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _data_new_thread(data_t *data, va_list args) {
-  char         *name = va_arg(args, char *);
-  threadproc_t  handler = va_arg(args, threadproc_t);
-  void         *context = va_arg(args, void *);
-  thread_t     *thread = thread_new(name, handler, context);
-    
-  if (thread) {
-    data -> ptrval = thread;
-    return data;
-  } else {
-    return data_exception_from_errno();
-  }
-}
-
-/* ------------------------------------------------------------------------ */
-
 data_t * _thread_current_thread(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) self;
   (void) name;
   (void) args;
   (void) kwargs;
-  
+
   return data_current_thread();
 }
 
@@ -305,8 +281,8 @@ data_t * _thread_interrupt(data_t *self, char *name, array_t *args, dict_t *kwar
   (void) name;
   (void) args;
   (void) kwargs;
-  
-  thread_interrupt(data_threadval(self));
+
+  thread_interrupt((thread_t *) self);
   return self;
 }
 
@@ -314,8 +290,8 @@ data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   (void) name;
   (void) args;
   (void) kwargs;
-  
-  if (!thread_cmp(data_threadval(self), thread_self())) {
+
+  if (!data_cmp(self, (data_t *) thread_self())) {
     thread_yield();
     return self;
   } else {
@@ -328,7 +304,7 @@ data_t * _thread_stack(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   (void) name;
   (void) args;
   (void) kwargs;
-  
+
   return data_thread_stacktrace(self);
 }
 
@@ -337,25 +313,23 @@ data_t * _thread_stack(data_t *self, char *name, array_t *args, dict_t *kwargs) 
 data_t * data_current_thread(void) {
   thread_t *current;
   data_t   *data;
-  
+
   current = thread_self();
   if (!current -> stack) {
     current -> stack = datastack_create(current -> name);
     current -> onfree = (free_t) datastack_free;
   }
-  data = data_create_noinit(Thread);
-  data -> ptrval = thread_copy(current);
-  return data;
+  return data_copy((data_t *) current);
 }
 
 data_t * data_thread_push_stackframe(data_t *frame) {
   data_t      *data = data_current_thread();
-  thread_t    *thread = data_threadval(data);
+  thread_t    *thread = data_as_thread(data);
   datastack_t *stack = thread -> stack;
   data_t      *ret;
-  
+
   if (datastack_depth(stack) > MAX_STACKDEPTH) {
-    ret =  data_exception(ErrorMaxStackDepthExceeded, 
+    ret =  data_exception(ErrorMaxStackDepthExceeded,
                       "Maximum stack depth (%d) exceeded, most likely due to infinite recursion",
                       MAX_STACKDEPTH);
   } else {
@@ -368,12 +342,12 @@ data_t * data_thread_push_stackframe(data_t *frame) {
 
 data_t * data_thread_pop_stackframe(void) {
   data_t      *data = data_current_thread();
-  thread_t    *thread = data_threadval(data);
+  thread_t    *thread = data_as_thread(data);
   datastack_t *stack = thread -> stack;
   data_t      *ret;
-  
+
   if (!datastack_depth(stack)) {
-    ret =  data_exception(ErrorInternalError, 
+    ret =  data_exception(ErrorInternalError,
                           "Call stack empty?");
   } else {
     ret = datastack_pop((datastack_t *) thread -> stack);
@@ -387,12 +361,12 @@ data_t * data_thread_stacktrace(data_t *thread) {
   thread_t    *thr;
   datastack_t *stack;
   data_t      *ret;
-  
+
   if (!thread) {
     data = data_current_thread();
     thread = data;
   }
-  thr = data_threadval(data);
+  thr = data_as_thread(data);
   stack = (datastack_t *) thr -> stack;
   ret =  data_create_list(stack -> list);
   data_free(data);
@@ -401,17 +375,17 @@ data_t * data_thread_stacktrace(data_t *thread) {
 
 data_t * data_thread_set_kernel(data_t *kernel) {
   data_t      *data = data_current_thread();
-  thread_t    *thread = data_threadval(data);
-  
+  thread_t    *thread = data_as_thread(data);
+
   thread -> kernel = data_copy(kernel);
   return kernel;
 }
 
 data_t * data_thread_kernel(void) {
   data_t      *data = data_current_thread();
-  thread_t    *thread = data_threadval(data);
+  thread_t    *thread = data_as_thread(data);
   data_t      *ret = NULL;
-  
+
   while (!ret && thread) {
     ret = data_copy(thread -> kernel);
     thread = thread -> parent;
@@ -421,17 +395,17 @@ data_t * data_thread_kernel(void) {
 
 data_t * data_thread_set_exit_code(data_t *code) {
   data_t      *data = data_current_thread();
-  thread_t    *thread = data_threadval(data);
-  
+  thread_t    *thread = data_as_thread(data);
+
   thread -> exit_code = data_copy(code);
   return code;
 }
 
 data_t *data_thread_exit_code (void) {
   data_t      *data = data_current_thread();
-  thread_t    *thread = data_threadval(data);
+  thread_t    *thread = data_as_thread(data);
   data_t      *ret = NULL;
-  
+
   while (!ret && thread) {
     ret = data_copy(thread -> exit_code);
     thread = thread -> parent;

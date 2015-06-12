@@ -22,72 +22,56 @@
 
 #include <data.h>
 #include <exception.h>
+#include <method.h>
 
-typedef struct _method {
-  methoddescr_t *method;
-  data_t        *self;
-  char          *str;
-} mth_t;
-
-static mth_t *       mth_create(methoddescr_t *, data_t *);
-static mth_t *       mth_copy(mth_t *);
-static void          mth_free(mth_t *);
-static data_t *      mth_call(mth_t *, array_t *, dict_t *);
-static char *        mth_tostring(mth_t *);
-static unsigned int  mth_hash(mth_t *);
-static int           mth_cmp(mth_t *, mth_t *);
-
-static void          _method_init(void) __attribute__((constructor));
-static data_t *      _method_new(data_t *, va_list);
-static data_t *      _method_copy(data_t *, data_t *);
-static int           _method_cmp(data_t *, data_t *);
-static char *        _method_tostring(data_t *);
-static unsigned int  _method_hash(data_t *);
-static data_t *      _method_call(data_t *, array_t *, dict_t *);
+static void          _mth_init(void) __attribute__((constructor));
+static void          _mth_free(mth_t *);
+static char *        _mth_tostring(mth_t *);
 
 static vtable_t _vtable_method[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _method_new },
-  { .id = FunctionCopy,     .fnc = (void_t) _method_copy },
-  { .id = FunctionCmp,      .fnc = (void_t) _method_cmp },
-  { .id = FunctionToString, .fnc = (void_t) _method_tostring },
-  { .id = FunctionHash,     .fnc = (void_t) _method_hash },
-  { .id = FunctionCall,     .fnc = (void_t) _method_call },
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionFree,     .fnc = (void_t) _mth_free },
+  { .id = FunctionCmp,      .fnc = (void_t) mth_cmp },
+  { .id = FunctionToString, .fnc = (void_t) _mth_tostring },
+  { .id = FunctionHash,     .fnc = (void_t) mth_hash },
+  { .id = FunctionCall,     .fnc = (void_t) mth_call },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t _typedescr_method = {
-  .type =        Method,
-  .type_name =   "method",
-  .vtable =      _vtable_method
-};
+int Method = -1;
 
-/*
- * --------------------------------------------------------------------------
- * mth_t functions
- * --------------------------------------------------------------------------
- */
+/* -- M T H _ T  S T A T I C  F U N C T I O N S --------------------------- */
+
+void _mth_init(void) {
+  Method = typedescr_create_and_register(Method, "method", _vtable_method, NULL);
+}
+
+void _mth_free(mth_t *mth) {
+  if (mth) {
+    data_free(mth -> self);
+    free(mth);
+  }
+}
+
+char * _mth_tostring(mth_t *mth) {
+  char *s = data_tostring(mth -> self);
+
+  if (!mth -> _d.str) {
+    asprintf(&mth -> _d.str, "%s.%s", s, mth -> method -> name);
+  }
+  return NULL;
+}
+
+/* -- M T H _ T  P U B L I C  F U N C T I O N S --------------------------- */
 
 mth_t * mth_create(methoddescr_t *md, data_t *self) {
-  mth_t *ret = NEW(mth_t);
+  mth_t *ret = data_new(Method, mth_t);
 
   assert(md);
   assert(self);
   ret -> method = md;
   ret -> self = data_copy(self);
-  ret -> str = NULL;
   return ret;
-}
-
-mth_t * mth_copy(mth_t *src) {
-  return mth_create(src -> method, src -> self);
-}
-
-void mth_free(mth_t *mth) {
-  if (mth) {
-    data_free(mth -> self);
-    free(mth -> str);
-    free(mth);
-  }
 }
 
 data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
@@ -103,7 +87,7 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
   assert(mth);
   md = mth -> method;
   type = data_typedescr(mth -> self);
-  
+
   len = (args) ? array_size(args) : 0;
   maxargs = md -> maxargs;
   if (!maxargs) {
@@ -135,27 +119,19 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
     if (i < md -> minargs) {
       t = md -> argtypes[i];
     } else {
-      for (j = (i >= MAX_METHOD_PARAMS) ? MAX_METHOD_PARAMS - 1 : i; 
-           (j >= 0) && (md -> argtypes[j] == NoType); 
+      for (j = (i >= MAX_METHOD_PARAMS) ? MAX_METHOD_PARAMS - 1 : i;
+           (j >= 0) && (md -> argtypes[j] == NoType);
            j--);
       t = md -> argtypes[j];
     }
     if (!data_hastype(arg, t)) {
       return data_exception(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
-                        i+1, type -> type_name, md -> name, 
-                        typedescr_get(t) -> type_name, 
+                        i+1, type -> type_name, md -> name,
+                        typedescr_get(t) -> type_name,
                         data_typedescr(arg) -> type_name);
     }
   }
-  return md -> method(mth -> self, md -> name, args, kwargs);  
-}
-
-char * mth_tostring(mth_t *mth) {
-  char *s = data_tostring(mth -> self);
-  
-  free(mth -> str);
-  asprintf(&mth -> str, "%s.%s", s, mth -> method -> name);
-  return mth -> str;
+  return md -> method(mth -> self, md -> name, args, kwargs);
 }
 
 unsigned int mth_hash(mth_t *mth) {
@@ -164,47 +140,6 @@ unsigned int mth_hash(mth_t *mth) {
 
 int mth_cmp(mth_t *m1, mth_t *m2) {
   int cmp = data_cmp(m1 -> self, m2 -> self);
-  
+
   return (!cmp) ? cmp : strcmp(m1 -> method -> name, m2 -> method -> name);
-}
-
-/*
- * --------------------------------------------------------------------------
- * Method datatype
- * --------------------------------------------------------------------------
- */
-
-void _method_init(void) {
-  typedescr_register(&_typedescr_method);
-}
-
-data_t * _method_new(data_t *data, va_list args) {
-  methoddescr_t *md;
-  data_t        *self;
-  
-  md = va_arg(args, methoddescr_t *);
-  self = va_arg(args, data_t *);
-  data -> ptrval = mth_create(md, self);
-  return data;
-}
-
-data_t * _method_copy(data_t *target, data_t *src) {
-  target -> ptrval = mth_copy((mth_t *) src -> ptrval);
-  return target;
-}
-
-int _method_cmp(data_t *d1, data_t *d2) {
-  return mth_cmp((mth_t *) d1 -> ptrval, (mth_t *) d2 -> ptrval);  
-}
-
-char * _method_tostring(data_t *data) {
-  return mth_tostring((mth_t *) data -> ptrval);
-}
-
-unsigned int _method_hash(data_t *data) {
-  return mth_hash((mth_t *) data -> ptrval);
-}
-
-data_t * _method_call(data_t *data, array_t *args, dict_t *kwargs) {
-  return mth_call((mth_t *) data -> ptrval, args, kwargs);
 }

@@ -25,8 +25,8 @@
 #include <exception.h>
 
 static void          _mutex_init(void) __attribute__((constructor(120)));
-static void          _mutex_free(pthread_mutex_t *);
-static data_t *      _mutex_new(data_t *, va_list);
+static void          _mutex_free(pointer_t *);
+static data_t *      _mutex_new(int, va_list);
 static int           _mutex_cmp(data_t *, data_t *);
 static char *        _mutex_tostring(data_t *);
 static unsigned int  _mutex_hash(data_t *);
@@ -37,8 +37,10 @@ static data_t *      _mutex_lock(data_t *, char *, array_t *, dict_t *);
 static data_t *      _mutex_trylock(data_t *, char *, array_t *, dict_t *);
 static data_t *      _mutex_unlock(data_t *, char *, array_t *, dict_t *);
 
+int Mutex = -1;
+
 static vtable_t _vtable_mutex[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _mutex_new },
+  { .id = FunctionFactory,  .fnc = (void_t) _mutex_new },
   { .id = FunctionCmp,      .fnc = (void_t) _mutex_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _mutex_free },
   { .id = FunctionToString, .fnc = (void_t) _mutex_tostring },
@@ -47,58 +49,58 @@ static vtable_t _vtable_mutex[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t typedescr_mutex = {
-  .type       = Mutex,
-  .type_name  = "mutex",
-  .vtable     = _vtable_mutex
-};
-
 static methoddescr_t _methoddescr_mutex[] = {
   { .type = Any,    .name = "mutex",   .method = _mutex_create,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Mutex,  .name = "lock",    .method = _mutex_lock,    .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Mutex,  .name = "trylock", .method = _mutex_trylock, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = Mutex,  .name = "unlock",  .method = _mutex_unlock,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "lock",    .method = _mutex_lock,    .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "trylock", .method = _mutex_trylock, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "unlock",  .method = _mutex_unlock,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,      .method = NULL,           .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
-#define data_is_mutex(d) ((d) && (data_type((d)) == Mutex))
-#define data_mutexval(d) ((pthread_mutex_t *) ((data_is_mutex((d)) ? (d) -> ptrval : NULL)))
+#define data_is_mutex(d)   ((d) && (data_hastype((data_t *) (d), Mutex)))
+#define data_as_mutex(d)   ((pthread_mutex_t *) (data_is_mutex((d)) ? (((pointer_t *) (d)) -> ptr) : NULL))
 
 /* ------------------------------------------------------------------------ */
 
 void _mutex_init(void) {
-  typedescr_register(&typedescr_mutex);
-  typedescr_register_methods(_methoddescr_mutex);
+  Mutex = typedescr_create_and_register(Mutex, "mutex",
+                                        _vtable_mutex, _methoddescr_mutex);
 }
 
-data_t * _mutex_new(data_t *data, va_list args) {
+data_t * _mutex_new(int type, va_list args) {
   pthread_mutexattr_t  attr;
   pthread_mutex_t     *mutex;
   data_t              *ret;
-  
+  pointer_t           *p = NULL;
+
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   mutex = NEW(pthread_mutex_t);
   if (errno = pthread_mutex_init(mutex, &attr)) {
     ret = data_exception_from_errno();
   } else {
-    data -> ptrval = mutex;
-    ret = data;
+    p = data_new(Mutex, pointer_t);
+    p -> ptr = mutex;
   }
   pthread_mutexattr_destroy(&attr);
-  return data;
+  return (data_t *) p;
 }
 
-void _mutex_free(pthread_mutex_t *mutex) {
-  pthread_mutex_destroy(mutex);
-  free(mutex);
+void _mutex_free(pointer_t *p) {
+  pthread_mutex_t *mutex;
+  if (p) {
+    mutex = data_as_mutex(p);
+    pthread_mutex_destroy(mutex);
+    free(mutex);
+    free(p);
+  }
 }
 
 int _mutex_cmp(data_t *d1, data_t *d2) {
   /*
    * Since the mutex is created in the initialization function, two mutexes
-   * can only be identical if they live in the same data object. That case 
-   * is already resolved in data_cmp, and therefore, if we get here, they must 
+   * can only be identical if they live in the same data object. That case
+   * is already resolved in data_cmp, and therefore, if we get here, they must
    * be different.
    */
   return 1;
@@ -109,7 +111,7 @@ char * _mutex_tostring(data_t *data) {
 }
 
 unsigned int _mutex_hash(data_t *data) {
-  return hash(data_mutexval(data), sizeof(pthread_mutex_t));
+  return hash(data_as_mutex(data), sizeof(pthread_mutex_t));
 }
 
 data_t * _mutex_resolve(data_t *self, char *name) {
@@ -123,8 +125,8 @@ data_t * _mutex_create(data_t *self, char *name, array_t *args, dict_t *kwargs) 
 }
 
 data_t * _mutex_lock(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  pthread_mutex_t *mutex = data_mutexval(self);
-  
+  pthread_mutex_t *mutex = data_as_mutex(self);
+
   (void) name;
   (void) args;
   (void) kwargs;
@@ -136,8 +138,8 @@ data_t * _mutex_lock(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _mutex_trylock(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  pthread_mutex_t *mutex = data_mutexval(self);
-  
+  pthread_mutex_t *mutex = data_as_mutex(self);
+
   (void) name;
   (void) args;
   (void) kwargs;
@@ -149,8 +151,8 @@ data_t * _mutex_trylock(data_t *self, char *name, array_t *args, dict_t *kwargs)
 }
 
 data_t * _mutex_unlock(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  pthread_mutex_t *mutex = data_mutexval(self);
-  
+  pthread_mutex_t *mutex = data_as_mutex(self);
+
   (void) name;
   (void) args;
   (void) kwargs;

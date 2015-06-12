@@ -27,6 +27,7 @@ extern "C" {
 #endif
 
 typedef struct _thread {
+  data_t           _d;
   pthread_t        thr_id;
   struct _thread  *parent;
   data_t          *kernel;
@@ -35,7 +36,6 @@ typedef struct _thread {
   pthread_mutex_t  mutex;
   data_t          *exit_code;
   char            *name;
-  int              refs;
 } thread_t;
 
 typedef void * (*threadproc_t)(void *);
@@ -43,11 +43,8 @@ typedef void * (*threadproc_t)(void *);
 extern thread_t *    thread_create(pthread_t, char *);
 extern thread_t *    thread_new(char *, threadproc_t, void *);
 extern thread_t *    thread_self(void);
-extern void          thread_free(thread_t *);
-extern thread_t *    thread_copy(thread_t *);
 extern unsigned int  thread_hash(thread_t *);
 extern int           thread_cmp(thread_t *, thread_t *);
-extern char *        thread_tostring(thread_t *);
 extern int           thread_interruptable(thread_t *);
 extern int           thread_interrupt(thread_t *);
 extern int           thread_yield(void);
@@ -63,8 +60,14 @@ extern data_t *      data_thread_kernel(void);
 extern data_t *      data_thread_set_exit_code(data_t *);
 extern data_t *      data_thread_exit_code(void);
 
-#define data_is_thread(d) ((d) && (data_type((d)) == Thread))
-#define data_threadval(d) ((thread_t *) ((data_is_thread((d)) ? (d) -> ptrval : NULL)))
+extern int Thread;
+extern int thread_debug;
+
+#define data_is_thread(d)  ((d) && (data_hastype((d), Thread)))
+#define data_as_thread(d)  ((thread_t *) (data_is_thread((d)) ? (d) : NULL))
+#define thread_free(o)     (data_free((data_t *) (o)))
+#define thread_tostring(o) (data_tostring((data_t *) (o)))
+#define thread_copy(o)     ((thread_t *) data_copy((data_t *) (o)))
 
 #ifdef	__cplusplus
 }

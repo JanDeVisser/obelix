@@ -26,6 +26,7 @@
 #include <wrapper.h>
 
 static void          _data_init_name(void) __attribute__((constructor));
+static void          _name_debug(name_t *, char *);
 
 static void          _name_free(name_t *);
 static char *        _name_tostring(name_t *);
@@ -59,16 +60,16 @@ int Name;
 
 void _data_init_name(void) {
   logging_register_category("name", &name_debug);
-  Name = typedescr_create_and_register(Name, "name", _vtable_name, 
+  Name = typedescr_create_and_register(Name, "name", _vtable_name,
                                        _methoddescr_name);
 }
 
 /* ----------------------------------------------------------------------- */
 
 data_t * _name_append(data_t *self, char *fnc_name, array_t *args, dict_t *kwargs) {
-  name_t *name = data_nameval(self);
+  name_t *name = data_as_name(self);
   int     ix;
-  
+
   for (ix = 0; ix < array_size(args); ix++) {
     name_extend(name, data_tostring(data_array_get(args, ix)));
   }
@@ -77,15 +78,15 @@ data_t * _name_append(data_t *self, char *fnc_name, array_t *args, dict_t *kwarg
 
 /* ----------------------------------------------------------------------- */
 
-char * _name_debug(name_t *name, char *msg) {
+void _name_debug(name_t *name, char *msg) {
   if (name_debug) {
-    debug("%s: %p = %s (%d)", msg, name, name_tostring(name), name -> refs);
+    debug("%s: %p = %s (%d)", msg, name, name_tostring(name), name -> _d.refs);
   }
 }
 
 name_t * _name_create(int count) {
   name_t *ret = data_new(Name, name_t);
-  
+
   ret -> name = str_array_create(count);
   ret -> sep = NULL;
   _name_debug(ret, "_name_create");
@@ -107,7 +108,7 @@ char * _name_tostring(name_t *name) {
 
 data_t * _name_resolve(name_t *n, char *name) {
   long    ix;
-  
+
   if (!strtoint(name, &ix)) {
     return ((ix >= 0) && (ix < name_size(n)))
       ? data_create(String, name_get(n, ix))
@@ -122,7 +123,7 @@ data_t * _name_resolve(name_t *n, char *name) {
 name_t * name_create(int count, ...) {
   name_t  *ret;
   va_list  components;
-  
+
   va_start(components, count);
   ret = name_vcreate(count, components);
   va_end(components);
@@ -133,7 +134,7 @@ name_t * name_create(int count, ...) {
 name_t * name_vcreate(int count, va_list components) {
   name_t *ret;
   int     ix;
-  
+
   ret = _name_create(count);
   for (ix = 0; ix < count; ix++) {
     name_extend(ret, va_arg(components, char *));
@@ -144,7 +145,7 @@ name_t * name_vcreate(int count, va_list components) {
 
 name_t * name_deepcopy(name_t *src) {
   name_t *ret = _name_create(name_size(src));
-  
+
   name_append(ret, src);
   return ret;
 }
@@ -184,7 +185,7 @@ name_t * name_append(name_t *name, name_t *additions) {
 
 name_t * name_extend_data(name_t *name, data_t *data) {
   char *str;
-  
+
   if (data_type(data) == Int) {
     char buf[2];
     buf[0] = data_intval(data);
@@ -198,7 +199,7 @@ name_t * name_extend_data(name_t *name, data_t *data) {
 
 name_t * name_append_array(name_t *name, array_t *additions) {
   int ix;
-  
+
   for (ix = 0; ix < array_size(additions); ix++) {
     array_push(name -> name, strdup(str_array_get(additions, ix)));
   }
@@ -210,7 +211,7 @@ name_t * name_append_array(name_t *name, array_t *additions) {
 
 name_t * name_append_data_array(name_t *name, array_t *additions) {
   int ix;
-  
+
   for (ix = 0; ix < array_size(additions); ix++) {
     name_extend_data(name, data_array_get(additions, ix));
   }
@@ -240,7 +241,7 @@ array_t * name_as_array(name_t *name) {
 name_t * name_tail(name_t *name) {
   name_t  *ret = NEW(name_t);
   array_t *tail = array_slice(name -> name, 1, -1);
-  
+
   ret -> name = str_array_create(name_size(name) - 1);
   name_append_array(ret, tail);
   array_free(tail);
@@ -259,7 +260,7 @@ name_t * name_head(name_t *name) {
 
 char * name_tostring_sep(name_t *name, char *sep) {
   str_t *s;
-  
+
   if (name -> sep && strcmp(name -> sep, sep)) {
     free(name -> _d.str);
     free(name -> sep);
@@ -284,7 +285,7 @@ char * name_tostring_sep(name_t *name, char *sep) {
 int name_cmp(name_t *n1, name_t *n2) {
   int ix;
   int cmp;
-  
+
   if (name_size(n1) != name_size(n2)) {
     return name_size(n1) - name_size(n2);
   }
@@ -317,7 +318,7 @@ int name_startswith(name_t *name, name_t *start) {
 unsigned int name_hash(name_t *name) {
   unsigned int ret;
   int          ix;
-  
+
   ret = hashptr(name);
   for (ix = 0; ix < name_size(name); ix++) {
     hashblend(ret, strhash(name_get(name, ix)));

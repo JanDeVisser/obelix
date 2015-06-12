@@ -24,7 +24,6 @@
 
 #include <array.h>
 #include <list.h>
-#include <str.h>
 
 typedef struct _dictentry {
   struct _dict *dict;
@@ -63,40 +62,40 @@ typedef struct _entry {
 
 extern void     entry_free(entry_t *e);
 
-extern dict_t * dict_create(cmp_t); /* No hash - Use key point mod something */
-extern dict_t * dict_set_hash(dict_t *, hash_t);
-extern dict_t * dict_set_free_key(dict_t *, free_t);
-extern dict_t * dict_set_free_data(dict_t *, free_t);
-extern dict_t * dict_set_tostring_key(dict_t *, tostring_t);
-extern dict_t * dict_set_tostring_data(dict_t *, tostring_t);
-extern void     dict_free(dict_t *);
-extern dict_t * dict_clear(dict_t *);
-extern dict_t * dict_put(dict_t *, void *, void *);
-extern int      dict_has_key(dict_t *, void *);
-extern void *   dict_get(dict_t *, void *);
-extern dict_t * dict_remove(dict_t *, void *);
-extern void *   dict_pop(dict_t *, void *);
-extern int      dict_size(dict_t *);
-extern list_t * dict_keys(dict_t *);
-extern list_t * dict_values(dict_t *);
-extern list_t * dict_items(dict_t *);
-extern int      dict_has_key(dict_t *, void *);
-extern void *   dict_reduce(dict_t *, reduce_t, void *);
-extern void *   dict_reduce_keys(dict_t *, reduce_t, void *);
-extern void *   dict_reduce_values(dict_t *, reduce_t, void *);
-extern void *   dict_reduce_chars(dict_t *, reduce_t, void *);
-extern void *   _dict_reduce_dictentries(dict_t *, reduce_t, void *);
-extern dict_t * dict_visit(dict_t *, visit_t);
-extern dict_t * dict_visit_keys(dict_t *, visit_t);
-extern dict_t * dict_visit_values(dict_t *, visit_t);
-extern dict_t * _dict_visit_dictentries(dict_t *, visit_t);
-extern dict_t * dict_put_all(dict_t *, dict_t *);
-extern str_t *  dict_tostr(dict_t *);
-extern str_t *  dict_tostr_custom(dict_t *, char *, char *, char *, char *);
-extern char *   dict_tostring(dict_t *);
-extern char *   dict_tostring_custom(dict_t *, char *, char *, char *, char *);
+extern dict_t *      dict_create(cmp_t); /* No hash - Use key point mod something */
+extern dict_t *      dict_set_hash(dict_t *, hash_t);
+extern dict_t *      dict_set_free_key(dict_t *, free_t);
+extern dict_t *      dict_set_free_data(dict_t *, free_t);
+extern dict_t *      dict_set_tostring_key(dict_t *, tostring_t);
+extern dict_t *      dict_set_tostring_data(dict_t *, tostring_t);
+extern void          dict_free(dict_t *);
+extern dict_t *      dict_clear(dict_t *);
+extern dict_t *      dict_put(dict_t *, void *, void *);
+extern int           dict_has_key(dict_t *, void *);
+extern void *        dict_get(dict_t *, void *);
+extern dict_t *      dict_remove(dict_t *, void *);
+extern void *        dict_pop(dict_t *, void *);
+extern int           dict_size(dict_t *);
+extern list_t *      dict_keys(dict_t *);
+extern list_t *      dict_values(dict_t *);
+extern list_t *      dict_items(dict_t *);
+extern int           dict_has_key(dict_t *, void *);
+extern void *        dict_reduce(dict_t *, reduce_t, void *);
+extern void *        dict_reduce_keys(dict_t *, reduce_t, void *);
+extern void *        dict_reduce_values(dict_t *, reduce_t, void *);
+extern void *        dict_reduce_chars(dict_t *, reduce_t, void *);
+extern void *        _dict_reduce_dictentries(dict_t *, reduce_t, void *);
+extern dict_t *      dict_visit(dict_t *, visit_t);
+extern dict_t *      dict_visit_keys(dict_t *, visit_t);
+extern dict_t *      dict_visit_values(dict_t *, visit_t);
+extern dict_t *      _dict_visit_dictentries(dict_t *, visit_t);
+extern dict_t *      dict_put_all(dict_t *, dict_t *);
+extern struct _str * dict_tostr(dict_t *);
+extern struct _str * dict_tostr_custom(dict_t *, char *, char *, char *, char *);
+extern char *        dict_tostring(dict_t *);
+extern char *        dict_tostring_custom(dict_t *, char *, char *, char *, char *);
 
-extern str_t *  dict_dump(dict_t *, char *);
+extern struct _str * dict_dump(dict_t *, char *);
 
 #define intstr_dict_create()    dict_set_tostring_data( \
                                   dict_set_tostring_key( \

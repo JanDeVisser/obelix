@@ -20,6 +20,7 @@
 #include <core.h>
 #include <data.h>
 #include <exception.h>
+#include <name.h>
 
 /* ------------------------------------------------------------------------ */
 
@@ -78,14 +79,15 @@ static methoddescr_t _methoddescr_interfaces[] = {
 /* ------------------------------------------------------------------------ */
 
 void _any_init(void) {
-  interface_register(Any,          "any",          0);
-  interface_register(Callable,     "callable",     1, FunctionCall);
-  interface_register(InputStream,  "inputstream",  1, FunctionRead);
-  interface_register(OutputStream, "outputstream", 1, FunctionWrite);
-  interface_register(Iterable,     "iterable",     1, FunctionIter);
-  interface_register(Iterator,     "iterator",     2, FunctionNext, FunctionHasNext);
-  interface_register(Connector,    "connector",    1, FunctionQuery);
-  interface_register(CtxHandler,   "ctxhandler",   2, FunctionEnter, FunctionLeave);
+  interface_register(Any,           "any",           0);
+  interface_register(Callable,      "callable",      1, FunctionCall);
+  interface_register(InputStream,   "inputstream",   1, FunctionRead);
+  interface_register(OutputStream,  "outputstream",  1, FunctionWrite);
+  interface_register(Iterable,      "iterable",      1, FunctionIter);
+  interface_register(Iterator,      "iterator",      2, FunctionNext, FunctionHasNext);
+  interface_register(Connector,     "connector",     1, FunctionQuery);
+  interface_register(CtxHandler,    "ctxhandler",    2, FunctionEnter, FunctionLeave);
+  interface_register(Incrementable, "incrementable", 2, FunctionIncr, FunctionDecr);
   typedescr_register_methods(_methoddescr_interfaces);
 }
 
@@ -95,7 +97,7 @@ data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *other = (data_t *) array_get(args, 0);
   data_t *ret;
   int     cmp = data_cmp(self, other);
-  
+
   if (!strcmp(name, "==")) {
     ret = data_create(Bool, !cmp);
   } else if (!strcmp(name, "!=")) {
@@ -110,7 +112,7 @@ data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     ret = data_create(Bool, cmp <= 0);
   } else {
     assert(0);
-    ret = data_create(Bool, 0);
+    ret = data_false();
   }
   return ret;
 }
@@ -118,12 +120,12 @@ data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *asbool = data_cast(self, Bool);
   data_t *ret;
-  
+
   (void) name;
   (void) args;
   (void) kwargs;
   if (!asbool) {
-    return data_exception(ErrorSyntax, 
+    return data_exception(ErrorSyntax,
                           "not(): Cannot convert value '%s' of type '%s' to boolean",
                           data_tostring(self),
                           data_typedescr(self) -> type_name);
@@ -137,13 +139,13 @@ data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *asbool;
   int     boolval;
   int     ix;
-  
+
   (void) name;
   (void) kwargs;
   for (ix = -1; ix < array_size(args); ix++) {
     asbool = data_cast((ix < 0) ? self : data_array_get(args, ix), Bool);
     if (!asbool) {
-      return data_exception(ErrorSyntax, 
+      return data_exception(ErrorSyntax,
                         "and(): Cannot convert value '%s' of type '%s' to boolean",
                         data_tostring(data_array_get(args, ix)),
                         data_typedescr(data_array_get(args, ix)) -> type_name);
@@ -151,10 +153,10 @@ data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     boolval = data_intval(asbool);
     data_free(asbool);
     if (!boolval) {
-      return data_create(Bool, FALSE);
+      return data_false();
     }
   }
-  return data_create(Bool, TRUE);
+  return data_true();
 }
 
 data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -162,14 +164,14 @@ data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *data;
   int     boolval;
   int     ix;
-  
+
   (void) name;
   (void) kwargs;
   for (ix = -1; ix < array_size(args); ix++) {
     data = (ix < 0) ? self : data_array_get(args, ix);
     asbool = data_cast(data, Bool);
     if (!asbool) {
-      return data_exception(ErrorSyntax, 
+      return data_exception(ErrorSyntax,
                         "or(): Cannot convert value '%s' of type '%s' to boolean",
                         data_tostring(data_array_get(args, ix)),
                         data_typedescr(data_array_get(args, ix)) -> type_name);
@@ -177,10 +179,10 @@ data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     boolval = data_intval(asbool);
     data_free(asbool);
     if (boolval) {
-      return data_create(Bool, TRUE);
+      return data_true();
     }
   }
-  return data_create(Bool, FALSE);
+  return data_false();
 }
 
 data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -194,7 +196,7 @@ data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
 data_t * _any_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *obj;
-  
+
   (void) name;
   (void) kwargs;
   obj = (args && array_size(args)) ? data_array_get(args, 0) : self;
@@ -206,7 +208,7 @@ data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwar
   name_t *name = name_create(1, data_tostring(attrname));
   data_t *r = data_resolve(self, name);
   data_t *ret = data_create(Bool, r != NULL);
-  
+
   (void) func_name;
   (void) kwargs;
   name_free(name);
@@ -217,7 +219,7 @@ data_t * _any_getattr(data_t *self, char *func_name, array_t *args, dict_t *kwar
   data_t  *attrname = data_array_get(args, 0);
   name_t  *name = name_create(1, data_tostring(attrname));
   data_t  *ret;
-  
+
   ret = data_get(self, name);
   name_free(name);
   return ret;
@@ -236,28 +238,28 @@ data_t * _any_setattr(data_t *self, char *func_name, array_t *args, dict_t *kwar
 
 data_t * _any_callable(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *obj;
-  
+
   obj = (array_size(args)) ? data_array_get(args, 0) : self;
   return data_create(Bool, data_is_callable(obj));
 }
 
 data_t * _any_iterable(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *obj;
-  
+
   obj = (array_size(args)) ? data_array_get(args, 0) : self;
   return data_create(Bool, data_is_iterable(obj));
 }
 
 data_t * _any_iterator(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *obj;
-  
+
   obj = (array_size(args)) ? data_array_get(args, 0) : self;
   return data_create(Bool, data_is_iterator(obj));
 }
 
 data_t * _any_iter(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *obj;
-  
+
   (void) name;
   (void) kwargs;
   obj = (array_size(args)) ? data_array_get(args, 0) : self;
@@ -266,7 +268,7 @@ data_t * _any_iter(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
 data_t * _any_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *obj;
-  
+
   (void) name;
   (void) kwargs;
   obj = (array_size(args)) ? data_array_get(args, 0) : self;
@@ -275,7 +277,7 @@ data_t * _any_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
 data_t * _any_has_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *obj;
-  
+
   (void) name;
   (void) kwargs;
   obj = (array_size(args)) ? data_array_get(args, 0) : self;

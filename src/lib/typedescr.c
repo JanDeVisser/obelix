@@ -31,8 +31,9 @@ static int          _num_interfaces = 0;
 extern int          _data_count;
        int          type_debug = 0;
 
-static void         _typedescr_init(void) __attribute__((constructor(101)));
-static char *       _methoddescr_tostring(methoddescr_t *);
+static void           _typedescr_init(void) __attribute__((constructor(101)));
+static char *         _methoddescr_tostring(methoddescr_t *);
+static typedescr_t *  _typedescr_build_constructor(typedescr_t *);
 
 static code_label_t _function_id_labels[] = {
   { .code = FunctionNone,           .label = "None" },
@@ -63,6 +64,7 @@ static code_label_t _function_id_labels[] = {
   { .code = FunctionVisit,          .label = "Visit" },
   { .code = FunctionReduce,         .label = "Reduce" },
   { .code = FunctionIs,             .label = "Is" },
+  { .code = FunctionConstructor,    .label = "Constructor" },
   { .code = FunctionEndOfListDummy, .label = "End" },
   { .code = -1,                     .label = NULL }
 };
@@ -88,7 +90,7 @@ int interface_register(int type, char *name, int numfncs, ...) {
   interface_t *iface;
   va_list      fncs;
   int          fnc_id;
-  
+
   if (type < Interface) {
     type = _next_interface++;
   }
@@ -114,13 +116,13 @@ int interface_register(int type, char *name, int numfncs, ...) {
     iface -> fncs[iix] = fnc_id;
   }
   va_end(fncs);
-  return type;  
+  return type;
 }
 
 interface_t * interface_get(int type) {
   int          ifix = type - Interface - 1;
   interface_t *ret = NULL;
-  
+
   if ((type > Interface) && (type < _next_interface)) {
     ret = &_interfaces[ifix];
     if (!ret) {
@@ -161,8 +163,8 @@ methoddescr_t * interface_get_method(interface_t *iface, char *name) {
       debug(" '%s' -> methods unset", iface -> name);
     }
   }
-  return (iface -> methods) 
-    ? (methoddescr_t *) dict_get(iface -> methods, name) 
+  return (iface -> methods)
+    ? (methoddescr_t *) dict_get(iface -> methods, name)
     : NULL;
 }
 
@@ -170,12 +172,12 @@ methoddescr_t * interface_get_method(interface_t *iface, char *name) {
 
 void vtable_dump(vtable_t *vtable) {
   int ix;
-  
+
   for (ix = 0; ix < FunctionEndOfListDummy; ix++) {
     assert(ix == vtable[ix].id);
     if (vtable[ix].fnc) {
-      debug("%-20.20s %d %p", 
-            label_for_code(_function_id_labels, ix), 
+      debug("%-20.20s %d %p",
+            label_for_code(_function_id_labels, ix),
             ix, vtable[ix].fnc);
     }
   }
@@ -212,7 +214,7 @@ int vtable_implements(vtable_t *vtable, int type) {
   interface_t *interface;
   int          ix;
   int          fnc_id;
-  
+
   interface = interface_get(type);
   if (!interface) {
     return FALSE;
@@ -223,6 +225,28 @@ int vtable_implements(vtable_t *vtable, int type) {
     ret &= (vtable[fnc_id].fnc != NULL);
   }
   return ret;
+}
+
+/* -- T Y P E D E S C R  S T A T I C  F U N C T I O N S ------------------- */
+
+typedescr_t * _typedescr_build_constructor(typedescr_t *type) {
+  method_t       constructor;
+  methoddescr_t *md = NULL;
+
+  if (constructor = (method_t) typedescr_get_function(type, FunctionConstructor)) {
+    md = NEW(methoddescr_t);
+    md -> type = type -> type;
+    md -> name = type -> type_name;
+    md -> method = constructor;
+    md -> argtypes[0] = Any;
+    md -> argtypes[1] = NoType;
+    md -> argtypes[2] = NoType;
+    md -> minargs = 0;
+    md -> maxargs = 0;
+    md -> varargs = 1;
+  }
+  type -> constructor = md;
+  return type;
 }
 
 /* -- T Y P E D E S C R  P U B L I C  F U N C T I O N S ------------------- */
@@ -260,6 +284,7 @@ int typedescr_register(typedescr_t *descr) {
   vtable = d -> vtable;
   d -> vtable = NULL;
   typedescr_register_functions(d, vtable);
+  _typedescr_build_constructor(d);
   d -> str = NULL;
   d -> methods = NULL;
   d -> hash = 0;
@@ -269,10 +294,10 @@ int typedescr_register(typedescr_t *descr) {
 int typedescr_register_type(typedescr_t *td, methoddescr_t *md) {
   int ret = typedescr_register(td);
   int i, j;
-  
+
   if (md) {
     for (i = 0; md[i].type != NoType; i++) {
-      if (md[i] < 0) {
+      if (md[i].type < 0) {
         md[i].type = ret;
       }
       for (j = 0; j < MAX_METHOD_PARAMS; j++) {
@@ -295,10 +320,10 @@ void typedescr_register_types(typedescr_t *types) {
   }
 }
 
-int typedescr_create_and_register(char *type_name, vtable_t *vtable, methoddescr_t *methods) {
+int typedescr_create_and_register(int type, char *type_name, vtable_t *vtable, methoddescr_t *methods) {
   typedescr_t td;
-  
-  td.type = -1;
+
+  td.type = type;
   td.type_name = type_name;
   td.vtable = vtable;
   return typedescr_register_type(&td, methods);
@@ -317,7 +342,7 @@ typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[])
 
 typedescr_t * typedescr_get(int datatype) {
   typedescr_t *ret = NULL;
-  
+
   if ((datatype >= 0) && (datatype < _numtypes)) {
     ret = &descriptors[datatype];
   }
@@ -335,7 +360,7 @@ typedescr_t * typedescr_get(int datatype) {
 typedescr_t * typedescr_get_byname(char *name) {
   typedescr_t *ret = NULL;
   int          ix;
-  
+
   for (ix = 0; ix < _numtypes; ix++) {
     if (descriptors[ix].type_name && !strcmp(name, descriptors[ix].type_name)) {
       return &descriptors[ix];
@@ -361,7 +386,7 @@ void typedescr_dump_vtable(typedescr_t *type) {
 
 void typedescr_count(void) {
   int ix;
-  
+
   debug("Atom count");
   debug("-------------------------------------------------------");
   for (ix = 0; ix < _numtypes; ix++) {
@@ -389,7 +414,7 @@ void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
     ret = typedescr_get_function(inherits, fnc_id);
   }
   //if (type_debug) {
-  //  debug("typedescr_get_function(%s, %s) = %p", 
+  //  debug("typedescr_get_function(%s, %s) = %p",
   //        type -> type_name, label_for_code(_function_id_labels, fnc_id), ret);
   //}
   return ret;
@@ -424,12 +449,22 @@ void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
   dict_put(type -> methods, method -> name, method);
 }
 
+methoddescr_t * typedescr_get_constructor(char *name) {
+  typedescr_t *type;
+
+  if (type = typedescr_get_byname(name)) {
+    return type -> constructor;
+  } else {
+    return NULL;
+  }
+}
+
 methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   methoddescr_t *ret = NULL;
   interface_t   *interface;
   int            ix;
   int            iftype;
-  
+
   assert(descr);
   if (type_debug) {
     info("typedescr_get_method(%s, %s)", descr -> type_name, name);
@@ -448,6 +483,8 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
     }
     if (ret) {
       typedescr_register_method(descr, ret);
+    } else {
+      ret = typedescr_get_constructor(name);
     }
   }
   return ret;
@@ -455,7 +492,7 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
 
 char * typedescr_tostring(typedescr_t *descr) {
   if (!descr -> str) {
-    if (asprintf(&(descr -> str), "'%s' [%d]", 
+    if (asprintf(&(descr -> str), "'%s' [%d]",
                  descr -> type_name, descr -> type) < 0) {
       descr -> str = "Out of Memory?";
     }

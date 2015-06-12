@@ -52,13 +52,12 @@ typedef enum _errorcode {
 } errorcode_t;
 
 typedef struct _exception {
+  data_t        _d;
   errorcode_t   code;
   char         *msg;
-  char         *str;
   int           handled;
   struct _data *throwable;
   struct _data *trace;
-  int           refs;
 } exception_t;
 
 extern int            exception_register(char *str);
@@ -66,11 +65,8 @@ extern exception_t *  exception_create(int, char *, ...);
 extern exception_t *  exception_vcreate(int, char *, va_list);
 extern exception_t *  exception_from_my_errno(int);
 extern exception_t *  exception_from_errno(void);
-extern exception_t *  exception_copy(exception_t *);
-extern void           exception_free(exception_t *);
 extern unsigned int   exception_hash(exception_t *);
 extern int            exception_cmp(exception_t *, exception_t *);
-extern char *         exception_tostring(exception_t *);
 extern void           exception_report(exception_t *);
 
 extern data_t *       data_exception(int, char *, ...);
@@ -78,9 +74,12 @@ extern data_t *       data_exception_from_my_errno(int);
 extern data_t *       data_exception_from_errno(void);
 extern data_t *       data_throwable(data_t *);
 
-#define data_is_exception(d) ((d) && (data_type((d)) == Exception))
-#define data_is_unhandled_exception(d) ((d) && (data_type((d)) == Exception) && !((exception_t *) (d) -> ptrval) -> handled)
-#define data_exceptionval(d) ((exception_t *) ((data_is_exception((d)) ? (d) -> ptrval : NULL)))
+#define data_is_exception(d)           ((d) && (data_hastype((data_t *) (d), Exception)))
+#define data_is_unhandled_exception(d) ((d) && data_is_exception((d)) && !(((exception_t *) (d)) -> handled))
+#define data_as_exception(d)           ((exception_t *) ((data_is_exception((d)) ? (d) : NULL)))
+#define exception_free(e)              (data_free((data_t *) (e)))
+#define exception_tostring(e)          (data_tostring((data_t *) (e)))
+#define exception_copy(e)              ((exception_t *) data_copy((data_t *) (e)))
 
 #ifdef  __cplusplus
 }
