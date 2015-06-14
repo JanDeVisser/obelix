@@ -23,6 +23,7 @@
 
 #include <array.h>
 #include <dict.h>
+#include <function.h>
 #include <lexer.h>
 #include <resolve.h>
 #include <set.h>

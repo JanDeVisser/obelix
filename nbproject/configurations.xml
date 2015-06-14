@@ -43,7 +43,11 @@
           <in>wrapper.c</in>
         </df>
         <df name="parser">
+          <in>grammar.c</in>
+          <in>grammarparser.c</in>
           <in>lexer.c</in>
+          <in>parser.c</in>
+          <in>script.c</in>
           <in>token.c</in>
         </df>
         <df name="test">
@@ -456,7 +460,7 @@
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/lib/test/testlib.c" ex="false" tool="0" flavor2="0">
+      <item path="src/lib/test/testlib.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
         </cTool>
       </item>
@@ -508,11 +512,27 @@
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/lexer.c" ex="false" tool="0" flavor2="0">
+      <item path="src/parser/grammar.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
         </cTool>
       </item>
-      <item path="src/parser/token.c" ex="false" tool="0" flavor2="0">
+      <item path="src/parser/grammarparser.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <item path="src/parser/lexer.c" ex="false" tool="0" flavor2="2">
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <item path="src/parser/parser.c" ex="false" tool="0" flavor2="0">
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <item path="src/parser/script.c" ex="false" tool="0" flavor2="0">
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <item path="src/parser/token.c" ex="false" tool="0" flavor2="2">
         <cTool flags="0">
         </cTool>
       </item>

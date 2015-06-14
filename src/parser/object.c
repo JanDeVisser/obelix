@@ -28,15 +28,8 @@
 #include <object.h>
 #include <script.h>
 
-int obj_debug = 0;
-
 static void          _data_init_object(void) __attribute__((constructor));
-static data_t *      _data_new_object(data_t *, va_list);
-static data_t *      _data_copy_object(data_t *, data_t *);
-static int           _data_cmp_object(data_t *, data_t *);
-static data_t *      _data_cast_object(data_t *, int);
-static char *        _data_tostring_object(data_t *);
-static unsigned int  _data_hash_object(data_t *);
+static data_t *      _object_cast(object_t *, int);
 static data_t *      _data_call_object(data_t *, array_t *, dict_t *);
 static data_t *      _data_resolve_object(data_t *, char *);
 static data_t *      _data_set_object(data_t *, char *, data_t *);
@@ -51,23 +44,27 @@ static data_t *      _object_get(object_t *, char *);
 static data_t *      _object_call_attribute(object_t *, char *, array_t *, dict_t *);
 static object_t *    _object_set_all_reducer(entry_t *, object_t *);
 
+extern void          _object_free(object_t *);
+extern char *        _object_allocstring(object_t *);
+
   /* ----------------------------------------------------------------------- */
 
 static vtable_t _vtable_object[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_object },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_object },
-  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_object },
-  { .id = FunctionCast,     .fnc = (void_t) _data_cast_object },
-  { .id = FunctionFree,     .fnc = (void_t) object_free },
-  { .id = FunctionToString, .fnc = (void_t) _data_tostring_object },
-  { .id = FunctionHash,     .fnc = (void_t) _data_hash_object },
-  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_object },
-  { .id = FunctionCall,     .fnc = (void_t) _data_call_object },
-  { .id = FunctionSet,      .fnc = (void_t) _data_set_object },
-  { .id = FunctionLen,      .fnc = (void_t) _data_len_object },
-  { .id = FunctionEnter,    .fnc = (void_t) _data_ctx_enter },
-  { .id = FunctionLeave,    .fnc = (void_t) _data_ctx_leave },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,         .fnc = (void_t) object_cmp },
+  { .id = FunctionCast,        .fnc = (void_t) _object_cast },
+  { .id = FunctionFree,        .fnc = (void_t) _object_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _object_allocstring },
+  { .id = FunctionHash,        .fnc = (void_t) object_hash },
+
+  xxxxxxxxxxxxxxxx
+  { .id = FunctionResolve,     .fnc = (void_t) _data_resolve_object },
+  { .id = FunctionCall,        .fnc = (void_t) _data_call_object },
+  { .id = FunctionSet,         .fnc = (void_t) _data_set_object },
+  { .id = FunctionLen,         .fnc = (void_t) _data_len_object },
+  { .id = FunctionEnter,       .fnc = (void_t) _data_ctx_enter },
+  { .id = FunctionLeave,       .fnc = (void_t) _data_ctx_leave },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static typedescr_t _typedescr_object = {
@@ -76,42 +73,59 @@ static typedescr_t _typedescr_object = {
   .vtable =    _vtable_object
 };
 
-/* FIXME Add append, delete, head, tail, etc... */
 static methoddescr_t _methoddescr_object[] = {
   { .type = Any,    .name = "object", .method = _object_create, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
   { .type = Any,    .name = "new",    .method = _object_new,    .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
+int Object = -1;
+int obj_debug = 0;
+
 /* ----------------------------------------------------------------------- */
 
 void _data_init_object(void) {
-  data_t *name;
-  
   logging_register_category("object", &obj_debug);
-  typedescr_register(&_typedescr_object);  
-  typedescr_register_methods(_methoddescr_object);
+  Object = typedescr_create_and_register(Object, "object",
+                                         _vtable_object, _methoddescr_object);
 }
 
-data_t * _data_new_object(data_t *ret, va_list arg) {
-  object_t *object;
+/* ----------------------------------------------------------------------- */
 
-  object = va_arg(arg, object_t *);
-  ret -> ptrval = object_copy(object);
-  return ret;
+void _object_free(object_t *object) {
+  if (object) {
+    data_free(_object_call_attribute(object, "__finalize__", NULL, NULL));
+    dict_free(object -> variables);
+    data_free(object -> constructor);
+    data_free(object -> retval);
+  }
 }
 
-data_t * _data_copy_object(data_t *target, data_t *src) {
-  target -> ptrval = object_copy(data_objectval(src));
-  return target;
+char * _object_allocstring(object_t *object) {
+  data_t  *data = NULL;
+  char    *buf;
+
+  if (!constructing) {
+    data = _object_get(object, "name");
+    if (!data) {
+      data = _object_call_attribute(object, "__str__", NULL, NULL);
+    }
+  }
+  if (!data) {
+    if (object -> constructor) {
+      asprintf(&buf, "<%s object at %p>",
+               data_tostring(object -> constructor), object);
+    } else {
+      asprintf(&buf, "<anon object at %p>", object);
+    }
+  } else {
+    buf = strdup(data_tostring(data));
+  }
+  data_free(data);
+  return buf;
 }
 
-int _data_cmp_object(data_t *d1, data_t *d2) {
-  return object_cmp((object_t *) d1 -> ptrval, (object_t *) d2 -> ptrval);
-}
-
-data_t * _data_cast_object(data_t *src, int totype) {
-  object_t *obj = data_objectval(src);
+data_t * _object_cast(object_t *obj, int totype) {
   data_t   *ret = NULL;
 
   switch (totype) {
@@ -120,14 +134,6 @@ data_t * _data_cast_object(data_t *src, int totype) {
       break;
   }
   return ret;
-}
-
-char * _data_tostring_object(data_t *d) {
-  return object_tostring((object_t *) d -> ptrval);
-}
-
-unsigned int _data_hash_object(data_t *d) {
-  return object_hash((object_t *) d -> ptrval);
 }
 
 data_t * _data_call_object(data_t *self, array_t *args, dict_t *kwargs) {
@@ -181,7 +187,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
   array_t     *shifted;
   object_t    *obj;
   typedescr_t *type;
-  
+
   (void) fncname;
   n = data_copy(data_array_get(args, 0));
   if (data_is_name(n)) {
@@ -229,13 +235,13 @@ data_t * _object_get(object_t *object, char *name) {
   if (ret) {
     ret = data_copy(ret);
   }
-  return ret;  
+  return ret;
 }
 
 data_t * _object_call_attribute(object_t *object, char *name, array_t *args, dict_t *kwargs) {
   data_t *func;
   data_t *ret = NULL;
-  
+
   func = _object_get(object, name);
   if (data_is_callable(func)) {
     ret = data_call(func, args, kwargs);
@@ -258,7 +264,7 @@ object_t * object_create(data_t *constructor) {
   bound_method_t *bm;
   dict_t         *template = NULL;
 
-  ret = NEW(object_t);
+  ret = data_new(Object, object_t);
   ret -> refs = 1;
   ret -> constructing = FALSE;
   ret -> variables = strdata_dict_create();
@@ -287,7 +293,7 @@ object_t * object_create(data_t *constructor) {
 
 object_t * object_bind_all(object_t *object, data_t *template) {
   dict_t *variables = NULL;
-  
+
   if (data_is_script(template)) {
     variables = data_scriptval(template) -> functions;
   } else if (data_is_object(template)) {
@@ -299,27 +305,6 @@ object_t * object_bind_all(object_t *object, data_t *template) {
     dict_reduce(variables, (reduce_t) _object_set_all_reducer, object);
   }
   return object;
-}
-
-object_t* object_copy(object_t* object) {
-  if (object) {
-    object -> refs++;
-  }
-  return object;
-}
-
-void object_free(object_t *object) {
-  if (object) {
-    object -> refs--;
-    if (object -> refs <= 0) {
-      data_free(_object_call_attribute(object, "__finalize__", NULL, NULL));
-      dict_free(object -> variables);
-      data_free(object -> constructor);
-      data_free(object -> retval);
-      free(object -> str);
-      free(object -> debugstr);
-    }
-  }
 }
 
 data_t * object_get(object_t *object, char *name) {
@@ -340,7 +325,7 @@ data_t * object_get(object_t *object, char *name) {
 
 data_t * object_set(object_t *object, char *name, data_t *value) {
   bound_method_t *bm;
-  
+
   if (data_is_script(value)) {
     bm = script_bind(data_scriptval(value), object);
     value = data_create(BoundMethod, bm);
@@ -353,8 +338,8 @@ data_t * object_set(object_t *object, char *name, data_t *value) {
   }
   dict_put(object -> variables, strdup(name), data_copy(value));
   if (obj_debug) {
-    debug("   object_set('%s') -> variables = %s", 
-          object -> constructor ? data_tostring(object -> constructor) : "anon", 
+    debug("   object_set('%s') -> variables = %s",
+          object -> constructor ? data_tostring(object -> constructor) : "anon",
           dict_tostring(object -> variables));
   }
   return value;
@@ -375,38 +360,10 @@ data_t * object_call(object_t *object, array_t *args, dict_t *kwargs) {
   ret = _object_call_attribute(object, "__call__", args, kwargs);
   if (!ret || data_is_exception(ret)) {
     data_free(ret);
-    ret = data_exception(ErrorNotCallable, "Object '%s' is not callable", 
+    ret = data_exception(ErrorNotCallable, "Object '%s' is not callable",
                      object_tostring(object));
   }
   return ret;
-}
-
-char * object_tostring(object_t *object) {
-  data_t  *data;
-
-  data = _object_get(object, "name");
-  if (!data) {
-    data = _object_call_attribute(object, "__str__", NULL, NULL);
-  }
-  if (!data) {
-    object -> str = strdup(object_debugstr(object));
-  } else {
-    object -> str = strdup(data_charval(data));
-  }
-  data_free(data);
-  return object -> str;
-}
-
-char * object_debugstr(object_t *object) {
-  if (!object -> debugstr) {
-    if (object -> constructor) {
-      asprintf(&(object -> debugstr), "<%s object at %p>",
-               data_tostring(object -> constructor), object);
-    } else {
-      asprintf(&(object -> debugstr), "<anon object at %p>", object);
-    }
-  }
-  return object -> debugstr;
 }
 
 unsigned int object_hash(object_t *object) {
@@ -441,7 +398,7 @@ data_t * object_resolve(object_t *object, char *name) {
 
 data_t * object_ctx_enter(object_t *object) {
   data_t *ret = NULL;
-  
+
   ret = _object_call_attribute(object, "__enter__", NULL, NULL);
   if (ret && !data_is_exception(ret)) {
     ret = NULL;

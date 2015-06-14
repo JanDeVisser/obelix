@@ -57,32 +57,33 @@ typedef enum _vtable_id {
   FunctionFreeData,    /* 5  */
   FunctionFree,        /* 6  */
   FunctionToString,    /* 7  */
-  FunctionFltValue,    /* 8  */
-  FunctionIntValue,    /* 9  */
-  FunctionParse,       /* 10 */
-  FunctionCast,        /* 11 */
-  FunctionHash,        /* 12 */
-  FunctionLen,         /* 13 */
-  FunctionResolve,     /* 14 */
-  FunctionCall,        /* 15 */
-  FunctionSet,         /* 16 */
-  FunctionRead,        /* 17 */
-  FunctionWrite,       /* 18 */
-  FunctionOpen,        /* 19 */
-  FunctionIter,        /* 20 */
-  FunctionHasNext,     /* 21 */
-  FunctionNext,        /* 22 */
-  FunctionDecr,        /* 23 */
-  FunctionIncr,        /* 24 */
-  FunctionVisit,       /* 25 */
-  FunctionReduce,      /* 26 */
-  FunctionIs,          /* 27 */
-  FunctionQuery,       /* 28 */
-  FunctionEnter,       /* 29 */
-  FunctionLeave,       /* 30 */
-  FunctionPush,        /* 31 */
-  FunctionPop,         /* 32 */
-  FunctionConstructor, /* 33 */
+  FunctionAllocString, /* 8  */
+  FunctionFltValue,    /* 9  */
+  FunctionIntValue,    /* 10  */
+  FunctionParse,       /* 11 */
+  FunctionCast,        /* 12 */
+  FunctionHash,        /* 13 */
+  FunctionLen,         /* 14 */
+  FunctionResolve,     /* 15 */
+  FunctionCall,        /* 16 */
+  FunctionSet,         /* 17 */
+  FunctionRead,        /* 18 */
+  FunctionWrite,       /* 19 */
+  FunctionOpen,        /* 20 */
+  FunctionIter,        /* 21 */
+  FunctionHasNext,     /* 22 */
+  FunctionNext,        /* 23 */
+  FunctionDecr,        /* 24 */
+  FunctionIncr,        /* 25 */
+  FunctionVisit,       /* 26 */
+  FunctionReduce,      /* 27 */
+  FunctionIs,          /* 28 */
+  FunctionQuery,       /* 29 */
+  FunctionEnter,       /* 30 */
+  FunctionLeave,       /* 31 */
+  FunctionPush,        /* 32 */
+  FunctionPop,         /* 33 */
+  FunctionConstructor, /* 34 */
   FunctionEndOfListDummy
 } vtable_id_t;
 

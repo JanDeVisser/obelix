@@ -453,7 +453,6 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
 }
 
 char * data_tostring(data_t *data) {
-  int          len;
   char        *ret;
   typedescr_t *type;
   tostring_t   tostring;
@@ -464,14 +463,21 @@ char * data_tostring(data_t *data) {
     free(data -> str);
     data -> str = NULL;
     type = data_typedescr(data);
-    tostring = (tostring_t) typedescr_get_function(type, FunctionToString);
+    tostring = (tostring_t) typedescr_get_function(type, FunctionAllocString);
     if (tostring) {
-      ret = tostring(data);
-      if (ret && !data -> str) {
-	data -> str = strdup(ret);
+      data -> str = tostring(data);
+    }
+    if (!data -> str) {
+      tostring = (tostring_t) typedescr_get_function(type, FunctionToString);
+      if (tostring) {
+        ret = tostring(data);
+        if (ret && !data -> str) {
+          data -> str = strdup(ret);
+        }
       }
-    } else {
-      len = asprintf(&(data -> str), "data:%s:%p", data_typedescr(data) -> type_name, data);
+    }
+    if (!data -> str) {
+      asprintf(&(data -> str), "data:%s:%p", data_typedescr(data) -> type_name, data);
     }
     return data -> str;
   }

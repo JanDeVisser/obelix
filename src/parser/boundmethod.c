@@ -24,78 +24,79 @@
 
 /* ------------------------------------------------------------------------ */
 
-static void _bound_method_init(void) __attribute__((constructor(102)));
+static void   _bound_method_init(void) __attribute__((constructor(102)));
+static void   _bound_method_free(bound_method_t *);
+static char * _bound_method_tostring(bound_method_t *);
 
-static vtable_t _wrapper_vtable_bound_method[] = {
-  { .id = FunctionCopy,     .fnc = (void_t) bound_method_copy },
-  { .id = FunctionCmp,      .fnc = (void_t) bound_method_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) bound_method_free },
-  { .id = FunctionToString, .fnc = (void_t) bound_method_tostring },
-  { .id = FunctionCall,     .fnc = (void_t) bound_method_execute },
-  { .id = FunctionNone,     .fnc = NULL }
+static vtable_t _vtable_bound_method[] = {
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,         .fnc = (void_t) bound_method_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _bound_method_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _bound_method_allocstring },
+  { .id = FunctionCall,        .fnc = (void_t) bound_method_execute },
+  { .id = FunctionNone,        .fnc = NULL }
 };
+
+int BoundMethod = -1;
 
 /* ------------------------------------------------------------------------ */
 
 void _bound_method_init(void) {
-  wrapper_register(BoundMethod, "boundmethod", _wrapper_vtable_bound_method);
+  BoundMethod = typedescr_register(BoundMethod, "boundmethod",
+                                   _vtable_bound_method, NULL);
 }
 
-/* -- B O U N D  M E T H O D  F U N C T I O N S   ------------------------- */
+/* -- B O U N D  M E T H O D  S T A T I C  F U N C T I O N S -------------- */
 
-bound_method_t * bound_method_create(script_t *script, object_t *self) {
-  bound_method_t *ret = NEW(bound_method_t);
-  
-  ret -> script = script_copy(script);
-  ret -> self = object_copy(self);
-  ret -> closure = NULL;
-  ret -> str = NULL;
-  ret -> refs = 1;
-  return ret;
-}
-
-void bound_method_free(bound_method_t *bm) {
-  if (bm && ((--bm -> refs) <= 0)) {
+void _bound_method_free(bound_method_t *bm) {
+  if (bm) {
     script_free(bm -> script);
     object_free(bm -> self);
     closure_free(bm -> closure);
-    free(bm -> str);
     free(bm);
   }
 }
 
-bound_method_t * bound_method_copy(bound_method_t *bm) {
-  if (bm) {
-    bm -> refs++;
+char * _bound_method_allocstring(bound_method_t *bm) {
+  char *buf;
+
+  if (bm -> script) {
+    asprintf(&buf, "%s (bound)",
+             script_tostring(bm -> script));
+  } else {
+    buf = strdup("uninitialized");
   }
-  return bm;
+  return buf;
+}
+
+/* -- B O U N D  M E T H O D  P U B L I C  F U N C T I O N S   ------------ */
+
+bound_method_t * bound_method_create(script_t *script, object_t *self) {
+  bound_method_t *ret = data_new(BoundMethod, bound_method_t);
+
+  ret -> script = script_copy(script);
+  ret -> self = object_copy(self);
+  ret -> closure = NULL;
+  return ret;
 }
 
 int bound_method_cmp(bound_method_t *bm1, bound_method_t *bm2) {
-  return (!object_cmp(bm1 -> self, bm2 -> self)) 
-  ? script_cmp(bm1 -> script, bm2 -> script)
-  : 0;
-}
+  int cmp = object_cmp(bm1 -> self, bm2 -> self);
 
-char * bound_method_tostring(bound_method_t *bm) {
-  if (bm -> script) {
-    asprintf(&bm -> str, "%s (bound)", 
-             script_tostring(bm -> script));
-  } else {
-    bm -> str = strdup("uninitialized");
-  }
-  return bm -> str;
+  return (!cmp)
+    ? script_cmp(bm1 -> script, bm2 -> script)
+    : cmp;
 }
 
 data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwparams) {
   closure_t *closure;
   data_t    *self;
   data_t    *ret;
-  
+
   self = (bm -> self) ? data_create(Object, bm -> self) : NULL;
   closure = closure_create(bm -> script, bm -> closure, self);
   ret = closure_execute(closure, params, kwparams);
   closure_free(closure);
-  return ret;  
+  return ret;
 }
 

@@ -34,8 +34,6 @@
 #include <thread.h>
 #include <wrapper.h>
 
-int script_debug = 0;
-
 static void       _script_init(void) __attribute__((constructor(102)));
 
 static script_t * _script_set_instructions(script_t *, list_t *);
@@ -55,17 +53,14 @@ static vtable_t _vtable_script[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t _typedescr_script = {
-  .type      = Script,
-  .type_name = "script",
-  .vtable    = _vtable_script
-};
+int Script = -1;
+int script_debug = 0;
 
 /* ------------------------------------------------------------------------ */
 
 void _script_init(void) {
   logging_register_category("script", &script_debug);
-  typedescr_register(&_typedescr_script);
+  Script = typedescr_create_and_register(Script, "script", _vtable_script, NULL);
 }
 
 /* -- S C R I P T  S T A T I C  F U N C T I O N S  ------------------------ */
@@ -102,7 +97,7 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
   }
   ret = NEW(script_t);
   data_settype(&ret -> _d, Script);
-  
+
   ret -> functions = strdata_dict_create();
   ret -> params = NULL;
   ret -> async = 0;
@@ -159,7 +154,7 @@ script_t * script_get_toplevel(script_t *script) {
 data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
   closure_t *closure;
   data_t    *retval;
-  
+
   if (script_debug) {
     debug("script_execute(%s)", script_tostring(script));
   }
@@ -187,7 +182,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
     script -> mod -> obj = object_copy(retobj);
   }
   retobj -> constructing = TRUE;
-  retval = bound_method_execute(data_boundmethodval(retobj -> constructor), 
+  retval = bound_method_execute(data_boundmethodval(retobj -> constructor),
                                 params, kwparams);
   retobj -> constructing = FALSE;
   if (!data_is_exception(retval)) {

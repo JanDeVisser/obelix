@@ -27,14 +27,12 @@
 #include <dict.h>
 
 typedef struct _object {
+  data_t   _d;
   data_t  *constructor;
   int      constructing;
   void    *ptr;
   dict_t  *variables;
   data_t  *retval;
-  char    *str;
-  char    *debugstr;
-  int      refs;
 } object_t;
 
 extern data_t *            data_create_object(object_t *);
@@ -42,19 +40,26 @@ extern data_t *            data_create_object(object_t *);
 #define data_objectval(d)  (data_is_object((d)) ? ((object_t *) (d) -> ptrval) : NULL)
 
 extern object_t *          object_create(data_t *);
-extern void                object_free(object_t *);
 extern object_t *          object_copy(object_t *);
 extern data_t *            object_get(object_t *, char *);
 extern data_t *            object_set(object_t *, char *, data_t *);
 extern int                 object_has(object_t *, char *);
 extern data_t *            object_call(object_t *, array_t *, dict_t *);
-extern char *              object_tostring(object_t *);
-extern char *              object_debugstr(object_t *);
 extern unsigned int        object_hash(object_t *);
 extern int                 object_cmp(object_t *, object_t *);
 extern data_t *            object_resolve(object_t *, char *);
 extern object_t *          object_bind_all(object_t *, data_t *);
 extern data_t *            object_ctx_enter(object_t *);
 extern data_t *            object_ctx_leave(object_t *, data_t *);
+
+#define data_is_object(d)   ((d) && (data_hastype((data_t *) (d), Object)))
+#define data_as_object(d)   ((object_t *) (data_is_object((data_t *) (d)) ? (d) : NULL))
+#define object_free(o)      (data_free((data_t *) (o)))
+#define object_tostring(o)  (data_tostring((data_t *) (o)))
+#define object_debugstr(o)  (data_tostring((data_t *) (o)))
+#define object_copy(o)      ((object_t *) data_copy((data_t *) (o)))
+
+extern int obj_debug;
+extern int Object;
 
 #endif /* __OBJECT_H__ */

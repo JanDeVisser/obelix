@@ -45,7 +45,7 @@ static void                _grammar_build_parse_table_visitor(entry_t *);
 static ge_t *              _grammar_set_option(ge_t *, token_t *, token_t *);
 static function_t *        _grammar_resolve_function(grammar_t *, char *, char *);
 static char *              _grammar_tostring(grammar_t *);
- 
+
 static void                _nonterminal_free(nonterminal_t *);
 static set_t *             _nonterminal_get_firsts(nonterminal_t *);
 static set_t *             _nonterminal_get_follows(nonterminal_t *);
@@ -174,7 +174,7 @@ void _ge_init(void) {
   _typedescr_nonterminal.inherits[0] = GrammarElement;
   _typedescr_rule.inherits[0] = GrammarElement;
   _typedescr_rule_entry.inherits[0] = GrammarElement;
-  
+
   Grammar = typedescr_register(&_typedescr_grammar);
   NonTerminal = typedescr_register(&_typedescr_nonterminal);
   Rule = typedescr_register(&_typedescr_rule);
@@ -194,11 +194,11 @@ void _ga_free(grammar_action_t *grammar_action) {
 char * _ga_tostring(grammar_action_t *grammar_action) {
   if (!grammar_action -> _d.str) {
     if (grammar_action -> data) {
-      asprintf(&grammar_action -> _d.str, "%s [%s]", 
+      asprintf(&grammar_action -> _d.str, "%s [%s]",
                function_tostring(grammar_action -> fnc),
                data_tostring(grammar_action -> data));
     } else {
-      asprintf(&grammar_action -> _d.str, "%s", 
+      asprintf(&grammar_action -> _d.str, "%s",
                function_tostring(grammar_action -> fnc));
     }
   }
@@ -218,7 +218,7 @@ grammar_action_t * grammar_action_create(function_t *fnc, data_t *data) {
 
 int grammar_action_cmp(grammar_action_t *ga1, grammar_action_t *ga2) {
   int ret;
-  
+
   ret = function_cmp(ga1 -> fnc, ga2 -> fnc);
   if (!ret) {
     ret = data_cmp(ga1 -> data, ga2 -> data);
@@ -227,7 +227,7 @@ int grammar_action_cmp(grammar_action_t *ga1, grammar_action_t *ga2) {
 }
 
 unsigned int grammar_action_hash(grammar_action_t *grammar_action) {
-  return hashblend(function_hash(grammar_action -> fnc), 
+  return hashblend(function_hash(grammar_action -> fnc),
                    data_hash(grammar_action -> data));
 }
 
@@ -246,7 +246,7 @@ ge_t * _ge_initialize(ge_t *ge, grammar_t *grammar, ge_t *owner, grammar_element
 
 void _ge_free(ge_t *ge) {
   free_t free_fnc;
-  
+
   if (ge) {
     dict_free(ge -> variables);
     list_free(ge -> actions);
@@ -256,7 +256,7 @@ void _ge_free(ge_t *ge) {
 
 char * _ge_dump_variable(entry_t *entry, char *varname) {
   token_t *tok = (token_t *) entry -> value;
-  
+
   printf("  dict_put(%s -> ge.variables, strdup(\"%s\"), token_create(%d, \"%s\"));\n",
          varname, (char *) entry -> key, token_code(tok), token_token(tok));
   return varname;
@@ -266,24 +266,24 @@ char ** _ge_dump_action(grammar_action_t *ga, char **ctx) {
   function_t *fnc = ga -> fnc;
   data_t     *d = ga -> data;
   char       *data;
-  
+
   if (d) {
     asprintf(&data, "data_parse(%d, \"%s\")", data_type(d), data_tostring(d));
   } else {
     data = strdup("NULL");
   }
- 
+
   printf("  %s_add_action(%s,\n"
          "    grammar_action_create(\n"
          "      grammar_resolve_function(grammar, \"%s\"), %s));\n",
-         ctx[0], ctx[1], fnc -> name, data);
+         ctx[0], ctx[1], name_tostring_sep(fnc -> name, ":"), data);
   free(data);
   return ctx;
 }
 
 void _ge_dump(ge_t *ge, char *prefix, char *varname) {
   char *ctx[2];
-  
+
   dict_reduce(ge -> variables, (reduce_t) _ge_dump_variable, varname);
   ctx[0] = prefix;
   ctx[1] = varname;
@@ -311,7 +311,7 @@ ge_t * ge_set_option(ge_t *ge, token_t *name, token_t *val) {
       if (val) {
         dict_put(ge -> variables, strdup(namestr + 1), token_copy(val));
       } else {
-        error("ge_set_option: Cannot set grammar option '%s' on %s", 
+        error("ge_set_option: Cannot set grammar option '%s' on %s",
               namestr, ge_tostring(ge));
         ge = NULL;
       }
@@ -323,7 +323,7 @@ ge_t * ge_set_option(ge_t *ge, token_t *name, token_t *val) {
         data_free(data);
         function_free(fnc);
       } else {
-        error("ge_set_option: Cannot set grammar option '%s' on %s", 
+        error("ge_set_option: Cannot set grammar option '%s' on %s",
               namestr, ge_tostring(ge));
         ge = NULL;
       }
@@ -439,7 +439,7 @@ ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
   grammar_t  *g = (grammar_t *) ge;
   char       *str;
   function_t *fnc;
-  
+
   if (!val) return NULL;
 
   if (!strcmp(token_token(name), LIB_STR)) {
@@ -509,30 +509,30 @@ function_t * _grammar_resolve_function(grammar_t *grammar, char *prefix, char *f
 }
 
 /* -- G R A M M A R  P U B L I C  F U N C T I O N S -----------------------*/
- 
+
 grammar_t * grammar_create() {
   grammar_t *ret;
   int        ix;
-  
+
   ret = NEW(grammar_t);
-  ret = (grammar_t *) _ge_initialize((ge_t *) ret, 
-                                     ret, 
-                                     NULL, 
+  ret = (grammar_t *) _ge_initialize((ge_t *) ret,
+                                     ret,
+                                     NULL,
                                      Grammar);
   ret -> entrypoint = NULL;
   ret -> prefix = NULL;
   ret -> libs = NULL;
   ret -> strategy = ParsingStrategyTopDown;
   ret -> dryrun = FALSE;
-  
+
   ret -> keywords = intdata_dict_create();
   ret -> nonterminals = strdata_dict_create();
-  
+
   ret -> lexer_options = array_create((int) LexerOptionLAST);
   for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
     grammar_set_lexer_option(ret, ix, 0L);
   }
-  
+
   ret -> ge.set_option_delegate = (set_option_t) _grammar_set_option;
   return ret;
 }
@@ -562,7 +562,7 @@ long grammar_get_lexer_option(grammar_t *grammar, lexer_option_t option) {
 void grammar_dump(grammar_t *grammar) {
   int   ix;
   char *lib;
-  
+
   printf("#include <grammar.h>\n"
          "\n"
          "grammar_t * build_grammar() {\n"
@@ -611,12 +611,12 @@ function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
   function_t *ret = NULL;
   char       *prefix = grammar -> prefix;
   int         starts_with_prefix;
-  
+
   if (grammar -> dryrun) {
     ret = function_create_noresolve(func_name);
     return ret;
   }
-  
+
   starts_with_prefix = prefix && prefix[0] && !strncmp(func_name, prefix, strlen(prefix));
   if (!starts_with_prefix) {
     ret = _grammar_resolve_function(grammar, prefix, func_name);
@@ -625,7 +625,7 @@ function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
     ret = _grammar_resolve_function(grammar, "parser_", func_name);
   }
   if (!ret) {
-    ret = _grammar_resolve_function(grammar, NULL, func_name);      
+    ret = _grammar_resolve_function(grammar, NULL, func_name);
   }
   return ret;
 }
@@ -812,8 +812,8 @@ grammar_t * _nonterminal_dump_terminal(unsigned int code, grammar_t *grammar) {
 void _nonterminal_dump(ge_t *ge_nt) {
   grammar_t *grammar = ge_nt -> grammar;
   nonterminal_t *nt = (nonterminal_t *) ge_nt;
-  
-  if (!grammar -> entrypoint || 
+
+  if (!grammar -> entrypoint ||
       strcmp(nt -> name, grammar -> entrypoint -> name)) {
     nonterminal_dump((nonterminal_t *) ge_nt);
   }
@@ -827,9 +827,9 @@ nonterminal_t * nonterminal_create(grammar_t *grammar, char *name) {
   nonterminal_t *ret;
 
   ret = NEW(nonterminal_t);
-  ret = (nonterminal_t *) _ge_initialize((ge_t *) ret, 
-                                         grammar, 
-                                         (ge_t *) grammar, 
+  ret = (nonterminal_t *) _ge_initialize((ge_t *) ret,
+                                         grammar,
+                                         (ge_t *) grammar,
                                          NonTerminal);
   ret -> firsts = NULL;
   ret -> follows = NULL;
@@ -850,7 +850,7 @@ void nonterminal_dump(nonterminal_t *nonterminal) {
   list_t         *parse_table;
   listiterator_t *iter;
   entry_t        *entry;
-  
+
   printf("  nonterminal = nonterminal_create(grammar, \"%s\");\n", nonterminal -> name);
   _ge_dump((ge_t *) nonterminal, "nonterminal", "nonterminal");
   array_visit(nonterminal -> rules, (visit_t) rule_dump);
@@ -944,9 +944,9 @@ void _rule_build_parse_table(rule_t *rule) {
 rule_t * rule_create(nonterminal_t *nonterminal) {
   rule_t  *ret = NEW(rule_t);
 
-  ret = (rule_t *) _ge_initialize((ge_t *) ret, 
-                                  nonterminal_get_grammar(nonterminal), 
-                                  (ge_t *) nonterminal, 
+  ret = (rule_t *) _ge_initialize((ge_t *) ret,
+                                  nonterminal_get_grammar(nonterminal),
+                                  (ge_t *) nonterminal,
                                   Rule);
   ret -> firsts = NULL;
   ret -> follows = NULL;
@@ -974,9 +974,9 @@ rule_entry_t * _rule_entry_create(rule_t *rule, int terminal, void *ptr) {
   rule_entry_t *ret;
 
   ret = NEW(rule_entry_t);
-  ret = (rule_entry_t *) _ge_initialize((ge_t *) ret, 
-                                        rule_get_grammar(rule), 
-                                        (ge_t *) rule, 
+  ret = (rule_entry_t *) _ge_initialize((ge_t *) ret,
+                                        rule_get_grammar(rule),
+                                        (ge_t *) rule,
                                         RuleEntry);
   ret -> terminal = terminal;
   if (terminal) {
@@ -1061,8 +1061,8 @@ void rule_entry_dump(rule_entry_t *entry) {
   token_t      *kw;
 
   if (entry -> terminal) {
-    printf("  entry = rule_entry_terminal(rule, token_create(%d, \"%s\"));\n", 
-           token_code(entry -> token), 
+    printf("  entry = rule_entry_terminal(rule, token_create(%d, \"%s\"));\n",
+           token_code(entry -> token),
            (token_code(entry -> token) != 34) ? token_token(entry -> token) : "\\\"");
   } else {
     printf("  entry = rule_entry_non_terminal(rule, \"%s\");\n", entry -> nonterminal);

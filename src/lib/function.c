@@ -174,8 +174,8 @@ unsigned int function_hash(function_t *fnc) {
   return hashblend(name_hash(fnc -> name), hashptr(fnc -> fnc));
 }
 
-data_t * function_call(function_t *fnc, array_t *args, dict_t *kwargs) {
-  return ((native_t) fnc -> fnc)(args, kwargs);
+data_t * function_call(function_t *fnc, char *name, array_t *args, dict_t *kwargs) {
+  return ((native_t) fnc -> fnc)(name, args, kwargs);
 }
 
 /* ------------------------------------------------------------------------ */

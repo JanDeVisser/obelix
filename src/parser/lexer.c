@@ -25,6 +25,7 @@
 
 #include <array.h>
 #include <dict.h>
+#include <function.h>
 #include <lexer.h>
 #include <logging.h>
 
@@ -185,7 +186,7 @@ int _is_identifier(str_t *str) {
   int   ix;
   int   len;
   int   c;
-  
+
   len = str_len(str);
   for (ix = 0; ix < len; ix++) {
     c = s[ix];
@@ -222,7 +223,7 @@ char * lexer_option_name(lexer_option_t option) {
 
 kw_matches_t * _kw_matches_create(list_t *keywords) {
   kw_matches_t *ret = NEW(kw_matches_t);
-  
+
   ret -> matches = 0;
   ret -> keywords = keywords;
   ret -> code = TokenCodeNone;
@@ -254,7 +255,7 @@ kw_matches_t * _kw_matches_match_reducer(token_t *kw_token, kw_matches_t *kw_mat
 
 kw_matches_t * _kw_matches_match(kw_matches_t *kw_matches, str_t *token) {
   kw_match_state_t state = kw_matches -> state;
-  
+
   kw_matches -> token = str_deepcopy(token);
   kw_matches -> code = TokenCodeNone;
   kw_matches -> matches = 0;
@@ -263,7 +264,7 @@ kw_matches_t * _kw_matches_match(kw_matches_t *kw_matches, str_t *token) {
   }
 
   list_reduce(kw_matches -> keywords,
-              (reduce_t) _kw_matches_match_reducer, 
+              (reduce_t) _kw_matches_match_reducer,
               kw_matches);
   switch (kw_matches -> matches) {
     case 0:
@@ -273,7 +274,7 @@ kw_matches_t * _kw_matches_match(kw_matches_t *kw_matches, str_t *token) {
         : KMSNoMatch;
       break;
     case 1:
-      kw_matches -> state = (kw_matches -> code) 
+      kw_matches -> state = (kw_matches -> code)
         ? KMSFullMatch
         : KMSPrefixMatched;
       break;
@@ -319,7 +320,7 @@ void _lexer_free(lexer_t *lexer) {
 
 char * _lexer_tostring(lexer_t *lexer) {
   if (!lexer -> _d.str) {
-    asprintf(&lexer -> _d.str, "Lexer for '%s'", 
+    asprintf(&lexer -> _d.str, "Lexer for '%s'",
              data_tostring(lexer -> reader));
   }
   return NULL;
@@ -328,7 +329,7 @@ char * _lexer_tostring(lexer_t *lexer) {
 data_t * _lexer_keyword_list(lexer_t *lexer) {
   array_t *kw = data_array_create(list_size(lexer -> keywords));
   data_t  *ret;
-  
+
   for (list_start(lexer -> keywords); list_has_next(lexer -> keywords); ) {
     array_push(kw, data_copy(list_next(lexer -> keywords)));
   }
@@ -374,7 +375,7 @@ data_t * _lexer_mth_rollup(lexer_t *lexer, char *n, array_t *args, dict_t *kwarg
 
 tokenize_ctx_t * _lexer_tokenize_reducer(token_t *token, tokenize_ctx_t *ctx) {
   data_t *d;
-  
+
   array_set(ctx -> args, 0, data_create(Token, token));
   d = data_call(ctx -> parser, ctx -> args, NULL);
   if (d != data_array_get(ctx -> args, 0)) {
@@ -391,10 +392,10 @@ data_t * _lexer_mth_tokenize(lexer_t *lexer, char *n, array_t *args, dict_t *kwa
   tokenize_ctx_t  ctx;
   data_t         *ret;
   void           *retval;
-  
+
   ctx.parser = data_copy(data_array_get(args, 0));
   ctx.args = data_array_create(3);
-  
+
   array_set(ctx.args, 0, NULL);
   array_set(ctx.args, 1, data_copy(data_array_get(args, 1)));
   array_set(ctx.args, 2, data_create(Lexer, lexer));
@@ -487,7 +488,7 @@ void _lexer_push_all_back(lexer_t *lexer) {
     lexer -> pushed_back = str_deepcopy(lexer -> token);
   }
 #ifdef LEXER_DEBUG
-  debug("_lexer_push_all_back: pushed_back: '%s'", 
+  debug("_lexer_push_all_back: pushed_back: '%s'",
         str_chars(lexer -> pushed_back));
 #endif
   str_erase(lexer -> token);
@@ -495,16 +496,16 @@ void _lexer_push_all_back(lexer_t *lexer) {
 
 int _lexer_keyword_match(lexer_t *lexer) {
   int   ret = TokenCodeNone;
-  
+
 #ifdef LEXER_DEBUG
   debug("_lexer_keyword_match in - lexer state: %s matcher state: %s",
-        lexer_state_name(lexer -> state), 
+        lexer_state_name(lexer -> state),
         _state_name(matcher_state_names, lexer -> matches -> state));
 #endif
   if (!str_len(lexer -> token)) {
     return ret;
   }
-  
+
   _kw_matches_match(lexer -> matches, lexer -> token);
   switch (lexer -> matches -> state) {
     case KMSNoMatch:
@@ -520,7 +521,7 @@ int _lexer_keyword_match(lexer_t *lexer) {
   }
 #ifdef LEXER_DEBUG
   debug("_lexer_keyword_match out - lexer state: %s matcher state: %s",
-        lexer_state_name(lexer -> state), 
+        lexer_state_name(lexer -> state),
         _state_name(matcher_state_names, lexer -> matches -> state));
 #endif
   return ret;
@@ -543,7 +544,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
   int             ignore_nl;
   list_t         *matches;
   listiterator_t *iter;
-  
+
   ignore_nl = lexer_get_option(lexer, LexerOptionIgnoreNewLines);
   _lexer_update_location(lexer, ch);
   str_append_char(lexer -> token, ch);
@@ -551,13 +552,13 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
   ret = NULL;
 #ifdef LEXER_DEBUG
   debug("_lexer_match_token in - lexer state: %s matcher state: %s ch: '%c' tok: '%s'",
-        lexer_state_name(lexer -> state), 
+        lexer_state_name(lexer -> state),
         _state_name(matcher_state_names, lexer -> matches -> state),
         (ch > 0) ? ch : '$',
         str_chars(lexer -> token));
 #endif
   switch (lexer -> state) {
-    
+
     case LexerStateInit:
       if (lexer -> matches -> state != KMSNoMatch) {
         code = _lexer_keyword_match(lexer);
@@ -569,7 +570,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
           lexer -> state = LexerStateWhitespace;
         } else if (isalpha(ch) || (ch == '_')) {
           lexer -> state = LexerStateIdentifier;
-        } else if (lexer_get_option(lexer, LexerOptionSignedNumbers) && 
+        } else if (lexer_get_option(lexer, LexerOptionSignedNumbers) &&
                    ((ch == '-') || (ch == '+'))) {
           lexer -> quote = ch;
           lexer -> state = LexerStatePlusMinus;
@@ -591,7 +592,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
         }
       }
       break;
-      
+
     case LexerStateNewLine:
       if ((ch <= 0) || ((ch != '\n') && (ch != '\r'))) {
         _lexer_push_back(lexer, ch);
@@ -806,7 +807,7 @@ int _lexer_accept(lexer_t *lexer, token_t *token) {
   long ignore_all_ws = lexer_get_option(lexer, LexerOptionIgnoreAllWhitespace);
   long ignore_ws = ignore_all_ws || lexer_get_option(lexer, LexerOptionIgnoreWhitespace);
   long ignore_nl = ignore_all_ws || lexer_get_option(lexer, LexerOptionIgnoreNewLines);
-  
+
   if (!token) {
     return 1;
     /* FIXME Counter-intuitive but lexer_next_token deals with a NULL token */
@@ -823,7 +824,7 @@ int _lexer_accept(lexer_t *lexer, token_t *token) {
 lexer_t * _lexer_on_newline(lexer_t *lexer, int line) {
   function_t  *fnc;
   newline_fnc  on_newline;
-  
+
   if (fnc = (function_t *) lexer_get_option(lexer, LexerOptionOnNewLine)) {
     on_newline = (newline_fnc) fnc -> fnc;
     return on_newline(lexer, line);
@@ -837,7 +838,7 @@ lexer_t * _lexer_on_newline(lexer_t *lexer, int line) {
 lexer_t * lexer_create(data_t *reader) {
   lexer_t *ret;
   int      ix;
-  
+
   ret = NEW(lexer_t);
   data_settype(&ret -> _d, Token);
   ret -> reader = reader;
@@ -885,7 +886,7 @@ token_t * lexer_next_token(lexer_t *lexer) {
   int          ch;
   token_t     *ret;
   int          first;
-  
+
   if (!lexer -> last_token) {
     _lexer_on_newline(lexer, 1);
     lexer -> matches = _kw_matches_create(lexer -> keywords);
@@ -899,10 +900,10 @@ token_t * lexer_next_token(lexer_t *lexer) {
     token_free(lexer -> last_token);
     lexer -> last_token = NULL;
   }
-  
+
   first = lexer -> state == LexerStateFresh;
   ret = NULL;
-  
+
   do {
     lexer -> state = LexerStateInit;
     str_erase(lexer -> token);
@@ -936,7 +937,7 @@ token_t * lexer_next_token(lexer_t *lexer) {
     _kw_matches_free(lexer -> matches);
     lexer -> matches = NULL;
   }
-  
+
   if (ret && lexer_debug) {
     debug("lexer_next_token out: token: %s [%s], state %s",
           token_code_name(ret -> code), ret -> token, lexer_state_name(lexer -> state));
@@ -949,10 +950,10 @@ token_t * lexer_rollup_to(lexer_t *lexer, int marker) {
   str_t   *str;
   int      ch;
   char    *msgbuf;
-  
+
   str = str_create(10);
-  for (ch = _lexer_get_char(lexer); 
-       ch && (ch != marker); 
+  for (ch = _lexer_get_char(lexer);
+       ch && (ch != marker);
        ch = _lexer_get_char(lexer)) {
     if (ch == '\\') {
       ch = _lexer_get_char(lexer);

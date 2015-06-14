@@ -21,12 +21,13 @@
 #define __FUNCTION_H__
 
 #include <data.h>
+#include <name.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-typedef data_t * (*native_t)(array_t *, dict_t *);
+typedef data_t * (*native_t)(char *, array_t *, dict_t *);
 
 typedef struct _function {
   data_t   _d;
@@ -46,11 +47,11 @@ extern int             function_cmp(function_t *, function_t *);
 extern function_t *    function_resolve(function_t *fnc);
 extern data_t *        function_call(function_t *, array_t *, dict_t *);
 
-#define data_is_function(d)  ((d) && data_hastype((d), Native))
+#define data_is_function(d)  ((d) && data_hastype((d), Function))
 #define data_as_function(d)  (data_is_function((d)) ? ((function_t *) (d)) : NULL)
-#define function_copy(o)     ((function_t *) data_copy((s)))
-#define function_tostring(o) (data_tostring((s))
-#define function_free(o)     (data_free((s))
+#define function_copy(o)     ((function_t *) data_copy((data_t *) (o)))
+#define function_tostring(o) (data_tostring((data_t *) (o)))
+#define function_free(o)     (data_free((data_t *) (o)))
 
 extern int Function;
   

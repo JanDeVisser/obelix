@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <config.h>
 #include <data.h>
 #include <datastack.h>
 #include <exception.h>
@@ -251,7 +252,7 @@ thread_t * thread_setname(thread_t *thread, char *name) {
   assert(name);
   free(thread -> name);
   thread -> name = strdup(name);
-#ifdef _GNU_SOURCE
+#ifdef HAVE_PTHREAD_SETNAME_NP
   pthread_setname_np(thread -> thr_id, thread -> name);
 #endif
   return thread;

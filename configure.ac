@@ -11,7 +11,23 @@ AC_PROG_CC
 
 AC_CONFIG_SRCDIR(src/bin/obelix.c)
 AC_CONFIG_HEADERS([config.h])
-AC_CHECK_FUNCS([asprintf vasprintf pthread_setname_np])
+
+AC_CHECK_LIB(pthread, pthread_setname_np)
+AC_MSG_CHECKING(for pthread_setname_np)
+AC_TRY_LINK(
+[
+ #define _GNU_SOURCE
+ #include <pthread.h>
+],
+[pthread_setname_np(pthread_self(), "name");],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE([HAVE_PTHREAD_SETNAME_NP], [1],
+      [Define to 1 if you have the glibc version of pthread_setname_np]),
+    AC_MSG_RESULT(no)
+)
+
+dnl AC_CHECK_FUNCS([asprintf vasprintf pthread_setname_np])
+AC_CHECK_FUNCS([asprintf vasprintf])
 
 AC_CONFIG_FILES([ \
   Makefile \

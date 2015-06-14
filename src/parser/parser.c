@@ -36,13 +36,15 @@ typedef struct _parser_stack_entry {
 static void                   _parser_init(void) __attribute__((constructor(102)));
 
 static parser_stack_entry_t * _parser_stack_create(data_t *);
+static parser_stack_entry_t * _parser_stack_entry_create(int type, data_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_rule(rule_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_nonterminal(nonterminal_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_entry(rule_entry_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_action(grammar_action_t *);
 static void                   _parser_stack_entry_free(parser_stack_entry_t *);
-static char *                 _parser_stack_entry_tostring(parser_stack_entry_t *);
 
+static parser_t *             _parser_push_grammar_element(parser_t *, ge_t *);
+static parser_t *             _parser_push_to_prodstack(parser_t *, parser_stack_entry_t *);
 static parser_t *             _parser_set(entry_t *, parser_t *);
 static parser_t *             _parser_push_setvalues(entry_t *, parser_t *);
 static int                    _parser_ll1_token_handler(token_t *, parser_t *, int);
@@ -56,15 +58,11 @@ static data_t *               _parser_create(int, va_list);
 static void                   _parser_free(parser_t *);
 static char *                 _parser_tostring(parser_t *);
 static data_t *               _parser_call(parser_t *, array_t *, dict_t *);
-  
+
        int parser_debug = 0;
 extern int script_debug;
        int Parser = -1;
        int ParserStackEntry = -1;
-       int PSETypeNonTerminal = -1;
-       int PSETypeRule = -1;
-       int PSETypeEntry = -1;
-       int PSETypeAction = -1;
 
 /* ------------------------------------------------------------------------ */
 
@@ -96,24 +94,27 @@ static typedescr_t _typedescr_parser_stack_entry = {
 
 #define PSEType(t)                                                           \
 int             PSEType ## t = -1;                                           \
-static data_t * _pse_call_ ## t(data_t *, array_t *, dict_t *);              \
-static data_t * _pse_execute_ ## t(parser_stack_entry_t *, parser_t *);      \
-static void     _register_ ## t(void) __attribute__((constructor(200)));     \
+static data_t * _pse_call_ ## t(data_t *, array_t *, dict_t *);            \
+static data_t * _pse_execute_ ## t(parser_stack_entry_t *, parser_t *, token_t *, int); \
+static char *   _pse_allocstring_ ## t(parser_stack_entry_t *);            \
+static void     _register_ ## t(void) __attribute__((constructor(200)));   \
 static vtable_t _vtable_ ## t [] = {                                         \
-  { .id = FunctionCall,     .fnc = (void_t) _pse_call_ ## t },               \
-  { .id = FunctionToString, .fnc = (void_t) _pse_tostring_ ## t },           \
-  { .id = FunctionNone, .fnc = NULL }                                        \
+  { .id = FunctionCall,        .fnc = (void_t) _pse_call_ ## t },            \
+  { .id = FunctionAllocString, .fnc = (void_t) _pse_allocstring_ ## t },     \
+  { .id = FunctionNone,        .fnc = NULL }                                 \
 };                                                                           \
 void _register_ ## t(void) {                                                 \
-  IT ## t = _pse_type_register(#t, _vtable_ ## t);                           \
+  PSEType ## t = _pse_type_register(#t, _vtable_ ## t);                      \
 }                                                                            \
 data_t * _pse_call_ ## t(data_t *data, array_t *p, dict_t *kw) {             \
   parser_stack_entry_t *pse = (parser_stack_entry_t *) data;                 \
-  data_t               *parser = data_array_get(p, 0);                       \
+  parser_t             *parser = (parser_t *) array_get(p, 0);               \
+  token_t              *token = (token_t *) array_get(p, 1);                 \
+  data_t               *consuming = data_array_get(p, 2);                    \
   if (parser_debug) {                                                        \
     debug("Executing %s", data_tostring(data));                              \
   }                                                                          \
-  return _pse_execute_ ## t(pse, (parser_t *) parser);                       \
+  return _pse_execute_ ## t(pse, parser, token, data_intval(consuming));     \
 }
 
 PSEType(NonTerminal);
@@ -131,83 +132,160 @@ void _parser_init(void) {
 
 /* -- P A R S E R _ S T A C K _ E N T R Y --------------------------------- */
 
-parser_stack_entry_t * _parser_stack_entry_for_nonterminal(nonterminal_t *nonterminal) {
+parser_stack_entry_t * _parser_stack_entry_create(int type, data_t *subject) {
   parser_stack_entry_t *ret;
 
-  ret = NEW(parser_stack_entry_t);
-  ret -> type = PSETypeNonTerminal;
-  ret -> nonterminal = nonterminal;
-  ret -> str = NULL;
+  ret = data_new(type, parser_stack_entry_t);
+  ret -> subject = subject;
   return ret;
+}
+
+
+parser_stack_entry_t * _parser_stack_entry_for_nonterminal(nonterminal_t *nonterminal) {
+  return _parser_stack_entry_create(PSETypeNonTerminal, (data_t *) nonterminal);
 }
 
 parser_stack_entry_t * _parser_stack_entry_for_rule(rule_t *rule) {
-  parser_stack_entry_t *ret;
-
-  ret = NEW(parser_stack_entry_t);
-  ret -> type = PSETypeRule;
-  ret -> rule = rule;
-  ret -> str = NULL;
-  return ret;
+  return _parser_stack_entry_create(PSETypeRule, (data_t *) rule);
 }
 
 parser_stack_entry_t * _parser_stack_entry_for_entry(rule_entry_t *entry) {
-  parser_stack_entry_t *ret;
-
-  ret = NEW(parser_stack_entry_t);
-  ret -> type = PSETypeEntry;
-  ret -> entry = entry;
-  ret -> str = NULL;
-  return ret;
+  return _parser_stack_entry_create(PSETypeEntry, (data_t *) entry);
 }
 
 parser_stack_entry_t * _parser_stack_entry_for_action(grammar_action_t *action) {
-  parser_stack_entry_t *ret;
-
-  ret = NEW(parser_stack_entry_t);
-  ret -> type = PSETypeAction;
-  ret -> action = action;
-  ret -> str = NULL;
-  return ret;
+  return _parser_stack_entry_create(PSETypeAction, (data_t *) action);
 }
 
 void _parser_stack_entry_free(parser_stack_entry_t *entry) {
   if (entry) {
-    free(entry -> str);
     free(entry);
   }
 }
 
-char * _parser_stack_entry_tostring(parser_stack_entry_t *e) {
-  nonterminal_t *nonterminal;
-  rule_entry_t  *entry;
+/* -- P S E T Y P E  N O N T E R M I N A L -------------------------------- */
 
-  if (!e -> str) {
-    switch (e -> type) {
-      case PSETypeNonTerminal:
-        asprintf(&e -> str, "N {%s}", e -> nonterminal -> name);
-        break;
-      case PSETypeEntry:
-        entry = e -> entry;
-        if (entry -> terminal) {
-          asprintf(&e -> str, "T {%s}", token_tostring(entry -> token));
-        } else {
-          asprintf(&e -> str, "N {%s}", entry -> nonterminal);
-        }
-        break;
-      case PSETypeAction:
-        asprintf(&e -> str, "A %s", grammar_action_tostring(e -> action));
-        break;
+char * _pse_allocstring_NonTerminal(parser_stack_entry_t *e) {
+  char *buf;
+
+  asprintf(&buf, " N {%s}", data_tostring(e -> subject));
+  return buf;
+}
+
+data_t * _pse_execute_NonTerminal(parser_stack_entry_t *e, parser_t *parser, token_t *token, int consuming) {
+  int            code = token_code(token);
+  nonterminal_t *nonterminal = (nonterminal_t *) e -> subject;
+  rule_t        *rule;
+  int            i;
+  rule_entry_t  *entry;
+  nonterminal_t *new_nt;
+
+  if (parser_debug) {
+    info("[NT] %s", nonterminal -> name);
+  }
+  rule = dict_get_int(nonterminal -> parse_table, code);
+  if (!rule) {
+    parser -> error = data_exception(ErrorSyntax,
+                                 "Unexpected token '%s'",
+                                 token_tostring(token));
+  } else if (array_size(rule -> entries)) {
+    for (i = array_size(rule -> entries) - 1; i >= 0; i--) {
+      entry = rule_get_entry(rule, i);
+      if (entry -> terminal) {
+        _parser_push_grammar_element(parser, (ge_t *) entry);
+        _parser_push_to_prodstack(
+            parser, _parser_stack_entry_for_entry(entry));
+      } else {
+        _parser_push_grammar_element(parser, (ge_t *) entry);
+        new_nt = grammar_get_nonterminal(parser -> grammar, entry -> nonterminal);
+        _parser_push_to_prodstack(
+            parser,
+            _parser_stack_entry_for_nonterminal(new_nt));
+        _parser_push_grammar_element(parser, (ge_t *) new_nt);
+      }
     }
   }
-  return e -> str;
+  _parser_push_grammar_element(parser, (ge_t *) rule);
+  return data_create(Int, 2);
+}
+/* -- P S E T Y P E  R U L E ---------------------------------------------- */
+
+char * _pse_allocstring_Rule(parser_stack_entry_t *e) {
+  char *buf;
+
+  asprintf(&buf, " R {%s}", data_tostring(e -> subject));
+  return buf;
+}
+
+data_t * _pse_execute_Rule(parser_stack_entry_t *e, parser_t *parser, token_t *token, int consuming) {
+  return data_create(Int, consuming);
+}
+
+/* -- P S E T Y P E  E N T R Y -------------------------------------------- */
+
+char * _pse_allocstring_Entry(parser_stack_entry_t *e) {
+  rule_entry_t *entry = (rule_entry_t *) e -> subject;
+  char         *buf;
+
+  if (entry -> terminal) {
+    asprintf(&buf, "ET {%s}", token_tostring(entry -> token));
+  } else {
+    asprintf(&buf, "EN {%s}", entry -> nonterminal);
+  }
+  return buf;
+}
+
+data_t * _pse_execute_Entry(parser_stack_entry_t *e, parser_t *parser, token_t *token, int consuming) {
+  rule_entry_t *entry = (rule_entry_t *) e -> subject;
+
+  assert(entry -> terminal);
+  if (token_cmp(entry -> token, token)) {
+    parser -> error = data_exception(ErrorSyntax,
+                                     "Expected '%s' but got '%s' instead",
+                                     token_tostring(entry -> token),
+                                     token_tostring(token));
+  }
+  if (parser_debug) {
+    info("[ T] %s", token_tostring(entry -> token));
+  }
+  return data_create(Int, 1);
+}
+
+/* -- P S E T Y P E  A C T I O N ------------------------------------------ */
+
+char * _pse_allocstring_Action(parser_stack_entry_t *e) {
+  char *buf;
+
+  asprintf(&buf, " A {%s}", data_tostring(e -> subject));
+  return buf;
+}
+
+data_t * _pse_execute_Action(parser_stack_entry_t *e, parser_t *parser, token_t *token, int consuming) {
+  parser_t         *ret;
+  grammar_action_t *action = (grammar_action_t *) e -> subject;
+
+  assert(action && action -> fnc && action -> fnc -> fnc);
+  if (parser_debug) {
+    debug("    Executing action %s", grammar_action_tostring(action));
+  }
+  if (action -> data) {
+    ret = ((parser_data_fnc_t) action -> fnc -> fnc)(parser, action -> data);
+  } else {
+    ret = ((parser_fnc_t) action -> fnc -> fnc)(parser);
+  }
+  if (!ret) {
+    parser -> error = data_exception(ErrorSyntax,
+                                     "Error executing grammar action %s",
+                                     grammar_action_tostring(action));
+  }
+  return data_create(Int, consuming);
 }
 
 /* -- P A R S E R  D A T A  F U N C T I O N S ----------------------------- */
 
 data_t * _parser_create(int type, va_list args) {
   parser_t *parser = va_arg(args, parser_t *);
-  
+
   return data_copy(&parser -> _d);
 }
 
@@ -225,7 +303,7 @@ void _parser_free(parser_t *parser) {
 
 char * _parser_tostring(parser_t *parser) {
   if (!parser -> _d.str) {
-    asprintf(&parser -> _d.str, "Parser for '%s'", 
+    asprintf(&parser -> _d.str, "Parser for '%s'",
              data_tostring(parser -> lexer -> reader));
   }
   return NULL;
@@ -238,7 +316,7 @@ parser_t * _parser_set(entry_t *e, parser_t *parser) {
 
 data_t * _parser_call(parser_t *parser, array_t *args, dict_t *kwargs) {
   data_t *reader = data_array_get(args, 0);
-  
+
   parser_clear(parser);
   if (kwargs) {
     dict_reduce(kwargs, (reduce_t) _parser_set, parser);
@@ -316,7 +394,7 @@ parser_t * _parser_push_setvalues(entry_t *entry, parser_t *parser) {
 
 parser_t * _parser_push_grammar_element(parser_t *parser, ge_t *element) {
   grammar_action_t *action;
-  
+
   dict_reduce(element -> variables, (reduce_t) _parser_push_setvalues, parser);
   for (list_end(element -> actions); list_has_prev(element -> actions); ) {
     action = list_prev(element -> actions);
@@ -327,15 +405,10 @@ parser_t * _parser_push_grammar_element(parser_t *parser, ge_t *element) {
 }
 
 int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
-  nonterminal_t        *nonterminal;
-  nonterminal_t        *new_nt;
-  rule_t               *rule;
-  rule_entry_t         *entry;
   parser_stack_entry_t *e;
-  parser_stack_entry_t *ne;
   int                   code;
-  int                   i;
-  parser_t             *ret;
+  data_t               *ret;
+  array_t              *args;
 
   code = token_code(token);
   parser -> line = token -> line;
@@ -346,85 +419,26 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
       debug("Parser stack exhausted");
     }
     if (code != TokenCodeEnd) {
-      parser -> error = data_exception(ErrorSyntax, 
+      parser -> error = data_exception(ErrorSyntax,
                                    "Expected end of file, read unexpected token '%s'",
                                    token_tostring(token));
     }
     consuming = 0;
-  } else if ((consuming == 1) && (e -> type != PSETypeAction)) {
+  } else if ((consuming == 1) && (e -> _d.type != PSETypeAction)) {
     list_push(parser -> prod_stack, e);
     consuming = 0;
   } else {
     if (parser_debug) {
       debug("    Popped  %s", _parser_stack_entry_tostring(e));
     }
-    
-    switch (e -> type) {
-      case PSETypeNonTerminal:
-        nonterminal = e -> nonterminal;
-        if (parser_debug) {
-          info("[NT] %s", nonterminal -> name);
-        }
-        rule = dict_get_int(nonterminal -> parse_table, code);
-	if (!rule) {
-	  parser -> error = data_exception(ErrorSyntax, 
-				       "Unexpected token '%s'", 
-				       token_tostring(token));
-	  break;
-	}
-        if (array_size(rule -> entries)) {
-          for (i = array_size(rule -> entries) - 1; i >= 0; i--) {
-            entry = rule_get_entry(rule, i);
-            if (entry -> terminal) {
-              _parser_push_grammar_element(parser, (ge_t *) entry);
-              _parser_push_to_prodstack(
-                  parser, _parser_stack_entry_for_entry(entry));
-            } else {
-              _parser_push_grammar_element(parser, (ge_t *) entry);
-              new_nt = grammar_get_nonterminal(parser -> grammar, entry -> nonterminal);
-              _parser_push_to_prodstack(
-                  parser,
-                  _parser_stack_entry_for_nonterminal(new_nt));
-              _parser_push_grammar_element(parser, (ge_t *) new_nt);
-            }
-          }
-        }
-        _parser_push_grammar_element(parser, (ge_t *) rule);
-        consuming = 2;
-        break;
-        
-      case PSETypeEntry:
-        entry = e -> entry;
-        assert(entry -> terminal);
-        if (token_cmp(entry -> token, token)) {
-          parser -> error = data_exception(ErrorSyntax,
-                                           "Expected '%s' but got '%s' instead",
-                                           token_tostring(entry -> token),
-                                           token_tostring(token));
-        }
-        if (parser_debug) {
-          info("[ T] %s", token_tostring(entry -> token));
-        }
-        consuming = 1;
-        break;
-
-      case PSETypeAction:
-        if (parser_debug) {
-          debug("    Executing action %s", grammar_action_tostring(e -> action));
-        }
-        assert(e -> action && e -> action -> fnc && e -> action -> fnc -> fnc);
-        if (e -> action -> data) {
-          ret = ((parser_data_fnc_t) e -> action -> fnc -> fnc)(parser, e -> action -> data);
-        } else {
-          ret = ((parser_fnc_t) e -> action -> fnc -> fnc)(parser);
-        }
-        if (!ret) {
-          parser -> error = data_exception(ErrorSyntax,
-                                           "Error executing grammar action %s",
-                                           grammar_action_tostring(e -> action));
-        }
-        break;
-    }
+    args = data_array_create(3);
+    array_push(args, parser_copy(parser));
+    array_push(args, token_copy(token));
+    array_push(args, data_create(Int, consuming));
+    ret = data_call((data_t *) e, args, NULL);
+    consuming = data_intval(ret);
+    data_free(ret);
+    array_free(args);
     _parser_stack_entry_free(e);
   }
   return consuming;
@@ -442,9 +456,7 @@ lexer_t * _parser_set_keywords(token_t *token, lexer_t *lexer) {
 parser_t * parser_create(grammar_t *grammar) {
   parser_t *ret;
 
-  ret = NEW(parser_t);
-  data_settype(&ret -> _d, Parser);
-  ret -> _d.str = strdup("Parser");
+  ret = data_new(Parser, parser_t);
   ret -> grammar = grammar;
   ret -> prod_stack = list_create();
   ret -> last_token = NULL;
@@ -458,7 +470,7 @@ parser_t * parser_create(grammar_t *grammar) {
 /**
  * Clears the parser state, i.e. the stack and variables used during the
  * parsing process. This function will also clear the internal stack
- * with production rules, and therefore this function should not be used 
+ * with production rules, and therefore this function should not be used
  * in the middle of a parsing sequence.
  */
 parser_t * parser_clear(parser_t *parser) {
@@ -479,11 +491,11 @@ parser_t * parser_set(parser_t *parser, char *name, data_t *data) {
   dict_put(parser -> variables, strdup(name), data);
   return parser;
 }
-  
+
 /**
  * Retrieves a parser variable. The variable remains part of the parser and
  * therefore the caller should not free the returned value.
- * 
+ *
  * @return The parser variable with the given name, or NULL if the parser has
  * no variable with that name.
  */
@@ -492,12 +504,12 @@ data_t * parser_get(parser_t *parser, char *name) {
 }
 
 /**
- * Retrieves a parser variable and removes it from the parser and therefore 
+ * Retrieves a parser variable and removes it from the parser and therefore
  * the caller is responsible for freeing the return value.
- * 
+ *
  * @return The parser variable with the given name, or NULL if the parser has
  * no variable with that name.
- * 
+ *
  * @see
  */
 data_t * parser_pop(parser_t *parser, char *name) {
@@ -518,9 +530,9 @@ data_t * parser_parse(parser_t *parser, data_t *reader) {
   for (ix = 0; ix < LexerOptionLAST; ix++) {
     lexer_set_option(lexer, ix, grammar_get_lexer_option(parser -> grammar, ix));
   }
-  
+
   parser -> on_newline = NULL;
-  fnc_name = (token_t *) dict_get(parser -> grammar -> ge.variables, 
+  fnc_name = (token_t *) dict_get(parser -> grammar -> ge.variables,
                                   "on_newline");
   if (fnc_name) {
     if (parser_debug) {
@@ -528,15 +540,15 @@ data_t * parser_parse(parser_t *parser, data_t *reader) {
     }
     fnc = grammar_resolve_function(parser -> grammar, token_token(fnc_name));
     if (fnc) {
-      lexer_set_option(lexer, LexerOptionOnNewLine, 
-                       (long) function_create("parser_newline", 
-                                              (voidptr_t) parser_newline));
+      lexer_set_option(lexer, LexerOptionOnNewLine,
+                       (long) function_create("parser_newline",
+                                              (void_t) parser_newline));
       parser -> on_newline = fnc;
     } else {
       error("Could not resolve parser on_newline function '%s'", token_token(fnc_name));
     }
   }
-  
+
   lexer -> data = parser;
   parser -> lexer = lexer;
   switch (grammar_get_parsing_strategy(parser -> grammar)) {
@@ -570,7 +582,7 @@ lexer_t * parser_newline(lexer_t *lexer, int line) {
   parser_t          *parser = (parser_t *) lexer -> data;
   parser_data_fnc_t  f;
   data_t            *l;
-  
+
   if (parser && parser -> on_newline) {
     f = (parser_data_fnc_t) parser -> on_newline -> fnc;
     l = data_create(Int, line);
@@ -589,7 +601,7 @@ parser_t * parser_log(parser_t *parser, data_t *msg) {
 
 parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
   nvp_t *nvp = nvp_parse(data_tostring(keyval));
-  
+
   if (nvp) {
     parser_set(parser, data_tostring(nvp -> name), data_copy(nvp -> value));
     nvp_free(nvp);
@@ -638,7 +650,7 @@ parser_t * parser_push(parser_t *parser) {
 
 parser_t * parser_discard(parser_t *parser) {
   data_t   *data = datastack_pop(parser -> stack);
-  
+
   if (parser_debug) {
     debug("    Discarding value %s", data_tostring(data));
   }
@@ -653,7 +665,7 @@ parser_t * parser_dup(parser_t *parser) {
 parser_t * parser_push_tokenstring(parser_t *parser) {
   data_t   *data = data_create(String, token_token(parser -> last_token));
   parser_t *ret = parser_pushval(parser, data);
-  
+
   data_free(data);
   return ret;
 }
@@ -674,7 +686,7 @@ parser_t * parser_rollup_list(parser_t *parser) {
   list = data_create_list(arr);
   if (parser_debug) {
     debug("    Rolled up list '%s' from bookmark", data_tostring(list));
-  }  
+  }
   datastack_push(parser -> stack, list);
   array_free(arr);
   return parser;
@@ -686,7 +698,7 @@ parser_t * parser_rollup_name(parser_t *parser) {
   name = datastack_rollup_name(parser -> stack);
   if (parser_debug) {
     debug("    Rolled up name '%s' from bookmark", name_tostring(name));
-  }  
+  }
   datastack_push(parser -> stack, data_create(Name, name));
   name_free(name);
   return parser;
@@ -712,7 +724,7 @@ parser_t * parser_count(parser_t *parser) {
   if (parser_debug) {
     debug("    Pushing count to stack");
   }
-  datastack_push(parser -> stack, 
+  datastack_push(parser -> stack,
                  data_create(Int, datastack_count(parser -> stack)));
   return parser;
 }

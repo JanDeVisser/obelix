@@ -30,22 +30,23 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef struct _bound_method {
+  data_t     _d;
   script_t  *script;
   object_t  *self;
   closure_t *closure;
-  char      *str;
-  int        refs;
 } bound_method_t;
 
 extern bound_method_t * bound_method_create(script_t *, object_t *);
-extern void             bound_method_free(bound_method_t *);
-extern bound_method_t * bound_method_copy(bound_method_t *);
 extern int              bound_method_cmp(bound_method_t *, bound_method_t *);
-extern char *           bound_method_tostring(bound_method_t *);
 extern data_t *         bound_method_execute(bound_method_t *, array_t *, dict_t *);
 
-#define data_is_boundmethod(d)  ((d) && (data_type((d)) == BoundMethod))
-#define data_boundmethodval(d)  (data_is_boundmethod((d)) ? ((bound_method_t *) (d) -> ptrval) : NULL)
+extern int BoundMethod;
+
+#define data_is_bound_method(d)   ((d) && (data_hastype((data_t *) (d), BoundMethod)))
+#define data_as_bound_method(d)   ((bound_method_t *) (data_is_bound_method((data_t *) (d)) ? (d) : NULL))
+#define bound_method_free(o)      (data_free((data_t *) (o)))
+#define bound_method_tostring(o)  (data_tostring((data_t *) (o)))
+#define bound_method_copy(o)      ((bound_method_t *) data_copy((data_t *) (o)))
 
 #ifdef  __cplusplus
 }
