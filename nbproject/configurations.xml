@@ -43,6 +43,7 @@
           <in>wrapper.c</in>
         </df>
         <df name="parser">
+          <in>closure.c</in>
           <in>grammar.c</in>
           <in>grammarparser.c</in>
           <in>lexer.c</in>
@@ -510,6 +511,10 @@
           <preprocessorList>
             <Elem>_GNU_SOURCE</Elem>
           </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/parser/closure.c" ex="false" tool="0" flavor2="0">
+        <cTool flags="0">
         </cTool>
       </item>
       <item path="src/parser/grammar.c" ex="false" tool="0" flavor2="2">

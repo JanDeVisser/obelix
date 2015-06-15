@@ -29,13 +29,10 @@
 #include <script.h>
 
 static void          _data_init_object(void) __attribute__((constructor));
+extern void          _object_free(object_t *);
+extern char *        _object_allocstring(object_t *);
 static data_t *      _object_cast(object_t *, int);
-static data_t *      _data_call_object(data_t *, array_t *, dict_t *);
-static data_t *      _data_resolve_object(data_t *, char *);
-static data_t *      _data_set_object(data_t *, char *, data_t *);
-static int           _data_len_object(data_t *);
-static data_t *      _data_ctx_enter(data_t *);
-static data_t *      _data_ctx_leave(data_t *, data_t *);
+static int           _object_len(data_t *);
 
 static data_t *      _object_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _object_new(data_t *, char *, array_t *, dict_t *);
@@ -43,9 +40,6 @@ static data_t *      _object_new(data_t *, char *, array_t *, dict_t *);
 static data_t *      _object_get(object_t *, char *);
 static data_t *      _object_call_attribute(object_t *, char *, array_t *, dict_t *);
 static object_t *    _object_set_all_reducer(entry_t *, object_t *);
-
-extern void          _object_free(object_t *);
-extern char *        _object_allocstring(object_t *);
 
   /* ----------------------------------------------------------------------- */
 
@@ -56,14 +50,12 @@ static vtable_t _vtable_object[] = {
   { .id = FunctionFree,        .fnc = (void_t) _object_free },
   { .id = FunctionAllocString, .fnc = (void_t) _object_allocstring },
   { .id = FunctionHash,        .fnc = (void_t) object_hash },
-
-  xxxxxxxxxxxxxxxx
-  { .id = FunctionResolve,     .fnc = (void_t) _data_resolve_object },
-  { .id = FunctionCall,        .fnc = (void_t) _data_call_object },
-  { .id = FunctionSet,         .fnc = (void_t) _data_set_object },
-  { .id = FunctionLen,         .fnc = (void_t) _data_len_object },
-  { .id = FunctionEnter,       .fnc = (void_t) _data_ctx_enter },
-  { .id = FunctionLeave,       .fnc = (void_t) _data_ctx_leave },
+  { .id = FunctionCall,        .fnc = (void_t) object_call },
+  { .id = FunctionResolve,     .fnc = (void_t) object_resolve },
+  { .id = FunctionSet,         .fnc = (void_t) object_set },
+  { .id = FunctionLen,         .fnc = (void_t) _object_len },
+  { .id = FunctionEnter,       .fnc = (void_t) object_ctx_enter },
+  { .id = FunctionLeave,       .fnc = (void_t) object_ctx_leave },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -136,33 +128,8 @@ data_t * _object_cast(object_t *obj, int totype) {
   return ret;
 }
 
-data_t * _data_call_object(data_t *self, array_t *args, dict_t *kwargs) {
-  return object_call(data_objectval(self), args, kwargs);
-}
-
-data_t * _data_resolve_object(data_t *data, char *name) {
-  return object_resolve(data_objectval(data), name);
-}
-
-data_t * _data_set_object(data_t *data, char *name, data_t *value) {
-  return object_set(data_objectval(data), name, value);
-}
-
-int _data_len_object(data_t *data) {
-  object_t *obj = data_objectval(data);
+int _object_len(object_t *obj) {
   return dict_size(obj -> variables);
-}
-
-data_t* _data_ctx_enter(data_t *data) {
-  return object_ctx_enter(data_objectval(data));
-}
-
-data_t* _data_ctx_leave(data_t *data, data_t *param) {
-  return object_ctx_leave(data_objectval(data), param);
-}
-
-data_t * data_create_object(object_t *object) {
-  return data_create(Object, object);
 }
 
 /* ----------------------------------------------------------------------- */

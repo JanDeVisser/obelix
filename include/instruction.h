@@ -29,7 +29,7 @@ extern "C" {
 #endif /* __cplusplus */
     
 typedef struct _instruction {
-  data_t    data;
+  data_t    _d;
   int       line;
   char      label[9];
   char     *name;
@@ -73,7 +73,7 @@ extern int ITThrow;
 extern int ITUnstash;
 
 #define data_is_instruction(d)  ((d) && data_hastype((d), Instruction))
-#define data_instructionval(d)  (data_is_instruction((d)) ? ((instruction_t *) ((d) -> ptrval)) : NULL)
+#define data_as_instruction(d)  ((instruction_t *) (data_is_instruction((d)) ? (d) : NULL))
 
 struct _closure;
 

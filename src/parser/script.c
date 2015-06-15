@@ -182,7 +182,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
     script -> mod -> obj = object_copy(retobj);
   }
   retobj -> constructing = TRUE;
-  retval = bound_method_execute(data_boundmethodval(retobj -> constructor),
+  retval = bound_method_execute(data_as_bound_method(retobj -> constructor),
                                 params, kwparams);
   retobj -> constructing = FALSE;
   if (!data_is_exception(retval)) {

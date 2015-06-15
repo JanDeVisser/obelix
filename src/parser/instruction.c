@@ -63,9 +63,6 @@ static typedescr_t _typedescr_instruction = {
   .vtable =    _vtable_instruction
 };
 
-#define data_is_instruction(d)  ((d) && data_hastype((d), Instruction))
-#define data_instructionval(d)  (data_is_instruction((d)) ? ((instruction_t *) ((d) -> ptrval)) : NULL)
-
 int ITByValue = -1;
 
 static vtable_t _vtable_tostring_value[] = {
@@ -172,7 +169,7 @@ InstructionType(Throw,        Name);
 InstructionType(Unstash,      Value);
 
 typedef struct _function_call {
-  data_t      data;
+  data_t      _d;
   name_t     *name;
   callflag_t  flags;
   int         arg_count;
@@ -180,25 +177,18 @@ typedef struct _function_call {
   char       *str;
 } function_call_t;
 
-static data_t *      _call_new(int, va_list);
-static void          _call_free(function_call_t *);
-static data_t *      _call_copy(data_t *, data_t *);
-static char *        _call_tostring(data_t *);
+static function_call_t * _call_new(int, va_list);
+static void              _call_free(function_call_t *);
+static data_t *          _call_copy(data_t *, data_t *);
+static char *            _call_allocstring(data_t *);
 
 static int Call = -1;
 
 static vtable_t _vtable_call[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _call_new },
-  { .id = FunctionCopy,     .fnc = (void_t) _call_copy },
-  { .id = FunctionFree,     .fnc = (void_t) _call_free },
-  { .id = FunctionToString, .fnc = (void_t) _call_tostring },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_call = {
-  .type =      -1,
-  .type_name = "call",
-  .vtable =    _vtable_call
+  { .id = FunctionFactory,     .fnc = (void_t) _call_new },
+  { .id = FunctionFree,        .fnc = (void_t) _call_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _call_allocstring },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static name_t *name_empty = NULL;
@@ -217,7 +207,7 @@ void _instruction_init(void) {
   ITByValue = typedescr_register(&_typedescr_byvalue);
   ITByNameValue = typedescr_register(&_typedescr_bynamevalue);
   ITByValueOrName = typedescr_register(&_typedescr_byvalue_or_name);
-  Call = typedescr_register(&_typedescr_call);
+  Call = typedescr_create_and_register(Call, "call", _vtable_call, NULL);
   interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
   name_empty = name_create(0);
   name_self = name_create(1, "self");
@@ -232,24 +222,22 @@ void _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
   td.inherits[1] = inherits;
   td.inherits[2] = NoType;
   td.vtable = vtable;
-  return typedescr_register(&td);                                                   \
+  return typedescr_register(&td);                                               
 }
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _call_new(int type, va_list arg) {
+function_call_t * _call_new(int type, va_list arg) {
   function_call_t *call;
   array_t         *kwargs;
 
-  call = NEW(function_call_t);
+  call = data_new(Call, function_call_t);
   call -> name = name_copy(va_arg(arg, name_t *));
   call -> flags = va_arg(arg, int);
   call -> arg_count = va_arg(arg, int);
   kwargs = va_arg(arg, array_t *);
   call -> kwargs = (kwargs) ? array_copy(kwargs) : NULL;
-  call -> data.ptrval = call;
-  call -> str = NULL;
-  return &call -> data;
+  return call;
 }
 
 void _call_free(function_call_t *call) {
@@ -260,27 +248,14 @@ void _call_free(function_call_t *call) {
   }
 }
 
-data_t * _call_copy(data_t *target, data_t *src) {
-  function_call_t *newcall;
-  function_call_t *srccall = (function_call_t *) src -> ptrval;
-
-  newcall = NEW(function_call_t);
-  newcall -> name = name_copy(srccall -> name);
-  newcall -> flags = srccall -> flags;
-  newcall -> arg_count = srccall -> arg_count;
-  newcall -> kwargs = array_copy(srccall -> kwargs);
-  target -> ptrval = newcall;
-  return target;
-}
-
-char * _call_tostring(data_t *d) {
-  function_call_t *call = (function_call_t *) d -> ptrval;
+char * _call_tostring(function_call_t *call) {
+  char *buf;
   
-  asprintf(&call -> data.str, "%s(argv[%d], %s)", 
+  asprintf(&buf, "%s(argv[%d], %s)", 
            name_tostring(call -> name),
            call -> arg_count, 
            (call -> kwargs) ? array_tostring(call -> kwargs) : "");
-  return NULL;
+  return buf;
 }
 
 /* -- T O _ S T R I N G  F U N C T I O N S -------------------------------- */
@@ -469,7 +444,7 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
   
   error = vm_pop(vm);
   if (data_is_exception(error)) {
-    e = data_exceptionval(error);
+    e = data_as_exception(error);
     e -> handled = TRUE;
   }
   cp_data = vm_pop(vm);
@@ -567,14 +542,14 @@ name_t * _instruction_setup_constructor(data_t *scope,
   self = data_get(scope, name_self);
   name_free(name_self);
   if (data_is_object(self)) {
-    obj = data_objectval(self);
+    obj = data_as_object(self);
     s = data_resolve(scope, constructor -> name);
     if (data_is_script(s)) {
-      script = data_scriptval(s);
-    } else if (data_is_boundmethod(s)) {
-      script = data_boundmethodval(s) -> script;
+      script = data_as_script(s);
+    } else if (data_is_bound_method(s)) {
+      script = data_as_bound_method(s) -> script;
     } else if (data_is_closure(s)) {
-      script = data_closureval(s) -> script;
+      script = data_as_closure(s) -> script;
     }
     if (script) {
       asprintf(&name, "$%s", name_tostring(constructor -> name));
@@ -730,7 +705,7 @@ data_t * _instruction_execute_Next(instruction_t *instr, data_t *scope, vm_t *vm
   assert(instr -> name);
   
   next = data_next(iter);
-  if (data_is_exception(next) && (data_exceptionval(next) -> code == ErrorExhausted)) {
+  if (data_is_exception(next) && (data_as_exception(next) -> code == ErrorExhausted)) {
     data_free(iter);
     ret = data_create(String, instr -> name);
   } else {
@@ -837,6 +812,6 @@ char * instruction_assign_label(instruction_t *instruction) {
 
 instruction_t * instruction_set_label(instruction_t *instruction, data_t *label) {
   memset(instruction -> label, 0, 9);
-  strncpy(instruction -> label, data_charval(label), 8);
+  strncpy(instruction -> label, data_tostring(label), 8);
   return instruction;
 }

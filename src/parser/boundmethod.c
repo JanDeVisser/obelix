@@ -26,7 +26,7 @@
 
 static void   _bound_method_init(void) __attribute__((constructor(102)));
 static void   _bound_method_free(bound_method_t *);
-static char * _bound_method_tostring(bound_method_t *);
+static char * _bound_method_allocstring(bound_method_t *);
 
 static vtable_t _vtable_bound_method[] = {
   { .id = FunctionFactory,     .fnc = (void_t) data_embedded },

@@ -31,43 +31,33 @@ static void         _bytecode_init(void) __attribute__((constructor));
 
 static data_t *     _bytecode_create(int, va_list);
 static void         _bytecode_free(bytecode_t *);
-static char *       _bytecode_tostring(bytecode_t *);
+static char *       _bytecode_allocstring(bytecode_t *);
+static data_t *     _bytecode_call(bytecode_t *, array_t *, dict_t *);
 
 static bytecode_t * _bytecode_set_instructions(bytecode_t *, list_t *);
 static void         _bytecode_list_block(list_t *);
 
+int bytecode_debug = 0;
 int Bytecode = -1;
 
 static vtable_t _vtable_bytecode[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _bytecode_create },
-  { .id = FunctionFree,     .fnc = (void_t) _bytecode_free },
-  { .id = FunctionToString, .fnc = (void_t) _bytecode_tostring },
-  /* No cmp function. All bytecodes are different */
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionFree,        .fnc = (void_t) _bytecode_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _bytecode_allocstring },
+  { .id = FunctionCall,        .fnc = (void_t) _bytecode_call },
+  { .id = FunctionNone,        .fnc = NULL }
 };
-
-static typedescr_t _typedescr_bytecode = {
-  .type = -1,
-  .type_name = "bytecode",
-  .vtable = _vtable_bytecode
-};
-
-int bytecode_debug = 0;
 
 /* ------------------------------------------------------------------------ */
 
 void _bytecode_init(void) {
   logging_register_category("bytecode", &bytecode_debug);
-  Bytecode = typedescr_register(&_typedescr_bytecode);
+  Bytecode = typedescr_create_and_register(Bytecode,
+					   "bytecode",
+					   _vtable_bytecode);
 }
 
 /* -- S T A T I C  F U N C T I O N S -------------------------------------- */
-
-data_t * _bytecode_create(int type, va_list args) {
-  bytecode_t *bytecode = va_arg(args, bytecode_t *);
-  
-  return data_copy(&bytecode -> data);
-}
 
 void _bytecode_free(bytecode_t *bytecode) {
   if (bytecode) {
@@ -79,12 +69,17 @@ void _bytecode_free(bytecode_t *bytecode) {
   }
 }
 
-char * _bytecode_tostring(bytecode_t *bytecode) {
-  if (!bytecode -> data.str) {
-    asprintf(&bytecode -> data.str, "Bytecode for %s",
-             data_tostring(bytecode -> owner));
-  }
-  return NULL;
+char * _bytecode_allocstring(bytecode_t *bytecode) {
+  char *buf;
+  
+  asprintf(&buf, "Bytecode for %s", data_tostring(bytecode -> owner));
+  return buf;
+}
+
+data_t * _bytecode_call(bytecode_t *bc, array_t *args, dict_t *kwargs) {
+  return bytecode_execute(bc,
+			  data_as_vm(data_array_get(args, 0)),
+			  data_array_get(args, 1));
 }
 
 bytecode_t * _bytecode_set_instructions(bytecode_t *bytecode, list_t *block) {
@@ -109,8 +104,8 @@ listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
   char         *label = NULL;
   listnode_t   *node = NULL;
   data_t       *scope = data_array_get(args, 0);
-  vm_t         *vm = data_vmval(data_array_get(args, 1));
-  bytecode_t   *bytecode = data_bytecodeval(data_array_get(args, 1));
+  vm_t         *vm = data_as_vm(data_array_get(args, 1));
+  bytecode_t   *bytecode = data_as_bytecode(data_array_get(args, 1));
   data_t       *catchpoint = NULL;
   int           datatype;
   exception_t  *ex;
@@ -134,20 +129,20 @@ listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
       label = strdup(data_tostring(ret));
     } else {
       if (datatype == Exception) {
-        ex = data_exceptionval(ret);
+        ex = data_as_exception(ret);
       } else {
         ex_data = data_exception(ErrorInternalError,
                                  "Instruction '%s' returned %s '%s'",
                                  data_tostring(instr),
                                  data_typedescr(ret) -> type_name,
                                  data_tostring(ret));
-        ex = data_exceptionval(ex_data);
+        ex = data_as_exception(ex_data);
         ret = ex_data;
       }
       ex -> trace = data_create(Stacktrace, stacktrace_create());
       if (datastack_depth(vm -> contexts)) {
         catchpoint = datastack_peek(vm -> contexts);
-        label = strdup(data_charval(data_nvpval(catchpoint) -> name));
+        label = strdup(data_tostring(data_as_nvp(catchpoint) -> name));
       } else {
         node = ProcessEnd;
       }
@@ -174,20 +169,16 @@ bytecode_t * bytecode_create(data_t *owner) {
   if (bytecode_debug) {
     debug("Creating bytecode for '%s'", data_tostring(owner));
   }
-  ret = NEW(bytecode_t);
-  data_settype(&ret -> data, Bytecode);
-  ret -> data.ptrval = ret;
+  ret = data_new(Bytecode, bytecode_t);
   ret -> owner = data_copy(owner);
   
   ret -> main_block = data_list_create();
   _bytecode_set_instructions(ret, NULL);
   ret -> deferred_blocks = datastack_create("deferred blocks");
   ret -> bookmarks = datastack_create("bookmarks");
-  
   ret -> labels = strvoid_dict_create();
   ret -> pending_labels = datastack_create("pending labels");
-  ret -> current_line = -1;
-  
+  ret -> current_line = -1;  
   return ret;
 }
 
@@ -287,9 +278,10 @@ void bytecode_list(bytecode_t *bytecode) {
   fprintf(stderr, "// ===============================================================\n");
 }
 
-void bytecode_execute(bytecode_t *bytecode, vm_t *vm, data_t *scope) {
+data_t * bytecode_execute(bytecode_t *bytecode, vm_t *vm, data_t *scope) {
   data_t  *d = data_create(VM, vm);
   array_t *args = data_array_create(2);
+  data_t  *ret;
 
   array_push(args, data_copy(scope));
   array_push(args, data_create(VM, vm));
@@ -297,5 +289,7 @@ void bytecode_execute(bytecode_t *bytecode, vm_t *vm, data_t *scope) {
   list_process(bytecode -> instructions,
                (reduce_t) _bytecode_execute_instruction,
                args);
+  ret = (datastack_notempty(vm -> stack)) ? vm_pop(vm) : data_null();
   array_free(args);
+  return ret;
 }

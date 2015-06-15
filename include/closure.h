@@ -53,8 +53,10 @@ extern data_t *         closure_resolve(closure_t *, char *);
 extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
 extern data_t *         closure_import(closure_t *, name_t *);
 
+extern int Closure;
+
 #define data_is_closure(d)     ((d) && data_hastype((d), Closure))
-#define data_closureval(d)     (data_is_closure((d)) ? ((closure_t *) (d)) : NULL)
+#define data_as_closure(d)     (data_is_closure((d)) ? ((closure_t *) (d)) : NULL)
 #define closure_copy(c)        ((closure_t *) data_copy((data_t *) (c)))
 #define closure_tostring(c)    (data_tostring((data_t *) (c)))
 #define closure_free(c)        (data_free((data_t *) (c)))

@@ -43,6 +43,8 @@ static void         _closure_free(closure_t *);
 
 static data_t *     _closure_import(data_t *, char *, array_t *, dict_t *);
 
+int Closure = -1;
+
 static vtable_t _vtable_closure[] = {
   { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) closure_cmp },
@@ -55,21 +57,19 @@ static vtable_t _vtable_closure[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t _typedescr_closure = {
-  .type      = Closure,
-  .type_name = "closure",
-  .vtable    = _vtable_closure
-};
-
-static methoddescr_t _methoddescr_number[] = {
-  { .type = Closure, .name = "import", .method = _closure_import, .argtypes = { Name, NoType, NoType },   .minargs = 1, .varargs = 1 },
+static methoddescr_t _methoddescr_closure[] = {
+  { .type = -1,      .name = "import", .method = _closure_import, .argtypes = { NoType, NoType, NoType },   .minargs = 1, .varargs = 1 },
   { .type = NoType,  .name = NULL,     .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 /* ------------------------------------------------------------------------ */
 
 void _closure_init(void) {
-  typedescr_register(&_typedescr_closure);
+  _methoddescr_closure[0].argtypes[0] = Name;
+  Closure = typedescr_create_and_register(Closure, "closure",
+					  _vtable_closure,
+					  _methoddescr_closure);
+  
 }
 
 /* ------------------------------------------------------------------------ */
@@ -84,7 +84,7 @@ closure_t * _closure_create_closure_reducer(entry_t *entry, closure_t *closure) 
   object_t       *self;
 
   if (data_is_script(func)) {
-    self = data_objectval(closure -> self);
+    self = data_as_object(closure -> self);
     bm = bound_method_create(data_scriptval(func), self);
     bm -> closure = closure;
     value = data_create(BoundMethod, bm);
@@ -126,7 +126,7 @@ data_t * _closure_start(closure_t *closure) {
   
   ret = vm_execute(vm, d = data_create(Closure, closure));
   if (data_is_exception(ret)) {
-    e = data_exceptionval(ret);
+    e = data_as_exception(ret);
     if ((e -> code == ErrorExit) && (e -> throwable)) {
       ns_exit(closure -> script -> mod -> ns, ret);
     } else if (e -> code == ErrorReturn) {
@@ -325,6 +325,6 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
 /* -- C L O S U R E  D A T A  M E T H O D S --------------------------------*/
 
 data_t * _closure_import(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return closure_import(data_closureval(self), 
-                        data_nameval(data_array_get(args, 0)));
+  return closure_import(data_as_closure(self), 
+                        data_as_name(data_array_get(args, 0)));
 }

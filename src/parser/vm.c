@@ -25,44 +25,31 @@
 #include <typedescr.h>
 #include <thread.h>
 #include <vm.h>
-#include <wrapper.h>
 
 static void     _vm_init(void) __attribute__((constructor));
-static data_t * _vm_create(int, va_list);
 static void     _vm_free(vm_t *);
 static char *   _vm_tostring(vm_t *);
+static data_t * _vm_call(vm_t *, array_t *, dict_t *);
 
 int VM = -1;
 int vm_debug = 0;
 
 static vtable_t _vtable_vm[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _vm_create },
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionFree,     .fnc = (void_t) _vm_free },
   { .id = FunctionToString, .fnc = (void_t) _vm_tostring },
-  /* No cmp function. All vm-s are different */
+  { .id = FunctionCall,     .fnc = (void_t) _vm_call },
   { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_vm = {
-  .type = -1,
-  .type_name = "vm",
-  .vtable = _vtable_vm
 };
 
 /* ------------------------------------------------------------------------ */
 
 void _vm_init(void) {
   logging_register_category("vm", &vm_debug);
-  VM = typedescr_register(&_typedescr_vm);
+  VM = typedescr_create_and_register(VM, "vm", _vtable_vm, NULL);
 }
 
 /* ------------------------------------------------------------------------ */
-
-data_t * _vm_create(int type, va_list args) {
-  vm_t *vm = va_arg(args, vm_t *);
-  
-  return data_copy(&vm -> data);
-}
 
 void _vm_free(vm_t *vm) {
   if (vm) {
@@ -77,13 +64,16 @@ char * _vm_tostring(vm_t *vm) {
   return bytecode_tostring(vm -> bytecode);
 }
 
+data_t * _vm_call(vm_t *vm, array_t *args, dict_t *kwargs) {
+  return vm_execute(vm, data_array_get(args, 0));
+}
+
 /* ------------------------------------------------------------------------ */
 
 vm_t * vm_create(bytecode_t *bytecode) {
-  vm_t *ret = NEW(vm_t);
+  vm_t *ret = data_new(VM, vm_t);
   
   ret -> bytecode = bytecode_copy(bytecode);
-  data_settype(&ret -> data, VM);
   ret -> data.ptrval = ret;
   return ret;
 }
@@ -136,11 +126,11 @@ nvp_t * vm_push_context(vm_t *vm, char *label, data_t *context) {
 }
 
 nvp_t * vm_peek_context(vm_t *vm) {
-  return data_nvpval(datastack_peek(vm -> contexts));
+  return data_as_nvp(datastack_peek(vm -> contexts));
 }
 
 nvp_t * vm_pop_context(vm_t *vm) {
-  return data_nvpval(datastack_pop(vm -> contexts));
+  return data_as_nvp(datastack_pop(vm -> contexts));
 }
 
 data_t * vm_execute(vm_t *vm, data_t *scope) {
@@ -169,8 +159,7 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
   
   ret = data_thread_push_stackframe(&vm -> data);
   if (!data_is_exception(ret)) {
-    bytecode_execute(vm -> bytecode, vm, scope);
-    ret = (datastack_notempty(vm -> stack)) ? vm_pop(vm) : data_null();
+    ret = bytecode_execute(vm -> bytecode, vm, scope);
     if (dbg) {
       debug("    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));
     }

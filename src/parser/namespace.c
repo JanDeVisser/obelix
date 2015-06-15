@@ -23,40 +23,42 @@
 #include <exception.h>
 #include <logging.h>
 #include <namespace.h>
+#include <set.h>
 
 static void          _namespace_init(void) __attribute__((constructor));
 
-static data_t *      _data_new_module(int, va_list);
-static data_t *      _data_copy_module(data_t *, data_t *);
-static int           _data_cmp_module(data_t *, data_t *);
-static char *        _data_tostring_module(data_t *);
-static unsigned int  _data_hash_module(data_t *);
-static data_t *      _data_resolve_module(data_t *, char *);
-static data_t *      _data_call_module(data_t *, array_t *, dict_t *);
+extern void          _mod_free(module_t *);
+extern char *        _mod_tostring(module_t *);
+static data_t *      _mod_call(module_t *, array_t *, dict_t *);
 
 static namespace_t * _ns_create(void);
+extern void          _ns_free(namespace_t *);
+extern char *        _ns_tostring(namespace_t *);
 static module_t *    _ns_add(namespace_t *, name_t *);
 static data_t *      _ns_delegate_up(namespace_t *, module_t *, name_t *, array_t *, dict_t *);
 static data_t *      _ns_delegate_load(namespace_t *, module_t *, name_t *, array_t *, dict_t *);
 static data_t *      _ns_import(namespace_t *, name_t *, array_t *, dict_t *);
 
 int ns_debug = 0;
+int Module = -1;
+int Namespace = -1;
 
-vtable_t _vtable_module[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _data_new_module },
-  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_module },
-  { .id = FunctionFree,     .fnc = (void_t) mod_free },
-  { .id = FunctionToString, .fnc = (void_t) _data_tostring_module },
-  { .id = FunctionHash,     .fnc = (void_t) _data_hash_module },
-  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_module },
-  { .id = FunctionCall,     .fnc = (void_t) _data_call_module },
+vtable_t _vtable_namespace[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionFree,     .fnc = (void_t) _ns_free },
+  { .id = FunctionToString, .fnc = (void_t) _ns_tostring },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t typedescr_module = {
-  .type       = Module,
-  .type_name  = "module",
-  .vtable     = _vtable_module
+vtable_t _vtable_module[] = {
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,      .fnc = (void_t) mod_cmp },
+  { .id = FunctionFree,     .fnc = (void_t) _mod_free },
+  { .id = FunctionToString, .fnc = (void_t) _mod_tostring },
+  { .id = FunctionHash,     .fnc = (void_t) mod_hash },
+  { .id = FunctionResolve,  .fnc = (void_t) mod_resolve },
+  { .id = FunctionCall,     .fnc = (void_t) _mod_call },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 /* ------------------------------------------------------------------------ */
@@ -77,42 +79,33 @@ static pnm_t *     _pnm_find_mod_reducer(module_t *, pnm_t *);
 static module_t *  _pnm_find_mod(pnm_t *);
 static pnm_t *     _pnm_matches_reducer(module_t * , pnm_t *);
 static pnm_t *     _pnm_find_in_mod_reducer(module_t *, pnm_t *);
+static int         _pnm_cmp(pnm_t *, data_t *);
+static char *      _pnm_tostring(pnm_t *);
+static data_t *    _pnm_resolve(pnm_t *, char *);
+static data_t *    _pnm_call(pnm_t *, array_t *, dict_t *);
+static data_t *    _pnm_resolve(pnm_t *, char *);
+static data_t *    _pnm_set(pnm_t *, char *, data_t *);
 
-static data_t *    _data_new_pnm(data_t *, va_list);
-static data_t *    _data_copy_pnm(data_t *, data_t *);
-static int         _data_cmp_pnm(data_t *, data_t *);
-static char *      _data_tostring_pnm(data_t *);
-static data_t *    _data_resolve_pnm(data_t *, char *);
-static data_t *    _data_call_pnm(data_t *, array_t *, dict_t *);
-static data_t *    _data_resolve_pnm(data_t *, char *);
-static data_t *    _data_set_pnm(data_t *, char *, data_t *);
-
-int PartialNameMatch;
+int PartialNameMatch = -1;
 
 static vtable_t _vtable_pnm[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _data_new_pnm },
-  { .id = FunctionCopy,     .fnc = (void_t) _data_copy_pnm },
-  { .id = FunctionCmp,      .fnc = (void_t) _data_cmp_pnm },
+  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,      .fnc = (void_t) _pnm_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _pnm_free },
-  { .id = FunctionToString, .fnc = (void_t) _data_tostring_pnm },
-  { .id = FunctionResolve,  .fnc = (void_t) _data_resolve_pnm },
-  { .id = FunctionCall,     .fnc = (void_t) _data_call_pnm },
-  { .id = FunctionSet,      .fnc = (void_t) _data_set_pnm },
+  { .id = FunctionToString, .fnc = (void_t) _pnm_tostring },
+  { .id = FunctionResolve,  .fnc = (void_t) _pnm_resolve },
+  { .id = FunctionCall,     .fnc = (void_t) _pnm_call },
+  { .id = FunctionSet,      .fnc = (void_t) _pnm_set },
   { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_pnm = {
-  .type =      -1,
-  .type_name = "pnm",
-  .vtable =    _vtable_pnm
 };
 
 /* ------------------------------------------------------------------------ */
 
 void _namespace_init(void) {
   logging_register_category("namespace", &ns_debug);
-  typedescr_register(&typedescr_module);
-  PartialNameMatch = typedescr_register(&_typedescr_pnm);
+  Module = typedescr_create_and_register(Module, "module", _vtable_module, NULL);
+  Namespace = typedescr_create_and_register(Namespace, "namespace", _vtable_namespace, NULL);
+  PartialNameMatch = typedescr_create_and_register(PartialNameMatch, "pnm", _vtable_pnm, NULL);
 }
 
 /* -- Partial Name Match data functions ----------------------------------- */
@@ -131,7 +124,7 @@ pnm_t * _pnm_create(char *name) {
 }
 
 void _pnm_free(pnm_t *pnm) {
-  if (pnm && --pnm -> refs <= 0) {
+  if (pnm) {
     name_free(pnm -> name);
     set_free(pnm -> matches);
   }
@@ -179,41 +172,15 @@ pnm_t * _pnm_matches_reducer(module_t * mod, pnm_t *pnm) {
   return pnm;
 }
 
-/* ------------------------------------------------------------------------ */
-
-data_t * _data_new_pnm(data_t *ret, va_list arg) {
-  pnm_t *pnm;
-  char  *name;
-  
-  name = va_arg(arg, char *);
-  pnm = _pnm_create(name);
-  
-  ret -> ptrval = pnm;
-  return ret;
-}
-
-data_t * _data_copy_pnm(data_t *target, data_t *src) {
-  target -> ptrval = src -> ptrval;
-  ((pnm_t *) target -> ptrval) -> refs++;
-  return target;
-}
-
-int _data_cmp_pnm(data_t *d1, data_t *d2) {
-  pnm_t *pnm1;
-  pnm_t *pnm2;
-
-  pnm1 = d1 -> ptrval;
-  pnm2 = d2 -> ptrval;
+int _pnm_cmp(pnm_t *pnm1, pnm_t *pnm2) {
   return name_cmp(pnm1 -> name, pnm2 -> name);
 }
 
-char * _data_tostring_pnm(data_t *d) {
-  return name_tostring(((pnm_t *) d -> ptrval) -> name);
+char * _pnm_tostring(pnm_t *pnm) {
+  return name_tostring(pnm -> name);
 }
 
-data_t * _data_resolve_pnm(data_t *data, char *name) {
-  pnm_t *pnm = (pnm_t *) data -> ptrval;
-  
+data_t * _pnm_resolve(pnm_t *pnm, char *name) {
   pnm -> next = name;
   pnm -> match = NULL;
   if (pnm -> match_lost) {
@@ -231,17 +198,15 @@ data_t * _data_resolve_pnm(data_t *data, char *name) {
   }
 }
 
-data_t * _data_call_pnm(data_t *self, array_t *params, dict_t *kwargs) {
-  pnm_t    *pnm = (pnm_t *) self -> ptrval;
+data_t * _pnm_call(pnm_t *pnm, array_t *params, dict_t *kwargs) {
   module_t *mod = _pnm_find_mod(pnm);
   
   return (mod)
-    ? object_call(mod -> obj, params, kwargs) 
+    ? _mod_call(mod, params, kwargs) 
     : data_exception(ErrorName, "Trouble locating '%s'", name_tostring(pnm -> name));
 }
 
-data_t * _data_set_pnm(data_t *data, char *name, data_t *value) {
-  pnm_t    *pnm = (pnm_t *) data -> ptrval;
+data_t * _pnm_set(pnm_t *pnm, char *name, data_t *value) {
   module_t *mod = _pnm_find_mod(pnm);
   
   return (mod)
@@ -251,45 +216,25 @@ data_t * _data_set_pnm(data_t *data, char *name, data_t *value) {
 
 /* -- M O D U L E  D A T A  F U N C T I O N S ----------------------------- */
 
-data_t * _data_new_module(int type, va_list arg) {
-  module_t *module;
-  data_t   *ret;
-
-  module = va_arg(arg, module_t *);
-  ret = &module -> data;
-  if (!ret -> ptrval) {
-    ret -> ptrval = mod_copy(module);
+void _mod_free(module_t *mod) {
+  if (mod) {
+    object_free(mod -> obj);
+    ns_free(mod -> ns);
+    free(mod -> name);
+    free(mod);
   }
-  return ret;
 }
 
-int _data_cmp_module(data_t *d1, data_t *d2) {
-  module_t *m1;
-  module_t *m2;
-
-  m1 = (module_t *) d1 -> ptrval;
-  m2 = (module_t *) d2 -> ptrval;
-  return mod_cmp(m1, m2);
+char * _mod_tostring(module_t *module) {
+  if (module) {
+    return name_tostring(module -> name);
+  } else {
+    return "mod:NULL";
+  }
 }
 
-char * _data_tostring_module(data_t *d) {
-  return mod_tostring((module_t *) d -> ptrval);
-}
-
-unsigned int _data_hash_module(data_t *data) {
-  return mod_hash(data_moduleval(data));
-}
-
-data_t * _data_resolve_module(data_t *mod, char *name) {
-  return mod_resolve(data_moduleval(mod), name);
-}
-
-data_t * _data_call_module(data_t *mod, array_t *args, dict_t *kwargs) {
-  return object_call(data_moduleval(mod) -> obj, args, kwargs);
-}
-
-data_t * data_create_module(module_t *module) {
-  return data_create(Module, module);
+data_t * _mod_call(module_t *mod, array_t *args, dict_t *kwargs) {
+  return object_call(mod -> obj, args, kwargs);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -297,7 +242,7 @@ data_t * data_create_module(module_t *module) {
 module_t * mod_create(namespace_t *ns, name_t *name) {
   module_t   *ret;
   
-  ret = NEW(module_t);
+  ret = data_new(Module, module_t);
   if (ns_debug) {
     debug("  Creating module '%s'", name_tostring(name));
   }
@@ -306,36 +251,10 @@ module_t * mod_create(namespace_t *ns, name_t *name) {
   ret -> ns = ns_copy(ns);
   ret -> obj = object_create(NULL);
   ret -> imports = set_create((cmp_t) mod_cmp);
-  ret -> data.refs = 1;
-  ret -> data.ptrval = ret;
   set_set_hash(ret -> imports, (hash_t) mod_hash);
   set_set_free(ret -> imports, (free_t) mod_free);
   set_set_tostring(ret -> imports, (tostring_t) mod_tostring);
   return ret;
-}
-
-void mod_free(module_t *mod) {
-  if (mod && (--mod -> data.refs) <= 0) {
-    object_free(mod -> obj);
-    ns_free(mod -> ns);
-    free(mod -> name);
-    free(mod);
-  }
-}
-
-module_t * mod_copy(module_t *module) {
-  if (module) {
-    module -> data.refs++;
-  }
-  return module;
-}
-
-char * mod_tostring(module_t *module) {
-  if (module) {
-    return name_tostring(module -> name);
-  } else {
-    return "mod:NULL";
-  }
 }
 
 unsigned int mod_hash(module_t *mod) {
@@ -552,6 +471,19 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
   return ret;
 }
 
+void _ns_free(namespace_t *ns) {
+  if (ns && (--ns -> refs <= 0)) {
+    dict_free(ns -> modules);
+    free(ns -> name);
+    data_free(ns -> exit_code);
+    free(ns);
+  }
+}
+
+char * _ns_tostring(namespace_t *ns) {
+  return ns -> name;
+}
+
 /* ------------------------------------------------------------------------ */
 
 namespace_t * ns_create(char *name, void *importer, import_t import_fnc) {
@@ -562,34 +494,13 @@ namespace_t * ns_create(char *name, void *importer, import_t import_fnc) {
     debug("  Creating root namespace");
   }
 
-  ret = NEW(namespace_t);
+  ret = data_new(Namespace, namespace_t);
   ret -> name = strdup(name);
   ret -> import_ctx = importer;
   ret -> import_fnc = import_fnc;
   ret -> exit_code = NULL;
-  ret -> modules = strvoid_dict_create();
-  dict_set_free_data(ret -> modules, (free_t) mod_free);
-  dict_set_tostring_data(ret -> modules, (tostring_t) mod_tostring);
-  ret -> str = NULL;
-  ret -> refs = 1;
+  ret -> modules = strdata_dict_create();
   return ret;
-}
-
-void ns_free(namespace_t *ns) {
-  if (ns && (--ns -> refs <= 0)) {
-    dict_free(ns -> modules);
-    free(ns -> str);
-    free(ns -> name);
-    data_free(ns -> exit_code);
-    free(ns);
-  }
-}
-
-namespace_t * ns_copy(namespace_t *src) {
-  if (src) {
-    src -> refs++;
-  }
-  return src;
 }
 
 data_t * ns_execute(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs) {
@@ -597,7 +508,7 @@ data_t * ns_execute(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
   data_t *obj;
 
   if (data_is_module(mod)) {
-    obj = data_create(Object, data_moduleval(mod) -> obj);
+    obj = data_create(Object, data_as_module(mod) -> obj);
     data_free(mod);
     return obj;
   } else {
@@ -620,17 +531,6 @@ data_t * ns_get(namespace_t *ns, name_t *name) {
                         name_tostring(name), ns_tostring(ns));
   } else {
     return data_create(Module, mod);
-  }
-}
-
-char * ns_tostring(namespace_t *ns) {
-  if (ns) {
-    if (!ns -> str) {
-      asprintf(&ns -> str, "Namespace '%s'", ns -> name);
-    }
-    return ns -> str;
-  } else {
-    return "ns:NULL";
   }
 }
 

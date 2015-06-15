@@ -34,8 +34,6 @@ extern "C" {
 
 typedef data_t * (*import_t)(void *, module_t *);
 
-extern int ns_debug;
-
 typedef enum _modstate {
   ModStateUninitialized,
   ModStateLoading,
@@ -43,17 +41,16 @@ typedef enum _modstate {
 } modstate_t;
 
 typedef struct _namespace {
+  data_t    _d;
   char     *name;
   void     *import_ctx;
   import_t  import_fnc;
   data_t   *exit_code;
   dict_t   *modules;
-  int       refs;
-  char     *str;
 } namespace_t;
 
 typedef struct _module {
-  data_t       data;
+  data_t       _d;
   name_t      *name;
   data_t      *source;
   namespace_t *ns;
@@ -62,18 +59,10 @@ typedef struct _module {
   set_t       *imports;
 } module_t;
 
-#define data_is_module(d)  ((d) && (data_type((d)) == Module))
-#define data_moduleval(d)  ((module_t *) (data_is_module((d)) ? ((d) -> ptrval) : NULL))
-
-extern data_t *      data_create_module(module_t *);
-
 extern module_t *    mod_create(namespace_t *, name_t *);
-extern void          mod_free(module_t *);
-extern module_t *    mod_copy(module_t *);
 extern unsigned int  mod_hash(module_t *);
 extern int           mod_cmp(module_t *, module_t *);
 extern int           mod_cmp_name(module_t *, name_t *);
-extern char *        mod_tostring(module_t *);
 extern object_t *    mod_get(module_t *);
 extern data_t *      mod_set(module_t *, script_t *, array_t *, dict_t *);
 extern data_t *      mod_resolve(module_t *, char *);
@@ -82,14 +71,28 @@ extern module_t *    mod_exit(module_t *, data_t *);
 extern data_t *      mod_exit_code(module_t *);
 
 extern namespace_t * ns_create(char *, void *, import_t);
-extern void          ns_free(namespace_t *);
-extern namespace_t * ns_copy(namespace_t *);
 extern data_t *      ns_import(namespace_t *, name_t *);
 extern data_t *      ns_execute(namespace_t *, name_t *, array_t *, dict_t *);
 extern data_t *      ns_get(namespace_t *, name_t *);
-extern char *        ns_tostring(namespace_t *);
 extern namespace_t * ns_exit(namespace_t *, data_t *);
 extern data_t *      ns_exit_code(namespace_t *);
+
+extern int Namespace;
+extern int Module;
+extern int ns_debug;
+
+#define data_is_namespace(d)   ((d) && (data_hastype((data_t *) (d), Namespace)))
+#define data_as_namespace(d)   ((namespace_t *) (data_is_namespace((data_t *) (d)) ? (d) : NULL))
+#define ns_free(o)             (data_free((data_t *) (o)))
+#define ns_tostring(o)         (data_tostring((data_t *) (o)))
+#define ns_copy(o)             ((namespace_t *) data_copy((data_t *) (o)))
+
+#define data_is_module(d)      ((d) && (data_hastype((data_t *) (d), Module)))
+#define data_as_module(d)      ((module_t *) (data_is_module((data_t *) (d)) ? (d) : NULL))
+#define mod_free(o)            (data_free((data_t *) (o)))
+#define mod_tostring(o)        (data_tostring((data_t *) (o)))
+#define mod_copy(o)            ((module_t *) data_copy((data_t *) (o)))
+#define data_create_module(o)  data_create(Module, (o))
 
 #ifdef  __cplusplus
 }

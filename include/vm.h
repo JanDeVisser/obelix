@@ -34,7 +34,7 @@ extern "C" {
 #define NUM_STASHES     8
 
 typedef struct _vm {
-  data_t       data;
+  data_t       _d;
   data_t      *stashes[NUM_STASHES];
   bytecode_t  *bytecode;
   datastack_t *stack;
@@ -55,8 +55,8 @@ extern data_t * vm_execute(vm_t *, data_t *);
 extern int VM;
 
 #define data_is_vm(d)   ((d) && data_hastype((d), VM))
-#define data_vmval(d)   (data_is_vm((d)) ? ((vm_t *) ((d) -> ptrval)) : NULL)
-#define vm_copy(vm)     ((closure_t *) data_copy((vm)))
+#define data_as_vm(d)   ((vm_t *) (data_is_vm((d)) ? (d) : NULL))
+#define vm_copy(vm)     ((vm_t *) data_copy((data_t *) (vm)))
 #define vm_free(vm)     (data_free((data_t *) (vm)))
 #define vm_tostring(vm) (data_tostring((data_t *) (vm)))
 

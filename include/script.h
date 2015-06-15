@@ -22,21 +22,14 @@
 #define __SCRIPT_H__
 
 #include <bytecode.h>
-#include <core.h>
 #include <data.h>
-#include <datastack.h>
-#include <dict.h>
-#include <instruction.h>
 #include <list.h>
-#include <parser.h>
+#include <name.h>
 #include <object.h>
-#include <set.h>
-
+#
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-extern int script_debug;
 
 typedef struct _namespace    namespace_t;
 typedef struct _module       module_t;
@@ -66,16 +59,19 @@ typedef struct _script {
 
 /* -- S C R I P T  P R O T O T Y P E S -------------------------------------*/
 
-extern script_t *       script_create(module_t *, script_t *, char *);
-extern name_t *         script_fullname(script_t *);
-extern int              script_cmp(script_t *, script_t *);
-extern unsigned int     script_hash(script_t *);
-extern void             script_list(script_t *);
-extern script_t *       script_get_toplevel(script_t *);
-extern closure_t *      script_create_closure(script_t *, closure_t *, data_t *);
-extern data_t *         script_execute(script_t *, array_t *, dict_t *);
-extern data_t *         script_create_object(script_t *, array_t *, dict_t *);
-extern bound_method_t * script_bind(script_t *, object_t *);
+extern script_t *             script_create(struct _module *, script_t *, char *);
+extern name_t *               script_fullname(script_t *);
+extern int                    script_cmp(script_t *, script_t *);
+extern unsigned int           script_hash(script_t *);
+extern void                   script_list(script_t *);
+extern script_t *             script_get_toplevel(script_t *);
+extern closure_t *            script_create_closure(script_t *, struct _closure *, data_t *);
+extern data_t *               script_execute(script_t *, array_t *, dict_t *);
+extern data_t *               script_create_object(script_t *, array_t *, dict_t *);
+extern struct _bound_method * script_bind(script_t *, object_t *);
+
+extern int script_debug;
+extern int Script;
 
 #ifdef __cplusplus
 }

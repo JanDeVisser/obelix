@@ -33,7 +33,7 @@ extern "C" {
 struct _vm;
 
 typedef struct _bytecode {
-  data_t       data;
+  data_t       _d;
   data_t      *owner;
   list_t      *instructions;
   list_t      *main_block;
@@ -50,7 +50,7 @@ extern int bytecode_debug;
 extern bytecode_t * bytecode_create(data_t *owner);
 extern void         bytecode_free(bytecode_t *);
 extern char *       bytecode_tostring(bytecode_t *);
-extern void         bytecode_execute(bytecode_t *, struct _vm *, data_t *);
+extern data_t *     bytecode_execute(bytecode_t *, struct _vm *, data_t *);
 extern bytecode_t * bytecode_push_instruction(bytecode_t *, data_t *);
 extern bytecode_t * bytecode_start_deferred_block(bytecode_t *);
 extern bytecode_t * bytecode_end_deferred_block(bytecode_t *);
@@ -61,7 +61,7 @@ extern bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *);
 extern void         bytecode_list(bytecode_t *);
 
 #define data_is_bytecode(d)   ((d) && data_hastype((d), Bytecode))
-#define data_bytecodeval(d)   (data_is_bytecode((d)) ? ((bytecode_t *) ((d) -> ptrval)) : NULL)
+#define data_as_bytecode(d)   ((bytecode_t *) (data_is_bytecode((d)) ? (d) : NULL))
 #define bytecode_copy(bc)     ((bytecode_t *) data_copy((data_t *) (bc)))
 #define bytecode_free(bc)     (data_free((data_t *) (bc)))
 #define bytecode_tostring(bc) (data_tostring((data_t *) (bc)))

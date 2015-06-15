@@ -26,6 +26,10 @@
 #include <data.h>
 #include <dict.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _object {
   data_t   _d;
   data_t  *constructor;
@@ -34,10 +38,6 @@ typedef struct _object {
   dict_t  *variables;
   data_t  *retval;
 } object_t;
-
-extern data_t *            data_create_object(object_t *);
-#define data_is_object(d)  ((d) && (data_type((d)) == Object))
-#define data_objectval(d)  (data_is_object((d)) ? ((object_t *) (d) -> ptrval) : NULL)
 
 extern object_t *          object_create(data_t *);
 extern object_t *          object_copy(object_t *);
@@ -52,14 +52,19 @@ extern object_t *          object_bind_all(object_t *, data_t *);
 extern data_t *            object_ctx_enter(object_t *);
 extern data_t *            object_ctx_leave(object_t *, data_t *);
 
-#define data_is_object(d)   ((d) && (data_hastype((data_t *) (d), Object)))
-#define data_as_object(d)   ((object_t *) (data_is_object((data_t *) (d)) ? (d) : NULL))
-#define object_free(o)      (data_free((data_t *) (o)))
-#define object_tostring(o)  (data_tostring((data_t *) (o)))
-#define object_debugstr(o)  (data_tostring((data_t *) (o)))
-#define object_copy(o)      ((object_t *) data_copy((data_t *) (o)))
+#define data_is_object(d)     ((d) && (data_hastype((data_t *) (d), Object)))
+#define data_as_object(d)     ((object_t *) (data_is_object((data_t *) (d)) ? (d) : NULL))
+#define object_free(o)        (data_free((data_t *) (o)))
+#define object_tostring(o)    (data_tostring((data_t *) (o)))
+#define object_debugstr(o)    (data_tostring((data_t *) (o)))
+#define object_copy(o)        ((object_t *) data_copy((data_t *) (o)))
+#define data_create_object(o) data_create(Object, (o))
 
 extern int obj_debug;
 extern int Object;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __OBJECT_H__ */
