@@ -79,7 +79,7 @@ static pnm_t *     _pnm_find_mod_reducer(module_t *, pnm_t *);
 static module_t *  _pnm_find_mod(pnm_t *);
 static pnm_t *     _pnm_matches_reducer(module_t * , pnm_t *);
 static pnm_t *     _pnm_find_in_mod_reducer(module_t *, pnm_t *);
-static int         _pnm_cmp(pnm_t *, data_t *);
+static int         _pnm_cmp(pnm_t *, pnm_t *);
 static char *      _pnm_tostring(pnm_t *);
 static data_t *    _pnm_resolve(pnm_t *, char *);
 static data_t *    _pnm_call(pnm_t *, array_t *, dict_t *);
@@ -158,10 +158,7 @@ pnm_t * _pnm_find_in_mod_reducer(module_t *mod, pnm_t *pnm) {
 pnm_t * _pnm_matches_reducer(module_t * mod, pnm_t *pnm) {
   if (!name_startswith(mod -> name, pnm -> name)) {
     if (!pnm -> match_lost) {
-      pnm -> match_lost = set_create((cmp_t) mod_cmp);
-      set_set_hash(pnm -> match_lost, (hash_t) mod_hash);
-      set_set_free(pnm -> match_lost, (free_t) mod_free);
-      set_set_tostring(pnm -> match_lost, (tostring_t) mod_tostring);
+      pnm -> match_lost = data_set_create();
     }
     set_add(pnm -> match_lost, mod);
   }
@@ -190,7 +187,7 @@ data_t * _pnm_resolve(pnm_t *pnm, char *name) {
     name_extend(pnm -> name, name);
     set_reduce(pnm -> matches, (reduce_t) _pnm_matches_reducer, pnm);
     set_minus(pnm -> matches, pnm -> match_lost);
-    return data;
+    return (data_t *) pnm;
   }
 }
 
@@ -246,10 +243,7 @@ module_t * mod_create(namespace_t *ns, name_t *name) {
   ret -> name = name_copy(name);
   ret -> ns = ns_copy(ns);
   ret -> obj = object_create(NULL);
-  ret -> imports = set_create((cmp_t) mod_cmp);
-  set_set_hash(ret -> imports, (hash_t) mod_hash);
-  set_set_free(ret -> imports, (free_t) mod_free);
-  set_set_tostring(ret -> imports, (tostring_t) mod_tostring);
+  ret -> imports = data_set_create();
   return ret;
 }
 
@@ -296,9 +290,9 @@ void ** _mod_resolve_reducer(module_t *import, void **ctx) {
   if (needle[0] && (name_size(import -> name) > 0) && 
       !strcmp(needle, name_first(import -> name))) {
     if (!ctx[1]) {
-      ctx[1] = data_create(PartialNameMatch, needle);
+      ctx[1] = (data_t *) _pnm_create(needle);
     }
-    _pnm_add((pnm_t *) (((data_t *) ctx[1]) -> ptrval), import);
+    _pnm_add((pnm_t *) ctx[1], import);
   }
   return ctx;
 }
@@ -336,7 +330,6 @@ data_t * mod_resolve(module_t *mod, char *name) {
   }
   
   if (!ret && (name_size(mod -> name) > 0)) {
-    
     if (ns_debug) {
       debug("mod_resolve('%s', '%s'): Check root module", mod_tostring(mod), name);
     }
@@ -348,7 +341,7 @@ data_t * mod_resolve(module_t *mod, char *name) {
     if (!data_is_module(droot)) {
       error("mod_resolve(%s): root module not found", mod_tostring(mod));
     } else {
-      ret = object_resolve(data_moduleval(droot) -> obj, name);
+      ret = object_resolve(data_as_module(droot) -> obj, name);
     }
     data_free(droot);
   }
@@ -362,7 +355,7 @@ data_t * mod_import(module_t *mod, name_t *name) {
   data_t *imp = ns_import(mod -> ns, name);
 
   if (data_is_module(imp)) {
-    set_add(mod -> imports, data_moduleval(imp));
+    set_add(mod -> imports, data_as_module(imp));
   }
   return imp;
 }
@@ -412,7 +405,7 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
   module -> state = ModStateLoading;
   script = ns -> import_fnc(ns -> import_ctx, module);
   if (data_is_script(script)) {
-    obj = mod_set(module, data_scriptval(script), args, kwargs);
+    obj = mod_set(module, data_as_script(script), args, kwargs);
     if (data_is_object(obj)) {
       ret = data_create(Module, module);
       data_free(obj);
@@ -468,7 +461,7 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
 }
 
 void _ns_free(namespace_t *ns) {
-  if (ns && (--ns -> refs <= 0)) {
+  if (ns) {
     dict_free(ns -> modules);
     free(ns -> name);
     data_free(ns -> exit_code);

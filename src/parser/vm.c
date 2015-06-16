@@ -74,7 +74,6 @@ vm_t * vm_create(bytecode_t *bytecode) {
   vm_t *ret = data_new(VM, vm_t);
   
   ret -> bytecode = bytecode_copy(bytecode);
-  ret -> data.ptrval = ret;
   return ret;
 }
 
@@ -118,9 +117,8 @@ data_t * vm_unstash(vm_t *vm, unsigned int stash) {
 
 nvp_t * vm_push_context(vm_t *vm, char *label, data_t *context) {
   nvp_t *ret = nvp_create(data_create(String, label), data_copy(context));
-  data_t *data = data_create_noinit(NVP);
+  data_t *data = data_create(NVP, ret);
   
-  data -> ptrval = ret;
   datastack_push(vm -> contexts, data);
   return ret;
 }
@@ -157,7 +155,7 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
     datastack_clear(vm -> contexts);
   }
   
-  ret = data_thread_push_stackframe(&vm -> data);
+  ret = data_thread_push_stackframe((data_t *) vm);
   if (!data_is_exception(ret)) {
     ret = bytecode_execute(vm -> bytecode, vm, scope);
     if (dbg) {

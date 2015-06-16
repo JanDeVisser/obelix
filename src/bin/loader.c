@@ -263,7 +263,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
       debug("grammar file: %s", grammarpath);
     }
     file = data_create(File, grammarpath);
-    assert(file_isopen(data_fileval(file)));
+    assert(file_isopen(data_as_file(file)));
     gp = grammar_parser_create(file);
     ret -> grammar = grammar_parser_parse(gp);
     assert(ret -> grammar);

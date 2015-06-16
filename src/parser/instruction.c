@@ -130,10 +130,10 @@ void _register_ ## t(void) {                                                 \
   IT ## t = _instruction_type_register(#t, ITBy ## s, _vtable_ ## t);        \
 }                                                                            \
 data_t * _instruction_call_ ## t(data_t *data, array_t *p, dict_t *kw) {     \
-  instruction_t *instr = data_instructionval(data);                          \
+  instruction_t *instr = data_as_instruction(data);                          \
   data_t        *scope = data_array_get(p, 0);                               \
-  vm_t          *vm = data_vmval(data_array_get(p, 1));                      \
-  bytecode_t    *bytecode = data_bytecodeval(data_array_get(p, 2));          \
+  vm_t          *vm = data_as_vm(data_array_get(p, 1));                      \
+  bytecode_t    *bytecode = data_as_bytecode(data_array_get(p, 2));          \
   if (script_debug) {                                                        \
     debug("Executing %s", instruction_tostring(instr));                      \
   }                                                                          \
@@ -178,8 +178,7 @@ typedef struct _function_call {
 
 static function_call_t * _call_new(int, va_list);
 static void              _call_free(function_call_t *);
-static data_t *          _call_copy(data_t *, data_t *);
-static char *            _call_allocstring(data_t *);
+static char *            _call_allocstring(function_call_t *);
 
 static int Call = -1;
 
@@ -212,7 +211,7 @@ void _instruction_init(void) {
   name_self = name_create(1, "self");
 }
 
-void _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
+int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
   static typedescr_t td;
   
   td.type = -1;
@@ -247,7 +246,7 @@ void _call_free(function_call_t *call) {
   }
 }
 
-char * _call_tostring(function_call_t *call) {
+char * _call_allocstring(function_call_t *call) {
   char *buf;
   
   asprintf(&buf, "%s(argv[%d], %s)", 
@@ -260,27 +259,27 @@ char * _call_tostring(function_call_t *call) {
 /* -- T O _ S T R I N G  F U N C T I O N S -------------------------------- */
 
 char * _instruction_name(data_t *data) {
-  instruction_t *instruction = data_instructionval(data);
+  instruction_t *instruction = data_as_instruction(data);
 
   return instruction -> name ? instruction -> name : "";
 }
 
 char * _instruction_tostring_name(data_t *data) {
-  instruction_t *instruction = data_instructionval(data);
+  instruction_t *instruction = data_as_instruction(data);
 
   _instruction_tostring(instruction, _instruction_name(data));
   return NULL;
 }
 
 char * _instruction_tostring_value(data_t *data) {
-  instruction_t *instruction = data_instructionval(data);
+  instruction_t *instruction = data_as_instruction(data);
   
   _instruction_tostring(instruction, data_tostring(instruction -> value));
   return NULL;
 }
 
 char * _instruction_tostring_name_value(data_t *data) {
-  instruction_t *instruction = data_instructionval(data);
+  instruction_t *instruction = data_as_instruction(data);
   char *v = data_tostring(instruction -> value);
   char *s;
   char *free_me = NULL;
@@ -298,7 +297,7 @@ char * _instruction_tostring_name_value(data_t *data) {
 }
 
 char * _instruction_tostring_value_or_name(data_t *data) {
-  instruction_t *instruction = data_instructionval(data);
+  instruction_t *instruction = data_as_instruction(data);
 
   if (instruction -> value) {
     _instruction_tostring_value(data);
@@ -317,10 +316,10 @@ char * _instruction_tostring(instruction_t *instruction, char *s) {
   } else {
     line[0] = 0;
   }
-  asprintf(&instruction -> data.str, "%-6s %-11.11s%-15.15s%-27.27s", 
+  asprintf(&instruction -> _d.str, "%-6s %-11.11s%-15.15s%-27.27s", 
            line,
            instruction -> label, 
-           data_typedescr(&instruction -> data) -> type_name,
+           data_typedescr((data_t *) instruction) -> type_name,
            s);
   return NULL;
 }
@@ -328,7 +327,7 @@ char * _instruction_tostring(instruction_t *instruction, char *s) {
 /* -- H E L P E R  F U N C T I O N S -------------------------------------- */
 
 data_t * _instruction_get_variable(instruction_t *instr, data_t *scope) {
-  name_t *path = data_nameval(instr -> value);
+  name_t *path = data_as_name(instr -> value);
   data_t *variable = NULL;
   
   if (path && name_size(path)) {
@@ -349,7 +348,7 @@ data_t * _instruction_get_variable(instruction_t *instr, data_t *scope) {
 /* -- V A R I A B L E  M A N A G E M E N T ------------------------------- */
 
 data_t * _instruction_execute_Assign(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
-  name_t *path = data_nameval(instr -> value);
+  name_t *path = data_as_name(instr -> value);
   data_t *value;
   data_t *ret;
 
@@ -366,7 +365,7 @@ data_t * _instruction_execute_Assign(instruction_t *instr, data_t *scope, vm_t *
 data_t * _instruction_execute_PushVar(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value;
   data_t *ret;
-  name_t *path = data_nameval(instr -> value);
+  name_t *path = data_as_name(instr -> value);
   
   value = _instruction_get_variable(instr, scope);
   if (data_is_unhandled_exception(value)) {
@@ -447,7 +446,7 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
     e -> handled = TRUE;
   }
   cp_data = vm_pop(vm);
-  cp = data_nvpval(cp_data);
+  cp = data_as_nvp(cp_data);
   context = data_copy(cp -> value);
   data_free(cp_data);
   if (data_is_exception(context)) {
@@ -516,7 +515,7 @@ data_t * _instruction_execute_PushCtx(instruction_t *instr, data_t *scope, vm_t 
   } else {
     return data_exception(ErrorInternalError,
                           "%s: No context set",
-                          data_tostring(&instr -> data));
+                          instruction_tostring(instr));
   }
 }
 
@@ -567,7 +566,7 @@ name_t * _instruction_setup_constructor(data_t *scope,
 }
 
 data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
-  function_call_t *call = (function_call_t *) instr -> value -> ptrval;
+  function_call_t *call = (function_call_t *) instr -> value;
   data_t          *value;
   data_t          *ret = NULL;
   data_t          *self;
@@ -671,7 +670,7 @@ data_t * _instruction_execute_Test(instruction_t *instr, data_t *scope, vm_t *vm
                          data_typedescr(value) -> type_name,
                          data_tostring(value));
   } else {
-    ret = (!casted -> intval) ? data_create(String, instr -> name) : NULL;
+    ret = (!data_intval(casted)) ? data_create(String, instr -> name) : NULL;
   }
   data_free(casted);
   data_free(value);
@@ -769,9 +768,8 @@ data_t * _instr_new(int type, va_list args) {
   char          *name = va_arg(args, char *);
   data_t        *value = va_arg(args, data_t *);
 
-  ret = NEW(instruction_t);
-  data = &ret -> data;
-  data_settype(data, type);
+  ret = data_new(type, instruction_t);
+  data = (data_t *) ret;
   ret -> line = -1;
   ret -> name = (name) ? strdup(name) : NULL;
   ret -> value = value;

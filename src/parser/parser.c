@@ -36,6 +36,7 @@ typedef struct _parser_stack_entry {
 static void                   _parser_init(void) __attribute__((constructor(102)));
 
 static parser_stack_entry_t * _parser_stack_create(data_t *);
+static int                    _parser_stack_entry_register(char *, vtable_t *);
 static parser_stack_entry_t * _parser_stack_entry_create(int type, data_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_rule(rule_t *);
 static parser_stack_entry_t * _parser_stack_entry_for_nonterminal(nonterminal_t *);
@@ -104,7 +105,7 @@ static vtable_t _vtable_ ## t [] = {                                         \
   { .id = FunctionNone,        .fnc = NULL }                                 \
 };                                                                           \
 void _register_ ## t(void) {                                                 \
-  PSEType ## t = _pse_type_register(#t, _vtable_ ## t);                      \
+  PSEType ## t = _parser_stack_entry_type_register(#t, _vtable_ ## t);       \
 }                                                                            \
 data_t * _pse_call_ ## t(data_t *data, array_t *p, dict_t *kw) {             \
   parser_stack_entry_t *pse = (parser_stack_entry_t *) data;                 \
@@ -131,6 +132,10 @@ void _parser_init(void) {
 }
 
 /* -- P A R S E R _ S T A C K _ E N T R Y --------------------------------- */
+
+int _parser_stack_entry_register(char *name, vtable_t *vtable) {
+  return typedescr_create_and_register(-1, name, vtable, NULL);
+}
 
 parser_stack_entry_t * _parser_stack_entry_create(int type, data_t *subject) {
   parser_stack_entry_t *ret;
@@ -364,7 +369,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
     debug("Production Stack =================================================");
     for(iter = li_create(parser -> prod_stack); li_has_next(iter); ) {
       entry = li_next(iter);
-      debug("[ %-32.32s ]", _parser_stack_entry_tostring(entry));
+      debug("[ %-32.32s ]",data_tostring((data_t *) entry));
     }
     li_free(iter);
   }
@@ -378,7 +383,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
 parser_t * _parser_push_to_prodstack(parser_t *parser, parser_stack_entry_t *entry) {
   list_push(parser -> prod_stack, entry);
   if (parser_debug) {
-    debug("      Pushed  %s", _parser_stack_entry_tostring(entry));
+    debug("      Pushed  %s", data_tostring(entry));
   }
   return parser;
 }
@@ -429,7 +434,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
     consuming = 0;
   } else {
     if (parser_debug) {
-      debug("    Popped  %s", _parser_stack_entry_tostring(e));
+      debug("    Popped  %s", data_tostring((data_t *) e));
     }
     args = data_array_create(3);
     array_push(args, parser_copy(parser));

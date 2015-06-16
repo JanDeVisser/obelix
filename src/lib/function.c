@@ -29,7 +29,8 @@ static void         _function_init(void) __attribute__((constructor));
 static void         _function_free(function_t *);
 static char *       _function_tostring(function_t *);
 static data_t *     _function_cast(function_t *, int);
-
+static data_t *     _function_call(function_t *, array_t *, dict_t *);
+			
 static vtable_t _vtable_function[] = {
   { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) function_cmp },
@@ -38,7 +39,7 @@ static vtable_t _vtable_function[] = {
   { .id = FunctionParse,    .fnc = (void_t) function_parse },
   { .id = FunctionCast,     .fnc = (void_t) _function_cast },
   { .id = FunctionHash,     .fnc = (void_t) function_hash },
-  { .id = FunctionCall,     .fnc = (void_t) function_call },
+  { .id = FunctionCall,     .fnc = (void_t) _function_call },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -47,7 +48,8 @@ int Function = -1;
 /* -- F U N C T I O N  S T A T I C  F U N C T I O N S --------------------- */
 
 void _function_init(void) {
-  Function = typedescr_create_and_register("function", _vtable_function, NULL);
+  Function = typedescr_create_and_register(Function, "function",
+					   _vtable_function, NULL);
 }
 
 char * _function_tostring(function_t *fnc) {
@@ -81,6 +83,11 @@ data_t * _function_cast(function_t *fnc, int totype) {
   }
   return ret;
 }
+
+data_t * _function_call(function_t *fnc, array_t *args, dict_t *kwargs) {
+  return function_call(fnc, function_funcname(fnc), args, kwargs);
+}
+			 
 
 /* -- F U N C T I O N  P U B L I C  F U N C T I O N S --------------------- */
 
@@ -129,7 +136,7 @@ function_t * function_parse(char *str) {
     params = name_create(0);
   }
   if (params) {
-    ret = function_create(name_first(name_params));
+    ret = function_create(name_first(name_params), NULL);
     ret -> params = name_as_array(params);
   }
   name_free(params);

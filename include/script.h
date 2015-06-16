@@ -50,7 +50,7 @@ typedef struct _script {
 } script_t;
 
 #define data_is_script(d)     ((d) && data_hastype((d), Script))
-#define data_scriptval(d)     (data_is_script((d)) ? ((script_t *) (d)) : NULL)
+#define data_as_script(d)     (data_is_script((d)) ? ((script_t *) (d)) : NULL)
 #define script_copy(s)        ((script_t *) data_copy((data_t *) (s)))
 #define script_tostring(s)    (data_tostring((data_t *) (s)))
 #define script_free(s)        (data_free((data_t *) (s)))

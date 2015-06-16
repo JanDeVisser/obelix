@@ -31,7 +31,7 @@ static void          _data_init_object(void) __attribute__((constructor));
 extern void          _object_free(object_t *);
 extern char *        _object_allocstring(object_t *);
 static data_t *      _object_cast(object_t *, int);
-static int           _object_len(data_t *);
+static int           _object_len(object_t *);
 
 static data_t *      _object_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _object_new(data_t *, char *, array_t *, dict_t *);
@@ -56,12 +56,6 @@ static vtable_t _vtable_object[] = {
   { .id = FunctionEnter,       .fnc = (void_t) object_ctx_enter },
   { .id = FunctionLeave,       .fnc = (void_t) object_ctx_leave },
   { .id = FunctionNone,        .fnc = NULL }
-};
-
-static typedescr_t _typedescr_object = {
-  .type =      Object,
-  .type_name = "object",
-  .vtable =    _vtable_object
 };
 
 static methoddescr_t _methoddescr_object[] = {
@@ -96,7 +90,7 @@ char * _object_allocstring(object_t *object) {
   data_t  *data = NULL;
   char    *buf;
 
-  if (!constructing) {
+  if (!object -> constructing) {
     data = _object_get(object, "name");
     if (!data) {
       data = _object_call_attribute(object, "__str__", NULL, NULL);
@@ -157,7 +151,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
   (void) fncname;
   n = data_copy(data_array_get(args, 0));
   if (data_is_name(n)) {
-    name = name_copy(data_nameval(n));
+    name = name_copy(data_as_name(n));
   } else if (data_type(n) == String) {
     name = name_parse(data_tostring(n));
   }
@@ -167,13 +161,13 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
   }
   if (!data_is_exception(n)) {
     if (data_is_object(n)) {
-      script = data_boundmethodval(data_objectval(n) -> constructor) -> script;
+      script = data_as_bound_method(data_as_object(n) -> constructor) -> script;
     } else if (data_is_closure(n)) {
-      script = data_closureval(n) -> script;
+      script = data_as_closure(n) -> script;
     } else if (data_is_script(n)) {
-      script = data_scriptval(n);
-    } else if (data_is_boundmethod(n)) {
-      script = data_boundmethodval(n) -> script;
+      script = data_as_script(n);
+    } else if (data_is_bound_method(n)) {
+      script = data_as_bound_method(n) -> script;
     }
     if (script) {
       shifted = array_slice(args, 1, 0);
@@ -231,19 +225,16 @@ object_t * object_create(data_t *constructor) {
   dict_t         *template = NULL;
 
   ret = data_new(Object, object_t);
-  ret -> refs = 1;
   ret -> constructing = FALSE;
   ret -> variables = strdata_dict_create();
   ret -> ptr = NULL;
-  ret -> str = NULL;
-  ret -> debugstr = NULL;
   if (data_is_script(constructor)) {
-    bm = script_bind(data_scriptval(constructor), ret);
+    bm = script_bind(data_as_script(constructor), ret);
     c = data_create(BoundMethod, bm);
-    template = data_scriptval(constructor) -> functions;
+    template = data_as_script(constructor) -> functions;
   } else if (data_is_object(constructor)) {
-    obj = data_objectval(constructor);
-    bm = data_boundmethodval(obj -> constructor);
+    obj = data_as_object(constructor);
+    bm = data_as_bound_method(obj -> constructor);
     if (bm) {
       bm = script_bind(bm -> script, ret);
       c = data_create(BoundMethod, bm);
@@ -261,11 +252,11 @@ object_t * object_bind_all(object_t *object, data_t *template) {
   dict_t *variables = NULL;
 
   if (data_is_script(template)) {
-    variables = data_scriptval(template) -> functions;
+    variables = data_as_script(template) -> functions;
   } else if (data_is_object(template)) {
-    variables = data_objectval(template) -> variables;
+    variables = data_as_object(template) -> variables;
   } else if (data_is_closure(template)) {
-    variables = data_closureval(template) -> script -> functions;
+    variables = data_as_closure(template) -> script -> functions;
   }
   if (variables) {
     dict_reduce(variables, (reduce_t) _object_set_all_reducer, object);
@@ -293,13 +284,13 @@ data_t * object_set(object_t *object, char *name, data_t *value) {
   bound_method_t *bm;
 
   if (data_is_script(value)) {
-    bm = script_bind(data_scriptval(value), object);
+    bm = script_bind(data_as_script(value), object);
     value = data_create(BoundMethod, bm);
-  } else if (data_is_boundmethod(value)) {
-    bm = script_bind(data_boundmethodval(value) -> script, object);
+  } else if (data_is_bound_method(value)) {
+    bm = script_bind(data_as_bound_method(value) -> script, object);
     value = data_create(BoundMethod, bm);
   } else if (data_is_closure(value)) {
-    bm = script_bind(data_closureval(value) -> script, object);
+    bm = script_bind(data_as_closure(value) -> script, object);
     value = data_create(BoundMethod, bm);
   }
   dict_put(object -> variables, strdup(name), data_copy(value));

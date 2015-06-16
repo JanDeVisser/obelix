@@ -79,6 +79,7 @@ static methoddescr_t _methoddescr_thread[] = {
 static pthread_key_t  self_obj;
 
 int Thread;
+int thread_debug;
 
 /* ------------------------------------------------------------------------ */
 
