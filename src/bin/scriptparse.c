@@ -23,9 +23,9 @@
 
 #include <bytecode.h>
 #include <exception.h>
+#include <function.h>
 #include <loader.h>
 #include <namespace.h>
-#include <native.h>
 #include <script.h>
 #include <scriptparse.h>
 
@@ -134,7 +134,7 @@ parser_t * _script_parse_epilog(parser_t *parser) {
 
 long _script_parse_get_option(parser_t *parser, obelix_option_t option) {
   data_t  *options = parser_get(parser, "options");
-  array_t *list = data_arrayval(options);
+  array_t *list = data_as_array(options);
   data_t  *opt = data_array_get(list, option);
 
   return data_intval(opt);
@@ -765,8 +765,8 @@ parser_t * script_parse_start_function(parser_t *parser) {
 
   func = script_create(NULL, data_scriptval(up -> owner), fname);
   func -> async = async;
-  func -> params = str_array_create(array_size(data_arrayval(params)));
-  array_reduce(data_arrayval(params),
+  func -> params = str_array_create(array_size(data_as_array(params)));
+  array_reduce(data_as_array(params),
                (reduce_t) data_add_strings_reducer,
                func -> params);
   free(fname);
@@ -806,7 +806,7 @@ parser_t * script_parse_end_function(parser_t *parser) {
 parser_t * script_parse_native_function(parser_t *parser) {
   bytecode_t   *bytecode;
   script_t     *script;
-  native_fnc_t *func;
+  function_t   *func;
   data_t       *data;
   char         *fname;
   data_t       *params;
@@ -814,7 +814,7 @@ parser_t * script_parse_native_function(parser_t *parser) {
   int           async;
 
   bytecode = (bytecode_t *) parser -> data;
-  script = data_scriptval(bytecode -> owner);
+  script = data_as_script(bytecode -> owner);
 
   /* Top of stack: Parameter names as List */
   params = datastack_pop(parser -> stack);
@@ -829,10 +829,10 @@ parser_t * script_parse_native_function(parser_t *parser) {
   async = data_intval(data);
   data_free(data);
 
-  func = native_fnc_create(token_token(parser -> last_token), NULL);
-  func -> params = str_array_create(array_size(data_arrayval(params)));
+  func = function_create(token_token(parser -> last_token), NULL);
+  func -> params = str_array_create(array_size(data_as_array(params)));
   func -> async = async;
-  array_reduce(data_arrayval(params),
+  array_reduce(data_as_array(params),
                (reduce_t) data_add_strings_reducer,
                func -> params);
   dict_put(script -> functions, fname, data_create(Native, func));

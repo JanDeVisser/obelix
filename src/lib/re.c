@@ -199,5 +199,5 @@ data_t * _regexp_replace(data_t *self, char *name, array_t *args, dict_t *kwargs
 
   (void) name;
   (void) kwargs;
-  return regexp_replace(re, data_tostring(str), data_arrayval(replacements));
+  return regexp_replace(re, data_tostring(str), data_as_array(replacements));
 }

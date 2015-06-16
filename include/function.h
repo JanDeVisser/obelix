@@ -46,6 +46,8 @@ extern unsigned int    function_hash(function_t *);
 extern int             function_cmp(function_t *, function_t *);
 extern function_t *    function_resolve(function_t *fnc);
 extern data_t *        function_call(function_t *, array_t *, dict_t *);
+extern char *          function_funcname(function_t *);
+extern char *          function_libname(function_t *);
 
 #define data_is_function(d)  ((d) && data_hastype((d), Function))
 #define data_as_function(d)  (data_is_function((d)) ? ((function_t *) (d)) : NULL)

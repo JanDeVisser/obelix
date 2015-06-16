@@ -113,13 +113,9 @@ void _namespace_init(void) {
 pnm_t * _pnm_create(char *name) {
   pnm_t *ret;
   
-  ret = NEW(pnm_t);
-  ret -> refs = 1;
+  ret = data_new(PartialNameMatch, pnm_t);
   ret -> name = name_create(1, name);
-  ret -> matches = set_create((cmp_t) mod_cmp);
-  set_set_hash(ret -> matches, (hash_t) mod_hash);
-  set_set_free(ret -> matches, (free_t) mod_free);
-  set_set_tostring(ret -> matches, (tostring_t) mod_tostring);
+  ret -> matches = data_set_create();
   return ret;
 }
 

@@ -112,7 +112,7 @@ void _list_free(pointer_t *p) {
 }
 
 data_t * _list_cast(data_t *src, int totype) {
-  array_t *array = data_arrayval(src);
+  array_t *array = data_as_array(src);
   data_t  *ret = NULL;
 
   if (totype == Bool) {
@@ -122,8 +122,8 @@ data_t * _list_cast(data_t *src, int totype) {
 }
 
 int _list_cmp(data_t *d1, data_t *d2) {
-  array_t *a2 = data_arrayval(d1);
-  array_t *a1 = data_arrayval(d2);
+  array_t *a2 = data_as_array(d1);
+  array_t *a1 = data_as_array(d2);
   data_t  *e1;
   data_t  *e2;
   int      ix;
@@ -141,8 +141,8 @@ int _list_cmp(data_t *d1, data_t *d2) {
 }
 
 data_t * _list_copy(data_t *dest, data_t *src) {
-  array_t *dest_arr = data_arrayval(dest);
-  array_t *src_arr = data_arrayval(src);
+  array_t *dest_arr = data_as_array(dest);
+  array_t *src_arr = data_as_array(src);
   data_t  *data;
   int      ix;
 
@@ -154,19 +154,19 @@ data_t * _list_copy(data_t *dest, data_t *src) {
 }
 
 char * _list_tostring(data_t *data) {
-  return array_tostring(data_arrayval(data));
+  return array_tostring(data_as_array(data));
 }
 
 unsigned int _list_hash(data_t *data) {
-  return array_hash(data_arrayval(data));
+  return array_hash(data_as_array(data));
 }
 
 int _list_len(data_t *self) {
-  return array_size(data_arrayval(self));
+  return array_size(data_as_array(self));
 }
 
 data_t * _list_resolve(data_t *self, char *name) {
-  array_t *list = data_arrayval(self);
+  array_t *list = data_as_array(self);
   int      sz = array_size(list);
   long     ix;
 
@@ -184,16 +184,16 @@ data_t * _list_resolve(data_t *self, char *name) {
 }
 
 data_t * _list_iter(data_t *data) {
-  array_start(data_arrayval(data));
+  array_start(data_as_array(data));
   return data_copy(data);
 }
 
 data_t * _list_next(data_t *data) {
-  return data_copy((data_t *) array_next(data_arrayval(data)));
+  return data_copy((data_t *) array_next(data_as_array(data)));
 }
 
 data_t * _list_has_next(data_t *data) {
-  return data_create(Bool, array_has_next(data_arrayval(data)));
+  return data_create(Bool, array_has_next(data_as_array(data)));
 }
 
 /* ----------------------------------------------------------------------- */
@@ -202,23 +202,23 @@ data_t * data_create_list(array_t *array) {
   data_t  *ret;
 
   ret = data_create(List, 0);
-  array_reduce(array, (reduce_t) data_add_all_reducer, data_arrayval(ret));
+  array_reduce(array, (reduce_t) data_add_all_reducer, data_as_array(ret));
   return ret;
 }
 
 array_t * data_list_copy(data_t *list) {
   array_t *dest;
 
-  dest = data_array_create(array_size(data_arrayval(list)));
-  array_reduce(data_arrayval(list), (reduce_t) data_add_all_reducer, dest);
+  dest = data_array_create(array_size(data_as_array(list)));
+  array_reduce(data_as_array(list), (reduce_t) data_add_all_reducer, dest);
   return dest;
 }
 
 array_t * data_list_to_str_array(data_t *list) {
   array_t *dest;
 
-  dest = str_array_create(array_size(data_arrayval(list)));
-  array_reduce(data_arrayval(list), (reduce_t) data_add_strings_reducer, dest);
+  dest = str_array_create(array_size(data_as_array(list)));
+  array_reduce(data_as_array(list), (reduce_t) data_add_strings_reducer, dest);
   return dest;
 }
 
@@ -226,7 +226,7 @@ data_t * data_str_array_to_list(array_t *src) {
   data_t  *ret;
 
   ret = data_create(List, 0);
-  array_reduce(src, (reduce_t) data_add_all_as_data_reducer, data_arrayval(ret));
+  array_reduce(src, (reduce_t) data_add_all_as_data_reducer, data_as_array(ret));
   return ret;
 }
 
@@ -236,13 +236,13 @@ data_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *ret = data_create(List, 0);
 
   if (args) {
-    array_reduce(args, (reduce_t) data_add_all_reducer, data_arrayval(ret));
+    array_reduce(args, (reduce_t) data_add_all_reducer, data_as_array(ret));
   }
   return ret;
 }
 
 data_t * _list_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  array_t *list = data_arrayval(self);
+  array_t *list = data_as_array(self);
   int      sz = array_size(list);
   int      ix = data_intval(data_array_get(args, 0));
 
@@ -252,7 +252,7 @@ data_t * _list_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _list_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  array_t *slice = array_slice(data_arrayval(self),
+  array_t *slice = array_slice(data_as_array(self),
                                data_intval(data_array_get(args, 1)),
                                data_intval(data_array_get(args, 1)));
   data_t  *ret = data_create_list(slice);

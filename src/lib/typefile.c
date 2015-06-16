@@ -147,7 +147,7 @@ fileiter_t * _fileiter_readnext(fileiter_t *iter) {
         if (data_type(matches) == String) {
           list_push(iter -> next, data_copy(matches));
         } else if (data_type(matches) == List) {
-          matchvals = data_arrayval(matches);
+          matchvals = data_as_array(matches);
           for (ix = 0; ix < array_size(matchvals); ix++) {
             list_push(iter -> next, data_copy(data_array_get(matchvals, ix)));
           }

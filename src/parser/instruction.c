@@ -28,7 +28,6 @@
 #include <instruction.h>
 #include <logging.h>
 #include <name.h>
-#include <native.h>
 #include <nvp.h>
 #include <script.h>
 #include <vm.h>

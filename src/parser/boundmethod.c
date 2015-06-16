@@ -42,8 +42,8 @@ int BoundMethod = -1;
 /* ------------------------------------------------------------------------ */
 
 void _bound_method_init(void) {
-  BoundMethod = typedescr_register(BoundMethod, "boundmethod",
-                                   _vtable_bound_method, NULL);
+  BoundMethod = typedescr_create_and_register(BoundMethod, "boundmethod",
+					      _vtable_bound_method, NULL);
 }
 
 /* -- B O U N D  M E T H O D  S T A T I C  F U N C T I O N S -------------- */

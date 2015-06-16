@@ -24,7 +24,6 @@
 #include <closure.h>
 #include <exception.h>
 #include <logging.h>
-#include <native.h>
 #include <object.h>
 #include <script.h>
 

@@ -178,5 +178,13 @@ data_t * function_call(function_t *fnc, char *name, array_t *args, dict_t *kwarg
   return ((native_t) fnc -> fnc)(name, args, kwargs);
 }
 
+char * function_funcname(function_t *fnc) {
+  return name_last(fnc -> name);
+}
+
+char * function_libname(function_t *fnc) {
+  return (name_size(fnc -> name) > 1) ? name_last(fnc -> name) : NULL;
+}
+
 /* ------------------------------------------------------------------------ */
 

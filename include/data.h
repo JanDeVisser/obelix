@@ -133,9 +133,9 @@ extern int             data_intval(data_t *);
 #define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
 #define data_is_list(d)     ((d) && (data_hastype((d), List)))
 
-#define data_arrayval(d)    ((array_t *) (((pointer_t *) (d)) -> ptr))
+#define data_as_array(d)    ((array_t *) (((pointer_t *) (d)) -> ptr))
 #define data_as_pointer(d)  (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
-#define data_unwrap(d)      ((data_is_pointer((d)) ? (data_as_pointer(d) -> ptr) : NULL)
+#define data_unwrap(d)      (data_is_pointer((d)) ? (data_as_pointer(d) -> ptr) : NULL)
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
 extern array_t *       data_add_all_as_data_reducer(char *, array_t *);
@@ -143,8 +143,6 @@ extern array_t *       data_add_strings_reducer(data_t *, array_t *);
 extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
 extern data_t *        data_null(void);
-//extern data_t *        data_true(void);
-//extern data_t *        data_false(void);
 extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);
@@ -210,6 +208,14 @@ extern data_t *        data_embedded(int, va_list);
                                  (tostring_t) data_tostring)
 #define data_list_pop(l)      (data_t *) list_pop((l))
 #define data_list_shift(l)    (data_t *) list_shift((l))
+
+#define data_set_create()     set_set_tostring( \
+                                set_set_free(  \
+                                  set_set_hash( \
+                                    set_create((cmp_t) data_cmp), \
+                                    (hash_t) data_hash), \
+                                  (free_t) data_free), \
+                                (tostring_t) data_tostring)
 
 #ifdef  __cplusplus
 }

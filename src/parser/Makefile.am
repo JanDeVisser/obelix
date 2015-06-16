@@ -34,7 +34,6 @@ liboblparser_la_SOURCES = \
 		closure.c \
 		bytecode.c \
 		boundmethod.c \
-		native.c \
 		namespace.c \
 		instruction.c \
 		object.c \

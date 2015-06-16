@@ -72,8 +72,6 @@ extern int ITTest;
 extern int ITThrow;
 extern int ITUnstash;
 
-#define data_is_instruction(d)  ((d) && data_hastype((d), Instruction))
-#define data_as_instruction(d)  ((instruction_t *) (data_is_instruction((d)) ? (d) : NULL))
 
 struct _closure;
 
@@ -83,9 +81,11 @@ extern data_t *        instruction_create_function(name_t *, callflag_t, long, a
 extern char *          instruction_assign_label(instruction_t *);
 extern instruction_t * instruction_set_label(instruction_t *, data_t *);
 
-#define instruction_free(i)                 (data_free((data_t *) (i)))
-#define instruction_tostring(i)             (data_tostring((data_t *) (i)))
-#define instruction_copy(i)                 ((instruction_t *) data_copy((data_t *) (i)))
+#define data_is_instruction(d)  ((d) && data_hastype((d), Instruction))
+#define data_as_instruction(d)  ((instruction_t *) (data_is_instruction((d)) ? (d) : NULL))
+#define instruction_free(i)     (data_free((data_t *) (i)))
+#define instruction_tostring(i) (data_tostring((data_t *) (i)))
+#define instruction_copy(i)     ((instruction_t *) data_copy((data_t *) (i)))
 
 #define instruction_create_assign(n)        ((data_t *) data_create(ITAssign, name_tostring((n)), data_create(Name, (n))))
 #define instruction_create_decr()           ((data_t *) data_create(ITDecr, NULL, NULL))

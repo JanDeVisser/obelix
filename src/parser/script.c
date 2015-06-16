@@ -27,7 +27,6 @@
 #include <exception.h>
 #include <logging.h>
 #include <namespace.h>
-#include <native.h>
 #include <script.h>
 #include <str.h>
 #include <stacktrace.h>

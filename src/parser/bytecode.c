@@ -54,7 +54,8 @@ void _bytecode_init(void) {
   logging_register_category("bytecode", &bytecode_debug);
   Bytecode = typedescr_create_and_register(Bytecode,
 					   "bytecode",
-					   _vtable_bytecode);
+					   _vtable_bytecode,
+					   NULL);
 }
 
 /* -- S T A T I C  F U N C T I O N S -------------------------------------- */
@@ -187,10 +188,10 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
   data_t        *label;
   int            line;
   data_t        *last;
-  instruction_t *instr = data_instructionval(instruction);
+  instruction_t *instr = data_as_instruction(instruction);
   
   last = list_tail(bytecode -> instructions);
-  line = (last) ? data_instructionval(last) -> line : -1;
+  line = (last) ? data_as_instruction(last) -> line : -1;
   if (bytecode -> current_line > line) {
     instr -> line = bytecode -> current_line;
   }
@@ -201,7 +202,7 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
     node = list_tail_pointer(bytecode -> instructions);
     while (!datastack_empty(bytecode -> pending_labels)) {
       label = datastack_pop(bytecode -> pending_labels);
-      dict_put(bytecode -> labels, strdup(data_charval(label)), node);
+      dict_put(bytecode -> labels, strdup(data_tostring(label)), node);
       data_free(label);
     }
   }
