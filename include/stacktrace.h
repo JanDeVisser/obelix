@@ -62,7 +62,7 @@ extern int Stacktrace;
 #define stacktrace_copy(o)     ((stacktrace_t *) data_copy((data_t *) (o)))
 #define stacktrace_free(o)     (data_free((data_t *) (o)))
 #define stacktrace_tostring(o) (data_tostring((data_t *) (o)))
-
+  
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */
