@@ -601,7 +601,7 @@ array_t * str_split(str_t *str, char *sep) {
         array_set_cmp(ret, (cmp_t) str_cmp),
         (tostring_t) str_chars),
       (hash_t) str_hash),
-    (free_t) str_free);
+    (free_t) _str_free);
 
   if (str_len(str)) {
     ptr = str -> buffer;
@@ -666,13 +666,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
 /* -- S T R I N G   T Y P E   M E T H O D S ------------------------------- */
 
 data_t * _string_format(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  str_t  *s;
-  data_t *ret;
-
-  s = str_format(data_tostring(self), args, kwargs);
-  ret = data_create(String, str_chars(s));
-  str_free(s);
-  return ret;
+  return (data_t *) str_format(data_tostring(self), args, kwargs);
 }
 
 data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {

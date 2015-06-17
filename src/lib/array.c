@@ -65,7 +65,7 @@ void * _array_reduce(array_t *array, reduce_t reducer, void *data, reduce_type_t
   int         ix;
   void       *elem;
 
-  f = (type == RTStrs) ? (free_t) str_free : NULL;
+  f = (type == RTStrs) ? (free_t) data_free : NULL;
   for (ix = 0; ix < array_size(array); ix++) {
     elem = array -> contents[ix];
     switch (type) {

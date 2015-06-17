@@ -56,7 +56,7 @@ reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
       break;
     case 's':
       elem =  str_wrap(c);
-      f = (free_t) str_free;
+      f = (free_t) data_free;
       break;
     default:
       elem = entry -> key;
@@ -71,7 +71,7 @@ reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
 
 void * _set_reduce(set_t *set, reduce_t reducer, void *data, char *type) {
   reduce_ctx *ctx;
-  void *ret;
+  void       *ret;
 
   ctx = reduce_ctx_create(type, data, (void_t) reducer);
   if (ctx) {

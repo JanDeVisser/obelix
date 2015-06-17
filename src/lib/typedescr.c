@@ -326,6 +326,9 @@ int typedescr_create_and_register(int type, char *type_name, vtable_t *vtable, m
   td.type = type;
   td.type_name = type_name;
   td.vtable = vtable;
+  td.inherits[0] = NoType;
+  td.inherits[1] = NoType;
+  td.inherits[2] = NoType;
   return typedescr_register_type(&td, methods);
 }
 
@@ -347,7 +350,7 @@ typedescr_t * typedescr_get(int datatype) {
     ret = &descriptors[datatype];
   }
   if (!ret) {
-    error("Undefined type %d referenced. Expect crashes", datatype);
+    fatal("Undefined type %d referenced. Expect crashes", datatype);
     return NULL;
   } else {
     //if (type_debug) {
@@ -406,6 +409,10 @@ void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
   assert(type);
   assert(fnc_id > FunctionNone);
   assert(fnc_id < FunctionEndOfListDummy);
+  //if (type_debug) {
+  //  debug("typedescr_get_function(%s, %s)",
+  //        type -> type_name, label_for_code(_function_id_labels, fnc_id));
+  //}
   if (type -> vtable) {
     ret = type -> vtable[fnc_id].fnc;
   }

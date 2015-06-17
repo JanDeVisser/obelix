@@ -24,8 +24,8 @@ lib_LTLIBRARIES = liboblcore.la
 liboblcore_la_SOURCES = core.c list.c array.c dict.c set.c data.c typedescr.c \
 			resolve.c user.c logging.c socket.c thread.c \
 			str.c float.c any.c int.c name.c exception.c \
-			datastack.c datalist.c pointer.c re.c \
-			method.c nvp.c range.c mutex.c file.c function.c
+			datastack.c datalist.c pointer.c re.c nvp.c \
+			method.c range.c mutex.c file.c fsentry.c function.c 
 
 # Disabled for now. Don't need them and expr needs to be moved to types.		
 #		tree.c 

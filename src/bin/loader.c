@@ -22,6 +22,7 @@
 #include <data.h>
 #include <exception.h>
 #include <file.h>
+#include <fsentry.h>
 #include <grammarparser.h>
 #include <loader.h>
 #include <namespace.h>
@@ -103,7 +104,6 @@ data_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
   file_t *text = NULL;
   name_t *name = mod -> name;
   char   *path_entry;
-  data_t *rdr = NULL;
   int     ix;
 
   assert(loader);
@@ -115,10 +115,7 @@ data_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
     path_entry = name_get(loader -> load_path, ix);
     text = _scriptloader_open_file(loader, path_entry, mod);
   }
-  if (text) {
-    rdr = data_wrap_file(text);
-  }
-  return rdr;
+  return (data_t *) text;
 }
 
 scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *loader, name_t *path) {
@@ -160,7 +157,7 @@ static data_t * _scriptloader_get_object(scriptloader_t *loader, int count, ...)
   va_end(args);
   data = ns_get(loader -> ns, name);
   if (data_is_module(data)) {
-    mod = data_moduleval(data);
+    mod = data_as_module(data);
     data = data_create(Object, mod -> obj);
   }
   return data;
@@ -406,9 +403,8 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
     data_free(sys);
     data = ns_execute(loader -> ns, name, args, kwargs);
     if (data_is_object(data)) {
-      obj = object_copy(data_objectval(data));
-      data_free(data);
-      data = obj -> retval;
+      obj = (object_t *) data;
+      data = data_copy(obj -> retval);
       object_free(obj);
     }
   } else {

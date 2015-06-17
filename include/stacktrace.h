@@ -31,34 +31,37 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef struct _stackframe {
-  char *funcname;
-  char *source;
-  int   line;
-  int   refs;
-  char *str;
+  data_t  _d;
+  char   *funcname;
+  char   *source;
+  int     line;
 } stackframe_t;
 
 extern stackframe_t *  stackframe_create(data_t *);
-extern void            stackframe_free(stackframe_t *);
-extern stackframe_t *  stackframe_copy(stackframe_t *);
 extern int             stackframe_cmp(stackframe_t *, stackframe_t *);
-extern char *          stackframe_tostring(stackframe_t *);
 
 typedef struct _stacktrace {
   datastack_t *stack;
-  int          refs;
-  char        *str;
 } stacktrace_t;
 
 extern stacktrace_t * stacktrace_create(void);
-extern void           stacktrace_free(stacktrace_t *);
-extern stacktrace_t * stacktrace_copy(stacktrace_t *);
 extern int            stacktrace_cmp(stacktrace_t *, stacktrace_t *);
-extern char *         stacktrace_tostring(stacktrace_t *);
 extern stacktrace_t * stacktrace_push(stacktrace_t *, data_t *);
 
 extern int Stackframe;
 extern int Stacktrace;
+
+#define data_is_stackframe(d)  ((d) && data_hastype((data_t *) (d), Stackframe))
+#define data_as_stackframe(d)  (data_is_stackframe((d)) ? ((stackframe_t *) (d)) : NULL)
+#define stackframe_copy(o)     ((stackframe_t *) data_copy((data_t *) (o)))
+#define stackframe_free(o)     (data_free((data_t *) (o)))
+#define stackframe_tostring(o) (data_tostring((data_t *) (o)))
+
+#define data_is_stacktrace(d)  ((d) && data_hastype((data_t *) (d), Stacktrace))
+#define data_as_stacktrace(d)  (data_is_stacktrace((d)) ? ((stacktrace_t *) (d)) : NULL)
+#define stacktrace_copy(o)     ((stacktrace_t *) data_copy((data_t *) (o)))
+#define stacktrace_free(o)     (data_free((data_t *) (o)))
+#define stacktrace_tostring(o) (data_tostring((data_t *) (o)))
 
 #ifdef  __cplusplus
 }

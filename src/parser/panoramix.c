@@ -49,7 +49,7 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
   char             *grammar_p = NULL;
   grammar_t        *ret;
   grammar_parser_t *gp;
-  data_t           *file;
+  file_t           *file;
   
   if (!sys_dir) {
     sys_dir = getenv("OBELIX_SYS_PATH");
@@ -75,9 +75,9 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
     debug("grammar file: %s", grammarpath);
   }
 
-  file = data_create(File, grammarpath);
-  assert(file_isopen(data_as_file(file)));
-  gp = grammar_parser_create(file);
+  file = file_open(grammarpath);
+  assert(file_isopen(file));
+  gp = grammar_parser_create((data_t *) file);
   gp -> dryrun = 1;
   ret = grammar_parser_parse(gp);
   grammar_parser_free(gp);
@@ -87,7 +87,7 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
   } else {
     info("  Loaded grammar");
   }
-  data_free(file);
+  file_free(file);
   free(grammar_p);
   return ret;
 }

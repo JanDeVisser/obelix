@@ -49,6 +49,7 @@ extern log_level_t log_level;
 #define info(fmt, args...)           _logmsg(LogLevelInfo, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
 #define warning(fmt, args...)        _logmsg(LogLevelWarning, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
 #define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
+#define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args); *((char *) NULL) = 0; }
 
 #ifdef	__cplusplus
 }

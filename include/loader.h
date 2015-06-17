@@ -22,8 +22,10 @@
 #define __LOADER_H__
 
 #include <core.h>
+#include <grammar.h>
 #include <name.h>
 #include <namespace.h>
+#include <parser.h>
 #include <script.h>
 
 typedef enum _obelix_option {

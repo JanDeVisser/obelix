@@ -151,9 +151,12 @@ char * _log_level_str(log_level_t lvl) {
 /* ------------------------------------------------------------------------ */
 
 void logging_register_category(char *name, int *flag) {
-  logcategory_t *cat = dict_get(_categories, name);
-  
-  if (cat) {
+  logcategory_t *cat;
+
+  if (!_categories) {
+    _logging_init();
+  }
+  if (cat = dict_get(_categories, name)) {
     cat -> flag = flag;
     *flag = cat -> enabled;
   } else {

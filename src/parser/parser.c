@@ -105,7 +105,7 @@ static vtable_t _vtable_ ## t [] = {                                         \
   { .id = FunctionNone,        .fnc = NULL }                                 \
 };                                                                           \
 void _register_ ## t(void) {                                                 \
-  PSEType ## t = _parser_stack_entry_type_register(#t, _vtable_ ## t);       \
+  PSEType ## t = _parser_stack_entry_register(#t, _vtable_ ## t);       \
 }                                                                            \
 data_t * _pse_call_ ## t(data_t *data, array_t *p, dict_t *kw) {             \
   parser_stack_entry_t *pse = (parser_stack_entry_t *) data;                 \
@@ -383,7 +383,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
 parser_t * _parser_push_to_prodstack(parser_t *parser, parser_stack_entry_t *entry) {
   list_push(parser -> prod_stack, entry);
   if (parser_debug) {
-    debug("      Pushed  %s", data_tostring(entry));
+    debug("      Pushed  %s", data_tostring((data_t *) entry));
   }
   return parser;
 }

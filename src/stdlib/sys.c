@@ -102,6 +102,6 @@ data_t * _function_exit(char *name, array_t *params, dict_t *kwargs) {
   }
   
   error = data_exception(ErrorExit, "Exit with code '%s'", data_tostring(exit_code));
-  data_exceptionval(error) -> throwable = exit_code;
+  data_as_exception(error) -> throwable = exit_code;
   return error;
 }

@@ -18,6 +18,7 @@
  */
 
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -46,11 +47,11 @@ static vtable_t _vtable_fsentry[] = {
 };
 
 static methoddescr_t _methoddescr_fsentry[] = {
-  { .type = FSEntry, .name = "open",    .method = _fsentry_open,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, maxargs = 0, .varargs = 0 },
-  { .type = FSEntry, .name = "isfile",  .method = _fsentry_isfile, .argtypes = { NoType, NoType, NoType }, .minargs = 0, maxargs = 0, .varargs = 0 },
-  { .type = FSEntry, .name = "isdir",   .method = _fsentry_isdir,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, maxargs = 0, .varargs = 0 },
-  { .type = FSEntry, .name = "exists",  .method = _fsentry_exists, .argtypes = { NoType, NoType, NoType }, .minargs = 0, maxargs = 0, .varargs = 0 },
-  { .type = NoType,  .name = NULL,      .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, maxargs = 0, .varargs = 0 }
+  { .type = -1,     .name = "open",    .method = _fsentry_open,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .maxargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "isfile",  .method = _fsentry_isfile, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .maxargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "isdir",   .method = _fsentry_isdir,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .maxargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "exists",  .method = _fsentry_exists, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .maxargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,      .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .maxargs = 0, .varargs = 0 }
 };
 
 int FSEntry = -1;
@@ -66,7 +67,7 @@ typedef struct _fsentry_iter {
 
 static fsentry_iter_t * _fsentry_iter_readnext(fsentry_iter_t *);
 static fsentry_iter_t * _fsentry_iter_create(fsentry_t *);
-static void             _fsentry_iter_free(fsentry_iter_t );
+static void             _fsentry_iter_free(fsentry_iter_t *);
 static char *           _fsentry_iter_tostring(fsentry_iter_t *);
 static data_t *         _fsentry_iter_has_next(fsentry_iter_t *);
 static data_t *         _fsentry_iter_next(fsentry_iter_t *);
@@ -85,8 +86,10 @@ int FSEntryIter = -1;
 /* ------------------------------------------------------------------------ */
 
 void _fsentry_init(void) {
-  FSEntry = ("fsentry", _vtable_fsentry, _methoddescr_fsentry);
-  FSEntryIter = ("fsentryiter", _vtable_fsentry_iter, NULL);
+  FSEntry = typedescr_create_and_register(FSEntry, "fsentry",
+					  _vtable_fsentry, _methoddescr_fsentry);
+  FSEntryIter = typedescr_create_and_register(FSEntryIter, "fsentryiter",
+					      _vtable_fsentry_iter, NULL);
 }
 
 /* -- F S E N T R Y _ T  S T A T I C   F U N C T I O N S ------------------ */
@@ -108,7 +111,7 @@ char * _fsentry_tostring(fsentry_t *e) {
 data_t * _fsentry_resolve(fsentry_t *entry, char *name) {
   fsentry_t *e = NULL;
 
-  if (!strcmp("name")) {
+  if (!strcmp(name, "name")) {
    return data_create(String, fsentry_tostring(entry)) ;
   } else {
     e = fsentry_getentry(entry, name);
@@ -118,7 +121,7 @@ data_t * _fsentry_resolve(fsentry_t *entry, char *name) {
         e = NULL;
       }
     }
-    return (e) ? e : data_null();
+    return (e) ? (data_t *) e : data_null();
   }
 }
 

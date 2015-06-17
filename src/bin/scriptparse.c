@@ -26,6 +26,7 @@
 #include <function.h>
 #include <loader.h>
 #include <namespace.h>
+#include <nvp.h>
 #include <script.h>
 #include <scriptparse.h>
 
@@ -81,7 +82,7 @@ name_t * _script_parse_pop_operation(parser_t *parser) {
   name_t *ret;
 
   data = datastack_pop(parser -> stack);
-  ret = name_create(1, data_charval(data));
+  ret = name_create(1, data_tostring(data));
   data_free(data);
   return ret;
 }
@@ -156,7 +157,7 @@ parser_t * script_parse_init(parser_t *parser) {
   name = data_tostring(data);
   data = parser_get(parser, "module");
   assert(data);
-  mod = data_moduleval(data);
+  mod = data_as_module(data);
   if (script_debug) {
     debug("Parsing module '%s'", name_tostring(mod -> name));
   }
@@ -195,7 +196,7 @@ parser_t * script_make_nvp(parser_t *parser) {
   if (parser_debug) {
     debug(" -- %s = %s", data_tostring(name), data_tostring(data));
   }
-  datastack_push(parser -> stack, data_create(NVP, name, data));
+  datastack_push(parser -> stack, (data_t *) nvp_create(name, data));
   return parser;
 }
 
@@ -285,7 +286,7 @@ parser_t * script_parse_assign(parser_t *parser) {
 
   varname = datastack_pop(parser -> stack);
   bytecode_push_instruction((bytecode_t *) parser -> data,
-                            instruction_create_assign(data_nameval(varname)));
+                            instruction_create_assign(data_as_name(varname)));
   data_free(varname);
   return parser;
 }
@@ -295,7 +296,7 @@ parser_t * script_parse_pushvar(parser_t *parser) {
 
   varname = datastack_pop(parser -> stack);
   bytecode_push_instruction((bytecode_t *) parser -> data,
-                            instruction_create_pushvar(data_nameval(varname)));
+                            instruction_create_pushvar(data_as_name(varname)));
   data_free(varname);
   return parser;
 }
@@ -515,7 +516,7 @@ parser_t * script_parse_func_call(parser_t *parser) {
     flags |= CFConstructor;
   }
   bytecode_push_instruction((bytecode_t *) parser -> data,
-                            instruction_create_function(data_nameval(func_name),
+                            instruction_create_function(data_as_name(func_name),
                                                         flags,
                                                         arg_count,
                                                         kwargs));
@@ -551,7 +552,7 @@ parser_t * script_parse_for(parser_t *parser) {
   bytecode_push_instruction((bytecode_t *) parser -> data, 
                             instruction_create_next(end_label));
   bytecode_push_instruction((bytecode_t *) parser -> data, 
-                            instruction_create_assign(data_nameval(varname)));
+                            instruction_create_assign(data_as_name(varname)));
   data_free(varname);
   data_free(next_label);
   data_free(end_label);
@@ -763,7 +764,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
   async = data_intval(data);
   data_free(data);
 
-  func = script_create(NULL, data_scriptval(up -> owner), fname);
+  func = script_create(NULL, data_as_script(up -> owner), fname);
   func -> async = async;
   func -> params = str_array_create(array_size(data_as_array(params)));
   array_reduce(data_as_array(params),
@@ -796,7 +797,7 @@ parser_t * script_parse_end_constructors(parser_t *parser) {
 
 parser_t * script_parse_end_function(parser_t *parser) {
   bytecode_t *bytecode = (bytecode_t *) parser -> data;
-  script_t   *func = data_scriptval(bytecode -> owner);
+  script_t   *func = data_as_script(bytecode -> owner);
   
   _script_parse_epilog(parser);
   parser -> data = func -> up -> bytecode;
@@ -835,9 +836,9 @@ parser_t * script_parse_native_function(parser_t *parser) {
   array_reduce(data_as_array(params),
                (reduce_t) data_add_strings_reducer,
                func -> params);
-  dict_put(script -> functions, fname, data_create(Native, func));
+  dict_put(script -> functions, fname, func);
   if (parser_debug) {
-    debug(" -- defined native function %s", native_fnc_tostring(func));
+    debug(" -- defined native function %s", function_tostring(func));
   }
   data_free(params);
   return ret;
@@ -851,7 +852,7 @@ parser_t * script_parse_begin_context_block(parser_t *parser) {
   data_t *label = _script_parse_gen_label();
 
   data = datastack_peek(parser -> stack);
-  varname = data_nameval(data);
+  varname = data_as_name(data);
   bytecode_push_instruction((bytecode_t *) parser -> data,
                             instruction_create_enter_context(varname, label));
   datastack_push(parser -> stack, data_copy(label));
@@ -880,7 +881,7 @@ parser_t * script_parse_end_context_block(parser_t *parser) {
   bytecode = (bytecode_t *) parser -> data;
   label = datastack_pop(parser -> stack);
   data_varname = datastack_pop(parser -> stack);
-  varname = data_nameval(data_varname);
+  varname = data_as_name(data_varname);
   bytecode_push_instruction(bytecode,
                             instruction_create_pushval(data_create(Int, 0)));
   datastack_push(bytecode -> pending_labels, data_copy(label));

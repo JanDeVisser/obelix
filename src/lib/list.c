@@ -207,7 +207,7 @@ void * __list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t t
   void       *elem;
   listnode_t *next;
 
-  f = (type == RTStrs) ? (free_t) str_free : NULL;
+  f = (type == RTStrs) ? (free_t) data_free : NULL;
   node = list_head_pointer(list);
   while (node && _ln_datanode(node)) {
     elem = node -> data;
