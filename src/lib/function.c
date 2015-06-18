@@ -43,11 +43,13 @@ static vtable_t _vtable_function[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
+int function_debug;
 int Function = -1;
 
 /* -- F U N C T I O N  S T A T I C  F U N C T I O N S --------------------- */
 
 void _function_init(void) {
+  logging_register_category("function", &function_debug);
   Function = typedescr_create_and_register(Function, "function",
 					   _vtable_function, NULL);
 }
@@ -94,9 +96,15 @@ data_t * _function_call(function_t *fnc, array_t *args, dict_t *kwargs) {
 function_t * function_create(char *name, void_t fnc) {
   function_t *ret = function_create_noresolve(name);
 
+  if (function_debug) {
+    debug("function_create(%s)", name);
+  }
   if (fnc) {
     ret -> fnc = fnc;
   } else {
+    if (function_debug) {
+      debug("resolving...");
+    }
     function_resolve(ret);
   }
   return ret;
@@ -155,6 +163,9 @@ function_t * function_resolve(function_t *fnc) {
   if (!name_size(fnc -> name) || name_size(fnc -> name) > 2) {
     return fnc;
   } else {
+    if (function_debug) {
+      debug("Resolving %s", name_tostring_sep(fnc -> name, ":"));
+    }
     if (name_size(fnc -> name) == 2) {
       if (!resolve_library(name_first(fnc -> name))) {
         error("Error loading library '%s': %s",
@@ -167,10 +178,10 @@ function_t * function_resolve(function_t *fnc) {
       if (errno) {
         error("Error resolving function '%s': %s",
               name_tostring(fnc -> name), strerror(errno));
-      } else {
-        error("Could not resolve function '%s'",
-              name_tostring_sep(fnc -> name, ":"),
-              strerror(errno));
+      } else if (function_debug) {
+	error("Could not resolve function '%s'",
+	      name_tostring_sep(fnc -> name, ":"),
+	      strerror(errno));
       }
     }
   }

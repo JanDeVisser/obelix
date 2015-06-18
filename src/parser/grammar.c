@@ -210,7 +210,7 @@ char * _ga_tostring(grammar_action_t *grammar_action) {
 grammar_action_t * grammar_action_create(function_t *fnc, data_t *data) {
   grammar_action_t *ret;
 
-  ret = NEW(grammar_action_t);
+  ret = data_new(GrammarAction, grammar_action_t);
   ret -> fnc = function_copy(fnc);
   ret -> data = data_copy(data);
   return ret;
@@ -486,14 +486,10 @@ ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
 
 function_t * _grammar_resolve_function(grammar_t *grammar, char *prefix, char *func_name) {
   char       *fname = NULL;
-  int         len;
   function_t *ret;
 
   if (prefix && prefix[0]) {
-    len = strlen(prefix) + strlen(func_name);
-    fname = (char *) new(len + 1);
-    strcpy(fname, prefix);
-    strcat(fname, func_name);
+    asprintf(&fname, "%s%s", prefix, func_name);
   } else {
     fname = func_name;
   }
@@ -620,12 +616,15 @@ function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
   starts_with_prefix = prefix && prefix[0] && !strncmp(func_name, prefix, strlen(prefix));
   if (!starts_with_prefix) {
     ret = _grammar_resolve_function(grammar, prefix, func_name);
-  }
-  if (!ret && !starts_with_prefix && strncmp(func_name, "parser_", 7)) {
-    ret = _grammar_resolve_function(grammar, "parser_", func_name);
+    if (!ret && strncmp(func_name, "parser_", 7)) {
+      ret = _grammar_resolve_function(grammar, "parser_", func_name);
+    }
   }
   if (!ret) {
     ret = _grammar_resolve_function(grammar, NULL, func_name);
+  }
+  if (!ret) {
+    error("Could not resolve function '%s'", func_name);
   }
   return ret;
 }

@@ -34,6 +34,7 @@ static str_t *      _str_initialize(void);
 static str_t *      _str_expand(str_t *, int);
 static reduce_ctx * _str_join_reducer(char *, reduce_ctx *);
 
+static data_t *     _str_create(int, va_list);
 static void         _str_free(str_t *);
 static data_t *     _str_cast(str_t *, int);
 static str_t *      _str_parse(char *str);
@@ -55,7 +56,7 @@ static data_t *     _string_split(data_t *, char *, array_t *, dict_t *);
 #define _DEFAULT_SIZE   32
 
 static vtable_t _vtable_string[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
+  { .id = FunctionFactory,  .fnc = (void_t) _str_create },
   { .id = FunctionCmp,      .fnc = (void_t) str_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _str_free },
   { .id = FunctionToString, .fnc = (void_t) str_chars },
@@ -156,6 +157,10 @@ str_t * _str_initialize(void) {
   ret -> len = 0;
   ret -> bufsize = 0;
   return ret;
+}
+
+data_t * _str_create(int type, va_list args) {
+  return (data_t *) str_copy_chars(va_arg(args, char *));
 }
 
 str_t * _str_expand(str_t *str, int targetlen) {
