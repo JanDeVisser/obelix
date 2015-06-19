@@ -259,7 +259,7 @@ name_t * name_head(name_t *name) {
 }
 
 char * name_tostring_sep(name_t *name, char *sep) {
-  str_t *s;
+  str_t *s = NULL;
 
   if (name -> sep && strcmp(name -> sep, sep)) {
     free(name -> _d.str);
@@ -274,10 +274,10 @@ char * name_tostring_sep(name_t *name, char *sep) {
     if (name && name_size(name)) {
       s = array_join(name -> name, name -> sep);
       name -> _d.str = strdup(str_chars(s));
+      str_free(s);
     } else {
       name -> _d.str = strdup("");
     }
-    str_free(s);
   }
   return name -> _d.str;
 }
