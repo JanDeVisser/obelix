@@ -28,7 +28,7 @@
 
 static void     _fsentry_init(void) __attribute__((constructor));
 static void     _fsentry_free(fsentry_t *);
-static char *   _fsentry_tostring(fsentry_t *);
+static char *   _fsentry_allocstring(fsentry_t *);
 static data_t * _fsentry_resolve(fsentry_t *, char *);
 
 static data_t * _fsentry_open(data_t *, char *, array_t *, dict_t *);
@@ -37,13 +37,13 @@ static data_t * _fsentry_isdir(data_t *, char *, array_t *, dict_t *);
 static data_t * _fsentry_exists(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_fsentry[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionCmp,      .fnc = (void_t) fsentry_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _fsentry_free },
-  { .id = FunctionToString, .fnc = (void_t) _fsentry_tostring },
-  { .id = FunctionHash,     .fnc = (void_t) fsentry_hash },
-  { .id = FunctionResolve,  .fnc = (void_t) _fsentry_resolve },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,         .fnc = (void_t) fsentry_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _fsentry_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _fsentry_allocstring },
+  { .id = FunctionHash,        .fnc = (void_t) fsentry_hash },
+  { .id = FunctionResolve,     .fnc = (void_t) _fsentry_resolve },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_fsentry[] = {
@@ -97,15 +97,11 @@ void _fsentry_init(void) {
 void _fsentry_free(fsentry_t *e) {
   if (e) {
     free(e -> name);
-    free(e);
   }
 }
 
-char * _fsentry_tostring(fsentry_t *e) {
-  if (!e -> _d.str) {
-    e -> _d.str = strdup(e -> name);
-  }
-  return NULL;
+char * _fsentry_allocstring(fsentry_t *e) {
+  return strdup(e -> name);
 }
 
 data_t * _fsentry_resolve(fsentry_t *entry, char *name) {
@@ -127,7 +123,7 @@ data_t * _fsentry_resolve(fsentry_t *entry, char *name) {
 
 /* -- F S E N T R Y _ T  P U B L I C  F U N C T I O N S ------------------- */
 
-fsentry_t * fsentry_create (char *name) {
+fsentry_t * fsentry_create(char *name) {
   fsentry_t *ret;
 
   ret = data_new(FSEntry, fsentry_t);

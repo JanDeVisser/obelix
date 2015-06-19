@@ -41,6 +41,7 @@ extern stackframe_t *  stackframe_create(data_t *);
 extern int             stackframe_cmp(stackframe_t *, stackframe_t *);
 
 typedef struct _stacktrace {
+  data_t       _d;
   datastack_t *stack;
 } stacktrace_t;
 

@@ -37,6 +37,7 @@ typedef struct _vm {
   data_t       _d;
   data_t      *stashes[NUM_STASHES];
   bytecode_t  *bytecode;
+  data_t      *exception;
   datastack_t *stack;
   datastack_t *contexts;
 } vm_t;

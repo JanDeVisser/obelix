@@ -82,8 +82,7 @@ static methoddescr_t _methoddescr_list[] = {
  */
 
 void _list_init(void) {
-  typedescr_register(&_typedescr_list);
-  typedescr_register_methods(_methoddescr_list);
+  typedescr_create_and_register(List, "list", _vtable_list, _methoddescr_list);
 }
 
 data_t * _list_new(int type, va_list arg) {
@@ -107,7 +106,6 @@ data_t * _list_new(int type, va_list arg) {
 void _list_free(pointer_t *p) {
   if (p) {
     array_free((array_t *) p -> ptr);
-    free(p);
   }
 }
 

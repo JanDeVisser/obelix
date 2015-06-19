@@ -31,7 +31,7 @@
 static void          _float_init(void) __attribute__((constructor));
 static data_t *      _float_new(int, va_list);
 static int           _float_cmp(flt_t *, flt_t *);
-static char *        _float_tostring(flt_t *);
+static char *        _float_allocstring(flt_t *);
 static unsigned int  _float_hash(flt_t *);
 static data_t *      _float_parse(char *);
 static data_t *      _float_cast(flt_t *, int);
@@ -78,15 +78,15 @@ static methoddescr_t _methoddescr_number[] = {
 };
 
 static vtable_t _vtable_float[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _float_new },
-  { .id = FunctionCmp,      .fnc = (void_t) _float_cmp },
-  { .id = FunctionToString, .fnc = (void_t) _float_tostring },
-  { .id = FunctionParse,    .fnc = (void_t) _float_parse },
-  { .id = FunctionCast,     .fnc = (void_t) _float_cast },
-  { .id = FunctionHash,     .fnc = (void_t) _float_hash },
-  { .id = FunctionFltValue, .fnc = (void_t) _float_fltvalue },
-  { .id = FunctionIntValue, .fnc = (void_t) _float_intvalue },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) _float_new },
+  { .id = FunctionCmp,         .fnc = (void_t) _float_cmp },
+  { .id = FunctionAllocString, .fnc = (void_t) _float_allocstring },
+  { .id = FunctionParse,       .fnc = (void_t) _float_parse },
+  { .id = FunctionCast,        .fnc = (void_t) _float_cast },
+  { .id = FunctionHash,        .fnc = (void_t) _float_hash },
+  { .id = FunctionFltValue,    .fnc = (void_t) _float_fltvalue },
+  { .id = FunctionIntValue,    .fnc = (void_t) _float_intvalue },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static typedescr_t _typedescr_float =   {
@@ -103,7 +103,7 @@ static typedescr_t _typedescr_float =   {
 
 void _float_init(void) {
   interface_register(Number, "number", 2, FunctionFltValue, FunctionIntValue);
-  typedescr_register(&_typedescr_float);
+  typedescr_create_and_register(Float, "float", _vtable_float, NULL);
   typedescr_register_methods(_methoddescr_number);
 }
 
@@ -124,8 +124,11 @@ int _float_cmp(flt_t *self, flt_t *d2) {
       : (self -> dbl > d2 -> dbl) ? 1 : -1;
 }
 
-char * _float_tostring(flt_t *data) {
-  return dtoa(data -> dbl);
+char * _float_allocstring(flt_t *data) {
+  char *buf;
+
+  asprintf(&buf, "%f", data -> dbl);
+  return buf;
 }
 
 data_t * _float_parse(char *str) {

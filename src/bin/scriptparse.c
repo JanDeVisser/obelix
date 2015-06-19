@@ -162,6 +162,7 @@ parser_t * script_parse_init(parser_t *parser) {
     debug("Parsing module '%s'", name_tostring(mod -> name));
   }
   script = script_create(mod, NULL, name);
+  parser_set(parser, "script", data_create(Script, script));
   parser -> data = script -> bytecode;
   _script_parse_prolog(parser);
   return parser;
@@ -178,7 +179,7 @@ parser_t * script_parse_mark_line(parser_t *parser, data_t *line) {
   bytecode_t *bytecode;
 
   if (parser -> data) {
-    bytecode = (bytecode_t *) parser;
+    bytecode = (bytecode_t *) parser -> data;
     bytecode -> current_line = data_intval(line);
   }
   return parser;

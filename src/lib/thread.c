@@ -78,8 +78,8 @@ static methoddescr_t _methoddescr_thread[] = {
 
 static pthread_key_t  self_obj;
 
-int Thread;
-int thread_debug;
+int Thread = -1;
+int thread_debug = 0;
 
 /* ------------------------------------------------------------------------ */
 
@@ -89,8 +89,9 @@ void _init_thread(void) {
   pthread_key_create(&self_obj, (void (*)(void *)) _thread_free);
   main = thread_create(pthread_self(), "Main");
   logging_register_category("thread", &thread_debug);
-  typedescr_create_and_register(Thread, "thread",
-                                _vtable_thread, _methoddescr_thread);
+  Thread = typedescr_create_and_register(Thread, "thread",
+					 _vtable_thread,
+					 _methoddescr_thread);
 }
 
 int _pthread_cmp(pthread_t *t1, pthread_t *t2) {
@@ -137,7 +138,6 @@ void _thread_free(thread_t *thread) {
       thread -> onfree(thread -> stack);
     }
     free(thread -> name);
-    free(thread);
   }
 }
 
@@ -399,11 +399,14 @@ data_t * data_thread_set_exit_code(data_t *code) {
   data_t      *data = data_current_thread();
   thread_t    *thread = data_as_thread(data);
 
-  thread -> exit_code = data_copy(code);
+  while (thread) {
+    thread -> exit_code = data_copy(code);
+    thread = thread -> parent;
+  }
   return code;
 }
 
-data_t *data_thread_exit_code (void) {
+data_t *data_thread_exit_code(void) {
   data_t      *data = data_current_thread();
   thread_t    *thread = data_as_thread(data);
   data_t      *ret = NULL;

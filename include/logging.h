@@ -50,6 +50,7 @@ extern log_level_t log_level;
 #define warning(fmt, args...)        _logmsg(LogLevelWarning, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
 #define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
 #define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args); *((char *) NULL) = 0; }
+#define oassert(value, fmt, args...) { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args); assert(0); } }
 
 #ifdef	__cplusplus
 }

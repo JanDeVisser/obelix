@@ -34,7 +34,7 @@ typedef int         (*socket_fnc_t)(int, const struct sockaddr *, socklen_t);
 static void         _socket_init(void) __attribute__((constructor));
 static socket_t *   _socket_create(int, char *, char *);
 static socket_t *   _socket_open(char *, char *, socket_fnc_t);
-static char *       _socket_tostring(socket_t *);
+static char *       _socket_allocstring(socket_t *);
 static void         _socket_free(socket_t *);
 static int          _socket_listen(socket_t *, service_t, void *, int);
 static int          _socket_accept_loop(socket_t *);
@@ -56,13 +56,13 @@ static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
  */
 
 static vtable_t _vtable_socket[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionCmp,      .fnc = (void_t) socket_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _socket_free },
-  { .id = FunctionToString, .fnc = (void_t) _socket_tostring },
-  { .id = FunctionHash,     .fnc = (void_t) socket_hash },
-  { .id = FunctionResolve,  .fnc = (void_t) _socket_resolve },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,         .fnc = (void_t) socket_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _socket_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _socket_allocstring },
+  { .id = FunctionHash,        .fnc = (void_t) socket_hash },
+  { .id = FunctionResolve,     .fnc = (void_t) _socket_resolve },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_socket[] = {
@@ -147,15 +147,14 @@ void _socket_free(socket_t *socket) {
     free(socket -> host);
     free(socket -> service);
     thread_free(socket -> thread);
-    free(socket);
   }
 }
 
-char * _socket_tostring(socket_t *socket) {
-  if (!socket -> _d.str) {
-    asprintf(&socket -> _d.str, "%s:%s", socket -> host, socket -> service);
-  }
-  return NULL;
+char * _socket_allocstring(socket_t *socket) {
+  char *buf;
+  
+  asprintf(&buf, "%s:%s", socket -> host, socket -> service);
+  return buf;
 }
 
 data_t * _socket_resolve(socket_t *s, char *attr) {

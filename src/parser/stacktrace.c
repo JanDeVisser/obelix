@@ -25,8 +25,7 @@
 #include <stacktrace.h>
 #include <str.h>
 #include <thread.h>
-#include <typedescr.h>
-#include <wrapper.h>
+#include <vm.h>
 
 static void     _stacktrace_init(void) __attribute__((constructor));
 
@@ -69,11 +68,12 @@ void _stacktrace_init(void) {
 
 stackframe_t * stackframe_create(data_t *data) {
   stackframe_t *ret = data_new(Stackframe, stackframe_t);
-  closure_t    *closure = data_as_closure(data);
+  vm_t         *vm = data_as_vm(data);
   
-  ret -> funcname = strdup(closure_tostring(closure));
-  ret -> source = strdup(data_tostring(closure -> script -> mod -> source));
-  ret -> line = closure -> line;
+  ret -> funcname = strdup(data_tostring(vm -> bytecode -> owner));
+  // FIXME
+  ret -> source = strdup(data_tostring(vm -> bytecode -> owner));
+  ret -> line = 0;
   return ret;
 }
 

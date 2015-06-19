@@ -86,15 +86,14 @@ void _range_free(range_t *range) {
     data_free(range -> from);
     data_free(range -> to);
     data_free(range -> next);
-    free(range);
   }
 }
 
-char * _range_tostring(range_t *r) {
-  if (!r -> _d.str) {
-    asprintf(&r -> _d.str, "%s ~ %s", data_tostring(r -> from), data_tostring(r -> to));
-  }
-  return NULL;
+char * _range_allocstring(range_t *r) {
+  char *buf;
+  
+  asprintf(&buf, "%s ~ %s", data_tostring(r -> from), data_tostring(r -> to));
+  return buf;
 }
 
 /* -- R A N G E _ T  P U B L I C  F U N C T I O N S ----------------------- */

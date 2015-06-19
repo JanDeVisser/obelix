@@ -27,7 +27,7 @@
 
 static void         _nvp_init(void) __attribute__((constructor));
 static void         _nvp_free(nvp_t *);
-static char *       _nvp_tostring(nvp_t *);
+static char *       _nvp_allocstring(nvp_t *);
 static nvp_t *      _nvp_parse(char *);
 
 static data_t *     _nvp_create(data_t *, char *, array_t *, dict_t *);
@@ -35,13 +35,13 @@ static data_t *     _nvp_create(data_t *, char *, array_t *, dict_t *);
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_nvp[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionCmp,      .fnc = (void_t) nvp_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _nvp_free },
-  { .id = FunctionToString, .fnc = (void_t) _nvp_tostring },
-  { .id = FunctionParse,    .fnc = (void_t) nvp_parse },
-  { .id = FunctionHash,     .fnc = (void_t) nvp_hash },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,         .fnc = (void_t) nvp_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _nvp_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _nvp_allocstring },
+  { .id = FunctionParse,       .fnc = (void_t) nvp_parse },
+  { .id = FunctionHash,        .fnc = (void_t) nvp_hash },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_nvp[] = {
@@ -53,7 +53,7 @@ int NVP = -1;
 
 /* ------------------------------------------------------------------------ */
 
-void _nvp_int(void) {
+void _nvp_init(void) {
   NVP = typedescr_create_and_register(NVP, "nvp", _vtable_nvp, _methoddescr_nvp);
 }
 
@@ -61,17 +61,16 @@ void _nvp_free(nvp_t *nvp) {
   if (nvp) {
     data_free(nvp -> name);
     data_free(nvp -> value);
-    free(nvp);
   }
 }
 
-char * _nvp_tostring(nvp_t *nvp) {
-  if (!nvp -> _d.str) {
-    asprintf(&nvp -> _d.str, "%s: %s",
-             data_tostring(nvp -> name),
-             data_tostring(nvp -> value));
-  }
-  return NULL;
+char * _nvp_allocstring(nvp_t *nvp) {
+  char *buf;
+  
+  asprintf(&buf, "%s: %s",
+	   data_tostring(nvp -> name),
+	   data_tostring(nvp -> value));
+  return buf;
 }
 
 /* ------------------------------------------------------------------------ */

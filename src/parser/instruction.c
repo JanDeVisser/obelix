@@ -147,12 +147,12 @@ data_t * _instruction_call_ ## t(data_t *data, array_t *p, dict_t *kw) {     \
 InstructionType(Assign,       Value);
 InstructionType(Decr,         Name);
 InstructionType(Dup,          Name);
-InstructionType(EnterContext, NameValue);
+InstructionType(EnterContext, Name);
 InstructionType(FunctionCall, Value);
 InstructionType(Incr,         Name);
 InstructionType(Iter,         Name);
 InstructionType(Jump,         Name);
-InstructionType(LeaveContext, Value);
+InstructionType(LeaveContext, Name);
 InstructionType(Next,         Name);
 InstructionType(Nop,          ValueOrName);
 InstructionType(Pop,          Name);
@@ -281,7 +281,7 @@ char * _instruction_tostring_value(data_t *data) {
 char * _instruction_tostring_name_value(data_t *data) {
   instruction_t *instruction = data_as_instruction(data);
   char *v = data_tostring(instruction -> value);
-  char *s;
+  char *s = NULL;
   char *free_me = NULL;
 
   if (v && strlen(v)) {
@@ -320,7 +320,7 @@ char * _instruction_tostring(instruction_t *instruction, char *s) {
            line,
            instruction -> label, 
            data_typedescr((data_t *) instruction) -> type_name,
-           s);
+           (s) ? s : "");
   return NULL;
 }
 
@@ -440,15 +440,14 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
   nvp_t       *cp;
   data_t      *cp_data;
   
-  error = vm_pop(vm);
+  error = vm -> exception;
   if (data_is_exception(error)) {
     e = data_as_exception(error);
     e -> handled = TRUE;
   }
-  cp_data = vm_pop(vm);
-  cp = data_as_nvp(cp_data);
+  cp = vm_pop_context(vm);
   context = data_copy(cp -> value);
-  data_free(cp_data);
+  nvp_free(cp);
   if (data_is_exception(context)) {
     ret = data_copy(context);
   } else {
@@ -475,6 +474,8 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
     */
     ret = data_copy(error);
   } else if (!data_is_exception(ret)) {
+    data_free(vm -> exception);
+    vm -> exception = NULL;
     ret = NULL;
   }
   data_free(error);

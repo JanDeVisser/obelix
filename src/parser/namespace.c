@@ -404,6 +404,15 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
   }
   module -> state = ModStateLoading;
   script = ns -> import_fnc(ns -> import_ctx, module);
+  if (ns_debug) {
+    if (script) {
+      debug("  Loader returned '%s', a '%s'",
+	    data_tostring(script),
+	    data_typename(script));
+    } else {
+      debug("  Loader returned NULL??");
+    }
+  }
   if (data_is_script(script)) {
     obj = mod_set(module, data_as_script(script), args, kwargs);
     if (data_is_object(obj)) {
@@ -414,9 +423,15 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
       ret = obj;
     }
     data_free(script);
-  } else {
-    assert(data_is_exception(script));
+  } else if (script) {
+    oassert(data_is_exception(script),
+	    "import returned '%s', a '%s'.",
+	    data_tostring(script),
+	    data_typename(script));
     ret = script;
+  } else {
+    ret = data_exception(ErrorInternalError,
+			 "Import returned unexpected NULL");
   }
   return ret;
 }

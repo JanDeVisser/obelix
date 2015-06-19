@@ -124,11 +124,17 @@ nvp_t * vm_push_context(vm_t *vm, char *label, data_t *context) {
 }
 
 nvp_t * vm_peek_context(vm_t *vm) {
-  return data_as_nvp(datastack_peek(vm -> contexts));
+  data_t *d;
+
+  d = datastack_peek(vm -> contexts);
+  return data_as_nvp(d);
 }
 
 nvp_t * vm_pop_context(vm_t *vm) {
-  return data_as_nvp(datastack_pop(vm -> contexts));
+  data_t *d;
+
+  d = datastack_pop(vm -> contexts);
+  return data_as_nvp(d);
 }
 
 data_t * vm_execute(vm_t *vm, data_t *scope) {
@@ -157,6 +163,8 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
   
   ret = data_thread_push_stackframe((data_t *) vm);
   if (!data_is_exception(ret)) {
+    data_free(vm -> exception);
+    vm -> exception = NULL;
     ret = bytecode_execute(vm -> bytecode, vm, scope);
     if (dbg) {
       debug("    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));

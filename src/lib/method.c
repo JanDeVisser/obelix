@@ -29,13 +29,13 @@ static void          _mth_free(mth_t *);
 static char *        _mth_tostring(mth_t *);
 
 static vtable_t _vtable_method[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionFree,     .fnc = (void_t) _mth_free },
-  { .id = FunctionCmp,      .fnc = (void_t) mth_cmp },
-  { .id = FunctionToString, .fnc = (void_t) _mth_tostring },
-  { .id = FunctionHash,     .fnc = (void_t) mth_hash },
-  { .id = FunctionCall,     .fnc = (void_t) mth_call },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionFree,        .fnc = (void_t) _mth_free },
+  { .id = FunctionCmp,         .fnc = (void_t) mth_cmp },
+  { .id = FunctionAllocString, .fnc = (void_t) _mth_allocstring },
+  { .id = FunctionHash,        .fnc = (void_t) mth_hash },
+  { .id = FunctionCall,        .fnc = (void_t) mth_call },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 int Method = -1;
@@ -49,17 +49,16 @@ void _mth_init(void) {
 void _mth_free(mth_t *mth) {
   if (mth) {
     data_free(mth -> self);
-    free(mth);
   }
 }
 
-char * _mth_tostring(mth_t *mth) {
-  char *s = data_tostring(mth -> self);
+char * _mth_allocstring(mth_t *mth) {
+  char *buf;
 
-  if (!mth -> _d.str) {
-    asprintf(&mth -> _d.str, "%s.%s", s, mth -> method -> name);
-  }
-  return NULL;
+  asprintf(&buf, "%s.%s",
+	   data_tostring(mth -> self),
+	   mth -> method -> name);
+  return buf;
 }
 
 /* -- M T H _ T  P U B L I C  F U N C T I O N S --------------------------- */

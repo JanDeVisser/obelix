@@ -54,13 +54,6 @@ data_t * data_create_noinit(int type) {
   return ret;
 }
 
-data_t * _data_new(int type, size_t sz) {
-  data_t *ret = data_settype((data_t *) new(sz), type);
-
-  ret -> free_me = DontFreeData;
-  return ret;
-}
-
 data_t * data_settype(data_t *data, int type) {
   typedescr_t *descr = typedescr_get(type);
 
@@ -68,7 +61,7 @@ data_t * data_settype(data_t *data, int type) {
     data -> type = type;
     data -> refs++;
     data -> str = NULL;
-    data -> free_me = DontFreeData;
+    data -> free_me = Normal;
     descr -> count++;
     _data_count++;
   }
@@ -76,36 +69,35 @@ data_t * data_settype(data_t *data, int type) {
 }
 
 data_t * data_create(int type, ...) {
-  va_list      arg;
+  va_list      args;
   data_t      *ret;
-  data_t      *initialized;
+  data_t      *allocated = NULL;
   typedescr_t *descr = typedescr_get(type);
   new_t        n;
   factory_t    f;
 
   f = (factory_t) typedescr_get_function(descr, FunctionFactory);
   if (f) {
-    va_start(arg, type);
-    initialized = f(type, arg);
-    va_end(arg);
-    if (initialized) {
+    va_start(args, type);
+    ret = f(type, args);
+    va_end(args);
+    if (ret) {
       data_settype(initialized, type);
     }
   } else {
-    ret = data_create_noinit(type);
-    n = (new_t) typedescr_get_function(descr, FunctionNew);
-    if (n) {
-      va_start(arg, type);
-      initialized = n(ret, arg);
-      va_end(arg);
-      if (initialized != ret) {
-        data_free(ret);
+    va_start(args, type);
+    if (n = (new_t) typedescr_get_function(descr, FunctionNew)) {
+      allocated = data_create_noinit(type);
+      ret = n(allocated, arg);
+      if (allocated != ret) {
+        data_free(allocated);
       }
     } else {
-      initialized = ret;
+      ret = data_copy(va_arg(args, data_t *));
     }
+    va_end(args);
   }
-  return initialized;
+  return ret;
 }
 
 data_t * data_parse(int type, char *str) {

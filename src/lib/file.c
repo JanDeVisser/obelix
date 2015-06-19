@@ -41,7 +41,7 @@ static void          _file_init(void) __attribute__((constructor));
 static FILE *        _file_stream(file_t *);
 
 static void          _file_free(file_t *);
-static char *        _file_tostring(file_t *file);
+static char *        _file_allocstring(file_t *file);
 static int           _file_intval(file_t *);
 static data_t *      _file_cast(file_t *, int);
 static file_t *      _file_enter(file_t *);
@@ -62,21 +62,21 @@ static data_t *      _file_redirect(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_seek(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_file[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionCmp,      .fnc = (void_t) file_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _file_free },
-  { .id = FunctionToString, .fnc = (void_t) _file_tostring },
-  { .id = FunctionIntValue, .fnc = (void_t) _file_intval },
-  { .id = FunctionCast,     .fnc = (void_t) _file_cast },
-  { .id = FunctionHash,     .fnc = (void_t) file_hash },
-  { .id = FunctionEnter,    .fnc = (void_t) _file_enter },
-  { .id = FunctionLeave,    .fnc = (void_t) _file_leave },
-  { .id = FunctionIter,     .fnc = (void_t) _file_iter },
-  { .id = FunctionQuery,    .fnc = (void_t) _file_query },
-  { .id = FunctionResolve,  .fnc = (void_t) _file_resolve },
-  { .id = FunctionRead,     .fnc = (void_t) _file_read },
-  { .id = FunctionWrite,    .fnc = (void_t) _file_write },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,         .fnc = (void_t) file_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _file_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _file_tostring },
+  { .id = FunctionIntValue,    .fnc = (void_t) _file_intval },
+  { .id = FunctionCast,        .fnc = (void_t) _file_cast },
+  { .id = FunctionHash,        .fnc = (void_t) file_hash },
+  { .id = FunctionEnter,       .fnc = (void_t) _file_enter },
+  { .id = FunctionLeave,       .fnc = (void_t) _file_leave },
+  { .id = FunctionIter,        .fnc = (void_t) _file_iter },
+  { .id = FunctionQuery,       .fnc = (void_t) _file_query },
+  { .id = FunctionResolve,     .fnc = (void_t) _file_resolve },
+  { .id = FunctionRead,        .fnc = (void_t) _file_read },
+  { .id = FunctionWrite,       .fnc = (void_t) _file_write },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static typedescr_t _typedescr_file =   {
@@ -146,17 +146,16 @@ void _file_free(file_t *file) {
     }
     free(file -> error);
     free(file -> line);
-    free(file);
   }
 }
 
-char * _file_tostring(file_t *file) {
-  if (!file -> _d.str) {
-    asprintf(&file -> _d.str, "%s:%d",
-             (file -> fname) ? file -> fname : "anon",
-             file -> fh);
-  }
-  return NULL;
+char * _file_allocstring(file_t *file) {
+  char *buf;
+
+  asprintf(&buf, "%s:%d",
+	   (file -> fname) ? file -> fname : "anon",
+	   file -> fh);
+  return buf;
 }
 
 int _file_intval(file_t *file) {
@@ -590,7 +589,6 @@ void _fileiter_free(fileiter_t *fileiter) {
   if (fileiter) {
     regexp_free(fileiter -> regex);
     list_free(fileiter -> next);
-    free(fileiter);
   }
 }
 

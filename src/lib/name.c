@@ -36,7 +36,6 @@ static data_t *      _name_resolve(name_t *, char *);
 static name_t *      _name_create(int);
 
 vtable_t _vtable_name[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionParse,    .fnc = (void_t) name_parse },
   { .id = FunctionCmp,      .fnc = (void_t) name_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _name_free },
@@ -97,7 +96,6 @@ void _name_free(name_t *name) {
   if (name) {
     array_free(name -> name);
     free(name -> sep);
-    free(name);
   }
 }
 

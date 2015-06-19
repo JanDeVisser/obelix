@@ -347,17 +347,14 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, dat
   if (script_debug) {
     debug("scriptloader_load_fromreader('%s')", name_tostring(mod -> name));
   }
+  parser_clear(loader -> parser);
+  parser_set(loader -> parser, "module", data_create(Module, mod));
+  name = strdup((name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__");
+  parser_set(loader -> parser, "name", data_create(String, name));
+  parser_set(loader -> parser, "options", data_create_list(loader -> options));
+  ret = parser_parse(loader -> parser, reader);
   if (!ret) {
-    parser_clear(loader -> parser);
-    parser_set(loader -> parser, "module", data_create(Module, mod));
-    name = strdup((name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__");
-    parser_set(loader -> parser, "name", data_create(String, name));
-    parser_set(loader -> parser, "options", data_create_list(loader -> options));
-    ret = parser_parse(loader -> parser, reader);
-    if (!ret) {
-      script = (script_t *) loader -> parser -> data;
-      ret = data_create(Script, script);
-    } 
+    ret = data_copy(parser_get(loader -> parser, "script"));
   }
   return ret;
 }

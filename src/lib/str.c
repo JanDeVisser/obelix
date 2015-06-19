@@ -101,7 +101,6 @@ void _str_free(str_t *str) {
     if (str -> bufsize) {
       free(str -> buffer);
     }
-    free(str);
   }
 }
 

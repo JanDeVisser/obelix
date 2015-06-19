@@ -27,20 +27,20 @@
 
 static void         _function_init(void) __attribute__((constructor));
 static void         _function_free(function_t *);
-static char *       _function_tostring(function_t *);
+static char *       _function_allocstring(function_t *);
 static data_t *     _function_cast(function_t *, int);
 static data_t *     _function_call(function_t *, array_t *, dict_t *);
 			
 static vtable_t _vtable_function[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionCmp,      .fnc = (void_t) function_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _function_free },
-  { .id = FunctionToString, .fnc = (void_t) _function_tostring },
-  { .id = FunctionParse,    .fnc = (void_t) function_parse },
-  { .id = FunctionCast,     .fnc = (void_t) _function_cast },
-  { .id = FunctionHash,     .fnc = (void_t) function_hash },
-  { .id = FunctionCall,     .fnc = (void_t) _function_call },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,         .fnc = (void_t) function_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _function_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _function_allocstring },
+  { .id = FunctionParse,       .fnc = (void_t) function_parse },
+  { .id = FunctionCast,        .fnc = (void_t) _function_cast },
+  { .id = FunctionHash,        .fnc = (void_t) function_hash },
+  { .id = FunctionCall,        .fnc = (void_t) _function_call },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 int function_debug;
@@ -54,24 +54,21 @@ void _function_init(void) {
 					   _vtable_function, NULL);
 }
 
-char * _function_tostring(function_t *fnc) {
-  if (fnc) {
-    if (!fnc -> _d.str) {
-      asprintf(&fnc -> _d.str, "%s(%s)",
-                name_tostring(fnc -> name),
-                ((fnc -> params && array_size(fnc -> params))
-                  ? array_tostring(fnc -> params)
-                  : ""));
-    }
-  }
-  return NULL;
+char * _function_allocstring(function_t *fnc) {
+  char *buf;
+
+  asprintf(&buf, "%s(%s)",
+	   name_tostring(fnc -> name),
+	   ((fnc -> params && array_size(fnc -> params))
+	    ? array_tostring(fnc -> params)
+	    : ""));
+  return buf;
 }
 
 void _function_free(function_t *fnc) {
   if (fnc) {
     name_free(fnc -> name);
     array_free(fnc -> params);
-    free(fnc);
   }
 }
 

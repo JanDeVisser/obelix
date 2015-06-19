@@ -160,24 +160,24 @@ void exception_report(exception_t *e) {
  */
 
 void _exception_init(void) {
-  typedescr_register(&_typedescr_exception);
+  typedescr_create_and_register(Exception, "exception",
+				_vtable_exception, NULL);
 }
 
-char * _exception_tostring(exception_t *exception) {
-  if (!exception -> _d.str) {
-    asprintf(&exception -> _d.str, "Error %s (%d): %s",
-            label_for_code(exceptions, exception -> code),
-            exception -> code,
-            exception -> msg);
-  }
-  return NULL;
+char * _exception_allocstring(exception_t *exception) {
+  char *buf;
+  
+  asprintf(&buf, "Error %s (%d): %s",
+	   label_for_code(exceptions, exception -> code),
+	   exception -> code,
+	   exception -> msg);
+  return buf;
 }
 
 void _exception_free(exception_t *exception) {
   if (exception) {
     free(exception -> msg);
     data_free(exception -> throwable);
-    free(exception);
   }
 }
 

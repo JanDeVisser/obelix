@@ -126,7 +126,7 @@ extern int             data_count(void);
 extern double          data_floatval(data_t *);
 extern int             data_intval(data_t *);
 
-#define data_new(dt,st)     ((st *) _data_new((dt), sizeof(st)))
+#define data_new(dt,st)     ((st *) data_settype((data_t *) new(sizeof(st)), dt))
 #define data_type(d)        (((data_t *) (d)) -> type)
 #define data_typename(d)    (typedescr_get(data_type((data_t *) (d))) -> type_name)
 

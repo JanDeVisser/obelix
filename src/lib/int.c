@@ -30,7 +30,7 @@
 static void          _int_init(void) __attribute__((constructor));
 static data_t *      _int_new(int, va_list);
 static int           _int_cmp(int_t *, int_t *);
-static char *        _int_tostring(int_t *);
+static char *        _int_allocstring(int_t *);
 static data_t *      _int_cast(int_t *, int);
 static unsigned int  _int_hash(int_t *);
 static data_t *      _int_parse(char *);
@@ -51,17 +51,17 @@ static data_t *      _bool_parse(char *);
 static data_t *      _bool_cast(int_t *, int);
 
 static vtable_t _vtable_int[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _int_new },
-  { .id = FunctionCmp,      .fnc = (void_t) _int_cmp },
-  { .id = FunctionToString, .fnc = (void_t) _int_tostring },
-  { .id = FunctionParse,    .fnc = (void_t) _int_parse },
-  { .id = FunctionCast,     .fnc = (void_t) _int_cast },
-  { .id = FunctionHash,     .fnc = (void_t) _int_hash },
-  { .id = FunctionFltValue, .fnc = (void_t) _int_fltvalue },
-  { .id = FunctionIntValue, .fnc = (void_t) _int_intvalue },
-  { .id = FunctionDecr,     .fnc = (void_t) _int_decr },
-  { .id = FunctionIncr,     .fnc = (void_t) _int_incr },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) _int_new },
+  { .id = FunctionCmp,         .fnc = (void_t) _int_cmp },
+  { .id = FunctionAllocString, .fnc = (void_t) _int_allocstring },
+  { .id = FunctionParse,       .fnc = (void_t) _int_parse },
+  { .id = FunctionCast,        .fnc = (void_t) _int_cast },
+  { .id = FunctionHash,        .fnc = (void_t) _int_hash },
+  { .id = FunctionFltValue,    .fnc = (void_t) _int_fltvalue },
+  { .id = FunctionIntValue,    .fnc = (void_t) _int_intvalue },
+  { .id = FunctionDecr,        .fnc = (void_t) _int_decr },
+  { .id = FunctionIncr,        .fnc = (void_t) _int_incr },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static typedescr_t _typedescr_int = {
@@ -72,13 +72,13 @@ static typedescr_t _typedescr_int = {
 };
 
 static vtable_t _vtable_bool[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _bool_new },
-  { .id = FunctionCmp,      .fnc = (void_t) _int_cmp },
-  { .id = FunctionToString, .fnc = (void_t) _bool_tostring },
-  { .id = FunctionParse,    .fnc = (void_t) _bool_parse },
-  { .id = FunctionCast,     .fnc = (void_t) _bool_cast },
-  { .id = FunctionHash,     .fnc = (void_t) _int_hash },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) _bool_new },
+  { .id = FunctionCmp,         .fnc = (void_t) _int_cmp },
+  { .id = FunctionToString,    .fnc = (void_t) _bool_tostring },
+  { .id = FunctionParse,       .fnc = (void_t) _bool_parse },
+  { .id = FunctionCast,        .fnc = (void_t) _bool_cast },
+  { .id = FunctionHash,        .fnc = (void_t) _int_hash },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static int _inherits_bool[] = { Int };
@@ -139,8 +139,11 @@ int _int_cmp(int_t *self, int_t *other) {
   return self -> i - other -> i;
 }
 
-char * _int_tostring(int_t *data) {
-  return itoa(data -> i);
+char * _int_allocstring(int_t *data) {
+  char *buf;
+
+  asprintf(&buf, "%ld", data -> i);
+  return buf;
 }
 
 data_t * _int_cast(int_t *data, int totype) {

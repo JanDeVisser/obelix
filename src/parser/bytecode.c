@@ -66,7 +66,6 @@ void _bytecode_free(bytecode_t *bytecode) {
     datastack_free(bytecode -> deferred_blocks);
     datastack_free(bytecode -> pending_labels);
     datastack_free(bytecode -> bookmarks);
-    free(bytecode);
   }
 }
 
@@ -121,6 +120,7 @@ listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
    * FIXME: What we're effectively doing here is disable __exit__ handlers in
    * obelix objects, since they will pick up the exit code.
    */
+  debug("labels: %p", bytecode -> labels);
   if (!ret || (instr -> type == ITLeaveContext)) {
     ret = data_call(instr, args, NULL);
   }
@@ -147,7 +147,7 @@ listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
       } else {
         node = ProcessEnd;
       }
-      data_push(scope, data_copy(ret));
+      vm -> exception = data_copy(ret);
     }
     data_free(ret);
   }
@@ -276,6 +276,8 @@ void bytecode_list(bytecode_t *bytecode) {
   fprintf(stderr, "// %-6s %-11.11s%-15.15s\n", "Line", "Label", "Instruction");
   fprintf(stderr, "// ---------------------------------------------------------------\n");
   _bytecode_list_block(bytecode -> instructions);
+  fprintf(stderr, "// ---------------------------------------------------------------\n");
+  fprintf(stderr, "// Labels: %p\n", bytecode -> labels);
   fprintf(stderr, "// ===============================================================\n");
 }
 
@@ -290,7 +292,10 @@ data_t * bytecode_execute(bytecode_t *bytecode, vm_t *vm, data_t *scope) {
   list_process(bytecode -> instructions,
                (reduce_t) _bytecode_execute_instruction,
                args);
-  ret = (datastack_notempty(vm -> stack)) ? vm_pop(vm) : data_null();
+
+  ret = (vm -> exception)
+    ? data_copy(vm -> exception)
+    : (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
   array_free(args);
   return ret;
 }

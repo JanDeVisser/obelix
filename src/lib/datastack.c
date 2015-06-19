@@ -153,7 +153,6 @@ data_t * datastack_peek(datastack_t *stack) {
 }
 
 datastack_t * datastack_push(datastack_t *stack, data_t *data) {
-  debug("stack: %p stack -> list %%p data: %p", stack, data);
   array_push(stack -> list, data);
   if (stack -> debug) {
     debug("After push:");

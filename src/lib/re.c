@@ -28,19 +28,21 @@
 #include <wrapper.h>
 
 static void     _regexp_init(void) __attribute__((constructor));
-static char *   _regexp_tostring(re_t *);
+static char *   _regexp_allocstring(re_t *);
 static void     _regexp_free(re_t *);
 static data_t * _regexp_create(data_t *, char *, array_t *, dict_t *);
+static data_t * _regexp_call(re_t *, array_t *, dict_t *);
 static data_t * _regexp_match(data_t *, char *, array_t *, dict_t *);
 static data_t * _regexp_replace(data_t *, char *, array_t *, dict_t *);
 
 
 static vtable_t _vtable_re[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionCmp,      .fnc = (void_t) regexp_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _regexp_free },
-  { .id = FunctionToString, .fnc = (void_t) _regexp_tostring },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
+  { .id = FunctionCmp,         .fnc = (void_t) regexp_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _regexp_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _regexp_allocstring },
+  { .id = FunctionCall,        .fnc = (void_t) _regexp_call },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 int Regexp = -1;
@@ -60,13 +62,13 @@ void _regexp_init(void) {
   Regexp = typedescr_create_and_register(Regexp, "regexp", _vtable_re, _methoddescr_re);
 }
 
-char * _regexp_tostring(re_t *regex) {
-  if (!regex -> _d.str) {
-    asprintf(&regex -> _d.str, "/%s/%s",
-             regex -> pattern,
-             (regex -> flags) ? (regex -> flags) : "");
-  }
-  return NULL;
+char * _regexp_allocstring(re_t *regex) {
+  char *buf;
+  
+  asprintf(&buf, "/%s/%s",
+	   regex -> pattern,
+	   (regex -> flags) ? (regex -> flags) : "");
+  return buf;
 }
 
 void _regexp_free(re_t *regex) {
@@ -74,8 +76,17 @@ void _regexp_free(re_t *regex) {
     free(regex -> pattern);
     free(regex -> flags);
     regfree(&regex -> compiled);
-    free(regex);
   }
+}
+
+data_t * _regexp_call(re_t *re, array_t *args, dict_t *kwargs) {
+  data_t *str = data_array_get(args, 0);
+
+  (void) kwargs;
+  if (debug_regexp) {
+    debug("_regexp_call(%s, %s))", regexp_tostring(re), data_tostring(str));
+  }
+  return regexp_match(re, data_tostring(str));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -181,15 +192,8 @@ data_t * _regexp_create(data_t *self, char *name, array_t *args, dict_t *kwargs)
 
 
 data_t * _regexp_match(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *str = data_array_get(args, 0);
-  re_t   *re = data_as_regexp(self);
-
   (void) name;
-  (void) kwargs;
-  if (debug_regexp) {
-    debug("_regexp_match(%s, %s))", regexp_tostring(re), data_tostring(str));
-  }
-  return regexp_match(re, data_tostring(str));
+  return _regexp_call(data_as_regexp(self), args, kwargs);
 }
 
 data_t * _regexp_replace(data_t *self, char *name, array_t *args, dict_t *kwargs) {
