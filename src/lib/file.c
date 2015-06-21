@@ -65,7 +65,7 @@ static vtable_t _vtable_file[] = {
   { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) file_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _file_free },
-  { .id = FunctionAllocString, .fnc = (void_t) _file_tostring },
+  { .id = FunctionAllocString, .fnc = (void_t) _file_allocstring },
   { .id = FunctionIntValue,    .fnc = (void_t) _file_intval },
   { .id = FunctionCast,        .fnc = (void_t) _file_cast },
   { .id = FunctionHash,        .fnc = (void_t) file_hash },
@@ -77,12 +77,6 @@ static vtable_t _vtable_file[] = {
   { .id = FunctionRead,        .fnc = (void_t) _file_read },
   { .id = FunctionWrite,       .fnc = (void_t) _file_write },
   { .id = FunctionNone,        .fnc = NULL }
-};
-
-static typedescr_t _typedescr_file =   {
-  .type      = -1,
-  .type_name = "file",
-  .vtable    = _vtable_file,
 };
 
 static methoddescr_t _methoddescr_file[] = {

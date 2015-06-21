@@ -82,13 +82,13 @@ data_t * data_create(int type, ...) {
     ret = f(type, args);
     va_end(args);
     if (ret) {
-      data_settype(initialized, type);
+      data_settype(ret, type);
     }
   } else {
     va_start(args, type);
     if (n = (new_t) typedescr_get_function(descr, FunctionNew)) {
       allocated = data_create_noinit(type);
-      ret = n(allocated, arg);
+      ret = n(allocated, args);
       if (allocated != ret) {
         data_free(allocated);
       }
