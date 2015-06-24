@@ -37,7 +37,6 @@ static data_t * _regexp_replace(data_t *, char *, array_t *, dict_t *);
 
 
 static vtable_t _vtable_re[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) regexp_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _regexp_free },
   { .id = FunctionAllocString, .fnc = (void_t) _regexp_allocstring },

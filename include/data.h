@@ -155,7 +155,8 @@ extern int_t *         bool_false;
 #define data_false()   ((data_t *) bool_false)
 
 /* -- Standard vtable functions ------------------------------------------ */
-extern data_t *        data_embedded(int, va_list);
+
+/* ----------------------------------------------------------------------- */
 
 #define strdata_dict_create()   dict_set_tostring_data( \
                                   dict_set_tostring_key( \

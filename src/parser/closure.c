@@ -38,7 +38,7 @@ static listnode_t * _closure_execute_instruction(instruction_t *, closure_t *);
 static data_t *     _closure_get(closure_t *, char *);
 static data_t *     _closure_start(closure_t *);
 
-static char *       _closure_tostring(closure_t *closure);
+static char *       _closure_allocstring(closure_t *closure);
 static void         _closure_free(closure_t *);
 
 static data_t *     _closure_import(data_t *, char *, array_t *, dict_t *);
@@ -46,15 +46,14 @@ static data_t *     _closure_import(data_t *, char *, array_t *, dict_t *);
 int Closure = -1;
 
 static vtable_t _vtable_closure[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionCmp,      .fnc = (void_t) closure_cmp },
-  { .id = FunctionHash,     .fnc = (void_t) closure_hash },
-  { .id = FunctionFree,     .fnc = (void_t) _closure_free },
-  { .id = FunctionToString, .fnc = (void_t) _closure_tostring },
-  { .id = FunctionCall,     .fnc = (void_t) closure_execute },
-  { .id = FunctionSet,      .fnc = (void_t) closure_set },
-  { .id = FunctionResolve,  .fnc = (void_t) closure_resolve },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionCmp,         .fnc = (void_t) closure_cmp },
+  { .id = FunctionHash,        .fnc = (void_t) closure_hash },
+  { .id = FunctionFree,        .fnc = (void_t) _closure_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _closure_allocstring },
+  { .id = FunctionCall,        .fnc = (void_t) closure_execute },
+  { .id = FunctionSet,         .fnc = (void_t) closure_set },
+  { .id = FunctionResolve,     .fnc = (void_t) closure_resolve },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_closure[] = {
@@ -148,19 +147,17 @@ data_t * _closure_start(closure_t *closure) {
   return ret;
 }
 
-char * _closure_tostring(closure_t *closure) {
+char * _closure_allocstring(closure_t *closure) {
   char *params;
+  char *buf;
   
-  if (!closure -> _d.str) {
-    params = (closure -> params && dict_size(closure -> params)) 
+  params = (closure -> params && dict_size(closure -> params)) 
     ? dict_tostring_custom(closure -> params, "", "%s=%s", ",", "")
-    : strdup("");
-    asprintf(&closure -> _d.str, "%s(%s)",
-             script_tostring(closure -> script),
-             params);
-    free(params);
-  }
-  return NULL;
+    : "";
+  asprintf(&buf, "%s(%s)",
+	   script_tostring(closure -> script),
+	   params);
+  return buf;
 }
 
 void _closure_free(closure_t *closure) {
@@ -170,7 +167,6 @@ void _closure_free(closure_t *closure) {
     dict_free(closure -> params);
     data_free(closure -> self);
     data_free(closure -> thread);
-    free(closure);
   }
 }
 

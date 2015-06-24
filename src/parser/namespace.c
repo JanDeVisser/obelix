@@ -44,14 +44,12 @@ int Module = -1;
 int Namespace = -1;
 
 vtable_t _vtable_namespace[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionFree,     .fnc = (void_t) _ns_free },
   { .id = FunctionToString, .fnc = (void_t) _ns_tostring },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 vtable_t _vtable_module[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) mod_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _mod_free },
   { .id = FunctionToString, .fnc = (void_t) _mod_tostring },
@@ -89,7 +87,6 @@ static data_t *    _pnm_set(pnm_t *, char *, data_t *);
 int PartialNameMatch = -1;
 
 static vtable_t _vtable_pnm[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) _pnm_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _pnm_free },
   { .id = FunctionToString, .fnc = (void_t) _pnm_tostring },
@@ -214,7 +211,6 @@ void _mod_free(module_t *mod) {
     object_free(mod -> obj);
     ns_free(mod -> ns);
     free(mod -> name);
-    free(mod);
   }
 }
 
@@ -480,7 +476,6 @@ void _ns_free(namespace_t *ns) {
     dict_free(ns -> modules);
     free(ns -> name);
     data_free(ns -> exit_code);
-    free(ns);
   }
 }
 

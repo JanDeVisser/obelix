@@ -32,7 +32,6 @@ static data_t *     _function_cast(function_t *, int);
 static data_t *     _function_call(function_t *, array_t *, dict_t *);
 			
 static vtable_t _vtable_function[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) function_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _function_free },
   { .id = FunctionAllocString, .fnc = (void_t) _function_allocstring },

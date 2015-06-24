@@ -56,7 +56,7 @@ static code_label_t *exceptions = builtin_exceptions;
 
 static void          _exception_init(void) __attribute__((constructor(105)));
 extern void          _exception_free(exception_t *);
-extern char *        _exception_tostring(exception_t *);
+extern char *        _exception_allocstring(exception_t *);
 static int           _exception_intval(data_t *);
 static data_t *      _exception_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _exception_resolve(data_t *, char *);
@@ -65,22 +65,15 @@ static data_t *      _exception_cast(data_t *, int);
 static data_t *      _data_exception_from_exception(exception_t *);
 
 static vtable_t _vtable_exception[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionCmp,      .fnc = (void_t) exception_cmp },
-  { .id = FunctionHash,     .fnc = (void_t) exception_hash },
-  { .id = FunctionFree,     .fnc = (void_t) _exception_free },
-  { .id = FunctionToString, .fnc = (void_t) _exception_tostring },
-  { .id = FunctionIntValue, .fnc = (void_t) _exception_intval },
-  { .id = FunctionResolve,  .fnc = (void_t) _exception_resolve },
-  { .id = FunctionCall,     .fnc = (void_t) _exception_call },
-  { .id = FunctionCast,     .fnc = (void_t) _exception_cast },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_exception = {
-  .type      = Exception,
-  .type_name = "exception",
-  .vtable    = _vtable_exception
+  { .id = FunctionCmp,         .fnc = (void_t) exception_cmp },
+  { .id = FunctionHash,        .fnc = (void_t) exception_hash },
+  { .id = FunctionFree,        .fnc = (void_t) _exception_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _exception_allocstring },
+  { .id = FunctionIntValue,    .fnc = (void_t) _exception_intval },
+  { .id = FunctionResolve,     .fnc = (void_t) _exception_resolve },
+  { .id = FunctionCall,        .fnc = (void_t) _exception_call },
+  { .id = FunctionCast,        .fnc = (void_t) _exception_cast },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 /* --  E X C E P T I O N _ T  F U N C T I O N S --------------------------- */

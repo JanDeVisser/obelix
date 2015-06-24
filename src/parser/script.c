@@ -44,7 +44,6 @@ static char *     _script_tostring(script_t *);
 /* -- data_t type description structures ---------------------------------- */
 
 static vtable_t _vtable_script[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) script_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _script_free },
   { .id = FunctionToString, .fnc = (void_t) _script_tostring },
@@ -77,7 +76,6 @@ void _script_free(script_t *script) {
     mod_free(script -> mod);
     name_free(script -> name);
     name_free(script -> fullname);
-    free(script);
   }
 }
 
@@ -94,8 +92,7 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
   if (script_debug) {
     debug("Creating script '%s'", name);
   }
-  ret = NEW(script_t);
-  data_settype(&ret -> _d, Script);
+  ret = data_new(Script, script_t);
 
   ret -> functions = strdata_dict_create();
   ret -> params = NULL;

@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <core.h>
 #include <data.h>
 #include <grammar.h>
 #include <list.h>
@@ -66,28 +65,21 @@ static char *              _rule_tostring(rule_t *);
 
 static rule_entry_t *      _rule_entry_create(rule_t *, int, void *);
 static void                _rule_entry_free(rule_entry_t *);
-static char *              _rule_entry_tostring(rule_entry_t *);
+static char *              _rule_entry_allocstring(rule_entry_t *);
 
 static set_t *             _rule_entry_get_firsts(rule_entry_t *, set_t *);
 static set_t *             _rule_entry_get_follows(rule_entry_t *, set_t *);
 
 static data_t *            _ga_create(int, va_list);
-static char *              _ga_tostring(grammar_action_t *);
+static char *              _ga_allocstring(grammar_action_t *);
 static void                _ga_free(grammar_action_t *);
 
 static vtable_t _vtable_ga[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionFree,     .fnc = (void_t) _ga_free },
-  { .id = FunctionCmp,      .fnc = (void_t) grammar_action_cmp },
-  { .id = FunctionHash,     .fnc = (void_t) grammar_action_hash },
-  { .id = FunctionToString, .fnc = (void_t) _ga_tostring },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_ga = {
-  .type      = -1,
-  .type_name = "grammaraction",
-  .vtable    = _vtable_ga
+  { .id = FunctionFree,        .fnc = (void_t) _ga_free },
+  { .id = FunctionCmp,         .fnc = (void_t) grammar_action_cmp },
+  { .id = FunctionHash,        .fnc = (void_t) grammar_action_hash },
+  { .id = FunctionAllocString, .fnc = (void_t) _ga_allocstring },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static vtable_t _vtable_ge[] = {
@@ -95,14 +87,7 @@ static vtable_t _vtable_ge[] = {
   { .id = FunctionNone, .fnc = NULL }
 };
 
-static typedescr_t _typedescr_ge = {
-  .type      = -1,
-  .type_name = "grammarelement",
-  .vtable    = _vtable_ge
-};
-
 static vtable_t _vtable_grammar[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionFree,     .fnc = (void_t) _grammar_free },
   { .id = FunctionToString, .fnc = (void_t) _grammar_tostring },
   { .id = FunctionNone,     .fnc = NULL }
@@ -115,7 +100,6 @@ static typedescr_t _typedescr_grammar = {
 };
 
 static vtable_t _vtable_nonterminal[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionFree,     .fnc = (void_t) _nonterminal_free },
   { .id = FunctionToString, .fnc = (void_t) _nonterminal_tostring },
   { .id = FunctionNone,     .fnc = NULL }
@@ -128,7 +112,6 @@ static typedescr_t _typedescr_nonterminal = {
 };
 
 static vtable_t _vtable_rule[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionFree,     .fnc = (void_t) _rule_free },
   { .id = FunctionToString, .fnc = (void_t) _rule_tostring },
   { .id = FunctionNone,     .fnc = NULL }
@@ -141,10 +124,9 @@ static typedescr_t _typedescr_rule = {
 };
 
 static vtable_t _vtable_rule_entry[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionFree,     .fnc = (void_t) _rule_entry_free },
-  { .id = FunctionToString, .fnc = (void_t) _rule_entry_tostring },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFree,        .fnc = (void_t) _rule_entry_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _rule_entry_allocstring },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static typedescr_t _typedescr_rule_entry = {
@@ -168,8 +150,14 @@ void _grammar_init(void) {
 }
 
 void _ge_init(void) {
-  GrammarAction = typedescr_register(&_typedescr_ga);
-  GrammarElement = typedescr_register(&_typedescr_ge);
+  GrammarAction = typedescr_create_and_register(GrammarAction,
+						"grammaraction",
+						_vtable_ga,
+						NULL);
+  GrammarElement = typedescr_create_and_register(GrammarElement,
+						 "grammarelement",
+						 _vtable_ge,
+						 NULL);
   _typedescr_grammar.inherits[0] = GrammarElement;
   _typedescr_nonterminal.inherits[0] = GrammarElement;
   _typedescr_rule.inherits[0] = GrammarElement;
@@ -187,22 +175,21 @@ void _ga_free(grammar_action_t *grammar_action) {
   if (grammar_action) {
     function_free(grammar_action -> fnc);
     data_free(grammar_action -> data);
-    free(grammar_action);
   }
 }
 
-char * _ga_tostring(grammar_action_t *grammar_action) {
-  if (!grammar_action -> _d.str) {
-    if (grammar_action -> data) {
-      asprintf(&grammar_action -> _d.str, "%s [%s]",
-               function_tostring(grammar_action -> fnc),
-               data_tostring(grammar_action -> data));
-    } else {
-      asprintf(&grammar_action -> _d.str, "%s",
-               function_tostring(grammar_action -> fnc));
-    }
+char * _ga_allocstring(grammar_action_t *grammar_action) {
+  char *buf;
+  
+  if (grammar_action -> data) {
+    asprintf(&buf, "%s [%s]",
+	     function_tostring(grammar_action -> fnc),
+	     data_tostring(grammar_action -> data));
+  } else {
+    asprintf(&buf, "%s",
+	     function_tostring(grammar_action -> fnc));
   }
-  return NULL;
+  return buf;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -250,7 +237,6 @@ void _ge_free(ge_t *ge) {
   if (ge) {
     dict_free(ge -> variables);
     list_free(ge -> actions);
-    free(ge);
   }
 }
 
@@ -936,9 +922,7 @@ void _rule_build_parse_table(rule_t *rule) {
   }
 }
 
-/*
- * rule_t public functions
- */
+/* -- rule_t public functions --------------------------------------------- */
 
 rule_t * rule_create(nonterminal_t *nonterminal) {
   rule_t  *ret = NEW(rule_t);
@@ -988,15 +972,15 @@ rule_entry_t * _rule_entry_create(rule_t *rule, int terminal, void *ptr) {
   return ret;
 }
 
-char * _rule_entry_tostring(rule_entry_t *entry) {
-  if (!entry -> ge._d.str) {
-    if (entry -> terminal) {
-      asprintf(&entry -> ge._d.str, "'%s'", token_token(entry -> token));
-    } else {
-      entry -> ge._d.str = strdup(entry -> nonterminal);
-    }
+char * _rule_entry_allocstring(rule_entry_t *entry) {
+  char *buf;
+  
+  if (entry -> terminal) {
+    asprintf(&buf, "'%s'", token_token(entry -> token));
+  } else {
+    buf = strdup(entry -> nonterminal);
   }
-  return NULL;
+  return buf;
 }
 
 void _rule_entry_free(rule_entry_t *entry) {

@@ -59,7 +59,6 @@ static data_t *      _thread_yield(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_stack(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_thread[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) thread_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _thread_free },
   { .id = FunctionToString, .fnc = (void_t) _thread_tostring },
@@ -86,12 +85,12 @@ int thread_debug = 0;
 void _init_thread(void) {
   thread_t *main;
 
-  pthread_key_create(&self_obj, (void (*)(void *)) _thread_free);
-  main = thread_create(pthread_self(), "Main");
   logging_register_category("thread", &thread_debug);
+  pthread_key_create(&self_obj, (void (*)(void *)) _thread_free);
   Thread = typedescr_create_and_register(Thread, "thread",
 					 _vtable_thread,
 					 _methoddescr_thread);
+  main = thread_create(pthread_self(), "Main");
 }
 
 int _pthread_cmp(pthread_t *t1, pthread_t *t2) {

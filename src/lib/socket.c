@@ -56,7 +56,6 @@ static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
  */
 
 static vtable_t _vtable_socket[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) socket_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _socket_free },
   { .id = FunctionAllocString, .fnc = (void_t) _socket_allocstring },

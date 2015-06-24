@@ -35,7 +35,6 @@ static data_t *     _nvp_create(data_t *, char *, array_t *, dict_t *);
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_nvp[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) nvp_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _nvp_free },
   { .id = FunctionAllocString, .fnc = (void_t) _nvp_allocstring },

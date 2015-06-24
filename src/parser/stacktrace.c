@@ -35,7 +35,6 @@ static void     _stacktrace_free(stacktrace_t *);
 static char *   _stacktrace_allocstring(stacktrace_t *);
 
 static vtable_t _vtable_stackframe[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) stackframe_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _stackframe_free },
   { .id = FunctionAllocString, .fnc = (void_t) _stackframe_allocstring },
@@ -43,7 +42,6 @@ static vtable_t _vtable_stackframe[] = {
 };
 
 static vtable_t _vtable_stacktrace[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) stacktrace_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _stacktrace_free },
   { .id = FunctionAllocString, .fnc = (void_t) _stacktrace_allocstring },
@@ -81,7 +79,6 @@ void _stackframe_free(stackframe_t *stackframe) {
   if (stackframe) {
     free(stackframe -> funcname);
     free(stackframe -> source);
-    free(stackframe);
   }
 }
 
@@ -126,7 +123,6 @@ stacktrace_t * stacktrace_create(void) {
 void _stacktrace_free(stacktrace_t *stacktrace) {
   if (stacktrace) {
     datastack_free(stacktrace -> stack);
-    free(stacktrace);
   }
 }
 

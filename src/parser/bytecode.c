@@ -41,7 +41,6 @@ int bytecode_debug = 0;
 int Bytecode = -1;
 
 static vtable_t _vtable_bytecode[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionFree,        .fnc = (void_t) _bytecode_free },
   { .id = FunctionAllocString, .fnc = (void_t) _bytecode_allocstring },
   { .id = FunctionCall,        .fnc = (void_t) _bytecode_call },
@@ -105,7 +104,7 @@ listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
   listnode_t   *node = NULL;
   data_t       *scope = data_array_get(args, 0);
   vm_t         *vm = data_as_vm(data_array_get(args, 1));
-  bytecode_t   *bytecode = data_as_bytecode(data_array_get(args, 1));
+  bytecode_t   *bytecode = data_as_bytecode(data_array_get(args, 2));
   data_t       *catchpoint = NULL;
   int           datatype;
   exception_t  *ex;
@@ -120,7 +119,6 @@ listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
    * FIXME: What we're effectively doing here is disable __exit__ handlers in
    * obelix objects, since they will pick up the exit code.
    */
-  debug("labels: %p", bytecode -> labels);
   if (!ret || (instr -> type == ITLeaveContext)) {
     ret = data_call(instr, args, NULL);
   }

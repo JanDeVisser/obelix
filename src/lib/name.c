@@ -53,7 +53,7 @@ static methoddescr_t _methoddescr_name[] = {
 };
 
 int name_debug;
-int Name;
+int Name = -1;
 
 /* ----------------------------------------------------------------------- */
 
@@ -237,7 +237,7 @@ array_t * name_as_array(name_t *name) {
 }
 
 name_t * name_tail(name_t *name) {
-  name_t  *ret = NEW(name_t);
+  name_t  *ret = data_new(Name, name_t);
   array_t *tail = array_slice(name -> name, 1, -1);
 
   ret -> name = str_array_create(name_size(name) - 1);

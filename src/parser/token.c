@@ -31,7 +31,7 @@ typedef struct _token_code_str {
 static void     _token_init(void) __attribute__((constructor(102)));
 static data_t * _token_create(int, va_list);
 static void     _token_free(token_t *);
-static char *   _token_tostring(token_t *);
+static char *   _token_allocstring(token_t *);
 static data_t * _token_resolve(token_t *, char *);
 static data_t * _token_iswhitespace(token_t *, char *, array_t *, dict_t *);
 
@@ -87,13 +87,12 @@ static dict_t *custom_codes = NULL;
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_token[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionFree,     .fnc = (void_t) _token_free },
-  { .id = FunctionToString, .fnc = (void_t) _token_tostring },
-  { .id = FunctionResolve,  .fnc = (void_t) _token_resolve },
-  { .id = FunctionHash,     .fnc = (void_t) token_hash },
-  { .id = FunctionCmp,      .fnc = (void_t) token_cmp },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFree,        .fnc = (void_t) _token_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _token_allocstring },
+  { .id = FunctionResolve,     .fnc = (void_t) _token_resolve },
+  { .id = FunctionHash,        .fnc = (void_t) token_hash },
+  { .id = FunctionCmp,         .fnc = (void_t) token_cmp },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_token[] = {
@@ -142,16 +141,16 @@ void _token_free(token_t *token) {
   }
 }
 
-char * _token_tostring(token_t *token) {
-  if (!token -> _d.str) {
-    if (token -> code < 200) {
-      asprintf(&token -> _d.str, "[%s] '%s'",
-               token_code_name(token -> code), token -> token);
-    } else {
-      asprintf(&token -> _d.str, "[%s]", token -> token);
-    }
+char * _token_allocstring(token_t *token) {
+  char *buf;
+  
+  if (token -> code < 200) {
+    asprintf(&buf, "[%s] '%s'",
+	     token_code_name(token -> code), token -> token);
+  } else {
+    asprintf(&buf, "[%s]", token -> token);
   }
-  return NULL;
+  return buf;
 }
 
 data_t * _token_resolve(token_t *token, char *name) {
@@ -183,8 +182,7 @@ data_t * _token_iswhitespace(token_t *self, char *n, array_t *args, dict_t *kwar
 token_t *token_create(unsigned int code, char *token) {
   token_t *ret;
 
-  ret = NEW(token_t);
-  data_settype(&ret -> _d, Token);
+  ret = data_new(Token, token_t);
   ret -> code = code;
   ret -> token = strdup(token);
   return ret;

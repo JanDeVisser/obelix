@@ -37,7 +37,6 @@ static data_t * _fsentry_isdir(data_t *, char *, array_t *, dict_t *);
 static data_t * _fsentry_exists(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_fsentry[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) fsentry_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _fsentry_free },
   { .id = FunctionAllocString, .fnc = (void_t) _fsentry_allocstring },
@@ -73,7 +72,6 @@ static data_t *         _fsentry_iter_has_next(fsentry_iter_t *);
 static data_t *         _fsentry_iter_next(fsentry_iter_t *);
 
 static vtable_t _vtable_fsentry_iter[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionFree,     .fnc = (void_t) _fsentry_iter_free },
   { .id = FunctionToString, .fnc = (void_t) _fsentry_iter_tostring },
   { .id = FunctionHasNext,  .fnc = (void_t) _fsentry_iter_has_next },

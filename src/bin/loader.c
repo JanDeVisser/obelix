@@ -399,10 +399,15 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
     _scriptloader_set_value(loader, sys, "argv", data_create_list(args));
     data_free(sys);
     data = ns_execute(loader -> ns, name, args, kwargs);
-    if (data_is_object(data)) {
-      obj = (object_t *) data;
+    if (obj = data_as_object(data)) {
       data = data_copy(obj -> retval);
       object_free(obj);
+    } else if (!data_is_exception(data)) {
+      data = data_exception(ErrorInternalError,
+			    "ns_execute '%s' returned '%s', a %s",
+			    name_tostring(name),
+			    data_tostring(data),
+			    data_typename(data));
     }
   } else {
     data = (sys) ? sys : data_exception(ErrorName, "Could not resolve module 'sys'");

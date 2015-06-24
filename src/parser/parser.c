@@ -57,7 +57,7 @@ extern lexer_t *              parser_newline(lexer_t *, int);
 
 static data_t *               _parser_create(int, va_list);
 static void                   _parser_free(parser_t *);
-static char *                 _parser_tostring(parser_t *);
+static char *                 _parser_allocstring(parser_t *);
 static data_t *               _parser_call(parser_t *, array_t *, dict_t *);
 
        int parser_debug = 0;
@@ -68,29 +68,15 @@ extern int script_debug;
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_parser[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _parser_create },
-  { .id = FunctionFree,     .fnc = (void_t) _parser_free },
-  { .id = FunctionToString, .fnc = (void_t) _parser_tostring },
-  { .id = FunctionCall,     .fnc = (void_t) _parser_call },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_parser = {
-  .type = -1,
-  .type_name = "parser",
-  .vtable = _vtable_parser
+  { .id = FunctionFree,        .fnc = (void_t) _parser_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _parser_allocstring },
+  { .id = FunctionCall,        .fnc = (void_t) _parser_call },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static vtable_t _vtable_parser_stack_entry[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionFree,     .fnc = (void_t) _parser_stack_entry_free },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_parser_stack_entry = {
-  .type = -1,
-  .type_name = "parserstackentry",
-  .vtable = _vtable_parser_stack_entry
+  { .id = FunctionFree,  .fnc = (void_t) _parser_stack_entry_free },
+  { .id = FunctionNone,  .fnc = NULL }
 };
 
 #define PSEType(t)                                                           \
@@ -127,8 +113,11 @@ PSEType(Action)
 
 void _parser_init(void) {
   logging_register_category("parser", &parser_debug);
-  Parser = typedescr_register(&_typedescr_parser);
-  ParserStackEntry = typedescr_register(&_typedescr_parser_stack_entry);
+  Parser = typedescr_create_and_register(Parser, "parser", _vtable_parser, NULL);
+  ParserStackEntry = typedescr_create_and_register(ParserStackEntry,
+						   "pse",
+						   _vtable_parser_stack_entry,
+						   NULL);
 }
 
 /* -- P A R S E R _ S T A C K _ E N T R Y --------------------------------- */
@@ -141,7 +130,7 @@ parser_stack_entry_t * _parser_stack_entry_create(int type, data_t *subject) {
   parser_stack_entry_t *ret;
 
   ret = data_new(type, parser_stack_entry_t);
-  ret -> subject = subject;
+  ret -> subject = data_copy(subject);
   return ret;
 }
 
@@ -161,10 +150,8 @@ parser_stack_entry_t * _parser_stack_entry_for_action(grammar_action_t *action) 
   return _parser_stack_entry_create(PSETypeAction, (data_t *) action);
 }
 
-void _parser_stack_entry_free(parser_stack_entry_t *entry) {
-  if (entry) {
-    free(entry);
-  }
+void _parser_stack_entry_free(parser_stack_entry_t *pse) {
+  data_free(pse -> subject);
 }
 
 /* -- P S E T Y P E  N O N T E R M I N A L -------------------------------- */
@@ -279,12 +266,6 @@ data_t * _pse_execute_Action(parser_stack_entry_t *e, parser_t *parser, token_t 
 
 /* -- P A R S E R  D A T A  F U N C T I O N S ----------------------------- */
 
-data_t * _parser_create(int type, va_list args) {
-  parser_t *parser = va_arg(args, parser_t *);
-
-  return data_copy(&parser -> _d);
-}
-
 void _parser_free(parser_t *parser) {
   if (parser) {
     token_free(parser -> last_token);
@@ -293,16 +274,15 @@ void _parser_free(parser_t *parser) {
     datastack_free(parser -> stack);
     dict_free(parser -> variables);
     function_free(parser -> on_newline);
-    free(parser);
   }
 }
 
-char * _parser_tostring(parser_t *parser) {
-  if (!parser -> _d.str) {
-    asprintf(&parser -> _d.str, "Parser for '%s'",
-             data_tostring(parser -> lexer -> reader));
-  }
-  return NULL;
+char * _parser_allocstring(parser_t *parser) {
+  char *buf;
+
+  asprintf(&buf, "Parser for '%s'",
+	   data_tostring(parser -> lexer -> reader));
+  return buf;
 }
 
 parser_t * _parser_set(entry_t *e, parser_t *parser) {
@@ -446,9 +426,7 @@ lexer_t * _parser_set_keywords(token_t *token, lexer_t *lexer) {
   return lexer;
 }
 
-/*
- * parser_t public functions
- */
+/* -- parser_t public functions ------------------------------------------- */
 
 parser_t * parser_create(grammar_t *grammar) {
   parser_t *ret;

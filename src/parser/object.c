@@ -43,7 +43,6 @@ static object_t *    _object_set_all_reducer(entry_t *, object_t *);
   /* ----------------------------------------------------------------------- */
 
 static vtable_t _vtable_object[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) object_cmp },
   { .id = FunctionCast,        .fnc = (void_t) _object_cast },
   { .id = FunctionFree,        .fnc = (void_t) _object_free },
@@ -176,7 +175,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
       assert(data_is_object(ret));
     } else {
       ret = data_exception(ErrorType, "Cannot use '%s' of type 's' as an object factory",
-                       data_tostring(n), data_typedescr(n) -> type_name);
+			   data_tostring(n), data_typedescr(n) -> type_name);
     }
   } else {
     ret = data_copy(n);

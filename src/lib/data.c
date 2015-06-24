@@ -863,11 +863,6 @@ int data_count(void) {
 
 /* -- Standard vtable functions ----------------------------------------- */
 
-data_t * data_embedded(int type, va_list args) {
-  (void) type;
-  return data_copy(va_arg(args, data_t *));
-}
-
 /* -- Standard reducer functions ----------------------------------------- */
 
 array_t * data_add_strings_reducer(data_t *data, array_t *target) {

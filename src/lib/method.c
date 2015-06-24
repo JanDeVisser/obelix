@@ -29,7 +29,6 @@ static void          _mth_free(mth_t *);
 static char *        _mth_allocstring(mth_t *);
 
 static vtable_t _vtable_method[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionFree,        .fnc = (void_t) _mth_free },
   { .id = FunctionCmp,         .fnc = (void_t) mth_cmp },
   { .id = FunctionAllocString, .fnc = (void_t) _mth_allocstring },

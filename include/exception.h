@@ -30,7 +30,7 @@ extern "C" {
 #endif /* __cplusplus */
   
 typedef enum _errorcode {
-  ErrorSyntax,
+  ErrorSyntax = 1,
   ErrorArgCount,
   ErrorMaxStackDepthExceeded,
   ErrorInternalError,

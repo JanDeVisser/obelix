@@ -35,7 +35,6 @@ int VM = -1;
 int vm_debug = 0;
 
 static vtable_t _vtable_vm[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionFree,     .fnc = (void_t) _vm_free },
   { .id = FunctionToString, .fnc = (void_t) _vm_tostring },
   { .id = FunctionCall,     .fnc = (void_t) _vm_call },
@@ -56,7 +55,6 @@ void _vm_free(vm_t *vm) {
     bytecode_free(vm -> bytecode);
     datastack_free(vm -> contexts);
     datastack_free(vm -> stack);
-    free(vm);
   }
 }
 

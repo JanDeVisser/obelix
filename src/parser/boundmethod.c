@@ -29,7 +29,6 @@ static void   _bound_method_free(bound_method_t *);
 static char * _bound_method_allocstring(bound_method_t *);
 
 static vtable_t _vtable_bound_method[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) bound_method_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _bound_method_free },
   { .id = FunctionAllocString, .fnc = (void_t) _bound_method_allocstring },
@@ -53,7 +52,6 @@ void _bound_method_free(bound_method_t *bm) {
     script_free(bm -> script);
     object_free(bm -> self);
     closure_free(bm -> closure);
-    free(bm);
   }
 }
 

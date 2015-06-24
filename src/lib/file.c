@@ -62,7 +62,6 @@ static data_t *      _file_redirect(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_seek(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_file[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,         .fnc = (void_t) file_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _file_free },
   { .id = FunctionAllocString, .fnc = (void_t) _file_allocstring },
@@ -110,7 +109,6 @@ static data_t *     _fileiter_has_next(fileiter_t *);
 static data_t *     _fileiter_next(fileiter_t *);
 
 static vtable_t _vtable_fileiter[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
   { .id = FunctionCmp,      .fnc = (void_t) _fileiter_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _fileiter_free },
   { .id = FunctionToString, .fnc = (void_t) _fileiter_tostring },

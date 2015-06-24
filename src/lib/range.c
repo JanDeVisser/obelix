@@ -37,7 +37,7 @@ typedef struct _range {
 static void          _range_init(void) __attribute__((constructor));
 static data_t *      _range_new(data_t *, va_list);
 static void          _range_free(range_t *);
-static char *        _range_tostring(range_t *);
+static char *        _range_allocstring(range_t *);
 
 static data_t *      _range_create(data_t *, char *, array_t *, dict_t *);
 
@@ -55,15 +55,14 @@ extern data_t *      range_has_next(range_t *);
 #define range_copy(n)     ((range_t *) data_copy((data_t *) (n)))
 
 static vtable_t _vtable_range[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionCmp,      .fnc = (void_t) range_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _range_free },
-  { .id = FunctionToString, .fnc = (void_t) _range_tostring },
-  { .id = FunctionHash,     .fnc = (void_t) range_hash },
-  { .id = FunctionIter,     .fnc = (void_t) range_iter },
-  { .id = FunctionNext,     .fnc = (void_t) range_next },
-  { .id = FunctionHasNext,  .fnc = (void_t) range_has_next },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionCmp,         .fnc = (void_t) range_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _range_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _range_allocstring },
+  { .id = FunctionHash,        .fnc = (void_t) range_hash },
+  { .id = FunctionIter,        .fnc = (void_t) range_iter },
+  { .id = FunctionNext,        .fnc = (void_t) range_next },
+  { .id = FunctionHasNext,     .fnc = (void_t) range_has_next },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 /* FIXME Add append, delete, head, tail, etc... */

@@ -70,7 +70,7 @@ static int              _lexer_accept(lexer_t *, token_t *);
 static lexer_t *        _lexer_on_newline(lexer_t *, int);
 
 static void             _lexer_free(lexer_t *);
-static char *           _lexer_tostring(lexer_t *);
+static char *           _lexer_allocstring(lexer_t *);
 static data_t *         _lexer_resolve(lexer_t *, char *);
 static data_t *         _lexer_has_next(lexer_t *);
 static data_t *         _lexer_next(lexer_t *);
@@ -135,13 +135,12 @@ int Lexer = -1;
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_lexer[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) data_embedded },
-  { .id = FunctionFree,     .fnc = (void_t) _lexer_free },
-  { .id = FunctionToString, .fnc = (void_t) _lexer_tostring },
-  { .id = FunctionResolve,  .fnc = (void_t) _lexer_resolve },
-  { .id = FunctionNext,     .fnc = (void_t) _lexer_next },
-  { .id = FunctionHasNext,  .fnc = (void_t) _lexer_has_next },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFree,        .fnc = (void_t) _lexer_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _lexer_allocstring },
+  { .id = FunctionResolve,     .fnc = (void_t) _lexer_resolve },
+  { .id = FunctionNext,        .fnc = (void_t) _lexer_next },
+  { .id = FunctionHasNext,     .fnc = (void_t) _lexer_has_next },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_lexer[] = {
@@ -150,17 +149,14 @@ static methoddescr_t _methoddescr_lexer[] = {
   { .type = NoType, .name = NULL,       .method = NULL,                .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
-static typedescr_t _typedescr_lexer = {
-  .type = -1,
-  .type_name = "lexer",
-  .vtable = _vtable_lexer
-};
-
 /* ------------------------------------------------------------------------ */
 
 void _lexer_init(void) {
   logging_register_category("lexer", &lexer_debug);
-  Lexer = typedescr_register_type(&_typedescr_lexer, _methoddescr_lexer);
+  Lexer = typedescr_create_and_register(Lexer,
+					"lexer",
+					_vtable_lexer,
+					_methoddescr_lexer);
 }
 
 void _dequotify(str_t *str) {
@@ -314,16 +310,15 @@ void _lexer_free(lexer_t *lexer) {
     str_free(lexer -> token);
     str_free(lexer -> pushed_back);
     str_free(lexer -> buffer);
-    free(lexer);
   }
 }
 
-char * _lexer_tostring(lexer_t *lexer) {
-  if (!lexer -> _d.str) {
-    asprintf(&lexer -> _d.str, "Lexer for '%s'",
-             data_tostring(lexer -> reader));
-  }
-  return NULL;
+char * _lexer_allocstring(lexer_t *lexer) {
+  char *buf;
+  
+  asprintf(&buf, "Lexer for '%s'",
+	   data_tostring(lexer -> reader));
+  return buf;
 }
 
 data_t * _lexer_keyword_list(lexer_t *lexer) {

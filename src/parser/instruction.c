@@ -628,6 +628,7 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
     ret = NULL;
   }
   if (script_debug) {
+    debug("name: %d exception %d", Name, Exception);
     debug(" -- return value '%s'", data_tostring(ret));
   }
   return ret;

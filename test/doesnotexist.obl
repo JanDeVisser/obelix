@@ -1,7 +1,7 @@
 function_does_not_exist("Hello, Asterix!")
 /*
---exit-- 251
+--exit-- 250
 --stderr--
-obelix.c    :  66:run_script          :ERROR:Error: Error ErrorName (5): Could not resolve 'function_does_not_exist' in 'doesnotexist()'
+obelix.c    :  64:run_script          :ERROR:Error: Error ErrorName (6): Could not resolve 'function_does_not_exist' in 'doesnotexist()'
 --
 */
