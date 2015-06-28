@@ -86,7 +86,7 @@ counter_t * _counter_incr(counter_t *counter) {
 /* ------------------------------------------------------------------------ */
 
 void _stack_list_visitor(data_t *entry) {
-  debug("   . %s", data_tostring(entry));
+  debug("   . %-40.40s [%-10.10s]", data_tostring(entry), data_typename(entry));
 }
 
 /* ------------------------------------------------------------------------ */

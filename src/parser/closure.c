@@ -57,7 +57,7 @@ static vtable_t _vtable_closure[] = {
 };
 
 static methoddescr_t _methoddescr_closure[] = {
-  { .type = -1,      .name = "import", .method = _closure_import, .argtypes = { NoType, NoType, NoType },   .minargs = 1, .varargs = 1 },
+  { .type = -1,      .name = "import", .method = _closure_import, .argtypes = { NoType, NoType, NoType }, .minargs = 1, .varargs = 1 },
   { .type = NoType,  .name = NULL,     .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
@@ -209,7 +209,10 @@ unsigned int closure_hash(closure_t *closure) {
 
 data_t * closure_import(closure_t *closure, name_t *module) {
   data_t *ret;
-  
+
+  if (script_debug) {
+    debug("Importing '%s'", name_tostring(module));
+  }
   ret = mod_import(closure -> script -> mod, module);
 }
 
@@ -257,8 +260,12 @@ int closure_has(closure_t *closure, char *name) {
 }
 
 data_t * closure_resolve(closure_t *closure, char *name) {
-  data_t  *ret = _closure_get(closure, name);
+  data_t  *ret;
   
+  if (script_debug) {
+    debug("   closure_resolve('%s', '%s')", closure_tostring(closure), name);
+  }
+  ret = _closure_get(closure, name);
   if (!ret) {
     if (closure -> up) {
       if (!strcmp(name, "^") ||
@@ -270,6 +277,9 @@ data_t * closure_resolve(closure_t *closure, char *name) {
     } else {
       ret = mod_resolve(closure -> script -> mod, name);
     }
+  }
+  if (script_debug) {
+    debug("   closure_resolve('%s', '%s'): %d", closure_tostring(closure), name, ret);
   }
   return data_copy(ret);
 }

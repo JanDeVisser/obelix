@@ -62,8 +62,10 @@ int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
   if (ex = data_as_exception(ret)) {
     if (ex -> code != ErrorExit) {
       error("Error: %s", data_tostring(ret));
+      retval = 0 - (int) ex -> code;
+    } else {
+      retval = data_intval(ex -> throwable);
     }
-    retval = 0 - (int) ex -> code;
   } else {
     retval = data_intval(ret);
   }    

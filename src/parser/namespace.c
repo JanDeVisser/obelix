@@ -62,12 +62,12 @@ vtable_t _vtable_module[] = {
 /* ------------------------------------------------------------------------ */
 
 typedef struct _pnm {
+  data_t    _d;
   name_t   *name;
   char     *next;
   set_t    *matches;
   set_t    *match_lost;
   void     *match;
-  int       refs;
 } pnm_t;
 
 static pnm_t *     _pnm_create(char *);

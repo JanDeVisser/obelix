@@ -164,11 +164,13 @@ data_t * range_has_next(range_t *r) {
 /* ----------------------------------------------------------------------- */
 
 data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *from;
-  data_t *to;
-  int     infix = !strcmp(name, "~");
+  data_t  *from;
+  data_t  *to;
+  int      infix = !strcmp(name, "~");
+  range_t *ret;
 
   from = (infix) ? self : data_array_get(args, 0);
   to = data_array_get(args, (infix) ? 0 : 1);
-  return data_create(Range, from, to);
+  ret = range_create(from, to);
+  return (data_t *) ret;
 }

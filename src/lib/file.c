@@ -103,22 +103,28 @@ static fileiter_t * _fileiter_create(file_t *, data_t *);
 static void         _fileiter_free(fileiter_t *);
 static fileiter_t * _fileiter_copy(fileiter_t *);
 static int          _fileiter_cmp(fileiter_t *, fileiter_t *);
-static char *       _fileiter_tostring(fileiter_t *);
+static char *       _fileiter_allocstring(fileiter_t *);
 static data_t *     _fileiter_iter(fileiter_t *);
 static data_t *     _fileiter_has_next(fileiter_t *);
 static data_t *     _fileiter_next(fileiter_t *);
 
 static vtable_t _vtable_fileiter[] = {
-  { .id = FunctionCmp,      .fnc = (void_t) _fileiter_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _fileiter_free },
-  { .id = FunctionToString, .fnc = (void_t) _fileiter_tostring },
-  { .id = FunctionHasNext,  .fnc = (void_t) _fileiter_has_next },
-  { .id = FunctionNext,     .fnc = (void_t) _fileiter_next },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionCmp,         .fnc = (void_t) _fileiter_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _fileiter_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _fileiter_allocstring },
+  { .id = FunctionHasNext,     .fnc = (void_t) _fileiter_has_next },
+  { .id = FunctionNext,        .fnc = (void_t) _fileiter_next },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 int File = -1;
 int FileIter = -1;
+
+#define data_is_fileiter(d)  ((d) && data_hastype((data_t *) (d), FileIter))
+#define data_as_fileiter(d)  (data_is_fileiter((d)) ? ((fileiter_t *) (d)) : NULL)
+#define fileiter_copy(o)     ((fileiter_t *) data_copy((data_t *) (o)))
+#define fileiter_free(o)     (data_free((data_t *) (o)))
+#define fileiter_tostring(o) (data_tostring((data_t *) (o)))
 
 /* ------------------------------------------------------------------------ */
 
@@ -198,24 +204,26 @@ data_t * _file_resolve(file_t *file, char *name) {
 
 data_t * _file_iter(file_t *file) {
   file_t     *f = data_as_file(file);
-  data_t     *ret = data_create(FileIter, f, NULL);
+  fileiter_t *ret;
+
+  ret = _fileiter_create(f, NULL);
 
   if (file_debug) {
-    debug("%s._file_iter() -> %s", file_tostring(file), data_tostring(ret));
+    debug("%s._file_iter() -> %s", file_tostring(file), fileiter_tostring(ret));
   }
-  return ret;
+  return (data_t *) ret;
 }
 
 data_t * _file_query(file_t *file, data_t *regex) {
-  data_t     *ret = data_create(FileIter, file, regex);
+  fileiter_t *ret = _fileiter_create(file, regex);
 
   if (file_debug) {
     debug("%s._file_query(%s) -> %s",
           file_tostring(file),
           data_tostring(regex),
-          data_tostring(ret));
+          fileiter_tostring(ret));
   }
-  return ret;
+  return (data_t *) ret;
 }
 
 data_t * _file_read(file_t *file, char *buf, int num) {
@@ -588,8 +596,18 @@ int _fileiter_cmp(fileiter_t *fileiter1, fileiter_t *fileiter2) {
   return fileiter1 -> file -> fh - fileiter2 -> file -> fh;
 }
 
-char * _fileiter_tostring(fileiter_t *fileiter) {
-  return file_tostring(fileiter -> file);
+char * _fileiter_allocstring(fileiter_t *fileiter) {
+  char *buf;
+
+  if (fileiter -> regex) {
+    asprintf(&buf, "%s `%s`",
+	     file_tostring(fileiter -> file),
+	     regexp_tostring(fileiter -> regex));
+  } else {
+    asprintf(&buf, "%s",
+	     file_tostring(fileiter -> file));
+  }
+  return buf;
 }
 
 data_t * _fileiter_has_next(fileiter_t *fi) {
@@ -606,7 +624,7 @@ data_t * _fileiter_has_next(fileiter_t *fi) {
     ret = data_true();
   }
   if (file_debug) {
-    debug("%s._fileiter_has_next() -> %s", _fileiter_tostring(fi), data_tostring(ret));
+    debug("%s._fileiter_has_next() -> %s", fileiter_tostring(fi), data_tostring(ret));
   }
   return ret;
 }

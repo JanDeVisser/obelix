@@ -592,12 +592,11 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
     }
   }
 
+  num = call -> arg_count;
   if (call -> flags & CFVarargs) {
     value = vm_pop(vm);
-    num = data_intval(value);
+    num += data_intval(value);
     data_free(value);    
-  } else {
-    num = call -> arg_count;
   }
   if (script_debug) {
     debug(" -- #arguments: %d", num);
@@ -609,9 +608,6 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
       assert(value);
       array_set(args, num - ix - 1, value);
     }
-    if (script_debug) {
-      array_debug(args, " -- arguments: %s");
-    }
   }
   self = (call -> flags & CFInfix) ? NULL : scope;
   if (call -> flags & CFConstructor) {
@@ -619,17 +615,34 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
   } else {
     name = name_copy(call -> name);
   }
+  if (script_debug) {
+    debug(" -- Calling %s.%s(%s, %s)",
+	  data_tostring(self), name_tostring(name),
+	  array_tostring(args),
+	  (kwargs) ? dict_tostring(kwargs) : "NULL");
+  }
   ret = data_invoke(self, name, args, kwargs);
   name_free(name);
   array_free(args);
   dict_free(kwargs);
-  if (ret && !data_is_exception(ret)) {
-    vm_push(vm, ret);
-    ret = NULL;
-  }
-  if (script_debug) {
-    debug("name: %d exception %d", Name, Exception);
-    debug(" -- return value '%s'", data_tostring(ret));
+  if (ret) {
+    if (!data_is_exception(ret)) {
+      if (script_debug) {
+	debug(" -- return value '%s' [%s]",
+	      data_tostring(ret), data_typename(ret));
+      }
+      vm_push(vm, ret);
+      ret = NULL;
+    } else {
+      if (script_debug) {
+	debug(" -- exception '%s' thrown",
+	      data_tostring(ret));
+      }
+    }
+  } else {
+    if (script_debug) {
+      debug(" -- return value NULL");
+    }
   }
   return ret;
 }

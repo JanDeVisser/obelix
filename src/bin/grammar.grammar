@@ -171,16 +171,16 @@ parlist_tail                := ,
                              ;
 
 return_stmt                 := "return"
-                               expr              [ instruction: "Return"      ]
+                               expr             [ instruction: "Return"      ]
                              ;
 
-new                         := "new"             [ setup_function: "new" incr ]
-                               identifier        [ pushval_from_stack         ]
+new                         := "new"            [ setup_function: "new" incr ]
+                               identifier        [ pushval_from_stack        ]
                                _func_call
                              ;
 
-import_stmt                 := "import"          [ setup_function: "import"  ]
-                               identifier        [ func_call                 ]
+import_stmt                 := "import"      [ setup_function: "import" incr ]
+                               identifier [ pushval_from_stack func_call pop ]
                              ;
 
 context_block               := "context"
@@ -349,8 +349,7 @@ comprehension               := "for"
                                                    pushconst: "int:0"        ]
                                expr              [ for                       ]
                                where_or_empty    [ comprehension
-                                                   end_loop
-                                                   set_variable: "varargs"   ]
+                                                   end_loop                  ]
                               ;
 
 where_or_empty              := where

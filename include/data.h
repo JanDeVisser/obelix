@@ -128,7 +128,7 @@ extern int             data_intval(data_t *);
 
 #define data_new(dt,st)     ((st *) data_settype((data_t *) new(sizeof(st)), dt))
 #define data_type(d)        (((data_t *) (d)) -> type)
-#define data_typename(d)    (typedescr_get(data_type((data_t *) (d))) -> type_name)
+#define data_typename(d)    ((d) ? (typedescr_get(data_type((data_t *) (d))) -> type_name) : "null")
 
 #define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
 #define data_is_list(d)     ((d) && (data_hastype((d), List)))
