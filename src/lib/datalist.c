@@ -169,13 +169,7 @@ data_t * _list_resolve(data_t *self, char *name) {
   long     ix;
 
   if (!strtoint(name, &ix)) {
-    if ((ix >= sz) || (ix < -sz)) {
-      return data_exception(ErrorRange,
-                            "Index %d is not in range %d ~ %d",
-                            ix, -sz, sz - 1);
-    } else {
-      return data_copy(data_array_get(list, ix));
-    }
+    return data_list_get(self, ix);
   } else {
     return NULL;
   }
@@ -226,6 +220,28 @@ data_t * data_str_array_to_list(array_t *src) {
   ret = data_create(List, 0);
   array_reduce(src, (reduce_t) data_add_all_as_data_reducer, data_as_array(ret));
   return ret;
+}
+
+data_t * data_list_push(data_t *list, data_t *value) {
+  array_push(data_as_array(list), value);
+  return list;
+}
+
+data_t * data_list_get(data_t *data, int ix) {
+  array_t *list = data_as_array(data);
+  int      sz = array_size(list);
+  
+  if ((ix >= sz) || (ix < -sz)) {
+    return data_exception(ErrorRange,
+                          "Index %d is not in range %d ~ %d",
+                          ix, -sz, sz - 1);
+  } else {
+    return data_copy(data_array_get(list, ix));
+  }
+}
+
+int data_list_size(data_t *list) {
+  return array_size(data_as_array(list));
 }
 
 /* ----------------------------------------------------------------------- */

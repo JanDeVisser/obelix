@@ -41,7 +41,7 @@ static char *        _range_allocstring(range_t *);
 
 static data_t *      _range_create(data_t *, char *, array_t *, dict_t *);
 
-extern data_t *      range_create(data_t *from, data_t *to);
+extern data_t *     range_create(data_t *from, data_t *to);
 extern int           range_cmp(range_t *, range_t *);
 extern unsigned int  range_hash(range_t *);
 extern data_t *      range_iter(range_t *);
@@ -164,13 +164,13 @@ data_t * range_has_next(range_t *r) {
 /* ----------------------------------------------------------------------- */
 
 data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t  *from;
-  data_t  *to;
-  int      infix = !strcmp(name, "~");
-  range_t *ret;
+  data_t *from;
+  data_t *to;
+  int     infix = !strcmp(name, "~");
+  data_t *ret;
 
   from = (infix) ? self : data_array_get(args, 0);
   to = data_array_get(args, (infix) ? 0 : 1);
-  ret = range_create(from, to);
-  return (data_t *) ret;
+  return range_create(from, to);
 }
+ 

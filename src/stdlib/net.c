@@ -32,7 +32,7 @@ socket_t * _function_connect(char *name, array_t *params, dict_t *kwargs) {
   host = (data_t *) array_get(params, 0);
   service = (data_t *) array_get(params, 1);
 
-  socket = socket_create(data_tostring(host), data_tostring(service));
+  socket = socket_create_byservice(data_tostring(host), data_tostring(service));
   return socket;
 }
 
@@ -47,7 +47,7 @@ socket_t * _function_server(char *name, array_t *params, dict_t *kwargs) {
   assert(params && (array_size(params) >= 1));
   service = (data_t *) array_get(params, 0);
 
-  socket = socket_create(NULL, data_tostring(service));
+  socket = socket_create_byservice(NULL, data_tostring(service));
   return socket;
 }
 

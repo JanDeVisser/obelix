@@ -218,34 +218,34 @@ str_t * str_wrap(char *buffer) {
   return ret;
 }
 
-str_t * str_copy_chars(char *buffer, ...) {
+str_t * str_printf(char *fmt, ...) {
   str_t   *ret;
   va_list  args;
 
-  va_start(args, buffer);
-  ret = str_copy_vchars(buffer, args);
+  va_start(args, fmt);
+  ret = str_vprintf(fmt, args);
   va_end(args);
   return ret;
 }
 
-str_t * str_copy_vchars(char *buffer, va_list args) {
+str_t * str_vprintf(char *fmt, va_list args) {
   str_t   *ret;
   char    *b;
-  va_list  args_copy;
 
-  va_copy(args_copy, args);
   ret = _str_initialize();
   if (ret) {
-    ret -> len = vsnprintf(NULL, 0, buffer, args);
-    ret -> buffer = (char *) new(ret -> len + 1);
-    vsprintf(ret -> buffer, buffer, args_copy);
-    va_end(args_copy);
+    vasprintf(&ret -> buffer, fmt, args);
+    ret -> len = strlen(ret -> buffer);
     ret -> bufsize = ret -> len + 1;
   }
   return ret;
 }
 
-str_t * str_copy_nchars(int len, char *buffer) {
+str_t * str_copy_chars(char *buffer) {
+  return str_copy_nchars(buffer, strlen(buffer));
+}
+
+str_t * str_copy_nchars(char *buffer, int len) {
   str_t *ret;
   char  *b;
 
@@ -456,14 +456,8 @@ str_t * str_append_char(str_t *str, int ch) {
   return ret;
 }
 
-str_t * str_append_chars(str_t *str, char *other, ...) {
-  va_list  args;
-  str_t   *ret;
-
-  va_start(args, other);
-  ret = str_append_vchars(str, other, args);
-  va_end(args);
-  return ret;
+str_t * str_append_chars(str_t *str, char *other) {
+  return str_append_nchars(str, other, strlen(other));
 }
 
 str_t * str_append_nchars(str_t *str, char *other, int n) {
@@ -480,23 +474,30 @@ str_t * str_append_nchars(str_t *str, char *other, int n) {
   return ret;
 }
 
-str_t * str_append_vchars(str_t *str, char *other, va_list args) {
+str_t * str_append_printf(str_t *str, char *other, ...) {
+  va_list  args;
+  str_t   *ret;
+  
+  va_start(args, other);
+  ret = str_append_vprintf(str, other, args);
+  va_end(args);
+  return ret;
+}
+
+str_t * str_append_vprintf(str_t *str, char *other, va_list args) {
   str_t   *ret = NULL;
-  char    *b;
-  va_list  args_copy;
+  char    *b = NULL;
+  int      len = 0;
 
   if (str -> bufsize) {
-    va_copy(args_copy, args);
-    b = (char *) new(vsnprintf(NULL, 0, other, args) + 1);
-    vsprintf(b, other, args_copy);
-    va_end(args_copy);
-    if (b && _str_expand(str, str_len(str) + strlen(b) + 1)) {
+    len = vasprintf(&b, other, args);
+    if (b && _str_expand(str, str_len(str) + len + 1)) {
       strcat(str -> buffer, b);
-      str -> len += strlen(b);
-      free(b);
+      str -> len += len;
       str -> pos = 0;
       ret = str;
     }
+    free(b);
   }
   return ret;
 }
@@ -610,7 +611,7 @@ array_t * str_split(str_t *str, char *sep) {
   if (str_len(str)) {
     ptr = str -> buffer;
     for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
-      c = str_copy_nchars(sepptr - ptr, ptr);
+      c = str_copy_nchars(ptr, sepptr - ptr);
       array_push(ret, c);
       ptr = sepptr + strlen(sep);
     }
@@ -655,7 +656,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
           if (!strtoint(spec, &ix) && (ix >= 0) && (ix < array_size(args))) {
             str_append_chars(ret, data_tostring(data_array_get(args, ix)));
           } else {
-            str_append_chars(ret, "${%s}", spec);
+            str_append_printf(ret, "${%s}", spec);
           }
         }
       }

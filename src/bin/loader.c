@@ -26,13 +26,19 @@
 #include <grammarparser.h>
 #include <loader.h>
 #include <namespace.h>
+#include <thread.h>
 
+static void             _scriptloader_init(void) __attribute__((constructor));
 static file_t *         _scriptloader_open_file(scriptloader_t *, char *, module_t *);
 static data_t *         _scriptloader_open_reader(scriptloader_t *, module_t *);
-static scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *, name_t *);
+static scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *, array_t *);
 static data_t *         _scriptloader_get_object(scriptloader_t *, int, ...);
 static data_t *         _scriptloader_set_value(scriptloader_t *, data_t *, char *, data_t *);
-static data_t *         _scriptloader_import_sys(scriptloader_t *, name_t *);
+static data_t *         _scriptloader_import_sys(scriptloader_t *, array_t *);
+static void             _scriptloader_free(scriptloader_t *);
+static char *           _scriptloader_allocstring(scriptloader_t *);
+static data_t *         _scriptloader_call(scriptloader_t *, array_t *, dict_t *);
+static data_t *         _scriptloader_resolve(scriptloader_t *, char *);
 
 static scriptloader_t * _loader = NULL;
 
@@ -42,9 +48,87 @@ static code_label_t obelix_option_labels[] = {
   { .code = ObelixOptionLAST,  .label = NULL }
 };
 
-/*
- * scriptloader_t - static functions
- */
+int ScriptLoader = -1;
+
+static vtable_t _vtable_scriptloader[] = {
+  { .id = FunctionFree,        .fnc = (void_t) _scriptloader_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _scriptloader_allocstring },
+  { .id = FunctionCall,        .fnc = (void_t) _scriptloader_call },
+  { .id = FunctionResolve,     .fnc = (void_t) _scriptloader_resolve },
+  { .id = FunctionNone,        .fnc = NULL }
+};
+
+/* ------------------------------------------------------------------------ */
+
+void _scriptloader_init(void) {
+  ScriptLoader = typedescr_create_and_register(ScriptLoader, "loader", 
+                                               _vtable_scriptloader, NULL);
+}
+
+/* -- S C R I P T L O A D E R   D A T A   F U N C T I O N S --------------- */
+
+void _scriptloader_free(scriptloader_t *loader) {
+  if (loader) {
+    free(loader -> system_dir);
+    data_free(loader -> load_path);
+    array_free(loader -> options);
+    grammar_free(loader -> grammar);
+    parser_free(loader -> parser);
+    ns_free(loader -> ns);
+  }
+}
+
+char *_scriptloader_allocstring(scriptloader_t *loader) {
+  char *buf;
+  
+  asprintf(&buf, "Loader(%s)", loader -> system_dir);
+  return buf;
+}
+
+data_t *_scriptloader_call(scriptloader_t *loader, array_t *args, dict_t *kwargs) {
+  name_t  *name = data_as_name(data_array_get(args, 0));
+  array_t *args_shifted = array_slice(args, 1, -1);
+  data_t  *ret;
+  
+  ret = scriptloader_run(loader, name, args_shifted, kwargs);
+  free(args_shifted);
+  return ret;
+}
+
+data_t * _scriptloader_resolve(scriptloader_t *loader, char *name) {
+  if (!strcmp(name, "list")) {
+    return data_create(Bool, scriptloader_get_option(loader, ObelixOptionList));
+  } else if (!strcmp(name, "trace")) {
+    return data_create(Bool, scriptloader_get_option(loader, ObelixOptionTrace));
+  } else if (!strcmp(name, "loadpath")) {
+    return data_copy((data_t *) loader -> load_path);
+  } else if (!strcmp(name, "systempath")) {
+    return data_create(String, loader -> system_dir);
+  } else if (!strcmp(name, "grammar")) {
+    return data_copy((data_t *) loader -> grammar);
+  } else if (!strcmp(name, "parser")) {
+    return data_copy((data_t *) loader -> parser);
+  } else if (!strcmp(name, "namespace")) {
+    return data_copy((data_t *) loader -> ns);
+  } else {
+    return NULL;
+  }
+}
+
+data_t * _scriptloader_set(scriptloader_t *loader, char *name, data_t *value) {
+  if (!strcmp(name, "list")) {
+    scriptloader_set_option(loader, ObelixOptionList, data_intval(value));
+    return value;
+  } else if (!strcmp(name, "trace")) {
+    scriptloader_set_option(loader, ObelixOptionTrace, data_intval(value));
+    return value;
+  }
+  return data_exception(ErrorType,
+                        "Cannot set '%s' on objects of type '%s'",
+                        name, data_typename(loader));
+}
+
+/* ------------------------------------------------------------------------ */
 
 static file_t * _scriptloader_open_file(scriptloader_t *loader, 
                                         char *basedir, 
@@ -103,7 +187,7 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
 data_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
   file_t *text = NULL;
   name_t *name = mod -> name;
-  char   *path_entry;
+  data_t *path_entry;
   int     ix;
 
   assert(loader);
@@ -111,33 +195,30 @@ data_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
   if (script_debug) {
     debug("_scriptloader_open_reader('%s')", name_tostring(name));
   }
-  for (ix = 0; !text && (ix < name_size(loader -> load_path)); ix++) {
-    path_entry = name_get(loader -> load_path, ix);
-    text = _scriptloader_open_file(loader, path_entry, mod);
+  for (ix = 0; !text && (ix < data_list_size(loader -> load_path)); ix++) {
+    path_entry = data_list_get(loader -> load_path, ix);
+    text = _scriptloader_open_file(loader, data_tostring(path_entry), mod);
   }
   return (data_t *) text;
 }
 
-scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *loader, name_t *path) {
-  char   *entry;
-  char   *sanitized_entry;
-  name_t *sanitized = name_create(0);
-  int     ix;
-  int     len;
+scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *loader, array_t *path) {
+  char    *entry;
+  char    *sanitized_entry;
+  int      ix;
+  int      len;
   
-  for (ix = 0; ix < name_size(path); ix++) {
-    entry = name_get(path, ix);
+  for (ix = 0; ix < array_size(path); ix++) {
+    entry = str_array_get(path, ix);
     len = strlen(entry);
     sanitized_entry = (char *) new (len + ((*(entry + (len - 1)) != '/') ? 2 : 1));
     strcpy(sanitized_entry, entry);
     if (*(sanitized_entry + (strlen(sanitized_entry) - 1)) != '/') {
       strcat(sanitized_entry, "/");
     }
-    name_extend(sanitized, sanitized_entry);
+    data_list_push(loader -> load_path, data_create(String, sanitized_entry));
     free(sanitized_entry);
   }
-  name_append(loader -> load_path, sanitized);
-  name_free(sanitized);
   return loader;
 }
 
@@ -179,7 +260,7 @@ static data_t * _scriptloader_set_value(scriptloader_t *loader, data_t *obj,
 }
 
 static data_t * _scriptloader_import_sys(scriptloader_t *loader, 
-                                         name_t *user_path) {
+                                         array_t *user_path) {
   name_t *name;
   data_t *sys;
   data_t *val;
@@ -191,7 +272,7 @@ static data_t * _scriptloader_import_sys(scriptloader_t *loader,
   if (!data_is_exception(sys)) {
     _scriptloader_extend_loadpath(loader, user_path);
     ret = _scriptloader_set_value(loader, sys, "path", 
-                                  data_create(Name, loader -> load_path));
+                                  data_copy(loader -> load_path));
     data_free(sys);
   } else {
     ret = sys;
@@ -199,13 +280,11 @@ static data_t * _scriptloader_import_sys(scriptloader_t *loader,
   return ret;
 }
 
-/*
- * scriptloader_t - public functions
- */
+/* -- S C R I P T L O A D E R _ T   P U B L I C   F U N C T I O N S ------- */
 
 typedef grammar_t * (*build_grammar_t)(void);
 
-scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path, 
+scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path, 
                                      char *grammarpath) {
   scriptloader_t   *ret;
   grammar_parser_t *gp;
@@ -214,14 +293,13 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
   char             *userdir;
   int               ix;
   int               len;
-  name_t           *upath = NULL;
   build_grammar_t   build_grammar;
+  array_t          *a;
 
   if (script_debug) {
     debug("Creating script loader");
   }
-  assert(!_loader);
-  ret = NEW(scriptloader_t);
+  ret = data_new(ScriptLoader, scriptloader_t);
   if (!sys_dir) {
     sys_dir = getenv("OBELIX_SYS_PATH");
   }
@@ -235,18 +313,22 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
     strcat(ret -> system_dir, "/");
   }
   
-  if (!user_path || !name_size(user_path)) {
-    upath = name_split(getenv("OBELIX_USER_PATH"), ":");
-    user_path = upath;
+  if (!user_path || !array_size(user_path)) {
+    if (user_path) {
+      array_free(user_path);
+    }
+    user_path = array_split(getenv("OBELIX_USER_PATH"), ":");
   }
-  if (!user_path || !name_size(user_path)) {
-    upath = name_create(1, "./");
-    user_path = upath;
+  if (!user_path || !array_size(user_path)) {
+    if (!user_path) {
+      str_array_create(1);
+    }
+    array_push(user_path, strdup("./"));
   }
 
   if (script_debug) {
     debug("system dir: %s", ret -> system_dir);
-    debug("user path: %s", name_tostring(user_path));
+    debug("user path: %s", array_tostring(user_path));
   }
 
   if (!grammarpath) {
@@ -272,7 +354,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
     debug("  Loaded grammar");
   }
   ret -> options = data_array_create((int) ObelixOptionLAST);
-  for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
+  for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
     scriptloader_set_option(ret, ix, 0L);
   }
 
@@ -281,7 +363,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
     debug("  Created parser");
   }
 
-  ret -> load_path = name_create(1, ret -> system_dir);
+  ret -> load_path = data_create(List, 1, data_create(String, ret -> system_dir));
   ret -> ns = ns_create("loader", ret, (import_t) scriptloader_load);
   root = ns_import(ret -> ns, NULL);
   if (!data_is_module(root)) {
@@ -300,9 +382,8 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
     scriptloader_free(ret);
     ret = NULL;
   } else {
-    _loader = ret;
+    data_thread_set_kernel((data_t *) ret);
   }
-  name_free(upath);
   if (script_debug) {
     debug("scriptloader created");
   }
@@ -310,19 +391,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, name_t *user_path,
 }
 
 scriptloader_t * scriptloader_get(void) {
-  return _loader;
-}
-
-void scriptloader_free(scriptloader_t *loader) {
-  if (loader) {
-    free(loader -> system_dir);
-    name_free(loader -> load_path);
-    array_free(loader -> options);
-    grammar_free(loader -> grammar);
-    parser_free(loader -> parser);
-    ns_free(loader -> ns);
-    free(loader);
-  }
+  return (scriptloader_t *) data_thread_kernel();
 }
 
 scriptloader_t * scriptloader_set_option(scriptloader_t *loader, obelix_option_t option, long value) {

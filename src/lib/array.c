@@ -146,6 +146,9 @@ array_t * array_split(char *str, char *sep) {
   int      count = 1;
   int      seplen = strlen(sep);
 
+  if (!str || !str[0]) {
+    return str_array_create(0);
+  }
   ptr = str;
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     count++;
@@ -337,8 +340,7 @@ array_t * array_add_all(array_t *array, array_t *other) {
 
   ctx -> fnc = (void_t) _array_append;
   ctx -> obj = array;
-  ctx = array_reduce(other, (reduce_t) collection_add_all_reducer, array);
-  array_reduce(other, (reduce_t) collection_add_all_reducer, array);
+  ctx = array_reduce(other, (reduce_t) collection_add_all_reducer, ctx);
   free(ctx);
   return array;
 }

@@ -63,7 +63,7 @@ void _ln_free(listnode_t *node) {
 
 int _list_append_fragment(list_t *list, listnode_t *start, listnode_t *end) {
   listnode_t *w;
-  int         count;
+  int         count = 0;
 
   start -> prev = NULL;
   end -> next = NULL;

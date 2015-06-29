@@ -39,9 +39,10 @@ struct _data;
  * Constructor functions:
  */
 extern str_t *     str_wrap(char *);
-extern str_t *     str_copy_chars(char *, ...);
-extern str_t *     str_copy_vchars(char *, va_list);
-extern str_t *     str_copy_nchars(int, char *);
+extern str_t *     str_copy_chars(char *);
+extern str_t *     str_copy_nchars(char *, int);
+extern str_t *     str_printf(char *, ...);
+extern str_t *     str_vprintf(char *, va_list);
 extern str_t *     str_deepcopy(str_t *);
 extern str_t *     str_create(int);
 extern void        str_free(str_t *);
@@ -57,9 +58,10 @@ extern str_t *      _str_join(char *, void *, obj_reduce_t);
  * Functions manipulating strings:
  */
 extern str_t *      str_append_char(str_t *, int);
-extern str_t *      str_append_chars(str_t *, char *, ...);
-extern str_t *      str_append_vchars(str_t *, char *, va_list);
+extern str_t *      str_append_chars(str_t *, char *);
 extern str_t *      str_append_nchars(str_t *, char *, int);
+extern str_t *      str_append_printf(str_t *, char *, ...);
+extern str_t *      str_append_vprintf(str_t *, char *, va_list);
 extern str_t *      str_append(str_t *, str_t *);
 extern str_t *      str_chop(str_t *, int);
 extern str_t *      str_lchop(str_t *, int);

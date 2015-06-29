@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
   char           *grammar = NULL;
   char           *debug = NULL;
   char           *basepath = NULL;
-  name_t         *path;
+  array_t        *path;
   name_t         *name;
   array_t        *obl_argv;
   int             ix;
@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
   int             list = 0;
   int             trace = 0;
 
-  while ((opt = getopt(argc, argv, "s:g:d:p:v:l")) != -1) {
+  while ((opt = getopt(argc, argv, "s:g:d:p:v:lt")) != -1) {
     switch (opt) {
       case 's':
         syspath = optarg;
@@ -139,14 +139,8 @@ int main(int argc, char **argv) {
   }
   debug_settings(debug);
   
-  if (basepath) {
-    path = name_split(basepath, ":");
-  } else {
-    path = name_create(0);
-  }
-  basepath = getcwd(NULL, 0);
-  name_extend(path, basepath);
-  free(basepath);
+  path = (basepath) ? array_split(basepath, ":") : str_array_create(0);
+  array_push(path, getcwd(NULL, 0));
   
   loader = scriptloader_create(syspath, path, grammar);
   if (loader) {

@@ -31,26 +31,20 @@ static pointer_t *   _ptr_new(int, va_list);
 static int           _ptr_cmp(pointer_t *, pointer_t *);
 static data_t *      _ptr_cast(pointer_t *, int);
 static unsigned int  _ptr_hash(pointer_t *);
-static char *        _ptr_tostring(pointer_t *);
+static char *        _ptr_allocstring(pointer_t *);
 static pointer_t *   _ptr_parse(char *);
 
 static data_t *      _ptr_copy(data_t *, char *, array_t *, dict_t *);
 static data_t *      _ptr_fill(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_ptr[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _ptr_new },
-  { .id = FunctionCmp,      .fnc = (void_t) _ptr_cmp },
-  { .id = FunctionToString, .fnc = (void_t) _ptr_tostring },
-  { .id = FunctionCast,     .fnc = (void_t) _ptr_cast },
-  { .id = FunctionHash,     .fnc = (void_t) _ptr_hash },
-  { .id = FunctionParse,    .fnc = (void_t) _ptr_parse },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_ptr = {
-  .type =      Pointer,
-  .type_name = "ptr",
-  .vtable =    _vtable_ptr
+  { .id = FunctionFactory,     .fnc = (void_t) _ptr_new },
+  { .id = FunctionCmp,         .fnc = (void_t) _ptr_cmp },
+  { .id = FunctionAllocString, .fnc = (void_t) _ptr_allocstring },
+  { .id = FunctionCast,        .fnc = (void_t) _ptr_cast },
+  { .id = FunctionHash,        .fnc = (void_t) _ptr_hash },
+  { .id = FunctionParse,       .fnc = (void_t) _ptr_parse },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_ptr[] = {
@@ -58,7 +52,6 @@ static methoddescr_t _methoddescr_ptr[] = {
   { .type = Pointer, .name = "fill",  .method = _ptr_fill, .argtypes = { Pointer, NoType, NoType }, .minargs = 1, .varargs = 1  },
   { .type = NoType,  .name = NULL,    .method = NULL,      .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0  },
 };
-
 
 /*
  * --------------------------------------------------------------------------
@@ -69,8 +62,7 @@ static methoddescr_t _methoddescr_ptr[] = {
 static pointer_t * _null;
 
 void _ptr_init(void) {
-  typedescr_register(&_typedescr_ptr);
-  typedescr_register_methods(_methoddescr_ptr);
+  typedescr_create_and_register(Pointer, "ptr", _vtable_ptr, _methoddescr_ptr);
   _null = (pointer_t *) data_create(Pointer, 0, NULL);
   _null -> _d.free_me = Constant;
 }
@@ -104,15 +96,15 @@ int _ptr_cmp(pointer_t *p1, pointer_t *p2) {
   }
 }
 
-char * _ptr_tostring(pointer_t *p) {
-  if (!p -> _d.str) {
-    if (p == _null) {
-      p -> _d.str = strdup("Null");
-    } else {
-      asprintf(&p -> _d.str, "%p", p -> ptr);
-    }
+char * _ptr_allocstring(pointer_t *p) {
+  char *buf;
+  
+  if (p == _null) {
+    buf = strdup("Null");
+  } else {
+    asprintf(&buf, "%p", p -> ptr);
   }
-  return NULL;
+  return buf;
 }
 
 pointer_t * _ptr_parse(char *str) {

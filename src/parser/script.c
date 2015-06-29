@@ -97,7 +97,6 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
   ret -> functions = strdata_dict_create();
   ret -> params = NULL;
   ret -> async = 0;
-  ret -> bytecode = bytecode_create(data_create(Script, ret));
 
   if (up) {
     dict_put(up -> functions, strdup(name), data_create_script(ret));
@@ -112,6 +111,7 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
     ret -> name = name_create(0);
   }
   ret -> fullname = NULL;
+  ret -> bytecode = bytecode_create(data_create(Script, ret));
   free(anon);
   return ret;
 }

@@ -442,7 +442,7 @@ void ** _dict_entry_formatter(entry_t *e, void **ctx) {
   if (str_len(entries)) {
     str_append_chars(entries, sep);
   }
-  str_append_chars(entries, fmt, e -> key, e -> value);
+  str_append_printf(entries, fmt, e -> key, e -> value);
   return ctx;
 }
 
@@ -717,19 +717,19 @@ str_t * dict_dump(dict_t *dict, char *title) {
   dictentry_t *entry;
   str_t       *ret;
   
-  ret = str_copy_chars("dict_dump -- %s\n", title);
-  str_append_chars(ret, "==============================================\n");
-  str_append_chars(ret, "Size: %d\n", dict_size(dict));
-  str_append_chars(ret, "Buckets: %d\n", dict -> num_buckets);
+  ret = str_printf("dict_dump -- %s\n", title);
+  str_append_printf(ret, "==============================================\n");
+  str_append_printf(ret, "Size: %d\n", dict_size(dict));
+  str_append_printf(ret, "Buckets: %d\n", dict -> num_buckets);
   for (i = 0; i < dict -> num_buckets; i++) {
     bucket = (bucket_t *) dict -> buckets[i];
     len = bucket -> size;
-    str_append_chars(ret, "  Bucket: %d bucket size: %d\n", i, len);
+    str_append_printf(ret, "  Bucket: %d bucket size: %d\n", i, len);
     if (len > 0) {
       debug("  --------------------------------------------\n");
       for (j = 0; j < len; j++) {
         entry = &(bucket -> entries[j]);
-        str_append_chars(ret, "    %s (%u) --> %s\n", 
+        str_append_printf(ret, "    %s (%u) --> %s\n", 
                          (char *) entry -> key, entry -> hash, 
                          (char *) entry -> value);
       }

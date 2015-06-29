@@ -174,9 +174,12 @@ bytecode_t * bytecode_create(data_t *owner) {
   ret -> main_block = data_list_create();
   _bytecode_set_instructions(ret, NULL);
   ret -> deferred_blocks = datastack_create("deferred blocks");
+  datastack_set_debug(ret -> deferred_blocks, bytecode_debug);
   ret -> bookmarks = datastack_create("bookmarks");
+  datastack_set_debug(ret -> bookmarks, bytecode_debug);
   ret -> labels = strvoid_dict_create();
   ret -> pending_labels = datastack_create("pending labels");
+  datastack_set_debug(ret -> pending_labels, bytecode_debug);
   ret -> current_line = -1;  
   return ret;
 }
@@ -187,7 +190,10 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
   int            line;
   data_t        *last;
   instruction_t *instr = data_as_instruction(instruction);
-  
+
+  if (bytecode_debug) {
+    debug("Pushing instruction '%s'", data_tostring(instruction));
+  }
   last = list_tail(bytecode -> instructions);
   line = (last) ? data_as_instruction(last) -> line : -1;
   if (bytecode -> current_line > line) {
@@ -210,12 +216,18 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
 bytecode_t * bytecode_start_deferred_block(bytecode_t *bytecode) {
   list_t *block;
   
+  if (bytecode_debug) {
+    debug("Start deferred block");
+  }
   block = data_list_create();
   _bytecode_set_instructions(bytecode, block);
   return bytecode;
 }
 
 bytecode_t * bytecode_end_deferred_block(bytecode_t *bytecode) {
+  if (bytecode_debug) {
+    debug("End deferred block");
+  }
   datastack_push(bytecode -> deferred_blocks, 
                  data_create(Pointer, sizeof(list_t), bytecode -> instructions));
   _bytecode_set_instructions(bytecode, NULL);
@@ -226,7 +238,10 @@ bytecode_t * bytecode_pop_deferred_block(bytecode_t *bytecode) {
   list_t        *block;
   data_t        *data;
   instruction_t *instr;
-  
+
+  if (bytecode_debug) {
+    debug("Popping deferred block");
+  }
   data = datastack_pop(bytecode -> deferred_blocks);
   block = data_unwrap(data);
   list_join(bytecode -> instructions, block);
@@ -238,12 +253,18 @@ bytecode_t * bytecode_bookmark(bytecode_t *bytecode) {
   listnode_t *node = list_tail_pointer(bytecode -> instructions);
   data_t     *data = data_create(Pointer, sizeof(listnode_t), node);
   
+  if (bytecode_debug) {
+    debug("Bookmarking block %p -> %p", data, node);
+  }
   assert(data_unwrap(data) == node);
   datastack_push(bytecode -> bookmarks, data);
   return bytecode;
 }
 
 bytecode_t * bytecode_discard_bookmark(bytecode_t *bytecode) {
+  if (bytecode_debug) {
+    debug("Discard block bookmark");
+  }
   datastack_pop(bytecode -> bookmarks);
   return bytecode;
 }
@@ -256,6 +277,9 @@ bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *bytecode) {
   
   data = datastack_pop(bytecode -> bookmarks);
   node = data_unwrap(data);
+  if (bytecode_debug) {
+    debug("Deferring bookmark block %p -> %p", data, node);
+  }
   bytecode_start_deferred_block(bytecode);
   if (node) {
     list_position(node);
@@ -275,14 +299,13 @@ void bytecode_list(bytecode_t *bytecode) {
   fprintf(stderr, "// ---------------------------------------------------------------\n");
   _bytecode_list_block(bytecode -> instructions);
   fprintf(stderr, "// ---------------------------------------------------------------\n");
-  fprintf(stderr, "// Labels: %p\n", bytecode -> labels);
-  fprintf(stderr, "// ===============================================================\n");
 }
 
 data_t * bytecode_execute(bytecode_t *bytecode, vm_t *vm, data_t *scope) {
-  data_t  *d = data_create(VM, vm);
-  array_t *args = data_array_create(2);
-  data_t  *ret;
+  data_t      *d = data_create(VM, vm);
+  array_t     *args = data_array_create(2);
+  data_t      *ret;
+  exception_t *ex;
 
   array_push(args, data_copy(scope));
   array_push(args, data_create(VM, vm));
@@ -291,9 +314,16 @@ data_t * bytecode_execute(bytecode_t *bytecode, vm_t *vm, data_t *scope) {
                (reduce_t) _bytecode_execute_instruction,
                args);
 
-  ret = (vm -> exception)
-    ? data_copy(vm -> exception)
-    : (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
+  if (vm -> exception) {
+    ex = data_as_exception(vm -> exception); 
+    if (ex -> code == ErrorReturn) {
+      ret = (ex -> throwable) ? data_copy(ex -> throwable) : data_create(Int, 0);
+    } else {
+      ret = data_copy(vm -> exception);
+    }
+  } else {
+    ret = (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
+  }
   array_free(args);
   return ret;
 }

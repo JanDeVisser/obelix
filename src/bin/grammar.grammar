@@ -349,7 +349,8 @@ comprehension               := "for"
                                                    pushconst: "int:0"        ]
                                expr              [ for                       ]
                                where_or_empty    [ comprehension
-                                                   end_loop                  ]
+                                                   end_loop
+                                                   set_variable: "varargs=bool:1" ]
                               ;
 
 where_or_empty              := where

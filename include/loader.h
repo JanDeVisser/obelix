@@ -35,7 +35,8 @@ typedef enum _obelix_option {
 } obelix_option_t;
 
 typedef struct _scriptloader {
-  name_t      *load_path;
+  data_t       _d;
+  data_t      *load_path;
   char        *system_dir;
   grammar_t   *grammar;
   parser_t    *parser;
@@ -47,13 +48,21 @@ typedef struct _scriptloader {
  * scriptloader_t prototypes
  */
 
-extern scriptloader_t * scriptloader_create(char *, name_t *, char *);
+extern scriptloader_t * scriptloader_create(char *, array_t *, char *);
 extern scriptloader_t * scriptloader_get(void);
-extern void             scriptloader_free(scriptloader_t *);
 extern scriptloader_t * scriptloader_set_option(scriptloader_t *, obelix_option_t, long);
+extern long             scriptloader_get_option(scriptloader_t *, obelix_option_t);
 extern data_t *         scriptloader_load_fromreader(scriptloader_t *, module_t *, data_t *);
 extern data_t *         scriptloader_load(scriptloader_t *, module_t *);
 extern data_t *         scriptloader_import(scriptloader_t *, name_t *);
 extern data_t *         scriptloader_run(scriptloader_t *, name_t *, array_t *, dict_t *);
+
+extern int ScriptLoader;
+
+#define data_is_scriptloader(d)  ((d) && data_hastype((d), ScriptLoader))
+#define data_as_scriptloader(d)  (data_is_scriptloader((d)) ? ((scriptloader_t *) (d)) : NULL)
+#define scriptloader_copy(o)     ((scriptloader_t *) data_copy((data_t *) (o)))
+#define scriptloader_tostring(o) (data_tostring((data_t *) (o))
+#define scriptloader_free(o)     (data_free((data_t *) (o)))
 
 #endif /* __LOADER_H__ */

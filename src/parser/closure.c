@@ -262,9 +262,6 @@ int closure_has(closure_t *closure, char *name) {
 data_t * closure_resolve(closure_t *closure, char *name) {
   data_t  *ret;
   
-  if (script_debug) {
-    debug("   closure_resolve('%s', '%s')", closure_tostring(closure), name);
-  }
   ret = _closure_get(closure, name);
   if (!ret) {
     if (closure -> up) {
@@ -279,7 +276,8 @@ data_t * closure_resolve(closure_t *closure, char *name) {
     }
   }
   if (script_debug) {
-    debug("   closure_resolve('%s', '%s'): %d", closure_tostring(closure), name, ret);
+    debug("   closure_resolve('%s', '%s'): %s", 
+          closure_tostring(closure), name, data_tostring(ret));
   }
   return data_copy(ret);
 }

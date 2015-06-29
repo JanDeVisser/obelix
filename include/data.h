@@ -131,11 +131,11 @@ extern int             data_intval(data_t *);
 #define data_typename(d)    ((d) ? (typedescr_get(data_type((data_t *) (d))) -> type_name) : "null")
 
 #define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
-#define data_is_list(d)     ((d) && (data_hastype((d), List)))
-
-#define data_as_array(d)    ((array_t *) (((pointer_t *) (d)) -> ptr))
 #define data_as_pointer(d)  (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
-#define data_unwrap(d)      (data_is_pointer((d)) ? (data_as_pointer(d) -> ptr) : NULL)
+#define data_unwrap(d)      (data_is_pointer((data_t *) (d)) ? (data_as_pointer(d) -> ptr) : NULL)
+
+#define data_is_list(d)     ((d) && (data_hastype((d), List)))
+#define data_as_array(d)    ((array_t *) (((pointer_t *) (d)) -> ptr))
 
 extern array_t *       data_add_all_reducer(data_t *, array_t *);
 extern array_t *       data_add_all_as_data_reducer(char *, array_t *);
@@ -147,7 +147,10 @@ extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);
 extern data_t *        data_str_array_to_list(array_t *);
-
+extern data_t *        data_list_push(data_t *, data_t *);
+extern data_t *        data_list_get(data_t *, int);
+extern int             data_list_size(data_t *);
+  
 extern int_t *         bool_true;
 extern int_t *         bool_false;
 
