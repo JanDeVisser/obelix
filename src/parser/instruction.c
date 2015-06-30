@@ -626,18 +626,18 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
   array_free(args);
   dict_free(kwargs);
   if (ret) {
-    if (!data_is_exception(ret)) {
+    if (data_is_exception(ret)) {
+      if (script_debug) {
+        debug(" -- exception '%s' thrown",
+              data_tostring(ret));
+      }
+    } else {
       if (script_debug) {
 	debug(" -- return value '%s' [%s]",
 	      data_tostring(ret), data_typename(ret));
       }
       vm_push(vm, ret);
       ret = NULL;
-    } else {
-      if (script_debug) {
-	debug(" -- exception '%s' thrown",
-	      data_tostring(ret));
-      }
     }
   } else {
     if (script_debug) {

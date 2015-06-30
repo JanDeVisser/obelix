@@ -47,8 +47,7 @@ socket_t * _function_server(char *name, array_t *params, dict_t *kwargs) {
   assert(params && (array_size(params) >= 1));
   service = (data_t *) array_get(params, 0);
 
-  socket = socket_create_byservice(NULL, data_tostring(service));
-  return socket;
+  return serversocket_create_byservice(data_tostring(service));
 }
 
 data_t * _function_listener(char *name, array_t *params, dict_t *kwargs) {

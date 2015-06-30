@@ -57,7 +57,7 @@ char * _function_allocstring(function_t *fnc) {
   char *buf;
 
   asprintf(&buf, "%s(%s)",
-	   name_tostring(fnc -> name),
+	   name_tostring_sep(fnc -> name, ":"),
 	   ((fnc -> params && array_size(fnc -> params))
 	    ? array_tostring(fnc -> params)
 	    : ""));
@@ -189,6 +189,9 @@ unsigned int function_hash(function_t *fnc) {
 }
 
 data_t * function_call(function_t *fnc, char *name, array_t *args, dict_t *kwargs) {
+  if (function_debug) {
+    debug("Executing %s(%s)", function_tostring(fnc), array_tostring(args));
+  }
   return ((native_t) fnc -> fnc)(name, args, kwargs);
 }
 

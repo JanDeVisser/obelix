@@ -105,3 +105,7 @@ data_t * _function_exit(char *name, array_t *params, dict_t *kwargs) {
   data_as_exception(error) -> throwable = exit_code;
   return error;
 }
+
+data_t * _function_sleep(char *name, array_t *params, dict_t *kwargs) {
+  
+}

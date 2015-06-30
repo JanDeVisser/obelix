@@ -1,0 +1,10 @@
+a = 2
+if a > 1
+  ret = 42
+else
+  ret = 27
+end
+return ret
+/* EXPECTED
+--exit-- 42
+EXPECTED */

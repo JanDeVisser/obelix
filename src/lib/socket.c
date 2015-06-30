@@ -71,12 +71,12 @@ static methoddescr_t _methoddescr_socket[] = {
   { .type = NoType, .name = NULL,        .method = NULL,               .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
-int Socket;
+int Socket = -1;
 int socket_debug;
 
 /* ------------------------------------------------------------------------ */
 
-void _net_init(void) {
+void _socket_init(void) {
   logging_register_category("socket", &socket_debug);
   Socket = typedescr_create_and_register(Socket, "socket",
                                          _vtable_socket, _methoddescr_socket);

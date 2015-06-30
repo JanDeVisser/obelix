@@ -1,0 +1,10 @@
+func foo(x) 
+  return 2*x
+end
+
+y = foo(2)
+return y
+
+/* EXPECTED
+--exit-- 4
+EXPECTED */
