@@ -29,6 +29,7 @@
 
 extern data_t * _function_print(char *, array_t *, dict_t *);
 extern data_t * _function_sleep(char *, array_t *, dict_t *);
+extern data_t * _function_usleep(char *, array_t *, dict_t *);
 
 data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
   data_t  *fmt;
@@ -64,4 +65,15 @@ data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
   naptime = (data_t *) array_get(args, 0);
   assert(naptime);
   return data_create(Int, sleep(data_intval(naptime)));
+}
+
+data_t * _function_usleep(char *func_name, array_t *args, dict_t *kwargs) {
+  data_t  *naptime;
+  
+  (void) func_name;
+  (void) kwargs;
+  assert(array_size(args));
+  naptime = (data_t *) array_get(args, 0);
+  assert(naptime);
+  return data_create(Int, usleep((unsigned long) (naptime)));
 }

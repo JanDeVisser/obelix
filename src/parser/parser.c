@@ -174,9 +174,9 @@ data_t * _pse_execute_NonTerminal(parser_stack_entry_t *e, parser_t *parser, tok
   rule = dict_get_int(nonterminal -> parse_table, code);
   if (!rule) {
     parser -> error = data_exception(ErrorSyntax,
-                                 "Unexpected token '%s'",
-                                 token_tostring(token));
-  } else if (array_size(rule -> entries)) {
+                                     "Unexpected token '%s'",
+                                     token_tostring(token));
+  } else {
     for (i = array_size(rule -> entries) - 1; i >= 0; i--) {
       entry = rule_get_entry(rule, i);
       if (entry -> terminal) {
@@ -185,15 +185,15 @@ data_t * _pse_execute_NonTerminal(parser_stack_entry_t *e, parser_t *parser, tok
             parser, _parser_stack_entry_for_entry(entry));
       } else {
         _parser_push_grammar_element(parser, (ge_t *) entry);
-        new_nt = grammar_get_nonterminal(parser -> grammar, entry -> nonterminal);
-        _parser_push_to_prodstack(
-            parser,
-            _parser_stack_entry_for_nonterminal(new_nt));
+        new_nt = grammar_get_nonterminal(parser -> grammar,
+                                         entry -> nonterminal);
+        _parser_push_to_prodstack(parser,
+                                  _parser_stack_entry_for_nonterminal(new_nt));
         _parser_push_grammar_element(parser, (ge_t *) new_nt);
       }
     }
+    _parser_push_grammar_element(parser, (ge_t *) rule);
   }
-  _parser_push_grammar_element(parser, (ge_t *) rule);
   return data_create(Int, 2);
 }
 

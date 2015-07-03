@@ -12,3 +12,4 @@ object
 queryfile
 comprehension
 comprehension_where
+ternary

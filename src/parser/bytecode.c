@@ -99,7 +99,8 @@ void _bytecode_list_block(list_t *block) {
 }
 
 listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
-  data_t       *ret;
+  data_t       *ret = NULL;
+  data_t       *exit_code;
   char         *label = NULL;
   listnode_t   *node = NULL;
   data_t       *scope = data_array_get(args, 0);
@@ -107,47 +108,50 @@ listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
   bytecode_t   *bytecode = data_as_bytecode(data_array_get(args, 2));
   data_t       *catchpoint = NULL;
   int           datatype;
-  exception_t  *ex;
+  exception_t  *ex = NULL;
   data_t       *ex_data;
   
-  ret = data_thread_exit_code();
-  
+  exit_code = data_thread_exit_code();
+
   /*
-   * If we're exiting, we still need to unwind the context stack, but no other
-   * instructions are executed.
-   * 
-   * FIXME: What we're effectively doing here is disable __exit__ handlers in
-   * obelix objects, since they will pick up the exit code.
+   * Execute the instruction if 
+   *  1. exit() has not been called OR
+   *  2. A context manager's Leave function is being executed OR
+   *  3. This instruction is a Leave instruction
    */
-  if (!ret || (instr -> type == ITLeaveContext)) {
+  if (!exit_code || 
+      thread_has_status(thread_self(), TSFLeave) || 
+      (instr -> type == ITLeaveContext)) {
     ret = data_call(instr, args, NULL);
   }
-  if (ret) {
-    datatype = data_type(ret);
-    if (datatype == String) {
+  
+  if (!exit_code && ret) {
+    if (data_type(ret) == String) {
       label = strdup(data_tostring(ret));
-    } else {
-      if (datatype == Exception) {
-        ex = data_as_exception(ret);
-      } else {
-        ex_data = data_exception(ErrorInternalError,
-                                 "Instruction '%s' returned %s '%s'",
-                                 data_tostring(instr),
-                                 data_typedescr(ret) -> type_name,
-                                 data_tostring(ret));
-        ex = data_as_exception(ex_data);
-        ret = ex_data;
+    } else if (data_type(ret) == Exception) {
+      ex =  exception_copy(data_as_exception(ret));
+      if (ex -> code == ErrorExit) {
+        data_thread_set_exit_code(data_copy(ret));
       }
+    } else {
+      ex_data = data_exception(ErrorInternalError,
+                               "Instruction '%s' returned %s '%s'",
+                               data_tostring(instr),
+                               data_typedescr(ret) -> type_name,
+                               data_tostring(ret));
+      ex = data_as_exception(ex_data);
+    }
+    data_free(ret);
+    if (ex) {
       ex -> trace = data_create(Stacktrace, stacktrace_create());
+      vm -> exception = data_copy(ret);
       if (datastack_depth(vm -> contexts)) {
         catchpoint = datastack_peek(vm -> contexts);
         label = strdup(data_tostring(data_as_nvp(catchpoint) -> name));
       } else {
         node = ProcessEnd;
       }
-      vm -> exception = data_copy(ret);
     }
-    data_free(ret);
   }
   if (label) {
     if (script_debug) {

@@ -68,11 +68,11 @@ static vtable_t _vtable_thread[] = {
 };
 
 static methoddescr_t _methoddescr_thread[] = {
-  { .type = Any,    .name = "current_thread", .method = _thread_current_thread, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = -1, .name = "interrupt",      .method = _thread_interrupt,      .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = -1, .name = "yield",          .method = _thread_yield,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = -1, .name = "stack",          .method = _thread_stack,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
-  { .type = NoType, .name = NULL,             .method = NULL,                   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = Any, .name = "current_thread", .method = _thread_current_thread, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1,  .name = "interrupt",      .method = _thread_interrupt,      .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1,  .name = "yield",          .method = _thread_yield,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1,  .name = "stack",          .method = _thread_stack,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,          .method = NULL,                   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 static pthread_key_t  self_obj;
@@ -265,6 +265,36 @@ data_t * thread_resolve(thread_t *thread, char *name) {
     return data_create(Int, (long) thread -> thr_id);
   }
   return NULL;
+}
+
+int thread_set_status(thread_t *thread, thread_status_flag_t status) {
+  if (thread_debug) {
+    debug("  Setting flag %d on thread %s", status, thread -> name);
+  }
+  thread -> status |= status;
+  return thread -> status;
+}
+
+int thread_unset_status(thread_t *thread, thread_status_flag_t status) {
+  if (thread_debug) {
+    debug("  Clearing flag %d on thread %s", status, thread -> name);
+  }
+  thread -> status &= ~status;
+  return thread -> status;
+}
+
+int thread_has_status (thread_t *thread, thread_status_flag_t status) {
+  if (thread_debug) {
+    debug("  Thread %s %s %d", 
+          thread -> name, 
+          thread -> status & status ? "has" : "doesn't have", 
+          status);
+  }
+  return thread -> status & status;
+}
+
+int thread_status(thread_t *thread) {
+  return thread -> status;
 }
 
 /* ------------------------------------------------------------------------ */

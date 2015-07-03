@@ -4,13 +4,24 @@ func a()
   sys.exit(2)
 end
 
-func b()
-  a()
+func B()
+  func doit()
+    a()
+    print("doit: Should be skipped")
+  end
+  
+  func __exit__(param)
+    print("b() exit handler. Param: ${0}", param)
+  end
 end
 
 print("About to exit")
-b()
-print("Should be skipped")
+
+context b = new B()
+  b.doit()
+end
+
+print("main: Should be skipped")
 /*
 --exit-- 2
 --stdout--

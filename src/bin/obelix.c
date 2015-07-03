@@ -57,7 +57,7 @@ int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
   
   ret = scriptloader_run(loader, name, argv, NULL);
   if (script_debug) {
-    debug("Exiting with exit code %s", data_tostring(ret));
+    debug("Exiting with exit code %s [%s]", data_tostring(ret), data_typename(ret));
   }
   if (ex = data_as_exception(ret)) {
     if (ex -> code != ErrorExit) {
@@ -68,7 +68,7 @@ int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
     }
   } else {
     retval = data_intval(ret);
-  }    
+  }
   data_free(ret);
   return retval;  
 }

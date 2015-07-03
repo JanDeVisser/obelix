@@ -227,7 +227,14 @@ reduction2                  := "<-"
 
 predicatetail               := logic_op          [ push_tokenstring          ]
                                predicate         [ infix_op                  ]
+                             | ternary
                              |
+                             ;
+
+ternary                     := ?                 [ if test                   ]
+                               expr
+                               :                 [ else                      ]
+                               expr              [ end_conditional           ]
                              ;
 
 predicate                   := term

@@ -25,6 +25,11 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
+  
+typedef enum _thread_status_flag {
+  TSFNone  = 0x0000,
+  TSFLeave = 0x0001
+} thread_status_flag_t;
 
 typedef struct _thread {
   data_t           _d;
@@ -34,6 +39,7 @@ typedef struct _thread {
   void            *stack;
   free_t           onfree;
   pthread_mutex_t  mutex;
+  int              status;
   data_t          *exit_code;
   char            *name;
 } thread_t;
@@ -50,6 +56,10 @@ extern int           thread_interrupt(thread_t *);
 extern int           thread_yield(void);
 extern thread_t *    thread_setname(thread_t *, char *);
 extern data_t *      thread_resolve(thread_t *, char *);
+extern int           thread_set_status(thread_t *, thread_status_flag_t);
+extern int           thread_unset_status(thread_t *, thread_status_flag_t);
+extern int           thread_has_status(thread_t *, thread_status_flag_t);
+extern int           thread_status(thread_t *);
 
 extern data_t *      data_current_thread(void);
 extern data_t *      data_thread_stacktrace(data_t *);

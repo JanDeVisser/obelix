@@ -473,10 +473,10 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
       object_free(obj);
     } else if (!data_is_exception(data)) {
       data = data_exception(ErrorInternalError,
-			    "ns_execute '%s' returned '%s', a %s",
-			    name_tostring(name),
-			    data_tostring(data),
-			    data_typename(data));
+                            "ns_execute '%s' returned '%s', a %s",
+                            name_tostring(name),
+                            data_tostring(data),
+                            data_typename(data));
     }
   } else {
     data = (sys) ? sys : data_exception(ErrorName, "Could not resolve module 'sys'");

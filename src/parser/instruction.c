@@ -30,6 +30,7 @@
 #include <name.h>
 #include <nvp.h>
 #include <script.h>
+#include <thread.h>
 #include <vm.h>
 
 int script_trace = 0;
@@ -439,6 +440,8 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
   data_t *   (*fnc)(data_t *, data_t *);
   nvp_t       *cp;
   data_t      *cp_data;
+  thread_t    *thread;
+  int          is_leaving;
   
   error = vm -> exception;
   if (data_is_exception(error)) {
@@ -461,7 +464,15 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
         } else {
           param = data_false();
         }
+        thread = thread_self();
+        is_leaving = thread_has_status(thread, TSFLeave);
+        if (!is_leaving) {
+          thread_set_status(thread, TSFLeave);
+        }
         ret = fnc(context, param);
+        if (!is_leaving) {
+          thread_unset_status(thread, TSFLeave);
+        }
       }
     } else {
       vm_push(vm, data_copy(error));

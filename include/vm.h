@@ -32,7 +32,7 @@ extern "C" {
 #endif /* __cplusplus */
   
 #define NUM_STASHES     8
-
+  
 typedef struct _vm {
   data_t       _d;
   data_t      *stashes[NUM_STASHES];

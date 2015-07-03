@@ -221,7 +221,7 @@ object_t * object_create(data_t *constructor) {
   object_t       *obj = NULL;
   data_t         *c = NULL;
   bound_method_t *bm;
-  dict_t         *template = NULL;
+  dict_t         *tmpl = NULL;
 
   ret = data_new(Object, object_t);
   ret -> constructing = FALSE;
@@ -230,7 +230,7 @@ object_t * object_create(data_t *constructor) {
   if (data_is_script(constructor)) {
     bm = script_bind(data_as_script(constructor), ret);
     c = data_create(BoundMethod, bm);
-    template = data_as_script(constructor) -> functions;
+    tmpl = data_as_script(constructor) -> functions;
   } else if (data_is_object(constructor)) {
     obj = data_as_object(constructor);
     bm = data_as_bound_method(obj -> constructor);
@@ -238,11 +238,11 @@ object_t * object_create(data_t *constructor) {
       bm = script_bind(bm -> script, ret);
       c = data_create(BoundMethod, bm);
     }
-    template = obj -> variables;
+    tmpl = obj -> variables;
   }
   ret -> constructor = c;
-  if (template) {
-    dict_reduce(template, (reduce_t) _object_set_all_reducer, ret);
+  if (tmpl) {
+    dict_reduce(tmpl, (reduce_t) _object_set_all_reducer, ret);
   }
   return ret;
 }

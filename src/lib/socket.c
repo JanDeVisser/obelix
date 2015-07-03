@@ -43,7 +43,8 @@ static void *       _socket_connection_handler(connection_t *);
 static socket_t *   _socket_setopt(socket_t *, int);
 
 static data_t *     _socket_resolve(socket_t *, char *);
-
+static data_t *     _socket_leave(socket_t *, data_t *);
+  
 static data_t *     _socket_close(data_t *, char *, array_t *, dict_t *);
 static data_t *     _socket_listen_mth(data_t *, char *, array_t *, dict_t *);
 static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
@@ -61,6 +62,7 @@ static vtable_t _vtable_socket[] = {
   { .id = FunctionAllocString, .fnc = (void_t) _socket_allocstring },
   { .id = FunctionHash,        .fnc = (void_t) socket_hash },
   { .id = FunctionResolve,     .fnc = (void_t) _socket_resolve },
+  { .id = FunctionLeave,       .fnc = (void_t) _socket_leave },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -167,6 +169,24 @@ data_t * _socket_resolve(socket_t *s, char *attr) {
     return NULL;
   }
 }
+
+data_t *_socket_leave (socket_t * socket, data_t *param) {
+  int     retval;
+  data_t *ret;
+  
+  if (socket_debug) {
+    debug("socket '%s'.leave('%s')", 
+          socket_tostring(socket), data_tostring(param));
+  }
+  retval = socket_close(socket);
+  if (retval < 0) {
+    ret = data_exception(ErrorIOError, "socket_close() returned %d", data_create(Int, retval));
+  } else {
+    ret = data_null();
+  }
+  return ret;
+}
+
 
 void * _socket_connection_handler(connection_t *connection) {
   void *ret;
