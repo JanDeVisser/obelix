@@ -30,17 +30,30 @@
 #include <name.h>
 #include <namespace.h>
 #include <resolve.h>
+#include <socket.h>
 #include <script.h>
 
-void debug_settings(char *debug) {
+typedef struct _cmdline_args {
+  int    argc;
+  char **argv;
+  char  *grammar;
+  char  *debug;
+  char  *basepath;
+  char  *syspath;
+  int    list;
+  int    trace;
+  int    server;
+} cmdline_args_t;
+
+void debug_settings(cmdline_args_t *args) {
   int      debug_all = 0;
   array_t *cats;
   int      ix;
   
   logging_reset();
-  if (debug) {
-    debug("debug optarg: %s", debug);
-    cats = array_split(debug, ",");
+  if (args -> debug) {
+    debug("debug optarg: %s", args -> debug);
+    cats = array_split(args -> debug, ",");
     for (ix = 0; ix < array_size(cats); ix++) {
       logging_enable(str_array_get(cats, ix));
     }
@@ -92,65 +105,39 @@ name_t * build_name(char *scriptname) {
   return name;
 }
 
-int main(int argc, char **argv) {
-  char           *grammar = NULL;
-  char           *debug = NULL;
-  char           *basepath = NULL;
+scriptloader_t * _create_loader(cmdline_args_t *args) {
   array_t        *path;
+  scriptloader_t *loader;
+  
+  path = (args -> basepath) ? array_split(args -> basepath, ":") 
+                            : str_array_create(0);
+  array_push(path, getcwd(NULL, 0));
+  
+  loader = scriptloader_create(args -> syspath, path, args -> grammar);
+  if (loader) {
+    scriptloader_set_option(loader, ObelixOptionList, args -> list);
+    scriptloader_set_option(loader, ObelixOptionTrace, args -> trace);
+  }
+  array_free(path);
+  return loader;
+}
+
+int run_from_cmdline(cmdline_args_t *args) {
   name_t         *name;
   array_t        *obl_argv;
   int             ix;
-  char           *syspath = NULL;
-  int             opt;
   scriptloader_t *loader;
   int             retval = 0;
-  int             list = 0;
-  int             trace = 0;
-
-  while ((opt = getopt(argc, argv, "s:g:d:p:v:lt")) != -1) {
-    switch (opt) {
-      case 's':
-        syspath = optarg;
-        break;
-      case 'g':
-        grammar = optarg;
-        break;
-      case 'd':
-        debug = optarg;
-        break;
-      case 'p':
-        basepath = optarg;
-        break;
-      case 'v':
-        log_level = atoi(optarg);
-        break;
-      case 'l':
-        list = 1;
-        break;
-      case 't':
-	trace = 1;
-	list = 1;
-	break;
-    }
-  }
-  if (argc == optind) {
-    fprintf(stderr, "Usage: obelix <filename> [options ...]\n");
-    exit(1);
-  }
-  debug_settings(debug);
   
-  path = (basepath) ? array_split(basepath, ":") : str_array_create(0);
-  array_push(path, getcwd(NULL, 0));
-  
-  loader = scriptloader_create(syspath, path, grammar);
+  loader = _create_loader(args);
   if (loader) {
-    scriptloader_set_option(loader, ObelixOptionList, list);
-    scriptloader_set_option(loader, ObelixOptionTrace, trace);
-
-    name = build_name(argv[optind]);
-    obl_argv = str_array_create(argc - optind);
-    for (ix = optind + 1; ix < argc; ix++) {
-      array_push(obl_argv, data_create(String, argv[ix]));
+    scriptloader_set_option(loader, ObelixOptionList, args -> list);
+    scriptloader_set_option(loader, ObelixOptionTrace, args -> trace);
+    
+    name = build_name(args -> argv[optind]);
+    obl_argv = str_array_create(args -> argc - optind);
+    for (ix = optind + 1; ix < args -> argc; ix++) {
+      array_push(obl_argv, data_create(String, args -> argv[ix]));
     }
     retval = run_script(loader, name, obl_argv);
     array_free(obl_argv);
@@ -158,5 +145,114 @@ int main(int argc, char **argv) {
     scriptloader_free(loader);
   }
   return retval;
+}
+
+data_t * _run_script(scriptloader_t *loader, cmdline_args_t *args, char *cmd, socket_t *client) {
+  array_t     *line = array_split(cmd, " ");
+  char        *script;
+  name_t      *name;
+  int          ix;
+  array_t     *obl_argv;
+  data_t      *real_ret;
+  data_t      *ret;
+  exception_t *ex;
+  
+  if (array_size(line)) {
+    script = str_array_get(line, 0);
+    name = build_name(script);
+    obl_argv = array_slice(line, 1, array_size(line));
+    
+    ret = scriptloader_run(loader, name, obl_argv, NULL);
+    real_ret = ret;
+    if (script_debug) {
+      debug("Exiting with exit code %s [%s]", data_tostring(ret), data_typename(ret));
+    }
+    if ((ex = data_as_exception(ret)) && (ex -> code == ErrorExit)) {
+      data_free(ret);
+      ret = ex -> throwable;
+    }
+    file_printf(client -> sockfile, "[%s] %s\n", data_typename(ret), data_tostring(ret));
+    data_free(real_ret);
+  }
+  array_free(line);
+}
+
+void * _connection_handler(connection_t *connection) {
+  cmdline_args_t *args = (cmdline_args_t *) connection -> context;
+  socket_t       *client = (socket_t *) connection -> client;
+  array_t        *path;
+  name_t         *name;
+  scriptloader_t *loader;
+  char           *cmd;
+  
+  loader = _create_loader(args);
+  if (loader) {
+    file_printf(client -> sockfile, "Obelix 0,1\n");
+    do {
+      file_printf(client -> sockfile, "READY\n");
+      cmd = file_readline(client -> sockfile);
+      if (!strncmp(cmd, "RUN ", 4)) {
+        _run_script(loader, args, cmd + 4, client);
+      }
+    } while (0);
+  }
+  return connection;
+}
+
+int start_server(cmdline_args_t *args) {
+  socket_t *server;
+  
+  server = serversocket_create(args -> server);
+  socket_listen(server, _connection_handler, args);
+  return 0;
+}
+
+int main(int argc, char **argv) {
+  cmdline_args_t  args;
+  int             opt;
+
+  memset(&args, 0, sizeof(cmdline_args_t));
+  args.argc = argc;
+  args.argv = argv;
+  while ((opt = getopt(argc, argv, "s:g:d:p:v:ltS")) != -1) {
+    switch (opt) {
+      case 's':
+        args.syspath = optarg;
+        break;
+      case 'g':
+        args.grammar = optarg;
+        break;
+      case 'd':
+        args.debug = optarg;
+        break;
+      case 'p':
+        args.basepath = optarg;
+        break;
+      case 'v':
+        log_level = atoi(optarg);
+        break;
+      case 'l':
+        args.list = 1;
+        break;
+      case 't':
+        args.trace = 1;
+        args.list = 1;
+        break;
+      case 'S':
+        args.server = 14400;
+        break;
+    }
+  }
+  if (argc == optind && !args.server) {
+    fprintf(stderr, "Usage: obelix <filename> [options ...]\n");
+    exit(1);
+  }
+  debug_settings(&args);
+  
+  if (args.server) {
+    start_server(&args);
+  } else {
+    return run_from_cmdline(&args);
+  }
 }
 

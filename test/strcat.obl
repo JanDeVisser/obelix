@@ -2,10 +2,9 @@ b = "second"
 a = "first" + " " + b;
 print(a)
 
-/*
+/* EXPECTED
+--exit-- 0
 --stdout--
 first second
---stderr--
---exit--
-0
-*/
+--
+EXPECTED */

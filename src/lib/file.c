@@ -482,6 +482,19 @@ int file_write(file_t *file, char *buf, int num) {
   return ret;
 }
 
+int file_printf(file_t *file, char *fmt, ...) {
+  char    *buf;
+  va_list  args;
+  int      ret;
+
+  va_start(args, fmt);
+  vasprintf(&buf, fmt, args);
+  va_end(args);
+  ret = file_write(file, buf, strlen(buf));
+  free(buf);
+  return ret;
+}
+
 int file_flush(file_t *file) {
   int ret = fsync(file -> fh);
 

@@ -170,7 +170,7 @@ data_t * _socket_resolve(socket_t *s, char *attr) {
   }
 }
 
-data_t *_socket_leave (socket_t * socket, data_t *param) {
+data_t *_socket_leave(socket_t * socket, data_t *param) {
   int     retval;
   data_t *ret;
   
@@ -395,7 +395,7 @@ data_t * _socket_interrupt(data_t *self, char *name, array_t *args, dict_t *kwar
 
 void * connection_listener_service(connection_t *connection) {
   data_t   *server = connection -> context;
-  socket_t *client = (socket_t* ) connection -> client;
+  socket_t *client = (socket_t *) connection -> client;
   data_t   *ret;
   array_t  *p;
 

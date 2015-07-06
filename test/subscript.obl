@@ -3,16 +3,10 @@ print("${0}", a[2])
 str = "abcdefghijklmnopqrstuvwxyz"
 print("${0}${1}${2}", str[0], str[-1], str[9])
 
-a = [2,4,6,8]
-print("${0}", a[2])
-str = "abcdefghijklmnopqrstuvwxyz"
-print("${0}${1}${2}", str[0], str[-1], str[9])
-
-/*
+/* EXPECTED
+--exit-- 0
 --stdout--
 6
 azj
---stderr--
---exit--
-0
-*/
+--
+EXPECTED */

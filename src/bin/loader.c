@@ -466,6 +466,9 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
   sys = _scriptloader_get_object(loader, 1, "sys");
   if (sys && !data_is_exception(sys)) {
     _scriptloader_set_value(loader, sys, "argv", data_create_list(args));
+    if (scriptloader_get_option(loader, ObelixOptionTrace)) {
+      logging_enable("trace");
+    }
     data_free(sys);
     data = ns_execute(loader -> ns, name, args, kwargs);
     if (obj = data_as_object(data)) {
@@ -478,6 +481,7 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
                             data_tostring(data),
                             data_typename(data));
     }
+    logging_disable("trace");
   } else {
     data = (sys) ? sys : data_exception(ErrorName, "Could not resolve module 'sys'");
   }

@@ -86,7 +86,7 @@ void _init_thread(void) {
   thread_t *main;
 
   logging_register_category("thread", &thread_debug);
-  pthread_key_create(&self_obj, (void (*)(void *)) _thread_free);
+  pthread_key_create(&self_obj, /* (void (*)(void *)) _thread_free */ NULL);
   Thread = typedescr_create_and_register(Thread, "thread",
 					 _vtable_thread,
 					 _methoddescr_thread);
@@ -110,21 +110,25 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
     thread_setname(thread, ctx -> name);
   }
   ctx -> child = thread_copy(thread);
+  pthread_setspecific(self_obj, thread);
   thread -> parent = thread_copy(ctx -> creator);
   errno = pthread_mutex_lock(&ctx -> creator -> mutex);
   if (!errno) {
     errno = pthread_cond_signal(&ctx -> condition);
   }
   if (!errno) {
-    pthread_cond_destroy(&ctx -> condition);
-    free(ctx);
+    errno = pthread_cond_destroy(&ctx -> condition);
   }
-
-  pthread_setcancelstate(thread -> thr_id, PTHREAD_CANCEL_ENABLE);
-  pthread_setcanceltype(thread -> thr_id, PTHREAD_CANCEL_DEFERRED);
+  if (!errno) {
+    errno = pthread_setcancelstate(thread -> thr_id, PTHREAD_CANCEL_ENABLE);
+  }
+  if (!errno) {
+    pthread_setcanceltype(thread -> thr_id, PTHREAD_CANCEL_DEFERRED);
+  }
   pthread_cleanup_push(_thread_free, thread);
   ret = ctx -> start_routine(ctx -> arg);
   pthread_cleanup_pop(1);
+  free(ctx);
   return ret;
 }
 

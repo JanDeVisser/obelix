@@ -53,6 +53,7 @@ extern char *       file_error(file_t *);
 extern int          file_errno(file_t *);
 extern int          file_cmp(file_t *, file_t *);
 extern int          file_write(file_t *, char *, int);
+extern int          file_printf(file_t *, char *, ...);
 extern int          file_read(file_t *, char *, int);
 extern int          file_seek(file_t *, int);
 extern char *       file_readline(file_t *);

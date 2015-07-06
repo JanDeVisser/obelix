@@ -3,6 +3,7 @@ doesnotexist
 oneplusone
 minusone
 exit
+strcat
 iterate_list
 addition
 while
@@ -10,8 +11,11 @@ if
 function
 object
 queryfile
+reduce
 comprehension
 comprehension_where
 ternary
 re
 readfile
+range
+subscript

@@ -213,15 +213,16 @@ void _instruction_init(void) {
 }
 
 int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
-  static typedescr_t td;
+  typedescr_t td;
   
+  memset(&td, 0, sizeof(typedescr_t));
   td.type = -1;
   td.type_name = name;
   td.inherits[0] = Instruction;
   td.inherits[1] = inherits;
   td.inherits[2] = NoType;
   td.vtable = vtable;
-  return typedescr_register(&td);                                               
+  return typedescr_register(&td);
 }
 
 /* ----------------------------------------------------------------------- */

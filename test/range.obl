@@ -10,6 +10,6 @@ for i in 0 ~ 10
 end
 
 return sum /* 90 */
-/*
+/* EXPECTED
 --exit-- 90
-*/
+EXPECTED */

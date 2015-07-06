@@ -13,3 +13,10 @@ print(s)
 
 s = (@ l <- add) + 1
 print(s)
+/* EXPECTED
+--exit-- 0
+--stdout--
+20
+21
+--
+EXPECTED */
