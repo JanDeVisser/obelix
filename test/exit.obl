@@ -22,9 +22,10 @@ context b = new B()
 end
 
 print("main: Should be skipped")
-/*
+/* EXPECTED
 --exit-- 2
 --stdout--
 About to exit
+b() exit handler. Param: Error ErrorExit (19): Exit with code '2'
 --
-*/
+EXPECTED */

@@ -13,3 +13,5 @@ queryfile
 comprehension
 comprehension_where
 ternary
+re
+readfile

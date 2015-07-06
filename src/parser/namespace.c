@@ -402,7 +402,7 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
   script = ns -> import_fnc(ns -> import_ctx, module);
   if (ns_debug) {
     if (script) {
-      debug("  Loader returned '%s', a '%s'",
+      debug("  Loader returned '%s' [%s]",
 	    data_tostring(script),
 	    data_typename(script));
     } else {

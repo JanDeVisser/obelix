@@ -1,19 +1,24 @@
-print("Using readline:")
-print("")
-
+total_readline = 0
 context fd = open("readfile.obl")
   line = fd.readline()
   while line || (line == "")
-    print(line)
+    total_readline = total_readline + line.len()
     line = fd.readline()
   end
 end
+print("Using readline: ${0}", total_readline)
 
-print("Using iterator:")
-print("")
-
+total_iterator = 0
 context fd = open("readfile.obl")
   for line in fd
-    print(line)
+    total_iterator = total_iterator + line.len()
   end
 end
+print("Using iterator: ${0}", total_iterator)
+/* EXPECTED
+--exit-- 0
+--stdout--
+Using readline: 476
+Using iterator: 476
+--
+EXPECTED */

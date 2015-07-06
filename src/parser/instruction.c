@@ -458,8 +458,7 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
       fnc = (data_t * (*)(data_t *, data_t *)) data_get_function(context, FunctionLeave);
       if (fnc) {
         if (e && (e -> code != ErrorLeave) 
-              && (e -> code != ErrorReturn) 
-              && (e -> code != ErrorExit)) {
+              && (e -> code != ErrorReturn)) {
           param = data_copy(error);
         } else {
           param = data_false();
@@ -478,7 +477,7 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
       vm_push(vm, data_copy(error));
     }
   }
-  if (e && (e -> code == ErrorExit) && (e -> code == ErrorReturn)) {
+  if (e && ((e -> code == ErrorExit) || (e -> code == ErrorReturn))) {
     /*
     * If the error is ErrorExit or ErrorReturn  needs to be bubbled up, and we 
     * really don't care what else happens.

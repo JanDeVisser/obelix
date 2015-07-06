@@ -323,6 +323,7 @@ void typedescr_register_types(typedescr_t *types) {
 int typedescr_create_and_register(int type, char *type_name, vtable_t *vtable, methoddescr_t *methods) {
   typedescr_t td;
 
+  memset(&td, 0, sizeof(typedescr_t));
   td.type = type;
   td.type_name = type_name;
   td.vtable = vtable;

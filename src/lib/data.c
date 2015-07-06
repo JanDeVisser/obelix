@@ -535,6 +535,11 @@ int data_cmp(data_t *d1, data_t *d2) {
   int          ret;
   cmp_t        cmp;
 
+  if (debug_data) {
+    debug("Comparing '%s' [%s] and '%s' [%s]", 
+          data_tostring(d1), data_typename(d1),
+          data_tostring(d2), data_typename(d2));
+  }
   if (d1 == d2) {
     return 0;
   } else if (!d1 || !d2) {

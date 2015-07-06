@@ -129,10 +129,10 @@ data_t * _closure_start(closure_t *closure) {
     if ((e -> code == ErrorExit) && (e -> throwable)) {
       ns_exit(closure -> script -> mod -> ns, ret);
     } else if (e -> code == ErrorReturn) {
-      data_t *error = ret;
+      data_free(ret);
       ret = (e -> throwable) ? data_copy(e -> throwable) : data_null();
-      data_free(error);
     }
+    exception_free(e);
   }
   data_free(d);
   
