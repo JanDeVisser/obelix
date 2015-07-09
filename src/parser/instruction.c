@@ -550,7 +550,6 @@ name_t * _instruction_setup_constructor(data_t *scope,
   name_t         *ret = NULL;
   
   self = data_get(scope, name_self);
-  name_free(name_self);
   if (data_is_object(self)) {
     obj = data_as_object(self);
     s = data_resolve(scope, constructor -> name);

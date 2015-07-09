@@ -1,7 +1,3 @@
-/* -*-obelix-*- */
-
-/* This is a comment */
-
 func A(x)
   self.x = x
 
@@ -27,3 +23,11 @@ end
 
 c = new C("foo", "bar")
 c.do()
+
+/* EXPECTED
+--exit-- 0
+--stdout--
+X: foo
+Y: bar
+--
+EXPECTED */
