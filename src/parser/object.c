@@ -172,7 +172,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
       shifted = array_slice(args, 1, 0);
       ret = script_create_object(script, shifted, kwargs);
       array_free(shifted);
-      assert(data_is_object(ret));
+      assert(data_is_object(ret) || data_is_exception(ret));
     } else {
       ret = data_exception(ErrorType, "Cannot use '%s' of type 's' as an object factory",
 			   data_tostring(n), data_typedescr(n) -> type_name);

@@ -627,10 +627,16 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
     name = name_copy(call -> name);
   }
   if (script_debug) {
-    debug(" -- Calling %s.%s(%s, %s)",
+    debug(" -- Calling [%s].%s(%s, %s)",
 	  data_tostring(self), name_tostring(name),
-	  array_tostring(args),
-	  (kwargs) ? dict_tostring(kwargs) : "NULL");
+	  (args) ? array_tostring(args) : "[]",
+	  (kwargs) ? dict_tostring(kwargs) : "{}");
+  }
+  if (script_trace) {
+    fprintf(stderr, "%-16.16s[%s].%s(%s, %s)\n", "Calling",
+            data_tostring(self), name_tostring(name),
+            (args) ? array_tostring(args) : "[]",
+            (kwargs) ? dict_tostring(kwargs) : "{}");
   }
   ret = data_invoke(self, name, args, kwargs);
   name_free(name);

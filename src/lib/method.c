@@ -123,7 +123,7 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
       t = md -> argtypes[j];
     }
     if (!data_hastype(arg, t)) {
-      return data_exception(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %d, not %d",
+      return data_exception(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %s, not %s",
                         i+1, type -> type_name, md -> name,
                         typedescr_get(t) -> type_name,
                         data_typedescr(arg) -> type_name);

@@ -14,3 +14,9 @@ end
 
 b = new B("foo")
 b.do()
+/* EXPECTED
+--exit-- 0
+--stdout--
+b.get_x(): foo
+--
+EXPECTED */

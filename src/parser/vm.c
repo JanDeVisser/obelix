@@ -47,6 +47,8 @@ void _vm_init(void) {
   VM = typedescr_create_and_register(VM, "vm", _vtable_vm, NULL);
 }
 
+extern int script_trace;
+
 /* ------------------------------------------------------------------------ */
 
 void _vm_free(vm_t *vm) {
@@ -118,45 +120,51 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
     thread_has_status(thread_self(), TSFLeave) || 
     (instr -> type == ITLeaveContext)) {
     ret = data_call(instr, args, NULL);
+  }
+
+  if (!exit_code && ret) {
+    if (data_type(ret) == String) {
+      label = strdup(data_tostring(ret));
+    } else if (data_type(ret) == Exception) {
+      ex =  exception_copy(data_as_exception(ret));
+      if (ex -> code == ErrorExit) {
+        data_thread_set_exit_code(data_copy(ret));
+      }
+    } else {
+      ex_data = data_exception(ErrorInternalError,
+                                "Instruction '%s' returned %s '%s'",
+                                data_tostring(instr),
+                                data_typedescr(ret) -> type_name,
+                                data_tostring(ret));
+      ex = data_as_exception(ex_data);
     }
-    
-    if (!exit_code && ret) {
-      if (data_type(ret) == String) {
-        label = strdup(data_tostring(ret));
-      } else if (data_type(ret) == Exception) {
-        ex =  exception_copy(data_as_exception(ret));
-        if (ex -> code == ErrorExit) {
-          data_thread_set_exit_code(data_copy(ret));
-        }
+    data_free(ret);
+    if (ex) {
+      ex -> trace = data_create(Stacktrace, stacktrace_create());
+      if (script_trace) {
+        fprintf(stderr, "%-16.16s%s\n", "Throws", exception_tostring(ex));
+      }
+      vm -> exception = data_copy(ret);
+      if (datastack_depth(vm -> contexts)) {
+        catchpoint = datastack_peek(vm -> contexts);
+        label = strdup(data_tostring(data_as_nvp(catchpoint) -> name));
       } else {
-        ex_data = data_exception(ErrorInternalError,
-                                 "Instruction '%s' returned %s '%s'",
-                                 data_tostring(instr),
-                                 data_typedescr(ret) -> type_name,
-                                 data_tostring(ret));
-        ex = data_as_exception(ex_data);
-      }
-      data_free(ret);
-      if (ex) {
-        ex -> trace = data_create(Stacktrace, stacktrace_create());
-        vm -> exception = data_copy(ret);
-        if (datastack_depth(vm -> contexts)) {
-          catchpoint = datastack_peek(vm -> contexts);
-          label = strdup(data_tostring(data_as_nvp(catchpoint) -> name));
-        } else {
-          node = ProcessEnd;
-        }
+        node = ProcessEnd;
       }
     }
-    if (label) {
-      if (script_debug) {
-        debug("  Jumping to '%s'", label);
-      }
-      node = (listnode_t *) dict_get(bytecode -> labels, label);
-      assert(node);
-      free(label);
+  }
+  if (label) {
+    if (script_debug) {
+      debug("  Jumping to '%s'", label);
     }
-    return node;
+    if (script_trace) {
+      fprintf(stderr, "%-16.16s%s\n", "Jump To", label);
+    }
+    node = (listnode_t *) dict_get(bytecode -> labels, label);
+    assert(node);
+    free(label);
+  }
+  return node;
 }
 
 /* ------------------------------------------------------------------------ */

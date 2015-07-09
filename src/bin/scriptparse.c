@@ -39,6 +39,7 @@ static long       _script_parse_get_option(parser_t *, obelix_option_t);
 
 static data_t    *data_error = NULL;
 static data_t    *data_end = NULL;
+static data_t    *data_self = NULL;
 
 static name_t    *name_end = NULL;
 static name_t    *name_error = NULL;
@@ -55,7 +56,8 @@ static name_t    *name_and = NULL;
 void _script_parse_create_statics(void) {
   data_error   = data_create(String, "ERROR");
   data_end     = data_create(String, "END");
-
+  data_self    = data_create(String, "self");
+  
   name_end     = name_create(1, data_tostring(data_end));
   name_error   = name_create(1, data_tostring(data_error));
   name_query   = name_create(1, "query");
@@ -783,7 +785,7 @@ parser_t * script_parse_start_function(parser_t *parser) {
 
 parser_t * script_parse_baseclass_constructors(parser_t *parser) {
   bytecode_push_instruction((bytecode_t *) parser -> data, 
-                            instruction_create_pushvar(name_self));
+                            instruction_create_pushval(data_self));
   bytecode_push_instruction((bytecode_t *) parser -> data,
                             instruction_create_function(name_hasattr, CFNone, 1, NULL));
   script_parse_test(parser);
