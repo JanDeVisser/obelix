@@ -105,6 +105,8 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   threadproc_t  start_routine;
   void         *ret;
   thread_t     *thread = thread_self();
+  char          buf[81];
+  int           dummy;
 
   if (ctx -> name) {
     thread_setname(thread, ctx -> name);
@@ -115,20 +117,23 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   errno = pthread_mutex_lock(&ctx -> creator -> mutex);
   if (!errno) {
     errno = pthread_cond_signal(&ctx -> condition);
+    pthread_mutex_unlock(&ctx -> creator -> mutex);
+  }
+  
+  if (!errno) {
+    errno = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &dummy);
   }
   if (!errno) {
-    errno = pthread_cond_destroy(&ctx -> condition);
+    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &dummy);
   }
+  
   if (!errno) {
-    errno = pthread_setcancelstate(thread -> thr_id, PTHREAD_CANCEL_ENABLE);
+    pthread_cleanup_push(_thread_free, thread);
+    ret = ctx -> start_routine(ctx -> arg);
+    pthread_cleanup_pop(1);
+  } else {
+    error("Error starting thread '%s': %s", ctx -> name, strerror_r(errno, buf, 80));
   }
-  if (!errno) {
-    pthread_setcanceltype(thread -> thr_id, PTHREAD_CANCEL_DEFERRED);
-  }
-  pthread_cleanup_push(_thread_free, thread);
-  ret = ctx -> start_routine(ctx -> arg);
-  pthread_cleanup_pop(1);
-  free(ctx);
   return ret;
 }
 
@@ -162,58 +167,38 @@ thread_t * thread_self(void) {
 
 thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
   thread_t           *self = thread_self();
-  thread_ctx_t       *ctx;
+  thread_ctx_t        ctx;
   pthread_t           thr_id;
-  thread_t           *ret;
-  pthread_condattr_t  attr;
+  thread_t           *ret = NULL;
 
-  ctx = NEW(thread_ctx_t);
-  ctx -> name = name;
-  ctx -> start_routine = start_routine;
-  ctx -> arg = arg;
-  ctx -> creator = self;
-  ctx -> child = NULL;
+  ctx.name = name;
+  ctx.start_routine = start_routine;
+  ctx.arg = arg;
+  ctx.creator = self;
+  ctx.child = NULL;
 
-  errno = pthread_condattr_init(&attr);
-  if (!errno) {
-    errno = pthread_cond_init(&ctx -> condition, &attr);
-  }
-  if (!errno) {
-    errno = pthread_mutex_lock(&self -> mutex);
-  }
+  pthread_cond_init(&ctx.condition, NULL);
+  errno = pthread_mutex_lock(&self -> mutex);
   if (!errno) {
     errno = pthread_create(&thr_id, NULL,
                            (threadproc_t) _thread_start_routine_wrapper,
-			   ctx);
+			   &ctx);
   }
   if (!errno) {
-    for (errno = pthread_cond_wait(&ctx -> condition, &self -> mutex);
-         !errno && !ctx -> child;
-         errno = pthread_mutex_lock(&self -> mutex)) {
-      if (!errno) {
-        errno = pthread_cond_wait(&ctx -> condition, &self -> mutex);
-      }
-    }
+    pthread_cond_wait(&ctx.condition, &self -> mutex);
+    ret = ctx.child;
   }
-  if (errno) {
-    ret = NULL;
-  } else {
-    ret = ctx -> child;
-  }
-  pthread_condattr_destroy(&attr);
+  pthread_cond_destroy(&ctx.condition);
 
   assert(pthread_equal(ret -> thr_id, thr_id));
-  if (errno = pthread_detach(thr_id)) {
-    pthread_cancel(thr_id);
-    return NULL;
-  }
+  ret -> _errno = pthread_detach(thr_id);
   return ret;
 }
 
 thread_t * thread_create(pthread_t thr_id, char *name) {
   thread_t            *ret = data_new(Thread, thread_t);
   pthread_mutexattr_t  attr;
-  char                 buf[32];
+  char                *buf = NULL;
 
   ret -> thr_id = thr_id;
   ret -> exit_code = NULL;
@@ -221,9 +206,11 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
   ret -> stack = NULL;
   ret -> onfree = NULL;
   if (!name) {
-    snprintf(buf, sizeof(buf), "Thread %ld", (long) thr_id);
+    asprintf(&buf, "Thread %ld", (long) thr_id);
+    name = buf;
   }
-  thread_setname(ret, (name) ? name : buf);
+  thread_setname(ret, name);
+  free(buf);
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   if (errno = pthread_mutex_init(&ret -> mutex, &attr)) {

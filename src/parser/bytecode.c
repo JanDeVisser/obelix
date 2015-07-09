@@ -32,7 +32,6 @@ static void         _bytecode_init(void) __attribute__((constructor));
 static data_t *     _bytecode_create(int, va_list);
 static void         _bytecode_free(bytecode_t *);
 static char *       _bytecode_allocstring(bytecode_t *);
-static data_t *     _bytecode_call(bytecode_t *, array_t *, dict_t *);
 
 static bytecode_t * _bytecode_set_instructions(bytecode_t *, list_t *);
 static void         _bytecode_list_block(list_t *);
@@ -43,7 +42,6 @@ int Bytecode = -1;
 static vtable_t _vtable_bytecode[] = {
   { .id = FunctionFree,        .fnc = (void_t) _bytecode_free },
   { .id = FunctionAllocString, .fnc = (void_t) _bytecode_allocstring },
-  { .id = FunctionCall,        .fnc = (void_t) _bytecode_call },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -75,12 +73,6 @@ char * _bytecode_allocstring(bytecode_t *bytecode) {
   return buf;
 }
 
-data_t * _bytecode_call(bytecode_t *bc, array_t *args, dict_t *kwargs) {
-  return bytecode_execute(bc,
-			  data_as_vm(data_array_get(args, 0)),
-			  data_array_get(args, 1));
-}
-
 bytecode_t * _bytecode_set_instructions(bytecode_t *bytecode, list_t *block) {
   if (!block) {
     block = bytecode -> main_block;
@@ -96,72 +88,6 @@ void _bytecode_list_block(list_t *block) {
     instr = (data_t *) list_next(block);
     fprintf(stderr, "%s\n", data_tostring(instr));
   }
-}
-
-listnode_t * _bytecode_execute_instruction(data_t *instr, array_t *args) {
-  data_t       *ret = NULL;
-  data_t       *exit_code;
-  char         *label = NULL;
-  listnode_t   *node = NULL;
-  data_t       *scope = data_array_get(args, 0);
-  vm_t         *vm = data_as_vm(data_array_get(args, 1));
-  bytecode_t   *bytecode = data_as_bytecode(data_array_get(args, 2));
-  data_t       *catchpoint = NULL;
-  int           datatype;
-  exception_t  *ex = NULL;
-  data_t       *ex_data;
-  
-  exit_code = data_thread_exit_code();
-
-  /*
-   * Execute the instruction if 
-   *  1. exit() has not been called OR
-   *  2. A context manager's Leave function is being executed OR
-   *  3. This instruction is a Leave instruction
-   */
-  if (!exit_code || 
-      thread_has_status(thread_self(), TSFLeave) || 
-      (instr -> type == ITLeaveContext)) {
-    ret = data_call(instr, args, NULL);
-  }
-  
-  if (!exit_code && ret) {
-    if (data_type(ret) == String) {
-      label = strdup(data_tostring(ret));
-    } else if (data_type(ret) == Exception) {
-      ex =  exception_copy(data_as_exception(ret));
-      if (ex -> code == ErrorExit) {
-        data_thread_set_exit_code(data_copy(ret));
-      }
-    } else {
-      ex_data = data_exception(ErrorInternalError,
-                               "Instruction '%s' returned %s '%s'",
-                               data_tostring(instr),
-                               data_typedescr(ret) -> type_name,
-                               data_tostring(ret));
-      ex = data_as_exception(ex_data);
-    }
-    data_free(ret);
-    if (ex) {
-      ex -> trace = data_create(Stacktrace, stacktrace_create());
-      vm -> exception = data_copy(ret);
-      if (datastack_depth(vm -> contexts)) {
-        catchpoint = datastack_peek(vm -> contexts);
-        label = strdup(data_tostring(data_as_nvp(catchpoint) -> name));
-      } else {
-        node = ProcessEnd;
-      }
-    }
-  }
-  if (label) {
-    if (script_debug) {
-      debug("  Jumping to '%s'", label);
-    }
-    node = (listnode_t *) dict_get(bytecode -> labels, label);
-    assert(node);
-    free(label);
-  }
-  return node;
 }
 
 /* -- P U B L I C  F U N C T I O N S -------------------------------------- */
@@ -303,31 +229,4 @@ void bytecode_list(bytecode_t *bytecode) {
   fprintf(stderr, "// ---------------------------------------------------------------\n");
   _bytecode_list_block(bytecode -> instructions);
   fprintf(stderr, "// ---------------------------------------------------------------\n");
-}
-
-data_t * bytecode_execute(bytecode_t *bytecode, vm_t *vm, data_t *scope) {
-  data_t      *d = data_create(VM, vm);
-  array_t     *args = data_array_create(2);
-  data_t      *ret;
-  exception_t *ex;
-
-  array_push(args, data_copy(scope));
-  array_push(args, data_create(VM, vm));
-  array_push(args, data_create(Bytecode, bytecode));
-  list_process(bytecode -> instructions,
-               (reduce_t) _bytecode_execute_instruction,
-               args);
-
-  if (vm -> exception) {
-    ex = data_as_exception(vm -> exception); 
-    if (ex -> code == ErrorReturn) {
-      ret = (ex -> throwable) ? data_copy(ex -> throwable) : data_create(Int, 0);
-    } else {
-      ret = data_copy(vm -> exception);
-    }
-  } else {
-    ret = (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
-  }
-  array_free(args);
-  return ret;
 }

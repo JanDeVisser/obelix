@@ -48,6 +48,13 @@ typedef struct _list {
   listiterator_t  iter;
 } list_t;
 
+typedef struct _listprocessor {
+  list_t     *list;
+  reduce_t    processor;
+  void       *data;
+  listnode_t *current;
+} listprocessor_t;
+
 extern list_t *         list_create();
 extern list_t *         _list_set_free(list_t *, visit_t);
 extern list_t *         _list_set_cmp(list_t *, cmp_t);
@@ -128,6 +135,15 @@ extern void *           li_next(listiterator_t *);
 extern void *           li_prev(listiterator_t *);
 extern int              li_atstart(listiterator_t *);
 extern int              li_atend(listiterator_t *);
+
+extern listprocessor_t * lp_create(list_t *, reduce_t, void *);
+extern void              lp_free(listprocessor_t *);
+extern void *            lp_run(listprocessor_t *);
+extern listprocessor_t * lp_step(listprocessor_t *);
+extern listprocessor_t * lp_run_to(listprocessor_t *, void *);
+extern int               lp_atstart(listprocessor_t *);
+extern int               lp_atend(listprocessor_t *);
+extern void *            lp_current(listprocessor_t *);
 
 extern listnode_t      *ProcessEnd;
 

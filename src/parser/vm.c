@@ -30,9 +30,9 @@ static void     _vm_init(void) __attribute__((constructor));
 static void     _vm_free(vm_t *);
 static char *   _vm_tostring(vm_t *);
 static data_t * _vm_call(vm_t *, array_t *, dict_t *);
+static vm_t *   _vm_prepare(vm_t *, data_t *);
 
 int VM = -1;
-int vm_debug = 0;
 
 static vtable_t _vtable_vm[] = {
   { .id = FunctionFree,     .fnc = (void_t) _vm_free },
@@ -44,7 +44,6 @@ static vtable_t _vtable_vm[] = {
 /* ------------------------------------------------------------------------ */
 
 void _vm_init(void) {
-  logging_register_category("vm", &vm_debug);
   VM = typedescr_create_and_register(VM, "vm", _vtable_vm, NULL);
 }
 
@@ -64,6 +63,100 @@ char * _vm_tostring(vm_t *vm) {
 
 data_t * _vm_call(vm_t *vm, array_t *args, dict_t *kwargs) {
   return vm_execute(vm, data_array_get(args, 0));
+}
+
+vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
+  char        *str;
+  int          dbg = logging_status("script");
+  data_t      *ret;
+  exception_t *e;
+  
+  if (!vm -> stack) {
+    asprintf(&str, "%s run-time stack", vm_tostring(vm));
+    vm -> stack = datastack_create(vm_tostring(vm -> bytecode));
+    free(str);
+    datastack_set_debug(vm -> stack, dbg);
+  } else {
+    datastack_clear(vm -> stack);
+  }
+  
+  if (!vm -> contexts) {
+    asprintf(&str, "%s contexts", vm_tostring(vm));
+    vm -> contexts = datastack_create(str);
+    free(str);
+    datastack_set_debug(vm -> contexts, dbg);
+  } else {
+    datastack_clear(vm -> contexts);
+  }
+  
+  vm -> processor = NULL;
+  return vm;
+}
+
+listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
+  data_t       *ret = NULL;
+  data_t       *exit_code;
+  char         *label = NULL;
+  listnode_t   *node = NULL;
+  data_t       *scope = data_array_get(args, 0);
+  vm_t         *vm = data_as_vm(data_array_get(args, 1));
+  bytecode_t   *bytecode = data_as_bytecode(data_array_get(args, 2));
+  data_t       *catchpoint = NULL;
+  int           datatype;
+  exception_t  *ex = NULL;
+  data_t       *ex_data;
+  
+  exit_code = data_thread_exit_code();
+  
+  /*
+   * Execute the instruction if 
+   *  1. exit() has not been called OR
+   *  2. A context manager's Leave function is being executed OR
+   *  3. This instruction is a Leave instruction
+   */
+  if (!exit_code || 
+    thread_has_status(thread_self(), TSFLeave) || 
+    (instr -> type == ITLeaveContext)) {
+    ret = data_call(instr, args, NULL);
+    }
+    
+    if (!exit_code && ret) {
+      if (data_type(ret) == String) {
+        label = strdup(data_tostring(ret));
+      } else if (data_type(ret) == Exception) {
+        ex =  exception_copy(data_as_exception(ret));
+        if (ex -> code == ErrorExit) {
+          data_thread_set_exit_code(data_copy(ret));
+        }
+      } else {
+        ex_data = data_exception(ErrorInternalError,
+                                 "Instruction '%s' returned %s '%s'",
+                                 data_tostring(instr),
+                                 data_typedescr(ret) -> type_name,
+                                 data_tostring(ret));
+        ex = data_as_exception(ex_data);
+      }
+      data_free(ret);
+      if (ex) {
+        ex -> trace = data_create(Stacktrace, stacktrace_create());
+        vm -> exception = data_copy(ret);
+        if (datastack_depth(vm -> contexts)) {
+          catchpoint = datastack_peek(vm -> contexts);
+          label = strdup(data_tostring(data_as_nvp(catchpoint) -> name));
+        } else {
+          node = ProcessEnd;
+        }
+      }
+    }
+    if (label) {
+      if (script_debug) {
+        debug("  Jumping to '%s'", label);
+      }
+      node = (listnode_t *) dict_get(bytecode -> labels, label);
+      assert(node);
+      free(label);
+    }
+    return node;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -136,39 +229,55 @@ nvp_t * vm_pop_context(vm_t *vm) {
 }
 
 data_t * vm_execute(vm_t *vm, data_t *scope) {
-  char        *str;
   int          dbg = logging_status("script");
   data_t      *ret;
-  exception_t *e;
+  array_t     *args = data_array_create(3);
+  exception_t *ex;
   
-  if (!vm -> stack) {
-    asprintf(&str, "%s run-time stack", vm_tostring(vm));
-    vm -> stack = datastack_create(vm_tostring(vm -> bytecode));
-    free(str);
-    datastack_set_debug(vm -> stack, dbg);
-  } else {
-    datastack_clear(vm -> stack);
+  ret = vm_initialize(vm, scope);
+  if (!data_is_exception(ret)) {
+    lp_run(vm -> processor);
+    array_free(vm -> processor -> data);
+    lp_free(vm -> processor);
+    vm -> processor = NULL;
+    if (vm -> exception) {
+      ex = data_as_exception(vm -> exception); 
+      if (ex -> code == ErrorReturn) {
+        ret = (ex -> throwable) ? data_copy(ex -> throwable) : data_create(Int, 0);
+      } else {
+        ret = data_copy(vm -> exception);
+      }
+    } else {
+      ret = (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
+    }
+    if (dbg) {
+      debug("    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));
+    }
+    data_thread_pop_stackframe();
   }
+  return ret;
+}
 
-  if (!vm -> contexts) {
-    asprintf(&str, "%s contexts", vm_tostring(vm));
-    vm -> contexts = datastack_create(str);
-    free(str);
-    datastack_set_debug(vm -> contexts, dbg);
-  } else {
-    datastack_clear(vm -> contexts);
-  }
+data_t * vm_initialize(vm_t *vm, data_t *scope) {
+  int              dbg = logging_status("script");
+  data_t          *ret;
+  array_t         *args = data_array_create(3);
+  exception_t     *ex;
   
+  _vm_prepare(vm, scope);
   ret = data_thread_push_stackframe((data_t *) vm);
   if (!data_is_exception(ret)) {
     data_free(vm -> exception);
     vm -> exception = NULL;
-    ret = bytecode_execute(vm -> bytecode, vm, scope);
-    if (dbg) {
-      debug("    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));
-    }
+    array_push(args, data_copy(scope));
+    array_push(args, data_create(VM, vm));
+    array_push(args, data_create(Bytecode, vm -> bytecode));
+    
+    vm -> processor = lp_create(vm -> bytecode -> instructions, 
+                                (reduce_t) _vm_execute_instruction,
+                                args);
+    ret = (data_t *) vm;
   }
-  data_thread_pop_stackframe();
   return ret;
 }
 

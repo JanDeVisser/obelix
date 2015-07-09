@@ -31,7 +31,6 @@
 static void             _scriptloader_init(void) __attribute__((constructor));
 static file_t *         _scriptloader_open_file(scriptloader_t *, char *, module_t *);
 static data_t *         _scriptloader_open_reader(scriptloader_t *, module_t *);
-static scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *, array_t *);
 static data_t *         _scriptloader_get_object(scriptloader_t *, int, ...);
 static data_t *         _scriptloader_set_value(scriptloader_t *, data_t *, char *, data_t *);
 static data_t *         _scriptloader_import_sys(scriptloader_t *, array_t *);
@@ -202,26 +201,6 @@ data_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
   return (data_t *) text;
 }
 
-scriptloader_t * _scriptloader_extend_loadpath(scriptloader_t *loader, array_t *path) {
-  char    *entry;
-  char    *sanitized_entry;
-  int      ix;
-  int      len;
-  
-  for (ix = 0; ix < array_size(path); ix++) {
-    entry = str_array_get(path, ix);
-    len = strlen(entry);
-    sanitized_entry = (char *) new (len + ((*(entry + (len - 1)) != '/') ? 2 : 1));
-    strcpy(sanitized_entry, entry);
-    if (*(sanitized_entry + (strlen(sanitized_entry) - 1)) != '/') {
-      strcat(sanitized_entry, "/");
-    }
-    data_list_push(loader -> load_path, data_create(String, sanitized_entry));
-    free(sanitized_entry);
-  }
-  return loader;
-}
-
 static data_t * _scriptloader_get_object(scriptloader_t *loader, int count, ...) {
   va_list   args;
   int       ix;
@@ -270,7 +249,7 @@ static data_t * _scriptloader_import_sys(scriptloader_t *loader,
   sys = scriptloader_import(loader, name);
   name_free(name);
   if (!data_is_exception(sys)) {
-    _scriptloader_extend_loadpath(loader, user_path);
+    scriptloader_extend_loadpath(loader, user_path);
     ret = _scriptloader_set_value(loader, sys, "path", 
                                   data_copy(loader -> load_path));
     data_free(sys);
@@ -406,6 +385,30 @@ long scriptloader_get_option(scriptloader_t *loader, obelix_option_t option) {
   
   opt = data_array_get(loader -> options, (int) option);
   return data_intval(opt);
+}
+
+scriptloader_t * scriptloader_add_loadpath(scriptloader_t *loader, char *pathentry) {
+  char *sanitized_entry;
+  int   len;
+  
+  len = strlen(pathentry);
+  sanitized_entry = (char *) new (len + ((*(pathentry + (len - 1)) != '/') ? 2 : 1));
+  strcpy(sanitized_entry, pathentry);
+  if (*(sanitized_entry + (strlen(sanitized_entry) - 1)) != '/') {
+    strcat(sanitized_entry, "/");
+  }
+  data_list_push(loader -> load_path, data_create(String, sanitized_entry));
+  free(sanitized_entry);
+  return loader;
+}
+
+scriptloader_t * scriptloader_extend_loadpath(scriptloader_t *loader, array_t *path) {
+  int ix;
+  
+  for (ix = 0; ix < array_size(path); ix++) {
+    scriptloader_add_loadpath(loader, str_array_get(path, ix));
+  }
+  return loader;
 }
 
 data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, data_t *reader) {

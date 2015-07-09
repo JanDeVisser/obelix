@@ -30,8 +30,6 @@
 extern "C" {
 #endif /* __cplusplus */
 
-struct _vm;
-
 typedef struct _bytecode {
   data_t       _d;
   data_t      *owner;
@@ -50,7 +48,6 @@ extern int bytecode_debug;
 extern bytecode_t * bytecode_create(data_t *owner);
 extern void         bytecode_free(bytecode_t *);
 extern char *       bytecode_tostring(bytecode_t *);
-extern data_t *     bytecode_execute(bytecode_t *, struct _vm *, data_t *);
 extern bytecode_t * bytecode_push_instruction(bytecode_t *, data_t *);
 extern bytecode_t * bytecode_start_deferred_block(bytecode_t *);
 extern bytecode_t * bytecode_end_deferred_block(bytecode_t *);

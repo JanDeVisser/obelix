@@ -19,3 +19,5 @@ re
 readfile
 range
 subscript
+async
+pass

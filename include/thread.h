@@ -42,6 +42,7 @@ typedef struct _thread {
   int              status;
   data_t          *exit_code;
   char            *name;
+  int              _errno;
 } thread_t;
 
 typedef void * (*threadproc_t)(void *);

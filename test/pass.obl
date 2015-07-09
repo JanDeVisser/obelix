@@ -2,3 +2,11 @@ print("1")
 pass
 print("2");
 print("3")
+/* EXPECTED
+--exit-- 0
+--stdout--
+1
+2
+3
+--
+EXPECTED */

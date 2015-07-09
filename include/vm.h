@@ -34,12 +34,13 @@ extern "C" {
 #define NUM_STASHES     8
   
 typedef struct _vm {
-  data_t       _d;
-  data_t      *stashes[NUM_STASHES];
-  bytecode_t  *bytecode;
-  data_t      *exception;
-  datastack_t *stack;
-  datastack_t *contexts;
+  data_t           _d;
+  data_t          *stashes[NUM_STASHES];
+  bytecode_t      *bytecode;
+  data_t          *exception;
+  datastack_t     *stack;
+  datastack_t     *contexts;
+  listprocessor_t *processor;
 } vm_t;
 
 extern vm_t *   vm_create(bytecode_t *);
@@ -52,6 +53,7 @@ extern nvp_t *  vm_push_context(vm_t *, char *, data_t *);
 extern nvp_t *  vm_peek_context(vm_t *);
 extern nvp_t *  vm_pop_context(vm_t *);
 extern data_t * vm_execute(vm_t *, data_t *);
+extern data_t * vm_initialize(vm_t *, data_t *);
 
 extern int VM;
 

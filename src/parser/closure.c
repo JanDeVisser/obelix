@@ -179,8 +179,7 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
     debug("Creating closure for script '%s'", script_tostring(script));
   }
   
-  ret = NEW(closure_t);
-  data_settype(&ret -> _d, Closure);
+  ret = data_new(Closure, closure_t);
   ret -> script = script_copy(script);
   ret -> bytecode = bytecode_copy(script -> bytecode);
 
@@ -318,9 +317,9 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   }
   
   if (script -> async) {
-    return data_create(Thread, closure_tostring(closure),
-                               (threadproc_t) _closure_start,
-                               closure_copy(closure));
+    return (data_t *) thread_new(closure_tostring(closure),
+                                 (threadproc_t) _closure_start,
+                                 closure_copy(closure));
   } else {
     return _closure_start(closure);
   }

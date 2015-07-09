@@ -248,21 +248,11 @@ list_t * _list_visit(list_t *list, visit_t visitor) {
 }
 
 void * _list_process(list_t *list, reduce_t reducer, void *data) {
-  listnode_t *node;
-  void       *elem;
-  listnode_t *next;
-
-  node = list_head_pointer(list);
-  while (node && (node != ProcessEnd) && _ln_datanode(node)) {
-    elem = node -> data;
-    next = (listnode_t *) reducer(elem, data);
-    if (next) {
-      node = next;
-    } else {
-      node = node -> next;
-    }
-  }
-  return data;
+  listprocessor_t *lp = lp_create(list, reducer, data);
+  void            *ret = lp_run(lp);
+  
+  lp_free(lp);
+  return ret;
 }
 
 list_t * list_clear(list_t *list) {
@@ -548,4 +538,62 @@ int li_atstart(listiterator_t *iter) {
 
 int li_atend(listiterator_t *iter) {
   return !iter -> current -> next;
+}
+
+/* -- L I S T P R O C E S S O R ------------------------------------------- */
+
+listprocessor_t * lp_create(list_t *list, reduce_t processor, void *data) {
+  listprocessor_t *ret = NEW(listprocessor_t);
+  
+  ret -> list = list;
+  ret -> processor = processor;
+  ret -> data = data;
+  return ret;
+}
+
+void lp_free(listprocessor_t *lp) {
+  if (lp) {
+    free(lp);
+  }
+}
+
+void * lp_run(listprocessor_t *lp) {
+  lp -> current = NULL;
+  while (lp_step(lp));
+  return lp -> data;
+}
+
+listprocessor_t * lp_step(listprocessor_t *lp) {
+  void       *elem;
+  listnode_t *next;
+  
+  if (lp_atstart(lp)) {
+    lp -> current = list_head_pointer(lp -> list);
+  }
+  if (!lp_atend(lp)) {
+    elem = lp -> current -> data;
+    next = (listnode_t *) (lp -> processor)(elem, lp -> data);
+    if (next) {
+      lp -> current = next;
+    } else {
+      lp -> current = lp -> current -> next;
+    }
+    return lp;
+  } else {
+    return NULL;
+  }
+}
+
+int lp_atstart(listprocessor_t *lp) {
+  return lp -> current == NULL;
+}
+
+int lp_atend(listprocessor_t *lp) {
+  return lp -> current && 
+         ((lp -> current == ProcessEnd) || 
+          !_ln_datanode(lp -> current));
+}
+
+void * lp_current(listprocessor_t *lp) {
+  return (!lp_atstart(lp) && !lp_atend(lp)) ? lp -> current -> data : NULL;
 }

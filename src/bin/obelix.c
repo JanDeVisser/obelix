@@ -147,13 +147,26 @@ int run_from_cmdline(cmdline_args_t *args) {
   return retval;
 }
 
-data_t * _run_script(scriptloader_t *loader, cmdline_args_t *args, char *cmd, socket_t *client) {
+typedef struct _oblserver {
+  scriptloader_t *loader;
+  cmdline_args_t *args;
+  socket_t       *socket;
+} oblserver_t;
+
+oblserver_t * oblserver_path(oblserver_t *server, char *path) {
+  array_t *loadpath = array_split(path, ":");
+  
+  scriptloader_extend_loadpath(server -> loader, loadpath);
+  array_free(loadpath);
+  return server;
+}
+
+data_t * oblserver_run(oblserver_t *server, char *cmd) {
   array_t     *line = array_split(cmd, " ");
   char        *script;
   name_t      *name;
   int          ix;
   array_t     *obl_argv;
-  data_t      *real_ret;
   data_t      *ret;
   exception_t *ex;
   
@@ -162,39 +175,50 @@ data_t * _run_script(scriptloader_t *loader, cmdline_args_t *args, char *cmd, so
     name = build_name(script);
     obl_argv = array_slice(line, 1, array_size(line));
     
-    ret = scriptloader_run(loader, name, obl_argv, NULL);
-    real_ret = ret;
+    ret = scriptloader_run(server -> loader, name, obl_argv, NULL);
     if (script_debug) {
       debug("Exiting with exit code %s [%s]", data_tostring(ret), data_typename(ret));
     }
     if ((ex = data_as_exception(ret)) && (ex -> code == ErrorExit)) {
-      data_free(ret);
-      ret = ex -> throwable;
+      ret = data_copy(ex -> throwable);
+      exception_free(ex);
     }
-    file_printf(client -> sockfile, "[%s] %s\n", data_typename(ret), data_tostring(ret));
-    data_free(real_ret);
   }
   array_free(line);
+  return ret;
 }
 
 void * _connection_handler(connection_t *connection) {
   cmdline_args_t *args = (cmdline_args_t *) connection -> context;
-  socket_t       *client = (socket_t *) connection -> client;
+  socket_t       *client;
   array_t        *path;
   name_t         *name;
   scriptloader_t *loader;
   char           *cmd;
+  data_t         *ret;
+  oblserver_t     server;
   
-  loader = _create_loader(args);
-  if (loader) {
-    file_printf(client -> sockfile, "Obelix 0,1\n");
+  memset(&server, 0, sizeof(oblserver_t));
+  server.args = args;
+  server.socket = (socket_t *) connection -> client;
+  server.loader = _create_loader(args);
+  if (server.loader) {
+    file_printf(client -> sockfile, "Obelix 0.1\n");
     do {
       file_printf(client -> sockfile, "READY\n");
       cmd = file_readline(client -> sockfile);
-      if (!strncmp(cmd, "RUN ", 4)) {
-        _run_script(loader, args, cmd + 4, client);
+      if (!strncmp(cmd, "PATH ", 5)) {
+        oblserver_path(&server, cmd + 5);
+      } else if (!strncmp(cmd, "RUN ", 4)) {
+        ret = oblserver_run(&server, cmd + 4);
+        file_printf(server.socket -> sockfile, "%s:%s\n", data_typename(ret), data_tostring(ret));
+        data_free(ret);
+      } else if (!strcmp(cmd, "QUIT")) {
+        break;
       }
     } while (0);
+    socket_free(server.socket);
+    scriptloader_free(server.loader);
   }
   return connection;
 }
