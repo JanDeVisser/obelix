@@ -2,5 +2,9 @@
 o = { foo: "bar", quux: true }
 
 if o.hasattr("quux") and o.quux
-  print("Quux: ${0}", o.quux)
+  print("o has quux: ${0}", o.quux)
+end
+
+if not(o.hasattr("bar"))
+  print("o does not have bar")
 end

@@ -72,8 +72,7 @@ extern int ITTest;
 extern int ITThrow;
 extern int ITUnstash;
 
-
-struct _closure;
+extern void            instruction_trace(char *, char *, ...);
 
 extern data_t *        instruction_create_enter_context(name_t *, data_t *);
 extern data_t *        instruction_create_function(name_t *, callflag_t, long, array_t *);

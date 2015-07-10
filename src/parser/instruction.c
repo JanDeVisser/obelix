@@ -38,6 +38,7 @@ extern int script_debug;
 
 static void             _instruction_init(void) __attribute__((constructor(102)));
 static int              _instruction_type_register(char *, int, vtable_t *);
+static void             _instruction_tracemsg(char *, ...);
 
 static data_t *         _instr_new(int, va_list);
 static void             _instr_free(instruction_t *);
@@ -138,10 +139,9 @@ data_t * _instruction_call_ ## t(data_t *data, array_t *p, dict_t *kw) {     \
   if (script_debug) {                                                        \
     debug("Executing %s", instruction_tostring(instr));                      \
   }                                                                          \
-  if (script_trace) {                                                        \
-    fprintf(stderr, "%-60.60s%s\n",                                          \
-            instruction_tostring(instr), data_tostring(scope));              \
-  }                                                                          \
+  _instruction_tracemsg("%-60.60s%s",                                        \
+                        instruction_tostring(instr),                         \
+                        data_tostring(scope));                               \
   return _instruction_execute_ ## t(instr, scope, vm, bytecode);             \
 }
 
@@ -223,6 +223,30 @@ int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
   td.inherits[2] = NoType;
   td.vtable = vtable;
   return typedescr_register(&td);
+}
+
+void _instruction_tracemsg(char *fmt, ...) {
+  va_list  args;
+  
+  if (script_trace) {
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    va_end(args);
+  }
+}
+
+void instruction_trace(char *op, char *fmt, ...) {
+  va_list  args;
+  char    *buf;
+  
+  if (script_trace) {
+    va_start(args, fmt);
+    vasprintf(&buf, fmt, args);
+    va_end(args);
+    _instruction_tracemsg("%-16.16s%s", op, buf);
+    free(buf);
+  }
 }
 
 /* ----------------------------------------------------------------------- */
@@ -631,12 +655,10 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
 	  (args) ? array_tostring(args) : "[]",
 	  (kwargs) ? dict_tostring(kwargs) : "{}");
   }
-  if (script_trace) {
-    fprintf(stderr, "%-16.16s[%s].%s(%s, %s)\n", "Calling",
-            data_tostring(self), name_tostring(name),
-            (args) ? array_tostring(args) : "[]",
-            (kwargs) ? dict_tostring(kwargs) : "{}");
-  }
+  instruction_trace("Calling", "[%s].%s(%s, %s)",
+                    data_tostring(self), name_tostring(name),
+                    (args) ? array_tostring(args) : "[]",
+                    (kwargs) ? dict_tostring(kwargs) : "{}");
   ret = data_invoke(self, name, args, kwargs);
   name_free(name);
   array_free(args);
