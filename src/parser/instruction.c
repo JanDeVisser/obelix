@@ -149,7 +149,7 @@ InstructionType(Assign,       Value);
 InstructionType(Decr,         Name);
 InstructionType(Dup,          Name);
 InstructionType(EnterContext, Name);
-InstructionType(FunctionCall, Value);
+InstructionType(FunctionCall, NameValue);
 InstructionType(Incr,         Name);
 InstructionType(Iter,         Name);
 InstructionType(Jump,         Name);
@@ -159,7 +159,8 @@ InstructionType(Nop,          ValueOrName);
 InstructionType(Pop,          Name);
 InstructionType(PushCtx,      Name);
 InstructionType(PushVal,      Value);
-InstructionType(PushVar,      Value);
+InstructionType(Deref,        Value);
+InstructionType(PushScope,    Name);
 InstructionType(Return,       Name);
 InstructionType(Stash,        Value);
 InstructionType(Subscript,    Name);
@@ -168,18 +169,10 @@ InstructionType(Test,         Name);
 InstructionType(Throw,        Name);
 InstructionType(Unstash,      Value);
 
-typedef struct _function_call {
-  data_t      _d;
-  name_t     *name;
-  callflag_t  flags;
-  int         arg_count;
-  array_t    *kwargs;
-  char       *str;
-} function_call_t;
-
 static function_call_t * _call_new(int, va_list);
 static void              _call_free(function_call_t *);
 static char *            _call_allocstring(function_call_t *);
+static dict_t *          _call_build_kwargs(function_call_t *, vm_t *);
 
 static int Call = -1;
 
@@ -198,7 +191,7 @@ static name_t *name_self = NULL;
 void _instruction_init(void) {
   int         ix;
   typedescr_t type;
-  
+
   logging_register_category("trace", &script_trace);
 
   Instruction = typedescr_register(&_typedescr_instruction);
@@ -214,7 +207,7 @@ void _instruction_init(void) {
 
 int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
   typedescr_t td;
-  
+
   memset(&td, 0, sizeof(typedescr_t));
   td.type = -1;
   td.type_name = name;
@@ -227,7 +220,7 @@ int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
 
 void _instruction_tracemsg(char *fmt, ...) {
   va_list  args;
-  
+
   if (script_trace) {
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
@@ -239,7 +232,7 @@ void _instruction_tracemsg(char *fmt, ...) {
 void instruction_trace(char *op, char *fmt, ...) {
   va_list  args;
   char    *buf;
-  
+
   if (script_trace) {
     va_start(args, fmt);
     vasprintf(&buf, fmt, args);
@@ -256,7 +249,6 @@ function_call_t * _call_new(int type, va_list arg) {
   array_t         *kwargs;
 
   call = data_new(Call, function_call_t);
-  call -> name = name_copy(va_arg(arg, name_t *));
   call -> flags = va_arg(arg, int);
   call -> arg_count = va_arg(arg, int);
   kwargs = va_arg(arg, array_t *);
@@ -266,7 +258,6 @@ function_call_t * _call_new(int type, va_list arg) {
 
 void _call_free(function_call_t *call) {
   if (call) {
-    name_free(call -> name);
     array_free(call -> kwargs);
     free(call);
   }
@@ -274,12 +265,61 @@ void _call_free(function_call_t *call) {
 
 char * _call_allocstring(function_call_t *call) {
   char *buf;
-  
-  asprintf(&buf, "%s(argv[%d], %s)", 
-           name_tostring(call -> name),
-           call -> arg_count, 
-           (call -> kwargs) ? array_tostring(call -> kwargs) : "");
+
+  asprintf(&buf, "(argv[%d]%s%s)",
+           call -> arg_count,
+           (call -> kwargs && array_size(call -> kwargs)) ? ", " : "",
+           (call -> kwargs && array_size(call -> kwargs)) ? array_tostring(call -> kwargs) : "");
   return buf;
+}
+
+dict_t * _call_build_kwargs(function_call_t *call, vm_t *vm) {
+  int     num;
+  dict_t *ret = NULL;
+  data_t *value;
+  int     ix;
+  data_t *arg_name;
+
+  num = (call -> kwargs) ? array_size(call -> kwargs) : 0;
+  if (script_debug) {
+    debug(" -- #kwargs: %d", num);
+  }
+  if (num) {
+    ret = strdata_dict_create();
+    for (ix = 0; ix < num; ix++) {
+      value = vm_pop(vm);
+      assert(value);
+      arg_name = data_array_get(call -> kwargs, num - ix - 1);
+      dict_put(ret, strdup(data_tostring(arg_name)), value);
+    }
+  }
+  return ret;
+}
+
+array_t * _call_build_args(function_call_t *call, vm_t *vm) {
+  int      num;
+  array_t *ret = NULL;
+  data_t  *value;
+  int      ix;
+
+  num = call -> arg_count;
+  if (call -> flags & CFVarargs) {
+    value = vm_pop(vm);
+    num += data_intval(value);
+    data_free(value);
+  }
+  if (script_debug) {
+    debug(" -- #arguments: %d", num);
+  }
+  if (num) {
+    ret = data_array_create(num);
+    for (ix = 0; ix < num; ix++) {
+      value = vm_pop(vm);
+      assert(value);
+      array_set(ret, num - ix - 1, value);
+    }
+  }
+  return ret;
 }
 
 /* -- T O _ S T R I N G  F U N C T I O N S -------------------------------- */
@@ -299,7 +339,7 @@ char * _instruction_tostring_name(data_t *data) {
 
 char * _instruction_tostring_value(data_t *data) {
   instruction_t *instruction = data_as_instruction(data);
-  
+
   _instruction_tostring(instruction, data_tostring(instruction -> value));
   return NULL;
 }
@@ -311,8 +351,8 @@ char * _instruction_tostring_name_value(data_t *data) {
   char *free_me = NULL;
 
   if (v && strlen(v)) {
-    asprintf(&free_me, "%s, %s", 
-             v, _instruction_name(data));
+    asprintf(&free_me, "%s%s",
+             _instruction_name(data), v);
     s = free_me;
   } else {
     s = _instruction_tostring_name(data);
@@ -336,15 +376,15 @@ char * _instruction_tostring_value_or_name(data_t *data) {
 char * _instruction_tostring(instruction_t *instruction, char *s) {
   char *lbl;
   char  line[7];
-  
+
   if (instruction -> line > 0) {
     snprintf(line, 7, "%6d", instruction -> line);
   } else {
     line[0] = 0;
   }
-  asprintf(&instruction -> _d.str, "%-6s %-11.11s%-15.15s%-27.27s", 
+  asprintf(&instruction -> _d.str, "%-6s %-11.11s%-15.15s%-27.27s",
            line,
-           instruction -> label, 
+           instruction -> label,
            data_typedescr((data_t *) instruction) -> type_name,
            (s) ? s : "");
   return NULL;
@@ -355,7 +395,7 @@ char * _instruction_tostring(instruction_t *instruction, char *s) {
 data_t * _instruction_get_variable(instruction_t *instr, data_t *scope) {
   name_t *path = data_as_name(instr -> value);
   data_t *variable = NULL;
-  
+
   if (path && name_size(path)) {
     variable = data_get(scope, path);
     if (script_debug) {
@@ -388,12 +428,13 @@ data_t * _instruction_execute_Assign(instruction_t *instr, data_t *scope, vm_t *
   return (data_is_unhandled_exception(ret)) ? ret : NULL;
 }
 
-data_t * _instruction_execute_PushVar(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+data_t * _instruction_execute_Deref(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value;
   data_t *ret;
+  data_t *start_obj = vm_pop(vm);
   name_t *path = data_as_name(instr -> value);
-  
-  value = _instruction_get_variable(instr, scope);
+
+  value = _instruction_get_variable(instr, start_obj);
   if (data_is_unhandled_exception(value)) {
     ret = value;
   } else {
@@ -431,6 +472,11 @@ data_t * _instruction_execute_Subscript(instruction_t *instr, data_t *scope, vm_
   return NULL;
 }
 
+data_t * _instruction_execute_PushScope(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+  vm_push(vm, scope);
+  return NULL;
+}
+
 /* -- E X C E P T I O N  H A N D L I N G ---------------------------------- */
 
 data_t * _instruction_execute_EnterContext(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
@@ -438,7 +484,7 @@ data_t * _instruction_execute_EnterContext(instruction_t *instr, data_t *scope, 
   data_t     *ret = NULL;
   data_t *  (*fnc)(data_t *);
   vm_t       *v;
-  
+
   context = _instruction_get_variable(instr, scope);
   if (context && data_hastype(context, CtxHandler)) {
     fnc = (data_t * (*)(data_t *)) data_get_function(context, FunctionEnter);
@@ -467,7 +513,7 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
   data_t      *cp_data;
   thread_t    *thread;
   int          is_leaving;
-  
+
   error = vm -> exception;
   if (data_is_exception(error)) {
     e = data_as_exception(error);
@@ -482,7 +528,7 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
     if (context && data_hastype(context, CtxHandler)) {
       fnc = (data_t * (*)(data_t *, data_t *)) data_get_function(context, FunctionLeave);
       if (fnc) {
-        if (e && (e -> code != ErrorLeave) 
+        if (e && (e -> code != ErrorLeave)
               && (e -> code != ErrorReturn)) {
           param = data_copy(error);
         } else {
@@ -504,7 +550,7 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
   }
   if (e && ((e -> code == ErrorExit) || (e -> code == ErrorReturn))) {
     /*
-    * If the error is ErrorExit or ErrorReturn  needs to be bubbled up, and we 
+    * If the error is ErrorExit or ErrorReturn  needs to be bubbled up, and we
     * really don't care what else happens.
     */
     ret = data_copy(error);
@@ -530,7 +576,7 @@ data_t * _instruction_execute_Throw(instruction_t *instr, data_t *scope, vm_t *v
 data_t * _instruction_execute_Return(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t      *retval = vm_pop(vm);
   exception_t *ex;
-  
+
   ex = exception_create(ErrorReturn, "Return Value");
   ex -> throwable = retval;
   return data_create(Exception, ex);
@@ -542,7 +588,7 @@ data_t * _instruction_execute_PushCtx(instruction_t *instr, data_t *scope, vm_t 
   data_t *cp_data;
   data_t *context;
   nvp_t  *cp;
-  
+
   if (datastack_depth(vm -> contexts)) {
     cp = vm_peek_context(vm);
     context = data_copy(cp -> value);
@@ -561,38 +607,26 @@ data_t * _instruction_execute_PushVal(instruction_t *instr, data_t *scope, vm_t 
   return NULL;
 }
 
-name_t * _instruction_setup_constructor(data_t *scope, 
+data_t * _instruction_setup_constructor(data_t *callable, data_t *scope,
                                         function_call_t *constructor) {
   data_t         *self;
   object_t       *obj;
-  data_t         *s = NULL;
   script_t       *script;
   data_t         *dscript;
-  bound_method_t *bm = NULL;
-  char           *name;
-  char           *ptr;
-  name_t         *ret = NULL;
-  
+  data_t         *ret;
+
   self = data_get(scope, name_self);
   if (data_is_object(self)) {
     obj = data_as_object(self);
-    s = data_resolve(scope, constructor -> name);
-    if (data_is_script(s)) {
-      script = data_as_script(s);
-    } else if (data_is_bound_method(s)) {
-      script = data_as_bound_method(s) -> script;
-    } else if (data_is_closure(s)) {
-      script = data_as_closure(s) -> script;
+    if (data_is_script(callable)) {
+      script = data_as_script(callable);
+    } else if (data_is_bound_method(callable)) {
+      script = data_as_bound_method(callable) -> script;
+    } else if (data_is_closure(callable)) {
+      script = data_as_closure(callable) -> script;
     }
     if (script) {
-      asprintf(&name, "$%s", name_tostring(constructor -> name));
-      for (ptr = strchr(name, '.'); ptr; ptr = strchr(ptr + 1, '.')) {
-        *ptr = '_';
-      }
-      ret = name_create(1, name);
-      free(name);
-      data_set(scope, ret, 
-               data_create(BoundMethod, script_bind(script, obj)));
+      ret = data_create(BoundMethod, script_bind(script, obj));
       object_bind_all(obj, dscript = data_create(Script, script));
       data_free(dscript);
     }
@@ -602,92 +636,69 @@ name_t * _instruction_setup_constructor(data_t *scope,
 
 data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   function_call_t *call = (function_call_t *) instr -> value;
-  data_t          *value;
   data_t          *ret = NULL;
-  data_t          *self;
-  data_t          *arg_name;
+  data_t          *callable;
   dict_t          *kwargs = NULL;
   array_t         *args = NULL;
-  int              ix;
-  int              num;
-  name_t          *name;
-  
-  num = (call -> kwargs) ? array_size(call -> kwargs) : 0;
-  if (script_debug) {
-    debug(" -- #kwargs: %d", num);
+
+  if (call -> flags & CFInfix) {
+    callable = vm_pop(vm);
   }
-  if (num) {
-    kwargs = strdata_dict_create();
-    for (ix = 0; ix < num; ix++) {
-      value = vm_pop(vm);
-      assert(value);
-      arg_name = data_array_get(call -> kwargs, num - ix - 1);
-      dict_put(kwargs, strdup(data_tostring(arg_name)), value);
-    }
+  kwargs = _call_build_kwargs(call, vm);
+  args = _call_build_args(call, vm);
+  if (!(call -> flags & CFInfix)) {
+    callable = vm_pop(vm);
   }
 
-  num = call -> arg_count;
-  if (call -> flags & CFVarargs) {
-    value = vm_pop(vm);
-    num += data_intval(value);
-    data_free(value);    
-  }
-  if (script_debug) {
-    debug(" -- #arguments: %d", num);
-  }
-  if (num) {
-    args = data_array_create(num);
-    for (ix = 0; ix < num; ix++) {
-      value = vm_pop(vm);
-      assert(value);
-      array_set(args, num - ix - 1, value);
-    }
-  }
-  self = (call -> flags & CFInfix) ? NULL : scope;
   if (call -> flags & CFConstructor) {
-    name = _instruction_setup_constructor(self, call);
+    callable = _instruction_setup_constructor(callable, scope, call);
+  }
+  if (!data_is_callable(callable)) {
+    ret = data_exception(ErrorNotCallable,
+                         "Atom '%s' is not callable",
+                         data_tostring(callable));
   } else {
-    name = name_copy(call -> name);
-  }
-  if (script_debug) {
-    debug(" -- Calling [%s].%s(%s, %s)",
-	  data_tostring(self), name_tostring(name),
-	  (args) ? array_tostring(args) : "[]",
-	  (kwargs) ? dict_tostring(kwargs) : "{}");
-  }
-  instruction_trace("Calling", "[%s].%s(%s, %s)",
-                    data_tostring(self), name_tostring(name),
-                    (args) ? array_tostring(args) : "[]",
-                    (kwargs) ? dict_tostring(kwargs) : "{}");
-  ret = data_invoke(self, name, args, kwargs);
-  name_free(name);
-  array_free(args);
-  dict_free(kwargs);
-  if (ret) {
-    if (data_is_exception(ret)) {
-      if (script_debug) {
-        debug(" -- exception '%s' thrown",
-              data_tostring(ret));
+    if (script_debug) {
+      debug(" -- Calling %s(%s, %s)",
+            instr -> name,
+            data_tostring(callable),
+            (args) ? array_tostring(args) : "[]",
+            (kwargs) ? dict_tostring(kwargs) : "{}");
+    }
+    instruction_trace("Calling", "%s(%s, %s)",
+                      instr -> name,
+                      (args) ? array_tostring(args) : "[]",
+                      (kwargs) ? dict_tostring(kwargs) : "{}");
+    ret = data_call(callable, args, kwargs);
+    if (ret) {
+      if (data_is_exception(ret)) {
+        if (script_debug) {
+          debug(" -- exception '%s' thrown",
+                data_tostring(ret));
+        }
+      } else {
+        if (script_debug) {
+          debug(" -- return value '%s' [%s]",
+                data_tostring(ret), data_typename(ret));
+        }
+        vm_push(vm, ret);
+        ret = NULL;
       }
     } else {
       if (script_debug) {
-	debug(" -- return value '%s' [%s]",
-	      data_tostring(ret), data_typename(ret));
+        debug(" -- return value NULL");
       }
-      vm_push(vm, ret);
-      ret = NULL;
-    }
-  } else {
-    if (script_debug) {
-      debug(" -- return value NULL");
     }
   }
+  data_free(callable);
+  array_free(args);
+  dict_free(kwargs);
   return ret;
 }
 
 data_t * _instruction_execute_Decr(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value = vm_pop(vm);
-  
+
   vm_push(vm, data_create(Int, data_intval(value) - 1));
   data_free(value);
   return NULL;
@@ -695,7 +706,7 @@ data_t * _instruction_execute_Decr(instruction_t *instr, data_t *scope, vm_t *vm
 
 data_t * _instruction_execute_Incr(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value = vm_pop(vm);
-  
+
   vm_push(vm, data_create(Int, data_intval(value) + 1));
   data_free(value);
   return NULL;
@@ -708,11 +719,18 @@ data_t * _instruction_execute_Jump(instruction_t *instr, data_t *scope, vm_t *vm
   return data_create(String, instr -> name);
 }
 
+/**
+ * Executes a Test instruction. Pops the top entry off the VM stack and casts
+ * it to the Bool data type. If this casted value is equal to bool:False, a jump
+ * to the instruction's label field is indicated. If the popped value cannot be
+ * converted to Bool, an exception is thrown. If the casted value is bool:True,
+ * no jump is indicated.
+ */
 data_t * _instruction_execute_Test(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *ret;
   data_t *value;
   data_t *casted = NULL;
- 
+
   value = vm_pop(vm);
   assert(value);
   assert(instr -> name);
@@ -734,7 +752,7 @@ data_t * _instruction_execute_Iter(instruction_t *instr, data_t *scope, vm_t *vm
   data_t *value;
   data_t *iter;
   data_t *ret = NULL;
-  
+
   value = vm_pop(vm);
   iter = data_iter(value);
   if (data_is_exception(iter)) {
@@ -750,11 +768,11 @@ data_t * _instruction_execute_Next(instruction_t *instr, data_t *scope, vm_t *vm
   data_t  *ret = NULL;
   data_t  *iter;
   data_t  *next;
- 
+
   iter = vm_pop(vm);
   assert(iter);
   assert(instr -> name);
-  
+
   next = data_next(iter);
   if (data_is_exception(next) && (data_as_exception(next) -> code == ErrorExhausted)) {
     data_free(iter);
@@ -840,18 +858,18 @@ data_t *  instruction_create_enter_context(name_t *varname, data_t *catchpoint) 
   if (!varname) {
     varname = name_empty;
   }
-  return data_create(ITEnterContext, 
+  return data_create(ITEnterContext,
                      data_tostring(catchpoint),
-                     data_create(Name, varname));    
+                     data_create(Name, varname));
 }
 
-data_t * instruction_create_function(name_t *name, callflag_t flags, 
+data_t * instruction_create_function(name_t *name, callflag_t flags,
                                      long num_args, array_t *kwargs) {
   data_t *ret;
   data_t *call;
 
-  call = data_create(Call, name, flags, num_args, kwargs);
-  ret = data_create(ITFunctionCall, name_tostring(name), call);
+  call = data_create(Call, flags, num_args, kwargs);
+  ret = data_create(ITFunctionCall, name_last(name), call);
   return ret;
 }
 

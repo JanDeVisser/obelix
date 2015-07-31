@@ -221,11 +221,11 @@ int name_size(name_t *name) {
 }
 
 char * name_first(name_t *name) {
-  return (name_size(name) > 0) ? str_array_get(name -> name, 0) : NULL;
+  return (name && (name_size(name) > 0)) ? str_array_get(name -> name, 0) : NULL;
 }
 
 char * name_last(name_t *name) {
-  return (name_size(name) > 0) ? str_array_get(name -> name, -1) : NULL;
+  return (name && (name_size(name) > 0)) ? str_array_get(name -> name, -1) : NULL;
 }
 
 char * name_get(name_t *name, int ix) {

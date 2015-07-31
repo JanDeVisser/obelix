@@ -27,7 +27,7 @@
 #ifdef  __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-    
+
 typedef struct _instruction {
   data_t    _d;
   int       line;
@@ -42,6 +42,15 @@ typedef enum _callflag {
   CFConstructor = 0x0002,
   CFVarargs     = 0x0004
 } callflag_t;
+
+typedef struct _function_call {
+  data_t      _d;
+  name_t     *name;
+  callflag_t  flags;
+  int         arg_count;
+  array_t    *kwargs;
+  char       *str;
+} function_call_t;
 
 extern int Instruction;
 extern int ITByValue;
@@ -63,7 +72,8 @@ extern int ITNop;
 extern int ITPop;
 extern int ITPushCtx;
 extern int ITPushVal;
-extern int ITPushVar;
+extern int ITDeref;
+extern int ITPushScope;
 extern int ITReturn;
 extern int ITStash;
 extern int ITSubscript;
@@ -98,8 +108,9 @@ extern instruction_t * instruction_set_label(instruction_t *, data_t *);
 #define instruction_create_next(n)          ((data_t *) data_create(ITNext, data_tostring((n)), NULL))
 #define instruction_create_pop()            ((data_t *) data_create(ITPop, NULL, NULL))
 #define instruction_create_pushctx()        ((data_t *) data_create(ITPushCtx, NULL, NULL))
+#define instruction_create_pushscope()      ((data_t *) data_create(ITPushScope, NULL, NULL))
 #define instruction_create_pushval(v)       ((data_t *) data_create(ITPushVal, NULL, data_copy((v))))
-#define instruction_create_pushvar(n)       ((data_t *) data_create(ITPushVar, name_tostring((n)), data_create(Name, (n))))
+#define instruction_create_deref(n)         ((data_t *) data_create(ITDeref, name_tostring((n)), data_create(Name, (n))))
 #define instruction_create_return()         ((data_t *) data_create(ITReturn, NULL, NULL))
 #define instruction_create_stash(s)         ((data_t *) data_create(ITStash, NULL, data_create(Int, (s))))
 #define instruction_create_swap()           ((data_t *) data_create(ITSwap, NULL, NULL))

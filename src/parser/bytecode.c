@@ -68,7 +68,7 @@ void _bytecode_free(bytecode_t *bytecode) {
 
 char * _bytecode_allocstring(bytecode_t *bytecode) {
   char *buf;
-  
+
   asprintf(&buf, "Bytecode for %s", data_tostring(bytecode -> owner));
   return buf;
 }
@@ -83,7 +83,7 @@ bytecode_t * _bytecode_set_instructions(bytecode_t *bytecode, list_t *block) {
 
 void _bytecode_list_block(list_t *block) {
   data_t *instr;
-  
+
   for (list_start(block); list_has_next(block); ) {
     instr = (data_t *) list_next(block);
     fprintf(stderr, "%s\n", data_tostring(instr));
@@ -94,13 +94,13 @@ void _bytecode_list_block(list_t *block) {
 
 bytecode_t * bytecode_create(data_t *owner) {
   bytecode_t *ret;
-  
+
   if (bytecode_debug) {
     debug("Creating bytecode for '%s'", data_tostring(owner));
   }
   ret = data_new(Bytecode, bytecode_t);
   ret -> owner = data_copy(owner);
-  
+
   ret -> main_block = data_list_create();
   _bytecode_set_instructions(ret, NULL);
   ret -> deferred_blocks = datastack_create("deferred blocks");
@@ -110,7 +110,7 @@ bytecode_t * bytecode_create(data_t *owner) {
   ret -> labels = strvoid_dict_create();
   ret -> pending_labels = datastack_create("pending labels");
   datastack_set_debug(ret -> pending_labels, bytecode_debug);
-  ret -> current_line = -1;  
+  ret -> current_line = -1;
   return ret;
 }
 
@@ -122,7 +122,7 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
   instruction_t *instr = data_as_instruction(instruction);
 
   if (bytecode_debug) {
-    debug("Pushing instruction '%s'", data_tostring(instruction));
+    warning("Instruction '%s'", data_tostring(instruction));
   }
   last = list_tail(bytecode -> instructions);
   line = (last) ? data_as_instruction(last) -> line : -1;
@@ -145,7 +145,7 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
 
 bytecode_t * bytecode_start_deferred_block(bytecode_t *bytecode) {
   list_t *block;
-  
+
   if (bytecode_debug) {
     debug("Start deferred block");
   }
@@ -158,7 +158,7 @@ bytecode_t * bytecode_end_deferred_block(bytecode_t *bytecode) {
   if (bytecode_debug) {
     debug("End deferred block");
   }
-  datastack_push(bytecode -> deferred_blocks, 
+  datastack_push(bytecode -> deferred_blocks,
                  data_create(Pointer, sizeof(list_t), bytecode -> instructions));
   _bytecode_set_instructions(bytecode, NULL);
   return bytecode;
@@ -182,7 +182,7 @@ bytecode_t * bytecode_pop_deferred_block(bytecode_t *bytecode) {
 bytecode_t * bytecode_bookmark(bytecode_t *bytecode) {
   listnode_t *node = list_tail_pointer(bytecode -> instructions);
   data_t     *data = data_create(Pointer, sizeof(listnode_t), node);
-  
+
   if (bytecode_debug) {
     debug("Bookmarking block %p -> %p", data, node);
   }
@@ -204,7 +204,7 @@ bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *bytecode) {
   data_t        *data;
   list_t        *block = bytecode -> instructions;
   instruction_t *instr;
-  
+
   data = datastack_pop(bytecode -> bookmarks);
   node = data_unwrap(data);
   if (bytecode_debug) {

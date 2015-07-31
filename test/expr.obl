@@ -1,0 +1,35 @@
+func sqr(x)
+  return x*x
+end
+
+func double(x)
+  return x+x
+end
+
+func foo(x)
+  return { x: x, dbl: double(x), sq: sqr(x) }
+end
+
+print(sqr(2).sum(2).mult(2)) // 12
+
+y = { foo: 42, bar: "quux" }
+
+print(y.foo) // 42
+print(sqr(2)) // 4
+print(sqr(double(2))) // 16
+print(foo(2).x) // 2
+print(foo(2).dbl) // 4
+print(foo(sqr(2)).dbl) // 8
+
+/* EXPECTED
+--exit-- 0
+--stdout--
+12
+42
+4
+16
+2
+4
+8
+--
+EXPECTED */

@@ -9,10 +9,20 @@ func add(sum, x)
 end
 
 s = l.reduce(add)
-print(s)
+print(s) // 20
 
-s = (@ l <- add) + 1
-print(s)
+s = l | add
+print(s) // 20
+
+s = (l | add) + 1
+print(s) // 21
+
+s = l | add <- 1
+print(s) // 21
+
+s = (l | add <- 1) + 1
+print(s) // 22
+
 /* EXPECTED
 --exit-- 0
 --stdout--

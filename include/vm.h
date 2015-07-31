@@ -30,9 +30,9 @@
 #ifdef  __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-  
+
 #define NUM_STASHES     8
-  
+
 typedef struct _vm {
   data_t           _d;
   data_t          *stashes[NUM_STASHES];
@@ -47,6 +47,7 @@ extern vm_t *   vm_create(bytecode_t *);
 extern data_t * vm_pop(vm_t *);
 extern data_t * vm_peek(vm_t *);
 extern data_t * vm_push(vm_t *, data_t *);
+extern vm_t *   vm_dup(vm_t *);
 extern data_t * vm_stash(vm_t *, unsigned int, data_t *);
 extern data_t * vm_unstash(vm_t *, unsigned int);
 extern nvp_t *  vm_push_context(vm_t *, char *, data_t *);

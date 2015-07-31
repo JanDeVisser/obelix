@@ -9,8 +9,8 @@ program                     := [ init ] statements [ done ]
                              ;
 
 statements                  := statement
-                               statements 
-                             | 
+                               statements
+                             |
                              ;
 
 statement                   := conditional
@@ -25,8 +25,7 @@ statement                   := conditional
                              | throw
                              | leave
                              | pass              [ nop                       ]
-                             | identifier
-                               assignment_or_call
+                             | assignment_or_call
                              ;
 
 pass                        := ';'
@@ -162,7 +161,7 @@ parlist                     := param
                                parlist_tail
                              ;
 
-param                       := 'i'               [ push                      ] 
+param                       := 'i'               [ push                      ]
                              ;
 
 parlist_tail                := ,
@@ -171,7 +170,7 @@ parlist_tail                := ,
                              ;
 
 return_stmt                 := "return"
-                               expr             [ instruction: "Return"      ]
+                               expr              [ instruction: "Return"     ]
                              ;
 
 new                         := "new"            [ setup_function: "new" incr ]
@@ -202,8 +201,23 @@ throw                       := "throw"
 leave                       := "leave"           [ leave                     ]
                              ;
 
-assignment_or_call          := assignment
-                             | func_call         [ pop                       ]
+assignment_or_call          := identifier
+                               _assignment_or_call
+                             ;
+
+_assignment_or_call         := assignment
+                             |                   [ instruction: "PushScope"
+                                                   deref                     ]
+                               func_calls        [ pop                       ]
+                             ;
+
+func_calls                  := func_call
+                               _func_calls
+                             ;
+
+_func_calls                 := .
+                               var_or_calls
+                             |
                              ;
 
 assignment                  := =
@@ -214,19 +228,18 @@ expr                        := predicate
                                predicatetail
                              ;
 
-reduction                   := "@" expr 
-                               "<-"
+reduction                   := "|"               [ deref_function: "reduce"  ]
                                expr
-                               reduction2
+                               reduction_init    [ reduce                    ]
                              ;
 
-reduction2                  := "<-" 
-                               expr              [ reduce: 1                 ]
-                             |                   [ reduce: 0                 ]
+reduction_init              := "<-"
+                               expr              [ pushval: 1                ]
+                             |                   [ pushval: 0                ]
                              ;
 
-predicatetail               := logic_op          [ push_tokenstring          ]
-                               predicate         [ infix_op                  ]
+predicatetail               := logic_op          [ infix_op                  ]
+                               predicate         [ call_op                   ]
                              | ternary
                              |
                              ;
@@ -239,23 +252,23 @@ ternary                     := ?                 [ if test                   ]
 
 predicate                   := term
                                termtail
-                             | reduction
                              ;
 
-termtail                    := add_op            [ push_tokenstring          ]
-                               term              [ infix_op                  ]
+termtail                    := add_op            [ infix_op                  ]
+                               term              [ call_op                   ]
                                termtail
-                             | 
+                             | reduction
+                             |
                              ;
 
-term                        := factor 
-                               factortail 
-                             ;
-
-factortail                  := mult_op           [ push_tokenstring          ]
-                               factor            [ infix_op                  ] 
+term                        := factor
                                factortail
-                             | 
+                             ;
+
+factortail                  := mult_op           [ infix_op                  ]
+                               factor            [ call_op                   ]
+                               factortail
+                             |
                              ;
 
 factor                      := expr_atom
@@ -267,18 +280,28 @@ subscript                   := '[' expr ']'      [ instruction: "Subscript"  ]
                              ;
 
 expr_atom                   := ( expr )
-                             | var_or_call 
+                             |                   [ instruction: "PushScope"  ]
+                               var_or_calls
+                             | new
                              | constant
                              | query
                              ;
 
-var_or_call                 := new
-                             | identifier
+var_or_calls                := var_or_call
+                               _var_or_calls
+                             ;
+
+_var_or_calls               := .
+                               var_or_calls
+                             |
+                             ;
+
+var_or_call                 := identifier        [ deref                     ]
                                call_or_empty
                              ;
 
 call_or_empty               := func_call
-                             |                   [ pushvar                   ]
+                             |
                              ;
 
 identifier                  :=                   [ bookmark                  ]
@@ -378,7 +401,7 @@ attrlist_or_empty           := attrlist
                              ;
 
 attrlist                    := attrname          [ push                      ]
-                               ':' 
+                               ':'
                                expr
                                attrlist_tail
                              ;
@@ -400,14 +423,14 @@ regexp                      := '/'               [ setup_function: "regexp"
 logic_op                    := > | ">=" | < | "<=" | "==" | "!=" | "||" | "&&" | "and" | "or"
                              ;
 
-add_op                      := + | - | ~ 
+add_op                      := + | - | ~
                              ;
 
 mult_op                     := * | / | ^ | %
                              ;
 
 func_call                   :=                   [ init_function             ]
-                               _func_call
+                              _func_call
                              ;
 
 _func_call                  := (
@@ -423,7 +446,7 @@ arglist                     := argument
                                arglist_tail
                              ;
 
-argument                    := expr              [ incr                      ] 
+argument                    := expr              [ incr                      ]
                              ;
 
 arglist_tail                := ,

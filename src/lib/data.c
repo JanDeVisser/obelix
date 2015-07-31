@@ -323,7 +323,7 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
           (args) ? array_tostring(args) : "''");
   }
   if (!self && array_size(args)) {
-    self = (data_t *) array_get(args, 0);
+    self = data_array_get(args, 0);
     args_shifted = array_slice(args, 1, -1);
     if (!args_shifted) {
       args_shifted = data_array_create(1);
@@ -536,7 +536,7 @@ int data_cmp(data_t *d1, data_t *d2) {
   cmp_t        cmp;
 
   if (debug_data) {
-    debug("Comparing '%s' [%s] and '%s' [%s]", 
+    debug("Comparing '%s' [%s] and '%s' [%s]",
           data_tostring(d1), data_typename(d1),
           data_tostring(d2), data_typename(d2));
   }

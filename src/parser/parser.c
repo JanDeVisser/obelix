@@ -251,6 +251,9 @@ data_t * _pse_execute_Action(parser_stack_entry_t *e, parser_t *parser, token_t 
   grammar_action_t *action = (grammar_action_t *) e -> subject;
 
   assert(action && action -> fnc && action -> fnc -> fnc);
+  if (parser_debug) {
+    warning("Action '%s'", data_tostring(e -> subject));
+  }
   if (action -> data) {
     ret = ((parser_data_fnc_t) action -> fnc -> fnc)(parser, action -> data);
   } else {
@@ -327,7 +330,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
   int                   consuming;
   listiterator_t       *iter;
   void                 *p1, *p2;
-  
+
   if (parser -> last_token) {
     token_free(parser -> last_token);
     parser -> last_token = NULL;
