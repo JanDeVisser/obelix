@@ -24,3 +24,4 @@ pass
 subclass
 multipleinheritance
 expr
+precedence

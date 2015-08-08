@@ -55,8 +55,8 @@ char * _mth_allocstring(mth_t *mth) {
   char *buf;
 
   asprintf(&buf, "%s.%s",
-	   data_tostring(mth -> self),
-	   mth -> method -> name);
+           data_tostring(mth -> self),
+           mth -> method -> name);
   return buf;
 }
 

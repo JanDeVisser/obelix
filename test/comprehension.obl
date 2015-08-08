@@ -19,5 +19,6 @@ print([ 2*i for i in 1 ~ 5 ] | add)
 --stdout--
 [ 2, 4, 6, 8 ]
 [ 8, 16, 24, 32 ]
+20
 --
 EXPECTED */

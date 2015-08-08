@@ -141,7 +141,7 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
     data_free(ret);
     if (ex) {
       ex -> trace = data_create(Stacktrace, stacktrace_create());
-      instruction_trace("Throws", exception_tostring(ex));
+      instruction_trace("Throws", "%s", exception_tostring(ex));
       vm -> exception = data_copy(ret);
       if (datastack_depth(vm -> contexts)) {
         catchpoint = datastack_peek(vm -> contexts);
@@ -155,7 +155,7 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
     if (script_debug) {
       debug("  Jumping to '%s'", label);
     }
-    instruction_trace("Jump To", label);
+    instruction_trace("Jump To", "%s", label);
     node = (listnode_t *) dict_get(bytecode -> labels, label);
     assert(node);
     free(label);
@@ -175,7 +175,7 @@ vm_t * vm_create(bytecode_t *bytecode) {
 data_t * vm_pop(vm_t *vm) {
   data_t *ret = datastack_pop(vm -> stack);
 
-  instruction_trace("Popped", data_tostring(ret));
+  instruction_trace("Popped", "%s", data_tostring(ret));
   return ret;
 }
 
@@ -192,7 +192,7 @@ data_t * vm_peek(vm_t *vm) {
  * @return closure_t* The same closure as the one passed in.
  */
 data_t * vm_push(vm_t *vm, data_t *value) {
-  instruction_trace("Pushing", data_tostring(value));
+  instruction_trace("Pushing", "%s", data_tostring(value));
   datastack_push(vm -> stack, data_copy(value));
   return value;
 }

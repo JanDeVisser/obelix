@@ -400,7 +400,7 @@ parser_t * script_parse_unary_op(parser_t *parser) {
 }
 
 parser_t * script_parse_infix_op(parser_t *parser) {
-  data_t *op = token_todata(parser -> last_token);
+  data_t *op = data_create(String, token_token(parser -> last_token));
   name_t *name = name_create(0);
   data_t *instr;
 

@@ -27,6 +27,9 @@ print(s) // 22
 --exit-- 0
 --stdout--
 20
+20
 21
+21
+22
 --
 EXPECTED */
