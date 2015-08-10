@@ -237,7 +237,14 @@ parser_t * script_parse_init_function(parser_t *parser) {
   return parser;
 }
 
-parser_t * script_parse_setup_constructor(parser_t *parser, data_t *func) {
+parser_t * script_parse_setup_constructor(parser_t *parser) {
+  name_t *name;
+  data_t *func;
+  
+  func = datastack_pop(parser -> stack);
+  name = name_create(1, data_tostring(func));
+  push_instruction(parser, instruction_create_pushscope());
+  push_instruction(parser, instruction_create_deref(name));
   datastack_new_counter(parser -> stack);
   datastack_bookmark(parser -> stack);
   parser_set(parser, "constructor", data_create(Bool, TRUE));
@@ -783,9 +790,13 @@ parser_t * script_parse_start_function(parser_t *parser) {
 }
 
 parser_t * script_parse_baseclass_constructors(parser_t *parser) {
-  push_instruction(parser, instruction_create_pushval(data_self));
   push_instruction(parser, instruction_create_pushscope());
   _script_parse_infix_function(parser, name_hasattr, 1);
+  push_instruction(parser, instruction_create_pushval(data_self));
+  push_instruction(parser, instruction_create_function(name_hasattr,
+                                                       CFNone,
+                                                       1,
+                                                       NULL));
   script_parse_test(parser);
   return parser;
 }
