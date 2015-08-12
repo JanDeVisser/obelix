@@ -750,13 +750,13 @@ parser_t * script_parse_rollup_cases(parser_t *parser) {
 /* -- F U N C T I O N  D E F I N I T I O N S -------------------------------*/
 
 parser_t * script_parse_start_function(parser_t *parser) {
-  bytecode_t  *up;
-  script_t    *func;
-  data_t      *data;
-  char        *fname;
-  data_t      *params;
-  int          ix;
-  int          async;
+  bytecode_t    *up;
+  script_t      *func;
+  data_t        *data;
+  char          *fname;
+  data_t        *params;
+  int            ix;
+  script_type_t  type;
 
   up = (bytecode_t *) parser -> data;
 
@@ -768,13 +768,13 @@ parser_t * script_parse_start_function(parser_t *parser) {
   fname = strdup(data_tostring(data));
   data_free(data);
 
-  /* sync/async flag */
+  /* script type flag */
   data = datastack_pop(parser -> stack);
-  async = data_intval(data);
+  type = (script_type_t) data_intval(data);
   data_free(data);
 
   func = script_create(NULL, data_as_script(up -> owner), fname);
-  func -> async = async;
+  func -> type = type;
   func -> params = str_array_create(array_size(data_as_array(params)));
   array_reduce(data_as_array(params),
                (reduce_t) data_add_strings_reducer,
@@ -817,14 +817,14 @@ parser_t * script_parse_end_function(parser_t *parser) {
 }
 
 parser_t * script_parse_native_function(parser_t *parser) {
-  bytecode_t   *bytecode;
-  script_t     *script;
-  function_t   *func;
-  data_t       *data;
-  char         *fname;
-  data_t       *params;
-  parser_t     *ret = parser;
-  int           async;
+  bytecode_t    *bytecode;
+  script_t      *script;
+  function_t    *func;
+  data_t        *data;
+  char          *fname;
+  data_t        *params;
+  parser_t      *ret = parser;
+  script_type_t  type;
 
   bytecode = (bytecode_t *) parser -> data;
   script = data_as_script(bytecode -> owner);
@@ -837,14 +837,14 @@ parser_t * script_parse_native_function(parser_t *parser) {
   fname = strdup(data_tostring(data));
   data_free(data);
 
-  /* sync/async flag */
+  /* function type flag */
   data = datastack_pop(parser -> stack);
-  async = data_intval(data);
+  type = (script_type_t) data_intval(data);
   data_free(data);
 
   func = function_create(token_token(parser -> last_token), NULL);
   func -> params = str_array_create(array_size(data_as_array(params)));
-  func -> async = async;
+  func -> type = type;
   array_reduce(data_as_array(params),
                (reduce_t) data_add_strings_reducer,
                func -> params);

@@ -22,6 +22,7 @@
 
 #include <data.h>
 #include <name.h>
+#include <script.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -30,13 +31,13 @@ extern "C" {
 typedef data_t * (*native_t)(char *, array_t *, dict_t *);
 
 typedef struct _function {
-  data_t   _d;
-  name_t  *name;
-  void_t   fnc;
-  int      min_params;
-  int      max_params;
-  int      async;
-  array_t *params;
+  data_t         _d;
+  name_t        *name;
+  void_t         fnc;
+  int            min_params;
+  int            max_params;
+  script_type_t  type;
+  array_t       *params;
 } function_t;
 
 extern function_t *    function_create(char *, void_t);

@@ -107,18 +107,17 @@ default                     := "default"        [ else                       ]
                                statements
                              ;
 
-func_def                    := sync_async
-                               "func"
+func_def                    := func_type
                                'i'               [ push                      ]
                                (                 [ bookmark                  ]
                                parlist_or_void
                                )                 [ rollup_list               ]
                                func_block
                              ;
-
-sync_async                  := "async"           [ pushval: 1                ]
-                             |                   [ pushval: 0                ]
-                             ;
+                             
+func_type                   := "func"            [ pushval: 0                ]
+                             | "threadfunc"      [ pushval: 1                ]
+                             | "generator"       [ pushval: 2                ]
 
 func_block                  :=                   [ start_function            ]
                                baseclasses

@@ -1,4 +1,4 @@
-async func foo()
+threadfunc foo()
   sleep(1)
   for i in 0 ~ 9
     print(i)

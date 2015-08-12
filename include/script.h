@@ -36,12 +36,18 @@ typedef struct _module       module_t;
 typedef struct _closure      closure_t;
 typedef struct _bound_method bound_method_t;
 
+typedef enum _script_type {
+  STNone = 0,
+  STASync,
+  STGenerator
+} script_type_t;
+
 typedef struct _script {
   data_t          _d;
   struct _script *up;
   name_t         *name;
   name_t         *fullname;
-  int             async;
+  script_type_t   type;
   list_t         *baseclasses;
   dict_t         *functions;
   array_t        *params;
