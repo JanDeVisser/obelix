@@ -96,7 +96,7 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
 
   ret -> functions = strdata_dict_create();
   ret -> params = NULL;
-  ret -> async = 0;
+  ret -> type = STNone;
 
   if (up) {
     dict_put(up -> functions, strdup(name), data_create_script(ret));

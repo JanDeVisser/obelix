@@ -68,7 +68,7 @@ void _closure_init(void) {
   Closure = typedescr_create_and_register(Closure, "closure",
 					  _vtable_closure,
 					  _methoddescr_closure);
-  
+
 }
 
 /* ------------------------------------------------------------------------ */
@@ -107,12 +107,12 @@ data_t * _closure_get(closure_t *closure, char *varname) {
     ret = (data_t *) dict_get(closure -> variables, varname);
   }
   if (!ret && closure -> params) {
-    /* 
+    /*
      * We store the passed-in parameter values. If the parameter variable gets
-     * re-assigned, the new value shadows the old one because it will be set 
+     * re-assigned, the new value shadows the old one because it will be set
      * in the variables dict, not in the params one.
      */
-    ret = (data_t *) dict_get(closure -> params, varname);    
+    ret = (data_t *) dict_get(closure -> params, varname);
   }
   return ret;
 }
@@ -122,7 +122,7 @@ data_t * _closure_start(closure_t *closure) {
   exception_t *e;
   data_t      *d;
   vm_t        *vm = vm_create(closure -> bytecode);
-  
+
   ret = vm_execute(vm, d = data_create(Closure, closure));
   if (data_is_exception(ret)) {
     e = data_as_exception(ret);
@@ -131,11 +131,13 @@ data_t * _closure_start(closure_t *closure) {
     } else if (e -> code == ErrorReturn) {
       data_free(ret);
       ret = (e -> throwable) ? data_copy(e -> throwable) : data_null();
+    //} else if (e -> code == ErrorYield) {
+    //  ret = data_create(Generator, closure, vm);
     }
     exception_free(e);
   }
   data_free(d);
-  
+
   if (closure -> free_params) {
     /*
      * kwargs was assigned to closure -> params. Freeing the closure should
@@ -150,8 +152,8 @@ data_t * _closure_start(closure_t *closure) {
 char * _closure_allocstring(closure_t *closure) {
   char *params;
   char *buf;
-  
-  params = (closure -> params && dict_size(closure -> params)) 
+
+  params = (closure -> params && dict_size(closure -> params))
     ? dict_tostring_custom(closure -> params, "", "%s=%s", ",", "")
     : "";
   asprintf(&buf, "%s(%s)",
@@ -178,7 +180,7 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
   if (script_debug) {
     debug("Creating closure for script '%s'", script_tostring(script));
   }
-  
+
   ret = data_new(Closure, closure_t);
   ret -> script = script_copy(script);
   ret -> bytecode = bytecode_copy(script -> bytecode);
@@ -188,9 +190,9 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
   ret -> up = up;
   ret -> self = data_copy(self);
 
-  dict_reduce(script -> functions, 
+  dict_reduce(script -> functions,
               (reduce_t) _closure_create_closure_reducer, ret);
-  
+
   if (!up) {
     /* Import standard lib: */
     closure_import(ret, NULL);
@@ -234,7 +236,7 @@ data_t * closure_set(closure_t *closure, char *name, data_t *value) {
 
 data_t * closure_get(closure_t *closure, char *varname) {
   data_t *ret = _closure_get(closure, varname);
-  
+
   if (ret) {
     ret = data_copy(ret);
   } else {
@@ -250,7 +252,7 @@ int closure_has(closure_t *closure, char *name) {
   int ret;
 
   ret = (closure -> self && !strcmp(name, "self")) ||
-        (closure -> variables && dict_has_key(closure -> variables, name)) || 
+        (closure -> variables && dict_has_key(closure -> variables, name)) ||
         (closure -> params && dict_has_key(closure -> params, name));
   if (script_debug) {
     debug("   closure_has('%s', '%s'): %d", closure_tostring(closure), name, ret);
@@ -260,7 +262,7 @@ int closure_has(closure_t *closure, char *name) {
 
 data_t * closure_resolve(closure_t *closure, char *name) {
   data_t  *ret;
-  
+
   ret = _closure_get(closure, name);
   if (!ret) {
     if (closure -> up) {
@@ -275,7 +277,7 @@ data_t * closure_resolve(closure_t *closure, char *name) {
     }
   }
   if (script_debug) {
-    debug("   closure_resolve('%s', '%s'): %s", 
+    debug("   closure_resolve('%s', '%s'): %s",
           closure_tostring(closure), name, data_tostring(ret));
   }
   return data_copy(ret);
@@ -293,30 +295,30 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   closure -> free_params = FALSE;
   if (script -> params && array_size(script -> params)) {
     if (!args || (array_size(script -> params) > array_size(args))) {
-      return data_exception(ErrorArgCount, 
+      return data_exception(ErrorArgCount,
                         "Function %s takes %d arguments, %d provided",
-                        name_tostring(script -> name), 
+                        name_tostring(script -> name),
                         array_size(script -> params),
                         (args) ? array_size(args) : 0);
     }
-    if (script -> async || !kwargs) {
+    if ((script -> type == STASync) || !kwargs) {
       closure -> params = strdata_dict_create();
       closure -> free_params = TRUE;
     } else {
       closure -> params = kwargs;
     }
-    if (script -> async && kwargs) {
+    if ((script -> type == STASync) && kwargs) {
       dict_reduce(kwargs, (reduce_t) data_put_all_reducer, closure -> params);
     }
     for (ix = 0; ix < array_size(args); ix++) {
       param = data_copy(data_array_get(args, ix));
-      dict_put(closure -> params, 
+      dict_put(closure -> params,
                (char *) array_get(script -> params, ix),
                param);
     }
   }
-  
-  if (script -> async) {
+
+  if (script -> type == STASync) {
     return (data_t *) thread_new(closure_tostring(closure),
                                  (threadproc_t) _closure_start,
                                  closure_copy(closure));
@@ -328,6 +330,6 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
 /* -- C L O S U R E  D A T A  M E T H O D S --------------------------------*/
 
 data_t * _closure_import(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return closure_import(data_as_closure(self), 
+  return closure_import(data_as_closure(self),
                         data_as_name(data_array_get(args, 0)));
 }

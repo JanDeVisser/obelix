@@ -30,7 +30,7 @@ static void         _function_free(function_t *);
 static char *       _function_allocstring(function_t *);
 static data_t *     _function_cast(function_t *, int);
 static data_t *     _function_call(function_t *, array_t *, dict_t *);
-			
+
 static vtable_t _vtable_function[] = {
   { .id = FunctionCmp,         .fnc = (void_t) function_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _function_free },
@@ -85,7 +85,7 @@ data_t * _function_cast(function_t *fnc, int totype) {
 data_t * _function_call(function_t *fnc, array_t *args, dict_t *kwargs) {
   return function_call(fnc, function_funcname(fnc), args, kwargs);
 }
-			 
+
 
 /* -- F U N C T I O N  P U B L I C  F U N C T I O N S --------------------- */
 
@@ -114,7 +114,7 @@ function_t * function_create_noresolve(char *name) {
   ret = data_new(Function, function_t);
   ret -> params = NULL;
   ret -> name = name_create(1, name);
-  ret -> async = 0;
+  ret -> type = STNone;
   ret -> name = name_split(name, ":");
   return ret;
 }

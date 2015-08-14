@@ -257,6 +257,8 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
       ex = data_as_exception(vm -> exception);
       if (ex -> code == ErrorReturn) {
         ret = (ex -> throwable) ? data_copy(ex -> throwable) : data_create(Int, 0);
+      } else if (ex -> code == ErrorYield) {
+        ret =
       } else {
         ret = data_copy(vm -> exception);
       }

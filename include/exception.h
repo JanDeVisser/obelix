@@ -28,7 +28,7 @@
 #ifdef  __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-  
+
 typedef enum _errorcode {
   ErrorSyntax = 1,
   ErrorArgCount,
@@ -49,6 +49,7 @@ typedef enum _errorcode {
   ErrorLeave,
   ErrorReturn,
   ErrorExit,
+  ErrorYield,
 } errorcode_t;
 
 typedef struct _exception {

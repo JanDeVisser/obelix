@@ -49,6 +49,7 @@ static code_label_t builtin_exceptions[] = {
   { .code = ErrorLeave,                 .label = "ErrorLeave", },
   { .code = ErrorReturn,                .label = "ErrorReturn", },
   { .code = ErrorExit,                  .label = "ErrorExit", },
+  { .code = ErrorYield,                 .label = "ErrorYield", },
 };
 
 static int           num_exceptions = sizeof(builtin_exceptions) / sizeof(code_label_t);
@@ -159,7 +160,7 @@ void _exception_init(void) {
 
 char * _exception_allocstring(exception_t *exception) {
   char *buf;
-  
+
   asprintf(&buf, "Error %s (%d): %s",
 	   label_for_code(exceptions, exception -> code),
 	   exception -> code,

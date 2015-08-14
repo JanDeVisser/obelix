@@ -114,10 +114,11 @@ func_def                    := func_type
                                )                 [ rollup_list               ]
                                func_block
                              ;
-                             
+
 func_type                   := "func"            [ pushval: 0                ]
                              | "threadfunc"      [ pushval: 1                ]
                              | "generator"       [ pushval: 2                ]
+                             ;
 
 func_block                  :=                   [ start_function            ]
                                baseclasses
