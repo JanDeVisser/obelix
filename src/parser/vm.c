@@ -68,30 +68,40 @@ data_t * _vm_call(vm_t *vm, array_t *args, dict_t *kwargs) {
 }
 
 vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
-  char        *str;
-  int          dbg = logging_status("script");
-  data_t      *ret;
-  exception_t *e;
-
+  char    *str;
+  int      dbg = logging_status("script");
+  array_t *args = data_array_create(3);
+  
   if (!vm -> stack) {
     asprintf(&str, "%s run-time stack", vm_tostring(vm));
     vm -> stack = datastack_create(vm_tostring(vm -> bytecode));
     free(str);
     datastack_set_debug(vm -> stack, dbg);
-  } else {
-    datastack_clear(vm -> stack);
-  }
 
-  if (!vm -> contexts) {
     asprintf(&str, "%s contexts", vm_tostring(vm));
     vm -> contexts = datastack_create(str);
     free(str);
     datastack_set_debug(vm -> contexts, dbg);
-  } else {
-    datastack_clear(vm -> contexts);
-  }
 
+    array_push(args, data_copy(scope));
+    array_push(args, data_create(VM, vm));
+    array_push(args, data_create(Bytecode, vm -> bytecode));
+    
+    vm -> processor = lp_create(vm -> bytecode -> instructions,
+                                (reduce_t) _vm_execute_instruction,
+                                args);
+  }
+  return vm;
+}
+
+vm_t * _vm_cleanup(vm_t *vm) {
+  array_free(vm -> processor -> data);
+  lp_free(vm -> processor);
   vm -> processor = NULL;
+  datastack_free(vm -> stack);
+  vm -> stack = NULL;
+  datastack_free(vm -> contexts);
+  vm -> contexts = NULL;
   return vm;
 }
 
@@ -169,6 +179,10 @@ vm_t * vm_create(bytecode_t *bytecode) {
   vm_t *ret = data_new(VM, vm_t);
 
   ret -> bytecode = bytecode_copy(bytecode);
+  ret -> stack = NULL;
+  ret -> contexts = NULL;
+  ret -> processor = NULL;
+  ret -> exception = NULL;
   return ret;
 }
 
@@ -243,55 +257,46 @@ nvp_t * vm_pop_context(vm_t *vm) {
 
 data_t * vm_execute(vm_t *vm, data_t *scope) {
   int          dbg = logging_status("script");
-  data_t      *ret;
-  array_t     *args = data_array_create(3);
+  data_t      *ret = NULL;
   exception_t *ex;
 
-  ret = vm_initialize(vm, scope);
+  _vm_prepare(vm, scope);
+  ret = data_thread_push_stackframe((data_t *) vm);
   if (!data_is_exception(ret)) {
-    lp_run(vm -> processor);
-    array_free(vm -> processor -> data);
-    lp_free(vm -> processor);
-    vm -> processor = NULL;
-    if (vm -> exception) {
-      ex = data_as_exception(vm -> exception);
-      if (ex -> code == ErrorReturn) {
-        ret = (ex -> throwable) ? data_copy(ex -> throwable) : data_create(Int, 0);
-      } else if (ex -> code == ErrorYield) {
-        ret =
-      } else {
-        ret = data_copy(vm -> exception);
+    ret = NULL;
+    data_free(vm -> exception);
+    vm -> exception = NULL;
+    
+    while (lp_step(vm -> processor)) {
+      if (vm -> exception) {
+        ex = data_as_exception(vm -> exception);
+        if (ex -> code == ErrorYield) {
+          ret = data_copy(vm -> exception);
+          break;
+        }
       }
-    } else {
-      ret = (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
+    }
+
+    // ret is == NULL if the execution didn't yield.
+    if (!ret) {
+      _vm_cleanup(vm);
+      if (vm -> exception) {
+        ex = data_as_exception(vm -> exception);
+        if (ex -> code == ErrorReturn) {
+          ret = (ex -> throwable) ? data_copy(ex -> throwable) : data_create(Int, 0);
+        } else if (ex -> code == ErrorYield) {
+          ret = NULL;
+        } else {
+          ret = data_copy(vm -> exception);
+        }
+      } else {
+        ret = (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
+      }
     }
     if (dbg) {
       debug("    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));
     }
     data_thread_pop_stackframe();
-  }
-  return ret;
-}
-
-data_t * vm_initialize(vm_t *vm, data_t *scope) {
-  int              dbg = logging_status("script");
-  data_t          *ret;
-  array_t         *args = data_array_create(3);
-  exception_t     *ex;
-
-  _vm_prepare(vm, scope);
-  ret = data_thread_push_stackframe((data_t *) vm);
-  if (!data_is_exception(ret)) {
-    data_free(vm -> exception);
-    vm -> exception = NULL;
-    array_push(args, data_copy(scope));
-    array_push(args, data_create(VM, vm));
-    array_push(args, data_create(Bytecode, vm -> bytecode));
-
-    vm -> processor = lp_create(vm -> bytecode -> instructions,
-                                (reduce_t) _vm_execute_instruction,
-                                args);
-    ret = (data_t *) vm;
   }
   return ret;
 }

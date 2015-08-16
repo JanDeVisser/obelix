@@ -1,0 +1,6 @@
+generator range(x, y)
+  while x < y
+    yield i
+    x = x+1
+  end
+end
