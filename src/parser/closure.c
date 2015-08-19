@@ -118,9 +118,18 @@ data_t * _closure_get(closure_t *closure, char *varname) {
 }
 
 data_t * _closure_start(closure_t *closure) {
-  vm_t *vm = vm_create(closure -> bytecode);
+  vm_t        *vm = vm_create(closure -> bytecode);
+  data_t      *ret;
+  exception_t *e;
 
-  return closure_yield(closure, vm);
+  ret = closure_yield(closure, vm);
+  if (data_is_exception(ret)) {
+    e = data_as_exception(ret);
+    if (e -> code == ErrorYield) {
+      ret = data_create(Generator, generator_create(closure, vm, e));
+    }
+  }
+  return ret;
 }
 
 data_t * closure_yield(closure_t *closure, vm_t *vm) {
@@ -135,14 +144,14 @@ data_t * closure_yield(closure_t *closure, vm_t *vm) {
     e = data_as_exception(ret);
     if ((e -> code == ErrorExit) && (e -> throwable)) {
       ns_exit(closure -> script -> mod -> ns, ret);
-    } else if (e -> code == ErrorReturn) {
-      data_free(ret);
-      ret = (e -> throwable) ? data_copy(e -> throwable) : data_null();
-    } else if ((e -> code == ErrorYield) || (e -> code == ErrorExhausted)) {
+    } else if (e -> code == ErrorYield) {
       done = FALSE;
-      ret = data_create(Generator, generator_create(closure, vm, e));
     }
     exception_free(e);
+  } else {
+    e = exception_create(ErrorReturn, "Return Value");
+    e -> throwable = ret;
+    ret = data_create(Exception, e);
   }
   data_free(d);
 

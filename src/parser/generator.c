@@ -17,14 +17,11 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <generator.h>
-
-static char *        _generator_allocstring(generator_t *);
-static void          _generator_free(generator_t *);
+	#include <generator.h>
 
 static void     _generator_init(void) __attribute__((constructor));
 static void     _generator_free(generator_t *generator);
-static char *   _generator_tostring(generator_t *generator);
+static char *   _generator_allocstring(generator_t *generator);
 
 static vtable_t _vtable_generator[] = {
   { .id = FunctionFree,        .fnc = (void_t) _generator_free },
@@ -37,7 +34,7 @@ int Generator = -1;
 /* ------------------------------------------------------------------------ */
 
 void _generator_init(void) {
-  Generator = typedescr_create_and_register("generator", 
+  Generator = typedescr_create_and_register("generator",
                                             _vtable_generator,
                                             NULL);
 }
@@ -55,7 +52,7 @@ void _generator_free(generator_t *generator) {
 
 char * _generator_allocstring(generator_t *generator) {
   char *buf;
-  
+
   asprintf(&buf, "<<Generator %s>>",
            closure_tostring(generator -> closure));
   return buf;
@@ -72,6 +69,8 @@ data_t * _generator_next(generator_t *generator) {
     if (generator -> status -> code == ErrorYield) {
       ret = generator -> status -> throwable;
       generator -> status = closure_yield(generator -> status, generator -> vm);
+      if (generator -> status -> code != ErrorYield) {
+      }
     } else if (generator -> status -> code != ErrorExhausted) {
       ret = generator -> status;
     }
@@ -87,14 +86,14 @@ data_t * _generator_has_next(generator_t *generator) {
 
 data_t * _generator_call(generator_t *generator, array_t *args, dict_t *kwargs) {
   // Materialize the generated values to a list.
-  return data_null();
+	  return data_null();
 }
 
 /* ------------------------------------------------------------------------ */
 
 generator_t * generator_create(closure_t *closure, vm_t *vm, exception_t *status) {
   generator_t *ret = (generator_t) data_new(Generator, generator_t);
-  
+
   ret -> closure = closure_copy(closure);
   ret -> vm = vm_copy(vm);
   ret -> status = exception_copy(status);
