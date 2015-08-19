@@ -22,6 +22,7 @@
 
 #include <data.h>
 #include <script.h>
+#include <vm.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -52,14 +53,14 @@ extern int              closure_has(closure_t *, char *);
 extern data_t *         closure_resolve(closure_t *, char *);
 extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
 extern data_t *         closure_import(closure_t *, name_t *);
+extern data_t *         closure_yield(closure_t *, vm_t *);
+extern closure_t *      closure_copy(closure_t *);
+extern char *           closure_tostring(closure_t *);
+extern void             closure_free(closure_t *);
+extern int              data_is_closure(data_t *);
+extern closure_t *      data_as_closure(data_t *);
 
 extern int Closure;
-
-#define data_is_closure(d)     ((d) && data_hastype((d), Closure))
-#define data_as_closure(d)     (data_is_closure((d)) ? ((closure_t *) (d)) : NULL)
-#define closure_copy(c)        ((closure_t *) data_copy((data_t *) (c)))
-#define closure_tostring(c)    (data_tostring((data_t *) (c)))
-#define closure_free(c)        (data_free((data_t *) (c)))
 
 #define data_create_closure(c) data_create(Closure, (c))
 

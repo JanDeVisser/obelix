@@ -23,6 +23,7 @@
 #include <boundmethod.h>
 #include <closure.h>
 #include <exception.h>
+#include <generator.h>
 #include <namespace.h>
 #include <nvp.h>
 #include <script.h>
@@ -66,9 +67,8 @@ static methoddescr_t _methoddescr_closure[] = {
 void _closure_init(void) {
   _methoddescr_closure[0].argtypes[0] = Name;
   Closure = typedescr_create_and_register(Closure, "closure",
-					  _vtable_closure,
-					  _methoddescr_closure);
-
+                                          _vtable_closure,
+                                          _methoddescr_closure);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -118,12 +118,19 @@ data_t * _closure_get(closure_t *closure, char *varname) {
 }
 
 data_t * _closure_start(closure_t *closure) {
+  vm_t *vm = vm_create(closure -> bytecode);
+
+  return closure_yield(closure, vm);
+}
+
+data_t * closure_yield(closure_t *closure, vm_t *vm) {
   data_t      *ret;
   exception_t *e;
   data_t      *d;
-  vm_t        *vm = vm_create(closure -> bytecode);
+  int          done = FALSE;
 
   ret = vm_execute(vm, d = data_create(Closure, closure));
+  done = TRUE;
   if (data_is_exception(ret)) {
     e = data_as_exception(ret);
     if ((e -> code == ErrorExit) && (e -> throwable)) {
@@ -131,14 +138,15 @@ data_t * _closure_start(closure_t *closure) {
     } else if (e -> code == ErrorReturn) {
       data_free(ret);
       ret = (e -> throwable) ? data_copy(e -> throwable) : data_null();
-    //} else if (e -> code == ErrorYield) {
-    //  ret = data_create(Generator, closure, vm);
+    } else if ((e -> code == ErrorYield) || (e -> code == ErrorExhausted)) {
+      done = FALSE;
+      ret = data_create(Generator, generator_create(closure, vm, e));
     }
     exception_free(e);
   }
   data_free(d);
 
-  if (closure -> free_params) {
+  if (done && !closure -> free_params) {
     /*
      * kwargs was assigned to closure -> params. Freeing the closure should
      * not free the params in that case, since the owner is responsible for
@@ -206,6 +214,26 @@ int closure_cmp(closure_t *c1, closure_t *c2) {
 
 unsigned int closure_hash(closure_t *closure) {
   return hashptr(closure);
+}
+
+inline closure_t * closure_copy(closure_t *closure) {
+  return (closure_t *) data_copy((data_t *) closure);
+}
+
+inline char * closure_tostring(closure_t *closure) {
+  return data_tostring((data_t *) closure);
+}
+
+inline void closure_free(closure_t *closure) {
+  data_free((data_t *) closure);
+}
+
+inline int data_is_closure(data_t *data) {
+  return data && data_hastype(data, Closure);
+}
+
+inline closure_t * data_as_closure(data_t *data) {
+  data_is_closure(data) ? ((closure_t *) data) : NULL;
 }
 
 data_t * closure_import(closure_t *closure, name_t *module) {
@@ -333,3 +361,4 @@ data_t * _closure_import(data_t *self, char *name, array_t *args, dict_t *kwargs
   return closure_import(data_as_closure(self),
                         data_as_name(data_array_get(args, 0)));
 }
+
