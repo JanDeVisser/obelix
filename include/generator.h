@@ -42,8 +42,11 @@ extern char *        generator_tostring(generator_t *);
 extern void          generator_free(generator_t *);
 extern int           data_is_generator(data_t *);
 extern generator_t * data_as_generator(data_t *);
+extern data_t *      generator_next(generator_t *);
+extern int           generator_has_next(generator_t *);
+extern generator_t * generator_interrupt(generator_t *);
 
-extern int Generator = -1;
+extern int Generator;
   
 #ifdef  __cplusplus
 }

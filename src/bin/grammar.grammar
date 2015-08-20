@@ -19,6 +19,7 @@ statement                   := conditional
                              | switch
                              | func_def
                              | return_stmt
+                             | yield_stmt
                              | import_stmt
                              | new
                              | context_block
@@ -173,6 +174,10 @@ return_stmt                 := "return"
                                expr              [ instruction: "Return"     ]
                              ;
 
+yield_stmt                  := "yield"
+                               expr              [ instruction: "Yield"      ]
+                             ;
+                             
 new                         := "new"            [ setup_function: "new" incr ]
                                identifier        [ pushval_from_stack        ]
                                _func_call

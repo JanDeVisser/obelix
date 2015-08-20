@@ -32,6 +32,7 @@ liboblparser_la_SOURCES = \
 		parser.c \
 		script.c \
 		closure.c \
+		generator.c \
 		bytecode.c \
 		boundmethod.c \
 		namespace.c \

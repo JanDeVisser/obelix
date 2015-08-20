@@ -21,6 +21,7 @@
 #define __CLOSURE_H__
 
 #include <data.h>
+#include <exception.h>
 #include <script.h>
 #include <vm.h>
 
@@ -53,7 +54,7 @@ extern int              closure_has(closure_t *, char *);
 extern data_t *         closure_resolve(closure_t *, char *);
 extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
 extern data_t *         closure_import(closure_t *, name_t *);
-extern data_t *         closure_yield(closure_t *, vm_t *);
+extern exception_t *    closure_yield(closure_t *, vm_t *);
 extern closure_t *      closure_copy(closure_t *);
 extern char *           closure_tostring(closure_t *);
 extern void             closure_free(closure_t *);

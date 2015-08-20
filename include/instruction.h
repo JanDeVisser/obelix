@@ -81,6 +81,7 @@ extern int ITSwap;
 extern int ITTest;
 extern int ITThrow;
 extern int ITUnstash;
+extern int ITYield;
 
 extern void            instruction_trace(char *, char *, ...);
 

@@ -1,6 +1,10 @@
-generator range(x, y)
+generator r(x, y)
   while x < y
-    yield i
+    yield x
     x = x+1
   end
+end
+
+for q in r(3,12)
+  print(q)
 end

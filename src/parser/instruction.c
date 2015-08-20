@@ -168,6 +168,7 @@ InstructionType(Swap,         Name);
 InstructionType(Test,         Name);
 InstructionType(Throw,        Name);
 InstructionType(Unstash,      Value);
+InstructionType(Yield,        Name);
 
 static function_call_t * _call_new(int, va_list);
 static void              _call_free(function_call_t *);
@@ -578,6 +579,15 @@ data_t * _instruction_execute_Return(instruction_t *instr, data_t *scope, vm_t *
   exception_t *ex;
 
   ex = exception_create(ErrorReturn, "Return Value");
+  ex -> throwable = retval;
+  return data_create(Exception, ex);
+}
+
+data_t * _instruction_execute_Yield(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+  data_t      *retval = vm_pop(vm);
+  exception_t *ex;
+  
+  ex = exception_create(ErrorYield, "Yield Value");
   ex -> throwable = retval;
   return data_create(Exception, ex);
 }

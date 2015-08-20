@@ -26,11 +26,12 @@
 #include <thread.h>
 #include <vm.h>
 
-static void     _vm_init(void) __attribute__((constructor));
-static void     _vm_free(vm_t *);
-static char *   _vm_tostring(vm_t *);
-static data_t * _vm_call(vm_t *, array_t *, dict_t *);
-static vm_t *   _vm_prepare(vm_t *, data_t *);
+static void         _vm_init(void) __attribute__((constructor));
+static void         _vm_free(vm_t *);
+static char *       _vm_tostring(vm_t *);
+static data_t *     _vm_call(vm_t *, array_t *, dict_t *);
+static vm_t *       _vm_prepare(vm_t *, data_t *);
+static listnode_t * _vm_execute_instruction(data_t *, array_t *);
 
 int VM = -1;
 
@@ -86,7 +87,7 @@ vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
     array_push(args, data_copy(scope));
     array_push(args, data_create(VM, vm));
     array_push(args, data_create(Bytecode, vm -> bytecode));
-    
+   
     vm -> processor = lp_create(vm -> bytecode -> instructions,
                                 (reduce_t) _vm_execute_instruction,
                                 args);
@@ -127,8 +128,8 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
    *  3. This instruction is a Leave instruction
    */
   if (!exit_code ||
-    thread_has_status(thread_self(), TSFLeave) ||
-    (instr -> type == ITLeaveContext)) {
+      thread_has_status(thread_self(), TSFLeave) ||
+      (instr -> type == ITLeaveContext)) {
     ret = data_call(instr, args, NULL);
   }
 
@@ -142,10 +143,10 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
       }
     } else {
       ex_data = data_exception(ErrorInternalError,
-                                "Instruction '%s' returned %s '%s'",
-                                data_tostring(instr),
-                                data_typedescr(ret) -> type_name,
-                                data_tostring(ret));
+                               "Instruction '%s' returned %s '%s'",
+                               data_tostring(instr),
+                               data_typedescr(ret) -> type_name,
+                               data_tostring(ret));
       ex = data_as_exception(ex_data);
     }
     data_free(ret);
@@ -153,11 +154,13 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
       ex -> trace = data_create(Stacktrace, stacktrace_create());
       instruction_trace("Throws", "%s", exception_tostring(ex));
       vm -> exception = data_copy(ret);
-      if (datastack_depth(vm -> contexts)) {
-        catchpoint = datastack_peek(vm -> contexts);
-        label = strdup(data_tostring(data_as_nvp(catchpoint) -> name));
-      } else {
-        node = ProcessEnd;
+      if (ex -> code != ErrorYield) {
+        if (datastack_depth(vm -> contexts)) {
+          catchpoint = datastack_peek(vm -> contexts);
+          label = strdup(data_tostring(data_as_nvp(catchpoint) -> name));
+        } else {
+          node = ProcessEnd;
+        }
       }
     }
   }
@@ -279,7 +282,6 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
 
     // ret is == NULL if the execution didn't yield.
     if (!ret) {
-      _vm_cleanup(vm);
       if (vm -> exception) {
         ex = data_as_exception(vm -> exception);
         if (ex -> code == ErrorReturn) {
@@ -292,6 +294,7 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
       } else {
         ret = (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
       }
+      _vm_cleanup(vm);
     }
     if (dbg) {
       debug("    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));

@@ -22,7 +22,6 @@
 
 #include <boundmethod.h>
 #include <closure.h>
-#include <exception.h>
 #include <generator.h>
 #include <namespace.h>
 #include <nvp.h>
@@ -122,17 +121,25 @@ data_t * _closure_start(closure_t *closure) {
   data_t      *ret;
   exception_t *e;
 
-  ret = closure_yield(closure, vm);
-  if (data_is_exception(ret)) {
-    e = data_as_exception(ret);
-    if (e -> code == ErrorYield) {
-      ret = data_create(Generator, generator_create(closure, vm, e));
-    }
+  e = closure_yield(closure, vm);
+  switch (e -> code) {
+    case ErrorReturn:
+      ret = data_copy(e -> throwable);
+      exception_free(e);
+      break;
+    case ErrorYield:
+      exception_free(e);
+      e = exception_create(ErrorSyntax, "Non-generator function '%s' cannot yield", closure_tostring(closure));
+      ret = data_create(Exception, e);
+      break;
+    default:
+      ret = data_create(Exception, e);
+      break;
   }
   return ret;
 }
 
-data_t * closure_yield(closure_t *closure, vm_t *vm) {
+exception_t * closure_yield(closure_t *closure, vm_t *vm) {
   data_t      *ret;
   exception_t *e;
   data_t      *d;
@@ -144,26 +151,13 @@ data_t * closure_yield(closure_t *closure, vm_t *vm) {
     e = data_as_exception(ret);
     if ((e -> code == ErrorExit) && (e -> throwable)) {
       ns_exit(closure -> script -> mod -> ns, ret);
-    } else if (e -> code == ErrorYield) {
-      done = FALSE;
     }
-    exception_free(e);
   } else {
     e = exception_create(ErrorReturn, "Return Value");
     e -> throwable = ret;
-    ret = data_create(Exception, e);
   }
   data_free(d);
-
-  if (done && !closure -> free_params) {
-    /*
-     * kwargs was assigned to closure -> params. Freeing the closure should
-     * not free the params in that case, since the owner is responsible for
-     * kwargs,
-     */
-    closure -> params = NULL;
-  }
-  return ret;
+  return e;
 }
 
 char * _closure_allocstring(closure_t *closure) {
@@ -183,7 +177,14 @@ void _closure_free(closure_t *closure) {
   if (closure) {
     script_free(closure -> script);
     dict_free(closure -> variables);
-    dict_free(closure -> params);
+    if (closure -> free_params) {
+      /*
+       * kwargs was assigned to closure -> params. Freeing the closure should
+       * not free the params in that case, since the owner is responsible for
+       * kwargs,
+       */
+      dict_free(closure -> params);
+    }
     data_free(closure -> self);
     data_free(closure -> thread);
   }
@@ -204,6 +205,7 @@ closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
 
   ret -> variables = NULL;
   ret -> params = NULL;
+  ret -> free_params = FALSE;
   ret -> up = up;
   ret -> self = data_copy(self);
 
@@ -327,8 +329,11 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   object_t  *self;
   pthread_t  thr_id;
   char      *str;
-
+  
   script = closure -> script;
+  if (closure -> free_params) {
+    dict_free(closure -> params);
+  }
   closure -> free_params = FALSE;
   if (script -> params && array_size(script -> params)) {
     if (!args || (array_size(script -> params) > array_size(args))) {
@@ -355,12 +360,17 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
     }
   }
 
-  if (script -> type == STASync) {
-    return (data_t *) thread_new(closure_tostring(closure),
-                                 (threadproc_t) _closure_start,
-                                 closure_copy(closure));
-  } else {
-    return _closure_start(closure);
+  switch (script -> type) {
+    case STASync:
+      return (data_t *) thread_new(closure_tostring(closure),
+                                   (threadproc_t) _closure_start,
+                                   closure_copy(closure));
+    case STGenerator:
+      return data_create(Generator, 
+                         generator_create(closure, 
+                                          vm_create(closure -> bytecode), NULL));
+    default:
+      return _closure_start(closure);
   }
 }
 

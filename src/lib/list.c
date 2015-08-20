@@ -548,7 +548,7 @@ listprocessor_t * lp_create(list_t *list, reduce_t processor, void *data) {
   ret -> list = list;
   ret -> processor = processor;
   ret -> data = data;
-  lp -> current = NULL;
+  ret -> current = NULL;
   return ret;
 }
 
