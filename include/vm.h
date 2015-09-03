@@ -33,11 +33,21 @@ extern "C" {
 
 #define NUM_STASHES     8
 
+typedef enum _vmstatus {
+  VMStatusNone     = 0,
+  VMStatusBreak    = 1,
+  VMStatusContinue = 2,
+  VMStatusReturn   = 4,
+  VMStatusExit     = 8,
+  VMStatusYield    = 16
+} VMStatus;
+
 typedef struct _vm {
   data_t           _d;
   data_t          *stashes[NUM_STASHES];
   bytecode_t      *bytecode;
   data_t          *exception;
+  int              status;
   datastack_t     *stack;
   datastack_t     *contexts;
   listprocessor_t *processor;

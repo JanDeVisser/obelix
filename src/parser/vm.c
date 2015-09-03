@@ -72,7 +72,7 @@ vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
   char    *str;
   int      dbg = logging_status("script");
   array_t *args = data_array_create(3);
-  
+
   if (!vm -> stack) {
     asprintf(&str, "%s run-time stack", vm_tostring(vm));
     vm -> stack = datastack_create(vm_tostring(vm -> bytecode));
@@ -87,7 +87,7 @@ vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
     array_push(args, data_copy(scope));
     array_push(args, data_create(VM, vm));
     array_push(args, data_create(Bytecode, vm -> bytecode));
-   
+
     vm -> processor = lp_create(vm -> bytecode -> instructions,
                                 (reduce_t) _vm_execute_instruction,
                                 args);
@@ -109,6 +109,7 @@ vm_t * _vm_cleanup(vm_t *vm) {
 listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
   data_t       *ret = NULL;
   data_t       *exit_code;
+  int           call_me = FALSE;
   char         *label = NULL;
   listnode_t   *node = NULL;
   data_t       *scope = data_array_get(args, 0);
@@ -119,7 +120,28 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
   exception_t  *ex = NULL;
   data_t       *ex_data;
 
-  exit_code = data_thread_exit_code();
+  if (vm -> status != VMStatusExit) {
+    exit_code = data_thread_exit_code();
+    if (exit_code) {
+      vm -> status = VMStatusExit;
+    }
+  }
+
+  call_me = FALSE;
+  switch (vm -> status) {
+    case VMStatusExit:
+      if (thread_has_status(thread_self(), TSFLeave) || (instr -> type == ITLeaveContext)) {
+        call_me = TRUE;
+      }
+      break;
+    case VMStatusContinue:
+    case VMStatusBreak:
+      call_me = (instr -> type == ITEndLoop);
+      break;
+    default:
+      call_me = TRUE;
+      break;
+  }
 
   /*
    * Execute the instruction if
@@ -170,7 +192,9 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
     }
     instruction_trace("Jump To", "%s", label);
     node = (listnode_t *) dict_get(bytecode -> labels, label);
-    assert(node);
+    if (!node) {
+      fatal("Label %s not found", label);
+    }
     free(label);
   }
   return node;
@@ -269,7 +293,7 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
     ret = NULL;
     data_free(vm -> exception);
     vm -> exception = NULL;
-    
+
     while (lp_step(vm -> processor)) {
       if (vm -> exception) {
         ex = data_as_exception(vm -> exception);

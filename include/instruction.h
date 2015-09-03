@@ -23,6 +23,7 @@
 #include <core.h>
 #include <data.h>
 #include <name.h>
+#include <set.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -32,6 +33,7 @@ typedef struct _instruction {
   data_t    _d;
   int       line;
   char      label[9];
+  set_t    *labels;
   char     *name;
   data_t   *value;
 } instruction_t;
@@ -61,6 +63,7 @@ extern int ITByValueOrName;
 extern int ITAssign;
 extern int ITDecr;
 extern int ITDup;
+extern int ITEndLoop;
 extern int ITEnterContext;
 extern int ITFunctionCall;
 extern int ITIncr;
@@ -81,6 +84,7 @@ extern int ITSwap;
 extern int ITTest;
 extern int ITThrow;
 extern int ITUnstash;
+extern int ITVMStatus;
 extern int ITYield;
 
 extern void            instruction_trace(char *, char *, ...);
@@ -88,7 +92,7 @@ extern void            instruction_trace(char *, char *, ...);
 extern data_t *        instruction_create_enter_context(name_t *, data_t *);
 extern data_t *        instruction_create_function(name_t *, callflag_t, long, array_t *);
 
-extern char *          instruction_assign_label(instruction_t *);
+extern instruction_t * instruction_assign_label(instruction_t *);
 extern instruction_t * instruction_set_label(instruction_t *, data_t *);
 
 #define data_is_instruction(d)  ((d) && data_hastype((d), Instruction))

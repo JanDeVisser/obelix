@@ -168,8 +168,8 @@ char * _closure_allocstring(closure_t *closure) {
     ? dict_tostring_custom(closure -> params, "", "%s=%s", ",", "")
     : "";
   asprintf(&buf, "%s(%s)",
-	   script_tostring(closure -> script),
-	   params);
+           script_tostring(closure -> script),
+           params);
   return buf;
 }
 
@@ -329,7 +329,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   object_t  *self;
   pthread_t  thr_id;
   char      *str;
-  
+
   script = closure -> script;
   if (closure -> free_params) {
     dict_free(closure -> params);
@@ -366,8 +366,8 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
                                    (threadproc_t) _closure_start,
                                    closure_copy(closure));
     case STGenerator:
-      return data_create(Generator, 
-                         generator_create(closure, 
+      return data_create(Generator,
+                         generator_create(closure,
                                           vm_create(closure -> bytecode), NULL));
     default:
       return _closure_start(closure);

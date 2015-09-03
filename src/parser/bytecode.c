@@ -131,11 +131,10 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
   }
   list_push(bytecode -> instructions, instruction);
   if (!datastack_empty(bytecode -> pending_labels)) {
-    label = datastack_peek(bytecode -> pending_labels);
-    instruction_set_label(instr, label);
     node = list_tail_pointer(bytecode -> instructions);
     while (!datastack_empty(bytecode -> pending_labels)) {
       label = datastack_pop(bytecode -> pending_labels);
+      instruction_set_label(instr, label);
       dict_put(bytecode -> labels, strdup(data_tostring(label)), node);
       data_free(label);
     }

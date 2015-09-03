@@ -29,6 +29,7 @@
 #include <nvp.h>
 #include <script.h>
 #include <scriptparse.h>
+#include <vm.h>
 
 static void       _script_parse_create_statics(void) __attribute__((constructor));
 static data_t *   _script_parse_gen_label(void);
@@ -240,7 +241,7 @@ parser_t * script_parse_init_function(parser_t *parser) {
 parser_t * script_parse_setup_constructor(parser_t *parser) {
   name_t *name;
   data_t *func;
-  
+
   func = datastack_pop(parser -> stack);
   name = name_create(1, data_tostring(func));
   push_instruction(parser, instruction_create_pushscope());
@@ -551,6 +552,8 @@ parser_t * script_parse_nop(parser_t *parser) {
   return parser;
 }
 
+/* -- L O O P S ----------------------------------------------------------- */
+
 parser_t * script_parse_for(parser_t *parser) {
   bytecode_t *bytecode;
   data_t     *next_label = _script_parse_gen_label();
@@ -608,13 +611,22 @@ parser_t * script_parse_end_loop(parser_t *parser) {
   if (parser_debug) {
     debug(" -- end loop jump back label: %s", data_tostring(label));
   }
-  push_instruction(parser, instruction_create_jump(label));
-  data_free(label);
-
+  push_instruction(parser, data_create(ITEndLoop, data_tostring(label), NULL));
   datastack_push(bytecode -> pending_labels, block_label);
-
   return parser;
 }
+
+parser_t * script_parse_break(parser_t *parser) {
+  push_instruction(parser, data_create(ITVMStatus, NULL, data_create(Int, VMStatusBreak)));
+  return parser;
+}
+
+parser_t * script_parse_continue(parser_t *parser) {
+  push_instruction(parser, data_create(ITVMStatus, NULL, data_create(Int, VMStatusContinue)));
+  return parser;
+}
+
+/* -- C O N D I T I O N A L ----------------------------------------------- */
 
 parser_t * script_parse_if(parser_t *parser) {
   data_t *endlabel = _script_parse_gen_label();
@@ -684,9 +696,7 @@ parser_t * script_parse_end_conditional(parser_t *parser) {
           data_tostring(endlabel));
   }
   datastack_push(bytecode -> pending_labels, data_copy(elselabel));
-  if (data_cmp(endlabel, elselabel)) {
-    datastack_push(bytecode -> pending_labels, data_copy(endlabel));
-  }
+  datastack_push(bytecode -> pending_labels, data_copy(endlabel));
   data_free(elselabel);
   data_free(endlabel);
   return parser;

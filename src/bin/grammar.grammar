@@ -16,6 +16,8 @@ statements                  := statement
 statement                   := conditional
                              | while_loop
                              | for_loop
+                             | break
+                             | continue
                              | switch
                              | func_def
                              | return_stmt
@@ -72,6 +74,13 @@ for_loop                    := "for"
                                statements
                                end               [ end_loop                  ]
                              ;
+
+break                       := "break"           [ break                     ]
+                             ;
+
+continue                    := "continue"        [ continue                  ]
+                             ;
+
 switch                      := "switch"          [ if                        ]
                                expr              [ stash: 0 new_counter      ]
                                cases             [ discard_counter           ]
@@ -177,7 +186,7 @@ return_stmt                 := "return"
 yield_stmt                  := "yield"
                                expr              [ instruction: "Yield"      ]
                              ;
-                             
+
 new                         := "new"            [ setup_function: "new" incr ]
                                identifier        [ pushval_from_stack        ]
                                _func_call
