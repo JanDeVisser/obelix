@@ -244,7 +244,12 @@ inline int data_is_closure(data_t *data) {
 }
 
 inline closure_t * data_as_closure(data_t *data) {
-  data_is_closure(data) ? ((closure_t *) data) : NULL;
+  if (data_is_closure(data)) {
+    return (closure_t *) data;
+  } else {
+    error("Type mismatch '%s' is not closure", data_typename(data));
+    return NULL;
+  }
 }
 
 data_t * closure_import(closure_t *closure, name_t *module) {
