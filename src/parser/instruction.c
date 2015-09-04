@@ -49,6 +49,7 @@ static char *           _instruction_tostring_name_value(data_t *);
 static char *           _instruction_tostring_value_or_name(data_t *);
 static data_t *         _instruction_get_variable(instruction_t *, data_t *);
 static char *           _instruction_tostring(instruction_t *, char *);
+static void             _instruction_add_label(instruction_t *, char *);
 
 int Instruction = -1;
 
@@ -376,20 +377,11 @@ char * _instruction_tostring_value_or_name(data_t *data) {
   return NULL;
 }
 
-int * _instruction_label_length(char *label, int *count) {
-  if (*count == 0) {
-    *count = 12;
-  } else {
-    *count += 20;
-  }
-  return count;
-}
-
 char * _instruction_label_string(char *label, char *buffer) {
-  if (strlen(buffer) == 0) {
+  if (!strlen(buffer)) {
     sprintf(buffer, " %-11.11s", label);
   } else {
-    sprintf(buffer, "\n%7.7s%-11.11s", "", label);
+    sprintf(buffer + strlen(buffer), "\n%7.7s%-11.11s", "", label);
   }
   return buffer;
 }
@@ -398,26 +390,36 @@ char * _instruction_tostring(instruction_t *instruction, char *s) {
   char *lbl;
   char  line[7];
   int   count = 0;
+  int   sz;
 
   if (instruction -> line > 0) {
     snprintf(line, 7, "%6d", instruction -> line);
   } else {
     line[0] = 0;
   }
-  set_reduce(instruction -> labels, (reduce_t) _instruction_label_length, &count);
-  if (count) {
+  if (instruction -> labels) {
+    sz = set_size(instruction -> labels);
+    count = (sz * 12) + ((sz > 1) ? ((sz - 1) * 8) : 0) + 1;
     lbl = (char *) new(count);
+    lbl[0] = 0;
     set_reduce(instruction -> labels, (reduce_t) _instruction_label_string, lbl);
   } else {
-    lbl = (char *) new(12);
+    lbl = (char *) new(13);
     sprintf(lbl, "%12.12s", "");
   }
-  asprintf(&instruction -> _d.str, "%-6s %s%-15.15s%-27.27s",
+  asprintf(&instruction -> _d.str, "%-6s%s%-15.15s%-27.27s",
            line, lbl,
            data_typedescr((data_t *) instruction) -> type_name,
            (s) ? s : "");
   free(lbl);
   return NULL;
+}
+
+void _instruction_add_label(instruction_t *instr, char *label) {
+  if (!instr -> labels) {
+    instr -> labels = strset_create();
+  }
+  set_add(instr -> labels, label);
 }
 
 /* -- H E L P E R  F U N C T I O N S -------------------------------------- */
@@ -764,8 +766,13 @@ data_t * _instruction_execute_Jump(instruction_t *instr, data_t *scope, vm_t *vm
 }
 
 data_t * _instruction_execute_EndLoop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+  data_t *ret;
+  
+  ret = (vm -> status != VMStatusBreak) 
+    ? _instruction_execute_Jump(instr, scope, vm, bytecode) 
+    : NULL;
   vm -> status &= ~(VMStatusBreak | VMStatusContinue);
-  return (vm -> status != VMStatusBreak) ? _instruction_call_Jump(instr, scope, vm, bytecode) : NULL;
+  return ret;
 }
 
 /**
@@ -893,7 +900,7 @@ data_t * _instr_new(int type, va_list args) {
   ret -> line = -1;
   ret -> name = (name) ? strdup(name) : NULL;
   ret -> value = value;
-  ret -> labels = strset_create();
+  ret -> labels = NULL;
   return data;
 }
 
@@ -927,7 +934,7 @@ instruction_t * instruction_assign_label(instruction_t *instruction) {
   char *lbl = (char *) new(9);
 
   strrand(lbl, 8);
-  set_add(instruction -> labels, lbl);
+  _instruction_add_label(instruction, lbl);
   return instruction;
 }
 
@@ -935,6 +942,6 @@ instruction_t * instruction_set_label(instruction_t *instruction, data_t *label)
   char *lbl = (char *) new(9);
 
   strncpy(lbl, data_tostring(label), 8);
-  set_add(instruction -> labels, lbl);
+  _instruction_add_label(instruction, lbl);
   return instruction;
 }

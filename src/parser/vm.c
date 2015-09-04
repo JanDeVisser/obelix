@@ -127,7 +127,6 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
     }
   }
 
-  call_me = FALSE;
   switch (vm -> status) {
     case VMStatusExit:
       if (thread_has_status(thread_self(), TSFLeave) || (instr -> type == ITLeaveContext)) {
@@ -136,22 +135,14 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
       break;
     case VMStatusContinue:
     case VMStatusBreak:
-      call_me = (instr -> type == ITEndLoop);
+      call_me = (instr -> type == ITEndLoop) || (instr -> type == ITLeaveContext);
       break;
     default:
       call_me = TRUE;
       break;
   }
 
-  /*
-   * Execute the instruction if
-   *  1. exit() has not been called OR
-   *  2. A context manager's Leave function is being executed OR
-   *  3. This instruction is a Leave instruction
-   */
-  if (!exit_code ||
-      thread_has_status(thread_self(), TSFLeave) ||
-      (instr -> type == ITLeaveContext)) {
+  if (call_me) {
     ret = data_call(instr, args, NULL);
   }
 

@@ -1,7 +1,21 @@
 for i in 0 ~ 20
   if i > 10
     break
+  elif i > 5
+    continue
   end
+  print(i)
 end
 
 return i
+/* EXPECTED
+--exit-- 11
+--stdout--
+0
+1
+2
+3
+4
+5
+--
+EXPECTED */

@@ -32,7 +32,6 @@ extern "C" {
 typedef struct _instruction {
   data_t    _d;
   int       line;
-  char      label[9];
   set_t    *labels;
   char     *name;
   data_t   *value;
