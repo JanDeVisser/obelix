@@ -190,9 +190,9 @@ void data_free(data_t *data) {
 
   if (data && (data -> free_me != Constant) && (--data -> refs <= 0)) {
     free_me = data -> free_me;
-    free(data -> str);
     type = data_typedescr(data);
     _data_call_free(type, data);
+    free(data -> str);
     type -> count--;
     _data_count--;
     if (free_me != DontFreeData) {

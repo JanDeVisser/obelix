@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -28,7 +29,6 @@
 #include <exception.h>
 #include <name.h>
 #include <str.h>
-#include <wrapper.h>
 
 /* -------------------------------------------------------------------------*/
 
@@ -42,24 +42,30 @@ extern data_t * pgsql_connect(data_t *, array_t *, dict_t *);
 
 static dict_t *_drivers;
 static int     ErrorSQL;
-static int     SQLiteConnection;
+static int     SQLiteConnection = -1;
 
 typedef struct _sqliteconn {
-  data_t    data;
+  data_t    _d;
   sqlite3  *conn;
   char     *uri;
 } sqliteconn_t;
 
-static vtable_t _wrapper_vtable_sqlite_connection[] = {
-  { .id = FunctionCopy,     .fnc = (void_t) sqliteconn_copy },
-  { .id = FunctionCmp,      .fnc = (void_t) sqliteconn_cmp },
-  { .id = FunctionHash,     .fnc = (void_t) sqliteconn_hash },
-  { .id = FunctionFree,     .fnc = (void_t) sqliteconn_free },
-  { .id = FunctionToString, .fnc = (void_t) sqliteconn_tostring },
-  { .id = FunctionResolve,  .fnc = (void_t) sqliteconn_resolve },
-  { .id = FunctionCall,     .fnc = (void_t) sqliteconn_execute },
-  { .id = FunctionQuery,    .fnc = (void_t) sqliteconn_query },
-  { .id = FunctionLeave,    .fnc = (void_t) sqliteconn_leave },
+static data_t * _sqliteconn_new(int, va_list);
+static void     _sqliteconn_free(sqliteconn_t *);
+static int      _sqliteconn_cmp(sqliteconn_t *, sqliteconn_t *);
+static char *   _sqliteconn_tostring(sqliteconn_t *);
+static data_t * _sqliteconn_query(sqliteconn_t *, data_t *);
+
+
+static vtable_t _vtable_sqlite_connection[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _sqliteconn_new },
+  { .id = FunctionFree,     .fnc = (void_t) _sqliteconn_free },
+  { .id = FunctionCmp,      .fnc = (void_t) _sqliteconn_cmp },
+  { .id = FunctionToString, .fnc = (void_t) _sqliteconn_tostring },
+  { .id = FunctionResolve,  .fnc = (void_t) _sqliteconn_resolve },
+  { .id = FunctionCall,     .fnc = (void_t) _sqliteconn_execute },
+  { .id = FunctionQuery,    .fnc = (void_t) _sqliteconn_query },
+  { .id = FunctionLeave,    .fnc = (void_t) _sqliteconn_leave },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -70,8 +76,44 @@ void _sql_init(void) {
   dict_put(_drivers, "sqlite", sqlite_connect);
   dict_put(_drivers, "pgsql", pgsql_connect);
   ErrorSQL = exception_register("ErrorSQL");
-  SQLiteConnection = wrapper_register(-1, "sqliteconnection", _wrapper_vtable_sqlite_connection);
+  SQLiteConnection = typedescr_create_and_register(SQLiteConnection,
+                                                   "sqliteconnection",
+                                                   _vtable_sqlite_connection);
 }
+
+/* -- S Q L I T E C O N N E C T I O N   D A T A   T Y P E ----------------- */
+
+data_t *_sqliteconn_new(int type, va_list args) {
+  sqliteconn_t *ret;
+  data_t       *data;
+  sqlite3      *conn;
+  data_t       *uri;
+
+  ret = data_new(type, sqliteconn_t);
+  conn = va_arg(args, sqlite3 *);
+  uri = va_arg(args, data_t *);
+  data = (data_t *) ret;
+  ret -> conn = conn;
+  ret -> uri = strdup(data_tostring(uri));
+  return data;
+}
+
+void _sqliteconn_free(sqliteconn_t *c) {
+  free(c -> uri);
+  free(c);
+}
+
+int _sqliteconn_cmp(sqliteconn_t *c1, sqliteconn_t *c2) {
+  return c1 -> conn - c2 -> conn;
+}
+
+char * _sqliteconn_tostring(sqliteconn_t *conn) {
+  return conn -> uri;
+}
+
+data_t * _sqliteconn_query(sqliteconn_t *conn, data_t *query) {
+}
+
 
 /* -------------------------------------------------------------------------*/
 
@@ -87,7 +129,7 @@ data_t * _function_dbconnect(char *func_name, array_t *params, dict_t *kwargs) {
   assert(array_size(params));
   uri = (data_t *) array_get(params, 0);
   assert(uri);
-  uri_str = data_charval(uri);
+  uri_str = data_tostring(uri);
   ptr = strstr(uri_str, "://");
   if (!ptr) {
     ret = data_exception(ErrorParameterValue,
@@ -101,7 +143,7 @@ data_t * _function_dbconnect(char *func_name, array_t *params, dict_t *kwargs) {
     if (!driver) {
       ret = data_exception(ErrorParameterValue,
                           "Database URI '%s' has unknown type prefix '%s'",
-                          uri_str, prefix);
+                           uri_str, prefix);
     }
     free(prefix);
   }
@@ -123,19 +165,19 @@ data_t * sqlite_connect(data_t *uri, array_t *params, dict_t *kwargs) {
   data_t  *ret;
   sqlite3 *conn;
   int      err;
-  
-  if (sqlite3_open(data_charval(uri), &conn) != SQLITE_OK) {
+
+  if (sqlite3_open(data_tostring(uri), &conn) != SQLITE_OK) {
     ret = data_exception(ErrorSQL,
                          "Error opening SQLite database: %s",
                          sqlite3_errmsg(conn));
   }
-  return data_create(SQLiteConnection, conn);
+  return data_create(SQLiteConnection, conn, uri);
 }
 
 data_t * _data_new_sqlconnection(int type, va_list arg) {
   module_t *module;
   data_t   *ret;
-  
+
   module = va_arg(arg, module_t *);
   ret = &module -> data;
   if (!ret -> ptrval) {

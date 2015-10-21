@@ -44,7 +44,7 @@ static socket_t *   _socket_setopt(socket_t *, int);
 
 static data_t *     _socket_resolve(socket_t *, char *);
 static data_t *     _socket_leave(socket_t *, data_t *);
-  
+
 static data_t *     _socket_close(data_t *, char *, array_t *, dict_t *);
 static data_t *     _socket_listen_mth(data_t *, char *, array_t *, dict_t *);
 static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
@@ -153,7 +153,7 @@ void _socket_free(socket_t *socket) {
 
 char * _socket_allocstring(socket_t *socket) {
   char *buf;
-  
+
   asprintf(&buf, "%s:%s", socket -> host, socket -> service);
   return buf;
 }
@@ -173,9 +173,9 @@ data_t * _socket_resolve(socket_t *s, char *attr) {
 data_t *_socket_leave(socket_t * socket, data_t *param) {
   int     retval;
   data_t *ret;
-  
+
   if (socket_debug) {
-    debug("socket '%s'.leave('%s')", 
+    debug("socket '%s'.leave('%s')",
           socket_tostring(socket), data_tostring(param));
   }
   retval = socket_close(socket);
@@ -186,7 +186,6 @@ data_t *_socket_leave(socket_t * socket, data_t *param) {
   }
   return ret;
 }
-
 
 void * _socket_connection_handler(connection_t *connection) {
   void *ret;
