@@ -20,11 +20,12 @@
 #ifndef __CORE_H__
 #define __CORE_H__
 
+#include <config.h>
+
 #include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include <config.h>
 #include <logging.h>
 
 #define TRUE          1
@@ -95,7 +96,7 @@ extern char *          chars(void *);
 extern int             atob(char *);
 extern char *          btoa(long);
 extern int             strtoint(char *, long *);
-extern char *          itoa(long);
+extern char *          oblcore_itoa(long);
 extern char *          dtoa(double);
 
 extern char *          label_for_code(code_label_t *, int);
@@ -107,5 +108,6 @@ extern reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
 extern visit_t         collection_visitor(void *, visit_t);
 
 #define new(i)         (_new((i)))
+#define itoa(i)        (oblcore_itoa((i)))
 
 #endif /* __CORE_H__ */

@@ -63,8 +63,10 @@ extern int          file_flush(file_t *);
 extern int          file_redirect(file_t *, char *);
 
 extern data_t *     data_wrap_file(file_t *file);
+extern int          Stream;
 extern int          File;
 
+#define data_is_stream(d)  ((d) && (data_hastype((data_t *) (d), Stream)))
 #define data_is_file(d)    ((d) && (data_hastype((data_t *) (d), File)))
 #define data_as_file(d)    ((file_t *) (data_is_file((d)) ? ((file_t *) (d)) : NULL))
 #define file_free(f)       (data_free((data_t *) (f)))

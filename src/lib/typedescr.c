@@ -322,14 +322,15 @@ void typedescr_register_types(typedescr_t *types) {
 
 int typedescr_create_and_register(int type, char *type_name, vtable_t *vtable, methoddescr_t *methods) {
   typedescr_t td;
+  int         ix;
 
   memset(&td, 0, sizeof(typedescr_t));
   td.type = type;
   td.type_name = type_name;
   td.vtable = vtable;
-  td.inherits[0] = NoType;
-  td.inherits[1] = NoType;
-  td.inherits[2] = NoType;
+	for (ix = 0; ix < MAX_INHERITS; ix++) {
+		td.inherits[ix] = NoType;
+	}
   return typedescr_register_type(&td, methods);
 }
 
@@ -342,6 +343,17 @@ typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[])
   }
   type -> vtable = vtable_build(vtable);
   return type;
+}
+
+typedescr_t * typedescr_assign_inheritance(typedescr_t *type, int inherits) {
+	int ix;
+
+	for (ix = 0; ix < MAX_INHERITS; ix++) {
+		if (type -> inherits[ix] == NoType) {
+			type -> inherits[ix] = inherits;
+		}
+	}
+	return type;
 }
 
 typedescr_t * typedescr_get(int datatype) {

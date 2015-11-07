@@ -129,6 +129,14 @@ data_t * data_null(void) {
   return (data_t *) _null;
 }
 
+data_t * data_isnull(data_t *data) {
+	return !data || (data == _null);
+}
+
+data_t * data_notnull(data_t *data) {
+	return data && (data != _null);
+}
+
 /* ----------------------------------------------------------------------- */
 
 data_t * _ptr_copy(data_t *self, char *name, array_t *args, dict_t *kwargs) {

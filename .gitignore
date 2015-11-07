@@ -32,7 +32,9 @@ oblcoretest
 panoramix
 callgrind.out*
 config.h
-config.h.in
 config.status
 configure
-
+CMakeCache.txt
+**/CMakeFiles
+**/cmake_install.cmake
+**/*.vcxproj*

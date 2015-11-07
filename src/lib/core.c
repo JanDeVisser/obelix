@@ -20,7 +20,9 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#ifdef HAVE_SIGNAL_H
 #include <signal.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -30,8 +32,12 @@
 #include <core.h>
 #include <resolve.h>
 
+#ifdef HAVE_KILL
 static void    __init(void) __attribute__((constructor));
-static void    _outofmemory(int, siginfo_t *, void *);
+static void    _outofmemory_logger(int, siginfo_t *, void *);
+#endif
+
+static void    _outofmemory(int);
 
 #ifdef NDEBUG
 log_level_t log_level = LogLevelInfo;
@@ -39,7 +45,8 @@ log_level_t log_level = LogLevelInfo;
 log_level_t log_level = LogLevelDebug;
 #endif
 
-static void _outofmemory(int sig, siginfo_t *siginfo, void *context) {
+#ifdef HAVE_KILL
+static void _outofmemory_logger(int sig, siginfo_t *siginfo, void *context) {
   error("Out of Memory. Terminating...");
   exit(1);
 }
@@ -60,14 +67,23 @@ void __init(void) {
     exit(1);
   }
 }
+#endif
 
+static void _outofmemory(int sz) {
+#ifdef HAVE_KILL
+  kill(0, SIGUSR1);
+#else
+  error("Could not allocate %d bytes. Out of Memory. Terminating...", sz);
+  exit(1);
+#endif
+}
 
 void * _new(int sz) {
   void *ret;
 
   ret = malloc(sz);
   if (sz && !ret) {
-    kill(0, SIGUSR1);
+    _outofmemory(sz);
   } else {
     memset(ret, 0, sz);
   }
@@ -78,7 +94,7 @@ void * new_array(int num, int sz) {
   void * ret = calloc(num, sz);
 
   if (num && !ret) {
-    kill(0, SIGUSR1);
+    _outofmemory(sz * num);
   }
   return ret;
 }
@@ -93,7 +109,7 @@ void * resize_block(void *block, int newsz, int oldsz) {
   if (block) {
     ret = realloc(block, newsz);
     if (newsz && !ret) {
-      kill(0, SIGUSR1);
+      _outofmemory(newsz);
     } else if (oldsz) {
       memset(ret + oldsz, 0, newsz - oldsz);
     }
@@ -126,7 +142,7 @@ int vasprintf(char **strp, const char *fmt, va_list args) {
   char    *str;
   
   va_copy(copy, args);
-  ret = vsnprintf(NULL, 0, fmt, copy)
+  ret = vsnprintf(NULL, 0, fmt, copy);
   va_end(copy);
   str = (char *) new(ret + 1);
   if (!str) {
@@ -220,9 +236,16 @@ int strtoint(char *str, long *val) {
   }
 }
 
-char * itoa(long i) {
+#ifdef itoa
+  #undef itoa
+#endif
+char * oblcore_itoa(long i) {
   static char buf[20];
+#ifdef HAVE_ITOA
+  itoa(i, buf, 10);
+#else
   sprintf(buf, "%ld", i);
+#endif
   return buf;
 }
 

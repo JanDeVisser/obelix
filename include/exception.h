@@ -52,7 +52,7 @@ typedef enum _errorcode {
   ErrorYield,
 } errorcode_t;
 
-typedef struct _exception {
+typedef struct _exception_t {
   data_t        _d;
   errorcode_t   code;
   char         *msg;

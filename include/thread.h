@@ -20,6 +20,10 @@
 #ifndef __THREAD_H__
 #define	__THREAD_H__
 
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
+
 #include <data.h>
 
 #ifdef	__cplusplus
@@ -33,12 +37,14 @@ typedef enum _thread_status_flag {
 
 typedef struct _thread {
   data_t           _d;
+#ifdef HAVE_PTHREAD_H
   pthread_t        thr_id;
+  pthread_mutex_t  mutex;
+#endif
   struct _thread  *parent;
   data_t          *kernel;
   void            *stack;
   free_t           onfree;
-  pthread_mutex_t  mutex;
   int              status;
   data_t          *exit_code;
   char            *name;
@@ -47,7 +53,9 @@ typedef struct _thread {
 
 typedef void * (*threadproc_t)(void *);
 
+#ifdef HAVE_PTHREAD_H
 extern thread_t *    thread_create(pthread_t, char *);
+#endif
 extern thread_t *    thread_new(char *, threadproc_t, void *);
 extern thread_t *    thread_self(void);
 extern unsigned int  thread_hash(thread_t *);

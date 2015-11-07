@@ -103,6 +103,7 @@ extern data_t *        data_len(data_t *);
 extern char *          data_tostring(data_t *);
 extern int             data_cmp(data_t *, data_t *);
 extern data_t *        data_call(data_t *, array_t *, dict_t *);
+extern int             data_hasmethod(data_t *, char *);
 extern data_t *        data_method(data_t *, char *);
 extern data_t *        data_execute(data_t *, char *, array_t *, dict_t *);
 extern data_t *        data_resolve(data_t *, struct _name *);
@@ -143,6 +144,8 @@ extern array_t *       data_add_strings_reducer(data_t *, array_t *);
 extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
 extern data_t *        data_null(void);
+extern int             data_isnull(data_t *);
+extern int             data_notnull(data_t *);
 extern data_t *        data_create_list(array_t *);
 extern array_t *       data_list_copy(data_t *);
 extern array_t *       data_list_to_str_array(data_t *);

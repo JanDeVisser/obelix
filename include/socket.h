@@ -20,11 +20,22 @@
 #ifndef __SOCKET_H__
 #define	__SOCKET_H__
 
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#endif
+
 #include <file.h>
 #include <thread.h>
 
 #ifdef	__cplusplus
 extern "C" {
+#endif
+
+#ifndef HAVE_TYPE_SOCKET
+typedef int SOCKET;
 #endif
 
 typedef struct _connection {
@@ -39,12 +50,13 @@ typedef void * (*service_t)(connection_t *);
 typedef struct _socket {
   data_t     _d;
   file_t    *sockfile;
-  int        fh;
+  SOCKET     fh;
   char      *host;
   char      *service;
   service_t  service_handler;
   thread_t  *thread;
   void      *context;
+  int        _errno;
 } socket_t;
 
 extern socket_t *    socket_create(char *, int);
@@ -58,6 +70,8 @@ extern int           socket_listen(socket_t *, service_t, void *);
 extern int           socket_listen_detach(socket_t *, service_t, void *);
 extern socket_t *    socket_interrupt(socket_t *);
 extern socket_t *    socket_nonblock(socket_t *);
+extern int           socket_read(socket_t *, void *, int);
+extern int           socket_write(socket_t *, void *, int);
 
 extern void *        connection_listener_service(connection_t *);
 

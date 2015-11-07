@@ -141,6 +141,7 @@ extern void            typedescr_register_types(typedescr_t *);
 extern int             typedescr_create_and_register(int, char *, vtable_t *, methoddescr_t *);
 extern typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
 extern typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
+extern typedescr_t *   typedescr_assign_inheritance(typedescr_t *, int);
 extern typedescr_t *   typedescr_get(int);
 extern typedescr_t *   typedescr_get_byname(char *);
 extern void            typedescr_count(void);

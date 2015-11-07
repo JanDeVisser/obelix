@@ -256,6 +256,14 @@ data_t * data_call(data_t *self, array_t *args, dict_t *kwargs) {
   return call(self, args, kwargs);
 }
 
+int data_hasmethod(data_t *data, char *name) {
+  typedescr_t   *type = data_typedescr(data);
+  methoddescr_t *md;
+
+  md = typedescr_get_method(type, name);
+  return (md) ? TRUE : FALSE;
+}
+
 data_t * data_method(data_t *data, char *name) {
   typedescr_t   *type = data_typedescr(data);
   methoddescr_t *md;
