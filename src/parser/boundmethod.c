@@ -17,10 +17,10 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-
+#include <config.h>
 #include <boundmethod.h>
 #include <wrapper.h>
+#include <stdio.h>
 
 /* ------------------------------------------------------------------------ */
 

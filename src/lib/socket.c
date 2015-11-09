@@ -394,8 +394,10 @@ static int WSAErrorMap[][2] = {
 #endif /* 0 */
 	{ -1, -1}
 };
+#endif
 
 void _socket_set_errno(socket_t *socket) {
+#ifdef HAVE_WINSOCK2_H
   int ix;
 
   socket -> _errno = WSAGetLastError();
@@ -467,19 +469,19 @@ socket_t * socket_interrupt(socket_t *socket) {
 }
 
 socket_t * socket_nonblock(socket_t *socket) {
-	int ret = 0;
+  socket_t *ret = NULL;
 
 #ifndef __WIN32__
   ret = _socket_setopt(socket, O_NONBLOCK);
 #else /* __WIN32__ */
-	u_long nonblock = 1;
-  ret = ioctlsocket(socket -> fh, FIONBIO, &nonblock);
+  u_long nonblock = 1;
+  ret = !ioctlsocket(socket -> fh, FIONBIO, &nonblock) ? socket : NULL;
 #endif /* __WIN32__ */
   if (ret) {
-  	_socket_set_errno(socket);
-  	return NULL;
+    _socket_set_errno(socket);
+    return NULL;
   } else {
-  	return socket;
+    return socket;
   }
 }
 

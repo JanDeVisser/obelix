@@ -127,7 +127,7 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   }
   
   if (!errno) {
-    pthread_cleanup_push(_thread_free, thread);
+    pthread_cleanup_push((void (*)(void *)) _thread_free, thread);
     ret = ctx -> start_routine(ctx -> arg);
     pthread_cleanup_pop(1);
   } else {

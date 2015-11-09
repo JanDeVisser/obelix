@@ -268,7 +268,7 @@ int typedescr_register(typedescr_t *descr) {
     info("Registering type '%s' [%d]", descr -> type_name, descr -> type);
   }
   if (!descriptors) {
-    descriptors = (typedescr_t *) new_array(Dynamic, sizeof(typedescr_t));
+    descriptors = (typedescr_t *) new_array(Dynamic + 1, sizeof(typedescr_t));
     _numtypes = Dynamic;
   } else {
     if (descr -> type >= _numtypes) {

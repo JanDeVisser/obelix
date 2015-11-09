@@ -17,6 +17,8 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
+
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>

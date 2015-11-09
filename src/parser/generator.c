@@ -17,7 +17,10 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-	#include <generator.h>
+#include <config.h>
+#include <stdio.h>
+
+#include <generator.h>
 
 static void          _generator_init(void) __attribute__((constructor));
 static void          _generator_free(generator_t *generator);

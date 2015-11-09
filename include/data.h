@@ -131,6 +131,7 @@ extern int             data_intval(data_t *);
 #define data_type(d)        (((data_t *) (d)) -> type)
 #define data_typename(d)    ((d) ? (typedescr_get(data_type((data_t *) (d))) -> type_name) : "null")
 
+#define data_is_string(d )  ((d) && (data_hastype((d), String)))
 #define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
 #define data_as_pointer(d)  (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
 #define data_unwrap(d)      (data_is_pointer((data_t *) (d)) ? (data_as_pointer(d) -> ptr) : NULL)
@@ -181,7 +182,7 @@ extern int_t *         bool_false;
                                     dict_set_free_data( \
                                       dict_create(NULL),\
                                       (free_t) data_free), \
-                                    (tostring_t) itoa), \
+                                    (tostring_t) oblcore_itoa), \
                                   (tostring_t) data_tostring)
 
 #define datadata_dict_create()   dict_set_tostring_data( \

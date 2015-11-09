@@ -168,7 +168,7 @@ data_t * _stream_iter(data_t *stream) {
   ret = _streamiter_create(stream, NULL);
 
   if (file_debug) {
-    debug("%s._stream_iter() -> %s", data_tostring(stream), streamiter_as_data(ret));
+    debug("%s._stream_iter() -> %s", data_tostring(stream), data_tostring((data_t *) ret));
   }
   return (data_t *) ret;
 }

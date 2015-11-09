@@ -27,6 +27,8 @@
 #include <typedescr.h>
 #include <wrapper.h>
 
+#include <stdio.h>
+
 static void     _regexp_init(void) __attribute__((constructor));
 static char *   _regexp_allocstring(re_t *);
 static void     _regexp_free(re_t *);

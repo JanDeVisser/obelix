@@ -102,7 +102,7 @@ extern struct _str * dict_dump(dict_t *, char *);
                                     dict_set_free_data( \
                                       dict_create(NULL),\
                                       (free_t) free), \
-                                    (tostring_t) itoa), \
+                                    (tostring_t) oblcore_itoa), \
                                   (tostring_t) chars)
 
 #define strstr_dict_create()    dict_set_tostring_data( \
@@ -125,7 +125,7 @@ extern struct _str * dict_dump(dict_t *, char *);
                                     (free_t) free), \
 				  (tostring_t) chars)
 
-#define intdict_create()        dict_set_tostring_key(dict_create(NULL), (tostring_t) itoa)
+#define intdict_create()        dict_set_tostring_key(dict_create(NULL), (tostring_t) oblcore_itoa)
 
 #define dict_put_int(d, i, v)   dict_put((d), (void *)((long) (i)), (v))
 #define dict_get_int(d, i)      dict_get((d), (void *)((long) (i)))

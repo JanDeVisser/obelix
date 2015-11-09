@@ -17,6 +17,8 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
+
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -57,7 +59,7 @@ void __init(void) {
   memset (&act, 0, sizeof(act));
 
   /* Use the sa_sigaction field because the handles has two additional parameters */
-  act.sa_sigaction = &_outofmemory;
+  act.sa_sigaction = &_outofmemory_logger;
 
   /* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
   act.sa_flags = SA_SIGINFO;

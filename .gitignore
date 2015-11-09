@@ -40,3 +40,4 @@ CMakeCache.txt
 **/*.vcxproj*
 msys/*
 vc/*
+build/*

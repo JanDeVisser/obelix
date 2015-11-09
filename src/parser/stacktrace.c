@@ -17,6 +17,9 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
+#include <stdio.h>
+
 #include <closure.h>
 #include <data.h>
 #include <datastack.h>

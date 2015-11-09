@@ -32,6 +32,7 @@
 #cmakedefine HAVE_LOCALE_H        1
 #cmakedefine HAVE_MALLOC_H        1
 #cmakedefine HAVE_NETDB_H         1
+#cmakedefine HAVE_PTHREAD_H       1
 #cmakedefine HAVE_SIGNAL_H        1
 #cmakedefine HAVE_STDBOOL_H       1
 #cmakedefine HAVE_SYS_SOCKET_H    1
@@ -40,6 +41,7 @@
 
 #cmakedefine HAVE_TYPE_SOCKET     1
 #cmakedefine HAVE_SOCKLEN_T       1
+#cmakedefine HAVE_ECONNRESET      1
 
 #cmakedefine HAVE_ASPRINTF            1
 #cmakedefine HAVE_KILL                1

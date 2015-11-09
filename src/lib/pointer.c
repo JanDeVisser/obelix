@@ -129,12 +129,12 @@ data_t * data_null(void) {
   return (data_t *) _null;
 }
 
-data_t * data_isnull(data_t *data) {
-	return !data || (data == _null);
+int data_isnull(data_t *data) {
+  return !data || (data == (data_t *) _null);
 }
 
-data_t * data_notnull(data_t *data) {
-	return data && (data != _null);
+int data_notnull(data_t *data) {
+  return data && (data != (data_t *) _null);
 }
 
 /* ----------------------------------------------------------------------- */
