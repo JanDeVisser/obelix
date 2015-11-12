@@ -21,11 +21,8 @@
 #define __CORE_H__
 
 #include <config.h>
-
-#include <assert.h>
+#include <core-setup.h>
 #include <stdarg.h>
-#include <stdlib.h>
-
 #include <logging.h>
 
 #define TRUE          1
@@ -71,41 +68,41 @@ typedef struct _reduce_ctx {
   void_t          fnc;
 } reduce_ctx;
 
-extern void *          _new(int);
-extern void *          new_array(int, int);
-extern void *          new_ptrarray(int);
-extern void *          resize_block(void *, int, int);
-extern void *          resize_ptrarray(void *, int, int);
+OBLCORE_IMPEXP void *          _new(int);
+OBLCORE_IMPEXP void *          new_array(int, int);
+OBLCORE_IMPEXP void *          new_ptrarray(int);
+OBLCORE_IMPEXP void *          resize_block(void *, int, int);
+OBLCORE_IMPEXP void *          resize_ptrarray(void *, int, int);
 
 #ifndef HAVE_ASPRINTF
-extern int             asprintf(char **, const char *, ...);
+OBLCORE_IMPEXP int             asprintf(char **, const char *, ...);
 #endif
 #ifndef HAVE_VASPRINTF
-extern int             vasprintf(char **, const char *, va_list);
+OBLCORE_IMPEXP int             vasprintf(char **, const char *, va_list);
 #endif
-extern unsigned int    hash(void *, size_t);
-extern unsigned int    hashptr(void *);
-extern unsigned int    hashlong(long);
-extern unsigned int    hashdouble(double);
-extern unsigned int    hashblend(unsigned int, unsigned int);
+OBLCORE_IMPEXP unsigned int    hash(void *, size_t);
+OBLCORE_IMPEXP unsigned int    hashptr(void *);
+OBLCORE_IMPEXP unsigned int    hashlong(long);
+OBLCORE_IMPEXP unsigned int    hashdouble(double);
+OBLCORE_IMPEXP unsigned int    hashblend(unsigned int, unsigned int);
 
-extern void            initialize_random(void);
-extern char *          strrand(char *, size_t);
-extern unsigned int    strhash(char *);
-extern char *          chars(void *);
-extern int             atob(char *);
-extern char *          btoa(long);
-extern int             strtoint(char *, long *);
-extern char *          oblcore_itoa(long);
-extern char *          dtoa(double);
+OBLCORE_IMPEXP void            initialize_random(void);
+OBLCORE_IMPEXP char *          strrand(char *, size_t);
+OBLCORE_IMPEXP unsigned int    strhash(char *);
+OBLCORE_IMPEXP char *          chars(void *);
+OBLCORE_IMPEXP int             atob(char *);
+OBLCORE_IMPEXP char *          btoa(long);
+OBLCORE_IMPEXP int             strtoint(char *, long *);
+OBLCORE_IMPEXP char *          oblcore_itoa(long);
+OBLCORE_IMPEXP char *          dtoa(double);
 
-extern char *          label_for_code(code_label_t *, int);
-extern int             code_for_label(code_label_t *, char *);
+OBLCORE_IMPEXP char *          label_for_code(code_label_t *, int);
+OBLCORE_IMPEXP int             code_for_label(code_label_t *, char *);
 
-extern reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
-extern reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
-extern reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
-extern visit_t         collection_visitor(void *, visit_t);
+OBLCORE_IMPEXP reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
+OBLCORE_IMPEXP reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
+OBLCORE_IMPEXP reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
+OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 
 #define new(i)         (_new((i)))
 #define itoa(i)        (oblcore_itoa((i)))

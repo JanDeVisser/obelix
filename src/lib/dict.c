@@ -262,7 +262,7 @@ unsigned int _dict_hash(dict_t *dict, void *key) {
 int _dict_cmp_keys(dict_t *dict, void *key1, void *key2) {
   return (dict -> cmp)
     ? dict -> cmp(key1, key2)
-    : (long) key1 - (long) key2;
+    : (intptr_t) key1 - (intptr_t) key2;
 }
 
 dict_t * _dict_rehash(dict_t *dict) {
@@ -372,7 +372,7 @@ void * _dict_entry_reducer(dictentry_t *e, reduce_ctx *ctx) {
   dict_reduce_type_t  type;
 
   if (e) {
-    type = (dict_reduce_type_t) ((int) ((long) ctx -> user));
+    type = (dict_reduce_type_t) ((int) ((intptr_t) ctx -> user));
     elem = _dict_reduce_param(e, type);
     ctx -> data = ((reduce_t) ctx -> fnc)(elem, ctx -> data);
     switch (type) {
@@ -395,7 +395,7 @@ void * _dict_reduce(dict_t *dict, reduce_t reducer, void *data, dict_reduce_type
   bucket_t   *bucket;
   int         ix;
 
-  ctx = reduce_ctx_create((void *) ((long) reducetype), data, (void_t) reducer);
+  ctx = reduce_ctx_create((void *) ((intptr_t) reducetype), data, (void_t) reducer);
   for (ix = 0; ix < dict -> num_buckets; ix++) {
     bucket = (bucket_t *) dict -> buckets[ix];
     _bucket_reduce(bucket, (reduce_t) _dict_entry_reducer, ctx);

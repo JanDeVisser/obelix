@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
+#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -81,7 +81,7 @@ data_t * _ptr_cast(pointer_t *src, int totype) {
   if (totype == Bool) {
     ret = data_create(Bool, src -> ptr != NULL);
   } else if (totype == Int) {
-    ret = data_create(Int, (long) src -> ptr);
+    ret = data_create(Int, (intptr_t) src -> ptr);
   }
   return ret;
 }
@@ -114,7 +114,7 @@ pointer_t * _ptr_parse(char *str) {
     return (pointer_t *) data_null();
   } else {
     if (strtoint(str, &l)) {
-      return (pointer_t *) data_create(Pointer, 0, (void *) l);
+      return (pointer_t *) data_create(Pointer, 0, (void *) (intptr_t) l);
     } else {
       return (pointer_t *) data_null();
     }

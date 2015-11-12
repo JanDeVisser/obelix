@@ -41,7 +41,7 @@ static char *        _range_allocstring(range_t *);
 
 static data_t *      _range_create(data_t *, char *, array_t *, dict_t *);
 
-extern data_t *     range_create(data_t *from, data_t *to);
+extern data_t *      range_create(data_t *from, data_t *to);
 extern int           range_cmp(range_t *, range_t *);
 extern unsigned int  range_hash(range_t *);
 extern data_t *      range_iter(range_t *);

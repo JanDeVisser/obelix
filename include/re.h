@@ -35,13 +35,13 @@ typedef struct _re {
   char    *flags;
 } re_t;
 
-extern re_t *   regexp_create(char *, char *);
-extern re_t *   regexp_vcreate(va_list);
-extern int      regexp_cmp(re_t *, re_t *);
-extern data_t * regexp_match(re_t *, char *);
-extern data_t * regexp_replace(re_t *, char *, array_t *);
+OBLCORE_IMPEXP re_t *   regexp_create(char *, char *);
+OBLCORE_IMPEXP re_t *   regexp_vcreate(va_list);
+OBLCORE_IMPEXP int      regexp_cmp(re_t *, re_t *);
+OBLCORE_IMPEXP data_t * regexp_match(re_t *, char *);
+OBLCORE_IMPEXP data_t * regexp_replace(re_t *, char *, array_t *);
 
-extern int Regexp;
+OBLCORE_IMPEXP int Regexp;
 
 #define data_is_regexp(d)   ((d) && data_hastype((data_t *) (d), Regexp))
 #define data_as_regexp(d)   ((re_t *) (data_is_regexp((d)) ? (d) : NULL))

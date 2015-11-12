@@ -15,7 +15,9 @@ add_library(oblparser SHARED
 	token.c
 	vm.c
 )
-      
+
+target_link_libraries(oblparser PUBLIC oblcore)
+
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(oblparser PRIVATE _GNU_SOURCE)
 endif(CMAKE_COMPILER_IS_GNUCC)

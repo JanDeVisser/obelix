@@ -22,14 +22,26 @@
 
 #ifdef HAVE_PTHREAD_H
 #include <pthread.h>
-#endif
+#elif defined(HAVE_CREATETHREAD)
+	#ifdef HAVE_WINDOWS_H
+	#include <windows.h>
+	#endif /* HAVE_WINDOWS_H */
+#endif /* HAVE_PTHREAD_H */
 
 #include <data.h>
+#include <mutex.h>
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
-  
+
+#ifdef HAVE_PTHREAD_H
+typedef pthread_t _thr_t;
+#elif defined(HAVE_CREATETHREAD)
+typedef HANDLE    _thr_t;
+#endif /* HAVE_CREATETHREAD */
+
+
 typedef enum _thread_status_flag {
   TSFNone  = 0x0000,
   TSFLeave = 0x0001
@@ -37,10 +49,8 @@ typedef enum _thread_status_flag {
 
 typedef struct _thread {
   data_t           _d;
-#ifdef HAVE_PTHREAD_H
-  pthread_t        thr_id;
-  pthread_mutex_t  mutex;
-#endif
+  _thr_t           thread;
+  mutex_t         *mutex;
   struct _thread  *parent;
   data_t          *kernel;
   void            *stack;
@@ -53,34 +63,32 @@ typedef struct _thread {
 
 typedef void * (*threadproc_t)(void *);
 
-#ifdef HAVE_PTHREAD_H
-extern thread_t *    thread_create(pthread_t, char *);
-#endif
-extern thread_t *    thread_new(char *, threadproc_t, void *);
-extern thread_t *    thread_self(void);
-extern unsigned int  thread_hash(thread_t *);
-extern int           thread_cmp(thread_t *, thread_t *);
-extern int           thread_interruptable(thread_t *);
-extern int           thread_interrupt(thread_t *);
-extern int           thread_yield(void);
-extern thread_t *    thread_setname(thread_t *, char *);
-extern data_t *      thread_resolve(thread_t *, char *);
-extern int           thread_set_status(thread_t *, thread_status_flag_t);
-extern int           thread_unset_status(thread_t *, thread_status_flag_t);
-extern int           thread_has_status(thread_t *, thread_status_flag_t);
-extern int           thread_status(thread_t *);
+OBLCORE_IMPEXP thread_t *    thread_create(_thr_t, char *);
+OBLCORE_IMPEXP thread_t *    thread_new(char *, threadproc_t, void *);
+OBLCORE_IMPEXP thread_t *    thread_self(void);
+OBLCORE_IMPEXP unsigned int  thread_hash(thread_t *);
+OBLCORE_IMPEXP int           thread_cmp(thread_t *, thread_t *);
+OBLCORE_IMPEXP int           thread_interruptable(thread_t *);
+OBLCORE_IMPEXP int           thread_interrupt(thread_t *);
+OBLCORE_IMPEXP int           thread_yield(void);
+OBLCORE_IMPEXP thread_t *    thread_setname(thread_t *, char *);
+OBLCORE_IMPEXP data_t *      thread_resolve(thread_t *, char *);
+OBLCORE_IMPEXP int           thread_set_status(thread_t *, thread_status_flag_t);
+OBLCORE_IMPEXP int           thread_unset_status(thread_t *, thread_status_flag_t);
+OBLCORE_IMPEXP int           thread_has_status(thread_t *, thread_status_flag_t);
+OBLCORE_IMPEXP int           thread_status(thread_t *);
 
-extern data_t *      data_current_thread(void);
-extern data_t *      data_thread_stacktrace(data_t *);
-extern data_t *      data_thread_push_stackframe(data_t *);
-extern data_t *      data_thread_pop_stackframe(void);
-extern data_t *      data_thread_set_kernel(data_t *);
-extern data_t *      data_thread_kernel(void);
-extern data_t *      data_thread_set_exit_code(data_t *);
-extern data_t *      data_thread_exit_code(void);
+OBLCORE_IMPEXP data_t *      data_current_thread(void);
+OBLCORE_IMPEXP data_t *      data_thread_stacktrace(data_t *);
+OBLCORE_IMPEXP data_t *      data_thread_push_stackframe(data_t *);
+OBLCORE_IMPEXP data_t *      data_thread_pop_stackframe(void);
+OBLCORE_IMPEXP data_t *      data_thread_set_kernel(data_t *);
+OBLCORE_IMPEXP data_t *      data_thread_kernel(void);
+OBLCORE_IMPEXP data_t *      data_thread_set_exit_code(data_t *);
+OBLCORE_IMPEXP data_t *      data_thread_exit_code(void);
 
-extern int Thread;
-extern int thread_debug;
+OBLCORE_IMPEXP int Thread;
+OBLCORE_IMPEXP int thread_debug;
 
 #define data_is_thread(d)  ((d) && (data_hastype((d), Thread)))
 #define data_as_thread(d)  ((thread_t *) (data_is_thread((d)) ? (d) : NULL))
@@ -88,8 +96,4 @@ extern int thread_debug;
 #define thread_tostring(o) (data_tostring((data_t *) (o)))
 #define thread_copy(o)     ((thread_t *) data_copy((data_t *) (o)))
 
-#ifdef	__cplusplus
-}
-#endif
-
-#endif /* __THREAD_H__ */
+#endif /* __MUTEX_H__ */

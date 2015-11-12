@@ -125,34 +125,34 @@ typedef struct _typedescr {
   int            count;
 } typedescr_t;
 
-extern int             interface_register(int, char *, int, ...);
-extern interface_t *   interface_get(int);
-extern void            interface_register_method(interface_t *, methoddescr_t *);
-extern methoddescr_t * interface_get_method(interface_t *, char *);
+OBLCORE_IMPEXP int             interface_register(int, char *, int, ...);
+OBLCORE_IMPEXP interface_t *   interface_get(int);
+OBLCORE_IMPEXP void            interface_register_method(interface_t *, methoddescr_t *);
+OBLCORE_IMPEXP methoddescr_t * interface_get_method(interface_t *, char *);
 
-extern vtable_t *      vtable_build(vtable_t[]);
-extern void            vtable_dump(vtable_t *);
-extern void_t          vtable_get(vtable_t *, int);
-extern int             vtable_implements(vtable_t *, int);
+OBLCORE_IMPEXP vtable_t *      vtable_build(vtable_t[]);
+OBLCORE_IMPEXP void            vtable_dump(vtable_t *);
+OBLCORE_IMPEXP void_t          vtable_get(vtable_t *, int);
+OBLCORE_IMPEXP int             vtable_implements(vtable_t *, int);
 
-extern int             typedescr_register(typedescr_t *);
-extern int             typedescr_register_type(typedescr_t *, methoddescr_t *);
-extern void            typedescr_register_types(typedescr_t *);
-extern int             typedescr_create_and_register(int, char *, vtable_t *, methoddescr_t *);
-extern typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
-extern typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
-extern typedescr_t *   typedescr_assign_inheritance(typedescr_t *, int);
-extern typedescr_t *   typedescr_get(int);
-extern typedescr_t *   typedescr_get_byname(char *);
-extern void            typedescr_count(void);
-extern unsigned int    typedescr_hash(typedescr_t *);
-extern void            typedescr_register_methods(methoddescr_t[]);
-extern void            typedescr_register_method(typedescr_t *, methoddescr_t *);
-extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
-extern void_t          typedescr_get_function(typedescr_t *, int);
-extern char *          typedescr_tostring(typedescr_t *);
-extern int             typedescr_is(typedescr_t *, int);
-extern void            typedescr_dump_vtable(typedescr_t *);
+OBLCORE_IMPEXP int             typedescr_register(typedescr_t *);
+OBLCORE_IMPEXP int             typedescr_register_type(typedescr_t *, methoddescr_t *);
+OBLCORE_IMPEXP void            typedescr_register_types(typedescr_t *);
+OBLCORE_IMPEXP int             typedescr_create_and_register(int, char *, vtable_t *, methoddescr_t *);
+OBLCORE_IMPEXP typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
+OBLCORE_IMPEXP typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
+OBLCORE_IMPEXP typedescr_t *   typedescr_assign_inheritance(typedescr_t *, int);
+OBLCORE_IMPEXP typedescr_t *   typedescr_get(int);
+OBLCORE_IMPEXP typedescr_t *   typedescr_get_byname(char *);
+OBLCORE_IMPEXP void            typedescr_count(void);
+OBLCORE_IMPEXP unsigned int    typedescr_hash(typedescr_t *);
+OBLCORE_IMPEXP void            typedescr_register_methods(methoddescr_t[]);
+OBLCORE_IMPEXP void            typedescr_register_method(typedescr_t *, methoddescr_t *);
+OBLCORE_IMPEXP methoddescr_t * typedescr_get_method(typedescr_t *, char *);
+OBLCORE_IMPEXP void_t          typedescr_get_function(typedescr_t *, int);
+OBLCORE_IMPEXP char *          typedescr_tostring(typedescr_t *);
+OBLCORE_IMPEXP int             typedescr_is(typedescr_t *, int);
+OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
   
 #ifdef  __cplusplus
 }

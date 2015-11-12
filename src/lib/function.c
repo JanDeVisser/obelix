@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <errno.h>
 #include <stdio.h>
 
@@ -77,7 +78,7 @@ data_t * _function_cast(function_t *fnc, int totype) {
   if (totype == Bool) {
     ret = data_create(Bool, fnc -> fnc != NULL);
   } else if (totype == Int) {
-    ret = data_create(Int, (long) fnc -> fnc);
+    ret = data_create(Int, (intptr_t) fnc -> fnc);
   }
   return ret;
 }

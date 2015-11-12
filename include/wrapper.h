@@ -26,8 +26,8 @@
 extern "C" {
 #endif
 
-extern int wrapper_register(int, char *, vtable_t *);  
-extern int wrapper_register_with_overrides(int, char *, vtable_t *, vtable_t *);
+OBLCORE_IMPEXP int wrapper_register(int, char *, vtable_t *);
+OBLCORE_IMPEXP int wrapper_register_with_overrides(int, char *, vtable_t *, vtable_t *);
 
 #ifdef  __cplusplus
 }

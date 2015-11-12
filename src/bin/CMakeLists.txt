@@ -1,7 +1,8 @@
 add_custom_command (
+  MAIN_DEPENDENCY grammar.grammar
   OUTPUT grammar.c
-  COMMAND ${CMAKE_CURRENT_BINARY_DIR}/../parser/panoramix -g ${CMAKE_CURRENT_LIST_DIR}/grammar.grammar > grammar.c
-  DEPENDS grammar.grammar
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin
+  COMMAND panoramix -g ${CMAKE_CURRENT_LIST_DIR}/grammar.grammar > grammar.c
 )
 
 add_executable(obelix

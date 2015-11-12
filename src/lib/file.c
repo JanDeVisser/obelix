@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -24,7 +25,12 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/types.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
+#endif /* HAVE_WINDOWS_H */
 
 #include <array.h>
 #include <data.h>
@@ -34,6 +40,12 @@
 #include <re.h>
 
 int file_debug = 0;
+
+#ifdef __WIN32__
+typedef HANDLE _oshandle_t;
+#else
+typedef int _oshandle_t;
+#endif /* __WIN32__ */
 
 /* ------------------------------------------------------------------------ */
 
@@ -46,6 +58,7 @@ static data_t *      _stream_readline(data_t *, char *, array_t *, dict_t *);
 static data_t *      _stream_print(data_t *, char *, array_t *, dict_t *);
 
 static FILE *        _file_stream(file_t *);
+static _oshandle_t   _file_oshandle(file_t *);
 
 static void          _file_free(file_t *);
 static char *        _file_allocstring(file_t *file);
@@ -375,6 +388,14 @@ FILE * _file_stream(file_t *file) {
     file -> stream = fdopen(file -> fh, "r");
   }
   return file -> stream;
+}
+
+_oshandle_t _file_oshandle(file_t *file) {
+#ifdef __WIN32__
+	return (_oshandle_t) _get_osfhandle(file -> fh);
+#else
+	return file -> fh;
+#endif /* __WIN32__ */
 }
 
 void _file_free(file_t *file) {
@@ -715,24 +736,48 @@ int file_printf(file_t *file, char *fmt, ...) {
 }
 
 int file_flush(file_t *file) {
-  int ret = fsync(file -> fh);
+  int   ret = 0;
+#ifdef HAVE_FSYNC
+  ret = fsync(file -> fh);
+#elif defined(HAVE_FLUSHFILEBUFFERS)
+  DWORD err;
 
-  if (ret < 0) {
-    file -> _errno = errno;
+  if (!FlushFileBuffers(_file_oshandle(file))) {
+    err = GetLastError();
+    ret = -1;
+    switch (err) {
+      case ERROR_ACCESS_DENIED:
+        /*
+         * For a read-only handle, fsync should succeed, even though we have
+         * no way to sync the access-time changes.
+         */
+      	ret = 0;
+      	break;
+      case ERROR_INVALID_HANDLE:
+        errno = EINVAL;
+        break;
+      default:
+        errno = EIO;
+        break;
+    }
   }
+#endif /* HAVE_FSYNC */
+	file -> _errno = (ret < 0) ? errno : 0;
   return ret;
 }
 
 char * file_readline(file_t *file) {
   size_t n = 0;
-  int    num;
+  int    num = 0;
   FILE  *stream;
 
   free(file -> line);
   file -> line = NULL;
   stream = _file_stream(file);
   file -> _errno = 0;
+#ifdef HAVE_GETLINE
   num = getline(&file -> line, &n, stream);
+#endif /* HAVE_GETLINE */
   if (num != -1) {
     while ((num >= 0) && iscntrl(*(file -> line + num))) {
       *(file -> line + num) = 0;

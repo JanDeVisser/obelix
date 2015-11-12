@@ -61,19 +61,19 @@ typedef struct _exception_t {
   struct _data *trace;
 } exception_t;
 
-extern int            exception_register(char *str);
-extern exception_t *  exception_create(int, char *, ...);
-extern exception_t *  exception_vcreate(int, char *, va_list);
-extern exception_t *  exception_from_my_errno(int);
-extern exception_t *  exception_from_errno(void);
-extern unsigned int   exception_hash(exception_t *);
-extern int            exception_cmp(exception_t *, exception_t *);
-extern void           exception_report(exception_t *);
+OBLCORE_IMPEXP int            exception_register(char *str);
+OBLCORE_IMPEXP exception_t *  exception_create(int, char *, ...);
+OBLCORE_IMPEXP exception_t *  exception_vcreate(int, char *, va_list);
+OBLCORE_IMPEXP exception_t *  exception_from_my_errno(int);
+OBLCORE_IMPEXP exception_t *  exception_from_errno(void);
+OBLCORE_IMPEXP unsigned int   exception_hash(exception_t *);
+OBLCORE_IMPEXP int            exception_cmp(exception_t *, exception_t *);
+OBLCORE_IMPEXP void           exception_report(exception_t *);
 
-extern data_t *       data_exception(int, char *, ...);
-extern data_t *       data_exception_from_my_errno(int);
-extern data_t *       data_exception_from_errno(void);
-extern data_t *       data_throwable(data_t *);
+OBLCORE_IMPEXP data_t *       data_exception(int, char *, ...);
+OBLCORE_IMPEXP data_t *       data_exception_from_my_errno(int);
+OBLCORE_IMPEXP data_t *       data_exception_from_errno(void);
+OBLCORE_IMPEXP data_t *       data_throwable(data_t *);
 
 #define data_is_exception(d)           ((d) && (data_hastype((data_t *) (d), Exception)))
 #define data_is_unhandled_exception(d) ((d) && data_is_exception((d)) && !(((exception_t *) (d)) -> handled))
@@ -81,6 +81,12 @@ extern data_t *       data_throwable(data_t *);
 #define exception_free(e)              (data_free((data_t *) (e)))
 #define exception_tostring(e)          (data_tostring((data_t *) (e)))
 #define exception_copy(e)              ((exception_t *) data_copy((data_t *) (e)))
+
+#ifdef __WIN32__
+#define get_last_error()               (GetLastError())
+#else
+#define get_last_error()               (errno)
+#endif
 
 #ifdef  __cplusplus
 }

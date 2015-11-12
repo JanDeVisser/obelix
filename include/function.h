@@ -40,15 +40,15 @@ typedef struct _function {
   array_t       *params;
 } function_t;
 
-extern function_t *    function_create(char *, void_t);
-extern function_t *    function_create_noresolve(char *);
-extern function_t *    function_parse(char *);
-extern unsigned int    function_hash(function_t *);
-extern int             function_cmp(function_t *, function_t *);
-extern function_t *    function_resolve(function_t *fnc);
-extern data_t *        function_call(function_t *, char *, array_t *, dict_t *);
-extern char *          function_funcname(function_t *);
-extern char *          function_libname(function_t *);
+OBLCORE_IMPEXP function_t *    function_create(char *, void_t);
+OBLCORE_IMPEXP function_t *    function_create_noresolve(char *);
+OBLCORE_IMPEXP function_t *    function_parse(char *);
+OBLCORE_IMPEXP unsigned int    function_hash(function_t *);
+OBLCORE_IMPEXP int             function_cmp(function_t *, function_t *);
+OBLCORE_IMPEXP function_t *    function_resolve(function_t *fnc);
+OBLCORE_IMPEXP data_t *        function_call(function_t *, char *, array_t *, dict_t *);
+OBLCORE_IMPEXP char *          function_funcname(function_t *);
+OBLCORE_IMPEXP char *          function_libname(function_t *);
 
 #define data_is_function(d)  ((d) && data_hastype((d), Function))
 #define data_as_function(d)  (data_is_function((d)) ? ((function_t *) (d)) : NULL)
@@ -56,7 +56,7 @@ extern char *          function_libname(function_t *);
 #define function_tostring(o) (data_tostring((data_t *) (o)))
 #define function_free(o)     (data_free((data_t *) (o)))
 
-extern int Function;
+OBLCORE_IMPEXP int Function;
   
 #ifdef  __cplusplus
 }

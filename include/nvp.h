@@ -29,12 +29,12 @@ typedef struct _nvp {
   data_t *value;
 } nvp_t;
 
-extern nvp_t *      nvp_create(data_t *, data_t *);
-extern nvp_t *      nvp_parse(char *);
-extern int          nvp_cmp(nvp_t *, nvp_t *);
-extern unsigned int nvp_hash(nvp_t *);
+OBLCORE_IMPEXP nvp_t *      nvp_create(data_t *, data_t *);
+OBLCORE_IMPEXP nvp_t *      nvp_parse(char *);
+OBLCORE_IMPEXP int          nvp_cmp(nvp_t *, nvp_t *);
+OBLCORE_IMPEXP unsigned int nvp_hash(nvp_t *);
 
-extern int NVP;
+OBLCORE_IMPEXP int NVP;
 
 #define data_is_nvp(d)   ((d) && (data_hastype((d), NVP)))
 #define data_as_nvp(d)   ((nvp_t *) (data_is_nvp((d)) ? (d) : NULL))

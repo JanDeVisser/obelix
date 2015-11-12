@@ -35,28 +35,28 @@ typedef struct _name {
   char         *sep;
 } name_t;
 
-extern name_t *          name_create(int, ...);
-extern name_t *          name_vcreate(int, va_list);
-extern name_t *          name_split(char *, char *);
-extern name_t *          name_parse(char *);
-extern name_t *          name_deepcopy(name_t *);
-extern int               name_size(name_t *);
-extern char *            name_first(name_t *);
-extern char *            name_last(name_t *);
-extern char *            name_get(name_t *, int);
-extern array_t *         name_as_array(name_t *);
-extern name_t *          name_tail(name_t *);
-extern name_t *          name_head(name_t *);
-extern char *            name_tostring_sep(name_t *, char *);
-extern char *            name_tostring(name_t *);
-extern name_t *          name_extend(name_t *, char *);
-extern name_t *          name_extend_data(name_t *, struct _data *);
-extern name_t *          name_append(name_t *, name_t *);
-extern name_t *          name_append_array(name_t *, array_t *);
-extern name_t *          name_append_data_array(name_t *, array_t *);
-extern int               name_cmp(name_t *, name_t *);
-extern int               name_startswith(name_t *, name_t *);
-extern unsigned int      name_hash(name_t *);
+OBLCORE_IMPEXP name_t *          name_create(int, ...);
+OBLCORE_IMPEXP name_t *          name_vcreate(int, va_list);
+OBLCORE_IMPEXP name_t *          name_split(char *, char *);
+OBLCORE_IMPEXP name_t *          name_parse(char *);
+OBLCORE_IMPEXP name_t *          name_deepcopy(name_t *);
+OBLCORE_IMPEXP int               name_size(name_t *);
+OBLCORE_IMPEXP char *            name_first(name_t *);
+OBLCORE_IMPEXP char *            name_last(name_t *);
+OBLCORE_IMPEXP char *            name_get(name_t *, int);
+OBLCORE_IMPEXP array_t *         name_as_array(name_t *);
+OBLCORE_IMPEXP name_t *          name_tail(name_t *);
+OBLCORE_IMPEXP name_t *          name_head(name_t *);
+OBLCORE_IMPEXP char *            name_tostring_sep(name_t *, char *);
+OBLCORE_IMPEXP char *            name_tostring(name_t *);
+OBLCORE_IMPEXP name_t *          name_extend(name_t *, char *);
+OBLCORE_IMPEXP name_t *          name_extend_data(name_t *, struct _data *);
+OBLCORE_IMPEXP name_t *          name_append(name_t *, name_t *);
+OBLCORE_IMPEXP name_t *          name_append_array(name_t *, array_t *);
+OBLCORE_IMPEXP name_t *          name_append_data_array(name_t *, array_t *);
+OBLCORE_IMPEXP int               name_cmp(name_t *, name_t *);
+OBLCORE_IMPEXP int               name_startswith(name_t *, name_t *);
+OBLCORE_IMPEXP unsigned int      name_hash(name_t *);
 
 #define data_is_name(d)  ((d) && (data_hastype((d), Name)))
 #define data_as_name(d)  ((name_t *) (data_is_name((d)) ? (d) : NULL))
@@ -64,7 +64,7 @@ extern unsigned int      name_hash(name_t *);
 #define name_tostring(n) (data_tostring((struct _data *) (n)))
 #define name_copy(n)     ((name_t *) data_copy((struct _data *) (n)))
 
-extern int Name;
+OBLCORE_IMPEXP int Name;
 
 #ifdef	__cplusplus
 }

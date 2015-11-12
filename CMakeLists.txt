@@ -3,7 +3,7 @@ include(CheckIncludeFile)
 include(CheckSymbolExists)
 include(CheckTypeSize)
 
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required(VERSION 3.2)
 project(obelix)
 
 # The version number.
@@ -14,7 +14,10 @@ set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR})
 set(obelix_DATADIR ${CMAKE_INSTALL_PREFIX}/share)
 find_package (Threads)
 
+check_include_file(alloca.h HAVE_ALLOCA_H)
+check_include_file(dlfcn.h HAVE_DLFCN_H)
 check_include_file(langinfo.h HAVE_LANGINFO_H)
+check_include_file(libintl.h HAVE_LIBINTL_H)
 check_include_file(locale.h HAVE_LOCALE_H)
 check_include_file(malloc.h HAVE_MALLOC_H)
 check_include_file(netdb.h HAVE_NETDB_H)
@@ -22,9 +25,26 @@ check_include_file(pthread.h HAVE_PTHREAD_H)
 check_include_file(regex.h HAVE_REGEX_H)
 check_include_file(signal.h HAVE_SIGNAL_H)
 check_include_file(stdbool.h HAVE_STDBOOL_H)
+check_include_file(stdint.h HAVE_STDINT_H)
 check_include_file(sys/socket.h HAVE_SYS_SOCKET_H)
+check_include_file(unistd.h HAVE_UNISTD_H)
+check_include_file(wchar.h HAVE_WCHAR_H)
+check_include_file(wctype.h HAVE_WCTYPE_H)
+check_include_file(windows.h HAVE_WINDOWS_H)
 check_include_file(winsock2.h HAVE_WINSOCK2_H)
 check_include_file(ws2tcpip.h HAVE_WS2TCPIP_H)
+
+set(CMAKE_EXTRA_INCLUDE_FILES stdint.h)
+check_type_size(intptr_t INTPTR_T)
+set(CMAKE_EXTRA_INCLUDE_FILES)
+
+if(HAVE_ALLOCA_H)
+  set(ALLOCA_HDR alloca.h)
+elseif(HAVE_MALLOC_H)
+  set(ALLOCA_HDR malloc.h)
+endif(HAVE_ALLOCA_H)
+check_symbol_exists(alloca ${ALLOCA_HDR} HAVE_ALLOCA)
+check_function_exists(mempcpy HAVE_MEMPCPY)
 
 set(CMAKE_EXTRA_INCLUDE_FILES stdio.h)
 check_function_exists(itoa HAVE_ITOA)
@@ -41,6 +61,7 @@ if(HAVE_PTHREAD_H)
   set(CMAKE_REQUIRED_DEFINITIONS, -D_GNU_SOURCE)
   set(CMAKE_EXTRA_INCLUDE_FILES pthread.h)
   check_function_exists(pthread_setname_np HAVE_PTHREAD_SETNAME_NP)
+  check_function_exists(pthread_yield HAVE_PTHREAD_YIELD)
   set(CMAKE_EXTRA_INCLUDE_FILES)
   set(CMAKE_REQUIRED_DEFINITIONS)
 endif(HAVE_PTHREAD_H)
@@ -57,6 +78,13 @@ if(HAVE_SYS_SOCKET_H)
   set(CMAKE_EXTRA_INCLUDE_FILES)
 endif(HAVE_SYS_SOCKET_H)
 
+if(HAVE_WINDOWS_H)
+  check_symbol_exists(CreateSemaphore windows.h HAVE_CREATESEMAPHORE)
+  check_symbol_exists(CreateThread windows.h HAVE_CREATETHREAD)
+  check_symbol_exists(InitializeCriticalSection windows.h HAVE_INITIALIZECRITICALSECTION)
+  check_symbol_exists(FlushFileBuffers windows.h HAVE_FLUSHFILEBUFFERS)
+endif(HAVE_WINDOWS_H)
+
 if(HAVE_WINSOCK2_H)
   set(CMAKE_EXTRA_INCLUDE_FILES winsock2.h)
   check_type_size(SOCKET TYPE_SOCKET)
@@ -64,6 +92,13 @@ if(HAVE_WINSOCK2_H)
 endif(HAVE_WINSOCK2_H)
 
 check_symbol_exists(ECONNRESET errno.h HAVE_ECONNRESET)
+check_symbol_exists(fsync unistd.h HAVE_FSYNC)
+check_symbol_exists(getline unistd.h HAVE_FSYNC)
+
+set(CMAKE_EXTRA_INCLUDE_FILES wchar.h)
+check_function_exists(mbrtowc HAVE_MBRTOWC)
+check_function_exists(wcrtomb HAVE_WCRTOMB)
+check_function_exists(mbrtowc HAVE_WCSCOLL)
 
 # configure a header file to pass some of the CMake settings
 # to the source code
@@ -71,6 +106,8 @@ configure_file (
   "${PROJECT_SOURCE_DIR}/config.h.in"
   "${PROJECT_BINARY_DIR}/config.h"
 )
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 

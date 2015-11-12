@@ -59,21 +59,21 @@ typedef struct _socket {
   int        _errno;
 } socket_t;
 
-extern socket_t *    socket_create(char *, int);
-extern socket_t *    socket_create_byservice(char *, char *);
-extern socket_t *    serversocket_create(int);
-extern socket_t *    serversocket_create_byservice(char *);
-extern int           socket_close(socket_t *);
-extern unsigned int  socket_hash(socket_t *);
-extern int           socket_cmp(socket_t *, socket_t *);
-extern int           socket_listen(socket_t *, service_t, void *);
-extern int           socket_listen_detach(socket_t *, service_t, void *);
-extern socket_t *    socket_interrupt(socket_t *);
-extern socket_t *    socket_nonblock(socket_t *);
-extern int           socket_read(socket_t *, void *, int);
-extern int           socket_write(socket_t *, void *, int);
+OBLCORE_IMPEXP socket_t *    socket_create(char *, int);
+OBLCORE_IMPEXP socket_t *    socket_create_byservice(char *, char *);
+OBLCORE_IMPEXP socket_t *    serversocket_create(int);
+OBLCORE_IMPEXP socket_t *    serversocket_create_byservice(char *);
+OBLCORE_IMPEXP int           socket_close(socket_t *);
+OBLCORE_IMPEXP unsigned int  socket_hash(socket_t *);
+OBLCORE_IMPEXP int           socket_cmp(socket_t *, socket_t *);
+OBLCORE_IMPEXP int           socket_listen(socket_t *, service_t, void *);
+OBLCORE_IMPEXP int           socket_listen_detach(socket_t *, service_t, void *);
+OBLCORE_IMPEXP socket_t *    socket_interrupt(socket_t *);
+OBLCORE_IMPEXP socket_t *    socket_nonblock(socket_t *);
+OBLCORE_IMPEXP int           socket_read(socket_t *, void *, int);
+OBLCORE_IMPEXP int           socket_write(socket_t *, void *, int);
 
-extern void *        connection_listener_service(connection_t *);
+OBLCORE_IMPEXP void *        connection_listener_service(connection_t *);
 
 #define data_is_socket(d)  ((d) && (data_hastype((d), Socket)))
 #define data_as_socket(d)  ((socket_t *) (data_is_socket((data_t *) (d)) ? (d) : NULL))
@@ -82,7 +82,7 @@ extern void *        connection_listener_service(connection_t *);
 #define socket_copy(o)     ((socket_t *) data_copy((data_t *) (o)))
 
 
-extern int Socket;
+OBLCORE_IMPEXP int Socket;
 
 #ifdef	__cplusplus
 }

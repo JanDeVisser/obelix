@@ -21,6 +21,7 @@
 #ifndef __FILE_H__
 #define __FILE_H__
 
+#include <config.h>
 #include <stdio.h>
 #include <sys/stat.h>
 
@@ -40,31 +41,31 @@ typedef struct _file {
   char   *error;
 } file_t;
 
-extern int          file_flags(char *);
-extern int          file_mode(char *);
-extern file_t *     file_create(int);
-extern file_t *     file_open_ext(char *, ...);
-extern file_t *     file_open(char *);
-extern void         file_free(file_t *);
-extern int          file_close(file_t *);
-extern char *       file_name(file_t *);
-extern unsigned int file_hash(file_t *);
-extern char *       file_error(file_t *);
-extern int          file_errno(file_t *);
-extern int          file_cmp(file_t *, file_t *);
-extern int          file_write(file_t *, char *, int);
-extern int          file_printf(file_t *, char *, ...);
-extern int          file_read(file_t *, char *, int);
-extern int          file_seek(file_t *, int);
-extern char *       file_readline(file_t *);
-extern int          file_eof(file_t *);
-extern int          file_isopen(file_t *);
-extern int          file_flush(file_t *);
-extern int          file_redirect(file_t *, char *);
+OBLCORE_IMPEXP int          file_flags(char *);
+OBLCORE_IMPEXP int          file_mode(char *);
+OBLCORE_IMPEXP file_t *     file_create(int);
+OBLCORE_IMPEXP file_t *     file_open_ext(char *, ...);
+OBLCORE_IMPEXP file_t *     file_open(char *);
+OBLCORE_IMPEXP void         file_free(file_t *);
+OBLCORE_IMPEXP int          file_close(file_t *);
+OBLCORE_IMPEXP char *       file_name(file_t *);
+OBLCORE_IMPEXP unsigned int file_hash(file_t *);
+OBLCORE_IMPEXP char *       file_error(file_t *);
+OBLCORE_IMPEXP int          file_errno(file_t *);
+OBLCORE_IMPEXP int          file_cmp(file_t *, file_t *);
+OBLCORE_IMPEXP int          file_write(file_t *, char *, int);
+OBLCORE_IMPEXP int          file_printf(file_t *, char *, ...);
+OBLCORE_IMPEXP int          file_read(file_t *, char *, int);
+OBLCORE_IMPEXP int          file_seek(file_t *, int);
+OBLCORE_IMPEXP char *       file_readline(file_t *);
+OBLCORE_IMPEXP int          file_eof(file_t *);
+OBLCORE_IMPEXP int          file_isopen(file_t *);
+OBLCORE_IMPEXP int          file_flush(file_t *);
+OBLCORE_IMPEXP int          file_redirect(file_t *, char *);
 
-extern data_t *     data_wrap_file(file_t *file);
-extern int          Stream;
-extern int          File;
+OBLCORE_IMPEXP data_t *     data_wrap_file(file_t *file);
+OBLCORE_IMPEXP int          Stream;
+OBLCORE_IMPEXP int          File;
 
 #define data_is_stream(d)  ((d) && (data_hastype((data_t *) (d), Stream)))
 #define data_is_file(d)    ((d) && (data_hastype((data_t *) (d), File)))

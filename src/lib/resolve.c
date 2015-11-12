@@ -17,8 +17,14 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
+#ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
+#endif /* HAVE_DLFCN_H */
 #include <string.h>
+#ifdef HAVE_WINDOWS_H
+#include <windows.h>
+#endif /* HAVE_WINDOWS_H */
 
 #include <logging.h>
 #include <resolve.h>
@@ -36,7 +42,13 @@ void _resolve_init(void) {
   _singleton = NEW(resolve_t);
 
   _singleton -> images = list_create();
-  list_set_free(_singleton -> images, (free_t) dlclose);
+  list_set_free(_singleton -> images,
+#ifdef HAVE_DLFCN_H
+  		(free_t) dlclose
+#elif defined(HAVE_WINDOWS_H)
+			(free_t) FreeLibrary
+#endif /* HAVE_DLFCN_H */
+  );
   _singleton -> functions = strvoid_dict_create();
   main = resolve_open(_singleton, NULL);
   if (!main) {
@@ -66,20 +78,38 @@ void resolve_free() {
 }
 
 resolve_t * resolve_open(resolve_t *resolve, char *image) {
-  void *handle;
+#ifdef HAVE_DLFCN_H
+  void     *handle;
+#elif defined(HAVE_WINDOWS_H)
+  HINSTANCE handle;
+#endif /* HAVE_DLFCN_H */
+  int       err;
 
   if (resolve_debug) {
     debug("dlopen('%s')", image);
   }
+#ifdef HAVE_DLFCN_H
   dlerror();
   handle = dlopen(image, RTLD_NOW | RTLD_GLOBAL);
+  err = dlerror();
   if (handle) {
     if (list_append(resolve -> images, handle)) {
       return resolve;
     }
     dlclose(handle);
   }
-  error("dlopen('%s') FAILED: %s", image, dlerror());
+#elif defined(HAVE_WINDOWS_H)
+  handle = LoadLibrary(TEXT(image));
+  if (handle) {
+    if (list_append(resolve -> images, handle)) {
+      return resolve;
+    }
+    FreeLibrary(handle);
+  } else {
+  	err = GetLastError();
+  }
+#endif /* HAVE_DLFCN_H */
+  error("dlopen('%s') FAILED: %s", image, err);
   return NULL;
 }
 
@@ -103,7 +133,11 @@ void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   ret = NULL;
   for (list_start(resolve -> images); !ret && list_has_next(resolve -> images); ) {
     handle = list_next(resolve -> images);
+#ifdef HAVE_DLFCN_H
     ret = (void_t) dlsym(handle, func_name);
+#elif defined(HAVE_WINDOWS_H)
+    ret = (void_t) GetProcAddress(handle, func_name);
+#endif /* HAVE_DLFCN_H */
   }
   if (ret) {
     dict_put(resolve -> functions, strdup(func_name), ret);

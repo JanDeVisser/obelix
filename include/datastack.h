@@ -33,32 +33,32 @@ typedef struct _datastack {
   array_t *counters;
 } datastack_t;
 
-extern datastack_t * datastack_create(char *);
-extern datastack_t * datastack_set_debug(datastack_t *, int);
-extern void          datastack_free(datastack_t *);
-extern char *        datastack_tostring(datastack_t *);
-extern int           datastack_hash(datastack_t *);
-extern int           datastack_cmp(datastack_t *, datastack_t *);
-extern int           datastack_depth(datastack_t *);
-extern data_t *      datastack_pop(datastack_t *);
-extern data_t *      datastack_peek_deep(datastack_t *, int);
-extern data_t *      datastack_peek(datastack_t *);
-extern datastack_t * datastack_push(datastack_t *, data_t *);
-extern datastack_t * datastack_push_int(datastack_t *, long);
-extern datastack_t * datastack_push_string(datastack_t *, char *);
-extern datastack_t * datastack_push_float(datastack_t *, double);
-extern datastack_t * datastack_list(datastack_t *);
-extern datastack_t * datastack_clear(datastack_t *);
-extern data_t *      datastack_find(datastack_t *, cmp_t, void *);
-extern datastack_t * datastack_bookmark(datastack_t *);
-extern array_t *     datastack_rollup(datastack_t *);
-extern name_t *      datastack_rollup_name(datastack_t *);
-extern datastack_t * datastack_new_counter(datastack_t *);
-extern datastack_t * datastack_increment(datastack_t *);
-extern int           datastack_count(datastack_t *);
-extern int           datastack_current_count(datastack_t *);
+OBLCORE_IMPEXP datastack_t * datastack_create(char *);
+OBLCORE_IMPEXP datastack_t * datastack_set_debug(datastack_t *, int);
+OBLCORE_IMPEXP void          datastack_free(datastack_t *);
+OBLCORE_IMPEXP char *        datastack_tostring(datastack_t *);
+OBLCORE_IMPEXP int           datastack_hash(datastack_t *);
+OBLCORE_IMPEXP int           datastack_cmp(datastack_t *, datastack_t *);
+OBLCORE_IMPEXP int           datastack_depth(datastack_t *);
+OBLCORE_IMPEXP data_t *      datastack_pop(datastack_t *);
+OBLCORE_IMPEXP data_t *      datastack_peek_deep(datastack_t *, int);
+OBLCORE_IMPEXP data_t *      datastack_peek(datastack_t *);
+OBLCORE_IMPEXP datastack_t * datastack_push(datastack_t *, data_t *);
+OBLCORE_IMPEXP datastack_t * datastack_push_int(datastack_t *, long);
+OBLCORE_IMPEXP datastack_t * datastack_push_string(datastack_t *, char *);
+OBLCORE_IMPEXP datastack_t * datastack_push_float(datastack_t *, double);
+OBLCORE_IMPEXP datastack_t * datastack_list(datastack_t *);
+OBLCORE_IMPEXP datastack_t * datastack_clear(datastack_t *);
+OBLCORE_IMPEXP data_t *      datastack_find(datastack_t *, cmp_t, void *);
+OBLCORE_IMPEXP datastack_t * datastack_bookmark(datastack_t *);
+OBLCORE_IMPEXP array_t *     datastack_rollup(datastack_t *);
+OBLCORE_IMPEXP name_t *      datastack_rollup_name(datastack_t *);
+OBLCORE_IMPEXP datastack_t * datastack_new_counter(datastack_t *);
+OBLCORE_IMPEXP datastack_t * datastack_increment(datastack_t *);
+OBLCORE_IMPEXP int           datastack_count(datastack_t *);
+OBLCORE_IMPEXP int           datastack_current_count(datastack_t *);
 
-extern int           datastack_find_type(data_t *, long);
+OBLCORE_IMPEXP int           datastack_find_type(data_t *, long);
 
 #define datastack_empty(l)            (datastack_depth((l)) == 0)
 #define datastack_notempty(l)         (datastack_depth((l)) > 0)

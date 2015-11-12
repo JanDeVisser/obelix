@@ -38,61 +38,61 @@ struct _data;
 /*
  * Constructor functions:
  */
-extern str_t *     str_wrap(char *);
-extern str_t *     str_copy_chars(char *);
-extern str_t *     str_copy_nchars(char *, int);
-extern str_t *     str_printf(char *, ...);
-extern str_t *     str_vprintf(char *, va_list);
-extern str_t *     str_deepcopy(str_t *);
-extern str_t *     str_create(int);
-extern void        str_free(str_t *);
-extern char *      str_reassign(str_t *);
+OBLCORE_IMPEXP str_t *     str_wrap(char *);
+OBLCORE_IMPEXP str_t *     str_copy_chars(char *);
+OBLCORE_IMPEXP str_t *     str_copy_nchars(char *, int);
+OBLCORE_IMPEXP str_t *     str_printf(char *, ...);
+OBLCORE_IMPEXP str_t *     str_vprintf(char *, va_list);
+OBLCORE_IMPEXP str_t *     str_deepcopy(str_t *);
+OBLCORE_IMPEXP str_t *     str_create(int);
+OBLCORE_IMPEXP void        str_free(str_t *);
+OBLCORE_IMPEXP char *      str_reassign(str_t *);
 
 /*
  * Functions returning new strings:
  */
-extern str_t *      str_slice(str_t *, int, int);
-extern str_t *      _str_join(char *, void *, obj_reduce_t);
+OBLCORE_IMPEXP str_t *      str_slice(str_t *, int, int);
+OBLCORE_IMPEXP str_t *      _str_join(char *, void *, obj_reduce_t);
 
 /*
  * Functions manipulating strings:
  */
-extern str_t *      str_append_char(str_t *, int);
-extern str_t *      str_append_chars(str_t *, char *);
-extern str_t *      str_append_nchars(str_t *, char *, int);
-extern str_t *      str_append_printf(str_t *, char *, ...);
-extern str_t *      str_append_vprintf(str_t *, char *, va_list);
-extern str_t *      str_append(str_t *, str_t *);
-extern str_t *      str_chop(str_t *, int);
-extern str_t *      str_lchop(str_t *, int);
-extern str_t *      str_erase(str_t *);
-extern str_t *      str_set(str_t *, int, int);
-extern str_t *      str_forcecase(str_t *, int);
+OBLCORE_IMPEXP str_t *      str_append_char(str_t *, int);
+OBLCORE_IMPEXP str_t *      str_append_chars(str_t *, char *);
+OBLCORE_IMPEXP str_t *      str_append_nchars(str_t *, char *, int);
+OBLCORE_IMPEXP str_t *      str_append_printf(str_t *, char *, ...);
+OBLCORE_IMPEXP str_t *      str_append_vprintf(str_t *, char *, va_list);
+OBLCORE_IMPEXP str_t *      str_append(str_t *, str_t *);
+OBLCORE_IMPEXP str_t *      str_chop(str_t *, int);
+OBLCORE_IMPEXP str_t *      str_lchop(str_t *, int);
+OBLCORE_IMPEXP str_t *      str_erase(str_t *);
+OBLCORE_IMPEXP str_t *      str_set(str_t *, int, int);
+OBLCORE_IMPEXP str_t *      str_forcecase(str_t *, int);
 
 /*
  * Functions returning characteristics of strings:
  */
-extern int             str_len(str_t *);
-extern char *          str_chars(str_t *);
-extern int             str_at(str_t *, int i);
-extern unsigned int    str_hash(str_t *);
-extern int             str_cmp(str_t *, str_t *);
-extern int             str_cmp_chars(str_t *, char *);
-extern int             str_ncmp(str_t *, str_t *, int);
-extern int             str_ncmp_chars(str_t *, char *, int);
-extern int             str_indexof(str_t *, str_t *);
-extern int             str_indexof_chars(str_t *, char *);
-extern int             str_rindexof(str_t *, str_t *);
-extern int             str_rindexof_chars(str_t *, char *);
-extern struct _array * str_split(str_t *, char *);
+OBLCORE_IMPEXP int             str_len(str_t *);
+OBLCORE_IMPEXP char *          str_chars(str_t *);
+OBLCORE_IMPEXP int             str_at(str_t *, int i);
+OBLCORE_IMPEXP unsigned int    str_hash(str_t *);
+OBLCORE_IMPEXP int             str_cmp(str_t *, str_t *);
+OBLCORE_IMPEXP int             str_cmp_chars(str_t *, char *);
+OBLCORE_IMPEXP int             str_ncmp(str_t *, str_t *, int);
+OBLCORE_IMPEXP int             str_ncmp_chars(str_t *, char *, int);
+OBLCORE_IMPEXP int             str_indexof(str_t *, str_t *);
+OBLCORE_IMPEXP int             str_indexof_chars(str_t *, char *);
+OBLCORE_IMPEXP int             str_rindexof(str_t *, str_t *);
+OBLCORE_IMPEXP int             str_rindexof_chars(str_t *, char *);
+OBLCORE_IMPEXP struct _array * str_split(str_t *, char *);
 
-extern int             str_read(str_t *, char *, int);
-extern int             str_readchar(str_t *);
-extern int             str_readinto(str_t *, struct _data *);
-extern int             str_pushback(str_t *, int);
-extern int             str_write(str_t *, char *, int);
+OBLCORE_IMPEXP int             str_read(str_t *, char *, int);
+OBLCORE_IMPEXP int             str_readchar(str_t *);
+OBLCORE_IMPEXP int             str_readinto(str_t *, struct _data *);
+OBLCORE_IMPEXP int             str_pushback(str_t *, int);
+OBLCORE_IMPEXP int             str_write(str_t *, char *, int);
 
-extern str_t *         str_format(char *, array_t *, dict_t *);
+OBLCORE_IMPEXP str_t *         str_format(char *, array_t *, dict_t *);
 
 #define str_toupper(s)    (str_forcecase((s), 1))
 #define str_tolower(s)    (str_forcecase((s), 0))

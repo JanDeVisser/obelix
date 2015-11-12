@@ -20,6 +20,8 @@
 #ifndef __LOGGING_H__
 #define	__LOGGING_H__
 
+#include <core-setup.h>
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -32,14 +34,14 @@ typedef enum _log_level {
   LogLevelFatal
 } log_level_t;
   
-extern void   logging_register_category(char *, int *);
-extern void   logging_reset(void);
-extern void   logging_enable(char *);
-extern void   logging_disable(char *);
-extern void   _logmsg(log_level_t, const char *, int, const char *, const char *, ...);
-extern int    logging_status(char *);
+OBLCORE_IMPEXP void   logging_register_category(char *, int *);
+OBLCORE_IMPEXP void   logging_reset(void);
+OBLCORE_IMPEXP void   logging_enable(char *);
+OBLCORE_IMPEXP void   logging_disable(char *);
+OBLCORE_IMPEXP void   _logmsg(log_level_t, const char *, int, const char *, const char *, ...);
+OBLCORE_IMPEXP int    logging_status(char *);
 
-extern log_level_t log_level;
+OBLCORE_IMPEXP log_level_t log_level;
 
 #ifndef NDEBUG
 #define debug(fmt, args...)          _logmsg(LogLevelDebug, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)

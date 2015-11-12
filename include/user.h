@@ -27,11 +27,11 @@ typedef struct _user {
   int     refs;
 } user_t;
 
-extern user_t *     user_create(char *);
-extern void         user_free(user_t *);
-extern int          user_cmp(user_t *, user_t *);
-extern unsigned int user_hash(user_t *);
-extern char *       user_tostring(user_t *);
+OBLCORE_IMPEXP user_t *     user_create(char *);
+OBLCORE_IMPEXP void         user_free(user_t *);
+OBLCORE_IMPEXP int          user_cmp(user_t *, user_t *);
+OBLCORE_IMPEXP unsigned int user_hash(user_t *);
+OBLCORE_IMPEXP char *       user_tostring(user_t *);
 
 #endif /* __USER_H__ */
 

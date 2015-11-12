@@ -29,12 +29,12 @@ typedef struct _resolve {
   dict_t  *functions;
 } resolve_t;
 
-extern resolve_t * resolve_get();
-extern void        resolve_free();
-extern resolve_t * resolve_open(resolve_t *, char *);
-extern void_t      resolve_resolve(resolve_t *, char *);
+OBLCORE_IMPEXP resolve_t * resolve_get();
+OBLCORE_IMPEXP void        resolve_free();
+OBLCORE_IMPEXP resolve_t * resolve_open(resolve_t *, char *);
+OBLCORE_IMPEXP void_t      resolve_resolve(resolve_t *, char *);
 
-extern int         resolve_library(char *);
-extern void_t      resolve_function(char *);
+OBLCORE_IMPEXP int         resolve_library(char *);
+OBLCORE_IMPEXP void_t      resolve_function(char *);
 
   #endif /* __RESOLVE_H__ */

@@ -17,6 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -48,7 +49,7 @@ reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
   if ((type == 'c') || (type == 's')) {
     c = (set -> dict -> tostring_key)
           ? set -> dict -> tostring_key(entry -> key)
-          : itoa((long) entry -> key);
+          : itoa((intptr_t) entry -> key);
   }
   switch (type) {
     case 'c':

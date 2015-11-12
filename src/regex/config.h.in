@@ -22,16 +22,5 @@
 
 #include <config.h>
 
-#cmakedefine HAVE_ALLOCA_H   1
-#cmakedefine HAVE_LIBINTL_H  1
-#cmakedefine HAVE_STDINT_H   1
-#cmakedefine HAVE_WCHAR_H    1
-#cmakedefine HAVE_WCTYPE_H   1
-
-#cmakedefine HAVE_ALLOCA     1
-#cmakedefine HAVE_MEMPCPY    1
-#cmakedefine HAVE_WCRTOMB    1
-#cmakedefine HAVE_MBRTOWC    1
-#cmakedefine HAVE_WCSCOLL    1
 
 #endif /* __CONFIG_RE_H__ */

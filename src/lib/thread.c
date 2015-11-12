@@ -17,11 +17,11 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <config.h>
 #include <data.h>
 #include <datastack.h>
 #include <exception.h>
@@ -31,21 +31,22 @@
 #define MAX_STACKDEPTH      200
 
 typedef struct _thread_ctx {
-  char            *name;
-  threadproc_t     start_routine;
-  void            *arg;
-  thread_t        *creator;
-  thread_t        *child;
-  pthread_cond_t   condition;
+  char         *name;
+  threadproc_t  start_routine;
+  void         *arg;
+  thread_t     *creator;
+  thread_t     *child;
+  condition_t  *condition;
 } thread_ctx_t;
 
 static void          _init_thread(void) __attribute__((constructor(120)));
-static int           _pthread_cmp(pthread_t *, pthread_t *);
-static unsigned int  _pthread_hash(pthread_t *);
 static void *        _thread_start_routine_wrapper(thread_ctx_t *);
 
 extern void          _thread_free(thread_t *);
 extern char *        _thread_tostring(thread_t *);
+extern _thr_t        _thread_self(void);
+static void          _thread_set_selfobj(thread_t *);
+static thread_t *    _thread_get_selfobj();
 
 static int           _data_cmp_thread(data_t *, data_t *);
 static char *        _data_tostring_thread(data_t *);
@@ -74,7 +75,11 @@ static methoddescr_t _methoddescr_thread[] = {
   { .type = NoType, .name = NULL,          .method = NULL,                   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
+#ifdef HAVE_PTHREAD_H
 static pthread_key_t  self_obj;
+#elif HAVE_CREATETHREAD
+static DWORD          self_ix;
+#endif /* HAVE_PTHREAD_H */
 
 int Thread = -1;
 int thread_debug = 0;
@@ -85,53 +90,59 @@ void _init_thread(void) {
   thread_t *main;
 
   logging_register_category("thread", &thread_debug);
+#ifdef HAVE_PTHREAD_H
   pthread_key_create(&self_obj, /* (void (*)(void *)) _thread_free */ NULL);
+#elif defined(HAVE_CREATETHREAD)
+  self_ix = TlsAlloc();
+#endif /* HAVE_PTHREAD_H */
   Thread = typedescr_create_and_register(Thread, "thread",
 					 _vtable_thread,
 					 _methoddescr_thread);
-  main = thread_create(pthread_self(), "Main");
-}
-
-int _pthread_cmp(pthread_t *t1, pthread_t *t2) {
-  return (pthread_equal(*t1, *t2)) ? 0 : 1;
-}
-
-unsigned int _pthread_hash(pthread_t *t) {
-  return hash(t, sizeof(pthread_t));
+  main = thread_self();
+  if (main) {
+  	thread_setname(main, "main");
+  }
 }
 
 void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   threadproc_t  start_routine;
-  void         *ret;
+  void         *ret = NULL;
   thread_t     *thread = thread_self();
   char          buf[81];
-  int           dummy;
+  int           retval = -1;
+  int           dummy = 0;
 
   if (ctx -> name) {
     thread_setname(thread, ctx -> name);
   }
   ctx -> child = thread_copy(thread);
-  pthread_setspecific(self_obj, thread);
   thread -> parent = thread_copy(ctx -> creator);
-  errno = pthread_mutex_lock(&ctx -> creator -> mutex);
-  if (!errno) {
-    errno = pthread_cond_signal(&ctx -> condition);
-    pthread_mutex_unlock(&ctx -> creator -> mutex);
+  retval = condition_acquire(ctx -> condition);
+  if (!retval) {
+  	retval = condition_wakeup(ctx -> condition);
   }
   
-  if (!errno) {
+#ifdef HAVE_PTHREAD_H
+  if (!retval) {
     errno = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &dummy);
+    retval = (errno) ? -1 : 0;
   }
-  if (!errno) {
-    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &dummy);
+  if (!retval) {
+    errno = pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &dummy);
+    retval = (errno) ? -1 : 0;
   }
+#endif /* HAVE_PTHREAD_H */
   
-  if (!errno) {
+  if (!retval) {
+#ifdef HAVE_PTHREAD_H
     pthread_cleanup_push((void (*)(void *)) _thread_free, thread);
+#endif /* HAVE_PTHREAD_H */
     ret = ctx -> start_routine(ctx -> arg);
+#ifdef HAVE_PTHREAD_H
     pthread_cleanup_pop(1);
+#endif /* HAVE_PTHREAD_H */
   } else {
-    error("Error starting thread '%s': %s", ctx -> name, strerror_r(errno, buf, 80));
+    error("Error starting thread '%s': %s", ctx -> name, strerror(errno));
   }
   return ret;
 }
@@ -152,23 +163,48 @@ char * _thread_tostring(thread_t *thread) {
   return thread -> name;
 }
 
+_thr_t _thread_self(void) {
+#ifdef HAVE_PTHREAD_H
+	return pthread_self();
+#elif HAVE_CREATETHREAD
+	return GetCurrentThread();
+#endif
+}
+
+void _thread_set_selfobj(thread_t *thread) {
+#ifdef HAVE_PTHREAD_H
+  pthread_setspecific(self_obj, thread);
+#elif HAVE_CREATETHREAD
+  TlsSetValue(self_ix, thread);
+#endif
+}
+
+thread_t * _thread_get_selfobj(void) {
+#ifdef HAVE_PTHREAD_H
+  return (thread_t *) pthread_getspecific(self_obj);
+#elif HAVE_CREATETHREAD
+  return (thread_t *) TlsGetValue(self_ix);
+#endif
+}
+
 /* ------------------------------------------------------------------------ */
 
 thread_t * thread_self(void) {
-  thread_t  *thread = (thread_t *) pthread_getspecific(self_obj);
+  thread_t *thread = _thread_get_selfobj();
 
   if (!thread) {
-    thread = thread_create(pthread_self(), NULL);
-    pthread_setspecific(self_obj, thread);
+    thread = thread_create(_thread_self(), NULL);
+    _thread_set_selfobj(thread);
   }
   return thread;
 }
 
 thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
-  thread_t           *self = thread_self();
-  thread_ctx_t        ctx;
-  pthread_t           thr_id;
-  thread_t           *ret = NULL;
+  thread_t     *self = thread_self();
+  thread_ctx_t  ctx;
+  _thr_t        thr_id;
+  thread_t     *ret = NULL;
+  int           retval;
 
   ctx.name = name;
   ctx.start_routine = start_routine;
@@ -176,30 +212,50 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
   ctx.creator = self;
   ctx.child = NULL;
 
-  pthread_cond_init(&ctx.condition, NULL);
-  errno = pthread_mutex_lock(&self -> mutex);
-  if (!errno) {
+  ctx.condition = condition_create();
+  retval = condition_acquire(ctx.condition);
+  if (!retval) {
+#ifdef HAVE_PTHREAD_H
     errno = pthread_create(&thr_id, NULL,
-                           (threadproc_t) _thread_start_routine_wrapper,
-			   &ctx);
+                           (threadproc_t) _thread_start_routine_wrapper, &ctx);
+    retval = (errno) ? -1 : 0;
+#elif defined(HAVE_CREATETHREAD)
+    thr_id = CreateThread(
+    	NULL,                                         /* default security attributes   */
+      0,                                            /* use default stack size        */
+			(threadproc_t) _thread_start_routine_wrapper, /* thread function name          */
+      &ctx,          																/* argument to thread function   */
+      0,                      											/* use default creation flags    */
+      NULL);   																			/* returns the thread identifier */
+    if (!thr_id) {
+    	retval = -1;
+    	errno = GetLastError();
+    }
+#endif /* HAVE_PTHREAD_H */
   }
-  if (!errno) {
-    pthread_cond_wait(&ctx.condition, &self -> mutex);
+  if (!retval) {
+  	retval = condition_sleep(ctx.condition);
+  }
+  if (!retval) {
     ret = ctx.child;
   }
-  pthread_cond_destroy(&ctx.condition);
-
-  assert(pthread_equal(ret -> thr_id, thr_id));
-  ret -> _errno = pthread_detach(thr_id);
+  condition_free(ctx.condition);
+#ifdef HAVE_PTHREAD_H
+  if (!retval) {
+  	errno = pthread_detach(thr_id);
+  }
+#endif /* HAVE_PTHREAD_H */
+  if (!retval) {
+  	ret -> _errno = get_last_error();
+  }
   return ret;
 }
 
-thread_t * thread_create(pthread_t thr_id, char *name) {
-  thread_t            *ret = data_new(Thread, thread_t);
-  pthread_mutexattr_t  attr;
-  char                *buf = NULL;
+thread_t * thread_create(_thr_t thr_id, char *name) {
+  thread_t *ret = data_new(Thread, thread_t);
+  char     *buf = NULL;
 
-  ret -> thr_id = thr_id;
+  ret -> thread = thr_id;
   ret -> exit_code = NULL;
   ret -> kernel = NULL;
   ret -> stack = NULL;
@@ -210,40 +266,43 @@ thread_t * thread_create(pthread_t thr_id, char *name) {
   }
   thread_setname(ret, name);
   free(buf);
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  if (errno = pthread_mutex_init(&ret -> mutex, &attr)) {
-    free(ret -> name);
-    free(ret);
-    return NULL;
-  }
+  ret -> mutex = mutex_create();
   return ret;
 }
 
 unsigned int thread_hash(thread_t *thread) {
-  return (thread) ? _pthread_hash(&thread -> thr_id) : 0;
+  return (thread) ? hash(&thread -> thread, sizeof(_thr_t)) : 0;
 }
 
 int thread_cmp(thread_t *t1, thread_t *t2) {
-  return (_pthread_cmp(&t1 -> thr_id, &t2 -> thr_id));
+	return memcmp(&t1 -> thread, &t2 -> thread, sizeof(_thr_t));
 }
 
 int thread_interrupt(thread_t *thread) {
-  errno = pthread_cancel(thread -> thr_id);
-  return errno;
+#ifdef HAVE_PTHREAD_H
+  errno = pthread_cancel(thread -> thread);
+#elif defined(HAVE_CREATETHREAD)
+  if (TerminateThread(thread -> thread, 0)) {
+  	errno = GetLastError();
+  }
+#endif /* HAVE_PTHREAD_H */
+  return (errno) ? -1 : 0;
 }
 
 int thread_yield(void) {
+	errno = 0;
+#if defined(HAVE_PTHREAD_H) && defined(HAVE_PTHREAD_YIELD)
   errno = pthread_yield();
-  return errno;
+#endif /* HAVE_PTHREAD_H */
+  return (errno) ? -1 : 0;
 }
 
 thread_t * thread_setname(thread_t *thread, char *name) {
   assert(name);
   free(thread -> name);
   thread -> name = strdup(name);
-#ifdef HAVE_PTHREAD_SETNAME_NP
-  pthread_setname_np(thread -> thr_id, thread -> name);
+#if defined(HAVE_PTHREAD_H) && defined(HAVE_PTHREAD_SETNAME_NP)
+  pthread_setname_np(thread -> thread, thread -> name);
 #endif
   return thread;
 }
@@ -252,7 +311,7 @@ data_t * thread_resolve(thread_t *thread, char *name) {
   if (!strcmp(name, "name")) {
     return data_create(String, thread -> name);
   } else if (!strcmp(name, "id")) {
-    return data_create(Int, (long) thread -> thr_id);
+    return data_create(Int, (long) thread -> thread);
   }
   return NULL;
 }
@@ -303,8 +362,11 @@ data_t * _thread_interrupt(data_t *self, char *name, array_t *args, dict_t *kwar
   (void) args;
   (void) kwargs;
 
-  thread_interrupt((thread_t *) self);
-  return self;
+  if (thread_interrupt((thread_t *) self)) {
+  	return data_exception_from_errno();
+  } else {
+  	return self;
+  }
 }
 
 data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -312,12 +374,11 @@ data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   (void) args;
   (void) kwargs;
 
-  if (!data_cmp(self, (data_t *) thread_self())) {
-    thread_yield();
-    return self;
-  } else {
-    return data_exception(ErrorType, "Can only call yield on current thread");
-  }
+	if (thread_yield()) {
+		return data_exception_from_errno();
+	} else {
+		return self;
+	}
 }
 
 data_t * _thread_stack(data_t *self, char *name, array_t *args, dict_t *kwargs) {
