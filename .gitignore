@@ -17,6 +17,9 @@ doxygen_sqlite3.db
 .project
 .cproject
 obelix.sublime-workspace
+*.sln
+*.sdf
+config.h
 src/bin/grammar.c
 obelix
 panoramix
@@ -27,6 +30,4 @@ CMakeCache.txt
 **/*.vcxproj*
 build/*
 **/*.dir/*
-*.sln
-*.sdf
 Win32/*
