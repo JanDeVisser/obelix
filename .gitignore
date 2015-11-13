@@ -25,6 +25,8 @@ CMakeCache.txt
 **/CMakeFiles
 **/cmake_install.cmake
 **/*.vcxproj*
-msys/*
-vc/*
 build/*
+**/*.dir/*
+*.sln
+*.sdf
+Win32/*

@@ -60,9 +60,9 @@ OBLCORE_IMPEXP char *   set_tostring(set_t *);
                                     (free_t) free), \
                                   (hash_t) strhash), \
                                 (tostring_t) chars)
-#define set_add_int(s, i)     set_add((s), (void *)((long) (i)))
-#define set_has_int(s, i)     set_has((s), (void *)((long) (i)))
-#define set_remove_int(s, i)  set_remove((s), (void *)((long) (i)))
+#define set_add_int(s, i)     set_add((s), (void *)((intptr_t) (i)))
+#define set_has_int(s, i)     set_has((s), (void *)((intptr_t) (i)))
+#define set_remove_int(s, i)  set_remove((s), (void *)((intptr_t) (i)))
 #define set_empty(s)          (set_size((s)) == 0)
 
 #endif /* __SET_H__ */

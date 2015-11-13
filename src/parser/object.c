@@ -342,7 +342,7 @@ int object_cmp(object_t *o1, object_t *o2) {
   data = _object_call_attribute(o1, "__cmp__", args, NULL);
   ret = (data && !data_is_exception(data))
       ? data_intval(data)
-      : (long) o1 - (long) o2;
+      : o1 - o2;
   data_free(data);
   array_free(args);
   return ret;

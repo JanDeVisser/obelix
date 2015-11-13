@@ -519,8 +519,8 @@ data_t * parser_parse(parser_t *parser, data_t *reader) {
     fnc = grammar_resolve_function(parser -> grammar, token_token(fnc_name));
     if (fnc) {
       lexer_set_option(lexer, LexerOptionOnNewLine,
-                       (long) function_create("parser_newline",
-                                              (void_t) parser_newline));
+                       (intptr_t) function_create("parser_newline",
+                                                  (void_t) parser_newline));
       parser -> on_newline = fnc;
     } else {
       error("Could not resolve parser on_newline function '%s'", token_token(fnc_name));

@@ -853,12 +853,12 @@ lexer_t * lexer_create(data_t *reader) {
   return ret;
 }
 
-lexer_t * lexer_set_option(lexer_t *lexer, lexer_option_t option, long value) {
+lexer_t * lexer_set_option(lexer_t *lexer, lexer_option_t option, intptr_t value) {
   lexer -> options[(int) option] = value;
   return lexer;
 }
 
-long lexer_get_option(lexer_t *lexer, lexer_option_t option) {
+intptr_t lexer_get_option(lexer_t *lexer, lexer_option_t option) {
   return lexer -> options[(int) option];
 }
 

@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -533,12 +534,14 @@ strategy_t grammar_get_parsing_strategy(grammar_t *grammar) {
 }
 
 grammar_t * grammar_set_lexer_option(grammar_t *grammar, lexer_option_t option, long value) {
-  array_set(grammar -> lexer_options, (int) option, (void *) value);
+  array_set(grammar -> lexer_options, 
+            (intptr_t) option, (void *) (intptr_t) value);
   return grammar;
 }
 
 long grammar_get_lexer_option(grammar_t *grammar, lexer_option_t option) {
-  return (long) array_get(grammar -> lexer_options, (int) option);
+  return (long) (intptr_t) array_get(grammar -> lexer_options, 
+                                     (intptr_t) option);
 }
 
 void grammar_dump(grammar_t *grammar) {
