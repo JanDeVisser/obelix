@@ -30,4 +30,4 @@ endif(CMAKE_COMPILER_IS_GNUCC)
 target_link_libraries(panoramix oblparser oblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
 
 install(TARGETS oblparser DESTINATION lib)
-install(TARGETS panoramix DESTINATION bin)
+# install(TARGETS panoramix DESTINATION bin)

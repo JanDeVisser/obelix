@@ -29,7 +29,7 @@ static int          _next_interface = NextInterface;
 static int          _num_interfaces = 0;
 
 extern int          _data_count;
-       int          type_debug = 1;
+       int          type_debug = 0;
 
 static void           _typedescr_init(void) __attribute__((constructor(101)));
 static char *         _methoddescr_tostring(methoddescr_t *);

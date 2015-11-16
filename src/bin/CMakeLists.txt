@@ -17,5 +17,5 @@ endif(CMAKE_COMPILER_IS_GNUCC)
 
 target_link_libraries(obelix oblparser oblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
 
-install(TARGETS obelix DESTINATION bin)
+# install(TARGETS obelix DESTINATION bin)
 install(FILES grammar.grammar DESTINATION share)
