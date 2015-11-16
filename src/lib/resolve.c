@@ -86,7 +86,7 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
 #elif defined(HAVE_WINDOWS_H)
   HINSTANCE handle;
 #endif /* HAVE_DLFCN_H */
-  int       err;
+  char     *err;
 
   if (resolve_debug) {
     debug("dlopen('%s')", image);
@@ -109,7 +109,7 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
     }
     FreeLibrary(handle);
   } else {
-    err = GetLastError();
+    err = itoa(GetLastError()); // FIXME
   }
 #endif /* HAVE_DLFCN_H */
   error("dlopen('%s') FAILED: %s", image, err);
