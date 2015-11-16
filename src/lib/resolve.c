@@ -50,13 +50,16 @@ void _resolve_init(void) {
 #endif /* HAVE_DLFCN_H */
   );
   _singleton -> functions = strvoid_dict_create();
+#ifdef HAVE_DLFCN_H
   main = resolve_open(_singleton, NULL);
   if (!main) {
     error("Could not load main program image");
     list_free(_singleton -> images);
     dict_free(_singleton -> functions);
     _singleton = NULL;
-  } else {
+  }
+#endif /* HAVE_DLFCN_H */
+  if (_singleton) {
     atexit(resolve_free);
   }
 }
@@ -106,7 +109,7 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
     }
     FreeLibrary(handle);
   } else {
-  	err = GetLastError();
+    err = GetLastError();
   }
 #endif /* HAVE_DLFCN_H */
   error("dlopen('%s') FAILED: %s", image, err);

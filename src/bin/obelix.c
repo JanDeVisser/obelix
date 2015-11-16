@@ -22,6 +22,7 @@
 #include <unistd.h>
 
 #include <data.h>
+#include <socket.h>
 #include <exception.h>
 #include <file.h>
 #include <lexer.h>
@@ -30,7 +31,6 @@
 #include <name.h>
 #include <namespace.h>
 #include <resolve.h>
-#include <socket.h>
 #include <script.h>
 
 typedef struct _cmdline_args {

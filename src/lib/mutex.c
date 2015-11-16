@@ -23,7 +23,7 @@
 #include <mutex.h>
 #include <exception.h>
 
-static void          _mutex_init(void) __attribute__((constructor(120)));
+static void          _mutex_init(void) __attribute__((constructor(119)));
 static void          _mutex_free(mutex_t *);
 static data_t *      _mutex_new(int, va_list);
 static char *        _mutex_tostring(mutex_t *);

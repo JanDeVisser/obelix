@@ -17,9 +17,10 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <data.h>
-#include <exception.h>
 #include <socket.h>
+#include <exception.h>
 
 /* -------------------------------------------------------------------------*/
 

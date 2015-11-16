@@ -42,7 +42,7 @@ static void            _logging_set(char *, int);
 static char *          _log_level_str(log_level_t lvl);
 
 static dict_t *        _categories = NULL;
-  
+
 static code_label_t _log_level_labels[] = {
   { .code = LogLevelDebug,   .label = "DEBUG" },
   { .code = LogLevelInfo,    .label = "INFO" },
@@ -54,10 +54,27 @@ static code_label_t _log_level_labels[] = {
 /* ------------------------------------------------------------------------ */
 
 void _logging_init(void) {
+  char *cats;
+  char *ptr;
+  char *sepptr;
+  
   if (!_categories) {
     _categories = strvoid_dict_create();
     dict_set_tostring_data(_categories, (tostring_t) _logcategory_tostring);
     dict_set_free_data(_categories, (free_t) _logcategory_free);
+
+    cats = getenv("DEBUG");
+    if (cats && *cats) {
+      cats = strdup(cats);
+      ptr = cats;
+      for (sepptr = strchr(ptr, ';'); sepptr; sepptr = strchr(ptr, ';')) {
+	*sepptr = 0;
+	logging_enable(ptr);
+	ptr = sepptr + strlen(sepptr);
+      }
+      logging_register_category(ptr, NULL);
+      free(cats);
+    }
   }
 }
 

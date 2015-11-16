@@ -40,6 +40,7 @@
 #cmakedefine HAVE_STDBOOL_H                  1 
 #cmakedefine HAVE_STDINT_H                   1 
 #cmakedefine HAVE_SYS_SOCKET_H               1
+#cmakedefine HAVE_SYS_UTSNAME_H              1
 #cmakedefine HAVE_UNISTD_H                   1 
 #cmakedefine HAVE_WCHAR_H                    1
 #cmakedefine HAVE_WCTYPE_H                   1
@@ -59,6 +60,9 @@
 #cmakedefine HAVE_FSYNC                      1
 #cmakedefine HAVE_FLUSHFILEBUFFERS           1
 #cmakedefine HAVE_GETLINE                    1
+#cmakedefine HAVE_GETHOSTNAME                1
+#cmakedefine HAVE_GETSYSTEMINFO              1
+#cmakedefine HAVE_GETVERSIONEX               1
 #cmakedefine HAVE_INITIALIZECRITICALSECTION  1
 #cmakedefine HAVE_ITOA                       1
 #cmakedefine HAVE_KILL                       1

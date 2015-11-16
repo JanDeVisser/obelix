@@ -20,6 +20,7 @@
 #ifndef __SOCKET_H__
 #define	__SOCKET_H__
 
+#include <config.h>
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif

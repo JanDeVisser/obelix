@@ -29,7 +29,7 @@ static int          _next_interface = NextInterface;
 static int          _num_interfaces = 0;
 
 extern int          _data_count;
-       int          type_debug = 0;
+       int          type_debug = 1;
 
 static void           _typedescr_init(void) __attribute__((constructor(101)));
 static char *         _methoddescr_tostring(methoddescr_t *);
@@ -328,9 +328,9 @@ int typedescr_create_and_register(int type, char *type_name, vtable_t *vtable, m
   td.type = type;
   td.type_name = type_name;
   td.vtable = vtable;
-	for (ix = 0; ix < MAX_INHERITS; ix++) {
-		td.inherits[ix] = NoType;
-	}
+  for (ix = 0; ix < MAX_INHERITS; ix++) {
+    td.inherits[ix] = NoType;
+  }
   return typedescr_register_type(&td, methods);
 }
 
@@ -346,14 +346,14 @@ typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[])
 }
 
 typedescr_t * typedescr_assign_inheritance(typedescr_t *type, int inherits) {
-	int ix;
-
-	for (ix = 0; ix < MAX_INHERITS; ix++) {
-		if (type -> inherits[ix] == NoType) {
-			type -> inherits[ix] = inherits;
-		}
-	}
-	return type;
+  int ix;
+  
+  for (ix = 0; ix < MAX_INHERITS; ix++) {
+    if (type -> inherits[ix] == NoType) {
+      type -> inherits[ix] = inherits;
+    }
+  }
+  return type;
 }
 
 typedescr_t * typedescr_get(int datatype) {

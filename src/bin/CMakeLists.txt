@@ -1,7 +1,7 @@
 add_custom_command (
   MAIN_DEPENDENCY grammar.grammar
   OUTPUT grammar.c
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   COMMAND panoramix -g ${CMAKE_CURRENT_LIST_DIR}/grammar.grammar > grammar.c
 )
 

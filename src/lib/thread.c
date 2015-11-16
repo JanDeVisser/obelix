@@ -100,7 +100,7 @@ void _init_thread(void) {
 					 _methoddescr_thread);
   main = thread_self();
   if (main) {
-  	thread_setname(main, "main");
+    thread_setname(main, "main");
   }
 }
 
@@ -246,7 +246,7 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
   }
 #endif /* HAVE_PTHREAD_H */
   if (!retval) {
-  	ret -> _errno = get_last_error();
+    ret -> _errno = get_last_error();
   }
   return ret;
 }

@@ -75,5 +75,5 @@ data_t * _function_usleep(char *func_name, array_t *args, dict_t *kwargs) {
   assert(array_size(args));
   naptime = (data_t *) array_get(args, 0);
   assert(naptime);
-  return data_create(Int, usleep((unsigned long) (naptime)));
+  return data_create(Int, usleep(data_intval(naptime)));
 }
