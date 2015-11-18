@@ -272,7 +272,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
   debug_settings(&args);
-  
+
   if (args.server) {
     start_server(&args);
   } else {

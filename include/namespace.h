@@ -21,6 +21,7 @@
 #ifndef __NAMESPACE_H__
 #define __NAMESPACE_H__
 
+#include <libparser.h>
 #include <data.h>
 #include <dict.h>
 #include <name.h>
@@ -59,27 +60,27 @@ typedef struct _module {
   set_t       *imports;
 } module_t;
 
-extern module_t *    mod_create(namespace_t *, name_t *);
-extern unsigned int  mod_hash(module_t *);
-extern int           mod_cmp(module_t *, module_t *);
-extern int           mod_cmp_name(module_t *, name_t *);
-extern object_t *    mod_get(module_t *);
-extern data_t *      mod_set(module_t *, script_t *, array_t *, dict_t *);
-extern data_t *      mod_resolve(module_t *, char *);
-extern data_t *      mod_import(module_t *, name_t *);
-extern module_t *    mod_exit(module_t *, data_t *);
-extern data_t *      mod_exit_code(module_t *);
+OBLPARSER_IMPEXP module_t *    mod_create(namespace_t *, name_t *);
+OBLPARSER_IMPEXP unsigned int  mod_hash(module_t *);
+OBLPARSER_IMPEXP int           mod_cmp(module_t *, module_t *);
+OBLPARSER_IMPEXP int           mod_cmp_name(module_t *, name_t *);
+OBLPARSER_IMPEXP object_t *    mod_get(module_t *);
+OBLPARSER_IMPEXP data_t *      mod_set(module_t *, script_t *, array_t *, dict_t *);
+OBLPARSER_IMPEXP data_t *      mod_resolve(module_t *, char *);
+OBLPARSER_IMPEXP data_t *      mod_import(module_t *, name_t *);
+OBLPARSER_IMPEXP module_t *    mod_exit(module_t *, data_t *);
+OBLPARSER_IMPEXP data_t *      mod_exit_code(module_t *);
 
-extern namespace_t * ns_create(char *, void *, import_t);
-extern data_t *      ns_import(namespace_t *, name_t *);
-extern data_t *      ns_execute(namespace_t *, name_t *, array_t *, dict_t *);
-extern data_t *      ns_get(namespace_t *, name_t *);
-extern namespace_t * ns_exit(namespace_t *, data_t *);
-extern data_t *      ns_exit_code(namespace_t *);
+OBLPARSER_IMPEXP namespace_t * ns_create(char *, void *, import_t);
+OBLPARSER_IMPEXP data_t *      ns_import(namespace_t *, name_t *);
+OBLPARSER_IMPEXP data_t *      ns_execute(namespace_t *, name_t *, array_t *, dict_t *);
+OBLPARSER_IMPEXP data_t *      ns_get(namespace_t *, name_t *);
+OBLPARSER_IMPEXP namespace_t * ns_exit(namespace_t *, data_t *);
+OBLPARSER_IMPEXP data_t *      ns_exit_code(namespace_t *);
 
-extern int Namespace;
-extern int Module;
-extern int ns_debug;
+OBLPARSER_IMPEXP int Namespace;
+OBLPARSER_IMPEXP int Module;
+OBLPARSER_IMPEXP int ns_debug;
 
 #define data_is_namespace(d)   ((d) && (data_hastype((data_t *) (d), Namespace)))
 #define data_as_namespace(d)   ((namespace_t *) (data_is_namespace((data_t *) (d)) ? (d) : NULL))

@@ -20,7 +20,7 @@
 #ifndef __INSTRUCTION_H__
 #define __INSTRUCTION_H__
 
-#include <core.h>
+#include <libparser.h>
 #include <data.h>
 #include <name.h>
 #include <set.h>
@@ -53,46 +53,46 @@ typedef struct _function_call {
   char       *str;
 } function_call_t;
 
-extern int Instruction;
-extern int ITByValue;
-extern int ITByName;
-extern int ITByNameValue;
-extern int ITByValueOrName;
+OBLPARSER_IMPEXP int Instruction;
+OBLPARSER_IMPEXP int ITByValue;
+OBLPARSER_IMPEXP int ITByName;
+OBLPARSER_IMPEXP int ITByNameValue;
+OBLPARSER_IMPEXP int ITByValueOrName;
 
-extern int ITAssign;
-extern int ITDecr;
-extern int ITDup;
-extern int ITEndLoop;
-extern int ITEnterContext;
-extern int ITFunctionCall;
-extern int ITIncr;
-extern int ITIter;
-extern int ITJump;
-extern int ITLeaveContext;
-extern int ITNext;
-extern int ITNop;
-extern int ITPop;
-extern int ITPushCtx;
-extern int ITPushVal;
-extern int ITDeref;
-extern int ITPushScope;
-extern int ITReturn;
-extern int ITStash;
-extern int ITSubscript;
-extern int ITSwap;
-extern int ITTest;
-extern int ITThrow;
-extern int ITUnstash;
-extern int ITVMStatus;
-extern int ITYield;
+OBLPARSER_IMPEXP int ITAssign;
+OBLPARSER_IMPEXP int ITDecr;
+OBLPARSER_IMPEXP int ITDup;
+OBLPARSER_IMPEXP int ITEndLoop;
+OBLPARSER_IMPEXP int ITEnterContext;
+OBLPARSER_IMPEXP int ITFunctionCall;
+OBLPARSER_IMPEXP int ITIncr;
+OBLPARSER_IMPEXP int ITIter;
+OBLPARSER_IMPEXP int ITJump;
+OBLPARSER_IMPEXP int ITLeaveContext;
+OBLPARSER_IMPEXP int ITNext;
+OBLPARSER_IMPEXP int ITNop;
+OBLPARSER_IMPEXP int ITPop;
+OBLPARSER_IMPEXP int ITPushCtx;
+OBLPARSER_IMPEXP int ITPushVal;
+OBLPARSER_IMPEXP int ITDeref;
+OBLPARSER_IMPEXP int ITPushScope;
+OBLPARSER_IMPEXP int ITReturn;
+OBLPARSER_IMPEXP int ITStash;
+OBLPARSER_IMPEXP int ITSubscript;
+OBLPARSER_IMPEXP int ITSwap;
+OBLPARSER_IMPEXP int ITTest;
+OBLPARSER_IMPEXP int ITThrow;
+OBLPARSER_IMPEXP int ITUnstash;
+OBLPARSER_IMPEXP int ITVMStatus;
+OBLPARSER_IMPEXP int ITYield;
 
-extern void            instruction_trace(char *, char *, ...);
+OBLPARSER_IMPEXP void            instruction_trace(char *, char *, ...);
 
-extern data_t *        instruction_create_enter_context(name_t *, data_t *);
-extern data_t *        instruction_create_function(name_t *, callflag_t, long, array_t *);
+OBLPARSER_IMPEXP data_t *        instruction_create_enter_context(name_t *, data_t *);
+OBLPARSER_IMPEXP data_t *        instruction_create_function(name_t *, callflag_t, long, array_t *);
 
-extern instruction_t * instruction_assign_label(instruction_t *);
-extern instruction_t * instruction_set_label(instruction_t *, data_t *);
+OBLPARSER_IMPEXP instruction_t * instruction_assign_label(instruction_t *);
+OBLPARSER_IMPEXP instruction_t * instruction_set_label(instruction_t *, data_t *);
 
 #define data_is_instruction(d)  ((d) && data_hastype((d), Instruction))
 #define data_as_instruction(d)  ((instruction_t *) (data_is_instruction((d)) ? (d) : NULL))

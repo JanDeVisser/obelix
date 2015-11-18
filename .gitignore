@@ -31,3 +31,4 @@ CMakeCache.txt
 build/*
 **/*.dir/*
 Win32/*
+/MingW64/

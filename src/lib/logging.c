@@ -183,6 +183,10 @@ void logging_register_category(char *name, int *flag) {
 
 void logging_reset(void) {
   int value = 0;
+  
+  if (!_categories) {
+    _logging_init();
+  }
   dict_reduce_values(_categories, (reduce_t) _logging_set_reducer, &value);
 }
 

@@ -148,6 +148,7 @@ grammar_element_type_t Terminal = -1;
 
 void _grammar_init(void) {
   logging_register_category("grammar", &grammar_debug);
+  resolve_library("liboblparser");
 }
 
 void _ge_init(void) {

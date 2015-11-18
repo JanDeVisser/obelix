@@ -21,14 +21,19 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
 
+#include <libparser.h>
 #include <data.h>
 #include <datastack.h>
 #include <grammar.h>
 #include <lexer.h>
 #include <list.h>
 
-extern int Parser;
-extern int parser_debug;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+OBLPARSER_IMPEXP int Parser;
+OBLPARSER_IMPEXP int parser_debug;
 
 typedef struct _parser {
   data_t       _d;
@@ -54,19 +59,23 @@ typedef struct _parser {
 typedef parser_t * (*parser_data_fnc_t)(parser_t *, data_t *);
 typedef parser_t * (*parser_fnc_t)(parser_t *);
 
-extern parser_t * parser_create(grammar_t *);
-extern parser_t * parser_clear(parser_t *);
-extern parser_t * parser_set(parser_t *, char *, data_t *);
-extern data_t *   parser_get(parser_t *, char *);
-extern data_t *   parser_pop(parser_t *, char *);
-extern data_t *   parser_parse(parser_t *, data_t *);
+OBLPARSER_IMPEXP parser_t * parser_create(grammar_t *);
+OBLPARSER_IMPEXP parser_t * parser_clear(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_set(parser_t *, char *, data_t *);
+OBLPARSER_IMPEXP data_t *   parser_get(parser_t *, char *);
+OBLPARSER_IMPEXP data_t *   parser_pop(parser_t *, char *);
+OBLPARSER_IMPEXP data_t *   parser_parse(parser_t *, data_t *);
 
-extern parser_t * parser_pushval(parser_t *, data_t *);
-extern parser_t * parser_push(parser_t *);
-extern parser_t * parser_bookmark(parser_t *);
-extern parser_t * parser_rollup_list(parser_t *);
-extern parser_t * parser_rollup_name(parser_t *);
-extern parser_t * parser_new_counter(parser_t *);
-extern parser_t * parser_incr(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_pushval(parser_t *, data_t *);
+OBLPARSER_IMPEXP parser_t * parser_push(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_bookmark(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_rollup_list(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_rollup_name(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_new_counter(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_incr(parser_t *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __PARSER_H__ */

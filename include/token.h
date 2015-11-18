@@ -20,7 +20,12 @@
 #ifndef __TOKEN_H__
 #define	__TOKEN_H__
 
+#include <libparser.h>
 #include <data.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum _token_code {
   TokenCodeNone = 0,
@@ -77,18 +82,18 @@ typedef struct _token {
   int           column;
 } token_t;
 
-extern char *       token_code_name(token_code_t);
+OBLPARSER_IMPEXP char *       token_code_name(token_code_t);
 
-extern token_t *    token_create(unsigned int, char *);
-extern unsigned int token_hash(token_t *);
-extern int          token_cmp(token_t *, token_t *);
-extern unsigned int token_code(token_t *);
-extern char *       token_token(token_t *);
-extern int          token_iswhitespace(token_t *);
-extern void         token_dump(token_t *);
-extern data_t *     token_todata(token_t *);
+OBLPARSER_IMPEXP token_t *    token_create(unsigned int, char *);
+OBLPARSER_IMPEXP unsigned int token_hash(token_t *);
+OBLPARSER_IMPEXP int          token_cmp(token_t *, token_t *);
+OBLPARSER_IMPEXP unsigned int token_code(token_t *);
+OBLPARSER_IMPEXP char *       token_token(token_t *);
+OBLPARSER_IMPEXP int          token_iswhitespace(token_t *);
+OBLPARSER_IMPEXP void         token_dump(token_t *);
+OBLPARSER_IMPEXP data_t *     token_todata(token_t *);
 
-extern int Token;
+OBLPARSER_IMPEXP int Token;
 
 #define data_is_token(d)     ((d) && data_hastype((d), Token))
 #define data_tokenval(d)     (data_is_token((d)) ? ((lexer_t *) ((d) -> ptrval)) : NULL)
@@ -115,6 +120,10 @@ extern int Token;
                                     (free_t) data_free), \
                                   token_hash), \
                                 data_tostring)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TOKEN_H */
 

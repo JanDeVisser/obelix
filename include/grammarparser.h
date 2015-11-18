@@ -21,7 +21,7 @@
 #ifndef __GRAMMARPARSER_H__
 #define __GRAMMARPARSER_H__
 
-#include <core.h>
+#include <libparser.h>
 #include <data.h>
 #include <grammar.h>
 
@@ -50,8 +50,8 @@ typedef struct _grammar_parser {
   int            dryrun;
 } grammar_parser_t;
 
-extern grammar_parser_t * grammar_parser_create(data_t *);
-extern void               grammar_parser_free(grammar_parser_t *);
-extern grammar_t *        grammar_parser_parse(grammar_parser_t *);
+OBLPARSER_IMPEXP grammar_parser_t * grammar_parser_create(data_t *);
+OBLPARSER_IMPEXP void               grammar_parser_free(grammar_parser_t *);
+OBLPARSER_IMPEXP grammar_t *        grammar_parser_parse(grammar_parser_t *);
 
 #endif /* __GRAMMARPARSER_H__ */

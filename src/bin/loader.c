@@ -29,6 +29,8 @@
 #include <namespace.h>
 #include <thread.h>
 
+extern grammar_t *      build_grammar(void);
+
 static void             _scriptloader_init(void) __attribute__((constructor));
 static file_t *         _scriptloader_open_file(scriptloader_t *, char *, module_t *);
 static data_t *         _scriptloader_open_reader(scriptloader_t *, module_t *);
@@ -262,8 +264,6 @@ static data_t * _scriptloader_import_sys(scriptloader_t *loader,
 
 /* -- S C R I P T L O A D E R _ T   P U B L I C   F U N C T I O N S ------- */
 
-typedef grammar_t * (*build_grammar_t)(void);
-
 scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path, 
                                      char *grammarpath) {
   scriptloader_t   *ret;
@@ -273,7 +273,6 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
   char             *userdir;
   int               ix;
   int               len;
-  build_grammar_t   build_grammar;
   array_t          *a;
 
   if (script_debug) {
@@ -315,7 +314,6 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
     if (script_debug) {
       debug("Using stock, compiled-in grammar");
     }
-    build_grammar = (build_grammar_t) resolve_function("build_grammar");
     ret -> grammar = build_grammar();
   } else {
     if (script_debug) {

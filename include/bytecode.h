@@ -20,6 +20,7 @@
 #ifndef __BYTECODE_H__
 #define __BYTECODE_H__
 
+#include <libparser.h>
 #include <data.h>
 #include <datastack.h>
 #include <dict.h>
@@ -42,20 +43,20 @@ typedef struct _bytecode {
   int          current_line;
 } bytecode_t;
 
-extern int Bytecode;
-extern int bytecode_debug;
+OBLPARSER_IMPEXP int Bytecode;
+OBLPARSER_IMPEXP int bytecode_debug;
 
-extern bytecode_t * bytecode_create(data_t *owner);
-extern void         bytecode_free(bytecode_t *);
-extern char *       bytecode_tostring(bytecode_t *);
-extern bytecode_t * bytecode_push_instruction(bytecode_t *, data_t *);
-extern bytecode_t * bytecode_start_deferred_block(bytecode_t *);
-extern bytecode_t * bytecode_end_deferred_block(bytecode_t *);
-extern bytecode_t * bytecode_pop_deferred_block(bytecode_t *);
-extern bytecode_t * bytecode_bookmark(bytecode_t *);
-extern bytecode_t * bytecode_discard_bookmark(bytecode_t *);
-extern bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *);
-extern void         bytecode_list(bytecode_t *);
+OBLPARSER_IMPEXP bytecode_t * bytecode_create(data_t *owner);
+OBLPARSER_IMPEXP void         bytecode_free(bytecode_t *);
+OBLPARSER_IMPEXP char *       bytecode_tostring(bytecode_t *);
+OBLPARSER_IMPEXP bytecode_t * bytecode_push_instruction(bytecode_t *, data_t *);
+OBLPARSER_IMPEXP bytecode_t * bytecode_start_deferred_block(bytecode_t *);
+OBLPARSER_IMPEXP bytecode_t * bytecode_end_deferred_block(bytecode_t *);
+OBLPARSER_IMPEXP bytecode_t * bytecode_pop_deferred_block(bytecode_t *);
+OBLPARSER_IMPEXP bytecode_t * bytecode_bookmark(bytecode_t *);
+OBLPARSER_IMPEXP bytecode_t * bytecode_discard_bookmark(bytecode_t *);
+OBLPARSER_IMPEXP bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *);
+OBLPARSER_IMPEXP void         bytecode_list(bytecode_t *);
 
 #define data_is_bytecode(d)   ((d) && data_hastype((d), Bytecode))
 #define data_as_bytecode(d)   ((bytecode_t *) (data_is_bytecode((d)) ? (d) : NULL))

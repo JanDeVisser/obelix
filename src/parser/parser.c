@@ -556,7 +556,7 @@ data_t * parser_parse(parser_t *parser, data_t *reader) {
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
-lexer_t * parser_newline(lexer_t *lexer, int line) {
+__DLL_EXPORT__ lexer_t * parser_newline(lexer_t *lexer, int line) {
   parser_t          *parser = (parser_t *) lexer -> data;
   parser_data_fnc_t  f;
   data_t            *l;
@@ -575,12 +575,12 @@ lexer_t * parser_newline(lexer_t *lexer, int line) {
   }
 }
 
-parser_t * parser_log(parser_t *parser, data_t *msg) {
+__DLL_EXPORT__ parser_t * parser_log(parser_t *parser, data_t *msg) {
   info("parser_log: %s", data_tostring(msg));
   return parser;
 }
 
-parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
+__DLL_EXPORT__ parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
   nvp_t *nvp = nvp_parse(data_tostring(keyval));
 
   if (nvp) {
@@ -592,7 +592,7 @@ parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
   return parser;
 }
 
-parser_t * parser_rollup_to(parser_t *parser, data_t *marker) {
+__DLL_EXPORT__ parser_t * parser_rollup_to(parser_t *parser, data_t *marker) {
   char    *m = data_tostring(marker);
   token_t *rolled_up;
 
@@ -613,7 +613,7 @@ parser_t * parser_rollup_to(parser_t *parser, data_t *marker) {
   }
 }
 
-parser_t * parser_pushval(parser_t *parser, data_t *data) {
+__DLL_EXPORT__ parser_t * parser_pushval(parser_t *parser, data_t *data) {
   if (parser_debug) {
     debug("    Pushing value %s", data_tostring(data));
   }
@@ -621,7 +621,7 @@ parser_t * parser_pushval(parser_t *parser, data_t *data) {
   return parser;
 }
 
-parser_t * parser_push(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_push(parser_t *parser) {
   data_t   *data = token_todata(parser -> last_token);
   parser_t *ret = parser_pushval(parser, data);
 
@@ -629,7 +629,7 @@ parser_t * parser_push(parser_t *parser) {
   return ret;
 }
 
-parser_t * parser_discard(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_discard(parser_t *parser) {
   data_t   *data = datastack_pop(parser -> stack);
 
   if (parser_debug) {
@@ -639,11 +639,11 @@ parser_t * parser_discard(parser_t *parser) {
   return parser;
 }
 
-parser_t * parser_dup(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_dup(parser_t *parser) {
   return parser_pushval(parser, datastack_peek(parser -> stack));
 }
 
-parser_t * parser_push_tokenstring(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_push_tokenstring(parser_t *parser) {
   data_t   *data = data_create(String, token_token(parser -> last_token));
   parser_t *ret = parser_pushval(parser, data);
 
@@ -651,7 +651,7 @@ parser_t * parser_push_tokenstring(parser_t *parser) {
   return ret;
 }
 
-parser_t * parser_bookmark(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_bookmark(parser_t *parser) {
   if (parser_debug) {
     debug("    Setting bookmark at depth %d", datastack_depth(parser -> stack));
   }
@@ -659,7 +659,7 @@ parser_t * parser_bookmark(parser_t *parser) {
   return parser;
 }
 
-parser_t * parser_rollup_list(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_rollup_list(parser_t *parser) {
   array_t *arr;
   data_t  *list;
 
@@ -673,7 +673,7 @@ parser_t * parser_rollup_list(parser_t *parser) {
   return parser;
 }
 
-parser_t * parser_rollup_name(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_rollup_name(parser_t *parser) {
   name_t  *name;
 
   name = datastack_rollup_name(parser -> stack);
@@ -685,7 +685,7 @@ parser_t * parser_rollup_name(parser_t *parser) {
   return parser;
 }
 
-parser_t * parser_new_counter(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_new_counter(parser_t *parser) {
   if (parser_debug) {
     debug("    Setting new counter");
   }
@@ -693,7 +693,7 @@ parser_t * parser_new_counter(parser_t *parser) {
   return parser;
 }
 
-parser_t * parser_incr(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_incr(parser_t *parser) {
   if (parser_debug) {
     debug("    Incrementing counter");
   }
@@ -701,7 +701,7 @@ parser_t * parser_incr(parser_t *parser) {
   return parser;
 }
 
-parser_t * parser_count(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_count(parser_t *parser) {
   if (parser_debug) {
     debug("    Pushing count to stack");
   }
@@ -710,7 +710,7 @@ parser_t * parser_count(parser_t *parser) {
   return parser;
 }
 
-parser_t * parser_discard_counter(parser_t *parser) {
+__DLL_EXPORT__ parser_t * parser_discard_counter(parser_t *parser) {
   if (parser_debug) {
     debug("    Discarding counter");
   }

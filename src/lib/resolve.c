@@ -46,11 +46,10 @@ void _resolve_init(void) {
 #ifdef HAVE_DLFCN_H
   		(free_t) dlclose
 #elif defined(HAVE_WINDOWS_H)
-			(free_t) FreeLibrary
+		(free_t) FreeLibrary
 #endif /* HAVE_DLFCN_H */
   );
   _singleton -> functions = strvoid_dict_create();
-#ifdef HAVE_DLFCN_H
   main = resolve_open(_singleton, NULL);
   if (!main) {
     error("Could not load main program image");
@@ -58,10 +57,46 @@ void _resolve_init(void) {
     dict_free(_singleton -> functions);
     _singleton = NULL;
   }
-#endif /* HAVE_DLFCN_H */
   if (_singleton) {
     atexit(resolve_free);
   }
+}
+
+char * _resolve_rewrite_image(char *image, char *buf) {
+  int   len;
+  int   ix;
+  char  canonical_buf[MAX_PATH + 1];
+  char *ptr;
+  char *canonical;
+
+  if (!image) {
+    return NULL;
+  }
+  canonical = canonical_buf;
+  len = strlen(image);
+  if (len > MAX_PATH - 5) len = MAX_PATH - 5;
+#ifdef __WIN32__
+  for (ix = 0; ix < len; ix++) {
+    canonical[ix] = tolower(image[ix]);
+  }
+  canonical[len] = 0;
+#else /* __WIN32__ */
+  strcpy(canonical, image);
+#endif /* __WIN32__ */
+
+  /* FIXME Relative paths! */
+  if (ptr = strchr(canonical, '.')) {
+    *ptr = 0;
+  }
+#ifndef __WIN32__
+  strcpy(buf, "lib");
+  strcat(buf, canonical);
+  strcat(buf, ".so");
+#else /* __WIN32__ */
+  strcpy(buf, canonical);
+  strcat(buf, ".dll");
+#endif /* __WIN32__ */
+  return buf;
 }
 
 resolve_t * resolve_get() {
@@ -84,35 +119,37 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
 #ifdef HAVE_DLFCN_H
   void     *handle;
 #elif defined(HAVE_WINDOWS_H)
-  HINSTANCE handle;
+  HMODULE   handle;
 #endif /* HAVE_DLFCN_H */
   char     *err;
+  char      image_plf[MAX_PATH];
 
-  if (resolve_debug) {
-    debug("dlopen('%s')", image);
+  if (_resolve_rewrite_image(image, image_plf)) {
+    if (resolve_debug) {
+      debug("resolve_open('%s') ~ '%s'", image, image_plf);
+    }
+    image = image_plf;
+  } else {
+    if (resolve_debug) {
+    	debug("resolve_open('Main Program Image')");
+    }
   }
 #ifdef HAVE_DLFCN_H
   dlerror();
   handle = dlopen(image, RTLD_NOW | RTLD_GLOBAL);
   err = dlerror();
-  if (handle) {
-    if (list_append(resolve -> images, handle)) {
-      return resolve;
-    }
-    dlclose(handle);
-  }
 #elif defined(HAVE_WINDOWS_H)
-  handle = LoadLibrary(TEXT(image));
-  if (handle) {
-    if (list_append(resolve -> images, handle)) {
-      return resolve;
-    }
-    FreeLibrary(handle);
-  } else {
-    err = itoa(GetLastError()); // FIXME
-  }
+  handle = (image) ? LoadLibrary(TEXT(image)) : GetModuleHandle(NULL);
+  err = itoa(GetLastError()); // FIXME
 #endif /* HAVE_DLFCN_H */
-  error("dlopen('%s') FAILED: %s", image, err);
+  if (handle) {
+		list_append(resolve -> images, handle);
+    if (resolve_debug) {
+    	info("resolve_open('%s') SUCCEEDED", image ? image : "'Main Program Image'");
+    }
+		return resolve;
+	}
+  error("resolve_open('%s') FAILED: %s", image ? image : "'Main Program Image'", err);
   return NULL;
 }
 

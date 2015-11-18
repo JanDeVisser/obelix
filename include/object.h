@@ -21,7 +21,7 @@
 #ifndef __OBJECT_H__
 #define __OBJECT_H__
 
-#include <core.h>
+#include <libparser.h>
 #include <array.h>
 #include <data.h>
 #include <dict.h>
@@ -39,18 +39,18 @@ typedef struct _object {
   data_t  *retval;
 } object_t;
 
-extern object_t *          object_create(data_t *);
-extern object_t *          object_copy(object_t *);
-extern data_t *            object_get(object_t *, char *);
-extern data_t *            object_set(object_t *, char *, data_t *);
-extern int                 object_has(object_t *, char *);
-extern data_t *            object_call(object_t *, array_t *, dict_t *);
-extern unsigned int        object_hash(object_t *);
-extern int                 object_cmp(object_t *, object_t *);
-extern data_t *            object_resolve(object_t *, char *);
-extern object_t *          object_bind_all(object_t *, data_t *);
-extern data_t *            object_ctx_enter(object_t *);
-extern data_t *            object_ctx_leave(object_t *, data_t *);
+OBLPARSER_IMPEXP object_t *          object_create(data_t *);
+OBLPARSER_IMPEXP object_t *          object_copy(object_t *);
+OBLPARSER_IMPEXP data_t *            object_get(object_t *, char *);
+OBLPARSER_IMPEXP data_t *            object_set(object_t *, char *, data_t *);
+OBLPARSER_IMPEXP int                 object_has(object_t *, char *);
+OBLPARSER_IMPEXP data_t *            object_call(object_t *, array_t *, dict_t *);
+OBLPARSER_IMPEXP unsigned int        object_hash(object_t *);
+OBLPARSER_IMPEXP int                 object_cmp(object_t *, object_t *);
+OBLPARSER_IMPEXP data_t *            object_resolve(object_t *, char *);
+OBLPARSER_IMPEXP object_t *          object_bind_all(object_t *, data_t *);
+OBLPARSER_IMPEXP data_t *            object_ctx_enter(object_t *);
+OBLPARSER_IMPEXP data_t *            object_ctx_leave(object_t *, data_t *);
 
 #define data_is_object(d)     ((d) && (data_hastype((data_t *) (d), Object)))
 #define data_as_object(d)     ((object_t *) (data_is_object((data_t *) (d)) ? (d) : NULL))
@@ -60,8 +60,8 @@ extern data_t *            object_ctx_leave(object_t *, data_t *);
 #define object_copy(o)        ((object_t *) data_copy((data_t *) (o)))
 #define data_create_object(o) data_create(Object, (o))
 
-extern int obj_debug;
-extern int Object;
+OBLPARSER_IMPEXP int obj_debug;
+OBLPARSER_IMPEXP int Object;
 
 #ifdef __cplusplus
 }
