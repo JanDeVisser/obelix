@@ -29,7 +29,6 @@ typedef struct _token_code_str {
 } token_code_str_t;
 
 static void     _token_init(void) __attribute__((constructor(102)));
-static data_t * _token_create(int, va_list);
 static void     _token_free(token_t *);
 static char *   _token_allocstring(token_t *);
 static data_t * _token_resolve(token_t *, char *);
@@ -167,6 +166,7 @@ data_t * _token_resolve(token_t *token, char *name) {
   } else if (!strcmp(name, "column")) {
     return data_create(Int, token -> column);
   }
+  return NULL;
 }
 
 data_t * _token_iswhitespace(token_t *self, char *n, array_t *args, dict_t *kwargs) {
@@ -179,7 +179,7 @@ data_t * _token_iswhitespace(token_t *self, char *n, array_t *args, dict_t *kwar
  * token_t - public interface
  */
 
-token_t *token_create(unsigned int code, char *token) {
+token_t * token_create(unsigned int code, char *token) {
   token_t *ret;
 
   ret = data_new(Token, token_t);

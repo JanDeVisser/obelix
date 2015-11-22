@@ -42,8 +42,6 @@ static char *           _scriptloader_allocstring(scriptloader_t *);
 static data_t *         _scriptloader_call(scriptloader_t *, array_t *, dict_t *);
 static data_t *         _scriptloader_resolve(scriptloader_t *, char *);
 
-static scriptloader_t * _loader = NULL;
-
 static code_label_t obelix_option_labels[] = {
   { .code = ObelixOptionList,  .label = "ObelixOptionList" },
   { .code = ObelixOptionTrace, .label = "ObelixOptionTrace" },

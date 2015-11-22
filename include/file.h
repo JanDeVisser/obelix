@@ -28,18 +28,32 @@
 #include <core.h>
 #include <data.h>
 #include <list.h>
+#include <str.h>
+
+#define STREAM_BUFSZ		16384
 
 extern int file_debug;
 
+typedef struct _stream {
+  data_t     _d;
+  str_t     *buffer;
+  read_t     reader;
+  write_t    writer;
+  int        _errno;;
+  char      *error;
+} stream_t;
+
+OBLCORE_IMPEXP stream_t *   stream_init(stream_t *, read_t, write_t);
+OBLCORE_IMPEXP void         stream_free(stream_t *);
+OBLCORE_IMPEXP char *       stream_error(stream_t *);
+OBLCORE_IMPEXP char *       stream_readline(stream_t *);
+
 typedef struct _file {
-  data_t  _d;
-  int     fh;
-  FILE   *stream;
-  char   *fname;
-  char   *line;
-  int     _errno;
-  char   *error;
+  stream_t  _stream;
+  int       fh;
+  char     *fname;
 } file_t;
+
 
 OBLCORE_IMPEXP int          file_flags(char *);
 OBLCORE_IMPEXP int          file_mode(char *);
@@ -50,15 +64,12 @@ OBLCORE_IMPEXP void         file_free(file_t *);
 OBLCORE_IMPEXP int          file_close(file_t *);
 OBLCORE_IMPEXP char *       file_name(file_t *);
 OBLCORE_IMPEXP unsigned int file_hash(file_t *);
-OBLCORE_IMPEXP char *       file_error(file_t *);
-OBLCORE_IMPEXP int          file_errno(file_t *);
 OBLCORE_IMPEXP int          file_cmp(file_t *, file_t *);
 OBLCORE_IMPEXP int          file_write(file_t *, char *, int);
 OBLCORE_IMPEXP int          file_printf(file_t *, char *, ...);
 OBLCORE_IMPEXP int          file_read(file_t *, char *, int);
 OBLCORE_IMPEXP int          file_seek(file_t *, int);
-OBLCORE_IMPEXP char *       file_readline(file_t *);
-OBLCORE_IMPEXP int          file_eof(file_t *);
+//OBLCORE_IMPEXP int          file_eof(file_t *);
 OBLCORE_IMPEXP int          file_isopen(file_t *);
 OBLCORE_IMPEXP int          file_flush(file_t *);
 OBLCORE_IMPEXP int          file_redirect(file_t *, char *);
@@ -67,11 +78,16 @@ OBLCORE_IMPEXP data_t *     data_wrap_file(file_t *file);
 OBLCORE_IMPEXP int          Stream;
 OBLCORE_IMPEXP int          File;
 
-#define data_is_stream(d)  ((d) && (data_hastype((data_t *) (d), Stream)))
-#define data_is_file(d)    ((d) && (data_hastype((data_t *) (d), File)))
-#define data_as_file(d)    ((file_t *) (data_is_file((d)) ? ((file_t *) (d)) : NULL))
-#define file_free(f)       (data_free((data_t *) (f)))
-#define file_tostring(f)   (data_tostring((data_t *) (f)))
-#define file_copy(f)       ((file_t *) data_copy((data_t *) (f)))
+#define data_is_stream(d)    ((d) && (data_hastype((data_t *) (d), Stream)))
+#define data_is_file(d)      ((d) && (data_hastype((data_t *) (d), File)))
+#define data_as_file(d)      ((file_t *) (data_is_file((d)) ? ((file_t *) (d)) : NULL))
+#define file_free(f)         (data_free((data_t *) (f)))
+#define file_tostring(f)     (data_tostring((data_t *) (f)))
+#define file_copy(f)         ((file_t *) data_copy((data_t *) (f)))
+
+#define file_set_errno(f)    (((stream_t *) (f)) -> _errno = errno)
+#define file_clear_errno(f)  (((stream_t *) (f)) -> _errno = 0)
+#define file_errno(f)        (((stream_t *) (file)) -> _errno)
+#define file_error(f)        (stream_error((stream_t *) (f)))
 
 #endif /* __FILE_H__ */

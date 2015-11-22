@@ -883,11 +883,13 @@ __DLL_EXPORT__ parser_t * script_parse_begin_context_block(parser_t *parser) {
 
 __DLL_EXPORT__ parser_t * script_parse_throw_exception(parser_t *parser) {
   push_instruction(parser, instruction_create_throw());
+  return parser;
 }
 
 __DLL_EXPORT__ parser_t * script_parse_leave(parser_t *parser) {
   push_instruction(parser, instruction_create_pushval(data_exception(ErrorLeave, "Leave")));
   push_instruction(parser, instruction_create_throw());
+  return parser;
 }
 
 __DLL_EXPORT__ parser_t * script_parse_end_context_block(parser_t *parser) {

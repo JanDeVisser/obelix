@@ -396,19 +396,29 @@ int str_pushback(str_t *str, int num) {
 }
 
 int str_readinto(str_t *str, data_t *rdr) {
-  data_t * ret;
-  int      retval;
+  typedescr_t *type = data_typedescr(rdr);
+  read_t       fnc;
+
+  fnc = (read_t) typedescr_get_function(type, FunctionRead);
+  if (fnc) {
+    return str_read_from_reader(str, rdr, fnc);
+  } else {
+    return -1;
+  }
+}
+
+int str_read_from_reader(str_t *str, void *stream, read_t reader) {
+  int ret;
 
   str_erase(str);
-  ret = data_read(rdr, str -> buffer, str -> bufsize);
-  if (data_type(ret) == Int) {
-    retval = data_intval(ret);
-    str -> buffer[retval] = '\0';
-    str -> len = retval;
+  ret = reader(stream, str -> buffer, str -> bufsize);
+  if (ret < 0) {
+    return -1;
   } else {
-    retval = -1;
+    str -> buffer[ret] = 0;
+    str -> len = ret;
+    return ret;
   }
-  return retval;
 }
 
 int str_write(str_t *str, char *buf, int num) {

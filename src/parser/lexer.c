@@ -63,7 +63,6 @@ static void             _kw_matches_free(kw_matches_t *);
 static int              _lexer_get_char(lexer_t *);
 static void             _lexer_push_back(lexer_t *, int);
 static void             _lexer_push_all_back(lexer_t *);
-static lexer_t *        _lexer_keyword_match_reducer(token_t *, lexer_t *);
 static int              _lexer_keyword_match(lexer_t *);
 static token_t *        _lexer_match_token(lexer_t *, int);
 static int              _lexer_accept(lexer_t *, token_t *);

@@ -261,6 +261,7 @@ int _socket_accept(socket_t *socket) {
     error("Error accepting");
     return -1;
   }
+  return 0;
 }
 
 int _socket_accept_loop(socket_t *socket) {

@@ -130,7 +130,7 @@ exception_t * exception_from_errno(void) {
 
 exception_t * exception_from_my_errno(int err) {
   // FIXME Map errno to ErrorXXX. It's not always an IOError.
-  exception_create(ErrorIOError, strerror(err));
+  return exception_create(ErrorIOError, strerror(err));
 }
 
 unsigned int exception_hash(exception_t *exception) {

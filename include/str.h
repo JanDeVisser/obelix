@@ -89,6 +89,7 @@ OBLCORE_IMPEXP struct _array * str_split(str_t *, char *);
 OBLCORE_IMPEXP int             str_read(str_t *, char *, int);
 OBLCORE_IMPEXP int             str_readchar(str_t *);
 OBLCORE_IMPEXP int             str_readinto(str_t *, struct _data *);
+OBLCORE_IMPEXP int             str_read_from_reader(str_t *, void *, read_t);
 OBLCORE_IMPEXP int             str_pushback(str_t *, int);
 OBLCORE_IMPEXP int             str_write(str_t *, char *, int);
 

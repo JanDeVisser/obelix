@@ -61,7 +61,6 @@ static int              _dict_cmp_keys(dict_t *, void *, void *);
 static dict_t *         _dict_rehash(dict_t *);
 static bucket_t *       _dict_get_bucket(dict_t *, void *);
 static dict_t *         _dict_add_to_bucket(dict_t *, void *, void *);
-static int              _dict_position_in_bucket(dict_t *, bucket_t *, void *);
 static dictentry_t *    _dict_find_in_bucket(dict_t *, void *);
 static dict_t *         _dict_remove_from_bucket(dict_t *, void *);
 static list_t *         _dict_append_reducer(void *, list_t *);

@@ -32,7 +32,6 @@ static data_t *      _mutex_leave(mutex_t *, data_t *);
 
 static data_t *      _mutex_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _mutex_lock(mutex_t *, char *, array_t *, dict_t *);
-static data_t *      _mutex_trylock(mutex_t *, char *, array_t *, dict_t *);
 static data_t *      _mutex_unlock(mutex_t *, char *, array_t *, dict_t *);
 
 int Mutex = -1;

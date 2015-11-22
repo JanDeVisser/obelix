@@ -125,14 +125,15 @@ data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) args;
   (void) kwargs;
   if (!asbool) {
-    return data_exception(ErrorSyntax,
-                          "not(): Cannot convert value '%s' of type '%s' to boolean",
-                          data_tostring(self),
-                          data_typedescr(self) -> type_name);
+    ret = data_exception(ErrorSyntax,
+                         "not(): Cannot convert value '%s' of type '%s' to boolean",
+                         data_tostring(self),
+                         data_typedescr(self) -> type_name);
   } else {
     ret = data_create(Int, data_intval(asbool) == 0);
     data_free(asbool);
   }
+  return ret;
 }
 
 data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {

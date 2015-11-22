@@ -81,8 +81,6 @@ static vtable_t _vtable_bool[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static int _inherits_bool[] = { Int };
-
 static typedescr_t _typedescr_bool = {
   .type          = Bool,
   .type_name     = "bool",

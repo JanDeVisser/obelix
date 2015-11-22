@@ -613,19 +613,23 @@ data_t * data_len(data_t *data) {
  */
 data_t * data_read(data_t *reader, char *buf, int num) {
   typedescr_t  *type = data_typedescr(reader);
-  data_t *    (*fnc)(data_t *, char *, int);
-  data_t       *ret;
+  read_t        fnc;
+  int           retval;
 
-  fnc = (data_t * (*)(data_t *, char *, int)) typedescr_get_function(type, FunctionRead);
+  fnc = (read_t) typedescr_get_function(type, FunctionRead);
   if (fnc) {
-    ret = fnc(reader, buf, num);
+    retval = fnc(reader, buf, num);
+    if (retval >= 0) {
+      return data_create(Int, retval);
+    } else {
+      return data_exception_from_errno();
+    }
   } else {
-    ret = data_exception(ErrorFunctionUndefined,
-                         "%s '%s' is has no 'read' function",
-                         typedescr_tostring(data_typedescr(reader)),
-                         data_tostring(reader));
+    return data_exception(ErrorFunctionUndefined,
+                          "%s '%s' is has no 'read' function",
+                          typedescr_tostring(data_typedescr(reader)),
+                          data_tostring(reader));
   }
-  return ret;
 }
 
 /**
@@ -634,19 +638,23 @@ data_t * data_read(data_t *reader, char *buf, int num) {
  */
 data_t * data_write(data_t *writer, char *buf, int num) {
   typedescr_t  *type = data_typedescr(writer);
-  data_t *    (*fnc)(data_t *, char *, int);
-  data_t       *ret;
+  write_t       fnc;
+  int           ret;
 
-  fnc = (data_t * (*)(data_t *, char *, int)) typedescr_get_function(type, FunctionWrite);
+  fnc = (write_t) typedescr_get_function(type, FunctionWrite);
   if (fnc) {
     ret = fnc(writer, buf, num);
+    if (ret >= 0) {
+      return data_create(Int, ret);
+    } else {
+      return data_exception_from_errno();
+    }
   } else {
-    ret = data_exception(ErrorFunctionUndefined,
-                         "%s '%s' is has no 'write' function",
-                         typedescr_tostring(type),
-                         data_tostring(writer));
+    return data_exception(ErrorFunctionUndefined,
+                          "%s '%s' is has no 'write' function",
+                          typedescr_tostring(type),
+                          data_tostring(writer));
   }
-  return ret;
 }
 
 /* - I T E R A T O R S -----------------------------------------------------*/

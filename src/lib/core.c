@@ -116,7 +116,7 @@ void * resize_block(void *block, int newsz, int oldsz) {
       memset(ret + oldsz, 0, newsz - oldsz);
     }
   } else {
-    ret = new(newsz);
+    ret = _new(newsz);
   }
   return ret;
 }

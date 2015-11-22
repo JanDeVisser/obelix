@@ -206,7 +206,7 @@ void * _connection_handler(connection_t *connection) {
     file_printf(client -> sockfile, "Obelix 0.1\n");
     do {
       file_printf(client -> sockfile, "READY\n");
-      cmd = file_readline(client -> sockfile);
+      cmd = "RUN"; /* file_readline(client -> sockfile); */
       if (!strncmp(cmd, "PATH ", 5)) {
         oblserver_path(&server, cmd + 5);
       } else if (!strncmp(cmd, "RUN ", 4)) {
