@@ -28,12 +28,17 @@
 #endif /* HAVE_STDINT_H */
 #include <stdlib.h>
 
+#ifdef __WIN32__
 #ifndef __GNUC__
-#define __DLL_IMPORT__	__declspec(dllimport)
-#define __DLL_EXPORT__	__declspec(dllexport)
+#define __DLL_IMPORT__       __declspec(dllimport)
+#define __DLL_EXPORT__       __declspec(dllexport)
 #else
-#define __DLL_IMPORT__	__attribute__((dllimport)) extern
-#define __DLL_EXPORT__	__attribute__((dllexport)) extern
+#define __DLL_IMPORT__       __attribute__((dllimport)) extern
+#define __DLL_EXPORT__       __attribute__((dllexport)) extern
+#endif
+#else
+#define __DLL_IMPORT__       extern
+#define __DLL_EXPORT__       extern
 #endif
 
 #if (defined __WIN32__) || (defined _WIN32)

@@ -93,12 +93,10 @@ char * _resolve_rewrite_image(char *image, char *buf) {
   if (ptr = strchr(canonical, '.')) {
     *ptr = 0;
   }
+  strcpy(buf, canonical);
 #ifndef __WIN32__
-  strcpy(buf, "lib");
-  strcat(buf, canonical);
   strcat(buf, ".so");
 #else /* __WIN32__ */
-  strcpy(buf, canonical);
   strcat(buf, ".dll");
 #endif /* __WIN32__ */
   return buf;
