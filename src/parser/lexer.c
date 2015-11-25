@@ -153,9 +153,9 @@ static methoddescr_t _methoddescr_lexer[] = {
 void _lexer_init(void) {
   logging_register_category("lexer", &lexer_debug);
   Lexer = typedescr_create_and_register(Lexer,
-					"lexer",
-					_vtable_lexer,
-					_methoddescr_lexer);
+                                        "lexer",
+                                        _vtable_lexer,
+                                        _methoddescr_lexer);
 }
 
 void _dequotify(str_t *str) {

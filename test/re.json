@@ -1,0 +1,1 @@
+{"exit": 0, "name": "re", "stderr": [], "stdout": ["regexp('j.n') = /(j.n)/", "match(abcdejanfghij) = jan", "/j.n/ = /(j.n)/", "match(abcdejanfghij) = jan", "match(abcdejanfghijanklmn) = [ jan, jan ]", "match(abcdejamfghijamklmn) = 0", "2"]}

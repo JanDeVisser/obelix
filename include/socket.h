@@ -31,8 +31,8 @@
 #include <file.h>
 #include <thread.h>
 
-#ifdef	__cplusplus
-extern "C" {
+#ifdef __cplusplus
+//extern "C" {
 #endif
 
 #ifndef HAVE_TYPE_SOCKET
@@ -49,15 +49,13 @@ typedef struct _connection {
 typedef void * (*service_t)(connection_t *);
     
 typedef struct _socket {
-  data_t     _d;
-  file_t    *sockfile;
+  stream_t   _stream;
   SOCKET     fh;
   char      *host;
   char      *service;
   service_t  service_handler;
   thread_t  *thread;
   void      *context;
-  int        _errno;
 } socket_t;
 
 OBLCORE_IMPEXP socket_t *    socket_create(char *, int);
@@ -82,11 +80,18 @@ OBLCORE_IMPEXP void *        connection_listener_service(connection_t *);
 #define socket_tostring(o) (data_tostring((data_t *) (o)))
 #define socket_copy(o)     ((socket_t *) data_copy((data_t *) (o)))
 
+#define socket_set_errno(s)       (((stream_t *) (s)) -> _errno = errno)
+#define socket_clear_errno(s)     (((stream_t *) (s)) -> _errno = 0)
+#define socket_errno(s)           (((stream_t *) (s)) -> _errno)
+#define socket_error(s)           (stream_error((stream_t *) (s)))
+#define socket_getchar(s)         (stream_getchar((stream_t *) (s)))
+#define socket_readline(s)        (stream_readline((stream_t *) (s)))
+#define socket_print(s, f, a, kw) (stream_print((stream_t *) (s), (f), (a), (kw)))
 
 OBLCORE_IMPEXP int Socket;
 
 #ifdef	__cplusplus
-}
+//}
 #endif
 
 #endif	/* __SOCKET_H__ */

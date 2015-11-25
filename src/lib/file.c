@@ -53,7 +53,6 @@ typedef int _oshandle_t;
 
 static void          _file_init(void) __attribute__((constructor));
 
-static int           _stream_get_char(stream_t *);
 static int           _stream_read(stream_t *, char *, int);
 static stream_t *    _stream_enter(stream_t *);
 static data_t *      _stream_query(stream_t *, data_t *);
@@ -165,42 +164,6 @@ void _file_init(void) {
 
 /* -- S T R E A M  A B S T R A C T  T Y P E ------------------------------- */
 
-int _stream_get_char(stream_t *stream) {
-  int ch;
-  int ret;
-
-  if (!stream -> buffer) {
-    stream -> buffer = str_create(STREAM_BUFSZ);
-    if (!stream -> buffer) {
-      errno = 1;
-      stream -> _errno = 1;
-      return -1;
-    }
-    ret = str_read_from_reader(stream -> buffer, stream, stream -> reader);
-    if (ret < 0) {
-      stream -> _errno = errno;
-      return ret;
-    }
-  }
-  ch = str_readchar(stream -> buffer);
-  if (!ch) {
-    ret = str_read_from_reader(stream -> buffer, stream, stream -> reader);
-    if (ret < 0) {
-      stream -> _errno = errno;
-      return ret;
-    } else if (!ret) {
-      return 0;
-    } else {
-      ch = str_readchar(stream -> buffer);
-    }
-  }
-  if (ch < 0) {
-    stream -> _errno = errno;
-    return -1;
-  }
-  return ch;
-}
-
 int _stream_read(stream_t *stream, char *buf, int num) {
   int     retval;
   int     ix;
@@ -213,7 +176,7 @@ int _stream_read(stream_t *stream, char *buf, int num) {
   }
   ptr = buf;
   for (ix = 0; ix < num; ix++) {
-    ch = _stream_get_char(stream);
+    ch = stream_getchar(stream);
     if (ch > 0) {
       *ptr++ = ch;
     } else if (ch == 0) {
@@ -275,48 +238,23 @@ data_t * _stream_readline(stream_t *stream, char *name, array_t *args, dict_t *k
   return ret;
 }
 
-#define WRITE_TO_STREAM(s, l) if (!retval) {                             \
-	int _len = strlen((l));                                              \
-	retval = data_write((data_t *) (s), (l), _len);                      \
-	if (data_is_numeric(retval) && (data_intval(retval) == _len)) {      \
-		data_free(retval);                                               \
-		retval = NULL;                                                   \
-	}                                                                    \
-}
-
 data_t * _stream_print(stream_t *self, char *name, array_t *args, dict_t *kwargs) {
-  file_t *file = (file_t *) self;
-  data_t *s;
-  data_t *fmt;
-  char   *line;
   int     ret = 1;
   data_t *retval = NULL;
+  data_t *fmt;
 
   (void) name;
   fmt = data_array_get(args, 0);
   assert(fmt);
   args = array_slice(args, 1, -1);
-  s = data_execute(fmt, "format", args, kwargs);
+  ret = stream_print(self, data_tostring(fmt), args, kwargs);
   array_free(args);
-
-  line = data_tostring(s);
-  WRITE_TO_STREAM(self, line);
-#ifdef __WIN32__
-  WRITE_TO_STREAM(self, "\r");
-#endif /* __WIN32__ */
-  WRITE_TO_STREAM(self, "\n");
-  if (!retval && data_hasmethod((data_t *) self, "flush")) {
-	retval = data_execute((data_t *) self, "flush", NULL, NULL);
-	if (data_type(retval) == Bool && data_intval(retval)) {
-	  data_free(retval);
-	  retval = NULL;
-    }
+  if (ret < 0) {
+    retval = data_exception_from_my_errno(stream_error(self));
+  } else {
+    retval = data_true();
   }
-  data_free(s);
-  if (!retval) {
-  	retval = data_true();
-  }
-  return data_create(Bool, retval);
+  return retval;
 }
 
 stream_t * stream_init(stream_t *stream, read_t reader, write_t writer) {
@@ -342,6 +280,42 @@ char * stream_error(stream_t *stream) {
   return stream -> error;
 }
 
+int stream_getchar(stream_t *stream) {
+  int ch;
+  int ret;
+
+  if (!stream -> buffer) {
+    stream -> buffer = str_create(STREAM_BUFSZ);
+    if (!stream -> buffer) {
+      errno = 1;
+      stream -> _errno = 1;
+      return -1;
+    }
+    ret = str_read_from_reader(stream -> buffer, stream, stream -> reader);
+    if (ret < 0) {
+      stream -> _errno = errno;
+      return ret;
+    }
+  }
+  ch = str_readchar(stream -> buffer);
+  if (!ch) {
+    ret = str_read_from_reader(stream -> buffer, stream, stream -> reader);
+    if (ret < 0) {
+      stream -> _errno = errno;
+      return ret;
+    } else if (!ret) {
+      return 0;
+    } else {
+      ch = str_readchar(stream -> buffer);
+    }
+  }
+  if (ch < 0) {
+    stream -> _errno = errno;
+    return -1;
+  }
+  return ch;
+}
+
 char * stream_readline(stream_t *stream) {
   char   *buf;
   int     num = 0;
@@ -350,7 +324,7 @@ char * stream_readline(stream_t *stream) {
 
   buf = (char *) _new(cursz);
   do {
-    ch = _stream_get_char(stream);
+    ch = stream_getchar(stream);
     if (!ch || (ch == '\n')) {
       break;
     } else if (ch < 0) {
@@ -374,6 +348,38 @@ char * stream_readline(stream_t *stream) {
   return buf;
 }
 
+#define WRITE_TO_STREAM(s, l) if (retval >= 0) {    \
+    int _len = strlen((l));                         \
+    retval = (s -> writer)((s), (l), _len);         \
+}
+
+int stream_print(stream_t *stream, char *fmt, array_t *args, dict_t *kwargs) {
+  data_t *s;
+  char   *line;
+  int     ret = 1;
+  int     retval = 0;
+  data_t *r = NULL;
+
+  s = data_execute((r = data_create(String, fmt)), "format", args, kwargs);
+  data_free(r);
+
+  line = data_tostring(s);
+  WRITE_TO_STREAM(stream, line);
+#ifdef __WIN32__
+  WRITE_TO_STREAM(stream, "\r");
+#endif /* __WIN32__ */
+  WRITE_TO_STREAM(stream, "\n");
+  if ((retval >= 0) && data_hasmethod((data_t *) stream, "flush")) {
+    r = data_execute((data_t *) stream, "flush", NULL, NULL);
+    if ((data_type(r) != Bool) || !data_intval(r)) {
+      retval = -1;
+    }
+    data_free(r);
+  }
+  data_free(s);
+  return retval;
+}
+
 /* -- S T R E A M  I T E R A T O R ---------------------------------------- */
 
 streamiter_t * _streamiter_readnext(streamiter_t *iter) {
@@ -394,13 +400,13 @@ streamiter_t * _streamiter_readnext(streamiter_t *iter) {
       if (!iter -> selector) {
         list_push(iter -> next, data_copy(line));
       } else {
-      	args = array_create(1);
-      	array_push(args, line);
+        args = array_create(1);
+        array_push(args, line);
         matches = data_execute(iter -> selector, "match", args, NULL);
         if (data_is_exception(matches) || data_is_string(matches)) {
           list_push(iter -> next, data_copy(matches));
         } else if (data_is_list(matches)) {
-        	/* FIXME: Should be able to handle any iterable */
+          /* FIXME: Should be able to handle any iterable */
           matchvals = data_as_array(matches);
           for (ix = 0; ix < array_size(matchvals); ix++) {
             list_push(iter -> next, data_copy(data_array_get(matchvals, ix)));
@@ -429,13 +435,13 @@ streamiter_t * _streamiter_create(stream_t *stream, data_t *selector) {
   if (selector && data_hasmethod(selector, "match")) {
     ret -> selector = data_copy(selector);
   } else if (selector && !data_isnull(selector)) {
-    ret -> selector = data_create(Regexp, data_tostring(selector), NULL);
+    ret -> selector = regexp_create(data_tostring(selector), NULL);
   } else {
-  	ret -> selector = NULL;
+    ret -> selector = NULL;
   }
   // FIXME: Error handling for bad regexp.
   if (data_hasmethod(ret -> stream, "seek")) {
-  	retval = data_execute(ret -> stream, "seek", NULL, NULL);
+    retval = data_execute(ret -> stream, "seek", NULL, NULL);
   }
   ret -> next = data_list_create();
   if (!retval || data_intval(retval) >= 0) {
@@ -449,7 +455,7 @@ streamiter_t * _streamiter_create(stream_t *stream, data_t *selector) {
 
 void _streamiter_free(streamiter_t *streamiter) {
   if (streamiter) {
-  	data_free(streamiter -> stream);
+    data_free(streamiter -> stream);
     data_free(streamiter -> selector);
     list_free(streamiter -> next);
   }
@@ -792,19 +798,6 @@ int file_write(file_t *file, char *buf, int num) {
   if (ret < 0) {
     file_set_errno(file);
   }
-  return ret;
-}
-
-int file_printf(file_t *file, char *fmt, ...) {
-  char    *buf;
-  va_list  args;
-  int      ret;
-
-  va_start(args, fmt);
-  vasprintf(&buf, fmt, args);
-  va_end(args);
-  ret = file_write(file, buf, strlen(buf));
-  free(buf);
   return ret;
 }
 

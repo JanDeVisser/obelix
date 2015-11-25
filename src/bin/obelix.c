@@ -197,21 +197,26 @@ void * _connection_handler(connection_t *connection) {
   char           *cmd;
   data_t         *ret;
   oblserver_t     server;
+  array_t        *arr;
   
   memset(&server, 0, sizeof(oblserver_t));
   server.args = args;
   server.socket = (socket_t *) connection -> client;
   server.loader = _create_loader(args);
   if (server.loader) {
-    file_printf(client -> sockfile, "Obelix 0.1\n");
+    socket_print(client, "Obelix 0.1", NULL, NULL);
     do {
-      file_printf(client -> sockfile, "READY\n");
+      socket_print(client, "READY", NULL, NULL);
       cmd = "RUN"; /* file_readline(client -> sockfile); */
       if (!strncmp(cmd, "PATH ", 5)) {
         oblserver_path(&server, cmd + 5);
       } else if (!strncmp(cmd, "RUN ", 4)) {
         ret = oblserver_run(&server, cmd + 4);
-        file_printf(server.socket -> sockfile, "%s:%s\n", data_typename(ret), data_tostring(ret));
+        arr = array_create(2);
+        array_push(arr, data_create(String, data_typename(ret)));
+        array_push(arr, data_create(String, data_tostring(ret)));
+        socket_print(server.socket, "${0}:${1}", arr, NULL);
+        array_free(arr);
         data_free(ret);
       } else if (!strcmp(cmd, "QUIT")) {
         break;

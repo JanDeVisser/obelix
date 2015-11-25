@@ -18,11 +18,11 @@
  */
 
 #ifndef __LOGGING_H__
-#define	__LOGGING_H__
+#define __LOGGING_H__
 
 #include <core-setup.h>
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -51,12 +51,12 @@ OBLCORE_IMPEXP log_level_t log_level;
 #define info(fmt, args...)           _logmsg(LogLevelInfo, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
 #define warning(fmt, args...)        _logmsg(LogLevelWarning, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
 #define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
-#define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args); *((char *) NULL) = 0; }
+#define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args); exit(-10); }
 #define oassert(value, fmt, args...) { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args); assert(0); } }
 
-#ifdef	__cplusplus
+#ifdef __cplusplus
 }
 #endif
 
-#endif	/* __LOGGING_H__ */
+#endif /* __LOGGING_H__ */
 

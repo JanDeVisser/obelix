@@ -10,7 +10,7 @@ while
 if
 function
 object
-queryfile
+#queryfile
 reduce
 comprehension
 comprehension_where
@@ -19,7 +19,7 @@ re
 readfile
 range
 subscript
-async
+#async
 pass
 subclass
 multipleinheritance

@@ -131,6 +131,9 @@ socket_t * _socket_create(SOCKET fh, char *host, char *service) {
   ret -> host = (host) ? strdup(host) : NULL;
   ret -> service = strdup(service);
   ret -> fh = fh;
+  stream_init((stream_t *) ret,
+      (read_t) socket_read,
+      (write_t) socket_write);
   return ret;
 }
 
@@ -401,15 +404,15 @@ void _socket_set_errno(socket_t *socket) {
 #ifdef HAVE_WINSOCK2_H
   int ix;
 
-  socket -> _errno = WSAGetLastError();
+  ((stream_t *) socket) -> _errno = WSAGetLastError();
   for (ix = 0; WSAErrorMap[ix][0] != -1; ix++) {
-    if (socket -> _errno == WSAErrorMap[ix][0]) {
-      socket -> _errno = WSAErrorMap[ix][0];
+    if (socket_errno(socket) == WSAErrorMap[ix][0]) {
+      ((stream_t *) socket) -> _errno = WSAErrorMap[ix][0];
       break;
     }
   }
 #else
-  socket -> _errno = errno;
+  socket_set_errno(socket);
 #endif
 }
 
@@ -497,7 +500,7 @@ int socket_read(socket_t *socket, void *buf, int num) {
       buf += numrecv;
     } else if (numrecv == 0) {
       socket_close(socket);
-      socket -> _errno = ECONNRESET;
+      ((stream_t *) socket) -> _errno = ECONNRESET;
       ret = -1;
     } else {
       _socket_set_errno(socket);

@@ -363,7 +363,7 @@ typedescr_t * typedescr_get(int datatype) {
     ret = &descriptors[datatype];
   }
   if (!ret) {
-    fatal("Undefined type %d referenced. Expect crashes", datatype);
+    fatal("Undefined type %d referenced. Terminating...", datatype);
     return NULL;
   } else {
     //if (type_debug) {
