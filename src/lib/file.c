@@ -250,7 +250,7 @@ data_t * _stream_print(stream_t *self, char *name, array_t *args, dict_t *kwargs
   ret = stream_print(self, data_tostring(fmt), args, kwargs);
   array_free(args);
   if (ret < 0) {
-    retval = data_exception_from_my_errno(stream_error(self));
+    retval = data_exception_from_my_errno(self -> _errno);
   } else {
     retval = data_true();
   }
@@ -390,7 +390,7 @@ streamiter_t * _streamiter_readnext(streamiter_t *iter) {
   array_t *args;
 
   while (list_empty(iter -> next)) {
-  	line = data_execute(iter -> stream, "readline", NULL, NULL);
+    line = data_execute(iter -> stream, "readline", NULL, NULL);
     if (data_isnull(line)) {
       list_push(iter -> next,
                 data_exception(ErrorExhausted, "Iterator exhausted"));
@@ -435,7 +435,7 @@ streamiter_t * _streamiter_create(stream_t *stream, data_t *selector) {
   if (selector && data_hasmethod(selector, "match")) {
     ret -> selector = data_copy(selector);
   } else if (selector && !data_isnull(selector)) {
-    ret -> selector = regexp_create(data_tostring(selector), NULL);
+    ret -> selector = (data_t *) regexp_create(data_tostring(selector), NULL);
   } else {
     ret -> selector = NULL;
   }

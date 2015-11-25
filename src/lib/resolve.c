@@ -18,6 +18,7 @@
  */
 
 #include <config.h>
+#include <limits.h>
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif /* HAVE_DLFCN_H */
@@ -61,6 +62,10 @@ void _resolve_init(void) {
     atexit(resolve_free);
   }
 }
+
+#ifndef MAX_PATH
+#define MAX_PATH       PATH_MAX
+#endif /* MAX_PATH */
 
 char * _resolve_rewrite_image(char *image, char *buf) {
   int   len;
