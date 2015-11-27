@@ -1,0 +1,857 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="97">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <logicalFolder name="bin"
+                   displayName="bin"
+                   projectFiles="true"
+                   root="build/src/bin">
+      <itemPath>build/src/bin/grammar.c</itemPath>
+    </logicalFolder>
+    <df root="include" name="0">
+    </df>
+    <df root="src" name="1">
+      <df name="bin">
+        <in>grammar.c</in>
+        <in>loader.c</in>
+        <in>obelix.c</in>
+        <in>scriptparse.c</in>
+      </df>
+      <df name="lib">
+        <in>any.c</in>
+        <in>array.c</in>
+        <in>core.c</in>
+        <in>data.c</in>
+        <in>datalist.c</in>
+        <in>datastack.c</in>
+        <in>dict.c</in>
+        <in>exception.c</in>
+        <in>file.c</in>
+        <in>float.c</in>
+        <in>fsentry.c</in>
+        <in>function.c</in>
+        <in>int.c</in>
+        <in>list.c</in>
+        <in>logging.c</in>
+        <in>method.c</in>
+        <in>mutex.c</in>
+        <in>name.c</in>
+        <in>nvp.c</in>
+        <in>pointer.c</in>
+        <in>range.c</in>
+        <in>re.c</in>
+        <in>regex.c</in>
+        <in>resolve.c</in>
+        <in>set.c</in>
+        <in>socket.c</in>
+        <in>str.c</in>
+        <in>thread.c</in>
+        <in>typedescr.c</in>
+      </df>
+      <df name="parser">
+        <in>boundmethod.c</in>
+        <in>bytecode.c</in>
+        <in>closure.c</in>
+        <in>generator.c</in>
+        <in>grammar.c</in>
+        <in>grammarparser.c</in>
+        <in>instruction.c</in>
+        <in>lexer.c</in>
+        <in>namespace.c</in>
+        <in>object.c</in>
+        <in>panoramix.c</in>
+        <in>parser.c</in>
+        <in>script.c</in>
+        <in>stacktrace.c</in>
+        <in>token.c</in>
+        <in>vm.c</in>
+      </df>
+      <df name="stdlib">
+        <in>builtins.c</in>
+        <in>net.c</in>
+        <in>sys.c</in>
+      </df>
+    </df>
+    <logicalFolder name="f1" displayName="Test" projectFiles="true">
+      <logicalFolder name="test" displayName="test" projectFiles="true">
+        <itemPath>test/addition.json</itemPath>
+        <itemPath>test/addition.obl</itemPath>
+        <itemPath>test/assignment.obl</itemPath>
+        <itemPath>test/async.obl</itemPath>
+        <itemPath>test/break.json</itemPath>
+        <itemPath>test/break.obl</itemPath>
+        <itemPath>test/comprehension.json</itemPath>
+        <itemPath>test/comprehension.obl</itemPath>
+        <itemPath>test/comprehension_where.json</itemPath>
+        <itemPath>test/comprehension_where.obl</itemPath>
+        <itemPath>test/config_test</itemPath>
+        <itemPath>test/connect.obl</itemPath>
+        <itemPath>test/doesnotexist.json</itemPath>
+        <itemPath>test/doesnotexist.obl</itemPath>
+        <itemPath>test/equals.obl</itemPath>
+        <itemPath>test/exit.json</itemPath>
+        <itemPath>test/exit.obl</itemPath>
+        <itemPath>test/expr.json</itemPath>
+        <itemPath>test/expr.obl</itemPath>
+        <itemPath>test/fib.obl</itemPath>
+        <itemPath>test/fib.py</itemPath>
+        <itemPath>test/function.json</itemPath>
+        <itemPath>test/function.obl</itemPath>
+        <itemPath>test/generator.obl</itemPath>
+        <itemPath>test/hasattr.obl</itemPath>
+        <itemPath>test/helloworld.json</itemPath>
+        <itemPath>test/helloworld.obl</itemPath>
+        <itemPath>test/helloworld.py</itemPath>
+        <itemPath>test/if.json</itemPath>
+        <itemPath>test/if.obl</itemPath>
+        <itemPath>test/iterate_list.json</itemPath>
+        <itemPath>test/iterate_list.obl</itemPath>
+        <itemPath>test/lipsum.txt</itemPath>
+        <itemPath>test/listen.obl</itemPath>
+        <itemPath>test/minusone.json</itemPath>
+        <itemPath>test/minusone.obl</itemPath>
+        <itemPath>test/modulo.obl</itemPath>
+        <itemPath>test/multipleinheritance.json</itemPath>
+        <itemPath>test/multipleinheritance.obl</itemPath>
+        <itemPath>test/object.json</itemPath>
+        <itemPath>test/object.obl</itemPath>
+        <itemPath>test/oneplusone.json</itemPath>
+        <itemPath>test/oneplusone.obl</itemPath>
+        <itemPath>test/oneplusone.py</itemPath>
+        <itemPath>test/pass.json</itemPath>
+        <itemPath>test/pass.obl</itemPath>
+        <itemPath>test/precedence.json</itemPath>
+        <itemPath>test/precedence.obl</itemPath>
+        <itemPath>test/queryfile.obl</itemPath>
+        <itemPath>test/range.json</itemPath>
+        <itemPath>test/range.obl</itemPath>
+        <itemPath>test/re.json</itemPath>
+        <itemPath>test/re.obl</itemPath>
+        <itemPath>test/readfile.json</itemPath>
+        <itemPath>test/readfile.obl</itemPath>
+        <itemPath>test/reduce.json</itemPath>
+        <itemPath>test/reduce.obl</itemPath>
+        <itemPath>test/run_tests.py</itemPath>
+        <itemPath>test/strcat.json</itemPath>
+        <itemPath>test/strcat.obl</itemPath>
+        <itemPath>test/subclass.json</itemPath>
+        <itemPath>test/subclass.obl</itemPath>
+        <itemPath>test/subscript.json</itemPath>
+        <itemPath>test/subscript.obl</itemPath>
+        <itemPath>test/t12.obl</itemPath>
+        <itemPath>test/t13.obl</itemPath>
+        <itemPath>test/t14.obl</itemPath>
+        <itemPath>test/t15.obl</itemPath>
+        <itemPath>test/t16.obl</itemPath>
+        <itemPath>test/t18.obl</itemPath>
+        <itemPath>test/t22.obl</itemPath>
+        <itemPath>test/t23.obl</itemPath>
+        <itemPath>test/t9.obl</itemPath>
+        <itemPath>test/ternary.json</itemPath>
+        <itemPath>test/ternary.obl</itemPath>
+        <itemPath>test/tests</itemPath>
+        <itemPath>test/tests.json</itemPath>
+        <itemPath>test/throw.obl</itemPath>
+        <itemPath>test/while.json</itemPath>
+        <itemPath>test/while.obl</itemPath>
+      </logicalFolder>
+    </logicalFolder>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>CMakeLists.txt</itemPath>
+      <itemPath>Makefile</itemPath>
+      <itemPath>nbproject/private/launcher.properties</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
+  <sourceRootList>
+    <Elem>src</Elem>
+    <Elem>include</Elem>
+    <Elem>test</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Default" type="0">
+      <toolsSet>
+        <compilerSet>Cygwin|Cygwin</compilerSet>
+        <dependencyChecking>false</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <flagsDictionary>
+        <element flagsID="0" commonFlags="-mtune=generic -march=x86-64 -g"/>
+      </flagsDictionary>
+      <codeAssistance>
+      </codeAssistance>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>nb</buildCommandWorkingDir>
+          <buildCommand>${MAKE} -f Makefile</buildCommand>
+          <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
+          <executablePath></executablePath>
+          <cTool>
+            <incDir>
+              <pElem>include</pElem>
+              <pElem>nb</pElem>
+            </incDir>
+          </cTool>
+        </makeTool>
+        <preBuild>
+          <preBuildCommandWorkingDir>nb</preBuildCommandWorkingDir>
+          <preBuildCommand>cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=${IDE_CC} -DCMAKE_CXX_COMPILER=${IDE_CXX} -DCMAKE_C_FLAGS_DEBUG="-g3 -gdwarf-2" -DCMAKE_CXX_FLAGS_DEBUG="-g3 -gdwarf-2" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON c:\Users\jan\projects\obelix</preBuildCommand>
+        </preBuild>
+      </makefileType>
+      <item path="build/src/bin/grammar.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <folder path="1/bin">
+        <cTool>
+          <incDir>
+            <pElem>src/bin</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="1/stdlib">
+        <cTool>
+          <incDir>
+            <pElem>src/stdlib</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="bin">
+        <cTool>
+          <incDir>
+            <pElem>build/src/bin</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <item path="src/bin/grammar.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>../../../../Program Files/NetBeans 8.1 RC2</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/bin/loader.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include/sys</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/bin/obelix.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include/psdk_inc</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/bin/scriptparse.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/any.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/array.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/core.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/data.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/datalist.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/datastack.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/dict.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/exception.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/file.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/float.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/fsentry.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include/sys</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/function.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/int.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/list.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/logging.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/method.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/mutex.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/name.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/nvp.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/pointer.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/range.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/re.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/regex.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/resolve.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/set.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/socket.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include/psdk_inc</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/str.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/thread.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/typedescr.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/lib</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/boundmethod.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/bytecode.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/closure.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/generator.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/grammar.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/grammarparser.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/instruction.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/lexer.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/namespace.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/object.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/panoramix.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>../../../../Program Files/NetBeans 8.1 RC2</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/parser.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/script.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/stacktrace.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/token.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/vm.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>src/parser</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/stdlib/builtins.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>../../../../Program Files/NetBeans 8.1 RC2</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/stdlib/net.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include/psdk_inc</pElem>
+            <pElem>../../../../Program Files/NetBeans 8.1 RC2</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/stdlib/sys.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>../../../../msys64/mingw64/x86_64-w64-mingw32/include</pElem>
+            <pElem>include</pElem>
+            <pElem>../../../../Program Files/NetBeans 8.1 RC2</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="test/addition.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/addition.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/assignment.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/async.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/break.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/break.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/comprehension.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/comprehension.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/comprehension_where.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/comprehension_where.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/config_test" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/connect.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/doesnotexist.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/doesnotexist.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/equals.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/exit.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/exit.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/expr.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/expr.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/fib.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/fib.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/function.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/function.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/generator.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/hasattr.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/helloworld.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/helloworld.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/helloworld.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/if.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/if.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/iterate_list.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/iterate_list.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/lipsum.txt" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/listen.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/minusone.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/minusone.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/modulo.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/multipleinheritance.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/multipleinheritance.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/object.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/object.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/oneplusone.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/oneplusone.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/oneplusone.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/pass.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/pass.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/precedence.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/precedence.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/queryfile.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/range.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/range.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/re.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/re.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/readfile.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/readfile.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/reduce.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/reduce.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/run_tests.py" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/strcat.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/strcat.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/subclass.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/subclass.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/subscript.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/subscript.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/t12.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/t13.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/t14.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/t15.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/t16.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/t18.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/t22.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/t23.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/t9.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/ternary.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/ternary.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/tests" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/tests.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/throw.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/while.json" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/while.obl" ex="false" tool="3" flavor2="0">
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>

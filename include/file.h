@@ -30,7 +30,11 @@
 #include <list.h>
 #include <str.h>
 
-#define STREAM_BUFSZ		16384
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define STREAM_BUFSZ       16384
 
 extern int file_debug;
 
@@ -93,5 +97,9 @@ OBLCORE_IMPEXP int          File;
 #define file_getchar(f)      (stream_getchar((stream_t *) (f)))
 #define file_readline(f)     (stream_readline((stream_t *) (f)))
 #define file_print(f, ...)   (stream_print((stream_t *) (f), __VA_ARGS__))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __FILE_H__ */

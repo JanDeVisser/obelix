@@ -43,9 +43,9 @@
 
 #if (defined __WIN32__) || (defined _WIN32)
 #ifdef oblcore_EXPORTS
-#define OBLCORE_IMPEXP	__DLL_EXPORT__
+#define OBLCORE_IMPEXP       __DLL_EXPORT__
 #else /* ! oblcore_EXPORTS */
-#define OBLCORE_IMPEXP	__DLL_IMPORT__
+#define OBLCORE_IMPEXP       __DLL_IMPORT__
 #endif
 #else /* ! __WIN32__ */
 #define OBLCORE_IMPEXP extern
