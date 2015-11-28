@@ -325,11 +325,11 @@ char * stream_readline(stream_t *stream) {
   buf = (char *) _new(cursz);
   do {
     ch = stream_getchar(stream);
-    if (!ch || (ch == '\n')) {
-      break;
-    } else if (ch < 0) {
+    if ((!ch && !num) || (ch < 0)) {
       free(buf);
       return NULL;
+    } else if (!ch || (ch == '\n')) {
+      break;
     } else {
       buf[num++] = ch;
       if (num >= cursz) {
@@ -340,10 +340,6 @@ char * stream_readline(stream_t *stream) {
   } while (ch > 0);
   while (*buf && iscntrl(buf[strlen(buf) - 1])) {
     buf[strlen(buf) - 1] = 0;
-  }
-  if (!*buf) {
-    free(buf);
-    buf = NULL;
   }
   return buf;
 }
@@ -411,12 +407,6 @@ streamiter_t * _streamiter_readnext(streamiter_t *iter) {
           for (ix = 0; ix < array_size(matchvals); ix++) {
             list_push(iter -> next, data_copy(data_array_get(matchvals, ix)));
           }
-        } else {
-          list_push(iter -> next,
-                    data_exception(ErrorType,
-                                   "streamiter: %s.match(%s) returned invalid object '%s'",
-                                   data_tostring(iter -> selector), data_tostring(line),
-                                   data_tostring(matches)));
         }
         data_free(matches);
         array_free(args);
