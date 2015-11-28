@@ -59,11 +59,16 @@ data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
 data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
   data_t  *naptime;
 
+  debug("1");
   (void) func_name;
   (void) kwargs;
+  debug("2");
   assert(array_size(args));
+  debug("3");
   naptime = (data_t *) array_get(args, 0);
+  debug("4");
   assert(naptime);
+  debug("5");
   return data_create(Int, sleep(data_intval(naptime)));
 }
 

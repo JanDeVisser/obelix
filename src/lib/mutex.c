@@ -113,7 +113,6 @@ void _mutex_free(mutex_t *mutex) {
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
     DeleteCriticalSection(&(mutex -> cs));
 #endif /* HAVE_PTHREAD_H */
-    free(mutex);
   }
 }
 
@@ -165,7 +164,7 @@ unsigned int mutex_hash(mutex_t *mutex) {
 }
 
 int mutex_lock(mutex_t *mutex) {
-	int retval = 0;
+  int retval = 0;
 #ifdef HAVE_PTHREAD_H
   errno = pthread_mutex_lock(&mutex -> mutex);
   if (errno) {
@@ -183,20 +182,20 @@ int mutex_lock(mutex_t *mutex) {
  *         -1 If an error occurred.
  */
 int mutex_trylock(mutex_t *mutex) {
-	int retval = 0;
+  int retval = 0;
 
 #ifdef HAVE_PTHREAD_H
   errno = pthread_mutex_trylock(&mutex -> mutex);
   switch (errno) {
-  	case 0:
-  		retval = 0;
-  		break;
-  	case EBUSY:
-  		retval = 1;
-  		break;
-  	default:
-  		retval = -1;
-  		break;
+    case 0:
+      retval = 0;
+      break;
+    case EBUSY:
+      retval = 1;
+      break;
+    default:
+      retval = -1;
+      break;
   }
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   retval = (!TryEnterCriticalSection(&mutex -> cs)) ? 0 : 1;
@@ -280,7 +279,6 @@ void _condition_free(condition_t *condition) {
     pthread_cond_destroy(&condition -> condition);
 #endif /* HAVE_PTHREAD_H */
     mutex_free(condition -> mutex);
-    free(condition);
   }
 }
 

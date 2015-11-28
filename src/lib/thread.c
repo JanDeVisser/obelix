@@ -96,8 +96,8 @@ void _init_thread(void) {
   self_ix = TlsAlloc();
 #endif /* HAVE_PTHREAD_H */
   Thread = typedescr_create_and_register(Thread, "thread",
-					 _vtable_thread,
-					 _methoddescr_thread);
+                                         _vtable_thread,
+                                         _methoddescr_thread);
   main = thread_self();
   if (main) {
     thread_setname(main, "main");
@@ -119,7 +119,7 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   thread -> parent = thread_copy(ctx -> creator);
   retval = condition_acquire(ctx -> condition);
   if (!retval) {
-  	retval = condition_wakeup(ctx -> condition);
+    retval = condition_wakeup(ctx -> condition);
   }
   
 #ifdef HAVE_PTHREAD_H
@@ -222,19 +222,19 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
 #elif defined(HAVE_CREATETHREAD)
     thr_id = CreateThread(
     	NULL,                                         /* default security attributes   */
-      0,                                            /* use default stack size        */
-			(threadproc_t) _thread_start_routine_wrapper, /* thread function name          */
-      &ctx,          																/* argument to thread function   */
-      0,                      											/* use default creation flags    */
-      NULL);   																			/* returns the thread identifier */
+        0,                                            /* use default stack size        */
+        (threadproc_t) _thread_start_routine_wrapper, /* thread function name          */
+        &ctx,                                         /* argument to thread function   */
+        0,                                            /* use default creation flags    */
+        NULL);                                        /* returns the thread identifier */
     if (!thr_id) {
-    	retval = -1;
-    	errno = GetLastError();
+      retval = -1;
+      errno = GetLastError();
     }
 #endif /* HAVE_PTHREAD_H */
   }
   if (!retval) {
-  	retval = condition_sleep(ctx.condition);
+    retval = condition_sleep(ctx.condition);
   }
   if (!retval) {
     ret = ctx.child;
@@ -242,7 +242,7 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
   condition_free(ctx.condition);
 #ifdef HAVE_PTHREAD_H
   if (!retval) {
-  	errno = pthread_detach(thr_id);
+    errno = pthread_detach(thr_id);
   }
 #endif /* HAVE_PTHREAD_H */
   if (!retval) {
@@ -275,7 +275,7 @@ unsigned int thread_hash(thread_t *thread) {
 }
 
 int thread_cmp(thread_t *t1, thread_t *t2) {
-	return memcmp(&t1 -> thread, &t2 -> thread, sizeof(_thr_t));
+  return memcmp(&t1 -> thread, &t2 -> thread, sizeof(_thr_t));
 }
 
 int thread_interrupt(thread_t *thread) {
