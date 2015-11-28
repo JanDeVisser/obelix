@@ -11,6 +11,7 @@ doxygen_sqlite3.db
 **/*.so*
 **/*.dll
 **/*.exe
+**/*.a
 **/Makefile
 .kdev4*
 .settings
