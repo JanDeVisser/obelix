@@ -51,7 +51,7 @@ typedef int _oshandle_t;
 
 /* ------------------------------------------------------------------------ */
 
-static void          _file_init(void) __attribute__((constructor));
+static void          _file_init(void) __attribute__((constructor(110)));
 
 static int           _stream_read(stream_t *, char *, int);
 static stream_t *    _stream_enter(stream_t *);
@@ -257,9 +257,15 @@ data_t * _stream_print(stream_t *self, char *name, array_t *args, dict_t *kwargs
   return retval;
 }
 
+/* ------------------------------------------------------------------------ */
+
+void stream_dummy(void) {
+}
+
 stream_t * stream_init(stream_t *stream, read_t reader, write_t writer) {
   stream -> reader = reader;
   stream -> writer = writer;
+  stream -> _eof = 0;
   stream -> _errno = 0;
   stream -> error = NULL;
   return stream;
@@ -295,6 +301,9 @@ int stream_getchar(stream_t *stream) {
     if (ret < 0) {
       stream -> _errno = errno;
       return ret;
+    } else if (!ret) {
+      stream -> _eof = 1;
+      return ret;
     }
   }
   ch = str_readchar(stream -> buffer);
@@ -304,6 +313,7 @@ int stream_getchar(stream_t *stream) {
       stream -> _errno = errno;
       return ret;
     } else if (!ret) {
+      stream -> _eof = 1;
       return 0;
     } else {
       ch = str_readchar(stream -> buffer);
@@ -314,6 +324,10 @@ int stream_getchar(stream_t *stream) {
     return -1;
   }
   return ch;
+}
+
+int stream_eof(stream_t *stream) {
+  return stream -> _eof;
 }
 
 char * stream_readline(stream_t *stream) {
@@ -452,10 +466,11 @@ void _streamiter_free(streamiter_t *streamiter) {
 }
 
 int _streamiter_cmp(streamiter_t *streamiter1, streamiter_t *streamiter2) {
-	int ret;
+  int ret;
+  
   ret = data_cmp(streamiter1 -> stream, streamiter2 -> stream);
   if (!ret) {
-  	ret = data_cmp(streamiter1 -> selector, streamiter2 -> selector);
+    ret = data_cmp(streamiter1 -> selector, streamiter2 -> selector);
   }
   return ret;
 }
@@ -559,10 +574,8 @@ data_t * _file_resolve(file_t *file, char *name) {
     return data_create(String, file_name(file));
   } else if (!strcmp(name, "fh")) {
     return data_create(Int, file -> fh);
-#if 0
   } else if (!strcmp(name, "eof")) {
     return data_create(Bool, file_eof(file));
-#endif
   } else {
     return NULL;
   }
@@ -808,8 +821,8 @@ int file_flush(file_t *file) {
          * For a read-only handle, fsync should succeed, even though we have
          * no way to sync the access-time changes.
          */
-      	ret = 0;
-      	break;
+        ret = 0;
+        break;
       case ERROR_INVALID_HANDLE:
         errno = EINVAL;
         break;
@@ -824,13 +837,6 @@ int file_flush(file_t *file) {
   }
   return ret;
 }
-
-#if 0
-int file_eof(file_t *file) {
-  return 0;
-  //return feof(_file_stream(file));
-}
-#endif
 
 int file_isopen(file_t *file) {
   return (file) ? (file -> fh >= 0) : 0;

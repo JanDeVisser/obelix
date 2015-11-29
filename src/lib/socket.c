@@ -56,7 +56,7 @@ typedef int socklen_t;
 
 typedef int         (*socket_fnc_t)(SOCKET, struct sockaddr *, socklen_t);
 
-static void         _socket_init(void) __attribute__((constructor));
+static void         _socket_init(void) __attribute__((constructor(115)));
 static socket_t *   _socket_create(SOCKET, char *, char *);
 static socket_t *   _socket_open(char *, char *, socket_fnc_t);
 static char *       _socket_allocstring(socket_t *);
@@ -110,6 +110,10 @@ void _socket_init(void) {
   int     result;
 #endif
 
+  /*
+   * Make sure file.c is initialized first:
+   */
+  stream_dummy();
   logging_register_category("socket", &socket_debug);
   Socket = typedescr_create_and_register(Socket, "socket",
                                          _vtable_socket, _methoddescr_socket);
@@ -153,7 +157,7 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
 
   s = getaddrinfo(host, service, &hints, &result);
   if (s != 0) {
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+    error("getaddrinfo: %s", gai_strerror(s));
     return NULL;
   }
 
@@ -176,7 +180,7 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
   ret = (rp) ? _socket_create(sfd, host, service) : NULL;
   freeaddrinfo(result);
   if (!ret) { /* No address succeeded */
-    fprintf(stderr, "Could not connect\n");
+    error("Could not connect...");
   }
   return ret;
 }
@@ -499,9 +503,7 @@ int socket_read(socket_t *socket, void *buf, int num) {
       num = num - numrecv;
       buf += numrecv;
     } else if (numrecv == 0) {
-      socket_close(socket);
-      ((stream_t *) socket) -> _errno = ECONNRESET;
-      ret = -1;
+      break;
     } else {
       _socket_set_errno(socket);
       ret = -1;

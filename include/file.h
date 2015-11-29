@@ -43,16 +43,19 @@ typedef struct _stream {
   str_t     *buffer;
   read_t     reader;
   write_t    writer;
+  int        _eof;
   int        _errno;;
   char      *error;
 } stream_t;
 
+OBLCORE_IMPEXP void         stream_dummy(void);
 OBLCORE_IMPEXP stream_t *   stream_init(stream_t *, read_t, write_t);
 OBLCORE_IMPEXP void         stream_free(stream_t *);
 OBLCORE_IMPEXP char *       stream_error(stream_t *);
 OBLCORE_IMPEXP int          stream_getchar(stream_t *);
 OBLCORE_IMPEXP char *       stream_readline(stream_t *);
 OBLCORE_IMPEXP int          stream_print(stream_t *, char *, array_t *, dict_t *);
+OBLCORE_IMPEXP int          stream_eof(stream_t *);
 
 typedef struct _file {
   stream_t  _stream;
@@ -74,12 +77,10 @@ OBLCORE_IMPEXP int          file_cmp(file_t *, file_t *);
 OBLCORE_IMPEXP int          file_write(file_t *, char *, int);
 OBLCORE_IMPEXP int          file_read(file_t *, char *, int);
 OBLCORE_IMPEXP int          file_seek(file_t *, int);
-//OBLCORE_IMPEXP int          file_eof(file_t *);
 OBLCORE_IMPEXP int          file_isopen(file_t *);
 OBLCORE_IMPEXP int          file_flush(file_t *);
 OBLCORE_IMPEXP int          file_redirect(file_t *, char *);
 
-OBLCORE_IMPEXP data_t *     data_wrap_file(file_t *file);
 OBLCORE_IMPEXP int          Stream;
 OBLCORE_IMPEXP int          File;
 
@@ -94,6 +95,7 @@ OBLCORE_IMPEXP int          File;
 #define file_clear_errno(f)  (((stream_t *) (f)) -> _errno = 0)
 #define file_errno(f)        (((stream_t *) (f)) -> _errno)
 #define file_error(f)        (stream_error((stream_t *) (f)))
+#define file_eof(f)          (((stream_t *) (f)) -> _eof)
 #define file_getchar(f)      (stream_getchar((stream_t *) (f)))
 #define file_readline(f)     (stream_readline((stream_t *) (f)))
 #define file_print(f, ...)   (stream_print((stream_t *) (f), __VA_ARGS__))

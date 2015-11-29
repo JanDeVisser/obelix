@@ -24,7 +24,7 @@
 
 /* ------------------------------------------------------------------------ */
 
-static void     _any_init(void) __attribute__((constructor(110)));
+static void     _any_init(void) __attribute__((constructor(109)));
 static data_t * _any_cmp(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_not(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_and(data_t *, char *, array_t *, dict_t *);

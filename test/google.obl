@@ -1,0 +1,10 @@
+import net
+
+socket = net.connect("www.google.com", 80)
+print("Connected to ${0}, service ${1}", socket.host, socket.service)
+socket.print("GET /")
+line = socket.readline()
+print(line)
+socket.close()
+
+
