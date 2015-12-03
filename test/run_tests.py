@@ -89,17 +89,75 @@ def config_test(name):
     print
     os.remove("stdout")
     os.remove("stderr")
-    
+
+
+def remove_test(name):
+    fname = name + ".json"
+    os.path.exists(fname) and os.remove(fname)
+    scripts = load_test_names()
+    if name in scripts:
+        scripts.remove(name)
+        with open("tests.json", "w+") as fd:
+            json.dump(scripts, fd)
+
+            
+def remove_all_tests():
+    scripts = load_test_names()
+    for script in scripts:
+        fname = script + ".json"
+        os.path.exists(fname) and os.remove(fname)
+    os.remove("tests.json")
+
+
+def print_index():
+    scripts = load_test_names()
+    for script in scripts:
+        print script
+
+
 def config_tests(tests):
     with open(tests) as fd:
         map(config_test, [name.strip() for name in fd if not name.startswith("#")])
 
+def help():
+    print "run_tests - Execute and manage obelix tests."
+    print ""
+    print "Usage: python run_tests.py [option]"
+    print "Options:"
+    print " -c <test>:   Add test script <test>.obl to test suite."
+    print "              Execute script, capture and register exit code and stdout/stderr."
+    print " -f <file>:   Add all tests in <file>. <file> contains test script names,"
+    print "              one per line, without .obl extension."
+    print " -x <test>:   Run test <test>."
+    print "              Compare exit code and stderr/out with registered values."
+    print " -a, --all:   Run all registered tests."
+    print " -d <test>:   Remove test <test> from registry."
+    print " --clear:     Clear test registry."
+    print " -i, --index: Print an index of all registered tests. Output can be used by -f."
+    print " -h, --help:  Display this message."
+    print ""
+    
+
 if len(sys.argv) > 1:
     if sys.argv[1] == "-c":
         config_test(sys.argv[2])
+    elif sys.argv[1] == "-d":
+        remove_test(sys.argv[2])
+    elif sys.argv[1] == "--clear":
+        remove_all_tests(sys.argv[2])
     elif sys.argv[1] == "-f":
         config_tests(sys.argv[2])
+    elif sys.argv[1] in ["-a", "--all"]:
+        run_all_tests()
+    elif sys.argv[1] == "-x":
+        test_script(sys.argv[2])
+    elif sys.argv[1] in ["-h", "--help"]:
+        help()
+    elif sys.argv[1] in ["-i", "--index"]:
+        print_index()
     else:
-        test_script(sys.argv[1])
+        print "Unrecognized option " + sys.argv[1]
+        print ""
+        help()
 else:
-    run_all_tests()
+    help()

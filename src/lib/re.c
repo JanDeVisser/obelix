@@ -22,10 +22,9 @@
 //#endif
 
 #include <data.h>
-#include <logging.h>
+#include <exception.h>
 #include <re.h>
 #include <typedescr.h>
-#include <wrapper.h>
 
 #include <stdio.h>
 
@@ -34,15 +33,17 @@ static char *   _regexp_allocstring(re_t *);
 static void     _regexp_free(re_t *);
 static data_t * _regexp_create(data_t *, char *, array_t *, dict_t *);
 static data_t * _regexp_call(re_t *, array_t *, dict_t *);
+static data_t * _regexp_interpolate(re_t *, array_t *, dict_t *);
 static data_t * _regexp_match(data_t *, char *, array_t *, dict_t *);
 static data_t * _regexp_replace(data_t *, char *, array_t *, dict_t *);
-
+static data_t * _regexp_compile(re_t *);
 
 static vtable_t _vtable_re[] = {
   { .id = FunctionCmp,         .fnc = (void_t) regexp_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _regexp_free },
   { .id = FunctionAllocString, .fnc = (void_t) _regexp_allocstring },
   { .id = FunctionCall,        .fnc = (void_t) _regexp_call },
+  { .id = FunctionInterpolate, .fnc = (void_t) _regexp_interpolate },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -65,7 +66,7 @@ void _regexp_init(void) {
 
 char * _regexp_allocstring(re_t *regex) {
   char *buf;
-  
+
   asprintf(&buf, "/%s/%s",
 	   regex -> pattern,
 	   (regex -> flags) ? (regex -> flags) : "");
@@ -74,9 +75,11 @@ char * _regexp_allocstring(re_t *regex) {
 
 void _regexp_free(re_t *regex) {
   if (regex) {
-    free(regex -> pattern);
+    str_free(regex -> pattern);
     free(regex -> flags);
-    regfree(&regex -> compiled);
+    if (regex -> is_compiled) {
+      regfree(&regex -> compiled);
+    }
   }
 }
 
@@ -90,28 +93,64 @@ data_t * _regexp_call(re_t *re, array_t *args, dict_t *kwargs) {
   return regexp_match(re, data_tostring(str));
 }
 
+data_t * _regexp_interpolate(re_t *re, array_t *args, dict_t *kwargs) {
+  data_t *str = data_array_get(args, 0);
+  str_t  *pat;
+
+  (void) kwargs;
+  if (debug_regexp) {
+    debug("_regexp_interpolate(%s, %s, %s)",
+	  regexp_tostring(re),
+	  (args) ? array_tostring(args) : "[]",
+          (kwargs) ? dict_tostring(kwargs) : "{}");
+  }
+  pat = str_format(str_chars(re -> pattern), args, kwargs);
+  str_free(re -> pattern);
+  re -> pattern = pat;
+  if (re -> is_compiled) {
+    regfree(&re -> compiled);
+    re -> is_compiled = FALSE;
+  }
+  if (debug_regexp) {
+    debug("_regexp_interpolate() => %s",
+	  regexp_tostring(re));
+  }
+  return (data_t *) re;
+}
+
+data_t * _regexp_compile(re_t *re) {
+  int retval;
+  
+  if (!re -> is_compiled) {
+    if (retval = regcomp(&re -> compiled,
+			 str_chars(re -> pattern), re -> re_flags)) {
+      char msgbuf[str_len(re -> pattern)];
+      
+      regerror(retval, &re -> compiled, msgbuf, sizeof(msgbuf));
+      debug("Error: %s", msgbuf);
+      return data_exception(ErrorSyntax, msgbuf);
+    }
+    re -> is_compiled = TRUE;
+  }
+  return (data_t *) re;
+}
+
 /* ------------------------------------------------------------------------ */
 
 re_t * regexp_create(char *pattern, char *flags) {
   re_t *ret = data_new(Regexp, re_t);
-  int   icase;
-  int   f = REG_EXTENDED;
-  char  msgbuf[100];
-  int   retval;
 
-  asprintf(&ret -> pattern, "(%s)", pattern);
+  ret -> pattern = str_printf( "(%s)", pattern);
+  ret -> re_flags = REG_EXTENDED;
   if (flags) {
     ret -> flags = strdup(flags);
     if (strchr(ret -> flags, 'i')) {
-      f |= REG_ICASE;
+      ret -> re_flags |= REG_ICASE;
     }
   }
+  ret -> is_compiled = FALSE;
   if (debug_regexp) {
     debug("Created re %s", regexp_tostring(ret));
-  }
-  if (retval = regcomp(&ret -> compiled, ret -> pattern, f)) {
-    regerror(retval, &ret -> compiled, msgbuf, sizeof(msgbuf));
-    debug("Error: %s", msgbuf);
   }
   return ret;
 }
@@ -126,7 +165,7 @@ re_t * regexp_vcreate(va_list args) {
 }
 
 int regexp_cmp(re_t *regex1, re_t *regex2) {
-  return strcmp(regex1 -> pattern, regex2 -> pattern);
+  return str_cmp(regex1 -> pattern, regex2 -> pattern);
 }
 
 data_t * regexp_match(re_t *re, char *str) {
@@ -136,9 +175,14 @@ data_t * regexp_match(re_t *re, char *str) {
   char       *work = (char *) new(len + 1);
   array_t    *matches = data_array_create(4);
   data_t     *ret;
+  char        msgbuf[100];
+  int         retval;
 
   if (debug_regexp) {
     debug("%s .match(%s)", regexp_tostring(re), str);
+  }
+  if (data_is_exception(ret = _regexp_compile(re))) {
+    return ret;
   }
   while (!regexec(&re -> compiled, ptr, 1, rm, 0)) {
     memset(work, 0, len + 1);

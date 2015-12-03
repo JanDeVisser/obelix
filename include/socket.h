@@ -51,6 +51,8 @@ typedef void * (*service_t)(connection_t *);
 typedef struct _socket {
   stream_t   _stream;
   SOCKET     fh;
+  int        af;
+  int        socktype;
   char      *host;
   char      *service;
   service_t  service_handler;

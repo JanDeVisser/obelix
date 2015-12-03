@@ -21,6 +21,7 @@
 #define __RE_H__
 
 #include <data.h>
+#include <str.h>
 #include <regex.h>
 #include <stdarg.h>
 
@@ -31,8 +32,10 @@ extern "C" {
 typedef struct _re {
   data_t   _d;
   regex_t  compiled;
-  char    *pattern;
+  int      is_compiled;
+  str_t   *pattern;
   char    *flags;
+  int      re_flags;
 } re_t;
 
 OBLCORE_IMPEXP re_t *   regexp_create(char *, char *);

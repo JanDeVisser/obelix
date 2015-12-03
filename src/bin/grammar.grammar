@@ -331,8 +331,14 @@ _identifier_tail            := .
                              |
                              ;
 
-query                       := '`'               [ query                     ]
+query                       :=                   [ init_query               ]
+                               '`'            
+                               query_params      [ query                     ]
                             ;
+
+query_params                := '%' ( arglist )
+                             |
+                             ;
 
 constant                    := '"'               [ push_token                ]
                              | '\''              [ push_token                ]

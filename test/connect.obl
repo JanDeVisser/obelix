@@ -2,9 +2,10 @@ import net
 
 socket = net.connect("localhost", 12345)
 print("Connected to ${0}, service ${1}", socket.host, socket.service)
-socket.fd.print("HELLO obelix")
-line = socket.fd.readline()
+socket.print("HELLO obelix")
+print("Salutation sent");
+line = socket.readline()
 print(line)
-socket.fd.print("SHUTDOWN")
+socket.print("SHUTDOWN")
 socket.close()
 

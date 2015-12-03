@@ -743,8 +743,11 @@ __DLL_EXPORT__ parser_t * script_parse_case_prolog(parser_t *parser) {
 }
 
 __DLL_EXPORT__ parser_t * script_parse_case(parser_t *parser) {
+  data_t *instr;
+
+  instr = _script_parse_infix_function(parser, name_equals, 1);
   push_instruction(parser, instruction_create_unstash(0));
-  _script_parse_infix_function(parser, name_equals, 1);
+  push_instruction(parser, instr);
   return parser;
 }
 
@@ -912,13 +915,20 @@ __DLL_EXPORT__ parser_t * script_parse_end_context_block(parser_t *parser) {
 
 /* -- Q U E R Y ----------------------------------------------------------- */
 
-__DLL_EXPORT__ parser_t * script_parse_query(parser_t *parser) {
-  data_t *query;
+__DLL_EXPORT__ parser_t * script_parse_init_query(parser_t *parser) {
+  data_t *query = token_todata(parser -> last_token);
 
-  query = token_todata(parser -> last_token);
+  datastack_new_counter(parser -> stack);
   push_instruction(parser, instruction_create_pushctx());
   push_instruction(parser, instruction_create_deref(name_query));
   push_instruction(parser, instruction_create_pushval(query));
-  _script_parse_function(parser, name_query, 1);
+  data_free(query);
+  return parser;
+}
+
+__DLL_EXPORT__ parser_t * script_parse_query(parser_t *parser) {
+  int arg_count = datastack_count(parser -> stack);
+
+  _script_parse_function(parser, name_query, arg_count + 1);
   return parser;
 }

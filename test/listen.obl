@@ -15,29 +15,29 @@ func srv()
     print("${0} connected", client.host)
     carry_on = true 
     while carry_on
-      line = client.fd.readline()
+      line = client.readline()
       s = line.split(" ")
       cmd = s.at(0)
       print("Command: ${0}", cmd)
       switch cmd
         case "HELLO":
-          client.fd.print("Hello, ${0}.", client.host)
+          client.print("Hello, ${0}.", client.host)
 	case "ECHO":
-          client.fd.print(s.at(1))
+          client.print(s.at(1))
 	case "LOCK":
           self.lock.lock()
-          client.fd.print("Lock obtained")
+          client.print("Lock obtained")
 	case "UNLOCK":
           self.lock.unlock()
-          client.fd.print("Lock released")
+          client.print("Lock released")
 	case "BYE":
-          client.fd.print("Bye to you to!")
+          client.print("Bye to you to!")
           carry_on = false
 	case "SHUTDOWN":
-          client.fd.print("Farewell, cruel world...")        
+          client.print("Farewell, cruel world...")        
           self.socket.interrupt()
 	default:
-          client.fd.print("Sorry, I don't understand ${0}", cmd)
+          client.print("Sorry, I don't understand ${0}", cmd)
       end
     end
     return 0

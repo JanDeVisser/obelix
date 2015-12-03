@@ -43,10 +43,10 @@ typedef int socklen_t;
 #endif
 
 #ifndef TEMP_FAILURE_RETRY
-#define TEMP_FAILURE_RETRY(expression) \
-    ({ long int __result;                                                     \
-       do __result = (long int) (expression);                                 \
-       while (__result == -1L && errno == EINTR);                             \
+#define TEMP_FAILURE_RETRY(expression)                  \
+    ({ long int __result;                               \
+       do (__result = (long int) (expression));		\
+       while ((__result == -1L) && (errno == EINTR));	\
        __result; })
 #endif
 
@@ -66,7 +66,7 @@ static int          _socket_accept_loop(socket_t *);
 static int          _socket_accept(socket_t *);
 static void *       _socket_connection_handler(connection_t *);
 static socket_t *   _socket_setopt(socket_t *, int);
-static void         _socket_set_errno(socket_t *);
+static void         _socket_set_errno(socket_t *, char *);
 
 static data_t *     _socket_resolve(socket_t *, char *);
 static data_t *     _socket_leave(socket_t *, data_t *);
@@ -110,10 +110,6 @@ void _socket_init(void) {
   int     result;
 #endif
 
-  /*
-   * Make sure file.c is initialized first:
-   */
-  stream_dummy();
   logging_register_category("socket", &socket_debug);
   Socket = typedescr_create_and_register(Socket, "socket",
                                          _vtable_socket, _methoddescr_socket);
@@ -147,7 +143,7 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
   struct addrinfo *rp;
   SOCKET           sfd;
   int              s;
-  socket_t        *ret;
+  socket_t        *ret = NULL;
 
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_family = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
@@ -172,12 +168,13 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
       continue;
     }
     if (fnc(sfd, rp -> ai_addr, rp -> ai_addrlen) != -1) {
+      ret = _socket_create(sfd, host, service);
+      ret -> af = rp -> ai_family;
+      ret -> socktype = rp -> ai_socktype;
       break;
     }
     closesocket(sfd);
   }
-
-  ret = (rp) ? _socket_create(sfd, host, service) : NULL;
   freeaddrinfo(result);
   if (!ret) { /* No address succeeded */
     error("Could not connect...");
@@ -239,18 +236,18 @@ void * _socket_connection_handler(connection_t *connection) {
 }
 
 int _socket_accept(socket_t *socket) {
-  struct sockaddr    client;
-  int                client_fd;
-  socklen_t          sz = sizeof(struct sockaddr);
-  socket_t          *client_socket;
-  connection_t      *connection;
-  char               hoststr[80];
-  char               portstr[32];
+  struct sockaddr_storage  client;
+  socklen_t                sz = sizeof(struct sockaddr_storage);
+  int                      client_fd;
+  connection_t            *connection;
+  char                     hoststr[80];
+  char                     portstr[32];
 
   client_fd = TEMP_FAILURE_RETRY(accept(socket -> fh, (struct sockaddr *) &client, &sz));
   if (client_fd > 0) {
-    if (TEMP_FAILURE_RETRY(getnameinfo(&client, sz, hoststr, 80, portstr, 32, 0))) {
-      error("Could not retrieve client name");
+    if (TEMP_FAILURE_RETRY(getnameinfo((struct sockaddr *) &client, sz,
+				       hoststr, 80, portstr, 32, 0))) {
+      _socket_set_errno(socket, "getnameinfo()");
       return -1;
     }
     connection = NEW(connection_t);
@@ -265,7 +262,7 @@ int _socket_accept(socket_t *socket) {
       return -1;
     }
   } else {
-    error("Error accepting");
+    _socket_set_errno(socket, "accept()");
     return -1;
   }
   return 0;
@@ -277,18 +274,21 @@ int _socket_accept_loop(socket_t *socket) {
   int            err;
 
   while (socket -> service_handler) {
-    FD_ZERO (&set);
-    FD_SET (socket -> fh, &set);
+    FD_ZERO(&set);
+    FD_SET(socket -> fh, &set);
     timeout.tv_sec = 1;
     timeout.tv_usec = 0;
 
     /* select returns 0 if timeout, 1 if input available, -1 if error. */
     err = TEMP_FAILURE_RETRY(select(FD_SETSIZE, &set, NULL, NULL, &timeout));
     if (err < 0) {
-      error("Error in connection listener: select()");
+      _socket_set_errno(socket, "select()");
       return -1;
     } else if (err > 0) {
-      TEMP_FAILURE_RETRY(_socket_accept(socket));
+      err = TEMP_FAILURE_RETRY(_socket_accept(socket));
+      if (err) {
+	break;
+      }
     }
   }
   socket_free(socket);
@@ -338,86 +338,23 @@ socket_t * _socket_setopt(socket_t *socket, int opt) {
 #endif
 }
 
+void _socket_set_errno(socket_t *socket, char *msg) {
+  stream_t *s = (stream_t *) socket;
 #ifdef HAVE_WINSOCK2_H
-static int WSAErrorMap[][2] = {
-	{ WSAEINTR,           EINTR },
-	{ WSAEBADF,           EBADF },
-	{ WSAEACCES,          EACCES },
-	{ WSAEFAULT,          EFAULT },
-	{ WSAEINVAL,          EINVAL },
-	{ WSAEMFILE,          EMFILE },
-#if 0
-	{ WSAEWOULDBLOCK,     EWOULDBLOCK },
-	{ WSAEINPROGRESS,     EINPROGRESS },
-	{ WSAEALREADY,        EALREADY },
-	{ WSAENOTSOCK,        ENOTSOCK },
-	{ WSAEDESTADDRREQ,    EDESTADDRREQ },
-	{ WSAEMSGSIZE,        EMSGSIZE },
-	{ WSAEPROTOTYPE,      EPROTOTYPE },
-	{ WSAENOPROTOOPT,     ENOPROTOOPT },
-	{ WSAEPROTONOSUPPORT, EPROTONOSUPPORT },
-	{ WSAESOCKTNOSUPPORT, ESOCKTNOSUPPORT },
-	{ WSAEOPNOTSUPP,      EOPNOTSUPP },
-	{ WSAEPFNOSUPPORT,    EPFNOSUPPORT },
-	{ WSAEAFNOSUPPORT,    EAFNOSUPPORT },
-	{ WSAEADDRINUSE,      EADDRINUSE },
-	{ WSAEADDRNOTAVAIL,   EADDRNOTAVAIL },
-	{ WSAENETDOWN,        ENETDOWN },
-	{ WSAENETUNREACH,     ENETUNREACH },
-	{ WSAENETRESET,       ENETRESET },
-	{ WSAECONNABORTED,    ECONNABORTED },
-	{ WSAECONNRESET,      ECONNRESET },
-	{ WSAENOBUFS,         ENOBUFS },
-	{ WSAEISCONN,         EISCONN },
-	{ WSAENOTCONN,        ENOTCONN },
-	{ WSAESHUTDOWN,       ESHUTDOWN },
-	{ WSAETOOMANYREFS,    ETOOMANYREFS },
-	{ WSAETIMEDOUT,       ETIMEDOUT },
-	{ WSAECONNREFUSED,    ECONNREFUSED },
-	{ WSAELOOP,           ELOOP },
-	{ WSAENAMETOOLONG,    ENAMETOOLONG },
-	{ WSAEHOSTDOWN,       EHOSTDOWN },
-	{ WSAEHOSTUNREACH,    EHOSTUNREACH },
-	{ WSAENOTEMPTY,       ENOTEMPTY },
-	{ WSAEUSERS,          EUSERS },
-	{ WSAEDQUOT,          EDQUOT },
-	{ WSAESTALE,          ESTALE },
-	{ WSAEREMOTE,         EREMOTE },
-	{ WSAECANCELLED,      ECANCELED },
-	{ WSAEREFUSED,        ECONNREFUSED },
-	/* { WSAEPROCLIM,        EPROCLIM }, */
-	/* { WSASYSNOTREADY,     SYSNOTREADY }, */
-	/* { WSAVERNOTSUPPORTED, VERNOTSUPPORTED }, */
-	/* { WSANOTINITIALISED,  NOTINITIALISED }, */
-	/* { WSAEDISCON,         EDISCON },*/
-	/* { WSAENOMORE,         ENOMORE },*/
-	/* { WSAEINVALIDPROCTABLE,   EINVALIDPROCTABLE },*/
-	/* { WSAEINVALIDPROVIDER,    EINVALIDPROVIDER },*/
-	/* { WSAEPROVIDERFAILEDINIT, EPROVIDERFAILEDINIT },*/
-	/* { WSASYSCALLFAILURE, SYSCALLFAILURE },*/
-	/* { WSASERVICE_NOT_FOUND, SERVICE_NOT_FOUND },*/
-	/* { WSATYPE_NOT_FOUND, TYPE_NOT_FOUND },*/
-	/* { WSA_E_NO_MORE, _E_NO_MORE },*/
-	/* { WSA_E_CANCELLED, _E_CANCELLED },*/
-#endif /* 0 */
-	{ -1, -1}
-};
-#endif
-
-void _socket_set_errno(socket_t *socket) {
-#ifdef HAVE_WINSOCK2_H
-  int ix;
-
-  ((stream_t *) socket) -> _errno = WSAGetLastError();
-  for (ix = 0; WSAErrorMap[ix][0] != -1; ix++) {
-    if (socket_errno(socket) == WSAErrorMap[ix][0]) {
-      ((stream_t *) socket) -> _errno = WSAErrorMap[ix][0];
-      break;
-    }
-  }
+  s -> _errno = WSAGetLastError();
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 
+		NULL, WSAGetLastError(),
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPSTR) &s -> error, 0, NULL);
 #else
+  int len;
+
   socket_set_errno(socket);
+  len = strlen(strerror(socket_errno(s)));
+  s -> error = (char *) _new(len + 1);
+  strerror_r(socket_errno(s), s -> error, len + 1);
 #endif
+  error("%s: %s (%d)", msg, s -> error, s -> _errno);
 }
 
 /* -- S O C K E T  P U B L I C  A P I ------------------------------------- */
@@ -483,10 +420,10 @@ socket_t * socket_nonblock(socket_t *socket) {
   ret = _socket_setopt(socket, O_NONBLOCK);
 #else /* __WIN32__ */
   u_long nonblock = 1;
-  ret = !ioctlsocket(socket -> fh, FIONBIO, &nonblock) ? socket : NULL;
+  ret = ioctlsocket(socket -> fh, FIONBIO, &nonblock) ? NULL : socket;
 #endif /* __WIN32__ */
-  if (ret) {
-    _socket_set_errno(socket);
+  if (!ret) {
+    _socket_set_errno(socket, "nonblock()");
     return NULL;
   } else {
     return socket;
@@ -494,18 +431,55 @@ socket_t * socket_nonblock(socket_t *socket) {
 }
 
 int socket_read(socket_t *socket, void *buf, int num) {
-  int ret = num;
-  int numrecv;
+  int            ret = num;
+  int            numrecv;
+  int            total_numrecv = 0;
+  int            num_remaining = num;
+  fd_set         set;
+  struct timeval timeout;
+  int            err;
+
+  if (socket_debug) {
+    memset(buf, 0, num);
+    debug("socket_read(%s, %d)", data_tostring((data_t *) socket), num);
+  }
 
   do {
-    numrecv = TEMP_FAILURE_RETRY(recv(socket -> fh, buf, num, 0));
+    FD_ZERO(&set);
+    FD_SET(socket -> fh, &set);
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    if (socket_debug) {
+      debug("socket_read(%s, %d) select()", data_tostring((data_t *) socket), num);
+    }
+    err = TEMP_FAILURE_RETRY(select(1, &set, NULL, NULL, &timeout));
+    if (err < 0) {
+      _socket_set_errno(socket, "socket_read()->select()");
+      return -1;
+    }
+  } while (!err);
+  
+  do {
+    numrecv = TEMP_FAILURE_RETRY(recv(socket -> fh, buf, num_remaining, 0));
     if (numrecv > 0) {
-      num = num - numrecv;
+      num_remaining -= numrecv;
+      total_numrecv += numrecv;
       buf += numrecv;
-    } else if (numrecv == 0) {
+      if (socket_debug) {
+	debug("socket_read(%s, %d) = %d", data_tostring((data_t *) socket), num, total_numrecv);
+      }
+    } else if ((numrecv == 0) || 
+#ifdef HAVE_WINSOCK2_H
+	       (WSAGetLastError() == WSAEWOULDBLOCK)) {
+#else
+               (errno == EWOULDBLOCK)) {
+#endif /* HAVE_WINSOCK2_H */
+      if (socket_debug) {
+	debug("socket_read(%s, %d) Blocked", data_tostring((data_t *) socket), num);
+      }
       break;
     } else {
-      _socket_set_errno(socket);
+      _socket_set_errno(socket, "socket_read()->recv()");
       ret = -1;
     }
   } while ((ret > 0) && (num > 0));
@@ -522,7 +496,7 @@ int socket_write(socket_t *socket, void *buf, int num) {
       num = num - numsend;
       buf += numsend;
     } else {
-      _socket_set_errno(socket);
+      _socket_set_errno(socket, "send()");
       ret = -1;
     }
   } while ((ret > 0) && (num > 0));

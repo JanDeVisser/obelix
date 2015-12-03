@@ -756,26 +756,6 @@ data_t * data_next(data_t *data) {
   return ret;
 }
 
-data_t * data_query(data_t *data, data_t *query) {
-  typedescr_t *type;
-  data2_fnc_t  queryfnc;
-  data_t      *ret = NULL;
-
-  if (data) {
-    type = data_typedescr(data);
-    queryfnc = (data2_fnc_t) typedescr_get_function(type, FunctionQuery);
-    if (queryfnc) {
-      ret = queryfnc(data, query);
-    }
-  }
-  if (!ret) {
-    ret = data_exception(ErrorType,
-                         "Atom '%s' is not a Connector",
-                         data_tostring(data));
-  }
-  return ret;
-}
-
 data_t * data_visit(data_t *iterable, data_t *visitor) {
   data_t *ret = data_reduce(iterable, visitor, data_null());
 

@@ -40,7 +40,6 @@ static data_t *     _str_cast(str_t *, int);
 static str_t *      _str_parse(char *str);
 static data_t *     _str_resolve(str_t *, char *);
 
-static data_t *     _string_format(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_slice(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_at(data_t *, char *, array_t *, dict_t *);
 static data_t *     _string_forcecase(data_t *, char *, array_t *, dict_t *);
@@ -56,21 +55,20 @@ static data_t *     _string_split(data_t *, char *, array_t *, dict_t *);
 #define _DEFAULT_SIZE   32
 
 static vtable_t _vtable_string[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _str_create },
-  { .id = FunctionCmp,      .fnc = (void_t) str_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _str_free },
-  { .id = FunctionToString, .fnc = (void_t) str_chars },
-  { .id = FunctionParse,    .fnc = (void_t) _str_parse },
-  { .id = FunctionCast,     .fnc = (void_t) _str_cast },
-  { .id = FunctionHash,     .fnc = (void_t) str_hash },
-  { .id = FunctionLen,      .fnc = (void_t) str_len },
-  { .id = FunctionRead,     .fnc = (void_t) str_read },
-  { .id = FunctionResolve,  .fnc = (void_t) _str_resolve },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionFactory,     .fnc = (void_t) _str_create },
+  { .id = FunctionCmp,         .fnc = (void_t) str_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _str_free },
+  { .id = FunctionToString,    .fnc = (void_t) str_chars },
+  { .id = FunctionParse,       .fnc = (void_t) _str_parse },
+  { .id = FunctionCast,        .fnc = (void_t) _str_cast },
+  { .id = FunctionHash,        .fnc = (void_t) str_hash },
+  { .id = FunctionLen,         .fnc = (void_t) str_len },
+  { .id = FunctionRead,        .fnc = (void_t) str_read },
+  { .id = FunctionResolve,     .fnc = (void_t) _str_resolve },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_str[] = {
-  { .type = String, .name = "format",     .method = _string_format,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
   { .type = String, .name = "at",         .method = _string_at,         .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = String, .name = "slice",      .method = _string_slice,      .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
   { .type = String, .name = "upper",      .method = _string_forcecase,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -679,10 +677,6 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
 }
 
 /* -- S T R I N G   T Y P E   M E T H O D S ------------------------------- */
-
-data_t * _string_format(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return (data_t *) str_format(data_tostring(self), args, kwargs);
-}
 
 data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) name;

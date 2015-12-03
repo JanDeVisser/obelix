@@ -84,6 +84,7 @@ typedef enum _vtable_id {
   FunctionPush,        /* 32 */
   FunctionPop,         /* 33 */
   FunctionConstructor, /* 34 */
+  FunctionInterpolate, /* 35 */
   FunctionEndOfListDummy
 } vtable_id_t;
 
@@ -95,7 +96,7 @@ typedef struct _interface {
   dict_t *methods;
   int    *fncs;
 } interface_t;
-  
+
 typedef struct _vtable {
   vtable_id_t id;
   void_t      fnc;
@@ -153,7 +154,7 @@ OBLCORE_IMPEXP void_t          typedescr_get_function(typedescr_t *, int);
 OBLCORE_IMPEXP char *          typedescr_tostring(typedescr_t *);
 OBLCORE_IMPEXP int             typedescr_is(typedescr_t *, int);
 OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
-  
+
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */

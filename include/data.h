@@ -115,7 +115,6 @@ OBLCORE_IMPEXP data_t *        data_set(data_t *, struct _name *, data_t *);
 OBLCORE_IMPEXP data_t *        data_iter(data_t *);
 OBLCORE_IMPEXP data_t *        data_has_next(data_t *);
 OBLCORE_IMPEXP data_t *        data_next(data_t *);
-OBLCORE_IMPEXP data_t *        data_query(data_t *, data_t *);
 OBLCORE_IMPEXP data_t *        data_visit(data_t *, data_t *);
 OBLCORE_IMPEXP data_t *        data_reduce(data_t *, data_t *, data_t *);
 OBLCORE_IMPEXP data_t *        data_read(data_t *, char *, int);
@@ -154,7 +153,7 @@ OBLCORE_IMPEXP data_t *        data_str_array_to_list(array_t *);
 OBLCORE_IMPEXP data_t *        data_list_push(data_t *, data_t *);
 OBLCORE_IMPEXP data_t *        data_list_get(data_t *, int);
 OBLCORE_IMPEXP int             data_list_size(data_t *);
-  
+
 OBLCORE_IMPEXP int_t *         bool_true;
 OBLCORE_IMPEXP int_t *         bool_false;
 

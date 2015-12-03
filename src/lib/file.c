@@ -55,7 +55,7 @@ static void          _file_init(void) __attribute__((constructor(110)));
 
 static int           _stream_read(stream_t *, char *, int);
 static stream_t *    _stream_enter(stream_t *);
-static data_t *      _stream_query(stream_t *, data_t *);
+static data_t *      _stream_query(stream_t *, data_t *, array_t *);
 static data_t *      _stream_iter(stream_t *);
 static data_t *      _stream_readline(stream_t *, char *, array_t *, dict_t *);
 static data_t *      _stream_print(stream_t *, char *, array_t *, dict_t *);
@@ -206,9 +206,10 @@ data_t * _stream_iter(stream_t *stream) {
   return (data_t *) ret;
 }
 
-data_t * _stream_query(stream_t *stream, data_t *selector) {
+data_t * _stream_query(stream_t *stream, data_t *selector, array_t *params) {
   streamiter_t *ret = _streamiter_create(stream, selector);
 
+  (void) params;
   if (file_debug) {
     debug("%s._stream_query(%s) -> %s",
           data_tostring((data_t *) stream),
@@ -258,9 +259,6 @@ data_t * _stream_print(stream_t *self, char *name, array_t *args, dict_t *kwargs
 }
 
 /* ------------------------------------------------------------------------ */
-
-void stream_dummy(void) {
-}
 
 stream_t * stream_init(stream_t *stream, read_t reader, write_t writer) {
   stream -> reader = reader;

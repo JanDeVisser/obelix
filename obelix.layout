@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_layout_file>
+	<FileVersion major="1" minor="0" />
+	<ActiveTarget name="all" />
+	<File name="src\bin\scriptparse.c" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="29963" topLine="900" />
+		</Cursor>
+	</File>
+	<File name="include\typedescr.h" open="1" top="0" tabpos="5" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="2112" topLine="56" />
+		</Cursor>
+	</File>
+	<File name="include\re.h" open="1" top="0" tabpos="7" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="989" topLine="18" />
+		</Cursor>
+	</File>
+	<File name="src\lib\re.c" open="1" top="1" tabpos="6" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="4116" topLine="116" />
+		</Cursor>
+	</File>
+	<File name="src\lib\any.c" open="1" top="0" tabpos="3" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="13616" topLine="296" />
+		</Cursor>
+	</File>
+	<File name="src\lib\data.c" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="20585" topLine="757" />
+		</Cursor>
+	</File>
+	<EditorTabsLayout layout="0983e870565fa6a20000906000000002=0;obelix:src\lib\data.c,1;obelix:src\bin\scriptparse.c,2;obelix:src\lib\any.c,3;obelix:include\data.h,4;obelix:include\typedescr.h,*5;obelix:src\lib\re.c,6;obelix:include\re.h@layout2|name=dummy;caption=;state=2098174;dir=3;layer=0;row=0;pos=0;prop=100000;bestw=577;besth=290;minw=577;minh=290;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1|name=0983e870565fa6a20000906000000002;caption=;state=2098172;dir=5;layer=0;row=0;pos=0;prop=100000;bestw=200;besth=200;minw=-1;minh=-1;maxw=-1;maxh=-1;floatx=-1;floaty=-1;floatw=-1;floath=-1|dock_size(5,0,0)=202|" />
+</CodeBlocks_layout_file>

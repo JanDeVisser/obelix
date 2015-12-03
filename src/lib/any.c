@@ -21,6 +21,7 @@
 #include <data.h>
 #include <exception.h>
 #include <name.h>
+#include <str.h>
 
 /* ------------------------------------------------------------------------ */
 
@@ -42,6 +43,7 @@ static data_t * _any_next(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_has_next(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_reduce(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_visit(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_format(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_query(data_t *, char *, array_t *, dict_t *);
 
 /* ------------------------------------------------------------------------ */
@@ -72,6 +74,7 @@ static methoddescr_t _methoddescr_interfaces[] = {
   { .type = Iterator, .name = "hasnext",  .method = _any_has_next, .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
   { .type = Iterable, .name = "reduce",   .method = _any_reduce,   .argtypes = { Callable, Any, NoType },    .minargs = 1, .varargs = 1, .maxargs = 2 },
   { .type = Iterable, .name = "visit",    .method = _any_visit,    .argtypes = { Callable, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = Any,      .name = "format",   .method = _any_format,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
   { .type = Connector,.name = "query",    .method = _any_query,    .argtypes = { String, NoType, NoType },   .minargs = 1, .varargs = 0 },
   { .type = NoType,   .name = NULL,       .method = NULL,          .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 }
 };
@@ -295,7 +298,53 @@ data_t * _any_visit(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return data_visit(self, data_array_get(args, 0));
 }
 
+data_t * _any_format(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  typedescr_t  *type;
+  data_t *    (*interpolate)(data_t *, array_t *, dict_t *);
+  data_t       *ret = NULL;
+
+  if (self) {
+    type = data_typedescr(self);
+    interpolate = (data_t *(*)(data_t *, array_t *, dict_t *))
+      typedescr_get_function(type, FunctionInterpolate);
+    if (interpolate) {
+      ret = interpolate(self, args, kwargs);
+    } else {
+      ret = (data_t *) str_format(data_tostring(self), args, kwargs);
+    }
+  } else {
+    ret = data_exception(ErrorInternalError,
+                         "Cannot interpolate NULL");
+  }
+  return ret;
+}
+
 data_t * _any_query(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_query(self, data_array_get(args, 0));
+  array_t      *params;
+  data_t       *query;
+  typedescr_t  *type;
+  data_t *    (*queryfnc)(data_t *, data_t *);
+  data_t       *ret = NULL;
+
+  if (self && args && array_size(args)) {
+    type = data_typedescr(self);
+    queryfnc = (data_t * (*)(data_t *, data_t *))
+      typedescr_get_function(type, FunctionQuery);
+    if (queryfnc) {
+      query = data_array_get(args, 0);
+      ret = queryfnc(self, query);
+    }
+    if (!ret && (array_size(args) > 1) || (kwargs && dict_size(kwargs))) {
+      params = array_slice(args, 1, -1);
+      ret = _any_format(ret, NULL, params, kwargs);
+      array_free(params);
+    }
+  }
+  if (!ret) {
+    ret = data_exception(ErrorType,
+                         "Atom '%s' is not a Connector",
+                         data_tostring(self));
+  }
+  return ret;
 }
 
