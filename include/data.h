@@ -24,7 +24,6 @@
 #include <core.h>
 #include <array.h>
 #include <dict.h>
-#include <typedescr.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -32,6 +31,9 @@ extern "C" {
 
 typedef enum _datatype {
   Exception,
+  Type,
+  Interface,
+  Method,
   Pointer,
   String,
   Int,
@@ -79,57 +81,61 @@ typedef data_t * (*setvalue_t)(void *, char *, data_t *);
 typedef data_t * (*data_fnc_t)(data_t *);
 typedef data_t * (*data2_fnc_t)(data_t *, data_t *);
 
-OBLCORE_IMPEXP data_t *        data_create_noinit(int);
-OBLCORE_IMPEXP data_t *        _data_new(int, size_t);
-OBLCORE_IMPEXP data_t *        data_create(int, ...);
-OBLCORE_IMPEXP data_t *        data_settype(data_t *, int);
-OBLCORE_IMPEXP data_t *        data_cast(data_t *, int);
-OBLCORE_IMPEXP data_t *        data_promote(data_t *);
-OBLCORE_IMPEXP data_t *        data_parse(int, char *);
-OBLCORE_IMPEXP data_t *        data_decode(char *);
-OBLCORE_IMPEXP void            data_free(data_t *);
-OBLCORE_IMPEXP int             data_hastype(data_t *, int);
-OBLCORE_IMPEXP typedescr_t *   data_typedescr(data_t *);
-OBLCORE_IMPEXP void_t          data_get_function(data_t *, int);
-OBLCORE_IMPEXP int             data_implements(data_t *, int);
-OBLCORE_IMPEXP int             data_is_numeric(data_t *);
-OBLCORE_IMPEXP int             data_is_exception(data_t *t);
-OBLCORE_IMPEXP int             data_is_callable(data_t *);
-OBLCORE_IMPEXP int             data_is_iterable(data_t *);
-OBLCORE_IMPEXP int             data_is_iterator(data_t *);
-OBLCORE_IMPEXP data_t *        data_copy(data_t *);
-OBLCORE_IMPEXP unsigned int    data_hash(data_t *);
-OBLCORE_IMPEXP data_t *        data_len(data_t *);
-OBLCORE_IMPEXP char *          data_tostring(data_t *);
-OBLCORE_IMPEXP int             data_cmp(data_t *, data_t *);
-OBLCORE_IMPEXP data_t *        data_call(data_t *, array_t *, dict_t *);
-OBLCORE_IMPEXP int             data_hasmethod(data_t *, char *);
-OBLCORE_IMPEXP data_t *        data_method(data_t *, char *);
-OBLCORE_IMPEXP data_t *        data_execute(data_t *, char *, array_t *, dict_t *);
-OBLCORE_IMPEXP data_t *        data_resolve(data_t *, struct _name *);
-OBLCORE_IMPEXP data_t *        data_invoke(data_t *, struct _name *, array_t *, dict_t *);
-OBLCORE_IMPEXP int             data_has(data_t *, struct _name *);
-OBLCORE_IMPEXP int             data_has_callable(data_t *, struct _name *);
-OBLCORE_IMPEXP data_t *        data_get(data_t *, struct _name *);
-OBLCORE_IMPEXP data_t *        data_set(data_t *, struct _name *, data_t *);
-OBLCORE_IMPEXP data_t *        data_iter(data_t *);
-OBLCORE_IMPEXP data_t *        data_has_next(data_t *);
-OBLCORE_IMPEXP data_t *        data_next(data_t *);
-OBLCORE_IMPEXP data_t *        data_visit(data_t *, data_t *);
-OBLCORE_IMPEXP data_t *        data_reduce(data_t *, data_t *, data_t *);
-OBLCORE_IMPEXP data_t *        data_read(data_t *, char *, int);
-OBLCORE_IMPEXP data_t *        data_write(data_t *, char *, int);
-OBLCORE_IMPEXP data_t *        data_push(data_t *, data_t *);
-OBLCORE_IMPEXP data_t *        data_pop(data_t *);
-OBLCORE_IMPEXP int             data_count(void);
+OBLCORE_IMPEXP data_t *            data_create_noinit(int);
+OBLCORE_IMPEXP data_t *            _data_new(int, size_t);
+OBLCORE_IMPEXP data_t *            data_create(int, ...);
+OBLCORE_IMPEXP data_t *            data_settype(data_t *, int);
+OBLCORE_IMPEXP data_t *            data_cast(data_t *, int);
+OBLCORE_IMPEXP data_t *            data_promote(data_t *);
+OBLCORE_IMPEXP data_t *            data_parse(int, char *);
+OBLCORE_IMPEXP data_t *            data_decode(char *);
+OBLCORE_IMPEXP void                data_free(data_t *);
+OBLCORE_IMPEXP int                 data_hastype(data_t *, int);
+OBLCORE_IMPEXP struct _typedescr * data_typedescr(data_t *);
+OBLCORE_IMPEXP void_t              data_get_function(data_t *, int);
+OBLCORE_IMPEXP int                 data_implements(data_t *, int);
+OBLCORE_IMPEXP int                 data_is_numeric(data_t *);
+OBLCORE_IMPEXP int                 data_is_exception(data_t *t);
+OBLCORE_IMPEXP int                 data_is_callable(data_t *);
+OBLCORE_IMPEXP int                 data_is_iterable(data_t *);
+OBLCORE_IMPEXP int                 data_is_iterator(data_t *);
+OBLCORE_IMPEXP data_t *            data_copy(data_t *);
+OBLCORE_IMPEXP unsigned int        data_hash(data_t *);
+OBLCORE_IMPEXP data_t *            data_len(data_t *);
+OBLCORE_IMPEXP char *              data_tostring(data_t *);
+OBLCORE_IMPEXP int                 data_cmp(data_t *, data_t *);
+OBLCORE_IMPEXP data_t *            data_call(data_t *, array_t *, dict_t *);
+OBLCORE_IMPEXP int                 data_hasmethod(data_t *, char *);
+OBLCORE_IMPEXP data_t *            data_method(data_t *, char *);
+OBLCORE_IMPEXP data_t *            data_execute(data_t *, char *,
+						array_t *, dict_t *);
+OBLCORE_IMPEXP data_t *            data_resolve(data_t *, struct _name *);
+OBLCORE_IMPEXP data_t *            data_invoke(data_t *, struct _name *,
+					       array_t *, dict_t *);
+OBLCORE_IMPEXP int                 data_has(data_t *, struct _name *);
+OBLCORE_IMPEXP int                 data_has_callable(data_t *, struct _name *);
+OBLCORE_IMPEXP data_t *            data_get(data_t *, struct _name *);
+OBLCORE_IMPEXP data_t *            data_set(data_t *, struct _name *, data_t *);
+OBLCORE_IMPEXP data_t *            data_iter(data_t *);
+OBLCORE_IMPEXP data_t *            data_has_next(data_t *);
+OBLCORE_IMPEXP data_t *            data_next(data_t *);
+OBLCORE_IMPEXP data_t *            data_visit(data_t *, data_t *);
+OBLCORE_IMPEXP data_t *            data_reduce(data_t *, data_t *, data_t *);
+OBLCORE_IMPEXP data_t *            data_read(data_t *, char *, int);
+OBLCORE_IMPEXP data_t *            data_write(data_t *, char *, int);
+OBLCORE_IMPEXP data_t *            data_push(data_t *, data_t *);
+OBLCORE_IMPEXP data_t *            data_pop(data_t *);
+OBLCORE_IMPEXP int                 data_count(void);
 
-OBLCORE_IMPEXP double          data_floatval(data_t *);
-OBLCORE_IMPEXP int             data_intval(data_t *);
+OBLCORE_IMPEXP double              data_floatval(data_t *);
+OBLCORE_IMPEXP int                 data_intval(data_t *);
 
 #define data_new(dt,st)     ((st *) data_settype((data_t *) new(sizeof(st)), dt))
 #define data_type(d)        (((data_t *) (d)) -> type)
 #define data_typename(d)    ((d) ? (typedescr_get(data_type((data_t *) (d))) -> type_name) : "null")
 
+#define data_is_int(d )     ((d) && (data_hastype((d), Int)))
+#define data_is_float(d )   ((d) && (data_hastype((d), Float)))
 #define data_is_string(d )  ((d) && (data_hastype((d), String)))
 #define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
 #define data_as_pointer(d)  (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
@@ -227,5 +233,9 @@ OBLCORE_IMPEXP int_t *         bool_false;
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */
+
+#ifndef __INCLUDING_TYPEDESCR_H__
+#include <typedescr.h>
+#endif /* __INCLUDING_TYPEDESCR_H__ */
 
 #endif /* __DATA_H__ */

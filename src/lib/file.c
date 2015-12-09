@@ -356,9 +356,19 @@ char * stream_readline(stream_t *stream) {
   return buf;
 }
 
-#define WRITE_TO_STREAM(s, l) if (retval >= 0) {    \
-    int _len = strlen((l));                         \
-    retval = (s -> writer)((s), (l), _len);         \
+#define WRITE_TO_STREAM(s, l) if (retval >= 0) {                       \
+    int _len = strlen((l));                                            \
+    if (file_debug) {                                                  \
+      debug("Writing %d bytes to %s", l, data_tostring((data_t *) s)); \
+    }                                                                  \
+    retval = (s -> writer)((s), (l), _len);                            \
+    if (file_debug) {                                                  \
+      if (retval >= 0) {                                               \
+        debug("Wrote %d bytes", retval);                               \
+      } else {                                                         \
+        debug("error: %d", errno);                                     \
+      }                                                                \
+    }                                                                  \
 }
 
 int stream_print(stream_t *stream, char *fmt, array_t *args, dict_t *kwargs) {
@@ -515,9 +525,9 @@ data_t * _streamiter_next(streamiter_t *si) {
 
 _oshandle_t _file_oshandle(file_t *file) {
 #ifdef __WIN32__
-	return (_oshandle_t) _get_osfhandle(file -> fh);
+  return (_oshandle_t) _get_osfhandle(file -> fh);
 #else
-	return file -> fh;
+  return file -> fh;
 #endif /* __WIN32__ */
 }
 
@@ -804,29 +814,44 @@ int file_write(file_t *file, char *buf, int num) {
 
 int file_flush(file_t *file) {
   int   ret = 0;
+  
+  if (file_debug) {
+    debug("%s.file_flush", file_tostring(file));
+  }
 #ifdef HAVE_FSYNC
   ret = fsync(file -> fh);
 #elif defined(HAVE_FLUSHFILEBUFFERS)
   DWORD err;
 
-  file_clear_errno(file);
-  if (!FlushFileBuffers(_file_oshandle(file))) {
-    err = GetLastError();
-    ret = -1;
-    switch (err) {
-      case ERROR_ACCESS_DENIED:
-        /*
-         * For a read-only handle, fsync should succeed, even though we have
-         * no way to sync the access-time changes.
-         */
-        ret = 0;
-        break;
-      case ERROR_INVALID_HANDLE:
-        errno = EINVAL;
-        break;
-      default:
-        errno = EIO;
-        break;
+  /* 
+   * From the FlushFileBuffer docs:
+   * The function fails if hFile is a handle to the console output. That is 
+   * because the console output is not buffered. The function returns FALSE, 
+   * and GetLastError returns ERROR_INVALID_HANDLE.
+   */
+  if (file -> fh > 2) {
+    file_clear_errno(file);
+    if (!FlushFileBuffers(_file_oshandle(file))) {
+      err = GetLastError();
+      if (file_debug) {
+        debug("FlushFileBuffers(%d) failed. err = %d", _file_oshandle(file), err);
+      }
+      ret = -1;
+      switch (err) {
+        case ERROR_ACCESS_DENIED:
+          /*
+           * For a read-only handle, fsync should succeed, even though we have
+           * no way to sync the access-time changes.
+           */
+          ret = 0;
+          break;
+        case ERROR_INVALID_HANDLE:
+          errno = EINVAL;
+          break;
+        default:
+          errno = EIO;
+          break;
+      }
     }
   }
 #endif /* HAVE_FSYNC */

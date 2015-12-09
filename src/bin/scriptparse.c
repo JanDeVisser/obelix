@@ -389,6 +389,9 @@ __DLL_EXPORT__ parser_t *script_parse_push_signed_val(parser_t *parser) {
     debug(" -- val: %s %s", name_tostring(op), data_tostring(data));
   }
   signed_val = data_invoke(data, op, NULL, NULL);
+  if (parser_debug) {
+    debug(" -- signed_val: %s", data_tostring(signed_val));
+  }
   name_free(op);
   assert(data_type(signed_val) == data_type(data));
   push_instruction(parser, instruction_create_pushval(signed_val));

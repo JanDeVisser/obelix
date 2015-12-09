@@ -37,12 +37,12 @@ static vtable_t _vtable_method[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-int Method = -1;
+int RuntimeMethod = -1;
 
 /* -- M T H _ T  S T A T I C  F U N C T I O N S --------------------------- */
 
 void _mth_init(void) {
-  Method = typedescr_create_and_register(Method, "method", _vtable_method, NULL);
+  RuntimeMethod = typedescr_create_and_register(RuntimeMethod, "runtimemethod", _vtable_method, NULL);
 }
 
 void _mth_free(mth_t *mth) {
@@ -63,7 +63,7 @@ char * _mth_allocstring(mth_t *mth) {
 /* -- M T H _ T  P U B L I C  F U N C T I O N S --------------------------- */
 
 mth_t * mth_create(methoddescr_t *md, data_t *self) {
-  mth_t *ret = data_new(Method, mth_t);
+  mth_t *ret = data_new(RuntimeMethod, mth_t);
 
   assert(md);
   assert(self);

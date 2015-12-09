@@ -194,7 +194,9 @@ data_t * data_create_list(array_t *array) {
   data_t  *ret;
 
   ret = data_create(List, 0);
-  array_reduce(array, (reduce_t) data_add_all_reducer, data_as_array(ret));
+  if (array) {
+    array_reduce(array, (reduce_t) data_add_all_reducer, data_as_array(ret));
+  }
   return ret;
 }
 

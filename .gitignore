@@ -33,3 +33,4 @@ build/*
 **/*.dir/*
 Win32/*
 /MingW64/
+/Default/

@@ -88,7 +88,7 @@ void _wrapper_init(void) {
 }
 
 int _wrapper_is(typedescr_t *descr, int type) {
-  return (type > Interface)
+  return (type > FirstInterface)
     ? vtable_implements((vtable_t *) descr -> ptr, type)
     : FALSE;
 }

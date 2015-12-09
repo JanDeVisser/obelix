@@ -17,10 +17,13 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
+#include <stdio.h>
+
 #include <core.h>
+#include <exception.h>
 #include <logging.h>
 #include <typedescr.h>
-#include <stdio.h>
 
 static int          _numtypes = 0;
 static typedescr_t *descriptors = NULL;
@@ -32,8 +35,64 @@ extern int          _data_count;
        int          type_debug = 0;
 
 static void           _typedescr_init(void) __attribute__((constructor(101)));
-static char *         _methoddescr_tostring(methoddescr_t *);
+static data_t *       _add_method_reducer(methoddescr_t *, data_t *);
+
+static char *         _methoddescr_allocstring(methoddescr_t *);
+static int            _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
+static data_t *       _methoddescr_resolve(methoddescr_t *, char *);
+static unsigned int   _methoddescr_hash(methoddescr_t *);
+
 static typedescr_t *  _typedescr_build_constructor(typedescr_t *);
+static int            _typedescr_cmp(typedescr_t *, typedescr_t *);
+static char *         _typedescr_allocstring(typedescr_t *);
+static data_t *       _typedescr_resolve(typedescr_t *, char *);
+
+static data_t *       _typedescr_gettype(data_t *, char *, array_t *, dict_t *);
+static data_t *       _typedescr_hastype(data_t *, char *, array_t *, dict_t *);
+
+static char *         _interface_allocstring(interface_t *);
+static int            _interface_cmp(interface_t *, interface_t *);
+static data_t *       _interface_resolve(interface_t *, char *);
+static unsigned int   _interface_hash(interface_t *);
+
+static data_t *       _interface_isimplementedby(interface_t *, char *, array_t *, dict_t *);
+static data_t *       _interface_implements(data_t *, char *, array_t *, dict_t *);
+
+static vtable_t _vtable_methoddescr[] = {
+  { .id = FunctionCmp,         .fnc = (void_t) _methoddescr_cmp },
+  { .id = FunctionAllocString, .fnc = (void_t) _methoddescr_allocstring },
+  { .id = FunctionResolve,     .fnc = (void_t) _methoddescr_resolve },
+  { .id = FunctionHash,        .fnc = (void_t) _methoddescr_hash },
+  { .id = FunctionNone,        .fnc = NULL }
+};
+
+static vtable_t _vtable_typedescr[] = {
+  { .id = FunctionCmp,         .fnc = (void_t) _typedescr_cmp },
+  { .id = FunctionAllocString, .fnc = (void_t) _typedescr_allocstring },
+  { .id = FunctionResolve,     .fnc = (void_t) _typedescr_resolve },
+  { .id = FunctionHash,        .fnc = (void_t) typedescr_hash },
+  { .id = FunctionNone,        .fnc = NULL }
+};
+
+static methoddescr_t _methoddescr_typedescr[] = {
+  { .type = Any,    .name = "gettype",     .method = _typedescr_gettype,    .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "hastype",     .method = _typedescr_hastype,    .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = NoType, .name = NULL,          .method = NULL,                  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+};
+
+static vtable_t _vtable_interface[] = {
+  { .id = FunctionCmp,         .fnc = (void_t) _interface_cmp },
+  { .id = FunctionAllocString, .fnc = (void_t) _interface_allocstring },
+  { .id = FunctionResolve,     .fnc = (void_t) _interface_resolve },
+  { .id = FunctionHash,        .fnc = (void_t) _interface_hash },
+  { .id = FunctionNone,        .fnc = NULL }
+};
+
+static methoddescr_t _methoddescr_interface[] = {
+  { .type = Interface,    .name = "isimplementedby", .method = (method_t) _interface_isimplementedby, .argtypes = { Any, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = Any,          .name = "implements",      .method = (method_t) _interface_implements, .argtypes = { Interface, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = NoType, .name = NULL, .method = NULL, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+};
 
 static code_label_t _function_id_labels[] = {
   { .code = FunctionNone,           .label = "None" },
@@ -65,6 +124,7 @@ static code_label_t _function_id_labels[] = {
   { .code = FunctionReduce,         .label = "Reduce" },
   { .code = FunctionIs,             .label = "Is" },
   { .code = FunctionConstructor,    .label = "Constructor" },
+  { .code = FunctionInterpolate,    .label = "Interpolate" },
   { .code = FunctionEndOfListDummy, .label = "End" },
   { .code = -1,                     .label = NULL }
 };
@@ -73,13 +133,88 @@ static code_label_t _function_id_labels[] = {
 
 void _typedescr_init(void) {
   logging_register_category("type", &type_debug);
+  interface_register(Any,           "any",           0);
+  interface_register(Callable,      "callable",      1, FunctionCall);
+  interface_register(InputStream,   "inputstream",   1, FunctionRead);
+  interface_register(OutputStream,  "outputstream",  1, FunctionWrite);
+  interface_register(Iterable,      "iterable",      1, FunctionIter);
+  interface_register(Iterator,      "iterator",      2, FunctionNext, FunctionHasNext);
+  interface_register(Connector,     "connector",     1, FunctionQuery);
+  interface_register(CtxHandler,    "ctxhandler",    2, FunctionEnter, FunctionLeave);
+  interface_register(Incrementable, "incrementable", 2, FunctionIncr, FunctionDecr);
+  
+  typedescr_create_and_register(Type, "type",
+				_vtable_typedescr, _methoddescr_typedescr);
+  typedescr_create_and_register(Interface, "interface",
+				_vtable_interface, /* _methoddescr_interface */ NULL);
+  typedescr_create_and_register(Method, "method",
+				_vtable_methoddescr, /* _methoddescr_method */ NULL);
 }
 
-char * _methoddescr_tostring(methoddescr_t *mth) {
+data_t * type_get(int ix) {
+  return (ix < FirstInterface)
+    ? (data_t *) typedescr_get(ix)
+    : (data_t *) interface_get(ix);
+}
+
+data_t * type_get_byname(char *name) {
+  data_t *ret;
+
+  ret = (data_t *) typedescr_get_byname(name);
+  if (!ret) {
+    ret = (data_t *) interface_get_byname(name);
+  }
+  return ret;
+}
+
+/* -- G E N E R A L  S T A T I C  F U N C T I O N S ----------------------- */
+
+data_t * _add_method_reducer(methoddescr_t *mth, data_t *methods) {
+  data_list_push(methods, (data_t *) mth);
+  return methods;
+}
+
+
+/* -- M E T H O D D E S C R   F U N C T I O N S --------------------------- */
+
+char * _methoddescr_allocstring(methoddescr_t *mth) {
   return mth -> name;
 }
 
-/* -- I N T E R F A C E   F U N C T I O N S-------------------------------- */
+int _methoddescr_cmp(methoddescr_t *mth1, methoddescr_t *mth2) {
+  return strcmp(mth1 -> name, mth2 -> name);
+}
+
+data_t * _methoddescr_resolve(methoddescr_t *mth, char *name) {
+  data_t *ret;
+  int     ix;
+  
+  if (!strcmp(name, "name")) {
+    return data_create(String, mth -> name);
+  } else if (!strcmp(name, "args")) {
+    ret = data_create_list(NULL);
+    for (ix = 0; ix < MAX_METHOD_PARAMS; ix++) {
+      if (!mth -> argtypes[ix]) {
+	break;
+      }
+      data_list_push(ret, type_get(mth -> argtypes[ix]));
+    }
+    return ret;
+  } else if (!strcmp(name, "minargs")) {
+    return data_create(Int, mth -> minargs);
+  } else if (!strcmp(name, "varargs")) {
+    return data_create(Bool, mth -> varargs);
+  } else {
+    return NULL;
+  }
+}
+
+unsigned int _methoddescr_hash(methoddescr_t *mth) {
+  return strhash(mth -> name);
+}
+
+
+/* -- I N T E R F A C E   F U N C T I O N S ------------------------------- */
 
 int interface_register(int type, char *name, int numfncs, ...) {
   int          ix;
@@ -91,10 +226,10 @@ int interface_register(int type, char *name, int numfncs, ...) {
   va_list      fncs;
   int          fnc_id;
 
-  if (type < Interface) {
+  if (type < FirstInterface) {
     type = _next_interface++;
   }
-  ix = type - Interface - 1;
+  ix = type - FirstInterface - 1;
   if (type_debug) {
     info("Registering interface '%s' [%d:%d]", name, type, ix);
   }
@@ -106,6 +241,10 @@ int interface_register(int type, char *name, int numfncs, ...) {
     _num_interfaces = ix + 1;
   }
   iface = &_interfaces[ix];
+  iface -> _d.type = Interface;
+  iface -> _d.free_me = Constant;
+  iface -> _d.refs = 1;
+  iface -> _d.str = NULL;
   iface -> type = type;
   iface -> name = strdup(name);
   iface -> methods = NULL;
@@ -120,24 +259,39 @@ int interface_register(int type, char *name, int numfncs, ...) {
 }
 
 interface_t * interface_get(int type) {
-  int          ifix = type - Interface - 1;
+  int          ifix = type - FirstInterface - 1;
   interface_t *ret = NULL;
 
-  if ((type > Interface) && (type < _next_interface)) {
+  if ((type > FirstInterface) && (type < _next_interface)) {
     ret = &_interfaces[ifix];
     if (!ret) {
-      error("Undefined interface type %d referenced. Expect crashes", type);
+      if (type_debug) {
+	error("Undefined interface type %d referenced. Expect crashes", type);
+      }
       return NULL;
     } else {
-      //if (type_debug) {
-      //  debug("interface_get(%d:%d) = %s", type, ifix, ret -> name);
-      //}
+      if (ret -> type != type) {
+        debug("looking for type %d, found %d (%s)", type, ret -> type, ret -> name);
+      }
       assert(ret -> type == type);
     }
   } else {
-    error("Type %d referenced as interface, but it cannot be. Expect crashes", type);
+    if (type_debug) {
+      error("Type %d referenced as interface, but it cannot be. Expect crashes", type);
+    }
   }
   return ret;
+}
+
+interface_t * interface_get_byname(char *name) {
+  int          ifix;
+
+  for (ifix = 0; ifix < _next_interface - FirstInterface - 1; ifix++) {
+    if (!strcmp(_interfaces[ifix].name, name)) {
+      return &_interfaces[ifix];
+    }
+  }
+  return NULL;
 }
 
 void interface_register_method(interface_t *iface, methoddescr_t *method) {
@@ -145,8 +299,7 @@ void interface_register_method(interface_t *iface, methoddescr_t *method) {
     info("interface_register_method(%s, %s)", iface -> name, method -> name);
   }
   if (!iface -> methods) {
-    iface -> methods = strvoid_dict_create();
-    dict_set_tostring_data(iface -> methods, (tostring_t) _methoddescr_tostring);
+    iface -> methods = strdata_dict_create();
   }
   dict_put(iface -> methods, method -> name, method);
   if (type_debug) {
@@ -166,6 +319,74 @@ methoddescr_t * interface_get_method(interface_t *iface, char *name) {
   return (iface -> methods)
     ? (methoddescr_t *) dict_get(iface -> methods, name)
     : NULL;
+}
+
+char * _interface_allocstring(interface_t *iface) {
+  return iface -> name;
+}
+
+int _interface_cmp(interface_t *iface1, interface_t *iface2) {
+  return iface1 -> type - iface2 -> type;
+}
+
+data_t * _interface_resolve(interface_t *iface, char *name) {
+  data_t      *ret;
+  int          ix;
+  typedescr_t *type;
+  
+  if (!strcmp(name, "name")) {
+    return data_create(String, iface -> name);
+  } else if (!strcmp(name, "id")) {
+    return data_create(Int, iface -> type);
+  } else if (!strcmp(name, "methods")) {
+    ret = data_create_list(NULL);
+    dict_reduce_values(iface -> methods,
+		       (reduce_t) _add_method_reducer,
+		       ret);
+    return ret;
+  } else if (!strcmp(name, "implementations")) {
+    ret = data_create_list(NULL);
+    for (ix = 0; ix < _numtypes; ix++) {
+      type = &descriptors[ix];
+      if (type && typedescr_is(type, iface -> type)) {
+	data_list_push(ret, (data_t *) type);
+      }
+    }
+    return ret;
+  } else {
+    return NULL;
+  }
+}
+
+unsigned int _interface_hash(interface_t *iface) {
+  return strhash(iface -> name);
+}
+
+data_t * _interface_isimplementedby(interface_t *iface, char *name, array_t *args, dict_t *kwargs) {
+  data_t      *data = data_array_get(args, 0);
+  typedescr_t *type;
+  
+  (void) name;
+  (void) kwargs;
+  if (data_hastype(data, Interface)) {
+    return data_false();
+  } else {
+    type = (data_hastype(data, Type))
+      ? (typedescr_t *) data
+      : data_typedescr(data);
+    return data_create(Bool, typedescr_is(type, iface -> type));   
+  }
+}
+
+data_t * _interface_implements(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  array_t     *a = data_array_create(1);
+  interface_t *iface = (interface_t *) array_get(args, 0);
+  data_t      *ret;
+
+  array_push(a, data_copy(self));
+  ret = _interface_isimplementedby(iface, NULL, a, NULL);
+  array_free(a);
+  return ret;
 }
 
 /* -- V T A B L E  F U N C T I O N S -------------------------------------- */
@@ -211,17 +432,17 @@ vtable_t * vtable_build(vtable_t vtable[]) {
 
 int vtable_implements(vtable_t *vtable, int type) {
   int          ret;
-  interface_t *interface;
+  interface_t *iface;
   int          ix;
   int          fnc_id;
 
-  interface = interface_get(type);
-  if (!interface) {
+  iface = interface_get(type);
+  if (!iface) {
     return FALSE;
   }
   ret = TRUE;
-  for (ix = 0; ret && interface -> fncs[ix]; ix++) {
-    fnc_id = interface -> fncs[ix];
+  for (ix = 0; ret && iface -> fncs[ix]; ix++) {
+    fnc_id = iface -> fncs[ix];
     ret &= (vtable[fnc_id].fnc != NULL);
   }
   return ret;
@@ -249,6 +470,84 @@ typedescr_t * _typedescr_build_constructor(typedescr_t *type) {
   return type;
 }
 
+int _typedescr_cmp(typedescr_t *type1, typedescr_t *type2) {
+  return type1 -> type - type2 -> type;
+}
+
+
+char * _typedescr_allocstring(typedescr_t *descr) {
+  char *str;
+  
+  if (asprintf(&str, "'%s' [%d]",
+	       descr -> type_name, descr -> type) < 0) {
+    str = "Out of Memory?";
+  }
+  return str;
+}
+
+data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
+  data_t      *ret;
+  int          ix;
+  interface_t *iface;
+
+  if (!strcmp(name, "name")) {
+    return data_create(String, descr -> type_name);
+  } else if (!strcmp(name, "id")) {
+    return data_create(Int, descr -> type);
+  } else if (!strcmp(name, "inherits")) {
+    ret = data_create_list(NULL);
+    for (ix = 0; ix < MAX_INHERITS; ix++) {
+      if (descr -> inherits[ix] < 0) {
+	break;
+      }
+      data_list_push(ret, (data_t *) typedescr_get(descr -> inherits[ix]));
+    }
+    return ret;
+  } else if (!strcmp(name, "methods")) {
+    ret = data_create_list(NULL);
+    dict_reduce_values(descr -> methods,
+		       (reduce_t) _add_method_reducer,
+		       ret);
+    return ret;
+  } else if (!strcmp(name, "implements")) {
+    ret = data_create_list(NULL);
+    for (ix = FirstInterface + 1; ix < _next_interface; ix++) {
+      iface = &_interfaces[ix - FirstInterface - 1];
+      if (iface && typedescr_is(descr, iface -> type)) {
+	data_list_push(ret, (data_t *) iface);
+      }
+    }
+    return ret;
+  } else {
+    return NULL;
+  }
+}
+
+data_t * _typedescr_gettype(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  data_t      *t = data_array_get(args, 0);
+  typedescr_t *type;
+  
+  (void) self;
+  (void) name;
+  (void) kwargs;
+
+  type = (data_is_int(t))
+    ? typedescr_get(data_intval(t))
+    : typedescr_get_byname(data_tostring(t));
+  return (type)
+    ? (data_t *) type
+    : (data_t *) data_exception(ErrorParameterValue,
+		     "Type '%s' not found", data_tostring(t));
+}
+
+data_t * _typedescr_hastype(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  typedescr_t *type = (typedescr_t *) data_array_get(args, 0);
+  
+  (void) name;
+  (void) kwargs;
+  return data_hastype(self, type -> type) ? data_true() : data_false();
+}
+
 /* -- T Y P E D E S C R  P U B L I C  F U N C T I O N S ------------------- */
 
 int typedescr_register(typedescr_t *descr) {
@@ -257,9 +556,6 @@ int typedescr_register(typedescr_t *descr) {
   int             newsz;
   int             cursz;
   typedescr_t    *d;
-  interface_t    *interface;
-  int             interfaces[sizeof(_interfaces) / sizeof(interface_t)];
-  int             num_interfaces = 0;
 
   if (descr -> type < 0) {
     descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
@@ -280,12 +576,15 @@ int typedescr_register(typedescr_t *descr) {
     }
   }
   d = &descriptors[descr -> type];
+  d -> _d.type = Type;
+  d -> _d.free_me = Constant;
+  d -> _d.refs = 1;
+  d -> _d.str = NULL;
   memcpy(d, descr, sizeof(typedescr_t));
   vtable = d -> vtable;
   d -> vtable = NULL;
   typedescr_register_functions(d, vtable);
   _typedescr_build_constructor(d);
-  d -> str = NULL;
   d -> methods = NULL;
   d -> hash = 0;
   return d -> type;
@@ -396,7 +695,7 @@ unsigned int typedescr_hash(typedescr_t *type) {
 }
 
 void typedescr_dump_vtable(typedescr_t *type) {
-  debug("vtable for %s", typedescr_tostring(type));
+  debug("vtable for %s", type_tostring(type));
   vtable_dump(type -> vtable);
 }
 
@@ -443,17 +742,17 @@ void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
 void typedescr_register_methods(methoddescr_t methods[]) {
   methoddescr_t *method;
   typedescr_t   *type;
-  interface_t   *interface;
+  interface_t   *iface;
 
   for (method = methods; method -> type > NoType; method++) {
-    if (method -> type < Interface) {
+    if (method -> type < FirstInterface) {
       type = typedescr_get(method -> type);
       assert(type);
       typedescr_register_method(type, method);
     } else {
-      interface = interface_get(method -> type);
-      assert(interface);
-      interface_register_method(interface, method);
+      iface = interface_get(method -> type);
+      assert(iface);
+      interface_register_method(iface, method);
     }
   }
 }
@@ -464,8 +763,12 @@ void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
   }
   if (!type -> methods) {
     type -> methods = strvoid_dict_create();
-    dict_set_tostring_data(type -> methods, (tostring_t) _methoddescr_tostring);
+    dict_set_tostring_data(type -> methods, (tostring_t) data_tostring);
   }
+  method -> _d.type = Method;
+  method -> _d.free_me = Constant;
+  method -> _d.refs = 1;
+  method -> _d.str = NULL;
   dict_put(type -> methods, method -> name, method);
 }
 
@@ -481,7 +784,6 @@ methoddescr_t * typedescr_get_constructor(char *name) {
 
 methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   methoddescr_t *ret = NULL;
-  interface_t   *interface;
   int            ix;
   int            iftype;
 
@@ -510,16 +812,6 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   return ret;
 }
 
-char * typedescr_tostring(typedescr_t *descr) {
-  if (!descr -> str) {
-    if (asprintf(&(descr -> str), "'%s' [%d]",
-                 descr -> type_name, descr -> type) < 0) {
-      descr -> str = "Out of Memory?";
-    }
-  }
-  return descr -> str;
-}
-
 int typedescr_is(typedescr_t *descr, int type) {
   int   ix;
   int   ret;
@@ -541,7 +833,7 @@ int typedescr_is(typedescr_t *descr, int type) {
       //  debug("'%s'.is(%d) = %d by delegation", descr -> type_name, type, ret);
       //}
     } else {
-      ret = (type > Interface) && vtable_implements(descr -> vtable, type);
+      ret = (type > FirstInterface) && vtable_implements(descr -> vtable, type);
       //if (type_debug) {
       //  debug("'%s'.is(%d) = %d by implementation", descr -> type_name, type, ret);
       //}

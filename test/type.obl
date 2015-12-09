@@ -1,0 +1,3 @@
+s = "Test"
+t = s.typeof()
+print(t)

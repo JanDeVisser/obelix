@@ -20,6 +20,8 @@
 #ifndef __METHOD_H__
 #define	__METHOD_H__
 
+#include <typedescr.h>
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -36,13 +38,13 @@ extern data_t *      mth_call(mth_t *, array_t *, dict_t *);
 extern unsigned int  mth_hash(mth_t *);
 extern int           mth_cmp(mth_t *, mth_t *);
 
-extern int Method;
+extern int RuntimeMethod;
 
-#define data_is_method(d)   ((d) && (data_hastype((d), method)))
-#define data_as_method(d)   ((method_t *) (data_is_method((d)) ? (d) : NULL))
-#define method_free(o)      (data_free((data_t *) (o)))
-#define method_tostring(o)  (data_tostring((data_t *) (o)))
-#define method_copy(o)      ((data_t *) data_copy((data_t *) (o)))
+#define data_is_runtimemethod(d)   ((d) && (data_hastype((d), RuntimeMethod)))
+#define data_as_runtimemethod(d)   ((method_t *) (data_is_runtimemethod((d)) ? (d) : NULL))
+#define runtimemethod_free(o)      (data_free((data_t *) (o)))
+#define runtimemethod_tostring(o)  (data_tostring((data_t *) (o)))
+#define runtimemethod_copy(o)      ((data_t *) data_copy((data_t *) (o)))
 
 #ifdef	__cplusplus
 }

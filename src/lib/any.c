@@ -32,6 +32,7 @@ static data_t * _any_and(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_or(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hash(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_len(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_typeof(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hasattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_getattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_setattr(data_t *, char *, array_t *, dict_t *);
@@ -63,6 +64,7 @@ static methoddescr_t _methoddescr_interfaces[] = {
   { .type = Any,      .name = "hash",     .method = _any_hash,     .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
   { .type = Any,      .name = "len",      .method = _any_len,      .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
   { .type = Any,      .name = "size",     .method = _any_len,      .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
+  { .type = Any,      .name = "typeof",   .method = _any_typeof,   .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
   { .type = Any,      .name = "hasattr",  .method = _any_hasattr,  .argtypes = { String, NoType, NoType },   .minargs = 1, .varargs = 0 },
   { .type = Any,      .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType },   .minargs = 1, .varargs = 0 },
   { .type = Any,      .name = "setattr",  .method = _any_setattr,  .argtypes = { String, Any, NoType },      .minargs = 2, .varargs = 0 },
@@ -74,7 +76,7 @@ static methoddescr_t _methoddescr_interfaces[] = {
   { .type = Iterator, .name = "hasnext",  .method = _any_has_next, .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 1 },
   { .type = Iterable, .name = "reduce",   .method = _any_reduce,   .argtypes = { Callable, Any, NoType },    .minargs = 1, .varargs = 1, .maxargs = 2 },
   { .type = Iterable, .name = "visit",    .method = _any_visit,    .argtypes = { Callable, NoType, NoType }, .minargs = 1, .varargs = 0 },
-  { .type = Any,      .name = "format",   .method = _any_format,     .argtypes = { Any, NoType, NoType },    .minargs = 0, .varargs = 1 },
+  { .type = Any,      .name = "format",   .method = _any_format,   .argtypes = { Any, NoType, NoType },      .minargs = 0, .varargs = 1 },
   { .type = Connector,.name = "query",    .method = _any_query,    .argtypes = { String, NoType, NoType },   .minargs = 1, .varargs = 0 },
   { .type = NoType,   .name = NULL,       .method = NULL,          .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 }
 };
@@ -82,15 +84,6 @@ static methoddescr_t _methoddescr_interfaces[] = {
 /* ------------------------------------------------------------------------ */
 
 void _any_init(void) {
-  interface_register(Any,           "any",           0);
-  interface_register(Callable,      "callable",      1, FunctionCall);
-  interface_register(InputStream,   "inputstream",   1, FunctionRead);
-  interface_register(OutputStream,  "outputstream",  1, FunctionWrite);
-  interface_register(Iterable,      "iterable",      1, FunctionIter);
-  interface_register(Iterator,      "iterator",      2, FunctionNext, FunctionHasNext);
-  interface_register(Connector,     "connector",     1, FunctionQuery);
-  interface_register(CtxHandler,    "ctxhandler",    2, FunctionEnter, FunctionLeave);
-  interface_register(Incrementable, "incrementable", 2, FunctionIncr, FunctionDecr);
   typedescr_register_methods(_methoddescr_interfaces);
 }
 
@@ -205,6 +198,15 @@ data_t * _any_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) kwargs;
   obj = (args && array_size(args)) ? data_array_get(args, 0) : self;
   return data_len(obj);
+}
+
+data_t * _any_typeof(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
+  typedescr_t *type = data_typedescr(self);
+
+  (void) func_name;
+  (void) args;
+  (void) kwargs;
+  return (data_t *) type;
 }
 
 data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {

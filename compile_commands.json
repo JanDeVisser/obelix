@@ -1,262 +1,262 @@
 [
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/any.c.obj   -c C:/Users/jan/projects/obelix/src/lib/any.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\any.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\any.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/any.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/array.c.obj   -c C:/Users/jan/projects/obelix/src/lib/array.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\array.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\array.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/array.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/core.c.obj   -c C:/Users/jan/projects/obelix/src/lib/core.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\core.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\core.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/core.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/data.c.obj   -c C:/Users/jan/projects/obelix/src/lib/data.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\data.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\data.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/data.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/datalist.c.obj   -c C:/Users/jan/projects/obelix/src/lib/datalist.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\datalist.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\datalist.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/datalist.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/datastack.c.obj   -c C:/Users/jan/projects/obelix/src/lib/datastack.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\datastack.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\datastack.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/datastack.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/dict.c.obj   -c C:/Users/jan/projects/obelix/src/lib/dict.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\dict.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\dict.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/dict.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/exception.c.obj   -c C:/Users/jan/projects/obelix/src/lib/exception.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\exception.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\exception.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/exception.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/file.c.obj   -c C:/Users/jan/projects/obelix/src/lib/file.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\file.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\file.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/file.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/float.c.obj   -c C:/Users/jan/projects/obelix/src/lib/float.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\float.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\float.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/float.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/fsentry.c.obj   -c C:/Users/jan/projects/obelix/src/lib/fsentry.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\fsentry.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\fsentry.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/fsentry.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/function.c.obj   -c C:/Users/jan/projects/obelix/src/lib/function.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\function.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\function.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/function.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/int.c.obj   -c C:/Users/jan/projects/obelix/src/lib/int.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\int.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\int.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/int.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/list.c.obj   -c C:/Users/jan/projects/obelix/src/lib/list.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\list.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\list.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/list.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/logging.c.obj   -c C:/Users/jan/projects/obelix/src/lib/logging.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\logging.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\logging.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/logging.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/method.c.obj   -c C:/Users/jan/projects/obelix/src/lib/method.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\method.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\method.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/method.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/mutex.c.obj   -c C:/Users/jan/projects/obelix/src/lib/mutex.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\mutex.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\mutex.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/mutex.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/name.c.obj   -c C:/Users/jan/projects/obelix/src/lib/name.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\name.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\name.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/name.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/nvp.c.obj   -c C:/Users/jan/projects/obelix/src/lib/nvp.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\nvp.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\nvp.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/nvp.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/pointer.c.obj   -c C:/Users/jan/projects/obelix/src/lib/pointer.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\pointer.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\pointer.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/pointer.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/range.c.obj   -c C:/Users/jan/projects/obelix/src/lib/range.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\range.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\range.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/range.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/re.c.obj   -c C:/Users/jan/projects/obelix/src/lib/re.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\re.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\re.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/re.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/set.c.obj   -c C:/Users/jan/projects/obelix/src/lib/set.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\set.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\set.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/set.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/resolve.c.obj   -c C:/Users/jan/projects/obelix/src/lib/resolve.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\resolve.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\resolve.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/resolve.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/socket.c.obj   -c C:/Users/jan/projects/obelix/src/lib/socket.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\socket.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\socket.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/socket.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/str.c.obj   -c C:/Users/jan/projects/obelix/src/lib/str.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\str.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\str.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/str.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/thread.c.obj   -c C:/Users/jan/projects/obelix/src/lib/thread.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\thread.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\thread.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/thread.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/typedescr.c.obj   -c C:/Users/jan/projects/obelix/src/lib/typedescr.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\typedescr.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\typedescr.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/typedescr.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/lib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles/oblcore.dir/regex.c.obj   -c C:/Users/jan/projects/obelix/src/lib/regex.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -DBUILD_REGEX_DLL -DHAVE_CONFIG_H -D_GNU_SOURCE -Doblcore_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblcore.dir/includes_C.rsp   -o CMakeFiles\\oblcore.dir\\regex.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\lib\\regex.c",
   "file": "C:/Users/jan/projects/obelix/src/lib/regex.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/boundmethod.c.obj   -c C:/Users/jan/projects/obelix/src/parser/boundmethod.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\boundmethod.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\boundmethod.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/boundmethod.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/bytecode.c.obj   -c C:/Users/jan/projects/obelix/src/parser/bytecode.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\bytecode.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\bytecode.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/bytecode.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/closure.c.obj   -c C:/Users/jan/projects/obelix/src/parser/closure.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\closure.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\closure.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/closure.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/generator.c.obj   -c C:/Users/jan/projects/obelix/src/parser/generator.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\generator.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\generator.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/generator.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/grammar.c.obj   -c C:/Users/jan/projects/obelix/src/parser/grammar.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\grammar.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\grammar.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/grammar.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/grammarparser.c.obj   -c C:/Users/jan/projects/obelix/src/parser/grammarparser.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\grammarparser.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\grammarparser.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/grammarparser.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/instruction.c.obj   -c C:/Users/jan/projects/obelix/src/parser/instruction.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\instruction.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\instruction.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/instruction.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/lexer.c.obj   -c C:/Users/jan/projects/obelix/src/parser/lexer.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\lexer.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\lexer.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/lexer.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/namespace.c.obj   -c C:/Users/jan/projects/obelix/src/parser/namespace.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\namespace.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\namespace.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/namespace.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/object.c.obj   -c C:/Users/jan/projects/obelix/src/parser/object.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\object.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\object.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/object.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/parser.c.obj   -c C:/Users/jan/projects/obelix/src/parser/parser.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\parser.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\parser.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/parser.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/script.c.obj   -c C:/Users/jan/projects/obelix/src/parser/script.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\script.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\script.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/script.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/stacktrace.c.obj   -c C:/Users/jan/projects/obelix/src/parser/stacktrace.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\stacktrace.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\stacktrace.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/stacktrace.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/token.c.obj   -c C:/Users/jan/projects/obelix/src/parser/token.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\token.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\token.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/token.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles/oblparser.dir/vm.c.obj   -c C:/Users/jan/projects/obelix/src/parser/vm.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblparser_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblparser.dir/includes_C.rsp   -o CMakeFiles\\oblparser.dir\\vm.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\vm.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/vm.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/parser",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/panoramix.dir/includes_C.rsp   -o CMakeFiles/panoramix.dir/panoramix.c.obj   -c C:/Users/jan/projects/obelix/src/parser/panoramix.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/panoramix.dir/includes_C.rsp   -o CMakeFiles\\panoramix.dir\\panoramix.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\parser\\panoramix.c",
   "file": "C:/Users/jan/projects/obelix/src/parser/panoramix.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/bin",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/obelix.dir/includes_C.rsp   -o CMakeFiles/obelix.dir/grammar.c.obj   -c C:/Users/jan/projects/obelix/src/bin/grammar.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/obelix.dir/includes_C.rsp   -o CMakeFiles\\obelix.dir\\grammar.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\bin\\grammar.c",
   "file": "C:/Users/jan/projects/obelix/src/bin/grammar.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/bin",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/obelix.dir/includes_C.rsp   -o CMakeFiles/obelix.dir/loader.c.obj   -c C:/Users/jan/projects/obelix/src/bin/loader.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/obelix.dir/includes_C.rsp   -o CMakeFiles\\obelix.dir\\loader.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\bin\\loader.c",
   "file": "C:/Users/jan/projects/obelix/src/bin/loader.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/bin",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/obelix.dir/includes_C.rsp   -o CMakeFiles/obelix.dir/obelix.c.obj   -c C:/Users/jan/projects/obelix/src/bin/obelix.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/obelix.dir/includes_C.rsp   -o CMakeFiles\\obelix.dir\\obelix.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\bin\\obelix.c",
   "file": "C:/Users/jan/projects/obelix/src/bin/obelix.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/bin",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/obelix.dir/includes_C.rsp   -o CMakeFiles/obelix.dir/scriptparse.c.obj   -c C:/Users/jan/projects/obelix/src/bin/scriptparse.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -g3 -gdwarf-2 @CMakeFiles/obelix.dir/includes_C.rsp   -o CMakeFiles\\obelix.dir\\scriptparse.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\bin\\scriptparse.c",
   "file": "C:/Users/jan/projects/obelix/src/bin/scriptparse.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/stdlib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblstdlib_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblstdlib.dir/includes_C.rsp   -o CMakeFiles/oblstdlib.dir/builtins.c.obj   -c C:/Users/jan/projects/obelix/src/stdlib/builtins.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblstdlib_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblstdlib.dir/includes_C.rsp   -o CMakeFiles\\oblstdlib.dir\\builtins.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\stdlib\\builtins.c",
   "file": "C:/Users/jan/projects/obelix/src/stdlib/builtins.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/stdlib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblstdlib_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblstdlib.dir/includes_C.rsp   -o CMakeFiles/oblstdlib.dir/sys.c.obj   -c C:/Users/jan/projects/obelix/src/stdlib/sys.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblstdlib_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblstdlib.dir/includes_C.rsp   -o CMakeFiles\\oblstdlib.dir\\sys.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\stdlib\\sys.c",
   "file": "C:/Users/jan/projects/obelix/src/stdlib/sys.c"
 },
 {
   "directory": "C:/Users/jan/projects/obelix/src/stdlib",
-  "command": "C:/msys64/mingw64/bin/gcc.exe  -D_GNU_SOURCE -Doblstdlib_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblstdlib.dir/includes_C.rsp   -o CMakeFiles/oblstdlib.dir/net.c.obj   -c C:/Users/jan/projects/obelix/src/stdlib/net.c",
+  "command": "C:\\msys64\\mingw64\\bin\\gcc.exe  -D_GNU_SOURCE -Doblstdlib_EXPORTS -g3 -gdwarf-2 @CMakeFiles/oblstdlib.dir/includes_C.rsp   -o CMakeFiles\\oblstdlib.dir\\net.c.obj   -c C:\\Users\\jan\\projects\\obelix\\src\\stdlib\\net.c",
   "file": "C:/Users/jan/projects/obelix/src/stdlib/net.c"
 }
 ]

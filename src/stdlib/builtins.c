@@ -55,7 +55,6 @@ data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
   return data_create(Int, 0);
 }
 
-
 data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
   data_t  *naptime;
 

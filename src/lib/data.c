@@ -34,6 +34,7 @@
 #include <logging.h>
 #include <method.h>
 #include <name.h>
+#include <typedescr.h>
 
 static void     _data_init(void) __attribute__((constructor));
 static void     _data_call_free(typedescr_t *, data_t *);
@@ -274,6 +275,11 @@ data_t * data_method(data_t *data, char *name) {
   md = typedescr_get_method(type, name);
   if (md) {
     ret = (data_t *) mth_create(md, data);
+    if (debug_data) {
+      debug("%s[%s].data_method(%s) = %s", 
+            data_tostring(data), data_typename(data),
+            name, runtimemethod_tostring(ret));
+    }
   }
   return ret;
 }
@@ -288,7 +294,9 @@ data_t * data_resolve(data_t *data, name_t *name) {
   assert(type);
   assert(name);
   if (debug_data) {
-    debug("%s.resolve(%s:%d)", data_tostring(data), name_tostring(name), name_size(name));
+    debug("%s[%s].resolve(%s:%d)", 
+          data_tostring(data), data_typename(data),
+          name_tostring(name), name_size(name));
   }
   if (name_size(name) == 0) {
     ret = data_copy(data);
@@ -297,14 +305,15 @@ data_t * data_resolve(data_t *data, name_t *name) {
   }
   if (!ret) {
     resolve = (resolve_name_t) typedescr_get_function(type, FunctionResolve);
-    if (!resolve) {
+    if (resolve) {
+      ret = resolve(data, name_first(name));
+    }
+    if (!ret) {
       ret = data_exception(ErrorType,
                            "Cannot resolve name '%s' in %s '%s'",
                            name_tostring(name),
                            type -> type_name,
                            data_tostring(data));
-    } else {
-      ret = resolve(data, name_first(name));
     }
   }
   if (ret && (!data_is_exception(ret) || data_as_exception(ret) -> handled)
@@ -443,7 +452,7 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
     if (!setter) {
       ret = data_exception(ErrorType,
                        "Cannot set values on objects of type '%s'",
-                       typedescr_tostring(type));
+                       type_tostring((data_t *) type));
     } else {
       ret = setter(container, name_last(name), value);
     }
@@ -627,7 +636,7 @@ data_t * data_read(data_t *reader, char *buf, int num) {
   } else {
     return data_exception(ErrorFunctionUndefined,
                           "%s '%s' is has no 'read' function",
-                          typedescr_tostring(data_typedescr(reader)),
+                          type_tostring(data_typedescr(reader)),
                           data_tostring(reader));
   }
 }
@@ -652,7 +661,7 @@ data_t * data_write(data_t *writer, char *buf, int num) {
   } else {
     return data_exception(ErrorFunctionUndefined,
                           "%s '%s' is has no 'write' function",
-                          typedescr_tostring(type),
+                          type_tostring(type),
                           data_tostring(writer));
   }
 }
