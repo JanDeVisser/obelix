@@ -31,6 +31,7 @@
 #include <data.h>
 #include <exception.h>
 #include <object.h>
+#include <str.h>
 #include <math.h>
 
 extern char   **environ;
@@ -150,22 +151,26 @@ data_t * _function_getenv(char *name, array_t *params, dict_t *kwargs) {
   char      *n = NULL;
   char      *v;
   int        len = 0;
+  int        l;
   
   obj = object_create(NULL);
   for (e = environ; *e; e++) {
-    if (strlen(*e) > len) {
+    l = strlen(*e);
+    if (l > len) {
       if (n) free(n);
       n = strdup(*e);
-      len = strlen(n);
+      len = l;
     } else {
-      strcpy(n, *e);
+      strncpy(n, *e, l);
+      n[l] = 0;
     }
     v = strchr(n, '=');
-    assert(v);
-    *v++ = 0;
-    value = data_create(String, v);
-    object_set(obj, n, value);
-    data_free(value);
+    if (v) {
+      *v++ = 0;
+      value = (data_t *) str_copy_chars(v);
+      object_set(obj, n, value);
+      data_free(value);
+    }
   }
   ret = data_create(Object, obj);
   object_free(obj);
