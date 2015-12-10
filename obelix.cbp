@@ -1,654 +1,506 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_project_file>
-	<FileVersion major="1" minor="6" />
-	<Project>
-		<Option title="obelix" />
-		<Option makefile_is_custom="1" />
-		<Option compiler="gcc" />
-		<Option virtualFolders="CMake Files\;CMake Files\src\;CMake Files\src\lib\;CMake Files\src\parser\;CMake Files\src\bin\;CMake Files\src\stdlib\;CMake Files\share\;" />
-		<Build>
-			<Target title="all">
-				<Option type="4" />
-				<Option compiler="gcc" />
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 all' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="install/local">
-				<Option type="4" />
-				<Option compiler="gcc" />
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 install/local' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="install/strip">
-				<Option type="4" />
-				<Option compiler="gcc" />
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 install/strip' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="edit_cache">
-				<Option type="4" />
-				<Option compiler="gcc" />
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 edit_cache' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="install">
-				<Option type="4" />
-				<Option compiler="gcc" />
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 install' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="rebuild_cache">
-				<Option type="4" />
-				<Option compiler="gcc" />
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 rebuild_cache' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="list_install_components">
-				<Option type="4" />
-				<Option compiler="gcc" />
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 list_install_components' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="oblcore">
-				<Option output="C:/Users/jan/projects/obelix/bin/liboblcore.dll" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/src/lib" />
-				<Option object_output="./" />
-				<Option type="3" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add option="-DBUILD_REGEX_DLL" />
-					<Add option="-DHAVE_CONFIG_H" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 oblcore' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="oblcore/fast">
-				<Option output="C:/Users/jan/projects/obelix/bin/liboblcore.dll" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/src/lib" />
-				<Option object_output="./" />
-				<Option type="3" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add option="-DBUILD_REGEX_DLL" />
-					<Add option="-DHAVE_CONFIG_H" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 oblcore/fast' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="panoramix">
-				<Option output="C:/Users/jan/projects/obelix/bin/panoramix.exe" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/bin" />
-				<Option object_output="./" />
-				<Option type="1" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 panoramix' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="panoramix/fast">
-				<Option output="C:/Users/jan/projects/obelix/bin/panoramix.exe" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/bin" />
-				<Option object_output="./" />
-				<Option type="1" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 panoramix/fast' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="oblparser">
-				<Option output="C:/Users/jan/projects/obelix/bin/liboblparser.dll" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/src/parser" />
-				<Option object_output="./" />
-				<Option type="3" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 oblparser' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="oblparser/fast">
-				<Option output="C:/Users/jan/projects/obelix/bin/liboblparser.dll" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/src/parser" />
-				<Option object_output="./" />
-				<Option type="3" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 oblparser/fast' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="obelix">
-				<Option output="C:/Users/jan/projects/obelix/bin/obelix.exe" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/bin" />
-				<Option object_output="./" />
-				<Option type="1" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 obelix' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="obelix/fast">
-				<Option output="C:/Users/jan/projects/obelix/bin/obelix.exe" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/bin" />
-				<Option object_output="./" />
-				<Option type="1" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 obelix/fast' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="oblstdlib">
-				<Option output="C:/Users/jan/projects/obelix/bin/liboblstdlib.dll" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/src/stdlib" />
-				<Option object_output="./" />
-				<Option type="3" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 oblstdlib' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-			<Target title="oblstdlib/fast">
-				<Option output="C:/Users/jan/projects/obelix/bin/liboblstdlib.dll" prefix_auto="0" extension_auto="0" />
-				<Option working_dir="C:/Users/jan/projects/obelix/src/stdlib" />
-				<Option object_output="./" />
-				<Option type="3" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-D_GNU_SOURCE" />
-					<Add directory="C:/Users/jan/projects/obelix" />
-					<Add directory="C:/Users/jan/projects/obelix/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
-					<Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
-				</Compiler>
-				<MakeCommands>
-					<Build command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 oblstdlib/fast' />
-					<CompileFile command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 &quot;$file&quot;' />
-					<Clean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 clean' />
-					<DistClean command='C:/msys64/mingw64/bin/mingw32-make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 clean' />
-					<AskRebuildNeeded command="$make -q -f $makefile $target" />
-					<SilentBuild command="$make -f $makefile $target &gt; $(CMD_NULL)" />
-				</MakeCommands>
-			</Target>
-		</Build>
-		<Unit filename="CMakeLists.txt">
-			<Option virtualFolder="CMake Files/" />
-		</Unit>
-		<Unit filename="config.h.in">
-			<Option virtualFolder="CMake Files/" />
-		</Unit>
-		<Unit filename="include/array.h" />
-		<Unit filename="include/boundmethod.h" />
-		<Unit filename="include/bytecode.h" />
-		<Unit filename="include/closure.h" />
-		<Unit filename="include/core-setup.h" />
-		<Unit filename="include/core.h" />
-		<Unit filename="include/data.h" />
-		<Unit filename="include/datastack.h" />
-		<Unit filename="include/dict.h" />
-		<Unit filename="include/exception.h" />
-		<Unit filename="include/expr.h" />
-		<Unit filename="include/file.h" />
-		<Unit filename="include/fsentry.h" />
-		<Unit filename="include/function.h" />
-		<Unit filename="include/generator.h" />
-		<Unit filename="include/grammar.h" />
-		<Unit filename="include/grammarparser.h" />
-		<Unit filename="include/instruction.h" />
-		<Unit filename="include/lexer.h" />
-		<Unit filename="include/libparser.h" />
-		<Unit filename="include/list.h" />
-		<Unit filename="include/loader.h" />
-		<Unit filename="include/logging.h" />
-		<Unit filename="include/method.h" />
-		<Unit filename="include/mutex.h" />
-		<Unit filename="include/name.h" />
-		<Unit filename="include/namespace.h" />
-		<Unit filename="include/native.h" />
-		<Unit filename="include/nvp.h" />
-		<Unit filename="include/object.h" />
-		<Unit filename="include/parser.h" />
-		<Unit filename="include/re.h" />
-		<Unit filename="include/regex.h" />
-		<Unit filename="include/resolve.h" />
-		<Unit filename="include/script.h" />
-		<Unit filename="include/scriptparse.h" />
-		<Unit filename="include/set.h" />
-		<Unit filename="include/socket.h" />
-		<Unit filename="include/stacktrace.h" />
-		<Unit filename="include/str.h" />
-		<Unit filename="include/testsuite.h" />
-		<Unit filename="include/thread.h" />
-		<Unit filename="include/token.h" />
-		<Unit filename="include/tree.h" />
-		<Unit filename="include/typedescr.h" />
-		<Unit filename="include/user.h" />
-		<Unit filename="include/vm.h" />
-		<Unit filename="include/wrapper.h" />
-		<Unit filename="share/CMakeLists.txt">
-			<Option virtualFolder="CMake Files/share/" />
-		</Unit>
-		<Unit filename="src/CMakeLists.txt">
-			<Option virtualFolder="CMake Files/src/" />
-		</Unit>
-		<Unit filename="src/bin/CMakeLists.txt">
-			<Option virtualFolder="CMake Files/src/bin/" />
-		</Unit>
-		<Unit filename="src/bin/grammar.grammar">
-			<Option target="obelix" />
-		</Unit>
-		<Unit filename="src/bin/loader.c">
-			<Option compilerVar="CC" />
-			<Option target="obelix" />
-		</Unit>
-		<Unit filename="src/bin/obelix.c">
-			<Option compilerVar="CC" />
-			<Option target="obelix" />
-		</Unit>
-		<Unit filename="src/bin/scriptparse.c">
-			<Option compilerVar="CC" />
-			<Option target="obelix" />
-		</Unit>
-		<Unit filename="src/lib/CMakeLists.txt">
-			<Option virtualFolder="CMake Files/src/lib/" />
-		</Unit>
-		<Unit filename="src/lib/any.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/array.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/core.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/data.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/datalist.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/datastack.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/dict.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/exception.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/file.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/float.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/fsentry.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/function.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/int.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/list.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/logging.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/method.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/mutex.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/name.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/nvp.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/pointer.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/range.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/re.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/regex.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/resolve.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/set.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/socket.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/str.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/thread.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/lib/typedescr.c">
-			<Option compilerVar="CC" />
-			<Option target="oblcore" />
-		</Unit>
-		<Unit filename="src/parser/CMakeLists.txt">
-			<Option virtualFolder="CMake Files/src/parser/" />
-		</Unit>
-		<Unit filename="src/parser/boundmethod.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/bytecode.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/closure.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/generator.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/grammar.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/grammarparser.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/instruction.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/lexer.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/namespace.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/object.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/panoramix.c">
-			<Option compilerVar="CC" />
-			<Option target="panoramix" />
-		</Unit>
-		<Unit filename="src/parser/parser.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/script.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/stacktrace.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/token.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/parser/vm.c">
-			<Option compilerVar="CC" />
-			<Option target="oblparser" />
-		</Unit>
-		<Unit filename="src/stdlib/CMakeLists.txt">
-			<Option virtualFolder="CMake Files/src/stdlib/" />
-		</Unit>
-		<Unit filename="src/stdlib/builtins.c">
-			<Option compilerVar="CC" />
-			<Option target="oblstdlib" />
-		</Unit>
-		<Unit filename="src/stdlib/net.c">
-			<Option compilerVar="CC" />
-			<Option target="oblstdlib" />
-		</Unit>
-		<Unit filename="src/stdlib/sys.c">
-			<Option compilerVar="CC" />
-			<Option target="oblstdlib" />
-		</Unit>
-		<Extensions>
-			<code_completion />
-			<envvars />
-			<debugger />
-		</Extensions>
-	</Project>
+   <FileVersion major="1" minor="6" />
+   <Project>
+      <Option title="obelix" />
+      <Option makefile_is_custom="1" />
+      <Option compiler="gcc" />
+      <Option virtualFolders="CMake Files\;CMake Files\src\;CMake Files\src\lib\;CMake Files\src\parser\;CMake Files\src\bin\;CMake Files\src\stdlib\;CMake Files\share\;" />
+      <Build>
+      <Target title="all">
+         <Option working_dir="C:/Users/jan/projects/obelix" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 all" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="install/local">
+         <Option working_dir="C:/Users/jan/projects/obelix" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 install/local" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="edit_cache">
+         <Option working_dir="C:/Users/jan/projects/obelix" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 edit_cache" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="install">
+         <Option working_dir="C:/Users/jan/projects/obelix" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 install" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="rebuild_cache">
+         <Option working_dir="C:/Users/jan/projects/obelix" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 rebuild_cache" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="list_install_components">
+         <Option working_dir="C:/Users/jan/projects/obelix" />
+         <Option type="4" />
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 list_install_components" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="oblcore">
+         <Option output="C:/Users/jan/projects/obelix/bin/liboblcore.dll" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/src/lib" />
+         <Option object_output="./" />
+         <Option type="3" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add option="-DBUILD_REGEX_DLL" />
+            <Add option="-DHAVE_CONFIG_H" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 oblcore" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="oblcore/fast">
+         <Option output="C:/Users/jan/projects/obelix/bin/liboblcore.dll" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/src/lib" />
+         <Option object_output="./" />
+         <Option type="3" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add option="-DBUILD_REGEX_DLL" />
+            <Add option="-DHAVE_CONFIG_H" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 oblcore/fast" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/lib/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="panoramix">
+         <Option output="C:/Users/jan/projects/obelix/bin/panoramix.exe" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/bin" />
+         <Option object_output="./" />
+         <Option type="1" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 panoramix" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="panoramix/fast">
+         <Option output="C:/Users/jan/projects/obelix/bin/panoramix.exe" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/bin" />
+         <Option object_output="./" />
+         <Option type="1" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 panoramix/fast" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="oblparser">
+         <Option output="C:/Users/jan/projects/obelix/bin/liboblparser.dll" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/src/parser" />
+         <Option object_output="./" />
+         <Option type="3" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 oblparser" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="oblparser/fast">
+         <Option output="C:/Users/jan/projects/obelix/bin/liboblparser.dll" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/src/parser" />
+         <Option object_output="./" />
+         <Option type="3" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 oblparser/fast" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/parser/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="obelix">
+         <Option output="C:/Users/jan/projects/obelix/bin/obelix.exe" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/bin" />
+         <Option object_output="./" />
+         <Option type="1" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 obelix" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="obelix/fast">
+         <Option output="C:/Users/jan/projects/obelix/bin/obelix.exe" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/bin" />
+         <Option object_output="./" />
+         <Option type="1" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 obelix/fast" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/bin/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="oblstdlib">
+         <Option output="C:/Users/jan/projects/obelix/bin/liboblstdlib.dll" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/src/stdlib" />
+         <Option object_output="./" />
+         <Option type="3" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 oblstdlib" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      <Target title="oblstdlib/fast">
+         <Option output="C:/Users/jan/projects/obelix/bin/liboblstdlib.dll" prefix_auto="0" extension_auto="0" />
+         <Option working_dir="C:/Users/jan/projects/obelix/src/stdlib" />
+         <Option object_output="./" />
+         <Option type="3" />
+         <Option compiler="gcc" />
+         <Compiler>
+            <Add option="-D_GNU_SOURCE" />
+            <Add directory="C:/Users/jan/projects/obelix" />
+            <Add directory="C:/Users/jan/projects/obelix/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/../../../../x86_64-w64-mingw32/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include-fixed" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/backward" />
+            <Add directory="C:/msys64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/5.1.0/include/c++/x86_64-w64-mingw32" />
+         </Compiler>
+         <MakeCommands>
+            <Build command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 oblstdlib/fast" />
+            <CompileFile command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 &quot;$file&quot;" />
+            <Clean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 clean" />
+            <DistClean command="C:/msys64/usr/bin/make.exe -f &quot;C:/Users/jan/projects/obelix/src/stdlib/Makefile&quot;  VERBOSE=1 clean" />
+         </MakeCommands>
+      </Target>
+      </Build>
+      <Unit filename="C:/Users/jan/projects/obelix/src/bin/grammar.grammar">
+         <Option target="obelix"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/bin/loader.c">
+         <Option target="obelix"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/bin/obelix.c">
+         <Option target="obelix"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/bin/scriptparse.c">
+         <Option target="obelix"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/any.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/array.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/core.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/data.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/datalist.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/datastack.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/dict.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/exception.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/file.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/float.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/fsentry.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/function.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/int.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/list.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/logging.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/method.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/mutex.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/name.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/nvp.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/pointer.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/range.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/re.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/regex.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/resolve.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/set.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/socket.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/str.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/thread.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/typedescr.c">
+         <Option target="oblcore"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/boundmethod.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/bytecode.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/closure.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/generator.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/grammar.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/grammarparser.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/instruction.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/lexer.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/namespace.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/object.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/panoramix.c">
+         <Option target="panoramix"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/parser.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/script.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/stacktrace.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/token.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/vm.c">
+         <Option target="oblparser"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/stdlib/builtins.c">
+         <Option target="oblstdlib"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/stdlib/net.c">
+         <Option target="oblstdlib"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/stdlib/sys.c">
+         <Option target="oblstdlib"/>
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/CMakeLists.txt">
+          <Option virtualFolder="CMake Files\" />
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/config.h.in">
+          <Option virtualFolder="CMake Files\" />
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/CMakeLists.txt">
+          <Option virtualFolder="CMake Files\src\" />
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/lib/CMakeLists.txt">
+          <Option virtualFolder="CMake Files\src\lib\" />
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/parser/CMakeLists.txt">
+          <Option virtualFolder="CMake Files\src\parser\" />
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/bin/CMakeLists.txt">
+          <Option virtualFolder="CMake Files\src\bin\" />
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/src/stdlib/CMakeLists.txt">
+          <Option virtualFolder="CMake Files\src\stdlib\" />
+      </Unit>
+      <Unit filename="C:/Users/jan/projects/obelix/share/CMakeLists.txt">
+          <Option virtualFolder="CMake Files\share\" />
+      </Unit>
+   </Project>
 </CodeBlocks_project_file>

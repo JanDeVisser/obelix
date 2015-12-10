@@ -20,6 +20,8 @@ doxygen_sqlite3.db
 obelix.sublime-workspace
 *.sln
 *.sdf
+*.cbp
+*.layout
 config.h
 src/bin/grammar.c
 obelix
