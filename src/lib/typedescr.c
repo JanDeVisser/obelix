@@ -576,11 +576,11 @@ int typedescr_register(typedescr_t *descr) {
     }
   }
   d = &descriptors[descr -> type];
+  memcpy(d, descr, sizeof(typedescr_t));
   d -> _d.type = Type;
   d -> _d.free_me = Constant;
   d -> _d.refs = 1;
   d -> _d.str = NULL;
-  memcpy(d, descr, sizeof(typedescr_t));
   vtable = d -> vtable;
   d -> vtable = NULL;
   typedescr_register_functions(d, vtable);

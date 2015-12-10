@@ -1,3 +1,10 @@
 s = "Test"
-t = s.typeof()
+t = s.type()
+print(t)
+
+i = 42
+t = type(i)
+print(t)
+
+t = type()
 print(t)

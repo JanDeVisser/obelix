@@ -32,7 +32,7 @@ static data_t * _any_and(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_or(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hash(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_len(data_t *, char *, array_t *, dict_t *);
-static data_t * _any_typeof(data_t *, char *, array_t *, dict_t *);
+static data_t * _any_type(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_hasattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_getattr(data_t *, char *, array_t *, dict_t *);
 static data_t * _any_setattr(data_t *, char *, array_t *, dict_t *);
@@ -64,7 +64,7 @@ static methoddescr_t _methoddescr_interfaces[] = {
   { .type = Any,      .name = "hash",     .method = _any_hash,     .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
   { .type = Any,      .name = "len",      .method = _any_len,      .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
   { .type = Any,      .name = "size",     .method = _any_len,      .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
-  { .type = Any,      .name = "typeof",   .method = _any_typeof,   .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 },
+  { .type = Any,      .name = "type",     .method = _any_type,     .argtypes = { Any, NoType, NoType },      .minargs = 0, .varargs = 0, .maxargs = 1 },
   { .type = Any,      .name = "hasattr",  .method = _any_hasattr,  .argtypes = { String, NoType, NoType },   .minargs = 1, .varargs = 0 },
   { .type = Any,      .name = "getattr",  .method = _any_getattr,  .argtypes = { String, NoType, NoType },   .minargs = 1, .varargs = 0 },
   { .type = Any,      .name = "setattr",  .method = _any_setattr,  .argtypes = { String, Any, NoType },      .minargs = 2, .varargs = 0 },
@@ -200,12 +200,14 @@ data_t * _any_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return data_len(obj);
 }
 
-data_t * _any_typeof(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
-  typedescr_t *type = data_typedescr(self);
+data_t * _any_type(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
+  data_t      *d;
+  typedescr_t *type;
 
   (void) func_name;
-  (void) args;
   (void) kwargs;
+  d = (args  && array_size(args)) ? data_array_get(args, 0) : self;
+  type = data_typedescr(d);
   return (data_t *) type;
 }
 
