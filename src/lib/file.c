@@ -818,6 +818,9 @@ int file_flush(file_t *file) {
   if (file_debug) {
     debug("%s.file_flush", file_tostring(file));
   }
+  if (file -> fh <= 2) {
+    return 0;
+  }
 #ifdef HAVE_FSYNC
   ret = fsync(file -> fh);
 #elif defined(HAVE_FLUSHFILEBUFFERS)
@@ -829,29 +832,27 @@ int file_flush(file_t *file) {
    * because the console output is not buffered. The function returns FALSE, 
    * and GetLastError returns ERROR_INVALID_HANDLE.
    */
-  if (file -> fh > 2) {
-    file_clear_errno(file);
-    if (!FlushFileBuffers(_file_oshandle(file))) {
-      err = GetLastError();
-      if (file_debug) {
-        debug("FlushFileBuffers(%d) failed. err = %d", _file_oshandle(file), err);
-      }
-      ret = -1;
-      switch (err) {
-        case ERROR_ACCESS_DENIED:
-          /*
-           * For a read-only handle, fsync should succeed, even though we have
-           * no way to sync the access-time changes.
-           */
-          ret = 0;
-          break;
-        case ERROR_INVALID_HANDLE:
-          errno = EINVAL;
-          break;
-        default:
-          errno = EIO;
-          break;
-      }
+  file_clear_errno(file);
+  if (!FlushFileBuffers(_file_oshandle(file))) {
+    err = GetLastError();
+    if (file_debug) {
+      debug("FlushFileBuffers(%d) failed. err = %d", _file_oshandle(file), err);
+    }
+    ret = -1;
+    switch (err) {
+      case ERROR_ACCESS_DENIED:
+        /*
+         * For a read-only handle, fsync should succeed, even though we have
+         * no way to sync the access-time changes.
+         */
+        ret = 0;
+        break;
+      case ERROR_INVALID_HANDLE:
+        errno = EINVAL;
+        break;
+      default:
+        errno = EIO;
+        break;
     }
   }
 #endif /* HAVE_FSYNC */

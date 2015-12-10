@@ -24,14 +24,6 @@
 
 #include <sys/types.h>
 
-#ifndef __GNUC__
-# define __DLL_IMPORT__	__declspec(dllimport)
-# define __DLL_EXPORT__	__declspec(dllexport)
-#else
-# define __DLL_IMPORT__	__attribute__((dllimport)) extern
-# define __DLL_EXPORT__	__attribute__((dllexport)) extern
-#endif 
-
 #if (defined __WIN32__) || (defined _WIN32)
 # ifdef BUILD_REGEX_DLL
 #  define REGEX_DLL_IMPEXP	__DLL_EXPORT__

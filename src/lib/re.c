@@ -68,7 +68,7 @@ char * _regexp_allocstring(re_t *regex) {
   char *buf;
 
   asprintf(&buf, "/%s/%s",
-	   regex -> pattern,
+	   str_tostring(regex -> pattern),
 	   (regex -> flags) ? (regex -> flags) : "");
   return buf;
 }

@@ -82,7 +82,6 @@ typedef data_t * (*data_fnc_t)(data_t *);
 typedef data_t * (*data2_fnc_t)(data_t *, data_t *);
 
 OBLCORE_IMPEXP data_t *            data_create_noinit(int);
-OBLCORE_IMPEXP data_t *            _data_new(int, size_t);
 OBLCORE_IMPEXP data_t *            data_create(int, ...);
 OBLCORE_IMPEXP data_t *            data_settype(data_t *, int);
 OBLCORE_IMPEXP data_t *            data_cast(data_t *, int);

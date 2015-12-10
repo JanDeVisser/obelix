@@ -22,13 +22,16 @@
 
 #include <data.h>
 #include <str.h>
+#ifdef HAVE_REGEX_H
 #include <regex.h>
+#else 
+#include <gnu/regex.h>
+#endif /* HAVE_REGEX_H */
 #include <stdarg.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif /* __cplusplus */
-
 typedef struct _re {
   data_t   _d;
   regex_t  compiled;
