@@ -37,20 +37,20 @@ extern int          _data_count;
 static void           _typedescr_init(void) __attribute__((constructor(101)));
 static data_t *       _add_method_reducer(methoddescr_t *, data_t *);
 
-static char *         _methoddescr_allocstring(methoddescr_t *);
+static char *         _methoddescr_tostring(methoddescr_t *);
 static int            _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
 static data_t *       _methoddescr_resolve(methoddescr_t *, char *);
 static unsigned int   _methoddescr_hash(methoddescr_t *);
 
 static typedescr_t *  _typedescr_build_constructor(typedescr_t *);
 static int            _typedescr_cmp(typedescr_t *, typedescr_t *);
-static char *         _typedescr_allocstring(typedescr_t *);
+static char *         _typedescr_tostring(typedescr_t *);
 static data_t *       _typedescr_resolve(typedescr_t *, char *);
 
 static data_t *       _typedescr_gettype(data_t *, char *, array_t *, dict_t *);
 static data_t *       _typedescr_hastype(data_t *, char *, array_t *, dict_t *);
 
-static char *         _interface_allocstring(interface_t *);
+static char *         _interface_tostring(interface_t *);
 static int            _interface_cmp(interface_t *, interface_t *);
 static data_t *       _interface_resolve(interface_t *, char *);
 static unsigned int   _interface_hash(interface_t *);
@@ -59,33 +59,33 @@ static data_t *       _interface_isimplementedby(interface_t *, char *, array_t 
 static data_t *       _interface_implements(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_methoddescr[] = {
-  { .id = FunctionCmp,         .fnc = (void_t) _methoddescr_cmp },
-  { .id = FunctionAllocString, .fnc = (void_t) _methoddescr_allocstring },
-  { .id = FunctionResolve,     .fnc = (void_t) _methoddescr_resolve },
-  { .id = FunctionHash,        .fnc = (void_t) _methoddescr_hash },
-  { .id = FunctionNone,        .fnc = NULL }
+  { .id = FunctionCmp,          .fnc = (void_t) _methoddescr_cmp },
+  { .id = FunctionStaticString, .fnc = (void_t) _methoddescr_tostring },
+  { .id = FunctionResolve,      .fnc = (void_t) _methoddescr_resolve },
+  { .id = FunctionHash,         .fnc = (void_t) _methoddescr_hash },
+  { .id = FunctionNone,         .fnc = NULL }
 };
 
 static vtable_t _vtable_typedescr[] = {
-  { .id = FunctionCmp,         .fnc = (void_t) _typedescr_cmp },
-  { .id = FunctionAllocString, .fnc = (void_t) _typedescr_allocstring },
-  { .id = FunctionResolve,     .fnc = (void_t) _typedescr_resolve },
-  { .id = FunctionHash,        .fnc = (void_t) typedescr_hash },
-  { .id = FunctionNone,        .fnc = NULL }
+  { .id = FunctionCmp,          .fnc = (void_t) _typedescr_cmp },
+  { .id = FunctionStaticString, .fnc = (void_t) _typedescr_tostring },
+  { .id = FunctionResolve,      .fnc = (void_t) _typedescr_resolve },
+  { .id = FunctionHash,         .fnc = (void_t) typedescr_hash },
+  { .id = FunctionNone,         .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_typedescr[] = {
-  { .type = Any,    .name = "gettype",     .method = _typedescr_gettype,    .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = Any,    .name = "gettype",     .method = _typedescr_gettype,    .argtypes = { Any,    NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "hastype",     .method = _typedescr_hastype,    .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL,          .method = NULL,                  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 static vtable_t _vtable_interface[] = {
-  { .id = FunctionCmp,         .fnc = (void_t) _interface_cmp },
-  { .id = FunctionAllocString, .fnc = (void_t) _interface_allocstring },
-  { .id = FunctionResolve,     .fnc = (void_t) _interface_resolve },
-  { .id = FunctionHash,        .fnc = (void_t) _interface_hash },
-  { .id = FunctionNone,        .fnc = NULL }
+  { .id = FunctionCmp,          .fnc = (void_t) _interface_cmp },
+  { .id = FunctionStaticString, .fnc = (void_t) _interface_tostring },
+  { .id = FunctionResolve,      .fnc = (void_t) _interface_resolve },
+  { .id = FunctionHash,         .fnc = (void_t) _interface_hash },
+  { .id = FunctionNone,         .fnc = NULL }
 };
 
 static methoddescr_t _methoddescr_interface[] = {
@@ -177,7 +177,7 @@ data_t * _add_method_reducer(methoddescr_t *mth, data_t *methods) {
 
 /* -- M E T H O D D E S C R   F U N C T I O N S --------------------------- */
 
-char * _methoddescr_allocstring(methoddescr_t *mth) {
+char * _methoddescr_tostring(methoddescr_t *mth) {
   return mth -> name;
 }
 
@@ -301,27 +301,20 @@ void interface_register_method(interface_t *iface, methoddescr_t *method) {
   if (!iface -> methods) {
     iface -> methods = strdata_dict_create();
   }
+  method -> _d.type = Method;
+  method -> _d.free_me = Constant;
+  method -> _d.refs = 1;
+  method -> _d.str = NULL;
   dict_put(iface -> methods, method -> name, method);
-  if (type_debug) {
-    debug(" Out: #methods %d   methods: %s", dict_size(iface -> methods), dict_tostring(iface -> methods));
-  }
 }
 
 methoddescr_t * interface_get_method(interface_t *iface, char *name) {
-  if (type_debug) {
-    debug("interface_get_method(%s, %s)", iface -> name, name);
-    if (iface -> methods) {
-      debug(" #methods %d   methods: %s", dict_size(iface -> methods), dict_tostring(iface -> methods));
-    } else {
-      debug(" '%s' -> methods unset", iface -> name);
-    }
-  }
   return (iface -> methods)
     ? (methoddescr_t *) dict_get(iface -> methods, name)
     : NULL;
 }
 
-char * _interface_allocstring(interface_t *iface) {
+char * _interface_tostring(interface_t *iface) {
   return iface -> name;
 }
 
@@ -475,7 +468,7 @@ int _typedescr_cmp(typedescr_t *type1, typedescr_t *type2) {
 }
 
 
-char * _typedescr_allocstring(typedescr_t *descr) {
+char * _typedescr_tostring(typedescr_t *descr) {
   char *str;
   
   if (asprintf(&str, "'%s' [%d]",
@@ -762,8 +755,7 @@ void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
     info("typedescr_register_method(%s, %s)", type -> type_name, method -> name);
   }
   if (!type -> methods) {
-    type -> methods = strvoid_dict_create();
-    dict_set_tostring_data(type -> methods, (tostring_t) data_tostring);
+    type -> methods = strdata_dict_create();
   }
   method -> _d.type = Method;
   method -> _d.free_me = Constant;

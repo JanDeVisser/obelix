@@ -51,42 +51,43 @@ typedef enum _metatype {
 } metatype_t;
 
 typedef enum _vtable_id {
-  FunctionNone          = 0,
-  FunctionFactory,     /* 1  */
-  FunctionNew,         /* 2  */
-  FunctionCopy,        /* 3  */
-  FunctionCmp,         /* 4  */
-  FunctionFreeData,    /* 5  */
-  FunctionFree,        /* 6  */
-  FunctionToString,    /* 7  */
-  FunctionAllocString, /* 8  */
-  FunctionFltValue,    /* 9  */
-  FunctionIntValue,    /* 10  */
-  FunctionParse,       /* 11 */
-  FunctionCast,        /* 12 */
-  FunctionHash,        /* 13 */
-  FunctionLen,         /* 14 */
-  FunctionResolve,     /* 15 */
-  FunctionCall,        /* 16 */
-  FunctionSet,         /* 17 */
-  FunctionRead,        /* 18 */
-  FunctionWrite,       /* 19 */
-  FunctionOpen,        /* 20 */
-  FunctionIter,        /* 21 */
-  FunctionHasNext,     /* 22 */
-  FunctionNext,        /* 23 */
-  FunctionDecr,        /* 24 */
-  FunctionIncr,        /* 25 */
-  FunctionVisit,       /* 26 */
-  FunctionReduce,      /* 27 */
-  FunctionIs,          /* 28 */
-  FunctionQuery,       /* 29 */
-  FunctionEnter,       /* 30 */
-  FunctionLeave,       /* 31 */
-  FunctionPush,        /* 32 */
-  FunctionPop,         /* 33 */
-  FunctionConstructor, /* 34 */
-  FunctionInterpolate, /* 35 */
+  FunctionNone           = 0,
+  FunctionFactory,      /* 1  */
+  FunctionNew,          /* 2  */
+  FunctionCopy,         /* 3  */
+  FunctionCmp,          /* 4  */
+  FunctionFreeData,     /* 5  */
+  FunctionFree,         /* 6  */
+  FunctionToString,     /* 7  */
+  FunctionStaticString, /* 8  */
+  FunctionAllocString,  /* 9  */
+  FunctionFltValue,     /* 10  */
+  FunctionIntValue,     /* 11 */
+  FunctionParse,        /* 12 */
+  FunctionCast,         /* 13 */
+  FunctionHash,         /* 14 */
+  FunctionLen,          /* 15 */
+  FunctionResolve,      /* 16 */
+  FunctionCall,         /* 17 */
+  FunctionSet,          /* 18 */
+  FunctionRead,         /* 19 */
+  FunctionWrite,        /* 20 */
+  FunctionOpen,         /* 21 */
+  FunctionIter,         /* 22 */
+  FunctionHasNext,      /* 23 */
+  FunctionNext,         /* 24 */
+  FunctionDecr,         /* 25 */
+  FunctionIncr,         /* 26 */
+  FunctionVisit,        /* 27 */
+  FunctionReduce,       /* 28 */
+  FunctionIs,           /* 29 */
+  FunctionQuery,        /* 30 */
+  FunctionEnter,        /* 31 */
+  FunctionLeave,        /* 32 */
+  FunctionPush,         /* 33 */
+  FunctionPop,          /* 34 */
+  FunctionConstructor,  /* 35 */
+  FunctionInterpolate,  /* 36 */
   FunctionEndOfListDummy
 } vtable_id_t;
 

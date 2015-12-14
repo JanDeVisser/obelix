@@ -1,10 +1,13 @@
 s = "Test"
 t = s.type()
 print(t)
+print(t.methods)
 
 i = 42
 t = type(i)
 print(t)
+print(t.methods)
 
 t = type()
 print(t)
+print(t.methods)

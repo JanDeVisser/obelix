@@ -2,6 +2,13 @@
 <configurationDescriptor version="97">
   <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
     <df root="." name="0">
+      <df name="build">
+        <df name="src">
+          <df name="bin">
+            <in>grammar.c</in>
+          </df>
+        </df>
+      </df>
       <df name="src">
         <df name="bin">
           <in>grammar.c</in>
@@ -83,22 +90,25 @@
   <confs>
     <conf name="Default" type="0">
       <toolsSet>
-        <compilerSet>MinGW|MinGW</compilerSet>
+        <compilerSet>default</compilerSet>
         <dependencyChecking>false</dependencyChecking>
         <rebuildPropChanged>false</rebuildPropChanged>
       </toolsSet>
+      <flagsDictionary>
+        <element flagsID="0" commonFlags="-g"/>
+        <element flagsID="1" commonFlags="-g -fPIC"/>
+      </flagsDictionary>
       <codeAssistance>
       </codeAssistance>
       <makefileType>
         <makeTool>
-          <buildCommandWorkingDir>.</buildCommandWorkingDir>
-          <buildCommand>${MAKE} -f Makefile</buildCommand>
+          <buildCommandWorkingDir>build</buildCommandWorkingDir>
+          <buildCommand>${MAKE} -f Makefile install</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
-          <executablePath></executablePath>
+          <executablePath>build/bin/obelix</executablePath>
           <cTool>
             <incDir>
               <pElem>include</pElem>
-              <pElem></pElem>
             </incDir>
             <preprocessorList>
               <Elem>_GNU_SOURCE</Elem>
@@ -110,21 +120,20 @@
           <preBuildCommand>cmake -G "MSYS Makefiles"  .</preBuildCommand>
         </preBuild>
       </makefileType>
-      <folder path="0/src/bin">
+      <item path="build/src/bin/grammar.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+        </cTool>
+      </item>
+      <folder path="0/build">
         <cTool>
           <incDir>
-            <pElem>src/bin</pElem>
+            <pElem>build</pElem>
           </incDir>
         </cTool>
       </folder>
       <folder path="0/src/lib">
         <cTool>
-          <incDir>
-            <pElem>src/lib</pElem>
-          </incDir>
           <preprocessorList>
-            <Elem>BUILD_REGEX_DLL</Elem>
-            <Elem>HAVE_CONFIG_H</Elem>
             <Elem>oblcore_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
@@ -132,200 +141,410 @@
       <folder path="0/src/parser">
         <cTool>
           <incDir>
-            <pElem>src/parser</pElem>
+            <pElem>build</pElem>
+            <pElem>build/src/parser</pElem>
           </incDir>
         </cTool>
       </folder>
       <folder path="0/src/stdlib">
         <cTool>
           <incDir>
-            <pElem>src/stdlib</pElem>
+            <pElem>build</pElem>
+            <pElem>build/src/stdlib</pElem>
           </incDir>
           <preprocessorList>
             <Elem>oblstdlib_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </folder>
-      <item path="src/bin/grammar.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/bin/loader.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/bin/obelix.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/bin/scriptparse.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/any.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/array.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/core.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/data.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/datalist.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/datastack.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/dict.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/exception.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/file.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/float.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/fsentry.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/function.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/int.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/list.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/logging.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/method.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/mutex.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/name.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/nvp.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/pointer.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/range.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/re.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/regex.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/resolve.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/set.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/socket.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/str.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/thread.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/lib/typedescr.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/parser/boundmethod.c" ex="false" tool="0" flavor2="0">
+      <item path="src/bin/grammar.c" ex="false" tool="0" flavor2="2">
         <cTool>
+          <incDir>
+            <pElem>.</pElem>
+            <pElem>src/bin</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/bin/loader.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/bin</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/bin/obelix.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/bin</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/bin/scriptparse.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/bin</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/any.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/array.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/core.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/data.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/datalist.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/datastack.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/dict.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/exception.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/file.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/float.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/fsentry.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/function.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/int.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/list.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/logging.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/method.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/mutex.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/name.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/nvp.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/pointer.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/range.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/re.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/regex.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+          <incDir>
+            <pElem>.</pElem>
+            <pElem>src/lib</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>BUILD_REGEX_DLL</Elem>
+            <Elem>HAVE_CONFIG_H</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/lib/resolve.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/set.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/socket.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/str.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/thread.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lib/typedescr.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/lib</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/parser/boundmethod.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/bytecode.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/bytecode.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/closure.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/closure.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/generator.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/generator.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/grammar.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/grammar.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/grammarparser.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/grammarparser.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/instruction.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/instruction.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/lexer.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/lexer.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/namespace.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/namespace.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/object.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/object.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/panoramix.c" ex="false" tool="0" flavor2="0">
+      <item path="src/parser/panoramix.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="0">
+        </cTool>
       </item>
-      <item path="src/parser/parser.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/parser.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/script.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/script.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/stacktrace.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/stacktrace.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/token.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/token.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/vm.c" ex="false" tool="0" flavor2="0">
-        <cTool>
+      <item path="src/parser/vm.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/stdlib/builtins.c" ex="false" tool="0" flavor2="0">
+      <item path="src/stdlib/builtins.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+        </cTool>
       </item>
-      <item path="src/stdlib/net.c" ex="false" tool="0" flavor2="0">
+      <item path="src/stdlib/net.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+        </cTool>
       </item>
-      <item path="src/stdlib/sys.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="test/google.obl" ex="false" tool="3" flavor2="0">
+      <item path="src/stdlib/sys.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="1">
+        </cTool>
       </item>
     </conf>
     <conf name="panoramix" type="0">

@@ -36,6 +36,7 @@
 #cmakedefine HAVE_MALLOC_H                   1
 #cmakedefine HAVE_NETDB_H                    1
 #cmakedefine HAVE_PTHREAD_H                  1
+#cmakedefine HAVE_REGEX_H                    1
 #cmakedefine HAVE_SIGNAL_H                   1
 #cmakedefine HAVE_STDBOOL_H                  1 
 #cmakedefine HAVE_STDINT_H                   1 

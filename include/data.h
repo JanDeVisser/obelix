@@ -51,6 +51,7 @@ typedef enum _free_semantics {
 typedef struct _data {
   int               type;
   free_semantics_t  free_me;
+  free_semantics_t  free_str;
   int               refs;
   char             *str;
 } data_t;

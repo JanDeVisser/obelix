@@ -65,6 +65,7 @@ data_t * data_settype(data_t *data, int type) {
     data -> refs++;
     data -> str = NULL;
     data -> free_me = Normal;
+    data -> free_str = Normal;
     descr -> count++;
     _data_count++;
   }
@@ -188,14 +189,18 @@ void _data_call_free(typedescr_t *type, data_t *data) {
 }
 
 void data_free(data_t *data) {
-  typedescr_t *type;
-  int          free_me;
+  typedescr_t      *type;
+  free_semantics_t  free_me;
+  free_semantics_t  free_str;
 
   if (data && (data -> free_me != Constant) && (--data -> refs <= 0)) {
     free_me = data -> free_me;
+    free_str = data -> free_str;
     type = data_typedescr(data);
     _data_call_free(type, data);
-    free(data -> str);
+    if (free_str != DontFreeData) {
+      free(data -> str);
+    }
     type -> count--;
     _data_count--;
     if (free_me != DontFreeData) {
@@ -470,6 +475,8 @@ char * data_tostring(data_t *data) {
 
   if (!data) {
     return "data:NULL";
+  } else if (data -> str && (data -> free_str == DontFreeData)) {
+    return data -> str;
   } else {
     free(data -> str);
     data -> str = NULL;
@@ -485,6 +492,13 @@ char * data_tostring(data_t *data) {
         if (ret && !data -> str) {
           data -> str = strdup(ret);
         }
+      }
+    }
+    if (!data -> str) {
+      tostring = (tostring_t) typedescr_get_function(type, FunctionStaticString);
+      if (tostring) {
+        data -> str = tostring(data);
+        data -> free_str = DontFreeData;
       }
     }
     if (!data -> str) {
