@@ -24,9 +24,9 @@
 #include <pthread.h>
 #endif /* HAVE_PTHREAD_H */
 #ifdef HAVE_INITIALIZECRITICALSECTION
-	#ifdef HAVE_WINDOWS_H
-	#include <windows.h>
-	#endif /* HAVE_WINDOWS_H */
+  #ifdef HAVE_WINDOWS_H
+    #include <windows.h>
+  #endif /* HAVE_WINDOWS_H */
 #endif /* HAVE_INITIALIZECRITICALSECTION */
 
 #include <data.h>

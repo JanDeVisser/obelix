@@ -121,6 +121,9 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   if (!retval) {
     retval = condition_wakeup(ctx -> condition);
   }
+  if (!retval) {
+    condition_free(ctx -> condition);
+  }
   
 #ifdef HAVE_PTHREAD_H
   if (!retval) {
@@ -138,6 +141,7 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
     pthread_cleanup_push((void (*)(void *)) _thread_free, thread);
 #endif /* HAVE_PTHREAD_H */
     ret = ctx -> start_routine(ctx -> arg);
+    free(ctx);
 #ifdef HAVE_PTHREAD_H
     pthread_cleanup_pop(1);
 #endif /* HAVE_PTHREAD_H */
@@ -165,9 +169,9 @@ char * _thread_tostring(thread_t *thread) {
 
 _thr_t _thread_self(void) {
 #ifdef HAVE_PTHREAD_H
-	return pthread_self();
+  return pthread_self();
 #elif HAVE_CREATETHREAD
-	return GetCurrentThread();
+  return GetCurrentThread();
 #endif
 }
 
@@ -201,30 +205,32 @@ thread_t * thread_self(void) {
 
 thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
   thread_t     *self = thread_self();
-  thread_ctx_t  ctx;
+  thread_ctx_t *ctx;
   _thr_t        thr_id;
   thread_t     *ret = NULL;
   int           retval;
 
-  ctx.name = name;
-  ctx.start_routine = start_routine;
-  ctx.arg = arg;
-  ctx.creator = self;
-  ctx.child = NULL;
+  ctx = NEW(thread_ctx_t);
+  ctx -> name = name;
+  ctx -> start_routine = start_routine;
+  ctx -> arg = arg;
+  ctx -> creator = self;
+  ctx -> child = NULL;
 
-  ctx.condition = condition_create();
-  retval = condition_acquire(ctx.condition);
+  ctx -> condition = condition_create();
+  retval = condition_acquire(ctx -> condition);
   if (!retval) {
 #ifdef HAVE_PTHREAD_H
     errno = pthread_create(&thr_id, NULL,
-                           (threadproc_t) _thread_start_routine_wrapper, &ctx);
+                           (threadproc_t) _thread_start_routine_wrapper,
+                           ctx);
     retval = (errno) ? -1 : 0;
 #elif defined(HAVE_CREATETHREAD)
     thr_id = CreateThread(
     	NULL,                                         /* default security attributes   */
         0,                                            /* use default stack size        */
         (threadproc_t) _thread_start_routine_wrapper, /* thread function name          */
-        &ctx,                                         /* argument to thread function   */
+        ctx,                                          /* argument to thread function   */
         0,                                            /* use default creation flags    */
         NULL);                                        /* returns the thread identifier */
     if (!thr_id) {
@@ -234,12 +240,11 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
 #endif /* HAVE_PTHREAD_H */
   }
   if (!retval) {
-    retval = condition_sleep(ctx.condition);
+    retval = condition_sleep(ctx -> condition);
   }
   if (!retval) {
-    ret = ctx.child;
+    ret = ctx -> child;
   }
-  condition_free(ctx.condition);
 #ifdef HAVE_PTHREAD_H
   if (!retval) {
     errno = pthread_detach(thr_id);

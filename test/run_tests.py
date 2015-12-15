@@ -32,7 +32,7 @@ def test_script(name):
         err.seek(0)
         
         error = 0;
-        if "exit" in script and ex != script["exit"]:
+        if "exit" in script and ex != script["exit"] and ex != script["exit"] + 256:
             print "%s: Exit code %s != %s" % (name, ex, script["exit"])
             error += 1
         error += check_stream(script, "stdout", out)

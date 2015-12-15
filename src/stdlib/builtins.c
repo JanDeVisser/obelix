@@ -56,14 +56,16 @@ data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
 }
 
 data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
-  data_t  *naptime;
-
+  data_t       *naptime;
+  int           ret;
+  
   (void) func_name;
   (void) kwargs;
   assert(array_size(args));
   naptime = (data_t *) array_get(args, 0);
   assert(naptime);
-  return data_create(Int, sleep(data_intval(naptime)));
+  ret = sleep((unsigned int) data_intval(naptime));
+  return data_create(Int, ret);
 }
 
 data_t * _function_usleep(char *func_name, array_t *args, dict_t *kwargs) {

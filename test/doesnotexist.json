@@ -1,1 +1,1 @@
-{"exit": -6, "name": "doesnotexist", "stderr": ["C:/Users/jan:  77:run_script          :ERROR:Error: Error ErrorName (6): Could not resolve 'function_does_not_exist' in 'doesnotexist()'"], "stdout": []}
+{"exit": 251, "name": "doesnotexist", "stderr": ["Error: Cannot resolve name 'function_does_not_exist' in closure 'doesnotexist()'"], "stdout": []}

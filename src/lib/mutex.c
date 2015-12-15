@@ -92,8 +92,8 @@ void _mutex_init(void) {
   Mutex = typedescr_create_and_register(Mutex, "mutex",
                                         _vtable_mutex, _methoddescr_mutex);
   Condition = typedescr_create_and_register(Condition, "condition",
-																						_vtable_condition,
-																						_methoddescr_condition);
+                                            _vtable_condition,
+                                            _methoddescr_condition);
 }
 
 data_t * _mutex_new(int type, va_list args) {
@@ -168,7 +168,7 @@ int mutex_lock(mutex_t *mutex) {
 #ifdef HAVE_PTHREAD_H
   errno = pthread_mutex_lock(&mutex -> mutex);
   if (errno) {
-  	retval = -1;
+    retval = -1;
   }
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   EnterCriticalSection(&(mutex -> cs));
@@ -209,7 +209,7 @@ int mutex_unlock(mutex_t *mutex) {
 #ifdef HAVE_PTHREAD_H
   errno = pthread_mutex_unlock(&mutex -> mutex);
   if (errno) {
-  	retval = -1;
+    retval = -1;
   }
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   EnterCriticalSection(&mutex -> cs);
@@ -235,18 +235,18 @@ data_t * _mutex_lock(mutex_t *mutex, char *name, array_t *args, dict_t *kwargs) 
   (void) kwargs;
 
   if (args && array_size(args)) {
-  	wait = data_intval(data_array_get(args, 0));
+    wait = data_intval(data_array_get(args, 0));
   }
   if (wait) {
-  	return _mutex_enter(mutex);
+    return _mutex_enter(mutex);
   } else {
     switch (mutex_trylock(mutex)) {
-    	case 1:
-    		return data_false();
-    	case -1:
-    		return data_exception_from_errno();
-    	default:
-    		return data_true();
+      case 1:
+        return data_false();
+      case -1:
+        return data_exception_from_errno();
+      default:
+        return data_true();
     }
   }
 }
@@ -297,7 +297,7 @@ data_t * _condition_leave(condition_t *condition, data_t *param) {
 /* ------------------------------------------------------------------------ */
 
 condition_t * condition_create() {
-  condition_t             *condition;
+  condition_t  *condition;
 
   condition = data_new(Condition, condition_t);
   condition -> mutex = mutex_create();
@@ -340,7 +340,7 @@ int condition_wakeup(condition_t *condition) {
 #ifdef HAVE_PTHREAD_H
   errno = pthread_cond_signal(&condition -> condition);
   if (errno) {
-  	retval = -1;
+    retval = -1;
   }
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   WakeConditionVariable (&condition -> condition);
@@ -355,7 +355,7 @@ int condition_sleep(condition_t *condition) {
 #ifdef HAVE_PTHREAD_H
   errno = pthread_cond_wait(&condition -> condition, &condition -> mutex -> mutex);
   if (errno) {
-  	retval = -1;
+    retval = -1;
   }
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   SleepConditionVariableCS(&condition -> condition, &condition -> mutex -> cs, INFINITE);
@@ -381,18 +381,18 @@ data_t * _condition_acquire(condition_t *condition, char *name, array_t *args, d
   (void) kwargs;
 
   if (args && array_size(args)) {
-  	wait = data_intval(data_array_get(args, 0));
+    wait = data_intval(data_array_get(args, 0));
   }
   if (wait) {
-  	return _condition_enter(condition);
+    return _condition_enter(condition);
   } else {
     switch (condition_tryacquire(condition)) {
     	case 1:
-    		return data_false();
+          return data_false();
     	case -1:
-    		return data_exception_from_errno();
+          return data_exception_from_errno();
     	default:
-    		return data_true();
+          return data_true();
     }
   }
 }

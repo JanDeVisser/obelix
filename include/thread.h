@@ -21,11 +21,11 @@
 #define	__THREAD_H__
 
 #ifdef HAVE_PTHREAD_H
-#include <pthread.h>
+  #include <pthread.h>
 #elif defined(HAVE_CREATETHREAD)
-	#ifdef HAVE_WINDOWS_H
-	#include <windows.h>
-	#endif /* HAVE_WINDOWS_H */
+  #ifdef HAVE_WINDOWS_H
+    #include <windows.h>
+  #endif /* HAVE_WINDOWS_H */
 #endif /* HAVE_PTHREAD_H */
 
 #include <data.h>
