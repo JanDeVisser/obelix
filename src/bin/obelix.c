@@ -161,7 +161,7 @@ oblserver_t * oblserver_path(oblserver_t *server, char *path) {
   return server;
 }
 
-data_t * oblserver_run(oblserver_t *server, char *cmd) {
+int oblserver_run(oblserver_t *server, char *cmd) {
   array_t     *line = array_split(cmd, " ");
   char        *script;
   name_t      *name;
@@ -169,6 +169,8 @@ data_t * oblserver_run(oblserver_t *server, char *cmd) {
   array_t     *obl_argv;
   data_t      *ret;
   exception_t *ex;
+  array_t     *arr;
+  char        *str;
   
   if (array_size(line)) {
     script = str_array_get(line, 0);
@@ -183,46 +185,48 @@ data_t * oblserver_run(oblserver_t *server, char *cmd) {
       ret = data_copy(ex -> throwable);
       exception_free(ex);
     }
+    str = data_tostring(ret);
+    arr = array_create(2);
+    array_push(arr, data_create(Int, strlen(str) + 1));
+    array_push(arr, data_create(String, data_typename(ret)));
+    socket_print(server -> socket, "300 DATA ${0} ${1}", arr, NULL);
+    socket_write(server -> socket, str, strlen(str));
+    socket_print(server -> socket, "", NULL, NULL);
+    array_free(arr);
+    data_free(ret);
   }
   array_free(line);
-  return ret;
+  return 0;
 }
 
 void * _connection_handler(connection_t *connection) {
   cmdline_args_t *args = (cmdline_args_t *) connection -> context;
-  socket_t       *client;
-  array_t        *path;
-  name_t         *name;
-  scriptloader_t *loader;
   char           *cmd;
   data_t         *ret;
   oblserver_t     server;
-  array_t        *arr;
   
   memset(&server, 0, sizeof(oblserver_t));
   server.args = args;
   server.socket = (socket_t *) connection -> client;
   server.loader = _create_loader(args);
   if (server.loader) {
-    socket_print(client, "Obelix 0.1", NULL, NULL);
+    socket_print(server.socket, "100 Obelix 0.1", NULL, NULL);
     do {
-      socket_print(client, "READY", NULL, NULL);
-      cmd = "RUN"; /* file_readline(client -> sockfile); */
+      socket_print(server.socket, "200 READY", NULL, NULL);
+      cmd = socket_readline(server.socket);
+      debug("Command: '%s'", cmd);
       if (!strncmp(cmd, "PATH ", 5)) {
+        debug("Adding '%s' to load path", cmd + 5);
         oblserver_path(&server, cmd + 5);
       } else if (!strncmp(cmd, "RUN ", 4)) {
-        ret = oblserver_run(&server, cmd + 4);
-        arr = array_create(2);
-        array_push(arr, data_create(String, data_typename(ret)));
-        array_push(arr, data_create(String, data_tostring(ret)));
-        socket_print(server.socket, "${0}:${1}", arr, NULL);
-        array_free(arr);
-        data_free(ret);
+        if (oblserver_run(&server, cmd + 4)) {
+          break;
+        }
       } else if (!strcmp(cmd, "QUIT")) {
         break;
       }
-    } while (0);
-    socket_free(server.socket);
+    } while (1);
+    socket_print(server.socket, "400 BYE", NULL, NULL);
     scriptloader_free(server.loader);
   }
   return connection;

@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configurationDescriptor version="97">
   <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <logicalFolder name="Modules" displayName="Modules" projectFiles="true">
+      <itemPath>/usr/share/cmake-3.2/Modules/CheckFunctionExists.c</itemPath>
+    </logicalFolder>
     <df root="." name="0">
       <df name="build">
+        <df name="CMakeFiles">
+          <df name="CheckTypeSize">
+            <in>INTPTR_T.c</in>
+            <in>SOCKLEN_T.c</in>
+          </df>
+        </df>
         <df name="src">
           <df name="bin">
             <in>grammar.c</in>
@@ -80,6 +89,7 @@
       <itemPath>Makefile</itemPath>
       <itemPath>nbproject/private/launcher.properties</itemPath>
     </logicalFolder>
+    <itemPath>test/client.py</itemPath>
     <itemPath>test/google.obl</itemPath>
   </logicalFolder>
   <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
@@ -106,20 +116,27 @@
           <buildCommand>${MAKE} -f Makefile install</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
           <executablePath>build/bin/obelix</executablePath>
-          <cTool>
-            <incDir>
-              <pElem>include</pElem>
-            </incDir>
-            <preprocessorList>
-              <Elem>_GNU_SOURCE</Elem>
-            </preprocessorList>
-          </cTool>
         </makeTool>
         <preBuild>
           <preBuildCommandWorkingDir>.</preBuildCommandWorkingDir>
           <preBuildCommand>cmake -G "MSYS Makefiles"  .</preBuildCommand>
         </preBuild>
       </makefileType>
+      <item path="/usr/share/cmake-3.2/Modules/CheckFunctionExists.c"
+            ex="false"
+            tool="0"
+            flavor2="2">
+      </item>
+      <item path="build/CMakeFiles/CheckTypeSize/INTPTR_T.c"
+            ex="false"
+            tool="0"
+            flavor2="2">
+      </item>
+      <item path="build/CMakeFiles/CheckTypeSize/SOCKLEN_T.c"
+            ex="false"
+            tool="0"
+            flavor2="2">
+      </item>
       <item path="build/src/bin/grammar.c" ex="false" tool="0" flavor2="3">
         <cTool flags="0">
         </cTool>
@@ -129,6 +146,33 @@
           <incDir>
             <pElem>build</pElem>
           </incDir>
+        </cTool>
+      </folder>
+      <folder path="0/build/CMakeFiles">
+        <cTool>
+          <incDir>
+            <pElem>build/CMakeFiles/CMakeTmp</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="0/build/src">
+        <cTool>
+          <incDir>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
+        </cTool>
+      </folder>
+      <folder path="0/src">
+        <cTool>
+          <incDir>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>_GNU_SOURCE</Elem>
+          </preprocessorList>
         </cTool>
       </folder>
       <folder path="0/src/lib">
@@ -154,6 +198,17 @@
           </incDir>
           <preprocessorList>
             <Elem>oblstdlib_EXPORTS</Elem>
+          </preprocessorList>
+        </cTool>
+      </folder>
+      <folder path="Modules">
+        <cTool>
+          <incDir>
+            <pElem>build/CMakeFiles/CMakeTmp</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>CHECK_FUNCTION_EXISTS=asprintf</Elem>
+            <Elem>_GNU_SOURCE</Elem>
           </preprocessorList>
         </cTool>
       </folder>
@@ -790,6 +845,8 @@
       <item path="src/stdlib/net.c" ex="false" tool="0" flavor2="9">
       </item>
       <item path="src/stdlib/sys.c" ex="false" tool="0" flavor2="9">
+      </item>
+      <item path="test/client.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="test/google.obl" ex="false" tool="3" flavor2="0">
       </item>

@@ -167,6 +167,20 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
     if (sfd == -1) {
       continue;
     }
+
+#ifdef HAVE_SO_REUSEADDR
+    if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0) {
+      error("setsockopt(SO_REUSEADDR) failed");
+      continue;
+    }
+#endif
+#ifdef HAVE_SO_NOSIGPIPE
+    if (setsockopt(sfd, SOL_SOCKET, SO_NOSIGPIPE, &(int){ 1 }, sizeof(int)) < 0) {
+      error("setsockopt(SO_NOSIGPIPE) failed");
+      continue;
+    }
+#endif
+
     if (fnc(sfd, rp -> ai_addr, rp -> ai_addrlen) != -1) {
       ret = _socket_create(sfd, host, service);
       ret -> af = rp -> ai_family;
@@ -430,11 +444,39 @@ socket_t * socket_nonblock(socket_t *socket) {
   }
 }
 
+int _socket_readblock(socket_t *socket, void *buf, int num) {
+  int  ret = 0;
+  int  num_remaining = num;
+  int  total_numrecv = 0;
+  int  numrecv;
+
+  numrecv = TEMP_FAILURE_RETRY(recv(socket -> fh, buf, num_remaining, 0));
+  if (numrecv > 0) {
+    num_remaining -= numrecv;
+    total_numrecv += numrecv;
+    ret += numrecv;
+    buf += numrecv;
+    if (socket_debug) {
+      debug("socket_read(%s, %d) = %d", data_tostring((data_t *) socket), num, total_numrecv);
+    }
+  } else if ((numrecv == 0) || 
+#ifdef HAVE_WINSOCK2_H
+             (WSAGetLastError() == WSAEWOULDBLOCK)) {
+#else
+             (errno == EWOULDBLOCK)) {
+#endif /* HAVE_WINSOCK2_H */
+    if (socket_debug) {
+      debug("socket_read(%s, %d) Blocked", data_tostring((data_t *) socket), num);
+    }
+  } else {
+    _socket_set_errno(socket, "socket_read()->recv()");
+    ret = -1;
+  }
+  return ret;
+}
+
 int socket_read(socket_t *socket, void *buf, int num) {
-  int            ret = num;
-  int            numrecv;
-  int            total_numrecv = 0;
-  int            num_remaining = num;
+  int            ret = 0;
   fd_set         set;
   struct timeval timeout;
   int            err;
@@ -443,55 +485,43 @@ int socket_read(socket_t *socket, void *buf, int num) {
     memset(buf, 0, num);
     debug("socket_read(%s, %d)", data_tostring((data_t *) socket), num);
   }
-
-  do {
-    FD_ZERO(&set);
-    FD_SET(socket -> fh, &set);
-    timeout.tv_sec = 1;
-    timeout.tv_usec = 0;
-    if (socket_debug) {
-      debug("socket_read(%s, %d) select()", data_tostring((data_t *) socket), num);
-    }
-    err = TEMP_FAILURE_RETRY(select(1, &set, NULL, NULL, &timeout));
-    if (err < 0) {
-      _socket_set_errno(socket, "socket_read()->select()");
-      return -1;
-    }
-  } while (!err);
   
-  do {
-    numrecv = TEMP_FAILURE_RETRY(recv(socket -> fh, buf, num_remaining, 0));
-    if (numrecv > 0) {
-      num_remaining -= numrecv;
-      total_numrecv += numrecv;
-      buf += numrecv;
+  ret = _socket_readblock(socket, buf, num);
+  if (!ret) {
+    do {
+      FD_ZERO(&set);
+      FD_SET(socket -> fh, &set);
+      timeout.tv_sec = 1;
+      timeout.tv_usec = 0;
       if (socket_debug) {
-	debug("socket_read(%s, %d) = %d", data_tostring((data_t *) socket), num, total_numrecv);
+        debug("socket_read(%s, %d) select()", data_tostring((data_t *) socket), num);
       }
-    } else if ((numrecv == 0) || 
-#ifdef HAVE_WINSOCK2_H
-	       (WSAGetLastError() == WSAEWOULDBLOCK)) {
-#else
-               (errno == EWOULDBLOCK)) {
-#endif /* HAVE_WINSOCK2_H */
-      if (socket_debug) {
-	debug("socket_read(%s, %d) Blocked", data_tostring((data_t *) socket), num);
+      err = TEMP_FAILURE_RETRY(select(1, &set, NULL, NULL, &timeout));
+      if (err < 0) {
+        _socket_set_errno(socket, "socket_read()->select()");
+        return -1;
       }
-      break;
-    } else {
-      _socket_set_errno(socket, "socket_read()->recv()");
-      ret = -1;
+    } while (!err);
+    if (socket_debug) {
+      debug("socket_read(%s, %d) _readblock()", data_tostring((data_t *) socket), num);
     }
-  } while ((ret > 0) && (num > 0));
+    ret = _socket_readblock(socket, buf, num);
+  }
   return ret;
 }
+
+#ifdef HAVE_MSG_NOSIGNAL
+#define SOCKET_SEND_FLAGS     MSG_NOSIGNAL
+#else
+#define SOCKET_SEND_FLAGS     0
+#endif /* HAVE_MSG_NOSIGNAL */
 
 int socket_write(socket_t *socket, void *buf, int num) {
   int ret = num;
   int numsend;
 
   do {
-    numsend = TEMP_FAILURE_RETRY(send(socket -> fh, buf, num, 0));
+    numsend = TEMP_FAILURE_RETRY(send(socket -> fh, buf, num, SOCKET_SEND_FLAGS));
     if (numsend > 0) {
       num = num - numsend;
       buf += numsend;

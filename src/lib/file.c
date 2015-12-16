@@ -356,25 +356,25 @@ char * stream_readline(stream_t *stream) {
   return buf;
 }
 
-#define WRITE_TO_STREAM(s, l) if (retval >= 0) {                       \
-    int _len = strlen((l));                                            \
-    if (file_debug) {                                                  \
-      debug("Writing %d bytes to %s", l, data_tostring((data_t *) s)); \
-    }                                                                  \
-    retval = (s -> writer)((s), (l), _len);                            \
-    if (file_debug) {                                                  \
-      if (retval >= 0) {                                               \
-        debug("Wrote %d bytes", retval);                               \
-      } else {                                                         \
-        debug("error: %d", errno);                                     \
-      }                                                                \
-    }                                                                  \
+#define WRITE_TO_STREAM(s, l) if (retval >= 0) {                          \
+    int _len = strlen((l));                                               \
+    if (file_debug) {                                                     \
+      debug("Writing %d bytes to %s", _len, data_tostring((data_t *) s)); \
+    }                                                                     \
+    retval = (s -> writer)((s), (l), _len);                               \
+    if (file_debug) {                                                     \
+      if (retval >= 0) {                                                  \
+        debug("Wrote %d bytes", retval);                                  \
+      } else {                                                            \
+        debug("error: %d", errno);                                        \
+      }                                                                   \
+    }                                                                     \
 }
 
 int stream_print(stream_t *stream, char *fmt, array_t *args, dict_t *kwargs) {
   data_t *s;
   char   *line;
-  int     ret = 1;
+  char   *buf;
   int     retval = 0;
   data_t *r = NULL;
 
@@ -382,11 +382,19 @@ int stream_print(stream_t *stream, char *fmt, array_t *args, dict_t *kwargs) {
   data_free(r);
 
   line = data_tostring(s);
-  WRITE_TO_STREAM(stream, line);
-#ifdef __WIN32__
-  WRITE_TO_STREAM(stream, "\r");
+  buf = (char *) _new(strlen(line) +
+#ifndef __WIN32__
+    2
+#else
+    3
 #endif /* __WIN32__ */
-  WRITE_TO_STREAM(stream, "\n");
+          );
+  strcpy(buf, line);
+#ifdef __WIN32__
+  strcat(buf, "\r");
+#endif /* __WIN32__ */
+  strcat(buf, "\n");
+  WRITE_TO_STREAM(stream, buf);
   if ((retval >= 0) && data_hasmethod((data_t *) stream, "flush")) {
     r = data_execute((data_t *) stream, "flush", NULL, NULL);
     if ((data_type(r) != Bool) || !data_intval(r)) {
