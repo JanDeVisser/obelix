@@ -23,6 +23,10 @@
 #include <core.h>
 #include <data.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 typedef struct _str {
   data_t  _d;
   char   *buffer;
@@ -89,11 +93,13 @@ OBLCORE_IMPEXP struct _array * str_split(str_t *, char *);
 OBLCORE_IMPEXP int             str_read(str_t *, char *, int);
 OBLCORE_IMPEXP int             str_readchar(str_t *);
 OBLCORE_IMPEXP int             str_readinto(str_t *, struct _data *);
-OBLCORE_IMPEXP int             str_read_from_reader(str_t *, void *, read_t);
+OBLCORE_IMPEXP int             str_read_from_stream(str_t *, void *, read_t);
 OBLCORE_IMPEXP int             str_pushback(str_t *, int);
 OBLCORE_IMPEXP int             str_write(str_t *, char *, int);
 
 OBLCORE_IMPEXP str_t *         str_format(char *, array_t *, dict_t *);
+OBLCORE_IMPEXP str_t *         str_vformatf(char *fmt, va_list args);
+OBLCORE_IMPEXP str_t *         str_formatf(char *fmt, ...);
 
 #define str_toupper(s)    (str_forcecase((s), 1))
 #define str_tolower(s)    (str_forcecase((s), 0))
@@ -104,5 +110,9 @@ OBLCORE_IMPEXP str_t *         str_format(char *, array_t *, dict_t *);
 #define str_free(s)       (data_free((data_t *) (s)))
 #define str_tostring(s)   (data_tostring((data_t *) (s)))
 #define str_copy(s)       ((str_t *) data_copy((data_t *) (s)))
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* __STR_H__ */

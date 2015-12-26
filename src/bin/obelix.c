@@ -33,60 +33,131 @@
 #include <resolve.h>
 #include <script.h>
 
-typedef struct _cmdline_args {
-  int    argc;
-  char **argv;
-  char  *grammar;
-  char  *debug;
-  char  *basepath;
-  char  *syspath;
-  int    list;
-  int    trace;
-  int    server;
-} cmdline_args_t;
+#include "obelix.h"
+#include "server.h"
 
-void debug_settings(cmdline_args_t *args) {
-  int      debug_all = 0;
+static void       _oblserver_init(void) __attribute__((constructor(130)));
+
+static void       _obelix_free(obelix_t *);
+static char *     _obelix_tostring(obelix_t *);
+
+static data_t *   _obelix_get(data_t *, char *, array_t *, dict_t *);
+static data_t *   _obelix_run(data_t *, char *, array_t *, dict_t *);
+
+static void       _obelix_debug_settings(obelix_t *);
+static int        _obelix_cmdline(obelix_t *);
+
+static vtable_t _vtable_obelix[] = {
+  { .id = FunctionFree,         .fnc = (void_t) _obelix_free },
+  { .id = FunctionStaticString, .fnc = (void_t) _obelix_tostring },
+  { .id = FunctionNone,         .fnc = NULL }
+};
+
+static methoddescr_t _methoddescr_obelix[] = {
+  { .type = Any,    .name = "obelix", .method = _obelix_get, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = Obelix, .name = "run",    .method = _obelix_run, .argtypes = { String, Any, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = NoType, .name = NULL,     .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+};
+
+       int       Obelix = -1;
+static obelix_t *_obelix;
+
+/* ------------------------------------------------------------------------ */
+
+void _obelix_init(void) {
+  int       ix;
+ 
+  Obelix = typedescr_create_and_register(Obelix, "obelix", 
+                                         _vtable_obelix, _methoddescr_obelix);
+  
+  if (script_debug) {
+    debug("Creating obelix kernel");
+  }
+  _obelix = data_new(Obelix, obelix_t);
+  _obelix -> options = data_array_create((int) ObelixOptionLAST);
+  for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
+    obelix_set_option(_obelix, ix, 0L);
+  }
+}
+
+/* -- S E R V E R  T Y P E  F U N C T I O N S  ---------------------------- */
+
+char * _obelix_tostring(obelix_t *obelix) {
+  return "Obelix Kernel";
+}
+
+void _obelix_free(obelix_t *obelix) {
+  if (obelix) {
+    array_free(obelix -> options);
+    array_free(obelix -> script_args);
+    name_free(obelix -> script);
+  }
+}
+
+static data_t * _obelix_get(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) self;
+  (void) name;
+  (void) args;
+  (void) kwargs;
+  
+  return (data_t *) _obelix;
+}
+
+static data_t * _obelix_run(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  name_t  *script;
+  array_t *script_args;
+  data_t  *ret;
+  data_t  *name_arg = data_array_get(args, 0);
+  
+  (void) self;
+  (void) name;
+  
+  script = (data_is_name(name_arg)) 
+          ? name_copy(name_arg) 
+          : obelix_build_name(data_tostring());
+  script_args = array_slice(args, 1);
+  ret = obelix_run(_obelix, script, script_args, kwargs);
+  array_free(script_args);
+  name_free(script);
+  return ret;
+}
+
+/* ------------------------------------------------------------------------ */
+
+void _obelix_debug_settings(obelix_t *obelix) {
   array_t *cats;
   int      ix;
   
   logging_reset();
-  if (args -> debug) {
+  logging_set_level(obelix -> log_level);
+  if (obelix ->S debug) {
     debug("debug optarg: %s", args -> debug);
-    cats = array_split(args -> debug, ",");
+    cats = array_split(obelix -> debug, ",");
     for (ix = 0; ix < array_size(cats); ix++) {
       logging_enable(str_array_get(cats, ix));
     }
   }
 }
 
-int run_script(scriptloader_t *loader, name_t *name, array_t *argv) {
-  data_t      *ret;
-  object_t    *obj;
-  module_t    *mod;
-  int          retval;
-  exception_t *ex;
-  int          type;
+int _obelix_cmdline(obelix_t *obelix) {
+  int             retval = 0;
+  exception_t    *ex;
+  data_t         *ret;
   
-  ret = scriptloader_run(loader, name, argv, NULL);
-  if (script_debug) {
-    debug("Exiting with exit code %s [%s]", data_tostring(ret), data_typename(ret));
-  }
+  ret = obelix_run(obelix, obelix -> script, obelix -> script_args, NULL);
   if (ex = data_as_exception(ret)) {
-    if (ex -> code != ErrorExit) {
-      fprintf(stderr, "Error: %s\n", ex -> msg);
-      retval = 0 - (int) ex -> code;
-    } else {
-      retval = data_intval(ex -> throwable);
-    }
+    fprintf(stderr, "Error: %s\n", ex -> msg);
+    retval = 0 - (int) ex -> code;
   } else {
     retval = data_intval(ret);
   }
   data_free(ret);
-  return retval;  
+  return retval;
 }
 
-name_t * build_name(char *scriptname) {
+/* ------------------------------------------------------------------------ */
+
+name_t * obelix_build_name(char *scriptname) {
   char   *buf;
   char   *ptr;
   name_t *name;
@@ -105,79 +176,137 @@ name_t * build_name(char *scriptname) {
   return name;
 }
 
-scriptloader_t * _create_loader(cmdline_args_t *args) {
+/* -- O B E L I X  P U B L I C  F U N C T I O N S ------------------------- */
+
+obelix_t * obelix_initialize(int argc, char **argv) {
+  int opt;
+  int ix;
+
+  if (script_debug) {
+    debug("Initialize obelix kernel");
+  }
+  _obelix -> argc = argc;
+  _obelix -> argv = argv;
+  while ((opt = getopt(argc, argv, "s:g:d:p:v:ltS")) != -1) {
+    switch (opt) {
+      case 's':
+        _obelix -> syspath = optarg;
+        break;
+      case 'g':
+        _obelix -> grammar = optarg;
+        break;
+      case 'd':
+        _obelix -> debug = optarg;
+        break;
+      case 'p':
+        _obelix -> basepath = optarg;
+        break;
+      case 'v':
+        _obelix -> log_level = atoi(optarg);
+        break;
+      case 'l':
+        obelix_set_option(_obelix, ObelixOptionList, 1);
+        break;
+      case 't':
+        obelix_set_option(_obelix, ObelixOptionList, 1);
+        obelix_set_option(_obelix, ObelixOptionTrace, 1);
+        break;
+      case 'S':
+        _obelix -> server = 14400;
+        break;
+    }
+  }
+  if (!_obelix -> server) {
+    if (argc > optind) {
+      _obelix -> script = obelix_build_name(argv[optind]);
+      if (argc > optind + 1) {
+        _obelix -> script_args = str_array_create(argc - optind);
+        for (ix = optind + 1; ix < argc; ix++) {
+          array_push(_obelix -> script_args, data_create(String, obelix -> args -> argv[ix]));
+        }
+      }
+    } else {
+      return NULL;
+    }
+  }
+  _obelix_debug_settings(_obelix);
+  return _obelix;
+}
+
+obelix_t * obelix_set_option(obelix_t *obelix, obelix_option_t option, long value) {
+  data_t *opt = data_create(Int, value);
+  
+  array_set(obelix -> options, (int) option, opt);
+  return obelix;
+}
+
+long obelix_get_option(obelix_t *obelix, obelix_option_t option) {
+  data_t *opt;
+  
+  opt = data_array_get(obelix -> options, (int) option);
+  return data_intval(opt);
+}
+
+scriptloader_t * obelix_create_loader(obelix_t *obelix) {
   array_t        *path;
   scriptloader_t *loader;
   
-  path = (args -> basepath) ? array_split(args -> basepath, ":") 
-                            : str_array_create(0);
+  path = (obelix -> basepath) ? array_split(obelix -> basepath, ":") 
+                              : str_array_create(0);
   array_push(path, getcwd(NULL, 0));
   
-  loader = scriptloader_create(args -> syspath, path, args -> grammar);
+  loader = scriptloader_create(obelix -> syspath, path, obelix -> grammar);
   if (loader) {
-    scriptloader_set_option(loader, ObelixOptionList, args -> list);
-    scriptloader_set_option(loader, ObelixOptionTrace, args -> trace);
+    scriptloader_set_options(loader, obelix -> options);
   }
   array_free(path);
+  if (!obelix -> loaders) {
+    obelix -> loaders = datadata_dict_create();
+  }
+  dict_put(obelix -> loaders, 
+           str_wrap(loader -> cookie), 
+           scriptloader_copy(server -> loader));
   return loader;
 }
 
-int run_from_cmdline(cmdline_args_t *args) {
-  name_t         *name;
-  array_t        *obl_argv;
-  int             ix;
-  scriptloader_t *loader;
-  int             retval = 0;
+scriptloader_t * obelix_get_loader(obelix_t *obelix, char *cookie) {
+  scriptloader_t *loader = NULL;
+  str_t          *wrap;
   
-  loader = _create_loader(args);
+  if (obelix -> loaders) {
+    loader = dict_get(obelix -> loaders, wrap = str_wrap(cookie));
+    str_free(wrap);
+  }
+  return loader;
+}
+
+obelix_t * obelix_decommission_loader(obelix_t *obelix, scriptloader_t *loader) {
+  str_t   *wrap;
+  
   if (loader) {
-    scriptloader_set_option(loader, ObelixOptionList, args -> list);
-    scriptloader_set_option(loader, ObelixOptionTrace, args -> trace);
-    
-    name = build_name(args -> argv[optind]);
-    obl_argv = str_array_create(args -> argc - optind);
-    for (ix = optind + 1; ix < args -> argc; ix++) {
-      array_push(obl_argv, data_create(String, args -> argv[ix]));
+    if (obelix -> loaders) {
+      dict_remove(obelix -> loaders, wrap = str_wrap(loader -> cookie));
+      str_free(wrap);
     }
-    retval = run_script(loader, name, obl_argv);
-    array_free(obl_argv);
-    name_free(name);
     scriptloader_free(loader);
   }
-  return retval;
+  return obelix;
 }
 
-typedef struct _oblserver {
+data_t * obelix_run(obelix_t *obelix, name_t *name, array_t *args, dict_t *kwargs) {
   scriptloader_t *loader;
-  cmdline_args_t *args;
-  socket_t       *socket;
-} oblserver_t;
-
-oblserver_t * oblserver_path(oblserver_t *server, char *path) {
-  array_t *loadpath = array_split(path, ":");
+  exception_t    *ex;
+  data_t         *ret;
   
-  scriptloader_extend_loadpath(server -> loader, loadpath);
-  array_free(loadpath);
-  return server;
-}
-
-int oblserver_run(oblserver_t *server, char *cmd) {
-  array_t     *line = array_split(cmd, " ");
-  char        *script;
-  name_t      *name;
-  int          ix;
-  array_t     *obl_argv;
-  data_t      *ret;
-  exception_t *ex;
-  array_t     *arr;
-  char        *str;
-  
-  if (array_size(line)) {
-    script = str_array_get(line, 0);
-    name = build_name(script);
-    obl_argv = array_slice(line, 1, array_size(line));
-    
-    ret = scriptloader_run(server -> loader, name, obl_argv, NULL);
+  loader = obelix_create_loader(obelix);
+  if (loader) {
+    if (script_debug) {
+      debug("obelix_run %s(%s, %s)", 
+            name_tostring(name),
+            (args) ? array_tostring(args) : "[]",
+            (kwargs) ? dict_tostring(kwargs) : "{}");
+    }
+    ret = scriptloader_run(loader, name, args, kwargs);
     if (script_debug) {
       debug("Exiting with exit code %s [%s]", data_tostring(ret), data_typename(ret));
     }
@@ -185,107 +314,28 @@ int oblserver_run(oblserver_t *server, char *cmd) {
       ret = data_copy(ex -> throwable);
       exception_free(ex);
     }
-    str = data_tostring(ret);
-    arr = array_create(2);
-    array_push(arr, data_create(Int, strlen(str) + 1));
-    array_push(arr, data_create(String, data_typename(ret)));
-    socket_print(server -> socket, "300 DATA ${0} ${1}", arr, NULL);
-    socket_write(server -> socket, str, strlen(str));
-    socket_print(server -> socket, "", NULL, NULL);
-    array_free(arr);
-    data_free(ret);
+    scriptloader_free(loader);
+  } else {
+    ret = (data_t *) exception_create(ErrorInternalError, 
+                                      "Could not create script loader");
   }
-  array_free(line);
-  return 0;
+  return ret;  
 }
 
-void * _connection_handler(connection_t *connection) {
-  cmdline_args_t *args = (cmdline_args_t *) connection -> context;
-  char           *cmd;
-  data_t         *ret;
-  oblserver_t     server;
-  
-  memset(&server, 0, sizeof(oblserver_t));
-  server.args = args;
-  server.socket = (socket_t *) connection -> client;
-  server.loader = _create_loader(args);
-  if (server.loader) {
-    socket_print(server.socket, "100 Obelix 0.1", NULL, NULL);
-    do {
-      socket_print(server.socket, "200 READY", NULL, NULL);
-      cmd = socket_readline(server.socket);
-      debug("Command: '%s'", cmd);
-      if (!strncmp(cmd, "PATH ", 5)) {
-        debug("Adding '%s' to load path", cmd + 5);
-        oblserver_path(&server, cmd + 5);
-      } else if (!strncmp(cmd, "RUN ", 4)) {
-        if (oblserver_run(&server, cmd + 4)) {
-          break;
-        }
-      } else if (!strcmp(cmd, "QUIT")) {
-        break;
-      }
-    } while (1);
-    socket_print(server.socket, "400 BYE", NULL, NULL);
-    scriptloader_free(server.loader);
-  }
-  return connection;
-}
-
-int start_server(cmdline_args_t *args) {
-  socket_t *server;
-  
-  server = serversocket_create(args -> server);
-  socket_listen(server, _connection_handler, args);
-  return 0;
-}
+/* ------------------------------------------------------------------------ */
 
 int main(int argc, char **argv) {
-  cmdline_args_t  args;
-  int             opt;
+  obelix_t *obelix;
 
-  memset(&args, 0, sizeof(cmdline_args_t));
-  args.argc = argc;
-  args.argv = argv;
-  while ((opt = getopt(argc, argv, "s:g:d:p:v:ltS")) != -1) {
-    switch (opt) {
-      case 's':
-        args.syspath = optarg;
-        break;
-      case 'g':
-        args.grammar = optarg;
-        break;
-      case 'd':
-        args.debug = optarg;
-        break;
-      case 'p':
-        args.basepath = optarg;
-        break;
-      case 'v':
-        log_level = atoi(optarg);
-        break;
-      case 'l':
-        args.list = 1;
-        break;
-      case 't':
-        args.trace = 1;
-        args.list = 1;
-        break;
-      case 'S':
-        args.server = 14400;
-        break;
-    }
-  }
-  if (argc == optind && !args.server) {
-    fprintf(stderr, "Usage: obelix <filename> [options ...]\n");
+  if (!(obelix = obelix_initialize(argc, argv))) {
+    fprintf(stderr, "Usage: obelix [options ...] <filename> [script arguments]\n");
     exit(1);
   }
-  debug_settings(&args);
 
-  if (args.server) {
-    start_server(&args);
+  if (obelix -> server) {
+    oblserver_start(obelix);
   } else {
-    return run_from_cmdline(&args);
+    return _obelix_cmdline(obelix);
   }
 }
 

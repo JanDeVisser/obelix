@@ -22,9 +22,9 @@
 
 #include <core-setup.h>
 
-//#ifdef __cplusplus
-//extern "C" {
-//#endif
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum _log_level {
   LogLevelDebug = 0,
@@ -40,8 +40,8 @@ OBLCORE_IMPEXP void   logging_enable(char *);
 OBLCORE_IMPEXP void   logging_disable(char *);
 OBLCORE_IMPEXP void   _logmsg(log_level_t, const char *, int, const char *, const char *, ...);
 OBLCORE_IMPEXP int    logging_status(char *);
-
-OBLCORE_IMPEXP log_level_t log_level;
+OBLCORE_IMPEXP int    logging_level(void);
+OBLCORE_IMPEXP int    logging_set_level(log_level_t);
 
 #ifndef NDEBUG
 #define debug(fmt, args...)          _logmsg(LogLevelDebug, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args)
@@ -54,9 +54,9 @@ OBLCORE_IMPEXP log_level_t log_level;
 #define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args); exit(-10); }
 #define oassert(value, fmt, args...) { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __PRETTY_FUNCTION__, fmt, ## args); assert(0); } }
 
-//#ifdef __cplusplus
-//}
-//#endif
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __LOGGING_H__ */
 

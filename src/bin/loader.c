@@ -360,6 +360,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
   } else {
     data_thread_set_kernel((data_t *) ret);
   }
+  strrand(ret -> cookie, COOKIE_SZ - 1);
   if (script_debug) {
     debug("scriptloader created");
   }
@@ -368,6 +369,19 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
 
 scriptloader_t * scriptloader_get(void) {
   return (scriptloader_t *) data_thread_kernel();
+}
+
+scriptloader_t * scriptloader_set_options(scriptloader_t *loader, array_t *options) {
+  int     ix;
+  data_t *opt;
+  
+  for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
+    opt;
+    if (opt = data_array_get(options, ix)) {
+      scriptloader_set_option(loader, ix, data_copy(opt));
+    }
+  }
+  return loader;
 }
 
 scriptloader_t * scriptloader_set_option(scriptloader_t *loader, obelix_option_t option, long value) {
@@ -484,6 +498,24 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
     logging_disable("trace");
   } else {
     data = (sys) ? sys : data_exception(ErrorName, "Could not resolve module 'sys'");
+  }
+  return data;
+}
+
+data_t * scriptloader_eval(scriptloader_t *loader, data_t *src) {
+  module_t *root;
+  data_t   *data;
+  script_t *script;
+  
+  data = ns_get(loader -> ns, NULL);
+  if (data_is_module(data)) {
+    root = data_as_module(data);
+    data = scriptloader_load_fromreader(loader, root, src);
+    if (data_is_script(data)) {
+      script = data_as_script(data);
+      data = closure_eval(root -> closure, script);
+      script_free(script);
+    }
   }
   return data;
 }

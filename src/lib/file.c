@@ -53,7 +53,7 @@ typedef int _oshandle_t;
 
 static void          _file_init(void) __attribute__((constructor(110)));
 
-static int           _stream_read(stream_t *, char *, int);
+static void          _stream_free(stream_t *);
 static stream_t *    _stream_enter(stream_t *);
 static data_t *      _stream_query(stream_t *, data_t *, array_t *);
 static data_t *      _stream_iter(stream_t *);
@@ -78,7 +78,9 @@ static data_t *      _file_seek(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_flush(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_stream[] = {
-  { .id = FunctionRead,        .fnc = (void_t) _stream_read },
+  { .id = FunctionFree,        .fnc = (void_t) _stream_free },
+  { .id = FunctionRead,        .fnc = (void_t) stream_read },
+  { .id = FunctionWrite,       .fnc = (void_t) stream_write },
   { .id = FunctionEnter,       .fnc = (void_t) _stream_enter },
   { .id = FunctionIter,        .fnc = (void_t) _stream_iter },
   { .id = FunctionQuery,       .fnc = (void_t) _stream_query },
@@ -100,7 +102,6 @@ static vtable_t _vtable_file[] = {
   { .id = FunctionHash,        .fnc = (void_t) file_hash },
   { .id = FunctionLeave,       .fnc = (void_t) _file_leave },
   { .id = FunctionResolve,     .fnc = (void_t) _file_resolve },
-  { .id = FunctionWrite,       .fnc = (void_t) file_write },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -164,28 +165,11 @@ void _file_init(void) {
 
 /* -- S T R E A M  A B S T R A C T  T Y P E ------------------------------- */
 
-int _stream_read(stream_t *stream, char *buf, int num) {
-  int     retval;
-  int     ix;
-  char   *ptr;
-  int     ch;
-  data_t *ret;
-
-  if (file_debug) {
-    debug("%s.read(%d)", data_tostring((data_t *) stream), num);
+void _stream_free(stream_t *stream) {
+  if (stream) {
+    str_free(stream -> buffer);
+    free(stream -> error);
   }
-  ptr = buf;
-  for (ix = 0; ix < num; ix++) {
-    ch = stream_getchar(stream);
-    if (ch > 0) {
-      *ptr++ = ch;
-    } else if (ch == 0) {
-      break;
-    } else {
-      return -1;
-    }
-  }
-  return ix;
 }
 
 stream_t * _stream_enter(stream_t *stream) {
@@ -269,13 +253,6 @@ stream_t * stream_init(stream_t *stream, read_t reader, write_t writer) {
   return stream;
 }
 
-void stream_free(stream_t *stream) {
-  if (stream -> buffer) {
-    str_free(stream -> buffer);
-  }
-  free(stream -> error);
-}
-
 char * stream_error(stream_t *stream) {
   if (stream -> _errno) {
     free(stream -> error);
@@ -295,7 +272,7 @@ int stream_getchar(stream_t *stream) {
       stream -> _errno = 1;
       return -1;
     }
-    ret = str_read_from_reader(stream -> buffer, stream, stream -> reader);
+    ret = str_read_from_stream(stream -> buffer, stream, stream -> reader);
     if (ret < 0) {
       stream -> _errno = errno;
       return ret;
@@ -306,7 +283,7 @@ int stream_getchar(stream_t *stream) {
   }
   ch = str_readchar(stream -> buffer);
   if (!ch) {
-    ret = str_read_from_reader(stream -> buffer, stream, stream -> reader);
+    ret = str_read_from_stream(stream -> buffer, stream, stream -> reader);
     if (ret < 0) {
       stream -> _errno = errno;
       return ret;
@@ -326,6 +303,62 @@ int stream_getchar(stream_t *stream) {
 
 int stream_eof(stream_t *stream) {
   return stream -> _eof;
+}
+
+int stream_read(stream_t *stream, char *buf, int num) {
+  int     retval;
+  int     ix;
+  char   *ptr;
+  int     ch;
+  data_t *ret;
+
+  if (file_debug) {
+    debug("%s.read(%d)", data_tostring((data_t *) stream), num);
+  }
+  ptr = buf;
+  for (ix = 0; ix < num; ix++) {
+    ch = stream_getchar(stream);
+    if (ch > 0) {
+      *ptr++ = ch;
+    } else if (ch == 0) {
+      break;
+    } else {
+      return -1;
+    }
+  }
+  return ix;
+}
+
+#define WRITE_TO_STREAM(s, l) if (retval >= 0) {                          \
+    int _len = strlen((l));                                               \
+    if (file_debug) {                                                     \
+      debug("Writing %d bytes to %s", _len, stream_tostring((s)));        \
+    }                                                                     \
+    retval = (s -> writer)((s), (l), _len);                               \
+    if (file_debug) {                                                     \
+      if (retval >= 0) {                                                  \
+        debug("Wrote %d bytes", retval);                                  \
+      } else {                                                            \
+        debug("error: %d", errno);                                        \
+      }                                                                   \
+    }                                                                     \
+}
+
+int stream_write(stream_t *stream, char *buf, int num) {
+  int retval = 0;
+  
+  if (file_debug) {                                                     
+    debug("Writing %d bytes to %s", num, stream_tostring(stream)); 
+  }                                                                     
+  retval = (stream -> writer)(stream, buf, num);                               
+  if (file_debug) {                                                     
+    if (retval >= 0) {                                                  
+      debug("Wrote %d bytes", retval);                                  
+    } else {                                                            
+      debug("error: %d", errno);                                        
+    }                                                                   
+  }                                    
+  return retval;
 }
 
 char * stream_readline(stream_t *stream) {
@@ -356,30 +389,11 @@ char * stream_readline(stream_t *stream) {
   return buf;
 }
 
-#define WRITE_TO_STREAM(s, l) if (retval >= 0) {                          \
-    int _len = strlen((l));                                               \
-    if (file_debug) {                                                     \
-      debug("Writing %d bytes to %s", _len, data_tostring((data_t *) s)); \
-    }                                                                     \
-    retval = (s -> writer)((s), (l), _len);                               \
-    if (file_debug) {                                                     \
-      if (retval >= 0) {                                                  \
-        debug("Wrote %d bytes", retval);                                  \
-      } else {                                                            \
-        debug("error: %d", errno);                                        \
-      }                                                                   \
-    }                                                                     \
-}
-
-int stream_print(stream_t *stream, char *fmt, array_t *args, dict_t *kwargs) {
-  data_t *s;
+int _stream_print_data(stream_t *stream, data_t *s) {
   char   *line;
   char   *buf;
   int     retval = 0;
   data_t *r = NULL;
-
-  s = data_execute((r = data_create(String, fmt)), "format", args, kwargs);
-  data_free(r);
 
   line = data_tostring(s);
   buf = (char *) _new(strlen(line) +
@@ -404,6 +418,40 @@ int stream_print(stream_t *stream, char *fmt, array_t *args, dict_t *kwargs) {
   }
   data_free(s);
   return retval;
+}
+
+int stream_print(stream_t *stream, char *fmt, array_t *args, dict_t *kwargs) {
+  str_t *s;
+  int    ret;
+
+  if (strstr(fmt, "${")) {
+    s = str_format(fmt, args, kwargs);
+  } else {
+    s = str_copy_chars(fmt);
+  }
+  ret = _stream_print_data(stream, (data_t *) s);
+  str_free(s);
+  return ret;
+}
+
+int stream_vprintf(stream_t *stream, char *fmt, va_list args) {
+  str_t *s;
+  int    ret;
+
+  s = str_vformatf(fmt, args);
+  ret = _stream_print_data(stream, (data_t *) s);
+  str_free(s);
+  return ret;
+}
+
+int stream_printf(stream_t *stream, char *fmt, ... ) {
+  va_list args;
+  int      ret;
+  
+  va_start(args, fmt);
+  ret = stream_vprintf(stream, fmt, args);
+  va_end(args);
+  return ret;
 }
 
 /* -- S T R E A M  I T E R A T O R ---------------------------------------- */

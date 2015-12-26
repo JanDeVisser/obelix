@@ -38,6 +38,7 @@ typedef struct _bound_method {
 
 extern bound_method_t * bound_method_create(script_t *, object_t *);
 extern int              bound_method_cmp(bound_method_t *, bound_method_t *);
+extern closure_t *      bound_method_get_closure(bound_method_t *);
 extern data_t *         bound_method_execute(bound_method_t *, array_t *, dict_t *);
 
 extern int BoundMethod;

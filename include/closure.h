@@ -44,22 +44,23 @@ typedef struct _closure {
 
 /* -- C L O S U R E  P R O T O T Y P E S ---------------------------------- */
 
-extern closure_t *      closure_create(script_t *, closure_t *, data_t *);
-extern closure_t *      closure_copy(closure_t *);
-extern int              closure_cmp(closure_t *, closure_t *);
-extern unsigned int     closure_hash(closure_t *);
-extern data_t *         closure_set(closure_t *, char *, data_t *);
-extern data_t *         closure_get(closure_t *, char *);
-extern int              closure_has(closure_t *, char *);
-extern data_t *         closure_resolve(closure_t *, char *);
-extern data_t *         closure_execute(closure_t *, array_t *, dict_t *);
-extern data_t *         closure_import(closure_t *, name_t *);
-extern exception_t *    closure_yield(closure_t *, vm_t *);
-extern closure_t *      closure_copy(closure_t *);
-extern char *           closure_tostring(closure_t *);
-extern void             closure_free(closure_t *);
-extern int              data_is_closure(data_t *);
-extern closure_t *      data_as_closure(data_t *);
+extern closure_t *        closure_create(script_t *, closure_t *, data_t *);
+extern closure_t *        closure_copy(closure_t *);
+extern int                closure_cmp(closure_t *, closure_t *);
+extern unsigned int       closure_hash(closure_t *);
+extern data_t *           closure_set(closure_t *, char *, data_t *);
+extern data_t *           closure_get(closure_t *, char *);
+extern int                closure_has(closure_t *, char *);
+extern data_t *           closure_resolve(closure_t *, char *);
+extern data_t *           closure_execute(closure_t *, array_t *, dict_t *);
+extern data_t *           closure_import(closure_t *, name_t *);
+extern exception_t *      closure_yield(closure_t *, vm_t *);
+OBLPARSER_IMPEXP data_t * closure_eval(closure_t *, script_t *);
+extern closure_t *        closure_copy(closure_t *);
+extern char *             closure_tostring(closure_t *);
+extern void               closure_free(closure_t *);
+extern int                data_is_closure(data_t *);
+extern closure_t *        data_as_closure(data_t *);
 
 extern int Closure;
 

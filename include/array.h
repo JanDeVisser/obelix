@@ -70,7 +70,7 @@ OBLCORE_IMPEXP void *        array_next(array_t *);
 OBLCORE_IMPEXP void *        array_prev(array_t *);
 
 
-#define array_size(a)            ((a) -> size)
+#define array_size(a)            ((a) ? ((a) -> size) : -1)
 
 #define array_set_int(a, i, v)   array_put((a), (i), (void *)((intptr_t) (v)))
 #define array_get_int(a, i)      ((intptr_t) array_get((a), (i)));

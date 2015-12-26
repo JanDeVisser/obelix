@@ -42,6 +42,7 @@ static void            _logging_set(char *, int);
 static char *          _log_level_str(log_level_t lvl);
 
 static dict_t *        _categories = NULL;
+static log_level_t     _log_level = LogLevelError;
 
 static code_label_t _log_level_labels[] = {
   { .code = LogLevelDebug,   .label = "DEBUG" },
@@ -86,7 +87,7 @@ logcategory_t * _logcategory_create(char *name, int *flag) {
   }  
   cat -> name = strdup(name);
   cat -> flag = flag;
-  cat -> level = log_level;
+  cat -> level = _log_level;
   if (flag) {
     *flag = 0;
   }
@@ -201,7 +202,7 @@ void logging_disable(char *category) {
 void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, const char *msg, ...) {
   va_list args;
   
-  if (lvl >= log_level) {
+  if (lvl >= _log_level) {
     va_start(args, msg);
     fprintf(stderr, "%-12.12s:%4d:%-20.20s:%-5.5s:", file, line, caller, _log_level_str(lvl));
     vfprintf(stderr, msg, args);
@@ -220,4 +221,13 @@ int logging_status(char *category) {
     cat -> enabled = FALSE;
   }
   return cat -> enabled;  
+}
+
+int logging_level(void) {
+  return _log_level;
+}
+
+int logging_set_level(log_level_t log_level) {
+  _log_level = log_level;
+  return _log_level;
 }

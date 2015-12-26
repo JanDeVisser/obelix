@@ -209,6 +209,7 @@ data_t * _pnm_set(pnm_t *pnm, char *name, data_t *value) {
 void _mod_free(module_t *mod) {
   if (mod) {
     object_free(mod -> obj);
+    closure_free(mod -> closure);
     ns_free(mod -> ns);
     free(mod -> name);
   }
@@ -261,6 +262,7 @@ data_t * mod_set(module_t *mod, script_t *script, array_t *args, dict_t *kwargs)
   if (ns_debug) {
     debug("mod_set(%s, %s)", mod_tostring(mod), script_tostring(script));
   }
+  script -> mod = mod;
   data = script_create_object(script, args, kwargs);
   if (data_is_object(data)) {
     mod -> state = ModStateActive;
@@ -296,7 +298,6 @@ void ** _mod_resolve_reducer(module_t *import, void **ctx) {
 data_t * mod_resolve(module_t *mod, char *name) {
   data_t   *ret;
   void     *ctx[2];
-  module_t *root;
   data_t   *droot;
   
   if (ns_debug) {

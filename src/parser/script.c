@@ -164,11 +164,12 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
 }
 
 data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparams) {
-  object_t *retobj;
-  data_t   *retval;
-  data_t   *dscript;
-  data_t   *bm;
-  data_t   *self;
+  object_t       *retobj;
+  data_t         *retval;
+  data_t         *dscript;
+  data_t         *self;
+  closure_t      *closure;
+  bound_method_t *bm;
 
   if (script_debug) {
     debug("script_create_object(%s)", script_tostring(script));
@@ -177,17 +178,22 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   if (!script -> up) {
     script -> mod -> obj = object_copy(retobj);
   }
+  bm = data_as_bound_method(retobj -> constructor);
+  closure = bound_method_get_closure(bm);
   retobj -> constructing = TRUE;
-  retval = bound_method_execute(data_as_bound_method(retobj -> constructor),
-                                params, kwparams);
+  retval = closure_execute(closure, params, kwparams);
   retobj -> constructing = FALSE;
   if (!data_is_exception(retval)) {
     retobj -> retval = retval;
     retval = data_create(Object, retobj);
+    if (!script -> up) {
+      script -> mod -> closure = closure_copy(closure);
+    }
   }
   if (script_debug) {
     debug("  script_create_object returns %s", data_tostring(retval));
   }
+  closure_free(closure);
   data_free(dscript);
   return retval;
 }

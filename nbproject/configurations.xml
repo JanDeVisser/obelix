@@ -23,7 +23,10 @@
           <in>grammar.c</in>
           <in>loader.c</in>
           <in>obelix.c</in>
+          <in>obelix.h</in>
           <in>scriptparse.c</in>
+          <in>server.c</in>
+          <in>server.h</in>
         </df>
         <df name="lib">
           <in>any.c</in>
@@ -236,6 +239,8 @@
           </incDir>
         </cTool>
       </item>
+      <item path="src/bin/obelix.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="src/bin/scriptparse.c" ex="false" tool="0" flavor2="3">
         <cTool flags="0">
           <incDir>
@@ -243,6 +248,10 @@
             <pElem>build/src/bin</pElem>
           </incDir>
         </cTool>
+      </item>
+      <item path="src/bin/server.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/bin/server.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="src/lib/any.c" ex="false" tool="0" flavor2="3">
         <cTool flags="1">
@@ -673,7 +682,13 @@
       </item>
       <item path="src/bin/obelix.c" ex="false" tool="0" flavor2="9">
       </item>
+      <item path="src/bin/obelix.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="src/bin/scriptparse.c" ex="false" tool="0" flavor2="9">
+      </item>
+      <item path="src/bin/server.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/bin/server.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="src/lib/any.c" ex="false" tool="0" flavor2="9">
       </item>

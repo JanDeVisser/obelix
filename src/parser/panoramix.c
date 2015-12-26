@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
         debug = optarg;
         break;
       case 'v':
-        log_level = atoi(optarg);
+        logging_set_level(atoi(optarg));
         break;
     }
   }

@@ -6,10 +6,12 @@ add_custom_command (
 )
 
 add_executable(obelix
-	grammar.c
- 	loader.c
- 	obelix.c
- 	scriptparse.c)
+    grammar.c
+    loader.c
+    obelix.c
+    scriptparse.c
+    server.c
+)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(obelix PRIVATE _GNU_SOURCE)

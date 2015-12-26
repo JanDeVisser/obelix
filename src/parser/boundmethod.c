@@ -86,13 +86,18 @@ int bound_method_cmp(bound_method_t *bm1, bound_method_t *bm2) {
     : cmp;
 }
 
-data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwparams) {
-  closure_t *closure;
-  data_t    *self;
-  data_t    *ret;
+closure_t * bound_method_get_closure(bound_method_t *bm) {
+  data_t *self;
 
   self = (bm -> self) ? data_create(Object, bm -> self) : NULL;
-  closure = closure_create(bm -> script, bm -> closure, self);
+  return closure_create(bm -> script, bm -> closure, self);
+}
+
+data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwparams) {
+  closure_t *closure;
+  data_t    *ret;
+
+  closure = bound_method_get_closure(bm);
   ret = closure_execute(closure, params, kwparams);
   closure_free(closure);
   return ret;

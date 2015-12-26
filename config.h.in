@@ -24,9 +24,11 @@
  * The configured options and settings for obelix
  */
 
-#define OBELIX_VERSION_MAJOR @obelix_VERSION_MAJOR@
-#define OBELIX_VERSION_MINOR @obelix_VERSION_MINOR@
-#define OBELIX_DATADIR "@obelix_DATADIR@"
+#define OBELIX_NAME                          "@obelix_NAME@"
+#define OBELIX_VERSION_MAJOR                 "@obelix_VERSION_MAJOR@"
+#define OBELIX_VERSION_MINOR                 "@obelix_VERSION_MINOR@"
+#define OBELIX_VERSION                       "@obelix_VERSION_MAJOR@.@obelix_VERSION_MINOR@"
+#define OBELIX_DATADIR                       "@obelix_DATADIR@"
 
 #cmakedefine HAVE_ALLOCA_H                   1
 #cmakedefine HAVE_DLFCN_H                    1

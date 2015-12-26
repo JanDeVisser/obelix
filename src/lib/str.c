@@ -64,6 +64,7 @@ static vtable_t _vtable_string[] = {
   { .id = FunctionHash,        .fnc = (void_t) str_hash },
   { .id = FunctionLen,         .fnc = (void_t) str_len },
   { .id = FunctionRead,        .fnc = (void_t) str_read },
+  { .id = FunctionWrite,       .fnc = (void_t) str_write },
   { .id = FunctionResolve,     .fnc = (void_t) _str_resolve },
   { .id = FunctionNone,        .fnc = NULL }
 };
@@ -399,13 +400,13 @@ int str_readinto(str_t *str, data_t *rdr) {
 
   fnc = (read_t) typedescr_get_function(type, FunctionRead);
   if (fnc) {
-    return str_read_from_reader(str, rdr, fnc);
+    return str_read_from_stream(str, rdr, fnc);
   } else {
     return -1;
   }
 }
 
-int str_read_from_reader(str_t *str, void *stream, read_t reader) {
+int str_read_from_stream(str_t *str, void *stream, read_t reader) {
   int ret;
 
   str_erase(str);
@@ -653,6 +654,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
           bufsize *= 2;
         }
         if (bufsize > _DEFAULT_SIZE) {
+          if (bigbuf) free(bigbuf);
           bigbuf = (char *) new(bufsize);
           spec = bigbuf;
         }
@@ -673,6 +675,76 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
     }
   }
   if (bigbuf) free(bigbuf);
+  return ret;
+}
+
+str_t * str_vformatf(char *fmt, va_list args) {
+  array_t *arr;
+  char    *f = fmt;
+  char    *ptr;
+  int      ix;
+  int      num;
+  char     needle[32];
+  str_t   *ret;
+  int      done;
+  
+  strcpy(needle, "${");
+  for (num = 0; num < 1000; ix++) {
+    sprintf(needle + 2, "%d}", num);
+    if (strstr(fmt, needle)) continue;
+    needle[strlen(needle) - 1] = ':';
+    if (strstr(fmt, needle)) continue;
+    needle[strlen(needle) - 1] = ';';
+    if (!strstr(fmt, needle)) break;
+  }
+  if (num > 0) {
+    arr = data_array_create(num);
+    for (ix = 0; ix < num; ix++) {
+      done = 0;
+      sprintf(needle + 2, "%d;", num);
+      if (ptr = strstr(f, needle)) {
+        if (f == fmt) {
+          f = strdup(fmt);
+          ptr = strstr(f, needle);
+        }
+        ptr += strlen(needle);
+        if (strpbrk(ptr, "dspf") == ptr) {
+          switch (ptr[0]) {
+            case 'd':
+              array_push(arr, data_create(Int, va_arg(args, long)));
+              break;
+            case 's':
+              array_push(arr, data_create(String, va_arg(args, char *)));
+              break;
+            case 'p':
+              array_push(arr, data_create(Pointer, va_arg(args, void *)));
+              break;
+            case 'f':
+              array_push(arr, data_create(Float, va_arg(args, double)));
+              break;
+          }
+          done = 1;
+          memmove(ptr - 1, ptr + 1, strlen(ptr + 1) + 1); 
+        }
+      }
+      if (!done) {
+        array_push(arr, data_copy(va_arg(args, data_t *)));
+      }
+    }
+  }
+  ret = str_format(fmt, arr, NULL);
+  array_free(arr);
+  if (f != fmt) free(f);
+  return ret;
+}
+
+str_t * str_formatf(char *fmt, ...) {
+  va_list  args;
+  str_t   *ret;
+  
+  va_start(args, fmt);
+  ret = str_vformatf(fmt, args);
+  va_end(args);
   return ret;
 }
 

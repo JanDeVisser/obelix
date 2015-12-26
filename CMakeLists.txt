@@ -15,6 +15,7 @@ set(CMAKE_BUILD_TYPE Debug)
 # set(CMAKE_C_FLAGS -m32)
 
 # The version number.
+set(obelix_NAME Obelix)
 set(obelix_VERSION_MAJOR 1)
 set(obelix_VERSION_MINOR 0)
 

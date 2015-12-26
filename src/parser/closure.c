@@ -36,7 +36,7 @@ static void         _closure_init(void) __attribute__((constructor(102)));
 static closure_t *  _closure_create_closure_reducer(entry_t *, closure_t *);
 static listnode_t * _closure_execute_instruction(instruction_t *, closure_t *);
 static data_t *     _closure_get(closure_t *, char *);
-static data_t *     _closure_start(closure_t *);
+static data_t *     _closure_start(closure_t *, bytecode_t *);
 
 static char *       _closure_allocstring(closure_t *closure);
 static void         _closure_free(closure_t *);
@@ -116,8 +116,8 @@ data_t * _closure_get(closure_t *closure, char *varname) {
   return ret;
 }
 
-data_t * _closure_start(closure_t *closure) {
-  vm_t        *vm = vm_create(closure -> bytecode);
+data_t * _closure_start(closure_t *closure, bytecode_t *bytecode) {
+  vm_t        *vm = vm_create(bytecode);
   data_t      *ret;
   exception_t *e;
 
@@ -137,27 +137,6 @@ data_t * _closure_start(closure_t *closure) {
       break;
   }
   return ret;
-}
-
-exception_t * closure_yield(closure_t *closure, vm_t *vm) {
-  data_t      *ret;
-  exception_t *e;
-  data_t      *d;
-  int          done = FALSE;
-
-  ret = vm_execute(vm, d = data_create(Closure, closure));
-  done = TRUE;
-  if (data_is_exception(ret)) {
-    e = data_as_exception(ret);
-    if ((e -> code == ErrorExit) && (e -> throwable)) {
-      ns_exit(closure -> script -> mod -> ns, ret);
-    }
-  } else {
-    e = exception_create(ErrorReturn, "Return Value");
-    e -> throwable = ret;
-  }
-  data_free(d);
-  return e;
 }
 
 char * _closure_allocstring(closure_t *closure) {
@@ -331,13 +310,11 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
   int        ix;
   data_t    *param;
   script_t  *script;
-  object_t  *self;
-  pthread_t  thr_id;
-  char      *str;
 
   script = closure -> script;
   if (closure -> free_params) {
     dict_free(closure -> params);
+    closure -> params = NULL;
   }
   closure -> free_params = FALSE;
   if (script -> params && array_size(script -> params)) {
@@ -375,8 +352,40 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
                          generator_create(closure,
                                           vm_create(closure -> bytecode), NULL));
     default:
-      return _closure_start(closure);
+      return _closure_start(closure, closure -> bytecode);
   }
+}
+
+exception_t * closure_yield(closure_t *closure, vm_t *vm) {
+  data_t      *ret;
+  exception_t *e;
+  data_t      *d;
+  int          done = FALSE;
+
+  ret = vm_execute(vm, d = data_create(Closure, closure));
+  done = TRUE;
+  if (data_is_exception(ret)) {
+    e = data_as_exception(ret);
+    if ((e -> code == ErrorExit) && (e -> throwable)) {
+      ns_exit(closure -> script -> mod -> ns, ret);
+    }
+  } else {
+    e = exception_create(ErrorReturn, "Return Value");
+    e -> throwable = ret;
+  }
+  data_free(d);
+  return e;
+}
+
+data_t * closure_eval(closure_t *closure, script_t *script) {
+  dict_reduce(script -> functions,
+              (reduce_t) _closure_create_closure_reducer, closure);
+  if (closure -> free_params) {
+    dict_free(closure -> params);
+    closure -> params = NULL;
+  }
+  closure -> free_params = FALSE;
+  return _closure_start(closure, script -> bytecode);
 }
 
 /* -- C L O S U R E  D A T A  M E T H O D S --------------------------------*/

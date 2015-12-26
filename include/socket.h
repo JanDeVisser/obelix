@@ -32,7 +32,7 @@
 #include <thread.h>
 
 #ifdef __cplusplus
-//extern "C" {
+extern "C" {
 #endif
 
 #ifndef HAVE_TYPE_SOCKET
@@ -82,18 +82,20 @@ OBLCORE_IMPEXP void *        connection_listener_service(connection_t *);
 #define socket_tostring(o) (data_tostring((data_t *) (o)))
 #define socket_copy(o)     ((socket_t *) data_copy((data_t *) (o)))
 
-#define socket_set_errno(s)       (((stream_t *) (s)) -> _errno = errno)
-#define socket_clear_errno(s)     (((stream_t *) (s)) -> _errno = 0)
-#define socket_errno(s)           (((stream_t *) (s)) -> _errno)
-#define socket_error(s)           (stream_error((stream_t *) (s)))
-#define socket_getchar(s)         (stream_getchar((stream_t *) (s)))
-#define socket_readline(s)        (stream_readline((stream_t *) (s)))
-#define socket_print(s, f, a, kw) (stream_print((stream_t *) (s), (f), (a), (kw)))
+#define socket_set_errno(s)          (((stream_t *) (s)) -> _errno = errno)
+#define socket_clear_errno(s)        (((stream_t *) (s)) -> _errno = 0)
+#define socket_errno(s)              (((stream_t *) (s)) -> _errno)
+#define socket_error(s)              (stream_error((stream_t *) (s)))
+#define socket_getchar(s)            (stream_getchar((stream_t *) (s)))
+#define socket_readline(s)           (stream_readline((stream_t *) (s)))
+#define socket_print(s, f, a, kw)    (stream_print((stream_t *) (s), (f), (a), (kw)))
+#define socket_vprintf(s, f, args)   (stream_printf((stream_t *) (s), (f), args))
+#define socket_printf(s, f, args...) (stream_printf((stream_t *) (s), (f), ## args))
 
 OBLCORE_IMPEXP int Socket;
 
 #ifdef	__cplusplus
-//}
+}
 #endif
 
 #endif	/* __SOCKET_H__ */

@@ -22,6 +22,7 @@
 #define __NAMESPACE_H__
 
 #include <libparser.h>
+#include <closure.h>
 #include <data.h>
 #include <dict.h>
 #include <name.h>
@@ -57,6 +58,7 @@ typedef struct _module {
   namespace_t *ns;
   modstate_t   state;
   object_t    *obj;
+  closure_t   *closure;
   set_t       *imports;
 } module_t;
 
