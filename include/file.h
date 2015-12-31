@@ -56,6 +56,8 @@ OBLCORE_IMPEXP int          stream_write(stream_t *, char *, int);
 OBLCORE_IMPEXP int          stream_getchar(stream_t *);
 OBLCORE_IMPEXP char *       stream_readline(stream_t *);
 OBLCORE_IMPEXP int          stream_print(stream_t *, char *, array_t *, dict_t *);
+OBLCORE_IMPEXP int          stream_vprintf(stream_t *, char *, va_list);
+OBLCORE_IMPEXP int          stream_printf(stream_t *, char *, ...);
 OBLCORE_IMPEXP int          stream_eof(stream_t *);
 
 typedef struct _file {

@@ -414,7 +414,9 @@ int str_read_from_stream(str_t *str, void *stream, read_t reader) {
   if (ret < 0) {
     return -1;
   } else {
-    str -> buffer[ret] = 0;
+    if (ret < str -> bufsize) {
+      str -> buffer[ret] = 0;
+    }
     str -> len = ret;
     return ret;
   }

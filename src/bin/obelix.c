@@ -55,7 +55,7 @@ static vtable_t _vtable_obelix[] = {
 
 static methoddescr_t _methoddescr_obelix[] = {
   { .type = Any,    .name = "obelix", .method = _obelix_get, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = Obelix, .name = "run",    .method = _obelix_run, .argtypes = { String, Any, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = -1,     .name = "run",    .method = _obelix_run, .argtypes = { String, Any, NoType },    .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
@@ -114,8 +114,8 @@ static data_t * _obelix_run(data_t *self, char *name, array_t *args, dict_t *kwa
   
   script = (data_is_name(name_arg)) 
           ? name_copy(name_arg) 
-          : obelix_build_name(data_tostring());
-  script_args = array_slice(args, 1);
+          : obelix_build_name(data_tostring(name_arg));
+  script_args = array_slice(args, 1, -1);
   ret = obelix_run(_obelix, script, script_args, kwargs);
   array_free(script_args);
   name_free(script);
@@ -130,8 +130,8 @@ void _obelix_debug_settings(obelix_t *obelix) {
   
   logging_reset();
   logging_set_level(obelix -> log_level);
-  if (obelix ->S debug) {
-    debug("debug optarg: %s", args -> debug);
+  if (obelix -> debug) {
+    debug("debug optarg: %s", obelix -> debug);
     cats = array_split(obelix -> debug, ",");
     for (ix = 0; ix < array_size(cats); ix++) {
       logging_enable(str_array_get(cats, ix));
@@ -222,7 +222,7 @@ obelix_t * obelix_initialize(int argc, char **argv) {
       if (argc > optind + 1) {
         _obelix -> script_args = str_array_create(argc - optind);
         for (ix = optind + 1; ix < argc; ix++) {
-          array_push(_obelix -> script_args, data_create(String, obelix -> args -> argv[ix]));
+          array_push(_obelix -> script_args, str_wrap(argv[ix]));
         }
       }
     } else {
@@ -265,7 +265,7 @@ scriptloader_t * obelix_create_loader(obelix_t *obelix) {
   }
   dict_put(obelix -> loaders, 
            str_wrap(loader -> cookie), 
-           scriptloader_copy(server -> loader));
+           scriptloader_copy(loader));
   return loader;
 }
 

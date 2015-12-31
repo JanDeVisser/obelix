@@ -73,7 +73,7 @@ extern oblserver_t * oblserver_create(obelix_t *, stream_t *);
 extern oblserver_t * oblserver_run(oblserver_t *);
 extern int           oblserver_start(obelix_t *);
 
-extern int Server
+extern int Server;
 
 #define data_is_oblserver(d)  ((d) && data_hastype((d), Server))
 #define data_as_oblserver(d)  (data_is_server((d)) ? ((oblserver_t *) (d)) : NULL)

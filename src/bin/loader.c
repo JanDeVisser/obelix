@@ -19,6 +19,7 @@
 
 #include <config.h>
 #include <stdio.h>
+#include <time.h>
 
 #include <data.h>
 #include <exception.h>
@@ -361,6 +362,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
     data_thread_set_kernel((data_t *) ret);
   }
   strrand(ret -> cookie, COOKIE_SZ - 1);
+  ret -> lastused = time(NULL);
   if (script_debug) {
     debug("scriptloader created");
   }
@@ -376,9 +378,8 @@ scriptloader_t * scriptloader_set_options(scriptloader_t *loader, array_t *optio
   data_t *opt;
   
   for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
-    opt;
     if (opt = data_array_get(options, ix)) {
-      scriptloader_set_option(loader, ix, data_copy(opt));
+      scriptloader_set_option(loader, ix, data_intval(opt));
     }
   }
   return loader;

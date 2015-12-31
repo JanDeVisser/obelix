@@ -444,7 +444,7 @@ int stream_vprintf(stream_t *stream, char *fmt, va_list args) {
   return ret;
 }
 
-int stream_printf(stream_t *stream, char *fmt, ... ) {
+int stream_printf(stream_t *stream, char *fmt, ...) {
   va_list args;
   int      ret;
   

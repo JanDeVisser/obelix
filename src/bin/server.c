@@ -34,19 +34,22 @@ typedef struct _server_cmd_handler {
   int  (*handler)(oblserver_t *, char *);
 } server_cmd_handler_t;
 
-static void     _oblserver_init(void) __attribute__((constructor(130)));
+static void          _oblserver_init(void) __attribute__((constructor(130)));
 
-static void     _oblserver_free(oblserver_t *);
-static char *   _oblserver_tostring(oblserver_t *);
-static data_t * _oblserver_resolve(oblserver_t *, char *);
+static void          _oblserver_free(oblserver_t *);
+static char *        _oblserver_tostring(oblserver_t *);
+static data_t *      _oblserver_resolve(oblserver_t *, char *);
 
-static int      _oblserver_welcome(oblserver_t *, char *);
-static int      _oblserver_attach(oblserver_t *, char *);
-static int      _oblserver_path(oblserver_t *, char *);
-static int      _oblserver_eval(oblserver_t *, char *);
-static int      _oblserver_run(oblserver_t *, char *);
-static int      _oblserver_detach(oblserver_t *, char *);
-static int      _oblserver_quit(oblserver_t *, char *);
+static oblserver_t * _oblserver_return_error(oblserver_t *, char *, data_t *);
+static oblserver_t * _oblserver_return_result(oblserver_t *, data_t *);
+
+static int           _oblserver_welcome(oblserver_t *, char *);
+static int           _oblserver_attach(oblserver_t *, char *);
+static int           _oblserver_path(oblserver_t *, char *);
+static int           _oblserver_eval(oblserver_t *, char *);
+static int           _oblserver_run(oblserver_t *, char *);
+static int           _oblserver_detach(oblserver_t *, char *);
+static int           _oblserver_quit(oblserver_t *, char *);
 
 static vtable_t _vtable_oblserver[] = {
   { .id = FunctionFree,         .fnc = (void_t) _oblserver_free },
@@ -58,14 +61,14 @@ static vtable_t _vtable_oblserver[] = {
 int Server = -1;
 
 static server_cmd_handler_t _cmd_handlers[] = {
-  { .cmd = OBLSERVER_CMD_HELLO,     handler = _oblserver_welcome },
-  { .cmd = OBLSERVER_CMD_ATTACH,    handler = _oblserver_attach },
-  { .cmd = OBLSERVER_CMD_PATH,      handler = _oblserver_path },
-  { .cmd = OBLSERVER_CMD_EVAL,      handler = _oblserver_eval },
-  { .cmd = OBLSERVER_CMD_RUN,       handler = _oblserver_run },
-  { .cmd = OBLSERVER_CMD_DETACH,    handler = _oblserver_detach },
-  { .cmd = OBLSERVER_CMD_QUIT,      handler = _oblserver_quit },
-  { .cmd = NULL,                    handler = NULL }
+  { .cmd = OBLSERVER_CMD_HELLO,  .handler = _oblserver_welcome },
+  { .cmd = OBLSERVER_CMD_ATTACH, .handler = _oblserver_attach },
+  { .cmd = OBLSERVER_CMD_PATH,   .handler = _oblserver_path },
+  { .cmd = OBLSERVER_CMD_EVAL,   .handler = _oblserver_eval },
+  { .cmd = OBLSERVER_CMD_RUN,    .handler = _oblserver_run },
+  { .cmd = OBLSERVER_CMD_DETACH, .handler = _oblserver_detach },
+  { .cmd = OBLSERVER_CMD_QUIT,   .handler = _oblserver_quit },
+  { .cmd = NULL,                 .handler = NULL }
 };
 
 static code_label_t _server_codes[] = {
@@ -103,7 +106,7 @@ void _oblserver_free(oblserver_t *server) {
 
 data_t * _oblserver_resolve(oblserver_t *server, char *name) {
   if (!strcmp(name, "loader")) {
-    return server -> loader;
+    return (data_t *) scriptloader_copy(server -> loader);
   } else {
     return NULL;
   }
@@ -116,7 +119,7 @@ oblserver_t * _oblserver_return_error(oblserver_t *server, char *code,
   if (script_debug) {
     debug("Returning error %s %s", code, param);
   }
-  stream_printf(server -> stream, "${0;s} {1}", code, param);
+  stream_printf(server -> stream, "${0;s} ${1}", code, param);
   return server;
 }
 
@@ -157,11 +160,11 @@ oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
 
 oblserver_t * _oblserver_create_loader(oblserver_t *server) {
   if (!server -> loader) {
-    if (!server -> loader = obelix_create_loader(server -> obelix)) {
+    if (!(server -> loader = obelix_create_loader(server -> obelix))) {
       return NULL;
     }
   }
-  server -> loader -> lastused = time();
+  server -> loader -> lastused = time(NULL);
   return server;
 }
 
@@ -212,17 +215,17 @@ int _oblserver_eval(oblserver_t *server, char *length) {
     _oblserver_create_loader(server);
     script = (char *) _new(len);
     if ((numread = stream_read(server -> stream, script, len)) == len) {
-      ret = scriptloader_eval(server -> loader, dscript = str_wrap(script));
+      ret = scriptloader_eval(server -> loader, dscript = (data_t *) str_wrap(script));
       _oblserver_return_result(server, ret);
       data_free(dscript);
     } else {
       _oblserver_return_error(server, OBLSERVER_ERROR_PROTOCOL, 
-                              "Read", data_create(Int, numread));
+                              data_create(Int, numread));
     }
     free(script);
   } else {
     _oblserver_return_error(server, OBLSERVER_ERROR_PROTOCOL, 
-                            "Length", data_create(Int, length));
+                            data_create(Int, length));
     return 0;
   }
 }
@@ -253,15 +256,15 @@ int _oblserver_detach(oblserver_t *server, char *ignore) {
 }
 
 int _oblserver_attach(oblserver_t *server, char *cookie) {
-  scriptloader_t *loader = obelix_get_loader(server, cookie);
+  scriptloader_t *loader = obelix_get_loader(server -> obelix, cookie);
 
   if (loader) {
     scriptloader_free(server -> loader);
     server -> loader = loader;
-    loader -> lastused = time();
+    loader -> lastused = time(NULL);
   } else {
     _oblserver_return_error(server, OBLSERVER_ERROR_PROTOCOL, 
-                            "StaleCookie", (data_t *) str_wrap(cookie));
+                            (data_t *) str_wrap(cookie));
   }
   return 0;
 }
@@ -283,7 +286,7 @@ oblserver_t * oblserver_create(obelix_t *obelix, stream_t *stream) {
     debug("Creating server using stream '%s'", stream_tostring(stream));
   }
   ret = data_new(Server, oblserver_t);
-  ret -> obelix = data_copy(obelix);
+  ret -> obelix = obelix_copy(obelix);
   ret -> stream = stream_copy(stream);
   ret -> loader = NULL;
   return ret;
@@ -297,13 +300,12 @@ oblserver_t * oblserver_run(oblserver_t *server) {
   int                   code;
   char                 *msg = OBLSERVER_READY;
 
-  _oblserver_welcome(server);
   while (cmd && (ret >= 0)) {
     debug("Command: '%s'", cmd);
     msg = NULL;
     for (handler = _cmd_handlers; handler -> cmd; handler++) {
       len = strlen(handler -> cmd);
-      if (!strncmp(cmd, handler -> cmd, len) {
+      if (!strncmp(cmd, handler -> cmd, len)) {
         ret = (handler -> handler)(server, cmd + len + 1);
       }
     }

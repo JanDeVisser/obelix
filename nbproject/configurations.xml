@@ -239,8 +239,6 @@
           </incDir>
         </cTool>
       </item>
-      <item path="src/bin/obelix.h" ex="false" tool="3" flavor2="0">
-      </item>
       <item path="src/bin/scriptparse.c" ex="false" tool="0" flavor2="3">
         <cTool flags="0">
           <incDir>
@@ -250,8 +248,12 @@
         </cTool>
       </item>
       <item path="src/bin/server.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="src/bin/server.h" ex="false" tool="3" flavor2="0">
+        <cTool flags="0">
+          <incDir>
+            <pElem>build</pElem>
+            <pElem>build/src/bin</pElem>
+          </incDir>
+        </cTool>
       </item>
       <item path="src/lib/any.c" ex="false" tool="0" flavor2="3">
         <cTool flags="1">
