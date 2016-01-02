@@ -588,12 +588,9 @@ _oshandle_t _file_oshandle(file_t *file) {
 }
 
 void _file_free(file_t *file) {
-  if (file ) {
-    if (file -> fname) {
-      file_close(file);
-      free(file -> fname);
-    }
-    stream_free((stream_t *) file);
+  if (file && file -> fname) {
+    file_close(file);
+    free(file -> fname);
   }
 }
 

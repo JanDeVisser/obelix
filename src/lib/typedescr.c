@@ -643,6 +643,9 @@ typedescr_t * typedescr_assign_inheritance(typedescr_t *type, int inherits) {
   for (ix = 0; ix < MAX_INHERITS; ix++) {
     if (type -> inherits[ix] == NoType) {
       type -> inherits[ix] = inherits;
+      break;
+    } else if (type -> inherits[ix] == inherits) {
+      break;
     }
   }
   return type;
