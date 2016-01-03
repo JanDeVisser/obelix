@@ -45,7 +45,7 @@ typedef struct _scriptloader {
   parser_t      *parser;
   namespace_t   *ns;
   array_t       *options;
-  char           cookie[COOKIE_SZ];
+  char          *cookie;
   time_t         lastused;
 } scriptloader_t;
 

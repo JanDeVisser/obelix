@@ -251,7 +251,7 @@ char * oblcore_itoa(long i) {
   return buf;
 }
 
-char * dtoa(double d) {
+char * oblcore_dtoa(double d) {
   static char buf[20];
   sprintf(buf, "%f", d);
   return buf;
@@ -273,11 +273,14 @@ char * strrand(char *buf, size_t numchars) {
   
   initialize_random();
   if (numchars) {
+    if (!buf) {
+      buf = (char *) _new(numchars + 1);
+    }
     for (n = 0; n < numchars; n++) {
       key = rand() % (int) (sizeof(charset) - 1);
       buf[n] = charset[key];
     }
-    buf[numchars] = '\0';
+    buf[numchars] = 0;
   }
   return buf;
 }

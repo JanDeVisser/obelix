@@ -73,6 +73,7 @@ void _scriptloader_free(scriptloader_t *loader) {
     free(loader -> system_dir);
     data_free(loader -> load_path);
     array_free(loader -> options);
+    free(loader -> cookie);
     grammar_free(loader -> grammar);
     parser_free(loader -> parser);
     ns_free(loader -> ns);
@@ -360,11 +361,11 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
     ret = NULL;
   } else {
     data_thread_set_kernel((data_t *) ret);
-  }
-  strrand(ret -> cookie, COOKIE_SZ - 1);
-  ret -> lastused = time(NULL);
-  if (script_debug) {
-    debug("scriptloader created");
+    ret -> cookie = strrand(NULL, COOKIE_SZ - 1);
+    ret -> lastused = time(NULL);
+    if (script_debug) {
+      debug("scriptloader created");
+    }
   }
   return ret;
 }

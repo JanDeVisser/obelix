@@ -36,7 +36,8 @@ static void         _closure_init(void) __attribute__((constructor(102)));
 static closure_t *  _closure_create_closure_reducer(entry_t *, closure_t *);
 static listnode_t * _closure_execute_instruction(instruction_t *, closure_t *);
 static data_t *     _closure_get(closure_t *, char *);
-static data_t *     _closure_start(closure_t *, bytecode_t *);
+static data_t *     _closure_eval(closure_t *, bytecode_t *);
+static data_t *     _closure_start(closure_t *);
 
 static char *       _closure_allocstring(closure_t *closure);
 static void         _closure_free(closure_t *);
@@ -116,7 +117,7 @@ data_t * _closure_get(closure_t *closure, char *varname) {
   return ret;
 }
 
-data_t * _closure_start(closure_t *closure, bytecode_t *bytecode) {
+data_t * _closure_eval(closure_t *closure, bytecode_t *bytecode) {
   vm_t        *vm = vm_create(bytecode);
   data_t      *ret;
   exception_t *e;
@@ -137,6 +138,10 @@ data_t * _closure_start(closure_t *closure, bytecode_t *bytecode) {
       break;
   }
   return ret;
+}
+
+data_t * _closure_start(closure_t *closure) {
+  return _closure_eval(closure, closure -> bytecode);
 }
 
 char * _closure_allocstring(closure_t *closure) {
@@ -352,7 +357,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
                          generator_create(closure,
                                           vm_create(closure -> bytecode), NULL));
     default:
-      return _closure_start(closure, closure -> bytecode);
+      return _closure_start(closure);
   }
 }
 
@@ -385,7 +390,7 @@ data_t * closure_eval(closure_t *closure, script_t *script) {
     closure -> params = NULL;
   }
   closure -> free_params = FALSE;
-  return _closure_start(closure, script -> bytecode);
+  return _closure_eval(closure, script -> bytecode);
 }
 
 /* -- C L O S U R E  D A T A  M E T H O D S --------------------------------*/

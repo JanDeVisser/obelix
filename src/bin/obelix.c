@@ -36,7 +36,7 @@
 #include "obelix.h"
 #include "server.h"
 
-static void       _oblserver_init(void) __attribute__((constructor(130)));
+static void       _obelix_init(void) __attribute__((constructor(130)));
 
 static void       _obelix_free(obelix_t *);
 static char *     _obelix_tostring(obelix_t *);
@@ -258,14 +258,14 @@ scriptloader_t * obelix_create_loader(obelix_t *obelix) {
   loader = scriptloader_create(obelix -> syspath, path, obelix -> grammar);
   if (loader) {
     scriptloader_set_options(loader, obelix -> options);
+    if (!obelix -> loaders) {
+      obelix -> loaders = datadata_dict_create();
+    }
+    dict_put(obelix -> loaders, 
+	     str_wrap(loader -> cookie), 
+	     scriptloader_copy(loader));
   }
   array_free(path);
-  if (!obelix -> loaders) {
-    obelix -> loaders = datadata_dict_create();
-  }
-  dict_put(obelix -> loaders, 
-           str_wrap(loader -> cookie), 
-           scriptloader_copy(loader));
   return loader;
 }
 

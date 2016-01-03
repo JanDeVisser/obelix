@@ -1,0 +1,10 @@
+/home/jan/projects/obelix/cygwin/lib/liboblcore.dll.a
+/home/jan/projects/obelix/cygwin/lib/cygoblcore.dll
+/home/jan/projects/obelix/cygwin/lib/liboblparser.dll.a
+/home/jan/projects/obelix/cygwin/lib/cygoblparser.dll
+/home/jan/projects/obelix/cygwin/share/grammar.grammar
+/home/jan/projects/obelix/cygwin/lib/liboblstdlib.dll.a
+/home/jan/projects/obelix/cygwin/lib/cygoblstdlib.dll
+/home/jan/projects/obelix/cygwin/share/__init__.obl
+/home/jan/projects/obelix/cygwin/share/sys/__init__.obl
+/home/jan/projects/obelix/cygwin/share/net/__init__.obl

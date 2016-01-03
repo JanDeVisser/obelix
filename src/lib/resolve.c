@@ -27,6 +27,7 @@
 #include <windows.h>
 #endif /* HAVE_WINDOWS_H */
 
+#include <stdio.h>
 #include <logging.h>
 #include <resolve.h>
 
@@ -79,7 +80,11 @@ char * _resolve_rewrite_image(char *image, char *buf) {
   }
   canonical = canonical_buf;
   len = strlen(image);
-  if (len > MAX_PATH - 5) len = MAX_PATH - 5;
+  if (len > MAX_PATH - 8) len = MAX_PATH - 8;
+#ifdef __CYGWIN__
+  strcpy(canonical, "cyg");
+  canonical += strlen("cyg");
+#endif /* __CYGWIN__ */
 #ifdef __WIN32__
   for (ix = 0; ix < len; ix++) {
     canonical[ix] = tolower(image[ix]);
@@ -94,11 +99,11 @@ char * _resolve_rewrite_image(char *image, char *buf) {
     *ptr = 0;
   }
   strcpy(buf, canonical);
-#ifndef __WIN32__
+#if !defined(__WIN32__) && !defined(__CYGWIN__)
   strcat(buf, ".so");
-#else /* __WIN32__ */
+#else /* __WIN32__ || __CYGWIN__ */
   strcat(buf, ".dll");
-#endif /* __WIN32__ */
+#endif /* __WIN32__ || __CYGWIN__ */
   return buf;
 }
 
@@ -146,12 +151,12 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
   err = itoa(GetLastError()); // FIXME
 #endif /* HAVE_DLFCN_H */
   if (handle) {
-		list_append(resolve -> images, handle);
+    list_append(resolve -> images, handle);
     if (resolve_debug) {
-    	info("resolve_open('%s') SUCCEEDED", image ? image : "'Main Program Image'");
+      info("resolve_open('%s') SUCCEEDED", image ? image : "'Main Program Image'");
     }
-		return resolve;
-	}
+    return resolve;
+  }
   error("resolve_open('%s') FAILED: %s", image ? image : "'Main Program Image'", err);
   return NULL;
 }

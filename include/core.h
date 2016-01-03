@@ -94,7 +94,7 @@ OBLCORE_IMPEXP int             atob(char *);
 OBLCORE_IMPEXP char *          btoa(long);
 OBLCORE_IMPEXP int             strtoint(char *, long *);
 OBLCORE_IMPEXP char *          oblcore_itoa(long);
-OBLCORE_IMPEXP char *          dtoa(double);
+OBLCORE_IMPEXP char *          oblcore_dtoa(double);
 
 OBLCORE_IMPEXP char *          label_for_code(code_label_t *, int);
 OBLCORE_IMPEXP int             code_for_label(code_label_t *, char *);
@@ -105,6 +105,15 @@ OBLCORE_IMPEXP reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 
 #define new(i)         (_new((i)))
+
+#ifdef itoa
+#undef itoa
+#endif
 #define itoa(i)        (oblcore_itoa((i)))
+
+#ifdef dtoa
+#undef dtoa
+#endif
+#define dtoa(i)        (oblcore_dtoa((i)))
 
 #endif /* __CORE_H__ */

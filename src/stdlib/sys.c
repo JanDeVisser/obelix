@@ -27,6 +27,9 @@
 #elif defined(HAVE_GETVERSIONEX)
 #include <windows.h>
 #endif /* HAVE_SYS_UTSNAME_H */
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
 
 #include <data.h>
 #include <exception.h>
@@ -183,15 +186,14 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
   data_t           *ret = NULL;
 #ifdef HAVE_UTSNAME_H
   struct utsname    buf;
+#lse
+  char              hostname[80];
 #endif /* HAVE_UTSNAME_H */
 #ifdef HAVE_GETVERSIONEX
   OSVERSIONINFOEX   version;
   SYSTEM_INFO       sysinfo;
   char              hostname[80];
 #endif /* HAVE_GETVERSIONEX */
-#ifdef HAVE_GETHOSTNAME
-  char              hostname[80];
-#endif /* HAVE_GETHOSTNAME */
 
 #ifdef HAVE_UTSNAME_H
   if (!uname(&buf)) {

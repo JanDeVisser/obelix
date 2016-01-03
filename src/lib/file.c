@@ -416,7 +416,6 @@ int _stream_print_data(stream_t *stream, data_t *s) {
     }
     data_free(r);
   }
-  data_free(s);
   return retval;
 }
 
