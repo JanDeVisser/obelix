@@ -689,7 +689,10 @@ str_t * str_vformatf(char *fmt, va_list args) {
   char     needle[32];
   str_t   *ret;
   int      done;
-  
+
+  if (!strstr(fmt, "${")) {
+    return str_copy_chars(fmt);
+  }
   strcpy(needle, "${");
   for (num = 0; num < 1000; ix++) {
     sprintf(needle + 2, "%d}", num);
