@@ -163,6 +163,12 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
    * connect(2) fails, we close the socket and try the next address.
    */
   for (rp = result; rp != NULL; rp = rp -> ai_next) {
+    /*
+     * FIXME We're ignoring IPV6 addresses now...
+     */
+    if (rp -> ai_family != AF_INET) {
+      continue;
+    }
     sfd = socket(rp -> ai_family, rp -> ai_socktype, rp -> ai_protocol);
     if (sfd == -1) {
       continue;
