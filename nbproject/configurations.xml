@@ -94,6 +94,7 @@
     </logicalFolder>
     <itemPath>test/client.py</itemPath>
     <itemPath>test/google.obl</itemPath>
+    <itemPath>test/lambda.obl</itemPath>
   </logicalFolder>
   <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
   <sourceRootList>
@@ -612,6 +613,8 @@
         <cTool flags="1">
         </cTool>
       </item>
+      <item path="test/lambda.obl" ex="false" tool="3" flavor2="0">
+      </item>
     </conf>
     <conf name="panoramix" type="0">
       <toolsSet>
@@ -866,6 +869,8 @@
       <item path="test/client.py" ex="false" tool="3" flavor2="0">
       </item>
       <item path="test/google.obl" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="test/lambda.obl" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
   </confs>
