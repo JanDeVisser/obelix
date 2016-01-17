@@ -872,6 +872,53 @@ __DLL_EXPORT__ parser_t * script_parse_native_function(parser_t *parser) {
   return ret;
 }
 
+/* -- L A M B D A  D E F I N I T I O N S -----------------------------------*/
+
+#define LAMBDA            "lambda_"
+
+__DLL_EXPORT__ parser_t * script_parse_start_lambda(parser_t *parser) {
+  bytecode_t    *up;
+  script_t      *func;
+  data_t        *data;
+  char           fname[strlen(LAMBDA) + 5 + 1];
+  data_t        *params;
+  script_type_t  type;
+
+  up = (bytecode_t *) parser -> data;
+
+  /* Top of stack: Parameter names as List */
+  params = datastack_pop(parser -> stack);
+
+  strcpy(fname, "lambda_");
+  strrand(fname + strlen(fname), 5);
+  func = script_create(NULL, data_as_script(up -> owner), fname);
+  func -> type = STNone;
+  func -> params = str_array_create(array_size(data_as_array(params)));
+  array_reduce(data_as_array(params),
+               (reduce_t) data_add_strings_reducer,
+               func -> params);
+  data_free(params);
+  if (parser_debug) {
+    debug(" -- defining lambda %s", name_tostring(func -> name));
+  }
+  parser -> data = func -> bytecode;
+  _script_parse_prolog(parser);
+  return parser;
+}
+
+__DLL_EXPORT__ parser_t * script_parse_end_lambda(parser_t *parser) {
+  bytecode_t *bytecode = (bytecode_t *) parser -> data;
+  script_t   *func = data_as_script(bytecode -> owner);
+
+  if (parser_debug) {
+    debug(" -- end lambda %s", name_tostring(func -> name));
+  }
+  _script_parse_epilog(parser);
+  parser -> data = func -> up -> bytecode;
+  push_instruction(parser, instruction_create_pushval(bytecode -> owner));
+  return parser;
+}
+
 /* -- E X C E P T I O N  H A N D L I N G -----------------------------------*/
 
 __DLL_EXPORT__ parser_t * script_parse_begin_context_block(parser_t *parser) {

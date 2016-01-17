@@ -179,6 +179,15 @@ parlist_tail                := ,
                              |
                              ;
 
+lambda                      := "lambda"
+                               (                 [ bookmark                  ]
+                               parlist_or_void
+                               )                 [ rollup_list 
+                                                   start_lambda              ]
+                               statements
+                               end               [ end_lambda                ]
+                             ;
+
 return_stmt                 := "return"
                                expr              [ instruction: "Return"     ]
                              ;
@@ -299,6 +308,7 @@ expr_atom                   := ( expr )
                              | new
                              | constant
                              | query
+                             | lambda
                              ;
 
 var_or_calls                := var_or_call
