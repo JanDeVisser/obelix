@@ -421,6 +421,9 @@ scriptloader_t * scriptloader_extend_loadpath(scriptloader_t *loader, array_t *p
   for (ix = 0; ix < array_size(path); ix++) {
     scriptloader_add_loadpath(loader, str_array_get(path, ix));
   }
+  if (script_debug) {
+    debug("loadpath extended to %s", data_tostring((data_t *) loader -> load_path));
+  }
   return loader;
 }
 
@@ -479,6 +482,9 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
   object_t *obj;
   data_t   *sys;
   
+  if (script_debug) {
+    debug("scriptloader_run(%s)", name_tostring(name));
+  }
   sys = _scriptloader_get_object(loader, 1, "sys");
   if (sys && !data_is_exception(sys)) {
     _scriptloader_set_value(loader, sys, "argv", data_create_list(args));
@@ -500,6 +506,9 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
     logging_disable("trace");
   } else {
     data = (sys) ? sys : data_exception(ErrorName, "Could not resolve module 'sys'");
+  }
+  if (script_debug) {
+    debug("scriptloader_run(%s) = %s", name_tostring(name), data_tostring(data));
   }
   return data;
 }

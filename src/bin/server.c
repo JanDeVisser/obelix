@@ -132,28 +132,36 @@ oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
   if (script_debug) {
     debug("Returning %s [%s]", data_tostring(result), data_typename(result));
   }
-  ex = data_as_exception(result);
-  switch (ex -> code) {
-    case ErrorExit:
-      result = data_copy(ex -> throwable);
-      exception_free(ex);
-      str = data_tostring(result);
-      stream_printf(server -> stream, OBLSERVER_DATA " ${0;d} ${1;s}", 
-                    strlen(str) + 1, data_typename(result));
-      stream_write(server -> stream, str, strlen(str));
-      stream_printf(server -> stream, "");
-      data_free(result);
-      ret = server;
-      break;
-      
-    case ErrorSyntax:
-      ret = _oblserver_return_error(server, OBLSERVER_ERROR_SYNTAX, result);
-      break;
+  if (data_is_exception(result)) {
+    ex = data_as_exception(result);
+    switch (ex -> code) {
+      case ErrorExit:
+        result = data_copy(ex -> throwable);
+        exception_free(ex);
+        break;
 
-    default:
-      ret = _oblserver_return_error(server, OBLSERVER_ERROR_RUNTIME, result); 
-      break;
+      case ErrorSyntax:
+        ret = _oblserver_return_error(server, OBLSERVER_ERROR_SYNTAX, result);
+        data_free(result);
+        result = NULL;
+        break;
 
+      default:
+        ret = _oblserver_return_error(server, OBLSERVER_ERROR_RUNTIME, result); 
+        data_free(result);
+        result = NULL;
+        break;
+
+    }
+  }
+  if (result) {
+    str = data_tostring(result);
+    stream_printf(server -> stream, OBLSERVER_DATA " ${0;d} ${1;s}", 
+                  strlen(str) + 1, data_typename(result));
+    stream_write(server -> stream, str, strlen(str));
+    stream_printf(server -> stream, "");
+    data_free(result);
+    ret = server;
   }
   return ret;
 }
@@ -204,30 +212,19 @@ int _oblserver_run(oblserver_t *server, char *cmd) {
   return 0;
 }
 
-int _oblserver_eval(oblserver_t *server, char *length) {
-  long     len;
-  int      numread;
-  char    *script;
+int _oblserver_eval(oblserver_t *server, char *script) {
   data_t  *ret;
   data_t  *dscript;
   
-  if (!strtoint(length, &len)) {
-    _oblserver_create_loader(server);
-    script = (char *) _new(len);
-    if ((numread = stream_read(server -> stream, script, len)) == len) {
-      ret = scriptloader_eval(server -> loader, dscript = (data_t *) str_wrap(script));
-      _oblserver_return_result(server, ret);
-      data_free(dscript);
-    } else {
-      _oblserver_return_error(server, OBLSERVER_ERROR_PROTOCOL, 
-                              data_create(Int, numread));
-    }
-    free(script);
-  } else {
-    _oblserver_return_error(server, OBLSERVER_ERROR_PROTOCOL, 
-                            data_create(Int, length));
-    return 0;
+  _oblserver_create_loader(server);
+  if (script_debug) {
+    debug("Evaluating '%s'", script);
   }
+  ret = scriptloader_eval(server -> loader, dscript = (data_t *) str_wrap(script));
+  _oblserver_return_result(server, ret);
+  data_free(ret);
+  data_free(dscript);
+  return 0;
 }
 
 int _oblserver_welcome(oblserver_t *server, char *ignore) {
@@ -243,15 +240,24 @@ int _oblserver_quit(oblserver_t *server, char *ignore) {
 }
 
 int _oblserver_detach(oblserver_t *server, char *ignore) {
+  data_t *dcookie;
+  
   (void) ignore;
   
-  /* 
-   * Preserve the loader. First free it, which decrements the counter. There
-   * is at least one other copy, in obelix -> loaders. Then set the reference 
-   * in the server to NULL, so it will not be decommissioned when the server 
-   * is deleted.
-   */
-  server -> loader = NULL;
+  if (server -> loader) {
+    _oblserver_return_error(server, OBLSERVER_COOKIE, 
+                            dcookie = (data_t *) str_wrap(server -> loader -> cookie));
+    data_free(dcookie);
+    
+    /* 
+     * Preserve the loader. First free it, which decrements the counter. There
+     * is at least one other copy, in obelix -> loaders. Then set the reference 
+     * in the server to NULL, so it will not be decommissioned when the server 
+     * is deleted.
+     */
+    scriptloader_free(server -> loader);
+    server -> loader = NULL;
+  }
   return - OBLSERVER_CODE_BYE;
 }
 

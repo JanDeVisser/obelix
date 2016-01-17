@@ -27,11 +27,13 @@ class ObelixClient(object):
         self.port = port
         self.script = script
         self.lines = None
+        self.cookie = None
 
     def connect(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect( (self.host, self.port) )
         (_, banner) = self.readline(100)
+        (_, banner) = banner.split(" ", 1)
         (_, ready) = self.readline(200)
         print "Connected to %s" % banner
         return ready == "READY"
@@ -65,29 +67,46 @@ class ObelixClient(object):
         data = self.socket.recv(int(size))
         return (t, data)
     
-    def loop(self):
+    def sendcmd(self, cmd):
+        print "cmd: '%s'" % cmd
+        self.socket.sendall(cmd + "\n")
+        (code, msg) = self.readline()
+        code = int(code)
+        if code == 300:
+            (t, data) = self.readdata(msg)
+            print "%s [%s] %s" % (code, t, data)
+            (code, msg) = self.readline(200)
+        elif code == 800:
+            (_, self.cookie) = msg.split(" ", 1)
+            print "%s %s" % (code, msg)
+            (code, msg) = self.readline(900)
+        print "%s %s" % (code, msg)
+    
+    def loop(self, script = None):
+        if not script:
+           script = self.script
         if self.connect():
-            print "Running script"
-            for cmd in self.script:
-                print "cmd: '%s'" % cmd
-                self.socket.sendall(cmd + "\n")
-                (code, msg) = self.readline()
-                code = int(code)
-                if code == 300:
-                    (t, data) = self.readdata(msg)
-                    print "type: %s" % t
-                    print data
-                    (code, msg) = self.readline(200)
-                elif code != 200:
-                    print "?? %s %s" % (code, msg)
-                    break
-            self.socket.sendall("QUIT\n");
+            print "-- running script"
+            if self.cookie:
+                self.sendcmd("ATTACH %s" % self.cookie)
+            for cmd in script:
+                self.sendcmd(cmd)
+            self.sendcmd("DETACH")
             self.socket.close()
+            print "-- script finished"
         else:
             print "Connect failed"
         
 if __name__ == "__main__":
     client = ObelixClient('localhost', 14400, 
-      ( "PATH /home/jan/projects/obelix/test", "RUN helloclient" )
+      (
+        "PATH C:/Users/jan/projects/obelix/test", 
+        "RUN helloclient",
+        "EVAL x = 2",
+        "EVAL f = lambda(phi) return phi(2) end return f(lambda(x) return 2*2 end)",
+        "EVAL return x"
+      )
     )
     client.loop()
+    
+    client.loop( ( "EVAL return x", ) )
