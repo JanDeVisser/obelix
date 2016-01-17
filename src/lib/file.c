@@ -306,11 +306,9 @@ int stream_eof(stream_t *stream) {
 }
 
 int stream_read(stream_t *stream, char *buf, int num) {
-  int     retval;
   int     ix;
   char   *ptr;
   int     ch;
-  data_t *ret;
 
   if (file_debug) {
     debug("%s.read(%d)", data_tostring((data_t *) stream), num);
