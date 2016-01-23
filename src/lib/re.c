@@ -28,15 +28,16 @@
 
 #include <stdio.h>
 
-static void     _regexp_init(void) __attribute__((constructor));
+static void     _regexp_init(void);
 static char *   _regexp_allocstring(re_t *);
 static void     _regexp_free(re_t *);
-static data_t * _regexp_create(data_t *, char *, array_t *, dict_t *);
 static data_t * _regexp_call(re_t *, array_t *, dict_t *);
 static data_t * _regexp_interpolate(re_t *, array_t *, dict_t *);
 static data_t * _regexp_match(data_t *, char *, array_t *, dict_t *);
 static data_t * _regexp_replace(data_t *, char *, array_t *, dict_t *);
 static data_t * _regexp_compile(re_t *);
+
+extern data_t * _regexp_create(char *, array_t *, dict_t *);
 
 static vtable_t _vtable_re[] = {
   { .id = FunctionCmp,         .fnc = (void_t) regexp_cmp },
@@ -51,7 +52,6 @@ int Regexp = -1;
 int debug_regexp = 0;
 
 static methoddescr_t _methoddescr_re[] = {
-  { .type = Any,    .name = "regexp",  .method = _regexp_create,  .argtypes = { String, String, Any },    .minargs = 1, .maxargs = 2, .varargs = 0 },
   { .type = -1,     .name = "match",   .method = _regexp_match,   .argtypes = { String, Any, Any },       .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "replace", .method = _regexp_replace, .argtypes = { String, List, NoType },   .minargs = 2, .varargs = 0 },
   { .type = NoType, .name = NULL,      .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -190,7 +190,7 @@ data_t * regexp_match(re_t *re, char *str) {
     if (debug_regexp) {
       debug("%s .match(%s): match at [%d-%d]: %s", regexp_tostring(re), ptr, rm[0].rm_so, rm[0].rm_eo, work);
     }
-    array_push(matches, data_create(String, work));
+    array_push(matches, str_to_data(work));
     ptr += rm[0].rm_eo;
   }
   if (!array_size(matches)) {
@@ -220,7 +220,7 @@ data_t * regexp_replace(re_t *re, char *str, array_t *replacements) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _regexp_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _regexp_create(char *name, array_t *args, dict_t *kwargs) {
   data_t *pattern = data_array_get(args, 0);
   char   *flags;
   re_t   *ret;

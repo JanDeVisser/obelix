@@ -26,10 +26,12 @@
 #include <file.h>
 #include <fsentry.h>
 
-static void     _fsentry_init(void) __attribute__((constructor));
+static void     _fsentry_init(void);
 static void     _fsentry_free(fsentry_t *);
 static char *   _fsentry_allocstring(fsentry_t *);
 static data_t * _fsentry_resolve(fsentry_t *, char *);
+
+extern data_t * _fsentry_create(char *, array_t *, dict_t *);
 
 static data_t * _fsentry_open(data_t *, char *, array_t *, dict_t *);
 static data_t * _fsentry_isfile(data_t *, char *, array_t *, dict_t *);
@@ -84,10 +86,12 @@ int FSEntryIter = -1;
 /* ------------------------------------------------------------------------ */
 
 void _fsentry_init(void) {
-  FSEntry = typedescr_create_and_register(FSEntry, "fsentry",
-					  _vtable_fsentry, _methoddescr_fsentry);
-  FSEntryIter = typedescr_create_and_register(FSEntryIter, "fsentryiter",
-					      _vtable_fsentry_iter, NULL);
+  if (FSEntry < 0) {
+    FSEntry = typedescr_create_and_register(FSEntry, "fsentry",
+                                            _vtable_fsentry, _methoddescr_fsentry);
+    FSEntryIter = typedescr_create_and_register(FSEntryIter, "fsentryiter",
+                                                _vtable_fsentry_iter, NULL);
+  }
 }
 
 /* -- F S E N T R Y _ T  S T A T I C   F U N C T I O N S ------------------ */
@@ -106,7 +110,7 @@ data_t * _fsentry_resolve(fsentry_t *entry, char *name) {
   fsentry_t *e = NULL;
 
   if (!strcmp(name, "name")) {
-   return data_create(String, fsentry_tostring(entry)) ;
+   return str_to_data(fsentry_tostring(entry)) ;
   } else {
     e = fsentry_getentry(entry, name);
     if (e) {
@@ -124,6 +128,7 @@ data_t * _fsentry_resolve(fsentry_t *entry, char *name) {
 fsentry_t * fsentry_create(char *name) {
   fsentry_t *ret;
 
+  _fsentry_init();
   ret = data_new(FSEntry, fsentry_t);
   ret -> name = strdup(name);
   ret -> exists = (stat(ret->name, &ret->statbuf)) ? errno : 0;
@@ -239,7 +244,7 @@ char * _fsentry_iter_tostring(fsentry_iter_t *iter) {
 }
 
 data_t * _fsentry_iter_has_next(fsentry_iter_t *iter) {
-  return data_create(Bool, iter -> entryptr != NULL);
+  return int_as_bool(iter -> entryptr != NULL);
 }
 
 data_t * _fsentry_iter_next(fsentry_iter_t *iter) {
@@ -254,6 +259,13 @@ data_t * _fsentry_iter_next(fsentry_iter_t *iter) {
 
 /* -- F S E N T R Y   D A T A   T Y P E   M E T H O D S ------------------- */
 
+data_t * _fsentry_create(char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) kwargs;
+
+  return (data_t *) fsentry_create(data_tostring(data_array_get(args, 0)));
+}
+
 data_t * _fsentry_open(data_t *e, char *n, array_t *args, dict_t *kwargs) {
   data_t *ret = (data_t *) fsentry_open((fsentry_t *) e);
 
@@ -267,19 +279,19 @@ data_t * _fsentry_isfile(data_t *e, char *n, array_t *args, dict_t *kwargs) {
   (void) n;
   (void) args;
   (void) kwargs;
-  return data_create(Bool, fsentry_isfile((fsentry_t *) e));
+  return int_as_bool(fsentry_isfile((fsentry_t *) e));
 }
 
 data_t * _fsentry_isdir(data_t *e, char *n, array_t *args, dict_t *kwargs) {
   (void) n;
   (void) args;
   (void) kwargs;
-  return data_create(Bool, fsentry_isdir((fsentry_t *) e));
+  return int_as_bool(fsentry_isdir((fsentry_t *) e));
 }
 
 data_t * _fsentry_exists(data_t *e, char *n, array_t *args, dict_t *kwargs) {
   (void) n;
   (void) args;
   (void) kwargs;
-  return data_create(Bool, fsentry_exists((fsentry_t *) e));
+  return int_as_bool(fsentry_exists((fsentry_t *) e));
 }

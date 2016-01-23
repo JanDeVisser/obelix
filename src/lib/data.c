@@ -34,32 +34,38 @@
 #include <logging.h>
 #include <method.h>
 #include <name.h>
+#include <str.h>
 #include <typedescr.h>
 
-static void     _data_init(void) __attribute__((constructor));
-static void     _data_call_free(typedescr_t *, data_t *);
+static inline void _data_init(void);
+static void        _data_call_free(typedescr_t *, data_t *);
 
-int             debug_data = 0;
-int             _data_count = 0;
+int                debug_data = -1;
+int                _data_count = 0;
 
 /* -- D A T A  S T A T I C  F U N C T I O N S ----------------------------- */
 
 void _data_init(void) {
-  logging_register_category("data", &debug_data);
+  if (debug_data < 0) {
+    logging_register_category("data", &debug_data);
+  }
 }
 
 /* -- D A T A  P U B L I C  F U N C T I O N S ----------------------------- */
 
 data_t * data_create_noinit(int type) {
-  data_t *ret = data_settype(NEW(data_t), type);
-
+  data_t *ret;
+  
+  ret = data_settype(NEW(data_t), type);
   ret -> free_me = Normal;
   return ret;
 }
 
 data_t * data_settype(data_t *data, int type) {
-  typedescr_t *descr = typedescr_get(type);
+  typedescr_t *descr;
 
+  _data_init();
+  descr = typedescr_get(type);
   if (!data -> type) {
     data -> type = type;
     data -> refs++;
@@ -76,10 +82,12 @@ data_t * data_create(int type, ...) {
   va_list      args;
   data_t      *ret;
   data_t      *allocated = NULL;
-  typedescr_t *descr = typedescr_get(type);
+  typedescr_t *descr;
   new_t        n;
   factory_t    f;
 
+  _data_init();
+  descr = typedescr_get(type);
   f = (factory_t) typedescr_get_function(descr, FunctionFactory);
   if (f) {
     va_start(args, type);
@@ -105,9 +113,12 @@ data_t * data_create(int type, ...) {
 }
 
 data_t * data_parse(int type, char *str) {
-  typedescr_t *descr = typedescr_get(type);
-  void_t       parse = typedescr_get_function(descr, FunctionParse);
+  typedescr_t *descr;
+  void_t       parse;
 
+  _data_init();
+  descr = typedescr_get(type);
+  parse = typedescr_get_function(descr, FunctionParse);
   return (parse)
     ? ((data_t * (*)(char *)) parse)(str)
     : NULL;
@@ -119,11 +130,12 @@ data_t * data_decode(char *encoded) {
   typedescr_t *type;
   data_t      *ret = NULL;
 
+  _data_init();
   if (!encoded || !encoded[0]) return NULL;
   strcpy(cpy, encoded);
   ptr = strchr(cpy, ':');
   if (!ptr) {
-    return data_create(String, encoded);
+    return (data_t *) str_copy_chars(encoded);
   } else {
     *ptr = 0;
     type = typedescr_get_byname(cpy);
@@ -131,7 +143,7 @@ data_t * data_decode(char *encoded) {
       ret = data_parse(type -> type, ptr + 1);
     }
     if (!ret) {
-      ret = data_create(String, encoded);
+      ret = (data_t *) str_copy_chars(encoded);
     }
     return ret;
   }
@@ -155,7 +167,7 @@ data_t * data_cast(data_t *data, int totype) {
     if (totype == String) {
       tostring = (tostring_t) typedescr_get_function(descr, FunctionToString);
       if (tostring) {
-        return data_create(String, tostring(data));
+        return (data_t *) str_copy_chars(tostring(data));
       }
     }
     cast = (cast_t) typedescr_get_function(descr, FunctionCast);
@@ -616,7 +628,7 @@ data_t * data_len(data_t *data) {
     type = data_typedescr(data);
     len = (int (*)(data_t *)) typedescr_get_function(type, FunctionLen);
     if (len && (len >= 0)) {
-      ret = data_create(Int, len(data));
+      ret = (data_t *) int_create(len(data));
     }
   }
   if (!ret) {
@@ -643,7 +655,7 @@ data_t * data_read(data_t *reader, char *buf, int num) {
   if (fnc) {
     retval = fnc(reader, buf, num);
     if (retval >= 0) {
-      return data_create(Int, retval);
+      return (data_t *) int_create(retval);
     } else {
       return data_exception_from_errno();
     }
@@ -668,7 +680,7 @@ data_t * data_write(data_t *writer, char *buf, int num) {
   if (fnc) {
     ret = fnc(writer, buf, num);
     if (ret >= 0) {
-      return data_create(Int, ret);
+      return (data_t *) int_create(ret);
     } else {
       return data_exception_from_errno();
     }
@@ -902,7 +914,7 @@ array_t * data_add_all_reducer(data_t *data, array_t *target) {
 }
 
 array_t * data_add_all_as_data_reducer(char *str, array_t *target) {
-  array_push(target, data_create(String, str));
+  array_push(target, (data_t *) str_copy_chars(str));
   return target;
 }
 

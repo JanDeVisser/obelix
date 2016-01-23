@@ -151,7 +151,7 @@ data_t * _function_dbconnect(char *func_name, array_t *params, dict_t *kwargs) {
     if (params) {
       params = array_slice(params, 1, 0);
     }
-    ret = driver(data_create(String, ptr + 1), params, kwargs);
+    ret = driver(str_to_data(ptr + 1), params, kwargs);
     array_free(params);
   }
   return ret;

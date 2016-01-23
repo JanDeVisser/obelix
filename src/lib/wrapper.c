@@ -282,7 +282,7 @@ data_t * _wrapper_has_next(data_t *data) {
   }
   fnc = (int (*)(void *)) wrapper_function(type, FunctionHasNext);
   if (fnc) {
-    return data_create(Bool, fnc(data -> ptrval));
+    return int_as_bool(fnc(data -> ptrval));
   } else {
     return data_exception(ErrorFunctionUndefined,
                           "No 'has_next' method defined for wrapper type '%s'",

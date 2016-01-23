@@ -31,45 +31,49 @@
 #include <scriptparse.h>
 #include <vm.h>
 
-static void       _script_parse_create_statics(void) __attribute__((constructor));
-static data_t *   _script_parse_gen_label(void);
-static name_t *   _script_parse_pop_operation(parser_t *);
-static parser_t * _script_parse_prolog(parser_t *);
-static parser_t * _script_parse_epilog(parser_t *);
-static long       _script_parse_get_option(parser_t *, obelix_option_t);
+#include "instruction.h"
 
-static data_t    *data_error = NULL;
-static data_t    *data_end = NULL;
-static data_t    *data_self = NULL;
+static inline void  _script_parse_create_statics(void);
+static data_t *     _script_parse_gen_label(void);
+static name_t *     _script_parse_pop_operation(parser_t *);
+static parser_t *   _script_parse_prolog(parser_t *);
+static parser_t *   _script_parse_epilog(parser_t *);
+static long         _script_parse_get_option(parser_t *, obelix_option_t);
 
-static name_t    *name_end = NULL;
-static name_t    *name_error = NULL;
-static name_t    *name_query = NULL;
-static name_t    *name_hasattr = NULL;
-static name_t    *name_self = NULL;
-static name_t    *name_reduce = NULL;
-static name_t    *name_equals = NULL;
-static name_t    *name_or = NULL;
-static name_t    *name_and = NULL;
+static data_t      *data_error = NULL;
+static data_t      *data_end = NULL;
+static data_t      *data_self = NULL;
+
+static name_t      *name_end = NULL;
+static name_t      *name_error = NULL;
+static name_t      *name_query = NULL;
+static name_t      *name_hasattr = NULL;
+static name_t      *name_self = NULL;
+static name_t      *name_reduce = NULL;
+static name_t      *name_equals = NULL;
+static name_t      *name_or = NULL;
+static name_t      *name_and = NULL;
 
 #define push_instruction(p, i) (bytecode_push_instruction((bytecode_t *) ((p) -> data), (i)));
 
 /* ----------------------------------------------------------------------- */
 
 void _script_parse_create_statics(void) {
-  data_error   = data_create(String, "ERROR");
-  data_end     = data_create(String, "END");
-  data_self    = data_create(String, "self");
+  if (!data_error) {
+    data_error   = (data_t *) str_wrap("ERROR");
+    data_end     = (data_t *) str_wrap("END");
+    data_self    = (data_t *) str_wrap("self");
 
-  name_end     = name_create(1, data_tostring(data_end));
-  name_error   = name_create(1, data_tostring(data_error));
-  name_query   = name_create(1, "query");
-  name_hasattr = name_create(1, "hasattr");
-  name_self    = name_create(1, "self");
-  name_reduce  = name_create(1, "reduce");
-  name_equals  = name_create(1, "==");
-  name_or      = name_create(1, "or");
-  name_and     = name_create(1, "and");
+    name_end     = name_create(1, data_tostring(data_end));
+    name_error   = name_create(1, data_tostring(data_error));
+    name_query   = name_create(1, "query");
+    name_hasattr = name_create(1, "hasattr");
+    name_self    = name_create(1, "self");
+    name_reduce  = name_create(1, "reduce");
+    name_equals  = name_create(1, "==");
+    name_or      = name_create(1, "or");
+    name_and     = name_create(1, "and");
+  }
 }
 
 
@@ -79,7 +83,7 @@ data_t * _script_parse_gen_label(void) {
   do {
     strrand(label, 8);
   } while (isupper(label[0]));
-  return data_create(String, label);
+  return str_to_data(label);
 }
 
 name_t * _script_parse_pop_operation(parser_t *parser) {
@@ -114,7 +118,7 @@ parser_t * _script_parse_epilog(parser_t *parser) {
       while (datastack_depth(bytecode -> pending_labels) > 1) {
         push_instruction(parser, instruction_create_nop());
       }
-      data = data_create(Int, 0);
+      data = int_to_data(0);
       push_instruction(parser, instruction_create_pushval(data));
       data_free(data);
     }
@@ -148,6 +152,7 @@ __DLL_EXPORT__ parser_t * script_parse_init(parser_t *parser) {
   bytecode_t *bytecode;
   script_t   *script;
 
+  _script_parse_create_statics();
   if (parser_debug) {
     debug("script_parse_init");
   }
@@ -160,7 +165,7 @@ __DLL_EXPORT__ parser_t * script_parse_init(parser_t *parser) {
     debug("Parsing module '%s'", name_tostring(mod -> name));
   }
   script = script_create(mod, NULL, name);
-  parser_set(parser, "script", data_create(Script, script));
+  parser_set(parser, "script", (data_t *) script_copy(script));
   parser -> data = script -> bytecode;
   _script_parse_prolog(parser);
   return parser;
@@ -234,7 +239,7 @@ data_t * _script_parse_infix_function(parser_t *parser, name_t *func, int num_ar
 __DLL_EXPORT__ parser_t * script_parse_init_function(parser_t *parser) {
   datastack_new_counter(parser -> stack);
   datastack_bookmark(parser -> stack);
-  parser_set(parser, "constructor", data_create(Bool, FALSE));
+  parser_set(parser, "constructor", bool_false());
   return parser;
 }
 
@@ -248,7 +253,7 @@ __DLL_EXPORT__ parser_t * script_parse_setup_constructor(parser_t *parser) {
   push_instruction(parser, instruction_create_deref(name));
   datastack_new_counter(parser -> stack);
   datastack_bookmark(parser -> stack);
-  parser_set(parser, "constructor", data_create(Bool, TRUE));
+  parser_set(parser, "constructor", bool_true());
   return parser;
 }
 
@@ -302,13 +307,13 @@ __DLL_EXPORT__ parser_t * script_parse_defer_bookmarked_block(parser_t *parser) 
 }
 
 __DLL_EXPORT__ parser_t * script_parse_instruction(parser_t *parser, data_t *type) {
-  typedescr_t *td;
+  instruction_t *instr;
 
-  td = typedescr_get_byname(data_tostring(type));
-  if (!type) {
+  instr = instruction_create_byname(data_tostring(type));
+  if (!instr) {
     return NULL;
   } else {
-    push_instruction(parser, data_create(td -> type, NULL, NULL));
+    push_instruction(parser, instr);
     return parser;
   }
 }
@@ -411,7 +416,7 @@ __DLL_EXPORT__ parser_t * script_parse_unary_op(parser_t *parser) {
 }
 
 __DLL_EXPORT__ parser_t * script_parse_infix_op(parser_t *parser) {
-  data_t *op = data_create(String, token_token(parser -> last_token));
+  data_t *op = str_to_data(token_token(parser -> last_token));
   name_t *name = name_create(0);
   data_t *instr;
 
@@ -614,18 +619,18 @@ __DLL_EXPORT__ parser_t * script_parse_end_loop(parser_t *parser) {
   if (parser_debug) {
     debug(" -- end loop jump back label: %s", data_tostring(label));
   }
-  push_instruction(parser, data_create(ITEndLoop, data_tostring(label), NULL));
+  push_instruction(parser, instruction_create_ITEndLoop(data_tostring(label), NULL));
   datastack_push(bytecode -> pending_labels, block_label);
   return parser;
 }
 
 __DLL_EXPORT__ parser_t * script_parse_break(parser_t *parser) {
-  push_instruction(parser, data_create(ITVMStatus, NULL, data_create(Int, VMStatusBreak)));
+  push_instruction(parser, instruction_create_ITVMStatus(NULL, int_to_data(VMStatusBreak)));
   return parser;
 }
 
 __DLL_EXPORT__ parser_t * script_parse_continue(parser_t *parser) {
-  push_instruction(parser, data_create(ITVMStatus, NULL, data_create(Int, VMStatusContinue)));
+  push_instruction(parser, instruction_create_ITVMStatus(NULL, int_to_data(VMStatusContinue)));
   return parser;
 }
 
@@ -955,7 +960,7 @@ __DLL_EXPORT__ parser_t * script_parse_end_context_block(parser_t *parser) {
   label = datastack_pop(parser -> stack);
   data_varname = datastack_pop(parser -> stack);
   varname = data_as_name(data_varname);
-  push_instruction(parser, instruction_create_pushval(data_create(Int, 0)));
+  push_instruction(parser, instruction_create_pushval(int_to_data(0)));
   datastack_push(bytecode -> pending_labels, data_copy(label));
   push_instruction(parser, instruction_create_leave_context(varname));
   data_free(data_varname);

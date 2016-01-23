@@ -21,9 +21,16 @@
  * obelix root object declaration -
  */
  
-func print(msg) -> "liboblstdlib.so:_function_print"
-func sleep(naptime) -> "liboblstdlib.so:_function_sleep"
-func usleep(naptime) -> "liboblstdlib.so:_function_usleep"
+func print(msg)          -> "liboblstdlib.so:_function_print"
+func sleep(naptime)      -> "liboblstdlib.so:_function_sleep"
+func usleep(naptime)     -> "liboblstdlib.so:_function_usleep"
+
+func open(fname, mode)   -> "liboblcore.so:_file_open"
+func adopt(fnum)         -> "liboblcore.so:_file_adopt"
+func fsentry(name)       -> "liboblcore.so:_fsentry_create"
+
+func nvp(name, value)    -> "liboblcore.so:_nvp_create"
+func re(pattern)         -> "liboblcore.so:_regexp_create"
 
 self.stdin = adopt(0)
 self.stdout = adopt(1)

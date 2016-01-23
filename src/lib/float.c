@@ -28,7 +28,8 @@
 #include <data.h>
 #include <exception.h>
 
-static void          _float_init(void) __attribute__((constructor));
+extern  void          float_init(void);
+
 static data_t *      _float_new(int, va_list);
 static int           _float_cmp(flt_t *, flt_t *);
 static char *        _float_allocstring(flt_t *);
@@ -101,17 +102,14 @@ static typedescr_t _typedescr_float =   {
  * --------------------------------------------------------------------------
  */
 
-void _float_init(void) {
+void float_init(void) {
   interface_register(Number, "number", 2, FunctionFltValue, FunctionIntValue);
   typedescr_create_and_register(Float, "float", _vtable_float, NULL);
   typedescr_register_methods(_methoddescr_number);
 }
 
 data_t * _float_new(int type, va_list arg) {
-  flt_t *ret = data_new(Float, flt_t);
-
-  ret -> dbl = va_arg(arg, double);
-  return (data_t *) ret;
+  return (data_t *) flt_create(va_arg(arg, double));
 }
 
 unsigned int _float_hash(flt_t *data) {
@@ -137,7 +135,7 @@ data_t * _float_parse(char *str) {
 
   val = strtod(str, &endptr);
   return ((*endptr == 0) || (isspace(*endptr)))
-    ? data_create(Float, val)
+    ? flt_to_data(val)
     : NULL;
 }
 
@@ -146,10 +144,10 @@ data_t * _float_cast(flt_t *data, int totype) {
 
   switch (totype) {
     case Int:
-      ret = data_create(Int, (long) data -> dbl);
+      ret = (data_t *) int_create((long) data -> dbl);
       break;
     case Bool:
-      ret = data_create(Bool, data -> dbl != 0);
+      ret = int_as_bool(data -> dbl != 0);
       break;
   }
   return ret;
@@ -173,7 +171,7 @@ data_t * _number_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int     plus = (name[0] == '+') || !strcmp(name, "sum");
 
   if (!array_size(args)) {
-    return data_create(Int, (plus) ? data_floatval(self) : -1.0 * data_floatval(self));
+    return int_to_data((plus) ? data_floatval(self) : -1.0 * data_floatval(self));
   }
   retval = ((flt_t *) self) -> dbl;
   for (ix = 0; ix < array_size(args); ix++) {
@@ -184,7 +182,7 @@ data_t * _number_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     }
     retval += val;
   }
-  return data_create(Float, retval);
+  return flt_to_data(retval);
 }
 
 data_t * _number_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -196,34 +194,34 @@ data_t * _number_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     d = (data_t *) array_get(args, ix);
     retval *= data_floatval(d);
   }
-  return data_create(Float, retval);
+  return flt_to_data(retval);
 }
 
 data_t * _number_div(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *denom;
 
   denom = (data_t *) array_get(args, 0);
-  return data_create(Float, data_floatval(self) / data_floatval(denom));
+  return flt_to_data(data_floatval(self) / data_floatval(denom));
 }
 
 data_t * _number_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, fabs(data_floatval(self)));
+  return flt_to_data(fabs(data_floatval(self)));
 }
 
 data_t * _number_round(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, (long) round(data_floatval(self)));
+  return int_to_data((long) round(data_floatval(self)));
 }
 
 data_t * _number_trunc(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, (long) trunc(data_floatval(self)));
+  return int_to_data((long) trunc(data_floatval(self)));
 }
 
 data_t * _number_floor(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, (long) floor(data_floatval(self)));
+  return int_to_data((long) floor(data_floatval(self)));
 }
 
 data_t * _number_ceil(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, (long) ceil(data_floatval(self)));
+  return int_to_data((long) ceil(data_floatval(self)));
 }
 
 /*
@@ -234,23 +232,23 @@ data_t * _number_pow(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *exp;
 
   exp = (data_t *) array_get(args, 0);
-  return data_create(Float, pow(data_floatval(self), data_floatval(exp)));
+  return flt_to_data(pow(data_floatval(self), data_floatval(exp)));
 }
 
 data_t * _number_sin(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, sin(data_floatval(self)));
+  return flt_to_data(sin(data_floatval(self)));
 }
 
 data_t * _number_cos(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, cos(data_floatval(self)));
-}
+  return flt_to_data(cos(data_floatval(self)));
+}\
 
 data_t * _number_tan(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, tan(data_floatval(self)));
+  return flt_to_data(tan(data_floatval(self)));
 }
 
 data_t * _number_sqrt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Float, sqrt(data_floatval(self)));
+  return flt_to_data(sqrt(data_floatval(self)));
 }
 
 data_t * _number_minmax(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -268,3 +266,13 @@ data_t * _number_minmax(data_t *self, char *name, array_t *args, dict_t *kwargs)
   return data_copy(ret);
 }
 
+/* ----------------------------------------------------------------------- */
+
+flt_t * flt_create(double val) {
+  flt_t *ret = data_new(Float, flt_t);
+
+  ret -> dbl = val;
+  return ret;
+}
+
+/* ----------------------------------------------------------------------- */

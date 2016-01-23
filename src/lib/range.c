@@ -23,36 +23,14 @@
 
 #include <data.h>
 #include <exception.h>
+#include <range.h>
 
 /* ----------------------------------------------------------------------- */
 
-typedef struct _range {
-  data_t  _d;
-  data_t *from;
-  data_t *to;
-  data_t *next;
-  int     direction;
-} range_t;
-
-static void          _range_init(void) __attribute__((constructor));
+static inline void   _range_init(void);
 static data_t *      _range_new(data_t *, va_list);
 static void          _range_free(range_t *);
 static char *        _range_allocstring(range_t *);
-
-static data_t *      _range_create(data_t *, char *, array_t *, dict_t *);
-
-extern data_t *      range_create(data_t *from, data_t *to);
-extern int           range_cmp(range_t *, range_t *);
-extern unsigned int  range_hash(range_t *);
-extern data_t *      range_iter(range_t *);
-extern data_t *      range_next(range_t *);
-extern data_t *      range_has_next(range_t *);
-
-#define data_is_range(d)  ((d) && (data_hastype((d), Name)))
-#define data_as_range(d)  ((range_t *) (data_is_range((d)) ? (d) : NULL))
-#define range_free(n)     (data_free((data_t *) (n)))
-#define range_tostring(n) (data_tostring((data_t *) (n)))
-#define range_copy(n)     ((range_t *) data_copy((data_t *) (n)))
 
 static vtable_t _vtable_range[] = {
   { .id = FunctionCmp,         .fnc = (void_t) range_cmp },
@@ -65,19 +43,14 @@ static vtable_t _vtable_range[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-/* FIXME Add append, delete, head, tail, etc... */
-static methoddescr_t _methoddescr_range[] = {
-  { .type = Any,           .name = "range", .method = _range_create, .argtypes = { Incrementable, Incrementable, Any }, .minargs = 2, .varargs = 0 },
-  { .type = Incrementable, .name = "~",     .method = _range_create, .argtypes = { Incrementable, Any, Any },           .minargs = 1, .varargs = 0 },
-  { .type = NoType,        .name = NULL,    .method = NULL,          .argtypes = { NoType, NoType, NoType },            .minargs = 0, .varargs = 0 },
-};
-
 int Range = -1;
 
 /* ----------------------------------------------------------------------- */
 
 void _range_init(void) {
-  Range = typedescr_create_and_register(Range, "range", _vtable_range, _methoddescr_range);
+  if (Range < 0) {
+    Range = typedescr_create_and_register(Range, "range", _vtable_range, /* _methoddescr_range */ NULL);
+  }
 }
 
 void _range_free(range_t *range) {
@@ -158,19 +131,8 @@ data_t * range_has_next(range_t *r) {
     cmp = data_cmp(r -> next, r -> to);
     ret = (r -> direction == FunctionIncr) ? (cmp < 0) : (cmp > 0);
   }
-  return data_create(Bool, ret);
+  return int_as_bool(ret);
 }
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *from;
-  data_t *to;
-  int     infix = !strcmp(name, "~");
-  data_t *ret;
-
-  from = (infix) ? self : data_array_get(args, 0);
-  to = data_array_get(args, (infix) ? 0 : 1);
-  return range_create(from, to);
-}
- 

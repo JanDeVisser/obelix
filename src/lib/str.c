@@ -29,15 +29,16 @@
 #include <str.h>
 #include <typedescr.h>
 
-static void _str_init(void) __attribute__((constructor));
-static str_t * _str_initialize(void);
-static str_t * _str_expand(str_t *, int);
+extern void         str_init(void);
+
+static str_t *      _str_initialize(void);
+static str_t *      _str_expand(str_t *, int);
 static reduce_ctx * _str_join_reducer(char *, reduce_ctx *);
 
 static data_t * _str_create(int, va_list);
-static void _str_free(str_t *);
+static void     _str_free(str_t *);
 static data_t * _str_cast(str_t *, int);
-static str_t * _str_parse(char *str);
+static str_t *  _str_parse(char *str);
 static data_t * _str_resolve(str_t *, char *);
 
 static data_t * _string_slice(data_t *, char *, array_t *, dict_t *);
@@ -104,7 +105,7 @@ static methoddescr_t _methoddescr_str[] = {
 
 /* ------------------------------------------------------------------------ */
 
-void _str_init(void) {
+void str_init(void) {
   typedescr_create_and_register(String, "string", _vtable_string, _methoddescr_str);
 }
 
@@ -134,7 +135,7 @@ data_t * _str_resolve(str_t *str, char *slice) {
       }
       buf[0] = str_at(str, ix);
       buf[1] = 0;
-      return data_create(String, buf);
+      return str_to_data(buf);
     }
   } else {
     return NULL;
@@ -147,7 +148,7 @@ data_t * _str_cast(str_t *data, int totype) {
   char *str = str_chars(data);
 
   if (totype == Bool) {
-    return data_create(Bool, str && strlen(str));
+    return int_as_bool(str && strlen(str));
   } else {
     type = typedescr_get(totype);
     assert(type);
@@ -163,8 +164,9 @@ str_t * _str_parse(char *str) {
 /* -- S T R _ T   S T A T I C   F U N C T I O N S ------------------------- */
 
 str_t * _str_initialize(void) {
-  str_t *ret = data_new(String, str_t);
-
+  str_t *ret;
+  
+  ret = data_new(String, str_t);
   ret -> buffer = NULL;
   ret -> pos = 0;
   ret -> len = 0;
@@ -734,16 +736,16 @@ str_t * str_vformatf(char *fmt, va_list args) {
         if (strpbrk(ptr, "dspf") == ptr) {
           switch (ptr[0]) {
             case 'd':
-              array_push(arr, data_create(Int, va_arg(args, long)));
+              array_push(arr, int_to_data(va_arg(args, long)));
               break;
             case 's':
-              array_push(arr, data_create(String, va_arg(args, char *)));
+              array_push(arr, str_to_data(va_arg(args, char *)));
               break;
             case 'p':
-              array_push(arr, data_create(Pointer, va_arg(args, void *)));
+              array_push(arr, ptr_to_data(0, va_arg(args, void *)));
               break;
             case 'f':
-              array_push(arr, data_create(Float, va_arg(args, double)));
+              array_push(arr, flt_to_data(va_arg(args, double)));
               break;
           }
           done = 1;
@@ -810,7 +812,7 @@ data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) 
     // FIXME --- Or at least check me.
     strncpy(buf, data_tostring(self) + i, j - i);
     buf[j - i] = 0;
-    return data_create(String, buf);
+    return str_to_data(buf);
   }
 }
 
@@ -824,19 +826,19 @@ data_t * _string_forcecase(data_t *self, char *name, array_t *args, dict_t *kwar
 data_t * _string_has(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   char *needle = data_tostring(data_array_get(args, 0));
 
-  return data_create(Bool, str_indexof_chars((str_t *) self, needle) >= 0);
+  return int_as_bool(str_indexof_chars((str_t *) self, needle) >= 0);
 }
 
 data_t * _string_indexof(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   char *needle = data_tostring(data_array_get(args, 0));
 
-  return data_create(Int, str_indexof_chars((str_t *) self, needle));
+  return int_to_data(str_indexof_chars((str_t *) self, needle));
 }
 
 data_t * _string_rindexof(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   char *needle = data_tostring(data_array_get(args, 0));
 
-  return data_create(Int, str_rindexof_chars((str_t *) self, needle));
+  return int_to_data(str_rindexof_chars((str_t *) self, needle));
 }
 
 data_t * _string_startswith(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -847,9 +849,9 @@ data_t * _string_startswith(data_t *self, char *name, array_t *args, dict_t *kwa
   len = str_len((str_t *) self);
   prflen = strlen(prefix);
   if (prflen > len) {
-    return data_create(Bool, 0);
+    return data_false();
   } else {
-    return data_create(Bool, strncmp(prefix, str_chars((str_t *) self), prflen) == 0);
+    return int_as_bool(strncmp(prefix, str_chars((str_t *) self), prflen) == 0);
   }
 }
 
@@ -862,10 +864,10 @@ data_t * _string_endswith(data_t *self, char *name, array_t *args, dict_t *kwarg
   len = str_len((str_t *) self);
   suflen = strlen(suffix);
   if (suflen > len) {
-    return data_create(Bool, 0);
+    return data_false();
   } else {
     ptr = str_chars((str_t *) self) + (len - suflen);
-    return data_create(Bool, strncmp(suffix, ptr, suflen) == 0);
+    return int_as_bool(strncmp(suffix, ptr, suflen) == 0);
   }
 }
 

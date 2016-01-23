@@ -110,6 +110,7 @@ OBLCORE_IMPEXP str_t *         str_formatf(char *fmt, ...);
 #define str_free(s)       (data_free((data_t *) (s)))
 #define str_tostring(s)   (data_tostring((data_t *) (s)))
 #define str_copy(s)       ((str_t *) data_copy((data_t *) (s)))
+#define str_to_data(s)    ((data_t *) str_copy_chars((s)))
 
 #ifdef __cplusplus
 }

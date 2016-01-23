@@ -34,7 +34,7 @@ typedef struct _server_cmd_handler {
   int  (*handler)(oblserver_t *, char *);
 } server_cmd_handler_t;
 
-static void          _oblserver_init(void) __attribute__((constructor(130)));
+static inline void   _oblserver_init(void);
 
 static void          _oblserver_free(oblserver_t *);
 static char *        _oblserver_tostring(oblserver_t *);
@@ -87,8 +87,10 @@ static code_label_t _server_codes[] = {
 /* ------------------------------------------------------------------------ */
 
 void _oblserver_init(void) {
-  Server = typedescr_create_and_register(Server, "server", 
-                                         _vtable_oblserver, NULL);
+  if (Server < 0) {
+    Server = typedescr_create_and_register(Server, "server", 
+                                           _vtable_oblserver, NULL);
+  }
 }
 
 /* -- S E R V E R  T Y P E  F U N C T I O N S  ---------------------------- */
@@ -288,6 +290,7 @@ void * _oblserver_connection_handler(connection_t *connection) {
 oblserver_t * oblserver_create(obelix_t *obelix, stream_t *stream) {
   oblserver_t *ret;
 
+  _oblserver_init();
   if (script_debug) {
     debug("Creating server using stream '%s'", stream_tostring(stream));
   }

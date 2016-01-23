@@ -27,7 +27,7 @@
 #include <thread.h>
 #include <vm.h>
 
-static void         _bytecode_init(void) __attribute__((constructor));
+static inline void  _bytecode_init(void);
 
 static data_t *     _bytecode_create(int, va_list);
 static void         _bytecode_free(bytecode_t *);
@@ -48,11 +48,13 @@ static vtable_t _vtable_bytecode[] = {
 /* ------------------------------------------------------------------------ */
 
 void _bytecode_init(void) {
-  logging_register_category("bytecode", &bytecode_debug);
-  Bytecode = typedescr_create_and_register(Bytecode,
-					   "bytecode",
-					   _vtable_bytecode,
-					   NULL);
+  if (Bytecode < 0) {
+    logging_register_category("bytecode", &bytecode_debug);
+    Bytecode = typedescr_create_and_register(Bytecode,
+                                             "bytecode",
+                                             _vtable_bytecode,
+                                             NULL);
+  }
 }
 
 /* -- S T A T I C  F U N C T I O N S -------------------------------------- */
@@ -95,6 +97,7 @@ void _bytecode_list_block(list_t *block) {
 bytecode_t * bytecode_create(data_t *owner) {
   bytecode_t *ret;
 
+  _bytecode_init();
   if (bytecode_debug) {
     debug("Creating bytecode for '%s'", data_tostring(owner));
   }
@@ -158,7 +161,7 @@ bytecode_t * bytecode_end_deferred_block(bytecode_t *bytecode) {
     debug("End deferred block");
   }
   datastack_push(bytecode -> deferred_blocks,
-                 data_create(Pointer, sizeof(list_t), bytecode -> instructions));
+                 ptr_to_data(sizeof(list_t), bytecode -> instructions));
   _bytecode_set_instructions(bytecode, NULL);
   return bytecode;
 }
@@ -180,7 +183,7 @@ bytecode_t * bytecode_pop_deferred_block(bytecode_t *bytecode) {
 
 bytecode_t * bytecode_bookmark(bytecode_t *bytecode) {
   listnode_t *node = list_tail_pointer(bytecode -> instructions);
-  data_t     *data = data_create(Pointer, sizeof(listnode_t), node);
+  data_t     *data = ptr_to_data(sizeof(listnode_t), node);
 
   if (bytecode_debug) {
     debug("Bookmarking block %p -> %p", data, node);

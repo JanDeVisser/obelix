@@ -33,33 +33,32 @@
 
 int resolve_debug = 0;
 
-static void _resolve_init(void) __attribute__((constructor));
-static resolve_t *_singleton = NULL;
+static inline void _resolve_init(void);
+static char *      _resolve_rewrite_image(char *, char *);
+
+static resolve_t  *_singleton = NULL;
 
 void _resolve_init(void) {
   void *main;
 
-  logging_register_category("resolve", &resolve_debug);
-  assert(!_singleton);
-  _singleton = NEW(resolve_t);
+  if (!_singleton) {
+    logging_register_category("resolve", &resolve_debug);
+    assert(!_singleton);
+    _singleton = NEW(resolve_t);
 
-  _singleton -> images = list_create();
-  list_set_free(_singleton -> images,
+    _singleton -> images = list_create();
+    list_set_free(_singleton -> images,
 #ifdef HAVE_DLFCN_H
-  		(free_t) dlclose
+                  (free_t) dlclose
 #elif defined(HAVE_WINDOWS_H)
-		(free_t) FreeLibrary
+                  (free_t) FreeLibrary
 #endif /* HAVE_DLFCN_H */
-  );
-  _singleton -> functions = strvoid_dict_create();
-  main = resolve_open(_singleton, NULL);
-  if (!main) {
-    error("Could not load main program image");
-    list_free(_singleton -> images);
-    dict_free(_singleton -> functions);
-    _singleton = NULL;
-  }
-  if (_singleton) {
+    );
+    _singleton -> functions = strvoid_dict_create();
+    main = resolve_open(_singleton, NULL);
+    if (!main) {
+      error("Could not load main program image");
+    }
     atexit(resolve_free);
   }
 }
@@ -108,6 +107,7 @@ char * _resolve_rewrite_image(char *image, char *buf) {
 }
 
 resolve_t * resolve_get() {
+  _resolve_init();
   return _singleton;
 }
 
@@ -132,6 +132,7 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
   char     *err;
   char      image_plf[MAX_PATH];
 
+  _resolve_init();
   if (_resolve_rewrite_image(image, image_plf)) {
     if (resolve_debug) {
       debug("resolve_open('%s') ~ '%s'", image, image_plf);

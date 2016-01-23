@@ -26,7 +26,7 @@
 #include <resolve.h>
 #include <typedescr.h>
 
-static void         _function_init(void) __attribute__((constructor));
+static inline void  _function_init(void);
 static void         _function_free(function_t *);
 static char *       _function_allocstring(function_t *);
 static data_t *     _function_cast(function_t *, int);
@@ -49,9 +49,11 @@ int Function = -1;
 /* -- F U N C T I O N  S T A T I C  F U N C T I O N S --------------------- */
 
 void _function_init(void) {
-  logging_register_category("function", &function_debug);
-  Function = typedescr_create_and_register(Function, "function",
-					   _vtable_function, NULL);
+  if (Function < 0) {
+    logging_register_category("function", &function_debug);
+    Function = typedescr_create_and_register(Function, "function",
+                                             _vtable_function, NULL);
+  }
 }
 
 char * _function_allocstring(function_t *fnc) {
@@ -76,9 +78,9 @@ data_t * _function_cast(function_t *fnc, int totype) {
   data_t     *ret = NULL;
 
   if (totype == Bool) {
-    ret = data_create(Bool, fnc -> fnc != NULL);
+    ret = int_as_bool(fnc -> fnc != NULL);
   } else if (totype == Int) {
-    ret = data_create(Int, (intptr_t) fnc -> fnc);
+    ret = int_to_data((intptr_t) fnc -> fnc);
   }
   return ret;
 }
@@ -111,6 +113,7 @@ function_t * function_create_noresolve(char *name) {
   function_t *ret;
   name_t     *n;
 
+  _function_init();
   assert(name);
   ret = data_new(Function, function_t);
   ret -> params = NULL;
@@ -126,6 +129,7 @@ function_t * function_parse(char *str) {
   char       *p;
   name_t     *params = NULL;
 
+  _function_init();
   if (!name_size(name_params) || (name_size(name_params) > 2)) {
     return NULL;
   }

@@ -21,7 +21,10 @@
 
 #include <closure.h>
 #include <exception.h>
+#include <instruction.h>
+#include <nvp.h>
 #include <stacktrace.h>
+#include <str.h>
 #include <typedescr.h>
 #include <thread.h>
 #include <vm.h>
@@ -85,8 +88,8 @@ vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
     datastack_set_debug(vm -> contexts, dbg);
 
     array_push(args, data_copy(scope));
-    array_push(args, data_create(VM, vm));
-    array_push(args, data_create(Bytecode, vm -> bytecode));
+    array_push(args, (data_t *) vm_copy(vm));
+    array_push(args, (data_t *) bytecode_copy(vm -> bytecode));
 
     vm -> processor = lp_create(vm -> bytecode -> instructions,
                                 (reduce_t) _vm_execute_instruction,
@@ -164,7 +167,7 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
     }
     data_free(ret);
     if (ex) {
-      ex -> trace = data_create(Stacktrace, stacktrace_create());
+      ex -> trace = (data_t *) stacktrace_create();
       instruction_trace("Throws", "%s", exception_tostring(ex));
       vm -> exception = data_copy(ret);
       if (ex -> code != ErrorYield) {
@@ -252,10 +255,9 @@ data_t * vm_unstash(vm_t *vm, unsigned int stash) {
 }
 
 nvp_t * vm_push_context(vm_t *vm, char *label, data_t *context) {
-  nvp_t *ret = nvp_create(data_create(String, label), data_copy(context));
-  data_t *data = data_create(NVP, ret);
+  nvp_t *ret = nvp_create(str_to_data(label), data_copy(context));
 
-  datastack_push(vm -> contexts, data);
+  datastack_push(vm -> contexts, (data_t *) nvp_copy(ret));
   return ret;
 }
 
@@ -300,7 +302,7 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
       if (vm -> exception) {
         ex = data_as_exception(vm -> exception);
         if (ex -> code == ErrorReturn) {
-          ret = (ex -> throwable) ? data_copy(ex -> throwable) : data_create(Int, 0);
+          ret = (ex -> throwable) ? data_copy(ex -> throwable) : int_to_data(0);
         } else if (ex -> code == ErrorYield) {
           ret = NULL;
         } else {

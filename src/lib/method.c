@@ -24,7 +24,7 @@
 #include <exception.h>
 #include <method.h>
 
-static void          _mth_init(void) __attribute__((constructor));
+static void          _mth_init(void);
 static void          _mth_free(mth_t *);
 static char *        _mth_allocstring(mth_t *);
 
@@ -42,7 +42,12 @@ int RuntimeMethod = -1;
 /* -- M T H _ T  S T A T I C  F U N C T I O N S --------------------------- */
 
 void _mth_init(void) {
-  RuntimeMethod = typedescr_create_and_register(RuntimeMethod, "runtimemethod", _vtable_method, NULL);
+  if (RuntimeMethod < 0) {
+    RuntimeMethod = typedescr_create_and_register(RuntimeMethod, 
+                                                  "runtimemethod", 
+                                                  _vtable_method, 
+                                                  NULL);
+  }
 }
 
 void _mth_free(mth_t *mth) {
@@ -63,10 +68,12 @@ char * _mth_allocstring(mth_t *mth) {
 /* -- M T H _ T  P U B L I C  F U N C T I O N S --------------------------- */
 
 mth_t * mth_create(methoddescr_t *md, data_t *self) {
-  mth_t *ret = data_new(RuntimeMethod, mth_t);
+  mth_t *ret;
 
   assert(md);
   assert(self);
+  _mth_init();
+  ret = data_new(RuntimeMethod, mth_t);
   ret -> method = md;
   ret -> self = data_copy(self);
   return ret;

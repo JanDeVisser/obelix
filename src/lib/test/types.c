@@ -48,7 +48,7 @@ data_t * execute(data_t *self, char *name, int numargs, ...) {
     switch (type) {
       case Int:
         intval = va_arg(arglist, long);
-        d = data_create(Int, intval);
+        d = int_to_data(intval);
         break;
       case Float:
         intval = va_arg(arglist, double);

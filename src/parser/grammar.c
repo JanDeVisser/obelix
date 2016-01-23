@@ -31,8 +31,7 @@
 
 int grammar_debug = 0;
 
-static void                _grammar_init(void) __attribute__((constructor(102)));
-static void                _ge_init(void) __attribute__((constructor));
+static inline void         _grammar_init(void);
 
 static ge_t *              _ge_initialize(ge_t *, grammar_t *, ge_t *, grammar_element_type_t);
 static void                _ge_free(ge_t *);
@@ -147,28 +146,27 @@ grammar_element_type_t Terminal = -1;
 /* ------------------------------------------------------------------------ */
 
 void _grammar_init(void) {
-  logging_register_category("grammar", &grammar_debug);
-  resolve_library("liboblparser");
-}
+  if (GrammarAction < 0) {
+    logging_register_category("grammar", &grammar_debug);
+    resolve_library("liboblparser");
+    GrammarAction = typedescr_create_and_register(GrammarAction,
+                                                  "grammaraction",
+                                                  _vtable_ga,
+                                                  NULL);
+    GrammarElement = typedescr_create_and_register(GrammarElement,
+                                                   "grammarelement",
+                                                   _vtable_ge,
+                                                   NULL);
+    _typedescr_grammar.inherits[0] = GrammarElement;
+    _typedescr_nonterminal.inherits[0] = GrammarElement;
+    _typedescr_rule.inherits[0] = GrammarElement;
+    _typedescr_rule_entry.inherits[0] = GrammarElement;
 
-void _ge_init(void) {
-  GrammarAction = typedescr_create_and_register(GrammarAction,
-						"grammaraction",
-						_vtable_ga,
-						NULL);
-  GrammarElement = typedescr_create_and_register(GrammarElement,
-						 "grammarelement",
-						 _vtable_ge,
-						 NULL);
-  _typedescr_grammar.inherits[0] = GrammarElement;
-  _typedescr_nonterminal.inherits[0] = GrammarElement;
-  _typedescr_rule.inherits[0] = GrammarElement;
-  _typedescr_rule_entry.inherits[0] = GrammarElement;
-
-  Grammar = typedescr_register(&_typedescr_grammar);
-  NonTerminal = typedescr_register(&_typedescr_nonterminal);
-  Rule = typedescr_register(&_typedescr_rule);
-  RuleEntry = typedescr_register(&_typedescr_rule_entry);
+    Grammar = typedescr_register(&_typedescr_grammar);
+    NonTerminal = typedescr_register(&_typedescr_nonterminal);
+    Rule = typedescr_register(&_typedescr_rule);
+    RuleEntry = typedescr_register(&_typedescr_rule_entry);
+  }
 }
 
 /* -- G R A M M A R _ A C T I O N ----------------------------------------- */
@@ -199,6 +197,7 @@ char * _ga_allocstring(grammar_action_t *grammar_action) {
 grammar_action_t * grammar_action_create(function_t *fnc, data_t *data) {
   grammar_action_t *ret;
 
+  _grammar_init();
   ret = data_new(GrammarAction, grammar_action_t);
   ret -> fnc = function_copy(fnc);
   ret -> data = data_copy(data);
@@ -498,6 +497,7 @@ grammar_t * grammar_create() {
   grammar_t *ret;
   int        ix;
 
+  _grammar_init();
   ret = NEW(grammar_t);
   ret = (grammar_t *) _ge_initialize((ge_t *) ret,
                                      ret,
@@ -815,6 +815,7 @@ void _nonterminal_dump(ge_t *ge_nt) {
 nonterminal_t * nonterminal_create(grammar_t *grammar, char *name) {
   nonterminal_t *ret;
 
+  _grammar_init();
   ret = NEW(nonterminal_t);
   ret = (nonterminal_t *) _ge_initialize((ge_t *) ret,
                                          grammar,
@@ -929,8 +930,10 @@ void _rule_build_parse_table(rule_t *rule) {
 /* -- rule_t public functions --------------------------------------------- */
 
 rule_t * rule_create(nonterminal_t *nonterminal) {
-  rule_t  *ret = NEW(rule_t);
+  rule_t  *ret;
 
+  _grammar_init();
+  ret = NEW(rule_t);
   ret = (rule_t *) _ge_initialize((ge_t *) ret,
                                   nonterminal_get_grammar(nonterminal),
                                   (ge_t *) nonterminal,
@@ -960,6 +963,7 @@ rule_entry_t * rule_get_entry(rule_t *rule, int ix) {
 rule_entry_t * _rule_entry_create(rule_t *rule, int terminal, void *ptr) {
   rule_entry_t *ret;
 
+  _grammar_init();
   ret = NEW(rule_entry_t);
   ret = (rule_entry_t *) _ge_initialize((ge_t *) ret,
                                         rule_get_grammar(rule),

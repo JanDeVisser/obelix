@@ -92,9 +92,6 @@
       <itemPath>Makefile</itemPath>
       <itemPath>nbproject/private/launcher.properties</itemPath>
     </logicalFolder>
-    <itemPath>test/client.py</itemPath>
-    <itemPath>test/google.obl</itemPath>
-    <itemPath>test/lambda.obl</itemPath>
   </logicalFolder>
   <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
   <sourceRootList>
@@ -120,6 +117,15 @@
           <buildCommand>${MAKE} -f Makefile install</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
           <executablePath>build/bin/obelix</executablePath>
+          <cTool>
+            <standard>3</standard>
+            <incDir>
+              <pElem>include</pElem>
+            </incDir>
+            <incFile>
+              <pElem>build/config.h</pElem>
+            </incFile>
+          </cTool>
         </makeTool>
         <preBuild>
           <preBuildCommandWorkingDir>.</preBuildCommandWorkingDir>
@@ -613,8 +619,6 @@
         <cTool flags="1">
         </cTool>
       </item>
-      <item path="test/lambda.obl" ex="false" tool="3" flavor2="0">
-      </item>
     </conf>
     <conf name="panoramix" type="0">
       <toolsSet>
@@ -865,12 +869,6 @@
       <item path="src/stdlib/net.c" ex="false" tool="0" flavor2="9">
       </item>
       <item path="src/stdlib/sys.c" ex="false" tool="0" flavor2="9">
-      </item>
-      <item path="test/client.py" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="test/google.obl" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="test/lambda.obl" ex="false" tool="3" flavor2="0">
       </item>
     </conf>
   </confs>

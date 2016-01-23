@@ -24,9 +24,9 @@
 
 /* ------------------------------------------------------------------------ */
 
-static void   _bound_method_init(void) __attribute__((constructor(102)));
-static void   _bound_method_free(bound_method_t *);
-static char * _bound_method_allocstring(bound_method_t *);
+static inline void _bound_method_init(void);
+static void        _bound_method_free(bound_method_t *);
+static char *      _bound_method_allocstring(bound_method_t *);
 
 static vtable_t _vtable_bound_method[] = {
   { .id = FunctionCmp,         .fnc = (void_t) bound_method_cmp },
@@ -41,8 +41,10 @@ int BoundMethod = -1;
 /* ------------------------------------------------------------------------ */
 
 void _bound_method_init(void) {
-  BoundMethod = typedescr_create_and_register(BoundMethod, "boundmethod",
-					      _vtable_bound_method, NULL);
+  if (BoundMethod < 0) {
+    BoundMethod = typedescr_create_and_register(BoundMethod, "boundmethod",
+                                                _vtable_bound_method, NULL);
+  }
 }
 
 /* -- B O U N D  M E T H O D  S T A T I C  F U N C T I O N S -------------- */
@@ -70,8 +72,10 @@ char * _bound_method_allocstring(bound_method_t *bm) {
 /* -- B O U N D  M E T H O D  P U B L I C  F U N C T I O N S   ------------ */
 
 bound_method_t * bound_method_create(script_t *script, object_t *self) {
-  bound_method_t *ret = data_new(BoundMethod, bound_method_t);
-
+  bound_method_t *ret;
+  
+  _bound_method_init();
+  ret = data_new(BoundMethod, bound_method_t);
   ret -> script = script_copy(script);
   ret -> self = object_copy(self);
   ret -> closure = NULL;
@@ -89,7 +93,7 @@ int bound_method_cmp(bound_method_t *bm1, bound_method_t *bm2) {
 closure_t * bound_method_get_closure(bound_method_t *bm) {
   data_t *self;
 
-  self = (bm -> self) ? data_create(Object, bm -> self) : NULL;
+  self = (data_t *) ((bm -> self) ? object_copy(bm -> self) : NULL);
   return closure_create(bm -> script, bm -> closure, self);
 }
 

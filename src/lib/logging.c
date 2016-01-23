@@ -31,7 +31,7 @@ typedef struct _logcategory {
   char        *str;
 } logcategory_t;
 
-static void            _logging_init(void) __attribute__((constructor(101)));
+static inline void     _logging_init(void);
 
 static logcategory_t * _logcategory_create(char *, int *);
 static char *          _logcategory_tostring(logcategory_t *);
@@ -148,6 +148,9 @@ int * _logging_set_reducer(logcategory_t *cat, int *value) {
 void _logging_set(char *category, int value) {
   logcategory_t *cat;
   
+  if (!_categories) {
+    _logging_init();
+  }
   if (strcmp(category, "all")) {
     cat = dict_get(_categories, category);
     if (cat) {
@@ -215,6 +218,9 @@ int logging_status(char *category) {
   logcategory_t *cat;
   int            ret;
   
+  if (!_categories) {
+    _logging_init();
+  }
   cat = dict_get(_categories, category);
   if (!cat) {
     cat = _logcategory_create(category, NULL);

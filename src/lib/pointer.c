@@ -26,7 +26,8 @@
 #include <data.h>
 #include <resolve.h>
 
-static void          _ptr_init(void) __attribute__((constructor(101)));
+extern void          ptr_init(void);
+
 static pointer_t *   _ptr_new(int, va_list);
 static int           _ptr_cmp(pointer_t *, pointer_t *);
 static data_t *      _ptr_cast(pointer_t *, int);
@@ -59,29 +60,25 @@ static methoddescr_t _methoddescr_ptr[] = {
  * --------------------------------------------------------------------------
  */
 
-static pointer_t * _null;
+static pointer_t * _null = NULL;
 
-void _ptr_init(void) {
+void ptr_init(void) {
   typedescr_create_and_register(Pointer, "ptr", _vtable_ptr, _methoddescr_ptr);
-  _null = (pointer_t *) data_create(Pointer, 0, NULL);
+  _null = ptr_create(0, NULL);
   _null -> _d.free_me = Constant;
 }
 
 pointer_t * _ptr_new(int type, va_list arg) {
-  pointer_t *ret = data_new(Pointer, pointer_t);
-
-  ret -> size = va_arg(arg, int);
-  ret -> ptr = va_arg(arg, void *);
-  return ret;
+  return ptr_create(va_arg(arg, int), va_arg(arg, void *));
 }
 
 data_t * _ptr_cast(pointer_t *src, int totype) {
   data_t *ret = NULL;
 
   if (totype == Bool) {
-    ret = data_create(Bool, src -> ptr != NULL);
+    ret = int_as_bool(src -> ptr != NULL);
   } else if (totype == Int) {
-    ret = data_create(Int, (intptr_t) src -> ptr);
+    ret = int_to_data((intptr_t) src -> ptr);
   }
   return ret;
 }
@@ -114,7 +111,7 @@ pointer_t * _ptr_parse(char *str) {
     return (pointer_t *) data_null();
   } else {
     if (strtoint(str, &l)) {
-      return (pointer_t *) data_create(Pointer, 0, (void *) (intptr_t) l);
+      return (pointer_t *) ptr_to_data(0, (void *) (intptr_t) l);
     } else {
       return (pointer_t *) data_null();
     }
@@ -145,7 +142,7 @@ data_t * _ptr_copy(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
   newbuf = (void *) new(p -> size);
   memcpy(newbuf, p -> ptr, p -> size);
-  return data_create(Pointer, p -> size, newbuf);
+  return ptr_to_data(p -> size, newbuf);
 }
 
 data_t * _ptr_fill(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -156,3 +153,19 @@ data_t * _ptr_fill(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return data_copy(self);
 }
 
+/* ----------------------------------------------------------------------- */
+
+pointer_t * ptr_create(int sz, void *ptr) {
+  pointer_t *ret;
+
+  if (_null && !ptr) {
+    return _null;
+  } else {
+    ret = data_new(Pointer, pointer_t);
+    ret -> size = sz;
+    ret -> ptr = ptr;
+  }
+  return ret;
+}
+
+/* ----------------------------------------------------------------------- */

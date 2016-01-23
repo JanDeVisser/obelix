@@ -38,6 +38,7 @@
 #include <file.h>
 #include <logging.h>
 #include <re.h>
+#include <str.h>
 
 int file_debug = 0;
 
@@ -51,7 +52,7 @@ typedef int _oshandle_t;
 
 /* ------------------------------------------------------------------------ */
 
-static void          _file_init(void) __attribute__((constructor(110)));
+extern void          file_init(void);
 
 static void          _stream_free(stream_t *);
 static stream_t *    _stream_enter(stream_t *);
@@ -69,8 +70,9 @@ static data_t *      _file_cast(file_t *, int);
 static data_t *      _file_leave(file_t *, data_t *);
 static data_t *      _file_resolve(file_t *, char *);
 
-static data_t *      _file_open(data_t *, char *, array_t *, dict_t *);
-static data_t *      _file_adopt(data_t *, char *, array_t *, dict_t *);
+extern data_t *      _file_open(char *, array_t *, dict_t *);
+extern data_t *      _file_adopt(char *, array_t *, dict_t *);
+
 static data_t *      _file_close(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_isopen(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_redirect(data_t *, char *, array_t *, dict_t *);
@@ -106,8 +108,6 @@ static vtable_t _vtable_file[] = {
 };
 
 static methoddescr_t _methoddescr_file[] = {
-  { .type = Any,    .name = "open",     .method = _file_open,     .argtypes = { String, Int, Any },       .minargs = 1, .varargs = 1 },
-  { .type = Any,    .name = "adopt",    .method = _file_adopt,    .argtypes = { Number, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "close",    .method = _file_close,    .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "isopen",   .method = _file_isopen,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "redirect", .method = _file_redirect, .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
@@ -154,12 +154,14 @@ int StreamIter = -1;
 
 /* ------------------------------------------------------------------------ */
 
-void _file_init(void) {
-  logging_register_category("file", &file_debug);
-  Stream = typedescr_create_and_register(Stream, "stream", _vtable_stream, _methoddescr_stream);
-  File = typedescr_create_and_register(File, "file", _vtable_file, _methoddescr_file);
-  typedescr_assign_inheritance(typedescr_get(File), Stream);
-  StreamIter = typedescr_create_and_register(StreamIter, "streamiterator", _vtable_streamiter, NULL);
+void file_init(void) {
+  if (Stream < 0) {
+    logging_register_category("file", &file_debug);
+    Stream = typedescr_create_and_register(Stream, "stream", _vtable_stream, _methoddescr_stream);
+    File = typedescr_create_and_register(File, "file", _vtable_file, _methoddescr_file);
+    typedescr_assign_inheritance(typedescr_get(File), Stream);
+    StreamIter = typedescr_create_and_register(StreamIter, "streamiterator", _vtable_streamiter, NULL);
+  }
 }
 
 
@@ -213,7 +215,7 @@ data_t * _stream_readline(stream_t *stream, char *name, array_t *args, dict_t *k
 
   line = stream_readline(stream);
   if (line) {
-    ret = data_create(String, line);
+    ret = str_to_data(line);
     free(line);
   } else if (stream -> _errno) {
     ret = data_exception_from_errno();
@@ -559,7 +561,7 @@ data_t * _streamiter_has_next(streamiter_t *si) {
   next = list_head(si -> next);
   if (data_is_exception(next)) {
     ex = data_as_exception(next);
-    ret = (ex -> code == ErrorExhausted) ? data_create(Bool, 0) : data_copy(next);
+    ret = (ex -> code == ErrorExhausted) ? data_false() : data_copy(next);
   } else {
     ret = data_true();
   }
@@ -606,7 +608,7 @@ int _file_intval(file_t *file) {
 
 data_t * _file_cast(file_t *file, int totype) {
   if (totype == Bool) {
-    return data_create(Bool, file_isopen(file));
+    return int_as_bool(file_isopen(file));
   }
   return NULL;
 }
@@ -625,15 +627,15 @@ data_t * _file_leave(file_t *file, data_t *param) {
 
 data_t * _file_resolve(file_t *file, char *name) {
   if (!strcmp(name, "errno")) {
-    return data_create(Int, file_errno(file));
+    return int_to_data(file_errno(file));
   } else if (!strcmp(name, "errormsg")) {
-    return data_create(String, file_error(file));
+    return str_to_data(file_error(file));
   } else if (!strcmp(name, "name")) {
-    return data_create(String, file_name(file));
+    return str_to_data(file_name(file));
   } else if (!strcmp(name, "fh")) {
-    return data_create(Int, file -> fh);
+    return int_to_data(file -> fh);
   } else if (!strcmp(name, "eof")) {
-    return data_create(Bool, file_eof(file));
+    return int_as_bool(file_eof(file));
   } else {
     return NULL;
   }
@@ -644,6 +646,7 @@ data_t * _file_resolve(file_t *file, char *name) {
 file_t * file_create(int fh) {
   file_t *ret;
 
+  file_init();
   ret = data_new(File, file_t);
   ret -> fh = fh;
   ret -> fname = NULL;
@@ -923,15 +926,13 @@ int file_redirect(file_t *file, char *newname) {
 
 /* -- F I L E  D A T A T Y P E  M E T H O D S ----------------------------- */
 
-data_t * _file_open(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _file_open(char *name, array_t *args, dict_t *kwargs) {
   char   *n;
   data_t *file;
 
   (void) name;
   (void) kwargs;
-  if (!args || !array_size(args)) {
-    n = data_tostring(self);
-  } else if (array_size(args) > 1) {
+  if (array_size(args) > 1) {
     // FIXME open mode!
     return data_exception(ErrorArgCount, "open() takes exactly one argument");
   } else {
@@ -939,12 +940,12 @@ data_t * _file_open(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   }
   file = (data_t *) file_open(n);
   if (!file) {
-    file = data_create(Bool, 0);
+    file = data_false();
   }
   return file;
 }
 
-data_t * _file_adopt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _file_adopt(char *name, array_t *args, dict_t *kwargs) {
   data_t *handle = data_array_get(args, 0);
   file_t *ret = file_create(data_intval(handle));
 
@@ -967,7 +968,7 @@ data_t * _file_seek(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) kwargs;
   retval = file_seek(file, offset);
   if (retval >= 0) {
-    ret = data_create(Int, retval);
+    ret = int_to_data(retval);
   } else {
     ret = data_exception_from_my_errno(file_errno(file));
   }
@@ -982,7 +983,7 @@ data_t * _file_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) args;
   (void) kwargs;
   if (!retval) {
-    return data_create(Bool,  1);
+    return data_true();
   } else {
     return data_exception_from_my_errno(file_errno(file));
   }
@@ -996,7 +997,7 @@ data_t * _file_flush(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) args;
   (void) kwargs;
   if (!retval) {
-    return data_create(Bool,  1);
+    return data_true();
   } else {
     return data_exception_from_my_errno(file_errno(file));
   }
@@ -1008,12 +1009,13 @@ data_t * _file_isopen(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) name;
   (void) args;
   (void) kwargs;
-  return data_create(Bool, file_isopen(file));
+  return int_as_bool(file_isopen(file));
 }
 
 data_t * _file_redirect(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) name;
   (void) args;
-  return data_create(Bool, file_redirect((file_t *) self,
-                     data_tostring(data_array_get(args, 0))) == 0);
+  return int_as_bool(
+    file_redirect((file_t *) self,
+                  data_tostring(data_array_get(args, 0))) == 0);
 }

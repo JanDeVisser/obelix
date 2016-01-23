@@ -25,7 +25,7 @@
 #include <str.h>
 #include <wrapper.h>
 
-static void          _data_init_name(void) __attribute__((constructor));
+static inline void   _name_init(void);
 static void          _name_debug(name_t *, char *);
 
 static void          _name_free(name_t *);
@@ -57,10 +57,12 @@ int Name = -1;
 
 /* ----------------------------------------------------------------------- */
 
-void _data_init_name(void) {
-  logging_register_category("name", &name_debug);
-  Name = typedescr_create_and_register(Name, "name", _vtable_name,
-                                       _methoddescr_name);
+void _name_init(void) {
+  if (Name < 1) {
+    logging_register_category("name", &name_debug);
+    Name = typedescr_create_and_register(Name, "name", _vtable_name,
+                                         _methoddescr_name);
+  }
 }
 
 /* ----------------------------------------------------------------------- */
@@ -84,8 +86,10 @@ void _name_debug(name_t *name, char *msg) {
 }
 
 name_t * _name_create(int count) {
-  name_t *ret = data_new(Name, name_t);
-
+  name_t *ret;
+  
+  _name_init();
+  ret= data_new(Name, name_t);
   ret -> name = str_array_create(count);
   ret -> sep = NULL;
   _name_debug(ret, "_name_create");
@@ -109,7 +113,7 @@ data_t * _name_resolve(name_t *n, char *name) {
 
   if (!strtoint(name, &ix)) {
     return ((ix >= 0) && (ix < name_size(n)))
-      ? data_create(String, name_get(n, ix))
+      ? str_to_data(name_get(n, ix))
       : NULL;
   } else {
     return NULL;

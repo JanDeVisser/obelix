@@ -24,8 +24,9 @@
 
 #include <data.h>
 #include <datastack.h>
-#include <exception.h>
 #include <dict.h>
+#include <exception.h>
+#include <str.h>
 #include <thread.h>
 
 #define MAX_STACKDEPTH      200
@@ -39,7 +40,7 @@ typedef struct _thread_ctx {
   condition_t  *condition;
 } thread_ctx_t;
 
-static void          _init_thread(void) __attribute__((constructor(120)));
+static void          _init_thread(void);
 static void *        _thread_start_routine_wrapper(thread_ctx_t *);
 
 extern void          _thread_free(thread_t *);
@@ -53,10 +54,11 @@ static char *        _data_tostring_thread(data_t *);
 static unsigned int  _data_hash_thread(data_t *);
 static data_t *      _data_resolve_thread(data_t *, char *);
 
-static data_t *      _thread_current_thread(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_interrupt(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_yield(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_stack(data_t *, char *, array_t *, dict_t *);
+
+extern data_t *      _thread_current_thread(char *, array_t *, dict_t *);
 
 static vtable_t _vtable_thread[] = {
   { .id = FunctionCmp,      .fnc = (void_t) thread_cmp },
@@ -68,7 +70,6 @@ static vtable_t _vtable_thread[] = {
 };
 
 static methoddescr_t _methoddescr_thread[] = {
-  { .type = Any, .name = "current_thread", .method = _thread_current_thread, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,  .name = "interrupt",      .method = _thread_interrupt,      .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,  .name = "yield",          .method = _thread_yield,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,  .name = "stack",          .method = _thread_stack,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
@@ -89,18 +90,20 @@ int thread_debug = 0;
 void _init_thread(void) {
   thread_t *main;
 
-  logging_register_category("thread", &thread_debug);
+  if (Thread < 0) {
+    logging_register_category("thread", &thread_debug);
 #ifdef HAVE_PTHREAD_H
-  pthread_key_create(&self_obj, /* (void (*)(void *)) _thread_free */ NULL);
+    pthread_key_create(&self_obj, /* (void (*)(void *)) _thread_free */ NULL);
 #elif defined(HAVE_CREATETHREAD)
-  self_ix = TlsAlloc();
+    self_ix = TlsAlloc();
 #endif /* HAVE_PTHREAD_H */
-  Thread = typedescr_create_and_register(Thread, "thread",
-                                         _vtable_thread,
-                                         _methoddescr_thread);
-  main = thread_self();
-  if (main) {
-    thread_setname(main, "main");
+    Thread = typedescr_create_and_register(Thread, "thread",
+                                           _vtable_thread,
+                                           _methoddescr_thread);
+    main = thread_self();
+    if (main) {
+      thread_setname(main, "main");
+    }
   }
 }
 
@@ -313,10 +316,18 @@ thread_t * thread_setname(thread_t *thread, char *name) {
 }
 
 data_t * thread_resolve(thread_t *thread, char *name) {
+  data_t *ret = NULL;
+  
   if (!strcmp(name, "name")) {
-    return data_create(String, thread -> name);
+    return str_to_data(thread -> name);
   } else if (!strcmp(name, "id")) {
-    return data_create(Int, (long) thread -> thread);
+    return int_to_data((long) thread -> thread);
+  } else if (!strcmp(name, "exit_code")) {
+    while (!ret && thread) {
+      ret = data_copy(thread -> exit_code);
+      thread = thread -> parent;
+    }
+    return ret;
   }
   return NULL;
 }
@@ -353,8 +364,7 @@ int thread_status(thread_t *thread) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _thread_current_thread(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  (void) self;
+data_t * _thread_current_thread(char *name, array_t *args, dict_t *kwargs) {
   (void) name;
   (void) args;
   (void) kwargs;
@@ -368,9 +378,9 @@ data_t * _thread_interrupt(data_t *self, char *name, array_t *args, dict_t *kwar
   (void) kwargs;
 
   if (thread_interrupt((thread_t *) self)) {
-  	return data_exception_from_errno();
+    return data_exception_from_errno();
   } else {
-  	return self;
+    return self;
   }
 }
 

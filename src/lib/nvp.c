@@ -22,15 +22,17 @@
 #include <core.h>
 #include <data.h>
 #include <nvp.h>
+#include <str.h>
 
 /* ------------------------------------------------------------------------ */
 
-static void         _nvp_init(void) __attribute__((constructor));
+static inline void  _nvp_init(void);
 static void         _nvp_free(nvp_t *);
 static char *       _nvp_allocstring(nvp_t *);
 static nvp_t *      _nvp_parse(char *);
+static data_t *     _nvp_resolve(nvp_t *, char *);
 
-static data_t *     _nvp_create(data_t *, char *, array_t *, dict_t *);
+static data_t *     _nvp_create(char *, array_t *, dict_t *);
 
 /* ------------------------------------------------------------------------ */
 
@@ -40,12 +42,8 @@ static vtable_t _vtable_nvp[] = {
   { .id = FunctionAllocString, .fnc = (void_t) _nvp_allocstring },
   { .id = FunctionParse,       .fnc = (void_t) nvp_parse },
   { .id = FunctionHash,        .fnc = (void_t) nvp_hash },
+  { .id = FunctionResolve,     .fnc = (void_t) _nvp_resolve },
   { .id = FunctionNone,        .fnc = NULL }
-};
-
-static methoddescr_t _methoddescr_nvp[] = {
-  { .type = Any,    .name = "nvp", .method = _nvp_create,  .argtypes = { Any, Any, NoType },       .minargs = 2, .varargs = 0 },
-  { .type = NoType, .name = NULL,  .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 int NVP = -1;
@@ -53,7 +51,9 @@ int NVP = -1;
 /* ------------------------------------------------------------------------ */
 
 void _nvp_init(void) {
-  NVP = typedescr_create_and_register(NVP, "nvp", _vtable_nvp, _methoddescr_nvp);
+  if (NVP < 0) {
+    NVP = typedescr_create_and_register(NVP, "nvp", _vtable_nvp,/*  _methoddescr_nvp */ NULL);
+  }
 }
 
 void _nvp_free(nvp_t *nvp) {
@@ -72,11 +72,24 @@ char * _nvp_allocstring(nvp_t *nvp) {
   return buf;
 }
 
+data_t * _nvp_resolve(nvp_t *nvp, char *name) {
+  if (!strcmp(name, "name")) {
+    return data_copy(nvp -> name);
+  } else if (!strcmp(name, "value")) {
+    return data_copy(nvp -> value);
+  } else {
+    return NULL;
+  }
+}
+
+
+
 /* ------------------------------------------------------------------------ */
 
 nvp_t * nvp_create(data_t *name, data_t *value) {
   nvp_t *ret;
 
+  _nvp_init();
   ret = data_new(NVP, nvp_t);
   ret -> name = data_copy(name);
   ret -> value = data_copy(value);
@@ -101,7 +114,7 @@ nvp_t * nvp_parse(char *str) {
     *ptr = 0;
     val = ptr + 1;
   }
-  n = data_create(String, name);
+  n = str_to_data(name);
   v = (val) ? data_decode(val) : data_true();
   ret = nvp_create(n, v);
   data_free(n);
@@ -123,6 +136,6 @@ unsigned int nvp_hash(nvp_t *nvp) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _nvp_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _nvp_create(char *name, array_t *args, dict_t *kwargs) {
   return (data_t *) nvp_create(data_array_get(args, 0), data_array_get(args, 1));
 }

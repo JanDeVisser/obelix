@@ -24,7 +24,6 @@
 #include <data.h>
 #include <datastack.h>
 #include <dict.h>
-#include <instruction.h>
 #include <list.h>
 
 #ifdef  __cplusplus

@@ -32,7 +32,7 @@
 
 extern grammar_t *      build_grammar(void);
 
-static void             _scriptloader_init(void) __attribute__((constructor));
+static inline void      _scriptloader_init(void);
 static file_t *         _scriptloader_open_file(scriptloader_t *, char *, module_t *);
 static data_t *         _scriptloader_open_reader(scriptloader_t *, module_t *);
 static data_t *         _scriptloader_get_object(scriptloader_t *, int, ...);
@@ -62,8 +62,10 @@ static vtable_t _vtable_scriptloader[] = {
 /* ------------------------------------------------------------------------ */
 
 void _scriptloader_init(void) {
-  ScriptLoader = typedescr_create_and_register(ScriptLoader, "loader", 
-                                               _vtable_scriptloader, NULL);
+  if (ScriptLoader < 0) {
+    ScriptLoader = typedescr_create_and_register(ScriptLoader, "loader", 
+                                                 _vtable_scriptloader, NULL);
+  }
 }
 
 /* -- S C R I P T L O A D E R   D A T A   F U N C T I O N S --------------- */
@@ -99,13 +101,13 @@ data_t *_scriptloader_call(scriptloader_t *loader, array_t *args, dict_t *kwargs
 
 data_t * _scriptloader_resolve(scriptloader_t *loader, char *name) {
   if (!strcmp(name, "list")) {
-    return data_create(Bool, scriptloader_get_option(loader, ObelixOptionList));
+    return int_as_bool(scriptloader_get_option(loader, ObelixOptionList));
   } else if (!strcmp(name, "trace")) {
-    return data_create(Bool, scriptloader_get_option(loader, ObelixOptionTrace));
+    return int_as_bool(scriptloader_get_option(loader, ObelixOptionTrace));
   } else if (!strcmp(name, "loadpath")) {
     return data_copy((data_t *) loader -> load_path);
   } else if (!strcmp(name, "systempath")) {
-    return data_create(String, loader -> system_dir);
+    return str_to_data(loader -> system_dir);
   } else if (!strcmp(name, "grammar")) {
     return data_copy((data_t *) loader -> grammar);
   } else if (!strcmp(name, "parser")) {
@@ -175,7 +177,7 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   }
   if ((e != NULL) && fsentry_isfile(e) && fsentry_canread(e)) {
     ret = fsentry_open(e);
-    mod -> source = data_create(String, e -> name);
+    mod -> source = str_to_data(e -> name);
     assert(ret -> fh > 0);
   } else {
     ret = NULL;
@@ -221,7 +223,7 @@ static data_t * _scriptloader_get_object(scriptloader_t *loader, int count, ...)
   data = ns_get(loader -> ns, name);
   if (data_is_module(data)) {
     mod = data_as_module(data);
-    data = data_create(Object, mod -> obj);
+    data = (data_t *) object_copy(mod -> obj);
   }
   return data;
 }
@@ -275,6 +277,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
   int               len;
   array_t          *a;
 
+  _scriptloader_init();
   if (script_debug) {
     debug("Creating script loader");
   }
@@ -319,7 +322,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
     if (script_debug) {
       debug("grammar file: %s", grammarpath);
     }
-    file = data_create(File, grammarpath);
+    file = (data_t *) file_open(grammarpath);
     assert(file_isopen(data_as_file(file)));
     gp = grammar_parser_create(file);
     ret -> grammar = grammar_parser_parse(gp);
@@ -341,7 +344,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
     debug("  Created parser");
   }
 
-  ret -> load_path = data_create(List, 1, data_create(String, ret -> system_dir));
+  ret -> load_path = data_create(List, 1, str_to_data(ret -> system_dir));
   ret -> ns = ns_create("loader", ret, (import_t) scriptloader_load);
   root = ns_import(ret -> ns, NULL);
   if (!data_is_module(root)) {
@@ -387,7 +390,7 @@ scriptloader_t * scriptloader_set_options(scriptloader_t *loader, array_t *optio
 }
 
 scriptloader_t * scriptloader_set_option(scriptloader_t *loader, obelix_option_t option, long value) {
-  data_t *opt = data_create(Int, value);
+  data_t *opt = int_to_data(value);
   
   array_set(loader -> options, (int) option, opt);
   return loader;
@@ -410,7 +413,7 @@ scriptloader_t * scriptloader_add_loadpath(scriptloader_t *loader, char *pathent
   if (*(sanitized_entry + (strlen(sanitized_entry) - 1)) != '/') {
     strcat(sanitized_entry, "/");
   }
-  data_list_push(loader -> load_path, data_create(String, sanitized_entry));
+  data_list_push(loader -> load_path, str_to_data(sanitized_entry));
   free(sanitized_entry);
   return loader;
 }
@@ -436,9 +439,9 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, dat
     debug("scriptloader_load_fromreader('%s')", name_tostring(mod -> name));
   }
   parser_clear(loader -> parser);
-  parser_set(loader -> parser, "module", data_create(Module, mod));
+  parser_set(loader -> parser, "module", (data_t *) mod_copy(mod));
   name = strdup((name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__");
-  parser_set(loader -> parser, "name", data_create(String, name));
+  parser_set(loader -> parser, "name", str_to_data(name));
   parser_set(loader -> parser, "options", data_create_list(loader -> options));
   ret = parser_parse(loader -> parser, reader);
   if (!ret) {

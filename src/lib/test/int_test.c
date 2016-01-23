@@ -25,8 +25,8 @@
 void _init_int_test(void) __attribute__((constructor(300)));
 
 START_TEST(data_int)
-  data_t  *d1 = data_create(Int, 1);
-  data_t  *d2 = data_create(Int, 1);
+  data_t  *d1 = int_to_data(1);
+  data_t  *d2 = int_to_data(1);
   data_t  *sum;
   array_t *args;
 
@@ -43,7 +43,7 @@ START_TEST(data_int)
   data_free(sum);
 
   array_clear(args);
-  d2 = data_create(Int, 1);
+  d2 = int_to_data(1);
   array_push(args, data_copy(d1));
   array_push(args, d2);
   array_push(args, data_copy(d2));
@@ -76,8 +76,8 @@ START_TEST(int_parse)
 END_TEST
 
 START_TEST(int_cmp)
-  data_t *i1 = data_create(Int, 1);
-  data_t *i2 = data_create(Int, 2);
+  data_t *i1 = int_to_data(1);
+  data_t *i2 = int_to_data(2);
   data_t *f1 = data_create(Float, 3.14);
   data_t *b1 = data_create(Bool, FALSE);
   data_t *ret;

@@ -55,7 +55,7 @@ static code_label_t builtin_exceptions[] = {
 static int           num_exceptions = sizeof(builtin_exceptions) / sizeof(code_label_t);
 static code_label_t *exceptions = builtin_exceptions;
 
-static void          _exception_init(void) __attribute__((constructor(105)));
+extern void          exception_init(void);
 extern void          _exception_free(exception_t *);
 extern char *        _exception_allocstring(exception_t *);
 static int           _exception_intval(data_t *);
@@ -153,7 +153,7 @@ void exception_report(exception_t *e) {
  * --------------------------------------------------------------------------
  */
 
-void _exception_init(void) {
+void exception_init(void) {
   typedescr_create_and_register(Exception, "exception",
 				_vtable_exception, NULL);
 }
@@ -193,7 +193,7 @@ data_t * _exception_cast(data_t *src, int totype) {
   data_t      *ret = NULL;
 
   if (totype == Bool) {
-    ret = data_create(Bool, ex != NULL);
+    ret = int_as_bool(ex != NULL);
   }
   return ret;
 }
@@ -204,13 +204,13 @@ data_t * _exception_resolve(data_t *exception, char *name) {
   data_t      *ret;
 
   if (!strcmp(name, "message")) {
-    return data_create(String, e -> msg);
+    return (data_t *) str_copy_chars(e -> msg);
   } else if (!strcmp(name, "stacktrace")) {
     return data_copy(e -> trace);
   } else if (!strcmp(name, "code")) {
-    return data_create(Int, e -> code);
+    return (data_t *) int_create(e -> code);
   } else if (!strcmp(name, "codename")) {
-    return data_create(String, exceptions[e -> code].label);
+    return (data_t *) str_copy_chars(exceptions[e -> code].label);
   } else if (!strcmp(name, "throwable")) {
     return data_copy(e -> throwable);
   } else if (e -> throwable) {

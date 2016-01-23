@@ -27,7 +27,8 @@
 #include <core.h>
 #include <data.h>
 
-static void          _int_init(void) __attribute__((constructor));
+extern void          int_init(void);
+
 static data_t *      _int_new(int, va_list);
 static int           _int_cmp(int_t *, int_t *);
 static char *        _int_allocstring(int_t *);
@@ -112,7 +113,7 @@ int_t * bool_false = NULL;
  * --------------------------------------------------------------------------
  */
 
-void _int_init(void) {
+void int_init(void) {
   typedescr_register(&_typedescr_int);
   typedescr_register(&_typedescr_bool);
   typedescr_register_methods(_methoddescr_int);
@@ -123,10 +124,7 @@ void _int_init(void) {
 }
 
 data_t * _int_new(int type, va_list arg) {
-  int_t *ret = data_new(Int, int_t);
-
-  ret -> i = va_arg(arg, long);
-  return (data_t *) ret;
+  return (data_t *) int_create(va_arg(arg, long));
 }
 
 unsigned int _int_hash(int_t *data) {
@@ -147,9 +145,9 @@ char * _int_allocstring(int_t *data) {
 data_t * _int_cast(int_t *data, int totype) {
   switch (totype) {
     case Float:
-      return data_create(Float, (double) data -> i);
+      return flt_to_data((double) data -> i);
     case Bool:
-      return data_create(Bool, data -> i);
+      return int_as_bool(data -> i);
     default:
       return NULL;
   }
@@ -159,18 +157,18 @@ data_t * _int_parse(char *str) {
   long  val;
 
   if (!strtoint(str, &val)) {
-    return data_create(Int, (long) val);
+    return int_to_data((long) val);
   } else {
     return NULL;
   }
 }
 
 data_t * _int_incr(int_t *self) {
-  return data_create(Int, self -> i + 1);
+  return int_to_data(self -> i + 1);
 }
 
 data_t * _int_decr(int_t *self) {
-  return data_create(Int, self -> i - 1);
+  return int_to_data(self -> i - 1);
 }
 
 double _int_fltvalue(int_t *data) {
@@ -196,7 +194,7 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
   if (!args || !array_size(args)) {
     intret = ((int_t *) self) -> i;
-    return data_create(Int, (minus) ? -1 * intret : intret);
+    return int_to_data((minus) ? -1 * intret : intret);
   }
 
   for (ix = 0; ix < array_size(args); ix++) {
@@ -231,11 +229,7 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
         break;
     }
   }
-  ret = (type == Int)
-    ? data_create(type, intret)
-    : data_create(type, fltret);
-  /* FIXME Why? Why not data_create(type, (type == Int) ? ...: ...)?
-      Why does that not work (gives garbage intval) */
+  ret = (type == Int) ? (data_t *) int_create(intret) : (data_t *) flt_create(fltret);
   return ret;
 }
 
@@ -271,9 +265,7 @@ data_t * _int_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
         break;
     }
   }
-  ret = (type == Int)
-    ? data_create(type, intret)
-    : data_create(type, fltret);
+  ret = (type == Int) ? (data_t *) int_create(intret) : (data_t *) flt_create(fltret);
   return ret;
 }
 
@@ -287,11 +279,11 @@ data_t * _int_div(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   switch (data_type(denom)) {
     case Int:
       intret = data_intval(self) / data_intval(denom);
-      ret = data_create(Int, intret);
+      ret = int_to_data(intret);
       break;
     case Float:
       fltret = data_floatval(self) / data_floatval(denom);
-      ret = data_create(Float, fltret);
+      ret = flt_to_data(fltret);
       break;
   }
   return ret;
@@ -301,11 +293,11 @@ data_t * _int_mod(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *denom;
 
   denom = (data_t *) array_get(args, 0);
-  return data_create(Int, data_intval(self) % data_intval(denom));
+  return int_to_data(data_intval(self) % data_intval(denom));
 }
 
 data_t * _int_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_create(Int, labs(data_intval(self)));
+  return int_to_data(labs(data_intval(self)));
 }
 
 /*
@@ -320,7 +312,7 @@ data_t * _bool_new(int type, va_list arg) {
 
   val = va_arg(arg, long);
   if (bool_true && bool_false) {
-    return (data_t *) ((val) ? bool_true : bool_false);
+    return (data_t *) bool_get(val);
   } else {
     ret = data_new(Bool, int_t);
     ret -> i = (val != 0);
@@ -336,16 +328,16 @@ data_t * _bool_parse(char *str) {
   data_t *i = _int_parse(str);
 
   if (i) {
-    return data_create(Bool, data_intval(i));
+    return int_as_bool(data_intval(i));
   } else {
-    return data_create(Bool, atob(str));
+    return int_as_bool(atob(str));
   }
 }
 
 data_t * _bool_cast(int_t *data, int totype) {
   switch (totype) {
     case Int:
-      return data_create(Int, data -> i);
+      return int_to_data(data -> i);
     default:
       return NULL;
   }
@@ -353,11 +345,15 @@ data_t * _bool_cast(int_t *data, int totype) {
 
 /* ----------------------------------------------------------------------- */
 
-//data_t * data_true(void) {
-//  return (data_t *) _bool_true;
-//}
-//
-//data_t * data_false(void) {
-//  return (data_t *) _bool_false;
-//}
-//
+int_t * int_create(long val) {
+  int_t *ret = data_new(Int, int_t);
+
+  ret -> i = val;
+  return (data_t *) ret;
+}
+
+int_t * bool_get(long value) {
+  return (value) ? bool_true : bool_false;
+}
+
+/* ----------------------------------------------------------------------- */

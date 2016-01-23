@@ -27,7 +27,7 @@
 #include <object.h>
 #include <script.h>
 
-static void          _data_init_object(void) __attribute__((constructor));
+static inline void   _object_init(void);
 extern void          _object_free(object_t *);
 extern char *        _object_allocstring(object_t *);
 static data_t *      _object_cast(object_t *, int);
@@ -68,10 +68,12 @@ int obj_debug = 0;
 
 /* ----------------------------------------------------------------------- */
 
-void _data_init_object(void) {
-  logging_register_category("object", &obj_debug);
-  Object = typedescr_create_and_register(Object, "object",
-                                         _vtable_object, _methoddescr_object);
+void _object_init(void) {
+  if (Object < 0) {
+    logging_register_category("object", &obj_debug);
+    Object = typedescr_create_and_register(Object, "object",
+                                           _vtable_object, _methoddescr_object);
+  }
 }
 
 /* ----------------------------------------------------------------------- */
@@ -114,7 +116,7 @@ data_t * _object_cast(object_t *obj, int totype) {
 
   switch (totype) {
     case Bool:
-      ret = data_create(Bool, obj && dict_size(obj -> variables));
+      ret = int_as_bool(obj && dict_size(obj -> variables));
       break;
   }
   return ret;
@@ -127,15 +129,14 @@ int _object_len(object_t *obj) {
 /* ----------------------------------------------------------------------- */
 
 data_t * _object_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t   *ret;
   object_t *obj;
 
   (void) self;
   (void) name;
+  _object_init();
   obj = object_create(NULL);
   dict_reduce(kwargs, (reduce_t) _object_set_all_reducer, obj);
-  ret = data_create(Object, obj);
-  return ret;
+  return (data_t *) obj;
 }
 
 data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs) {
@@ -148,6 +149,7 @@ data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs)
   typedescr_t *type;
 
   (void) fncname;
+  _object_init();
   n = data_copy(data_array_get(args, 0));
   if (data_is_name(n)) {
     name = name_copy(data_as_name(n));
@@ -223,20 +225,21 @@ object_t * object_create(data_t *constructor) {
   bound_method_t *bm;
   dict_t         *tmpl = NULL;
 
+  _object_init();
   ret = data_new(Object, object_t);
   ret -> constructing = FALSE;
   ret -> variables = strdata_dict_create();
   ret -> ptr = NULL;
   if (data_is_script(constructor)) {
     bm = script_bind(data_as_script(constructor), ret);
-    c = data_create(BoundMethod, bm);
+    c = (data_t *) bound_method_copy(bm);
     tmpl = data_as_script(constructor) -> functions;
   } else if (data_is_object(constructor)) {
     obj = data_as_object(constructor);
     bm = data_as_bound_method(obj -> constructor);
     if (bm) {
       bm = script_bind(bm -> script, ret);
-      c = data_create(BoundMethod, bm);
+      c = (data_t *) bound_method_copy(bm);
     }
     tmpl = obj -> variables;
   }
@@ -268,7 +271,7 @@ data_t * object_get(object_t *object, char *name) {
 
   ret = _object_get(object, name);
   if (!ret && !strcmp(name, "$constructing")) {
-    ret = data_create(Bool, object -> constructing);
+    ret = int_as_bool(object -> constructing);
   }
   if (!ret) {
     ret = data_exception(ErrorName,
@@ -280,17 +283,17 @@ data_t * object_get(object_t *object, char *name) {
 }
 
 data_t * object_set(object_t *object, char *name, data_t *value) {
-  bound_method_t *bm;
+  bound_method_t *bm = NULL;
 
   if (data_is_script(value)) {
     bm = script_bind(data_as_script(value), object);
-    value = data_create(BoundMethod, bm);
   } else if (data_is_bound_method(value)) {
     bm = script_bind(data_as_bound_method(value) -> script, object);
-    value = data_create(BoundMethod, bm);
   } else if (data_is_closure(value)) {
     bm = script_bind(data_as_closure(value) -> script, object);
-    value = data_create(BoundMethod, bm);
+  }
+  if (bm) {
+    value = (data_t *) bound_method_copy(bm);
   }
   dict_put(object -> variables, strdup(name), data_copy(value));
   if (obj_debug) {
@@ -338,7 +341,7 @@ int object_cmp(object_t *o1, object_t *o2) {
   int      ret;
 
   args = data_array_create(1);
-  array_set(args, 0, data_create(Object, o2));
+  array_set(args, 0, (data_t *) object_copy(o2));
   data = _object_call_attribute(o1, "__cmp__", args, NULL);
   ret = (data && !data_is_exception(data))
       ? data_intval(data)
@@ -360,7 +363,6 @@ data_t * object_ctx_enter(object_t *object) {
     ret = NULL;
   }
   return ret;
-
 }
 
 data_t *  object_ctx_leave(object_t *object, data_t *param) {

@@ -26,7 +26,8 @@
 #include <data.h>
 #include <exception.h>
 
-static void          _list_init(void) __attribute__((constructor));
+extern void          list_init(void);
+
 static data_t *      _list_new(int, va_list);
 static void          _list_free(pointer_t *p);
 static data_t *      _list_copy(data_t *, data_t *);
@@ -81,7 +82,7 @@ static methoddescr_t _methoddescr_list[] = {
  * --------------------------------------------------------------------------
  */
 
-void _list_init(void) {
+void list_init(void) {
   typedescr_create_and_register(List, "list", _vtable_list, _methoddescr_list);
 }
 
@@ -114,7 +115,7 @@ data_t * _list_cast(data_t *src, int totype) {
   data_t  *ret = NULL;
 
   if (totype == Bool) {
-    ret = data_create(Bool, array && array_size(array));
+    ret = int_as_bool(array && array_size(array));
   }
   return ret;
 }
@@ -185,7 +186,7 @@ data_t * _list_next(data_t *data) {
 }
 
 data_t * _list_has_next(data_t *data) {
-  return data_create(Bool, array_has_next(data_as_array(data)));
+  return int_as_bool(array_has_next(data_as_array(data)));
 }
 
 /* ----------------------------------------------------------------------- */

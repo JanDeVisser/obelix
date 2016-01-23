@@ -30,7 +30,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum _datatype {
-  Exception,
+  Exception = 1,
   Type,
   Interface,
   Method,
@@ -127,10 +127,14 @@ OBLCORE_IMPEXP data_t *            data_push(data_t *, data_t *);
 OBLCORE_IMPEXP data_t *            data_pop(data_t *);
 OBLCORE_IMPEXP int                 data_count(void);
 
+OBLCORE_IMPEXP int_t *             int_create(long);
+OBLCORE_IMPEXP int_t *             bool_get(long);
+OBLCORE_IMPEXP flt_t *             flt_create(double);
+OBLCORE_IMPEXP pointer_t *         ptr_create(int, void *);
 OBLCORE_IMPEXP double              data_floatval(data_t *);
 OBLCORE_IMPEXP int                 data_intval(data_t *);
 
-#define data_new(dt,st)     ((st *) data_settype((data_t *) new(sizeof(st)), dt))
+#define data_new(dt,st)     ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
 #define data_type(d)        (((data_t *) (d)) -> type)
 #define data_typename(d)    ((d) ? (typedescr_get(data_type((data_t *) (d))) -> type_name) : "null")
 
@@ -162,6 +166,11 @@ OBLCORE_IMPEXP int             data_list_size(data_t *);
 
 OBLCORE_IMPEXP int_t *         bool_true;
 OBLCORE_IMPEXP int_t *         bool_false;
+
+#define int_as_bool(i)         ((data_t *) bool_get((i)))
+#define int_to_data(i)         ((data_t *) int_create((i)))
+#define flt_to_data(f)         ((data_t *) flt_create((f)))
+#define ptr_to_data(s, p)      ((data_t *) ptr_create((s), (p)))
 
 #define data_true()    ((data_t *) bool_true)
 #define data_false()   ((data_t *) bool_false)

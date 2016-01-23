@@ -36,12 +36,12 @@
 int script_trace = 0;
 extern int script_debug;
 
-static void             _instruction_init(void) __attribute__((constructor(102)));
-static int              _instruction_type_register(char *, int, vtable_t *);
+static int              _instruction_type_register(char *, int);
 static void             _instruction_tracemsg(char *, ...);
 
 static data_t *         _instr_new(int, va_list);
 static void             _instr_free(instruction_t *);
+static data_t *         _instruction_call(data_t *, array_t *, dict_t *);
 
 static char *           _instruction_tostring_name(data_t *);
 static char *           _instruction_tostring_value(data_t *);
@@ -54,15 +54,10 @@ static void             _instruction_add_label(instruction_t *, char *);
 int Instruction = -1;
 
 static vtable_t _vtable_instruction[] = {
+  { .id = FunctionCall,     .fnc = (void_t) _instruction_call },
   { .id = FunctionFactory,  .fnc = (void_t) _instr_new },
   { .id = FunctionFree,     .fnc = (void_t) _instr_free },
   { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_instruction = {
-  .type =      -1,
-  .type_name = "instruction",
-  .vtable =    _vtable_instruction
 };
 
 int ITByValue = -1;
@@ -72,23 +67,11 @@ static vtable_t _vtable_tostring_value[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t _typedescr_byvalue = {
-  .type =      -1,
-  .type_name = "instruction_byvalue",
-  .vtable =    _vtable_tostring_value
-};
-
 int ITByName = -1;
 
 static vtable_t _vtable_tostring_name[] = {
   { .id = FunctionToString, .fnc = (void_t) _instruction_tostring_name },
   { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_byname = {
-  .type =      -1,
-  .type_name = "instruction_byname",
-  .vtable =    _vtable_tostring_name
 };
 
 int ITByNameValue = -1;
@@ -98,12 +81,6 @@ static vtable_t _vtable_tostring_name_value[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t _typedescr_bynamevalue = {
-  .type =      -1,
-  .type_name = "instruction_bynamevalue",
-  .vtable =    _vtable_tostring_name_value
-};
-
 int ITByValueOrName = -1;
 
 static vtable_t _vtable_tostring_value_or_name[] = {
@@ -111,39 +88,22 @@ static vtable_t _vtable_tostring_value_or_name[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static typedescr_t _typedescr_byvalue_or_name = {
-  .type =      -1,
-  .type_name = "instruction_byvalue_or_name",
-  .vtable =    _vtable_tostring_value_or_name
-};
-
 #define InstructionType(t, s)                                                \
 int             IT ## t = -1;                                                \
-static data_t * _instruction_call_ ## t(data_t *, array_t *, dict_t *);      \
 static data_t * _instruction_execute_ ## t(instruction_t *,                  \
                                            data_t *,                         \
                                            vm_t *,                           \
                                            bytecode_t *);                    \
-static void     _register_ ## t(void) __attribute__((constructor(200)));     \
-static vtable_t _vtable_ ## t [] = {                                         \
-  { .id = FunctionCall, .fnc = (void_t) _instruction_call_ ## t },           \
-  { .id = FunctionNone, .fnc = NULL }                                        \
-};                                                                           \
-void _register_ ## t(void) {                                                 \
-  IT ## t = _instruction_type_register(#t, ITBy ## s, _vtable_ ## t);        \
-}                                                                            \
-data_t * _instruction_call_ ## t(data_t *data, array_t *p, dict_t *kw) {     \
-  instruction_t *instr = data_as_instruction(data);                          \
-  data_t        *scope = data_array_get(p, 0);                               \
-  vm_t          *vm = data_as_vm(data_array_get(p, 1));                      \
-  bytecode_t    *bytecode = data_as_bytecode(data_array_get(p, 2));          \
-  if (script_debug) {                                                        \
-    debug("Executing %s", instruction_tostring(instr));                      \
+                                                                             \
+instruction_t * instruction_create_ ## t(char *name, data_t *value) {        \
+  instruction_t *ret;                                                        \
+                                                                             \
+  if (IT ## t < 0) {                                                         \
+    IT ## t = _instruction_type_register(#t, ITBy ## s);                     \
   }                                                                          \
-  _instruction_tracemsg("%-60.60s%s",                                        \
-                        instruction_tostring(instr),                         \
-                        data_tostring(scope));                               \
-  return _instruction_execute_ ## t(instr, scope, vm, bytecode);             \
+  ret = (instruction_t *) data_create(IT ## t, name, value);                 \
+  ret -> execute = _instruction_execute_ ## t;                               \
+  return ret;                                                                \
 }
 
 InstructionType(Assign,       Value);
@@ -192,34 +152,28 @@ static name_t *name_self = NULL;
 
 /* ----------------------------------------------------------------------- */
 
-void _instruction_init(void) {
-  int         ix;
-  typedescr_t type;
+int _instruction_type_register(char *name, int inherits) {
+  int          t;
+  typedescr_t *td;
 
-  logging_register_category("trace", &script_trace);
+  if (Instruction < 0) {
+    logging_register_category("trace", &script_trace);
 
-  Instruction = typedescr_register(&_typedescr_instruction);
-  ITByName = typedescr_register(&_typedescr_byname);
-  ITByValue = typedescr_register(&_typedescr_byvalue);
-  ITByNameValue = typedescr_register(&_typedescr_bynamevalue);
-  ITByValueOrName = typedescr_register(&_typedescr_byvalue_or_name);
-  Call = typedescr_create_and_register(Call, "call", _vtable_call, NULL);
-  interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
-  name_empty = name_create(0);
-  name_self = name_create(1, "self");
-}
-
-int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
-  typedescr_t td;
-
-  memset(&td, 0, sizeof(typedescr_t));
-  td.type = -1;
-  td.type_name = name;
-  td.inherits[0] = Instruction;
-  td.inherits[1] = inherits;
-  td.inherits[2] = NoType;
-  td.vtable = vtable;
-  return typedescr_register(&td);
+    Instruction = typedescr_create_and_register(-1, "instruction", _vtable_instruction, NULL);
+    ITByName = typedescr_create_and_register(-1, "instruction_byname", _vtable_tostring_name, NULL);
+    ITByValue = typedescr_create_and_register(-1, "instruction_byvalue", _vtable_tostring_value, NULL);
+    ITByNameValue = typedescr_create_and_register(-1, "instruction_bynamevalue", _vtable_tostring_name_value, NULL);
+    ITByValueOrName = typedescr_create_and_register(-1, "instruction_byvalue_or_name", _vtable_tostring_value_or_name, NULL);
+    Call = typedescr_create_and_register(Call, "call", _vtable_call, NULL);
+    interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
+    name_empty = name_create(0);
+    name_self = name_create(1, "self");
+  }
+  t = typedescr_create_and_register(-1, name, NULL, NULL);
+  td = typedescr_get(t);
+  typedescr_assign_inheritance(td, Instruction);
+  typedescr_assign_inheritance(td, inherits);
+  return t;
 }
 
 void _instruction_tracemsg(char *fmt, ...) {
@@ -528,7 +482,7 @@ data_t * _instruction_execute_EnterContext(instruction_t *instr, data_t *scope, 
     ret = NULL;
   }
   if (!ret) {
-    vm_push_context(vm, instr -> name, context);
+    nvp_free(vm_push_context(vm, instr -> name, context));
   }
   data_free(context);
   return ret;
@@ -611,7 +565,7 @@ data_t * _instruction_execute_Return(instruction_t *instr, data_t *scope, vm_t *
 
   ex = exception_create(ErrorReturn, "Return Value");
   ex -> throwable = retval;
-  return data_create(Exception, ex);
+  return (data_t *) ex;
 }
 
 data_t * _instruction_execute_Yield(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
@@ -620,7 +574,7 @@ data_t * _instruction_execute_Yield(instruction_t *instr, data_t *scope, vm_t *v
 
   ex = exception_create(ErrorYield, "Yield Value");
   ex -> throwable = retval;
-  return data_create(Exception, ex);
+  return (data_t *) ex;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -653,7 +607,6 @@ data_t * _instruction_setup_constructor(data_t *callable, data_t *scope,
   data_t         *self;
   object_t       *obj;
   script_t       *script;
-  data_t         *dscript;
   data_t         *ret;
 
   self = data_get(scope, name_self);
@@ -667,9 +620,8 @@ data_t * _instruction_setup_constructor(data_t *callable, data_t *scope,
       script = data_as_closure(callable) -> script;
     }
     if (script) {
-      ret = data_create(BoundMethod, script_bind(script, obj));
-      object_bind_all(obj, dscript = data_create(Script, script));
-      data_free(dscript);
+      ret = (data_t *) script_bind(script, obj);
+      object_bind_all(obj, (data_t *) script);
     }
   }
   return ret;
@@ -740,7 +692,7 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
 data_t * _instruction_execute_Decr(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value = vm_pop(vm);
 
-  vm_push(vm, data_create(Int, data_intval(value) - 1));
+  vm_push(vm, (data_t *) int_create(data_intval(value) - 1));
   data_free(value);
   return NULL;
 }
@@ -748,7 +700,7 @@ data_t * _instruction_execute_Decr(instruction_t *instr, data_t *scope, vm_t *vm
 data_t * _instruction_execute_Incr(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value = vm_pop(vm);
 
-  vm_push(vm, data_create(Int, data_intval(value) + 1));
+  vm_push(vm, (data_t *) int_create(data_intval(value) + 1));
   data_free(value);
   return NULL;
 }
@@ -762,7 +714,7 @@ data_t * _instruction_execute_VMStatus(instruction_t *instr, data_t *scope, vm_t
 
 data_t * _instruction_execute_Jump(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   assert(instr -> name);
-  return data_create(String, instr -> name);
+  return (data_t *) str_copy_chars(instr -> name);
 }
 
 data_t * _instruction_execute_EndLoop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
@@ -797,7 +749,7 @@ data_t * _instruction_execute_Test(instruction_t *instr, data_t *scope, vm_t *vm
                          data_typedescr(value) -> type_name,
                          data_tostring(value));
   } else {
-    ret = (!data_intval(casted)) ? data_create(String, instr -> name) : NULL;
+    ret = (!data_intval(casted)) ? (data_t *) str_copy_chars(instr -> name) : NULL;
   }
   data_free(casted);
   data_free(value);
@@ -832,7 +784,7 @@ data_t * _instruction_execute_Next(instruction_t *instr, data_t *scope, vm_t *vm
   next = data_next(iter);
   if (data_is_exception(next) && (data_as_exception(next) -> code == ErrorExhausted)) {
     data_free(iter);
-    ret = data_create(String, instr -> name);
+    ret = (data_t *) str_copy_chars(instr -> name);
   } else {
     vm_push(vm, iter);
     vm_push(vm, next);
@@ -911,23 +863,45 @@ void _instr_free(instruction_t *instr) {
   free(instr);
 }
 
+data_t * _instruction_call(data_t *data, array_t *p, dict_t *kw) {
+  instruction_t *instr = data_as_instruction(data);
+  data_t        *scope = data_array_get(p, 0);
+  vm_t          *vm = data_as_vm(data_array_get(p, 1));
+  bytecode_t    *bytecode = data_as_bytecode(data_array_get(p, 2));
+  execute_t      execute;
+  
+  if (script_debug) {
+    debug("Executing %s", instruction_tostring(instr));
+  }
+  _instruction_tracemsg("%-60.60s%s",
+                        instruction_tostring(instr),
+                        data_tostring(scope));
+  assert(instr -> execute);
+  return instr -> execute(instr, scope, vm, bytecode);
+}
+
+instruction_t * instruction_create_byname(char *mnemonic, char *name, data_t *value) {
+  typedescr_t   *td;
+
+  td = typedescr_get_byname(mnemonic);
+  return (td) ? (instruction_t *) data_create(td -> type, name, value) : NULL;
+}
+
 data_t *  instruction_create_enter_context(name_t *varname, data_t *catchpoint) {
   if (!varname) {
     varname = name_empty;
   }
-  return data_create(ITEnterContext,
-                     data_tostring(catchpoint),
-                     data_create(Name, varname));
+  return (data_t *) instruction_create_EnterContext(
+          data_tostring(catchpoint),
+          (data_t *) name_create(1, varname));
 }
 
 data_t * instruction_create_function(name_t *name, callflag_t flags,
                                      long num_args, array_t *kwargs) {
-  data_t *ret;
   data_t *call;
 
   call = data_create(Call, flags, num_args, kwargs);
-  ret = data_create(ITFunctionCall, name_last(name), call);
-  return ret;
+  return (data_t *) instruction_create_FunctionCall(name_last(name), call);
 }
 
 instruction_t * instruction_assign_label(instruction_t *instruction) {

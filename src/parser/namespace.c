@@ -25,7 +25,7 @@
 #include <namespace.h>
 #include <set.h>
 
-static void          _namespace_init(void) __attribute__((constructor));
+static inline void   _namespace_init(void);
 
 extern void          _mod_free(module_t *);
 extern char *        _mod_tostring(module_t *);
@@ -99,10 +99,12 @@ static vtable_t _vtable_pnm[] = {
 /* ------------------------------------------------------------------------ */
 
 void _namespace_init(void) {
-  logging_register_category("namespace", &ns_debug);
-  Module = typedescr_create_and_register(Module, "module", _vtable_module, NULL);
-  Namespace = typedescr_create_and_register(Namespace, "namespace", _vtable_namespace, NULL);
-  PartialNameMatch = typedescr_create_and_register(PartialNameMatch, "pnm", _vtable_pnm, NULL);
+  if (Module < 0) {
+    logging_register_category("namespace", &ns_debug);
+    Module = typedescr_create_and_register(Module, "module", _vtable_module, NULL);
+    Namespace = typedescr_create_and_register(Namespace, "namespace", _vtable_namespace, NULL);
+    PartialNameMatch = typedescr_create_and_register(PartialNameMatch, "pnm", _vtable_pnm, NULL);
+  }
 }
 
 /* -- Partial Name Match data functions ----------------------------------- */
@@ -110,6 +112,7 @@ void _namespace_init(void) {
 pnm_t * _pnm_create(char *name) {
   pnm_t *ret;
   
+  _namespace_init();
   ret = data_new(PartialNameMatch, pnm_t);
   ret -> name = name_create(1, name);
   ret -> matches = data_set_create();
@@ -232,6 +235,7 @@ data_t * _mod_call(module_t *mod, array_t *args, dict_t *kwargs) {
 module_t * mod_create(namespace_t *ns, name_t *name) {
   module_t   *ret;
   
+  _namespace_init();
   ret = data_new(Module, module_t);
   if (ns_debug) {
     debug("  Creating module '%s'", name_tostring(name));
@@ -393,6 +397,7 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
   data_t   *obj;
   data_t   *script;
   
+  _namespace_init();
   if (ns_debug) {
     debug("  Module '%s' not found - delegating to loader", name_tostring(name));
   }
@@ -438,6 +443,7 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
   module_t *module = NULL;
   name_t   *dummy = NULL;
 
+  _namespace_init();
   if (!name) {
     dummy = name_create(0);
     name = dummy;
@@ -489,6 +495,7 @@ char * _ns_tostring(namespace_t *ns) {
 namespace_t * ns_create(char *name, void *importer, import_t import_fnc) {
   namespace_t *ret;
 
+  _namespace_init();
   assert(importer && import_fnc);
   if (ns_debug) {
     debug("  Creating root namespace");
@@ -508,7 +515,7 @@ data_t * ns_execute(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
   data_t *obj;
 
   if (data_is_module(mod)) {
-    obj = data_create(Object, data_as_module(mod) -> obj);
+    obj = (data_t *) object_copy(data_as_module(mod) -> obj);
     data_free(mod);
     return obj;
   } else {

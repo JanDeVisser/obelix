@@ -30,12 +30,12 @@
 #include <thread.h>
 #include <vm.h>
 
-static void     _stacktrace_init(void) __attribute__((constructor));
+static inline void _stacktrace_init(void) __attribute__((constructor));
 
-static void     _stackframe_free(stackframe_t *);
-static char *   _stackframe_allocstring(stackframe_t *);
-static void     _stacktrace_free(stacktrace_t *);
-static char *   _stacktrace_allocstring(stacktrace_t *);
+static void        _stackframe_free(stackframe_t *);
+static char *      _stackframe_allocstring(stackframe_t *);
+static void        _stacktrace_free(stacktrace_t *);
+static char *      _stacktrace_allocstring(stacktrace_t *);
 
 static vtable_t _vtable_stackframe[] = {
   { .id = FunctionCmp,         .fnc = (void_t) stackframe_cmp },
@@ -58,19 +58,23 @@ int stacktrace_debug = 0;
 /* ------------------------------------------------------------------------ */
 
 void _stacktrace_init(void) {
-  logging_register_category("stacktrace", &stacktrace_debug);
-  Stackframe = typedescr_create_and_register(Stackframe, "stackframe",
-					     _vtable_stackframe, NULL);
-  Stacktrace = typedescr_create_and_register(Stacktrace, "stacktrace",
-					     _vtable_stacktrace, NULL);
+  if (Stackframe < 0) {
+    logging_register_category("stacktrace", &stacktrace_debug);
+    Stackframe = typedescr_create_and_register(Stackframe, "stackframe",
+                                               _vtable_stackframe, NULL);
+    Stacktrace = typedescr_create_and_register(Stacktrace, "stacktrace",
+                                               _vtable_stacktrace, NULL);
+  }
 }
 
 /* ------------------------------------------------------------------------ */
 
 stackframe_t * stackframe_create(data_t *data) {
-  stackframe_t *ret = data_new(Stackframe, stackframe_t);
+  stackframe_t *ret;
   vm_t         *vm = data_as_vm(data);
   
+  _stacktrace_init();
+  ret = data_new(Stackframe, stackframe_t);
   ret -> funcname = strdup(data_tostring(vm -> bytecode -> owner));
   // FIXME
   ret -> source = strdup(data_tostring(vm -> bytecode -> owner));
@@ -105,20 +109,22 @@ char * _stackframe_allocstring(stackframe_t *stackframe) {
 /* ------------------------------------------------------------------------ */
 
 stacktrace_t * stacktrace_create(void) {
-  stacktrace_t *ret = data_new(Stacktrace, stacktrace_t);
+  stacktrace_t *ret;
   thread_t     *thread = data_as_thread(data_current_thread());
   char         *stack_name;
   datastack_t  *stack;
   int           ix;
   stackframe_t *frame;
   
+  _stacktrace_init();
+  ret = data_new(Stacktrace, stacktrace_t);
   asprintf(&stack_name, "Thread %s", thread_tostring(thread));
   ret -> stack = datastack_create(stack_name);
   free(stack_name);
   stack = thread -> stack;
   for (ix = datastack_depth(thread -> stack) - 1; ix >= 0; ix--) {
     frame = stackframe_create(data_array_get(stack -> list, ix));
-    datastack_push(ret -> stack, data_create(Stackframe, frame));
+    datastack_push(ret -> stack, (data_t *) stackframe_copy(frame));
   }
   return ret;
 }

@@ -53,7 +53,7 @@ typedef struct _kw_matches {
   kw_match_state_t  state;
 } kw_matches_t;
 
-static void             _lexer_init(void) __attribute__((constructor(102)));
+static inline void      _lexer_init(void);
 static void             _dequotify(str_t *);
 static int              _is_identifier(str_t *);
 
@@ -151,11 +151,13 @@ static methoddescr_t _methoddescr_lexer[] = {
 /* ------------------------------------------------------------------------ */
 
 void _lexer_init(void) {
-  logging_register_category("lexer", &lexer_debug);
-  Lexer = typedescr_create_and_register(Lexer,
-                                        "lexer",
-                                        _vtable_lexer,
-                                        _methoddescr_lexer);
+  if (Lexer < 0) {
+    logging_register_category("lexer", &lexer_debug);
+    Lexer = typedescr_create_and_register(Lexer,
+                                          "lexer",
+                                          _vtable_lexer,
+                                          _methoddescr_lexer);
+  }
 }
 
 void _dequotify(str_t *str) {
@@ -334,20 +336,20 @@ data_t * _lexer_keyword_list(lexer_t *lexer) {
 
 data_t * _lexer_resolve_option(lexer_t *lexer, char *name) {
   int opt = code_for_label(lexer_option_labels, name);
-  return (opt >= 0) ? data_create(Int, lexer_get_option(lexer, opt)) : NULL;
+  return (opt >= 0) ? int_to_data(lexer_get_option(lexer, opt)) : NULL;
 }
 
 data_t * _lexer_resolve(lexer_t *lexer, char *name) {
   if (!strcmp(name, "reader")) {
     return data_copy(lexer -> reader);
   } else if (!strcmp(name, "statename")) {
-    return data_create(String, lexer_state_name(lexer -> state));
+    return str_to_data(lexer_state_name(lexer -> state));
   } else if (!strcmp(name, "state")) {
-    return data_create(Int, lexer -> state);
+    return int_to_data(lexer -> state);
   } else if (!strcmp(name, "line")) {
-    return data_create(Int, lexer -> line);
+    return int_to_data(lexer -> line);
   } else if (!strcmp(name, "column")) {
-    return data_create(Int, lexer -> column);
+    return int_to_data(lexer -> column);
   } else if (!strcmp(name, "keywords")) {
     return _lexer_keyword_list(lexer);
   } else {
@@ -356,11 +358,11 @@ data_t * _lexer_resolve(lexer_t *lexer, char *name) {
 }
 
 data_t * _lexer_has_next(lexer_t *lexer) {
-  return data_create(Int, lexer_next_token(lexer) ? TRUE : FALSE);
+  return int_to_data(lexer_next_token(lexer) ? TRUE : FALSE);
 }
 
 data_t * _lexer_next(lexer_t *lexer) {
-  return data_create(Token, lexer -> last_token);
+  return (data_t *) token_copy(lexer -> last_token);
 }
 
 data_t * _lexer_mth_rollup(lexer_t *lexer, char *n, array_t *args, dict_t *kwargs) {
@@ -370,7 +372,7 @@ data_t * _lexer_mth_rollup(lexer_t *lexer, char *n, array_t *args, dict_t *kwarg
 tokenize_ctx_t * _lexer_tokenize_reducer(token_t *token, tokenize_ctx_t *ctx) {
   data_t *d;
 
-  array_set(ctx -> args, 0, data_create(Token, token));
+  array_set(ctx -> args, 0, (data_t *) token_copy(token));
   d = data_call(ctx -> parser, ctx -> args, NULL);
   if (d != data_array_get(ctx -> args, 0)) {
     array_set(ctx -> args, 0, d);
@@ -392,7 +394,7 @@ data_t * _lexer_mth_tokenize(lexer_t *lexer, char *n, array_t *args, dict_t *kwa
 
   array_set(ctx.args, 0, NULL);
   array_set(ctx.args, 1, data_copy(data_array_get(args, 1)));
-  array_set(ctx.args, 2, data_create(Lexer, lexer));
+  array_set(ctx.args, 2, (data_t *) lexer_copy( lexer));
   lexer_tokenize(lexer, (reduce_t) _lexer_tokenize_reducer, (void *) &ctx);
   ret = data_copy(data_array_get(ctx.args, 0));
   array_free(ctx.args);
@@ -833,6 +835,7 @@ lexer_t * lexer_create(data_t *reader) {
   lexer_t *ret;
   int      ix;
 
+  _lexer_init();
   ret = NEW(lexer_t);
   data_settype(&ret -> _d, Token);
   ret -> reader = reader;

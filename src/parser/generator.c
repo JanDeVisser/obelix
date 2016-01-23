@@ -22,7 +22,7 @@
 
 #include <generator.h>
 
-static void          _generator_init(void) __attribute__((constructor));
+static inline void   _generator_init(void);
 static void          _generator_free(generator_t *generator);
 static char *        _generator_allocstring(generator_t *generator);
 static data_t *      _generator_set(generator_t *, char *, data_t *);
@@ -55,9 +55,11 @@ int Generator = -1;
 /* ------------------------------------------------------------------------ */
 
 void _generator_init(void) {
-  Generator = typedescr_create_and_register(Generator, "generator",
-                                            _vtable_generator,
-                                            _methoddescr_generator);
+  if (Generator < 0) {
+    Generator = typedescr_create_and_register(Generator, "generator",
+                                              _vtable_generator,
+                                              _methoddescr_generator);
+  }
 }
 
 /* -- G E N E R A T O R   D A T A T Y P E --------------------------------- */
@@ -84,7 +86,7 @@ data_t * _generator_iter(generator_t *generator) {
 }
 
 data_t * _generator_has_next(generator_t *generator) {
-  return data_create(Bool, generator_has_next(generator));
+  return int_as_bool(generator_has_next(generator));
 }
 
 generator_t * _generator_next(generator_t *generator) {
@@ -115,8 +117,10 @@ data_t * _generator_interrupt(data_t *generator, char *name, array_t *params, di
 /* ------------------------------------------------------------------------ */
 
 generator_t * generator_create(closure_t *closure, vm_t *vm, exception_t *status) {
-  generator_t *ret = (generator_t *) data_new(Generator, generator_t);
-
+  generator_t *ret;
+  
+  _generator_init();
+  ret = (generator_t *) data_new(Generator, generator_t);
   ret -> closure = closure_copy(closure);
   ret -> vm = vm_copy(vm);
   ret -> status = exception_copy(status);
@@ -163,7 +167,7 @@ data_t * generator_next(generator_t *generator) {
       generator -> status = NULL;
       break;
     default:
-      ret = data_copy(data_create(Exception, generator -> status));
+      ret = data_copy(generator -> status);
       break;
   }
   return ret;

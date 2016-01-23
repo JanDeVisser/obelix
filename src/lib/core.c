@@ -34,10 +34,10 @@
 #include <core.h>
 #include <resolve.h>
 
-#ifdef HAVE_KILL
-static void    __init(void) __attribute__((constructor));
-static void    _outofmemory_logger(int, siginfo_t *, void *);
-#endif
+typedef struct _memmonitor {
+  size_t  blocksize;
+  int     count;
+} memmonitor_t;
 
 static void    _outofmemory(int);
 
@@ -47,37 +47,9 @@ log_level_t log_level = LogLevelInfo;
 log_level_t log_level = LogLevelDebug;
 #endif
 
-#ifdef HAVE_KILL
-static void _outofmemory_logger(int sig, siginfo_t *siginfo, void *context) {
-  error("Out of Memory. Terminating...");
-  exit(1);
-}
-
-void __init(void) {
-  struct sigaction act;
-
-  memset (&act, 0, sizeof(act));
-
-  /* Use the sa_sigaction field because the handles has two additional parameters */
-  act.sa_sigaction = &_outofmemory_logger;
-
-  /* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
-  act.sa_flags = SA_SIGINFO;
-
-  if (sigaction(SIGUSR1, &act, NULL) < 0) {
-    error("Could not install SIGUSR signal handler. Bailing...");
-    exit(1);
-  }
-}
-#endif
-
 static void _outofmemory(int sz) {
-#ifdef HAVE_KILL
-  kill(0, SIGUSR1);
-#else
   error("Could not allocate %d bytes. Out of Memory. Terminating...", sz);
   exit(1);
-#endif
 }
 
 void * _new(int sz) {
@@ -253,7 +225,7 @@ char * oblcore_itoa(long i) {
 
 char * oblcore_dtoa(double d) {
   static char buf[20];
-  sprintf(buf, "%f", d);
+  snprintf(buf, 20, "%f", d);
   return buf;
 }
 

@@ -23,6 +23,7 @@
 #include <boundmethod.h>
 #include <closure.h>
 #include <generator.h>
+#include <instruction.h>
 #include <namespace.h>
 #include <nvp.h>
 #include <script.h>
@@ -31,7 +32,7 @@
 #include <vm.h>
 #include <wrapper.h>
 
-static void         _closure_init(void) __attribute__((constructor(102)));
+static inline void  _closure_init(void);
 
 static closure_t *  _closure_create_closure_reducer(entry_t *, closure_t *);
 static listnode_t * _closure_execute_instruction(instruction_t *, closure_t *);
@@ -58,17 +59,19 @@ static vtable_t _vtable_closure[] = {
 };
 
 static methoddescr_t _methoddescr_closure[] = {
-  { .type = -1,      .name = "import", .method = _closure_import, .argtypes = { NoType, NoType, NoType }, .minargs = 1, .varargs = 1 },
+  { .type = -1,      .name = "import", .method = _closure_import, .argtypes = { NoType, NoType, NoType },   .minargs = 1, .varargs = 1 },
   { .type = NoType,  .name = NULL,     .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 /* ------------------------------------------------------------------------ */
 
 void _closure_init(void) {
-  _methoddescr_closure[0].argtypes[0] = Name;
-  Closure = typedescr_create_and_register(Closure, "closure",
-                                          _vtable_closure,
-                                          _methoddescr_closure);
+  if (Closure < 0) {
+    _methoddescr_closure[0].argtypes[0] = Name;
+    Closure = typedescr_create_and_register(Closure, "closure",
+                                            _vtable_closure,
+                                            _methoddescr_closure);
+  }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -86,7 +89,7 @@ closure_t * _closure_create_closure_reducer(entry_t *entry, closure_t *closure) 
     self = data_as_object(closure -> self);
     bm = bound_method_create(data_as_script(func), self);
     bm -> closure = closure;
-    value = data_create(BoundMethod, bm);
+    value = (data_t *) bound_method_copy(bm);
   } else {
     /* Native function */
     /* TODO: Do we have a closure-like structure to bind the function to self? */
@@ -130,11 +133,12 @@ data_t * _closure_eval(closure_t *closure, bytecode_t *bytecode) {
       break;
     case ErrorYield:
       exception_free(e);
-      e = exception_create(ErrorSyntax, "Non-generator function '%s' cannot yield", closure_tostring(closure));
-      ret = data_create(Exception, e);
+      ret = (data_t *) exception_create(ErrorSyntax, 
+                                        "Non-generator function '%s' cannot yield", 
+                                        closure_tostring(closure));
       break;
     default:
-      ret = data_create(Exception, e);
+      ret = (data_t *) exception_copy(e);
       break;
   }
   return ret;
@@ -179,6 +183,7 @@ void _closure_free(closure_t *closure) {
 closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
   closure_t *ret;
 
+  _closure_init();
   if (script_debug) {
     debug("Creating closure for script '%s'", script_tostring(script));
   }
@@ -296,7 +301,7 @@ data_t * closure_resolve(closure_t *closure, char *name) {
     if (closure -> up) {
       if (!strcmp(name, "^") ||
           !strcmp(name, name_last(script_fullname(closure -> up -> script)))) {
-        ret = data_create(Closure, closure -> up);
+        ret = (data_t *) closure_copy(closure -> up);
       } else {
         ret = closure_resolve(closure -> up, name);
       }
@@ -353,9 +358,7 @@ data_t * closure_execute(closure_t *closure, array_t *args, dict_t *kwargs) {
                                    (threadproc_t) _closure_start,
                                    closure_copy(closure));
     case STGenerator:
-      return data_create(Generator,
-                         generator_create(closure,
-                                          vm_create(closure -> bytecode), NULL));
+      return (data_t *) generator_create(closure, vm_create(closure -> bytecode), NULL);
     default:
       return _closure_start(closure);
   }
@@ -367,7 +370,7 @@ exception_t * closure_yield(closure_t *closure, vm_t *vm) {
   data_t      *d;
   int          done = FALSE;
 
-  ret = vm_execute(vm, d = data_create(Closure, closure));
+  ret = vm_execute(vm, d = (data_t *) closure_copy(closure));
   done = TRUE;
   if (data_is_exception(ret)) {
     e = data_as_exception(ret);
@@ -399,4 +402,3 @@ data_t * _closure_import(data_t *self, char *name, array_t *args, dict_t *kwargs
   return closure_import(data_as_closure(self),
                         data_as_name(data_array_get(args, 0)));
 }
-

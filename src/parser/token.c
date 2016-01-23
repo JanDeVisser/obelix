@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include <core.h>
+#include <str.h>
 #include <token.h>
 
 typedef struct _token_code_str {
@@ -28,11 +29,11 @@ typedef struct _token_code_str {
   char         *name;
 } token_code_str_t;
 
-static void     _token_init(void) __attribute__((constructor(102)));
-static void     _token_free(token_t *);
-static char *   _token_allocstring(token_t *);
-static data_t * _token_resolve(token_t *, char *);
-static data_t * _token_iswhitespace(token_t *, char *, array_t *, dict_t *);
+static inline void _token_init(void);
+static void        _token_free(token_t *);
+static char *      _token_allocstring(token_t *);
+static data_t *    _token_resolve(token_t *, char *);
+static data_t *    _token_iswhitespace(token_t *, char *, array_t *, dict_t *);
 
 static code_label_t token_code_names[] = {
   { TokenCodeError,          "TokenCodeError" },
@@ -108,7 +109,9 @@ static typedescr_t _typedescr_token = {
 /* ------------------------------------------------------------------------ */
 
 void _token_init(void) {
-  Token = typedescr_register_type(&_typedescr_token, _methoddescr_token);
+  if (Token < 0) {
+    Token = typedescr_register_type(&_typedescr_token, _methoddescr_token);
+  }
 }
 
 /*
@@ -154,23 +157,23 @@ char * _token_allocstring(token_t *token) {
 
 data_t * _token_resolve(token_t *token, char *name) {
   if (!strcmp(name, "code")) {
-    return data_create(Int, token -> code);
+    return int_to_data(token -> code);
   } else if (!strcmp(name, "codename")) {
-    return data_create(Int, token_code_name(token -> code));
+    return str_to_data(token_code_name(token -> code));
   } else if (!strcmp(name, "tokenstring")) {
-    return data_create(String, token -> token);
+    return str_to_data(token -> token);
   } else if (!strcmp(name, "token")) {
     return token_todata(token);
   } else if (!strcmp(name, "line")) {
-    return data_create(Int, token -> line);
+    return int_to_data(token -> line);
   } else if (!strcmp(name, "column")) {
-    return data_create(Int, token -> column);
+    return int_to_data(token -> column);
   }
   return NULL;
 }
 
 data_t * _token_iswhitespace(token_t *self, char *n, array_t *args, dict_t *kwargs) {
-  return data_create(Int, token_iswhitespace(self));
+  return int_to_data(token_iswhitespace(self));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -182,6 +185,7 @@ data_t * _token_iswhitespace(token_t *self, char *n, array_t *args, dict_t *kwar
 token_t * token_create(unsigned int code, char *token) {
   token_t *ret;
 
+  _token_init();
   ret = data_new(Token, token_t);
   ret -> code = code;
   ret -> token = strdup(token);
@@ -238,7 +242,7 @@ data_t * token_todata(token_t *token) {
         type = Float;
         break;
       default:
-        data = data_create(Int, token_code(token));
+        data = int_to_data(token_code(token));
         break;
     }
     if (!data) {

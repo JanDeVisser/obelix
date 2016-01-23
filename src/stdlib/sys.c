@@ -149,7 +149,6 @@ static void _object_set(object_t *obj, char *attr, data_t *value) {
 data_t * _function_getenv(char *name, array_t *params, dict_t *kwargs) {
   object_t  *obj;
   data_t    *value;
-  data_t    *ret;
   char     **e;
   char      *n = NULL;
   char      *v;
@@ -175,10 +174,8 @@ data_t * _function_getenv(char *name, array_t *params, dict_t *kwargs) {
       data_free(value);
     }
   }
-  ret = data_create(Object, obj);
-  object_free(obj);
   free(n);
-  return ret;
+  return (data_t *) obj;
 }
 
 data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
@@ -198,16 +195,15 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
 #ifdef HAVE_UTSNAME_H
   if (!uname(&buf)) {
     obj = object_create(NULL);
-    object_set(obj, "sysname", data_create(String, buf.sysname));
-    object_set(obj, "nodename", data_create(String, buf.nodename));
-    object_set(obj, "release", data_create(String, buf.release));
-    object_set(obj, "version", data_create(String, buf.version));
-    object_set(obj, "machine", data_create(String, buf.machine));
+    object_set(obj, "sysname", str_to_data(buf.sysname));
+    object_set(obj, "nodename", str_to_data(buf.nodename));
+    object_set(obj, "release", str_to_data(buf.release));
+    object_set(obj, "version", str_to_data(buf.version));
+    object_set(obj, "machine", str_to_data(buf.machine));
 #ifdef _GNU_SOURCE
-    object_set(obj, "domainname", data_create(String, buf.domainname));
+    object_set(obj, "domainname", str_to_data(buf.domainname));
 #endif
-    ret = data_create(Object, obj);
-    object_free(obj);
+    ret = (data_t *) obj;
   } else {
     ret = data_exception(ErrorSysError, "Error executing uname(): %s",
 			 strerror(errno));
@@ -218,8 +214,8 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
   obj = object_create(NULL);
 #ifdef HAVE_GETHOSTNAME
   if (gethostname(hostname, 80)) {
-    object_set(obj, "sysname", data_create(String, hostname));
-    object_set(obj, "nodename", data_create(String, hostname));
+    object_set(obj, "sysname", str_to_data(hostname));
+    object_set(obj, "nodename", str_to_data(hostname));
   } else {
     ret = data_exception(ErrorSysError, "Error executing gethostname()");
   }
@@ -228,9 +224,9 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
     version.dwOSVersionInfoSize = sizeof(version);
     if (GetVersionEx((OSVERSIONINFO *) &version)) {
       object_set(obj, "release",
-		 data_create(String, _windows_release(&version)));
+		 str_to_data(_windows_release(&version)));
       object_set(obj, "version",
-		 data_create(String, _windows_version(&version)));
+		 str_to_data(_windows_version(&version)));
     } else {
       ret = data_exception(ErrorSysError, "Error executing GetVersionEx()");
     }
@@ -239,11 +235,11 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
   if (!ret) {
     GetSystemInfo(&sysinfo);
     object_set(obj, "machine",
-	       data_create(String, _windows_machine(&sysinfo)));
+	       str_to_data(_windows_machine(&sysinfo)));
   }
 #endif /* HAVE_GETSYSTEMINFO */
   if (!ret) {
-    ret = data_create(Object, obj);
+    ret = (data_t *) object_copy(obj);
   }
   object_free(obj);
 #endif /* HAVE_GETVERSIONEX */
@@ -257,7 +253,7 @@ data_t * _function_exit(char *name, array_t *params, dict_t *kwargs) {
   if (params && array_size(params)) {
     exit_code = data_copy(data_array_get(params, 0));
   } else {
-    exit_code = data_create(Int, 0);
+    exit_code = int_to_data(0);
   }
   
   error = data_exception(ErrorExit,

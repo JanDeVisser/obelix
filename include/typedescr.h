@@ -88,6 +88,8 @@ typedef enum _vtable_id {
   FunctionPop,          /* 34 */
   FunctionConstructor,  /* 35 */
   FunctionInterpolate,  /* 36 */
+  FunctionUsr1,         /* 37 */
+  FunctionUsr2,         /* 38 */
   FunctionEndOfListDummy
 } vtable_id_t;
 

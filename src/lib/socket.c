@@ -56,7 +56,7 @@ typedef int socklen_t;
 
 typedef int         (*socket_fnc_t)(SOCKET, struct sockaddr *, socklen_t);
 
-static void         _socket_init(void) __attribute__((constructor(115)));
+static void         _socket_init(void);
 static socket_t *   _socket_create(SOCKET, char *, char *);
 static socket_t *   _socket_open(char *, char *, socket_fnc_t);
 static char *       _socket_allocstring(socket_t *);
@@ -110,22 +110,28 @@ void _socket_init(void) {
   int     result;
 #endif
 
-  logging_register_category("socket", &socket_debug);
-  Socket = typedescr_create_and_register(Socket, "socket",
-                                         _vtable_socket, _methoddescr_socket);
-  typedescr_assign_inheritance(typedescr_get(Socket), Stream);
+  if (Socket < 0) {
+    logging_register_category("socket", &socket_debug);
+    file_init();
+    Socket = typedescr_create_and_register(Socket, "socket",
+                                           _vtable_socket, _methoddescr_socket);
+    typedescr_assign_inheritance(typedescr_get(Socket), Stream);
 #ifdef HAVE_WINSOCK2_H
-  result = WSAStartup(MAKEWORD(2, 2), &wsadata);
-  if (result) {
-    fatal("Could not initialize Windows Sockets");
-  }
+    result = WSAStartup(MAKEWORD(2, 2), &wsadata);
+    if (result) {
+      fatal("Could not initialize Windows Sockets");
+    }
 #endif
+  }
 }
 
 /* -- S O C K E T  S T A T I C  F U N C T I O N S  ------------------------ */
 
 socket_t * _socket_create(SOCKET fh, char *host, char *service) {
-  socket_t *ret = data_new(Socket, socket_t);
+  socket_t *ret;
+  
+  _socket_init();
+  ret = data_new(Socket, socket_t);
 
   // TODO: Add other bits from struct addrinfo into socket_t
   ret -> host = (host) ? strdup(host) : NULL;
@@ -220,9 +226,9 @@ char * _socket_allocstring(socket_t *socket) {
 
 data_t * _socket_resolve(socket_t *s, char *attr) {
   if (!strcmp(attr, "host") && s -> host) {
-    return data_create(String, s -> host);
+    return str_to_data(s -> host);
   } else if (!strcmp(attr, "service")) {
-    return data_create(String, s -> service);
+    return str_to_data(s -> service);
   } else {
     return NULL;
   }
@@ -238,7 +244,7 @@ data_t *_socket_leave(socket_t * socket, data_t *param) {
   }
   retval = socket_close(socket);
   if (retval < 0) {
-    ret = data_exception(ErrorIOError, "socket_close() returned %d", data_create(Int, retval));
+    ret = data_exception(ErrorIOError, "socket_close() returned %d", int_to_data(retval));
   } else {
     ret = data_null();
   }
@@ -544,7 +550,7 @@ int socket_write(socket_t *socket, void *buf, int num) {
 data_t * _socket_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   socket_t *s = (socket_t *) self;
 
-  return data_create(Int, socket_close(s));
+  return int_to_data(socket_close(s));
 }
 
 data_t * _socket_listen_mth(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -558,7 +564,7 @@ data_t * _socket_listen_mth(data_t *self, char *name, array_t *args, dict_t *kwa
     if (socket_listen(socket, connection_listener_service, data_array_get(args, 0))) {
       return data_exception_from_errno();
     } else {
-      return data_create(Bool, 1);
+      return data_true();
     }
   }
 }
@@ -572,7 +578,7 @@ data_t * _socket_interrupt(data_t *self, char *name, array_t *args, dict_t *kwar
     return data_exception(ErrorIOError, "Cannot interrupt - socket is not a server socket");
   } else {
     socket_interrupt(socket);
-    return data_create(Bool, 1);
+      return data_true();
   }
 }
 

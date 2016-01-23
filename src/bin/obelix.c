@@ -36,16 +36,16 @@
 #include "obelix.h"
 #include "server.h"
 
-static void       _obelix_init(void) __attribute__((constructor(130)));
+static inline void _obelix_init(void);
 
-static void       _obelix_free(obelix_t *);
-static char *     _obelix_tostring(obelix_t *);
+static void        _obelix_free(obelix_t *);
+static char *      _obelix_tostring(obelix_t *);
 
-static data_t *   _obelix_get(data_t *, char *, array_t *, dict_t *);
-static data_t *   _obelix_run(data_t *, char *, array_t *, dict_t *);
+static data_t *    _obelix_get(data_t *, char *, array_t *, dict_t *);
+static data_t *    _obelix_run(data_t *, char *, array_t *, dict_t *);
 
-static void       _obelix_debug_settings(obelix_t *);
-static int        _obelix_cmdline(obelix_t *);
+static void        _obelix_debug_settings(obelix_t *);
+static int         _obelix_cmdline(obelix_t *);
 
 static vtable_t _vtable_obelix[] = {
   { .id = FunctionFree,         .fnc = (void_t) _obelix_free },
@@ -67,16 +67,18 @@ static obelix_t *_obelix;
 void _obelix_init(void) {
   int       ix;
  
-  Obelix = typedescr_create_and_register(Obelix, "obelix", 
-                                         _vtable_obelix, _methoddescr_obelix);
-  
-  if (script_debug) {
-    debug("Creating obelix kernel");
-  }
-  _obelix = data_new(Obelix, obelix_t);
-  _obelix -> options = data_array_create((int) ObelixOptionLAST);
-  for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
-    obelix_set_option(_obelix, ix, 0L);
+  if (Obelix < 0) {
+    Obelix = typedescr_create_and_register(Obelix, "obelix", 
+                                           _vtable_obelix, _methoddescr_obelix);
+
+    if (script_debug) {
+      debug("Creating obelix kernel");
+    }
+    _obelix = data_new(Obelix, obelix_t);
+    _obelix -> options = data_array_create((int) ObelixOptionLAST);
+    for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
+      obelix_set_option(_obelix, ix, 0L);
+    }
   }
 }
 
@@ -182,6 +184,7 @@ obelix_t * obelix_initialize(int argc, char **argv) {
   int opt;
   int ix;
 
+  _obelix_init();
   if (script_debug) {
     debug("Initialize obelix kernel");
   }
@@ -234,7 +237,7 @@ obelix_t * obelix_initialize(int argc, char **argv) {
 }
 
 obelix_t * obelix_set_option(obelix_t *obelix, obelix_option_t option, long value) {
-  data_t *opt = data_create(Int, value);
+  data_t *opt = int_to_data(value);
   
   array_set(obelix -> options, (int) option, opt);
   return obelix;

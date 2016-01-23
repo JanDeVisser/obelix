@@ -23,14 +23,15 @@
 #include <mutex.h>
 #include <exception.h>
 
-static void          _mutex_init(void) __attribute__((constructor(119)));
+static inline void   _mutex_init(void);
 static void          _mutex_free(mutex_t *);
 static data_t *      _mutex_new(int, va_list);
 static char *        _mutex_tostring(mutex_t *);
 static data_t *      _mutex_enter(mutex_t *);
 static data_t *      _mutex_leave(mutex_t *, data_t *);
 
-static data_t *      _mutex_create(data_t *, char *, array_t *, dict_t *);
+extern data_t *      _mutex_create(char *, array_t *, dict_t *);
+
 static data_t *      _mutex_lock(mutex_t *, char *, array_t *, dict_t *);
 static data_t *      _mutex_unlock(mutex_t *, char *, array_t *, dict_t *);
 
@@ -48,7 +49,6 @@ static vtable_t _vtable_mutex[] = {
 };
 
 static methoddescr_t _methoddescr_mutex[] = {
-  { .type = Any,    .name = "mutex",   .method = _mutex_create,             .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "lock",    .method = (method_t) _mutex_lock,    .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "unlock",  .method = (method_t) _mutex_unlock,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,      .method = NULL,                      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -62,7 +62,8 @@ static char *        _condition_tostring(condition_t *);
 static data_t *      _condition_enter(condition_t *);
 static data_t *      _condition_leave(condition_t *, data_t *);
 
-static data_t *      _condition_create(data_t *, char *, array_t *, dict_t *);
+extern data_t *      _condition_create(char *, array_t *, dict_t *);
+
 static data_t *      _condition_acquire(condition_t *, char *, array_t *, dict_t *);
 static data_t *      _condition_wakeup(condition_t *, char *, array_t *, dict_t *);
 static data_t *      _condition_sleep(condition_t *, char *, array_t *, dict_t *);
@@ -79,7 +80,6 @@ static vtable_t _vtable_condition[] = {
 };
 
 static methoddescr_t _methoddescr_condition[] = {
-  { .type = Any,    .name = "condition", .method = _condition_create,             .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "acquire",   .method = (method_t) _condition_acquire, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "wakeup",    .method = (method_t) _condition_wakeup,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "sleep",     .method = (method_t) _condition_sleep,   .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
@@ -89,11 +89,13 @@ static methoddescr_t _methoddescr_condition[] = {
 /* ------------------------------------------------------------------------ */
 
 void _mutex_init(void) {
-  Mutex = typedescr_create_and_register(Mutex, "mutex",
-                                        _vtable_mutex, _methoddescr_mutex);
-  Condition = typedescr_create_and_register(Condition, "condition",
-                                            _vtable_condition,
-                                            _methoddescr_condition);
+  if (Mutex < 0) {
+    Mutex = typedescr_create_and_register(Mutex, "mutex",
+                                          _vtable_mutex, _methoddescr_mutex);
+    Condition = typedescr_create_and_register(Condition, "condition",
+                                              _vtable_condition,
+                                              _methoddescr_condition);
+  }
 }
 
 data_t * _mutex_new(int type, va_list args) {
@@ -136,6 +138,7 @@ mutex_t * mutex_create() {
 #endif /* HAVE_PTHREAD_H */
   mutex_t             *mutex;
 
+  _mutex_init();
   mutex = data_new(Mutex, mutex_t);
 #ifdef HAVE_PTHREAD_H
   pthread_mutexattr_init(&attr);
@@ -219,12 +222,12 @@ int mutex_unlock(mutex_t *mutex) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _mutex_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  (void) self;
+data_t * _mutex_create(char *name, array_t *args, dict_t *kwargs) {
   (void) name;
   (void) args;
   (void) kwargs;
 
+  _mutex_init();
   return data_create(Mutex);
 }
 
@@ -299,6 +302,7 @@ data_t * _condition_leave(condition_t *condition, data_t *param) {
 condition_t * condition_create() {
   condition_t  *condition;
 
+  _mutex_init();
   condition = data_new(Condition, condition_t);
   condition -> mutex = mutex_create();
 #ifdef HAVE_PTHREAD_H
@@ -365,12 +369,12 @@ int condition_sleep(condition_t *condition) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _condition_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  (void) self;
+data_t * _condition_create(char *name, array_t *args, dict_t *kwargs) {
   (void) name;
   (void) args;
   (void) kwargs;
 
+  _mutex_init();
   return data_create(Condition);
 }
 

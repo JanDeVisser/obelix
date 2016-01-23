@@ -52,7 +52,7 @@ data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
     printf("%s\n", data_tostring(fmt));
   }
   name_free(name);
-  return data_create(Int, 0);
+  return int_to_data(0);
 }
 
 data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
@@ -65,7 +65,7 @@ data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
   naptime = (data_t *) array_get(args, 0);
   assert(naptime);
   ret = sleep((unsigned int) data_intval(naptime));
-  return data_create(Int, ret);
+  return int_to_data(ret);
 }
 
 data_t * _function_usleep(char *func_name, array_t *args, dict_t *kwargs) {
@@ -76,5 +76,5 @@ data_t * _function_usleep(char *func_name, array_t *args, dict_t *kwargs) {
   assert(array_size(args));
   naptime = (data_t *) array_get(args, 0);
   assert(naptime);
-  return data_create(Int, usleep(data_intval(naptime)));
+  return int_to_data(usleep(data_intval(naptime)));
 }

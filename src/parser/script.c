@@ -33,13 +33,13 @@
 #include <thread.h>
 #include <wrapper.h>
 
-static void       _script_init(void) __attribute__((constructor(102)));
+static inline void _script_init(void);
 
-static script_t * _script_set_instructions(script_t *, list_t *);
-static void       _script_list_block(list_t *);
+static script_t *  _script_set_instructions(script_t *, list_t *);
+static void        _script_list_block(list_t *);
 
-static void       _script_free(script_t *);
-static char *     _script_tostring(script_t *);
+static void        _script_free(script_t *);
+static char *      _script_tostring(script_t *);
 
 /* -- data_t type description structures ---------------------------------- */
 
@@ -57,8 +57,10 @@ int script_debug = 0;
 /* ------------------------------------------------------------------------ */
 
 void _script_init(void) {
-  logging_register_category("script", &script_debug);
-  Script = typedescr_create_and_register(Script, "script", _vtable_script, NULL);
+  if (Script < 0) {
+    logging_register_category("script", &script_debug);
+    Script = typedescr_create_and_register(Script, "script", _vtable_script, NULL);
+  }
 }
 
 /* -- S C R I P T  S T A T I C  F U N C T I O N S  ------------------------ */
@@ -85,6 +87,7 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
   script_t   *ret;
   char       *anon = NULL;
 
+  _script_init();
   if (!name) {
     asprintf(&anon, "__anon__%d__", hashptr(ret));
     name = anon;
@@ -111,7 +114,7 @@ script_t * script_create(module_t *mod, script_t *up, char *name) {
     ret -> name = name_create(0);
   }
   ret -> fullname = NULL;
-  ret -> bytecode = bytecode_create(data_create(Script, ret));
+  ret -> bytecode = bytecode_create((data_t *) script_copy(ret));
   free(anon);
   return ret;
 }
@@ -166,7 +169,6 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
 data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparams) {
   object_t       *retobj;
   data_t         *retval;
-  data_t         *dscript;
   data_t         *self;
   closure_t      *closure;
   bound_method_t *bm;
@@ -174,7 +176,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   if (script_debug) {
     debug("script_create_object(%s)", script_tostring(script));
   }
-  retobj = object_create(dscript = data_create(Script, script));
+  retobj = object_create((data_t *) script);
   if (!script -> up) {
     script -> mod -> obj = object_copy(retobj);
   }
@@ -185,7 +187,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   retobj -> constructing = FALSE;
   if (!data_is_exception(retval)) {
     retobj -> retval = retval;
-    retval = data_create(Object, retobj);
+    retval = (data_t *) object_copy(retobj);
     if (!script -> up) {
       script -> mod -> closure = closure_copy(closure);
     }
@@ -194,7 +196,6 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
     debug("  script_create_object returns %s", data_tostring(retval));
   }
   closure_free(closure);
-  data_free(dscript);
   return retval;
 }
 

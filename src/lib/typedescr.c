@@ -23,6 +23,7 @@
 #include <core.h>
 #include <exception.h>
 #include <logging.h>
+#include <str.h>
 #include <typedescr.h>
 
 static int          _numtypes = 0;
@@ -34,7 +35,8 @@ static int          _num_interfaces = 0;
 extern int          _data_count;
        int          type_debug = 0;
 
-static void           _typedescr_init(void) __attribute__((constructor(101)));
+extern void           any_init(void);
+static void           _typedescr_init(void);
 static data_t *       _add_method_reducer(methoddescr_t *, data_t *);
 
 static char *         _methoddescr_tostring(methoddescr_t *);
@@ -149,6 +151,7 @@ void _typedescr_init(void) {
 				_vtable_interface, /* _methoddescr_interface */ NULL);
   typedescr_create_and_register(Method, "method",
 				_vtable_methoddescr, /* _methoddescr_method */ NULL);
+  any_init();
 }
 
 data_t * type_get(int ix) {
@@ -190,7 +193,7 @@ data_t * _methoddescr_resolve(methoddescr_t *mth, char *name) {
   int     ix;
   
   if (!strcmp(name, "name")) {
-    return data_create(String, mth -> name);
+    return str_to_data(mth -> name);
   } else if (!strcmp(name, "args")) {
     ret = data_create_list(NULL);
     for (ix = 0; ix < MAX_METHOD_PARAMS; ix++) {
@@ -201,9 +204,9 @@ data_t * _methoddescr_resolve(methoddescr_t *mth, char *name) {
     }
     return ret;
   } else if (!strcmp(name, "minargs")) {
-    return data_create(Int, mth -> minargs);
+    return int_to_data(mth -> minargs);
   } else if (!strcmp(name, "varargs")) {
-    return data_create(Bool, mth -> varargs);
+    return int_as_bool(mth -> varargs);
   } else {
     return NULL;
   }
@@ -328,9 +331,9 @@ data_t * _interface_resolve(interface_t *iface, char *name) {
   typedescr_t *type;
   
   if (!strcmp(name, "name")) {
-    return data_create(String, iface -> name);
+    return str_to_data(iface -> name);
   } else if (!strcmp(name, "id")) {
-    return data_create(Int, iface -> type);
+    return int_to_data(iface -> type);
   } else if (!strcmp(name, "methods")) {
     ret = data_create_list(NULL);
     dict_reduce_values(iface -> methods,
@@ -367,7 +370,7 @@ data_t * _interface_isimplementedby(interface_t *iface, char *name, array_t *arg
     type = (data_hastype(data, Type))
       ? (typedescr_t *) data
       : data_typedescr(data);
-    return data_create(Bool, typedescr_is(type, iface -> type));   
+    return int_as_bool(typedescr_is(type, iface -> type));   
   }
 }
 
@@ -484,9 +487,9 @@ data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
   interface_t *iface;
 
   if (!strcmp(name, "name")) {
-    return data_create(String, descr -> type_name);
+    return str_to_data(descr -> type_name);
   } else if (!strcmp(name, "id")) {
-    return data_create(Int, descr -> type);
+    return int_to_data(descr -> type);
   } else if (!strcmp(name, "inherits")) {
     ret = data_create_list(NULL);
     for (ix = 0; ix < MAX_INHERITS; ix++) {
@@ -654,6 +657,9 @@ typedescr_t * typedescr_assign_inheritance(typedescr_t *type, int inherits) {
 typedescr_t * typedescr_get(int datatype) {
   typedescr_t *ret = NULL;
 
+  if (!descriptors) {
+    _typedescr_init();
+  }
   if ((datatype >= 0) && (datatype < _numtypes)) {
     ret = &descriptors[datatype];
   }

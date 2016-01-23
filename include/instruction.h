@@ -21,20 +21,27 @@
 #define __INSTRUCTION_H__
 
 #include <libparser.h>
+#include <bytecode.h>
 #include <data.h>
 #include <name.h>
 #include <set.h>
+#include <vm.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+  
+struct _instruction;
+  
+typedef data_t * (*execute_t)(struct _instruction *, data_t *, vm_t *, bytecode_t *);
 
 typedef struct _instruction {
-  data_t    _d;
-  int       line;
-  set_t    *labels;
-  char     *name;
-  data_t   *value;
+  data_t     _d;
+  execute_t  execute;
+  int        line;
+  set_t     *labels;
+  char      *name;
+  data_t    *value;
 } instruction_t;
 
 typedef enum _callflag {
@@ -59,33 +66,38 @@ OBLPARSER_IMPEXP int ITByName;
 OBLPARSER_IMPEXP int ITByNameValue;
 OBLPARSER_IMPEXP int ITByValueOrName;
 
-OBLPARSER_IMPEXP int ITAssign;
-OBLPARSER_IMPEXP int ITDecr;
-OBLPARSER_IMPEXP int ITDup;
-OBLPARSER_IMPEXP int ITEndLoop;
-OBLPARSER_IMPEXP int ITEnterContext;
-OBLPARSER_IMPEXP int ITFunctionCall;
-OBLPARSER_IMPEXP int ITIncr;
-OBLPARSER_IMPEXP int ITIter;
-OBLPARSER_IMPEXP int ITJump;
-OBLPARSER_IMPEXP int ITLeaveContext;
-OBLPARSER_IMPEXP int ITNext;
-OBLPARSER_IMPEXP int ITNop;
-OBLPARSER_IMPEXP int ITPop;
-OBLPARSER_IMPEXP int ITPushCtx;
-OBLPARSER_IMPEXP int ITPushVal;
-OBLPARSER_IMPEXP int ITDeref;
-OBLPARSER_IMPEXP int ITPushScope;
-OBLPARSER_IMPEXP int ITReturn;
-OBLPARSER_IMPEXP int ITStash;
-OBLPARSER_IMPEXP int ITSubscript;
-OBLPARSER_IMPEXP int ITSwap;
-OBLPARSER_IMPEXP int ITTest;
-OBLPARSER_IMPEXP int ITThrow;
-OBLPARSER_IMPEXP int ITUnstash;
-OBLPARSER_IMPEXP int ITVMStatus;
-OBLPARSER_IMPEXP int ITYield;
+#define DeclareInstructionType(t)                                            \
+OBLPARSER_IMPEXP int IT ## t;                                                \
+OBLPARSER_IMPEXP instruction_t * instruction_create_ ## t(char *, data_t *);
 
+DeclareInstructionType(Assign);
+DeclareInstructionType(Decr);
+DeclareInstructionType(Dup);
+DeclareInstructionType(EndLoop);
+DeclareInstructionType(EnterContext);
+DeclareInstructionType(FunctionCall);
+DeclareInstructionType(Incr);
+DeclareInstructionType(Iter);
+DeclareInstructionType(Jump);
+DeclareInstructionType(LeaveContext);
+DeclareInstructionType(Next);
+DeclareInstructionType(Nop);
+DeclareInstructionType(Pop);
+DeclareInstructionType(PushCtx);
+DeclareInstructionType(PushVal);
+DeclareInstructionType(Deref);
+DeclareInstructionType(PushScope);
+DeclareInstructionType(Return);
+DeclareInstructionType(Stash);
+DeclareInstructionType(Subscript);
+DeclareInstructionType(Swap);
+DeclareInstructionType(Test);
+DeclareInstructionType(Throw);
+DeclareInstructionType(Unstash);
+DeclareInstructionType(VMStatus);
+DeclareInstructionType(Yield);
+
+OBLPARSER_IMPEXP instruction_t * instruction_create_byname(char *, char *, data_t *);
 OBLPARSER_IMPEXP void            instruction_trace(char *, char *, ...);
 
 OBLPARSER_IMPEXP data_t *        instruction_create_enter_context(name_t *, data_t *);
@@ -100,27 +112,27 @@ OBLPARSER_IMPEXP instruction_t * instruction_set_label(instruction_t *, data_t *
 #define instruction_tostring(i) (data_tostring((data_t *) (i)))
 #define instruction_copy(i)     ((instruction_t *) data_copy((data_t *) (i)))
 
-#define instruction_create_assign(n)        ((data_t *) data_create(ITAssign, name_tostring((n)), data_create(Name, (n))))
-#define instruction_create_decr()           ((data_t *) data_create(ITDecr, NULL, NULL))
-#define instruction_create_dup()            ((data_t *) data_create(ITDup, NULL, NULL))
-#define instruction_create_incr()           ((data_t *) data_create(ITIncr, NULL, NULL))
-#define instruction_create_iter()           ((data_t *) data_create(ITIter, NULL, NULL))
-#define instruction_create_jump(l)          ((data_t *) data_create(ITJump, data_tostring((l)), NULL))
-#define instruction_create_leave_context(n) ((data_t *) data_create(ITLeaveContext, name_tostring((n)), data_create(Name, (n))))
-#define instruction_create_mark(l)          ((data_t *) data_create(ITNop, NULL, data_create(Int, (l))))
-#define instruction_create_nop()            ((data_t *) data_create(ITNop, NULL, NULL))
-#define instruction_create_next(n)          ((data_t *) data_create(ITNext, data_tostring((n)), NULL))
-#define instruction_create_pop()            ((data_t *) data_create(ITPop, NULL, NULL))
-#define instruction_create_pushctx()        ((data_t *) data_create(ITPushCtx, NULL, NULL))
-#define instruction_create_pushscope()      ((data_t *) data_create(ITPushScope, NULL, NULL))
-#define instruction_create_pushval(v)       ((data_t *) data_create(ITPushVal, NULL, data_copy((v))))
-#define instruction_create_deref(n)         ((data_t *) data_create(ITDeref, name_tostring((n)), data_create(Name, (n))))
-#define instruction_create_return()         ((data_t *) data_create(ITReturn, NULL, NULL))
-#define instruction_create_stash(s)         ((data_t *) data_create(ITStash, NULL, data_create(Int, (s))))
-#define instruction_create_swap()           ((data_t *) data_create(ITSwap, NULL, NULL))
-#define instruction_create_test(l)          ((data_t *) data_create(ITTest, data_tostring((l)), NULL))
-#define instruction_create_throw()          ((data_t *) data_create(ITThrow, NULL, NULL))
-#define instruction_create_unstash(s)       ((data_t *) data_create(ITUnstash, NULL, data_create(Int, (s))))
+#define instruction_create_assign(n)        ((data_t *) instruction_create_Assign(name_tostring((n)), (data_t *) name_create(1, (n))))
+#define instruction_create_decr()           ((data_t *) instruction_create_Decr(NULL, NULL))
+#define instruction_create_dup()            ((data_t *) instruction_create_Dup(NULL, NULL))
+#define instruction_create_incr()           ((data_t *) instruction_create_Incr(NULL, NULL))
+#define instruction_create_iter()           ((data_t *) instruction_create_Iter(NULL, NULL))
+#define instruction_create_jump(l)          ((data_t *) instruction_create_Jump(data_tostring((l)), NULL))
+#define instruction_create_leave_context(n) ((data_t *) instruction_create_LeaveContext(name_tostring((n)), (data_t *) name_create(1, (n))))
+#define instruction_create_mark(l)          ((data_t *) instruction_create_Nop(NULL, int_create((l))))
+#define instruction_create_nop()            ((data_t *) instruction_create_Nop(NULL, NULL))
+#define instruction_create_next(n)          ((data_t *) instruction_create_Next(data_tostring((n)), NULL))
+#define instruction_create_pop()            ((data_t *) instruction_create_Pop(NULL, NULL))
+#define instruction_create_pushctx()        ((data_t *) instruction_create_PushCtx(NULL, NULL))
+#define instruction_create_pushscope()      ((data_t *) instruction_create_PushScope(NULL, NULL))
+#define instruction_create_pushval(v)       ((data_t *) instruction_create_PushVal(NULL, data_copy((v))))
+#define instruction_create_deref(n)         ((data_t *) instruction_create_Deref(name_tostring((n)), (data_t *) name_create(1, (n))))
+#define instruction_create_return()         ((data_t *) instruction_create_Return(NULL, NULL))
+#define instruction_create_stash(s)         ((data_t *) instruction_create_Stash(NULL, int_create(s)))
+#define instruction_create_swap()           ((data_t *) instruction_create_Swap(NULL, NULL))
+#define instruction_create_test(l)          ((data_t *) instruction_create_Test(data_tostring((l)), NULL))
+#define instruction_create_throw()          ((data_t *) instruction_create_Throw(NULL, NULL))
+#define instruction_create_unstash(s)       ((data_t *) instruction_create_Unstash(NULL, int_create(s)))
 
 #ifdef  __cplusplus
 }
