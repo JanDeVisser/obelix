@@ -40,7 +40,7 @@ typedef struct _thread_ctx {
   condition_t  *condition;
 } thread_ctx_t;
 
-static void          _init_thread(void);
+static inline void   _thread_init(void);
 static void *        _thread_start_routine_wrapper(thread_ctx_t *);
 
 extern void          _thread_free(thread_t *);
@@ -87,7 +87,7 @@ int thread_debug = 0;
 
 /* ------------------------------------------------------------------------ */
 
-void _init_thread(void) {
+void _thread_init(void) {
   thread_t *main;
 
   if (Thread < 0) {
@@ -197,8 +197,10 @@ thread_t * _thread_get_selfobj(void) {
 /* ------------------------------------------------------------------------ */
 
 thread_t * thread_self(void) {
-  thread_t *thread = _thread_get_selfobj();
-
+  thread_t *thread;
+  
+  _thread_init();
+  thread = _thread_get_selfobj();
   if (!thread) {
     thread = thread_create(_thread_self(), NULL);
     _thread_set_selfobj(thread);
@@ -260,9 +262,11 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
 }
 
 thread_t * thread_create(_thr_t thr_id, char *name) {
-  thread_t *ret = data_new(Thread, thread_t);
+  thread_t *ret;
   char     *buf = NULL;
 
+  _thread_init();
+  ret = data_new(Thread, thread_t);
   ret -> thread = thr_id;
   ret -> exit_code = NULL;
   ret -> kernel = NULL;
@@ -298,7 +302,7 @@ int thread_interrupt(thread_t *thread) {
 }
 
 int thread_yield(void) {
-	errno = 0;
+  errno = 0;
 #if defined(HAVE_PTHREAD_H) && defined(HAVE_PTHREAD_YIELD)
   errno = pthread_yield();
 #endif /* HAVE_PTHREAD_H */
@@ -389,11 +393,11 @@ data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   (void) args;
   (void) kwargs;
 
-	if (thread_yield()) {
-		return data_exception_from_errno();
-	} else {
-		return self;
-	}
+  if (thread_yield()) {
+    return data_exception_from_errno();
+  } else {
+    return self;
+  }
 }
 
 data_t * _thread_stack(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -409,7 +413,6 @@ data_t * _thread_stack(data_t *self, char *name, array_t *args, dict_t *kwargs) 
 
 data_t * data_current_thread(void) {
   thread_t *current;
-  data_t   *data;
 
   current = thread_self();
   if (!current -> stack) {
@@ -427,8 +430,8 @@ data_t * data_thread_push_stackframe(data_t *frame) {
 
   if (datastack_depth(stack) > MAX_STACKDEPTH) {
     ret =  data_exception(ErrorMaxStackDepthExceeded,
-                      "Maximum stack depth (%d) exceeded, most likely due to infinite recursion",
-                      MAX_STACKDEPTH);
+                          "Maximum stack depth (%d) exceeded, most likely due to infinite recursion",
+                          MAX_STACKDEPTH);
   } else {
     datastack_push((datastack_t *) thread -> stack, frame);
     ret = frame;

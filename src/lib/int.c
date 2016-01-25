@@ -349,7 +349,7 @@ int_t * int_create(long val) {
   int_t *ret = data_new(Int, int_t);
 
   ret -> i = val;
-  return (data_t *) ret;
+  return ret;
 }
 
 int_t * bool_get(long value) {

@@ -836,8 +836,7 @@ lexer_t * lexer_create(data_t *reader) {
   int      ix;
 
   _lexer_init();
-  ret = NEW(lexer_t);
-  data_settype(&ret -> _d, Token);
+  ret = data_new(Lexer, lexer_t);
   ret -> reader = reader;
   ret -> pushed_back = NULL;
   ret -> buffer = NULL;

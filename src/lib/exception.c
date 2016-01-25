@@ -26,6 +26,7 @@
 #include <data.h>
 #include <exception.h>
 #include <name.h>
+#include <str.h>
 
 static code_label_t  builtin_exceptions[];
 static int           num_exceptions;
@@ -210,7 +211,7 @@ data_t * _exception_resolve(data_t *exception, char *name) {
   } else if (!strcmp(name, "code")) {
     return (data_t *) int_create(e -> code);
   } else if (!strcmp(name, "codename")) {
-    return (data_t *) str_copy_chars(exceptions[e -> code].label);
+    return (data_t *) str_wrap(exceptions[e -> code].label);
   } else if (!strcmp(name, "throwable")) {
     return data_copy(e -> throwable);
   } else if (e -> throwable) {

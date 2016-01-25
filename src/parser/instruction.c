@@ -36,7 +36,9 @@
 int script_trace = 0;
 extern int script_debug;
 
-static int              _instruction_type_register(char *, int);
+static inline void      _instruction_init(void);
+static void             _instruction_register_types(void);
+static int              _instruction_type_register(char *, int, vtable_t *);
 static void             _instruction_tracemsg(char *, ...);
 
 static data_t *         _instr_new(int, va_list);
@@ -95,16 +97,21 @@ static data_t * _instruction_execute_ ## t(instruction_t *,                  \
                                            vm_t *,                           \
                                            bytecode_t *);                    \
                                                                              \
+static vtable_t _vtable_ ## t[] = {                                            \
+  { .id = FunctionUsr1, .fnc = (void_t) _instruction_execute_ ## t },        \
+  { .id = FunctionNone, .fnc = NULL }                                        \
+};                                                                           \
+                                                                             \
 instruction_t * instruction_create_ ## t(char *name, data_t *value) {        \
   instruction_t *ret;                                                        \
                                                                              \
-  if (IT ## t < 0) {                                                         \
-    IT ## t = _instruction_type_register(#t, ITBy ## s);                     \
-  }                                                                          \
+  _instruction_init();                                                       \
   ret = (instruction_t *) data_create(IT ## t, name, value);                 \
-  ret -> execute = _instruction_execute_ ## t;                               \
   return ret;                                                                \
 }
+
+#define InstructionTypeRegister(t, s)                                        \
+   IT ## t = _instruction_type_register(#t, ITBy ## s, _vtable_ ## t)
 
 InstructionType(Assign,       Value);
 InstructionType(Decr,         Name);
@@ -152,24 +159,58 @@ static name_t *name_self = NULL;
 
 /* ----------------------------------------------------------------------- */
 
-int _instruction_type_register(char *name, int inherits) {
+void _instruction_init(void) {
+  if (Instruction < 0) {
+    _instruction_register_types();
+  }
+}
+
+void _instruction_register_types(void) {
+  logging_register_category("trace", &script_trace);
+
+  Instruction = typedescr_create_and_register(-1, "instruction", _vtable_instruction, NULL);
+  ITByName = typedescr_create_and_register(-1, "instruction_byname", _vtable_tostring_name, NULL);
+  ITByValue = typedescr_create_and_register(-1, "instruction_byvalue", _vtable_tostring_value, NULL);
+  ITByNameValue = typedescr_create_and_register(-1, "instruction_bynamevalue", _vtable_tostring_name_value, NULL);
+  ITByValueOrName = typedescr_create_and_register(-1, "instruction_byvalue_or_name", _vtable_tostring_value_or_name, NULL);
+  Call = typedescr_create_and_register(Call, "call", _vtable_call, NULL);
+  interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
+  name_empty = name_create(0);
+  name_self = name_create(1, "self");
+  
+  InstructionTypeRegister(Assign,       Value);
+  InstructionTypeRegister(Decr,         Name);
+  InstructionTypeRegister(Dup,          Name);
+  InstructionTypeRegister(EndLoop,      Name);
+  InstructionTypeRegister(EnterContext, Name);
+  InstructionTypeRegister(FunctionCall, NameValue);
+  InstructionTypeRegister(Incr,         Name);
+  InstructionTypeRegister(Iter,         Name);
+  InstructionTypeRegister(Jump,         Name);
+  InstructionTypeRegister(LeaveContext, Name);
+  InstructionTypeRegister(Next,         Name);
+  InstructionTypeRegister(Nop,          ValueOrName);
+  InstructionTypeRegister(Pop,          Name);
+  InstructionTypeRegister(PushCtx,      Name);
+  InstructionTypeRegister(PushVal,      Value);
+  InstructionTypeRegister(Deref,        Value);
+  InstructionTypeRegister(PushScope,    Name);
+  InstructionTypeRegister(Return,       Name);
+  InstructionTypeRegister(Stash,        Value);
+  InstructionTypeRegister(Subscript,    Name);
+  InstructionTypeRegister(Swap,         Name);
+  InstructionTypeRegister(Test,         Name);
+  InstructionTypeRegister(Throw,        Name);
+  InstructionTypeRegister(Unstash,      Value);
+  InstructionTypeRegister(VMStatus,     Value);
+  InstructionTypeRegister(Yield,        Name);
+}
+
+int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
   int          t;
   typedescr_t *td;
 
-  if (Instruction < 0) {
-    logging_register_category("trace", &script_trace);
-
-    Instruction = typedescr_create_and_register(-1, "instruction", _vtable_instruction, NULL);
-    ITByName = typedescr_create_and_register(-1, "instruction_byname", _vtable_tostring_name, NULL);
-    ITByValue = typedescr_create_and_register(-1, "instruction_byvalue", _vtable_tostring_value, NULL);
-    ITByNameValue = typedescr_create_and_register(-1, "instruction_bynamevalue", _vtable_tostring_name_value, NULL);
-    ITByValueOrName = typedescr_create_and_register(-1, "instruction_byvalue_or_name", _vtable_tostring_value_or_name, NULL);
-    Call = typedescr_create_and_register(Call, "call", _vtable_call, NULL);
-    interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
-    name_empty = name_create(0);
-    name_self = name_create(1, "self");
-  }
-  t = typedescr_create_and_register(-1, name, NULL, NULL);
+  t = typedescr_create_and_register(-1, name, vtable, NULL);
   td = typedescr_get(t);
   typedescr_assign_inheritance(td, Instruction);
   typedescr_assign_inheritance(td, inherits);
@@ -846,13 +887,17 @@ data_t * _instr_new(int type, va_list args) {
   data_t        *data;
   char          *name = va_arg(args, char *);
   data_t        *value = va_arg(args, data_t *);
+  typedescr_t   *td = typedescr_get(type);
 
+  _instruction_init();
   ret = data_new(type, instruction_t);
   data = (data_t *) ret;
   ret -> line = -1;
   ret -> name = (name) ? strdup(name) : NULL;
   ret -> value = value;
   ret -> labels = NULL;
+  ret -> execute = (execute_t) typedescr_get_function(td, FunctionUsr1);
+  assert(ret -> execute);
   return data;
 }
 
@@ -881,25 +926,35 @@ data_t * _instruction_call(data_t *data, array_t *p, dict_t *kw) {
 }
 
 instruction_t * instruction_create_byname(char *mnemonic, char *name, data_t *value) {
-  typedescr_t   *td;
+  typedescr_t *td;
+  char         tmp[20];
 
+  _instruction_init();
+  if (strncmp(mnemonic, "IT", 2)) {
+    strcpy(tmp, "IT");
+  } else {
+    tmp[0] = 0;
+  }
+  strcat(tmp, mnemonic);
   td = typedescr_get_byname(mnemonic);
   return (td) ? (instruction_t *) data_create(td -> type, name, value) : NULL;
 }
 
 data_t *  instruction_create_enter_context(name_t *varname, data_t *catchpoint) {
+  _instruction_init();
   if (!varname) {
     varname = name_empty;
   }
   return (data_t *) instruction_create_EnterContext(
           data_tostring(catchpoint),
-          (data_t *) name_create(1, varname));
+          (data_t *) name_copy(varname));
 }
 
 data_t * instruction_create_function(name_t *name, callflag_t flags,
                                      long num_args, array_t *kwargs) {
   data_t *call;
 
+  _instruction_init();
   call = data_create(Call, flags, num_args, kwargs);
   return (data_t *) instruction_create_FunctionCall(name_last(name), call);
 }

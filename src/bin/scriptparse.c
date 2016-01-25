@@ -54,7 +54,7 @@ static name_t      *name_equals = NULL;
 static name_t      *name_or = NULL;
 static name_t      *name_and = NULL;
 
-#define push_instruction(p, i) (bytecode_push_instruction((bytecode_t *) ((p) -> data), (i)));
+#define push_instruction(p, i) (bytecode_push_instruction((bytecode_t *) ((p) -> data), (data_t *) (i)));
 
 /* ----------------------------------------------------------------------- */
 
@@ -239,7 +239,7 @@ data_t * _script_parse_infix_function(parser_t *parser, name_t *func, int num_ar
 __DLL_EXPORT__ parser_t * script_parse_init_function(parser_t *parser) {
   datastack_new_counter(parser -> stack);
   datastack_bookmark(parser -> stack);
-  parser_set(parser, "constructor", bool_false());
+  parser_set(parser, "constructor", data_false());
   return parser;
 }
 
@@ -253,7 +253,7 @@ __DLL_EXPORT__ parser_t * script_parse_setup_constructor(parser_t *parser) {
   push_instruction(parser, instruction_create_deref(name));
   datastack_new_counter(parser -> stack);
   datastack_bookmark(parser -> stack);
-  parser_set(parser, "constructor", bool_true());
+  parser_set(parser, "constructor", data_true());
   return parser;
 }
 
@@ -309,7 +309,7 @@ __DLL_EXPORT__ parser_t * script_parse_defer_bookmarked_block(parser_t *parser) 
 __DLL_EXPORT__ parser_t * script_parse_instruction(parser_t *parser, data_t *type) {
   instruction_t *instr;
 
-  instr = instruction_create_byname(data_tostring(type));
+  instr = instruction_create_byname(data_tostring(type), NULL, NULL);
   if (!instr) {
     return NULL;
   } else {
@@ -619,18 +619,18 @@ __DLL_EXPORT__ parser_t * script_parse_end_loop(parser_t *parser) {
   if (parser_debug) {
     debug(" -- end loop jump back label: %s", data_tostring(label));
   }
-  push_instruction(parser, instruction_create_ITEndLoop(data_tostring(label), NULL));
+  push_instruction(parser, instruction_create_EndLoop(data_tostring(label), NULL));
   datastack_push(bytecode -> pending_labels, block_label);
   return parser;
 }
 
 __DLL_EXPORT__ parser_t * script_parse_break(parser_t *parser) {
-  push_instruction(parser, instruction_create_ITVMStatus(NULL, int_to_data(VMStatusBreak)));
+  push_instruction(parser, instruction_create_VMStatus(NULL, int_to_data(VMStatusBreak)));
   return parser;
 }
 
 __DLL_EXPORT__ parser_t * script_parse_continue(parser_t *parser) {
-  push_instruction(parser, instruction_create_ITVMStatus(NULL, int_to_data(VMStatusContinue)));
+  push_instruction(parser, instruction_create_VMStatus(NULL, int_to_data(VMStatusContinue)));
   return parser;
 }
 

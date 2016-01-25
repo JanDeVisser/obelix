@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include <datastack.h>
+#include <str.h>
 
 typedef struct _bookmark {
   int depth;

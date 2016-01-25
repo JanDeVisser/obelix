@@ -36,7 +36,7 @@ extern int          _data_count;
        int          type_debug = 0;
 
 extern void           any_init(void);
-static void           _typedescr_init(void);
+static inline void    _typedescr_init(void);
 static data_t *       _add_method_reducer(methoddescr_t *, data_t *);
 
 static char *         _methoddescr_tostring(methoddescr_t *);
@@ -134,24 +134,26 @@ static code_label_t _function_id_labels[] = {
 /* ------------------------------------------------------------------------ */
 
 void _typedescr_init(void) {
-  logging_register_category("type", &type_debug);
-  interface_register(Any,           "any",           0);
-  interface_register(Callable,      "callable",      1, FunctionCall);
-  interface_register(InputStream,   "inputstream",   1, FunctionRead);
-  interface_register(OutputStream,  "outputstream",  1, FunctionWrite);
-  interface_register(Iterable,      "iterable",      1, FunctionIter);
-  interface_register(Iterator,      "iterator",      2, FunctionNext, FunctionHasNext);
-  interface_register(Connector,     "connector",     1, FunctionQuery);
-  interface_register(CtxHandler,    "ctxhandler",    2, FunctionEnter, FunctionLeave);
-  interface_register(Incrementable, "incrementable", 2, FunctionIncr, FunctionDecr);
-  
-  typedescr_create_and_register(Type, "type",
-				_vtable_typedescr, _methoddescr_typedescr);
-  typedescr_create_and_register(Interface, "interface",
-				_vtable_interface, /* _methoddescr_interface */ NULL);
-  typedescr_create_and_register(Method, "method",
-				_vtable_methoddescr, /* _methoddescr_method */ NULL);
-  any_init();
+  if (!descriptors && !_interfaces) {
+    logging_register_category("type", &type_debug);
+    interface_register(Any,           "any",           0);
+    interface_register(Callable,      "callable",      1, FunctionCall);
+    interface_register(InputStream,   "inputstream",   1, FunctionRead);
+    interface_register(OutputStream,  "outputstream",  1, FunctionWrite);
+    interface_register(Iterable,      "iterable",      1, FunctionIter);
+    interface_register(Iterator,      "iterator",      2, FunctionNext, FunctionHasNext);
+    interface_register(Connector,     "connector",     1, FunctionQuery);
+    interface_register(CtxHandler,    "ctxhandler",    2, FunctionEnter, FunctionLeave);
+    interface_register(Incrementable, "incrementable", 2, FunctionIncr, FunctionDecr);
+    
+    typedescr_create_and_register(Type, "type",
+				  _vtable_typedescr, _methoddescr_typedescr);
+    typedescr_create_and_register(Interface, "interface",
+				  _vtable_interface, /* _methoddescr_interface */ NULL);
+    typedescr_create_and_register(Method, "method",
+				  _vtable_methoddescr, /* _methoddescr_method */ NULL);
+    any_init();
+  }
 }
 
 data_t * type_get(int ix) {
@@ -229,6 +231,9 @@ int interface_register(int type, char *name, int numfncs, ...) {
   va_list      fncs;
   int          fnc_id;
 
+  if (type != Any) {
+    _typedescr_init();
+  }
   if (type < FirstInterface) {
     type = _next_interface++;
   }
@@ -265,6 +270,7 @@ interface_t * interface_get(int type) {
   int          ifix = type - FirstInterface - 1;
   interface_t *ret = NULL;
 
+  _typedescr_init();
   if ((type > FirstInterface) && (type < _next_interface)) {
     ret = &_interfaces[ifix];
     if (!ret) {
@@ -289,6 +295,7 @@ interface_t * interface_get(int type) {
 interface_t * interface_get_byname(char *name) {
   int          ifix;
 
+  _typedescr_init();
   for (ifix = 0; ifix < _next_interface - FirstInterface - 1; ifix++) {
     if (!strcmp(_interfaces[ifix].name, name)) {
       return &_interfaces[ifix];
@@ -553,6 +560,7 @@ int typedescr_register(typedescr_t *descr) {
   int             cursz;
   typedescr_t    *d;
 
+  _typedescr_init();
   if (descr -> type < 0) {
     descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
   }
@@ -657,9 +665,7 @@ typedescr_t * typedescr_assign_inheritance(typedescr_t *type, int inherits) {
 typedescr_t * typedescr_get(int datatype) {
   typedescr_t *ret = NULL;
 
-  if (!descriptors) {
-    _typedescr_init();
-  }
+  _typedescr_init();
   if ((datatype >= 0) && (datatype < _numtypes)) {
     ret = &descriptors[datatype];
   }
@@ -678,6 +684,7 @@ typedescr_t * typedescr_get_byname(char *name) {
   typedescr_t *ret = NULL;
   int          ix;
 
+  _typedescr_init();
   for (ix = 0; ix < _numtypes; ix++) {
     if (descriptors[ix].type_name && !strcmp(name, descriptors[ix].type_name)) {
       return &descriptors[ix];

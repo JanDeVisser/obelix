@@ -75,6 +75,7 @@ static data_t *     _socket_close(data_t *, char *, array_t *, dict_t *);
 static data_t *     _socket_listen_mth(data_t *, char *, array_t *, dict_t *);
 static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
 
+extern void         file_init(void);
 
 /*
  * TODO:

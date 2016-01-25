@@ -167,7 +167,7 @@ data_t * generator_next(generator_t *generator) {
       generator -> status = NULL;
       break;
     default:
-      ret = data_copy(generator -> status);
+      ret = data_copy((data_t *) generator -> status);
       break;
   }
   return ret;

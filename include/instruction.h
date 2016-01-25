@@ -119,7 +119,7 @@ OBLPARSER_IMPEXP instruction_t * instruction_set_label(instruction_t *, data_t *
 #define instruction_create_iter()           ((data_t *) instruction_create_Iter(NULL, NULL))
 #define instruction_create_jump(l)          ((data_t *) instruction_create_Jump(data_tostring((l)), NULL))
 #define instruction_create_leave_context(n) ((data_t *) instruction_create_LeaveContext(name_tostring((n)), (data_t *) name_create(1, (n))))
-#define instruction_create_mark(l)          ((data_t *) instruction_create_Nop(NULL, int_create((l))))
+#define instruction_create_mark(l)          ((data_t *) instruction_create_Nop(NULL, int_to_data((l))))
 #define instruction_create_nop()            ((data_t *) instruction_create_Nop(NULL, NULL))
 #define instruction_create_next(n)          ((data_t *) instruction_create_Next(data_tostring((n)), NULL))
 #define instruction_create_pop()            ((data_t *) instruction_create_Pop(NULL, NULL))
@@ -128,11 +128,11 @@ OBLPARSER_IMPEXP instruction_t * instruction_set_label(instruction_t *, data_t *
 #define instruction_create_pushval(v)       ((data_t *) instruction_create_PushVal(NULL, data_copy((v))))
 #define instruction_create_deref(n)         ((data_t *) instruction_create_Deref(name_tostring((n)), (data_t *) name_create(1, (n))))
 #define instruction_create_return()         ((data_t *) instruction_create_Return(NULL, NULL))
-#define instruction_create_stash(s)         ((data_t *) instruction_create_Stash(NULL, int_create(s)))
+#define instruction_create_stash(s)         ((data_t *) instruction_create_Stash(NULL, int_to_data(s)))
 #define instruction_create_swap()           ((data_t *) instruction_create_Swap(NULL, NULL))
 #define instruction_create_test(l)          ((data_t *) instruction_create_Test(data_tostring((l)), NULL))
 #define instruction_create_throw()          ((data_t *) instruction_create_Throw(NULL, NULL))
-#define instruction_create_unstash(s)       ((data_t *) instruction_create_Unstash(NULL, int_create(s)))
+#define instruction_create_unstash(s)       ((data_t *) instruction_create_Unstash(NULL, int_to_data(s)))
 
 #ifdef  __cplusplus
 }
