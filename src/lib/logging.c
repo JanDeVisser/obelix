@@ -58,7 +58,7 @@ void _logging_init(void) {
   char *cats;
   char *ptr;
   char *sepptr;
-  
+
   if (!_categories) {
     _categories = strvoid_dict_create();
     dict_set_tostring_data(_categories, (tostring_t) _logcategory_tostring);
@@ -69,9 +69,9 @@ void _logging_init(void) {
       cats = strdup(cats);
       ptr = cats;
       for (sepptr = strchr(ptr, ';'); sepptr; sepptr = strchr(ptr, ';')) {
-	*sepptr = 0;
-	logging_enable(ptr);
-	ptr = sepptr + strlen(sepptr);
+        *sepptr = 0;
+        logging_enable(ptr);
+        ptr = sepptr + strlen(sepptr);
       }
       logging_register_category(ptr, NULL);
       free(cats);
@@ -84,7 +84,7 @@ logcategory_t * _logcategory_create(char *name, int *flag) {
 
   if (!_categories) {
     _logging_init();
-  }  
+  }
   cat -> name = strdup(name);
   cat -> flag = flag;
   cat -> level = _log_level;
@@ -129,7 +129,7 @@ logcategory_t * _logcategory_set(logcategory_t *cat, int value) {
 
 logcategory_t  * _logcategory_logmsg(logcategory_t *cat, log_level_t lvl, char *file, int line, char *msg, ...) {
   va_list args;
-  
+
   if (lvl >= cat -> level) {
     va_start(args, msg);
     fprintf(stderr, "%-12.12s:%4d:%-5.5s:", file, line, _log_level_str(lvl));
@@ -147,7 +147,7 @@ int * _logging_set_reducer(logcategory_t *cat, int *value) {
 
 void _logging_set(char *category, int value) {
   logcategory_t *cat;
-  
+
   if (!_categories) {
     _logging_init();
   }
@@ -187,7 +187,7 @@ void logging_register_category(char *name, int *flag) {
 
 void logging_reset(void) {
   int value = 0;
-  
+
   if (!_categories) {
     _logging_init();
   }
@@ -204,7 +204,7 @@ void logging_disable(char *category) {
 
 void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, const char *msg, ...) {
   va_list args;
-  
+
   if (lvl >= _log_level) {
     va_start(args, msg);
     fprintf(stderr, "%-12.12s:%4d:%-20.20s:%-5.5s:", file, line, caller, _log_level_str(lvl));
@@ -217,7 +217,7 @@ void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, co
 int logging_status(char *category) {
   logcategory_t *cat;
   int            ret;
-  
+
   if (!_categories) {
     _logging_init();
   }
@@ -226,7 +226,7 @@ int logging_status(char *category) {
     cat = _logcategory_create(category, NULL);
     cat -> enabled = FALSE;
   }
-  return cat -> enabled;  
+  return cat -> enabled;
 }
 
 int logging_level(void) {

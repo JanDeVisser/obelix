@@ -1,6 +1,6 @@
 /*
- * obelix.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * obelix.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -66,9 +66,10 @@ static obelix_t *_obelix;
 
 void _obelix_init(void) {
   int       ix;
- 
+
   if (Obelix < 0) {
-    Obelix = typedescr_create_and_register(Obelix, "obelix", 
+    logging_register_category("script", &script_debug);
+    Obelix = typedescr_create_and_register(Obelix, "obelix",
                                            _vtable_obelix, _methoddescr_obelix);
 
     if (script_debug) {
@@ -101,7 +102,7 @@ static data_t * _obelix_get(data_t *self, char *name, array_t *args, dict_t *kwa
   (void) name;
   (void) args;
   (void) kwargs;
-  
+
   return (data_t *) _obelix;
 }
 
@@ -110,12 +111,12 @@ static data_t * _obelix_run(data_t *self, char *name, array_t *args, dict_t *kwa
   array_t *script_args;
   data_t  *ret;
   data_t  *name_arg = data_array_get(args, 0);
-  
+
   (void) self;
   (void) name;
-  
-  script = (data_is_name(name_arg)) 
-          ? name_copy(name_arg) 
+
+  script = (data_is_name(name_arg))
+          ? name_copy(name_arg)
           : obelix_build_name(data_tostring(name_arg));
   script_args = array_slice(args, 1, -1);
   ret = obelix_run(_obelix, script, script_args, kwargs);
@@ -129,7 +130,7 @@ static data_t * _obelix_run(data_t *self, char *name, array_t *args, dict_t *kwa
 void _obelix_debug_settings(obelix_t *obelix) {
   array_t *cats;
   int      ix;
-  
+
   logging_reset();
   logging_set_level(obelix -> log_level);
   if (obelix -> debug) {
@@ -145,7 +146,7 @@ int _obelix_cmdline(obelix_t *obelix) {
   int             retval = 0;
   exception_t    *ex;
   data_t         *ret;
-  
+
   ret = obelix_run(obelix, obelix -> script, obelix -> script_args, NULL);
   if (ex = data_as_exception(ret)) {
     fprintf(stderr, "Error: %s\n", ex -> msg);
@@ -163,7 +164,7 @@ name_t * obelix_build_name(char *scriptname) {
   char   *buf;
   char   *ptr;
   name_t *name;
-  
+
   buf = strdup(scriptname);
   while (ptr = strchr(buf, '/')) {
     *ptr = '.';
@@ -238,14 +239,14 @@ obelix_t * obelix_initialize(int argc, char **argv) {
 
 obelix_t * obelix_set_option(obelix_t *obelix, obelix_option_t option, long value) {
   data_t *opt = int_to_data(value);
-  
+
   array_set(obelix -> options, (int) option, opt);
   return obelix;
 }
 
 long obelix_get_option(obelix_t *obelix, obelix_option_t option) {
   data_t *opt;
-  
+
   opt = data_array_get(obelix -> options, (int) option);
   return data_intval(opt);
 }
@@ -253,19 +254,19 @@ long obelix_get_option(obelix_t *obelix, obelix_option_t option) {
 scriptloader_t * obelix_create_loader(obelix_t *obelix) {
   array_t        *path;
   scriptloader_t *loader;
-  
-  path = (obelix -> basepath) ? array_split(obelix -> basepath, ":") 
+
+  path = (obelix -> basepath) ? array_split(obelix -> basepath, ":")
                               : str_array_create(0);
   array_push(path, getcwd(NULL, 0));
-  
+
   loader = scriptloader_create(obelix -> syspath, path, obelix -> grammar);
   if (loader) {
     scriptloader_set_options(loader, obelix -> options);
     if (!obelix -> loaders) {
       obelix -> loaders = datadata_dict_create();
     }
-    dict_put(obelix -> loaders, 
-	     str_wrap(loader -> cookie), 
+    dict_put(obelix -> loaders,
+	     str_wrap(loader -> cookie),
 	     scriptloader_copy(loader));
   }
   array_free(path);
@@ -275,7 +276,7 @@ scriptloader_t * obelix_create_loader(obelix_t *obelix) {
 scriptloader_t * obelix_get_loader(obelix_t *obelix, char *cookie) {
   scriptloader_t *loader = NULL;
   str_t          *wrap;
-  
+
   if (obelix -> loaders) {
     loader = dict_get(obelix -> loaders, wrap = str_wrap(cookie));
     str_free(wrap);
@@ -285,7 +286,7 @@ scriptloader_t * obelix_get_loader(obelix_t *obelix, char *cookie) {
 
 obelix_t * obelix_decommission_loader(obelix_t *obelix, scriptloader_t *loader) {
   str_t   *wrap;
-  
+
   if (loader) {
     if (obelix -> loaders) {
       dict_remove(obelix -> loaders, wrap = str_wrap(loader -> cookie));
@@ -300,11 +301,11 @@ data_t * obelix_run(obelix_t *obelix, name_t *name, array_t *args, dict_t *kwarg
   scriptloader_t *loader;
   exception_t    *ex;
   data_t         *ret;
-  
+
   loader = obelix_create_loader(obelix);
   if (loader) {
     if (script_debug) {
-      debug("obelix_run %s(%s, %s)", 
+      debug("obelix_run %s(%s, %s)",
             name_tostring(name),
             (args) ? array_tostring(args) : "[]",
             (kwargs) ? dict_tostring(kwargs) : "{}");
@@ -319,10 +320,10 @@ data_t * obelix_run(obelix_t *obelix, name_t *name, array_t *args, dict_t *kwarg
     }
     scriptloader_free(loader);
   } else {
-    ret = (data_t *) exception_create(ErrorInternalError, 
+    ret = (data_t *) exception_create(ErrorInternalError,
                                       "Could not create script loader");
   }
-  return ret;  
+  return ret;
 }
 
 /* ------------------------------------------------------------------------ */
