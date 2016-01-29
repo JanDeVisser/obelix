@@ -136,16 +136,20 @@ fsentry_t * fsentry_create(char *name) {
 }
 
 fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
-  char      *n;
-  fsentry_t *ret;
-
-  if (!fsentry_isdir (dir)) {
+  if (!dir || !fsentry_isdir(dir) || !name) {
     return NULL;
+  } else {
+    char       n[strlen(dir -> name) + strlen(name) + 2];
+    fsentry_t *ret;
+
+    strcpy(n, dir -> name);
+    if (n[strlen(n) - 1] != '/') {
+      strcat(n, "/");
+    }
+    strcat(n, name);
+    ret = fsentry_create(n);
+    return ret;
   }
-  asprintf(&n, "%s/%s", dir -> name, name);
-  ret = fsentry_create(n);
-  free(n);
-  return ret;
 }
 
 unsigned int fsentry_hash(fsentry_t *e) {

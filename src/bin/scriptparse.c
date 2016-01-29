@@ -324,7 +324,7 @@ __DLL_EXPORT__ parser_t * script_parse_assign(parser_t *parser) {
   data_t *varname;
 
   varname = datastack_pop(parser -> stack);
-  push_instruction(parser, instruction_create_assign(data_as_name(varname)));
+  push_instruction(parser, instruction_create_assign(varname));
   data_free(varname);
   return parser;
 }
@@ -333,7 +333,7 @@ __DLL_EXPORT__ parser_t * script_parse_deref(parser_t *parser) {
   data_t *varname;
 
   varname = datastack_pop(parser -> stack);
-  push_instruction(parser, instruction_create_deref(data_as_name(varname)));
+  push_instruction(parser, instruction_create_deref(varname));
   data_free(varname);
   return parser;
 }
@@ -575,7 +575,7 @@ __DLL_EXPORT__ parser_t * script_parse_for(parser_t *parser) {
   push_instruction(parser, instruction_create_iter());
   datastack_push(bytecode -> pending_labels, data_copy(next_label));
   push_instruction(parser, instruction_create_next(end_label));
-  push_instruction(parser, instruction_create_assign(data_as_name(varname)));
+  push_instruction(parser, instruction_create_assign(varname));
   data_free(varname);
   data_free(next_label);
   data_free(end_label);

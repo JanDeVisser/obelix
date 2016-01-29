@@ -112,7 +112,7 @@ OBLPARSER_IMPEXP instruction_t * instruction_set_label(instruction_t *, data_t *
 #define instruction_tostring(i) (data_tostring((data_t *) (i)))
 #define instruction_copy(i)     ((instruction_t *) data_copy((data_t *) (i)))
 
-#define instruction_create_assign(n)        ((data_t *) instruction_create_Assign(name_tostring((n)), (data_t *) name_create(1, (n))))
+#define instruction_create_assign(n)        ((data_t *) instruction_create_Assign(name_tostring((n)), (data_t *) (n)))
 #define instruction_create_decr()           ((data_t *) instruction_create_Decr(NULL, NULL))
 #define instruction_create_dup()            ((data_t *) instruction_create_Dup(NULL, NULL))
 #define instruction_create_incr()           ((data_t *) instruction_create_Incr(NULL, NULL))
@@ -126,7 +126,7 @@ OBLPARSER_IMPEXP instruction_t * instruction_set_label(instruction_t *, data_t *
 #define instruction_create_pushctx()        ((data_t *) instruction_create_PushCtx(NULL, NULL))
 #define instruction_create_pushscope()      ((data_t *) instruction_create_PushScope(NULL, NULL))
 #define instruction_create_pushval(v)       ((data_t *) instruction_create_PushVal(NULL, data_copy((v))))
-#define instruction_create_deref(n)         ((data_t *) instruction_create_Deref(name_tostring((n)), (data_t *) name_create(1, (n))))
+#define instruction_create_deref(n)         ((data_t *) instruction_create_Deref(name_tostring((n)), (data_t *) (n)))
 #define instruction_create_return()         ((data_t *) instruction_create_Return(NULL, NULL))
 #define instruction_create_stash(s)         ((data_t *) instruction_create_Stash(NULL, int_to_data(s)))
 #define instruction_create_swap()           ((data_t *) instruction_create_Swap(NULL, NULL))

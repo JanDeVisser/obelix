@@ -97,7 +97,7 @@ static data_t * _instruction_execute_ ## t(instruction_t *,                  \
                                            vm_t *,                           \
                                            bytecode_t *);                    \
                                                                              \
-static vtable_t _vtable_ ## t[] = {                                            \
+static vtable_t _vtable_ ## t[] = {                                          \
   { .id = FunctionUsr1, .fnc = (void_t) _instruction_execute_ ## t },        \
   { .id = FunctionNone, .fnc = NULL }                                        \
 };                                                                           \
@@ -115,6 +115,7 @@ instruction_t * instruction_create_ ## t(char *name, data_t *value) {        \
 
 InstructionType(Assign,       Value);
 InstructionType(Decr,         Name);
+InstructionType(Deref,        Value);
 InstructionType(Dup,          Name);
 InstructionType(EndLoop,      Name);
 InstructionType(EnterContext, Name);
@@ -128,7 +129,6 @@ InstructionType(Nop,          ValueOrName);
 InstructionType(Pop,          Name);
 InstructionType(PushCtx,      Name);
 InstructionType(PushVal,      Value);
-InstructionType(Deref,        Value);
 InstructionType(PushScope,    Name);
 InstructionType(Return,       Name);
 InstructionType(Stash,        Value);
@@ -180,6 +180,7 @@ void _instruction_register_types(void) {
   
   InstructionTypeRegister(Assign,       Value);
   InstructionTypeRegister(Decr,         Name);
+  InstructionTypeRegister(Deref,        Value);
   InstructionTypeRegister(Dup,          Name);
   InstructionTypeRegister(EndLoop,      Name);
   InstructionTypeRegister(EnterContext, Name);
@@ -193,7 +194,6 @@ void _instruction_register_types(void) {
   InstructionTypeRegister(Pop,          Name);
   InstructionTypeRegister(PushCtx,      Name);
   InstructionTypeRegister(PushVal,      Value);
-  InstructionTypeRegister(Deref,        Value);
   InstructionTypeRegister(PushScope,    Name);
   InstructionTypeRegister(Return,       Name);
   InstructionTypeRegister(Stash,        Value);
@@ -894,10 +894,13 @@ data_t * _instr_new(int type, va_list args) {
   data = (data_t *) ret;
   ret -> line = -1;
   ret -> name = (name) ? strdup(name) : NULL;
-  ret -> value = value;
+  ret -> value = data_copy(value);
   ret -> labels = NULL;
   ret -> execute = (execute_t) typedescr_get_function(td, FunctionUsr1);
   assert(ret -> execute);
+  if (script_debug) {
+    debug("Created '%s'", instruction_tostring(ret));
+  }
   return data;
 }
 

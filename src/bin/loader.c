@@ -176,6 +176,9 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
     e = fsentry_create(fname);
   }
   if ((e != NULL) && fsentry_isfile(e) && fsentry_canread(e)) {
+    if (script_debug) {
+      debug("_scriptloader_open_file('%s', '%s') -> '%s'", basedir, name, e -> name);
+    }
     ret = fsentry_open(e);
     mod -> source = str_to_data(e -> name);
     assert(ret -> fh > 0);
