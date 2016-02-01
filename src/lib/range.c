@@ -74,6 +74,7 @@ data_t * range_create(data_t *from, data_t *to) {
   range_t     *range;
   typedescr_t *type;
 
+  _range_init();
   if (data_type(from) != data_type(to)) {
     return data_exception(ErrorType,
                           "Cannot build range: atoms '%s' and '%s' are of different type",

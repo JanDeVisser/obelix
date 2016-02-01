@@ -30,7 +30,7 @@ func adopt(fnum)         -> "liboblcore.so:_file_adopt"
 func fsentry(name)       -> "liboblcore.so:_fsentry_create"
 
 func nvp(name, value)    -> "liboblcore.so:_nvp_create"
-func re(pattern)         -> "liboblcore.so:_regexp_create"
+func regexp(pattern)     -> "liboblcore.so:_regexp_create"
 
 self.stdin = adopt(0)
 self.stdout = adopt(1)

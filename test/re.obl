@@ -11,15 +11,3 @@ print("match(${0}) = ${1}", "abcdejamfghijamklmn", re.match("abcdejamfghijamklmn
 
 b = 8 / 4
 print(b)
-/* EXPECTED
---exit-- 0
---stdout--
-regexp('j.n') = /(j.n)/
-match(abcdejanfghij) = jan
-/j.n/ = /(j.n)/
-match(abcdejanfghij) = jan
-match(abcdejanfghijanklmn) = [ jan, jan ]
-match(abcdejamfghijamklmn) = 0
-2
---
-EXPECTED */

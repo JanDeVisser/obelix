@@ -1,0 +1,1 @@
+{"exit": 0, "name": "lambda", "stderr": [], "stdout": ["f(3) 6", "foo(f (lambda)) 4", "foo(g (lambda)) 6", "foo(h (func)) 8", "foo(g (reassigned to func h)) 8", "foo(lambda) 10", "4"]}

@@ -60,8 +60,10 @@ static methoddescr_t _methoddescr_re[] = {
 /* ------------------------------------------------------------------------ */
 
 void _regexp_init(void) {
-  logging_register_category("regexp", &debug_regexp);
-  Regexp = typedescr_create_and_register(Regexp, "regexp", _vtable_re, _methoddescr_re);
+  if (Regexp < 0) {
+    logging_register_category("regexp", &debug_regexp);
+    Regexp = typedescr_create_and_register(Regexp, "regexp", _vtable_re, _methoddescr_re);
+  }
 }
 
 char * _regexp_allocstring(re_t *regex) {
@@ -138,8 +140,10 @@ data_t * _regexp_compile(re_t *re) {
 /* ------------------------------------------------------------------------ */
 
 re_t * regexp_create(char *pattern, char *flags) {
-  re_t *ret = data_new(Regexp, re_t);
-
+  re_t *ret;
+  
+  _regexp_init();
+  ret = data_new(Regexp, re_t);
   ret -> pattern = str_printf( "(%s)", pattern);
   ret -> re_flags = REG_EXTENDED;
   if (flags) {

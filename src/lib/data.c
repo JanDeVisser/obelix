@@ -281,14 +281,23 @@ int data_hasmethod(data_t *data, char *name) {
   methoddescr_t *md;
 
   md = typedescr_get_method(type, name);
+  if (debug_data) {
+    debug("'%s'.hasmethod(%s): %s",
+	  data_tostring(data), name, (md) ? "true" : "false");
+  }
   return (md) ? TRUE : FALSE;
 }
 
 data_t * data_method(data_t *data, char *name) {
-  typedescr_t   *type = data_typedescr(data);
+  typedescr_t   *type = NULL;
   methoddescr_t *md;
   data_t        *ret = NULL;
 
+  if (debug_data) {
+    debug("%s[%s].data_method(%s)", 
+          data_tostring(data), data_typename(data), name);    
+  }
+  type = data_typedescr(data);
   md = typedescr_get_method(type, name);
   if (md) {
     ret = (data_t *) mth_create(md, data);
@@ -296,6 +305,11 @@ data_t * data_method(data_t *data, char *name) {
       debug("%s[%s].data_method(%s) = %s", 
             data_tostring(data), data_typename(data),
             name, runtimemethod_tostring(ret));
+    }
+  } else {
+    if (debug_data) {
+      debug("%s[%s].data_method(%s) = NULL", 
+            data_tostring(data), data_typename(data), name);
     }
   }
   return ret;

@@ -7,7 +7,7 @@ func fibonacci(n)
 end
 
 sum = 0
-for i in 0 ~ 20
+for i in 0 ~ 10
   sum = sum + fibonacci(i)
 end
 print("Sum: ${0}", sum)

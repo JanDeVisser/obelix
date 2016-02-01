@@ -34,6 +34,8 @@ extern void     list_init(void);
 extern void     exception_init(void);
 extern void     ptr_init(void);
 
+extern int      debug_data;
+
 static void_t _type_initializers[] = {
   str_init,
   int_init,
@@ -384,6 +386,18 @@ data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   int     infix = !strcmp(name, "~");
   data_t *ret;
 
+  if (debug_data) {
+    debug("_range_create");
+    if (infix) {
+      debug("'%s' ~ '%s'",
+	    data_tostring(self),
+	    data_tostring(data_array_get(args, 0)));
+    } else {
+      debug("range('%s', '%s')",
+	    data_tostring(data_array_get(args, 0)),
+	    data_tostring(data_array_get(args, 1)));
+    }
+  }
   from = (infix) ? self : data_array_get(args, 0);
   to = data_array_get(args, (infix) ? 0 : 1);
   return (data_t *) range_create(from, to);
