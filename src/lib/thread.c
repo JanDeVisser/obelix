@@ -108,10 +108,8 @@ void _thread_init(void) {
 }
 
 void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
-  threadproc_t  start_routine;
   void         *ret = NULL;
   thread_t     *thread = thread_self();
-  char          buf[81];
   int           retval = -1;
   int           dummy = 0;
 
@@ -234,7 +232,7 @@ thread_t * thread_new(char *name, threadproc_t start_routine, void *arg) {
     thr_id = CreateThread(
     	NULL,                                         /* default security attributes   */
         0,                                            /* use default stack size        */
-        (threadproc_t) _thread_start_routine_wrapper, /* thread function name          */
+        (LPTHREAD_START_ROUTINE) _thread_start_routine_wrapper, /* thread function name          */
         ctx,                                          /* argument to thread function   */
         0,                                            /* use default creation flags    */
         NULL);                                        /* returns the thread identifier */

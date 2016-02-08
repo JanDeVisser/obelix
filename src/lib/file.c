@@ -21,9 +21,14 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif /* HAVE_IO_H */
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_STRINGS_H
 #include <strings.h>
+#endif /* HAVE_STRINGS_H */
 #include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -42,9 +47,12 @@
 
 int file_debug = 0;
 
-#ifdef __WIN32__
-#define open(...)      _open(__VA_ARGS__)
+#if defined(__WIN32__) || defined(_MSC_VER)
 #define close(f)       _close((f))
+#define lseek(...)     _lseek(__VA_ARGS__)
+#define open(...)      _open(__VA_ARGS__)
+#define read(...)      _read(__VA_ARGS__)
+#define write(...)     _write(__VA_ARGS__)
 typedef HANDLE         _oshandle_t;
 #else
 typedef int _oshandle_t;
@@ -579,7 +587,7 @@ data_t * _streamiter_next(streamiter_t *si) {
 /* -- F I L E _ T  S T A T I C  F U N C T I O N S ------------------------- */
 
 _oshandle_t _file_oshandle(file_t *file) {
-#ifdef __WIN32__
+#if defined(__WIN32__) || defined(_MSC_VER)
   return (_oshandle_t) _get_osfhandle(file -> fh);
 #else
   return file -> fh;
@@ -691,9 +699,13 @@ int file_mode(char *mode) {
       switch (*ptr) {
         case 'u':
         case 'U':
+#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
           mask |= S_IRWXU;
+#else
+          mask |= S_IREAD | S_IWRITE;
+#endif
           break;
-#ifndef __WIN32__ // FIXME
+#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
         case 'g':
         case 'G':
           mask |= S_IRWXG;
@@ -714,26 +726,24 @@ int file_mode(char *mode) {
         switch (*ptr) {
           case 'r':
           case 'R':
-#ifndef __WIN32__ // FIXME
+#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
             ret |= (mask & (S_IRUSR | S_IRGRP | S_IROTH));
 #else
-            ret |= (mask & S_IRUSR);
+            ret |= (mask & S_IREAD);
 #endif
             break;
           case 'w':
           case 'W':
-#ifndef __WIN32__ // FIXME
+#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
             ret |= (mask & (S_IWUSR | S_IWGRP | S_IWOTH));
 #else
-            ret |= (mask & S_IWUSR);
+            ret |= (mask & S_IWRITE);
 #endif
             break;
           case 'x':
           case 'X':
-#ifndef __WIN32__ // FIXME
+#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
             ret |= (mask & (S_IXUSR | S_IXGRP | S_IXOTH));
-#else
-            ret |= (mask & S_IXUSR);
 #endif
             break;
         }
@@ -773,10 +783,10 @@ file_t * file_open_ext(char *fname, ...) {
           errno = EINVAL;
         }
       } else {
-#ifndef __WIN32__ // FIXME
+#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
         open_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
 #else
-        open_mode = S_IRUSR | S_IWUSR;
+        open_mode = S_IREAD | S_IWRITE;
 #endif
       }
     }

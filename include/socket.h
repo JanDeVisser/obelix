@@ -90,7 +90,7 @@ OBLCORE_IMPEXP void *        connection_listener_service(connection_t *);
 #define socket_readline(s)           (stream_readline((stream_t *) (s)))
 #define socket_print(s, f, a, kw)    (stream_print((stream_t *) (s), (f), (a), (kw)))
 #define socket_vprintf(s, f, args)   (stream_printf((stream_t *) (s), (f), args))
-#define socket_printf(s, f, args...) (stream_printf((stream_t *) (s), (f), ## args))
+#define socket_printf(s, ...)        (stream_printf((stream_t *) (s), __VA_ARGS__))
 
 OBLCORE_IMPEXP int Socket;
 

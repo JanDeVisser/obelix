@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include <core.h>
 #include <data.h>
@@ -97,7 +98,7 @@ nvp_t * nvp_create(data_t *name, data_t *value) {
 }
 
 nvp_t * nvp_parse(char *str) {
-  char    cpy[strlen(str) + 1];
+  char   *cpy;
   char   *ptr;
   char   *name;
   char   *val;
@@ -106,7 +107,7 @@ nvp_t * nvp_parse(char *str) {
   nvp_t  *ret;
 
   // FIXME Woefully inadequate.
-  strcpy(cpy, str);
+  cpy = strdup(str);
   ptr = strchr(cpy, '=');
   name = cpy;
   val = NULL;
@@ -119,6 +120,7 @@ nvp_t * nvp_parse(char *str) {
   ret = nvp_create(n, v);
   data_free(n);
   data_free(v);
+  free(cpy);
   return ret;
 }
 

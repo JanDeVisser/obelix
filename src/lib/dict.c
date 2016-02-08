@@ -266,7 +266,6 @@ int _dict_cmp_keys(dict_t *dict, void *key1, void *key2) {
 
 dict_t * _dict_rehash(dict_t *dict) {
   bucket_t    **old_buckets;
-  int           num;
   int           i;
   int           j;
   int           old;
@@ -317,7 +316,6 @@ dict_t * _dict_add_to_bucket(dict_t *dict, void *key, void *value) {
 
 dictentry_t * _dict_find_in_bucket(dict_t *dict, void *key) {
   bucket_t *bucket;
-  int       ix;
 
   bucket = _dict_get_bucket(dict, key);
   return _bucket_find_entry(bucket, key);
@@ -518,11 +516,8 @@ dict_t * dict_clear(dict_t *dict) {
 }
 
 dict_t * dict_put(dict_t *dict, void *key, void *data) {
-  dictentry_t *entry;
-  dictentry_t *e;
-  int          bucket;
-  dict_t      *ret;
-  int          had_key;
+  dict_t *ret;
+  int     had_key;
 
   if (!dict -> num_buckets || 
       ((float) (dict -> size + 1) / (float) dict -> num_buckets) > dict -> loadfactor) {
@@ -561,7 +556,6 @@ dict_t * dict_remove(dict_t *dict, void *key) {
 
 void * dict_get(dict_t *dict, void *key) {
   dictentry_t *entry;
-  void        *ret;
 
   if (dict -> size) {
     entry = _dict_find_in_bucket(dict, key);

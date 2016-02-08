@@ -22,12 +22,14 @@
 #include <fcntl.h>
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
-#endif
+#endif /* HAVE_NETDB_H */
 #include <string.h>
 #ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
-#endif
+#endif /* HAVE_WS2TCPIP_H */
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif /* HAVE_UNISTD_H */
 
 #include <data.h>
 #include <exception.h>
@@ -43,12 +45,18 @@ typedef int socklen_t;
 #endif
 
 #ifndef TEMP_FAILURE_RETRY
-#define TEMP_FAILURE_RETRY(expression)                  \
-    ({ long int __result;                               \
-       do (__result = (long int) (expression));		\
-       while ((__result == -1L) && (errno == EINTR));	\
-       __result; })
-#endif
+#ifndef _MSC_VER
+#define TEMP_FAILURE_RETRY(expression) \
+    ({ \
+        long int _result; \
+        do _result = (long int) (expression); \
+        while (_result == -1L && errno == EINTR); \
+        _result; \
+    })
+#else
+#define TEMP_FAILURE_RETRY(expression)  (expression)
+#endif /* _MSC_VER */
+#endif /* !TEMP_FAILURE_RETRY */
 
 #ifndef HAVE_ECONNRESET
 #define ECONNRESET WSAECONNRESET
@@ -323,7 +331,6 @@ int _socket_accept_loop(socket_t *socket) {
 }
 
 int _socket_listen(socket_t *socket, service_t service, void *context, int async) {
-  thread_t  *thread;
   if (TEMP_FAILURE_RETRY(listen(socket -> fh, 5))) {
     error("Error setting up listener");
     return -1;
@@ -347,7 +354,7 @@ int _socket_listen(socket_t *socket, service_t service, void *context, int async
 }
 
 socket_t * _socket_setopt(socket_t *socket, int opt) {
-#ifndef __WIN32__
+#ifndef _WIN32
   int oldflags = fcntl(socket -> fh, F_GETFL, 0);
 
   if (oldflags == -1) {
@@ -360,7 +367,7 @@ socket_t * _socket_setopt(socket_t *socket, int opt) {
   } else {
     return socket;
   }
-#else /* __WIN32__ */
+#else /* _WIN32 */
   return socket;
 #endif
 }
@@ -443,12 +450,12 @@ socket_t * socket_interrupt(socket_t *socket) {
 socket_t * socket_nonblock(socket_t *socket) {
   socket_t *ret = NULL;
 
-#ifndef __WIN32__
+#ifndef _WIN32
   ret = _socket_setopt(socket, O_NONBLOCK);
-#else /* __WIN32__ */
+#else /* _WIN32 */
   u_long nonblock = 1;
   ret = ioctlsocket(socket -> fh, FIONBIO, &nonblock) ? NULL : socket;
-#endif /* __WIN32__ */
+#endif /* _WIN32 */
   if (!ret) {
     _socket_set_errno(socket, "nonblock()");
     return NULL;
@@ -468,7 +475,7 @@ int _socket_readblock(socket_t *socket, void *buf, int num) {
     num_remaining -= numrecv;
     total_numrecv += numrecv;
     ret += numrecv;
-    buf += numrecv;
+    buf = (void *)(((char *) buf) + numrecv);
     if (socket_debug) {
       debug("socket_read(%s, %d) = %d", data_tostring((data_t *) socket), num, total_numrecv);
     }
@@ -537,7 +544,7 @@ int socket_write(socket_t *socket, void *buf, int num) {
     numsend = TEMP_FAILURE_RETRY(send(socket -> fh, buf, num, SOCKET_SEND_FLAGS));
     if (numsend > 0) {
       num = num - numsend;
-      buf += numsend;
+      buf = (void *) (((char *) buf) + numsend);
     } else {
       _socket_set_errno(socket, "send()");
       ret = -1;

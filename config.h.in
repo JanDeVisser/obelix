@@ -31,7 +31,9 @@
 #define OBELIX_DATADIR                       "@obelix_DATADIR@"
 
 #cmakedefine HAVE_ALLOCA_H                   1
+#cmakedefine HAVE_DIRENT_H                   1
 #cmakedefine HAVE_DLFCN_H                    1
+#cmakedefine HAVE_IO_H                       1
 #cmakedefine HAVE_LIBINTL_H                  1
 #cmakedefine HAVE_LANGINFO_H                 1
 #cmakedefine HAVE_LOCALE_H                   1
@@ -42,6 +44,7 @@
 #cmakedefine HAVE_SIGNAL_H                   1
 #cmakedefine HAVE_STDBOOL_H                  1 
 #cmakedefine HAVE_STDINT_H                   1 
+#cmakedefine HAVE_STRINGS_H                  1 
 #cmakedefine HAVE_SYS_SOCKET_H               1
 #cmakedefine HAVE_SYS_UTSNAME_H              1
 #cmakedefine HAVE_UNISTD_H                   1 
@@ -52,6 +55,7 @@
 #cmakedefine HAVE_WS2TCPIP_H                 1
 
 #cmakedefine HAVE_INTPTR_T                   1
+#cmakedefine HAVE__MAX_PATH                  1
 #cmakedefine HAVE_TYPE_SOCKET                1
 #cmakedefine HAVE_SOCKLEN_T                  1
 #cmakedefine HAVE_ECONNRESET                 1
@@ -63,6 +67,9 @@
 #cmakedefine HAVE_ASPRINTF                   1
 #cmakedefine HAVE_CREATESEMAPHORE            1
 #cmakedefine HAVE_CREATETHREAD               1
+#cmakedefine HAVE_DTOA                       1
+#cmakedefine HAVE__DTOA                      1
+#cmakedefine HAVE__FINDFIRST                 1
 #cmakedefine HAVE_FSYNC                      1
 #cmakedefine HAVE_FLUSHFILEBUFFERS           1
 #cmakedefine HAVE_GETLINE                    1
@@ -71,6 +78,7 @@
 #cmakedefine HAVE_GETVERSIONEX               1
 #cmakedefine HAVE_INITIALIZECRITICALSECTION  1
 #cmakedefine HAVE_ITOA                       1
+#cmakedefine HAVE__ITOA                      1
 #cmakedefine HAVE_KILL                       1
 #cmakedefine HAVE_MBRTOWC                    1
 #cmakedefine HAVE_MEMPCPY                    1
@@ -79,5 +87,11 @@
 #cmakedefine HAVE_VASPRINTF                  1
 #cmakedefine HAVE_WCRTOMB                    1
 #cmakedefine HAVE_WCSCOLL                    1
+
+#cmakedefine HAVE__STRDUP                    1
+#cmakedefine HAVE__STRICMP                   1
+#cmakedefine HAVE__STRNICMP                  1
+#cmakedefine HAVE_STRCASECMP                 1
+#cmakedefine HAVE_STRNCASECMP                1
 
 #endif /* __CONFIG_H__ */

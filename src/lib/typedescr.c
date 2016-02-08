@@ -19,6 +19,7 @@
 
 #include <config.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <core.h>
 #include <exception.h>
@@ -638,9 +639,6 @@ int typedescr_create_and_register(int type, char *type_name, vtable_t *vtable, m
 }
 
 typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[]) {
-  int ix;
-  int fnc_id;
-
   if (type -> vtable) {
     free(type -> vtable);
   }
@@ -793,7 +791,6 @@ methoddescr_t * typedescr_get_constructor(char *name) {
 methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   methoddescr_t *ret = NULL;
   int            ix;
-  int            iftype;
 
   assert(descr);
   if (type_debug) {

@@ -566,7 +566,7 @@ static const bitset_t utf8_sb_map =
 static void
 free_dfa_content (re_dfa_t *dfa)
 {
-  int i, j;
+  size_t i, j;
 
   if (dfa->nodes)
     for (i = 0; i < dfa->nodes_len; ++i)

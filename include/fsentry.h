@@ -20,6 +20,12 @@
 #ifndef __FSENTRY_H__
 #define __FSENTRY_H__
 
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#elif defined(HAVE_IO_H)
+#include <io.h>
+#endif /* HAVE_DIRENT_H / HAVE_IO_H */
+
 #ifdef  __cplusplus
 extern "C" {
 #endif /* __cplusplus */

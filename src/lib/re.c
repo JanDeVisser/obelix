@@ -21,12 +21,13 @@
 //#undef _GNU_SOURCE
 //#endif
 
+#include <stdio.h>
+#include <string.h>
+
 #include <data.h>
 #include <exception.h>
 #include <re.h>
 #include <typedescr.h>
-
-#include <stdio.h>
 
 static void     _regexp_init(void);
 static char *   _regexp_allocstring(re_t *);
@@ -126,8 +127,8 @@ data_t * _regexp_compile(re_t *re) {
   if (!re -> is_compiled) {
     if (retval = regcomp(&re -> compiled,
 			 str_chars(re -> pattern), re -> re_flags)) {
-      char msgbuf[str_len(re -> pattern)];
-      
+      char msgbuf[1000];
+
       regerror(retval, &re -> compiled, msgbuf, sizeof(msgbuf));
       debug("Error: %s", msgbuf);
       return data_exception(ErrorSyntax, msgbuf);
@@ -179,8 +180,6 @@ data_t * regexp_match(re_t *re, char *str) {
   char       *work = (char *) new(len + 1);
   array_t    *matches = data_array_create(4);
   data_t     *ret;
-  char        msgbuf[100];
-  int         retval;
 
   if (debug_regexp) {
     debug("%s .match(%s)", regexp_tostring(re), str);

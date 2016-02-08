@@ -47,7 +47,7 @@ OBLCORE_IMPEXP int    logging_set_level(log_level_t);
 #ifndef _MSC_VER
 #define debug(fmt, args...)          _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args)
 #else /* _MSC_VER */
-#define debug(fmt, ...)              _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
+#define debug(fmt, ...)              _logmsg(LogLevelDebug, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #endif /* _MSC_VER */
 #else /* NDEBUG */
 #define debug(fmt, ...)
@@ -55,13 +55,13 @@ OBLCORE_IMPEXP int    logging_set_level(log_level_t);
 
 #ifndef _MSC_VER
 #define info(fmt, args...)           _logmsg(LogLevelInfo, __FILE__, __LINE__, __func__, fmt, ## args)
-#define warning(fmt, args...)        _logmsg(LogLevelWarning, __FILE__, __LINE__, __func__, fmt, ## args)
+#define warn(fmt, args...)        _logmsg(LogLevelWarning, __FILE__, __LINE__, __func__, fmt, ## args)
 #define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, __func__, fmt, ## args)
 #define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); exit(-10); }
 #define oassert(value, fmt, args...) { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); assert(0); } }
 #else /* _MSC_VER */
 #define info(fmt, ...)               _logmsg(LogLevelInfo, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
-#define warning(fmt, ...)            _logmsg(LogLevelWarning, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+#define warn(fmt, ...)            _logmsg(LogLevelWarning, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define error(fmt, ...)              _logmsg(LogLevelError, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define fatal(fmt, ...)              { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__); exit(-10); }
 #define oassert(value, fmt, ...)     { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__); assert(0); } }

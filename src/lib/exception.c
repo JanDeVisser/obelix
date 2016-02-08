@@ -28,7 +28,6 @@
 #include <name.h>
 #include <str.h>
 
-static code_label_t  builtin_exceptions[];
 static int           num_exceptions;
 static code_label_t *exceptions;
 
@@ -113,7 +112,6 @@ exception_t * exception_create(int code, char *msg, ...) {
 }
 
 exception_t * exception_vcreate(int code, char *msg, va_list args) {
-  int          size;
   exception_t *ret;
 
   ret = data_new(Exception, exception_t);

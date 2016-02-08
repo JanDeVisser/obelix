@@ -242,7 +242,6 @@ name_t * datastack_rollup_name(datastack_t *stack) {
   int      ix;
   data_t  *data;
   name_t  *ret;
-  char    *str;
 
   arr = datastack_rollup(stack);
   ret = name_create(0);

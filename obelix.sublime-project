@@ -2,16 +2,16 @@
 	"folders":
 	[
 		{
-			"path": "src"
-		},
-		{
 			"path": "include"
 		},
 		{
-			"path": "share"
+			"path": "src"
 		},
 		{
 			"path": "."
+		},
+		{
+			"path": "build"
 		}
 	]
 }

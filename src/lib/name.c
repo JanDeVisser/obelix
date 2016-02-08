@@ -312,8 +312,8 @@ int name_startswith(name_t *name, name_t *start) {
       if (cmp) {
         return FALSE;
       }
-      return TRUE;
     }
+    return TRUE;
   }
 }
 

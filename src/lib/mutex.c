@@ -155,7 +155,7 @@ mutex_t * mutex_create() {
 }
 
 int mutex_cmp(mutex_t *m1, mutex_t *m2) {
-  return ((void *) m1) - ((void *) m2);
+  return ((char *) m1) - ((char *) m2);
 }
 
 unsigned int mutex_hash(mutex_t *mutex) {
@@ -314,7 +314,7 @@ condition_t * condition_create() {
 }
 
 int condition_cmp(condition_t *c1, condition_t *c2) {
-  return ((void *) c1) - ((void *) c2);
+  return ((char *) c1) - ((char *) c2);
 }
 
 unsigned int condition_hash(condition_t *condition) {

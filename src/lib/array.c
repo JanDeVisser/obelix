@@ -39,7 +39,6 @@ static array_t * _array_append(array_t *, void *);
 int _array_resize(array_t *array, int mincap) {
   void **newcontents;
   int    newcap;
-  int    i;
 
   mincap = (mincap > 0) ? mincap : ARRAY_DEF_CAPACITY;
   if (mincap <= array -> capacity) {
@@ -159,7 +158,7 @@ array_t * array_split(char *str, char *sep) {
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     int len = sepptr - ptr;
     c = (char *) new(len + 1);
-    strncpy(c, ptr, len);
+    strcpy(c, ptr);
     c[len] = 0;
     array_push(ret, c);
     ptr = sepptr + seplen;

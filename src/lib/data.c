@@ -125,17 +125,18 @@ data_t * data_parse(int type, char *str) {
 }
 
 data_t * data_decode(char *encoded) {
-  char         cpy[(encoded && encoded[0]) ? strlen(encoded) + 1 : 0];
+  char        *cpy;
   char        *ptr;
   typedescr_t *type;
   data_t      *ret = NULL;
 
   _data_init();
   if (!encoded || !encoded[0]) return NULL;
+  cpy = (char *) new(strlen(encoded) + 1);
   strcpy(cpy, encoded);
   ptr = strchr(cpy, ':');
   if (!ptr) {
-    return (data_t *) str_copy_chars(encoded);
+    ret = (data_t *) str_copy_chars(encoded);
   } else {
     *ptr = 0;
     type = typedescr_get_byname(cpy);
@@ -145,8 +146,9 @@ data_t * data_decode(char *encoded) {
     if (!ret) {
       ret = (data_t *) str_copy_chars(encoded);
     }
-    return ret;
   }
+  free(cpy);
+  return ret;
 }
 
 data_t * data_cast(data_t *data, int totype) {
@@ -154,7 +156,6 @@ data_t * data_cast(data_t *data, int totype) {
   typedescr_t *totype_descr;
   cast_t       cast;
   tostring_t   tostring;
-  void_t       parse;
 
   assert(data);
   if (data_type(data) == totype) {

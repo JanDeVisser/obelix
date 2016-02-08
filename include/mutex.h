@@ -49,7 +49,7 @@ typedef struct _condition {
   mutex_t           *mutex;
 #ifdef HAVE_PTHREAD_H
   pthread_cond_t     condition;
-#elif defined(HAVE_CREATEMUTEX)
+#elif defined(HAVE_INITIALIZECRITICALSECTION)
   CONDITION_VARIABLE condition;
 #endif
 } condition_t;

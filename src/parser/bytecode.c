@@ -125,7 +125,7 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
   instruction_t *instr = data_as_instruction(instruction);
 
   if (bytecode_debug) {
-    warning("Instruction '%s'", data_tostring(instruction));
+    warn("Instruction '%s'", data_tostring(instruction));
   }
   last = list_tail(bytecode -> instructions);
   line = (last) ? data_as_instruction(last) -> line : -1;

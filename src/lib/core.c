@@ -39,6 +39,7 @@ typedef struct _memmonitor {
   int     count;
 } memmonitor_t;
 
+static inline void _initialize_random(void);
 static void    _outofmemory(int);
 
 #ifdef NDEBUG
@@ -85,7 +86,7 @@ void * resize_block(void *block, int newsz, int oldsz) {
     if (newsz && !ret) {
       _outofmemory(newsz);
     } else if (oldsz) {
-      memset(ret + oldsz, 0, newsz - oldsz);
+      memset((char *) ret + oldsz, 0, newsz - oldsz);
     }
   } else {
     ret = _new(newsz);
@@ -130,9 +131,9 @@ int vasprintf(char **strp, const char *fmt, va_list args) {
 #endif 
 
 unsigned int hash(void *buf, size_t size) {
-  int hash = 5381;
-  int i;
-  int c;
+  int            hash = 5381;
+  size_t         i;
+  int            c;
   unsigned char *data = (unsigned char *) buf;
 
   for (i = 0; i < size; i++) {
@@ -215,7 +216,9 @@ int strtoint(char *str, long *val) {
 #endif
 char * oblcore_itoa(long i) {
   static char buf[20];
-#ifdef HAVE_ITOA
+#ifdef HAVE__ITOA
+  _itoa(i, buf, 10);
+#elif defined(HAVE_ITOA)
   itoa(i, buf, 10);
 #else
   sprintf(buf, "%ld", i);
@@ -229,21 +232,42 @@ char * oblcore_dtoa(double d) {
   return buf;
 }
 
-static int rand_initialized = 0;
-static char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY";
-static int my_seed = 3425674;
+static int          rand_initialized = 0;
+static char         charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY";
+static unsigned int my_seed = 3425674;
 
-void initialize_random(void) {
+void _initialize_random(void) {
   if (!rand_initialized++) {
-    srand(time(NULL) + my_seed);
+    srand((unsigned int) time(NULL) + my_seed);
   }
 }
+
+#if !defined(HAVE_STRCASECMP) && !defined(HAVE__STRICMP)
+int oblcore_strcasecmp(char *s1, char *s2) {
+  while (*s1 && (toupper(*s1) && toupper(*s2))) {
+    s1++;
+    s2++;
+  }
+  return toupper(*s1) - toupper(*s2);
+}
+#endif /* !defined(HAVE_STRCASECMP) && !defined(HAVE__STRICMP) */
+
+#if !defined(HAVE_STRNCASECMP) && !defined(HAVE__STRNICMP)
+int oblcore_strncasecmp(char *s1, char *s2, size_t n) {
+  while (n && *s1 && (toupper(*s1) && toupper(*s2))) {
+    n--;
+    s1++;
+    s2++;
+  }
+  return toupper(*s1) - toupper(*s2);
+}
+#endif /* !defined(HAVE_STRNCASECMP) && !defined(HAVE__STRNICMP) */
 
 char * strrand(char *buf, size_t numchars) {
   size_t n;
   int key;
   
-  initialize_random();
+  _initialize_random();
   if (numchars) {
     if (!buf) {
       buf = (char *) _new(numchars + 1);

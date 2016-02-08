@@ -29,8 +29,8 @@ typedef struct _resolve {
   dict_t  *functions;
 } resolve_t;
 
-OBLCORE_IMPEXP resolve_t * resolve_get();
-OBLCORE_IMPEXP void        resolve_free();
+OBLCORE_IMPEXP resolve_t * resolve_get(void);
+OBLCORE_IMPEXP void        resolve_free(void);
 OBLCORE_IMPEXP resolve_t * resolve_open(resolve_t *, char *);
 OBLCORE_IMPEXP void_t      resolve_resolve(resolve_t *, char *);
 

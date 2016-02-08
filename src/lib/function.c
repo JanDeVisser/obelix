@@ -111,7 +111,6 @@ function_t * function_create(char *name, void_t fnc) {
 
 function_t * function_create_noresolve(char *name) {
   function_t *ret;
-  name_t     *n;
 
   _function_init();
   assert(name);
@@ -180,9 +179,9 @@ function_t * function_resolve(function_t *fnc) {
         error("Error resolving function '%s': %s",
               name_tostring(fnc -> name), strerror(errno));
       } else if (function_debug) {
-	error("Could not resolve function '%s'",
-	      name_tostring_sep(fnc -> name, ":"),
-	      strerror(errno));
+	       error("Could not resolve function '%s'",
+	             name_tostring_sep(fnc -> name, ":"),
+	             strerror(errno));
       }
     }
   }

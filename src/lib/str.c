@@ -32,7 +32,7 @@
 extern void         str_init(void);
 
 static str_t *      _str_initialize(void);
-static str_t *      _str_expand(str_t *, int);
+static str_t *      _str_expand(str_t *, size_t);
 static reduce_ctx * _str_join_reducer(char *, reduce_ctx *);
 
 static data_t * _str_create(int, va_list);
@@ -178,10 +178,10 @@ data_t * _str_create(int type, va_list args) {
   return (data_t *) str_copy_chars(va_arg(args, char *));
 }
 
-str_t * _str_expand(str_t *str, int targetlen) {
-  int newsize;
-  char *oldbuf;
-  str_t *ret = str;
+str_t * _str_expand(str_t *str, size_t targetlen) {
+  size_t  newsize;
+  char   *oldbuf;
+  str_t  *ret = str;
 
   if (str -> bufsize < (targetlen + 1)) {
     for (newsize = str -> bufsize * 2; newsize < (targetlen + 1); newsize *= 2);
@@ -200,7 +200,7 @@ str_t * _str_expand(str_t *str, int targetlen) {
 
 reduce_ctx * _str_join_reducer(char *elem, reduce_ctx *ctx) {
   str_t *target;
-  char *glue;
+  char  *glue;
 
   target = (str_t *) ctx -> data;
   glue = (char *) ctx -> user;
@@ -211,7 +211,7 @@ reduce_ctx * _str_join_reducer(char *elem, reduce_ctx *ctx) {
 
 /* -- S T R _ T   P U B L I C   F U N C T I O N S ------------------------- */
 
-str_t * str_create(int size) {
+str_t * str_create(size_t size) {
   str_t *ret;
 
   ret = _str_initialize();
@@ -234,8 +234,8 @@ str_t * str_wrap(char *buffer) {
 }
 
 str_t * str_printf(char *fmt, ...) {
-  str_t *ret;
-  va_list args;
+  str_t   *ret;
+  va_list  args;
 
   va_start(args, fmt);
   ret = str_vprintf(fmt, args);
@@ -245,7 +245,6 @@ str_t * str_printf(char *fmt, ...) {
 
 str_t * str_vprintf(char *fmt, va_list args) {
   str_t *ret;
-  char *b;
 
   ret = _str_initialize();
   if (ret) {
@@ -260,9 +259,9 @@ str_t * str_copy_chars(char *buffer) {
   return str_copy_nchars(buffer, strlen(buffer));
 }
 
-str_t * str_copy_nchars(char *buffer, int len) {
+str_t * str_copy_nchars(char *buffer, size_t len) {
   str_t *ret;
-  char *b;
+  char  *b;
 
   len = (len <= strlen(buffer)) ? len : strlen(buffer);
   ret = _str_initialize();
@@ -310,7 +309,7 @@ char * str_reassign(str_t *str) {
   return ret;
 }
 
-int str_len(str_t *str) {
+size_t str_len(str_t *str) {
   return str -> len;
 }
 
@@ -318,7 +317,7 @@ char * str_chars(str_t *str) {
   return str -> buffer;
 }
 
-int str_at(str_t* str, int i) {
+int str_at(str_t* str, size_t i) {
   if (i < 0) {
     i = str -> len + i;
   }
@@ -337,11 +336,11 @@ int str_cmp_chars(str_t *s1, char *s2) {
   return strcmp(s1 -> buffer, s2);
 }
 
-int str_ncmp(str_t *s1, str_t *s2, int numchars) {
+int str_ncmp(str_t *s1, str_t *s2, size_t numchars) {
   return strncmp(s1 -> buffer, s2 -> buffer, numchars);
 }
 
-int str_ncmp_chars(str_t *s1, char *s2, int numchars) {
+int str_ncmp_chars(str_t *s1, char *s2, size_t numchars) {
   return strncmp(s1 -> buffer, s2, numchars);
 }
 
@@ -369,8 +368,8 @@ int str_rindexof(str_t *str, str_t *pattern) {
 }
 
 int str_rindexof_chars(str_t *str, char *pattern) {
-  char *ptr;
-  int len;
+  char   *ptr;
+  size_t  len;
 
   len = strlen(pattern);
   if (len > str -> len) {
@@ -385,7 +384,7 @@ int str_rindexof_chars(str_t *str, char *pattern) {
   }
 }
 
-int str_read(str_t *str, char *target, int num) {
+int str_read(str_t *str, char *target, size_t num) {
   if ((str -> pos + num) > str -> len) {
     num = str -> len - str -> pos;
   }
@@ -402,7 +401,7 @@ int str_readchar(str_t *str) {
   return (str -> pos < str -> len) ? str -> buffer[str -> pos++] : 0;
 }
 
-int str_pushback(str_t *str, int num) {
+int str_pushback(str_t *str, size_t num) {
   if (num > str -> pos) {
     num = str -> pos;
   }
@@ -412,7 +411,7 @@ int str_pushback(str_t *str, int num) {
 
 int str_readinto(str_t *str, data_t *rdr) {
   typedescr_t *type = data_typedescr(rdr);
-  read_t fnc;
+  read_t       fnc;
 
   fnc = (read_t) typedescr_get_function(type, FunctionRead);
   if (fnc) {
@@ -423,7 +422,7 @@ int str_readinto(str_t *str, data_t *rdr) {
 }
 
 int str_read_from_stream(str_t *str, void *stream, read_t reader) {
-  int ret;
+  size_t ret;
 
   str_erase(str);
   ret = reader(stream, str -> buffer, str -> bufsize);
@@ -438,11 +437,11 @@ int str_read_from_stream(str_t *str, void *stream, read_t reader) {
   }
 }
 
-int str_write(str_t *str, char *buf, int num) {
+int str_write(str_t *str, char *buf, size_t num) {
   return (str_append_nchars(str, buf, num)) ? num : -1;
 }
 
-str_t * str_set(str_t* str, int i, int ch) {
+str_t * str_set(str_t* str, size_t i, int ch) {
   str_t *ret = NULL;
 
   if (str -> bufsize) {
@@ -459,9 +458,9 @@ str_t * str_set(str_t* str, int i, int ch) {
 }
 
 str_t * str_forcecase(str_t *str, int upper) {
-  int len = str_len(str);
-  int c;
-  int ix;
+  size_t len = str_len(str);
+  int    c;
+  size_t ix;
 
   for (ix = 0; ix < len; ix++) {
     c = str_at(str, ix);
@@ -487,9 +486,8 @@ str_t * str_append_chars(str_t *str, char *other) {
   return str_append_nchars(str, other, strlen(other));
 }
 
-str_t * str_append_nchars(str_t *str, char *other, int n) {
-  va_list args;
-  str_t *ret = NULL;
+str_t * str_append_nchars(str_t *str, char *other, size_t n) {
+  str_t   *ret = NULL;
 
   if (other && _str_expand(str, str_len(str) + n + 1)) {
     strncat(str -> buffer, other, n);
@@ -502,8 +500,8 @@ str_t * str_append_nchars(str_t *str, char *other, int n) {
 }
 
 str_t * str_append_printf(str_t *str, char *other, ...) {
-  va_list args;
-  str_t *ret;
+  va_list  args;
+  str_t   *ret;
 
   va_start(args, other);
   ret = str_append_vprintf(str, other, args);
@@ -512,9 +510,9 @@ str_t * str_append_printf(str_t *str, char *other, ...) {
 }
 
 str_t * str_append_vprintf(str_t *str, char *other, va_list args) {
-  str_t *ret = NULL;
-  char *b = NULL;
-  int len = 0;
+  str_t  *ret = NULL;
+  char   *b = NULL;
+  size_t  len = 0;
 
   if (str -> bufsize) {
     len = vasprintf(&b, other, args);
@@ -543,7 +541,7 @@ str_t * str_append(str_t *str, str_t *other) {
   return ret;
 }
 
-str_t * str_chop(str_t *str, int num) {
+str_t * str_chop(str_t *str, size_t num) {
   str_t *ret = NULL;
 
   if (str -> bufsize) {
@@ -559,7 +557,7 @@ str_t * str_chop(str_t *str, int num) {
   return ret;
 }
 
-str_t * str_lchop(str_t *str, int num) {
+str_t * str_lchop(str_t *str, size_t num) {
   str_t *ret = NULL;
 
   if (str -> bufsize) {
@@ -589,7 +587,7 @@ str_t * str_erase(str_t *str) {
 }
 
 str_t * _str_join(char *glue, void *collection, obj_reduce_t reducer) {
-  str_t *ret;
+  str_t      *ret;
   reduce_ctx *ctx;
 
   ret = str_create(0);
@@ -602,9 +600,9 @@ str_t * _str_join(char *glue, void *collection, obj_reduce_t reducer) {
   return ret;
 }
 
-str_t * str_slice(str_t *str, int from, int upto) {
-  str_t *ret;
-  int len;
+str_t * str_slice(str_t *str, size_t from, size_t upto) {
+  str_t  *ret;
+  size_t  len;
 
   if (from < 0) {
     from = 0;
@@ -621,19 +619,19 @@ str_t * str_slice(str_t *str, int from, int upto) {
 }
 
 array_t * str_split(str_t *str, char *sep) {
-  char *ptr;
-  char *sepptr;
+  char    *ptr;
+  char    *sepptr;
   array_t *ret;
-  str_t *c;
+  str_t   *c;
 
   ret = array_create(4);
   array_set_free(
-                 array_set_hash(
-                                array_set_tostring(
-                                                   array_set_cmp(ret, (cmp_t) str_cmp),
-                                                   (tostring_t) str_chars),
-                                (hash_t) str_hash),
-                 (free_t) _str_free);
+    array_set_hash(
+      array_set_tostring(
+        array_set_cmp(ret, (cmp_t) str_cmp),
+        (tostring_t) str_chars),
+      (hash_t) str_hash),
+    (free_t) _str_free);
 
   if (str_len(str)) {
     ptr = str -> buffer;
@@ -649,15 +647,15 @@ array_t * str_split(str_t *str, char *sep) {
 }
 
 str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
-  char *ptr;
-  char *specstart;
-  long ix;
-  str_t *ret = str_create(strlen(fmt));
-  char buf[_DEFAULT_SIZE];
-  int bufsize = _DEFAULT_SIZE;
-  char *bigbuf = NULL;
-  char *spec = buf;
-  int len;
+  char   *ptr;
+  char   *specstart;
+  long    ix;
+  str_t  *ret = str_create(strlen(fmt));
+  char    buf[_DEFAULT_SIZE];
+  size_t  bufsize = _DEFAULT_SIZE;
+  char   *bigbuf = NULL;
+  char   *spec = buf;
+  size_t  len;
 
   for (ptr = fmt; *ptr; ptr++) {
     if (!strncmp(ptr, "${", 2)) {
@@ -698,13 +696,13 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
 
 str_t * str_vformatf(char *fmt, va_list args) {
   array_t *arr;
-  char *f = fmt;
-  char *ptr;
-  int ix;
-  int num = 0;
-  char needle[32];
-  str_t *ret;
-  int done;
+  char    *f = fmt;
+  char    *ptr;
+  int      ix;
+  int      num = 0;
+  char     needle[32];
+  str_t   *ret;
+  int      done;
 
   if (!strstr(fmt, "${")) {
     return str_copy_chars(fmt);
@@ -784,14 +782,15 @@ data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *from = data_array_get(args, 0);
   data_t *to = data_array_get(args, 1);
-  int len = strlen(data_tostring(self));
-  int i;
-  int j;
-  char buf[len + 1];
+  data_t *ret;
+  size_t  len = strlen(data_tostring(self));
+  size_t  i;
+  size_t  j;
+  char   *buf;
 
   /* FIXME: second argument (to) is optional; ommiting it gives you the tail */
-  i = data_intval(from);
-  j = data_intval(to);
+  i = (size_t) data_intval(from);
+  j = (size_t) data_intval(to);
   if (j <= 0) {
     j = len + j;
   }
@@ -810,9 +809,12 @@ data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) 
                           j, i + 1, len);
   } else {
     // FIXME --- Or at least check me.
+    buf = (char *) _new(len + 1);
     strncpy(buf, data_tostring(self) + i, j - i);
     buf[j - i] = 0;
-    return str_to_data(buf);
+    ret = str_to_data(buf);
+    free(buf);
+    return ret;
   }
 }
 
@@ -887,12 +889,11 @@ data_t * _string_concat(data_t *self, char *name, array_t *args, dict_t *kwargs)
 }
 
 data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  char *s = data_tostring(self);
-  str_t *ret = str_copy_chars(s);
-  int len = str_len(ret);
-  int numval = data_intval(data_array_get(args, 0));
-  int ix;
-  char *buf;
+  char   *s = data_tostring(self);
+  str_t  *ret = str_copy_chars(s);
+  size_t  len = str_len(ret);
+  int     numval = data_intval(data_array_get(args, 0));
+  int     ix;
 
   len *= numval;
   if (len < 0) {
@@ -909,7 +910,7 @@ data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs)
 data_t * _string_split(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   array_t *split = array_split(data_tostring(self),
                                data_tostring(data_array_get(args, 0)));
-  data_t *ret = data_str_array_to_list(split);
+  data_t  *ret = data_str_array_to_list(split);
 
   array_free(split);
   return ret;

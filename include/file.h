@@ -44,7 +44,7 @@ typedef struct _stream {
   read_t     reader;
   write_t    writer;
   int        _eof;
-  int        _errno;;
+  int        _errno;
   char      *error;
 } stream_t;
 
@@ -108,7 +108,11 @@ OBLCORE_IMPEXP int          File;
 #define file_readline(f)           (stream_readline((stream_t *) (f)))
 #define file_print(s, f, a, kw)    (stream_print((stream_t *) (s), (f), (a), (kw)))
 #define file_vprintf(s, f, args)   (stream_printf((stream_t *) (s), (f), args))
+#ifndef _MSC_VER
 #define file_printf(s, f, args...) (stream_printf((stream_t *) (s), (f), ## args))
+#else
+#define file_printf(s, ...)        (stream_printf((stream_t *) (s), __VA_ARGS__))
+#endif /* _MSC_VER */
 
 #ifdef __cplusplus
 }

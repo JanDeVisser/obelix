@@ -166,12 +166,12 @@ int _float_intvalue(flt_t *data) {
 data_t * _number_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t *d;
   int     ix;
-  double  retval = data_floatval(self);
+  double  retval;
   double  val;
   int     plus = (name[0] == '+') || !strcmp(name, "sum");
 
-  if (!array_size(args)) {
-    return int_to_data((plus) ? data_floatval(self) : -1.0 * data_floatval(self));
+  if (!args || !array_size(args)) {
+    return (plus) ? data_copy(self) : flt_to_data(-1.0 * data_floatval(self));
   }
   retval = ((flt_t *) self) -> dbl;
   for (ix = 0; ix < array_size(args); ix++) {

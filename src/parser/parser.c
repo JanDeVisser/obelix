@@ -258,7 +258,7 @@ data_t * _pse_execute_Action(parser_stack_entry_t *e, parser_t *parser, token_t 
 
   assert(action && action -> fnc && action -> fnc -> fnc);
   if (parser_debug) {
-    warning("Action '%s'", data_tostring(e -> subject));
+    warn("Action '%s'", data_tostring(e -> subject));
   }
   if (action -> data) {
     ret = ((parser_data_fnc_t) action -> fnc -> fnc)(parser, action -> data);
@@ -343,7 +343,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
   }
   parser -> last_token = token_copy(token);
   if (parser_debug) {
-    warning("== Last Token: %-35.35sLine %d Column %d",
+    warn("== Last Token: %-35.35sLine %d Column %d",
           token_tostring(parser -> last_token),
           parser -> last_token -> line,
           parser -> last_token -> column);

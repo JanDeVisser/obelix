@@ -17,10 +17,11 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif /* HAVE_UNISTD_H */
 
 #include <exception.h>
 #include <file.h>
@@ -60,10 +61,15 @@ int FSEntry = -1;
 /* ------------------------------------------------------------------------ */
 
 typedef struct _fsentry_iter {
-  data_t         _d;
-  fsentry_t     *dir;
-  DIR           *dirptr;
-  struct dirent *entryptr;
+  data_t              _d;
+  fsentry_t          *dir;
+#ifdef HAVE_DIRENT_H
+  DIR                *dirptr;
+  struct dirent      *entryptr;
+#elif HAVE__FINDFIRST
+  intptr_t            dirptr;
+  struct _finddata_t  entry;
+#endif /* HAVE_DIRENT_H / HAVE__FINDFIRST */
 } fsentry_iter_t;
 
 static fsentry_iter_t * _fsentry_iter_readnext(fsentry_iter_t *);
@@ -136,12 +142,12 @@ fsentry_t * fsentry_create(char *name) {
 }
 
 fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
+  char       n[_MAX_PATH];
+  fsentry_t *ret;
+
   if (!dir || !fsentry_isdir(dir) || !name) {
     return NULL;
   } else {
-    char       n[strlen(dir -> name) + strlen(name) + 2];
-    fsentry_t *ret;
-
     strcpy(n, dir -> name);
     if (n[strlen(n) - 1] != '/') {
       strcat(n, "/");
@@ -173,15 +179,15 @@ int fsentry_isdir (fsentry_t *e) {
 }
 
 int fsentry_canread(fsentry_t *e) {
-  return !access(e -> name, R_OK);
+  return !e -> exists && (e -> statbuf.st_mode & S_IREAD);
 }
 
 int fsentry_canwrite(fsentry_t *e) {
-  return !access(e -> name, W_OK);
+  return !e -> exists && (e -> statbuf.st_mode & S_IWRITE);
 }
 
 int fsentry_canexecute(fsentry_t *e) {
-  return !access(e -> name, X_OK);
+  return !e -> exists && (e -> statbuf.st_mode & S_IEXEC);
 }
 
 list_t * fsentry_getentries(fsentry_t *dir) {
@@ -212,23 +218,41 @@ file_t * fsentry_open(fsentry_t *e) {
 /* -- F S E N T R Y I T E R ----------------------------------------------- */
 
 fsentry_iter_t * _fsentry_iter_readnext(fsentry_iter_t *iter) {
+#ifdef HAVE_DIRENT_H
   iter -> entryptr = readdir(iter -> dirptr);
   if (!iter -> entryptr) {
     closedir(iter -> dirptr);
     iter -> dirptr = NULL;
+#elif defined(HAVE__FINDFIRST)
+  if (_findnext(iter -> dirptr, &iter -> entry)) {
+    _findclose(iter -> dirptr);
+    iter -> dirptr = 0;
+#endif
   }
   return iter;
 }
 
 fsentry_iter_t * _fsentry_iter_create(fsentry_t *dir) {
   fsentry_iter_t *ret = NULL;
+#ifdef HAVE_DIRENT_H
   DIR            *d;
+#elif defined(HAVE__FINDFIRST)
+  intptr_t            d;
+  struct _finddata_t *attrib;
+#endif
 
+#ifdef HAVE_DIRENT_H
   d = opendir(dir -> name);
-  if (d) {
+#elif defined(HAVE__FINDFIRST)
+  d =_findfirst("*.*", &attrib);
+#endif
+  if (d && ((long) d != -1L)) {
     ret = data_new(FSEntryIter, fsentry_iter_t);
     ret -> dir = dir;
     ret -> dirptr = d;
+#ifdef HAVE__FINDFIRST
+    memcpy(ret -> entryptr, &attrib, sizeof(struct _filedata));
+#endif
     ret = _fsentry_iter_readnext(ret);
   }
   return ret;

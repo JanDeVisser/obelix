@@ -384,7 +384,6 @@ data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   data_t *from;
   data_t *to;
   int     infix = !strcmp(name, "~");
-  data_t *ret;
 
   if (debug_data) {
     debug("_range_create");

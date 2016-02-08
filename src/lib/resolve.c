@@ -47,13 +47,11 @@ void _resolve_init(void) {
     _singleton = NEW(resolve_t);
 
     _singleton -> images = list_create();
-    list_set_free(_singleton -> images,
 #ifdef HAVE_DLFCN_H
-                  (free_t) dlclose
+    list_set_free(_singleton -> images, (free_t) dlclose);
 #elif defined(HAVE_WINDOWS_H)
-                  (free_t) FreeLibrary
+    list_set_free(_singleton -> images, (free_t) FreeLibrary);
 #endif /* HAVE_DLFCN_H */
-    );
     _singleton -> functions = strvoid_dict_create();
     main = resolve_open(_singleton, NULL);
     if (!main) {
@@ -69,7 +67,6 @@ void _resolve_init(void) {
 
 char * _resolve_rewrite_image(char *image, char *buf) {
   int   len;
-  int   ix;
   char  canonical_buf[MAX_PATH + 1];
   char *ptr;
   char *canonical;
@@ -106,12 +103,12 @@ char * _resolve_rewrite_image(char *image, char *buf) {
   return buf;
 }
 
-resolve_t * resolve_get() {
+resolve_t * resolve_get(void) {
   _resolve_init();
   return _singleton;
 }
 
-void resolve_free() {
+void resolve_free(void) {
   if (_singleton) {
     if (resolve_debug) {
       debug("resolve_free");
@@ -163,7 +160,6 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
 }
 
 void_t resolve_resolve(resolve_t *resolve, char *func_name) {
-  listiterator_t *iter;
   void           *handle;
   void_t          ret;
 

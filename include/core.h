@@ -25,9 +25,13 @@
 #include <stdarg.h>
 #include <logging.h>
 
+#ifdef  __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 #define TRUE          1
 #define FALSE         0
-#define NEW(t)        ( (t *) new( sizeof(t) ) )
+#define NEW(t)        ( (t *) _new( sizeof(t) ) )
 #define NEWARR(n, t)  ( (t *) new_array((n), sizeof(t)))
 
 typedef struct _code_label {
@@ -106,14 +110,47 @@ OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 
 #define new(i)         (_new((i)))
 
+#ifdef HAVE__STRDUP
+#define strdup _strdup
+#endif
+
 #ifdef itoa
 #undef itoa
 #endif
 #define itoa(i)        (oblcore_itoa((i)))
 
-#ifdef dtoa
-#undef dtoa
-#endif
+#ifdef HAVE__DTOA
+#define dtoa _dtoa
+#else
+#ifndef HAVE_DTOA
 #define dtoa(i)        (oblcore_dtoa((i)))
+#endif /* !HAVE_DTOA */
+#endif /* HAVE__DTOA */
+
+#ifndef HAVE_STRCASECMP
+#ifdef HAVE__STRICMP
+#define strcasecmp _stricmp 
+#else
+#define strcasecmp oblcore_strcasecmp
+OBLCORE_IMPEXP int oblcore_strcasecmp(char *, char *);
+#endif /* HAVE__STRICMP */
+#endif /* HAVE_STRCASECMP */
+
+#ifndef HAVE_STRNCASECMP
+#ifdef HAVE__STRNICMP
+#define strncasecmp _strnicmp 
+#else
+#define strncasecmp oblcore_strncasecmp
+OBLCORE_IMPEXP int oblcore_strncasecmp(char *, char *, size_t);
+#endif /* HAVE__STRNICMP */
+#endif /* HAVE_STRNCASECMP */
+
+#ifndef HAVE__MAX_PATH
+#define _MAX_PATH     512
+#endif
+
+#ifdef  __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* __CORE_H__ */

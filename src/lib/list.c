@@ -205,7 +205,6 @@ void * __list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t t
   free_t      f;
   listnode_t *node;
   void       *elem;
-  listnode_t *next;
 
   f = (type == RTStrs) ? (free_t) data_free : NULL;
   node = list_head_pointer(list);
@@ -392,7 +391,6 @@ int list_atend(list_t *list) {
 list_t * list_split(list_t *list) {
   listnode_t *start = li_pointer(&list -> iter);
   listnode_t *end = list -> tail.prev;
-  listnode_t *w;
   list_t     *ret = list_create();
   int         count = 0;
 

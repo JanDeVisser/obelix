@@ -18,6 +18,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include <core.h>
 #include <dict.h>
@@ -216,7 +217,6 @@ void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, co
 
 int logging_status(char *category) {
   logcategory_t *cat;
-  int            ret;
 
   if (!_categories) {
     _logging_init();
