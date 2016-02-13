@@ -58,12 +58,15 @@ void _function_init(void) {
 
 char * _function_allocstring(function_t *fnc) {
   char *buf;
+  char *params;
 
+  params = (fnc -> params && array_size(fnc -> params))
+    ? array_tostring(fnc -> params)
+    : NULL;
   asprintf(&buf, "%s(%s)",
 	   name_tostring_sep(fnc -> name, ":"),
-	   ((fnc -> params && array_size(fnc -> params))
-	    ? array_tostring(fnc -> params)
-	    : ""));
+	   ((params) ? params : ""));
+  free(params);
   return buf;
 }
 
@@ -116,7 +119,6 @@ function_t * function_create_noresolve(char *name) {
   assert(name);
   ret = data_new(Function, function_t);
   ret -> params = NULL;
-  ret -> name = name_create(1, name);
   ret -> type = STNone;
   ret -> name = name_split(name, ":");
   return ret;

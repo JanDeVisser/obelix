@@ -60,6 +60,7 @@ void _vm_free(vm_t *vm) {
     bytecode_free(vm -> bytecode);
     datastack_free(vm -> contexts);
     datastack_free(vm -> stack);
+    data_free(vm -> exception);
   }
 }
 
@@ -165,7 +166,6 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
                                data_tostring(ret));
       ex = data_as_exception(ex_data);
     }
-    data_free(ret);
     if (ex) {
       ex -> trace = (data_t *) stacktrace_create();
       instruction_trace("Throws", "%s", exception_tostring(ex));
@@ -178,8 +178,10 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
           node = ProcessEnd;
         }
       }
+      exception_free(ex);
     }
   }
+  data_free(ret);
   if (label) {
     if (script_debug) {
       debug("  Jumping to '%s'", label);

@@ -89,6 +89,7 @@ OBLCORE_IMPEXP data_t *            data_cast(data_t *, int);
 OBLCORE_IMPEXP data_t *            data_promote(data_t *);
 OBLCORE_IMPEXP data_t *            data_parse(int, char *);
 OBLCORE_IMPEXP data_t *            data_decode(char *);
+OBLCORE_IMPEXP char *              data_encode(data_t *, char *, size_t);
 OBLCORE_IMPEXP void                data_free(data_t *);
 OBLCORE_IMPEXP int                 data_hastype(data_t *, int);
 OBLCORE_IMPEXP struct _typedescr * data_typedescr(data_t *);

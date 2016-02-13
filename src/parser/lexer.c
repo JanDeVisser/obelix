@@ -253,6 +253,7 @@ kw_matches_t * _kw_matches_match_reducer(token_t *kw_token, kw_matches_t *kw_mat
 kw_matches_t * _kw_matches_match(kw_matches_t *kw_matches, str_t *token) {
   kw_match_state_t state = kw_matches -> state;
 
+  str_free(kw_matches -> token);
   kw_matches -> token = str_deepcopy(token);
   kw_matches -> code = TokenCodeNone;
   kw_matches -> matches = 0;
@@ -305,12 +306,17 @@ kw_matches_t * _kw_matches_reset(kw_matches_t *kw_matches) {
 /* -- L E X  E R  D A T A  F U N C T I O N S ------------------------------ */
 
 void _lexer_free(lexer_t *lexer) {
+  int ix;
+  
   if (lexer) {
     token_free(lexer -> last_token);
     list_free(lexer -> keywords);
     str_free(lexer -> token);
     str_free(lexer -> pushed_back);
     str_free(lexer -> buffer);
+    for (ix = 0; ix < LexerOptionLAST; ix++) {
+      data_free(lexer -> options[ix]);
+    }
   }
 }
 
@@ -336,7 +342,7 @@ data_t * _lexer_keyword_list(lexer_t *lexer) {
 
 data_t * _lexer_resolve_option(lexer_t *lexer, char *name) {
   int opt = code_for_label(lexer_option_labels, name);
-  return (opt >= 0) ? int_to_data(lexer_get_option(lexer, opt)) : NULL;
+  return (opt >= 0) ? data_copy(lexer_get_option(lexer, opt)) : NULL;
 }
 
 data_t * _lexer_resolve(lexer_t *lexer, char *name) {
@@ -541,7 +547,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
   list_t         *matches;
   listiterator_t *iter;
 
-  ignore_nl = lexer_get_option(lexer, LexerOptionIgnoreNewLines);
+  ignore_nl = data_intval(lexer_get_option(lexer, LexerOptionIgnoreNewLines));
   _lexer_update_location(lexer, ch);
   str_append_char(lexer -> token, ch);
   code = TokenCodeNone;
@@ -566,8 +572,8 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
           lexer -> state = LexerStateWhitespace;
         } else if (isalpha(ch) || (ch == '_')) {
           lexer -> state = LexerStateIdentifier;
-        } else if (lexer_get_option(lexer, LexerOptionSignedNumbers) &&
-                   ((ch == '-') || (ch == '+'))) {
+        } else if (((ch == '-') || (ch == '+')) && 
+                   data_intval(lexer_get_option(lexer, LexerOptionSignedNumbers))) {
           lexer -> quote = ch;
           lexer -> state = LexerStatePlusMinus;
         } else if (ch == '0') {
@@ -581,7 +587,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
           lexer -> state = LexerStateSlash;
         } else if ((ch == '#') && ((lexer -> line == 1) &&
                    (lexer -> column == 1)) &&
-                   lexer_get_option(lexer, LexerOptionHashPling)) {
+                   data_intval(lexer_get_option(lexer, LexerOptionHashPling))) {
           lexer -> state = LexerStateHashPling;
         } else if (ch > 0) {
           code = ch;
@@ -800,9 +806,9 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
 }
 
 int _lexer_accept(lexer_t *lexer, token_t *token) {
-  long ignore_all_ws = lexer_get_option(lexer, LexerOptionIgnoreAllWhitespace);
-  long ignore_ws = ignore_all_ws || lexer_get_option(lexer, LexerOptionIgnoreWhitespace);
-  long ignore_nl = ignore_all_ws || lexer_get_option(lexer, LexerOptionIgnoreNewLines);
+  long ignore_all_ws = data_intval(lexer_get_option(lexer, LexerOptionIgnoreAllWhitespace));
+  long ignore_ws = ignore_all_ws || data_intval(lexer_get_option(lexer, LexerOptionIgnoreWhitespace));
+  long ignore_nl = ignore_all_ws || data_intval(lexer_get_option(lexer, LexerOptionIgnoreNewLines));
 
   if (!token) {
     return 1;
@@ -818,10 +824,13 @@ int _lexer_accept(lexer_t *lexer, token_t *token) {
 }
 
 lexer_t * _lexer_on_newline(lexer_t *lexer, int line) {
+  data_t      *on_newline_opt;
   function_t  *fnc;
   newline_fnc  on_newline;
 
-  if (fnc = (function_t *) lexer_get_option(lexer, LexerOptionOnNewLine)) {
+  on_newline_opt = lexer_get_option(lexer, LexerOptionOnNewLine);
+  if (data_is_function(on_newline_opt)) {
+    fnc = (function_t *) on_newline_opt;
     on_newline = (newline_fnc) fnc -> fnc;
     return on_newline(lexer, line);
   } else {
@@ -846,7 +855,7 @@ lexer_t * lexer_create(data_t *reader) {
   ret -> column = 0;
   ret -> prev_char = 0;
   for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
-    lexer_set_option(ret, ix, 0L);
+    lexer_set_option(ret, ix, data_false());
   }
   ret -> keywords = list_create();
   list_set_free(ret -> keywords, (free_t) data_free);
@@ -854,12 +863,12 @@ lexer_t * lexer_create(data_t *reader) {
   return ret;
 }
 
-lexer_t * lexer_set_option(lexer_t *lexer, lexer_option_t option, intptr_t value) {
-  lexer -> options[(int) option] = value;
+lexer_t * lexer_set_option(lexer_t *lexer, lexer_option_t option, data_t *value) {
+  lexer -> options[(int) option] = data_copy(value);
   return lexer;
 }
 
-intptr_t lexer_get_option(lexer_t *lexer, lexer_option_t option) {
+data_t * lexer_get_option(lexer_t *lexer, lexer_option_t option) {
   return lexer -> options[(int) option];
 }
 

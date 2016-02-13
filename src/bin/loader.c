@@ -172,6 +172,7 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
       fsentry_free(init);
     }
   } else {
+    fsentry_free(e);
     strcat(fname, ".obl");
     e = fsentry_create(fname);
   }
@@ -443,7 +444,7 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, dat
   }
   parser_clear(loader -> parser);
   parser_set(loader -> parser, "module", (data_t *) mod_copy(mod));
-  name = strdup((name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__");
+  name = (name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__";
   parser_set(loader -> parser, "name", str_to_data(name));
   parser_set(loader -> parser, "options", data_create_list(loader -> options));
   ret = parser_parse(loader -> parser, reader);
@@ -513,6 +514,7 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
   } else {
     data = (sys) ? sys : data_exception(ErrorName, "Could not resolve module 'sys'");
   }
+  data_thread_clear_exit_code();
   if (script_debug) {
     debug("scriptloader_run(%s) = %s", name_tostring(name), data_tostring(data));
   }

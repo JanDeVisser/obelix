@@ -86,6 +86,7 @@ OBLCORE_IMPEXP data_t *      data_thread_set_kernel(data_t *);
 OBLCORE_IMPEXP data_t *      data_thread_kernel(void);
 OBLCORE_IMPEXP data_t *      data_thread_set_exit_code(data_t *);
 OBLCORE_IMPEXP data_t *      data_thread_exit_code(void);
+OBLCORE_IMPEXP void          data_thread_clear_exit_code(void);
 
 OBLCORE_IMPEXP int Thread;
 OBLCORE_IMPEXP int thread_debug;

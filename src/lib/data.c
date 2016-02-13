@@ -151,6 +151,22 @@ data_t * data_decode(char *encoded) {
   return ret;
 }
 
+char * data_encode(data_t *data, char *buf, size_t sz) {
+  typedescr_t *type;
+  char        *str;
+  size_t       len;
+  
+  type = data_typedescr(data);
+  str = data_tostring(data);
+  if (!buf) {
+    len = strlen(str) + strlen(type -> type_name) + 1;
+    buf = stralloc(len);
+    sz = len + 1;
+  }
+  snprintf(buf, sz, "%s:%s", type -> type_name, str);
+  return buf;
+}
+
 data_t * data_cast(data_t *data, int totype) {
   typedescr_t *descr;
   typedescr_t *totype_descr;

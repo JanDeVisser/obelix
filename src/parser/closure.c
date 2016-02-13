@@ -141,6 +141,7 @@ data_t * _closure_eval(closure_t *closure, bytecode_t *bytecode) {
       ret = (data_t *) exception_copy(e);
       break;
   }
+  vm_free(vm);
   return ret;
 }
 

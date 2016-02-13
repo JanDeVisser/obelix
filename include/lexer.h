@@ -82,7 +82,7 @@ typedef struct _lexer {
   data_t              _d;
   data_t             *reader;
   list_t             *keywords;
-  intptr_t            options[LexerOptionLAST];
+  data_t             *options[LexerOptionLAST];
   str_t              *buffer;
   str_t              *pushed_back;
   str_t              *token;
@@ -100,8 +100,8 @@ extern char *       lexer_state_name(lexer_state_t);
 extern char *       lexer_option_name(lexer_option_t);
 
 extern lexer_t *    lexer_create(data_t *);
-extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, intptr_t);
-extern intptr_t     lexer_get_option(lexer_t *, lexer_option_t);
+extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, data_t *);
+extern data_t *     lexer_get_option(lexer_t *, lexer_option_t);
 extern lexer_t *    lexer_add_keyword(lexer_t *, int, char *);
 extern void         lexer_free(lexer_t *);
 extern void *       _lexer_tokenize(lexer_t *, reduce_t, void *);

@@ -109,6 +109,7 @@ OBLCORE_IMPEXP reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 
 #define new(i)         (_new((i)))
+#define stralloc(n)    ((char *) _new((n) + 1))
 
 #ifdef HAVE__STRDUP
 #define strdup _strdup

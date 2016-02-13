@@ -161,9 +161,9 @@ char * _exception_allocstring(exception_t *exception) {
   char *buf;
 
   asprintf(&buf, "Error %s (%d): %s",
-	   label_for_code(exceptions, exception -> code),
-	   exception -> code,
-	   exception -> msg);
+          label_for_code(exceptions, exception -> code),
+          exception -> code,
+          exception -> msg);
   return buf;
 }
 
@@ -171,6 +171,7 @@ void _exception_free(exception_t *exception) {
   if (exception) {
     free(exception -> msg);
     data_free(exception -> throwable);
+    data_free(exception -> trace);
   }
 }
 

@@ -397,7 +397,7 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   lexer = lexer_create(gp -> reader);
   lexer_add_keyword(lexer, NONTERMINAL_DEF, NONTERMINAL_DEF_STR);
 
-  lexer_set_option(lexer, LexerOptionIgnoreAllWhitespace, TRUE);
+  lexer_set_option(lexer, LexerOptionIgnoreAllWhitespace, data_true());
   lexer_tokenize(lexer, _grammar_token_handler, gp);
   if (gp -> state != GPStateError) {
     if (grammar_analyze(gp -> grammar)) {

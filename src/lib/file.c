@@ -404,19 +404,20 @@ int _stream_print_data(stream_t *stream, data_t *s) {
   data_t *r = NULL;
 
   line = data_tostring(s);
-  buf = (char *) _new(strlen(line) +
-#ifndef __WIN32__
+  buf = stralloc(strlen(line) +
+#if defined(__WIN32__) || defined(_WIN32)
     2
 #else
     3
 #endif /* __WIN32__ */
           );
   strcpy(buf, line);
-#ifdef __WIN32__
+#if defined(__WIN32__) || defined(_WIN32)
   strcat(buf, "\r");
 #endif /* __WIN32__ */
   strcat(buf, "\n");
   WRITE_TO_STREAM(stream, buf);
+  free(buf);
   if ((retval >= 0) && data_hasmethod((data_t *) stream, "flush")) {
     r = data_execute((data_t *) stream, "flush", NULL, NULL);
     if ((data_type(r) != Bool) || !data_intval(r)) {

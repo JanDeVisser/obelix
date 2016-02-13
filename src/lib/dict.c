@@ -243,6 +243,13 @@ bucket_t * _bucket_put(bucket_t *bucket, void *key, void *value) {
   
   e = _bucket_find_entry(bucket, key);
   if (e) {
+    if (e -> dict -> free_key && e -> key) {
+      e -> dict -> free_key(e -> key);
+    }
+    e -> key = key;
+    if (e -> dict -> free_data && e -> value) {
+      e -> dict -> free_data(e -> value);
+    }
     e -> value = value;
   } else {
     _bucket_init_entry(bucket, key, value);

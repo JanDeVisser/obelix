@@ -425,7 +425,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming) {
     consuming = data_intval(ret);
     data_free(ret);
     array_free(args);
-    _parser_stack_entry_free(e);
+    data_free((data_t *) e);
   }
   return consuming;
 }
@@ -464,6 +464,7 @@ parser_t * parser_clear(parser_t *parser) {
   dict_clear(parser -> variables);
   token_free(parser -> last_token);
   data_free(parser -> error);
+  function_free(parser -> on_newline);
   return parser;
 }
 
@@ -526,7 +527,7 @@ data_t * parser_parse(parser_t *parser, data_t *reader) {
     fnc = grammar_resolve_function(parser -> grammar, token_token(fnc_name));
     if (fnc) {
       lexer_set_option(lexer, LexerOptionOnNewLine,
-                       (intptr_t) function_create("parser_newline",
+                       (data_t *) function_create("parser_newline",
                                                   (void_t) parser_newline));
       parser -> on_newline = fnc;
     } else {

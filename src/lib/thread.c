@@ -513,3 +513,13 @@ data_t *data_thread_exit_code(void) {
   }
   return ret;
 }
+
+void data_thread_clear_exit_code(void) {
+  thread_t    *thread = data_as_thread(data_current_thread());
+
+  while (thread) {
+    data_free(thread -> exit_code);
+    thread -> exit_code = NULL;;
+    thread = thread -> parent;
+  }
+}

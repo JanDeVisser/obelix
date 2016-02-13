@@ -322,10 +322,14 @@ ge_t * ge_set_option(ge_t *ge, token_t *name, token_t *val) {
 /* -- G R A M M A R ------------------------------------------------------- */
 
 void _grammar_free(grammar_t *grammar) {
+  int ix;
+  
   if (grammar) {
     dict_free(grammar -> nonterminals);
     dict_free(grammar -> keywords);
-    array_free(grammar -> lexer_options);
+    for (ix = 0; ix < LexerOptionLAST; ix++) {
+      data_free(grammar -> lexer_options[ix]);
+    }
     free(grammar -> prefix);
   }
 }
@@ -448,23 +452,23 @@ ge_t * _grammar_set_option(ge_t *ge, token_t *name, token_t *val) {
   } else if (!strcmp(token_token(name), IGNORE_STR)){
     str = token_token(val);
     if (strstr(str, "whitespace")) {
-      grammar_set_lexer_option(g, LexerOptionIgnoreWhitespace, 1);
+      grammar_set_lexer_option(g, LexerOptionIgnoreWhitespace, int_to_data(1));
     }
     if (strstr(str, "newlines")) {
-      grammar_set_lexer_option(g, LexerOptionIgnoreNewLines, 1);
+      grammar_set_lexer_option(g, LexerOptionIgnoreNewLines, int_to_data(1));
     }
     if (strstr(str, "allwhitespace")) {
-      grammar_set_lexer_option(g, LexerOptionIgnoreAllWhitespace, 1);
+      grammar_set_lexer_option(g, LexerOptionIgnoreAllWhitespace, int_to_data(1));
     }
   } else if (!strcmp(token_token(name), CASE_SENSITIVE_STR)){
-    grammar_set_lexer_option(g, LexerOptionCaseSensitive,
-                             atob(token_token(val)));
+    grammar_set_lexer_option(g, LexerOptionCaseSensitive, 
+                             data_parse(Bool, token_token(val)));
   } else if (!strcmp(token_token(name), HASHPLING_STR)){
     grammar_set_lexer_option(g, LexerOptionHashPling,
-                             atob(token_token(val)));
+                             data_parse(Bool, token_token(val)));
   } else if (!strcmp(token_token(name), SIGNED_NUMBERS_STR)){
     grammar_set_lexer_option(g, LexerOptionSignedNumbers,
-                             atob(token_token(val)));
+                             data_parse(Bool, token_token(val)));
   } else {
     ge = NULL;
   }
@@ -512,9 +516,8 @@ grammar_t * grammar_create() {
   ret -> keywords = intdata_dict_create();
   ret -> nonterminals = strdata_dict_create();
 
-  ret -> lexer_options = array_create((int) LexerOptionLAST);
   for (ix = 0; ix < (int) LexerOptionLAST; ix++) {
-    grammar_set_lexer_option(ret, ix, 0L);
+    grammar_set_lexer_option(ret, ix, data_false());
   }
 
   ret -> ge.set_option_delegate = (set_option_t) _grammar_set_option;
@@ -534,20 +537,19 @@ strategy_t grammar_get_parsing_strategy(grammar_t *grammar) {
   return grammar -> strategy;
 }
 
-grammar_t * grammar_set_lexer_option(grammar_t *grammar, lexer_option_t option, long value) {
-  array_set(grammar -> lexer_options, 
-            (intptr_t) option, (void *) (intptr_t) value);
+grammar_t * grammar_set_lexer_option(grammar_t *grammar, lexer_option_t option, data_t *value) {
+  grammar -> lexer_options[(int) option] = data_copy(value);
   return grammar;
 }
 
-long grammar_get_lexer_option(grammar_t *grammar, lexer_option_t option) {
-  return (long) (intptr_t) array_get(grammar -> lexer_options, 
-                                     (intptr_t) option);
+data_t * grammar_get_lexer_option(grammar_t *grammar, lexer_option_t option) {
+  return grammar -> lexer_options[(int) option];
 }
 
 void grammar_dump(grammar_t *grammar) {
   int   ix;
   char *lib;
+  char  buf[81];
 
   printf("#include <grammar.h>\n"
          "\n"
@@ -560,8 +562,9 @@ void grammar_dump(grammar_t *grammar) {
          "\n"
          "  grammar = grammar_create();\n");
   for (ix = 0; ix != LexerOptionLAST; ix++) {
-    printf("  grammar_set_lexer_option(grammar, %s, %ld);\n",
-           lexer_option_name(ix), grammar_get_lexer_option(grammar, ix));
+    printf("  grammar_set_lexer_option(grammar, %s, data_decode(\"%s\"));\n",
+           lexer_option_name(ix), 
+           data_encode(grammar_get_lexer_option(grammar, ix), buf, 81));
   }
   if (grammar -> prefix && grammar -> prefix[0]) {
     printf("  token_name = token_create(TokenCodeIdentifier, PREFIX_STR);\n"

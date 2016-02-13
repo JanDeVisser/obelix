@@ -104,8 +104,9 @@ static methoddescr_t _methoddescr_int[] = {
   { .type = NoType, .name = NULL,   .method = NULL,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
-int_t * bool_true = NULL;
-int_t * bool_false = NULL;
+dict_t * _ints = NULL;
+int_t *  bool_true = NULL;
+int_t *  bool_false = NULL;
 
 /*
  * --------------------------------------------------------------------------
@@ -117,6 +118,7 @@ void int_init(void) {
   typedescr_register(&_typedescr_int);
   typedescr_register(&_typedescr_bool);
   typedescr_register_methods(_methoddescr_int);
+  _ints = intdata_dict_create();
   bool_true = (int_t *) data_create(Bool, 1);
   bool_true -> _d.free_me = Constant;
   bool_false = (int_t *) data_create(Bool, 0);
@@ -346,9 +348,15 @@ data_t * _bool_cast(int_t *data, int totype) {
 /* ----------------------------------------------------------------------- */
 
 int_t * int_create(long val) {
-  int_t *ret = data_new(Int, int_t);
-
-  ret -> i = val;
+  int_t *ret;
+  
+  ret = (int_t *) data_dict_get(_ints, (void *) val);
+  if (!ret) {
+    ret = data_new(Int, int_t);
+    ret -> i = val;
+    ret -> _d.free_me = Constant;
+    dict_put(_ints, (void *) val, ret);
+  }
   return ret;
 }
 

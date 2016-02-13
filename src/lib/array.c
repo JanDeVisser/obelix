@@ -144,6 +144,7 @@ array_t * array_split(char *str, char *sep) {
   array_t *ret;
   int      count = 1;
   int      seplen = strlen(sep);
+  int      len;
 
   if (!str || !str[0]) {
     return str_array_create(0);
@@ -156,9 +157,9 @@ array_t * array_split(char *str, char *sep) {
   ret = str_array_create(count);
   ptr = str;
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
-    int len = sepptr - ptr;
-    c = (char *) new(len + 1);
-    strcpy(c, ptr);
+    len = sepptr - ptr;
+    c = stralloc(len);
+    strncpy(c, ptr, len);
     c[len] = 0;
     array_push(ret, c);
     ptr = sepptr + seplen;
