@@ -486,7 +486,7 @@ function_t * _grammar_resolve_function(grammar_t *grammar, char *prefix, char *f
   }
   ret = function_create(fname, NULL);
   if (!ret -> fnc) {
-    free(ret);
+    function_free(ret);
     ret = NULL;
   }
   if (prefix && prefix[0]) {

@@ -29,16 +29,19 @@
 #include <lexer.h>
 #include <logging.h>
 
-
+#define LEXER_DEBUG
 #ifdef LEXER_DEBUG
-  #undef LEXER_DEBUG
+  #define debuglexer(fmt, args...)    if (lexer_debug) { debug(fmt, ## args); }
+#else
+  #define debuglexer(fmt, args...)
 #endif
 
-//#ifndef LEXER_DEBUG
-//  #define LEXER_DEBUG
-//#endif
+typedef struct _lexer_state_handler_map {
+  lexer_state_t         state;
+  lexer_state_handler_t handler;
+} lexer_state_handler_map_t;
 
-typedef lexer_t * (*newline_fnc)(lexer_t *, int);
+typedef lexer_t *    (*newline_fnc)(lexer_t *, int);
 
 typedef struct _tokenize_ctx {
   data_t  *parser;
@@ -78,6 +81,8 @@ static data_t *         _lexer_mth_rollup(lexer_t *, char *, array_t *, dict_t *
 static tokenize_ctx_t * _lexer_tokenize_reducer(token_t *, tokenize_ctx_t *);
 static data_t *         _lexer_mth_tokenize(lexer_t *, char *, array_t *, dict_t *);
 
+static inline lexer_state_handler_t _lexer_get_handler(lexer_t *lexer);
+
 static code_label_t lexer_state_names[] = {
   { LexerStateFresh,           "LexerStateFresh" },
   { LexerStateInit,            "LexerStateInit" },
@@ -103,6 +108,49 @@ static code_label_t lexer_state_names[] = {
   { LexerStateDone,            "LexerStateDone" },
   { -1,                        NULL }
 };
+
+/*
+ * lexer state handlers.
+ */
+
+static token_code_t  _lexer_state_init_handler(lexer_t *, int);
+static token_code_t  _lexer_state_newline_handler(lexer_t *, int);
+static token_code_t  _lexer_state_whitespace_handler(lexer_t *, int);
+static token_code_t  _lexer_state_identifier_handler(lexer_t *, int);
+static token_code_t  _lexer_state_keyword_handler(lexer_t *, int);
+static token_code_t  _lexer_state_number_handler(lexer_t *, int);
+static token_code_t  _lexer_state_qstring_handler(lexer_t *, int);
+static token_code_t  _lexer_state_comment_handler(lexer_t *, int);
+
+static token_code_t  _lexer_default_state_handler(lexer_t *, int);
+
+static lexer_state_handler_map_t _lexer_state_handlers[] = {
+  { LexerStateFresh,           NULL },
+  { LexerStateInit,            _lexer_state_init_handler },
+  { LexerStateSuccess,         NULL },
+  { LexerStateWhitespace,      _lexer_state_whitespace_handler },
+  { LexerStateNewLine,         _lexer_state_newline_handler },
+  { LexerStateIdentifier,      _lexer_state_identifier_handler },
+  { LexerStateKeyword,         _lexer_state_keyword_handler },
+  { LexerStatePlusMinus,       _lexer_state_number_handler },
+  { LexerStateZero,            _lexer_state_number_handler },
+  { LexerStateNumber,          _lexer_state_number_handler },
+  { LexerStateDecimalInteger,  _lexer_state_number_handler },
+  { LexerStateHexInteger,      _lexer_state_number_handler },
+  { LexerStateFloat,           _lexer_state_number_handler },
+  { LexerStateSciFloat,        _lexer_state_number_handler },
+  { LexerStateQuotedStr,       _lexer_state_qstring_handler },
+  { LexerStateQuotedStrEscape, _lexer_state_qstring_handler },
+  { LexerStateHashPling,       _lexer_state_comment_handler },
+  { LexerStateSlash,           _lexer_state_comment_handler },
+  { LexerStateBlockComment,    _lexer_state_comment_handler },
+  { LexerStateLineComment,     _lexer_state_comment_handler },
+  { LexerStateStar,            _lexer_state_comment_handler },
+  { LexerStateDone,            NULL },
+  { -1,                        NULL }
+};
+
+static lexer_state_handler_t _lexer_state_handlers_cache[LexerStateLAST];
 
 static code_label_t matcher_state_names[] = {
   { KMSInit,                           "KMSInit" },
@@ -158,6 +206,8 @@ void _lexer_init(void) {
                                           _vtable_lexer,
                                           _methoddescr_lexer);
   }
+  memset(_lexer_state_handlers_cache, 0, 
+         (LexerStateLAST + 1) * sizeof(lexer_state_handler_t));
 }
 
 void _dequotify(str_t *str) {
@@ -324,7 +374,7 @@ char * _lexer_allocstring(lexer_t *lexer) {
   char *buf;
   
   asprintf(&buf, "Lexer for '%s'",
-	   data_tostring(lexer -> reader));
+           data_tostring(lexer -> reader));
   return buf;
 }
 
@@ -410,6 +460,36 @@ data_t * _lexer_mth_tokenize(lexer_t *lexer, char *n, array_t *args, dict_t *kwa
 
 /* -- L E X E R  S T A T I C  F U N C T I O N S --------------------------- */
 
+lexer_state_handler_t _lexer_get_handler(lexer_t *lexer) {
+  lexer_state_handler_map_t *table = _lexer_state_handlers;
+  lexer_state_handler_t      ret;
+  
+  if (lexer -> handler) {
+    return lexer -> handler;
+  }
+  ret = _lexer_state_handlers_cache[lexer -> state];
+  if (!ret) {
+    debuglexer("getting lexer state handler for '%s' (%d)", 
+               lexer_state_name(lexer -> state), lexer -> state);
+    while (table -> state >= 0) {
+      if (table -> state == lexer -> state) {
+        debuglexer("Found handler");
+        ret = table -> handler;
+        break;
+      } else {
+        table++;
+      }
+    }
+    if (!ret) {
+      debuglexer("No handler found");
+      ret = _lexer_default_state_handler;
+    }
+    _lexer_state_handlers_cache[lexer -> state] = ret;
+  }
+  lexer -> handler = ret;
+  return ret;
+}
+
 int _lexer_get_char(lexer_t *lexer) {
   int   ch;
   int   ret;
@@ -417,14 +497,10 @@ int _lexer_get_char(lexer_t *lexer) {
   if (lexer -> pushed_back) {
     ch = str_readchar(lexer -> pushed_back);
     if (ch > 0) {
-#ifdef LEXER_DEBUG
-      debug("_lexer_get_char: read '%c' from pushed_back", ch);
-#endif
+      debuglexer("_lexer_get_char: read '%c' from pushed_back", ch);
       return ch;
     } else {
-#ifdef LEXER_DEBUG
-      debug("_lexer_get_char: pushed_back exhausted");
-#endif
+      debuglexer("_lexer_get_char: pushed_back exhausted");
       str_free(lexer -> pushed_back);
       lexer -> pushed_back = NULL;
     }
@@ -436,29 +512,21 @@ int _lexer_get_char(lexer_t *lexer) {
       return 0;
     }
     ret = str_readinto(lexer -> buffer, lexer -> reader);
-#ifdef LEXER_DEBUG
-    debug("_lexer_get_char: Created buffer and did initial read: %d", ret);
-#endif
+    debuglexer("_lexer_get_char: Created buffer and did initial read: %d", ret);
     if (ret <= 0) {
       return 0;
     }
   }
   ch = str_readchar(lexer -> buffer);
-#ifdef LEXER_DEBUG
-    debug("_lexer_get_char: Read character: '%c'", (ch > 0) ? ch : '$');
-#endif
+  debuglexer("_lexer_get_char: Read character: '%c'", (ch > 0) ? ch : '$');
   if (ch <= 0) {
     ret = str_readinto(lexer -> buffer, lexer -> reader);
-#ifdef LEXER_DEBUG
-    debug("_lexer_get_char: Read new chunk into buffer: %d", ret);
-#endif
+    debuglexer("_lexer_get_char: Read new chunk into buffer: %d", ret);
     if (ret <= 0) {
       return 0;
     } else {
       ch = str_readchar(lexer -> buffer);
-#ifdef LEXER_DEBUG
-      debug("_lexer_get_char: Read character from new chunk: '%c'", (ch > 0) ? ch : '$');
-#endif
+      debuglexer("_lexer_get_char: Read character from new chunk: '%c'", (ch > 0) ? ch : '$');
     }
   }
   return ch;
@@ -466,21 +534,15 @@ int _lexer_get_char(lexer_t *lexer) {
 
 void _lexer_push_back(lexer_t *lexer, int ch) {
   if (ch <= 0) {
-#ifdef LEXER_DEBUG
-    debug("_lexer_push_back: Not pushing back EOF character");
-#endif
+    debuglexer("_lexer_push_back: Not pushing back EOF character");
     return;
   }
-#ifdef LEXER_DEBUG
-  debug("_lexer_push_back: in current_token: '%s' current_token_len: %d",
-        str_chars(lexer -> token), str_len(lexer -> token));
-#endif
+  debuglexer("_lexer_push_back: in current_token: '%s' current_token_len: %d",
+             str_chars(lexer -> token), str_len(lexer -> token));
   str_chop(lexer -> token, 1);
   str_pushback((lexer -> pushed_back) ? lexer -> pushed_back : lexer -> buffer, 1);
-#ifdef LEXER_DEBUG
-  debug("_lexer_push_back: out current_token: '%s' current_token_len: %d",
-        str_chars(lexer -> token), str_len(lexer -> token));
-#endif
+  debuglexer("_lexer_push_back: out current_token: '%s' current_token_len: %d",
+             str_chars(lexer -> token), str_len(lexer -> token));
 }
 
 void _lexer_push_all_back(lexer_t *lexer) {
@@ -489,21 +551,17 @@ void _lexer_push_all_back(lexer_t *lexer) {
   } else {
     lexer -> pushed_back = str_deepcopy(lexer -> token);
   }
-#ifdef LEXER_DEBUG
-  debug("_lexer_push_all_back: pushed_back: '%s'",
-        str_chars(lexer -> pushed_back));
-#endif
+  debuglexer("_lexer_push_all_back: pushed_back: '%s'",
+             str_chars(lexer -> pushed_back));
   str_erase(lexer -> token);
 }
 
 int _lexer_keyword_match(lexer_t *lexer) {
   int   ret = TokenCodeNone;
 
-#ifdef LEXER_DEBUG
-  debug("_lexer_keyword_match in - lexer state: %s matcher state: %s",
-        lexer_state_name(lexer -> state),
-        _state_name(matcher_state_names, lexer -> matches -> state));
-#endif
+  debuglexer("_lexer_keyword_match in - lexer state: %s matcher state: %s",
+             lexer_state_name(lexer -> state),
+             _state_name(matcher_state_names, lexer -> matches -> state));
   if (!str_len(lexer -> token)) {
     return ret;
   }
@@ -521,11 +579,9 @@ int _lexer_keyword_match(lexer_t *lexer) {
       lexer -> state = LexerStateKeyword;
       break;
   }
-#ifdef LEXER_DEBUG
-  debug("_lexer_keyword_match out - lexer state: %s matcher state: %s",
-        lexer_state_name(lexer -> state),
-        _state_name(matcher_state_names, lexer -> matches -> state));
-#endif
+  debuglexer("_lexer_keyword_match out - lexer state: %s matcher state: %s",
+             lexer_state_name(lexer -> state),
+             _state_name(matcher_state_names, lexer -> matches -> state));
   return ret;
 }
 
@@ -541,79 +597,170 @@ void _lexer_update_location(lexer_t *lexer, int ch) {
 }
 
 token_t * _lexer_match_token(lexer_t *lexer, int ch) {
-  token_code_t    code;
-  token_t        *ret;
+  token_code_t           code;
+  token_t               *ret;
+  lexer_state_t          state;
+  lexer_state_handler_t  handler;
+
+  _lexer_update_location(lexer, ch);
+  str_append_char(lexer -> token, ch);
+  ret = NULL;
+  debuglexer("_lexer_match_token in - lexer state: %s matcher state: %s ch: '%c' tok: '%s'",
+             lexer_state_name(lexer -> state),
+             _state_name(matcher_state_names, lexer -> matches -> state),
+             (ch > 0) ? ch : '$',
+             str_chars(lexer -> token));
+
+  handler = _lexer_get_handler(lexer);
+  state = lexer -> state;
+  code = handler(lexer, ch);
+  if (state != lexer -> state) {
+    lexer -> handler = NULL;
+  }
+  
+  if (code != TokenCodeNone) {
+    ret = token_create(code, str_chars(lexer -> token));
+    lexer -> state = LexerStateSuccess;
+  }
+  if (ch <= 0) {
+    if (!ret) {
+      switch (lexer -> state) {
+        case LexerStateBlockComment:
+        case LexerStateSlash:
+          ret = token_create(TokenCodeError, "Unterminated block comment");
+          break;
+        case LexerStateQuotedStr:
+        case LexerStateQuotedStrEscape:
+          ret = token_create(TokenCodeError, "Unterminated string");
+          break;
+      }
+      lexer -> state = LexerStateDone;
+    }
+  }
+  if (ret) {
+    ret -> line = lexer -> line;
+    ret -> column = lexer -> column;
+  }
+  if (ret) {
+    debuglexer("_lexer_match_token out - state: %s token: %s",
+               lexer_state_name(lexer -> state), token_code_name(ret -> code));
+  } else {
+    debuglexer("_lexer_match_token out - state: %s", lexer_state_name(lexer -> state));
+  }
+  lexer -> prev_char = ch;
+  return ret;  
+}
+
+token_code_t _lexer_state_init_handler(lexer_t *lexer, int ch) {
   int             ignore_nl;
+  token_code_t    code = TokenCodeNone;
   list_t         *matches;
   listiterator_t *iter;
 
   ignore_nl = data_intval(lexer_get_option(lexer, LexerOptionIgnoreNewLines));
-  _lexer_update_location(lexer, ch);
-  str_append_char(lexer -> token, ch);
-  code = TokenCodeNone;
-  ret = NULL;
-#ifdef LEXER_DEBUG
-  debug("_lexer_match_token in - lexer state: %s matcher state: %s ch: '%c' tok: '%s'",
-        lexer_state_name(lexer -> state),
-        _state_name(matcher_state_names, lexer -> matches -> state),
-        (ch > 0) ? ch : '$',
-        str_chars(lexer -> token));
-#endif
-  switch (lexer -> state) {
+  if (lexer -> matches -> state != KMSNoMatch) {
+    code = _lexer_keyword_match(lexer);
+  }
+  if (lexer -> state != LexerStateKeyword) {
+    if (!ignore_nl && ((ch == '\r') || (ch == '\n'))) {
+      lexer -> state = LexerStateNewLine;
+    } else if (isspace(ch)) {
+      lexer -> state = LexerStateWhitespace;
+    } else if (isalpha(ch) || (ch == '_')) {
+      lexer -> state = LexerStateIdentifier;
+    } else if (((ch == '-') || (ch == '+')) && 
+                data_intval(lexer_get_option(lexer, LexerOptionSignedNumbers))) {
+      lexer -> quote = ch;
+      lexer -> state = LexerStatePlusMinus;
+    } else if (ch == '0') {
+      lexer -> state = LexerStateZero;
+    } else if (isdigit(ch)) {
+      lexer -> state = LexerStateNumber;
+    } else if ((ch == '\'') || (ch == '"') || (ch == '`')) {
+      lexer -> state = LexerStateQuotedStr;
+      lexer -> quote = ch;
+    } else if (ch == '/') {
+      lexer -> state = LexerStateSlash;
+    } else if ((ch == '#') && ((lexer -> line == 1) &&
+                (lexer -> column == 1)) &&
+                data_intval(lexer_get_option(lexer, LexerOptionHashPling))) {
+      lexer -> state = LexerStateHashPling;
+    } else if (ch > 0) {
+      code = ch;
+    }
+  }
+  return code;
+}
 
-    case LexerStateInit:
-      if (lexer -> matches -> state != KMSNoMatch) {
-        code = _lexer_keyword_match(lexer);
-      }
-      if (lexer -> state != LexerStateKeyword) {
-        if (!ignore_nl && ((ch == '\r') || (ch == '\n'))) {
-          lexer -> state = LexerStateNewLine;
-        } else if (isspace(ch)) {
-          lexer -> state = LexerStateWhitespace;
-        } else if (isalpha(ch) || (ch == '_')) {
+token_code_t _lexer_state_newline_handler(lexer_t *lexer, int ch) {
+  token_code_t code = TokenCodeNone;
+  
+  if ((ch <= 0) || ((ch != '\n') && (ch != '\r'))) {
+    _lexer_push_back(lexer, ch);
+    code = TokenCodeNewLine;
+  }
+  return code;
+}
+
+token_code_t _lexer_state_whitespace_handler(lexer_t *lexer, int ch) {
+  token_code_t code = TokenCodeNone;
+  int          ignore_nl = data_intval(lexer_get_option(lexer, 
+                                         LexerOptionIgnoreNewLines));
+
+  if (!isspace(ch) || (!ignore_nl && ((ch == '\r') || (ch == '\n')))) {
+    _lexer_push_back(lexer, ch);
+    code = TokenCodeWhitespace;
+  }
+  return code;
+}
+
+token_code_t _lexer_state_identifier_handler(lexer_t *lexer, int ch) {
+  token_code_t code = TokenCodeNone;
+  
+  if (!isalnum(ch) && (ch != '_')) {
+    _lexer_push_back(lexer, ch);
+    code = TokenCodeIdentifier;
+  }
+  return code;
+}
+
+token_code_t _lexer_state_keyword_handler(lexer_t *lexer, int ch) {
+  token_code_t code = TokenCodeNone;
+
+  if (lexer -> matches -> state == KMSIdentifierFullMatch) {
+    if (isalnum(ch) || (ch == '_')) {
+      lexer -> state = LexerStateIdentifier;
+    } else {
+      _lexer_push_back(lexer, ch);
+      code = lexer -> matches -> code;
+    }
+  } else {
+    _lexer_keyword_match(lexer);
+    switch (lexer -> matches -> state) {
+      case KMSFullMatch:
+        code = lexer -> matches -> code;
+        break;
+      case KMSMatchLost:
+        if (_is_identifier(lexer -> token)) {
           lexer -> state = LexerStateIdentifier;
-        } else if (((ch == '-') || (ch == '+')) && 
-                   data_intval(lexer_get_option(lexer, LexerOptionSignedNumbers))) {
-          lexer -> quote = ch;
-          lexer -> state = LexerStatePlusMinus;
-        } else if (ch == '0') {
-          lexer -> state = LexerStateZero;
-        } else if (isdigit(ch)) {
-          lexer -> state = LexerStateNumber;
-        } else if ((ch == '\'') || (ch == '"') || (ch == '`')) {
-          lexer -> state = LexerStateQuotedStr;
-          lexer -> quote = ch;
-        } else if (ch == '/') {
-          lexer -> state = LexerStateSlash;
-        } else if ((ch == '#') && ((lexer -> line == 1) &&
-                   (lexer -> column == 1)) &&
-                   data_intval(lexer_get_option(lexer, LexerOptionHashPling))) {
-          lexer -> state = LexerStateHashPling;
-        } else if (ch > 0) {
-          code = ch;
+        } else {
+          _lexer_push_back(lexer, ch);
+          code = _lexer_keyword_match(lexer);
         }
-      }
-      break;
+        break;
+      case KMSNoMatch:
+        _lexer_push_all_back(lexer);
+        break;
+    }
+  }
+  return code;
+}
 
-    case LexerStateNewLine:
-      if ((ch <= 0) || ((ch != '\n') && (ch != '\r'))) {
-        _lexer_push_back(lexer, ch);
-        code = TokenCodeNewLine;
-      }
-      break;
-    case LexerStateWhitespace:
-      if (!isspace(ch) ||
-          (!ignore_nl && ((ch == '\r') || (ch == '\n')))) {
-        _lexer_push_back(lexer, ch);
-        code = TokenCodeWhitespace;
-      }
-      break;
-    case LexerStateIdentifier:
-      if (!isalnum(ch) && (ch != '_')) {
-        _lexer_push_back(lexer, ch);
-        code = TokenCodeIdentifier;
-      }
-      break;
+
+token_code_t _lexer_state_number_handler(lexer_t *lexer, int ch) {
+  token_code_t code = TokenCodeNone;
+  
+  switch (lexer -> state) {
     case LexerStatePlusMinus:
       if (ch == '0') {
         lexer -> state = LexerStateZero;
@@ -627,21 +774,21 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
     case LexerStateZero:
       /* FIXME: Second leading zero */
       if (isdigit(ch)) {
-	/*
-	 * We don't want octal numbers. Therefore we strip
+        /*
+         * We don't want octal numbers. Therefore we strip
          * leading zeroes.
-	 */
+         */
         str_chop(lexer -> token, 2);
         str_append_char(lexer -> token, ch);
         lexer -> state = LexerStateNumber;
       } else if (ch == '.') {
         lexer -> state = LexerStateFloat;
       } else if ((ch == 'x') || (ch == 'X')) {
-	/*
-	 * Hexadecimals are returned including the leading
+        /*
+         * Hexadecimals are returned including the leading
          * 0x. This allows us to send both base-10 and hex ints
          * to strtol and friends.
-	 */
+         */
         lexer -> state = LexerStateHexInteger;
       } else {
         _lexer_push_back(lexer, ch);
@@ -652,7 +799,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
       if (ch == '.') {
         lexer -> state = LexerStateFloat;
       } else if ((ch == 'e') || (ch == 'E')) {
-	str_chop(lexer -> token, 1);
+        str_chop(lexer -> token, 1);
         str_append_char(lexer -> token, 'e');
         lexer -> state = LexerStateSciFloat;
       } else if (!isdigit(ch)) {
@@ -662,7 +809,7 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
       break;
     case LexerStateFloat:
       if ((ch == 'e') || (ch == 'E')) {
-	str_chop(lexer -> token, 1);
+        str_chop(lexer -> token, 1);
         str_append_char(lexer -> token, 'e');
         lexer -> state = LexerStateSciFloat;
       } else if (!isdigit(ch)) {
@@ -684,6 +831,14 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
         code = TokenCodeHexNumber;
       }
       break;
+  }
+  return code;
+}
+
+token_code_t _lexer_state_qstring_handler(lexer_t *lexer, int ch) {
+  token_code_t code = TokenCodeNone;
+
+  switch (lexer -> state) {
     case LexerStateQuotedStr:
       if (ch == lexer -> quote) {
         code = (token_code_t) lexer -> quote;
@@ -703,6 +858,14 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
       }
       lexer -> state = LexerStateQuotedStr;
       break;
+  }
+  return code;
+}
+
+token_code_t _lexer_state_comment_handler(lexer_t *lexer, int ch) {
+  token_code_t code = TokenCodeNone;
+  
+  switch (lexer -> state) {
     case LexerStateHashPling:
       if (ch == '!') {
         str_erase(lexer -> token);
@@ -740,69 +903,24 @@ token_t * _lexer_match_token(lexer_t *lexer, int ch) {
         lexer -> state = LexerStateInit;
       }
       break;
+  }
+  return code;
+}
 
+token_code_t _lexer_default_state_handler(lexer_t *lexer, int ch) {
+  token_code_t    code;
+  int             ignore_nl;
+  list_t         *matches;
+  listiterator_t *iter;
+
+  ignore_nl = data_intval(lexer_get_option(lexer, LexerOptionIgnoreNewLines));
+  code = TokenCodeNone;
+
+  switch (lexer -> state) {
     case LexerStateKeyword:
-      if (lexer -> matches -> state == KMSIdentifierFullMatch) {
-        if (isalnum(ch) || (ch == '_')) {
-          lexer -> state = LexerStateIdentifier;
-        } else {
-          _lexer_push_back(lexer, ch);
-          code = lexer -> matches -> code;
-        }
-      } else {
-        _lexer_keyword_match(lexer);
-        switch (lexer -> matches -> state) {
-          case KMSFullMatch:
-            code = lexer -> matches -> code;
-            break;
-          case KMSMatchLost:
-            if (_is_identifier(lexer -> token)) {
-              lexer -> state = LexerStateIdentifier;
-            } else {
-              _lexer_push_back(lexer, ch);
-              code = _lexer_keyword_match(lexer);
-            }
-            break;
-          case KMSNoMatch:
-            _lexer_push_all_back(lexer);
-            break;
-        }
-      }
       break;
   }
-  if (code != TokenCodeNone) {
-    ret = token_create(code, str_chars(lexer -> token));
-    lexer -> state = LexerStateSuccess;
-  }
-  if (ch <= 0) {
-    if (!ret) {
-      switch (lexer -> state) {
-        case LexerStateBlockComment:
-        case LexerStateSlash:
-          ret = token_create(TokenCodeError, "Unterminated block comment");
-          break;
-        case LexerStateQuotedStr:
-        case LexerStateQuotedStrEscape:
-          ret = token_create(TokenCodeError, "Unterminated string");
-          break;
-      }
-      lexer -> state = LexerStateDone;
-    }
-  }
-  if (ret) {
-    ret -> line = lexer -> line;
-    ret -> column = lexer -> column;
-  }
-#ifdef LEXER_DEBUG
-    if (ret) {
-      debug("_lexer_match_token out - state: %s token: %s",
-            lexer_state_name(lexer -> state), token_code_name(ret -> code));
-    } else {
-      debug("_lexer_match_token out - state: %s", lexer_state_name(lexer -> state));
-    }
-#endif
-  lexer -> prev_char = ch;
-  return ret;
+  return code;
 }
 
 int _lexer_accept(lexer_t *lexer, token_t *token) {
@@ -815,6 +933,7 @@ int _lexer_accept(lexer_t *lexer, token_t *token) {
     /* FIXME Counter-intuitive but lexer_next_token deals with a NULL token */
   }
   if (token_code(token) == TokenCodeNewLine) {
+    debuglexer("Token is newline. ignore_all_ws = %d, ignore_nl = %d, ignore_ws = %d", ignore_all_ws, ignore_nl, ignore_ws);
     return !ignore_nl;
   } else if (token_iswhitespace(token)) {
     return !ignore_ws;
@@ -864,7 +983,8 @@ lexer_t * lexer_create(data_t *reader) {
 }
 
 lexer_t * lexer_set_option(lexer_t *lexer, lexer_option_t option, data_t *value) {
-  lexer -> options[(int) option] = data_copy(value);
+  debuglexer("Set option %s = %s", lexer_option_name(option), data_tostring(value));
+  lexer -> options[(int) option] = value;
   return lexer;
 }
 
@@ -913,6 +1033,7 @@ token_t * lexer_next_token(lexer_t *lexer) {
     lexer -> state = LexerStateInit;
     str_erase(lexer -> token);
     _kw_matches_reset(lexer -> matches);
+    lexer -> handler = NULL;
 
     do {
       if (ret) {
@@ -922,11 +1043,9 @@ token_t * lexer_next_token(lexer_t *lexer) {
       ch = _lexer_get_char(lexer);
       ret = _lexer_match_token(lexer, ch);
     } while ((lexer -> state != LexerStateDone) && (lexer -> state != LexerStateSuccess));
-#ifdef LEXER_DEBUG
     if (ret) {
-      debug("lexer_next_token: matched token: %s [%s]", token_code_name(ret -> code), ret -> token);
+      debuglexer("lexer_next_token: matched token: %s [%s]", token_code_name(ret -> code), ret -> token);
     }
-#endif
     if (!ret && (lexer -> state == LexerStateDone)) {
       ret = token_create(TokenCodeEnd, "$$");
       ret -> line = lexer -> line;
@@ -943,9 +1062,9 @@ token_t * lexer_next_token(lexer_t *lexer) {
     lexer -> matches = NULL;
   }
 
-  if (ret && lexer_debug) {
-    debug("lexer_next_token out: token: %s [%s], state %s",
-          token_code_name(ret -> code), ret -> token, lexer_state_name(lexer -> state));
+  if (ret) {
+    debuglexer("lexer_next_token out: token: %s [%s], state %s",
+               token_code_name(ret -> code), ret -> token, lexer_state_name(lexer -> state));
   }
   return ret;
 }

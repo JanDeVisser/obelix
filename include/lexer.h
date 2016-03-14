@@ -27,8 +27,8 @@
 #include <str.h>
 #include <token.h>
 
-#define LEXER_BUFSIZE    	16384
-#define LEXER_INIT_TOKEN_SZ	256
+#define LEXER_BUFSIZE           16384
+#define LEXER_INIT_TOKEN_SZ     256
 
 typedef enum _lexer_state {
   LexerStateFresh,
@@ -52,7 +52,8 @@ typedef enum _lexer_state {
   LexerStateBlockComment,
   LexerStateLineComment,
   LexerStateStar,
-  LexerStateDone
+  LexerStateDone,
+  LexerStateLAST
 } lexer_state_t;
 
 typedef enum _lexer_option {
@@ -78,22 +79,26 @@ typedef enum _kw_match_state {
   KMSNoMatch
 } kw_match_state_t;
 
+struct _lexer;
+typedef token_code_t (*lexer_state_handler_t)(struct _lexer *, int);
+
 typedef struct _lexer {
-  data_t              _d;
-  data_t             *reader;
-  list_t             *keywords;
-  data_t             *options[LexerOptionLAST];
-  str_t              *buffer;
-  str_t              *pushed_back;
-  str_t              *token;
-  lexer_state_t       state;
-  token_t            *last_token;
-  struct _kw_matches *matches;
-  char                quote;
-  int                 prev_char;
-  int                 line;
-  int                 column;
-  void               *data;
+  data_t                 _d;
+  data_t                *reader;
+  list_t                *keywords;
+  data_t                *options[LexerOptionLAST];
+  str_t                 *buffer;
+  str_t                 *pushed_back;
+  str_t                 *token;
+  lexer_state_t          state;
+  lexer_state_handler_t  handler;
+  token_t               *last_token;
+  struct _kw_matches    *matches;
+  char                   quote;
+  int                    prev_char;
+  int                    line;
+  int                    column;
+  void                  *data;
 } lexer_t;
 
 extern char *       lexer_state_name(lexer_state_t);

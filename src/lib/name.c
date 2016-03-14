@@ -89,7 +89,7 @@ name_t * _name_create(int count) {
   name_t *ret;
   
   _name_init();
-  ret= data_new(Name, name_t);
+  ret = data_new(Name, name_t);
   ret -> name = str_array_create(count);
   ret -> sep = NULL;
   _name_debug(ret, "_name_create");
@@ -150,7 +150,7 @@ name_t * name_deepcopy(name_t *src) {
 
   name_append(ret, src);
   return ret;
-}
+}       
 
 name_t * name_split(char *name, char *sep) {
   name_t  *ret;
@@ -273,7 +273,7 @@ char * name_tostring_sep(name_t *name, char *sep) {
     name -> sep = strdup(sep);
   }
   if (!name -> _d.str) {
-    if (name && name_size(name)) {
+    if (name_size(name)) {
       s = array_join(name -> name, name -> sep);
       name -> _d.str = strdup(str_chars(s));
       str_free(s);

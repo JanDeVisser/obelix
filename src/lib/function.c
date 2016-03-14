@@ -64,8 +64,8 @@ char * _function_allocstring(function_t *fnc) {
     ? array_tostring(fnc -> params)
     : NULL;
   asprintf(&buf, "%s(%s)",
-	   name_tostring_sep(fnc -> name, ":"),
-	   ((params) ? params : ""));
+           name_tostring_sep(fnc -> name, ":"),
+           ((params) ? params : ""));
   free(params);
   return buf;
 }
@@ -181,9 +181,9 @@ function_t * function_resolve(function_t *fnc) {
         error("Error resolving function '%s': %s",
               name_tostring(fnc -> name), strerror(errno));
       } else if (function_debug) {
-	       error("Could not resolve function '%s'",
-	             name_tostring_sep(fnc -> name, ":"),
-	             strerror(errno));
+        error("Could not resolve function '%s'",
+              name_tostring_sep(fnc -> name, ":"),
+              strerror(errno));
       }
     }
   }

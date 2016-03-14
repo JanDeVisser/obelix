@@ -30,6 +30,7 @@ static inline void   _namespace_init(void);
 extern void          _mod_free(module_t *);
 extern char *        _mod_tostring(module_t *);
 static data_t *      _mod_call(module_t *, array_t *, dict_t *);
+static data_t *      _mod_set(module_t *, char *, data_t *);
 
 static namespace_t * _ns_create(void);
 extern void          _ns_free(namespace_t *);
@@ -56,6 +57,7 @@ vtable_t _vtable_module[] = {
   { .id = FunctionHash,     .fnc = (void_t) mod_hash },
   { .id = FunctionResolve,  .fnc = (void_t) mod_resolve },
   { .id = FunctionCall,     .fnc = (void_t) _mod_call },
+  { .id = FunctionSet,      .fnc = (void_t) _mod_set },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -230,6 +232,11 @@ data_t * _mod_call(module_t *mod, array_t *args, dict_t *kwargs) {
   return object_call(mod -> obj, args, kwargs);
 }
 
+data_t * _mod_set(module_t *mod, char *name, data_t *value) {
+  return object_set(mod -> obj, name, value);
+}
+
+
 /* ------------------------------------------------------------------------ */
 
 module_t * mod_create(namespace_t *ns, name_t *name) {
@@ -392,7 +399,7 @@ module_t * _ns_get(namespace_t *ns, name_t *name) {
 }
 
 data_t * _ns_load(namespace_t *ns, module_t *module, 
-			   name_t *name, array_t *args, dict_t *kwargs) {
+                  name_t *name, array_t *args, dict_t *kwargs) {
   data_t   *ret = NULL;
   data_t   *obj;
   data_t   *script;
@@ -409,8 +416,8 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
   if (ns_debug) {
     if (script) {
       debug("  Loader returned '%s' [%s]",
-	    data_tostring(script),
-	    data_typename(script));
+            data_tostring(script),
+            data_typename(script));
     } else {
       debug("  Loader returned NULL??");
     }
@@ -418,7 +425,7 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
   if (data_is_script(script)) {
     obj = mod_set(module, data_as_script(script), args, kwargs);
     if (data_is_object(obj)) {
-      ret = data_create(Module, module);
+      ret = (data_t *) module;
       data_free(obj);
     } else {
       assert(data_is_exception(obj));
@@ -427,13 +434,13 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
     data_free(script);
   } else if (script) {
     oassert(data_is_exception(script),
-	    "import returned '%s', a '%s'.",
-	    data_tostring(script),
-	    data_typename(script));
+            "import returned '%s', a '%s'.",
+            data_tostring(script),
+            data_typename(script));
     ret = script;
   } else {
     ret = data_exception(ErrorInternalError,
-			 "Import returned unexpected NULL");
+                         "Import returned unexpected NULL");
   }
   return ret;
 }

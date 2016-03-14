@@ -201,6 +201,8 @@ __DLL_EXPORT__ parser_t * script_make_nvp(parser_t *parser) {
     debug(" -- %s = %s", data_tostring(name), data_tostring(data));
   }
   datastack_push(parser -> stack, (data_t *) nvp_create(name, data));
+  data_free(name);
+  data_free(data);
   return parser;
 }
 

@@ -178,6 +178,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   }
   retobj = object_create((data_t *) script);
   if (!script -> up) {
+    object_free(script -> mod -> obj);
     script -> mod -> obj = object_copy(retobj);
   }
   bm = data_as_bound_method(retobj -> constructor);

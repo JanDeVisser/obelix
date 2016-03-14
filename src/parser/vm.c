@@ -169,7 +169,7 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
     if (ex) {
       ex -> trace = (data_t *) stacktrace_create();
       instruction_trace("Throws", "%s", exception_tostring(ex));
-      vm -> exception = data_copy(ret);
+      vm -> exception = (data_t *) ex;
       if (ex -> code != ErrorYield) {
         if (datastack_depth(vm -> contexts)) {
           catchpoint = datastack_peek(vm -> contexts);
@@ -178,7 +178,6 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
           node = ProcessEnd;
         }
       }
-      exception_free(ex);
     }
   }
   data_free(ret);
@@ -257,8 +256,12 @@ data_t * vm_unstash(vm_t *vm, unsigned int stash) {
 }
 
 nvp_t * vm_push_context(vm_t *vm, char *label, data_t *context) {
-  nvp_t *ret = nvp_create(str_to_data(label), data_copy(context));
-
+  data_t *name;
+  nvp_t  *ret;
+  
+  name = str_to_data(label);
+  ret = nvp_create((data_t *) name, context);
+  data_free(name);
   datastack_push(vm -> contexts, (data_t *) nvp_copy(ret));
   return ret;
 }

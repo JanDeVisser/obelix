@@ -225,8 +225,9 @@ static data_t * _scriptloader_get_object(scriptloader_t *loader, int count, ...)
   }
   va_end(args);
   data = ns_get(loader -> ns, name);
-  if (data_is_module(data)) {
-    mod = data_as_module(data);
+  name_free(name);
+  mod = data_as_module(data);
+  if (mod) {
     data = (data_t *) object_copy(mod -> obj);
   }
   return data;
@@ -239,10 +240,10 @@ static data_t * _scriptloader_set_value(scriptloader_t *loader, data_t *obj,
   
   n = name_create(1, name);
   ret = data_set(obj, n, value);
-  if (!(ret && data_is_exception(ret))) {
-    data_free(value);
-    ret = NULL;
+  if (!data_is_exception(ret)) {
+    ret = obj;
   }
+  data_free(value);
   name_free(n);
   return ret;
 }
@@ -261,7 +262,11 @@ static data_t * _scriptloader_import_sys(scriptloader_t *loader,
     scriptloader_extend_loadpath(loader, user_path);
     ret = _scriptloader_set_value(loader, sys, "path", 
                                   data_copy(loader -> load_path));
-    data_free(sys);
+    if (!data_is_exception(ret)) {
+      ret = sys;
+    } else {
+      data_free(sys);
+    }
   } else {
     ret = sys;
   }
@@ -276,6 +281,7 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
   grammar_parser_t *gp;
   data_t           *file;
   data_t           *root;
+  data_t           *sys;
   char             *userdir;
   int               ix;
   int               len;
@@ -359,7 +365,13 @@ scriptloader_t * scriptloader_create(char *sys_dir, array_t *user_path,
     if (script_debug) {
       debug("  Created loader namespace");
     }
-    _scriptloader_import_sys(ret, user_path);
+    sys = _scriptloader_import_sys(ret, user_path);
+    if (!data_is_module(sys)) {
+      error("Error initializing loader scope: %s", data_tostring(sys));
+      ns_free(ret -> ns);
+      ret -> ns = NULL;
+    }
+    data_free(sys);
   }
   data_free(root);
   if (!ret -> ns) {
