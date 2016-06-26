@@ -6,13 +6,11 @@ add_library(oblparser SHARED
   grammar.c
   grammarparser.c
   instruction.c
-  lexer.c
   namespace.c
   object.c
   parser.c
   script.c
   stacktrace.c
-  token.c
   vm.c
 )
 
@@ -22,14 +20,12 @@ if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(oblparser PRIVATE _GNU_SOURCE)
 endif(CMAKE_COMPILER_IS_GNUCC)
 
-add_executable(alex alex.c)
 add_executable(panoramix panoramix.c)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(panoramix PRIVATE _GNU_SOURCE)
 endif(CMAKE_COMPILER_IS_GNUCC)
-target_link_libraries(alex oblparser oblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
-target_link_libraries(panoramix oblparser oblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
+target_link_libraries(panoramix oblparser obllexer oblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
 
 install(TARGETS oblparser DESTINATION lib)
-# install(TARGETS panoramix DESTINATION bin)
+install(TARGETS panoramix DESTINATION bin)

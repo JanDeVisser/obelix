@@ -23,6 +23,7 @@
 
 #include <set.h>
 
+static void *       _set_copy(set_t *, void *);
 static reduce_ctx * _set_reduce_reducer(entry_t *, reduce_ctx *);
 static void *       _set_reduce(set_t *, reduce_t, void *, char *);
 static reduce_ctx * _set_visitor(entry_t *, reduce_ctx *);
@@ -32,9 +33,14 @@ static set_t *      _set_remover(void *, set_t *);
 static reduce_ctx * _set_minus_reducer(void *, reduce_ctx *);
 static reduce_ctx * _set_disjoint_reducer(void *, reduce_ctx *);
 static reduce_ctx * _set_subsetof_reducer(void *, reduce_ctx *);
+static void **      _set_find_reducer(void *, void **);
 
 // --------------------
 // set_t static methods
+
+void * _set_copy(set_t *set, void *elem) {
+  return (set -> dict -> key_type.copy) ? set -> dict -> key_type.copy(elem) : elem;
+}
 
 reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
   void   *elem;
@@ -91,7 +97,7 @@ reduce_ctx * _set_visitor(entry_t *entry, reduce_ctx *ctx) {
 }
 
 set_t * _set_union_reducer(void *elem, set_t *set) {
-  set_add(set, elem);
+  set_add(set, _set_copy(set, elem));
   return set;
 }
 
@@ -104,7 +110,7 @@ reduce_ctx * _set_intersect_reducer(void *elem, reduce_ctx *ctx) {
   other = (set_t *) ctx -> user;
   remove = (set_t *) ctx -> data;
   if (!set_has(other, elem)) {
-    set_add(remove, elem);
+    set_add(remove, _set_copy(remove, elem));
   }
   return ctx;
 }
@@ -123,7 +129,7 @@ reduce_ctx * _set_minus_reducer(void *elem, reduce_ctx *ctx) {
   other = (set_t *) ctx -> user;
   remove = (set_t *) ctx -> data;
   if (set_has(other, elem)) {
-    set_add(remove, elem);
+    set_add(remove, _set_copy(elem));
   }
   return ctx;
 }
@@ -152,6 +158,15 @@ reduce_ctx * _set_subsetof_reducer(void *elem, reduce_ctx *ctx) {
   return ctx;
 }
 
+void ** _set_find_reducer(void *element, void **ctx) {
+  cmp_t finder = (cmp_t) ctx[0];
+  
+  if (!finder(element, ctx[1])) {
+    ctx[2] = element;
+  }
+  return ctx;
+}
+
 // -------------------
 // set_t
 
@@ -163,6 +178,18 @@ set_t * set_create(cmp_t cmp) {
   ret -> str = NULL;
   return ret;
 }
+
+set_t * set_clone(set_t *src) {
+  set_t      *ret = set_create(NULL);
+
+  set_set_type(ret, &(ret -> dict -> key_type));
+  return ret;
+}
+
+set_t * set_copy(set_t *src) { 
+  return set_union(set_clone(src), src);
+}
+
 
 set_t * set_set_free(set_t *set, free_t freefnc) {
   dict_set_free_key(set -> dict, freefnc);
@@ -176,6 +203,11 @@ set_t * set_set_hash(set_t *set, hash_t hash) {
 
 set_t * set_set_tostring(set_t *set, tostring_t tostring) {
   dict_set_tostring_key(set -> dict, tostring);
+  return set;
+}
+
+set_t * set_set_copy(set_t *set, copy_t copyfnc) {
+  dict_set_copy_key(set -> dict, copyfnc);
   return set;
 }
 
@@ -232,19 +264,24 @@ set_t * set_visit(set_t *set, visit_t visitor) {
 }
 
 set_t * set_clear(set_t *set) {
-  dict_clear(set -> dict);
+  if (set) {
+    dict_clear(set -> dict);
+  }
   return set;
 }
 
 set_t * set_union(set_t *set, set_t *other) {
-  return set_reduce(other, (reduce_t) _set_union_reducer, set);
+  return (set && other) ? set_reduce(other, (reduce_t) _set_union_reducer, set) : NULL;
 }
 
 set_t * set_intersect(set_t *set, set_t *other) {
-  set_t *remove;
+  set_t      *remove;
   reduce_ctx *ctx;
 
-  remove = set_create(set -> dict -> cmp);
+  if (!set || !other) {
+    return NULL;
+  }
+  remove = set_clone(set);
   if (remove) {
     ctx = reduce_ctx_create(other, remove, NULL);
     if (ctx) {
@@ -259,10 +296,13 @@ set_t * set_intersect(set_t *set, set_t *other) {
 }
 
 set_t * set_minus(set_t *set, set_t *other) {
-  set_t *remove;
+  set_t      *remove;
   reduce_ctx *ctx;
 
-  remove = set_create(set -> dict -> cmp);
+  if (!set || !other) {
+    return NULL;
+  }
+  remove = set_clone(set);
   if (remove) {
     ctx = reduce_ctx_create(other, remove, NULL);
     if (ctx) {
@@ -280,6 +320,9 @@ int set_disjoint(set_t *s1, set_t *s2) {
   int         disjoint;
   reduce_ctx *ctx;
 
+  if (!s1 || !s2) {
+    return -1;
+  }
   ctx = reduce_ctx_create(s2, &disjoint, NULL);
   disjoint = 1;
   if (ctx) {
@@ -294,6 +337,9 @@ int set_subsetof(set_t *s1, set_t *s2) {
   int         hasall;
   reduce_ctx *ctx;
 
+  if (!s1 || !s2) {
+    return -1;
+  }
   ctx = reduce_ctx_create(s2, &hasall, NULL);
   hasall = 1;
   if (ctx) {
@@ -307,6 +353,9 @@ int set_subsetof(set_t *s1, set_t *s2) {
 int set_cmp(set_t *s1, set_t *s2) {
   int   ret;
 
+  if (!s1 || !s2) {
+    return -1;
+  }
   ret = set_size(s1) - set_size(s2);
   if (!ret) {
     ret = !set_subsetof(s1, s2);
@@ -314,18 +363,12 @@ int set_cmp(set_t *s1, set_t *s2) {
   return ret;
 }
 
-void ** _set_find_reducer(void *element, void **ctx) {
-  cmp_t finder = (cmp_t) ctx[0];
-  
-  if (!finder(element, ctx[1])) {
-    ctx[2] = element;
-  }
-  return ctx;
-}
-
 void * set_find(set_t *haystack, cmp_t finder, void *needle) {
   void *ctx[3];
   
+  if (!haystack) {
+    return NULL;
+  }
   ctx[0] = (void *) finder;
   ctx[1] = needle;
   ctx[2] = NULL;
@@ -337,6 +380,9 @@ str_t * set_tostr(set_t *set) {
   str_t *ret;
   str_t *catted;
 
+  if (!set) {
+    return NULL;
+  }
   ret = str_copy_chars("{");
   catted = str_join(", ", set, set_reduce_chars);
   if (ret && catted) {
@@ -350,6 +396,9 @@ str_t * set_tostr(set_t *set) {
 char * set_tostring(set_t *set) {
   str_t *s = set_tostr(set);
   
+  if (!set) {
+    return NULL;
+  }
   set -> str = strdup(str_chars(s));
   str_free(s);
   return set -> str;

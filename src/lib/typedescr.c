@@ -45,7 +45,6 @@ static int            _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
 static data_t *       _methoddescr_resolve(methoddescr_t *, char *);
 static unsigned int   _methoddescr_hash(methoddescr_t *);
 
-static typedescr_t *  _typedescr_build_constructor(typedescr_t *);
 static int            _typedescr_cmp(typedescr_t *, typedescr_t *);
 static char *         _typedescr_tostring(typedescr_t *);
 static data_t *       _typedescr_resolve(typedescr_t *, char *);
@@ -454,26 +453,6 @@ int vtable_implements(vtable_t *vtable, int type) {
 
 /* -- T Y P E D E S C R  S T A T I C  F U N C T I O N S ------------------- */
 
-typedescr_t * _typedescr_build_constructor(typedescr_t *type) {
-  method_t       constructor;
-  methoddescr_t *md = NULL;
-
-  if (constructor = (method_t) typedescr_get_function(type, FunctionConstructor)) {
-    md = NEW(methoddescr_t);
-    md -> type = type -> type;
-    md -> name = type -> type_name;
-    md -> method = constructor;
-    md -> argtypes[0] = Any;
-    md -> argtypes[1] = NoType;
-    md -> argtypes[2] = NoType;
-    md -> minargs = 0;
-    md -> maxargs = 0;
-    md -> varargs = 1;
-  }
-  type -> constructor = md;
-  return type;
-}
-
 int _typedescr_cmp(typedescr_t *type1, typedescr_t *type2) {
   return type1 -> type - type2 -> type;
 }
@@ -502,7 +481,7 @@ data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
     ret = data_create_list(NULL);
     for (ix = 0; ix < MAX_INHERITS; ix++) {
       if (descr -> inherits[ix] < 0) {
-	break;
+	      break;
       }
       data_list_push(ret, (data_t *) typedescr_get(descr -> inherits[ix]));
     }
@@ -518,7 +497,7 @@ data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
     for (ix = FirstInterface + 1; ix < _next_interface; ix++) {
       iface = &_interfaces[ix - FirstInterface - 1];
       if (iface && typedescr_is(descr, iface -> type)) {
-	data_list_push(ret, (data_t *) iface);
+      	data_list_push(ret, (data_t *) iface);
       }
     }
     return ret;
@@ -589,9 +568,9 @@ int typedescr_register(typedescr_t *descr) {
   vtable = d -> vtable;
   d -> vtable = NULL;
   typedescr_register_functions(d, vtable);
-  _typedescr_build_constructor(d);
   d -> methods = NULL;
   d -> hash = 0;
+  d -> constructors = NULL;
   return d -> type;
 }
 
@@ -720,30 +699,56 @@ void typedescr_count(void) {
   debug("     %-20.20s %6d", "T O T A L", _data_count);
 }
 
+void_t typedescr_get_local_function(typedescr_t *type, int fnc_id) {
+  void_t ret = NULL;
+
+  assert(type);
+  assert(fnc_id > FunctionNone);
+  assert(fnc_id < FunctionEndOfListDummy);
+  if (type -> vtable) {
+    ret = type -> vtable[fnc_id] . fnc;
+  }
+  return ret;
+}
+
 void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
   void_t       ret = NULL;
   int          ix;
   typedescr_t *inherits;
 
-  assert(type);
-  assert(fnc_id > FunctionNone);
-  assert(fnc_id < FunctionEndOfListDummy);
-  //if (type_debug) {
-  //  debug("typedescr_get_function(%s, %s)",
-  //        type -> type_name, label_for_code(_function_id_labels, fnc_id));
-  //}
-  if (type -> vtable) {
-    ret = type -> vtable[fnc_id].fnc;
-  }
+  ret = typedescr_get_local_function(type, fnc_id);
   for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
     inherits = typedescr_get(type -> inherits[ix]);
     ret = typedescr_get_function(inherits, fnc_id);
   }
-  //if (type_debug) {
-  //  debug("typedescr_get_function(%s, %s) = %p",
-  //        type -> type_name, label_for_code(_function_id_labels, fnc_id), ret);
-  //}
   return ret;
+}
+
+list_t * typedescr_get_constructors(typedescr_t *type) {
+  void_t  n;
+  list_t *constructors;
+  list_t *inherited;
+  int     ix;
+
+  if (!type -> constructors) {
+    constructors = list_create();
+    for (ix = 0; (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
+      inherited = typedescr_get_constructors(
+        typedescr_get(type -> inherits[ix]));
+      list_add_all(type -> constructors, inherited);
+    }
+    n = typedescr_get_local_function(type, FunctionNew);
+    if (n) {
+      list_push(type -> constructors, n);
+    }
+    if (list_empty(constructors)) {
+      list_free(constructors);
+      type -> constructors = EmptyList;
+    } else {
+      type -> constructors = constructors;
+    }
+  }
+  return (type -> constructors != EmptyList) ? type -> constructors : NULL;
 }
 
 void typedescr_register_methods(methoddescr_t methods[]) {
@@ -778,16 +783,6 @@ void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
   dict_put(type -> methods, method -> name, method);
 }
 
-methoddescr_t * typedescr_get_constructor(char *name) {
-  typedescr_t *type;
-
-  if (type = typedescr_get_byname(name)) {
-    return type -> constructor;
-  } else {
-    return NULL;
-  }
-}
-
 methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
   methoddescr_t *ret = NULL;
   int            ix;
@@ -810,8 +805,6 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
     }
     if (ret) {
       typedescr_register_method(descr, ret);
-    } else {
-      ret = typedescr_get_constructor(name);
     }
   }
   return ret;

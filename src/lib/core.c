@@ -40,7 +40,25 @@ typedef struct _memmonitor {
 } memmonitor_t;
 
 static inline void _initialize_random(void);
-static void    _outofmemory(int);
+static void        _outofmemory(int);
+
+static type_t _type_str = {
+  .hash     = strhash,
+  .tostring = chars,
+  .copy     = strcpy,
+  .free     = free,
+  .cmp      = strcmp
+};
+type_t *type_str = &_type_str;
+
+static type_t _type_int = {
+  .hash     = hashlong,
+  .tostring = oblcore_itoa,
+  .copy     = NULL,
+  .free     = NULL,
+  .cmp      = NULL
+};
+type_t *type_int = &_type_int;
 
 #ifdef NDEBUG
 log_level_t log_level = LogLevelInfo;
@@ -242,7 +260,6 @@ void _initialize_random(void) {
   }
 }
 
-#if !defined(HAVE_STRCASECMP) && !defined(HAVE__STRICMP)
 int oblcore_strcasecmp(char *s1, char *s2) {
   while (*s1 && (toupper(*s1) && toupper(*s2))) {
     s1++;
@@ -250,9 +267,7 @@ int oblcore_strcasecmp(char *s1, char *s2) {
   }
   return toupper(*s1) - toupper(*s2);
 }
-#endif /* !defined(HAVE_STRCASECMP) && !defined(HAVE__STRICMP) */
 
-#if !defined(HAVE_STRNCASECMP) && !defined(HAVE__STRNICMP)
 int oblcore_strncasecmp(char *s1, char *s2, size_t n) {
   while (n && *s1 && (toupper(*s1) && toupper(*s2))) {
     n--;
@@ -261,7 +276,6 @@ int oblcore_strncasecmp(char *s1, char *s2, size_t n) {
   }
   return toupper(*s1) - toupper(*s2);
 }
-#endif /* !defined(HAVE_STRNCASECMP) && !defined(HAVE__STRNICMP) */
 
 char * strrand(char *buf, size_t numchars) {
   size_t n;
@@ -310,7 +324,6 @@ int code_for_label(code_label_t *table, char *label) {
   return -1;
 }
 
-
 /*
  * reduce_ctx public functions
  */
@@ -338,6 +351,7 @@ reduce_ctx * collection_add_all_reducer(void *data, reduce_ctx *ctx) {
   ((reduce_t) ctx -> fnc)(ctx -> obj, data);
   return ctx;
 }
+
 visit_t collection_visitor(void *data, visit_t visitor) {
   visitor(data);
   return visitor;

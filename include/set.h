@@ -29,8 +29,12 @@ typedef struct _set {
 } set_t;
 
 OBLCORE_IMPEXP set_t *  set_create(cmp_t cmp);
+OBLCORE_IMPEXP set_t *  set_clone(set_t *);
+OBLCORE_IMPEXP set_t *  set_copy(set_t *);
+OBLCORE_IMPEXP set_t *  set_set_type(set_t *, type_t *);
 OBLCORE_IMPEXP set_t *  set_set_free(set_t *, free_t);
 OBLCORE_IMPEXP set_t *  set_set_hash(set_t *, hash_t);
+OBLCORE_IMPEXP set_t *  set_set_copy(set_t *, copy_t);
 OBLCORE_IMPEXP set_t *  set_set_tostring(set_t *, tostring_t);
 OBLCORE_IMPEXP void     set_free(set_t *);
 OBLCORE_IMPEXP set_t *  set_add(set_t *, void *);
@@ -52,14 +56,8 @@ OBLCORE_IMPEXP void *   set_find(set_t *, cmp_t, void *);
 OBLCORE_IMPEXP str_t *  set_tostr(set_t *);
 OBLCORE_IMPEXP char *   set_tostring(set_t *);
 
-#define intset_create()       set_create(NULL);
-#define strset_create()       set_set_tostring( \
-                                set_set_hash( \
-                                  set_set_free( \
-                                    set_create((cmp_t) strcmp), \
-                                    (free_t) free), \
-                                  (hash_t) strhash), \
-                                (tostring_t) chars)
+#define intset_create()       (set_set_type(set_create(NULL), type_int))
+#define strset_create()       (set_set_type(set_create(NULL), type_str))
 #define set_add_int(s, i)     set_add((s), (void *)((intptr_t) (i)))
 #define set_has_int(s, i)     set_has((s), (void *)((intptr_t) (i)))
 #define set_remove_int(s, i)  set_remove((s), (void *)((intptr_t) (i)))

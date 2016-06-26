@@ -38,10 +38,23 @@
 #include <typedescr.h>
 
 static inline void _data_init(void);
+static data_t *    _data_call_constructor(data_t *, new_t, va_list);
+static data_t *    _data_call_constructors(va_list);
 static void        _data_call_free(typedescr_t *, data_t *);
+static data_t *    _data_call_resolve(typedescr_t *, data_t *, char *);
+static data_t *    _data_call_setter(typedescr_t *, data_t *, char *, data_t *);
 
 int                debug_data = -1;
 int                _data_count = 0;
+
+static type_t _type_data = {
+  .hash     = data_hash,
+  .tostring = data_tostring,
+  .copy     = data_copy,
+  .free     = data_free,
+  .cmp      = data_cmp
+};
+type_t *type_data = &_type_data;
 
 /* -- D A T A  S T A T I C  F U N C T I O N S ----------------------------- */
 
@@ -78,12 +91,46 @@ data_t * data_settype(data_t *data, int type) {
   return data;
 }
 
+data_t * _data_call_constructor(data_t *allocated, new_t n, va_list args) {
+  data_t  *ret;
+
+  ret = n(allocated, args);
+  if (allocated != ret) {
+    data_free(allocated);
+  }
+  return ret;
+}
+
+data_t * _data_call_constructors(va_list args) {
+  new_t           n;
+  data_t         *ret;
+  typedescr_t    *type;
+  data_t         *allocated;
+  list_t         *constructors;
+  listiterator_t *iter;
+  va_list         copy;
+
+  type = data_typedescr(allocated);
+  constructors = typedescr_get_constructors(type);
+  allocated = data_create_noinit(type);
+  if (constructors && list_size(constructors)) {
+    for (iter = list_start(constructors); li_has_next(iter); ) {
+      va_copy(copy, args);
+      n = (new_t) li_next(iter);
+      ret = _data_call_constructor(allocated, n, copy);
+      va_end(copy);
+    }
+    li_free(iter);
+  } else {
+    ret = data_copy(va_arg(args, data_t *));
+  }
+  return ret;
+}
+
 data_t * data_create(int type, ...) {
   va_list      args;
   data_t      *ret;
-  data_t      *allocated = NULL;
   typedescr_t *descr;
-  new_t        n;
   factory_t    f;
 
   _data_init();
@@ -98,15 +145,7 @@ data_t * data_create(int type, ...) {
     }
   } else {
     va_start(args, type);
-    if (n = (new_t) typedescr_get_function(descr, FunctionNew)) {
-      allocated = data_create_noinit(type);
-      ret = n(allocated, args);
-      if (allocated != ret) {
-        data_free(allocated);
-      }
-    } else {
-      ret = data_copy(va_arg(args, data_t *));
-    }
+    ret = _data_call_constructors(args);
     va_end(args);
   }
   return ret;
@@ -208,7 +247,7 @@ void _data_call_free(typedescr_t *type, data_t *data) {
   free_t f;
   int    ix;
 
-  f = (free_t) typedescr_get_function(type, FunctionFree);
+  f = (free_t) typedescr_get_local_function(type, FunctionFree);
   if (f) {
     f(data);
   }
@@ -332,6 +371,21 @@ data_t * data_method(data_t *data, char *name) {
   return ret;
 }
 
+data_t * _data_call_resolve(typedescr_t *type, data_t *data, char *name) {
+  resolve_name_t  resolve;
+  data_t         *ret = NULL;
+  int             ix;
+
+  resolve = (resolve_name_t) typedescr_get_local_function(type, FunctionResolve);
+  if (resolve) {
+    ret = resolve(data, name);
+  }
+  for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
+    ret = _data_call_resolve(type -> inherits[ix], data, name)
+  }
+  return ret;
+}
+
 data_t * data_resolve(data_t *data, name_t *name) {
   typedescr_t    *type = data_typedescr(data);
   data_t         *ret = NULL;
@@ -352,10 +406,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
     ret = data_method(data, name_first(name));
   }
   if (!ret) {
-    resolve = (resolve_name_t) typedescr_get_function(type, FunctionResolve);
-    if (resolve) {
-      ret = resolve(data, name_first(name));
-    }
+    ret = _data_call_resolve(type, data, name_first(name));
     if (!ret) {
       ret = data_exception(ErrorType,
                            "Cannot resolve name '%s' in %s '%s'",
@@ -472,12 +523,25 @@ int data_has_callable(data_t *self, name_t *name) {
   return ret;
 }
 
+data_t * _data_call_setter(typedescr_t *type, data_t *data, char *name, data_t *value) {
+  setvalue_t  setter;
+  data_t     *ret = NULL;
+  int         ix;
+
+  setter = (setvalue_t) typedescr_get_local_function(type, FunctionSet);
+  if (setter) {
+    ret = setter(data, name, value);
+  }
+  for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
+    ret = _data_call_setter(type -> inherits[ix], data, name, value)
+  }
+  return ret;
+}
+
 data_t * data_set(data_t *data, name_t *name, data_t *value) {
-  typedescr_t *type;
   data_t      *container;
   name_t      *head;
   data_t      *ret;
-  setvalue_t   setter;
 
   if (debug_data) {
     debug("%s.set(%s:%d, %s)",
@@ -495,18 +559,10 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
   if (data_is_exception(container)) {
     ret = container;
   } else if (container) {
-    type = data_typedescr(container);
-    setter = (setvalue_t) typedescr_get_function(type, FunctionSet);
-    if (!setter) {
-      ret = data_exception(ErrorType,
-                       "Cannot set values on objects of type '%s'",
-                       type_tostring((data_t *) type));
-    } else {
-      ret = setter(container, name_last(name), value);
-    }
+    ret = _data_call_setter(data_typedescr(container), container, name_last(name), value);
   } else {
     ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'",
-                     name_tostring(name), data_tostring(data));
+                         name_tostring(name), data_tostring(data));
   }
   return ret;
 }
@@ -627,15 +683,15 @@ int data_cmp(data_t *d1, data_t *d2) {
     } else {
       p2 = data_promote(d2);
       if (p2 && (d1 -> type == p2 -> type)) {
-	ret = data_cmp(d1, p2);
+	      ret = data_cmp(d1, p2);
       } else if (p1 && !p2) {
-	ret = data_cmp(p1, d2);
+	      ret = data_cmp(p1, d2);
       } else if (!p1 && p2) {
-	ret = data_cmp(d1, p2);
+	      ret = data_cmp(d1, p2);
       } else if (p1 && p2) {
-	ret = data_cmp(p1, p2);
+	      ret = data_cmp(p1, p2);
       } else {
-	ret = d1 -> type - d2 -> type;
+	      ret = d1 -> type - d2 -> type;
       }
       data_free(p2);
     }

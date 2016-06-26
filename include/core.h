@@ -33,7 +33,7 @@ extern "C" {
 #define FALSE         0
 #define NEW(t)        ( (t *) _new( sizeof(t) ) )
 #define NEWARR(n, t)  ( (t *) new_array((n), sizeof(t)))
-
+  
 typedef struct _code_label {
   int   code;
   char *label;
@@ -47,6 +47,7 @@ typedef voidptr_t free_t;
 
 typedef int       (*cmp_t)(void *, void *);
 typedef int       (*hash_t)(void *);
+typedef void *    (*copy_t)(void *);
 typedef char *    (*tostring_t)(void *);
 typedef void *    (*parse_t)(char *);
 typedef void *    (*copydata_t)(void *, void *);
@@ -57,6 +58,14 @@ typedef int       (*read_t)(void *, char *, int);
 typedef int       (*write_t)(void *, char *, int);
 typedef void      (*obj_visit_t)(void *, visit_t);
 typedef void *    (*obj_reduce_t)(void *, reduce_t, void *);
+
+typedef struct _type {
+  hash_t     hash;
+  tostring_t tostring;
+  copy_t     copy;
+  free_t     free;
+  cmp_t      cmp;
+} type_t;
 
 typedef enum _reduce_type {
   RTObjects = 1,
@@ -100,6 +109,9 @@ OBLCORE_IMPEXP int             strtoint(char *, long *);
 OBLCORE_IMPEXP char *          oblcore_itoa(long);
 OBLCORE_IMPEXP char *          oblcore_dtoa(double);
 
+OBLCORE_IMPEXP int             oblcore_strcasecmp(char *, char *);
+OBLCORE_IMPEXP int             oblcore_strncasecmp(char *, char *, size_t);
+
 OBLCORE_IMPEXP char *          label_for_code(code_label_t *, int);
 OBLCORE_IMPEXP int             code_for_label(code_label_t *, char *);
 
@@ -108,8 +120,13 @@ OBLCORE_IMPEXP reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 
-#define new(i)         (_new((i)))
-#define stralloc(n)    ((char *) _new((n) + 1))
+OBLCORE_IMPEXP type_t *        type_str;
+OBLCORE_IMPEXP type_t *        type_int;
+
+#define new(i)          (_new((i)))
+#define stralloc(n)     ((char *) _new((n) + 1))
+
+#define type_copy(d, s) (memcpy((d), (s), sizeof(type_t)))
 
 #ifdef HAVE__STRDUP
 #define strdup _strdup
@@ -133,7 +150,6 @@ OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 #define strcasecmp _stricmp 
 #else
 #define strcasecmp oblcore_strcasecmp
-OBLCORE_IMPEXP int oblcore_strcasecmp(char *, char *);
 #endif /* HAVE__STRICMP */
 #endif /* HAVE_STRCASECMP */
 
@@ -142,7 +158,6 @@ OBLCORE_IMPEXP int oblcore_strcasecmp(char *, char *);
 #define strncasecmp _strnicmp 
 #else
 #define strncasecmp oblcore_strncasecmp
-OBLCORE_IMPEXP int oblcore_strncasecmp(char *, char *, size_t);
 #endif /* HAVE__STRNICMP */
 #endif /* HAVE_STRNCASECMP */
 

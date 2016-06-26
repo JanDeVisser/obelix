@@ -42,17 +42,13 @@ typedef struct _bucket {
 } bucket_t;
 
 typedef struct _dict {
-  cmp_t        cmp;
-  hash_t       hash;
-  visit_t      free_key;
-  visit_t      free_data;
-  tostring_t   tostring_key;
-  tostring_t   tostring_data;
-  bucket_t   **buckets;
-  int          num_buckets;
-  int          size;
-  float        loadfactor;
-  char        *str;
+  type_t     key_type;
+  type_t     data_type;
+  bucket_t **buckets;
+  int        num_buckets;
+  int        size;
+  float      loadfactor;
+  char      *str;
 } dict_t;
 
 typedef struct _entry {
@@ -60,12 +56,18 @@ typedef struct _entry {
   void         *value;
 } entry_t;
 
-OBLCORE_IMPEXP void     entry_free(entry_t *e);
+OBLCORE_IMPEXP void          entry_free(entry_t *e);
 
 OBLCORE_IMPEXP dict_t *      dict_create(cmp_t); /* No hash - Use key point mod something */
+OBLCORE_IMPEXP dict_t *      dict_clone(dict_t *);
+OBLCORE_IMPEXP dict_t *      dict_copy(dict_t *);
+OBLCORE_IMPEXP dict_t *      dict_set_key_type(dict_t *, type_t *);
+OBLCORE_IMPEXP dict_t *      dict_set_data_type(dict_t *, type_t *);
 OBLCORE_IMPEXP dict_t *      dict_set_hash(dict_t *, hash_t);
 OBLCORE_IMPEXP dict_t *      dict_set_free_key(dict_t *, free_t);
 OBLCORE_IMPEXP dict_t *      dict_set_free_data(dict_t *, free_t);
+OBLCORE_IMPEXP dict_t *      dict_set_copy_key(dict_t *, copy_t);
+OBLCORE_IMPEXP dict_t *      dict_set_copy_data(dict_t *, copy_t);
 OBLCORE_IMPEXP dict_t *      dict_set_tostring_key(dict_t *, tostring_t);
 OBLCORE_IMPEXP dict_t *      dict_set_tostring_data(dict_t *, tostring_t);
 OBLCORE_IMPEXP void          dict_free(dict_t *);
@@ -123,7 +125,7 @@ OBLCORE_IMPEXP struct _str * dict_dump(dict_t *, char *);
                                       dict_create((cmp_t) strcmp),\
                                       (hash_t) strhash), \
                                     (free_t) free), \
-																	(tostring_t) chars)
+                                  (tostring_t) chars)
 
 #define intdict_create()        dict_set_tostring_key(dict_create(NULL), (tostring_t) oblcore_itoa)
 

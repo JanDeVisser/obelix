@@ -1,0 +1,52 @@
+%
+  prefix:      uri_parse_
+%
+
+uri                         := scheme 
+                               ':'
+                               authority
+                               slash
+                               path
+                               query
+                               fragment
+                               [ done ]
+                             ;
+                             
+                             
+scheme                      := 'u' [ set_scheme ]
+                             ;
+                             
+                             
+authority                   := '/' '/' 
+                               authentication
+                               host
+                               port
+                             |
+                             ;
+                             
+authentication              := 'u'               [ set_user                  ]
+                               ':' 
+                               'a'               [ set_password              ]
+                               '@'
+                             |
+                             ;
+                             
+host                        :=                   [ bookmark                  ]
+                               _host             [ rollup_name set_host      ]
+                             ;
+
+_host                       := _host_component   [ push                      ]
+                               _host_tail
+                             ;
+
+_host_tail                  := .
+                               _host
+                             |
+                             ;
+                             
+_host_component             := 'u' | 'd'
+
+port:                       := ':' 'd'           [ set_port                  ]
+                             |
+                             ;
+

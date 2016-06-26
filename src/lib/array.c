@@ -69,10 +69,10 @@ void * _array_reduce(array_t *array, reduce_t reducer, void *data, reduce_type_t
     elem = array -> contents[ix];
     switch (type) {
       case RTChars:
-        elem =  array -> tostring(elem);
+        elem =  array -> type.tostring(elem);
         break;
       case RTStrs:
-        elem =  str_wrap(array -> tostring(elem));
+        elem =  str_wrap(array -> type.tostring(elem));
         break;
     }
     data = reducer(elem, data);
@@ -105,10 +105,6 @@ array_t * array_create(int capacity) {
     a -> contents = NULL;
     a -> refs = 1;
     a -> str = NULL;
-    array_set_cmp(a, NULL);
-    array_set_hash(a, NULL);
-    array_set_tostring(a, NULL);
-    array_set_free(a, NULL);
     if (_array_resize(a, capacity)) {
       ret = a;
     }
@@ -199,32 +195,37 @@ array_t * array_slice(array_t *array, int from, int num) {
     num = array_size(array) - from;
   }
   ret = array_create(num);
-  array_set_cmp(ret, array -> cmp);
-  array_set_hash(ret, array -> hash);
-  array_set_tostring(ret, array -> tostring);
+  array_set_type(ret, array -> type);
+  array_set_free(ret, NULL);
   for (ix = 0; ix < num; ix++) {
     array_set(ret, ix, array_get(array, from + ix));
   }
   return ret;
 }
 
+array_t* array_set_type(array_t *array, type_t *type) {
+  type_copy(&(array -> type), type);
+  return array;
+}
+
+
 array_t * array_set_free(array_t *array, free_t freefnc) {
-  array -> freefnc = freefnc;
+  array -> type.free = freefnc;
   return array;
 }
 
 array_t * array_set_cmp(array_t *array, cmp_t cmp) {
-  array -> cmp = cmp;
+  array -> type.cmp = cmp;
   return array;
 }
 
 array_t * array_set_hash(array_t *array, hash_t hash) {
-  array -> hash = hash;
+  array -> type.hash = hash;
   return array;
 }
 
 array_t * array_set_tostring(array_t *array, tostring_t tostring) {
-  array -> tostring = tostring;
+  array -> type.tostring = tostring;
   return array;
 }
 
@@ -232,11 +233,11 @@ unsigned int array_hash(array_t *array) {
   unsigned int hash;
   reduce_ctx *ctx;
 
-  if (!array -> hash) {
+  if (!array -> type.hash) {
     hash = hashptr(array);
   } else {
     ctx = NEW(reduce_ctx);
-    ctx -> fnc = (void_t) array -> hash;
+    ctx -> fnc = (void_t) array -> type.hash;
     ctx -> longdata = 0;
     array_reduce(array, (reduce_t) collection_hash_reducer, ctx);
     hash = (unsigned int) ctx -> longdata;
@@ -264,10 +265,10 @@ void array_free(array_t *array) {
 array_t * array_clear(array_t *array) {
   int ix;
 
-  if (array -> freefnc) {
+  if (array -> type.free) {
     for (ix = 0; ix < array_size(array); ix++) {
       if (array -> contents[ix]) {
-        array -> freefnc(array -> contents[ix]);
+        array -> type.free(array -> contents[ix]);
       }
     }
   }
@@ -283,8 +284,8 @@ int array_set(array_t *array, int ix, void *data) {
   if (!_array_resize(array, ix + 1)) {
     return FALSE;
   }
-  if (array -> freefnc && array -> contents[ix]) {
-    array -> freefnc(array -> contents[ix]);
+  if (array -> type.free && array -> contents[ix]) {
+    array -> type.free(array -> contents[ix]);
   }
   array -> contents[ix] = data;
   if (ix >= array_size(array)) {

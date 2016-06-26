@@ -77,6 +77,7 @@ typedef enum _token_code {
 typedef struct _token {
   data_t        _d;
   unsigned int  code;
+  int           size;
   char         *token;
   int           line;
   int           column;
@@ -85,6 +86,7 @@ typedef struct _token {
 OBLPARSER_IMPEXP char *       token_code_name(token_code_t);
 
 OBLPARSER_IMPEXP token_t *    token_create(unsigned int, char *);
+OBLPARSER_IMPEXP token_t *    token_parse(char *);
 OBLPARSER_IMPEXP unsigned int token_hash(token_t *);
 OBLPARSER_IMPEXP int          token_cmp(token_t *, token_t *);
 OBLPARSER_IMPEXP unsigned int token_code(token_t *);
@@ -101,25 +103,8 @@ OBLPARSER_IMPEXP int Token;
 #define token_free(t)        (data_free((data_t *) (t)))
 #define token_tostring(t)    (data_tostring((data_t *) (t)))
 
-#define strtoken_dict_create()  dict_set_tostring_data( \
-                                  dict_set_tostring_key( \
-                                    dict_set_free_data( \
-                                      dict_set_free_key( \
-                                        dict_set_hash( \
-                                          dict_create((cmp_t) strcmp),\
-                                          (hash_t) strhash), \
-                                        (free_t) free), \
-                                      (free_t) data_free), \
-                                    (tostring_t) chars), \
-                                  (tostring_t) data_tostring)
-
-#define tokenset_create()     set_set_tostring( \
-                                set_set_hash( \
-                                  set_set_free( \
-                                    set_create((cmp_t) token_cmp), \
-                                    (free_t) data_free), \
-                                  token_hash), \
-                                data_tostring)
+#define strtoken_dict_create()  strdata_dict_create()
+#define tokenset_create()       data_set_create()
 
 #ifdef __cplusplus
 }

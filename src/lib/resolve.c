@@ -22,6 +22,9 @@
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif /* HAVE_DLFCN_H */
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
+#endif /* HAVE_PTHREAD_H */
 #include <string.h>
 #ifdef HAVE_WINDOWS_H
 #include <windows.h>
@@ -31,34 +34,39 @@
 #include <logging.h>
 #include <resolve.h>
 
+#define OBL_INIT    "_obl_init"
+
 int resolve_debug = 0;
 
-static inline void _resolve_init(void);
+static inline void __resolve_init(void);
 static char *      _resolve_rewrite_image(char *, char *);
 
-static resolve_t  *_singleton = NULL;
+static resolve_t      *_singleton = NULL;
+static pthread_once_t  _resolve_once = PTHREAD_ONCE_INIT;
+static pthread_mutex_t _resolve_mutex;
 
-void _resolve_init(void) {
+#define _resolve_init() pthread_once(&_resolve_once, __resolve_init)
+
+void __resolve_init(void) {
   void *main;
 
-  if (!_singleton) {
-    logging_register_category("resolve", &resolve_debug);
-    assert(!_singleton);
-    _singleton = NEW(resolve_t);
+  logging_register_category("resolve", &resolve_debug);
+  assert(!_singleton);
+  _singleton = NEW(resolve_t);
 
-    _singleton -> images = list_create();
+  _singleton -> images = list_create();
 #ifdef HAVE_DLFCN_H
-    list_set_free(_singleton -> images, (free_t) dlclose);
+  list_set_free(_singleton -> images, (free_t) dlclose);
 #elif defined(HAVE_WINDOWS_H)
-    list_set_free(_singleton -> images, (free_t) FreeLibrary);
+  list_set_free(_singleton -> images, (free_t) FreeLibrary);
 #endif /* HAVE_DLFCN_H */
-    _singleton -> functions = strvoid_dict_create();
-    main = resolve_open(_singleton, NULL);
-    if (!main) {
-      error("Could not load main program image");
-    }
-    atexit(resolve_free);
+  _singleton -> functions = strvoid_dict_create();
+  main = resolve_open(_singleton, NULL);
+  if (!main) {
+    error("Could not load main program image");
   }
+  pthread_mutex_init(&_resolve_mutex, NULL);
+  atexit(resolve_free);
 }
 
 #ifndef MAX_PATH
@@ -122,14 +130,17 @@ void resolve_free(void) {
 
 resolve_t * resolve_open(resolve_t *resolve, char *image) {
 #ifdef HAVE_DLFCN_H
-  void     *handle;
+  void      *handle;
 #elif defined(HAVE_WINDOWS_H)
-  HMODULE   handle;
+  HMODULE    handle;
 #endif /* HAVE_DLFCN_H */
-  char     *err;
-  char      image_plf[MAX_PATH];
+  char      *err;
+  char       image_plf[MAX_PATH];
+  void_t     initializer;
+  resolve_t *ret = NULL;
 
   _resolve_init();
+  pthread_mutex_lock(&_resolve_mutex);
   if (_resolve_rewrite_image(image, image_plf)) {
     if (resolve_debug) {
       debug("resolve_open('%s') ~ '%s'", image, image_plf);
@@ -137,7 +148,7 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
     image = image_plf;
   } else {
     if (resolve_debug) {
-    	debug("resolve_open('Main Program Image')");
+      debug("resolve_open('Main Program Image')");
     }
   }
 #ifdef HAVE_DLFCN_H
@@ -149,19 +160,43 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
   err = itoa(GetLastError()); // FIXME
 #endif /* HAVE_DLFCN_H */
   if (handle) {
-    list_append(resolve -> images, handle);
-    if (resolve_debug) {
-      info("resolve_open('%s') SUCCEEDED", image ? image : "'Main Program Image'");
+#ifdef HAVE_DLFCN_H
+    dlerror();
+    initializer = (void_t) dlsym(handle, OBL_INIT);
+    err = dlerror();
+#elif defined(HAVE_WINDOWS_H)
+    initializer = (void_t) GetProcAddress(handle, OBL_INIT);
+    err = itoa(GetLastError()); // FIXME
+#endif /* HAVE_DLFCN_H */
+    if (!err) {
+      if (initializer) {
+	if (resolve_debug) {
+	  debug("resolve_open('%s') Execute initializer", image ? image : "'Main Program Image'");
+	}
+	initializer();
+      } else {
+	if (resolve_debug) {
+	  debug("resolve_open('%s') No initializer", image ? image : "'Main Program Image'");
+	}
+      }
+      list_append(resolve -> images, handle);
+      if (resolve_debug) {
+	info("resolve_open('%s') SUCCEEDED", image ? image : "'Main Program Image'");
+      }
+      ret = resolve;
     }
-    return resolve;
   }
-  error("resolve_open('%s') FAILED: %s", image ? image : "'Main Program Image'", err);
+  if (!ret) {
+    error("resolve_open('%s') FAILED: %s", image ? image : "'Main Program Image'", err);
+  }
+  pthread_mutex_unlock(&_resolve_mutex);
   return NULL;
 }
 
 void_t resolve_resolve(resolve_t *resolve, char *func_name) {
-  void           *handle;
-  void_t          ret;
+  void   *handle;
+  void_t  ret = NULL;
+  char   *err;
 
   // TODO synchronize
   ret = (void_t) dict_get(resolve -> functions, func_name);
@@ -176,20 +211,27 @@ void_t resolve_resolve(resolve_t *resolve, char *func_name) {
     debug("dlsym('%s')", func_name);
   }  
   ret = NULL;
-  for (list_start(resolve -> images); !ret && list_has_next(resolve -> images); ) {
+  for (list_start(resolve -> images); !err && !ret && list_has_next(resolve -> images); ) {
     handle = list_next(resolve -> images);
 #ifdef HAVE_DLFCN_H
+    dlerror();
     ret = (void_t) dlsym(handle, func_name);
+    err = dlerror();
 #elif defined(HAVE_WINDOWS_H)
     ret = (void_t) GetProcAddress(handle, func_name);
+    err = itoa(GetLastError()); // FIXME
 #endif /* HAVE_DLFCN_H */
   }
-  if (ret) {
-    dict_put(resolve -> functions, strdup(func_name), ret);
-  } else {
-    if (resolve_debug) {
-      error("Could not resolve function '%s'", func_name);
+  if (!err) {
+    if (ret) {
+      dict_put(resolve -> functions, strdup(func_name), ret);
+    } else {
+      if (resolve_debug) {
+	error("Could not resolve function '%s'", func_name);
+      }
     }
+  } else {
+    error("resolve_resolve('%s') FAILED: %s", func_name, err);
   }
   return ret;
 }

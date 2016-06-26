@@ -90,7 +90,9 @@ OBLCORE_IMPEXP int             str_rindexof(str_t *, str_t *);
 OBLCORE_IMPEXP int             str_rindexof_chars(str_t *, char *);
 OBLCORE_IMPEXP struct _array * str_split(str_t *, char *);
 
+OBLCORE_IMPEXP int             str_rewind(str_t *);
 OBLCORE_IMPEXP int             str_read(str_t *, char *, size_t);
+OBLCORE_IMPEXP int             str_peek(str_t *);
 OBLCORE_IMPEXP int             str_readchar(str_t *);
 OBLCORE_IMPEXP int             str_readinto(str_t *, struct _data *);
 OBLCORE_IMPEXP int             str_read_from_stream(str_t *, void *, read_t);

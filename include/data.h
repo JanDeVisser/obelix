@@ -109,10 +109,10 @@ OBLCORE_IMPEXP data_t *            data_call(data_t *, array_t *, dict_t *);
 OBLCORE_IMPEXP int                 data_hasmethod(data_t *, char *);
 OBLCORE_IMPEXP data_t *            data_method(data_t *, char *);
 OBLCORE_IMPEXP data_t *            data_execute(data_t *, char *,
-						array_t *, dict_t *);
+                                                array_t *, dict_t *);
 OBLCORE_IMPEXP data_t *            data_resolve(data_t *, struct _name *);
 OBLCORE_IMPEXP data_t *            data_invoke(data_t *, struct _name *,
-					       array_t *, dict_t *);
+                                               array_t *, dict_t *);
 OBLCORE_IMPEXP int                 data_has(data_t *, struct _name *);
 OBLCORE_IMPEXP int                 data_has_callable(data_t *, struct _name *);
 OBLCORE_IMPEXP data_t *            data_get(data_t *, struct _name *);
@@ -168,6 +168,9 @@ OBLCORE_IMPEXP int             data_list_size(data_t *);
 OBLCORE_IMPEXP int_t *         bool_true;
 OBLCORE_IMPEXP int_t *         bool_false;
 
+OBLCORE_IMPEXP type_t *        type_data;
+
+
 #define int_as_bool(i)         ((data_t *) bool_get((i)))
 #define int_to_data(i)         ((data_t *) int_create((i)))
 #define flt_to_data(f)         ((data_t *) flt_create((f)))
@@ -180,66 +183,35 @@ OBLCORE_IMPEXP int_t *         bool_false;
 
 /* ----------------------------------------------------------------------- */
 
-#define strdata_dict_create()   dict_set_tostring_data( \
-                                  dict_set_tostring_key( \
-                                    dict_set_free_data( \
-                                      dict_set_free_key( \
-                                        dict_set_hash( \
-                                          dict_create((cmp_t) strcmp),\
-                                          (hash_t) strhash), \
-                                        (free_t) free), \
-                                      (free_t) data_free), \
-                                    (tostring_t) chars), \
-                                  (tostring_t) data_tostring)
+#define strdata_dict_create()  (dict_set_data_type( \
+                                 dict_set_key_type( \
+                                   dict_create(NULL), \
+                                   type_str), \
+                                 type_data))
 
-#define intdata_dict_create()   dict_set_tostring_data( \
-                                  dict_set_tostring_key( \
-                                    dict_set_free_data( \
-                                      dict_create(NULL),\
-                                      (free_t) data_free), \
-                                    (tostring_t) oblcore_itoa), \
-                                  (tostring_t) data_tostring)
+#define intdata_dict_create()  (dict_set_data_type( \
+                                 dict_set_key_type( \
+                                   dict_create(NULL), \
+                                   type_int), \
+                                 type_data))
 
-#define datadata_dict_create()   dict_set_tostring_data( \
-                                  dict_set_tostring_key( \
-                                    dict_set_free_data( \
-                                      dict_set_free_key( \
-                                        dict_set_hash( \
-                                          dict_create((cmp_t) strcmp),\
-                                          (hash_t) data_hash), \
-                                        (free_t) data_free), \
-                                      (free_t) data_free), \
-                                    (tostring_t) data_tostring), \
-                                  (tostring_t) data_tostring)
-#define data_dict_get(d, k)     ((data_t *) dict_get((d), (k)))
+#define datadata_dict_create() (dict_set_data_type( \
+                                 dict_set_key_type( \
+                                   dict_create(NULL), \
+                                   type_data), \
+                                 type_data))
 
-#define data_array_create(i)    array_set_tostring( \
-                                  array_set_free( \
-                                    array_create((i)), \
-                                    (free_t) data_free), \
-                                  (tostring_t) data_tostring)
-#define data_array_get(a, i)    ((data_t *) array_get((a), (i)))
+#define data_dict_get(d, k)    ((data_t *) dict_get((d), (k)))
 
-#define data_list_create()     _list_set_tostring( \
-                                 _list_set_hash( \
-                                   _list_set_cmp( \
-                                     _list_set_free( \
-                                       list_create(), \
-                                       (free_t) data_free), \
-                                     (cmp_t) data_cmp), \
-                                   (hash_t) data_hash), \
-                                 (tostring_t) data_tostring)
-#define data_list_pop(l)      (data_t *) list_pop((l))
-#define data_list_shift(l)    (data_t *) list_shift((l))
+#define data_array_create(i)   (array_set_type(array_create((i)), type_data))
+#define data_array_get(a, i)   ((data_t *) array_get((a), (i)))
 
-#define data_set_create()     set_set_tostring( \
-                                set_set_free(  \
-                                  set_set_hash( \
-                                    set_create((cmp_t) data_cmp), \
-                                    (hash_t) data_hash), \
-                                  (free_t) data_free), \
-                                (tostring_t) data_tostring)
+#define data_list_create()     (list_set_type(list_create(), type_data))
+#define data_list_pop(l)       (data_t *) list_pop((l))
+#define data_list_shift(l)     (data_t *) list_shift((l))
 
+#define data_set_create()      (set_set_type(list_create(NULL), type_data))
+\
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */

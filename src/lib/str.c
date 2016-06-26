@@ -384,6 +384,11 @@ int str_rindexof_chars(str_t *str, char *pattern) {
   }
 }
 
+int str_rewind(str_t *str) {
+  str -> pos = 0;
+  return 0;
+}
+
 int str_read(str_t *str, char *target, size_t num) {
   if ((str -> pos + num) > str -> len) {
     num = str -> len - str -> pos;
@@ -397,8 +402,16 @@ int str_read(str_t *str, char *target, size_t num) {
   }
 }
 
+int str_peek(str_t * str) {
+  return (str -> pos < str -> len) ? str -> buffer[str -> pos] : 0;
+}
+
 int str_readchar(str_t *str) {
-  return (str -> pos < str -> len) ? str -> buffer[str -> pos++] : 0;
+  int ret;
+
+  ret = str_peek(str);
+  str -> pos++;
+  return ret;
 }
 
 int str_pushback(str_t *str, size_t num) {

@@ -90,6 +90,14 @@ typedef enum _vtable_id {
   FunctionInterpolate,  /* 36 */
   FunctionUsr1,         /* 37 */
   FunctionUsr2,         /* 38 */
+  FunctionUsr3,         /* 39 */
+  FunctionUsr4,         /* 40 */
+  FunctionUsr5,         /* 41 */
+  FunctionUsr6,         /* 42 */
+  FunctionUsr7,         /* 43 */
+  FunctionUsr8,         /* 44 */
+  FunctionUsr9,         /* 45 */
+  FunctionUsr10,        /* 46 */
   FunctionEndOfListDummy
 } vtable_id_t;
 
@@ -125,7 +133,7 @@ typedef struct _typedescr {
   char          *type_name;
   vtable_t      *vtable;
   dict_t        *methods;
-  methoddescr_t *constructor;
+  list_t        *constructors;
   void          *ptr;
   int            promote_to;
   int            inherits[MAX_INHERITS];
@@ -139,8 +147,7 @@ OBLCORE_IMPEXP data_t *        type_get_byname(char *);
 OBLCORE_IMPEXP int             interface_register(int, char *, int, ...);
 OBLCORE_IMPEXP interface_t *   interface_get(int);
 OBLCORE_IMPEXP interface_t *   interface_get_byname(char *);
-OBLCORE_IMPEXP void            interface_register_method(interface_t *,
-							 methoddescr_t *);
+OBLCORE_IMPEXP void            interface_register_method(interface_t *, methoddescr_t *);
 OBLCORE_IMPEXP methoddescr_t * interface_get_method(interface_t *, char *);
 
 OBLCORE_IMPEXP vtable_t *      vtable_build(vtable_t[]);
@@ -149,12 +156,9 @@ OBLCORE_IMPEXP void_t          vtable_get(vtable_t *, int);
 OBLCORE_IMPEXP int             vtable_implements(vtable_t *, int);
 
 OBLCORE_IMPEXP int             typedescr_register(typedescr_t *);
-OBLCORE_IMPEXP int             typedescr_register_type(typedescr_t *,
-						       methoddescr_t *);
+OBLCORE_IMPEXP int             typedescr_register_type(typedescr_t *, methoddescr_t *);
 OBLCORE_IMPEXP void            typedescr_register_types(typedescr_t *);
-OBLCORE_IMPEXP int             typedescr_create_and_register(int, char *,
-							     vtable_t *,
-							     methoddescr_t *);
+OBLCORE_IMPEXP int             typedescr_create_and_register(int, char *, vtable_t *, methoddescr_t *);
 OBLCORE_IMPEXP typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
 OBLCORE_IMPEXP typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
 OBLCORE_IMPEXP typedescr_t *   typedescr_assign_inheritance(typedescr_t *, int);
@@ -166,23 +170,25 @@ OBLCORE_IMPEXP void            typedescr_register_methods(methoddescr_t[]);
 OBLCORE_IMPEXP void            typedescr_register_method(typedescr_t *, methoddescr_t *);
 OBLCORE_IMPEXP methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 OBLCORE_IMPEXP void_t          typedescr_get_function(typedescr_t *, int);
+OBLCORE_IMPEXP void_t          typedescr_get_local_function(typedescr_t *, int);
+OBLCORE_IMPEXP list_t *        typedescr_get_constructors(typedescr_t *);
 OBLCORE_IMPEXP int             typedescr_is(typedescr_t *, int);
 OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
 
-#define data_is_type(d)       ((d) && (data_hastype((d), Type)))
-#define data_as_type(d)       ((typedescr_t *) (data_is_type((d)) ? ((typedescr_t *) (d)) : NULL))
-#define type_tostring(s)      (data_tostring((data_t *) (s)))
-#define type_copy(s)          ((typedescr_t *) data_copy((data_t *) (s)))
-  
-#define data_is_interface(d)  ((d) && (data_hastype((d), Interface)))
-#define data_as_interface(d)  ((interface_t *) (data_is_interface((d)) ? ((interface_t *) (d)) : NULL))
-#define interface_tostring(s) (data_tostring((data_t *) (s)))
-#define interface_copy(s)     ((interface_t *) data_copy((data_t *) (s)))
+#define data_is_typedescr(d)   ((d) && (data_hastype((d), Type)))
+#define data_as_typedescr(d)   ((typedescr_t *) (data_is_typedescr((d)) ? ((typedescr_t *) (d)) : NULL))
+#define typedescr_tostring(s)  (data_tostring((data_t *) (s)))
+#define typedescr_copy(s)      ((typedescr_t *) data_copy((data_t *) (s)))
 
-#define data_is_method(d)     ((d) && (data_hastype((d), Method)))
-#define data_as_method(d)     ((methoddescr_t *) (data_is_method((d)) ? ((methoddescr_t *) (d)) : NULL))
-#define method_tostring(s)    (data_tostring((data_t *) (s)))
-#define method_copy(s)        ((methoddescr_t *) data_copy((data_t *) (s)))
+#define data_is_interface(d)   ((d) && (data_hastype((d), Interface)))
+#define data_as_interface(d)   ((interface_t *) (data_is_interface((d)) ? ((interface_t *) (d)) : NULL))
+#define interface_tostring(s)  (data_tostring((data_t *) (s)))
+#define interface_copy(s)      ((interface_t *) data_copy((data_t *) (s)))
+
+#define data_is_method(d)      ((d) && (data_hastype((d), Method)))
+#define data_as_method(d)      ((methoddescr_t *) (data_is_method((d)) ? ((methoddescr_t *) (d)) : NULL))
+#define method_tostring(s)     (data_tostring((data_t *) (s)))
+#define method_copy(s)         ((methoddescr_t *) data_copy((data_t *) (s)))
 
 #ifdef  __cplusplus
 }

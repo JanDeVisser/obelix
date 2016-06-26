@@ -23,6 +23,7 @@
 
 #include <list.h>
 #include <dict.h>
+#include <mutex.h>
 
 typedef struct _resolve {
   list_t  *images;

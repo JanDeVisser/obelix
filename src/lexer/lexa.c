@@ -27,7 +27,35 @@
 #include <lexer.h>
 #include <logging.h>
 
-int alex_debug;
+int lexa_debug;
+
+typedef struct _lexa {
+  dict_t         *scanners;
+  lexer_config_t *config;
+  char           *fname;
+} lexa_t;
+
+lexa_t * lexa_create(void) {
+  lexa_t *ret;
+
+  ret = NEW(lexa_t);
+  ret -> scanners = strdata_dict_create();
+  ret -> config = lexer_config_create();
+  ret -> fname = NULL;
+  return ret;
+}
+
+lexa_t * lexa_add_scanner(lexa_t *lexa, char *scanner_code) {
+  scanner_config_t *scanner;
+
+  scanner = (scanner_config_t *) dict_get(lexa -> scanners, scanner_code);
+  if (!scanner) {
+    scanner = lexer_config_add_scanner_bycode(lexa -> config, scanner_code);
+    dict_put(lexa -> scanners, strdup(scanner_code), scanner_config_copy(scanner));
+  }
+  return lexa;
+}
+
 
 void debug_settings(char *debug) {
   int      debug_all = 0;
@@ -43,23 +71,28 @@ void debug_settings(char *debug) {
   }
 }
 
-void * alex_tokenize(token_t *token, void *lexer) {
+void * lexa_tokenize(token_t *token, void *lexer) {
   printf("%s ", token_tostring(token));
   return lexer;
 }
 
 int main(int argc, char **argv) {
-  lexer_t *lexer;
-  char    *path = NULL;
-  char    *debug = NULL;
-  int      opt;
-  file_t  *file;
+  lexa_t   *lexa;
+  lexer_config_t *config;
+  lexer_t        *lexer;
+  char           *path = NULL;
+  char           *debug = NULL;
+  int             opt;
+  file_t         *file;
 
-  logging_register_category("alex", &alex_debug);
+  logging_register_category("lexa", &lexa_debug);
   while ((opt = getopt(argc, argv, "d:v:")) != -1) {
     switch (opt) {
       case 'd':
         debug = optarg;
+        break;
+      case 's':
+
         break;
       case 'v':
         logging_set_level(atoi(optarg));
@@ -68,14 +101,14 @@ int main(int argc, char **argv) {
   }
   debug_settings(debug);
   if (optind >= argc) {
-    fprintf(stderr, "Usage: alex [options] file\n");
+    fprintf(stderr, "Usage: lexa [options] file\n");
     exit(1);
   }
   path = argv[optind];
   file = file_open(path);
   lexer = lexer_create((data_t *) file);
   if (lexer) {
-    lexer_tokenize(lexer, alex_tokenize, lexer);
+    lexer_tokenize(lexer, lexa_tokenize, lexer);
     printf("\n");
     lexer_free(lexer);
     file_free(file);

@@ -76,11 +76,11 @@ static void             _dict_visit_buckets(dict_t *, visit_t);
 
 void _dictentry_free(dictentry_t *entry) {
   if (entry) {
-    if (entry -> dict -> free_key && entry -> key) {
-      entry -> dict -> free_key(entry -> key);
+    if (entry -> dict -> key_type.free && entry -> key) {
+      entry -> dict -> key_type.free(entry -> key);
     }
-    if (entry -> dict -> free_data && entry -> value) {
-      entry -> dict -> free_data(entry -> value);
+    if (entry -> dict -> data_type.free && entry -> value) {
+      entry -> dict -> data_type.free(entry -> value);
     }
   }
 }
@@ -119,10 +119,10 @@ entry_t * _entry_from_strings(dictentry_t *e) {
   entry_t *ret;
   
   ret = NEW(entry_t);
-  assert(e -> dict -> tostring_key);
-  assert(e -> dict -> tostring_data);
-  ret -> key = strdup(e -> dict -> tostring_key(e -> key));
-  ret -> value = strdup(e -> dict -> tostring_data(e -> value));
+  assert(e -> dict -> key_type.tostring);
+  assert(e -> dict -> data_type.tostring);
+  ret -> key = strdup(e -> dict -> key_type.tostring(e -> key));
+  ret -> value = strdup(e -> dict -> data_type.tostring(e -> value));
   return ret;
 }
 
@@ -243,12 +243,12 @@ bucket_t * _bucket_put(bucket_t *bucket, void *key, void *value) {
   
   e = _bucket_find_entry(bucket, key);
   if (e) {
-    if (e -> dict -> free_key && e -> key) {
-      e -> dict -> free_key(e -> key);
+    if (e -> dict -> key_type.free && e -> key) {
+      e -> dict -> key_type.free(e -> key);
     }
     e -> key = key;
-    if (e -> dict -> free_data && e -> value) {
-      e -> dict -> free_data(e -> value);
+    if (e -> dict -> data_type.free && e -> value) {
+      e -> dict -> data_type.free(e -> value);
     }
     e -> value = value;
   } else {
@@ -260,14 +260,14 @@ bucket_t * _bucket_put(bucket_t *bucket, void *key, void *value) {
 /* -- D I C T  S T A T I C  F U N C T I O N S ----------------------------- */
 
 unsigned int _dict_hash(dict_t *dict, void *key) {
-  return (dict -> hash)
-    ? dict -> hash(key)
+  return (dict -> key_type.hash)
+    ? dict -> key_type.hash(key)
     : hash(&key, sizeof(void *));
 }
 
 int _dict_cmp_keys(dict_t *dict, void *key1, void *key2) {
-  return (dict -> cmp)
-    ? dict -> cmp(key1, key2)
+  return (dict -> key_type.cmp)
+    ? dict -> key_type.cmp(key1, key2)
     : (intptr_t) key1 - (intptr_t) key2;
 }
 
@@ -433,7 +433,12 @@ list_t * _dict_append_reducer(void *elem, list_t *list) {
 }
 
 dict_t * _dict_put_all_reducer(entry_t *e, dict_t *dict) {
-  dict_put(dict, e -> key, e -> value);
+  void *key;
+  void *value;
+
+  key = (dict -> key_type.copy && e -> key) ? e -> key : dict -> key_type.copy(e -> key);
+  value = (dict -> data_type.copy && e -> value) ? e -> value : dict -> data_type.copy(e -> value);
+  dict_put(dict, key, value);
   return dict;
 }
 
@@ -466,38 +471,71 @@ dict_t * dict_create(cmp_t cmp) {
   d = NEW(dict_t);
   d -> buckets = NULL;
   d -> num_buckets = 0;
-  d -> cmp = cmp;
-  d -> hash = NULL;
-  d -> free_key = NULL;
-  d -> free_data = NULL;
+  d -> key_type.cmp = cmp;
   d -> size = 0;
   d -> loadfactor = 0.75; /* TODO: Make configurable */
   d -> str = NULL;
   return d;
 }
 
+dict_t * dict_clone(dict_t *dict) {
+  dict_t *ret = dict_create(NULL);
+  
+  dict_set_key_type(ret, &(dict -> key_type));
+  dict_set_data_type(ret, &(dict -> data_type));
+  return ret;
+}
+
+dict_t * dict_copy(dict_t *dict) {
+  dict_t *ret;
+
+  ret = dict_clone(dict);
+  dict_put_all(ret, dict);
+  return ret;
+}
+
+dict_t * dict_set_key_type(dict_t *dict, type_t *type) {
+  type_copy(&(dict -> key_type), type);
+  return dict;
+}
+
+dict_t * dict_set_data_type(dict_t *dict, type_t *type) {
+  type_copy(&(dict -> data_type), type);
+  return dict;
+}
+
 dict_t * dict_set_hash(dict_t *dict, hash_t hash) {
-  dict -> hash = hash;
+  dict -> key_type.hash = hash;
   return dict;
 }
 
 dict_t * dict_set_free_key(dict_t *dict, free_t free_key) {
-  dict -> free_key = free_key;
+  dict -> key_type.free = free_key;
   return dict;
 }
 
 dict_t * dict_set_free_data(dict_t *dict, free_t free_data) {
-  dict -> free_data = free_data;
+  dict -> data_type.free = free_data;
+  return dict;
+}
+
+dict_t * dict_set_copy_key(dict_t *dict, copy_t copy_key) {
+  dict -> key_type.copy = copy_key;
+  return dict;
+}
+
+dict_t * dict_set_copy_data(dict_t *dict, copy_t copy_data) {
+  dict -> data_type.copy = copy_data;
   return dict;
 }
 
 dict_t * dict_set_tostring_key(dict_t *dict, tostring_t tostring_key) {
-  dict -> tostring_key = tostring_key;
+  dict -> key_type.tostring = tostring_key;
   return dict;
 }
 
 dict_t * dict_set_tostring_data(dict_t *dict, tostring_t tostring_data) {
-  dict -> tostring_data = tostring_data;
+  dict -> data_type.tostring = tostring_data;
   return dict;
 }
 
@@ -678,8 +716,8 @@ str_t * dict_tostr_custom(dict_t *dict, char *open, char *fmt, char *sep, char *
   str_t      *entries;
   void       *ctx[4];
 
-  assert(dict -> tostring_key);
-  assert(dict -> tostring_data);
+  assert(dict -> key_type.tostring);
+  assert(dict -> data_type.tostring);
   
   ret = str_copy_chars(open);
   entries = str_create(0);

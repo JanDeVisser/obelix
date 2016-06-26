@@ -23,6 +23,7 @@
 #include <list.h>
 #include <str.h>
 
+
 static listnode_t *     _ln_init(listnode_t *, list_t *, void *);
 static listnode_t *     _ln_create(list_t *, void *);
 static void             _ln_free(listnode_t *);
@@ -33,8 +34,16 @@ static int              _list_append_fragment(list_t *, listnode_t *, listnode_t
 
 static listiterator_t * _li_init(listiterator_t *, list_t *);
 
+static list_t      _EmptyList = {
+  .head = { .prev = NULL, .next = NULL, .list = &_EmptyList, .data = NULL },
+  .tail = { .prev = NULL, .next = NULL, .list = &_EmptyList, .data = NULL },
+  .size = 0, .iter = NULL
+};
+
 static listnode_t  _ProcessEnd;
        listnode_t *ProcessEnd = &_ProcessEnd;
+       list_t     *EmptyList = &_EmptyList;
+
 
 /* -- L I S T N O D E ----------------------------------------------------- */
 
@@ -101,35 +110,45 @@ list_t * list_create() {
     ret -> head.next = &ret -> tail;
     ret -> tail.prev = &ret -> head;
     ret -> size = 0;
-    ret -> freefnc = NULL;
-    ret -> cmp = NULL;
     _li_init(&ret -> iter, ret);
   }
   return ret;
 }
 
+list_t * list_clone(list_t *list) {
+  list_t *ret = list_create();
+  
+  list_set_type(ret, &(list -> type));
+  return ret;
+}
+
+list_t * list_set_type(list_t *list, type_t *type) {
+  type_copy(&(list -> type), type);
+  return list;
+}
+
 list_t * _list_set_free(list_t *list, visit_t freefnc) {
-  list -> freefnc = freefnc;
+  list -> type.free = freefnc;
   return list;
 }
 
 list_t * _list_set_cmp(list_t *list, cmp_t cmp) {
-  list -> cmp = cmp;
+  list -> type.cmp = cmp;
   return list;
 }
 
 list_t * _list_set_tostring(list_t *list, tostring_t tostring) {
-  list -> tostring = tostring;
+  list -> type.tostring = tostring;
   return list;
 }
 
 list_t * _list_set_hash(list_t *list, hash_t hash) {
-  list -> hash = hash;
+  list -> type.hash = hash;
   return list;
 }
 
 void list_free(list_t *list) {
-  if (list) {
+  if (list && (list != EmptyList)) {
     list_clear(list);
     free(list);
   }
@@ -139,11 +158,11 @@ unsigned int list_hash(list_t *list) {
   unsigned int hash;
   reduce_ctx *ctx;
 
-  if (!list -> hash) {
+  if (!list -> type.hash) {
     hash = hashptr(list);
   } else {
     ctx = NEW(reduce_ctx);
-    ctx -> fnc = (void_t) list -> hash;
+    ctx -> fnc = (void_t) list -> type.hash;
     ctx -> longdata = 0;
     list_reduce(list, (reduce_t) collection_hash_reducer, ctx);
     hash = (unsigned int) ctx -> longdata;
@@ -155,6 +174,8 @@ unsigned int list_hash(list_t *list) {
 list_t * list_append(list_t *list, void *data) {
   listnode_t *node;
 
+  assert(list);
+  assert(list != EmptyList);
   node = _ln_create(list, data);
   node -> prev = list -> tail.prev;
   node -> next = &list -> tail;
@@ -167,6 +188,7 @@ list_t * list_append(list_t *list, void *data) {
 list_t * list_unshift(list_t *list, void *data) {
   listnode_t *node;
 
+  assert(list -> head.list != EmptyList);
   node = _ln_create(list, data);
   node -> prev = &list -> head;
   node -> next = list -> head.next;
@@ -179,6 +201,7 @@ list_t * list_unshift(list_t *list, void *data) {
 list_t * list_add_all(list_t *list, list_t *other) {
   reduce_ctx *ctx;
 
+  assert(list -> head.list != EmptyList);
   ctx = NEW(reduce_ctx);
   ctx -> fnc = (void_t) list_append;
   ctx -> obj = list;
@@ -191,6 +214,7 @@ list_t * list_join(list_t *target, list_t *src) {
   listnode_t *start = src -> head.next;
   listnode_t *end = src -> tail.prev;
 
+  assert(target -> head.list != EmptyList);
   if (list_size(src)) {
     src -> head.next = &src -> tail;
     src -> tail.prev = &src -> head;
@@ -212,10 +236,10 @@ void * __list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t t
     elem = node -> data;
     switch (type) {
       case RTChars:
-        elem =  list -> tostring(elem);
+        elem =  list -> type.tostring(elem);
         break;
       case RTStrs:
-        elem =  str_wrap(list -> tostring(elem));
+        elem =  str_wrap(list -> type.tostring(elem));
         break;
     }
     data = reducer(elem, data);
@@ -258,6 +282,7 @@ list_t * list_clear(list_t *list) {
   listnode_t *node;
   listnode_t *next;
 
+  assert(list -> head.list != EmptyList);
   for (node = list -> head.next; _ln_datanode(node); node = next) {
     next = node -> next;
     _ln_free(node);
@@ -297,6 +322,7 @@ void * list_shift(list_t *list) {
   listnode_t *next;
   void *ret = NULL;
 
+  assert(list -> head.list != EmptyList);
   if (_ln_datanode(node)) {
     next = node -> next;
     ret = node -> data;
@@ -314,6 +340,7 @@ void * list_pop(list_t *list) {
   listnode_t *prev;
   void *ret = NULL;
 
+  assert(list -> head.list != EmptyList);
   if (_ln_datanode(node)) {
     prev = node -> prev;
     ret = node -> data;
@@ -352,6 +379,7 @@ listiterator_t * list_end(list_t *list) {
 
 listiterator_t * list_position(listnode_t *node) {
   list_t *list = node -> list;
+  
   li_position(&list -> iter, node);
   return &list -> iter;
 }
@@ -391,13 +419,9 @@ int list_atend(list_t *list) {
 list_t * list_split(list_t *list) {
   listnode_t *start = li_pointer(&list -> iter);
   listnode_t *end = list -> tail.prev;
-  list_t     *ret = list_create();
-  int         count = 0;
+  list_t     *ret = list_clone(list);
 
-  list_set_cmp(ret, list -> cmp);
-  list_set_free(ret, list -> freefnc);
-  list_set_hash(ret, list -> hash);
-  list_set_tostring(ret, list -> tostring);
+  assert(list -> head.list != EmptyList);
   if (!list_atstart(list) && !list_atend(list)) {
     /*
      * Cut tail out of list:
@@ -457,9 +481,10 @@ listnode_t * li_pointer(listiterator_t *iter) {
 }
 
 void li_replace(listiterator_t *iter, void *data) {
+  assert(iter -> list -> head.list != EmptyList);
   if (_ln_datanode(iter -> current)) {
-    if (iter -> list -> freefnc && iter -> current -> data) {
-      iter -> list -> freefnc(iter -> current -> data);
+    if (iter -> list -> type.free && iter -> current -> data) {
+      iter -> list -> type.free(iter -> current -> data);
     }
     iter -> current -> data = data;
   }
@@ -496,6 +521,7 @@ int li_insert(listiterator_t *iter, void *data) {
   list_t     *list = iter -> list;
   listnode_t *node;
 
+  assert(iter -> list -> head.list != EmptyList);
   /* If we're at the tail we can't insert a new node: */
   if (iter -> current -> next) {
     /* Not at end. Create node: */
@@ -520,6 +546,7 @@ void li_remove(listiterator_t *iter) {
   void *data = NULL;
   listnode_t *node = NULL;
 
+  assert(iter -> list -> head.list != EmptyList);
   if (_ln_datanode(iter -> current)) {
     node = iter -> current;
     node -> prev -> next = node -> next;

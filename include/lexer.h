@@ -24,20 +24,30 @@
 #include <array.h>
 #include <data.h>
 #include <dict.h>
+#include <logging.h>
 #include <str.h>
 #include <token.h>
 
-#define LEXER_BUFSIZE           16384
-#define LEXER_INIT_TOKEN_SZ     256
+#define LEXER_BUFSIZE             16384
+#define LEXER_INIT_TOKEN_SZ       256
+#define LEXER_MAX_SCANNERS        32
+#define SCANNER_CONFIG_SEPARATORS " \t,.;"
 
 typedef enum _lexer_state {
+  LexerStateNoState,
   LexerStateFresh,
+  LexerStateParameter,
   LexerStateInit,
+  LexerStateFirstPass,
+  LexerStateSecondPass,
   LexerStateSuccess,
   LexerStateWhitespace,
   LexerStateNewLine,
   LexerStateIdentifier,
+  LexerStateURIComponent,
+  LexerStateURIComponentPercent,
   LexerStateKeyword,
+  LexerStateMatchLost,
   LexerStatePlusMinus,
   LexerStateZero,
   LexerStateNumber,
@@ -53,75 +63,149 @@ typedef enum _lexer_state {
   LexerStateLineComment,
   LexerStateStar,
   LexerStateDone,
+  LexerStateStale,
   LexerStateLAST
 } lexer_state_t;
 
-typedef enum _lexer_option {
-  LexerOptionIgnoreWhitespace,
-  LexerOptionIgnoreNewLines,
-  LexerOptionIgnoreAllWhitespace,
-  LexerOptionCaseSensitive,
-  LexerOptionHashPling,
-  LexerOptionSignedNumbers,
-  LexerOptionOnNewLine,
-  LexerOptionLAST
-} lexer_option_t;
-
-typedef enum _kw_match_state {
-  KMSInit,
-  KMSPrefixMatched,
-  KMSPrefixesMatched,
-  KMSIdentifierFullMatch,
-  KMSIdentifierFullMatchAndPrefixes,
-  KMSFullMatch,
-  KMSFullMatchAndPrefixes,
-  KMSMatchLost,
-  KMSNoMatch
-} kw_match_state_t;
-
 struct _lexer;
-typedef token_code_t (*lexer_state_handler_t)(struct _lexer *, int);
+struct _scanner;
+struct _scanner_config;
+
+typedef struct _scanner_config {
+  data_t                   _d;
+  struct _scanner_config  *prev;
+  struct _scanner_config  *next;
+  lexer_config_t          *lexer_config;
+  token_t *              (*match)(struct _scanner *);
+  token_t *              (*match_2nd_pass)(struct _scanner *);
+  dict_t                  *config;
+} scanner_config_t;
+
+typedef struct _scanner {
+  data_t            _d;
+  struct _scanner  *next;
+  struct _scanner  *prev;
+  scanner_config_t *config;
+  struct _lexer    *lexer;
+  int               state;
+  void             *data;
+} scanner_t;
+
+typedef struct _lexer_config {
+  data_t            _d;
+  int               num_scanners;
+  scanner_config_t *scanners;
+  int               bufsize;
+} lexer_config_t;
 
 typedef struct _lexer {
-  data_t                 _d;
-  data_t                *reader;
-  list_t                *keywords;
-  data_t                *options[LexerOptionLAST];
-  str_t                 *buffer;
-  str_t                 *pushed_back;
-  str_t                 *token;
-  lexer_state_t          state;
-  lexer_state_handler_t  handler;
-  token_t               *last_token;
-  struct _kw_matches    *matches;
-  char                   quote;
-  int                    prev_char;
-  int                    line;
-  int                    column;
-  void                  *data;
+  data_t           _d;
+  lexer_config_t  *config;
+  scanner_t       *scanners;
+  data_t          *reader;
+  str_t           *buffer;
+  str_t           *lookahead;
+  int              lookahead_live;
+  str_t           *token;
+  lexer_state_t    state;
+  token_t         *last_token;
+  char             quote;
+  int              current;
+  int              prev_char;
+  int              line;
+  int              column;
 } lexer_t;
 
-extern char *       lexer_state_name(lexer_state_t);
-extern char *       lexer_option_name(lexer_option_t);
+extern char *           lexer_state_name(lexer_state_t);
+extern char *           lexer_option_name(lexer_option_t);
 
-extern lexer_t *    lexer_create(data_t *);
-extern lexer_t *    lexer_set_option(lexer_t *, lexer_option_t, data_t *);
-extern data_t *     lexer_get_option(lexer_t *, lexer_option_t);
-extern lexer_t *    lexer_add_keyword(lexer_t *, int, char *);
-extern void         lexer_free(lexer_t *);
-extern void *       _lexer_tokenize(lexer_t *, reduce_t, void *);
-extern token_t *    lexer_next_token(lexer_t *);
-extern token_t *    lexer_rollup_to(lexer_t *, int);
+/*
+ * ---------------------------------------------------------------------------
+ * S C A N N E R  C O N F I G
+ * ---------------------------------------------------------------------------
+ */
 
+extern int                scanner_config_typeid(void);
+extern typedescr_t *      scanner_config_register(typedescr_t *);
+extern typedescr_t *      scanner_config_get(char *);
+extern scanner_config_t * scanner_config_create(char *, lexer_config_t *);
+extern scanner_t *        scanner_config_instantiate(scanner_config_t *, lexer_t *);
+extern scanner_config_t * scanner_config_configure(scanner_config_t *, data_t *);
+
+/*
+ * ---------------------------------------------------------------------------
+ * S C A N N E R
+ * ---------------------------------------------------------------------------
+ */
+
+extern scanner_t *        scanner_create(scanner_config_t *, lexer_t *);
+extern token_code_t       scanner_match(scanner_t *);
+
+/*
+ * ---------------------------------------------------------------------------
+ * L E X E R  C O N F I G
+ * ---------------------------------------------------------------------------
+ */
+
+extern lexer_config_t *   lexer_config_create(void);
+extern scanner_config_t * lexer_config_add_scanner(lexer_config_t *, char *);
+extern lexer_config_t *   lexer_config_set_bufsize(lexer_config_t *, int);
+extern int                lexer_config_get_bufsize(lexer_config_t *);
+
+/*
+ * ---------------------------------------------------------------------------
+ * L E X E R
+ * ---------------------------------------------------------------------------
+ */
+
+extern lexer_t *        lexer_create(lexer_config_t *, data_t *);
+extern token_t *        lexer_next_token(lexer_t *);
+extern int              lexer_get_char(lexer_t *);
+extern void             lexer_pushback(lexer_t *);
+extern void             lexer_clear(lexer_t *);
+extern void             lexer_flush(lexer_t *);
+extern lexer_t *        lexer_reset(lexer_t *);
+extern lexer_t *        lexer_rewind(lexer_t *);
+extern token_t *        lexer_accept(lexer_t *, token_code_t);
+extern token_t *        lexer_get_accept(lexer_t *, token_code_t, int);
+extern lexer_t *        lexer_push(lexer_t *);
+extern void *           _lexer_tokenize(lexer_t *, reduce_t, void *);
+extern token_t *        lexer_rollup_to(lexer_t *, int);
+
+extern void             keywords_register(void);
+extern void             whitespace_register(void);
+extern void             identifier_register(void);
+
+extern int LexerConfig;
 extern int Lexer;
+extern int ScannerConfig;
+extern int Scanner;
 extern int lexer_debug;
 
-#define lexer_tokenize(l, r, d) _lexer_tokenize((l), (reduce_t) (r), (d))
+#define lexer_tokenize(l, r, d)    _lexer_tokenize((l), (reduce_t) (r), (d))
 
-#define data_is_lexer(d)     ((d) && data_hastype((d), Lexer))
-#define data_lexerval(d)     (data_is_lexer((d)) ? ((lexer_t *) ((d) -> ptrval)) : NULL)
-#define lexer_copy(l)        ((lexer_t *) data_copy((data_t *) (l)))
-#define lexer_free(l)        (data_free((data_t *) (l)))
-#define lexer_tostring(l)    (data_tostring((data_t *) (l)))
+#define data_is_lexer_config(d)    ((d) && data_hastype((d), LexerConfig))
+#define data_as_lexer_config(d)    (data_is_lexer_config((d)) ? ((lexer_config_t *) (d)) : NULL)
+#define lexer_config_copy(l)       ((lexer_config_t *) data_copy((data_t *) (l)))
+#define lexer_config_free(l)       (data_free((data_t *) (l)))
+#define lexer_config_tostring(l)   (data_tostring((data_t *) (l)))
+
+#define data_is_lexer(d)           ((d) && data_hastype((d), Lexer))
+#define data_as_lexer(d)           (data_is_lexer((d)) ? ((lexer_t *) (d)) : NULL)
+#define lexer_copy(l)              ((lexer_t *) data_copy((data_t *) (l)))
+#define lexer_free(l)              (data_free((data_t *) (l)))
+#define lexer_tostring(l)          (data_tostring((data_t *) (l)))
+
+#define data_is_scanner_config(d)  ((d) && data_hastype((d), ScannerConfig))
+#define data_as_scanner_config(d)  (data_is_scanner_config((d)) ? ((scanner_config_t *) (d)) : NULL)
+#define scanner_config_copy(l)     ((scanner_config_t *) data_copy((data_t *) (l)))
+#define scanner_config_free(l)     (data_free((data_t *) (l)))
+#define scanner_config_tostring(l) (data_tostring((data_t *) (l)))
+
+#define data_is_scanner(d)         ((d) && data_hastype((d), Scanner))
+#define data_as_scanner(d)         (data_is_scanner((d)) ? ((scanner_t *) (d)) : NULL)
+#define scanner_copy(l)            ((scanner_t *) data_copy((data_t *) (l)))
+#define scanner_free(l)            (data_free((data_t *) (l)))
+#define scanner_tostring(l)        (data_tostring((data_t *) (l)))
 
 #endif /* __LEXER_H__ */
