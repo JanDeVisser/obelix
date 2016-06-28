@@ -68,16 +68,19 @@ typedef enum _lexer_state {
 } lexer_state_t;
 
 struct _lexer;
+struct _lexer_config;
 struct _scanner;
 struct _scanner_config;
+
+typedef token_t * (*matcher_t)(struct _scanner *);
 
 typedef struct _scanner_config {
   data_t                   _d;
   struct _scanner_config  *prev;
   struct _scanner_config  *next;
-  lexer_config_t          *lexer_config;
-  token_t *              (*match)(struct _scanner *);
-  token_t *              (*match_2nd_pass)(struct _scanner *);
+  struct _lexer_config    *lexer_config;
+  matcher_t                match;
+  matcher_t                match_2nd_pass;
   dict_t                  *config;
 } scanner_config_t;
 
@@ -116,8 +119,7 @@ typedef struct _lexer {
   int              column;
 } lexer_t;
 
-extern char *           lexer_state_name(lexer_state_t);
-extern char *           lexer_option_name(lexer_option_t);
+OBLLEXER_IMPEXP char *           lexer_state_name(lexer_state_t);
 
 /*
  * ---------------------------------------------------------------------------
@@ -125,12 +127,12 @@ extern char *           lexer_option_name(lexer_option_t);
  * ---------------------------------------------------------------------------
  */
 
-extern int                scanner_config_typeid(void);
-extern typedescr_t *      scanner_config_register(typedescr_t *);
-extern typedescr_t *      scanner_config_get(char *);
-extern scanner_config_t * scanner_config_create(char *, lexer_config_t *);
-extern scanner_t *        scanner_config_instantiate(scanner_config_t *, lexer_t *);
-extern scanner_config_t * scanner_config_configure(scanner_config_t *, data_t *);
+OBLLEXER_IMPEXP int                scanner_config_typeid(void);
+OBLLEXER_IMPEXP typedescr_t *      scanner_config_register(typedescr_t *);
+OBLLEXER_IMPEXP typedescr_t *      scanner_config_get(char *);
+OBLLEXER_IMPEXP scanner_config_t * scanner_config_create(char *, lexer_config_t *);
+OBLLEXER_IMPEXP scanner_t *        scanner_config_instantiate(scanner_config_t *, lexer_t *);
+OBLLEXER_IMPEXP scanner_config_t * scanner_config_configure(scanner_config_t *, data_t *);
 
 /*
  * ---------------------------------------------------------------------------
@@ -138,8 +140,8 @@ extern scanner_config_t * scanner_config_configure(scanner_config_t *, data_t *)
  * ---------------------------------------------------------------------------
  */
 
-extern scanner_t *        scanner_create(scanner_config_t *, lexer_t *);
-extern token_code_t       scanner_match(scanner_t *);
+OBLLEXER_IMPEXP scanner_t *        scanner_create(scanner_config_t *, lexer_t *);
+OBLLEXER_IMPEXP token_code_t       scanner_match(scanner_t *);
 
 /*
  * ---------------------------------------------------------------------------
@@ -147,10 +149,11 @@ extern token_code_t       scanner_match(scanner_t *);
  * ---------------------------------------------------------------------------
  */
 
-extern lexer_config_t *   lexer_config_create(void);
-extern scanner_config_t * lexer_config_add_scanner(lexer_config_t *, char *);
-extern lexer_config_t *   lexer_config_set_bufsize(lexer_config_t *, int);
-extern int                lexer_config_get_bufsize(lexer_config_t *);
+OBLLEXER_IMPEXP lexer_config_t *   lexer_config_create(void);
+OBLLEXER_IMPEXP scanner_config_t * lexer_config_add_scanner(lexer_config_t *, char *);
+OBLLEXER_IMPEXP lexer_config_t *   lexer_config_set_bufsize(lexer_config_t *, int);
+OBLLEXER_IMPEXP int                lexer_config_get_bufsize(lexer_config_t *);
+OBLLEXER_IMPEXP lexer_config_t *   lexer_config_tokenize(lexer_config_t *, reduce_t, data_t *);
 
 /*
  * ---------------------------------------------------------------------------
@@ -158,29 +161,31 @@ extern int                lexer_config_get_bufsize(lexer_config_t *);
  * ---------------------------------------------------------------------------
  */
 
-extern lexer_t *        lexer_create(lexer_config_t *, data_t *);
-extern token_t *        lexer_next_token(lexer_t *);
-extern int              lexer_get_char(lexer_t *);
-extern void             lexer_pushback(lexer_t *);
-extern void             lexer_clear(lexer_t *);
-extern void             lexer_flush(lexer_t *);
-extern lexer_t *        lexer_reset(lexer_t *);
-extern lexer_t *        lexer_rewind(lexer_t *);
-extern token_t *        lexer_accept(lexer_t *, token_code_t);
-extern token_t *        lexer_get_accept(lexer_t *, token_code_t, int);
-extern lexer_t *        lexer_push(lexer_t *);
-extern void *           _lexer_tokenize(lexer_t *, reduce_t, void *);
-extern token_t *        lexer_rollup_to(lexer_t *, int);
+OBLLEXER_IMPEXP lexer_t *        lexer_create(lexer_config_t *, data_t *);
+OBLLEXER_IMPEXP token_t *        lexer_next_token(lexer_t *);
+OBLLEXER_IMPEXP int              lexer_get_char(lexer_t *);
+OBLLEXER_IMPEXP void             lexer_pushback(lexer_t *);
+OBLLEXER_IMPEXP void             lexer_clear(lexer_t *);
+OBLLEXER_IMPEXP void             lexer_flush(lexer_t *);
+OBLLEXER_IMPEXP lexer_t *        lexer_reset(lexer_t *);
+OBLLEXER_IMPEXP lexer_t *        lexer_rewind(lexer_t *);
+OBLLEXER_IMPEXP token_t *        lexer_accept(lexer_t *, token_code_t);
+OBLLEXER_IMPEXP token_t *        lexer_get_accept(lexer_t *, token_code_t, int);
+OBLLEXER_IMPEXP lexer_t *        lexer_push(lexer_t *);
+OBLLEXER_IMPEXP void *           _lexer_tokenize(lexer_t *, reduce_t, void *);
+OBLLEXER_IMPEXP token_t *        lexer_rollup_to(lexer_t *, int);
 
-extern void             keywords_register(void);
-extern void             whitespace_register(void);
-extern void             identifier_register(void);
+OBLLEXER_IMPEXP void             lexer_init(void);
 
-extern int LexerConfig;
-extern int Lexer;
-extern int ScannerConfig;
-extern int Scanner;
-extern int lexer_debug;
+OBLLEXER_IMPEXP void             keywords_register(void);
+OBLLEXER_IMPEXP void             whitespace_register(void);
+OBLLEXER_IMPEXP void             identifier_register(void);
+
+OBLLEXER_IMPEXP int LexerConfig;
+OBLLEXER_IMPEXP int Lexer;
+OBLLEXER_IMPEXP int ScannerConfig;
+OBLLEXER_IMPEXP int Scanner;
+OBLLEXER_IMPEXP int lexer_debug;
 
 #define lexer_tokenize(l, r, d)    _lexer_tokenize((l), (reduce_t) (r), (d))
 

@@ -20,7 +20,7 @@
 #ifndef __TOKEN_H__
 #define	__TOKEN_H__
 
-#include <libparser.h>
+#include <liblexer.h>
 #include <data.h>
 
 #ifdef __cplusplus
@@ -83,19 +83,20 @@ typedef struct _token {
   int           column;
 } token_t;
 
-OBLPARSER_IMPEXP char *       token_code_name(token_code_t);
+OBLLEXER_IMPEXP char *       token_code_name(token_code_t);
 
-OBLPARSER_IMPEXP token_t *    token_create(unsigned int, char *);
-OBLPARSER_IMPEXP token_t *    token_parse(char *);
-OBLPARSER_IMPEXP unsigned int token_hash(token_t *);
-OBLPARSER_IMPEXP int          token_cmp(token_t *, token_t *);
-OBLPARSER_IMPEXP unsigned int token_code(token_t *);
-OBLPARSER_IMPEXP char *       token_token(token_t *);
-OBLPARSER_IMPEXP int          token_iswhitespace(token_t *);
-OBLPARSER_IMPEXP void         token_dump(token_t *);
-OBLPARSER_IMPEXP data_t *     token_todata(token_t *);
+OBLLEXER_IMPEXP token_t *    token_create(unsigned int, char *);
+OBLLEXER_IMPEXP token_t *    token_parse(char *);
+OBLLEXER_IMPEXP unsigned int token_hash(token_t *);
+OBLLEXER_IMPEXP int          token_cmp(token_t *, token_t *);
+OBLLEXER_IMPEXP unsigned int token_code(token_t *);
+OBLLEXER_IMPEXP char *       token_token(token_t *);
+OBLLEXER_IMPEXP token_t *    token_assign(token_t *, unsigned int, char *);
+OBLLEXER_IMPEXP int          token_iswhitespace(token_t *);
+OBLLEXER_IMPEXP void         token_dump(token_t *);
+OBLLEXER_IMPEXP data_t *     token_todata(token_t *);
 
-OBLPARSER_IMPEXP int Token;
+OBLLEXER_IMPEXP int Token;
 
 #define data_is_token(d)     ((d) && data_hastype((d), Token))
 #define data_tokenval(d)     (data_is_token((d)) ? ((lexer_t *) ((d) -> ptrval)) : NULL)
@@ -110,5 +111,5 @@ OBLPARSER_IMPEXP int Token;
 }
 #endif
 
-#endif /* TOKEN_H */
+#endif /* __TOKEN_H__ */
 

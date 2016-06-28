@@ -681,7 +681,7 @@ unsigned int typedescr_hash(typedescr_t *type) {
 }
 
 void typedescr_dump_vtable(typedescr_t *type) {
-  debug("vtable for %s", type_tostring(type));
+  debug("vtable for %s", typedescr_tostring(type));
   vtable_dump(type -> vtable);
 }
 

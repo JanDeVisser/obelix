@@ -12,21 +12,19 @@
             <in>SOCKLEN_T.c</in>
           </df>
         </df>
-        <df name="src">
-          <df name="bin">
-            <in>grammar.c</in>
-          </df>
-        </df>
       </df>
       <df name="src">
         <df name="bin">
-          <in>grammar.c</in>
           <in>loader.c</in>
           <in>obelix.c</in>
           <in>obelix.h</in>
           <in>scriptparse.c</in>
           <in>server.c</in>
           <in>server.h</in>
+        </df>
+        <df name="lexer">
+          <in>identifier.c</in>
+          <in>number.c</in>
         </df>
         <df name="lib">
           <in>any.c</in>
@@ -67,14 +65,12 @@
           <in>grammar.c</in>
           <in>grammarparser.c</in>
           <in>instruction.c</in>
-          <in>lexer.c</in>
           <in>namespace.c</in>
           <in>object.c</in>
           <in>panoramix.c</in>
           <in>parser.c</in>
           <in>script.c</in>
           <in>stacktrace.c</in>
-          <in>token.c</in>
           <in>vm.c</in>
         </df>
         <df name="stdlib">
@@ -147,70 +143,6 @@
             tool="0"
             flavor2="2">
       </item>
-      <item path="build/src/bin/grammar.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="0">
-        </cTool>
-      </item>
-      <folder path="0/build">
-        <cTool>
-          <incDir>
-            <pElem>build</pElem>
-          </incDir>
-        </cTool>
-      </folder>
-      <folder path="0/build/CMakeFiles">
-        <cTool>
-          <incDir>
-            <pElem>build/CMakeFiles/CMakeTmp</pElem>
-          </incDir>
-        </cTool>
-      </folder>
-      <folder path="0/build/src">
-        <cTool>
-          <incDir>
-            <pElem>include</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>_GNU_SOURCE</Elem>
-          </preprocessorList>
-        </cTool>
-      </folder>
-      <folder path="0/src">
-        <cTool>
-          <incDir>
-            <pElem>include</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>_GNU_SOURCE</Elem>
-          </preprocessorList>
-        </cTool>
-      </folder>
-      <folder path="0/src/lib">
-        <cTool>
-          <preprocessorList>
-            <Elem>oblcore_EXPORTS</Elem>
-          </preprocessorList>
-        </cTool>
-      </folder>
-      <folder path="0/src/parser">
-        <cTool>
-          <incDir>
-            <pElem>build</pElem>
-            <pElem>build/src/parser</pElem>
-          </incDir>
-        </cTool>
-      </folder>
-      <folder path="0/src/stdlib">
-        <cTool>
-          <incDir>
-            <pElem>build</pElem>
-            <pElem>build/src/stdlib</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>oblstdlib_EXPORTS</Elem>
-          </preprocessorList>
-        </cTool>
-      </folder>
       <folder path="Modules">
         <cTool>
           <incDir>
@@ -222,14 +154,6 @@
           </preprocessorList>
         </cTool>
       </folder>
-      <item path="src/bin/grammar.c" ex="false" tool="0" flavor2="2">
-        <cTool>
-          <incDir>
-            <pElem>.</pElem>
-            <pElem>src/bin</pElem>
-          </incDir>
-        </cTool>
-      </item>
       <item path="src/bin/loader.c" ex="false" tool="0" flavor2="3">
         <cTool flags="0">
           <incDir>
@@ -261,6 +185,10 @@
             <pElem>build/src/bin</pElem>
           </incDir>
         </cTool>
+      </item>
+      <item path="src/lexer/identifier.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/lexer/number.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="src/lib/any.c" ex="false" tool="0" flavor2="3">
         <cTool flags="1">
@@ -547,13 +475,6 @@
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/lexer.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
-          <preprocessorList>
-            <Elem>oblparser_EXPORTS</Elem>
-          </preprocessorList>
-        </cTool>
-      </item>
       <item path="src/parser/namespace.c" ex="false" tool="0" flavor2="3">
         <cTool flags="1">
           <preprocessorList>
@@ -587,13 +508,6 @@
         </cTool>
       </item>
       <item path="src/parser/stacktrace.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
-          <preprocessorList>
-            <Elem>oblparser_EXPORTS</Elem>
-          </preprocessorList>
-        </cTool>
-      </item>
-      <item path="src/parser/token.c" ex="false" tool="0" flavor2="3">
         <cTool flags="1">
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>
@@ -649,44 +563,6 @@
           <preBuildCommand>cmake -G "MSYS Makefiles"  .</preBuildCommand>
         </preBuild>
       </makefileType>
-      <folder path="0/src/bin">
-        <cTool>
-          <incDir>
-            <pElem>src/bin</pElem>
-          </incDir>
-        </cTool>
-      </folder>
-      <folder path="0/src/lib">
-        <cTool>
-          <incDir>
-            <pElem>src/lib</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>BUILD_REGEX_DLL</Elem>
-            <Elem>HAVE_CONFIG_H</Elem>
-            <Elem>oblcore_EXPORTS</Elem>
-          </preprocessorList>
-        </cTool>
-      </folder>
-      <folder path="0/src/parser">
-        <cTool>
-          <incDir>
-            <pElem>src/parser</pElem>
-          </incDir>
-        </cTool>
-      </folder>
-      <folder path="0/src/stdlib">
-        <cTool>
-          <incDir>
-            <pElem>src/stdlib</pElem>
-          </incDir>
-          <preprocessorList>
-            <Elem>oblstdlib_EXPORTS</Elem>
-          </preprocessorList>
-        </cTool>
-      </folder>
-      <item path="src/bin/grammar.c" ex="false" tool="0" flavor2="9">
-      </item>
       <item path="src/bin/loader.c" ex="false" tool="0" flavor2="9">
       </item>
       <item path="src/bin/obelix.c" ex="false" tool="0" flavor2="9">
@@ -698,6 +574,10 @@
       <item path="src/bin/server.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="src/bin/server.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="src/lexer/identifier.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="src/lexer/number.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="src/lib/any.c" ex="false" tool="0" flavor2="9">
       </item>
@@ -806,13 +686,6 @@
           </preprocessorList>
         </cTool>
       </item>
-      <item path="src/parser/lexer.c" ex="false" tool="0" flavor2="9">
-        <cTool>
-          <preprocessorList>
-            <Elem>oblparser_EXPORTS</Elem>
-          </preprocessorList>
-        </cTool>
-      </item>
       <item path="src/parser/namespace.c" ex="false" tool="0" flavor2="9">
         <cTool>
           <preprocessorList>
@@ -844,13 +717,6 @@
         </cTool>
       </item>
       <item path="src/parser/stacktrace.c" ex="false" tool="0" flavor2="9">
-        <cTool>
-          <preprocessorList>
-            <Elem>oblparser_EXPORTS</Elem>
-          </preprocessorList>
-        </cTool>
-      </item>
-      <item path="src/parser/token.c" ex="false" tool="0" flavor2="9">
         <cTool>
           <preprocessorList>
             <Elem>oblparser_EXPORTS</Elem>

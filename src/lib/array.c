@@ -195,7 +195,7 @@ array_t * array_slice(array_t *array, int from, int num) {
     num = array_size(array) - from;
   }
   ret = array_create(num);
-  array_set_type(ret, array -> type);
+  array_set_type(ret, &(array -> type));
   array_set_free(ret, NULL);
   for (ix = 0; ix < num; ix++) {
     array_set(ret, ix, array_get(array, from + ix));
@@ -322,12 +322,12 @@ void * array_reduce(array_t *array, reduce_t reduce, void *data) {
 }
 
 void * array_reduce_chars(array_t *array, reduce_t reduce, void *data) {
-  assert(array -> tostring);
+  assert(array -> type.tostring);
   return _array_reduce(array, (reduce_t) reduce, data, RTChars);
 }
 
 void * array_reduce_str(array_t *array, reduce_t reduce, void *data) {
-  assert(array -> tostring);
+  assert(array -> type.tostring);
   return _array_reduce(array, (reduce_t) reduce, data, RTStrs);
 }
 

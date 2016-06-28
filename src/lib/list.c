@@ -61,8 +61,8 @@ listnode_t * _ln_create(list_t *list, void *data) {
 
 void _ln_free(listnode_t *node) {
   if (node) {
-    if (node -> list -> freefnc && node -> data) {
-      node -> list -> freefnc(node -> data);
+    if (node -> list -> type.free && node -> data) {
+      node -> list -> type.free(node -> data);
     }
     free(node);
   }
@@ -256,12 +256,12 @@ void * _list_reduce(list_t *list, reduce_t reduce, void *data) {
 }
 
 void * _list_reduce_chars(list_t *list, reduce_t reduce, void *data) {
-  assert(list -> tostring);
+  assert(list -> type.tostring);
   return __list_reduce(list, (reduce_t) reduce, data, RTChars);
 }
 
 void * _list_reduce_str(list_t *list, reduce_t reduce, void *data) {
-  assert(list -> tostring);
+  assert(list -> type.tostring);
   return __list_reduce(list, (reduce_t) reduce, data, RTStrs);
 }
 

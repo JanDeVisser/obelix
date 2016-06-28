@@ -17,14 +17,12 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <array.h>
 #include <data.h>
-#include <function.h>
 #include <lexer.h>
 
 #define LEXER_DEBUG
@@ -34,18 +32,14 @@
   #define debuglexer(fmt, args...)
 #endif
 
-typedef lexer_t *    (*newline_fnc)(lexer_t *, int);
-
 typedef struct _tokenize_ctx {
   data_t  *parser;
   array_t *args;
 } tokenize_ctx_t;
 
-static inline void      _lexer_init(void);
 static void             _dequotify(str_t *);
 
 static token_t *        _lexer_match_token(lexer_t *);
-static lexer_t *        _lexer_on_newline(lexer_t *, int);
 
 static void             _lexer_free(lexer_t *);
 static char *           _lexer_allocstring(lexer_t *);
@@ -62,7 +56,7 @@ static code_label_t lexer_state_names[] = {
   { .code = LexerStateFresh,              .label = "LexerStateFresh" },
   { .code = LexerStateParameter,          .label = "LexerStateParameter" },
   { .code = LexerStateInit,               .label = "LexerStateInit" },
-  { .code - LexerStateSecondPass,         .label = "LexerStateSecondPass" },
+  { .code = LexerStateSecondPass,         .label = "LexerStateSecondPass" },
   { .code = LexerStateSuccess,            .label = "LexerStateSuccess" },
   { .code = LexerStateWhitespace,         .label = "LexerStateWhitespace" },
   { .code = LexerStateNewLine,            .label = "LexerStateNewLine" },
@@ -88,18 +82,6 @@ static code_label_t lexer_state_names[] = {
   { .code = LexerStateDone,               .label = "LexerStateDone" },
   { .code = LexerStateStale,              .label = "LexerStateStale" },
   { .code = -1,                           .label = NULL }
-};
-
-static code_label_t lexer_option_labels[] = {
-  { .code = LexerOptionIgnoreWhitespace,    .label = "LexerOptionIgnoreWhitespace" },
-  { .code = LexerOptionIgnoreNewLines,      .label = "LexerOptionIgnoreNewLines" },
-  { .code = LexerOptionIgnoreAllWhitespace, .label = "LexerOptionIgnoreAllWhitespace" },
-  { .code = LexerOptionCaseSensitive,       .label = "LexerOptionCaseSensitive" },
-  { .code = LexerOptionHashPling,           .label = "LexerOptionHashPling" },
-  { .code = LexerOptionSignedNumbers,       .label = "LexerOptionSignedNumbers" },
-  { .code = LexerOptionOnNewLine,           .label = "LexerOptionOnNewLine" },
-  { .code = LexerOptionBufferSize,          .label = "LexerOptionBufferSize" },
-  { .code = LexerOptionLAST,                .label = NULL }
 };
 
 int lexer_debug = 0;
@@ -136,8 +118,15 @@ static methoddescr_t _methoddescr_lexer[] = {
 
 /* ------------------------------------------------------------------------ */
 
-void _lexer_init(void) {
+extern void _lexer_config_init(void);
+extern void _scanner_config_init(void);
+extern void _scanner_init(void);
+
+void lexer_init(void) {
   if (Lexer < 0) {
+    _lexer_config_init();
+    _scanner_config_init();
+    _scanner_init();
     logging_register_category("lexer", &lexer_debug);
     Lexer = typedescr_create_and_register(Lexer,
                                           "lexer",
@@ -178,11 +167,9 @@ void _lexer_free(lexer_t *lexer) {
       scanner_free(scanner);
     }
     str_free(lexer -> token);
-    str_free(lexer -> pushed_back);
     if ((data_t *) lexer -> buffer != lexer -> reader) {
       str_free(lexer -> buffer);
     }
-    str_free(lexer -> error);
   }
 }
 
@@ -237,7 +224,7 @@ tokenize_ctx_t * _lexer_tokenize_reducer(token_t *token, tokenize_ctx_t *ctx) {
   }
 }
 
-data_t * _lexer_mth_tokenize(lexer_t *lexer, char *n, array_t *args, dict_t *kwargs) {
+data_t * _lexer_call(lexer_t *lexer, array_t *args, dict_t *kwargs) {
   tokenize_ctx_t  ctx;
   data_t         *ret;
 
@@ -245,13 +232,18 @@ data_t * _lexer_mth_tokenize(lexer_t *lexer, char *n, array_t *args, dict_t *kwa
   ctx.args = data_array_create(3);
 
   array_set(ctx.args, 0, NULL);
-  array_set(ctx.args, 1, data_copy(data_array_get(args, 1)));
-  array_set(ctx.args, 2, (data_t *) lexer_copy( lexer));
+  array_set(ctx.args, 1,
+            ((array_size(args) > 1) ? data_copy(data_array_get(args, 1)) : data_null()));
+  array_set(ctx.args, 2, (data_t *) lexer_copy(lexer));
   lexer_tokenize(lexer, (reduce_t) _lexer_tokenize_reducer, (void *) &ctx);
   ret = data_copy(data_array_get(ctx.args, 0));
   array_free(ctx.args);
   data_free(ctx.parser);
   return ret;
+}
+
+data_t * _lexer_mth_tokenize(lexer_t *lexer, char *n, array_t *args, dict_t *kwargs) {
+  return _lexer_call(lexer, args, kwargs);
 }
 
 /* -- L E X E R  S T A T I C  F U N C T I O N S --------------------------- */
@@ -285,23 +277,18 @@ token_t * _lexer_match_token(lexer_t *lexer) {
 
   ret = NULL;
   for (scanner = lexer -> scanners; scanner && !ret; scanner = scanner -> next) {
-    if (scanner -> config -> def -> funcs.match) {
+    if (scanner -> config -> match) {
       lexer -> state = LexerStateFirstPass;
       lexer_rewind(lexer);
-      if (scanner -> config -> def -> funcs.match) {
-	ret = scanner -> config -> def -> funcs.match(scanner -> data, lexer);
-      }
+      ret = scanner -> config -> match(scanner);
     }
   }
   if (!ret) {
     for (scanner = lexer -> scanners; scanner && !ret; scanner = scanner -> next) {
-      if (scanner -> config -> def -> funcs.match) {
+      if (scanner -> config -> match_2nd_pass) {
         lexer_rewind(lexer);
         lexer -> state = LexerStateSecondPass;
-        ret = scanner -> config -> def -> funcs.match(scanner);
-	if (scanner -> config -> def -> funcs.match_2nd_pass) {
-	  ret = scanner -> config -> def -> funcs.match_2nd_pass(scanner -> data, lexer);
-	}
+        ret = scanner -> config -> match_2nd_pass(scanner);
       }
     }
   }
@@ -327,21 +314,6 @@ token_t * _lexer_match_token(lexer_t *lexer) {
   return ret;
 }
 
-lexer_t * _lexer_on_newline(lexer_t *lexer, int line) {
-  data_t      *on_newline_opt;
-  function_t  *fnc;
-  newline_fnc  on_newline;
-
-  on_newline_opt = lexer_get_option(lexer, LexerOptionOnNewLine);
-  if (data_is_function(on_newline_opt)) {
-    fnc = (function_t *) on_newline_opt;
-    on_newline = (newline_fnc) fnc -> fnc;
-    return on_newline(lexer, line);
-  } else {
-    return lexer;
-  }
-}
-
 /* -- L E X E R  P U B L I C  I N T E R F A C E --------------------------- */
 
 lexer_t * lexer_create(lexer_config_t *config, data_t *reader) {
@@ -351,7 +323,7 @@ lexer_t * lexer_create(lexer_config_t *config, data_t *reader) {
   scanner_config_t *scanner_config;
   int      ix;
 
-  _lexer_init();
+  lexer_init();
   ret = data_new(Lexer, lexer_t);
   ret -> config = lexer_config_copy(config);
   ret -> reader = data_copy(reader);
@@ -365,7 +337,6 @@ lexer_t * lexer_create(lexer_config_t *config, data_t *reader) {
   ret -> token = str_create(LEXER_INIT_TOKEN_SZ);
   ret -> lookahead = NULL;
   ret -> lookahead_live = FALSE;
-  ret -> error = NULL;
 
   ret -> scanners = NULL;
   for (scanner_config = config -> scanners; scanner_config; scanner_config = scanner_config -> next) {
@@ -391,9 +362,7 @@ void * _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
 }
 
 token_t * lexer_next_token(lexer_t *lexer) {
-  if (!lexer -> last_token) {
-    _lexer_on_newline(lexer, 1);
-  } else if (token_code(lexer -> last_token) == TokenCodeEnd) {
+  if (token_code(lexer -> last_token) == TokenCodeEnd) {
     token_free(lexer -> last_token);
     lexer -> last_token = token_create(TokenCodeExhausted, "$$$$");
     return NULL;
@@ -419,8 +388,6 @@ token_t * lexer_next_token(lexer_t *lexer) {
       lexer -> last_token = token_create(TokenCodeEnd, "$$");
       lexer -> last_token -> line = lexer -> line;
       lexer -> last_token -> column = lexer -> column;
-    } else if (lexer -> last_token && (token_code(lexer -> last_token) == TokenCodeNewLine)) {
-      _lexer_on_newline(lexer, lexer -> last_token -> line);
     }
   } while (!lexer -> last_token);
 
@@ -459,10 +426,14 @@ lexer_t * lexer_reset(lexer_t *lexer) {
 token_t * lexer_accept(lexer_t *lexer, token_code_t code) {
   token_t *ret;
 
-  ret = token_create(code, (lexer -> token) ? str_chars(lexer -> token) : NULL);
-  lexer_reset(lexer);
-  lexer -> last_token = token_copy(ret);
-  return lexer -> last_token;
+  if (lexer -> token && str_len(lexer -> token)) {
+    ret = token_create(code, str_chars(lexer -> token));
+    lexer_reset(lexer);
+    lexer -> last_token = token_copy(ret);
+    return lexer -> last_token;
+  } else {
+    return NULL;
+  }
 }
 
 /**
@@ -505,7 +476,7 @@ int lexer_get_char(lexer_t *lexer) {
       lexer -> current = ch;
       return ch;
     } else {
-      debuglexer("_lexer_get_char: lookahead buffer exhausted");
+      debuglexer("_lexer_get_char: lookahead buffer exhausted", ch);
       lexer -> lookahead_live = FALSE;
     }
   }

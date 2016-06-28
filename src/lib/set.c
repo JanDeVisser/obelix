@@ -53,8 +53,8 @@ reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
   f = NULL;
   type = ((char *) ctx -> user)[0];
   if ((type == 'c') || (type == 's')) {
-    c = (set -> dict -> tostring_key)
-          ? set -> dict -> tostring_key(entry -> key)
+    c = (set -> dict -> key_type.tostring)
+          ? set -> dict -> key_type.tostring(entry -> key)
           : itoa((intptr_t) entry -> key);
   }
   switch (type) {
@@ -129,7 +129,7 @@ reduce_ctx * _set_minus_reducer(void *elem, reduce_ctx *ctx) {
   other = (set_t *) ctx -> user;
   remove = (set_t *) ctx -> data;
   if (set_has(other, elem)) {
-    set_add(remove, _set_copy(elem));
+    set_add(remove, _set_copy(other, elem));
   }
   return ctx;
 }
@@ -190,6 +190,10 @@ set_t * set_copy(set_t *src) {
   return set_union(set_clone(src), src);
 }
 
+set_t * set_set_type(set_t *set, type_t *type) {
+  dict_set_key_type(set -> dict, type);
+  return set;
+}
 
 set_t * set_set_free(set_t *set, free_t freefnc) {
   dict_set_free_key(set -> dict, freefnc);

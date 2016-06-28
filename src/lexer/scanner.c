@@ -17,16 +17,19 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <liblexer.h>
+#include <stdio.h>
+
 #include <lexer.h>
 
 /* ------------------------------------------------------------------------ */
 
-static inline void      _scanner_init(void);
+extern inline void      _scanner_init(void);
 static scanner_t *      _scanner_new(scanner_t *, va_list);
-static void             _scanner_free(scanner_config_t *);
-static char *           _scanner_allocstring(scanner_config_t *);
-static data_t *         _scanner_resolve(scanner_config_t *, char *);
-static data_t *         _scanner_set(scanner_config_t *, char *, data_t *);
+static void             _scanner_free(scanner_t *);
+static char *           _scanner_allocstring(scanner_t *);
+static data_t *         _scanner_resolve(scanner_t *, char *);
+static data_t *         _scanner_set(scanner_t *, char *, data_t *);
 
 static vtable_t _vtable_scanner[] = {
   { .id = FunctionNew,          .fnc = (void_t) _scanner_new },
@@ -65,8 +68,8 @@ scanner_t * _scanner_new(scanner_t *scanner, va_list args) {
   } else {
     lexer -> scanners = scanner;
   }
-  scanner -> config = scanner_config_copy(scanner_config);
-  scanner -> lexer = lexer_copy(ret);
+  scanner -> config = scanner_config_copy(config);
+  scanner -> lexer = lexer_copy(lexer);
   scanner -> state = 0;
   scanner -> data = NULL;
   return scanner;
@@ -74,26 +77,30 @@ scanner_t * _scanner_new(scanner_t *scanner, va_list args) {
 
 void _scanner_free(scanner_t *scanner) {
   if (scanner) {
-    if (scanner -> config -> def -> funcs.destroy) {
-      scanner -> config -> def -> funcs.destroy(scanner -> data);
-    }
     scanner_config_free(scanner -> config);
     lexer_free(scanner -> lexer);
-    str_free(scanner -> token);
   }
 }
 
 char * _scanner_allocstring(scanner_t *scanner) {
   char *buf;
 
-  asprintf(&buf, "'%s' scanner", scanner -> config -> def -> code);
+  asprintf(&buf, "'%s' scanner", data_typename(scanner -> config));
   return buf;
 }
 
-scanner_t * scanner_create(scanner_config_t *scanner, lexer_t *lexer) {
+data_t * _scanner_resolve(scanner_t *scanner, char *name) {
+  return NULL;
+}
+
+data_t * _scanner_set(scanner_t *scanner, char *name, data_t *value) {
+  return NULL;
+}
+
+scanner_t * scanner_create(scanner_config_t *config, lexer_t *lexer) {
   scanner_t *ret;
 
   _scanner_init();
-  ret = data_create(Scanner, scanner, lexer);
+  ret = (scanner_t *) data_create(Scanner, config, lexer);
   return ret;
 }

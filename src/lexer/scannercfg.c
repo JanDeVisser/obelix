@@ -25,12 +25,12 @@
 
 /* ------------------------------------------------------------------------ */
 
-static inline void        _scanner_config_init(void);
+extern inline void        _scanner_config_init(void);
 static scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list);
 static void               _scanner_config_free(scanner_config_t *);
 static char *             _scanner_config_allocstring(scanner_config_t *);
 static data_t *           _scanner_config_resolve(scanner_config_t *, char *);
-static data_t *           _scanner_config_set(scanner_config_t *, char *, data_t *);
+static scanner_config_t * _scanner_config_set(scanner_config_t *, char *, data_t *);
 static data_t *           _scanner_config_call(scanner_config_t *, array_t *, dict_t *);
 static scanner_config_t * _scanner_config_setvalue(scanner_config_t *, char *, data_t *);
 static scanner_config_t * _scanner_config_setstring(scanner_config_t *, char *);
@@ -68,8 +68,8 @@ scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list args) {
   lexer_config = va_arg(args, lexer_config_t *);
   config -> prev = config -> next = NULL;
   config -> lexer_config = lexer_config_copy(lexer_config);
-  config -> match = typedescr_get_function(data_type(config), FunctionUsr1);
-  config -> match_2nd_pass = typedescr_get_function(data_type(config), FunctionUsr2);
+  config -> match = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionUsr1);
+  config -> match_2nd_pass = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionUsr2);
   config -> config = NULL;
 
   lexer_config -> num_scanners++;
@@ -104,17 +104,20 @@ data_t * _scanner_config_resolve(scanner_config_t *config, char *name) {
   return ret;
 }
 
-data_t * _scanner_config_set(scanner_config_t *config, char *name, data_t *value) {
-  data_t  *ret = NULL;
-  array_t *args;
+scanner_config_t * _scanner_config_set(scanner_config_t *config, char *name, data_t *value) {
+  scanner_config_t  *ret = NULL;
 
   if (!strcmp(name, "configuration")) {
-    ret = (data_t *) scanner_config_configure(config, value);
+    ret = scanner_config_configure(config, value);
   } else {
+    if (lexer_debug) {
+      debug("Setting value '%s' for parameter '%s' on scanner config '%s'",
+            data_tostring(value), name, data_type(config));
+    }
     if (!config -> config) {
       config -> config = strdata_dict_create();
     }
-    ret = (value) ? data_copy(value) : data_null();
+    ret = config;
     dict_put(config -> config, strdup(name), ret);
   }
   return ret;
@@ -135,12 +138,19 @@ scanner_config_t * _scanner_config_setstring(scanner_config_t *config, char *val
   char   *ptr;
   data_t *v;
 
+  if (lexer_debug) {
+    debug("Setting config string '%s' on scanner config '%s'",
+          value, data_type(config));
+  }
   ptr = strpbrk(value, ":=");
   if (ptr) {
     *ptr = 0;
     v = (data_t *) str_copy_chars(ptr + 1);
   } else {
     v = data_true();
+  }
+  if (lexer_debug) {
+    debug("parameter: '%s', value: '%s'", value, data_tostring(v));
   }
   if (strcmp(value, "configuration")) {
     return _scanner_config_set(config, strdup(value), v);
@@ -185,19 +195,25 @@ scanner_config_t * scanner_config_create(char *code, lexer_config_t *lexer_confi
   typedescr_t      *type;
 
   type = scanner_config_get(code);
-  return (type) ? data_create(type -> type, lexer_config) : NULL;
+  return (type)
+           ? ((scanner_config_t *) data_create(type -> type, lexer_config))
+           : NULL;
 }
 
 scanner_t * scanner_config_instantiate(scanner_config_t *config, lexer_t *lexer) {
-  return (scanner_t *) data_create(Scanner, config, lexer);
+  return scanner_create(config, lexer);
 }
 
 scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *value) {
-  nvp_t  *nvp;t
+  nvp_t  *nvp;
   char   *params;
   char   *param;
   char   *saveptr;
 
+  if (lexer_debug) {
+    debug("Configuring scanner '%s' with value '%s'",
+          data_type(config), data_tostring(value));
+  }
   if (data_type(value) == NVP) {
     nvp = data_as_nvp(value);
     _scanner_config_setvalue(config, data_tostring(nvp -> name), nvp -> value);

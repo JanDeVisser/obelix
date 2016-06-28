@@ -14,7 +14,7 @@ add_library(oblparser SHARED
   vm.c
 )
 
-target_link_libraries(oblparser PUBLIC oblcore)
+target_link_libraries(oblparser PUBLIC oblcore obllexer)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(oblparser PRIVATE _GNU_SOURCE)

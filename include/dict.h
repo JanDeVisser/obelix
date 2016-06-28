@@ -99,35 +99,22 @@ OBLCORE_IMPEXP char *        dict_tostring_custom(dict_t *, char *, char *, char
 
 OBLCORE_IMPEXP struct _str * dict_dump(dict_t *, char *);
 
-#define intstr_dict_create()    dict_set_tostring_data( \
-                                  dict_set_tostring_key( \
-                                    dict_set_free_data( \
-                                      dict_create(NULL),\
-                                      (free_t) free), \
-                                    (tostring_t) oblcore_itoa), \
-                                  (tostring_t) chars)
+#define intstr_dict_create()    (dict_set_data_type( \
+                                  dict_set_key_type( \
+                                    dict_create(NULL), \
+                                    type_int), \
+                                  type_str))
 
-#define strstr_dict_create()    dict_set_tostring_data( \
-                                  dict_set_tostring_key( \
-                                    dict_set_free_data( \
-                                      dict_set_free_key( \
-                                        dict_set_hash( \
-                                          dict_create((cmp_t) strcmp),\
-                                          (hash_t) strhash), \
-                                        (free_t) free), \
-                                      (free_t) free), \
-                                    (tostring_t) chars), \
-                                  (tostring_t) chars)
+#define strstr_dict_create()    (dict_set_data_type( \
+                                  dict_set_key_type( \
+                                    dict_create(NULL), \
+                                    type_str), \
+                                  type_str))
 
-#define strvoid_dict_create()   dict_set_tostring_key( \
-                                  dict_set_free_key( \
-                                    dict_set_hash( \
-                                      dict_create((cmp_t) strcmp),\
-                                      (hash_t) strhash), \
-                                    (free_t) free), \
-                                  (tostring_t) chars)
-
-#define intdict_create()        dict_set_tostring_key(dict_create(NULL), (tostring_t) oblcore_itoa)
+#define strvoid_dict_create()   (dict_set_key_type(dict_create(NULL), type_str))
+#define strdict_create()        (strvoid_dict_create())
+#define intvoid_dict_create()   (dict_set_key_type(dict_create(NULL), type_int))
+#define intdict_create()        (intvoid_dict_create())
 
 #define dict_put_int(d, i, v)   dict_put((d), (void *)((intptr_t) (i)), (v))
 #define dict_get_int(d, i)      dict_get((d), (void *)((intptr_t) (i)))

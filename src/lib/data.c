@@ -39,7 +39,7 @@
 
 static inline void _data_init(void);
 static data_t *    _data_call_constructor(data_t *, new_t, va_list);
-static data_t *    _data_call_constructors(va_list);
+static data_t *    _data_call_constructors(typedescr_t *, va_list);
 static void        _data_call_free(typedescr_t *, data_t *);
 static data_t *    _data_call_resolve(typedescr_t *, data_t *, char *);
 static data_t *    _data_call_setter(typedescr_t *, data_t *, char *, data_t *);
@@ -48,11 +48,11 @@ int                debug_data = -1;
 int                _data_count = 0;
 
 static type_t _type_data = {
-  .hash     = data_hash,
-  .tostring = data_tostring,
-  .copy     = data_copy,
-  .free     = data_free,
-  .cmp      = data_cmp
+  .hash     = (hash_t) data_hash,
+  .tostring = (tostring_t) data_tostring,
+  .copy     = (copy_t)  data_copy,
+  .free     = (free_t) data_free,
+  .cmp      = (cmp_t) data_cmp
 };
 type_t *type_data = &_type_data;
 
@@ -101,18 +101,16 @@ data_t * _data_call_constructor(data_t *allocated, new_t n, va_list args) {
   return ret;
 }
 
-data_t * _data_call_constructors(va_list args) {
+data_t * _data_call_constructors(typedescr_t *type, va_list args) {
   new_t           n;
   data_t         *ret;
-  typedescr_t    *type;
   data_t         *allocated;
   list_t         *constructors;
   listiterator_t *iter;
   va_list         copy;
 
-  type = data_typedescr(allocated);
   constructors = typedescr_get_constructors(type);
-  allocated = data_create_noinit(type);
+  allocated = data_create_noinit(type -> type);
   if (constructors && list_size(constructors)) {
     for (iter = list_start(constructors); li_has_next(iter); ) {
       va_copy(copy, args);
@@ -145,7 +143,7 @@ data_t * data_create(int type, ...) {
     }
   } else {
     va_start(args, type);
-    ret = _data_call_constructors(args);
+    ret = _data_call_constructors(descr, args);
     va_end(args);
   }
   return ret;
@@ -381,7 +379,7 @@ data_t * _data_call_resolve(typedescr_t *type, data_t *data, char *name) {
     ret = resolve(data, name);
   }
   for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
-    ret = _data_call_resolve(type -> inherits[ix], data, name)
+    ret = _data_call_resolve(typedescr_get(type -> inherits[ix]), data, name);
   }
   return ret;
 }
@@ -390,7 +388,6 @@ data_t * data_resolve(data_t *data, name_t *name) {
   typedescr_t    *type = data_typedescr(data);
   data_t         *ret = NULL;
   data_t         *tail_resolve;
-  resolve_name_t  resolve;
   name_t         *tail;
 
   assert(type);
@@ -533,7 +530,7 @@ data_t * _data_call_setter(typedescr_t *type, data_t *data, char *name, data_t *
     ret = setter(data, name, value);
   }
   for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
-    ret = _data_call_setter(type -> inherits[ix], data, name, value)
+    ret = _data_call_setter(typedescr_get(type -> inherits[ix]), data, name, value);
   }
   return ret;
 }
@@ -749,7 +746,7 @@ data_t * data_read(data_t *reader, char *buf, int num) {
   } else {
     return data_exception(ErrorFunctionUndefined,
                           "%s '%s' is has no 'read' function",
-                          type_tostring(data_typedescr(reader)),
+                          typedescr_tostring(data_typedescr(reader)),
                           data_tostring(reader));
   }
 }
@@ -774,7 +771,7 @@ data_t * data_write(data_t *writer, char *buf, int num) {
   } else {
     return data_exception(ErrorFunctionUndefined,
                           "%s '%s' is has no 'write' function",
-                          type_tostring(type),
+                          typedescr_tostring(type),
                           data_tostring(writer));
   }
 }

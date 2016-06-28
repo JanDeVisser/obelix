@@ -85,7 +85,7 @@ data_t * range_create(data_t *from, data_t *to) {
       !typedescr_get_function(type, FunctionDecr)) {
     return data_exception(ErrorType,
                           "Cannot build range: type '%s' is not incrementable",
-                          type_tostring(type));
+                          typedescr_tostring(type));
   }
   range = data_new(Range, range_t);
   range -> from = data_copy(from);

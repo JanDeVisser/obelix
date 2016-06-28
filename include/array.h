@@ -76,11 +76,7 @@ OBLCORE_IMPEXP void *        array_prev(array_t *);
 #define array_empty(a)           (array_size((a)) == 0)
 #define array_notempty(a)        (array_size((a)) > 0)
 
-#define str_array_create(i)     array_set_tostring( \
-                                  array_set_free( \
-                                    array_create((i)), \
-                                    (free_t) free), \
-                                  (tostring_t) chars)
+#define str_array_create(i)     (array_set_type(array_create(i), type_str))
 #define str_array_get(a, i)     ((char *) array_get((a), (i)))
 #define array_join(a, g)        (_str_join((g), (a), (obj_reduce_t) array_reduce_chars))
 

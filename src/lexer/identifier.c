@@ -22,47 +22,40 @@
 
 #include <lexer.h>
 
-static         int          _is_identifier(str_t *);
+#define PARAM_TOUPPER         "toupper"
+#define PARAM_TOLOWER         "tolower"
+#define PARAM_CASESENSITIVE   "casesensitive"
+#define PARAM_DIGITS          "digits"
+#define PARAM_UNDERSCORE      "underscore"
 
 typedef enum _id_foldcase {
-  IDCaseSensitive,
+  IDCaseSensitive = 0,
   IDFoldToLower,
   IDFoldToUpper
 } id_foldcase_t;
 
 typedef struct _id_config {
-  int            underscore;
-  int            digits;
-  id_foldcase_t  foldcase;
+  scanner_config_t  _sc;
+  int               underscore;
+  int               digits;
+  id_foldcase_t     foldcase;
 } id_config_t;
 
-typedef struct _id_scanner {
-  id_config_t   *config;
-} id_scanner_t;
-
 static id_config_t *      _id_config_create(void);
-static void               _id_config_free(id_config_t *);
-static id_config_t *      _id_config_set(id_config_t *, char *);
+static id_config_t *      _id_config_set(id_config_t *, char *, data_t *);
+static data_t *           _id_config_resolve(id_config_t *, char *);
+static token_t *          _id_match(scanner_t *);
 
-static id_scanner_t *     _id_scanner_create(id_config_t *);
-static void               _id_scanner_free(id_scanner_t *);
-static token_t *          _id_scanner_scan(id_scanner_t *, lexer_t *);
-static int                _id_scanner_is_identifier(id_scanner_t *, str_t *);
-
-static scanner_config_t * identifier_configure(scanner_config_t *, data_t *);
-static scanner_config_t * identifier_unconfigure(scanner_config_t *);
-static scanner_t *        identifier_initialize(scanner_t *);
-static scanner_t *        identifier_destroy(scanner_t *);
-static token_t *          identifier_match(scanner_t *);
-
-static scanner_funcs_t _identifier_funcs = {
-  .config         = identifier_configure,
-  .unconfig       = identifier_unconfigure,
-  .initialize     = identifier_initialize,
-  .destroy        = identifier_destroy,
-  .match          = identifier_match,
-  .match_2nd_pass = NULL
+static vtable_t _vtable_idscanner_config[] = {
+  { .id = FunctionNew,     .fnc = (void_t ) _id_config_create },
+  { .id = FunctionResolve, .fnc = (void_t ) _id_config_resolve },
+  { .id = FunctionSet,     .fnc = (void_t ) _id_config_set },
+  { .id = FunctionUsr1,    .fnc = (void_t ) _id_match },
+  { .id = FunctionUsr2,    .fnc = NULL },
+  { .id = FunctionNone,    .fnc = NULL }
 };
+
+static int IDScannerConfig = -1;
 
 /* -- I D _ C O N F I G --------------------------------------------------- */
 
@@ -76,135 +69,68 @@ id_config_t * _id_config_create(void) {
   return ret;
 }
 
-void _id_config_free(id_config_t *id_config) {
-  if (id_config) {
-    free(id_config);
+id_config_t * _id_config_set(id_config_t *id_config, char *name, data_t *value) {
+  id_config_t *ret = id_config;
+
+  if (!strcmp(name, PARAM_TOUPPER)) {
+    id_config -> foldcase = data_intval(value) ? IDFoldToUpper : IDCaseSensitive;
+  } else if (!strcmp(name, PARAM_TOLOWER)) {
+    id_config -> foldcase = data_intval(value) ? IDFoldToLower : IDCaseSensitive;
+  } else if (!strcmp(name, PARAM_CASESENSITIVE) && data_intval(value)) {
+    id_config -> foldcase = IDCaseSensitive;
+  } else if (!strcmp(name, PARAM_DIGITS)) {
+    id_config -> digits = data_intval(value);
+  } else if (!strcmp(name, PARAM_UNDERSCORE)) {
+    id_config -> underscore = data_intval(value);
+  } else {
+    ret = NULL;
   }
-}
-
-id_config_t * _id_config_set(id_config_t *id_config, char *params) {
-  char *saveptr;
-  char *param;
-  
-  for (param = strtok_r(params, SCANNER_CONFIG_SEPARATORS, &saveptr); 
-       param; 
-       param = strtok_r(NULL, SCANNER_CONFIG_SEPARATORS, &saveptr)) {
-    if (!strcmp(param, "toupper")) {
-      id_config -> foldcase = IDFoldToUpper;
-    } else if (!strcmp(param, "tolower")) {
-      id_config -> foldcase = IDFoldToLower;
-    } else if (!strcmp(param, "nodigits")) {
-      id_config -> digits = FALSE;
-    } else if (!strcmp(param, "nounderscore")) {
-      id_config -> underscore = FALSE;
-    }
-  }
-  return id_config;
-}
-
-/* -- I D _ S C A N N E R ------------------------------------------------- */
-
-id_scanner_t * _id_scanner_create(id_config_t *config) {
-  id_scanner_t *ret;
-
-  ret = NEW(id_scanner_t);
-  ret -> config = config;
   return ret;
 }
 
-void _id_scanner_free(id_scanner_t *id_scanner) {
-  if (id_scanner) {
-    free(id_scanner);
+data_t * _id_config_resolve(id_config_t *id_config, char *name) {
+  if (!strcmp(name, PARAM_TOUPPER)) {
+    return (data_t *) bool_get(id_config -> foldcase == IDFoldToLower);
+  } else if (!strcmp(name, PARAM_TOLOWER)) {
+    return (data_t *) bool_get(id_config -> foldcase == IDFoldToLower);
+  } else if (!strcmp(name, PARAM_CASESENSITIVE)) {
+    return (data_t *) bool_get(id_config -> foldcase == IDCaseSensitive);
+  } else if (!strcmp(name, PARAM_DIGITS)) {
+    return (data_t *) bool_get(id_config -> digits);
+  } else if (!strcmp(name, PARAM_UNDERSCORE)) {
+    return (data_t *) bool_get(id_config -> underscore);
+  } else {
+    return NULL;
   }
 }
 
-token_t * _id_scanner_scan(id_scanner_t *id_scanner, lexer_t *lexer) {
-  token_t *ret;
-  int      ch;
+token_t * _id_match(scanner_t *scanner) {
+  int          ch;
+  id_config_t *config = (id_config_t *) scanner -> config;
   
-  for (ch = lexer_get_char(lexer);
+  for (ch = lexer_get_char(scanner -> lexer);
        ch && (isalpha(ch) ||
-              (id_scanner -> underscore && (ch == '_')) ||
-              (id_scanner -> digits && isdigit(ch)));
-       ch = lexer_get_char(lexer)) {
-    lexer_push(lexer);
+              (config -> underscore && (ch == '_')) ||
+              (config -> digits && isdigit(ch)));
+       ch = lexer_get_char(scanner -> lexer)) {
+    lexer_push(scanner -> lexer);
   }
-  if (str_len(lexer -> token)) {
-    switch (id_scanner -> foldcase) {
-      case IDFoldToLower:
-        str_tolower(lexer -> token);
-        break;
-      case IDFoldToUpper:
-          str_toupper(lexer -> token);
-        break;
-    }
-    ret = lexer_accept(lexer, TokenCodeIdentifier);
+  if (scanner -> lexer -> token &&
+      str_len(scanner -> lexer -> token) &&
+      config -> foldcase) {
+      str_forcecase(scanner -> lexer -> token, config -> foldcase == IDFoldToUpper);
   }
-  return ret;
-}
-
-int _id_scanner_is_identifier(id_scanner_t *id_scanner, str_t *str) {
-  char *s = str_chars(str);
-  char *ptr;
-  int   ret = TRUE;
-
-  for (ptr = s; *ptr; ptr++) {
-    if (s == ptr) {
-      ret = isalpha(*ptr) || (id_scanner -> underscore && (*ptr == '_'));
-    } else {
-      ret = isalnum(*ptr) || (id_scanner -> underscore && (*ptr == '_'));
-    }
-    if (!ret) break;
-  }
-  return ret;
+  return lexer_accept(scanner -> lexer, TokenCodeIdentifier);
 }
 
 /* -- I D E N T I F I E R  S C A N N E R ---------------------------------- */
 
-scanner_config_t * identifier_configure(scanner_config_t *config, data_t *data) {
-  id_config_t *id_config = (id_config_t *) config -> config;
-  char        *value;
-
-  if (!config -> config) {
-    id_config = _id_config_create();
-    config -> config = id_config;
-  }
-  value = (data) ? data_tostring(data) : "";
-  _id_config_set(id_config, value);
-
-  return config;
-}
-
-scanner_config_t * identifier_unconfigure(scanner_config_t *config) {
-  id_config_t *id_config = (id_config_t *) config -> config;
-
-  _id_config_free(id_config);
-  config -> config = NULL;
-  return config;
-}
-
-scanner_t * identifier_initialize(scanner_t *scanner) {
-  id_scanner_t *id_scanner;
-
-  id_scanner = _id_scanner_create((id_config_t *) scanner -> config -> config);
-  scanner -> data = id_scanner;
-  return scanner;
-}
-
-scanner_t * identifier_destroy(scanner_t *scanner) {
-  id_scanner_t *id_scanner = (id_scanner_t *) scanner -> data;
-
-  _id_scanner_free(id_scanner);
-  scanner -> data = NULL;
-  return scanner;
-}
-
-token_t * identifier_match(scanner_t *scanner) {
-  id_scanner_t *id_scanner = (id_scanner_t *) scanner -> data;
-
-  return _id_scanner_scan(id_scanner, scanner -> lexer);
-}
-
 void identifier_register(void) {
-  scanner_def_register("id", &_identifier_funcs);
+  lexer_init();
+  IDScannerConfig = typedescr_create_and_register(IDScannerConfig,
+                                                  "identifier",
+                                                  _vtable_idscanner_config,
+                                                  NULL);
+  typedescr_assign_inheritance(typedescr_get(IDScannerConfig), ScannerConfig);
+  scanner_config_register(typedescr_get(IDScannerConfig));
 }

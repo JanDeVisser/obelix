@@ -50,10 +50,10 @@ static ws_config_t *      _ws_config_set(ws_config_t *, char *, data_t *);
 static token_t *          _ws_match(scanner_t *);
 
 static vtable_t _vtable_wsscanner_config[] = {
-  { .id = FunctionNew,     .fnc = _ws_config_create },
-  { .id = FunctionResolve, .fnc = _ws_config_resolve },
-  { .id = FunctionSet,     .fnc = _ws_config_set },
-  { .id = FunctionUsr1,    .fnc = _ws_match },
+  { .id = FunctionNew,     .fnc = (void_t ) _ws_config_create },
+  { .id = FunctionResolve, .fnc = (void_t ) _ws_config_resolve },
+  { .id = FunctionSet,     .fnc = (void_t ) _ws_config_set },
+  { .id = FunctionUsr1,    .fnc = (void_t ) _ws_match },
   { .id = FunctionUsr2,    .fnc = NULL },
   { .id = FunctionNone,    .fnc = NULL }
 };
@@ -98,11 +98,11 @@ ws_config_t * _ws_config_set(ws_config_t *ws_config, char *name, data_t *data) {
 
 data_t * _ws_config_resolve(ws_config_t *ws_config, char *name) {
   if (!strcmp(name, PARAM_IGNOREWS)) {
-    return bool_get(ws_config -> ignore_ws);
+    return (data_t *) bool_get(ws_config -> ignore_ws);
   } else if (!strcmp(name, PARAM_IGNORENL)) {
-    return bool_get(ws_config -> ignore_nl);
+    return (data_t *) bool_get(ws_config -> ignore_nl);
   } else if (!strcmp(name, PARAM_IGNOREALL)) {
-    return bool_get(ws_config -> ignore_ws && ws_config -> ignore_nl);
+    return (data_t *) bool_get(ws_config -> ignore_ws && ws_config -> ignore_nl);
   } else if (!strcmp(name, PARAM_ONNEWLINE)) {
     return data_copy((data_t *) ws_config -> onnewline);
   } else {
@@ -201,9 +201,11 @@ token_t * _ws_match(scanner_t *scanner) {
 }
 
 void whitespace_register(void) {
+  lexer_init();
   WSScannerConfig = typedescr_create_and_register(WSScannerConfig,
-                                                  "wsconfig",
+                                                  "whitespace",
                                                   _vtable_wsscanner_config,
                                                   NULL);
   typedescr_assign_inheritance(typedescr_get(WSScannerConfig), ScannerConfig);
+  scanner_config_register(typedescr_get(WSScannerConfig));
 }

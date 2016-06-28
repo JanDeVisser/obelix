@@ -43,17 +43,17 @@ static inline void _initialize_random(void);
 static void        _outofmemory(int);
 
 static type_t _type_str = {
-  .hash     = strhash,
-  .tostring = chars,
-  .copy     = strcpy,
-  .free     = free,
-  .cmp      = strcmp
+  .hash     = (hash_t) strhash,
+  .tostring = (tostring_t) chars,
+  .copy     = (copy_t) strcpy,
+  .free     = (free_t) free,
+  .cmp      = (cmp_t) strcmp
 };
 type_t *type_str = &_type_str;
 
 static type_t _type_int = {
-  .hash     = hashlong,
-  .tostring = oblcore_itoa,
+  .hash     = (hash_t) hashlong,
+  .tostring = (tostring_t) oblcore_itoa,
   .copy     = NULL,
   .free     = NULL,
   .cmp      = NULL

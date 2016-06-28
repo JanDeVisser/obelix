@@ -17,15 +17,17 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <exception.h>
 #include <lexer.h>
 
 /* ------------------------------------------------------------------------ */
 
-static inline void _lexer_config_init(void);
+extern inline void _lexer_config_init(void);
 static void        _lexer_config_free(lexer_config_t *);
 static char *      _lexer_config_staticstring(lexer_config_t *);
 static data_t *    _lexer_config_resolve(lexer_config_t *, char *);
 static data_t *    _lexer_config_set(lexer_config_t *, char *, data_t *);
+static data_t *    _lexer_config_mth_add_scanner(lexer_config_t *, char *, array_t *, dict_t *);
 static data_t *    _lexer_config_mth_tokenize(lexer_config_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_lexer_config[] = {
@@ -37,8 +39,8 @@ static vtable_t _vtable_lexer_config[] = {
 };
 
 static methoddescr_t _methoddescr_lexer_config[] = {
-  { .type = -1,     .name = "add",      .method = (method_t) _lexer_config_mth_tokenize, .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
-  { .type = -1,     .name = "tokenize", .method = (method_t) _lexer_config_mth_tokenize, .argtypes = { InputStream, Any, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = -1,     .name = "add",      .method = (method_t) _lexer_config_mth_add_scanner, .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
+  { .type = -1,     .name = "tokenize", .method = (method_t) _lexer_config_mth_tokenize,    .argtypes = { InputStream, Any, NoType }, .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL,       .method = NULL,                .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
@@ -48,7 +50,7 @@ int LexerConfig = -1;
 
 void _lexer_config_init(void) {
   if (LexerConfig < 0) {
-    LexerConfig = typedescr_create_and_register(LexerConfig, "Lexer_config", _vtable_Lexer_config, NULL);
+    LexerConfig = typedescr_create_and_register(LexerConfig, "Lexer_config", _vtable_lexer_config, _methoddescr_lexer_config);
   }
 }
 
@@ -77,7 +79,7 @@ data_t * _lexer_config_resolve(lexer_config_t *config, char *name) {
   } else {
     for (scanner = config -> scanners; scanner; scanner = scanner -> next) {
       if (!strcmp(data_typename(scanner), name)) {
-        return scanner;
+        return (data_t *) scanner;
       }
     }
     return NULL;
@@ -117,7 +119,7 @@ data_t * _lexer_config_mth_tokenize(lexer_config_t *config, char *n, array_t *ar
 
   lexer = lexer_create(config, data_array_get(args, 0));
   tail = array_slice(args, 1, 0);
-  ret = data_call(lexer, tail, kwargs);
+  ret = data_call((data_t *) lexer, tail, kwargs);
   lexer_free(lexer);
   array_free(tail);
   return ret;
@@ -129,7 +131,7 @@ lexer_config_t * lexer_config_create(void) {
   lexer_config_t *ret;
   int      ix;
 
-  _lexer_init();
+  _lexer_config_init();
   ret = data_new(LexerConfig, lexer_config_t);
   ret -> bufsize = LEXER_BUFSIZE;
   ret -> scanners = NULL;
@@ -160,5 +162,14 @@ int lexer_config_get_bufsize(lexer_config_t *config) {
 
 lexer_config_t * lexer_config_set_bufsize(lexer_config_t *config, int bufsize) {
   config -> bufsize = bufsize;
+  return config;
+}
+
+lexer_config_t * lexer_config_tokenize(lexer_config_t *config, reduce_t tokenizer, data_t *stream) {
+  lexer_t *lexer;
+
+  lexer = lexer_create(config, stream);
+  lexer_tokenize(lexer, tokenizer, NULL);
+  lexer_free(lexer);
   return config;
 }
