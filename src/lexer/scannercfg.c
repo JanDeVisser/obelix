@@ -57,6 +57,9 @@ void _scanner_config_init(void) {
                                                   "scanner_config",
                                                   _vtable_scanner_config,
                                                   NULL);
+    _scanners_configs = dict_create(NULL);
+    dict_set_key_type(_scanners_configs, type_str);
+    dict_set_data_type(_scanners_configs, type_int);
     _scanners_configs = strdata_dict_create();
     _scanner_config_mutex = mutex_create();
   }
@@ -176,17 +179,19 @@ int scanner_config_typeid(void) {
 typedescr_t * scanner_config_register(typedescr_t *def) {
   _scanner_config_init();
   mutex_lock(_scanner_config_mutex);
-  dict_put(_scanners_configs, strdup(def -> type_name), def);
+  dict_put(_scanners_configs, strdup(def -> type_name), (void *) ((long) def -> type));
   mutex_unlock(_scanner_config_mutex);
   return def;
 }
 
 typedescr_t * scanner_config_get(char *code) {
   typedescr_t *ret;
+  long         type;
 
   _scanner_config_init();
   mutex_lock(_scanner_config_mutex);
-  ret = (typedescr_t *) dict_get(_scanners_configs, code);
+  type = (long) dict_get(_scanners_configs, code);
+  ret = typedescr_get(type);
   mutex_unlock(_scanner_config_mutex);
   return ret;
 }

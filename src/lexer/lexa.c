@@ -41,7 +41,7 @@ lexa_t * lexa_create(void) {
 
   ret = NEW(lexa_t);
   ret -> scanners = strdata_dict_create();
-  ret -> config = lexer_config_create();
+  ret -> config = NULL;
   ret -> fname = NULL;
   return ret;
 }
@@ -69,6 +69,7 @@ lexa_t * _lexa_build_scanner(entry_t *entry, lexa_t *lexa) {
 }
 
 lexa_t * lexa_build_lexer(lexa_t *lexa) {
+  lexa -> config = lexer_config_create();
   dict_reduce(lexa -> scanners, (reduce_t) _lexa_build_scanner, lexa);
   return lexa;
 }

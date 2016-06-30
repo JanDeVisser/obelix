@@ -735,11 +735,13 @@ list_t * typedescr_get_constructors(typedescr_t *type) {
     for (ix = 0; (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
       inherited = typedescr_get_constructors(
         typedescr_get(type -> inherits[ix]));
-      list_add_all(type -> constructors, inherited);
+      if (inherited) {
+        list_add_all(constructors, inherited);
+      }
     }
     n = typedescr_get_local_function(type, FunctionNew);
     if (n) {
-      list_push(type -> constructors, n);
+      list_push(constructors, n);
     }
     if (list_empty(constructors)) {
       list_free(constructors);
