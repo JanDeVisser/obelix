@@ -205,7 +205,7 @@ list_t * list_add_all(list_t *list, list_t *other) {
   ctx = NEW(reduce_ctx);
   ctx -> fnc = (void_t) list_append;
   ctx -> obj = list;
-  ctx = list_reduce(other, (reduce_t) collection_add_all_reducer, list);
+  ctx = list_reduce(other, (reduce_t) collection_add_all_reducer, ctx);
   free(ctx);
   return list;
 }

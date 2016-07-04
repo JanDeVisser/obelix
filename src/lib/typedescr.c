@@ -610,6 +610,7 @@ int typedescr_create_and_register(int type, char *type_name, vtable_t *vtable, m
   memset(&td, 0, sizeof(typedescr_t));
   td.type = type;
   td.type_name = type_name;
+  td.size = 0;
   td.vtable = vtable;
   for (ix = 0; ix < MAX_INHERITS; ix++) {
     td.inherits[ix] = NoType;

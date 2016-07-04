@@ -107,7 +107,10 @@ data_t * _id_config_resolve(id_config_t *id_config, char *name) {
 token_t * _id_match(scanner_t *scanner) {
   int          ch;
   id_config_t *config = (id_config_t *) scanner -> config;
-  
+
+  if (lexer_debug) {
+    debug("_id_match");
+  }
   for (ch = lexer_get_char(scanner -> lexer);
        ch && (isalpha(ch) ||
               (config -> underscore && (ch == '_')) ||
@@ -132,5 +135,6 @@ void identifier_register(void) {
                                                   _vtable_idscanner_config,
                                                   NULL);
   typedescr_assign_inheritance(typedescr_get(IDScannerConfig), ScannerConfig);
+  typedescr_set_size(IDScannerConfig, id_config_t);
   scanner_config_register(typedescr_get(IDScannerConfig));
 }

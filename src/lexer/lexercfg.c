@@ -142,6 +142,7 @@ lexer_config_t * lexer_config_create(void) {
 scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code) {
   scanner_config_t *scanner;
   scanner_config_t *last;
+  typedescr_t      *type;
 
   scanner = scanner_config_create(code, config);
   if (scanner) {
@@ -149,9 +150,14 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code) 
     scanner -> prev = last;
     if (last) {
       last -> next = scanner;
+    } else {
+      config -> scanners = scanner;
     }
     scanner -> next = NULL;
     config -> num_scanners++;
+    type = data_typedescr((data_t *) config);
+    scanner -> match = (matcher_t ) typedescr_get_function(type, FunctionUsr1);
+    scanner -> match_2nd_pass = (matcher_t ) typedescr_get_function(type, FunctionUsr2);
   }
   return scanner;
 }

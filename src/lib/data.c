@@ -67,9 +67,12 @@ void _data_init(void) {
 /* -- D A T A  P U B L I C  F U N C T I O N S ----------------------------- */
 
 data_t * data_create_noinit(int type) {
-  data_t *ret;
-  
-  ret = data_settype(NEW(data_t), type);
+  typedescr_t *descr;
+  data_t      *ret;
+
+  descr = typedescr_get(type);
+  ret = (data_t *) _new((descr -> size) ? descr -> size : sizeof(data_t));
+  ret = data_settype(ret, type);
   ret -> free_me = Normal;
   return ret;
 }
@@ -112,7 +115,7 @@ data_t * _data_call_constructors(typedescr_t *type, va_list args) {
   constructors = typedescr_get_constructors(type);
   allocated = data_create_noinit(type -> type);
   if (constructors && list_size(constructors)) {
-    for (iter = list_start(constructors); li_has_next(iter); ) {
+    for (iter = li_create(constructors); li_has_next(iter); ) {
       va_copy(copy, args);
       n = (new_t) li_next(iter);
       ret = _data_call_constructor(allocated, n, copy);

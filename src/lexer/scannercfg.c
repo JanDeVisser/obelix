@@ -222,8 +222,8 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
   if (data_type(value) == NVP) {
     nvp = data_as_nvp(value);
     _scanner_config_setvalue(config, data_tostring(nvp -> name), nvp -> value);
-  } else {
-    params = strdup(value ? data_tostring(value) : "");
+  } else if (value && value != data_null()) {
+    params = strdup(data_tostring(value));
     for (param = strtok_r(params, SCANNER_CONFIG_SEPARATORS, &saveptr);
          param;
          param = strtok_r(NULL, SCANNER_CONFIG_SEPARATORS, &saveptr)) {

@@ -47,6 +47,7 @@ int Scanner = -1;
 void _scanner_init(void) {
   if (Scanner < 0) {
     Scanner = typedescr_create_and_register(Scanner, "scanner", _vtable_scanner, NULL);
+    typedescr_set_size(Scanner, scanner_t);
   }
 }
 

@@ -276,19 +276,30 @@ token_t * _lexer_match_token(lexer_t *lexer) {
   scanner_t *scanner;
 
   ret = NULL;
+  debuglexer("_lexer_match_token", NULL);
   for (scanner = lexer -> scanners; scanner && !ret; scanner = scanner -> next) {
+    debuglexer("First pass with scanner '%s'", data_typename(scanner -> config));
     if (scanner -> config -> match) {
       lexer -> state = LexerStateFirstPass;
       lexer_rewind(lexer);
       ret = scanner -> config -> match(scanner);
+      debuglexer("First pass with scanner '%s' = %s",
+                 data_typename(scanner -> config), token_tostring(ret));
+    } else {
+      debuglexer("No matcher defined", NULL);
     }
   }
   if (!ret) {
     for (scanner = lexer -> scanners; scanner && !ret; scanner = scanner -> next) {
+      debuglexer("Second pass with scanner '%s'", data_typename(scanner -> config));
       if (scanner -> config -> match_2nd_pass) {
         lexer_rewind(lexer);
         lexer -> state = LexerStateSecondPass;
         ret = scanner -> config -> match_2nd_pass(scanner);
+        debuglexer("Second pass with scanner '%s' = %s",
+                   data_typename(scanner -> config), token_tostring(ret));
+      } else {
+        debuglexer("No second pass matcher defined", NULL);
       }
     }
   }
@@ -318,10 +329,7 @@ token_t * _lexer_match_token(lexer_t *lexer) {
 
 lexer_t * lexer_create(lexer_config_t *config, data_t *reader) {
   lexer_t          *ret;
-  scanner_t        *scanner;
-  scanner_t        *prev = NULL;
   scanner_config_t *scanner_config;
-  int      ix;
 
   lexer_init();
   ret = data_new(Lexer, lexer_t);
@@ -340,18 +348,19 @@ lexer_t * lexer_create(lexer_config_t *config, data_t *reader) {
 
   ret -> scanners = NULL;
   for (scanner_config = config -> scanners; scanner_config; scanner_config = scanner_config -> next) {
-    scanner = scanner_config_instantiate(scanner_config, ret);
-    if (!prev) {
-      ret -> scanners = scanner;
-    } else {
-      prev -> next = scanner;
-    }
-    prev = scanner;
+    scanner_config_instantiate(scanner_config, ret);
   }
   return ret;
 }
 
 void * _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
+  if (!lexer -> token) {
+    lexer -> token = str_create(16);
+  }
+  if (!lexer -> lookahead) {
+    lexer -> lookahead = str_create(16);
+  }
+  lexer -> lookahead_live = 0;
   while (lexer_next_token(lexer)) {
     data = parser(lexer -> last_token, data);
     if (!data) {
@@ -362,14 +371,16 @@ void * _lexer_tokenize(lexer_t *lexer, reduce_t parser, void *data) {
 }
 
 token_t * lexer_next_token(lexer_t *lexer) {
-  if (token_code(lexer -> last_token) == TokenCodeEnd) {
-    token_free(lexer -> last_token);
-    lexer -> last_token = token_create(TokenCodeExhausted, "$$$$");
-    return NULL;
-  } else if (token_code(lexer -> last_token) == TokenCodeExhausted) {
-    return NULL;
-  } else {
-    token_free(lexer -> last_token);
+  if (lexer -> last_token) {
+    if (token_code(lexer -> last_token) == TokenCodeEnd) {
+      token_free(lexer -> last_token);
+      lexer -> last_token = token_create(TokenCodeExhausted, "$$$$");
+      return NULL;
+    } else if (token_code(lexer -> last_token) == TokenCodeExhausted) {
+      return NULL;
+    } else {
+      token_free(lexer -> last_token);
+    }
   }
 
   do {
@@ -409,7 +420,7 @@ lexer_t * lexer_rewind(lexer_t *lexer) {
 lexer_t * lexer_reset(lexer_t *lexer) {
   if (lexer -> last_token) {
     token_free(lexer -> last_token);
-    lexer -> last_token = NULL;
+    lexer -> last_token = token_create(0, NULL);
   }
   lexer -> state = LexerStateInit;
   lexer_push(lexer);

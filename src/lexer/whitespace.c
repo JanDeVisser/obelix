@@ -207,5 +207,6 @@ void whitespace_register(void) {
                                                   _vtable_wsscanner_config,
                                                   NULL);
   typedescr_assign_inheritance(typedescr_get(WSScannerConfig), ScannerConfig);
+  typedescr_set_size(WSScannerConfig, ws_config_t);
   scanner_config_register(typedescr_get(WSScannerConfig));
 }

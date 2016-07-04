@@ -131,6 +131,7 @@ typedef struct _typedescr {
   data_t         _d;
   int            type;
   char          *type_name;
+  int            size;
   vtable_t      *vtable;
   dict_t        *methods;
   list_t        *constructors;
@@ -189,6 +190,8 @@ OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
 #define data_as_method(d)      ((methoddescr_t *) (data_is_method((d)) ? ((methoddescr_t *) (d)) : NULL))
 #define method_tostring(s)     (data_tostring((data_t *) (s)))
 #define method_copy(s)         ((methoddescr_t *) data_copy((data_t *) (s)))
+
+#define typedescr_set_size(d, t)    (typedescr_get((d)) -> size = sizeof(t))
 
 #ifdef  __cplusplus
 }
