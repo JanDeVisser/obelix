@@ -23,6 +23,8 @@ set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR})
 set(obelix_DATADIR ${CMAKE_INSTALL_PREFIX}/share)
 find_package (Threads)
 
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 check_include_file(alloca.h HAVE_ALLOCA_H)
 check_include_file(dirent.h HAVE_DIRENT_H)
 check_include_file(dlfcn.h HAVE_DLFCN_H)
@@ -143,6 +145,26 @@ check_function_exists(mbrtowc HAVE_MBRTOWC)
 check_function_exists(wcrtomb HAVE_WCRTOMB)
 check_function_exists(mbrtowc HAVE_WCSCOLL)
 
+
+###############################################################################
+# Check for integer types
+# (The following are used in check.h. Regardless if they are used in
+# the project, they will need to be checked in order to use Check).
+check_type_size(intmax_t INTMAX_T)
+check_type_size(uintmax_t UINTMAX_T)
+
+check_type_size(pid_t PID_T)
+if(NOT HAVE_PID_T)
+  if(WIN32)
+    set(pid_t "int")
+  else(WIN32)
+    MESSAGE(FATAL_ERROR "pid_t doesn't exist on this platform?")
+  endif(WIN32)
+endif(NOT HAVE_PID_T)
+###############################################################################
+
+
+###############################################################################
 # configure a header file to pass some of the CMake settings
 # to the source code
 configure_file (
@@ -167,3 +189,5 @@ add_subdirectory(share)
 #add_subdirectory(include)
 
 # install(FILES "${PROJECT_BINARY_DIR}/config.h" DESTINATION include)
+enable_testing()
+add_test(NAME tlist COMMAND tlist)

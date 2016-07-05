@@ -39,4 +39,5 @@ Win32/*
 /Default/
 /msvc/
 /codeblocks/
-/.idea/
+.idea/*
+

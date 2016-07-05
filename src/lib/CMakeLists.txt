@@ -47,3 +47,5 @@ if(HAVE_WINSOCK2_H)
 endif(HAVE_WINSOCK2_H)
 
 install(TARGETS oblcore DESTINATION lib)
+
+add_subdirectory(test)

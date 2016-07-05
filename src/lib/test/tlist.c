@@ -23,6 +23,7 @@
 #include <stdlib.h>
 
 #include <list.h>
+#include <str.h>
 #include <testsuite.h>
 
 static void     _init_tlist(void) __attribute__((constructor(300)));
@@ -300,6 +301,21 @@ START_TEST(test_list_replace)
   teardown(l);
 END_TEST
 
+START_TEST(test_list_add_all)
+  list_t *src;
+  list_t *dest;
+
+  src = setup2();
+  dest = setup();
+  list_set_free(dest, NULL);
+  list_add_all(dest, src);
+  ck_assert_int_eq(list_size(dest), 2);
+  list_add_all(dest, src);
+  ck_assert_int_eq(list_size(dest), 4);
+  teardown(dest);
+  teardown(src);
+END_TEST
+
 static void _init_tlist(void) {
   TCase *tc = tcase_create("List");
 
@@ -319,6 +335,7 @@ static void _init_tlist(void) {
   tcase_add_test(tc, test_list_visit);
   tcase_add_test(tc, test_list_reduce);
   tcase_add_test(tc, test_list_replace);
+  tcase_add_test(tc, test_list_add_all);
   add_tcase(tc);
 }
  

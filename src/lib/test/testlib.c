@@ -17,7 +17,6 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <check.h>
 #include <stdio.h>
 
 void * testlib_helloworld(char *name) {
