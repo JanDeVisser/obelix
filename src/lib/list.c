@@ -198,12 +198,19 @@ list_t * list_unshift(list_t *list, void *data) {
   return list;
 }
 
+
+list_t * _list_copy_append(list_t *list, void *data) {
+  void *copy = (list -> type.copy) ? list -> type.copy(data) : data;
+
+  return list_append(list, copy);
+}
+
 list_t * list_add_all(list_t *list, list_t *other) {
   reduce_ctx *ctx;
 
   assert(list -> head.list != EmptyList);
   ctx = NEW(reduce_ctx);
-  ctx -> fnc = (void_t) list_append;
+  ctx -> fnc = (void_t) _list_copy_append;
   ctx -> obj = list;
   ctx = list_reduce(other, (reduce_t) collection_add_all_reducer, ctx);
   free(ctx);

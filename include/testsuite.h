@@ -59,6 +59,8 @@ extern int          test_cmp(test_t *, test_t *);
 extern char *       test_tostring(test_t *);
 extern void         test_free(test_t *);
 
+extern type_t *     type_test;
+
 #ifndef NO_CHECK
 extern void	    set_suite_name(char *);
 extern void         add_tcase(TCase *);

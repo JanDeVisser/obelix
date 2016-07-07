@@ -25,7 +25,14 @@
 #include <core.h>
 #include <testsuite.h>
 
-static void _init_suite(void) __attribute__((constructor(200)));
+static type_t _type_test = {
+  .hash     = (hash_t) test_hash,
+  .tostring = (tostring_t) test_tostring,
+  .copy     = (copy_t) test_copy,
+  .free     = (free_t) test_free,
+  .cmp      = (cmp_t) test_cmp
+};
+type_t *type_test = &_type_test;
 
 test_t * test_create(char *data) {
   test_t *ret;
@@ -64,11 +71,7 @@ void test_free(test_t *test) {
 }
 
 static Suite *_suite = NULL;
-static char  *_suite_name = "default";
-
-void set_suite_name(char *name) {
-  _suite_name = name;
-}
+extern void init_suite(void);
 
 void add_tcase(TCase *tc) {
   if (_suite && tc) {
@@ -76,14 +79,12 @@ void add_tcase(TCase *tc) {
   }  
 }
 
-void _init_suite(void) {
-  _suite = suite_create(_suite_name);  
-}
-
 int main(void){
   int number_failed;
   SRunner *sr;
 
+  _suite = suite_create("default");
+  init_suite();
   sr = srunner_create(_suite);
   srunner_run_all(sr, CK_VERBOSE);
   number_failed = srunner_ntests_failed(sr);

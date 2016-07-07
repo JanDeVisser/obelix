@@ -44,7 +44,7 @@ typedef struct _ws_config {
   function_t       *onnewline;
 } ws_config_t;
 
-static ws_config_t *      _ws_config_create(void);
+static ws_config_t *      _ws_config_create(ws_config_t *config, va_list args);
 static data_t *           _ws_config_resolve(ws_config_t *, char *);
 static ws_config_t *      _ws_config_set(ws_config_t *, char *, data_t *);
 static token_t *          _ws_match(scanner_t *);
@@ -62,13 +62,10 @@ static int WSScannerConfig = -1;
 
 /* -- W S _ C O N F I G  -------------------------------------------------- */
 
-ws_config_t * _ws_config_create(void) {
-  ws_config_t *ret;
-
-  ret = NEW(ws_config_t);
-  ret -> ignore_nl = FALSE;
-  ret -> ignore_ws = FALSE;
-  return ret;
+ws_config_t * _ws_config_create(ws_config_t *config, va_list args) {
+  config -> ignore_nl = FALSE;
+  config -> ignore_ws = FALSE;
+  return config;
 }
 
 ws_config_t * _ws_config_set(ws_config_t *ws_config, char *name, data_t *data) {

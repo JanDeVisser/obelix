@@ -45,7 +45,7 @@ static void        _outofmemory(int);
 static type_t _type_str = {
   .hash     = (hash_t) strhash,
   .tostring = (tostring_t) chars,
-  .copy     = (copy_t) strcpy,
+  .copy     = (copy_t) strdup,
   .free     = (free_t) free,
   .cmp      = (cmp_t) strcmp
 };

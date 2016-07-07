@@ -2,48 +2,54 @@
 <module type="CPP_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/share/CMakeLists.txt" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/CMakeLists.txt" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/config.h.in" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/resolve.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/test/testlib.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/test/tlist.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/test/CMakeLists.txt" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/core.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/datalist.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/nvp.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lib/float.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/dict.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/socket.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/data.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/str.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/datastack.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/any.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/file.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/set.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/CMakeLists.txt" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/array.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/range.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/list.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/fsentry.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/re.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lib/logging.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lib/typedescr.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/method.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/range.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/dict.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/name.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/function.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/mutex.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lib/int.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lib/exception.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/file.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/re.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/CMakeLists.txt" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/set.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/datastack.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/resolve.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/list.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/any.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/pointer.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/name.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/data.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/nvp.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/array.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/core.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/mutex.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/socket.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/method.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lib/thread.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/fsentry.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/str.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/datalist.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lib/function.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lib/pointer.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/test/testsuite.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/test/CMakeLists.txt" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/CMakeLists.txt" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lexer/scanner.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lexer/lexercfg.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lexer/identifier.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lexer/lexer.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lexer/lexercfg.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lexer/CMakeLists.txt" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lexer/lexa.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lexer/whitespace.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lexer/token.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/src/lexer/identifier.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/lexer/whitespace.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/lexer/scannercfg.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/share/CMakeLists.txt" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/config.h.in" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/CMakeLists.txt" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cmake/FindCheck.cmake" isTestSource="false" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module-library">
@@ -53,20 +59,20 @@
           <root url="file:///usr/lib/gcc/x86_64-linux-gnu/5/include" />
           <root url="file:///usr/include" />
           <root url="file:///usr/local/include" />
-          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-1a5af185/1a5af185/Release" />
-          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-1a5af185/1a5af185/Debug" />
-          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-1a5af185/1a5af185/RelWithDebInfo" />
-          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-1a5af185/1a5af185/MinSizeRel" />
+          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-55c839a5/55c839a5/Release" />
+          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-55c839a5/55c839a5/Debug" />
+          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-55c839a5/55c839a5/RelWithDebInfo" />
+          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-55c839a5/55c839a5/MinSizeRel" />
         </CLASSES>
         <SOURCES>
           <root url="file:///usr/lib/gcc/x86_64-linux-gnu/5/include-fixed" />
           <root url="file:///usr/lib/gcc/x86_64-linux-gnu/5/include" />
           <root url="file:///usr/include" />
           <root url="file:///usr/local/include" />
-          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-1a5af185/1a5af185/Release" />
-          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-1a5af185/1a5af185/Debug" />
-          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-1a5af185/1a5af185/RelWithDebInfo" />
-          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-1a5af185/1a5af185/MinSizeRel" />
+          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-55c839a5/55c839a5/Release" />
+          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-55c839a5/55c839a5/Debug" />
+          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-55c839a5/55c839a5/RelWithDebInfo" />
+          <root url="file://$USER_HOME$/.CLion2016.1/system/cmake/generated/obelix-55c839a5/55c839a5/MinSizeRel" />
         </SOURCES>
       </library>
     </orderEntry>

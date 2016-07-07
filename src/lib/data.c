@@ -94,12 +94,12 @@ data_t * data_settype(data_t *data, int type) {
   return data;
 }
 
-data_t * _data_call_constructor(data_t *allocated, new_t n, va_list args) {
+data_t * _data_call_constructor(data_t *data, new_t n, va_list args) {
   data_t  *ret;
 
-  ret = n(allocated, args);
-  if (allocated != ret) {
-    data_free(allocated);
+  ret = n(data, args);
+  if (data != ret) {
+    data_free(data);
   }
   return ret;
 }
@@ -107,18 +107,17 @@ data_t * _data_call_constructor(data_t *allocated, new_t n, va_list args) {
 data_t * _data_call_constructors(typedescr_t *type, va_list args) {
   new_t           n;
   data_t         *ret;
-  data_t         *allocated;
   list_t         *constructors;
   listiterator_t *iter;
   va_list         copy;
 
   constructors = typedescr_get_constructors(type);
-  allocated = data_create_noinit(type -> type);
   if (constructors && list_size(constructors)) {
+    ret = data_create_noinit(type -> type);
     for (iter = li_create(constructors); li_has_next(iter); ) {
       va_copy(copy, args);
       n = (new_t) li_next(iter);
-      ret = _data_call_constructor(allocated, n, copy);
+      ret = _data_call_constructor(ret, n, copy);
       va_end(copy);
     }
     li_free(iter);

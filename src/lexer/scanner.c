@@ -73,6 +73,9 @@ scanner_t * _scanner_new(scanner_t *scanner, va_list args) {
   scanner -> lexer = lexer_copy(lexer);
   scanner -> state = 0;
   scanner -> data = NULL;
+  if (lexer_debug) {
+    debug("Created scanner of type '%s'. match: %p", data_typename(scanner -> config), scanner -> config -> match);
+  }
   return scanner;
 }
 

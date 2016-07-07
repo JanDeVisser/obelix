@@ -37,10 +37,9 @@ list_t * setup(void) {
   list_t *ret;
   
   ret = list_create();
+  list_set_type(ret, type_test);
   ck_assert_ptr_ne(ret, NULL);
   ck_assert_int_eq(list_size(ret), 0);
-  list_set_free(ret, (visit_t) test_free);
-  list_set_tostring(ret, (tostring_t) test_tostring);
   return ret;
 }
 
@@ -307,7 +306,6 @@ START_TEST(test_list_add_all)
 
   src = setup2();
   dest = setup();
-  list_set_free(dest, NULL);
   list_add_all(dest, src);
   ck_assert_int_eq(list_size(dest), 2);
   list_add_all(dest, src);
@@ -316,7 +314,7 @@ START_TEST(test_list_add_all)
   teardown(src);
 END_TEST
 
-static void _init_tlist(void) {
+extern void init_suite(void) {
   TCase *tc = tcase_create("List");
 
   /* tcase_add_checked_fixture(tc_core, setup, teardown); */

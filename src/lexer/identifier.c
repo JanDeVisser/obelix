@@ -41,7 +41,7 @@ typedef struct _id_config {
   id_foldcase_t     foldcase;
 } id_config_t;
 
-static id_config_t *      _id_config_create(void);
+static id_config_t *      _id_config_create(id_config_t *config, va_list args);
 static id_config_t *      _id_config_set(id_config_t *, char *, data_t *);
 static data_t *           _id_config_resolve(id_config_t *, char *);
 static token_t *          _id_match(scanner_t *);
@@ -59,14 +59,14 @@ static int IDScannerConfig = -1;
 
 /* -- I D _ C O N F I G --------------------------------------------------- */
 
-id_config_t * _id_config_create(void) {
-  id_config_t *ret;
-  
-  ret = NEW(id_config_t);
-  ret -> underscore = TRUE;
-  ret -> digits = TRUE;
-  ret -> foldcase = IDCaseSensitive;
-  return ret;
+id_config_t * _id_config_create(id_config_t *config, va_list args) {
+  config -> underscore = TRUE;
+  config -> digits = TRUE;
+  config -> foldcase = IDCaseSensitive;
+  if (lexer_debug) {
+    debug("_id_config_create - match: %p", config -> _sc.match);
+  }
+  return config;
 }
 
 id_config_t * _id_config_set(id_config_t *id_config, char *name, data_t *value) {

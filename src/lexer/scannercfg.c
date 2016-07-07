@@ -73,6 +73,10 @@ scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list args) {
   config -> lexer_config = lexer_config_copy(lexer_config);
   config -> match = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionUsr1);
   config -> match_2nd_pass = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionUsr2);
+  if (lexer_debug) {
+    debug("Creating scanner config '%s'. match: %p match_2nd_pass %p",
+          data_typename(config), config -> match, config -> match_2nd_pass);
+  }
   config -> config = NULL;
 
   lexer_config -> num_scanners++;
@@ -217,7 +221,7 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
 
   if (lexer_debug) {
     debug("Configuring scanner '%s' with value '%s'",
-          data_type(config), data_tostring(value));
+          data_typename(config), data_tostring(value));
   }
   if (data_type(value) == NVP) {
     nvp = data_as_nvp(value);
