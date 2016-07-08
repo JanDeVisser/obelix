@@ -105,6 +105,7 @@ scanner_t * scanner_create(scanner_config_t *config, lexer_t *lexer) {
   scanner_t *ret;
 
   _scanner_init();
+  mdebug(lexer, "Creating scanner of type '%s'", data_typename(config));
   ret = (scanner_t *) data_create(Scanner, config, lexer);
   return ret;
 }

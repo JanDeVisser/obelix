@@ -172,6 +172,8 @@ OBLLEXER_IMPEXP lexer_t *        lexer_rewind(lexer_t *);
 OBLLEXER_IMPEXP token_t *        lexer_accept(lexer_t *, token_code_t);
 OBLLEXER_IMPEXP token_t *        lexer_get_accept(lexer_t *, token_code_t, int);
 OBLLEXER_IMPEXP lexer_t *        lexer_push(lexer_t *);
+OBLLEXER_IMPEXP lexer_t *        lexer_push_as(lexer_t *, int);
+OBLLEXER_IMPEXP lexer_t *        lexer_discard(lexer_t *);
 OBLLEXER_IMPEXP void *           _lexer_tokenize(lexer_t *, reduce_t, void *);
 OBLLEXER_IMPEXP token_t *        lexer_rollup_to(lexer_t *, int);
 

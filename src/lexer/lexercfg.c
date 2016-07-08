@@ -153,12 +153,9 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code) 
     } else {
       config -> scanners = scanner;
     }
-    scanner -> next = NULL;
     config -> num_scanners++;
-    type = data_typedescr((data_t *) config);
-    scanner -> match = (matcher_t ) typedescr_get_function(type, FunctionUsr1);
-    scanner -> match_2nd_pass = (matcher_t ) typedescr_get_function(type, FunctionUsr2);
   }
+  mdebug(lexer, "Created scanner config '%s' match: %p", scanner_config_tostring(scanner), scanner -> match);
   return scanner;
 }
 
@@ -175,7 +172,7 @@ lexer_config_t * lexer_config_tokenize(lexer_config_t *config, reduce_t tokenize
   lexer_t *lexer;
 
   lexer = lexer_create(config, stream);
-  lexer_tokenize(lexer, tokenizer, NULL);
+  lexer_tokenize(lexer, tokenizer, config);
   lexer_free(lexer);
   return config;
 }

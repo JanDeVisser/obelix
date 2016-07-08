@@ -38,7 +38,7 @@ static scanner_config_t * _scanner_config_setstring(scanner_config_t *, char *);
 static vtable_t _vtable_scanner_config[] = {
   { .id = FunctionNew,          .fnc = (void_t) _scanner_config_new },
   { .id = FunctionFree,         .fnc = (void_t) _scanner_config_free },
-  { .id = FunctionStaticString, .fnc = (void_t) _scanner_config_allocstring },
+  { .id = FunctionAllocString,  .fnc = (void_t) _scanner_config_allocstring },
   { .id = FunctionResolve,      .fnc = (void_t) _scanner_config_resolve },
   { .id = FunctionSet,          .fnc = (void_t) _scanner_config_set },
   { .id = FunctionCall,         .fnc = (void_t) _scanner_config_call },
@@ -73,13 +73,10 @@ scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list args) {
   config -> lexer_config = lexer_config_copy(lexer_config);
   config -> match = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionUsr1);
   config -> match_2nd_pass = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionUsr2);
-  if (lexer_debug) {
-    debug("Creating scanner config '%s'. match: %p match_2nd_pass %p",
-          data_typename(config), config -> match, config -> match_2nd_pass);
-  }
   config -> config = NULL;
 
-  lexer_config -> num_scanners++;
+  mdebug(lexer, "Creating scanner config '%s'. match: %p match_2nd_pass %p",
+         data_typename(config), config -> match, config -> match_2nd_pass);
   return config;
 }
 
@@ -219,10 +216,7 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
   char   *param;
   char   *saveptr;
 
-  if (lexer_debug) {
-    debug("Configuring scanner '%s' with value '%s'",
-          data_typename(config), data_tostring(value));
-  }
+  mdebug(lexer, "Configuring scanner '%s' with value '%s' match: %p", data_typename(config), data_tostring(value), config -> match);
   if (data_type(value) == NVP) {
     nvp = data_as_nvp(value);
     _scanner_config_setvalue(config, data_tostring(nvp -> name), nvp -> value);
@@ -235,5 +229,6 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
     }
     free(params);
   }
+  mdebug(lexer, "Configured scanner '%s' match: %p", data_typename(config), config -> match);
   return config;
 }

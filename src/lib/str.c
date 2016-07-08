@@ -414,6 +414,14 @@ int str_readchar(str_t *str) {
   return ret;
 }
 
+int str_skip(str_t *str, int num) {
+  if (str -> pos + num > str -> len) {
+    num = str -> len - str -> pos;
+  }
+  str -> pos += num;
+  return num;
+}
+
 int str_pushback(str_t *str, size_t num) {
   if (num > str -> pos) {
     num = str -> pos;
@@ -432,6 +440,16 @@ int str_readinto(str_t *str, data_t *rdr) {
   } else {
     return -1;
   }
+}
+
+/**
+ * Chop everything from the string befor the current read position.
+ */
+str_t * str_reset(str_t *str) {
+  if (str -> pos) {
+    str_lchop(str, str -> pos);
+  }
+  return str;
 }
 
 int str_read_from_stream(str_t *str, void *stream, read_t reader) {
@@ -488,7 +506,6 @@ str_t * str_append_char(str_t *str, int ch) {
   if (str -> bufsize && (ch > 0)) {
     if (_str_expand(str, str -> len + 1)) {
       str -> buffer[str -> len++] = ch;
-      str -> pos = 0;
       ret = str;
     }
   }
@@ -506,7 +523,6 @@ str_t * str_append_nchars(str_t *str, char *other, size_t n) {
     strncat(str -> buffer, other, n);
     str -> len += (strlen(other) > n) ? n : strlen(other);
     str -> buffer[str -> len] = 0;
-    str -> pos = 0;
     ret = str;
   }
   return ret;
@@ -532,7 +548,6 @@ str_t * str_append_vprintf(str_t *str, char *other, va_list args) {
     if (b && _str_expand(str, str_len(str) + len + 1)) {
       strcat(str -> buffer, b);
       str -> len += len;
-      str -> pos = 0;
       ret = str;
     }
     free(b);
@@ -547,7 +562,6 @@ str_t * str_append(str_t *str, str_t *other) {
     if (_str_expand(str, str_len(str) + str_len(other) + 1)) {
       strcat(str -> buffer, str_chars(other));
       str -> len += str_len(other);
-      str -> pos = 0;
       ret = str;
     }
   }
@@ -564,7 +578,9 @@ str_t * str_chop(str_t *str, size_t num) {
       str -> len = str -> len - num;
       memset(str -> buffer + str -> len, 0, num);
     }
-    str -> pos = 0;
+    if (str -> pos > str -> len) {
+      str -> pos = str -> len;
+    }
     ret = str;
   }
   return ret;
@@ -581,7 +597,7 @@ str_t * str_lchop(str_t *str, size_t num) {
       memset(str -> buffer + str -> len - num, 0, num);
       str -> len = str -> len - num;
     }
-    str -> pos = 0;
+    str -> pos = (str -> pos < num) ? 0 : (str -> pos - num);
     ret = str;
   }
   return ret;

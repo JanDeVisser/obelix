@@ -26,11 +26,13 @@
 #include <str.h>
 #include <testsuite.h>
 
-static void     _init_tlist(void) __attribute__((constructor(300)));
-static void     test_raw_print_list(list_t *, char *);
 static void     test_print_list(list_t *, char *);
+static void     test_raw_print_list(list_t *, char *);
 static list_t * setup();
 static list_t * setup2();
+static list_t * setup3();
+static list_t * setup4();
+static list_t * setup5();
 static void     teardown(list_t *);
 
 list_t * setup(void) {

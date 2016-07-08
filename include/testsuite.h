@@ -62,7 +62,7 @@ extern void         test_free(test_t *);
 extern type_t *     type_test;
 
 #ifndef NO_CHECK
-extern void	    set_suite_name(char *);
+extern void	        set_suite_name(char *);
 extern void         add_tcase(TCase *);
 
 extern data_t *     run_script(char *);

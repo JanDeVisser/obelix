@@ -113,12 +113,12 @@ token_t * _ws_match(scanner_t *scanner) {
   ws_config_t *ws_config = (ws_config_t *) scanner -> config;
   int          nl_is_ws;
 
+  mdebug(lexer, "_ws_match");
   nl_is_ws = ws_config -> ignore_nl && !ws_config -> ignore_ws;
   scanner -> state = WSSInit;
   
   for (ch = lexer_get_char(scanner -> lexer);
-       ch && (scanner -> state != WSSDone);
-       ch = lexer_get_char(scanner -> lexer)) {
+       ch && (scanner -> state != WSSDone); ) {
 
     if ((ch == '\r') || ((scanner -> state != WSSCR) && (ch == '\n'))) {
       if (ws_config -> onnewline) {
@@ -192,6 +192,9 @@ token_t * _ws_match(scanner_t *scanner) {
           lexer_push(scanner -> lexer);
         }
         break;
+    }
+    if (scanner -> state != WSSDone) {
+      ch = lexer_get_char(scanner -> lexer);
     }
   }
   return ret;

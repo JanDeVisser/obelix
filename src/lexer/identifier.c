@@ -108,20 +108,18 @@ token_t * _id_match(scanner_t *scanner) {
   int          ch;
   id_config_t *config = (id_config_t *) scanner -> config;
 
-  if (lexer_debug) {
-    debug("_id_match");
-  }
+  mdebug(lexer, "_id_match");
   for (ch = lexer_get_char(scanner -> lexer);
        ch && (isalpha(ch) ||
               (config -> underscore && (ch == '_')) ||
               (config -> digits && isdigit(ch)));
        ch = lexer_get_char(scanner -> lexer)) {
-    lexer_push(scanner -> lexer);
-  }
-  if (scanner -> lexer -> token &&
-      str_len(scanner -> lexer -> token) &&
-      config -> foldcase) {
-      str_forcecase(scanner -> lexer -> token, config -> foldcase == IDFoldToUpper);
+    if (config -> foldcase) {
+      lexer_push_as(scanner -> lexer,
+                    (config -> foldcase == IDFoldToUpper) ? toupper(ch) : tolower(ch));
+    } else {
+      lexer_push(scanner -> lexer);
+    }
   }
   return lexer_accept(scanner -> lexer, TokenCodeIdentifier);
 }

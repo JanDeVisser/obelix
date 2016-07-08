@@ -45,9 +45,17 @@ OBLCORE_IMPEXP int    logging_set_level(log_level_t);
 
 #ifndef NDEBUG
 #ifndef _MSC_VER
-#define debug(fmt, args...)          _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args)
+#define debug(fmt, args...)            _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args)
+#define mdebug(module, fmt, args...)   \
+  if (module ## _debug) { \
+    _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args); \
+  }
 #else /* _MSC_VER */
 #define debug(fmt, ...)              _logmsg(LogLevelDebug, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+#define mdebug(module, fmt, args...)   \
+  if (module ## _debug) { \
+    _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, __VA_ARGS__); \
+  }
 #endif /* _MSC_VER */
 #else /* NDEBUG */
 #define debug(fmt, ...)
