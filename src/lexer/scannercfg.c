@@ -18,6 +18,8 @@
  */
 
 #include <stdio.h>
+
+#include <function.h>
 #include <lexer.h>
 #include <mutex.h>
 #include <name.h>
@@ -183,6 +185,34 @@ typedescr_t * scanner_config_register(typedescr_t *def) {
   dict_put(_scanners_configs, strdup(def -> type_name), (void *) ((long) def -> type));
   mutex_unlock(_scanner_config_mutex);
   return def;
+}
+
+typedescr_t * scanner_config_load(char *code, char *regfnc_name) {
+  function_t  *fnc;
+  char        *fncname;
+  typedescr_t *ret = NULL;
+  create_t     regfnc;
+
+  _scanner_config_init();
+  mutex_lock(_scanner_config_mutex);
+  if (!dict_has_key(_scanners_configs, code)) {
+    fncname = (regfnc_name) ? regfnc_name : asprintf("%s_register", code);
+    fnc = function_create(fncname, NULL);
+    if (fnc -> fnc) {
+      regfnc = (create_t) fnc -> fnc;
+      ret = regfnc();
+      typedescr_assign_inheritance(ret, ScannerConfig);
+      scanner_config_register(ret);
+    }
+    function_free(fnc);
+    if (fncname != regfnc_name) {
+      free(fncname);
+    }
+  } else {
+    ret = scanner_config_get(code);
+  }
+  mutex_unlock(_scanner_config_mutex);
+  return ret;
 }
 
 typedescr_t * scanner_config_get(char *code) {

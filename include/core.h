@@ -45,6 +45,8 @@ typedef void *    (*voidptrvoidptr_t)(void *);
 typedef voidptr_t visit_t;
 typedef voidptr_t free_t;
 
+typedef void *    (*create_t)(void);
+typedef void *    (*vcreate_t)(va_list);
 typedef int       (*cmp_t)(void *, void *);
 typedef int       (*hash_t)(void *);
 typedef void *    (*copy_t)(void *);
@@ -52,7 +54,6 @@ typedef char *    (*tostring_t)(void *);
 typedef void *    (*parse_t)(char *);
 typedef void *    (*copydata_t)(void *, void *);
 typedef void *    (*new_t)(void *, va_list);
-typedef void *    (*vcreate_t)(va_list);
 typedef void *    (*reduce_t)(void *, void *);
 typedef int       (*read_t)(void *, char *, int);
 typedef int       (*write_t)(void *, char *, int);

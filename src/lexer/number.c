@@ -22,6 +22,11 @@
 
 #include <lexer.h>
 
+#define PARAM_SCI     "sci"
+#define PARAM_SIGNED  "signed"
+#define PARAM_HEX     "hex"
+#define PARAM_FLOAT   "float"
+
 typedef enum _num_scanner_state {
   NumScannerStateNone = 0,
   NumScannerStatePlusMinus,
@@ -35,20 +40,28 @@ typedef enum _num_scanner_state {
   NumScannerStateDone
 } num_scanner_state_t;
 
-typedef struct _num_scanner {
+typedef struct _num_config {
   int                  scientific;
   int                  sign;
   int                  hex;
   int                  flt;
-  num_scanner_state_t  state;
-  token_code_t         code;
-} num_scanner_t;
+} num_config_t;
 
-static         num_scanner_t * _num_scanner_create(void);
-static         void            _num_scanner_free(num_scanner_t *);
-static         num_scanner_t * _num_scanner_set(num_scanner_t *, char *);
-static         token_code_t    _num_scanner_scan(num_scanner_t *, lexer_t *);
-__DLL_EXPORT__ token_code_t    scanner_number(lexer_t *, scanner_t *);
+static num_config_t * _num_config_create(num_config_t *config, va_list args);
+static num_config_t * _num_config_set(num_config_t *, char *, data_t *);
+static data_t *       _num_config_resolve(num_config_t *, char *);
+static token_t *      _num_match(scanner_t *);
+
+static vtable_t _vtable_idscanner_config[] = {
+  { .id = FunctionNew,     .fnc = (void_t ) _num_config_create },
+  { .id = FunctionResolve, .fnc = (void_t ) _num_config_resolve },
+  { .id = FunctionSet,     .fnc = (void_t ) _num_config_set },
+  { .id = FunctionUsr1,    .fnc = (void_t ) _num_match },
+  { .id = FunctionUsr2,    .fnc = NULL },
+  { .id = FunctionNone,    .fnc = NULL }
+};
+
+static int NumScannerConfig = -1;
 
 /*
  * ---------------------------------------------------------------------------
@@ -56,49 +69,39 @@ __DLL_EXPORT__ token_code_t    scanner_number(lexer_t *, scanner_t *);
  * ---------------------------------------------------------------------------
  */
 
-num_scanner_t * _num_scanner_create(void) {
-  num_scanner_t *ret;
-  
-  ret = NEW(num_scanner_t);
-  ret -> scientific = TRUE;
-  ret -> sign = TRUE;
-  ret -> hex = TRUE;
-  ret -> flt = TRUE;
-  return ret;
+num_config_t * _num_config_create(num_config_t *config, va_list args) {
+  config -> scientific = TRUE;
+  config -> sign = TRUE;
+  config -> hex = TRUE;
+  config -> flt = TRUE;
+  return config;
 }
 
-void _num_scanner_free(num_scanner_t *num_scanner) {
-  if (num_scanner) {
-    free(num_scanner);
+num_config_t * _num_config_set(num_config_t *num_config, char *param, data_t *value) {
+  if (!strcmp(param, PARAM_SCI)) {
+    num_config -> scientific = data_intval(value);
+  } else if (!strcmp(param, PARAM_SIGNED)) {
+    num_config -> sign = data_intval(value);
+  } else if (!strcmp(param, PARAM_HEX)) {
+    num_config -> hex = data_intval(value);
+  } else if (!strcmp(param, PARAM_FLOAT)) {
+    num_config -> flt = data_intval(value);
   }
+  return num_config;
 }
 
-num_scanner_t * _num_scanner_set(num_scanner_t *num_scanner, char *params) {
-  char *saveptr;
-  char *param;
-  
-  for (param = strtok_r(params, " \t", &saveptr); 
-       param; 
-       param = strtok_r(NULL, " \t", &saveptr)) {
-    if (!strcmp(param, "sci")) {
-      num_scanner -> scientific = TRUE;
-    } else if (!strcmp(param, "nosci")) {
-      num_scanner -> scientific = FALSE;
-    } else if (!strcmp(param, "signed")) {
-      num_scanner -> sign = TRUE;
-    } else if (!strcmp(param, "nosigned")) {
-      num_scanner -> sign = FALSE;
-    } else if (!strcmp(param, "hex")) {
-      num_scanner -> hex = TRUE;
-    } else if (!strcmp(param, "nohex")) {
-      num_scanner -> hex = FALSE;
-    } else if (!strcmp(param, "float")) {
-      num_scanner -> flt = TRUE;
-    } else if (!strcmp(param, "nofloat")) {
-      num_scanner -> flt = FALSE;
-    }
+data_t * _num_config_resolve(num_config_t *num_config, char *name) {
+  if (!strcmp(param, PARAM_SCI)) {
+    return bool_get(num_config -> scientific)
+  } else if (!strcmp(param, PARAM_SIGNED)) {
+    return bool_get(num_config -> sign);
+  } else if (!strcmp(param, PARAM_HEX)) {
+    return bool_get(num_config -> hex);
+  } else if (!strcmp(param, PARAM_FLOAT)) {
+    return bool_get(num_config -> flt);
+  } else {
+    return NULL;
   }
-  return num_scanner;
 }
 
 void _num_scanner_process(num_scanner_t *num_scanner, int ch) {
@@ -231,34 +234,14 @@ token_code_t _num_scanner_scan(num_scanner_t *num_scanner, lexer_t *lexer) {
  * ---------------------------------------------------------------------------
  */
 
+typedescr_t * numbers_register(void) {
+  typedescr_t *ret;
 
-token_code_t scanner_number(lexer_t *lexer, scanner_t *scanner) {
-  token_code_t code = TokenCodeNone;
-  int          ch;
-  num_scanner_t num_scanner;
-  
-  switch (lexer -> state) {
-    case LexerStateFresh:
-      num_scanner = _num_scanner_create();
-      scanner -> data = num_scanner;
-      break;
-
-    case LexerStateParameter:
-      _num_scanner_set(num_scanner, scanner -> parameter);
-      break;
-      
-    case LexerStateInit:
-      ch = lexer -> current;
-      if (num_scanner -> state) {
-        code = _num_scanner_scan(num_scanner, lexer);
-      }
-      break;
-      
-    case LexerStateStale:
-      _num_scanner_free(num_scanner);
-      scanner -> data = NULL;
-      break;
-  }
-  return code;
+  NumScannerConfig = typedescr_create_and_register(NumScannerConfig,
+                                                  "numbers",
+                                                  _vtable_numscanner_config,
+                                                  NULL);
+  ret = typedescr_get(NumScannerConfig);
+  typedescr_set_size(NumScannerConfig, numsc_config_t);
+  return ret;
 }
-

@@ -129,6 +129,7 @@ OBLLEXER_IMPEXP char *           lexer_state_name(lexer_state_t);
 
 OBLLEXER_IMPEXP int                scanner_config_typeid(void);
 OBLLEXER_IMPEXP typedescr_t *      scanner_config_register(typedescr_t *);
+OBLLEXER_IMPEXP typedescr_t *      scanner_config_load(char *, char *);
 OBLLEXER_IMPEXP typedescr_t *      scanner_config_get(char *);
 OBLLEXER_IMPEXP scanner_config_t * scanner_config_create(char *, lexer_config_t *);
 OBLLEXER_IMPEXP scanner_t *        scanner_config_instantiate(scanner_config_t *, lexer_t *);
@@ -179,9 +180,9 @@ OBLLEXER_IMPEXP token_t *        lexer_rollup_to(lexer_t *, int);
 
 OBLLEXER_IMPEXP void             lexer_init(void);
 
-OBLLEXER_IMPEXP void             keywords_register(void);
-OBLLEXER_IMPEXP void             whitespace_register(void);
-OBLLEXER_IMPEXP void             identifier_register(void);
+OBLLEXER_IMPEXP typedescr_t *    keywords_register(void);
+OBLLEXER_IMPEXP typedescr_t *    whitespace_register(void);
+OBLLEXER_IMPEXP typedescr_t *    identifier_register(void);
 
 OBLLEXER_IMPEXP int LexerConfig;
 OBLLEXER_IMPEXP int Lexer;

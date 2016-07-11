@@ -200,13 +200,14 @@ token_t * _ws_match(scanner_t *scanner) {
   return ret;
 }
 
-void whitespace_register(void) {
-  lexer_init();
+typedescr_t * whitespace_register(void) {
+  typedescr_t *ret;
+
   WSScannerConfig = typedescr_create_and_register(WSScannerConfig,
                                                   "whitespace",
                                                   _vtable_wsscanner_config,
                                                   NULL);
-  typedescr_assign_inheritance(typedescr_get(WSScannerConfig), ScannerConfig);
+  ret = typedescr_get(WSScannerConfig);
   typedescr_set_size(WSScannerConfig, ws_config_t);
-  scanner_config_register(typedescr_get(WSScannerConfig));
+  return ret;
 }

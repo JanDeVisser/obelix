@@ -126,13 +126,14 @@ token_t * _id_match(scanner_t *scanner) {
 
 /* -- I D E N T I F I E R  S C A N N E R ---------------------------------- */
 
-void identifier_register(void) {
-  lexer_init();
+typedescr_t * identifier_register(void) {
+  typedescr_t *ret;
+
   IDScannerConfig = typedescr_create_and_register(IDScannerConfig,
                                                   "identifier",
                                                   _vtable_idscanner_config,
                                                   NULL);
-  typedescr_assign_inheritance(typedescr_get(IDScannerConfig), ScannerConfig);
+  ret = typedescr_get(IDScannerConfig);
   typedescr_set_size(IDScannerConfig, id_config_t);
-  scanner_config_register(typedescr_get(IDScannerConfig));
+  return ret;
 }

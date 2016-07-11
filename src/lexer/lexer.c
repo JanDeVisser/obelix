@@ -502,7 +502,12 @@ int lexer_get_char(lexer_t *lexer) {
       lexer -> lookahead_live = FALSE;
 
       /*
-       * This needs a comment. I'm currently not quite sure how to formulate.
+       * The last read pushed the lookahead's pos beyond the length of the
+       * string. We then read the next char (below) and tack it on the back of
+       * the lookahead. At that point the pos points to that new character, but
+       * it shouldn't.
+       *
+       * FIXME: better API and better comments.
        */
       lexer -> lookahead -> pos = str_len(lexer -> lookahead);
     }
