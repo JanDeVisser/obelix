@@ -22,8 +22,8 @@
 #include <function.h>
 #include <lexer.h>
 #include <mutex.h>
-#include <name.h>
 #include <nvp.h>
+#include <resolve.h>
 
 /* ------------------------------------------------------------------------ */
 
@@ -64,6 +64,7 @@ void _scanner_config_init(void) {
     dict_set_data_type(_scanners_configs, type_int);
     _scanners_configs = strdata_dict_create();
     _scanner_config_mutex = mutex_create();
+    resolve_library("libobllexer");
   }
 }
 
@@ -196,7 +197,11 @@ typedescr_t * scanner_config_load(char *code, char *regfnc_name) {
   _scanner_config_init();
   mutex_lock(_scanner_config_mutex);
   if (!dict_has_key(_scanners_configs, code)) {
-    fncname = (regfnc_name) ? regfnc_name : asprintf("%s_register", code);
+    if (regfnc_name) {
+      fncname = regfnc_name;
+    } else {
+      asprintf(&fncname, "%s_register", code);
+    }
     fnc = function_create(fncname, NULL);
     if (fnc -> fnc) {
       regfnc = (create_t) fnc -> fnc;

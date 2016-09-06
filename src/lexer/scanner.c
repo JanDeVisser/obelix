@@ -83,6 +83,7 @@ void _scanner_free(scanner_t *scanner) {
   if (scanner) {
     scanner_config_free(scanner -> config);
     lexer_free(scanner -> lexer);
+    free(scanner -> data);
   }
 }
 

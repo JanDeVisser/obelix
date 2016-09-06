@@ -17,45 +17,53 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
 #include <ctype.h>
 
 #include <lexer.h>
-
-#define MAX_MARKERS    16
 
 typedef enum {
   CommentNone,
   CommentStartMarker,
   CommentText,
   CommentEndMarker,
-  CommentEnd
+  CommentEnd,
+  CommentUnterminated
 } comment_state_t;
 
 typedef struct _comment_marker {
-  int   hashpling;
-  char *start;
-  char *end;
-  int   matched;
+  struct _comment_marker *next;
+  int                     hashpling;
+  char                   *start;
+  char                   *end;
 } comment_marker_t;
 
-typedef struct _comment_scanner {
-  comment_marker_t  markers[MAX_MARKERS];
+typedef struct _comment_config {
+  data_t            _d;
+  comment_marker_t *markers;
   int               num_markers;
+} comment_config_t;
+
+typedef struct _comment_scanner {
   int               num_matches;
   comment_marker_t *match;
-  comment_state_t   state;
+  int               matched[0];
 } comment_scanner_t;
 
-static         comment_scanner_t * _comment_create(void);
-static         void                _comment_free(comment_scanner_t *);
-static         comment_scanner_t * _comment_add_marker(comment_scanner_t *, char *);
-static         int                 _comment_match_start(comment_scanner_t *, lexer_t *);
-static         void                _comment_find_eol(comment_scanner_t *, lexer_t *);
-static         void                _comment_find_endmarker(comment_scanner_t *, lexer_t *);
-static         void                _comment_find_end(comment_scanner_t *, lexer_t *);
-static         comment_scanner_t * _comment_set(comment_scanner_t *, char *, void *);
-__DLL_EXPORT__ token_code_t        scanner_comment(lexer_t *, scanner_t *);
+static comment_config_t * _comment_config_create(comment_config_t *, va_list);
+static data_t *           _comment_config_resolve(comment_config_t *, char *);
+static ws_config_t *      _comment_config_set(comment_config_t *, char *, data_t *);
+static token_t *          _comment_match(scanner_t *);
+
+static vtable_t _vtable_comment_config[] = {
+    { .id = FunctionNew,     .fnc = (void_t) _comment_config_create },
+    { .id = FunctionResolve, .fnc = (void_t) _comment_config_resolve },
+    { .id = FunctionSet,     .fnc = (void_t) _comment_config_set },
+    { .id = FunctionUsr1,    .fnc = (void_t) _comment_match },
+    { .id = FunctionUsr2,    .fnc = NULL },
+    { .id = FunctionNone,    .fnc = NULL }
+};
+
+static int CommentScannerConfig = -1;
 
 /*
  * ---------------------------------------------------------------------------
@@ -63,39 +71,39 @@ __DLL_EXPORT__ token_code_t        scanner_comment(lexer_t *, scanner_t *);
  * ---------------------------------------------------------------------------
  */
 
-comment_scanner_t * _comment_create(void) {
-  comment_scanner_t *ret;
- 
-  ret = NEW(comment_scanner_t);
-  memset(ret -> markers, 0, sizeof(ret -> markers));
-  ret -> num_markers = 0;
-  ret -> state = CommentNone;
-  return ret;
+comment_config_t *_comment_config_create(comment_config_t *config,
+                                         va_list args) {
+  config -> markers = NULL;
+  config -> num_markers = 0;
+  return config;
 }
 
-void _comment_free(comment_scanner_t *c_scanner) {
-  int ix;
-  
-  if (c_scanner) {
-    for (ix = 0; ix < c_scanner -> num_markers; ix++) {
-      free(c_scanner -> markers[ix].start);
-      free(c_scanner -> markers[ix].end);
+void _comment_config_free(comment_config_t *config) {
+  comment_marker_t *marker;
+  comment_marker_t *last;
+
+  if (config) {
+    for (marker = config -> markers; marker; marker = last -> next) {
+      last = marker;
+      free(marker -> start);
+      free(marker -> end);
+      free(marker);
     }
-    free(c_scanner);
   }
 }
 
-comment_scanner_t * _comment_add_marker(comment_scanner_t *c_scanner, char *marker) {
-  char *start = marker;
-  char *end;
-  char *ptr;
-  char *start_endptr = NULL, end_endptr = NULL;
-  int   ch1 = 0, ch2 = 0;
-  
-  if (c_scanner -> num_markers >= MAX_MARKERS) {
-    return NULL;
-  }
-  
+comment_config_t *_comment_config_add_marker(comment_config_t *config,
+                                             char *marker) {
+  char             *start = marker;
+  char             *end;
+  char             *ptr;
+  char             *start_endptr = NULL
+  char             *end_endptr = NULL;
+  int               ch1 = 0;
+  int               ch2 = 0;
+  int               hashpling = 0;
+  comment_marker_t *comment_marker = NULL;
+
   /*
    * Marker should be a string consisting of start marker and end maker 
    * separated by whitespace. If there is no end marker the comment is a 
@@ -110,35 +118,35 @@ comment_scanner_t * _comment_add_marker(comment_scanner_t *c_scanner, char *mark
    * but not # as an end of line comment marker in the rest of the text would 
    * be "^#!".
    */
-  
+
   /* Find the first non-whitespace character: */
   for (start = marker; *start && isspace(*start); start++);
-  
+
   if (!*start) {
     /* No non-whitespace found. Bail: */
     return NULL;
   }
-  
+
   if (*start == '^') {
     /* 
      * First non-whitespace character is the start-of-text anchor. Set the
      * hashpling attribute in the marker structure and try to find next 
      * non-whitespace char:
      */
-    c_scanner -> markers[c_scanner -> num_markers].hashpling = 1;
-    for (start++; *start && isspace(*start); start++);
-    
     if (!*start) {
       /* No non-whitespace found. Bail: */
       return NULL;
-    }  
-  } else {
-    c_scanner -> markers[c_scanner -> num_markers].hashpling = 0;
+    }
+    hashpling = 1;
   }
-    
+  comment_marker = NEW(comment_marker_t);
+  comment_marker -> hashpling = hashpling;
+
   /* Find the end of the start marker: */
-  for (start_endptr = start + 1; *start_endptr && !isspace(*start_endptr); start_endptr++);
-  
+  for (start_endptr = start + 1;
+       *start_endptr && !isspace(*start_endptr);
+       start_endptr++);
+
   if (*start_endptr) {
     /* 
      * There is whitespace after the start marker. Temporarily end the string,
@@ -147,13 +155,14 @@ comment_scanner_t * _comment_add_marker(comment_scanner_t *c_scanner, char *mark
     ch1 = *start_endptr;
     *start_endptr = 0;
     for (end = start_endptr + 1; *end && isspace(*end); end++);
-    
+
     if (*end) {
       /* 
        * There is non-whitespace after the whitespace following the start 
        * marker. This is the start of the end marker. Find the end of it.
        */
-      for (end_endptr = end + 1; *end_endptr && !isspace(*end_endptr); end_endptr++);
+      for (end_endptr = end + 1;
+           *end_endptr && !isspace(*end_endptr); end_endptr++);
       if (*end_endptr) {
         /* There is trailing whitespace. Temporarily trim it: */
         ch2 = *end_endptr;
@@ -170,13 +179,14 @@ comment_scanner_t * _comment_add_marker(comment_scanner_t *c_scanner, char *mark
     /* There was nothing after the start marker. This is a line comment. */
     end = NULL;
   }
-  
+
   /* Set up the marker structure: */
-  c_scanner -> markers[c_scanner -> num_markers].start = strdup(start);
-  c_scanner -> markers[c_scanner -> num_markers].end = (end) 
-    ? strdup(end) : NULL;
-  c_scanner -> num_markers++;
-  
+  comment_marker -> start = strdup(start);
+  comment_marker -> end = (end) ? strdup(end) : NULL;
+  comment_marker -> next = config -> markers;
+  config -> markers = comment_marker;
+  config -> num_markers++;
+
   /* Reset temporary end-of-string markers: */
   if (start_endptr) {
     *start_endptr = ch1;
@@ -184,33 +194,108 @@ comment_scanner_t * _comment_add_marker(comment_scanner_t *c_scanner, char *mark
   if (end_endptr) {
     *end_endptr = ch2;
   }
-  
+
   return c_scanner;
 }
 
-int _comment_match_start(comment_scanner_t *c_scanner, lexer_t *lexer) {
-  int               ix;
-  int               len;
-  char             *token;
-  comment_marker_t *marker;
-  int               at_top;
-  
-  at_top = (lexer -> line == 1) && (lexer -> column == 1);
-  for (ix = 0; ix < c_scanner -> num_markers; ix++) {
-    c_scanner -> markers[ix].matched = 1;
+token_t *_comment_find_eol(scanner_t *c_scanner) {
+  token_t           *ret = NULL;
+  comment_config_t  *config = (comment_config_t *) scanner -> config;
+  comment_scanner_t *c_scanner = (comment_scanner_t *) scanner -> data;
+  int ch;
+
+  for (ch = lexer_get_char(
+      scanner -> lexer), scanner -> state = CommentStartMarker;
+       ch && (scanner -> state == CommentText);) {
+    if ((ch == '\r') || (ch == '\n')) {
+      lexer_reset(scanner -> lexer);
+      scanner -> state = CommentEnd;
+    } else {
+      lexer_discard(scanner -> lexer);
+      ch = lexer_get_char(scanner -> lexer);
+    }
   }
-  do {
+  return ret;
+}
+
+token_t *_comment_find_endmarker(scanner_t *scanner) {
+  token_t           *ret = NULL;
+  comment_config_t  *config = (comment_config_t *) scanner -> config;
+  comment_scanner_t *c_scanner = (comment_scanner_t *) scanner -> data;
+  comment_marker_t  *marker = c_scanner -> match;
+  int                ch;
+  int                len;
+  char              *token;
+
+  for (ch = lexer_get_char(scanner -> lexer), scanner -> state = CommentStartMarker;
+       ch && (scanner -> state != CommentEnd);) {
+
+    switch (scanner -> state) {
+      case CommentText:
+        if (lexer -> current == *(marker -> end)) {
+          lexer_reset(scanner -> lexer);
+          scanner -> state = CommentEndMarker;
+        } else {
+          lexer_discard(scanner -> lexer);
+          ch = lexer_get_char(scanner -> lexer);
+        }
+        break;
+
+      case CommentEndMarker:
+        str_append_char(lexer -> token, ch);
+        token = str_chars(lexer -> token);
+        len = strlen(token);
+        if (strncmp(token, marker -> end, len)) {
+          /*
+           * The match of the end marker was lost. Reset the state. It's possible
+           * though that this is the start of a new end marker match though.
+           */
+          c_scanner -> state = CommentText;
+          lexer_reset(scanner -> lexer);
+        } else if (len == strlen(marker -> end)) {
+          /*
+           * We matched the full end marker. Set the state of the scanner and
+           * erase the current token.
+           */
+          c_scanner -> state = CommentEnd;
+        }
+        break;
+    }
+  }
+  if (!ch) {
+    ret = token_create(TokenCodeError, "Unterminated comment");
+  }
+  return ret;
+}
+
+token_t *_comment_match_start(scanner_t *scanner) {
+  token_t            *ret = NULL;
+  int                 ix;
+  int                 ch;
+  comment_config_t   *config = (comment_config_t *) scanner -> config;
+  comment_scanner_t  *c_scanner = (comment_scanner_t *) scanner -> data;
+  comment_marker_t   *marker;
+  int                 at_top;
+
+  at_top = lexer_at_top(lexer);
+  for (ix = 0; ix < config -> num_markers; ix++) {
+    c_scanner -> matched[ix] = 1;
+  }
+  for (ch = lexer_get_char(scanner -> lexer), c_scanner -> num_matches = config -> num_markers;
+       ch && c_scanner -> num_matches > 0;
+      ) {
+
     token = str_chars(lexer -> token);
     len = strlen(token);
     c_scanner -> num_matches = 0;
-    for (ix = 0; ix < c_scanner -> num_markers; ix++) {
-      marker = c_scanner -> markers + ix;
+    marker = config -> markers;
+    for (ix = 0; ix < c_scanner -> num_markers; ix++, marker = marker -> next) {
       if (marker -> hashpling && !at_top) {
         continue;
       }
-      if (marker -> matched) {
-        marker -> matched = !strncmp(token, marker -> start, len);
-        if (marker -> matched) {
+      if (c_scanner -> matched[ix]) {
+        // Intentional assignment!
+        if (c_scanner -> matched[ix] = !strncmp(token, marker -> start, len)) {
           c_scanner -> num_matches++;
           c_scanner -> match = marker;
         }
@@ -219,130 +304,48 @@ int _comment_match_start(comment_scanner_t *c_scanner, lexer_t *lexer) {
     if (c_scanner -> num_matches != 1) {
       c_scanner -> match = NULL;
     }
-    if ((c_scanner -> num_matches == 1) && 
+    if ((c_scanner -> num_matches == 1) &&
         !strcmp(token, c_scanner -> match -> start)) {
-      c_scanner -> state = CommentText;
+      scanner -> state = CommentText;
+      lexer_reset(scanner -> lexer);
     } else if (c_scanner -> num_matches > 0) {
-      c_scanner -> state = CommentStartMarker;
-      lexer_get_char(lexer);
+      scanner -> state = CommentStartMarker;
+      lexer_push(scanner -> lexer);
+      ch = lexer_get_char(scanner -> lexer);
     } else {
-      c_scanner -> state = CommentNone;
+      scanner -> state = CommentNone;
     }
-  } while (c_scanner -> state == CommentStartMarker);
-}
-
-void _comment_find_eol(comment_scanner_t *c_scanner, lexer_t *lexer) {
-  switch (c_scanner -> state) {
-    case CommentText:
-      if ((lexer -> current == '\r') || (lexer -> current == '\n')) {
-        c_scanner -> state = CommentEndMarker;
-      }
-      break;
-      
-    case CommentEndMarker:
-      if ((lexer -> current != '\r') && (lexer -> current != '\n')) {
-        c_scanner -> state = CommentNone;
-        lexer_clear(lexer);
-        lexer_push_back(lexer);
-      }
-      break;
   }
-}
-
-void _comment_find_endmarker(comment_scanner_t *c_scanner, lexer_t *lexer) {
-  int               len;
-  char             *token;
-  comment_marker_t *marker = c_scanner -> match;
-
-  switch (c_scanner -> state) {
-    case CommentText:
-      if (lexer -> current == *(marker -> end)) {
-        lexer_clear(lexer);
-        str_append_char(lexer -> token, *(marker -> end));
-        lexer -> current = *(marker -> end);
-        c_scanner -> state = CommentEndMarker;
-      }
-      break;
-      
-    case CommentEndMarker:
-      token = str_chars(lexer -> token);
-      len = strlen(token);
-      if (strncmp(token, marker -> end, len)) {
-        /*
-         * The match of the end marker was lost. Reset the state. It's possible
-         * though that this is the start of a new end marker match, so
-         * feed it through this function again.
-         */
-        c_scanner -> state = CommentText;
-        _comment_find_endmarker(c_scanner, lexer);
-      } else if (len == strlen(marker -> end)) {
-        /*
-         * We matched the full end marker. Set the state of the scanner and
-         * erase the current token.
-         */
-        c_scanner -> state = CommentNone;
-        lexer_clear(lexer);
-      }
-      break;
+  if (scanner -> state == CommentText) {
+    ret = (c_scanner -> match -> end)
+            ? _commment_find_endmarker(scanner)
+            : _comment_find_eol(scanner);
   }
+  return ret;
 }
 
-comment_scanner_t * _comment_find_end(comment_scanner_t *c_scanner, lexer_t *lexer) {
-  comment_marker_t  *marker = c_scanner -> match;
-  void             (*endfinder)(comment_scanner_t *, lexer_t *); 
-  
-  endfinder = (marker -> end) ? _comment_find_endmarker : _comment_find_eol;
-  do {
-    if (lexer -> current < 0) {
-      return NULL;
-    }
-    endfinder(c_scanner, lexer);
-    if (c_scanner -> state != CommentNone) {
-      lexer_get_char(lexer);
-    }
-  } while (c_scanner -> state != CommentNone);
-  return c_scanner;
-}
-
-comment_scanner_t * _comment_set(comment_scanner_t *c_scanner, char *parameter, void *value) {
+comment_scanner_t *_comment_set(comment_scanner_t *c_scanner, char *parameter, void *value) {
   return _comment_add_marker(c_scanner, (char *) value);
 }
 
-__DLL_EXPORT__ token_code_t scanner_comment(lexer_t *lexer, scanner_t *scanner) {
-  token_code_t       code = TokenCodeNone;
-  comment_scanner_t *c_scanner = (comment_scanner_t *) scanner -> data;
-  int                ptr;
-  
-  switch (lexer -> state) {
-    case LexerStateFresh:
-      scanner -> data = _comment_create();
-      break;
-    
-    case LexerStateParameter:
-      _comment_set(c_scanner, scanner -> parameter, scanner -> value);
-      break;
-      
-    case LexerStateStale:
-      _comment_free(c_scanner);
-      scanner -> data = NULL;
-      break;
-      
-    case LexerStateInit:
-      ptr = lexer_get_pointer(lexer);
-      _comment_match_start(c_scanner, lexer);
-      switch (c_scanner -> state) {
-        case CommentNone:
-          lexer_push_back_to(lexer, ptr);
-          break;
-        case CommentText:
-          if (!_comment_find_end(c_scanner, lexer)) {
-            lexer -> error = str_wrap("Unterminated comment");
-            code = TokenCodeError;
-          }
-          break;
-      }
-      break;
+token_t *_comment_match(scanner_t *scanner) {
+  token_t *ret = NULL;
+  comment_config_t *config = (comment_config_t *) scanner -> config;
+
+  mdebug(lexer, "_comment_match");
+  scanner -> state = CommentNone;
+  if (!scanner -> data) {
+    scanner -> data = NEWDYNARR(comment_scanner_t, config -> num_markers, int);
   }
-  return code;
+  return _comment_match_start(scanner);
 }
 
+typedescr_t *comment_register(void) {
+  typedescr_t *ret;
+
+  CommentScannerConfig = typedescr_create_and_register(
+      CommentScannerConfig, "comment", _vtable_comment_config, NULL);
+  ret = typedescr_get(CommentScannerConfig);
+  typedescr_set_size(CommentScannerConfig, comment_config_t);
+  return ret;
+}

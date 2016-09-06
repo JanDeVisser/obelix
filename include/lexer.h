@@ -33,14 +33,20 @@
 #define LEXER_MAX_SCANNERS        32
 #define SCANNER_CONFIG_SEPARATORS " \t,.;"
 
+typedef enum _lexer_where {
+  LexerWhereBegin,
+  LexerWhereMiddle,
+  LexerWhereEnd
+} lexer_where_t;
+
 typedef enum _lexer_state {
   LexerStateNoState,
   LexerStateFresh,
-  LexerStateParameter,
   LexerStateInit,
   LexerStateFirstPass,
   LexerStateSecondPass,
   LexerStateSuccess,
+  /*
   LexerStateWhitespace,
   LexerStateNewLine,
   LexerStateIdentifier,
@@ -62,6 +68,7 @@ typedef enum _lexer_state {
   LexerStateBlockComment,
   LexerStateLineComment,
   LexerStateStar,
+  */
   LexerStateDone,
   LexerStateStale,
   LexerStateLAST
@@ -111,6 +118,7 @@ typedef struct _lexer {
   int              lookahead_live;
   str_t           *token;
   lexer_state_t    state;
+  lexer_where_t    where;
   token_t         *last_token;
   char             quote;
   int              current;
@@ -165,6 +173,8 @@ OBLLEXER_IMPEXP lexer_config_t *   lexer_config_tokenize(lexer_config_t *, reduc
 OBLLEXER_IMPEXP lexer_t *        lexer_create(lexer_config_t *, data_t *);
 OBLLEXER_IMPEXP token_t *        lexer_next_token(lexer_t *);
 OBLLEXER_IMPEXP int              lexer_get_char(lexer_t *);
+OBLLEXER_IMPEXP int              lexer_at_top(lexer_t *);
+OBLLEXER_IMPEXP int              lexer_at_end(lexer_t *);
 OBLLEXER_IMPEXP void             lexer_pushback(lexer_t *);
 OBLLEXER_IMPEXP void             lexer_clear(lexer_t *);
 OBLLEXER_IMPEXP void             lexer_flush(lexer_t *);

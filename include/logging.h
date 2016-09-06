@@ -33,7 +33,8 @@ typedef enum _log_level {
   LogLevelError,
   LogLevelFatal
 } log_level_t;
-  
+
+OBLCORE_IMPEXP void   logging_init(void);
 OBLCORE_IMPEXP void   logging_register_category(char *, int *);
 OBLCORE_IMPEXP void   logging_reset(void);
 OBLCORE_IMPEXP void   logging_enable(char *);

@@ -203,10 +203,8 @@ token_t * _ws_match(scanner_t *scanner) {
 typedescr_t * whitespace_register(void) {
   typedescr_t *ret;
 
-  WSScannerConfig = typedescr_create_and_register(WSScannerConfig,
-                                                  "whitespace",
-                                                  _vtable_wsscanner_config,
-                                                  NULL);
+  WSScannerConfig = typedescr_create_and_register(
+      WSScannerConfig, "whitespace", _vtable_wsscanner_config, NULL);
   ret = typedescr_get(WSScannerConfig);
   typedescr_set_size(WSScannerConfig, ws_config_t);
   return ret;

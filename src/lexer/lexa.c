@@ -17,15 +17,12 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #include <data.h>
 #include <file.h>
 #include <lexer.h>
-#include <logging.h>
 #include <lexa.h>
 
 int lexa_debug;
@@ -68,14 +65,12 @@ lexa_t * lexa_create(void) {
 
   if (Lexa < 0) {
     lexer_init();
-    identifier_register();
-    whitespace_register();
     logging_register_category("lexa", &lexa_debug);
     Lexa = typedescr_create_and_register(Lexa, "lexa", _vtable_lexa, NULL);
   }
   ret = data_new(Lexa, lexa_t);
   ret -> debug = NULL;
-  ret -> log_level = LogLevelDebug;
+  ret -> log_level = -1;
   ret -> scanners = strdata_dict_create();
   ret -> config = NULL;
   ret -> fname = NULL;
@@ -83,12 +78,16 @@ lexa_t * lexa_create(void) {
 }
 
 lexa_t * _lexa_build_scanner(entry_t *entry, lexa_t *lexa) {
+  char             *code;
   scanner_config_t *scanner;
 
   lexa_debug_settings(lexa);
-  mdebug(lexa, "Building scanner '%s' with config '%s'", (char *) entry -> key, data_tostring((data_t *) entry -> value));
-  scanner = lexer_config_add_scanner(lexa -> config, (char *) entry -> key);
-  mdebug(lexa, "Built scanner '%s'. match: %p", scanner_config_tostring(scanner), scanner -> match);
+  code = (char *) entry -> key;
+  mdebug(lexa, "Loading scanner config type '%s'", code);
+  scanner_config_load(code, NULL);
+  mdebug(lexa, "Building scanner '%s' with config '%s'", code, data_tostring((data_t *) entry -> value));
+  scanner = lexer_config_add_scanner(lexa -> config, code);
+  mdebug(lexa, "Built scanner '%s'", scanner_config_tostring(scanner));
   scanner_config_configure(scanner, (data_t *) entry -> value);
   return lexa;
 }
@@ -116,10 +115,13 @@ lexa_t * lexa_tokenize(lexa_t *lexa) {
 
 lexa_t * lexa_debug_settings(lexa_t *lexa) {
   array_t *cats;
-  int      ix;
+  int ix;
 
-  if (lexa -> debug) {
+  logging_init();
+  if (lexa -> log_level != -1) {
     logging_set_level(lexa -> log_level);
+  }
+  if (lexa -> debug) {
     debug("debug optarg: %s", lexa -> debug);
     cats = array_split(lexa -> debug, ",");
     for (ix = 0; ix < array_size(cats); ix++) {

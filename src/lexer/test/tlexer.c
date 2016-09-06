@@ -35,11 +35,10 @@ lexa_t * setup(void) {
   
   ret = lexa_create();
   ck_assert_ptr_ne(ret, NULL);
-  ret -> debug = strdup("lexer,lexa");
   return ret;
 }
 
-lexa_t * setup2(void) {
+lexa_t * setup_with_scanners(void) {
   lexa_t *lexa;
 
   lexa = setup();
@@ -62,7 +61,7 @@ END_TEST
 START_TEST(test_lexa_add_scanner)
   lexa_t *lexa;
 
-  lexa = setup2();
+  lexa = setup_with_scanners();
   ck_assert_int_eq(dict_size(lexa -> scanners), 2);
   teardown(lexa);
 END_TEST
@@ -70,7 +69,7 @@ END_TEST
 START_TEST(test_lexa_build_lexer)
   lexa_t *lexa;
 
-  lexa = setup2();
+  lexa = setup_with_scanners();
   ck_assert_int_eq(dict_size(lexa -> scanners), 2);
   lexa_build_lexer(lexa);
   ck_assert_ptr_ne(lexa -> config, NULL);
@@ -80,7 +79,7 @@ END_TEST
 START_TEST(test_lexa_tokenize)
   lexa_t *lexa;
 
-  lexa = setup2();
+  lexa = setup_with_scanners();
   ck_assert_int_eq(dict_size(lexa -> scanners), 2);
   lexa_build_lexer(lexa);
   ck_assert_ptr_ne(lexa -> config, NULL);

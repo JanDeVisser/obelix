@@ -1,5 +1,5 @@
 /*
- * /obelix/src/resolve.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/src/lib/resolve.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -40,6 +40,7 @@ int resolve_debug = 0;
 
 static inline void __resolve_init(void);
 static char *      _resolve_rewrite_image(char *, char *);
+static resolve_t * _resolve_open(resolve_t *, char *);
 
 static resolve_t      *_singleton = NULL;
 static pthread_once_t  _resolve_once = PTHREAD_ONCE_INIT;
@@ -48,8 +49,6 @@ static pthread_mutex_t _resolve_mutex;
 #define _resolve_init() pthread_once(&_resolve_once, __resolve_init)
 
 void __resolve_init(void) {
-  void *main;
-
   logging_register_category("resolve", &resolve_debug);
   assert(!_singleton);
   _singleton = NEW(resolve_t);
@@ -61,8 +60,7 @@ void __resolve_init(void) {
   list_set_free(_singleton -> images, (free_t) FreeLibrary);
 #endif /* HAVE_DLFCN_H */
   _singleton -> functions = strvoid_dict_create();
-  main = resolve_open(_singleton, NULL);
-  if (!main) {
+  if (!_resolve_open(_singleton, NULL)) {
     error("Could not load main program image");
   }
   pthread_mutex_init(&_resolve_mutex, NULL);
@@ -118,9 +116,7 @@ resolve_t * resolve_get(void) {
 
 void resolve_free(void) {
   if (_singleton) {
-    if (resolve_debug) {
-      debug("resolve_free");
-    }
+    mdebug(resolve, "resolve_free");
     list_free(_singleton -> images);
     dict_free(_singleton -> functions);
     free(_singleton);
@@ -128,28 +124,23 @@ void resolve_free(void) {
   }
 }
 
-resolve_t * resolve_open(resolve_t *resolve, char *image) {
+resolve_t * _resolve_open(resolve_t *resolve, char *image) {
 #ifdef HAVE_DLFCN_H
   void      *handle;
 #elif defined(HAVE_WINDOWS_H)
   HMODULE    handle;
 #endif /* HAVE_DLFCN_H */
-  char      *err;
+  char      *err = NULL;
   char       image_plf[MAX_PATH];
   void_t     initializer;
   resolve_t *ret = NULL;
 
-  _resolve_init();
   pthread_mutex_lock(&_resolve_mutex);
   if (_resolve_rewrite_image(image, image_plf)) {
-    if (resolve_debug) {
-      debug("resolve_open('%s') ~ '%s'", image, image_plf);
-    }
+    mdebug(resolve, "resolve_open('%s') ~ '%s'", image, image_plf);
     image = image_plf;
   } else {
-    if (resolve_debug) {
-      debug("resolve_open('Main Program Image')");
-    }
+    mdebug(resolve, "resolve_open('Main Program Image')");
   }
 #ifdef HAVE_DLFCN_H
   dlerror();
@@ -168,48 +159,44 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
     initializer = (void_t) GetProcAddress(handle, OBL_INIT);
     err = itoa(GetLastError()); // FIXME
 #endif /* HAVE_DLFCN_H */
-    if (!err) {
-      if (initializer) {
-	if (resolve_debug) {
-	  debug("resolve_open('%s') Execute initializer", image ? image : "'Main Program Image'");
-	}
-	initializer();
-      } else {
-	if (resolve_debug) {
-	  debug("resolve_open('%s') No initializer", image ? image : "'Main Program Image'");
-	}
-      }
-      list_append(resolve -> images, handle);
-      if (resolve_debug) {
-	info("resolve_open('%s') SUCCEEDED", image ? image : "'Main Program Image'");
-      }
-      ret = resolve;
+    if (!err && initializer) {
+      mdebug(resolve, "resolve_open('%s') Execute initializer", image ? image : "Main Program Image");
+      initializer();
+    } else {
+      mdebug(resolve, "resolve_open('%s') No initializer", image ? image : "Main Program Image");
     }
+    list_append(resolve -> images, handle);
+    if (resolve_debug) {
+      info("resolve_open('%s') SUCCEEDED", image ? image : "Main Program Image");
+    }
+    ret = resolve;
   }
   if (!ret) {
-    error("resolve_open('%s') FAILED: %s", image ? image : "'Main Program Image'", err);
+    error("resolve_open('%s') FAILED: %s", image ? image : "Main Program Image", err);
   }
   pthread_mutex_unlock(&_resolve_mutex);
-  return NULL;
+  return ret;
 }
+
+resolve_t * resolve_open(resolve_t *resolve, char *image) {
+  _resolve_init();
+  return _resolve_open(resolve, image);
+}
+
 
 void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   void   *handle;
   void_t  ret = NULL;
-  char   *err;
+  char   *err = NULL;
 
   // TODO synchronize
   ret = (void_t) dict_get(resolve -> functions, func_name);
   if (ret) {
-    if (resolve_debug) {
-      debug("Function '%s' was cached", func_name);
-    }
+    mdebug(resolve, "Function '%s' was cached", func_name);
     return ret;
   }
 
-  if (resolve_debug) {
-    debug("dlsym('%s')", func_name);
-  }  
+  mdebug(resolve, "dlsym('%s')", func_name);
   ret = NULL;
   for (list_start(resolve -> images); !err && !ret && list_has_next(resolve -> images); ) {
     handle = list_next(resolve -> images);
@@ -226,9 +213,7 @@ void_t resolve_resolve(resolve_t *resolve, char *func_name) {
     if (ret) {
       dict_put(resolve -> functions, strdup(func_name), ret);
     } else {
-      if (resolve_debug) {
-	error("Could not resolve function '%s'", func_name);
-      }
+      info("Could not resolve function '%s'", func_name);
     }
   } else {
     error("resolve_resolve('%s') FAILED: %s", func_name, err);

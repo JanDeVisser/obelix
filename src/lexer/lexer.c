@@ -313,8 +313,6 @@ token_t * _lexer_match_token(lexer_t *lexer) {
        */
       lexer_reset(lexer);
       lexer -> state = LexerStateInit;
-    } else {
-      lexer -> state = LexerStateDone;
     }
     mdebug(lexer, "_lexer_match_token out - state: %s lookahead: '%s':%d",
                lexer_state_name(lexer -> state),
@@ -336,6 +334,7 @@ lexer_t * lexer_create(lexer_config_t *config, data_t *reader) {
 
   ret -> buffer = NULL;
   ret -> state = LexerStateFresh;
+  ret -> where = LexerWhereBegin;
   ret -> last_token = NULL;
   ret -> line = 1;
   ret -> column = 0;
@@ -386,7 +385,7 @@ token_t * lexer_next_token(lexer_t *lexer) {
 
     do {
       lexer -> last_token = _lexer_match_token(lexer);
-    } while ((lexer -> state != LexerStateDone) &&
+    } while ((lexer -> state != LexerStateEnd) &&
              (lexer -> state != LexerStateSuccess));
     if (lexer -> last_token) {
       mdebug(lexer, "lexer_next_token: matched token: %s [%s]",
@@ -405,6 +404,14 @@ token_t * lexer_next_token(lexer_t *lexer) {
               token_token(lexer -> last_token),
               lexer_state_name(lexer -> state));
   return token_copy(lexer -> last_token);
+}
+
+int lexer_at_top(lexer_t *lexer) {
+  return lexer -> where == LexerWhereBegin;
+}
+
+int lexer_at_end(lexer_t *lexer) {
+  return lexer -> where == LexerWhereEnd;
 }
 
 /**
@@ -426,12 +433,12 @@ lexer_t * lexer_reset(lexer_t *lexer) {
     token_free(lexer -> last_token);
     lexer -> last_token = token_create(0, NULL);
   }
-  lexer -> state = LexerStateInit;
   str_reset(lexer -> lookahead);
   // mdebug(lexer, "lexer_reset: lookahead='%s':%d", str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
   lexer -> current = 0;
   lexer -> lookahead_live = str_len(lexer -> lookahead);
   str_erase(lexer -> token);
+  lexer -> state = LexerStateInit;
   return lexer;
 }
 
@@ -442,6 +449,7 @@ token_t * lexer_accept(lexer_t *lexer, token_code_t code) {
     ret = token_create(code, str_chars(lexer -> token));
     lexer_reset(lexer);
     lexer -> last_token = ret;
+    lexer -> state = LexerStateSuccess;
     mdebug(lexer, "lexer_accept(%s): lookahead='%s':%d",
            token_tostring(ret),
            str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
@@ -513,6 +521,7 @@ int lexer_get_char(lexer_t *lexer) {
     }
   }
 
+  lexer -> where = LexerWhereEnd;
   if (!lexer -> buffer) {
     if (!_lexer_init_buffer(lexer)) {
       return 0;
@@ -539,6 +548,7 @@ int lexer_get_char(lexer_t *lexer) {
   }
   lexer -> current = ch;
   if (lexer -> current) {
+    lexer -> where = LexerWhereMiddle;
     str_append_char(lexer -> lookahead, lexer -> current);
   }
   _lexer_update_location(lexer, ch); // FIXME needs to be moved?

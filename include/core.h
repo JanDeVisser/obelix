@@ -29,10 +29,11 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#define TRUE          1
-#define FALSE         0
-#define NEW(t)        ( (t *) _new( sizeof(t) ) )
-#define NEWARR(n, t)  ( (t *) new_array((n), sizeof(t)))
+#define TRUE                 1
+#define FALSE                0
+#define NEW(t)               ( (t *) _new( sizeof(t) ) )
+#define NEWARR(n, t)         ( (t *) new_array((n), sizeof(t)))
+#define NEWDYNARR(t, n, s)   ( (t *) _new( sizeof(t) + (n) * sizeof(s)))
   
 typedef struct _code_label {
   int   code;
