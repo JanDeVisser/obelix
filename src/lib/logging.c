@@ -240,7 +240,7 @@ void logging_register_category(char *name, int *flag) {
 
   _logging_init();
   pthread_mutex_lock(&_logging_mutex);
-  if (cat = dict_get(_categories, name)) {
+  if ((cat = dict_get(_categories, name))) {
     cat -> flag = flag;
     *flag = cat -> enabled;
   } else {

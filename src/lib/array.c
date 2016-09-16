@@ -74,6 +74,8 @@ void * _array_reduce(array_t *array, reduce_t reducer, void *data, reduce_type_t
       case RTStrs:
         elem =  str_wrap(array -> type.tostring(elem));
         break;
+      default:
+        break;
     }
     data = reducer(elem, data);
     if (f) {

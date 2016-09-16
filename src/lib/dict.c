@@ -388,6 +388,8 @@ void * _dict_entry_reducer(dictentry_t *e, reduce_ctx *ctx) {
       case DRTEntries:
         free(elem);
         break;
+      default:
+        break;
     }
   }
   return ctx;

@@ -312,7 +312,11 @@ thread_t * thread_setname(thread_t *thread, char *name) {
   free(thread -> name);
   thread -> name = strdup(name);
 #if defined(HAVE_PTHREAD_H) && defined(HAVE_PTHREAD_SETNAME_NP)
+#ifndef __APPLE__
   pthread_setname_np(thread -> thread, thread -> name);
+#else
+  pthread_setname_np(thread -> name);
+#endif
 #endif
   return thread;
 }

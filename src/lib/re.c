@@ -125,8 +125,8 @@ data_t * _regexp_compile(re_t *re) {
   int retval;
   
   if (!re -> is_compiled) {
-    if (retval = regcomp(&re -> compiled,
-			 str_chars(re -> pattern), re -> re_flags)) {
+    if ((retval = regcomp(&re -> compiled,
+			 str_chars(re -> pattern), re -> re_flags))) {
       char msgbuf[1000];
 
       regerror(retval, &re -> compiled, msgbuf, sizeof(msgbuf));

@@ -366,7 +366,7 @@ data_t * _any_query(data_t *self, char *name, array_t *args, dict_t *kwargs) {
       query = data_array_get(args, 0);
       ret = queryfnc(self, query);
     }
-    if (!ret && (array_size(args) > 1) || (kwargs && dict_size(kwargs))) {
+    if (!ret && ((array_size(args) > 1) || (kwargs && dict_size(kwargs)))) {
       params = array_slice(args, 1, -1);
       ret = _any_format(ret, NULL, params, kwargs);
       array_free(params);

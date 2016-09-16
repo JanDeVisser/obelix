@@ -248,6 +248,8 @@ void * __list_reduce(list_t *list, reduce_t reducer, void *data, reduce_type_t t
       case RTStrs:
         elem =  str_wrap(list -> type.tostring(elem));
         break;
+      default:
+        break;
     }
     data = reducer(elem, data);
     if (f) {

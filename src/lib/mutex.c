@@ -143,7 +143,7 @@ mutex_t * mutex_create() {
 #ifdef HAVE_PTHREAD_H
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  if (errno = pthread_mutex_init(&mutex -> mutex, &attr)) {
+  if ((errno = pthread_mutex_init(&mutex -> mutex, &attr))) {
     free(mutex);
     mutex = NULL;
   }

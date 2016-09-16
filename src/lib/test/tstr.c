@@ -18,7 +18,7 @@
  */
 
 #include <array.h>
-#include <list.h>
+#include <dict.h>
 #include <str.h>
 #include <testsuite.h>
 
@@ -316,7 +316,10 @@ START_TEST(test_str_join)
   str_free(str);
 END_TEST
 
-static void _init_tresolve(void) {
+START_TEST(test_str_format)
+END_TEST
+
+extern void init_suite(void) {
   TCase *tc = tcase_create("Str");
 
   tcase_add_test(tc, test_str_copy_chars);

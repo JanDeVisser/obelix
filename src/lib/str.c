@@ -318,7 +318,7 @@ char * str_chars(str_t *str) {
 }
 
 int str_at(str_t* str, size_t i) {
-  if (i < 0) {
+  if ((int) i < 0) {
     i = str -> len + i;
   }
   return (i < str -> len) ? str -> buffer[i] : -1;
@@ -457,14 +457,14 @@ int str_read_from_stream(str_t *str, void *stream, read_t reader) {
 
   str_erase(str);
   ret = reader(stream, str -> buffer, str -> bufsize);
-  if (ret < 0) {
+  if ((int) ret < 0) {
     return -1;
   } else {
     if (ret < str -> bufsize) {
       str -> buffer[ret] = 0;
     }
     str -> len = ret;
-    return ret;
+    return (int) ret;
   }
 }
 
@@ -476,7 +476,7 @@ str_t * str_set(str_t* str, size_t i, int ch) {
   str_t *ret = NULL;
 
   if (str -> bufsize) {
-    if (i < 0) {
+    if ((int) i < 0) {
       i = 0;
     }
     if (i < str -> len) {
@@ -633,10 +633,10 @@ str_t * str_slice(str_t *str, size_t from, size_t upto) {
   str_t  *ret;
   size_t  len;
 
-  if (from < 0) {
+  if ((int) from < 0) {
     from = 0;
   }
-  if ((upto > str_len(str)) || (upto < 0)) {
+  if ((upto > str_len(str)) || ((int) upto < 0)) {
     upto = str_len(str);
   }
   len = upto - from;
@@ -676,6 +676,7 @@ array_t * str_split(str_t *str, char *sep) {
 }
 
 str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
+  char   *copy;
   char   *ptr;
   char   *specstart;
   long    ix;
@@ -686,8 +687,9 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
   char   *spec = buf;
   size_t  len;
 
-  for (ptr = fmt; *ptr; ptr++) {
-    if (!strncmp(ptr, "${", 2)) {
+  copy = strdup(fmt);
+  for (ptr = copy; *ptr; ptr++) {
+    if ((*ptr == '$') && (*(ptr + 1) == '{')){
       ptr += 2;
       specstart = ptr;
       for (; *ptr && (*ptr != '}'); ptr++);
@@ -720,6 +722,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
     }
   }
   if (bigbuf) free(bigbuf);
+  free(copy);
   return ret;
 }
 
@@ -754,7 +757,7 @@ str_t * str_vformatf(char *fmt, va_list args) {
     for (ix = 0; ix < num; ix++) {
       done = 0;
       sprintf(needle + 2, "%d;", ix);
-      if (ptr = strstr(f, needle)) {
+      if ((ptr = strstr(f, needle))) {
         if (f == fmt) {
           f = strdup(fmt);
           ptr = strstr(f, needle);
@@ -823,10 +826,10 @@ data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   if (j <= 0) {
     j = len + j;
   }
-  if (i < 0) {
+  if ((int) i < 0) {
     i = len + i;
   }
-  if ((i < 0) || (i >= len)) {
+  if (((int) i < 0) || (i >= len)) {
     return data_exception(ErrorRange, "%s.%s argument out of range: %d not in [0..%d]",
                           data_typename(self),
                           name,
@@ -925,7 +928,7 @@ data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs)
   int     ix;
 
   len *= numval;
-  if (len < 0) {
+  if ((int) len < 0) {
     str_erase(ret);
   } else {
     _str_expand(ret, len);

@@ -97,7 +97,7 @@ char * _resolve_rewrite_image(char *image, char *buf) {
 #endif /* __WIN32__ */
 
   /* FIXME Relative paths! */
-  if (ptr = strchr(canonical, '.')) {
+  if ((ptr = strchr(canonical, '.'))) {
     *ptr = 0;
   }
   strcpy(buf, canonical);

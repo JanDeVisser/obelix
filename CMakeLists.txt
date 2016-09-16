@@ -176,6 +176,12 @@ if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif(MSVC)
 
+set(SYSLIBS "m")
+if(LINUX)
+  set(SYSLIBS "rt" ${SYSLIBS})
+endif(LINUX)
+set(SYSLIBS ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} ${SYSLIBS})
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
@@ -191,4 +197,4 @@ add_subdirectory(share)
 # install(FILES "${PROJECT_BINARY_DIR}/config.h" DESTINATION include)
 enable_testing()
 add_test(NAME tlist COMMAND tlist)
-add_test(NAME tlexer COMMAND tlexer)
+#add_test(NAME tlexer COMMAND tlexer)

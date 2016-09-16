@@ -18,6 +18,7 @@ doxygen_sqlite3.db
 .project
 .cproject
 obelix.sublime-workspace
+.DS_Store
 *.sln
 *.sdf
 *.cbp

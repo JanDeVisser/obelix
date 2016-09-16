@@ -1,6 +1,6 @@
 /*
- * collections.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * collections.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -23,6 +23,7 @@
 #include <stdlib.h>
 
 #include <core.h>
+#include <resolve.h>
 #include <testsuite.h>
 
 static type_t _type_test = {
@@ -71,19 +72,24 @@ void test_free(test_t *test) {
 }
 
 static Suite *_suite = NULL;
-extern void init_suite(void);
 
 void add_tcase(TCase *tc) {
   if (_suite && tc) {
     suite_add_tcase(_suite, tc);
-  }  
+  }
 }
 
-int main(void){
-  int number_failed;
+int main(int argc, char **argv){
+  int      number_failed;
   SRunner *sr;
+  void_t   init_suite;
 
   _suite = suite_create("default");
+  init_suite = resolve_function("init_suite");
+  if (!init_suite) {
+    fprintf(stderr, "%s: No init_suite function\n", argv[0]);
+    return EXIT_FAILURE;
+  }
   init_suite();
   sr = srunner_create(_suite);
   srunner_run_all(sr, CK_VERBOSE);

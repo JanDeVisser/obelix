@@ -25,8 +25,6 @@
 #define TEST_STRING     "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 #define TEST_STRING_LEN 36
 
-static void _init_str_test(void) __attribute__((constructor(300)));
-
 START_TEST(data_string)
   data_t  *data = data_create(String, TEST_STRING);
   data_t  *ret;
@@ -135,7 +133,7 @@ START_TEST(str_parse)
   data_free(d);
 END_TEST
 
-void _init_str_test(void) {
+extern void init_suite(void) {
   TCase *tc = tcase_create("Str");
 
   tcase_add_test(tc, data_string);
