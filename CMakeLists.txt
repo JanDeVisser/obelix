@@ -1,5 +1,6 @@
 include(CheckFunctionExists)
 include(CheckIncludeFile)
+include(CheckLibraryExists)
 include(CheckSymbolExists)
 include(CheckTypeSize)
 
@@ -176,10 +177,12 @@ if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif(MSVC)
 
+check_library_exists(rt timer_create "" HAVE_LIBRT)
+
 set(SYSLIBS "m")
-if(LINUX)
+if(HAVE_LIBRT)
   set(SYSLIBS "rt" ${SYSLIBS})
-endif(LINUX)
+endif(HAVE_LIBRT)
 set(SYSLIBS ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} ${SYSLIBS})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
@@ -197,4 +200,5 @@ add_subdirectory(share)
 # install(FILES "${PROJECT_BINARY_DIR}/config.h" DESTINATION include)
 enable_testing()
 add_test(NAME tlist COMMAND tlist)
+add_test(NAME tstr COMMAND tstr)
 #add_test(NAME tlexer COMMAND tlexer)

@@ -41,4 +41,6 @@ Win32/*
 /msvc/
 /codeblocks/
 .idea/*
-
+CTestTestfile.cmake
+Testing/
+bin/

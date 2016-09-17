@@ -165,7 +165,7 @@ str_t * _str_parse(char *str) {
 
 str_t * _str_initialize(void) {
   str_t *ret;
-  
+
   ret = data_new(String, str_t);
   ret -> buffer = NULL;
   ret -> pos = 0;
@@ -443,7 +443,7 @@ int str_readinto(str_t *str, data_t *rdr) {
 }
 
 /**
- * Chop everything from the string befor the current read position.
+ * Chop everything from the string before the current read position.
  */
 str_t * str_reset(str_t *str) {
   if (str -> pos) {
@@ -695,7 +695,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
       for (; *ptr && (*ptr != '}'); ptr++);
       len = ptr - specstart;
       if (!*ptr) {
-        str_append_nchars(ret, specstart, len);
+        str_append_nchars(ret, specstart - 2, len + 2);
       } else {
         while (len >= bufsize - 1) {
           bufsize *= 2;
@@ -710,7 +710,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
         if (kwargs && dict_has_key(kwargs, spec)) {
           str_append_chars(ret, data_tostring(data_dict_get(kwargs, spec)));
         } else {
-          if (!strtoint(spec, &ix) && (ix >= 0) && (ix < array_size(args))) {
+          if (!strtoint(spec, &ix) && args && (ix >= 0) && (ix < array_size(args))) {
             str_append_chars(ret, data_tostring(data_array_get(args, ix)));
           } else {
             str_append_printf(ret, "${%s}", spec);
@@ -947,4 +947,3 @@ data_t * _string_split(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   array_free(split);
   return ret;
 }
-

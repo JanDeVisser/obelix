@@ -499,28 +499,6 @@ int lexer_get_char(lexer_t *lexer) {
   int   ch;
   int   ret;
 
-  if (lexer -> lookahead_live) {
-    ch = str_readchar(lexer -> lookahead);
-    if (ch > 0) {
-      mdebug(lexer, "lexer_get_char(%c [from lookahead]): lookahead='%s':%d", ch, str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
-      lexer -> current = ch;
-      return ch;
-    } else {
-      mdebug(lexer, "lexer_get_char: lookahead buffer exhausted", ch);
-      lexer -> lookahead_live = FALSE;
-
-      /*
-       * The last read pushed the lookahead's pos beyond the length of the
-       * string. We then read the next char (below) and tack it on the back of
-       * the lookahead. At that point the pos points to that new character, but
-       * it shouldn't.
-       *
-       * FIXME: better API and better comments.
-       */
-      lexer -> lookahead -> pos = str_len(lexer -> lookahead);
-    }
-  }
-
   lexer -> where = LexerWhereEnd;
   if (!lexer -> buffer) {
     if (!_lexer_init_buffer(lexer)) {

@@ -125,7 +125,7 @@
         </makeTool>
         <preBuild>
           <preBuildCommandWorkingDir>.</preBuildCommandWorkingDir>
-          <preBuildCommand>cmake -G "MSYS Makefiles"  .</preBuildCommand>
+          <preBuildCommand></preBuildCommand>
         </preBuild>
       </makefileType>
       <item path="/usr/share/cmake-3.2/Modules/CheckFunctionExists.c"
@@ -560,7 +560,7 @@
         </makeTool>
         <preBuild>
           <preBuildCommandWorkingDir>.</preBuildCommandWorkingDir>
-          <preBuildCommand>cmake -G "MSYS Makefiles"  .</preBuildCommand>
+          <preBuildCommand></preBuildCommand>
         </preBuild>
       </makefileType>
       <item path="src/bin/loader.c" ex="false" tool="0" flavor2="9">

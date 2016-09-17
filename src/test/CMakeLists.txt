@@ -2,7 +2,11 @@ set(SOURCES
     testsuite.c
 )
 add_library(obltest SHARED ${SOURCES})
-target_link_libraries(obltest ${CHECK_LIBRARIES} oblcore)
+set(LIBS oblcore)
+if(APPLE)
+  set(LIBS ${CHECK_LIBRARIES} ${LIBS})
+endif(APPLE)
+target_link_libraries(obltest ${LIBS})
 
 
 if(CMAKE_COMPILER_IS_GNUCC)

@@ -19,6 +19,7 @@
 
 #include <array.h>
 #include <dict.h>
+#include <list.h>
 #include <str.h>
 #include <testsuite.h>
 
@@ -32,8 +33,8 @@ START_TEST(test_str_copy_chars)
   ck_assert_ptr_ne(str, NULL);
   ck_assert_int_eq(str_len(str), strlen(text));
   str_free(str);
-  
-  str = str_copy_nchars(0, "0123456789");
+
+  str = str_copy_nchars("0123456789", 0);
   ck_assert_ptr_ne(str, NULL);
   ck_assert_int_eq(str_len(str), 0);
   str_free(str);
@@ -225,12 +226,12 @@ END_TEST
 START_TEST(test_str_ncopy)
   str_t *str1, *str2;
   char *text = "1234567890abcdefghijklmnopqrstuvwxyz";
-  
-  str1 = str_copy_nchars(10, text);
+
+  str1 = str_copy_nchars(text, 10);
   ck_assert_ptr_ne(str1, NULL);
   ck_assert_int_eq(str_len(str1), 10);
   ck_assert_str_eq(str_chars(str1), "1234567890");
-  str2 = str_copy_nchars(10, str_chars(str1));
+  str2 = str_copy_nchars(str_chars(str1), 10);
   ck_assert_ptr_ne(str2, NULL);
   ck_assert_int_eq(str_len(str2), 10);
   ck_assert_str_eq(str_chars(str2), "1234567890");
@@ -259,41 +260,41 @@ START_TEST(test_str_split)
   }
   array_free(array);
   str_free(str);
-  
+
   str = str_wrap(test2);
   array = str_split(str, ",");
   ck_assert_int_eq(array_size(array), 6);
   ck_assert_int_eq(strcmp(str_chars(array_get(array, 0)), ""), 0);
   array_free(array);
   str_free(str);
-  
+
   str = str_wrap(test3);
   array = str_split(str, ",");
   ck_assert_int_eq(array_size(array), 7);
   ck_assert_int_eq(strcmp(str_chars(array_get(array, 6)), ""), 0);
   array_free(array);
   str_free(str);
-  
+
   str = str_wrap(test4);
   array = str_split(str, ",");
   ck_assert_int_eq(array_size(array), 6);
   ck_assert_int_eq(strcmp(str_chars(array_get(array, 5)), ""), 0);
   array_free(array);
   str_free(str);
-  
+
   str = str_wrap(test5);
   array = str_split(str, ",");
   ck_assert_int_eq(array_size(array), 6);
   ck_assert_int_eq(strcmp(str_chars(array_get(array, 1)), ""), 0);
   array_free(array);
   str_free(str);
-  
+
   str = str_wrap("");
   array = str_split(str, ",");
   ck_assert_int_eq(array_size(array), 0);
   array_free(array);
   str_free(str);
-  
+
   str = str_wrap(" ");
   array = str_split(str, ",");
   ck_assert_int_eq(array_size(array), 1);
@@ -305,7 +306,7 @@ END_TEST
 START_TEST(test_str_join)
   list_t *list;
   str_t  *str;
-  
+
   list = str_list_create();
   list_push(list, strdup("This"));
   list_push(list, strdup("is"));
@@ -317,6 +318,55 @@ START_TEST(test_str_join)
 END_TEST
 
 START_TEST(test_str_format)
+  str_t   *str;
+  array_t *args;
+  dict_t  *kwargs;
+
+  args = data_array_create(0);
+  array_push(args, str_wrap("test"));
+  array_push(args, str_wrap("arg2"));
+
+  str = str_format("test ${0} test", args, NULL);
+  ck_assert_str_eq(str_chars(str), "test test test");
+  str_free(str);
+
+  str = str_format("test ${9} test", args, NULL);
+  ck_assert_str_eq(str_chars(str), "test ${9} test");
+  str_free(str);
+
+  str = str_format("${0} test", args, NULL);
+  ck_assert_str_eq(str_chars(str), "test test");
+  str_free(str);
+
+  str = str_format("test ${0}", args, NULL);
+  ck_assert_str_eq(str_chars(str), "test test");
+  str_free(str);
+
+  str = str_format("test ${ test", args, NULL);
+  ck_assert_str_eq(str_chars(str), "test ${ test");
+  str_free(str);
+  kwargs = strdata_dict_create();
+
+  str = str_format("test ${0} test ${1} test", args, NULL);
+  ck_assert_str_eq(str_chars(str), "test test test arg2 test");
+  str_free(str);
+
+  str = str_format("test ${1} test ${0} test", args, NULL);
+  ck_assert_str_eq(str_chars(str), "test arg2 test test test");
+  str_free(str);
+
+  dict_put(kwargs, strdup("test"), str_wrap("test"));
+
+  str = str_format("test ${test} test", NULL, kwargs);
+  ck_assert_str_eq(str_chars(str), "test test test");
+  str_free(str);
+
+  str = str_format("test ${unknown} test", NULL, kwargs);
+  ck_assert_str_eq(str_chars(str), "test ${unknown} test");
+  str_free(str);
+
+  array_free(args);
+  dict_free(kwargs);
 END_TEST
 
 extern void init_suite(void) {
@@ -332,7 +382,6 @@ extern void init_suite(void) {
   tcase_add_test(tc, test_str_indexof);
   tcase_add_test(tc, test_str_split);
   tcase_add_test(tc, test_str_join);
+  tcase_add_test(tc, test_str_format);
   add_tcase(tc);
 }
-
-
