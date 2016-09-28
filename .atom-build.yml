@@ -1,0 +1,19 @@
+cmd: "make"
+cwd: "{PROJECT_PATH}/build"
+sh: false
+errorMatch: "(?<file>[\\/0-9a-zA-Z\\.]+):(?<line>\\d+):(?<col>\\d+):\\ error:\\s+(?<message>.+)"
+warningMatch: "(?<file>[\\/0-9a-zA-Z\\.]+):(?<line>\\d+):(?<col>\\d+):\\ warning:\\s+(?<message>.+)"
+
+targets:
+  clean:
+      cmd: "make clean"
+      cwd: "{PROJECT_PATH}/build"
+  rebuild:
+      cmd: "make clean all"
+      cwd: "{PROJECT_PATH}/build"
+  test:
+      cmd: "make test"
+      cwd: "{PROJECT_PATH}/build"
+  cmake:
+      cmd: "cmake {PROJECT_PATH}"
+      cwd: "{PROJECT_PATH}/build"
