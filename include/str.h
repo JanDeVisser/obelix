@@ -96,6 +96,8 @@ OBLCORE_IMPEXP int             str_peek(str_t *);
 OBLCORE_IMPEXP int             str_readchar(str_t *);
 OBLCORE_IMPEXP int             str_readinto(str_t *, struct _data *);
 OBLCORE_IMPEXP int             str_read_from_stream(str_t *, void *, read_t);
+OBLCORE_IMPEXP int             str_fillup(str_t *, data_t *);
+OBLCORE_IMPEXP int             str_replenish(str_t *, data_t *);
 OBLCORE_IMPEXP int             str_skip(str_t *, int);
 OBLCORE_IMPEXP int             str_pushback(str_t *, size_t);
 OBLCORE_IMPEXP int             str_write(str_t *, char *, size_t);

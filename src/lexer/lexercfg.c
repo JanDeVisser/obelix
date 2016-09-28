@@ -65,6 +65,7 @@ void _lexer_config_free(lexer_config_t *config) {
       scanner = prev;
     }
   }
+  data_free(config -> data);
 }
 
 char * _lexer_config_staticstring(lexer_config_t *config) {

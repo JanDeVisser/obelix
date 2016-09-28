@@ -34,7 +34,7 @@ extern "C" {
 #define NEW(t)               ( (t *) _new( sizeof(t) ) )
 #define NEWARR(n, t)         ( (t *) new_array((n), sizeof(t)))
 #define NEWDYNARR(t, n, s)   ( (t *) _new( sizeof(t) + (n) * sizeof(s)))
-  
+
 typedef struct _code_label {
   int   code;
   char *label;
@@ -104,6 +104,9 @@ OBLCORE_IMPEXP unsigned int    hashblend(unsigned int, unsigned int);
 OBLCORE_IMPEXP void            initialize_random(void);
 OBLCORE_IMPEXP char *          strrand(char *, size_t);
 OBLCORE_IMPEXP unsigned int    strhash(char *);
+OBLCORE_IMPEXP char *          strltrim(char *);
+OBLCORE_IMPEXP char *          strrtrim(char *);
+OBLCORE_IMPEXP char *          strtrim(char *);
 OBLCORE_IMPEXP char *          chars(void *);
 OBLCORE_IMPEXP int             atob(char *);
 OBLCORE_IMPEXP char *          btoa(long);
@@ -149,7 +152,7 @@ OBLCORE_IMPEXP type_t *        type_int;
 
 #ifndef HAVE_STRCASECMP
 #ifdef HAVE__STRICMP
-#define strcasecmp _stricmp 
+#define strcasecmp _stricmp
 #else
 #define strcasecmp oblcore_strcasecmp
 #endif /* HAVE__STRICMP */
@@ -157,7 +160,7 @@ OBLCORE_IMPEXP type_t *        type_int;
 
 #ifndef HAVE_STRNCASECMP
 #ifdef HAVE__STRNICMP
-#define strncasecmp _strnicmp 
+#define strncasecmp _strnicmp
 #else
 #define strncasecmp oblcore_strncasecmp
 #endif /* HAVE__STRNICMP */

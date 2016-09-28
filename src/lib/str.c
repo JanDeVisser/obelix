@@ -34,6 +34,8 @@ extern void         str_init(void);
 static str_t *      _str_initialize(void);
 static str_t *      _str_expand(str_t *, size_t);
 static reduce_ctx * _str_join_reducer(char *, reduce_ctx *);
+static int          _str_readinto(str_t *, data_t *, int, int);
+static int          _str_read_from_stream(str_t *, void *, read_t, int, int);
 
 static data_t * _str_create(int, va_list);
 static void     _str_free(str_t *);
@@ -183,6 +185,9 @@ str_t * _str_expand(str_t *str, size_t targetlen) {
   char   *oldbuf;
   str_t  *ret = str;
 
+  if (!targetlen) {
+    targetlen = str -> bufsize;
+  }
   if (str -> bufsize < (targetlen + 1)) {
     for (newsize = str -> bufsize * 2; newsize < (targetlen + 1); newsize *= 2);
     oldbuf = str -> buffer;
@@ -207,6 +212,41 @@ reduce_ctx * _str_join_reducer(char *elem, reduce_ctx *ctx) {
   str_append_chars(target, elem);
   str_append_chars(target, glue);
   return ctx;
+}
+
+int _str_read_from_stream(str_t *str, void *stream, read_t reader, int pos, int num) {
+  size_t ret;
+
+  if (pos >= str -> bufsize) {
+    return -1;
+  }
+  if ((pos + num) > str -> bufsize) {
+    num = str -> bufsize - pos;
+  }
+  ret = reader(stream, str -> buffer + pos, num);
+  if ((int) ret < 0) {
+    return -1;
+  } else {
+    if (pos + ret < str -> bufsize) {
+      str -> buffer[pos + ret] = 0;
+    }
+    if (pos <= str -> len) {
+      str -> len += ret;
+    }
+    return (int) ret;
+  }
+}
+
+int _str_readinto(str_t *str, data_t *rdr, int pos, int num) {
+  typedescr_t *type = data_typedescr(rdr);
+  read_t       fnc;
+
+  fnc = (read_t) typedescr_get_function(type, FunctionRead);
+  if (fnc) {
+    return _str_read_from_stream(str, rdr, fnc, pos, num);
+  } else {
+    return -1;
+  }
 }
 
 /* -- S T R _ T   P U B L I C   F U N C T I O N S ------------------------- */
@@ -431,14 +471,19 @@ int str_pushback(str_t *str, size_t num) {
 }
 
 int str_readinto(str_t *str, data_t *rdr) {
-  typedescr_t *type = data_typedescr(rdr);
-  read_t       fnc;
+  return _str_readinto(str, rdr, 0, str -> bufsize);
+}
 
-  fnc = (read_t) typedescr_get_function(type, FunctionRead);
-  if (fnc) {
-    return str_read_from_stream(str, rdr, fnc);
+int str_fillup(str_t *str, data_t *rdr) {
+  return _str_readinto(str, rdr, str -> len, str -> bufsize - str -> len);
+}
+
+int str_replenish(str_t *str, data_t *rdr) {
+  if (str -> len < str -> bufsize) {
+    return str_fillup(str, rdr);
   } else {
-    return -1;
+    _str_expand(str, 0);
+    return _str_readinto(str, rdr, str -> len, str -> len);
   }
 }
 
@@ -453,19 +498,8 @@ str_t * str_reset(str_t *str) {
 }
 
 int str_read_from_stream(str_t *str, void *stream, read_t reader) {
-  size_t ret;
-
   str_erase(str);
-  ret = reader(stream, str -> buffer, str -> bufsize);
-  if ((int) ret < 0) {
-    return -1;
-  } else {
-    if (ret < str -> bufsize) {
-      str -> buffer[ret] = 0;
-    }
-    str -> len = ret;
-    return (int) ret;
-  }
+  return _str_read_from_stream(str, stream, reader, 0, str -> bufsize);
 }
 
 int str_write(str_t *str, char *buf, size_t num) {
@@ -689,13 +723,14 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
 
   copy = strdup(fmt);
   for (ptr = copy; *ptr; ptr++) {
-    if ((*ptr == '$') && (*(ptr + 1) == '{')){
+    if ((*ptr == '$') && (*(ptr + 1) == '{')) {
       ptr += 2;
       specstart = ptr;
       for (; *ptr && (*ptr != '}'); ptr++);
       len = ptr - specstart;
       if (!*ptr) {
         str_append_nchars(ret, specstart - 2, len + 2);
+        break;
       } else {
         while (len >= bufsize - 1) {
           bufsize *= 2;

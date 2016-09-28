@@ -34,7 +34,8 @@ typedef enum _ws_scanner_state {
   WSSWhitespace,
   WSSCR,
   WSSNewline,
-  WSSDone
+  WSSDone,
+  WSSNoWS
 } ws_state_t;
 
 typedef struct _ws_config {
@@ -69,7 +70,7 @@ ws_config_t * _ws_config_create(ws_config_t *config, va_list args) {
 }
 
 ws_config_t * _ws_config_set(ws_config_t *ws_config, char *name, data_t *data) {
-  function_t *fnc = NULL;
+  function_t  *fnc = NULL;
   ws_config_t *ret = ws_config;
 
   if (!strcmp(name, PARAM_IGNOREWS)) {
@@ -113,89 +114,91 @@ token_t * _ws_match(scanner_t *scanner) {
   ws_config_t *ws_config = (ws_config_t *) scanner -> config;
   int          nl_is_ws;
 
-  mdebug(lexer, "_ws_match");
+  mdebug(lexer, "_ws_match ignore_nl: %d ignore_ws: %d",
+         ws_config -> ignore_nl, ws_config -> ignore_ws);
   nl_is_ws = ws_config -> ignore_nl && !ws_config -> ignore_ws;
   scanner -> state = WSSInit;
-  
-  for (ch = lexer_get_char(scanner -> lexer);
-       ch && (scanner -> state != WSSDone); ) {
 
-    if ((ch == '\r') || ((scanner -> state != WSSCR) && (ch == '\n'))) {
+  for (ch = lexer_get_char(scanner -> lexer);
+       ch && (scanner -> state != WSSDone) && (scanner -> state != WSSNoWS); ) {
+
+    if ((ch == '\r') || ((scanner->state != WSSCR) && (ch == '\n'))) {
       if (ws_config -> onnewline) {
-        ((onnewline_t) ws_config -> onnewline -> fnc)(scanner -> lexer);
+        ((onnewline_t) ws_config -> onnewline->fnc)(scanner->lexer);
       }
     }
 
-    switch (scanner -> state) {
+    switch (scanner->state) {
 
       case WSSInit:
         if (isspace(ch)) {
           switch (ch) {
             case '\r':
-              scanner -> state = (nl_is_ws) ? WSSWhitespace : WSSCR;
+              scanner->state = (nl_is_ws) ? WSSWhitespace : WSSCR;
               break;
             case '\n':
-              scanner -> state = (nl_is_ws) ? WSSWhitespace : WSSNewline;
+              scanner->state = (nl_is_ws) ? WSSWhitespace : WSSNewline;
               break;
             default:
-              scanner -> state = WSSWhitespace;
+              scanner->state = WSSWhitespace;
               break;
           }
-          lexer_push(scanner -> lexer);
+          lexer_push(scanner->lexer);
         } else {
-          scanner -> state = WSSDone;
+          scanner -> state = WSSNoWS;
         }
         break;
 
       case WSSCR:
         if (ch == '\n') {
-          scanner -> state = WSSNewline;
-          lexer_push(scanner -> lexer);
+          scanner->state = WSSNewline;
+          lexer_push(scanner->lexer);
         } else if (ch == '\r') {
-          lexer_push(scanner -> lexer);
+          lexer_push(scanner->lexer);
         } else {
-          if (ws_config -> ignore_nl) {
-            lexer_reset(scanner -> lexer);
+          if (ws_config->ignore_nl) {
+            lexer_reset(scanner->lexer);
           } else {
-            ret = lexer_accept(scanner -> lexer, TokenCodeNewLine);
+            ret = lexer_accept(scanner->lexer, TokenCodeNewLine);
           }
-          scanner -> state = WSSDone;
+          scanner->state = WSSDone;
         }
         break;
 
       case WSSNewline:
         if ((ch == '\r') || (ch == '\n')) {
           if (ch == '\r') {
-            scanner -> state = WSSCR;
+            scanner->state = WSSCR;
           }
-          lexer_push(scanner -> lexer);
+          lexer_push(scanner->lexer);
         } else {
-          if (ws_config -> ignore_nl) {
-            lexer_reset(scanner -> lexer);
+          if (ws_config->ignore_nl) {
+            lexer_reset(scanner->lexer);
           } else {
-            ret = lexer_accept(scanner -> lexer, TokenCodeNewLine);
+            ret = lexer_accept(scanner->lexer, TokenCodeNewLine);
           }
-          scanner -> state = WSSDone;
+          scanner->state = WSSDone;
         }
         break;
 
       case WSSWhitespace:
         if (!isspace(ch) ||
             (!nl_is_ws && ((ch == '\r') || (ch == '\n')))) {
-          if (ws_config -> ignore_ws) {
-            lexer_reset(scanner -> lexer);
+          if (ws_config->ignore_ws) {
+            lexer_reset(scanner->lexer);
           } else {
-            ret = lexer_accept(scanner -> lexer, TokenCodeWhitespace);
+            ret = lexer_accept(scanner->lexer, TokenCodeWhitespace);
           }
-          scanner -> state = WSSDone;
+          scanner->state = WSSDone;
         } else {
-          lexer_push(scanner -> lexer);
+          lexer_push(scanner->lexer);
         }
         break;
     }
-    if (scanner -> state != WSSDone) {
-      ch = lexer_get_char(scanner -> lexer);
-    }
+    ch = lexer_get_char(scanner -> lexer);
+  }
+  if (scanner -> state == WSSDone) {
+    scanner -> lexer -> state = LexerStateSuccess;
   }
   return ret;
 }

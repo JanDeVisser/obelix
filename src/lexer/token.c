@@ -78,6 +78,7 @@ static code_label_t token_code_names[] = {
   { TokenCodeTilde,          "TokenCodeTilde" },
   { TokenCodeLastToken,      "TokenCodeLastToken" },
   { TokenCodeEnd,            "TokenCodeEnd" },
+  { TokenCodeExhausted,      "TokenCodeExhausted" },
   { -1,                      NULL }
 };
 
@@ -146,7 +147,7 @@ void _token_free(token_t *token) {
 
 char * _token_allocstring(token_t *token) {
   char *buf;
-  
+
   if (token -> code < 200) {
     asprintf(&buf, "[%s] '%s'",
 	     token_code_name(token -> code), token_token(token));
@@ -238,7 +239,7 @@ char * token_token(token_t *token) {
 
 token_t * token_assign(token_t *token, unsigned int code, char *t) {
   int len = (t) ? strlen(t) : 0;
-  
+
   token -> code = code;
   if (len) {
     if (len < token -> size) {
@@ -305,4 +306,3 @@ data_t * token_todata(token_t *token) {
   }
   return data;
 }
-

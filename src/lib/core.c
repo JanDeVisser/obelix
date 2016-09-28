@@ -120,7 +120,7 @@ void * resize_ptrarray(void *array, int newsz, int oldsz) {
 int asprintf(char **strp, const char *fmt, ...) {
   va_list args;
   int     ret;
-  
+
   va_start(args, fmt);
   ret = vasprintf(strp, fmt, args);
   va_end(args);
@@ -133,7 +133,7 @@ int vasprintf(char **strp, const char *fmt, va_list args) {
   va_list  copy;
   int      ret;
   char    *str;
-  
+
   va_copy(copy, args);
   ret = vsnprintf(NULL, 0, fmt, copy);
   va_end(copy);
@@ -146,7 +146,7 @@ int vasprintf(char **strp, const char *fmt, va_list args) {
   }
   return ret;
 }
-#endif 
+#endif
 
 unsigned int hash(void *buf, size_t size) {
   int            hash = 5381;
@@ -280,7 +280,7 @@ int oblcore_strncasecmp(char *s1, char *s2, size_t n) {
 char * strrand(char *buf, size_t numchars) {
   size_t n;
   int key;
-  
+
   _initialize_random();
   if (numchars) {
     if (!buf) {
@@ -293,6 +293,40 @@ char * strrand(char *buf, size_t numchars) {
     buf[numchars] = 0;
   }
   return buf;
+}
+
+char * strltrim(char *str) {
+  char *ret = str;
+
+  if (ret && *ret) {
+    while (*ret && isspace(*ret)) {
+      ret++;
+    }
+  }
+  return ret;
+}
+
+char * strrtrim(char *str) {
+  char *ptr;
+
+  if (str && *str) {
+    for (ptr = str + (strlen(str) - 1); (ptr != str) && isspace(*ptr); ptr--) {
+      *ptr = 0;
+    }
+  }
+  return str;
+}
+
+char * strtrim(char *str) {
+  char *ret = str;
+
+  if (ret && *ret) {
+    ret = strltrim(ret);
+    if (*ret) {
+      ret = strrtrim(ret);
+    }
+  }
+  return ret;
 }
 
 /*
@@ -356,4 +390,3 @@ visit_t collection_visitor(void *data, visit_t visitor) {
   visitor(data);
   return visitor;
 }
-

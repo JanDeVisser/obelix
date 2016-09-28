@@ -31,7 +31,7 @@
 #define LEXER_BUFSIZE             16384
 #define LEXER_INIT_TOKEN_SZ       256
 #define LEXER_MAX_SCANNERS        32
-#define SCANNER_CONFIG_SEPARATORS " \t,.;"
+#define SCANNER_CONFIG_SEPARATORS ",.;"
 
 typedef enum _lexer_where {
   LexerWhereBegin,
@@ -106,6 +106,7 @@ typedef struct _lexer_config {
   int               num_scanners;
   scanner_config_t *scanners;
   int               bufsize;
+  data_t           *data;
 } lexer_config_t;
 
 typedef struct _lexer {
@@ -114,13 +115,12 @@ typedef struct _lexer {
   scanner_t       *scanners;
   data_t          *reader;
   str_t           *buffer;
-  str_t           *lookahead;
-  int              lookahead_live;
   str_t           *token;
   lexer_state_t    state;
   lexer_where_t    where;
   token_t         *last_token;
-  char             quote;
+  int              count;
+  int              scan_count;
   int              current;
   int              prev_char;
   int              line;

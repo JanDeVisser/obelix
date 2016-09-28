@@ -17,6 +17,8 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+
 #include <array.h>
 #include <dict.h>
 #include <list.h>
@@ -343,9 +345,8 @@ START_TEST(test_str_format)
   str_free(str);
 
   str = str_format("test ${ test", args, NULL);
-  ck_assert_str_eq(str_chars(str), "test ${ test");
+  ck_assert_str_eq("test ${ test", str_chars(str));
   str_free(str);
-  kwargs = strdata_dict_create();
 
   str = str_format("test ${0} test ${1} test", args, NULL);
   ck_assert_str_eq(str_chars(str), "test test test arg2 test");
@@ -355,6 +356,7 @@ START_TEST(test_str_format)
   ck_assert_str_eq(str_chars(str), "test arg2 test test test");
   str_free(str);
 
+  kwargs = strdata_dict_create();
   dict_put(kwargs, strdup("test"), str_wrap("test"));
 
   str = str_format("test ${test} test", NULL, kwargs);

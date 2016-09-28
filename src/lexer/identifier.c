@@ -114,6 +114,7 @@ token_t * _id_match(scanner_t *scanner) {
               (config -> underscore && (ch == '_')) ||
               (config -> digits && isdigit(ch)));
        ch = lexer_get_char(scanner -> lexer)) {
+    mdebug(lexer, "_id_match(%c)", ch);
     if (config -> foldcase) {
       lexer_push_as(scanner -> lexer,
                     (config -> foldcase == IDFoldToUpper) ? toupper(ch) : tolower(ch));

@@ -222,7 +222,7 @@ void __logging_init(void) {
     for (sepptr = strpbrk(ptr, ";,:"); sepptr; sepptr = strpbrk(ptr, ";,:")) {
       *sepptr = 0;
       _logging_set_nolock(ptr, 1);
-      ptr = sepptr + strlen(sepptr) + 1;
+      ptr = sepptr + 1;
     }
     if (ptr && *ptr) {
       _logging_set_nolock(ptr, 1);

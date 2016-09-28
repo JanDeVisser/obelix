@@ -34,13 +34,16 @@ typedef struct _lexa {
   lexer_config_t *config;
   char           *fname;
   data_t         *stream;
+  int             tokens;
+  dict_t         *tokens_by_type;
 } lexa_t;
 
 extern lexa_t * lexa_create(void);
 extern lexa_t * lexa_build_lexer(lexa_t *);
-extern lexa_t * lexa_tokenize(lexa_t *);
 extern lexa_t * lexa_add_scanner(lexa_t *, char *);
 extern lexa_t * lexa_debug_settings(lexa_t *);
+extern lexa_t * lexa_tokenize(lexa_t *);
+extern int      lexa_tokens_with_code(lexa_t *, token_code_t);
 
 #define data_is_lexa(d)           ((d) && data_hastype((d), Lexa))
 #define data_as_lexa(d)           (data_is_lexa((d)) ? ((lexa_t *) (d)) : NULL)

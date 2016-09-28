@@ -7,6 +7,7 @@ add_library(
         scanner.c
         whitespace.c
         identifier.c
+        comment.c
         lexa.c
 #        comment.c
 #        keywords.c
@@ -18,7 +19,7 @@ target_link_libraries(obllexer PUBLIC oblcore)
 
 add_executable(lexa lexamain.c)
 
-target_link_libraries(lexa obllexer oblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
+target_link_libraries(lexa obllexer oblcore ${SYSLIBS})
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(obllexer PRIVATE _GNU_SOURCE)

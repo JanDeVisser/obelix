@@ -1,6 +1,6 @@
 /*
- * obelix.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * obelix.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -47,6 +47,7 @@ void _lexa_free(lexa_t *lexa) {
     lexer_config_free(lexa -> config);
     free(lexa -> fname);
     free(lexa -> debug);
+    dict_free(lexa -> tokens_by_type);
   }
 }
 
@@ -74,6 +75,8 @@ lexa_t * lexa_create(void) {
   ret -> scanners = strdata_dict_create();
   ret -> config = NULL;
   ret -> fname = NULL;
+  ret -> tokens = 0;
+  ret -> tokens_by_type = intint_dict_create();
   return ret;
 }
 
@@ -95,12 +98,32 @@ lexa_t * _lexa_build_scanner(entry_t *entry, lexa_t *lexa) {
 lexa_t * lexa_build_lexer(lexa_t *lexa) {
   lexa_debug_settings(lexa);
   lexa -> config = lexer_config_create();
+  lexa -> config -> data = data_copy((data_t *) lexa);
   dict_reduce(lexa -> scanners, (reduce_t) _lexa_build_scanner, lexa);
   return lexa;
 }
 
 void * _lexa_tokenize(token_t *token, void *config) {
-  printf("%s ", token_tostring(token));
+  lexa_t *lexa;
+  int     count;
+  int     code;
+
+  lexa = (lexa_t *) ((lexer_config_t *) config) -> data;
+  lexa -> tokens++;
+
+  code = (int) token_code(token);
+  if (dict_has_int(lexa -> tokens_by_type, code)) {
+    count = (int) ((intptr_t) dict_get_int(lexa -> tokens_by_type, code));
+    count++;
+  } else {
+    count = 1;
+  }
+  dict_put_int(lexa -> tokens_by_type, code, (void *) ((intptr_t) count));
+
+  fprintf(stderr, "%s ", token_tostring(token));
+  if (token_code(token) == TokenCodeExhausted) {
+    fprintf(stderr, "\n");
+  }
   return config;
 }
 
@@ -110,7 +133,20 @@ lexa_t * lexa_tokenize(lexa_t *lexa) {
     lexa_build_lexer(lexa);
   }
   assert(lexa -> config);
+  lexa -> tokens = 0;
+  dict_clear(lexa -> tokens_by_type);
   lexer_config_tokenize(lexa -> config, (reduce_t) _lexa_tokenize, lexa -> stream);
+  return lexa;
+}
+
+int lexa_tokens_with_code(lexa_t *lexa, token_code_t token_code) {
+  int count;
+  int code;
+
+  code = (int) token_code;
+  return (dict_has_int(lexa -> tokens_by_type, code))
+          ? (int) ((intptr_t) dict_get_int(lexa -> tokens_by_type, code))
+          : 0;
 }
 
 lexa_t * lexa_debug_settings(lexa_t *lexa) {
@@ -118,7 +154,7 @@ lexa_t * lexa_debug_settings(lexa_t *lexa) {
   int ix;
 
   logging_init();
-  if (lexa -> log_level != -1) {
+  if ((int) lexa -> log_level != -1) {
     logging_set_level(lexa -> log_level);
   }
   if (lexa -> debug) {
@@ -137,11 +173,11 @@ lexa_t * lexa_debug_settings(lexa_t *lexa) {
 lexa_t * lexa_add_scanner(lexa_t *lexa, char *code_config) {
   char   *copy;
   char   *ptr;
-  data_t *config = data_null();
+  data_t *config = NULL;
 
   lexa_debug_settings(lexa);
   copy = strdup(code_config);
-  ptr = strchr(copy, '=');
+  ptr = strpbrk(copy, ":=");
   if (ptr) {
     *ptr = 0;
     config = (data_t *) str_copy_chars(ptr+1);
@@ -150,4 +186,3 @@ lexa_t * lexa_add_scanner(lexa_t *lexa, char *code_config) {
   free(copy);
   return lexa;
 }
-

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configurationDescriptor version="97">
   <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
-    <logicalFolder name="Modules" displayName="Modules" projectFiles="true">
+    <logicalFolder name="Modules"
+                   displayName="Modules"
+                   projectFiles="true"
+                   root="/usr/share/cmake-3.2/Modules">
       <itemPath>/usr/share/cmake-3.2/Modules/CheckFunctionExists.c</itemPath>
     </logicalFolder>
     <df root="." name="0">
@@ -23,8 +26,18 @@
           <in>server.h</in>
         </df>
         <df name="lexer">
+          <df name="test">
+            <in>tlexer.c</in>
+          </df>
           <in>identifier.c</in>
+          <in>lexa.c</in>
+          <in>lexer.c</in>
+          <in>lexercfg.c</in>
           <in>number.c</in>
+          <in>scanner.c</in>
+          <in>scannercfg.c</in>
+          <in>token.c</in>
+          <in>whitespace.c</in>
         </df>
         <df name="lib">
           <in>any.c</in>
@@ -78,6 +91,9 @@
           <in>net.c</in>
           <in>sys.c</in>
         </df>
+        <df name="test">
+          <in>testsuite.c</in>
+        </df>
       </df>
     </df>
     <logicalFolder name="ExternalFiles"
@@ -104,13 +120,14 @@
       <flagsDictionary>
         <element flagsID="0" commonFlags="-g"/>
         <element flagsID="1" commonFlags="-g -fPIC"/>
+        <element flagsID="2" commonFlags="-std=c99"/>
       </flagsDictionary>
       <codeAssistance>
       </codeAssistance>
       <makefileType>
         <makeTool>
           <buildCommandWorkingDir>build</buildCommandWorkingDir>
-          <buildCommand>${MAKE} -f Makefile install</buildCommand>
+          <buildCommand>${MAKE} -f Makefile test</buildCommand>
           <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
           <executablePath>build/bin/obelix</executablePath>
           <cTool>
@@ -118,9 +135,6 @@
             <incDir>
               <pElem>include</pElem>
             </incDir>
-            <incFile>
-              <pElem>build/config.h</pElem>
-            </incFile>
           </cTool>
         </makeTool>
         <preBuild>
@@ -143,11 +157,76 @@
             tool="0"
             flavor2="2">
       </item>
+      <folder path="0/build">
+        <cTool>
+          <incDir>
+            <pElem>include</pElem>
+          </incDir>
+          <incFile>
+            <pElem>build/config.h</pElem>
+          </incFile>
+        </cTool>
+      </folder>
+      <folder path="0/src/bin">
+        <cTool>
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>build</pElem>
+            <pElem>build/src/bin</pElem>
+          </incDir>
+          <incFile>
+            <pElem>build/config.h</pElem>
+          </incFile>
+        </cTool>
+      </folder>
+      <folder path="0/src/lexer/test">
+        <cTool>
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>src/lexer/test</pElem>
+            <pElem>/usr/local/Cellar/check/0.10.0/include</pElem>
+            <pElem>build/src/lexer/test</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="0/src/parser">
+        <cTool>
+          <incDir>
+            <pElem>include</pElem>
+          </incDir>
+          <incFile>
+            <pElem>build/config.h</pElem>
+          </incFile>
+        </cTool>
+      </folder>
+      <folder path="0/src/stdlib">
+        <cTool>
+          <incDir>
+            <pElem>include</pElem>
+          </incDir>
+          <incFile>
+            <pElem>build/config.h</pElem>
+          </incFile>
+        </cTool>
+      </folder>
+      <folder path="0/src/test">
+        <cTool>
+          <incDir>
+            <pElem>include</pElem>
+            <pElem>src/test</pElem>
+            <pElem>build/src/test</pElem>
+          </incDir>
+        </cTool>
+      </folder>
       <folder path="Modules">
         <cTool>
           <incDir>
+            <pElem>include</pElem>
             <pElem>build/CMakeFiles/CMakeTmp</pElem>
           </incDir>
+          <incFile>
+            <pElem>build/config.h</pElem>
+          </incFile>
           <preprocessorList>
             <Elem>CHECK_FUNCTION_EXISTS=asprintf</Elem>
             <Elem>_GNU_SOURCE</Elem>
@@ -156,212 +235,300 @@
       </folder>
       <item path="src/bin/loader.c" ex="false" tool="0" flavor2="3">
         <cTool flags="0">
-          <incDir>
-            <pElem>build</pElem>
-            <pElem>build/src/bin</pElem>
-          </incDir>
         </cTool>
       </item>
       <item path="src/bin/obelix.c" ex="false" tool="0" flavor2="3">
         <cTool flags="0">
-          <incDir>
-            <pElem>build</pElem>
-            <pElem>build/src/bin</pElem>
-          </incDir>
         </cTool>
       </item>
       <item path="src/bin/scriptparse.c" ex="false" tool="0" flavor2="3">
         <cTool flags="0">
-          <incDir>
-            <pElem>build</pElem>
-            <pElem>build/src/bin</pElem>
-          </incDir>
         </cTool>
       </item>
-      <item path="src/bin/server.c" ex="false" tool="0" flavor2="0">
+      <item path="src/bin/server.c" ex="false" tool="0" flavor2="3">
         <cTool flags="0">
+        </cTool>
+      </item>
+      <item path="src/lexer/identifier.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
-            <pElem>build/src/bin</pElem>
+            <pElem>src/lexer</pElem>
+            <pElem>include</pElem>
+            <pElem>build/src/lexer</pElem>
           </incDir>
         </cTool>
       </item>
-      <item path="src/lexer/identifier.c" ex="false" tool="0" flavor2="0">
+      <item path="src/lexer/lexa.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
+          <incDir>
+            <pElem>src/lexer</pElem>
+            <pElem>include</pElem>
+            <pElem>build/src/lexer</pElem>
+          </incDir>
+        </cTool>
       </item>
-      <item path="src/lexer/number.c" ex="false" tool="0" flavor2="0">
+      <item path="src/lexer/lexer.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
+          <incDir>
+            <pElem>src/lexer</pElem>
+            <pElem>include</pElem>
+            <pElem>build/src/lexer</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lexer/lexercfg.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
+          <incDir>
+            <pElem>src/lexer</pElem>
+            <pElem>include</pElem>
+            <pElem>build/src/lexer</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lexer/number.c" ex="false" tool="0" flavor2="3">
+        <cTool>
+          <incDir>
+            <pElem>include</pElem>
+          </incDir>
+          <incFile>
+            <pElem>build/config.h</pElem>
+          </incFile>
+        </cTool>
+      </item>
+      <item path="src/lexer/scanner.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
+          <incDir>
+            <pElem>src/lexer</pElem>
+            <pElem>include</pElem>
+            <pElem>build/src/lexer</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lexer/scannercfg.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
+          <incDir>
+            <pElem>src/lexer</pElem>
+            <pElem>include</pElem>
+            <pElem>build/src/lexer</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lexer/test/tlexer.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
+        </cTool>
+      </item>
+      <item path="src/lexer/token.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
+          <incDir>
+            <pElem>src/lexer</pElem>
+            <pElem>include</pElem>
+            <pElem>build/src/lexer</pElem>
+          </incDir>
+        </cTool>
+      </item>
+      <item path="src/lexer/whitespace.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
+          <incDir>
+            <pElem>src/lexer</pElem>
+            <pElem>include</pElem>
+            <pElem>build/src/lexer</pElem>
+          </incDir>
+        </cTool>
       </item>
       <item path="src/lib/any.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/array.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/core.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/data.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/datalist.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/datastack.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/dict.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/exception.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/file.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/float.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/fsentry.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/function.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/int.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/list.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/logging.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/method.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/mutex.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/name.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/nvp.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/pointer.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/range.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/re.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
@@ -369,9 +536,13 @@
       <item path="src/lib/regex.c" ex="false" tool="0" flavor2="2">
         <cTool>
           <incDir>
+            <pElem>include</pElem>
             <pElem>.</pElem>
             <pElem>src/lib</pElem>
           </incDir>
+          <incFile>
+            <pElem>build/config.h</pElem>
+          </incFile>
           <preprocessorList>
             <Elem>BUILD_REGEX_DLL</Elem>
             <Elem>HAVE_CONFIG_H</Elem>
@@ -379,49 +550,55 @@
         </cTool>
       </item>
       <item path="src/lib/resolve.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/set.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/socket.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/str.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>include</pElem>
+            <pElem>src/lib</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/thread.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
       </item>
       <item path="src/lib/typedescr.c" ex="false" tool="0" flavor2="3">
-        <cTool flags="1">
+        <cTool flags="2">
           <incDir>
-            <pElem>build</pElem>
+            <pElem>src/lib</pElem>
+            <pElem>include</pElem>
             <pElem>build/src/lib</pElem>
           </incDir>
         </cTool>
@@ -531,6 +708,10 @@
       </item>
       <item path="src/stdlib/sys.c" ex="false" tool="0" flavor2="3">
         <cTool flags="1">
+        </cTool>
+      </item>
+      <item path="src/test/testsuite.c" ex="false" tool="0" flavor2="3">
+        <cTool flags="2">
         </cTool>
       </item>
     </conf>

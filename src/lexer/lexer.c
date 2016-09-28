@@ -49,10 +49,11 @@ static data_t *         _lexer_mth_tokenize(lexer_t *, char *, array_t *, dict_t
 static code_label_t lexer_state_names[] = {
   { .code = LexerStateNoState,            .label = "LexerStateNoState" },
   { .code = LexerStateFresh,              .label = "LexerStateFresh" },
-  { .code = LexerStateParameter,          .label = "LexerStateParameter" },
   { .code = LexerStateInit,               .label = "LexerStateInit" },
+  { .code = LexerStateFirstPass,          .label = "LexerStateFirstPass" },
   { .code = LexerStateSecondPass,         .label = "LexerStateSecondPass" },
   { .code = LexerStateSuccess,            .label = "LexerStateSuccess" },
+  /*
   { .code = LexerStateWhitespace,         .label = "LexerStateWhitespace" },
   { .code = LexerStateNewLine,            .label = "LexerStateNewLine" },
   { .code = LexerStateIdentifier,         .label = "LexerStateIdentifier" },
@@ -74,6 +75,7 @@ static code_label_t lexer_state_names[] = {
   { .code = LexerStateBlockComment,       .label = "LexerStateBlockComment" },
   { .code = LexerStateLineComment,        .label = "LexerStateLineComment" },
   { .code = LexerStateStar,               .label = "LexerStateStar" },
+  */
   { .code = LexerStateDone,               .label = "LexerStateDone" },
   { .code = LexerStateStale,              .label = "LexerStateStale" },
   { .code = -1,                           .label = NULL }
@@ -269,34 +271,52 @@ void _lexer_update_location(lexer_t *lexer, int ch) {
 token_t * _lexer_match_token(lexer_t *lexer) {
   token_t   *ret;
   scanner_t *scanner;
+  int        ch;
 
   ret = NULL;
   mdebug(lexer, "_lexer_match_token", NULL);
-  for (scanner = lexer -> scanners; scanner && !ret; scanner = scanner -> next) {
+  lexer -> state = LexerStateInit;
+  for (scanner = lexer -> scanners;
+       scanner && !ret && (lexer -> state != LexerStateSuccess);
+       scanner = scanner -> next) {
     mdebug(lexer, "First pass with scanner '%s'", data_typename(scanner -> config));
     if (scanner -> config -> match) {
       lexer -> state = LexerStateFirstPass;
       lexer_rewind(lexer);
       ret = scanner -> config -> match(scanner);
-      mdebug(lexer, "First pass with scanner '%s' = %s lookahead: '%s':%d",
-                 data_typename(scanner -> config), token_tostring(ret),
-                 str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
+      mdebug(lexer, "First pass with scanner '%s' = %s",
+             data_typename(scanner -> config), token_tostring(ret));
     } else {
       mdebug(lexer, "No matcher defined", NULL);
     }
   }
   if (!ret) {
-    for (scanner = lexer -> scanners; scanner && !ret; scanner = scanner -> next) {
-      mdebug(lexer, "Second pass with scanner '%s'", data_typename(scanner -> config));
+    for (scanner = lexer -> scanners;
+         scanner && !ret && (lexer -> state != LexerStateSuccess);
+         scanner = scanner -> next) {
+      mdebug(lexer, "Second pass with scanner '%s'",
+             data_typename(scanner -> config));
       if (scanner -> config -> match_2nd_pass) {
         lexer_rewind(lexer);
         lexer -> state = LexerStateSecondPass;
         ret = scanner -> config -> match_2nd_pass(scanner);
         mdebug(lexer, "Second pass with scanner '%s' = %s",
-                   data_typename(scanner -> config), token_tostring(ret));
+               data_typename(scanner -> config), token_tostring(ret));
       } else {
         mdebug(lexer, "No second pass matcher defined", NULL);
       }
+    }
+  }
+
+  /*
+   * If no scanners accept whatever is coming, we grab one character and pass
+   * that as a token. This maybe should be a separate catchall scanner.
+   */
+  if (!ret && (lexer -> state != LexerStateSuccess)) {
+    ch = lexer_get_char(lexer);
+    if (ch > 0) {
+      lexer_push(lexer);
+      ret = lexer_accept(lexer, ch);
     }
   }
 
@@ -307,16 +327,9 @@ token_t * _lexer_match_token(lexer_t *lexer) {
     mdebug(lexer, "_lexer_match_token out - state: %s token: %s",
                lexer_state_name(lexer -> state), token_code_name(ret -> code));
   } else {
-    if (lexer -> current) {
-      /*
-       * No scanner wanted this guy...
-       */
-      lexer_reset(lexer);
-      lexer -> state = LexerStateInit;
-    }
-    mdebug(lexer, "_lexer_match_token out - state: %s lookahead: '%s':%d",
-               lexer_state_name(lexer -> state),
-               str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
+    lexer_reset(lexer);
+    lexer -> state = LexerStateInit;
+    mdebug(lexer, "_lexer_match_token out - state: %s", lexer_state_name(lexer -> state));
   }
   return ret;
 }
@@ -336,12 +349,12 @@ lexer_t * lexer_create(lexer_config_t *config, data_t *reader) {
   ret -> state = LexerStateFresh;
   ret -> where = LexerWhereBegin;
   ret -> last_token = NULL;
+  ret -> count = 0;
+  ret -> scan_count = 0;
   ret -> line = 1;
   ret -> column = 0;
   ret -> prev_char = 0;
   ret -> token = str_create(LEXER_INIT_TOKEN_SZ);
-  ret -> lookahead = NULL;
-  ret -> lookahead_live = FALSE;
 
   ret -> scanners = NULL;
   for (scanner_config = config -> scanners; scanner_config; scanner_config = scanner_config -> next) {
@@ -364,38 +377,32 @@ token_t * lexer_next_token(lexer_t *lexer) {
   if (!lexer -> token) {
     lexer -> token = str_create(16);
   }
-  if (!lexer -> lookahead) {
-    lexer -> lookahead = str_create(16);
-    lexer -> lookahead_live = 0;
-  }
   if (lexer -> last_token) {
     if (token_code(lexer -> last_token) == TokenCodeEnd) {
       token_free(lexer -> last_token);
       lexer -> last_token = token_create(TokenCodeExhausted, "$$$$");
-      return NULL;
+      return lexer -> last_token;
     } else if (token_code(lexer -> last_token) == TokenCodeExhausted) {
       return NULL;
     } else {
       token_free(lexer -> last_token);
+      lexer -> last_token = NULL;
     }
+  }
+  if (lexer -> where == LexerWhereEnd) {
+    lexer -> last_token = token_create(TokenCodeEnd, "$$");
+    lexer -> last_token -> line = lexer -> line;
+    lexer -> last_token -> column = lexer -> column;
+    return lexer -> last_token;
   }
 
   do {
     lexer_reset(lexer);
-
-    do {
-      lexer -> last_token = _lexer_match_token(lexer);
-    } while ((lexer -> state != LexerStateEnd) &&
-             (lexer -> state != LexerStateSuccess));
+    lexer -> last_token = _lexer_match_token(lexer);
     if (lexer -> last_token) {
       mdebug(lexer, "lexer_next_token: matched token: %s [%s]",
                  token_code_name(lexer -> last_token -> code),
                  lexer -> last_token -> token);
-    }
-    if (!lexer -> last_token && (lexer -> state == LexerStateDone)) {
-      lexer -> last_token = token_create(TokenCodeEnd, "$$");
-      lexer -> last_token -> line = lexer -> line;
-      lexer -> last_token -> column = lexer -> column;
     }
   } while (!lexer -> last_token);
 
@@ -407,7 +414,7 @@ token_t * lexer_next_token(lexer_t *lexer) {
 }
 
 int lexer_at_top(lexer_t *lexer) {
-  return lexer -> where == LexerWhereBegin;
+  return lexer -> count == 0;
 }
 
 int lexer_at_end(lexer_t *lexer) {
@@ -418,10 +425,13 @@ int lexer_at_end(lexer_t *lexer) {
  * Rewind the lexer to the point just after the last token was identified.
  */
 lexer_t * lexer_rewind(lexer_t *lexer) {
-  str_erase(lexer -> token);
-  str_rewind(lexer -> lookahead);
-  lexer -> lookahead_live = str_len(lexer -> lookahead);
-  // mdebug(lexer, "lexer_rewind: lookahead='%s':%d", str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
+  if (lexer -> token) {
+    str_erase(lexer -> token);
+  }
+  if (lexer -> buffer) {
+    str_rewind(lexer -> buffer);
+  }
+  lexer -> scan_count = 0;
   return lexer;
 }
 
@@ -429,15 +439,23 @@ lexer_t * lexer_rewind(lexer_t *lexer) {
  * Mark the current point, discarding everything that came before it.
  */
 lexer_t * lexer_reset(lexer_t *lexer) {
-  if (lexer -> last_token) {
-    token_free(lexer -> last_token);
-    lexer -> last_token = token_create(0, NULL);
+  if (lexer -> current) {
+    /*
+     * A character was read but not pushed or discarded. Push back the buffer
+     * pointer one position.
+     */
+    mdebug(lexer, "lexer_reset: current '%c', pushing back", lexer -> current);
+    str_pushback(lexer -> buffer, 1);
   }
-  str_reset(lexer -> lookahead);
-  // mdebug(lexer, "lexer_reset: lookahead='%s':%d", str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
+  if (lexer -> buffer) {
+    str_reset(lexer -> buffer);
+  }
   lexer -> current = 0;
-  lexer -> lookahead_live = str_len(lexer -> lookahead);
-  str_erase(lexer -> token);
+  if (lexer -> token) {
+    str_erase(lexer -> token);
+  }
+  lexer -> count += lexer -> scan_count;
+  lexer -> scan_count = 0;
   lexer -> state = LexerStateInit;
   return lexer;
 }
@@ -450,9 +468,7 @@ token_t * lexer_accept(lexer_t *lexer, token_code_t code) {
     lexer_reset(lexer);
     lexer -> last_token = ret;
     lexer -> state = LexerStateSuccess;
-    mdebug(lexer, "lexer_accept(%s): lookahead='%s':%d",
-           token_tostring(ret),
-           str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
+    mdebug(lexer, "lexer_accept(%s)", token_tostring(ret));
     return lexer -> last_token;
   } else {
     return NULL;
@@ -482,10 +498,7 @@ lexer_t * lexer_push_as(lexer_t *lexer, int ch) {
   if (ch) {
     str_append_char(lexer -> token, ch);
   }
-  if (lexer -> current) {
-    str_skip(lexer -> lookahead, 1);
-  }
-  // mdebug(lexer, "lexer_push_as(%c): lookahead='%s':%d", ch, str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
+  // mdebug(lexer, "lexer_push_as(%c));
   lexer -> prev_char = lexer -> current;
   lexer -> current = 0;
   return lexer;
@@ -514,7 +527,7 @@ int lexer_get_char(lexer_t *lexer) {
   }
   ch = str_readchar(lexer -> buffer);
   if (ch <= 0 && (lexer -> reader != (data_t *) lexer -> buffer)) {
-    ret = str_readinto(lexer -> buffer, lexer -> reader);
+    ret = str_replenish(lexer -> buffer, lexer -> reader);
     mdebug(lexer, "lexer_get_char: Read new chunk into buffer: %d", ret);
     if (ret <= 0) {
       lexer -> current = 0;
@@ -526,11 +539,11 @@ int lexer_get_char(lexer_t *lexer) {
   }
   lexer -> current = ch;
   if (lexer -> current) {
+    lexer -> scan_count++;
     lexer -> where = LexerWhereMiddle;
-    str_append_char(lexer -> lookahead, lexer -> current);
   }
   _lexer_update_location(lexer, ch); // FIXME needs to be moved?
-  mdebug(lexer, "lexer_get_char(%c): lookahead='%s':%d", ch, str_chars(lexer -> lookahead), lexer -> lookahead -> pos);
+  mdebug(lexer, "lexer_get_char(%c)", ch);
   return ch;
 }
 
