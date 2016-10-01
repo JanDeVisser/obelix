@@ -17,8 +17,8 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "tcore.h"
 #include <resolve.h>
-#include <testsuite.h>
 
 typedef test_t * (*testfactory_t)(char *);
 typedef void *   (*helloworld_t)(char *);
@@ -67,7 +67,7 @@ START_TEST(test_resolve_function)
   test = tc("test");
   ck_assert_str_eq(test -> data, "test");
 END_TEST
-    
+
 START_TEST(test_resolve_foreign_function)
   helloworld_t  hw;
   void         *test;
@@ -79,7 +79,7 @@ START_TEST(test_resolve_foreign_function)
   ck_assert_ptr_ne(test, NULL);
 END_TEST
 
-static void _init_tresolve(void) {
+void resolve_init(void) {
   TCase *tc = tcase_create("Resolve");
 
   tcase_add_test(tc, test_resolve_get);
@@ -90,5 +90,3 @@ static void _init_tresolve(void) {
   tcase_add_test(tc, test_resolve_foreign_function);
   add_tcase(tc);
 }
-
-

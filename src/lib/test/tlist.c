@@ -1,6 +1,6 @@
 /*
- * list.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * list.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -18,13 +18,12 @@
  */
 
 
-#include <check.h>
+#include "tcore.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <list.h>
 #include <str.h>
-#include <testsuite.h>
 
 static void     test_print_list(list_t *, char *);
 static void     test_raw_print_list(list_t *, char *);
@@ -37,7 +36,7 @@ static void     teardown(list_t *);
 
 list_t * setup(void) {
   list_t *ret;
-  
+
   ret = list_create();
   list_set_type(ret, type_test);
   ck_assert_ptr_ne(ret, NULL);
@@ -47,7 +46,7 @@ list_t * setup(void) {
 
 list_t * setup2(void) {
   list_t *ret;
-  
+
   ret = setup();
   list_append(ret, test_create("test1"));
   ck_assert_int_eq(list_size(ret), 1);
@@ -59,7 +58,7 @@ list_t * setup2(void) {
 list_t * setup3(void) {
   list_t *ret;
   listiterator_t *iter;
-  
+
   ret = setup2();
   iter = li_create(ret);
   li_insert(iter, test_create("test0"));
@@ -70,7 +69,7 @@ list_t * setup3(void) {
 list_t * setup4(void) {
   list_t *ret;
   listiterator_t *iter;
-  
+
   ret = setup3();
   iter = li_create(ret);
   li_next(iter);
@@ -82,7 +81,7 @@ list_t * setup4(void) {
 list_t * setup5(void) {
   list_t *ret;
   listiterator_t *iter;
-  
+
   ret = setup4();
   iter = li_create(ret);
   li_tail(iter);
@@ -104,7 +103,7 @@ void test_print_list(list_t *list, char *header) {
     printf("[%s] ", (char *) li_next(iter));
   }
   printf(" } (%d)\n", list_size(list));
-} 
+}
 
 void test_raw_print_list(list_t *list, char *header) {
   listnode_t *node = list_head_pointer(list);
@@ -121,7 +120,7 @@ void test_raw_print_list(list_t *list, char *header) {
     node = node -> next;
   }
   printf(" } (%d)\n", list_size(list));
-} 
+}
 
 START_TEST(test_list_create)
   list_t *l;
@@ -137,7 +136,7 @@ END_TEST
 START_TEST(test_list_append)
   list_t *l;
   str_t *str;
-  
+
   l = setup2();
   str = list_tostr(l);
   ck_assert_str_eq(str_chars(str), "[test1 [0], test2 [0]]");
@@ -147,14 +146,14 @@ END_TEST
 
 START_TEST(test_list_prepend)
   list_t *l;
-  
+
   l = setup3();
   teardown(l);
 END_TEST
 
 START_TEST(test_list_insert)
   list_t *l;
-  
+
   l = setup4();
   teardown(l);
 END_TEST
@@ -162,7 +161,7 @@ END_TEST
 START_TEST(test_list_tail_insert)
   list_t *l;
   listiterator_t *iter;
-  
+
   l = setup4();
   iter = li_create(l);
   li_tail(iter);
@@ -173,7 +172,7 @@ END_TEST
 
 START_TEST(test_list_last_insert)
   list_t *l;
-  
+
   l = setup5();
   teardown(l);
 END_TEST
@@ -181,7 +180,7 @@ END_TEST
 START_TEST(test_list_del_second)
   list_t *l;
   listiterator_t *iter;
-  
+
   l = setup5();
   iter = li_create(l);
   li_next(iter);
@@ -194,7 +193,7 @@ END_TEST
 START_TEST(test_list_del_first)
   list_t *l;
   listiterator_t *iter;
-  
+
   l = setup5();
   iter = li_create(l);
   li_next(iter);
@@ -206,7 +205,7 @@ END_TEST
 START_TEST(test_list_del_last)
   list_t *l;
   listiterator_t *iter;
-  
+
   l = setup5();
   iter = li_create(l);
   li_tail(iter);
@@ -219,7 +218,7 @@ END_TEST
 START_TEST(test_list_del_tail)
   list_t *l;
   listiterator_t *iter;
-  
+
   l = setup5();
   iter = li_create(l);
   li_tail(iter);
@@ -231,7 +230,7 @@ END_TEST
 START_TEST(test_list_del_head)
   list_t *l;
   listiterator_t *iter;
-  
+
   l = setup5();
   iter = li_create(l);
   li_head(iter);
@@ -242,7 +241,7 @@ END_TEST
 
 START_TEST(test_list_clear)
   list_t *l;
-  
+
   l = setup5();
   list_clear(l);
   ck_assert_int_eq(list_size(l), 0);
@@ -257,7 +256,7 @@ void test_list_visitor(void *data) {
 START_TEST(test_list_visit)
   list_t *l;
   listiterator_t *iter;
-  
+
   l = setup5();
   list_visit(l, test_list_visitor);
   iter = li_create(l);
@@ -271,14 +270,14 @@ END_TEST
 void * test_list_reducer(void *data, void *curr) {
   long count = (long) curr;
   test_t *t = (test_t *) data;
-  
+
   count += t -> flag;
   return (void *) count;
 }
 
 START_TEST(test_list_reduce)
   list_t *l;
-  
+
   l = setup5();
   list_visit(l, test_list_visitor);
   long count = (long) list_reduce(l, test_list_reducer, (void *) 0L);
@@ -289,7 +288,7 @@ END_TEST
 START_TEST(test_list_replace)
   list_t *l;
   listiterator_t *iter;
-  
+
   l = setup5();
   for(iter = li_create(l); li_has_next(iter); ) {
     li_next(iter);
@@ -316,7 +315,7 @@ START_TEST(test_list_add_all)
   teardown(src);
 END_TEST
 
-extern void init_suite(void) {
+void list_init(void) {
   TCase *tc = tcase_create("List");
 
   /* tcase_add_checked_fixture(tc_core, setup, teardown); */
@@ -338,4 +337,3 @@ extern void init_suite(void) {
   tcase_add_test(tc, test_list_add_all);
   add_tcase(tc);
 }
- 

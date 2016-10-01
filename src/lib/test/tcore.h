@@ -1,5 +1,5 @@
 /*
- * tcore.c - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
+ * tcore.h - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of Obelix.
  *
@@ -17,11 +17,15 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef __TCORE_H__
+#define __TCORE_H__
 
-#include "tcore.h"
+#include <check.h>
+#include <testsuite.h>
 
-void init_suite(void) {
-  list_init();
-  str_init();
-  resolve_init();
-}
+extern void list_init(void);
+extern void str_init(void);
+extern void resolve_init();
+extern void init_suite(void);
+
+#endif /* __TCORE_H__ */

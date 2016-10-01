@@ -199,6 +199,5 @@ add_subdirectory(share)
 
 # install(FILES "${PROJECT_BINARY_DIR}/config.h" DESTINATION include)
 enable_testing()
-add_test(NAME tlist COMMAND tlist)
-add_test(NAME tstr COMMAND tstr)
+add_test(NAME tcore COMMAND tcore)
 add_test(NAME tlexer COMMAND tlexer)

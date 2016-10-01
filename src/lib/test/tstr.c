@@ -17,13 +17,13 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "tcore.h"
 #include <stdio.h>
 
 #include <array.h>
 #include <dict.h>
 #include <list.h>
 #include <str.h>
-#include <testsuite.h>
 
 static void _init_tresolve(void) __attribute__((constructor(300)));
 
@@ -371,7 +371,7 @@ START_TEST(test_str_format)
   dict_free(kwargs);
 END_TEST
 
-extern void init_suite(void) {
+extern void str_init(void) {
   TCase *tc = tcase_create("Str");
 
   tcase_add_test(tc, test_str_copy_chars);
