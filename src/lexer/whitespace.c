@@ -1,5 +1,5 @@
 /*
- * obelix/src/lexer/keywords.c - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
+ * obelix/src/lexer/whitespace.c - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of Obelix.
  *
@@ -117,11 +117,11 @@ token_t * _ws_match(scanner_t *scanner) {
   mdebug(lexer, "_ws_match ignore_nl: %d ignore_ws: %d",
          ws_config -> ignore_nl, ws_config -> ignore_ws);
   nl_is_ws = ws_config -> ignore_nl && !ws_config -> ignore_ws;
-  scanner -> state = WSSInit;
 
-  for (ch = lexer_get_char(scanner -> lexer);
-       ch && (scanner -> state != WSSDone) && (scanner -> state != WSSNoWS); ) {
+  for (scanner -> state = WSSInit;
+       (scanner -> state != WSSDone) && (scanner -> state != WSSNoWS); ) {
 
+    ch = lexer_get_char(scanner -> lexer);
     if ((ch == '\r') || ((scanner->state != WSSCR) && (ch == '\n'))) {
       if (ws_config -> onnewline) {
         ((onnewline_t) ws_config -> onnewline->fnc)(scanner->lexer);
@@ -195,7 +195,6 @@ token_t * _ws_match(scanner_t *scanner) {
         }
         break;
     }
-    ch = lexer_get_char(scanner -> lexer);
   }
   if (scanner -> state == WSSDone) {
     scanner -> lexer -> state = LexerStateSuccess;

@@ -27,23 +27,26 @@ extern int lexa_debug;
 extern int Lexa;
 
 typedef struct _lexa {
-  data_t          _d;
-  char           *debug;
+  data_t           _d;
+  char            *debug;
   log_level_t     log_level;
-  dict_t         *scanners;
-  lexer_config_t *config;
-  char           *fname;
-  data_t         *stream;
-  int             tokens;
-  dict_t         *tokens_by_type;
+  dict_t          *scanners;
+  lexer_config_t  *config;
+  data_t          *stream;
+  int              tokens;
+  dict_t          *tokens_by_type;
+  void           (*tokenfilter)(token_t *);
 } lexa_t;
 
 extern lexa_t * lexa_create(void);
 extern lexa_t * lexa_build_lexer(lexa_t *);
 extern lexa_t * lexa_add_scanner(lexa_t *, char *);
+extern lexa_t * lexa_append_config_value(lexa_t *, char *, char *);
 extern lexa_t * lexa_debug_settings(lexa_t *);
 extern lexa_t * lexa_tokenize(lexa_t *);
 extern int      lexa_tokens_with_code(lexa_t *, token_code_t);
+extern lexa_t * lexa_set_stream(lexa_t *, data_t *);
+extern lexa_t * lexa_set_tokenfilter(lexa_t *, void (*)(token_t *));
 
 #define data_is_lexa(d)           ((d) && data_hastype((d), Lexa))
 #define data_as_lexa(d)           (data_is_lexa((d)) ? ((lexa_t *) (d)) : NULL)

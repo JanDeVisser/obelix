@@ -8,11 +8,10 @@ add_library(
         whitespace.c
         identifier.c
         comment.c
+        qstring.c
+        number.c
         lexa.c
-#        comment.c
 #        keywords.c
-#        number.c
-#        qstring.c
 )
 
 target_link_libraries(obllexer PUBLIC oblcore)

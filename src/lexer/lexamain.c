@@ -49,15 +49,12 @@ int main(int argc, char **argv) {
   }
   lexa_debug_settings(lexa);
   if (optind >= argc) {
-    lexa -> fname = strdup("<<stdin>>");
     lexa -> stream = (data_t *) file_create(1);
   } else {
-    lexa -> fname = strdup(argv[optind]);
-    lexa -> stream = (data_t *) file_open(lexa -> fname);
+    lexa -> stream = (data_t *) file_open(argv[optind]);
   }
   lexa_build_lexer(lexa);
   lexa_tokenize(lexa);
   lexa_free(lexa);
   return 0;
 }
-

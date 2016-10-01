@@ -22,197 +22,148 @@
 
 #include <lexer.h>
 
-static         int          _is_identifier(str_t *);
+#define PARAM_QUOTES   "quotes"
 
-typedef enum _id_foldcase {
-  IDCaseSensitive,
-  IDFoldToLower,
-  IDFoldToUpper
-} id_foldcase_t;
+typedef enum _qstr_scanner_state {
+  QStrInit,
+  QStrQString,
+  QStrEscape,
+  QStrDone
+} qstr_state_t;
 
-typedef struct _id_scanner {
-  int            underscore;
-  int            digits;
-  id_foldcase_t  foldcase;
-} id_scanner_t;
+typedef struct _qstr_config {
+  scanner_config_t   _sc;
+  char              *quotechars;
+} qstr_config_t;
 
-static         id_scanner_t * _id_scanner_create(void);
-static         void           _id_scanner_free(id_scanner_t *);
-static         id_scanner_t * _id_scanner_set(id_scanner_t *, char *);
-static         token_code_t   _id_scanner_scan(id_scanner_t *, lexer_t *);
-static         int            _id_scanner_is_identifier(id_scanner_t *, str_t *);
-__DLL_EXPORT__ token_code_t   scanner_identifier(lexer_t *, scanner_t *);
+static qstr_config_t * _qstr_config_create(qstr_config_t *config, va_list args);
+static data_t *        _qstr_config_resolve(qstr_config_t *, char *);
+static qstr_config_t * _qstr_config_set(qstr_config_t *, char *, data_t *);
+static qstr_config_t * _qstr_config_set_quotes(qstr_config_t *, char *);
+static token_t *       _qstr_match(scanner_t *);
 
+static vtable_t _vtable_qstrscanner_config[] = {
+  { .id = FunctionNew,     .fnc = (void_t ) _qstr_config_create },
+  { .id = FunctionResolve, .fnc = (void_t ) _qstr_config_resolve },
+  { .id = FunctionSet,     .fnc = (void_t ) _qstr_config_set },
+  { .id = FunctionUsr1,    .fnc = (void_t ) _qstr_match },
+  { .id = FunctionUsr2,    .fnc = NULL },
+  { .id = FunctionNone,    .fnc = NULL }
+};
 
-void _dequotify(str_t *str) {
-  int len, ix;
+static int QStrScannerConfig = -1;
 
-  len = str_len(str);
-  if ((len >= 2) && (str_at(str, 0) == str_at(str, len - 1))) {
-    switch (len) {
-      case 2:
-        str_erase(str);
-        break;
-      default:
-        str_lchop(str, 1);
-        str_chop(str, 1);
-        break;
-    }
+/* -- Q S T R _ C O N F I G  ---------------------------------------------- */
+
+qstr_config_t *_qstr_config_create(qstr_config_t *config, va_list args) {
+  config -> quotechars = NULL;
+  return config;
+}
+
+void _qstr_config_free(qstr_config_t *config) {
+  if (config) {
+    free(config -> quotechars);
   }
 }
 
-/*
- * ---------------------------------------------------------------------------
- * I D _ S C A N N E R
- * ---------------------------------------------------------------------------
- */
+qstr_config_t * _qstr_config_set(qstr_config_t *config,
+                                 char *name, data_t *value) {
+  if (!strcmp(PARAM_QUOTES, name)) {
+    return _qstr_config_set_quotes(config, data_tostring(value));
+  } else {
+    return NULL;
+  }
+}
 
-id_scanner_t * _id_scanner_create(void) {
-  id_scanner_t *ret;
-  
-  ret = NEW(id_scanner_t);
-  ret -> underscore = TRUE;
-  ret -> digits = TRUE;
-  ret -> foldcase = IDCaseSensitive;
+qstr_config_t * _qstr_config_set_quotes(qstr_config_t *config, char *chars) {
+  char *newstr;
+
+  if (!config -> quotechars) {
+    config -> quotechars = strdup(chars);
+  } else {
+    newstr = (char *) _new(strlen(config -> quotechars) + strlen(chars) + 1);
+    strcpy(newstr, config -> quotechars);
+    strcat(newstr, chars);
+    free(config -> quotechars);
+    config -> quotechars = newstr;
+  }
+  return config;
+}
+
+data_t * _qstr_config_resolve(qstr_config_t *config, char *name) {
+  if (!strcmp(name, PARAM_QUOTES)) {
+    return (data_t *) str_wrap(config -> quotechars);
+  } else {
+    return NULL;
+  }
+}
+
+token_t * _qstr_match(scanner_t *scanner) {
+  char           ch;
+  token_t       *ret = NULL;
+  qstr_config_t *qstr_config = (qstr_config_t *) scanner -> config;
+
+  if (!qstr_config -> quotechars || !*qstr_config -> quotechars) {
+    return NULL;
+  }
+  mdebug(lexer, "_qstr_match quotechars: %s", qstr_config -> quotechars);
+
+  for (scanner -> state = QStrInit; scanner -> state != QStrDone; ) {
+    ch = lexer_get_char(scanner -> lexer);
+    if (!ch) {
+      break;
+    }
+
+    switch (scanner->state) {
+      case QStrInit:
+        if (strchr(qstr_config -> quotechars, ch)) {
+          lexer_discard(scanner -> lexer);
+          scanner -> data = (void *) (intptr_t) ch;
+          scanner -> state = QStrQString;
+        } else {
+          scanner -> state = QStrDone;
+        }
+        break;
+
+      case QStrQString:
+        if (ch == (int) (intptr_t) scanner -> data) {
+          lexer_discard(scanner -> lexer);
+          ret = lexer_accept(scanner -> lexer, (token_code_t) ch);
+          scanner -> state = QStrDone;
+        } else if (ch == '\\') {
+          lexer_discard(scanner -> lexer);
+          scanner -> state = QStrEscape;
+        } else {
+          lexer_push(scanner -> lexer);
+        }
+        break;
+
+      case QStrEscape:
+        if (ch == 'r') {
+          lexer_push_as(scanner -> lexer, '\r');
+        } else if (ch == 'n') {
+          lexer_push_as(scanner -> lexer, '\n');
+        } else if (ch == 't') {
+          lexer_push_as(scanner -> lexer, '\t');
+        } else {
+          lexer_push(scanner -> lexer);
+        }
+        scanner -> state = QStrQString;
+        break;
+    }
+  }
+  if (!ch) {
+    ret = token_create(TokenCodeError, "Unterminated comment");
+  }
   return ret;
 }
 
-void _id_scanner_free(id_scanner_t *id_scanner) {
-  if (id_scanner) {
-    free(id_scanner);
-  }
-}
+typedescr_t * qstring_register(void) {
+  typedescr_t *ret;
 
-id_scanner_t * _id_scanner_set(id_scanner_t *id_scanner, char *params) {
-  char *saveptr;
-  char *param;
-  
-  for (param = strtok_r(params, " \t", &saveptr); 
-       param; 
-       param = strtok_r(NULL, " \t", &saveptr)) {
-    if (!strcmp(param, "toupper")) {
-      id_scanner -> foldcase = IDFoldToUpper;
-    } else if (!strcmp(param, "tolower")) {
-      id_scanner -> foldcase = IDFoldToLower;
-    } else if (!strcmp(param, "nodigits")) {
-      id_scanner -> digits = FALSE;
-    } else if (!strcmp(param, "nounderscore")) {
-      id_scanner -> underscore = FALSE;
-    }
-  }
-  return id_scanner;
-}
-
-token_code_t _id_scanner_scan(id_scanner_t *id_scanner, lexer_t *lexer) {
-  int ch;
-  
-  for (ch = lexer_get_char(lexer);
-       ch && (isalpha(ch) || (id_scanner -> underscore && (ch == '_') || (id_scanner -> digits && isdigit(ch))));
-       ch = lexer_get_char(lexer));
-  lexer_push_back(lexer);
-  switch (id_scanner -> foldcase) {
-    case IDFoldToLower:
-      str_tolower(lexer -> token);
-      break;
-    case IDFoldToUpper
-      str_toupper(lexer -> token);
-      break;
-  }
-  return TokenCodeIdentifier;
-}
-
-
-int _id_scanner_is_identifier(id_scanner_t *id_scanner, str_t *str) {
-  char *s = str_chars(str);
-  char *ptr;
-  int   ret = TRUE;
-
-  for (ptr = s; *ptr; ptr++) {
-    if (s == ptr) {
-      ret = isalpha(*ptr) || (id_scanner -> underscore && (*ptr == '_'));
-    } else {
-      ret = isalnum(*ptr) || (id_scanner -> underscore && (*ptr == '_'));
-    }
-    if (!ret) break;
-  }
+  QStrScannerConfig = typedescr_create_and_register(
+      QStrScannerConfig, "qstring", _vtable_qstrscanner_config, NULL);
+  ret = typedescr_get(QStrScannerConfig);
+  typedescr_set_size(QStrScannerConfig, qstr_config_t);
   return ret;
 }
-
-/*
- * ---------------------------------------------------------------------------
- * I D E N T I F I E R S C A N N E R
- * ---------------------------------------------------------------------------
- */
-
-
-token_code_t scanner_identifier(lexer_t *lexer, scanner_t *scanner) {
-  token_code_t code = TokenCodeNone;
-  int          ch;
-  id_scanner_t id_scanner;
-  
-  switch (lexer -> state) {
-    case LexerStateFresh:
-      id_scanner = _id_scanner_create();
-      scanner -> data = id_scanner;
-      break;
-
-    case LexerStateParameter:
-      _id_scanner_set(id_scanner, scanner -> parameter);
-      break;
-      
-    case LexerStateInit:
-      if (_id_scanner_is_identifier(id_scanner, lexer -> token)) {
-        code = _id_scanner_scan(id_scanner, lexer);
-      }
-      break;
-      
-    case LexerStateStale:
-      _id_scanner_free(id_scanner);
-      scanner -> data = NULL;
-      break;
-  }
-  return code;
-}
-
-token_code_t _lexer_state_qstring_handler(lexer_t *lexer, int ch) {
-  token_code_t code = TokenCodeNone;
-
-  switch (lexer -> state) {
-    case LexerStateInit:
-      if ((ch == '\'') || (ch == '"') || (ch == '`')) {
-        lexer -> state = LexerStateQuotedStr;
-        lexer -> quote = ch;
-      }
-      break;
-
-    case LexerStateQuotedStr:
-      if (ch == lexer -> quote) {
-        code = (token_code_t) lexer -> quote;
-        _dequotify(lexer -> token);
-      } else if (ch == '\\') {
-        lexer -> state = LexerStateQuotedStrEscape;
-        str_chop(lexer -> token, 1);
-      } else if (ch <= 0) {
-        code = TokenCodeError;
-      }
-      break;
-    case LexerStateQuotedStrEscape:
-      if (ch == 'n') {
-        str_append_char(lexer -> token, '\n');
-      } else if (ch == 'r') {
-        str_append_char(lexer -> token, '\r');
-      } else if (ch == 't') {
-        str_append_char(lexer -> token, '\t');
-      } else if (ch <= 0) {
-        code = TokenCodeError;
-      }
-      lexer -> state = LexerStateQuotedStr;
-      break;
-  }
-  if (code == TokenCodeError) {
-    str_free(lexer -> token);
-    lexer -> token = str_copy_chars("Unterminated string")
-  }
-  return code;
-}
-

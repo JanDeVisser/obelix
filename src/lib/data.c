@@ -194,7 +194,7 @@ char * data_encode(data_t *data, char *buf, size_t sz) {
   typedescr_t *type;
   char        *str;
   size_t       len;
-  
+
   type = data_typedescr(data);
   str = data_tostring(data);
   if (!buf) {
@@ -350,21 +350,21 @@ data_t * data_method(data_t *data, char *name) {
   data_t        *ret = NULL;
 
   if (debug_data) {
-    debug("%s[%s].data_method(%s)", 
-          data_tostring(data), data_typename(data), name);    
+    debug("%s[%s].data_method(%s)",
+          data_tostring(data), data_typename(data), name);
   }
   type = data_typedescr(data);
   md = typedescr_get_method(type, name);
   if (md) {
     ret = (data_t *) mth_create(md, data);
     if (debug_data) {
-      debug("%s[%s].data_method(%s) = %s", 
+      debug("%s[%s].data_method(%s) = %s",
             data_tostring(data), data_typename(data),
             name, runtimemethod_tostring(ret));
     }
   } else {
     if (debug_data) {
-      debug("%s[%s].data_method(%s) = NULL", 
+      debug("%s[%s].data_method(%s) = NULL",
             data_tostring(data), data_typename(data), name);
     }
   }
@@ -395,7 +395,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
   assert(type);
   assert(name);
   if (debug_data) {
-    debug("%s[%s].resolve(%s:%d)", 
+    debug("%s[%s].resolve(%s:%d)",
           data_tostring(data), data_typename(data),
           name_tostring(name), name_size(name));
   }
@@ -495,6 +495,16 @@ data_t * data_get(data_t *data, name_t *name) {
     ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'",
                      name_tostring(name), data_tostring(data));
   }
+  return ret;
+}
+
+data_t * data_get_attribute(data_t *data, char *name) {
+  name_t *n;
+  data_t *ret;
+
+  n = name_create(1, name);
+  ret = data_get(data, n);
+  name_free(n);
   return ret;
 }
 
@@ -1008,4 +1018,3 @@ dict_t * data_put_all_reducer(entry_t *e, dict_t *target) {
   dict_put(target, strdup(e -> key), data_copy(e -> value));
   return target;
 }
-

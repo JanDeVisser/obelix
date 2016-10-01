@@ -313,6 +313,8 @@ token_t * _lexer_match_token(lexer_t *lexer) {
    * that as a token. This maybe should be a separate catchall scanner.
    */
   if (!ret && (lexer -> state != LexerStateSuccess)) {
+    mdebug(lexer, "Scanners found no token");
+    lexer_rewind(lexer);
     ch = lexer_get_char(lexer);
     if (ch > 0) {
       lexer_push(lexer);

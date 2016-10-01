@@ -74,8 +74,10 @@ static char *             _comment_marker_tostring(comment_marker_t *);
 static comment_config_t * _comment_config_create(comment_config_t *, va_list);
 static data_t *           _comment_config_resolve(comment_config_t *, char *);
 static comment_config_t * _comment_config_set(comment_config_t *, char *, data_t *);
-static token_t *          _comment_match(scanner_t *);
 static comment_config_t * _comment_config_add_marker(comment_config_t *, char *);
+
+static token_t *          _comment_match(scanner_t *);
+static void               _comment_free_scanner(scanner_t *);
 
 static vtable_t _vtable_comment_config[] = {
     { .id = FunctionNew,     .fnc = (void_t) _comment_config_create },
@@ -83,6 +85,7 @@ static vtable_t _vtable_comment_config[] = {
     { .id = FunctionSet,     .fnc = (void_t) _comment_config_set },
     { .id = FunctionUsr1,    .fnc = (void_t) _comment_match },
     { .id = FunctionUsr2,    .fnc = NULL },
+    { .id = FunctionUsr3,    .fnc = (void_t) _comment_free_scanner },
     { .id = FunctionNone,    .fnc = NULL }
 };
 
@@ -117,7 +120,8 @@ void _comment_marker_free(comment_marker_t *marker) {
 char * _comment_marker_tostring(comment_marker_t *marker) {
   if (!marker -> str) {
     asprintf(&marker -> str, "%s%s %s]", marker -> hashpling ? "[^" : "[",
-                             marker -> start, marker -> end);
+                             marker -> start,
+                             (marker -> end) ? marker -> end : "");
   }
   return marker -> str;
 }
@@ -144,7 +148,6 @@ void _comment_config_free(comment_config_t *config) {
 
 comment_config_t * _comment_config_set(comment_config_t *config,
                                        char *name, data_t *value) {
-  mdebug(lexer, "--> comment_config_set %s = '%s'", name, data_tostring(value));
   if (!strcmp(PARAM_MARKER, name)) {
     return _comment_config_add_marker(config, data_tostring(value));
   } else {
@@ -196,6 +199,7 @@ comment_config_t *_comment_config_add_marker(comment_config_t *config,
      * hashpling attribute in the marker structure and try to find next
      * non-whitespace char:
      */
+    for (start++; *start && isspace(*start); start++);
     if (!*start) {
       /* No non-whitespace found. Bail: */
       return NULL;
@@ -260,23 +264,11 @@ comment_config_t *_comment_config_add_marker(comment_config_t *config,
 data_t * _comment_config_resolve(comment_config_t *config, char *name) {
   array_t          *markers;
   comment_marker_t *marker;
-  char              buf[80];
 
   if (!strcmp(name, PARAM_MARKER)) {
     markers = str_array_create(config -> num_markers);
-    buf[0] = 0;
     for (marker = config -> markers; marker; marker = marker -> next) {
-      if (marker -> hashpling) {
-        strcpy(buf, "^");
-      }
-      if (marker -> start) {
-        strcat(buf, marker -> start);
-      }
-      if (marker -> end) {
-        strcat(buf, " ");
-        strcat(buf, marker -> end);
-      }
-      array_push(markers, strdup(buf));
+      array_push(markers, str_copy_chars(_comment_marker_tostring(marker)));
     }
     return data_create_list(markers);
   } else {
@@ -290,11 +282,12 @@ token_t * _comment_find_eol(scanner_t *scanner) {
   token_t *ret = NULL;
   int      ch;
 
-  for (ch = lexer_get_char(scanner -> lexer), scanner -> state = CommentStartMarker;
-       ch && (scanner -> state == CommentText);) {
-    if ((ch == '\r') || (ch == '\n')) {
+  mdebug(lexer, "_comment_find_eol");
+  for (ch = lexer_get_char(scanner -> lexer); scanner -> state == CommentText;) {
+    if (!ch || (ch == '\r') || (ch == '\n')) {
       /* Do not discard - this is part of the next token. */
       scanner -> state = CommentNone;
+      scanner -> lexer -> state = LexerStateSuccess;
     } else {
       lexer_discard(scanner -> lexer);
       ch = lexer_get_char(scanner -> lexer);
@@ -310,6 +303,7 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
   lexer_t           *lexer = scanner -> lexer;
   int                ch;
 
+  mdebug(lexer, "_comment_find_endmarker: %s", marker -> end);
   for (ch = lexer_get_char(lexer); ch && (scanner -> state != CommentNone);) {
 
     lexer_discard(scanner -> lexer);
@@ -369,7 +363,7 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
   return ret;
 }
 
-token_t *_comment_match_start(scanner_t *scanner) {
+token_t *_comment_match(scanner_t *scanner) {
   token_t            *ret = NULL;
   int                 ix;
   int                 ch;
@@ -379,6 +373,20 @@ token_t *_comment_match_start(scanner_t *scanner) {
   lexer_t            *lexer = scanner -> lexer;
   int                 at_top;
 
+  mdebug(lexer, "_comment_match markers: %s",
+                data_tostring(data_get_attribute((data_t *) config, "marker")));
+
+  if (!c_scanner) {
+    c_scanner = NEWDYNARR(comment_scanner_t, config -> num_markers, int);
+    scanner -> data = c_scanner;
+    c_scanner -> bufsz = SCANNER_INIT_BUFSZ;
+    c_scanner -> token = c_scanner -> token_buf;
+    c_scanner -> newbuf = NULL;
+  }
+  memset(c_scanner -> token, 0, c_scanner -> bufsz);
+  c_scanner -> len = 0;
+
+  scanner -> state = CommentNone;
   at_top = lexer_at_top(lexer);
   for (ix = 0; ix < config -> num_markers; ix++) {
     c_scanner -> matched[ix] = 1;
@@ -430,39 +438,26 @@ token_t *_comment_match_start(scanner_t *scanner) {
     }
     if ((c_scanner -> num_matches == 1) &&
         !strcmp(c_scanner -> token, c_scanner -> match -> start)) {
+      mdebug(lexer, "Full match of comment start marker '%s'", c_scanner -> match -> start);
       scanner -> state = CommentText;
       ret = (c_scanner -> match -> end)
               ? _comment_find_endmarker(scanner)
               : _comment_find_eol(scanner);
     } else if (c_scanner -> num_matches > 0) {
+      mdebug(lexer, "Matching '%d' comment start markers", c_scanner -> num_matches);
       ch = lexer_get_char(scanner -> lexer);
     } else {
       scanner -> state = CommentNone;
     }
   }
-  free(c_scanner -> newbuf);
   return ret;
 }
 
-token_t *_comment_match(scanner_t *scanner) {
-  token_t           *ret = NULL;
-  comment_config_t  *config = (comment_config_t *) scanner -> config;
+void _comment_free_scanner(scanner_t *scanner) {
   comment_scanner_t *c_scanner = (comment_scanner_t *) scanner -> data;
 
-  mdebug(lexer, "_comment_match");
-  scanner -> state = CommentNone;
-
-  if (!scanner -> data) {
-    c_scanner = NEWDYNARR(comment_scanner_t, config -> num_markers, int);
-    scanner -> data = c_scanner;
-  }
-  c_scanner -> bufsz = SCANNER_INIT_BUFSZ;
-  c_scanner -> token = c_scanner -> token_buf;
-  memset(c_scanner -> token, 0, c_scanner -> bufsz);
-  c_scanner -> len = 0;
-  c_scanner -> newbuf = NULL;
-
-  return _comment_match_start(scanner);
+  free(c_scanner -> newbuf);
+  free(c_scanner);
 }
 
 typedescr_t *comment_register(void) {

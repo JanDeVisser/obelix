@@ -116,6 +116,7 @@ OBLCORE_IMPEXP data_t *            data_invoke(data_t *, struct _name *,
 OBLCORE_IMPEXP int                 data_has(data_t *, struct _name *);
 OBLCORE_IMPEXP int                 data_has_callable(data_t *, struct _name *);
 OBLCORE_IMPEXP data_t *            data_get(data_t *, struct _name *);
+OBLCORE_IMPEXP data_t *            data_get_attribute(data_t *, char *);
 OBLCORE_IMPEXP data_t *            data_set(data_t *, struct _name *, data_t *);
 OBLCORE_IMPEXP data_t *            data_iter(data_t *);
 OBLCORE_IMPEXP data_t *            data_has_next(data_t *);

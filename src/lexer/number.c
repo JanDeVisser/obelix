@@ -52,7 +52,7 @@ static num_config_t * _num_config_set(num_config_t *, char *, data_t *);
 static data_t *       _num_config_resolve(num_config_t *, char *);
 static token_t *      _num_match(scanner_t *);
 
-static vtable_t _vtable_idscanner_config[] = {
+static vtable_t _vtable_numscanner_config[] = {
   { .id = FunctionNew,     .fnc = (void_t ) _num_config_create },
   { .id = FunctionResolve, .fnc = (void_t ) _num_config_resolve },
   { .id = FunctionSet,     .fnc = (void_t ) _num_config_set },
@@ -65,7 +65,7 @@ static int NumScannerConfig = -1;
 
 /*
  * ---------------------------------------------------------------------------
- * N U M _ S C A N N E R
+ * N U M _ C O N F I G
  * ---------------------------------------------------------------------------
  */
 
@@ -90,143 +90,146 @@ num_config_t * _num_config_set(num_config_t *num_config, char *param, data_t *va
   return num_config;
 }
 
-data_t * _num_config_resolve(num_config_t *num_config, char *name) {
+data_t * _num_config_resolve(num_config_t *num_config, char *param) {
   if (!strcmp(param, PARAM_SCI)) {
-    return bool_get(num_config -> scientific)
+    return (data_t *) bool_get(num_config -> scientific);
   } else if (!strcmp(param, PARAM_SIGNED)) {
-    return bool_get(num_config -> sign);
+    return (data_t *) bool_get(num_config -> sign);
   } else if (!strcmp(param, PARAM_HEX)) {
-    return bool_get(num_config -> hex);
+    return (data_t *) bool_get(num_config -> hex);
   } else if (!strcmp(param, PARAM_FLOAT)) {
-    return bool_get(num_config -> flt);
+    return (data_t *) bool_get(num_config -> flt);
   } else {
     return NULL;
   }
 }
 
-void _num_scanner_process(num_scanner_t *num_scanner, int ch) {
-  switch (num_scanner -> state) {
+token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
+  num_config_t  *config = (num_config_t *) scanner -> config;
+  token_code_t   code;
+
+  switch (scanner -> state) {
     case NumScannerStateNone:
-      if (num_scanner -> sign && ((ch == '-') || (ch == '+'))) {
-        num_scanner -> state = NumScannerStatePlusMinus;
+      if (config -> sign && ((ch == '-') || (ch == '+'))) {
+        scanner -> state = NumScannerStatePlusMinus;
       } else if (ch == '0') {
-        num_scanner -> state = NumScannerStateZero;
+        scanner -> state = NumScannerStateZero;
       } else if (isdigit(ch)) {
-        num_scanner -> state = NumScannerStateNumber;
-      } else if (num_scanner -> flt && (ch == '.')) {
-        num_scanner -> state = NumScannerStateFloat;
+        scanner -> state = NumScannerStateNumber;
+      } else if (config -> flt && (ch == '.')) {
+        scanner -> state = NumScannerStateFloat;
       } else {
-        num_scanner -> state = NumScannerStateDone;
-        num_scanner -> code = TokenCodeNone;
+        scanner -> state = NumScannerStateDone;
+        code = TokenCodeNone;
       }
       break;
-      
+
     case NumScannerStatePlusMinus:
       if (ch == '0') {
-        num_scanner -> state = NumScannerStateZero;
-      } else if (num_scanner -> flt && (ch == '.')) {
-        num_scanner -> state = NumScannerStateFloat;
+        scanner -> state = NumScannerStateZero;
+      } else if (config -> flt && (ch == '.')) {
+        scanner -> state = NumScannerStateFloat;
       } else if (isdigit(ch)) {
-        num_scanner -> state = NumScannerStateNumber;
+        scanner -> state = NumScannerStateNumber;
       } else {
-        num_scanner -> state = NumScannerStateDone;
+        scanner -> state = NumScannerStateDone;
+        code = TokenCodeNone;
       }
       break;
-      
+
     case NumScannerStateZero:
-      /* FIXME: Second leading zero */
-      if (isdigit(ch)) {
+      if (ch == '0') {
+        /*
+         * Chop the previous zero and keep the state. This zero will be chopped
+         * next time around.
+         */
+        str_chop(scanner -> lexer -> token, 1);
+      } else if (isdigit(ch)) {
         /*
          * We don't want octal numbers. Therefore we strip
          * leading zeroes.
          */
-        str_chop(lexer -> token, 2);
-        str_append_char(lexer -> token, ch);
-        num_scanner -> state = NumScannerStateNumber;
-      } else if (num_scanner -> flt && (ch == '.')) {
-        num_scanner -> state = NumScannerStateFloat;
-      } else if (num_scanner -> hex && (ch == 'x')) {
+        str_chop(scanner -> lexer -> token, 1);
+        scanner -> state = NumScannerStateNumber;
+      } else if (config -> flt && (ch == '.')) {
+        scanner -> state = NumScannerStateFloat;
+      } else if (config -> hex && (ch == 'x')) {
         /*
          * Hexadecimals are returned including the leading
          * 0x. This allows us to send both base-10 and hex ints
          * to strtol and friends.
          */
-        num_scanner -> state = NumScannerStateHexInteger;
+        scanner -> state = NumScannerStateHexInteger;
       } else {
-        num_scanner -> state = NumScannerStateDone;
-        num_scanner -> code = TokenCodeInteger;
+        scanner -> state = NumScannerStateDone;
+        code = TokenCodeInteger;
       }
       break;
-      
+
     case NumScannerStateNumber:
-      if (num_scanner -> flt && (ch == '.')) {
-        num_scanner -> state = NumScannerStateFloat;
-      } else if (num_scanner -> scientific && ('e')) {
-        num_scanner -> state = NumScannerStateSciFloat;
+      if (config -> flt && (ch == '.')) {
+        scanner -> state = NumScannerStateFloat;
+      } else if (config -> scientific && (ch == 'e')) {
+        scanner -> state = NumScannerStateSciFloat;
       } else if (!isdigit(ch)) {
-        num_scanner -> state = NumScannerStateDone;
-        num_scanner -> code = TokenCodeInteger;
+        scanner -> state = NumScannerStateDone;
+        code = TokenCodeInteger;
       }
       break;
-      
+
     case NumScannerStateFloat:
-      if (num_scanner -> scientific &&  (ch == 'e')) {
-        num_scanner -> state = NumScannerStateSciFloat;
+      if (config -> scientific &&  (ch == 'e')) {
+        scanner -> state = NumScannerStateSciFloat;
       } else if (!isdigit(ch)) {
-        num_scanner -> state = NumScannerStateDone;
-        num_scanner -> code = TokenCodeFloat;
+        scanner -> state = NumScannerStateDone;
+        code = TokenCodeFloat;
       }
       break;
-      
+
     case NumScannerStateSciFloat:
       if ((ch == '+') || (ch == '-')) {
         // Nothing
       } else if (isdigit(ch)) {
-        num_scanner -> state = NumScannerStateSciFloatExp;
+        scanner -> state = NumScannerStateSciFloatExp;
       } else {
-        num_scanner -> state = NumScannerStateDone;
-        num_scanner -> code = TokenCodeNone;
+        scanner -> state = NumScannerStateDone;
+        code = TokenCodeNone;
       }
       break;
-      
+
     case NumScannerStateSciFloatExp:
       if (!isdigit(ch)) {
-        num_scanner -> state = NumScannerStateDone;
-        num_scanner -> code = TokenCodeFloat;
+        scanner -> state = NumScannerStateDone;
+        code = TokenCodeFloat;
       }
       break;
 
     case NumScannerStateHexInteger:
       if (!isxdigit(ch)) {
-        num_scanner -> state = NumScannerStateDone;
-        num_scanner -> code = TokenCodeHexNumber;
+        scanner -> state = NumScannerStateDone;
+        code = TokenCodeHexNumber;
       }
       break;
   }
-}
-
-token_code_t _num_scanner_scan(num_scanner_t *num_scanner, lexer_t *lexer) {
-  int           ch;
-  token_code_t  code;
-  
-  while ((ch = tolower(lexer_get_char(lexer))) && 
-         (num_scanner -> state != NumScannerStateDone)) {
-    _num_scanner_process(num_scanner, ch);
-  }
-  switch (num_scanner -> state) {
-    case NumScannerStatePlusMinus:
-      code = lexer -> current;
-      break;
-    case NumScannerStateNumber:
-    case NumScannerStateZero:
-      code = TokenCodeInteger;
-      break;
-    
-  }
-  lexer_push_back(lexer);
+  lexer_push(scanner -> lexer);
   return code;
 }
 
+token_t * _num_match(scanner_t *scanner) {
+  int           ch;
+  token_code_t  code;
+  token_t      *ret = NULL;
+
+  for (scanner -> state = NumScannerStateNone;
+       scanner -> state != NumScannerStateDone;) {
+    ch = tolower(lexer_get_char(scanner -> lexer));
+    code = _num_scanner_process(scanner, ch);
+  }
+  if (code != TokenCodeNone) {
+    ret = lexer_accept(scanner -> lexer, code);
+  }
+  return ret;
+}
 
 /*
  * ---------------------------------------------------------------------------
@@ -242,6 +245,6 @@ typedescr_t * numbers_register(void) {
                                                   _vtable_numscanner_config,
                                                   NULL);
   ret = typedescr_get(NumScannerConfig);
-  typedescr_set_size(NumScannerConfig, numsc_config_t);
+  typedescr_set_size(NumScannerConfig, num_config_t);
   return ret;
 }

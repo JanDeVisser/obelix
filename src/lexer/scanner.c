@@ -80,10 +80,17 @@ scanner_t * _scanner_new(scanner_t *scanner, va_list args) {
 }
 
 void _scanner_free(scanner_t *scanner) {
+  void (*scanner_free)(scanner_t *);
+
   if (scanner) {
+    scanner_free = (void (*)(scanner_t *)) data_get_function((data_t *) scanner -> config, FunctionUsr3);
+    if (scanner_free) {
+      scanner_free(scanner);
+    } else {
+      free(scanner -> data);
+    }
     scanner_config_free(scanner -> config);
     lexer_free(scanner -> lexer);
-    free(scanner -> data);
   }
 }
 

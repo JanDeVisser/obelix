@@ -45,7 +45,7 @@ void _lexa_free(lexa_t *lexa) {
   if (lexa) {
     dict_free(lexa -> scanners);
     lexer_config_free(lexa -> config);
-    free(lexa -> fname);
+    data_free(lexa -> stream);
     free(lexa -> debug);
     dict_free(lexa -> tokens_by_type);
   }
@@ -74,9 +74,10 @@ lexa_t * lexa_create(void) {
   ret -> log_level = -1;
   ret -> scanners = strdata_dict_create();
   ret -> config = NULL;
-  ret -> fname = NULL;
+  ret -> stream = NULL;
   ret -> tokens = 0;
   ret -> tokens_by_type = intint_dict_create();
+  ret -> tokenfilter = NULL;
   return ret;
 }
 
@@ -120,9 +121,13 @@ void * _lexa_tokenize(token_t *token, void *config) {
   }
   dict_put_int(lexa -> tokens_by_type, code, (void *) ((intptr_t) count));
 
-  fprintf(stderr, "%s ", token_tostring(token));
-  if (token_code(token) == TokenCodeExhausted) {
-    fprintf(stderr, "\n");
+  if (!lexa -> tokenfilter) {
+    fprintf(stderr, "%s ", token_tostring(token));
+    if (token_code(token) == TokenCodeExhausted) {
+      fprintf(stderr, "\n");
+    }
+  } else {
+    lexa -> tokenfilter(token);
   }
   return config;
 }
@@ -172,17 +177,49 @@ lexa_t * lexa_debug_settings(lexa_t *lexa) {
 
 lexa_t * lexa_add_scanner(lexa_t *lexa, char *code_config) {
   char   *copy;
-  char   *ptr;
-  data_t *config = NULL;
+  char   *ptr = NULL;
 
   lexa_debug_settings(lexa);
   copy = strdup(code_config);
   ptr = strpbrk(copy, ":=");
   if (ptr) {
     *ptr = 0;
-    config = (data_t *) str_copy_chars(ptr+1);
+    ptr++;
   }
-  dict_put(lexa -> scanners, strdup(copy), config);
+  lexa_append_config_value(lexa, copy, ptr);
   free(copy);
+  return lexa;
+}
+
+lexa_t * lexa_append_config_value(lexa_t *lexa, char *code, char *config) {
+  str_t *current;
+
+  lexa_debug_settings(lexa);
+  if (dict_has_key(lexa -> scanners, code)) {
+    if (config && *config) {
+      current = (str_t *) data_dict_get(lexa -> scanners, code);
+      if (current) {
+        str_append_char(current, ',');
+        str_append_chars(current, config);
+      }
+    }
+  } else {
+    dict_put(lexa -> scanners, strdup(code),
+             (config) ? (data_t *) str_copy_chars(config) : NULL);
+  }
+  return lexa;
+}
+
+lexa_t * lexa_set_stream(lexa_t *lexa, data_t *stream) {
+  assert(data_hastype(stream, InputStream));
+  if (lexa -> stream) {
+    data_free(lexa -> stream);
+  }
+  lexa -> stream = stream;
+  return lexa;
+}
+
+lexa_t * lexa_set_tokenfilter(lexa_t *lexa, void (*filter)(token_t *)) {
+  lexa -> tokenfilter = filter;
   return lexa;
 }
