@@ -92,7 +92,7 @@ char * _resolve_rewrite_image(char *image, char *buf) {
     canonical[ix] = tolower(image[ix]);
   }
   canonical[len] = 0;
-#else /* __WIN32__ */
+#else /* !__WIN32__ */
   strcpy(canonical, image);
 #endif /* __WIN32__ */
 
@@ -101,11 +101,13 @@ char * _resolve_rewrite_image(char *image, char *buf) {
     *ptr = 0;
   }
   strcpy(buf, canonical);
-#if !defined(__WIN32__) && !defined(__CYGWIN__)
-  strcat(buf, ".so");
-#else /* __WIN32__ || __CYGWIN__ */
+#if defined(__WIN32__) || defined(__CYGWIN__)
   strcat(buf, ".dll");
-#endif /* __WIN32__ || __CYGWIN__ */
+#elif defined(__APPLE__)
+  strcat(buf, ".dylib");
+#else /* Linux */
+  strcat(buf, ".so");
+#endif
   return buf;
 }
 
