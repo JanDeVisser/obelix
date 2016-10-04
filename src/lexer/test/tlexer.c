@@ -18,23 +18,10 @@
  */
 
 
-#include <check.h>
-#include <stdio.h>
-#include <stdlib.h>
-
+#include "tlexer.h"
 #include <file.h>
-#include <lexa.h>
-#include <nvp.h>
-#include <testsuite.h>
 
 lexa_t *lexa;
-
-static lexa_t * setup(void);
-static lexa_t * setup_with_scanners(void);
-static void     teardown();
-
-static void     _setup_with_scanners(void);
-static void     _teardown();
 
 /* ----------------------------------------------------------------------- */
 
@@ -118,7 +105,6 @@ END_TEST
 /* ----------------------------------------------------------------------- */
 
 START_TEST(test_lexa_qstring)
-  lexa_build_lexer(lexa);
   lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'single quotes' `backticks` \"double quotes\" World"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
@@ -151,7 +137,6 @@ START_TEST(test_lexa_qstring_escaped_backslash)
   lexa_set_tokenfilter(lexa, _escaped_backslashfilter);
   lexa_tokenize(lexa);
   ck_assert_int_eq(ok, 1);
-  teardown(lexa);
 END_TEST
 
 /* ----------------------------------------------------------------------- */
@@ -200,7 +185,47 @@ END_TEST
 
 /* ----------------------------------------------------------------------- */
 
-extern void init_suite(void) {
+void _setup_number_lexer(void) {
+  lexa = setup_with_scanners();
+  lexa_add_scanner(lexa, "number");
+  ck_assert_int_eq(dict_size(lexa -> scanners), 4);
+  lexa_build_lexer(lexa);
+  ck_assert_ptr_ne(lexa -> config, NULL);
+}
+
+START_TEST(test_lexa_integer)
+  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234 World"));
+  lexa_tokenize(lexa);
+  ck_assert_int_eq(lexa -> tokens, 7);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeInteger), 1);
+END_TEST
+
+START_TEST(test_lexa_float_unconfigured)
+  lexa_set_config_value(lexa, "number", "float=0");
+  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234.12 World"));
+  lexa_tokenize(lexa);
+  ck_assert_int_eq(lexa -> tokens, 9);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeInteger), 2);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeDot), 1);
+END_TEST
+
+START_TEST(test_lexa_float)
+  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234.56 World"));
+  ck_assert_ptr_ne(lexa -> stream, NULL);
+  lexa_tokenize(lexa);
+  ck_assert_int_eq(lexa -> tokens, 7);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeFloat), 1);
+END_TEST
+
+/* ----------------------------------------------------------------------- */
+
+void create_lexa(void) {
   TCase *tc = tcase_create("Lexa");
   tcase_add_checked_fixture(tc, _setup_with_scanners, _teardown);
   tcase_add_test(tc, test_lexa_build_lexer);
@@ -208,19 +233,40 @@ extern void init_suite(void) {
   tcase_add_test(tc, test_lexa_newline);
   tcase_add_test(tc, test_lexa_symbols);
   add_tcase(tc);
+}
 
-  tc = tcase_create("QString");
+void create_qstring(void) {
+  TCase *tc = tcase_create("QString");
   tcase_add_checked_fixture(tc, _setup_with_scanners, _teardown);
   tcase_add_test(tc, test_lexa_qstring);
   tcase_add_test(tc, test_lexa_qstring_noclose);
   tcase_add_test(tc, test_lexa_qstring_escaped_backslash);
   add_tcase(tc);
+}
 
-  tc = tcase_create("Comment");
+void create_number(void) {
+  TCase *tc = tcase_create("Number");
+  tcase_add_checked_fixture(tc, _setup_number_lexer, _teardown);
+  tcase_add_test(tc, test_lexa_integer);
+  tcase_add_test(tc, test_lexa_float_unconfigured);
+  tcase_add_test(tc, test_lexa_float);
+  add_tcase(tc);
+}
+
+void create_comment(void) {
+  TCase *tc = tcase_create("Comment");
   tcase_add_checked_fixture(tc, _setup_comment_lexer, _teardown);
   tcase_add_test(tc, test_lexa_run_comment_lexer);
   tcase_add_test(tc, test_lexa_unterminated_comment);
   tcase_add_test(tc, test_lexa_asterisk_comment);
   tcase_add_test(tc, test_lexa_eol_comment);
   add_tcase(tc);
+}
+
+extern void init_suite(void) {
+  create_lexa();
+  create_qstring();
+  create_number();
+  create_comment();
+  create_keyword();
 }

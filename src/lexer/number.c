@@ -41,10 +41,11 @@ typedef enum _num_scanner_state {
 } num_scanner_state_t;
 
 typedef struct _num_config {
-  int                  scientific;
-  int                  sign;
-  int                  hex;
-  int                  flt;
+  scanner_config_t _sc;
+  int              scientific;
+  int              sign;
+  int              hex;
+  int              flt;
 } num_config_t;
 
 static num_config_t * _num_config_create(num_config_t *config, va_list args);
@@ -211,7 +212,9 @@ token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
       }
       break;
   }
-  lexer_push(scanner -> lexer);
+  if (scanner -> state != NumScannerStateDone) {
+    lexer_push(scanner -> lexer);
+  }
   return code;
 }
 
@@ -237,11 +240,11 @@ token_t * _num_match(scanner_t *scanner) {
  * ---------------------------------------------------------------------------
  */
 
-typedescr_t * numbers_register(void) {
+typedescr_t * number_register(void) {
   typedescr_t *ret;
 
   NumScannerConfig = typedescr_create_and_register(NumScannerConfig,
-                                                  "numbers",
+                                                  "number",
                                                   _vtable_numscanner_config,
                                                   NULL);
   ret = typedescr_get(NumScannerConfig);

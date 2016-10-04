@@ -142,21 +142,42 @@ lexer_config_t * lexer_config_create(void) {
 
 scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code) {
   scanner_config_t *scanner;
-  scanner_config_t *last;
+  scanner_config_t *next;
+  scanner_config_t *prev;
   typedescr_t      *type;
+  int               priority;
 
   scanner = scanner_config_create(code, config);
   if (scanner) {
-    for (last = config -> scanners; last && last -> next; last = last -> next);
-    scanner -> prev = last;
-    if (last) {
-      last -> next = scanner;
+    priority = scanner -> priority;
+    for (next = config -> scanners, prev = NULL;
+         next && next -> priority >= priority;
+         next = next -> next) {
+      prev = next;
+    };
+    scanner -> next = next;
+    scanner -> prev = prev;
+    if (next) {
+      scanner -> prev = next -> prev;
+      next -> prev = scanner;
+    }
+    if (prev) {
+      prev -> next = scanner;
     } else {
       config -> scanners = scanner;
     }
     config -> num_scanners++;
   }
   mdebug(lexer, "Created scanner config '%s' match: %p", scanner_config_tostring(scanner), scanner -> match);
+  return scanner;
+}
+
+scanner_config_t * lexer_config_get_scanner(lexer_config_t *config, char *code) {
+  scanner_config_t *scanner = config -> scanners;
+
+  for (scanner = config -> scanners;
+       scanner && strcmp(data_typename((data_t *) scanner), code);
+       scanner = scanner -> next);
   return scanner;
 }
 

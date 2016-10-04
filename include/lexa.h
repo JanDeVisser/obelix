@@ -38,20 +38,21 @@ typedef struct _lexa {
   void           (*tokenfilter)(token_t *);
 } lexa_t;
 
-extern lexa_t * lexa_create(void);
-extern lexa_t * lexa_build_lexer(lexa_t *);
-extern lexa_t * lexa_add_scanner(lexa_t *, char *);
-extern lexa_t * lexa_append_config_value(lexa_t *, char *, char *);
-extern lexa_t * lexa_debug_settings(lexa_t *);
-extern lexa_t * lexa_tokenize(lexa_t *);
-extern int      lexa_tokens_with_code(lexa_t *, token_code_t);
-extern lexa_t * lexa_set_stream(lexa_t *, data_t *);
-extern lexa_t * lexa_set_tokenfilter(lexa_t *, void (*)(token_t *));
+extern lexa_t *           lexa_create(void);
+extern lexa_t *           lexa_build_lexer(lexa_t *);
+extern lexa_t *           lexa_add_scanner(lexa_t *, char *);
+extern scanner_config_t * lexa_get_scanner(lexa_t *, char *);
+extern lexa_t *           lexa_set_config_value(lexa_t *, char *, char *);
+extern lexa_t *           lexa_debug_settings(lexa_t *);
+extern lexa_t *           lexa_tokenize(lexa_t *);
+extern int                lexa_tokens_with_code(lexa_t *, token_code_t);
+extern lexa_t *           lexa_set_stream(lexa_t *, data_t *);
+extern lexa_t *           lexa_set_tokenfilter(lexa_t *, void (*)(token_t *));
 
-#define data_is_lexa(d)           ((d) && data_hastype((d), Lexa))
-#define data_as_lexa(d)           (data_is_lexa((d)) ? ((lexa_t *) (d)) : NULL)
-#define lexa_copy(l)              ((lexa_t *) data_copy((data_t *) (l)))
-#define lexa_free(l)              (data_free((data_t *) (l)))
-#define lexa_tostring(l)          (data_tostring((data_t *) (l)))
+#define data_is_lexa(d)   ((d) && data_hastype((d), Lexa))
+#define data_as_lexa(d)   (data_is_lexa((d)) ? ((lexa_t *) (d)) : NULL)
+#define lexa_copy(l)      ((lexa_t *) data_copy((data_t *) (l)))
+#define lexa_free(l)      (data_free((data_t *) (l)))
+#define lexa_tostring(l)  (data_tostring((data_t *) (l)))
 
 #endif /* __LEXA_H__ */

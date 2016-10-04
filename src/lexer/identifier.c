@@ -112,7 +112,7 @@ token_t * _id_match(scanner_t *scanner) {
   for (ch = lexer_get_char(scanner -> lexer);
        ch && (isalpha(ch) ||
               (config -> underscore && (ch == '_')) ||
-              (config -> digits && isdigit(ch)));
+              (config -> digits && isdigit(ch) && str_len(scanner -> lexer -> token)));
        ch = lexer_get_char(scanner -> lexer)) {
     mdebug(lexer, "_id_match(%c)", ch);
     if (config -> foldcase) {

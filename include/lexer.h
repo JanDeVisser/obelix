@@ -32,6 +32,8 @@
 #define LEXER_INIT_TOKEN_SZ       256
 #define LEXER_MAX_SCANNERS        32
 #define SCANNER_CONFIG_SEPARATORS ",.;"
+#define PARAM_PRIORITY            "priority"
+#define PARAM_CONFIGURATION       "configuration"
 
 typedef enum _lexer_where {
   LexerWhereBegin,
@@ -43,32 +45,7 @@ typedef enum _lexer_state {
   LexerStateNoState,
   LexerStateFresh,
   LexerStateInit,
-  LexerStateFirstPass,
-  LexerStateSecondPass,
   LexerStateSuccess,
-  /*
-  LexerStateWhitespace,
-  LexerStateNewLine,
-  LexerStateIdentifier,
-  LexerStateURIComponent,
-  LexerStateURIComponentPercent,
-  LexerStateKeyword,
-  LexerStateMatchLost,
-  LexerStatePlusMinus,
-  LexerStateZero,
-  LexerStateNumber,
-  LexerStateDecimalInteger,
-  LexerStateHexInteger,
-  LexerStateFloat,
-  LexerStateSciFloat,
-  LexerStateQuotedStr,
-  LexerStateQuotedStrEscape,
-  LexerStateHashPling,
-  LexerStateSlash,
-  LexerStateBlockComment,
-  LexerStateLineComment,
-  LexerStateStar,
-  */
   LexerStateDone,
   LexerStateStale,
   LexerStateLAST
@@ -83,6 +60,7 @@ typedef token_t * (*matcher_t)(struct _scanner *);
 
 typedef struct _scanner_config {
   data_t                   _d;
+  int                      priority;
   struct _scanner_config  *prev;
   struct _scanner_config  *next;
   struct _lexer_config    *lexer_config;
@@ -119,6 +97,8 @@ typedef struct _lexer {
   lexer_state_t    state;
   lexer_where_t    where;
   token_t         *last_token;
+  int              scanned;
+  int              candidate_scanned;
   int              count;
   int              scan_count;
   int              current;
@@ -127,7 +107,7 @@ typedef struct _lexer {
   int              column;
 } lexer_t;
 
-OBLLEXER_IMPEXP char *           lexer_state_name(lexer_state_t);
+OBLLEXER_IMPEXP char *             lexer_state_name(lexer_state_t);
 
 /*
  * ---------------------------------------------------------------------------
@@ -160,6 +140,7 @@ OBLLEXER_IMPEXP token_code_t       scanner_match(scanner_t *);
 
 OBLLEXER_IMPEXP lexer_config_t *   lexer_config_create(void);
 OBLLEXER_IMPEXP scanner_config_t * lexer_config_add_scanner(lexer_config_t *, char *);
+OBLLEXER_IMPEXP scanner_config_t * lexer_config_get_scanner(lexer_config_t *, char *);
 OBLLEXER_IMPEXP lexer_config_t *   lexer_config_set_bufsize(lexer_config_t *, int);
 OBLLEXER_IMPEXP int                lexer_config_get_bufsize(lexer_config_t *);
 OBLLEXER_IMPEXP lexer_config_t *   lexer_config_tokenize(lexer_config_t *, reduce_t, data_t *);
@@ -181,12 +162,12 @@ OBLLEXER_IMPEXP void             lexer_flush(lexer_t *);
 OBLLEXER_IMPEXP lexer_t *        lexer_reset(lexer_t *);
 OBLLEXER_IMPEXP lexer_t *        lexer_rewind(lexer_t *);
 OBLLEXER_IMPEXP token_t *        lexer_accept(lexer_t *, token_code_t);
+OBLLEXER_IMPEXP void             lexer_skip(lexer_t *);
 OBLLEXER_IMPEXP token_t *        lexer_get_accept(lexer_t *, token_code_t, int);
 OBLLEXER_IMPEXP lexer_t *        lexer_push(lexer_t *);
 OBLLEXER_IMPEXP lexer_t *        lexer_push_as(lexer_t *, int);
 OBLLEXER_IMPEXP lexer_t *        lexer_discard(lexer_t *);
 OBLLEXER_IMPEXP void *           _lexer_tokenize(lexer_t *, reduce_t, void *);
-OBLLEXER_IMPEXP token_t *        lexer_rollup_to(lexer_t *, int);
 
 OBLLEXER_IMPEXP void             lexer_init(void);
 

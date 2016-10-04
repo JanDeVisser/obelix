@@ -152,8 +152,8 @@ token_t * _qstr_match(scanner_t *scanner) {
         break;
     }
   }
-  if (!ch) {
-    ret = token_create(TokenCodeError, "Unterminated comment");
+  if (!ch && (scanner -> state != QStrQString)) {
+    ret = token_create(TokenCodeError, "Unterminated string");
   }
   return ret;
 }

@@ -204,7 +204,7 @@ token_t * token_parse(char *token) {
     goto done;
   }
   dup = strdup(token);
-  ptr = strchr(dup, ':');
+  ptr = strrchr(dup, ':');
   if (!ptr) {
     goto done;
   }

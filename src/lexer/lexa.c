@@ -17,6 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -98,6 +99,10 @@ lexa_t * _lexa_build_scanner(entry_t *entry, lexa_t *lexa) {
 
 lexa_t * lexa_build_lexer(lexa_t *lexa) {
   lexa_debug_settings(lexa);
+  mdebug(lexa, "Building lexer config");
+  if (lexa -> config) {
+    lexer_config_free(lexa -> config);
+  }
   lexa -> config = lexer_config_create();
   lexa -> config -> data = data_copy((data_t *) lexa);
   dict_reduce(lexa -> scanners, (reduce_t) _lexa_build_scanner, lexa);
@@ -178,34 +183,47 @@ lexa_t * lexa_debug_settings(lexa_t *lexa) {
 lexa_t * lexa_add_scanner(lexa_t *lexa, char *code_config) {
   char   *copy;
   char   *ptr = NULL;
+  char   *code;
+  char   *config = NULL;
+  lexa_t *ret = lexa;
 
   lexa_debug_settings(lexa);
   copy = strdup(code_config);
   ptr = strpbrk(copy, ":=");
   if (ptr) {
     *ptr = 0;
-    ptr++;
+    config = ptr + 1;
+    if (!*config) {
+      config = NULL;
+    }
   }
-  lexa_append_config_value(lexa, copy, ptr);
+  for (code = copy; *code && isspace(*code); code++);
+  if (*code) {
+    for (ptr = code + strlen(code) - 1; isspace(*ptr); ptr--) {
+      *ptr = 0;
+    }
+    lexa_set_config_value(lexa, code, config);
+  } else {
+    fprintf(stderr, "Invalid syntax for scanner config: %s", code_config);
+    ret = NULL;
+  }
   free(copy);
   return lexa;
 }
 
-lexa_t * lexa_append_config_value(lexa_t *lexa, char *code, char *config) {
+scanner_config_t * lexa_get_scanner(lexa_t *lexa, char *code) {
+  return (lexa -> config) ? lexer_config_get_scanner(lexa -> config, code) : NULL;
+}
+
+lexa_t * lexa_set_config_value(lexa_t *lexa, char *code, char *config) {
   str_t *current;
 
   lexa_debug_settings(lexa);
-  if (dict_has_key(lexa -> scanners, code)) {
-    if (config && *config) {
-      current = (str_t *) data_dict_get(lexa -> scanners, code);
-      if (current) {
-        str_append_char(current, ',');
-        str_append_chars(current, config);
-      }
-    }
-  } else {
-    dict_put(lexa -> scanners, strdup(code),
-             (config) ? (data_t *) str_copy_chars(config) : NULL);
+  mdebug(lexa, "Setting scanner config value %s: %s", code, config);
+  dict_put(lexa -> scanners, strdup(code),
+           (config) ? (data_t *) str_copy_chars(config) : NULL);
+  if (lexa -> config) {
+    lexa_build_lexer(lexa);
   }
   return lexa;
 }

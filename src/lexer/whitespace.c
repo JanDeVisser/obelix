@@ -157,7 +157,7 @@ token_t * _ws_match(scanner_t *scanner) {
           lexer_push(scanner->lexer);
         } else {
           if (ws_config->ignore_nl) {
-            lexer_reset(scanner->lexer);
+            lexer_skip(scanner -> lexer);
           } else {
             ret = lexer_accept(scanner->lexer, TokenCodeNewLine);
           }
@@ -173,7 +173,7 @@ token_t * _ws_match(scanner_t *scanner) {
           lexer_push(scanner->lexer);
         } else {
           if (ws_config->ignore_nl) {
-            lexer_reset(scanner->lexer);
+            lexer_skip(scanner -> lexer);
           } else {
             ret = lexer_accept(scanner->lexer, TokenCodeNewLine);
           }
@@ -184,14 +184,14 @@ token_t * _ws_match(scanner_t *scanner) {
       case WSSWhitespace:
         if (!isspace(ch) ||
             (!nl_is_ws && ((ch == '\r') || (ch == '\n')))) {
-          if (ws_config->ignore_ws) {
-            lexer_reset(scanner->lexer);
+          if (ws_config -> ignore_ws) {
+            lexer_skip(scanner -> lexer);
           } else {
-            ret = lexer_accept(scanner->lexer, TokenCodeWhitespace);
+            ret = lexer_accept(scanner -> lexer, TokenCodeWhitespace);
           }
           scanner->state = WSSDone;
         } else {
-          lexer_push(scanner->lexer);
+          lexer_push(scanner -> lexer);
         }
         break;
     }

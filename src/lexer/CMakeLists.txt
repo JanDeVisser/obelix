@@ -10,8 +10,8 @@ add_library(
         comment.c
         qstring.c
         number.c
+        keyword.c
         lexa.c
-#        keywords.c
 )
 
 target_link_libraries(obllexer PUBLIC oblcore)

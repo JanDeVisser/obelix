@@ -31,9 +31,9 @@ typedef enum _token_code {
   TokenCodeNone = 0,
   TokenCodeError,
   TokenCodeEmpty,
-  TokenCodeWhitespace,
+  TokenCodeWhitespace = ' ',
   TokenCodeRawString,
-  TokenCodeNewLine,
+  TokenCodeNewLine = '\n',
   TokenCodeLastToken,
   TokenCodeEnd,
   TokenCodeExhausted,
@@ -112,4 +112,3 @@ OBLLEXER_IMPEXP int Token;
 #endif
 
 #endif /* __TOKEN_H__ */
-

@@ -287,7 +287,7 @@ token_t * _comment_find_eol(scanner_t *scanner) {
     if (!ch || (ch == '\r') || (ch == '\n')) {
       /* Do not discard - this is part of the next token. */
       scanner -> state = CommentNone;
-      scanner -> lexer -> state = LexerStateSuccess;
+      lexer_skip(scanner -> lexer);
     } else {
       lexer_discard(scanner -> lexer);
       ch = lexer_get_char(scanner -> lexer);
@@ -347,7 +347,7 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
            * We matched the full end marker. Set the state of the scanner.
            */
           scanner -> state = CommentNone;
-          lexer -> state = LexerStateSuccess;
+          lexer_skip(lexer);
         } else {
           /*
            * Still matching the end marker. Read next character:

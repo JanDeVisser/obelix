@@ -103,8 +103,8 @@ void * resize_block(void *block, int newsz, int oldsz) {
     ret = realloc(block, newsz);
     if (newsz && !ret) {
       _outofmemory(newsz);
-    } else if (oldsz) {
-      memset((char *) ret + oldsz, 0, newsz - oldsz);
+//    } else if (oldsz) {
+//      memset((char *) ret + oldsz, 0, newsz - oldsz);
     }
   } else {
     ret = _new(newsz);

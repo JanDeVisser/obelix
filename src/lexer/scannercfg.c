@@ -72,6 +72,7 @@ scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list args) {
   lexer_config_t *lexer_config;
 
   lexer_config = va_arg(args, lexer_config_t *);
+  config -> priority = 0;
   config -> prev = config -> next = NULL;
   config -> lexer_config = lexer_config_copy(lexer_config);
   config -> match = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionUsr1);
@@ -99,12 +100,14 @@ char * _scanner_config_allocstring(scanner_config_t *config) {
 data_t * _scanner_config_resolve(scanner_config_t *config, char *name) {
   data_t *ret;
 
-  if (!strcmp(name, "configuration")) {
+  if (!strcmp(name, PARAM_CONFIGURATION)) {
     if (config -> config) {
       ret = (data_t *) str_copy_chars(dict_tostring(config -> config));
     } else {
       ret = data_null();
     }
+  } else if (!strcmp(name, PARAM_PRIORITY)) {
+    return int_to_data(config -> priority);
   } else if (config -> config) {
     ret = data_copy(data_dict_get(config -> config, name));
   }
@@ -135,6 +138,9 @@ scanner_config_t * _scanner_config_setvalue(scanner_config_t *config, char *name
 
   if (name) {
     n = name_create(1, name);
+    mdebug(lexer, "_scanner_config_setvalue %s[%s] := %s",
+                   data_tostring((data_t *) config),
+                   name, data_tostring(value));
     data_set((data_t *) config, n, value);
     name_free(n);
   }
@@ -162,7 +168,7 @@ scanner_config_t * _scanner_config_setstring(scanner_config_t *config, char *val
     v = data_true();
   }
   name = strtrim(value);
-  mdebug(lexer, "parameter: '%s', value: '%s'", name, data_tostring(v));
+
   if (strcmp(name, "configuration")) {
     ret = _scanner_config_setvalue(config, name, v);
   }
@@ -255,7 +261,7 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
   char   *param;
   char   *sepptr;
 
-  mdebug(lexer, "Configuring scanner '%s' with value '%s' match: %p", data_typename(config), data_tostring(value), config -> match);
+  mdebug(lexer, "Configuring scanner '%s' with value '%s'", data_typename(config), data_tostring(value));
   if (value) {
     if (data_type(value) == NVP) {
       nvp = data_as_nvp(value);
@@ -263,22 +269,19 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
     } else if (value != data_null()) {
       params = strdup(data_tostring(value));
       param = params;
-      mdebug(lexer, " 1: --> %s", param);
       for (sepptr = strpbrk(param, SCANNER_CONFIG_SEPARATORS);
            sepptr;
            sepptr = strpbrk(param, SCANNER_CONFIG_SEPARATORS)) {
         *sepptr = 0;
-        mdebug(lexer, " 2: --> %s", param);
         _scanner_config_setstring(config, param);
         param = sepptr + 1;
       }
-      mdebug(lexer, " 3: --> %s", param);
       if (param && *param) {
         _scanner_config_setstring(config, param);
       }
       free(params);
     }
   }
-  mdebug(lexer, "Configured scanner '%s' match: %p", data_typename(config), config -> match);
+  mdebug(lexer, "Configured scanner '%s'", data_typename(config));
   return config;
 }
