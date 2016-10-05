@@ -359,8 +359,10 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
   }
   if (!ch) {
     ret = token_create(TokenCodeError, "Unterminated comment");
+    lexer_accept_token(scanner -> lexer, ret);
+    token_free(ret);
   }
-  return ret;
+  return lexer -> last_token;
 }
 
 token_t *_comment_match(scanner_t *scanner) {

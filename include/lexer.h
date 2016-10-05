@@ -162,6 +162,7 @@ OBLLEXER_IMPEXP void             lexer_flush(lexer_t *);
 OBLLEXER_IMPEXP lexer_t *        lexer_reset(lexer_t *);
 OBLLEXER_IMPEXP lexer_t *        lexer_rewind(lexer_t *);
 OBLLEXER_IMPEXP token_t *        lexer_accept(lexer_t *, token_code_t);
+OBLLEXER_IMPEXP token_t *        lexer_accept_token(lexer_t *, token_t *);
 OBLLEXER_IMPEXP void             lexer_skip(lexer_t *);
 OBLLEXER_IMPEXP token_t *        lexer_get_accept(lexer_t *, token_code_t, int);
 OBLLEXER_IMPEXP lexer_t *        lexer_push(lexer_t *);

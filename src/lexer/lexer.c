@@ -430,11 +430,20 @@ lexer_t * lexer_reset(lexer_t *lexer) {
 }
 
 token_t * lexer_accept(lexer_t *lexer, token_code_t code) {
+  token_t *token;
+
+  token = token_create(code, str_chars(lexer -> token));
+  lexer_accept_token(lexer, token);
+  token_free(token);
+  return lexer -> last_token;
+}
+
+token_t * lexer_accept_token(lexer_t *lexer, token_t *token) {
   if (lexer -> scan_count && (!lexer -> scanned || (lexer -> scan_count > lexer -> scanned))) {
     token_free(lexer -> last_token);
-    lexer -> last_token = token_create(code, str_chars(lexer -> token));
+    lexer -> last_token = token_copy(token);
     lexer_skip(lexer);
-    mdebug(lexer, "lexer_accept(%s)", token_tostring(lexer -> last_token));
+    mdebug(lexer, "lexer_accept_token(%s)", token_tostring(lexer -> last_token));
   }
   return lexer -> last_token;
 }

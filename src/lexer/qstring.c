@@ -154,8 +154,10 @@ token_t * _qstr_match(scanner_t *scanner) {
   }
   if (!ch && (scanner -> state != QStrQString)) {
     ret = token_create(TokenCodeError, "Unterminated string");
+    lexer_accept_token(scanner -> lexer, ret);
+    token_free(ret);
   }
-  return ret;
+  return scanner -> lexer -> last_token;
 }
 
 typedescr_t * qstring_register(void) {
