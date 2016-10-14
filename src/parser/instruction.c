@@ -177,7 +177,7 @@ void _instruction_register_types(void) {
   interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
   name_empty = name_create(0);
   name_self = name_create(1, "self");
-  
+
   InstructionTypeRegister(Assign,       Value);
   InstructionTypeRegister(Decr,         Name);
   InstructionTypeRegister(Deref,        Value);
@@ -212,8 +212,8 @@ int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
 
   t = typedescr_create_and_register(-1, name, vtable, NULL);
   td = typedescr_get(t);
-  typedescr_assign_inheritance(td, Instruction);
-  typedescr_assign_inheritance(td, inherits);
+  typedescr_assign_inheritance(t, Instruction);
+  typedescr_assign_inheritance(t, inherits);
   return t;
 }
 
@@ -760,9 +760,9 @@ data_t * _instruction_execute_Jump(instruction_t *instr, data_t *scope, vm_t *vm
 
 data_t * _instruction_execute_EndLoop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *ret;
-  
-  ret = (vm -> status != VMStatusBreak) 
-    ? _instruction_execute_Jump(instr, scope, vm, bytecode) 
+
+  ret = (vm -> status != VMStatusBreak)
+    ? _instruction_execute_Jump(instr, scope, vm, bytecode)
     : NULL;
   vm -> status &= ~(VMStatusBreak | VMStatusContinue);
   return ret;
@@ -917,7 +917,7 @@ data_t * _instruction_call(data_t *data, array_t *p, dict_t *kw) {
   vm_t          *vm = data_as_vm(data_array_get(p, 1));
   bytecode_t    *bytecode = data_as_bytecode(data_array_get(p, 2));
   execute_t      execute;
-  
+
   if (script_debug) {
     debug("Executing %s", instruction_tostring(instr));
   }

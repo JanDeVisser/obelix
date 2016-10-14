@@ -17,6 +17,8 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
+
 #include <exception.h>
 #include <lexer.h>
 
@@ -128,19 +130,7 @@ data_t * _lexer_config_mth_tokenize(lexer_config_t *config, char *n, array_t *ar
 
 /* ------------------------------------------------------------------------ */
 
-lexer_config_t * lexer_config_create(void) {
-  lexer_config_t *ret;
-  int      ix;
-
-  _lexer_config_init();
-  ret = data_new(LexerConfig, lexer_config_t);
-  ret -> bufsize = LEXER_BUFSIZE;
-  ret -> scanners = NULL;
-  ret -> num_scanners = 0;
-  return ret;
-}
-
-scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code) {
+scanner_config_t * _lexer_config_add_scanner(lexer_config_t *config, char *code) {
   scanner_config_t *scanner;
   scanner_config_t *next;
   scanner_config_t *prev;
@@ -172,6 +162,56 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code) 
   return scanner;
 }
 
+/* ------------------------------------------------------------------------ */
+
+lexer_config_t * lexer_config_create(void) {
+  lexer_config_t *ret;
+  int      ix;
+
+  _lexer_config_init();
+  ret = data_new(LexerConfig, lexer_config_t);
+  ret -> bufsize = LEXER_BUFSIZE;
+  ret -> scanners = NULL;
+  ret -> num_scanners = 0;
+  return ret;
+}
+
+scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_config) {
+  char             *copy;
+  char             *ptr = NULL;
+  char             *code;
+  char             *param = NULL;
+  data_t           *param_data;
+  scanner_config_t *scanner = NULL;
+
+  copy = strdup(code_config);
+  ptr = strpbrk(copy, ":=");
+  if (ptr) {
+    *ptr = 0;
+    param = ptr + 1;
+    if (!*param) {
+      param = NULL;
+    }
+  }
+  for (code = copy; *code && isspace(*code); code++);
+  if (*code) {
+    for (ptr = code + strlen(code) - 1; isspace(*ptr); ptr--) {
+      *ptr = 0;
+    }
+    scanner = lexer_config_get_scanner(config, code);
+    if (!scanner) {
+      scanner = _lexer_config_add_scanner(config, code);
+    }
+    if (scanner && param) {
+      param_data = (data_t *) str_wrap(param);
+      scanner_config_configure(scanner, param_data);
+      data_free(param_data);
+    }
+  }
+  free(copy);
+  return scanner;
+}
+
 scanner_config_t * lexer_config_get_scanner(lexer_config_t *config, char *code) {
   scanner_config_t *scanner = config -> scanners;
 
@@ -179,6 +219,20 @@ scanner_config_t * lexer_config_get_scanner(lexer_config_t *config, char *code) 
        scanner && strcmp(data_typename((data_t *) scanner), code);
        scanner = scanner -> next);
   return scanner;
+}
+
+data_t * lexer_config_set(lexer_config_t *config, char *code, data_t *param) {
+  scanner_config_t *scanner;
+
+  scanner = lexer_config_get_scanner(config, code);
+  if (!scanner) {
+    return data_exception(ErrorParameterValue, "No scanner with code '%s' found", code);
+  }
+  return scanner_config_configure(scanner, param)
+         ? (data_t *) config
+         : data_exception(ErrorParameterValue,
+                          "Could not set parameter '%s' on scanner with code '%s'",
+                          data_tostring(param), code);
 }
 
 int lexer_config_get_bufsize(lexer_config_t *config) {

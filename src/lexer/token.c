@@ -30,6 +30,7 @@ typedef struct _token_code_str {
 } token_code_str_t;
 
 static inline void _token_init(void);
+static token_t *   _token_new(token_t *, va_list);
 static void        _token_free(token_t *);
 static char *      _token_allocstring(token_t *);
 static data_t *    _token_resolve(token_t *, char *);
@@ -88,6 +89,7 @@ static dict_t *custom_codes = NULL;
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_token[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _token_new },
   { .id = FunctionFree,        .fnc = (void_t) _token_free },
   { .id = FunctionParse,       .fnc = (void_t) token_parse },
   { .id = FunctionAllocString, .fnc = (void_t) _token_allocstring },
@@ -113,6 +115,7 @@ static typedescr_t _typedescr_token = {
 void _token_init(void) {
   if (Token < 0) {
     Token = typedescr_register_type(&_typedescr_token, _methoddescr_token);
+    typedescr_set_size(Token, token_t);
   }
 }
 
@@ -138,6 +141,12 @@ char * token_code_name(token_code_t code) {
 }
 
 /* ------------------------------------------------------------------------ */
+
+token_t * _token_new(token_t *token, va_list args) {
+  ret -> token = NULL;
+  ret -> size = 0;
+  return token_assign(token, va_arg(args, unsigned int), va_arg(args, char *));
+}
 
 void _token_free(token_t *token) {
   if (token) {
@@ -185,13 +194,8 @@ data_t * _token_iswhitespace(token_t *self, char *n, array_t *args, dict_t *kwar
  */
 
 token_t * token_create(unsigned int code, char *token) {
-  token_t *ret;
-
   _token_init();
-  ret = data_new(Token, token_t);
-  ret -> token = NULL;
-  ret -> size = 0;
-  return token_assign(ret, code, token);
+  return data_create(Token, code, token);
 }
 
 token_t * token_parse(char *token) {

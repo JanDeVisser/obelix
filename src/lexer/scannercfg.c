@@ -216,7 +216,7 @@ typedescr_t * scanner_config_load(char *code, char *regfnc_name) {
     if (fnc -> fnc) {
       regfnc = (create_t) fnc -> fnc;
       ret = regfnc();
-      typedescr_assign_inheritance(ret, ScannerConfig);
+      typedescr_assign_inheritance(ret -> type, ScannerConfig);
       scanner_config_register(ret);
     }
     function_free(fnc);

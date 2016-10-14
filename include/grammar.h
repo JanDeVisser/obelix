@@ -21,7 +21,7 @@
 #ifndef __GRAMMAR_H__
 #define __GRAMMAR_H__
 
-#include <libparser.h>
+#include <config.h>
 #include <array.h>
 #include <dict.h>
 #include <function.h>
@@ -33,7 +33,17 @@
 extern "C" {
 #endif
 
-OBLPARSER_IMPEXP int grammar_debug;
+#if (defined __WIN32__) || (defined _WIN32)
+#ifdef oblgrammar_EXPORTS
+#define OBLGRAMMAR_IMPEXP	__DLL_EXPORT__
+#else /* ! oblgrammar_EXPORTS */
+#define OBLGRAMMAR_IMPEXP	__DLL_IMPORT__
+#endif
+#else /* ! __WIN32__ */
+#define OBLGRAMMAR_IMPEXP extern
+#endif /* __WIN32__ */
+
+OBLGRAMMAR_IMPEXP int grammar_debug;
 
 #define NONTERMINAL_DEF         200
 #define NONTERMINAL_DEF_STR     ":="
@@ -42,11 +52,7 @@ OBLPARSER_IMPEXP int grammar_debug;
 #define LIB_STR                 "lib"
 #define PREFIX_STR              "prefix"
 #define STRATEGY_STR            "strategy"
-#define IGNORE_STR              "ignore"
-#define CASE_SENSITIVE_STR      "case_sensitive"
-#define HASHPLING_STR           "hashpling"
-#define SIGNED_NUMBERS_STR      "signed_numbers"
-#define ON_NEWLINE_STR          "on_newline"
+#define LEXER_STR               "lexer"
 
 /* ----------------------------------------------------------------------- */
 
@@ -57,33 +63,36 @@ typedef enum _parsing_strategy {
 
 typedef struct _grammar_action {
   data_t      _d;
+  data_t     *owner;
   function_t *fnc;
   data_t     *data;
 } grammar_action_t;
 
+typedef struct _grammar_variable {
+  token_t  _token;
+  data_t  *owner;
+} grammar_variable_t;
+
 /* ----------------------------------------------------------------------- */
 
 typedef int grammar_element_type_t;
-OBLPARSER_IMPEXP grammar_element_type_t   GrammarAction;
-OBLPARSER_IMPEXP grammar_element_type_t   GrammarElement;
-OBLPARSER_IMPEXP grammar_element_type_t   Grammar;
-OBLPARSER_IMPEXP grammar_element_type_t   NonTerminal;
-OBLPARSER_IMPEXP grammar_element_type_t   Rule;
-OBLPARSER_IMPEXP grammar_element_type_t   RuleEntry;
-OBLPARSER_IMPEXP grammar_element_type_t   Terminal;
+OBLGRAMMAR_IMPEXP grammar_element_type_t   GrammarAction;
+OBLGRAMMAR_IMPEXP grammar_element_type_t   GrammarVariable;
+OBLGRAMMAR_IMPEXP grammar_element_type_t   GrammarElement;
+OBLGRAMMAR_IMPEXP grammar_element_type_t   Grammar;
+OBLGRAMMAR_IMPEXP grammar_element_type_t   NonTerminal;
+OBLGRAMMAR_IMPEXP grammar_element_type_t   Rule;
+OBLGRAMMAR_IMPEXP grammar_element_type_t   RuleEntry;
 
 struct _grammar;
 struct _grammar_element;
-
-typedef void * (*set_option_t)(struct _grammar_element *, token_t *, token_t *);
 
 typedef struct _grammar_element {
   data_t                   _d;
   struct _grammar         *grammar;
   struct _grammar_element *owner;
-  list_t                  *actions;
+  dict_t                  *actions;
   dict_t                  *variables;
-  set_option_t             set_option_delegate;
 } ge_t;
 
 typedef struct _nonterminal {
@@ -117,7 +126,7 @@ typedef struct _grammar {
   dict_t        *nonterminals;
   nonterminal_t *entrypoint;
   dict_t        *keywords;
-  data_t        *lexer_options[LexerOptionLAST];
+  list_t        *lexer;
   strategy_t     strategy;
   char          *prefix;
   array_t       *libs;
@@ -126,32 +135,37 @@ typedef struct _grammar {
 
 /* ----------------------------------------------------------------------- */
 
-OBLPARSER_IMPEXP grammar_action_t *      grammar_action_create(function_t *, data_t *);
-OBLPARSER_IMPEXP int                     grammar_action_cmp(grammar_action_t *, grammar_action_t *);
-OBLPARSER_IMPEXP unsigned int            grammar_action_hash(grammar_action_t *);
+OBLGRAMMAR_IMPEXP grammar_action_t *      grammar_action_create(function_t *, data_t *);
+OBLGRAMMAR_IMPEXP int                     grammar_action_cmp(grammar_action_t *, grammar_action_t *);
+OBLGRAMMAR_IMPEXP unsigned int            grammar_action_hash(grammar_action_t *);
 
 #define grammar_action_copy(ga)          ((grammar_action_t *) data_copy((data_t *) (ga)))
 #define grammar_action_free(ga)          (data_free((data_t *) (ga)))
 #define grammar_action_tostring(ga)      (data_tostring((data_t *) (ga)))
 
-OBLPARSER_IMPEXP void_t                  ge_function(ge_t *, int);
-OBLPARSER_IMPEXP ge_t *                  ge_add_action(ge_t *, grammar_action_t *);
-OBLPARSER_IMPEXP ge_t *                  ge_set_option(ge_t *, token_t *, token_t *);
+OBLGRAMMAR_IMPEXP grammar_variable_t *    grammar_variable_create(ge_t *, char *, token_t *);
+#define grammar_variable_copy(gv)        ((grammar_variable_t *) data_copy((data_t *) (gv)))
+#define grammar_variable_free(gv)        (data_free((data_t *) (gv)))
+#define grammar_variable_tostring(gv)    (data_tostring((data_t *) (gv)))
+
+OBLGRAMMAR_IMPEXP void_t                  ge_function(ge_t *, int);
+OBLGRAMMAR_IMPEXP ge_t *                  ge_add_action(ge_t *, grammar_action_t *);
+OBLGRAMMAR_IMPEXP ge_t *                  ge_set_variable(ge_t *, char *, token_t *);
+OBLGRAMMAR_IMPEXP ge_t *                  ge_set_option(ge_t *, token_t *, token_t *);
 
 #define ge_typedescr(ge)                 (data_typedescr((data_t *) (ge)))
 #define ge_copy(ge)                      ((ge_t *) data_copy((data_t *) (ge)))
 #define ge_free(ge)                      (data_free((data_t *) (ge)))
 #define ge_tostring(ge)                  (data_tostring((data_t *) (ge)))
 
-OBLPARSER_IMPEXP grammar_t *             grammar_create();
-OBLPARSER_IMPEXP grammar_t *             grammar_set_parsing_strategy(grammar_t *, strategy_t);
-OBLPARSER_IMPEXP strategy_t              grammar_get_parsing_strategy(grammar_t *);
-OBLPARSER_IMPEXP nonterminal_t *         grammar_get_nonterminal(grammar_t *, char *);
-OBLPARSER_IMPEXP grammar_t *             grammar_set_lexer_option(grammar_t *, lexer_option_t, data_t *);
-OBLPARSER_IMPEXP data_t *                grammar_get_lexer_option(grammar_t *, lexer_option_t);
-OBLPARSER_IMPEXP void                    grammar_dump(grammar_t *);
-OBLPARSER_IMPEXP function_t *            grammar_resolve_function(grammar_t *, char *);
-OBLPARSER_IMPEXP grammar_t *             grammar_analyze(grammar_t *);
+OBLGRAMMAR_IMPEXP grammar_t *             grammar_create();
+OBLGRAMMAR_IMPEXP grammar_t *             grammar_set_parsing_strategy(grammar_t *, strategy_t);
+OBLGRAMMAR_IMPEXP strategy_t              grammar_get_parsing_strategy(grammar_t *);
+OBLGRAMMAR_IMPEXP nonterminal_t *         grammar_get_nonterminal(grammar_t *, char *);
+OBLGRAMMAR_IMPEXP grammar_t *             grammar_set_lexer_option(grammar_t *, char *);
+//OBLGRAMMAR_IMPEXP data_t *                grammar_get_lexer_option(grammar_t *, lexer_option_t);
+OBLGRAMMAR_IMPEXP function_t *            grammar_resolve_function(grammar_t *, char *);
+OBLGRAMMAR_IMPEXP grammar_t *             grammar_analyze(grammar_t *);
 
 #define grammar_add_action(g, a)         ((grammar_t *) ge_add_action((ge_t *) (g), (a)))
 #define grammar_set_option(g, n, t)      ((grammar_t *) ge_set_option((ge_t *) (g), (n), (t)))
@@ -159,9 +173,9 @@ OBLPARSER_IMPEXP grammar_t *             grammar_analyze(grammar_t *);
 #define grammar_free(g)                  (data_free((data_t *) (g)))
 #define grammar_tostring(g)              (data_tostring((data_t *) (g)))
 
-OBLPARSER_IMPEXP nonterminal_t *         nonterminal_create(grammar_t *, char *);
-OBLPARSER_IMPEXP void                    nonterminal_dump(nonterminal_t *);
-OBLPARSER_IMPEXP rule_t *                nonterminal_get_rule(nonterminal_t *, int);
+OBLGRAMMAR_IMPEXP nonterminal_t *         nonterminal_create(grammar_t *, char *);
+OBLGRAMMAR_IMPEXP void                    nonterminal_dump(nonterminal_t *);
+OBLGRAMMAR_IMPEXP rule_t *                nonterminal_get_rule(nonterminal_t *, int);
 
 #define nonterminal_get_grammar(nt)      ((((ge_t *) (nt)) -> grammar))
 #define nonterminal_set_option(nt, n, t) ((nonterminal_t *) ge_set_option((ge_t *) (nt), (n), (t)))
@@ -170,9 +184,8 @@ OBLPARSER_IMPEXP rule_t *                nonterminal_get_rule(nonterminal_t *, i
 #define nonterminal_free(nt)             (data_free((data_t *) (nt)))
 #define nonterminal_tostring(nt)         (data_tostring((data_t *) (nt)))
 
-OBLPARSER_IMPEXP rule_t *                rule_create(nonterminal_t *);
-OBLPARSER_IMPEXP void                    rule_dump(rule_t *);
-OBLPARSER_IMPEXP rule_entry_t *          rule_get_entry(rule_t *, int);
+OBLGRAMMAR_IMPEXP rule_t *                rule_create(nonterminal_t *);
+OBLGRAMMAR_IMPEXP rule_entry_t *          rule_get_entry(rule_t *, int);
 
 #define rule_get_grammar(r)              ((((ge_t *) (r)) -> grammar))
 #define rule_get_nonterminal(r)          ((nonterminal_t *) ((((ge_t *) (r)) -> owner)))
@@ -182,10 +195,9 @@ OBLPARSER_IMPEXP rule_entry_t *          rule_get_entry(rule_t *, int);
 #define rule_free(r)                     (data_free((data_t *) (r)))
 #define rule_tostring(r)                 (data_tostring((data_t *) (r)))
 
-OBLPARSER_IMPEXP rule_entry_t *          rule_entry_terminal(rule_t *, token_t *);
-OBLPARSER_IMPEXP rule_entry_t *          rule_entry_non_terminal(rule_t *, char *);
-OBLPARSER_IMPEXP rule_entry_t *          rule_entry_empty(rule_t *);
-OBLPARSER_IMPEXP void                    rule_entry_dump(rule_entry_t *);
+OBLGRAMMAR_IMPEXP rule_entry_t *          rule_entry_terminal(rule_t *, token_t *);
+OBLGRAMMAR_IMPEXP rule_entry_t *          rule_entry_non_terminal(rule_t *, char *);
+OBLGRAMMAR_IMPEXP rule_entry_t *          rule_entry_empty(rule_t *);
 
 #define rule_entry_get_rule(re)          ((rule_t *) ((re) -> owner))
 #define rule_entry_get_grammar(re)       ((((ge_t *) (re)) -> grammar))

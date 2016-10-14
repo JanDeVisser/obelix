@@ -23,6 +23,7 @@
 
 #include <grammarparser.h>
 #include <list.h>
+#include <nvp.h>
 
 extern int grammar_debug;
 
@@ -45,14 +46,14 @@ static grammar_parser_t * _grammar_parser_state_entry(token_t *, grammar_parser_
 static void               _grammar_parser_syntax_error(grammar_parser_t *, char *, ...);
 
 static gp_state_rec_t _gp_state_recs[] = {
-    { "GPStateStart",        (reduce_t) _grammar_parser_state_start },
-    { "GPStateOptions",      (reduce_t) _grammar_parser_state_options },
-    { "GPStateOptionName",   (reduce_t) _grammar_parser_state_option_name },
-    { "GPStateOptionValue",  (reduce_t) _grammar_parser_state_option_value },
-    { "GPStateHeader",       (reduce_t) _grammar_parser_state_header },
-    { "GPStateNonTerminal",  (reduce_t) _grammar_parser_state_nonterminal },
-    { "GPStateRule",         (reduce_t) _grammar_parser_state_rule },
-    { "GPStateEntry",        (reduce_t) _grammar_parser_state_entry }
+  { "GPStateStart",        (reduce_t) _grammar_parser_state_start },
+  { "GPStateOptions",      (reduce_t) _grammar_parser_state_options },
+  { "GPStateOptionName",   (reduce_t) _grammar_parser_state_option_name },
+  { "GPStateOptionValue",  (reduce_t) _grammar_parser_state_option_value },
+  { "GPStateHeader",       (reduce_t) _grammar_parser_state_header },
+  { "GPStateNonTerminal",  (reduce_t) _grammar_parser_state_nonterminal },
+  { "GPStateRule",         (reduce_t) _grammar_parser_state_rule },
+  { "GPStateEntry",        (reduce_t) _grammar_parser_state_entry }
 };
 
 
@@ -350,9 +351,11 @@ void _grammar_parser_syntax_error(grammar_parser_t *gp, char *msg, ...) {
 }
 
 
-grammar_parser_t * _grammar_token_handler(token_t *token, grammar_parser_t *grammar_parser) {
-  gp_state_t state;
+grammar_parser_t * _grammar_token_handler(token_t *token, lexer_config_t *lexer) {
+  gp_state_t        state;
+  grammar_parser_t *grammar_parser;
 
+  grammar_parser = (grammar_parser_t *) lexer -> data;
   state = grammar_parser -> state;
   if (grammar_debug) {
     debug("%-18.18s %s", _gp_state_recs[state].name, token_tostring(token));
@@ -389,16 +392,25 @@ void grammar_parser_free(grammar_parser_t *grammar_parser) {
 }
 
 grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
-  lexer_t          *lexer;
+  lexer_config_t   *lexer;
+  nvp_t            *nonterminal;
+
   grammar_parser_t *grammar_parser;
 
   gp -> grammar = grammar_create();
   gp -> grammar -> dryrun = gp -> dryrun;
-  lexer = lexer_create(gp -> reader);
-  lexer_add_keyword(lexer, NONTERMINAL_DEF, NONTERMINAL_DEF_STR);
+  lexer = lexer_config_create();
 
-  lexer_set_option(lexer, LexerOptionIgnoreAllWhitespace, data_true());
-  lexer_tokenize(lexer, _grammar_token_handler, gp);
+  lexer_config_add_scanner(lexer, "keyword");
+  nonterminal = nvp_create((data_t *) str_wrap("keyword"),
+                           (data_t *) token_create(NONTERMINAL_DEF, NONTERMINAL_DEF_STR));
+  lexer_config_set(lexer, "keyword", (data_t *) nonterminal);
+  nvp_free(nonterminal);
+
+  lexer_config_add_scanner(lexer, "whitespace: ignorews=1");
+  lexer -> data = (data_t *) gp;
+
+  lexer_config_tokenize(lexer, _grammar_token_handler, gp -> reader);
   if (gp -> state != GPStateError) {
     if (grammar_analyze(gp -> grammar)) {
       if (grammar_debug) {
@@ -411,4 +423,3 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   lexer_free(lexer);
   return gp -> grammar;
 }
-

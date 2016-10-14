@@ -35,9 +35,11 @@ typedef enum _num_scanner_state {
   NumScannerStateFloat,
   NumScannerStateFloatFraction,
   NumScannerStateSciFloat,
+  NumScannerStateSciFloatExpSign,
   NumScannerStateSciFloatExp,
   NumScannerStateHexInteger,
-  NumScannerStateDone
+  NumScannerStateDone,
+  NumScannerStateError
 } num_scanner_state_t;
 
 typedef struct _num_config {
@@ -189,12 +191,11 @@ token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
 
     case NumScannerStateSciFloat:
       if ((ch == '+') || (ch == '-')) {
-        // Nothing
+        scanner -> state = NumScannerStateSciFloatExpSign;
       } else if (isdigit(ch)) {
         scanner -> state = NumScannerStateSciFloatExp;
       } else {
-        scanner -> state = NumScannerStateDone;
-        code = TokenCodeNone;
+        scanner -> state = NumScannerStateError;
       }
       break;
 
@@ -205,6 +206,14 @@ token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
       }
       break;
 
+    case NumScannerStateSciFloatExpSign:
+      if (isdigit(ch)) {
+        scanner -> state = NumScannerStateSciFloatExp;
+      } else {
+        scanner -> state = NumScannerStateError;
+      }
+      break;
+
     case NumScannerStateHexInteger:
       if (!isxdigit(ch)) {
         scanner -> state = NumScannerStateDone;
@@ -212,7 +221,7 @@ token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
       }
       break;
   }
-  if (scanner -> state != NumScannerStateDone) {
+  if ((scanner -> state != NumScannerStateDone) && (scanner -> state != NumScannerStateError)){
     lexer_push(scanner -> lexer);
   }
   return code;
@@ -224,14 +233,18 @@ token_t * _num_match(scanner_t *scanner) {
   token_t      *ret = NULL;
 
   for (scanner -> state = NumScannerStateNone;
-       scanner -> state != NumScannerStateDone;) {
+       (scanner -> state != NumScannerStateDone) && (scanner -> state != NumScannerStateError);) {
     ch = tolower(lexer_get_char(scanner -> lexer));
     code = _num_scanner_process(scanner, ch);
   }
-  if (code != TokenCodeNone) {
+  if (scanner -> state == NumScannerStateError) {
+    ret = token_create(TokenCodeError, "Malformed number");
+    lexer_accept_token(scanner -> lexer, ret);
+    token_free(ret);
+  } else if (code != TokenCodeNone) {
     ret = lexer_accept(scanner -> lexer, code);
   }
-  return ret;
+  return scanner -> lexer -> last_token;
 }
 
 /*

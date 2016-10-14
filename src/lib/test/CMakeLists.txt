@@ -8,6 +8,7 @@ add_library(
 
 add_executable(tcore tcore.c tlist.c tstr.c tresolve.c)
 target_link_libraries(tcore obltest oblcore ${CHECK_LIBRARIES} subunit ${SYSLIBS})
+install(TARGETS testlib DESTINATION lib)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(testlib PRIVATE _GNU_SOURCE)

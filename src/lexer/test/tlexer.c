@@ -104,43 +104,6 @@ END_TEST
 
 /* ----------------------------------------------------------------------- */
 
-START_TEST(test_lexa_qstring)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'single quotes' `backticks` \"double quotes\" World"));
-  ck_assert_ptr_ne(lexa -> stream, NULL);
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 11);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 4);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeSQuotedStr), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeBQuotedStr), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeDQuotedStr), 1);
-END_TEST
-
-START_TEST(test_lexa_qstring_noclose)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'no close quote"));
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeError), 1);
-END_TEST
-
-int ok = 0;
-
-void _escaped_backslashfilter(token_t *token) {
-  if (token_code(token) == TokenCodeSQuotedStr) {
-    ok = (strcmp(token_token(token), "escaped backslash \\") == 0) ? 1 : -1;
-  }
-}
-
-START_TEST(test_lexa_qstring_escaped_backslash)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'escaped backslash \\\\'"));
-  lexa_set_tokenfilter(lexa, _escaped_backslashfilter);
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(ok, 1);
-END_TEST
-
-/* ----------------------------------------------------------------------- */
-
 void _setup_comment_lexer(void) {
   lexa = setup_with_scanners();
   lexa_add_scanner(lexa, "comment: marker=/* */,marker=//,marker=^#");
@@ -185,44 +148,6 @@ END_TEST
 
 /* ----------------------------------------------------------------------- */
 
-void _setup_number_lexer(void) {
-  lexa = setup_with_scanners();
-  lexa_add_scanner(lexa, "number");
-  ck_assert_int_eq(dict_size(lexa -> scanners), 4);
-  lexa_build_lexer(lexa);
-  ck_assert_ptr_ne(lexa -> config, NULL);
-}
-
-START_TEST(test_lexa_integer)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234 World"));
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 7);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeInteger), 1);
-END_TEST
-
-START_TEST(test_lexa_float_unconfigured)
-  lexa_set_config_value(lexa, "number", "float=0");
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234.12 World"));
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 9);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeInteger), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeDot), 1);
-END_TEST
-
-START_TEST(test_lexa_float)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234.56 World"));
-  ck_assert_ptr_ne(lexa -> stream, NULL);
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 7);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeFloat), 1);
-END_TEST
-
 /* ----------------------------------------------------------------------- */
 
 void create_lexa(void) {
@@ -232,24 +157,6 @@ void create_lexa(void) {
   tcase_add_test(tc, test_lexa_tokenize);
   tcase_add_test(tc, test_lexa_newline);
   tcase_add_test(tc, test_lexa_symbols);
-  add_tcase(tc);
-}
-
-void create_qstring(void) {
-  TCase *tc = tcase_create("QString");
-  tcase_add_checked_fixture(tc, _setup_with_scanners, _teardown);
-  tcase_add_test(tc, test_lexa_qstring);
-  tcase_add_test(tc, test_lexa_qstring_noclose);
-  tcase_add_test(tc, test_lexa_qstring_escaped_backslash);
-  add_tcase(tc);
-}
-
-void create_number(void) {
-  TCase *tc = tcase_create("Number");
-  tcase_add_checked_fixture(tc, _setup_number_lexer, _teardown);
-  tcase_add_test(tc, test_lexa_integer);
-  tcase_add_test(tc, test_lexa_float_unconfigured);
-  tcase_add_test(tc, test_lexa_float);
   add_tcase(tc);
 }
 

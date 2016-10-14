@@ -64,36 +64,6 @@ void _data_init(void) {
   }
 }
 
-/* -- D A T A  P U B L I C  F U N C T I O N S ----------------------------- */
-
-data_t * data_create_noinit(int type) {
-  typedescr_t *descr;
-  data_t      *ret;
-
-  descr = typedescr_get(type);
-  ret = (data_t *) _new((descr -> size) ? descr -> size : sizeof(data_t));
-  ret = data_settype(ret, type);
-  ret -> free_me = Normal;
-  return ret;
-}
-
-data_t * data_settype(data_t *data, int type) {
-  typedescr_t *descr;
-
-  _data_init();
-  descr = typedescr_get(type);
-  if (!data -> type) {
-    data -> type = type;
-    data -> refs++;
-    data -> str = NULL;
-    data -> free_me = Normal;
-    data -> free_str = Normal;
-    descr -> count++;
-    _data_count++;
-  }
-  return data;
-}
-
 data_t * _data_call_constructor(data_t *data, new_t n, va_list args) {
   data_t  *ret;
 
@@ -125,6 +95,79 @@ data_t * _data_call_constructors(typedescr_t *type, va_list args) {
     ret = data_copy(va_arg(args, data_t *));
   }
   return ret;
+}
+
+data_t * _data_call_resolve(typedescr_t *type, data_t *data, char *name) {
+  resolve_name_t  resolve;
+  data_t         *ret = NULL;
+  int             ix;
+
+  resolve = (resolve_name_t) typedescr_get_local_function(type, FunctionResolve);
+  if (resolve) {
+    ret = resolve(data, name);
+  }
+  for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
+    ret = _data_call_resolve(typedescr_get(type -> inherits[ix]), data, name);
+  }
+  return ret;
+}
+
+void _data_call_free(typedescr_t *type, data_t *data) {
+  free_t f;
+  int    ix;
+
+  f = (free_t) typedescr_get_local_function(type, FunctionFree);
+  if (f) {
+    f(data);
+  }
+  for (ix = 0; (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
+    _data_call_free(typedescr_get(type -> inherits[ix]), data);
+  }
+}
+
+data_t * _data_call_setter(typedescr_t *type, data_t *data, char *name, data_t *value) {
+  setvalue_t  setter;
+  data_t     *ret = NULL;
+  int         ix;
+
+  setter = (setvalue_t) typedescr_get_local_function(type, FunctionSet);
+  if (setter) {
+    ret = setter(data, name, value);
+  }
+  for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
+    ret = _data_call_setter(typedescr_get(type -> inherits[ix]), data, name, value);
+  }
+  return ret;
+}
+
+/* -- D A T A  P U B L I C  F U N C T I O N S ----------------------------- */
+
+data_t * data_create_noinit(int type) {
+  typedescr_t *descr;
+  data_t      *ret;
+
+  descr = typedescr_get(type);
+  ret = (data_t *) _new((descr -> size) ? descr -> size : sizeof(data_t));
+  ret = data_settype(ret, type);
+  ret -> free_me = Normal;
+  return ret;
+}
+
+data_t * data_settype(data_t *data, int type) {
+  typedescr_t *descr;
+
+  _data_init();
+  descr = typedescr_get(type);
+  if (!data -> type) {
+    data -> type = type;
+    data -> refs++;
+    data -> str = NULL;
+    data -> free_me = Normal;
+    data -> free_str = Normal;
+    descr -> count++;
+    _data_count++;
+  }
+  return data;
 }
 
 data_t * data_create(int type, ...) {
@@ -243,19 +286,6 @@ data_t * data_promote(data_t *data) {
     : NULL;
 }
 
-void _data_call_free(typedescr_t *type, data_t *data) {
-  free_t f;
-  int    ix;
-
-  f = (free_t) typedescr_get_local_function(type, FunctionFree);
-  if (f) {
-    f(data);
-  }
-  for (ix = 0; (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
-    _data_call_free(typedescr_get(type -> inherits[ix]), data);
-  }
-}
-
 void data_free(data_t *data) {
   typedescr_t      *type;
   free_semantics_t  free_me;
@@ -367,21 +397,6 @@ data_t * data_method(data_t *data, char *name) {
       debug("%s[%s].data_method(%s) = NULL",
             data_tostring(data), data_typename(data), name);
     }
-  }
-  return ret;
-}
-
-data_t * _data_call_resolve(typedescr_t *type, data_t *data, char *name) {
-  resolve_name_t  resolve;
-  data_t         *ret = NULL;
-  int             ix;
-
-  resolve = (resolve_name_t) typedescr_get_local_function(type, FunctionResolve);
-  if (resolve) {
-    ret = resolve(data, name);
-  }
-  for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
-    ret = _data_call_resolve(typedescr_get(type -> inherits[ix]), data, name);
   }
   return ret;
 }
@@ -508,45 +523,6 @@ data_t * data_get_attribute(data_t *data, char *name) {
   return ret;
 }
 
-int data_has(data_t *self, name_t *name) {
-  data_t *attr = NULL;
-  int     ret = 0;
-
-  attr = data_resolve(self, name);
-  if (attr && !data_is_exception(attr)) {
-    ret = 1;
-  }
-  data_free(attr);
-  return ret;
-}
-
-int data_has_callable(data_t *self, name_t *name) {
-  data_t *callable = NULL;
-  int     ret = 0;
-
-  callable = data_resolve(self, name);
-  if (callable && !data_is_unhandled_exception(callable) && data_is_callable(callable)) {
-    ret = 1;
-  }
-  data_free(callable);
-  return ret;
-}
-
-data_t * _data_call_setter(typedescr_t *type, data_t *data, char *name, data_t *value) {
-  setvalue_t  setter;
-  data_t     *ret = NULL;
-  int         ix;
-
-  setter = (setvalue_t) typedescr_get_local_function(type, FunctionSet);
-  if (setter) {
-    ret = setter(data, name, value);
-  }
-  for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
-    ret = _data_call_setter(typedescr_get(type -> inherits[ix]), data, name, value);
-  }
-  return ret;
-}
-
 data_t * data_set(data_t *data, name_t *name, data_t *value) {
   data_t      *container;
   name_t      *head;
@@ -573,6 +549,40 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
     ret = data_exception(ErrorName, "Could not resolve '%s' in '%s'",
                          name_tostring(name), data_tostring(data));
   }
+  return ret;
+}
+
+data_t * data_set_attribute(data_t *data, char *name, data_t *value) {
+  name_t *n;
+  data_t *ret;
+
+  n = name_create(1, name);
+  ret = data_set(data, n, value);
+  name_free(n);
+  return ret;
+}
+
+int data_has(data_t *self, name_t *name) {
+  data_t *attr = NULL;
+  int     ret = 0;
+
+  attr = data_resolve(self, name);
+  if (attr && !data_is_exception(attr)) {
+    ret = 1;
+  }
+  data_free(attr);
+  return ret;
+}
+
+int data_has_callable(data_t *self, name_t *name) {
+  data_t *callable = NULL;
+  int     ret = 0;
+
+  callable = data_resolve(self, name);
+  if (callable && !data_is_unhandled_exception(callable) && data_is_callable(callable)) {
+    ret = 1;
+  }
+  data_free(callable);
   return ret;
 }
 

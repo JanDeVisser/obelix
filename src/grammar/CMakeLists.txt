@@ -1,28 +1,17 @@
 add_library(oblgrammar SHARED
+  grammar_action.c
+  grammar_element.c
   grammar.c
+  nonterminal.c
+  rule.c
+  rule_entry.c
   grammarparser.c
 )
 
-#add_library(oblparser SHARED
-#  boundmethod.c
-#  bytecode.c
-#  closure.c
-#  generator.c
-#  instruction.c
-#  namespace.c
-#  object.c
-#  parser.c
-#  script.c
-#  stacktrace.c
-#  vm.c
-#)
-
 target_link_libraries(oblgrammar PUBLIC oblcore obllexer)
-#target_link_libraries(oblparser PUBLIC oblcore oblgrammar obllexer)
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(oblgrammar PRIVATE _GNU_SOURCE)
-#  target_compile_definitions(oblparser PRIVATE _GNU_SOURCE)
 endif(CMAKE_COMPILER_IS_GNUCC)
 
 add_executable(panoramix panoramix.c)
@@ -33,5 +22,4 @@ endif(CMAKE_COMPILER_IS_GNUCC)
 target_link_libraries(panoramix oblgrammar obllexer oblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
 
 install(TARGETS oblgrammar DESTINATION lib)
-#install(TARGETS oblparser DESTINATION lib)
 install(TARGETS panoramix DESTINATION bin)

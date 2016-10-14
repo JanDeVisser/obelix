@@ -145,7 +145,7 @@ void _typedescr_init(void) {
     interface_register(Connector,     "connector",     1, FunctionQuery);
     interface_register(CtxHandler,    "ctxhandler",    2, FunctionEnter, FunctionLeave);
     interface_register(Incrementable, "incrementable", 2, FunctionIncr, FunctionDecr);
-    
+
     typedescr_create_and_register(Type, "type",
 				  _vtable_typedescr, _methoddescr_typedescr);
     typedescr_create_and_register(Interface, "interface",
@@ -193,7 +193,7 @@ int _methoddescr_cmp(methoddescr_t *mth1, methoddescr_t *mth2) {
 data_t * _methoddescr_resolve(methoddescr_t *mth, char *name) {
   data_t *ret;
   int     ix;
-  
+
   if (!strcmp(name, "name")) {
     return str_to_data(mth -> name);
   } else if (!strcmp(name, "args")) {
@@ -336,7 +336,7 @@ data_t * _interface_resolve(interface_t *iface, char *name) {
   data_t      *ret;
   int          ix;
   typedescr_t *type;
-  
+
   if (!strcmp(name, "name")) {
     return str_to_data(iface -> name);
   } else if (!strcmp(name, "id")) {
@@ -368,7 +368,7 @@ unsigned int _interface_hash(interface_t *iface) {
 data_t * _interface_isimplementedby(interface_t *iface, char *name, array_t *args, dict_t *kwargs) {
   data_t      *data = data_array_get(args, 0);
   typedescr_t *type;
-  
+
   (void) name;
   (void) kwargs;
   if (data_hastype(data, Interface)) {
@@ -377,7 +377,7 @@ data_t * _interface_isimplementedby(interface_t *iface, char *name, array_t *arg
     type = (data_hastype(data, Type))
       ? (typedescr_t *) data
       : data_typedescr(data);
-    return int_as_bool(typedescr_is(type, iface -> type));   
+    return int_as_bool(typedescr_is(type, iface -> type));
   }
 }
 
@@ -460,7 +460,7 @@ int _typedescr_cmp(typedescr_t *type1, typedescr_t *type2) {
 
 char * _typedescr_tostring(typedescr_t *descr) {
   char *str;
-  
+
   if (asprintf(&str, "'%s' [%d]",
 	       descr -> type_name, descr -> type) < 0) {
     str = "Out of Memory?";
@@ -509,7 +509,7 @@ data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
 data_t * _typedescr_gettype(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   data_t      *t = data_array_get(args, 0);
   typedescr_t *type;
-  
+
   (void) self;
   (void) name;
   (void) kwargs;
@@ -525,7 +525,7 @@ data_t * _typedescr_gettype(data_t *self, char *name, array_t *args, dict_t *kwa
 
 data_t * _typedescr_hastype(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   typedescr_t *type = (typedescr_t *) data_array_get(args, 0);
-  
+
   (void) name;
   (void) kwargs;
   return data_hastype(self, type -> type) ? data_true() : data_false();
@@ -626,18 +626,22 @@ typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[])
   return type;
 }
 
-typedescr_t * typedescr_assign_inheritance(typedescr_t *type, int inherits) {
-  int ix;
-  
-  for (ix = 0; ix < MAX_INHERITS; ix++) {
-    if (type -> inherits[ix] == NoType) {
-      type -> inherits[ix] = inherits;
-      break;
-    } else if (type -> inherits[ix] == inherits) {
-      break;
+typedescr_t * typedescr_assign_inheritance(int type, int inherits) {
+  typedescr_t *td;
+  int          ix;
+
+  td = typedescr_get(type);
+  if (td) {}
+    for (ix = 0; ix < MAX_INHERITS; ix++) {
+      if (type -> inherits[ix] == NoType) {
+        type -> inherits[ix] = inherits;
+        break;
+      } else if (type -> inherits[ix] == inherits) {
+        break;
+      }
     }
   }
-  return type;
+  return td;
 }
 
 typedescr_t * typedescr_get(int datatype) {

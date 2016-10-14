@@ -167,7 +167,7 @@ void file_init(void) {
     logging_register_category("file", &file_debug);
     Stream = typedescr_create_and_register(Stream, "stream", _vtable_stream, _methoddescr_stream);
     File = typedescr_create_and_register(File, "file", _vtable_file, _methoddescr_file);
-    typedescr_assign_inheritance(typedescr_get(File), Stream);
+    typedescr_assign_inheritance(File, Stream);
     StreamIter = typedescr_create_and_register(StreamIter, "streamiterator", _vtable_streamiter, NULL);
   }
 }

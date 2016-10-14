@@ -1,8 +1,11 @@
 %
   prefix:      script_parse_
-  ignore:      allwhitespace
-  hashpling:   true
-  _on_newline: mark_line
+  lexer:       "whitespace: ignorews=1,onnewline=mark_line"
+  lexer:       keyword
+  lexer:       identifier
+  lexer:       number
+  lexer:       qstring
+  lexer:       "comment: marker=/* */,marker=//,marker=^#"
 %
 
 program                     := [ init ] statements [ done ]

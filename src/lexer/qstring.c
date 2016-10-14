@@ -56,7 +56,7 @@ static int QStrScannerConfig = -1;
 /* -- Q S T R _ C O N F I G  ---------------------------------------------- */
 
 qstr_config_t *_qstr_config_create(qstr_config_t *config, va_list args) {
-  config -> quotechars = NULL;
+  config -> quotechars = strdup("\"'`");
   return config;
 }
 
@@ -120,6 +120,7 @@ token_t * _qstr_match(scanner_t *scanner) {
           lexer_discard(scanner -> lexer);
           scanner -> data = (void *) (intptr_t) ch;
           scanner -> state = QStrQString;
+          mdebug(lexer, "Start of quotes string, quote '%c'", ch);
         } else {
           scanner -> state = QStrDone;
         }
@@ -152,7 +153,7 @@ token_t * _qstr_match(scanner_t *scanner) {
         break;
     }
   }
-  if (!ch && (scanner -> state != QStrQString)) {
+  if (!ch && ((scanner -> state == QStrQString) || (scanner -> state == QStrEscape)))  {
     ret = token_create(TokenCodeError, "Unterminated string");
     lexer_accept_token(scanner -> lexer, ret);
     token_free(ret);

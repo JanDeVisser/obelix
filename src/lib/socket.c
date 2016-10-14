@@ -124,7 +124,7 @@ void _socket_init(void) {
     file_init();
     Socket = typedescr_create_and_register(Socket, "socket",
                                            _vtable_socket, _methoddescr_socket);
-    typedescr_assign_inheritance(typedescr_get(Socket), Stream);
+    typedescr_assign_inheritance(Socket, Stream);
 #ifdef HAVE_WINSOCK2_H
     result = WSAStartup(MAKEWORD(2, 2), &wsadata);
     if (result) {
