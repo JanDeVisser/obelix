@@ -166,11 +166,12 @@ grammar_t * _grammar_dump_pre(grammar_t *grammar, char *prefix, char *variable) 
   printf("#include <grammar.h>\n"
          "\n"
          "grammar_t * build_grammar() {\n"
-         "  grammar_t     *grammar;\n"
-         "  nonterminal_t *nonterminal;\n"
-         "  rule_t        *rule;\n"
-         "  rule_entry_t  *rule_entry;\n"
-         "  token_t       *token_name, *token_value;\n"
+         "  grammar_t      *grammar;\n"
+         "  nonterminal_t  *nonterminal;\n"
+         "  rule_t         *rule;\n"
+         "  rule_entry_t   *rule_entry;\n"
+         "  token_t        *token_name, *token_value;\n"
+         "  lexer_config_t *lexer_config;\n"
          "\n"
          "  grammar = grammar_create();\n");
 
@@ -192,6 +193,10 @@ grammar_t * _grammar_dump_pre(grammar_t *grammar, char *prefix, char *variable) 
              "  token_free(token_value);\n",
              lib);
     }
+  }
+  if (grammar -> lexer) {
+    lexer_config_dump(grammar -> lexer);
+    printf("  grammar -> lexer = lexer_config;\n");
   }
   printf("\n");
   return grammar;

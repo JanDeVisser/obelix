@@ -18,6 +18,7 @@
  */
 
 #include <ctype.h>
+#include <stdio.h>
 
 #include <function.h>
 #include <lexer.h>
@@ -45,10 +46,11 @@ typedef struct _ws_config {
   function_t       *onnewline;
 } ws_config_t;
 
-static ws_config_t *      _ws_config_create(ws_config_t *config, va_list args);
-static data_t *           _ws_config_resolve(ws_config_t *, char *);
-static ws_config_t *      _ws_config_set(ws_config_t *, char *, data_t *);
-static token_t *          _ws_match(scanner_t *);
+static ws_config_t * _ws_config_create(ws_config_t *config, va_list args);
+static data_t *      _ws_config_resolve(ws_config_t *, char *);
+static ws_config_t * _ws_config_set(ws_config_t *, char *, data_t *);
+static int           _ws_config_config(ws_config_t *, char **);
+static token_t *     _ws_match(scanner_t *);
 
 static vtable_t _vtable_wsscanner_config[] = {
   { .id = FunctionNew,     .fnc = (void_t ) _ws_config_create },
@@ -56,6 +58,7 @@ static vtable_t _vtable_wsscanner_config[] = {
   { .id = FunctionSet,     .fnc = (void_t ) _ws_config_set },
   { .id = FunctionUsr1,    .fnc = (void_t ) _ws_match },
   { .id = FunctionUsr2,    .fnc = NULL },
+  { .id = FunctionUsr4,    .fnc = (void_t ) _ws_config_config },
   { .id = FunctionNone,    .fnc = NULL }
 };
 
@@ -83,11 +86,13 @@ ws_config_t * _ws_config_set(ws_config_t *ws_config, char *name, data_t *data) {
   } else if (!strcmp(name, PARAM_ONNEWLINE)) {
     if (data) {
       fnc = data_as_function(data);
-      if (!fnc) {
+      if (fnc) {
+        fnc = function_copy(fnc);
+      } else {
         fnc = function_parse(data_tostring(data));
       }
     }
-    ws_config -> onnewline = function_copy(fnc);
+    ws_config -> onnewline = fnc;
   } else {
     ret = NULL;
   }
@@ -106,6 +111,24 @@ data_t * _ws_config_resolve(ws_config_t *ws_config, char *name) {
   } else {
     return NULL;
   }
+}
+
+int _ws_config_config(ws_config_t *config, char **bufptr) {
+  int               sz;
+  char             *buf;
+
+  sz = strlen(PARAM_IGNOREWS) + 3 + strlen(PARAM_IGNORENL) + 3 +
+       strlen(PARAM_ONNEWLINE) + 1 + 1;
+  sz += (config -> onnewline) ? strlen(function_tostring(config -> onnewline)) : 0;
+  *bufptr = NULL;
+  buf = (char *) _new(sz);
+  buf[0] = 0;
+  sprintf(buf, PARAM_IGNOREWS "=%d;" PARAM_IGNORENL "=%d;"
+               PARAM_ONNEWLINE "=%s",
+               config -> ignore_ws, config -> ignore_nl,
+               (config -> onnewline) ? function_tostring(config -> onnewline) : "");
+  *bufptr = buf;
+  return sz;
 }
 
 token_t * _ws_match(scanner_t *scanner) {

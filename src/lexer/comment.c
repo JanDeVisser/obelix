@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include <lexer.h>
+#include <nvp.h>
 
 /*
  * Initial size of the marker token buffer. I've never seen a comment marker
@@ -74,6 +75,7 @@ static char *             _comment_marker_tostring(comment_marker_t *);
 static comment_config_t * _comment_config_create(comment_config_t *, va_list);
 static data_t *           _comment_config_resolve(comment_config_t *, char *);
 static comment_config_t * _comment_config_set(comment_config_t *, char *, data_t *);
+static comment_config_t * _comment_config_config(comment_config_t *, array_t *);
 static comment_config_t * _comment_config_add_marker(comment_config_t *, char *);
 
 static token_t *          _comment_match(scanner_t *);
@@ -86,6 +88,7 @@ static vtable_t _vtable_comment_config[] = {
     { .id = FunctionUsr1,    .fnc = (void_t) _comment_match },
     { .id = FunctionUsr2,    .fnc = NULL },
     { .id = FunctionUsr3,    .fnc = (void_t) _comment_free_scanner },
+    { .id = FunctionUsr4,    .fnc = (void_t) _comment_config_config },
     { .id = FunctionNone,    .fnc = NULL }
 };
 
@@ -119,8 +122,9 @@ void _comment_marker_free(comment_marker_t *marker) {
 
 char * _comment_marker_tostring(comment_marker_t *marker) {
   if (!marker -> str) {
-    asprintf(&marker -> str, "%s%s %s]", marker -> hashpling ? "[^" : "[",
+    asprintf(&marker -> str, "%s%s%s%s", marker -> hashpling ? "^" : "",
                              marker -> start,
+                             (marker -> end) ? " " : "",
                              (marker -> end) ? marker -> end : "");
   }
   return marker -> str;
@@ -248,7 +252,7 @@ comment_config_t *_comment_config_add_marker(comment_config_t *config,
   comment_marker -> start = strdup(start);
   comment_marker -> end = (end) ? strdup(end) : NULL;
   comment_marker -> next = config -> markers;
-  mdebug(lexer, "Created comment marker %s", _comment_marker_tostring(comment_marker));
+  mdebug(lexer, "Created comment marker [%s]", _comment_marker_tostring(comment_marker));
   config -> markers = comment_marker;
   config -> num_markers++;
   if (strlen(start) > config -> longest_marker) {
@@ -274,6 +278,16 @@ data_t * _comment_config_resolve(comment_config_t *config, char *name) {
   } else {
     return NULL;
   }
+}
+
+comment_config_t * _comment_config_config(comment_config_t *config, array_t *cfg) {
+  comment_marker_t *marker;
+
+  for (marker = config -> markers; marker; marker = marker -> next) {
+    array_push(cfg, nvp_create(str_to_data(PARAM_MARKER),
+                               str_to_data(_comment_marker_tostring(marker))));
+  }
+  return config;
 }
 
 /* ---------------------------------------------------------------------- - */

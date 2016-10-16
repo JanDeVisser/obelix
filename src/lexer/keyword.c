@@ -76,7 +76,6 @@ static kw_scanner_t *  _kw_scanner_scan(scanner_t *);
 static kw_scanner_t *  _kw_scanner_match(scanner_t *, int ch);
 static kw_scanner_t *  _kw_scanner_reset(scanner_t *);
 static token_t *       _kw_match(scanner_t *);
-static token_t *       _kw_match_2nd_pass(scanner_t *);
 
 static vtable_t _vtable_kwscanner_config[] = {
   { .id = FunctionNew,          .fnc = (void_t) _kw_config_create },
@@ -207,13 +206,9 @@ kw_scanner_t * _kw_scanner_match(scanner_t *scanner, int ch) {
   kw_scanner_state_t  state = (kw_scanner_state_t) scanner -> state;
   kw_config_t        *config = (kw_config_t *) scanner -> config;
   kw_scanner_t       *kw_scanner = (kw_scanner_t *) scanner -> data;
-  lexer_t            *lexer = scanner -> lexer;
   int                 len;
   int                 ix;
-  int                 matchcount;
-  int                 sz;
   char               *kw;
-  token_t           **tmp;
 
   if (!config -> num_keywords) {
     scanner -> state = KSSNoMatch;
@@ -334,7 +329,6 @@ kw_scanner_t * _kw_scanner_reset(scanner_t *scanner) {
 }
 
 kw_scanner_t * _kw_scanner_scan(scanner_t *scanner) {
-  kw_config_t  *config = (kw_config_t *) scanner -> config;
   kw_scanner_t *kw_scanner = (kw_scanner_t *) scanner -> data;
   int           carry_on;
   int           ch;
@@ -400,8 +394,6 @@ token_t * _kw_match(scanner_t *scanner) {
 }
 
 void keyword_register(void) {
-  typedescr_t *ret;
-
   KWScannerConfig = typedescr_create_and_register(
       KWScannerConfig, "keyword", _vtable_kwscanner_config, NULL);
   typedescr_set_size(KWScannerConfig, kw_config_t);

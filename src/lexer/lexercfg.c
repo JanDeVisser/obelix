@@ -18,9 +18,11 @@
  */
 
 #include <ctype.h>
+#include <stdio.h>
 
 #include <exception.h>
 #include <lexer.h>
+#include "liblexer.h"
 
 /* ------------------------------------------------------------------------ */
 
@@ -108,7 +110,6 @@ data_t * _lexer_config_set(lexer_config_t *config, char *name, data_t *value) {
 
 data_t * _lexer_config_mth_add_scanner(lexer_config_t *config, char *n, array_t *args, dict_t *kwargs) {
   data_t           *code;
-  scanner_config_t *scanner;
 
   code = data_array_get(args, 0);
   return (data_t *) lexer_config_add_scanner(config, data_tostring(code));
@@ -134,7 +135,6 @@ scanner_config_t * _lexer_config_add_scanner(lexer_config_t *config, char *code)
   scanner_config_t *scanner;
   scanner_config_t *next;
   scanner_config_t *prev;
-  typedescr_t      *type;
   int               priority;
 
   scanner = scanner_config_create(code, config);
@@ -166,7 +166,6 @@ scanner_config_t * _lexer_config_add_scanner(lexer_config_t *config, char *code)
 
 lexer_config_t * lexer_config_create(void) {
   lexer_config_t *ret;
-  int      ix;
 
   _lexer_config_init();
   ret = data_new(LexerConfig, lexer_config_t);
@@ -185,19 +184,18 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_c
   scanner_config_t *scanner = NULL;
 
   copy = strdup(code_config);
-  ptr = strpbrk(copy, ":=");
+  ptr = strchr(copy, ':');
   if (ptr) {
     *ptr = 0;
     param = ptr + 1;
     if (!*param) {
       param = NULL;
+    } else {
+      param = strtrim(param);
     }
   }
-  for (code = copy; *code && isspace(*code); code++);
+  code = strtrim(code);
   if (*code) {
-    for (ptr = code + strlen(code) - 1; isspace(*ptr); ptr--) {
-      *ptr = 0;
-    }
     scanner = lexer_config_get_scanner(config, code);
     if (!scanner) {
       scanner = _lexer_config_add_scanner(config, code);
@@ -250,5 +248,18 @@ lexer_config_t * lexer_config_tokenize(lexer_config_t *config, reduce_t tokenize
   lexer = lexer_create(config, stream);
   lexer_tokenize(lexer, tokenizer, config);
   lexer_free(lexer);
+  return config;
+}
+
+lexer_config_t * lexer_config_dump(lexer_config_t *config) {
+  scanner_config_t        *scanner;
+
+  printf("  lexer_config = lexer_config_create();\n");
+  printf("  lexer_config_set_bufsize(lexer_config, %d)\n",
+         lexer_config_get_bufsize(config));
+  for (scanner = config -> scanners; scanner; scanner = scanner -> next) {
+    printf("  lexer_config_add_scanner(lexer_config, \"%s\")\n",
+           scanner_config_tostring(scanner));
+  }
   return config;
 }

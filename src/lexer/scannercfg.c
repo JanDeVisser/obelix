@@ -91,9 +91,27 @@ void _scanner_config_free(scanner_config_t *config) {
 }
 
 char * _scanner_config_allocstring(scanner_config_t *config) {
-  char *buf;
+  char      *buf;
+  str_t     *configbuf;
+  data_t * (*conffnc)(scanner_config_t *, array_t *);
+  array_t   *cfg;
 
-  asprintf(&buf, "Configuration for '%s' scanner", data_typename(config));
+  configbuf = NULL;
+  cfg = data_array_create(0);
+  conffnc = (data_t * (*)(scanner_config_t *, array_t *)) data_get_function((data_t *) config, FunctionUsr4);
+  if (conffnc) {
+    if (!conffnc(config, cfg) && array_empty(cfg)) {
+      configbuf = NULL;
+    }
+    configbuf = array_join(cfg, ";");
+  }
+  if (configbuf) {
+    asprintf(&buf, "%s: %s", data_typename(config), str_chars(configbuf));
+    free(configbuf);
+  } else {
+    asprintf(&buf, "%s", data_typename(config))
+  }
+  array_free(cfg);
   return buf;
 }
 
@@ -117,8 +135,10 @@ data_t * _scanner_config_resolve(scanner_config_t *config, char *name) {
 scanner_config_t * _scanner_config_set(scanner_config_t *config, char *name, data_t *value) {
   scanner_config_t  *ret = NULL;
 
-  if (!strcmp(name, "configuration")) {
+  if (!strcmp(name, PARAM_CONFIGURATION)) {
     ret = scanner_config_configure(config, value);
+  } else if (!strcmp(name, PARAM_PRIORITY)) {
+    config -> priority = data_intval(value);
   } else {
     if (lexer_debug) {
       debug("Setting value '%s' for parameter '%s' on scanner config '%s'",
@@ -128,7 +148,7 @@ scanner_config_t * _scanner_config_set(scanner_config_t *config, char *name, dat
       config -> config = strdata_dict_create();
     }
     ret = config;
-    dict_put(config -> config, strdup(name), ret);
+    dict_put(config -> config, strdup(name), data_copy(value));
   }
   return ret;
 }
@@ -159,7 +179,7 @@ scanner_config_t * _scanner_config_setstring(scanner_config_t *config, char *val
   value = strdup(value);
   mdebug(lexer, "Setting config string '%s' on scanner config '%s'",
                 value, data_typename(config));
-  ptr = strpbrk(value, ":=");
+  ptr = strchr(value, "=");
   if (ptr) {
     *ptr = 0;
     ptr = strtrim(ptr + 1);
@@ -269,9 +289,9 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
     } else if (value != data_null()) {
       params = strdup(data_tostring(value));
       param = params;
-      for (sepptr = strpbrk(param, SCANNER_CONFIG_SEPARATORS);
+      for (sepptr = strchr(param, ';');
            sepptr;
-           sepptr = strpbrk(param, SCANNER_CONFIG_SEPARATORS)) {
+           sepptr = strchr(param, ';')) {
         *sepptr = 0;
         _scanner_config_setstring(config, param);
         param = sepptr + 1;

@@ -66,8 +66,8 @@ void _nvp_free(nvp_t *nvp) {
 
 char * _nvp_allocstring(nvp_t *nvp) {
   char *buf;
-  
-  asprintf(&buf, "%s: %s",
+
+  asprintf(&buf, "%s=%s",
 	   data_tostring(nvp -> name),
 	   data_tostring(nvp -> value));
   return buf;
@@ -114,7 +114,9 @@ nvp_t * nvp_parse(char *str) {
   if (ptr) {
     *ptr = 0;
     val = ptr + 1;
+    val = strtrim(val);
   }
+  name = strtrim(name);
   n = str_to_data(name);
   v = (val) ? data_decode(val) : data_true();
   ret = nvp_create(n, v);
