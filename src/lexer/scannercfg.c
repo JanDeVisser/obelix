@@ -17,6 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 
 #include <function.h>
@@ -109,7 +110,7 @@ char * _scanner_config_allocstring(scanner_config_t *config) {
     asprintf(&buf, "%s: %s", data_typename(config), str_chars(configbuf));
     free(configbuf);
   } else {
-    asprintf(&buf, "%s", data_typename(config))
+    asprintf(&buf, "%s", data_typename(config));
   }
   array_free(cfg);
   return buf;
@@ -118,6 +119,7 @@ char * _scanner_config_allocstring(scanner_config_t *config) {
 data_t * _scanner_config_resolve(scanner_config_t *config, char *name) {
   data_t *ret;
 
+  ret = NULL;
   if (!strcmp(name, PARAM_CONFIGURATION)) {
     if (config -> config) {
       ret = (data_t *) str_copy_chars(dict_tostring(config -> config));
@@ -179,7 +181,7 @@ scanner_config_t * _scanner_config_setstring(scanner_config_t *config, char *val
   value = strdup(value);
   mdebug(lexer, "Setting config string '%s' on scanner config '%s'",
                 value, data_typename(config));
-  ptr = strchr(value, "=");
+  ptr = strchr(value, '=');
   if (ptr) {
     *ptr = 0;
     ptr = strtrim(ptr + 1);

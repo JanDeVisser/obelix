@@ -1,0 +1,4 @@
+{
+  "gccDefaultCFlags": "-Wall -std=c99",
+  "gccIncludePaths": "build,include"
+}

@@ -23,6 +23,7 @@
 
 #include <exception.h>
 #include <lexer.h>
+#include <nvp.h>
 
 #define PARAM_TOUPPER         "toupper"
 #define PARAM_ONLYUPPER       "onlyupper"
@@ -62,7 +63,7 @@ typedef struct _id_config {
 static id_config_t * _id_config_create(id_config_t *config, va_list args);
 static data_t *      _id_config_set(id_config_t *, char *, data_t *);
 static data_t *      _id_config_resolve(id_config_t *, char *);
-static int           _id_config_config(id_config_t *config, char **);
+static id_config_t * _id_config_config(id_config_t *, array_t *);
 static token_t *     _id_match(scanner_t *);
 
 static vtable_t _vtable_idscanner_config[] = {
@@ -148,23 +149,13 @@ data_t * _id_config_resolve(id_config_t *id_config, char *name) {
   }
 }
 
-int _id_config_config(id_config_t *config, char **bufptr) {
-  int               sz;
-  char             *buf;
-
-  sz = strlen(PARAM_FOLD) + 2 + strlen(PARAM_DIGITS) + 3 +
-       strlen(PARAM_UNDERSCORE) + 3 + strlen(PARAM_TOKENCODE) + 1 + 1;
-  sz += strlen(label_for_code(foldcase_labels, config -> foldcase));
-  sz += strlen(itoa(config -> code));
-  *bufptr = NULL;
-  buf = (char *) _new(sz);
-  buf[0] = 0;
-  sprintf(buf, PARAM_FOLD "=%s;" PARAM_DIGITS "=%d;" PARAM_UNDERSCORE "=%d;"
-               PARAM_TOKENCODE "=%d",
-               label_for_code(foldcase_labels, config -> foldcase),
-               config -> digits, config -> underscore, config -> code);
-  *bufptr = buf;
-  return sz;
+id_config_t * _id_config_config(id_config_t *config, array_t *cfg) {
+  array_push(cfg, nvp_create(str_to_data(PARAM_FOLD),
+                             str_to_data(label_for_code(foldcase_labels, config -> foldcase))));
+  array_push(cfg, nvp_create(str_to_data(PARAM_DIGITS), (data_t *) bool_get(config -> digits)));
+  array_push(cfg, nvp_create(str_to_data(PARAM_UNDERSCORE), (data_t *) bool_get(config -> underscore)));
+  array_push(cfg, nvp_create(str_to_data(PARAM_TOKENCODE), int_to_data(config -> code)));
+  return config;
 }
 
 token_t * _id_match(scanner_t *scanner) {

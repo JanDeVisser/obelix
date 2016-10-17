@@ -143,8 +143,6 @@ char * token_code_name(token_code_t code) {
 /* ------------------------------------------------------------------------ */
 
 token_t * _token_new(token_t *token, va_list args) {
-  ret -> token = NULL;
-  ret -> size = 0;
   return token_assign(token, va_arg(args, unsigned int), va_arg(args, char *));
 }
 
@@ -195,7 +193,7 @@ data_t * _token_iswhitespace(token_t *self, char *n, array_t *args, dict_t *kwar
 
 token_t * token_create(unsigned int code, char *token) {
   _token_init();
-  return data_create(Token, code, token);
+  return (token_t *) data_create(Token, code, token);
 }
 
 token_t * token_parse(char *token) {
