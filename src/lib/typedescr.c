@@ -631,12 +631,12 @@ typedescr_t * typedescr_assign_inheritance(int type, int inherits) {
   int          ix;
 
   td = typedescr_get(type);
-  if (td) {}
+  if (td) {
     for (ix = 0; ix < MAX_INHERITS; ix++) {
-      if (type -> inherits[ix] == NoType) {
-        type -> inherits[ix] = inherits;
+      if (td -> inherits[ix] == NoType) {
+        td -> inherits[ix] = inherits;
         break;
-      } else if (type -> inherits[ix] == inherits) {
+      } else if (td -> inherits[ix] == inherits) {
         break;
       }
     }

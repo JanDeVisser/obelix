@@ -76,6 +76,9 @@ char * _resolve_rewrite_image(char *image, char *buf) {
   char  canonical_buf[MAX_PATH + 1];
   char *ptr;
   char *canonical;
+#ifdef __WIN32__
+  int   ix;
+#endif /* __WIN32__ */
 
   if (!image) {
     return NULL;

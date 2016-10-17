@@ -246,11 +246,11 @@ fsentry_iter_t * _fsentry_iter_create(fsentry_t *dir) {
 #elif defined(HAVE__FINDFIRST)
   d =_findfirst("*.*", &attrib);
 #endif
-  if (d && ((long) d != -1L)) {
+  if (d && ((intptr_t) d != -1L)) {
     ret = data_new(FSEntryIter, fsentry_iter_t);
     ret -> dir = dir;
     ret -> dirptr = d;
-#ifdef HAVE__FINDFIRST
+#if defined(HAVE__FINDFIRST) && !defined(HAVE_DIRENT_H)
     memcpy(ret -> entryptr, &attrib, sizeof(struct _filedata));
 #endif
     ret = _fsentry_iter_readnext(ret);

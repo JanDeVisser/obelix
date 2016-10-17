@@ -347,9 +347,9 @@ data_t * _bool_cast(int_t *data, int totype) {
 
 /* ----------------------------------------------------------------------- */
 
-int_t * int_create(long val) {
+int_t * int_create(intptr_t val) {
   int_t *ret;
-  
+
   ret = (int_t *) data_dict_get(_ints, (void *) val);
   if (!ret) {
     ret = data_new(Int, int_t);

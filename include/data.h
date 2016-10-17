@@ -130,7 +130,7 @@ OBLCORE_IMPEXP data_t *            data_push(data_t *, data_t *);
 OBLCORE_IMPEXP data_t *            data_pop(data_t *);
 OBLCORE_IMPEXP int                 data_count(void);
 
-OBLCORE_IMPEXP int_t *             int_create(long);
+OBLCORE_IMPEXP int_t *             int_create(intptr_t);
 OBLCORE_IMPEXP int_t *             bool_get(long);
 OBLCORE_IMPEXP flt_t *             flt_create(double);
 OBLCORE_IMPEXP pointer_t *         ptr_create(int, void *);
