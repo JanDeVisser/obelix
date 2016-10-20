@@ -17,7 +17,9 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+  #define _GNU_SOURCE
+#endif
 #include <stdio.h>
 
 #include <function.h>
@@ -306,4 +308,11 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
   }
   mdebug(lexer, "Configured scanner '%s'", data_typename(config));
   return config;
+}
+
+scanner_config_t * scanner_config_dump(scanner_config_t *scanner) {
+  scanner_config_t * (*dumpfnc)(scanner_config_t *);
+
+  dumpfnc = (scanner_config_t * (*)(scanner_config_t *)) data_get_function((data_t *) scanner, FunctionUsr5);
+  return (dumpfnc) ? dumpfnc(scanner) : scanner;
 }

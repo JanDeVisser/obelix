@@ -268,26 +268,28 @@ START_TEST(test_list_visit)
 END_TEST
 
 void * test_list_reducer(void *data, void *curr) {
-  long count = (long) curr;
-  test_t *t = (test_t *) data;
+  intptr_t  count = (intptr_t) curr;
+  test_t   *t = (test_t *) data;
 
   count += t -> flag;
   return (void *) count;
 }
 
 START_TEST(test_list_reduce)
-  list_t *l;
+  list_t   *l;
+  intptr_t  count;
 
   l = setup5();
   list_visit(l, test_list_visitor);
-  long count = (long) list_reduce(l, test_list_reducer, (void *) 0L);
+  count = (intptr_t) list_reduce(l, test_list_reducer, (void *) 0);
   ck_assert_int_eq(count, 5);
   teardown(l);
 END_TEST
 
 START_TEST(test_list_replace)
-  list_t *l;
+  list_t         *l;
   listiterator_t *iter;
+  intptr_t        count;
 
   l = setup5();
   for(iter = li_create(l); li_has_next(iter); ) {
@@ -296,7 +298,7 @@ START_TEST(test_list_replace)
     test -> flag = 2;
     li_replace(iter, test);
   }
-  long count = (long) list_reduce(l, test_list_reducer, (void *) 0L);
+  count = (intptr_t) list_reduce(l, test_list_reducer, (void *) 0L);
   ck_assert_int_eq(count, 10);
   teardown(l);
 END_TEST

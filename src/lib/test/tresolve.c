@@ -23,8 +23,6 @@
 typedef test_t * (*testfactory_t)(char *);
 typedef void *   (*helloworld_t)(char *);
 
-static void _init_tresolve(void) __attribute__((constructor(300)));
-
 START_TEST(test_resolve_get)
   resolve_t *resolve;
 
@@ -47,7 +45,7 @@ START_TEST(test_resolve_resolve)
 
   resolve = resolve_get();
   ck_assert_ptr_ne(resolve, NULL);
-  tc = (testfactory_t) resolve_resolve(resolve, "test_create");
+  tc = (testfactory_t) resolve_resolve(resolve, "test_factory");
   ck_assert_ptr_ne(tc, NULL);
   test = tc("test");
   ck_assert_str_eq(test -> data, "test");
@@ -62,7 +60,7 @@ START_TEST(test_resolve_function)
   testfactory_t  tc;
   test_t        *test;
 
-  tc = (testfactory_t) resolve_function("test_create");
+  tc = (testfactory_t) resolve_function("test_factory");
   ck_assert_ptr_ne(tc, NULL);
   test = tc("test");
   ck_assert_str_eq(test -> data, "test");

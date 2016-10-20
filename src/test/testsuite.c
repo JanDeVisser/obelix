@@ -33,7 +33,12 @@ static type_t _type_test = {
   .free     = (free_t) test_free,
   .cmp      = (cmp_t) test_cmp
 };
+
 type_t *type_test = &_type_test;
+
+__DLL_EXPORT__ test_t * test_factory(char *data) {
+  return test_create(data);
+}
 
 test_t * test_create(char *data) {
   test_t *ret;
@@ -79,20 +84,16 @@ void add_tcase(TCase *tc) {
   }
 }
 
+extern void init_suite(void);
+
 int main(int argc, char **argv){
   int      number_failed;
   SRunner *sr;
-  void_t   init_suite;
 
   _suite = suite_create("default");
-  init_suite = resolve_function("init_suite");
-  if (!init_suite) {
-    fprintf(stderr, "%s: No init_suite function\n", argv[0]);
-    return EXIT_FAILURE;
-  }
   init_suite();
   sr = srunner_create(_suite);
-  srunner_set_fork_status(sr, CK_NOFORK);
+  //srunner_set_fork_status(sr, CK_NOFORK);
   srunner_run_all(sr, CK_VERBOSE);
   number_failed = srunner_ntests_failed(sr);
   srunner_free(sr);

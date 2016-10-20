@@ -24,7 +24,7 @@
 #include <core.h>
 
 #if (defined __WIN32__) || (defined _WIN32)
-#ifdef oblparser_EXPORTS
+#ifdef obllexer_EXPORTS
 #define OBLLEXER_IMPEXP	__DLL_EXPORT__
 #else /* ! oblcore_EXPORTS */
 #define OBLLEXER_IMPEXP	__DLL_IMPORT__

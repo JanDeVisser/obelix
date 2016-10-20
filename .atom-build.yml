@@ -1,7 +1,7 @@
 cmd: "make"
 cwd: "{PROJECT_PATH}/build"
 sh: false
-errorMatch: "(?<file>[\\/0-9a-zA-Z\\.]+):(?<line>\\d+):(?<col>\\d+):\\ error:\\s+(?<message>.+)"
+errorMatch: "(?<file>([A-Z]:)?\\/[\\/0-9a-zA-Z\\.]+):(?<line>\\d+):(?<col>\\d+):\\ error:\\s+(?<message>.+)"
 warningMatch: "(?<file>[\\/0-9a-zA-Z\\.]+):(?<line>\\d+):(?<col>\\d+):\\ warning:\\s+(?<message>.+)"
 
 targets:

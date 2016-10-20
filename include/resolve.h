@@ -25,9 +25,20 @@
 #include <dict.h>
 #include <mutex.h>
 
+typedef struct _resolve_handle {
+#ifdef HAVE_DLFCN_H
+  void                   *handle;
+#elif defined(HAVE_WINDOWS_H)
+  HMODULE                 handle;
+#endif /* HAVE_DLFCN_H */
+  char                   *image;
+  char                   *platform_image;
+  struct _resolve_handle *next;
+} resolve_handle_t;
+
 typedef struct _resolve {
-  list_t  *images;
-  dict_t  *functions;
+  resolve_handle_t *images;
+  dict_t           *functions;
 } resolve_t;
 
 OBLCORE_IMPEXP resolve_t * resolve_get(void);

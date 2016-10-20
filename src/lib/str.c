@@ -687,15 +687,7 @@ array_t * str_split(str_t *str, char *sep) {
   array_t *ret;
   str_t   *c;
 
-  ret = array_create(4);
-  array_set_free(
-    array_set_hash(
-      array_set_tostring(
-        array_set_cmp(ret, (cmp_t) str_cmp),
-        (tostring_t) str_chars),
-      (hash_t) str_hash),
-    (free_t) _str_free);
-
+  ret = data_array_create(4);
   if (str_len(str)) {
     ptr = str -> buffer;
     for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {

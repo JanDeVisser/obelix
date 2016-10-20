@@ -35,30 +35,246 @@
 #include <resolve.h>
 
 #define OBL_INIT    "_obl_init"
+#ifndef MAX_PATH
+#define MAX_PATH       PATH_MAX
+#endif /* MAX_PATH */
 
-int resolve_debug = 0;
+typedef struct _resolve_result {
+  void_t    result;
+  int       errorcode;
+  char     *error;
+} resolve_result_t;
 
-static inline void __resolve_init(void);
-static char *      _resolve_rewrite_image(char *, char *);
-static resolve_t * _resolve_open(resolve_t *, char *);
+       int                resolve_debug = 0;
 
-static resolve_t      *_singleton = NULL;
-static pthread_once_t  _resolve_once = PTHREAD_ONCE_INIT;
-static pthread_mutex_t _resolve_mutex;
+static resolve_result_t * _resolve_result_create(void_t);
+static void               _resolve_result_free(resolve_result_t *);
+
+static resolve_handle_t * _resolve_handle_create(char *);
+static void               _resolve_handle_free(resolve_handle_t *);
+static char *             _resolve_handle_tostring(resolve_handle_t *);
+static char *             _resolve_handle_get_platform_image(resolve_handle_t *);
+static resolve_handle_t * _resolve_handle_open(resolve_handle_t *);
+static resolve_result_t * _resolve_handle_get_function(resolve_handle_t *, char *);
+
+static inline void        __resolve_init(void);
+static resolve_t *        _resolve_open(resolve_t *, char *);
+
+static resolve_t *        _singleton = NULL;
+static pthread_once_t     _resolve_once = PTHREAD_ONCE_INIT;
+static pthread_mutex_t    _resolve_mutex;
 
 #define _resolve_init() pthread_once(&_resolve_once, __resolve_init)
+
+/* ------------------------------------------------------------------------ */
+
+resolve_result_t * _resolve_result_create(void_t function) {
+  char             *error;
+  int               errorcode;
+  resolve_result_t *ret;
+
+  errorcode = 0;
+  error = NULL;
+  if (!function) {
+#ifdef HAVE_DLFCN_H
+    error = dlerror();
+    if (error) {
+      error = strdup(error);
+      errorcode = -1;
+    }
+#elif defined(HAVE_WINDOWS_H)
+    errorcode = GetLastError();
+    if (errorcode == ERROR_PROC_NOT_FOUND) {
+      errorcode = 0;
+    } else if (errorcode) {
+      FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL, errorcode,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                    (LPTSTR) &error, 0, NULL);
+    } else {
+      error = NULL;
+    }
+#endif /* HAVE_DLFCN_H */
+  }
+  ret = NEW(resolve_result_t);
+  ret -> result = function;
+  ret -> error = error;
+  ret -> errorcode = errorcode;
+  if (ret -> error) {
+    mdebug(resolve, "resolve_result has error '%s' (%d)", ret -> error, ret -> errorcode);
+  } else {
+    mdebug(resolve, "resolve_result OK, function is %sNULL", (ret -> result) ? "NOT " : "");
+  }
+  return ret;
+}
+
+void _resolve_result_free(resolve_result_t *result) {
+  if (result) {
+    free(result -> error);
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+
+resolve_handle_t * _resolve_handle_create(char *image) {
+  resolve_handle_t *ret = NEW(resolve_handle_t);
+
+  ret -> image = image ? strdup(image) : NULL;
+  ret -> platform_image = NULL;
+  ret -> next = NULL;
+  return _resolve_handle_open(ret);
+}
+
+void _resolve_handle_free(resolve_handle_t *handle) {
+  if (handle) {
+#ifdef HAVE_DLFCN_H
+    dlclose(handle -> handle);
+#elif defined(HAVE_WINDOWS_H)
+    FreeLibrary(handle -> handle);
+#endif /* HAVE_DLFCN_H */
+    free(handle -> image);
+    free(handle -> platform_image);
+  }
+}
+
+char * _resolve_handle_tostring(resolve_handle_t *handle) {
+  return handle -> image ? handle -> image : "Main Program Image";
+}
+
+char * _resolve_handle_get_platform_image(resolve_handle_t *handle) {
+  int   len;
+  char *ptr;
+  char *canonical;
+#ifdef __WIN32__
+  int   ix;
+#endif /* __WIN32__ */
+
+  if (!handle -> image) {
+    return NULL;
+  }
+  if (!handle -> platform_image) {
+    handle -> platform_image = (char *) _new(MAX_PATH + 1);
+    canonical = handle -> platform_image;
+    len = strlen(handle -> image);
+    if (len > MAX_PATH - 8) len = MAX_PATH - 8;
+#ifdef __CYGWIN__
+    strcpy(canonical, "cyg");
+    canonical += strlen("cyg");
+#endif /* __CYGWIN__ */
+    for (ix = 0; ix < len; ix++) {
+#ifdef __WIN32__
+      canonical[ix] = tolower(handle -> image[ix]);
+#else /* !__WIN32__ */
+      canonical[ix] = handle -> image[ix];
+      if (canonical[ix] == '\\') {
+        canonical[ix] = '/';
+      }
+#endif /* __WIN32__ */
+    }
+    canonical[len] = 0;
+
+    if ((ptr = strrchr(canonical, '.'))) {
+      ptr++;
+      if ((*ptr != '/') && (*ptr != '\\')) {
+        *ptr = 0;
+      }
+      canonical = ptr;
+    } else {
+      canonical[len + 1] = 0;
+      canonical[len] = '.';
+      canonical += (len + 1);
+    }
+#if defined(__WIN32__) || defined(__CYGWIN__)
+    strcpy(canonical, "dll");
+#elif defined(__APPLE__)
+    strcpy(canonical, "dylib");
+#endif
+  }
+  return handle -> platform_image;
+}
+
+resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
+  char             *err = NULL;
+  resolve_handle_t *ret = NULL;
+  char             *image;
+  resolve_result_t *result;
+#ifdef HAVE_DLFNC_H
+  int               res;
+#elif defined(HAVE_WINDOWS_H)
+  DWORD             res;
+#endif
+
+  image = _resolve_handle_get_platform_image(handle);
+  if (image) {
+    mdebug(resolve, "resolve_open('%s') ~ '%s'", handle -> image, image);
+  } else {
+    mdebug(resolve, "resolve_open('Main Program Image')");
+  }
+#ifdef HAVE_DLFCN_H
+  dlerror();
+  res = 0;
+  handle -> handle = dlopen(image, RTLD_NOW | RTLD_GLOBAL);
+  err = dlerror();
+  if (err) {
+    err = strdup(err);
+    res = -1;
+  }
+#elif defined(HAVE_WINDOWS_H)
+  SetLastError(0);
+  handle -> handle = (image) ? LoadLibrary(TEXT(image)) : GetModuleHandle(NULL);
+  res = GetLastError();
+  if (res) {
+    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+                  FORMAT_MESSAGE_IGNORE_INSERTS,
+                  NULL, res, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  (LPTSTR) &err, 0, NULL);
+  }
+#endif /* HAVE_DLFCN_H */
+  if (handle -> handle && !err) {
+    ret = handle;
+    result = _resolve_handle_get_function(handle, OBL_INIT);
+    if (result -> result) {
+      mdebug(resolve, "resolve_open('%s') Executing initializer", _resolve_handle_tostring(handle));
+      (result -> result)();
+    } else if (!result -> errorcode){
+      mdebug(resolve, "resolve_open('%s') No initializer", _resolve_handle_tostring(handle));
+    } else {
+      error("resolve_open('%s') Error finding initializer: %s (%d)",
+            _resolve_handle_tostring(handle), result -> error, result -> errorcode);
+      ret = NULL;
+    }
+    if (ret) {
+      mdebug(resolve, "Library '%s' opened successfully");
+    }
+    _resolve_result_free(result);
+  } else {
+    error("resolve_open('%s') FAILED: %s (%d)",  _resolve_handle_tostring(handle), err, res);
+  }
+  return ret;
+}
+
+resolve_result_t * _resolve_handle_get_function(resolve_handle_t *handle, char *function_name) {
+  void_t            function;
+
+  mdebug(resolve, "dlsym('%s', '%s')", _resolve_handle_tostring(handle), function_name);
+#ifdef HAVE_DLFCN_H
+  dlerror();
+  function = (void_t) dlsym(handle -> handle, function_name);
+#elif defined(HAVE_WINDOWS_H)
+  SetLastError(0);
+  function = (void_t) GetProcAddress(handle -> handle, function_name);
+#endif /* HAVE_DLFCN_H */
+  return _resolve_result_create(function);
+}
+
+/* ------------------------------------------------------------------------ */
 
 void __resolve_init(void) {
   logging_register_category("resolve", &resolve_debug);
   assert(!_singleton);
   _singleton = NEW(resolve_t);
 
-  _singleton -> images = list_create();
-#ifdef HAVE_DLFCN_H
-  list_set_free(_singleton -> images, (free_t) dlclose);
-#elif defined(HAVE_WINDOWS_H)
-  list_set_free(_singleton -> images, (free_t) FreeLibrary);
-#endif /* HAVE_DLFCN_H */
+  _singleton -> images = NULL;
   _singleton -> functions = strvoid_dict_create();
   if (!_resolve_open(_singleton, NULL)) {
     error("Could not load main program image");
@@ -67,62 +283,20 @@ void __resolve_init(void) {
   atexit(resolve_free);
 }
 
-#ifndef MAX_PATH
-#define MAX_PATH       PATH_MAX
-#endif /* MAX_PATH */
-
-char * _resolve_rewrite_image(char *image, char *buf) {
-  int   len;
-  char  canonical_buf[MAX_PATH + 1];
-  char *ptr;
-  char *canonical;
-#ifdef __WIN32__
-  int   ix;
-#endif /* __WIN32__ */
-
-  if (!image) {
-    return NULL;
-  }
-  canonical = canonical_buf;
-  len = strlen(image);
-  if (len > MAX_PATH - 8) len = MAX_PATH - 8;
-#ifdef __CYGWIN__
-  strcpy(canonical, "cyg");
-  canonical += strlen("cyg");
-#endif /* __CYGWIN__ */
-#ifdef __WIN32__
-  for (ix = 0; ix < len; ix++) {
-    canonical[ix] = tolower(image[ix]);
-  }
-  canonical[len] = 0;
-#else /* !__WIN32__ */
-  strcpy(canonical, image);
-#endif /* __WIN32__ */
-
-  /* FIXME Relative paths! */
-  if ((ptr = strchr(canonical, '.'))) {
-    *ptr = 0;
-  }
-  strcpy(buf, canonical);
-#if defined(__WIN32__) || defined(__CYGWIN__)
-  strcat(buf, ".dll");
-#elif defined(__APPLE__)
-  strcat(buf, ".dylib");
-#else /* Linux */
-  strcat(buf, ".so");
-#endif
-  return buf;
-}
-
 resolve_t * resolve_get(void) {
   _resolve_init();
   return _singleton;
 }
 
 void resolve_free(void) {
+  resolve_handle_t *image;
   if (_singleton) {
     mdebug(resolve, "resolve_free");
-    list_free(_singleton -> images);
+    while (_singleton -> images) {
+      image = _singleton -> images;
+      _singleton -> images = image -> next;
+      _resolve_handle_free(image);
+    }
     dict_free(_singleton -> functions);
     free(_singleton);
     _singleton = NULL;
@@ -130,54 +304,14 @@ void resolve_free(void) {
 }
 
 resolve_t * _resolve_open(resolve_t *resolve, char *image) {
-#ifdef HAVE_DLFCN_H
-  void      *handle;
-#elif defined(HAVE_WINDOWS_H)
-  HMODULE    handle;
-#endif /* HAVE_DLFCN_H */
-  char      *err = NULL;
-  char       image_plf[MAX_PATH];
-  void_t     initializer;
-  resolve_t *ret = NULL;
+  resolve_t        *ret = NULL;
+  resolve_handle_t *handle;
 
   pthread_mutex_lock(&_resolve_mutex);
-  if (_resolve_rewrite_image(image, image_plf)) {
-    mdebug(resolve, "resolve_open('%s') ~ '%s'", image, image_plf);
-    image = image_plf;
-  } else {
-    mdebug(resolve, "resolve_open('Main Program Image')");
-  }
-#ifdef HAVE_DLFCN_H
-  dlerror();
-  handle = dlopen(image, RTLD_NOW | RTLD_GLOBAL);
-  err = dlerror();
-#elif defined(HAVE_WINDOWS_H)
-  handle = (image) ? LoadLibrary(TEXT(image)) : GetModuleHandle(NULL);
-  err = itoa(GetLastError()); // FIXME
-#endif /* HAVE_DLFCN_H */
-  if (handle) {
-#ifdef HAVE_DLFCN_H
-    dlerror();
-    initializer = (void_t) dlsym(handle, OBL_INIT);
-    err = dlerror();
-#elif defined(HAVE_WINDOWS_H)
-    initializer = (void_t) GetProcAddress(handle, OBL_INIT);
-    err = itoa(GetLastError()); // FIXME
-#endif /* HAVE_DLFCN_H */
-    if (!err && initializer) {
-      mdebug(resolve, "resolve_open('%s') Execute initializer", image ? image : "Main Program Image");
-      initializer();
-    } else {
-      mdebug(resolve, "resolve_open('%s') No initializer", image ? image : "Main Program Image");
-    }
-    list_append(resolve -> images, handle);
-    if (resolve_debug) {
-      info("resolve_open('%s') SUCCEEDED", image ? image : "Main Program Image");
-    }
+  if (handle = _resolve_handle_create(image)) {
+    handle -> next = resolve -> images;
+    resolve -> images = handle;
     ret = resolve;
-  }
-  if (!ret) {
-    error("resolve_open('%s') FAILED: %s", image ? image : "Main Program Image", err);
   }
   pthread_mutex_unlock(&_resolve_mutex);
   return ret;
@@ -190,9 +324,10 @@ resolve_t * resolve_open(resolve_t *resolve, char *image) {
 
 
 void_t resolve_resolve(resolve_t *resolve, char *func_name) {
-  void   *handle;
-  void_t  ret = NULL;
-  char   *err = NULL;
+  resolve_handle_t *handle;
+  void_t            ret = NULL;
+  int               err = 0;
+  resolve_result_t *result;
 
   // TODO synchronize
   ret = (void_t) dict_get(resolve -> functions, func_name);
@@ -203,26 +338,18 @@ void_t resolve_resolve(resolve_t *resolve, char *func_name) {
 
   mdebug(resolve, "dlsym('%s')", func_name);
   ret = NULL;
-  for (list_start(resolve -> images); !err && !ret && list_has_next(resolve -> images); ) {
-    handle = list_next(resolve -> images);
-#ifdef HAVE_DLFCN_H
-    dlerror();
-    ret = (void_t) dlsym(handle, func_name);
-    err = dlerror();
-#elif defined(HAVE_WINDOWS_H)
-    ret = (void_t) GetProcAddress(handle, func_name);
-    err = itoa(GetLastError()); // FIXME
-#endif /* HAVE_DLFCN_H */
-  }
-  if (!err) {
-    if (ret) {
-      dict_put(resolve -> functions, strdup(func_name), ret);
-    } else {
-      info("Could not resolve function '%s'", func_name);
+  for (handle = resolve -> images; handle && !err && !ret; handle = handle -> next) {
+    result = _resolve_handle_get_function(handle, func_name);
+    if (result -> errorcode) {
+      error("Error resolving function '%s' in library '%s': %s (%d)",
+            func_name, _resolve_handle_tostring(handle),
+            result -> error, result -> errorcode);
+      err = result -> errorcode;
     }
-  } else {
-    error("resolve_resolve('%s') FAILED: %s", func_name, err);
+    ret = result -> result;
+    _resolve_result_free(result);
   }
+  dict_put(resolve -> functions, strdup(func_name), ret);
   return ret;
 }
 

@@ -122,6 +122,7 @@ OBLLEXER_IMPEXP typedescr_t *      scanner_config_get(char *);
 OBLLEXER_IMPEXP scanner_config_t * scanner_config_create(char *, lexer_config_t *);
 OBLLEXER_IMPEXP scanner_t *        scanner_config_instantiate(scanner_config_t *, lexer_t *);
 OBLLEXER_IMPEXP scanner_config_t * scanner_config_configure(scanner_config_t *, data_t *);
+OBLLEXER_IMPEXP scanner_config_t * scanner_config_dump(scanner_config_t *);
 
 /*
  * ---------------------------------------------------------------------------

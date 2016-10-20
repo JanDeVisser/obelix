@@ -18,8 +18,9 @@
  */
 
 #include <stdio.h>
+#include <core-setup.h>
 
-void * testlib_helloworld(char *name) {
+__DLL_EXPORT__ void * testlib_helloworld(char *name) {
   printf("Hello world and %s! The testlib was successfully loaded!", name);
   return name;
 }

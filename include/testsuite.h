@@ -1,6 +1,6 @@
 /*
- * include/testsuite.h - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * include/testsuite.h - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -52,14 +52,15 @@ typedef struct _test {
 extern "C" {
 #endif
 
-extern test_t *     test_create(char *);
-extern test_t *     test_copy(test_t *);
-extern unsigned int test_hash(test_t *);
-extern int          test_cmp(test_t *, test_t *);
-extern char *       test_tostring(test_t *);
-extern void         test_free(test_t *);
+__DLL_EXPORT__ test_t * test_factory(char *);
+extern test_t *         test_create(char *);
+extern test_t *         test_copy(test_t *);
+extern unsigned int     test_hash(test_t *);
+extern int              test_cmp(test_t *, test_t *);
+extern char *           test_tostring(test_t *);
+extern void             test_free(test_t *);
 
-extern type_t *     type_test;
+extern type_t *         type_test;
 
 #ifndef NO_CHECK
 extern void	        set_suite_name(char *);

@@ -14,6 +14,7 @@ project(obelix)
 # Uncomment if you want debug output:
 # set(CMAKE_C_FLAGS -m32)
 set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # The version number.
 set(obelix_NAME Obelix)

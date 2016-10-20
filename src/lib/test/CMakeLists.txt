@@ -1,5 +1,6 @@
 find_package(Check REQUIRED)
 include_directories(${CHECK_INCLUDE_DIRS})
+link_directories(${CHECK_LIBRARY_DIRS})
 
 add_library(
   testlib SHARED
@@ -7,7 +8,7 @@ add_library(
 )
 
 add_executable(tcore tcore.c tlist.c tstr.c tresolve.c)
-target_link_libraries(tcore obltest oblcore ${CHECK_LIBRARIES} subunit ${SYSLIBS})
+target_link_libraries(tcore obltest oblcore ${CHECK_LIBRARIES} ${SYSLIBS})
 install(TARGETS testlib DESTINATION lib)
 
 if(CMAKE_COMPILER_IS_GNUCC)
