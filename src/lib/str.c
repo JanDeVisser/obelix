@@ -728,7 +728,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
           bufsize *= 2;
         }
         if (bufsize > _DEFAULT_SIZE) {
-          if (bigbuf) free(bigbuf);
+          free(bigbuf);
           bigbuf = (char *) new(bufsize);
           spec = bigbuf;
         }
@@ -738,6 +738,11 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
           str_append_chars(ret, data_tostring(data_dict_get(kwargs, spec)));
         } else {
           if (!strtoint(spec, &ix) && args && (ix >= 0) && (ix < array_size(args))) {
+            debug("str_format: ix: %d args[ix]: %p %s %s",
+                  ix, array_get(args, ix),
+                  data_typename(data_array_get(args, ix)),
+                  data_tostring(data_array_get(args, ix))
+                 );
             str_append_chars(ret, data_tostring(data_array_get(args, ix)));
           } else {
             str_append_printf(ret, "${%s}", spec);
@@ -748,7 +753,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
       str_append_char(ret, *ptr);
     }
   }
-  if (bigbuf) free(bigbuf);
+  free(bigbuf);
   free(copy);
   return ret;
 }

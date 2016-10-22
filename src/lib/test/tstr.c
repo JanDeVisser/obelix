@@ -325,7 +325,10 @@ START_TEST(test_str_format)
   dict_t  *kwargs;
 
   args = data_array_create(0);
-  array_push(args, str_wrap("test"));
+  str = str_wrap("test");
+  ck_assert_str_eq(str_chars(str), "test");
+  ck_assert_str_eq(data_tostring((data_t *) str), "test");
+  array_push(args, str);
   array_push(args, str_wrap("arg2"));
 
   str = str_format("test ${0} test", args, NULL);

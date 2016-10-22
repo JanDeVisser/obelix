@@ -40,14 +40,14 @@
 #endif /* MAX_PATH */
 
 typedef struct _resolve_result {
-  void_t    result;
+  void     *result;
   int       errorcode;
   char     *error;
 } resolve_result_t;
 
        int                resolve_debug = 0;
 
-static resolve_result_t * _resolve_result_create(void_t);
+static resolve_result_t * _resolve_result_create(void *);
 static void               _resolve_result_free(resolve_result_t *);
 
 static resolve_handle_t * _resolve_handle_create(char *);
@@ -68,14 +68,14 @@ static pthread_mutex_t    _resolve_mutex;
 
 /* ------------------------------------------------------------------------ */
 
-resolve_result_t * _resolve_result_create(void_t function) {
+resolve_result_t * _resolve_result_create(void *result) {
   char             *error;
   int               errorcode;
   resolve_result_t *ret;
 
   errorcode = 0;
   error = NULL;
-  if (!function) {
+  if (!result) {
 #ifdef HAVE_DLFCN_H
     error = dlerror();
     if (error) {
@@ -97,13 +97,13 @@ resolve_result_t * _resolve_result_create(void_t function) {
 #endif /* HAVE_DLFCN_H */
   }
   ret = NEW(resolve_result_t);
-  ret -> result = function;
+  ret -> result = (errorcode) ? NULL : result;
   ret -> error = error;
   ret -> errorcode = errorcode;
   if (ret -> error) {
     mdebug(resolve, "resolve_result has error '%s' (%d)", ret -> error, ret -> errorcode);
   } else {
-    mdebug(resolve, "resolve_result OK, function is %sNULL", (ret -> result) ? "NOT " : "");
+    mdebug(resolve, "resolve_result OK, result is %sNULL", (ret -> result) ? "NOT " : "");
   }
   return ret;
 }
@@ -145,9 +145,7 @@ char * _resolve_handle_get_platform_image(resolve_handle_t *handle) {
   int   len;
   char *ptr;
   char *canonical;
-#ifdef __WIN32__
   int   ix;
-#endif /* __WIN32__ */
 
   if (!handle -> image) {
     return NULL;
@@ -188,21 +186,54 @@ char * _resolve_handle_get_platform_image(resolve_handle_t *handle) {
     strcpy(canonical, "dll");
 #elif defined(__APPLE__)
     strcpy(canonical, "dylib");
+#else
+    strcpy(canonical, "so");
 #endif
   }
   return handle -> platform_image;
+}
+
+resolve_handle_t * _resolve_handle_try_open(resolve_handle_t *handle, char*dir) {
+  char             *path;
+  char             *image;
+  lib_handle_t      libhandle;
+  resolve_result_t *res;
+
+  image = _resolve_handle_get_platform_image(handle);
+  if (image) {
+    if (dir) {
+      asprintf(&path, "%s/%s", dir, image);
+    } else {
+      path = strdup(_resolve_handle_get_platform_image(handle));
+    }
+    mdebug(resolve, "Attempting to open library '%s'", path);
+  } else {
+    mdebug(resolve, "Attempting to open main program module");
+    path = NULL;
+  }
+#ifdef HAVE_DLFCN_H
+  dlerror();
+  libhandle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+#elif defined(HAVE_WINDOWS_H)
+  SetLastError(0);
+  libhandle = (image) ? LoadLibrary(TEXT(path)) : GetModuleHandle(NULL);
+#endif /* HAVE_DLFCN_H */
+  res = _resolve_result_create((void *) handle);
+  handle -> handle = (lib_handle_t) res -> result;
+  if (handle -> handle) {
+    mdebug(resolve, "Successfully opened '%s'", (path) ? path : "main program module");
+  }
+  _resolve_result_free(res);
+  free(path);
+  return handle;
 }
 
 resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
   char             *err = NULL;
   resolve_handle_t *ret = NULL;
   char             *image;
+  char             *obldir;
   resolve_result_t *result;
-#ifdef HAVE_DLFNC_H
-  int               res;
-#elif defined(HAVE_WINDOWS_H)
-  DWORD             res;
-#endif
 
   image = _resolve_handle_get_platform_image(handle);
   if (image) {
@@ -210,32 +241,44 @@ resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
   } else {
     mdebug(resolve, "resolve_open('Main Program Image')");
   }
-#ifdef HAVE_DLFCN_H
-  dlerror();
-  res = 0;
-  handle -> handle = dlopen(image, RTLD_NOW | RTLD_GLOBAL);
-  err = dlerror();
-  if (err) {
-    err = strdup(err);
-    res = -1;
+  handle -> handle = NULL;
+  if (image) {
+    obldir = getenv("OBL_DIR");
+    if (obldir) {
+      asprintf(&obldir, "%s/lib", obldir);
+      _resolve_handle_try_open(handle, obldir);
+      if (!handle -> handle) {
+        strcpy(obldir + (strlen(obldir) - 3), "bin");
+        _resolve_handle_try_open(handle, obldir);
+      }
+      if (!handle -> handle) {
+        free(obldir);
+        asprintf(&obldir, "%s/share/lib", getenv("OBL_DIR"));
+        _resolve_handle_try_open(handle, obldir);
+      }
+      free(obldir);
+    }
+    if (!handle -> handle) {
+      _resolve_handle_try_open(handle, NULL);
+    }
+    if (!handle -> handle) {
+      _resolve_handle_try_open(handle, "lib");
+    }
+    if (!handle -> handle) {
+      _resolve_handle_try_open(handle, "bin");
+    }
+    if (!handle -> handle) {
+      _resolve_handle_try_open(handle, "share/lib");
+    }
+  } else {
+    _resolve_handle_try_open(handle, NULL);
   }
-#elif defined(HAVE_WINDOWS_H)
-  SetLastError(0);
-  handle -> handle = (image) ? LoadLibrary(TEXT(image)) : GetModuleHandle(NULL);
-  res = GetLastError();
-  if (res) {
-    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-                  FORMAT_MESSAGE_IGNORE_INSERTS,
-                  NULL, res, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                  (LPTSTR) &err, 0, NULL);
-  }
-#endif /* HAVE_DLFCN_H */
-  if (handle -> handle && !err) {
+  if (handle -> handle) {
     ret = handle;
     result = _resolve_handle_get_function(handle, OBL_INIT);
     if (result -> result) {
       mdebug(resolve, "resolve_open('%s') Executing initializer", _resolve_handle_tostring(handle));
-      (result -> result)();
+      ((void_t) result -> result)();
     } else if (!result -> errorcode){
       mdebug(resolve, "resolve_open('%s') No initializer", _resolve_handle_tostring(handle));
     } else {
@@ -248,7 +291,7 @@ resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
     }
     _resolve_result_free(result);
   } else {
-    error("resolve_open('%s') FAILED: %s (%d)",  _resolve_handle_tostring(handle), err, res);
+    error("resolve_open('%s') FAILED",  _resolve_handle_tostring(handle));
   }
   return ret;
 }

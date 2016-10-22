@@ -25,12 +25,17 @@
 #include <dict.h>
 #include <mutex.h>
 
-typedef struct _resolve_handle {
+
 #ifdef HAVE_DLFCN_H
-  void                   *handle;
+typedef void * lib_handle_t;
+typedef int    resolve_error_t;
 #elif defined(HAVE_WINDOWS_H)
-  HMODULE                 handle;
+typedef HMODULE lib_handle_t;
+typedef DWORD   resolve_error_t;
 #endif /* HAVE_DLFCN_H */
+
+typedef struct _resolve_handle {
+  lib_handle_t            handle;
   char                   *image;
   char                   *platform_image;
   struct _resolve_handle *next;
