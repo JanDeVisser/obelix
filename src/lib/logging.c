@@ -140,7 +140,7 @@ logcategory_t * _logcategory_set(logcategory_t *cat, int value) {
 }
 
 logcategory_t  * _logcategory_logmsg(logcategory_t *cat, log_level_t lvl, char *file, int line, char *msg, ...) {
-  va_list args;
+  va_list  args;
 
   if (lvl >= cat -> level) {
     va_start(args, msg);
@@ -269,12 +269,22 @@ OBLCORE_IMPEXP void logging_disable(char *category) {
   _logging_set(category, 0);
 }
 
-OBLCORE_IMPEXP void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, const char *msg, ...) {
-  va_list args;
+OBLCORE_IMPEXP void _logmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, ...) {
+  va_list  args;
+  char    *f;
 
   if ((lvl == LogLevelDebug) || (lvl >= _log_level)) {
     va_start(args, msg);
-    fprintf(stderr, "%-12.12s:%4d:%-20.20s:%-5.5s:", file, line, caller, _log_level_str(lvl));
+    f = file;
+    if (*file == '/') {
+      f = strrchr(f, '/');
+      if (!f) {
+        f = file;
+      } else {
+        f = f + 1;
+      }
+    }
+    fprintf(stderr, "%-12.12s:%4d:%-20.20s:%-5.5s:", f, line, caller, _log_level_str(lvl));
     vfprintf(stderr, msg, args);
     fprintf(stderr, "\n");
     va_end(args);

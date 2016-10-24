@@ -24,7 +24,7 @@
 #include <testsuite.h>
 
 extern void list_init(void);
-extern void str_init(void);
+extern void str_test_init(void);
 extern void resolve_init();
 extern void init_suite(void);
 

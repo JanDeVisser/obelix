@@ -22,6 +22,6 @@
 
 void init_suite(void) {
   list_init();
-  str_init();
+  str_test_init();
   resolve_init();
 }

@@ -155,7 +155,16 @@ data_t * data_settype(data_t *data, int type) {
   typedescr_t *descr;
 
   _data_init();
+  assert(data);
+  assert(type > 0);
   descr = typedescr_get(type);
+  assert(descr);
+  assert(descr -> type == type);
+  assert(descr -> type_name);
+  if (!descr || !descr -> type_name) {
+    error("Attempt to initialize atom with non-existant or broken type %d", type);
+    return NULL;
+  }
   if (!data -> type) {
     data -> type = type;
     data -> refs++;
@@ -164,6 +173,12 @@ data_t * data_settype(data_t *data, int type) {
     data -> free_str = Normal;
     descr -> count++;
     _data_count++;
+  } else {
+    descr = typedescr_get(data -> type);
+    if (!descr || !descr -> type_name) {
+      error("Not re-initializing atom with broken type %d", data -> type);
+    }
+    return NULL;
   }
   return data;
 }

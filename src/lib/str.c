@@ -106,10 +106,13 @@ static methoddescr_t _methoddescr_str[] = {
     { NoType, NoType, NoType}, .minargs = 0, .varargs = 0}
 };
 
+extern int data_debug;
+
 /* ------------------------------------------------------------------------ */
 
 void str_init(void) {
   typedescr_create_and_register(String, "string", _vtable_string, _methoddescr_str);
+  typedescr_set_size(String, str_t);
 }
 
 /* -- S T R I N G   D A T A   F U N C T I O N S --------------------------- */
@@ -739,11 +742,6 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
           str_append_chars(ret, data_tostring(data_dict_get(kwargs, spec)));
         } else {
           if (!strtoint(spec, &ix) && args && (ix >= 0) && (ix < array_size(args))) {
-            _debug("str_format: ix: %d args[ix]: %p %s %s",
-                  ix, array_get(args, ix),
-                  data_typename(data_array_get(args, ix)),
-                  data_tostring(data_array_get(args, ix))
-                 );
             str_append_chars(ret, data_tostring(data_array_get(args, ix)));
           } else {
             str_append_printf(ret, "${%s}", spec);

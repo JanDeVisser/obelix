@@ -39,7 +39,7 @@ OBLCORE_IMPEXP void   logging_register_category(char *, int *);
 OBLCORE_IMPEXP void   logging_reset(void);
 OBLCORE_IMPEXP void   logging_enable(char *);
 OBLCORE_IMPEXP void   logging_disable(char *);
-OBLCORE_IMPEXP void   _logmsg(log_level_t, const char *, int, const char *, const char *, ...);
+OBLCORE_IMPEXP void   _logmsg(log_level_t, char *, int, const char *, const char *, ...);
 OBLCORE_IMPEXP int    logging_status(char *);
 OBLCORE_IMPEXP int    logging_level(void);
 OBLCORE_IMPEXP int    logging_set_level(log_level_t);

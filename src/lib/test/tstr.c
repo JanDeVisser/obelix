@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include <array.h>
+#include <data.h>
 #include <dict.h>
 #include <list.h>
 #include <str.h>
@@ -319,6 +320,18 @@ START_TEST(test_str_join)
   str_free(str);
 END_TEST
 
+START_TEST(test_str_data)
+  str_t  *str;
+  data_t *data;
+
+  str = str_wrap("This is a test");
+  ck_assert_str_eq(str_chars(str), "This is a test");
+  data = (data_t *) str;
+  ck_assert_int_eq(data_type(data), String);
+  ck_assert_str_eq(data_typename(data), "string");
+  ck_assert_str_eq(data_tostring(data), "This is a test");
+END_TEST
+
 START_TEST(test_str_format)
   str_t   *str;
   array_t *args;
@@ -374,7 +387,7 @@ START_TEST(test_str_format)
   dict_free(kwargs);
 END_TEST
 
-extern void str_init(void) {
+extern void str_test_init(void) {
   TCase *tc = tcase_create("Str");
 
   tcase_add_test(tc, test_str_copy_chars);
@@ -387,6 +400,7 @@ extern void str_init(void) {
   tcase_add_test(tc, test_str_indexof);
   tcase_add_test(tc, test_str_split);
   tcase_add_test(tc, test_str_join);
+  tcase_add_test(tc, test_str_data);
   tcase_add_test(tc, test_str_format);
   add_tcase(tc);
 }
