@@ -78,9 +78,11 @@ resolve_result_t * _resolve_result_create(void *result) {
   if (!result) {
 #ifdef HAVE_DLFCN_H
     error = dlerror();
-    if (error) {
+    if (error && !strstr(error, "undefined symbol")) {
       error = strdup(error);
       errorcode = -1;
+    } else {
+      error = NULL;
     }
 #elif defined(HAVE_WINDOWS_H)
     errorcode = GetLastError();
@@ -274,21 +276,23 @@ resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
   }
   if (handle -> handle) {
     ret = handle;
-    result = _resolve_handle_get_function(handle, OBL_INIT);
-    if (result -> result) {
-      debug(resolve, "resolve_open('%s') Executing initializer", _resolve_handle_tostring(handle));
-      ((void_t) result -> result)();
-    } else if (!result -> errorcode){
-      debug(resolve, "resolve_open('%s') No initializer", _resolve_handle_tostring(handle));
-    } else {
-      error("resolve_open('%s') Error finding initializer: %s (%d)",
-            _resolve_handle_tostring(handle), result -> error, result -> errorcode);
-      ret = NULL;
+    if (image) {
+      result = _resolve_handle_get_function(handle, OBL_INIT);
+      if (result -> result) {
+        debug(resolve, "resolve_open('%s') Executing initializer", _resolve_handle_tostring(handle));
+        ((void_t) result -> result)();
+      } else if (!result -> errorcode){
+        debug(resolve, "resolve_open('%s') No initializer", _resolve_handle_tostring(handle));
+      } else {
+        error("resolve_open('%s') Error finding initializer: %s (%d)",
+              _resolve_handle_tostring(handle), result -> error, result -> errorcode);
+        ret = NULL;
+      }
+      _resolve_result_free(result);
     }
     if (ret) {
-      debug(resolve, "Library '%s' opened successfully");
+      debug(resolve, "Library '%s' opened successfully", _resolve_handle_tostring(handle));
     }
-    _resolve_result_free(result);
   } else {
     error("resolve_open('%s') FAILED",  _resolve_handle_tostring(handle));
   }

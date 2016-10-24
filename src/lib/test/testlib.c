@@ -1,6 +1,6 @@
 /*
- * collections.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * collections.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -21,6 +21,6 @@
 #include <core-setup.h>
 
 __DLL_EXPORT__ void * testlib_helloworld(char *name) {
-  printf("Hello world and %s! The testlib was successfully loaded!", name);
+  printf("Hello world and %s! The testlib was successfully loaded!\n", name);
   return name;
 }
