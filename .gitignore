@@ -45,3 +45,5 @@ Win32/*
 CTestTestfile.cmake
 Testing/
 bin/
+linux/
+
