@@ -1,4 +1,5 @@
 {
-  "gccDefaultCFlags": "-Wall -std=c99",
-  "gccIncludePaths": "build,include"
+  "execPath": "gcc",
+  "gccDefaultCFlags": "-Wall -std=c99 -D_GNU_SOURCE",
+  "gccIncludePaths": "./build,./include"
 }
