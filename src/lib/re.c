@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "libcore.h"
 #include <data.h>
 #include <exception.h>
 #include <re.h>
@@ -50,7 +51,7 @@ static vtable_t _vtable_re[] = {
 };
 
 int Regexp = -1;
-int debug_regexp = 0;
+int regexp_debug = 0;
 
 static methoddescr_t _methoddescr_re[] = {
   { .type = -1,     .name = "match",   .method = _regexp_match,   .argtypes = { String, Any, Any },       .minargs = 1, .varargs = 0 },
@@ -62,7 +63,7 @@ static methoddescr_t _methoddescr_re[] = {
 
 void _regexp_init(void) {
   if (Regexp < 0) {
-    logging_register_category("regexp", &debug_regexp);
+    logging_register_module(regexp);
     Regexp = typedescr_create_and_register(Regexp, "regexp", _vtable_re, _methoddescr_re);
   }
 }
@@ -90,23 +91,17 @@ data_t * _regexp_call(re_t *re, array_t *args, dict_t *kwargs) {
   data_t *str = data_array_get(args, 0);
 
   (void) kwargs;
-  if (debug_regexp) {
-    debug("_regexp_call(%s, %s))", regexp_tostring(re), data_tostring(str));
-  }
+  debug(regexp, "_regexp_call(%s, %s))", regexp_tostring(re), data_tostring(str));
   return regexp_match(re, data_tostring(str));
 }
 
 data_t * _regexp_interpolate(re_t *re, array_t *args, dict_t *kwargs) {
-  data_t *str = data_array_get(args, 0);
   str_t  *pat;
 
   (void) kwargs;
-  if (debug_regexp) {
-    debug("_regexp_interpolate(%s, %s, %s)",
-	  regexp_tostring(re),
-	  (args) ? array_tostring(args) : "[]",
-          (kwargs) ? dict_tostring(kwargs) : "{}");
-  }
+  debug(regexp, "_regexp_interpolate(%s, %s, %s)", regexp_tostring(re),
+    (args) ? array_tostring(args) : "[]",
+    (kwargs) ? dict_tostring(kwargs) : "{}");
   pat = str_format(str_chars(re -> pattern), args, kwargs);
   str_free(re -> pattern);
   re -> pattern = pat;
@@ -114,23 +109,19 @@ data_t * _regexp_interpolate(re_t *re, array_t *args, dict_t *kwargs) {
     regfree(&re -> compiled);
     re -> is_compiled = FALSE;
   }
-  if (debug_regexp) {
-    debug("_regexp_interpolate() => %s",
-	  regexp_tostring(re));
-  }
+  debug(regexp, "_regexp_interpolate() => %s", regexp_tostring(re));
   return (data_t *) re;
 }
 
 data_t * _regexp_compile(re_t *re) {
   int retval;
-  
+
   if (!re -> is_compiled) {
-    if ((retval = regcomp(&re -> compiled,
-			 str_chars(re -> pattern), re -> re_flags))) {
+    if ((retval = regcomp(&re -> compiled, str_chars(re -> pattern), re -> re_flags))) {
       char msgbuf[1000];
 
       regerror(retval, &re -> compiled, msgbuf, sizeof(msgbuf));
-      debug("Error: %s", msgbuf);
+      debug(regexp, "Error: %s", msgbuf);
       return data_exception(ErrorSyntax, msgbuf);
     }
     re -> is_compiled = TRUE;
@@ -142,7 +133,7 @@ data_t * _regexp_compile(re_t *re) {
 
 re_t * regexp_create(char *pattern, char *flags) {
   re_t *ret;
-  
+
   _regexp_init();
   ret = data_new(Regexp, re_t);
   ret -> pattern = str_printf( "(%s)", pattern);
@@ -154,9 +145,7 @@ re_t * regexp_create(char *pattern, char *flags) {
     }
   }
   ret -> is_compiled = FALSE;
-  if (debug_regexp) {
-    debug("Created re %s", regexp_tostring(ret));
-  }
+  debug(regexp, "Created re %s", regexp_tostring(ret));
   return ret;
 }
 
@@ -181,35 +170,25 @@ data_t * regexp_match(re_t *re, char *str) {
   array_t    *matches = data_array_create(4);
   data_t     *ret;
 
-  if (debug_regexp) {
-    debug("%s .match(%s)", regexp_tostring(re), str);
-  }
+  debug(regexp, "%s .match(%s)", regexp_tostring(re), str);
   if (data_is_exception(ret = _regexp_compile(re))) {
     return ret;
   }
   while (!regexec(&re -> compiled, ptr, 1, rm, 0)) {
     memset(work, 0, len + 1);
     strncpy(work, ptr + rm[0].rm_so, rm[0].rm_eo - rm[0].rm_so);
-    if (debug_regexp) {
-      debug("%s .match(%s): match at [%d-%d]: %s", regexp_tostring(re), ptr, rm[0].rm_so, rm[0].rm_eo, work);
-    }
+    debug(regexp, "%s .match(%s): match at [%d-%d]: %s", regexp_tostring(re), ptr, rm[0].rm_so, rm[0].rm_eo, work);
     array_push(matches, str_to_data(work));
     ptr += rm[0].rm_eo;
   }
   if (!array_size(matches)) {
-    if (debug_regexp) {
-      debug("%s .match(%s): No matches", regexp_tostring(re), str);
-    }
+    debug(regexp, "%s .match(%s): No matches", regexp_tostring(re), str);
     ret = data_false();
   } else if (array_size(matches) == 1) {
-    if (debug_regexp) {
-      debug("%s .match(%s): One match", regexp_tostring(re), str);
-    }
+    debug(regexp, "%s .match(%s): One match", regexp_tostring(re), str);
     ret = data_copy(data_array_get(matches, 0));
   } else {
-    if (debug_regexp) {
-      debug("%s .match(%s): %d matches", regexp_tostring(re), str, array_size(matches));
-    }
+    debug(regexp, "%s .match(%s): %d matches", regexp_tostring(re), str, array_size(matches));
     ret = data_create_list(matches);
   }
   array_free(matches);
@@ -230,9 +209,7 @@ data_t * _regexp_create(char *name, array_t *args, dict_t *kwargs) {
 
   (void) name;
   (void) kwargs;
-  if (debug_regexp) {
-    debug("_regexp_create(%s))", data_tostring(pattern));
-  }
+  debug(regexp, "_regexp_create(%s))", data_tostring(pattern));
   flags = (array_size(args) == 2) ? data_tostring(data_array_get(args, 1)) : "";
   ret = regexp_create(data_tostring(pattern), flags);
   return (data_t *) ret;

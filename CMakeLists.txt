@@ -165,6 +165,12 @@ if(NOT HAVE_PID_T)
 endif(NOT HAVE_PID_T)
 ###############################################################################
 
+if (CMAKE_COMPILER_IS_GNUCC)
+  message("Compiler is gcc")
+  set(_GNU_SOURCE, 1)
+else (CMAKE_COMPILER_IS_GNUCC)
+  message("Compiler is not gcc")
+endif (CMAKE_COMPILER_IS_GNUCC)
 
 ###############################################################################
 # configure a header file to pass some of the CMake settings

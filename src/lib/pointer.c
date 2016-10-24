@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <core.h>
+#include "libcore.h"
 #include <data.h>
 #include <resolve.h>
 
@@ -95,7 +95,7 @@ int _ptr_cmp(pointer_t *p1, pointer_t *p2) {
 
 char * _ptr_allocstring(pointer_t *p) {
   char *buf;
-  
+
   if (p == _null) {
     buf = strdup("Null");
   } else {

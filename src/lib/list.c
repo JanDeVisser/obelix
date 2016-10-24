@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include "libcore.h"
 #include <list.h>
 #include <str.h>
 
@@ -117,7 +118,7 @@ list_t * list_create() {
 
 list_t * list_clone(list_t *list) {
   list_t *ret = list_create();
-  
+
   list_set_type(ret, &(list -> type));
   return ret;
 }
@@ -282,7 +283,7 @@ list_t * _list_visit(list_t *list, visit_t visitor) {
 void * _list_process(list_t *list, reduce_t reducer, void *data) {
   listprocessor_t *lp = lp_create(list, reducer, data);
   void            *ret = lp_run(lp);
-  
+
   lp_free(lp);
   return ret;
 }
@@ -388,7 +389,7 @@ listiterator_t * list_end(list_t *list) {
 
 listiterator_t * list_position(listnode_t *node) {
   list_t *list = node -> list;
-  
+
   li_position(&list -> iter, node);
   return &list -> iter;
 }
@@ -552,7 +553,6 @@ int li_insert(listiterator_t *iter, void *data) {
 }
 
 void li_remove(listiterator_t *iter) {
-  void *data = NULL;
   listnode_t *node = NULL;
 
   assert(iter -> list -> head.list != EmptyList);
@@ -578,7 +578,7 @@ int li_atend(listiterator_t *iter) {
 
 listprocessor_t * lp_create(list_t *list, reduce_t processor, void *data) {
   listprocessor_t *ret = NEW(listprocessor_t);
-  
+
   ret -> list = list;
   ret -> processor = processor;
   ret -> data = data;
@@ -601,7 +601,7 @@ void * lp_run(listprocessor_t *lp) {
 listprocessor_t * lp_step(listprocessor_t *lp) {
   void       *elem;
   listnode_t *next;
-  
+
   if (lp_atstart(lp)) {
     lp -> current = list_head_pointer(lp -> list);
   }
@@ -624,8 +624,8 @@ int lp_atstart(listprocessor_t *lp) {
 }
 
 int lp_atend(listprocessor_t *lp) {
-  return lp -> current && 
-         ((lp -> current == ProcessEnd) || 
+  return lp -> current &&
+         ((lp -> current == ProcessEnd) ||
           !_ln_datanode(lp -> current));
 }
 

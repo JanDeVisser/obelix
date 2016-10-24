@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "libcore.h"
 #include <data.h>
 #include <exception.h>
 #include <range.h>
@@ -28,7 +29,6 @@
 /* ----------------------------------------------------------------------- */
 
 static inline void   _range_init(void);
-static data_t *      _range_new(data_t *, va_list);
 static void          _range_free(range_t *);
 static char *        _range_allocstring(range_t *);
 
@@ -63,7 +63,7 @@ void _range_free(range_t *range) {
 
 char * _range_allocstring(range_t *r) {
   char *buf;
-  
+
   asprintf(&buf, "%s ~ %s", data_tostring(r -> from), data_tostring(r -> to));
   return buf;
 }
@@ -136,4 +136,3 @@ data_t * range_has_next(range_t *r) {
 }
 
 /* ----------------------------------------------------------------------- */
-

@@ -18,7 +18,6 @@
  */
 
 #include <config.h>
-
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -31,7 +30,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include <core.h>
+#include "libcore.h"
 #include <resolve.h>
 
 typedef struct _memmonitor {
@@ -49,7 +48,8 @@ static type_t _type_str = {
   .free     = (free_t) free,
   .cmp      = (cmp_t) strcmp
 };
-type_t *type_str = &_type_str;
+
+__ATTRIBUTE_DLLEXPORT__ type_t *type_str = &_type_str;
 
 static type_t _type_int = {
   .hash     = (hash_t) hashlong,
@@ -58,13 +58,7 @@ static type_t _type_int = {
   .free     = NULL,
   .cmp      = NULL
 };
-type_t *type_int = &_type_int;
-
-#ifdef NDEBUG
-log_level_t log_level = LogLevelInfo;
-#else /* ! NDEBUG */
-log_level_t log_level = LogLevelDebug;
-#endif
+__ATTRIBUTE_DLLEXPORT__ type_t *type_int = &_type_int;
 
 static void _outofmemory(int sz) {
   error("Could not allocate %d bytes. Out of Memory. Terminating...", sz);

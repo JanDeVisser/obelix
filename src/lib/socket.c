@@ -31,6 +31,7 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
+#include "libcore.h"
 #include <data.h>
 #include <exception.h>
 #include <socket.h>
@@ -138,7 +139,7 @@ void _socket_init(void) {
 
 socket_t * _socket_create(SOCKET fh, char *host, char *service) {
   socket_t *ret;
-  
+
   _socket_init();
   ret = data_new(Socket, socket_t);
 
@@ -247,10 +248,7 @@ data_t *_socket_leave(socket_t * socket, data_t *param) {
   int     retval;
   data_t *ret;
 
-  if (socket_debug) {
-    debug("socket '%s'.leave('%s')",
-          socket_tostring(socket), data_tostring(param));
-  }
+  debug(socket, "socket '%s'.leave('%s')", socket_tostring(socket), data_tostring(param));
   retval = socket_close(socket);
   if (retval < 0) {
     ret = data_exception(ErrorIOError, "socket_close() returned %d", int_to_data(retval));
@@ -376,7 +374,7 @@ void _socket_set_errno(socket_t *socket, char *msg) {
   stream_t *s = (stream_t *) socket;
 #ifdef HAVE_WINSOCK2_H
   s -> _errno = WSAGetLastError();
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
 		NULL, WSAGetLastError(),
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		(LPSTR) &s -> error, 0, NULL);
@@ -476,18 +474,14 @@ int _socket_readblock(socket_t *socket, void *buf, int num) {
     total_numrecv += numrecv;
     ret += numrecv;
     buf = (void *)(((char *) buf) + numrecv);
-    if (socket_debug) {
-      debug("socket_read(%s, %d) = %d", data_tostring((data_t *) socket), num, total_numrecv);
-    }
-  } else if ((numrecv == 0) || 
+    debug(socket, "socket_read(%s, %d) = %d", data_tostring((data_t *) socket), num, total_numrecv);
+  } else if ((numrecv == 0) ||
 #ifdef HAVE_WINSOCK2_H
              (WSAGetLastError() == WSAEWOULDBLOCK)) {
 #else
              (errno == EWOULDBLOCK)) {
 #endif /* HAVE_WINSOCK2_H */
-    if (socket_debug) {
-      debug("socket_read(%s, %d) Blocked", data_tostring((data_t *) socket), num);
-    }
+    debug(socket, "socket_read(%s, %d) Blocked", data_tostring((data_t *) socket), num);
   } else {
     _socket_set_errno(socket, "socket_read()->recv()");
     ret = -1;
@@ -503,9 +497,9 @@ int socket_read(socket_t *socket, void *buf, int num) {
 
   if (socket_debug) {
     memset(buf, 0, num);
-    debug("socket_read(%s, %d)", data_tostring((data_t *) socket), num);
   }
-  
+  debug(socket, "socket_read(%s, %d)", data_tostring((data_t *) socket), num);
+
   ret = _socket_readblock(socket, buf, num);
   if (!ret) {
     do {
@@ -513,18 +507,14 @@ int socket_read(socket_t *socket, void *buf, int num) {
       FD_SET(socket -> fh, &set);
       timeout.tv_sec = 1;
       timeout.tv_usec = 0;
-      if (socket_debug) {
-        debug("socket_read(%s, %d) select()", data_tostring((data_t *) socket), num);
-      }
+      debug(socket, "socket_read(%s, %d) select()", data_tostring((data_t *) socket), num);
       err = TEMP_FAILURE_RETRY(select(1, &set, NULL, NULL, &timeout));
       if (err < 0) {
         _socket_set_errno(socket, "socket_read()->select()");
         return -1;
       }
     } while (!err);
-    if (socket_debug) {
-      debug("socket_read(%s, %d) _readblock()", data_tostring((data_t *) socket), num);
-    }
+    debug(socket, "socket_read(%s, %d) _readblock()", data_tostring((data_t *) socket), num);
     ret = _socket_readblock(socket, buf, num);
   }
   return ret;
@@ -604,4 +594,3 @@ void * connection_listener_service(connection_t *connection) {
   array_free(p);
   return ret;
 }
-

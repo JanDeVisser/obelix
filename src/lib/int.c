@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <core.h>
+#include "libcore.h"
 #include <data.h>
 
 extern void          int_init(void);

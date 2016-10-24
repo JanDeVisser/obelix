@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <core.h>
+#include "libcore.h"
 #include <exception.h>
 #include <logging.h>
 #include <str.h>
@@ -90,7 +90,7 @@ static vtable_t _vtable_interface[] = {
   { .id = FunctionNone,         .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_interface[] = {
+static _unused_ methoddescr_t _methoddescr_interface[] = {
   { .type = Interface,    .name = "isimplementedby", .method = (method_t) _interface_isimplementedby, .argtypes = { Any, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = Any,          .name = "implements",      .method = (method_t) _interface_implements, .argtypes = { Interface, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL, .method = NULL, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
@@ -135,7 +135,7 @@ static code_label_t _function_id_labels[] = {
 
 void _typedescr_init(void) {
   if (!descriptors && !_interfaces) {
-    logging_register_category("type", &type_debug);
+    logging_register_module(type);
     interface_register(Any,           "any",           0);
     interface_register(Callable,      "callable",      1, FunctionCall);
     interface_register(InputStream,   "inputstream",   1, FunctionRead);
@@ -275,12 +275,12 @@ interface_t * interface_get(int type) {
     ret = &_interfaces[ifix];
     if (!ret) {
       if (type_debug) {
-	error("Undefined interface type %d referenced. Expect crashes", type);
+        error("Undefined interface type %d referenced. Expect crashes", type);
       }
       return NULL;
     } else {
       if (ret -> type != type) {
-        debug("looking for type %d, found %d (%s)", type, ret -> type, ret -> name);
+        _debug("looking for type %d, found %d (%s)", type, ret -> type, ret -> name);
       }
       assert(ret -> type == type);
     }
@@ -400,9 +400,9 @@ void vtable_dump(vtable_t *vtable) {
   for (ix = 0; ix < FunctionEndOfListDummy; ix++) {
     assert(ix == vtable[ix].id);
     if (vtable[ix].fnc) {
-      debug("%-20.20s %d %p",
-            label_for_code(_function_id_labels, ix),
-            ix, vtable[ix].fnc);
+      _debug("%-20.20s %d %p",
+             label_for_code(_function_id_labels, ix),
+             ix, vtable[ix].fnc);
     }
   }
 }
@@ -672,9 +672,7 @@ typedescr_t * typedescr_get_byname(char *name) {
       return &descriptors[ix];
     }
   }
-  if (type_debug) {
-    debug("typedescr_get_byname(%s) = %d", name, (ret) ? ret -> type : -1);
-  }
+  debug(type, "typedescr_get_byname(%s) = %d", name, (ret) ? ret -> type : -1);
   return NULL;
 }
 
@@ -686,22 +684,22 @@ unsigned int typedescr_hash(typedescr_t *type) {
 }
 
 void typedescr_dump_vtable(typedescr_t *type) {
-  debug("vtable for %s", typedescr_tostring(type));
+  _debug("vtable for %s", typedescr_tostring(type));
   vtable_dump(type -> vtable);
 }
 
 void typedescr_count(void) {
   int ix;
 
-  debug("Atom count");
-  debug("-------------------------------------------------------");
+  _debug("Atom count");
+  _debug("-------------------------------------------------------");
   for (ix = 0; ix < _numtypes; ix++) {
     if (descriptors[ix].type > NoType) {
-      debug("%3d. %-20.20s %6d", descriptors[ix].type, descriptors[ix].type_name, descriptors[ix].count);
+      _debug("%3d. %-20.20s %6d", descriptors[ix].type, descriptors[ix].type_name, descriptors[ix].count);
     }
   }
-  debug("-------------------------------------------------------");
-  debug("     %-20.20s %6d", "T O T A L", _data_count);
+  _debug("-------------------------------------------------------");
+  _debug("     %-20.20s %6d", "T O T A L", _data_count);
 }
 
 void_t typedescr_get_local_function(typedescr_t *type, int fnc_id) {
@@ -826,9 +824,7 @@ int typedescr_is(typedescr_t *descr, int type) {
   //  debug("'%s'.is(%d)", descr -> type_name, type);
   //}
   if ((type == descr -> type) || (type == Any)) {
-    if (type_debug) {
-      debug("'%s'.is(%d) = by definition", descr -> type_name, type);
-    }
+    debug(type, "'%s'.is(%d) = by definition", descr -> type_name, type);
     ret = TRUE;
   } else {
     if (descr -> vtable[FunctionIs].fnc) {

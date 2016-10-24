@@ -17,10 +17,10 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <errno.h>
 #include <stdio.h>
 
+#include "libcore.h"
 #include <data.h>
 #include <function.h>
 #include <resolve.h>
@@ -98,15 +98,11 @@ data_t * _function_call(function_t *fnc, array_t *args, dict_t *kwargs) {
 function_t * function_create(char *name, void_t fnc) {
   function_t *ret = function_create_noresolve(name);
 
-  if (function_debug) {
-    debug("function_create(%s)", name);
-  }
+  mdebug(function, "function_create(%s)", name);
   if (fnc) {
     ret -> fnc = fnc;
   } else {
-    if (function_debug) {
-      debug("resolving...");
-    }
+    mdebug(function, "resolving...");
     function_resolve(ret);
   }
   return ret;
@@ -165,9 +161,7 @@ function_t * function_resolve(function_t *fnc) {
   if (!name_size(fnc -> name) || name_size(fnc -> name) > 2) {
     return fnc;
   } else {
-    if (function_debug) {
-      debug("Resolving %s", name_tostring_sep(fnc -> name, ":"));
-    }
+    mdebug(function, "Resolving %s", name_tostring_sep(fnc -> name, ":"));
     if (name_size(fnc -> name) == 2) {
       if (!resolve_library(name_first(fnc -> name))) {
         error("Error loading library '%s': %s",
@@ -195,9 +189,7 @@ unsigned int function_hash(function_t *fnc) {
 }
 
 data_t * function_call(function_t *fnc, char *name, array_t *args, dict_t *kwargs) {
-  if (function_debug) {
-    debug("Executing %s(%s)", function_tostring(fnc), array_tostring(args));
-  }
+  debug(function, "Executing %s(%s)", function_tostring(fnc), array_tostring(args));
   return ((native_t) fnc -> fnc)(name, args, kwargs);
 }
 
@@ -210,4 +202,3 @@ char * function_libname(function_t *fnc) {
 }
 
 /* ------------------------------------------------------------------------ */
-

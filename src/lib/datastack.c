@@ -19,6 +19,7 @@
 
 #include <string.h>
 
+#include "libcore.h"
 #include <datastack.h>
 #include <str.h>
 
@@ -64,7 +65,7 @@ int _bookmark_depth(bookmark_t *bookmark) {
 
 counter_t * _counter_create(void) {
   counter_t *ret = NEW(counter_t);
-  
+
   ret -> count = 0;
   return ret;
 }
@@ -75,7 +76,7 @@ void _counter_free(counter_t *counter) {
   }
 }
 
-int _counter_count(counter_t *counter) {
+_unused_ int _counter_count(counter_t *counter) {
   return counter -> count;
 }
 
@@ -87,7 +88,7 @@ counter_t * _counter_incr(counter_t *counter) {
 /* ------------------------------------------------------------------------ */
 
 void _stack_list_visitor(data_t *entry) {
-  debug("   . %-40.40s [%-10.10s]", data_tostring(entry), data_typename(entry));
+  _debug("   . %-40.40s [%-10.10s]", data_tostring(entry), data_typename(entry));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -130,7 +131,7 @@ int datastack_hash(datastack_t *stack) {
 int datastack_cmp(datastack_t *s1, datastack_t *s2) {
   return strcmp(s1 -> name, s2 -> name);
 }
-							    
+
 int datastack_depth(datastack_t *stack) {
   return array_size(stack -> list);
 }
@@ -140,7 +141,7 @@ data_t * datastack_pop(datastack_t *stack) {
 
   ret = (data_t *) array_pop(stack -> list);
   if (stack -> debug) {
-    debug("  - %s", data_tostring(ret));
+    _debug("  - %s", data_tostring(ret));
   }
   return ret;
 }
@@ -156,7 +157,7 @@ data_t * datastack_peek(datastack_t *stack) {
 datastack_t * datastack_push(datastack_t *stack, data_t *data) {
   array_push(stack -> list, data);
   if (stack -> debug) {
-    debug("After push:");
+    _debug("After push:");
     datastack_list(stack);
   }
   return stack;
@@ -175,16 +176,16 @@ datastack_t * datastack_push_float(datastack_t *stack, double value) {
 }
 
 datastack_t * datastack_list(datastack_t *stack) {
-  debug("-- Stack '%s' ---------------------------------------------", stack -> name);
+  _debug("-- Stack '%s' ---------------------------------------------", stack -> name);
   array_visit(stack -> list, (visit_t) _stack_list_visitor);
-  debug("------------------------------------------------------------------");
+  _debug("------------------------------------------------------------------");
   return stack;
 }
 
 data_t * datastack_find(datastack_t *stack, cmp_t comparator, void *target) {
   int     ix;
   data_t *data;
-  
+
   for (ix = array_size(stack -> list) - 1; ix >= 0; ix--) {
     data = data_array_get(stack -> list, ix);
     if (!comparator(data, target)) {
@@ -272,7 +273,7 @@ datastack_t * datastack_increment(datastack_t *stack) {
   }
   counter = (counter_t *) array_get(stack -> counters, -1);
   _counter_incr(counter);
-  return stack; 
+  return stack;
 }
 
 int datastack_count(datastack_t *stack) {
@@ -299,4 +300,3 @@ int datastack_current_count(datastack_t *stack) {
   count = counter -> count;
   return count;
 }
-

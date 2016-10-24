@@ -17,12 +17,12 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
+#include "libcore.h"
 #include <array.h>
 #include <core.h>
 #include <str.h>
@@ -382,7 +382,7 @@ char * array_tostring(array_t *array) {
 }
 
 void array_debug(array_t *array, char *msg) {
-  debug(msg, array_tostring(array));
+  mdebug(core, msg, array_tostring(array));
 }
 
 
@@ -415,4 +415,3 @@ void * array_next(array_t *array) {
 void * array_prev(array_t *array) {
   return array -> contents[array -> curix--];
 }
-

@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "libcore.h"
 #include <data.h>
 #include <datastack.h>
 #include <dict.h>
@@ -48,11 +49,6 @@ extern char *        _thread_tostring(thread_t *);
 extern _thr_t        _thread_self(void);
 static void          _thread_set_selfobj(thread_t *);
 static thread_t *    _thread_get_selfobj();
-
-static int           _data_cmp_thread(data_t *, data_t *);
-static char *        _data_tostring_thread(data_t *);
-static unsigned int  _data_hash_thread(data_t *);
-static data_t *      _data_resolve_thread(data_t *, char *);
 
 static data_t *      _thread_interrupt(data_t *, char *, array_t *, dict_t *);
 static data_t *      _thread_yield(data_t *, char *, array_t *, dict_t *);
@@ -88,7 +84,7 @@ int thread_debug = 0;
 /* ------------------------------------------------------------------------ */
 
 void _thread_init(void) {
-  thread_t *main;
+  thread_t *mainthread;
 
   if (Thread < 0) {
     logging_register_category("thread", &thread_debug);
@@ -100,9 +96,9 @@ void _thread_init(void) {
     Thread = typedescr_create_and_register(Thread, "thread",
                                            _vtable_thread,
                                            _methoddescr_thread);
-    main = thread_self();
-    if (main) {
-      thread_setname(main, "main");
+    mainthread = thread_self();
+    if (mainthread) {
+      thread_setname(mainthread, "main");
     }
   }
 }
@@ -125,7 +121,7 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
   if (!retval) {
     condition_free(ctx -> condition);
   }
-  
+
 #ifdef HAVE_PTHREAD_H
   if (!retval) {
     errno = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &dummy);
@@ -136,7 +132,7 @@ void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
     retval = (errno) ? -1 : 0;
   }
 #endif /* HAVE_PTHREAD_H */
-  
+
   if (!retval) {
 #ifdef HAVE_PTHREAD_H
     pthread_cleanup_push((void (*)(void *)) _thread_free, thread);
@@ -196,7 +192,7 @@ thread_t * _thread_get_selfobj(void) {
 
 thread_t * thread_self(void) {
   thread_t *thread;
-  
+
   _thread_init();
   thread = _thread_get_selfobj();
   if (!thread) {
@@ -323,7 +319,7 @@ thread_t * thread_setname(thread_t *thread, char *name) {
 
 data_t * thread_resolve(thread_t *thread, char *name) {
   data_t *ret = NULL;
-  
+
   if (!strcmp(name, "name")) {
     return str_to_data(thread -> name);
   } else if (!strcmp(name, "id")) {
@@ -339,28 +335,22 @@ data_t * thread_resolve(thread_t *thread, char *name) {
 }
 
 int thread_set_status(thread_t *thread, thread_status_flag_t status) {
-  if (thread_debug) {
-    debug("  Setting flag %d on thread %s", status, thread -> name);
-  }
+  debug(thread, "  Setting flag %d on thread %s", status, thread -> name);
   thread -> status |= status;
   return thread -> status;
 }
 
 int thread_unset_status(thread_t *thread, thread_status_flag_t status) {
-  if (thread_debug) {
-    debug("  Clearing flag %d on thread %s", status, thread -> name);
-  }
+  debug(thread, "  Clearing flag %d on thread %s", status, thread -> name);
   thread -> status &= ~status;
   return thread -> status;
 }
 
 int thread_has_status (thread_t *thread, thread_status_flag_t status) {
-  if (thread_debug) {
-    debug("  Thread %s %s %d", 
-          thread -> name, 
-          thread -> status & status ? "has" : "doesn't have", 
-          status);
-  }
+  debug(thread, "  Thread %s %s %d",
+        thread -> name,
+        thread -> status & status ? "has" : "doesn't have",
+        status);
   return thread -> status & status;
 }
 

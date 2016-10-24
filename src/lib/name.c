@@ -19,6 +19,7 @@
 
 #include <string.h>
 
+#include "libcore.h"
 #include <data.h>
 #include <name.h>
 #include <logging.h>
@@ -80,14 +81,12 @@ data_t * _name_append(data_t *self, char *fnc_name, array_t *args, dict_t *kwarg
 /* ----------------------------------------------------------------------- */
 
 void _name_debug(name_t *name, char *msg) {
-  if (name_debug) {
-    debug("%s: %p = %s (%d)", msg, name, name_tostring(name), name -> _d.refs);
-  }
+  mdebug(name, "%s: %p = %s (%d)", msg, name, name_tostring(name), name -> _d.refs);
 }
 
 name_t * _name_create(int count) {
   name_t *ret;
-  
+
   _name_init();
   ret = data_new(Name, name_t);
   ret -> name = str_array_create(count);
@@ -150,7 +149,7 @@ name_t * name_deepcopy(name_t *src) {
 
   name_append(ret, src);
   return ret;
-}       
+}
 
 name_t * name_split(char *name, char *sep) {
   name_t  *ret;

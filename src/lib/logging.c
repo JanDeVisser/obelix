@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <core.h>
+#include "libcore.h"
 #include <dict.h>
 #include <logging.h>
 
@@ -47,6 +47,7 @@ static char *          _log_level_str(log_level_t lvl);
 
 static dict_t *        _categories = NULL;
 static log_level_t     _log_level = LogLevelError;
+       int             core_debug = 0;
 
 static code_label_t _log_level_labels[] = {
   { .code = LogLevelDebug,   .label = "DEBUG" },
@@ -102,6 +103,7 @@ logcategory_t * _logcategory_get(char *name) {
   logcategory_t *ret;
 
   _logging_init();
+  ret = (logcategory_t *) dict_get(_categories, name);
   return ret;
 }
 
@@ -128,7 +130,7 @@ void _logcategory_free(logcategory_t *cat) {
 
 logcategory_t * _logcategory_set(logcategory_t *cat, int value) {
   if (value) {
-    debug("Enabling %s logging", cat -> name);
+    mdebug(core, "Enabling %s logging", cat -> name);
   }
   if (cat -> flag) {
     *(cat -> flag) = value;
@@ -229,13 +231,14 @@ void __logging_init(void) {
     }
     free(cats);
   }
+  _logcategory_create_nolock("core", &core_debug);
 }
 
-void logging_init(void) {
+OBLCORE_IMPEXP void logging_init(void) {
   _logging_init();
 }
 
-void logging_register_category(char *name, int *flag) {
+OBLCORE_IMPEXP void logging_register_category(char *name, int *flag) {
   logcategory_t *cat;
 
   _logging_init();
@@ -249,7 +252,7 @@ void logging_register_category(char *name, int *flag) {
   pthread_mutex_unlock(&_logging_mutex);
 }
 
-void logging_reset(void) {
+OBLCORE_IMPEXP void logging_reset(void) {
   int value = 0;
 
   _logging_init();
@@ -258,18 +261,18 @@ void logging_reset(void) {
   pthread_mutex_unlock(&_logging_mutex);
 }
 
-void logging_enable(char *category) {
+OBLCORE_IMPEXP void logging_enable(char *category) {
   _logging_set(category, 1);
 }
 
-void logging_disable(char *category) {
+OBLCORE_IMPEXP void logging_disable(char *category) {
   _logging_set(category, 0);
 }
 
-void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, const char *msg, ...) {
+OBLCORE_IMPEXP void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, const char *msg, ...) {
   va_list args;
 
-  if (lvl >= _log_level) {
+  if ((lvl == LogLevelDebug) || (lvl >= _log_level)) {
     va_start(args, msg);
     fprintf(stderr, "%-12.12s:%4d:%-20.20s:%-5.5s:", file, line, caller, _log_level_str(lvl));
     vfprintf(stderr, msg, args);
@@ -278,7 +281,7 @@ void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, co
   }
 }
 
-int logging_status(char *category) {
+OBLCORE_IMPEXP int logging_status(char *category) {
   logcategory_t *cat;
 
   _logging_init();
@@ -292,11 +295,11 @@ int logging_status(char *category) {
   return cat -> enabled;
 }
 
-int logging_level(void) {
+OBLCORE_IMPEXP int logging_level(void) {
   return _log_level;
 }
 
-int logging_set_level(log_level_t log_level) {
+OBLCORE_IMPEXP int logging_set_level(log_level_t log_level) {
   _log_level = log_level;
   return _log_level;
 }

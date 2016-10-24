@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <limits.h>
 
+#include "libcore.h"
 #include <data.h>
 #include <exception.h>
 #include <method.h>
@@ -43,9 +44,9 @@ int RuntimeMethod = -1;
 
 void _mth_init(void) {
   if (RuntimeMethod < 0) {
-    RuntimeMethod = typedescr_create_and_register(RuntimeMethod, 
-                                                  "runtimemethod", 
-                                                  _vtable_method, 
+    RuntimeMethod = typedescr_create_and_register(RuntimeMethod,
+                                                  "runtimemethod",
+                                                  _vtable_method,
                                                   NULL);
   }
 }

@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "libcore.h"
 #include <core.h>
 #include <data.h>
 #include <exception.h>
@@ -42,7 +43,7 @@ static data_t *      _list_next(data_t *);
 static data_t *      _list_has_next(data_t *);
 
 static data_t *      _list_create(data_t *, char *, array_t *, dict_t *);
-static data_t *      _list_range(data_t *, char *, array_t *, dict_t *);
+//static data_t *      _list_range(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_at(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_slice(data_t *, char *, array_t *, dict_t *);
 
@@ -60,12 +61,6 @@ static vtable_t _vtable_list[] = {
   { .id = FunctionNext,     .fnc = (void_t) _list_next },
   { .id = FunctionHasNext,  .fnc = (void_t) _list_has_next },
   { .id = FunctionNone,     .fnc = NULL }
-};
-
-static typedescr_t _typedescr_list =   {
-  .type          = List,
-  .type_name     = "list",
-  .vtable        = _vtable_list
 };
 
 /* FIXME Add append, delete, head, tail, etc... */
@@ -165,8 +160,6 @@ int _list_len(data_t *self) {
 }
 
 data_t * _list_resolve(data_t *self, char *name) {
-  array_t *list = data_as_array(self);
-  int      sz = array_size(list);
   long     ix;
 
   if (!strtoint(name, &ix)) {
@@ -233,7 +226,7 @@ data_t * data_list_push(data_t *list, data_t *value) {
 data_t * data_list_get(data_t *data, int ix) {
   array_t *list = data_as_array(data);
   int      sz = array_size(list);
-  
+
   if ((ix >= sz) || (ix < -sz)) {
     return data_exception(ErrorRange,
                           "Index %d is not in range %d ~ %d",
@@ -259,10 +252,6 @@ data_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _list_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  array_t *list = data_as_array(self);
-  int      sz = array_size(list);
-  int      ix = data_intval(data_array_get(args, 0));
-
   (void) name;
   (void) kwargs;
   return _list_resolve(self, data_tostring(data_array_get(args, 0)));
@@ -277,4 +266,3 @@ data_t * _list_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   array_free(slice);
   return ret;
 }
-

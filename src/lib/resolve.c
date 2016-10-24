@@ -19,6 +19,7 @@
 
 #include <config.h>
 #include <limits.h>
+#include <stdio.h>
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif /* HAVE_DLFCN_H */
@@ -30,8 +31,7 @@
 #include <windows.h>
 #endif /* HAVE_WINDOWS_H */
 
-#include <stdio.h>
-#include <logging.h>
+#include "libcore.h"
 #include <resolve.h>
 
 #define OBL_INIT    "_obl_init"
@@ -101,9 +101,9 @@ resolve_result_t * _resolve_result_create(void *result) {
   ret -> error = error;
   ret -> errorcode = errorcode;
   if (ret -> error) {
-    mdebug(resolve, "resolve_result has error '%s' (%d)", ret -> error, ret -> errorcode);
+    debug(resolve, "resolve_result has error '%s' (%d)", ret -> error, ret -> errorcode);
   } else {
-    mdebug(resolve, "resolve_result OK, result is %sNULL", (ret -> result) ? "NOT " : "");
+    debug(resolve, "resolve_result OK, result is %sNULL", (ret -> result) ? "NOT " : "");
   }
   return ret;
 }
@@ -206,9 +206,9 @@ resolve_handle_t * _resolve_handle_try_open(resolve_handle_t *handle, char*dir) 
     } else {
       path = strdup(_resolve_handle_get_platform_image(handle));
     }
-    mdebug(resolve, "Attempting to open library '%s'", path);
+    debug(resolve, "Attempting to open library '%s'", path);
   } else {
-    mdebug(resolve, "Attempting to open main program module");
+    debug(resolve, "Attempting to open main program module");
     path = NULL;
   }
 #ifdef HAVE_DLFCN_H
@@ -218,10 +218,10 @@ resolve_handle_t * _resolve_handle_try_open(resolve_handle_t *handle, char*dir) 
   SetLastError(0);
   libhandle = (image) ? LoadLibrary(TEXT(path)) : GetModuleHandle(NULL);
 #endif /* HAVE_DLFCN_H */
-  res = _resolve_result_create((void *) handle);
+  res = _resolve_result_create((void *) libhandle);
   handle -> handle = (lib_handle_t) res -> result;
   if (handle -> handle) {
-    mdebug(resolve, "Successfully opened '%s'", (path) ? path : "main program module");
+    debug(resolve, "Successfully opened '%s'", (path) ? path : "main program module");
   }
   _resolve_result_free(res);
   free(path);
@@ -229,7 +229,6 @@ resolve_handle_t * _resolve_handle_try_open(resolve_handle_t *handle, char*dir) 
 }
 
 resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
-  char             *err = NULL;
   resolve_handle_t *ret = NULL;
   char             *image;
   char             *obldir;
@@ -237,9 +236,9 @@ resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
 
   image = _resolve_handle_get_platform_image(handle);
   if (image) {
-    mdebug(resolve, "resolve_open('%s') ~ '%s'", handle -> image, image);
+    debug(resolve, "resolve_open('%s') ~ '%s'", handle -> image, image);
   } else {
-    mdebug(resolve, "resolve_open('Main Program Image')");
+    debug(resolve, "resolve_open('Main Program Image')");
   }
   handle -> handle = NULL;
   if (image) {
@@ -277,17 +276,17 @@ resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
     ret = handle;
     result = _resolve_handle_get_function(handle, OBL_INIT);
     if (result -> result) {
-      mdebug(resolve, "resolve_open('%s') Executing initializer", _resolve_handle_tostring(handle));
+      debug(resolve, "resolve_open('%s') Executing initializer", _resolve_handle_tostring(handle));
       ((void_t) result -> result)();
     } else if (!result -> errorcode){
-      mdebug(resolve, "resolve_open('%s') No initializer", _resolve_handle_tostring(handle));
+      debug(resolve, "resolve_open('%s') No initializer", _resolve_handle_tostring(handle));
     } else {
       error("resolve_open('%s') Error finding initializer: %s (%d)",
             _resolve_handle_tostring(handle), result -> error, result -> errorcode);
       ret = NULL;
     }
     if (ret) {
-      mdebug(resolve, "Library '%s' opened successfully");
+      debug(resolve, "Library '%s' opened successfully");
     }
     _resolve_result_free(result);
   } else {
@@ -299,7 +298,7 @@ resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
 resolve_result_t * _resolve_handle_get_function(resolve_handle_t *handle, char *function_name) {
   void_t            function;
 
-  mdebug(resolve, "dlsym('%s', '%s')", _resolve_handle_tostring(handle), function_name);
+  debug(resolve, "dlsym('%s', '%s')", _resolve_handle_tostring(handle), function_name);
 #ifdef HAVE_DLFCN_H
   dlerror();
   function = (void_t) dlsym(handle -> handle, function_name);
@@ -326,15 +325,15 @@ void __resolve_init(void) {
   atexit(resolve_free);
 }
 
-resolve_t * resolve_get(void) {
+OBLCORE_IMPEXP resolve_t * resolve_get(void) {
   _resolve_init();
   return _singleton;
 }
 
-void resolve_free(void) {
+OBLCORE_IMPEXP void resolve_free(void) {
   resolve_handle_t *image;
   if (_singleton) {
-    mdebug(resolve, "resolve_free");
+    debug(resolve, "resolve_free");
     while (_singleton -> images) {
       image = _singleton -> images;
       _singleton -> images = image -> next;
@@ -351,7 +350,7 @@ resolve_t * _resolve_open(resolve_t *resolve, char *image) {
   resolve_handle_t *handle;
 
   pthread_mutex_lock(&_resolve_mutex);
-  if (handle = _resolve_handle_create(image)) {
+  if ((handle = _resolve_handle_create(image))) {
     handle -> next = resolve -> images;
     resolve -> images = handle;
     ret = resolve;
@@ -360,13 +359,13 @@ resolve_t * _resolve_open(resolve_t *resolve, char *image) {
   return ret;
 }
 
-resolve_t * resolve_open(resolve_t *resolve, char *image) {
+OBLCORE_IMPEXP resolve_t * resolve_open(resolve_t *resolve, char *image) {
   _resolve_init();
   return _resolve_open(resolve, image);
 }
 
 
-void_t resolve_resolve(resolve_t *resolve, char *func_name) {
+OBLCORE_IMPEXP void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   resolve_handle_t *handle;
   void_t            ret = NULL;
   int               err = 0;
@@ -375,11 +374,11 @@ void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   // TODO synchronize
   ret = (void_t) dict_get(resolve -> functions, func_name);
   if (ret) {
-    mdebug(resolve, "Function '%s' was cached", func_name);
+    debug(resolve, "Function '%s' was cached", func_name);
     return ret;
   }
 
-  mdebug(resolve, "dlsym('%s')", func_name);
+  debug(resolve, "dlsym('%s')", func_name);
   ret = NULL;
   for (handle = resolve -> images; handle && !err && !ret; handle = handle -> next) {
     result = _resolve_handle_get_function(handle, func_name);
@@ -396,7 +395,7 @@ void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   return ret;
 }
 
-int resolve_library(char *library) {
+OBLCORE_IMPEXP int resolve_library(char *library) {
   resolve_t *resolve;
 
   resolve = resolve_get();
@@ -404,7 +403,7 @@ int resolve_library(char *library) {
   return resolve_open(resolve, library) != NULL;
 }
 
-void_t resolve_function(char *func_name) {
+OBLCORE_IMPEXP void_t resolve_function(char *func_name) {
   resolve_t *resolve;
   void_t     fnc;
 

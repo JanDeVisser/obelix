@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include "libcore.h"
 #include <dict.h>
 #include <str.h>
 
@@ -85,11 +86,11 @@ void _dictentry_free(dictentry_t *entry) {
   }
 }
 
-unsigned int _dictentry_hash(dictentry_t *entry) {
+_unused_ unsigned int _dictentry_hash(dictentry_t *entry) {
   return _dict_hash(entry -> dict, entry -> key);
 }
 
-int _dictentry_cmp_key(dictentry_t *entry, void *other) {
+_unused_ int _dictentry_cmp_key(dictentry_t *entry, void *other) {
   return _dict_cmp_keys(entry -> dict, entry -> key, other);
 }
 
@@ -97,7 +98,7 @@ int _dictentry_cmp_key(dictentry_t *entry, void *other) {
 
 entry_t * _entry_from_dictentry(dictentry_t *e) {
   entry_t *ret;
-  
+
   ret = NEW(entry_t);
   if (ret) {
     ret -> key = e -> key;
@@ -106,9 +107,9 @@ entry_t * _entry_from_dictentry(dictentry_t *e) {
   return ret;
 }
 
-entry_t * _entry_from_entry(entry_t *e) {
+_unused_ entry_t * _entry_from_entry(entry_t *e) {
   entry_t *ret;
-  
+
   ret = NEW(entry_t);
   ret -> key = e -> key;
   ret -> value = e -> value;
@@ -117,7 +118,7 @@ entry_t * _entry_from_entry(entry_t *e) {
 
 entry_t * _entry_from_strings(dictentry_t *e) {
   entry_t *ret;
-  
+
   ret = NEW(entry_t);
   assert(e -> dict -> key_type.tostring);
   assert(e -> dict -> data_type.tostring);
@@ -137,7 +138,7 @@ void entry_free(entry_t *e) {
 
 static bucket_t * _bucket_create(dict_t *dict, int ix) {
   bucket_t *ret = (bucket_t *) new(sizeof(bucket_t) + INIT_BUCKET_SIZE * sizeof(dictentry_t));
-  
+
   ret -> dict = dict;
   ret -> ix = ix;
   ret -> capacity = INIT_BUCKET_SIZE;
@@ -153,7 +154,7 @@ void _bucket_free(bucket_t *bucket) {
 
 void _bucket_clear(bucket_t *bucket) {
   int ix;
-  
+
   for (ix = 0; ix < bucket -> size; ix++) {
     _dictentry_free(&(bucket -> entries[ix]));
   }
@@ -181,7 +182,7 @@ bucket_t * _bucket_copy_entry(bucket_t *bucket, dictentry_t *entry) {
 
 bucket_t * _bucket_init_entry(bucket_t *bucket, void *key, void *value) {
   dictentry_t *entry;
-  
+
   if (bucket -> size >= bucket -> capacity) {
     bucket = _bucket_expand(bucket);
   }
@@ -197,7 +198,7 @@ bucket_t * _bucket_init_entry(bucket_t *bucket, void *key, void *value) {
 
 void * _bucket_reduce(bucket_t *bucket, reduce_t reducer, void *data) {
   int ix;
-  
+
   for (ix = 0; ix < bucket -> size; ix++) {
     data = reducer(&(bucket -> entries[ix]), data);
   }
@@ -206,12 +207,12 @@ void * _bucket_reduce(bucket_t *bucket, reduce_t reducer, void *data) {
 
 void _bucket_remove(bucket_t *bucket, int ix) {
   int i;
-  
+
   assert(bucket -> size > ix);
   _dictentry_free(&(bucket -> entries[ix]));
   bucket -> size--;
   if (ix < bucket -> size) {
-    memmove(&(bucket -> entries[ix]), &(bucket -> entries[ix+1]), 
+    memmove(&(bucket -> entries[ix]), &(bucket -> entries[ix+1]),
             (bucket -> size - ix) * sizeof(dictentry_t));
     for (i = ix; i < bucket -> size; i++) {
       bucket -> entries[i].ix = i;
@@ -221,7 +222,7 @@ void _bucket_remove(bucket_t *bucket, int ix) {
 
 int _bucket_position_of(bucket_t *bucket, void *key) {
   dictentry_t *e = _bucket_find_entry(bucket, key);
-  
+
   return (e) ? e -> ix : -1;
 }
 
@@ -240,7 +241,7 @@ dictentry_t * _bucket_find_entry(bucket_t *bucket, void *key) {
 
 bucket_t * _bucket_put(bucket_t *bucket, void *key, void *value) {
   dictentry_t *e;
-  
+
   e = _bucket_find_entry(bucket, key);
   if (e) {
     if (e -> dict -> key_type.free && e -> key) {
@@ -280,7 +281,7 @@ dict_t * _dict_rehash(dict_t *dict) {
   bucket_t     *bucket;
   bucket_t     *new_bucket;
   dictentry_t  *entry;
-  
+
   old_buckets = dict ->  buckets;
   old = dict -> num_buckets;
   dict -> num_buckets = (old) ? old * 2 : INIT_BUCKETS;;
@@ -302,7 +303,7 @@ dict_t * _dict_rehash(dict_t *dict) {
       free(bucket);
     }
     free(old_buckets);
-  }  
+  }
   return dict;
 }
 
@@ -415,7 +416,7 @@ void * _dict_visitor(void *e, reduce_ctx *ctx) {
   ((visit_t) ctx -> fnc)(e);
   return ctx;
 }
-  
+
 dict_t * _dict_visit(dict_t *dict, visit_t visitor, dict_reduce_type_t visittype) {
   reduce_ctx *ctx;
 
@@ -445,11 +446,10 @@ dict_t * _dict_put_all_reducer(entry_t *e, dict_t *dict) {
 }
 
 void ** _dict_entry_formatter(entry_t *e, void **ctx) {
-  dict_t *dict = (dict_t *) ctx[0];
   str_t  *entries = (str_t *) ctx[1];
   char   *sep = (char *) ctx[2];
   char   *fmt = (char *) ctx[3];
-  
+
   if (str_len(entries)) {
     str_append_chars(entries, sep);
   }
@@ -459,7 +459,7 @@ void ** _dict_entry_formatter(entry_t *e, void **ctx) {
 
 void _dict_visit_buckets(dict_t *dict, visit_t visitor) {
   int ix;
-  
+
   for (ix = 0; ix < dict -> num_buckets; ix++) {
     visitor(dict -> buckets[ix]);
   }
@@ -482,7 +482,7 @@ dict_t * dict_create(cmp_t cmp) {
 
 dict_t * dict_clone(dict_t *dict) {
   dict_t *ret = dict_create(NULL);
-  
+
   dict_set_key_type(ret, &(dict -> key_type));
   dict_set_data_type(ret, &(dict -> data_type));
   return ret;
@@ -566,7 +566,7 @@ dict_t * dict_put(dict_t *dict, void *key, void *data) {
   dict_t *ret;
   int     had_key;
 
-  if (!dict -> num_buckets || 
+  if (!dict -> num_buckets ||
       ((float) (dict -> size + 1) / (float) dict -> num_buckets) > dict -> loadfactor) {
     _dict_rehash(dict);
   }
@@ -682,7 +682,7 @@ dict_t * _dict_visit_dictentries(dict_t *dict, visit_t visitor) {
 
 list_t * dict_keys(dict_t *dict) {
   list_t *ret;
-  
+
   ret = list_create();
   if (ret) {
     ret = (list_t *) dict_reduce_keys(dict, (reduce_t) _dict_append_reducer, ret);
@@ -692,7 +692,7 @@ list_t * dict_keys(dict_t *dict) {
 
 list_t * dict_values(dict_t *dict) {
   list_t *ret;
-  
+
   ret = list_create();
   if (ret) {
     ret = (list_t *) dict_reduce_values(dict, (reduce_t) _dict_append_reducer, ret);
@@ -702,7 +702,7 @@ list_t * dict_values(dict_t *dict) {
 
 list_t * dict_items(dict_t *dict) {
   list_t *ret;
-  
+
   ret = list_create();
   list_set_free(ret, (visit_t) entry_free);
   _dict_reduce(dict, (reduce_t) _dict_append_reducer, ret, DRTEntriesNoFree);
@@ -720,7 +720,7 @@ str_t * dict_tostr_custom(dict_t *dict, char *open, char *fmt, char *sep, char *
 
   assert(dict -> key_type.tostring);
   assert(dict -> data_type.tostring);
-  
+
   ret = str_copy_chars(open);
   entries = str_create(0);
   ctx[0] = dict;
@@ -740,7 +740,7 @@ str_t * dict_tostr(dict_t *dict) {
 
 char * dict_tostring_custom(dict_t *dict, char *open, char *fmt, char *sep, char *close) {
   str_t *s;
-  
+
   free(dict -> str);
   s = dict_tostr_custom(dict, open, fmt, sep, close);
   dict -> str = str_reassign(s);
@@ -756,7 +756,7 @@ str_t * dict_dump(dict_t *dict, char *title) {
   int          len, i, j;
   dictentry_t *entry;
   str_t       *ret;
-  
+
   ret = str_printf("dict_dump -- %s\n", title);
   str_append_printf(ret, "==============================================\n");
   str_append_printf(ret, "Size: %d\n", dict_size(dict));
@@ -766,11 +766,11 @@ str_t * dict_dump(dict_t *dict, char *title) {
     len = bucket -> size;
     str_append_printf(ret, "  Bucket: %d bucket size: %d\n", i, len);
     if (len > 0) {
-      debug("  --------------------------------------------\n");
+      mdebug(core, "  --------------------------------------------\n");
       for (j = 0; j < len; j++) {
         entry = &(bucket -> entries[j]);
-        str_append_printf(ret, "    %s (%u) --> %s\n", 
-                         (char *) entry -> key, entry -> hash, 
+        str_append_printf(ret, "    %s (%u) --> %s\n",
+                         (char *) entry -> key, entry -> hash,
                          (char *) entry -> value);
       }
       str_append_chars(ret, "\n");

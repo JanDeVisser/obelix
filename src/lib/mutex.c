@@ -20,6 +20,7 @@
 #include <config.h>
 #include <errno.h>
 
+#include "libcore.h"
 #include <mutex.h>
 #include <exception.h>
 
@@ -86,10 +87,13 @@ static methoddescr_t _methoddescr_condition[] = {
   { .type = NoType, .name = NULL,        .method = NULL,                          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
+int mutex_debug = -1;
+
 /* ------------------------------------------------------------------------ */
 
 void _mutex_init(void) {
   if (Mutex < 0) {
+    logging_register_category("mutex", &mutex_debug);
     Mutex = typedescr_create_and_register(Mutex, "mutex",
                                           _vtable_mutex, _methoddescr_mutex);
     Condition = typedescr_create_and_register(Condition, "condition",
@@ -151,6 +155,7 @@ mutex_t * mutex_create() {
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   InitializeCriticalSection(&(mutex -> cs));
 #endif /* HAVE_PTHREAD_H */
+  mdebug(mutex, "Mutex created");
   return mutex;
 }
 
@@ -168,6 +173,8 @@ unsigned int mutex_hash(mutex_t *mutex) {
 
 int mutex_lock(mutex_t *mutex) {
   int retval = 0;
+
+  mdebug(mutex, "Locking mutex");
 #ifdef HAVE_PTHREAD_H
   errno = pthread_mutex_lock(&mutex -> mutex);
   if (errno) {
@@ -176,6 +183,11 @@ int mutex_lock(mutex_t *mutex) {
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   EnterCriticalSection(&(mutex -> cs));
 #endif /* HAVE_PTHREAD_H */
+  if (retval) {
+    error("Error locking mutex: %d", errno);
+  } else {
+    mdebug(mutex, "Mutex locked");
+  }
   return retval;
 }
 
@@ -187,6 +199,7 @@ int mutex_lock(mutex_t *mutex) {
 int mutex_trylock(mutex_t *mutex) {
   int retval = 0;
 
+  mdebug(mutex, "Trying to lock mutex");
 #ifdef HAVE_PTHREAD_H
   errno = pthread_mutex_trylock(&mutex -> mutex);
   switch (errno) {
@@ -203,12 +216,14 @@ int mutex_trylock(mutex_t *mutex) {
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   retval = (!TryEnterCriticalSection(&mutex -> cs)) ? 0 : 1;
 #endif /* HAVE_PTHREAD_H */
+  mdebug(mutex, "Trylock mutex: %s", (retval) ? "Fail" : "Success");
   return retval;
 }
 
 int mutex_unlock(mutex_t *mutex) {
   int retval = 0;
 
+  mdebug(mutex, "Unlocking mutex");
 #ifdef HAVE_PTHREAD_H
   errno = pthread_mutex_unlock(&mutex -> mutex);
   if (errno) {
@@ -217,6 +232,11 @@ int mutex_unlock(mutex_t *mutex) {
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   EnterCriticalSection(&mutex -> cs);
 #endif /* HAVE_PTHREAD_H */
+  if (retval) {
+    error("Error unlocking mutex: %d", errno);
+  } else {
+    mdebug(mutex, "Mutex unlocked");
+  }
   return retval;
 }
 
@@ -310,6 +330,7 @@ condition_t * condition_create() {
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   InitializeConditionVariable(&condition -> condition);
 #endif /* HAVE_PTHREAD_H */
+  mdebug(mutex, "Condition created");
   return condition;
 }
 
@@ -326,6 +347,7 @@ unsigned int condition_hash(condition_t *condition) {
 }
 
 int condition_acquire(condition_t *condition) {
+  mdebug(mutex, "Acquiring condition");
   return mutex_lock(condition -> mutex);
 }
 
@@ -335,12 +357,14 @@ int condition_acquire(condition_t *condition) {
  *         -1 If an error occurred.
  */
 int condition_tryacquire(condition_t *condition) {
+  mdebug(mutex, "Trying to acquire condition");
   return mutex_trylock(condition -> mutex);
 }
 
 int condition_wakeup(condition_t *condition) {
   int retval = 0;
 
+  mdebug(mutex, "Waking up condition");
 #ifdef HAVE_PTHREAD_H
   errno = pthread_cond_signal(&condition -> condition);
   if (errno) {
@@ -350,12 +374,18 @@ int condition_wakeup(condition_t *condition) {
   WakeConditionVariable (&condition -> condition);
 #endif /* HAVE_PTHREAD_H */
   mutex_unlock(condition -> mutex);
+  if (retval) {
+    error("Error waking condition: %d", errno);
+  } else {
+    mdebug(mutex, "Condition woken up");
+  }
   return retval;
 }
 
 int condition_sleep(condition_t *condition) {
   int retval = 0;
 
+  mdebug(mutex, "Going to sleep on condition");
 #ifdef HAVE_PTHREAD_H
   errno = pthread_cond_wait(&condition -> condition, &condition -> mutex -> mutex);
   if (errno) {
@@ -364,6 +394,11 @@ int condition_sleep(condition_t *condition) {
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
   SleepConditionVariableCS(&condition -> condition, &condition -> mutex -> cs, INFINITE);
 #endif /* HAVE_PTHREAD_H */
+if (retval) {
+  error("Error sleeping on condition: %d", errno);
+} else {
+  mdebug(mutex, "Woke up from condition");
+}
   return retval;
 }
 

@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <core.h>
+#include "libcore.h"
 #include <data.h>
 #include <exception.h>
 #include <list.h>
@@ -44,7 +44,7 @@ static void        _data_call_free(typedescr_t *, data_t *);
 static data_t *    _data_call_resolve(typedescr_t *, data_t *, char *);
 static data_t *    _data_call_setter(typedescr_t *, data_t *, char *, data_t *);
 
-int                debug_data = -1;
+int                data_debug = -1;
 int                _data_count = 0;
 
 static type_t _type_data = {
@@ -54,14 +54,12 @@ static type_t _type_data = {
   .free     = (free_t) data_free,
   .cmp      = (cmp_t) data_cmp
 };
-type_t *type_data = &_type_data;
+__ATTRIBUTE_DLLEXPORT__ type_t *type_data = &_type_data;
 
 /* -- D A T A  S T A T I C  F U N C T I O N S ----------------------------- */
 
 void _data_init(void) {
-  if (debug_data < 0) {
-    logging_register_category("data", &debug_data);
-  }
+  logging_register_category("data", &data_debug);
 }
 
 data_t * _data_call_constructor(data_t *data, new_t n, va_list args) {
@@ -367,10 +365,7 @@ int data_hasmethod(data_t *data, char *name) {
   methoddescr_t *md;
 
   md = typedescr_get_method(type, name);
-  if (debug_data) {
-    debug("'%s'.hasmethod(%s): %s",
-	  data_tostring(data), name, (md) ? "true" : "false");
-  }
+  mdebug(data, "'%s'.hasmethod(%s): %s", data_tostring(data), name, (md) ? "true" : "false");
   return (md) ? TRUE : FALSE;
 }
 
@@ -379,24 +374,16 @@ data_t * data_method(data_t *data, char *name) {
   methoddescr_t *md;
   data_t        *ret = NULL;
 
-  if (debug_data) {
-    debug("%s[%s].data_method(%s)",
-          data_tostring(data), data_typename(data), name);
-  }
+  mdebug(data, "%s[%s].data_method(%s)", data_tostring(data), data_typename(data), name);
   type = data_typedescr(data);
   md = typedescr_get_method(type, name);
   if (md) {
     ret = (data_t *) mth_create(md, data);
-    if (debug_data) {
-      debug("%s[%s].data_method(%s) = %s",
-            data_tostring(data), data_typename(data),
-            name, runtimemethod_tostring(ret));
-    }
+    mdebug(data, "%s[%s].data_method(%s) = %s", data_tostring(data),
+           data_typename(data), name, runtimemethod_tostring(ret));
   } else {
-    if (debug_data) {
-      debug("%s[%s].data_method(%s) = NULL",
-            data_tostring(data), data_typename(data), name);
-    }
+    mdebug(data, "%s[%s].data_method(%s) = NULL", data_tostring(data),
+           data_typename(data), name);
   }
   return ret;
 }
@@ -409,11 +396,9 @@ data_t * data_resolve(data_t *data, name_t *name) {
 
   assert(type);
   assert(name);
-  if (debug_data) {
-    debug("%s[%s].resolve(%s:%d)",
-          data_tostring(data), data_typename(data),
-          name_tostring(name), name_size(name));
-  }
+  mdebug(data, "%s[%s].resolve(%s:%d)",
+         data_tostring(data), data_typename(data),
+         name_tostring(name), name_size(name));
   if (name_size(name) == 0) {
     ret = data_copy(data);
   } else if (name_size(name) == 1) {
@@ -437,9 +422,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
     ret = tail_resolve;
     name_free(tail);
   }
-  if (debug_data) {
-    debug("%s.resolve(%s) = %s", data_tostring(data), name_tostring(name), data_tostring(ret));
-  }
+  mdebug(data, "%s.resolve(%s) = %s", data_tostring(data), name_tostring(name), data_tostring(ret));
   return ret;
 }
 
@@ -448,12 +431,8 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
   data_t  *ret = NULL;
   array_t *args_shifted = NULL;
 
-  if (debug_data) {
-    debug("data_invoke(%s, %s, %s)",
-          data_tostring(self),
-          name_tostring(name),
-          (args) ? array_tostring(args) : "''");
-  }
+  mdebug(data, "data_invoke(%s, %s, %s)",
+         data_tostring(self), name_tostring(name), (args) ? array_tostring(args) : "''");
   if (!self && array_size(args)) {
     self = data_array_get(args, 0);
     args_shifted = array_slice(args, 1, -1);
@@ -487,9 +466,7 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
   if (args_shifted) {
     array_free(args_shifted);
   }
-  if (debug_data) {
-    debug("data_invoke(%s, %s, %s) = %s", data_tostring(self), name_tostring(name), array_tostring(args), data_tostring(ret));
-  }
+  mdebug(data, "data_invoke(%s, %s, %s) = %s", data_tostring(self), name_tostring(name), array_tostring(args), data_tostring(ret));
   return ret;
 }
 
@@ -528,11 +505,9 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
   name_t      *head;
   data_t      *ret;
 
-  if (debug_data) {
-    debug("%s.set(%s:%d, %s)",
-          data_tostring(data), name_tostring(name),
-          name_size(name), data_tostring(value));
-  }
+  mdebug(data, "%s.set(%s:%d, %s)",
+        data_tostring(data), name_tostring(name),
+        name_size(name), data_tostring(value));
   if (name_size(name) == 1) {
     container = data;
   } else {
@@ -686,11 +661,9 @@ int data_cmp(data_t *d1, data_t *d2) {
   int          ret;
   cmp_t        cmp;
 
-  if (debug_data) {
-    debug("Comparing '%s' [%s] and '%s' [%s]",
-          data_tostring(d1), data_typename(d1),
-          data_tostring(d2), data_typename(d2));
-  }
+  mdebug(data, "Comparing '%s' [%s] and '%s' [%s]",
+        data_tostring(d1), data_typename(d1),
+        data_tostring(d2), data_typename(d2));
   if (d1 == d2) {
     return 0;
   } else if (!d1 || !d2) {

@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <core.h>
+#include "libcore.h"
 #include <data.h>
 #include <nvp.h>
 #include <str.h>
@@ -30,7 +30,6 @@
 static inline void  _nvp_init(void);
 static void         _nvp_free(nvp_t *);
 static char *       _nvp_allocstring(nvp_t *);
-static nvp_t *      _nvp_parse(char *);
 static data_t *     _nvp_resolve(nvp_t *, char *);
 
 static data_t *     _nvp_create(char *, array_t *, dict_t *);

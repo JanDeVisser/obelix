@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <core.h>
+#include "libcore.h"
 #include <data.h>
 #include <exception.h>
 #include <name.h>
@@ -34,7 +34,7 @@ extern void     list_init(void);
 extern void     exception_init(void);
 extern void     ptr_init(void);
 
-extern int      debug_data;
+extern int      data_debug;
 
 static void_t _type_initializers[] = {
   str_init,
@@ -108,7 +108,7 @@ static methoddescr_t _methoddescr_interfaces[] = {
 
 void any_init(void) {
   int ix;
-  
+
   for (ix = 0; _type_initializers[ix]; ix++) {
     _type_initializers[ix]();
   }
@@ -385,14 +385,14 @@ data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   data_t *to;
   int     infix = !strcmp(name, "~");
 
-  if (debug_data) {
-    debug("_range_create");
+  if (data_debug) {
+    _debug("_range_create");
     if (infix) {
-      debug("'%s' ~ '%s'",
+      _debug("'%s' ~ '%s'",
 	    data_tostring(self),
 	    data_tostring(data_array_get(args, 0)));
     } else {
-      debug("range('%s', '%s')",
+      _debug("range('%s', '%s')",
 	    data_tostring(data_array_get(args, 0)),
 	    data_tostring(data_array_get(args, 1)));
     }
@@ -401,4 +401,3 @@ data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   to = data_array_get(args, (infix) ? 0 : 1);
   return (data_t *) range_create(from, to);
 }
- 

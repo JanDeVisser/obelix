@@ -20,7 +20,7 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
-/* 
+/*
  * The configured options and settings for obelix
  */
 
@@ -30,6 +30,9 @@
 #define OBELIX_VERSION                       "@obelix_VERSION_MAJOR@.@obelix_VERSION_MINOR@"
 #define OBELIX_DATADIR                       "@obelix_DATADIR@"
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE                          1
+#endif /* _GNU_SOURCE */
 #cmakedefine HAVE_ALLOCA_H                   1
 #cmakedefine HAVE_DIRENT_H                   1
 #cmakedefine HAVE_DLFCN_H                    1
@@ -42,12 +45,12 @@
 #cmakedefine HAVE_PTHREAD_H                  1
 #cmakedefine HAVE_REGEX_H                    1
 #cmakedefine HAVE_SIGNAL_H                   1
-#cmakedefine HAVE_STDBOOL_H                  1 
-#cmakedefine HAVE_STDINT_H                   1 
-#cmakedefine HAVE_STRINGS_H                  1 
+#cmakedefine HAVE_STDBOOL_H                  1
+#cmakedefine HAVE_STDINT_H                   1
+#cmakedefine HAVE_STRINGS_H                  1
 #cmakedefine HAVE_SYS_SOCKET_H               1
 #cmakedefine HAVE_SYS_UTSNAME_H              1
-#cmakedefine HAVE_UNISTD_H                   1 
+#cmakedefine HAVE_UNISTD_H                   1
 #cmakedefine HAVE_WCHAR_H                    1
 #cmakedefine HAVE_WCTYPE_H                   1
 #cmakedefine HAVE_WINDOWS_H                  1

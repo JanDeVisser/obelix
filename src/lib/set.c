@@ -1,6 +1,6 @@
 /*
- * set.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * set.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "libcore.h"
 #include <set.h>
 
 static void *       _set_copy(set_t *, void *);
@@ -102,11 +103,9 @@ set_t * _set_union_reducer(void *elem, set_t *set) {
 }
 
 reduce_ctx * _set_intersect_reducer(void *elem, reduce_ctx *ctx) {
-  set_t *set;
   set_t *other;
   set_t *remove;
 
-  set = (set_t *) ctx -> obj;
   other = (set_t *) ctx -> user;
   remove = (set_t *) ctx -> data;
   if (!set_has(other, elem)) {
@@ -121,11 +120,9 @@ set_t * _set_remover(void *elem, set_t *set) {
 }
 
 reduce_ctx * _set_minus_reducer(void *elem, reduce_ctx *ctx) {
-  set_t *set;
   set_t *other;
   set_t *remove;
 
-  set = (set_t *) ctx -> obj;
   other = (set_t *) ctx -> user;
   remove = (set_t *) ctx -> data;
   if (set_has(other, elem)) {
@@ -135,11 +132,9 @@ reduce_ctx * _set_minus_reducer(void *elem, reduce_ctx *ctx) {
 }
 
 reduce_ctx * _set_disjoint_reducer(void *elem, reduce_ctx *ctx) {
-  set_t *set;
   set_t *other;
   int   *disjoint;
 
-  set = (set_t *) ctx -> obj;
   other = (set_t *) ctx -> user;
   disjoint = (int *) ctx -> data;
   *disjoint &= !set_has(other, elem);
@@ -147,11 +142,9 @@ reduce_ctx * _set_disjoint_reducer(void *elem, reduce_ctx *ctx) {
 }
 
 reduce_ctx * _set_subsetof_reducer(void *elem, reduce_ctx *ctx) {
-  set_t *set;
   set_t *other;
   int   *hasall;
 
-  set = (set_t *) ctx -> obj;
   other = (set_t *) ctx -> user;
   hasall = (int *) ctx -> data;
   *hasall &= set_has(other, elem);
@@ -160,7 +153,7 @@ reduce_ctx * _set_subsetof_reducer(void *elem, reduce_ctx *ctx) {
 
 void ** _set_find_reducer(void *element, void **ctx) {
   cmp_t finder = (cmp_t) ctx[0];
-  
+
   if (!finder(element, ctx[1])) {
     ctx[2] = element;
   }
@@ -186,7 +179,7 @@ set_t * set_clone(set_t *src) {
   return ret;
 }
 
-set_t * set_copy(set_t *src) { 
+set_t * set_copy(set_t *src) {
   return set_union(set_clone(src), src);
 }
 
@@ -369,7 +362,7 @@ int set_cmp(set_t *s1, set_t *s2) {
 
 void * set_find(set_t *haystack, cmp_t finder, void *needle) {
   void *ctx[3];
-  
+
   if (!haystack) {
     return NULL;
   }
@@ -399,7 +392,7 @@ str_t * set_tostr(set_t *set) {
 
 char * set_tostring(set_t *set) {
   str_t *s = set_tostr(set);
-  
+
   if (!set) {
     return NULL;
   }

@@ -30,15 +30,27 @@
 
 #if (defined __WIN32__) || (defined _WIN32)
 #ifndef __GNUC__
-#define __DLL_IMPORT__       __declspec(dllimport)
-#define __DLL_EXPORT__       __declspec(dllexport)
+#define __ATTRIBUTE_DLLIMPORT__
+#define __ATTRIBUTE_DLLEXPORT__
+#define __DLL_IMPORT__           __declspec(dllimport)
+#define __DLL_EXPORT__           __declspec(dllexport)
 #else
-#define __DLL_IMPORT__       __attribute__((dllimport)) extern
-#define __DLL_EXPORT__       __attribute__((dllexport)) extern
+#define __ATTRIBUTE_DLLIMPORT__  __attribute__((dllimport))
+#define __ATTRIBUTE_DLLEXPORT__  __attribute__((dllexport))
+#define __DLL_IMPORT__           __ATTRIBUTE_DLLIMPORT__ extern
+#define __DLL_EXPORT__           __ATTRIBUTE_DLLEXPORT__ extern
 #endif
+#else /* !__WIN32__ */
+#define __ATTRIBUTE_DLLIMPORT__
+#define __ATTRIBUTE_DLLEXPORT__
+#define __DLL_IMPORT__           extern
+#define __DLL_EXPORT__           extern
+#endif /* __WIN32__ */
+
+#ifdef __GNUC__
+#define _unused_ __attribute__((unused))
 #else
-#define __DLL_IMPORT__       extern
-#define __DLL_EXPORT__       extern
+#define _unused_
 #endif
 
 #if (defined __WIN32__) || (defined _WIN32)

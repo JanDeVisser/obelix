@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <core.h>
+#include "libcore.h"
 #include <data.h>
 #include <exception.h>
 #include <name.h>
@@ -59,7 +59,6 @@ extern void          exception_init(void);
 extern void          _exception_free(exception_t *);
 extern char *        _exception_allocstring(exception_t *);
 static int           _exception_intval(data_t *);
-static data_t *      _exception_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _exception_resolve(data_t *, char *);
 static data_t *      _exception_call(data_t *, array_t *, dict_t *);
 static data_t *      _exception_cast(data_t *, int);
@@ -79,7 +78,7 @@ static vtable_t _vtable_exception[] = {
 
 /* --  E X C E P T I O N _ T  F U N C T I O N S --------------------------- */
 
-int exception_register(char *str) {
+OBLCORE_IMPEXP int exception_register(char *str) {
   code_label_t *new_exceptions;
   code_label_t  descr;
   int           newsz;
@@ -234,7 +233,7 @@ data_t * _exception_call(data_t *exception, array_t *args, dict_t *kwargs) {
 
 /* -- E X C E P T I O N  F A C T O R Y  F U N C T I O N S ----------------- */
 
-data_t * _data_exception_from_exception(exception_t *exception) {
+_unused_ data_t * _data_exception_from_exception(exception_t *exception) {
   return data_copy((data_t *) exception);
 }
 

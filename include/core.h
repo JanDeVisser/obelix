@@ -21,8 +21,10 @@
 #define __CORE_H__
 
 #include <config.h>
-#include <core-setup.h>
+
 #include <stdarg.h>
+
+#include <core-setup.h>
 #include <logging.h>
 
 #ifdef  __cplusplus

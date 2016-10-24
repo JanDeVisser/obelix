@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "libcore.h"
 #include <array.h>
 #include <data.h>
 #include <exception.h>
@@ -738,7 +739,7 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
           str_append_chars(ret, data_tostring(data_dict_get(kwargs, spec)));
         } else {
           if (!strtoint(spec, &ix) && args && (ix >= 0) && (ix < array_size(args))) {
-            debug("str_format: ix: %d args[ix]: %p %s %s",
+            _debug("str_format: ix: %d args[ix]: %p %s %s",
                   ix, array_get(args, ix),
                   data_typename(data_array_get(args, ix)),
                   data_tostring(data_array_get(args, ix))

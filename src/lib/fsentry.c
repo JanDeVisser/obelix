@@ -17,12 +17,14 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
 #include <errno.h>
 #include <fcntl.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
+#include "libcore.h"
 #include <exception.h>
 #include <file.h>
 #include <fsentry.h>

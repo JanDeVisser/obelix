@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <core.h>
+#include "libcore.h"
 #include <data.h>
 #include <exception.h>
 
@@ -88,12 +88,6 @@ static vtable_t _vtable_float[] = {
   { .id = FunctionFltValue,    .fnc = (void_t) _float_fltvalue },
   { .id = FunctionIntValue,    .fnc = (void_t) _float_intvalue },
   { .id = FunctionNone,        .fnc = NULL }
-};
-
-static typedescr_t _typedescr_float =   {
-  .type           = Float,
-  .type_name      = "float",
-  .vtable         = _vtable_float
 };
 
 /*

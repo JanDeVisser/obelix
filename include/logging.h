@@ -20,8 +20,6 @@
 #ifndef __LOGGING_H__
 #define __LOGGING_H__
 
-#include <core-setup.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,6 +31,8 @@ typedef enum _log_level {
   LogLevelError,
   LogLevelFatal
 } log_level_t;
+
+extern int core_debug;
 
 OBLCORE_IMPEXP void   logging_init(void);
 OBLCORE_IMPEXP void   logging_register_category(char *, int *);
@@ -46,20 +46,16 @@ OBLCORE_IMPEXP int    logging_set_level(log_level_t);
 
 #ifndef NDEBUG
 #ifndef _MSC_VER
-#define debug(fmt, args...)            _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args)
-#define mdebug(module, fmt, args...)   \
-  if (module ## _debug) { \
-    _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args); \
-  }
+#define debug(module, fmt, args...)    mdebug(module, fmt, ##args)
+#define _debug(fmt, args...)           _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args)
+#define mdebug(module, fmt, args...)   if (module ## _debug) { _debug(fmt, ## args); }
 #else /* _MSC_VER */
-#define debug(fmt, ...)              _logmsg(LogLevelDebug, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
-#define mdebug(module, fmt, args...)   \
-  if (module ## _debug) { \
-    _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, __VA_ARGS__); \
-  }
+#define debug(module, fmt, ...)        mdebug(module, fmt, __VA_ARGS__)
+#define _debug(fmt, ...)               _logmsg(LogLevelDebug, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+#define mdebug(module, fmt, ...)       if (module ## _debug) { _debug(fmt, __VA_ARGS__); }
 #endif /* _MSC_VER */
 #else /* NDEBUG */
-#define debug(fmt, ...)
+#define _debug(fmt, ...)
 #endif /* NDEBUG */
 
 #ifndef _MSC_VER
@@ -75,10 +71,10 @@ OBLCORE_IMPEXP int    logging_set_level(log_level_t);
 #define fatal(fmt, ...)              { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__); exit(-10); }
 #define oassert(value, fmt, ...)     { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__); assert(0); } }
 #endif /* _MSC_VER */
+#define logging_register_module(module) logging_register_category(#module, &module ## _debug)
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* __LOGGING_H__ */
-
