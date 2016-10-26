@@ -162,9 +162,10 @@ ge_t * _ge_dump_common(ge_dump_ctx_t *ctx) {
   if (get_children) {
     get_children((data_t *) ctx -> ge, children);
   }
+  printf("  owner = ge;\n");
   list_reduce(children, _dump_child, ctx);
   list_free(children);
-  printf("\n");
+  printf("  ge = owner;\n\n");
   return ge;
 }
 
@@ -197,11 +198,12 @@ grammar_variable_t * ge_get_variable(ge_t *ge, char *name) {
 ge_t * ge_dump(ge_t *ge) {
   ge_dump_fnc_t  dump = (ge_dump_fnc_t) data_get_function((data_t *) ge, FunctionUsr1);
   ge_dump_ctx_t *ctx;
+  ge_t          *ret;
 
   ctx = _ge_dump_ctx_create(NULL, (data_t *) ge);
-  dump(ctx);
+  ret = dump(ctx);
   _ge_dump_ctx_free(ctx);
-  return (ge_t *) dump(ctx);
+  return ret;
 }
 
 ge_t * ge_set_option(ge_t *ge, token_t *name, token_t *val) {

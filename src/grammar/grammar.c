@@ -163,24 +163,35 @@ grammar_t * _grammar_dump_pre(grammar_t *grammar, char *prefix, char *variable) 
   int   ix;
   char *lib;
 
-  printf("#include <grammar.h>\n"
-         "\n"
+  printf("#include <grammar.h>\n");
+  printf("#include <datastack.h>\n\n");
+  if (grammar -> lexer) {
+    lexer_config_dump(grammar -> lexer);
+  }
+
+  printf("\n"
          "grammar_t * build_grammar() {\n"
          "  grammar_t      *grammar;\n"
          "  nonterminal_t  *nonterminal;\n"
          "  rule_t         *rule;\n"
          "  rule_entry_t   *rule_entry;\n"
-         "  token_t        *token_name, *token_value;\n"
-         "  lexer_config_t *lexer_config;\n"
+         "  ge_t           *ge;\n"
+         "  ge_t           *owner;\n"
+         "  datastack_t    *stack;\n"
          "\n"
+         "  stack = datastack_create(\"build_grammar\");\n"
          "  grammar = grammar_create();\n");
 
   if (grammar -> prefix && grammar -> prefix[0]) {
-    printf("  token_name = token_create(TokenCodeIdentifier, PREFIX_STR);\n"
-           "  token_value = token_create(TokenCodeIdentifier, \"%s\");\n"
-           "  grammar_set_option(grammar, token_name, token_value);\n"
-           "  token_free(token_name);\n"
-           "  token_free(token_value);\n",
+    printf("  {\n"
+           "    token_t *token_name;\n"
+           "    token_t *token_value;\n"
+           "    token_name = token_create(TokenCodeIdentifier, PREFIX_STR);\n"
+           "    token_value = token_create(TokenCodeIdentifier, \"%s\");\n"
+           "    grammar_set_option(grammar, token_name, token_value);\n"
+           "    token_free(token_name);\n"
+           "    token_free(token_value);\n"
+           "  }\n",
            grammar -> prefix);
   }
   if (grammar -> libs && array_size(grammar -> libs)) {
@@ -195,8 +206,7 @@ grammar_t * _grammar_dump_pre(grammar_t *grammar, char *prefix, char *variable) 
     }
   }
   if (grammar -> lexer) {
-    lexer_config_dump(grammar -> lexer);
-    printf("  grammar -> lexer = lexer_config;\n");
+    printf("  grammar -> lexer = lexer_config_build();\n");
   }
   printf("\n");
   return grammar;
@@ -374,29 +384,21 @@ function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
 grammar_t * grammar_analyze(grammar_t *grammar) {
   int sum, prev_sum, iter, ll_1;
 
-  if (grammar_debug) {
-    debug("Building FIRST sets");
-  }
+  debug(grammar, "Building FIRST sets");
   dict_visit(grammar -> nonterminals, (visit_t) _grammar_get_firsts_visitor);
 
-  if (grammar_debug) {
-    debug("Building FOLLOW sets");
-  }
+  debug(grammar, "Building FOLLOW sets");
   sum = 0;
   iter = 1;
   do {
     prev_sum = sum;
     sum = 0;
     dict_reduce(grammar -> nonterminals, (reduce_t) _grammar_follows_reducer, &sum);
-    if (grammar_debug) {
-      debug("_grammar_analyze - build follows: iter: %d sum: %d", iter++, sum);
-    }
+    debug(grammar, "_grammar_analyze - build follows: iter: %d sum: %d", iter++, sum);
   } while (sum != prev_sum);
 
-  if (grammar_debug) {
-    debug("Checking grammar for LL(1)-ness");
-    debug("Keywords: %s", dict_tostring(grammar -> keywords));
-  }
+  debug(grammar, "Checking grammar for LL(1)-ness");
+  debug(grammar, "Keywords: %s", dict_tostring(grammar -> keywords));
   ll_1 = 1;
   dict_reduce(grammar -> nonterminals, (reduce_t) _grammar_check_LL1_reducer, &ll_1);
   if (ll_1) {
@@ -404,9 +406,7 @@ grammar_t * grammar_analyze(grammar_t *grammar) {
       info("Grammar is LL(1)");
     }
     dict_visit(grammar -> nonterminals, (visit_t) _grammar_build_parse_table_visitor);
-    if (grammar_debug) {
-      debug("Parse tables built");
-    }
+    debug(grammar, "Parse tables built");
   } else {
     error("Grammar is not LL(1)");
   }

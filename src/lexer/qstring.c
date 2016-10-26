@@ -17,11 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <ctype.h>
-#include <stdio.h>
-
-#include <lexer.h>
+#include "liblexer.h"
 
 #define PARAM_QUOTES   "quotes"
 
@@ -41,17 +37,16 @@ static qstr_config_t * _qstr_config_create(qstr_config_t *config, va_list args);
 static data_t *        _qstr_config_resolve(qstr_config_t *, char *);
 static qstr_config_t * _qstr_config_set(qstr_config_t *, char *, data_t *);
 static qstr_config_t * _qstr_config_set_quotes(qstr_config_t *, char *);
-static int             _qstr_config_config(qstr_config_t *, char **);
+static qstr_config_t * _qstr_config_config(qstr_config_t *, array_t *);
 static token_t *       _qstr_match(scanner_t *);
 
 static vtable_t _vtable_qstrscanner_config[] = {
-  { .id = FunctionNew,     .fnc = (void_t) _qstr_config_create },
-  { .id = FunctionResolve, .fnc = (void_t) _qstr_config_resolve },
-  { .id = FunctionSet,     .fnc = (void_t) _qstr_config_set },
-  { .id = FunctionUsr1,    .fnc = (void_t) _qstr_match },
-  { .id = FunctionUsr2,    .fnc = NULL },
-  { .id = FunctionUsr4,    .fnc = (void_t) _qstr_config_config },
-  { .id = FunctionNone,    .fnc = NULL }
+  { .id = FunctionNew,       .fnc = (void_t) _qstr_config_create },
+  { .id = FunctionResolve,   .fnc = (void_t) _qstr_config_resolve },
+  { .id = FunctionSet,       .fnc = (void_t) _qstr_config_set },
+  { .id = FunctionMatch,     .fnc = (void_t) _qstr_match },
+  { .id = FunctionGetConfig, .fnc = (void_t) _qstr_config_config },
+  { .id = FunctionNone,      .fnc = NULL }
 };
 
 static int QStrScannerConfig = -1;
@@ -101,18 +96,9 @@ data_t * _qstr_config_resolve(qstr_config_t *config, char *name) {
   }
 }
 
-int _qstr_config_config(qstr_config_t *config, char **bufptr) {
-  int               sz;
-  char             *buf;
-
-  sz = strlen(PARAM_QUOTES) + 1 + 1;
-  sz += strlen(config -> quotechars);
-  *bufptr = NULL;
-  buf = (char *) _new(sz);
-  buf[0] = 0;
-  sprintf(buf, PARAM_QUOTES "=%s", config -> quotechars);
-  *bufptr = buf;
-  return sz;
+qstr_config_t * _qstr_config_config(qstr_config_t *config, array_t *cfg) {
+  array_push(cfg, nvp_create(str_to_data(PARAM_QUOTES), (data_t *) str_copy_chars(config -> quotechars)));
+  return config;
 }
 
 token_t * _qstr_match(scanner_t *scanner) {

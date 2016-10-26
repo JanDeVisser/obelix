@@ -104,4 +104,3 @@ void create_qstring(void) {
   tcase_add_test(tc, test_lexa_qstring_gratuitous_escape);
   add_tcase(tc);
 }
-

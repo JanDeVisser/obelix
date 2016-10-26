@@ -104,50 +104,6 @@ END_TEST
 
 /* ----------------------------------------------------------------------- */
 
-void _setup_comment_lexer(void) {
-  lexa = setup_with_scanners();
-  lexa_add_scanner(lexa, "comment: marker=/* */,marker=//,marker=^#");
-  ck_assert_int_eq(dict_size(lexa -> scanners), 4);
-  lexa_build_lexer(lexa);
-  ck_assert_ptr_ne(lexa -> config, NULL);
-}
-
-START_TEST(test_lexa_run_comment_lexer)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello /* comment */ World"));
-  ck_assert_ptr_ne(lexa -> stream, NULL);
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 6);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
-END_TEST
-
-START_TEST(test_lexa_unterminated_comment)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello /* comment"));
-  ck_assert_ptr_ne(lexa -> stream, NULL);
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeError), 1);
-END_TEST
-
-START_TEST(test_lexa_asterisk_comment)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello /* comment * comment */ World"));
-  ck_assert_ptr_ne(lexa -> stream, NULL);
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 6);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
-END_TEST
-
-START_TEST(test_lexa_eol_comment)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello // comment * comment */ World\nSecond line"));
-  ck_assert_ptr_ne(lexa -> stream, NULL);
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 8);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 3);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
-END_TEST
-
-/* ----------------------------------------------------------------------- */
-
 /* ----------------------------------------------------------------------- */
 
 void create_lexa(void) {
@@ -157,16 +113,6 @@ void create_lexa(void) {
   tcase_add_test(tc, test_lexa_tokenize);
   tcase_add_test(tc, test_lexa_newline);
   tcase_add_test(tc, test_lexa_symbols);
-  add_tcase(tc);
-}
-
-void create_comment(void) {
-  TCase *tc = tcase_create("Comment");
-  tcase_add_checked_fixture(tc, _setup_comment_lexer, _teardown);
-  tcase_add_test(tc, test_lexa_run_comment_lexer);
-  tcase_add_test(tc, test_lexa_unterminated_comment);
-  tcase_add_test(tc, test_lexa_asterisk_comment);
-  tcase_add_test(tc, test_lexa_eol_comment);
   add_tcase(tc);
 }
 

@@ -35,12 +35,12 @@ extern "C" {
 
 #if (defined __WIN32__) || (defined _WIN32)
 #ifdef oblgrammar_EXPORTS
-#define OBLGRAMMAR_IMPEXP	__DLL_EXPORT__
+  #define OBLGRAMMAR_IMPEXP	__DLL_EXPORT__
 #else /* ! oblgrammar_EXPORTS */
-#define OBLGRAMMAR_IMPEXP	__DLL_IMPORT__
+  #define OBLGRAMMAR_IMPEXP	__DLL_IMPORT__
 #endif
 #else /* ! __WIN32__ */
-#define OBLGRAMMAR_IMPEXP extern
+  #define OBLGRAMMAR_IMPEXP extern
 #endif /* __WIN32__ */
 
 OBLGRAMMAR_IMPEXP int grammar_debug;

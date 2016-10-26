@@ -28,6 +28,16 @@
 #include <str.h>
 #include <token.h>
 
+#if (defined __WIN32__) || (defined _WIN32)
+#ifdef obllexer_EXPORTS
+#define OBLLEXER_IMPEXP	__DLL_EXPORT__
+#else /* ! oblcore_EXPORTS */
+#define OBLLEXER_IMPEXP	__DLL_IMPORT__
+#endif
+#else /* ! __WIN32__ */
+#define OBLLEXER_IMPEXP extern
+#endif /* __WIN32__ */
+
 #define LEXER_BUFSIZE             16384
 #define LEXER_INIT_TOKEN_SZ       256
 #define LEXER_MAX_SCANNERS        32
@@ -121,6 +131,7 @@ OBLLEXER_IMPEXP typedescr_t *      scanner_config_load(char *, char *);
 OBLLEXER_IMPEXP typedescr_t *      scanner_config_get(char *);
 OBLLEXER_IMPEXP scanner_config_t * scanner_config_create(char *, lexer_config_t *);
 OBLLEXER_IMPEXP scanner_t *        scanner_config_instantiate(scanner_config_t *, lexer_t *);
+OBLLEXER_IMPEXP scanner_config_t * scanner_config_setvalue(scanner_config_t *, char *, data_t *);
 OBLLEXER_IMPEXP scanner_config_t * scanner_config_configure(scanner_config_t *, data_t *);
 OBLLEXER_IMPEXP scanner_config_t * scanner_config_dump(scanner_config_t *);
 

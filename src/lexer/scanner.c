@@ -17,10 +17,9 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <liblexer.h>
 #include <stdio.h>
 
-#include <lexer.h>
+#include "liblexer.h"
 
 /* ------------------------------------------------------------------------ */
 
@@ -73,9 +72,7 @@ scanner_t * _scanner_new(scanner_t *scanner, va_list args) {
   scanner -> lexer = lexer_copy(lexer);
   scanner -> state = 0;
   scanner -> data = NULL;
-  if (lexer_debug) {
-    debug("Created scanner of type '%s'. match: %p", data_typename(scanner -> config), scanner -> config -> match);
-  }
+  debug(lexer, "Created scanner of type '%s'. match: %p", data_typename(scanner -> config), scanner -> config -> match);
   return scanner;
 }
 
@@ -83,7 +80,7 @@ void _scanner_free(scanner_t *scanner) {
   void (*scanner_free)(scanner_t *);
 
   if (scanner) {
-    scanner_free = (void (*)(scanner_t *)) data_get_function((data_t *) scanner -> config, FunctionUsr3);
+    scanner_free = (void (*)(scanner_t *)) data_get_function((data_t *) scanner -> config, FunctionDestroyScanner);
     if (scanner_free) {
       scanner_free(scanner);
     } else {

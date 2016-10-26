@@ -20,7 +20,7 @@
 #include <ctype.h>
 #include <stdio.h>
 
-#include <lexer.h>
+#include "liblexer.h"
 #include <nvp.h>
 
 /*
@@ -82,14 +82,14 @@ static token_t *          _comment_match(scanner_t *);
 static void               _comment_free_scanner(scanner_t *);
 
 static vtable_t _vtable_comment_config[] = {
-    { .id = FunctionNew,     .fnc = (void_t) _comment_config_create },
-    { .id = FunctionResolve, .fnc = (void_t) _comment_config_resolve },
-    { .id = FunctionSet,     .fnc = (void_t) _comment_config_set },
-    { .id = FunctionUsr1,    .fnc = (void_t) _comment_match },
-    { .id = FunctionUsr2,    .fnc = NULL },
-    { .id = FunctionUsr3,    .fnc = (void_t) _comment_free_scanner },
-    { .id = FunctionUsr4,    .fnc = (void_t) _comment_config_config },
-    { .id = FunctionNone,    .fnc = NULL }
+    { .id = FunctionNew,            .fnc = (void_t) _comment_config_create },
+    { .id = FunctionResolve,        .fnc = (void_t) _comment_config_resolve },
+    { .id = FunctionSet,            .fnc = (void_t) _comment_config_set },
+    { .id = FunctionMatch,          .fnc = (void_t) _comment_match },
+    { .id = FunctionMatch2,         .fnc = NULL },
+    { .id = FunctionDestroyScanner, .fnc = (void_t) _comment_free_scanner },
+    { .id = FunctionGetConfig,      .fnc = (void_t) _comment_config_config },
+    { .id = FunctionNone,           .fnc = NULL }
 };
 
 static int CommentScannerConfig = -1;

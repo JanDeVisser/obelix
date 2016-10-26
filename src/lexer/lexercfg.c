@@ -20,9 +20,8 @@
 #include <ctype.h>
 #include <stdio.h>
 
-#include <exception.h>
-#include <lexer.h>
 #include "liblexer.h"
+#include <exception.h>
 
 /* ------------------------------------------------------------------------ */
 
@@ -137,6 +136,7 @@ scanner_config_t * _lexer_config_add_scanner(lexer_config_t *config, char *code)
   scanner_config_t *prev;
   int               priority;
 
+  debug(lexer, "Adding scanner w/ code '%s'", code);
   scanner = scanner_config_create(code, config);
   if (scanner) {
     priority = scanner -> priority;
@@ -194,7 +194,7 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_c
       param = strtrim(param);
     }
   }
-  code = strtrim(code);
+  code = strtrim(copy);
   if (*code) {
     scanner = lexer_config_get_scanner(config, code);
     if (!scanner) {
@@ -254,13 +254,17 @@ lexer_config_t * lexer_config_tokenize(lexer_config_t *config, reduce_t tokenize
 lexer_config_t * lexer_config_dump(lexer_config_t *config) {
   scanner_config_t        *scanner;
 
+  printf("lexer_config_t * lexer_config_build(void) {\n");
+  printf("  lexer_config_t   *lexer_config;\n");
+  printf("  scanner_config_t *scanner_config;\n\n");
   printf("  lexer_config = lexer_config_create();\n");
   printf("  lexer_config_set_bufsize(lexer_config, %d)\n",
          lexer_config_get_bufsize(config));
   for (scanner = config -> scanners; scanner; scanner = scanner -> next) {
-    printf("  scanner_config = lexer_config_add_scanner(lexer_config, \"%s\")\n",
-           scanner_config_tostring(scanner));
+    printf("\n");
     scanner_config_dump(scanner);
   }
+  printf("  return lexer_config;\n");
+  printf("}\n\n");
   return config;
 }

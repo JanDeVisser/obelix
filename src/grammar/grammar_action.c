@@ -22,8 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "libgrammar.h"
 #include <data.h>
-#include <grammar.h>
 
 static grammar_action_t *  _ga_new(grammar_action_t *, va_list);
 static char *              _ga_allocstring(grammar_action_t *);
@@ -31,7 +31,7 @@ static void                _ga_free(grammar_action_t *);
 static grammar_action_t *  _ga_dump(grammar_action_t *, char *, char *);
 
 static vtable_t _vtable_ga[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ga_new }
+  { .id = FunctionNew,         .fnc = (void_t) _ga_new },
   { .id = FunctionFree,        .fnc = (void_t) _ga_free },
   { .id = FunctionCmp,         .fnc = (void_t) grammar_action_cmp },
   { .id = FunctionHash,        .fnc = (void_t) grammar_action_hash },
@@ -92,10 +92,10 @@ grammar_action_t * _ga_dump(grammar_action_t *ga, char *prefix, char *variable) 
     data = strdup("NULL");
   }
 
-  printf("  %s_add_action(%s,\n"
+  printf("  ge_add_action((ge_t *) owner,\n"
          "    grammar_action_create(\n"
          "      grammar_resolve_function(grammar, \"%s\"), %s));\n",
-         prefix, variable, name_tostring_sep(fnc -> name, ":"), data);
+         function_tostring(fnc), data);
   free(data);
   return ga;
 }
@@ -104,7 +104,7 @@ grammar_action_t * _ga_dump(grammar_action_t *ga, char *prefix, char *variable) 
 
 grammar_action_t * grammar_action_create(function_t *fnc, data_t *data) {
   grammar_init();
-  return data_create(GrammarAction, fnc, data);
+  return (grammar_action_t *) data_create(GrammarAction, fnc, data);
 }
 
 int grammar_action_cmp(grammar_action_t *ga1, grammar_action_t *ga2) {

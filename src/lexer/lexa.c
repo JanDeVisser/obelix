@@ -88,7 +88,6 @@ lexa_t * _lexa_build_scanner(entry_t *entry, lexa_t *lexa) {
 
   lexa_debug_settings(lexa);
   code = (char *) entry -> key;
-  mdebug(lexa, "Loading scanner config type '%s'", code);
   scanner_config_load(code, NULL);
   mdebug(lexa, "Building scanner '%s' with config '%s'", code, data_tostring((data_t *) entry -> value));
   scanner = lexer_config_add_scanner(lexa -> config, code);
@@ -150,7 +149,6 @@ lexa_t * lexa_tokenize(lexa_t *lexa) {
 }
 
 int lexa_tokens_with_code(lexa_t *lexa, token_code_t token_code) {
-  int count;
   int code;
 
   code = (int) token_code;
@@ -168,7 +166,7 @@ lexa_t * lexa_debug_settings(lexa_t *lexa) {
     logging_set_level(lexa -> log_level);
   }
   if (lexa -> debug) {
-    debug("debug optarg: %s", lexa -> debug);
+    _debug("debug optarg: %s", lexa -> debug);
     cats = array_split(lexa -> debug, ",");
     for (ix = 0; ix < array_size(cats); ix++) {
       logging_enable(str_array_get(cats, ix));
@@ -185,7 +183,6 @@ lexa_t * lexa_add_scanner(lexa_t *lexa, char *code_config) {
   char   *ptr = NULL;
   char   *code;
   char   *config = NULL;
-  lexa_t *ret = lexa;
 
   lexa_debug_settings(lexa);
   copy = strdup(code_config);
@@ -205,7 +202,7 @@ lexa_t * lexa_add_scanner(lexa_t *lexa, char *code_config) {
     lexa_set_config_value(lexa, code, config);
   } else {
     fprintf(stderr, "Invalid syntax for scanner config: %s", code_config);
-    ret = NULL;
+    lexa = NULL;
   }
   free(copy);
   return lexa;
@@ -216,8 +213,6 @@ scanner_config_t * lexa_get_scanner(lexa_t *lexa, char *code) {
 }
 
 lexa_t * lexa_set_config_value(lexa_t *lexa, char *code, char *config) {
-  str_t *current;
-
   lexa_debug_settings(lexa);
   mdebug(lexa, "Setting scanner config value %s: %s", code, config);
   dict_put(lexa -> scanners, strdup(code),

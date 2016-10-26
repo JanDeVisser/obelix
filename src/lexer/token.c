@@ -17,12 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
-#include <stdio.h>
-
-#include <core.h>
-#include <str.h>
-#include <token.h>
+#include "liblexer.h"
 
 typedef struct _token_code_str {
   token_code_t  code;
@@ -124,7 +119,6 @@ void _token_init(void) {
  */
 
 char * token_code_name(token_code_t code) {
-  int   ix;
   char *ret = label_for_code(token_code_names, code);
 
   if (!ret) {
@@ -143,7 +137,13 @@ char * token_code_name(token_code_t code) {
 /* ------------------------------------------------------------------------ */
 
 token_t * _token_new(token_t *token, va_list args) {
-  return token_assign(token, va_arg(args, unsigned int), va_arg(args, char *));
+  unsigned int  code;
+  char         *str;
+
+  code = va_arg(args, unsigned int);
+  str = va_arg(args, char *);
+  debug(lexer, "_token_new: code: %d token: %s", code, str);
+  return token_assign(token, code, str);
 }
 
 void _token_free(token_t *token) {

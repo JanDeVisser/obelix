@@ -21,8 +21,8 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#include "liblexer.h"
 #include <exception.h>
-#include <lexer.h>
 #include <nvp.h>
 
 #define PARAM_TOUPPER         "toupper"
@@ -67,13 +67,12 @@ static id_config_t * _id_config_config(id_config_t *, array_t *);
 static token_t *     _id_match(scanner_t *);
 
 static vtable_t _vtable_idscanner_config[] = {
-  { .id = FunctionNew,     .fnc = (void_t) _id_config_create },
-  { .id = FunctionResolve, .fnc = (void_t) _id_config_resolve },
-  { .id = FunctionSet,     .fnc = (void_t) _id_config_set },
-  { .id = FunctionUsr1,    .fnc = (void_t) _id_match },
-  { .id = FunctionUsr2,    .fnc = NULL },
-  { .id = FunctionUsr4,    .fnc = (void_t) _id_config_config },
-  { .id = FunctionNone,    .fnc = NULL }
+  { .id = FunctionNew,       .fnc = (void_t) _id_config_create },
+  { .id = FunctionResolve,   .fnc = (void_t) _id_config_resolve },
+  { .id = FunctionSet,       .fnc = (void_t) _id_config_set },
+  { .id = FunctionMatch,     .fnc = (void_t) _id_match },
+  { .id = FunctionGetConfig, .fnc = (void_t) _id_config_config },
+  { .id = FunctionNone,      .fnc = NULL }
 };
 
 static int IDScannerConfig = -1;
@@ -85,9 +84,7 @@ id_config_t * _id_config_create(id_config_t *config, va_list args) {
   config -> underscore = TRUE;
   config -> digits = TRUE;
   config -> foldcase = IDCaseSensitive;
-  if (lexer_debug) {
-    debug("_id_config_create - match: %p", config -> _sc.match);
-  }
+  debug(lexer, "_id_config_create - match: %p", config -> _sc.match);
   return config;
 }
 
@@ -150,8 +147,9 @@ data_t * _id_config_resolve(id_config_t *id_config, char *name) {
 }
 
 id_config_t * _id_config_config(id_config_t *config, array_t *cfg) {
-  array_push(cfg, nvp_create(str_to_data(PARAM_FOLD),
-                             str_to_data(label_for_code(foldcase_labels, config -> foldcase))));
+  array_push(cfg,
+    nvp_create(str_to_data(PARAM_FOLD),
+      str_to_data(label_for_code(foldcase_labels, config -> foldcase))));
   array_push(cfg, nvp_create(str_to_data(PARAM_DIGITS), (data_t *) bool_get(config -> digits)));
   array_push(cfg, nvp_create(str_to_data(PARAM_UNDERSCORE), (data_t *) bool_get(config -> underscore)));
   array_push(cfg, nvp_create(str_to_data(PARAM_TOKENCODE), int_to_data(config -> code)));
@@ -162,7 +160,7 @@ token_t * _id_match(scanner_t *scanner) {
   int          ch;
   id_config_t *config = (id_config_t *) scanner -> config;
 
-  mdebug(lexer, "_id_match");
+  debug(lexer, "_id_match");
   for (ch = lexer_get_char(scanner -> lexer);
        ch && ((isalpha(ch) &&
                 ((config -> foldcase != IDOnlyUpper) || isupper(ch)) &&
@@ -197,7 +195,7 @@ typedescr_t * identifier_register(void) {
                                                   "identifier",
                                                   _vtable_idscanner_config,
                                                   NULL);
-  ret = typedescr_get(IDScannerConfig);
   typedescr_set_size(IDScannerConfig, id_config_t);
+  ret = typedescr_get(IDScannerConfig);
   return ret;
 }

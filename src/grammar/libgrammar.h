@@ -21,6 +21,10 @@
 #ifndef __LIBGRAMMAR_H__
 #define __LIBGRAMMAR_H__
 
+#ifndef oblgrammar_EXPORTS
+  #define oblgrammar_EXPORTS
+#endif
+
 #include <grammar.h>
 #include <list.h>
 

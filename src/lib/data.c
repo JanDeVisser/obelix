@@ -82,7 +82,7 @@ data_t * _data_call_constructors(typedescr_t *type, va_list args) {
   constructors = typedescr_get_constructors(type);
   if (constructors && list_size(constructors)) {
     ret = data_create_noinit(type -> type);
-    for (iter = li_create(constructors); li_has_next(iter); ) {
+    for (iter = li_create(constructors); ret && li_has_next(iter); ) {
       va_copy(copy, args);
       n = (new_t) li_next(iter);
       ret = _data_call_constructor(ret, n, copy);

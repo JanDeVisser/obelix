@@ -21,9 +21,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "liblexer.h"
 #include <array.h>
 #include <data.h>
-#include <lexer.h>
 
 #define LEXER_DEBUG
 
@@ -31,8 +31,6 @@ typedef struct _tokenize_ctx {
   data_t  *parser;
   array_t *args;
 } tokenize_ctx_t;
-
-static void             _dequotify(str_t *);
 
 static token_t *        _lexer_match_token(lexer_t *);
 
@@ -67,7 +65,7 @@ static data_t *         _lexer_call(lexer_t *, array_t *, dict_t *);
 static data_t *         _lexer_has_next(lexer_t *);
 static data_t *         _lexer_next(lexer_t *);
 //static data_t *       _lexer_set(lexer_t *, char *);
-static data_t *         _lexer_mth_rollup(lexer_t *, char *, array_t *, dict_t *);
+// static data_t *         _lexer_mth_rollup(lexer_t *, char *, array_t *, dict_t *);
 static tokenize_ctx_t * _lexer_tokenize_reducer(token_t *, tokenize_ctx_t *);
 static data_t *         _lexer_mth_tokenize(lexer_t *, char *, array_t *, dict_t *);
 
@@ -410,8 +408,6 @@ lexer_t * lexer_rewind(lexer_t *lexer) {
  * Mark the current point, discarding everything that came before it.
  */
 lexer_t * lexer_reset(lexer_t *lexer) {
-  int i;
-
   if (lexer -> buffer) {
     str_rewind(lexer -> buffer);
     str_skip(lexer -> buffer, lexer -> scanned);
@@ -432,6 +428,7 @@ lexer_t * lexer_reset(lexer_t *lexer) {
 token_t * lexer_accept(lexer_t *lexer, token_code_t code) {
   token_t *token;
 
+  debug(lexer, "lexer_accept: token: %s code: %d", str_chars(lexer -> token), code);
   token = token_create(code, str_chars(lexer -> token));
   lexer_accept_token(lexer, token);
   token_free(token);

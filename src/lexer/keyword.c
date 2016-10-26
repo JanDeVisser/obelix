@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <lexer.h>
+#include "liblexer.h"
 #include <nvp.h>
 
 #define PARAM_KEYWORD   "keyword"
@@ -68,6 +68,7 @@ static data_t *        _kw_config_resolve(kw_config_t *, char *);
 static kw_config_t *   _kw_config_set(kw_config_t *, char *, data_t *);
 static kw_config_t *   _kw_config_configure(kw_config_t *, data_t *);
 static kw_config_t *   _kw_config_add_keyword(kw_config_t *, token_t *);
+static kw_config_t *   _kw_config_dump(kw_config_t *);
 
 static kw_scanner_t *  _kw_scanner_create(kw_config_t *);
 static void            _kw_scanner_free(kw_scanner_t *);
@@ -78,17 +79,18 @@ static kw_scanner_t *  _kw_scanner_reset(scanner_t *);
 static token_t *       _kw_match(scanner_t *);
 
 static vtable_t _vtable_kwscanner_config[] = {
-  { .id = FunctionNew,          .fnc = (void_t) _kw_config_create },
-  { .id = FunctionFree,         .fnc = (void_t) _kw_config_free },
-  { .id = FunctionResolve,      .fnc = (void_t) _kw_config_resolve },
-  { .id = FunctionSet,          .fnc = (void_t) _kw_config_set },
-  { .id = FunctionUsr1,         .fnc = (void_t) _kw_match },
-  { .id = FunctionUsr2,         .fnc = (void_t) NULL },
-  { .id = FunctionUsr3,         .fnc = (void_t) _kw_scanner_free },
-  { .id = FunctionNone,         .fnc = NULL }
+  { .id = FunctionNew,            .fnc = (void_t) _kw_config_create },
+  { .id = FunctionFree,           .fnc = (void_t) _kw_config_free },
+  { .id = FunctionResolve,        .fnc = (void_t) _kw_config_resolve },
+  { .id = FunctionSet,            .fnc = (void_t) _kw_config_set },
+  { .id = FunctionMatch,          .fnc = (void_t) _kw_match },
+  { .id = FunctionDestroyScanner, .fnc = (void_t) _kw_scanner_free },
+  { .id = FunctionGetConfig,      .fnc = NULL /* (void_t) _kw_config_config */ },
+  { .id = FunctionDump,           .fnc = (void_t) _kw_config_dump },
+  { .id = FunctionNone,           .fnc = NULL }
 };
 
-static int   KWScannerConfig;
+static int   KWScannerConfig = -1;
 
 /* -- K W _ S C A N N E R _ C O N F I G ----------------------------------- */
 
@@ -160,12 +162,30 @@ kw_config_t * _kw_config_configure(kw_config_t *config, data_t *data) {
 
 kw_config_t * _kw_config_add_keyword(kw_config_t *config, token_t *token) {
   config -> keywords = resize_ptrarray(config -> keywords,
-                                       config -> num_keywords,
-                                       config -> num_keywords + 1);
+                                       config -> num_keywords + 1,
+                                       config -> num_keywords);
   config -> keywords[config -> num_keywords++] = token_copy(token);
-  mdebug(lexer, "Added keyword '%s' - num_keywords = %d",
+  debug(lexer, "Added keyword '%s' - num_keywords = %d",
                 token_tostring(config -> keywords[config -> num_keywords - 1]),
                 config -> num_keywords);
+  return config;
+}
+
+kw_config_t * _kw_config_dump(kw_config_t *config) {
+  int      ix;
+  token_t *t;
+
+  if (config -> num_keywords > 0) {
+    printf("  { /* Configure keyword scanner with keywords */\n");
+    printf("    token_t *token\n\n");
+    for (ix = 0; ix < config -> num_keywords; ix++) {
+      t = config -> keywords[ix];
+      printf("    token = token_create(%d, \"%s\");\n", token_code(t), token_token(t));
+      printf("    scanner_config_setvalue(scanner_config, \"" PARAM_KEYWORD "\", token);\n");
+      printf("    token_free(token);\n\n");
+    }
+    printf("  }\n");
+  }
   return config;
 }
 
@@ -374,7 +394,7 @@ token_t * _kw_match(scanner_t *scanner) {
   kw_scanner_t *kw_scanner = (kw_scanner_t *) scanner -> data;
 
   if (!config -> num_keywords) {
-    mdebug(lexer, "No keywords...");
+    debug(lexer, "No keywords...");
     return NULL;
   }
   if (!kw_scanner) {
@@ -382,7 +402,7 @@ token_t * _kw_match(scanner_t *scanner) {
     scanner -> data = kw_scanner;
   }
   _kw_scanner_scan(scanner);
-  mdebug(lexer, "_kw_match returns '%s' (%d)",
+  debug(lexer, "_kw_match returns '%s' (%d)",
                 label_for_code((code_label_t *) _scanner_state_names, scanner -> state),
                 scanner -> state);
   if ((scanner -> state == KSSFullMatchLost) || (scanner -> state == KSSFullMatch)) {
@@ -393,8 +413,14 @@ token_t * _kw_match(scanner_t *scanner) {
   }
 }
 
-void keyword_register(void) {
+typedescr_t * keyword_register(void) {
+  typedescr_t *ret;
+
+  debug(lexer, "keyword_register");
   KWScannerConfig = typedescr_create_and_register(
       KWScannerConfig, "keyword", _vtable_kwscanner_config, NULL);
   typedescr_set_size(KWScannerConfig, kw_config_t);
+  ret = typedescr_get(KWScannerConfig);
+  debug(lexer, "keyword_register: %d %d", KWScannerConfig, ret -> type);
+  return ret;
 }

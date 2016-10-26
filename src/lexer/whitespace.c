@@ -17,11 +17,8 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <ctype.h>
-#include <stdio.h>
-
+#include "liblexer.h"
 #include <function.h>
-#include <lexer.h>
 
 #define PARAM_IGNOREWS     "ignorews"
 #define PARAM_IGNORENL     "ignorenl"
@@ -49,17 +46,16 @@ typedef struct _ws_config {
 static ws_config_t * _ws_config_create(ws_config_t *config, va_list args);
 static data_t *      _ws_config_resolve(ws_config_t *, char *);
 static ws_config_t * _ws_config_set(ws_config_t *, char *, data_t *);
-static int           _ws_config_config(ws_config_t *, char **);
+static ws_config_t * _ws_config_config(ws_config_t *, array_t *);
 static token_t *     _ws_match(scanner_t *);
 
 static vtable_t _vtable_wsscanner_config[] = {
-  { .id = FunctionNew,     .fnc = (void_t ) _ws_config_create },
-  { .id = FunctionResolve, .fnc = (void_t ) _ws_config_resolve },
-  { .id = FunctionSet,     .fnc = (void_t ) _ws_config_set },
-  { .id = FunctionUsr1,    .fnc = (void_t ) _ws_match },
-  { .id = FunctionUsr2,    .fnc = NULL },
-  { .id = FunctionUsr4,    .fnc = (void_t ) _ws_config_config },
-  { .id = FunctionNone,    .fnc = NULL }
+  { .id = FunctionNew,       .fnc = (void_t ) _ws_config_create },
+  { .id = FunctionResolve,   .fnc = (void_t ) _ws_config_resolve },
+  { .id = FunctionSet,       .fnc = (void_t ) _ws_config_set },
+  { .id = FunctionMatch,     .fnc = (void_t ) _ws_match },
+  { .id = FunctionGetConfig, .fnc = (void_t ) _ws_config_config },
+  { .id = FunctionNone,      .fnc = NULL }
 };
 
 static int WSScannerConfig = -1;
@@ -69,6 +65,7 @@ static int WSScannerConfig = -1;
 ws_config_t * _ws_config_create(ws_config_t *config, va_list args) {
   config -> ignore_nl = FALSE;
   config -> ignore_ws = FALSE;
+  config -> onnewline = NULL;
   return config;
 }
 
@@ -107,28 +104,19 @@ data_t * _ws_config_resolve(ws_config_t *ws_config, char *name) {
   } else if (!strcmp(name, PARAM_IGNOREALL)) {
     return (data_t *) bool_get(ws_config -> ignore_ws && ws_config -> ignore_nl);
   } else if (!strcmp(name, PARAM_ONNEWLINE)) {
-    return data_copy((data_t *) ws_config -> onnewline);
+    return (ws_config -> onnewline) ? data_copy((data_t *) ws_config -> onnewline) : data_null();
   } else {
     return NULL;
   }
 }
 
-int _ws_config_config(ws_config_t *config, char **bufptr) {
-  int               sz;
-  char             *buf;
-
-  sz = strlen(PARAM_IGNOREWS) + 3 + strlen(PARAM_IGNORENL) + 3 +
-       strlen(PARAM_ONNEWLINE) + 1 + 1;
-  sz += (config -> onnewline) ? strlen(function_tostring(config -> onnewline)) : 0;
-  *bufptr = NULL;
-  buf = (char *) _new(sz);
-  buf[0] = 0;
-  sprintf(buf, PARAM_IGNOREWS "=%d;" PARAM_IGNORENL "=%d;"
-               PARAM_ONNEWLINE "=%s",
-               config -> ignore_ws, config -> ignore_nl,
-               (config -> onnewline) ? function_tostring(config -> onnewline) : "");
-  *bufptr = buf;
-  return sz;
+ws_config_t * _ws_config_config(ws_config_t *config, array_t *cfg) {
+  array_push(cfg, nvp_create(str_to_data(PARAM_IGNOREWS), (data_t *) bool_get(config -> ignore_ws)));
+  array_push(cfg, nvp_create(str_to_data(PARAM_IGNORENL), (data_t *) bool_get(config -> ignore_nl)));
+  if (config -> onnewline) {
+    array_push(cfg, nvp_create(str_to_data(PARAM_ONNEWLINE), (data_t *) function_copy(config -> onnewline)));
+  }
+  return config;
 }
 
 token_t * _ws_match(scanner_t *scanner) {

@@ -17,11 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <ctype.h>
-
-#include <lexer.h>
+#include "liblexer.h"
 
 #define PARAM_SCI     "sci"
 #define PARAM_SIGNED  "signed"
@@ -54,17 +50,16 @@ typedef struct _num_config {
 static num_config_t * _num_config_create(num_config_t *config, va_list args);
 static num_config_t * _num_config_set(num_config_t *, char *, data_t *);
 static data_t *       _num_config_resolve(num_config_t *, char *);
-static int            _num_config_config(num_config_t *, char **);
+static num_config_t * _num_config_config(num_config_t *, array_t *);
 static token_t *      _num_match(scanner_t *);
 
 static vtable_t _vtable_numscanner_config[] = {
-  { .id = FunctionNew,     .fnc = (void_t ) _num_config_create },
-  { .id = FunctionResolve, .fnc = (void_t ) _num_config_resolve },
-  { .id = FunctionSet,     .fnc = (void_t ) _num_config_set },
-  { .id = FunctionUsr1,    .fnc = (void_t ) _num_match },
-  { .id = FunctionUsr2,    .fnc = NULL },
-  { .id = FunctionUsr4,    .fnc = (void_t) _num_config_config },
-  { .id = FunctionNone,    .fnc = NULL }
+  { .id = FunctionNew,       .fnc = (void_t ) _num_config_create },
+  { .id = FunctionResolve,   .fnc = (void_t ) _num_config_resolve },
+  { .id = FunctionSet,       .fnc = (void_t ) _num_config_set },
+  { .id = FunctionMatch,     .fnc = (void_t ) _num_match },
+  { .id = FunctionGetConfig, .fnc = (void_t) _num_config_config },
+  { .id = FunctionNone,      .fnc = NULL }
 };
 
 static int NumScannerConfig = -1;
@@ -110,21 +105,12 @@ data_t * _num_config_resolve(num_config_t *num_config, char *param) {
   }
 }
 
-int _num_config_config(num_config_t *config, char **bufptr) {
-  int               sz;
-  char             *buf;
-
-  sz = strlen(PARAM_SCI) + 3 + strlen(PARAM_SIGNED) + 3 +
-       strlen(PARAM_HEX) + 3 + strlen(PARAM_FLOAT) + 2 + 1;
-  *bufptr = NULL;
-  buf = (char *) _new(sz);
-  buf[0] = 0;
-  sprintf(buf, PARAM_SCI "=%d;" PARAM_SIGNED "=%d;" PARAM_HEX "=%d;"
-               PARAM_FLOAT "=%d",
-               config -> scientific, config -> sign,
-               config -> hex, config -> flt);
-  *bufptr = buf;
-  return sz;
+num_config_t * _num_config_config(num_config_t *config, array_t *cfg) {
+  array_push(cfg, nvp_create(str_to_data(PARAM_SCI), (data_t *) bool_get(config -> scientific)));
+  array_push(cfg, nvp_create(str_to_data(PARAM_SIGNED), (data_t *) bool_get(config -> sign)));
+  array_push(cfg, nvp_create(str_to_data(PARAM_HEX), (data_t *) bool_get(config -> hex)));
+  array_push(cfg, nvp_create(str_to_data(PARAM_FLOAT), (data_t *) bool_get(config -> flt)));
+  return config;
 }
 
 token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
