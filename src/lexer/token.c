@@ -222,11 +222,13 @@ token_t * token_parse(char *token) {
   if (!token) {
     goto done;
   }
-  dup = strdup(token);
-  tokenstr = strrchr(dup, ':');
-  if (tokenstr) {
-    *tokenstr++ = 0;
+  tokenstr = strrchr(token, ':');
+  if (!tokenstr) {
+    goto done;
   }
+  dup = strdup(token);
+  tokenstr = dup + (tokenstr - token);
+  *tokenstr++ = 0;
   codestr = strtrim(dup);
   if (!strtoint(codestr, &code)) {
     code = code_for_label(token_code_names, codestr);
@@ -234,7 +236,7 @@ token_t * token_parse(char *token) {
       goto done;
     }
   }
-  ret = token_create(code, (tokenstr && *tokenstr) ? tokenstr : NULL);
+  ret = token_create(code, tokenstr);
 
 done:
   free(dup);
