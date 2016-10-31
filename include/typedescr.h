@@ -63,41 +63,42 @@ typedef enum _vtable_id {
   FunctionAllocString,  /* 9  */
   FunctionFltValue,     /* 10  */
   FunctionIntValue,     /* 11 */
-  FunctionParse,        /* 12 */
-  FunctionCast,         /* 13 */
-  FunctionHash,         /* 14 */
-  FunctionLen,          /* 15 */
-  FunctionResolve,      /* 16 */
-  FunctionCall,         /* 17 */
-  FunctionSet,          /* 18 */
-  FunctionRead,         /* 19 */
-  FunctionWrite,        /* 20 */
-  FunctionOpen,         /* 21 */
-  FunctionIter,         /* 22 */
-  FunctionHasNext,      /* 23 */
-  FunctionNext,         /* 24 */
-  FunctionDecr,         /* 25 */
-  FunctionIncr,         /* 26 */
-  FunctionVisit,        /* 27 */
-  FunctionReduce,       /* 28 */
-  FunctionIs,           /* 29 */
-  FunctionQuery,        /* 30 */
-  FunctionEnter,        /* 31 */
-  FunctionLeave,        /* 32 */
-  FunctionPush,         /* 33 */
-  FunctionPop,          /* 34 */
-  FunctionConstructor,  /* 35 */
-  FunctionInterpolate,  /* 36 */
-  FunctionUsr1,         /* 37 */
-  FunctionUsr2,         /* 38 */
-  FunctionUsr3,         /* 39 */
-  FunctionUsr4,         /* 40 */
-  FunctionUsr5,         /* 41 */
-  FunctionUsr6,         /* 42 */
-  FunctionUsr7,         /* 43 */
-  FunctionUsr8,         /* 44 */
-  FunctionUsr9,         /* 45 */
-  FunctionUsr10,        /* 46 */
+  FunctionEncode,       /* 12 */
+  FunctionParse,        /* 13 */
+  FunctionCast,         /* 14 */
+  FunctionHash,         /* 15 */
+  FunctionLen,          /* 16 */
+  FunctionResolve,      /* 17 */
+  FunctionCall,         /* 18 */
+  FunctionSet,          /* 19 */
+  FunctionRead,         /* 20 */
+  FunctionWrite,        /* 21 */
+  FunctionOpen,         /* 22 */
+  FunctionIter,         /* 23 */
+  FunctionHasNext,      /* 24 */
+  FunctionNext,         /* 25 */
+  FunctionDecr,         /* 26 */
+  FunctionIncr,         /* 27 */
+  FunctionVisit,        /* 28 */
+  FunctionReduce,       /* 29 */
+  FunctionIs,           /* 30 */
+  FunctionQuery,        /* 31 */
+  FunctionEnter,        /* 32 */
+  FunctionLeave,        /* 33 */
+  FunctionPush,         /* 34 */
+  FunctionPop,          /* 35 */
+  FunctionConstructor,  /* 36 */
+  FunctionInterpolate,  /* 37 */
+  FunctionUsr1,         /* 38 */
+  FunctionUsr2,         /* 39 */
+  FunctionUsr3,         /* 40 */
+  FunctionUsr4,         /* 41 */
+  FunctionUsr5,         /* 42 */
+  FunctionUsr6,         /* 43 */
+  FunctionUsr7,         /* 44 */
+  FunctionUsr8,         /* 45 */
+  FunctionUsr9,         /* 46 */
+  FunctionUsr10,        /* 47 */
   FunctionEndOfListDummy
 } vtable_id_t;
 

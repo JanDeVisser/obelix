@@ -1,6 +1,7 @@
 add_library(oblgrammar SHARED
   grammar_action.c
   grammar_element.c
+  grammar_variable.c
   grammar.c
   nonterminal.c
   rule.c
@@ -21,5 +22,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
 endif(CMAKE_COMPILER_IS_GNUCC)
 target_link_libraries(panoramix oblgrammar obllexer oblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
 
-install(TARGETS oblgrammar DESTINATION lib)
-install(TARGETS panoramix DESTINATION bin)
+install(TARGETS panoramix oblgrammar
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin)

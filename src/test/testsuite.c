@@ -84,14 +84,14 @@ void add_tcase(TCase *tc) {
   }
 }
 
-extern void init_suite(void);
+extern void init_suite(int, char **);
 
 int main(int argc, char **argv){
   int      number_failed;
   SRunner *sr;
 
   _suite = suite_create("default");
-  init_suite();
+  init_suite(argc, argv);
   sr = srunner_create(_suite);
   //srunner_set_fork_status(sr, CK_NOFORK);
   srunner_run_all(sr, CK_VERBOSE);

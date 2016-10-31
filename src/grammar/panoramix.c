@@ -1,6 +1,6 @@
 /*
- * obelix.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * obelix.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -34,9 +34,9 @@ void debug_settings(char *debug) {
   int      debug_all = 0;
   array_t *cats;
   int      ix;
-  
+
   if (debug) {
-    debug("debug optarg: %s", debug);
+    _debug("debug optarg: %s", debug);
     cats = array_split(debug, ",");
     for (ix = 0; ix < array_size(cats); ix++) {
       logging_enable(str_array_get(cats, ix));
@@ -51,7 +51,7 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
   grammar_t        *ret;
   grammar_parser_t *gp;
   file_t           *file;
-  
+
   if (!sys_dir) {
     sys_dir = getenv("OBELIX_SYS_PATH");
   }
@@ -64,17 +64,15 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
   if ((*system_dir + (strlen(system_dir) - 1)) != '/') {
     strcat(system_dir, "/");
   }
-  
+
   if (!grammarpath) {
     grammar_p = (char *) new(strlen(system_dir) + strlen("grammar.txt") + 1);
     strcpy(grammar_p, system_dir);
     strcat(grammar_p, "grammar.txt");
     grammarpath = grammar_p;
   }
-  if (panoramix_debug) {
-    debug("system dir: %s", system_dir);
-    debug("grammar file: %s", grammarpath);
-  }
+  debug(panoramix, "system dir: %s", system_dir);
+  debug(panoramix, "grammar file: %s", grammarpath);
 
   file = file_open(grammarpath);
   assert(file_isopen(file));
@@ -126,4 +124,3 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
-

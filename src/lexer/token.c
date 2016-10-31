@@ -28,6 +28,7 @@ static inline void _token_init(void);
 static token_t *   _token_new(token_t *, va_list);
 static void        _token_free(token_t *);
 static char *      _token_allocstring(token_t *);
+static char *      _token_encode(token_t *);
 static data_t *    _token_resolve(token_t *, char *);
 static data_t *    _token_iswhitespace(token_t *, char *, array_t *, dict_t *);
 
@@ -88,6 +89,7 @@ static vtable_t _vtable_token[] = {
   { .id = FunctionFree,        .fnc = (void_t) _token_free },
   { .id = FunctionParse,       .fnc = (void_t) token_parse },
   { .id = FunctionAllocString, .fnc = (void_t) _token_allocstring },
+  { .id = FunctionEncode,      .fnc = (void_t) _token_encode },
   { .id = FunctionResolve,     .fnc = (void_t) _token_resolve },
   { .id = FunctionHash,        .fnc = (void_t) token_hash },
   { .id = FunctionCmp,         .fnc = (void_t) token_cmp },
@@ -156,10 +158,24 @@ char * _token_allocstring(token_t *token) {
   char *buf;
 
   if (token -> code < 200) {
-    asprintf(&buf, "[%s] '%s'",
-	     token_code_name(token -> code), token_token(token));
+    asprintf(&buf, "[%s] '%s'", token_code_name(token -> code), token_token(token));
   } else {
     asprintf(&buf, "[%s]", token_token(token));
+  }
+  return buf;
+}
+
+char * _token_encode(token_t *token) {
+  char *buf = NULL;
+  char *t;
+
+  if (token) {
+    t = token_token(token);
+    if (t && *t) {
+      asprintf(&buf, "%d:%s", token_code(token), t);
+    } else {
+      asprintf(&buf, "%d", token_code(token));
+    }
   }
   return buf;
 }
@@ -199,27 +215,29 @@ token_t * token_create(unsigned int code, char *token) {
 token_t * token_parse(char *token) {
   token_t *ret = NULL;
   char    *dup = NULL;
-  char    *ptr;
+  char    *tokenstr;
+  char    *codestr;
   long     code;
 
   if (!token) {
     goto done;
   }
   dup = strdup(token);
-  ptr = strrchr(dup, ':');
-  if (!ptr) {
-    goto done;
+  tokenstr = strrchr(dup, ':');
+  if (tokenstr) {
+    *tokenstr++ = 0;
   }
-  *ptr++ = 0;
-  if (strtoint(dup, &code)) {
-    goto done;
+  codestr = strtrim(dup);
+  if (!strtoint(codestr, &code)) {
+    code = code_for_label(token_code_names, codestr);
+    if (code < 0) {
+      goto done;
+    }
   }
-  ret = token_create(code, ptr);
+  ret = token_create(code, (tokenstr && *tokenstr) ? tokenstr : NULL);
 
 done:
-  if (dup) {
-    free(dup);
-  }
+  free(dup);
   return ret;
 }
 
@@ -299,11 +317,11 @@ data_t * token_todata(token_t *token) {
     }
     assert(data);
 #ifdef LEXER_DEBUG
-    debug("token_todata: converted token [%s] to data value [%s]", token_tostring(token), data_tostring(data));
+    debug(lexer, "token_todata: converted token [%s] to data value [%s]", token_tostring(token), data_tostring(data));
 #endif
   } else {
 #ifdef LEXER_DEBUG
-    debug("token_todata: Not converting NULL token. Returning NULL");
+    debug(lexer, "token_todata: Not converting NULL token. Returning NULL");
 #endif
   }
   return data;

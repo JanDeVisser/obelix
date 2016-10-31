@@ -58,7 +58,9 @@
 #cmakedefine HAVE_WS2TCPIP_H                 1
 
 #cmakedefine HAVE_INTPTR_T                   1
+#cmakedefine HAVE_MAX_PATH                   1
 #cmakedefine HAVE__MAX_PATH                  1
+#cmakedefine HAVE_PATH_MAX                   1
 #cmakedefine HAVE_TYPE_SOCKET                1
 #cmakedefine HAVE_SOCKLEN_T                  1
 #cmakedefine HAVE_ECONNRESET                 1
@@ -87,6 +89,8 @@
 #cmakedefine HAVE_MEMPCPY                    1
 #cmakedefine HAVE_PTHREAD_SETNAME_NP         1
 #cmakedefine HAVE_PTHREAD_YIELD              1
+#cmakedefine HAVE_PUTENV                     1
+#cmakedefine HAVE__PUTENV                    1
 #cmakedefine HAVE_VASPRINTF                  1
 #cmakedefine HAVE_WCRTOMB                    1
 #cmakedefine HAVE_WCSCOLL                    1
@@ -96,5 +100,26 @@
 #cmakedefine HAVE__STRNICMP                  1
 #cmakedefine HAVE_STRCASECMP                 1
 #cmakedefine HAVE_STRNCASECMP                1
+
+#ifndef HAVE_PUTENV
+#ifdef HAVE__PUTENV
+#define putenv _putenv
+#define HAVE_PUTENV                          1
+#endif /* HAVE__PUTENV */
+#endif /* !HAVE_PUTENV */
+
+#ifndef HAVE_MAX_PATH
+#ifdef HAVE__MAX_PATH
+#define MAX_PATH                               _MAX_PATH
+#else /* HAVE__MAX_PATH */
+#ifdef HAVE_PATH_MAX
+#include <limits.h>
+#define MAX_PATH                               PATH_MAX
+#else /* HAVE_PATH_MAX */
+#define MAX_PATH                               512
+#endif /* HAVE_PATH_MAX */
+#endif /* HAVE__MAX_PATH */
+#define HAVE_MAX_PATH                          1
+#endif /* !HAVE_MAX_PATH */
 
 #endif /* __CONFIG_H__ */

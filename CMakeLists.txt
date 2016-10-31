@@ -64,6 +64,10 @@ elseif(HAVE_MALLOC_H)
 endif(HAVE_ALLOCA_H)
 check_symbol_exists(alloca ${ALLOCA_HDR} HAVE_ALLOCA)
 check_function_exists(mempcpy HAVE_MEMPCPY)
+check_function_exists(putenv HAVE_PUTENV)
+if(NOT HAVE_PUTENV)
+  check_function_exists(_putenv HAVE__PUTENV)
+endif(NOT HAVE_PUTENV)
 
 set(CMAKE_EXTRA_INCLUDE_FILES stdio.h)
 check_function_exists(itoa HAVE_ITOA)
@@ -128,7 +132,13 @@ check_symbol_exists(SO_REUSEADDR sys/socket.h HAVE_SO_REUSEADDR)
 check_symbol_exists(SO_NOSIGPIPE sys/socket.h HAVE_SO_NOSIGPIPE)
 check_symbol_exists(MSG_NOSIGNAL sys/socket.h HAVE_MSG_NOSIGNAL)
 
-check_symbol_exists(_MAX_PATH stdlib.h HAVE__MAX_PATH)
+check_symbol_exists(MAX_PATH stdlib.h HAVE_MAX_PATH)
+if(NOT HAVE_MAX_PATH)
+  check_symbol_exists(_MAX_PATH stdlib.h HAVE__MAX_PATH)
+  if(NOT HAVE__MAX_PATH)
+    check_symbol_exists(PATH_MAX limits.h HAVE_PATH_MAX)
+  endif(NOT HAVE__MAX_PATH)
+endif(NOT HAVE_MAX_PATH)
 check_symbol_exists(ECONNRESET errno.h HAVE_ECONNRESET)
 check_symbol_exists(fsync unistd.h HAVE_FSYNC)
 check_symbol_exists(getline unistd.h HAVE_FSYNC)
@@ -166,10 +176,7 @@ endif(NOT HAVE_PID_T)
 ###############################################################################
 
 if (CMAKE_COMPILER_IS_GNUCC)
-  message("Compiler is gcc")
   set(_GNU_SOURCE, 1)
-else (CMAKE_COMPILER_IS_GNUCC)
-  message("Compiler is not gcc")
 endif (CMAKE_COMPILER_IS_GNUCC)
 
 ###############################################################################
@@ -191,8 +198,6 @@ if(HAVE_LIBRT)
   set(SYSLIBS "rt" ${SYSLIBS})
 endif(HAVE_LIBRT)
 set(SYSLIBS ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} ${SYSLIBS})
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 

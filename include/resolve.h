@@ -25,6 +25,7 @@
 #include <dict.h>
 #include <mutex.h>
 
+#define OBL_DIR     "OBL_DIR"
 
 #ifdef HAVE_DLFCN_H
 typedef void * lib_handle_t;

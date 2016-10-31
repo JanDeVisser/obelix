@@ -1,4 +1,4 @@
-set(SOURCES 
+set(SOURCES
     any.c
     array.c
     core.c
@@ -25,6 +25,7 @@ set(SOURCES
     resolve.c
     socket.c
     str.c
+    strutils.c
     thread.c
     typedescr.c
 )

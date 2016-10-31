@@ -17,13 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <data.h>
-#include <grammar.h>
 #include "libgrammar.h"
 
 static ge_t *          _ge_new(ge_t *, va_list);
@@ -76,31 +69,46 @@ void _ge_free(ge_t *ge) {
   }
 }
 
-ge_t * _ge_set(ge_t *ge, char *name, data_t *val) {
-  function_t *fnc;
-  ge_t       *ret = NULL;
+ge_t * _ge_set(ge_t *ge, char *name, data_t *value) {
+  grammar_variable_t *gv;
+  function_t         *fnc;
+  data_t             *data;
 
-  if (grammar_debug) {
-    debug("  Setting option %s on grammar element %s", name, ge_tostring(ge));
+  debug(grammar, "  Setting '%s' on grammar element '%s'", name, ge_tostring(ge));
+
+  if (data_type(value) == Token) {
+    data = token_todata((token_t *) value);
+  } else {
+    data = value;
   }
-  fnc = grammar_resolve_function(ge -> grammar, name);
-  if (fnc) {
-    ge_add_action(ge, grammar_action_create(fnc, val));
-    function_free(fnc);
-    ret = ge;
-  } else if (data_hastype(val, Token)) {
-    ge_set_variable(ge, name, (token_t *) val);
-    ret = ge;
+  if ((*name == '_') || (data_type(data) == GrammarVariable)) {
+    gv = (data_type(data) == GrammarVariable)
+            ? gv
+            : grammar_variable_create(ge, name, data);
+    dict_put(ge -> variables, strdup(name), gv);
+    if ((data_t *) gv != data) {
+      grammar_variable_free(gv);
+    }
+  } else {
+    fnc = grammar_resolve_function(ge -> grammar, name);
+    if (fnc) {
+      ge_add_action(ge, grammar_action_create(fnc, data));
+      data_free(data);
+      function_free(fnc);
+    } else {
+      error("_ge_set: Cannot set grammar option '%s' on %s",
+            name, ge_tostring(ge));
+      ge = NULL;
+    }
   }
   return ge;
 }
 
+
 data_t * _ge_resolve(ge_t *ge, char *name) {
   data_t *ret = NULL;
 
-  if (grammar_debug) {
-    debug("  Getting option %s from grammar element %s", name, ge_tostring(ge));
-  }
+  debug(grammar, "  Getting option %s from grammar element %s", name, ge_tostring(ge));
   ret = (data_t *) dict_get(ge -> actions, name);
   if (!ret) {
     ret = (data_t *) dict_get(ge -> variables, name);
@@ -139,7 +147,7 @@ ge_t * _ge_dump_main(ge_dump_ctx_t *ctx) {
     post(ctx);
   }
   printf("\n");
-  return ge;
+  return (ge_t *) ctx -> obj;
 }
 
 ge_dump_ctx_t * _dump_child(data_t *child, ge_dump_ctx_t *ctx) {
@@ -153,6 +161,7 @@ ge_dump_ctx_t * _dump_child(data_t *child, ge_dump_ctx_t *ctx) {
 }
 
 ge_t * _ge_dump_common(ge_dump_ctx_t *ctx) {
+  ge_t                  *ge = (ge_t *) ctx -> obj;
   ge_get_children_fnc_t  get_children = (ge_get_children_fnc_t) data_get_function((data_t *) ge, FunctionUsr3);
   list_t                *children;
 
@@ -160,35 +169,30 @@ ge_t * _ge_dump_common(ge_dump_ctx_t *ctx) {
   dict_reduce_values(ge -> variables, (reduce_t) ge_append_child, children);
   dict_reduce_values(ge -> actions, (reduce_t) ge_append_child, children);
   if (get_children) {
-    get_children((data_t *) ctx -> ge, children);
+    get_children((data_t *) ctx -> obj, children);
   }
-  printf("  owner = ge;\n");
-  list_reduce(children, _dump_child, ctx);
-  list_free(children);
-  printf("  ge = owner;\n\n");
-  return ge;
+  if (list_size(children)) {
+    printf("  datastack_push(stack, owner);\n"
+           "  owner = ge;\n");
+    list_reduce(children, _dump_child, ctx);
+    list_free(children);
+    printf("  ge = owner;\n"
+           "  owner = (ge_t *) datastack_pop(stack);\n\n");
+  }
+  return (ge_t *) ctx -> obj;
 }
 
 /* ------------------------------------------------------------------------ */
 
 ge_t * ge_add_action(ge_t *ge, grammar_action_t *action) {
+  assert(ge);
+  assert(action);
   dict_put(ge -> actions, strdup(name_tostring(action -> fnc -> name)), grammar_action_copy(action));
   return ge;
 }
 
-ge_t * ge_set_variable(ge_t *ge, char *name, token_t *value) {
-  grammar_variable_t *gv;
-
-  if (data_type((data_t *) value) == GrammarVariable) {
-    gv = (grammar_variable_t *) value;
-  } else {
-    gv = grammar_variable_create(ge, name, value);
-  }
-  dict_put(ge -> variables, strdup(name), gv);
-  if (gv != value) {
-    grammar_variable_free(gv);
-  }
-  return ge;
+ge_t * ge_set_variable(ge_t *ge, char *name, data_t *value) {
+  return (ge_t *) data_set_attribute((data_t *) ge, name, value);
 }
 
 grammar_variable_t * ge_get_variable(ge_t *ge, char *name) {

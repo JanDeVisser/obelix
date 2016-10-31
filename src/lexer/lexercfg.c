@@ -180,7 +180,7 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_c
   char             *ptr = NULL;
   char             *code;
   char             *param = NULL;
-  data_t           *param_data;
+  data_t           *param_data = NULL;
   scanner_config_t *scanner = NULL;
 
   copy = strdup(code_config);
@@ -196,15 +196,12 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_c
   }
   code = strtrim(copy);
   if (*code) {
-    scanner = lexer_config_get_scanner(config, code);
-    if (!scanner) {
-      scanner = _lexer_config_add_scanner(config, code);
-    }
-    if (scanner && param) {
+    if (param) {
       param_data = (data_t *) str_wrap(param);
-      scanner_config_configure(scanner, param_data);
-      data_free(param_data);
     }
+    lexer_config_set(config, code, param_data);
+    data_free(param_data);
+    scanner = lexer_config_get_scanner(config, code);
   }
   free(copy);
   return scanner;
@@ -224,13 +221,15 @@ data_t * lexer_config_set(lexer_config_t *config, char *code, data_t *param) {
 
   scanner = lexer_config_get_scanner(config, code);
   if (!scanner) {
-    return data_exception(ErrorParameterValue, "No scanner with code '%s' found", code);
+    scanner = _lexer_config_add_scanner(config, code);
   }
-  return scanner_config_configure(scanner, param)
-         ? (data_t *) config
-         : data_exception(ErrorParameterValue,
-                          "Could not set parameter '%s' on scanner with code '%s'",
-                          data_tostring(param), code);
+  return (scanner)
+    ? (scanner_config_configure(scanner, param)
+        ? (data_t *) config
+        : data_exception(ErrorParameterValue,
+                        "Could not set parameter '%s' on scanner with code '%s'",
+                      data_tostring(param), code))
+    : NULL;
 }
 
 int lexer_config_get_bufsize(lexer_config_t *config) {
@@ -254,17 +253,15 @@ lexer_config_t * lexer_config_tokenize(lexer_config_t *config, reduce_t tokenize
 lexer_config_t * lexer_config_dump(lexer_config_t *config) {
   scanner_config_t        *scanner;
 
-  printf("lexer_config_t * lexer_config_build(void) {\n");
-  printf("  lexer_config_t   *lexer_config;\n");
-  printf("  scanner_config_t *scanner_config;\n\n");
-  printf("  lexer_config = lexer_config_create();\n");
-  printf("  lexer_config_set_bufsize(lexer_config, %d)\n",
+  printf("lexer_config_t * lexer_config_build(lexer_config_t *lexer_config) {\n"
+         "  scanner_config_t *scanner_config;\n\n"
+         "  lexer_config_set_bufsize(lexer_config, %d)\n",
          lexer_config_get_bufsize(config));
   for (scanner = config -> scanners; scanner; scanner = scanner -> next) {
     printf("\n");
     scanner_config_dump(scanner);
   }
-  printf("  return lexer_config;\n");
-  printf("}\n\n");
+  printf("  return lexer_config;\n"
+         "}\n\n");
   return config;
 }

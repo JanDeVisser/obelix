@@ -17,13 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <data.h>
-#include <grammar.h>
 #include "libgrammar.h"
 
 static rule_t *            _rule_new(rule_t *, va_list);
@@ -42,8 +36,6 @@ static vtable_t _vtable_rule[] = {
 };
 
 grammar_element_type_t Rule = -1;
-
-extern void grammar_init(void);
 
 /* ------------------------------------------------------------------------ */
 
@@ -81,7 +73,7 @@ char * _rule_tostring(rule_t *rule) {
 }
 
 rule_t * _rule_dump_pre(rule_t *rule) {
-  printf("  rule = rule_create(nonterminal);\n");
+  printf("  ge = (ge_t *) rule_create((nonterminal_t *) owner);\n");
   return rule;
 }
 

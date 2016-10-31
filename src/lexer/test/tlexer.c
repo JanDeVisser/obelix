@@ -116,7 +116,7 @@ void create_lexa(void) {
   add_tcase(tc);
 }
 
-extern void init_suite(void) {
+extern void init_suite(int argc, char **argv) {
   create_lexa();
   create_qstring();
   create_number();

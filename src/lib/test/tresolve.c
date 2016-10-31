@@ -1,5 +1,5 @@
 /*
- * /obelix/test/resolve.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/test/resolve.c - bufright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -13,7 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a buf of the GNU General Public License
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -22,6 +22,29 @@
 
 typedef test_t * (*testfactory_t)(char *);
 typedef void *   (*helloworld_t)(char *);
+
+#define OBL_DIR_EQ        OBL_DIR "="
+#define OBL_DIR_EQ_LEN    (strlen(OBL_DIR_EQ))
+
+static void set_obldir(char *argv0) {
+#ifdef HAVE_PUTENV
+  char *ptr;
+  char  buf[MAX_PATH + OBL_DIR_EQ_LEN + 1];
+  char *path = buf + OBL_DIR_EQ_LEN;
+
+  strcpy(buf, OBL_DIR_EQ);
+  strncpy(path, argv0, MAX_PATH);
+  path[MAX_PATH] = 0;
+  ptr = strrchr(path, '/');
+  if (!ptr) {
+    ptr = strrchr(path, '\\');
+  }
+  if (ptr) {
+    *ptr = 0;
+    putenv(buf);
+  }
+#endif /* HAVE_PUTENV */
+}
 
 START_TEST(test_resolve_get)
   resolve_t *resolve;
@@ -77,9 +100,10 @@ START_TEST(test_resolve_foreign_function)
   ck_assert_ptr_ne(test, NULL);
 END_TEST
 
-void resolve_init(void) {
+void resolve_init(char *argv0) {
   TCase *tc = tcase_create("Resolve");
 
+  set_obldir(argv0);
   tcase_add_test(tc, test_resolve_get);
   tcase_add_test(tc, test_resolve_open);
   tcase_add_test(tc, test_resolve_resolve);

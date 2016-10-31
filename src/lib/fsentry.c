@@ -144,7 +144,7 @@ fsentry_t * fsentry_create(char *name) {
 }
 
 fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
-  char       n[_MAX_PATH];
+  char       n[MAX_PATH];
   fsentry_t *ret;
 
   if (!dir || !fsentry_isdir(dir) || !name) {

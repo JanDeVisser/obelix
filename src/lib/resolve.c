@@ -35,9 +35,6 @@
 #include <resolve.h>
 
 #define OBL_INIT    "_obl_init"
-#ifndef MAX_PATH
-#define MAX_PATH       PATH_MAX
-#endif /* MAX_PATH */
 
 typedef struct _resolve_result {
   void     *result;
@@ -195,8 +192,8 @@ char * _resolve_handle_get_platform_image(resolve_handle_t *handle) {
   return handle -> platform_image;
 }
 
-resolve_handle_t * _resolve_handle_try_open(resolve_handle_t *handle, char*dir) {
-  char             *path;
+resolve_handle_t * _resolve_handle_try_open(resolve_handle_t *handle, char *dir) {
+  char              path[MAX_PATH + 1];
   char             *image;
   lib_handle_t      libhandle;
   resolve_result_t *res;
@@ -204,18 +201,18 @@ resolve_handle_t * _resolve_handle_try_open(resolve_handle_t *handle, char*dir) 
   image = _resolve_handle_get_platform_image(handle);
   if (image) {
     if (dir) {
-      asprintf(&path, "%s/%s", dir, image);
+      snprintf(path, MAX_PATH, "%s/%s", dir, image);
     } else {
-      path = strdup(_resolve_handle_get_platform_image(handle));
+      strncpy(path, _resolve_handle_get_platform_image(handle), MAX_PATH);
+      path[MAX_PATH] = 0;
     }
     debug(resolve, "Attempting to open library '%s'", path);
   } else {
     debug(resolve, "Attempting to open main program module");
-    path = NULL;
   }
 #ifdef HAVE_DLFCN_H
   dlerror();
-  libhandle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+  libhandle = dlopen(image ? path : NULL, RTLD_NOW | RTLD_GLOBAL);
 #elif defined(HAVE_WINDOWS_H)
   SetLastError(0);
   libhandle = (image) ? LoadLibrary(TEXT(path)) : GetModuleHandle(NULL);
@@ -223,10 +220,9 @@ resolve_handle_t * _resolve_handle_try_open(resolve_handle_t *handle, char*dir) 
   res = _resolve_result_create((void *) libhandle);
   handle -> handle = (lib_handle_t) res -> result;
   if (handle -> handle) {
-    debug(resolve, "Successfully opened '%s'", (path) ? path : "main program module");
+    debug(resolve, "Successfully opened '%s'", (image) ? path : "main program module");
   }
   _resolve_result_free(res);
-  free(path);
   return handle;
 }
 
@@ -250,6 +246,10 @@ resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
       _resolve_handle_try_open(handle, obldir);
       if (!handle -> handle) {
         strcpy(obldir + (strlen(obldir) - 3), "bin");
+        _resolve_handle_try_open(handle, obldir);
+      }
+      if (!handle -> handle) {
+        obldir[strlen(obldir) - 4] = 0;
         _resolve_handle_try_open(handle, obldir);
       }
       if (!handle -> handle) {

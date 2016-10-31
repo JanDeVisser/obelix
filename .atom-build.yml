@@ -11,6 +11,9 @@ targets:
   rebuild:
       cmd: "make clean all"
       cwd: "{PROJECT_PATH}/build"
+  install:
+      cmd: "make install"
+      cwd: "{PROJECT_PATH}/install"
   test:
       cmd: "make test"
       cwd: "{PROJECT_PATH}/build"

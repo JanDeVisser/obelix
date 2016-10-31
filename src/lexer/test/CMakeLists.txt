@@ -9,3 +9,7 @@ target_link_libraries(tlexer obllexer obltest oblcore ${CHECK_LIBRARIES} ${SYSLI
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(tlexer PRIVATE _GNU_SOURCE)
 endif(CMAKE_COMPILER_IS_GNUCC)
+
+install(TARGETS tlexer
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib)

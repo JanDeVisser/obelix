@@ -30,9 +30,9 @@ extern "C" {
 #endif
 
 typedef struct _name {
-  struct _data  _d;
-  array_t      *name;
-  char         *sep;
+  data_t   _d;
+  array_t *name;
+  char    *sep;
 } name_t;
 
 OBLCORE_IMPEXP name_t *          name_create(int, ...);
@@ -60,9 +60,9 @@ OBLCORE_IMPEXP unsigned int      name_hash(name_t *);
 
 #define data_is_name(d)  ((d) && (data_hastype((d), Name)))
 #define data_as_name(d)  ((name_t *) (data_is_name((d)) ? (d) : NULL))
-#define name_free(n)     (data_free((struct _data *) (n)))
-#define name_tostring(n) (data_tostring((struct _data *) (n)))
-#define name_copy(n)     ((name_t *) data_copy((struct _data *) (n)))
+#define name_free(n)     (data_free((data_t *) (n)))
+#define name_tostring(n) (data_tostring((data_t *) (n)))
+#define name_copy(n)     ((name_t *) data_copy((data_t *) (n)))
 
 OBLCORE_IMPEXP int Name;
 

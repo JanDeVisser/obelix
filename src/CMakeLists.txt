@@ -1,6 +1,7 @@
 add_subdirectory(lib)
 add_subdirectory(test)
 add_subdirectory(lexer)
+add_subdirectory(grammar)
 # add_subdirectory(parser)
 # add_subdirectory(bin)
 # add_subdirectory(stdlib)

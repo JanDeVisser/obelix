@@ -17,12 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <data.h>
 #include "libgrammar.h"
 
 int grammar_debug = 0;
@@ -34,9 +28,9 @@ static grammar_t * _grammar_set(grammar_t *, char *, data_t *);
 static char *      _grammar_tostring(grammar_t *);
 
 static list_t *    _grammar_dump_nonterminal_reducer(nonterminal_t *, list_t *);
-static grammar_t * _grammar_dump_pre(grammar_t *);
+static grammar_t * _grammar_dump_pre(ge_dump_ctx_t *);
 static grammar_t * _grammar_dump_get_children(grammar_t *, list_t *);
-static grammar_t * _grammar_dump_post(grammar_t *);
+static grammar_t * _grammar_dump_post(ge_dump_ctx_t *);
 
 static vtable_t _vtable_grammar[] = {
   { .id = FunctionNew,      .fnc = (void_t) _grammar_new },
@@ -56,8 +50,8 @@ grammar_element_type_t Grammar = -1;
 extern void grammar_init(void) {
   if (GrammarAction < 0) {
     logging_register_category("grammar", &grammar_debug);
-    grammaraction_register();
-    grammarelement_register();
+    grammar_action_register();
+    grammar_element_register();
     nonterminal_register();
     rule_register();
     rule_entry_register();
@@ -83,7 +77,7 @@ grammar_t * _grammar_new(grammar_t *grammar, va_list args) {
 
   grammar -> keywords = intdata_dict_create();
   grammar -> nonterminals = strdata_dict_create();
-  grammar -> lexer = str_list_create();
+  grammar -> lexer = lexer_config_create();
 
   return grammar;
 }
@@ -92,7 +86,7 @@ void _grammar_free(grammar_t *grammar) {
   if (grammar) {
     dict_free(grammar -> nonterminals);
     dict_free(grammar -> keywords);
-    list_free(grammar -> lexer);
+    lexer_config_free(grammar -> lexer);
     free(grammar -> prefix);
   }
 }
@@ -102,38 +96,36 @@ char * _grammar_tostring(grammar_t *grammar) {
 }
 
 grammar_t * _grammar_set(grammar_t *g, char *name, data_t *value) {
-  char       *val;
+  char       *val = NULL;
 
-  if (!value) {
-    return NULL;
-  } else if (data_type(value) == Token) {
-    val = token_token((token_t *) value);
-  } else {
-    val = data_tostring(value);
-  }
-
-  if (!strcmp(name, LIB_STR)) {
-    resolve_library(val);
-    if (!g -> libs) {
-      g -> libs = array_create(4);
-      array_set_free(g -> libs, (free_t) free);
+  if (!lexer_config_set(g -> lexer, name, value)) {
+    if (data_type(value) == Token) {
+      val = token_token((token_t *) value);
+    } else {
+      val = data_tostring(value);
     }
-    array_push(g -> libs, strdup(val));
-  } else if (!strcmp(name, PREFIX_STR)){
-    g -> prefix = strdup(val);
-  } else if (!strcmp(name, STRATEGY_STR)){
-    if (!strncmp(val, "topdown", 7)|| !strncmp(val, "ll(1)", 5)) {
-      grammar_set_parsing_strategy(g, ParsingStrategyTopDown);
-    } else if (!strncmp(val, "bottomup", 8) || !strncmp(val, "lr(1)", 5)) {
-      grammar_set_parsing_strategy(g, ParsingStrategyBottomUp);
+    if (!strcmp(name, LIB_STR)) {
+      if (val) {
+        resolve_library(val);
+        if (!g -> libs) {
+          g -> libs = array_create(4);
+          array_set_free(g -> libs, (free_t) free);
+        }
+        array_push(g -> libs, strdup(val));
+      }
+    } else if (!strcmp(name, PREFIX_STR)) {
+      g -> prefix = (val) ? strdup(val) : strdup("");
+    } else if (!strcmp(name, STRATEGY_STR)) {
+      if (val) {
+        if (!strncmp(val, "topdown", 7)|| !strncmp(val, "ll(1)", 5)) {
+          grammar_set_parsing_strategy(g, ParsingStrategyTopDown);
+        } else if (!strncmp(val, "bottomup", 8) || !strncmp(val, "lr(1)", 5)) {
+          grammar_set_parsing_strategy(g, ParsingStrategyBottomUp);
+        }
+      }
+    } else {
+      g = NULL;
     }
-  } else if (!strcmp(name, LEXER_STR)){
-    grammar_set_lexer_option(g, val);
-//} else if (!strcmp(token_token(name), CASE_SENSITIVE_STR)){
-//  grammar_set_lexer_option(g, LexerOptionCaseSensitive,
-//                           data_parse(Bool, token_token(val)));
-  } else {
-    g = NULL;
   }
   return g;
 }
@@ -159,9 +151,10 @@ grammar_t * _grammar_dump_get_children(grammar_t *grammar, list_t *children) {
   return grammar;
 }
 
-grammar_t * _grammar_dump_pre(grammar_t *grammar, char *prefix, char *variable) {
-  int   ix;
-  char *lib;
+grammar_t * _grammar_dump_pre(ge_dump_ctx_t *ctx) {
+  int        ix;
+  char      *lib;
+  grammar_t *grammar = (grammar_t *) ctx -> obj;
 
   printf("#include <grammar.h>\n");
   printf("#include <datastack.h>\n\n");
@@ -172,51 +165,47 @@ grammar_t * _grammar_dump_pre(grammar_t *grammar, char *prefix, char *variable) 
   printf("\n"
          "grammar_t * build_grammar() {\n"
          "  grammar_t      *grammar;\n"
-         "  nonterminal_t  *nonterminal;\n"
-         "  rule_t         *rule;\n"
-         "  rule_entry_t   *rule_entry;\n"
          "  ge_t           *ge;\n"
-         "  ge_t           *owner;\n"
+         "  ge_t           *owner = NULL;\n"
          "  datastack_t    *stack;\n"
+         "  data_t         *value;\n"
          "\n"
          "  stack = datastack_create(\"build_grammar\");\n"
          "  grammar = grammar_create();\n");
 
   if (grammar -> prefix && grammar -> prefix[0]) {
-    printf("  {\n"
-           "    token_t *token_name;\n"
-           "    token_t *token_value;\n"
-           "    token_name = token_create(TokenCodeIdentifier, PREFIX_STR);\n"
-           "    token_value = token_create(TokenCodeIdentifier, \"%s\");\n"
-           "    grammar_set_option(grammar, token_name, token_value);\n"
-           "    token_free(token_name);\n"
-           "    token_free(token_value);\n"
-           "  }\n",
+    printf("  value = (data_t *) str_wrap(\"%s\");\n"
+           "  grammar_set_variable(grammar, PREFIX_STR, value);\n"
+           "  data_free(value);\n",
            grammar -> prefix);
   }
   if (grammar -> libs && array_size(grammar -> libs)) {
     for (ix = array_size(grammar -> libs) - 1; ix >= 0; ix--) {
       lib = (char *) array_get(grammar -> libs, ix);
       printf("  token_name = token_create(TokenCodeIdentifier, LIB_STR);\n"
-             "  token_value = token_create(TokenCodeDQuotedStr, \"%s\");\n"
+             "  tvalue = token_create(TokenCodeDQuotedStr, \"%s\");\n"
              "  grammar_set_option(grammar, token_name, token_value);\n"
              "  token_free(token_name);\n"
              "  token_free(token_value);\n",
+             lib);
+      printf("  value = (data_t *) str_wrap(\"%s\");\n"
+             "  grammar_set_variable(grammar, LIB_STR, value);\n"
+             "  data_free(value);\n",
              lib);
     }
   }
   if (grammar -> lexer) {
     printf("  grammar -> lexer = lexer_config_build();\n");
   }
-  printf("\n");
+  printf("  ge = (ge_t *) grammar;\n\n");
   return grammar;
 }
 
-grammar_t * _grammar_dump_post(grammar_t *grammar) {
+grammar_t * _grammar_dump_post(ge_dump_ctx_t *ctx) {
   printf("  grammar_analyze(grammar);\n"
          "  return grammar;\n"
          "}\n");
-  return grammar;
+  return (grammar_t *) ctx -> obj;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -345,15 +334,6 @@ grammar_t * grammar_set_parsing_strategy(grammar_t *grammar, strategy_t strategy
 strategy_t grammar_get_parsing_strategy(grammar_t *grammar) {
   return grammar -> strategy;
 }
-
-grammar_t * grammar_set_lexer_option(grammar_t *grammar, char *value) {
-  list_append(grammar -> lexer, strdup(value));
-  return grammar;
-}
-
-//data_t * grammar_get_lexer_option(grammar_t *grammar, lexer_option_t option) {
-//  return grammar -> lexer_options[(int) option];
-//}
 
 function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {
   function_t *ret = NULL;

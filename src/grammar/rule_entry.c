@@ -17,15 +17,9 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include <data.h>
 #include "libgrammar.h"
-
-extern void                grammar_init(void);
 
 static rule_entry_t * _rule_entry_new(rule_entry_t *, va_list);
 static void           _rule_entry_free(rule_entry_t *);
@@ -98,11 +92,11 @@ void _rule_entry_free(rule_entry_t *entry) {
 
 rule_entry_t * _rule_entry_dump_pre(rule_entry_t *entry) {
   if (entry -> terminal) {
-    printf("  rule_entry = rule_entry_terminal(rule, token_create(%d, \"%s\"));\n",
+    printf("  ge = (ge_t *) rule_entry_terminal((rule_t *) owner, token_create(%d, \"%s\"));\n",
            token_code(entry -> token),
            (token_code(entry -> token) != 34) ? token_token(entry -> token) : "\\\"");
   } else {
-    printf("  rule_entry = rule_entry_non_terminal(rule, \"%s\");\n",
+    printf("  ge = (ge_t *) rule_entry_non_terminal((rule_t *) owner, \"%s\");\n",
            entry -> nonterminal);
   }
   return entry;
@@ -137,7 +131,7 @@ rule_entry_t * _rule_entry_create(rule_t *rule, int terminal, void *ptr) {
 /* -- R U L E _ E N T R Y  P U B L I C  F U N C T I O N S ----------------- */
 
 rule_entry_t * rule_entry_non_terminal(rule_t *rule, char *nonterminal) {
-  return _rule_entry_create(rule, 0, nonterminal);
+  return _rule_entry_create(rule, FALSE, nonterminal);
 }
 
 rule_entry_t * rule_entry_terminal(rule_t *rule, token_t *token) {

@@ -17,13 +17,8 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <data.h>
+#include "liblexer.h"
 #include <file.h>
-#include <lexer.h>
 #include <lexa.h>
 
 int lexa_debug;
@@ -89,16 +84,16 @@ lexa_t * _lexa_build_scanner(entry_t *entry, lexa_t *lexa) {
   lexa_debug_settings(lexa);
   code = (char *) entry -> key;
   scanner_config_load(code, NULL);
-  mdebug(lexa, "Building scanner '%s' with config '%s'", code, data_tostring((data_t *) entry -> value));
+  debug(lexa, "Building scanner '%s' with config '%s'", code, data_tostring((data_t *) entry -> value));
   scanner = lexer_config_add_scanner(lexa -> config, code);
-  mdebug(lexa, "Built scanner '%s'", scanner_config_tostring(scanner));
+  debug(lexa, "Built scanner '%s'", scanner_config_tostring(scanner));
   scanner_config_configure(scanner, (data_t *) entry -> value);
   return lexa;
 }
 
 lexa_t * lexa_build_lexer(lexa_t *lexa) {
   lexa_debug_settings(lexa);
-  mdebug(lexa, "Building lexer config");
+  debug(lexa, "Building lexer config");
   if (lexa -> config) {
     lexer_config_free(lexa -> config);
   }
@@ -214,7 +209,7 @@ scanner_config_t * lexa_get_scanner(lexa_t *lexa, char *code) {
 
 lexa_t * lexa_set_config_value(lexa_t *lexa, char *code, char *config) {
   lexa_debug_settings(lexa);
-  mdebug(lexa, "Setting scanner config value %s: %s", code, config);
+  debug(lexa, "Setting scanner config value %s: %s", code, config);
   dict_put(lexa -> scanners, strdup(code),
            (config) ? (data_t *) str_copy_chars(config) : NULL);
   if (lexa -> config) {

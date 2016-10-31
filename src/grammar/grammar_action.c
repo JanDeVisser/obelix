@@ -17,13 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "libgrammar.h"
-#include <data.h>
 
 static grammar_action_t *  _ga_new(grammar_action_t *, va_list);
 static char *              _ga_allocstring(grammar_action_t *);
@@ -84,18 +78,19 @@ char * _ga_allocstring(grammar_action_t *grammar_action) {
 grammar_action_t * _ga_dump(grammar_action_t *ga, char *prefix, char *variable) {
   function_t *fnc = ga -> fnc;
   data_t     *d = ga -> data;
-  char       *data;
+  char       *data = NULL;
+  char       *encoded;
 
   if (d) {
-    asprintf(&data, "data_parse(%d, \"%s\")", data_type(d), data_tostring(d));
-  } else {
-    data = strdup("NULL");
+    encoded = data_encode(d);
+    asprintf(&data, "data_decode(\"%s\")", encoded);
+    free(encoded);
   }
 
   printf("  ge_add_action((ge_t *) owner,\n"
          "    grammar_action_create(\n"
          "      grammar_resolve_function(grammar, \"%s\"), %s));\n",
-         function_tostring(fnc), data);
+         function_tostring(fnc), (data) ? data : "NULL");
   free(data);
   return ga;
 }

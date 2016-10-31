@@ -23,7 +23,9 @@
 #include "libcore.h"
 #include <data.h>
 #include <function.h>
+#include <name.h>
 #include <resolve.h>
+#include <str.h>
 #include <typedescr.h>
 
 static inline void  _function_init(void);
@@ -57,16 +59,16 @@ void _function_init(void) {
 }
 
 char * _function_allocstring(function_t *fnc) {
-  char *buf;
-  char *params;
+  char  *buf;
+  str_t *params;
 
   params = (fnc -> params && array_size(fnc -> params))
-    ? array_tostring(fnc -> params)
+    ? array_join(fnc -> params, ",")
     : NULL;
   asprintf(&buf, "%s(%s)",
            name_tostring_sep(fnc -> name, ":"),
-           ((params) ? params : ""));
-  free(params);
+           ((params) ? str_chars(params) : ""));
+  str_free(params);
   return buf;
 }
 

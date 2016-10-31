@@ -25,7 +25,8 @@ if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(lexa PRIVATE _GNU_SOURCE)
 endif(CMAKE_COMPILER_IS_GNUCC)
 
-install(TARGETS obllexer DESTINATION lib)
-install(TARGETS lexa DESTINATION bin)
+install(TARGETS lexa obllexer 
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib)
 
 add_subdirectory(test)

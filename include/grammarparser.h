@@ -21,8 +21,6 @@
 #ifndef __GRAMMARPARSER_H__
 #define __GRAMMARPARSER_H__
 
-#include <libparser.h>
-#include <data.h>
 #include <grammar.h>
 
 typedef enum _gp_state_ {
@@ -50,8 +48,8 @@ typedef struct _grammar_parser {
   int            dryrun;
 } grammar_parser_t;
 
-OBLPARSER_IMPEXP grammar_parser_t * grammar_parser_create(data_t *);
-OBLPARSER_IMPEXP void               grammar_parser_free(grammar_parser_t *);
-OBLPARSER_IMPEXP grammar_t *        grammar_parser_parse(grammar_parser_t *);
+OBLGRAMMAR_IMPEXP grammar_parser_t * grammar_parser_create(data_t *);
+OBLGRAMMAR_IMPEXP void               grammar_parser_free(grammar_parser_t *);
+OBLGRAMMAR_IMPEXP grammar_t *        grammar_parser_parse(grammar_parser_t *);
 
 #endif /* __GRAMMARPARSER_H__ */

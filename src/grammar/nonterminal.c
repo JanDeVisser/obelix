@@ -17,13 +17,8 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include <data.h>
-#include <grammar.h>
 #include "libgrammar.h"
 
 static nonterminal_t * _nonterminal_new(nonterminal_t *, va_list);
@@ -86,7 +81,7 @@ void _nonterminal_free(nonterminal_t *nonterminal) {
 }
 
 nonterminal_t * _nonterminal_dump_pre(nonterminal_t *nonterminal) {
-  printf("  nonterminal = nonterminal_create(grammar, \"%s\");\n", nonterminal -> name);
+  printf("  ge = (ge_t *) nonterminal_create(grammar, \"%s\");\n", nonterminal -> name);
   return nonterminal;
 }
 

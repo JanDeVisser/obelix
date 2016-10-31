@@ -25,7 +25,7 @@
 
 extern void list_init(void);
 extern void str_test_init(void);
-extern void resolve_init();
-extern void init_suite(void);
+extern void resolve_init(char *);
+extern void init_suite(int, char **);
 
 #endif /* __TCORE_H__ */

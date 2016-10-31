@@ -168,10 +168,6 @@ OBLCORE_IMPEXP type_t *        type_int;
 #endif /* HAVE__STRNICMP */
 #endif /* HAVE_STRNCASECMP */
 
-#ifndef HAVE__MAX_PATH
-#define _MAX_PATH     512
-#endif
-
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */

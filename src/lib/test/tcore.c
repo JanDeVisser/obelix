@@ -20,8 +20,8 @@
 
 #include "tcore.h"
 
-void init_suite(void) {
+void init_suite(int argc, char **argv) {
   list_init();
   str_test_init();
-  resolve_init();
+  resolve_init(argv[0]);
 }

@@ -25,6 +25,8 @@
   #define oblgrammar_EXPORTS
 #endif
 
+#include <stdio.h>
+
 #include <grammar.h>
 #include <list.h>
 
@@ -34,12 +36,12 @@ typedef struct _ge_dump_ctx {
   data_t              *stream;
 } ge_dump_ctx_t;
 
-typedef ge_dump_ctx_t * (*ge_dump_fnc_t)(ge_dump_ctx_t *);
-typedef data_t *        (*ge_get_children_fnc_t)(data_t *, list_t *);
+typedef ge_t *   (*ge_dump_fnc_t)(ge_dump_ctx_t *);
+typedef data_t * (*ge_get_children_fnc_t)(data_t *, list_t *);
 
 extern void        grammar_init(void);
-extern void        grammaraction_register(void);
-extern void        grammarelement_register(void);
+extern void        grammar_action_register(void);
+extern void        grammar_element_register(void);
 extern void        nonterminal_register(void);
 extern void        rule_register(void);
 extern void        rule_entry_register(void);
@@ -61,7 +63,6 @@ extern set_t *      _rule_get_firsts(rule_t *);
 extern void         _rule_build_parse_table(rule_t *);
 extern set_t *      _rule_get_follows(rule_t *);
 extern rule_t *     _rule_add_parse_table_entry(long, rule_t *);
-extern char *       _rule_tostring(rule_t *);
 
 extern set_t *      _rule_entry_get_firsts(rule_entry_t *, set_t *);
 extern set_t *      _rule_entry_get_follows(rule_entry_t *, set_t *);

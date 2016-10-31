@@ -21,18 +21,17 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "libgrammar.h"
 #include <grammarparser.h>
 #include <list.h>
 #include <nvp.h>
-
-extern int grammar_debug;
 
 typedef struct _gp_state_rec {
   char     *name;
   reduce_t  handler;
 } gp_state_rec_t;
 
-static grammar_parser_t * _grammar_parser_set_option(grammar_parser_t *);
+static grammar_parser_t * _grammar_parser_set_option(grammar_parser_t *, token_t *);
 static grammar_parser_t * _grammar_parser_state_options_end(token_t *, grammar_parser_t *);
 
 static grammar_parser_t * _grammar_parser_state_start(token_t *, grammar_parser_t *);
@@ -61,15 +60,26 @@ static gp_state_rec_t _gp_state_recs[] = {
  * grammar_parser_t static functions
  */
 
+ grammar_parser_t * _grammar_parser_set_option(grammar_parser_t *grammar_parser, token_t *value) {
+   data_t *val = (value) ? (data_t *) str_wrap(token_token(value)) : NULL;
+
+   if (grammar_parser -> last_token) {
+     data_set_attribute((data_t *) grammar_parser -> ge,
+                        token_token(grammar_parser -> last_token),
+                        val);
+     data_free(val);
+     token_free(grammar_parser -> last_token);
+     grammar_parser -> last_token = NULL;
+   }
+   return grammar_parser;
+ }
+
 grammar_parser_t * _grammar_parser_state_start(token_t *token, grammar_parser_t *grammar_parser) {
   int        code;
-  char      *str, *state_str;
-  char       terminal_str[2];
   grammar_t *g;
-  gp_state_t state;
+  char      *str;
 
   g = grammar_parser -> grammar;
-  state = grammar_parser -> state;
   code = token_code(token);
   str = token_token(token);
   switch (code) {
@@ -101,17 +111,8 @@ grammar_parser_t * _grammar_parser_state_start(token_t *token, grammar_parser_t 
   return grammar_parser;
 }
 
-grammar_parser_t * _grammar_parser_set_option(grammar_parser_t *grammar_parser) {
-  if (grammar_parser -> last_token) {
-    ge_set_option(grammar_parser -> ge, grammar_parser -> last_token, NULL);
-    token_free(grammar_parser -> last_token);
-    grammar_parser -> last_token = NULL;
-  }
-  return grammar_parser;
-}
-
 grammar_parser_t * _grammar_parser_state_options_end(token_t *token, grammar_parser_t *grammar_parser) {
-  _grammar_parser_set_option(grammar_parser);
+  _grammar_parser_set_option(grammar_parser, NULL);
   grammar_parser -> state = grammar_parser -> old_state;
   return grammar_parser;
 }
@@ -167,9 +168,9 @@ grammar_parser_t * _grammar_parser_state_option_name(token_t *token, grammar_par
         ret = _grammar_parser_state_options_end(token, grammar_parser);
       }
       break;
-      
+
     case TokenCodeIdentifier:
-      _grammar_parser_set_option(grammar_parser);
+      _grammar_parser_set_option(grammar_parser, NULL);
       ret = _grammar_parser_state_options(token, grammar_parser);
       break;
   }
@@ -190,9 +191,7 @@ grammar_parser_t * _grammar_parser_state_option_value(token_t *token, grammar_pa
     case TokenCodeSQuotedStr:
     case TokenCodeDQuotedStr:
     case TokenCodeBQuotedStr:
-      ge_set_option(grammar_parser -> ge, grammar_parser -> last_token, token);
-      token_free(grammar_parser -> last_token);
-      grammar_parser -> last_token = NULL;
+      _grammar_parser_set_option(grammar_parser, token);
       grammar_parser -> state = GPStateOptions;
       break;
 
@@ -324,7 +323,7 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
         grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
         grammar_parser -> state = GPStateEntry;
       } else {
-        debug("code: %c %d", code, code);
+        debug(grammar, "code: %c %d", code, code);
         _grammar_parser_syntax_error(
             grammar_parser,
             "Token '%s' cannot be used in a rule or rule entry definition",
@@ -357,9 +356,7 @@ grammar_parser_t * _grammar_token_handler(token_t *token, lexer_config_t *lexer)
 
   grammar_parser = (grammar_parser_t *) lexer -> data;
   state = grammar_parser -> state;
-  if (grammar_debug) {
-    debug("%-18.18s %s", _gp_state_recs[state].name, token_tostring(token));
-  }
+  debug(grammar, "%-18.18s %s", _gp_state_recs[state].name, token_tostring(token));
   _gp_state_recs[state].handler(token, grammar_parser);
   return (grammar_parser -> state != GPStateError) ? grammar_parser : NULL;
 }
@@ -395,8 +392,6 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   lexer_config_t   *lexer;
   nvp_t            *nonterminal;
 
-  grammar_parser_t *grammar_parser;
-
   gp -> grammar = grammar_create();
   gp -> grammar -> dryrun = gp -> dryrun;
   lexer = lexer_config_create();
@@ -410,7 +405,7 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   lexer_config_add_scanner(lexer, "whitespace: ignorews=1");
   lexer -> data = (data_t *) gp;
 
-  lexer_config_tokenize(lexer, _grammar_token_handler, gp -> reader);
+  lexer_config_tokenize(lexer, (reduce_t) _grammar_token_handler, gp -> reader);
   if (gp -> state != GPStateError) {
     if (grammar_analyze(gp -> grammar)) {
       if (grammar_debug) {
