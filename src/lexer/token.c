@@ -144,7 +144,6 @@ token_t * _token_new(token_t *token, va_list args) {
 
   code = va_arg(args, unsigned int);
   str = va_arg(args, char *);
-  debug(lexer, "_token_new: code: %d token: %s", code, str);
   return token_assign(token, code, str);
 }
 

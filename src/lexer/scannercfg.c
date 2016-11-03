@@ -266,7 +266,6 @@ scanner_config_t * scanner_config_create(char *code, lexer_config_t *lexer_confi
   scanner_config_t *ret = NULL;
 
   type = scanner_config_get(code);
-  debug(lexer, "zzzz %s %d", type -> type_name, type -> type);
   if (type) {
     debug(lexer, "Creating scanner_config. code: '%s', type: %d", code, type -> type);
     ret = (scanner_config_t *) data_create(type -> type, lexer_config);

@@ -75,7 +75,7 @@ static pthread_mutex_t _logging_mutex;
 logcategory_t * _logcategory_create_nolock(char *name, int *flag) {
   logcategory_t *ret = NEW(logcategory_t);
 
-  fprintf(stderr, "Creating log category '%s'\n", name);
+  // fprintf(stderr, "Creating log category '%s'\n", name);
   assert(!dict_has_key(_categories, name));
   ret -> name = strdup(name);
   ret -> flag = flag;

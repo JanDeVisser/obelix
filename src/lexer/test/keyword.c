@@ -18,6 +18,7 @@
  */
 
 #include "tlexer.h"
+#include <nvp.h>
 
 static int _prepare_with_big(void) {
   scanner_config_t *kw_config;
@@ -38,7 +39,6 @@ static int _prepare_with_big(void) {
 static void _prepare_with_big_bad(int *big, int *bad) {
   scanner_config_t *kw_config;
   token_t          *token;
-  int               ret;
 
   lexa_add_scanner(lexa, "keyword: keyword=Big;keyword=Bad");
   lexa_build_lexer(lexa);
@@ -52,6 +52,49 @@ static void _prepare_with_big_bad(int *big, int *bad) {
   ck_assert_ptr_ne(token, NULL);
   *bad = token_code(token);
   token_free(token);
+}
+
+static int _prepare_with_abc(void) {
+  scanner_config_t *kw_config;
+  token_t          *token;
+  int               ret;
+  str_t            *kw;
+  int               ix;
+  int_t            *size;
+  static char      *_keywords[] = {
+    "abb",
+    "aca",
+    "aba",
+    "aaa",
+    "aab",
+    "abc",
+    "aac",
+    "acc",
+    "acb",
+    NULL
+  };
+
+  lexa_add_scanner(lexa, "keyword");
+  lexa_build_lexer(lexa);
+  kw_config = lexa_get_scanner(lexa, "keyword");
+  ck_assert_ptr_ne(kw_config, NULL);
+
+  for (ix = 0; _keywords[ix]; ix++) {
+    kw = str_wrap(_keywords[ix]);
+    scanner_config_setvalue(kw_config, "keyword", (data_t *) kw);
+    str_free(kw);
+  }
+
+  token = (token_t *) data_get_attribute((data_t *) kw_config, "abc");
+  ck_assert_ptr_ne(token, NULL);
+  ret = token_code(token);
+  token_free(token);
+  ck_assert(ret);
+
+  size = (int_t *) data_get_attribute((data_t *) kw_config, "num_keywords");
+  ck_assert_int_eq(data_intval((data_t *) size), ix);
+
+  return ret;
 }
 
 static void _tokenize(char *str, int total_count, int big_count) {
@@ -132,6 +175,17 @@ START_TEST(test_lexa_keyword_big_bad_bad_big)
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 3);
 END_TEST
 
+START_TEST(test_lexa_keyword_abc)
+  int abc = _prepare_with_abc();
+
+  lexa_set_stream(lexa, (data_t *) str_copy_chars("yyz abc ams"));
+  lexa_tokenize(lexa);
+  ck_assert_int_eq(lexa -> tokens, 7);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, abc), 1);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
+END_TEST
+
 void create_keyword(void) {
   TCase *tc = tcase_create("Keyword");
   tcase_add_checked_fixture(tc, _setup_with_scanners, _teardown);
@@ -145,5 +199,6 @@ void create_keyword(void) {
   tcase_add_test(tc, test_lexa_keyword_big_bad_bad);
   tcase_add_test(tc, test_lexa_keyword_big_bad_big_bad);
   tcase_add_test(tc, test_lexa_keyword_big_bad_bad_big);
+  tcase_add_test(tc, test_lexa_keyword_abc);
   add_tcase(tc);
 }
