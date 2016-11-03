@@ -350,15 +350,18 @@ void _grammar_parser_syntax_error(grammar_parser_t *gp, char *msg, ...) {
 }
 
 
-grammar_parser_t * _grammar_token_handler(token_t *token, lexer_config_t *lexer) {
+lexer_config_t * _grammar_token_handler(token_t *token, lexer_config_t *lexer) {
   gp_state_t        state;
   grammar_parser_t *grammar_parser;
 
+  if (token_code(token) == TokenCodeEnd) {
+    return NULL;
+  }
   grammar_parser = (grammar_parser_t *) lexer -> data;
   state = grammar_parser -> state;
   debug(grammar, "%-18.18s %s", _gp_state_recs[state].name, token_tostring(token));
   _gp_state_recs[state].handler(token, grammar_parser);
-  return (grammar_parser -> state != GPStateError) ? grammar_parser : NULL;
+  return (grammar_parser -> state != GPStateError) ? lexer : NULL;
 }
 
 /*
@@ -402,7 +405,12 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   lexer_config_set(lexer, "keyword", (data_t *) nonterminal);
   nvp_free(nonterminal);
 
-  lexer_config_add_scanner(lexer, "whitespace: ignorews=1");
+  lexer_config_add_scanner(lexer, "whitespace: ignoreall=1");
+  lexer_config_add_scanner(lexer, "identifier");
+  lexer_config_add_scanner(lexer, "number");
+  lexer_config_add_scanner(lexer, "qstring");
+  lexer_config_add_scanner(lexer, "comment: marker=/* */;marker=//;marker=^#");
+
   lexer -> data = (data_t *) gp;
 
   lexer_config_tokenize(lexer, (reduce_t) _grammar_token_handler, gp -> reader);

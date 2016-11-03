@@ -101,6 +101,7 @@ OBLCORE_IMPEXP int                 data_is_callable(data_t *);
 OBLCORE_IMPEXP int                 data_is_iterable(data_t *);
 OBLCORE_IMPEXP int                 data_is_iterator(data_t *);
 OBLCORE_IMPEXP data_t *            data_copy(data_t *);
+OBLCORE_IMPEXP data_t *            data_uncopy(data_t *);
 OBLCORE_IMPEXP unsigned int        data_hash(data_t *);
 OBLCORE_IMPEXP data_t *            data_len(data_t *);
 OBLCORE_IMPEXP char *              data_tostring(data_t *);
@@ -138,7 +139,7 @@ OBLCORE_IMPEXP double              data_floatval(data_t *);
 OBLCORE_IMPEXP int                 data_intval(data_t *);
 
 #define data_new(dt,st)     ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
-#define data_type(d)        (((data_t *) (d)) -> type)
+#define data_type(d)        ((d) ? ((data_t *) (d)) -> type : 0)
 #define data_typename(d)    ((d) ? (typedescr_get(data_type((data_t *) (d))) -> type_name) : "null")
 
 #define data_is_int(d )     ((d) && (data_hastype((d), Int)))
@@ -171,7 +172,6 @@ OBLCORE_IMPEXP int_t *         bool_true;
 OBLCORE_IMPEXP int_t *         bool_false;
 
 OBLCORE_IMPEXP type_t *        type_data;
-
 
 #define int_as_bool(i)         ((data_t *) bool_get((i)))
 #define int_to_data(i)         ((data_t *) int_create((i)))

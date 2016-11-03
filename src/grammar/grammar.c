@@ -98,34 +98,36 @@ char * _grammar_tostring(grammar_t *grammar) {
 grammar_t * _grammar_set(grammar_t *g, char *name, data_t *value) {
   char       *val = NULL;
 
-  if (!lexer_config_set(g -> lexer, name, value)) {
-    if (data_type(value) == Token) {
-      val = token_token((token_t *) value);
-    } else {
-      val = data_tostring(value);
+  if (data_type(value) == Token) {
+    val = token_token((token_t *) value);
+  } else {
+    val = data_tostring(value);
+  }
+  if (!strcmp(name, LIB_STR)) {
+    if (val) {
+      resolve_library(val);
+      if (!g -> libs) {
+        g -> libs = array_create(4);
+        array_set_free(g -> libs, (free_t) free);
+      }
+      array_push(g -> libs, strdup(val));
     }
-    if (!strcmp(name, LIB_STR)) {
-      if (val) {
-        resolve_library(val);
-        if (!g -> libs) {
-          g -> libs = array_create(4);
-          array_set_free(g -> libs, (free_t) free);
-        }
-        array_push(g -> libs, strdup(val));
-      }
-    } else if (!strcmp(name, PREFIX_STR)) {
-      g -> prefix = (val) ? strdup(val) : strdup("");
-    } else if (!strcmp(name, STRATEGY_STR)) {
-      if (val) {
-        if (!strncmp(val, "topdown", 7)|| !strncmp(val, "ll(1)", 5)) {
-          grammar_set_parsing_strategy(g, ParsingStrategyTopDown);
-        } else if (!strncmp(val, "bottomup", 8) || !strncmp(val, "lr(1)", 5)) {
-          grammar_set_parsing_strategy(g, ParsingStrategyBottomUp);
-        }
-      }
-    } else {
+  } else if (!strcmp(name, LEXER_STR)) {
+    if (!lexer_config_add_scanner(g -> lexer, data_tostring(value))) {
       g = NULL;
     }
+  } else if (!strcmp(name, PREFIX_STR)) {
+    g -> prefix = (val) ? strdup(val) : strdup("");
+  } else if (!strcmp(name, STRATEGY_STR)) {
+    if (val) {
+      if (!strncmp(val, "topdown", 7)|| !strncmp(val, "ll(1)", 5)) {
+        grammar_set_parsing_strategy(g, ParsingStrategyTopDown);
+      } else if (!strncmp(val, "bottomup", 8) || !strncmp(val, "lr(1)", 5)) {
+        grammar_set_parsing_strategy(g, ParsingStrategyBottomUp);
+      }
+    }
+  } else {
+    g = NULL;
   }
   return g;
 }
@@ -145,9 +147,9 @@ list_t * _grammar_dump_nonterminal_reducer(nonterminal_t *nt, list_t *children) 
 }
 
 grammar_t * _grammar_dump_get_children(grammar_t *grammar, list_t *children) {
-  dict_reduce(grammar -> nonterminals,
-              (reduce_t) _grammar_dump_nonterminal_reducer,
-              children);
+  dict_reduce_values(grammar -> nonterminals,
+                     (reduce_t) _grammar_dump_nonterminal_reducer,
+                     children);
   return grammar;
 }
 
@@ -195,14 +197,16 @@ grammar_t * _grammar_dump_pre(ge_dump_ctx_t *ctx) {
     }
   }
   if (grammar -> lexer) {
-    printf("  grammar -> lexer = lexer_config_build();\n");
+    printf("  grammar -> lexer = lexer_config_build(lexer_config_create());\n");
   }
   printf("  ge = (ge_t *) grammar;\n\n");
   return grammar;
 }
 
 grammar_t * _grammar_dump_post(ge_dump_ctx_t *ctx) {
-  printf("  grammar_analyze(grammar);\n"
+  printf("  assert(ge == grammar);\n"
+         "  grammar_analyze(grammar);\n"
+         "  datastack_free(stack);\n"
          "  return grammar;\n"
          "}\n");
   return (grammar_t *) ctx -> obj;

@@ -20,11 +20,12 @@
 #include <stdio.h>
 
 #include "libgrammar.h"
+#include <nvp.h>
 
 static rule_entry_t * _rule_entry_new(rule_entry_t *, va_list);
 static void           _rule_entry_free(rule_entry_t *);
 static char *         _rule_entry_allocstring(rule_entry_t *);
-static rule_entry_t * _rule_entry_dump_pre(rule_entry_t *);
+static rule_entry_t * _rule_entry_dump_pre(ge_dump_ctx_t *);
 
 static rule_entry_t * _rule_entry_create(rule_t *, int, void *);
 
@@ -50,11 +51,13 @@ extern void rule_entry_register(void) {
 /* -- R U L E _ E N T R Y  S T A T I C  F U N C T I O N S ----------------- */
 
 rule_entry_t * _rule_entry_new(rule_entry_t *entry, va_list args) {
-  rule_t *rule;
-  int     terminal;
-  void   *ptr;
+  rule_t    *rule;
+  grammar_t *grammar;
+  int        terminal;
+  void      *ptr;
+  nvp_t     *kw;
 
-  va_arg(args, grammar_t *);
+  grammar = va_arg(args, grammar_t *);
   rule = va_arg(args, rule_t *);
   terminal = va_arg(args, int);
   ptr = va_arg(args, void *);
@@ -62,6 +65,11 @@ rule_entry_t * _rule_entry_new(rule_entry_t *entry, va_list args) {
   if (terminal) {
     entry -> token = (ptr) ? token_copy((token_t *) ptr)
                            : token_create(TokenCodeEmpty, "E");
+    if (grammar -> lexer) {
+      kw = nvp_create(data_uncopy((data_t *) str_wrap("keyword")),
+                      data_uncopy((data_t *) token_copy(entry -> token)));
+      lexer_config_set(grammar -> lexer, "keyword", (data_t *) kw);
+    }
   } else {
     entry -> nonterminal = strdup((char *) ptr);
   }
@@ -90,7 +98,9 @@ void _rule_entry_free(rule_entry_t *entry) {
   }
 }
 
-rule_entry_t * _rule_entry_dump_pre(rule_entry_t *entry) {
+rule_entry_t * _rule_entry_dump_pre(ge_dump_ctx_t *ctx) {
+  rule_entry_t *entry = (rule_entry_t *) ctx -> obj;
+
   if (entry -> terminal) {
     printf("  ge = (ge_t *) rule_entry_terminal((rule_t *) owner, token_create(%d, \"%s\"));\n",
            token_code(entry -> token),

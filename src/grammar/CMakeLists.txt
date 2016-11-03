@@ -25,3 +25,5 @@ target_link_libraries(panoramix oblgrammar obllexer oblcore ${CMAKE_THREAD_LIBS_
 install(TARGETS panoramix oblgrammar
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
+
+add_subdirectory(test)

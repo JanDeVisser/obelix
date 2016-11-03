@@ -413,6 +413,13 @@ data_t * data_copy(data_t *src) {
   return src;
 }
 
+data_t * data_uncopy(data_t *src) {
+  if (src) {
+    src -> refs--;
+  }
+  return src;
+}
+
 data_t * data_call(data_t *self, array_t *args, dict_t *kwargs) {
   call_t call = (call_t) data_get_function(self, FunctionCall);
 

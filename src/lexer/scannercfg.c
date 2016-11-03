@@ -28,6 +28,7 @@
 /* ------------------------------------------------------------------------ */
 
 extern inline void        _scanner_config_init(void);
+static typedescr_t *      _scanner_config_load_nolock(char *, char *);
 static scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list);
 static void               _scanner_config_free(scanner_config_t *);
 static char *             _scanner_config_allocstring(scanner_config_t *);
@@ -67,6 +68,36 @@ void _scanner_config_init(void) {
   }
 }
 
+typedescr_t * _scanner_config_load_nolock(char *code, char *regfnc_name) {
+  function_t  *fnc;
+  char        *fncname;
+  typedescr_t *ret = NULL;
+  create_t     regfnc;
+
+  if (regfnc_name) {
+    fncname = regfnc_name;
+  } else {
+    asprintf(&fncname, "%s_register", code);
+  }
+  debug(lexer, "Loading scanner config definition '%s'. regfnc '%s'", code, fncname);
+  fnc = function_create(fncname, NULL);
+  if (fnc -> fnc) {
+    regfnc = (create_t) fnc -> fnc;
+    ret = regfnc();
+    debug(lexer, "Scanner definition '%s' has type %d", code, ret -> type);
+    typedescr_assign_inheritance(ret -> type, ScannerConfig);
+    scanner_config_register(ret);
+  } else {
+    error("Registration function '%s' for scanner config type '%s' cannot be resolved",
+          fncname, code);
+  }
+  function_free(fnc);
+  if (fncname != regfnc_name) {
+    free(fncname);
+  }
+  return ret;
+}
+
 scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list args) {
   lexer_config_t *lexer_config;
 
@@ -78,7 +109,7 @@ scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list args) {
   config -> match_2nd_pass = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionMatch2);
   config -> config = NULL;
 
-  mdebug(lexer, "Creating scanner config '%s'. match: %p match_2nd_pass %p",
+  debug(lexer, "Creating scanner config '%s'. match: %p match_2nd_pass %p",
          data_typename(config), config -> match, config -> match_2nd_pass);
   return config;
 }
@@ -161,7 +192,7 @@ scanner_config_t * _scanner_config_setstring(scanner_config_t *config, char *val
     return NULL;
   }
   value = strdup(value);
-  mdebug(lexer, "Setting config string '%s' on scanner config '%s'",
+  debug(lexer, "Setting config string '%s' on scanner config '%s'",
                 value, data_typename(config));
   ptr = strchr(value, '=');
   if (ptr) {
@@ -190,12 +221,12 @@ data_t * _scanner_config_call(scanner_config_t *config, array_t *args, dict_t *k
 /* ------------------------------------------------------------------------ */
 
 int scanner_config_typeid(void) {
-  _scanner_config_init();
+  lexer_init();
   return ScannerConfig;
 }
 
 typedescr_t * scanner_config_register(typedescr_t *def) {
-  _scanner_config_init();
+  lexer_init();
   mutex_lock(_scanner_config_mutex);
   dict_put(_scanners_configs, strdup(def -> type_name), (void *) ((intptr_t) def -> type));
   mutex_unlock(_scanner_config_mutex);
@@ -203,33 +234,13 @@ typedescr_t * scanner_config_register(typedescr_t *def) {
 }
 
 typedescr_t * scanner_config_load(char *code, char *regfnc_name) {
-  function_t  *fnc;
-  char        *fncname;
   typedescr_t *ret = NULL;
-  create_t     regfnc;
 
-  _scanner_config_init();
+  lexer_init();
   mutex_lock(_scanner_config_mutex);
-  if (!dict_has_key(_scanners_configs, code)) {
-    if (regfnc_name) {
-      fncname = regfnc_name;
-    } else {
-      asprintf(&fncname, "%s_register", code);
-    }
-    fnc = function_create(fncname, NULL);
-    if (fnc -> fnc) {
-      regfnc = (create_t) fnc -> fnc;
-      ret = regfnc();
-      typedescr_assign_inheritance(ret -> type, ScannerConfig);
-      scanner_config_register(ret);
-    }
-    function_free(fnc);
-    if (fncname != regfnc_name) {
-      free(fncname);
-    }
-  } else {
-    ret = scanner_config_get(code);
-  }
+  ret = dict_has_key(_scanners_configs, code)
+    ? scanner_config_get(code)
+    : _scanner_config_load_nolock(code, regfnc_name);
   mutex_unlock(_scanner_config_mutex);
   return ret;
 }
@@ -238,10 +249,14 @@ typedescr_t * scanner_config_get(char *code) {
   typedescr_t *ret;
   long         type;
 
-  _scanner_config_init();
+  lexer_init();
   mutex_lock(_scanner_config_mutex);
-  type = (intptr_t) dict_get(_scanners_configs, code);
-  ret = typedescr_get(type);
+  if (dict_has_key(_scanners_configs, code)) {
+    type = (intptr_t) dict_get(_scanners_configs, code);
+    ret = typedescr_get(type);
+  } else {
+    ret = _scanner_config_load_nolock(code, NULL);
+  }
   mutex_unlock(_scanner_config_mutex);
   return ret;
 }
@@ -251,6 +266,7 @@ scanner_config_t * scanner_config_create(char *code, lexer_config_t *lexer_confi
   scanner_config_t *ret = NULL;
 
   type = scanner_config_get(code);
+  debug(lexer, "zzzz %s %d", type -> type_name, type -> type);
   if (type) {
     debug(lexer, "Creating scanner_config. code: '%s', type: %d", code, type -> type);
     ret = (scanner_config_t *) data_create(type -> type, lexer_config);
@@ -265,15 +281,11 @@ scanner_t * scanner_config_instantiate(scanner_config_t *config, lexer_t *lexer)
 }
 
 scanner_config_t * scanner_config_setvalue(scanner_config_t *config, char *name, data_t *value) {
-  name_t *n;
-
   if (name) {
-    n = name_create(1, name);
-    mdebug(lexer, "scanner_config_setvalue %s[%s] := %s",
+    debug(lexer, "scanner_config_setvalue %s[%s] := %s",
                    data_tostring((data_t *) config),
                    name, data_tostring(value));
-    data_set((data_t *) config, n, value);
-    name_free(n);
+    data_set_attribute((data_t *) config, name, value);
   }
   return config;
 }
@@ -284,7 +296,7 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
   char   *param;
   char   *sepptr;
 
-  mdebug(lexer, "Configuring scanner '%s' with value '%s'", data_typename(config), data_tostring(value));
+  debug(lexer, "Configuring scanner '%s' with value '%s'", data_typename(config), data_tostring(value));
   if (value) {
     if (data_type(value) == NVP) {
       nvp = data_as_nvp(value);
@@ -305,7 +317,7 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
       free(params);
     }
   }
-  mdebug(lexer, "Configured scanner '%s'", data_typename(config));
+  debug(lexer, "Configured scanner '%s'", data_typename(config));
   return config;
 }
 

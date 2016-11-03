@@ -44,6 +44,5 @@ Win32/*
 .idea/*
 CTestTestfile.cmake
 Testing/
-bin/
 linux/
 

@@ -31,7 +31,6 @@
 int panoramix_debug;
 
 void debug_settings(char *debug) {
-  int      debug_all = 0;
   array_t *cats;
   int      ix;
 
@@ -53,7 +52,7 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
   file_t           *file;
 
   if (!sys_dir) {
-    sys_dir = getenv("OBELIX_SYS_PATH");
+    sys_dir = getenv(OBL_DIR);
   }
   if (!sys_dir) {
     sys_dir = OBELIX_DATADIR;

@@ -1,0 +1,53 @@
+%
+  prefix:      script_parse_
+  lexer:       "whitespace: ignorews=1,onnewline=mark_line"
+  lexer:       keyword
+  lexer:       identifier
+  lexer:       number
+  lexer:       qstring
+  lexer:       "comment: marker=/* */,marker=//,marker=^#"
+%
+
+expr                        := term
+                               termtail
+                             ;
+
+termtail                    := add_op            [ infix_op                  ]
+                               term              [ call_op                   ]
+                               termtail
+                             |
+                             ;
+
+term                        := factor
+                               factortail
+                             ;
+
+factortail                  := mult_op           [ infix_op                  ]
+                               factor            [ call_op                   ]
+                               factortail
+                             |
+                             ;
+
+factor                      := ( expr )
+                             | 'i'
+                             | constant
+                             ;
+
+constant                    := '"'               [ push_token                ]
+                             | '\''              [ push_token                ]
+                             | number
+                             | "true"            [ pushconst: "bool:1"       ]
+                             | "false"           [ pushconst: "bool:0"       ]
+                             | "null"            [ pushconst: "ptr:null"     ]
+                             ;
+
+number                      := 'd'
+                             | 'f'
+                             | 'x'
+                             ;
+
+add_op                      := + | - | ~
+                             ;
+
+mult_op                     := * | / | ^ | %
+                             ;

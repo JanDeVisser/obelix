@@ -1,0 +1,7 @@
+%
+  prefix:      dummy_
+  lexer:       "whitespace: ignorews=1,onnewline=mark_line"
+  lexer:       identifier
+%
+
+expr                        := 'i' [ print ]

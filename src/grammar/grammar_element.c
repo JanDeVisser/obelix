@@ -83,7 +83,7 @@ ge_t * _ge_set(ge_t *ge, char *name, data_t *value) {
   }
   if ((*name == '_') || (data_type(data) == GrammarVariable)) {
     gv = (data_type(data) == GrammarVariable)
-            ? gv
+            ? (grammar_variable_t *) ge
             : grammar_variable_create(ge, name, data);
     dict_put(ge -> variables, strdup(name), gv);
     if ((data_t *) gv != data) {
@@ -140,13 +140,11 @@ ge_t * _ge_dump_main(ge_dump_ctx_t *ctx) {
 
   if (pre) {
     pre(ctx);
-    printf("\n");
   }
   _ge_dump_common(ctx);
   if (post) {
     post(ctx);
   }
-  printf("\n");
   return (ge_t *) ctx -> obj;
 }
 
@@ -154,9 +152,11 @@ ge_dump_ctx_t * _dump_child(data_t *child, ge_dump_ctx_t *ctx) {
   ge_dump_fnc_t  dump = (ge_dump_fnc_t) data_get_function(child, FunctionUsr1);
   ge_dump_ctx_t *child_ctx;
 
-  child_ctx = _ge_dump_ctx_create(ctx, child);
-  dump(child_ctx);
-  _ge_dump_ctx_free(child_ctx);
+  if (dump) {
+    child_ctx = _ge_dump_ctx_create(ctx, child);
+    dump(child_ctx);
+    _ge_dump_ctx_free(child_ctx);
+  }
   return ctx;
 }
 
@@ -172,7 +172,7 @@ ge_t * _ge_dump_common(ge_dump_ctx_t *ctx) {
     get_children((data_t *) ctx -> obj, children);
   }
   if (list_size(children)) {
-    printf("  datastack_push(stack, owner);\n"
+    printf("  datastack_push(stack, (data_t *) owner);\n"
            "  owner = ge;\n");
     list_reduce(children, _dump_child, ctx);
     list_free(children);

@@ -75,6 +75,7 @@ static pthread_mutex_t _logging_mutex;
 logcategory_t * _logcategory_create_nolock(char *name, int *flag) {
   logcategory_t *ret = NEW(logcategory_t);
 
+  fprintf(stderr, "Creating log category '%s'\n", name);
   assert(!dict_has_key(_categories, name));
   ret -> name = strdup(name);
   ret -> flag = flag;
@@ -195,6 +196,7 @@ void __logging_init(void) {
   char                *lvl;
   long                 level;
 
+  fprintf(stderr, "Initializing logging...\n");
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   pthread_mutex_init(&_logging_mutex, &attr);
@@ -269,12 +271,10 @@ OBLCORE_IMPEXP void logging_disable(char *category) {
   _logging_set(category, 0);
 }
 
-OBLCORE_IMPEXP void _logmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, ...) {
-  va_list  args;
-  char    *f;
+OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, va_list args) {
+  char *f;
 
   if ((lvl == LogLevelDebug) || (lvl >= _log_level)) {
-    va_start(args, msg);
     f = file;
     if (*file == '/') {
       f = strrchr(f, '/');
@@ -287,6 +287,15 @@ OBLCORE_IMPEXP void _logmsg(log_level_t lvl, char *file, int line, const char *c
     fprintf(stderr, "%-12.12s:%4d:%-20.20s:%-5.5s:", f, line, caller, _log_level_str(lvl));
     vfprintf(stderr, msg, args);
     fprintf(stderr, "\n");
+  }
+}
+
+OBLCORE_IMPEXP void _logmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, ...) {
+  va_list args;
+
+  if ((lvl == LogLevelDebug) || (lvl >= _log_level)) {
+    va_start(args, msg);
+    _vlogmsg(lvl, file, line, caller, msg, args);
     va_end(args);
   }
 }

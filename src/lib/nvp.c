@@ -28,6 +28,7 @@
 /* ------------------------------------------------------------------------ */
 
 static inline void  _nvp_init(void);
+static nvp_t *      _nvp_new(nvp_t *, va_list);
 static void         _nvp_free(nvp_t *);
 static char *       _nvp_allocstring(nvp_t *);
 static data_t *     _nvp_resolve(nvp_t *, char *);
@@ -37,8 +38,9 @@ static data_t *     _nvp_create(char *, array_t *, dict_t *);
 /* ------------------------------------------------------------------------ */
 
 static vtable_t _vtable_nvp[] = {
-  { .id = FunctionCmp,         .fnc = (void_t) nvp_cmp },
+  { .id = FunctionNew,         .fnc = (void_t) _nvp_new },
   { .id = FunctionFree,        .fnc = (void_t) _nvp_free },
+  { .id = FunctionCmp,         .fnc = (void_t) nvp_cmp },
   { .id = FunctionAllocString, .fnc = (void_t) _nvp_allocstring },
   { .id = FunctionParse,       .fnc = (void_t) nvp_parse },
   { .id = FunctionHash,        .fnc = (void_t) nvp_hash },
@@ -53,7 +55,19 @@ int NVP = -1;
 void _nvp_init(void) {
   if (NVP < 0) {
     NVP = typedescr_create_and_register(NVP, "nvp", _vtable_nvp,/*  _methoddescr_nvp */ NULL);
+    typedescr_set_size(NVP, nvp_t);
   }
+}
+
+nvp_t * _nvp_new(nvp_t *nvp, va_list args) {
+  data_t *name;
+  data_t *value;
+
+  name = va_arg(args, data_t *);
+  value = va_arg(args, data_t *);
+  nvp -> name = data_copy(name);
+  nvp -> value = data_copy(value);
+  return nvp;
 }
 
 void _nvp_free(nvp_t *nvp) {
@@ -87,13 +101,8 @@ data_t * _nvp_resolve(nvp_t *nvp, char *name) {
 /* ------------------------------------------------------------------------ */
 
 nvp_t * nvp_create(data_t *name, data_t *value) {
-  nvp_t *ret;
-
   _nvp_init();
-  ret = data_new(NVP, nvp_t);
-  ret -> name = data_copy(name);
-  ret -> value = data_copy(value);
-  return ret;
+  return (nvp_t *) data_create(NVP, name, value);
 }
 
 nvp_t * nvp_parse(char *str) {

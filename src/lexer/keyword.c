@@ -208,7 +208,7 @@ kw_scanner_t * _kw_scanner_create(kw_config_t *config) {
     }
   }
   if (maxlen) {
-    ret -> scanned = (char *) _new(maxlen + 1);
+    ret -> scanned = (char *) _new(maxlen + 2);
   }
   return ret;
 }

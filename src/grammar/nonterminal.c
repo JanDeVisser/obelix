@@ -24,7 +24,7 @@
 static nonterminal_t * _nonterminal_new(nonterminal_t *, va_list);
 static void            _nonterminal_free(nonterminal_t *);
 extern char *          _nonterminal_tostring(nonterminal_t *);
-static nonterminal_t * _nonterminal_dump_pre(nonterminal_t *);
+static nonterminal_t * _nonterminal_dump_pre(ge_dump_ctx_t *);
 static nonterminal_t * _nonterminal_dump_get_children(nonterminal_t *, list_t *);
 
 static vtable_t _vtable_nonterminal[] = {
@@ -80,7 +80,9 @@ void _nonterminal_free(nonterminal_t *nonterminal) {
   }
 }
 
-nonterminal_t * _nonterminal_dump_pre(nonterminal_t *nonterminal) {
+nonterminal_t * _nonterminal_dump_pre(ge_dump_ctx_t *ctx) {
+  nonterminal_t *nonterminal = (nonterminal_t *) ctx -> obj;
+
   printf("  ge = (ge_t *) nonterminal_create(grammar, \"%s\");\n", nonterminal -> name);
   return nonterminal;
 }

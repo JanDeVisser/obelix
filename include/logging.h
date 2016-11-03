@@ -20,6 +20,12 @@
 #ifndef __LOGGING_H__
 #define __LOGGING_H__
 
+#include <stdarg.h>
+
+#ifndef OBLCORE_IMPEXP
+#define OBLCORE_IMPEXP
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -39,6 +45,7 @@ OBLCORE_IMPEXP void   logging_register_category(char *, int *);
 OBLCORE_IMPEXP void   logging_reset(void);
 OBLCORE_IMPEXP void   logging_enable(char *);
 OBLCORE_IMPEXP void   logging_disable(char *);
+OBLCORE_IMPEXP void   _vlogmsg(log_level_t, char *, int, const char *, const char *, va_list);
 OBLCORE_IMPEXP void   _logmsg(log_level_t, char *, int, const char *, const char *, ...);
 OBLCORE_IMPEXP int    logging_status(char *);
 OBLCORE_IMPEXP int    logging_level(void);
@@ -46,16 +53,32 @@ OBLCORE_IMPEXP int    logging_set_level(log_level_t);
 
 #ifndef NDEBUG
 #ifndef _MSC_VER
-#define debug(module, fmt, args...)    mdebug(module, fmt, ##args)
-#define _debug(fmt, args...)           _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args)
-#define mdebug(module, fmt, args...)   if (module ## _debug) { _debug(fmt, ## args); }
+#define _debug(fmt, args...)         _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args)
+#define _vdebug(fmt, args)           _vlogmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, args)
+#define debug(module, fmt, args...)  if (module ## _debug) { _debug(fmt, ## args); }
+#define mdebug(module, fmt, args...) debug(module, fmt, ##args)
+#define vdebug(module, fmt, args...) if (module ## _debug) { _vdebug(fmt, args); }
 #else /* _MSC_VER */
-#define debug(module, fmt, ...)        mdebug(module, fmt, __VA_ARGS__)
-#define _debug(fmt, ...)               _logmsg(LogLevelDebug, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
-#define mdebug(module, fmt, ...)       if (module ## _debug) { _debug(fmt, __VA_ARGS__); }
+#define _debug(fmt, ...)             _logmsg(LogLevelDebug, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+#define _vdebug(fmt, args)           _logmsg(LogLevelDebug, __FILE__, __LINE__, __FUNCTION__, fmt, args)
+#define debug(module, fmt, ...)      if (module ## _debug) { _debug(fmt, __VA_ARGS__); }
+#define mdebug(module, fmt, ...)     debug(module, fmt, __VA_ARGS__)
+#define vdebug(module, fmt, args)    if (module ## _debug) { _debug(fmt, args); }
 #endif /* _MSC_VER */
 #else /* NDEBUG */
+#ifndef _MSC_VER
+#define _debug(fmt, args...)
+#define _vdebug(fmt, args)
+#define debug(module, fmt, args...)
+#define mdebug(module, fmt, args...)
+#define vdebug(module, fmt, args...)
+#else /* _MSC_VER */
 #define _debug(fmt, ...)
+#define _vdebug(fmt, args)
+#define debug(module, fmt, ...)
+#define mdebug(module, fmt, ...)
+#define vdebug(module, fmt, args)
+#endif /* _MSC_VER */
 #endif /* NDEBUG */
 
 #ifndef _MSC_VER
@@ -64,12 +87,22 @@ OBLCORE_IMPEXP int    logging_set_level(log_level_t);
 #define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, __func__, fmt, ## args)
 #define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); exit(-10); }
 #define oassert(value, fmt, args...) { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); assert(0); } }
+#define vinfo(fmt, args)             _vlogmsg(LogLevelInfo, __FILE__, __LINE__, __func__, fmt, args)
+#define vwarn(fmt, args)             _vlogmsg(LogLevelWarning, __FILE__, __LINE__, __func__, fmt, args)
+#define verror(fmt, args)            _vlogmsg(LogLevelError, __FILE__, __LINE__, __func__, fmt, args)
+#define vfatal(fmt, args)            { _vlogmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, args); exit(-10); }
+#define voassert(value, fmt, args)   { if (!(value)) { _vlogmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, args); assert(0); } }
 #else /* _MSC_VER */
 #define info(fmt, ...)               _logmsg(LogLevelInfo, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define warn(fmt, ...)               _logmsg(LogLevelWarning, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define error(fmt, ...)              _logmsg(LogLevelError, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define fatal(fmt, ...)              { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__); exit(-10); }
 #define oassert(value, fmt, ...)     { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__); assert(0); } }
+#define vinfo(fmt, args)             _logmsg(LogLevelInfo, __FILE__, __LINE__, __FUNCTION__, fmt, args)
+#define vwarn(fmt, args)             _logmsg(LogLevelWarning, __FILE__, __LINE__, __FUNCTION__, fmt, args)
+#define verror(fmt, args)            _logmsg(LogLevelError, __FILE__, __LINE__, __FUNCTION__, fmt, args)
+#define vfatal(fmt, args)            { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, args); exit(-10); }
+#define voassert(value, fmt, ...)    { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, args); assert(0); } }
 #endif /* _MSC_VER */
 #define logging_register_module(module) logging_register_category(#module, &module ## _debug)
 

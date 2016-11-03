@@ -157,8 +157,10 @@ scanner_config_t * _lexer_config_add_scanner(lexer_config_t *config, char *code)
       config -> scanners = scanner;
     }
     config -> num_scanners++;
+    debug(lexer, "Created scanner config '%s'", scanner_config_tostring(scanner));
+  } else {
+    debug(lexer, "Could not create scanner with code '%s'", code);
   }
-  mdebug(lexer, "Created scanner config '%s' match: %p", scanner_config_tostring(scanner), scanner -> match);
   return scanner;
 }
 
@@ -167,7 +169,7 @@ scanner_config_t * _lexer_config_add_scanner(lexer_config_t *config, char *code)
 lexer_config_t * lexer_config_create(void) {
   lexer_config_t *ret;
 
-  _lexer_config_init();
+  lexer_init();
   ret = data_new(LexerConfig, lexer_config_t);
   ret -> bufsize = LEXER_BUFSIZE;
   ret -> scanners = NULL;
@@ -183,6 +185,7 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_c
   data_t           *param_data = NULL;
   scanner_config_t *scanner = NULL;
 
+  assert(code_config);
   copy = strdup(code_config);
   ptr = strchr(copy, ':');
   if (ptr) {
@@ -195,7 +198,8 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_c
     }
   }
   code = strtrim(copy);
-  if (*code) {
+  debug(lexer, "lexer_config_add_scanner('%s', '%s')", code, param);
+  if (code && *code) {
     if (param) {
       param_data = (data_t *) str_wrap(param);
     }
@@ -219,6 +223,7 @@ scanner_config_t * lexer_config_get_scanner(lexer_config_t *config, char *code) 
 data_t * lexer_config_set(lexer_config_t *config, char *code, data_t *param) {
   scanner_config_t *scanner;
 
+  debug(lexer, "lexer_config_set('%s', '%s')", code, data_encode(param));
   scanner = lexer_config_get_scanner(config, code);
   if (!scanner) {
     scanner = _lexer_config_add_scanner(config, code);

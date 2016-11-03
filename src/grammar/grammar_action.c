@@ -19,10 +19,10 @@
 
 #include "libgrammar.h"
 
-static grammar_action_t *  _ga_new(grammar_action_t *, va_list);
-static char *              _ga_allocstring(grammar_action_t *);
-static void                _ga_free(grammar_action_t *);
-static grammar_action_t *  _ga_dump(grammar_action_t *, char *, char *);
+static grammar_action_t * _ga_new(grammar_action_t *, va_list);
+static char *             _ga_allocstring(grammar_action_t *);
+static void               _ga_free(grammar_action_t *);
+static grammar_action_t * _ga_dump(ge_dump_ctx_t *);
 
 static vtable_t _vtable_ga[] = {
   { .id = FunctionNew,         .fnc = (void_t) _ga_new },
@@ -75,11 +75,12 @@ char * _ga_allocstring(grammar_action_t *grammar_action) {
   return buf;
 }
 
-grammar_action_t * _ga_dump(grammar_action_t *ga, char *prefix, char *variable) {
-  function_t *fnc = ga -> fnc;
-  data_t     *d = ga -> data;
-  char       *data = NULL;
-  char       *encoded;
+grammar_action_t * _ga_dump(ge_dump_ctx_t *ctx) {
+  grammar_action_t *ga = (grammar_action_t *) ctx -> obj;
+  function_t       *fnc = ga -> fnc;
+  data_t           *d = ga -> data;
+  char             *data = NULL;
+  char             *encoded;
 
   if (d) {
     encoded = data_encode(d);
