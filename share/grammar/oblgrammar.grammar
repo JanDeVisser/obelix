@@ -1,11 +1,11 @@
 %
   prefix:      script_parse_
-  lexer:       "whitespace: ignorews=1,onnewline=mark_line"
+  lexer:       "whitespace: ignoreall=1;onnewline=mark_line"
   lexer:       keyword
   lexer:       identifier
   lexer:       number
   lexer:       qstring
-  lexer:       "comment: marker=/* */,marker=//,marker=^#"
+  lexer:       "comment: marker=/* */;marker=//;marker=^#"
 %
 
 program                     := [ init ] statements [ done ]
@@ -185,7 +185,7 @@ parlist_tail                := ,
 lambda                      := "lambda"
                                (                 [ bookmark                  ]
                                parlist_or_void
-                               )                 [ rollup_list 
+                               )                 [ rollup_list
                                                    start_lambda              ]
                                statements
                                end               [ end_lambda                ]
@@ -254,7 +254,7 @@ expr                        := predicate
                                predicatetail
                              ;
 
-reduction                   := "|"               [ deref_function: "reduce"  ]
+reduction                   := '|'               [ deref_function: "reduce"  ]
                                expr
                                reduction_init    [ reduce                    ]
                              ;
@@ -345,7 +345,7 @@ _identifier_tail            := .
                              ;
 
 query                       :=                   [ init_query               ]
-                               '`'            
+                               '`'
                                query_params      [ query                     ]
                             ;
 

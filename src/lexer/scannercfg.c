@@ -130,10 +130,9 @@ char * _scanner_config_allocstring(scanner_config_t *config) {
   cfg = data_array_create(0);
   conffnc = (data_t * (*)(scanner_config_t *, array_t *)) data_get_function((data_t *) config, FunctionGetConfig);
   if (conffnc) {
-    if (!conffnc(config, cfg) && array_empty(cfg)) {
-      configbuf = NULL;
+    if (conffnc(config, cfg) && !array_empty(cfg)) {
+      configbuf = array_join(cfg, ";");
     }
-    configbuf = array_join(cfg, ";");
   }
   if (configbuf) {
     asprintf(&buf, "%s: %s", data_typename(config), str_chars(configbuf));
@@ -322,9 +321,12 @@ scanner_config_t * scanner_config_configure(scanner_config_t *config, data_t *va
 
 scanner_config_t * scanner_config_dump(scanner_config_t *scanner) {
   scanner_config_t * (*dumpfnc)(scanner_config_t *);
+  char                *escaped;
 
-  printf("  scanner_config = lexer_config_add_scanner(lexer_config, \"%s\")\n",
-         scanner_config_tostring(scanner));
+  escaped = c_escape(scanner_config_tostring(scanner));
+  printf("  scanner_config = lexer_config_add_scanner(lexer_config, \"%s\");\n",
+         escaped);
+  free(escaped);
   dumpfnc = (scanner_config_t * (*)(scanner_config_t *)) data_get_function((data_t *) scanner, FunctionDump);
   return (dumpfnc) ? dumpfnc(scanner) : scanner;
 }

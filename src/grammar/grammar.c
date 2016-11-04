@@ -100,7 +100,7 @@ grammar_t * _grammar_set(grammar_t *g, char *name, data_t *value) {
 
   if (data_type(value) == Token) {
     val = token_token((token_t *) value);
-  } else {
+  } else if (value) {
     val = data_tostring(value);
   }
   if (!strcmp(name, LIB_STR)) {
@@ -113,7 +113,7 @@ grammar_t * _grammar_set(grammar_t *g, char *name, data_t *value) {
       array_push(g -> libs, strdup(val));
     }
   } else if (!strcmp(name, LEXER_STR)) {
-    if (!lexer_config_add_scanner(g -> lexer, data_tostring(value))) {
+    if (!lexer_config_add_scanner(g -> lexer, val)) {
       g = NULL;
     }
   } else if (!strcmp(name, PREFIX_STR)) {
@@ -137,7 +137,7 @@ grammar_t * _grammar_set(grammar_t *g, char *name, data_t *value) {
 list_t * _grammar_dump_nonterminal_reducer(nonterminal_t *nt, list_t *children) {
   grammar_t *grammar = nonterminal_get_grammar(nt);
 
-  if (grammar -> entrypoint ||
+  if (grammar -> entrypoint &&
       !strcmp(nt -> name, grammar -> entrypoint -> name)) {
     list_unshift(children, nt);
   } else {
@@ -156,6 +156,7 @@ grammar_t * _grammar_dump_get_children(grammar_t *grammar, list_t *children) {
 grammar_t * _grammar_dump_pre(ge_dump_ctx_t *ctx) {
   int        ix;
   char      *lib;
+  char      *escaped;
   grammar_t *grammar = (grammar_t *) ctx -> obj;
 
   printf("#include <grammar.h>\n");
@@ -176,6 +177,9 @@ grammar_t * _grammar_dump_pre(ge_dump_ctx_t *ctx) {
          "  grammar = grammar_create();\n");
 
   if (grammar -> prefix && grammar -> prefix[0]) {
+    /*
+     * No need to escape - can't have quotes or backslashes in C function names
+     */
     printf("  value = (data_t *) str_wrap(\"%s\");\n"
            "  grammar_set_variable(grammar, PREFIX_STR, value);\n"
            "  data_free(value);\n",
@@ -184,16 +188,12 @@ grammar_t * _grammar_dump_pre(ge_dump_ctx_t *ctx) {
   if (grammar -> libs && array_size(grammar -> libs)) {
     for (ix = array_size(grammar -> libs) - 1; ix >= 0; ix--) {
       lib = (char *) array_get(grammar -> libs, ix);
-      printf("  token_name = token_create(TokenCodeIdentifier, LIB_STR);\n"
-             "  tvalue = token_create(TokenCodeDQuotedStr, \"%s\");\n"
-             "  grammar_set_option(grammar, token_name, token_value);\n"
-             "  token_free(token_name);\n"
-             "  token_free(token_value);\n",
-             lib);
+      escaped = c_escape(lib);
       printf("  value = (data_t *) str_wrap(\"%s\");\n"
              "  grammar_set_variable(grammar, LIB_STR, value);\n"
              "  data_free(value);\n",
-             lib);
+             escaped);
+      free(escaped);
     }
   }
   if (grammar -> lexer) {
@@ -257,6 +257,7 @@ void * _grammar_follows_reducer(entry_t *entry, int *current_sum) {
         next = NULL;
         for (k = j + 1; k < array_size(rule -> entries); k++) {
           it = rule_get_entry(rule, k);
+          debug(grammar, "--> k: %d it: '%s'", k, data_tostring((data_t *) it));
           if (!next) {
             next = it;
           }

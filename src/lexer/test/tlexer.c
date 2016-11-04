@@ -102,6 +102,56 @@ START_TEST(test_lexa_symbols)
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeAmpersand), 2);
 END_TEST
 
+START_TEST(test_lexa_ignore_ws)
+  scanner_config_t *ws_config;
+
+  lexa_build_lexer(lexa);
+  ws_config = lexa_get_scanner(lexa, "whitespace");
+  scanner_config_setvalue(ws_config, "ignorews", data_true());
+  scanner_config_setvalue(ws_config, "ignorenl", data_false());
+  ck_assert_ptr_ne(lexa -> config, NULL);
+  lexa_set_stream(lexa, (data_t *) str_copy_chars(" Hello  World\nSecond Line \n Third Line "));
+  ck_assert_ptr_ne(lexa -> stream, NULL);
+  lexa_tokenize(lexa);
+  ck_assert_int_eq(lexa -> tokens, 10);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeNewLine), 2);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 0);
+END_TEST
+
+START_TEST(test_lexa_ignore_nl)
+  scanner_config_t *ws_config;
+
+  lexa_build_lexer(lexa);
+  ws_config = lexa_get_scanner(lexa, "whitespace");
+  scanner_config_setvalue(ws_config, "ignorews", data_false());
+  scanner_config_setvalue(ws_config, "ignorenl", data_true());
+  ck_assert_ptr_ne(lexa -> config, NULL);
+  lexa_set_stream(lexa, (data_t *) str_copy_chars(" Hello  World\nSecond Line \n Third Line "));
+  ck_assert_ptr_ne(lexa -> stream, NULL);
+  lexa_tokenize(lexa);
+  ck_assert_int_eq(lexa -> tokens, 15);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeNewLine), 0);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 7);
+END_TEST
+
+START_TEST(test_lexa_ignore_all_ws)
+  scanner_config_t *ws_config;
+
+  lexa_build_lexer(lexa);
+  ws_config = lexa_get_scanner(lexa, "whitespace");
+  scanner_config_setvalue(ws_config, "ignoreall", data_true());
+  ck_assert_ptr_ne(lexa -> config, NULL);
+  lexa_set_stream(lexa, (data_t *) str_copy_chars(" Hello  World\nSecond Line \n Third Line "));
+  ck_assert_ptr_ne(lexa -> stream, NULL);
+  lexa_tokenize(lexa);
+  ck_assert_int_eq(lexa -> tokens, 8);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeNewLine), 0);
+  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 0);
+END_TEST
+
 /* ----------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------- */
@@ -113,6 +163,9 @@ void create_lexa(void) {
   tcase_add_test(tc, test_lexa_tokenize);
   tcase_add_test(tc, test_lexa_newline);
   tcase_add_test(tc, test_lexa_symbols);
+  tcase_add_test(tc, test_lexa_ignore_ws);
+  tcase_add_test(tc, test_lexa_ignore_nl);
+  tcase_add_test(tc, test_lexa_ignore_all_ws);
   add_tcase(tc);
 }
 

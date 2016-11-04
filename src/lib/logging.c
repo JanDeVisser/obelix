@@ -196,7 +196,7 @@ void __logging_init(void) {
   char                *lvl;
   long                 level;
 
-  fprintf(stderr, "Initializing logging...\n");
+  // fprintf(stderr, "Initializing logging...\n");
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   pthread_mutex_init(&_logging_mutex, &attr);

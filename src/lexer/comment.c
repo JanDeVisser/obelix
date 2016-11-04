@@ -86,7 +86,6 @@ static vtable_t _vtable_comment_config[] = {
     { .id = FunctionResolve,        .fnc = (void_t) _comment_config_resolve },
     { .id = FunctionSet,            .fnc = (void_t) _comment_config_set },
     { .id = FunctionMatch,          .fnc = (void_t) _comment_match },
-    { .id = FunctionMatch2,         .fnc = NULL },
     { .id = FunctionDestroyScanner, .fnc = (void_t) _comment_free_scanner },
     { .id = FunctionGetConfig,      .fnc = (void_t) _comment_config_config },
     { .id = FunctionNone,           .fnc = NULL }
@@ -168,7 +167,7 @@ comment_config_t *_comment_config_add_marker(comment_config_t *config,
   int               hashpling = 0;
   comment_marker_t *comment_marker = NULL;
 
-  mdebug(lexer, "Parsing comment marker '%s'", marker);
+  debug(lexer, "Parsing comment marker '%s'", marker);
   /*
    * Marker should be a string consisting of start marker and end maker
    * separated by whitespace. If there is no end marker the comment is a
@@ -252,7 +251,7 @@ comment_config_t *_comment_config_add_marker(comment_config_t *config,
   comment_marker -> start = strdup(start);
   comment_marker -> end = (end) ? strdup(end) : NULL;
   comment_marker -> next = config -> markers;
-  mdebug(lexer, "Created comment marker [%s]", _comment_marker_tostring(comment_marker));
+  debug(lexer, "Created comment marker [%s]", _comment_marker_tostring(comment_marker));
   config -> markers = comment_marker;
   config -> num_markers++;
   if (strlen(start) > config -> longest_marker) {
@@ -296,7 +295,7 @@ token_t * _comment_find_eol(scanner_t *scanner) {
   token_t *ret = NULL;
   int      ch;
 
-  mdebug(lexer, "_comment_find_eol");
+  debug(lexer, "_comment_find_eol");
   for (ch = lexer_get_char(scanner -> lexer); scanner -> state == CommentText;) {
     if (!ch || (ch == '\r') || (ch == '\n')) {
       /* Do not discard - this is part of the next token. */
@@ -317,7 +316,7 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
   lexer_t           *lexer = scanner -> lexer;
   int                ch;
 
-  mdebug(lexer, "_comment_find_endmarker: %s", marker -> end);
+  debug(lexer, "_comment_find_endmarker: %s", marker -> end);
   for (ch = lexer_get_char(lexer); ch && (scanner -> state != CommentNone);) {
 
     lexer_discard(scanner -> lexer);
@@ -389,7 +388,7 @@ token_t *_comment_match(scanner_t *scanner) {
   lexer_t            *lexer = scanner -> lexer;
   int                 at_top;
 
-  mdebug(lexer, "_comment_match markers: %s",
+  debug(lexer, "_comment_match markers: %s",
                 data_tostring(data_get_attribute((data_t *) config, "marker")));
 
   if (!c_scanner) {
@@ -454,13 +453,13 @@ token_t *_comment_match(scanner_t *scanner) {
     }
     if ((c_scanner -> num_matches == 1) &&
         !strcmp(c_scanner -> token, c_scanner -> match -> start)) {
-      mdebug(lexer, "Full match of comment start marker '%s'", c_scanner -> match -> start);
+      debug(lexer, "Full match of comment start marker '%s'", c_scanner -> match -> start);
       scanner -> state = CommentText;
       ret = (c_scanner -> match -> end)
               ? _comment_find_endmarker(scanner)
               : _comment_find_eol(scanner);
     } else if (c_scanner -> num_matches > 0) {
-      mdebug(lexer, "Matching '%d' comment start markers", c_scanner -> num_matches);
+      debug(lexer, "Matching '%d' comment start markers", c_scanner -> num_matches);
       ch = lexer_get_char(scanner -> lexer);
     } else {
       scanner -> state = CommentNone;

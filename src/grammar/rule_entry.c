@@ -65,7 +65,9 @@ rule_entry_t * _rule_entry_new(rule_entry_t *entry, va_list args) {
   if (terminal) {
     entry -> token = (ptr) ? token_copy((token_t *) ptr)
                            : token_create(TokenCodeEmpty, "E");
-    if (grammar -> lexer) {
+    if (grammar -> lexer &&
+        ((strlen(token_token(entry -> token)) > 1) ||
+         (token_code(entry -> token) > 200))) {
       kw = nvp_create(data_uncopy((data_t *) str_wrap("keyword")),
                       data_uncopy((data_t *) token_copy(entry -> token)));
       lexer_config_set(grammar -> lexer, "keyword", (data_t *) kw);

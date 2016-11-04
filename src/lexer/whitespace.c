@@ -125,7 +125,7 @@ token_t * _ws_match(scanner_t *scanner) {
   ws_config_t *ws_config = (ws_config_t *) scanner -> config;
   int          nl_is_ws;
 
-  mdebug(lexer, "_ws_match ignore_nl: %d ignore_ws: %d",
+  debug(lexer, "_ws_match ignore_nl: %d ignore_ws: %d",
          ws_config -> ignore_nl, ws_config -> ignore_ws);
   nl_is_ws = ws_config -> ignore_nl && !ws_config -> ignore_ws;
 

@@ -263,7 +263,6 @@ lexer_config_t * lexer_config_dump(lexer_config_t *config) {
          "  lexer_config_set_bufsize(lexer_config, %d)\n",
          lexer_config_get_bufsize(config));
   for (scanner = config -> scanners; scanner; scanner = scanner -> next) {
-    printf("\n");
     scanner_config_dump(scanner);
   }
   printf("  return lexer_config;\n"

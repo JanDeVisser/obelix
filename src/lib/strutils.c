@@ -179,3 +179,81 @@ char * strtrim(char *str) {
   }
   return ret;
 }
+
+char * escape(char *str, char *escapeable, char escape_char) {
+  int   count;
+  char *escape;
+  char *escaped;
+
+  /*
+   * By default, escape quotes and backslashes:
+   */
+  if (!escapeable) {
+    escapeable = "\"\\";
+  }
+
+  if (!escape_char) {
+    escape_char = '\\';
+  }
+
+  /*
+   * Start by counting the escape characters so we can expand the buffer:
+   */
+  for (count = 0, escape = strpbrk(str, escapeable);
+       escape;
+       escape = strpbrk(escape + 1, escapeable)) {
+    count++;
+  }
+
+  /* If there are characters to be escaped, escape them: */
+  if (count) {
+    /* Expand the buffer by the number to be escaped characters: */
+    escaped = stralloc(strlen(str) + count + 1);
+    strcpy(escaped, str);
+
+    /*
+     * Find escapeable characters. Shift the rest of the string one
+     * to the right and paste a backslash into the hole.
+     *
+     * The number of characters to shift is the length of the remaining string
+     * plus one for the zero.
+     */
+    for (escape = strpbrk(escaped, escapeable);
+         escape;
+         escape = strpbrk(escape + 2, escapeable)) {
+      memmove(escape + 1, escape, strlen(escape) + 1);
+      *escape = escape_char;
+    }
+  } else {
+    escaped = strdup(str);
+  }
+  return escaped;
+}
+
+/**
+ * Removes escape characters (typically '\', backslash) from a string.
+ *
+ * Because the result string will the same length or shorter than the input
+ * string, this operation will take place in-place, i.e. the input buffer will
+ * be modified and the return value is the same pointer as the input string
+ * pointer.
+ *
+ * If the <tt>escape_char</tt> is non-null, every occurance of this character
+ * is removed, except when escape_char is preceded by another escape_char
+ * (i.e. "a\\a" is transformed into "a\a" when <tt>escape_char</tt< is '\'). If
+ * <tt>escape_char</tt> is zero, the value of '\' is used.
+ */
+char * unescape(char *str, char escape_char) {
+  char *escape;
+
+  if (!escape_char) {
+    escape_char = '\\';
+  }
+
+  for (escape = strchr(str, escape_char);
+       escape && *(escape + 1);
+       escape = strchr(escape + 1, escape_char)) {
+    memmove(escape, escape + 1, strlen(escape));
+  }
+  return str;
+}

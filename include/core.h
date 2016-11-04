@@ -119,6 +119,11 @@ OBLCORE_IMPEXP char *          oblcore_dtoa(double);
 OBLCORE_IMPEXP int             oblcore_strcasecmp(char *, char *);
 OBLCORE_IMPEXP int             oblcore_strncasecmp(char *, char *, size_t);
 
+OBLCORE_IMPEXP char *          escape(char *, char *, char);
+OBLCORE_IMPEXP char *          unescape(char *, char);
+#define c_escape(s)            (escape((s), "\"\\", '\\'))
+#define c_unescape(s)          (unescape((s), '\\'))
+
 OBLCORE_IMPEXP char *          label_for_code(code_label_t *, int);
 OBLCORE_IMPEXP int             code_for_label(code_label_t *, char *);
 

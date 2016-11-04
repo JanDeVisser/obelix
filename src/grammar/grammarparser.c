@@ -72,7 +72,118 @@ static gp_state_rec_t _gp_state_recs[] = {
      grammar_parser -> last_token = NULL;
    }
    return grammar_parser;
- }
+}
+
+grammar_parser_t * _grammar_parser_replace_entry(grammar_parser_t *gp, char *nt) {
+  rule_entry_t *entry;
+
+  /*
+   * We now have the synthetic nonterminal. Either it already existed or we
+   * built it. Now need to replace entry in current rule with reference to
+   * synthetic nonterminal:
+   */
+
+  /* Pop current entry from current rule and free it: */
+  entry = array_pop(gp -> rule -> entries);
+  rule_entry_free(entry);
+
+  /* Build new entry: */
+  gp -> entry = rule_entry_non_terminal(gp -> rule, nt);
+  gp -> ge = (ge_t *) gp -> entry;
+  return gp;
+}
+
+grammar_parser_t * _grammar_parser_make_optional(grammar_parser_t *gp) {
+  char          *synthetic_nt_name;
+  nonterminal_t *nt;
+  rule_t        *rule;
+
+  asprintf(&synthetic_nt_name, "%s_?", rule_entry_tostring(gp -> entry));
+  nt = grammar_get_nonterminal(gp -> grammar, synthetic_nt_name);
+  if (!nt) {
+    /*
+     * Build synthetic nonterminal. We are converting
+     *   nonterminal := ... entry ? ...
+     * into
+     *   nonterminal := ... entry_? ...
+     *   entry_?     := entry |
+     */
+    nt = nonterminal_create(gp -> grammar, synthetic_nt_name);
+    rule = rule_create(nt);
+    /* Add entry currently being processed to synthetic rule: */
+    array_push(rule -> entries, rule_entry_copy(gp -> entry));
+    /* Create empty rule: */
+    rule = rule_create(nt);
+  }
+  _grammar_parser_replace_entry(gp, synthetic_nt_name);
+  free(synthetic_nt_name);
+  return gp;
+}
+
+grammar_parser_t * _grammar_parser_make_star(grammar_parser_t *gp) {
+  char          *synthetic_nt_name;
+  nonterminal_t *nt;
+  rule_t        *rule;
+
+  /*
+   * Build synthetic nonterminals. We are converting
+   *   nonterminal := ... entry * ...
+   * into
+   *   nonterminal := ... entry_* ...
+   *   entry_*     := entry |
+   */
+  asprintf(&synthetic_nt_name, "%s_*", rule_entry_tostring(gp -> entry));
+  nt = grammar_get_nonterminal(gp -> grammar, synthetic_nt_name);
+  if (!nt) {
+    nt = nonterminal_create(gp -> grammar, synthetic_nt_name);
+    rule = rule_create(nt);
+    /* Add entry currently being processed to synthetic rule: */
+    array_push(rule -> entries, rule_entry_copy(gp -> entry));
+    /* Add entry for repetition: */
+    rule_entry_non_terminal(rule, synthetic_nt_name);
+    /* Create empty rule: */
+    rule = rule_create(nt);
+  }
+  _grammar_parser_replace_entry(gp, synthetic_nt_name);
+  free(synthetic_nt_name);
+  return gp;
+}
+
+grammar_parser_t * _grammar_parser_make_plus(grammar_parser_t *gp) {
+  char          *synthetic_nt_name;
+  nonterminal_t *nt;
+  rule_t        *rule;
+  rule_t        *backup;
+
+  /*
+   * Build synthetic nonterminals. We are converting
+   *   nonterminal := ... entry + ...
+   * into
+   *   nonterminal := ... entry_+ ...
+   *   entry_+     := entry | entry_*
+   *   entry_*     := entry |
+   *
+   * We do this using the _make_star function.
+   */
+  asprintf(&synthetic_nt_name, "%s_+", rule_entry_tostring(gp -> entry));
+  nt = grammar_get_nonterminal(gp -> grammar, synthetic_nt_name);
+  if (!nt) {
+    nt = nonterminal_create(gp -> grammar, synthetic_nt_name);
+    rule = rule_create(nt);
+    /* Add entry currently being processed to synthetic rule: */
+    array_push(rule -> entries, rule_entry_copy(gp -> entry));
+    /* Add dummy entry. Will be removed by _grammar_parser_make_star: */
+    rule_entry_non_terminal(rule, "dummy");
+
+    backup = gp -> rule;
+    gp -> rule = rule;
+    _grammar_parser_make_star(gp);
+    gp -> rule = backup;
+  }
+  _grammar_parser_replace_entry(gp, synthetic_nt_name);
+  free(synthetic_nt_name);
+  return gp;
+}
 
 grammar_parser_t * _grammar_parser_state_start(token_t *token, grammar_parser_t *grammar_parser) {
   int        code;
@@ -282,6 +393,39 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
       grammar_parser -> state = GPStateNonTerminal;
       break;
 
+    case TokenCodeQMark:
+    error("??");
+      if (grammar_parser -> entry) {
+        _grammar_parser_make_optional(grammar_parser);
+      } else {
+        _grammar_parser_syntax_error(
+            grammar_parser,
+            "Rule entry optionality modifier '?' must follow rule entry");
+      }
+      break;
+
+    case TokenCodePlus:
+    error("++");
+      if (grammar_parser -> entry) {
+        _grammar_parser_make_plus(grammar_parser);
+      } else {
+        _grammar_parser_syntax_error(
+            grammar_parser,
+            "Rule entry optionality modifier '+' must follow rule entry");
+      }
+      break;
+
+    case TokenCodeAsterisk:
+    error("**");
+      if (grammar_parser -> entry) {
+        _grammar_parser_make_star(grammar_parser);
+      } else {
+        _grammar_parser_syntax_error(
+            grammar_parser,
+            "Rule entry optionality modifier '*' must follow rule entry");
+      }
+      break;
+
     case TokenCodeOpenBracket:
       grammar_parser -> old_state = grammar_parser -> state;
       grammar_parser -> state = GPStateOptions;
@@ -393,17 +537,17 @@ void grammar_parser_free(grammar_parser_t *grammar_parser) {
 
 grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
   lexer_config_t   *lexer;
-  nvp_t            *nonterminal;
+  scanner_config_t *scanner;
+  token_t          *nonterminal_def;
 
   gp -> grammar = grammar_create();
   gp -> grammar -> dryrun = gp -> dryrun;
   lexer = lexer_config_create();
 
-  lexer_config_add_scanner(lexer, "keyword");
-  nonterminal = nvp_create((data_t *) str_wrap("keyword"),
-                           (data_t *) token_create(NONTERMINAL_DEF, NONTERMINAL_DEF_STR));
-  lexer_config_set(lexer, "keyword", (data_t *) nonterminal);
-  nvp_free(nonterminal);
+  scanner = lexer_config_add_scanner(lexer, "keyword");
+  nonterminal_def = token_create(NONTERMINAL_DEF, NONTERMINAL_DEF_STR);
+  scanner_config_setvalue(scanner, "keyword", (data_t *) nonterminal_def);
+  token_free(nonterminal_def);
 
   lexer_config_add_scanner(lexer, "whitespace: ignoreall=1");
   lexer_config_add_scanner(lexer, "identifier");

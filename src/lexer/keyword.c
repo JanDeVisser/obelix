@@ -207,6 +207,15 @@ kw_config_t * _kw_config_add_keyword(kw_config_t *config, token_t *token) {
   debug(lexer, "Going to use slot %d", slot);
   if (slot < config -> num_keywords) {
     debug(lexer, "Currently occupied by '%s' - %d", token_token(config -> keywords[slot]));
+    if (!strcmp(token_token(config -> keywords[slot]), token_token(token))) {
+      debug(lexer, "Duplicate keyword '%s'", token_token(token));
+      if (token_code(config -> keywords[slot]) != token_code(token)) {
+        error("Attempt to register duplicate keyword '%s' with conflicting codes",
+              token_token(token));
+        config = NULL;
+      }
+      return config;
+    }
     memmove(config -> keywords + (slot + 1), config -> keywords + slot,
             (config -> num_keywords - slot) * sizeof(token_t *));
   }
@@ -232,6 +241,7 @@ kw_config_t * _kw_config_dump(kw_config_t *config) {
 kw_config_t * _kw_config_dump_tostream(kw_config_t *config, FILE *stream) {
   int      ix;
   token_t *t;
+  char    *escaped;
 
   debug(lexer, "_kw_config_dump_tostream");
   if (config -> num_keywords > 0) {
@@ -239,7 +249,9 @@ kw_config_t * _kw_config_dump_tostream(kw_config_t *config, FILE *stream) {
     fprintf(stream, "    token_t *token\n\n");
     for (ix = 0; ix < config -> num_keywords; ix++) {
       t = config -> keywords[ix];
-      fprintf(stream, "    token = token_create(%d, \"%s\");\n", token_code(t), token_token(t));
+      escaped = c_escape(token_token(t));
+      fprintf(stream, "    token = token_create(%d, \"%s\");\n", token_code(t), escaped);
+      free(escaped);
       fprintf(stream, "    scanner_config_setvalue(scanner_config, \"" PARAM_KEYWORD "\", token);\n");
       fprintf(stream, "    token_free(token);\n");
     }

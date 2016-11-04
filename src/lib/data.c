@@ -222,19 +222,13 @@ data_t * data_parse(int type, char *str) {
 data_t * data_decode(char *encoded) {
   char        *copy;
   char        *ptr;
-  char        *backslash;
   char        *t;
   typedescr_t *type;
   data_t      *ret = NULL;
 
   _data_init();
   if (encoded && !encoded[0]) {
-    copy = strdup(encoded);
-    for (backslash = strchr(copy, '\\');
-         backslash && *(backslash + 1);
-         backslash = strchr(backslash + 1, '\\')) {
-      memmove(backslash, backslash + 1, strlen(backslash));
-    }
+    copy = c_unescape(strdup(encoded));
     ptr = strchr(copy, ':');
     if (ptr) {
       *ptr = 0;
@@ -257,52 +251,18 @@ char * data_encode(data_t *data) {
   char        *buf = NULL;
   void_t       encode;
   char        *encoded;
-  char        *escape;
-  int          count;
 
   type = data_typedescr(data);
   if (type) {
     encode = typedescr_get_function(type, FunctionEncode);
     if (encode) {
-      encoded = ((char * (*)(data_t *)) encode)(data);
-    } else {
-      encoded = data_tostring(data);
-    }
-
-    /*
-     * Escape double quotes and backslashes. Start by counting them so we
-     * can expand the buffer:
-     */
-    for (count = 0, escape = strpbrk(encoded, "\"\\");
-         escape;
-         escape = strpbrk(escape + 1, "\"\\")) {
-      count++;
-    }
-
-    /* If there are characters to be escaped, escape them: */
-    if (count) {
-      /* Expand the buffer by the number to be escaped characters: */
-      encoded = resize_block(encoded, strlen(encoded) + count, strlen(encoded));
-
-      /*
-       * Find double quotes and backslashes. Shift the rest of the string one
-       * to the right and paste a backslash into the hole.
-       *
-       * The number of characters to shift is the length of the remaining string
-       * plus one for the zero.
-       */
-      for (escape = strpbrk(encoded, "\"\\");
-           escape;
-           escape = strpbrk(escape + 2, "\"\\")) {
-        memmove(escape + 1, escape, strlen(escape) + 1);
-        *escape = '\\';
-      }
-    }
-
-    asprintf(&buf, "%s:%s", type -> type_name, encoded);
-    if (encode && encoded) {
+      buf = c_escape(encoded = ((char * (*)(data_t *)) encode)(data));
       free(encoded);
+      encoded = buf;
+    } else {
+      encoded = c_escape(data_tostring(data));
     }
+    asprintf(&buf, "%s:%s", type -> type_name, encoded);
   }
   return buf;
 }
