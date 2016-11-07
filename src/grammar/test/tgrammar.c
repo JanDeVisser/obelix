@@ -77,17 +77,30 @@ START_TEST(test_grammar_dump)
   ck_assert(ret);
 END_TEST
 
+START_TEST(test_grammar_modifiers)
+  grammar_t *ret;
+
+  _create_grammar_parser("modifiers");
+  grammar = grammar_parser_parse(gp);
+  ck_assert(grammar);
+  ret = grammar_analyze(grammar);
+  ck_assert(ret);
+  ret = grammar_dump(grammar);
+  ck_assert(ret);
+END_TEST
+
 /* ----------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------- */
 
 void create_grammar_parser(void) {
-  TCase *tc = tcase_create("Lexa");
+  TCase *tc = tcase_create("Grammar");
   tcase_add_checked_fixture(tc, NULL, _teardown);
-  tcase_add_test(tc, test_grammar_parser_create);
-  tcase_add_test(tc, test_grammar_parser_parse);
-  tcase_add_test(tc, test_grammar_analyze);
-  tcase_add_test(tc, test_grammar_dump);
+//  tcase_add_test(tc, test_grammar_parser_create);
+//  tcase_add_test(tc, test_grammar_parser_parse);
+//  tcase_add_test(tc, test_grammar_analyze);
+//  tcase_add_test(tc, test_grammar_dump);
+  tcase_add_test(tc, test_grammar_modifiers);
   add_tcase(tc);
 }
 

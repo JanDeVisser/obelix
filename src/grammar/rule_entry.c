@@ -20,7 +20,6 @@
 #include <stdio.h>
 
 #include "libgrammar.h"
-#include <nvp.h>
 
 static rule_entry_t * _rule_entry_new(rule_entry_t *, va_list);
 static void           _rule_entry_free(rule_entry_t *);
@@ -52,12 +51,10 @@ extern void rule_entry_register(void) {
 
 rule_entry_t * _rule_entry_new(rule_entry_t *entry, va_list args) {
   rule_t    *rule;
-  grammar_t *grammar;
   int        terminal;
   void      *ptr;
-  nvp_t     *kw;
 
-  grammar = va_arg(args, grammar_t *);
+  va_arg(args, grammar_t *);
   rule = va_arg(args, rule_t *);
   terminal = va_arg(args, int);
   ptr = va_arg(args, void *);
@@ -65,13 +62,6 @@ rule_entry_t * _rule_entry_new(rule_entry_t *entry, va_list args) {
   if (terminal) {
     entry -> token = (ptr) ? token_copy((token_t *) ptr)
                            : token_create(TokenCodeEmpty, "E");
-    if (grammar -> lexer &&
-        ((strlen(token_token(entry -> token)) > 1) ||
-         (token_code(entry -> token) > 200))) {
-      kw = nvp_create(data_uncopy((data_t *) str_wrap("keyword")),
-                      data_uncopy((data_t *) token_copy(entry -> token)));
-      lexer_config_set(grammar -> lexer, "keyword", (data_t *) kw);
-    }
   } else {
     entry -> nonterminal = strdup((char *) ptr);
   }
@@ -122,6 +112,7 @@ set_t * _rule_entry_get_firsts(rule_entry_t *entry, set_t *firsts) {
   if (entry -> terminal) {
     set_add_int(firsts, token_code(entry -> token));
   } else {
+    debug(grammar, "nonterminal: %s", entry -> nonterminal);
     nonterminal = grammar_get_nonterminal(rule_entry_get_grammar(entry),
                                           entry -> nonterminal);
     assert(nonterminal);
@@ -147,18 +138,6 @@ rule_entry_t * rule_entry_non_terminal(rule_t *rule, char *nonterminal) {
 }
 
 rule_entry_t * rule_entry_terminal(rule_t *rule, token_t *token) {
-  unsigned int  code;
-  char         *str;
-
-  code = token_code(token);
-  str = token_token(token);
-  if ((code == TokenCodeDQuotedStr) && strcmp(str, "\"")) {
-    code = (int) strhash(str);
-    token = token_create(code, str);
-    dict_put_int(rule_get_grammar(rule) -> keywords, code, token);
-  } else if (code > 200) {
-    dict_put_int(rule_get_grammar(rule) -> keywords, code, token);
-  }
   return _rule_entry_create(rule, TRUE, token);
 }
 

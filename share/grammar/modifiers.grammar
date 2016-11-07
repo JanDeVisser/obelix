@@ -2,7 +2,7 @@
   lexer: "whitespace: ignorall=1"
 %
 
-list          := '(' number * ')' ;
+list          := '(' number *,',' ')' ;
 number        := sign ? digits ;
 sign          := '+' | '-' ;
 digits        := digit + ;

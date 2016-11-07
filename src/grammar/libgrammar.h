@@ -57,7 +57,7 @@ extern set_t *      _nonterminal_get_follows(nonterminal_t *);
 extern set_t *      _nonterminal_get_firsts(nonterminal_t *);
 extern int          _nonterminal_check_LL1(nonterminal_t *);
 extern void         _nonterminal_build_parse_table(nonterminal_t *);
-extern grammar_t *  _nonterminal_dump_terminal(unsigned int, grammar_t *);
+extern grammar_t *  _nonterminal_dump_terminal(token_code_t, grammar_t *);
 
 extern set_t *      _rule_get_firsts(rule_t *);
 extern void         _rule_build_parse_table(rule_t *);

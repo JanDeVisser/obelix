@@ -59,7 +59,10 @@ nonterminal_t * _nonterminal_new(nonterminal_t *nonterminal, va_list args) {
   nonterminal -> name = strdup(va_arg(args, char *));
   nonterminal -> rules = data_array_create(2);
   nonterminal -> state = strhash(nonterminal -> name);
-  dict_put(grammar -> nonterminals, strdup(nonterminal -> name), nonterminal);
+  debug(grammar, "Creating nonterminal '%s'", nonterminal -> name);
+  if (!dict_has_key(grammar -> nonterminals, nonterminal -> name)) {
+    dict_put(grammar -> nonterminals, strdup(nonterminal -> name), nonterminal);
+  }
   if (!grammar -> entrypoint) {
     grammar -> entrypoint = nonterminal;
   }
@@ -193,7 +196,7 @@ void _nonterminal_build_parse_table(nonterminal_t *nonterminal) {
   }
 }
 
-grammar_t * _nonterminal_dump_terminal(unsigned int code, grammar_t *grammar) {
+grammar_t * _nonterminal_dump_terminal(token_code_t code, grammar_t *grammar) {
   token_t *token;
 
   if (code < 200) {

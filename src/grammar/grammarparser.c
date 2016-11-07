@@ -22,8 +22,8 @@
 #include <string.h>
 
 #include "libgrammar.h"
+#include <exception.h>
 #include <grammarparser.h>
-#include <list.h>
 #include <nvp.h>
 
 typedef struct _gp_state_rec {
@@ -42,7 +42,9 @@ static grammar_parser_t * _grammar_parser_state_header(token_t *, grammar_parser
 static grammar_parser_t * _grammar_parser_state_nonterminal(token_t *, grammar_parser_t *);
 static grammar_parser_t * _grammar_parser_state_rule(token_t *, grammar_parser_t *);
 static grammar_parser_t * _grammar_parser_state_entry(token_t *, grammar_parser_t *);
-static void               _grammar_parser_syntax_error(grammar_parser_t *, char *, ...);
+static grammar_parser_t * _grammar_parser_state_modifier(token_t *, grammar_parser_t *);
+static grammar_parser_t * _grammar_parser_state_separator(token_t *, grammar_parser_t *);
+static void               _grammar_parser_syntax_error(grammar_parser_t *, exception_t *);
 
 static gp_state_rec_t _gp_state_recs[] = {
   { "GPStateStart",        (reduce_t) _grammar_parser_state_start },
@@ -52,7 +54,9 @@ static gp_state_rec_t _gp_state_recs[] = {
   { "GPStateHeader",       (reduce_t) _grammar_parser_state_header },
   { "GPStateNonTerminal",  (reduce_t) _grammar_parser_state_nonterminal },
   { "GPStateRule",         (reduce_t) _grammar_parser_state_rule },
-  { "GPStateEntry",        (reduce_t) _grammar_parser_state_entry }
+  { "GPStateEntry",        (reduce_t) _grammar_parser_state_entry },
+  { "GPStateModifier",     (reduce_t) _grammar_parser_state_modifier },
+  { "GPStateSeparator",    (reduce_t) _grammar_parser_state_separator }
 };
 
 
@@ -72,6 +76,60 @@ static gp_state_rec_t _gp_state_recs[] = {
      grammar_parser -> last_token = NULL;
    }
    return grammar_parser;
+}
+
+data_t * _grammar_parser_xform(grammar_parser_t *gp, token_t *token) {
+  char         *str;
+  token_code_t  code;
+  size_t        len;
+  data_t       *ret = NULL;
+  nvp_t        *kw;
+
+  str = token_token(token);
+  code = (token_code_t) token_code(token);
+  switch (code) {
+    case TokenCodeDQuotedStr:
+      len = strlen(str);
+      if (len >= 1) {
+        token_free(token);
+        token = token_create(gp -> next_keyword_code++, str);
+        if (gp -> grammar -> lexer) {
+          kw = nvp_create(data_uncopy((data_t *) str_wrap("keyword")),
+                          (data_t *) token_copy(token));
+          lexer_config_set(gp -> grammar -> lexer, "keyword", (data_t *) kw);
+          nvp_free(kw);
+        }
+      } else { /* len == 0 */
+        ret = (data_t *) exception_create(ErrorSyntax,
+          "The empty string cannot be a keyword");
+      }
+      break;
+
+    case TokenCodeSQuotedStr:
+      len = strlen(str);
+      if (len == 1) {
+        code = (token_code_t) str[0];
+        token_free(token);
+        token = token_create(code, str);
+      } else if (len == 0) {
+        ret = (data_t *) exception_create(ErrorSyntax,
+          "The empty single-quoted string cannot be used in a rule or rule "
+          "entry definition", str);
+      } else { /* len > 0 */
+        ret = (data_t *) exception_create(ErrorSyntax,
+          "Single-quoted string longer than 1 character '%s' cannot be used in "
+          "a rule or rule entry definition", str);
+      }
+      break;
+
+    default:
+      if ((code < '!') || (code > '~')) {
+        ret = (data_t *) exception_create(ErrorSyntax,
+          "Token '%s' cannot be used in a rule or rule entry definition", str);
+      }
+      break;
+  }
+  return (ret) ? ret : (data_t *) token;
 }
 
 grammar_parser_t * _grammar_parser_replace_entry(grammar_parser_t *gp, char *nt) {
@@ -98,7 +156,7 @@ grammar_parser_t * _grammar_parser_make_optional(grammar_parser_t *gp) {
   nonterminal_t *nt;
   rule_t        *rule;
 
-  asprintf(&synthetic_nt_name, "%s_?", rule_entry_tostring(gp -> entry));
+  asprintf(&synthetic_nt_name, "%s?", rule_entry_tostring(gp -> entry));
   nt = grammar_get_nonterminal(gp -> grammar, synthetic_nt_name);
   if (!nt) {
     /*
@@ -113,75 +171,62 @@ grammar_parser_t * _grammar_parser_make_optional(grammar_parser_t *gp) {
     /* Add entry currently being processed to synthetic rule: */
     array_push(rule -> entries, rule_entry_copy(gp -> entry));
     /* Create empty rule: */
-    rule = rule_create(nt);
+    rule_create(nt);
   }
   _grammar_parser_replace_entry(gp, synthetic_nt_name);
   free(synthetic_nt_name);
+  gp -> state = GPStateRule;
   return gp;
 }
 
-grammar_parser_t * _grammar_parser_make_star(grammar_parser_t *gp) {
-  char          *synthetic_nt_name;
+grammar_parser_t * _grammar_parser_expand_modifier(grammar_parser_t *gp, token_t *sep) {
+  char          *nt_star_sep;
+  char          *nt_plus_sep;
+  char          *nt_sep;
+  char          *sepstr;
   nonterminal_t *nt;
   rule_t        *rule;
 
-  /*
-   * Build synthetic nonterminals. We are converting
-   *   nonterminal := ... entry * ...
-   * into
-   *   nonterminal := ... entry_* ...
-   *   entry_*     := entry |
-   */
-  asprintf(&synthetic_nt_name, "%s_*", rule_entry_tostring(gp -> entry));
-  nt = grammar_get_nonterminal(gp -> grammar, synthetic_nt_name);
+  sepstr = (sep) ? token_tostring(sep) : "[None]";
+  asprintf(&nt_star_sep, "%s*%s", rule_entry_tostring(gp -> entry), sepstr);
+  asprintf(&nt_plus_sep, "%s+%s", rule_entry_tostring(gp -> entry), sepstr);
+  asprintf(&nt_sep, "%s%s", sepstr, rule_entry_tostring(gp -> entry));
+
+  nt = grammar_get_nonterminal(gp -> grammar, nt_star_sep);
   if (!nt) {
-    nt = nonterminal_create(gp -> grammar, synthetic_nt_name);
+    nt = nonterminal_create(gp -> grammar, nt_star_sep);
     rule = rule_create(nt);
-    /* Add entry currently being processed to synthetic rule: */
-    array_push(rule -> entries, rule_entry_copy(gp -> entry));
-    /* Add entry for repetition: */
-    rule_entry_non_terminal(rule, synthetic_nt_name);
+    rule_entry_non_terminal(rule, nt_plus_sep);
     /* Create empty rule: */
-    rule = rule_create(nt);
+    rule_create(nt);
   }
-  _grammar_parser_replace_entry(gp, synthetic_nt_name);
-  free(synthetic_nt_name);
-  return gp;
-}
 
-grammar_parser_t * _grammar_parser_make_plus(grammar_parser_t *gp) {
-  char          *synthetic_nt_name;
-  nonterminal_t *nt;
-  rule_t        *rule;
-  rule_t        *backup;
-
-  /*
-   * Build synthetic nonterminals. We are converting
-   *   nonterminal := ... entry + ...
-   * into
-   *   nonterminal := ... entry_+ ...
-   *   entry_+     := entry | entry_*
-   *   entry_*     := entry |
-   *
-   * We do this using the _make_star function.
-   */
-  asprintf(&synthetic_nt_name, "%s_+", rule_entry_tostring(gp -> entry));
-  nt = grammar_get_nonterminal(gp -> grammar, synthetic_nt_name);
+  nt = grammar_get_nonterminal(gp -> grammar, nt_plus_sep);
   if (!nt) {
-    nt = nonterminal_create(gp -> grammar, synthetic_nt_name);
+    nt = nonterminal_create(gp -> grammar, nt_plus_sep);
     rule = rule_create(nt);
-    /* Add entry currently being processed to synthetic rule: */
     array_push(rule -> entries, rule_entry_copy(gp -> entry));
-    /* Add dummy entry. Will be removed by _grammar_parser_make_star: */
-    rule_entry_non_terminal(rule, "dummy");
-
-    backup = gp -> rule;
-    gp -> rule = rule;
-    _grammar_parser_make_star(gp);
-    gp -> rule = backup;
+    rule_entry_non_terminal(rule, nt_sep);
   }
-  _grammar_parser_replace_entry(gp, synthetic_nt_name);
-  free(synthetic_nt_name);
+
+  nt = grammar_get_nonterminal(gp -> grammar, nt_sep);
+  if (!nt) {
+    nt = nonterminal_create(gp -> grammar, nt_sep);
+    rule = rule_create(nt);
+    if (sep) {
+      rule_entry_terminal(rule, sep);
+    }
+    rule_entry_non_terminal(rule, nt_plus_sep);
+    /* Create empty rule: */
+    rule_create(nt);
+  }
+
+  _grammar_parser_replace_entry(gp,
+    (gp -> modifier == '+') ? nt_plus_sep : nt_star_sep);
+  free(nt_plus_sep);
+  free(nt_star_sep);
+  free(nt_sep);
+  gp -> state = GPStateRule;
   return gp;
 }
 
@@ -214,10 +259,9 @@ grammar_parser_t * _grammar_parser_state_start(token_t *token, grammar_parser_t 
       break;
 
     default:
-      _grammar_parser_syntax_error(
-          grammar_parser,
-          "Unexpected token '%s' at start of grammar text",
-          token_tostring(token));
+      _grammar_parser_syntax_error(grammar_parser,
+        exception_create(
+          ErrorSyntax, "Unexpected token '%s' at start of grammar text", str));
   }
   return grammar_parser;
 }
@@ -252,8 +296,8 @@ grammar_parser_t * _grammar_parser_state_options(token_t *token, grammar_parser_
   }
   if (!ret) {
     _grammar_parser_syntax_error(grammar_parser,
-                                 "Unexpected token '%s' in option block",
-                                 token_tostring(token));
+      exception_create(ErrorSyntax,
+        "Unexpected token '%s' in option block", token_tostring(token)));
   }
   return grammar_parser;
 }
@@ -287,8 +331,8 @@ grammar_parser_t * _grammar_parser_state_option_name(token_t *token, grammar_par
   }
   if (!ret) {
     _grammar_parser_syntax_error(grammar_parser,
-                                 "Unexpected token '%s' in option block",
-                                 token_tostring(token));
+      exception_create(ErrorSyntax,
+        "Unexpected token '%s' in option block", token_tostring(token)));
   }
   return ret;
 }
@@ -307,10 +351,9 @@ grammar_parser_t * _grammar_parser_state_option_value(token_t *token, grammar_pa
       break;
 
     default:
-      _grammar_parser_syntax_error(
-          grammar_parser,
-          "Unexpected token '%s' in option block",
-          token_tostring(token));
+      _grammar_parser_syntax_error(grammar_parser,
+        exception_create(ErrorSyntax,
+          "Unexpected token '%s' in option block", token_tostring(token)));
   }
   return grammar_parser;
 }
@@ -340,44 +383,49 @@ grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_par
         grammar_parser -> state = GPStateRule;
         grammar_parser -> ge = (ge_t *) grammar_parser -> rule;
       } else {
-        _grammar_parser_syntax_error(
-            grammar_parser,
+        _grammar_parser_syntax_error(grammar_parser,
+          exception_create(ErrorSyntax,
             "The ':=' operator must be preceded by a non-terminal name",
-            token_tostring(token));
+            token_tostring(token)));
       }
       break;
 
     case TokenCodeEnd:
       if (grammar_parser -> nonterminal) {
-        _grammar_parser_syntax_error(
-            grammar_parser,
+        _grammar_parser_syntax_error(grammar_parser,
+          exception_create(ErrorSyntax,
             "Unexpected end-of-file in definition of non-terminal '%s'",
-            grammar_parser -> nonterminal -> name);
+            grammar_parser -> nonterminal -> name));
       }
       break;
 
     default:
       if (grammar_parser -> nonterminal) {
-        _grammar_parser_syntax_error(
-            grammar_parser,
+        _grammar_parser_syntax_error(grammar_parser,
+          exception_create(ErrorSyntax,
             "Unexpected token '%s' in definition of non-terminal '%s'",
-            token_tostring(token), grammar_parser -> nonterminal -> name);
+            token_tostring(token), grammar_parser -> nonterminal -> name));
       } else {
-        _grammar_parser_syntax_error(
-            grammar_parser,
+        _grammar_parser_syntax_error(grammar_parser,
+          exception_create(ErrorSyntax,
             "Unexpected token '%s', was expecting non-terminal definition",
-            token_tostring(token));
+            token_tostring(token)));
       }
   }
   return grammar_parser;
 }
 
 grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *grammar_parser) {
-  char  *str;
-  int    code;
-  char   terminal_str[2];
+  data_t  *xformed;
+  token_t *xformed_token;
+  int      code;
 
-  str = token_token(token);
+  xformed = _grammar_parser_xform(grammar_parser, token);
+  if (data_is_exception(xformed)) {
+    _grammar_parser_syntax_error(grammar_parser, (exception_t *) xformed);
+    return grammar_parser;
+  }
+  xformed_token = (token_t *) xformed;
   code = token_code(token);
   switch (code) {
     case TokenCodePipe:
@@ -393,103 +441,89 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
       grammar_parser -> state = GPStateNonTerminal;
       break;
 
-    case TokenCodeQMark:
-    error("??");
-      if (grammar_parser -> entry) {
-        _grammar_parser_make_optional(grammar_parser);
-      } else {
-        _grammar_parser_syntax_error(
-            grammar_parser,
-            "Rule entry optionality modifier '?' must follow rule entry");
-      }
-      break;
-
-    case TokenCodePlus:
-    error("++");
-      if (grammar_parser -> entry) {
-        _grammar_parser_make_plus(grammar_parser);
-      } else {
-        _grammar_parser_syntax_error(
-            grammar_parser,
-            "Rule entry optionality modifier '+' must follow rule entry");
-      }
-      break;
-
-    case TokenCodeAsterisk:
-    error("**");
-      if (grammar_parser -> entry) {
-        _grammar_parser_make_star(grammar_parser);
-      } else {
-        _grammar_parser_syntax_error(
-            grammar_parser,
-            "Rule entry optionality modifier '*' must follow rule entry");
-      }
-      break;
-
     case TokenCodeOpenBracket:
       grammar_parser -> old_state = grammar_parser -> state;
       grammar_parser -> state = GPStateOptions;
       break;
 
     case TokenCodeIdentifier:
-      grammar_parser -> entry = rule_entry_non_terminal(grammar_parser -> rule,
-                                                        token_token(token));
+      grammar_parser -> entry = rule_entry_non_terminal(
+        grammar_parser -> rule, token_token(token));
       grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
       grammar_parser -> state = GPStateEntry;
       break;
 
     case TokenCodeDQuotedStr:
-      grammar_parser -> entry = rule_entry_terminal(grammar_parser -> rule, token);
+    case TokenCodeSQuotedStr:
+      grammar_parser -> entry = rule_entry_terminal(
+        grammar_parser -> rule, xformed_token);
       grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
       grammar_parser -> state = GPStateEntry;
       break;
 
-    case TokenCodeSQuotedStr:
-      if (strlen(str) == 1) {
-        code = str[0];
-        strcpy(terminal_str, str);
-        token = token_create(code, terminal_str);
-        grammar_parser -> entry = rule_entry_terminal(grammar_parser -> rule, token);
-        grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
-        token_free(token);
-        grammar_parser -> state = GPStateEntry;
-      } else {
-        _grammar_parser_syntax_error(
-            grammar_parser,
-            "Single-quoted string longer than 1 character '%s' cannot be used in a rule or rule entry definition",
-            token_tostring(token));
-      }
-      break;
-
     default:
-      if ((code >= '!') && (code <= '~')) {
-        grammar_parser -> entry = rule_entry_terminal(grammar_parser -> rule, token);
-        grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
-        grammar_parser -> state = GPStateEntry;
-      } else {
-        debug(grammar, "code: %c %d", code, code);
-        _grammar_parser_syntax_error(
-            grammar_parser,
-            "Token '%s' cannot be used in a rule or rule entry definition",
-            token_tostring(token));
-      }
+      grammar_parser -> entry = rule_entry_terminal(grammar_parser -> rule, token);
+      grammar_parser -> ge = (ge_t *) grammar_parser -> entry;
+      grammar_parser -> state = GPStateEntry;
       break;
+  }
+  if (xformed_token != token) {
+    token_free(xformed_token);
   }
   return grammar_parser;
 }
 
 grammar_parser_t * _grammar_parser_state_entry(token_t *token, grammar_parser_t *grammar_parser) {
-  return _grammar_parser_state_rule(token, grammar_parser);
+  int    code;
+
+  code = token_code(token);
+  switch (code) {
+    case TokenCodeQMark:
+      _grammar_parser_make_optional(grammar_parser);
+      grammar_parser -> state = GPStateRule;
+      break;
+
+    case TokenCodePlus:
+    case TokenCodeAsterisk:
+      grammar_parser -> state = GPStateModifier;
+      grammar_parser -> modifier = code;
+      break;
+
+    default:
+      return _grammar_parser_state_rule(token, grammar_parser);
+  }
+  return grammar_parser;
 }
 
-void _grammar_parser_syntax_error(grammar_parser_t *gp, char *msg, ...) {
-  va_list  args;
-  char     buf[256];
+grammar_parser_t * _grammar_parser_state_modifier(token_t *token, grammar_parser_t *grammar_parser) {
+  switch (token_code(token)) {
+    case TokenCodeComma:
+      grammar_parser -> state = GPStateSeparator;
+      break;
+    default:
+      _grammar_parser_expand_modifier(grammar_parser, NULL);
+      return _grammar_parser_state_rule(token, grammar_parser);
+  }
+  return grammar_parser;
+}
 
-  va_start(args, msg);
-  vsnprintf(buf, 256, msg, args);
-  va_end(args);
-  error("Syntax error in grammar: %s", buf);
+grammar_parser_t * _grammar_parser_state_separator(token_t *token, grammar_parser_t *gp) {
+  data_t *xformed;
+
+  xformed = _grammar_parser_xform(gp, token);
+  if (data_is_token(xformed)) {
+    _grammar_parser_expand_modifier(gp, (token_t *) xformed);
+    if ((token_t *) xformed != token) {
+      token_free(xformed);
+    }
+  } else {
+    _grammar_parser_syntax_error(gp, (exception_t *) xformed);
+  }
+  return gp;
+}
+
+void _grammar_parser_syntax_error(grammar_parser_t *gp, exception_t *error) {
+  error("Syntax error in grammar: %s", exception_tostring(error));
   gp -> state = GPStateError;
 }
 
@@ -525,6 +559,7 @@ grammar_parser_t * grammar_parser_create(data_t *reader) {
   grammar_parser -> entry = NULL;
   grammar_parser -> ge = NULL;
   grammar_parser -> dryrun = FALSE;
+  grammar_parser -> next_keyword_code = 300;
   return grammar_parser;
 }
 

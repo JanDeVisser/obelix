@@ -32,6 +32,8 @@ typedef enum _gp_state_ {
   GPStateNonTerminal,
   GPStateRule,
   GPStateEntry,
+  GPStateModifier,
+  GPStateSeparator,
   GPStateError
 } gp_state_t;
 
@@ -45,7 +47,9 @@ typedef struct _grammar_parser {
   nonterminal_t *nonterminal;
   rule_t        *rule;
   rule_entry_t  *entry;
+  int            modifier;
   int            dryrun;
+  unsigned int   next_keyword_code;
 } grammar_parser_t;
 
 OBLGRAMMAR_IMPEXP grammar_parser_t * grammar_parser_create(data_t *);
