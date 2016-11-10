@@ -229,7 +229,7 @@ token_t * token_parse(char *token) {
   tokenstr = dup + (tokenstr - token);
   *tokenstr++ = 0;
   codestr = strtrim(dup);
-  if (!strtoint(codestr, &code)) {
+  if (strtoint(codestr, &code)) {
     code = code_for_label(token_code_names, codestr);
     if (code < 0) {
       goto done;

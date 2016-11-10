@@ -117,7 +117,7 @@ function_t * function_create_noresolve(char *name) {
   assert(name);
   ret = data_new(Function, function_t);
   ret -> params = NULL;
-  ret -> type = STNone;
+  ret -> type = 0;
   ret -> name = name_split(name, ":");
   return ret;
 }

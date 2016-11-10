@@ -61,16 +61,16 @@ void _ga_free(grammar_action_t *grammar_action) {
   }
 }
 
-char * _ga_allocstring(grammar_action_t *grammar_action) {
+char * _ga_allocstring(grammar_action_t *ga) {
   char *buf;
 
-  if (grammar_action -> data) {
+  if (ga -> data) {
     asprintf(&buf, "%s [%s]",
-	     function_tostring(grammar_action -> fnc),
-	     data_tostring(grammar_action -> data));
+	     function_tostring(ga -> fnc),
+	     data_tostring(ga -> data));
   } else {
     asprintf(&buf, "%s",
-	     function_tostring(grammar_action -> fnc));
+	     function_tostring(ga -> fnc));
   }
   return buf;
 }

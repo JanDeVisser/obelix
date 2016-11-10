@@ -57,7 +57,7 @@ ge_t * _ge_new(ge_t *ge, va_list args) {
     ge -> grammar = (grammar_t *) ge;
   }
   ge -> owner = va_arg(args, ge_t *);
-  ge -> actions = strdata_dict_create();
+  ge -> actions = data_list_create();
   ge -> variables = strtoken_dict_create();
   return ge;
 }
@@ -65,7 +65,7 @@ ge_t * _ge_new(ge_t *ge, va_list args) {
 void _ge_free(ge_t *ge) {
   if (ge) {
     dict_free(ge -> variables);
-    dict_free(ge -> actions);
+    list_free(ge -> actions);
   }
 }
 
@@ -93,7 +93,6 @@ ge_t * _ge_set(ge_t *ge, char *name, data_t *value) {
     fnc = grammar_resolve_function(ge -> grammar, name);
     if (fnc) {
       ge_add_action(ge, grammar_action_create(fnc, data));
-      data_free(data);
       function_free(fnc);
     } else {
       error("_ge_set: Cannot set grammar option '%s' on %s",
@@ -106,10 +105,18 @@ ge_t * _ge_set(ge_t *ge, char *name, data_t *value) {
 
 
 data_t * _ge_resolve(ge_t *ge, char *name) {
-  data_t *ret = NULL;
+  data_t           *ret = NULL;
+  listiterator_t   *li;
+  grammar_action_t *action;
 
   debug(grammar, "  Getting option %s from grammar element %s", name, ge_tostring(ge));
-  ret = (data_t *) dict_get(ge -> actions, name);
+  for (li = li_create(ge -> actions); !ret && li_has_next(li); ) {
+    action = list_next(ge -> actions);
+    if (!strcmp(name_tostring(action -> fnc -> name), name)) {
+      ret = (data_t *) action;
+    }
+  }
+  li_free(li);
   if (!ret) {
     ret = (data_t *) dict_get(ge -> variables, name);
   }
@@ -167,7 +174,7 @@ ge_t * _ge_dump_common(ge_dump_ctx_t *ctx) {
 
   children = list_create();
   dict_reduce_values(ge -> variables, (reduce_t) ge_append_child, children);
-  dict_reduce_values(ge -> actions, (reduce_t) ge_append_child, children);
+  list_reduce(ge -> actions, (reduce_t) ge_append_child, children);
   if (get_children) {
     get_children((data_t *) ctx -> obj, children);
   }
@@ -187,7 +194,7 @@ ge_t * _ge_dump_common(ge_dump_ctx_t *ctx) {
 ge_t * ge_add_action(ge_t *ge, grammar_action_t *action) {
   assert(ge);
   assert(action);
-  dict_put(ge -> actions, strdup(name_tostring(action -> fnc -> name)), grammar_action_copy(action));
+  list_append(ge -> actions, grammar_action_copy(action));
   return ge;
 }
 

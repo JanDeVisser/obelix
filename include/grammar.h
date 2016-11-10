@@ -92,7 +92,7 @@ typedef struct _grammar_element {
   data_t                   _d;
   struct _grammar         *grammar;
   struct _grammar_element *owner;
-  dict_t                  *actions;
+  list_t                  *actions;
   dict_t                  *variables;
 } ge_t;
 

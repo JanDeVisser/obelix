@@ -65,7 +65,7 @@ static gp_state_rec_t _gp_state_recs[] = {
  */
 
  grammar_parser_t * _grammar_parser_set_option(grammar_parser_t *grammar_parser, token_t *value) {
-   data_t *val = (value) ? (data_t *) str_wrap(token_token(value)) : NULL;
+   data_t *val = (value) ? (data_t *) str_copy_chars(token_token(value)) : NULL;
 
    if (grammar_parser -> last_token) {
      data_set_attribute((data_t *) grammar_parser -> ge,

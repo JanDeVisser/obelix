@@ -1,5 +1,5 @@
 /*
- * libparser.h - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
+ * obelix/src/lexer/test/tlexer.h - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of Obelix.
  *
@@ -17,20 +17,15 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __LIBPARSER_H__
-#define __LIBPARSER_H__
+#include <check.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include <config.h>
-#include <core.h>
+#include <parser.h>
+#include <testsuite.h>
 
-#if (defined __WIN32__) || (defined _WIN32)
-#ifdef oblparser_EXPORTS
-#define OBLPARSER_IMPEXP	__DLL_EXPORT__
-#else /* ! oblcore_EXPORTS */
-#define OBLPARSER_IMPEXP	__DLL_IMPORT__
-#endif
-#else /* ! __WIN32__ */
-#define OBLPARSER_IMPEXP extern
-#endif /* __WIN32__ */
+#ifndef __TPARSER_H__
+#define __TPARSER_H__
 
-#endif /* __LIBPARSER_H__ */
+
+#endif /* __TPARSER_H__ */

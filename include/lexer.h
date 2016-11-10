@@ -115,6 +115,7 @@ typedef struct _lexer {
   int              prev_char;
   int              line;
   int              column;
+  void            *data;
 } lexer_t;
 
 OBLLEXER_IMPEXP char *             lexer_state_name(lexer_state_t);

@@ -213,6 +213,7 @@ data_t * data_parse(int type, char *str) {
 
   _data_init();
   descr = typedescr_get(type);
+  debug(data, "Parsing %s : '%s'", descr -> type_name, str);
   parse = typedescr_get_function(descr, FunctionParse);
   return (parse)
     ? ((data_t * (*)(char *)) parse)(str)
@@ -227,12 +228,14 @@ data_t * data_decode(char *encoded) {
   data_t      *ret = NULL;
 
   _data_init();
-  if (encoded && !encoded[0]) {
+  if (encoded && encoded[0]) {
     copy = c_unescape(strdup(encoded));
+    debug(data, "Decoding '%s'", copy);
     ptr = strchr(copy, ':');
     if (ptr) {
       *ptr = 0;
       t = strtrim(copy);
+      debug(data, "type: '%s'", t);
       type = typedescr_get_byname(t);
       if (type) {
         ret = data_parse(type -> type, ptr + 1);

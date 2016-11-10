@@ -22,7 +22,6 @@
 
 #include <data.h>
 #include <name.h>
-#include <script.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -36,7 +35,7 @@ typedef struct _function {
   void_t         fnc;
   int            min_params;
   int            max_params;
-  script_type_t  type;
+  int            type;
   array_t       *params;
 } function_t;
 
@@ -57,7 +56,7 @@ OBLCORE_IMPEXP char *          function_libname(function_t *);
 #define function_free(o)     (data_free((data_t *) (o)))
 
 OBLCORE_IMPEXP int Function;
-  
+
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */

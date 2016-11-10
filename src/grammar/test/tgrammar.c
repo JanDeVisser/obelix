@@ -96,10 +96,10 @@ END_TEST
 void create_grammar_parser(void) {
   TCase *tc = tcase_create("Grammar");
   tcase_add_checked_fixture(tc, NULL, _teardown);
-//  tcase_add_test(tc, test_grammar_parser_create);
-//  tcase_add_test(tc, test_grammar_parser_parse);
-//  tcase_add_test(tc, test_grammar_analyze);
-//  tcase_add_test(tc, test_grammar_dump);
+  tcase_add_test(tc, test_grammar_parser_create);
+  tcase_add_test(tc, test_grammar_parser_parse);
+  tcase_add_test(tc, test_grammar_analyze);
+  tcase_add_test(tc, test_grammar_dump);
   tcase_add_test(tc, test_grammar_modifiers);
   add_tcase(tc);
 }

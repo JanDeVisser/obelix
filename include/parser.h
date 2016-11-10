@@ -21,7 +21,6 @@
 #ifndef __PARSER_H__
 #define __PARSER_H__
 
-#include <libparser.h>
 #include <data.h>
 #include <datastack.h>
 #include <grammar.h>
@@ -31,6 +30,16 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#if (defined __WIN32__) || (defined _WIN32)
+#ifdef oblparser_EXPORTS
+#define OBLPARSER_IMPEXP	__DLL_EXPORT__
+#else /* ! oblcore_EXPORTS */
+#define OBLPARSER_IMPEXP	__DLL_IMPORT__
+#endif
+#else /* ! __WIN32__ */
+#define OBLPARSER_IMPEXP extern
+#endif /* __WIN32__ */
 
 OBLPARSER_IMPEXP int Parser;
 OBLPARSER_IMPEXP int parser_debug;
@@ -42,12 +51,9 @@ typedef struct _parser {
   void        *data;
   list_t      *prod_stack;
   token_t     *last_token;
-  int          line;
-  int          column;
   data_t      *error;
   datastack_t *stack;
   dict_t      *variables;
-  function_t  *on_newline;
 } parser_t;
 
 #define data_is_parser(d)     ((d) && data_hastype((data_t *) (d), Parser))

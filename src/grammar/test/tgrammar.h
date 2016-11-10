@@ -30,4 +30,4 @@
 
 extern void     create_grammar_parser(void);
 
-#endif /* __TLEXER_H__ */
+#endif /* __TGRAMMAR_H__ */

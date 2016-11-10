@@ -1,18 +1,21 @@
 %
-  prefix:      script_parse_
-  lexer:       "whitespace: ignorews=1,onnewline=mark_line"
+  prefix:      expr_
+  lexer:       "whitespace: ignorews=1"
   lexer:       keyword
   lexer:       identifier
-  lexer:       number
+  lexer:       "number: signed=0"
   lexer:       qstring
   lexer:       "comment: marker=/* */,marker=//,marker=^#"
 %
+
+main                        := expr              [ assign_result             ]
+                             ;
 
 expr                        := term
                                termtail
                              ;
 
-termtail                    := add_op            [ infix_op                  ]
+termtail                    := add_op            [ push_token                ]
                                term              [ call_op                   ]
                                termtail
                              |
@@ -22,23 +25,19 @@ term                        := factor
                                factortail
                              ;
 
-factortail                  := mult_op           [ infix_op                  ]
+factortail                  := mult_op           [ push_token                ]
                                factor            [ call_op                   ]
                                factortail
                              |
                              ;
 
 factor                      := ( expr )
-                             | 'i'
-                             | constant
+                             | sign number       [ push                      ]
                              ;
 
-constant                    := '"'               [ push_token                ]
-                             | '\''              [ push_token                ]
-                             | number
-                             | "true"            [ pushconst: "bool:1"       ]
-                             | "false"           [ pushconst: "bool:0"       ]
-                             | "null"            [ pushconst: "ptr:null"     ]
+sign                        := '+'               [ push_token                ]
+                             | '-'               [ push_token                ]
+                             |                   [ push_const = "token:43:+" ]
                              ;
 
 number                      := 'd'
