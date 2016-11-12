@@ -1,6 +1,6 @@
 /*
- * dict.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>  
- * 
+ * dict.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ *
  * This file is part of Obelix.
  *
  * Obelix is free software: you can redistribute it and/or modify
@@ -18,31 +18,29 @@
  */
 
 
-#include <check.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
+ #include "tcore.h"
+ #include <stdio.h>
+ #include <stdlib.h>
 
 #include <dict.h>
-#include <testsuite.h>
-
+#
 #define MANY 500
 
-static void _init_tdict(void) __attribute__((constructor(300)));
-
 typedef struct _test_dict_ctx {
-  dict_t *dict;
-  char **keys;
-  int size;
+  dict_t  *dict;
+  char    *keybuf;
+  char   **keys;
+  int      size;
 } test_dict_ctx_t;
 
 test_dict_ctx_t * ctx_create(int num) {
-  test_t *test;
-  test_dict_ctx_t *ret;
-  dict_t *dict;
-  int ix;
-  char valbuf[10];
-  char **keys;
+  test_t           *test;
+  test_dict_ctx_t  *ret;
+  dict_t           *dict;
+  int               ix;
+  char              valbuf[10];
+  char             *keybuf;
+  char            **keys;
 
   mark_point();
   dict = dict_create((cmp_t) strcmp);
@@ -51,40 +49,38 @@ test_dict_ctx_t * ctx_create(int num) {
   dict_set_hash(dict, (hash_t) strhash);
   dict_set_free_key(dict, (visit_t) free);
   dict_set_free_data(dict, (visit_t) test_free);
-  keys = (char **) resize_ptrarray(NULL, MANY, 0);
+  keybuf = stralloc(num * 11);
+  keys = (char **) resize_ptrarray(NULL, num, 0);
   ck_assert_ptr_ne(keys, NULL);
   mark_point();
   for (ix = 0; ix < num; ix++) {
-    keys[ix] = malloc(11);
+    keys[ix] = keybuf + (ix * 11);
     strrand(keys[ix], 10);
     sprintf(valbuf, "%d", ix);
     test = test_create(valbuf);
     ck_assert_ptr_ne(test, NULL);
-    ck_assert_int_ne(dict_put(dict, strdup(keys[ix]), test), FALSE);
+    ck_assert_ptr_eq(dict_put(dict, strdup(keys[ix]), test), dict);
     ck_assert_int_eq(dict_size(dict), ix + 1);
   }
   ret = NEW(test_dict_ctx_t);
   ck_assert_ptr_ne(ret, NULL);
   ret -> dict = dict;
   ret -> keys = keys;
+  ret -> keybuf = keybuf;
   ret -> size = num;
   return ret;
 }
 
 void ctx_free(test_dict_ctx_t *ctx) {
-  int ix;
-
   dict_free(ctx -> dict);
-  for (ix = 0; ix < ctx -> size; ix++) {
-    free(ctx -> keys[ix]);
-  }
   free(ctx -> keys);
+  free(ctx -> keybuf);
   free(ctx);
 }
 
 START_TEST(test_dict_create)
   dict_t *dict;
-  
+
   dict = dict_create((cmp_t) strcmp);
   ck_assert_ptr_ne(dict, NULL);
   ck_assert_int_eq(dict_size(dict), 0);
@@ -94,7 +90,7 @@ END_TEST
 
 START_TEST(test_dict_put_one)
   dict_t *dict;
-  
+
   dict = dict_create((cmp_t) strcmp);
   ck_assert_ptr_ne(dict, NULL);
   ck_assert_int_eq(dict_size(dict), 0);
@@ -109,8 +105,8 @@ END_TEST
 
 START_TEST(test_dict_put_one_get_one)
   dict_t *dict;
-  void *d;
-  
+  void   *d;
+
   dict = dict_create((cmp_t) strcmp);
   ck_assert_ptr_ne(dict, NULL);
   ck_assert_int_eq(dict_size(dict), 0);
@@ -128,14 +124,12 @@ END_TEST
 
 START_TEST(test_dict_put_many)
   test_dict_ctx_t *ctx;
-  test_t *test;
-  dict_t *dict;
-  int ix;
-  char **keys;
+  test_t          *test;
+  int              ix;
 
   ctx = ctx_create(MANY);
   /* dict_dump(ctx -> dict); */
-  
+
   for (ix = 0; ix < ctx -> size; ix++) {
     mark_point();
     test = (test_t *) dict_get(ctx -> dict, ctx -> keys[ix]);
@@ -187,8 +181,6 @@ START_TEST(test_dict_remove)
     success = dict_remove(ctx -> dict, ctx -> keys[ix]);
     ck_assert_ptr_eq(success, ctx -> dict);
     ck_assert_int_eq(dict_size(ctx -> dict), ctx -> size - ix - 1);
-    success = dict_remove(ctx -> dict, ctx -> keys);
-    ck_assert_int_eq(success, FALSE);
   }
   ctx_free(ctx);
 END_TEST
@@ -215,9 +207,9 @@ int * test_dict_reducer(entry_t *entry, int *sum) {
 
 START_TEST(test_dict_visit_reduce)
   test_dict_ctx_t *ctx;
-  test_t *test;
-  int ix;
-  int sum;
+  test_t          *test;
+  int              ix;
+  int              sum;
 
   ctx = ctx_create(MANY);
   mark_point();
@@ -234,8 +226,40 @@ START_TEST(test_dict_visit_reduce)
   ctx_free(ctx);
 END_TEST
 
+START_TEST(test_dictiter)
+  test_dict_ctx_t *ctx;
+  test_t          *test;
+  dictiterator_t  *di;
+  int              sum;
+  int              ix;
+  entry_t         *entry;
+  int              num = MANY;
 
-static void _init_tdict(void) {
+  ctx = ctx_create(num);
+  mark_point();
+  for (di = di_create(ctx -> dict); di_has_next(di); ) {
+    entry = di_next(di);
+    test = (test_t *) entry -> value;
+    test -> flag = 1;
+  }
+  for (ix = 0; ix < ctx -> size; ix++) {
+    mark_point();
+    test = (test_t *) dict_get(ctx -> dict, ctx -> keys[ix]);
+    ck_assert_ptr_ne(test, NULL);
+    ck_assert_int_eq(test -> flag, 1);
+  }
+  sum = 0;
+  for (di_head(di); di_has_next(di); ) {
+    entry = di_next(di);
+    test = (test_t *) entry -> value;
+    sum += test -> flag;
+  }
+  ck_assert_int_eq(sum, num);
+  di_free(di);
+  ctx_free(ctx);
+END_TEST
+
+void dict_init(void) {
   TCase *tc = tcase_create("Dict");
 
   tcase_add_test(tc, test_dict_create);
@@ -246,5 +270,6 @@ static void _init_tdict(void) {
   tcase_add_test(tc, test_dict_has_key);
   tcase_add_test(tc, test_dict_remove);
   tcase_add_test(tc, test_dict_visit_reduce);
+  tcase_add_test(tc, test_dictiter);
   add_tcase(tc);
 }

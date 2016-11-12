@@ -7,7 +7,7 @@ add_library(
   testlib.c
 )
 
-add_executable(tcore tcore.c tlist.c tstr.c tresolve.c)
+add_executable(tcore tcore.c tlist.c tdict.c tstr.c tresolve.c)
 target_link_libraries(tcore obltest oblcore ${CHECK_LIBRARIES} ${SYSLIBS})
 install(TARGETS testlib tcore
         RUNTIME DESTINATION bin

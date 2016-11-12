@@ -22,6 +22,7 @@
 
 void init_suite(int argc, char **argv) {
   list_init();
+  dict_init();
   str_test_init();
   resolve_init(argv[0]);
 }
