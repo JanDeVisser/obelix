@@ -56,6 +56,13 @@ typedef struct _entry {
   void         *value;
 } entry_t;
 
+typedef struct _dictiterator {
+  dict_t  *dict;
+  int      current_bucket;
+  int      current_entry;
+  entry_t  current;
+} dictiterator_t;
+
 OBLCORE_IMPEXP void          entry_free(entry_t *e);
 
 OBLCORE_IMPEXP dict_t *      dict_create(cmp_t); /* No hash - Use key point mod something */
@@ -115,5 +122,17 @@ OBLCORE_IMPEXP struct _str * dict_dump(dict_t *, char *);
 #define dict_remove_int(d, i)   dict_remove((d), (void *)((intptr_t) (i)))
 #define dict_empty(d)           (dict_size((d)) == 0)
 #define dict_notempty(d)        (dict_size((d)) > 0)
+
+OBLCORE_IMPEXP dictiterator_t * di_create(dict_t *);
+OBLCORE_IMPEXP void             di_free(dictiterator_t *);
+OBLCORE_IMPEXP void             di_head(dictiterator_t *);
+OBLCORE_IMPEXP void             di_tail(dictiterator_t *);
+OBLCORE_IMPEXP entry_t *        di_current(dictiterator_t *);
+OBLCORE_IMPEXP int              di_has_next(dictiterator_t *);
+OBLCORE_IMPEXP int              di_has_prev(dictiterator_t *);
+OBLCORE_IMPEXP entry_t *        di_next(dictiterator_t *);
+OBLCORE_IMPEXP entry_t *        di_prev(dictiterator_t *);
+OBLCORE_IMPEXP int              di_atstart(dictiterator_t *);
+OBLCORE_IMPEXP int              di_atend(dictiterator_t *);
 
 #endif /* __DICT_H__ */
