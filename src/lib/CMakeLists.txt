@@ -6,6 +6,7 @@ set(SOURCES
     datalist.c
     datastack.c
     dict.c
+    dictionary.c
     exception.c
     file.c
     float.c

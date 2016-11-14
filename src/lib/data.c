@@ -936,6 +936,8 @@ data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
       }
       array_set(args, 1, data_copy(current));
       accum = data_call(reducer, args, NULL);
+      data_uncopy(data_array_get(args, 0));
+      data_uncopy(data_array_get(args, 1));
       if (data_is_unhandled_exception(accum)) {
         ret = data_copy(accum);
         break;
@@ -954,6 +956,52 @@ data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
   array_free(args);
   data_free(accum);
   data_free(current);
+  data_free(has_next);
+  data_free(iterator);
+  return ret;
+}
+
+data_t * data_reduce_with_fnc(data_t *iterable, reduce_t reduce, data_t *initial) {
+  data_t  *iterator = data_iter(iterable);
+  data_t  *has_next = NULL;
+  data_t  *current = NULL;
+  data_t  *accum = NULL;
+  data_t  *current_accum = NULL;
+  data_t  *ret = iterable;
+
+  if (data_is_unhandled_exception(iterator)) {
+    return iterator;
+  }
+  has_next = data_has_next(iterator);
+  if (data_is_unhandled_exception(has_next)) {
+    ret = data_copy(has_next);
+  } else {
+    current_accum = data_copy(initial);
+    while (data_intval(has_next)) {
+      current = data_next(iterator);
+      if (data_is_unhandled_exception(current)) {
+        ret = data_copy(current);
+        break;
+      }
+      accum = reduce(current, current_accum);
+      data_free(current);
+      data_free(current_accum);
+      if (data_is_unhandled_exception(accum)) {
+        ret = data_copy(accum);
+        break;
+      }
+      current_accum = accum;
+      data_free(has_next);
+      has_next = data_has_next(iterator);
+      if (data_is_unhandled_exception(has_next)) {
+        ret = data_copy(has_next);
+        break;
+      }
+      data_free(ret);
+      ret = data_copy(accum);
+    }
+  }
+  data_free(accum);
   data_free(has_next);
   data_free(iterator);
   return ret;

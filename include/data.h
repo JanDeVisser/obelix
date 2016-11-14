@@ -125,6 +125,7 @@ OBLCORE_IMPEXP data_t *            data_has_next(data_t *);
 OBLCORE_IMPEXP data_t *            data_next(data_t *);
 OBLCORE_IMPEXP data_t *            data_visit(data_t *, data_t *);
 OBLCORE_IMPEXP data_t *            data_reduce(data_t *, data_t *, data_t *);
+OBLCORE_IMPEXP data_t *            data_reduce_with_fnc(data_t *, reduce_t, data_t *);
 OBLCORE_IMPEXP data_t *            data_read(data_t *, char *, int);
 OBLCORE_IMPEXP data_t *            data_write(data_t *, char *, int);
 OBLCORE_IMPEXP data_t *            data_push(data_t *, data_t *);

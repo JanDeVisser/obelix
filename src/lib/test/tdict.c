@@ -259,6 +259,40 @@ START_TEST(test_dictiter)
   ctx_free(ctx);
 END_TEST
 
+START_TEST(test_dictiter_backwards)
+  test_dict_ctx_t *ctx;
+  test_t          *test;
+  dictiterator_t  *di;
+  int              sum;
+  int              ix;
+  entry_t         *entry;
+  int              num = MANY;
+
+  ctx = ctx_create(num);
+  mark_point();
+  di = di_create(ctx -> dict);
+  for (di_tail(di); di_has_prev(di); ) {
+    entry = di_prev(di);
+    test = (test_t *) entry -> value;
+    test -> flag = 1;
+  }
+  for (ix = 0; ix < ctx -> size; ix++) {
+    mark_point();
+    test = (test_t *) dict_get(ctx -> dict, ctx -> keys[ix]);
+    ck_assert_ptr_ne(test, NULL);
+    ck_assert_int_eq(test -> flag, 1);
+  }
+  sum = 0;
+  for (di_tail(di); di_has_prev(di); ) {
+    entry = di_prev(di);
+    test = (test_t *) entry -> value;
+    sum += test -> flag;
+  }
+  ck_assert_int_eq(sum, num);
+  di_free(di);
+  ctx_free(ctx);
+END_TEST
+
 void dict_init(void) {
   TCase *tc = tcase_create("Dict");
 
@@ -271,5 +305,6 @@ void dict_init(void) {
   tcase_add_test(tc, test_dict_remove);
   tcase_add_test(tc, test_dict_visit_reduce);
   tcase_add_test(tc, test_dictiter);
+  tcase_add_test(tc, test_dictiter_backwards);
   add_tcase(tc);
 }

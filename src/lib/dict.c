@@ -783,6 +783,8 @@ str_t * dict_dump(dict_t *dict, char *title) {
 
 static int _di_bucket_has_next(dictiterator_t *, int, int);
 static int _di_bucket_has_prev(dictiterator_t *, int, int);
+static int _di_bucket_next(dictiterator_t *, int *);
+static int _di_bucket_prev(dictiterator_t *, int *);
 
 int _di_bucket_has_next(dictiterator_t *di, int bucket, int entry) {
   return ((bucket >= 0) &&
@@ -797,6 +799,36 @@ int _di_bucket_has_prev(dictiterator_t *di, int bucket, int entry) {
           di -> dict -> buckets[bucket] -> size &&
           (entry > 0) &&
           (entry <= di -> dict -> buckets[bucket] -> size));
+}
+
+int _di_bucket_next(dictiterator_t *di, int *entry) {
+  int bucket;
+  int dummy;
+
+  if (!entry) {
+    entry = &dummy;
+  }
+  for (bucket = di -> current_bucket, *entry = di -> current_entry;
+       (bucket < di -> dict -> num_buckets) &&
+       !_di_bucket_has_next(di, bucket, *entry);
+       bucket++, *entry = -1);
+  return (bucket < di -> dict -> num_buckets) ? bucket : -1;
+}
+
+int _di_bucket_prev(dictiterator_t *di, int *entry) {
+  int bucket = di -> current_bucket;
+  int dummy;
+
+  if (!entry) {
+    entry = &dummy;
+  }
+  *entry = di -> current_entry;
+  while ((bucket >= 0) && !_di_bucket_has_prev(di, bucket, *entry)) {
+    if (--bucket >= 0) {
+      *entry = di -> dict -> buckets[bucket] -> size;
+    }
+  }
+  return bucket;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -846,58 +878,33 @@ entry_t * di_current(dictiterator_t *di) {
 }
 
 int di_has_next(dictiterator_t *di) {
-  int bucket;
-  int entry;
-
-  for (bucket = di -> current_bucket, entry = di -> current_entry;
-       (bucket < di -> dict -> num_buckets) &&
-       !_di_bucket_has_next(di, bucket, entry);
-       bucket++, entry = -1);
-  return bucket < di -> dict -> num_buckets;
+  return _di_bucket_next(di, NULL) >= 0;
 }
 
 int di_has_prev(dictiterator_t *di) {
-  int bucket = di -> current_bucket;
-  int entry = di -> current_entry;
-
-  while ((bucket >= 0) && !_di_bucket_has_prev(di, bucket, entry)) {
-    bucket--;
-    entry = di -> dict -> buckets[bucket] -> size;
-  }
-  return bucket >= 0;
+  return _di_bucket_prev(di, NULL) >= 0;
 }
 
 entry_t * di_next(dictiterator_t *di) {
-  int      bucket;
   int      entry;
+  int      bucket = _di_bucket_next(di, &entry);
   entry_t *ret = NULL;
 
-  for (bucket = di -> current_bucket, entry = di -> current_entry;
-       (bucket < di -> dict -> num_buckets) &&
-       !_di_bucket_has_next(di, bucket, entry);
-       bucket++, entry = -1) {
-  }
-  if (bucket < di -> dict -> num_buckets) {
+  if (bucket >= 0) {
     di -> current_bucket = bucket;
     di -> current_entry = ++entry;
     di -> current.key = di -> dict -> buckets[bucket] -> entries[entry].key;
     di -> current.value = di -> dict -> buckets[bucket] -> entries[entry].value;
     ret = &di -> current;
-  } else {
-
   }
   return ret;
 }
 
 entry_t * di_prev(dictiterator_t *di) {
-  int     bucket = di -> current_bucket;
-  int      entry = di -> current_entry;
+  int      entry;
+  int      bucket = _di_bucket_prev(di, &entry);
   entry_t *ret = NULL;
 
-  while ((bucket >= 0) && !_di_bucket_has_prev(di, bucket, entry)) {
-    bucket--;
-    entry = di -> dict -> buckets[bucket] -> size;
-  }
   if (bucket >= 0) {
     di -> current_bucket = bucket;
     di -> current_entry = --entry;
