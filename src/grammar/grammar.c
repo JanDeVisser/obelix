@@ -204,7 +204,7 @@ grammar_t * _grammar_dump_pre(ge_dump_ctx_t *ctx) {
 }
 
 grammar_t * _grammar_dump_post(ge_dump_ctx_t *ctx) {
-  printf("  assert(ge == grammar);\n"
+  printf("  assert(ge == (ge_t *) grammar);\n"
          "  grammar_analyze(grammar);\n"
          "  datastack_free(stack);\n"
          "  return grammar;\n"

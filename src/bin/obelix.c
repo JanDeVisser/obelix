@@ -24,14 +24,7 @@
 #include <data.h>
 #include <socket.h>
 #include <exception.h>
-#include <file.h>
-#include <lexer.h>
 #include <loader.h>
-#include <logging.h>
-#include <name.h>
-#include <namespace.h>
-#include <resolve.h>
-#include <script.h>
 
 #include "obelix.h"
 #include "server.h"
@@ -47,13 +40,13 @@ static data_t *    _obelix_run(data_t *, char *, array_t *, dict_t *);
 static void        _obelix_debug_settings(obelix_t *);
 static int         _obelix_cmdline(obelix_t *);
 
-static vtable_t _vtable_obelix[] = {
+static vtable_t _vtable_Obelix[] = {
   { .id = FunctionFree,         .fnc = (void_t) _obelix_free },
   { .id = FunctionStaticString, .fnc = (void_t) _obelix_tostring },
   { .id = FunctionNone,         .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_obelix[] = {
+static methoddescr_t _methods_Obelix[] = {
   { .type = Any,    .name = "obelix", .method = _obelix_get, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "run",    .method = _obelix_run, .argtypes = { String, Any, NoType },    .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
@@ -61,6 +54,7 @@ static methoddescr_t _methoddescr_obelix[] = {
 
        int       Obelix = -1;
 static obelix_t *_obelix;
+       int       obelix_debug;
 
 /* ------------------------------------------------------------------------ */
 
@@ -68,13 +62,10 @@ void _obelix_init(void) {
   int       ix;
 
   if (Obelix < 0) {
-    logging_register_category("script", &script_debug);
-    Obelix = typedescr_create_and_register(Obelix, "obelix",
-                                           _vtable_obelix, _methoddescr_obelix);
+    logging_register_category("obelix", &obelix_debug);
+    typedescr_register_with_methods(Obelix, obelix_t);
 
-    if (script_debug) {
-      debug("Creating obelix kernel");
-    }
+    debug(obelix, "Creating obelix kernel");
     _obelix = data_new(Obelix, obelix_t);
     _obelix -> options = data_array_create((int) ObelixOptionLAST);
     for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
@@ -134,7 +125,7 @@ void _obelix_debug_settings(obelix_t *obelix) {
   logging_reset();
   logging_set_level(obelix -> log_level);
   if (obelix -> debug) {
-    debug("debug optarg: %s", obelix -> debug);
+    debug(obelix, "debug optarg: %s", obelix -> debug);
     cats = array_split(obelix -> debug, ",");
     for (ix = 0; ix < array_size(cats); ix++) {
       logging_enable(str_array_get(cats, ix));
@@ -186,9 +177,7 @@ obelix_t * obelix_initialize(int argc, char **argv) {
   int ix;
 
   _obelix_init();
-  if (script_debug) {
-    debug("Initialize obelix kernel");
-  }
+  debug(obelix, "Initialize obelix kernel");
   _obelix -> argc = argc;
   _obelix -> argv = argv;
   while ((opt = getopt(argc, argv, "s:g:d:p:v:ltS")) != -1) {
@@ -304,16 +293,12 @@ data_t * obelix_run(obelix_t *obelix, name_t *name, array_t *args, dict_t *kwarg
 
   loader = obelix_create_loader(obelix);
   if (loader) {
-    if (script_debug) {
-      debug("obelix_run %s(%s, %s)",
-            name_tostring(name),
-            (args) ? array_tostring(args) : "[]",
-            (kwargs) ? dict_tostring(kwargs) : "{}");
-    }
+    debug(obelix, "obelix_run %s(%s, %s)",
+          name_tostring(name),
+          (args) ? array_tostring(args) : "[]",
+          (kwargs) ? dict_tostring(kwargs) : "{}");
     ret = scriptloader_run(loader, name, args, kwargs);
-    if (script_debug) {
-      debug("Exiting with exit code %s [%s]", data_tostring(ret), data_typename(ret));
-    }
+    debug(obelix, "Exiting with exit code %s [%s]", data_tostring(ret), data_typename(ret));
     if ((ex = data_as_exception(ret)) && (ex -> code == ErrorExit)) {
       ret = data_copy(ex -> throwable);
       exception_free(ex);

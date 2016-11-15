@@ -18,20 +18,14 @@
  */
 
 #include <ctype.h>
-#include <errno.h>
 #include <string.h>
 
-#include <bytecode.h>
 #include <exception.h>
 #include <function.h>
 #include <loader.h>
-#include <namespace.h>
-#include <nvp.h>
-#include <script.h>
-#include <scriptparse.h>
-#include <vm.h>
 
-#include "instruction.h"
+#include "obelix.h"
+#include "scriptparse.h"
 
 static inline void  _script_parse_create_statics(void);
 static data_t *     _script_parse_gen_label(void);
@@ -129,7 +123,7 @@ parser_t * _script_parse_epilog(parser_t *parser) {
     datastack_push(bytecode -> pending_labels, data_copy(data_end));
     script_parse_nop(parser);
   }
-  if (script_debug || _script_parse_get_option(parser, ObelixOptionList)) {
+  if (obelix_debug || _script_parse_get_option(parser, ObelixOptionList)) {
     bytecode_list(bytecode);
   }
   return parser;
@@ -153,17 +147,13 @@ __DLL_EXPORT__ parser_t * script_parse_init(parser_t *parser) {
   script_t   *script;
 
   _script_parse_create_statics();
-  if (parser_debug) {
-    debug("script_parse_init");
-  }
+  debug(obelix, "script_parse_init");
   data = parser_get(parser, "name");
   name = data_tostring(data);
   data = parser_get(parser, "module");
   assert(data);
   mod = data_as_module(data);
-  if (script_debug) {
-    debug("Parsing module '%s'", name_tostring(mod -> name));
-  }
+  debug(obelix, "Parsing module '%s'", name_tostring(mod -> name));
   script = script_create((data_t *) mod, name);
   parser_set(parser, "script", (data_t *) script_copy(script));
   parser -> data = script -> bytecode;
@@ -172,9 +162,7 @@ __DLL_EXPORT__ parser_t * script_parse_init(parser_t *parser) {
 }
 
 __DLL_EXPORT__ parser_t * script_parse_done(parser_t *parser) {
-  if (parser_debug) {
-    debug("script_parse_done");
-  }
+  debug(obelix, "script_parse_done");
   return _script_parse_epilog(parser);
 }
 
@@ -197,9 +185,7 @@ __DLL_EXPORT__ parser_t * script_make_nvp(parser_t *parser) {
   assert(data);
   name = datastack_pop(parser -> stack);
   assert(name);
-  if (parser_debug) {
-    debug(" -- %s = %s", data_tostring(name), data_tostring(data));
-  }
+  debug(obelix, " -- %s = %s", data_tostring(name), data_tostring(data));
   datastack_push(parser -> stack, (data_t *) nvp_create(name, data));
   data_free(name);
   data_free(data);
@@ -345,9 +331,7 @@ __DLL_EXPORT__ parser_t * script_parse_push_token(parser_t *parser) {
 
   data = token_todata(parser -> last_token);
   assert(data);
-  if (parser_debug) {
-    debug(" -- val: %s", data_tostring(data));
-  }
+  debug(obelix, " -- val: %s", data_tostring(data));
   push_instruction(parser, instruction_create_pushval(data));
   data_free(data);
   return parser;
@@ -358,9 +342,7 @@ __DLL_EXPORT__ parser_t * script_parse_pushval_from_stack(parser_t *parser) {
 
   data = datastack_pop(parser -> stack);
   assert(data);
-  if (parser_debug) {
-    debug(" -- val: %s", data_tostring(data));
-  }
+  debug(obelix, " -- val: %s", data_tostring(data));
   push_instruction(parser, instruction_create_pushval(data));
   data_free(data);
   return parser;
@@ -376,9 +358,7 @@ __DLL_EXPORT__ parser_t * script_parse_pushconst(parser_t *parser, data_t *const
 
   data = data_decode(data_tostring(constval));
   assert(data);
-  if (parser_debug) {
-    debug(" -- val: %s", data_tostring(data));
-  }
+  debug(obelix, " -- val: %s", data_tostring(data));
   push_instruction(parser, instruction_create_pushval(data));
   data_free(data);
   return parser;
@@ -392,13 +372,9 @@ __DLL_EXPORT__ parser_t *script_parse_push_signed_val(parser_t *parser) {
   data = token_todata(parser -> last_token);
   assert(data);
   op = _script_parse_pop_operation(parser);
-  if (parser_debug) {
-    debug(" -- val: %s %s", name_tostring(op), data_tostring(data));
-  }
+  debug(obelix, " -- val: %s %s", name_tostring(op), data_tostring(data));
   signed_val = data_invoke(data, op, NULL, NULL);
-  if (parser_debug) {
-    debug(" -- signed_val: %s", data_tostring(signed_val));
-  }
+  debug(obelix, " -- signed_val: %s", data_tostring(signed_val));
   name_free(op);
   assert(data_type(signed_val) == data_type(data));
   push_instruction(parser, instruction_create_pushval(signed_val));
@@ -438,9 +414,7 @@ __DLL_EXPORT__ parser_t * script_parse_call_op(parser_t *parser) {
 }
 
 __DLL_EXPORT__ parser_t * script_parse_jump(parser_t *parser, data_t *label) {
-  if (parser_debug) {
-    debug(" -- label: %s", data_tostring(label));
-  }
+  debug(obelix, " -- label: %s", data_tostring(label));
   push_instruction(parser, instruction_create_jump(data_copy(label)));
   return parser;
 }
@@ -474,9 +448,7 @@ __DLL_EXPORT__ parser_t * script_parse_reduce(parser_t *parser) {
 __DLL_EXPORT__ parser_t * script_parse_comprehension(parser_t *parser) {
   bytecode_t *bytecode = (bytecode_t *) parser -> data;
 
-  if (parser_debug) {
-    debug(" -- Comprehension");
-  }
+  debug(obelix, " -- Comprehension");
   /*
    * Paste in the deferred generator expression:
    */
@@ -513,13 +485,9 @@ __DLL_EXPORT__ parser_t * script_parse_comprehension(parser_t *parser) {
 __DLL_EXPORT__ parser_t * script_parse_where(parser_t *parser) {
   data_t *label;
 
-  if (parser_debug) {
-    debug(" -- Comprehension Where");
-  }
+  debug(obelix, " -- Comprehension Where");
   label = data_copy(datastack_peek_deep(parser -> stack, 1));
-  if (parser_debug) {
-    debug(" -- 'next' label: %s", data_tostring(label));
-  }
+  debug(obelix, " -- 'next' label: %s", data_tostring(label));
   push_instruction(parser, instruction_create_test(label));
   return parser;
 }
@@ -536,9 +504,7 @@ __DLL_EXPORT__ parser_t * script_parse_func_call(parser_t *parser) {
     flags |= CFVarargs;
   } else {
     arg_count = datastack_count(parser -> stack);
-    if (parser_debug) {
-      debug(" -- arg_count: %d", arg_count);
-    }
+    debug(obelix, " -- arg_count: %d", arg_count);
   }
   if (is_constr && data_intval(is_constr)) {
     flags |= CFConstructor;
@@ -589,9 +555,7 @@ __DLL_EXPORT__ parser_t * script_parse_start_loop(parser_t *parser) {
   data_t     *label = _script_parse_gen_label();
 
   bytecode = (bytecode_t *) parser -> data;
-  if (parser_debug) {
-    debug(" -- loop   jumpback label %s--", data_tostring(label));
-  }
+  debug(obelix, " -- loop   jumpback label %s--", data_tostring(label));
   datastack_push(bytecode -> pending_labels, data_copy(label));
   datastack_push(parser -> stack, data_copy(label));
   return parser;
@@ -609,18 +573,14 @@ __DLL_EXPORT__ parser_t * script_parse_end_loop(parser_t *parser) {
    * label to be set at the end of the loop:
    */
   block_label = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- end loop label: %s", data_tostring(block_label));
-  }
+  debug(obelix, " -- end loop label: %s", data_tostring(block_label));
 
   /*
    * Second label: The one pushed after the while/for statement. This is the one
    * we have to jump back to:
    */
   label = datastack_pop(parser -> stack);
-  if (parser_debug) {
-    debug(" -- end loop jump back label: %s", data_tostring(label));
-  }
+  debug(obelix, " -- end loop jump back label: %s", data_tostring(label));
   push_instruction(parser, instruction_create_EndLoop(data_tostring(label), NULL));
   datastack_push(bytecode -> pending_labels, block_label);
   return parser;
@@ -641,9 +601,7 @@ __DLL_EXPORT__ parser_t * script_parse_continue(parser_t *parser) {
 __DLL_EXPORT__ parser_t * script_parse_if(parser_t *parser) {
   data_t *endlabel = _script_parse_gen_label();
 
-  if (parser_debug) {
-    debug(" -- if     endlabel %s--", data_tostring(endlabel));
-  }
+  debug(obelix, " -- if     endlabel %s--", data_tostring(endlabel));
   datastack_push(parser -> stack, data_copy(endlabel));
   data_free(endlabel);
   return parser;
@@ -652,9 +610,7 @@ __DLL_EXPORT__ parser_t * script_parse_if(parser_t *parser) {
 __DLL_EXPORT__ parser_t * script_parse_test(parser_t *parser) {
   data_t *elselabel = _script_parse_gen_label();
 
-  if (parser_debug) {
-    debug(" -- test   elselabel %s--", data_tostring(elselabel));
-  }
+  debug(obelix, " -- test   elselabel %s--", data_tostring(elselabel));
   datastack_push(parser -> stack, data_copy(elselabel));
   push_instruction(parser, instruction_create_test(elselabel));
   data_free(elselabel);
@@ -666,10 +622,8 @@ __DLL_EXPORT__ parser_t * script_parse_elif(parser_t *parser) {
   data_t     *elselabel = datastack_pop(parser -> stack);
   data_t     *endlabel = data_copy(datastack_peek(parser -> stack));
 
-  if (parser_debug) {
-    debug(" -- elif   elselabel: '%s' endlabel '%s'",
-          data_tostring(elselabel), data_tostring(endlabel));
-  }
+  debug(obelix, " -- elif   elselabel: '%s' endlabel '%s'",
+        data_tostring(elselabel), data_tostring(endlabel));
   push_instruction(parser, instruction_create_jump(endlabel));
   datastack_push(bytecode -> pending_labels, data_copy(elselabel));
   data_free(elselabel);
@@ -682,11 +636,9 @@ __DLL_EXPORT__ parser_t * script_parse_else(parser_t *parser) {
   data_t     *elselabel = datastack_pop(parser -> stack);
   data_t     *endlabel = data_copy(datastack_peek(parser -> stack));
 
-  if (parser_debug) {
-    debug(" -- else   elselabel: '%s' endlabel: '%s'",
-          data_tostring(elselabel),
-          data_tostring(endlabel));
-  }
+  debug(obelix, " -- else   elselabel: '%s' endlabel: '%s'",
+        data_tostring(elselabel),
+        data_tostring(endlabel));
   push_instruction(parser, instruction_create_jump(endlabel));
   datastack_push(bytecode -> pending_labels, data_copy(elselabel));
   datastack_push(parser -> stack, data_copy(endlabel));
@@ -700,11 +652,9 @@ __DLL_EXPORT__ parser_t * script_parse_end_conditional(parser_t *parser) {
   data_t     *elselabel = datastack_pop(parser -> stack);
   data_t     *endlabel = datastack_pop(parser -> stack);
 
-  if (parser_debug) {
-    debug(" -- end    elselabel: '%s' endlabel: '%s'",
-          data_tostring(elselabel),
-          data_tostring(endlabel));
-  }
+  debug(obelix, " -- end    elselabel: '%s' endlabel: '%s'",
+        data_tostring(elselabel),
+        data_tostring(endlabel));
   datastack_push(bytecode -> pending_labels, data_copy(elselabel));
   datastack_push(bytecode -> pending_labels, data_copy(endlabel));
   data_free(elselabel);
@@ -737,10 +687,8 @@ __DLL_EXPORT__ parser_t * script_parse_case_prolog(parser_t *parser) {
    * Initialize counter for the number of cases in this sequence:
    */
   datastack_new_counter(parser -> stack);
-  if (parser_debug) {
-    debug(" -- elif   elselabel: '%s' endlabel '%s'",
-          data_tostring(elselabel), data_tostring(endlabel));
-  }
+  debug(obelix, " -- elif   elselabel: '%s' endlabel '%s'",
+        data_tostring(elselabel), data_tostring(endlabel));
   if (count) {
     elselabel = datastack_pop(parser -> stack);
     endlabel = data_copy(datastack_peek(parser -> stack));
@@ -804,9 +752,7 @@ __DLL_EXPORT__ parser_t * script_parse_start_function(parser_t *parser) {
                func -> params);
   free(fname);
   data_free(params);
-  if (parser_debug) {
-    debug(" -- defining function %s", name_tostring(func -> name));
-  }
+  debug(obelix, " -- defining function %s", name_tostring(func -> name));
   parser -> data = func -> bytecode;
   _script_parse_prolog(parser);
   return parser;
@@ -872,9 +818,7 @@ __DLL_EXPORT__ parser_t * script_parse_native_function(parser_t *parser) {
                (reduce_t) data_add_strings_reducer,
                func -> params);
   dict_put(script -> functions, fname, func);
-  if (parser_debug) {
-    debug(" -- defined native function %s", function_tostring(func));
-  }
+  debug(obelix, " -- defined native function %s", function_tostring(func));
   data_free(params);
   return ret;
 }
@@ -905,9 +849,7 @@ __DLL_EXPORT__ parser_t * script_parse_start_lambda(parser_t *parser) {
                (reduce_t) data_add_strings_reducer,
                func -> params);
   data_free(params);
-  if (parser_debug) {
-    debug(" -- defining lambda %s", name_tostring(func -> name));
-  }
+  debug(obelix, " -- defining lambda %s", name_tostring(func -> name));
   parser -> data = func -> bytecode;
   _script_parse_prolog(parser);
   return parser;
@@ -917,9 +859,7 @@ __DLL_EXPORT__ parser_t * script_parse_end_lambda(parser_t *parser) {
   bytecode_t *bytecode = (bytecode_t *) parser -> data;
   script_t   *func = data_as_script(bytecode -> owner);
 
-  if (parser_debug) {
-    debug(" -- end lambda %s", name_tostring(func -> name));
-  }
+  debug(obelix, " -- end lambda %s", name_tostring(func -> name));
   _script_parse_epilog(parser);
   parser -> data = func -> up -> bytecode;
   push_instruction(parser, instruction_create_pushval(bytecode -> owner));

@@ -37,7 +37,7 @@ static scanner_config_t * _scanner_config_set(scanner_config_t *, char *, data_t
 static data_t *           _scanner_config_call(scanner_config_t *, array_t *, dict_t *);
 static scanner_config_t * _scanner_config_setstring(scanner_config_t *, char *);
 
-static vtable_t _vtable_scanner_config[] = {
+static vtable_t _vtable_ScannerConfig[] = {
   { .id = FunctionNew,          .fnc = (void_t) _scanner_config_new },
   { .id = FunctionFree,         .fnc = (void_t) _scanner_config_free },
   { .id = FunctionAllocString,  .fnc = (void_t) _scanner_config_allocstring },
@@ -55,10 +55,7 @@ static mutex_t * _scanner_config_mutex;
 
 void _scanner_config_init(void) {
   if (ScannerConfig < 0) {
-    ScannerConfig = typedescr_create_and_register(ScannerConfig,
-                                                  "scanner_config",
-                                                  _vtable_scanner_config,
-                                                  NULL);
+    typedescr_register(ScannerConfig, scanner_config_t);
     _scanners_configs = dict_create(NULL);
     dict_set_key_type(_scanners_configs, type_str);
     dict_set_data_type(_scanners_configs, type_int);

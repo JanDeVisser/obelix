@@ -246,13 +246,13 @@ kw_config_t * _kw_config_dump_tostream(kw_config_t *config, FILE *stream) {
   debug(lexer, "_kw_config_dump_tostream");
   if (config -> num_keywords > 0) {
     fprintf(stream, "  { /* Configure keyword scanner with keywords */\n");
-    fprintf(stream, "    token_t *token\n\n");
+    fprintf(stream, "    token_t *token;\n\n");
     for (ix = 0; ix < config -> num_keywords; ix++) {
       t = config -> keywords[ix];
       escaped = c_escape(token_token(t));
       fprintf(stream, "    token = token_create(%d, \"%s\");\n", token_code(t), escaped);
       free(escaped);
-      fprintf(stream, "    scanner_config_setvalue(scanner_config, \"" PARAM_KEYWORD "\", token);\n");
+      fprintf(stream, "    scanner_config_setvalue(scanner_config, \"" PARAM_KEYWORD "\", (data_t *) token);\n");
       fprintf(stream, "    token_free(token);\n");
     }
     fprintf(stream, "  }\n");

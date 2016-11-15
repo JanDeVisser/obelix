@@ -55,6 +55,7 @@ extern long                obelix_get_option(obelix_t *, obelix_option_t);
 extern data_t *            obelix_run(obelix_t *, name_t *, array_t *, dict_t *);
 
 extern int Obelix;
+extern int obelix_debug;
 
 #define data_is_obelix(d)  ((d) && data_hastype((d), Obelix))
 #define data_as_obelix(d)  (data_is_obelix((d)) ? ((obelix_t *) (d)) : NULL)

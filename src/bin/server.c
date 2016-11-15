@@ -51,7 +51,7 @@ static int           _oblserver_run(oblserver_t *, char *);
 static int           _oblserver_detach(oblserver_t *, char *);
 static int           _oblserver_quit(oblserver_t *, char *);
 
-static vtable_t _vtable_oblserver[] = {
+static vtable_t _vtable_Server[] = {
   { .id = FunctionFree,         .fnc = (void_t) _oblserver_free },
   { .id = FunctionResolve,      .fnc = (void_t) _oblserver_resolve },
   { .id = FunctionStaticString, .fnc = (void_t) _oblserver_tostring },
@@ -88,8 +88,7 @@ static code_label_t _server_codes[] = {
 
 void _oblserver_init(void) {
   if (Server < 0) {
-    Server = typedescr_create_and_register(Server, "server", 
-                                           _vtable_oblserver, NULL);
+    typedescr_register(Server, oblserver_t);
   }
 }
 
@@ -118,9 +117,7 @@ data_t * _oblserver_resolve(oblserver_t *server, char *name) {
 
 oblserver_t * _oblserver_return_error(oblserver_t *server, char *code, 
                                       data_t *param) {
-  if (script_debug) {
-    debug("Returning error %s %s", code, param);
-  }
+  debug(obelix, "Returning error %s %s", code, param);
   stream_printf(server -> stream, "${0;s} ${1}", code, param);
   return server;
 }
@@ -131,9 +128,7 @@ oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
   char        *str;
   oblserver_t *ret;
 
-  if (script_debug) {
-    debug("Returning %s [%s]", data_tostring(result), data_typename(result));
-  }
+  debug(obelix, "Returning %s [%s]", data_tostring(result), data_typename(result));
   if (data_is_exception(result)) {
     ex = data_as_exception(result);
     switch (ex -> code) {
@@ -184,7 +179,7 @@ int _oblserver_path(oblserver_t *server, char *path) {
   array_t *loadpath = array_split(path, ":");
   
   _oblserver_create_loader(server);
-  debug("Adding '%s' to load path", path);
+  debug(obelix, "Adding '%s' to load path", path);
   scriptloader_extend_loadpath(server -> loader, loadpath);
   array_free(loadpath);
   return 0;
@@ -198,9 +193,7 @@ int _oblserver_run(oblserver_t *server, char *cmd) {
   data_t      *ret;
   
   _oblserver_create_loader(server);
-  if (script_debug) {
-    debug("Executing '%s'", cmd);
-  }
+  debug(obelix, "Executing '%s'", cmd);
   line = array_split(cmd, " ");
   if (array_size(line)) {
     script = str_array_get(line, 0);
@@ -219,9 +212,7 @@ int _oblserver_eval(oblserver_t *server, char *script) {
   data_t  *dscript;
   
   _oblserver_create_loader(server);
-  if (script_debug) {
-    debug("Evaluating '%s'", script);
-  }
+  debug(obelix, "Evaluating '%s'", script);
   ret = scriptloader_eval(server -> loader, dscript = (data_t *) str_wrap(script));
   _oblserver_return_result(server, ret);
   data_free(ret);
@@ -291,9 +282,7 @@ oblserver_t * oblserver_create(obelix_t *obelix, stream_t *stream) {
   oblserver_t *ret;
 
   _oblserver_init();
-  if (script_debug) {
-    debug("Creating server using stream '%s'", stream_tostring(stream));
-  }
+  debug(obelix, "Creating server using stream '%s'", stream_tostring(stream));
   ret = data_new(Server, oblserver_t);
   ret -> obelix = obelix_copy(obelix);
   ret -> stream = stream_copy(stream);
@@ -310,7 +299,7 @@ oblserver_t * oblserver_run(oblserver_t *server) {
   char                 *msg = OBLSERVER_READY;
 
   while (cmd && (ret >= 0)) {
-    debug("Command: '%s'", cmd);
+    debug(obelix, "Command: '%s'", cmd);
     msg = NULL;
     for (handler = _cmd_handlers; handler -> cmd; handler++) {
       len = strlen(handler -> cmd);

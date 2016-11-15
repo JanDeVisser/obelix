@@ -25,9 +25,8 @@
 #include <core.h>
 #include <grammar.h>
 #include <name.h>
-#include <namespace.h>
 #include <parser.h>
-#include <script.h>
+#include <vm.h>
 
 #define COOKIE_SZ       33
 
