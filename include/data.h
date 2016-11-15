@@ -213,7 +213,7 @@ OBLCORE_IMPEXP type_t *        type_data;
 #define data_list_pop(l)       (data_t *) list_pop((l))
 #define data_list_shift(l)     (data_t *) list_shift((l))
 
-#define data_set_create()      (set_set_type(list_create(NULL), type_data))
+#define data_set_create()      (set_set_type(set_create(NULL), type_data))
 \
 #ifdef  __cplusplus
 }

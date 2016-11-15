@@ -157,7 +157,7 @@ OBLCORE_IMPEXP void            vtable_dump(vtable_t *);
 OBLCORE_IMPEXP void_t          vtable_get(vtable_t *, int);
 OBLCORE_IMPEXP int             vtable_implements(vtable_t *, int);
 
-OBLCORE_IMPEXP int             typedescr_register(typedescr_t *);
+OBLCORE_IMPEXP int             _typedescr_register(typedescr_t *);
 OBLCORE_IMPEXP int             typedescr_register_type(typedescr_t *, methoddescr_t *);
 OBLCORE_IMPEXP void            typedescr_register_types(typedescr_t *);
 OBLCORE_IMPEXP int             typedescr_create_and_register(int, char *, vtable_t *, methoddescr_t *);
@@ -193,6 +193,14 @@ OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
 #define method_copy(s)         ((methoddescr_t *) data_copy((data_t *) (s)))
 
 #define typedescr_set_size(d, t)    (typedescr_get((d)) -> size = sizeof(t))
+
+#define typedescr_register(t, type)     \
+    t = typedescr_create_and_register(t, #t , _vtable_ ## t, NULL);  \
+    typedescr_set_size(t, type);
+
+#define typedescr_register_with_methods(t, type)     \
+    t = typedescr_create_and_register(t, #t , _vtable_ ## t, _methods_ ## t);  \
+    typedescr_set_size(t, type);
 
 #ifdef  __cplusplus
 }

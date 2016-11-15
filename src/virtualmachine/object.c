@@ -17,24 +17,18 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <string.h>
-
-#include <boundmethod.h>
-#include <closure.h>
-#include <exception.h>
-#include <logging.h>
-#include <object.h>
-#include <script.h>
+#include "libvm.h"
 
 static inline void   _object_init(void);
-extern void          _object_free(object_t *);
-extern char *        _object_allocstring(object_t *);
+
+static object_t *    _object_new(object_t *, va_list);
+static void          _object_free(object_t *);
+static char *        _object_allocstring(object_t *);
 static data_t *      _object_cast(object_t *, int);
 static int           _object_len(object_t *);
 
-static data_t *      _object_create(data_t *, char *, array_t *, dict_t *);
-static data_t *      _object_new(data_t *, char *, array_t *, dict_t *);
+static data_t *      _object_mth_create(data_t *, char *, array_t *, dict_t *);
+static data_t *      _object_mth_new(data_t *, char *, array_t *, dict_t *);
 
 static data_t *      _object_get(object_t *, char *);
 static data_t *      _object_call_attribute(object_t *, char *, array_t *, dict_t *);
@@ -43,6 +37,7 @@ static object_t *    _object_set_all_reducer(entry_t *, object_t *);
   /* ----------------------------------------------------------------------- */
 
 static vtable_t _vtable_object[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _object_new },
   { .id = FunctionCmp,         .fnc = (void_t) object_cmp },
   { .id = FunctionCast,        .fnc = (void_t) _object_cast },
   { .id = FunctionFree,        .fnc = (void_t) _object_free },
@@ -58,25 +53,56 @@ static vtable_t _vtable_object[] = {
 };
 
 static methoddescr_t _methoddescr_object[] = {
-  { .type = Any,    .name = "object", .method = _object_create, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
-  { .type = Any,    .name = "new",    .method = _object_new,    .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
-  { .type = NoType, .name = NULL,     .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = Any,    .name = "object", .method = _object_mth_create, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
+  { .type = Any,    .name = "new",    .method = _object_mth_new,    .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
+  { .type = NoType, .name = NULL,     .method = NULL,               .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 int Object = -1;
-int obj_debug = 0;
+int object_debug = 0;
 
 /* ----------------------------------------------------------------------- */
 
 void _object_init(void) {
   if (Object < 0) {
-    logging_register_category("object", &obj_debug);
-    Object = typedescr_create_and_register(Object, "object",
-                                           _vtable_object, _methoddescr_object);
+    logging_register_category("object", &object_debug);
+    Object = typedescr_create_and_register(
+      Object, "object", _vtable_object, _methoddescr_object);
+    typedescr_set_size(Object, object_t);
   }
 }
 
 /* ----------------------------------------------------------------------- */
+
+object_t * _object_new(object_t *obj, va_list args) {
+  data_t         *constructor = va_arg(args, data_t *);
+  object_t       *constructor_obj = NULL;
+  data_t         *c = NULL;
+  bound_method_t *bm;
+  dict_t         *tmpl = NULL;
+
+  obj -> constructing = FALSE;
+  obj -> variables = strdata_dict_create();
+  obj -> ptr = NULL;
+  if (data_is_script(constructor)) {
+    bm = script_bind(data_as_script(constructor), obj);
+    c = (data_t *) bound_method_copy(bm);
+    tmpl = data_as_script(constructor) -> functions;
+  } else if (data_is_object(constructor)) {
+    constructor_obj = data_as_object(constructor);
+    bm = data_as_bound_method(constructor_obj -> constructor);
+    if (bm) {
+      bm = script_bind(bm -> script, obj);
+      c = (data_t *) bound_method_copy(bm);
+    }
+    tmpl = constructor_obj -> variables;
+  }
+  obj -> constructor = c;
+  if (tmpl) {
+    dict_reduce(tmpl, (reduce_t) _object_set_all_reducer, obj);
+  }
+  return obj;
+}
 
 void _object_free(object_t *object) {
   if (object) {
@@ -128,25 +154,23 @@ int _object_len(object_t *obj) {
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _object_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _object_mth_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   object_t *obj;
 
   (void) self;
   (void) name;
   _object_init();
-  obj = object_create(NULL);
+  obj = (object_t *) data_create(Object, NULL);
   dict_reduce(kwargs, (reduce_t) _object_set_all_reducer, obj);
   return (data_t *) obj;
 }
 
-data_t * _object_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs) {
+data_t * _object_mth_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs) {
   data_t      *ret;
   name_t      *name = NULL;
   data_t      *n;
   script_t    *script = NULL;
   array_t     *shifted;
-  object_t    *obj;
-  typedescr_t *type;
 
   (void) fncname;
   _object_init();
@@ -219,35 +243,8 @@ object_t * _object_set_all_reducer(entry_t *e, object_t *object) {
 /* ----------------------------------------------------------------------- */
 
 object_t * object_create(data_t *constructor) {
-  object_t       *ret;
-  object_t       *obj = NULL;
-  data_t         *c = NULL;
-  bound_method_t *bm;
-  dict_t         *tmpl = NULL;
-
   _object_init();
-  ret = data_new(Object, object_t);
-  ret -> constructing = FALSE;
-  ret -> variables = strdata_dict_create();
-  ret -> ptr = NULL;
-  if (data_is_script(constructor)) {
-    bm = script_bind(data_as_script(constructor), ret);
-    c = (data_t *) bound_method_copy(bm);
-    tmpl = data_as_script(constructor) -> functions;
-  } else if (data_is_object(constructor)) {
-    obj = data_as_object(constructor);
-    bm = data_as_bound_method(obj -> constructor);
-    if (bm) {
-      bm = script_bind(bm -> script, ret);
-      c = (data_t *) bound_method_copy(bm);
-    }
-    tmpl = obj -> variables;
-  }
-  ret -> constructor = c;
-  if (tmpl) {
-    dict_reduce(tmpl, (reduce_t) _object_set_all_reducer, ret);
-  }
-  return ret;
+  return (object_t *) data_create(Object, constructor);
 }
 
 object_t * object_bind_all(object_t *object, data_t *template) {
@@ -296,20 +293,16 @@ data_t * object_set(object_t *object, char *name, data_t *value) {
     value = (data_t *) bound_method_copy(bm);
   }
   dict_put(object -> variables, strdup(name), data_copy(value));
-  if (obj_debug) {
-    debug("   object_set('%s') -> variables = %s",
-          object -> constructor ? data_tostring(object -> constructor) : "anon",
-          dict_tostring(object -> variables));
-  }
+  debug(object, "   object_set('%s') -> variables = %s",
+        object -> constructor ? data_tostring(object -> constructor) : "anon",
+        dict_tostring(object -> variables));
   return value;
 }
 
 int object_has(object_t *object, char *name) {
   int ret;
   ret = dict_has_key(object -> variables, name);
-  if (obj_debug) {
-    debug("   object_has('%s', '%s'): %d", object_debugstr(object), name, ret);
-  }
+  debug(object, "   object_has('%s', '%s'): %d", object_debugstr(object), name, ret);
   return ret;
 }
 

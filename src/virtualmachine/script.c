@@ -17,36 +17,22 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-
-#include <boundmethod.h>
-#include <closure.h>
-#include <exception.h>
-#include <logging.h>
-#include <namespace.h>
-#include <script.h>
-#include <str.h>
-#include <stacktrace.h>
-#include <thread.h>
-#include <wrapper.h>
+#include "libvm.h"
 
 static inline void _script_init(void);
 
-static script_t *  _script_set_instructions(script_t *, list_t *);
-static void        _script_list_block(list_t *);
-
+static script_t *  _script_new(script_t *, va_list);
 static void        _script_free(script_t *);
 static char *      _script_tostring(script_t *);
 
 /* -- data_t type description structures ---------------------------------- */
 
-static vtable_t _vtable_script[] = {
+static vtable_t _vtable_Script[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _script_new },
   { .id = FunctionCmp,      .fnc = (void_t) script_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _script_free },
   { .id = FunctionToString, .fnc = (void_t) _script_tostring },
+  { .id = FunctionHash,     .fnc = (void_t) script_hash },
   { .id = FunctionCall,     .fnc = (void_t) script_execute },
   { .id = FunctionNone,     .fnc = NULL }
 };
@@ -59,11 +45,47 @@ int script_debug = 0;
 void _script_init(void) {
   if (Script < 0) {
     logging_register_category("script", &script_debug);
-    Script = typedescr_create_and_register(Script, "script", _vtable_script, NULL);
+    typedescr_register(Script, script_t);
   }
 }
 
 /* -- S C R I P T  S T A T I C  F U N C T I O N S  ------------------------ */
+
+script_t * _script_new(script_t *script, va_list args) {
+  data_t   *enclosing = va_arg(args, data_t *);
+  char     *name = va_arg(args, char *);
+  module_t *mod;
+  script_t *up = NULL;
+  char      anon[40];
+
+  if (!name) {
+    (size_t) snprintf(anon, 40, "__anon__%d__", hashptr(script));
+    name = anon;
+  }
+
+  debug(script, "Creating script '%s'", name);
+  if (data_is_module(enclosing)) {
+    mod = (module_t *) enclosing;
+    script -> name = name_create(0);
+  } else if (data_is_script(enclosing)) {
+    up = (script_t *) enclosing;
+    dict_put(up -> functions, strdup(name), script_copy(script));
+    mod = up -> mod;
+    script -> name = name_deepcopy(up -> name);
+    name_extend(script -> name, name);
+  }
+  assert(mod);
+  script -> up = script_copy(up);
+  script -> mod = mod_copy(mod);
+
+  script -> functions = strdata_dict_create();
+  script -> params = NULL;
+  script -> type = STNone;
+
+  script -> fullname = NULL;
+  script -> bytecode = bytecode_create((data_t *) script_copy(script));
+  return script;
+}
 
 char * _script_tostring(script_t *script) {
   return name_tostring(script_fullname(script));
@@ -83,40 +105,9 @@ void _script_free(script_t *script) {
 
 /* -- S C R I P T  P U B L I C  F U N C T I O N S  ------------------------ */
 
-script_t * script_create(module_t *mod, script_t *up, char *name) {
-  script_t   *ret;
-  char       *anon = NULL;
-
+script_t * script_create(data_t *enclosing, char *name) {
   _script_init();
-  if (!name) {
-    asprintf(&anon, "__anon__%d__", hashptr(ret));
-    name = anon;
-  }
-  if (script_debug) {
-    debug("Creating script '%s'", name);
-  }
-  ret = data_new(Script, script_t);
-
-  ret -> functions = strdata_dict_create();
-  ret -> params = NULL;
-  ret -> type = STNone;
-
-  if (up) {
-    dict_put(up -> functions, strdup(name), data_create_script(ret));
-    ret -> up = script_copy(up);
-    ret -> mod = mod_copy(up -> mod);
-    ret -> name = name_deepcopy(up -> name);
-    name_extend(ret -> name, name);
-  } else {
-    assert(mod);
-    ret -> mod = mod_copy(mod);
-    ret -> up = NULL;
-    ret -> name = name_create(0);
-  }
-  ret -> fullname = NULL;
-  ret -> bytecode = bytecode_create((data_t *) script_copy(ret));
-  free(anon);
-  return ret;
+  return (script_t *) data_create(Script, enclosing, name);
 }
 
 name_t * script_fullname(script_t *script) {
@@ -154,15 +145,11 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
   closure_t *closure;
   data_t    *retval;
 
-  if (script_debug) {
-    debug("script_execute(%s)", script_tostring(script));
-  }
-  closure = script_create_closure(script, NULL, NULL);
+  debug(script, "script_execute(%s)", script_tostring(script));
+  closure = closure_create(script, NULL, NULL);
   retval = closure_execute(closure, args, kwargs);
   closure_free(closure);
-  if (script_debug) {
-    debug("  script_execute returns %s", data_tostring(retval));
-  }
+  debug(script, "  script_execute returns %s", data_tostring(retval));
   return retval;
 }
 
@@ -173,9 +160,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   closure_t      *closure;
   bound_method_t *bm;
 
-  if (script_debug) {
-    debug("script_create_object(%s)", script_tostring(script));
-  }
+  debug(script, "script_create_object(%s)", script_tostring(script));
   retobj = object_create((data_t *) script);
   if (!script -> up) {
     object_free(script -> mod -> obj);
@@ -193,17 +178,11 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
       script -> mod -> closure = closure_copy(closure);
     }
   }
-  if (script_debug) {
-    debug("  script_create_object returns %s", data_tostring(retval));
-  }
+  debug(script, "  script_create_object returns %s", data_tostring(retval));
   closure_free(closure);
   return retval;
 }
 
 bound_method_t * script_bind(script_t *script, object_t *object) {
   return bound_method_create(script, object);
-}
-
-closure_t * script_create_closure(script_t *script, closure_t *up, data_t *self) {
-  return closure_create(script, up, self);
 }

@@ -115,8 +115,8 @@ int_t *  bool_false = NULL;
  */
 
 void int_init(void) {
-  typedescr_register(&_typedescr_int);
-  typedescr_register(&_typedescr_bool);
+  _typedescr_register(&_typedescr_int);
+  _typedescr_register(&_typedescr_bool);
   typedescr_register_methods(_methoddescr_int);
   _ints = intdata_dict_create();
   bool_true = (int_t *) data_create(Bool, 1);

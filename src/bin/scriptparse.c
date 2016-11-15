@@ -164,7 +164,7 @@ __DLL_EXPORT__ parser_t * script_parse_init(parser_t *parser) {
   if (script_debug) {
     debug("Parsing module '%s'", name_tostring(mod -> name));
   }
-  script = script_create(mod, NULL, name);
+  script = script_create((data_t *) mod, name);
   parser_set(parser, "script", (data_t *) script_copy(script));
   parser -> data = script -> bytecode;
   _script_parse_prolog(parser);
@@ -796,7 +796,7 @@ __DLL_EXPORT__ parser_t * script_parse_start_function(parser_t *parser) {
   type = (script_type_t) data_intval(data);
   data_free(data);
 
-  func = script_create(NULL, data_as_script(up -> owner), fname);
+  func = script_create(up -> owner, fname);
   func -> type = type;
   func -> params = str_array_create(array_size(data_as_array(params)));
   array_reduce(data_as_array(params),
@@ -898,7 +898,7 @@ __DLL_EXPORT__ parser_t * script_parse_start_lambda(parser_t *parser) {
 
   strcpy(fname, "lambda_");
   strrand(fname + strlen(fname), 5);
-  func = script_create(NULL, data_as_script(up -> owner), fname);
+  func = script_create(up -> owner, fname);
   func -> type = STNone;
   func -> params = str_array_create(array_size(data_as_array(params)));
   array_reduce(data_as_array(params),

@@ -533,7 +533,7 @@ data_t * _typedescr_hastype(data_t *self, char *name, array_t *args, dict_t *kwa
 
 /* -- T Y P E D E S C R  P U B L I C  F U N C T I O N S ------------------- */
 
-int typedescr_register(typedescr_t *descr) {
+int _typedescr_register(typedescr_t *descr) {
   typedescr_t    *new_descriptors;
   vtable_t       *vtable;
   int             newsz;
@@ -575,7 +575,7 @@ int typedescr_register(typedescr_t *descr) {
 }
 
 int typedescr_register_type(typedescr_t *td, methoddescr_t *md) {
-  int ret = typedescr_register(td);
+  int ret = _typedescr_register(td);
   int i, j;
 
   if (md) {
@@ -599,7 +599,7 @@ void typedescr_register_types(typedescr_t *types) {
   typedescr_t *type;
 
   for (type = types; type -> type_name; type++) {
-    typedescr_register(type);
+    _typedescr_register(type);
   }
 }
 

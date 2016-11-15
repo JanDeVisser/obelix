@@ -204,7 +204,7 @@ void _net_init(void) {
   int ix;
 
   logging_register_category("net", &net_debug);
-  Socket = typedescr_register(&_typedescr_socket);
+  Socket = _typedescr_register(&_typedescr_socket);
   for (ix = 0; _methoddescr_socket[ix].type != NoType; ix++) {
     if (_methoddescr_socket[ix].type == -1) {
       _methoddescr_socket[ix].type = Socket;

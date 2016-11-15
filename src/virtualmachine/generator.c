@@ -17,14 +17,12 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
-#include <stdio.h>
-
-#include <generator.h>
+#include "libvm.h"
 
 static inline void   _generator_init(void);
-static void          _generator_free(generator_t *generator);
-static char *        _generator_allocstring(generator_t *generator);
+static generator_t * _generator_new(generator_t *, va_list);
+static void          _generator_free(generator_t *);
+static char *        _generator_allocstring(generator_t *);
 static data_t *      _generator_set(generator_t *, char *, data_t *);
 static data_t *      _generator_resolve(generator_t *, char *);
 static data_t *      _generator_call(generator_t *, array_t *, dict_t *);
@@ -34,6 +32,7 @@ static data_t *      _generator_interrupt(data_t *, char *, array_t *, dict_t *)
 static generator_t * _generator_next(generator_t *);
 
 static vtable_t _vtable_generator[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _generator_new },
   { .id = FunctionFree,        .fnc = (void_t) _generator_free },
   { .id = FunctionAllocString, .fnc = (void_t) _generator_allocstring },
   { .id = FunctionIter,        .fnc = (void_t) _generator_iter },
@@ -56,13 +55,20 @@ int Generator = -1;
 
 void _generator_init(void) {
   if (Generator < 0) {
-    Generator = typedescr_create_and_register(Generator, "generator",
-                                              _vtable_generator,
-                                              _methoddescr_generator);
+    Generator = typedescr_create_and_register(
+      Generator, "generator", _vtable_generator, _methoddescr_generator);
+    typedescr_set_size(Generator, generator_t);
   }
 }
 
 /* -- G E N E R A T O R   D A T A T Y P E --------------------------------- */
+
+generator_t * _generator_new(generator_t *generator, va_list args) {
+  generator -> closure = closure_copy(va_arg(args, closure_t *));
+  generator -> vm = vm_copy(va_arg(args, vm_t *));
+  generator -> status = exception_copy(va_arg(args, exception_t *));
+  return generator;
+}
 
 void _generator_free(generator_t *generator) {
   if (generator) {
@@ -117,34 +123,8 @@ data_t * _generator_interrupt(data_t *generator, char *name, array_t *params, di
 /* ------------------------------------------------------------------------ */
 
 generator_t * generator_create(closure_t *closure, vm_t *vm, exception_t *status) {
-  generator_t *ret;
-  
   _generator_init();
-  ret = (generator_t *) data_new(Generator, generator_t);
-  ret -> closure = closure_copy(closure);
-  ret -> vm = vm_copy(vm);
-  ret -> status = exception_copy(status);
-  return ret;
-}
-
-inline generator_t * generator_copy(generator_t *generator) {
-  return (generator_t *) data_copy((data_t *) generator);
-}
-
-inline char * generator_tostring(generator_t *generator) {
-  return data_tostring((data_t *) generator);
-}
-
-inline void generator_free(generator_t *generator) {
-  data_free((data_t *) generator);
-}
-
-inline int data_is_generator(data_t *data) {
-  return data && data_hastype(data, Closure);
-}
-
-inline generator_t * data_as_generator(data_t *data) {
-  data_is_generator(data) ? ((generator_t *) data) : NULL;
+  return (generator_t *) data_create(Generator, closure, vm, status);
 }
 
 int generator_has_next(generator_t *generator) {
@@ -156,7 +136,7 @@ int generator_has_next(generator_t *generator) {
 
 data_t * generator_next(generator_t *generator) {
   data_t *ret = NULL;
-  
+
   if (!generator -> status) {
     _generator_next(generator);
   }
@@ -175,7 +155,7 @@ data_t * generator_next(generator_t *generator) {
 
 generator_t * generator_interrupt(generator_t *generator) {
   exception_free(generator -> status);
-  generator -> status = exception_create(ErrorExhausted, 
+  generator -> status = exception_create(ErrorExhausted,
                                          "Generator Interrupted");
   return generator;
 }

@@ -17,18 +17,17 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
-#include <boundmethod.h>
-#include <wrapper.h>
-#include <stdio.h>
+#include "libvm.h"
 
 /* ------------------------------------------------------------------------ */
 
-static inline void _bound_method_init(void);
-static void        _bound_method_free(bound_method_t *);
-static char *      _bound_method_allocstring(bound_method_t *);
+static inline void      _bound_method_init(void);
+static bound_method_t * _bound_method_new(bound_method_t *, va_list);
+static void             _bound_method_free(bound_method_t *);
+static char *           _bound_method_allocstring(bound_method_t *);
 
 static vtable_t _vtable_bound_method[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _bound_method_new },
   { .id = FunctionCmp,         .fnc = (void_t) bound_method_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _bound_method_free },
   { .id = FunctionAllocString, .fnc = (void_t) _bound_method_allocstring },
@@ -42,12 +41,20 @@ int BoundMethod = -1;
 
 void _bound_method_init(void) {
   if (BoundMethod < 0) {
-    BoundMethod = typedescr_create_and_register(BoundMethod, "boundmethod",
-                                                _vtable_bound_method, NULL);
+    BoundMethod = typedescr_create_and_register(
+      BoundMethod, "boundmethod", _vtable_bound_method, NULL);
+    typedescr_set_size(BoundMethod, bound_method_t);
   }
 }
 
 /* -- B O U N D  M E T H O D  S T A T I C  F U N C T I O N S -------------- */
+
+bound_method_t * _bound_method_new(bound_method_t *bm, va_list args) {
+  bm -> script = script_copy(va_arg(args, script_t *));
+  bm -> self = object_copy(va_arg(args, object_t *));
+  bm -> closure = NULL;
+  return bm;
+}
 
 void _bound_method_free(bound_method_t *bm) {
   if (bm) {
@@ -72,14 +79,8 @@ char * _bound_method_allocstring(bound_method_t *bm) {
 /* -- B O U N D  M E T H O D  P U B L I C  F U N C T I O N S   ------------ */
 
 bound_method_t * bound_method_create(script_t *script, object_t *self) {
-  bound_method_t *ret;
-  
   _bound_method_init();
-  ret = data_new(BoundMethod, bound_method_t);
-  ret -> script = script_copy(script);
-  ret -> self = object_copy(self);
-  ret -> closure = NULL;
-  return ret;
+  return (bound_method_t *) data_create(BoundMethod, script, self);
 }
 
 int bound_method_cmp(bound_method_t *bm1, bound_method_t *bm2) {
@@ -106,4 +107,3 @@ data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwpar
   closure_free(closure);
   return ret;
 }
-

@@ -17,23 +17,12 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <string.h>
-
-#include <boundmethod.h>
-#include <closure.h>
-#include <generator.h>
-#include <instruction.h>
-#include <namespace.h>
-#include <nvp.h>
-#include <script.h>
-#include <stacktrace.h>
+#include "libvm.h"
 #include <thread.h>
-#include <vm.h>
-#include <wrapper.h>
 
 static inline void  _closure_init(void);
 
+static closure_t *  _closure_new(closure_t *, va_list);
 static closure_t *  _closure_create_closure_reducer(entry_t *, closure_t *);
 static listnode_t * _closure_execute_instruction(instruction_t *, closure_t *);
 static data_t *     _closure_get(closure_t *, char *);
@@ -48,6 +37,7 @@ static data_t *     _closure_import(data_t *, char *, array_t *, dict_t *);
 int Closure = -1;
 
 static vtable_t _vtable_closure[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _closure_new },
   { .id = FunctionCmp,         .fnc = (void_t) closure_cmp },
   { .id = FunctionHash,        .fnc = (void_t) closure_hash },
   { .id = FunctionFree,        .fnc = (void_t) _closure_free },
@@ -71,12 +61,39 @@ void _closure_init(void) {
     Closure = typedescr_create_and_register(Closure, "closure",
                                             _vtable_closure,
                                             _methoddescr_closure);
+    typedescr_set_size(Closure, closure_t);
   }
 }
 
 /* ------------------------------------------------------------------------ */
 
 /* -- C L O S U R E  S T A T I C  F U N C T I O N S ------------------------*/
+
+closure_t * _closure_new(closure_t *closure, va_list args) {
+  script_t  *script = va_arg(args, script_t *);
+  closure_t *up = va_arg(args, closure_t *);
+  data_t    *self = va_arg(args, data_t *);
+
+  debug(script, "Creating closure for script '%s'", script_tostring(script));
+
+  closure -> script = script_copy(script);
+  closure -> bytecode = bytecode_copy(script -> bytecode);
+
+  closure -> variables = NULL;
+  closure -> params = NULL;
+  closure -> free_params = FALSE;
+  closure -> up = up;
+  closure -> self = data_copy(self);
+
+  dict_reduce(script -> functions,
+              (reduce_t) _closure_create_closure_reducer, closure);
+
+  if (!up) {
+    /* Import standard lib: */
+    closure_import(closure, NULL);
+  }
+  return closure;
+}
 
 closure_t * _closure_create_closure_reducer(entry_t *entry, closure_t *closure) {
   char           *name = (char *) entry -> key;
@@ -133,8 +150,8 @@ data_t * _closure_eval(closure_t *closure, bytecode_t *bytecode) {
       break;
     case ErrorYield:
       exception_free(e);
-      ret = (data_t *) exception_create(ErrorSyntax, 
-                                        "Non-generator function '%s' cannot yield", 
+      ret = (data_t *) exception_create(ErrorSyntax,
+                                        "Non-generator function '%s' cannot yield",
                                         closure_tostring(closure));
       break;
     default:
@@ -182,31 +199,8 @@ void _closure_free(closure_t *closure) {
 /* -- C L O S U R E  P U B L I C  F U N C T I O N S ------------------------*/
 
 closure_t * closure_create(script_t *script, closure_t *up, data_t *self) {
-  closure_t *ret;
-
   _closure_init();
-  if (script_debug) {
-    debug("Creating closure for script '%s'", script_tostring(script));
-  }
-
-  ret = data_new(Closure, closure_t);
-  ret -> script = script_copy(script);
-  ret -> bytecode = bytecode_copy(script -> bytecode);
-
-  ret -> variables = NULL;
-  ret -> params = NULL;
-  ret -> free_params = FALSE;
-  ret -> up = up;
-  ret -> self = data_copy(self);
-
-  dict_reduce(script -> functions,
-              (reduce_t) _closure_create_closure_reducer, ret);
-
-  if (!up) {
-    /* Import standard lib: */
-    closure_import(ret, NULL);
-  }
-  return ret;
+  return (closure_t *) data_create(Closure, script, up, self);
 }
 
 int closure_cmp(closure_t *c1, closure_t *c2) {
@@ -217,48 +211,19 @@ unsigned int closure_hash(closure_t *closure) {
   return hashptr(closure);
 }
 
-inline closure_t * closure_copy(closure_t *closure) {
-  return (closure_t *) data_copy((data_t *) closure);
-}
-
-inline char * closure_tostring(closure_t *closure) {
-  return data_tostring((data_t *) closure);
-}
-
-inline void closure_free(closure_t *closure) {
-  data_free((data_t *) closure);
-}
-
-inline int data_is_closure(data_t *data) {
-  return data && data_hastype(data, Closure);
-}
-
-inline closure_t * data_as_closure(data_t *data) {
-  if (data_is_closure(data)) {
-    return (closure_t *) data;
-  } else {
-    error("Type mismatch '%s' is not closure", data_typename(data));
-    return NULL;
-  }
-}
-
 data_t * closure_import(closure_t *closure, name_t *module) {
-  data_t *ret;
-
-  if (script_debug) {
-    debug("Importing '%s'", name_tostring(module));
-  }
-  ret = mod_import(closure -> script -> mod, module);
+  debug(script, "Importing '%s'", name_tostring(module));
+  return mod_import(closure -> script -> mod, module);
 }
 
 data_t * closure_set(closure_t *closure, char *name, data_t *value) {
   if (script_debug) {
     if (strcmp(name, "self")) {
-      debug("  Setting local '%s' = '%s' in closure for %s",
-            name, data_tostring(value), closure_tostring(closure));
+      _debug("  Setting local '%s' = '%s' in closure for %s",
+        name, data_tostring(value), closure_tostring(closure));
     } else {
-      debug("  Setting local '%s' in closure for %s",
-            name, closure_tostring(closure));
+      _debug("  Setting local '%s' in closure for %s",
+        name, closure_tostring(closure));
     }
   }
   if (!closure -> variables) {
@@ -288,9 +253,7 @@ int closure_has(closure_t *closure, char *name) {
   ret = (closure -> self && !strcmp(name, "self")) ||
         (closure -> variables && dict_has_key(closure -> variables, name)) ||
         (closure -> params && dict_has_key(closure -> params, name));
-  if (script_debug) {
-    debug("   closure_has('%s', '%s'): %d", closure_tostring(closure), name, ret);
-  }
+  debug(script, "   closure_has('%s', '%s'): %d", closure_tostring(closure), name, ret);
   return ret;
 }
 
@@ -310,10 +273,8 @@ data_t * closure_resolve(closure_t *closure, char *name) {
       ret = mod_resolve(closure -> script -> mod, name);
     }
   }
-  if (script_debug) {
-    debug("   closure_resolve('%s', '%s'): %s",
-          closure_tostring(closure), name, data_tostring(ret));
-  }
+  debug(script, "   closure_resolve('%s', '%s'): %s",
+    closure_tostring(closure), name, data_tostring(ret));
   return data_copy(ret);
 }
 
@@ -369,10 +330,8 @@ exception_t * closure_yield(closure_t *closure, vm_t *vm) {
   data_t      *ret;
   exception_t *e;
   data_t      *d;
-  int          done = FALSE;
 
   ret = vm_execute(vm, d = (data_t *) closure_copy(closure));
-  done = TRUE;
   if (data_is_exception(ret)) {
     e = data_as_exception(ret);
     if ((e -> code == ErrorExit) && (e -> throwable)) {

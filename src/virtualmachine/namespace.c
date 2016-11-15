@@ -17,24 +17,21 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-
-#include <array.h>
-#include <exception.h>
-#include <logging.h>
-#include <namespace.h>
+#include "libvm.h"
 #include <set.h>
 
 static inline void   _namespace_init(void);
 
-extern void          _mod_free(module_t *);
-extern char *        _mod_tostring(module_t *);
+static module_t *    _mod_new(module_t *, va_list);
+static void          _mod_free(module_t *);
+static char *        _mod_tostring(module_t *);
 static data_t *      _mod_call(module_t *, array_t *, dict_t *);
 static data_t *      _mod_set(module_t *, char *, data_t *);
 
 static namespace_t * _ns_create(void);
-extern void          _ns_free(namespace_t *);
-extern char *        _ns_tostring(namespace_t *);
+static namespace_t * _ns_new(namespace_t *, va_list);
+static void          _ns_free(namespace_t *);
+static char *        _ns_tostring(namespace_t *);
 static module_t *    _ns_add(namespace_t *, name_t *);
 static data_t *      _ns_delegate_up(namespace_t *, module_t *, name_t *, array_t *, dict_t *);
 static data_t *      _ns_delegate_load(namespace_t *, module_t *, name_t *, array_t *, dict_t *);
@@ -45,12 +42,14 @@ int Module = -1;
 int Namespace = -1;
 
 vtable_t _vtable_namespace[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _ns_new },
   { .id = FunctionFree,     .fnc = (void_t) _ns_free },
   { .id = FunctionToString, .fnc = (void_t) _ns_tostring },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 vtable_t _vtable_module[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _mod_new },
   { .id = FunctionCmp,      .fnc = (void_t) mod_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _mod_free },
   { .id = FunctionToString, .fnc = (void_t) _mod_tostring },
@@ -73,6 +72,7 @@ typedef struct _pnm {
 } pnm_t;
 
 static pnm_t *     _pnm_create(char *);
+static pnm_t *     _pnm_new(pnm_t *, va_list);
 static void        _pnm_free(pnm_t *);
 static pnm_t *     _pnm_add(pnm_t *, module_t *);
 static pnm_t *     _pnm_find_mod_reducer(module_t *, pnm_t *);
@@ -89,6 +89,7 @@ static data_t *    _pnm_set(pnm_t *, char *, data_t *);
 int PartialNameMatch = -1;
 
 static vtable_t _vtable_pnm[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _pnm_new },
   { .id = FunctionCmp,      .fnc = (void_t) _pnm_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _pnm_free },
   { .id = FunctionToString, .fnc = (void_t) _pnm_tostring },
@@ -104,21 +105,25 @@ void _namespace_init(void) {
   if (Module < 0) {
     logging_register_category("namespace", &ns_debug);
     Module = typedescr_create_and_register(Module, "module", _vtable_module, NULL);
+    typedescr_set_size(Module, module_t);
     Namespace = typedescr_create_and_register(Namespace, "namespace", _vtable_namespace, NULL);
+    typedescr_set_size(Namespace, namespace_t);
     PartialNameMatch = typedescr_create_and_register(PartialNameMatch, "pnm", _vtable_pnm, NULL);
+    typedescr_set_size(PartialNameMatch, pnm_t);
   }
 }
 
 /* -- Partial Name Match data functions ----------------------------------- */
 
 pnm_t * _pnm_create(char *name) {
-  pnm_t *ret;
-  
   _namespace_init();
-  ret = data_new(PartialNameMatch, pnm_t);
-  ret -> name = name_create(1, name);
-  ret -> matches = data_set_create();
-  return ret;
+  return (pnm_t *) data_create(PartialNameMatch, name);
+}
+
+pnm_t * _pnm_new(pnm_t *pnm, va_list args) {
+  pnm -> name = name_create(1, va_arg(args, char *));
+  pnm -> matches = data_set_create();
+  return pnm;
 }
 
 void _pnm_free(pnm_t *pnm) {
@@ -135,7 +140,7 @@ static pnm_t * _pnm_add(pnm_t *pnm, module_t *mod) {
 
 pnm_t * _pnm_find_mod_reducer(module_t *mod, pnm_t *pnm) {
   data_t   *match;
-  
+
   if (!pnm -> match && !name_cmp(mod -> name, pnm -> name)) {
     pnm -> match = mod;
   }
@@ -150,7 +155,7 @@ module_t * _pnm_find_mod(pnm_t *pnm) {
 
 pnm_t * _pnm_find_in_mod_reducer(module_t *mod, pnm_t *pnm) {
   data_t   *match;
-  
+
   if (!name_cmp(mod -> name, pnm -> name)) {
     pnm -> match = mod_resolve(mod, pnm -> next);
   }
@@ -181,7 +186,7 @@ data_t * _pnm_resolve(pnm_t *pnm, char *name) {
   if (pnm -> match_lost) {
     set_clear(pnm -> match_lost);
   }
-  
+
   set_reduce(pnm -> matches, (reduce_t) _pnm_find_in_mod_reducer, pnm);
   if (pnm -> match) {
     return (data_t *) pnm -> match;
@@ -195,21 +200,34 @@ data_t * _pnm_resolve(pnm_t *pnm, char *name) {
 
 data_t * _pnm_call(pnm_t *pnm, array_t *params, dict_t *kwargs) {
   module_t *mod = _pnm_find_mod(pnm);
-  
+
   return (mod)
-    ? _mod_call(mod, params, kwargs) 
+    ? _mod_call(mod, params, kwargs)
     : data_exception(ErrorName, "Trouble locating '%s'", name_tostring(pnm -> name));
 }
 
 data_t * _pnm_set(pnm_t *pnm, char *name, data_t *value) {
   module_t *mod = _pnm_find_mod(pnm);
-  
+
   return (mod)
-    ? object_set(mod -> obj, name, value) 
+    ? object_set(mod -> obj, name, value)
     : data_exception(ErrorName, "Trouble locating '%s'", name_tostring(pnm -> name));
 }
 
 /* -- M O D U L E  D A T A  F U N C T I O N S ----------------------------- */
+
+module_t * _mod_new(module_t *mod, va_list args) {
+  namespace_t *ns = va_arg(args, namespace_t *);
+  name_t *name = va_arg(args, name_t *);
+  
+  debug(ns, "  Creating module '%s'", name_tostring(name));
+  mod -> state = ModStateUninitialized;
+  mod -> name = name_copy(name);
+  mod -> ns = ns_copy(ns);
+  mod -> obj = object_create(NULL);
+  mod -> imports = data_set_create();
+  return mod;
+}
 
 void _mod_free(module_t *mod) {
   if (mod) {
@@ -240,19 +258,8 @@ data_t * _mod_set(module_t *mod, char *name, data_t *value) {
 /* ------------------------------------------------------------------------ */
 
 module_t * mod_create(namespace_t *ns, name_t *name) {
-  module_t   *ret;
-  
   _namespace_init();
-  ret = data_new(Module, module_t);
-  if (ns_debug) {
-    debug("  Creating module '%s'", name_tostring(name));
-  }
-  ret -> state = ModStateUninitialized;
-  ret -> name = name_copy(name);
-  ret -> ns = ns_copy(ns);
-  ret -> obj = object_create(NULL);
-  ret -> imports = data_set_create();
-  return ret;
+  return (module_t *) data_create(Module, ns, name);
 }
 
 unsigned int mod_hash(module_t *mod) {
@@ -270,18 +277,14 @@ int mod_cmp_name(module_t *mod, name_t *name) {
 data_t * mod_set(module_t *mod, script_t *script, array_t *args, dict_t *kwargs) {
   data_t *data;
 
-  if (ns_debug) {
-    debug("mod_set(%s, %s)", mod_tostring(mod), script_tostring(script));
-  }
+  debug(ns, "mod_set(%s, %s)", mod_tostring(mod), script_tostring(script));
   script -> mod = mod;
   data = script_create_object(script, args, kwargs);
   if (data_is_object(data)) {
     mod -> state = ModStateActive;
-    if (ns_debug) {
-      debug("  %s initialized: %s \n%s", mod_tostring(mod), 
-            object_tostring(mod -> obj),
-            dict_tostring(mod -> obj -> variables));
-    }
+    debug(ns, "  %s initialized: %s \n%s", mod_tostring(mod),
+          object_tostring(mod -> obj),
+          dict_tostring(mod -> obj -> variables));
   } else {
     assert(data_is_exception(data));
     object_free(mod -> obj);
@@ -295,8 +298,8 @@ object_t * mod_get(module_t *mod) {
 
 void ** _mod_resolve_reducer(module_t *import, void **ctx) {
   char *needle = (char *) ctx[0];
-  
-  if (needle[0] && (name_size(import -> name) > 0) && 
+
+  if (needle[0] && (name_size(import -> name) > 0) &&
       !strcmp(needle, name_first(import -> name))) {
     if (!ctx[1]) {
       ctx[1] = (data_t *) _pnm_create(needle);
@@ -310,22 +313,18 @@ data_t * mod_resolve(module_t *mod, char *name) {
   data_t   *ret;
   void     *ctx[2];
   data_t   *droot;
-  
-  if (ns_debug) {
-    debug("mod_resolve('%s', '%s')", mod_tostring(mod), name);
-  }
-  
+
+  debug(ns, "mod_resolve('%s', '%s')", mod_tostring(mod), name);
+
   /*
    * First see if the name sought is local to this module:
    */
   ret = object_resolve(mod -> obj, name);
   if (!ret) {
-    
-    if (ns_debug) {
-      debug("mod_resolve('%s', '%s'): Not local.", mod_tostring(mod), name);
-    }
+    debug(ns, "mod_resolve('%s', '%s'): Not local.", mod_tostring(mod), name);
+
     /*
-     * Not local. Check if it's the first part of the name of one of the 
+     * Not local. Check if it's the first part of the name of one of the
      * modules imported in this module:
      */
     ctx[0] = name;
@@ -333,16 +332,14 @@ data_t * mod_resolve(module_t *mod, char *name) {
     set_reduce(mod -> imports, (reduce_t) _mod_resolve_reducer, ctx);
     ret = (data_t *) ctx[1];
     if (!ret && ns_debug) {
-      debug("mod_resolve('%s', '%s'): Not an import", mod_tostring(mod), name);
+      _debug("mod_resolve('%s', '%s'): Not an import", mod_tostring(mod), name);
     }
   }
-  
+
   if (!ret && (name_size(mod -> name) > 0)) {
-    if (ns_debug) {
-      debug("mod_resolve('%s', '%s'): Check root module", mod_tostring(mod), name);
-    }
+    debug(ns, "mod_resolve('%s', '%s'): Check root module", mod_tostring(mod), name);
     /*
-     * Not local and does not start one of the imports. If this is not the 
+     * Not local and does not start one of the imports. If this is not the
      * root module, check the root module:
      */
     droot = ns_get(mod -> ns, NULL);
@@ -353,9 +350,7 @@ data_t * mod_resolve(module_t *mod, char *name) {
     }
     data_free(droot);
   }
-  if (ns_debug) {
-    debug("mod_resolve('%s', '%s'): %s", mod_tostring(mod), name, data_tostring(ret));
-  }
+  debug(ns, "mod_resolve('%s', '%s'): %s", mod_tostring(mod), name, data_tostring(ret));
   return ret;
 }
 
@@ -379,35 +374,31 @@ data_t * mod_exit_code(module_t *mod) {
 /* ------------------------------------------------------------------------ */
 
 module_t * _ns_add_module(namespace_t *ns, name_t *name, module_t *mod) {
-  if (ns_debug) {
-    debug("_ns_add_module(%s, %s)", ns_tostring(ns), name_tostring(name));
-  }
+  debug(ns, "_ns_add_module(%s, %s)", ns_tostring(ns), name_tostring(name));
   dict_put(ns -> modules, strdup(name_tostring(name)), mod);
   return mod;
 }
 
 module_t * _ns_add(namespace_t *ns, name_t *name) {
   module_t *mod;
-  
+
   mod = mod_create(ns, name);
   _ns_add_module(ns, name, mod);
   return mod;
 }
-  
+
 module_t * _ns_get(namespace_t *ns, name_t *name) {
   return dict_get(ns -> modules, (name) ? name_tostring(name) : "");
 }
 
-data_t * _ns_load(namespace_t *ns, module_t *module, 
+data_t * _ns_load(namespace_t *ns, module_t *module,
                   name_t *name, array_t *args, dict_t *kwargs) {
   data_t   *ret = NULL;
   data_t   *obj;
   data_t   *script;
-  
+
   _namespace_init();
-  if (ns_debug) {
-    debug("  Module '%s' not found - delegating to loader", name_tostring(name));
-  }
+  debug(ns, "  Module '%s' not found - delegating to loader", name_tostring(name));
   if (!module) {
     module = _ns_add(ns, name);
   }
@@ -415,11 +406,10 @@ data_t * _ns_load(namespace_t *ns, module_t *module,
   script = ns -> import_fnc(ns -> import_ctx, module);
   if (ns_debug) {
     if (script) {
-      debug("  Loader returned '%s' [%s]",
-            data_tostring(script),
-            data_typename(script));
+      _debug("  Loader returned '%s' [%s]",
+             data_tostring(script), data_typename(script));
     } else {
-      debug("  Loader returned NULL??");
+      _debug("  Loader returned NULL??");
     }
   }
   if (data_is_script(script)) {
@@ -455,34 +445,39 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
     dummy = name_create(0);
     name = dummy;
   }
-  if (ns_debug) {
-    debug("  Importing module '%s' into %s", name_tostring(name), ns_tostring(ns));
-  }
+  debug(ns, "  Importing module '%s' into %s", name_tostring(name), ns_tostring(ns));
   module = _ns_get(ns, name);
   if (module) {
     if (module -> state != ModStateUninitialized) {
-      if (ns_debug) {
-        debug("  Module '%s' %s in %s", name_tostring(name),
-              ((module -> state == ModStateLoading) 
-                ? "currently loading"
-                : "already imported"), ns_tostring(ns));
-      }
+      debug(ns, "  Module '%s' %s in %s", name_tostring(name),
+            ((module -> state == ModStateLoading)
+              ? "currently loading"
+              : "already imported"), ns_tostring(ns));
       ret = data_create(Module, module);
     } else {
-      if (ns_debug) {
-        debug("  Module found but it's Uninitialized. Somebody must be busy loading it.");
-      }
+      debug(ns, "  Module found but it's Uninitialized. Somebody must be busy loading it.");
     }
   } else {
-    if (ns_debug) {
-      debug("  Module not found");
-    }
+    debug(ns, "  Module not found");
   }
   if (!ret) {
     ret = _ns_load(ns, module, name, args, kwargs);
   }
   name_free(dummy);
   return ret;
+}
+
+namespace_t * _ns_new(namespace_t *ns, va_list args) {
+  char     *name = va_arg(args, char *);
+  void     *importer = va_arg(args, void *);
+  import_t  import_fnc;
+
+  ns -> name = strdup(name);
+  ns -> import_ctx = importer;
+  ns -> import_fnc = import_fnc;
+  ns -> exit_code = NULL;
+  ns -> modules = strdata_dict_create();
+  return ns;
 }
 
 void _ns_free(namespace_t *ns) {
@@ -504,17 +499,8 @@ namespace_t * ns_create(char *name, void *importer, import_t import_fnc) {
 
   _namespace_init();
   assert(importer && import_fnc);
-  if (ns_debug) {
-    debug("  Creating root namespace");
-  }
-
-  ret = data_new(Namespace, namespace_t);
-  ret -> name = strdup(name);
-  ret -> import_ctx = importer;
-  ret -> import_fnc = import_fnc;
-  ret -> exit_code = NULL;
-  ret -> modules = strdata_dict_create();
-  return ret;
+  debug(ns, "  Creating root namespace");
+  return (namespace_t *) data_create(Namespace, name, importer, import_fnc);
 }
 
 data_t * ns_execute(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs) {
@@ -537,12 +523,12 @@ data_t * ns_import(namespace_t *ns, name_t *name) {
 
 data_t * ns_get(namespace_t *ns, name_t *name) {
   module_t *mod;
-  
+
   mod = dict_get(ns -> modules, (name) ? name_tostring(name) : "");
   if (!mod || !mod -> obj -> constructor) {
-      return data_exception(ErrorName,
-                        "Import '%s' not found in %s", 
-                        name_tostring(name), ns_tostring(ns));
+    return data_exception(
+      ErrorName, "Import '%s' not found in %s",
+      name_tostring(name), ns_tostring(ns));
   } else {
     return data_create(Module, mod);
   }
@@ -550,9 +536,7 @@ data_t * ns_get(namespace_t *ns, name_t *name) {
 
 namespace_t * ns_exit(namespace_t *ns, data_t *code) {
   ns -> exit_code = data_copy(code);
-  if (ns_debug) {
-    debug("Setting exit code %s", data_tostring(ns -> exit_code));
-  }
+  debug(ns, "Setting exit code %s", data_tostring(ns -> exit_code));
   return ns;
 }
 

@@ -17,19 +17,11 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-
-#include <closure.h>
-#include <exception.h>
-#include <instruction.h>
-#include <nvp.h>
-#include <stacktrace.h>
-#include <str.h>
-#include <typedescr.h>
+#include "libvm.h"
 #include <thread.h>
-#include <vm.h>
 
-static void         _vm_init(void) __attribute__((constructor));
+static void         _vm_init(void);
+static vm_t *       _vm_new(vm_t *, va_list);
 static void         _vm_free(vm_t *);
 static char *       _vm_tostring(vm_t *);
 static data_t *     _vm_call(vm_t *, array_t *, dict_t *);
@@ -38,7 +30,8 @@ static listnode_t * _vm_execute_instruction(data_t *, array_t *);
 
 int VM = -1;
 
-static vtable_t _vtable_vm[] = {
+static vtable_t _vtable_VM[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _vm_new },
   { .id = FunctionFree,     .fnc = (void_t) _vm_free },
   { .id = FunctionToString, .fnc = (void_t) _vm_tostring },
   { .id = FunctionCall,     .fnc = (void_t) _vm_call },
@@ -48,12 +41,23 @@ static vtable_t _vtable_vm[] = {
 /* ------------------------------------------------------------------------ */
 
 void _vm_init(void) {
-  VM = typedescr_create_and_register(VM, "vm", _vtable_vm, NULL);
+  typedescr_register(VM, vm_t);
 }
 
 extern int script_trace;
 
 /* ------------------------------------------------------------------------ */
+
+vm_t * _vm_new(vm_t *vm, va_list args) {
+  bytecode_t *bytecode = va_arg(args, bytecode_t *);
+
+  vm -> bytecode = bytecode_copy(bytecode);
+  vm -> stack = NULL;
+  vm -> contexts = NULL;
+  vm -> processor = NULL;
+  vm -> exception = NULL;
+  return vm;
+}
 
 void _vm_free(vm_t *vm) {
   if (vm) {
@@ -116,13 +120,11 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
   int           call_me = FALSE;
   char         *label = NULL;
   listnode_t   *node = NULL;
-  data_t       *scope = data_array_get(args, 0);
   vm_t         *vm = data_as_vm(data_array_get(args, 1));
   bytecode_t   *bytecode = data_as_bytecode(data_array_get(args, 2));
-  data_t       *catchpoint = NULL;
-  int           datatype;
   exception_t  *ex = NULL;
   data_t       *ex_data;
+  nvp_t        *catchpoint;
 
   if (vm -> status != VMStatusExit) {
     exit_code = data_thread_exit_code();
@@ -172,8 +174,8 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
       vm -> exception = (data_t *) ex;
       if (ex -> code != ErrorYield) {
         if (datastack_depth(vm -> contexts)) {
-          catchpoint = datastack_peek(vm -> contexts);
-          label = strdup(data_tostring(data_as_nvp(catchpoint) -> name));
+          catchpoint = (nvp_t *) datastack_peek(vm -> contexts);
+          label = strdup(data_tostring(catchpoint -> name));
         } else {
           node = ProcessEnd;
         }
@@ -182,9 +184,7 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
   }
   data_free(ret);
   if (label) {
-    if (script_debug) {
-      debug("  Jumping to '%s'", label);
-    }
+    debug(script, "  Jumping to '%s'", label);
     instruction_trace("Jump To", "%s", label);
     node = (listnode_t *) dict_get(bytecode -> labels, label);
     if (!node) {
@@ -198,14 +198,8 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
 /* ------------------------------------------------------------------------ */
 
 vm_t * vm_create(bytecode_t *bytecode) {
-  vm_t *ret = data_new(VM, vm_t);
-
-  ret -> bytecode = bytecode_copy(bytecode);
-  ret -> stack = NULL;
-  ret -> contexts = NULL;
-  ret -> processor = NULL;
-  ret -> exception = NULL;
-  return ret;
+  _vm_init();
+  return (vm_t *) data_create(VM, bytecode);
 }
 
 data_t * vm_pop(vm_t *vm) {
@@ -260,7 +254,7 @@ nvp_t * vm_push_context(vm_t *vm, char *label, data_t *context) {
   nvp_t  *ret;
   
   name = str_to_data(label);
-  ret = nvp_create((data_t *) name, context);
+  ret = nvp_create(name, context);
   data_free(name);
   datastack_push(vm -> contexts, (data_t *) nvp_copy(ret));
   return ret;
@@ -281,7 +275,6 @@ nvp_t * vm_pop_context(vm_t *vm) {
 }
 
 data_t * vm_execute(vm_t *vm, data_t *scope) {
-  int          dbg = logging_status("script");
   data_t      *ret = NULL;
   exception_t *ex;
 
@@ -316,13 +309,11 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
       } else {
         ret = (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
       }
-      _vm_cleanup(vm);
     }
-    if (dbg) {
-      debug("    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));
-    }
+    debug(script, "    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));
     data_thread_pop_stackframe();
   }
+  _vm_cleanup(vm);
   return ret;
 }
 
