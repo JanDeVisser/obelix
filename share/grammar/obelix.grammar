@@ -4,7 +4,7 @@
   lexer:       keyword
   lexer:       identifier
   lexer:       number
-  lexer:       qstring
+  lexer:       "qstring: quotes=\'\"`"
   lexer:       "comment: marker=/* */;marker=//;marker=^#"
 %
 
@@ -297,7 +297,8 @@ factortail                  := mult_op           [ infix_op                  ]
                              |
                              ;
 
-factor                      := expr_atom
+factor                      :=                   [ qstring_enable_slash      ]
+                               expr_atom         [ qstring_disable_slash     ]
                                subscript
                              ;
 
@@ -355,10 +356,10 @@ query_params                := '%' ( arglist )
 
 constant                    := '"'               [ push_token                ]
                              | '\''              [ push_token                ]
+                             | '/'               [ push_token                ]
                              | signed_number
                              | list
                              | object
-                             | regexp
                              | "true"            [ pushconst: "bool:1"       ]
                              | "false"           [ pushconst: "bool:0"       ]
                              | "null"            [ pushconst: "ptr:null"     ]
@@ -444,13 +445,6 @@ attrname                    := 'i' | '"' | '\'' ;
 attrlist_tail               := ,
                                attrlist
                              |
-                             ;
-
-regexp                      := '/'               [ setup_function: "regexp"
-                                                   rollup_to: "/"
-                                                   pushval_from_stack
-                                                   incr
-                                                   func_call                 ]
                              ;
 
 logic_op                    := > | ">=" | < | "<=" | "==" | "!=" | "||" | "&&" | "and" | "or"

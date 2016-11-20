@@ -33,10 +33,11 @@
 #include <lexer.h>
 #include <nvp.h>
 
-#define FunctionMatch          FunctionUsr1
-#define FunctionMatch2         FunctionUsr2
-#define FunctionDestroyScanner FunctionUsr3
-#define FunctionGetConfig      FunctionUsr4
-#define FunctionDump           FunctionUsr5
+#define FunctionMatch           FunctionUsr1
+#define FunctionMatch2          FunctionUsr2
+#define FunctionGetConfig       FunctionUsr3
+#define FunctionDump            FunctionUsr4
+#define FunctionDestroyScanner  FunctionUsr5
+#define FunctionReconfigScanner FunctionUsr6
 
 #endif /* __LIBLEXER_H__ */
