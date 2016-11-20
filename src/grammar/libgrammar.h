@@ -22,7 +22,10 @@
 #define __LIBGRAMMAR_H__
 
 #ifndef oblgrammar_EXPORTS
-  #define oblgrammar_EXPORTS
+  #define OBLGRAMMAR_IMPEXP extern
+  #ifndef OBL_STATIC
+    #define OBL_STATIC
+  #endif
 #endif
 
 #include <stdio.h>

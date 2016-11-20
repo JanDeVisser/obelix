@@ -33,15 +33,19 @@
 extern "C" {
 #endif
 
-#if (defined __WIN32__) || (defined _WIN32)
-#ifdef oblgrammar_EXPORTS
-  #define OBLGRAMMAR_IMPEXP	__DLL_EXPORT__
-#else /* ! oblgrammar_EXPORTS */
-  #define OBLGRAMMAR_IMPEXP	__DLL_IMPORT__
-#endif
-#else /* ! __WIN32__ */
-  #define OBLGRAMMAR_IMPEXP extern
-#endif /* __WIN32__ */
+#ifndef OBLGRAMMAR_IMPEXP
+  #if (defined __WIN32__) || (defined _WIN32)
+    #ifdef oblgrammar_EXPORTS
+      #define OBLGRAMMAR_IMPEXP	__DLL_EXPORT__
+    #elif defined(OBL_STATIC)
+      #define OBLGRAMMAR_IMPEXP extern
+    #else /* ! oblgrammar_EXPORTS */
+      #define OBLGRAMMAR_IMPEXP	__DLL_IMPORT__
+    #endif
+  #else /* ! __WIN32__ */
+    #define OBLGRAMMAR_IMPEXP extern
+  #endif /* __WIN32__ */
+#endif /* OBLGRAMMAR_IMPEXP */
 
 OBLGRAMMAR_IMPEXP int grammar_debug;
 
@@ -163,14 +167,14 @@ OBLGRAMMAR_IMPEXP ge_t *                  ge_dump(ge_t *);
 
 OBLGRAMMAR_IMPEXP grammar_t *             grammar_create();
 OBLGRAMMAR_IMPEXP grammar_t *             grammar_set_parsing_strategy(grammar_t *, strategy_t);
-OBLGRAMMAR_IMPEXP strategy_t              grammar_get_parsing_strategy(grammar_t *);
-OBLGRAMMAR_IMPEXP nonterminal_t *         grammar_get_nonterminal(grammar_t *, char *);
 OBLGRAMMAR_IMPEXP function_t *            grammar_resolve_function(grammar_t *, char *);
 OBLGRAMMAR_IMPEXP grammar_t *             grammar_analyze(grammar_t *);
 
 #define grammar_add_action(g, a)          ((grammar_t *) ge_add_action((ge_t *) (g), (a)))
 #define grammar_set_variable(g, n, v)     ((grammar_t *) ge_set_variable((ge_t *) (g), (n), (v)))
 #define grammar_set_option(g, n, t)       ((grammar_t *) ge_set_option((ge_t *) (g), (n), (t)))
+#define grammar_get_nonterminal(g, r)     ((nonterminal_t *) dict_get((g) -> nonterminals, (r)))
+#define grammar_get_parsing_strategy(g)   ((g) -> strategy)
 #define grammar_dump(g)                   ((grammar_t *) ge_dump((ge_t *) (g)))
 #define grammar_copy(g)                   ((grammar_t *) data_copy((data_t *) (g)))
 #define grammar_free(g)                   (data_free((data_t *) (g)))
@@ -190,13 +194,13 @@ OBLGRAMMAR_IMPEXP rule_t *                nonterminal_get_rule(nonterminal_t *, 
 #define nonterminal_tostring(nt)           (data_tostring((data_t *) (nt)))
 
 OBLGRAMMAR_IMPEXP rule_t *                rule_create(nonterminal_t *);
-OBLGRAMMAR_IMPEXP rule_entry_t *          rule_get_entry(rule_t *, int);
 
 #define rule_get_grammar(r)               ((((ge_t *) (r)) -> grammar))
 #define rule_get_nonterminal(r)           ((nonterminal_t *) ((((ge_t *) (r)) -> owner)))
 #define rule_set_variable(r, n, v)        ((rule_t *) ge_set_variable((ge_t *) (r), (n), (v)))
 #define rule_set_option(r, n, t)          ((rule_t *) ge_set_option((ge_t *) (r), (n), (t)))
 #define rule_add_action(r, a)             ((rule_t *) ge_add_action((ge_t *) (r), (a)))
+#define rule_get_entry(r, ix)             ((rule_entry_t *) array_get(r -> entries, ix))
 #define rule_dump(r)                      ((rule_t *) ge_dump((ge_t *) (r)))
 #define rule_copy(r)                      ((rule_t *) data_copy((data_t *) (r)))
 #define rule_free(r)                      (data_free((data_t *) (r)))

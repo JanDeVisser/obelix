@@ -24,9 +24,8 @@
 
 #include <data.h>
 #include <file.h>
-#include <grammar.h>
+#include "libgrammar.h"
 #include <grammarparser.h>
-#include <logging.h>
 
 int panoramix_debug;
 
@@ -44,7 +43,7 @@ void debug_settings(char *debug) {
 }
 
 grammar_t * load(char *sys_dir, char *grammarpath) {
-  int               len;
+  size_t            len;
   char             *system_dir;
   char             *grammar_p = NULL;
   grammar_t        *ret;

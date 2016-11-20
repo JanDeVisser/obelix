@@ -374,7 +374,13 @@ OBLCORE_IMPEXP void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   void_t            ret = NULL;
   int               err = 0;
   resolve_result_t *result;
+  char             *copy = NULL;
 
+  if (strchr(func_name, '(')) {
+    copy = strdup(func_name);
+    func_name = copy;
+    func_name[strchr(func_name, '(') - func_name] = 0;
+  }
   // TODO synchronize
   ret = (void_t) dict_get(resolve -> functions, func_name);
   if (ret) {
@@ -396,6 +402,7 @@ OBLCORE_IMPEXP void_t resolve_resolve(resolve_t *resolve, char *func_name) {
     _resolve_result_free(result);
   }
   dict_put(resolve -> functions, strdup(func_name), ret);
+  free(copy);
   return ret;
 }
 

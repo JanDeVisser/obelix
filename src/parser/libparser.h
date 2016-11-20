@@ -22,7 +22,8 @@
 #define __LIBPARSER_H__
 
 #ifndef oblparser_EXPORTS
-  #define oblparser_EXPORTS
+  #define OBLPARSER_IMPEXP extern
+  #define OBL_STATIC
 #endif
 
 #include <parser.h>

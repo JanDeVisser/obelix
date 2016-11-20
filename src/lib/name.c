@@ -81,7 +81,7 @@ data_t * _name_append(data_t *self, char *fnc_name, array_t *args, dict_t *kwarg
 /* ----------------------------------------------------------------------- */
 
 void _name_debug(name_t *name, char *msg) {
-  mdebug(name, "%s: %p = %s (%d)", msg, name, name_tostring(name), name -> _d.refs);
+  debug(name, "%s: %p = %s (%d)", msg, name, name_tostring(name), name -> _d.refs);
 }
 
 name_t * _name_create(int count) {
@@ -321,7 +321,10 @@ unsigned int name_hash(name_t *name) {
   int          ix;
 
   ret = hashptr(name);
+  _name_debug(name, "name_hash");
+  debug(name, "name_hash. name = %p size = %d", name, name_size(name));
   for (ix = 0; ix < name_size(name); ix++) {
+    debug(name, "ix = %d name_get = %s", ix, name_get(name, ix));
     hashblend(ret, strhash(name_get(name, ix)));
   }
   return ret;

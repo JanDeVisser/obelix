@@ -164,7 +164,7 @@ token_t * _qstr_match(scanner_t *scanner) {
   return scanner -> lexer -> last_token;
 }
 
-typedescr_t * qstring_register(void) {
+__DLL_EXPORT__ typedescr_t * qstring_register(void) {
   typedescr_t *ret;
 
   QStrScannerConfig = typedescr_create_and_register(

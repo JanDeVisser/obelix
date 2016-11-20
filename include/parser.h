@@ -23,6 +23,7 @@
 
 #include <data.h>
 #include <datastack.h>
+#include <dictionary.h>
 #include <grammar.h>
 #include <lexer.h>
 #include <list.h>
@@ -31,29 +32,33 @@
 extern "C" {
 #endif
 
-#if (defined __WIN32__) || (defined _WIN32)
-#ifdef oblparser_EXPORTS
-#define OBLPARSER_IMPEXP	__DLL_EXPORT__
-#else /* ! oblcore_EXPORTS */
-#define OBLPARSER_IMPEXP	__DLL_IMPORT__
-#endif
-#else /* ! __WIN32__ */
-#define OBLPARSER_IMPEXP extern
-#endif /* __WIN32__ */
+#ifndef OBLPARSER_IMPEXP
+  #if (defined __WIN32__) || (defined _WIN32)
+    #ifdef oblparser_EXPORTS
+      #define OBLPARSER_IMPEXP	__DLL_EXPORT__
+    #elif defined(OBL_STATIC)
+      #define OBLPARSER_IMPEXP extern
+    #else /* ! OBLPARSER_EXPORTS */
+      #define OBLPARSER_IMPEXP	__DLL_IMPORT__
+    #endif
+  #else /* ! __WIN32__ */
+    #define OBLPARSER_IMPEXP extern
+  #endif /* __WIN32__ */
+#endif /* OBLPARSER_IMPEXP */
 
 OBLPARSER_IMPEXP int Parser;
 OBLPARSER_IMPEXP int parser_debug;
 
 typedef struct _parser {
-  data_t       _d;
-  grammar_t   *grammar;
-  lexer_t     *lexer;
-  void        *data;
-  list_t      *prod_stack;
-  token_t     *last_token;
-  data_t      *error;
-  datastack_t *stack;
-  dict_t      *variables;
+  dictionary_t  _d;
+  grammar_t    *grammar;
+  lexer_t      *lexer;
+  void         *data;
+  list_t       *prod_stack;
+  token_t      *last_token;
+  data_t       *error;
+  datastack_t  *stack;
+  dict_t       *variables;
 } parser_t;
 
 #define data_is_parser(d)     ((d) && data_hastype((data_t *) (d), Parser))
@@ -61,15 +66,15 @@ typedef struct _parser {
 #define parser_copy(p)        ((parser_t *) data_copy((data_t *) (p)))
 #define parser_free(p)        (data_free((data_t *) (p)))
 #define parser_tostring(p)    (data_tostring((data_t *) (p)))
+#define parser_set(p,n,v)     (dictionary_set((dictionary_t *) (p), (n), (v)))
+#define parser_get(p,n)       (dictionary_get((dictionary_t *) (p), (n)))
+#define parser_pop(p,n)       (dictionary_pop((dictionary_t *) (p), (n)))
 
 typedef parser_t * (*parser_data_fnc_t)(parser_t *, data_t *);
 typedef parser_t * (*parser_fnc_t)(parser_t *);
 
 OBLPARSER_IMPEXP parser_t * parser_create(grammar_t *);
 OBLPARSER_IMPEXP parser_t * parser_clear(parser_t *);
-OBLPARSER_IMPEXP parser_t * parser_set(parser_t *, char *, data_t *);
-OBLPARSER_IMPEXP data_t *   parser_get(parser_t *, char *);
-OBLPARSER_IMPEXP data_t *   parser_pop(parser_t *, char *);
 OBLPARSER_IMPEXP data_t *   parser_parse(parser_t *, data_t *);
 
 OBLPARSER_IMPEXP parser_t * parser_pushval(parser_t *, data_t *);

@@ -28,27 +28,24 @@ static char *        _mod_tostring(module_t *);
 static data_t *      _mod_call(module_t *, array_t *, dict_t *);
 static data_t *      _mod_set(module_t *, char *, data_t *);
 
-static namespace_t * _ns_create(void);
 static namespace_t * _ns_new(namespace_t *, va_list);
 static void          _ns_free(namespace_t *);
 static char *        _ns_tostring(namespace_t *);
 static module_t *    _ns_add(namespace_t *, name_t *);
-static data_t *      _ns_delegate_up(namespace_t *, module_t *, name_t *, array_t *, dict_t *);
-static data_t *      _ns_delegate_load(namespace_t *, module_t *, name_t *, array_t *, dict_t *);
 static data_t *      _ns_import(namespace_t *, name_t *, array_t *, dict_t *);
 
 int ns_debug = 0;
 int Module = -1;
 int Namespace = -1;
 
-vtable_t _vtable_namespace[] = {
+vtable_t _vtable_Namespace[] = {
   { .id = FunctionNew,      .fnc = (void_t) _ns_new },
   { .id = FunctionFree,     .fnc = (void_t) _ns_free },
   { .id = FunctionToString, .fnc = (void_t) _ns_tostring },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-vtable_t _vtable_module[] = {
+vtable_t _vtable_Module[] = {
   { .id = FunctionNew,      .fnc = (void_t) _mod_new },
   { .id = FunctionCmp,      .fnc = (void_t) mod_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _mod_free },
@@ -88,7 +85,7 @@ static data_t *    _pnm_set(pnm_t *, char *, data_t *);
 
 int PartialNameMatch = -1;
 
-static vtable_t _vtable_pnm[] = {
+static vtable_t _vtable_PartialNameMatch[] = {
   { .id = FunctionNew,      .fnc = (void_t) _pnm_new },
   { .id = FunctionCmp,      .fnc = (void_t) _pnm_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _pnm_free },
@@ -104,12 +101,9 @@ static vtable_t _vtable_pnm[] = {
 void _namespace_init(void) {
   if (Module < 0) {
     logging_register_category("namespace", &ns_debug);
-    Module = typedescr_create_and_register(Module, "module", _vtable_module, NULL);
-    typedescr_set_size(Module, module_t);
-    Namespace = typedescr_create_and_register(Namespace, "namespace", _vtable_namespace, NULL);
-    typedescr_set_size(Namespace, namespace_t);
-    PartialNameMatch = typedescr_create_and_register(PartialNameMatch, "pnm", _vtable_pnm, NULL);
-    typedescr_set_size(PartialNameMatch, pnm_t);
+    typedescr_register(Module, module_t);
+    typedescr_register(Namespace, namespace_t);
+    typedescr_register(PartialNameMatch, pnm_t);
   }
 }
 
@@ -139,8 +133,6 @@ static pnm_t * _pnm_add(pnm_t *pnm, module_t *mod) {
 }
 
 pnm_t * _pnm_find_mod_reducer(module_t *mod, pnm_t *pnm) {
-  data_t   *match;
-
   if (!pnm -> match && !name_cmp(mod -> name, pnm -> name)) {
     pnm -> match = mod;
   }
@@ -154,8 +146,6 @@ module_t * _pnm_find_mod(pnm_t *pnm) {
 }
 
 pnm_t * _pnm_find_in_mod_reducer(module_t *mod, pnm_t *pnm) {
-  data_t   *match;
-
   if (!name_cmp(mod -> name, pnm -> name)) {
     pnm -> match = mod_resolve(mod, pnm -> next);
   }
@@ -219,7 +209,7 @@ data_t * _pnm_set(pnm_t *pnm, char *name, data_t *value) {
 module_t * _mod_new(module_t *mod, va_list args) {
   namespace_t *ns = va_arg(args, namespace_t *);
   name_t *name = va_arg(args, name_t *);
-  
+
   debug(ns, "  Creating module '%s'", name_tostring(name));
   mod -> state = ModStateUninitialized;
   mod -> name = name_copy(name);
@@ -453,7 +443,7 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
             ((module -> state == ModStateLoading)
               ? "currently loading"
               : "already imported"), ns_tostring(ns));
-      ret = data_create(Module, module);
+      ret = data_copy((data_t *) module);
     } else {
       debug(ns, "  Module found but it's Uninitialized. Somebody must be busy loading it.");
     }
@@ -470,7 +460,7 @@ data_t * _ns_import(namespace_t *ns, name_t *name, array_t *args, dict_t *kwargs
 namespace_t * _ns_new(namespace_t *ns, va_list args) {
   char     *name = va_arg(args, char *);
   void     *importer = va_arg(args, void *);
-  import_t  import_fnc;
+  import_t  import_fnc = va_arg(args, void *);
 
   ns -> name = strdup(name);
   ns -> import_ctx = importer;
@@ -495,8 +485,6 @@ char * _ns_tostring(namespace_t *ns) {
 /* ------------------------------------------------------------------------ */
 
 namespace_t * ns_create(char *name, void *importer, import_t import_fnc) {
-  namespace_t *ret;
-
   _namespace_init();
   assert(importer && import_fnc);
   debug(ns, "  Creating root namespace");
@@ -530,7 +518,7 @@ data_t * ns_get(namespace_t *ns, name_t *name) {
       ErrorName, "Import '%s' not found in %s",
       name_tostring(name), ns_tostring(ns));
   } else {
-    return data_create(Module, mod);
+    return data_copy((data_t *) mod);
   }
 }
 

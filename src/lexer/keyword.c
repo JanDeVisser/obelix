@@ -107,6 +107,7 @@ static int   KWScannerConfig = -1;
 /* -- K W _ S C A N N E R _ C O N F I G ----------------------------------- */
 
 kw_config_t * _kw_config_create(kw_config_t *config, va_list args) {
+  debug(lexer, "Initializing kw_config_t");
   config -> _sc.priority = 10;
   config -> keywords = NULL;
   config -> num_keywords = 0;
@@ -464,7 +465,7 @@ token_t * _kw_match(scanner_t *scanner) {
   }
 }
 
-typedescr_t * keyword_register(void) {
+__DLL_EXPORT__ typedescr_t * keyword_register(void) {
   typedescr_t *ret;
 
   KWScannerConfig = typedescr_create_and_register(

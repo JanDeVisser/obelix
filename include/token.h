@@ -20,16 +20,6 @@
 #ifndef __TOKEN_H__
 #define	__TOKEN_H__
 
-#if (defined __WIN32__) || (defined _WIN32)
-#ifdef obllexer_EXPORTS
-#define OBLLEXER_IMPEXP	__DLL_EXPORT__
-#else /* ! oblcore_EXPORTS */
-#define OBLLEXER_IMPEXP	__DLL_IMPORT__
-#endif
-#else /* ! __WIN32__ */
-#define OBLLEXER_IMPEXP extern
-#endif /* __WIN32__ */
-
 #include <data.h>
 
 #ifdef __cplusplus

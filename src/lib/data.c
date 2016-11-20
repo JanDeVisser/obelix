@@ -65,6 +65,7 @@ void _data_init(void) {
 data_t * _data_call_constructor(data_t *data, new_t n, va_list args) {
   data_t  *ret;
 
+  debug(data, "Calling constructor %p", n);
   ret = n(data, args);
   if (data != ret) {
     data_free(data);
@@ -80,6 +81,7 @@ data_t * _data_call_constructors(typedescr_t *type, va_list args) {
   va_list         copy;
 
   constructors = typedescr_get_constructors(type);
+  debug(data, "Type '%s' has %d constructors", type -> type_name, (constructors) ? list_size(constructors) : -1);
   if (constructors && list_size(constructors)) {
     ret = data_create_noinit(type -> type);
     for (iter = li_create(constructors); ret && li_has_next(iter); ) {
@@ -138,6 +140,10 @@ data_t * _data_call_setter(typedescr_t *type, data_t *data, char *name, data_t *
   return ret;
 }
 
+int data_hastype(data_t * data, int type) {
+  return data && typedescr_is(data_typedescr(data), type);
+}
+
 /* -- D A T A  P U B L I C  F U N C T I O N S ----------------------------- */
 
 data_t * data_create_noinit(int type) {
@@ -145,6 +151,7 @@ data_t * data_create_noinit(int type) {
   data_t      *ret;
 
   descr = typedescr_get(type);
+  debug(data, "Allocating %d bytes for new '%s'", descr -> size, descr -> type_name);
   ret = (data_t *) _new((descr -> size) ? descr -> size : sizeof(data_t));
   ret = data_settype(ret, type);
   ret -> free_me = Normal;
@@ -365,9 +372,7 @@ int data_is_callable(data_t *data) {
   }
 }
 
-int data_hastype(data_t *data, int type) {
-  return data && typedescr_is(data_typedescr(data), type);
-}
+int data_hastype(data_t *data, int type);
 
 data_t * data_copy(data_t *src) {
   if (src) {

@@ -22,7 +22,8 @@
 #define __LIBCORE_H__
 
 #ifndef oblcore_EXPORTS
-  #define oblcore_EXPORTS
+#define OBLCORE_IMPEXP extern
+#define OBL_STATIC
 #endif
 
 #include <config.h>

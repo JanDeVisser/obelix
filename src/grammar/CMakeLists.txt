@@ -1,4 +1,4 @@
-add_library(oblgrammar SHARED
+set(SOURCES
   grammar_action.c
   grammar_element.c
   grammar_variable.c
@@ -8,21 +8,22 @@ add_library(oblgrammar SHARED
   rule_entry.c
   grammarparser.c
 )
+add_library(oblgrammar SHARED ${SOURCES})
+add_library(soblgrammar STATIC ${SOURCES})
 
 target_link_libraries(oblgrammar PUBLIC oblcore obllexer)
 
-if(CMAKE_COMPILER_IS_GNUCC)
-  target_compile_definitions(oblgrammar PRIVATE _GNU_SOURCE)
-endif(CMAKE_COMPILER_IS_GNUCC)
-
 add_executable(panoramix panoramix.c)
-
+target_compile_definitions(panoramix PRIVATE OBL_STATIC)
 if(CMAKE_COMPILER_IS_GNUCC)
-  target_compile_definitions(panoramix PRIVATE _GNU_SOURCE)
+    target_compile_definitions(panoramix PRIVATE _GNU_SOURCE)
+    target_compile_definitions(oblgrammar PRIVATE _GNU_SOURCE)
+    target_compile_definitions(soblgrammar PRIVATE _GNU_SOURCE)
 endif(CMAKE_COMPILER_IS_GNUCC)
-target_link_libraries(panoramix oblgrammar obllexer oblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
+target_link_libraries(panoramix soblgrammar sobllexer soblcore ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} m)
 
-install(TARGETS panoramix oblgrammar
+install(TARGETS panoramix oblgrammar soblgrammar
+        ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
 

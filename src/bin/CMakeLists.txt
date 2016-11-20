@@ -5,14 +5,18 @@ add_custom_command (
   COMMAND panoramix -g ${CMAKE_HOME_DIRECTORY}/share/grammar/obelix.grammar > oblgrammar.c
 )
 
+add_library(scriptparse SHARED scriptparse.c)
 add_executable(obelix
   oblgrammar.c
   loader.c
   obelix.c
-  scriptparse.c
   server.c
 )
 
-target_link_libraries(obelix oblvm oblparser oblgrammar obllexer oblcore ${SYSLIBS})
+target_link_libraries(scriptparse oblvm oblparser oblgrammar obllexer oblcore ${SYSLIBS})
+target_link_libraries(obelix scriptparse oblvm oblparser oblgrammar obllexer oblcore ${SYSLIBS})
 
-install(TARGETS obelix DESTINATION bin)
+install(TARGETS scriptparse obelix
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)

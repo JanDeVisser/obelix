@@ -59,6 +59,7 @@ static vtable_t _vtable_wsscanner_config[] = {
 };
 
 static int WSScannerConfig = -1;
+static int whitespace_debug = 0;
 
 /* -- W S _ C O N F I G  -------------------------------------------------- */
 
@@ -73,6 +74,7 @@ ws_config_t * _ws_config_set(ws_config_t *ws_config, char *name, data_t *data) {
   function_t  *fnc = NULL;
   ws_config_t *ret = ws_config;
 
+  debug(whitespace, "name: %s data: %s", name, data_tostring(data));
   if (!strcmp(name, PARAM_IGNOREWS)) {
     ws_config -> ignore_ws = data_intval(data);
   } else if (!strcmp(name, PARAM_IGNORENL)) {
@@ -125,7 +127,7 @@ token_t * _ws_match(scanner_t *scanner) {
   ws_config_t *ws_config = (ws_config_t *) scanner -> config;
   int          nl_is_ws;
 
-  debug(lexer, "_ws_match ignore_nl: %d ignore_ws: %d",
+  debug(whitespace, "_ws_match ignore_nl: %d ignore_ws: %d",
          ws_config -> ignore_nl, ws_config -> ignore_ws);
   nl_is_ws = ws_config -> ignore_nl && !ws_config -> ignore_ws;
 
@@ -134,14 +136,17 @@ token_t * _ws_match(scanner_t *scanner) {
 
     ch = lexer_get_char(scanner -> lexer);
     if ((ch == '\r') || ((scanner->state != WSSCR) && (ch == '\n'))) {
+      debug(whitespace, "Processing newline %p", ws_config -> onnewline);
       if (ws_config -> onnewline) {
         ((onnewline_t) ws_config -> onnewline->fnc)(scanner->lexer);
+        debug(whitespace, "Newline processed");
       }
     }
 
     switch (scanner->state) {
 
       case WSSInit:
+        debug(whitespace, "WSSInit");
         if (isspace(ch)) {
           switch (ch) {
             case '\r':
@@ -161,6 +166,7 @@ token_t * _ws_match(scanner_t *scanner) {
         break;
 
       case WSSCR:
+        debug(whitespace, "WSSCR");
         if (ch == '\n') {
           scanner->state = WSSNewline;
           lexer_push(scanner->lexer);
@@ -177,6 +183,7 @@ token_t * _ws_match(scanner_t *scanner) {
         break;
 
       case WSSNewline:
+        debug(whitespace, "WSSNewline");
         if ((ch == '\r') || (ch == '\n')) {
           if (ch == '\r') {
             scanner->state = WSSCR;
@@ -193,6 +200,7 @@ token_t * _ws_match(scanner_t *scanner) {
         break;
 
       case WSSWhitespace:
+        debug(whitespace, "WSSWhitespace");
         if (!isspace(ch) ||
             (!nl_is_ws && ((ch == '\r') || (ch == '\n')))) {
           if (ws_config -> ignore_ws) {
@@ -208,14 +216,16 @@ token_t * _ws_match(scanner_t *scanner) {
     }
   }
   if (scanner -> state == WSSDone) {
+    debug(whitespace, "WSSDone");
     scanner -> lexer -> state = LexerStateSuccess;
   }
   return ret;
 }
 
-typedescr_t * whitespace_register(void) {
+__DLL_EXPORT__ typedescr_t * whitespace_register(void) {
   typedescr_t *ret;
 
+  logging_register_category("whitespace", &whitespace_debug);
   WSScannerConfig = typedescr_create_and_register(
       WSScannerConfig, "whitespace", _vtable_wsscanner_config, NULL);
   ret = typedescr_get(WSScannerConfig);

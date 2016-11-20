@@ -22,8 +22,8 @@
 #include "liblexer.h"
 #include <function.h>
 #include <mutex.h>
-#include <nvp.h>
 #include <resolve.h>
+#include <lexer.h>
 
 /* ------------------------------------------------------------------------ */
 
@@ -61,7 +61,16 @@ void _scanner_config_init(void) {
     dict_set_data_type(_scanners_configs, type_int);
     _scanners_configs = strdata_dict_create();
     _scanner_config_mutex = mutex_create();
+#ifdef OBL_STATIC
+    scanner_config_register(comment_register());
+    scanner_config_register(identifier_register());
+    scanner_config_register(keyword_register());
+    scanner_config_register(number_register());
+    scanner_config_register(qstring_register());
+    scanner_config_register(whitespace_register());
+#else
     resolve_library("libobllexer");
+#endif
   }
 }
 
@@ -82,7 +91,6 @@ typedescr_t * _scanner_config_load_nolock(char *code, char *regfnc_name) {
     regfnc = (create_t) fnc -> fnc;
     ret = regfnc();
     debug(lexer, "Scanner definition '%s' has type %d", code, ret -> type);
-    typedescr_assign_inheritance(ret -> type, ScannerConfig);
     scanner_config_register(ret);
   } else {
     error("Registration function '%s' for scanner config type '%s' cannot be resolved",
@@ -224,6 +232,7 @@ int scanner_config_typeid(void) {
 typedescr_t * scanner_config_register(typedescr_t *def) {
   lexer_init();
   mutex_lock(_scanner_config_mutex);
+  typedescr_assign_inheritance(def -> type, ScannerConfig);
   dict_put(_scanners_configs, strdup(def -> type_name), (void *) ((intptr_t) def -> type));
   mutex_unlock(_scanner_config_mutex);
   return def;
@@ -243,7 +252,7 @@ typedescr_t * scanner_config_load(char *code, char *regfnc_name) {
 
 typedescr_t * scanner_config_get(char *code) {
   typedescr_t *ret;
-  long         type;
+  intptr_t     type;
 
   lexer_init();
   mutex_lock(_scanner_config_mutex);
@@ -261,6 +270,7 @@ scanner_config_t * scanner_config_create(char *code, lexer_config_t *lexer_confi
   typedescr_t      *type;
   scanner_config_t *ret = NULL;
 
+  lexer_init();
   type = scanner_config_get(code);
   if (type) {
     debug(lexer, "Creating scanner_config. code: '%s', type: %d", code, type -> type);

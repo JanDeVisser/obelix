@@ -33,7 +33,7 @@
 
 #include <data.h>
 #include <exception.h>
-#include <object.h>
+#include <vm.h>
 #include <str.h>
 #include <math.h>
 
@@ -106,7 +106,7 @@ char * _windows_version(OSVERSIONINFOEX *version) {
       v = v + strlen(v);
       sprintf(v, ".%d", version -> wServicePackMinor);
     }
-  }	    
+  }
   return buf;
 }
 
@@ -154,7 +154,7 @@ data_t * _function_getenv(char *name, array_t *params, dict_t *kwargs) {
   char      *v;
   int        len = 0;
   int        l;
-  
+
   obj = object_create(NULL);
   for (e = environ; *e; e++) {
     l = strlen(*e);
@@ -249,13 +249,13 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
 data_t * _function_exit(char *name, array_t *params, dict_t *kwargs) {
   data_t *exit_code;
   data_t *error;
-  
+
   if (params && array_size(params)) {
     exit_code = data_copy(data_array_get(params, 0));
   } else {
     exit_code = int_to_data(0);
   }
-  
+
   error = data_exception(ErrorExit,
 			 "Exit with code '%s'", data_tostring(exit_code));
   data_as_exception(error) -> throwable = exit_code;

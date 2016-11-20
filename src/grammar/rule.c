@@ -26,7 +26,7 @@ static char *              _rule_tostring(rule_t *);
 static rule_t *            _rule_dump_pre(rule_t *rule);
 static list_t *            _rule_dump_get_children(rule_t *rule, list_t *);
 
-static vtable_t _vtable_rule[] = {
+static vtable_t _vtable_Rule[] = {
   { .id = FunctionNew,      .fnc = (void_t) _rule_new },
   { .id = FunctionFree,     .fnc = (void_t) _rule_free },
   { .id = FunctionToString, .fnc = (void_t) _rule_tostring },
@@ -40,9 +40,7 @@ grammar_element_type_t Rule = -1;
 /* ------------------------------------------------------------------------ */
 
 extern void rule_register(void) {
-  Rule = typedescr_create_and_register(
-      Rule, "rule", _vtable_rule, NULL);
-  typedescr_set_size(Rule, rule_t);
+  typedescr_register(Rule, rule_t);
   typedescr_assign_inheritance(Rule, GrammarElement);
 }
 
@@ -146,10 +144,4 @@ void _rule_build_parse_table(rule_t *rule) {
 rule_t * rule_create(nonterminal_t *nonterminal) {
   grammar_init();
   return (rule_t *) data_create(Rule, nonterminal_get_grammar(nonterminal), nonterminal);
-}
-
-rule_entry_t * rule_get_entry(rule_t *rule, int ix) {
-  assert(ix >= 0);
-  assert(ix < array_size(rule -> entries));
-  return (rule_entry_t *) array_get(rule -> entries, ix);
 }

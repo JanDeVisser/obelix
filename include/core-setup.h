@@ -53,16 +53,19 @@
 #define _unused_
 #endif
 
+#ifndef OBLCORE_IMPEXP
 #if (defined __WIN32__) || (defined _WIN32)
 #ifdef oblcore_EXPORTS
 #define OBLCORE_IMPEXP       __DLL_EXPORT__
+#elif defined(OBL_STATIC)
+#define OBLCORE_IMPEXP       extern
 #else /* ! oblcore_EXPORTS */
 #define OBLCORE_IMPEXP       __DLL_IMPORT__
 #endif
 #else /* ! __WIN32__ */
 #define OBLCORE_IMPEXP extern
 #endif /* __WIN32__ */
-
+#endif /* OBLCORE_IMPEXP */
 
 #ifndef HAVE_INTPTR_T
 typedef long long intptr_t; /* FIXME: 32bits! */

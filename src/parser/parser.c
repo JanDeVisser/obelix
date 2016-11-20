@@ -66,7 +66,7 @@ int ParserStackEntry = -1;
 
 /* ------------------------------------------------------------------------ */
 
-static vtable_t _vtable_parser[] = {
+static vtable_t _vtable_Parser[] = {
   { .id = FunctionNew,         .fnc = (void_t) _parser_new },
   { .id = FunctionFree,        .fnc = (void_t) _parser_free },
   { .id = FunctionAllocString, .fnc = (void_t) _parser_allocstring },
@@ -74,7 +74,7 @@ static vtable_t _vtable_parser[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static vtable_t _vtable_parser_stack_entry[] = {
+static vtable_t _vtable_ParserStackEntry[] = {
   { .id = FunctionNew,   .fnc = (void_t) _parser_stack_entry_new },
   { .id = FunctionFree,  .fnc = (void_t) _parser_stack_entry_free },
   { .id = FunctionCall,  .fnc = (void_t) _parser_stack_entry_call },
@@ -92,15 +92,14 @@ int             PSEType ## t = -1;                                           \
 static data_t * _pse_execute_ ## t(parser_stack_entry_t *, parser_t *, token_t *, int); \
 static char *   _pse_allocstring_ ## t(parser_stack_entry_t *);              \
 static void     _register_ ## t(void);                                       \
-static vtable_t _vtable_ ## t [] = {                                         \
+static vtable_t _vtable_PSEType ## t [] = {                                         \
   { .id = FunctionUsr1,        .fnc = (void_t) _pse_execute_ ## t },         \
   { .id = FunctionAllocString, .fnc = (void_t) _pse_allocstring_ ## t },     \
   { .id = FunctionNone,        .fnc = NULL }                                 \
 };                                                                           \
 void _register_ ## t(void) {                                                 \
-  PSEType ## t = typedescr_create_and_register(-1, #t, _vtable_ ## t, NULL); \
+  typedescr_register(PSEType ## t, parser_t);                                \
   typedescr_assign_inheritance(PSEType ## t, ParserStackEntry);              \
-  typedescr_set_size(PSEType ## t, parser_stack_entry_t);                    \
 }
 
 PSEType(NonTerminal);
@@ -113,12 +112,10 @@ PSEType(Action);
 void _parser_init(void) {
   if (Parser < 0) {
     logging_register_category("parser", &parser_debug);
-    Parser = typedescr_create_and_register(
-            Parser, "parser", _vtable_parser, NULL);
-    typedescr_set_size(Parser, parser_t);
-    ParserStackEntry = typedescr_create_and_register(
-            ParserStackEntry, "pse", _vtable_parser_stack_entry, NULL);
-    typedescr_set_size(ParserStackEntry, parser_stack_entry_t);
+    dictionary_init();
+    typedescr_register(Parser, parser_t);
+    typedescr_assign_inheritance(Parser, Dictionary);
+    typedescr_register(ParserStackEntry, parser_stack_entry_t);
     _register_NonTerminal();
     _register_Rule();
     _register_Entry();
@@ -464,41 +461,6 @@ parser_t * parser_clear(parser_t *parser) {
   parser -> lexer = NULL;
   return parser;
 }
-
-/**
- * Sets a parser variable. Note the the data object is not copied but added to
- * the parser as-is, therefore the caller should not free it. The key string
- * is copied however.
- */
-parser_t * parser_set(parser_t *parser, char *name, data_t *data) {
-  dict_put(parser -> variables, strdup(name), data);
-  return parser;
-}
-
-/**
- * Retrieves a parser variable. The variable remains part of the parser and
- * therefore the caller should not free the returned value.
- *
- * @return The parser variable with the given name, or NULL if the parser has
- * no variable with that name.
- */
-data_t * parser_get(parser_t *parser, char *name) {
-  return (data_t *) dict_get(parser -> variables, name);
-}
-
-/**
- * Retrieves a parser variable and removes it from the parser and therefore
- * the caller is responsible for freeing the return value.
- *
- * @return The parser variable with the given name, or NULL if the parser has
- * no variable with that name.
- *
- * @see
- */
-data_t * parser_pop(parser_t *parser, char *name) {
-  return (data_t *) dict_pop(parser -> variables, name);
-}
-
 
 data_t * parser_parse(parser_t *parser, data_t *reader) {
   data_t *ret = NULL;

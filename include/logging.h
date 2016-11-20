@@ -85,13 +85,13 @@ OBLCORE_IMPEXP int    logging_set_level(log_level_t);
 #define info(fmt, args...)           _logmsg(LogLevelInfo, __FILE__, __LINE__, __func__, fmt, ## args)
 #define warn(fmt, args...)           _logmsg(LogLevelWarning, __FILE__, __LINE__, __func__, fmt, ## args)
 #define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, __func__, fmt, ## args)
-#define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); exit(-10); }
-#define oassert(value, fmt, args...) { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); assert(0); } }
+#define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); abort(); }
+#define oassert(value, fmt, args...) { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); abort(); } }
 #define vinfo(fmt, args)             _vlogmsg(LogLevelInfo, __FILE__, __LINE__, __func__, fmt, args)
 #define vwarn(fmt, args)             _vlogmsg(LogLevelWarning, __FILE__, __LINE__, __func__, fmt, args)
 #define verror(fmt, args)            _vlogmsg(LogLevelError, __FILE__, __LINE__, __func__, fmt, args)
-#define vfatal(fmt, args)            { _vlogmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, args); exit(-10); }
-#define voassert(value, fmt, args)   { if (!(value)) { _vlogmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, args); assert(0); } }
+#define vfatal(fmt, args)            { _vlogmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, args); abort(); }
+#define voassert(value, fmt, args)   { if (!(value)) { _vlogmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, args); abort(); } }
 #else /* _MSC_VER */
 #define info(fmt, ...)               _logmsg(LogLevelInfo, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define warn(fmt, ...)               _logmsg(LogLevelWarning, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)

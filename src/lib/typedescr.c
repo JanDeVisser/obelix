@@ -27,7 +27,8 @@
 #include <str.h>
 #include <typedescr.h>
 
-static int          _numtypes = 0;
+static int           _numtypes = Dynamic;
+static int           _capacity = 0;
 static typedescr_t *descriptors = NULL;
 static interface_t *_interfaces = NULL;
 static int          _next_interface = NextInterface;
@@ -538,26 +539,26 @@ int _typedescr_register(typedescr_t *descr) {
   vtable_t       *vtable;
   int             newsz;
   int             cursz;
+  int             newcap;
   typedescr_t    *d;
 
   _typedescr_init();
   if (descr -> type < 0) {
     descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
+    _numtypes = descr -> type + 1;
   }
-  if (type_debug) {
-    info("Registering type '%s' [%d]", descr -> type_name, descr -> type);
-  }
-  if (!descriptors) {
-    descriptors = (typedescr_t *) new_array(Dynamic + 1, sizeof(typedescr_t));
-    _numtypes = Dynamic;
-  } else {
-    if (descr -> type >= _numtypes) {
-      newsz = (descr -> type + 1) * sizeof(typedescr_t);
-      cursz = _numtypes * sizeof(typedescr_t);
-      new_descriptors = (typedescr_t *) resize_block(descriptors, newsz, cursz);
-      descriptors = new_descriptors;
-      _numtypes = descr -> type + 1;
-    }
+  debug(type, "Registering type '%s' [%d]", descr -> type_name, descr -> type);
+  if (descr -> type >= _capacity) {
+    for (newcap = (_capacity) ? _capacity * 2 : Dynamic;
+         newcap < descr -> type;
+         newcap *= 2);
+    cursz = _capacity * sizeof(typedescr_t);
+    newsz = newcap * sizeof(typedescr_t);
+    debug(type, "Expaning type dictionary buffer from %d to %d (%d/%d bytes)",
+      _capacity, newcap, cursz, newsz);
+    new_descriptors = (typedescr_t *) resize_block(descriptors, newsz, cursz);
+    descriptors = new_descriptors;
+    _capacity = newcap;
   }
   d = &descriptors[descr -> type];
   memcpy(d, descr, sizeof(typedescr_t));

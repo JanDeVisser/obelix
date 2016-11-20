@@ -188,7 +188,7 @@ token_t * _id_match(scanner_t *scanner) {
 
 /* -- I D E N T I F I E R  S C A N N E R ---------------------------------- */
 
-typedescr_t * identifier_register(void) {
+__DLL_EXPORT__ typedescr_t * identifier_register(void) {
   typedescr_t *ret;
 
   IDScannerConfig = typedescr_create_and_register(IDScannerConfig,

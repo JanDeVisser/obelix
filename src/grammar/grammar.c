@@ -327,17 +327,9 @@ grammar_t * grammar_create() {
   return (grammar_t *) data_create(Grammar, NULL, NULL);
 }
 
-nonterminal_t * grammar_get_nonterminal(grammar_t *grammar, char *rule) {
-  return (nonterminal_t *) dict_get(grammar -> nonterminals, rule);
-}
-
 grammar_t * grammar_set_parsing_strategy(grammar_t *grammar, strategy_t strategy) {
   grammar -> strategy = strategy;
   return grammar;
-}
-
-strategy_t grammar_get_parsing_strategy(grammar_t *grammar) {
-  return grammar -> strategy;
 }
 
 function_t * grammar_resolve_function(grammar_t *grammar, char *func_name) {

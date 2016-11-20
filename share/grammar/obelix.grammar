@@ -1,6 +1,6 @@
 %
   prefix:      script_parse_
-  lexer:       "whitespace: ignoreall=1;onnewline=mark_line"
+  lexer:       "whitespace: ignoreall=1;onnewline=script_parse_mark_line"
   lexer:       keyword
   lexer:       identifier
   lexer:       number
@@ -339,7 +339,7 @@ _identifier                 := 'i'               [ push                      ]
                                _identifier_tail
                              ;
 
-_identifier_tail            := .
+_identifier_tail            := '.'
                                _identifier
                              |
                              ;

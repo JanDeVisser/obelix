@@ -36,15 +36,20 @@ extern "C" {
 
 /* ------------------------------------------------------------------------ */
 
-#if (defined __WIN32__) || (defined _WIN32)
-#ifdef oblvm_EXPORTS
-#define OBLVM_IMPEXP	__DLL_EXPORT__
-#else /* ! oblvm_EXPORTS */
-#define OBLVM_IMPEXP	__DLL_IMPORT__
-#endif
-#else /* ! __WIN32__ */
-#define OBLVM_IMPEXP extern
-#endif /* __WIN32__ */
+#ifndef OBLVM_IMPEXP
+  #if (defined __WIN32__) || (defined _WIN32)
+    #ifdef oblvm_EXPORTS
+      #define OBLVM_IMPEXP	__DLL_EXPORT__
+    #elif defined(OBL_STATIC)
+      #define OBLVM_IMPEXP extern
+    #else /* ! oblvm_EXPORTS */
+      #define OBLVM_IMPEXP	__DLL_IMPORT__
+    #endif
+  #else /* ! __WIN32__ */
+    #define OBLVM_IMPEXP extern
+  #endif /* __WIN32__ */
+#endif /* OBLVM_IMPEXP */
+
 
 /* -- F O R W A R D  D E C L A R A T I O N S ------------------------------ */
 

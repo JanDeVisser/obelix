@@ -40,6 +40,7 @@ static vtable_t _vtable_Stackframe[] = {
 };
 
 static vtable_t _vtable_Stacktrace[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _stacktrace_new },
   { .id = FunctionCmp,         .fnc = (void_t) stacktrace_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _stacktrace_free },
   { .id = FunctionAllocString, .fnc = (void_t) _stacktrace_allocstring },
@@ -69,7 +70,7 @@ stackframe_t * stackframe_create(data_t *data) {
 
 stackframe_t * _stackframe_new(stackframe_t *stackframe, va_list args) {
   vm_t         *vm = va_arg(args, vm_t *);
-  
+
   stackframe -> funcname = strdup(data_tostring(vm -> bytecode -> owner));
   // FIXME
   stackframe -> source = strdup(data_tostring(vm -> bytecode -> owner));
@@ -86,7 +87,7 @@ void _stackframe_free(stackframe_t *stackframe) {
 
 int stackframe_cmp(stackframe_t *stackframe1, stackframe_t *stackframe2) {
   int ret = strcmp(stackframe1 -> funcname, stackframe2 -> funcname);
-  
+
   if (!ret) {
     ret = stackframe1 -> line - stackframe2 -> line;
   }
@@ -95,7 +96,7 @@ int stackframe_cmp(stackframe_t *stackframe1, stackframe_t *stackframe2) {
 
 char * _stackframe_allocstring(stackframe_t *stackframe) {
   char *buf;
-  
+
   asprintf(&buf, "%-32.32s [%32s:%d]",
 	   stackframe -> funcname, stackframe -> source, stackframe -> line);
   return buf;
@@ -114,7 +115,7 @@ stacktrace_t * _stacktrace_new(stacktrace_t *stacktrace, va_list args) {
   datastack_t  *stack;
   int           ix;
   stackframe_t *frame;
-  
+
   asprintf(&stack_name, "Thread %s", thread_tostring(thread));
   stacktrace -> stack = datastack_create(stack_name);
   free(stack_name);
@@ -142,7 +143,7 @@ char * _stacktrace_allocstring(stacktrace_t *stacktrace) {
   int      ix;
   data_t  *frame;
   char    *buf;
-  
+
   str = str_create(74 * datastack_depth(stacktrace -> stack));
   stack = stacktrace -> stack -> list;
   for (ix = 0; ix < array_size(stack); ix++) {

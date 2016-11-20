@@ -41,7 +41,6 @@ typedef struct _scriptloader {
   data_t        *load_path;
   char          *system_dir;
   grammar_t     *grammar;
-  parser_t      *parser;
   namespace_t   *ns;
   array_t       *options;
   char          *cookie;

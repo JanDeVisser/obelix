@@ -21,8 +21,9 @@
 #define __LIBLEXER_H__
 
 #ifndef obllexer_EXPORTS
-  #define obllexer_EXPORTS
-#endif
+#define OBLLEXER_IMPEXP extern
+#define OBL_STATIC
+#endif /* !obllexer_EXPORTS */
 
 #include <ctype.h>
 #include <stdio.h>

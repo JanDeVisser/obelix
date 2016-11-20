@@ -9,7 +9,3 @@ target_link_libraries(tgrammar oblgrammar obllexer obltest oblcore ${CHECK_LIBRA
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(tgrammar PRIVATE _GNU_SOURCE)
 endif(CMAKE_COMPILER_IS_GNUCC)
-
-install(TARGETS tgrammar
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib)

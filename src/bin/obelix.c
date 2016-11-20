@@ -54,7 +54,6 @@ static methoddescr_t _methods_Obelix[] = {
 
        int       Obelix = -1;
 static obelix_t *_obelix;
-       int       obelix_debug;
 
 /* ------------------------------------------------------------------------ */
 

@@ -29,6 +29,7 @@ typedef enum _num_scanner_state {
   NumScannerStatePlusMinus,
   NumScannerStateZero,
   NumScannerStateNumber,
+  NumScannerStatePeriod,
   NumScannerStateFloat,
   NumScannerStateFloatFraction,
   NumScannerStateSciFloat,
@@ -126,7 +127,7 @@ token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
       } else if (isdigit(ch)) {
         scanner -> state = NumScannerStateNumber;
       } else if (config -> flt && (ch == '.')) {
-        scanner -> state = NumScannerStateFloat;
+        scanner -> state = NumScannerStatePeriod;
       } else {
         scanner -> state = NumScannerStateDone;
         code = TokenCodeNone;
@@ -137,9 +138,20 @@ token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
       if (ch == '0') {
         scanner -> state = NumScannerStateZero;
       } else if (config -> flt && (ch == '.')) {
-        scanner -> state = NumScannerStateFloat;
+        scanner -> state = NumScannerStatePeriod;
       } else if (isdigit(ch)) {
         scanner -> state = NumScannerStateNumber;
+      } else {
+        scanner -> state = NumScannerStateDone;
+        code = TokenCodeNone;
+      }
+      break;
+
+    case NumScannerStatePeriod:
+      if (isdigit(ch)) {
+        scanner -> state = NumScannerStateFloat;
+      } else if (config -> scientific &&  (ch == 'e') && (str_len(scanner -> lexer -> token) > 1)) {
+        scanner -> state = NumScannerStateSciFloat;
       } else {
         scanner -> state = NumScannerStateDone;
         code = TokenCodeNone;
@@ -177,7 +189,7 @@ token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
 
     case NumScannerStateNumber:
       if (config -> flt && (ch == '.')) {
-        scanner -> state = NumScannerStateFloat;
+        scanner -> state = NumScannerStatePeriod;
       } else if (config -> scientific && (ch == 'e')) {
         scanner -> state = NumScannerStateSciFloat;
       } else if (!isdigit(ch)) {
@@ -259,7 +271,7 @@ token_t * _num_match(scanner_t *scanner) {
  * ---------------------------------------------------------------------------
  */
 
-typedescr_t * number_register(void) {
+__DLL_EXPORT__ typedescr_t * number_register(void) {
   typedescr_t *ret;
 
   NumScannerConfig = typedescr_create_and_register(NumScannerConfig,
