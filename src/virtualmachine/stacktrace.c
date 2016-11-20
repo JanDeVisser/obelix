@@ -139,20 +139,9 @@ int stacktrace_cmp(stacktrace_t *stacktrace1, stacktrace_t *stacktrace2) {
 
 char * _stacktrace_allocstring(stacktrace_t *stacktrace) {
   str_t   *str;
-  array_t *stack;
-  int      ix;
-  data_t  *frame;
   char    *buf;
 
-  str = str_create(74 * datastack_depth(stacktrace -> stack));
-  stack = stacktrace -> stack -> list;
-  for (ix = 0; ix < array_size(stack); ix++) {
-    if (ix > 0) {
-      str_append_chars(str, "\n");
-    }
-    frame = (data_t *) array_get(stack, ix);
-    str_append_chars(str, data_tostring(frame));
-  }
+  str = array_join(stacktrace -> stack -> list, "\n");
   buf = strdup(str_chars(str));
   str_free(str);
 

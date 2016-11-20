@@ -18,6 +18,7 @@
  */
 
 #include "liblexer.h"
+#include <re.h>
 
 typedef struct _token_code_str {
   token_code_t  code;
@@ -309,6 +310,12 @@ data_t * token_todata(token_t *token) {
       case TokenCodeFloat:
         type = Float;
         break;
+      case TokenCodeSlash:
+        if (strcmp(str, "/")) {
+          data = (data_t *) regexp_create(str, NULL);
+          break;
+        }
+        /* Else fall through */
       default:
         data = int_to_data(token_code(token));
         break;

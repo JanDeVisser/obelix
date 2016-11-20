@@ -51,7 +51,10 @@ static name_t      *name_equals = NULL;
 static name_t      *name_or = NULL;
 static name_t      *name_and = NULL;
 
-int       obelix_debug;
+static data_t      *quotes_with_slash = NULL;
+static data_t      *quotes_with_without_slash = NULL;
+
+int                 obelix_debug;
 
 #define push_instruction(p, i) (bytecode_push_instruction((bytecode_t *) ((p) -> data), (data_t *) (i)));
 
@@ -72,6 +75,9 @@ void _script_parse_create_statics(void) {
     name_equals  = name_create(1, "==");
     name_or      = name_create(1, "or");
     name_and     = name_create(1, "and");
+
+    quotes_with_slash = (data_t *) str_wrap("\"'`/");
+    quotes_with_without_slash = (data_t *) str_wrap("\"'`");
   }
 }
 
@@ -928,4 +934,16 @@ parser_t * script_parse_query(parser_t *parser) {
 
   _script_parse_function(parser, name_query, arg_count + 1);
   return parser;
+}
+
+/* -- R E G E X P --------------------------------------------------------- */
+
+parser_t * script_parse_qstring_disable_slash(parser_t *parser) {
+  return lexer_reconfigure_scanner(parser -> lexer, "qstring", "quotes", quotes_with_without_slash)
+    ? parser : NULL;
+}
+
+parser_t * script_parse_qstring_enable_slash(parser_t *parser) {
+  return lexer_reconfigure_scanner(parser -> lexer, "qstring", "quotes", quotes_with_slash)
+    ? parser : NULL;
 }

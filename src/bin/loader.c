@@ -153,7 +153,6 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
   data_free(root);
   if (!loader -> ns) {
     error("Could not initialize loader root namespace");
-    scriptloader_free(loader);
     loader = NULL;
   } else {
     data_thread_set_kernel((data_t *) loader);

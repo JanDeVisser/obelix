@@ -516,3 +516,22 @@ int lexer_get_char(lexer_t *lexer) {
   debug(lexer, "lexer_get_char(%c)", ch);
   return ch;
 }
+
+scanner_t * lexer_get_scanner(lexer_t *lexer, char *code) {
+  scanner_t *scanner;
+
+  for (scanner = lexer -> scanners; scanner; scanner = scanner -> next) {
+    if (!strcmp(code, data_typename((data_t *) scanner -> config))) {
+      return scanner;
+    }
+  }
+  return NULL;
+}
+
+lexer_t * lexer_reconfigure_scanner(lexer_t *lexer, char *code, char *name, data_t *value) {
+  scanner_t *scanner = lexer_get_scanner(lexer, code);
+
+  return (scanner)
+    ? ((scanner_reconfigure(scanner, name, value)) ? lexer : NULL)
+    : NULL;
+}

@@ -148,7 +148,8 @@ OBLLEXER_IMPEXP scanner_config_t * scanner_config_dump(scanner_config_t *);
  */
 
 OBLLEXER_IMPEXP scanner_t *        scanner_create(scanner_config_t *, lexer_t *);
-OBLLEXER_IMPEXP token_code_t       scanner_match(scanner_t *);
+// OBLLEXER_IMPEXP token_t *          scanner_match(scanner_t *);
+OBLLEXER_IMPEXP scanner_t *        scanner_reconfigure(scanner_t *, char *, data_t *);
 
 /*
  * ---------------------------------------------------------------------------
@@ -171,26 +172,28 @@ OBLLEXER_IMPEXP lexer_config_t *   lexer_config_dump(lexer_config_t *);
  * ---------------------------------------------------------------------------
  */
 
-OBLLEXER_IMPEXP lexer_t *        lexer_create(lexer_config_t *, data_t *);
-OBLLEXER_IMPEXP token_t *        lexer_next_token(lexer_t *);
-OBLLEXER_IMPEXP int              lexer_get_char(lexer_t *);
-OBLLEXER_IMPEXP int              lexer_at_top(lexer_t *);
-OBLLEXER_IMPEXP int              lexer_at_end(lexer_t *);
-OBLLEXER_IMPEXP void             lexer_pushback(lexer_t *);
-OBLLEXER_IMPEXP void             lexer_clear(lexer_t *);
-OBLLEXER_IMPEXP void             lexer_flush(lexer_t *);
-OBLLEXER_IMPEXP lexer_t *        lexer_reset(lexer_t *);
-OBLLEXER_IMPEXP lexer_t *        lexer_rewind(lexer_t *);
-OBLLEXER_IMPEXP token_t *        lexer_accept(lexer_t *, token_code_t);
-OBLLEXER_IMPEXP token_t *        lexer_accept_token(lexer_t *, token_t *);
-OBLLEXER_IMPEXP void             lexer_skip(lexer_t *);
-OBLLEXER_IMPEXP token_t *        lexer_get_accept(lexer_t *, token_code_t, int);
-OBLLEXER_IMPEXP lexer_t *        lexer_push(lexer_t *);
-OBLLEXER_IMPEXP lexer_t *        lexer_push_as(lexer_t *, int);
-OBLLEXER_IMPEXP lexer_t *        lexer_discard(lexer_t *);
-OBLLEXER_IMPEXP void *           _lexer_tokenize(lexer_t *, reduce_t, void *);
+OBLLEXER_IMPEXP lexer_t *   lexer_create(lexer_config_t *, data_t *);
+OBLLEXER_IMPEXP token_t *   lexer_next_token(lexer_t *);
+OBLLEXER_IMPEXP int         lexer_get_char(lexer_t *);
+OBLLEXER_IMPEXP int         lexer_at_top(lexer_t *);
+OBLLEXER_IMPEXP int         lexer_at_end(lexer_t *);
+OBLLEXER_IMPEXP void        lexer_pushback(lexer_t *);
+OBLLEXER_IMPEXP void        lexer_clear(lexer_t *);
+OBLLEXER_IMPEXP void        lexer_flush(lexer_t *);
+OBLLEXER_IMPEXP lexer_t *   lexer_reset(lexer_t *);
+OBLLEXER_IMPEXP lexer_t *   lexer_rewind(lexer_t *);
+OBLLEXER_IMPEXP token_t *   lexer_accept(lexer_t *, token_code_t);
+OBLLEXER_IMPEXP token_t *   lexer_accept_token(lexer_t *, token_t *);
+OBLLEXER_IMPEXP void        lexer_skip(lexer_t *);
+OBLLEXER_IMPEXP token_t *   lexer_get_accept(lexer_t *, token_code_t, int);
+OBLLEXER_IMPEXP lexer_t *   lexer_push(lexer_t *);
+OBLLEXER_IMPEXP lexer_t *   lexer_push_as(lexer_t *, int);
+OBLLEXER_IMPEXP lexer_t *   lexer_discard(lexer_t *);
+OBLLEXER_IMPEXP void *      _lexer_tokenize(lexer_t *, reduce_t, void *);
+OBLLEXER_IMPEXP scanner_t * lexer_get_scanner(lexer_t *, char *);
+OBLLEXER_IMPEXP lexer_t *   lexer_reconfigure_scanner(lexer_t *, char *, char *, data_t *);
 
-OBLLEXER_IMPEXP void             lexer_init(void);
+OBLLEXER_IMPEXP void        lexer_init(void);
 
 OBLLEXER_IMPEXP int LexerConfig;
 OBLLEXER_IMPEXP int Lexer;

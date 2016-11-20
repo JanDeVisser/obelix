@@ -114,3 +114,10 @@ scanner_t * scanner_create(scanner_config_t *config, lexer_t *lexer) {
   ret = (scanner_t *) data_create(Scanner, config, lexer);
   return ret;
 }
+
+scanner_t * scanner_reconfigure(scanner_t *scanner, char *param, data_t *value) {
+  scanner_t * (*reconfigfnc)(scanner_t *, char *, data_t *);
+  reconfigfnc = (scanner_t * (*)(scanner_t *, char *, data_t *))
+    data_get_function((data_t *) scanner -> config, FunctionReconfigScanner);
+  return (reconfigfnc) ? reconfigfnc(scanner, param, value) : NULL;
+}

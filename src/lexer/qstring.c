@@ -33,20 +33,32 @@ typedef struct _qstr_config {
   char              *quotechars;
 } qstr_config_t;
 
-static qstr_config_t * _qstr_config_create(qstr_config_t *config, va_list args);
-static data_t *        _qstr_config_resolve(qstr_config_t *, char *);
-static qstr_config_t * _qstr_config_set(qstr_config_t *, char *, data_t *);
-static qstr_config_t * _qstr_config_set_quotes(qstr_config_t *, char *);
-static qstr_config_t * _qstr_config_config(qstr_config_t *, array_t *);
-static token_t *       _qstr_match(scanner_t *);
+typedef struct _qstr_scanner {
+  char   *quotechars;
+  char    quote;
+  data_t *quotechars_data;
+} qstr_scanner_t;
+
+static qstr_config_t *  _qstr_config_create(qstr_config_t *config, va_list args);
+static data_t *         _qstr_config_resolve(qstr_config_t *, char *);
+static qstr_config_t *  _qstr_config_set(qstr_config_t *, char *, data_t *);
+static qstr_config_t *  _qstr_config_set_quotes(qstr_config_t *, char *);
+static qstr_config_t *  _qstr_config_config(qstr_config_t *, array_t *);
+static token_t *        _qstr_match(scanner_t *);
+
+static qstr_scanner_t * _qstr_scanner_create(qstr_config_t *);
+static void             _qstr_scanner_free(qstr_scanner_t *);
+static scanner_t *      _qstr_scanner_config(scanner_t *, char *, data_t *);
 
 static vtable_t _vtable_qstrscanner_config[] = {
-  { .id = FunctionNew,       .fnc = (void_t) _qstr_config_create },
-  { .id = FunctionResolve,   .fnc = (void_t) _qstr_config_resolve },
-  { .id = FunctionSet,       .fnc = (void_t) _qstr_config_set },
-  { .id = FunctionMatch,     .fnc = (void_t) _qstr_match },
-  { .id = FunctionGetConfig, .fnc = (void_t) _qstr_config_config },
-  { .id = FunctionNone,      .fnc = NULL }
+  { .id = FunctionNew,             .fnc = (void_t) _qstr_config_create },
+  { .id = FunctionResolve,         .fnc = (void_t) _qstr_config_resolve },
+  { .id = FunctionSet,             .fnc = (void_t) _qstr_config_set },
+  { .id = FunctionMatch,           .fnc = (void_t) _qstr_match },
+  { .id = FunctionGetConfig,       .fnc = (void_t) _qstr_config_config },
+  { .id = FunctionDestroyScanner,  .fnc = (void_t) _qstr_scanner_free },
+  { .id = FunctionReconfigScanner, .fnc = (void_t) _qstr_scanner_config },
+  { .id = FunctionNone,           .fnc = NULL }
 };
 
 static int QStrScannerConfig = -1;
@@ -101,15 +113,62 @@ qstr_config_t * _qstr_config_config(qstr_config_t *config, array_t *cfg) {
   return config;
 }
 
-token_t * _qstr_match(scanner_t *scanner) {
-  char           ch;
-  token_t       *ret = NULL;
-  qstr_config_t *qstr_config = (qstr_config_t *) scanner -> config;
+/* -- Q S T R _ S C A N N E R --------------------------------------------- */
 
-  if (!qstr_config -> quotechars || !*qstr_config -> quotechars) {
+qstr_scanner_t * _qstr_scanner_create(qstr_config_t *config) {
+  qstr_scanner_t *qstr_scanner;
+
+  qstr_scanner = NEW(qstr_scanner_t);
+  if (config -> quotechars && *config -> quotechars) {
+    qstr_scanner -> quotechars_data = (data_t *) str_copy_chars(config -> quotechars);
+    qstr_scanner -> quotechars = data_tostring(qstr_scanner -> quotechars_data);
+  } else {
+    qstr_scanner -> quotechars_data = NULL;
+    qstr_scanner -> quotechars = NULL;
+  }
+  qstr_scanner -> quote = 0;
+  return qstr_scanner;
+}
+
+void _qstr_scanner_free(qstr_scanner_t *qstr_scanner) {
+  if (qstr_scanner) {
+    data_free(qstr_scanner -> quotechars_data);
+    free(qstr_scanner);
+  }
+}
+
+scanner_t * _qstr_scanner_config(scanner_t *scanner, char *param, data_t *value) {
+  qstr_config_t  *qstr_config = (qstr_config_t *) scanner -> config;
+  qstr_scanner_t *qstr_scanner = (qstr_scanner_t *) scanner -> data;
+
+  if (!qstr_scanner) {
+    qstr_scanner = _qstr_scanner_create(qstr_config);
+    scanner -> data = qstr_scanner;
+  }
+  if (!strcmp(param, PARAM_QUOTES) && data_notnull(value)) {
+    data_free(qstr_scanner -> quotechars_data);
+    qstr_scanner -> quotechars_data = data_copy(value);
+    qstr_scanner -> quotechars = data_tostring(qstr_scanner -> quotechars_data);
+  }
+  return scanner;
+}
+
+/* ------------------------------------------------------------------------ */
+
+token_t * _qstr_match(scanner_t *scanner) {
+  char            ch;
+  token_t        *ret = NULL;
+  qstr_config_t  *qstr_config = (qstr_config_t *) scanner -> config;
+  qstr_scanner_t *qstr_scanner = (qstr_scanner_t *) scanner -> data;
+
+  if (!qstr_scanner) {
+    qstr_scanner = _qstr_scanner_create(qstr_config);
+    scanner -> data = qstr_scanner;
+  }
+  if (!qstr_scanner -> quotechars) {
     return NULL;
   }
-  mdebug(lexer, "_qstr_match quotechars: %s", qstr_config -> quotechars);
+  debug(lexer, "_qstr_match quotechars: %s", qstr_scanner -> quotechars);
 
   for (scanner -> state = QStrInit; scanner -> state != QStrDone; ) {
     ch = lexer_get_char(scanner -> lexer);
@@ -119,18 +178,18 @@ token_t * _qstr_match(scanner_t *scanner) {
 
     switch (scanner->state) {
       case QStrInit:
-        if (strchr(qstr_config -> quotechars, ch)) {
+        if (strchr(qstr_scanner -> quotechars, ch)) {
           lexer_discard(scanner -> lexer);
-          scanner -> data = (void *) (intptr_t) ch;
+          qstr_scanner -> quote = ch;
           scanner -> state = QStrQString;
-          mdebug(lexer, "Start of quotes string, quote '%c'", ch);
+          debug(lexer, "Start of quotes string, quote '%c'", ch);
         } else {
           scanner -> state = QStrDone;
         }
         break;
 
       case QStrQString:
-        if (ch == (int) (intptr_t) scanner -> data) {
+        if (ch == qstr_scanner -> quote) {
           lexer_discard(scanner -> lexer);
           ret = lexer_accept(scanner -> lexer, (token_code_t) ch);
           scanner -> state = QStrDone;
