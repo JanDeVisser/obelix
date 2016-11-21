@@ -317,6 +317,12 @@ str_t * str_copy_nchars(char *buffer, size_t len) {
   return ret;
 }
 
+str_t * str_from_data(data_t *data) {
+  return (data_is_string(data))
+    ? (str_t *) data_copy(data)
+    : str_copy_chars(data_tostring(data));
+}
+
 str_t * str_deepcopy(str_t *str) {
   str_t *ret;
   char *b;

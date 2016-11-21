@@ -30,7 +30,7 @@ typedef enum _qstr_scanner_state {
 
 typedef struct _qstr_config {
   scanner_config_t   _sc;
-  char              *quotechars;
+  str_t             *quotechars;
 } qstr_config_t;
 
 typedef struct _qstr_scanner {
@@ -42,7 +42,7 @@ typedef struct _qstr_scanner {
 static qstr_config_t *  _qstr_config_create(qstr_config_t *config, va_list args);
 static data_t *         _qstr_config_resolve(qstr_config_t *, char *);
 static qstr_config_t *  _qstr_config_set(qstr_config_t *, char *, data_t *);
-static qstr_config_t *  _qstr_config_set_quotes(qstr_config_t *, char *);
+static qstr_config_t *  _qstr_config_set_quotes(qstr_config_t *, data_t *);
 static qstr_config_t *  _qstr_config_config(qstr_config_t *, array_t *);
 static token_t *        _qstr_match(scanner_t *);
 
@@ -66,50 +66,42 @@ static int QStrScannerConfig = -1;
 /* -- Q S T R _ C O N F I G  ---------------------------------------------- */
 
 qstr_config_t *_qstr_config_create(qstr_config_t *config, va_list args) {
-  config -> quotechars = strdup("\"'`");
+  _qstr_config_set_quotes(config, data_uncopy((data_t *) str_wrap("\"'`")));
   return config;
 }
 
 void _qstr_config_free(qstr_config_t *config) {
   if (config) {
-    free(config -> quotechars);
+    str_free(config -> quotechars);
   }
 }
 
 qstr_config_t * _qstr_config_set(qstr_config_t *config,
                                  char *name, data_t *value) {
   if (!strcmp(PARAM_QUOTES, name)) {
-    return _qstr_config_set_quotes(config, data_tostring(value));
+    return _qstr_config_set_quotes(config, value);
   } else {
     return NULL;
   }
 }
 
-qstr_config_t * _qstr_config_set_quotes(qstr_config_t *config, char *chars) {
-  char *newstr;
-
-  if (!config -> quotechars) {
-    config -> quotechars = strdup(chars);
-  } else {
-    newstr = (char *) _new(strlen(config -> quotechars) + strlen(chars) + 1);
-    strcpy(newstr, config -> quotechars);
-    strcat(newstr, chars);
-    free(config -> quotechars);
-    config -> quotechars = newstr;
-  }
+qstr_config_t * _qstr_config_set_quotes(qstr_config_t *config, data_t *chars) {
+  str_free(config -> quotechars);
+  config -> quotechars = str_from_data(chars);
+  debug(lexer, "Setting quotes to '%s'", (chars) ? str_chars(config -> quotechars) : "null");
   return config;
 }
 
 data_t * _qstr_config_resolve(qstr_config_t *config, char *name) {
   if (!strcmp(name, PARAM_QUOTES)) {
-    return (data_t *) str_wrap(config -> quotechars);
+    return data_copy((data_t *) config -> quotechars);
   } else {
     return NULL;
   }
 }
 
 qstr_config_t * _qstr_config_config(qstr_config_t *config, array_t *cfg) {
-  array_push(cfg, nvp_create(str_to_data(PARAM_QUOTES), (data_t *) str_copy_chars(config -> quotechars)));
+  array_push(cfg, nvp_create(str_to_data(PARAM_QUOTES), data_copy((data_t *) config -> quotechars)));
   return config;
 }
 
@@ -119,8 +111,8 @@ qstr_scanner_t * _qstr_scanner_create(qstr_config_t *config) {
   qstr_scanner_t *qstr_scanner;
 
   qstr_scanner = NEW(qstr_scanner_t);
-  if (config -> quotechars && *config -> quotechars) {
-    qstr_scanner -> quotechars_data = (data_t *) str_copy_chars(config -> quotechars);
+  if (config -> quotechars && str_len(config -> quotechars)) {
+    qstr_scanner -> quotechars_data = data_copy((data_t *) config -> quotechars);
     qstr_scanner -> quotechars = data_tostring(qstr_scanner -> quotechars_data);
   } else {
     qstr_scanner -> quotechars_data = NULL;
@@ -149,6 +141,7 @@ scanner_t * _qstr_scanner_config(scanner_t *scanner, char *param, data_t *value)
     data_free(qstr_scanner -> quotechars_data);
     qstr_scanner -> quotechars_data = data_copy(value);
     qstr_scanner -> quotechars = data_tostring(qstr_scanner -> quotechars_data);
+    debug(lexer, "Reconfig: Setting quotes to '%s'", qstr_scanner -> quotechars);
   }
   return scanner;
 }
@@ -166,6 +159,7 @@ token_t * _qstr_match(scanner_t *scanner) {
     scanner -> data = qstr_scanner;
   }
   if (!qstr_scanner -> quotechars) {
+    debug(lexer, "_qstr_match NO quotechars");
     return NULL;
   }
   debug(lexer, "_qstr_match quotechars: %s", qstr_scanner -> quotechars);

@@ -4,7 +4,7 @@
   lexer:       keyword
   lexer:       identifier
   lexer:       number
-  lexer:       "qstring: quotes=\'\"`"
+  lexer:       "qstring: quotes=\'\"`/"
   lexer:       "comment: marker=/* */;marker=//;marker=^#"
 %
 
@@ -288,7 +288,7 @@ termtail                    := add_op            [ infix_op                  ]
                              ;
 
 term                        := factor
-                               factortail
+                               factortail        [ qstring_enable_slash      ]
                              ;
 
 factortail                  := mult_op           [ infix_op                  ]
@@ -297,8 +297,7 @@ factortail                  := mult_op           [ infix_op                  ]
                              |
                              ;
 
-factor                      :=                   [ qstring_enable_slash      ]
-                               expr_atom         [ qstring_disable_slash     ]
+factor                      := expr_atom
                                subscript
                              ;
 
@@ -306,7 +305,7 @@ subscript                   := '[' expr ']'      [ instruction: "Subscript"  ]
                              |
                              ;
 
-expr_atom                   := ( expr )
+expr_atom  [ qstring_disable_slash ] := ( expr )
                              |                   [ instruction: "PushScope"  ]
                                var_or_calls
                              | new

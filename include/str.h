@@ -45,6 +45,7 @@ struct _data;
 OBLCORE_IMPEXP str_t *     str_wrap(char *);
 OBLCORE_IMPEXP str_t *     str_copy_chars(char *);
 OBLCORE_IMPEXP str_t *     str_copy_nchars(char *, size_t);
+OBLCORE_IMPEXP str_t *     str_from_data(data_t *);
 OBLCORE_IMPEXP str_t *     str_printf(char *, ...);
 OBLCORE_IMPEXP str_t *     str_vprintf(char *, va_list);
 OBLCORE_IMPEXP str_t *     str_deepcopy(str_t *);

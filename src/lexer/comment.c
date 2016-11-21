@@ -131,6 +131,7 @@ char * _comment_marker_tostring(comment_marker_t *marker) {
 
 comment_config_t *_comment_config_create(comment_config_t *config,
                                          va_list args) {
+  config -> _sc.priority = 20;
   config -> markers = NULL;
   config -> longest_marker = 0;
   config -> num_markers = 0;
@@ -360,7 +361,7 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
            * We matched the full end marker. Set the state of the scanner.
            */
           scanner -> state = CommentNone;
-          lexer_skip(lexer);
+          lexer_accept_token(lexer, NULL);
         } else {
           /*
            * Still matching the end marker. Read next character:
@@ -373,9 +374,8 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
   if (!ch) {
     ret = token_create(TokenCodeError, "Unterminated comment");
     lexer_accept_token(scanner -> lexer, ret);
-    token_free(ret);
   }
-  return lexer -> last_token;
+  return ret;
 }
 
 token_t *_comment_match(scanner_t *scanner) {

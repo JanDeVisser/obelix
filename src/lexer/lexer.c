@@ -250,10 +250,9 @@ token_t * _lexer_match_token(lexer_t *lexer) {
     lexer -> scan_count = 0;
     if (scanner -> config -> match) {
       lexer_rewind(lexer);
-      debug(lexer, "First pass with scanner '%s' %p", data_typename(scanner -> config), scanner -> config -> match);
-      ret = scanner -> config -> match(scanner);
+      scanner -> config -> match(scanner);
       debug(lexer, "First pass with scanner '%s' = %s",
-             data_typename(scanner -> config), token_tostring(ret));
+             data_typename(scanner -> config), token_tostring(lexer -> last_token));
     }
   }
   if (!lexer -> last_token && (lexer -> state != LexerStateSuccess)) {
