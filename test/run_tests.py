@@ -1,14 +1,14 @@
 #!/usr/bin/python
 #
-# test/run_tests.py - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>  
-#  
+# test/run_tests.py - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
+#
 # This file is part of Obelix.
 #
 # Obelix is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # Obelix is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,7 +29,7 @@ def check_stream(script, which, stream):
     if which in script:
         written = [ line.strip() for line in stream ]
         written = "\n".join(written)
-        expected = ("\n".join(script[which]) 
+        expected = ("\n".join(script[which])
                     if isinstance(script[which], (list,tuple))
                     else script[which])
         if written != expected:
@@ -40,7 +40,7 @@ def check_stream(script, which, stream):
 def test_script(name):
     os.path.exists("stdout") and os.remove("stdout")
     os.path.exists("stdout") and os.remove("stderr")
-    
+
     f = name + ".obl"
 
     with open(name + ".json") as fd:
@@ -49,7 +49,7 @@ def test_script(name):
         ex = subprocess.call(["obelix", f], stdout = out, stderr = err)
         out.seek(0)
         err.seek(0)
-        
+
         error = 0;
         if "exit" in script:
             expected = script["exit"]
@@ -60,12 +60,8 @@ def test_script(name):
         error += check_stream(script, "stderr", err)
     os.remove("stdout")
     os.remove("stderr")
+    print "%s: %s" % (name, "OK" if error == 0 else "Failed")
 
-    if error > 0:
-        print "%s: Failed" % name
-    else:
-        print name
-        
     return error == 0
 
 
@@ -121,7 +117,7 @@ def remove_test(name):
         with open("tests.json", "w+") as fd:
             json.dump(scripts, fd)
 
-            
+
 def remove_all_tests():
     scripts = load_test_names()
     for script in scripts:
@@ -157,7 +153,7 @@ def help():
     print " -i, --index: Print an index of all registered tests. Output can be used by -f."
     print " -h, --help:  Display this message."
     print ""
-    
+
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "-c":

@@ -112,10 +112,9 @@ set_t * _rule_entry_get_firsts(rule_entry_t *entry, set_t *firsts) {
   if (entry -> terminal) {
     set_add_int(firsts, token_code(entry -> token));
   } else {
-    debug(grammar, "nonterminal: %s", entry -> nonterminal);
     nonterminal = grammar_get_nonterminal(rule_entry_get_grammar(entry),
                                           entry -> nonterminal);
-    assert(nonterminal);
+    oassert(nonterminal, "Non-terminal '%s' not found", entry -> nonterminal);
     set_union(firsts, _nonterminal_get_firsts(nonterminal));
   }
   return firsts;

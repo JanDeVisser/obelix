@@ -338,6 +338,7 @@ parser_t * script_parse_deref(parser_t *parser) {
 parser_t * script_parse_push_token(parser_t *parser) {
   data_t *data;
 
+  debug(obelix, " -- token: '%s'", token_tostring(parser -> last_token));
   data = token_todata(parser -> last_token);
   assert(data);
   debug(obelix, " -- val: %s", data_tostring(data));

@@ -15,7 +15,3 @@ else
   ret = ret + 20
 end
 return ret
-
-/* EXPECTED
---exit-- 42
-EXPECTED */

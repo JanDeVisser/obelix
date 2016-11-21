@@ -260,7 +260,7 @@ str_t * str_create(size_t size) {
 
   ret = _str_initialize();
   size = size ? size : _DEFAULT_SIZE;
-  ret -> buffer = (char *) new(size);
+  ret -> buffer = stralloc(size);
   memset(ret -> buffer, 0, size);
   ret -> bufsize = size;
   return ret;
@@ -489,6 +489,9 @@ int str_fillup(str_t *str, data_t *rdr) {
 }
 
 int str_replenish(str_t *str, data_t *rdr) {
+  if (str -> pos > str -> len) {
+    str -> pos = str -> len;
+  }
   if (str -> len < str -> bufsize) {
     return str_fillup(str, rdr);
   } else {

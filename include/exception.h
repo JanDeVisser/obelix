@@ -79,12 +79,13 @@ OBLCORE_IMPEXP data_t *       data_exception_from_my_errno(int);
 OBLCORE_IMPEXP data_t *       data_exception_from_errno(void);
 OBLCORE_IMPEXP data_t *       data_throwable(data_t *);
 
-#define data_is_exception(d)           ((d) && (data_hastype((data_t *) (d), Exception)))
-#define data_is_unhandled_exception(d) ((d) && data_is_exception((d)) && !(((exception_t *) (d)) -> handled))
-#define data_as_exception(d)           ((exception_t *) ((data_is_exception((d)) ? (d) : NULL)))
-#define exception_free(e)              (data_free((data_t *) (e)))
-#define exception_tostring(e)          (data_tostring((data_t *) (e)))
-#define exception_copy(e)              ((exception_t *) data_copy((data_t *) (e)))
+#define data_is_exception(d)             ((d) && (data_hastype((data_t *) (d), Exception)))
+#define data_is_unhandled_exception(d)   ((d) && data_is_exception((d)) && !(((exception_t *) (d)) -> handled))
+#define data_as_exception(d)             ((exception_t *) ((data_is_exception((d)) ? (d) : NULL)))
+#define data_is_exception_with_code(d,c) (data_is_exception((d)) && (data_as_exception((d)) -> code == (c)))
+#define exception_free(e)                (data_free((data_t *) (e)))
+#define exception_tostring(e)            (data_tostring((data_t *) (e)))
+#define exception_copy(e)                ((exception_t *) data_copy((data_t *) (e)))
 
 #ifdef __WIN32__
 #define get_last_error()               (GetLastError())

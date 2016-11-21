@@ -81,9 +81,9 @@ char * _windows_release(OSVERSIONINFOEX *version) {
 
   for (wr = _releases; wr -> name; wr++) {
     if ((wr -> major == version -> dwMajorVersion) &&
-	(wr -> minor == version -> dwMinorVersion) &&
-	((wr -> type && wr -> type == version -> wProductType) ||
-	 (!wr -> type))) {
+        (wr -> minor == version -> dwMinorVersion) &&
+        ((wr -> type && wr -> type == version -> wProductType) ||
+        (!wr -> type))) {
       return wr -> name;
     }
   }

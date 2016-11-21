@@ -49,6 +49,7 @@ typedef struct _grammar_parser {
   rule_entry_t  *entry;
   int            modifier;
   int            dryrun;
+  dict_t        *keywords;
   unsigned int   next_keyword_code;
 } grammar_parser_t;
 

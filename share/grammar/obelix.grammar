@@ -3,7 +3,7 @@
   lexer:       "whitespace: ignoreall=1;onnewline=script_parse_mark_line"
   lexer:       keyword
   lexer:       identifier
-  lexer:       number
+  lexer:       "number: signed=0"
   lexer:       "qstring: quotes=\'\"`/"
   lexer:       "comment: marker=/* */;marker=//;marker=^#"
 %

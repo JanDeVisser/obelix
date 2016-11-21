@@ -15,10 +15,3 @@ context fd = open("readfile.obl")
   end
 end
 print("Using iterator: ${0}", total_iterator)
-/* EXPECTED
---exit-- 0
---stdout--
-Using readline: 476
-Using iterator: 476
---
-EXPECTED */

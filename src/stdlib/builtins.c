@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-
 #include <array.h>
 #include <data.h>
 #include <dict.h>
@@ -58,7 +57,7 @@ data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
 data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
   data_t       *naptime;
   int           ret;
-  
+
   (void) func_name;
   (void) kwargs;
   assert(array_size(args));
@@ -70,7 +69,7 @@ data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
 
 data_t * _function_usleep(char *func_name, array_t *args, dict_t *kwargs) {
   data_t  *naptime;
-  
+
   (void) func_name;
   (void) kwargs;
   assert(array_size(args));

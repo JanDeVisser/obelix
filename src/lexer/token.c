@@ -296,11 +296,15 @@ data_t * token_todata(token_t *token) {
     str = token_token(token);
     type = -1;
     switch (token_code(token)) {
-      case TokenCodeRawString:
-      case TokenCodeIdentifier:
       case TokenCodeDQuotedStr:
       case TokenCodeSQuotedStr:
       case TokenCodeBQuotedStr:
+        if (!str) {
+          str = "";
+        }
+        /* Fall through */
+      case TokenCodeRawString:
+      case TokenCodeIdentifier:
         type = String;
         break;
       case TokenCodeHexNumber:
@@ -312,7 +316,7 @@ data_t * token_todata(token_t *token) {
         break;
       case TokenCodeSlash:
         if (strcmp(str, "/")) {
-          data = (data_t *) regexp_create(str, NULL);
+          data = (data_t *) regexp_create(str ? str : "", NULL);
           break;
         }
         /* Else fall through */

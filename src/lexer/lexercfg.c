@@ -237,6 +237,22 @@ data_t * lexer_config_set(lexer_config_t *config, char *code, data_t *param) {
     : NULL;
 }
 
+data_t * lexer_config_get(lexer_config_t *config, char *code, char *name) {
+  scanner_config_t *scanner;
+  data_t           *ret = NULL;
+
+  debug(lexer, "lexer_config_get('%s', '%s')", code, name);
+  scanner = lexer_config_get_scanner(config, code);
+  if (scanner) {
+    ret = data_get_attribute((data_t *) scanner, name);
+    if (data_is_exception_with_code(ret, ErrorType)) {
+      data_free(ret);
+      ret = NULL;
+    }
+  }
+  return ret;
+}
+
 int lexer_config_get_bufsize(lexer_config_t *config) {
   return config -> bufsize;
 }

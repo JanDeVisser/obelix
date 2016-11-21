@@ -92,12 +92,15 @@ data_t * _grammar_parser_xform(grammar_parser_t *gp, token_t *token) {
       len = strlen(str);
       if (len >= 1) {
         token_free(token);
-        token = token_create(gp -> next_keyword_code++, str);
-        if (gp -> grammar -> lexer) {
+        assert(gp -> grammar -> lexer);
+        token = (token_t *) dict_get(gp -> keywords, str);
+        if (!token) {
+          token = token_create(gp -> next_keyword_code++, str);
           kw = nvp_create(data_uncopy((data_t *) str_wrap("keyword")),
                           (data_t *) token_copy(token));
           lexer_config_set(gp -> grammar -> lexer, "keyword", (data_t *) kw);
           nvp_free(kw);
+          dict_put(gp -> keywords, strdup(str), token);
         }
       } else { /* len == 0 */
         ret = (data_t *) exception_create(ErrorSyntax,
@@ -559,6 +562,7 @@ grammar_parser_t * grammar_parser_create(data_t *reader) {
   grammar_parser -> entry = NULL;
   grammar_parser -> ge = NULL;
   grammar_parser -> dryrun = FALSE;
+  grammar_parser -> keywords = strdata_dict_create();
   grammar_parser -> next_keyword_code = 300;
   return grammar_parser;
 }
@@ -566,6 +570,7 @@ grammar_parser_t * grammar_parser_create(data_t *reader) {
 void grammar_parser_free(grammar_parser_t *grammar_parser) {
   if (grammar_parser) {
     token_free(grammar_parser -> last_token);
+    dict_free(grammar_parser -> keywords);
     free(grammar_parser);
   }
 }

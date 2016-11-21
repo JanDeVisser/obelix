@@ -163,6 +163,7 @@ OBLLEXER_IMPEXP scanner_config_t * lexer_config_get_scanner(lexer_config_t *, ch
 OBLLEXER_IMPEXP lexer_config_t *   lexer_config_set_bufsize(lexer_config_t *, int);
 OBLLEXER_IMPEXP int                lexer_config_get_bufsize(lexer_config_t *);
 OBLLEXER_IMPEXP data_t *           lexer_config_set(lexer_config_t *, char *, data_t *);
+OBLLEXER_IMPEXP data_t *           lexer_config_get(lexer_config_t *, char *, char *);
 OBLLEXER_IMPEXP lexer_config_t *   lexer_config_tokenize(lexer_config_t *, reduce_t, data_t *);
 OBLLEXER_IMPEXP lexer_config_t *   lexer_config_dump(lexer_config_t *);
 

@@ -20,16 +20,3 @@ print(sqr(double(2))) // 16
 print(foo(2).x) // 2
 print(foo(2).dbl) // 4
 print(foo(sqr(2)).dbl) // 8
-
-/* EXPECTED
---exit-- 0
---stdout--
-12
-42
-4
-16
-2
-4
-8
---
-EXPECTED */
