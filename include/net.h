@@ -1,5 +1,5 @@
 /*
- * /obelix/src/lib/uri.c - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/inclure/uri.h - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -17,36 +17,44 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
-#include <data.h>
-#include <object.h>
+#ifndef __NET_H__
+#define __NET_H__
 
-#ifndef __URI_H__
-#define __URI_H__
+#include <data.h>
+#include <dictionary.h>
+#include <name.h>
+#include <str.h>
+
+#ifndef OBLNET_IMPEXP
+  #if (defined __WIN32__) || (defined _WIN32)
+    #ifdef OBLNET_EXPORTS
+      #define OBLNET_IMPEXP	__DLL_EXPORT__
+    #elif defined(OBL_STATIC)
+      #define OBLNET_IMPEXP extern
+    #else /* ! OBLNET_EXPORTS */
+      #define OBLNET_IMPEXP	__DLL_IMPORT__
+    #endif
+  #else /* ! __WIN32__ */
+    #define OBLNET_IMPEXP extern
+  #endif /* __WIN32__ */
+#endif /* OBLNET_IMPEXP */
 
 typedef struct _uri {
-  data_t                 _d;
-  str_t                 *scheme;
-  str_t                 *user;
-  str_t                 *password;
-  str_t                 *host;
-  str_t                 *port;
-  str_t                 *path;
-  str_t                 *query;
-  str_t                 *fragment;
+  data_t  _d;
+  data_t *error;
+  char   *scheme;
+  char   *user;
+  char   *password;
+  char   *host;
+  int     port;
+  name_t *path;
+  dict_t *query;
+  char   *fragment;
 } uri_t;
 
-extern uri_t *    uri_create(str_t *uri);
-extern str_t *    uri_scheme(uri_t *uri);
-extern str_t *    uri_password(uri_t *uri);
-extern str_t *    uri_host(uri_t *uri);
-extern str_t *    uri_port(uri_t *uri);
-extern str_t *    uri_path(uri_t *uri);
-extern str_t *    uri_querystring(uri_t *uri);
-extern object_t * uri_query(uri_t *uri);
-extern str_t *    uri_fragment(uri_t *uri);
+OBLNET_IMPEXP uri_t *     uri_create(char *);
 
-extern int URI;
+OBLCORE_IMPEXP int URI;
 
 #define data_is_uri(d)     ((d) && data_hastype((d), URI))
 #define data_urival(d)     (data_is_uri((d)) ? ((uri_t *) ((d) -> ptrval)) : NULL)
@@ -54,6 +62,4 @@ extern int URI;
 #define uri_free(u)        (data_free((data_t *) (u)))
 #define uri_tostring(u)    (data_tostring((data_t *) (u)))
 
-#endif /* __URI_H__ */
-
-static int uri_debug;
+#endif /* __NET_H__ */

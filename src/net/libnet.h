@@ -1,5 +1,5 @@
 /*
- * /obelix/src/lib/libcore.h - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/src/parser/libparser.h - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -18,18 +18,19 @@
  */
 
 
-#ifndef __LIBCORE_H__
-#define __LIBCORE_H__
+#ifndef __LIBNET_H__
+#define __LIBNET_H__
 
-#ifndef oblcore_EXPORTS
-#define OBLCORE_IMPEXP extern
-#define OBL_STATIC
+#ifndef oblnet_EXPORTS
+  #define OBLNET_IMPEXP extern
+  #define OBL_STATIC
 #endif
 
-#include <config.h>
-#include <core-setup.h>
-#include <core.h>
+#include <stdio.h>
+#include <net.h>
 
-extern int data_debug;
+extern void net_init(void);
 
-#endif /* __LIBCORE_H__ */
+extern int net_debug;
+
+#endif /* __LIBNET_H__ */

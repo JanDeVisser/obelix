@@ -67,6 +67,7 @@ void _scanner_config_init(void) {
     scanner_config_register(keyword_register());
     scanner_config_register(number_register());
     scanner_config_register(qstring_register());
+    scanner_config_register(uri_register());
     scanner_config_register(whitespace_register());
 #else
     resolve_library("libobllexer");
@@ -233,6 +234,7 @@ typedescr_t * scanner_config_register(typedescr_t *def) {
   lexer_init();
   mutex_lock(_scanner_config_mutex);
   typedescr_assign_inheritance(def -> type, ScannerConfig);
+  debug(lexer, "Registering scanner type '%s' (%d)", def -> type_name, def -> type);
   dict_put(_scanners_configs, strdup(def -> type_name), (void *) ((intptr_t) def -> type));
   mutex_unlock(_scanner_config_mutex);
   return def;

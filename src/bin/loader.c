@@ -29,7 +29,7 @@
 #include <grammarparser.h>
 #include <thread.h>
 
-extern grammar_t *      build_grammar(void);
+extern grammar_t *      grammar_build(void);
 
 static inline void      _scriptloader_init(void);
 static file_t *         _scriptloader_open_file(scriptloader_t *, char *, module_t *);
@@ -115,7 +115,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
 
   if (!grammarpath || !*grammarpath) {
     debug(obelix, "Using stock, compiled-in grammar");
-    loader -> grammar = build_grammar();
+    loader -> grammar = grammar_build();
   } else {
     debug(obelix, "grammar file: %s", grammarpath);
     file = (data_t *) file_open(grammarpath);
@@ -426,7 +426,6 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, dat
   debug(obelix, "scriptloader_load_fromreader('%s')", name_tostring(mod -> name));
   parser = parser_create(loader -> grammar);
   debug(obelix, "Created parser");
-  parser_clear(parser);
   parser_set(parser, "module", (data_t *) mod_copy(mod));
   name = (name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__";
   parser_set(parser, "name", str_to_data(name));

@@ -25,15 +25,17 @@
 
 /* ------------------------------------------------------------------------ */
 
-extern inline void _lexer_config_init(void);
-static void        _lexer_config_free(lexer_config_t *);
-static char *      _lexer_config_staticstring(lexer_config_t *);
-static data_t *    _lexer_config_resolve(lexer_config_t *, char *);
-static data_t *    _lexer_config_set(lexer_config_t *, char *, data_t *);
-static data_t *    _lexer_config_mth_add_scanner(lexer_config_t *, char *, array_t *, dict_t *);
-static data_t *    _lexer_config_mth_tokenize(lexer_config_t *, char *, array_t *, dict_t *);
+extern inline void      _lexer_config_init(void);
+static lexer_config_t * _lexer_config_new(lexer_config_t *, va_list);
+static void             _lexer_config_free(lexer_config_t *);
+static char *           _lexer_config_staticstring(lexer_config_t *);
+static data_t *         _lexer_config_resolve(lexer_config_t *, char *);
+static data_t *         _lexer_config_set(lexer_config_t *, char *, data_t *);
+static data_t *         _lexer_config_mth_add_scanner(lexer_config_t *, char *, array_t *, dict_t *);
+static data_t *         _lexer_config_mth_tokenize(lexer_config_t *, char *, array_t *, dict_t *);
 
-static vtable_t _vtable_lexer_config[] = {
+static vtable_t _vtable_LexerConfig[] = {
+  { .id = FunctionNew,          .fnc = (void_t) _lexer_config_new },
   { .id = FunctionFree,         .fnc = (void_t) _lexer_config_free },
   { .id = FunctionStaticString, .fnc = (void_t) _lexer_config_staticstring },
   { .id = FunctionResolve,      .fnc = (void_t) _lexer_config_resolve },
@@ -41,7 +43,7 @@ static vtable_t _vtable_lexer_config[] = {
   { .id = FunctionNone,         .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_lexer_config[] = {
+static methoddescr_t _methods_LexerConfig[] = {
   { .type = -1,     .name = "add",      .method = (method_t) _lexer_config_mth_add_scanner, .argtypes = { Any, NoType, NoType },      .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "tokenize", .method = (method_t) _lexer_config_mth_tokenize,    .argtypes = { InputStream, Any, NoType }, .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL,       .method = NULL,                .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
@@ -53,9 +55,19 @@ int LexerConfig = -1;
 
 void _lexer_config_init(void) {
   if (LexerConfig < 0) {
-    LexerConfig = typedescr_create_and_register(LexerConfig, "Lexer_config", _vtable_lexer_config, _methoddescr_lexer_config);
+    typedescr_register_with_methods(LexerConfig, lexer_config_t);
   }
 }
+
+lexer_config_t * _lexer_config_new(lexer_config_t *config, va_list args) {
+  config -> bufsize = LEXER_BUFSIZE;
+  config -> build_func = NULL;
+  config -> data = NULL;
+  config -> scanners = NULL;
+  config -> num_scanners = 0;
+  return config;
+}
+
 
 void _lexer_config_free(lexer_config_t *config) {
   scanner_config_t *scanner, *prev;
@@ -68,6 +80,7 @@ void _lexer_config_free(lexer_config_t *config) {
       scanner = prev;
     }
   }
+  free(config -> build_func);
   data_free(config -> data);
 }
 
@@ -167,14 +180,8 @@ scanner_config_t * _lexer_config_add_scanner(lexer_config_t *config, char *code)
 /* ------------------------------------------------------------------------ */
 
 lexer_config_t * lexer_config_create(void) {
-  lexer_config_t *ret;
-
   lexer_init();
-  ret = data_new(LexerConfig, lexer_config_t);
-  ret -> bufsize = LEXER_BUFSIZE;
-  ret -> scanners = NULL;
-  ret -> num_scanners = 0;
-  return ret;
+  return (lexer_config_t *) data_create(LexerConfig);
 }
 
 scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_config) {
@@ -245,7 +252,7 @@ data_t * lexer_config_get(lexer_config_t *config, char *code, char *name) {
   scanner = lexer_config_get_scanner(config, code);
   if (scanner) {
     ret = data_get_attribute((data_t *) scanner, name);
-    if (data_is_exception_with_code(ret, ErrorType)) {
+    if (data_is_exception_with_code(config, ErrorType)) {
       data_free(ret);
       ret = NULL;
     }
@@ -274,9 +281,10 @@ lexer_config_t * lexer_config_tokenize(lexer_config_t *config, reduce_t tokenize
 lexer_config_t * lexer_config_dump(lexer_config_t *config) {
   scanner_config_t        *scanner;
 
-  printf("lexer_config_t * lexer_config_build(lexer_config_t *lexer_config) {\n"
+  printf("lexer_config_t * %s(lexer_config_t *lexer_config) {\n"
          "  scanner_config_t *scanner_config;\n\n"
          "  lexer_config_set_bufsize(lexer_config, %d);\n",
+         (config -> build_func) ? config -> build_func : "lexer_config_build",
          lexer_config_get_bufsize(config));
   for (scanner = config -> scanners; scanner; scanner = scanner -> next) {
     scanner_config_dump(scanner);

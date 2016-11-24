@@ -57,6 +57,8 @@ OBLGRAMMAR_IMPEXP int grammar_debug;
 #define PREFIX_STR              "prefix"
 #define STRATEGY_STR            "strategy"
 #define LEXER_STR               "lexer"
+#define GRAMMAR_BUILD_FUNC_STR  "grammar_buildfunc"
+#define LEXERCFG_BUILD_FUNC_STR "lexercfg_buildfunc"
 
 /* ----------------------------------------------------------------------- */
 
@@ -134,6 +136,7 @@ typedef struct _grammar {
   lexer_config_t *lexer;
   strategy_t      strategy;
   char           *prefix;
+  char           *build_func;
   array_t        *libs;
   int             dryrun;
 } grammar_t;

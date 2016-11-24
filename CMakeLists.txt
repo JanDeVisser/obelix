@@ -187,6 +187,9 @@ configure_file (
   "${PROJECT_BINARY_DIR}/config.h"
 )
 
+if(CMAKE_COMPILER_IS_GNUCC)
+  add_definitions(-D_GNU_SOURCE)
+endif(CMAKE_COMPILER_IS_GNUCC)
 if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif(MSVC)
@@ -210,7 +213,9 @@ add_subdirectory(share)
 #add_subdirectory(include)
 
 # install(FILES "${PROJECT_BINARY_DIR}/config.h" DESTINATION include)
-enable_testing()
-add_test(NAME tcore COMMAND tcore)
-add_test(NAME tlexer COMMAND tlexer)
-add_test(NAME tgrammar COMMAND tgrammar)
+if(NOT MSVC)
+  enable_testing()
+  add_test(NAME tcore COMMAND tcore)
+  add_test(NAME tlexer COMMAND tlexer)
+  add_test(NAME tgrammar COMMAND tgrammar)
+endif(NOT MSVC)

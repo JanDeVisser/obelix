@@ -71,6 +71,7 @@ grammar_t * _grammar_new(grammar_t *grammar, va_list args) {
 
   grammar -> entrypoint = NULL;
   grammar -> prefix = NULL;
+  grammar -> build_func = NULL;
   grammar -> libs = NULL;
   grammar -> strategy = ParsingStrategyTopDown;
   grammar -> dryrun = FALSE;
@@ -88,6 +89,7 @@ void _grammar_free(grammar_t *grammar) {
     dict_free(grammar -> keywords);
     lexer_config_free(grammar -> lexer);
     free(grammar -> prefix);
+    free(grammar -> build_func);
   }
 }
 
@@ -118,6 +120,10 @@ grammar_t * _grammar_set(grammar_t *g, char *name, data_t *value) {
     }
   } else if (!strcmp(name, PREFIX_STR)) {
     g -> prefix = (val) ? strdup(val) : strdup("");
+  } else if (!strcmp(name, GRAMMAR_BUILD_FUNC_STR)) {
+    g -> build_func = (val && *val) ? strdup(val) : NULL;
+  } else if (!strcmp(name, LEXERCFG_BUILD_FUNC_STR)) {
+    g -> lexer -> build_func = (val && *val) ? strdup(val) : NULL;
   } else if (!strcmp(name, STRATEGY_STR)) {
     if (val) {
       if (!strncmp(val, "topdown", 7)|| !strncmp(val, "ll(1)", 5)) {
@@ -161,12 +167,16 @@ grammar_t * _grammar_dump_pre(ge_dump_ctx_t *ctx) {
 
   printf("#include <grammar.h>\n");
   printf("#include <datastack.h>\n\n");
+  printf("extern grammar_t * %s(void);\n\n",
+         (grammar-> build_func) ? grammar -> build_func : "grammar_build");
   if (grammar -> lexer) {
+    printf("static lexer_config_t * %s(lexer_config_t *);\n\n",
+           (grammar -> lexer -> build_func) ? grammar -> lexer -> build_func : "lexer_config_build");
     lexer_config_dump(grammar -> lexer);
   }
 
   printf("\n"
-         "grammar_t * build_grammar() {\n"
+         "grammar_t * %s(void) {\n"
          "  grammar_t      *grammar;\n"
          "  ge_t           *ge;\n"
          "  ge_t           *owner = NULL;\n"
@@ -174,7 +184,8 @@ grammar_t * _grammar_dump_pre(ge_dump_ctx_t *ctx) {
          "  data_t         *value;\n"
          "\n"
          "  stack = datastack_create(\"build_grammar\");\n"
-         "  grammar = grammar_create();\n");
+         "  grammar = grammar_create();\n",
+         (grammar -> build_func) ? grammar -> build_func : "grammar_build");
 
   if (grammar -> prefix && grammar -> prefix[0]) {
     /*
@@ -197,7 +208,8 @@ grammar_t * _grammar_dump_pre(ge_dump_ctx_t *ctx) {
     }
   }
   if (grammar -> lexer) {
-    printf("  grammar -> lexer = lexer_config_build(lexer_config_create());\n");
+    printf("  grammar -> lexer = %s(lexer_config_create());\n",
+           (grammar -> lexer -> build_func) ? grammar -> lexer -> build_func : "lexer_config_build");
   }
   printf("  ge = (ge_t *) grammar;\n\n");
   return grammar;
@@ -257,7 +269,6 @@ void * _grammar_follows_reducer(entry_t *entry, int *current_sum) {
         next = NULL;
         for (k = j + 1; k < array_size(rule -> entries); k++) {
           it = rule_get_entry(rule, k);
-          debug(grammar, "--> k: %d it: '%s'", k, data_tostring((data_t *) it));
           if (!next) {
             next = it;
           }

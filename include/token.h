@@ -37,6 +37,7 @@ typedef enum _token_code {
   TokenCodeEnd,
   TokenCodeExhausted,
   TokenCodeIdentifier = 'i',
+  TokenCodeURIComponent = 'u',
   TokenCodeInteger = 'd',
   TokenCodeHexNumber = 'x',
   TokenCodeFloat = 'f',

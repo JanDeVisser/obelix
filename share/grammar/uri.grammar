@@ -1,0 +1,70 @@
+%
+  grammar_buildfunc:   "uri_grammar_build"
+  lexercfg_buildfunc:  "uri_lexercfg_build"
+  prefix:              "uri_parse_"
+  lexer:               "number: signed=0;float=0"
+  lexer:               "uri"
+%
+
+uri                         :=                   [ init                      ]
+                               scheme
+                               ':'
+                               authority ?
+                               path ?
+                               query ?
+                               fragment ?        [ done                      ]
+                             ;
+
+scheme                      := 'u'               [ set_scheme                ]
+                             ;
+
+
+authority                   := '/' '/'           [ bookmark                  ]
+                               _uricomponent     [ push_tokenstring          ]
+                               authentication_or_host
+                             ;
+
+authentication_or_host      := authentication
+                             | hosttail
+                             ;
+
+authentication              :=                   [ pop_bookmark set_user     ]
+                               ':'
+                               _uricomponent     [ set_password              ]
+                               '@'               [ bookmark                  ]
+                               _uricomponent     [ push_tokenstring          ]
+                               hosttail
+                             ;
+
+hosttail                    := _hosttail +       [ rollup_name set_host      ]
+                               port ?
+                             ;
+
+_hosttail                   := '.'
+                               _uricomponent     [ push_tokenstring          ]
+                             ;
+
+port                        := ':' 'd'           [ set_port                  ]
+                             ;
+
+path                        :=                   [ bookmark                  ]
+                               pathcomponent +   [ rollup_name set_path      ]
+                             ;
+
+pathcomponent               := '/' _uricomponent ? [ push                    ]
+                             ;
+
+_uricomponent               := 'u' | 'd'
+                             ;
+
+query                       := '?'               [ bookmark                  ]
+                               queryparam +      [ rollup_list set_query     ]
+                             ;
+
+queryparam                  := _uricomponent     [ push_tokenstring          ]
+                               '='
+                               _uricomponent   [ push_tokenstring rollup_nvp ]
+                             ;
+
+fragment                    := '#' _uricomponent [ set_fragment              ]
+                             ;

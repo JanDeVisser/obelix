@@ -240,7 +240,6 @@ token_t * _lexer_match_token(lexer_t *lexer) {
   scanner_t *scanner;
   int        ch;
 
-  ret = NULL;
   debug(lexer, "_lexer_match_token", NULL);
   lexer -> state = LexerStateInit;
   lexer -> scanned = 0;
@@ -262,9 +261,9 @@ token_t * _lexer_match_token(lexer_t *lexer) {
       lexer -> scan_count = 0;
       if (scanner -> config -> match_2nd_pass) {
         lexer_rewind(lexer);
-        ret = scanner -> config -> match_2nd_pass(scanner);
+        scanner -> config -> match_2nd_pass(scanner);
         debug(lexer, "Second pass with scanner '%s' = %s",
-               data_typename(scanner -> config), token_tostring(ret));
+               data_typename(scanner -> config), token_tostring(lexer -> last_token));
       }
     }
   }
@@ -273,13 +272,26 @@ token_t * _lexer_match_token(lexer_t *lexer) {
    * If no scanners accept whatever is coming, we grab one character and pass
    * that as a token. This maybe should be a separate catchall scanner.
    */
-  if (!lexer -> last_token && (lexer -> state != LexerStateSuccess)) {
-    debug(lexer, "Scanners found no token");
-    lexer_rewind(lexer);
-    ch = lexer_get_char(lexer);
-    if (ch > 0) {
-      lexer_push(lexer);
-      ret = lexer_accept(lexer, ch);
+  ret = NULL;
+  if (lexer -> last_token) {
+    ret = lexer -> last_token;
+  } else {
+    if (lexer -> state != LexerStateSuccess) {
+      debug(lexer, "Scanners found no token");
+      lexer_rewind(lexer);
+      ch = lexer_get_char(lexer);
+      if (ch > 0) {
+        lexer_push(lexer);
+        ret = lexer_accept(lexer, ch);
+      } else {
+        debug(lexer, "End-of-file. Returning LexerStateDone");
+        lexer -> state = LexerStateDone;
+      }
+    } else {
+      oassert(lexer -> scanned,
+        "_lexer_match_token found no token and doesn't skip anything");
+      debug(lexer, "_lexer_match_token out - skipping %d characters", lexer -> scanned);
+      lexer -> state = LexerStateSuccess;
     }
   }
 
@@ -289,9 +301,6 @@ token_t * _lexer_match_token(lexer_t *lexer) {
     lexer -> state = LexerStateSuccess;
     debug(lexer, "_lexer_match_token out - state: %s token: %s",
                lexer_state_name(lexer -> state), token_code_name(ret -> code));
-  } else {
-    lexer -> state = LexerStateInit;
-    debug(lexer, "_lexer_match_token out - state: %s", lexer_state_name(lexer -> state));
   }
   lexer_reset(lexer);
   return ret;
@@ -353,7 +362,7 @@ token_t * lexer_next_token(lexer_t *lexer) {
   }
   do {
     _lexer_match_token(lexer);
-    if (lexer -> where == LexerWhereEnd) {
+    if (lexer -> state == LexerStateDone) {
       lexer -> last_token = token_create(TokenCodeEnd, "$$");
       lexer -> last_token -> line = lexer -> line;
       lexer -> last_token -> column = lexer -> column;
@@ -411,7 +420,6 @@ lexer_t * lexer_reset(lexer_t *lexer) {
   lexer -> count += lexer -> scanned;
   lexer -> scanned = 0;
   lexer -> scan_count = 0;
-  lexer -> state = LexerStateInit;
   return lexer;
 }
 

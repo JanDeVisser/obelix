@@ -10,6 +10,7 @@ set(SOURCES
     qstring.c
     number.c
     keyword.c
+    uri.c
     lexa.c
 )
 add_library(obllexer SHARED ${SOURCES})

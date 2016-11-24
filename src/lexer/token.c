@@ -40,6 +40,7 @@ static code_label_t token_code_names[] = {
   { TokenCodeWhitespace,     "TokenCodeWhitespace" },
   { TokenCodeNewLine,        "TokenCodeNewLine" },
   { TokenCodeIdentifier,     "TokenCodeIdentifier" },
+  { TokenCodeURIComponent,   "TokenCodeURIComponent" },
   { TokenCodeInteger,        "TokenCodeInteger" },
   { TokenCodeHexNumber,      "TokenCodeHexNumber" },
   { TokenCodeFloat,          "TokenCodeFloat" },
@@ -321,7 +322,11 @@ data_t * token_todata(token_t *token) {
         }
         /* Else fall through */
       default:
-        data = int_to_data(token_code(token));
+        if (str && *str) {
+          type = String;
+        } else {
+          data = int_to_data(token_code(token));
+        }
         break;
     }
     if (!data) {

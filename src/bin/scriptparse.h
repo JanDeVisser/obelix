@@ -97,5 +97,7 @@ SCRIPTPARSE_IMPEXP parser_t * script_parse_leave(parser_t *parser);
 SCRIPTPARSE_IMPEXP parser_t * script_parse_end_context_block(parser_t *parser);
 SCRIPTPARSE_IMPEXP parser_t * script_parse_init_query(parser_t *parser);
 SCRIPTPARSE_IMPEXP parser_t * script_parse_query(parser_t *parser);
+SCRIPTPARSE_IMPEXP parser_t * script_parse_qstring_disable_slash(parser_t *);
+SCRIPTPARSE_IMPEXP parser_t * script_parse_qstring_enable_slash(parser_t *);
 
 #endif /* __SCRIPTPARSE_H__ */
