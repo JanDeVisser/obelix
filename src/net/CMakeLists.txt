@@ -6,6 +6,7 @@ add_custom_command (
 )
 
 set(SOURCES
+  socket.c
   uri.c
   urigrammar.c
 )

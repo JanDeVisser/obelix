@@ -59,7 +59,6 @@ void _scanner_config_init(void) {
     _scanners_configs = dict_create(NULL);
     dict_set_key_type(_scanners_configs, type_str);
     dict_set_data_type(_scanners_configs, type_int);
-    _scanners_configs = strdata_dict_create();
     _scanner_config_mutex = mutex_create();
 #ifdef OBL_STATIC
     scanner_config_register(comment_register());
@@ -67,7 +66,6 @@ void _scanner_config_init(void) {
     scanner_config_register(keyword_register());
     scanner_config_register(number_register());
     scanner_config_register(qstring_register());
-    scanner_config_register(uri_register());
     scanner_config_register(whitespace_register());
 #else
     resolve_library("libobllexer");

@@ -2,15 +2,13 @@
   grammar_buildfunc:   "uri_grammar_build"
   lexercfg_buildfunc:  "uri_lexercfg_build"
   prefix:              "uri_parse_"
-  lexer:               "number: signed=0;float=0"
-  lexer:               "uri"
+  lexer:               "identifier: filter=X9+.%~-_;startwith=;tokencode=u"
 %
 
 uri                         :=                   [ init                      ]
                                scheme
                                ':'
-                               authority ?
-                               path ?
+                               authority_or_path ?
                                query ?
                                fragment ?        [ done                      ]
                              ;
@@ -18,53 +16,68 @@ uri                         :=                   [ init                      ]
 scheme                      := 'u'               [ set_scheme                ]
                              ;
 
+authority_or_path           := authority_or_absolute_path
+                             | relative_path
+                             ;
 
-authority                   := '/' '/'           [ bookmark                  ]
-                               _uricomponent     [ push_tokenstring          ]
+authority_or_absolute_path  := '/' _authority_or_absolute_path
+                             ;
+
+_authority_or_absolute_path := authority_path
+                             | absolute_path
+                             ;
+
+authority_path              := '/'
+                               authority ?
+                               '/' ?
+                               relative_path ?
+                             ;
+
+authority                   := 'u'               [ push_tokenstring          ]
                                authentication_or_host
                              ;
 
-authentication_or_host      := authentication
-                             | hosttail
+authentication_or_host      := authentication_or_port
+                             |                   [ set_host                  ]
                              ;
 
-authentication              :=                   [ pop_bookmark set_user     ]
+authentication_or_port      :=
                                ':'
-                               _uricomponent     [ set_password              ]
-                               '@'               [ bookmark                  ]
-                               _uricomponent     [ push_tokenstring          ]
-                               hosttail
+                               'u'               [ push_tokenstring          ]
+                               at_or_done
                              ;
 
-hosttail                    := _hosttail +       [ rollup_name set_host      ]
+at_or_done                  := at
+                             |                   [ set_port set_host         ]
+                             ;
+
+at                          := '@'
+                               'u'               [ push_tokenstring set_host ]
                                port ?
                              ;
 
-_hosttail                   := '.'
-                               _uricomponent     [ push_tokenstring          ]
+port                        := ':' 'u'           [ push_tokenstring set_port ]
                              ;
 
-port                        := ':' 'd'           [ set_port                  ]
+absolute_path               :=                   [ bookmark pushval: "/"     ]
+                               'u'               [ push                      ]
+                               pathcomponent *   [ rollup_name set_path      ]
+                             ;
+relative_path               := 'u'               [ bookmark push             ]
+                               pathcomponent *   [ rollup_name set_path      ]
                              ;
 
-path                        :=                   [ bookmark                  ]
-                               pathcomponent +   [ rollup_name set_path      ]
-                             ;
-
-pathcomponent               := '/' _uricomponent ? [ push                    ]
-                             ;
-
-_uricomponent               := 'u' | 'd'
+pathcomponent               := '/' 'u'           [ push                      ]
                              ;
 
 query                       := '?'               [ bookmark                  ]
                                queryparam +      [ rollup_list set_query     ]
                              ;
 
-queryparam                  := _uricomponent     [ push_tokenstring          ]
+queryparam                  := 'u'               [ push_tokenstring          ]
                                '='
-                               _uricomponent   [ push_tokenstring rollup_nvp ]
+                               'u'             [ push_tokenstring rollup_nvp ]
                              ;
 
-fragment                    := '#' _uricomponent [ set_fragment              ]
+fragment                    := '#' 'u'           [ set_fragment              ]
                              ;

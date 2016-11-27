@@ -24,7 +24,6 @@ set(SOURCES
     re.c
     set.c
     resolve.c
-    socket.c
     str.c
     strutils.c
     thread.c

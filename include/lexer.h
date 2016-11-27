@@ -235,7 +235,6 @@ extern typedescr_t * identifier_register(void);
 extern typedescr_t * keyword_register(void);
 extern typedescr_t * number_register(void);
 extern typedescr_t * qstring_register(void);
-extern typedescr_t * uri_register(void);
 extern typedescr_t * whitespace_register(void);
 #endif
 

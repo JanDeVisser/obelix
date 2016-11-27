@@ -50,6 +50,19 @@ START_TEST(test_uri_create_ipv4)
   ck_assert_str_eq(uri -> host, "192.168.0.1");
 END_TEST
 
+START_TEST(test_uri_create_localhost)
+  _create_uri("http://localhost");
+  ck_assert_str_eq(uri -> scheme, "http");
+  ck_assert_str_eq(uri -> host, "localhost");
+END_TEST
+
+START_TEST(test_uri_create_localhost_8080)
+  _create_uri("http://localhost:8080");
+  ck_assert_str_eq(uri -> scheme, "http");
+  ck_assert_str_eq(uri -> host, "localhost");
+  ck_assert_str_eq(uri -> host, "localhost:8080");
+END_TEST
+
 START_TEST(test_uri_auth)
   _create_uri("http://user:password@www.google.com");
   ck_assert_str_eq(uri -> scheme, "http");
@@ -81,6 +94,8 @@ void create_uri(void) {
   tcase_add_checked_fixture(tc, NULL, _teardown);
   tcase_add_test(tc, test_uri_create);
   tcase_add_test(tc, test_uri_create_ipv4);
+  tcase_add_test(tc, test_uri_create_localhost);
+  tcase_add_test(tc, test_uri_create_localhost_8080);
   tcase_add_test(tc, test_uri_auth);
   tcase_add_test(tc, test_uri_path);
   tcase_add_test(tc, test_uri_trailing_slash);

@@ -14,7 +14,7 @@ add_executable(obelix
 )
 
 target_link_libraries(scriptparse oblvm oblparser oblgrammar obllexer oblcore ${SYSLIBS})
-target_link_libraries(obelix scriptparse oblvm oblparser oblgrammar obllexer oblcore ${SYSLIBS})
+target_link_libraries(obelix scriptparse oblnet oblvm oblparser oblgrammar obllexer oblcore ${SYSLIBS})
 
 install(TARGETS scriptparse obelix
   ARCHIVE DESTINATION lib

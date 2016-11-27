@@ -368,8 +368,8 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
   consuming = 2;
   do {
     consuming = _parser_ll1_token_handler(token, parser, consuming, attempts++);
-  } while (!parser -> error && consuming);
-  return parser -> error ? NULL : parser;
+  } while (!parser -> error && (consuming > 0));
+  return (parser -> error || (consuming < 0)) ? NULL : parser;
 }
 
 parser_t * _parser_push_to_prodstack(parser_t *parser, parser_stack_entry_t *entry) {
@@ -407,7 +407,7 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int consuming, i
 				       "Expected end of file, read unexpected token '%s'",
 				       token_tostring(token));
     }
-    consuming = 0;
+    consuming = -1;
   } else if ((consuming == 1) && (e -> _d.type != PSETypeAction)) {
     debug(parser, "  Re-pushing  %s", data_tostring((data_t *) e));
     list_push(parser -> prod_stack, e);

@@ -52,12 +52,11 @@ typedef struct _uri {
   char   *fragment;
 } uri_t;
 
-OBLNET_IMPEXP uri_t *     uri_create(char *);
-
-OBLCORE_IMPEXP int URI;
+OBLNET_IMPEXP uri_t * uri_create(char *);
+OBLNET_IMPEXP int URI;
 
 #define data_is_uri(d)     ((d) && data_hastype((d), URI))
-#define data_urival(d)     (data_is_uri((d)) ? ((uri_t *) ((d) -> ptrval)) : NULL)
+#define data_as_uri(d)     (data_is_uri((d)) ? ((uri_t *) (d)) : NULL)
 #define uri_copy(u)        ((uri_t *) data_copy((data_t *) (u)))
 #define uri_free(u)        (data_free((data_t *) (u)))
 #define uri_tostring(u)    (data_tostring((data_t *) (u)))

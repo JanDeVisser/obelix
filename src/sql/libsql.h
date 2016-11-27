@@ -18,19 +18,18 @@
  */
 
 
-#ifndef __LIBNET_H__
-#define __LIBNET_H__
+#ifndef __LIBSQL_H__
+#define __LIBSQL_H__
 
-#ifndef oblnet_EXPORTS
-  #define OBLNET_IMPEXP extern
+#ifndef oblsql_EXPORTS
+  #define OBLSQL_IMPEXP extern
   #define OBL_STATIC
 #endif
 
-#include <config.h>
 #include <stdio.h>
 #include <data.h>
 #include <net.h>
 
-extern int net_debug;
+extern int sql_debug;
 
 #endif /* __LIBSQL_H__ */

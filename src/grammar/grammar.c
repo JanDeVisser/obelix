@@ -256,9 +256,7 @@ void * _grammar_follows_reducer(entry_t *entry, int *current_sum) {
 
   nonterminal = (nonterminal_t *) (entry -> value);
 
-//  if (grammar_debug) {
-//    debug("Building FOLLOW sets for rule %s", nonterminal -> name);
-//  }
+  debug(grammar, "Building FOLLOW sets for rule %s", nonterminal -> name);
   follows = _nonterminal_get_follows(nonterminal);
   for (i = 0; i < array_size(nonterminal -> rules); i++) {
     rule = nonterminal_get_rule(nonterminal, i);

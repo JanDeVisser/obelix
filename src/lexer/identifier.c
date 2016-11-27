@@ -25,45 +25,49 @@
 #include <exception.h>
 #include <nvp.h>
 
-#define PARAM_TOUPPER         "toupper"
-#define PARAM_ONLYUPPER       "onlyupper"
-#define PARAM_TOLOWER         "tolower"
-#define PARAM_ONLYLOWER       "onlylower"
-#define PARAM_CASESENSITIVE   "casesensitive"
-#define PARAM_FOLD            "fold"
-#define PARAM_DIGITS          "digits"
-#define PARAM_UNDERSCORE      "underscore"
+#define PARAM_STARTWITH       "startwith"
+#define PARAM_FILTER          "filter"
 #define PARAM_TOKENCODE       "tokencode"
 
-typedef enum _id_foldcase {
-  IDCaseSensitive = 0,
-  IDFoldToLower,
-  IDOnlyLower,
-  IDFoldToUpper,
-  IDOnlyUpper
-} id_foldcase_t;
+typedef enum _id_charclass {
+  IDCaseSensitive = 'X',
+  IDFoldToLower = 'l',
+  IDOnlyLower = 'a',
+  IDFoldToUpper = 'U',
+  IDOnlyUpper = 'A',
+  IDNoAlpha = 'Q',
+  IDDigits = '9'
+} id_charclass_t;
 
-static code_label_t foldcase_labels[] = {
+#define ALL_ALPHA_CLASSES  "XlUAaQ"
+
+static code_label_t charclass_labels[] = {
   { IDCaseSensitive, "casesensitive" },
   { IDFoldToLower,   "tolower" },
   { IDOnlyLower,     "onlylower" },
   { IDFoldToUpper,   "toupper" },
   { IDOnlyUpper,     "onlyupper" },
+  { IDNoAlpha,       "noalpha" },
+  { IDDigits,        "digits"},
   { -1,              NULL }
 };
 
 typedef struct _id_config {
   scanner_config_t  _sc;
   token_code_t      code;
-  int               underscore;
+  char             *filter;
+  char             *startwith;
+  int               alpha;
   int               digits;
-  id_foldcase_t     foldcase;
+  int               startwith_alpha;
+  int               startwith_digits;
 } id_config_t;
 
 static id_config_t * _id_config_create(id_config_t *config, va_list args);
 static data_t *      _id_config_set(id_config_t *, char *, data_t *);
 static data_t *      _id_config_resolve(id_config_t *, char *);
 static id_config_t * _id_config_config(id_config_t *, array_t *);
+static int           _id_config_filter(id_config_t *, str_t *, int);
 static token_t *     _id_match(scanner_t *);
 
 static vtable_t _vtable_idscanner_config[] = {
@@ -81,41 +85,64 @@ static int IDScannerConfig = -1;
 
 id_config_t * _id_config_create(id_config_t *config, va_list args) {
   config -> code = TokenCodeIdentifier;
-  config -> underscore = TRUE;
+  config -> startwith = strdup("X_");
+  config -> filter = strdup("X9_");
+  config -> alpha = IDCaseSensitive;
+  config -> startwith_alpha = IDCaseSensitive;
   config -> digits = TRUE;
-  config -> foldcase = IDCaseSensitive;
+  config -> startwith_digits = FALSE;
   debug(lexer, "_id_config_create - match: %p", config -> _sc.match);
   return config;
 }
 
 data_t * _id_config_set(id_config_t *id_config, char *name, data_t *value) {
-  data_t        *ret = (data_t *) id_config;
-  id_foldcase_t  code;
+  data_t *ret = (data_t *) id_config;
+  char   *ptr;
+  int     tokencode;
 
-  if (!strcmp(name, PARAM_TOUPPER)) {
-    id_config -> foldcase = data_intval(value) ? IDFoldToUpper : IDCaseSensitive;
-  } else if (!strcmp(name, PARAM_ONLYUPPER)) {
-    id_config -> foldcase = data_intval(value) ? IDOnlyUpper : IDCaseSensitive;
-  } else if (!strcmp(name, PARAM_TOLOWER)) {
-    id_config -> foldcase = data_intval(value) ? IDFoldToLower : IDCaseSensitive;
-  } else if (!strcmp(name, PARAM_ONLYLOWER)) {
-    id_config -> foldcase = data_intval(value) ? IDOnlyLower : IDCaseSensitive;
-  } else if (!strcmp(name, PARAM_CASESENSITIVE) && data_intval(value)) {
-    id_config -> foldcase = IDCaseSensitive;
-  } else if (!strcmp(name, PARAM_DIGITS)) {
-    id_config -> digits = data_intval(value);
-  } else if (!strcmp(name, PARAM_UNDERSCORE)) {
-    id_config -> underscore = data_intval(value);
-  } else if (!strcmp(name, PARAM_FOLD)) {
-    code = code_for_label(foldcase_labels, data_tostring(value));
-    if ((int) code < 0) {
-      ret = data_exception(ErrorParameterValue, "Invalid foldcase value '%s'",
-                           data_tostring(value));
+  if (!strcmp(name, PARAM_STARTWITH)) {
+    id_config -> startwith = strdup(data_tostring(value));
+    if (!*id_config -> startwith) {
+      free(id_config -> startwith);
+      id_config -> startwith = NULL;
+      id_config -> startwith_alpha = IDCaseSensitive;
+      id_config -> startwith_digits = TRUE;
     } else {
-      id_config -> foldcase = code;
+      ptr = strpbrk(id_config -> startwith, ALL_ALPHA_CLASSES);
+      if (ptr) {
+        id_config -> startwith_alpha = *ptr;
+      } else {
+        id_config -> startwith_alpha = IDNoAlpha;
+      }
+      id_config -> startwith_digits = strchr(id_config -> startwith, '9') != NULL;
+    }
+  } else if (!strcmp(name, PARAM_FILTER)) {
+    id_config -> filter = strdup(data_tostring(value));
+    if (!*id_config -> filter) {
+      free(id_config -> filter);
+      id_config -> filter = NULL;
+      id_config -> alpha = IDCaseSensitive;
+      id_config -> digits = TRUE;
+    } else {
+      ptr = strpbrk(id_config -> filter, ALL_ALPHA_CLASSES);
+      if (ptr) {
+        id_config -> alpha = *ptr;
+      } else {
+        id_config -> alpha = IDNoAlpha;
+      }
+      id_config -> digits = strchr(id_config -> filter, '9') != NULL;
     }
   } else if (!strcmp(name, PARAM_TOKENCODE)) {
-    id_config -> code = data_intval(value);
+    tokencode = data_intval(value);
+    if (!tokencode && (strlen(data_tostring(value)) == 1)) {
+      tokencode = *(data_tostring(value));
+    }
+    if (tokencode) {
+      id_config -> code = tokencode;
+    } else {
+      ret = data_exception(ErrorParameterValue, "Invalid tokencode value '%s'",
+                           data_tostring(value));
+    }
   } else {
     ret = NULL;
   }
@@ -123,22 +150,10 @@ data_t * _id_config_set(id_config_t *id_config, char *name, data_t *value) {
 }
 
 data_t * _id_config_resolve(id_config_t *id_config, char *name) {
-  if (!strcmp(name, PARAM_TOUPPER)) {
-    return (data_t *) bool_get(id_config -> foldcase == IDFoldToUpper);
-  } else if (!strcmp(name, PARAM_ONLYUPPER)) {
-    return (data_t *) bool_get(id_config -> foldcase == IDOnlyUpper);
-  } else if (!strcmp(name, PARAM_TOLOWER)) {
-    return (data_t *) bool_get(id_config -> foldcase == IDFoldToLower);
-  } else if (!strcmp(name, PARAM_ONLYLOWER)) {
-    return (data_t *) bool_get(id_config -> foldcase == IDOnlyLower);
-  } else if (!strcmp(name, PARAM_CASESENSITIVE)) {
-    return (data_t *) bool_get(id_config -> foldcase == IDCaseSensitive);
-  } else if (!strcmp(name, PARAM_DIGITS)) {
-    return (data_t *) bool_get(id_config -> digits);
-  } else if (!strcmp(name, PARAM_UNDERSCORE)) {
-    return (data_t *) bool_get(id_config -> underscore);
-  } else if (!strcmp(name, PARAM_FOLD)) {
-    return (data_t *) str_wrap(label_for_code(foldcase_labels, id_config -> foldcase));
+  if (!strcmp(name, PARAM_STARTWITH)) {
+    return (data_t *) str_copy_chars(id_config -> startwith ? id_config -> startwith : "");
+  } else if (!strcmp(name, PARAM_FILTER)) {
+    return (data_t *) str_copy_chars(id_config -> filter ? id_config -> filter : "");
   } else if (!strcmp(name, PARAM_TOKENCODE)) {
     return (data_t *) int_to_data(id_config -> code);
   } else {
@@ -147,13 +162,48 @@ data_t * _id_config_resolve(id_config_t *id_config, char *name) {
 }
 
 id_config_t * _id_config_config(id_config_t *config, array_t *cfg) {
-  array_push(cfg,
-    nvp_create(str_to_data(PARAM_FOLD),
-      str_to_data(label_for_code(foldcase_labels, config -> foldcase))));
-  array_push(cfg, nvp_create(str_to_data(PARAM_DIGITS), (data_t *) bool_get(config -> digits)));
-  array_push(cfg, nvp_create(str_to_data(PARAM_UNDERSCORE), (data_t *) bool_get(config -> underscore)));
+  array_push(cfg, nvp_create(
+    str_to_data(PARAM_FILTER),
+    (data_t *) str_copy_chars(config -> filter ? config -> filter : "")));
+  array_push(cfg, nvp_create(
+    str_to_data(PARAM_STARTWITH),
+    (data_t *) str_copy_chars(config -> startwith ? config -> startwith : "")));
   array_push(cfg, nvp_create(str_to_data(PARAM_TOKENCODE), int_to_data(config -> code)));
   return config;
+}
+
+int _id_config_filter_against(char *filter, int alpha, int digits, int ch) {
+  if (isalpha(ch)) {
+    switch (alpha) {
+      case IDNoAlpha:
+        return FALSE;
+      case IDOnlyLower:
+        return islower(ch);
+      case IDOnlyUpper:
+        return isupper(ch);
+    }
+  } else if (isdigit(ch)) {
+    return digits;
+  } else if (filter) {
+    return strchr(filter, ch) != NULL;
+  }
+  return TRUE;
+}
+
+int _id_config_filter(id_config_t *config, str_t *token, int ch) {
+  int ret;
+
+  if (!ch) {
+    return FALSE;
+  }
+  ret = _id_config_filter_against(
+    config -> filter, config -> alpha, config -> digits, ch);
+  if (ret && !str_len(token)) {
+    ret = _id_config_filter_against(
+      config -> startwith, config -> startwith_alpha,
+      config -> startwith_digits, ch);
+  }
+  return ret;
 }
 
 token_t * _id_match(scanner_t *scanner) {
@@ -162,14 +212,10 @@ token_t * _id_match(scanner_t *scanner) {
 
   debug(lexer, "_id_match");
   for (ch = lexer_get_char(scanner -> lexer);
-       ch && ((isalpha(ch) &&
-                ((config -> foldcase != IDOnlyUpper) || isupper(ch)) &&
-                ((config -> foldcase != IDOnlyLower) || islower(ch))) ||
-              (config -> underscore && (ch == '_')) ||
-              (config -> digits && isdigit(ch) && str_len(scanner -> lexer -> token)));
+       _id_config_filter(config, scanner -> lexer -> token, ch);
        ch = lexer_get_char(scanner -> lexer)) {
-    mdebug(lexer, "_id_match(%c)", ch);
-    switch (config -> foldcase) {
+    debug(lexer, "_id_match(%c)", ch);
+    switch (config -> alpha) {
       case IDCaseSensitive:
       case IDOnlyLower:
       case IDOnlyUpper:

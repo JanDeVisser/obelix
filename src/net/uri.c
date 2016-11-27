@@ -23,6 +23,7 @@
 #include <pthread.h>
 #endif
 
+#include <exception.h>
 #include <lexer.h>
 #include <grammar.h>
 #include <nvp.h>
@@ -59,6 +60,7 @@ uri_t * _uri_new(uri_t *uri, va_list args) {
   str_t    *s;
 
   uri -> _d.str = strdup(va_arg(args, char *));
+  uri -> _d.free_str = DontFreeData;
   uri -> error = NULL;
   uri -> scheme = NULL;
   uri -> user = NULL;
@@ -91,6 +93,7 @@ uri_t * _uri_new(uri_t *uri, va_list args) {
 
 void _uri_free(uri_t *uri) {
   if (uri) {
+    free(uri -> _d.str);
     data_free(uri -> error);
     free(uri -> scheme);
     free(uri -> user);
@@ -144,30 +147,34 @@ OBLNET_IMPEXP parser_t * uri_parse_set_user(parser_t *parser) {
 
 OBLNET_IMPEXP parser_t * uri_parse_set_password(parser_t *parser) {
   uri_t *uri = (uri_t *) parser -> data;
+  str_t *password = (str_t *) datastack_pop(parser -> stack);
 
-  uri -> password = strdup(token_token(parser -> last_token));
+  uri -> password = str_reassign(password);
   debug(net, "password: '%s'", uri -> password);
   return parser;
 }
 
 OBLNET_IMPEXP parser_t * uri_parse_set_host(parser_t *parser) {
-  uri_t  *uri = (uri_t *) parser -> data;
-  name_t *host = (name_t *) datastack_pop(parser -> stack);
+  uri_t *uri = (uri_t *) parser -> data;
+  str_t *host = (str_t *) datastack_pop(parser -> stack);
 
-  uri -> host = name_tostring_sep(host, ".");
-  ((data_t *) host) -> str = NULL;
-  name_free(host);
+  uri -> host = str_reassign(host);
   debug(net, "host: '%s'", uri -> host);
   return parser;
 }
 
 OBLNET_IMPEXP parser_t * uri_parse_set_port(parser_t *parser) {
   uri_t *uri = (uri_t *) parser -> data;
+  str_t *portstr = (str_t *) datastack_pop(parser -> stack);
   long   port;
 
-  if (!strtoint(token_token(parser -> last_token), &port)) {
+  if (!strtoint(str_chars(portstr), &port)) {
     uri -> port = (int) port;
+  } else {
+    parser -> error = data_exception(
+      ErrorType, "Port must be a number, not '%s'", str_chars(portstr));
   }
+  str_free(portstr);
   debug(net, "port: %d", uri -> port);
   return parser;
 }

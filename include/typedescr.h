@@ -198,8 +198,16 @@ OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
     t = typedescr_create_and_register(t, #t , _vtable_ ## t, NULL);  \
     typedescr_set_size(t, type);
 
+#define typedescr_register_with_name(t, name, type)     \
+    t = typedescr_create_and_register(t, name , _vtable_ ## t, NULL);  \
+    typedescr_set_size(t, type);
+
 #define typedescr_register_with_methods(t, type)     \
     t = typedescr_create_and_register(t, #t , _vtable_ ## t, _methods_ ## t);  \
+    typedescr_set_size(t, type);
+
+#define typedescr_register_with_name_and_methods(t, name, type)     \
+    t = typedescr_create_and_register(t, name , _vtable_ ## t, _methods_ ## t);  \
     typedescr_set_size(t, type);
 
 #ifdef  __cplusplus
