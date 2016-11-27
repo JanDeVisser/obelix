@@ -60,7 +60,7 @@ START_TEST(test_uri_create_localhost_8080)
   _create_uri("http://localhost:8080");
   ck_assert_str_eq(uri -> scheme, "http");
   ck_assert_str_eq(uri -> host, "localhost");
-  ck_assert_str_eq(uri -> host, "localhost:8080");
+  ck_assert_int_eq(uri -> port, 8080);
 END_TEST
 
 START_TEST(test_uri_auth)
@@ -85,6 +85,24 @@ START_TEST(test_uri_trailing_slash)
   ck_assert_str_eq(uri -> host, "www.google.com");
 END_TEST
 
+START_TEST(test_uri_relative_file)
+  _create_uri("file:some/path");
+  ck_assert_str_eq(uri -> scheme, "file");
+  ck_assert_str_eq(name_tostring_sep(uri -> path, "/"), "some/path");
+END_TEST
+
+START_TEST(test_uri_absolute_file)
+  _create_uri("file:/some/path");
+  ck_assert_str_eq(uri -> scheme, "file");
+  ck_assert_str_eq(name_tostring_sep(uri -> path, "/"), "//some/path");
+END_TEST
+
+START_TEST(test_uri_query)
+  _create_uri("http://localhost/some/url?param1=value1&param2=value2");
+  ck_assert_str_eq((char *) dict_get(uri -> query, "param1"), "value1");
+  ck_assert_str_eq((char *) dict_get(uri -> query, "param2"), "value2");
+END_TEST
+
 /* ----------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------- */
@@ -99,6 +117,9 @@ void create_uri(void) {
   tcase_add_test(tc, test_uri_auth);
   tcase_add_test(tc, test_uri_path);
   tcase_add_test(tc, test_uri_trailing_slash);
+  tcase_add_test(tc, test_uri_relative_file);
+  tcase_add_test(tc, test_uri_absolute_file);
+  tcase_add_test(tc, test_uri_query);
   add_tcase(tc);
 }
 

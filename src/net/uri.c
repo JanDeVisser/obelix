@@ -136,21 +136,14 @@ OBLNET_IMPEXP parser_t * uri_parse_set_scheme(parser_t *parser) {
   return parser;
 }
 
-OBLNET_IMPEXP parser_t * uri_parse_set_user(parser_t *parser) {
-  uri_t *uri = (uri_t *) parser -> data;
-  str_t *user = (str_t *) datastack_pop(parser -> stack);
-
-  uri -> user = str_reassign(user);
-  debug(net, "user: '%s'", uri -> user);
-  return parser;
-}
-
-OBLNET_IMPEXP parser_t * uri_parse_set_password(parser_t *parser) {
+OBLNET_IMPEXP parser_t * uri_parse_set_credentials(parser_t *parser) {
   uri_t *uri = (uri_t *) parser -> data;
   str_t *password = (str_t *) datastack_pop(parser -> stack);
+  str_t *user = (str_t *) datastack_pop(parser -> stack);
 
   uri -> password = str_reassign(password);
-  debug(net, "password: '%s'", uri -> password);
+  uri -> user = str_reassign(user);
+  debug(net, "user: '%s' password: '%s'", uri -> host, uri -> password);
   return parser;
 }
 

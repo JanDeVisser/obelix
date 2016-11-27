@@ -51,7 +51,7 @@ at_or_done                  := at
                              |                   [ set_port set_host         ]
                              ;
 
-at                          := '@'
+at                          := '@'               [ set_credentials          ]
                                'u'               [ push_tokenstring set_host ]
                                port ?
                              ;
@@ -71,8 +71,15 @@ pathcomponent               := '/' 'u'           [ push                      ]
                              ;
 
 query                       := '?'               [ bookmark                  ]
-                               queryparam +      [ rollup_list set_query     ]
+                               queryparams ?     [ rollup_list set_query     ]
                              ;
+
+queryparams                 := queryparam
+                               _queryparams *
+                             ;
+
+_queryparams                := '&' queryparam
+                            ;
 
 queryparam                  := 'u'               [ push_tokenstring          ]
                                '='
