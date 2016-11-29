@@ -86,7 +86,7 @@ static methoddescr_t _methoddescr_str[] = {
     { String, NoType, NoType}, .minargs = 1, .varargs = 0},
   { .type = String, .name = "indexof", .method = _string_indexof, .argtypes =
     { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "rindexof", .method = _string_indexof, .argtypes =
+  { .type = String, .name = "rindexof", .method = _string_rindexof, .argtypes =
     { String, NoType, NoType}, .minargs = 1, .varargs = 0},
   { .type = String, .name = "startswith", .method = _string_startswith, .argtypes =
     { String, NoType, NoType}, .minargs = 1, .varargs = 0},
@@ -530,6 +530,9 @@ str_t * str_set(str_t* str, size_t i, int ch) {
       str -> buffer[i] = ch;
       str -> pos = 0;
       ret = str;
+      if (!ch) {
+        str -> len = i;
+      }
     }
   }
   return ret;
@@ -545,6 +548,32 @@ str_t * str_forcecase(str_t *str, int upper) {
     str_set(str, ix, upper ? toupper(c) : tolower(c));
   }
   return str;
+}
+
+int str_replace(str_t *str, char *pat, char *repl, int all) {
+  int   pos;
+  int   pat_len = strlen(pat);
+  int   repl_len = strlen(repl);
+  int   diff = repl_len - pat_len;
+  int   num = 0;
+  char *target;
+
+  for (all = (all) ? str_len(str) : 1, pos = str_indexof_chars(str, pat);
+       all && (pos >= 0);
+       all--, pos = str_indexof_chars(str, pat), num++) {
+    if (diff > 0) {
+      _str_expand(str, str -> len + diff);
+    }
+    target = str -> buffer + pos;
+    if (diff) {
+      memmove(target + (pat_len + diff), target + pat_len,
+          str -> len - pos - pat_len);
+      str -> len += diff;
+    }
+    memcpy(str -> buffer + pos, repl, repl_len);
+    str -> pos = 0;
+  }
+  return num;
 }
 
 str_t * str_append_char(str_t *str, int ch) {
