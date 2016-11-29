@@ -387,6 +387,22 @@ START_TEST(test_str_format)
   dict_free(kwargs);
 END_TEST
 
+START_TEST(test_str_replace)
+  str_t   *str;
+  int      count;
+
+  str = str_copy_chars("This is the best test string in history");
+  count = str_replace_all(str, "is", "was");
+  ck_assert_int_eq(count, 3);
+  ck_assert_str_eq(str_chars(str), "Thwas was the best test string in hwastory");
+  str_free(str);
+  str = str_copy_chars("This is the best test string in history");
+  count = str_replace_one(str, "is", "was");
+  ck_assert_int_eq(count, 1);
+  ck_assert_str_eq(str_chars(str), "Thwas is the best test string in history");
+  str_free(str);
+END_TEST
+
 extern void str_test_init(void) {
   TCase *tc = tcase_create("Str");
 
@@ -402,5 +418,6 @@ extern void str_test_init(void) {
   tcase_add_test(tc, test_str_join);
   tcase_add_test(tc, test_str_data);
   tcase_add_test(tc, test_str_format);
+  tcase_add_test(tc, test_str_replace);
   add_tcase(tc);
 }
