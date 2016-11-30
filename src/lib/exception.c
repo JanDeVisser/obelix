@@ -50,9 +50,10 @@ static code_label_t builtin_exceptions[] = {
   { .code = ErrorReturn,                .label = "ErrorReturn", },
   { .code = ErrorExit,                  .label = "ErrorExit", },
   { .code = ErrorYield,                 .label = "ErrorYield", },
+  { .code = ErrorNoError,               .label = NULL },
 };
 
-static int           num_exceptions = sizeof(builtin_exceptions) / sizeof(code_label_t);
+static int           num_exceptions = ErrorYield;
 static code_label_t *exceptions = builtin_exceptions;
 
 extern void          exception_init(void);
@@ -80,14 +81,11 @@ static vtable_t _vtable_exception[] = {
 
 OBLCORE_IMPEXP int exception_register(char *str) {
   code_label_t *new_exceptions;
-  code_label_t  descr;
   int           newsz;
   int           cursz;
 
-  descr.code = num_exceptions;
-  descr.label = str;
-  newsz = (num_exceptions + 1) * sizeof(code_label_t);
-  cursz = num_exceptions * sizeof(code_label_t);
+  newsz = (num_exceptions + 2) * sizeof(code_label_t);
+  cursz = (num_exceptions + 1) * sizeof(code_label_t);
   if (exceptions == builtin_exceptions) {
     new_exceptions = (code_label_t *) new(newsz);
     memcpy(new_exceptions, exceptions, cursz);
@@ -96,8 +94,11 @@ OBLCORE_IMPEXP int exception_register(char *str) {
   }
   exceptions = new_exceptions;
   num_exceptions++;
-  memcpy(exceptions + descr.code, &descr, sizeof(code_label_t));
-  return descr.code;
+  exceptions[num_exceptions -1].code = num_exceptions;
+  exceptions[num_exceptions -1].label = str;
+  exceptions[num_exceptions].code = ErrorNoError;
+  exceptions[num_exceptions].label = NULL;
+  return num_exceptions;
 }
 
 exception_t * exception_create(int code, char *msg, ...) {

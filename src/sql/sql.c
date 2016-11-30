@@ -33,16 +33,18 @@ __DLL_EXPORT__ data_t *      _function_dbconnect(char *, array_t *, dict_t *);
 static dbconn_t * _dbconn_new(dbconn_t *, va_list);
 static void       _dbconn_free(dbconn_t *);
 static char *     _dbconn_tostring(dbconn_t *);
+static data_t *   _dbconn_resolve(dbconn_t *, char *);
 
 static vtable_t _vtable_DBConnection[] = {
   { .id = FunctionNew,      .fnc = (void_t) _dbconn_new },
   { .id = FunctionFree,     .fnc = (void_t) _dbconn_free },
   { .id = FunctionToString, .fnc = (void_t) _dbconn_tostring },
+  { .id = FunctionResolve,  .fnc = (void_t) _dbconn_resolve },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-int              sql_debug;
-int              ErrorSQL;
+int              sql_debug = -1;
+int              ErrorSQL = -1;
 int              DBConnection = -1;
 
 static dict_t   *_drivers;
@@ -65,9 +67,11 @@ void _sql_init(void) {
 /* -- D B C O N N  B A S E  C L A S S ------------------------------------- */
 
 dbconn_t *_dbconn_new(dbconn_t *conn, va_list args) {
-  char *uri = va_arg(args, uri_t *);
+  uri_t *uri = va_arg(args, uri_t *);
 
+  conn -> status = DBConnUninitialized;
   conn -> uri = uri_copy(uri);
+  conn -> status = DBConnInitialized;
   return conn;
 }
 
@@ -79,6 +83,16 @@ void _dbconn_free(dbconn_t *conn) {
 
 char * _dbconn_tostring(dbconn_t *conn) {
   return uri_tostring(conn -> uri);
+}
+
+data_t * _dbconn_resolve(dbconn_t *conn, char *name) {
+  if (!strcmp(name, "uri")) {
+    return data_copy((data_t *) conn -> uri);
+  } else if (!strcmp(name, "status")) {
+    return int_to_data(conn -> status);
+  } else {
+    return NULL;
+  }
 }
 
 /* -------------------------------------------------------------------------*/
@@ -153,5 +167,6 @@ data_t * dbconn_create(char *connectstr) {
 data_t * _function_dbconnect(char *func_name, array_t *params, dict_t *kwargs) {
   (void) func_name;
   assert(array_size(params));
+  _sql_init();
   return dbconn_create(data_tostring(data_array_get(params, 0)));
 }

@@ -266,10 +266,13 @@ char * name_tostring_sep(name_t *name, char *sep) {
     return "name:NULL";
   }
   if (name -> sep && strcmp(name -> sep, sep)) {
-    free(name -> _d.str);
+    if (name -> _d.free_str == Normal) {
+      free(name -> _d.str);
+    }
     free(name -> sep);
     name -> sep = NULL;
     name -> _d.str = NULL;
+    name -> _d.free_str = Normal;
   }
   if (!name -> sep) {
     name -> sep = strdup(sep);

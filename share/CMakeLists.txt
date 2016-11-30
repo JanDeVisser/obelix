@@ -1,2 +1,2 @@
 install(FILES __init__.obl DESTINATION share)
-install(DIRECTORY grammar sys net thread DESTINATION share)
+install(DIRECTORY grammar sys net thread sql DESTINATION share)

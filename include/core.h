@@ -50,13 +50,13 @@ typedef voidptr_t free_t;
 
 typedef void *    (*create_t)(void);
 typedef void *    (*vcreate_t)(va_list);
-typedef int       (*cmp_t)(void *, void *);
-typedef int       (*hash_t)(void *);
-typedef void *    (*copy_t)(void *);
-typedef char *    (*tostring_t)(void *);
-typedef void *    (*parse_t)(char *);
-typedef void *    (*copydata_t)(void *, void *);
-typedef void *    (*new_t)(void *, va_list);
+typedef int       (*cmp_t)(const void *, const void *);
+typedef int       (*hash_t)(const void *);
+typedef void *    (*copy_t)(const void *);
+typedef char *    (*tostring_t)(const void *);
+typedef void *    (*parse_t)(const char *);
+typedef void *    (*copydata_t)(void *, const void *);
+typedef void *    (*new_t)(const void *, va_list);
 typedef void *    (*reduce_t)(void *, void *);
 typedef int       (*read_t)(void *, char *, int);
 typedef int       (*write_t)(void *, char *, int);
@@ -97,29 +97,29 @@ OBLCORE_IMPEXP int             asprintf(char **, const char *, ...);
 #ifndef HAVE_VASPRINTF
 OBLCORE_IMPEXP int             vasprintf(char **, const char *, va_list);
 #endif
-OBLCORE_IMPEXP unsigned int    hash(void *, size_t);
-OBLCORE_IMPEXP unsigned int    hashptr(void *);
+OBLCORE_IMPEXP unsigned int    hash(const void *, size_t);
+OBLCORE_IMPEXP unsigned int    hashptr(const void *);
 OBLCORE_IMPEXP unsigned int    hashlong(long);
 OBLCORE_IMPEXP unsigned int    hashdouble(double);
 OBLCORE_IMPEXP unsigned int    hashblend(unsigned int, unsigned int);
 
 OBLCORE_IMPEXP void            initialize_random(void);
 OBLCORE_IMPEXP char *          strrand(char *, size_t);
-OBLCORE_IMPEXP unsigned int    strhash(char *);
+OBLCORE_IMPEXP unsigned int    strhash(const char *);
 OBLCORE_IMPEXP char *          strltrim(char *);
 OBLCORE_IMPEXP char *          strrtrim(char *);
 OBLCORE_IMPEXP char *          strtrim(char *);
-OBLCORE_IMPEXP char *          chars(void *);
-OBLCORE_IMPEXP int             atob(char *);
+OBLCORE_IMPEXP char *          chars(const void *);
+OBLCORE_IMPEXP int             atob(const char *);
 OBLCORE_IMPEXP char *          btoa(long);
-OBLCORE_IMPEXP int             strtoint(char *, long *);
+OBLCORE_IMPEXP int             strtoint(const char *, long *);
 OBLCORE_IMPEXP char *          oblcore_itoa(long);
 OBLCORE_IMPEXP char *          oblcore_dtoa(double);
 
-OBLCORE_IMPEXP int             oblcore_strcasecmp(char *, char *);
-OBLCORE_IMPEXP int             oblcore_strncasecmp(char *, char *, size_t);
+OBLCORE_IMPEXP int             oblcore_strcasecmp(const char *, const char *);
+OBLCORE_IMPEXP int             oblcore_strncasecmp(const char *, const char *, size_t);
 
-OBLCORE_IMPEXP char *          escape(char *, char *, char);
+OBLCORE_IMPEXP char *          escape(char *, const char *, char);
 OBLCORE_IMPEXP char *          unescape(char *, char);
 #define c_escape(s)            (escape((s), "\"\\", '\\'))
 #define c_unescape(s)          (unescape((s), '\\'))

@@ -37,14 +37,23 @@
   #endif /* __WIN32__ */
 #endif /* OBLSQL_IMPEXP */
 
+typedef enum _dbconn_status {
+  DBConnUninitialized = 0,
+  DBConnInitialized,
+  DBConnConnected,
+  DBConnException
+} dbconn_status_t;
+
 typedef struct _dbconn {
   data_t  _d;
   uri_t  *uri;
+  int     status;
 } dbconn_t;
 
 OBLSQL_IMPEXP data_t * dbconn_create(char *);
 
 OBLSQL_IMPEXP int DBConnection;
+OBLSQL_IMPEXP int ErrorSQL;
 
 #define data_is_dbconn(d)  ((d) && data_hastype((d), DBConnection))
 #define data_as_dbconn(d)  (data_is_dbconn((d)) ? ((uri_t *) (d)) : NULL)

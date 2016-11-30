@@ -31,6 +31,8 @@
 #include <data.h>
 #include <net.h>
 
+extern void net_init(void);
+
 extern int net_debug;
 
 #endif /* __LIBSQL_H__ */

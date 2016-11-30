@@ -39,30 +39,30 @@ typedef enum _dict_reduce_type {
 } dict_reduce_type_t;
 
 static void             _dictentry_free(dictentry_t *);
-static unsigned int     _dictentry_hash(dictentry_t *);
-static int              _dictentry_cmp_key(dictentry_t *, void *);
+static unsigned int     _dictentry_hash(const dictentry_t *);
+static int              _dictentry_cmp_key(const dictentry_t *, const void *);
 
-static entry_t *        _entry_from_dictentry(dictentry_t *);
-static entry_t *        _entry_from_entry(entry_t *);
+static entry_t *        _entry_from_dictentry(const dictentry_t *);
+static entry_t *        _entry_from_entry(const entry_t *);
 
 static bucket_t *       _bucket_create(dict_t *, int);
 static void             _bucket_free(bucket_t *);
 static void             _bucket_clear(bucket_t *);
 static bucket_t *       _bucket_expand(bucket_t *);
-static bucket_t *       _bucket_copy_entry(bucket_t *, dictentry_t *);
+static bucket_t *       _bucket_copy_entry(bucket_t *, const dictentry_t *);
 static bucket_t *       _bucket_init_entry(bucket_t *, void *, void *);
 static void *           _bucket_reduce(bucket_t *, reduce_t, void *);
 static void             _bucket_remove(bucket_t *, int);
-static dictentry_t *    _bucket_find_entry(bucket_t *, void *);
-static int              _bucket_position_of(bucket_t *, void *);
+static dictentry_t *    _bucket_find_entry(const bucket_t *, const void *);
+static int              _bucket_position_of(const bucket_t *, const void *);
 static bucket_t *       _bucket_put(bucket_t *, void *, void *);
 
-static unsigned int     _dict_hash(dict_t *, void *);
-static int              _dict_cmp_keys(dict_t *, void *, void *);
+static unsigned int     _dict_hash(const dict_t *, const void *);
+static int              _dict_cmp_keys(const dict_t *, const void *, const void *);
 static dict_t *         _dict_rehash(dict_t *);
-static bucket_t *       _dict_get_bucket(dict_t *, void *);
+static bucket_t *       _dict_get_bucket(const dict_t *, const void *);
 static dict_t *         _dict_add_to_bucket(dict_t *, void *, void *);
-static dictentry_t *    _dict_find_in_bucket(dict_t *, void *);
+static dictentry_t *    _dict_find_in_bucket(const dict_t *, const void *);
 static dict_t *         _dict_remove_from_bucket(dict_t *, void *);
 static list_t *         _dict_append_reducer(void *, list_t *);
 static void *           _dict_visitor(void *, reduce_ctx *);
@@ -86,17 +86,17 @@ void _dictentry_free(dictentry_t *entry) {
   }
 }
 
-_unused_ unsigned int _dictentry_hash(dictentry_t *entry) {
+_unused_ unsigned int _dictentry_hash(const dictentry_t *entry) {
   return _dict_hash(entry -> dict, entry -> key);
 }
 
-_unused_ int _dictentry_cmp_key(dictentry_t *entry, void *other) {
+_unused_ int _dictentry_cmp_key(const dictentry_t *entry, const void *other) {
   return _dict_cmp_keys(entry -> dict, entry -> key, other);
 }
 
 // -- E N T R Y  S T A T I C  F U N C T I O N S --------------------------- */
 
-entry_t * _entry_from_dictentry(dictentry_t *e) {
+entry_t * _entry_from_dictentry(const dictentry_t *e) {
   entry_t *ret;
 
   ret = NEW(entry_t);
@@ -107,7 +107,7 @@ entry_t * _entry_from_dictentry(dictentry_t *e) {
   return ret;
 }
 
-_unused_ entry_t * _entry_from_entry(entry_t *e) {
+_unused_ entry_t * _entry_from_entry(const entry_t *e) {
   entry_t *ret;
 
   ret = NEW(entry_t);
@@ -116,7 +116,7 @@ _unused_ entry_t * _entry_from_entry(entry_t *e) {
   return ret;
 }
 
-entry_t * _entry_from_strings(dictentry_t *e) {
+entry_t * _entry_from_strings(const dictentry_t *e) {
   entry_t *ret;
 
   ret = NEW(entry_t);
@@ -170,7 +170,7 @@ bucket_t * _bucket_expand(bucket_t *bucket) {
   return bucket;
 }
 
-bucket_t * _bucket_copy_entry(bucket_t *bucket, dictentry_t *entry) {
+bucket_t * _bucket_copy_entry(bucket_t *bucket, const dictentry_t *entry) {
   if (bucket -> size >= bucket -> capacity) {
     bucket = _bucket_expand(bucket);
   }
@@ -220,13 +220,13 @@ void _bucket_remove(bucket_t *bucket, int ix) {
   }
 }
 
-int _bucket_position_of(bucket_t *bucket, void *key) {
+int _bucket_position_of(const bucket_t *bucket, const void *key) {
   dictentry_t *e = _bucket_find_entry(bucket, key);
 
   return (e) ? e -> ix : -1;
 }
 
-dictentry_t * _bucket_find_entry(bucket_t *bucket, void *key) {
+dictentry_t * _bucket_find_entry(const bucket_t *bucket, const void *key) {
   dictentry_t *e;
   int          ix;
 
@@ -260,13 +260,13 @@ bucket_t * _bucket_put(bucket_t *bucket, void *key, void *value) {
 
 /* -- D I C T  S T A T I C  F U N C T I O N S ----------------------------- */
 
-unsigned int _dict_hash(dict_t *dict, void *key) {
+unsigned int _dict_hash(const dict_t *dict, const void *key) {
   return (dict -> key_type.hash)
     ? dict -> key_type.hash(key)
     : hash(&key, sizeof(void *));
 }
 
-int _dict_cmp_keys(dict_t *dict, void *key1, void *key2) {
+int _dict_cmp_keys(const dict_t *dict, const void *key1, const void *key2) {
   return (dict -> key_type.cmp)
     ? dict -> key_type.cmp(key1, key2)
     : (intptr_t) key1 - (intptr_t) key2;
@@ -307,7 +307,7 @@ dict_t * _dict_rehash(dict_t *dict) {
   return dict;
 }
 
-bucket_t * _dict_get_bucket(dict_t *dict, void *key) {
+bucket_t * _dict_get_bucket(const dict_t *dict, const void *key) {
   unsigned int hash;
 
   hash = _dict_hash(dict, key);
@@ -322,7 +322,7 @@ dict_t * _dict_add_to_bucket(dict_t *dict, void *key, void *value) {
   return dict;
 }
 
-dictentry_t * _dict_find_in_bucket(dict_t *dict, void *key) {
+dictentry_t * _dict_find_in_bucket(const dict_t *dict, const void *key) {
   bucket_t *bucket;
 
   bucket = _dict_get_bucket(dict, key);
@@ -480,7 +480,7 @@ dict_t * dict_create(cmp_t cmp) {
   return d;
 }
 
-dict_t * dict_clone(dict_t *dict) {
+dict_t * dict_clone(const dict_t *dict) {
   dict_t *ret = dict_create(NULL);
 
   dict_set_key_type(ret, &(dict -> key_type));
@@ -488,7 +488,7 @@ dict_t * dict_clone(dict_t *dict) {
   return ret;
 }
 
-dict_t * dict_copy(dict_t *dict) {
+dict_t * dict_copy(const dict_t *dict) {
   dict_t *ret;
 
   ret = dict_clone(dict);
@@ -496,12 +496,12 @@ dict_t * dict_copy(dict_t *dict) {
   return ret;
 }
 
-dict_t * dict_set_key_type(dict_t *dict, type_t *type) {
+dict_t * dict_set_key_type(dict_t *dict, const type_t *type) {
   type_copy(&(dict -> key_type), type);
   return dict;
 }
 
-dict_t * dict_set_data_type(dict_t *dict, type_t *type) {
+dict_t * dict_set_data_type(dict_t *dict, const type_t *type) {
   type_copy(&(dict -> data_type), type);
   return dict;
 }
@@ -541,7 +541,7 @@ dict_t * dict_set_tostring_data(dict_t *dict, tostring_t tostring_data) {
   return dict;
 }
 
-int dict_size(dict_t *dict) {
+int dict_size(const dict_t *dict) {
   return dict -> size;
 }
 
@@ -601,7 +601,7 @@ dict_t * dict_remove(dict_t *dict, void *key) {
   return ret;
 }
 
-void * dict_get(dict_t *dict, void *key) {
+void * dict_get(const dict_t *dict, const void *key) {
   dictentry_t *entry;
 
   if (dict -> size) {
@@ -640,7 +640,7 @@ void * dict_pop(dict_t *dict, void *key) {
   }
 }
 
-int dict_has_key(dict_t *dict, void *key) {
+int dict_has_key(const dict_t *dict, const void *key) {
   return dict -> size && _dict_find_in_bucket(dict, key) != NULL;
 }
 
@@ -709,11 +709,15 @@ list_t * dict_items(dict_t *dict) {
   return ret;
 }
 
-dict_t * dict_put_all(dict_t *dict, dict_t *other) {
+dict_t * dict_put_all(dict_t *dict, const dict_t *other) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
   return dict_reduce(other, (reduce_t) _dict_put_all_reducer, dict);
+#pragma GCC diagnostic pop
 }
 
-str_t * dict_tostr_custom(dict_t *dict, char *open, char *fmt, char *sep, char *close) {
+str_t * dict_tostr_custom(dict_t *dict, const char *open, const char *fmt,
+                          const char *sep, const char *close) {
   str_t      *ret;
   str_t      *entries;
   void       *ctx[4];
@@ -725,8 +729,11 @@ str_t * dict_tostr_custom(dict_t *dict, char *open, char *fmt, char *sep, char *
   entries = str_create(0);
   ctx[0] = dict;
   ctx[1] = entries;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
   ctx[2] = sep;
   ctx[3] = fmt;
+#pragma GCC diagnostic pop
   dict_reduce_chars(dict, (reduce_t) _dict_entry_formatter, ctx);
   str_append(ret, entries);
   str_append_chars(ret, close);
@@ -738,7 +745,9 @@ str_t * dict_tostr(dict_t *dict) {
   return dict_tostr_custom(dict, "{\n", "  \"%s\": %s", ",\n", "\n}");
 }
 
-char * dict_tostring_custom(dict_t *dict, char *open, char *fmt, char *sep, char *close) {
+char * dict_tostring_custom(dict_t *dict, const char *open,
+                            const char *fmt, const char *sep,
+                            const char *close) {
   str_t *s;
 
   free(dict -> str);
@@ -751,7 +760,7 @@ char * dict_tostring(dict_t *dict) {
   return dict_tostring_custom(dict, "{\n", "  \"%s\": %s", ",\n", "\n}");
 }
 
-str_t * dict_dump(dict_t *dict, char *title) {
+str_t * dict_dump(const dict_t *dict, const char *title) {
   bucket_t    *bucket;
   int          len, i, j;
   dictentry_t *entry;

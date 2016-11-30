@@ -31,7 +31,7 @@ static char *        _mutex_tostring(mutex_t *);
 static data_t *      _mutex_enter(mutex_t *);
 static data_t *      _mutex_leave(mutex_t *, data_t *);
 
-extern data_t *      _mutex_create(char *, array_t *, dict_t *);
+extern data_t * _mutex_create(data_t *, char *, array_t *, dict_t *);
 
 static data_t *      _mutex_lock(mutex_t *, char *, array_t *, dict_t *);
 static data_t *      _mutex_unlock(mutex_t *, char *, array_t *, dict_t *);
@@ -242,7 +242,9 @@ int mutex_unlock(mutex_t *mutex) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _mutex_create(char *name, array_t *args, dict_t *kwargs) {
+
+data_t * _mutex_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  (void) self;
   (void) name;
   (void) args;
   (void) kwargs;

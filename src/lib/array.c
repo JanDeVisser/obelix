@@ -124,6 +124,8 @@ array_t * array_copy(array_t *src) {
   return src;
 }
 
+
+
 /**
  * Creates a new <code>array_t</code> from the components of <code>str</code>.
  * The string is split at the occurrences of <code>sep</code>. The individual
@@ -135,7 +137,7 @@ array_t * array_copy(array_t *src) {
  *
  * @return A new array with the components of the string as elements.
  */
-array_t * array_split(char *str, char *sep) {
+array_t * array_split(const char *str, const char *sep) {
   char    *ptr;
   char    *sepptr;
   char    *c;
@@ -147,13 +149,19 @@ array_t * array_split(char *str, char *sep) {
   if (!str || !str[0]) {
     return str_array_create(0);
   }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
   ptr = str;
+#pragma GCC diagnostic pop
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     count++;
     ptr = sepptr + seplen;
   }
   ret = str_array_create(count);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
   ptr = str;
+#pragma GCC diagnostic pop
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     len = sepptr - ptr;
     c = stralloc(len);
@@ -165,6 +173,7 @@ array_t * array_split(char *str, char *sep) {
   array_push(ret, strdup(ptr));
   return ret;
 }
+
 
 /**
  * Returns a new array that is a subset of an existing array. Array elements
@@ -186,7 +195,7 @@ array_t * array_split(char *str, char *sep) {
  * specification. If <i>from</i> is beyond the end of the array, or if no
  * elements would be copied, <b>NULL</b> is returned.
  */
-array_t * array_slice(array_t *array, int from, int num) {
+array_t * array_slice(const array_t *array, int from, int num) {
   array_t *ret;
   int      ix;
 
@@ -205,7 +214,7 @@ array_t * array_slice(array_t *array, int from, int num) {
   return ret;
 }
 
-array_t* array_set_type(array_t *array, type_t *type) {
+array_t* array_set_type(array_t *array, const type_t *type) {
   type_copy(&(array -> type), type);
   return array;
 }
@@ -231,7 +240,7 @@ array_t * array_set_tostring(array_t *array, tostring_t tostring) {
   return array;
 }
 
-unsigned int array_hash(array_t *array) {
+unsigned int array_hash(const array_t *array) {
   unsigned int hash;
   reduce_ctx *ctx;
 
@@ -241,14 +250,17 @@ unsigned int array_hash(array_t *array) {
     ctx = NEW(reduce_ctx);
     ctx -> fnc = (void_t) array -> type.hash;
     ctx -> longdata = 0;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
     array_reduce(array, (reduce_t) collection_hash_reducer, ctx);
+#pragma GCC diagnostic pop
     hash = (unsigned int) ctx -> longdata;
     free(ctx);
   }
   return hash;
 }
 
-int array_capacity(array_t *array) {
+int array_capacity(const array_t *array) {
   return array -> capacity;
 }
 
@@ -296,7 +308,7 @@ int array_set(array_t *array, int ix, void *data) {
   return TRUE;
 }
 
-void * array_get(array_t *array, int ix) {
+void * array_get(const array_t *array, int ix) {
   errno = 0;
   if (ix < 0) {
     ix = array_size(array) + ix;
@@ -348,7 +360,7 @@ array_t * array_add_all(array_t *array, array_t *other) {
   return array;
 }
 
-str_t * array_tostr(array_t *array) {
+str_t * array_tostr(const array_t *array) {
   str_t *ret;
   str_t *s;
 
@@ -381,7 +393,7 @@ char * array_tostring(array_t *array) {
   }
 }
 
-void array_debug(array_t *array, char *msg) {
+void array_debug(array_t *array, const char *msg) {
   mdebug(core, msg, array_tostring(array));
 }
 

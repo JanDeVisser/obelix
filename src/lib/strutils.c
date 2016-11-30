@@ -28,7 +28,12 @@
 
 static int          rand_initialized = 0;
 static char         charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY";
+static char *       _false[] = { "f", "false","F", "FALSE", "False", NULL };
 static unsigned int my_seed = 3425674;
+
+static inline void _initialize_random(void);
+
+/* ------------------------------------------------------------------------ */
 
 void _initialize_random(void) {
   if (!rand_initialized++) {
@@ -38,27 +43,48 @@ void _initialize_random(void) {
 
 /* ------------------------------------------------------------------------ */
 
-unsigned int strhash(char *str) {
+unsigned int strhash(const char *str) {
   return hash(str, strlen(str));
 }
 
-/*
- * Note that we mirror python here: any string except the empty
- * string is true.
+/**
+ * Convert the given string to a boolean int. As usual, 0 (zero) is false,
+ * and any int != 0 is true.
+ *
+ * If:
+ * - str is NULL, then false is returned,
+ * - str can be parsed as a valid integer, then true is returned if this integer
+ *   is != 0, and false it == 0,
+ * - str is 'f', 'false', 'F', 'FALSE', 'False', then false is returned.
+ * Else any string except the empty string is true.
  */
-int atob(char *str) {
-  return str && str[0];
+int atob(const char *str) {
+  long val;
+  int  ix;
+
+  if (str) {
+    if (!strtoint(str, &val)) {
+      return (val != 0);
+    }
+    for (ix = 0; _false[ix]; ix++) {
+      if (!strcmp(str, _false[ix])) {
+        return FALSE;
+      }
+    }
+    return (str[0] != 0);
+  }
+  return FALSE;
 }
 
 char * btoa(long b) {
   return (b) ? "true" : "false";
 }
 
-char * chars(void *str) {
+char * chars(const void *str) {
   return (char *) str;
 }
 
-int strtoint(char *str, long *val) {
+int strtoint(const char *str, long *val) {
   char *endptr;
   char *ptr;
 
@@ -111,7 +137,7 @@ char * oblcore_dtoa(double d) {
   return buf;
 }
 
-int oblcore_strcasecmp(char *s1, char *s2) {
+int oblcore_strcasecmp(const char *s1, const char *s2) {
   while (*s1 && (toupper(*s1) && toupper(*s2))) {
     s1++;
     s2++;
@@ -119,7 +145,7 @@ int oblcore_strcasecmp(char *s1, char *s2) {
   return toupper(*s1) - toupper(*s2);
 }
 
-int oblcore_strncasecmp(char *s1, char *s2, size_t n) {
+int oblcore_strncasecmp(const char *s1, const char *s2, size_t n) {
   while (n && *s1 && (toupper(*s1) && toupper(*s2))) {
     n--;
     s1++;
@@ -180,7 +206,7 @@ char * strtrim(char *str) {
   return ret;
 }
 
-char * escape(char *str, char *escapeable, char escape_char) {
+char * escape(char *str, const char *escapeable, char escape_char) {
   int   count;
   char *escape;
   char *escaped;

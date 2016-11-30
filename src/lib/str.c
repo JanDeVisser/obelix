@@ -277,7 +277,7 @@ str_t * str_wrap(char *buffer) {
   return ret;
 }
 
-str_t * str_printf(char *fmt, ...) {
+str_t * str_printf(const char *fmt, ...) {
   str_t   *ret;
   va_list  args;
 
@@ -287,7 +287,7 @@ str_t * str_printf(char *fmt, ...) {
   return ret;
 }
 
-str_t * str_vprintf(char *fmt, va_list args) {
+str_t * str_vprintf(const char *fmt, va_list args) {
   str_t *ret;
 
   ret = _str_initialize();
@@ -299,11 +299,11 @@ str_t * str_vprintf(char *fmt, va_list args) {
   return ret;
 }
 
-str_t * str_copy_chars(char *buffer) {
+str_t * str_copy_chars(const char *buffer) {
   return str_copy_nchars(buffer, strlen(buffer));
 }
 
-str_t * str_copy_nchars(char *buffer, size_t len) {
+str_t * str_copy_nchars(const char *buffer, size_t len) {
   str_t *ret;
   char  *b;
 
@@ -323,7 +323,7 @@ str_t * str_from_data(data_t *data) {
     : str_copy_chars(data_tostring(data));
 }
 
-str_t * str_deepcopy(str_t *str) {
+str_t * str_deepcopy(const str_t *str) {
   str_t *ret;
   char *b;
 
@@ -359,42 +359,42 @@ char * str_reassign(str_t *str) {
   return ret;
 }
 
-size_t str_len(str_t *str) {
+size_t str_len(const str_t *str) {
   return str -> len;
 }
 
-char * str_chars(str_t *str) {
+char * str_chars(const str_t *str) {
   return str -> buffer;
 }
 
-int str_at(str_t* str, size_t i) {
+int str_at(const str_t* str, size_t i) {
   if ((int) i < 0) {
     i = str -> len + i;
   }
   return (i < str -> len) ? str -> buffer[i] : -1;
 }
 
-unsigned int str_hash(str_t *str) {
+unsigned int str_hash(const str_t *str) {
   return strhash(str -> buffer);
 }
 
-int str_cmp(str_t *s1, str_t *s2) {
+int str_cmp(const str_t *s1, const str_t *s2) {
   return strcmp(s1 -> buffer, s2 -> buffer);
 }
 
-int str_cmp_chars(str_t *s1, char *s2) {
+int str_cmp_chars(const str_t *s1, const char *s2) {
   return strcmp(s1 -> buffer, s2);
 }
 
-int str_ncmp(str_t *s1, str_t *s2, size_t numchars) {
+int str_ncmp(const str_t *s1, const str_t *s2, size_t numchars) {
   return strncmp(s1 -> buffer, s2 -> buffer, numchars);
 }
 
-int str_ncmp_chars(str_t *s1, char *s2, size_t numchars) {
+int str_ncmp_chars(const str_t *s1, const char *s2, size_t numchars) {
   return strncmp(s1 -> buffer, s2, numchars);
 }
 
-int str_indexof(str_t *str, str_t *pattern) {
+int str_indexof(const str_t *str, const str_t *pattern) {
   if (pattern -> len > str -> len) {
     return -1;
   } else {
@@ -402,7 +402,7 @@ int str_indexof(str_t *str, str_t *pattern) {
   }
 }
 
-int str_indexof_chars(str_t *str, char *pattern) {
+int str_indexof_chars(const str_t *str, const char *pattern) {
   char *ptr;
 
   if (strlen(pattern) > str -> len) {
@@ -413,11 +413,11 @@ int str_indexof_chars(str_t *str, char *pattern) {
   }
 }
 
-int str_rindexof(str_t *str, str_t *pattern) {
+int str_rindexof(const str_t *str, const str_t *pattern) {
   return str_rindexof_chars(str, str_chars(pattern));
 }
 
-int str_rindexof_chars(str_t *str, char *pattern) {
+int str_rindexof_chars(const str_t *str, const char *pattern) {
   char   *ptr;
   size_t  len;
 
@@ -452,7 +452,7 @@ int str_read(str_t *str, char *target, size_t num) {
   }
 }
 
-int str_peek(str_t * str) {
+int str_peek(const str_t * str) {
   return (str -> pos < str -> len) ? str -> buffer[str -> pos] : 0;
 }
 
@@ -550,7 +550,7 @@ str_t * str_forcecase(str_t *str, int upper) {
   return str;
 }
 
-int str_replace(str_t *str, char *pat, char *repl, int all) {
+int str_replace(str_t *str, const char *pat, const char *repl, int max) {
   int   pos;
   int   pat_len = strlen(pat);
   int   repl_len = strlen(repl);
@@ -558,9 +558,9 @@ int str_replace(str_t *str, char *pat, char *repl, int all) {
   int   num = 0;
   char *target;
 
-  for (all = (all) ? str_len(str) : 1, pos = str_indexof_chars(str, pat);
-       all && (pos >= 0);
-       all--, pos = str_indexof_chars(str, pat), num++) {
+  for (pos = str_indexof_chars(str, pat);
+       max && (pos >= 0);
+       max--, pos = str_indexof_chars(str, pat), num++) {
     if (diff > 0) {
       _str_expand(str, str -> len + diff);
     }
@@ -588,11 +588,11 @@ str_t * str_append_char(str_t *str, int ch) {
   return ret;
 }
 
-str_t * str_append_chars(str_t *str, char *other) {
+str_t * str_append_chars(str_t *str, const char *other) {
   return str_append_nchars(str, other, strlen(other));
 }
 
-str_t * str_append_nchars(str_t *str, char *other, size_t n) {
+str_t * str_append_nchars(str_t *str, const char *other, size_t n) {
   str_t   *ret = NULL;
 
   if (other && _str_expand(str, str_len(str) + n + 1)) {
@@ -604,7 +604,7 @@ str_t * str_append_nchars(str_t *str, char *other, size_t n) {
   return ret;
 }
 
-str_t * str_append_printf(str_t *str, char *other, ...) {
+str_t * str_append_printf(str_t *str, const char *other, ...) {
   va_list  args;
   str_t   *ret;
 
@@ -614,7 +614,7 @@ str_t * str_append_printf(str_t *str, char *other, ...) {
   return ret;
 }
 
-str_t * str_append_vprintf(str_t *str, char *other, va_list args) {
+str_t * str_append_vprintf(str_t *str, const char *other, va_list args) {
   str_t  *ret = NULL;
   char   *b = NULL;
   size_t  len = 0;
@@ -631,7 +631,7 @@ str_t * str_append_vprintf(str_t *str, char *other, va_list args) {
   return ret;
 }
 
-str_t * str_append(str_t *str, str_t *other) {
+str_t * str_append(str_t *str, const str_t *other) {
   str_t *ret = NULL;
 
   if (str -> bufsize) {
@@ -691,13 +691,16 @@ str_t * str_erase(str_t *str) {
   return ret;
 }
 
-str_t * _str_join(char *glue, void *collection, obj_reduce_t reducer) {
+str_t * _str_join(const char *glue, const void *collection, obj_reduce_t reducer) {
   str_t      *ret;
   reduce_ctx *ctx;
 
   ret = str_create(0);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
   ctx = reduce_ctx_create(glue, ret, NULL);
   reducer(collection, (reduce_t) _str_join_reducer, ctx);
+#pragma GCC diagnostic pop
   if (str_len(ret)) {
     str_chop(ret, strlen(glue));
   }
@@ -705,7 +708,7 @@ str_t * _str_join(char *glue, void *collection, obj_reduce_t reducer) {
   return ret;
 }
 
-str_t * str_slice(str_t *str, size_t from, size_t upto) {
+str_t * str_slice(const str_t *str, size_t from, size_t upto) {
   str_t  *ret;
   size_t  len;
 
@@ -723,7 +726,7 @@ str_t * str_slice(str_t *str, size_t from, size_t upto) {
   return ret;
 }
 
-array_t * str_split(str_t *str, char *sep) {
+array_t * str_split(const str_t *str, const char *sep) {
   char    *ptr;
   char    *sepptr;
   array_t *ret;
@@ -743,7 +746,7 @@ array_t * str_split(str_t *str, char *sep) {
   return ret;
 }
 
-str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
+str_t * str_format(const char *fmt, const array_t *args, const dict_t *kwargs) {
   char   *copy;
   char   *ptr;
   char   *specstart;
@@ -795,9 +798,12 @@ str_t * str_format(char *fmt, array_t *args, dict_t *kwargs) {
   return ret;
 }
 
-str_t * str_vformatf(char *fmt, va_list args) {
+str_t * str_vformatf(const char *fmt, va_list args) {
   array_t *arr;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
   char    *f = fmt;
+#pragma GCC diagnostic pop
   char    *ptr;
   int      ix;
   int      num = 0;
@@ -858,11 +864,13 @@ str_t * str_vformatf(char *fmt, va_list args) {
   }
   ret = str_format(f, arr, NULL);
   array_free(arr);
-  if (f != fmt) free(f);
+  if (f != fmt) {
+    free(f);
+  }
   return ret;
 }
 
-str_t * str_formatf(char *fmt, ...) {
+str_t * str_formatf(const char *fmt, ...) {
   va_list args;
   str_t *ret;
 

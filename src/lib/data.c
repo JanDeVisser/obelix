@@ -178,7 +178,7 @@ data_t * data_settype(data_t *data, int type) {
   }
   if (!data -> type) {
     data -> type = type;
-    data -> refs++;
+    data -> refs = 1;
     data -> str = NULL;
     data -> free_me = Normal;
     data -> free_str = Normal;

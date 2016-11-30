@@ -31,14 +31,23 @@
 
 static void        _uri_grammar_init(void);
 static uri_t *     _uri_new(uri_t *, va_list);
+static data_t *    _uri_resolve(uri_t *, char *);
 static void        _uri_free(uri_t *);
+
+static data_t *    _uri_create(data_t *, char *, array_t *, dict_t *);
 
 extern grammar_t * uri_grammar_build(void);
 
 static vtable_t _vtable_URI[] = {
   { .id = FunctionNew,         .fnc = (void_t) _uri_new },
   { .id = FunctionFree,        .fnc = (void_t) _uri_free },
+  { .id = FunctionResolve,     .fnc = (void_t) _uri_resolve },
   { .id = FunctionNone,        .fnc = NULL }
+};
+
+static methoddescr_t _methods_URI[] = {
+  { .type = Any,    .name = "uri", .method = _uri_create, .argtypes = { String, Any, Any },       .minargs = 1, .varargs = 0 },
+  { .type = NoType, .name = NULL,  .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
 int net_debug = -1;
@@ -105,13 +114,54 @@ void _uri_free(uri_t *uri) {
   }
 }
 
+#define WRAP_IFNOTNULL(d) ((d) ? ((data_t *) str_copy_chars((d))) : data_null())
+
+data_t * _uri_resolve(uri_t *uri, char *name) {
+  if (!strcmp(name, "scheme")) {
+    return WRAP_IFNOTNULL(uri -> scheme);
+  } else if (!strcmp(name, "user")) {
+    return WRAP_IFNOTNULL(uri -> user);
+  } else if (!strcmp(name, "password")) {
+    return WRAP_IFNOTNULL(uri -> password);
+  } else if (!strcmp(name, "host")) {
+    return WRAP_IFNOTNULL(uri -> host);
+  } else if (!strcmp(name, "port")) {
+    return int_to_data(uri -> port);
+  } else if (!strcmp(name, "path")) {
+    return (uri -> path) ? (data_t *) name_copy(uri -> path) : data_null();
+  } else if (!strcmp(name, "query")) {
+    return (data_t *) dictionary_create_from_dict(uri -> query);
+  } else if (!strcmp(name, "fragment")) {
+    return WRAP_IFNOTNULL(uri -> fragment);
+  } else if (!strcmp(name, "error")) {
+    return (uri -> error) ? data_copy(uri -> error) : data_null();
+  } else if (!strcmp(name, "ok")) {
+    return (data_t *) bool_get(uri -> error == NULL);
+  } else {
+    return NULL;
+  }
+}
+
+/* ----------------------------------------------------------------------- */
+
+data_t * _uri_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  uri_t *uri;
+
+  (void) self;
+  (void) name;
+  (void) kwargs;
+  net_init();
+  uri = uri_create(data_tostring(data_array_get(args, 0)));
+  return (!uri -> error) ? (data_t *) uri : uri -> error;
+}
+
 /* ------------------------------------------------------------------------ */
 
 void net_init(void) {
   if (URI < 0) {
     logging_register_category("net", &net_debug);
     dictionary_init();
-    typedescr_register(URI, uri_t);
+    typedescr_register_with_methods(URI, uri_t);
     uri_gramar_init();
   }
 }
@@ -119,6 +169,20 @@ void net_init(void) {
 uri_t * uri_create(char *uri) {
   net_init();
   return (uri_t *) data_create(URI, uri);
+}
+
+int uri_path_absolute(uri_t *uri) {
+  return uri -> path && name_size(uri -> path) && !strcmp(name_first(uri -> path), "/");
+}
+
+char * uri_path(uri_t *uri) {
+  char *path;
+
+  path = (uri -> path) ? name_tostring_sep(uri -> path, "/") : NULL;
+  if (uri_path_absolute(uri)) {
+    path++;
+  }
+  return path;
 }
 
 /* ------------------------------------------------------------------------ */

@@ -1,19 +1,38 @@
-add_library(oblsqllib SHARED
-    sql.c
-)
-if(WITH_SQLITE3)
+find_package(Sqlite3)
+find_package(Pgsql)
+
+set(SOURCES sql.c)
+set(LIBS oblnet oblvm oblcore)
+set(INCLUDES "")
+set(LIBDIRS "")
+if(SQLITE3_FOUND)
     set(SOURCES ${SOURCES} sqlite.c)
-endif(WITH_SQLITE3)
-if(WITH_POSTGRESQL)
+    set(INCLUDES ${INCLUDES} ${SQLITE3_INCLUDE_DIRS})
+    set(LIBS ${LIBS} ${SQLITE3_LIBRARIES})
+    set(LIBDIRS ${LIBDIRS} ${SQLITE3_LIBRARY_DIRS})
+endif(SQLITE3_FOUND)
+if(POSTGRESQL_FOUND)
     set(SOURCES ${SOURCES} pgsql.c)
-endif(WITH_POSTGRESQL)
-if(WITH_MYSQL)
+    set(LIBS ${LIBS} ${POSTGRESQL_LIBRARIES})
+    set(INCLUDES ${INCLUDES} ${POSTGRESQL_INCLUDE_DIRS})
+    set(LIBDIRS ${LIBDIRS} ${POSTGRESQL_LIBRARY_DIRS})
+endif(POSTGRESQL_FOUND)
+if(MYSQL_FOUND)
     set(SOURCES ${SOURCES} mysql.c)
-endif(WITH_MYSQL)
+    set(LIBS ${LIBS} ${MYSQL_LIBRARIES})
+    set(INCLUDES ${INCLUDES} ${MYSQL_INCLUDE_DIRS})
+    set(LIBDIRS ${LIBDIRS} ${MYSQL_LIBRARY_DIRS})
+endif(MYSQL_FOUND)
 
-target_link_libraries(oblsqllib PUBLIC oblnet oblvm oblcore)
+add_library(oblsql SHARED
+    ${SOURCES}
+)
 
-install(TARGETS oblstdlib
+target_link_libraries(oblsql PUBLIC ${LIBS})
+include_directories(${INCLUDES})
+link_directories(${LIBDIRS})
+
+install(TARGETS oblsql
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib)

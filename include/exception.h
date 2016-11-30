@@ -34,6 +34,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum _errorcode {
+  ErrorNoError = 0,
   ErrorSyntax = 1,
   ErrorArgCount,
   ErrorMaxStackDepthExceeded,

@@ -1,4 +1,4 @@
-#!/home/jan/Projects/obelix/install/bin/obelix
+#!/home/jan/projects/obelix/linux/bin/obelix
 
 import net
 
@@ -13,7 +13,7 @@ func srv()
 
   func __call__(client)
     print("${0} connected", client.host)
-    carry_on = true 
+    carry_on = true
     while carry_on
       line = client.readline()
       s = line.split(" ")
@@ -22,21 +22,21 @@ func srv()
       switch cmd
         case "HELLO":
           client.print("Hello, ${0}.", client.host)
-	case "ECHO":
+        case "ECHO":
           client.print(s.at(1))
-	case "LOCK":
+        case "LOCK":
           self.lock.lock()
           client.print("Lock obtained")
-	case "UNLOCK":
+        case "UNLOCK":
           self.lock.unlock()
           client.print("Lock released")
-	case "BYE":
+        case "BYE":
           client.print("Bye to you to!")
           carry_on = false
-	case "SHUTDOWN":
-          client.print("Farewell, cruel world...")        
+        case "SHUTDOWN":
+          client.print("Farewell, cruel world...")
           self.socket.interrupt()
-	default:
+        default:
           client.print("Sorry, I don't understand ${0}", cmd)
       end
     end

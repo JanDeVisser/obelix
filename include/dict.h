@@ -66,10 +66,10 @@ typedef struct _dictiterator {
 OBLCORE_IMPEXP void          entry_free(entry_t *e);
 
 OBLCORE_IMPEXP dict_t *      dict_create(cmp_t); /* No hash - Use key point mod something */
-OBLCORE_IMPEXP dict_t *      dict_clone(dict_t *);
-OBLCORE_IMPEXP dict_t *      dict_copy(dict_t *);
-OBLCORE_IMPEXP dict_t *      dict_set_key_type(dict_t *, type_t *);
-OBLCORE_IMPEXP dict_t *      dict_set_data_type(dict_t *, type_t *);
+OBLCORE_IMPEXP dict_t *      dict_clone(const dict_t *);
+OBLCORE_IMPEXP dict_t *      dict_copy(const dict_t *);
+OBLCORE_IMPEXP dict_t *      dict_set_key_type(dict_t *, const type_t *);
+OBLCORE_IMPEXP dict_t *      dict_set_data_type(dict_t *, const type_t *);
 OBLCORE_IMPEXP dict_t *      dict_set_hash(dict_t *, hash_t);
 OBLCORE_IMPEXP dict_t *      dict_set_free_key(dict_t *, free_t);
 OBLCORE_IMPEXP dict_t *      dict_set_free_data(dict_t *, free_t);
@@ -80,15 +80,14 @@ OBLCORE_IMPEXP dict_t *      dict_set_tostring_data(dict_t *, tostring_t);
 OBLCORE_IMPEXP void          dict_free(dict_t *);
 OBLCORE_IMPEXP dict_t *      dict_clear(dict_t *);
 OBLCORE_IMPEXP dict_t *      dict_put(dict_t *, void *, void *);
-OBLCORE_IMPEXP int           dict_has_key(dict_t *, void *);
-OBLCORE_IMPEXP void *        dict_get(dict_t *, void *);
+OBLCORE_IMPEXP int           dict_has_key(const dict_t *, const void *);
+OBLCORE_IMPEXP void *        dict_get(const dict_t *, const void *);
 OBLCORE_IMPEXP dict_t *      dict_remove(dict_t *, void *);
 OBLCORE_IMPEXP void *        dict_pop(dict_t *, void *);
-OBLCORE_IMPEXP int           dict_size(dict_t *);
+OBLCORE_IMPEXP int           dict_size(const dict_t *);
 OBLCORE_IMPEXP list_t *      dict_keys(dict_t *);
 OBLCORE_IMPEXP list_t *      dict_values(dict_t *);
 OBLCORE_IMPEXP list_t *      dict_items(dict_t *);
-OBLCORE_IMPEXP int           dict_has_key(dict_t *, void *);
 OBLCORE_IMPEXP void *        dict_reduce(dict_t *, reduce_t, void *);
 OBLCORE_IMPEXP void *        dict_reduce_keys(dict_t *, reduce_t, void *);
 OBLCORE_IMPEXP void *        dict_reduce_values(dict_t *, reduce_t, void *);
@@ -98,13 +97,17 @@ OBLCORE_IMPEXP dict_t *      dict_visit(dict_t *, visit_t);
 OBLCORE_IMPEXP dict_t *      dict_visit_keys(dict_t *, visit_t);
 OBLCORE_IMPEXP dict_t *      dict_visit_values(dict_t *, visit_t);
 OBLCORE_IMPEXP dict_t *      _dict_visit_dictentries(dict_t *, visit_t);
-OBLCORE_IMPEXP dict_t *      dict_put_all(dict_t *, dict_t *);
+OBLCORE_IMPEXP dict_t *      dict_put_all(dict_t *, const dict_t *);
 OBLCORE_IMPEXP struct _str * dict_tostr(dict_t *);
-OBLCORE_IMPEXP struct _str * dict_tostr_custom(dict_t *, char *, char *, char *, char *);
+OBLCORE_IMPEXP struct _str * dict_tostr_custom(dict_t *, const char *,
+                                               const char *, const char *,
+                                               const char *);
 OBLCORE_IMPEXP char *        dict_tostring(dict_t *);
-OBLCORE_IMPEXP char *        dict_tostring_custom(dict_t *, char *, char *, char *, char *);
+OBLCORE_IMPEXP char *        dict_tostring_custom(dict_t *, const char *,
+                                                  const char *, const char *,
+                                                  const char *);
 
-OBLCORE_IMPEXP struct _str * dict_dump(dict_t *, char *);
+OBLCORE_IMPEXP struct _str * dict_dump(const dict_t *, const char *);
 
 #define strvoid_dict_create()   (dict_set_key_type(dict_create(NULL), type_str))
 #define strdict_create()        (strvoid_dict_create())

@@ -40,19 +40,22 @@
 #endif /* OBLNET_IMPEXP */
 
 typedef struct _uri {
-  data_t  _d;
-  data_t *error;
-  char   *scheme;
-  char   *user;
-  char   *password;
-  char   *host;
-  int     port;
-  name_t *path;
-  dict_t *query;
-  char   *fragment;
+  data_t   _d;
+  data_t  *error;
+  char    *scheme;
+  char    *user;
+  char    *password;
+  char    *host;
+  int      port;
+  name_t  *path;
+  dict_t  *query;
+  char    *fragment;
 } uri_t;
 
 OBLNET_IMPEXP uri_t * uri_create(char *);
+OBLNET_IMPEXP int     uri_path_absolute(uri_t *);
+OBLNET_IMPEXP char *  uri_path(uri_t *);
+
 OBLNET_IMPEXP int URI;
 
 #define data_is_uri(d)     ((d) && data_hastype((d), URI))

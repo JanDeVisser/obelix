@@ -1,0 +1,7 @@
+import sql
+
+context conn = sql.dbconnect("postgresql://jan:wbw417@localhost:5432/jan")
+  for row in `SELECT typname, oid FROM pg_type`
+    print("name: ${0} oid: ${1}", row[0], row[1])
+  end
+end

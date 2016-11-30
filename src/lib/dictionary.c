@@ -37,10 +37,10 @@ extern void               _dictionary_free(dictionary_t *);
 extern char *             _dictionary_allocstring(dictionary_t *);
 static data_t *           _dictionary_cast(dictionary_t *, int);
 static data_t *           _dictionary_resolve(dictionary_t *, char *);
-static int                _dictionary_len(dictionary_t *);
 static dictionaryiter_t * _dictionary_iter(dictionary_t *);
 static data_t *           _dictionary_create(data_t *, char *, array_t *, dict_t *);
 static dictionary_t *     _dictionary_set_all_reducer(data_t *, dictionary_t *);
+static dictionary_t *     _dictionary_from_dict_reducer(entry_t *, dictionary_t *);
 
 /* ----------------------------------------------------------------------- */
 
@@ -51,7 +51,7 @@ static vtable_t _vtable_Dictionary[] = {
   { .id = FunctionAllocString, .fnc = (void_t) _dictionary_allocstring },
   { .id = FunctionResolve,     .fnc = (void_t) _dictionary_resolve },
   { .id = FunctionSet,         .fnc = (void_t) dictionary_set },
-  { .id = FunctionLen,         .fnc = (void_t) _dictionary_len },
+  { .id = FunctionLen,         .fnc = (void_t) dictionary_size },
   { .id = FunctionIter,        .fnc = (void_t) _dictionary_iter },
   { .id = FunctionNone,        .fnc = NULL }
 };
@@ -73,8 +73,6 @@ static vtable_t _vtable_DictionaryIter[] = {
   { .id = FunctionNext,        .fnc = (void_t) _dictionaryiter_next },
   { .id = FunctionNone,        .fnc = NULL }
 };
-
-
 
 int Dictionary = -1;
 int DictionaryIter = -1;
@@ -127,10 +125,6 @@ data_t * _dictionary_resolve(dictionary_t *dictionary, char *name) {
   return (data_t *) dict_get(dictionary -> attributes, name);
 }
 
-int _dictionary_len(dictionary_t *obj) {
-  return dict_size(obj -> attributes);
-}
-
 dictionaryiter_t * _dictionary_iter(dictionary_t *dict) {
   return (dictionaryiter_t *) data_create(DictionaryIter, dict);
 }
@@ -172,11 +166,24 @@ dictionary_t * _dictionary_set_all_reducer(data_t *value, dictionary_t *dictiona
   return dictionary;
 }
 
+dictionary_t * _dictionary_from_dict_reducer(entry_t *entry, dictionary_t *dictionary) {
+  dictionary_set(
+    dictionary,
+    (char *) entry -> key,
+    (data_t *) str_copy_chars((char *) entry -> value));
+  return dictionary;
+}
+
 /* ----------------------------------------------------------------------- */
 
 dictionary_t * dictionary_create(data_t *template) {
   dictionary_init();
   return (dictionary_t *) data_create(Dictionary, template);
+}
+
+dictionary_t * dictionary_create_from_dict(dict_t *dict) {
+  return dict_reduce_chars(
+    dict, (reduce_t) _dictionary_from_dict_reducer, dictionary_create(NULL));
 }
 
 data_t * dictionary_get(dictionary_t *dictionary, char *name) {
@@ -196,6 +203,10 @@ int dictionary_has(dictionary_t *dictionary, char *name) {
   int ret = dict_has_key(dictionary -> attributes, name);
   debug(data, "   dictionary_has('%s'): %d", name, ret);
   return ret;
+}
+
+int dictionary_size(dictionary_t *obj) {
+  return dict_size(obj -> attributes);
 }
 
 /* ----------------------------------------------------------------------- */

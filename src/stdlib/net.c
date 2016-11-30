@@ -24,7 +24,7 @@
 
 /* -------------------------------------------------------------------------*/
 
-socket_t * _function_connect(char *name, array_t *params, dict_t *kwargs) {
+__DLL_EXPORT__ socket_t * _function_connect(char *name, array_t *params, dict_t *kwargs) {
   data_t   *host;
   data_t   *service;
   socket_t *socket;
@@ -40,7 +40,7 @@ socket_t * _function_connect(char *name, array_t *params, dict_t *kwargs) {
 /*
  * TODO: Parameterize what interface we want to listen on.
  */
-socket_t * _function_server(char *name, array_t *params, dict_t *kwargs) {
+__DLL_EXPORT__ socket_t * _function_server(char *name, array_t *params, dict_t *kwargs) {
   data_t   *host;
   data_t   *service;
   socket_t *socket;
@@ -51,7 +51,7 @@ socket_t * _function_server(char *name, array_t *params, dict_t *kwargs) {
   return serversocket_create_byservice(data_tostring(service));
 }
 
-data_t * _function_listener(char *name, array_t *params, dict_t *kwargs) {
+__DLL_EXPORT__ data_t * _function_listener(char *name, array_t *params, dict_t *kwargs) {
   socket_t *listener;
   data_t   *service;
   data_t   *server;
@@ -68,4 +68,3 @@ data_t * _function_listener(char *name, array_t *params, dict_t *kwargs) {
   }
   return data_exception_from_errno();
 }
-

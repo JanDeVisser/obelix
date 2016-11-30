@@ -38,7 +38,6 @@ typedef struct _memmonitor {
   int     count;
 } memmonitor_t;
 
-static inline void _initialize_random(void);
 static void        _outofmemory(int);
 
 static type_t _type_str = {
@@ -142,7 +141,7 @@ int vasprintf(char **strp, const char *fmt, va_list args) {
 }
 #endif
 
-unsigned int hash(void *buf, size_t size) {
+unsigned int hash(const void *buf, size_t size) {
   int            hash = 5381;
   size_t         i;
   int            c;
@@ -155,7 +154,7 @@ unsigned int hash(void *buf, size_t size) {
   return hash;
 }
 
-unsigned int hashptr(void *ptr) {
+unsigned int hashptr(const void *ptr) {
   return hash(&ptr, sizeof(void *));
 }
 
