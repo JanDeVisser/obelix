@@ -309,7 +309,7 @@ data_t * mod_resolve(module_t *mod, char *name) {
   /*
    * First see if the name sought is local to this module:
    */
-  ret = object_resolve(mod -> obj, name);
+  ret = object_get(mod -> obj, name);
   if (!ret) {
     debug(ns, "mod_resolve('%s', '%s'): Not local.", mod_tostring(mod), name);
 
@@ -336,7 +336,7 @@ data_t * mod_resolve(module_t *mod, char *name) {
     if (!data_is_module(droot)) {
       error("mod_resolve(%s): root module not found", mod_tostring(mod));
     } else {
-      ret = object_resolve(data_as_module(droot) -> obj, name);
+      ret = object_get(data_as_module(droot) -> obj, name);
     }
     data_free(droot);
   }

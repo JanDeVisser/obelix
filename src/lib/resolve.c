@@ -75,6 +75,7 @@ resolve_result_t * _resolve_result_create(void *result) {
   if (!result) {
 #ifdef HAVE_DLFCN_H
     error = dlerror();
+    debug(resolve, "dlerror(): %s", error);
     if (error && !strstr(error, "undefined symbol")) {
       error = strdup(error);
       errorcode = -1;

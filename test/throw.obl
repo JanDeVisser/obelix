@@ -1,24 +1,27 @@
 func ctx(name)
   self.name = name
-  
+
   func __enter__()
     print("__enter__ ${0}", self.name)
+  end
+
+  func __catch__(ex)
+    print("__catch__ ${0}: ${1}", self.name, ex.message)
+    print("code: ${0}", ex.code)
+    print("msg: ${0}", ex.msg)
+    print("Stack:")
+    print(ex.stacktrace)
   end
 
   func __exit__(ex)
     print("__exit__ ${0}", self.name)
     if ex
-      print("__catch__ ${0}: ${1}", self.name, ex.message)
-      print("code: ${0}", ex.code)
-      print("msg: ${0}", ex.msg)
-      print("Stack:")
-      print(ex.stacktrace)
       if ex.hasattr("rethrow")
         if ex.rethrow
-	  print("rethrow!")
-	  ex.rethrow = false
+          print("rethrow!")
+          ex.rethrow = false
           throw ex
-	end
+        end
       end
       print("not rethrown")
     end

@@ -22,6 +22,7 @@
 
 #include "libcore.h"
 #include <data.h>
+#include <exception.h>
 #include <function.h>
 #include <name.h>
 #include <resolve.h>
@@ -100,11 +101,11 @@ data_t * _function_call(function_t *fnc, array_t *args, dict_t *kwargs) {
 function_t * function_create(char *name, void_t fnc) {
   function_t *ret = function_create_noresolve(name);
 
-  mdebug(function, "function_create(%s)", name);
+  debug(function, "function_create(%s)", name);
   if (fnc) {
     ret -> fnc = fnc;
   } else {
-    mdebug(function, "resolving...");
+    debug(function, "resolving...");
     function_resolve(ret);
   }
   return ret;
@@ -163,24 +164,16 @@ function_t * function_resolve(function_t *fnc) {
   if (!name_size(fnc -> name) || name_size(fnc -> name) > 2) {
     return fnc;
   } else {
-    mdebug(function, "Resolving %s", name_tostring_sep(fnc -> name, ":"));
+    debug(function, "Resolving %s", name_tostring_sep(fnc -> name, ":"));
     if (name_size(fnc -> name) == 2) {
       if (!resolve_library(name_first(fnc -> name))) {
-        error("Error loading library '%s': %s",
-              name_first(fnc -> name), strerror(errno));
+        error("Error loading library '%s'", name_first(fnc -> name));
         return fnc;
       }
     }
     fnc -> fnc = (void_t) resolve_function(name_last(fnc -> name));
-    if (!fnc -> fnc) {
-      if (errno) {
-        error("Error resolving function '%s': %s",
-              name_tostring(fnc -> name), strerror(errno));
-      } else if (function_debug) {
-        error("Could not resolve function '%s'",
-              name_tostring_sep(fnc -> name, ":"),
-              strerror(errno));
-      }
+    if (!fnc -> fnc && function_debug) {
+      error("Error resolving function '%s'", name_tostring(fnc -> name));
     }
   }
   return fnc;
@@ -191,8 +184,19 @@ unsigned int function_hash(function_t *fnc) {
 }
 
 data_t * function_call(function_t *fnc, char *name, array_t *args, dict_t *kwargs) {
-  debug(function, "Executing %s(%s)", function_tostring(fnc), array_tostring(args));
-  return ((native_t) fnc -> fnc)(name, args, kwargs);
+  if (!fnc -> fnc) {
+    function_resolve(fnc);
+  }
+  if (!fnc -> fnc) {
+    debug(function, "Cannot execute %s(%s): function could not be resolved",
+      function_tostring(fnc), array_tostring(args));
+    return data_exception(ErrorFunctionUndefined,
+      "Cannot execute %s(%s): function could not be resolved",
+      function_tostring(fnc), array_tostring(args));
+  } else {
+    debug(function, "Executing %s(%s)", function_tostring(fnc), array_tostring(args));
+    return ((native_t) fnc -> fnc)(name, args, kwargs);
+  }
 }
 
 char * function_funcname(function_t *fnc) {

@@ -722,6 +722,9 @@ str_t * dict_tostr_custom(dict_t *dict, const char *open, const char *fmt,
   str_t      *entries;
   void       *ctx[4];
 
+  if (!dict) {
+    return NULL;
+  }
   assert(dict -> key_type.tostring);
   assert(dict -> data_type.tostring);
 
@@ -750,10 +753,14 @@ char * dict_tostring_custom(dict_t *dict, const char *open,
                             const char *close) {
   str_t *s;
 
-  free(dict -> str);
-  s = dict_tostr_custom(dict, open, fmt, sep, close);
-  dict -> str = str_reassign(s);
-  return dict -> str;
+  if (dict) {
+    free(dict -> str);
+    s = dict_tostr_custom(dict, open, fmt, sep, close);
+    dict -> str = str_reassign(s);
+    return dict -> str;
+  } else {
+    return NULL;
+  }
 }
 
 char * dict_tostring(dict_t *dict) {

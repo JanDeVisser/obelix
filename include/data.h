@@ -131,6 +131,8 @@ OBLCORE_IMPEXP data_t *            data_write(data_t *, char *, int);
 OBLCORE_IMPEXP data_t *            data_push(data_t *, data_t *);
 OBLCORE_IMPEXP data_t *            data_pop(data_t *);
 OBLCORE_IMPEXP int                 data_count(void);
+OBLCORE_IMPEXP data_t *            data_interpolate(data_t *, array_t *, dict_t *);
+OBLCORE_IMPEXP data_t *            data_query(data_t *, data_t *);
 
 OBLCORE_IMPEXP int_t *             int_create(intptr_t);
 OBLCORE_IMPEXP int_t *             bool_get(long);

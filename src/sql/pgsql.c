@@ -60,13 +60,16 @@ static void     _pgsqlstmt_free(pgsqlstmt_t *);
 static data_t * _pgsqlstmt_interpolate(pgsqlstmt_t *, array_t *, dict_t *);
 static data_t * _pgsqlstmt_has_next(pgsqlstmt_t *);
 static data_t * _pgsqlstmt_next(pgsqlstmt_t *);
+static data_t * _pgsqlstmt_execute(pgsqlstmt_t *, array_t *, dict_t *);
 
 static vtable_t _vtable_PGSQLStmt[] = {
   { .id = FunctionNew,         .fnc = (void_t) _pgsqlstmt_new },
   { .id = FunctionFree,        .fnc = (void_t) _pgsqlstmt_free },
   { .id = FunctionInterpolate, .fnc = (void_t) _pgsqlstmt_interpolate },
+  { .id = FunctionIter,        .fnc = (void_t) data_copy },
   { .id = FunctionHasNext,     .fnc = (void_t) _pgsqlstmt_has_next },
   { .id = FunctionNext,        .fnc = (void_t) _pgsqlstmt_next },
+  { .id = FunctionCall,        .fnc = (void_t) _pgsqlstmt_execute },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -234,24 +237,48 @@ data_t * _pgsqlstmt_interpolate(pgsqlstmt_t *stmt, array_t *params, dict_t *kwpa
   return (data_t *) stmt;
 }
 
-data_t * _pgsqlstmt_has_next(pgsqlstmt_t *stmt) {
-  data_t *ret = NULL;
+data_t * _pgsqlstmt_execute(pgsqlstmt_t *stmt, array_t *params, dict_t *kwparams) {
+  data_t         *ret = (data_t *) stmt;
+  long            count;
+  ExecStatusType  status;
 
   if (!stmt -> result) {
+    if (((params && array_size(params)) || (kwparams && dict_size(kwparams))) &&
+        !stmt -> paramValues) {
+      _pgsqlstmt_interpolate(stmt, params, kwparams);
+    }
     stmt -> result = PQexecParams(stmt -> conn -> conn,
       stmt -> _d.str, stmt -> nParams, stmt -> paramTypes,
       (const char * const *) stmt -> paramValues,
       stmt -> paramLengths, stmt -> paramFormats, 0);
-    if (PQresultStatus(stmt -> result) != PGRES_TUPLES_OK) {
+    status = PQresultStatus(stmt -> result);
+    if ((status != PGRES_TUPLES_OK) && (status != PGRES_COMMAND_OK)) {
       ret = data_exception(ErrorSQL, "Exception executing query '%s': %s",
         stmt -> _d.str, PQresultErrorMessage(stmt -> result));
+      PQclear(stmt -> result);
+      stmt -> result = NULL;
+    } else {
+      stmt -> current = 0;
+      debug(sql, "Successful execution of '%s'. Returns %d tuples",
+        stmt -> _d.str, PQntuples(stmt -> result));
+      if (!strtoint(PQcmdTuples(stmt -> result), &count)) {
+        ret = int_to_data(count);
+      } else {
+        ret = data_true();
+      }
     }
-    stmt -> current = 0;
-    debug(sql, "Successful execution of '%s'. Returns %d tuples",
-      stmt -> _d.str, PQntuples(stmt -> result));
   }
+  return ret;
+}
 
-  if (!ret) {
+data_t * _pgsqlstmt_has_next(pgsqlstmt_t *stmt) {
+  data_t *ret = NULL;
+
+  if (!stmt -> result) {
+    ret = _pgsqlstmt_execute(stmt, NULL, NULL);
+  }
+  if (!data_is_exception(ret)) {
+    data_free(ret);
     ret = (stmt -> current < PQntuples(stmt -> result)) ? data_true() : data_false();
   }
   return ret;

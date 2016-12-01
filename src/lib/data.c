@@ -1061,6 +1061,38 @@ data_t * data_pop(data_t *scope) {
 
 /* -------------------------------------------------------------------------*/
 
+data_t * data_interpolate(data_t *self, array_t *args, dict_t *kwargs) {
+  typedescr_t  *type;
+  data_t *    (*interpolate)(data_t *, array_t *, dict_t *);
+  data_t       *ret = self;
+
+  assert(self);
+  type = data_typedescr(self);
+  interpolate = (data_t *(*)(data_t *, array_t *, dict_t *))
+    typedescr_get_function(type, FunctionInterpolate);
+  if ((args && array_size(args)) || (kwargs && dict_size(kwargs))) {
+    ret = (interpolate)
+      ? interpolate(self, args, kwargs)
+      : (data_t *) str_format(data_tostring(self), args, kwargs);
+  }
+  return ret;
+}
+
+data_t * data_query(data_t *self, data_t *querytext) {
+  typedescr_t  *type;
+  data_t *    (*queryfnc)(data_t *, data_t *);
+  data_t       *ret = NULL;
+
+  assert(self);
+  type = data_typedescr(self);
+  queryfnc = (data_t * (*)(data_t *, data_t *))
+    typedescr_get_function(type, FunctionQuery);
+  if (queryfnc) {
+    ret = queryfnc(self, querytext);
+  }
+  return ret;
+}
+
 int data_count(void) {
   return _data_count;
 }

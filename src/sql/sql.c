@@ -35,6 +35,9 @@ static void       _dbconn_free(dbconn_t *);
 static char *     _dbconn_tostring(dbconn_t *);
 static data_t *   _dbconn_resolve(dbconn_t *, char *);
 
+static data_t *   _dbconn_execute(dbconn_t *, char *, array_t *, dict_t *);
+static data_t *   _dbconn_tx(dbconn_t *, char *, array_t *, dict_t *);
+
 static vtable_t _vtable_DBConnection[] = {
   { .id = FunctionNew,      .fnc = (void_t) _dbconn_new },
   { .id = FunctionFree,     .fnc = (void_t) _dbconn_free },
@@ -43,9 +46,33 @@ static vtable_t _vtable_DBConnection[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
+static methoddescr_t _methods_DBConnection[] = {
+  { .type = -1,     .name = "execute", .method = (method_t) _dbconn_execute, .argtypes = { String, Any, Any },         .minargs = 1, .varargs = 1 },
+  { .type = -1,     .name = "tx",      .method = (method_t) _dbconn_tx,      .argtypes = { Any, Any, Any },            .minargs = 0, .varargs = 0 },
+  { .type = NoType, .name = NULL,      .method = NULL,                       .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 }
+};
+
+static tx_t *   _tx_new(tx_t *, va_list);
+static void     _tx_free(tx_t *);
+static char *   _tx_tostring(tx_t *);
+static data_t * _tx_enter(tx_t *);
+static data_t * _tx_leave(tx_t *, data_t *);
+static data_t * _tx_query(tx_t *, data_t *);
+
+static vtable_t _vtable_DBTransaction[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _tx_new },
+  { .id = FunctionFree,        .fnc = (void_t) _tx_free },
+  { .id = FunctionAllocString, .fnc = (void_t) _tx_tostring },
+  { .id = FunctionEnter,       .fnc = (void_t) _tx_enter },
+  { .id = FunctionLeave,       .fnc = (void_t) _tx_leave },
+  { .id = FunctionQuery,       .fnc = (void_t) _tx_query },
+  { .id = FunctionNone,        .fnc = NULL }
+};
+
 int              sql_debug = -1;
 int              ErrorSQL = -1;
 int              DBConnection = -1;
+int              DBTransaction = -1;
 
 static dict_t   *_drivers;
 static mutex_t  *_driver_mutex;
@@ -60,7 +87,8 @@ void _sql_init(void) {
     dict_set_key_type(_drivers, type_str);
     dict_set_data_type(_drivers, type_int);
     ErrorSQL = exception_register("ErrorSQL");
-    typedescr_register(DBConnection, dbconn_t);
+    typedescr_register_with_methods(DBConnection, dbconn_t);
+    typedescr_register(DBTransaction, tx_t);
   }
 }
 
@@ -93,6 +121,30 @@ data_t * _dbconn_resolve(dbconn_t *conn, char *name) {
   } else {
     return NULL;
   }
+}
+
+data_t * _dbconn_execute(dbconn_t *conn, char *name, array_t *params, dict_t *kwparams) {
+  data_t  *stmt;
+  array_t *query_params;
+  data_t  *query;
+  data_t  *ret;
+
+  (void) name;
+  query = data_array_get(params, 0);
+  stmt = data_query((data_t *) conn, query);
+  query_params = ((array_size(params) > 1)) ? array_slice(params, 1, -1) : NULL;
+  ret = data_call(stmt, query_params, kwparams);
+  if (query_params) {
+    array_free(query_params);
+  }
+  return ret;
+}
+
+data_t * _dbconn_tx(dbconn_t *conn, char *name, array_t *params, dict_t *kwparams) {
+  (void) name;
+  (void) params;
+  (void) kwparams;
+  return data_create(DBTransaction, conn);
 }
 
 /* -------------------------------------------------------------------------*/
@@ -165,8 +217,55 @@ data_t * dbconn_create(char *connectstr) {
 /* -------------------------------------------------------------------------*/
 
 data_t * _function_dbconnect(char *func_name, array_t *params, dict_t *kwargs) {
-  (void) func_name;
-  assert(array_size(params));
   _sql_init();
-  return dbconn_create(data_tostring(data_array_get(params, 0)));
+  return (!params || !array_size(params))
+    ? data_exception(ErrorArgCount, "No database URI specified in function '%s'", func_name)
+    : dbconn_create(data_tostring(data_array_get(params, 0)));
+}
+
+/* -- T X _ T  ------------------------------------------------------------ */
+
+tx_t *_tx_new(tx_t *tx, va_list args) {
+  dbconn_t *conn = va_arg(args, dbconn_t *);
+
+  tx -> conn = dbconn_copy(conn);
+  return tx;
+}
+
+void _tx_free(tx_t *tx) {
+  if (tx) {
+    dbconn_free(tx -> conn);
+  }
+}
+
+char * _tx_tostring(tx_t *tx) {
+  char *buf;
+
+  asprintf(&buf, "Transaction for '%s'", dbconn_tostring(tx -> conn));
+  return buf;
+}
+
+data_t * _tx_enter(tx_t *tx) {
+  data_t  *ret;
+  array_t *params = data_array_create(1);
+
+  array_push(params, str_wrap("BEGIN"));
+  ret = data_execute((data_t *) tx -> conn, "execute", params, NULL);
+  array_free(params);
+  return (data_is_exception(ret)) ? ret : (data_t *) tx;
+}
+
+data_t * _tx_leave(tx_t *tx, data_t *error) {
+  data_t  *ret;
+  array_t *params = data_array_create(1);
+
+  array_push(params,
+    str_wrap((data_is_exception(error)) ? "ROLLBACK" : "COMMIT"));
+  ret = data_execute((data_t *) tx -> conn, "execute", params, NULL);
+  array_free(params);
+  return (data_is_exception(ret)) ? ret : error;
+}
+
+data_t * _tx_query(tx_t *tx, data_t *query) {
+  return data_query((data_t *) tx -> conn, query);
 }

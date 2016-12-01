@@ -90,7 +90,6 @@ OBLVM_IMPEXP data_t *         object_ctx_leave(object_t *, data_t *);
 #define data_as_object(d)     ((object_t *) (data_is_object((data_t *) (d)) ? (d) : NULL))
 #define object_free(o)        (data_free((data_t *) (o)))
 #define object_tostring(o)    (data_tostring((data_t *) (o)))
-#define object_debugstr(o)    (data_tostring((data_t *) (o)))
 #define object_copy(o)        ((object_t *) data_copy((data_t *) (o)))
 #define data_create_object(o) data_create(Object, (o))
 

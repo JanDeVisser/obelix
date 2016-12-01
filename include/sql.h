@@ -50,15 +50,27 @@ typedef struct _dbconn {
   int     status;
 } dbconn_t;
 
+typedef struct _tx {
+  data_t    _d;
+  dbconn_t *conn;
+} tx_t;
+
 OBLSQL_IMPEXP data_t * dbconn_create(char *);
 
-OBLSQL_IMPEXP int DBConnection;
 OBLSQL_IMPEXP int ErrorSQL;
+OBLSQL_IMPEXP int DBConnection;
+OBLSQL_IMPEXP int DBTransaction;
 
 #define data_is_dbconn(d)  ((d) && data_hastype((d), DBConnection))
 #define data_as_dbconn(d)  (data_is_dbconn((d)) ? ((uri_t *) (d)) : NULL)
 #define dbconn_copy(d)     ((dbconn_t *) data_copy((data_t *) (d)))
 #define dbconn_free(d)     (data_free((data_t *) (d)))
 #define dbconn_tostring(d) (data_tostring((data_t *) (d)))
+
+#define data_is_tx(d)      ((d) && data_hastype((d), DBTransaction))
+#define data_as_tx(d)      (data_is_tx((d)) ? ((uri_t *) (d)) : NULL)
+#define tx_copy(d)         ((tx_t *) data_copy((data_t *) (d)))
+#define tx_free(d)         (data_free((data_t *) (d)))
+#define tx_tostring(d)     (data_tostring((data_t *) (d)))
 
 #endif /* __SQL_H__ */

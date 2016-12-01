@@ -103,7 +103,7 @@ static methoddescr_t _methoddescr_interfaces[] = {
   { .type = Iterable,      .name = "reduce",   .method = (method_t) _any_reduce,        .argtypes = { Callable, Any, NoType },    .minargs = 1, .varargs = 1, .maxargs = 2 },
   { .type = Iterable,      .name = "visit",    .method = (method_t) _any_visit,         .argtypes = { Callable, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = Any,           .name = "format",   .method = (method_t) _any_format,        .argtypes = { Any, NoType, NoType },      .minargs = 0, .varargs = 1 },
-  { .type = Connector,     .name = "query",    .method = (method_t) _any_query,         .argtypes = { String, NoType, NoType },   .minargs = 1, .varargs = 0 },
+  { .type = Connector,     .name = "query",    .method = (method_t) _any_query,         .argtypes = { String, Any, Any },         .minargs = 1, .varargs = 1 },
   { .type = Incrementable, .name = "~",        .method = (method_t) _range_create,      .argtypes = { Incrementable, Any, Any },  .minargs = 1, .varargs = 0 },
   { .type = Any,           .name = "range",    .method = (method_t) _range_create,      .argtypes = { Incrementable, Incrementable, Any },  .minargs = 1, .varargs = 0 },
   { .type = Any,           .name = "mutex",    .method = (method_t) _mutex_create,      .argtypes = { Any, Any, Any },            .minargs = 0, .varargs = 0 },
@@ -351,50 +351,27 @@ data_t * _any_visit(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _any_format(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  typedescr_t  *type;
-  data_t *    (*interpolate)(data_t *, array_t *, dict_t *);
-  data_t       *ret = NULL;
-
-  if (self) {
-    type = data_typedescr(self);
-    interpolate = (data_t *(*)(data_t *, array_t *, dict_t *))
-      typedescr_get_function(type, FunctionInterpolate);
-    if (interpolate) {
-      ret = interpolate(self, args, kwargs);
-    } else {
-      ret = (data_t *) str_format(data_tostring(self), args, kwargs);
-    }
-  } else {
-    ret = data_exception(ErrorInternalError,
-                         "Cannot interpolate NULL");
-  }
-  return ret;
+  (void) name;
+  return data_interpolate(self, args, kwargs);
 }
 
 data_t * _any_query(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  array_t      *params;
-  data_t       *query;
-  typedescr_t  *type;
-  data_t *    (*queryfnc)(data_t *, data_t *);
-  data_t       *ret = NULL;
+  array_t *params;
+  data_t  *querytext;
+  data_t  *q;
+  data_t  *ret = NULL;
 
-  if (self && args && array_size(args)) {
-    type = data_typedescr(self);
-    queryfnc = (data_t * (*)(data_t *, data_t *))
-      typedescr_get_function(type, FunctionQuery);
-    if (queryfnc) {
-      query = data_array_get(args, 0);
-      ret = queryfnc(self, query);
+  (void) name;
+  querytext = data_array_get(args, 0);
+  q = data_query(self, querytext);
+  if (q) {
+    params = ((array_size(args) > 1)) ? array_slice(args, 1, -1) : NULL;
+    ret = data_interpolate(q, params, kwargs);
+    if (q != ret) {
+      data_free(q);
     }
-    if (ret && ((array_size(args) > 1) || (kwargs && dict_size(kwargs)))) {
-      params = array_slice(args, 1, -1);
-      ret = _any_format(ret, NULL, params, kwargs);
+    if (params) {
       array_free(params);
-    }
-    if (!ret) {
-      ret = data_exception(
-        ErrorType, "Could not execute query '%s' against connector '%s'",
-        data_tostring(query), data_tostring(self));
     }
   }
   return ret;

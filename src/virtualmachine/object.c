@@ -30,7 +30,6 @@ static int           _object_len(object_t *);
 static data_t *      _object_mth_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _object_mth_new(data_t *, char *, array_t *, dict_t *);
 
-static data_t *      _object_get(object_t *, char *);
 static data_t *      _object_call_attribute(object_t *, char *, array_t *, dict_t *);
 static object_t *    _object_set_all_reducer(entry_t *, object_t *);
 
@@ -44,7 +43,7 @@ static vtable_t _vtable_object[] = {
   { .id = FunctionAllocString, .fnc = (void_t) _object_allocstring },
   { .id = FunctionHash,        .fnc = (void_t) object_hash },
   { .id = FunctionCall,        .fnc = (void_t) object_call },
-  { .id = FunctionResolve,     .fnc = (void_t) object_resolve },
+  { .id = FunctionResolve,     .fnc = (void_t) object_get },
   { .id = FunctionSet,         .fnc = (void_t) object_set },
   { .id = FunctionLen,         .fnc = (void_t) _object_len },
   { .id = FunctionEnter,       .fnc = (void_t) object_ctx_enter },
@@ -81,6 +80,7 @@ object_t * _object_new(object_t *obj, va_list args) {
   bound_method_t *bm;
   dict_t         *tmpl = NULL;
 
+  debug(object, "new '%s'", data_tostring(constructor));
   obj -> constructing = FALSE;
   obj -> variables = strdata_dict_create();
   obj -> ptr = NULL;
@@ -118,7 +118,7 @@ char * _object_allocstring(object_t *object) {
   char    *buf;
 
   if (!object -> constructing) {
-    data = _object_get(object, "name");
+    data = object_get(object, "name");
     if (!data) {
       data = _object_call_attribute(object, "__str__", NULL, NULL);
     }
@@ -196,11 +196,13 @@ data_t * _object_mth_new(data_t *self, char *fncname, array_t *args, dict_t *kwa
     }
     if (script) {
       shifted = array_slice(args, 1, 0);
+      debug(object, "'%s'.new(%s, %s)",
+        data_tostring(n), array_tostring(shifted), dict_tostring(kwargs));
       ret = script_create_object(script, shifted, kwargs);
       array_free(shifted);
       assert(data_is_object(ret) || data_is_exception(ret));
     } else {
-      ret = data_exception(ErrorType, "Cannot use '%s' of type 's' as an object factory",
+      ret = data_exception(ErrorType, "Cannot use '%s' of type '%s' as an object factory",
 			   data_tostring(n), data_typedescr(n) -> type_name);
     }
   } else {
@@ -213,21 +215,11 @@ data_t * _object_mth_new(data_t *self, char *fncname, array_t *args, dict_t *kwa
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _object_get(object_t *object, char *name) {
-  data_t *ret;
-
-  ret = (data_t *) dict_get(object -> variables, name);
-  if (ret) {
-    ret = data_copy(ret);
-  }
-  return ret;
-}
-
 data_t * _object_call_attribute(object_t *object, char *name, array_t *args, dict_t *kwargs) {
   data_t *func;
   data_t *ret = NULL;
 
-  func = _object_get(object, name);
+  func = object_get(object, name);
   if (data_is_callable(func)) {
     ret = data_call(func, args, kwargs);
   }
@@ -266,15 +258,11 @@ object_t * object_bind_all(object_t *object, data_t *template) {
 data_t * object_get(object_t *object, char *name) {
   data_t *ret;
 
-  ret = _object_get(object, name);
-  if (!ret && !strcmp(name, "$constructing")) {
+  ret = (data_t *) dict_get(object -> variables, name);
+  if (ret) {
+    ret = data_copy(ret);
+  } else if (!strcmp(name, "$constructing")) {
     ret = int_as_bool(object -> constructing);
-  }
-  if (!ret) {
-    ret = data_exception(ErrorName,
-                     "Object '%s' has no attribute '%s'",
-                     object_debugstr(object),
-                     name);
   }
   return ret;
 }
@@ -282,6 +270,8 @@ data_t * object_get(object_t *object, char *name) {
 data_t * object_set(object_t *object, char *name, data_t *value) {
   bound_method_t *bm = NULL;
 
+  debug(object, "object_set('%s', '%s', '%s')",
+    object_tostring(object), name, data_tostring(value));
   if (data_is_script(value)) {
     bm = script_bind(data_as_script(value), object);
   } else if (data_is_bound_method(value)) {
@@ -293,28 +283,30 @@ data_t * object_set(object_t *object, char *name, data_t *value) {
     value = (data_t *) bound_method_copy(bm);
   }
   dict_put(object -> variables, strdup(name), data_copy(value));
-  debug(object, "   object_set('%s') -> variables = %s",
-        object -> constructor ? data_tostring(object -> constructor) : "anon",
-        dict_tostring(object -> variables));
+  debug(object, "   After set('%s') -> variables = %s",
+    object_tostring(object), dict_tostring(object -> variables));
   return value;
 }
 
 int object_has(object_t *object, char *name) {
   int ret;
   ret = dict_has_key(object -> variables, name);
-  debug(object, "   object_has('%s', '%s'): %d", object_debugstr(object), name, ret);
+  debug(object, "   object_has('%s', '%s'): %d", object_tostring(object), name, ret);
   return ret;
 }
 
 data_t * object_call(object_t *object, array_t *args, dict_t *kwargs) {
   data_t *ret;
 
+  debug(object, "object_call('%s', %s, %s)",
+    object_tostring(object), array_tostring(args), dict_tostring(kwargs));
   ret = _object_call_attribute(object, "__call__", args, kwargs);
   if (!ret || data_is_exception(ret)) {
     data_free(ret);
     ret = data_exception(ErrorNotCallable, "Object '%s' is not callable",
                      object_tostring(object));
   }
+  debug(object, "object_call returns '%s'", data_tostring(ret));
   return ret;
 }
 
@@ -344,13 +336,10 @@ int object_cmp(object_t *o1, object_t *o2) {
   return ret;
 }
 
-data_t * object_resolve(object_t *object, char *name) {
-  return (data_t *) dict_get(object -> variables, name);
-}
-
 data_t * object_ctx_enter(object_t *object) {
   data_t *ret = NULL;
 
+  debug(object, "'%s'.__enter__", object_tostring(object));
   ret = _object_call_attribute(object, "__enter__", NULL, NULL);
   if (ret && !data_is_exception(ret)) {
     ret = NULL;
@@ -360,10 +349,24 @@ data_t * object_ctx_enter(object_t *object) {
 
 data_t *  object_ctx_leave(object_t *object, data_t *param) {
   array_t  *params;
-  data_t   *ret;
+  data_t   *ret = NULL;
 
+  debug(object, "'%s'.__exit__('%s')",
+    object_tostring(object), data_tostring(param));
   params = data_array_create(1);
   array_push(params, data_copy(param));
+  if (data_is_exception(param)) {
+    ret = _object_call_attribute(object, "__catch__", params, NULL);
+  }
+  if (ret && data_is_exception(ret)) {
+    /*
+     * If __catch__ returns an exception, this exception is passed to
+     * __exit__ instead of the original exception.
+     */
+    data_free(array_pop(params));
+    data_free(param);
+    array_set(params, 0, ret);
+  }
   ret = _object_call_attribute(object, "__exit__", params, NULL);
   array_free(params);
   return ret;
