@@ -24,23 +24,19 @@ static grammar_variable_t *  _gv_new(grammar_variable_t *, va_list);
 static void                  _gv_free(grammar_variable_t *);
 static grammar_variable_t *  _gv_dump(grammar_variable_t *);
 
-static vtable_t _vtable_gv[] = {
+static vtable_t _vtable_GrammarVariable[] = {
   { .id = FunctionNew,         .fnc = (void_t) _gv_new },
   { .id = FunctionFree,        .fnc = (void_t) _gv_free },
   { .id = FunctionUsr1,        .fnc = (void_t) _gv_dump },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-grammar_element_type_t GrammarVariable = -1;
+int GrammarVariable = -1;
 
 /* ------------------------------------------------------------------------ */
 
 extern void grammar_variable_register(void) {
-  GrammarVariable = typedescr_create_and_register(GrammarVariable,
-                                                "grammarvariable",
-                                                _vtable_gv,
-                                                NULL);
-  typedescr_set_size(GrammarVariable, grammar_variable_t);
+  typedescr_register(GrammarVariable, grammar_variable_t);
 }
 
 /* -- G R A M M A R _ V A R I A B L E ------------------------------------- */

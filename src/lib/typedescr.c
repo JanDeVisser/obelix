@@ -17,7 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -148,11 +147,11 @@ void _typedescr_init(void) {
     interface_register(Incrementable, "incrementable", 2, FunctionIncr, FunctionDecr);
 
     typedescr_create_and_register(Type, "type",
-				  _vtable_typedescr, _methoddescr_typedescr);
+          _vtable_typedescr, _methoddescr_typedescr);
     typedescr_create_and_register(Interface, "interface",
-				  _vtable_interface, /* _methoddescr_interface */ NULL);
+          _vtable_interface, /* _methoddescr_interface */ NULL);
     typedescr_create_and_register(Method, "method",
-				  _vtable_methoddescr, /* _methoddescr_method */ NULL);
+          _vtable_methoddescr, /* _methoddescr_method */ NULL);
     any_init();
   }
 }
@@ -201,7 +200,7 @@ data_t * _methoddescr_resolve(methoddescr_t *mth, char *name) {
     ret = data_create_list(NULL);
     for (ix = 0; ix < MAX_METHOD_PARAMS; ix++) {
       if (!mth -> argtypes[ix]) {
-	break;
+        break;
       }
       data_list_push(ret, type_get(mth -> argtypes[ix]));
     }
@@ -353,7 +352,7 @@ data_t * _interface_resolve(interface_t *iface, char *name) {
     for (ix = 0; ix < _numtypes; ix++) {
       type = &descriptors[ix];
       if (type && typedescr_is(type, iface -> type)) {
-	data_list_push(ret, (data_t *) type);
+        data_list_push(ret, (data_t *) type);
       }
     }
     return ret;
@@ -543,7 +542,7 @@ int _typedescr_register(typedescr_t *descr) {
   typedescr_t    *d;
 
   _typedescr_init();
-  if (descr -> type < 0) {
+  if (descr -> type <= 0) {
     descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
     _numtypes = descr -> type + 1;
   }
@@ -572,6 +571,8 @@ int _typedescr_register(typedescr_t *descr) {
   d -> methods = NULL;
   d -> hash = 0;
   d -> constructors = NULL;
+  d -> debug = 0;
+  logging_register_category(d -> type_name, &d -> debug);
   return d -> type;
 }
 

@@ -26,7 +26,7 @@ static bound_method_t * _bound_method_new(bound_method_t *, va_list);
 static void             _bound_method_free(bound_method_t *);
 static char *           _bound_method_allocstring(bound_method_t *);
 
-static vtable_t _vtable_bound_method[] = {
+static vtable_t _vtable_BoundMethod[] = {
   { .id = FunctionNew,         .fnc = (void_t) _bound_method_new },
   { .id = FunctionCmp,         .fnc = (void_t) bound_method_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _bound_method_free },
@@ -40,11 +40,7 @@ int BoundMethod = -1;
 /* ------------------------------------------------------------------------ */
 
 void _bound_method_init(void) {
-  if (BoundMethod < 0) {
-    BoundMethod = typedescr_create_and_register(
-      BoundMethod, "boundmethod", _vtable_bound_method, NULL);
-    typedescr_set_size(BoundMethod, bound_method_t);
-  }
+  typedescr_register(BoundMethod, bound_method_t);
 }
 
 /* -- B O U N D  M E T H O D  S T A T I C  F U N C T I O N S -------------- */

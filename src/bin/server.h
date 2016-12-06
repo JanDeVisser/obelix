@@ -20,7 +20,6 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#include <config.h>
 #include <loader.h>
 #include <file.h>
 
@@ -29,33 +28,33 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  
+
 #define OBLSERVER_WELCOME             "100 WELCOME"
 #define OBLSERVER_READY               "200 READY"
 #define OBLSERVER_DATA                "300 DATA"
-  
+
 #define OBLSERVER_ERROR_RUNTIME       "501 ERROR RUNTIME"
 #define OBLSERVER_ERROR_SYNTAX        "502 ERROR SYNTAX"
 #define OBLSERVER_ERROR_PROTOCOL      "503 ERROR PROTOCOL"
 #define OBLSERVER_ERROR_INTERNAL      "504 ERROR INTERNAL"
-  
+
 #define OBLSERVER_COOKIE              "800 COOKIE"
 #define OBLSERVER_BYE                 "900 BYE"
 
 #define OBLSERVER_CODE_WELCOME        100
 #define OBLSERVER_CODE_READY          200
 #define OBLSERVER_CODE_DATA           300
-  
+
 #define OBLSERVER_CODE_ERROR_RUNTIME  501
 #define OBLSERVER_CODE_ERROR_SYNTAX   502
 #define OBLSERVER_CODE_ERROR_PROTOCOL 503
 #define OBLSERVER_CODE_ERROR_INTERNAL 504
-  
+
 #define OBLSERVER_CODE_COOKIE         800
 #define OBLSERVER_CODE_BYE            900
 
-#define OBLSERVER_CMD_HELLO           "HELLO"  
-#define OBLSERVER_CMD_ATTACH          "ATTACH"  
+#define OBLSERVER_CMD_HELLO           "HELLO"
+#define OBLSERVER_CMD_ATTACH          "ATTACH"
 #define OBLSERVER_CMD_PATH            "PATH"
 #define OBLSERVER_CMD_RUN             "RUN"
 #define OBLSERVER_CMD_EVAL            "EVAL"
@@ -86,4 +85,3 @@ extern int Server;
 #endif
 
 #endif /* __SERVER_H__ */
-

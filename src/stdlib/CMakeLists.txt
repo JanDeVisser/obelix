@@ -1,4 +1,4 @@
-add_library(oblstdlib SHARED
+add_library(oblstdlib MODULE
 	builtins.c
 	sys.c
 	net.c

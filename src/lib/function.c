@@ -30,12 +30,14 @@
 #include <typedescr.h>
 
 static inline void  _function_init(void);
+static function_t * _function_new(function_t *, va_list);
 static void         _function_free(function_t *);
 static char *       _function_allocstring(function_t *);
 static data_t *     _function_cast(function_t *, int);
 static data_t *     _function_call(function_t *, array_t *, dict_t *);
 
-static vtable_t _vtable_function[] = {
+static vtable_t _vtable_Function[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _function_new },
   { .id = FunctionCmp,         .fnc = (void_t) function_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _function_free },
   { .id = FunctionAllocString, .fnc = (void_t) _function_allocstring },
@@ -46,17 +48,28 @@ static vtable_t _vtable_function[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-int function_debug;
+int function_debug = 0;
 int Function = -1;
 
 /* -- F U N C T I O N  S T A T I C  F U N C T I O N S --------------------- */
 
 void _function_init(void) {
-  if (Function < 0) {
+  if (Function < 1) {
     logging_register_category("function", &function_debug);
-    Function = typedescr_create_and_register(Function, "function",
-                                             _vtable_function, NULL);
+    typedescr_register(Function, function_t);
   }
+  assert(Function);
+}
+
+function_t * _function_new(function_t *function, va_list args) {
+  char *name = va_arg(args, char *);
+
+  debug(function, "_function_new('%s')", name);
+  function -> params = NULL;
+  function -> type = 0;
+  function -> name = name_split(name, ":");
+  function ->  fnc = NULL;
+  return function;
 }
 
 char * _function_allocstring(function_t *fnc) {
@@ -99,9 +112,10 @@ data_t * _function_call(function_t *fnc, array_t *args, dict_t *kwargs) {
 /* -- F U N C T I O N  P U B L I C  F U N C T I O N S --------------------- */
 
 function_t * function_create(char *name, void_t fnc) {
-  function_t *ret = function_create_noresolve(name);
+  function_t *ret;
 
   debug(function, "function_create(%s)", name);
+  ret = function_create_noresolve(name);
   if (fnc) {
     ret -> fnc = fnc;
   } else {
@@ -112,15 +126,9 @@ function_t * function_create(char *name, void_t fnc) {
 }
 
 function_t * function_create_noresolve(char *name) {
-  function_t *ret;
-
   _function_init();
   assert(name);
-  ret = data_new(Function, function_t);
-  ret -> params = NULL;
-  ret -> type = 0;
-  ret -> name = name_split(name, ":");
-  return ret;
+  return (function_t *) data_create(Function, name);
 }
 
 function_t * function_parse(char *str) {

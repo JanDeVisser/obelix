@@ -41,7 +41,7 @@ static data_t * _regexp_compile(re_t *);
 
 extern data_t * _regexp_create(char *, array_t *, dict_t *);
 
-static vtable_t _vtable_re[] = {
+static vtable_t _vtable_Regexp[] = {
   { .id = FunctionCmp,         .fnc = (void_t) regexp_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _regexp_free },
   { .id = FunctionAllocString, .fnc = (void_t) _regexp_allocstring },
@@ -53,7 +53,7 @@ static vtable_t _vtable_re[] = {
 int Regexp = -1;
 int regexp_debug = 0;
 
-static methoddescr_t _methoddescr_re[] = {
+static methoddescr_t _methods_Regexp[] = {
   { .type = -1,     .name = "match",   .method = _regexp_match,   .argtypes = { String, Any, Any },       .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "replace", .method = _regexp_replace, .argtypes = { String, List, NoType },   .minargs = 2, .varargs = 0 },
   { .type = NoType, .name = NULL,      .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -62,9 +62,9 @@ static methoddescr_t _methoddescr_re[] = {
 /* ------------------------------------------------------------------------ */
 
 void _regexp_init(void) {
-  if (Regexp < 0) {
+  if (Regexp < 1) {
     logging_register_module(regexp);
-    Regexp = typedescr_create_and_register(Regexp, "regexp", _vtable_re, _methoddescr_re);
+    typedescr_register(Regexp, re_t);
   }
 }
 

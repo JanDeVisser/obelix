@@ -34,7 +34,7 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-  
+
 typedef struct _mutex {
   data_t             _d;
 #ifdef HAVE_PTHREAD_H
@@ -68,9 +68,6 @@ OBLCORE_IMPEXP int           condition_acquire(condition_t *);
 OBLCORE_IMPEXP int           condition_tryacquire(condition_t *);
 OBLCORE_IMPEXP int           condition_wakeup(condition_t *);
 OBLCORE_IMPEXP int           condition_sleep(condition_t *);
-
-OBLCORE_IMPEXP int Mutex;
-OBLCORE_IMPEXP int Condition;
 
 #define data_is_mutex(d)      ((d) && (data_hastype((d), Mutex)))
 #define data_as_mutex(d)      ((mutex_t *) (data_is_mutex((d)) ? (d) : NULL))

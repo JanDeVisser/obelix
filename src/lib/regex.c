@@ -18,13 +18,17 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <oblconfig.h>
 
 /* Make sure noone compiles this code with a C++ compiler.  */
 #ifdef __cplusplus
 # error "This is C code, use a C compiler"
+#endif
+
+#if (defined __WIN32__) || (defined _WIN32)
+  #define REGEX_DLL_IMPEXP	__DLL_EXPORT__
+#else /* __WIN32__ */
+  #define REGEX_DLL_IMPEXP	 extern
 #endif
 
 #ifdef _LIBC

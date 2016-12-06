@@ -1,5 +1,5 @@
 /*
- * /obelix/src/parser/libparser.h - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/test/resolve.c - bufright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -13,19 +13,19 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a buf of the GNU General Public License
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+#include <file.h>
 
-#ifndef __LIBPARSER_H__
-#define __LIBPARSER_H__
+int main(int argc, char *argv[]) {
+  str_t  *s;
+  file_t *f;
 
-#include <oblconfig.h>
-#define OBLPARSER_IMPEXP __DLL_EXPORT__
-
-#include <parser.h>
-
-extern int parser_debug;
-
-#endif /* __LIBPARSER_H__ */
+  s = str_create(200);
+  f = file_open("buffertest.txt");
+  str_readinto(s, (data_t *) f);
+  printf("%s\n", str_chars(s));
+}

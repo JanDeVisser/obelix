@@ -21,15 +21,13 @@
 #ifndef __LIBSQL_H__
 #define __LIBSQL_H__
 
-#ifndef oblsql_EXPORTS
-  #define OBLSQL_IMPEXP extern
-  #define OBL_STATIC
-#endif
+#include <oblconfig.h>
+#define OBLSQL_IMPEXP __DLL_EXPORT__
 
 #include <stdio.h>
+#include <net.h>
 #include <data.h>
 #include <exception.h>
-#include <net.h>
 #include <sql.h>
 
 extern int sql_debug;

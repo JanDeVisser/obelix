@@ -21,12 +21,8 @@
 #ifndef __LIBGRAMMAR_H__
 #define __LIBGRAMMAR_H__
 
-#ifndef oblgrammar_EXPORTS
-  #define OBLGRAMMAR_IMPEXP extern
-  #ifndef OBL_STATIC
-    #define OBL_STATIC
-  #endif
-#endif
+#include <oblconfig.h>
+#define  OBLGRAMMAR_IMPEXP  __DLL_EXPORT__
 
 #include <stdio.h>
 
@@ -69,5 +65,13 @@ extern rule_t *     _rule_add_parse_table_entry(long, rule_t *);
 
 extern set_t *      _rule_entry_get_firsts(rule_entry_t *, set_t *);
 extern set_t *      _rule_entry_get_follows(rule_entry_t *, set_t *);
+
+extern int GrammarAction;
+extern int GrammarVariable;
+extern int GrammarElement;
+extern int Grammar;
+extern int NonTerminal;
+extern int Rule;
+extern int RuleEntry;
 
 #endif /* __LIBGRAMMAR_H__ */

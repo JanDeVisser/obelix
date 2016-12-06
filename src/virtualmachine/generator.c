@@ -31,7 +31,7 @@ static data_t *      _generator_has_next(generator_t *);
 static data_t *      _generator_interrupt(data_t *, char *, array_t *, dict_t *);
 static generator_t * _generator_next(generator_t *);
 
-static vtable_t _vtable_generator[] = {
+static vtable_t _vtable_Generator[] = {
   { .id = FunctionNew,         .fnc = (void_t) _generator_new },
   { .id = FunctionFree,        .fnc = (void_t) _generator_free },
   { .id = FunctionAllocString, .fnc = (void_t) _generator_allocstring },
@@ -44,7 +44,7 @@ static vtable_t _vtable_generator[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_generator[] = {
+static methoddescr_t _methods_Generator[] = {
   { .type = -1,      .name = "stop", .method = _generator_interrupt, .argtypes = { NoType, NoType, NoType }, .minargs = 1, .varargs = 1 },
   { .type = NoType,  .name = NULL,   .method = NULL,                 .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
@@ -54,10 +54,8 @@ int Generator = -1;
 /* ------------------------------------------------------------------------ */
 
 void _generator_init(void) {
-  if (Generator < 0) {
-    Generator = typedescr_create_and_register(
-      Generator, "generator", _vtable_generator, _methoddescr_generator);
-    typedescr_set_size(Generator, generator_t);
+  if (Generator < 1) {
+    typedescr_register_with_methods(Generator, generator_t);
   }
 }
 

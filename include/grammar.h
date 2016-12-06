@@ -21,7 +21,7 @@
 #ifndef __GRAMMAR_H__
 #define __GRAMMAR_H__
 
-#include <config.h>
+#include <oblconfig.h>
 #include <array.h>
 #include <dict.h>
 #include <function.h>
@@ -34,17 +34,7 @@ extern "C" {
 #endif
 
 #ifndef OBLGRAMMAR_IMPEXP
-  #if (defined __WIN32__) || (defined _WIN32)
-    #ifdef oblgrammar_EXPORTS
-      #define OBLGRAMMAR_IMPEXP	__DLL_EXPORT__
-    #elif defined(OBL_STATIC)
-      #define OBLGRAMMAR_IMPEXP extern
-    #else /* ! oblgrammar_EXPORTS */
-      #define OBLGRAMMAR_IMPEXP	__DLL_IMPORT__
-    #endif
-  #else /* ! __WIN32__ */
-    #define OBLGRAMMAR_IMPEXP extern
-  #endif /* __WIN32__ */
+  #define OBLGRAMMAR_IMPEXP	__DLL_IMPORT__
 #endif /* OBLGRAMMAR_IMPEXP */
 
 OBLGRAMMAR_IMPEXP int grammar_debug;
@@ -81,15 +71,6 @@ typedef struct _grammar_variable {
 } grammar_variable_t;
 
 /* ----------------------------------------------------------------------- */
-
-typedef int grammar_element_type_t;
-OBLGRAMMAR_IMPEXP grammar_element_type_t   GrammarAction;
-OBLGRAMMAR_IMPEXP grammar_element_type_t   GrammarVariable;
-OBLGRAMMAR_IMPEXP grammar_element_type_t   GrammarElement;
-OBLGRAMMAR_IMPEXP grammar_element_type_t   Grammar;
-OBLGRAMMAR_IMPEXP grammar_element_type_t   NonTerminal;
-OBLGRAMMAR_IMPEXP grammar_element_type_t   Rule;
-OBLGRAMMAR_IMPEXP grammar_element_type_t   RuleEntry;
 
 struct _grammar;
 struct _grammar_element;

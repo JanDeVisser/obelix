@@ -28,17 +28,7 @@
 #include <str.h>
 
 #ifndef OBLLEXER_IMPEXP
-  #if (defined __WIN32__) || (defined _WIN32)
-    #ifdef obllexer_EXPORTS
-      #define OBLLEXER_IMPEXP	__DLL_EXPORT__
-    #elif defined(OBL_STATIC)
-      #define OBLLEXER_IMPEXP extern
-    #else /* ! oblcore_EXPORTS */
-      #define OBLLEXER_IMPEXP	__DLL_IMPORT__
-    #endif
-  #else /* ! __WIN32__ */
-    #define OBLLEXER_IMPEXP extern
-  #endif /* __WIN32__ */
+  #define OBLLEXER_IMPEXP	__DLL_IMPORT__
 #endif /* OBLLEXER_IMPEXP */
 
 #include <token.h>
@@ -114,7 +104,6 @@ typedef struct _lexer {
   lexer_where_t    where;
   token_t         *last_token;
   int              scanned;
-  int              candidate_scanned;
   int              count;
   int              scan_count;
   int              current;
@@ -228,14 +217,5 @@ OBLLEXER_IMPEXP int lexer_debug;
 #define scanner_copy(l)            ((scanner_t *) data_copy((data_t *) (l)))
 #define scanner_free(l)            (data_free((data_t *) (l)))
 #define scanner_tostring(l)        (data_tostring((data_t *) (l)))
-
-#ifdef OBL_STATIC
-extern typedescr_t * comment_register(void);
-extern typedescr_t * identifier_register(void);
-extern typedescr_t * keyword_register(void);
-extern typedescr_t * number_register(void);
-extern typedescr_t * qstring_register(void);
-extern typedescr_t * whitespace_register(void);
-#endif
 
 #endif /* __LEXER_H__ */

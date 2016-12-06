@@ -17,7 +17,6 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -96,7 +95,8 @@ int main(int argc, char **argv) {
   char      *syspath = NULL;
   int        opt;
 
-  logging_register_category("panoramix", &panoramix_debug);
+  logging_init();
+  logging_register_module(panoramix);
   while ((opt = getopt(argc, argv, "s:g:d:v:")) != -1) {
     switch (opt) {
       case 's':

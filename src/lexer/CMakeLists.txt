@@ -1,4 +1,4 @@
-set(SOURCES
+add_library(obllexer SHARED
     token.c
     lexercfg.c
     scannercfg.c
@@ -10,24 +10,15 @@ set(SOURCES
     qstring.c
     number.c
     keyword.c
+    position.c
     lexa.c
 )
-add_library(obllexer SHARED ${SOURCES})
-add_library(sobllexer STATIC ${SOURCES})
-
 target_link_libraries(obllexer PUBLIC oblcore)
 
 add_executable(lexa lexamain.c)
-target_compile_definitions(lexa PRIVATE OBL_STATIC)
-target_link_libraries(lexa sobllexer soblcore ${SYSLIBS})
+target_link_libraries(lexa obllexer oblcore ${SYSLIBS})
 
-if(CMAKE_COMPILER_IS_GNUCC)
-  target_compile_definitions(obllexer PRIVATE _GNU_SOURCE)
-  target_compile_definitions(sobllexer PRIVATE _GNU_SOURCE)
-  target_compile_definitions(lexa PRIVATE _GNU_SOURCE)
-endif(CMAKE_COMPILER_IS_GNUCC)
-
-install(TARGETS lexa obllexer sobllexer
+install(TARGETS lexa obllexer
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)

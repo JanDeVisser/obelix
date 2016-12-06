@@ -1,7 +1,4 @@
-set(SOURCES parser.c parserlib.c)
-add_library(oblparser SHARED ${SOURCES})
-add_library(soblparser STATIC ${SOURCES})
-
+add_library(oblparser SHARED parser.c parserlib.c)
 target_link_libraries(oblparser PUBLIC obllexer oblcore obllexer)
 
 install(TARGETS oblparser

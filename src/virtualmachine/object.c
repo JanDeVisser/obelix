@@ -35,7 +35,7 @@ static object_t *    _object_set_all_reducer(entry_t *, object_t *);
 
   /* ----------------------------------------------------------------------- */
 
-static vtable_t _vtable_object[] = {
+static vtable_t _vtable_Object[] = {
   { .id = FunctionNew,         .fnc = (void_t) _object_new },
   { .id = FunctionCmp,         .fnc = (void_t) object_cmp },
   { .id = FunctionCast,        .fnc = (void_t) _object_cast },
@@ -51,7 +51,7 @@ static vtable_t _vtable_object[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_object[] = {
+static methoddescr_t _methods_Object[] = {
   { .type = Any,    .name = "object", .method = _object_mth_create, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
   { .type = Any,    .name = "new",    .method = _object_mth_new,    .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,               .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -63,11 +63,9 @@ int object_debug = 0;
 /* ----------------------------------------------------------------------- */
 
 void _object_init(void) {
-  if (Object < 0) {
-    logging_register_category("object", &object_debug);
-    Object = typedescr_create_and_register(
-      Object, "object", _vtable_object, _methoddescr_object);
-    typedescr_set_size(Object, object_t);
+  if (Object < 1) {
+    logging_register_module(object);
+    typedescr_register_with_methods(Object, object_t);
   }
 }
 

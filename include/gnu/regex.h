@@ -23,32 +23,19 @@
 #define _REGEX_H 1
 
 #include <sys/types.h>
+#include <core.h>
 
-#ifndef __DLL_IMPORT__
-#ifndef __GNUC__
-# define __DLL_IMPORT__	__declspec(dllimport)
-# define __DLL_EXPORT__	__declspec(dllexport)
-#else
-# define __DLL_IMPORT__	__attribute__((dllimport)) extern
-# define __DLL_EXPORT__	__attribute__((dllexport)) extern
-#endif
-#endif /* __DLL_IMPORT__ */
-
-#if (defined __WIN32__) || (defined _WIN32)
-# ifdef BUILD_REGEX_DLL
-#  define REGEX_DLL_IMPEXP	__DLL_EXPORT__
-# elif defined(REGEX_STATIC)
-#  define REGEX_DLL_IMPEXP	 
-# elif defined (USE_REGEX_DLL)
-#  define REGEX_DLL_IMPEXP	__DLL_IMPORT__
-# elif defined (USE_REGEX_STATIC)
-#  define REGEX_DLL_IMPEXP 	 
-# else /* assume USE_REGEX_DLL */
-#  define REGEX_DLL_IMPEXP	__DLL_IMPORT__
-# endif
-#else /* __WIN32__ */
-# define REGEX_DLL_IMPEXP	 
-#endif
+#ifndef REGEX_DLL_IMPEXP
+  #ifdef OBLCORE_IMPEXP
+    #define REGEX_DLL_IMPEXP OBLCORE_IMPEXP
+  #else /* OBLCORE_IMPEXP */
+    #if (defined __WIN32__) || (defined _WIN32)
+      #define REGEX_DLL_IMPEXP	__DLL_IMPORT__
+    #else /* __WIN32__ */
+      #define REGEX_DLL_IMPEXP
+    #endif /* !WIN32 */
+  #endif /* OBLCORE_IMPEXP */
+#endif /* !REGEX_DLL_IMPEXP */
 
 /* Allow the use in C++ code.  */
 #ifdef __cplusplus

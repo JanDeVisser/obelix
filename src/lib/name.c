@@ -36,7 +36,7 @@ static data_t *      _name_resolve(name_t *, char *);
 
 static name_t *      _name_create(int);
 
-vtable_t _vtable_name[] = {
+static vtable_t _vtable_Name[] = {
   { .id = FunctionParse,    .fnc = (void_t) name_parse },
   { .id = FunctionCmp,      .fnc = (void_t) name_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _name_free },
@@ -48,7 +48,7 @@ vtable_t _vtable_name[] = {
 };
 
 
-static methoddescr_t _methoddescr_name[] = {
+static methoddescr_t _methods_Name[] = {
   { .type = -1,     .name = "append", .method = _name_append, .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
@@ -61,8 +61,7 @@ int Name = -1;
 void _name_init(void) {
   if (Name < 1) {
     logging_register_category("name", &name_debug);
-    Name = typedescr_create_and_register(Name, "name", _vtable_name,
-                                         _methoddescr_name);
+    typedescr_register_with_methods(Name, name_t);
   }
 }
 

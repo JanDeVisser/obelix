@@ -17,8 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
-
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
@@ -47,14 +45,15 @@ static data_t *    _data_call_setter(typedescr_t *, data_t *, char *, data_t *);
 int                data_debug = -1;
 int                _data_count = 0;
 
-static type_t _type_data = {
-  .hash     = (hash_t) data_hash,
-  .tostring = (tostring_t) data_tostring,
-  .copy     = (copy_t)  data_copy,
-  .free     = (free_t) data_free,
-  .cmp      = (cmp_t) data_cmp
+/* __ATTRIBUTE_DLLEXPORT__ */ type_t type_data[1] = {
+  {
+    .hash     = (hash_t) data_hash,
+    .tostring = (tostring_t) data_tostring,
+    .copy     = (copy_t)  data_copy,
+    .free     = (free_t) data_free,
+    .cmp      = (cmp_t) data_cmp
+  }
 };
-__ATTRIBUTE_DLLEXPORT__ type_t *type_data = &_type_data;
 
 /* -- D A T A  S T A T I C  F U N C T I O N S ----------------------------- */
 

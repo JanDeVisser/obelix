@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
+#include "libcore.h"
 #include <limits.h>
 #include <stdio.h>
 #ifdef HAVE_DLFCN_H
@@ -31,7 +31,6 @@
 #include <windows.h>
 #endif /* HAVE_WINDOWS_H */
 
-#include "libcore.h"
 #include <resolve.h>
 
 #define OBL_INIT    "_obl_init"

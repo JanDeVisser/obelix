@@ -183,8 +183,8 @@ endif (CMAKE_COMPILER_IS_GNUCC)
 # configure a header file to pass some of the CMake settings
 # to the source code
 configure_file (
-  "${PROJECT_SOURCE_DIR}/config.h.in"
-  "${PROJECT_BINARY_DIR}/config.h"
+  "${PROJECT_SOURCE_DIR}/oblconfig.h.in"
+  "${PROJECT_BINARY_DIR}/oblconfig.h"
 )
 
 if(CMAKE_COMPILER_IS_GNUCC)
@@ -219,3 +219,9 @@ if(NOT MSVC)
   add_test(NAME tlexer COMMAND tlexer)
   add_test(NAME tgrammar COMMAND tgrammar)
 endif(NOT MSVC)
+
+# Extend Windows Path with some of our source directories so that panoramix can
+# load its DLLs.
+# if(WIN32)
+#   set(ENV{PATH},$ENV{PATH};${CMAKE_CURRENT_BINARY_DIR}/src/lib;${CMAKE_CURRENT_BINARY_DIR}/src/lexer;${CMAKE_CURRENT_BINARY_DIR}/src/grammar)
+# endif(WIN32)

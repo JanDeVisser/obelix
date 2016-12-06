@@ -56,7 +56,7 @@ int URI = -1;
 static grammar_t       *_uri_grammar = NULL;
 static pthread_once_t   _uri_grammar_once = PTHREAD_ONCE_INIT;
 
-#define uri_gramar_init() pthread_once(&_uri_grammar_once, _uri_grammar_init)
+#define uri_grammar_init() pthread_once(&_uri_grammar_once, _uri_grammar_init)
 
 /* ------------------------------------------------------------------------ */
 
@@ -158,11 +158,11 @@ data_t * _uri_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 /* ------------------------------------------------------------------------ */
 
 void net_init(void) {
-  if (URI < 0) {
-    logging_register_category("net", &net_debug);
+  if (URI < 1) {
+    logging_register_module(net);
     dictionary_init();
     typedescr_register_with_methods(URI, uri_t);
-    uri_gramar_init();
+    uri_grammar_init();
   }
 }
 

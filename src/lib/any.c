@@ -26,14 +26,6 @@
 
 /* ------------------------------------------------------------------------ */
 
-extern void     any_init(void);
-extern void     str_init(void);
-extern void     int_init(void);
-extern void     float_init(void);
-extern void     list_init(void);
-extern void     exception_init(void);
-extern void     ptr_init(void);
-
 extern int      data_debug;
 
 static void_t _type_initializers[] = {
@@ -43,6 +35,7 @@ static void_t _type_initializers[] = {
   list_init,
   exception_init,
   ptr_init,
+  file_init,
   NULL
 };
 

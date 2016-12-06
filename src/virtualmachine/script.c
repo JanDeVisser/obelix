@@ -43,10 +43,8 @@ int script_debug = 0;
 /* ------------------------------------------------------------------------ */
 
 void _script_init(void) {
-  if (Script < 0) {
-    logging_register_category("script", &script_debug);
-    typedescr_register(Script, script_t);
-  }
+  logging_register_module(script);
+  typedescr_register(Script, script_t);
 }
 
 /* -- S C R I P T  S T A T I C  F U N C T I O N S  ------------------------ */
@@ -156,7 +154,6 @@ data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
 data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparams) {
   object_t       *retobj;
   data_t         *retval;
-  data_t         *self;
   closure_t      *closure;
   bound_method_t *bm;
 

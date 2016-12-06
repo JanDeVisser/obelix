@@ -1,4 +1,4 @@
-set(SOURCES
+add_library(oblvm SHARED
   boundmethod.c
   bytecode.c
   closure.c
@@ -11,12 +11,9 @@ set(SOURCES
   vm.c
 )
 
-add_library(oblvm SHARED ${SOURCES})
-add_library(soblvm STATIC ${SOURCES})
-
 target_link_libraries(oblvm PUBLIC oblcore)
 
-install(TARGETS oblvm soblvm
+install(TARGETS oblvm
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)

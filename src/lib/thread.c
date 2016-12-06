@@ -17,7 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -56,7 +55,7 @@ static data_t *      _thread_stack(data_t *, char *, array_t *, dict_t *);
 
 extern data_t *      _thread_current_thread(char *, array_t *, dict_t *);
 
-static vtable_t _vtable_thread[] = {
+static vtable_t _vtable_Thread[] = {
   { .id = FunctionCmp,      .fnc = (void_t) thread_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _thread_free },
   { .id = FunctionToString, .fnc = (void_t) _thread_tostring },
@@ -65,7 +64,7 @@ static vtable_t _vtable_thread[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_thread[] = {
+static methoddescr_t _methods_Thread[] = {
   { .type = -1,  .name = "interrupt",      .method = _thread_interrupt,      .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,  .name = "yield",          .method = _thread_yield,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,  .name = "stack",          .method = _thread_stack,          .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
@@ -86,16 +85,14 @@ int thread_debug = 0;
 void _thread_init(void) {
   thread_t *mainthread;
 
-  if (Thread < 0) {
+  if (Thread < 1) {
     logging_register_category("thread", &thread_debug);
 #ifdef HAVE_PTHREAD_H
     pthread_key_create(&self_obj, /* (void (*)(void *)) _thread_free */ NULL);
 #elif defined(HAVE_CREATETHREAD)
     self_ix = TlsAlloc();
 #endif /* HAVE_PTHREAD_H */
-    Thread = typedescr_create_and_register(Thread, "thread",
-                                           _vtable_thread,
-                                           _methoddescr_thread);
+    typedescr_register_with_methods(Thread, thread_t);
     mainthread = thread_self();
     if (mainthread) {
       thread_setname(mainthread, "main");

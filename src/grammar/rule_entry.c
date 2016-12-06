@@ -28,7 +28,7 @@ static rule_entry_t * _rule_entry_dump_pre(ge_dump_ctx_t *);
 
 static rule_entry_t * _rule_entry_create(rule_t *, int, void *);
 
-static vtable_t _vtable_rule_entry[] = {
+static vtable_t _vtable_RuleEntry[] = {
   { .id = FunctionNew,         .fnc = (void_t) _rule_entry_new },
   { .id = FunctionFree,        .fnc = (void_t) _rule_entry_free },
   { .id = FunctionAllocString, .fnc = (void_t) _rule_entry_allocstring },
@@ -36,14 +36,12 @@ static vtable_t _vtable_rule_entry[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-grammar_element_type_t RuleEntry = -1;
+int RuleEntry = -1;
 
 /* ------------------------------------------------------------------------ */
 
 extern void rule_entry_register(void) {
-  RuleEntry = typedescr_create_and_register(
-      RuleEntry, "rule_entry", _vtable_rule_entry, NULL);
-  typedescr_set_size(RuleEntry, rule_entry_t);
+  typedescr_register(RuleEntry, rule_entry_t);
   typedescr_assign_inheritance(RuleEntry, GrammarElement);
 }
 

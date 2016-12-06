@@ -49,13 +49,13 @@ OBLCORE_IMPEXP data_t *        function_call(function_t *, char *, array_t *, di
 OBLCORE_IMPEXP char *          function_funcname(function_t *);
 OBLCORE_IMPEXP char *          function_libname(function_t *);
 
+OBLCORE_IMPEXP int             Function;
+
 #define data_is_function(d)  ((d) && data_hastype((d), Function))
 #define data_as_function(d)  (data_is_function((d)) ? ((function_t *) (d)) : NULL)
 #define function_copy(o)     ((function_t *) data_copy((data_t *) (o)))
 #define function_tostring(o) (data_tostring((data_t *) (o)))
 #define function_free(o)     (data_free((data_t *) (o)))
-
-OBLCORE_IMPEXP int Function;
 
 #ifdef  __cplusplus
 }

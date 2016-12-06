@@ -32,7 +32,7 @@ static void         _bytecode_list_block(list_t *);
 int bytecode_debug = 0;
 int Bytecode = -1;
 
-static vtable_t _vtable_bytecode[] = {
+static vtable_t _vtable_Bytecode[] = {
   { .id = FunctionNew,         .fnc = (void_t) _bytecode_new },
   { .id = FunctionFree,        .fnc = (void_t) _bytecode_free },
   { .id = FunctionAllocString, .fnc = (void_t) _bytecode_allocstring },
@@ -42,13 +42,9 @@ static vtable_t _vtable_bytecode[] = {
 /* ------------------------------------------------------------------------ */
 
 void _bytecode_init(void) {
-  if (Bytecode < 0) {
-    logging_register_category("bytecode", &bytecode_debug);
-    Bytecode = typedescr_create_and_register(Bytecode,
-                                             "bytecode",
-                                             _vtable_bytecode,
-                                             NULL);
-    typedescr_set_size(Bytecode, bytecode_t);
+  if (Bytecode < 1) {
+    logging_register_module(bytecode);
+    typedescr_register(Bytecode, bytecode_t);
   }
 }
 

@@ -32,7 +32,7 @@ static grammar_t * _grammar_dump_pre(ge_dump_ctx_t *);
 static grammar_t * _grammar_dump_get_children(grammar_t *, list_t *);
 static grammar_t * _grammar_dump_post(ge_dump_ctx_t *);
 
-static vtable_t _vtable_grammar[] = {
+static vtable_t _vtable_Grammar[] = {
   { .id = FunctionNew,      .fnc = (void_t) _grammar_new },
   { .id = FunctionFree,     .fnc = (void_t) _grammar_free },
   { .id = FunctionToString, .fnc = (void_t) _grammar_tostring },
@@ -43,7 +43,7 @@ static vtable_t _vtable_grammar[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-grammar_element_type_t Grammar = -1;
+int Grammar = -1;
 
 /* ------------------------------------------------------------------------ */
 
@@ -56,9 +56,7 @@ extern void grammar_init(void) {
     rule_register();
     rule_entry_register();
 
-    Grammar = typedescr_create_and_register(
-        Grammar, "grammar", _vtable_grammar, NULL);
-    typedescr_set_size(Grammar, grammar_t);
+    typedescr_register(Grammar, grammar_t);
     typedescr_assign_inheritance(Grammar, GrammarElement);
   }
 }

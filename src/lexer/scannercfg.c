@@ -60,16 +60,14 @@ void _scanner_config_init(void) {
     dict_set_key_type(_scanners_configs, type_str);
     dict_set_data_type(_scanners_configs, type_int);
     _scanner_config_mutex = mutex_create();
-#ifdef OBL_STATIC
+
     scanner_config_register(comment_register());
     scanner_config_register(identifier_register());
     scanner_config_register(keyword_register());
     scanner_config_register(number_register());
+    scanner_config_register(position_register());
     scanner_config_register(qstring_register());
     scanner_config_register(whitespace_register());
-#else
-    resolve_library("libobllexer");
-#endif
   }
 }
 

@@ -45,7 +45,7 @@ static void             _instruction_add_label(instruction_t *, char *);
 
 int Instruction = -1;
 
-static vtable_t _vtable_instruction[] = {
+static vtable_t _vtable_Instruction[] = {
   { .id = FunctionCall, .fnc = (void_t) _instruction_call },
   { .id = FunctionNew,  .fnc = (void_t) _instr_new },
   { .id = FunctionFree, .fnc = (void_t) _instr_free },
@@ -134,7 +134,7 @@ static dict_t *          _call_build_kwargs(function_call_t *, vm_t *);
 
 static int Call = -1;
 
-static vtable_t _vtable_call[] = {
+static vtable_t _vtable_Call[] = {
   { .id = FunctionFactory,     .fnc = (void_t) _call_new },
   { .id = FunctionFree,        .fnc = (void_t) _call_free },
   { .id = FunctionAllocString, .fnc = (void_t) _call_allocstring },
@@ -147,7 +147,7 @@ static name_t *name_self = NULL;
 /* ----------------------------------------------------------------------- */
 
 void _instruction_init(void) {
-  if (Instruction < 0) {
+  if (Instruction < 1) {
     _instruction_register_types();
   }
 }
@@ -155,13 +155,12 @@ void _instruction_init(void) {
 void _instruction_register_types(void) {
   logging_register_category("trace", &script_trace);
 
-  Instruction = typedescr_create_and_register(-1, "instruction", _vtable_instruction, NULL);
-  typedescr_set_size(Instruction, instruction_t);
+  typedescr_register(Instruction, instruction_t);
   ITByName = typedescr_create_and_register(-1, "instruction_byname", _vtable_tostring_name, NULL);
   ITByValue = typedescr_create_and_register(-1, "instruction_byvalue", _vtable_tostring_value, NULL);
   ITByNameValue = typedescr_create_and_register(-1, "instruction_bynamevalue", _vtable_tostring_name_value, NULL);
   ITByValueOrName = typedescr_create_and_register(-1, "instruction_byvalue_or_name", _vtable_tostring_value_or_name, NULL);
-  Call = typedescr_create_and_register(Call, "call", _vtable_call, NULL);
+  typedescr_register(Call, function_call_t);
   interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
   name_empty = name_create(0);
   name_self = name_create(1, "self");
@@ -195,7 +194,7 @@ void _instruction_register_types(void) {
 }
 
 int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
-  int          t;
+  int t;
 
   t = typedescr_create_and_register(-1, name, vtable, NULL);
   typedescr_assign_inheritance(t, Instruction);
@@ -205,7 +204,7 @@ int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
 }
 
 void _instruction_tracemsg(char *fmt, ...) {
-  va_list  args;
+  va_list args;
 
   if (script_trace) {
     va_start(args, fmt);

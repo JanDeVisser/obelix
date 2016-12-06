@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
+#include <oblconfig.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

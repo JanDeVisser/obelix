@@ -75,13 +75,13 @@ static vtable_t _vtable_DictionaryIter[] = {
 };
 
 int Dictionary = -1;
-int DictionaryIter = -1;
+static int DictionaryIter = -1;
 extern int data_debug;
 
 /* ----------------------------------------------------------------------- */
 
 void dictionary_init(void) {
-  if (Dictionary < 0) {
+  if (Dictionary < 1) {
     typedescr_register_with_methods(Dictionary, dictionary_t);
     typedescr_register(DictionaryIter, dictionaryiter_t);
   }

@@ -21,12 +21,9 @@
 #ifndef __LIBNET_H__
 #define __LIBNET_H__
 
-#ifndef oblnet_EXPORTS
-  #define OBLNET_IMPEXP extern
-  #define OBL_STATIC
-#endif
+#include <oblconfig.h>
+#define OBLNET_IMPEXP __DLL_EXPORT__
 
-#include <config.h>
 #include <stdio.h>
 #include <data.h>
 #include <net.h>

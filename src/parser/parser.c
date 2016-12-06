@@ -108,7 +108,7 @@ PSEType(Action);
 /* ------------------------------------------------------------------------ */
 
 void _parser_init(void) {
-  if (Parser < 0) {
+  if (Parser < 1) {
     logging_register_category("parser", &parser_debug);
     dictionary_init();
     typedescr_register(Parser, parser_t);

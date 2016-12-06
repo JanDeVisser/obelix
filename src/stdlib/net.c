@@ -17,9 +17,8 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
+#include <net.h>
 #include <data.h>
-#include <socket.h>
 #include <exception.h>
 
 /* -------------------------------------------------------------------------*/
@@ -41,9 +40,7 @@ __DLL_EXPORT__ socket_t * _function_connect(char *name, array_t *params, dict_t 
  * TODO: Parameterize what interface we want to listen on.
  */
 __DLL_EXPORT__ socket_t * _function_server(char *name, array_t *params, dict_t *kwargs) {
-  data_t   *host;
   data_t   *service;
-  socket_t *socket;
 
   assert(params && (array_size(params) >= 1));
   service = (data_t *) array_get(params, 0);
@@ -55,7 +52,6 @@ __DLL_EXPORT__ data_t * _function_listener(char *name, array_t *params, dict_t *
   socket_t *listener;
   data_t   *service;
   data_t   *server;
-  data_t   *ret;
 
   assert(params && (array_size(params) >= 2));
   service = data_array_get(params, 0);

@@ -5,9 +5,6 @@ set(SOURCES
     testsuite.c
 )
 add_library(obltest STATIC ${SOURCES})
-
-set(LIBS oblcore)
-set(LIBS ${CHECK_LIBRARIES} ${LIBS})
-target_link_libraries(obltest ${LIBS})
+target_link_libraries(obltest oblcore ${CHECK_LIBRARIES})
 
 install(TARGETS obltest DESTINATION lib)

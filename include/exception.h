@@ -21,7 +21,7 @@
 #ifndef __EXCEPTION_H__
 #define __EXCEPTION_H__
 
-#include <config.h>
+#include <oblconfig.h>
 #include <stdarg.h>
 #ifdef HAVE_WINDOWS_H
 #include <windows.h>

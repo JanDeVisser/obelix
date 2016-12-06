@@ -28,11 +28,13 @@
 
 /* ----------------------------------------------------------------------- */
 
-static inline void   _range_init(void);
-static void          _range_free(range_t *);
-static char *        _range_allocstring(range_t *);
+static inline void _range_init(void);
+static data_t *    _range_new(range_t *, va_list);
+static void        _range_free(range_t *);
+static char *      _range_allocstring(range_t *);
 
-static vtable_t _vtable_range[] = {
+static vtable_t _vtable_Range[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _range_new },
   { .id = FunctionCmp,         .fnc = (void_t) range_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _range_free },
   { .id = FunctionAllocString, .fnc = (void_t) _range_allocstring },
@@ -48,9 +50,34 @@ int Range = -1;
 /* ----------------------------------------------------------------------- */
 
 void _range_init(void) {
-  if (Range < 0) {
-    Range = typedescr_create_and_register(Range, "range", _vtable_range, /* _methoddescr_range */ NULL);
+  if (Range < 1) {
+    typedescr_register(Range, range_t);
   }
+}
+
+data_t * _range_new(range_t *range, va_list args) {
+  data_t      *from = va_arg(args, data_t *);
+  data_t      *to = va_arg(args, data_t *);
+  typedescr_t *type;
+
+  if (data_type(from) != data_type(to)) {
+    return data_exception(ErrorType,
+                          "Cannot build range: atoms '%s' and '%s' are of different type",
+                          data_tostring(from), data_tostring(to));
+  }
+  type = data_typedescr(from);
+  if (!typedescr_get_function(type, FunctionIncr) ||
+      !typedescr_get_function(type, FunctionDecr)) {
+    return data_exception(ErrorType,
+                          "Cannot build range: type '%s' is not incrementable",
+                          typedescr_tostring(type));
+  }
+  range = data_new(Range, range_t);
+  range -> from = data_copy(from);
+  range -> to = data_copy(to);
+  range -> direction = (data_cmp(from, to) <= 0) ? FunctionIncr : FunctionDecr;
+  range -> next = NULL;
+  return (data_t *) range;
 }
 
 void _range_free(range_t *range) {
@@ -71,28 +98,8 @@ char * _range_allocstring(range_t *r) {
 /* -- R A N G E _ T  P U B L I C  F U N C T I O N S ----------------------- */
 
 data_t * range_create(data_t *from, data_t *to) {
-  range_t     *range;
-  typedescr_t *type;
-
   _range_init();
-  if (data_type(from) != data_type(to)) {
-    return data_exception(ErrorType,
-                          "Cannot build range: atoms '%s' and '%s' are of different type",
-                          data_tostring(from), data_tostring(to));
-  }
-  type = data_typedescr(from);
-  if (!typedescr_get_function(type, FunctionIncr) ||
-      !typedescr_get_function(type, FunctionDecr)) {
-    return data_exception(ErrorType,
-                          "Cannot build range: type '%s' is not incrementable",
-                          typedescr_tostring(type));
-  }
-  range = data_new(Range, range_t);
-  range -> from = data_copy(from);
-  range -> to = data_copy(to);
-  range -> direction = (data_cmp(from, to) <= 0) ? FunctionIncr : FunctionDecr;
-  range -> next = NULL;
-  return (data_t *) range;
+  return (data_t *) data_create(Range, from, to);
 }
 
 int range_cmp(range_t *r1, range_t *r2) {

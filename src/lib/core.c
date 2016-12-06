@@ -17,13 +17,9 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
-#ifdef HAVE_SIGNAL_H
-#include <signal.h>
-#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,6 +27,11 @@
 #include <time.h>
 
 #include "libcore.h"
+
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
+
 #include <resolve.h>
 
 typedef struct _memmonitor {
@@ -40,24 +41,25 @@ typedef struct _memmonitor {
 
 static void        _outofmemory(int);
 
-static type_t _type_str = {
+type_t type_str[1] = {
+  {
   .hash     = (hash_t) strhash,
   .tostring = (tostring_t) chars,
   .copy     = (copy_t) strdup,
   .free     = (free_t) free,
   .cmp      = (cmp_t) strcmp
+  }
 };
 
-__ATTRIBUTE_DLLEXPORT__ type_t *type_str = &_type_str;
-
-static type_t _type_int = {
-  .hash     = (hash_t) hashlong,
-  .tostring = (tostring_t) oblcore_itoa,
-  .copy     = NULL,
-  .free     = NULL,
-  .cmp      = NULL
+type_t type_int[1] = {
+  {
+    .hash     = (hash_t) hashlong,
+    .tostring = (tostring_t) oblcore_itoa,
+    .copy     = NULL,
+    .free     = NULL,
+    .cmp      = NULL
+  }
 };
-__ATTRIBUTE_DLLEXPORT__ type_t *type_int = &_type_int;
 
 static void _outofmemory(int sz) {
   error("Could not allocate %d bytes. Out of Memory. Terminating...", sz);

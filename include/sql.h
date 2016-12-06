@@ -20,21 +20,12 @@
 #ifndef __SQL_H__
 #define __SQL_H__
 
+#include <oblconfig.h>
 #include <data.h>
 #include <net.h>
 
 #ifndef OBLSQL_IMPEXP
-  #if (defined __WIN32__) || (defined _WIN32)
-    #ifdef OBLSQL_EXPORTS
-      #define OBLSQL_IMPEXP	__DLL_EXPORT__
-    #elif defined(OBL_STATIC)
-      #define OBLSQL_IMPEXP extern
-    #else /* ! OBLSQL_EXPORTS */
-      #define OBLSQL_IMPEXP	__DLL_IMPORT__
-    #endif
-  #else /* ! __WIN32__ */
-    #define OBLSQL_IMPEXP extern
-  #endif /* __WIN32__ */
+  #define OBLSQL_IMPEXP	__DLL_IMPORT__
 #endif /* OBLSQL_IMPEXP */
 
 typedef enum _dbconn_status {

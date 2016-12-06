@@ -20,12 +20,23 @@
 #ifndef __CORE_H__
 #define __CORE_H__
 
-#include <config.h>
-
+#include <oblconfig.h>
+#include <assert.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif /* HAVE_STDINT_H */
 #include <stdarg.h>
+#include <stdlib.h>
 
-#include <core-setup.h>
 #include <logging.h>
+
+#ifndef OBLCORE_IMPEXP
+  #define OBLCORE_IMPEXP       __DLL_IMPORT__
+#endif /* OBLCORE_IMPEXP */
+
+#ifndef HAVE_INTPTR_T
+typedef long long intptr_t; /* FIXME: 32bits! */
+#endif /* HAVE_INTPTR_T */
 
 #ifdef  __cplusplus
 extern "C" {
@@ -132,8 +143,8 @@ OBLCORE_IMPEXP reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 
-OBLCORE_IMPEXP type_t *        type_str;
-OBLCORE_IMPEXP type_t *        type_int;
+OBLCORE_IMPEXP type_t          type_str[1];
+OBLCORE_IMPEXP type_t          type_int[1];
 
 #define new(i)          (_new((i)))
 #define stralloc(n)     ((char *) _new((n) + 1))

@@ -21,8 +21,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <net.h>
 #include <data.h>
-#include <socket.h>
 #include <exception.h>
 #include <loader.h>
 
@@ -326,4 +326,3 @@ int main(int argc, char **argv) {
     return _obelix_cmdline(obelix);
   }
 }
-

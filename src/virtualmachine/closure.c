@@ -24,7 +24,6 @@ static inline void  _closure_init(void);
 
 static closure_t *  _closure_new(closure_t *, va_list);
 static closure_t *  _closure_create_closure_reducer(entry_t *, closure_t *);
-static listnode_t * _closure_execute_instruction(instruction_t *, closure_t *);
 static data_t *     _closure_get(closure_t *, char *);
 static data_t *     _closure_eval(closure_t *, bytecode_t *);
 static data_t *     _closure_start(closure_t *);
@@ -36,7 +35,7 @@ static data_t *     _closure_import(data_t *, char *, array_t *, dict_t *);
 
 int Closure = -1;
 
-static vtable_t _vtable_closure[] = {
+static vtable_t _vtable_Closure[] = {
   { .id = FunctionNew,         .fnc = (void_t) _closure_new },
   { .id = FunctionCmp,         .fnc = (void_t) closure_cmp },
   { .id = FunctionHash,        .fnc = (void_t) closure_hash },
@@ -48,20 +47,17 @@ static vtable_t _vtable_closure[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_closure[] = {
-  { .type = -1,      .name = "import", .method = _closure_import, .argtypes = { NoType, NoType, NoType },   .minargs = 1, .varargs = 1 },
+static methoddescr_t _methods_Closure[] = {
+  { .type = -1,      .name = "import", .method = _closure_import, .argtypes = { NoType, NoType, NoType }, .minargs = 1, .varargs = 1 },
   { .type = NoType,  .name = NULL,     .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
 /* ------------------------------------------------------------------------ */
 
 void _closure_init(void) {
-  if (Closure < 0) {
-    _methoddescr_closure[0].argtypes[0] = Name;
-    Closure = typedescr_create_and_register(Closure, "closure",
-                                            _vtable_closure,
-                                            _methoddescr_closure);
-    typedescr_set_size(Closure, closure_t);
+  if (Closure < 1) {
+    _methods_Closure[0].argtypes[0] = Name;
+    typedescr_register_with_methods(Closure, closure_t);
   }
 }
 

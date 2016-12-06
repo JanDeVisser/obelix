@@ -37,7 +37,7 @@ static data_t *     _nvp_create(char *, array_t *, dict_t *);
 
 /* ------------------------------------------------------------------------ */
 
-static vtable_t _vtable_nvp[] = {
+static vtable_t _vtable_NVP[] = {
   { .id = FunctionNew,         .fnc = (void_t) _nvp_new },
   { .id = FunctionFree,        .fnc = (void_t) _nvp_free },
   { .id = FunctionCmp,         .fnc = (void_t) nvp_cmp },
@@ -53,9 +53,8 @@ int NVP = -1;
 /* ------------------------------------------------------------------------ */
 
 void _nvp_init(void) {
-  if (NVP < 0) {
-    NVP = typedescr_create_and_register(NVP, "nvp", _vtable_nvp,/*  _methoddescr_nvp */ NULL);
-    typedescr_set_size(NVP, nvp_t);
+  if (NVP < 1) {
+    typedescr_register(NVP, nvp_t);
   }
 }
 

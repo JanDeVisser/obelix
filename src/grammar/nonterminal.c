@@ -27,7 +27,7 @@ extern char *          _nonterminal_tostring(nonterminal_t *);
 static nonterminal_t * _nonterminal_dump_pre(ge_dump_ctx_t *);
 static nonterminal_t * _nonterminal_dump_get_children(nonterminal_t *, list_t *);
 
-static vtable_t _vtable_nonterminal[] = {
+static vtable_t _vtable_NonTerminal[] = {
   { .id = FunctionNew,      .fnc = (void_t) _nonterminal_new },
   { .id = FunctionFree,     .fnc = (void_t) _nonterminal_free },
   { .id = FunctionToString, .fnc = (void_t) _nonterminal_tostring },
@@ -36,14 +36,12 @@ static vtable_t _vtable_nonterminal[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-grammar_element_type_t NonTerminal = -1;
+int NonTerminal = -1;
 
 /* ------------------------------------------------------------------------ */
 
 extern void nonterminal_register(void) {
-  NonTerminal = typedescr_create_and_register(
-      NonTerminal, "nonterminal", _vtable_nonterminal, NULL);
-  typedescr_set_size(NonTerminal, nonterminal_t);
+  typedescr_register(NonTerminal, nonterminal_t);
   typedescr_assign_inheritance(NonTerminal, GrammarElement);
 }
 

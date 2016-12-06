@@ -17,7 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
 #include <errno.h>
 
 #include "libcore.h"
@@ -31,12 +30,12 @@ static char *        _mutex_tostring(mutex_t *);
 static data_t *      _mutex_enter(mutex_t *);
 static data_t *      _mutex_leave(mutex_t *, data_t *);
 
-extern data_t * _mutex_create(data_t *, char *, array_t *, dict_t *);
+extern data_t *      _mutex_create(data_t *, char *, array_t *, dict_t *);
 
 static data_t *      _mutex_lock(mutex_t *, char *, array_t *, dict_t *);
 static data_t *      _mutex_unlock(mutex_t *, char *, array_t *, dict_t *);
 
-int Mutex = -1;
+static int Mutex = -1;
 
 static vtable_t _vtable_mutex[] = {
   { .id = FunctionFactory,  .fnc = (void_t) _mutex_new },
@@ -55,7 +54,7 @@ static methoddescr_t _methoddescr_mutex[] = {
   { .type = NoType, .name = NULL,      .method = NULL,                      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
-int Condition = -1;
+static int Condition = -1;
 
 static void          _condition_free(condition_t *);
 static data_t *      _condition_new(int, va_list);
@@ -92,7 +91,7 @@ int mutex_debug = -1;
 /* ------------------------------------------------------------------------ */
 
 void _mutex_init(void) {
-  if (Mutex < 0) {
+  if (Mutex < 1) {
     logging_register_category("mutex", &mutex_debug);
     Mutex = typedescr_create_and_register(Mutex, "mutex",
                                           _vtable_mutex, _methoddescr_mutex);

@@ -133,6 +133,7 @@ typedef struct _typedescr {
   int            type;
   char          *type_name;
   int            size;
+  int            debug;
   vtable_t      *vtable;
   dict_t        *methods;
   list_t        *constructors;
@@ -194,21 +195,29 @@ OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
 
 #define typedescr_set_size(d, t)    (typedescr_get((d)) -> size = sizeof(t))
 
-#define typedescr_register(t, type)     \
-    t = typedescr_create_and_register(t, #t , _vtable_ ## t, NULL);  \
-    typedescr_set_size(t, type);
+#define typedescr_register(t, type)                                          \
+    if (t < 1) {                                                             \
+      t = typedescr_create_and_register(t, #t , _vtable_ ## t, NULL);        \
+      typedescr_set_size(t, type);                                           \
+    }
 
-#define typedescr_register_with_name(t, name, type)     \
-    t = typedescr_create_and_register(t, name , _vtable_ ## t, NULL);  \
-    typedescr_set_size(t, type);
+#define typedescr_register_with_name(t, name, type)                          \
+    if (t < 1) {                                                             \
+      t = typedescr_create_and_register(t, name , _vtable_ ## t, NULL);      \
+      typedescr_set_size(t, type);                                           \
+    }
 
-#define typedescr_register_with_methods(t, type)     \
-    t = typedescr_create_and_register(t, #t , _vtable_ ## t, _methods_ ## t);  \
-    typedescr_set_size(t, type);
+#define typedescr_register_with_methods(t, type)                             \
+  if (t < 1) {                                                               \
+    t = typedescr_create_and_register(t, #t , _vtable_ ## t, _methods_ ## t);\
+    typedescr_set_size(t, type);                                             \
+  }
 
-#define typedescr_register_with_name_and_methods(t, name, type)     \
-    t = typedescr_create_and_register(t, name , _vtable_ ## t, _methods_ ## t);  \
-    typedescr_set_size(t, type);
+#define typedescr_register_with_name_and_methods(t, name, type)              \
+  if (t < 1) {                                                               \
+    t = typedescr_create_and_register(t, name , _vtable_ ## t, _methods_ ## t);\
+    typedescr_set_size(t, type);                                             \
+  }
 
 #ifdef  __cplusplus
 }

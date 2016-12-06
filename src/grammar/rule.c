@@ -35,7 +35,7 @@ static vtable_t _vtable_Rule[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-grammar_element_type_t Rule = -1;
+int Rule = -1;
 
 /* ------------------------------------------------------------------------ */
 

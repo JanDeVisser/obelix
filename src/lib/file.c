@@ -1,5 +1,5 @@
 /*
- * /obelix/src/file.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/src/lib/file.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -17,7 +17,8 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
+#include "libcore.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -37,7 +38,6 @@
 #include <windows.h>
 #endif /* HAVE_WINDOWS_H */
 
-#include "libcore.h"
 #include <array.h>
 #include <data.h>
 #include <exception.h>
@@ -88,7 +88,7 @@ static data_t *      _file_redirect(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_seek(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_flush(data_t *, char *, array_t *, dict_t *);
 
-static vtable_t _vtable_stream[] = {
+static vtable_t _vtable__Stream[] = {
   { .id = FunctionFree,        .fnc = (void_t) _stream_free },
   { .id = FunctionRead,        .fnc = (void_t) stream_read },
   { .id = FunctionWrite,       .fnc = (void_t) stream_write },
@@ -98,13 +98,13 @@ static vtable_t _vtable_stream[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_stream[] = {
+static methoddescr_t _methods__Stream[] = {
   { .type = -1,     .name = "readline", .method = (method_t) _stream_readline, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "print",    .method = (method_t) _stream_print,    .argtypes = { String, Any,    NoType }, .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,       .method = NULL,                        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
-static vtable_t _vtable_file[] = {
+static vtable_t _vtable__File[] = {
   { .id = FunctionCmp,         .fnc = (void_t) file_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _file_free },
   { .id = FunctionAllocString, .fnc = (void_t) _file_allocstring },
@@ -116,7 +116,7 @@ static vtable_t _vtable_file[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_file[] = {
+static methoddescr_t _methods__File[] = {
   { .type = -1,     .name = "close",    .method = _file_close,    .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "isopen",   .method = _file_isopen,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "redirect", .method = _file_redirect, .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
@@ -142,7 +142,7 @@ static data_t *       _streamiter_has_next(streamiter_t *);
 static data_t *       _streamiter_next(streamiter_t *);
 static streamiter_t * _streamiter_readnext(streamiter_t *);
 
-static vtable_t _vtable_streamiter[] = {
+static vtable_t _vtable_StreamIter[] = {
   { .id = FunctionCmp,         .fnc = (void_t) _streamiter_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _streamiter_free },
   { .id = FunctionAllocString, .fnc = (void_t) _streamiter_allocstring },
@@ -151,8 +151,8 @@ static vtable_t _vtable_streamiter[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-int Stream = -1;
-int File = -1;
+int _Stream = -1;
+int _File = -1;
 int StreamIter = -1;
 
 #define data_is_streamiter(d)  ((d) && data_hastype((data_t *) (d), StreamIter))
@@ -164,13 +164,17 @@ int StreamIter = -1;
 /* ------------------------------------------------------------------------ */
 
 void file_init(void) {
-  if (Stream < 0) {
+  fprintf(stderr, "Stream: %d\n", _Stream);
+  if (_File < 0) {
     logging_register_module(file);
-    Stream = typedescr_create_and_register(Stream, "stream", _vtable_stream, _methoddescr_stream);
-    File = typedescr_create_and_register(File, "file", _vtable_file, _methoddescr_file);
-    typedescr_assign_inheritance(File, Stream);
-    StreamIter = typedescr_create_and_register(StreamIter, "streamiterator", _vtable_streamiter, NULL);
+    typedescr_register_with_methods(_Stream, stream_t);
+    typedescr_register_with_methods(_File, file_t);
+    typedescr_assign_inheritance(_File, _Stream);
+    typedescr_register(StreamIter, streamiter_t);
   }
+  assert(_File);
+  assert(_Stream);
+  assert(StreamIter);
 }
 
 
@@ -184,7 +188,7 @@ void _stream_free(stream_t *stream) {
 }
 
 stream_t * _stream_enter(stream_t *stream) {
-  mdebug(file, "%s._stream_enter()", data_tostring((data_t *) stream));
+  debug(file, "%s._stream_enter()", data_tostring((data_t *) stream));
   return stream;
 }
 
@@ -193,7 +197,7 @@ data_t * _stream_iter(stream_t *stream) {
 
   ret = _streamiter_create(stream, NULL);
 
-  mdebug(file, "%s._stream_iter() -> %s", data_tostring((data_t *) stream), data_tostring((data_t *) ret));
+  debug(file, "%s._stream_iter() -> %s", data_tostring((data_t *) stream), data_tostring((data_t *) ret));
   return (data_t *) ret;
 }
 
@@ -201,7 +205,7 @@ data_t * _stream_query(stream_t *stream, data_t *selector, array_t *params) {
   streamiter_t *ret = _streamiter_create(stream, selector);
 
   (void) params;
-  mdebug(file, "%s._stream_query(%s) -> %s",
+  debug(file, "%s._stream_query(%s) -> %s",
         data_tostring((data_t *) stream),
         data_tostring(selector),
         streamiter_tostring(ret));
@@ -315,7 +319,7 @@ int stream_read(stream_t *stream, char *buf, int num) {
   char   *ptr;
   int     ch;
 
-  mdebug(file, "%s.read(%d)", data_tostring((data_t *) stream), num);
+  debug(file, "%s.read(%d)", data_tostring((data_t *) stream), num);
   ptr = buf;
   for (ix = 0; ix < num; ix++) {
     ch = stream_getchar(stream);
@@ -330,23 +334,23 @@ int stream_read(stream_t *stream, char *buf, int num) {
   return ix;
 }
 
-#define WRITE_TO_STREAM(s, l) if (retval >= 0) {                          \
-    int _len = strlen((l));                                               \
-    mdebug(file, "Writing %d bytes to %s", _len, stream_tostring((s)));   \
-    retval = (s -> writer)((s), (l), _len);                               \
-    if (file_debug) {                                                     \
-      if (retval >= 0) {                                                  \
-        _debug("Wrote %d bytes", retval);                                 \
-      } else {                                                            \
-        _debug("error: %d", errno);                                       \
-      }                                                                   \
-    }                                                                     \
+#define WRITE_TO_STREAM(s, l) if (retval >= 0) {                             \
+    int _len = strlen((l));                                                  \
+    debug(file, "Writing %d bytes to %s", _len, stream_tostring((s)));       \
+    retval = (s -> writer)((s), (l), _len);                                  \
+    if (file_debug) {                                                        \
+      if (retval >= 0) {                                                     \
+        _debug("Wrote %d bytes", retval);                                    \
+      } else {                                                               \
+        _debug("error: %d", errno);                                          \
+      }                                                                      \
+    }                                                                        \
 }
 
 int stream_write(stream_t *stream, char *buf, int num) {
   int retval = 0;
 
-  mdebug(file, "Writing %d bytes to %s", num, stream_tostring(stream));
+  debug(file, "Writing %d bytes to %s", num, stream_tostring(stream));
   retval = (stream -> writer)(stream, buf, num);
   if (file_debug) {
     if (retval >= 0) {
@@ -563,7 +567,7 @@ data_t * _streamiter_has_next(streamiter_t *si) {
   } else {
     ret = data_true();
   }
-  mdebug(file, "%s._streamiter_has_next() -> %s", streamiter_tostring(si), data_tostring(ret));
+  debug(file, "%s._streamiter_has_next() -> %s", streamiter_tostring(si), data_tostring(ret));
   return ret;
 }
 
@@ -615,7 +619,7 @@ data_t * _file_leave(file_t *file, data_t *param) {
   if (file_close(file)) {
     ret = data_exception_from_my_errno(file_errno(file));
   }
-  mdebug(file, "%s._file_leave() -> %s", file_tostring(file), data_tostring(ret));
+  debug(file, "%s._file_leave() -> %s", file_tostring(file), data_tostring(ret));
   return ret;
 }
 
@@ -641,7 +645,7 @@ file_t * file_create(int fh) {
   file_t *ret;
 
   file_init();
-  ret = data_new(File, file_t);
+  ret = data_new(_File, file_t);
   ret -> fh = fh;
   ret -> fname = NULL;
   stream_init((stream_t *) ret, (read_t) file_read, (write_t) file_write);
@@ -795,7 +799,7 @@ file_t * file_open_ext(char *fname, ...) {
     file_set_errno(ret);
   }
   ret -> fname = n;
-  mdebug(file, "file_open(%s): %d", ret -> fname, ret -> fh);
+  debug(file, "file_open(%s): %d", ret -> fname, ret -> fh);
   return ret;
 }
 
@@ -864,7 +868,7 @@ int file_write(file_t *file, char *buf, int num) {
 int file_flush(file_t *file) {
   int   ret = 0;
 
-  mdebug(file, "%s.file_flush", file_tostring(file));
+  debug(file, "%s.file_flush", file_tostring(file));
   if (file -> fh <= 2) {
     return 0;
   }
@@ -882,7 +886,7 @@ int file_flush(file_t *file) {
   file_clear_errno(file);
   if (!FlushFileBuffers(_file_oshandle(file))) {
     err = GetLastError();
-    mdebug(file, "FlushFileBuffers(%d) failed. err = %d", _file_oshandle(file), err);
+    debug(file, "FlushFileBuffers(%d) failed. err = %d", _file_oshandle(file), err);
     ret = -1;
     switch (err) {
       case ERROR_ACCESS_DENIED:
@@ -943,7 +947,7 @@ data_t * _file_adopt(char *name, array_t *args, dict_t *kwargs) {
 
   (void) name;
   (void) kwargs;
-  mdebug(file, "_file_adopt(%d) -> %s", data_intval(handle), file_tostring(ret));
+  debug(file, "_file_adopt(%d) -> %s", data_intval(handle), file_tostring(ret));
   return (data_t *) ret;
 }
 

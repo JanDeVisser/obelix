@@ -1,19 +1,31 @@
-add_custom_command (
-  MAIN_DEPENDENCY ${CMAKE_HOME_DIRECTORY}/share/grammar/uri.grammar
-  OUTPUT urigrammar.c
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  COMMAND panoramix -g ${CMAKE_HOME_DIRECTORY}/share/grammar/uri.grammar > urigrammar.c
-)
+if(WIN32)
+  set(PATHMOD ${PROJECT_BINARY_DIR}/src/lib;${PROJECT_BINARY_DIR}/src/lexer;${PROJECT_BINARY_DIR}/src/grammar)
+  add_custom_command (
+    MAIN_DEPENDENCY ${CMAKE_HOME_DIRECTORY}/share/grammar/uri.grammar
+    OUTPUT urigrammar.c
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E env "PATH=$ENV{PATH};${PATHMOD}" ${PROJECT_BINARY_DIR}/src/grammar/panoramix.exe -g ${CMAKE_HOME_DIRECTORY}/share/grammar/uri.grammar > urigrammar.c
+  )
+else(WIN32)
+  add_custom_command (
+    MAIN_DEPENDENCY ${CMAKE_HOME_DIRECTORY}/share/grammar/uri.grammar
+    OUTPUT urigrammar.c
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND panoramix -g ${CMAKE_HOME_DIRECTORY}/share/grammar/uri.grammar > urigrammar.c
+  )
+endif(WIN32)
 
-set(SOURCES
+add_library(oblnet SHARED
   socket.c
   uri.c
   urigrammar.c
 )
 
-add_library(oblnet SHARED ${SOURCES})
-add_library(soblnet STATIC ${SOURCES})
-target_link_libraries(oblnet PUBLIC oblcore obllexer oblgrammar oblparser)
+set(LIBS oblcore obllexer oblgrammar oblparser)
+if(HAVE_WINSOCK2_H)
+  set(LIBS ${LIBS} ws2_32)
+endif(HAVE_WINSOCK2_H)
+target_link_libraries(oblnet PUBLIC ${LIBS})
 
 add_executable(uriparser uriparser.c)
 target_link_libraries(uriparser
@@ -24,7 +36,7 @@ target_link_libraries(uriparser
     oblcore
     ${SYSLIBS})
 
-install(TARGETS oblnet soblnet
+install(TARGETS oblnet uriparser
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)

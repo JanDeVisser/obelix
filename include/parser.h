@@ -33,17 +33,7 @@ extern "C" {
 #endif
 
 #ifndef OBLPARSER_IMPEXP
-  #if (defined __WIN32__) || (defined _WIN32)
-    #ifdef oblparser_EXPORTS
-      #define OBLPARSER_IMPEXP	__DLL_EXPORT__
-    #elif defined(OBL_STATIC)
-      #define OBLPARSER_IMPEXP extern
-    #else /* ! OBLPARSER_EXPORTS */
-      #define OBLPARSER_IMPEXP	__DLL_IMPORT__
-    #endif
-  #else /* ! __WIN32__ */
-    #define OBLPARSER_IMPEXP extern
-  #endif /* __WIN32__ */
+  #define OBLPARSER_IMPEXP	__DLL_IMPORT__
 #endif /* OBLPARSER_IMPEXP */
 
 OBLPARSER_IMPEXP int Parser;

@@ -17,14 +17,13 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
+#include "libcore.h"
 #include <errno.h>
 #include <fcntl.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
-#include "libcore.h"
 #include <exception.h>
 #include <file.h>
 #include <fsentry.h>
@@ -58,7 +57,7 @@ static methoddescr_t _methoddescr_fsentry[] = {
   { .type = NoType, .name = NULL,      .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .maxargs = 0, .varargs = 0 }
 };
 
-int FSEntry = -1;
+static int FSEntry = -1;
 
 /* ------------------------------------------------------------------------ */
 
@@ -94,7 +93,7 @@ int FSEntryIter = -1;
 /* ------------------------------------------------------------------------ */
 
 void _fsentry_init(void) {
-  if (FSEntry < 0) {
+  if (FSEntry < 1) {
     FSEntry = typedescr_create_and_register(FSEntry, "fsentry",
                                             _vtable_fsentry, _methoddescr_fsentry);
     FSEntryIter = typedescr_create_and_register(FSEntryIter, "fsentryiter",

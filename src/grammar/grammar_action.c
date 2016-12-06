@@ -34,7 +34,7 @@ static vtable_t _vtable_ga[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-grammar_element_type_t GrammarAction = -1;
+int GrammarAction = -1;
 
 /* ------------------------------------------------------------------------ */
 

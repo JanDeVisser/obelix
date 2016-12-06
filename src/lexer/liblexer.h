@@ -20,15 +20,12 @@
 #ifndef __LIBLEXER_H__
 #define __LIBLEXER_H__
 
-#ifndef obllexer_EXPORTS
-#define OBLLEXER_IMPEXP extern
-#define OBL_STATIC
-#endif /* !obllexer_EXPORTS */
+#include <oblconfig.h>
+#define OBLLEXER_IMPEXP __DLL_EXPORT__
 
 #include <ctype.h>
 #include <stdio.h>
 
-#include <config.h>
 #include <core.h>
 #include <lexer.h>
 #include <nvp.h>
@@ -39,5 +36,13 @@
 #define FunctionDump            FunctionUsr4
 #define FunctionDestroyScanner  FunctionUsr5
 #define FunctionReconfigScanner FunctionUsr6
+
+extern typedescr_t * comment_register(void);
+extern typedescr_t * identifier_register(void);
+extern typedescr_t * keyword_register(void);
+extern typedescr_t * number_register(void);
+extern typedescr_t * position_register(void);
+extern typedescr_t * qstring_register(void);
+extern typedescr_t * whitespace_register(void);
 
 #endif /* __LIBLEXER_H__ */

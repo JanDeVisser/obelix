@@ -174,7 +174,7 @@ OBLCORE_IMPEXP int             data_list_size(data_t *);
 OBLCORE_IMPEXP int_t *         bool_true;
 OBLCORE_IMPEXP int_t *         bool_false;
 
-OBLCORE_IMPEXP type_t *        type_data;
+OBLCORE_IMPEXP type_t          type_data[1];
 
 #define int_as_bool(i)         ((data_t *) bool_get((i)))
 #define int_to_data(i)         ((data_t *) int_create((i)))

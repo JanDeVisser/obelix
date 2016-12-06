@@ -28,7 +28,7 @@ static ge_dump_ctx_t * _dump_child(data_t *, ge_dump_ctx_t *);
 static ge_t *          _ge_dump_main(ge_dump_ctx_t *);
 static ge_t *          _ge_dump_common(ge_dump_ctx_t *);
 
-static vtable_t _vtable_ge[] = {
+static vtable_t _vtable_GrammarElement[] = {
   { .id = FunctionNew,     .fnc = (void_t) _ge_new },
   { .id = FunctionFree,    .fnc = (void_t) _ge_free },
   { .id = FunctionSet,     .fnc = (void_t) _ge_set },
@@ -37,15 +37,12 @@ static vtable_t _vtable_ge[] = {
   { .id = FunctionNone,    .fnc = NULL }
 };
 
-grammar_element_type_t GrammarElement = -1;
+int GrammarElement = -1;
 
 /* ------------------------------------------------------------------------ */
 
 extern void grammar_element_register(void) {
-  GrammarElement = typedescr_create_and_register(GrammarElement,
-                                                 "grammarelement",
-                                                 _vtable_ge,
-                                                 NULL);
+  typedescr_register(GrammarElement, ge_t);
   typedescr_set_size(GrammarElement, ge_t);
 }
 
@@ -53,7 +50,7 @@ extern void grammar_element_register(void) {
 
 ge_t * _ge_new(ge_t *ge, va_list args) {
   ge -> grammar = va_arg(args, grammar_t *);
-  if (data_type(ge) == Grammar) {
+  if (!ge -> grammar) {
     ge -> grammar = (grammar_t *) ge;
   }
   ge -> owner = va_arg(args, ge_t *);

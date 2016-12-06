@@ -54,8 +54,8 @@ int stacktrace_debug = 0;
 /* ------------------------------------------------------------------------ */
 
 void _stacktrace_init(void) {
-  if (Stackframe < 0) {
-    logging_register_category("stacktrace", &stacktrace_debug);
+  if (Stackframe < 1) {
+    logging_register_module(stacktrace);
     typedescr_register(Stackframe, stackframe_t);
     typedescr_register(Stacktrace, stacktrace_t);
   }

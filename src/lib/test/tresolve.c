@@ -26,6 +26,7 @@ typedef void *   (*helloworld_t)(char *);
 #define OBL_DIR_EQ        OBL_DIR "="
 #define OBL_DIR_EQ_LEN    (strlen(OBL_DIR_EQ))
 
+#include <stdio.h>
 static void set_obldir(char *argv0) {
 #ifdef HAVE_PUTENV
   char *ptr;
@@ -93,6 +94,7 @@ START_TEST(test_resolve_foreign_function)
   helloworld_t  hw;
   void         *test;
 
+  mark_point();
   ck_assert_int_ne(resolve_library("libtestlib.so"), 0);
   hw = (helloworld_t) resolve_function("testlib_helloworld");
   ck_assert_ptr_ne(hw, NULL);

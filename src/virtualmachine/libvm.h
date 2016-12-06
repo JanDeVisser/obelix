@@ -21,10 +21,8 @@
 #ifndef __LIBVM_H__
 #define __LIBVM_H__
 
-#ifndef oblvm_EXPORTS
-  #define OBLVM_IMPEXP extern
-  #define OBL_STATIC
-#endif
+#include <oblconfig.h>
+#define OBLVM_IMPEXP __DLL_EXPORT__
 
 #include <stdio.h>
 #include <vm.h>

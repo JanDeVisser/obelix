@@ -20,11 +20,16 @@
 #ifndef __FSENTRY_H__
 #define __FSENTRY_H__
 
+#include <core.h>
+
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
 #elif defined(HAVE_IO_H)
 #include <io.h>
 #endif /* HAVE_DIRENT_H / HAVE_IO_H */
+
+#include <data.h>
+#include <file.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -49,8 +54,6 @@ OBLCORE_IMPEXP int          fsentry_canwrite(fsentry_t *);
 OBLCORE_IMPEXP int          fsentry_canexecute(fsentry_t *);
 OBLCORE_IMPEXP list_t *     fsentry_getentries(fsentry_t *);
 OBLCORE_IMPEXP file_t *     fsentry_open(fsentry_t *);
-  
-OBLCORE_IMPEXP int          FSEntry;
 
 #define data_is_fsentry(d)  ((d) && (data_hastype((d), FSEntry)))
 #define data_as_fsentry(d)  ((fsentry_t *) (data_is_fsentry((d)) ? ((fsentry_t *) (d)) : NULL))

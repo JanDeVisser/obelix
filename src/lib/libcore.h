@@ -21,15 +21,22 @@
 #ifndef __LIBCORE_H__
 #define __LIBCORE_H__
 
-#ifndef oblcore_EXPORTS
-#define OBLCORE_IMPEXP extern
-#define OBL_STATIC
-#endif
+#include <oblconfig.h>
 
-#include <config.h>
-#include <core-setup.h>
+#define LIBCORE_IMPLEMENTING
+#define OBLCORE_IMPEXP       __DLL_EXPORT__
+
 #include <core.h>
 
-extern int data_debug;
+extern void     any_init(void);
+extern void     str_init(void);
+extern void     int_init(void);
+extern void     float_init(void);
+extern void     list_init(void);
+extern void     exception_init(void);
+extern void     ptr_init(void);
+extern void     file_init(void);
+
+extern int  data_debug;
 
 #endif /* __LIBCORE_H__ */

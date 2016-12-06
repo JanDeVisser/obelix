@@ -17,8 +17,8 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __CONFIG_H__
-#define __CONFIG_H__
+#ifndef __OBLCONFIG_H__
+#define __OBLCONFIG_H__
 
 /*
  * The configured options and settings for obelix
@@ -122,4 +122,29 @@
 #define HAVE_MAX_PATH                          1
 #endif /* !HAVE_MAX_PATH */
 
-#endif /* __CONFIG_H__ */
+#if (defined __WIN32__) || (defined _WIN32)
+  #ifndef __GNUC__
+    #define __ATTRIBUTE_DLLIMPORT__
+    #define __ATTRIBUTE_DLLEXPORT__
+    #define __DLL_IMPORT__           __declspec(dllimport)
+    #define __DLL_EXPORT__           __declspec(dllexport)
+  #else
+    #define __ATTRIBUTE_DLLIMPORT__  __attribute__((dllimport))
+    #define __ATTRIBUTE_DLLEXPORT__  __attribute__((dllexport))
+    #define __DLL_IMPORT__           __ATTRIBUTE_DLLIMPORT__ extern
+    #define __DLL_EXPORT__           __ATTRIBUTE_DLLEXPORT__ extern
+  #endif
+#else /* !__WIN32__ */
+  #define __ATTRIBUTE_DLLIMPORT__
+  #define __ATTRIBUTE_DLLEXPORT__
+  #define __DLL_IMPORT__           extern
+  #define __DLL_EXPORT__           extern
+#endif /* __WIN32__ */
+
+#ifdef __GNUC__
+#define _unused_ __attribute__((unused))
+#else
+#define _unused_
+#endif
+
+#endif /* __OBLCONFIG_H__ */

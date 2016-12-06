@@ -42,6 +42,8 @@ OBLCORE_IMPEXP data_t *        dictionary_set(dictionary_t *, char *, data_t *);
 OBLCORE_IMPEXP int             dictionary_has(dictionary_t *, char *);
 OBLCORE_IMPEXP int             dictionary_size(dictionary_t *);
 
+OBLCORE_IMPEXP int             Dictionary;
+
 #define data_is_dictionary(d)   ((d) && (data_hastype((data_t *) (d), Dictionary)))
 #define data_as_dictionary(d)   ((dictionary_t *) (data_is_dictionary((data_t *) (d)) ? (d) : NULL))
 #define dictionary_free(s)      (data_free((data_t *) (s)))
@@ -50,8 +52,6 @@ OBLCORE_IMPEXP int             dictionary_size(dictionary_t *);
 #define dictionary_copy(s)      ((dictionary_t *) data_copy((data_t *) (s)))
 #define dictionary_clear(d)     (dict_clear((d) -> attributes))
 #define dictionary_remove(d, k) ((void) (dictionary_pop((d), (k))))
-
-OBLCORE_IMPEXP int Dictionary;
 
 #ifdef __cplusplus
 }

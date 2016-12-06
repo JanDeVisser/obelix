@@ -18,7 +18,6 @@
  */
 
 #include "libnet.h"
-#include <config.h>
 #include <errno.h>
 #include <fcntl.h>
 #ifdef HAVE_NETDB_H
@@ -34,7 +33,7 @@
 
 #include <data.h>
 #include <exception.h>
-#include <socket.h>
+#include <net.h>
 #include <thread.h>
 
 #ifndef HAVE_SOCKLEN_T
@@ -90,7 +89,7 @@ static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
  *   - Allow UDP connections (and unix streams?)
  */
 
-static vtable_t _vtable_socket[] = {
+static vtable_t _vtable_Socket[] = {
   { .id = FunctionCmp,         .fnc = (void_t) socket_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _socket_free },
   { .id = FunctionAllocString, .fnc = (void_t) _socket_allocstring },
@@ -100,7 +99,7 @@ static vtable_t _vtable_socket[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_socket[] = {
+static methoddescr_t _methoddescr_Socket[] = {
   { .type = -1,     .name = "close",     .method = _socket_close,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "listen",    .method = _socket_listen_mth, .argtypes = { Callable, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "interrupt", .method = _socket_interrupt,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -118,11 +117,10 @@ void _socket_init(void) {
   int     result;
 #endif
 
-  if (Socket < 0) {
+  if (Socket < 1) {
     logging_register_category("socket", &socket_debug);
     file_init();
-    Socket = typedescr_create_and_register(Socket, "socket",
-                                           _vtable_socket, _methoddescr_socket);
+    typedescr_register_with_methods(Socket, socket_t);
     typedescr_assign_inheritance(Socket, Stream);
 #ifdef HAVE_WINSOCK2_H
     result = WSAStartup(MAKEWORD(2, 2), &wsadata);

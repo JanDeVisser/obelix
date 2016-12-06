@@ -29,8 +29,8 @@ add_library(oblsql SHARED
 )
 
 target_link_libraries(oblsql PUBLIC ${LIBS})
-include_directories(${INCLUDES})
-link_directories(${LIBDIRS})
+target_include_directories(oblsql PRIVATE ${INCLUDES})
+link_directories(oblsql ${LIBDIRS})
 
 install(TARGETS oblsql
   ARCHIVE DESTINATION lib

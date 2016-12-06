@@ -17,11 +17,9 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <config.h>
-
 #include <time.h>
 
-#include <socket.h>
+#include <net.h>
 #include <array.h>
 #include <loader.h>
 #include <name.h>
@@ -115,7 +113,7 @@ data_t * _oblserver_resolve(oblserver_t *server, char *name) {
 
 /* ------------------------------------------------------------------------ */
 
-oblserver_t * _oblserver_return_error(oblserver_t *server, char *code, 
+oblserver_t * _oblserver_return_error(oblserver_t *server, char *code,
                                       data_t *param) {
   debug(obelix, "Returning error %s %s", code, param);
   stream_printf(server -> stream, "${0;s} ${1}", code, param);
@@ -144,7 +142,7 @@ oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
         break;
 
       default:
-        ret = _oblserver_return_error(server, OBLSERVER_ERROR_RUNTIME, result); 
+        ret = _oblserver_return_error(server, OBLSERVER_ERROR_RUNTIME, result);
         data_free(result);
         result = NULL;
         break;
@@ -153,7 +151,7 @@ oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
   }
   if (result) {
     str = data_tostring(result);
-    stream_printf(server -> stream, OBLSERVER_DATA " ${0;d} ${1;s}", 
+    stream_printf(server -> stream, OBLSERVER_DATA " ${0;d} ${1;s}",
                   strlen(str) + 1, data_typename(result));
     stream_write(server -> stream, str, strlen(str));
     stream_printf(server -> stream, "");
@@ -177,7 +175,7 @@ oblserver_t * _oblserver_create_loader(oblserver_t *server) {
 
 int _oblserver_path(oblserver_t *server, char *path) {
   array_t *loadpath = array_split(path, ":");
-  
+
   _oblserver_create_loader(server);
   debug(obelix, "Adding '%s' to load path", path);
   scriptloader_extend_loadpath(server -> loader, loadpath);
@@ -191,7 +189,7 @@ int _oblserver_run(oblserver_t *server, char *cmd) {
   name_t      *name;
   array_t     *obl_argv;
   data_t      *ret;
-  
+
   _oblserver_create_loader(server);
   debug(obelix, "Executing '%s'", cmd);
   line = array_split(cmd, " ");
@@ -199,7 +197,7 @@ int _oblserver_run(oblserver_t *server, char *cmd) {
     script = str_array_get(line, 0);
     name = obelix_build_name(script);
     obl_argv = array_slice(line, 1, array_size(line));
-    
+
     ret = scriptloader_run(server -> loader, name, obl_argv, NULL);
     _oblserver_return_result(server, ret);
   }
@@ -210,7 +208,7 @@ int _oblserver_run(oblserver_t *server, char *cmd) {
 int _oblserver_eval(oblserver_t *server, char *script) {
   data_t  *ret;
   data_t  *dscript;
-  
+
   _oblserver_create_loader(server);
   debug(obelix, "Evaluating '%s'", script);
   ret = scriptloader_eval(server -> loader, dscript = (data_t *) str_wrap(script));
@@ -228,24 +226,24 @@ int _oblserver_welcome(oblserver_t *server, char *ignore) {
 
 int _oblserver_quit(oblserver_t *server, char *ignore) {
   (void) ignore;
-  
+
   return - OBLSERVER_CODE_BYE;
 }
 
 int _oblserver_detach(oblserver_t *server, char *ignore) {
   data_t *dcookie;
-  
+
   (void) ignore;
-  
+
   if (server -> loader) {
-    _oblserver_return_error(server, OBLSERVER_COOKIE, 
+    _oblserver_return_error(server, OBLSERVER_COOKIE,
                             dcookie = (data_t *) str_wrap(server -> loader -> cookie));
     data_free(dcookie);
-    
-    /* 
+
+    /*
      * Preserve the loader. First free it, which decrements the counter. There
-     * is at least one other copy, in obelix -> loaders. Then set the reference 
-     * in the server to NULL, so it will not be decommissioned when the server 
+     * is at least one other copy, in obelix -> loaders. Then set the reference
+     * in the server to NULL, so it will not be decommissioned when the server
      * is deleted.
      */
     scriptloader_free(server -> loader);
@@ -262,7 +260,7 @@ int _oblserver_attach(oblserver_t *server, char *cookie) {
     server -> loader = loader;
     loader -> lastused = time(NULL);
   } else {
-    _oblserver_return_error(server, OBLSERVER_ERROR_PROTOCOL, 
+    _oblserver_return_error(server, OBLSERVER_ERROR_PROTOCOL,
                             (data_t *) str_wrap(cookie));
   }
   return 0;
@@ -271,7 +269,7 @@ int _oblserver_attach(oblserver_t *server, char *cookie) {
 void * _oblserver_connection_handler(connection_t *connection) {
   obelix_t    *obl = (obelix_t *) connection -> context;
   oblserver_t *server = oblserver_create(obl, data_as_stream(connection -> client));
-  
+
   oblserver_free(oblserver_run(server));
   return connection;
 }
@@ -326,11 +324,10 @@ oblserver_t * oblserver_run(oblserver_t *server) {
 
 int oblserver_start(obelix_t *obelix) {
   socket_t *server;
-  
+
   server = serversocket_create(obelix -> server);
-  socket_listen(server, 
-                _oblserver_connection_handler, 
+  socket_listen(server,
+                _oblserver_connection_handler,
                 obelix);
   return 0;
 }
-

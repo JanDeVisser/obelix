@@ -24,6 +24,7 @@
 #include "libcore.h"
 #include <dict.h>
 #include <logging.h>
+#include <typedescr.h>
 
 typedef struct _logcategory {
   char        *name;
@@ -238,6 +239,7 @@ void __logging_init(void) {
 
 OBLCORE_IMPEXP void logging_init(void) {
   _logging_init();
+  (void) typedescr_get(Int);
 }
 
 OBLCORE_IMPEXP void logging_register_category(char *name, int *flag) {

@@ -23,9 +23,6 @@
 #define PARAM_IGNOREWS     "ignorews"
 #define PARAM_IGNORENL     "ignorenl"
 #define PARAM_IGNOREALL    "ignoreall"
-#define PARAM_ONNEWLINE    "onnewline"
-
-typedef lexer_t (*onnewline_t)(lexer_t *);
 
 typedef enum _ws_scanner_state {
   WSSInit,
@@ -40,7 +37,6 @@ typedef struct _ws_config {
   scanner_config_t  _sc;
   int               ignore_nl;
   int               ignore_ws;
-  function_t       *onnewline;
 } ws_config_t;
 
 static ws_config_t * _ws_config_create(ws_config_t *config, va_list args);
@@ -66,15 +62,12 @@ static int whitespace_debug = 0;
 ws_config_t * _ws_config_create(ws_config_t *config, va_list args) {
   config -> ignore_nl = FALSE;
   config -> ignore_ws = FALSE;
-  config -> onnewline = NULL;
   return config;
 }
 
 ws_config_t * _ws_config_set(ws_config_t *ws_config, char *name, data_t *data) {
-  function_t  *fnc = NULL;
   ws_config_t *ret = ws_config;
 
-  debug(whitespace, "name: %s data: %s", name, data_tostring(data));
   if (!strcmp(name, PARAM_IGNOREWS)) {
     ws_config -> ignore_ws = data_intval(data);
   } else if (!strcmp(name, PARAM_IGNORENL)) {
@@ -82,16 +75,6 @@ ws_config_t * _ws_config_set(ws_config_t *ws_config, char *name, data_t *data) {
   } else if (!strcmp(name, PARAM_IGNOREALL)) {
     ws_config -> ignore_nl = data_intval(data);
     ws_config -> ignore_ws = data_intval(data);
-  } else if (!strcmp(name, PARAM_ONNEWLINE)) {
-    if (data) {
-      fnc = data_as_function(data);
-      if (fnc) {
-        fnc = function_copy(fnc);
-      } else {
-        fnc = function_parse(data_tostring(data));
-      }
-    }
-    ws_config -> onnewline = fnc;
   } else {
     ret = NULL;
   }
@@ -105,8 +88,6 @@ data_t * _ws_config_resolve(ws_config_t *ws_config, char *name) {
     return (data_t *) bool_get(ws_config -> ignore_nl);
   } else if (!strcmp(name, PARAM_IGNOREALL)) {
     return (data_t *) bool_get(ws_config -> ignore_ws && ws_config -> ignore_nl);
-  } else if (!strcmp(name, PARAM_ONNEWLINE)) {
-    return (ws_config -> onnewline) ? data_copy((data_t *) ws_config -> onnewline) : data_null();
   } else {
     return NULL;
   }
@@ -115,9 +96,6 @@ data_t * _ws_config_resolve(ws_config_t *ws_config, char *name) {
 ws_config_t * _ws_config_config(ws_config_t *config, array_t *cfg) {
   array_push(cfg, nvp_create(str_to_data(PARAM_IGNOREWS), (data_t *) bool_get(config -> ignore_ws)));
   array_push(cfg, nvp_create(str_to_data(PARAM_IGNORENL), (data_t *) bool_get(config -> ignore_nl)));
-  if (config -> onnewline) {
-    array_push(cfg, nvp_create(str_to_data(PARAM_ONNEWLINE), (data_t *) function_copy(config -> onnewline)));
-  }
   return config;
 }
 
@@ -135,18 +113,8 @@ token_t * _ws_match(scanner_t *scanner) {
        (scanner -> state != WSSDone) && (scanner -> state != WSSNoWS); ) {
 
     ch = lexer_get_char(scanner -> lexer);
-    if ((ch == '\r') || ((scanner->state != WSSCR) && (ch == '\n'))) {
-      debug(whitespace, "Processing newline %p", ws_config -> onnewline);
-      if (ws_config -> onnewline) {
-        ((onnewline_t) ws_config -> onnewline->fnc)(scanner->lexer);
-        debug(whitespace, "Newline processed");
-      }
-    }
-
     switch (scanner->state) {
-
       case WSSInit:
-        debug(whitespace, "WSSInit");
         if (isspace(ch)) {
           switch (ch) {
             case '\r':
@@ -166,7 +134,6 @@ token_t * _ws_match(scanner_t *scanner) {
         break;
 
       case WSSCR:
-        debug(whitespace, "WSSCR");
         if (ch == '\n') {
           scanner->state = WSSNewline;
           lexer_push(scanner->lexer);
@@ -183,7 +150,6 @@ token_t * _ws_match(scanner_t *scanner) {
         break;
 
       case WSSNewline:
-        debug(whitespace, "WSSNewline");
         if ((ch == '\r') || (ch == '\n')) {
           if (ch == '\r') {
             scanner->state = WSSCR;
@@ -200,7 +166,6 @@ token_t * _ws_match(scanner_t *scanner) {
         break;
 
       case WSSWhitespace:
-        debug(whitespace, "WSSWhitespace");
         if (!isspace(ch) ||
             (!nl_is_ws && ((ch == '\r') || (ch == '\n')))) {
           if (ws_config -> ignore_ws) {
@@ -216,7 +181,6 @@ token_t * _ws_match(scanner_t *scanner) {
     }
   }
   if (scanner -> state == WSSDone) {
-    debug(whitespace, "WSSDone");
     scanner -> lexer -> state = LexerStateSuccess;
   }
   return ret;
