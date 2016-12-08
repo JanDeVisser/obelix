@@ -35,30 +35,32 @@
 #include <str.h>
 #include <typedescr.h>
 
-static inline void _data_init(void);
 static data_t *    _data_call_constructor(data_t *, new_t, va_list);
 static data_t *    _data_call_constructors(typedescr_t *, va_list);
 static void        _data_call_free(typedescr_t *, data_t *);
 static data_t *    _data_call_resolve(typedescr_t *, data_t *, char *);
 static data_t *    _data_call_setter(typedescr_t *, data_t *, char *, data_t *);
 
-int                data_debug = -1;
-int                _data_count = 0;
 
-/* __ATTRIBUTE_DLLEXPORT__ */ type_t type_data[1] = {
-  {
-    .hash     = (hash_t) data_hash,
-    .tostring = (tostring_t) data_tostring,
-    .copy     = (copy_t)  data_copy,
-    .free     = (free_t) data_free,
-    .cmp      = (cmp_t) data_cmp
-  }
+static type_t _type_data = {
+  .hash     = (hash_t) data_hash,
+  .tostring = (tostring_t) data_tostring,
+  .copy     = (copy_t)  data_copy,
+  .free     = (free_t) data_free,
+  .cmp      = (cmp_t) data_cmp
 };
+
+int     data_debug = 0;
+int     _data_count = 0;
+type_t *type_data;
 
 /* -- D A T A  S T A T I C  F U N C T I O N S ----------------------------- */
 
-void _data_init(void) {
-  logging_register_category("data", &data_debug);
+void data_init(void) {
+  if (!type_data) {
+    logging_register_category("data", &data_debug);
+    type_data = &_type_data;
+  }
 }
 
 data_t * _data_call_constructor(data_t *data, new_t n, va_list args) {
@@ -164,7 +166,7 @@ data_t * data_create_noinit(int type) {
 data_t * data_settype(data_t *data, int type) {
   typedescr_t *descr;
 
-  _data_init();
+  data_init();
   assert(data);
   assert(type > 0);
   descr = typedescr_get(type);
@@ -199,7 +201,7 @@ data_t * data_create(int type, ...) {
   typedescr_t *descr;
   factory_t    f;
 
-  _data_init();
+  data_init();
   descr = typedescr_get(type);
   f = (factory_t) typedescr_get_function(descr, FunctionFactory);
   if (f) {
@@ -221,7 +223,7 @@ data_t * data_parse(int type, char *str) {
   typedescr_t *descr;
   void_t       parse;
 
-  _data_init();
+  data_init();
   descr = typedescr_get(type);
   debug(data, "Parsing %s : '%s'", descr -> type_name, str);
   parse = typedescr_get_function(descr, FunctionParse);
@@ -237,7 +239,7 @@ data_t * data_decode(char *encoded) {
   typedescr_t *type;
   data_t      *ret = NULL;
 
-  _data_init();
+  data_init();
   if (encoded && encoded[0]) {
     copy = c_unescape(strdup(encoded));
     debug(data, "Decoding '%s'", copy);

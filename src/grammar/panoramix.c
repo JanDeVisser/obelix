@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
   char      *syspath = NULL;
   int        opt;
 
-  logging_init();
+  application_init("panoramix", argc, argv);
   logging_register_module(panoramix);
   while ((opt = getopt(argc, argv, "s:g:d:v:")) != -1) {
     switch (opt) {
@@ -120,5 +120,6 @@ int main(int argc, char **argv) {
     grammar_dump(grammar);
     grammar_free(grammar);
   }
+  application_terminate();
   return 0;
 }

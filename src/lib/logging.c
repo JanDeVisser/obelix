@@ -85,9 +85,8 @@ logcategory_t * _logcategory_create_nolock(char *name, int *flag) {
     *flag = 0;
   }
   ret -> enabled = 0;
-  pthread_mutex_lock(&_logging_mutex);
   dict_put(_categories, strdup(name), ret);
-  pthread_mutex_unlock(&_logging_mutex);
+  // assert(dict_has_key(_categories, name));
   return ret;
 }
 
@@ -132,7 +131,7 @@ void _logcategory_free(logcategory_t *cat) {
 
 logcategory_t * _logcategory_set(logcategory_t *cat, int value) {
   if (value) {
-    mdebug(core, "Enabling %s logging", cat -> name);
+    debug(core, "Enabling %s logging", cat -> name);
   }
   if (cat -> flag) {
     *(cat -> flag) = value;
@@ -239,7 +238,6 @@ void __logging_init(void) {
 
 OBLCORE_IMPEXP void logging_init(void) {
   _logging_init();
-  (void) typedescr_get(Int);
 }
 
 OBLCORE_IMPEXP void logging_register_category(char *name, int *flag) {
@@ -249,9 +247,14 @@ OBLCORE_IMPEXP void logging_register_category(char *name, int *flag) {
   pthread_mutex_lock(&_logging_mutex);
   if ((cat = dict_get(_categories, name))) {
     cat -> flag = flag;
+    // fprintf(stderr, "logging_register_category('%s') - Turning flag %s\n",
+    //   name, (cat -> enabled) ? "ON" : "OFF");
     *flag = cat -> enabled;
   } else {
-    _logcategory_create_nolock(name, flag);
+    cat = _logcategory_create_nolock(name, flag);
+    assert(*flag == cat -> enabled);
+    // fprintf(stderr, "logging_register_category('%s') - Creating category, setting flag %s\n",
+    //   name, (cat -> enabled) ? "ON" : "OFF");
   }
   pthread_mutex_unlock(&_logging_mutex);
 }

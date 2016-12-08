@@ -80,9 +80,9 @@ static mutex_t  *_driver_mutex = NULL;
 /* -------------------------------------------------------------------------*/
 
 void _sql_init(void) {
-  if (DBConnection < 1) {
+  if (DBConnection < 0) {
     logging_register_module(sql);
-    if (!drivers) {
+    if (!_drivers) {
       _driver_mutex = mutex_create();
       _drivers = dict_create(NULL);
       dict_set_key_type(_drivers, type_str);
@@ -94,6 +94,7 @@ void _sql_init(void) {
     typedescr_register_with_methods(DBConnection, dbconn_t);
     typedescr_register(DBTransaction, tx_t);
   }
+  assert(DBConnection);
 }
 
 /* -- D B C O N N  B A S E  C L A S S ------------------------------------- */

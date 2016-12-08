@@ -82,6 +82,7 @@ typedef data_t * (*setvalue_t)(void *, char *, data_t *);
 typedef data_t * (*data_fnc_t)(data_t *);
 typedef data_t * (*data2_fnc_t)(data_t *, data_t *);
 
+OBLCORE_IMPEXP void                data_init(void);
 OBLCORE_IMPEXP data_t *            data_create_noinit(int);
 OBLCORE_IMPEXP data_t *            data_create(int, ...);
 OBLCORE_IMPEXP data_t *            data_settype(data_t *, int);
@@ -174,7 +175,7 @@ OBLCORE_IMPEXP int             data_list_size(data_t *);
 OBLCORE_IMPEXP int_t *         bool_true;
 OBLCORE_IMPEXP int_t *         bool_false;
 
-OBLCORE_IMPEXP type_t          type_data[1];
+OBLCORE_IMPEXP type_t         *type_data;
 
 #define int_as_bool(i)         ((data_t *) bool_get((i)))
 #define int_to_data(i)         ((data_t *) int_create((i)))

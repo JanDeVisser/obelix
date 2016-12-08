@@ -99,7 +99,7 @@ static vtable_t _vtable_Socket[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_Socket[] = {
+static methoddescr_t _methods_Socket[] = {
   { .type = -1,     .name = "close",     .method = _socket_close,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "listen",    .method = _socket_listen_mth, .argtypes = { Callable, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "interrupt", .method = _socket_interrupt,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },

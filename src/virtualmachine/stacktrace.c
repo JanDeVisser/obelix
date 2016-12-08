@@ -21,7 +21,7 @@
 #include <datastack.h>
 #include <thread.h>
 
-static inline void _stacktrace_init(void) __attribute__((constructor));
+static inline void    _stacktrace_init(void);
 
 static stackframe_t * _stackframe_new(stackframe_t *, va_list);
 static void           _stackframe_free(stackframe_t *);

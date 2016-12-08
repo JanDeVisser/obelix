@@ -34,10 +34,9 @@ static int          _next_interface = NextInterface;
 static int          _num_interfaces = 0;
 
 extern int          _data_count;
-       int          type_debug = 0;
+       int          type_debug = 1;
 
 extern void           any_init(void);
-static inline void    _typedescr_init(void);
 static data_t *       _add_method_reducer(methoddescr_t *, data_t *);
 
 static char *         _methoddescr_tostring(methoddescr_t *);
@@ -133,7 +132,7 @@ static code_label_t _function_id_labels[] = {
 
 /* ------------------------------------------------------------------------ */
 
-void _typedescr_init(void) {
+void typedescr_init(void) {
   if (!descriptors && !_interfaces) {
     logging_register_module(type);
     interface_register(Any,           "any",           0);
@@ -232,7 +231,7 @@ int interface_register(int type, char *name, int numfncs, ...) {
   int          fnc_id;
 
   if (type != Any) {
-    _typedescr_init();
+    typedescr_init();
   }
   if (type < FirstInterface) {
     type = _next_interface++;
@@ -270,7 +269,7 @@ interface_t * interface_get(int type) {
   int          ifix = type - FirstInterface - 1;
   interface_t *ret = NULL;
 
-  _typedescr_init();
+  typedescr_init();
   if ((type > FirstInterface) && (type < _next_interface)) {
     ret = &_interfaces[ifix];
     if (!ret) {
@@ -295,7 +294,7 @@ interface_t * interface_get(int type) {
 interface_t * interface_get_byname(char *name) {
   int          ifix;
 
-  _typedescr_init();
+  typedescr_init();
   for (ifix = 0; ifix < _next_interface - FirstInterface - 1; ifix++) {
     if (!strcmp(_interfaces[ifix].name, name)) {
       return &_interfaces[ifix];
@@ -541,12 +540,15 @@ int _typedescr_register(typedescr_t *descr) {
   int             newcap;
   typedescr_t    *d;
 
-  _typedescr_init();
+  if ((descr -> type != Type) && !descriptors) {
+    typedescr_init();
+  }
+  debug(type, "Registering type '%s' [%d]", descr -> type_name, descr -> type);
   if (descr -> type <= 0) {
     descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
     _numtypes = descr -> type + 1;
+    debug(type, "Giving type '%s' ID %d", descr -> type_name, descr -> type);
   }
-  debug(type, "Registering type '%s' [%d]", descr -> type_name, descr -> type);
   if (descr -> type >= _capacity) {
     for (newcap = (_capacity) ? _capacity * 2 : Dynamic;
          newcap < descr -> type;
@@ -572,7 +574,9 @@ int _typedescr_register(typedescr_t *descr) {
   d -> hash = 0;
   d -> constructors = NULL;
   d -> debug = 0;
-  logging_register_category(d -> type_name, &d -> debug);
+  // if (d -> type != Type) {
+  //   logging_register_category(d -> type_name, &d -> debug);
+  // }
   return d -> type;
 }
 
@@ -649,7 +653,7 @@ typedescr_t * typedescr_assign_inheritance(int type, int inherits) {
 typedescr_t * typedescr_get(int datatype) {
   typedescr_t *ret = NULL;
 
-  _typedescr_init();
+  typedescr_init();
   if ((datatype >= 0) && (datatype < _numtypes)) {
     ret = &descriptors[datatype];
   }
@@ -668,7 +672,7 @@ typedescr_t * typedescr_get_byname(char *name) {
   typedescr_t *ret = NULL;
   int          ix;
 
-  _typedescr_init();
+  typedescr_init();
   for (ix = 0; ix < _numtypes; ix++) {
     if (descriptors[ix].type_name && !strcmp(name, descriptors[ix].type_name)) {
       return &descriptors[ix];

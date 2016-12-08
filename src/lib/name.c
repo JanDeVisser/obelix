@@ -24,9 +24,7 @@
 #include <name.h>
 #include <logging.h>
 #include <str.h>
-#include <wrapper.h>
 
-static inline void   _name_init(void);
 static void          _name_debug(name_t *, char *);
 
 static void          _name_free(name_t *);
@@ -58,7 +56,7 @@ int Name = -1;
 
 /* ----------------------------------------------------------------------- */
 
-void _name_init(void) {
+void name_init(void) {
   if (Name < 1) {
     logging_register_category("name", &name_debug);
     typedescr_register_with_methods(Name, name_t);
@@ -86,7 +84,7 @@ void _name_debug(name_t *name, char *msg) {
 name_t * _name_create(int count) {
   name_t *ret;
 
-  _name_init();
+  name_init();
   ret = data_new(Name, name_t);
   ret -> name = str_array_create(count);
   ret -> sep = NULL;

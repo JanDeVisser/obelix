@@ -79,14 +79,12 @@ extern void _scanner_config_init(void);
 extern void _scanner_init(void);
 
 void lexer_init(void) {
-  fprintf(stderr, "1.Lexer: %d\n", Lexer);
   if (Lexer < 0) {
     _lexer_config_init();
     _scanner_config_init();
     _scanner_init();
     logging_register_category("lexer", &lexer_debug);
     typedescr_register_with_methods(Lexer, lexer_t);
-    fprintf(stderr, "2.Lexer: %d\n", Lexer);
   }
 }
 

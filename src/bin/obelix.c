@@ -138,7 +138,7 @@ int _obelix_cmdline(obelix_t *obelix) {
   data_t         *ret;
 
   ret = obelix_run(obelix, obelix -> script, obelix -> script_args, NULL);
-  if (ex = data_as_exception(ret)) {
+  if ((ex = data_as_exception(ret))) {
     fprintf(stderr, "Error: %s\n", ex -> msg);
     retval = 0 - (int) ex -> code;
   } else {
@@ -156,10 +156,10 @@ name_t * obelix_build_name(char *scriptname) {
   name_t *name;
 
   buf = strdup(scriptname);
-  while (ptr = strchr(buf, '/')) {
+  while ((ptr = strchr(buf, '/'))) {
     *ptr = '.';
   }
-  if (ptr = strrchr(buf, '.')) {
+  if ((ptr = strrchr(buf, '.'))) {
     if (!strcmp(ptr, ".obl")) {
       *ptr = 0;
     }
@@ -175,6 +175,7 @@ obelix_t * obelix_initialize(int argc, char **argv) {
   int opt;
   int ix;
 
+  application_init("obelix", argc, argv);
   _obelix_init();
   debug(obelix, "Initialize obelix kernel");
   _obelix -> argc = argc;

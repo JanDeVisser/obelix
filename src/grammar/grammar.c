@@ -48,7 +48,7 @@ int Grammar = -1;
 /* ------------------------------------------------------------------------ */
 
 extern void grammar_init(void) {
-  if (GrammarAction < 0) {
+  if (GrammarAction < 1) {
     logging_register_category("grammar", &grammar_debug);
     grammar_action_register();
     grammar_element_register();

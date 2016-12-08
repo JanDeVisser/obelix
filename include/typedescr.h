@@ -144,6 +144,7 @@ typedef struct _typedescr {
   int            count;
 } typedescr_t;
 
+OBLCORE_IMPEXP void            typedescr_init(void);
 OBLCORE_IMPEXP data_t *        type_get(int);
 OBLCORE_IMPEXP data_t *        type_get_byname(char *);
 

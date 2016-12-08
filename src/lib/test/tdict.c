@@ -23,7 +23,7 @@
  #include <stdlib.h>
 
 #include <dict.h>
-#
+
 #define MANY 500
 
 typedef struct _test_dict_ctx {
@@ -32,6 +32,14 @@ typedef struct _test_dict_ctx {
   char   **keys;
   int      size;
 } test_dict_ctx_t;
+
+static void _setup(void) {
+  application_init("tdict", 0, NULL);
+}
+
+static void _teardown(void) {
+  application_terminate();
+}
 
 test_dict_ctx_t * ctx_create(int num) {
   test_t           *test;
@@ -46,8 +54,12 @@ test_dict_ctx_t * ctx_create(int num) {
   dict = dict_create((cmp_t) strcmp);
   ck_assert_ptr_ne(dict, NULL);
   ck_assert_int_eq(dict_size(dict), 0);
-  dict_set_hash(dict, (hash_t) strhash);
-  dict_set_free_key(dict, (visit_t) free);
+  dict_set_key_type(dict, type_str);
+  ck_assert_ptr_eq(dict -> key_type.cmp, strcmp);
+  ck_assert_ptr_eq(dict -> key_type.hash, strhash);
+  ck_assert_ptr_eq(dict -> key_type.free, free);
+  // dict_set_hash(dict, (hash_t) strhash);
+  // dict_set_free_key(dict, (visit_t) free);
   dict_set_free_data(dict, (visit_t) test_free);
   keybuf = stralloc(num * 11);
   keys = (char **) resize_ptrarray(NULL, num, 0);
@@ -296,6 +308,7 @@ END_TEST
 void dict_init(void) {
   TCase *tc = tcase_create("Dict");
 
+  tcase_add_checked_fixture(tc, _setup, _teardown);
   tcase_add_test(tc, test_dict_create);
   tcase_add_test(tc, test_dict_put_one);
   tcase_add_test(tc, test_dict_put_one_get_one);

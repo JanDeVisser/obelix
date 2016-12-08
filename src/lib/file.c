@@ -88,7 +88,7 @@ static data_t *      _file_redirect(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_seek(data_t *, char *, array_t *, dict_t *);
 static data_t *      _file_flush(data_t *, char *, array_t *, dict_t *);
 
-static vtable_t _vtable__Stream[] = {
+static vtable_t _vtable_Stream[] = {
   { .id = FunctionFree,        .fnc = (void_t) _stream_free },
   { .id = FunctionRead,        .fnc = (void_t) stream_read },
   { .id = FunctionWrite,       .fnc = (void_t) stream_write },
@@ -98,13 +98,13 @@ static vtable_t _vtable__Stream[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methods__Stream[] = {
+static methoddescr_t _methods_Stream[] = {
   { .type = -1,     .name = "readline", .method = (method_t) _stream_readline, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "print",    .method = (method_t) _stream_print,    .argtypes = { String, Any,    NoType }, .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,       .method = NULL,                        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
-static vtable_t _vtable__File[] = {
+static vtable_t _vtable_File[] = {
   { .id = FunctionCmp,         .fnc = (void_t) file_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _file_free },
   { .id = FunctionAllocString, .fnc = (void_t) _file_allocstring },
@@ -116,7 +116,7 @@ static vtable_t _vtable__File[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methods__File[] = {
+static methoddescr_t _methods_File[] = {
   { .type = -1,     .name = "close",    .method = _file_close,    .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "isopen",   .method = _file_isopen,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "redirect", .method = _file_redirect, .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
@@ -127,7 +127,7 @@ static methoddescr_t _methods__File[] = {
 
 /* ------------------------------------------------------------------------ */
 
-typedef struct _streamiter {
+typedef struct Streamiter {
   data_t   _d;
   data_t  *stream;
   data_t  *selector;
@@ -151,12 +151,12 @@ static vtable_t _vtable_StreamIter[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-int _Stream = -1;
-int _File = -1;
+int Stream = -1;
+int File = -1;
 int StreamIter = -1;
 
-#define data_is_streamiter(d)  ((d) && data_hastype((data_t *) (d), StreamIter))
-#define data_as_streamiter(d)  (data_is_streamiter((d)) ? ((streamiter_t *) (d)) : NULL)
+#define data_isStreamiter(d)  ((d) && data_hastype((data_t *) (d), StreamIter))
+#define data_asStreamiter(d)  (data_isStreamiter((d)) ? ((streamiter_t *) (d)) : NULL)
 #define streamiter_copy(o)     ((streamiter_t *) data_copy((data_t *) (o)))
 #define streamiter_free(o)     (data_free((data_t *) (o)))
 #define streamiter_tostring(o) (data_tostring((data_t *) (o)))
@@ -164,16 +164,15 @@ int StreamIter = -1;
 /* ------------------------------------------------------------------------ */
 
 void file_init(void) {
-  fprintf(stderr, "Stream: %d\n", _Stream);
-  if (_File < 0) {
+  if (File < 1) {
     logging_register_module(file);
-    typedescr_register_with_methods(_Stream, stream_t);
-    typedescr_register_with_methods(_File, file_t);
-    typedescr_assign_inheritance(_File, _Stream);
+    typedescr_register_with_methods(Stream, stream_t);
+    typedescr_register_with_methods(File, file_t);
+    typedescr_assign_inheritance(File, Stream);
     typedescr_register(StreamIter, streamiter_t);
   }
-  assert(_File);
-  assert(_Stream);
+  assert(File);
+  assert(Stream);
   assert(StreamIter);
 }
 
@@ -334,7 +333,7 @@ int stream_read(stream_t *stream, char *buf, int num) {
   return ix;
 }
 
-#define WRITE_TO_STREAM(s, l) if (retval >= 0) {                             \
+#define WRITE_TOStream(s, l) if (retval >= 0) {                             \
     int _len = strlen((l));                                                  \
     debug(file, "Writing %d bytes to %s", _len, stream_tostring((s)));       \
     retval = (s -> writer)((s), (l), _len);                                  \
@@ -409,7 +408,7 @@ int _stream_print_data(stream_t *stream, data_t *s) {
   strcat(buf, "\r");
 #endif /* __WIN32__ */
   strcat(buf, "\n");
-  WRITE_TO_STREAM(stream, buf);
+  WRITE_TOStream(stream, buf);
   free(buf);
   if ((retval >= 0) && data_hasmethod((data_t *) stream, "flush")) {
     r = data_execute((data_t *) stream, "flush", NULL, NULL);
@@ -645,7 +644,7 @@ file_t * file_create(int fh) {
   file_t *ret;
 
   file_init();
-  ret = data_new(_File, file_t);
+  ret = data_new(File, file_t);
   ret -> fh = fh;
   ret -> fname = NULL;
   stream_init((stream_t *) ret, (read_t) file_read, (write_t) file_write);

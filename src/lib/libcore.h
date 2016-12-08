@@ -36,6 +36,8 @@ extern void     list_init(void);
 extern void     exception_init(void);
 extern void     ptr_init(void);
 extern void     file_init(void);
+extern void     mutex_init(void);
+extern void     name_init(void);
 
 extern int  data_debug;
 

@@ -84,16 +84,16 @@ OBLCORE_IMPEXP int          file_isopen(file_t *);
 OBLCORE_IMPEXP int          file_flush(file_t *);
 OBLCORE_IMPEXP int          file_redirect(file_t *, char *);
 
-OBLCORE_IMPEXP int          _Stream;
-OBLCORE_IMPEXP int          _File;
+OBLCORE_IMPEXP int          Stream;
+OBLCORE_IMPEXP int          File;
 
-#define data_is_stream(d)    ((d) && (data_hastype((data_t *) (d), _Stream)))
+#define data_is_stream(d)    ((d) && (data_hastype((data_t *) (d), Stream)))
 #define data_as_stream(d)    ((stream_t *) (data_is_stream((d)) ? ((stream_t *) (d)) : NULL))
 #define stream_tostring(s)   (data_tostring((data_t *) (s)))
 #define stream_free(s)       (data_free((data_t *) (s)))
 #define stream_copy(s)       ((stream_t *) data_copy((data_t *) (s)))
 
-#define data_is_file(d)      ((d) && (data_hastype((data_t *) (d), _File)))
+#define data_is_file(d)      ((d) && (data_hastype((data_t *) (d), File)))
 #define data_as_file(d)      ((file_t *) (data_is_file((d)) ? ((file_t *) (d)) : NULL))
 #define file_free(f)         (data_free((data_t *) (f)))
 #define file_tostring(f)     (data_tostring((data_t *) (f)))

@@ -82,6 +82,11 @@ typedef struct _type {
   cmp_t      cmp;
 } type_t;
 
+typedef struct _application {
+  char         *name;
+  struct _dict *args;
+} application_t;
+
 typedef enum _reduce_type {
   RTObjects = 1,
   RTChars = 2,
@@ -95,6 +100,9 @@ typedef struct _reduce_ctx {
   long            longdata;
   void_t          fnc;
 } reduce_ctx;
+
+OBLCORE_IMPEXP application_t * application_init(const char *, int, char **);
+OBLCORE_IMPEXP void            application_terminate(void);
 
 OBLCORE_IMPEXP void *          _new(int);
 OBLCORE_IMPEXP void *          new_array(int, int);
@@ -143,8 +151,8 @@ OBLCORE_IMPEXP reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 
-OBLCORE_IMPEXP type_t          type_str[1];
-OBLCORE_IMPEXP type_t          type_int[1];
+OBLCORE_IMPEXP type_t          *type_str;
+OBLCORE_IMPEXP type_t          *type_int;
 
 #define new(i)          (_new((i)))
 #define stralloc(n)     ((char *) _new((n) + 1))
