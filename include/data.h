@@ -105,7 +105,9 @@ OBLCORE_IMPEXP data_t *            data_copy(data_t *);
 OBLCORE_IMPEXP data_t *            data_uncopy(data_t *);
 OBLCORE_IMPEXP unsigned int        data_hash(data_t *);
 OBLCORE_IMPEXP data_t *            data_len(data_t *);
-OBLCORE_IMPEXP char *              data_tostring(data_t *);
+OBLCORE_IMPEXP char *              _data_tostring(data_t *);
+OBLCORE_IMPEXP double              _data_floatval(data_t *);
+OBLCORE_IMPEXP int                 _data_intval(data_t *);
 OBLCORE_IMPEXP int                 data_cmp(data_t *, data_t *);
 OBLCORE_IMPEXP data_t *            data_call(data_t *, array_t *, dict_t *);
 OBLCORE_IMPEXP int                 data_hasmethod(data_t *, char *);
@@ -139,8 +141,6 @@ OBLCORE_IMPEXP int_t *             int_create(intptr_t);
 OBLCORE_IMPEXP int_t *             bool_get(long);
 OBLCORE_IMPEXP flt_t *             flt_create(double);
 OBLCORE_IMPEXP pointer_t *         ptr_create(int, void *);
-OBLCORE_IMPEXP double              data_floatval(data_t *);
-OBLCORE_IMPEXP int                 data_intval(data_t *);
 
 #define data_new(dt,st)     ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
 #define data_type(d)        ((d) ? ((data_t *) (d)) -> type : 0)
@@ -181,6 +181,9 @@ OBLCORE_IMPEXP type_t         *type_data;
 #define int_to_data(i)         ((data_t *) int_create((i)))
 #define flt_to_data(f)         ((data_t *) flt_create((f)))
 #define ptr_to_data(s, p)      ((data_t *) ptr_create((s), (p)))
+#define data_intval(d)         (_data_intval((data_t *) (d)))
+#define data_floatval(d)       (_data_floatval((data_t *) (d)))
+#define data_tostring(d)       (_data_tostring((data_t *) (d)))
 
 #define data_true()    ((data_t *) bool_true)
 #define data_false()   ((data_t *) bool_false)

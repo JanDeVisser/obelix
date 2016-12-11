@@ -41,30 +41,30 @@ static void_t _type_initializers[] = {
   NULL
 };
 
-static         data_t *    _any_cmp(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_not(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_and(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_or(data_t *, char *, array_t *, dict_t *);
-static         str_t *     _any_tostring(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_hash(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_len(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_type(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_hasattr(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_getattr(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_setattr(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_callable(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_iterable(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_iterator(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_iter(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_next(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_has_next(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_reduce(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_visit(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_format(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _any_query(data_t *, char *, array_t *, dict_t *);
-static         data_t *    _range_create(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_cmp(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_not(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_and(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_or(data_t *, char *, array_t *, dict_t *);
+static str_t *     _any_tostring(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_hash(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_len(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_type(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_hasattr(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_getattr(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_setattr(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_callable(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_iterable(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_iterator(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_iter(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_next(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_has_next(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_reduce(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_visit(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_format(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_query(data_t *, char *, array_t *, dict_t *);
+static data_t *    _range_create(data_t *, char *, array_t *, dict_t *);
 
-extern         data_t *    _mutex_create(data_t *, char *, array_t *, dict_t *);
+extern data_t *    _mutex_create(data_t *, char *, array_t *, dict_t *);
 
 
 /* ------------------------------------------------------------------------ */

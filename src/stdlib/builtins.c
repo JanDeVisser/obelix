@@ -1,5 +1,5 @@
 /*
- * /obelix/src/script.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/src/stdlib/builtins.c - Copyright (c) 2014 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -26,32 +26,33 @@
 #include <name.h>
 #include <str.h>
 
-extern data_t * _function_print(char *, array_t *, dict_t *);
-extern data_t * _function_sleep(char *, array_t *, dict_t *);
-extern data_t * _function_usleep(char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t * _function_print(char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t * _function_sleep(char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t * _function_usleep(char *, array_t *, dict_t *);
 
 data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
   data_t  *fmt;
   data_t  *s;
-  name_t  *name;
 
   (void) func_name;
   assert(array_size(params));
   fmt = (data_t *) array_get(params, 0);
   assert(fmt);
-  name = name_create(1, "format");
-  if (data_has_callable(fmt, name)) {
+  if ((array_size(params) > 1) || (kwargs && dict_size(kwargs))) {
     params = array_slice(params, 1, -1);
-    s = data_execute(fmt, "format", params, kwargs);
+    s = data_interpolate(fmt, params, kwargs);
     array_free(params);
-
-    printf("%s\n", data_tostring(s));
-    data_free(s);
   } else {
-    printf("%s\n", data_tostring(fmt));
+    s = fmt;
   }
-  name_free(name);
-  return int_to_data(0);
+  if (!data_is_exception(s)) {
+    printf("%s\n", data_tostring(s));
+    if (s != fmt) {
+      data_free(s);
+    }
+    s = data_true();
+  }
+  return s;
 }
 
 data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {

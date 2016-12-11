@@ -122,10 +122,10 @@ typedef struct _methoddescr {
   int       type;
   char     *name;
   method_t  method;
-  int       argtypes[MAX_METHOD_PARAMS];
   int       minargs;
   int       maxargs;
   int       varargs;
+  int       argtypes[MAX_METHOD_PARAMS];
 } methoddescr_t;
 
 typedef struct _typedescr {

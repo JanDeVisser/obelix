@@ -1,5 +1,5 @@
 {
   "execPath": "gcc",
-  "gccDefaultCFlags": "-c -x c -Wall -std=c99 -D_GNU_SOURCE",
+  "gccDefaultCFlags": "-S -x c -Wall -std=c99 -D_GNU_SOURCE",
   "gccIncludePaths": "./build,./include,/usr/include/postgresql"
 }

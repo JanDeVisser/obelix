@@ -44,7 +44,7 @@ static data_t *    _data_call_setter(typedescr_t *, data_t *, char *, data_t *);
 
 static type_t _type_data = {
   .hash     = (hash_t) data_hash,
-  .tostring = (tostring_t) data_tostring,
+  .tostring = (tostring_t) _data_tostring,
   .copy     = (copy_t)  data_copy,
   .free     = (free_t) data_free,
   .cmp      = (cmp_t) data_cmp
@@ -251,6 +251,9 @@ data_t * data_decode(char *encoded) {
       type = typedescr_get_byname(t);
       if (type) {
         ret = data_parse(type -> type, ptr + 1);
+      } else {
+        ret = data_exception(ErrorType, "Cannot decode '%s': Unknown type '%s'",
+          encoded, t);
       }
     }
     free(copy);
@@ -601,7 +604,7 @@ int data_has_callable(data_t *self, name_t *name) {
   return ret;
 }
 
-char * data_tostring(data_t *data) {
+char * _data_tostring(data_t *data) {
   char        *ret;
   typedescr_t *type;
   tostring_t   tostring;
@@ -641,7 +644,7 @@ char * data_tostring(data_t *data) {
   }
 }
 
-double data_floatval(data_t *data) {
+double _data_floatval(data_t *data) {
   double (*fltvalue)(data_t *);
   int    (*intvalue)(data_t *);
   data_t  *flt;
@@ -667,31 +670,29 @@ double data_floatval(data_t *data) {
   }
 }
 
-int data_intval(data_t *data) {
+int _data_intval(data_t *data) {
   int    (*intvalue)(data_t *);
   double (*fltvalue)(data_t *);
-  data_t  *i;
+  data_t  *i = NULL;
   int      ret = 0;
 
-  if (!data) {
-    return 0;
-  }
-  intvalue = (int (*)(data_t *)) data_get_function(data, FunctionIntValue);
-  if (intvalue) {
-    return intvalue(data);
-  } else {
-    fltvalue = (double (*)(data_t *)) data_get_function(data, FunctionFltValue);
-    if (fltvalue) {
-      return (int) fltvalue(data);
+  if (data) {
+    intvalue = (int (*)(data_t *)) data_get_function(data, FunctionIntValue);
+    if (intvalue) {
+      ret = intvalue(data);
     } else {
-      if ((i = data_cast(data, Int)) && !data_is_exception(i)) {
-        ret = ((int_t *) i) -> i;
+      fltvalue = (double (*)(data_t *)) data_get_function(data, FunctionFltValue);
+      if (fltvalue) {
+        ret = (int) fltvalue(data);
+      } else {
+        if ((i = data_cast(data, Int)) && !data_is_exception(i)) {
+          ret = ((int_t *) i) -> i;
+        }
         data_free(i);
-        return ret;
       }
     }
   }
-  return 0;
+  return ret;
 }
 
 int data_cmp(data_t *d1, data_t *d2) {

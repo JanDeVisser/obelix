@@ -1,7 +1,8 @@
 add_library(oblstdlib MODULE
-	builtins.c
-	sys.c
-	net.c
+  builtins.c
+  date.c
+  sys.c
+  net.c
 )
 
 target_link_libraries(oblstdlib PUBLIC oblparser oblvm oblnet)
