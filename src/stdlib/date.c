@@ -286,7 +286,7 @@ char * _timeofday_tostring(datetime_t *time) {
     }
     time -> tm_set = 1;
   }
-  asprintf(&buf, "%d:%d:%d",
+  asprintf(&buf, "%02d:%02d:%02d",
     time -> tm.tm_hour, time -> tm.tm_min, time -> tm.tm_sec);
   return buf;
 }
@@ -498,7 +498,7 @@ char * _date_tostring(datetime_t *time) {
     }
     time -> tm_set = 1;
   }
-  asprintf(&buf, "%4d-%2d-%2d",
+  asprintf(&buf, "%04d-%02d-%02d",
     time -> tm.tm_year + 1970, time -> tm.tm_mon + 1, time -> tm.tm_mday);
   return buf;
 }
@@ -856,4 +856,9 @@ data_t * _function_datetime(data_t *self, char *name, array_t *args, dict_t *kwa
   data_free((data_t *) d);
   data_free((data_t *) t);
   return ret;
+}
+
+data_t * datetime_create(datetime_t *date, datetime_t *timeofday) {
+  _date_init();
+  return data_create(Datetime, DatetimeFlagDateTime, date, timeofday);
 }

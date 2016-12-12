@@ -97,7 +97,6 @@ OBLCORE_IMPEXP struct _typedescr * data_typedescr(data_t *);
 OBLCORE_IMPEXP void_t              data_get_function(data_t *, int);
 OBLCORE_IMPEXP int                 data_implements(data_t *, int);
 OBLCORE_IMPEXP int                 data_is_numeric(data_t *);
-OBLCORE_IMPEXP int                 data_is_exception(data_t *t);
 OBLCORE_IMPEXP int                 data_is_callable(data_t *);
 OBLCORE_IMPEXP int                 data_is_iterable(data_t *);
 OBLCORE_IMPEXP int                 data_is_iterator(data_t *);

@@ -23,6 +23,7 @@
 #include <array.h>
 #include <data.h>
 #include <dict.h>
+#include <exception.h>
 #include <name.h>
 #include <str.h>
 
