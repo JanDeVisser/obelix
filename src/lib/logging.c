@@ -47,6 +47,7 @@ static logcategory_t * _logcategory_set(logcategory_t *, int);
 static void            _logging_set(char *, int);
 static char *          _log_level_str(log_level_t lvl);
 
+static char *          _logfile = NULL;
 static FILE *          _destination = NULL;
 static dict_t *        _categories = NULL;
 static log_level_t     _log_level = LogLevelError;
@@ -181,14 +182,7 @@ void _logging_open_logfile(void) {
   char *logfile = getenv("OBL_LOGFILE");
 
   if (logfile) {
-    _destination = fopen(logfile, "w");
-    if (!_destination) {
-      fprintf(stderr, "Could not open logfile '%s': %s\n", logfile, strerror(errno));
-      fprintf(stderr, "Falling back to stderr\n");
-    }
-  }
-  if (!_destination) {
-    _destination = stderr;
+    _logfile = strdup(logfile);
   }
 }
 
@@ -198,7 +192,6 @@ void __logging_init(void) {
   char                *sepptr;
   pthread_mutexattr_t  attr;
   char                *lvl;
-  long                 level;
 
   // fprintf(stderr, "Initializing logging...\n");
   pthread_mutexattr_init(&attr);
@@ -212,13 +205,7 @@ void __logging_init(void) {
   _logging_open_logfile();
   lvl = getenv("OBL_LOGLEVEL");
   if (lvl && *lvl) {
-    level = -1;
-    if (strtoint(lvl, &level)) {
-      level = code_for_label(_log_level_labels, lvl);
-    }
-    if ((level >= LogLevelDebug) && (level <= LogLevelFatal)) {
-      logging_set_level((log_level_t) level);
-    }
+    logging_set_level(lvl);
   }
 
   cats = getenv("OBL_DEBUG");
@@ -284,6 +271,18 @@ OBLCORE_IMPEXP void logging_disable(char *category) {
 OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, va_list args) {
   char *f;
 
+  if (!_destination) {
+    if (_logfile) {
+      _destination = fopen(_logfile, "w");
+      if (!_destination) {
+        fprintf(stderr, "Could not open logfile '%s': %s\n", _logfile, strerror(errno));
+        fprintf(stderr, "Falling back to stderr\n");
+      }
+    }
+    if (!_destination) {
+      _destination = stderr;
+    }
+  }
   if ((lvl == LogLevelDebug) || (lvl >= _log_level)) {
     f = file;
     if (*file == '/') {
@@ -328,7 +327,29 @@ OBLCORE_IMPEXP int logging_level(void) {
   return _log_level;
 }
 
-OBLCORE_IMPEXP int logging_set_level(log_level_t log_level) {
-  _log_level = log_level;
+OBLCORE_IMPEXP int logging_set_level(char *log_level) {
+  long level = -1;
+
+  if (log_level) {
+    if (strtoint(log_level, &level)) {
+      level = code_for_label(_log_level_labels, log_level);
+    }
+    if ((level >= LogLevelDebug) && (level <= LogLevelFatal)) {
+      _log_level = level;
+    }
+  }
   return _log_level;
+}
+
+OBLCORE_IMPEXP int logging_set_file(char *logfile) {
+  _logging_init();
+  pthread_mutex_lock(&_logging_mutex);
+  if (_destination && (_destination != stderr)) {
+    fclose(_destination);
+  }
+  _destination = NULL;
+  free(_logfile);
+  _logfile = (_logfile) ? strdup(logfile) : NULL;
+  pthread_mutex_unlock(&_logging_mutex);
+  return 0;
 }

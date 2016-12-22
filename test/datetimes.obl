@@ -1,0 +1,25 @@
+import date
+
+d = date(2016, 09, 18)
+print("Date: ${0}", d)
+print("day_of_week: ${0} day_of_year: ${1} seconds_since_epoch: ${2}",
+  d.day_of_week, d.day_of_year, d.seconds_since_epoch)
+
+t = time(15, 35, 7)
+print("Time: ${0}", t)
+print("hour: ${0} minute: ${1} second: ${2} s_since_epoch: ${3}",
+  t.hour, t.minute, t.second, t.seconds_since_epoch)
+
+dt = datetime("2016-09-18", "15:35:07")
+print("Now: ${0} - ${1} ${2}", dt, dt.typeid, dt.typename)
+print("day_of_week: ${0} day_of_year: ${1}",
+  dt.day_of_week, dt.day_of_year)
+print("hour: ${0} minute: ${1} second: ${2} s_since_epoch: ${3}",
+  dt.hour, dt.minute, dt.second, dt.seconds_since_epoch)
+
+dt = datetime(d, t)
+print("Now: ${0} - ${1} ${2}", dt, dt.typeid, dt.typename)
+print("day_of_week: ${0} day_of_year: ${1}",
+  dt.day_of_week, dt.day_of_year)
+print("hour: ${0} minute: ${1} second: ${2} s_since_epoch: ${3}",
+  dt.hour, dt.minute, dt.second, dt.seconds_since_epoch)

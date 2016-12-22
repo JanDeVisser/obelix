@@ -90,6 +90,7 @@ data_t * _obelix_new(obelix_t *obelix, va_list args) {
   if (_obelix) {
     return data_exception(ErrorInternalError, "The Obelix kernel is a singleton");
   }
+  obelix -> logfile = NULL;
   obelix -> options = data_array_create((int) ObelixOptionLAST);
   for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
     obelix_set_option(obelix, ix, 0L);
@@ -191,6 +192,9 @@ void _obelix_debug_settings(obelix_t *obelix) {
     for (ix = 0; ix < array_size(cats); ix++) {
       logging_enable(str_array_get(cats, ix));
     }
+  }
+  if (obelix -> logfile) {
+    logging_set_file(obelix -> logfile);
   }
 }
 
@@ -326,7 +330,7 @@ obelix_t * obelix_initialize(int argc, char **argv) {
   }
   _obelix -> argc = argc;
   _obelix -> argv = argv;
-  while ((opt = getopt(argc, argv, "s:g:d:p:v:ltS")) != -1) {
+  while ((opt = getopt(argc, argv, "s:g:d:f:p:v:ltS")) != -1) {
     switch (opt) {
       case 's':
         _obelix -> syspath = optarg;
@@ -337,11 +341,14 @@ obelix_t * obelix_initialize(int argc, char **argv) {
       case 'd':
         _obelix -> debug = optarg;
         break;
+      case 'f':
+        _obelix -> logfile = optarg;
+        break;
       case 'p':
         _obelix -> basepath = optarg;
         break;
       case 'v':
-        _obelix -> log_level = atoi(optarg);
+        _obelix -> log_level = optarg;
         break;
       case 'l':
         obelix_set_option(_obelix, ObelixOptionList, 1);
@@ -476,7 +483,7 @@ int main(int argc, char **argv) {
   exception_t *ex;
 
   if (!(obelix = obelix_initialize(argc, argv))) {
-    fprintf(stderr, "Usage: obelix [options ...] <filename> [script arguments]\n");
+    fprintf(stderr, "Usage: obelix [options ...] [<script filename> [script arguments]]\n");
     exit(1);
   }
 

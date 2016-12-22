@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
         lexa_add_scanner(lexa, optarg);
         break;
       case 'v':
-        lexa -> log_level = (log_level_t) atoi(optarg);
+        lexa -> log_level = optarg;
         break;
     }
   }

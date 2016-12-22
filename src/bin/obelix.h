@@ -73,7 +73,8 @@ typedef struct _obelix {
   array_t      *script_args;
   char         *grammar;
   char         *debug;
-  log_level_t   log_level;
+  char         *log_level;
+  char         *logfile;
   char         *basepath;
   char         *syspath;
   array_t      *options;

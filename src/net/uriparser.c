@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
         debug = optarg;
         break;
       case 'v':
-        logging_set_level(atoi(optarg));
+        logging_set_level(optarg);
         break;
     }
   }

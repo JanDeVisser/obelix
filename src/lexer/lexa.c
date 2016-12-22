@@ -67,7 +67,7 @@ lexa_t * lexa_create(void) {
   }
   ret = data_new(Lexa, lexa_t);
   ret -> debug = NULL;
-  ret -> log_level = -1;
+  ret -> log_level = NULL;
   ret -> scanners = strdata_dict_create();
   ret -> config = NULL;
   ret -> stream = NULL;
@@ -157,9 +157,7 @@ lexa_t * lexa_debug_settings(lexa_t *lexa) {
   int ix;
 
   logging_init();
-  if ((int) lexa -> log_level != -1) {
-    logging_set_level(lexa -> log_level);
-  }
+  logging_set_level(lexa -> log_level);
   if (lexa -> debug) {
     _debug("debug optarg: %s", lexa -> debug);
     cats = array_split(lexa -> debug, ",");

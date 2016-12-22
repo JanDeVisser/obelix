@@ -49,7 +49,8 @@ OBLCORE_IMPEXP void   _vlogmsg(log_level_t, char *, int, const char *, const cha
 OBLCORE_IMPEXP void   _logmsg(log_level_t, char *, int, const char *, const char *, ...);
 OBLCORE_IMPEXP int    logging_status(char *);
 OBLCORE_IMPEXP int    logging_level(void);
-OBLCORE_IMPEXP int    logging_set_level(log_level_t);
+OBLCORE_IMPEXP int    logging_set_level(char *);
+OBLCORE_IMPEXP int    logging_set_file(char *);
 
 #ifndef NDEBUG
 #ifndef _MSC_VER

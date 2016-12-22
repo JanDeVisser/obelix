@@ -63,7 +63,11 @@ static data_t *    _any_visit(data_t *, char *, array_t *, dict_t *);
 static data_t *    _any_format(data_t *, char *, array_t *, dict_t *);
 static data_t *    _any_query(data_t *, char *, array_t *, dict_t *);
 static data_t *    _range_create(data_t *, char *, array_t *, dict_t *);
+static data_t *    _set_loglevel(data_t *, char *, array_t *, dict_t *);
+static data_t *    _set_logfile(data_t *, char *, array_t *, dict_t *);
+#ifndef NDEBUG
 static data_t *    _enable_debug(data_t *, char *, array_t *, dict_t *);
+#endif /* !NDEBUG */
 
 extern data_t *    _mutex_create(data_t *, char *, array_t *, dict_t *);
 
@@ -103,7 +107,11 @@ static methoddescr_t _methoddescr_interfaces[] = {
   { .type = Incrementable, .name = "~",            .method = (method_t) _range_create,      .argtypes = { Incrementable, Any, Any },  .minargs = 1, .varargs = 0 },
   { .type = Any,           .name = "range",        .method = (method_t) _range_create,      .argtypes = { Incrementable, Incrementable, Any },  .minargs = 1, .varargs = 0 },
   { .type = Any,           .name = "mutex",        .method = (method_t) _mutex_create,      .argtypes = { Any, Any, Any },            .minargs = 0, .varargs = 0 },
+  { .type = Any,           .name = "set_loglevel", .method = (method_t) _set_loglevel,      .argtypes = { Any, Any, Any },            .minargs = 1, .varargs = 0 },
+  { .type = Any,           .name = "set_logfile",  .method = (method_t) _set_logfile,       .argtypes = { Any, Any, Any },            .minargs = 1, .varargs = 0 },
+#ifndef NDEBUG
   { .type = Any,           .name = "enable_debug", .method = (method_t) _enable_debug,      .argtypes = { String, Any, Any },         .minargs = 1, .varargs = 0 },
+#endif /* !NDEBUG */
   { .type = NoType,        .name = NULL,           .method = NULL,                          .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 }
 };
 
@@ -396,9 +404,21 @@ data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   return (data_t *) range_create(from, to);
 }
 
+data_t * _set_loglevel(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return int_to_data(logging_set_level(data_tostring(data_array_get(args, 0))));
+}
+
+data_t * _set_logfile(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  return int_to_data(logging_set_file(data_tostring(data_array_get(args, 0))));
+}
+
+#ifndef NDEBUG
+
 data_t * _enable_debug(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   char *cat = data_tostring(data_array_get(args, 0));
 
   logging_enable(cat);
   return data_copy(data_array_get(args, 0));
 }
+
+#endif /* !NDEBUG */

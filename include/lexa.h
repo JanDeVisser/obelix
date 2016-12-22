@@ -29,7 +29,7 @@ OBLLEXER_IMPEXP int Lexa;
 typedef struct _lexa {
   data_t           _d;
   char            *debug;
-  log_level_t     log_level;
+  char            *log_level;
   dict_t          *scanners;
   lexer_config_t  *config;
   data_t          *stream;
