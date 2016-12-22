@@ -47,6 +47,7 @@ typedef struct _mutex {
 typedef struct _condition {
   data_t             _d;
   mutex_t           *mutex;
+  int                borrowed_mutex;
 #ifdef HAVE_PTHREAD_H
   pthread_cond_t     condition;
 #elif defined(HAVE_INITIALIZECRITICALSECTION)
@@ -66,6 +67,7 @@ OBLCORE_IMPEXP unsigned int  condition_hash(condition_t *);
 OBLCORE_IMPEXP int           condition_cmp(condition_t *, condition_t *);
 OBLCORE_IMPEXP int           condition_acquire(condition_t *);
 OBLCORE_IMPEXP int           condition_tryacquire(condition_t *);
+OBLCORE_IMPEXP int           condition_release(condition_t *);
 OBLCORE_IMPEXP int           condition_wakeup(condition_t *);
 OBLCORE_IMPEXP int           condition_sleep(condition_t *);
 

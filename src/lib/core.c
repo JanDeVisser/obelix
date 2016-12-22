@@ -210,6 +210,35 @@ char * label_for_code(code_label_t *table, int code) {
   return NULL;
 }
 
+char * labels_for_bitmap(code_label_t *table, int bitmap, char *buf, size_t maxlen) {
+  int     bit = 1;
+  int     ix;
+  size_t  len = 0;
+  char   *label;
+
+  buf[0] = 0;
+  for (bit = 1, ix = 8 * sizeof(int) - 1; ix >= 0; ix--, bit <<= 1) {
+    if (bit & bitmap) {
+      if (len) {
+        if (len < maxlen - 3) {
+          strcat(buf, " | ");
+        } else {
+          break;
+        }
+        len += 3;
+      }
+      label = label_for_code(table, bit);
+      len += strlen(label);
+      if (len <= maxlen) {
+        strcat(buf, label);
+      } else {
+        break;
+      }
+    }
+  }
+  return buf;
+}
+
 int code_for_label(code_label_t *table, char *label) {
   assert(table);
   assert(label);
@@ -242,7 +271,7 @@ reduce_ctx * reduce_ctx_create(void *user, void *data, void_t fnc) {
 
 reduce_ctx * collection_hash_reducer(void *elem, reduce_ctx *ctx) {
   hash_t hash = (hash_t) ctx -> fnc;
-  ctx -> longdata += hash(elem);
+  ctx -> longdata = hashblend(hash(elem), (unsigned int) ctx -> longdata);
   return ctx;
 }
 

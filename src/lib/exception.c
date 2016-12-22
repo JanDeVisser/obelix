@@ -28,10 +28,7 @@
 #include <name.h>
 #include <str.h>
 
-static int           num_exceptions;
-static code_label_t *exceptions;
-
-static code_label_t builtin_exceptions[] = {
+static code_label_t _builtin_exceptions[] = {
   { .code = ErrorSyntax,                .label = "ErrorSyntax" },
   { .code = ErrorArgCount,              .label = "ErrorArgCount" },
   { .code = ErrorMaxStackDepthExceeded, .label = "ErrorMaxStackDepthExceeded" },
@@ -51,10 +48,20 @@ static code_label_t builtin_exceptions[] = {
   { .code = ErrorExit,                  .label = "ErrorExit", },
   { .code = ErrorYield,                 .label = "ErrorYield", },
   { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorNoError,               .label = NULL }
 };
 
-static int           num_exceptions = ErrorYield;
-static code_label_t *exceptions = builtin_exceptions;
+static int           _exceptions_sz = 30;
+static code_label_t *_exceptions = _builtin_exceptions;
 
 extern void          exception_init(void);
 extern void          _exception_free(exception_t *);
@@ -79,26 +86,38 @@ static vtable_t _vtable_exception[] = {
 
 /* --  E X C E P T I O N _ T  F U N C T I O N S --------------------------- */
 
-OBLCORE_IMPEXP int exception_register(char *str) {
+OBLCORE_IMPEXP int _exception_register(char *str) {
   code_label_t *new_exceptions;
   int           newsz;
   int           cursz;
+  int           ix;
 
-  newsz = (num_exceptions + 2) * sizeof(code_label_t);
-  cursz = (num_exceptions + 1) * sizeof(code_label_t);
-  if (exceptions == builtin_exceptions) {
-    new_exceptions = (code_label_t *) new(newsz);
-    memcpy(new_exceptions, exceptions, cursz);
-  } else {
-    new_exceptions = (code_label_t *) resize_block(exceptions, newsz, cursz);
+  for (ix = 0; ix < _exceptions_sz; ix++) {
+    if (_exceptions[ix].code == ErrorNoError) {
+      _exceptions[ix].code = ix;
+      _exceptions[ix].label = str;
+      return ix;
+    }
   }
-  exceptions = new_exceptions;
-  num_exceptions++;
-  exceptions[num_exceptions -1].code = num_exceptions;
-  exceptions[num_exceptions -1].label = str;
-  exceptions[num_exceptions].code = ErrorNoError;
-  exceptions[num_exceptions].label = NULL;
-  return num_exceptions;
+
+  cursz = _exceptions_sz * sizeof(code_label_t);
+  newsz = 2 * cursz;
+  if (_exceptions == _builtin_exceptions) {
+    new_exceptions = (code_label_t *) new(newsz);
+    memcpy(new_exceptions, _exceptions, cursz);
+  } else {
+    new_exceptions = (code_label_t *) resize_block(_exceptions, newsz, cursz);
+  }
+  _exceptions = new_exceptions;
+  for (ix = _exceptions_sz + 1; ix < 2 * _exceptions_sz; ix++) {
+    _exceptions[ix].code = ErrorNoError;
+    _exceptions[ix].label = NULL;
+  }
+  ix = _exceptions_sz;
+  _exceptions_sz *= 2;
+  _exceptions[ix].code = ix;
+  _exceptions[ix].label = str;
+  return ix;
 }
 
 exception_t * exception_create(int code, char *msg, ...) {
@@ -161,7 +180,7 @@ char * _exception_allocstring(exception_t *exception) {
   char *buf;
 
   asprintf(&buf, "Error %s (%d): %s",
-          label_for_code(exceptions, exception -> code),
+          label_for_code(_exceptions, exception -> code),
           exception -> code,
           exception -> msg);
   return buf;
@@ -210,7 +229,7 @@ data_t * _exception_resolve(data_t *exception, char *name) {
   } else if (!strcmp(name, "code")) {
     return (data_t *) int_create(e -> code);
   } else if (!strcmp(name, "codename")) {
-    return (data_t *) str_wrap(exceptions[e -> code].label);
+    return (data_t *) str_wrap(_exceptions[e -> code].label);
   } else if (!strcmp(name, "throwable")) {
     return data_copy(e -> throwable);
   } else if (e -> throwable) {

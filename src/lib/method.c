@@ -26,10 +26,12 @@
 #include <method.h>
 
 static void          _mth_init(void);
+static mth_t *       _mth_new(mth_t *, va_list);
 static void          _mth_free(mth_t *);
 static char *        _mth_allocstring(mth_t *);
 
-static vtable_t _vtable_method[] = {
+static vtable_t _vtable_RuntimeMethod[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _mth_new },
   { .id = FunctionFree,        .fnc = (void_t) _mth_free },
   { .id = FunctionCmp,         .fnc = (void_t) mth_cmp },
   { .id = FunctionAllocString, .fnc = (void_t) _mth_allocstring },
@@ -39,15 +41,23 @@ static vtable_t _vtable_method[] = {
 };
 
 int RuntimeMethod = -1;
+int method_debug = 0;
 
 /* -- M T H _ T  S T A T I C  F U N C T I O N S --------------------------- */
 
+mth_t * _mth_new(mth_t *mth, va_list args) {
+  methoddescr_t *md = va_arg(args, methoddescr_t *);
+  data_t        *self = va_arg(args, data_t *);
+
+  mth -> method = md;
+  mth -> self = data_copy(self);
+  return mth;
+}
+
 void _mth_init(void) {
   if (RuntimeMethod < 0) {
-    RuntimeMethod = typedescr_create_and_register(RuntimeMethod,
-                                                  "runtimemethod",
-                                                  _vtable_method,
-                                                  NULL);
+    logging_register_module(method);
+    typedescr_register(RuntimeMethod, mth_t);
   }
 }
 
@@ -69,15 +79,10 @@ char * _mth_allocstring(mth_t *mth) {
 /* -- M T H _ T  P U B L I C  F U N C T I O N S --------------------------- */
 
 mth_t * mth_create(methoddescr_t *md, data_t *self) {
-  mth_t *ret;
-
   assert(md);
   assert(self);
   _mth_init();
-  ret = data_new(RuntimeMethod, mth_t);
-  ret -> method = md;
-  ret -> self = data_copy(self);
-  return ret;
+  return (mth_t *) data_create(RuntimeMethod, md, self);
 }
 
 data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
@@ -89,6 +94,8 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
   int            t;
   int            maxargs = -1;
   data_t        *arg;
+  char           buf[4096];
+  char           argstr[1024];
 
   assert(mth);
   md = mth -> method;
@@ -120,8 +127,9 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
                        type -> type_name, md -> name, maxargs);
     }
   }
+  buf[0] = 0;
   for (i = 0; i < len; i++) {
-    arg = array_get(args, i);
+    arg = data_array_get(args, i);
     if (i < md -> minargs) {
       t = md -> argtypes[i];
     } else {
@@ -136,7 +144,15 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
                         typedescr_get(t) -> type_name,
                         data_typedescr(arg) -> type_name);
     }
+    if (method_debug) {
+      if (i > 0) {
+        strcat(buf, ", ");
+      }
+      snprintf(argstr, 1024, "%s [%s]", data_tostring(data_array_get(args, i)), data_typename(arg));
+      strcat(buf, argstr);
+    }
   }
+  debug(method, "Calling %s -> %s(%s)", data_tostring(mth -> self), md -> name, buf)
   return md -> method(mth -> self, md -> name, args, kwargs);
 }
 

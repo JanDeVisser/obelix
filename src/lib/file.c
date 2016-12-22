@@ -333,7 +333,7 @@ int stream_read(stream_t *stream, char *buf, int num) {
   return ix;
 }
 
-#define WRITE_TOStream(s, l) if (retval >= 0) {                             \
+#define WriteToStream(s, l) if (retval >= 0) {                             \
     int _len = strlen((l));                                                  \
     debug(file, "Writing %d bytes to %s", _len, stream_tostring((s)));       \
     retval = (s -> writer)((s), (l), _len);                                  \
@@ -367,7 +367,7 @@ char * stream_readline(stream_t *stream) {
   int     ch;
   int     cursz = 40;
 
-  buf = (char *) _new(cursz);
+  buf = stralloc(cursz);
   do {
     ch = stream_getchar(stream);
     if ((!ch && !num) || (ch < 0)) {
@@ -408,7 +408,7 @@ int _stream_print_data(stream_t *stream, data_t *s) {
   strcat(buf, "\r");
 #endif /* __WIN32__ */
   strcat(buf, "\n");
-  WRITE_TOStream(stream, buf);
+  WriteToStream(stream, buf);
   free(buf);
   if ((retval >= 0) && data_hasmethod((data_t *) stream, "flush")) {
     r = data_execute((data_t *) stream, "flush", NULL, NULL);

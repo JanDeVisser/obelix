@@ -58,13 +58,42 @@ OBLCORE_IMPEXP int               name_cmp(name_t *, name_t *);
 OBLCORE_IMPEXP int               name_startswith(name_t *, name_t *);
 OBLCORE_IMPEXP unsigned int      name_hash(name_t *);
 
-#define data_is_name(d)  ((d) && (data_hastype((d), Name)))
-#define data_as_name(d)  ((name_t *) (data_is_name((d)) ? (d) : NULL))
-#define name_free(n)     (data_free((data_t *) (n)))
-#define name_tostring(n) (data_tostring((data_t *) (n)))
-#define name_copy(n)     ((name_t *) data_copy((data_t *) (n)))
+#define data_is_name(d)          ((d) && (data_hastype((d), Name)))
+#define data_as_name(d)          ((name_t *) (data_is_name((d)) ? (d) : NULL))
+#define name_free(n)             (data_free((data_t *) (n)))
+#define name_tostring(n)         (data_tostring((data_t *) (n)))
+#define name_copy(n)             ((name_t *) data_copy((data_t *) (n)))
+
+/* ------------------------------------------------------------------------ */
+
+typedef struct _hierarchy {
+  data_t             _d;
+  char              *label;
+  data_t            *data;
+  struct _hierarchy *up;
+  list_t            *branches;
+} hierarchy_t;
+
+OBLCORE_IMPEXP hierarchy_t *     hierarchy_create(void);
+OBLCORE_IMPEXP hierarchy_t *     hierarchy_insert(hierarchy_t *, name_t *, data_t *);
+OBLCORE_IMPEXP hierarchy_t *     hierarchy_append(hierarchy_t *, char *, data_t *);
+OBLCORE_IMPEXP hierarchy_t *     hierarchy_remove(hierarchy_t *, name_t *);
+OBLCORE_IMPEXP hierarchy_t *     hierarchy_get_bylabel(hierarchy_t *, char *);
+OBLCORE_IMPEXP hierarchy_t *     hierarchy_get(hierarchy_t *, int);
+OBLCORE_IMPEXP hierarchy_t *     hierarchy_find(hierarchy_t *, name_t *);
+OBLCORE_IMPEXP hierarchy_t *     hierarchy_match(hierarchy_t *, name_t *, int *);
+OBLCORE_IMPEXP name_t *          hierarchy_name(hierarchy_t *);
+OBLCORE_IMPEXP int               hierarchy_depth(hierarchy_t *);
+OBLCORE_IMPEXP hierarchy_t *     hierarchy_root(hierarchy_t *);
+
+#define data_is_hierarchy(d)     ((d) && (data_hastype((d), Hierarchy)))
+#define data_as_hierarchy(d)     ((hierarchy_t *) (data_is_hierarchy((d)) ? (d) : NULL))
+#define hierarchy_free(n)        (data_free((data_t *) (n)))
+#define hierarchy_tostring(n)    (data_tostring((data_t *) (n)))
+#define hierarchy_copy(n)        ((hierarchy_t *) data_copy((data_t *) (n)))
 
 OBLCORE_IMPEXP int Name;
+OBLCORE_IMPEXP int Hierarchy;
 
 #ifdef	__cplusplus
 }

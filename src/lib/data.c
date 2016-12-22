@@ -436,25 +436,34 @@ data_t * data_resolve(data_t *data, name_t *name) {
   data_t         *ret = NULL;
   data_t         *tail_resolve;
   name_t         *tail;
+  char           *n;
 
   assert(type);
   assert(name);
   mdebug(data, "%s[%s].resolve(%s:%d)",
          data_tostring(data), data_typename(data),
          name_tostring(name), name_size(name));
+  n = (name_size(name)) ? name_first(name) : NULL;
   if (name_size(name) == 0) {
     ret = data_copy(data);
   } else if (name_size(name) == 1) {
-    ret = data_method(data, name_first(name));
+    ret = data_method(data, n);
   }
   if (!ret) {
     ret = _data_call_resolve(type, data, name_first(name));
     if (!ret) {
-      ret = data_exception(ErrorType,
-                           "Cannot resolve name '%s' in %s '%s'",
-                           name_tostring(name),
-                           type -> type_name,
-                           data_tostring(data));
+      if (!strcmp(n, "type")) {
+        ret = (data_t *) type;
+      } else if (!strcmp(n, "typename")) {
+        ret = (data_t *) str_copy_chars(type -> type_name);
+      } else if (!strcmp(n, "typeid")) {
+        ret = int_to_data(type -> type);
+      } else {
+        ret = data_exception(ErrorType,
+                "Cannot resolve name '%s' in %s '%s'",
+                name_tostring(name), type -> type_name,
+                data_tostring(data));
+      }
     }
   }
   if (ret && (!data_is_exception(ret) || data_as_exception(ret) -> handled)

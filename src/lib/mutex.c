@@ -56,7 +56,7 @@ static methoddescr_t _methods_Mutex[] = {
 static int Condition = -1;
 
 static void          _condition_free(condition_t *);
-static data_t *      _condition_new(int, va_list);
+static data_t *      _condition_new(condition_t *, va_list);
 static char *        _condition_tostring(condition_t *);
 static data_t *      _condition_enter(condition_t *);
 static data_t *      _condition_leave(condition_t *, data_t *);
@@ -64,11 +64,12 @@ static data_t *      _condition_leave(condition_t *, data_t *);
 extern data_t *      _condition_create(char *, array_t *, dict_t *);
 
 static data_t *      _condition_acquire(condition_t *, char *, array_t *, dict_t *);
+static data_t *      _condition_release(condition_t *, char *, array_t *, dict_t *);
 static data_t *      _condition_wakeup(condition_t *, char *, array_t *, dict_t *);
 static data_t *      _condition_sleep(condition_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_Condition[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _condition_new },
+  { .id = FunctionNew,      .fnc = (void_t) _condition_new },
   { .id = FunctionCmp,      .fnc = (void_t) condition_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _condition_free },
   { .id = FunctionToString, .fnc = (void_t) _condition_tostring },
@@ -80,6 +81,7 @@ static vtable_t _vtable_Condition[] = {
 
 static methoddescr_t _methods_Condition[] = {
   { .type = -1,     .name = "acquire",   .method = (method_t) _condition_acquire, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "release",   .method = (method_t) _condition_release, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "wakeup",    .method = (method_t) _condition_wakeup,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "sleep",     .method = (method_t) _condition_sleep,   .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,        .method = NULL,                          .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -285,14 +287,18 @@ data_t * _mutex_unlock(mutex_t *mutex, char *name, array_t *args, dict_t *kwargs
 /* -- C O N D I T I O N _ T ----------------------------------------------- */
 /* ------------------------------------------------------------------------ */
 
-data_t * _condition_new(int type, va_list args) {
-  data_t *ret;
+data_t * _condition_new(condition_t *condition, va_list args) {
+  mutex_t *mutex = va_arg(args, mutex_t *);
 
-  ret = (data_t *) condition_create();
-  if (!ret) {
-    ret = data_exception_from_errno();
-  }
-  return ret;
+  condition -> mutex = (mutex) ? mutex_copy(mutex) : mutex_create();
+  condition -> borrowed_mutex = !mutex;
+#ifdef HAVE_PTHREAD_H
+  pthread_cond_init(&condition -> condition, NULL);
+#elif defined(HAVE_INITIALIZECRITICALSECTION)
+  InitializeConditionVariable(&condition -> condition);
+#endif /* HAVE_PTHREAD_H */
+  debug(mutex, "Condition created");
+  return (data_t *) condition;
 }
 
 void _condition_free(condition_t *condition) {
@@ -319,18 +325,8 @@ data_t * _condition_leave(condition_t *condition, data_t *param) {
 /* ------------------------------------------------------------------------ */
 
 condition_t * condition_create() {
-  condition_t  *condition;
-
   mutex_init();
-  condition = data_new(Condition, condition_t);
-  condition -> mutex = mutex_create();
-#ifdef HAVE_PTHREAD_H
-  pthread_cond_init(&condition -> condition, NULL);
-#elif defined(HAVE_INITIALIZECRITICALSECTION)
-  InitializeConditionVariable(&condition -> condition);
-#endif /* HAVE_PTHREAD_H */
-  mdebug(mutex, "Condition created");
-  return condition;
+  return (condition_t *) data_create(Condition, NULL);
 }
 
 int condition_cmp(condition_t *c1, condition_t *c2) {
@@ -348,6 +344,11 @@ unsigned int condition_hash(condition_t *condition) {
 int condition_acquire(condition_t *condition) {
   mdebug(mutex, "Acquiring condition");
   return mutex_lock(condition -> mutex);
+}
+
+int condition_release(condition_t *condition) {
+  mdebug(mutex, "Releasing condition");
+  return mutex_unlock(condition -> mutex);
 }
 
 /**
@@ -426,12 +427,24 @@ data_t * _condition_acquire(condition_t *condition, char *name, array_t *args, d
   } else {
     switch (condition_tryacquire(condition)) {
     	case 1:
-          return data_false();
+        return data_false();
     	case -1:
-          return data_exception_from_errno();
+        return data_exception_from_errno();
     	default:
-          return data_true();
+        return data_true();
     }
+  }
+}
+
+data_t * _condition_release(condition_t *condition, char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) args;
+  (void) kwargs;
+
+  if (condition_release(condition) < 0) {
+    return data_exception_from_errno();
+  } else {
+    return data_true();
   }
 }
 

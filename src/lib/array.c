@@ -165,7 +165,9 @@ array_t * array_split(const char *str, const char *sep) {
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     len = sepptr - ptr;
     c = stralloc(len);
-    strncpy(c, ptr, len);
+    if (len) {
+      strncpy(c, ptr, len);
+    }
     c[len] = 0;
     array_push(ret, c);
     ptr = sepptr + seplen;
@@ -385,6 +387,7 @@ char * array_tostring(array_t *array) {
 
   if (array) {
     str = array_tostr(array);
+    free(array -> str);
     array -> str = strdup(str_chars(str));
     str_free(str);
     return array -> str;

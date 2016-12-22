@@ -38,7 +38,9 @@ extern void     ptr_init(void);
 extern void     file_init(void);
 extern void     mutex_init(void);
 extern void     name_init(void);
+extern void     hierarchy_init(void);
 
 extern int  data_debug;
+extern int  name_debug;
 
 #endif /* __LIBCORE_H__ */

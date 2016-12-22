@@ -43,7 +43,7 @@ conditional                 := "if"              [ if                        ]
                                statements
                                elif_seq
                                else
-                               end               [ end_conditional           ]
+                               "end"             [ end_conditional           ]
                              ;
 
 elif_seq                    := elif
@@ -61,13 +61,10 @@ else                        := "else"            [ else                      ]
                              |
                              ;
 
-end                         := "end"
-                             ;
-
 while_loop                  := "while"           [ start_loop                ]
                                expr              [ test                      ]
                                statements
-                               end               [ end_loop                  ]
+                               "end"             [ end_loop                  ]
                              ;
 
 for_loop                    := "for"
@@ -75,7 +72,7 @@ for_loop                    := "for"
                                "in"
                                expr              [ for                       ]
                                statements
-                               end               [ end_loop                  ]
+                               "end"             [ end_loop                  ]
                              ;
 
 break                       := "break"           [ break                     ]
@@ -87,7 +84,7 @@ continue                    := "continue"        [ continue                  ]
 switch                      := "switch"          [ if                        ]
                                expr              [ stash: 0 new_counter      ]
                                cases             [ discard_counter           ]
-                               end               [ end_conditional           ]
+                               "end"             [ end_conditional           ]
                              ;
 
 cases                       := cases_seq
@@ -136,7 +133,7 @@ func_type                   := "func"            [ pushval: 0                ]
 func_block                  :=                   [ start_function            ]
                                baseclasses
                                statements
-                               end               [ end_function              ]
+                               "end"             [ end_function              ]
                              | link_clause       [ native_function           ]
                              ;
 
@@ -188,7 +185,7 @@ lambda                      := "lambda"
                                )                 [ rollup_list
                                                    start_lambda              ]
                                statements
-                               end               [ end_lambda                ]
+                               "end"             [ end_lambda                ]
                              ;
 
 return_stmt                 := "return"
@@ -212,7 +209,7 @@ context_block               := "context"
                                identifier
                                assignment_or_empty [ begin_context_block     ]
                                statements
-                               end                 [ end_context_block       ]
+                               "end"               [ end_context_block       ]
                              ;
 
 assignment_or_empty         :=                   [ dup                       ]

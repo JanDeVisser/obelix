@@ -188,7 +188,7 @@ int _nonterminal_check_LL1(nonterminal_t *nonterminal) {
 }
 
 void _nonterminal_build_parse_table(nonterminal_t *nonterminal) {
-  nonterminal -> parse_table = intdict_create();
+  nonterminal -> parse_table = intdata_dict_create();
   if (nonterminal -> parse_table) {
     array_visit(nonterminal -> rules, (visit_t) _rule_build_parse_table);
   }

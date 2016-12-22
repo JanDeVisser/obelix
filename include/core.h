@@ -53,6 +53,8 @@ typedef struct _code_label {
   char *label;
 } code_label_t;
 
+#define code_label(c)       { .code = c, .label = #c }
+
 typedef void      (*void_t)(void);
 typedef void      (*voidptr_t)(void *);
 typedef void *    (*voidptrvoidptr_t)(void *);
@@ -144,6 +146,7 @@ OBLCORE_IMPEXP char *          unescape(char *, char);
 #define c_unescape(s)          (unescape((s), '\\'))
 
 OBLCORE_IMPEXP char *          label_for_code(code_label_t *, int);
+OBLCORE_IMPEXP char *          labels_for_bitmap(code_label_t *, int, char *, size_t);
 OBLCORE_IMPEXP int             code_for_label(code_label_t *, char *);
 
 OBLCORE_IMPEXP reduce_ctx *    reduce_ctx_create(void *, void *, void_t);

@@ -66,7 +66,9 @@ typedef int         (*socket_fnc_t)(SOCKET, struct sockaddr *, socklen_t);
 
 static void         _socket_init(void);
 static socket_t *   _socket_create(SOCKET, char *, char *);
+static socket_t *   _socket_error(char *, char *, char *, ...);
 static socket_t *   _socket_open(char *, char *, socket_fnc_t);
+static socket_t *   _socket_new(socket_t *, va_list);
 static char *       _socket_allocstring(socket_t *);
 static void         _socket_free(socket_t *);
 static int          _socket_listen(socket_t *, service_t, void *, int);
@@ -74,7 +76,6 @@ static int          _socket_accept_loop(socket_t *);
 static int          _socket_accept(socket_t *);
 static void *       _socket_connection_handler(connection_t *);
 static socket_t *   _socket_setopt(socket_t *, int);
-static void         _socket_set_errno(socket_t *, char *);
 
 static data_t *     _socket_resolve(socket_t *, char *);
 static data_t *     _socket_leave(socket_t *, data_t *);
@@ -90,6 +91,7 @@ static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
  */
 
 static vtable_t _vtable_Socket[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _socket_new },
   { .id = FunctionCmp,         .fnc = (void_t) socket_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _socket_free },
   { .id = FunctionAllocString, .fnc = (void_t) _socket_allocstring },
@@ -108,6 +110,7 @@ static methoddescr_t _methods_Socket[] = {
 
 int Socket = -1;
 int socket_debug;
+int ErrorSocket = -1;
 
 /* ------------------------------------------------------------------------ */
 
@@ -122,6 +125,8 @@ void _socket_init(void) {
     file_init();
     typedescr_register_with_methods(Socket, socket_t);
     typedescr_assign_inheritance(Socket, Stream);
+    exception_register(ErrorSocket);
+
 #ifdef HAVE_WINSOCK2_H
     result = WSAStartup(MAKEWORD(2, 2), &wsadata);
     if (result) {
@@ -133,19 +138,70 @@ void _socket_init(void) {
 
 /* -- S O C K E T  S T A T I C  F U N C T I O N S  ------------------------ */
 
+socket_t * _socket_new(socket_t *socket, va_list args) {
+  char   *host = va_arg(args, char *);
+  char   *service = va_arg(args, char *);
+
+  // TODO: Add other bits from struct addrinfo into socket_t
+  socket -> host = (host) ? strdup(host) : NULL;
+  socket -> service = strdup(service);
+  socket -> fh = -1;
+  socket -> error = NULL;
+  stream_init((stream_t *) socket,
+      (read_t) socket_read,
+      (write_t) socket_write);
+  return socket;
+}
+
+void _socket_free(socket_t *socket) {
+  if (socket) {
+    data_free(socket -> error);
+    socket_close(socket);
+    free(socket -> host);
+    free(socket -> service);
+    thread_free(socket -> thread);
+  }
+}
+
+char * _socket_allocstring(socket_t *socket) {
+  char *buf;
+
+  asprintf(&buf, "%s:%s", socket -> host, socket -> service);
+  return buf;
+}
+
+data_t * _socket_resolve(socket_t *s, char *attr) {
+  if (!strcmp(attr, "host") && s -> host) {
+    return str_to_data(s -> host);
+  } else if (!strcmp(attr, "service")) {
+    return str_to_data(s -> service);
+  } else if (!strcmp(attr, "error")) {
+    return data_copy(s -> error);
+  } else {
+    return NULL;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+
 socket_t * _socket_create(SOCKET fh, char *host, char *service) {
   socket_t *ret;
 
   _socket_init();
-  ret = data_new(Socket, socket_t);
-
-  // TODO: Add other bits from struct addrinfo into socket_t
-  ret -> host = (host) ? strdup(host) : NULL;
-  ret -> service = strdup(service);
+  ret = (socket_t *) data_create(Socket, host, service);
   ret -> fh = fh;
-  stream_init((stream_t *) ret,
-      (read_t) socket_read,
-      (write_t) socket_write);
+  return ret;
+}
+
+socket_t * _socket_error(char *host, char *service, char *fmt, ...) {
+  va_list      args;
+  socket_t    *ret;
+
+  _socket_init();
+  va_start(args, fmt);
+  ret = socket_set_error((socket_t *) data_create(Socket, host, service),
+            (data_t *) exception_vcreate(ErrorSocket, fmt, args));
+  va_end(args);
   return ret;
 }
 
@@ -165,8 +221,8 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
 
   s = getaddrinfo(host, service, &hints, &result);
   if (s != 0) {
-    error("getaddrinfo: %s", gai_strerror(s));
-    return NULL;
+    return _socket_error(host, service, "Error in getaddrinfo('%s', '%s'): %s",
+      host, service, gai_strerror(s));
   }
 
   /*
@@ -209,35 +265,10 @@ socket_t * _socket_open(char *host, char *service, socket_fnc_t fnc) {
   }
   freeaddrinfo(result);
   if (!ret) { /* No address succeeded */
-    error("Could not connect...");
+    ret = _socket_error(host, service,
+      "Could not connect '%s':'%s' on any address", host, service);
   }
   return ret;
-}
-
-void _socket_free(socket_t *socket) {
-  if (socket) {
-    socket_close(socket);
-    free(socket -> host);
-    free(socket -> service);
-    thread_free(socket -> thread);
-  }
-}
-
-char * _socket_allocstring(socket_t *socket) {
-  char *buf;
-
-  asprintf(&buf, "%s:%s", socket -> host, socket -> service);
-  return buf;
-}
-
-data_t * _socket_resolve(socket_t *s, char *attr) {
-  if (!strcmp(attr, "host") && s -> host) {
-    return str_to_data(s -> host);
-  } else if (!strcmp(attr, "service")) {
-    return str_to_data(s -> service);
-  } else {
-    return NULL;
-  }
 }
 
 data_t *_socket_leave(socket_t * socket, data_t *param) {
@@ -276,7 +307,7 @@ int _socket_accept(socket_t *socket) {
   if (client_fd > 0) {
     if (TEMP_FAILURE_RETRY(getnameinfo((struct sockaddr *) &client, sz,
 				       hoststr, 80, portstr, 32, 0))) {
-      _socket_set_errno(socket, "getnameinfo()");
+      socket_set_errno(socket, "getnameinfo()");
       return -1;
     }
     connection = NEW(connection_t);
@@ -287,11 +318,11 @@ int _socket_accept(socket_t *socket) {
                                       (threadproc_t) _socket_connection_handler,
                                       connection);
     if (!connection -> thread) {
-      error("Could not create connection service thread");
+      socket_set_errormsg(socket, "Could not create connection service thread");
       return -1;
     }
   } else {
-    _socket_set_errno(socket, "accept()");
+    socket_set_errno(socket, "accept()");
     return -1;
   }
   return 0;
@@ -311,12 +342,12 @@ int _socket_accept_loop(socket_t *socket) {
     /* select returns 0 if timeout, 1 if input available, -1 if error. */
     err = TEMP_FAILURE_RETRY(select(FD_SETSIZE, &set, NULL, NULL, &timeout));
     if (err < 0) {
-      _socket_set_errno(socket, "select()");
+      socket_set_errno(socket, "select()");
       return -1;
     } else if (err > 0) {
       err = TEMP_FAILURE_RETRY(_socket_accept(socket));
       if (err) {
-	break;
+        break;
       }
     }
   }
@@ -326,7 +357,7 @@ int _socket_accept_loop(socket_t *socket) {
 
 int _socket_listen(socket_t *socket, service_t service, void *context, int async) {
   if (TEMP_FAILURE_RETRY(listen(socket -> fh, 5))) {
-    error("Error setting up listener");
+    socket_set_errormsg(socket, "Error setting up listener");
     return -1;
   } else {
     socket -> service_handler = service;
@@ -339,7 +370,7 @@ int _socket_listen(socket_t *socket, service_t service, void *context, int async
 		                    (threadproc_t) _socket_accept_loop,
                                     socket);
       if (!socket -> thread) {
-        error("Could not create listener thread");
+        socket_set_errormsg(socket, "Could not create listener thread");
         return -1;
       }
     }
@@ -366,25 +397,6 @@ socket_t * _socket_setopt(socket_t *socket, int opt) {
 #endif
 }
 
-void _socket_set_errno(socket_t *socket, char *msg) {
-  stream_t *s = (stream_t *) socket;
-#ifdef HAVE_WINSOCK2_H
-  s -> _errno = WSAGetLastError();
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL, WSAGetLastError(),
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPSTR) &s -> error, 0, NULL);
-#else
-  int len;
-
-  socket_set_errno(socket);
-  len = strlen(strerror(socket_errno(s)));
-  s -> error = (char *) _new(len + 1);
-  strerror_r(socket_errno(s), s -> error, len + 1);
-#endif
-  error("%s: %s (%d)", msg, s -> error, s -> _errno);
-}
-
 /* -- S O C K E T  P U B L I C  A P I ------------------------------------- */
 
 socket_t * socket_create(char *host, int port) {
@@ -392,6 +404,14 @@ socket_t * socket_create(char *host, int port) {
 
   snprintf(service, 32, "%d", port);
   return socket_create_byservice(host, service);
+}
+
+socket_t * socket_open(uri_t *uri) {
+  if (uri -> port) {
+    return socket_create(uri -> host, uri -> port);
+  } else {
+    return socket_create_byservice(uri -> host, uri -> scheme);
+  }
 }
 
 socket_t * socket_create_byservice(char *host, char *service) {
@@ -412,9 +432,66 @@ socket_t * serversocket_create_byservice(char *service) {
   return _socket_open(NULL, service, (socket_fnc_t) bind);
 }
 
+/* -- E R R O R  H A N D L I N G ------------------------------------------ */
+
+socket_t * socket_clear_error(socket_t *s) {
+  ((stream_t *) s) -> _errno = 0;
+  data_free(s -> error);
+  s -> error = NULL;
+  return s;
+}
+
+socket_t * socket_set_errormsg(socket_t *socket, char *fmt, ...) {
+  data_t  *error;
+  va_list  args;
+
+  va_start(args, fmt);
+  error = (data_t *) exception_vcreate(ErrorSocket, fmt, args);
+  va_end(args);
+  return socket_set_error(socket, error);
+}
+
+socket_t * socket_set_errno(socket_t *socket, char *msg) {
+  char     *error;
+  stream_t *s = (stream_t *) socket;
+
+#ifdef HAVE_WINSOCK2_H
+  s -> _errno = WSAGetLastError();
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL, WSAGetLastError(),
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPSTR) &error, 0, NULL);
+#else
+  int len;
+
+  s -> _errno = errno;
+  len = strlen(strerror(socket_errno(s)));
+  error = stralloc(len + 1);
+  strerror_r(socket_errno(s), error, len + 1);
+#endif
+  socket_set_errormsg(socket, "%s failed: %s (%d)",
+    msg, error, socket_errno(socket));
+  return socket;
+}
+
+socket_t * socket_set_error(socket_t *socket, data_t *error) {
+  socket_clear_error(socket);
+  debug(socket, "Setting error on '%s': %s",
+    socket_tostring(socket), data_tostring(error))
+  socket -> error = error;
+  return socket;
+}
+
+/* ------------------------------------------------------------------------ */
+
 int socket_close(socket_t *socket) {
+  int ret;
+
   socket_interrupt(socket);
-  return closesocket(socket -> fh);
+  if ((ret = closesocket(socket -> fh))) {
+    socket_set_errno(socket, "closesocket()");
+  }
+  return ret;
 }
 
 int socket_cmp(socket_t *s1, socket_t *s2) {
@@ -451,7 +528,7 @@ socket_t * socket_nonblock(socket_t *socket) {
   ret = ioctlsocket(socket -> fh, FIONBIO, &nonblock) ? NULL : socket;
 #endif /* _WIN32 */
   if (!ret) {
-    _socket_set_errno(socket, "nonblock()");
+    socket_set_errno(socket, "nonblock()");
     return NULL;
   } else {
     return socket;
@@ -479,7 +556,7 @@ int _socket_readblock(socket_t *socket, void *buf, int num) {
 #endif /* HAVE_WINSOCK2_H */
     debug(socket, "socket_read(%s, %d) Blocked", data_tostring((data_t *) socket), num);
   } else {
-    _socket_set_errno(socket, "socket_read()->recv()");
+    socket_set_errno(socket, "socket_read()->recv()");
     ret = -1;
   }
   return ret;
@@ -506,7 +583,7 @@ int socket_read(socket_t *socket, void *buf, int num) {
       debug(socket, "socket_read(%s, %d) select()", data_tostring((data_t *) socket), num);
       err = TEMP_FAILURE_RETRY(select(1, &set, NULL, NULL, &timeout));
       if (err < 0) {
-        _socket_set_errno(socket, "socket_read()->select()");
+        socket_set_errno(socket, "socket_read()->select()");
         return -1;
       }
     } while (!err);
@@ -532,7 +609,7 @@ int socket_write(socket_t *socket, void *buf, int num) {
       num = num - numsend;
       buf = (void *) (((char *) buf) + numsend);
     } else {
-      _socket_set_errno(socket, "send()");
+      socket_set_errno(socket, "send()");
       ret = -1;
     }
   } while ((ret > 0) && (num > 0));
@@ -544,7 +621,7 @@ int socket_write(socket_t *socket, void *buf, int num) {
 data_t * _socket_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   socket_t *s = (socket_t *) self;
 
-  return int_to_data(socket_close(s));
+  return (socket_close(s)) ? data_copy(s -> error) : data_true();
 }
 
 data_t * _socket_listen_mth(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -553,10 +630,11 @@ data_t * _socket_listen_mth(data_t *self, char *name, array_t *args, dict_t *kwa
   (void) name;
   (void) kwargs;
   if (socket -> host) {
-    return data_exception(ErrorIOError, "Cannot listen - socket is not a server socket");
+    return data_exception(ErrorSocket,
+      "Cannot listen - socket '%s' is not a server socket", socket_tostring(socket));
   } else {
     if (socket_listen(socket, connection_listener_service, data_array_get(args, 0))) {
-      return data_exception_from_errno();
+      return data_copy(socket -> error);
     } else {
       return data_true();
     }
@@ -569,10 +647,12 @@ data_t * _socket_interrupt(data_t *self, char *name, array_t *args, dict_t *kwar
   (void) name;
   (void) kwargs;
   if (socket -> host) {
-    return data_exception(ErrorIOError, "Cannot interrupt - socket is not a server socket");
+    return data_exception(ErrorSocket,
+      "Socket '%s' cannot be interrupted because it is not a server socket",
+      socket_tostring(socket));
   } else {
     socket_interrupt(socket);
-      return data_true();
+    return data_true();
   }
 }
 

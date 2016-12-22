@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -46,6 +47,7 @@ static logcategory_t * _logcategory_set(logcategory_t *, int);
 static void            _logging_set(char *, int);
 static char *          _log_level_str(log_level_t lvl);
 
+static FILE *          _destination = NULL;
 static dict_t *        _categories = NULL;
 static log_level_t     _log_level = LogLevelError;
        int             core_debug = 0;
@@ -140,19 +142,6 @@ logcategory_t * _logcategory_set(logcategory_t *cat, int value) {
   return cat;
 }
 
-logcategory_t  * _logcategory_logmsg(logcategory_t *cat, log_level_t lvl, char *file, int line, char *msg, ...) {
-  va_list  args;
-
-  if (lvl >= cat -> level) {
-    va_start(args, msg);
-    fprintf(stderr, "%-12.12s:%4d:%-5.5s:", file, line, _log_level_str(lvl));
-    vfprintf(stderr, msg, args);
-    fprintf(stderr, "\n");
-    va_end(args);
-  }
-  return cat;
-}
-
 int * _logging_set_reducer(logcategory_t *cat, int *value) {
   _logcategory_set(cat, *value);
   return value;
@@ -188,6 +177,21 @@ char * _log_level_str(log_level_t lvl) {
 
 /* ------------------------------------------------------------------------ */
 
+void _logging_open_logfile(void) {
+  char *logfile = getenv("OBL_LOGFILE");
+
+  if (logfile) {
+    _destination = fopen(logfile, "w");
+    if (!_destination) {
+      fprintf(stderr, "Could not open logfile '%s': %s\n", logfile, strerror(errno));
+      fprintf(stderr, "Falling back to stderr\n");
+    }
+  }
+  if (!_destination) {
+    _destination = stderr;
+  }
+}
+
 void __logging_init(void) {
   char                *cats;
   char                *ptr;
@@ -205,6 +209,7 @@ void __logging_init(void) {
   _categories = strvoid_dict_create();
   dict_set_data_type(_categories, &_type_logcategory);
 
+  _logging_open_logfile();
   lvl = getenv("OBL_LOGLEVEL");
   if (lvl && *lvl) {
     level = -1;
@@ -289,9 +294,9 @@ OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, char *file, int line, const char *
         f = f + 1;
       }
     }
-    fprintf(stderr, "%-12.12s:%4d:%-20.20s:%-5.5s:", f, line, caller, _log_level_str(lvl));
-    vfprintf(stderr, msg, args);
-    fprintf(stderr, "\n");
+    fprintf(_destination, "%-12.12s:%4d:%-20.20s:%-5.5s:", f, line, caller, _log_level_str(lvl));
+    vfprintf(_destination, msg, args);
+    fprintf(_destination, "\n");
   }
 }
 

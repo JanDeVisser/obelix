@@ -42,6 +42,7 @@ typedef struct _scriptloader {
   char          *system_dir;
   grammar_t     *grammar;
   namespace_t   *ns;
+  parser_t      *parser;
   array_t       *options;
   char          *cookie;
   time_t         lastused;

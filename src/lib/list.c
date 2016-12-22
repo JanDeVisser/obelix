@@ -29,7 +29,7 @@ static listnode_t *     _ln_init(listnode_t *, list_t *, void *);
 static listnode_t *     _ln_create(list_t *, void *);
 static void             _ln_free(listnode_t *);
 
-#define _ln_datanode(n) (((n) -> next) && ((n) -> prev))
+#define _ln_datanode(n) ((n) && ((n) -> next) && ((n) -> prev))
 
 static int              _list_append_fragment(list_t *, listnode_t *, listnode_t *);
 
@@ -150,6 +150,7 @@ list_t * _list_set_hash(list_t *list, hash_t hash) {
 
 void list_free(list_t *list) {
   if (list && (list != EmptyList)) {
+    free(list -> str);
     list_clear(list);
     free(list);
   }
@@ -159,12 +160,11 @@ unsigned int list_hash(list_t *list) {
   unsigned int hash;
   reduce_ctx *ctx;
 
-  if (!list -> type.hash) {
-    hash = hashptr(list);
-  } else {
+  hash = hashptr(list);
+  if (list -> type.hash && list_size(list)) {
     ctx = NEW(reduce_ctx);
     ctx -> fnc = (void_t) list -> type.hash;
-    ctx -> longdata = 0;
+    ctx -> longdata = hash;
     list_reduce(list, (reduce_t) collection_hash_reducer, ctx);
     hash = (unsigned int) ctx -> longdata;
     free(ctx);
@@ -303,6 +303,16 @@ list_t * list_clear(list_t *list) {
   return list;
 }
 
+void * list_get(list_t *list, int ix) {
+  int         i;
+  listnode_t *node = NULL;;
+
+  if ((ix >= 0) && (ix < list_size(list))) {
+    for (i = 0, node = list -> head.next; i < ix; i++, node = node -> next);
+  }
+  return (_ln_datanode(node)) ? node -> data : NULL;
+}
+
 void * list_head(list_t *list) {
   listnode_t *node = list -> head.next;
 
@@ -367,14 +377,36 @@ str_t * list_tostr(list_t *list) {
   str_t *ret;
   str_t *catted;
 
-  ret = str_copy_chars("[");
-  catted = str_join(", ", list, _list_reduce_chars);
-  if (ret && catted) {
-    str_append(ret, catted);
-    str_append_chars(ret, "]");
+  if (list) {
+    if (!list -> size) {
+      ret = str_wrap("<>");
+    } else {
+      ret = str_copy_chars("<");
+      catted = str_join(", ", list, _list_reduce_chars);
+      if (ret && catted) {
+        str_append(ret, catted);
+        str_append_chars(ret, ">");
+      }
+      str_free(catted);
+    }
+  } else {
+    ret = str_wrap("Null");
   }
-  str_free(catted);
   return ret;
+}
+
+char * list_tostring(list_t *list) {
+  str_t *str;
+
+  if (list) {
+    str = list_tostr(list);
+    free(list -> str);
+    list -> str = strdup(str_chars(str));
+    str_free(str);
+    return list -> str;
+  } else {
+    return NULL;
+  }
 }
 
 listiterator_t * list_start(list_t *list) {

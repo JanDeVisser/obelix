@@ -25,13 +25,15 @@
 #include <str.h>
 
 typedef enum _datetime_flag {
-  DatetimeFlagCopy = -3,
-  DatetimeFlagDateTime = -2,
-  DatetimeFlagTimeT = -1,
-  DatetimeFlagParse = 0,
-  DatetimeFlagHM = 2,
-  DatetimeFlagHMS = 3,
-  DatetimeFlagYMD = 4,
+  DatetimeFlagCopy,
+  DatetimeFlagDateTime,
+  DatetimeFlagTimeT,
+  DatetimeFlagParse,
+  DatetimeFlagHM,
+  DatetimeFlagHMS,
+  DatetimeFlagDataHMS,
+  DatetimeFlagYMD,
+  DatetimeFlagDataYMD,
 } datetime_flag_t;
 
 typedef struct _datetime {
@@ -94,12 +96,12 @@ static data_t *     _date_set(datetime_t *, char *, data_t *);
 static data_t *     _function_date(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_Date[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _date_new },
-  { .id = FunctionToString, .fnc = (void_t) _date_tostring },
-  { .id = FunctionParse,    .fnc = (void_t) _date_parse },
-  { .id = FunctionResolve,  .fnc = (void_t) _date_resolve },
-  { .id = FunctionSet,      .fnc = (void_t) _date_set },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionNew,         .fnc = (void_t) _date_new },
+  { .id = FunctionAllocString, .fnc = (void_t) _date_tostring },
+  { .id = FunctionParse,       .fnc = (void_t) _date_parse },
+  { .id = FunctionResolve,     .fnc = (void_t) _date_resolve },
+  { .id = FunctionSet,         .fnc = (void_t) _date_set },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methods_Date[] = {
@@ -110,15 +112,17 @@ static methoddescr_t _methods_Date[] = {
 
 static data_t *     _datetime_new(datetime_t *, va_list);
 static char *       _datetime_tostring(datetime_t *);
+static data_t *     _datetime_resolve(datetime_t *, char *);
 static data_t *     _datetime_parse(char *);
 
 static data_t *     _function_datetime(data_t *, char *, array_t *, dict_t *);
 
 static vtable_t _vtable_Datetime[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _datetime_new },
-  { .id = FunctionToString, .fnc = (void_t) _datetime_tostring },
-  { .id = FunctionParse,    .fnc = (void_t) _datetime_parse },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionNew,         .fnc = (void_t) _datetime_new },
+  { .id = FunctionAllocString, .fnc = (void_t) _datetime_tostring },
+  { .id = FunctionParse,       .fnc = (void_t) _datetime_parse },
+  { .id = FunctionResolve,     .fnc = (void_t) _datetime_resolve },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methods_Datetime[] = {
@@ -154,21 +158,21 @@ void _date_init(void) {
 
 datetime_t * _timebase_new(datetime_t *timebase, va_list args) {
   int         flag = va_arg(args, int);
-  datetime_t *datetime;
+  data_t     *data;
 
   timebase -> dt = (time_t) 0;
   timebase -> tm_set = 0;
   memset(&timebase -> tm, 0, sizeof(struct tm));
   switch (flag) {
     case DatetimeFlagCopy:
-      datetime = va_arg(args, datetime_t *);
-      timebase -> dt = datetime -> dt;
+      data = va_arg(args, data_t *);
+      timebase -> dt = (data_hastype(data, Timebase))
+        ? ((datetime_t *) data) -> dt
+        : (time_t) data_intval(data);
       break;
     case DatetimeFlagTimeT:
       timebase -> dt = va_arg(args, time_t);
       break;
-  }
-  if (flag == DatetimeFlagTimeT) {
   }
   return timebase;
 }
@@ -193,6 +197,8 @@ int _timebase_intval(datetime_t *datetime) {
 }
 
 data_t * _timebase_cast(datetime_t *timebase, int totype) {
+  debug(date, "Casting datetime '%s' to type '%s'",
+    data_tostring(timebase), typedescr_get(totype) -> type_name);
   if (totype == Int) {
     return int_to_data(timebase -> dt);
   } else if (totype == Bool) {
@@ -233,19 +239,30 @@ datetime_t * _timebase_assign(datetime_t *datetime) {
 
 data_t * _timeofday_new(datetime_t *timeofday, va_list args) {
   int        flag = va_arg(args, int);
-  char      *s;
+  char      *str;
   int        hour = 0, min = 0, sec = 0;
   data_t    *ret = (data_t *) timeofday;
+  data_t    *h, *m, *s;
 
   timeofday -> tm_set = 0;
   memset(&timeofday -> tm, 0, sizeof(struct tm));
   switch (flag) {
+    case DatetimeFlagDataHMS:
+      h = va_arg(args, data_t *);
+      m = va_arg(args, data_t *);
+      s = va_arg(args, data_t *);
+      ret = data_create(Time, DatetimeFlagHMS,
+              data_intval(h), data_intval(m), ((s) ? data_intval(s) : 0));
+      data_free(s);
+      data_free(m);
+      data_free(h);
+      break;
     case DatetimeFlagParse:
       if (data_type(timeofday) == Time) {
-        ret = _timeofday_parse((s = va_arg(args, char *)));
+        ret = _timeofday_parse((str = va_arg(args, char *)));
         if (!ret) {
           ret = data_exception(ErrorParameterValue,
-            "Cannot parse time value '%s'", s);
+            "Cannot parse time value '%s'", str);
         }
       }
       break;
@@ -399,6 +416,32 @@ data_t * _timeofday_set(datetime_t *datetime, char *name, data_t *value) {
   return ret;
 }
 
+data_t * _timeofday_decode_from_params(array_t *params, int *ixptr) {
+  int_t  *h;
+  data_t *param, *m, *s;
+  int     ix = *ixptr;
+  data_t *ret;
+
+  if (ix > (array_size(params) - 3)) {
+    return data_exception(ErrorArgCount,
+      "Not enough parameters supplied to construct a Time");
+  }
+  param = data_array_get(params, ix++);
+  h = (int_t *) data_cast(param, Int);
+  if (h) {
+    m = data_array_get(params, ix++);
+    s = (ix < array_size(params)) ? data_array_get(params, ix++) : NULL;
+    ret = data_create(Date, DatetimeFlagDataHMS, h, m, s);
+    data_free((data_t *) h);
+  } else {
+    ret = data_parse(Time, data_tostring(param));
+  }
+  if (!data_is_exception(ret)) {
+    *ixptr = ix;
+  }
+  return ret;
+}
+
 data_t * _function_date_init(char *name, array_t *args, dict_t *kwargs) {
   (void) name;
   (void) args;
@@ -411,7 +454,8 @@ data_t * _function_date_init(char *name, array_t *args, dict_t *kwargs) {
 data_t * _function_time(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int     sz;
   data_t *d;
-  int_t  *t, *min, *sec;
+  int_t  *t;
+  data_t *min, *sec;
 
   (void) self;
   (void) name;
@@ -428,11 +472,9 @@ data_t * _function_time(data_t *self, char *name, array_t *args, dict_t *kwargs)
       : data_parse(Time, data_tostring(d));
   }
   if (t) {
-    min = (int_t *) data_array_get(args, 1);
-    if (sz == 3) {
-      sec = (int_t *) data_array_get(args, 2);
-    }
-    return time_create(data_intval((data_t *) t), data_intval(min), data_intval(sec));
+    min = data_array_get(args, 1);
+    sec = (sz == 3) ? data_array_get(args, 2) : NULL;
+    return data_create(Time, DatetimeFlagDataHMS, (data_t *) t, min, sec);
   } else {
     return data_exception(ErrorParameterValue,
       "Cannot create time from value '%s'", data_tostring(t));
@@ -452,6 +494,7 @@ data_t * _date_new(datetime_t *date, va_list args) {
   int     day, month, year;
   data_t *ret = (data_t *) date;
   time_t  t;
+  data_t *y, *m, *d;
 
   switch (flag) {
     case DatetimeFlagParse:
@@ -461,6 +504,16 @@ data_t * _date_new(datetime_t *date, va_list args) {
             "Cannot parse date value '%s'", s);
         }
       }
+      break;
+    case DatetimeFlagDataHMS:
+      y = va_arg(args, data_t *);
+      m = va_arg(args, data_t *);
+      d = va_arg(args, data_t *);
+      ret = data_create(Date, DatetimeFlagYMD,
+              data_intval(y), data_intval(m), data_intval(d));
+      data_free(y);
+      data_free(m);
+      data_free(d);
       break;
     case DatetimeFlagYMD:
       year = va_arg(args, int);
@@ -499,7 +552,7 @@ char * _date_tostring(datetime_t *time) {
     time -> tm_set = 1;
   }
   asprintf(&buf, "%04d-%02d-%02d",
-    time -> tm.tm_year + 1970, time -> tm.tm_mon + 1, time -> tm.tm_mday);
+    time -> tm.tm_year + 1900, time -> tm.tm_mon + 1, time -> tm.tm_mday);
   return buf;
 }
 
@@ -534,6 +587,7 @@ data_t * _date_parse(char *date) {
         if ((sz == 3) && !strtoint(data_tostring(array_get(split, 2)), &l)) {
           day = l;
           ret = data_create(Date, DatetimeFlagYMD, year, month, day);
+          debug(date, "Returning '%s'", data_tostring(ret));
         }
       }
     }
@@ -563,8 +617,6 @@ data_t * _date_resolve(datetime_t *datetime, char *name) {
     ret = int_to_data(datetime -> tm.tm_wday + 1);
   } else if (!strcmp(name, "day_of_year")) {
     ret = int_to_data(datetime -> tm.tm_yday + 1);
-  } else if (!strcmp(name, "seconds_since_epoch")) {
-    ret = int_to_data((long) datetime -> dt);
   }
   return ret;
 }
@@ -607,11 +659,36 @@ data_t * _date_set(datetime_t *datetime, char *name, data_t *value) {
   return ret;
 }
 
+data_t * _date_decode_from_params(array_t *params, int *ixptr) {
+  int_t      *y;
+  data_t     *param, *m, *d, *ret;
+  int         ix = *ixptr;
+
+  if (ix > (array_size(params) - 3)) {
+    return data_exception(ErrorArgCount,
+      "Not enough parameters supplied to construct a Date");
+  }
+  param = data_array_get(params, ix++);
+  y = (int_t *) data_cast(param, Int);
+  if (y) {
+    d = data_array_get(params, ix++);
+    m = data_array_get(params, ix++);
+    ret = data_create(Date, DatetimeFlagDataYMD, y, m, d);
+    data_free((data_t *) y);
+  } else {
+    ret = data_create(Date, DatetimeFlagParse, param);
+  }
+  if (!data_is_exception(ret)) {
+    *ixptr = ix;
+  }
+  return ret;
+}
+
 data_t * _function_date(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   int     sz;
   data_t *d;
-  int_t  *t, *month, *day;
-  data_t *ret;
+  int_t  *t;
+  data_t *ret, *month, *day;
 
   (void) self;
   (void) name;
@@ -626,11 +703,9 @@ data_t * _function_date(data_t *self, char *name, array_t *args, dict_t *kwargs)
     if (sz == 1) {
       return data_create(Date, DatetimeFlagTimeT, (time_t) data_intval(t));
     } else {
-      month = (int_t *) data_array_get(args, 1);
-      day = (int_t *) data_array_get(args, 2);
-      return data_create(
-        Date, DatetimeFlagYMD,
-        data_intval(t), data_intval(month), data_intval(day));
+      month = data_array_get(args, 1);
+      day = data_array_get(args, 2);
+      return data_create(Date, DatetimeFlagDataYMD, t, month, day);
     }
   } else if (sz == 1) {
     if (!(ret = data_parse(Date, data_tostring(d)))) {
@@ -671,6 +746,7 @@ data_t * _datetime_new(datetime_t *datetime, va_list args) {
       datetime -> tm.tm_mon = tm -> tm_mon;
       datetime -> tm.tm_mday = tm -> tm_mday;
       tm = _timebase_tm(t);
+      debug(date, "%d %d %d", tm -> tm_hour, tm -> tm_min, tm -> tm_sec);
       datetime -> tm.tm_hour = tm -> tm_hour;
       datetime -> tm.tm_min = tm -> tm_min;
       datetime -> tm.tm_sec = tm -> tm_sec;
@@ -723,20 +799,29 @@ char * _datetime_tostring(datetime_t *datetime) {
   char *buf;
 
   asprintf(&buf, "%s %s",
-    (d = _date_tostring(datetime)), (t = _datetime_tostring(datetime)));
+    (d = _date_tostring(datetime)), (t = _timeofday_tostring(datetime)));
   free(d);
   free(t);
   return buf;
 }
 
+data_t * _datetime_resolve(datetime_t *datetime, char *name) {
+  if (!strcmp(name, "date")) {
+    return data_create(Date, DatetimeFlagCopy, datetime);
+  } else if (!strcmp(name, "time")) {
+    return data_create(Time, DatetimeFlagCopy, datetime);
+  }
+  return NULL;
+}
+
 data_t * _function_datetime(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  int         sz;
-  data_t     *arg;
-  data_t     *data;
-  int_t      *i1 = NULL, *i2 = NULL, *i3 = NULL;
-  data_t     *ret = NULL;
-  datetime_t *d = NULL;
-  datetime_t *t = NULL;
+  int     sz;
+  data_t *arg;
+  data_t *ret = NULL;
+  data_t *d = NULL;
+  data_t *t = NULL;
+  int     ix = 0;
+  int     type;
 
   (void) self;
   (void) name;
@@ -745,114 +830,35 @@ data_t * _function_datetime(data_t *self, char *name, array_t *args, dict_t *kwa
   if (!args || !(sz = array_size(args))) {
     return data_create(Datetime, DatetimeFlagTimeT, time(NULL));
   }
-  arg = data_array_get(args, 0);
-  i1 = (int_t *) data_cast(arg, Int);
-  if (i1) {
-    switch (sz) {
-      case 1:
-        ret = data_create(Datetime, DatetimeFlagTimeT, (time_t) data_intval(i1));
-        break;
-      case 2:
-        arg = data_array_get(args, 1);
-        i2 = (int_t *) data_cast(arg, Int);
-        if (!i2) {
-          ret = data_exception(ErrorParameterValue,
-            "Cannot create datetime from value '%s'", data_tostring(arg));
-        } else {
-          ret = datetime_create(
-            (d = (datetime_t *) data_create(
-              Date, DatetimeFlagTimeT, (time_t) data_intval(i1))),
-            (t = (datetime_t *) data_create(
-              Time, DatetimeFlagTimeT, (time_t) data_intval(i2))));
+  while (!ret && (!d || !t) && (ix < sz)) {
+    arg = data_array_get(args, ix);
+    type = data_type(arg);
+    if ((type == Datetime) && (sz == 1)) {
+      ret = data_create(Datetime, DatetimeFlagCopy, arg);
+    } else if (type == Date) {
+      d = arg;
+      ix++;
+    } else if (type == Time) {
+      t = arg;
+      ix++;
+    } else {
+      if (!d) {
+        if (data_is_exception(d = _date_decode_from_params(args, &ix))) {
+          ret = d;
         }
-        break;
-      case 6:
-        arg = data_array_get(args, 1);
-        i2 = (int_t *) data_cast(arg, Int);
-        if (!i2) {
-          ret = data_exception(ErrorParameterValue,
-            "Cannot create datetime from value '%s'", data_tostring(arg));
+      } else {
+        if (data_is_exception(t = _timeofday_decode_from_params(args, &ix))) {
+          ret = t;
         }
-        if (!ret) {
-          arg = data_array_get(args, 2);
-          i3 = (int_t *) data_cast(arg, Int);
-          data = date_create(data_intval(i1), data_intval(i2), data_intval(i3));
-          if (data_is_exception(data)) {
-            ret = data;
-          } else {
-            d = (datetime_t *) data;
-          }
-        }
-        if (!ret) {
-          data_free((data_t *) i1);
-          data_free((data_t *) i2);
-          data_free((data_t *) i3);
-          arg = data_array_get(args, 3);
-          i1 = (int_t *) data_cast(arg, Int);
-          if (!i1) {
-            ret = data_exception(ErrorParameterValue,
-              "Cannot create datetime from value '%s'", data_tostring(arg));
-          }
-        }
-        if (!ret) {
-          arg = data_array_get(args, 4);
-          i2 = (int_t *) data_cast(arg, Int);
-          if (!i2) {
-            ret = data_exception(ErrorParameterValue,
-              "Cannot create datetime from value '%s'", data_tostring(arg));
-          }
-        }
-        if (!ret) {
-          arg = data_array_get(args, 5);
-          i3 = (int_t *) data_cast(arg, Int);
-        }
-        if (!ret) {
-          data = time_create(data_intval(i1), data_intval(i2), data_intval(i3));
-          if (data_is_exception(data)) {
-            ret = data;
-          } else {
-            t = (datetime_t *) data;
-          }
-        }
-        if (!ret) {
-          ret = datetime_create(d, t);
-        }
-        break;
-      default:
-        ret = data_exception(ErrorArgCount,
-          "Cannot create datetime from %d arguments", sz);
-        break;
-    } /* switch (sz) */
-  } else { /* i1, i.e. args[1] is an int value */
-    switch (sz) {
-      case 1:
-        if (!(ret = _datetime_parse(data_tostring(arg)))) {
-          ret = data_exception(ErrorParameterValue,
-            "Cannot create time from value '%s'", data_tostring(arg));
-        }
-        break;
-      case 2:
-        if (!(d = (datetime_t *) _date_parse(data_tostring(arg)))) {
-          ret = data_exception(ErrorParameterValue,
-            "Cannot create date from value '%s'", data_tostring(arg));
-        }
-        if (!ret) {
-          if (!(t = (datetime_t *) _timeofday_parse(data_tostring(data_array_get(args, 1))))) {
-            ret = data_exception(ErrorParameterValue,
-              "Cannot create time from value '%s'",
-              data_tostring(data_array_get(args, 1)));
-          }
-        }
-        break;
-      default:
-        ret = data_exception(ErrorArgCount,
-          "Cannot create datetime from %d arguments", sz);
-        break;
+      }
     }
   }
-  data_free((data_t *) i1);
-  data_free((data_t *) i2);
-  data_free((data_t *) i3);
+  if (!ret) {
+    ret = (d && t)
+      ? data_create(Datetime, DatetimeFlagDateTime, d, t)
+      : data_exception(ErrorArgCount,
+          "Not enough parameters supplied to construct a Datetime");
+  }
   data_free((data_t *) d);
   data_free((data_t *) t);
   return ret;

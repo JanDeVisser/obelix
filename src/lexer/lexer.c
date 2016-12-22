@@ -373,10 +373,13 @@ int lexer_at_end(lexer_t *lexer) {
  * Rewind the lexer to the point just after the last token was identified.
  */
 lexer_t * lexer_rewind(lexer_t *lexer) {
+  debug(lexer, "Rewinding lexer");
   if (lexer -> token) {
+    debug(lexer, "Erasing scanned token '%s'", str_chars(lexer -> token));
     str_erase(lexer -> token);
   }
   if (lexer -> buffer) {
+    debug(lexer, "Rewinding buffer '%s'", str_chars(lexer -> buffer));
     str_rewind(lexer -> buffer);
   }
   if ((lexer -> scan_count > 0) || lexer -> current) {
@@ -390,10 +393,12 @@ lexer_t * lexer_rewind(lexer_t *lexer) {
  * Mark the current point, discarding everything that came before it.
  */
 lexer_t * lexer_reset(lexer_t *lexer) {
+  debug(lexer, "Resetting lexer")
   if (lexer -> buffer) {
     str_rewind(lexer -> buffer);
     str_skip(lexer -> buffer, lexer -> scanned);
     str_reset(lexer -> buffer);
+    debug(lexer, "buffer: %s", str_chars(lexer -> buffer));
   }
   lexer -> current = 0;
   if (lexer -> token) {

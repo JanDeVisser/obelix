@@ -38,17 +38,29 @@ extern "C" {
 
 OBLPARSER_IMPEXP int Parser;
 OBLPARSER_IMPEXP int parser_debug;
+OBLPARSER_IMPEXP int ErrorLexerExhausted;
+
+typedef enum {
+  ParserStateNone = 0x01,
+  ParserStateNonTerminal = 0x02,
+  ParserStateTerminal = 0x04,
+  ParserStateRule = 0x08,
+  ParserStateAll = 0x0F,
+  ParserStateDone = 0x10,
+  ParserStateError = 0x20
+} parser_state_t;
 
 typedef struct _parser {
-  dictionary_t  _d;
-  grammar_t    *grammar;
-  lexer_t      *lexer;
-  void         *data;
-  list_t       *prod_stack;
-  token_t      *last_token;
-  data_t       *error;
-  datastack_t  *stack;
-  dict_t       *variables;
+  dictionary_t    _d;
+  grammar_t      *grammar;
+  lexer_t        *lexer;
+  void           *data;
+  list_t         *prod_stack;
+  parser_state_t  state;
+  token_t        *last_token;
+  data_t         *error;
+  datastack_t    *stack;
+  dict_t         *variables;
 } parser_t;
 
 #define data_is_parser(d)     ((d) && data_hastype((data_t *) (d), Parser))
@@ -66,14 +78,28 @@ typedef parser_t * (*parser_fnc_t)(parser_t *);
 OBLPARSER_IMPEXP parser_t * parser_create(grammar_t *);
 OBLPARSER_IMPEXP parser_t * parser_clear(parser_t *);
 OBLPARSER_IMPEXP data_t *   parser_parse(parser_t *, data_t *);
+OBLPARSER_IMPEXP data_t *   parser_resume(parser_t *, data_t *);
 
+/* -- P A R S E R L I B  F U N C T I O N S -------------------------------- */
+
+OBLPARSER_IMPEXP parser_t * parser_log(parser_t *, data_t *);
+OBLPARSER_IMPEXP parser_t * parser_set_variable(parser_t *, data_t *);
 OBLPARSER_IMPEXP parser_t * parser_pushval(parser_t *, data_t *);
 OBLPARSER_IMPEXP parser_t * parser_push(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_push_token(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_push_const(parser_t *, data_t *);
+OBLPARSER_IMPEXP parser_t * parser_discard(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_dup(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_push_tokenstring(parser_t *);
 OBLPARSER_IMPEXP parser_t * parser_bookmark(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_pop_bookmark(parser_t *);
 OBLPARSER_IMPEXP parser_t * parser_rollup_list(parser_t *);
 OBLPARSER_IMPEXP parser_t * parser_rollup_name(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_rollup_nvp(parser_t *);
 OBLPARSER_IMPEXP parser_t * parser_new_counter(parser_t *);
 OBLPARSER_IMPEXP parser_t * parser_incr(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_count(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_discard_counter(parser_t *);
 
 #ifdef __cplusplus
 }

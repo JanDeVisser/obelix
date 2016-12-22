@@ -1,4 +1,0 @@
-import date
-
-t = timeofday()
-print(t)

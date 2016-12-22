@@ -1,5 +1,5 @@
 /*
- * /obelix/src/types/name.c - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/src/lib/name.c - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -17,12 +17,12 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include "libcore.h"
 #include <data.h>
 #include <name.h>
-#include <logging.h>
 #include <str.h>
 
 static void          _name_debug(name_t *, char *);
@@ -45,7 +45,6 @@ static vtable_t _vtable_Name[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-
 static methoddescr_t _methods_Name[] = {
   { .type = -1,     .name = "append", .method = _name_append, .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -60,6 +59,7 @@ void name_init(void) {
   if (Name < 1) {
     logging_register_category("name", &name_debug);
     typedescr_register_with_methods(Name, name_t);
+    hierarchy_init();
   }
 }
 
@@ -142,9 +142,14 @@ name_t * name_vcreate(int count, va_list components) {
 }
 
 name_t * name_deepcopy(name_t *src) {
-  name_t *ret = _name_create(name_size(src));
+  name_t *ret;
 
-  name_append(ret, src);
+  if (src && name_size(src)) {
+    ret = _name_create(name_size(src));
+    name_append(ret, src);
+  } else {
+    ret = _name_create(0);
+  }
   return ret;
 }
 

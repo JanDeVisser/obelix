@@ -43,6 +43,7 @@ typedef struct _list {
   int             size;
   type_t          type;
   listiterator_t  iter;
+  char           *str;
 } list_t;
 
 typedef struct _listprocessor {
@@ -65,6 +66,7 @@ OBLCORE_IMPEXP list_t *            list_unshift(list_t *, void *);
 OBLCORE_IMPEXP list_t *            list_add_all(list_t *, list_t *);
 OBLCORE_IMPEXP list_t *            list_join(list_t *, list_t *);
 OBLCORE_IMPEXP unsigned int        list_hash(list_t *);
+OBLCORE_IMPEXP void *              list_get(list_t *, int);
 OBLCORE_IMPEXP void *              __list_reduce(list_t *, reduce_t, void *, reduce_type_t);
 OBLCORE_IMPEXP void *              _list_reduce(list_t *, reduce_t, void *);
 OBLCORE_IMPEXP void *              _list_reduce_chars(list_t *, reduce_t, void *);
@@ -79,6 +81,7 @@ OBLCORE_IMPEXP listnode_t *        list_tail_pointer(list_t *);
 OBLCORE_IMPEXP void *              list_shift(list_t *);
 OBLCORE_IMPEXP void *              list_pop(list_t *);
 OBLCORE_IMPEXP struct _str *       list_tostr(list_t *);
+OBLCORE_IMPEXP char *              list_tostring(list_t *);
 
 OBLCORE_IMPEXP listiterator_t *    list_start(list_t *);
 OBLCORE_IMPEXP listiterator_t *    list_end(list_t *);

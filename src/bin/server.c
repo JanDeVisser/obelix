@@ -25,7 +25,6 @@
 #include <name.h>
 
 #include "obelix.h"
-#include "server.h"
 
 typedef struct _server_cmd_handler {
   char  *cmd;
@@ -47,6 +46,7 @@ static int           _oblserver_path(oblserver_t *, char *);
 static int           _oblserver_eval(oblserver_t *, char *);
 static int           _oblserver_run(oblserver_t *, char *);
 static int           _oblserver_detach(oblserver_t *, char *);
+static int           _oblserver_mount(oblserver_t *, char *);
 static int           _oblserver_quit(oblserver_t *, char *);
 
 static vtable_t _vtable_Server[] = {
@@ -59,17 +59,18 @@ static vtable_t _vtable_Server[] = {
 int Server = -1;
 
 static server_cmd_handler_t _cmd_handlers[] = {
-  { .cmd = OBLSERVER_CMD_HELLO,  .handler = _oblserver_welcome },
-  { .cmd = OBLSERVER_CMD_ATTACH, .handler = _oblserver_attach },
-  { .cmd = OBLSERVER_CMD_PATH,   .handler = _oblserver_path },
-  { .cmd = OBLSERVER_CMD_EVAL,   .handler = _oblserver_eval },
-  { .cmd = OBLSERVER_CMD_RUN,    .handler = _oblserver_run },
-  { .cmd = OBLSERVER_CMD_DETACH, .handler = _oblserver_detach },
-  { .cmd = OBLSERVER_CMD_QUIT,   .handler = _oblserver_quit },
-  { .cmd = NULL,                 .handler = NULL }
+  { .cmd = OBLSERVER_CMD_HELLO,    .handler = _oblserver_welcome },
+  { .cmd = OBLSERVER_CMD_ATTACH,   .handler = _oblserver_attach },
+  { .cmd = OBLSERVER_CMD_PATH,     .handler = _oblserver_path },
+  { .cmd = OBLSERVER_CMD_EVAL,     .handler = _oblserver_eval },
+  { .cmd = OBLSERVER_CMD_RUN,      .handler = _oblserver_run },
+  { .cmd = OBLSERVER_CMD_DETACH,   .handler = _oblserver_detach },
+  { .cmd = OBLSERVER_CMD_MOUNT,    .handler = _oblserver_mount },
+  { .cmd = OBLSERVER_CMD_QUIT,     .handler = _oblserver_quit },
+  { .cmd = NULL,                   .handler = NULL }
 };
 
-static code_label_t _server_codes[] = {
+code_label_t server_codes[] = {
   { .code = OBLSERVER_CODE_WELCOME,        .label = OBLSERVER_WELCOME },
   { .code = OBLSERVER_CODE_READY,          .label = OBLSERVER_READY },
   { .code = OBLSERVER_CODE_DATA,           .label = OBLSERVER_DATA },
@@ -85,7 +86,7 @@ static code_label_t _server_codes[] = {
 /* ------------------------------------------------------------------------ */
 
 void _oblserver_init(void) {
-  if (Server < 0) {
+  if (Server < 1) {
     typedescr_register(Server, oblserver_t);
   }
 }
@@ -122,7 +123,6 @@ oblserver_t * _oblserver_return_error(oblserver_t *server, char *code,
 
 oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
   exception_t *ex;
-  array_t     *arr;
   char        *str;
   oblserver_t *ret;
 
@@ -150,9 +150,8 @@ oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
     }
   }
   if (result) {
-    str = data_tostring(result);
-    stream_printf(server -> stream, OBLSERVER_DATA " ${0;d} ${1;s}",
-                  strlen(str) + 1, data_typename(result));
+    str = data_encode(result);
+    stream_printf(server -> stream, OBLSERVER_DATA " ${0;d}", strlen(str) + 1);
     stream_write(server -> stream, str, strlen(str));
     stream_printf(server -> stream, "");
     data_free(result);
@@ -266,6 +265,25 @@ int _oblserver_attach(oblserver_t *server, char *cookie) {
   return 0;
 }
 
+int _oblserver_mount(oblserver_t *server, char *foreign) {
+  array_t *line;
+  uri_t   *uri;
+
+  line = array_split(foreign, " ");
+  if (array_size(line) != 2) {
+    _oblserver_return_error(server, OBLSERVER_ERROR_PROTOCOL,
+                            (data_t *) str_wrap(foreign));
+  } else {
+    uri = uri_create(data_tostring(data_array_get(line, 1)));
+    if (uri -> error) {
+      _oblserver_return_error(server, OBLSERVER_ERROR_PROTOCOL, uri -> error);
+    } else {
+
+    }
+  }
+  return 0;
+}
+
 void * _oblserver_connection_handler(connection_t *connection) {
   obelix_t    *obl = (obelix_t *) connection -> context;
   oblserver_t *server = oblserver_create(obl, data_as_stream(connection -> client));
@@ -311,7 +329,7 @@ oblserver_t * oblserver_run(oblserver_t *server) {
       ret = OBLSERVER_CODE_READY;
     }
     code = (ret < 0) ? -ret : ret;
-    msg = label_for_code(_server_codes, code);
+    msg = label_for_code(server_codes, code);
     if (msg) {
       stream_printf(server -> stream, msg);
     }

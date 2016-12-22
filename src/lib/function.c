@@ -36,7 +36,7 @@ static char *       _function_allocstring(function_t *);
 static data_t *     _function_cast(function_t *, int);
 static data_t *     _function_call(function_t *, array_t *, dict_t *);
 
-static vtable_t _vtable_Function[] = {
+static vtable_t _vtable_FunctionType[] = {
   { .id = FunctionNew,         .fnc = (void_t) _function_new },
   { .id = FunctionCmp,         .fnc = (void_t) function_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _function_free },
@@ -49,16 +49,16 @@ static vtable_t _vtable_Function[] = {
 };
 
 int function_debug = 0;
-int Function = -1;
+int FunctionType = -1;
 
 /* -- F U N C T I O N  S T A T I C  F U N C T I O N S --------------------- */
 
 void _function_init(void) {
-  if (Function < 1) {
+  if (FunctionType < 1) {
     logging_register_category("function", &function_debug);
-    typedescr_register(Function, function_t);
+    typedescr_register(FunctionType, function_t);
   }
-  assert(Function);
+  assert(FunctionType);
 }
 
 function_t * _function_new(function_t *function, va_list args) {
@@ -75,13 +75,20 @@ function_t * _function_new(function_t *function, va_list args) {
 char * _function_allocstring(function_t *fnc) {
   char  *buf;
   str_t *params;
+  int    len;
 
   params = (fnc -> params && array_size(fnc -> params))
     ? array_join(fnc -> params, ",")
     : NULL;
-  asprintf(&buf, "%s(%s)",
-           name_tostring_sep(fnc -> name, ":"),
-           ((params) ? str_chars(params) : ""));
+  asprintf(&buf, "%s", name_tostring_sep(fnc -> name, ":"));
+  if (params) {
+    len = strlen(buf);
+    buf = resize_block(buf, len + str_len(params) + 3, len);
+    buf[len] = '(';
+    memcpy(buf + (len + 1), str_chars(params), str_len(params));
+    buf[len + str_len(params) + 1] = ')';
+    buf[len + str_len(params) + 2] = 0;
+  }
   str_free(params);
   return buf;
 }
@@ -128,7 +135,7 @@ function_t * function_create(char *name, void_t fnc) {
 function_t * function_create_noresolve(char *name) {
   _function_init();
   assert(name);
-  return (function_t *) data_create(Function, name);
+  return (function_t *) data_create(FunctionType, name);
 }
 
 function_t * function_parse(char *str) {

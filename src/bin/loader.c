@@ -127,6 +127,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
   }
 
   debug(obelix, "  Loaded grammar");
+  loader -> parser = NULL;
   loader -> options = data_array_create((int) ObelixOptionLAST);
   for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
     scriptloader_set_option(loader, ix, 0L);
@@ -168,6 +169,7 @@ void _scriptloader_free(scriptloader_t *loader) {
     data_free(loader -> load_path);
     array_free(loader -> options);
     free(loader -> cookie);
+    parser_free(loader -> parser);
     grammar_free(loader -> grammar);
     ns_free(loader -> ns);
   }
@@ -418,22 +420,29 @@ scriptloader_t * scriptloader_extend_loadpath(scriptloader_t *loader, array_t *p
 }
 
 data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, data_t *reader) {
-  data_t   *ret = NULL;
-  char     *name;
-  parser_t *parser;
+  data_t      *ret = NULL;
+  char        *name;
+  exception_t *ex;
 
   debug(obelix, "scriptloader_load_fromreader('%s')", name_tostring(mod -> name));
-  parser = parser_create(loader -> grammar);
-  debug(obelix, "Created parser");
-  parser_set(parser, "module", (data_t *) mod_copy(mod));
-  name = (name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__";
-  parser_set(parser, "name", str_to_data(name));
-  parser_set(parser, "options", data_create_list(loader -> options));
-  ret = parser_parse(parser, reader);
-  if (!ret) {
-    ret = data_copy(parser_get(parser, "script"));
+  if (!loader -> parser) {
+    loader -> parser = parser_create(loader -> grammar);
+    debug(obelix, "Created parser");
+    parser_set(loader -> parser, "module", (data_t *) mod_copy(mod));
+    name = (name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__";
+    parser_set(loader -> parser, "name", str_to_data(name));
+    parser_set(loader -> parser, "options", data_create_list(loader -> options));
+    ret = parser_parse(loader -> parser, reader);
+  } else {
+    ret = parser_resume(loader -> parser, reader);
   }
-  parser_free(parser);
+  if (!(ex = data_as_exception(ret)) || (ex -> code != ErrorLexerExhausted)) {
+    if (!ret) {
+      ret = data_copy(parser_get(loader -> parser, "script"));
+    }
+    parser_free(loader -> parser);
+    loader -> parser = NULL;
+  }
   return ret;
 }
 

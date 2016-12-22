@@ -54,7 +54,7 @@ rule_t * _rule_new(rule_t *rule, va_list args) {
   rule -> firsts = NULL;
   rule -> follows = NULL;
   rule -> entries = data_array_create(3);
-  array_push(nonterminal -> rules, rule);
+  array_push(nonterminal -> rules, rule_copy(rule));
   return rule;
 }
 
@@ -124,7 +124,7 @@ rule_t * _rule_add_parse_table_entry(long tokencode, rule_t *rule) {
   nonterminal = rule_get_nonterminal(rule);
   if (tokencode != TokenCodeEmpty) {
     if (!dict_has_int(nonterminal -> parse_table, (int) tokencode)) {
-      dict_put_int(nonterminal -> parse_table, (int) tokencode, rule);
+      dict_put_int(nonterminal -> parse_table, (int) tokencode, rule_copy(rule));
     }
   } else {
     set_reduce(nonterminal -> follows,

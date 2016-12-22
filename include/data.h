@@ -150,6 +150,7 @@ OBLCORE_IMPEXP pointer_t *         ptr_create(int, void *);
 #define data_is_string(d )  ((d) && (data_hastype((d), String)))
 #define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
 #define data_as_pointer(d)  (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
+#define data_wrap(p)        ((data_t *) ptr_create(0, (p)))
 #define data_unwrap(d)      (data_is_pointer((data_t *) (d)) ? (data_as_pointer(d) -> ptr) : NULL)
 
 #define data_is_list(d)     ((d) && (data_hastype((d), List)))
@@ -219,7 +220,7 @@ OBLCORE_IMPEXP type_t         *type_data;
 #define data_list_shift(l)     (data_t *) list_shift((l))
 
 #define data_set_create()      (set_set_type(set_create(NULL), type_data))
-\
+
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */

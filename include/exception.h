@@ -66,7 +66,7 @@ typedef struct _exception_t {
   struct _data *trace;
 } exception_t;
 
-OBLCORE_IMPEXP int            exception_register(char *str);
+OBLCORE_IMPEXP int            _exception_register(char *str);
 OBLCORE_IMPEXP exception_t *  exception_create(int, char *, ...);
 OBLCORE_IMPEXP exception_t *  exception_vcreate(int, char *, va_list);
 OBLCORE_IMPEXP exception_t *  exception_from_my_errno(int);
@@ -80,6 +80,7 @@ OBLCORE_IMPEXP data_t *       data_exception_from_my_errno(int);
 OBLCORE_IMPEXP data_t *       data_exception_from_errno(void);
 OBLCORE_IMPEXP data_t *       data_throwable(data_t *);
 
+#define exception_register(e)            (e = _exception_register( #e ))
 #define data_is_exception(d)             ((d) && (data_hastype((data_t *) (d), Exception)))
 #define data_is_unhandled_exception(d)   ((d) && data_is_exception((d)) && !(((exception_t *) (d)) -> handled))
 #define data_as_exception(d)             ((exception_t *) ((data_is_exception((d)) ? (d) : NULL)))

@@ -85,14 +85,22 @@ char * chars(const void *str) {
 }
 
 int strtoint(const char *str, long *val) {
+  char  buf[64];
   char *endptr;
   char *ptr;
 
   /*
-   * Using strtod here instead of strtol. strtol parses a number with a
-   * leading '0' as octal, which nobody wants these days. Also less chance
-   * of overflows.
-   *
+   * Strip whitespace from start and end of string. Strip leading '0' chars;
+   * we don't parse octal numbers.
+   */
+  strncpy(buf, str, 63);
+  buf[63] = 0;
+  str = strtrim(buf);
+  while (*str == '0') {
+    str++;
+  }
+
+  /*
    * After a successful parse we check that the number is within bounds
    * and that it's actually an long, i.e. that it doesn't have a decimal
    * point or exponent.
@@ -184,11 +192,11 @@ char * strltrim(char *str) {
 }
 
 char * strrtrim(char *str) {
-  char *ptr;
+  int ix;
 
   if (str && *str) {
-    for (ptr = str + (strlen(str) - 1); (ptr != str) && isspace(*ptr); ptr--) {
-      *ptr = 0;
+    for (ix = strlen(str) - 1; (ix >= 0) && isspace(str[ix]); ix--) {
+      str[ix] = 0;
     }
   }
   return str;

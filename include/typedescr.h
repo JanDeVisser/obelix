@@ -179,6 +179,8 @@ OBLCORE_IMPEXP list_t *        typedescr_get_constructors(typedescr_t *);
 OBLCORE_IMPEXP int             typedescr_is(typedescr_t *, int);
 OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
 
+#define typename(i)            ((typedescr_get((i))) ? typedescr_get((i)) -> type_name : #i)
+
 #define data_is_typedescr(d)   ((d) && (data_hastype((d), Type)))
 #define data_as_typedescr(d)   ((typedescr_t *) (data_is_typedescr((d)) ? ((typedescr_t *) (d)) : NULL))
 #define typedescr_tostring(s)  (data_tostring((data_t *) (s)))

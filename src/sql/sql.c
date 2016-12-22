@@ -89,7 +89,7 @@ void _sql_init(void) {
       dict_set_data_type(_drivers, type_int);
     }
     if (ErrorSQL < 1) {
-      ErrorSQL = exception_register("ErrorSQL");
+      exception_register(ErrorSQL);
     }
     typedescr_register_with_methods(DBConnection, dbconn_t);
     typedescr_register(DBTransaction, tx_t);
