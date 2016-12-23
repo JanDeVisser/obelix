@@ -33,6 +33,9 @@
 
 #include "obelix.h"
 
+#define PS1   ">> "
+#define PS2   " - "
+
 static inline void _obelix_init(void);
 
 static data_t * _obelix_new(obelix_t *, va_list);
@@ -268,9 +271,6 @@ data_t * _obelix_run_local(obelix_t *obelix, name_t *name, array_t *args, dict_t
   return ret;
 }
 
-#define PS1   ">> "
-#define PS2   " - "
-
 data_t * _obelix_interactive(obelix_t *obelix) {
   scriptloader_t *loader;
   char           *line = NULL;
@@ -291,7 +291,7 @@ data_t * _obelix_interactive(obelix_t *obelix) {
         debug(obelix, "Evaluating '%s'", line);
         ret = scriptloader_eval(loader, dline = (data_t *) str_copy_chars(line));
         prompt = PS1;
-        if (data_is_exception_with_code(ret, ErrorLexerExhausted) &&
+        if (data_is_exception_with_code(ret, ErrorInternalError) && // FIXME!!!
             isatty(fileno(stdin))) {
           prompt = PS2;
         } else {

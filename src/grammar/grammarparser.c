@@ -394,7 +394,7 @@ grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_par
       }
       break;
 
-    case TokenCodeEnd:
+    case TokenCodeEOF:
       if (grammar_parser -> nonterminal) {
         _grammar_parser_syntax_error(grammar_parser,
           exception_create(ErrorSyntax,

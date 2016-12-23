@@ -68,7 +68,7 @@ START_TEST(test_lexa_tokenize)
   lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello World"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 5);
+  ck_assert_int_eq(lexa -> tokens, 4);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
 END_TEST
@@ -79,7 +79,7 @@ START_TEST(test_lexa_newline)
   lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello  World\nSecond Line"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 9);
+  ck_assert_int_eq(lexa -> tokens, 8);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 4);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeNewLine), 1);
@@ -91,7 +91,7 @@ START_TEST(test_lexa_symbols)
   lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello !@ /\\ * && World"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 16);
+  ck_assert_int_eq(lexa -> tokens, 15);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 5);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeExclPoint), 1);
@@ -113,7 +113,7 @@ START_TEST(test_lexa_ignore_ws)
   lexa_set_stream(lexa, (data_t *) str_copy_chars(" Hello  World\nSecond Line \n Third Line "));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 10);
+  ck_assert_int_eq(lexa -> tokens, 9);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeNewLine), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 0);
@@ -130,7 +130,7 @@ START_TEST(test_lexa_ignore_nl)
   lexa_set_stream(lexa, (data_t *) str_copy_chars(" Hello  World\nSecond Line \n Third Line "));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 15);
+  ck_assert_int_eq(lexa -> tokens, 14);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeNewLine), 0);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 7);
@@ -146,7 +146,7 @@ START_TEST(test_lexa_ignore_all_ws)
   lexa_set_stream(lexa, (data_t *) str_copy_chars(" Hello  World\nSecond Line \n Third Line "));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 8);
+  ck_assert_int_eq(lexa -> tokens, 7);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeNewLine), 0);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 0);

@@ -122,7 +122,7 @@ void * _lexa_tokenize(token_t *token, void *config) {
 
   if (!lexa -> tokenfilter) {
     fprintf(stderr, "%s ", token_tostring(token));
-    if (token_code(token) == TokenCodeExhausted) {
+    if (token_code(token) == TokenCodeEOF) {
       fprintf(stderr, "\n");
     }
   } else {

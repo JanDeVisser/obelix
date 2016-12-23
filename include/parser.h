@@ -77,8 +77,11 @@ typedef parser_t * (*parser_fnc_t)(parser_t *);
 
 OBLPARSER_IMPEXP parser_t * parser_create(grammar_t *);
 OBLPARSER_IMPEXP parser_t * parser_clear(parser_t *);
+OBLPARSER_IMPEXP parser_t * parser_start(parser_t *);
 OBLPARSER_IMPEXP data_t *   parser_parse(parser_t *, data_t *);
-OBLPARSER_IMPEXP data_t *   parser_resume(parser_t *, data_t *);
+OBLPARSER_IMPEXP data_t *   parser_parse_reader(parser_t *, data_t *);
+OBLPARSER_IMPEXP data_t *   parser_send_token(parser_t *, token_t *);
+OBLPARSER_IMPEXP data_t *   parser_end(parser_t *);
 
 /* -- P A R S E R L I B  F U N C T I O N S -------------------------------- */
 

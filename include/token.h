@@ -35,7 +35,7 @@ typedef enum _token_code {
   TokenCodeNewLine = '\n',
   TokenCodeLastToken,
   TokenCodeEnd,
-  TokenCodeExhausted,
+  TokenCodeEOF,
   TokenCodeIdentifier = 'i',
   TokenCodeURIComponent = 'u',
   TokenCodeInteger = 'd',

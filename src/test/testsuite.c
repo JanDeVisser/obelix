@@ -90,6 +90,7 @@ int main(int argc, char **argv){
   int      number_failed;
   SRunner *sr;
 
+  application_init(argv[0], argc, argv);
   _suite = suite_create("default");
   init_suite(argc, argv);
   sr = srunner_create(_suite);

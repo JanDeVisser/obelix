@@ -420,9 +420,7 @@ scriptloader_t * scriptloader_extend_loadpath(scriptloader_t *loader, array_t *p
 }
 
 data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, data_t *reader) {
-  data_t      *ret = NULL;
-  char        *name;
-  exception_t *ex;
+  char *name;
 
   debug(obelix, "scriptloader_load_fromreader('%s')", name_tostring(mod -> name));
   if (!loader -> parser) {
@@ -432,18 +430,9 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, dat
     name = (name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__";
     parser_set(loader -> parser, "name", str_to_data(name));
     parser_set(loader -> parser, "options", data_create_list(loader -> options));
-    ret = parser_parse(loader -> parser, reader);
-  } else {
-    ret = parser_resume(loader -> parser, reader);
+    parser_start(loader -> parser);
   }
-  if (!(ex = data_as_exception(ret)) || (ex -> code != ErrorLexerExhausted)) {
-    if (!ret) {
-      ret = data_copy(parser_get(loader -> parser, "script"));
-    }
-    parser_free(loader -> parser);
-    loader -> parser = NULL;
-  }
-  return ret;
+  return parser_parse_reader(loader -> parser, reader);
 }
 
 data_t * scriptloader_import(scriptloader_t *loader, name_t *name) {
@@ -451,21 +440,31 @@ data_t * scriptloader_import(scriptloader_t *loader, name_t *name) {
 }
 
 data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
-  data_t *rdr;
-  data_t *ret;
-  char   *script_name;
-  name_t *name = mod -> name;
+  data_t      *rdr;
+  data_t      *ret;
+  char        *script_name;
+  name_t      *name = mod -> name;
+  exception_t *ex;
 
   assert(loader);
   assert(name);
   script_name = strdup((name && name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__");
   debug(obelix, "scriptloader_load('%s')", script_name);
   if (mod -> state == ModStateLoading) {
-    rdr = _scriptloader_open_reader(loader, mod);
-    ret = (rdr)
-            ? scriptloader_load_fromreader(loader, mod, rdr)
-            : data_exception(ErrorName, "Could not load '%s'", script_name);
-    data_free(rdr);
+    if ((rdr = _scriptloader_open_reader(loader, mod))) {
+      ret = scriptloader_load_fromreader(loader, mod, rdr);
+      if (!ret) {
+        ret = parser_end(loader -> parser);
+      }
+      if (!ret) {
+        ret = data_copy(parser_get(loader -> parser, "script"));
+      }
+      parser_free(loader -> parser);
+      loader -> parser = NULL;
+      data_free(rdr);
+    } else {
+      ret = data_exception(ErrorName, "Could not load '%s'", script_name);
+    }
   } else {
     debug(obelix, "Module '%s' is already active. Skipped.", name_tostring(mod -> name));
   }

@@ -33,7 +33,7 @@ START_TEST(test_lexa_run_comment_lexer)
   lexa_set_stream(lexa, (data_t *) str_copy_chars("BeforeComment /* comment */ AfterComment"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 6);
+  ck_assert_int_eq(lexa -> tokens, 5);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
 END_TEST
@@ -49,7 +49,7 @@ START_TEST(test_lexa_asterisk_comment)
   lexa_set_stream(lexa, (data_t *) str_copy_chars("BeforeCommentWithAsterisk /* comment * comment */ AfterComment"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 6);
+  ck_assert_int_eq(lexa -> tokens, 5);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
 END_TEST
@@ -60,7 +60,7 @@ START_TEST(test_lexa_eol_comment)
     "LineAfterLineEndComment"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 6);
+  ck_assert_int_eq(lexa -> tokens, 5);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
 END_TEST

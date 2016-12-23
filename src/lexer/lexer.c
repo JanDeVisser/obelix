@@ -286,8 +286,10 @@ token_t * _lexer_match_token(lexer_t *lexer) {
         lexer_push(lexer);
         ret = lexer_accept(lexer, ch);
       } else {
-        debug(lexer, "End-of-file. Returning LexerStateDone");
+        debug(lexer, "End-of-file. Returning TokenCodeEOF");
         lexer -> state = LexerStateDone;
+        lexer -> last_token = token_create(TokenCodeEOF, "EOF");
+        ret = lexer -> last_token;
       }
     } else {
       oassert(lexer -> scanned,
@@ -329,13 +331,7 @@ token_t * lexer_next_token(lexer_t *lexer) {
     lexer -> token = str_create(16);
   }
   if (lexer -> last_token) {
-    if (token_code(lexer -> last_token) == TokenCodeEnd) {
-      token_free(lexer -> last_token);
-      lexer -> last_token = token_create(TokenCodeExhausted, "$$$$");
-      lexer -> last_token -> line = lexer -> line;
-      lexer -> last_token -> column = lexer -> column;
-      return lexer -> last_token;
-    } else if (token_code(lexer -> last_token) == TokenCodeExhausted) {
+    if (token_code(lexer -> last_token) == TokenCodeEOF) {
       return NULL;
     } else {
       token_free(lexer -> last_token);
@@ -344,12 +340,6 @@ token_t * lexer_next_token(lexer_t *lexer) {
   }
   do {
     _lexer_match_token(lexer);
-    if (lexer -> state == LexerStateDone) {
-      lexer -> last_token = token_create(TokenCodeEnd, "$$");
-      lexer -> last_token -> line = lexer -> line;
-      lexer -> last_token -> column = lexer -> column;
-      return lexer -> last_token;
-    }
   } while (!lexer -> last_token);
 
   if (lexer -> last_token) {

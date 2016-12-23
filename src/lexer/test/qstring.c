@@ -25,7 +25,7 @@ START_TEST(test_lexa_qstring)
   lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'single quotes' `backticks` \"double quotes\" World"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 11);
+  ck_assert_int_eq(lexa -> tokens, 10);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 4);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeSQuotedStr), 1);

@@ -70,7 +70,6 @@ static void _outofmemory(int sz) {
 }
 
 application_t * application_init(const char *appname, int argc, char **argv) {
-  assert(!_app);
   type_str = &_type_str;
   type_int = &_type_int;
   logging_init();

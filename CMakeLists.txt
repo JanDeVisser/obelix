@@ -218,6 +218,7 @@ if(NOT MSVC)
   add_test(NAME tcore COMMAND tcore)
   add_test(NAME tlexer COMMAND tlexer)
   add_test(NAME tgrammar COMMAND tgrammar)
+  add_test(NAME tparser COMMAND tparser)
 endif(NOT MSVC)
 
 # Extend Windows Path with some of our source directories so that panoramix can

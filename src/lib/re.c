@@ -64,7 +64,7 @@ static methoddescr_t _methods_Regexp[] = {
 void _regexp_init(void) {
   if (Regexp < 1) {
     logging_register_module(regexp);
-    typedescr_register(Regexp, re_t);
+    typedescr_register_with_methods(Regexp, re_t);
   }
 }
 

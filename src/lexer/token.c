@@ -77,7 +77,7 @@ static code_label_t token_code_names[] = {
   { TokenCodeTilde,          "TokenCodeTilde" },
   { TokenCodeLastToken,      "TokenCodeLastToken" },
   { TokenCodeEnd,            "TokenCodeEnd" },
-  { TokenCodeExhausted,      "TokenCodeExhausted" },
+  { TokenCodeEOF,            "TokenCodeEOF" },
   { -1,                      NULL }
 };
 

@@ -120,57 +120,57 @@ static void _tokenize_big_bad(char *str, int total_count, int big_count, int bad
 }
 
 START_TEST(test_lexa_keyword)
-  _tokenize("Big", 3, 1);
+  _tokenize("Big", 2, 1);
 END_TEST
 
 START_TEST(test_lexa_keyword_space)
-  _tokenize("Big ", 4, 1);
+  _tokenize("Big ", 3, 1);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
 END_TEST
 
 START_TEST(test_lexa_keyword_is_prefix)
-  _tokenize("Bigger", 3, 0);
+  _tokenize("Bigger", 2, 0);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 1);
 END_TEST
 
 START_TEST(test_lexa_keyword_and_identifiers)
-  _tokenize("Hello Big World", 7, 1);
+  _tokenize("Hello Big World", 6, 1);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
 END_TEST
 
 START_TEST(test_lexa_keyword_two_keywords)
-  _tokenize("Hello Big Big Beautiful World", 11, 2);
+  _tokenize("Hello Big Big Beautiful World", 10, 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 3);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 4);
 END_TEST
 
 START_TEST(test_lexa_keyword_two_keywords_separated)
-  _tokenize("Hello Big Beautiful Big World", 11, 2);
+  _tokenize("Hello Big Beautiful Big World", 10, 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 3);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 4);
 END_TEST
 
 START_TEST(test_lexa_keyword_big_bad_big)
-  _tokenize_big_bad("Hello Big World", 7, 1, 0);
+  _tokenize_big_bad("Hello Big World", 6, 1, 0);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
 END_TEST
 
 START_TEST(test_lexa_keyword_big_bad_bad)
-  _tokenize_big_bad("Hello Bad World", 7, 0, 1);
+  _tokenize_big_bad("Hello Bad World", 6, 0, 1);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
 END_TEST
 
 START_TEST(test_lexa_keyword_big_bad_big_bad)
-  _tokenize_big_bad("Hello Big Bad World", 9, 1, 1);
+  _tokenize_big_bad("Hello Big Bad World", 8, 1, 1);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 3);
 END_TEST
 
 START_TEST(test_lexa_keyword_big_bad_bad_big)
-  _tokenize_big_bad("Hello Bad Big World", 9, 1, 1);
+  _tokenize_big_bad("Hello Bad Big World", 8, 1, 1);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 3);
 END_TEST
@@ -180,7 +180,7 @@ START_TEST(test_lexa_keyword_abc)
 
   lexa_set_stream(lexa, (data_t *) str_copy_chars("yyz abc ams"));
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 7);
+  ck_assert_int_eq(lexa -> tokens, 6);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, abc), 1);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);

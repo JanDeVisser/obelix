@@ -128,7 +128,7 @@ START_TEST(test_list_create)
 
   l = setup();
   str = list_tostr(l);
-  ck_assert_str_eq(str_chars(str), "[]");
+  ck_assert_str_eq(str_chars(str), "<>");
   str_free(str);
   teardown(l);
 END_TEST
@@ -139,7 +139,7 @@ START_TEST(test_list_append)
 
   l = setup2();
   str = list_tostr(l);
-  ck_assert_str_eq(str_chars(str), "[test1 [0], test2 [0]]");
+  ck_assert_str_eq(str_chars(str), "<test1 [0], test2 [0]>");
   str_free(str);
   teardown(l);
 END_TEST

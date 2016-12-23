@@ -64,7 +64,8 @@ static data_t *               _parser_call(parser_t *, array_t *, dict_t *);
 int parser_debug = 0;
 int Parser = -1;
 int ParserStackEntry = -1;
-int ErrorLexerExhausted = -1;
+
+static token_t *token_end = NULL;
 
 static code_label_t _parser_states[] = {
   code_label(ParserStateNone),
@@ -123,7 +124,6 @@ void _parser_init(void) {
   if (Parser < 1) {
     logging_register_category("parser", &parser_debug);
     dictionary_init();
-    exception_register(ErrorLexerExhausted);
     typedescr_register(Parser, parser_t);
     typedescr_assign_inheritance(Parser, Dictionary);
     typedescr_register(ParserStackEntry, parser_stack_entry_t);
@@ -202,20 +202,24 @@ int _pse_execute_NonTerminal(parser_stack_entry_t *e, parser_t *parser, token_t 
   rule_entry_t  *entry;
   nonterminal_t *new_nt;
 
-  if (!(rule = dict_get_int(nonterminal -> parse_table, code))) {
-    if ((code != TokenCodeEnd) && (code != TokenCodeExhausted)) {
-      parser -> error = data_exception(
-              ErrorSyntax, "Unexpected token '%s'", token_tostring(token));
+  if (code == TokenCodeEOF) {
+    /*
+     * End of the stream. Bail and retry with the next token:
+     */
+    return parser -> state | ParserStateDone;
+  } else if (!(rule = dict_get_int(nonterminal -> parse_table, code))) {
+    if (code != TokenCodeEnd) {
+      parser -> error = data_exception(ErrorSyntax,
+        "Unexpected token '%s'", token_tostring(token));
     } else {
-      _parser_push_to_prodstack(parser,
-                                _parser_stack_entry_for_nonterminal(nonterminal));
-      _parser_push_grammar_element(parser, (ge_t *) nonterminal);
-      parser -> error = data_exception(ErrorLexerExhausted, "Premature EOF");
+      parser -> error = data_exception(ErrorSyntax,
+        "Unexpected end of program text");
     }
+    return ParserStateError;
   } else {
     debug(parser, "Selected rule: %s", rule_tostring(rule));
-    _parser_push_to_prodstack(parser,
-                              _parser_stack_entry_for_rule(rule));
+    // _parser_push_to_prodstack(parser,
+    //                           _parser_stack_entry_for_rule(rule));
     for (i = array_size(rule -> entries) - 1; i >= 0; i--) {
       entry = rule_get_entry(rule, i);
       if (entry -> terminal) {
@@ -393,7 +397,6 @@ parser_t * _parser_dump_prod_stack(parser_t *parser) {
 parser_t * _parser_ll1(token_t *token, parser_t *parser) {
   int  attempts = 0;
   char buf[128];
-  int  code;
 
   if (parser -> last_token) {
     token_free(parser -> last_token);
@@ -410,17 +413,13 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
     }
     _parser_ll1_token_handler(token, parser, attempts++);
   } while (!parser -> error && (parser -> state < ParserStateDone));
-  if ((((code = token_code(token)) == TokenCodeEnd) || (code == TokenCodeExhausted)) &&
-      list_notempty(parser -> prod_stack)) {
-    parser -> error = data_exception(ErrorLexerExhausted, "Premature End-Of-File");
-  }
   if (parser_debug) {
     debug(parser, "Processed token '%s'. state = %s, error = '%s'",
       token_tostring(token),
       labels_for_bitmap(_parser_states, parser -> state, buf, 127),
       data_tostring(parser -> error));
   }
-  return (parser -> error || (parser -> state == ParserStateError)) ? NULL : parser;
+  return (parser -> error || (parser -> state & ParserStateError)) ? NULL : parser;
 }
 
 parser_t * _parser_push_to_prodstack(parser_t *parser, parser_stack_entry_t *entry) {
@@ -452,9 +451,9 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int attempts) {
      * to pop afterwards. Therefore: if the stack is empty and we're trying to
      * handle the same action more than once, just bail.
      */
-    if ((code != TokenCodeEnd) && (code != TokenCodeExhausted) && !attempts) {
+    if ((code != TokenCodeEnd) && !attempts) {
       parser -> error = data_exception(ErrorSyntax,
-				       "Expected end of file, read unexpected token '%s'",
+				       "Expected end of text, read unexpected token '%s'",
 				       token_tostring(token));
     }
     parser -> state |= ParserStateError;
@@ -498,17 +497,26 @@ parser_t * parser_clear(parser_t *parser) {
   return parser;
 }
 
-data_t * parser_parse(parser_t *parser, data_t *reader) {
-  data_t *ret = NULL;
-
+parser_t * parser_start(parser_t *parser) {
   parser_clear(parser);
   list_append(parser -> prod_stack,
               _parser_stack_entry_for_nonterminal(parser -> grammar -> entrypoint));
-  ret = parser_resume(parser, reader);
+  return parser;
+}
+
+data_t * parser_parse(parser_t *parser, data_t *reader) {
+  data_t  *ret = NULL;
+
+  parser_start(parser);
+  ret = parser_parse_reader(parser, reader);
+  if (!ret) {
+    ret = parser_end(parser);
+  }
+  parser_clear(parser);
   return ret;
 }
 
-data_t * parser_resume(parser_t *parser, data_t *reader) {
+data_t * parser_parse_reader(parser_t *parser, data_t *reader) {
   data_t *ret = NULL;
 
   debug(parser, "Parsing reader '%s'.", data_tostring(reader))
@@ -524,8 +532,34 @@ data_t * parser_resume(parser_t *parser, data_t *reader) {
     _parser_dump_prod_stack(parser);
   }
   if (parser_debug && datastack_notempty(parser -> stack)) {
-    error("Parser stack not empty after parse!");
     datastack_list(parser -> stack);
   }
+  return ret;
+}
+
+data_t * parser_send_token(parser_t *parser, token_t *token) {
+  data_t *ret;
+
+  _parser_ll1(token, parser);
+  ret = parser -> error;
+  parser -> error = NULL;
+  debug(parser, "Parsed token '%s'. Result: '%s'",
+    token_tostring(token), data_tostring(ret))
+  if (list_notempty(parser -> prod_stack) && parser_debug) {
+    _parser_dump_prod_stack(parser);
+  }
+  if (parser_debug && datastack_notempty(parser -> stack)) {
+    datastack_list(parser -> stack);
+  }
+  return ret;
+}
+
+data_t * parser_end(parser_t *parser) {
+  data_t *ret;
+
+  if (!token_end) {
+    token_end = token_create(TokenCodeEnd, "$$");
+  }
+  ret = parser_send_token(parser, token_end);
   return ret;
 }
