@@ -25,10 +25,17 @@
 #include <array.h>
 #include <list.h>
 
-typedef struct _dictentry {
-  struct _dict *dict;
+#define INIT_BUCKETS       4
+#define INIT_BUCKET_SIZE   4
+
+typedef struct _entry {
   void         *key;
   void         *value;
+} entry_t;
+
+typedef struct _dictentry {
+  struct _dict *dict;
+  entry_t       entry;
   unsigned int  hash;
   int           ix;
 } dictentry_t;
@@ -38,23 +45,24 @@ typedef struct _bucket {
   int           ix;
   int           capacity;
   int           size;
-  dictentry_t   entries[];
+  union {
+    dictentry_t   entries[INIT_BUCKET_SIZE];
+    dictentry_t  *refentries;
+  };
 } bucket_t;
 
 typedef struct _dict {
   type_t     key_type;
   type_t     data_type;
-  bucket_t **buckets;
   int        num_buckets;
+  union {
+    bucket_t   buckets[INIT_BUCKETS];
+    bucket_t  *refbuckets;
+  };
   int        size;
   float      loadfactor;
   char      *str;
 } dict_t;
-
-typedef struct _entry {
-  void         *key;
-  void         *value;
-} entry_t;
 
 typedef struct _dictiterator {
   dict_t  *dict;

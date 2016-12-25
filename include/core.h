@@ -150,6 +150,7 @@ OBLCORE_IMPEXP char *          labels_for_bitmap(code_label_t *, int, char *, si
 OBLCORE_IMPEXP int             code_for_label(code_label_t *, char *);
 
 OBLCORE_IMPEXP reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
+OBLCORE_IMPEXP reduce_ctx *    reduce_ctx_initialize(reduce_ctx *, void *, void *, void_t);
 OBLCORE_IMPEXP reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);

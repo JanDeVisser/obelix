@@ -77,18 +77,14 @@ reduce_ctx * _set_reduce_reducer(entry_t *entry, reduce_ctx *ctx) {
 }
 
 void * _set_reduce(set_t *set, reduce_t reducer, void *data, char *type) {
-  reduce_ctx *ctx;
+  reduce_ctx  ctx;
   void       *ret;
 
-  ctx = reduce_ctx_create(type, data, (void_t) reducer);
-  if (ctx) {
-    ctx -> obj = set;
-    dict_reduce(set -> dict, (reduce_t) _set_reduce_reducer, ctx);
-    ret = ctx -> data;
-    free(ctx);
-    return ret;
-  }
-  return NULL;
+  reduce_ctx_initialize(&ctx, type, data, (void_t) reducer);
+  ctx.obj = set;
+  dict_reduce(set -> dict, (reduce_t) _set_reduce_reducer, &ctx);
+  ret = ctx.data;
+  return ret;
 }
 
 reduce_ctx * _set_visitor(entry_t *entry, reduce_ctx *ctx) {

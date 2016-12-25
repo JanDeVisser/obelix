@@ -29,7 +29,12 @@ int script_trace = 0;
 static inline void      _instruction_init(void);
 static void             _instruction_register_types(void);
 static int              _instruction_type_register(char *, int, vtable_t *);
-static void             _instruction_tracemsg(char *, ...);
+static void             __instruction_tracemsg(char *, ...);
+
+#define _instruction_tracemsg(fmt, args...) if (script_trace) {              \
+                                     __instruction_tracemsg(fmt, ##args);    \
+                                            }
+
 
 static instruction_t *  _instr_new(instruction_t *, va_list);
 static void             _instr_free(instruction_t *);
@@ -203,7 +208,7 @@ int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
   return t;
 }
 
-void _instruction_tracemsg(char *fmt, ...) {
+void __instruction_tracemsg(char *fmt, ...) {
   va_list args;
 
   if (script_trace) {

@@ -420,7 +420,8 @@ scriptloader_t * scriptloader_extend_loadpath(scriptloader_t *loader, array_t *p
 }
 
 data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, data_t *reader) {
-  char *name;
+  char   *name;
+  data_t *ret;
 
   debug(obelix, "scriptloader_load_fromreader('%s')", name_tostring(mod -> name));
   if (!loader -> parser) {
@@ -432,7 +433,14 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, dat
     parser_set(loader -> parser, "options", data_create_list(loader -> options));
     parser_start(loader -> parser);
   }
-  return parser_parse_reader(loader -> parser, reader);
+  ret = parser_parse_reader(loader -> parser, reader);
+  if (!ret) {
+    ret = parser_get(loader -> parser, "in_statement");
+    if (!ret) {
+      ret = data_false();
+    }
+  }
+  return ret;
 }
 
 data_t * scriptloader_import(scriptloader_t *loader, name_t *name) {
@@ -444,7 +452,6 @@ data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
   data_t      *ret;
   char        *script_name;
   name_t      *name = mod -> name;
-  exception_t *ex;
 
   assert(loader);
   assert(name);
@@ -453,10 +460,10 @@ data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
   if (mod -> state == ModStateLoading) {
     if ((rdr = _scriptloader_open_reader(loader, mod))) {
       ret = scriptloader_load_fromreader(loader, mod, rdr);
-      if (!ret) {
+      if (!data_is_exception(ret)) {
         ret = parser_end(loader -> parser);
       }
-      if (!ret) {
+      if (!data_is_exception(ret)) {
         ret = data_copy(parser_get(loader -> parser, "script"));
       }
       parser_free(loader -> parser);
@@ -514,10 +521,24 @@ data_t * scriptloader_eval(scriptloader_t *loader, data_t *src) {
   if (data_is_module(data)) {
     root = data_as_module(data);
     data = scriptloader_load_fromreader(loader, root, src);
-    if (data_is_script(data)) {
-      script = data_as_script(data);
-      data = closure_eval(root -> closure, script);
-      script_free(script);
+    if (!data_is_exception(data)) {
+      if (!data_intval(data)) {
+        parser_end(loader -> parser);
+        data = data_copy(parser_get(loader -> parser, "script"));
+        if (data_is_script(data)) {
+          script = data_as_script(data);
+          data = closure_eval(root -> closure, script);
+          debug(obelix, "closure_eval: %s", data_tostring(data));
+          if (!data) {
+            data = data_null();
+          }
+          script_free(script);
+        }
+        parser_free(loader -> parser);
+        loader -> parser = NULL;
+      } else {
+        data = NULL;
+      }
     }
   }
   return data;

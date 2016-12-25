@@ -176,6 +176,26 @@ parser_t * script_parse_done(parser_t *parser) {
   return _script_parse_epilog(parser);
 }
 
+parser_t * script_parse_statement_start(parser_t *parser) {
+  data_t *depth;
+
+  depth = parser_get(parser, "in_statement");
+  depth = (depth) ? int_to_data(data_intval(depth) + 1) : int_to_data(1);
+  debug(obelix, "Starting statement. Depth: %d", data_intval(depth));
+  parser_set(parser, "in_statement", depth);
+  return parser;
+}
+
+parser_t * script_parse_statement_end(parser_t *parser) {
+  data_t *depth;
+
+  depth = parser_get(parser, "in_statement");
+  depth = int_to_data(data_intval(depth) - 1);
+  debug(obelix, "Ending statement. Depth: %d", data_intval(depth));
+  parser_set(parser, "in_statement", depth);
+  return parser;
+}
+
 parser_t * script_parse_mark_line(parser_t *parser, data_t *line) {
   //bytecode_t *bytecode;
 

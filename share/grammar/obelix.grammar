@@ -11,7 +11,8 @@
 program                     := [ init ] statements [ done ]
                              ;
 
-statements                  := statement
+statements                  :=                   [ statement_start           ]
+                               statement         [ statement_end             ]
                                statements
                              |
                              ;

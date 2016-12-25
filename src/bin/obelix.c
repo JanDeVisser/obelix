@@ -290,9 +290,7 @@ data_t * _obelix_interactive(obelix_t *obelix) {
         add_history(line);
         debug(obelix, "Evaluating '%s'", line);
         ret = scriptloader_eval(loader, dline = (data_t *) str_copy_chars(line));
-        prompt = PS1;
-        if (data_is_exception_with_code(ret, ErrorInternalError) && // FIXME!!!
-            isatty(fileno(stdin))) {
+        if (!ret && isatty(fileno(stdin))) {
           prompt = PS2;
         } else {
           if (!data_isnull(ret)) {

@@ -693,18 +693,17 @@ str_t * str_erase(str_t *str) {
 
 str_t * _str_join(const char *glue, const void *collection, obj_reduce_t reducer) {
   str_t      *ret;
-  reduce_ctx *ctx;
+  reduce_ctx  ctx;
 
   ret = str_create(0);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-  ctx = reduce_ctx_create(glue, ret, NULL);
-  reducer(collection, (reduce_t) _str_join_reducer, ctx);
+  reduce_ctx_initialize(&ctx, glue, ret, NULL);
+  reducer(collection, (reduce_t) _str_join_reducer, &ctx);
 #pragma GCC diagnostic pop
   if (str_len(ret)) {
     str_chop(ret, strlen(glue));
   }
-  free(ctx);
   return ret;
 }
 

@@ -260,6 +260,10 @@ reduce_ctx * reduce_ctx_create(void *user, void *data, void_t fnc) {
   reduce_ctx *ctx;
 
   ctx = NEW(reduce_ctx);
+  return reduce_ctx_initialize(ctx, user, data, fnc);
+}
+
+reduce_ctx * reduce_ctx_initialize(reduce_ctx *ctx, void *user, void *data, void_t fnc) {
   if (ctx) {
     ctx -> data = data;
     ctx -> fnc = fnc;

@@ -4,7 +4,3 @@ end
 
 y = foo(2)
 return y
-
-/* EXPECTED
---exit-- 4
-EXPECTED */

@@ -75,27 +75,32 @@ data_t * _data_call_constructor(data_t *data, new_t n, va_list args) {
 }
 
 data_t * _data_call_constructors(typedescr_t *type, va_list args) {
-  new_t           n;
-  data_t         *ret = NULL;
-  data_t         *data;
-  list_t         *constructors;
-  listiterator_t *iter;
-  va_list         copy;
+  new_t       n;
+  data_t     *ret = NULL;
+  data_t     *data;
+  list_t     *constructors;
+  listnode_t *node;
+  va_list     copy;
 
   constructors = typedescr_get_constructors(type);
   debug(data, "Type '%s' has %d constructors", type -> type_name, (constructors) ? list_size(constructors) : -1);
   if (constructors && list_size(constructors)) {
     data = data_create_noinit(type -> type);
-    for (iter = li_create(constructors); data && li_has_next(iter); ) {
+
+    /*
+     * Groping the internal bits of the constructor list for performance here.
+     */
+    for (node = list_head_pointer(constructors);
+         data && (node != &(constructors -> tail));
+         node = node -> next) {
       va_copy(copy, args);
-      n = (new_t) li_next(iter);
+      n = (new_t) node -> data;
       ret = _data_call_constructor(data, n, copy);
       va_end(copy);
       if (ret != data) {
         break;
       }
     }
-    li_free(iter);
   } else {
     ret = data_copy(va_arg(args, data_t *));
   }
