@@ -82,14 +82,19 @@ vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
   array_t *args = data_array_create(3);
 
   if (!vm -> stack) {
-    asprintf(&str, "%s run-time stack", vm_tostring(vm));
-    vm -> stack = datastack_create(vm_tostring(vm -> bytecode));
-    free(str);
+    vm -> stack = datastack_create(
+      (dbg) ? vm_tostring(vm -> bytecode) : "VM");
     datastack_set_debug(vm -> stack, dbg);
 
-    asprintf(&str, "%s contexts", vm_tostring(vm));
+    if (dbg) {
+      asprintf(&str, "%s contexts", vm_tostring(vm));
+    } else {
+      str = "Contexts";
+    }
     vm -> contexts = datastack_create(str);
-    free(str);
+    if (dbg) {
+      free(str);
+    }
     datastack_set_debug(vm -> contexts, dbg);
 
     array_push(args, data_copy(scope));
@@ -118,10 +123,10 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
   data_t       *ret = NULL;
   data_t       *exit_code;
   int           call_me = FALSE;
-  char         *label = NULL;
+  data_t       *label = NULL;
   listnode_t   *node = NULL;
-  vm_t         *vm = data_as_vm(data_array_get(args, 1));
-  bytecode_t   *bytecode = data_as_bytecode(data_array_get(args, 2));
+  vm_t         *vm = (vm_t *) data_array_get(args, 1);
+  bytecode_t   *bytecode = (bytecode_t *) data_array_get(args, 2);
   exception_t  *ex = NULL;
   data_t       *ex_data;
   nvp_t        *catchpoint;
@@ -154,7 +159,7 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
 
   if (!exit_code && ret) {
     if (data_type(ret) == String) {
-      label = strdup(data_tostring(ret));
+      label = data_copy(ret);
     } else if (data_type(ret) == Exception) {
       ex =  exception_copy(data_as_exception(ret));
       if (ex -> code == ErrorExit) {
@@ -169,13 +174,15 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
       ex = data_as_exception(ex_data);
     }
     if (ex) {
-      ex -> trace = (data_t *) stacktrace_create();
+      if ((ex -> code != ErrorYield) && (ex -> code != ErrorExit) && (ex -> code != ErrorReturn)) {
+        ex -> trace = (data_t *) stacktrace_create();
+      }
       instruction_trace("Throws", "%s", exception_tostring(ex));
       vm -> exception = (data_t *) ex;
       if (ex -> code != ErrorYield) {
         if (datastack_depth(vm -> contexts)) {
           catchpoint = (nvp_t *) datastack_peek(vm -> contexts);
-          label = strdup(data_tostring(catchpoint -> name));
+          label = data_copy(catchpoint -> name);
         } else {
           node = ProcessEnd;
         }
@@ -184,13 +191,14 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
   }
   data_free(ret);
   if (label) {
-    debug(script, "  Jumping to '%s'", label);
-    instruction_trace("Jump To", "%s", label);
-    node = (listnode_t *) dict_get(bytecode -> labels, label);
+    debug(script, "  Jumping to '%s'", data_tostring(label));
+    instruction_trace("Jump To", "%s", data_tostring(label));
+    node = (listnode_t *) dict_get(bytecode -> labels,
+      (data_is_string(label)) ? str_chars((str_t *) label) : data_tostring(label));
     if (!node) {
-      fatal("Label %s not found", label);
+      fatal("Label %s not found", data_tostring(label));
     }
-    free(label);
+    data_free(label);
   }
   return node;
 }
@@ -252,7 +260,7 @@ data_t * vm_unstash(vm_t *vm, unsigned int stash) {
 nvp_t * vm_push_context(vm_t *vm, char *label, data_t *context) {
   data_t *name;
   nvp_t  *ret;
-  
+
   name = str_to_data(label);
   ret = nvp_create(name, context);
   data_free(name);

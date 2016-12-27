@@ -230,22 +230,25 @@ int interface_register(int type, char *name, int numfncs, ...) {
   va_list      fncs;
   int          fnc_id;
 
-  if (type != Any) {
+  if ((type != Any) && !_interfaces) {
     typedescr_init();
   }
   if (type < FirstInterface) {
     type = _next_interface++;
   }
   ix = type - FirstInterface - 1;
-  if (type_debug) {
-    info("Registering interface '%s' [%d:%d]", name, type, ix);
-  }
+  // if (type_debug) {
+  // }
   if (ix >= _num_interfaces) {
     newsz = (ix + 1) * sizeof(interface_t);
     cursz = _num_interfaces * sizeof(interface_t);
     new_interfaces = (interface_t *) resize_block(_interfaces, newsz, cursz);
     _interfaces = new_interfaces;
     _num_interfaces = ix + 1;
+  }
+  if (type_debug) {
+    info("Registering interface '%s' [%d:%d]. _num_interfaces: %d",
+      name, type, ix, _num_interfaces);
   }
   iface = &_interfaces[ix];
   iface -> _d.type = Interface;
@@ -269,7 +272,9 @@ interface_t * interface_get(int type) {
   int          ifix = type - FirstInterface - 1;
   interface_t *ret = NULL;
 
-  typedescr_init();
+  if (!_interfaces) {
+    typedescr_init();
+  }
   if ((type > FirstInterface) && (type < _next_interface)) {
     ret = &_interfaces[ifix];
     if (!ret) {
@@ -294,7 +299,9 @@ interface_t * interface_get(int type) {
 interface_t * interface_get_byname(char *name) {
   int          ifix;
 
-  typedescr_init();
+  if (!_interfaces) {
+    typedescr_init();
+  }
   for (ifix = 0; ifix < _next_interface - FirstInterface - 1; ifix++) {
     if (!strcmp(_interfaces[ifix].name, name)) {
       return &_interfaces[ifix];
@@ -574,6 +581,8 @@ int _typedescr_register(typedescr_t *descr) {
   d -> hash = 0;
   d -> constructors = NULL;
   d -> debug = 0;
+  d -> implements = NULL;
+  d -> implements_sz = 0;
   // if (d -> type != Type) {
   //   logging_register_category(d -> type_name, &d -> debug);
   // }
@@ -653,7 +662,9 @@ typedescr_t * typedescr_assign_inheritance(int type, int inherits) {
 typedescr_t * typedescr_get(int datatype) {
   typedescr_t *ret = NULL;
 
-  typedescr_init();
+  if (!descriptors) {
+    typedescr_init();
+  }
   if ((datatype >= 0) && (datatype < _numtypes)) {
     ret = &descriptors[datatype];
   }
@@ -672,7 +683,9 @@ typedescr_t * typedescr_get_byname(char *name) {
   typedescr_t *ret = NULL;
   int          ix;
 
-  typedescr_init();
+  if (!descriptors) {
+    typedescr_init();
+  }
   for (ix = 0; ix < _numtypes; ix++) {
     if (descriptors[ix].type_name && !strcmp(name, descriptors[ix].type_name)) {
       return &descriptors[ix];
@@ -823,37 +836,31 @@ methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
 
 int typedescr_is(typedescr_t *descr, int type) {
   int   ix;
-  int   ret;
+  int   ret = FALSE;
   int (*fnc)(typedescr_t *, int);
 
-  //if (type_debug) {
-  //  debug("'%s'.is(%d)", descr -> type_name, type);
-  //}
   if ((type == descr -> type) || (type == Any)) {
-    debug(type, "'%s'.is(%d) = by definition", descr -> type_name, type);
     ret = TRUE;
   } else {
     if (descr -> vtable[FunctionIs].fnc) {
       fnc = (int (*)(typedescr_t *, int)) descr -> vtable[FunctionIs].fnc;
       ret = fnc(descr, type);
-      //if (type_debug) {
-      //  debug("'%s'.is(%d) = %d by delegation", descr -> type_name, type, ret);
-      //}
     } else {
-      ret = (type > FirstInterface) && vtable_implements(descr -> vtable, type);
-      //if (type_debug) {
-      //  debug("'%s'.is(%d) = %d by implementation", descr -> type_name, type, ret);
-      //}
+      if (type > FirstInterface) {
+        if (!descr -> implements || (_num_interfaces > descr -> implements_sz)) {
+          free(descr -> implements);
+          descr -> implements = NEWARR(_num_interfaces, int);
+          descr -> implements_sz = _num_interfaces;
+          for (ix = 0; ix < _num_interfaces; ix++) {
+            descr -> implements[ix] = vtable_implements(descr -> vtable, FirstInterface + ix + 1);
+          }
+        }
+        ret = descr -> implements[type - FirstInterface - 1];
+      }
+      for (ix = 0; !ret && (ix < MAX_INHERITS) && descr -> inherits[ix]; ix++) {
+        ret = typedescr_is(typedescr_get(descr -> inherits[ix]), type);
+      }
     }
   }
-  //if (type_debug) {
-  //  debug("'%s'.is(%d) checking parents", descr -> type_name, type);
-  //}
-  for (ix = 0; !ret && (ix < MAX_INHERITS) && descr -> inherits[ix]; ix++) {
-    ret = typedescr_is(typedescr_get(descr -> inherits[ix]), type);
-  }
-  //if (type_debug) {
-  //  debug("Survey says: '%s'.is(%d) = %d", descr -> type_name, type, ret);
-  //}
   return ret;
 }

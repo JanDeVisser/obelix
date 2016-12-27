@@ -297,10 +297,11 @@ OBLVM_IMPEXP int VM;
 /* -- S T A C K F R A M E _ T --------------------------------------------- */
 
 typedef struct _stackframe {
-  data_t  _d;
-  char   *funcname;
-  char   *source;
-  int     line;
+  data_t      _d;
+  bytecode_t *bytecode;
+  char       *funcname;
+  char       *source;
+  int         line;
 } stackframe_t;
 
 OBLVM_IMPEXP stackframe_t *  stackframe_create(data_t *);
@@ -363,6 +364,7 @@ typedef struct _function_call {
 } function_call_t;
 
 OBLVM_IMPEXP int Instruction;
+OBLVM_IMPEXP int Scope;
 OBLVM_IMPEXP int ITByValue;
 OBLVM_IMPEXP int ITByName;
 OBLVM_IMPEXP int ITByNameValue;
@@ -400,7 +402,10 @@ DeclareInstructionType(VMStatus);
 DeclareInstructionType(Yield);
 
 OBLVM_IMPEXP instruction_t * instruction_create_byname(char *, char *, data_t *);
-OBLVM_IMPEXP void            instruction_trace(char *, char *, ...);
+OBLVM_IMPEXP void            _instruction_trace(char *, char *, ...);
+#define instruction_trace(fmt, args...) if (script_trace) {                  \
+                                          _instruction_trace(fmt, ##args);   \
+                                        }
 
 OBLVM_IMPEXP data_t *        instruction_create_enter_context(name_t *, data_t *);
 OBLVM_IMPEXP data_t *        instruction_create_function(name_t *, callflag_t, long, array_t *);

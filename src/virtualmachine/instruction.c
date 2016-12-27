@@ -49,6 +49,7 @@ static char *           _instruction_tostring(instruction_t *, char *);
 static void             _instruction_add_label(instruction_t *, char *);
 
 int Instruction = -1;
+int Scope = -1;
 
 static vtable_t _vtable_Instruction[] = {
   { .id = FunctionCall, .fnc = (void_t) _instruction_call },
@@ -59,28 +60,28 @@ static vtable_t _vtable_Instruction[] = {
 
 int ITByValue = -1;
 
-static vtable_t _vtable_tostring_value[] = {
+static vtable_t _vtable_ITByValue[] = {
   { .id = FunctionToString, .fnc = (void_t) _instruction_tostring_value },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 int ITByName = -1;
 
-static vtable_t _vtable_tostring_name[] = {
+static vtable_t _vtable_ITByName[] = {
   { .id = FunctionToString, .fnc = (void_t) _instruction_tostring_name },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 int ITByNameValue = -1;
 
-static vtable_t _vtable_tostring_name_value[] = {
+static vtable_t _vtable_ITByNameValue[] = {
   { .id = FunctionToString, .fnc = (void_t) _instruction_tostring_name_value },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 int ITByValueOrName = -1;
 
-static vtable_t _vtable_tostring_value_or_name[] = {
+static vtable_t _vtable_ITByValueOrName[] = {
   { .id = FunctionToString, .fnc = (void_t) _instruction_tostring_value_or_name },
   { .id = FunctionNone,     .fnc = NULL }
 };
@@ -161,10 +162,10 @@ void _instruction_register_types(void) {
   logging_register_category("trace", &script_trace);
 
   typedescr_register(Instruction, instruction_t);
-  ITByName = typedescr_create_and_register(-1, "instruction_byname", _vtable_tostring_name, NULL);
-  ITByValue = typedescr_create_and_register(-1, "instruction_byvalue", _vtable_tostring_value, NULL);
-  ITByNameValue = typedescr_create_and_register(-1, "instruction_bynamevalue", _vtable_tostring_name_value, NULL);
-  ITByValueOrName = typedescr_create_and_register(-1, "instruction_byvalue_or_name", _vtable_tostring_value_or_name, NULL);
+  typedescr_register(ITByName, instruction_t);
+  typedescr_register(ITByValue, instruction_t);
+  typedescr_register(ITByNameValue, instruction_t);
+  typedescr_register(ITByValueOrName, instruction_t);
   typedescr_register(Call, function_call_t);
   interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
   name_empty = name_create(0);
@@ -219,7 +220,7 @@ void __instruction_tracemsg(char *fmt, ...) {
   }
 }
 
-void instruction_trace(char *op, char *fmt, ...) {
+void _instruction_trace(char *op, char *fmt, ...) {
   va_list  args;
   char    *buf;
 
@@ -674,7 +675,7 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
           data_tostring(callable),
           (args) ? array_tostring(args) : "[]",
           (kwargs) ? dict_tostring(kwargs) : "{}");
-    instruction_trace("Calling", "%s(%s, %s)",
+    instruction_trace("Calling %s(%s, %s)",
                       instr -> name,
                       (args) ? array_tostring(args) : "[]",
                       (kwargs) ? dict_tostring(kwargs) : "{}");
@@ -872,10 +873,10 @@ void _instr_free(instruction_t *instr) {
 }
 
 data_t * _instruction_call(data_t *data, array_t *p, dict_t *kw) {
-  instruction_t *instr = data_as_instruction(data);
+  instruction_t *instr = (instruction_t *) data;
   data_t        *scope = data_array_get(p, 0);
-  vm_t          *vm = data_as_vm(data_array_get(p, 1));
-  bytecode_t    *bytecode = data_as_bytecode(data_array_get(p, 2));
+  vm_t          *vm = (vm_t *) data_array_get(p, 1);
+  bytecode_t    *bytecode = (bytecode_t *) data_array_get(p, 2);
 
   debug(script, "Executing %s", instruction_tostring(instr));
   _instruction_tracemsg("%-60.60s%s",

@@ -71,15 +71,18 @@ stackframe_t * stackframe_create(data_t *data) {
 stackframe_t * _stackframe_new(stackframe_t *stackframe, va_list args) {
   vm_t         *vm = va_arg(args, vm_t *);
 
-  stackframe -> funcname = strdup(data_tostring(vm -> bytecode -> owner));
-  // FIXME
-  stackframe -> source = strdup(data_tostring(vm -> bytecode -> owner));
+  stackframe -> bytecode = bytecode_copy(vm -> bytecode);
+  // stackframe -> funcname = strdup(data_tostring(vm -> bytecode -> owner));
+  // stackframe -> source = strdup(data_tostring(vm -> bytecode -> owner));
+  stackframe -> funcname = NULL;
+  stackframe -> source = NULL;
   stackframe -> line = 0;
   return stackframe;
 }
 
 void _stackframe_free(stackframe_t *stackframe) {
   if (stackframe) {
+    bytecode_free(stackframe -> bytecode);
     free(stackframe -> funcname);
     free(stackframe -> source);
   }
@@ -97,6 +100,8 @@ int stackframe_cmp(stackframe_t *stackframe1, stackframe_t *stackframe2) {
 char * _stackframe_allocstring(stackframe_t *stackframe) {
   char *buf;
 
+  stackframe -> funcname = strdup(data_tostring(stackframe -> bytecode -> owner));
+  stackframe -> source = strdup(data_tostring(stackframe -> bytecode -> owner));
   asprintf(&buf, "%-32.32s [%32s:%d]",
 	   stackframe -> funcname, stackframe -> source, stackframe -> line);
   return buf;

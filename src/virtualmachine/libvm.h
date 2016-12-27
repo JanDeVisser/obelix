@@ -28,5 +28,6 @@
 #include <vm.h>
 
 extern int script_debug;
+extern int script_trace;
 
 #endif /* __LIBVM_H__ */

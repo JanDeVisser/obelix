@@ -124,9 +124,18 @@ exception_t * exception_create(int code, char *msg, ...) {
   exception_t *ret;
   va_list      args;
 
-  va_start(args, msg);
-  ret = exception_vcreate(code, msg, args);
-  va_end(args);
+  if (strchr(msg, '%')) {
+    va_start(args, msg);
+    ret = exception_vcreate(code, msg, args);
+    va_end(args);
+  } else {
+    ret = data_new(Exception, exception_t);
+    ret -> code = code;
+    ret -> msg = strdup(msg);
+    ret -> handled = 0;
+    ret -> throwable = NULL;
+    ret -> trace = NULL;
+  }
   return ret;
 }
 

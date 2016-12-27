@@ -41,7 +41,6 @@ typedef enum _metatype {
   OutputStream,  /* 1003 */
   Iterable,      /* 1004 */
   Iterator,      /* 1005 */
-  Scope,         /* 1006 */
   Callable,      /* 1007 */
   Connector,     /* 1008 */
   CtxHandler,    /* 1009 */
@@ -140,6 +139,8 @@ typedef struct _typedescr {
   void          *ptr;
   int            promote_to;
   int            inherits[MAX_INHERITS];
+  int           *implements;
+  int            implements_sz;
   unsigned int   hash;
   int            count;
 } typedescr_t;
