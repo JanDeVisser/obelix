@@ -33,6 +33,10 @@ statement                   := conditional
                              | leave
                              | pass              [ nop                       ]
                              | assignment_or_call
+                             | standalone_expr
+                             ;
+
+standalone_expr             := '(' expr ')'
                              ;
 
 pass                        := ';'

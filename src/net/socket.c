@@ -64,7 +64,6 @@ typedef int socklen_t;
 
 typedef int         (*socket_fnc_t)(SOCKET, struct sockaddr *, socklen_t);
 
-static void         _socket_init(void);
 static socket_t *   _socket_create(SOCKET, char *, char *);
 static socket_t *   _socket_error(char *, char *, char *, ...);
 static socket_t *   _socket_open(char *, char *, socket_fnc_t);
@@ -114,7 +113,7 @@ int ErrorSocket = -1;
 
 /* ------------------------------------------------------------------------ */
 
-void _socket_init(void) {
+void socket_init(void) {
 #ifdef HAVE_WINSOCK2_H
   WSADATA wsadata;
   int     result;
@@ -187,7 +186,7 @@ data_t * _socket_resolve(socket_t *s, char *attr) {
 socket_t * _socket_create(SOCKET fh, char *host, char *service) {
   socket_t *ret;
 
-  _socket_init();
+  socket_init();
   ret = (socket_t *) data_create(Socket, host, service);
   ret -> fh = fh;
   return ret;
@@ -197,7 +196,7 @@ socket_t * _socket_error(char *host, char *service, char *fmt, ...) {
   va_list      args;
   socket_t    *ret;
 
-  _socket_init();
+  socket_init();
   va_start(args, fmt);
   ret = socket_set_error((socket_t *) data_create(Socket, host, service),
             (data_t *) exception_vcreate(ErrorSocket, fmt, args));

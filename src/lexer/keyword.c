@@ -66,6 +66,7 @@ static code_label_t _scanner_state_names[] = {
   { .code = KSSNoMatch,              .label = "KSSNoMatch" },
   { .code = -1,                      .label = NULL }
 };
+
 static kw_config_t *  _kw_config_create(kw_config_t *, va_list);
 static void           _kw_config_free(kw_config_t *);
 static data_t *       _kw_config_resolve(kw_config_t *, char *);
@@ -277,7 +278,6 @@ kw_scanner_t * _kw_scanner_create(kw_config_t *config) {
 void _kw_scanner_free(kw_scanner_t *kw_scanner) {
   if (kw_scanner) {
     free(kw_scanner -> scanned);
-    free(kw_scanner);
   }
 }
 

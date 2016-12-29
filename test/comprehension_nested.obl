@@ -1,0 +1,22 @@
+
+func add(sum, x)
+  if sum
+    return sum + x
+  else
+    return x
+  end
+end
+
+func foo(sum, x)
+  l = 0 ~ x
+  s = l | add
+  print("sum(${0}) = ${1}", l, s);
+  if sum
+    return sum + s
+  else
+    return s
+  end
+end
+
+print([ 2*i for i in 1 ~ 5 ] | foo)
+

@@ -30,6 +30,7 @@ typedef struct _sqliteconn {
 
 typedef struct _sqlitestmt {
   data_t        _d;
+  sqliteconn_t *conn;
   sqlite3_stmt *stmt;
 } sqlitestmt_t;
 
@@ -48,23 +49,36 @@ static vtable_t _vtable_SQLiteConnection[] = {
   { .id = FunctionNone,  .fnc = NULL }
 };
 
-static data_t * _sqlitestmt_new(sqlitestmt_t *, va_list);
-static void     _sqlitestmt_free(sqlitestmt_t *);
-static data_t * _sqlitestmt_interpolate(sqlitestmt_t *, array_t *, dict_t *);
-static data_t * _sqlitestmt_has_next(sqlitestmt_t *);
-static data_t * _sqlitestmt_next(sqlitestmt_t *);
+static data_t *       _sqlitestmt_prepare(sqlitestmt_t *);
+static sqlitestmt_t * _sqlitestmt_close(sqlitestmt_t *);
+static data_t *       _sqlitestmt_bind_param(sqlitestmt_t *, int, data_t *);
+
+static data_t *       _sqlitestmt_new(sqlitestmt_t *, va_list);
+static void           _sqlitestmt_free(sqlitestmt_t *);
+static data_t *       _sqlitestmt_interpolate(sqlitestmt_t *, array_t *, dict_t *);
+static data_t *       _sqlitestmt_has_next(sqlitestmt_t *);
+static data_t *       _sqlitestmt_next(sqlitestmt_t *);
+static data_t *       _sqlitestmt_execute(sqlitestmt_t *, array_t *, dict_t *);
 
 static vtable_t _vtable_SQLiteStmt[] = {
   { .id = FunctionNew,         .fnc = (void_t) _sqlitestmt_new },
   { .id = FunctionFree,        .fnc = (void_t) _sqlitestmt_free },
   { .id = FunctionInterpolate, .fnc = (void_t) _sqlitestmt_interpolate },
+  { .id = FunctionIter,        .fnc = (void_t) data_copy },
   { .id = FunctionHasNext,     .fnc = (void_t) _sqlitestmt_has_next },
   { .id = FunctionNext,        .fnc = (void_t) _sqlitestmt_next },
+  { .id = FunctionCall,        .fnc = (void_t) _sqlitestmt_execute },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
 static int     SQLiteConnection = -1;
 static int     SQLiteStmt = -1;
+
+#define data_is_sqliteconn(d)  ((d) && data_hastype((d), SQLiteConnection))
+#define sqliteconn_copy(d)     ((sqliteconn_t *) data_copy((data_t *) (d)))
+#define data_as_sqliteconn(d)  (data_is_sqliteconn((d)) ? ((uri_t *) (d)) : NULL)
+#define sqliteconn_free(d)     (data_free((data_t *) (d)))
+#define sqliteconn_tostring(d) (data_tostring((data_t *) (d)))
 
 /* -- S Q L I T E C O N N E C T I O N   D A T A   T Y P E ----------------- */
 
@@ -113,32 +127,32 @@ data_t * _sqliteconn_query(sqliteconn_t *c, data_t *query) {
   data_t *ret = NULL;
 
   if (c -> conn && (c -> _dbconn.status == DBConnConnected)) {
-    ret = data_create(SQLiteStmt, c, data_tostring(query));
+    ret = data_create(SQLiteStmt, c, query);
   }
   return ret;
 }
 
 /* -- S Q L I T E S T M T ------------------------------------------------- */
 
-data_t * _sqlitestmt_new(sqlitestmt_t *stmt, va_list args) {
-  sqliteconn_t *c = va_arg(args, sqliteconn_t *);
-  data_t       *query = va_arg(args, data_t *);
-  data_t       *ret = (data_t *) stmt;
+data_t * _sqlitestmt_prepare(sqlitestmt_t *stmt) {
+  data_t *ret = NULL;
 
-  stmt -> _d.str = strdup(data_tostring(query));
-  stmt -> _d.free_str = DontFreeData;
-  if (sqlite3_prepare_v2(c -> conn, stmt -> _d.str, -1, &stmt -> stmt, NULL) != SQLITE_OK) {
-    ret = data_exception(ErrorSQL, "Could not prepare SQL statement '%s'", stmt -> _d.str);
-    stmt -> stmt = NULL;
+  if (!stmt -> stmt) {
+    if (sqlite3_prepare_v2(stmt -> conn -> conn, stmt -> _d.str, -1, &stmt -> stmt, NULL) != SQLITE_OK) {
+      ret = data_exception(ErrorSQL, "Could not prepare SQL statement '%s'", stmt -> _d.str);
+      stmt -> stmt = NULL;
+    }
   }
   return ret;
 }
 
-void _sqlitestmt_free(sqlitestmt_t *stmt) {
-  if (stmt) {
+sqlitestmt_t * _sqlitestmt_close(sqlitestmt_t *stmt) {
+  if (stmt -> stmt) {
     sqlite3_finalize(stmt -> stmt);
-    free(stmt -> _d.str);
+    stmt -> stmt = NULL;
   }
+  sqliteconn_free(stmt -> conn);
+  return stmt;
 }
 
 data_t * _sqlitestmt_bind_param(sqlitestmt_t *stmt, int ix, data_t *param) {
@@ -162,6 +176,27 @@ data_t * _sqlitestmt_bind_param(sqlitestmt_t *stmt, int ix, data_t *param) {
     : NULL;
 }
 
+/* ------------------------------------------------------------------------ */
+
+data_t * _sqlitestmt_new(sqlitestmt_t *stmt, va_list args) {
+  sqliteconn_t *c = va_arg(args, sqliteconn_t *);
+  data_t       *query = va_arg(args, data_t *);
+  data_t       *ret = (data_t *) stmt;
+
+  stmt -> _d.str = strdup(data_tostring(query));
+  stmt -> _d.free_str = DontFreeData;
+  stmt -> conn = sqliteconn_copy(c);
+  stmt -> stmt = NULL;
+  return ret;
+}
+
+void _sqlitestmt_free(sqlitestmt_t *stmt) {
+  if (stmt) {
+    _sqlitestmt_close(stmt);
+    free(stmt -> _d.str);
+  }
+}
+
 data_t * _sqlitestmt_interpolate(sqlitestmt_t *stmt, array_t *params, dict_t *kwparams) {
   int             ix;
   data_t         *param;
@@ -169,6 +204,9 @@ data_t * _sqlitestmt_interpolate(sqlitestmt_t *stmt, array_t *params, dict_t *kw
   dictiterator_t *di;
   entry_t        *kw;
 
+  if ((ret = _sqlitestmt_prepare(stmt))) {
+    return ret;
+  }
   if (params && array_size(params)) {
     for (ix = 0; ix < array_size(params); ix++) {
       param = data_array_get(params, ix);
@@ -191,11 +229,36 @@ data_t * _sqlitestmt_interpolate(sqlitestmt_t *stmt, array_t *params, dict_t *kw
   return (ret) ? ret : (data_t *) stmt;
 }
 
-data_t * _sqlitestmt_has_next(sqlitestmt_t *stmt) {
-  int ret;
+data_t * _sqlitestmt_execute(sqlitestmt_t *stmt, array_t *params, dict_t *kwparams) {
+  data_t  *ret = (data_t *) stmt;
+  long     count;
+  data_t  *row;
 
-  ret = sqlite3_step(stmt -> stmt);
-  switch (ret) {
+  if (((params && array_size(params)) || (kwparams && dict_size(kwparams)))) {
+    _sqlitestmt_interpolate(stmt, params, kwparams);
+  }
+  count = 0;
+  for (row = _sqlitestmt_has_next(stmt);
+       !data_is_exception(row) && data_intval(row);
+       row = _sqlitestmt_has_next(stmt)) {
+    count++;
+  }
+  if (!data_is_exception(row)) {
+    debug(sql, "Successful execution of '%s'. Returns %d tuples", stmt -> _d.str, count);
+    ret = int_to_data(count);
+  }
+  return ret;
+}
+
+data_t * _sqlitestmt_has_next(sqlitestmt_t *stmt) {
+  data_t *ret;
+  int     retval;
+
+  if ((ret = _sqlitestmt_prepare(stmt))) {
+    return ret;
+  }
+  retval = sqlite3_step(stmt -> stmt);
+  switch (retval) {
     case SQLITE_ROW:
       return data_true();
     case SQLITE_DONE:
@@ -207,7 +270,7 @@ data_t * _sqlitestmt_has_next(sqlitestmt_t *stmt) {
   }
 }
 
-data_t *  _sqlitestmt_next(sqlitestmt_t *stmt) {
+data_t * _sqlitestmt_next(sqlitestmt_t *stmt) {
   int     ix;
   int     numcols;
   int     type;
@@ -229,7 +292,7 @@ data_t *  _sqlitestmt_next(sqlitestmt_t *stmt) {
         data_list_push(rs, data_null());
         break;
       case SQLITE_TEXT:
-        data_list_push(rs, (data_t *) str_copy_chars(sqlite3_column_text(stmt -> stmt, ix)));
+        data_list_push(rs, (data_t *) str_copy_chars((char *) sqlite3_column_text(stmt -> stmt, ix)));
         break;
     }
   }

@@ -34,9 +34,10 @@ static uri_t *     _uri_new(uri_t *, va_list);
 static data_t *    _uri_resolve(uri_t *, char *);
 static void        _uri_free(uri_t *);
 
-static data_t *    _uri_create(data_t *, char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t *    _function_create_uri(char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t *    _function_net_init(char *, array_t *, dict_t *);
 
-extern grammar_t * uri_grammar_build(void);
+extern         grammar_t * uri_grammar_build(void);
 
 static vtable_t _vtable_URI[] = {
   { .id = FunctionNew,         .fnc = (void_t) _uri_new },
@@ -46,7 +47,6 @@ static vtable_t _vtable_URI[] = {
 };
 
 static methoddescr_t _methods_URI[] = {
-  { .type = Any,    .name = "uri", .method = _uri_create, .argtypes = { String, Any, Any },       .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL,  .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
@@ -59,6 +59,26 @@ static pthread_once_t   _uri_grammar_once = PTHREAD_ONCE_INIT;
 #define uri_grammar_init() pthread_once(&_uri_grammar_once, _uri_grammar_init)
 
 /* ------------------------------------------------------------------------ */
+
+void net_init(void) {
+  if (URI < 1) {
+    logging_register_module(net);
+    dictionary_init();
+    socket_init();
+    typedescr_register_with_methods(URI, uri_t);
+    uri_grammar_init();
+  }
+}
+
+data_t * _function_net_init(char *name, array_t *args, dict_t *kwargs) {
+  (void) name;
+  (void) args;
+  (void) kwargs;
+
+  net_init();
+  return data_true();
+}
+
 
 void _uri_grammar_init(void) {
   _uri_grammar = uri_grammar_build();
@@ -144,27 +164,24 @@ data_t * _uri_resolve(uri_t *uri, char *name) {
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _uri_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  uri_t *uri;
+data_t * _function_create_uri(char *name, array_t *args, dict_t *kwargs) {
+  uri_t  *uri;
+  data_t *ret;
 
-  (void) self;
   (void) name;
   (void) kwargs;
   net_init();
   uri = uri_create(data_tostring(data_array_get(args, 0)));
-  return (!uri -> error) ? (data_t *) uri : uri -> error;
+  if (uri -> error) {
+    ret = data_copy(uri -> error);
+    uri_free(uri);
+  } else {
+    ret = (data_t *) uri;
+  }
+  return ret;
 }
 
 /* ------------------------------------------------------------------------ */
-
-void net_init(void) {
-  if (URI < 1) {
-    logging_register_module(net);
-    dictionary_init();
-    typedescr_register_with_methods(URI, uri_t);
-    uri_grammar_init();
-  }
-}
 
 uri_t * uri_create(char *uri) {
   net_init();

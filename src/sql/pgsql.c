@@ -76,7 +76,7 @@ static vtable_t _vtable_PGSQLStmt[] = {
 static int     PGSQLConnection = -1;
 static int     PGSQLStmt = -1;
 
-/* -- S Q L I T E C O N N E C T I O N   D A T A   T Y P E ----------------- */
+/* -- P G C O N N E C T I O N   D A T A   T Y P E ------------------------- */
 
 pgsqlconn_t * _pgsqlconn_new(pgsqlconn_t *c, va_list args) {
   c -> conn = NULL;
@@ -106,6 +106,10 @@ data_t * _pgsqlconn_enter(pgsqlconn_t *c) {
 }
 
 data_t * _pgsqlconn_leave(pgsqlconn_t *c, data_t *error) {
+  if (data_is_exception(error)) {
+    debug(sql, "pgsql connection context block caught exception: %s",
+        data_tostring(error));
+  }
   if (c -> conn && (c -> _dbconn.status == DBConnConnected)) {
     PQfinish(c -> conn);
     c -> _dbconn.status = DBConnInitialized;
@@ -284,7 +288,7 @@ data_t * _pgsqlstmt_has_next(pgsqlstmt_t *stmt) {
   return ret;
 }
 
-data_t *  _pgsqlstmt_next(pgsqlstmt_t *stmt) {
+data_t * _pgsqlstmt_next(pgsqlstmt_t *stmt) {
   int     ix;
   int     numcols;
   int     type;

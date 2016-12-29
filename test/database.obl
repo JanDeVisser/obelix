@@ -1,4 +1,5 @@
 import sql
+import net
 
 name = "Database test script"
 
@@ -20,52 +21,74 @@ func ctx(name)
   end
 end
 
-
-context conn = sql.dbconnect("postgresql://jan:wbw417@localhost:5432/jan")
-  conn.execute("DROP TABLE IF EXISTS obelix")
-  conn.execute("CREATE TABLE obelix ( id serial primary key, value text )")
-  conn.execute("INSERT INTO obelix (value) VALUES ('obelix')")
-  conn.execute("INSERT INTO obelix (value) VALUES ($1)", "asterix")
-
-  print("All values in table obelix")
-  print("==========================")
-  for row in `SELECT id, value FROM obelix`
-    print("id: ${0} value: ${1}", row[0], row[1])
-  end
-
-  id = 1
-  print("\nOnly those with id > ${0}", id)
-  print("======================")
-  for row in `SELECT id, value FROM obelix WHERE id > $1` % ( id )
-    print("id: ${0} value: ${1}", row[0], row[1])
-  end
-
-  s = `SELECT id FROM obelix` | add
-  print("\nSum of all ids: ${0}", s)
-
-  context tx = conn.tx()
-    conn.execute("INSERT INTO obelix (value) VALUES ('abraracourcix')")
-    conn.execute("INSERT INTO obelix (value) VALUES ('panoramix')")
-  end
-
-  print("\nAll values after committed tx")
+func db_test(x, dburi)
+  print("URI: ${0}", dburi)
   print("===============================")
-  for row in `SELECT id, value FROM obelix`
-    print("id: ${0} value: ${1}", row[0], row[1])
+  u = net.uri(dburi)
+  switch u.scheme
+    case "postgresql":
+      serial = "serial"
+    case "sqlite":
+      serial = "integer"
+    default:
+      serial = "autoincrement"
   end
+  ct = "CREATE TABLE obelix ( id ${0} primary key, value text )"
+  ct = ct.format(serial)
 
-  context c = new ctx("context")
+  context conn = sql.dbconnect(dburi)
+    conn.execute("DROP TABLE IF EXISTS obelix")
+    conn.execute(ct)
+    conn.execute("INSERT INTO obelix (value) VALUES ('obelix')")
+    conn.execute("INSERT INTO obelix (value) VALUES ($1)", "asterix")
+
+    print("All values in table obelix")
+    print("==========================")
+    for row in `SELECT id, value FROM obelix`
+      print("id: ${0} value: ${1}", row[0], row[1])
+    end
+
+    id = 1
+    print("\nOnly those with id > ${0}", id)
+    print("======================")
+    for row in `SELECT id, value FROM obelix WHERE id > $1` % ( id )
+      print("id: ${0} value: ${1}", row[0], row[1])
+    end
+
+    s = `SELECT id FROM obelix` | add
+    print("\nSum of all ids: ${0}", s)
+
     context tx = conn.tx()
-      conn.execute("INSERT INTO obelix (value) VALUES ('assurancetourix')")
-      print("assurancetourix inserted")
-      throw { msg: "Exception", code: 42 }
+      conn.execute("INSERT INTO obelix (value) VALUES ('abraracourcix')")
+      conn.execute("INSERT INTO obelix (value) VALUES ('panoramix')")
+    end
+
+    print("\nAll values after committed tx")
+    print("===============================")
+    for row in `SELECT id, value FROM obelix`
+      print("id: ${0} value: ${1}", row[0], row[1])
+    end
+
+    context c = new ctx("context")
+      context tx = conn.tx()
+        conn.execute("INSERT INTO obelix (value) VALUES ('assurancetourix')")
+        print("assurancetourix inserted")
+        throw { msg: "Exception", code: 42 }
+      end
+    end
+
+    print("\nAll values after rolled back tx")
+    print("=================================")
+    for row in `SELECT id, value FROM obelix`
+      print("id: ${0} value: ${1}", row[0], row[1])
     end
   end
-
-  print("\nAll values after rolled back tx")
-  print("=================================")
-  for row in `SELECT id, value FROM obelix`
-    print("id: ${0} value: ${1}", row[0], row[1])
-  end
-
+  print("")
+  return 0
 end
+
+(["postgresql://jan:wbw417@localhost:5432/jan", "sqlite:obelix.sqlite"] | db_test)
+
+
+
+

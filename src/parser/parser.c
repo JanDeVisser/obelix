@@ -523,7 +523,6 @@ data_t * parser_parse_reader(parser_t *parser, data_t *reader) {
   parser -> lexer = lexer_create(parser -> grammar -> lexer, reader);
   parser -> lexer -> data = parser;
   lexer_tokenize(parser -> lexer, _parser_ll1, parser);
-  lexer_free(parser -> lexer);
   ret = parser -> error;
   parser -> error = NULL;
   debug(parser, "Parsed reader '%s'. Result: '%s'",

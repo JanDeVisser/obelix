@@ -138,13 +138,14 @@ void _lexer_free(lexer_t *lexer) {
 
   if (lexer) {
     token_free(lexer -> last_token);
-    for (scanner = lexer -> scanners; scanner; scanner = scanner -> next) {
+    for (scanner = lexer -> scanners; scanner; scanner = lexer -> scanners) {
       if (scanner -> next) {
         scanner -> next -> prev = NULL;
       }
       lexer -> scanners = scanner -> next;
       scanner_free(scanner);
     }
+    lexer -> scanners = NULL;
     str_free(lexer -> token);
     if ((data_t *) lexer -> buffer != lexer -> reader) {
       str_free(lexer -> buffer);
@@ -155,8 +156,7 @@ void _lexer_free(lexer_t *lexer) {
 char * _lexer_allocstring(lexer_t *lexer) {
   char *buf;
 
-  asprintf(&buf, "Lexer for '%s'",
-           data_tostring(lexer -> reader));
+  asprintf(&buf, "Lexer for '%s'", data_tostring(lexer -> reader));
   return buf;
 }
 

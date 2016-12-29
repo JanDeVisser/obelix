@@ -28,6 +28,7 @@
 #include <data.h>
 #include <net.h>
 
+extern void socket_init(void);
 extern void net_init(void);
 
 extern int net_debug;

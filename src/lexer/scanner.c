@@ -68,7 +68,7 @@ scanner_t * _scanner_new(scanner_t *scanner, va_list args) {
     lexer -> scanners = scanner;
   }
   scanner -> config = scanner_config_copy(config);
-  scanner -> lexer = lexer_copy(lexer);
+  scanner -> lexer = lexer;
   scanner -> state = 0;
   scanner -> data = NULL;
   debug(lexer, "Created scanner of type '%s'. match: %p", data_typename(scanner -> config), scanner -> config -> match);
@@ -76,17 +76,16 @@ scanner_t * _scanner_new(scanner_t *scanner, va_list args) {
 }
 
 void _scanner_free(scanner_t *scanner) {
-  void (*scanner_free)(scanner_t *);
+  void (*destroy_scanner)(scanner_t *);
 
   if (scanner) {
-    scanner_free = (void (*)(scanner_t *)) data_get_function((data_t *) scanner -> config, FunctionDestroyScanner);
-    if (scanner_free) {
-      scanner_free(scanner);
+    destroy_scanner = (void (*)(scanner_t *)) data_get_function((data_t *) scanner -> config, FunctionDestroyScanner);
+    if (destroy_scanner && scanner -> data) {
+      destroy_scanner(scanner -> data);
     } else {
       free(scanner -> data);
     }
     scanner_config_free(scanner -> config);
-    lexer_free(scanner -> lexer);
   }
 }
 

@@ -17,6 +17,10 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-func connect() -> "liboblstdlib.so:_function_connect"
-func server() -> "liboblstdlib.so:_function_server"
-func listen() -> "liboblstdlib.so:_function_listener"
+func connect() -> "liboblnet.so:_function_connect"
+func server() -> "liboblnet.so:_function_server"
+func listen() -> "liboblnet.so:_function_listener"
+func uri() -> "liboblnet.so:_function_create_uri"
+
+func __net_init() -> "liboblnet.so:_function_net_init"
+__net_init()

@@ -356,7 +356,6 @@ data_t * _any_visit(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 }
 
 data_t * _any_format(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  (void) name;
   return data_interpolate(self, args, kwargs);
 }
 

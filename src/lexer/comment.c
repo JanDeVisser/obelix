@@ -79,7 +79,7 @@ static comment_config_t * _comment_config_config(comment_config_t *, array_t *);
 static comment_config_t * _comment_config_add_marker(comment_config_t *, char *);
 
 static token_t *          _comment_match(scanner_t *);
-static void               _comment_free_scanner(scanner_t *);
+static void               _comment_free_scanner(comment_scanner_t *);
 
 static vtable_t _vtable_CommentScannerConfig[] = {
     { .id = FunctionNew,            .fnc = (void_t) _comment_config_create },
@@ -468,11 +468,8 @@ token_t *_comment_match(scanner_t *scanner) {
   return ret;
 }
 
-void _comment_free_scanner(scanner_t *scanner) {
-  comment_scanner_t *c_scanner = (comment_scanner_t *) scanner -> data;
-
+void _comment_free_scanner(comment_scanner_t *c_scanner) {
   free(c_scanner -> newbuf);
-  free(c_scanner);
 }
 
 __DLL_EXPORT__ typedescr_t *comment_register(void) {

@@ -223,6 +223,7 @@ data_t * dbconn_create(char *connectstr) {
 
 data_t * _function_dbconnect(char *func_name, array_t *params, dict_t *kwargs) {
   _sql_init();
+  debug(sql, "Connecting to database %s", data_tostring(data_array_get(params, 0)));
   return (!params || !array_size(params))
     ? data_exception(ErrorArgCount, "No database URI specified in function '%s'", func_name)
     : dbconn_create(data_tostring(data_array_get(params, 0)));
