@@ -54,7 +54,7 @@ static data_t *       _num_config_resolve(num_config_t *, char *);
 static num_config_t * _num_config_config(num_config_t *, array_t *);
 static token_t *      _num_match(scanner_t *);
 
-static vtable_t _vtable_numscanner_config[] = {
+static vtable_t _vtable_NumScannerConfig[] = {
   { .id = FunctionNew,       .fnc = (void_t ) _num_config_create },
   { .id = FunctionResolve,   .fnc = (void_t ) _num_config_resolve },
   { .id = FunctionSet,       .fnc = (void_t ) _num_config_set },
@@ -272,13 +272,6 @@ token_t * _num_match(scanner_t *scanner) {
  */
 
 __DLL_EXPORT__ typedescr_t * number_register(void) {
-  typedescr_t *ret;
-
-  NumScannerConfig = typedescr_create_and_register(NumScannerConfig,
-                                                  "number",
-                                                  _vtable_numscanner_config,
-                                                  NULL);
-  ret = typedescr_get(NumScannerConfig);
-  typedescr_set_size(NumScannerConfig, num_config_t);
-  return ret;
+  typedescr_register_with_name(NumScannerConfig, "number", num_config_t);
+  return typedescr_get(NumScannerConfig);
 }

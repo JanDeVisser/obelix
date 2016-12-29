@@ -167,7 +167,7 @@ void _instruction_register_types(void) {
   typedescr_register(ITByNameValue, instruction_t);
   typedescr_register(ITByValueOrName, instruction_t);
   typedescr_register(Call, function_call_t);
-  interface_register(Scope, "scope", 2, FunctionResolve, FunctionSet);
+  interface_register(Scope, 2, FunctionResolve, FunctionSet);
   name_empty = name_create(0);
   name_self = name_create(1, "self");
 
@@ -202,7 +202,7 @@ void _instruction_register_types(void) {
 int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
   int t;
 
-  t = typedescr_create_and_register(-1, name, vtable, NULL);
+  t = _typedescr_register(-1, name, vtable, NULL);
   typedescr_assign_inheritance(t, Instruction);
   typedescr_assign_inheritance(t, inherits);
   typedescr_set_size(t, instruction_t);
@@ -312,30 +312,30 @@ array_t * _call_build_args(function_call_t *call, vm_t *vm) {
 /* -- T O _ S T R I N G  F U N C T I O N S -------------------------------- */
 
 char * _instruction_name(data_t *data) {
-  instruction_t *instruction = data_as_instruction(data);
+  instruction_t *instruction = (instruction_t *) data;
 
   return instruction -> name ? instruction -> name : "";
 }
 
 char * _instruction_tostring_name(data_t *data) {
-  instruction_t *instruction = data_as_instruction(data);
+  instruction_t *instruction = (instruction_t *) data;
 
   _instruction_tostring(instruction, _instruction_name(data));
   return NULL;
 }
 
 char * _instruction_tostring_value(data_t *data) {
-  instruction_t *instruction = data_as_instruction(data);
+  instruction_t *instruction = (instruction_t *) data;
 
   _instruction_tostring(instruction, data_tostring(instruction -> value));
   return NULL;
 }
 
 char * _instruction_tostring_name_value(data_t *data) {
-  instruction_t *instruction = data_as_instruction(data);
-  char *v = data_tostring(instruction -> value);
-  char *s = NULL;
-  char *free_me = NULL;
+  instruction_t *instruction = (instruction_t *) data;
+  char          *v = data_tostring(instruction -> value);
+  char          *s = NULL;
+  char          *free_me = NULL;
 
   if (v && strlen(v)) {
     asprintf(&free_me, "%s%s",
@@ -350,7 +350,7 @@ char * _instruction_tostring_name_value(data_t *data) {
 }
 
 char * _instruction_tostring_value_or_name(data_t *data) {
-  instruction_t *instruction = data_as_instruction(data);
+  instruction_t *instruction = (instruction_t *) data;
 
   if (instruction -> value) {
     _instruction_tostring_value(data);
@@ -392,7 +392,7 @@ char * _instruction_tostring(instruction_t *instruction, char *s) {
   }
   asprintf(&instruction -> _d.str, "%-6s%s%-15.15s%-27.27s",
            line, lbl,
-           data_typedescr((data_t *) instruction) -> type_name,
+           data_typename((data_t *) instruction),
            (s) ? s : "");
   free(lbl);
   return NULL;
@@ -408,7 +408,7 @@ void _instruction_add_label(instruction_t *instr, char *label) {
 /* -- H E L P E R  F U N C T I O N S -------------------------------------- */
 
 data_t * _instruction_get_variable(instruction_t *instr, data_t *scope) {
-  name_t *path = data_as_name(instr -> value);
+  name_t *path = (name_t *) instr -> value;
   data_t *variable = NULL;
 
   if (path && name_size(path)) {
@@ -467,7 +467,7 @@ data_t * _instruction_execute_Subscript(instruction_t *instr, data_t *scope, vm_
     ret = data_exception(ErrorName,
                          "Subscript '%s' not valid for %s '%s'",
                          data_tostring(subscript),
-                         data_typedescr(subscript) -> type_name,
+                         data_typename(subscript),
                          data_tostring(subscripted));
   } else if (data_is_unhandled_exception(slice)) {
     ret = slice;
@@ -665,32 +665,26 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
   if (call -> flags & CFConstructor) {
     callable = _instruction_setup_constructor(callable, scope, call);
   }
-  if (!data_is_callable(callable)) {
-    ret = data_exception(ErrorNotCallable,
-                         "Atom '%s' is not callable",
-                         data_tostring(callable));
-  } else {
-    debug(script, " -- Calling %s(%s, %s)",
-          instr -> name,
-          data_tostring(callable),
-          (args) ? array_tostring(args) : "[]",
-          (kwargs) ? dict_tostring(kwargs) : "{}");
-    instruction_trace("Calling %s(%s, %s)",
-                      instr -> name,
-                      (args) ? array_tostring(args) : "[]",
-                      (kwargs) ? dict_tostring(kwargs) : "{}");
-    ret = data_call(callable, args, kwargs);
-    if (ret) {
-      if (data_is_exception(ret)) {
-        debug(script, " -- exception '%s' thrown", data_tostring(ret));
-      } else {
-        debug(script, " -- return value '%s' [%s]", data_tostring(ret), data_typename(ret));
-        vm_push(vm, ret);
-        ret = NULL;
-      }
+  debug(script, " -- Calling %s(%s, %s)",
+        instr -> name,
+        data_tostring(callable),
+        (args) ? array_tostring(args) : "[]",
+        (kwargs) ? dict_tostring(kwargs) : "{}");
+  instruction_trace("Calling %s(%s, %s)",
+                    instr -> name,
+                    (args) ? array_tostring(args) : "[]",
+                    (kwargs) ? dict_tostring(kwargs) : "{}");
+  ret = data_call(callable, args, kwargs);
+  if (ret) {
+    if (data_is_exception(ret)) {
+      debug(script, " -- exception '%s' thrown", data_tostring(ret));
     } else {
-      debug(script, " -- return value NULL");
+      debug(script, " -- return value '%s' [%s]", data_tostring(ret), data_typename(ret));
+      vm_push(vm, ret);
+      ret = NULL;
     }
+  } else {
+    debug(script, " -- return value NULL");
   }
   data_free(callable);
   array_free(args);
@@ -755,7 +749,7 @@ data_t * _instruction_execute_Test(instruction_t *instr, data_t *scope, vm_t *vm
   casted = data_cast(value, Bool);
   if (!casted) {
     ret = data_exception(ErrorType, "Cannot convert %s '%s' to boolean",
-                         data_typedescr(value) -> type_name,
+                         data_typename(value),
                          data_tostring(value));
   } else {
     ret = (!data_intval(casted)) ? (data_t *) str_copy_chars(instr -> name) : NULL;
@@ -898,7 +892,7 @@ instruction_t * instruction_create_byname(char *mnemonic, char *name, data_t *va
   }
   strcat(tmp, mnemonic);
   td = typedescr_get_byname(mnemonic);
-  return (td) ? (instruction_t *) data_create(td -> type, name, value) : NULL;
+  return (td) ? (instruction_t *) data_create(typetype(td), name, value) : NULL;
 }
 
 data_t *  instruction_create_enter_context(name_t *varname, data_t *catchpoint) {

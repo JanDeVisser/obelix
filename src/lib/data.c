@@ -75,27 +75,17 @@ data_t * _data_call_constructor(data_t *data, new_t n, va_list args) {
 }
 
 data_t * _data_call_constructors(typedescr_t *type, va_list args) {
-  new_t       n;
   data_t     *ret = NULL;
   data_t     *data;
-  list_t     *constructors;
-  listnode_t *node;
+  void_t     *constructors;
   va_list     copy;
 
-  constructors = typedescr_get_constructors(type);
-  debug(data, "Type '%s' has %d constructors", type -> type_name, (constructors) ? list_size(constructors) : -1);
-  if (constructors && list_size(constructors)) {
-    data = data_create_noinit(type -> type);
-
-    /*
-     * Groping the internal bits of the constructor list for performance here.
-     */
-    for (node = list_head_pointer(constructors);
-         data && (node != &(constructors -> tail));
-         node = node -> next) {
+  constructors = typedescr_constructors(type);
+  if (constructors && *constructors) {
+    data = data_create_noinit(typetype(type));
+    for (; *constructors; constructors++) {
       va_copy(copy, args);
-      n = (new_t) node -> data;
-      ret = _data_call_constructor(data, n, copy);
+      ret = _data_call_constructor(data, (new_t) *constructors, copy);
       va_end(copy);
       if (ret != data) {
         break;
@@ -150,10 +140,6 @@ data_t * _data_call_setter(typedescr_t *type, data_t *data, char *name, data_t *
   return ret;
 }
 
-int data_hastype(data_t * data, int type) {
-  return data && typedescr_is(data_typedescr(data), type);
-}
-
 /* -- D A T A  P U B L I C  F U N C T I O N S ----------------------------- */
 
 data_t * data_create_noinit(int type) {
@@ -161,7 +147,7 @@ data_t * data_create_noinit(int type) {
   data_t      *ret;
 
   descr = typedescr_get(type);
-  debug(data, "Allocating %d bytes for new '%s'", descr -> size, descr -> type_name);
+  debug(data, "Allocating %d bytes for new '%s'", descr -> size, typename(descr));
   ret = (data_t *) _new((descr -> size) ? descr -> size : sizeof(data_t));
   ret = data_settype(ret, type);
   ret -> free_me = Normal;
@@ -176,9 +162,9 @@ data_t * data_settype(data_t *data, int type) {
   assert(type > 0);
   descr = typedescr_get(type);
   assert(descr);
-  assert(descr -> type == type);
-  assert(descr -> type_name);
-  if (!descr || !descr -> type_name) {
+  assert(typetype(descr) == type);
+  assert(typename(descr));
+  if (!descr || !typename(descr)) {
     error("Attempt to initialize atom with non-existant or broken type %d", type);
     return NULL;
   }
@@ -192,7 +178,7 @@ data_t * data_settype(data_t *data, int type) {
     _data_count++;
   } else {
     descr = typedescr_get(data -> type);
-    if (!descr || !descr -> type_name) {
+    if (!descr || !typename(descr)) {
       error("Not re-initializing atom with broken type %d", data -> type);
     }
     return NULL;
@@ -230,7 +216,7 @@ data_t * data_parse(int type, char *str) {
 
   data_init();
   descr = typedescr_get(type);
-  debug(data, "Parsing %s : '%s'", descr -> type_name, str);
+  debug(data, "Parsing %s : '%s'", typename(descr), str);
   parse = typedescr_get_function(descr, FunctionParse);
   return (parse)
     ? ((data_t * (*)(char *)) parse)(str)
@@ -255,7 +241,7 @@ data_t * data_decode(char *encoded) {
       debug(data, "type: '%s'", t);
       type = typedescr_get_byname(t);
       if (type) {
-        ret = data_parse(type -> type, ptr + 1);
+        ret = data_parse(typetype(type), ptr + 1);
       } else {
         ret = data_exception(ErrorType, "Cannot decode '%s': Unknown type '%s'",
           encoded, t);
@@ -285,7 +271,7 @@ char * data_encode(data_t *data) {
     } else {
       encoded = c_escape(data_tostring(data));
     }
-    asprintf(&buf, "%s:%s", type -> type_name, encoded);
+    asprintf(&buf, "%s:%s", typename(type), encoded);
   }
   return buf;
 }
@@ -361,32 +347,6 @@ unsigned int data_hash(data_t *data) {
   }
 }
 
-typedescr_t * data_typedescr(data_t *data) {
-  return (data) ? typedescr_get(data_type(data)) : NULL;
-}
-
-void_t data_get_function(data_t *data, int fnc_id) {
-  return typedescr_get_function(data_typedescr(data), fnc_id);
-}
-
-int data_is_numeric(data_t *data) {
-  return data && typedescr_is(data_typedescr(data), Number);
-}
-
-int data_is_callable(data_t *data) {
-  typedescr_t *td;
-
-  if (data) {
-    td = data_typedescr(data);
-    assert(td);
-    return typedescr_is(td, Callable);
-  } else {
-    return 0;
-  }
-}
-
-int data_hastype(data_t *data, int type);
-
 data_t * data_copy(data_t *src) {
   if (src) {
     src -> refs++;
@@ -427,11 +387,11 @@ data_t * data_method(data_t *data, char *name) {
   md = typedescr_get_method(type, name);
   if (md) {
     ret = (data_t *) mth_create(md, data);
-    mdebug(data, "%s[%s].data_method(%s) = %s", data_tostring(data),
-           data_typename(data), name, runtimemethod_tostring(ret));
+    debug(data, "%s[%s].data_method(%s) = %s", data_tostring(data),
+          data_typename(data), name, runtimemethod_tostring(ret));
   } else {
-    mdebug(data, "%s[%s].data_method(%s) = NULL", data_tostring(data),
-           data_typename(data), name);
+    debug(data, "%s[%s].data_method(%s) = NULL", data_tostring(data),
+          data_typename(data), name);
   }
   return ret;
 }
@@ -445,31 +405,33 @@ data_t * data_resolve(data_t *data, name_t *name) {
 
   assert(type);
   assert(name);
-  mdebug(data, "%s[%s].resolve(%s:%d)",
-         data_tostring(data), data_typename(data),
-         name_tostring(name), name_size(name));
+  debug(data, "%s[%s].resolve(%s:%d)",
+        data_tostring(data), data_typename(data),
+        name_tostring(name), name_size(name));
   n = (name_size(name)) ? name_first(name) : NULL;
   if (name_size(name) == 0) {
     ret = data_copy(data);
-  } else if (name_size(name) == 1) {
+  }
+  if (!ret) {
+    ret = _data_call_resolve(type, data, n);
+  }
+  if (!ret) {
+    if (!strcmp(n, "type")) {
+      ret = (data_t *) type;
+    } else if (!strcmp(n, "typename")) {
+      ret = (data_t *) str_copy_chars(typename(type));
+    } else if (!strcmp(n, "typeid")) {
+      ret = int_to_data(typetype(type));
+    }
+  }
+  if (!ret && (name_size(name) == 1)) {
     ret = data_method(data, n);
   }
   if (!ret) {
-    ret = _data_call_resolve(type, data, name_first(name));
-    if (!ret) {
-      if (!strcmp(n, "type")) {
-        ret = (data_t *) type;
-      } else if (!strcmp(n, "typename")) {
-        ret = (data_t *) str_copy_chars(type -> type_name);
-      } else if (!strcmp(n, "typeid")) {
-        ret = int_to_data(type -> type);
-      } else {
-        ret = data_exception(ErrorType,
-                "Cannot resolve name '%s' in %s '%s'",
-                name_tostring(name), type -> type_name,
-                data_tostring(data));
-      }
-    }
+    ret = data_exception(ErrorType,
+            "Cannot resolve name '%s' in %s '%s'",
+            name_tostring(name), typename(type),
+            data_tostring(data));
   }
   if (ret && (!data_is_exception(ret) || data_as_exception(ret) -> handled)
           && (name_size(name) > 1)) {
@@ -479,7 +441,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
     ret = tail_resolve;
     name_free(tail);
   }
-  mdebug(data, "%s.resolve(%s) = %s", data_tostring(data), name_tostring(name), data_tostring(ret));
+  debug(data, "%s.resolve(%s) = %s", data_tostring(data), name_tostring(name), data_tostring(ret));
   return ret;
 }
 
@@ -652,7 +614,7 @@ char * _data_tostring(data_t *data) {
       }
     }
     if (!data -> str) {
-      asprintf(&(data -> str), "data:%s:%p", data_typedescr(data) -> type_name, data);
+      asprintf(&(data -> str), "data:%s:%p", data_typename(data), data);
     }
     return data -> str;
   }
@@ -768,8 +730,7 @@ data_t * data_len(data_t *data) {
   if (!ret) {
     ret = data_exception(ErrorFunctionUndefined,
                          "%s '%s' is has no 'len' function",
-                         data_typedescr(data) -> type_name,
-                         data_tostring(data));
+                         data_typename(data), data_tostring(data));
   }
   return ret;
 }
@@ -827,30 +788,6 @@ data_t * data_write(data_t *writer, char *buf, int num) {
 }
 
 /* - I T E R A T O R S -----------------------------------------------------*/
-
-int data_is_iterable(data_t *data) {
-  typedescr_t *td;
-
-  if (data) {
-    td = data_typedescr(data);
-    assert(td);
-    return typedescr_is(td, Iterable);
-  } else {
-    return 0;
-  }
-}
-
-int data_is_iterator(data_t *data) {
-  typedescr_t *td;
-
-  if (data) {
-    td = data_typedescr(data);
-    assert(td);
-    return typedescr_is(td, Iterator);
-  } else {
-    return 0;
-  }
-}
 
 data_t * data_iter(data_t *data) {
   typedescr_t *type;

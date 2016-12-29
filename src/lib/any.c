@@ -123,7 +123,7 @@ void any_init(void) {
   for (ix = 0; _type_initializers[ix]; ix++) {
     _type_initializers[ix]();
   }
-  typedescr_register_methods(_methoddescr_interfaces);
+  typedescr_register_methods(Any, _methoddescr_interfaces);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -163,7 +163,7 @@ data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
     ret = data_exception(ErrorSyntax,
                          "not(): Cannot convert value '%s' of type '%s' to boolean",
                          data_tostring(self),
-                         data_typedescr(self) -> type_name);
+                         data_typename(self));
   } else {
     ret = int_as_bool(data_intval(asbool) == 0);
     data_free(asbool);
@@ -184,7 +184,7 @@ data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
       return data_exception(ErrorSyntax,
                         "and(): Cannot convert value '%s' of type '%s' to boolean",
                         data_tostring(data_array_get(args, ix)),
-                        data_typedescr(data_array_get(args, ix)) -> type_name);
+                        data_typename(data_array_get(args, ix)));
     }
     boolval = data_intval(asbool);
     data_free(asbool);
@@ -210,7 +210,7 @@ data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
       return data_exception(ErrorSyntax,
                         "or(): Cannot convert value '%s' of type '%s' to boolean",
                         data_tostring(data_array_get(args, ix)),
-                        data_typedescr(data_array_get(args, ix)) -> type_name);
+                        data_typename(data_array_get(args, ix)));
     }
     boolval = data_intval(asbool);
     data_free(asbool);

@@ -212,11 +212,7 @@ void set_free(set_t *set) {
 }
 
 set_t * set_add(set_t *set, void *elem) {
-  if (!set_has(set, elem)) {
-    return dict_put(set -> dict, elem, NULL) ? set : NULL;
-  } else {
-    return set;
-  }
+  return dict_put(set -> dict, elem, NULL) ? set : NULL;
 }
 
 set_t * set_remove(set_t *set, void *elem) {

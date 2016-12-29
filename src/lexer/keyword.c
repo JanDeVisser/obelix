@@ -85,7 +85,7 @@ static kw_scanner_t * _kw_scanner_match(scanner_t *, int ch);
 static kw_scanner_t * _kw_scanner_reset(scanner_t *);
 static token_t *      _kw_match(scanner_t *);
 
-static vtable_t _vtable_kwscanner_config[] = {
+static vtable_t _vtable_KWScannerConfig[] = {
   { .id = FunctionNew,            .fnc = (void_t) _kw_config_create },
   { .id = FunctionFree,           .fnc = (void_t) _kw_config_free },
   { .id = FunctionResolve,        .fnc = (void_t) _kw_config_resolve },
@@ -97,12 +97,12 @@ static vtable_t _vtable_kwscanner_config[] = {
   { .id = FunctionNone,           .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_kwscanner_config[] = {
+static methoddescr_t _methods_KWScannerConfig[] = {
   { .type = String, .name = "dump", .method = (method_t ) _kw_config_mth_dump, .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
   { .type = NoType, .name = NULL, .method = NULL, .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0}
 };
 
-static int   KWScannerConfig = -1;
+static int KWScannerConfig = -1;
 
 /* -- K W _ S C A N N E R _ C O N F I G ----------------------------------- */
 
@@ -466,11 +466,6 @@ token_t * _kw_match(scanner_t *scanner) {
 }
 
 __DLL_EXPORT__ typedescr_t * keyword_register(void) {
-  typedescr_t *ret;
-
-  KWScannerConfig = typedescr_create_and_register(
-      KWScannerConfig, "keyword", _vtable_kwscanner_config, _methoddescr_kwscanner_config);
-  typedescr_set_size(KWScannerConfig, kw_config_t);
-  ret = typedescr_get(KWScannerConfig);
-  return ret;
+  typedescr_register_with_name_and_methods(KWScannerConfig, "keyword", kw_config_t);
+  return typedescr_get(KWScannerConfig);
 }

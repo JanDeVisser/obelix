@@ -196,7 +196,7 @@ data_t * _oblclient_expect(oblclient_t *client, int expected, int numparams, int
       if (!param) {
         ret = data_exception(ErrorProtocol,
           "Protocol error reading data. Expected parameter of type '%s' but got %s",
-          typename(types[ix]), data_tostring(data_array_get(line, ix+2)));
+          typename(typedescr_get(types[ix])), data_tostring(data_array_get(line, ix+2)));
         break;
       } else {
         array_push(params, param);

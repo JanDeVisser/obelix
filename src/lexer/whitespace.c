@@ -45,7 +45,7 @@ static ws_config_t * _ws_config_set(ws_config_t *, char *, data_t *);
 static ws_config_t * _ws_config_config(ws_config_t *, array_t *);
 static token_t *     _ws_match(scanner_t *);
 
-static vtable_t _vtable_wsscanner_config[] = {
+static vtable_t _vtable_WSScannerConfig[] = {
   { .id = FunctionNew,       .fnc = (void_t ) _ws_config_create },
   { .id = FunctionResolve,   .fnc = (void_t ) _ws_config_resolve },
   { .id = FunctionSet,       .fnc = (void_t ) _ws_config_set },
@@ -187,12 +187,7 @@ token_t * _ws_match(scanner_t *scanner) {
 }
 
 __DLL_EXPORT__ typedescr_t * whitespace_register(void) {
-  typedescr_t *ret;
-
   logging_register_category("whitespace", &whitespace_debug);
-  WSScannerConfig = typedescr_create_and_register(
-      WSScannerConfig, "whitespace", _vtable_wsscanner_config, NULL);
-  ret = typedescr_get(WSScannerConfig);
-  typedescr_set_size(WSScannerConfig, ws_config_t);
-  return ret;
+  typedescr_register_with_name(WSScannerConfig, "whitespace", ws_config_t);
+  return typedescr_get(WSScannerConfig);
 }

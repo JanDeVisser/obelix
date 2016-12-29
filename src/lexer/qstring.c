@@ -50,7 +50,7 @@ static qstr_scanner_t * _qstr_scanner_create(qstr_config_t *);
 static void             _qstr_scanner_free(qstr_scanner_t *);
 static scanner_t *      _qstr_scanner_config(scanner_t *, char *, data_t *);
 
-static vtable_t _vtable_qstrscanner_config[] = {
+static vtable_t _vtable_QStrScannerConfig[] = {
   { .id = FunctionNew,             .fnc = (void_t) _qstr_config_create },
   { .id = FunctionResolve,         .fnc = (void_t) _qstr_config_resolve },
   { .id = FunctionSet,             .fnc = (void_t) _qstr_config_set },
@@ -218,11 +218,6 @@ token_t * _qstr_match(scanner_t *scanner) {
 }
 
 __DLL_EXPORT__ typedescr_t * qstring_register(void) {
-  typedescr_t *ret;
-
-  QStrScannerConfig = typedescr_create_and_register(
-      QStrScannerConfig, "qstring", _vtable_qstrscanner_config, NULL);
-  ret = typedescr_get(QStrScannerConfig);
-  typedescr_set_size(QStrScannerConfig, qstr_config_t);
-  return ret;
+  typedescr_register_with_name(QStrScannerConfig, "qstring", qstr_config_t);
+  return typedescr_get(QStrScannerConfig);
 }

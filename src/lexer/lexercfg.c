@@ -114,7 +114,7 @@ data_t * _lexer_config_set(lexer_config_t *config, char *name, data_t *value) {
     } else {
       ret = data_exception(ErrorType,
                            "LexerConfig.buffersize expects 'int', not '%s'",
-                           data_typedescr(value) -> type_name);
+                           data_typename(value));
     }
   }
   return ret;

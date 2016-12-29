@@ -28,7 +28,7 @@ static void     _lexa_free(lexa_t *);
 static char *   _lexa_staticstring(lexa_t *);
 static data_t * _lexa_call(lexa_t *, array_t *, dict_t *);
 
-static vtable_t _vtable_lexa[] = {
+static vtable_t _vtable_Lexa[] = {
   { .id = FunctionFree,         .fnc = (void_t) _lexa_free },
   { .id = FunctionStaticString, .fnc = (void_t) _lexa_staticstring },
   { .id = FunctionCall,         .fnc = (void_t) _lexa_call },
@@ -63,7 +63,7 @@ lexa_t * lexa_create(void) {
   if (Lexa < 0) {
     lexer_init();
     logging_register_category("lexa", &lexa_debug);
-    Lexa = typedescr_create_and_register(Lexa, "lexa", _vtable_lexa, NULL);
+    typedescr_register(Lexa, lexa_t);
   }
   ret = data_new(Lexa, lexa_t);
   ret -> debug = NULL;

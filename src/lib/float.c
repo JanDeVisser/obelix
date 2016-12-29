@@ -78,7 +78,7 @@ static methoddescr_t _methoddescr_number[] = {
   { .type = NoType,  .name = NULL,    .method = NULL,           .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0 }
 };
 
-static vtable_t _vtable_float[] = {
+static vtable_t _vtable_Float[] = {
   { .id = FunctionFactory,     .fnc = (void_t) _float_new },
   { .id = FunctionCmp,         .fnc = (void_t) _float_cmp },
   { .id = FunctionAllocString, .fnc = (void_t) _float_allocstring },
@@ -90,6 +90,8 @@ static vtable_t _vtable_float[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
+static methoddescr_t * _methods_Float = NULL;
+
 /*
  * --------------------------------------------------------------------------
  * Float datatype functions
@@ -97,9 +99,9 @@ static vtable_t _vtable_float[] = {
  */
 
 void float_init(void) {
-  interface_register(Number, "number", 2, FunctionFltValue, FunctionIntValue);
-  typedescr_create_and_register(Float, "float", _vtable_float, NULL);
-  typedescr_register_methods(_methoddescr_number);
+  builtin_interface_register(Number, 2, FunctionFltValue, FunctionIntValue);
+  builtin_typedescr_register(Float, "float", flt_t);
+  typedescr_register_methods(Number, _methoddescr_number);
 }
 
 data_t * _float_new(int type, va_list arg) {

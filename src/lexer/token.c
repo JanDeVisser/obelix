@@ -86,7 +86,7 @@ static dict_t *custom_codes = NULL;
 
 /* ------------------------------------------------------------------------ */
 
-static vtable_t _vtable_token[] = {
+static vtable_t _vtable_Token[] = {
   { .id = FunctionNew,         .fnc = (void_t) _token_new },
   { .id = FunctionFree,        .fnc = (void_t) _token_free },
   { .id = FunctionParse,       .fnc = (void_t) token_parse },
@@ -98,23 +98,16 @@ static vtable_t _vtable_token[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_token[] = {
+static methoddescr_t _methods_Token[] = {
   { .type = -1,     .name = "iswhitespace", .method = (method_t) _token_iswhitespace, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,           .method = NULL,                           .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
-};
-
-static typedescr_t _typedescr_token = {
-  .type = -1,
-  .type_name = "token",
-  .vtable = _vtable_token
 };
 
 /* ------------------------------------------------------------------------ */
 
 void _token_init(void) {
   if (Token < 0) {
-    Token = typedescr_register_type(&_typedescr_token, _methoddescr_token);
-    typedescr_set_size(Token, token_t);
+    typedescr_register_with_methods(Token, token_t);
   }
 }
 

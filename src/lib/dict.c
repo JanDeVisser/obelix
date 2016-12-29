@@ -52,7 +52,7 @@ static void *           _bucket_reduce(bucket_t *, reduce_t, void *);
 static void             _bucket_remove(bucket_t *, int);
 static dictentry_t *    _bucket_find_entry(const bucket_t *, const void *);
 static int              _bucket_position_of(const bucket_t *, const void *);
-static bucket_t *       _bucket_put(bucket_t *, void *, void *);
+static int              _bucket_put(bucket_t *, void *, void *);
 
 #define _bucket_get_entry(b, e)   (((b) -> capacity == INIT_BUCKET_SIZE) \
                                     ? &((b) -> entries[(e)]) \
@@ -62,7 +62,7 @@ static unsigned int     _dict_hash(const dict_t *, const void *);
 static int              _dict_cmp_keys(const dict_t *, const void *, const void *);
 static dict_t *         _dict_rehash(dict_t *);
 static bucket_t *       _dict_get_bucket_bykey(const dict_t *, const void *);
-static dict_t *         _dict_add_to_bucket(dict_t *, void *, void *);
+static int              _dict_add_to_bucket(dict_t *, void *, void *);
 static dictentry_t *    _dict_find_in_bucket(const dict_t *, const void *);
 static dict_t *         _dict_remove_from_bucket(dict_t *, void *);
 static list_t *         _dict_append_reducer(void *, list_t *);
@@ -139,14 +139,15 @@ void entry_free(entry_t *e) {
 /* -- B U C K E T  M A N A G E M E N T ------------------------------------ */
 
 
-static bucket_t * _bucket_initialize(bucket_t *bucket, dict_t *dict, int ix) {
-  if (!bucket) {
-    bucket = NEW(bucket_t);
+static bucket_t * _bucket_initialize(bucket_t *bucket, dict_t *dict, int num) {
+  int ix;
+
+  for (ix = 0; ix < num; ix++, bucket++) {
+    bucket -> dict = dict;
+    bucket -> ix = ix;
+    bucket -> capacity = INIT_BUCKET_SIZE;
+    bucket -> size = 0;
   }
-  bucket -> dict = dict;
-  bucket -> ix = ix;
-  bucket -> capacity = INIT_BUCKET_SIZE;
-  bucket -> size = 0;
   return bucket;
 }
 
@@ -256,23 +257,23 @@ dictentry_t * _bucket_find_entry(const bucket_t *bucket, const void *key) {
   return NULL;
 }
 
-bucket_t * _bucket_put(bucket_t *bucket, void *key, void *value) {
+/**
+ * @return 0 if the key was overwritten, 1 if the key was added.
+ */
+int _bucket_put(bucket_t *bucket, void *key, void *value) {
   dictentry_t *e;
 
   e = _bucket_find_entry(bucket, key);
   if (e) {
-    if (e -> dict -> key_type.free && e -> entry.key) {
-      e -> dict -> key_type.free(e -> entry.key);
-    }
-    e -> entry.key = key;
     if (e -> dict -> data_type.free && e -> entry.value) {
       e -> dict -> data_type.free(e -> entry.value);
     }
     e -> entry.value = value;
+    return 0;
   } else {
     _bucket_init_entry(bucket, key, value);
+    return 1;
   }
-  return bucket;
 }
 
 /* -- D I C T  S T A T I C  F U N C T I O N S ----------------------------- */
@@ -318,9 +319,7 @@ dict_t * _dict_rehash(dict_t *dict) {
     new_buckets = dict -> refbuckets;
   }
 
-  for (i = 0; i < dict -> num_buckets; i++) {
-    _bucket_initialize(new_buckets + i, dict, i);
-  }
+  _bucket_initialize(new_buckets, dict, dict -> num_buckets);
 
   if (old_buckets) {
     for (i = 0; i < old; i++) {
@@ -350,12 +349,11 @@ bucket_t * _dict_get_bucket_bykey(const dict_t *dict, const void *key) {
   return ret;
 }
 
-dict_t * _dict_add_to_bucket(dict_t *dict, void *key, void *value) {
+int _dict_add_to_bucket(dict_t *dict, void *key, void *value) {
   bucket_t    *bucket;
 
   bucket = _dict_get_bucket_bykey(dict, key);
-  _bucket_put(bucket, key, value);
-  return dict;
+  return _bucket_put(bucket, key, value);
 }
 
 dictentry_t * _dict_find_in_bucket(const dict_t *dict, const void *key) {
@@ -595,20 +593,12 @@ dict_t * dict_clear(dict_t *dict) {
 }
 
 dict_t * dict_put(dict_t *dict, void *key, void *data) {
-  dict_t *ret;
-  int     had_key;
-
   if (!dict -> num_buckets ||
       ((float) (dict -> size + 1) / (float) dict -> num_buckets) > dict -> loadfactor) {
     _dict_rehash(dict);
   }
-
-  had_key = dict_has_key(dict, key);
-  ret = _dict_add_to_bucket(dict, key, data);
-  if (ret && !had_key) {
-    dict -> size++;
-  }
-  return ret;
+  dict -> size += _dict_add_to_bucket(dict, key, data);
+  return dict;
 }
 
 /**

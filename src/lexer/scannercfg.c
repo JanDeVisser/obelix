@@ -87,7 +87,7 @@ typedescr_t * _scanner_config_load_nolock(char *code, char *regfnc_name) {
   if (fnc -> fnc) {
     regfnc = (create_t) fnc -> fnc;
     ret = regfnc();
-    debug(lexer, "Scanner definition '%s' has type %d", code, ret -> type);
+    debug(lexer, "Scanner definition '%s' has type %d", code, typetype(ret));
     scanner_config_register(ret);
   } else {
     error("Registration function '%s' for scanner config type '%s' cannot be resolved",
@@ -229,9 +229,9 @@ int scanner_config_typeid(void) {
 typedescr_t * scanner_config_register(typedescr_t *def) {
   lexer_init();
   mutex_lock(_scanner_config_mutex);
-  typedescr_assign_inheritance(def -> type, ScannerConfig);
-  debug(lexer, "Registering scanner type '%s' (%d)", def -> type_name, def -> type);
-  dict_put(_scanners_configs, strdup(def -> type_name), (void *) ((intptr_t) def -> type));
+  typedescr_assign_inheritance(typetype(def), ScannerConfig);
+  debug(lexer, "Registering scanner type '%s' (%d)", typename(def), typetype(def));
+  dict_put(_scanners_configs, strdup(typename(def)), (void *) ((intptr_t) typetype(def)));
   mutex_unlock(_scanner_config_mutex);
   return def;
 }
@@ -271,8 +271,8 @@ scanner_config_t * scanner_config_create(char *code, lexer_config_t *lexer_confi
   lexer_init();
   type = scanner_config_get(code);
   if (type) {
-    debug(lexer, "Creating scanner_config. code: '%s', type: %d", code, type -> type);
-    ret = (scanner_config_t *) data_create(type -> type, lexer_config);
+    debug(lexer, "Creating scanner_config. code: '%s', type: %d", code, typetype(type));
+    ret = (scanner_config_t *) data_create(typetype(type), lexer_config);
   } else {
     error("Attempt to create scanner with unregistered code '%s'", code);
   }

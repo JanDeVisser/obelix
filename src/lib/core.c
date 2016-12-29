@@ -153,7 +153,7 @@ int vasprintf(char **strp, const char *fmt, va_list args) {
   va_copy(copy, args);
   ret = vsnprintf(NULL, 0, fmt, copy);
   va_end(copy);
-  str = (char *) new(ret + 1);
+  str = stralloc(ret);
   if (!str) {
     ret = -1;
   } else {
@@ -163,35 +163,6 @@ int vasprintf(char **strp, const char *fmt, va_list args) {
   return ret;
 }
 #endif
-
-unsigned int hash(const void *buf, size_t size) {
-  int            hash = 5381;
-  size_t         i;
-  int            c;
-  unsigned char *data = (unsigned char *) buf;
-
-  for (i = 0; i < size; i++) {
-    c = *data++;
-    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-  }
-  return hash;
-}
-
-unsigned int hashptr(const void *ptr) {
-  return hash(&ptr, sizeof(void *));
-}
-
-unsigned int hashlong(long val) {
-  return hash(&val, sizeof(long));
-}
-
-unsigned int hashdouble(double val) {
-  return hash(&val, sizeof(double));
-}
-
-unsigned int hashblend(unsigned int h1, unsigned int h2) {
-  return (h1 << 1) + h1 + h2;
-}
 
 /*
  * code_label_t public functions

@@ -58,7 +58,7 @@ static data_t * _string_split(data_t *, char *, array_t *, dict_t *);
 
 #define _DEFAULT_SIZE   32
 
-static vtable_t _vtable_string[] = {
+static vtable_t _vtable_String[] = {
   { .id = FunctionFactory, .fnc = (void_t) _str_create},
   { .id = FunctionCmp, .fnc = (void_t) str_cmp},
   { .id = FunctionFree, .fnc = (void_t) _str_free},
@@ -73,7 +73,7 @@ static vtable_t _vtable_string[] = {
   { .id = FunctionNone, .fnc = NULL}
 };
 
-static methoddescr_t _methoddescr_str[] = {
+static methoddescr_t _methods_String[] = {
   { .type = String, .name = "at", .method = _string_at, .argtypes =
     { Int, NoType, NoType}, .minargs = 1, .varargs = 0},
   { .type = String, .name = "slice", .method = _string_slice, .argtypes =
@@ -111,8 +111,7 @@ extern int data_debug;
 /* ------------------------------------------------------------------------ */
 
 void str_init(void) {
-  typedescr_create_and_register(String, "string", _vtable_string, _methoddescr_str);
-  typedescr_set_size(String, str_t);
+  builtin_typedescr_register(String, "string", str_t);
 }
 
 /* -- S T R I N G   D A T A   F U N C T I O N S --------------------------- */

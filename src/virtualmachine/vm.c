@@ -169,7 +169,7 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
       ex_data = data_exception(ErrorInternalError,
                                "Instruction '%s' returned %s '%s'",
                                data_tostring(instr),
-                               data_typedescr(ret) -> type_name,
+                               data_typename(ret),
                                data_tostring(ret));
       ex = data_as_exception(ex_data);
     }

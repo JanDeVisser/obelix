@@ -28,10 +28,10 @@
 
 static int           _numtypes = Dynamic;
 static int           _capacity = 0;
-static typedescr_t *descriptors = NULL;
-static interface_t *_interfaces = NULL;
-static int          _next_interface = NextInterface;
-static int          _num_interfaces = 0;
+static typedescr_t **_descriptors = NULL;
+static interface_t **_interfaces = NULL;
+static int           _next_interface = NextInterface;
+static int           _num_interfaces = 0;
 
 extern int          _data_count;
        int          type_debug = 1;
@@ -44,22 +44,27 @@ static int            _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
 static data_t *       _methoddescr_resolve(methoddescr_t *, char *);
 static unsigned int   _methoddescr_hash(methoddescr_t *);
 
-static int            _typedescr_cmp(typedescr_t *, typedescr_t *);
-static char *         _typedescr_tostring(typedescr_t *);
-static data_t *       _typedescr_resolve(typedescr_t *, char *);
+static kind_t *     _kind_init(kind_t *, int, int, char *);
+static int          _kind_cmp(kind_t *, kind_t *);
+static char *       _kind_tostring(kind_t *);
+static unsigned int _kind_hash(kind_t *);
+static data_t *     _kind_resolve(kind_t *, char *);
+static kind_t *     _kind_inherit_methods(kind_t *, kind_t *);
+static kind_t *     _inherit_method_reducer(methoddescr_t *, kind_t *);
 
-static data_t *       _typedescr_gettype(data_t *, char *, array_t *, dict_t *);
-static data_t *       _typedescr_hastype(data_t *, char *, array_t *, dict_t *);
+static data_t *     _interface_resolve(interface_t *, char *);
+static data_t *     _interface_isimplementedby(interface_t *, char *, array_t *, dict_t *);
+static data_t *     _interface_implements(data_t *, char *, array_t *, dict_t *);
 
-static char *         _interface_tostring(interface_t *);
-static int            _interface_cmp(interface_t *, interface_t *);
-static data_t *       _interface_resolve(interface_t *, char *);
-static unsigned int   _interface_hash(interface_t *);
+static int *         _typedescr_get_all_interfaces(typedescr_t *);
+static void_t *      _typedescr_get_constructors(typedescr_t *);
+static typedescr_t * _typedescr_initialize_vtable(typedescr_t *, vtable_t[]);
 
-static data_t *       _interface_isimplementedby(interface_t *, char *, array_t *, dict_t *);
-static data_t *       _interface_implements(data_t *, char *, array_t *, dict_t *);
+static data_t *     _typedescr_resolve(typedescr_t *, char *);
+static data_t *     _typedescr_gettype(data_t *, char *, array_t *, dict_t *);
+static data_t *     _typedescr_hastype(data_t *, char *, array_t *, dict_t *);
 
-static vtable_t _vtable_methoddescr[] = {
+static vtable_t _vtable_Method[] = {
   { .id = FunctionCmp,          .fnc = (void_t) _methoddescr_cmp },
   { .id = FunctionStaticString, .fnc = (void_t) _methoddescr_tostring },
   { .id = FunctionResolve,      .fnc = (void_t) _methoddescr_resolve },
@@ -67,32 +72,38 @@ static vtable_t _vtable_methoddescr[] = {
   { .id = FunctionNone,         .fnc = NULL }
 };
 
-static vtable_t _vtable_typedescr[] = {
-  { .id = FunctionCmp,          .fnc = (void_t) _typedescr_cmp },
-  { .id = FunctionStaticString, .fnc = (void_t) _typedescr_tostring },
-  { .id = FunctionResolve,      .fnc = (void_t) _typedescr_resolve },
-  { .id = FunctionHash,         .fnc = (void_t) typedescr_hash },
+static methoddescr_t * _methods_Method = NULL;
+
+static vtable_t _vtable_Kind[] = {
+  { .id = FunctionCmp,          .fnc = (void_t) _kind_cmp },
+  { .id = FunctionStaticString, .fnc = (void_t) _kind_tostring },
+  { .id = FunctionResolve,      .fnc = (void_t) _kind_resolve },
+  { .id = FunctionHash,         .fnc = (void_t) _kind_hash },
   { .id = FunctionNone,         .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_typedescr[] = {
+static methoddescr_t * _methods_Kind = NULL;
+
+static vtable_t _vtable_Type[] = {
+  { .id = FunctionResolve,      .fnc = (void_t) _typedescr_resolve },
+  { .id = FunctionNone,         .fnc = NULL }
+};
+
+static methoddescr_t _methods_Type[] = {
   { .type = Any,    .name = "gettype",     .method = _typedescr_gettype,    .argtypes = { Any,    NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = Any,    .name = "hastype",     .method = _typedescr_hastype,    .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = NoType, .name = NULL,          .method = NULL,                  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
-static vtable_t _vtable_interface[] = {
-  { .id = FunctionCmp,          .fnc = (void_t) _interface_cmp },
-  { .id = FunctionStaticString, .fnc = (void_t) _interface_tostring },
+static vtable_t _vtable_Interface[] = {
   { .id = FunctionResolve,      .fnc = (void_t) _interface_resolve },
-  { .id = FunctionHash,         .fnc = (void_t) _interface_hash },
   { .id = FunctionNone,         .fnc = NULL }
 };
 
-static _unused_ methoddescr_t _methoddescr_interface[] = {
-  { .type = Interface,    .name = "isimplementedby", .method = (method_t) _interface_isimplementedby, .argtypes = { Any, NoType, NoType }, .minargs = 1, .varargs = 0 },
-  { .type = Any,          .name = "implements",      .method = (method_t) _interface_implements, .argtypes = { Interface, NoType, NoType }, .minargs = 1, .varargs = 0 },
-  { .type = NoType, .name = NULL, .method = NULL, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+static methoddescr_t _methods_Interface[] = {
+  { .type = Interface,    .name = "isimplementedby", .method = (method_t) _interface_isimplementedby, .argtypes = { Any, NoType, NoType },       .minargs = 1, .varargs = 0 },
+  { .type = Any,          .name = "implements",      .method = (method_t) _interface_implements,      .argtypes = { Interface, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = NoType,       .name = NULL,              .method = NULL,                                  .argtypes = { NoType, NoType, NoType },    .minargs = 0, .varargs = 0 }
 };
 
 static code_label_t _function_id_labels[] = {
@@ -133,40 +144,40 @@ static code_label_t _function_id_labels[] = {
 /* ------------------------------------------------------------------------ */
 
 void typedescr_init(void) {
-  if (!descriptors && !_interfaces) {
+  if (!_descriptors && !_interfaces) {
     logging_register_module(type);
-    interface_register(Any,           "any",           0);
-    interface_register(Callable,      "callable",      1, FunctionCall);
-    interface_register(InputStream,   "inputstream",   1, FunctionRead);
-    interface_register(OutputStream,  "outputstream",  1, FunctionWrite);
-    interface_register(Iterable,      "iterable",      1, FunctionIter);
-    interface_register(Iterator,      "iterator",      2, FunctionNext, FunctionHasNext);
-    interface_register(Connector,     "connector",     1, FunctionQuery);
-    interface_register(CtxHandler,    "ctxhandler",    2, FunctionEnter, FunctionLeave);
-    interface_register(Incrementable, "incrementable", 2, FunctionIncr, FunctionDecr);
+    builtin_interface_register(Any,           0);
+    builtin_interface_register(Callable,      1, FunctionCall);
+    builtin_interface_register(InputStream,   1, FunctionRead);
+    builtin_interface_register(OutputStream,  1, FunctionWrite);
+    builtin_interface_register(Iterable,      1, FunctionIter);
+    builtin_interface_register(Iterator,      2, FunctionNext, FunctionHasNext);
+    builtin_interface_register(Connector,     1, FunctionQuery);
+    builtin_interface_register(CtxHandler,    2, FunctionEnter, FunctionLeave);
+    builtin_interface_register(Incrementable, 2, FunctionIncr, FunctionDecr);
 
-    typedescr_create_and_register(Type, "type",
-          _vtable_typedescr, _methoddescr_typedescr);
-    typedescr_create_and_register(Interface, "interface",
-          _vtable_interface, /* _methoddescr_interface */ NULL);
-    typedescr_create_and_register(Method, "method",
-          _vtable_methoddescr, /* _methoddescr_method */ NULL);
+    builtin_typedescr_register(Kind, "Kind", kind_t);
+    builtin_typedescr_register(Type, "Type", typedescr_t);
+    typedescr_assign_inheritance(Type, Kind);
+    builtin_typedescr_register(Interface, "interface", interface_t);
+    typedescr_assign_inheritance(Interface, Kind);
+    builtin_typedescr_register(Method, "Method", methoddescr_t);
     any_init();
   }
 }
 
-data_t * type_get(int ix) {
+kind_t * kind_get(int ix) {
   return (ix < FirstInterface)
-    ? (data_t *) typedescr_get(ix)
-    : (data_t *) interface_get(ix);
+    ? (kind_t *) typedescr_get(ix)
+    : (kind_t *) interface_get(ix);
 }
 
-data_t * type_get_byname(char *name) {
-  data_t *ret;
+kind_t * kind_get_byname(char *name) {
+  kind_t *ret;
+  ret = (kind_t *) typedescr_get_byname(name);
 
-  ret = (data_t *) typedescr_get_byname(name);
   if (!ret) {
-    ret = (data_t *) interface_get_byname(name);
+    ret = (kind_t *) interface_get_byname(name);
   }
   return ret;
 }
@@ -201,7 +212,7 @@ data_t * _methoddescr_resolve(methoddescr_t *mth, char *name) {
       if (!mth -> argtypes[ix]) {
         break;
       }
-      data_list_push(ret, type_get(mth -> argtypes[ix]));
+      data_list_push(ret, (data_t *) kind_get(mth -> argtypes[ix]));
     }
     return ret;
   } else if (!strcmp(name, "minargs")) {
@@ -217,18 +228,84 @@ unsigned int _methoddescr_hash(methoddescr_t *mth) {
   return strhash(mth -> name);
 }
 
+/* -- G E N E R I C  T Y P E  D E S C R I P T O R ------------------------- */
+
+kind_t * _kind_init(kind_t * descr, int kind, int type, char *name) {
+  descr -> _d.type = kind;
+  descr -> _d.free_me = Constant;
+  descr -> _d.refs = 1;
+  descr -> _d.str = NULL;
+  descr -> type = type;
+  descr -> name = strdup(name);
+  descr -> methods = strdata_dict_create();
+  return descr;
+}
+
+void kind_register_method(kind_t *kind, methoddescr_t *method) {
+  if (type_debug) {
+    info("kind_register_method(%s, %s)", kind -> name, method -> name);
+  }
+  if (!dict_has_key(kind -> methods, method -> name)) {
+    method -> _d.type = Method;
+    method -> _d.free_me = Constant;
+    method -> _d.refs = 1;
+    method -> _d.str = NULL;
+    dict_put(kind -> methods, strdup(method -> name), method);
+  }
+}
+
+methoddescr_t * kind_get_method(kind_t *kind, char *name) {
+  return (methoddescr_t *) dict_get(kind -> methods, name);
+}
+
+char * _kind_tostring(kind_t *kind) {
+  return kind -> name;
+}
+
+int _kind_cmp(kind_t *kind1, kind_t *kind2) {
+  return kind1 -> type - kind2 -> type;
+}
+
+unsigned int _kind_hash(kind_t *kind) {
+  return strhash(kind -> name);
+}
+
+data_t * _kind_resolve(kind_t *kind, char *name) {
+  data_t      *ret;
+
+  if (!strcmp(name, "name")) {
+    return str_to_data(kind -> name);
+  } else if (!strcmp(name, "id")) {
+    return int_to_data(kind -> type);
+  } else if (!strcmp(name, "methods")) {
+    ret = data_create_list(NULL);
+    dict_reduce_values(kind -> methods, (reduce_t) _add_method_reducer, ret);
+    return ret;
+  } else {
+    return NULL;
+  }
+}
+
+kind_t * _inherit_method_reducer(methoddescr_t *mth, kind_t *kind) {
+  kind_register_method(kind, mth);
+  return kind;
+}
+
+kind_t * _kind_inherit_methods(kind_t *kind, kind_t *from) {
+  return dict_reduce_values(from -> methods,
+         (reduce_t) _inherit_method_reducer,
+         kind);
+}
 
 /* -- I N T E R F A C E   F U N C T I O N S ------------------------------- */
 
-int interface_register(int type, char *name, int numfncs, ...) {
-  int          ix;
-  int          iix;
-  int          cursz;
-  int          newsz;
-  interface_t *new_interfaces;
-  interface_t *iface;
-  va_list      fncs;
-  int          fnc_id;
+int _interface_register(int type, char *name, int numfncs, ...) {
+  int           ix;
+  int           cursz;
+  int           newsz;
+  interface_t **new_interfaces;
+  interface_t  *iface;
+  va_list       fncs;
 
   if ((type != Any) && !_interfaces) {
     typedescr_init();
@@ -237,12 +314,10 @@ int interface_register(int type, char *name, int numfncs, ...) {
     type = _next_interface++;
   }
   ix = type - FirstInterface - 1;
-  // if (type_debug) {
-  // }
   if (ix >= _num_interfaces) {
-    newsz = (ix + 1) * sizeof(interface_t);
-    cursz = _num_interfaces * sizeof(interface_t);
-    new_interfaces = (interface_t *) resize_block(_interfaces, newsz, cursz);
+    newsz = (ix + 1) * sizeof(interface_t *);
+    cursz = _num_interfaces * sizeof(interface_t *);
+    new_interfaces = (interface_t **) resize_block(_interfaces, newsz, cursz);
     _interfaces = new_interfaces;
     _num_interfaces = ix + 1;
   }
@@ -250,21 +325,15 @@ int interface_register(int type, char *name, int numfncs, ...) {
     info("Registering interface '%s' [%d:%d]. _num_interfaces: %d",
       name, type, ix, _num_interfaces);
   }
-  iface = &_interfaces[ix];
-  iface -> _d.type = Interface;
-  iface -> _d.free_me = Constant;
-  iface -> _d.refs = 1;
-  iface -> _d.str = NULL;
-  iface -> type = type;
-  iface -> name = strdup(name);
-  iface -> methods = NULL;
-  iface -> fncs = (int *) new_array(numfncs + 1, sizeof(int));
+  iface = NEWDYNARR(interface_t, numfncs + 1, int);
+  _interfaces[ix] = iface;
+  _kind_init((kind_t *) iface, Interface, type, name);
   va_start(fncs, numfncs);
-  for (iix = 0; iix < numfncs; iix++) {
-    fnc_id = va_arg(fncs, int);
-    iface -> fncs[iix] = fnc_id;
+  for (ix = 0; ix < numfncs; ix++) {
+    iface -> fncs[ix] = va_arg(fncs, int);
   }
   va_end(fncs);
+  iface -> fncs[numfncs] = 0;
   return type;
 }
 
@@ -276,17 +345,17 @@ interface_t * interface_get(int type) {
     typedescr_init();
   }
   if ((type > FirstInterface) && (type < _next_interface)) {
-    ret = &_interfaces[ifix];
+    ret = _interfaces[ifix];
     if (!ret) {
       if (type_debug) {
         error("Undefined interface type %d referenced. Expect crashes", type);
       }
       return NULL;
     } else {
-      if (ret -> type != type) {
-        _debug("looking for type %d, found %d (%s)", type, ret -> type, ret -> name);
+      if (ret -> _d.type != type) {
+        _debug("looking for type %d, found %d (%s)", type, ret -> _d.type, ret -> _d.name);
       }
-      assert(ret -> type == type);
+      assert(ret -> _d.type == type);
     }
   } else {
     if (type_debug) {
@@ -302,40 +371,12 @@ interface_t * interface_get_byname(char *name) {
   if (!_interfaces) {
     typedescr_init();
   }
-  for (ifix = 0; ifix < _next_interface - FirstInterface - 1; ifix++) {
-    if (!strcmp(_interfaces[ifix].name, name)) {
-      return &_interfaces[ifix];
+  for (ifix = 0; ifix < _num_interfaces; ifix++) {
+    if (!strcmp(_interfaces[ifix] -> _d.name, name)) {
+      return _interfaces[ifix];
     }
   }
   return NULL;
-}
-
-void interface_register_method(interface_t *iface, methoddescr_t *method) {
-  if (type_debug) {
-    info("interface_register_method(%s, %s)", iface -> name, method -> name);
-  }
-  if (!iface -> methods) {
-    iface -> methods = strdata_dict_create();
-  }
-  method -> _d.type = Method;
-  method -> _d.free_me = Constant;
-  method -> _d.refs = 1;
-  method -> _d.str = NULL;
-  dict_put(iface -> methods, method -> name, method);
-}
-
-methoddescr_t * interface_get_method(interface_t *iface, char *name) {
-  return (iface -> methods)
-    ? (methoddescr_t *) dict_get(iface -> methods, name)
-    : NULL;
-}
-
-char * _interface_tostring(interface_t *iface) {
-  return iface -> name;
-}
-
-int _interface_cmp(interface_t *iface1, interface_t *iface2) {
-  return iface1 -> type - iface2 -> type;
 }
 
 data_t * _interface_resolve(interface_t *iface, char *name) {
@@ -343,21 +384,11 @@ data_t * _interface_resolve(interface_t *iface, char *name) {
   int          ix;
   typedescr_t *type;
 
-  if (!strcmp(name, "name")) {
-    return str_to_data(iface -> name);
-  } else if (!strcmp(name, "id")) {
-    return int_to_data(iface -> type);
-  } else if (!strcmp(name, "methods")) {
-    ret = data_create_list(NULL);
-    dict_reduce_values(iface -> methods,
-		       (reduce_t) _add_method_reducer,
-		       ret);
-    return ret;
-  } else if (!strcmp(name, "implementations")) {
+  if (!strcmp(name, "implementations")) {
     ret = data_create_list(NULL);
     for (ix = 0; ix < _numtypes; ix++) {
-      type = &descriptors[ix];
-      if (type && typedescr_is(type, iface -> type)) {
+      type = _descriptors[ix];
+      if (type && typedescr_implements(type, iface -> _d.type)) {
         data_list_push(ret, (data_t *) type);
       }
     }
@@ -365,10 +396,6 @@ data_t * _interface_resolve(interface_t *iface, char *name) {
   } else {
     return NULL;
   }
-}
-
-unsigned int _interface_hash(interface_t *iface) {
-  return strhash(iface -> name);
 }
 
 data_t * _interface_isimplementedby(interface_t *iface, char *name, array_t *args, dict_t *kwargs) {
@@ -383,7 +410,7 @@ data_t * _interface_isimplementedby(interface_t *iface, char *name, array_t *arg
     type = (data_hastype(data, Type))
       ? (typedescr_t *) data
       : data_typedescr(data);
-    return int_as_bool(typedescr_is(type, iface -> type));
+    return int_as_bool(typedescr_is(type, iface -> _d.type));
   }
 }
 
@@ -459,51 +486,31 @@ int vtable_implements(vtable_t *vtable, int type) {
 
 /* -- T Y P E D E S C R  S T A T I C  F U N C T I O N S ------------------- */
 
-int _typedescr_cmp(typedescr_t *type1, typedescr_t *type2) {
-  return type1 -> type - type2 -> type;
-}
-
-
-char * _typedescr_tostring(typedescr_t *descr) {
-  char *str;
-
-  if (asprintf(&str, "'%s' [%d]",
-	       descr -> type_name, descr -> type) < 0) {
-    str = "Out of Memory?";
-  }
-  return str;
-}
-
 data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
   data_t      *ret;
   int          ix;
   interface_t *iface;
 
-  if (!strcmp(name, "name")) {
-    return str_to_data(descr -> type_name);
-  } else if (!strcmp(name, "id")) {
-    return int_to_data(descr -> type);
-  } else if (!strcmp(name, "inherits")) {
+  if (!strcmp(name, "inherits")) {
     ret = data_create_list(NULL);
-    for (ix = 0; ix < MAX_INHERITS; ix++) {
-      if (descr -> inherits[ix] < 0) {
-	      break;
-      }
+    for (ix = 0; descr -> inherits[ix]; ix++) {
       data_list_push(ret, (data_t *) typedescr_get(descr -> inherits[ix]));
     }
     return ret;
-  } else if (!strcmp(name, "methods")) {
+  } else if (!strcmp(name, "ancestors")) {
     ret = data_create_list(NULL);
-    dict_reduce_values(descr -> methods,
-		       (reduce_t) _add_method_reducer,
-		       ret);
+    for (ix = 0; descr -> ancestors[ix]; ix++) {
+      data_list_push(ret, (data_t *) typedescr_get(descr -> ancestors[ix]));
+    }
     return ret;
   } else if (!strcmp(name, "implements")) {
+    _typedescr_get_all_interfaces(descr);
     ret = data_create_list(NULL);
-    for (ix = FirstInterface + 1; ix < _next_interface; ix++) {
-      iface = &_interfaces[ix - FirstInterface - 1];
-      if (iface && typedescr_is(descr, iface -> type)) {
-      	data_list_push(ret, (data_t *) iface);
+    for (ix = 0; ix < descr -> implements_sz; ix++) {
+      iface = (descr -> implements[ix])
+        ? _interfaces[descr -> implements[ix]] : NULL;
+      if (iface) {
+        data_list_push(ret, (data_t *) iface);
       }
     }
     return ret;
@@ -534,172 +541,243 @@ data_t * _typedescr_hastype(data_t *self, char *name, array_t *args, dict_t *kwa
 
   (void) name;
   (void) kwargs;
-  return data_hastype(self, type -> type) ? data_true() : data_false();
+  return data_hastype(self, type -> _d.type) ? data_true() : data_false();
 }
 
-/* -- T Y P E D E S C R  P U B L I C  F U N C T I O N S ------------------- */
+/* ------------------------------------------------------------------------ */
 
-int _typedescr_register(typedescr_t *descr) {
-  typedescr_t    *new_descriptors;
-  vtable_t       *vtable;
-  int             newsz;
-  int             cursz;
-  int             newcap;
-  typedescr_t    *d;
+int _typedescr_check_if_implements(typedescr_t *descr, interface_t *iface) {
+  int ret;
+  int ix;
+  int fnc_id;
 
-  if ((descr -> type != Type) && !descriptors) {
-    typedescr_init();
+  if (!iface) {
+    return FALSE;
   }
-  debug(type, "Registering type '%s' [%d]", descr -> type_name, descr -> type);
-  if (descr -> type <= 0) {
-    descr -> type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
-    _numtypes = descr -> type + 1;
-    debug(type, "Giving type '%s' ID %d", descr -> type_name, descr -> type);
+  if ((iface -> _d.type == Any) && descr) {
+    return TRUE;
   }
-  if (descr -> type >= _capacity) {
-    for (newcap = (_capacity) ? _capacity * 2 : Dynamic;
-         newcap < descr -> type;
-         newcap *= 2);
-    cursz = _capacity * sizeof(typedescr_t);
-    newsz = newcap * sizeof(typedescr_t);
-    debug(type, "Expaning type dictionary buffer from %d to %d (%d/%d bytes)",
-      _capacity, newcap, cursz, newsz);
-    new_descriptors = (typedescr_t *) resize_block(descriptors, newsz, cursz);
-    descriptors = new_descriptors;
-    _capacity = newcap;
-  }
-  d = &descriptors[descr -> type];
-  memcpy(d, descr, sizeof(typedescr_t));
-  d -> _d.type = Type;
-  d -> _d.free_me = Constant;
-  d -> _d.refs = 1;
-  d -> _d.str = NULL;
-  vtable = d -> vtable;
-  d -> vtable = NULL;
-  typedescr_register_functions(d, vtable);
-  d -> methods = NULL;
-  d -> hash = 0;
-  d -> constructors = NULL;
-  d -> debug = 0;
-  d -> implements = NULL;
-  d -> implements_sz = 0;
-  // if (d -> type != Type) {
-  //   logging_register_category(d -> type_name, &d -> debug);
-  // }
-  return d -> type;
-}
-
-int typedescr_register_type(typedescr_t *td, methoddescr_t *md) {
-  int ret = _typedescr_register(td);
-  int i, j;
-
-  if (md) {
-    for (i = 0; md[i].type != NoType; i++) {
-      if (md[i].type < 0) {
-        md[i].type = ret;
-      }
-      for (j = 0; j < MAX_METHOD_PARAMS; j++) {
-        if (md[i].argtypes[j] < 0) {
-          md[j].argtypes[j] = ret;
-        }
-      }
-    }
-    typedescr_register_methods(md);
+  ret = TRUE;
+  for (ix = 0; ret && iface -> fncs[ix]; ix++) {
+    fnc_id = iface -> fncs[ix];
+    ret &= (typedescr_get_function(descr, fnc_id) != NULL);
   }
   return ret;
 }
 
+int * _typedescr_get_all_interfaces(typedescr_t *descr) {
+  int ix;
 
-void typedescr_register_types(typedescr_t *types) {
-  typedescr_t *type;
-
-  for (type = types; type -> type_name; type++) {
-    _typedescr_register(type);
+  if (!descr -> implements || (_num_interfaces > descr -> implements_sz)) {
+    free(descr -> implements);
+    descr -> implements = NEWARR(_num_interfaces, int);
+    descr -> implements_sz = _num_interfaces;
+    for (ix = 0; ix < _num_interfaces; ix++) {
+      descr -> implements[ix] = _typedescr_check_if_implements(descr, _interfaces[ix]);
+      if (descr -> implements[ix]) {
+        _kind_inherit_methods((kind_t *) descr, (kind_t *) _interfaces[ix]);
+      }
+    }
   }
+  return descr -> implements;
 }
 
-int typedescr_create_and_register(int type, char *type_name, vtable_t *vtable, methoddescr_t *methods) {
-  typedescr_t td;
-  int         ix;
+void_t * _typedescr_get_constructors(typedescr_t *type) {
+  void_t  local;
+  void_t *inherited;
+  int     ix;
+  int     iix;
+  int     count;
 
-  memset(&td, 0, sizeof(typedescr_t));
-  td.type = type;
-  td.type_name = type_name;
-  td.size = 0;
-  td.vtable = vtable;
-  for (ix = 0; ix < MAX_INHERITS; ix++) {
-    td.inherits[ix] = NoType;
+  free(type -> constructors);
+  for (count = 0, ix = 0; type -> inherits[ix]; ix++) {
+    inherited = _typedescr_get_constructors(typedescr_get(type -> inherits[ix]));
+    for (iix = 0; inherited[iix]; iix++) {
+      count++;
+    }
   }
-  return typedescr_register_type(&td, methods);
+  local = typedescr_get_local_function(type, FunctionNew);
+  if (local) {
+    count++;
+  }
+  type -> constructors = NEWARR(count + 1, void_t);
+  for (count = 0, ix = 0; type -> inherits[ix]; ix++) {
+    inherited = _typedescr_get_constructors(typedescr_get(type -> inherits[ix]));
+    for (iix = 0; inherited[iix]; iix++) {
+      type -> constructors[count++] = inherited[iix];
+    }
+  }
+  if (local) {
+    type -> constructors[count++] = local;
+  }
+  type -> constructors[count] = NULL;
+  return type -> constructors;
 }
 
-typedescr_t * typedescr_register_functions(typedescr_t *type, vtable_t vtable[]) {
-  if (type -> vtable) {
-    free(type -> vtable);
-  }
-  type -> vtable = vtable_build(vtable);
-  return type;
-}
-
-typedescr_t * typedescr_assign_inheritance(int type, int inherits) {
-  typedescr_t *td;
+typedescr_t * _typedescr_build_ancestors(typedescr_t *td) {
+  int          count;
   int          ix;
+  int          iix;
+  typedescr_t *base;
 
-  td = typedescr_get(type);
-  if (td) {
-    for (ix = 0; ix < MAX_INHERITS; ix++) {
-      if (td -> inherits[ix] == NoType) {
-        td -> inherits[ix] = inherits;
-        break;
-      } else if (td -> inherits[ix] == inherits) {
-        break;
+  free(td -> ancestors);
+
+  /* Count the total number of ancestors: */
+  for (count = 0, ix = 0; td -> inherits[ix]; ix++) {
+    base = typedescr_get(td -> inherits[ix]);
+    for (iix = 0; base -> ancestors[iix]; iix++) {
+      count++;
+    }
+    count++; /* For the reference to base */
+  }
+
+  td -> ancestors = NEWARR(count + 1, int); /* +1 for the Terminating 0 */
+  td -> ancestors[count] = 0;
+  for (count = 0, ix = 0; td -> inherits[ix]; ix++) {
+    base = typedescr_get(td -> inherits[ix]);
+    for (iix = 0; base -> ancestors[iix]; iix++) {
+      td -> ancestors[count++] = base -> ancestors[iix];
+    }
+    td -> ancestors[count++] = typetype(base);
+  }
+  for (ix = 0; td -> ancestors[ix]; ix++) {
+    base = typedescr_get(td -> ancestors[ix]);
+    _kind_inherit_methods((kind_t *) td, (kind_t *) base);
+  }
+  return td;
+}
+
+typedescr_t * _typedescr_build_inherited_vtable(typedescr_t *td) {
+  int          ix;
+  int          iix;
+  typedescr_t *base;
+
+  for (ix = 0; ix < FunctionEndOfListDummy; ix++) {
+    if (!td -> inherited_vtable[ix].fnc) {
+      for (iix = 0; td -> inherits[iix] && !td -> inherited_vtable[ix].fnc; iix++) {
+        base = typedescr_get(td -> inherits[iix]);
+        td -> inherited_vtable[ix].fnc = base -> inherited_vtable[ix].fnc;
       }
     }
   }
   return td;
 }
 
+typedescr_t * _typedescr_initialize_vtable(typedescr_t *type, vtable_t vtable[]) {
+  free(type -> vtable);
+  free(type -> inherited_vtable);
+  type -> vtable = vtable_build(vtable);
+  type -> inherited_vtable = vtable_build(vtable);
+  return type;
+}
+
+/* -- T Y P E D E S C R  P U B L I C  F U N C T I O N S ------------------- */
+
+int _typedescr_register(int type, char *type_name, vtable_t *vtable, methoddescr_t *methods) {
+  typedescr_t  *d;
+  size_t        cursz;
+  size_t        newsz;
+  size_t        newcap;
+
+  if ((type != Type) && !_descriptors) {
+    typedescr_init();
+  }
+  debug(type, "Registering type '%s' [%d]", type_name, type);
+  if (type <= 0) {
+    type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
+    _numtypes = type + 1;
+    debug(type, "Giving type '%s' ID %d", type_name, type);
+  }
+  if (type >= _capacity) {
+    for (newcap = (_capacity) ? _capacity * 2 : Dynamic;
+         newcap < type;
+         newcap *= 2);
+    cursz = _capacity * sizeof(typedescr_t *);
+    newsz = newcap * sizeof(typedescr_t *);
+    debug(type, "Expaning type dictionary buffer from %d to %d (%d/%d bytes)",
+        _capacity, newcap, cursz, newsz);
+    _descriptors = (typedescr_t **) resize_block(_descriptors, newsz, cursz);
+    _capacity = newcap;
+  }
+  d = NEW(typedescr_t);
+  _descriptors[type] = d;
+  _kind_init((kind_t *) d, Type, type, type_name);
+  _typedescr_initialize_vtable(d, vtable);
+  if (methods) {
+    typedescr_register_methods(type, methods);
+  }
+  d -> inherits = NEWARR(1, int);
+  d -> inherits[0] = 0;
+  d -> ancestors = NEWARR(1, int);
+  d -> ancestors[0] = 0;
+  _typedescr_get_all_interfaces(d);
+  _typedescr_get_constructors(d);
+  return type;
+}
+
+typedescr_t * typedescr_assign_inheritance(int type, int inherits) {
+  typedescr_t *td;
+  typedescr_t *base;
+  int          ix;
+
+  td = typedescr_get(type);
+  if (td) {
+    for (ix = 0; td -> inherits && td -> inherits[ix]; ix++);
+    td -> inherits = resize_block(td -> inherits,
+      sizeof(int) * (ix + 2), (td -> inherits) ? (sizeof(int) * (ix + 1)) : 0);
+    td -> inherits[ix] = inherits;
+    td -> inherits[ix + 1] = 0;
+    base = typedescr_get(inherits);
+    if (!base) {
+      fatal("Attempt to make type '%s' a subtype of non-existant type '%d'",
+        td -> _d.name, inherits);
+    }
+    _typedescr_build_inherited_vtable(td);
+    _typedescr_get_constructors(td);
+    _typedescr_build_ancestors(td);
+    td -> implements_sz = 0;
+    _typedescr_get_all_interfaces(td);
+  }
+  return td;
+}
+
 typedescr_t * typedescr_get(int datatype) {
+#ifdef DEBUG_TYPES
   typedescr_t *ret = NULL;
 
-  if (!descriptors) {
+  if (!_descriptors) {
     typedescr_init();
   }
   if ((datatype >= 0) && (datatype < _numtypes)) {
-    ret = &descriptors[datatype];
+    ret = _descriptors[datatype];
   }
   if (!ret) {
     fatal("Undefined type %d referenced. Terminating...", datatype);
     return NULL;
   } else {
-    //if (type_debug) {
-    //  debug("typedescr_get(%d) = %s", datatype, ret -> type_name);
-    //}
     return ret;
   }
+#else
+  return _descriptors[datatype];
+#endif
 }
 
 typedescr_t * typedescr_get_byname(char *name) {
   typedescr_t *ret = NULL;
   int          ix;
 
-  if (!descriptors) {
+  if (!_descriptors) {
     typedescr_init();
   }
   for (ix = 0; ix < _numtypes; ix++) {
-    if (descriptors[ix].type_name && !strcmp(name, descriptors[ix].type_name)) {
-      return &descriptors[ix];
+    if (_descriptors[ix] &&
+        typename(_descriptors[ix]) &&
+        !strcmp(name, typename(_descriptors[ix]))) {
+      return _descriptors[ix];
     }
   }
-  debug(type, "typedescr_get_byname(%s) = %d", name, (ret) ? ret -> type : -1);
+  debug(type, "typedescr_get_byname(%s) = %d", name, (ret) ? ret -> _d.type : -1);
   return NULL;
-}
-
-unsigned int typedescr_hash(typedescr_t *type) {
-  if (!type -> hash) {
-    type -> hash = strhash(type -> type_name);
-  }
-  return type -> hash;
 }
 
 void typedescr_dump_vtable(typedescr_t *type) {
@@ -713,154 +791,80 @@ void typedescr_count(void) {
   _debug("Atom count");
   _debug("-------------------------------------------------------");
   for (ix = 0; ix < _numtypes; ix++) {
-    if (descriptors[ix].type > NoType) {
-      _debug("%3d. %-20.20s %6d", descriptors[ix].type, descriptors[ix].type_name, descriptors[ix].count);
-    }
+    _debug("%3d. %-20.20s %6d", _descriptors[ix] -> _d.type, _descriptors[ix] -> _d.name, _descriptors[ix] -> count);
   }
   _debug("-------------------------------------------------------");
   _debug("     %-20.20s %6d", "T O T A L", _data_count);
 }
 
-void_t typedescr_get_local_function(typedescr_t *type, int fnc_id) {
-  void_t ret = NULL;
-
-  assert(type);
-  assert(fnc_id > FunctionNone);
-  assert(fnc_id < FunctionEndOfListDummy);
-  if (type -> vtable) {
-    ret = type -> vtable[fnc_id] . fnc;
-  }
-  return ret;
-}
-
-void_t typedescr_get_function(typedescr_t *type, int fnc_id) {
-  void_t       ret = NULL;
-  int          ix;
-  typedescr_t *inherits;
-
-  ret = typedescr_get_local_function(type, fnc_id);
-  for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
-    inherits = typedescr_get(type -> inherits[ix]);
-    ret = typedescr_get_function(inherits, fnc_id);
-  }
-  return ret;
-}
-
-list_t * typedescr_get_constructors(typedescr_t *type) {
-  void_t  n;
-  list_t *constructors;
-  list_t *inherited;
-  int     ix;
-
-  if (!type -> constructors) {
-    constructors = list_create();
-    for (ix = 0; (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
-      inherited = typedescr_get_constructors(
-        typedescr_get(type -> inherits[ix]));
-      if (inherited) {
-        list_add_all(constructors, inherited);
-      }
-    }
-    n = typedescr_get_local_function(type, FunctionNew);
-    if (n) {
-      list_push(constructors, n);
-    }
-    if (list_empty(constructors)) {
-      list_free(constructors);
-      type -> constructors = EmptyList;
-    } else {
-      type -> constructors = constructors;
-    }
-  }
-  return (type -> constructors != EmptyList) ? type -> constructors : NULL;
-}
-
-void typedescr_register_methods(methoddescr_t methods[]) {
+void typedescr_register_methods(int type, methoddescr_t methods[]) {
   methoddescr_t *method;
-  typedescr_t   *type;
-  interface_t   *iface;
-
-  for (method = methods; method -> type > NoType; method++) {
-    if (method -> type < FirstInterface) {
-      type = typedescr_get(method -> type);
-      assert(type);
-      typedescr_register_method(type, method);
-    } else {
-      iface = interface_get(method -> type);
-      assert(iface);
-      interface_register_method(iface, method);
-    }
-  }
-}
-
-void typedescr_register_method(typedescr_t *type, methoddescr_t *method) {
-  if (type_debug) {
-    info("typedescr_register_method(%s, %s)", type -> type_name, method -> name);
-  }
-  if (!type -> methods) {
-    type -> methods = strdata_dict_create();
-  }
-  method -> _d.type = Method;
-  method -> _d.free_me = Constant;
-  method -> _d.refs = 1;
-  method -> _d.str = NULL;
-  dict_put(type -> methods, method -> name, method);
-}
-
-methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
-  methoddescr_t *ret = NULL;
+  kind_t        *kind;
   int            ix;
 
-  assert(descr);
-  if (type_debug) {
-    info("typedescr_get_method(%s, %s)", descr -> type_name, name);
-  }
-  if (descr -> methods) {
-    ret = (methoddescr_t *) dict_get(descr -> methods, name);
-  }
-  if (!ret) {
-    for (ix = 0; !ret && ix < _num_interfaces; ix++) {
-      if (typedescr_is(descr, _interfaces[ix].type)) {
-        ret = interface_get_method(&_interfaces[ix], name);
+  for (method = methods; method -> type != NoType; method++) {
+    if (method -> type < 0) {
+      method -> type = type;
+    }
+    for (ix = 0; (ix < MAX_METHOD_PARAMS) && method -> argtypes[ix]; ix++) {
+      if (method -> argtypes[ix] < 0) {
+        method -> argtypes[ix] = type;
       }
     }
-    for (ix = 0; !ret && (ix < MAX_INHERITS) && descr -> inherits[ix]; ix++) {
-      ret = typedescr_get_method(typedescr_get(descr -> inherits[ix]), name);
-    }
-    if (ret) {
-      typedescr_register_method(descr, ret);
+    kind = kind_get(method -> type);
+    kind_register_method(kind, method);
+  }
+}
+
+int typedescr_implements(typedescr_t *descr, int type) {
+  _typedescr_get_all_interfaces(descr);
+  return descr -> implements[type - FirstInterface - 1];
+}
+
+int typedescr_inherits(typedescr_t *descr, int type) {
+  int ix;
+
+  if (descr -> _d.type == type) {
+    return TRUE;
+  } else {
+    for (ix = 0; descr -> ancestors && descr -> ancestors[ix]; ix++) {
+      if (descr -> ancestors[ix] == type) {
+        return TRUE;
+      }
     }
   }
-  return ret;
+  return FALSE;
 }
 
 int typedescr_is(typedescr_t *descr, int type) {
-  int   ix;
-  int   ret = FALSE;
-  int (*fnc)(typedescr_t *, int);
+  int       ix;
+  int       ret = FALSE;
+  int     (*fnc)(typedescr_t *, int);
 
-  if ((type == descr -> type) || (type == Any)) {
+  if ((type == descr -> _d.type) || (type == Any)) {
     ret = TRUE;
+  } else if (descr -> vtable[FunctionIs].fnc) {
+    fnc = (int (*)(typedescr_t *, int)) descr -> vtable[FunctionIs].fnc;
+    ret = fnc(descr, type);
+  } else if (type > FirstInterface) {
+    if (!descr -> implements || (_num_interfaces > descr -> implements_sz)) {
+      _typedescr_get_all_interfaces(descr);
+    }
+    ret = descr -> implements[type - FirstInterface - 1];
   } else {
-    if (descr -> vtable[FunctionIs].fnc) {
-      fnc = (int (*)(typedescr_t *, int)) descr -> vtable[FunctionIs].fnc;
-      ret = fnc(descr, type);
-    } else {
-      if (type > FirstInterface) {
-        if (!descr -> implements || (_num_interfaces > descr -> implements_sz)) {
-          free(descr -> implements);
-          descr -> implements = NEWARR(_num_interfaces, int);
-          descr -> implements_sz = _num_interfaces;
-          for (ix = 0; ix < _num_interfaces; ix++) {
-            descr -> implements[ix] = vtable_implements(descr -> vtable, FirstInterface + ix + 1);
-          }
-        }
-        ret = descr -> implements[type - FirstInterface - 1];
-      }
-      for (ix = 0; !ret && (ix < MAX_INHERITS) && descr -> inherits[ix]; ix++) {
-        ret = typedescr_is(typedescr_get(descr -> inherits[ix]), type);
+    for (ix = 0; descr -> ancestors && descr -> ancestors[ix]; ix++) {
+      if (descr -> ancestors[ix] == type) {
+        ret = TRUE;
+        break;
       }
     }
   }
   return ret;
+}
+
+methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
+  if (!descr -> implements || (_num_interfaces > descr -> implements_sz)) {
+    _typedescr_get_all_interfaces(descr);
+  }
+  return kind_get_method((kind_t *) descr, name);
 }

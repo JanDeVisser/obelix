@@ -24,7 +24,7 @@ static char *             _ga_allocstring(grammar_action_t *);
 static void               _ga_free(grammar_action_t *);
 static grammar_action_t * _ga_dump(ge_dump_ctx_t *);
 
-static vtable_t _vtable_ga[] = {
+static vtable_t _vtable_GrammarAction[] = {
   { .id = FunctionNew,         .fnc = (void_t) _ga_new },
   { .id = FunctionFree,        .fnc = (void_t) _ga_free },
   { .id = FunctionCmp,         .fnc = (void_t) grammar_action_cmp },
@@ -39,11 +39,7 @@ int GrammarAction = -1;
 /* ------------------------------------------------------------------------ */
 
 extern void grammar_action_register(void) {
-  GrammarAction = typedescr_create_and_register(GrammarAction,
-                                                "grammaraction",
-                                                _vtable_ga,
-                                                NULL);
-  typedescr_set_size(GrammarAction, grammar_action_t);
+  typedescr_register(GrammarAction, grammar_action_t);
 }
 
 /* -- G R A M M A R _ A C T I O N ----------------------------------------- */

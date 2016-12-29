@@ -40,7 +40,7 @@ static data_t * _fsentry_isfile(data_t *, char *, array_t *, dict_t *);
 static data_t * _fsentry_isdir(data_t *, char *, array_t *, dict_t *);
 static data_t * _fsentry_exists(data_t *, char *, array_t *, dict_t *);
 
-static vtable_t _vtable_fsentry[] = {
+static vtable_t _vtable_FSEntry[] = {
   { .id = FunctionCmp,         .fnc = (void_t) fsentry_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _fsentry_free },
   { .id = FunctionAllocString, .fnc = (void_t) _fsentry_allocstring },
@@ -49,7 +49,7 @@ static vtable_t _vtable_fsentry[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_fsentry[] = {
+static methoddescr_t _methods_FSEntry[] = {
   { .type = -1,     .name = "open",    .method = _fsentry_open,   .argtypes = { NoType, NoType, NoType }, .minargs = 0, .maxargs = 0, .varargs = 0 },
   { .type = -1,     .name = "isfile",  .method = _fsentry_isfile, .argtypes = { NoType, NoType, NoType }, .minargs = 0, .maxargs = 0, .varargs = 0 },
   { .type = -1,     .name = "isdir",   .method = _fsentry_isdir,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .maxargs = 0, .varargs = 0 },
@@ -80,7 +80,7 @@ static char *           _fsentry_iter_tostring(fsentry_iter_t *);
 static data_t *         _fsentry_iter_has_next(fsentry_iter_t *);
 static data_t *         _fsentry_iter_next(fsentry_iter_t *);
 
-static vtable_t _vtable_fsentry_iter[] = {
+static vtable_t _vtable_FSEntryIter[] = {
   { .id = FunctionFree,     .fnc = (void_t) _fsentry_iter_free },
   { .id = FunctionToString, .fnc = (void_t) _fsentry_iter_tostring },
   { .id = FunctionHasNext,  .fnc = (void_t) _fsentry_iter_has_next },
@@ -94,10 +94,8 @@ int FSEntryIter = -1;
 
 void _fsentry_init(void) {
   if (FSEntry < 1) {
-    FSEntry = typedescr_create_and_register(FSEntry, "fsentry",
-                                            _vtable_fsentry, _methoddescr_fsentry);
-    FSEntryIter = typedescr_create_and_register(FSEntryIter, "fsentryiter",
-                                                _vtable_fsentry_iter, NULL);
+    typedescr_register_with_methods(FSEntry, fsentry_t);
+    typedescr_register(FSEntryIter, fsentry_iter_t);
   }
 }
 

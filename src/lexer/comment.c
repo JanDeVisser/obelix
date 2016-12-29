@@ -81,7 +81,7 @@ static comment_config_t * _comment_config_add_marker(comment_config_t *, char *)
 static token_t *          _comment_match(scanner_t *);
 static void               _comment_free_scanner(scanner_t *);
 
-static vtable_t _vtable_comment_config[] = {
+static vtable_t _vtable_CommentScannerConfig[] = {
     { .id = FunctionNew,            .fnc = (void_t) _comment_config_create },
     { .id = FunctionResolve,        .fnc = (void_t) _comment_config_resolve },
     { .id = FunctionSet,            .fnc = (void_t) _comment_config_set },
@@ -476,11 +476,6 @@ void _comment_free_scanner(scanner_t *scanner) {
 }
 
 __DLL_EXPORT__ typedescr_t *comment_register(void) {
-  typedescr_t *ret;
-
-  CommentScannerConfig = typedescr_create_and_register(
-      CommentScannerConfig, "comment", _vtable_comment_config, NULL);
-  ret = typedescr_get(CommentScannerConfig);
-  typedescr_set_size(CommentScannerConfig, comment_config_t);
-  return ret;
+  typedescr_register_with_name(CommentScannerConfig, "comment", comment_config_t);
+  return typedescr_get(CommentScannerConfig);
 }

@@ -47,7 +47,7 @@ static data_t *      _list_create(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_at(data_t *, char *, array_t *, dict_t *);
 static data_t *      _list_slice(data_t *, char *, array_t *, dict_t *);
 
-static vtable_t _vtable_list[] = {
+static vtable_t _vtable_List[] = {
   { .id = FunctionFactory,  .fnc = (void_t) _list_new },
   { .id = FunctionCopy,     .fnc = (void_t) _list_copy },
   { .id = FunctionCmp,      .fnc = (void_t) _list_cmp },
@@ -64,7 +64,7 @@ static vtable_t _vtable_list[] = {
 };
 
 /* FIXME Add append, delete, head, tail, etc... */
-static methoddescr_t _methoddescr_list[] = {
+static methoddescr_t _methods_List[] = {
   { .type = Any,    .name = "list",  .method = _list_create,.argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
   { .type = List,   .name = "at",    .method = _list_at,    .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
   { .type = List,   .name = "slice", .method = _list_slice, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
@@ -78,7 +78,7 @@ static methoddescr_t _methoddescr_list[] = {
  */
 
 void list_init(void) {
-  typedescr_create_and_register(List, "list", _vtable_list, _methoddescr_list);
+  builtin_typedescr_register(List, "list", pointer_t);
 }
 
 data_t * _list_new(int type, va_list arg) {

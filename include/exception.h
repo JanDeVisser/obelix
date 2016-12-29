@@ -81,7 +81,7 @@ OBLCORE_IMPEXP data_t *       data_exception_from_errno(void);
 OBLCORE_IMPEXP data_t *       data_throwable(data_t *);
 
 #define exception_register(e)            (e = _exception_register( #e ))
-#define data_is_exception(d)             ((d) && (data_hastype((data_t *) (d), Exception)))
+#define data_is_exception(d)             ((d) && data_hastype((d), Exception))
 #define data_is_unhandled_exception(d)   ((d) && data_is_exception((d)) && !(((exception_t *) (d)) -> handled))
 #define data_as_exception(d)             ((exception_t *) ((data_is_exception((d)) ? (d) : NULL)))
 #define data_is_exception_with_code(d,c) (data_is_exception((d)) && (data_as_exception((d)) -> code == (c)))

@@ -42,7 +42,7 @@ static pos_config_t * _pos_config_set(pos_config_t *, char *, data_t *);
 static pos_config_t * _pos_config_config(pos_config_t *, array_t *);
 static token_t *      _pos_match(scanner_t *);
 
-static vtable_t _vtable_posscanner_config[] = {
+static vtable_t _vtable_PosScannerConfig[] = {
   { .id = FunctionNew,       .fnc = (void_t ) _pos_config_create },
   { .id = FunctionResolve,   .fnc = (void_t ) _pos_config_resolve },
   { .id = FunctionSet,       .fnc = (void_t ) _pos_config_set },
@@ -125,12 +125,7 @@ token_t * _pos_match(scanner_t *scanner) {
 }
 
 __DLL_EXPORT__ typedescr_t * position_register(void) {
-  typedescr_t *ret;
-
   logging_register_category("position", &position_debug);
-  PosScannerConfig = typedescr_create_and_register(
-      PosScannerConfig, "position", _vtable_posscanner_config, NULL);
-  ret = typedescr_get(PosScannerConfig);
-  typedescr_set_size(PosScannerConfig, pos_config_t);
-  return ret;
+  typedescr_register_with_name(PosScannerConfig, "position", pos_config_t);
+  return typedescr_get(PosScannerConfig);
 }

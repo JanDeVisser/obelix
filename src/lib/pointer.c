@@ -37,7 +37,7 @@ static pointer_t *   _ptr_parse(char *);
 static data_t *      _ptr_copy(data_t *, char *, array_t *, dict_t *);
 static data_t *      _ptr_fill(data_t *, char *, array_t *, dict_t *);
 
-static vtable_t _vtable_ptr[] = {
+static vtable_t _vtable_Pointer[] = {
   { .id = FunctionFactory,     .fnc = (void_t) _ptr_new },
   { .id = FunctionCmp,         .fnc = (void_t) _ptr_cmp },
   { .id = FunctionAllocString, .fnc = (void_t) _ptr_allocstring },
@@ -47,7 +47,7 @@ static vtable_t _vtable_ptr[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methoddescr_ptr[] = {
+static methoddescr_t _methods_Pointer[] = {
   { .type = Pointer, .name = "copy",  .method = _ptr_copy, .argtypes = { Pointer, NoType, NoType }, .minargs = 0, .varargs = 1  },
   { .type = Pointer, .name = "fill",  .method = _ptr_fill, .argtypes = { Pointer, NoType, NoType }, .minargs = 1, .varargs = 1  },
   { .type = NoType,  .name = NULL,    .method = NULL,      .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0  },
@@ -62,7 +62,7 @@ static methoddescr_t _methoddescr_ptr[] = {
 static pointer_t * _null = NULL;
 
 void ptr_init(void) {
-  typedescr_create_and_register(Pointer, "ptr", _vtable_ptr, _methoddescr_ptr);
+  builtin_typedescr_register(Pointer, "ptr", pointer_t);
   _null = ptr_create(0, NULL);
   _null -> _d.free_me = Constant;
 }

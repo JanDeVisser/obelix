@@ -30,16 +30,17 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum _datatype {
-  Exception = 1,
-  Type,
-  Interface,
-  Method,
-  Pointer,
-  String,
-  Int,
-  Float,
-  Bool,
-  List
+  Exception    = 1,
+  Kind,       /* 2 */
+  Type,       /* 3 */
+  Interface,  /* 4 */
+  Method,     /* 5 */
+  Pointer,    /* 6 */
+  String,     /* 7 */
+  Int,        /* 8 */
+  Float,      /* 9 */
+  Bool,       /* 10 */
+  List        /* 11 */
 } datatype_t;
 
 typedef enum _free_semantics {
@@ -92,14 +93,6 @@ OBLCORE_IMPEXP data_t *            data_parse(int, char *);
 OBLCORE_IMPEXP data_t *            data_decode(char *);
 OBLCORE_IMPEXP char *              data_encode(data_t *);
 OBLCORE_IMPEXP void                data_free(data_t *);
-OBLCORE_IMPEXP int                 data_hastype(data_t *, int);
-OBLCORE_IMPEXP struct _typedescr * data_typedescr(data_t *);
-OBLCORE_IMPEXP void_t              data_get_function(data_t *, int);
-OBLCORE_IMPEXP int                 data_implements(data_t *, int);
-OBLCORE_IMPEXP int                 data_is_numeric(data_t *);
-OBLCORE_IMPEXP int                 data_is_callable(data_t *);
-OBLCORE_IMPEXP int                 data_is_iterable(data_t *);
-OBLCORE_IMPEXP int                 data_is_iterator(data_t *);
 OBLCORE_IMPEXP data_t *            data_copy(data_t *);
 OBLCORE_IMPEXP data_t *            data_uncopy(data_t *);
 OBLCORE_IMPEXP unsigned int        data_hash(data_t *);
@@ -143,17 +136,28 @@ OBLCORE_IMPEXP pointer_t *         ptr_create(int, void *);
 
 #define data_new(dt,st)     ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
 #define data_type(d)        ((d) ? ((data_t *) (d)) -> type : 0)
-#define data_typename(d)    ((d) ? (typedescr_get(data_type((data_t *) (d))) -> type_name) : "null")
+#define data_typedescr(d)   ((d) ? typedescr_get(((data_t *) (d)) -> type) : NULL)
+#define data_typename(d)    ((d) ? typename(typedescr_get(data_type((data_t *) (d)))) : "null")
+#define data_hastype(d, t)  ((d) && ((((data_t *) (d)) -> type == (t)) || \
+                                     typedescr_is(typedescr_get(((data_t *) (d)) -> type), (t))))
 
-#define data_is_int(d )     ((d) && (data_hastype((d), Int)))
-#define data_is_float(d )   ((d) && (data_hastype((d), Float)))
-#define data_is_string(d )  ((d) && (data_hastype((d), String)))
+#define data_get_function(d, f) (typedescr_get_function(data_typedescr(d), (f)))
+
+#define data_is_numeric(d)  ((d) && (data_hastype((d), Number)))
+#define data_is_int(d)      ((d) && (data_hastype((d), Int)))
+#define data_is_float(d)    ((d) && (data_hastype((d), Float)))
+#define data_is_string(d)   ((d) && (data_hastype((d), String)))
 #define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
+#define data_is_list(d)     ((d) && (data_hastype((d), List)))
+
+#define data_is_callable(d) ((d) && (data_hastype((d), Callable)))
+#define data_is_iterable(d) ((d) && (data_hastype((d), Iterable)))
+#define data_is_iterator(d) ((d) && (data_hastype((d), Iterator)))
+
 #define data_as_pointer(d)  (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
 #define data_wrap(p)        ((data_t *) ptr_create(0, (p)))
 #define data_unwrap(d)      (data_is_pointer((data_t *) (d)) ? (data_as_pointer(d) -> ptr) : NULL)
 
-#define data_is_list(d)     ((d) && (data_hastype((d), List)))
 #define data_as_array(d)    ((array_t *) (((pointer_t *) (d)) -> ptr))
 
 OBLCORE_IMPEXP array_t *       data_add_all_reducer(data_t *, array_t *);

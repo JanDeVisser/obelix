@@ -110,21 +110,21 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
   if (len < md -> minargs) {
     if (md -> varargs) {
       return data_exception(ErrorArgCount, "%s.%s requires at least %d arguments",
-                       type -> type_name, md -> name, md -> minargs);
+                       typename(type), md -> name, md -> minargs);
     } else {
       return data_exception(ErrorArgCount, "%s.%s requires exactly %d arguments",
-                       type -> type_name, md -> name, md -> minargs);
+                       typename(type), md -> name, md -> minargs);
     }
   } else if (len > maxargs) {
     if (maxargs == 0) {
       return data_exception(ErrorArgCount, "%s.%s accepts no arguments",
-                        type -> type_name, md -> name);
+                        typename(type), md -> name);
     } else if (maxargs == 1) {
       return data_exception(ErrorArgCount, "%s.%s accepts only one argument",
-                        type -> type_name, md -> name);
+                        typename(type), md -> name);
     } else {
       return data_exception(ErrorArgCount, "%s.%s accepts only %d arguments",
-                       type -> type_name, md -> name, maxargs);
+                       typename(type), md -> name, maxargs);
     }
   }
   buf[0] = 0;
@@ -140,9 +140,9 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
     }
     if (!data_hastype(arg, t)) {
       return data_exception(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %s, not %s",
-                        i+1, type -> type_name, md -> name,
-                        typedescr_get(t) -> type_name,
-                        data_typedescr(arg) -> type_name);
+                        i+1, typename(type), md -> name,
+                        typename(typedescr_get(t)),
+                        data_typename(arg));
     }
     if (method_debug) {
       if (i > 0) {

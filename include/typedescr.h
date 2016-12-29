@@ -34,7 +34,7 @@ extern "C" {
 
 typedef enum _metatype {
   NoType          = 0,
-  Dynamic         = 100,
+  Dynamic         = 12,
   FirstInterface  = 1000, /* Marker */
   Number,        /* 1001 */
   InputStream,   /* 1002 */
@@ -103,12 +103,16 @@ typedef enum _vtable_id {
 
 typedef struct _data * (*method_t)(struct _data *, char *, array_t *, dict_t *);
 
-typedef struct _interface {
+typedef struct _kind {
   data_t  _d;
   int     type;
   char   *name;
   dict_t *methods;
-  int    *fncs;
+} kind_t;
+
+typedef struct _interface {
+  kind_t _d;
+  int    fncs[];
 } interface_t;
 
 typedef struct _vtable {
@@ -128,59 +132,59 @@ typedef struct _methoddescr {
 } methoddescr_t;
 
 typedef struct _typedescr {
-  data_t         _d;
-  int            type;
-  char          *type_name;
-  int            size;
-  int            debug;
-  vtable_t      *vtable;
-  dict_t        *methods;
-  list_t        *constructors;
-  void          *ptr;
-  int            promote_to;
-  int            inherits[MAX_INHERITS];
-  int           *implements;
-  int            implements_sz;
-  unsigned int   hash;
-  int            count;
+  kind_t    _d;
+  int       size;
+  int       debug;
+  vtable_t *vtable;
+  vtable_t *inherited_vtable;
+  void_t   *constructors;
+  void     *ptr;
+  int       promote_to;
+  int      *ancestors;
+  int      *implements;
+  int       implements_sz;
+  int       count;
+  int      *inherits;
 } typedescr_t;
 
 OBLCORE_IMPEXP void            typedescr_init(void);
-OBLCORE_IMPEXP data_t *        type_get(int);
-OBLCORE_IMPEXP data_t *        type_get_byname(char *);
+OBLCORE_IMPEXP kind_t *        kind_get(int);
+OBLCORE_IMPEXP kind_t *        kind_get_byname(char *);
 
-OBLCORE_IMPEXP int             interface_register(int, char *, int, ...);
-OBLCORE_IMPEXP interface_t *   interface_get(int);
-OBLCORE_IMPEXP interface_t *   interface_get_byname(char *);
-OBLCORE_IMPEXP void            interface_register_method(interface_t *, methoddescr_t *);
-OBLCORE_IMPEXP methoddescr_t * interface_get_method(interface_t *, char *);
+OBLCORE_IMPEXP void            kind_register_method(kind_t *, methoddescr_t *);
+OBLCORE_IMPEXP methoddescr_t * kind_get_method(kind_t *, char *);
+
+OBLCORE_IMPEXP int                       _interface_register(int, char *, int, ...);
+OBLCORE_IMPEXP interface_t *             interface_get(int);
+OBLCORE_IMPEXP interface_t *             interface_get_byname(char *);
+#define interface_register_method(i, m)  kind_register_method((kind_t *) (i), (m))
+#define interface_get_method(i, m)       kind_get_method((kind_t *) (i), (m))
 
 OBLCORE_IMPEXP vtable_t *      vtable_build(vtable_t[]);
 OBLCORE_IMPEXP void            vtable_dump(vtable_t *);
 OBLCORE_IMPEXP void_t          vtable_get(vtable_t *, int);
 OBLCORE_IMPEXP int             vtable_implements(vtable_t *, int);
 
-OBLCORE_IMPEXP int             _typedescr_register(typedescr_t *);
-OBLCORE_IMPEXP int             typedescr_register_type(typedescr_t *, methoddescr_t *);
-OBLCORE_IMPEXP void            typedescr_register_types(typedescr_t *);
-OBLCORE_IMPEXP int             typedescr_create_and_register(int, char *, vtable_t *, methoddescr_t *);
+OBLCORE_IMPEXP int             _typedescr_register(int, char *, vtable_t *, methoddescr_t *);
 OBLCORE_IMPEXP typedescr_t *   typedescr_assign_inheritance(int, int);
-OBLCORE_IMPEXP typedescr_t *   typedescr_register_functions(typedescr_t *, vtable_t[]);
 OBLCORE_IMPEXP typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
 OBLCORE_IMPEXP typedescr_t *   typedescr_get(int);
 OBLCORE_IMPEXP typedescr_t *   typedescr_get_byname(char *);
 OBLCORE_IMPEXP void            typedescr_count(void);
 OBLCORE_IMPEXP unsigned int    typedescr_hash(typedescr_t *);
-OBLCORE_IMPEXP void            typedescr_register_methods(methoddescr_t[]);
-OBLCORE_IMPEXP void            typedescr_register_method(typedescr_t *, methoddescr_t *);
-OBLCORE_IMPEXP methoddescr_t * typedescr_get_method(typedescr_t *, char *);
-OBLCORE_IMPEXP void_t          typedescr_get_function(typedescr_t *, int);
-OBLCORE_IMPEXP void_t          typedescr_get_local_function(typedescr_t *, int);
-OBLCORE_IMPEXP list_t *        typedescr_get_constructors(typedescr_t *);
+OBLCORE_IMPEXP void            typedescr_register_methods(int, methoddescr_t[]);
+OBLCORE_IMPEXP int             typedescr_implements(typedescr_t *, int);
+OBLCORE_IMPEXP int             typedescr_inherits(typedescr_t *, int);
 OBLCORE_IMPEXP int             typedescr_is(typedescr_t *, int);
 OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
+OBLCORE_IMPEXP methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 
-#define typename(i)            ((typedescr_get((i))) ? typedescr_get((i)) -> type_name : #i)
+#define typename(t)                        ((t) ? ((t) -> _d.name) : "")
+#define typetype(t)                        ((t) ? (t) -> _d.type : -1)
+#define typedescr_get_local_function(t, f) (((t) && (t) -> vtable) ? (t) -> vtable[(f)].fnc : NULL)
+#define typedescr_get_function(t, f)       (((t) && (t) -> inherited_vtable) ? (t) -> inherited_vtable[(f)].fnc : NULL)
+#define typedescr_register_method(t, m)    kind_register_method((kind_t *) (t), (m))
+#define typedescr_constructors(t)          ((t) -> constructors)
 
 #define data_is_typedescr(d)   ((d) && (data_hastype((d), Type)))
 #define data_as_typedescr(d)   ((typedescr_t *) (data_is_typedescr((d)) ? ((typedescr_t *) (d)) : NULL))
@@ -201,27 +205,41 @@ OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
 
 #define typedescr_register(t, type)                                          \
     if (t < 1) {                                                             \
-      t = typedescr_create_and_register(t, #t , _vtable_ ## t, NULL);        \
+      t = _typedescr_register(t, #t , _vtable_ ## t, NULL);                  \
       typedescr_set_size(t, type);                                           \
     }
 
 #define typedescr_register_with_name(t, name, type)                          \
     if (t < 1) {                                                             \
-      t = typedescr_create_and_register(t, name , _vtable_ ## t, NULL);      \
+      t = _typedescr_register(t, name , _vtable_ ## t, NULL);                \
       typedescr_set_size(t, type);                                           \
     }
 
 #define typedescr_register_with_methods(t, type)                             \
   if (t < 1) {                                                               \
-    t = typedescr_create_and_register(t, #t , _vtable_ ## t, _methods_ ## t);\
+    t = _typedescr_register(t, #t , _vtable_ ## t, _methods_ ## t);          \
     typedescr_set_size(t, type);                                             \
   }
 
 #define typedescr_register_with_name_and_methods(t, name, type)              \
   if (t < 1) {                                                               \
-    t = typedescr_create_and_register(t, name , _vtable_ ## t, _methods_ ## t);\
+    t = _typedescr_register(t, name , _vtable_ ## t, _methods_ ## t);        \
     typedescr_set_size(t, type);                                             \
   }
+
+#define builtin_typedescr_register(t, name, type)                            \
+  assert(t > 0);                                                             \
+  _typedescr_register(t, name , _vtable_ ## t, _methods_ ## t);              \
+  typedescr_set_size(t, type);                                               \
+
+#define builtin_interface_register(i, num, fncs...)                          \
+  _interface_register(i, #i , num, ## fncs);
+
+#define interface_register(i, num, fncs...)                                  \
+  if (i < 1) {                                                               \
+    i = _interface_register(i, #i , num, ## fncs);                           \
+  }
+
 
 #ifdef  __cplusplus
 }

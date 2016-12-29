@@ -51,7 +51,7 @@ static char *        _bool_tostring(int_t *);
 static data_t *      _bool_parse(char *);
 static data_t *      _bool_cast(int_t *, int);
 
-static vtable_t _vtable_int[] = {
+static vtable_t _vtable_Int[] = {
   { .id = FunctionFactory,     .fnc = (void_t) _int_new },
   { .id = FunctionCmp,         .fnc = (void_t) _int_cmp },
   { .id = FunctionAllocString, .fnc = (void_t) _int_allocstring },
@@ -65,32 +65,7 @@ static vtable_t _vtable_int[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static typedescr_t _typedescr_int = {
-  .type          = Int,
-  .type_name     = "int",
-  .promote_to    = Float,
-  .vtable        = _vtable_int
-};
-
-static vtable_t _vtable_bool[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) _bool_new },
-  { .id = FunctionCmp,         .fnc = (void_t) _int_cmp },
-  { .id = FunctionToString,    .fnc = (void_t) _bool_tostring },
-  { .id = FunctionParse,       .fnc = (void_t) _bool_parse },
-  { .id = FunctionCast,        .fnc = (void_t) _bool_cast },
-  { .id = FunctionHash,        .fnc = (void_t) _int_hash },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static typedescr_t _typedescr_bool = {
-  .type          = Bool,
-  .type_name     = "bool",
-  .inherits      = { Int, NoType, NoType },
-  .vtable        = _vtable_bool,
-  .promote_to    = Int
-};
-
-static methoddescr_t _methoddescr_int[] = {
+static methoddescr_t _methods_Int[] = {
   { .type = Int,    .name = "+",    .method = _int_add,  .argtypes = { Number, NoType, NoType }, .minargs = 0, .varargs = 1 },
   { .type = Int,    .name = "-",    .method = _int_add,  .argtypes = { Number, NoType, NoType }, .minargs = 0, .varargs = 1 },
   { .type = Int,    .name = "sum",  .method = _int_add,  .argtypes = { Number, NoType, NoType }, .minargs = 1, .varargs = 1 },
@@ -104,6 +79,18 @@ static methoddescr_t _methoddescr_int[] = {
   { .type = NoType, .name = NULL,   .method = NULL,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
+static vtable_t _vtable_Bool[] = {
+  { .id = FunctionFactory,     .fnc = (void_t) _bool_new },
+  { .id = FunctionCmp,         .fnc = (void_t) _int_cmp },
+  { .id = FunctionToString,    .fnc = (void_t) _bool_tostring },
+  { .id = FunctionParse,       .fnc = (void_t) _bool_parse },
+  { .id = FunctionCast,        .fnc = (void_t) _bool_cast },
+  { .id = FunctionHash,        .fnc = (void_t) _int_hash },
+  { .id = FunctionNone,        .fnc = NULL }
+};
+
+static methoddescr_t * _methods_Bool = NULL;
+
 dict_t * _ints = NULL;
 int_t *  bool_true = NULL;
 int_t *  bool_false = NULL;
@@ -115,9 +102,13 @@ int_t *  bool_false = NULL;
  */
 
 void int_init(void) {
-  _typedescr_register(&_typedescr_int);
-  _typedescr_register(&_typedescr_bool);
-  typedescr_register_methods(_methoddescr_int);
+  builtin_typedescr_register(Int, "int", int_t);
+  typedescr_get(Int) -> promote_to = Float;
+  typedescr_set_size(Int, int_t);
+  builtin_typedescr_register(Bool, "bool", int_t);
+  typedescr_get(Bool) -> promote_to = Int;
+  typedescr_set_size(Bool, int_t);
+  typedescr_assign_inheritance(Bool, Int);
   _ints = intdata_dict_create();
   bool_true = (int_t *) data_create(Bool, 1);
   bool_true -> _d.free_me = Constant;

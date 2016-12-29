@@ -70,7 +70,7 @@ static id_config_t * _id_config_config(id_config_t *, array_t *);
 static int           _id_config_filter(id_config_t *, str_t *, int);
 static token_t *     _id_match(scanner_t *);
 
-static vtable_t _vtable_idscanner_config[] = {
+static vtable_t _vtable_IDScannerConfig[] = {
   { .id = FunctionNew,       .fnc = (void_t) _id_config_create },
   { .id = FunctionResolve,   .fnc = (void_t) _id_config_resolve },
   { .id = FunctionSet,       .fnc = (void_t) _id_config_set },
@@ -235,13 +235,6 @@ token_t * _id_match(scanner_t *scanner) {
 /* -- I D E N T I F I E R  S C A N N E R ---------------------------------- */
 
 __DLL_EXPORT__ typedescr_t * identifier_register(void) {
-  typedescr_t *ret;
-
-  IDScannerConfig = typedescr_create_and_register(IDScannerConfig,
-                                                  "identifier",
-                                                  _vtable_idscanner_config,
-                                                  NULL);
-  typedescr_set_size(IDScannerConfig, id_config_t);
-  ret = typedescr_get(IDScannerConfig);
-  return ret;
+  typedescr_register_with_name(IDScannerConfig, "identifier", id_config_t);
+  return typedescr_get(IDScannerConfig);
 }

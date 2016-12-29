@@ -12,6 +12,7 @@ set(SOURCES
     float.c
     fsentry.c
     function.c
+    hash.c
     hierarchy.c
     int.c
     list.c

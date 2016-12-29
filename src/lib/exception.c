@@ -72,7 +72,7 @@ static data_t *      _exception_call(data_t *, array_t *, dict_t *);
 static data_t *      _exception_cast(data_t *, int);
 static data_t *      _data_exception_from_exception(exception_t *);
 
-static vtable_t _vtable_exception[] = {
+static vtable_t _vtable_Exception[] = {
   { .id = FunctionCmp,         .fnc = (void_t) exception_cmp },
   { .id = FunctionHash,        .fnc = (void_t) exception_hash },
   { .id = FunctionFree,        .fnc = (void_t) _exception_free },
@@ -83,6 +83,8 @@ static vtable_t _vtable_exception[] = {
   { .id = FunctionCast,        .fnc = (void_t) _exception_cast },
   { .id = FunctionNone,        .fnc = NULL }
 };
+
+static methoddescr_t * _methods_Exception = NULL;
 
 /* --  E X C E P T I O N _ T  F U N C T I O N S --------------------------- */
 
@@ -181,8 +183,7 @@ void exception_report(exception_t *e) {
  */
 
 void exception_init(void) {
-  typedescr_create_and_register(Exception, "exception",
-				_vtable_exception, NULL);
+  builtin_typedescr_register(Exception, "exception", exception_t);
 }
 
 char * _exception_allocstring(exception_t *exception) {

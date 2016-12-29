@@ -157,9 +157,9 @@ data_t * _dbconn_tx(dbconn_t *conn, char *name, array_t *params, dict_t *kwparam
 typedescr_t * _dbconn_register(typedescr_t *def) {
   _sql_init();
   mutex_lock(_driver_mutex);
-  typedescr_assign_inheritance(def -> type, DBConnection);
-  debug(sql, "Registering SQL driver '%s' (%d)", def -> type_name, def -> type);
-  dict_put(_drivers, strdup(def -> type_name), (void *) ((intptr_t) def -> type));
+  typedescr_assign_inheritance(typetype(def), DBConnection);
+  debug(sql, "Registering SQL driver '%s' (%d)", typename(def), typetype(def));
+  dict_put(_drivers, strdup(typename(def)), (void *) ((intptr_t) typetype(def)));
   mutex_unlock(_driver_mutex);
   return def;
 }
@@ -180,7 +180,7 @@ int _dbconn_get_driver(char *name) {
   if (fnc -> fnc) {
     regfnc = (create_t) fnc -> fnc;
     td = regfnc();
-    debug(sql, "SQL driver '%s' has type %d", name, td -> type);
+    debug(sql, "SQL driver '%s' has type %d", name, typetype(td));
     _dbconn_register(td);
   } else {
     error("Registration function '%s' for SQL driver '%s' cannot be resolved",
@@ -188,7 +188,7 @@ int _dbconn_get_driver(char *name) {
   }
   function_free(fnc);
   free(fncname);
-  return td -> type;
+  return typetype(td);
 }
 
 /* -------------------------------------------------------------------------*/
