@@ -39,7 +39,8 @@ typedef struct _memmonitor {
   int     count;
 } memmonitor_t;
 
-static void        _outofmemory(int);
+static void            _outofmemory(const char *, int) __attribute__ ((noreturn));
+#define outofmemory(i) _outofmemory(__func__, (i))
 
 static type_t _type_str = {
   .hash     = (hash_t) strhash,
@@ -64,9 +65,11 @@ static application_t *_app = NULL;
 
 /* ------------------------------------------------------------------------ */
 
-static void _outofmemory(int sz) {
-  error("Could not allocate %d bytes. Out of Memory. Terminating...", sz);
-  exit(1);
+static inline void _outofmemory(const char *func, int sz) {
+  fputs("Could not allocate memory in function ", stderr);
+  fputs(func, stderr);
+  fputs(". Out of Memory. Terminating...\n", stderr);
+  abort();
 }
 
 application_t * application_init(const char *appname, int argc, char **argv) {
@@ -92,7 +95,7 @@ void * _new(int sz) {
 
   ret = malloc(sz);
   if (sz && !ret) {
-    _outofmemory(sz);
+    outofmemory(sz);
   } else {
     memset(ret, 0, sz);
   }
@@ -103,7 +106,7 @@ void * new_array(int num, int sz) {
   void * ret = calloc(num, sz);
 
   if (num && !ret) {
-    _outofmemory(sz * num);
+    outofmemory(sz * num);
   }
   return ret;
 }
@@ -118,7 +121,7 @@ void * resize_block(void *block, int newsz, int oldsz) {
   if (block) {
     ret = realloc(block, newsz);
     if (newsz && !ret) {
-      _outofmemory(newsz);
+      outofmemory(newsz);
     } else if (oldsz) {
       memset((char *) ret + oldsz, 0, newsz - oldsz);
     }
@@ -132,20 +135,26 @@ void * resize_ptrarray(void *array, int newsz, int oldsz) {
   return resize_block(array, newsz * sizeof(void *), oldsz * sizeof(void *));
 }
 
-#ifndef HAVE_ASPRINTF
-int asprintf(char **strp, const char *fmt, ...) {
+
+#ifdef asprintf
+  #undef asprintf
+#endif
+#ifdef vasprintf
+  #undef vasprintf
+#endif
+
+int oblcore_asprintf(char **strp, const char *fmt, ...) {
   va_list args;
   int     ret;
 
   va_start(args, fmt);
-  ret = vasprintf(strp, fmt, args);
+  ret = oblcore_vasprintf(strp, fmt, args);
   va_end(args);
   return ret;
 }
-#endif
 
 #ifndef HAVE_VASPRINTF
-int vasprintf(char **strp, const char *fmt, va_list args) {
+int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
   va_list  copy;
   int      ret;
   char    *str;
@@ -155,10 +164,20 @@ int vasprintf(char **strp, const char *fmt, va_list args) {
   va_end(copy);
   str = stralloc(ret);
   if (!str) {
-    ret = -1;
+    _outofmemory(ret);
   } else {
     vsnprintf(str, ret, fmt, args);
     *strp = str;
+  }
+  return ret;
+}
+#else
+int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
+  int ret;
+
+  ret = vasprintf(strp, fmt, args);
+  if (ret < 0) {
+    outofmemory(ret);
   }
   return ret;
 }

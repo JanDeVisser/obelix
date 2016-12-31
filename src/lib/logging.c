@@ -21,7 +21,14 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
+typedef struct _log_timestamp {
+  struct timespec start;
+  struct timespec end;
+} log_timestamp_t;
+
+#define __LOGGING_C__
 #include "libcore.h"
 #include <dict.h>
 #include <logging.h>
@@ -268,7 +275,7 @@ OBLCORE_IMPEXP void logging_disable(char *category) {
   _logging_set(category, 0);
 }
 
-OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, va_list args) {
+OBLCORE_IMPEXP void _vlogmsg_no_nl(log_level_t lvl, char *file, int line, const char *caller, const char *msg, va_list args) {
   char *f;
 
   if (!_destination) {
@@ -295,9 +302,16 @@ OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, char *file, int line, const char *
     }
     fprintf(_destination, "%-12.12s:%4d:%-20.20s:%-5.5s:", f, line, caller, _log_level_str(lvl));
     vfprintf(_destination, msg, args);
+  }
+}
+
+OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, va_list args) {
+  if ((lvl == LogLevelDebug) || (lvl >= _log_level)) {
+    _vlogmsg_no_nl(lvl, file, line, caller, msg, args);
     fprintf(_destination, "\n");
   }
 }
+
 
 OBLCORE_IMPEXP void _logmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, ...) {
   va_list args;
@@ -352,4 +366,29 @@ OBLCORE_IMPEXP int logging_set_file(char *logfile) {
   _logfile = (_logfile) ? strdup(logfile) : NULL;
   pthread_mutex_unlock(&_logging_mutex);
   return 0;
+}
+
+log_timestamp_t * _log_timestamp_start(void) {
+  log_timestamp_t *ret = NEW(log_timestamp_t);
+
+  clock_gettime(CLOCK_MONOTONIC, &ret -> start);
+  return ret;
+}
+
+void _log_timestamp_end(log_timestamp_t *ts, char *file, int line, const char *caller, const char *msg, ...) {
+  va_list  args;
+  long     us;
+  time_t   sec;
+
+  clock_gettime(CLOCK_MONOTONIC, &ts -> end);
+  us = (ts -> end.tv_nsec - ts -> start.tv_nsec) / 1000L;
+  sec = ts -> end.tv_sec - ts -> start.tv_sec;
+  if (us < 0) {
+    sec--;
+    us = 1000000L - us;
+  }
+  va_start(args, msg);
+  _vlogmsg_no_nl(LogLevelDebug, file, line, caller, msg, args);
+  fprintf(_destination, "%ld.%06ld sec\n", sec, us);
+  va_end(args);
 }

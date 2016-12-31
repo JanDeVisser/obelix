@@ -43,7 +43,7 @@ static char *           _scriptloader_allocstring(scriptloader_t *);
 static data_t *         _scriptloader_call(scriptloader_t *, array_t *, dict_t *);
 static data_t *         _scriptloader_resolve(scriptloader_t *, char *);
 
-static code_label_t obelix_option_labels[] = {
+static _unused_ code_label_t obelix_option_labels[] = {
   { .code = ObelixOptionList,  .label = "ObelixOptionList" },
   { .code = ObelixOptionTrace, .label = "ObelixOptionTrace" },
   { .code = ObelixOptionLAST,  .label = NULL }
@@ -80,7 +80,9 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
   data_t           *sys;
   int               ix;
   int               len;
+  log_timestamp_t  *ts;
 
+  ts = log_timestamp_start(obelix);
   resolve_library("liboblparser");
   resolve_library("libscriptparse");
   if (!sys_dir) {
@@ -158,8 +160,8 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
     data_thread_set_kernel((data_t *) loader);
     loader -> cookie = strrand(NULL, COOKIE_SZ - 1);
     loader -> lastused = time(NULL);
-    debug(obelix, "scriptloader created");
   }
+  log_timestamp_end(obelix, ts, "scriptloader created in ");
   return loader;
 }
 
@@ -480,10 +482,12 @@ data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
 }
 
 data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, dict_t *kwargs) {
-  data_t   *data;
-  object_t *obj;
-  data_t   *sys;
+  data_t          *data;
+  object_t        *obj;
+  data_t          *sys;
+  log_timestamp_t *ts;
 
+  ts = log_timestamp_start(obelix);
   debug(obelix, "scriptloader_run(%s)", name_tostring(name));
   sys = _scriptloader_get_object(loader, 1, "sys");
   if (sys && !data_is_exception(sys)) {
@@ -508,7 +512,7 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
     data = (sys) ? sys : data_exception(ErrorName, "Could not resolve module 'sys'");
   }
   data_thread_clear_exit_code();
-  debug(obelix, "scriptloader_run(%s) = %s", name_tostring(name), data_tostring(data));
+  log_timestamp_end(obelix, ts, "scriptloader_run(%s) = %s in ", name_tostring(name), data_tostring(data));
   return data;
 }
 

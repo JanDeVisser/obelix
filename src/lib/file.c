@@ -17,20 +17,21 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libcore.h"
 
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+
+#include "libcore.h"
 #ifdef HAVE_IO_H
 #include <io.h>
 #endif /* HAVE_IO_H */
-#include <stdio.h>
-#include <string.h>
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
 #endif /* HAVE_STRINGS_H */
-#include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -577,7 +578,7 @@ data_t * _streamiter_next(streamiter_t *si) {
 
 /* -- F I L E _ T  S T A T I C  F U N C T I O N S ------------------------- */
 
-_oshandle_t _file_oshandle(file_t *file) {
+_oshandle_t _unused_ _file_oshandle(file_t *file) {
 #if defined(__WIN32__) || defined(_MSC_VER)
   return (_oshandle_t) _get_osfhandle(file -> fh);
 #else

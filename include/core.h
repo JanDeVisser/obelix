@@ -112,12 +112,8 @@ OBLCORE_IMPEXP void *          new_ptrarray(int);
 OBLCORE_IMPEXP void *          resize_block(void *, int, int);
 OBLCORE_IMPEXP void *          resize_ptrarray(void *, int, int);
 
-#ifndef HAVE_ASPRINTF
-OBLCORE_IMPEXP int             asprintf(char **, const char *, ...);
-#endif
-#ifndef HAVE_VASPRINTF
-OBLCORE_IMPEXP int             vasprintf(char **, const char *, va_list);
-#endif
+OBLCORE_IMPEXP int             oblcore_asprintf(char **, const char *, ...);
+OBLCORE_IMPEXP int             oblcore_vasprintf(char **, const char *, va_list);
 OBLCORE_IMPEXP unsigned int    hash(const void *, size_t);
 OBLCORE_IMPEXP unsigned int    hashptr(const void *);
 OBLCORE_IMPEXP unsigned int    hashlong(long);
@@ -158,8 +154,10 @@ OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 OBLCORE_IMPEXP type_t          *type_str;
 OBLCORE_IMPEXP type_t          *type_int;
 
-#define new(i)          (_new((i)))
-#define stralloc(n)     ((char *) _new((n) + 1))
+#define new(i)                    (_new((i)))
+#define stralloc(n)               ((char *) _new((n) + 1))
+#define asprintf(p, fmt, args...) oblcore_asprintf(p, fmt, ##args)
+#define vasprintf(p, fmt, args)   oblcore_vasprintf(p, fmt, args)
 
 #define type_copy(d, s) (memcpy((d), (s), sizeof(type_t)))
 

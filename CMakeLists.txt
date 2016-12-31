@@ -13,7 +13,10 @@ project(obelix)
 
 # Uncomment if you want debug output:
 # set(CMAKE_C_FLAGS -m32)
-set(CMAKE_BUILD_TYPE Debug)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug)
+endif(NOT CMAKE_BUILD_TYPE)
+
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # The version number.
@@ -23,7 +26,7 @@ set(obelix_VERSION_MINOR 0)
 
 set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR})
 set(obelix_DATADIR ${CMAKE_INSTALL_PREFIX}/share)
-find_package (Threads)
+find_package(Threads)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

@@ -466,7 +466,7 @@ socket_t * socket_set_errno(socket_t *socket, char *msg) {
   s -> _errno = errno;
   len = strlen(strerror(socket_errno(s)));
   error = stralloc(len + 1);
-  strerror_r(socket_errno(s), error, len + 1);
+  error = strerror_r(socket_errno(s), error, len + 1);
 #endif
   socket_set_errormsg(socket, "%s failed: %s (%d)",
     msg, error, socket_errno(socket));

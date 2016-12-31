@@ -204,7 +204,7 @@ bucket_t * _bucket_init_entry(bucket_t *bucket, void *key, void *value) {
   entry -> dict = bucket -> dict;
   entry -> entry.key = key;
   entry -> entry.value = value;
-  entry -> hash = _dict_hash(bucket -> dict, key);
+  //entry -> hash = _dict_hash(bucket -> dict, key);
   entry -> ix = bucket -> size;
   bucket -> size++;
   return bucket;
@@ -326,7 +326,7 @@ dict_t * _dict_rehash(dict_t *dict) {
       bucket = old_buckets + i;
       for (j = 0; j < bucket -> size; j++) {
         entry = _bucket_get_entry(bucket, j);
-        bucket_num = (int) (entry -> hash % ((unsigned int) dict -> num_buckets));
+        bucket_num = (int) (_dict_hash(dict, entry -> entry.key) % ((unsigned int) dict -> num_buckets));
         _bucket_copy_entry(new_buckets + bucket_num, entry);
       }
     }
@@ -810,7 +810,7 @@ str_t * dict_dump(const dict_t *dict, const char *title) {
       for (j = 0; j < len; j++) {
         entry = &(bucket -> entries[j]);
         str_append_printf(ret, "    %s (%u) --> %s\n",
-                         (char *) entry -> entry.key, entry -> hash,
+                         (char *) entry -> entry.key, _dict_hash(dict, entry -> entry.key),
                          (char *) entry -> entry.value);
       }
       str_append_chars(ret, "\n");

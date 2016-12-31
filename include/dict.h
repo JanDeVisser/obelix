@@ -36,7 +36,7 @@ typedef struct _entry {
 typedef struct _dictentry {
   struct _dict *dict;
   entry_t       entry;
-  unsigned int  hash;
+  //unsigned int  hash;
   int           ix;
 } dictentry_t;
 
