@@ -23,6 +23,7 @@
 #include "libcore.h"
 #include <data.h>
 #include <name.h>
+#include <nvp.h>
 #include <str.h>
 
 /* ------------------------------------------------------------------------ */
@@ -31,9 +32,12 @@ static hierarchy_t * _hierarchy_new(hierarchy_t *, va_list);
 static unsigned long _hierarchy_hash(hierarchy_t *);
 static int           _hierarchy_cmp(hierarchy_t *, hierarchy_t *);
 static int           _hierarchy_size(hierarchy_t *);
+static data_t *      _hierarchy_iter(hierarchy_t *);
 static void          _hierarchy_free(hierarchy_t *);
 static char *        _hierarchy_tostring(hierarchy_t *);
 static data_t *      _hierarchy_resolve(hierarchy_t *, char *);
+
+static void          _hierarchy_get_nodes(hierarchy_t *, array_t *);
 
 static data_t *      _hierarchy_append(hierarchy_t *, char *, array_t *, dict_t *);
 static data_t *      _hierarchy_insert(hierarchy_t *, char *, array_t *, dict_t *);
@@ -47,6 +51,7 @@ static vtable_t _vtable_Hierarchy[] = {
   { .id = FunctionHash,        .fnc = (void_t) _hierarchy_hash },
   { .id = FunctionResolve,     .fnc = (void_t) _hierarchy_resolve },
   { .id = FunctionLen,         .fnc = (void_t) _hierarchy_size },
+  { .id = FunctionIter,        .fnc = (void_t) _hierarchy_iter },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -60,12 +65,14 @@ static methoddescr_t _methods_Hierarchy[] = {
 /* ------------------------------------------------------------------------ */
 
 int Hierarchy = -1;
+int hierarchy_debug = 0;
 
 /* ----------------------------------------------------------------------- */
 
 void hierarchy_init(void) {
   if (Hierarchy < 1) {
     name_init();
+    logging_register_module(hierarchy);
     _methods_Hierarchy[1].argtypes[0] = Name;
     _methods_Hierarchy[2].argtypes[0] = Name;
     typedescr_register_with_methods(Hierarchy, hierarchy_t);
@@ -113,6 +120,19 @@ void _hierarchy_free(hierarchy_t *hierarchy) {
   }
 }
 
+data_t * _hierarchy_iter(hierarchy_t *hierarchy) {
+  array_t *nodes;
+  data_t  *iter;
+  data_t  *list;
+
+  nodes = array_create(4);
+  _hierarchy_get_nodes(hierarchy, nodes);
+  list = data_create_list(nodes);
+  iter = data_iter(list);
+  data_free(list);
+  return iter;
+}
+
 char * _hierarchy_tostring(hierarchy_t *hierarchy) {
   char *buf;
 
@@ -139,6 +159,20 @@ data_t * _hierarchy_resolve(hierarchy_t *hierarchy, char *name) {
 }
 
 /* -- H I E R A R C H Y  A P I ---------------------------------------------*/
+
+void _hierarchy_get_nodes(hierarchy_t *hierarchy, array_t *nodes) {
+  listiterator_t *iter;
+  hierarchy_t    *branch;
+
+  for (iter = li_create(hierarchy -> branches); li_has_next(iter); ) {
+    branch = (hierarchy_t *) li_next(iter);
+    if (branch -> data) {
+      array_push(nodes,
+          nvp_create((data_t *) hierarchy_name(branch), data_copy(branch -> data)));
+    }
+    _hierarchy_get_nodes(branch, nodes);
+  }
+}
 
 hierarchy_t * hierarchy_create(void) {
   hierarchy_init();
@@ -268,11 +302,13 @@ hierarchy_t * hierarchy_match(hierarchy_t *hierarchy, name_t *name, int *match_l
   int          ix;
   int          sz = name_size(name);
 
+  debug(hierarchy, "hierarchy: '%s' name: '%s'", hierarchy_tostring(hierarchy), name_tostring(name));
   up = hierarchy;
   for (ix = 0; ix < sz; ix++) {
     label = name_get(name, ix);
     hierarchy = (hierarchy_t *) hierarchy_get_bylabel(up, label);
     if (!hierarchy) {
+      debug(hierarchy, "No match for '%s' found on level %d", label, ix);
       break;
     }
     up = hierarchy;
@@ -280,6 +316,7 @@ hierarchy_t * hierarchy_match(hierarchy_t *hierarchy, name_t *name, int *match_l
   if (match_lost) {
     *match_lost = ix;
   }
+  debug(hierarchy, "Returning '%s'", hierarchy_tostring(up));
   return up;
 }
 

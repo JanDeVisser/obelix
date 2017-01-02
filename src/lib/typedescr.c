@@ -741,6 +741,7 @@ typedescr_t * typedescr_assign_inheritance(int type, int inherits) {
   return td;
 }
 
+#define DEBUG_TYPES
 typedescr_t * typedescr_get(int datatype) {
 #ifdef DEBUG_TYPES
   typedescr_t *ret = NULL;

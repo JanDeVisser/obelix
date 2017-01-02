@@ -1,0 +1,6 @@
+o = obelix()
+o.mount("test", "obelix://localhost/remote")
+
+o.run("helloworld.obl")
+msg = o.run("test/helloworld.obl")
+print(msg)

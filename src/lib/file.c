@@ -334,18 +334,19 @@ int stream_read(stream_t *stream, char *buf, int num) {
   return ix;
 }
 
-#define WriteToStream(s, l) if (retval >= 0) {                             \
+#define WriteToStream(s, l)                                                  \
+  if (retval >= 0) {                                                         \
     int _len = strlen((l));                                                  \
-    debug(file, "Writing %d bytes to %s", _len, stream_tostring((s)));       \
+    debug(file, "Writing %d bytes to %s", _len, stream_tostring(s));         \
     retval = (s -> writer)((s), (l), _len);                                  \
     if (file_debug) {                                                        \
       if (retval >= 0) {                                                     \
         _debug("Wrote %d bytes", retval);                                    \
       } else {                                                               \
-        _debug("error: %d", errno);                                          \
+        _debug("error: %s (%d)", strerror(errno), errno);                    \
       }                                                                      \
     }                                                                        \
-}
+  }
 
 int stream_write(stream_t *stream, char *buf, int num) {
   int retval = 0;
@@ -356,7 +357,7 @@ int stream_write(stream_t *stream, char *buf, int num) {
     if (retval >= 0) {
       _debug("Wrote %d bytes", retval);
     } else {
-      _debug("error: %d", errno);
+      _debug("Error: %s (%d)", strerror(errno), errno);
     }
   }
   return retval;
@@ -397,18 +398,9 @@ int _stream_print_data(stream_t *stream, data_t *s) {
   data_t *r = NULL;
 
   line = data_tostring(s);
-  buf = stralloc(strlen(line) +
-#if defined(__WIN32__) || defined(_WIN32)
-    2
-#else
-    3
-#endif /* __WIN32__ */
-          );
+  buf = stralloc(strlen(line) + 3);
   strcpy(buf, line);
-#if defined(__WIN32__) || defined(_WIN32)
-  strcat(buf, "\r");
-#endif /* __WIN32__ */
-  strcat(buf, "\n");
+  strcat(buf, "\r\n");
   WriteToStream(stream, buf);
   free(buf);
   if ((retval >= 0) && data_hasmethod((data_t *) stream, "flush")) {

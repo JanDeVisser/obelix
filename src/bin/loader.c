@@ -129,7 +129,6 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
   }
 
   debug(obelix, "  Loaded grammar");
-  loader -> parser = NULL;
   loader -> options = data_array_create((int) ObelixOptionLAST);
   for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
     scriptloader_set_option(loader, ix, 0L);
@@ -171,7 +170,6 @@ void _scriptloader_free(scriptloader_t *loader) {
     data_free(loader -> load_path);
     array_free(loader -> options);
     free(loader -> cookie);
-    parser_free(loader -> parser);
     grammar_free(loader -> grammar);
     ns_free(loader -> ns);
   }
@@ -248,11 +246,16 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   fname = new(strlen(basedir) + strlen(name) + 5);
   sprintf(fname, "%s%s", basedir, name);
   for (ptr = strchr(fname + strlen(basedir), '.'); ptr; ptr = strchr(ptr, '.')) {
-    *ptr = '/';
+    if (strcmp(ptr, ".obl")) {
+      *ptr = '/';
+    } else {
+      ptr += 4;
+    }
   }
   e = fsentry_create(fname);
   init = NULL;
   if (fsentry_isdir(e)) {
+    debug(obelix, "'%s' is a directory", fname);
     init = fsentry_getentry(e, "__init__.obl");
     fsentry_free(e);
     if (fsentry_exists(init)) {
@@ -262,8 +265,12 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
       fsentry_free(init);
     }
   } else {
+    debug(obelix, "'%s' is not a directory", fname);
     fsentry_free(e);
-    strcat(fname, ".obl");
+    if (strcmp(fname - 4, ".obl")) {
+      strcat(fname, ".obl");
+    }
+    debug(obelix, "_scriptloader_open_file('%s', '%s') ~ '%s'", basedir, name, fname);
     e = fsentry_create(fname);
   }
   if ((e != NULL) && fsentry_isfile(e) && fsentry_canread(e)) {
@@ -422,22 +429,24 @@ scriptloader_t * scriptloader_extend_loadpath(scriptloader_t *loader, array_t *p
 }
 
 data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, data_t *reader) {
-  char   *name;
-  data_t *ret;
+  char     *name;
+  data_t   *ret;
+  parser_t *parser;
 
   debug(obelix, "scriptloader_load_fromreader('%s')", name_tostring(mod -> name));
-  if (!loader -> parser) {
-    loader -> parser = parser_create(loader -> grammar);
+  if (!(parser = (parser_t *) mod -> parser)) {
+    parser = parser_create(loader -> grammar);
     debug(obelix, "Created parser");
-    parser_set(loader -> parser, "module", (data_t *) mod_copy(mod));
+    parser_set(parser, "module", (data_t *) mod_copy(mod));
     name = (name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__";
-    parser_set(loader -> parser, "name", str_to_data(name));
-    parser_set(loader -> parser, "options", data_create_list(loader -> options));
-    parser_start(loader -> parser);
+    parser_set(parser, "name", str_to_data(name));
+    parser_set(parser, "options", data_create_list(loader -> options));
+    parser_start(parser);
+    mod -> parser = (data_t *) parser;
   }
-  ret = parser_parse_reader(loader -> parser, reader);
+  ret = parser_parse_reader(parser, reader);
   if (!ret) {
-    ret = parser_get(loader -> parser, "in_statement");
+    ret = parser_get(parser, "in_statement");
     if (!ret) {
       ret = data_false();
     }
@@ -450,10 +459,11 @@ data_t * scriptloader_import(scriptloader_t *loader, name_t *name) {
 }
 
 data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
-  data_t      *rdr;
-  data_t      *ret;
-  char        *script_name;
-  name_t      *name = mod -> name;
+  data_t   *rdr;
+  data_t   *ret;
+  char     *script_name;
+  name_t   *name = mod -> name;
+  parser_t *parser;
 
   assert(loader);
   assert(name);
@@ -462,14 +472,15 @@ data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
   if (mod -> state == ModStateLoading) {
     if ((rdr = _scriptloader_open_reader(loader, mod))) {
       ret = scriptloader_load_fromreader(loader, mod, rdr);
+      parser = (parser_t *) mod -> parser;
       if (!data_is_exception(ret)) {
-        ret = parser_end(loader -> parser);
+        ret = parser_end(parser);
       }
       if (!data_is_exception(ret)) {
-        ret = data_copy(parser_get(loader -> parser, "script"));
+        ret = data_copy(parser_get(parser, "script"));
       }
-      parser_free(loader -> parser);
-      loader -> parser = NULL;
+      parser_free(parser);
+      mod -> parser = NULL;
       data_free(rdr);
     } else {
       ret = data_exception(ErrorName, "Could not load '%s'", script_name);
@@ -520,6 +531,7 @@ data_t * scriptloader_eval(scriptloader_t *loader, data_t *src) {
   module_t *root;
   data_t   *data;
   script_t *script;
+  parser_t *parser;
 
   data = ns_get(loader -> ns, NULL);
   if (data_is_module(data)) {
@@ -527,8 +539,9 @@ data_t * scriptloader_eval(scriptloader_t *loader, data_t *src) {
     data = scriptloader_load_fromreader(loader, root, src);
     if (!data_is_exception(data)) {
       if (!data_intval(data)) {
-        parser_end(loader -> parser);
-        data = data_copy(parser_get(loader -> parser, "script"));
+        parser = (parser_t *) root -> parser;
+        parser_end(parser);
+        data = data_copy(parser_get(parser, "script"));
         if (data_is_script(data)) {
           script = data_as_script(data);
           data = closure_eval(root -> closure, script);
@@ -538,8 +551,8 @@ data_t * scriptloader_eval(scriptloader_t *loader, data_t *src) {
           }
           script_free(script);
         }
-        parser_free(loader -> parser);
-        loader -> parser = NULL;
+        parser_free(parser);
+        root -> parser = NULL;
       } else {
         data = NULL;
       }

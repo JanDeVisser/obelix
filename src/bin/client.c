@@ -36,7 +36,7 @@ static char *        _oblclient_tostring(oblclient_t *);
 static data_t *      _oblclient_resolve(oblclient_t *, char *);
 
 static data_t *      _oblclient_handshake(oblclient_t *);
-static data_t *      _oblclient_expect(oblclient_t *, int, int, int *);
+static data_t *      _oblclient_expect(oblclient_t *, int, int, ...);
 static data_t *      _oblclient_read_data(oblclient_t *, int);
 
 static vtable_t _vtable_Client[] = {
@@ -71,11 +71,8 @@ data_t * _oblclient_new(oblclient_t *client, va_list args) {
     return ret;
   }
   client -> socket = socket;
-  client -> pool = clientpool_copy(pool);
-  if ((ret = _oblclient_handshake(client))) {
-    clientpool_free(client -> pool);
-    socket_free(socket);
-  } else {
+  client -> pool = pool;
+  if (!(ret = _oblclient_handshake(client))) {
     ret = (data_t *) client;
   }
   return ret;
@@ -91,7 +88,6 @@ char * _oblclient_tostring(oblclient_t *client) {
 void _oblclient_free(oblclient_t *client) {
   if (client) {
     socket_free(client -> socket);
-    clientpool_free(client -> pool);
   }
 }
 
@@ -111,7 +107,7 @@ data_t * _oblclient_handshake(oblclient_t *client) {
   data_t  *ret;
   array_t *params;
 
-  ret = _oblclient_expect(client, OBLSERVER_CODE_WELCOME, 2, (int[]) { String, String });
+  ret = _oblclient_expect(client, OBLSERVER_CODE_WELCOME, 2, String, String);
   if (!data_is_exception(ret)) {
     params = data_unwrap(ret);
     data_free(ret);
@@ -124,6 +120,16 @@ data_t * _oblclient_handshake(oblclient_t *client) {
     }
     ret = NULL;
   }
+  if (!ret) {
+    ret = _oblclient_expect(client, OBLSERVER_CODE_READY, 0);
+    if (!data_is_exception(ret)) {
+      data_free(ret);
+      ret = NULL;
+    }
+  }
+  if (ret) {
+    debug(obelix, "Handshake with server failed: %s", data_tostring(ret));
+  }
   return ret;
 }
 
@@ -133,6 +139,7 @@ data_t * _oblclient_read_data(oblclient_t *client, int len) {
   int      r;
 
   data = stralloc(len + 1);
+  debug(obelix, "Reading %d bytes of data", len);
   if ((r = socket_read(client -> socket, data, len)) == len) {
     data[len] = 0;
     strrtrim(data);
@@ -140,6 +147,7 @@ data_t * _oblclient_read_data(oblclient_t *client, int len) {
     if (data_is_exception(ret)) {
       data_as_exception(ret) -> handled = TRUE;
     }
+    socket_readline(client -> socket); // FIXME error handling
   } else if (client -> socket -> error) {
     ret = data_copy(client -> socket -> error);
   } else {
@@ -148,10 +156,12 @@ data_t * _oblclient_read_data(oblclient_t *client, int len) {
       len, r);
   }
   free(data);
+  debug(obelix, "Returns '%s'", data_tostring(ret));
   return ret;
 }
 
-data_t * _oblclient_expect(oblclient_t *client, int expected, int numparams, int *types) {
+data_t * _oblclient_expect(oblclient_t *client, int expected, int numparams, ...) {
+  va_list  types;
   char    *tag = label_for_code(server_codes, expected);
   char    *reply = NULL;
   array_t *line = NULL;
@@ -159,9 +169,12 @@ data_t * _oblclient_expect(oblclient_t *client, int expected, int numparams, int
   int      code;
   array_t *params;
   int      ix;
+  int      type;
   data_t  *param;
 
+  debug(obelix, "Expecting code '%s' with %d parameters", tag, numparams);
   reply = socket_readline(client -> socket);
+  debug(obelix, "Server sent '%s'", reply);
   if (!reply) {
     ret = (client -> socket -> error)
       ? data_copy(client -> socket -> error)
@@ -169,6 +182,7 @@ data_t * _oblclient_expect(oblclient_t *client, int expected, int numparams, int
   }
 
   if (!ret) {
+    line = array_split(reply, " ");
     if (array_size(line) != numparams + 2) {
       ret = data_exception(ErrorProtocol,
         "Protocol error reading data. Expected response line with %d parameters but got %s",
@@ -178,26 +192,28 @@ data_t * _oblclient_expect(oblclient_t *client, int expected, int numparams, int
 
   if (!ret) {
     line = array_split(reply, " ");
-    code = code_for_label(server_codes, data_tostring(data_array_get(line, 0)));
+    code = code_for_label(server_codes, (char *) array_get(line, 1));
     if (code != expected) {
       ret = data_exception(ErrorProtocol,
         "Protocol error reading data. Expected %s tag but got %s",
-        tag, data_tostring(data_array_get(line, 0)));
+        tag, (char *) array_get(line, 1));
     }
   }
-  if (!ret && strcmp(data_tostring(data_array_get(line, 1)), tag)) {
-    ret = data_exception(ErrorProtocol,
-      "Protocol error reading data. Expected %s tag but got %s",
-      tag, data_tostring(data_array_get(line, 1)));
-  }
+  // if (!ret && strcmp((char *) array_get(line, 1), tag)) {
+  //   ret = data_exception(ErrorProtocol,
+  //     "Protocol error reading data. Expected %s tag but got %s",
+  //     tag, (char *) array_get(line, 1));
+  // }
   if (!ret && (numparams > 0)) {
     params = data_array_create(numparams);
+    va_start(types, numparams);
     for (ix = 0; ix < numparams; ix++) {
-      param = data_parse(types[ix], data_tostring(data_array_get(line, ix+2)));
+      type = va_arg(types, int);
+      param = data_parse(type, (char *) array_get(line, ix+2));
       if (!param) {
         ret = data_exception(ErrorProtocol,
           "Protocol error reading data. Expected parameter of type '%s' but got %s",
-          typename(typedescr_get(types[ix])), data_tostring(data_array_get(line, ix+2)));
+          typename(typedescr_get(type)), (char *) array_get(line, ix+2));
         break;
       } else {
         array_push(params, param);
@@ -230,18 +246,19 @@ data_t * oblclient_run(oblclient_t *client, char *cmd, array_t *args, dict_t *kw
         (kwargs) ? dict_tostring(kwargs) : "{}",
         uri_tostring(client -> pool -> server),
         client -> socket -> fh);
-  if (socket_printf(client -> socket, OBLSERVER_CMD_RUN " %s\n", cmd) <= 0) {
+  if (socket_printf(client -> socket, OBLSERVER_CMD_RUN " ${0;s}\n", cmd) <= 0) {
     ret = (client -> socket -> error)
       ? data_copy(client -> socket -> error)
       : data_exception(ErrorIOError, "Could not send forward command to server");
   }
 
   if (!ret) {
-    data = _oblclient_expect(client, OBLSERVER_CODE_DATA, 1, &(int) { Int });
+    data = _oblclient_expect(client, OBLSERVER_CODE_DATA, 1, Int);
     if (data_is_exception(data)) {
       ret = data;
     } else {
       params = data_unwrap(data);
+      debug(obelix, "Received parameters from server: %s", array_tostring(params));
       data_free(data);
     }
   }
@@ -251,7 +268,7 @@ data_t * oblclient_run(oblclient_t *client, char *cmd, array_t *args, dict_t *kw
     ret = _oblclient_read_data(client, len);
   }
   if (!data_is_exception(ret) || data_as_exception(ret) -> handled) {
-    if ((data = _oblclient_expect(client, OBLSERVER_CODE_READY, 0, NULL))) {
+    if ((data = _oblclient_expect(client, OBLSERVER_CODE_READY, 0))) {
       data_free(ret);
       ret = data;
     } else {
@@ -259,6 +276,7 @@ data_t * oblclient_run(oblclient_t *client, char *cmd, array_t *args, dict_t *kw
     }
   }
   array_free(params);
+  debug(obelix, "Returns '%s'", data_tostring(ret));
   return ret;
 }
 

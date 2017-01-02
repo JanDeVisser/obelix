@@ -104,6 +104,7 @@ typedef struct _module {
   object_t    *obj;
   closure_t   *closure;
   set_t       *imports;
+  data_t      *parser;
 } module_t;
 
 OBLVM_IMPEXP module_t *    mod_create(namespace_t *, name_t *);

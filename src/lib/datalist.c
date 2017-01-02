@@ -39,8 +39,6 @@ static unsigned int  _list_hash(data_t *);
 static int           _list_len(data_t *);
 static data_t *      _list_resolve(data_t *, char *);
 static data_t *      _list_iter(data_t *);
-static data_t *      _list_next(data_t *);
-static data_t *      _list_has_next(data_t *);
 
 static data_t *      _list_create(data_t *, char *, array_t *, dict_t *);
 //static data_t *      _list_range(data_t *, char *, array_t *, dict_t *);
@@ -58,8 +56,6 @@ static vtable_t _vtable_List[] = {
   { .id = FunctionLen,      .fnc = (void_t) _list_len },
   { .id = FunctionResolve,  .fnc = (void_t) _list_resolve },
   { .id = FunctionIter,     .fnc = (void_t) _list_iter },
-  { .id = FunctionNext,     .fnc = (void_t) _list_next },
-  { .id = FunctionHasNext,  .fnc = (void_t) _list_has_next },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -71,6 +67,26 @@ static methoddescr_t _methods_List[] = {
   { .type = NoType, .name = NULL,    .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
+typedef struct _datalist_iter {
+  array_t *array;
+  int      ix;
+} datalist_iter_t;
+
+static datalist_iter_t * _datalist_iter_new(datalist_iter_t *, va_list);
+static void              _datalist_iter_free(datalist_iter_t *);
+static data_t *          _datalist_iter_next(datalist_iter_t *);
+static data_t *          _datalist_iter_has_next(datalist_iter_t *);
+
+static vtable_t _vtable_ListIterator[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _datalist_iter_new },
+  { .id = FunctionFree,     .fnc = (void_t) _datalist_iter_free },
+  { .id = FunctionNext,     .fnc = (void_t) _datalist_iter_next },
+  { .id = FunctionHasNext,  .fnc = (void_t) _datalist_iter_has_next },
+  { .id = FunctionNone,     .fnc = NULL }
+};
+
+int ListIterator;
+
 /*
  * --------------------------------------------------------------------------
  * List datatype functions
@@ -79,6 +95,7 @@ static methoddescr_t _methods_List[] = {
 
 void list_init(void) {
   builtin_typedescr_register(List, "list", pointer_t);
+  typedescr_register(ListIterator, datalist_iter_t);
 }
 
 data_t * _list_new(int type, va_list arg) {
@@ -170,16 +187,7 @@ data_t * _list_resolve(data_t *self, char *name) {
 }
 
 data_t * _list_iter(data_t *data) {
-  array_start(data_as_array(data));
-  return data_copy(data);
-}
-
-data_t * _list_next(data_t *data) {
-  return data_copy((data_t *) array_next(data_as_array(data)));
-}
-
-data_t * _list_has_next(data_t *data) {
-  return int_as_bool(array_has_next(data_as_array(data)));
+  return data_create(ListIterator, data_as_array(data));
 }
 
 /* ----------------------------------------------------------------------- */
@@ -265,4 +273,27 @@ data_t * _list_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {
 
   array_free(slice);
   return ret;
+}
+
+/* ----------------------------------------------------------------------- */
+
+datalist_iter_t * _datalist_iter_new(datalist_iter_t *iter, va_list args) {
+  iter -> array = array_copy(va_arg(args, array_t *));
+  iter -> ix = (array_size(iter -> array)) ? 0 : -1;
+  return iter;
+}
+
+void _datalist_iter_free(datalist_iter_t *iter) {
+  if (iter) {
+    array_free(iter -> array);
+  }
+}
+
+data_t * _datalist_iter_next(datalist_iter_t *iter) {
+  return data_copy(data_array_get(iter -> array, iter -> ix++));
+}
+
+data_t * _datalist_iter_has_next(datalist_iter_t *iter) {
+  return int_as_bool((iter -> ix >= 0) &&
+                     (iter -> ix < array_size(iter -> array)));
 }

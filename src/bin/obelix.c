@@ -41,12 +41,15 @@ static inline void _obelix_init(void);
 static data_t * _obelix_new(obelix_t *, va_list);
 static void     _obelix_free(obelix_t *);
 static char *   _obelix_tostring(obelix_t *);
+static data_t * _obelix_resolve(obelix_t *, char *);
 
 static data_t * _obelix_get(data_t *, char *, array_t *, dict_t *);
 static data_t * _obelix_run(data_t *, char *, array_t *, dict_t *);
 static data_t * _obelix_mount(data_t *, char *, array_t *, dict_t *);
 static data_t * _obelix_unmount(data_t *, char *, array_t *, dict_t *);
+static data_t * _obelix_startserver(data_t *, char *, array_t *, dict_t *);
 
+static void *   _obelix_startserver_thread(void *);
 static void     _obelix_debug_settings(obelix_t *);
 static data_t * _obelix_cmdline(obelix_t *);
 static data_t * _obelix_run_local(obelix_t *, name_t *, array_t *, dict_t *);
@@ -57,15 +60,17 @@ static vtable_t _vtable_Obelix[] = {
   { .id = FunctionNew,          .fnc = (void_t) _obelix_new },
   { .id = FunctionFree,         .fnc = (void_t) _obelix_free },
   { .id = FunctionStaticString, .fnc = (void_t) _obelix_tostring },
+  { .id = FunctionResolve,      .fnc = (void_t) _obelix_resolve },
   { .id = FunctionNone,         .fnc = NULL }
 };
 
 static methoddescr_t _methods_Obelix[] = {
-  { .type = Any,    .name = "obelix",  .method = _obelix_get,     .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = -1,     .name = "run",     .method = _obelix_run,     .argtypes = { String, Any, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = -1,     .name = "mount",   .method = _obelix_mount,   .argtypes = { String, String, NoType }, .minargs = 2, .varargs = 0 },
-  { .type = -1,     .name = "unmount", .method = _obelix_unmount, .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
-  { .type = NoType, .name = NULL,      .method = NULL,            .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+  { .type = Any,    .name = "obelix",  .method = _obelix_get,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+  { .type = -1,     .name = "run",     .method = _obelix_run,         .argtypes = { String, Any, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = -1,     .name = "mount",   .method = _obelix_mount,       .argtypes = { String, String, NoType }, .minargs = 2, .varargs = 0 },
+  { .type = -1,     .name = "unmount", .method = _obelix_unmount,     .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+  { .type = -1,     .name = "server",  .method = _obelix_startserver, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = NoType, .name = NULL,      .method = NULL,                .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
        int       Obelix = -1;
@@ -114,6 +119,14 @@ void _obelix_free(obelix_t *obelix) {
     array_free(obelix -> script_args);
     name_free(obelix -> script);
     hierarchy_free(obelix -> mountpoints);
+  }
+}
+
+data_t * _obelix_resolve(obelix_t *obelix, char *name) {
+  if (!strcmp(name, "mountpoints")) {
+    return data_copy((data_t *) obelix -> mountpoints);
+  } else {
+    return NULL;
   }
 }
 
@@ -177,6 +190,31 @@ static data_t * _obelix_unmount(data_t *self, char *name, array_t *args, dict_t 
           data_tostring(data_array_get(args, 0)));
   if (!ret) {
     ret = self;
+  }
+  return ret;
+}
+
+void * _obelix_startserver_thread(void *port) {
+  return (void *) (intptr_t) oblserver_start(_obelix, (intptr_t) port);
+}
+
+data_t * _obelix_startserver(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  int       port = data_intval(data_array_get(args, 0));
+  thread_t *thread;
+  data_t   *ret = self;
+
+  (void) name;
+  (void) kwargs;
+
+  if (port <= 0) {
+    port = OBELIX_DEFAULT_PORT;
+  }
+  thread = thread_new(
+      "Obelix server thread",
+      _obelix_startserver_thread, (void *) (intptr_t) port);
+  if (thread -> _errno) {
+    ret = data_exception(ErrorInternalError,
+        "Error starting server thread: %d", thread -> _errno);
   }
   return ret;
 }
@@ -317,8 +355,11 @@ data_t * _obelix_interactive(obelix_t *obelix) {
 /* -- O B E L I X  P U B L I C  F U N C T I O N S ------------------------- */
 
 obelix_t * obelix_initialize(int argc, char **argv) {
-  int opt;
-  int ix;
+  int    opt;
+  int    ix;
+  char  *optarg_copy;
+  char  *ptr;
+  uri_t *uri = NULL;
 
   application_init("obelix", argc, argv);
   debug(obelix, "Initialize obelix kernel");
@@ -328,35 +369,49 @@ obelix_t * obelix_initialize(int argc, char **argv) {
   }
   _obelix -> argc = argc;
   _obelix -> argv = argv;
-  while ((opt = getopt(argc, argv, "s:g:d:f:p:v:ltS")) != -1) {
+  while ((opt = getopt(argc, argv, "s:g:d:f:p:v:ltSm:")) != -1) {
     switch (opt) {
-      case 's':
-        _obelix -> syspath = optarg;
-        break;
-      case 'g':
-        _obelix -> grammar = optarg;
-        break;
       case 'd':
         _obelix -> debug = optarg;
         break;
       case 'f':
         _obelix -> logfile = optarg;
         break;
-      case 'p':
-        _obelix -> basepath = optarg;
-        break;
-      case 'v':
-        _obelix -> log_level = optarg;
+      case 'g':
+        _obelix -> grammar = optarg;
         break;
       case 'l':
         obelix_set_option(_obelix, ObelixOptionList, 1);
+        break;
+      case 'm':
+        optarg_copy = strdup(optarg);
+        ptr = strchr(optarg_copy, '=');
+        if (ptr) {
+          *ptr = 0;
+          uri = uri_create(ptr + 1);
+        }
+        if (uri) {
+          obelix_mount(_obelix, optarg, uri);
+        } else {
+          fprintf(stderr, "Malformed option for --mount; should be '<prefix>=<uri>'. Option ignored\n");
+        }
+        free(optarg_copy);
+        break;
+      case 'p':
+        _obelix -> basepath = optarg;
+        break;
+      case 'S':
+        _obelix -> server = OBELIX_DEFAULT_PORT;
+        break;
+      case 's':
+        _obelix -> syspath = optarg;
         break;
       case 't':
         obelix_set_option(_obelix, ObelixOptionList, 1);
         obelix_set_option(_obelix, ObelixOptionTrace, 1);
         break;
-      case 'S':
-        _obelix -> server = OBELIX_DEFAULT_PORT;
+      case 'v':
+        _obelix -> log_level = optarg;
         break;
     }
   }
@@ -446,18 +501,18 @@ data_t * obelix_run(obelix_t *obelix, name_t *name, array_t *args, dict_t *kwarg
 }
 
 data_t * obelix_mount(obelix_t *obelix, char *prefix, uri_t *uri) {
-  data_t      *pool;
-  name_t      *n = name_parse(prefix);
-  hierarchy_t *leaf = hierarchy_find(obelix -> mountpoints, n);
+  clientpool_t *pool;
+  name_t       *n = name_parse(prefix);
+  hierarchy_t  *leaf = hierarchy_find(obelix -> mountpoints, n);
 
   if (leaf) {
     return data_exception(ErrorParameterValue,
       "Prefix '%s' is already mounted to URI '%s'", prefix,
       data_tostring(leaf -> data));
   }
-  pool = data_create(ClientPool, obelix, prefix, uri);
-  hierarchy_insert(obelix -> mountpoints, n, pool);
-  return pool;
+  pool = clientpool_create(obelix, prefix, uri);
+  hierarchy_insert(obelix -> mountpoints, n, (data_t *) pool);
+  return (data_t *) pool;
 }
 
 data_t * obelix_unmount(obelix_t *obelix, char *prefix) {
@@ -486,7 +541,7 @@ int main(int argc, char **argv) {
   }
 
   if (obelix -> server) {
-    oblserver_start(obelix);
+    oblserver_start(obelix, obelix -> server);
   } else if (obelix -> script) {
     data = _obelix_cmdline(obelix);
   } else {

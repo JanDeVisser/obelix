@@ -71,15 +71,15 @@ static server_cmd_handler_t _cmd_handlers[] = {
 };
 
 code_label_t server_codes[] = {
-  { .code = OBLSERVER_CODE_WELCOME,        .label = OBLSERVER_WELCOME },
-  { .code = OBLSERVER_CODE_READY,          .label = OBLSERVER_READY },
-  { .code = OBLSERVER_CODE_DATA,           .label = OBLSERVER_DATA },
-  { .code = OBLSERVER_CODE_ERROR_RUNTIME,  .label = OBLSERVER_ERROR_RUNTIME },
-  { .code = OBLSERVER_CODE_ERROR_SYNTAX,   .label = OBLSERVER_ERROR_SYNTAX },
-  { .code = OBLSERVER_CODE_ERROR_PROTOCOL, .label = OBLSERVER_ERROR_PROTOCOL },
-  { .code = OBLSERVER_CODE_ERROR_INTERNAL, .label = OBLSERVER_ERROR_INTERNAL },
-  { .code = OBLSERVER_CODE_COOKIE,         .label = OBLSERVER_COOKIE },
-  { .code = OBLSERVER_CODE_BYE,            .label = OBLSERVER_BYE },
+  { .code = OBLSERVER_CODE_WELCOME,        .label = OBLSERVER_TAG_WELCOME },
+  { .code = OBLSERVER_CODE_READY,          .label = OBLSERVER_TAG_READY },
+  { .code = OBLSERVER_CODE_DATA,           .label = OBLSERVER_TAG_DATA },
+  { .code = OBLSERVER_CODE_ERROR_RUNTIME,  .label = OBLSERVER_TAG_ERROR_RUNTIME },
+  { .code = OBLSERVER_CODE_ERROR_SYNTAX,   .label = OBLSERVER_TAG_ERROR_SYNTAX },
+  { .code = OBLSERVER_CODE_ERROR_PROTOCOL, .label = OBLSERVER_TAG_ERROR_PROTOCOL },
+  { .code = OBLSERVER_CODE_ERROR_INTERNAL, .label = OBLSERVER_TAG_ERROR_INTERNAL },
+  { .code = OBLSERVER_CODE_COOKIE,         .label = OBLSERVER_TAG_COOKIE },
+  { .code = OBLSERVER_CODE_BYE,            .label = OBLSERVER_TAG_BYE },
   { .code = 0,                             .label = NULL }
 };
 
@@ -134,23 +134,22 @@ oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
         result = data_copy(ex -> throwable);
         exception_free(ex);
         break;
-
       case ErrorSyntax:
         ret = _oblserver_return_error(server, OBLSERVER_ERROR_SYNTAX, result);
         data_free(result);
         result = NULL;
         break;
-
       default:
         ret = _oblserver_return_error(server, OBLSERVER_ERROR_RUNTIME, result);
         data_free(result);
         result = NULL;
         break;
-
     }
   }
+
   if (result) {
     str = data_encode(result);
+    debug(obelix, "Encoding '%s' -> '%s'", data_tostring(result), str);
     stream_printf(server -> stream, OBLSERVER_DATA " ${0;d}", strlen(str) + 1);
     stream_write(server -> stream, str, strlen(str));
     stream_printf(server -> stream, "");
@@ -331,7 +330,7 @@ oblserver_t * oblserver_run(oblserver_t *server) {
     code = (ret < 0) ? -ret : ret;
     msg = label_for_code(server_codes, code);
     if (msg) {
-      stream_printf(server -> stream, msg);
+      stream_printf(server -> stream, "${0;d} ${1;s}", code, msg);
     }
     cmd = stream_readline(server -> stream);
   };
@@ -340,10 +339,11 @@ oblserver_t * oblserver_run(oblserver_t *server) {
 
 /* ------------------------------------------------------------------------ */
 
-int oblserver_start(obelix_t *obelix) {
+int oblserver_start(obelix_t *obelix, int port) {
   socket_t *server;
 
-  server = serversocket_create(obelix -> server);
+  server = serversocket_create(port);
+  debug(obelix, "Establishing obelix server on port %d", port);
   socket_listen(server,
                 _oblserver_connection_handler,
                 obelix);
