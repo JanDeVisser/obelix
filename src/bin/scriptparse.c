@@ -22,7 +22,7 @@
 
 #include <exception.h>
 #include <function.h>
-#include <loader.h>
+#include "obelix.h"
 
 #ifndef scriptparse_EXPORTS
   #define scriptparse_EXPORTS

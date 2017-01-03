@@ -336,7 +336,7 @@ data_t * mod_resolve(module_t *mod, char *name) {
     if (!data_is_module(droot)) {
       error("mod_resolve(%s): root module not found", mod_tostring(mod));
     } else {
-      ret = object_get(data_as_module(droot) -> obj, name);
+      ret = mod_resolve(data_as_module(droot), name);
     }
     data_free(droot);
   }

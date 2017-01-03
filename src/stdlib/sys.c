@@ -32,9 +32,11 @@
 #endif /* HAVE_UNISTD_H */
 
 #include <data.h>
+#include <dictionary.h>
 #include <exception.h>
 #include <vm.h>
 #include <str.h>
+#include <user.h>
 #include <math.h>
 
 extern char   **environ;
@@ -45,8 +47,10 @@ static char *   _windows_version(OSVERSIONINFOEX *);
 static char *   _windows_machine(SYSTEM_INFO *);
 #endif /* HAVE_GETVERSIONEX */
 
-extern data_t * _function_getenv(char *, array_t *, dict_t *);
-extern data_t * _function_uname(char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t * _function_getenv(char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t * _function_uname(char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t * _function_user(char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t * _function_exit(char *, array_t *, dict_t *);
 
 /* ------------------------------------------------------------------------ */
 
@@ -147,15 +151,15 @@ static void _object_set(object_t *obj, char *attr, data_t *value) {
 /* ------------------------------------------------------------------------ */
 
 data_t * _function_getenv(char *name, array_t *params, dict_t *kwargs) {
-  object_t  *obj;
-  data_t    *value;
-  char     **e;
-  char      *n = NULL;
-  char      *v;
-  int        len = 0;
-  int        l;
+  dictionary_t  *env;
+  data_t        *value;
+  char         **e;
+  char          *n = NULL;
+  char          *v;
+  int            len = 0;
+  int            l;
 
-  obj = object_create(NULL);
+  env = dictionary_create(NULL);
   for (e = environ; *e; e++) {
     l = strlen(*e);
     if (l > len) {
@@ -170,20 +174,19 @@ data_t * _function_getenv(char *name, array_t *params, dict_t *kwargs) {
     if (v) {
       *v++ = 0;
       value = (data_t *) str_copy_chars(v);
-      object_set(obj, n, value);
-      data_free(value);
+      dictionary_set(env, n, data_uncopy(value));
     }
   }
   free(n);
-  return (data_t *) obj;
+  return (data_t *) env;
 }
 
 data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
   object_t         *obj;
   data_t           *ret = NULL;
-#ifdef HAVE_UTSNAME_H
+#ifdef HAVE_SYS_UTSNAME_H
   struct utsname    buf;
-#lse
+#else
   char              hostname[80];
 #endif /* HAVE_UTSNAME_H */
 #ifdef HAVE_GETVERSIONEX
@@ -192,7 +195,7 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
   char              hostname[80];
 #endif /* HAVE_GETVERSIONEX */
 
-#ifdef HAVE_UTSNAME_H
+#ifdef HAVE_SYS_UTSNAME_H
   if (!uname(&buf)) {
     obj = object_create(NULL);
     object_set(obj, "sysname", str_to_data(buf.sysname));
@@ -260,4 +263,21 @@ data_t * _function_exit(char *name, array_t *params, dict_t *kwargs) {
 			 "Exit with code '%s'", data_tostring(exit_code));
   data_as_exception(error) -> throwable = exit_code;
   return error;
+}
+
+/* ------------------------------------------------------------------------ */
+
+data_t * _function_user(char *name, array_t *params, dict_t *kwargs) {
+  int_t *uid;
+
+  if (!strcmp(name, "current_user") || !params || !array_size(params)) {
+    return current_user();
+  } else {
+    uid = (int_t *) data_cast(data_array_get(params, 0), Int);
+    if (uid) {
+      return create_user_byuid((uid_t) data_intval(uid));
+    } else {
+      return create_user_byname(data_tostring(data_array_get(params, 0)));
+    }
+  }
 }

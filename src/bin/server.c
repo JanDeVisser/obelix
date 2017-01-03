@@ -21,7 +21,6 @@
 
 #include <net.h>
 #include <array.h>
-#include <loader.h>
 #include <name.h>
 
 #include "obelix.h"

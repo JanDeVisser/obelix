@@ -23,7 +23,6 @@
 #include <net.h>
 #include <array.h>
 #include <exception.h>
-#include <loader.h>
 #include <name.h>
 
 #include "obelix.h"

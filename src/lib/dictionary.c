@@ -34,7 +34,7 @@ typedef struct _dictionaryiter {
 
 static dictionary_t *     _dictionary_new(dictionary_t *, va_list);
 extern void               _dictionary_free(dictionary_t *);
-extern char *             _dictionary_allocstring(dictionary_t *);
+extern char *             _dictionary_tostring(dictionary_t *);
 static data_t *           _dictionary_cast(dictionary_t *, int);
 static data_t *           _dictionary_resolve(dictionary_t *, char *);
 static dictionaryiter_t * _dictionary_iter(dictionary_t *);
@@ -45,15 +45,15 @@ static dictionary_t *     _dictionary_from_dict_reducer(entry_t *, dictionary_t 
 /* ----------------------------------------------------------------------- */
 
 static vtable_t _vtable_Dictionary[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _dictionary_new },
-  { .id = FunctionCast,        .fnc = (void_t) _dictionary_cast },
-  { .id = FunctionFree,        .fnc = (void_t) _dictionary_free },
-  { .id = FunctionAllocString, .fnc = (void_t) _dictionary_allocstring },
-  { .id = FunctionResolve,     .fnc = (void_t) _dictionary_resolve },
-  { .id = FunctionSet,         .fnc = (void_t) dictionary_set },
-  { .id = FunctionLen,         .fnc = (void_t) dictionary_size },
-  { .id = FunctionIter,        .fnc = (void_t) _dictionary_iter },
-  { .id = FunctionNone,        .fnc = NULL }
+  { .id = FunctionNew,      .fnc = (void_t) _dictionary_new },
+  { .id = FunctionCast,     .fnc = (void_t) _dictionary_cast },
+  { .id = FunctionFree,     .fnc = (void_t) _dictionary_free },
+  { .id = FunctionToString, .fnc = (void_t) _dictionary_tostring },
+  { .id = FunctionResolve,  .fnc = (void_t) _dictionary_resolve },
+  { .id = FunctionSet,      .fnc = (void_t) dictionary_set },
+  { .id = FunctionLen,      .fnc = (void_t) dictionary_size },
+  { .id = FunctionIter,     .fnc = (void_t) _dictionary_iter },
+  { .id = FunctionNone,     .fnc = NULL }
 };
 
 static methoddescr_t _methods_Dictionary[] = {
@@ -61,7 +61,7 @@ static methoddescr_t _methods_Dictionary[] = {
   { .type = NoType, .name = NULL,         .method = NULL,               .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
-static dictionaryiter_t * _dictionaryiter_new(dictionaryiter_t *, dictionary_t *);
+static dictionaryiter_t * _dictionaryiter_new(dictionaryiter_t *, va_list);
 static void               _dictionaryiter_free(dictionaryiter_t *);
 static data_t *           _dictionaryiter_has_next(dictionaryiter_t *);
 static data_t *           _dictionaryiter_next(dictionaryiter_t *);
@@ -106,7 +106,7 @@ void _dictionary_free(dictionary_t *dictionary) {
   }
 }
 
-char * _dictionary_allocstring(dictionary_t *dictionary) {
+char * _dictionary_tostring(dictionary_t *dictionary) {
   return dict_tostring(dictionary -> attributes);
 }
 
@@ -211,7 +211,9 @@ int dictionary_size(dictionary_t *obj) {
 
 /* ----------------------------------------------------------------------- */
 
-dictionaryiter_t * _dictionaryiter_new(dictionaryiter_t *iter, dictionary_t *dict) {
+dictionaryiter_t * _dictionaryiter_new(dictionaryiter_t *iter, va_list args) {
+  dictionary_t *dict = va_arg(args, dictionary_t *);
+
   iter -> dictionary = dictionary_copy(dict);
   iter -> di = di_create(dict -> attributes);
   return iter;

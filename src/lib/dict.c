@@ -844,7 +844,7 @@ int _di_bucket_has_prev(dictiterator_t *di, int bucket, int entry) {
 
 int _di_bucket_next(dictiterator_t *di, int *entry) {
   int bucket;
-  int dummy;
+  int dummy = 0;
 
   if (!entry) {
     entry = &dummy;

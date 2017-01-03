@@ -1,0 +1,4 @@
+for e in sys.env
+  print("${0} = ${1}", e.name, sys.env[e.name])
+end
+

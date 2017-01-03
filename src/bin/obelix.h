@@ -22,9 +22,10 @@
 
 #include "scriptparse.h"
 #include <dict.h>
-#include <loader.h>
+#include <grammar.h>
 #include <name.h>
 #include <net.h>
+#include <vm.h>
 
 #define OBELIX_DEFAULT_PORT           14400
 
@@ -73,6 +74,25 @@
 extern "C" {
 #endif
 
+#define COOKIE_SZ       33
+
+typedef enum _obelix_option {
+  ObelixOptionList,
+  ObelixOptionTrace,
+  ObelixOptionLAST
+} obelix_option_t;
+
+typedef struct _scriptloader {
+  data_t         _d;
+  data_t        *load_path;
+  char          *system_dir;
+  grammar_t     *grammar;
+  namespace_t   *ns;
+  array_t       *options;
+  char          *cookie;
+  time_t         lastused;
+} scriptloader_t;
+
 typedef struct _obelix {
   data_t        _d;
   int           argc;
@@ -87,6 +107,7 @@ typedef struct _obelix {
   char         *syspath;
   array_t      *options;
   int           server;
+  char         *init_file;
   dict_t       *loaders;
   hierarchy_t  *mountpoints;
 } obelix_t;
@@ -110,6 +131,30 @@ extern int Obelix;
 #define obelix_copy(o)     ((obelix_t *) data_copy((data_t *) (o)))
 #define obelix_tostring(o) (data_tostring((data_t *) (o))
 #define obelix_free(o)     (data_free((data_t *) (o)))
+
+/* ------------------------------------------------------------------------ */
+
+extern scriptloader_t * scriptloader_create(char *, array_t *, char *);
+extern scriptloader_t * scriptloader_get(void);
+extern scriptloader_t * scriptloader_set_option(scriptloader_t *, obelix_option_t, long);
+extern long             scriptloader_get_option(scriptloader_t *, obelix_option_t);
+extern scriptloader_t * scriptloader_set_options(scriptloader_t *, array_t *);
+extern scriptloader_t * scriptloader_add_loadpath(scriptloader_t *, char *);
+extern scriptloader_t * scriptloader_extend_loadpath(scriptloader_t *, array_t *);
+extern data_t *         scriptloader_load_fromreader(scriptloader_t *, module_t *, data_t *);
+extern data_t *         scriptloader_load(scriptloader_t *, module_t *);
+extern data_t *         scriptloader_import(scriptloader_t *, name_t *);
+extern data_t *         scriptloader_run(scriptloader_t *, name_t *, array_t *, dict_t *);
+extern data_t *         scriptloader_eval(scriptloader_t *, data_t *);
+extern data_t *         scriptloader_source_initfile(scriptloader_t *);
+
+extern int ScriptLoader;
+
+#define data_is_scriptloader(d)  ((d) && data_hastype((d), ScriptLoader))
+#define data_as_scriptloader(d)  (data_is_scriptloader((d)) ? ((scriptloader_t *) (d)) : NULL)
+#define scriptloader_copy(o)     ((scriptloader_t *) data_copy((data_t *) (o)))
+#define scriptloader_tostring(o) (data_tostring((data_t *) (o))
+#define scriptloader_free(o)     (data_free((data_t *) (o)))
 
 /* ------------------------------------------------------------------------ */
 
@@ -176,7 +221,7 @@ extern data_t *               oblclient_run(oblclient_t *, char *, array_t *, di
 extern int Client;
 
 #define data_is_oblclient(d)  ((d) && data_hastype((d), Client))
-#define data_as_oblclient(d)  (data_is_server((d)) ? ((oblclient_t *) (d)) : NULL)
+#define data_as_oblclient(d)  (data_is_oblclient((d)) ? ((oblclient_t *) (d)) : NULL)
 #define oblclient_copy(o)     ((oblclient_t *) data_copy((data_t *) (o)))
 #define oblclient_tostring(o) (data_tostring((data_t *) (o))
 #define oblclient_free(o)     (data_free((data_t *) (o)))

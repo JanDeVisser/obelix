@@ -27,7 +27,6 @@
 #include <net.h>
 #include <data.h>
 #include <exception.h>
-#include <loader.h>
 #include <mutex.h>
 #include <set.h>
 
@@ -319,6 +318,7 @@ data_t * _obelix_interactive(obelix_t *obelix) {
 
   loader = obelix_create_loader(obelix);
   if (loader) {
+    scriptloader_source_initfile(loader);
     if (tty) {
       fprintf(stdout, "Welcome to " OBELIX_NAME " " OBELIX_VERSION "\n");
     }
@@ -369,7 +369,7 @@ obelix_t * obelix_initialize(int argc, char **argv) {
   }
   _obelix -> argc = argc;
   _obelix -> argv = argv;
-  while ((opt = getopt(argc, argv, "s:g:d:f:p:v:ltSm:")) != -1) {
+  while ((opt = getopt(argc, argv, "s:g:d:f:p:v:ltSm:i:")) != -1) {
     switch (opt) {
       case 'd':
         _obelix -> debug = optarg;
@@ -379,6 +379,9 @@ obelix_t * obelix_initialize(int argc, char **argv) {
         break;
       case 'g':
         _obelix -> grammar = optarg;
+        break;
+      case 'i':
+        _obelix -> init_file = optarg;
         break;
       case 'l':
         obelix_set_option(_obelix, ObelixOptionList, 1);

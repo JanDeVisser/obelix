@@ -27,6 +27,7 @@
 #include <fsentry.h>
 #include <grammarparser.h>
 #include <thread.h>
+#include <user.h>
 
 extern grammar_t *      grammar_build(void);
 
@@ -35,7 +36,8 @@ static file_t *         _scriptloader_open_file(scriptloader_t *, char *, module
 static data_t *         _scriptloader_open_reader(scriptloader_t *, module_t *);
 static data_t *         _scriptloader_get_object(scriptloader_t *, int, ...);
 static data_t *         _scriptloader_set_value(scriptloader_t *, data_t *, char *, data_t *);
-static data_t *         _scriptloader_import_sys(scriptloader_t *, array_t *);
+static data_t *         _scriptloader_import_sys(scriptloader_t *);
+static data_t *         _scriptloader_set_loadpath(scriptloader_t *, array_t *);
 
 static scriptloader_t * _scriptloader_new(scriptloader_t *, va_list);
 static void             _scriptloader_free(scriptloader_t *);
@@ -143,11 +145,14 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
     loader -> ns = NULL;
   } else {
     debug(obelix, "  Created loader namespace");
-    sys = _scriptloader_import_sys(loader, user_path);
+    sys = _scriptloader_import_sys(loader);
     if (!data_is_module(sys)) {
       error("Error initializing loader scope: %s", data_tostring(sys));
       ns_free(loader -> ns);
       loader -> ns = NULL;
+    } else {
+      _scriptloader_set_loadpath(loader, user_path);
+      _scriptloader_set_value(loader, sys, "path", loader -> load_path);
     }
     data_free(sys);
   }
@@ -267,7 +272,7 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
   } else {
     debug(obelix, "'%s' is not a directory", fname);
     fsentry_free(e);
-    if (strcmp(fname - 4, ".obl")) {
+    if ((strlen(fname) > 4) && strcmp(fname + (strlen(fname) - 4), ".obl")) {
       strcat(fname, ".obl");
     }
     debug(obelix, "_scriptloader_open_file('%s', '%s') ~ '%s'", basedir, name, fname);
@@ -335,32 +340,35 @@ static data_t * _scriptloader_set_value(scriptloader_t *loader, data_t *obj,
   if (!data_is_exception(ret)) {
     ret = obj;
   }
-  data_free(value);
   name_free(n);
   return ret;
 }
 
-static data_t * _scriptloader_import_sys(scriptloader_t *loader,
-                                         array_t *user_path) {
+static data_t * _scriptloader_set_loadpath(scriptloader_t *loader, array_t *user_path) {
+  data_t *ret;
+  user_t *user;
+  char   *dot_obelix;
+
+  scriptloader_extend_loadpath(loader, user_path);
+  ret = current_user();
+  if (!data_is_exception(ret)) {
+    user = data_as_user(ret);
+    if (user -> home_dir && *(user -> home_dir)) {
+      asprintf(&dot_obelix, "%s/.obelix", user -> home_dir);
+      scriptloader_add_loadpath(loader, dot_obelix);
+      free(dot_obelix);
+    }
+  }
+  return (data_t *) loader;
+}
+
+static data_t * _scriptloader_import_sys(scriptloader_t *loader) {
   name_t *name;
-  data_t *sys;
   data_t *ret;
 
   name = name_create(1, "sys");
-  sys = scriptloader_import(loader, name);
+  ret = scriptloader_import(loader, name);
   name_free(name);
-  if (!data_is_exception(sys)) {
-    scriptloader_extend_loadpath(loader, user_path);
-    ret = _scriptloader_set_value(loader, sys, "path",
-                                  data_copy(loader -> load_path));
-    if (!data_is_exception(ret)) {
-      ret = sys;
-    } else {
-      data_free(sys);
-    }
-  } else {
-    ret = sys;
-  }
   return ret;
 }
 
@@ -455,7 +463,16 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, dat
 }
 
 data_t * scriptloader_import(scriptloader_t *loader, name_t *name) {
-  return ns_import(loader -> ns, name);
+  module_t *root;
+  data_t   *data;
+
+  data = ns_get(loader -> ns, NULL);
+  if (data_is_module(data)) {
+    root = data_as_module(data);
+    return closure_import(root -> closure, name);
+  } else {
+    return data;
+  }
 }
 
 data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
@@ -559,4 +576,33 @@ data_t * scriptloader_eval(scriptloader_t *loader, data_t *src) {
     }
   }
   return data;
+}
+
+data_t * scriptloader_source_initfile(scriptloader_t *loader) {
+  user_t    *user;
+  char      *dot_obelixrc;
+  data_t    *ret;
+  fsentry_t *e;
+  file_t    *rc;
+
+  ret = current_user();
+  if (!data_is_exception(ret)) {
+    user = data_as_user(ret);
+    if (user -> home_dir && *(user -> home_dir)) {
+      asprintf(&dot_obelixrc, "%s/.obelixrc", user -> home_dir);
+      e = fsentry_create(dot_obelixrc);
+      if (fsentry_isfile(e)) {
+        rc = fsentry_open(e);
+        if (!file_errno(rc)) {
+          ret = scriptloader_eval(loader, (data_t *) rc);
+        } else {
+          ret = data_exception_from_my_errno(file_errno(rc));
+        }
+        file_close(rc);
+      }
+      fsentry_free(e);
+      free(dot_obelixrc);
+    }
+  }
+  return ret;
 }

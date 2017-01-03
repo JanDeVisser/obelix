@@ -17,21 +17,34 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <pwd.h>
+#include <sys/types.h>
+
+#include <data.h>
+
 #ifndef __USER_H__
 #define	__USER_H__
 
 typedef struct _user {
-  char   *uid;
+  data_t  _d;
+  uid_t   uid;
   char   *name;
+  char   *fullname;
   char   *home_dir;
-  int     refs;
 } user_t;
 
-OBLCORE_IMPEXP user_t *     user_create(char *);
-OBLCORE_IMPEXP void         user_free(user_t *);
+OBLCORE_IMPEXP data_t *     current_user(void);
+OBLCORE_IMPEXP data_t *     create_user_byuid(uid_t);
+OBLCORE_IMPEXP data_t *     create_user_byname(char *);
 OBLCORE_IMPEXP int          user_cmp(user_t *, user_t *);
 OBLCORE_IMPEXP unsigned int user_hash(user_t *);
-OBLCORE_IMPEXP char *       user_tostring(user_t *);
+
+OBLCORE_IMPEXP int User;
+
+#define data_is_user(d)     ((d) && data_hastype((d), User))
+#define data_as_user(d)     (data_is_user((d)) ? ((user_t *) (d)) : NULL)
+#define user_copy(u)        ((user_t *) data_copy((data_t *) (u)))
+#define user_tostring(u)    (data_tostring((data_t *) (u))
+#define user_free(u)        (data_free((data_t *) (u)))
 
 #endif /* __USER_H__ */
-

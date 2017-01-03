@@ -30,8 +30,8 @@ set(SOURCES
     strutils.c
     thread.c
     typedescr.c
+    user.c
 )
-# disabled: user.c
 
 if (NOT HAVE_REGEX_H)
   set(SOURCES ${SOURCES} regex.c)

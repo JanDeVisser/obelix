@@ -372,7 +372,7 @@ interface_t * interface_get_byname(char *name) {
     typedescr_init();
   }
   for (ifix = 0; ifix < _num_interfaces; ifix++) {
-    if (!strcmp(_interfaces[ifix] -> _d.name, name)) {
+    if (!strcasecmp(_interfaces[ifix] -> _d.name, name)) {
       return _interfaces[ifix];
     }
   }
@@ -773,7 +773,7 @@ typedescr_t * typedescr_get_byname(char *name) {
   for (ix = 0; ix < _numtypes; ix++) {
     if (_descriptors[ix] &&
         typename(_descriptors[ix]) &&
-        !strcmp(name, typename(_descriptors[ix]))) {
+        !strcasecmp(name, typename(_descriptors[ix]))) {
       return _descriptors[ix];
     }
   }
