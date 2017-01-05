@@ -190,7 +190,7 @@ grammar_parser_t * _grammar_parser_expand_modifier(grammar_parser_t *gp, token_t
   nonterminal_t *nt;
   rule_t        *rule;
 
-  sepstr = (sep) ? token_tostring(sep) : "[None]";
+  sepstr = (sep) ? token_token(sep) : "[None]";
   asprintf(&nt_star_sep, "%s*%s", rule_entry_tostring(gp -> entry), sepstr);
   asprintf(&nt_plus_sep, "%s+%s", rule_entry_tostring(gp -> entry), sepstr);
   asprintf(&nt_sep, "%s%s", sepstr, rule_entry_tostring(gp -> entry));

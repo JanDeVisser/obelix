@@ -27,6 +27,7 @@
 
 #include "libcore.h"
 #include <data.h>
+#include <dictionary.h>
 #include <exception.h>
 #include <list.h>
 #include <logging.h>
@@ -224,7 +225,7 @@ data_t * data_parse(int type, char *str) {
 }
 
 data_t * data_decode(char *encoded) {
-  char        *copy;
+  char         copy[strlen(encoded)];
   char        *ptr;
   char        *t;
   typedescr_t *type;
@@ -232,7 +233,7 @@ data_t * data_decode(char *encoded) {
 
   data_init();
   if (encoded && encoded[0]) {
-    copy = c_unescape(strdup(encoded));
+    strcpy(copy, encoded);
     debug(data, "Decoding '%s'", copy);
     ptr = strchr(copy, ':');
     if (ptr) {
@@ -240,16 +241,18 @@ data_t * data_decode(char *encoded) {
       t = strtrim(copy);
       debug(data, "type: '%s'", t);
       type = typedescr_get_byname(t);
-      if (type) {
-        ret = data_parse(typetype(type), ptr + 1);
-      } else {
+      if (!type) {
         ret = data_exception(ErrorType, "Cannot decode '%s': Unknown type '%s'",
           encoded, t);
       }
+      ptr++;
+    } else {
+      ptr = encoded;
+      type = typedescr_get(String);
+      assert(type);
     }
-    free(copy);
     if (!ret) {
-      ret = (data_t *) str_copy_chars(encoded);
+      ret = data_parse(typetype(type), ptr);
     }
   }
   return ret;
@@ -257,23 +260,53 @@ data_t * data_decode(char *encoded) {
 
 char * data_encode(data_t *data) {
   typedescr_t *type;
-  char        *buf = NULL;
   void_t       encode;
-  char        *encoded;
+  char        *encoded = NULL;
 
   type = data_typedescr(data);
   if (type) {
     encode = typedescr_get_function(type, FunctionEncode);
     if (encode) {
-      buf = c_escape(encoded = ((char * (*)(data_t *)) encode)(data));
-      free(encoded);
-      encoded = buf;
+      encoded = ((char * (*)(data_t *)) encode)(data);
     } else {
-      encoded = c_escape(data_tostring(data));
+      encoded = data_tostring(data);
     }
-    asprintf(&buf, "%s:%s", typename(type), encoded);
   }
-  return buf;
+  return encoded;
+}
+
+data_t * data_deserialize(int type, data_t *serialized) {
+  typedescr_t *descr;
+  void_t       deserialize;
+
+  descr = typedescr_get(type);
+  debug(data, "Deserializing %s : '%s'", typename(descr), data_tostring(serialized));
+  deserialize = typedescr_get_function(descr, FunctionDeserialize);
+  return (deserialize)
+    ? ((data_t * (*)(data_t *)) deserialize)(serialized)
+    : data_copy(serialized);
+}
+
+data_t * data_serialize(data_t *data) {
+  typedescr_t  *type;
+  void_t        serialize;
+  data_t       *serialized;
+  dictionary_t *dict;
+
+  type = data_typedescr(data);
+  if (type) {
+    serialize = typedescr_get_function(type, FunctionSerialize);
+    if (serialize) {
+      serialized = ((data_t * (*)(data_t *)) serialize)(data);
+      if (data_is_dictionary(serialized)) {
+        dict = data_as_dictionary(serialized);
+        dictionary_set(dict, "__obl_type__", (data_t *) str_wrap(typename(type)));
+      }
+    } else {
+      serialized = data_copy(data);
+    }
+  }
+  return serialized;
 }
 
 data_t * data_cast(data_t *data, int totype) {
@@ -586,7 +619,7 @@ char * _data_tostring(data_t *data) {
   tostring_t   tostring;
 
   if (!data) {
-    return "data:NULL";
+    return "null";
   } else if (data -> str && (data -> free_str == DontFreeData)) {
     return data -> str;
   } else {
@@ -614,7 +647,7 @@ char * _data_tostring(data_t *data) {
       }
     }
     if (!data -> str) {
-      asprintf(&(data -> str), "data:%s:%p", data_typename(data), data);
+      asprintf(&(data -> str), "%s:%p", data_typename(data), data);
     }
     return data -> str;
   }

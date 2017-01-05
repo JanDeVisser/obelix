@@ -20,7 +20,7 @@
 /*
  * obelix root object declaration -
  */
- 
+
 func print(msg)          -> "liboblstdlib.so:_function_print"
 func sleep(naptime)      -> "liboblstdlib.so:_function_sleep"
 func usleep(naptime)     -> "liboblstdlib.so:_function_usleep"
@@ -31,6 +31,9 @@ func fsentry(name)       -> "liboblcore.so:_fsentry_create"
 
 func nvp(name, value)    -> "liboblcore.so:_nvp_create"
 func regexp(pattern)     -> "liboblcore.so:_regexp_create"
+
+func encode(value)       -> "liboblstdlib.so:_function_encode"
+func decode(json)        -> "liboblstdlib.so:_function_decode"
 
 self.stdin = adopt(0)
 self.stdout = adopt(1)

@@ -95,8 +95,8 @@ int _ptr_cmp(pointer_t *p1, pointer_t *p2) {
 char * _ptr_allocstring(pointer_t *p) {
   char *buf;
 
-  if (p == _null) {
-    buf = strdup("Null");
+  if (!p || p == _null) {
+    buf = strdup("null");
   } else {
     asprintf(&buf, "%p", p -> ptr);
   }
@@ -106,7 +106,7 @@ char * _ptr_allocstring(pointer_t *p) {
 pointer_t * _ptr_parse(char *str) {
   long l;
 
-  if (!strcmp(str, "null")) {
+  if (!strcasecmp(str, "null")) {
     return (pointer_t *) data_null();
   } else {
     if (strtoint(str, &l)) {

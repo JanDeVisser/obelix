@@ -165,7 +165,7 @@ kw_config_t * _kw_config_configure(kw_config_t *config, data_t *data) {
   char                *str;
   unsigned int         code;
 
-  debug(lexer, "_kw_config_configure('%s')", data_encode(data));
+  debug(lexer, "_kw_config_configure('%s:%s')", data_typename(data), data_encode(data));
   if (t == Token) {
     token = token_copy((token_t *) data);
   } else if (t == NVP) {

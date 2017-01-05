@@ -230,7 +230,7 @@ scanner_config_t * lexer_config_get_scanner(lexer_config_t *config, char *code) 
 data_t * lexer_config_set(lexer_config_t *config, char *code, data_t *param) {
   scanner_config_t *scanner;
 
-  debug(lexer, "lexer_config_set('%s', '%s')", code, data_encode(param));
+  debug(lexer, "lexer_config_set('%s', '%s:%s')", code, data_typename(param), data_encode(param));
   scanner = lexer_config_get_scanner(config, code);
   if (!scanner) {
     scanner = _lexer_config_add_scanner(config, code);

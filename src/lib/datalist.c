@@ -39,6 +39,7 @@ static unsigned int  _list_hash(data_t *);
 static int           _list_len(data_t *);
 static data_t *      _list_resolve(data_t *, char *);
 static data_t *      _list_iter(data_t *);
+static char *        _list_encode(pointer_t *);
 
 static data_t *      _list_create(data_t *, char *, array_t *, dict_t *);
 //static data_t *      _list_range(data_t *, char *, array_t *, dict_t *);
@@ -56,6 +57,7 @@ static vtable_t _vtable_List[] = {
   { .id = FunctionLen,      .fnc = (void_t) _list_len },
   { .id = FunctionResolve,  .fnc = (void_t) _list_resolve },
   { .id = FunctionIter,     .fnc = (void_t) _list_iter },
+  { .id = FunctionEncode,   .fnc = (void_t) _list_encode },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -188,6 +190,44 @@ data_t * _list_resolve(data_t *self, char *name) {
 
 data_t * _list_iter(data_t *data) {
   return data_create(ListIterator, data_as_array(data));
+}
+
+char * _list_encode(pointer_t *data) {
+  array_t *array = data_as_array(data);
+  list_t  *encoded = str_list_create();
+  data_t  *serialized;
+  int      ix;
+  int      bufsz = 4; /* for '[ ' and ' ]' */
+  char    *entry;
+  char    *ret;
+  char    *ptr;
+
+  for (ix = 0; ix < array_size(array); ix++) {
+    serialized = data_serialize(data_array_get(array, ix));
+    list_push(encoded, (entry = data_encode(serialized)));
+    bufsz += strlen(entry);
+    if (ix > 0) {
+      bufsz += 2; /* for ', ' */
+    }
+    data_free(serialized);
+  }
+  ret = ptr = stralloc(bufsz);
+  strcpy(ptr, "[ ");
+  ptr += 2;
+  ix = 0;
+  while (list_notempty(encoded)) {
+    if (ix++ > 0) {
+      strcpy(ptr, ", ");
+      ptr += 2;
+    }
+    entry = (char *) list_shift(encoded);
+    strcpy(ptr, entry);
+    ptr += strlen(entry);
+    free(entry);
+  }
+  strcpy(ptr, " ]");
+  list_free(encoded);
+  return ret;
 }
 
 /* ----------------------------------------------------------------------- */

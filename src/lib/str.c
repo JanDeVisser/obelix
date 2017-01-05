@@ -43,6 +43,8 @@ static void     _str_free(str_t *);
 static data_t * _str_cast(str_t *, int);
 static str_t *  _str_parse(char *str);
 static data_t * _str_resolve(str_t *, char *);
+static char *   _str_encode(str_t *);
+static str_t *  _str_serialize(str_t *);
 
 static data_t * _string_slice(data_t *, char *, array_t *, dict_t *);
 static data_t * _string_at(data_t *, char *, array_t *, dict_t *);
@@ -59,18 +61,20 @@ static data_t * _string_split(data_t *, char *, array_t *, dict_t *);
 #define _DEFAULT_SIZE   32
 
 static vtable_t _vtable_String[] = {
-  { .id = FunctionFactory, .fnc = (void_t) _str_create},
-  { .id = FunctionCmp, .fnc = (void_t) str_cmp},
-  { .id = FunctionFree, .fnc = (void_t) _str_free},
-  { .id = FunctionToString, .fnc = (void_t) str_chars},
-  { .id = FunctionParse, .fnc = (void_t) _str_parse},
-  { .id = FunctionCast, .fnc = (void_t) _str_cast},
-  { .id = FunctionHash, .fnc = (void_t) str_hash},
-  { .id = FunctionLen, .fnc = (void_t) str_len},
-  { .id = FunctionRead, .fnc = (void_t) str_read},
-  { .id = FunctionWrite, .fnc = (void_t) str_write},
-  { .id = FunctionResolve, .fnc = (void_t) _str_resolve},
-  { .id = FunctionNone, .fnc = NULL}
+  { .id = FunctionFactory,   .fnc = (void_t) _str_create },
+  { .id = FunctionCmp,       .fnc = (void_t) str_cmp },
+  { .id = FunctionFree,      .fnc = (void_t) _str_free },
+  { .id = FunctionToString,  .fnc = (void_t) str_chars },
+  { .id = FunctionParse,     .fnc = (void_t) _str_parse },
+  { .id = FunctionCast,      .fnc = (void_t) _str_cast },
+  { .id = FunctionHash,      .fnc = (void_t) str_hash },
+  { .id = FunctionLen,       .fnc = (void_t) str_len },
+  { .id = FunctionRead,      .fnc = (void_t) str_read },
+  { .id = FunctionWrite,     .fnc = (void_t) str_write },
+  { .id = FunctionResolve,   .fnc = (void_t) _str_resolve },
+  { .id = FunctionEncode,    .fnc = (void_t) _str_encode },
+  { .id = FunctionSerialize, .fnc = (void_t) _str_serialize },
+  { .id = FunctionNone,      .fnc = NULL}
 };
 
 static methoddescr_t _methods_String[] = {
@@ -162,8 +166,84 @@ data_t * _str_cast(str_t *data, int totype) {
   }
 }
 
+static char * _escaped_chars = "\"\\\b\f\n\r\t";
+static char * _escape_codes  = "\"\\bfnrt";
+
 str_t * _str_parse(char *str) {
-  return str_copy_chars(str);
+  char   buf[strlen(str)];
+  char  *ptr;
+  char  *escptr;
+  str_t *ret;
+
+  strcpy(buf, str);
+  str = buf;
+  if ((*buf == '\"') && (buf[strlen(buf) - 1] == '\"')) {
+    buf[strlen(buf) - 1] = 0;
+    str++;
+  }
+  for (ptr = str; *ptr; ptr++) {
+    if ((*ptr == '\\') && (*(ptr + 1)) && (escptr = strchr(_escape_codes, *(ptr + 1)))) {
+      *ptr = *(_escaped_chars + (escptr - _escape_codes));
+      if (*(ptr + 2)) {
+        memmove(ptr + 1, ptr + 2, strlen(ptr + 2) + 1);
+      }
+    }
+  }
+  ret = str_copy_chars(str);
+  return ret;
+}
+
+str_t * _str_serialize(str_t *str) {
+  char  *encoded = _str_encode(str);
+  int    len = strlen(encoded);
+  str_t *ret = str_create(len + 2);
+
+  *ret -> buffer = '"';
+  strcpy(ret -> buffer + 1, encoded);
+  ret -> buffer[len + 1] = '"';
+  ret -> buffer[len + 2] = 0;
+  ret -> len = len + 2;
+  return ret;
+}
+
+char * _str_encode(str_t *str) {
+  char         buf[str_len(str) + 1];
+  char        *start = buf;
+  char        *end;
+  int          len = 0;
+  char        *ptr;
+  char        *encoded;
+  char        *encptr;
+  char        *escptr;
+
+  strcpy(buf, str_chars(str));
+  end = buf + strlen(buf);
+  if ((buf[0] == '"') && (buf[strlen(buf) - 1] == '"')) {
+    len = 2;
+    end--;
+    start++;
+  }
+  for (ptr = start; ptr != end; ptr++) {
+    len += (strchr(_escaped_chars, *ptr)) ? 2 : 1;
+  }
+  encoded = encptr = stralloc(len);
+  if (start != buf) {
+    *encptr++ = '"';
+  }
+  for (ptr = start; ptr != end; ptr++) {
+    if ((escptr = strchr(_escaped_chars, *ptr)) &&
+        ((encoded == escptr) || (*(ptr - 1) != '\\'))) {
+      *encptr++ = '\\';
+      *encptr++ = *(_escape_codes + (_escaped_chars - escptr));
+    } else {
+      *encptr++ = *ptr;
+    }
+  }
+  if (start != buf) {
+    *encptr++ = '"';
+  }
+  *encptr = 0;
+  return encoded;
 }
 
 /* -- S T R _ T   S T A T I C   F U N C T I O N S ------------------------- */
@@ -272,6 +352,18 @@ str_t * str_wrap(char *buffer) {
   if (ret) {
     ret -> buffer = buffer;
     ret -> len = strlen(buffer);
+  }
+  return ret;
+}
+
+str_t * str_adopt(char *buffer) {
+  str_t *ret;
+
+  ret = _str_initialize();
+  if (ret) {
+    ret -> buffer = buffer;
+    ret -> len = strlen(buffer);
+    ret -> bufsize = ret -> len + 1;
   }
   return ret;
 }

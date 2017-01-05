@@ -17,10 +17,12 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "libstdlib.h"
 #include <stdio.h>
 #include <time.h>
 
 #include <data.h>
+#include <dictionary.h>
 #include <exception.h>
 #include <str.h>
 
@@ -50,18 +52,22 @@ __DLL_EXPORT__ data_t * datetime_create(datetime_t *, datetime_t *);
 static void             _date_init(void);
 __DLL_EXPORT__ data_t * _function_date_init(char *, array_t *, dict_t *);
 
-static datetime_t * _timebase_new(datetime_t *, va_list);
-static data_t *     _timebase_resolve(datetime_t *, char *);
-static int          _timebase_intval(datetime_t *);
-static data_t *     _timebase_cast(datetime_t *, int);
-static struct tm *  _timebase_tm(datetime_t *);
-static datetime_t * _timebase_assign(datetime_t *);
+static datetime_t *   _timebase_new(datetime_t *, va_list);
+static data_t *       _timebase_resolve(datetime_t *, char *);
+static int            _timebase_intval(datetime_t *);
+static data_t *       _timebase_cast(datetime_t *, int);
+static dictionary_t * _timebase_serialize(datetime_t *);
+static data_t *       _timebase_deserialize(dictionary_t *);
+static struct tm *    _timebase_tm(datetime_t *);
+static datetime_t *   _timebase_assign(datetime_t *);
 
 static vtable_t _vtable_Timebase[] = {
   { .id = FunctionNew,         .fnc = (void_t) _timebase_new },
   { .id = FunctionResolve,     .fnc = (void_t) _timebase_resolve },
   { .id = FunctionIntValue,    .fnc = (void_t) _timebase_intval },
   { .id = FunctionCast,        .fnc = (void_t) _timebase_cast },
+  { .id = FunctionSerialize,   .fnc = (void_t) _timebase_serialize },
+  { .id = FunctionDeserialize, .fnc = (void_t) _timebase_deserialize },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -208,6 +214,21 @@ data_t * _timebase_cast(datetime_t *timebase, int totype) {
   } else {
     return NULL;
   }
+}
+
+dictionary_t * _timebase_serialize(datetime_t *timebase) {
+  dictionary_t *serialized = dictionary_create(NULL);
+
+  dictionary_set(serialized, "timestamp", int_to_data(timebase -> dt));
+  return serialized;
+}
+
+data_t * _timebase_deserialize(dictionary_t *serialized) {
+  typedescr_t *type = typedescr_get_byname(
+      data_tostring(dictionary_get(serialized, "__obl_type__")));
+
+  return data_create(typetype(type),
+      data_intval(dictionary_get(serialized, "timestamp")));
 }
 
 struct tm * _timebase_tm(datetime_t *timebase) {

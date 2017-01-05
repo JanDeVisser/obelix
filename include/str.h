@@ -44,6 +44,7 @@ struct _data;
  * Constructor functions:
  */
 OBLCORE_IMPEXP str_t *         str_wrap(char *);
+OBLCORE_IMPEXP str_t *         str_adopt(char *);
 OBLCORE_IMPEXP str_t *         str_copy_chars(const char *);
 OBLCORE_IMPEXP str_t *         str_copy_nchars(const char *, size_t);
 OBLCORE_IMPEXP str_t *         str_from_data(data_t *);

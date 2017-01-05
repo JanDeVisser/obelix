@@ -61,7 +61,7 @@ grammar_variable_t * _gv_dump(grammar_variable_t *gv) {
 
   printf("  ge_set_variable((ge_t *) owner, \"%s\", ", grammar_variable_tostring(gv));
   buf = data_encode(v);
-  printf("data_decode(\"%s\"));\n", buf);
+  printf("data_decode(\"%s:%s\"));\n", data_typename(v), buf);
   free(buf);
   return gv;
 }

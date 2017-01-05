@@ -49,27 +49,6 @@ OBLPARSER_IMPEXP parser_t * parser_set_variable(parser_t *parser, data_t *keyval
   return parser;
 }
 
-//OBLPARSER_IMPEXP parser_t * parser_rollup_to(parser_t *parser, data_t *marker) {
-//  char    *m = data_tostring(marker);
-//  token_t *rolled_up;
-//
-//  if (m && *m) {
-//    if (parser_debug) {
-//      debug("    Rolling up to %c", *m);
-//    }
-//    rolled_up = lexer_rollup_to(parser -> lexer, *m);
-//    if (token_code(rolled_up) == TokenCodeEnd) {
-//      // FIXME report decent error.
-//      return NULL;
-//    } else {
-//      datastack_push(parser -> stack, token_todata(rolled_up));
-//    }
-//    return parser;
-//  } else {
-//    return NULL;
-//  }
-//}
-
 OBLPARSER_IMPEXP parser_t * parser_pushval(parser_t *parser, data_t *data) {
   debug(parser, "    Pushing value %s", data_tostring(data));
   datastack_push(parser -> stack, data_copy(data));
@@ -93,7 +72,7 @@ OBLPARSER_IMPEXP parser_t * parser_push_const(parser_t *parser, data_t *constval
 
   debug(parser, " -- encoded constant: %s", data_tostring(constval));
   assert(data);
-  debug(parser, " -- constant: %s '%s'", data_typename(data), data_tostring(data));
+  debug(parser, " -- constant: %s:'%s'", data_typename(data), data_tostring(data));
   return parser_pushval(parser, data_uncopy(data));
   return parser;
 }

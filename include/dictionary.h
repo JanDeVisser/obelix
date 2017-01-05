@@ -36,11 +36,13 @@ typedef struct _dictionary {
 OBLCORE_IMPEXP void            dictionary_init(void);
 OBLCORE_IMPEXP dictionary_t *  dictionary_create(data_t *);
 OBLCORE_IMPEXP dictionary_t *  dictionary_create_from_dict(dict_t *);
+
 OBLCORE_IMPEXP data_t *        dictionary_get(dictionary_t *, char *);
 OBLCORE_IMPEXP data_t *        dictionary_pop(dictionary_t *, char *);
 OBLCORE_IMPEXP data_t *        dictionary_set(dictionary_t *, char *, data_t *);
 OBLCORE_IMPEXP int             dictionary_has(dictionary_t *, char *);
 OBLCORE_IMPEXP int             dictionary_size(dictionary_t *);
+OBLCORE_IMPEXP data_t *        dictionary_deserialize(dictionary_t *);
 
 OBLCORE_IMPEXP int             Dictionary;
 

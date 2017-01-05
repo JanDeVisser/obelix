@@ -38,6 +38,8 @@ extern char *             _dictionary_tostring(dictionary_t *);
 static data_t *           _dictionary_cast(dictionary_t *, int);
 static data_t *           _dictionary_resolve(dictionary_t *, char *);
 static dictionaryiter_t * _dictionary_iter(dictionary_t *);
+static char *             _dictionary_encode(dictionary_t *);
+
 static data_t *           _dictionary_create(data_t *, char *, array_t *, dict_t *);
 static dictionary_t *     _dictionary_set_all_reducer(data_t *, dictionary_t *);
 static dictionary_t *     _dictionary_from_dict_reducer(entry_t *, dictionary_t *);
@@ -53,6 +55,7 @@ static vtable_t _vtable_Dictionary[] = {
   { .id = FunctionSet,      .fnc = (void_t) dictionary_set },
   { .id = FunctionLen,      .fnc = (void_t) dictionary_size },
   { .id = FunctionIter,     .fnc = (void_t) _dictionary_iter },
+  { .id = FunctionEncode,   .fnc = (void_t) _dictionary_encode },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -127,6 +130,78 @@ data_t * _dictionary_resolve(dictionary_t *dictionary, char *name) {
 
 dictionaryiter_t * _dictionary_iter(dictionary_t *dict) {
   return (dictionaryiter_t *) data_create(DictionaryIter, dict);
+}
+
+list_t * _dictionary_serialize_and_encode_entry(entry_t *e, list_t *encoded) {
+  intptr_t  bufsz;
+  data_t   *key;
+  data_t   *value;
+  nvp_t    *nvp;
+
+  bufsz = (intptr_t) ((pointer_t *) list_head(encoded)) -> ptr;
+  key = (data_t *) str_wrap((char *) e -> key);
+  value = data_serialize((data_t *) e -> value);
+  nvp = nvp_create(
+      data_serialize(key),
+      (data_t *) str_adopt(data_encode(value)));
+  list_append(encoded, nvp);
+  if (bufsz > 4) {
+    bufsz += 2; /* for ', ' */
+  }
+  bufsz += str_len((str_t *) nvp -> name) +
+      str_len((str_t *) nvp -> value) + 2; /* for ': ' */
+  ((pointer_t *) list_head(encoded)) -> ptr = (void *) bufsz;
+  data_free(key);
+  data_free(value);
+  return encoded;
+}
+
+char * _dictionary_encode(dictionary_t *dict) {
+  list_t   *encoded = data_list_create();
+  intptr_t  bufsz;
+  nvp_t    *nvp;
+  char     *ret;
+  char     *ptr;
+  int       ix;
+
+  /*
+   * The size of the the string buffer to allocate will be kept in a pointer_t
+   * which is the first entry in the list. The reducer will read and update it,
+   * and the end result will be shifted off the list when encoding is done.
+   *
+   * The buffer is initialized with 4 = strlen("{  }")
+   */
+  list_append(encoded, ptr_create(0, (void *)(intptr_t) 4));
+  dict_reduce(dict -> attributes,
+      (reduce_t) _dictionary_serialize_and_encode_entry,
+      encoded);
+
+  bufsz = (intptr_t) ((pointer_t *) list_shift(encoded)) -> ptr;
+  if (list_empty(encoded)) {
+    ret = strdup("{}");
+  } else {
+    ret = ptr = stralloc(bufsz);
+    strcpy(ptr, "{ ");
+    ptr += 2;
+    ix = 0;
+    while (list_notempty(encoded)) {
+      if (ix++ > 0) {
+        strcpy(ptr, ", ");
+        ptr += 2;
+      }
+      nvp = (nvp_t *) list_shift(encoded);
+      strcpy(ptr, str_chars((str_t *) nvp -> name));
+      ptr += str_len((str_t *) nvp -> name);
+      strcpy(ptr, ": ");
+      ptr += 2;
+      strcpy(ptr, str_chars((str_t *) nvp -> value));
+      ptr += str_len((str_t *) nvp -> value);
+      nvp_free(nvp);
+    }
+    strcpy(ptr, " }");
+  }
+  list_free(encoded);
+  return ret;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -207,6 +282,23 @@ int dictionary_has(dictionary_t *dictionary, char *name) {
 
 int dictionary_size(dictionary_t *obj) {
   return dict_size(obj -> attributes);
+}
+
+data_t * dictionary_deserialize(dictionary_t *dict) {
+  data_t      *typename;
+  typedescr_t *type;
+  data_t      *ret = NULL;
+
+  if ((typename = dictionary_get(dict, "__obl_type__"))) {
+    type = typedescr_get_byname(data_tostring(typename));
+    if (type) {
+      ret = data_deserialize(typetype(type), (data_t *) dict);
+    }
+  }
+  if (!ret) {
+    ret = data_copy((data_t *) dict);
+  }
+  return ret;
 }
 
 /* ----------------------------------------------------------------------- */
