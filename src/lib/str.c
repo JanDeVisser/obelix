@@ -250,7 +250,8 @@ char * _str_encode(str_t *str) {
   encoded = encptr = stralloc(len);
   for (ptr = buf; *ptr; ptr++) {
     if ((escptr = strchr(_escaped_chars, *ptr)) &&
-        ((encoded == escptr) || (*(ptr - 1) != '\\'))) {
+        ((encoded == escptr) || (*(ptr - 1) != '\\')) &&
+        ((*ptr != '\"') || ((ptr != buf) && *(ptr + 1)))) {
       *encptr++ = '\\';
       *encptr++ = *(_escape_codes + (_escaped_chars - escptr));
     } else {

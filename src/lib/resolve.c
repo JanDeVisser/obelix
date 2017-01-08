@@ -231,6 +231,7 @@ resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
   resolve_handle_t *ret = NULL;
   char             *image;
   char             *obldir;
+  char             *workdir;
   resolve_result_t *result;
 
   image = _resolve_handle_get_platform_image(handle);
@@ -242,24 +243,25 @@ resolve_handle_t * _resolve_handle_open(resolve_handle_t *handle) {
   handle -> handle = NULL;
   if (image) {
     obldir = getenv("OBL_DIR");
-    if (obldir) {
-      asprintf(&obldir, "%s/lib", obldir);
-      _resolve_handle_try_open(handle, obldir);
-      if (!handle -> handle) {
-        strcpy(obldir + (strlen(obldir) - 3), "bin");
-        _resolve_handle_try_open(handle, obldir);
-      }
-      if (!handle -> handle) {
-        obldir[strlen(obldir) - 4] = 0;
-        _resolve_handle_try_open(handle, obldir);
-      }
-      if (!handle -> handle) {
-        free(obldir);
-        asprintf(&obldir, "%s/share/lib", getenv("OBL_DIR"));
-        _resolve_handle_try_open(handle, obldir);
-      }
-      free(obldir);
+    if (!obldir) {
+      obldir = OBELIX_DIR;
     }
+    asprintf(&workdir, "%s/lib", obldir);
+    _resolve_handle_try_open(handle, workdir);
+    if (!handle -> handle) {
+      strcpy(workdir + (strlen(workdir) - 3), "bin");
+      _resolve_handle_try_open(handle, workdir);
+    }
+    if (!handle -> handle) {
+      workdir[strlen(workdir) - 4] = 0;
+      _resolve_handle_try_open(handle, workdir);
+    }
+    if (!handle -> handle) {
+      free(workdir);
+      asprintf(&workdir, "%s/share/lib", obldir);
+      _resolve_handle_try_open(handle, workdir);
+    }
+    free(workdir);
     if (!handle -> handle) {
       _resolve_handle_try_open(handle, NULL);
     }

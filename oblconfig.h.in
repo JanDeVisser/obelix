@@ -28,6 +28,7 @@
 #define OBELIX_VERSION_MAJOR                 "@obelix_VERSION_MAJOR@"
 #define OBELIX_VERSION_MINOR                 "@obelix_VERSION_MINOR@"
 #define OBELIX_VERSION                       "@obelix_VERSION_MAJOR@.@obelix_VERSION_MINOR@"
+#define OBELIX_DIR                           "@obelix_DIR@"
 #define OBELIX_DATADIR                       "@obelix_DATADIR@"
 
 #ifndef _GNU_SOURCE

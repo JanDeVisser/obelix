@@ -6,9 +6,3 @@ end
 o = new obj()
 print(o.y)
 return o.x
-/*
---exit-- 42
---stdout--
-foo
---
-*/

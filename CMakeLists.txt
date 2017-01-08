@@ -25,6 +25,7 @@ set(obelix_VERSION_MAJOR 1)
 set(obelix_VERSION_MINOR 0)
 
 set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR})
+set(obelix_DIR ${CMAKE_INSTALL_PREFIX})
 set(obelix_DATADIR ${CMAKE_INSTALL_PREFIX}/share)
 find_package(Threads)
 
@@ -229,3 +230,8 @@ endif(NOT MSVC)
 # if(WIN32)
 #   set(ENV{PATH},$ENV{PATH};${CMAKE_CURRENT_BINARY_DIR}/src/lib;${CMAKE_CURRENT_BINARY_DIR}/src/lexer;${CMAKE_CURRENT_BINARY_DIR}/src/grammar)
 # endif(WIN32)
+
+add_custom_target(install_${PROJECT_NAME}
+  $(MAKE) install
+  DEPENDS ${PROJECT_NAME}
+  COMMENT "Installing ${PROJECT_NAME}")

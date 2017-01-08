@@ -360,7 +360,7 @@ constant                    := '"'               [ push_token                ]
                              | '/'               [ push_token                ]
                              | signed_number
                              | list
-                             | object
+                             | dict
                              | "true"            [ pushconst: "bool:1"       ]
                              | "false"           [ pushconst: "bool:0"       ]
                              | "null"            [ pushconst: "ptr:null"     ]
@@ -426,7 +426,7 @@ where                       := "where"
                                expr              [ where                     ]
                              ;
 
-object                      := '{'               [ setup_function: "object"  ]
+dict                        := '{'               [ setup_function: "dictionary" ]
                                attrlist_or_empty
                                '}'               [ func_call                 ]
                              ;

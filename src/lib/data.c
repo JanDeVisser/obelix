@@ -295,6 +295,7 @@ data_t * data_serialize(data_t *data) {
   void_t        serialize;
   data_t       *serialized;
   dictionary_t *dict;
+  str_t        *typestr;
 
   if (!data) {
     return data_null();
@@ -306,7 +307,10 @@ data_t * data_serialize(data_t *data) {
       serialized = ((data_t * (*)(data_t *)) serialize)(data);
       if (data_is_dictionary(serialized)) {
         dict = data_as_dictionary(serialized);
-        dictionary_set(dict, "__obl_type__", (data_t *) str_wrap(typename(type)));
+        typestr = str_wrap(typename(type));
+        dictionary_set(dict, "__obl_type__",
+            data_uncopy(data_serialize((data_t *) typestr)));
+        str_free(typestr);
       }
     } else {
       serialized = data_copy(data);

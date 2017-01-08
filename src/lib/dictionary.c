@@ -47,6 +47,7 @@ static data_t *           _dictionary_create(data_t *, char *, array_t *, dict_t
 static dictionary_t *     _dictionary_serializer(entry_t *, dictionary_t *);
 static dictionary_t *     _dictionary_set_all_reducer(data_t *, dictionary_t *);
 static dictionary_t *     _dictionary_from_dict_reducer(entry_t *, dictionary_t *);
+static dictionary_t *     _dictionary_set_kwargs_reducer(entry_t *, dictionary_t *);
 
 /* ----------------------------------------------------------------------- */
 
@@ -219,7 +220,7 @@ data_t * _dictionary_deserialize(dictionary_t *dict) {
 
   if ((typename = dictionary_get(dict, "__obl_type__"))) {
     type = typedescr_get_byname(data_tostring(typename));
-    if (type) {
+    if (type && (typetype(type) != Dictionary)) {
       deserialize = typedescr_get_function(type, FunctionDeserialize);
       if (deserialize) {
         ret = ((data_t * (*)(data_t *)) deserialize)((data_t *) dict);
@@ -231,6 +232,7 @@ data_t * _dictionary_deserialize(dictionary_t *dict) {
     }
   }
   if (!ret) {
+    dictionary_remove(dict, "__obl_type__");
     ret = data_copy((data_t *) dict);
   }
   return ret;
@@ -258,11 +260,16 @@ data_t * _dictionary_create(data_t *self, char *name, array_t *args, dict_t *kwa
   (void) name;
   dictionary_init();
   obj = dictionary_create(NULL);
-  dict_reduce(kwargs, (reduce_t) _dictionary_set_all_reducer, obj);
+  dict_reduce(kwargs, (reduce_t) _dictionary_set_kwargs_reducer, obj);
   return (data_t *) obj;
 }
 
 /* ----------------------------------------------------------------------- */
+
+dictionary_t * _dictionary_set_kwargs_reducer(entry_t *e, dictionary_t *dict) {
+  dictionary_set(dict, (char *) e -> key, (data_t *) e -> value);
+  return dict;
+}
 
 dictionary_t * _dictionary_set_all_reducer(data_t *value, dictionary_t *dictionary) {
   nvp_t      *nvp;
