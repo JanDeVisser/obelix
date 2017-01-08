@@ -115,11 +115,11 @@ OBLPARSER_IMPEXP parser_t * parser_pop_bookmark(parser_t *parser) {
 }
 
 OBLPARSER_IMPEXP parser_t * parser_rollup_list(parser_t *parser) {
-  array_t *arr;
-  data_t  *list;
+  array_t    *arr;
+  datalist_t *list;
 
   arr = datastack_rollup(parser -> stack);
-  list = data_create_list(arr);
+  list = datalist_create(arr);
   debug(parser, "    Rolled up list '%s' from bookmark", data_tostring(list));
   datastack_push(parser -> stack, list);
   array_free(arr);
@@ -143,9 +143,11 @@ OBLPARSER_IMPEXP parser_t * parser_rollup_nvp(parser_t *parser) {
 
   value = datastack_pop(parser -> stack);
   name = datastack_pop(parser -> stack);
-  nvp = nvp_create(data_uncopy(name), data_uncopy(value));
+  nvp = nvp_create(data_deserialize(name), data_deserialize(value));
   debug(parser, "    Rolled up nvp '%s'", nvp_tostring(nvp));
   datastack_push(parser -> stack, (data_t *) nvp);
+  data_free(name);
+  data_free(value);
   return parser;
 }
 

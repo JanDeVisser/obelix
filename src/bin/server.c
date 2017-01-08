@@ -124,6 +124,7 @@ oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
   exception_t *ex;
   char        *str;
   oblserver_t *ret;
+  int          len;
 
   debug(obelix, "Returning %s [%s]", data_tostring(result), data_typename(result));
   if (data_is_exception(result)) {
@@ -148,8 +149,11 @@ oblserver_t * _oblserver_return_result(oblserver_t *server, data_t *result) {
 
   if (result) {
     str = data_encode(result);
+    len = strlen(str) + strlen(data_typename(result)) + 3; // 3 = ':' + '\r\n'
     debug(obelix, "Encoding '%s' -> '%s'", data_tostring(result), str);
-    stream_printf(server -> stream, OBLSERVER_DATA " ${0;d}", strlen(str) + 1);
+    stream_printf(server -> stream, OBLSERVER_DATA " ${0;d}", len);
+    stream_write(server -> stream, data_typename(result), strlen(data_typename(result)));
+    stream_write(server -> stream, ":", 1);
     stream_write(server -> stream, str, strlen(str));
     stream_printf(server -> stream, "");
     data_free(result);

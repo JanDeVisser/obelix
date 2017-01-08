@@ -37,7 +37,7 @@ extern int          _data_count;
        int          type_debug = 1;
 
 extern void           any_init(void);
-static data_t *       _add_method_reducer(methoddescr_t *, data_t *);
+static datalist_t *   _add_method_reducer(methoddescr_t *, datalist_t *);
 
 static char *         _methoddescr_tostring(methoddescr_t *);
 static int            _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
@@ -184,8 +184,8 @@ kind_t * kind_get_byname(char *name) {
 
 /* -- G E N E R A L  S T A T I C  F U N C T I O N S ----------------------- */
 
-data_t * _add_method_reducer(methoddescr_t *mth, data_t *methods) {
-  data_list_push(methods, (data_t *) mth);
+datalist_t * _add_method_reducer(methoddescr_t *mth, datalist_t *methods) {
+  datalist_push(methods, (data_t *) mth);
   return methods;
 }
 
@@ -201,20 +201,20 @@ int _methoddescr_cmp(methoddescr_t *mth1, methoddescr_t *mth2) {
 }
 
 data_t * _methoddescr_resolve(methoddescr_t *mth, char *name) {
-  data_t *ret;
-  int     ix;
+  datalist_t *ret;
+  int         ix;
 
   if (!strcmp(name, "name")) {
     return str_to_data(mth -> name);
   } else if (!strcmp(name, "args")) {
-    ret = data_create_list(NULL);
+    ret = datalist_create(NULL);
     for (ix = 0; ix < MAX_METHOD_PARAMS; ix++) {
       if (!mth -> argtypes[ix]) {
         break;
       }
-      data_list_push(ret, (data_t *) kind_get(mth -> argtypes[ix]));
+      datalist_push(ret, (data_t *) kind_get(mth -> argtypes[ix]));
     }
-    return ret;
+    return (data_t *) ret;
   } else if (!strcmp(name, "minargs")) {
     return int_to_data(mth -> minargs);
   } else if (!strcmp(name, "varargs")) {
@@ -231,8 +231,12 @@ unsigned int _methoddescr_hash(methoddescr_t *mth) {
 /* -- G E N E R I C  T Y P E  D E S C R I P T O R ------------------------- */
 
 kind_t * _kind_init(kind_t * descr, int kind, int type, char *name) {
+#ifndef NDEBUG
+  descr -> _d.cookie = MAGIC_COOKIE;
+#endif /* NDEBUG */
   descr -> _d.type = kind;
   descr -> _d.free_me = Constant;
+  descr -> _d.free_str = Constant;
   descr -> _d.refs = 1;
   descr -> _d.str = NULL;
   descr -> type = type;
@@ -271,16 +275,16 @@ unsigned int _kind_hash(kind_t *kind) {
 }
 
 data_t * _kind_resolve(kind_t *kind, char *name) {
-  data_t      *ret;
+  datalist_t *list;
 
   if (!strcmp(name, "name")) {
     return str_to_data(kind -> name);
   } else if (!strcmp(name, "id")) {
     return int_to_data(kind -> type);
   } else if (!strcmp(name, "methods")) {
-    ret = data_create_list(NULL);
-    dict_reduce_values(kind -> methods, (reduce_t) _add_method_reducer, ret);
-    return ret;
+    list = datalist_create(NULL);
+    dict_reduce_values(kind -> methods, (reduce_t) _add_method_reducer, list);
+    return (data_t *) list;
   } else {
     return NULL;
   }
@@ -380,19 +384,19 @@ interface_t * interface_get_byname(char *name) {
 }
 
 data_t * _interface_resolve(interface_t *iface, char *name) {
-  data_t      *ret;
+  datalist_t  *list;
   int          ix;
   typedescr_t *type;
 
   if (!strcmp(name, "implementations")) {
-    ret = data_create_list(NULL);
+    list = datalist_create(NULL);
     for (ix = 0; ix < _numtypes; ix++) {
       type = _descriptors[ix];
       if (type && typedescr_implements(type, iface -> _d.type)) {
-        data_list_push(ret, (data_t *) type);
+        datalist_push(list, (data_t *) type);
       }
     }
-    return ret;
+    return (data_t *) list;
   } else {
     return NULL;
   }
@@ -487,33 +491,33 @@ int vtable_implements(vtable_t *vtable, int type) {
 /* -- T Y P E D E S C R  S T A T I C  F U N C T I O N S ------------------- */
 
 data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
-  data_t      *ret;
+  datalist_t  *list;
   int          ix;
   interface_t *iface;
 
   if (!strcmp(name, "inherits")) {
-    ret = data_create_list(NULL);
+    list = datalist_create(NULL);
     for (ix = 0; descr -> inherits[ix]; ix++) {
-      data_list_push(ret, (data_t *) typedescr_get(descr -> inherits[ix]));
+      datalist_push(list, (data_t *) typedescr_get(descr -> inherits[ix]));
     }
-    return ret;
+    return (data_t *) list;
   } else if (!strcmp(name, "ancestors")) {
-    ret = data_create_list(NULL);
+    list = datalist_create(NULL);
     for (ix = 0; descr -> ancestors[ix]; ix++) {
-      data_list_push(ret, (data_t *) typedescr_get(descr -> ancestors[ix]));
+      datalist_push(list, (data_t *) typedescr_get(descr -> ancestors[ix]));
     }
-    return ret;
+    return (data_t *) list;
   } else if (!strcmp(name, "implements")) {
     _typedescr_get_all_interfaces(descr);
-    ret = data_create_list(NULL);
+    list = datalist_create(NULL);
     for (ix = 0; ix < descr -> implements_sz; ix++) {
       iface = (descr -> implements[ix])
         ? _interfaces[descr -> implements[ix]] : NULL;
       if (iface) {
-        data_list_push(ret, (data_t *) iface);
+        datalist_push(list, (data_t *) iface);
       }
     }
-    return ret;
+    return (data_t *) list;
   } else {
     return NULL;
   }

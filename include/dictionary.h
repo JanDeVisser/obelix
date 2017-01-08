@@ -29,8 +29,8 @@ extern "C" {
 #endif
 
 typedef struct _dictionary {
-  data_t   _d;
-  dict_t  *attributes;
+  data_t  _d;
+  dict_t *attributes;
 } dictionary_t;
 
 OBLCORE_IMPEXP void            dictionary_init(void);
@@ -39,21 +39,24 @@ OBLCORE_IMPEXP dictionary_t *  dictionary_create_from_dict(dict_t *);
 
 OBLCORE_IMPEXP data_t *        dictionary_get(dictionary_t *, char *);
 OBLCORE_IMPEXP data_t *        dictionary_pop(dictionary_t *, char *);
-OBLCORE_IMPEXP data_t *        dictionary_set(dictionary_t *, char *, data_t *);
+OBLCORE_IMPEXP data_t *        _dictionary_set(dictionary_t *, char *, data_t *);
 OBLCORE_IMPEXP int             dictionary_has(dictionary_t *, char *);
 OBLCORE_IMPEXP int             dictionary_size(dictionary_t *);
-OBLCORE_IMPEXP data_t *        dictionary_deserialize(dictionary_t *);
 
-OBLCORE_IMPEXP int             Dictionary;
+type_skel(dictionary, Dictionary, dictionary_t);
 
-#define data_is_dictionary(d)   ((d) && (data_hastype((data_t *) (d), Dictionary)))
-#define data_as_dictionary(d)   ((dictionary_t *) (data_is_dictionary((data_t *) (d)) ? (d) : NULL))
-#define dictionary_free(s)      (data_free((data_t *) (s)))
-#define dictionary_tostring(s)  (data_tostring((data_t *) (s)))
-#define dictionary_debugstr(s)  (data_tostring((data_t *) (s)))
-#define dictionary_copy(s)      ((dictionary_t *) data_copy((data_t *) (s)))
-#define dictionary_clear(d)     (dict_clear((d) -> attributes))
-#define dictionary_remove(d, k) ((void) (dictionary_pop((d), (k))))
+static inline void * dictionary_set(dictionary_t *dict, char *key, void *value) {
+  return _dictionary_set(dict, key, data_as_data(value));
+}
+
+static inline void dictionary_remove(dictionary_t *dict, char *key) {
+  (void) dictionary_pop(dict, key);
+}
+
+static dictionary_t * dictionary_clear(dictionary_t *dict) {
+  dict_clear(dict -> attributes);
+  return dict;
+}
 
 #ifdef __cplusplus
 }

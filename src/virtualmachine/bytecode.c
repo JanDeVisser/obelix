@@ -116,6 +116,8 @@ bytecode_t * bytecode_push_instruction(bytecode_t *bytecode, data_t *instruction
   data_t        *last;
   instruction_t *instr = data_as_instruction(instruction);
 
+  assert(bytecode);
+  assert(instr);
   if (bytecode_debug) {
     warn("Instruction '%s'", data_tostring(instruction));
   }

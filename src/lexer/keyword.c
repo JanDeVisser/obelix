@@ -137,17 +137,17 @@ kw_config_t * _kw_config_set(kw_config_t *config, char *name, data_t *value) {
 }
 
 data_t * _kw_config_resolve(kw_config_t *config, char *name) {
-  int     ix;
-  data_t *keywords;
+  int         ix;
+  datalist_t *keywords;
 
   if (!strcmp(name, PARAM_NUM_KEYWORDS)) {
     return int_to_data(config -> num_keywords);
   } else if (!strcmp(name, PARAM_KEYWORDS)) {
-    keywords = data_create_list(NULL);
+    keywords = datalist_create(NULL);
     for (ix = 0; ix < config -> num_keywords; ix++) {
-      data_list_push(keywords, (data_t *) token_copy(config -> keywords[ix]));
+      datalist_push(keywords, token_copy(config -> keywords[ix]));
     }
-    return keywords;
+    return (data_t *) keywords;
   } else {
     for (ix = 0; ix < config -> num_keywords; ix++) {
       if (!strcmp(token_token(config -> keywords[ix]), name)) {

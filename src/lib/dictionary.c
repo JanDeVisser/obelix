@@ -33,30 +33,36 @@ typedef struct _dictionaryiter {
 } dictionaryiter_t;
 
 static dictionary_t *     _dictionary_new(dictionary_t *, va_list);
-extern void               _dictionary_free(dictionary_t *);
-extern char *             _dictionary_tostring(dictionary_t *);
+static void               _dictionary_free(dictionary_t *);
+static char *             _dictionary_tostring(dictionary_t *);
 static data_t *           _dictionary_cast(dictionary_t *, int);
 static data_t *           _dictionary_resolve(dictionary_t *, char *);
 static dictionaryiter_t * _dictionary_iter(dictionary_t *);
 static char *             _dictionary_encode(dictionary_t *);
+static dictionary_t *     _dictionary_serialize(dictionary_t *);
+static data_t *           _dictionary_deserialize(dictionary_t *);
 
 static data_t *           _dictionary_create(data_t *, char *, array_t *, dict_t *);
+
+static dictionary_t *     _dictionary_serializer(entry_t *, dictionary_t *);
 static dictionary_t *     _dictionary_set_all_reducer(data_t *, dictionary_t *);
 static dictionary_t *     _dictionary_from_dict_reducer(entry_t *, dictionary_t *);
 
 /* ----------------------------------------------------------------------- */
 
 static vtable_t _vtable_Dictionary[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _dictionary_new },
-  { .id = FunctionCast,     .fnc = (void_t) _dictionary_cast },
-  { .id = FunctionFree,     .fnc = (void_t) _dictionary_free },
-  { .id = FunctionToString, .fnc = (void_t) _dictionary_tostring },
-  { .id = FunctionResolve,  .fnc = (void_t) _dictionary_resolve },
-  { .id = FunctionSet,      .fnc = (void_t) dictionary_set },
-  { .id = FunctionLen,      .fnc = (void_t) dictionary_size },
-  { .id = FunctionIter,     .fnc = (void_t) _dictionary_iter },
-  { .id = FunctionEncode,   .fnc = (void_t) _dictionary_encode },
-  { .id = FunctionNone,     .fnc = NULL }
+  { .id = FunctionNew,         .fnc = (void_t) _dictionary_new },
+  { .id = FunctionCast,        .fnc = (void_t) _dictionary_cast },
+  { .id = FunctionFree,        .fnc = (void_t) _dictionary_free },
+  { .id = FunctionToString,    .fnc = (void_t) _dictionary_tostring },
+  { .id = FunctionResolve,     .fnc = (void_t) _dictionary_resolve },
+  { .id = FunctionSet,         .fnc = (void_t) dictionary_set },
+  { .id = FunctionLen,         .fnc = (void_t) dictionary_size },
+  { .id = FunctionIter,        .fnc = (void_t) _dictionary_iter },
+  { .id = FunctionEncode,      .fnc = (void_t) _dictionary_encode },
+  { .id = FunctionSerialize,   .fnc = (void_t) _dictionary_serialize },
+  { .id = FunctionDeserialize, .fnc = (void_t) _dictionary_deserialize },
+  { .id = FunctionNone,        .fnc = NULL }
 };
 
 static methoddescr_t _methods_Dictionary[] = {
@@ -140,7 +146,7 @@ list_t * _dictionary_serialize_and_encode_entry(entry_t *e, list_t *encoded) {
 
   bufsz = (intptr_t) ((pointer_t *) list_head(encoded)) -> ptr;
   key = (data_t *) str_wrap((char *) e -> key);
-  value = data_serialize((data_t *) e -> value);
+  value = data_copy((data_t *) e -> value);
   nvp = nvp_create(
       data_serialize(key),
       (data_t *) str_adopt(data_encode(value)));
@@ -204,6 +210,45 @@ char * _dictionary_encode(dictionary_t *dict) {
   return ret;
 }
 
+data_t * _dictionary_deserialize(dictionary_t *dict) {
+  data_t      *typename;
+  typedescr_t *type;
+  data_t      *ret = NULL;
+  data_t      *value;
+  void_t       deserialize;
+
+  if ((typename = dictionary_get(dict, "__obl_type__"))) {
+    type = typedescr_get_byname(data_tostring(typename));
+    if (type) {
+      deserialize = typedescr_get_function(type, FunctionDeserialize);
+      if (deserialize) {
+        ret = ((data_t * (*)(data_t *)) deserialize)((data_t *) dict);
+      } else if (dictionary_has(dict, "value")) {
+        value = dictionary_get(dict, "value");
+        ret = data_parse(typetype(type), data_tostring(value));
+        data_free(value);
+      }
+    }
+  }
+  if (!ret) {
+    ret = data_copy((data_t *) dict);
+  }
+  return ret;
+}
+
+
+dictionary_t * _dictionary_serializer(entry_t *entry, dictionary_t *dictionary) {
+  dictionary_set(dictionary,
+      (char *) entry -> key, data_serialize(data_as_data(entry -> value)));
+  return dictionary;
+}
+
+dictionary_t * _dictionary_serialize(dictionary_t *dictionary) {
+  return dict_reduce(
+      dictionary -> attributes, (reduce_t) _dictionary_serializer,
+      dictionary_create(NULL));
+}
+
 /* ----------------------------------------------------------------------- */
 
 data_t * _dictionary_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
@@ -220,23 +265,23 @@ data_t * _dictionary_create(data_t *self, char *name, array_t *args, dict_t *kwa
 /* ----------------------------------------------------------------------- */
 
 dictionary_t * _dictionary_set_all_reducer(data_t *value, dictionary_t *dictionary) {
-  nvp_t  *nvp;
-  data_t *argv;
+  nvp_t      *nvp;
+  datalist_t *argv;
 
   if (data_is_nvp(value)) {
     nvp = (nvp_t *) value;
     dictionary_set(dictionary,
       data_tostring(nvp -> name), data_copy(nvp -> value));
   } else {
-    argv = dictionary_get(dictionary, "$");
+    argv = data_as_list(dictionary_get(dictionary, "$"));
     if (!argv) {
-      argv = data_create_list(NULL);
-      dictionary_set(dictionary, "$", argv);
+      argv = datalist_create(NULL);
+      dictionary_set(dictionary, "$", (data_t *) argv);
     } else {
       assert(data_is_list(argv));
     }
-    data_list_push(argv, data_copy(value));
-    data_free(argv);
+    datalist_push(argv, data_copy(value));
+    datalist_free(argv);
   }
   return dictionary;
 }
@@ -257,8 +302,14 @@ dictionary_t * dictionary_create(data_t *template) {
 }
 
 dictionary_t * dictionary_create_from_dict(dict_t *dict) {
-  return dict_reduce_chars(
-    dict, (reduce_t) _dictionary_from_dict_reducer, dictionary_create(NULL));
+  dictionary_t *ret;
+
+  ret = dictionary_create(NULL);
+  if (ret) {
+    dict_reduce_chars(
+      dict, (reduce_t) _dictionary_from_dict_reducer, ret);
+  }
+  return ret;
 }
 
 data_t * dictionary_get(dictionary_t *dictionary, char *name) {
@@ -269,7 +320,7 @@ data_t * dictionary_pop(dictionary_t *dictionary, char *name) {
   return (data_t *) dict_pop(dictionary -> attributes, name);
 }
 
-data_t * dictionary_set(dictionary_t *dictionary, char *name, data_t *value) {
+data_t * _dictionary_set(dictionary_t *dictionary, char *name, data_t *value) {
   dict_put(dictionary -> attributes, strdup(name), data_copy(value));
   return value;
 }
@@ -282,23 +333,6 @@ int dictionary_has(dictionary_t *dictionary, char *name) {
 
 int dictionary_size(dictionary_t *obj) {
   return dict_size(obj -> attributes);
-}
-
-data_t * dictionary_deserialize(dictionary_t *dict) {
-  data_t      *typename;
-  typedescr_t *type;
-  data_t      *ret = NULL;
-
-  if ((typename = dictionary_get(dict, "__obl_type__"))) {
-    type = typedescr_get_byname(data_tostring(typename));
-    if (type) {
-      ret = data_deserialize(typetype(type), (data_t *) dict);
-    }
-  }
-  if (!ret) {
-    ret = data_copy((data_t *) dict);
-  }
-  return ret;
 }
 
 /* ----------------------------------------------------------------------- */

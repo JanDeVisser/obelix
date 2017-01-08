@@ -43,7 +43,6 @@ int GrammarElement = -1;
 
 extern void grammar_element_register(void) {
   typedescr_register(GrammarElement, ge_t);
-  typedescr_set_size(GrammarElement, ge_t);
 }
 
 /* -- G R A M M A R _ E L E M E N T --------------------------------------- */
@@ -71,16 +70,17 @@ ge_t * _ge_set(ge_t *ge, char *name, data_t *value) {
   function_t         *fnc;
   data_t             *data;
 
-  debug(grammar, "  Setting '%s' on grammar element '%s'", name, ge_tostring(ge));
+  debug(grammar, "  Setting '%s'.'%s' = '%s'",
+      ge_tostring(ge), name,  data_tostring(value));
 
   if (data_type(value) == Token) {
     data = token_todata((token_t *) value);
   } else {
     data = value;
   }
-  if ((*name == '_') || (data_type(data) == GrammarVariable)) {
+  if ((name[0] == '_') || data_hastype(data, GrammarVariable)) {
     gv = (data_type(data) == GrammarVariable)
-            ? (grammar_variable_t *) ge
+            ? (grammar_variable_t *) data
             : grammar_variable_create(ge, name, data);
     dict_put(ge -> variables, strdup(name), gv);
     if ((data_t *) gv != data) {
@@ -191,6 +191,8 @@ ge_t * _ge_dump_common(ge_dump_ctx_t *ctx) {
 ge_t * ge_add_action(ge_t *ge, grammar_action_t *action) {
   assert(ge);
   assert(action);
+  debug(grammar, "Adding action '%s' to element '%s'",
+      data_tostring((data_t *) action), data_tostring((data_t *) ge))
   list_append(ge -> actions, grammar_action_copy(action));
   return ge;
 }

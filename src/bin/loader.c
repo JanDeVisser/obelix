@@ -136,7 +136,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
     scriptloader_set_option(loader, ix, 0L);
   }
 
-  loader -> load_path = data_create(List, 1, str_to_data(loader -> system_dir));
+  loader -> load_path = (datalist_t *) data_create(List, 1, str_to_data(loader -> system_dir));
   loader -> ns = ns_create("loader", loader, (import_t) scriptloader_load);
   root = ns_import(loader -> ns, NULL);
   if (!data_is_module(root)) {
@@ -152,7 +152,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
       loader -> ns = NULL;
     } else {
       _scriptloader_set_loadpath(loader, user_path);
-      _scriptloader_set_value(loader, sys, "path", loader -> load_path);
+      _scriptloader_set_value(loader, sys, "path", (data_t *) loader -> load_path);
     }
     data_free(sys);
   }
@@ -172,7 +172,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
 void _scriptloader_free(scriptloader_t *loader) {
   if (loader) {
     free(loader -> system_dir);
-    data_free(loader -> load_path);
+    datalist_free(loader -> load_path);
     array_free(loader -> options);
     free(loader -> cookie);
     grammar_free(loader -> grammar);
@@ -301,8 +301,8 @@ data_t * _scriptloader_open_reader(scriptloader_t *loader, module_t *mod) {
   assert(loader);
   assert(name);
   debug(obelix, "_scriptloader_open_reader('%s')", name_tostring(name));
-  for (ix = 0; !text && (ix < data_list_size(loader -> load_path)); ix++) {
-    path_entry = data_list_get(loader -> load_path, ix);
+  for (ix = 0; !text && (ix < datalist_size(loader -> load_path)); ix++) {
+    path_entry = datalist_get(loader -> load_path, ix);
     text = _scriptloader_open_file(loader, data_tostring(path_entry), mod);
   }
   return (data_t *) text;
@@ -421,7 +421,7 @@ scriptloader_t * scriptloader_add_loadpath(scriptloader_t *loader, char *pathent
   if (*(sanitized_entry + (strlen(sanitized_entry) - 1)) != '/') {
     strcat(sanitized_entry, "/");
   }
-  data_list_push(loader -> load_path, str_to_data(sanitized_entry));
+  datalist_push(loader -> load_path, str_to_data(sanitized_entry));
   free(sanitized_entry);
   return loader;
 }
@@ -448,7 +448,7 @@ data_t * scriptloader_load_fromreader(scriptloader_t *loader, module_t *mod, dat
     parser_set(parser, "module", (data_t *) mod_copy(mod));
     name = (name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__";
     parser_set(parser, "name", str_to_data(name));
-    parser_set(parser, "options", data_create_list(loader -> options));
+    parser_set(parser, "options", (data_t *) datalist_create(loader -> options));
     parser_start(parser);
     mod -> parser = (data_t *) parser;
   }
@@ -477,7 +477,7 @@ data_t * scriptloader_import(scriptloader_t *loader, name_t *name) {
 
 data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
   data_t   *rdr;
-  data_t   *ret;
+  data_t   *ret = (data_t *) mod;
   char     *script_name;
   name_t   *name = mod -> name;
   parser_t *parser;
@@ -519,7 +519,7 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
   debug(obelix, "scriptloader_run(%s)", name_tostring(name));
   sys = _scriptloader_get_object(loader, 1, "sys");
   if (sys && !data_is_exception(sys)) {
-    _scriptloader_set_value(loader, sys, "argv", data_create_list(args));
+    _scriptloader_set_value(loader, sys, "argv", (data_t *) datalist_create(args));
     if (scriptloader_get_option(loader, ObelixOptionTrace)) {
       logging_enable("trace");
     }

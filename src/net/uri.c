@@ -263,7 +263,8 @@ OBLNET_IMPEXP parser_t * uri_parse_set_path(parser_t *parser) {
 
 OBLNET_IMPEXP parser_t * uri_parse_set_query(parser_t *parser) {
   uri_t   *uri = (uri_t *) parser -> data;
-  array_t *query = data_as_array(datastack_pop(parser -> stack));
+  data_t  *data;
+  array_t *query = data_as_array(data = datastack_pop(parser -> stack));
   int      ix;
   nvp_t   *param;
   char    *n;
@@ -277,6 +278,7 @@ OBLNET_IMPEXP parser_t * uri_parse_set_query(parser_t *parser) {
     param -> value -> str = NULL;
     dict_put(uri -> query, n, v);
   }
+  data_free(data);
   debug(net, "query:\n%s", dict_tostring(uri -> query));
   return parser;
 }

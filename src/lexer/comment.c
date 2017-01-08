@@ -266,15 +266,15 @@ comment_config_t *_comment_config_add_marker(comment_config_t *config,
 }
 
 data_t * _comment_config_resolve(comment_config_t *config, char *name) {
-  array_t          *markers;
+  datalist_t       *markers;
   comment_marker_t *marker;
 
   if (!strcmp(name, PARAM_MARKER)) {
-    markers = str_array_create(config -> num_markers);
+    markers = datalist_create(NULL);
     for (marker = config -> markers; marker; marker = marker -> next) {
-      array_push(markers, str_copy_chars(_comment_marker_tostring(marker)));
+      datalist_push(markers, (data_t *) str_copy_chars(_comment_marker_tostring(marker)));
     }
-    return data_create_list(markers);
+    return (data_t *) markers;
   } else {
     return NULL;
   }

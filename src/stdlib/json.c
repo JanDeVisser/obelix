@@ -107,25 +107,24 @@ __DLL_EXPORT__ data_t * _function_decode(char *func_name, array_t *params, dict_
 /* ------------------------------------------------------------------------ */
 
 __DLL_EXPORT__ parser_t * json_parse_get_value(parser_t *parser) {
-  parser -> data = datastack_pop(parser -> stack);
+  data_t *obj = datastack_pop(parser -> stack);
+
+  parser -> data = data_deserialize(obj);
+  data_free(obj);
   return parser;
 }
 
 __DLL_EXPORT__ parser_t * json_parse_to_dictionary(parser_t *parser) {
-  data_t       *data = datastack_pop(parser -> stack);
-  array_t      *nvps = data_as_array(data);
+  datalist_t   *list = (datalist_t *) datastack_pop(parser -> stack);
   int           ix;
   nvp_t        *nvp;
   dictionary_t *dict = dictionary_create(NULL);
-  data_t       *obj = data_copy((data_t *) dict);
 
-  for (ix = 0; ix < array_size(nvps); ix++) {
-    nvp = (nvp_t *) array_get(nvps, ix);
+  for (ix = 0; ix < datalist_size(list); ix++) {
+    nvp = (nvp_t *) datalist_get(list, ix);
     dictionary_set(dict, data_tostring(nvp -> name), nvp -> value);
   }
-  data_free(data);
-  obj = dictionary_deserialize(dict);
-  datastack_push(parser -> stack, obj);
-  dictionary_free(dict);
+  datalist_free(list);
+  datastack_push(parser -> stack, dict);
   return parser;
 }

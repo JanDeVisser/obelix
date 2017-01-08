@@ -457,7 +457,7 @@ data_t * data_thread_stacktrace(data_t *thread) {
   }
   thr = data_as_thread(data);
   stack = (datastack_t *) thr -> stack;
-  ret =  data_create_list(stack -> list);
+  ret = (data_t *) datalist_create(stack -> list);
   data_free(data);
   return ret;
 }

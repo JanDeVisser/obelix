@@ -25,54 +25,59 @@
 #include "libcore.h"
 #include <core.h>
 #include <data.h>
+#include <dictionary.h>
 #include <exception.h>
-
-extern void          list_init(void);
-
-static data_t *      _list_new(int, va_list);
-static void          _list_free(pointer_t *p);
-static data_t *      _list_copy(data_t *, data_t *);
-static int           _list_cmp(data_t *, data_t *);
-static char *        _list_tostring(data_t *);
-static data_t *      _list_cast(data_t *, int);
-static unsigned int  _list_hash(data_t *);
-static int           _list_len(data_t *);
-static data_t *      _list_resolve(data_t *, char *);
-static data_t *      _list_iter(data_t *);
-static char *        _list_encode(pointer_t *);
-
-static data_t *      _list_create(data_t *, char *, array_t *, dict_t *);
-//static data_t *      _list_range(data_t *, char *, array_t *, dict_t *);
-static data_t *      _list_at(data_t *, char *, array_t *, dict_t *);
-static data_t *      _list_slice(data_t *, char *, array_t *, dict_t *);
-
-static vtable_t _vtable_List[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _list_new },
-  { .id = FunctionCopy,     .fnc = (void_t) _list_copy },
-  { .id = FunctionCmp,      .fnc = (void_t) _list_cmp },
-  { .id = FunctionFree,     .fnc = (void_t) _list_free },
-  { .id = FunctionToString, .fnc = (void_t) _list_tostring },
-  { .id = FunctionCast,     .fnc = (void_t) _list_cast },
-  { .id = FunctionHash,     .fnc = (void_t) _list_hash },
-  { .id = FunctionLen,      .fnc = (void_t) _list_len },
-  { .id = FunctionResolve,  .fnc = (void_t) _list_resolve },
-  { .id = FunctionIter,     .fnc = (void_t) _list_iter },
-  { .id = FunctionEncode,   .fnc = (void_t) _list_encode },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-/* FIXME Add append, delete, head, tail, etc... */
-static methoddescr_t _methods_List[] = {
-  { .type = Any,    .name = "list",  .method = _list_create,.argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
-  { .type = List,   .name = "at",    .method = _list_at,    .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = List,   .name = "slice", .method = _list_slice, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = NoType, .name = NULL,    .method = NULL,        .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-};
 
 typedef struct _datalist_iter {
   array_t *array;
   int      ix;
 } datalist_iter_t;
+
+extern void              list_init(void);
+
+static datalist_t *      _list_new(int, va_list);
+static void              _list_free(datalist_t *);
+static datalist_t *      _list_copy(datalist_t *, datalist_t *);
+static int               _list_cmp(datalist_t *, datalist_t *);
+static char *            _list_tostring(datalist_t *);
+static data_t *          _list_cast(datalist_t *, int);
+static unsigned int      _list_hash(datalist_t *);
+static int               _list_len(datalist_t *);
+static data_t *          _list_resolve(datalist_t *, char *);
+static datalist_iter_t * _list_iter(datalist_t *);
+static char *            _list_encode(pointer_t *);
+static datalist_t *      _list_serialize(datalist_t *);
+static datalist_t *      _list_deserialize(datalist_t *);
+
+static datalist_t *      _list_create(data_t *, char *, array_t *, dict_t *);
+//static data_t *          _list_range(datalist_t *, char *, array_t *, dict_t *);
+static data_t *          _list_at(datalist_t *, char *, array_t *, dict_t *);
+static datalist_t *      _list_slice(datalist_t *, char *, array_t *, dict_t *);
+
+static vtable_t _vtable_List[] = {
+  { .id = FunctionFactory,     .fnc = (void_t) _list_new },
+  { .id = FunctionCopy,        .fnc = (void_t) _list_copy },
+  { .id = FunctionCmp,         .fnc = (void_t) _list_cmp },
+  { .id = FunctionFree,        .fnc = (void_t) _list_free },
+  { .id = FunctionToString,    .fnc = (void_t) _list_tostring },
+  { .id = FunctionCast,        .fnc = (void_t) _list_cast },
+  { .id = FunctionHash,        .fnc = (void_t) _list_hash },
+  { .id = FunctionLen,         .fnc = (void_t) _list_len },
+  { .id = FunctionResolve,     .fnc = (void_t) _list_resolve },
+  { .id = FunctionIter,        .fnc = (void_t) _list_iter },
+  { .id = FunctionEncode,      .fnc = (void_t) _list_encode },
+  { .id = FunctionSerialize,   .fnc = (void_t) _list_serialize },
+  { .id = FunctionDeserialize, .fnc = (void_t) _list_deserialize },
+  { .id = FunctionNone,        .fnc = NULL }
+};
+
+/* FIXME Add append, delete, head, tail, etc... */
+static methoddescr_t _methods_List[] = {
+  { .type = Any,    .name = "list",  .method = (method_t) _list_create,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
+  { .type = List,   .name = "at",    .method = (method_t) _list_at,      .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+  { .type = List,   .name = "slice", .method = (method_t) _list_slice,   .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 1 },
+  { .type = NoType, .name = NULL,    .method = NULL,                     .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+};
 
 static datalist_iter_t * _datalist_iter_new(datalist_iter_t *, va_list);
 static void              _datalist_iter_free(datalist_iter_t *);
@@ -100,7 +105,7 @@ void list_init(void) {
   typedescr_register(ListIterator, datalist_iter_t);
 }
 
-data_t * _list_new(int type, va_list arg) {
+datalist_t * _list_new(int type, va_list arg) {
   pointer_t *p;
   array_t   *array;
   int        count;
@@ -115,7 +120,7 @@ data_t * _list_new(int type, va_list arg) {
   }
   p = data_new(List, pointer_t);
   p -> ptr = array;
-  return (data_t *) p;
+  return (datalist_t *) p;
 }
 
 void _list_free(pointer_t *p) {
@@ -124,7 +129,7 @@ void _list_free(pointer_t *p) {
   }
 }
 
-data_t * _list_cast(data_t *src, int totype) {
+data_t * _list_cast(datalist_t *src, int totype) {
   array_t *array = data_as_array(src);
   data_t  *ret = NULL;
 
@@ -134,7 +139,7 @@ data_t * _list_cast(data_t *src, int totype) {
   return ret;
 }
 
-int _list_cmp(data_t *d1, data_t *d2) {
+int _list_cmp(datalist_t *d1, datalist_t *d2) {
   array_t *a2 = data_as_array(d1);
   array_t *a1 = data_as_array(d2);
   data_t  *e1;
@@ -153,7 +158,7 @@ int _list_cmp(data_t *d1, data_t *d2) {
   return cmp;
 }
 
-data_t * _list_copy(data_t *dest, data_t *src) {
+datalist_t * _list_copy(datalist_t *dest, datalist_t *src) {
   array_t *dest_arr = data_as_array(dest);
   array_t *src_arr = data_as_array(src);
   data_t  *data;
@@ -166,36 +171,35 @@ data_t * _list_copy(data_t *dest, data_t *src) {
   return dest;
 }
 
-char * _list_tostring(data_t *data) {
+char * _list_tostring(datalist_t *data) {
   return array_tostring(data_as_array(data));
 }
 
-unsigned int _list_hash(data_t *data) {
+unsigned int _list_hash(datalist_t *data) {
   return array_hash(data_as_array(data));
 }
 
-int _list_len(data_t *self) {
+int _list_len(datalist_t *self) {
   return array_size(data_as_array(self));
 }
 
-data_t * _list_resolve(data_t *self, char *name) {
+data_t * _list_resolve(datalist_t *self, char *name) {
   long     ix;
 
   if (!strtoint(name, &ix)) {
-    return data_list_get(self, ix);
+    return datalist_get(self, ix);
   } else {
     return NULL;
   }
 }
 
-data_t * _list_iter(data_t *data) {
-  return data_create(ListIterator, data_as_array(data));
+datalist_iter_t * _list_iter(datalist_t *data) {
+  return (datalist_iter_t *) data_create(ListIterator, data_as_array(data));
 }
 
 char * _list_encode(pointer_t *data) {
   array_t *array = data_as_array(data);
   list_t  *encoded = str_list_create();
-  data_t  *serialized;
   int      ix;
   int      bufsz = 4; /* for '[ ' and ' ]' */
   char    *entry;
@@ -203,13 +207,11 @@ char * _list_encode(pointer_t *data) {
   char    *ptr;
 
   for (ix = 0; ix < array_size(array); ix++) {
-    serialized = data_serialize(data_array_get(array, ix));
-    list_push(encoded, (entry = data_encode(serialized)));
+    list_push(encoded, (entry = data_encode(data_array_get(array, ix))));
     bufsz += strlen(entry);
     if (ix > 0) {
       bufsz += 2; /* for ', ' */
     }
-    data_free(serialized);
   }
   ret = ptr = stralloc(bufsz);
   strcpy(ptr, "[ ");
@@ -230,27 +232,51 @@ char * _list_encode(pointer_t *data) {
   return ret;
 }
 
-/* ----------------------------------------------------------------------- */
+datalist_t * _list_serialize(datalist_t *list) {
+  datalist_t *ret = datalist_create(NULL);
 
-data_t * data_create_list(array_t *array) {
-  data_t  *ret;
-
-  ret = data_create(List, 0);
-  if (array) {
-    array_reduce(array, (reduce_t) data_add_all_reducer, data_as_array(ret));
+  for (int ix = 0; ix < datalist_size(list); ix++) {
+    datalist_push(ret, data_serialize(datalist_get(list, ix)));
   }
   return ret;
 }
 
-array_t * data_list_copy(data_t *list) {
+datalist_t * _list_deserialize(datalist_t *list) {
+  datalist_t   *ret = datalist_create(NULL);
+  data_t       *elem;
+  dictionary_t *dict;
+  datalist_t   *l;
+
+  for (int ix = 0; ix < datalist_size(list); ix++) {
+    elem = datalist_get(list, ix);
+    datalist_push(ret, data_deserialize(elem));
+    data_free(elem);
+  }
+  return ret;
+}
+
+/* ----------------------------------------------------------------------- */
+
+datalist_t * datalist_create(array_t *array) {
+  datalist_t  *ret;
+
+  ret = (datalist_t *) data_create(List, 0);
+  if (array) {
+    array_reduce(array, (reduce_t) data_add_all_reducer, data_as_array(ret));
+  }
+  return (datalist_t *) ret;
+}
+
+array_t * datalist_to_array(datalist_t *list) {
+  array_t *src = data_as_array(list);
   array_t *dest;
 
-  dest = data_array_create(array_size(data_as_array(list)));
-  array_reduce(data_as_array(list), (reduce_t) data_add_all_reducer, dest);
+  dest = data_array_create(array_size(src));
+  array_reduce(src, (reduce_t) data_add_all_reducer, dest);
   return dest;
 }
 
-array_t * data_list_to_str_array(data_t *list) {
+array_t * datalist_to_str_array(datalist_t *list) {
   array_t *dest;
 
   dest = str_array_create(array_size(data_as_array(list)));
@@ -258,21 +284,21 @@ array_t * data_list_to_str_array(data_t *list) {
   return dest;
 }
 
-data_t * data_str_array_to_list(array_t *src) {
-  data_t  *ret;
+datalist_t * str_array_to_datalist(array_t *src) {
+  datalist_t  *ret;
 
-  ret = data_create(List, 0);
+  ret = (datalist_t *) data_create(List, 0);
   array_reduce(src, (reduce_t) data_add_all_as_data_reducer, data_as_array(ret));
   return ret;
 }
 
-data_t * data_list_push(data_t *list, data_t *value) {
+datalist_t * _datalist_push(datalist_t *list, data_t *value) {
   array_push(data_as_array(list), value);
   return list;
 }
 
-data_t * data_list_get(data_t *data, int ix) {
-  array_t *list = data_as_array(data);
+data_t * datalist_get(datalist_t *datalist, int ix) {
+  array_t *list = data_as_array(datalist);
   int      sz = array_size(list);
 
   if ((ix >= sz) || (ix < -sz)) {
@@ -284,14 +310,14 @@ data_t * data_list_get(data_t *data, int ix) {
   }
 }
 
-int data_list_size(data_t *list) {
+int datalist_size(datalist_t *list) {
   return array_size(data_as_array(list));
 }
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *ret = data_create(List, 0);
+datalist_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+  datalist_t *ret = (datalist_t *) data_create(List, 0);
 
   if (args) {
     array_reduce(args, (reduce_t) data_add_all_reducer, data_as_array(ret));
@@ -299,17 +325,17 @@ data_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return ret;
 }
 
-data_t * _list_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _list_at(datalist_t *self, char *name, array_t *args, dict_t *kwargs) {
   (void) name;
   (void) kwargs;
   return _list_resolve(self, data_tostring(data_array_get(args, 0)));
 }
 
-data_t * _list_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+datalist_t * _list_slice(datalist_t *self, char *name, array_t *args, dict_t *kwargs) {
   array_t *slice = array_slice(data_as_array(self),
                                data_intval(data_array_get(args, 1)),
                                data_intval(data_array_get(args, 1)));
-  data_t  *ret = data_create_list(slice);
+  datalist_t  *ret = datalist_create(slice);
 
   array_free(slice);
   return ret;

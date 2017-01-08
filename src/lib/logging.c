@@ -57,7 +57,7 @@ static char *          _log_level_str(log_level_t lvl);
 static char *          _logfile = NULL;
 static FILE *          _destination = NULL;
 static dict_t *        _categories = NULL;
-static log_level_t     _log_level = LogLevelError;
+static log_level_t     _log_level = LogLevelWarning;
        int             core_debug = 0;
 
 static code_label_t _log_level_labels[] = {
@@ -351,6 +351,7 @@ OBLCORE_IMPEXP int logging_set_level(char *log_level) {
     if ((level >= LogLevelDebug) && (level <= LogLevelFatal)) {
       _log_level = level;
     }
+    fprintf(stderr, "_log_level = %s\n", _log_level_str(_log_level));
   }
   return _log_level;
 }

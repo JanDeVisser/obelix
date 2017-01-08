@@ -57,7 +57,7 @@ static data_t *       _sqlitestmt_new(sqlitestmt_t *, va_list);
 static void           _sqlitestmt_free(sqlitestmt_t *);
 static data_t *       _sqlitestmt_interpolate(sqlitestmt_t *, array_t *, dict_t *);
 static data_t *       _sqlitestmt_has_next(sqlitestmt_t *);
-static data_t *       _sqlitestmt_next(sqlitestmt_t *);
+static datalist_t *   _sqlitestmt_next(sqlitestmt_t *);
 static data_t *       _sqlitestmt_execute(sqlitestmt_t *, array_t *, dict_t *);
 
 static vtable_t _vtable_SQLiteStmt[] = {
@@ -270,29 +270,29 @@ data_t * _sqlitestmt_has_next(sqlitestmt_t *stmt) {
   }
 }
 
-data_t * _sqlitestmt_next(sqlitestmt_t *stmt) {
-  int     ix;
-  int     numcols;
-  int     type;
-  data_t *rs;
+datalist_t * _sqlitestmt_next(sqlitestmt_t *stmt) {
+  int         ix;
+  int         numcols;
+  int         type;
+  datalist_t *rs;
 
-  rs = data_create_list(NULL);
+  rs = datalist_create(NULL);
   numcols = sqlite3_column_count(stmt -> stmt);
   for (ix = 0; ix < numcols; ix++) {
     type = sqlite3_column_type(stmt -> stmt, ix);
     switch (type) {
       case SQLITE_INTEGER:
-        data_list_push(rs, int_to_data(sqlite3_column_int(stmt -> stmt, ix)));
+        datalist_push(rs, int_to_data(sqlite3_column_int(stmt -> stmt, ix)));
         break;
       case SQLITE_FLOAT:
-        data_list_push(rs, flt_to_data(sqlite3_column_double(stmt -> stmt, ix)));
+        datalist_push(rs, flt_to_data(sqlite3_column_double(stmt -> stmt, ix)));
         break;
       case SQLITE_NULL:
       case SQLITE_BLOB: /* FIXME */
-        data_list_push(rs, data_null());
+        datalist_push(rs, data_null());
         break;
       case SQLITE_TEXT:
-        data_list_push(rs, (data_t *) str_copy_chars((char *) sqlite3_column_text(stmt -> stmt, ix)));
+        datalist_push(rs, (data_t *) str_copy_chars((char *) sqlite3_column_text(stmt -> stmt, ix)));
         break;
     }
   }

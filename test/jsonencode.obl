@@ -1,0 +1,7 @@
+x = [1,3,5,7,11,13,17]
+x0 = x[0]
+y = encode(x)
+print("x.type: ${0} x[0].type: ${1} y.type: ${2}", x.type, x0.type, y.type);
+z = decode(y)
+z0 = z[0]
+print("z: ${0} z.type: ${1} z[0].type: ${2}", z, z.type, z0.type);

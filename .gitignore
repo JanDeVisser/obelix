@@ -36,6 +36,7 @@ CMakeCache.txt
 build/*
 release/*
 cygwin/
+cmake-build-debug
 **/*.dir/*
 Win32/*
 /MingW64/

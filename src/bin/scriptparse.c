@@ -56,7 +56,15 @@ static data_t      *quotes_with_without_slash = NULL;
 
 int                 obelix_debug;
 
-#define push_instruction(p, i) (bytecode_push_instruction((bytecode_t *) ((p) -> data), (data_t *) (i)));
+static inline void push_instruction(parser_t *parser, void *instruction) {
+  bytecode_t *bytecode = data_as_bytecode(parser -> data);
+  data_t     *i = data_as_data(instruction);
+  
+  assert(bytecode);
+  assert(data_is_instruction(i));
+  debug(obelix, "%s\n", data_tostring(i));
+  bytecode_push_instruction(bytecode, i);
+}
 
 /* ----------------------------------------------------------------------- */
 
@@ -112,6 +120,7 @@ parser_t * _script_parse_epilog(parser_t *parser) {
   data_t     *instr;
 
   bytecode = (bytecode_t *) parser -> data;
+  assert(bytecode);
   instr = list_peek(bytecode -> instructions);
   if (instr) {
     if ((data_type(instr) != ITJump) && !datastack_empty(bytecode -> pending_labels)) {
@@ -165,6 +174,7 @@ parser_t * script_parse_init(parser_t *parser) {
   mod = data_as_module(data);
   debug(obelix, "Parsing module '%s'", name_tostring(mod -> name));
   script = script_create((data_t *) mod, name);
+  assert(script -> bytecode);
   parser_set(parser, "script", (data_t *) script_copy(script));
   parser -> data = script -> bytecode;
   _script_parse_prolog(parser);

@@ -55,12 +55,12 @@ static vtable_t _vtable_PGSQLConnection[] = {
   { .id = FunctionNone,  .fnc = NULL }
 };
 
-static data_t * _pgsqlstmt_new(pgsqlstmt_t *, va_list);
-static void     _pgsqlstmt_free(pgsqlstmt_t *);
-static data_t * _pgsqlstmt_interpolate(pgsqlstmt_t *, array_t *, dict_t *);
-static data_t * _pgsqlstmt_has_next(pgsqlstmt_t *);
-static data_t * _pgsqlstmt_next(pgsqlstmt_t *);
-static data_t * _pgsqlstmt_execute(pgsqlstmt_t *, array_t *, dict_t *);
+static data_t *     _pgsqlstmt_new(pgsqlstmt_t *, va_list);
+static void         _pgsqlstmt_free(pgsqlstmt_t *);
+static data_t *     _pgsqlstmt_interpolate(pgsqlstmt_t *, array_t *, dict_t *);
+static data_t *     _pgsqlstmt_has_next(pgsqlstmt_t *);
+static datalist_t * _pgsqlstmt_next(pgsqlstmt_t *);
+static data_t *     _pgsqlstmt_execute(pgsqlstmt_t *, array_t *, dict_t *);
 
 static vtable_t _vtable_PGSQLStmt[] = {
   { .id = FunctionNew,         .fnc = (void_t) _pgsqlstmt_new },
@@ -288,17 +288,17 @@ data_t * _pgsqlstmt_has_next(pgsqlstmt_t *stmt) {
   return ret;
 }
 
-data_t * _pgsqlstmt_next(pgsqlstmt_t *stmt) {
-  int     ix;
-  int     numcols;
-  int     type;
-  data_t *rs;
-  data_t *data;
-  char   *value;
+datalist_t * _pgsqlstmt_next(pgsqlstmt_t *stmt) {
+  int         ix;
+  int         numcols;
+  int         type;
+  datalist_t *rs;
+  data_t     *data;
+  char       *value;
 
   assert(stmt -> result);
   debug(sql, "Returning row %d", stmt -> current);
-  rs = data_create_list(NULL);
+  rs = datalist_create(NULL);
   numcols = PQnfields(stmt -> result);
   for (ix = 0; ix < numcols; ix++) {
     if (PQgetisnull(stmt -> result, stmt -> current, ix)) {
@@ -336,7 +336,7 @@ data_t * _pgsqlstmt_next(pgsqlstmt_t *stmt) {
         assert(type);
         data = data_parse(type, value);
       }
-      data_list_push(rs, data);
+      datalist_push(rs, data);
     }
   }
   stmt -> current++;

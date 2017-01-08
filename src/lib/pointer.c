@@ -23,7 +23,8 @@
 
 #include "libcore.h"
 #include <data.h>
-#include <resolve.h>
+#include <dictionary.h>
+#include <str.h>
 
 extern void          ptr_init(void);
 
@@ -33,6 +34,8 @@ static data_t *      _ptr_cast(pointer_t *, int);
 static unsigned int  _ptr_hash(pointer_t *);
 static char *        _ptr_allocstring(pointer_t *);
 static pointer_t *   _ptr_parse(char *);
+static data_t *      _ptr_serialize(pointer_t *);
+static pointer_t *   _ptr_deserialize(data_t *);
 
 static data_t *      _ptr_copy(data_t *, char *, array_t *, dict_t *);
 static data_t *      _ptr_fill(data_t *, char *, array_t *, dict_t *);
@@ -44,6 +47,8 @@ static vtable_t _vtable_Pointer[] = {
   { .id = FunctionCast,        .fnc = (void_t) _ptr_cast },
   { .id = FunctionHash,        .fnc = (void_t) _ptr_hash },
   { .id = FunctionParse,       .fnc = (void_t) _ptr_parse },
+  { .id = FunctionSerialize,   .fnc = (void_t) _ptr_serialize },
+  { .id = FunctionDeserialize, .fnc = (void_t) _ptr_deserialize },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -114,6 +119,38 @@ pointer_t * _ptr_parse(char *str) {
     } else {
       return (pointer_t *) data_null();
     }
+  }
+}
+
+pointer_t * _ptr_deserialize(data_t *data) {
+  pointer_t    *ret = NULL;
+  data_t       *value;
+
+  if (data_is_pointer(data)) {
+    ret = data_as_pointer(data);
+    if (data_isnull((data_t *) ret)) {
+      ret = NULL;
+    }
+  } else if (data_is_dictionary(data)) {
+    value = dictionary_get(data_as_dictionary(data), "value");
+    ret = _ptr_parse(data_tostring(value));
+    data_free(value);
+  } else if (data) {
+    ret = ptr_create(data_typedescr(data) -> size, data);
+  }
+  return ret;
+}
+
+data_t * _ptr_serialize(pointer_t *ptr) {
+  dictionary_t *ret;
+
+  if (data_isnull((data_t *) ptr)) {
+    return (data_t *) ptr;
+  } else {
+    ret = dictionary_create(NULL);
+    dictionary_set(ret, "value",
+        data_uncopy((data_t *) str_copy_chars(data_tostring(ptr))));
+    return (data_t *) ret;
   }
 }
 

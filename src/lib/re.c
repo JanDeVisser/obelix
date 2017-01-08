@@ -189,7 +189,7 @@ data_t * regexp_match(re_t *re, char *str) {
     ret = data_copy(data_array_get(matches, 0));
   } else {
     debug(regexp, "%s .match(%s): %d matches", regexp_tostring(re), str, array_size(matches));
-    ret = data_create_list(matches);
+    ret = (data_t *) datalist_create(matches);
   }
   array_free(matches);
   free(work);

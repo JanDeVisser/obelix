@@ -154,25 +154,13 @@ data_t * datastack_peek(datastack_t *stack) {
   return datastack_peek_deep(stack, 0);
 }
 
-datastack_t * datastack_push(datastack_t *stack, data_t *data) {
+datastack_t * _datastack_push(datastack_t *stack, data_t *data) {
   array_push(stack -> list, data);
   if (stack -> debug) {
     _debug("After push:");
     datastack_list(stack);
   }
   return stack;
-}
-
-datastack_t * datastack_push_int(datastack_t *stack, long value) {
-  return datastack_push(stack, (data_t *) int_create(value));
-}
-
-datastack_t * datastack_push_string(datastack_t *stack, char *value) {
-  return datastack_push(stack, (data_t *) str_copy_chars(value));
-}
-
-datastack_t * datastack_push_float(datastack_t *stack, double value) {
-  return datastack_push(stack, (data_t *) flt_create(value));
 }
 
 datastack_t * datastack_list(datastack_t *stack) {
@@ -231,7 +219,7 @@ array_t * datastack_rollup(datastack_t *stack) {
   ret = data_array_create(num);
   for (ix = num - 1; ix >= 0; ix--) {
     data = datastack_pop(stack);
-    array_set(ret, ix, data_copy(data));
+    array_set(ret, ix, data_deserialize(data));
     data_free(data);
   }
   _bookmark_free(bookmark);

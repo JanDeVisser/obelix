@@ -170,6 +170,9 @@ data_t * data_settype(data_t *data, int type) {
     return NULL;
   }
   if (!data -> type) {
+#ifndef NDEBUG
+    data -> cookie = MAGIC_COOKIE;
+#endif /* NDEBUG */
     data -> type = type;
     data -> refs = 1;
     data -> str = NULL;
@@ -269,17 +272,17 @@ char * data_encode(data_t *data) {
     if (encode) {
       encoded = ((char * (*)(data_t *)) encode)(data);
     } else {
-      encoded = data_tostring(data);
+      encoded = strdup(data_tostring(data));
     }
   }
   return encoded;
 }
 
-data_t * data_deserialize(int type, data_t *serialized) {
+data_t * data_deserialize(data_t *serialized) {
   typedescr_t *descr;
   void_t       deserialize;
 
-  descr = typedescr_get(type);
+  descr = data_typedescr(serialized);
   debug(data, "Deserializing %s : '%s'", typename(descr), data_tostring(serialized));
   deserialize = typedescr_get_function(descr, FunctionDeserialize);
   return (deserialize)
@@ -293,6 +296,9 @@ data_t * data_serialize(data_t *data) {
   data_t       *serialized;
   dictionary_t *dict;
 
+  if (!data) {
+    return data_null();
+  }
   type = data_typedescr(data);
   if (type) {
     serialize = typedescr_get_function(type, FunctionSerialize);

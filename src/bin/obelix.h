@@ -84,7 +84,7 @@ typedef enum _obelix_option {
 
 typedef struct _scriptloader {
   data_t         _d;
-  data_t        *load_path;
+  datalist_t    *load_path;
   char          *system_dir;
   grammar_t     *grammar;
   namespace_t   *ns;

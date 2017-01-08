@@ -24,6 +24,7 @@
 #include <data.h>
 #include <array.h>
 #include <name.h>
+#include <str.h>
 
 typedef struct _datastack {
   char    *name;
@@ -43,10 +44,7 @@ OBLCORE_IMPEXP int           datastack_depth(datastack_t *);
 OBLCORE_IMPEXP data_t *      datastack_pop(datastack_t *);
 OBLCORE_IMPEXP data_t *      datastack_peek_deep(datastack_t *, int);
 OBLCORE_IMPEXP data_t *      datastack_peek(datastack_t *);
-OBLCORE_IMPEXP datastack_t * datastack_push(datastack_t *, data_t *);
-OBLCORE_IMPEXP datastack_t * datastack_push_int(datastack_t *, long);
-OBLCORE_IMPEXP datastack_t * datastack_push_string(datastack_t *, char *);
-OBLCORE_IMPEXP datastack_t * datastack_push_float(datastack_t *, double);
+OBLCORE_IMPEXP datastack_t * _datastack_push(datastack_t *, data_t *);
 OBLCORE_IMPEXP datastack_t * datastack_list(datastack_t *);
 OBLCORE_IMPEXP datastack_t * datastack_clear(datastack_t *);
 OBLCORE_IMPEXP data_t *      datastack_find(datastack_t *, cmp_t, void *);
@@ -59,6 +57,22 @@ OBLCORE_IMPEXP int           datastack_count(datastack_t *);
 OBLCORE_IMPEXP int           datastack_current_count(datastack_t *);
 
 OBLCORE_IMPEXP int           datastack_find_type(data_t *, long);
+
+static inline datastack_t * datastack_push(datastack_t *stack, void *data) {
+  return _datastack_push(stack, data_as_data(data));
+}
+
+static inline datastack_t * datastack_push_int(datastack_t *stack, long l) {
+  return datastack_push(stack, int_to_data(l));
+}
+
+static inline datastack_t * datastack_push_string(datastack_t * stack, char *s) {
+  return datastack_push(stack, str_copy_chars(s));
+}
+
+static inline datastack_t * datastack_push_float(datastack_t *stack, double d) {
+  return datastack_push(stack, flt_to_data(d));
+}
 
 #define datastack_empty(l)            (datastack_depth((l)) == 0)
 #define datastack_notempty(l)         (datastack_depth((l)) > 0)

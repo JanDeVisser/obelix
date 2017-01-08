@@ -21,67 +21,22 @@
 #ifndef __DATA_H__
 #define __DATA_H__
 
+#include <stdio.h>
+
 #include <core.h>
+#include <data-typedefs.h>
 #include <array.h>
 #include <dict.h>
+#include <typedescr.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-typedef enum _datatype {
-  Exception    = 1,
-  Kind,       /* 2 */
-  Type,       /* 3 */
-  Interface,  /* 4 */
-  Method,     /* 5 */
-  Pointer,    /* 6 */
-  String,     /* 7 */
-  Int,        /* 8 */
-  Float,      /* 9 */
-  Bool,       /* 10 */
-  List        /* 11 */
-} datatype_t;
-
-typedef enum _free_semantics {
-  Normal,
-  DontFreeData,
-  Constant
-} free_semantics_t;
-
-typedef struct _data {
-  int               type;
-  free_semantics_t  free_me;
-  free_semantics_t  free_str;
-  int               refs;
-  char             *str;
-} data_t;
-
-typedef struct _pointer {
-  data_t  _d;
-  void   *ptr;
-  int     size;
-} pointer_t;
-
-typedef struct _flt {
-  data_t _d;
-  double dbl;
-} flt_t;
-
-typedef struct _int {
-  data_t _d;
-  long   i;
-} int_t;
-
-struct _name;
-
-typedef data_t * (*factory_t)(int, va_list);
-typedef data_t * (*cast_t)(data_t *, int);
-typedef data_t * (*resolve_name_t)(void *, char *);
-typedef data_t * (*call_t)(void *, array_t *, dict_t *);
-typedef data_t * (*setvalue_t)(void *, char *, data_t *);
-typedef data_t * (*data_fnc_t)(data_t *);
-typedef data_t * (*data2_fnc_t)(data_t *, data_t *);
+#ifndef NDEBUG
+/* Sentinel value used to identify legitimate data_t structures: */
+#define MAGIC_COOKIE               ((unsigned short int) 0xDEADBEEF)
+#endif /* !NDEBUG */
 
 OBLCORE_IMPEXP void                data_init(void);
 OBLCORE_IMPEXP data_t *            data_create_noinit(int);
@@ -91,7 +46,7 @@ OBLCORE_IMPEXP data_t *            data_cast(data_t *, int);
 OBLCORE_IMPEXP data_t *            data_promote(data_t *);
 OBLCORE_IMPEXP data_t *            data_parse(int, char *);
 OBLCORE_IMPEXP data_t *            data_decode(char *);
-OBLCORE_IMPEXP data_t *            data_deserialize(int, data_t *);
+OBLCORE_IMPEXP data_t *            data_deserialize(data_t *);
 
 OBLCORE_IMPEXP char *              data_encode(data_t *);
 OBLCORE_IMPEXP data_t *            data_serialize(data_t *);
@@ -132,72 +87,162 @@ OBLCORE_IMPEXP int                 data_count(void);
 OBLCORE_IMPEXP data_t *            data_interpolate(data_t *, array_t *, dict_t *);
 OBLCORE_IMPEXP data_t *            data_query(data_t *, data_t *);
 
-OBLCORE_IMPEXP int_t *             int_create(intptr_t);
-OBLCORE_IMPEXP int_t *             bool_get(long);
-OBLCORE_IMPEXP flt_t *             flt_create(double);
-OBLCORE_IMPEXP pointer_t *         ptr_create(int, void *);
-
-#define data_new(dt,st)     ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
-#define data_type(d)        ((d) ? ((data_t *) (d)) -> type : 0)
-#define data_typedescr(d)   ((d) ? typedescr_get(((data_t *) (d)) -> type) : NULL)
-#define data_typename(d)    ((d) ? typename(typedescr_get(data_type((data_t *) (d)))) : "null")
-#define data_hastype(d, t)  ((d) && ((((data_t *) (d)) -> type == (t)) || \
-                                     typedescr_is(typedescr_get(((data_t *) (d)) -> type), (t))))
-
-#define data_get_function(d, f) (typedescr_get_function(data_typedescr(d), (f)))
-
-#define data_is_numeric(d)  ((d) && (data_hastype((d), Number)))
-#define data_is_int(d)      ((d) && (data_hastype((d), Int)))
-#define data_is_float(d)    ((d) && (data_hastype((d), Float)))
-#define data_is_string(d)   ((d) && (data_hastype((d), String)))
-#define data_is_pointer(d)  ((d) && (data_hastype((d), Pointer)))
-#define data_is_list(d)     ((d) && (data_hastype((d), List)))
-
-#define data_is_callable(d) ((d) && (data_hastype((d), Callable)))
-#define data_is_iterable(d) ((d) && (data_hastype((d), Iterable)))
-#define data_is_iterator(d) ((d) && (data_hastype((d), Iterator)))
-
-#define data_as_pointer(d)  (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
-#define data_wrap(p)        ((data_t *) ptr_create(0, (p)))
-#define data_unwrap(d)      (data_is_pointer((data_t *) (d)) ? (data_as_pointer(d) -> ptr) : NULL)
-
-#define data_as_array(d)    ((array_t *) (((pointer_t *) (d)) -> ptr))
+/* ------------------------------------------------------------------------ */
 
 OBLCORE_IMPEXP array_t *       data_add_all_reducer(data_t *, array_t *);
 OBLCORE_IMPEXP array_t *       data_add_all_as_data_reducer(char *, array_t *);
 OBLCORE_IMPEXP array_t *       data_add_strings_reducer(data_t *, array_t *);
 OBLCORE_IMPEXP dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
+OBLCORE_IMPEXP type_t         *type_data;
+
+#ifndef __INCLUDING_TYPEDESCR_H__
+#include <typedescr.h>
+#endif /* __INCLUDING_TYPEDESCR_H__ */
+
+#define data_new(dt,st)         ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
+
+static inline int data_is_data(void *data) {
+#ifndef NDEBUG
+  if (data) {
+    if (((data_t *) data) -> cookie == MAGIC_COOKIE) {
+      return TRUE;
+    } else {
+      fprintf(stderr, "data_as_data(%p): cookie = %x\n",
+          data, ((data_t *) data) -> cookie);
+      abort();
+    }
+  } else {
+    return TRUE;
+  }
+#else /* NDEBUG */
+  return TRUE;
+#endif
+}
+
+static inline data_t * data_as_data(void *data) {
+#ifndef NDEBUG
+  return (data_is_data(data)) ? (data_t *) data : NULL;
+#else
+  return (data_t *) data;
+#endif
+}
+
+static inline int data_type(void *data) {
+  return (data) ? data_as_data(data) -> type : -1;
+}
+
+static inline typedescr_t * data_typedescr(void *data) {
+  return (data)
+    ? typedescr_get(data_as_data(data) -> type)
+    : NULL;
+}
+
+static inline char * data_typename(void *data) {
+  return (data)
+    ? typename(typedescr_get(data_type(data_as_data(data))))
+    : "null";
+}
+
+static inline int data_hastype(void *data, int type) {
+  data_t *d = data_as_data(data);
+
+  return (d)
+    ? (d -> type == type) || typedescr_is(typedescr_get(d -> type), type)
+    : FALSE;
+}
+
+static inline void_t data_get_function(void  *data, vtable_id_t func) {
+  return (data)
+      ? typedescr_get_function(data_typedescr(data_as_data(data)), func)
+      : NULL;
+}
+
+static inline char * data_tostring(void *data) {
+  return _data_tostring(data_as_data(data));
+}
+
+#define data_is_callable(d)    (data_hastype((d), Callable))
+#define data_is_iterable(d)    (data_hastype((d), Iterable))
+#define data_is_iterator(d)    (data_hastype((d), Iterator))
+
+/* -- P O I N T E R  T Y P E ---------------------------------------------- */
+
+OBLCORE_IMPEXP pointer_t *     ptr_create(int, void *);
 OBLCORE_IMPEXP data_t *        data_null(void);
 OBLCORE_IMPEXP int             data_isnull(data_t *);
 OBLCORE_IMPEXP int             data_notnull(data_t *);
-OBLCORE_IMPEXP data_t *        data_create_list(array_t *);
-OBLCORE_IMPEXP array_t *       data_list_copy(data_t *);
-OBLCORE_IMPEXP array_t *       data_list_to_str_array(data_t *);
-OBLCORE_IMPEXP data_t *        data_str_array_to_list(array_t *);
-OBLCORE_IMPEXP data_t *        data_list_push(data_t *, data_t *);
-OBLCORE_IMPEXP data_t *        data_list_get(data_t *, int);
-OBLCORE_IMPEXP int             data_list_size(data_t *);
+
+#define data_is_pointer(d)     (data_hastype((d), Pointer))
+#define ptr_to_data(s, p)      ((data_t *) ptr_create((s), (p)))
+#define data_as_pointer(d)     (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
+#define data_wrap(p)           ((data_t *) ptr_create(0, (p)))
+#define data_unwrap(d)         (data_is_pointer((data_t *) (d)) ? (data_as_pointer(d) -> ptr) : NULL)
+
+/* -- D A T A L I S T  T Y P E -------------------------------------------- */
+
+typedef pointer_t              datalist_t;
+
+OBLCORE_IMPEXP datalist_t *    datalist_create(array_t *);
+OBLCORE_IMPEXP array_t *       datalist_to_array(datalist_t *);
+OBLCORE_IMPEXP array_t *       datalist_to_str_array(datalist_t *);
+OBLCORE_IMPEXP datalist_t *    str_array_to_datalist(array_t *);
+OBLCORE_IMPEXP datalist_t *    _datalist_push(datalist_t *, data_t *);
+OBLCORE_IMPEXP data_t *        datalist_get(datalist_t *, int);
+OBLCORE_IMPEXP int             datalist_size(datalist_t *);
+
+static inline datalist_t * data_as_list(void *data) {
+  return (data_hastype(data_as_data(data), List)) ? (datalist_t *) data : NULL;
+}
+
+static inline array_t * data_as_array(void *data) {
+  datalist_t *list = data_as_list(data);
+
+  return (array_t *) (((pointer_t *) list) -> ptr);
+}
+
+static void datalist_free(datalist_t *list) {
+  data_free((data_t *) list);
+}
+
+static datalist_t * datalist_push(datalist_t *list, void *data) {
+  return _datalist_push(list, data_as_data(data));
+}
+
+static char * datalist_tostring(datalist_t *list) {
+  return data_tostring(list);
+}
+
+static int data_is_datalist(void *data) {
+  return data_hastype(data, List);
+}
+
+#define data_is_list(d)        (data_is_datalist((d)))
+
+/* -- N U M E R I C  T Y P E S -------------------------------------------- */
+
+OBLCORE_IMPEXP int_t *         int_create(intptr_t);
+OBLCORE_IMPEXP flt_t *         flt_create(double);
+
+#define int_to_data(i)         ((data_t *) int_create((i)))
+#define data_intval(d)         (_data_intval((data_t *) (d)))
+#define flt_to_data(f)         ((data_t *) flt_create((f)))
+#define data_floatval(d)       (_data_floatval((data_t *) (d)))
+#define data_is_numeric(d)     (data_hastype((d), Number))
+#define data_is_int(d)         (data_hastype((d), Int))
+#define data_is_float(d)       (data_hastype((d), Float))
+
+/* -- B O O L  T Y P E ---------------------------------------------------- */
 
 OBLCORE_IMPEXP int_t *         bool_true;
 OBLCORE_IMPEXP int_t *         bool_false;
-
-OBLCORE_IMPEXP type_t         *type_data;
+OBLCORE_IMPEXP int_t *         bool_get(long);
 
 #define int_as_bool(i)         ((data_t *) bool_get((i)))
-#define int_to_data(i)         ((data_t *) int_create((i)))
-#define flt_to_data(f)         ((data_t *) flt_create((f)))
-#define ptr_to_data(s, p)      ((data_t *) ptr_create((s), (p)))
-#define data_intval(d)         (_data_intval((data_t *) (d)))
-#define data_floatval(d)       (_data_floatval((data_t *) (d)))
-#define data_tostring(d)       (_data_tostring((data_t *) (d)))
+#define data_true()            ((data_t *) bool_true)
+#define data_false()           ((data_t *) bool_false)
 
-#define data_true()    ((data_t *) bool_true)
-#define data_false()   ((data_t *) bool_false)
-
-/* -- Standard vtable functions ------------------------------------------ */
-
-/* ----------------------------------------------------------------------- */
+/* ------------------------------------------------------------------------ */
 
 #define strdata_dict_create()  (dict_set_data_type( \
                                  dict_set_key_type( \
@@ -228,12 +273,26 @@ OBLCORE_IMPEXP type_t         *type_data;
 
 #define data_set_create()      (set_set_type(set_create(NULL), type_data))
 
+#define type_skel(id, code, type)                                            \
+  extern int code;                                                           \
+  static inline int data_is_ ## id(void *d) {                                \
+    return data_hastype(d, code);                                            \
+  }                                                                          \
+  static inline type * data_as_ ## id(void *d) {                             \
+    return (data_is_ ## id(d)) ? (type *) d : NULL;                          \
+  }                                                                          \
+  static inline void id ## _free(type *d) {                                  \
+    data_free((data_t *) d);                                                 \
+  }                                                                          \
+  static inline char * id ## _tostring(type *d) {                            \
+    return data_tostring((data_t *) d);                                      \
+  }                                                                          \
+  static inline type * id ## _copy(type *d) {                                \
+    return (type *) data_copy((data_t *) d);                                 \
+  }
+
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */
-
-#ifndef __INCLUDING_TYPEDESCR_H__
-#include <typedescr.h>
-#endif /* __INCLUDING_TYPEDESCR_H__ */
 
 #endif /* __DATA_H__ */

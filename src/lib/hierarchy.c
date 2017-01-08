@@ -127,7 +127,7 @@ data_t * _hierarchy_iter(hierarchy_t *hierarchy) {
 
   nodes = array_create(4);
   _hierarchy_get_nodes(hierarchy, nodes);
-  list = data_create_list(nodes);
+  list = (data_t *) datalist_create(nodes);
   iter = data_iter(list);
   data_free(list);
   return iter;
