@@ -31,8 +31,8 @@ static void             _lexer_config_free(lexer_config_t *);
 static char *           _lexer_config_staticstring(lexer_config_t *);
 static data_t *         _lexer_config_resolve(lexer_config_t *, char *);
 static data_t *         _lexer_config_set(lexer_config_t *, char *, data_t *);
-static data_t *         _lexer_config_mth_add_scanner(lexer_config_t *, char *, array_t *, dict_t *);
-static data_t *         _lexer_config_mth_tokenize(lexer_config_t *, char *, array_t *, dict_t *);
+static data_t *         _lexer_config_mth_add_scanner(lexer_config_t *, char *, arguments_t *);
+static data_t *         _lexer_config_mth_tokenize(lexer_config_t *, char *, arguments_t *);
 
 static vtable_t _vtable_LexerConfig[] = {
   { .id = FunctionNew,          .fnc = (void_t) _lexer_config_new },
@@ -110,7 +110,7 @@ data_t * _lexer_config_set(lexer_config_t *config, char *name, data_t *value) {
     if (!value) {
       lexer_config_set_bufsize(config, LEXER_BUFSIZE);
     } else if (data_is_int(value)) {
-      lexer_config_set_bufsize(config, data_intval(value));
+      lexer_config_set_bufsize(config, (size_t) data_intval(value));
     } else {
       ret = data_exception(ErrorType,
                            "LexerConfig.buffersize expects 'int', not '%s'",
@@ -120,24 +120,24 @@ data_t * _lexer_config_set(lexer_config_t *config, char *name, data_t *value) {
   return ret;
 }
 
-data_t * _lexer_config_mth_add_scanner(lexer_config_t *config, char *n, array_t *args, dict_t *kwargs) {
-  data_t           *code;
+data_t * _lexer_config_mth_add_scanner(lexer_config_t *config, char *n, arguments_t *args) {
+  char *code;
 
-  code = data_array_get(args, 0);
-  return (data_t *) lexer_config_add_scanner(config, data_tostring(code));
+  code = arguments_arg_tostring(args, 0);
+  return (data_t *) lexer_config_add_scanner(config, code);
 
 }
 
-data_t * _lexer_config_mth_tokenize(lexer_config_t *config, char *n, array_t *args, dict_t *kwargs) {
-  lexer_t *lexer;
-  array_t *tail;
-  data_t  *ret;
+data_t * _lexer_config_mth_tokenize(lexer_config_t *config, char *n, arguments_t *args) {
+  data_t      *lexer;
+  arguments_t *tail;
+  data_t      *ret;
 
-  lexer = lexer_create(config, data_array_get(args, 0));
-  tail = array_slice(args, 1, 0);
-  ret = data_call((data_t *) lexer, tail, kwargs);
-  lexer_free(lexer);
-  array_free(tail);
+  lexer = (data_t *) lexer_create(config, data_uncopy(arguments_get_arg(args, 0)));
+  tail = arguments_shift(args, &lexer);
+  ret = data_call(lexer, tail);
+  data_free(lexer);
+  arguments_free(tail);
   return ret;
 }
 
@@ -219,7 +219,7 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_c
 }
 
 scanner_config_t * lexer_config_get_scanner(lexer_config_t *config, char *code) {
-  scanner_config_t *scanner = config -> scanners;
+  scanner_config_t *scanner;
 
   for (scanner = config -> scanners;
        scanner && strcmp(data_typename((data_t *) scanner), code);
@@ -260,11 +260,11 @@ data_t * lexer_config_get(lexer_config_t *config, char *code, char *name) {
   return ret;
 }
 
-int lexer_config_get_bufsize(lexer_config_t *config) {
+size_t lexer_config_get_bufsize(lexer_config_t *config) {
   return config -> bufsize;
 }
 
-lexer_config_t * lexer_config_set_bufsize(lexer_config_t *config, int bufsize) {
+lexer_config_t * lexer_config_set_bufsize(lexer_config_t *config, size_t bufsize) {
   config -> bufsize = bufsize;
   return config;
 }
@@ -283,9 +283,9 @@ lexer_config_t * lexer_config_dump(lexer_config_t *config) {
 
   printf("lexer_config_t * %s(lexer_config_t *lexer_config) {\n"
          "  scanner_config_t *scanner_config;\n\n"
-         "  lexer_config_set_bufsize(lexer_config, %d);\n",
-         (config -> build_func) ? config -> build_func : "lexer_config_build",
-         lexer_config_get_bufsize(config));
+         "  lexer_config_set_bufsize(lexer_config, %ld);\n",
+      (config -> build_func) ? config -> build_func : "lexer_config_build",
+      lexer_config_get_bufsize(config));
   for (scanner = config -> scanners; scanner; scanner = scanner -> next) {
     scanner_config_dump(scanner);
   }

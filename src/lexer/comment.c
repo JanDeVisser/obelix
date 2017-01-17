@@ -21,7 +21,6 @@
 #include <stdio.h>
 
 #include "liblexer.h"
-#include <nvp.h>
 
 /*
  * Initial size of the marker token buffer. I've never seen a comment marker
@@ -53,7 +52,7 @@ typedef struct _comment_marker {
 typedef struct _comment_config {
   scanner_config_t  _sc;
   comment_marker_t *markers;
-  int               longest_marker;
+  size_t            longest_marker;
   int               num_markers;
 } comment_config_t;
 
@@ -61,9 +60,9 @@ typedef struct _comment_scanner {
   int               num_matches;
   char             *token;
   char              token_buf[SCANNER_INIT_BUFSZ];
-  int               bufsz;
+  size_t            bufsz;
   char             *newbuf;
-  int               len;
+  size_t            len;
   comment_marker_t *match;
   int               matched[0];
 } comment_scanner_t;
@@ -71,9 +70,10 @@ typedef struct _comment_scanner {
 static comment_marker_t * _comment_marker_create(void);
 static void               _comment_marker_free(comment_marker_t *);
 static char *             _comment_marker_tostring(comment_marker_t *);
-
 static comment_config_t * _comment_config_create(comment_config_t *, va_list);
+
 static data_t *           _comment_config_resolve(comment_config_t *, char *);
+static void               _comment_config_free(comment_config_t *);
 static comment_config_t * _comment_config_set(comment_config_t *, char *, data_t *);
 static comment_config_t * _comment_config_config(comment_config_t *, array_t *);
 static comment_config_t * _comment_config_add_marker(comment_config_t *, char *);
@@ -83,6 +83,7 @@ static void               _comment_free_scanner(comment_scanner_t *);
 
 static vtable_t _vtable_CommentScannerConfig[] = {
     { .id = FunctionNew,            .fnc = (void_t) _comment_config_create },
+    { .id = FunctionFree,           .fnc = (void_t) _comment_config_free },
     { .id = FunctionResolve,        .fnc = (void_t) _comment_config_resolve },
     { .id = FunctionSet,            .fnc = (void_t) _comment_config_set },
     { .id = FunctionMatch,          .fnc = (void_t) _comment_match },
@@ -327,7 +328,7 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
         if (ch == *(marker -> end)) {
           scanner -> state = CommentEndMarker;
           memset(c_scanner -> token, 0, c_scanner -> bufsz);
-          c_scanner -> token[0] = ch;
+          c_scanner -> token[0] = (char) ch;
           c_scanner -> len = 1;
         }
         ch = lexer_get_char(scanner -> lexer);
@@ -347,7 +348,7 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
         /*
          * Append current character to our token:
          */
-        c_scanner -> token[c_scanner -> len++] = ch;
+        c_scanner -> token[c_scanner -> len++] = (char) ch;
 
         if (strncmp(c_scanner -> token, marker -> end, c_scanner -> len)) {
           /*
@@ -368,6 +369,8 @@ token_t * _comment_find_endmarker(scanner_t *scanner) {
            */
           ch = lexer_get_char(scanner -> lexer);
         }
+        break;
+      default:
         break;
     }
   }
@@ -430,7 +433,7 @@ token_t *_comment_match(scanner_t *scanner) {
     /*
      * Append current character to our token:
      */
-    c_scanner -> token[c_scanner -> len++] = ch;
+    c_scanner -> token[c_scanner -> len++] = (char) ch;
 
     for (ix = 0, marker = config -> markers, c_scanner -> num_matches = 0;
          ix < config -> num_markers;

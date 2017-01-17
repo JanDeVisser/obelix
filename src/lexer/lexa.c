@@ -26,7 +26,7 @@ int Lexa = -1;
 
 static void     _lexa_free(lexa_t *);
 static char *   _lexa_staticstring(lexa_t *);
-static data_t * _lexa_call(lexa_t *, array_t *, dict_t *);
+static data_t * _lexa_call(lexa_t *, arguments_t *);
 
 static vtable_t _vtable_Lexa[] = {
   { .id = FunctionFree,         .fnc = (void_t) _lexa_free },
@@ -51,7 +51,7 @@ char * _lexa_staticstring(lexa_t *lexa) {
   return "Lexa";
 }
 
-data_t * _lexa_call(lexa_t *lexa, array_t *args, dict_t *kwargs) {
+data_t * _lexa_call(lexa_t *lexa, arguments_t _unused_ *args) {
   return (data_t *) lexa_tokenize(lexa);
 }
 

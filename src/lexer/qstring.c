@@ -35,11 +35,12 @@ typedef struct _qstr_config {
 
 typedef struct _qstr_scanner {
   char   *quotechars;
-  char    quote;
+  int     quote;
   data_t *quotechars_data;
 } qstr_scanner_t;
 
 static qstr_config_t *  _qstr_config_create(qstr_config_t *config, va_list args);
+static void             _qstr_config_free(qstr_config_t *);
 static data_t *         _qstr_config_resolve(qstr_config_t *, char *);
 static qstr_config_t *  _qstr_config_set(qstr_config_t *, char *, data_t *);
 static qstr_config_t *  _qstr_config_set_quotes(qstr_config_t *, data_t *);
@@ -52,6 +53,7 @@ static scanner_t *      _qstr_scanner_config(scanner_t *, char *, data_t *);
 
 static vtable_t _vtable_QStrScannerConfig[] = {
   { .id = FunctionNew,             .fnc = (void_t) _qstr_config_create },
+  { .id = FunctionFree,            .fnc = (void_t) _qstr_config_free },
   { .id = FunctionResolve,         .fnc = (void_t) _qstr_config_resolve },
   { .id = FunctionSet,             .fnc = (void_t) _qstr_config_set },
   { .id = FunctionMatch,           .fnc = (void_t) _qstr_match },
@@ -149,7 +151,7 @@ scanner_t * _qstr_scanner_config(scanner_t *scanner, char *param, data_t *value)
 /* ------------------------------------------------------------------------ */
 
 token_t * _qstr_match(scanner_t *scanner) {
-  char            ch;
+  int             ch = 0;
   token_t        *ret = NULL;
   qstr_config_t  *qstr_config = (qstr_config_t *) scanner -> config;
   qstr_scanner_t *qstr_scanner = (qstr_scanner_t *) scanner -> data;
@@ -185,7 +187,7 @@ token_t * _qstr_match(scanner_t *scanner) {
       case QStrQString:
         if (ch == qstr_scanner -> quote) {
           lexer_discard(scanner -> lexer);
-          ret = lexer_accept(scanner -> lexer, (token_code_t) ch);
+          lexer_accept(scanner -> lexer, (token_code_t) ch);
           scanner -> state = QStrDone;
         } else if (ch == '\\') {
           lexer_discard(scanner -> lexer);

@@ -20,18 +20,13 @@
 #include "liblexer.h"
 #include <re.h>
 
-typedef struct _token_code_str {
-  token_code_t  code;
-  char         *name;
-} token_code_str_t;
-
 static inline void _token_init(void);
 static token_t *   _token_new(token_t *, va_list);
 static void        _token_free(token_t *);
 static char *      _token_allocstring(token_t *);
 static char *      _token_encode(token_t *);
 static data_t *    _token_resolve(token_t *, char *);
-static data_t *    _token_iswhitespace(token_t *, char *, array_t *, dict_t *);
+static data_t *    _token_iswhitespace(token_t *, char *, arguments_t *);
 
 static code_label_t token_code_names[] = {
   { TokenCodeError,          "TokenCodeError" },
@@ -191,7 +186,7 @@ data_t * _token_resolve(token_t *token, char *name) {
   return NULL;
 }
 
-data_t * _token_iswhitespace(token_t *self, char *n, array_t *args, dict_t *kwargs) {
+data_t * _token_iswhitespace(token_t *self, char *n, arguments_t *args) {
   return int_to_data(token_iswhitespace(self));
 }
 
@@ -230,7 +225,7 @@ token_t * token_parse(char *token) {
       goto done;
     }
   }
-  ret = token_create(code, tokenstr);
+  ret = token_create((int) code, tokenstr);
 
 done:
   free(dup);
@@ -254,7 +249,7 @@ char * token_token(token_t *token) {
 }
 
 token_t * token_assign(token_t *token, unsigned int code, char *t) {
-  int len = (t) ? strlen(t) : 0;
+  size_t len = (t) ? strlen(t) : 0;
 
   token -> code = code;
   if (len) {

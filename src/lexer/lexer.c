@@ -22,14 +22,12 @@
 #include <string.h>
 
 #include "liblexer.h"
-#include <array.h>
-#include <data.h>
 
 #define LEXER_DEBUG
 
 typedef struct _tokenize_ctx {
-  data_t  *parser;
-  array_t *args;
+  data_t      *parser;
+  arguments_t *args;
 } tokenize_ctx_t;
 
 static lexer_t *        _lexer_new(lexer_t *, va_list);
@@ -38,9 +36,9 @@ static char *           _lexer_allocstring(lexer_t *);
 static data_t *         _lexer_resolve(lexer_t *, char *);
 static data_t *         _lexer_has_next(lexer_t *);
 static data_t *         _lexer_next(lexer_t *);
-static data_t *         _lexer_call(lexer_t *, array_t *, dict_t *);
+static data_t *         _lexer_call(lexer_t *, arguments_t *);
 static tokenize_ctx_t * _lexer_tokenize_reducer(token_t *, tokenize_ctx_t *);
-static data_t *         _lexer_mth_tokenize(lexer_t *, char *, array_t *, dict_t *);
+static data_t *         _lexer_mth_tokenize(lexer_t *, char *, arguments_t *);
 static token_t *        _lexer_match_token(lexer_t *);
 
 static code_label_t lexer_state_names[] = {
@@ -187,10 +185,10 @@ data_t * _lexer_next(lexer_t *lexer) {
 tokenize_ctx_t * _lexer_tokenize_reducer(token_t *token, tokenize_ctx_t *ctx) {
   data_t *d;
 
-  array_set(ctx -> args, 0, (data_t *) token_copy(token));
-  d = data_call(ctx -> parser, ctx -> args, NULL);
-  if (d != data_array_get(ctx -> args, 0)) {
-    array_set(ctx -> args, 0, d);
+  arguments_set_arg(ctx -> args, 0, token);
+  d = data_call(ctx -> parser, ctx -> args);
+  if (d != data_uncopy(arguments_get_arg(ctx -> args, 0))) {
+    arguments_set_arg(ctx -> args, 0, d);
   }
   if (!data_cmp(d, data_null()) || ((data_type(d) == Bool) && !data_intval(d))) {
     return NULL;
@@ -199,26 +197,24 @@ tokenize_ctx_t * _lexer_tokenize_reducer(token_t *token, tokenize_ctx_t *ctx) {
   }
 }
 
-data_t * _lexer_call(lexer_t *lexer, array_t *args, dict_t *kwargs) {
+data_t * _lexer_call(lexer_t *lexer, arguments_t *args) {
   tokenize_ctx_t  ctx;
   data_t         *ret;
 
-  ctx.parser = data_copy(data_array_get(args, 0));
-  ctx.args = data_array_create(3);
-
-  array_set(ctx.args, 0, NULL);
-  array_set(ctx.args, 1,
-            ((array_size(args) > 1) ? data_copy(data_array_get(args, 1)) : data_null()));
-  array_set(ctx.args, 2, (data_t *) lexer_copy(lexer));
+  ctx.parser = arguments_get_arg(args, 0);
+  ctx.args = arguments_create_args(3,
+      NULL,
+      ((arguments_args_size(args) > 1) ? arguments_get_arg(args, 1) : data_null()),
+      lexer);
   lexer_tokenize(lexer, (reduce_t) _lexer_tokenize_reducer, (void *) &ctx);
-  ret = data_copy(data_array_get(ctx.args, 0));
-  array_free(ctx.args);
+  ret = arguments_get_arg(ctx.args, 0);
+  arguments_free(ctx.args);
   data_free(ctx.parser);
   return ret;
 }
 
-data_t * _lexer_mth_tokenize(lexer_t *lexer, char *n, array_t *args, dict_t *kwargs) {
-  return _lexer_call(lexer, args, kwargs);
+data_t * _lexer_mth_tokenize(lexer_t *lexer, char *n, arguments_t *args) {
+  return _lexer_call(lexer, args);
 }
 
 /* -- L E X E R  S T A T I C  F U N C T I O N S --------------------------- */

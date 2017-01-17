@@ -22,7 +22,6 @@
 #include <string.h>
 
 #include "liblexer.h"
-#include <nvp.h>
 
 #define PARAM_KEYWORD      "keyword"
 #define PARAM_KEYWORDS     "keywords"
@@ -42,7 +41,7 @@ typedef enum _kw_scanner_state {
 typedef struct _kw_config {
   scanner_config_t   _sc;
   int       num_keywords;
-  int       size;
+  size_t    size;
   size_t    maxlen;
   token_t **keywords;
 } kw_config_t;
@@ -71,7 +70,7 @@ static kw_config_t *  _kw_config_create(kw_config_t *, va_list);
 static void           _kw_config_free(kw_config_t *);
 static data_t *       _kw_config_resolve(kw_config_t *, char *);
 static kw_config_t *  _kw_config_set(kw_config_t *, char *, data_t *);
-static kw_config_t *  _kw_config_mth_dump(kw_config_t *, char *, array_t *, dict_t *);
+static kw_config_t *  _kw_config_mth_dump(kw_config_t *, char *, arguments_t *);
 
 static kw_config_t *  _kw_config_configure(kw_config_t *, data_t *);
 static kw_config_t *  _kw_config_add_keyword(kw_config_t *, token_t *);
@@ -189,8 +188,8 @@ kw_config_t * _kw_config_configure(kw_config_t *config, data_t *data) {
 }
 
 kw_config_t * _kw_config_add_keyword(kw_config_t *config, token_t *token) {
-  int newsz;
-  int slot;
+  size_t newsz;
+  int    slot;
 
   if (config -> num_keywords == config -> size) {
     newsz = (config -> size) ? (2 * config -> size) : 4;
@@ -232,7 +231,7 @@ kw_config_t * _kw_config_add_keyword(kw_config_t *config, token_t *token) {
   return config;
 }
 
-kw_config_t * _kw_config_mth_dump(kw_config_t *self, char *name, array_t *args, dict_t *kwargs) {
+kw_config_t * _kw_config_mth_dump(kw_config_t *self, char _unused_ *name, arguments_t _unused_ *args) {
   return _kw_config_dump_tostream(self, stderr);
 }
 
@@ -285,7 +284,7 @@ kw_scanner_t * _kw_scanner_match(scanner_t *scanner, int ch) {
   kw_scanner_state_t  state = (kw_scanner_state_t) scanner -> state;
   kw_config_t        *config = (kw_config_t *) scanner -> config;
   kw_scanner_t       *kw_scanner = (kw_scanner_t *) scanner -> data;
-  int                 len;
+  size_t              len;
   int                 ix;
   int                 cmp;
   char               *kw;
@@ -301,7 +300,7 @@ kw_scanner_t * _kw_scanner_match(scanner_t *scanner, int ch) {
     kw_scanner -> scanned[0] = 0;
   }
   len = strlen(kw_scanner -> scanned);
-  kw_scanner -> scanned[len++] = ch;
+  kw_scanner -> scanned[len++] = (char) ch;
   kw_scanner -> scanned[len] = 0;
 
   for (ix = kw_scanner -> match_min; ix < kw_scanner -> match_max; ix++) {

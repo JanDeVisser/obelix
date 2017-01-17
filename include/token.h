@@ -77,7 +77,7 @@ typedef enum _token_code {
 typedef struct _token {
   data_t        _d;
   unsigned int  code;
-  int           size;
+  size_t        size;
   char         *token;
   int           line;
   int           column;
@@ -97,12 +97,7 @@ OBLLEXER_IMPEXP void         token_dump(token_t *);
 OBLLEXER_IMPEXP data_t *     token_todata(token_t *);
 
 OBLLEXER_IMPEXP int Token;
-
-#define data_is_token(d)     ((d) && data_hastype((d), Token))
-#define data_tokenval(d)     (data_is_token((d)) ? ((lexer_t *) ((d) -> ptrval)) : NULL)
-#define token_copy(t)        ((token_t *) data_copy((data_t *) (t)))
-#define token_free(t)        (data_free((data_t *) (t)))
-#define token_tostring(t)    (data_tostring((data_t *) (t)))
+type_skel(token, Token, token_t);
 
 #define strtoken_dict_create()  strdata_dict_create()
 #define tokenset_create()       data_set_create()

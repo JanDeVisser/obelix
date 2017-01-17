@@ -32,6 +32,8 @@ OBLCORE_IMPEXP arguments_t * arguments_shift(arguments_t *, data_t **);
 OBLCORE_IMPEXP arguments_t * arguments_create_from_cmdline(int, char **);
 OBLCORE_IMPEXP data_t *      arguments_get_arg(arguments_t *, int);
 OBLCORE_IMPEXP data_t *      arguments_get_kwarg(arguments_t *, char *);
+OBLCORE_IMPEXP arguments_t * _arguments_set_arg(arguments_t *, int, data_t *);
+OBLCORE_IMPEXP arguments_t * _arguments_set_kwarg(arguments_t *, char *, data_t *);
 
 OBLCORE_IMPEXP int Arguments;
 
@@ -59,6 +61,14 @@ static inline int arguments_has_kwargs(arguments_t *args) {
 
 static inline int arguments_kwargs_size(arguments_t *args) {
   return (args && args -> kwargs) ? dictionary_size(args -> kwargs) : 0;
+}
+
+static inline arguments_t * arguments_set_arg(arguments_t *args, int ix, void *data) {
+  return _arguments_set_arg(args, ix, data_as_data(data));
+}
+
+static inline arguments_t * arguments_set_kwarg(arguments_t *args, char *key, void *data) {
+  return _arguments_set_kwarg(args, key, data_as_data(data));
 }
 
 #endif /* __ARGUMENTS_H__ */

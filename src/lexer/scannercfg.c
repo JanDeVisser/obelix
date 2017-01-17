@@ -34,7 +34,7 @@ static void               _scanner_config_free(scanner_config_t *);
 static char *             _scanner_config_allocstring(scanner_config_t *);
 static data_t *           _scanner_config_resolve(scanner_config_t *, char *);
 static scanner_config_t * _scanner_config_set(scanner_config_t *, char *, data_t *);
-static data_t *           _scanner_config_call(scanner_config_t *, array_t *, dict_t *);
+static data_t *           _scanner_config_call(scanner_config_t *, arguments_t *args);
 static scanner_config_t * _scanner_config_setstring(scanner_config_t *, char *);
 
 static vtable_t _vtable_ScannerConfig[] = {
@@ -212,10 +212,10 @@ scanner_config_t * _scanner_config_setstring(scanner_config_t *config, char *val
   return ret;
 }
 
-data_t * _scanner_config_call(scanner_config_t *config, array_t *args, dict_t *kwargs) {
+data_t * _scanner_config_call(scanner_config_t *config, arguments_t *args) {
   lexer_t *lexer;
 
-  lexer = (lexer_t *) data_array_get(args, 0);
+  lexer = (lexer_t *) data_uncopy(arguments_get_arg(args, 0));
   return (data_t *) scanner_config_instantiate(config, lexer);
 }
 
@@ -250,12 +250,12 @@ typedescr_t * scanner_config_load(char *code, char *regfnc_name) {
 
 typedescr_t * scanner_config_get(char *code) {
   typedescr_t *ret;
-  intptr_t     type;
+  int          type;
 
   lexer_init();
   mutex_lock(_scanner_config_mutex);
   if (dict_has_key(_scanners_configs, code)) {
-    type = (intptr_t) dict_get(_scanners_configs, code);
+    type = (int) (intptr_t) dict_get(_scanners_configs, code);
     ret = typedescr_get(type);
   } else {
     ret = _scanner_config_load_nolock(code, NULL);

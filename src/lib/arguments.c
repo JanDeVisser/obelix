@@ -180,6 +180,16 @@ data_t * arguments_get_kwarg(arguments_t *arguments, char *name) {
   return dictionary_get(arguments -> kwargs, name);
 }
 
+arguments_t * _arguments_set_arg(arguments_t *arguments, int ix, data_t *data) {
+  datalist_set(arguments -> args, ix, data);
+  return arguments;
+}
+
+arguments_t * _arguments_set_kwarg(arguments_t *arguments, char *key, data_t *data) {
+  dictionary_set(arguments -> kwargs, key, data);
+  return arguments;
+}
+
 arguments_t * arguments_shift(arguments_t *arguments, data_t **shifted) {
   arguments_t *ret = arguments_deepcopy(arguments);
   array_t     *args = data_as_array(ret -> args);

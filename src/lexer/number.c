@@ -247,7 +247,7 @@ token_code_t _num_scanner_process(scanner_t *scanner, int ch) {
 
 token_t * _num_match(scanner_t *scanner) {
   int           ch;
-  token_code_t  code;
+  token_code_t  code = TokenCodeNone;
   token_t      *ret = NULL;
 
   for (scanner -> state = NumScannerStateNone;
@@ -260,7 +260,7 @@ token_t * _num_match(scanner_t *scanner) {
     lexer_accept_token(scanner -> lexer, ret);
     token_free(ret);
   } else if (code != TokenCodeNone) {
-    ret = lexer_accept(scanner -> lexer, code);
+    lexer_accept(scanner -> lexer, code);
   }
   return scanner -> lexer -> last_token;
 }

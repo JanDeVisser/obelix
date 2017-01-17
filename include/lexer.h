@@ -88,7 +88,7 @@ typedef struct _lexer_config {
   data_t            _d;
   int               num_scanners;
   scanner_config_t *scanners;
-  int               bufsize;
+  size_t            bufsize;
   char             *build_func;
   data_t           *data;
 } lexer_config_t;
@@ -150,8 +150,8 @@ OBLLEXER_IMPEXP scanner_t *        scanner_reconfigure(scanner_t *, char *, data
 OBLLEXER_IMPEXP lexer_config_t *   lexer_config_create(void);
 OBLLEXER_IMPEXP scanner_config_t * lexer_config_add_scanner(lexer_config_t *, char *);
 OBLLEXER_IMPEXP scanner_config_t * lexer_config_get_scanner(lexer_config_t *, char *);
-OBLLEXER_IMPEXP lexer_config_t *   lexer_config_set_bufsize(lexer_config_t *, int);
-OBLLEXER_IMPEXP int                lexer_config_get_bufsize(lexer_config_t *);
+OBLLEXER_IMPEXP lexer_config_t *   lexer_config_set_bufsize(lexer_config_t *, size_t);
+OBLLEXER_IMPEXP size_t             lexer_config_get_bufsize(lexer_config_t *);
 OBLLEXER_IMPEXP data_t *           lexer_config_set(lexer_config_t *, char *, data_t *);
 OBLLEXER_IMPEXP data_t *           lexer_config_get(lexer_config_t *, char *, char *);
 OBLLEXER_IMPEXP lexer_config_t *   lexer_config_tokenize(lexer_config_t *, reduce_t, data_t *);
@@ -192,30 +192,13 @@ OBLLEXER_IMPEXP int ScannerConfig;
 OBLLEXER_IMPEXP int Scanner;
 OBLLEXER_IMPEXP int lexer_debug;
 
-#define lexer_tokenize(l, r, d)    _lexer_tokenize((l), (reduce_t) (r), (d))
+type_skel(lexer_config, LexerConfig, lexer_config_t);
+type_skel(lexer, Lexer, lexer_t);
+type_skel(scanner_config, ScannerConfig, scanner_config_t);
+type_skel(scanner, Scanner, scanner_t);
 
-#define data_is_lexer_config(d)    ((d) && data_hastype((d), LexerConfig))
-#define data_as_lexer_config(d)    (data_is_lexer_config((d)) ? ((lexer_config_t *) (d)) : NULL)
-#define lexer_config_copy(l)       ((lexer_config_t *) data_copy((data_t *) (l)))
-#define lexer_config_free(l)       (data_free((data_t *) (l)))
-#define lexer_config_tostring(l)   (data_tostring((data_t *) (l)))
-
-#define data_is_lexer(d)           ((d) && data_hastype((d), Lexer))
-#define data_as_lexer(d)           (data_is_lexer((d)) ? ((lexer_t *) (d)) : NULL)
-#define lexer_copy(l)              ((lexer_t *) data_copy((data_t *) (l)))
-#define lexer_free(l)              (data_free((data_t *) (l)))
-#define lexer_tostring(l)          (data_tostring((data_t *) (l)))
-
-#define data_is_scanner_config(d)  ((d) && data_hastype((d), ScannerConfig))
-#define data_as_scanner_config(d)  (data_is_scanner_config((d)) ? ((scanner_config_t *) (d)) : NULL)
-#define scanner_config_copy(l)     ((scanner_config_t *) data_copy((data_t *) (l)))
-#define scanner_config_free(l)     (data_free((data_t *) (l)))
-#define scanner_config_tostring(l) (data_tostring((data_t *) (l)))
-
-#define data_is_scanner(d)         ((d) && data_hastype((d), Scanner))
-#define data_as_scanner(d)         (data_is_scanner((d)) ? ((scanner_t *) (d)) : NULL)
-#define scanner_copy(l)            ((scanner_t *) data_copy((data_t *) (l)))
-#define scanner_free(l)            (data_free((data_t *) (l)))
-#define scanner_tostring(l)        (data_tostring((data_t *) (l)))
+static inline void * lexer_tokenize(lexer_t *lexer, void *reducer, void *ctx) {
+  return _lexer_tokenize(lexer, (reduce_t) reducer, ctx);
+}
 
 #endif /* __LEXER_H__ */

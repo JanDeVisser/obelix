@@ -24,13 +24,6 @@
 
 typedef lexer_t (*onnewline_t)(lexer_t *);
 
-typedef enum _pos_scanner_state {
-  PosInit,
-  PosCR,
-  PosNewline,
-  PosDone
-} pos_state_t;
-
 typedef struct _pos_config {
   scanner_config_t  _sc;
   function_t       *onnewline;
@@ -97,7 +90,7 @@ pos_config_t * _pos_config_config(pos_config_t *config, array_t *cfg) {
 }
 
 token_t * _pos_match(scanner_t *scanner) {
-  char          ch;
+  int           ch;
   token_t      *ret = NULL;
   pos_config_t *pos_config = (pos_config_t *) scanner -> config;
   int           count = 0;
@@ -116,7 +109,7 @@ token_t * _pos_match(scanner_t *scanner) {
       }
       lexer -> line++;
       lexer -> column = 0;
-    } else if ((ch != '\r') && (ch != '\n')) {
+    } else if (ch != '\n') {
       lexer -> column++;
     }
     scanner -> state = ch;

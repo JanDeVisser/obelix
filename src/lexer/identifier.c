@@ -22,8 +22,6 @@
 #include <ctype.h>
 
 #include "liblexer.h"
-#include <exception.h>
-#include <nvp.h>
 
 #define PARAM_STARTWITH       "startwith"
 #define PARAM_FILTER          "filter"
@@ -155,7 +153,7 @@ data_t * _id_config_resolve(id_config_t *id_config, char *name) {
   } else if (!strcmp(name, PARAM_FILTER)) {
     return (data_t *) str_copy_chars(id_config -> filter ? id_config -> filter : "");
   } else if (!strcmp(name, PARAM_TOKENCODE)) {
-    return (data_t *) int_to_data(id_config -> code);
+    return int_to_data(id_config -> code);
   } else {
     return NULL;
   }
@@ -181,6 +179,8 @@ int _id_config_filter_against(char *filter, int alpha, int digits, int ch) {
         return islower(ch);
       case IDOnlyUpper:
         return isupper(ch);
+      default:
+        return TRUE;
     }
   } else if (isdigit(ch)) {
     return digits;
@@ -226,6 +226,8 @@ token_t * _id_match(scanner_t *scanner) {
         break;
       case IDFoldToLower:
         lexer_push_as(scanner -> lexer, tolower(ch));
+        break;
+      default:
         break;
     }
   }
