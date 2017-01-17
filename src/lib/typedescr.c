@@ -22,47 +22,45 @@
 
 #include "libcore.h"
 #include <exception.h>
-#include <logging.h>
 #include <str.h>
-#include <typedescr.h>
 
-static int           _numtypes = Dynamic;
-static int           _capacity = 0;
+static size_t        _numtypes = Dynamic;
+static size_t        _capacity = 0;
 static typedescr_t **_descriptors = NULL;
 static interface_t **_interfaces = NULL;
 static int           _next_interface = NextInterface;
 static int           _num_interfaces = 0;
 
-extern int          _data_count;
-       int          type_debug = 1;
+extern int           _data_count;
+       int           type_debug = 1;
 
-extern void           any_init(void);
-static datalist_t *   _add_method_reducer(methoddescr_t *, datalist_t *);
+extern void          any_init(void);
+static datalist_t *  _add_method_reducer(methoddescr_t *, datalist_t *);
 
-static char *         _methoddescr_tostring(methoddescr_t *);
-static int            _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
-static data_t *       _methoddescr_resolve(methoddescr_t *, char *);
-static unsigned int   _methoddescr_hash(methoddescr_t *);
+static char *        _methoddescr_tostring(methoddescr_t *);
+static int           _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
+static data_t *      _methoddescr_resolve(methoddescr_t *, char *);
+static unsigned int  _methoddescr_hash(methoddescr_t *);
 
-static kind_t *     _kind_init(kind_t *, int, int, char *);
-static int          _kind_cmp(kind_t *, kind_t *);
-static char *       _kind_tostring(kind_t *);
-static unsigned int _kind_hash(kind_t *);
-static data_t *     _kind_resolve(kind_t *, char *);
-static kind_t *     _kind_inherit_methods(kind_t *, kind_t *);
-static kind_t *     _inherit_method_reducer(methoddescr_t *, kind_t *);
+static kind_t *      _kind_init(kind_t *, int, int, char *);
+static int           _kind_cmp(kind_t *, kind_t *);
+static char *        _kind_tostring(kind_t *);
+static unsigned int  _kind_hash(kind_t *);
+static data_t *      _kind_resolve(kind_t *, char *);
+static kind_t *      _kind_inherit_methods(kind_t *, kind_t *);
+static kind_t *      _inherit_method_reducer(methoddescr_t *, kind_t *);
 
-static data_t *     _interface_resolve(interface_t *, char *);
-static data_t *     _interface_isimplementedby(interface_t *, char *, array_t *, dict_t *);
-static data_t *     _interface_implements(data_t *, char *, array_t *, dict_t *);
+static data_t *      _interface_resolve(interface_t *, char *);
+static data_t *      _interface_isimplementedby(interface_t *, char *, arguments_t *);
+static data_t *      _interface_implements(data_t *, char *, arguments_t *);
 
 static int *         _typedescr_get_all_interfaces(typedescr_t *);
 static void_t *      _typedescr_get_constructors(typedescr_t *);
 static typedescr_t * _typedescr_initialize_vtable(typedescr_t *, vtable_t[]);
 
-static data_t *     _typedescr_resolve(typedescr_t *, char *);
-static data_t *     _typedescr_gettype(data_t *, char *, array_t *, dict_t *);
-static data_t *     _typedescr_hastype(data_t *, char *, array_t *, dict_t *);
+static data_t *      _typedescr_resolve(typedescr_t *, char *);
+static data_t *      _typedescr_gettype(data_t *, char *, arguments_t *);
+static data_t *      _typedescr_hastype(data_t *, char *, arguments_t *);
 
 static vtable_t _vtable_Method[] = {
   { .id = FunctionCmp,          .fnc = (void_t) _methoddescr_cmp },
@@ -305,8 +303,8 @@ kind_t * _kind_inherit_methods(kind_t *kind, kind_t *from) {
 
 int _interface_register(int type, char *name, int numfncs, ...) {
   int           ix;
-  int           cursz;
-  int           newsz;
+  size_t        cursz;
+  size_t        newsz;
   interface_t **new_interfaces;
   interface_t  *iface;
   va_list       fncs;
@@ -402,12 +400,10 @@ data_t * _interface_resolve(interface_t *iface, char *name) {
   }
 }
 
-data_t * _interface_isimplementedby(interface_t *iface, char *name, array_t *args, dict_t *kwargs) {
-  data_t      *data = data_array_get(args, 0);
+data_t * _interface_isimplementedby(interface_t *iface, char _unused_ *name, arguments_t *args) {
+  data_t      *data = data_uncopy(arguments_get_arg(args, 0));
   typedescr_t *type;
 
-  (void) name;
-  (void) kwargs;
   if (data_hastype(data, Interface)) {
     return data_false();
   } else {
@@ -418,14 +414,14 @@ data_t * _interface_isimplementedby(interface_t *iface, char *name, array_t *arg
   }
 }
 
-data_t * _interface_implements(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  array_t     *a = data_array_create(1);
-  interface_t *iface = (interface_t *) array_get(args, 0);
+data_t * _interface_implements(data_t *self, char *name, arguments_t *args) {
+  arguments_t *a;
+  interface_t *iface = data_as_interface(data_uncopy(arguments_get_arg(args, 0)));
   data_t      *ret;
 
-  array_push(a, data_copy(self));
-  ret = _interface_isimplementedby(iface, NULL, a, NULL);
-  array_free(a);
+  a = arguments_create_args(1, self);
+  ret = _interface_isimplementedby(iface, name, a);
+  arguments_free(a);
   return ret;
 }
 
@@ -451,17 +447,17 @@ void_t vtable_get(vtable_t *vtable, int fnc_id) {
 }
 
 vtable_t * vtable_build(vtable_t vtable[]) {
-  int       ix;
-  int       fnc_id;
-  vtable_t *ret;
+  vtable_id_t  ix;
+  vtable_id_t  fnc_id;
+  vtable_t    *ret;
 
   ret = (vtable_t *) new((FunctionEndOfListDummy + 1) * sizeof(vtable_t));
-  for (ix = 0; ix <= FunctionEndOfListDummy; ix++) {
+  for (ix = FunctionNone; ix <= FunctionEndOfListDummy; ix++) {
     ret[ix].id = ix;
     ret[ix].fnc = NULL;
   }
   if (vtable) {
-    for (ix = 0; vtable[ix].fnc; ix++) {
+    for (ix = FunctionNone; vtable[ix].fnc; ix++) {
       fnc_id = vtable[ix].id;
       ret[fnc_id].id = fnc_id;
       ret[fnc_id].fnc = vtable[ix].fnc;
@@ -523,28 +519,21 @@ data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
   }
 }
 
-data_t * _typedescr_gettype(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t      *t = data_array_get(args, 0);
+data_t * _typedescr_gettype(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {
+  data_t      *t = data_uncopy(arguments_get_arg(args, 0));
   typedescr_t *type;
-
-  (void) self;
-  (void) name;
-  (void) kwargs;
 
   type = (data_is_int(t))
     ? typedescr_get(data_intval(t))
     : typedescr_get_byname(data_tostring(t));
   return (type)
     ? (data_t *) type
-    : (data_t *) data_exception(ErrorParameterValue,
-		     "Type '%s' not found", data_tostring(t));
+    : data_exception(ErrorParameterValue, "Type '%s' not found", data_tostring(t));
 }
 
-data_t * _typedescr_hastype(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  typedescr_t *type = (typedescr_t *) data_array_get(args, 0);
+data_t * _typedescr_hastype(data_t *self, char _unused_ *name, arguments_t *args) {
+  typedescr_t *type = data_as_typedescr(data_uncopy(arguments_get_arg(args, 0)));
 
-  (void) name;
-  (void) kwargs;
   return data_hastype(self, type -> _d.type) ? data_true() : data_false();
 }
 
@@ -574,7 +563,7 @@ int * _typedescr_get_all_interfaces(typedescr_t *descr) {
 
   if (!descr -> implements || (_num_interfaces > descr -> implements_sz)) {
     free(descr -> implements);
-    descr -> implements = NEWARR(_num_interfaces, int);
+    descr -> implements = NEWARR((size_t) _num_interfaces, int);
     descr -> implements_sz = _num_interfaces;
     for (ix = 0; ix < _num_interfaces; ix++) {
       descr -> implements[ix] = _typedescr_check_if_implements(descr, _interfaces[ix]);
@@ -591,7 +580,7 @@ void_t * _typedescr_get_constructors(typedescr_t *type) {
   void_t *inherited;
   int     ix;
   int     iix;
-  int     count;
+  size_t  count;
 
   free(type -> constructors);
   for (count = 0, ix = 0; type -> inherits[ix]; ix++) {
@@ -619,7 +608,7 @@ void_t * _typedescr_get_constructors(typedescr_t *type) {
 }
 
 typedescr_t * _typedescr_build_ancestors(typedescr_t *td) {
-  int          count;
+  size_t       count;
   int          ix;
   int          iix;
   typedescr_t *base;
@@ -688,12 +677,12 @@ int _typedescr_register(int type, char *type_name, vtable_t *vtable, methoddescr
   }
   debug(type, "Registering type '%s' [%d]", type_name, type);
   if (type <= 0) {
-    type = (_numtypes > Dynamic) ? _numtypes : Dynamic;
-    _numtypes = type + 1;
+    type = (_numtypes > (size_t) Dynamic) ? (int) _numtypes : (int) Dynamic;
+    _numtypes = (size_t) (type + 1);
     debug(type, "Giving type '%s' ID %d", type_name, type);
   }
   if (type >= _capacity) {
-    for (newcap = (_capacity) ? _capacity * 2 : Dynamic;
+    for (newcap = (_capacity) ? _capacity * 2 : (size_t) Dynamic;
          newcap < type;
          newcap *= 2);
     cursz = _capacity * sizeof(typedescr_t *);

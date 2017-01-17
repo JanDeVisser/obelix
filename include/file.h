@@ -44,19 +44,18 @@ typedef struct _stream {
   write_t    writer;
   int        _eof;
   int        _errno;
-  char      *error;
+  data_t    *error;
 } stream_t;
 
 OBLCORE_IMPEXP void         file_init(void);
 
 OBLCORE_IMPEXP stream_t *   stream_init(stream_t *, read_t, write_t);
-OBLCORE_IMPEXP void         stream_free(stream_t *);
-OBLCORE_IMPEXP char *       stream_error(stream_t *);
+OBLCORE_IMPEXP data_t *     stream_error(stream_t *);
 OBLCORE_IMPEXP int          stream_read(stream_t *, char *, int);
 OBLCORE_IMPEXP int          stream_write(stream_t *, char *, int);
 OBLCORE_IMPEXP int          stream_getchar(stream_t *);
 OBLCORE_IMPEXP char *       stream_readline(stream_t *);
-OBLCORE_IMPEXP int          stream_print(stream_t *, char *, array_t *, dict_t *);
+OBLCORE_IMPEXP int          stream_print(stream_t *, char *, arguments_t *);
 OBLCORE_IMPEXP int          stream_vprintf(stream_t *, char *, va_list);
 OBLCORE_IMPEXP int          stream_printf(stream_t *, char *, ...);
 OBLCORE_IMPEXP int          stream_eof(stream_t *);
@@ -72,7 +71,6 @@ OBLCORE_IMPEXP int          file_mode(char *);
 OBLCORE_IMPEXP file_t *     file_create(int);
 OBLCORE_IMPEXP file_t *     file_open_ext(char *, ...);
 OBLCORE_IMPEXP file_t *     file_open(char *);
-OBLCORE_IMPEXP void         file_free(file_t *);
 OBLCORE_IMPEXP int          file_close(file_t *);
 OBLCORE_IMPEXP char *       file_name(file_t *);
 OBLCORE_IMPEXP unsigned int file_hash(file_t *);
@@ -87,17 +85,8 @@ OBLCORE_IMPEXP int          file_redirect(file_t *, char *);
 OBLCORE_IMPEXP int          Stream;
 OBLCORE_IMPEXP int          File;
 
-#define data_is_stream(d)    ((d) && (data_hastype((data_t *) (d), Stream)))
-#define data_as_stream(d)    ((stream_t *) (data_is_stream((d)) ? ((stream_t *) (d)) : NULL))
-#define stream_tostring(s)   (data_tostring((data_t *) (s)))
-#define stream_free(s)       (data_free((data_t *) (s)))
-#define stream_copy(s)       ((stream_t *) data_copy((data_t *) (s)))
-
-#define data_is_file(d)      ((d) && (data_hastype((data_t *) (d), File)))
-#define data_as_file(d)      ((file_t *) (data_is_file((d)) ? ((file_t *) (d)) : NULL))
-#define file_free(f)         (data_free((data_t *) (f)))
-#define file_tostring(f)     (data_tostring((data_t *) (f)))
-#define file_copy(f)         ((file_t *) data_copy((data_t *) (f)))
+type_skel(stream, Stream, stream_t);
+type_skel(file, File, file_t);
 
 #define file_set_errno(f)          (((stream_t *) (f)) -> _errno = errno)
 #define file_clear_errno(f)        (((stream_t *) (f)) -> _errno = 0)

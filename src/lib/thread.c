@@ -24,9 +24,8 @@
 #include "libcore.h"
 #include <data.h>
 #include <datastack.h>
-#include <dict.h>
 #include <exception.h>
-#include <str.h>
+#include <mutex.h>
 #include <thread.h>
 
 #define MAX_STACKDEPTH      200
@@ -49,11 +48,11 @@ extern _thr_t        _thread_self(void);
 static void          _thread_set_selfobj(thread_t *);
 static thread_t *    _thread_get_selfobj();
 
-static data_t *      _thread_interrupt(data_t *, char *, array_t *, dict_t *);
-static data_t *      _thread_yield(data_t *, char *, array_t *, dict_t *);
-static data_t *      _thread_stack(data_t *, char *, array_t *, dict_t *);
+static data_t *      _thread_interrupt(data_t *, char *, arguments_t *);
+static data_t *      _thread_yield(data_t *, char *, arguments_t *);
+static data_t *      _thread_stack(data_t *, char *, arguments_t *);
 
-extern data_t *      _thread_current_thread(char *, array_t *, dict_t *);
+extern data_t *      _thread_current_thread(char *, arguments_t *);
 
 static vtable_t _vtable_Thread[] = {
   { .id = FunctionCmp,      .fnc = (void_t) thread_cmp },
@@ -357,18 +356,16 @@ int thread_status(thread_t *thread) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _thread_current_thread(char *name, array_t *args, dict_t *kwargs) {
+data_t * _thread_current_thread(char *name, arguments_t *args) {
   (void) name;
   (void) args;
-  (void) kwargs;
 
   return data_current_thread();
 }
 
-data_t * _thread_interrupt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _thread_interrupt(data_t *self, char *name, arguments_t *args) {
   (void) name;
   (void) args;
-  (void) kwargs;
 
   if (thread_interrupt((thread_t *) self)) {
     return data_exception_from_errno();
@@ -377,10 +374,9 @@ data_t * _thread_interrupt(data_t *self, char *name, array_t *args, dict_t *kwar
   }
 }
 
-data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _thread_yield(data_t *self, char *name, arguments_t *args) {
   (void) name;
   (void) args;
-  (void) kwargs;
 
   if (thread_yield()) {
     return data_exception_from_errno();
@@ -389,11 +385,10 @@ data_t * _thread_yield(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   }
 }
 
-data_t * _thread_stack(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _thread_stack(data_t *self, char *name, arguments_t *args) {
   (void) self;
   (void) name;
   (void) args;
-  (void) kwargs;
 
   return data_thread_stacktrace(self);
 }
@@ -452,20 +447,18 @@ data_t * data_thread_stacktrace(data_t *thread) {
   data_t      *ret;
 
   if (!thread) {
-    data = data_current_thread();
-    thread = data;
+    thread = data_uncopy(data_current_thread());
   }
-  thr = data_as_thread(data);
+  thr = data_as_thread(thread);
   stack = (datastack_t *) thr -> stack;
   ret = (data_t *) datalist_create(stack -> list);
-  data_free(data);
   return ret;
 }
 
 data_t * data_thread_set_kernel(data_t *kernel) {
-  data_t      *data = data_current_thread();
-  thread_t    *thread = data_as_thread(data);
+  thread_t    *thread = data_as_thread(data_current_thread());
 
+  data_free(thread -> kernel);
   thread -> kernel = data_copy(kernel);
   return kernel;
 }

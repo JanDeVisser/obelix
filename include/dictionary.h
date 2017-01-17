@@ -28,11 +28,6 @@
 extern "C" {
 #endif
 
-typedef struct _dictionary {
-  data_t  _d;
-  dict_t *attributes;
-} dictionary_t;
-
 OBLCORE_IMPEXP void            dictionary_init(void);
 OBLCORE_IMPEXP dictionary_t *  dictionary_create(data_t *);
 OBLCORE_IMPEXP dictionary_t *  dictionary_create_from_dict(dict_t *);
@@ -42,6 +37,9 @@ OBLCORE_IMPEXP data_t *        dictionary_pop(dictionary_t *, char *);
 OBLCORE_IMPEXP data_t *        _dictionary_set(dictionary_t *, char *, data_t *);
 OBLCORE_IMPEXP int             dictionary_has(dictionary_t *, char *);
 OBLCORE_IMPEXP int             dictionary_size(dictionary_t *);
+OBLCORE_IMPEXP data_t *        _dictionary_reduce(dictionary_t *, reduce_t, data_t *);
+
+OBLCORE_IMPEXP int Dictionary;
 
 type_skel(dictionary, Dictionary, dictionary_t);
 
@@ -53,9 +51,18 @@ static inline void dictionary_remove(dictionary_t *dict, char *key) {
   (void) dictionary_pop(dict, key);
 }
 
-static dictionary_t * dictionary_clear(dictionary_t *dict) {
+static inline dictionary_t * dictionary_clear(dictionary_t *dict) {
   dict_clear(dict -> attributes);
   return dict;
+}
+
+static inline char * dictionary_value_tostring(dictionary_t *dict, char *key) {
+  return data_tostring(data_uncopy(dictionary_get(dict, key)));
+}
+
+static inline data_t * dictionary_reduce(dictionary_t *dict, reduce_t reducer, void *initial) {
+  assert(!initial || data_is_data(initial));
+  return _dictionary_reduce(dict, reducer, data_as_data(initial));
 }
 
 #ifdef __cplusplus

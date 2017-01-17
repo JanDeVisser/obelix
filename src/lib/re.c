@@ -28,26 +28,28 @@
 #include <data.h>
 #include <exception.h>
 #include <re.h>
-#include <typedescr.h>
 
 static void     _regexp_init(void);
-static char *   _regexp_allocstring(re_t *);
+static re_t *   _regexp_new(re_t *, va_list);
 static void     _regexp_free(re_t *);
-static data_t * _regexp_call(re_t *, array_t *, dict_t *);
-static data_t * _regexp_interpolate(re_t *, array_t *, dict_t *);
-static data_t * _regexp_match(data_t *, char *, array_t *, dict_t *);
-static data_t * _regexp_replace(data_t *, char *, array_t *, dict_t *);
+static int      _regexp_cmp(re_t *, re_t *);
+static char *   _regexp_allocstring(re_t *);
+static data_t * _regexp_call(re_t *, arguments_t *);
+static data_t * _regexp_interpolate(re_t *, arguments_t *);
+static data_t * _regexp_match(data_t *, char *, arguments_t *);
+static data_t * _regexp_replace(data_t *, char *, arguments_t *);
 static data_t * _regexp_compile(re_t *);
 
-extern data_t * _regexp_create(char *, array_t *, dict_t *);
+extern data_t * _regexp_create(char *, arguments_t *);
 
 static vtable_t _vtable_Regexp[] = {
-  { .id = FunctionCmp,         .fnc = (void_t) regexp_cmp },
-  { .id = FunctionFree,        .fnc = (void_t) _regexp_free },
-  { .id = FunctionAllocString, .fnc = (void_t) _regexp_allocstring },
-  { .id = FunctionCall,        .fnc = (void_t) _regexp_call },
-  { .id = FunctionInterpolate, .fnc = (void_t) _regexp_interpolate },
-  { .id = FunctionNone,        .fnc = NULL }
+    { .id = FunctionNew,         .fnc = (void_t) _regexp_new },
+    { .id = FunctionFree,        .fnc = (void_t) _regexp_free },
+    { .id = FunctionCmp,         .fnc = (void_t) _regexp_cmp },
+    { .id = FunctionAllocString, .fnc = (void_t) _regexp_allocstring },
+    { .id = FunctionCall,        .fnc = (void_t) _regexp_call },
+    { .id = FunctionInterpolate, .fnc = (void_t) _regexp_interpolate },
+    { .id = FunctionNone,        .fnc = NULL }
 };
 
 int Regexp = -1;
@@ -68,13 +70,21 @@ void _regexp_init(void) {
   }
 }
 
-char * _regexp_allocstring(re_t *regex) {
-  char *buf;
+re_t * _regexp_new(re_t *regex, va_list args) {
+  char *pattern = va_arg(args, char *);
+  char *flags = va_arg(args, char *);
 
-  asprintf(&buf, "/%s/%s",
-	   str_tostring(regex -> pattern),
-	   (regex -> flags) ? (regex -> flags) : "");
-  return buf;
+  regex -> pattern = str_printf( "(%s)", pattern);
+  regex -> re_flags = REG_EXTENDED;
+  if (flags) {
+    regex -> flags = strdup(flags);
+    if (strchr(regex -> flags, 'i')) {
+      regex -> re_flags |= REG_ICASE;
+    }
+  }
+  regex -> is_compiled = FALSE;
+  debug(regexp, "Created re %s", regexp_tostring(regex));
+  return regex;
 }
 
 void _regexp_free(re_t *regex) {
@@ -87,22 +97,31 @@ void _regexp_free(re_t *regex) {
   }
 }
 
-data_t * _regexp_call(re_t *re, array_t *args, dict_t *kwargs) {
-  data_t *str = data_array_get(args, 0);
-
-  (void) kwargs;
-  debug(regexp, "_regexp_call(%s, %s))", regexp_tostring(re), data_tostring(str));
-  return regexp_match(re, data_tostring(str));
+int _regexp_cmp(re_t *regex1, re_t *regex2) {
+  return str_cmp(regex1 -> pattern, regex2 -> pattern);
 }
 
-data_t * _regexp_interpolate(re_t *re, array_t *args, dict_t *kwargs) {
+char * _regexp_allocstring(re_t *regex) {
+  char *buf;
+
+  asprintf(&buf, "/%s/%s",
+      str_tostring(regex -> pattern), (regex -> flags) ? (regex -> flags) : "");
+  return buf;
+}
+
+data_t * _regexp_call(re_t *re, arguments_t *args) {
+  char *str = arguments_arg_tostring(args, 0);
+
+  debug(regexp, "_regexp_call(%s, %s))", regexp_tostring(re), str);
+  return regexp_match(re, str);
+}
+
+data_t * _regexp_interpolate(re_t *re, arguments_t *args) {
   str_t  *pat;
 
-  (void) kwargs;
-  debug(regexp, "_regexp_interpolate(%s, %s, %s)", regexp_tostring(re),
-    (args) ? array_tostring(args) : "[]",
-    (kwargs) ? dict_tostring(kwargs) : "{}");
-  pat = str_format(str_chars(re -> pattern), args, kwargs);
+  debug(regexp, "_regexp_interpolate(%s, %s)",
+      regexp_tostring(re), arguments_tostring(args));
+  pat = str_format(str_chars(re -> pattern), args);
   str_free(re -> pattern);
   re -> pattern = pat;
   if (re -> is_compiled) {
@@ -132,41 +151,15 @@ data_t * _regexp_compile(re_t *re) {
 /* ------------------------------------------------------------------------ */
 
 re_t * regexp_create(char *pattern, char *flags) {
-  re_t *ret;
-
   _regexp_init();
-  ret = data_new(Regexp, re_t);
-  ret -> pattern = str_printf( "(%s)", pattern);
-  ret -> re_flags = REG_EXTENDED;
-  if (flags) {
-    ret -> flags = strdup(flags);
-    if (strchr(ret -> flags, 'i')) {
-      ret -> re_flags |= REG_ICASE;
-    }
-  }
-  ret -> is_compiled = FALSE;
-  debug(regexp, "Created re %s", regexp_tostring(ret));
-  return ret;
-}
-
-re_t * regexp_vcreate(va_list args) {
-  char *pattern;
-  char *flags;
-
-  pattern = va_arg(args, char *);
-  flags = va_arg(args, char *);
-  return regexp_create(pattern, flags);
-}
-
-int regexp_cmp(re_t *regex1, re_t *regex2) {
-  return str_cmp(regex1 -> pattern, regex2 -> pattern);
+  return (re_t *) data_create(Regexp, pattern, flags);
 }
 
 data_t * regexp_match(re_t *re, char *str) {
   regmatch_t  rm[2];
   char       *ptr = str;
-  int         len = strlen(str);
-  char       *work = (char *) new(len + 1);
+  size_t      len = strlen(str);
+  char       *work = stralloc(len);
   array_t    *matches = data_array_create(4);
   data_t     *ret;
 
@@ -176,7 +169,7 @@ data_t * regexp_match(re_t *re, char *str) {
   }
   while (!regexec(&re -> compiled, ptr, 1, rm, 0)) {
     memset(work, 0, len + 1);
-    strncpy(work, ptr + rm[0].rm_so, rm[0].rm_eo - rm[0].rm_so);
+    strncpy(work, ptr + rm[0].rm_so, (size_t) (rm[0].rm_eo - rm[0].rm_so));
     debug(regexp, "%s .match(%s): match at [%d-%d]: %s", regexp_tostring(re), ptr, rm[0].rm_so, rm[0].rm_eo, work);
     array_push(matches, str_to_data(work));
     ptr += rm[0].rm_eo;
@@ -196,37 +189,35 @@ data_t * regexp_match(re_t *re, char *str) {
   return ret;
 }
 
+/*
+ * FIXME Implement
+ */
 data_t * regexp_replace(re_t *re, char *str, array_t *replacements) {
   return data_null();
 }
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _regexp_create(char *name, array_t *args, dict_t *kwargs) {
-  data_t *pattern = data_array_get(args, 0);
-  char   *flags;
-  re_t   *ret;
+data_t * _regexp_create(char _unused_ *name, arguments_t *args) {
+  char *pattern = arguments_arg_tostring(args, 0);
+  char *flags;
+  re_t *ret;
 
-  (void) name;
-  (void) kwargs;
-  debug(regexp, "_regexp_create(%s))", data_tostring(pattern));
-  flags = (array_size(args) == 2) ? data_tostring(data_array_get(args, 1)) : "";
+  debug(regexp, "_regexp_create(%s))", pattern);
+  flags = (arguments_args_size(args) == 2) ? arguments_arg_tostring(args, 1) : "";
   ret = regexp_create(data_tostring(pattern), flags);
   return (data_t *) ret;
 }
 
 
-data_t * _regexp_match(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  (void) name;
-  return _regexp_call(data_as_regexp(self), args, kwargs);
+data_t * _regexp_match(data_t *self, char _unused_ *name, arguments_t *args) {
+  return _regexp_call(data_as_regexp(self), args);
 }
 
-data_t * _regexp_replace(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *str = data_array_get(args, 0);
-  data_t *replacements = data_array_get(args, 1);
+data_t * _regexp_replace(data_t *self, char _unused_ *name, arguments_t *args) {
+  data_t *str = data_uncopy(arguments_get_arg(args, 0));
+  data_t *replacements = data_uncopy(arguments_get_arg(args, 1));
   re_t   *re = data_as_regexp(self);
 
-  (void) name;
-  (void) kwargs;
   return regexp_replace(re, data_tostring(str), data_as_array(replacements));
 }

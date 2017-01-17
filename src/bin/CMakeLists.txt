@@ -10,13 +10,10 @@ add_executable(obelix
   oblgrammar.c
   loader.c
   obelix.c
-  client.c
-  pool.c
-  server.c
 )
 
 target_link_libraries(scriptparse oblvm oblparser oblgrammar obllexer oblcore ${SYSLIBS})
-target_link_libraries(obelix scriptparse oblnet oblvm oblparser oblgrammar obllexer oblcore readline ${SYSLIBS})
+target_link_libraries(obelix scriptparse oblipc oblnet oblvm oblparser oblgrammar obllexer oblcore readline ${SYSLIBS})
 
 install(TARGETS scriptparse obelix
   ARCHIVE DESTINATION lib

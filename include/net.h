@@ -71,11 +71,7 @@ OBLNET_IMPEXP char *  uri_path(uri_t *);
 
 OBLNET_IMPEXP int URI;
 
-#define data_is_uri(d)     ((d) && data_hastype((d), URI))
-#define data_as_uri(d)     (data_is_uri((d)) ? ((uri_t *) (d)) : NULL)
-#define uri_copy(u)        ((uri_t *) data_copy((data_t *) (u)))
-#define uri_free(u)        (data_free((data_t *) (u)))
-#define uri_tostring(u)    (data_tostring((data_t *) (u)))
+type_skel(uri, URI, uri_t);
 
 /* ------------------------------------------------------------------------ */
 
@@ -95,7 +91,6 @@ typedef struct _socket {
   int        socktype;
   char      *host;
   char      *service;
-  data_t    *error;
   service_t  service_handler;
   thread_t  *thread;
   void      *context;
@@ -122,21 +117,24 @@ OBLNET_IMPEXP socket_t *           socket_set_errno(socket_t *, char *);
 
 OBLNET_IMPEXP void *               connection_listener_service(connection_t *);
 
-#define data_is_socket(d)          ((d) && (data_hastype((d), Socket)))
-#define data_as_socket(d)          ((socket_t *) (data_is_socket((data_t *) (d)) ? (d) : NULL))
-#define socket_free(o)             (data_free((data_t *) (o)))
-#define socket_tostring(o)         (data_tostring((data_t *) (o)))
-#define socket_copy(o)             ((socket_t *) data_copy((data_t *) (o)))
+OBLNET_IMPEXP int Socket;
+OBLNET_IMPEXP int ErrorSocket;
 
-#define socket_errno(s)            (((stream_t *) (s)) -> _errno)
+type_skel(socket, Socket, socket_t);
+
 #define socket_getchar(s)          (stream_getchar((stream_t *) (s)))
 #define socket_readline(s)         (stream_readline((stream_t *) (s)))
 #define socket_print(s, f, a, kw)  (stream_print((stream_t *) (s), (f), (a), (kw)))
 #define socket_vprintf(s, f, args) (stream_printf((stream_t *) (s), (f), args))
 #define socket_printf(s, ...)      (stream_printf((stream_t *) (s), __VA_ARGS__))
 
-OBLNET_IMPEXP int Socket;
-OBLNET_IMPEXP int ErrorSocket;
+static inline int socket_errno(socket_t *socket) {
+  return ((stream_t *) socket) -> _errno;
+}
+
+static inline data_t * socket_error(socket_t *socket) {
+  return ((stream_t *) socket) -> error;
+}
 
 #ifdef	__cplusplus
 }

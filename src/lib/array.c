@@ -333,6 +333,25 @@ void * array_pop(array_t *array) {
   return ret;
 }
 
+void * array_remove(array_t *array, int ix) {
+  void *ret;
+
+  if ((ix < 0) || (ix >= array_size(array))) {
+    errno = EFAULT;
+    return NULL;
+  }
+  if (ix == (array -> size - 1)) {
+    return array_pop(array);
+  } else {
+    ret = array->contents[ix];
+    memmove(array->contents + ix,
+        array->contents + (ix + 1),
+        (array->capacity - (ix - 1)) * sizeof(void *));
+    array->size--;
+  }
+  return ret;
+}
+
 void * array_reduce(array_t *array, reduce_t reduce, void *data) {
   return _array_reduce(array, (reduce_t) reduce, data, RTObjects);
 }

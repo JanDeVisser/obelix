@@ -169,7 +169,7 @@ char * strrand(char *buf, size_t numchars) {
   _initialize_random();
   if (numchars) {
     if (!buf) {
-      buf = (char *) _new(numchars + 1);
+      buf = stralloc(numchars);
     }
     for (n = 0; n < numchars; n++) {
       key = rand() % (int) (sizeof(charset) - 1);

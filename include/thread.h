@@ -91,10 +91,6 @@ OBLCORE_IMPEXP void          data_thread_clear_exit_code(void);
 OBLCORE_IMPEXP int Thread;
 OBLCORE_IMPEXP int thread_debug;
 
-#define data_is_thread(d)  ((d) && (data_hastype((d), Thread)))
-#define data_as_thread(d)  ((thread_t *) (data_is_thread((d)) ? (d) : NULL))
-#define thread_free(o)     (data_free((data_t *) (o)))
-#define thread_tostring(o) (data_tostring((data_t *) (o)))
-#define thread_copy(o)     ((thread_t *) data_copy((data_t *) (o)))
+type_skel(thread, Thread, thread_t);
 
 #endif /* __MUTEX_H__ */

@@ -1,5 +1,5 @@
 /*
- * /obelix/src/lib/uri.c - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/src/net/uri.c - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -29,10 +29,10 @@
 #include <nvp.h>
 #include <parser.h>
 
-static void        _uri_grammar_init(void);
-static uri_t *     _uri_new(uri_t *, va_list);
-static data_t *    _uri_resolve(uri_t *, char *);
-static void        _uri_free(uri_t *);
+static void           _uri_grammar_init(void);
+static uri_t *        _uri_new(uri_t *, va_list);
+static data_t *       _uri_resolve(uri_t *, char *);
+static void           _uri_free(uri_t *);
 
 __DLL_EXPORT__ data_t *    _function_create_uri(char *, array_t *, dict_t *);
 __DLL_EXPORT__ data_t *    _function_net_init(char *, array_t *, dict_t *);

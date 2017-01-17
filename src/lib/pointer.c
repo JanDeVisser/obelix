@@ -28,7 +28,7 @@
 
 extern void          ptr_init(void);
 
-static pointer_t *   _ptr_new(int, va_list);
+static pointer_t *   _ptr_new(pointer_t *, va_list);
 static int           _ptr_cmp(pointer_t *, pointer_t *);
 static data_t *      _ptr_cast(pointer_t *, int);
 static unsigned int  _ptr_hash(pointer_t *);
@@ -37,11 +37,11 @@ static pointer_t *   _ptr_parse(char *);
 static data_t *      _ptr_serialize(pointer_t *);
 static pointer_t *   _ptr_deserialize(data_t *);
 
-static data_t *      _ptr_copy(data_t *, char *, array_t *, dict_t *);
-static data_t *      _ptr_fill(data_t *, char *, array_t *, dict_t *);
+static pointer_t *   _ptr_copy(pointer_t *, char *, arguments_t *);
+static pointer_t *   _ptr_fill(pointer_t *, char *, arguments_t *);
 
 static vtable_t _vtable_Pointer[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) _ptr_new },
+  { .id = FunctionNew,         .fnc = (void_t) _ptr_new },
   { .id = FunctionCmp,         .fnc = (void_t) _ptr_cmp },
   { .id = FunctionAllocString, .fnc = (void_t) _ptr_allocstring },
   { .id = FunctionCast,        .fnc = (void_t) _ptr_cast },
@@ -53,9 +53,9 @@ static vtable_t _vtable_Pointer[] = {
 };
 
 static methoddescr_t _methods_Pointer[] = {
-  { .type = Pointer, .name = "copy",  .method = _ptr_copy, .argtypes = { Pointer, NoType, NoType }, .minargs = 0, .varargs = 1  },
-  { .type = Pointer, .name = "fill",  .method = _ptr_fill, .argtypes = { Pointer, NoType, NoType }, .minargs = 1, .varargs = 1  },
-  { .type = NoType,  .name = NULL,    .method = NULL,      .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0  },
+  { .type = Pointer, .name = "copy",  .method = (method_t) _ptr_copy, .argtypes = { Pointer, Int, NoType },    .minargs = 0, .varargs = 1  },
+  { .type = Pointer, .name = "fill",  .method = (method_t) _ptr_fill, .argtypes = { Int, NoType, NoType },     .minargs = 1, .varargs = 0  },
+  { .type = NoType,  .name = NULL,    .method = NULL,                 .argtypes = { NoType, NoType, NoType },  .minargs = 0, .varargs = 0  },
 };
 
 /*
@@ -72,8 +72,14 @@ void ptr_init(void) {
   _null -> _d.free_me = Constant;
 }
 
-pointer_t * _ptr_new(int type, va_list arg) {
-  return ptr_create(va_arg(arg, int), va_arg(arg, void *));
+pointer_t * _ptr_new(pointer_t *ptr, va_list args) {
+  if (_null && !ptr) {
+    ptr = _null;
+  } else {
+    ptr -> size = va_arg(args, size_t);
+    ptr -> ptr = va_arg(args, void *);
+  }
+  return ptr;
 }
 
 data_t * _ptr_cast(pointer_t *src, int totype) {
@@ -158,50 +164,27 @@ unsigned int _ptr_hash(pointer_t *data) {
   return hash(data -> ptr, data -> size);
 }
 
-data_t * data_null(void) {
-  return (data_t *) _null;
-}
-
-int data_isnull(data_t *data) {
-  return !data || (data == (data_t *) _null);
-}
-
-int data_notnull(data_t *data) {
-  return data && (data != (data_t *) _null);
-}
-
 /* ----------------------------------------------------------------------- */
 
-data_t * _ptr_copy(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+pointer_t * _ptr_copy(pointer_t *p, char *name, arguments_t *args) {
   void      *newbuf;
-  pointer_t *p = data_as_pointer(self);
 
-  newbuf = (void *) new(p -> size);
+  newbuf = new(p -> size);
   memcpy(newbuf, p -> ptr, p -> size);
-  return ptr_to_data(p -> size, newbuf);
+  return ptr_create(p -> size, newbuf);
 }
 
-data_t * _ptr_fill(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  pointer_t *p = data_as_pointer(self);
-  data_t    *fillchar = data_array_get(args, 0);
+pointer_t * _ptr_fill(pointer_t *p, char *name, arguments_t *args) {
+  data_t    *fillchar = arguments_get_arg(args, 0);
 
   memset(p -> ptr, data_intval(fillchar), p -> size);
-  return data_copy(self);
+  return pointer_copy(p);
 }
 
 /* ----------------------------------------------------------------------- */
 
-pointer_t * ptr_create(int sz, void *ptr) {
-  pointer_t *ret;
-
-  if (_null && !ptr) {
-    return _null;
-  } else {
-    ret = data_new(Pointer, pointer_t);
-    ret -> size = sz;
-    ret -> ptr = ptr;
-  }
-  return ret;
+data_t * data_null(void) {
+  return (data_t *) _null;
 }
 
 /* ----------------------------------------------------------------------- */

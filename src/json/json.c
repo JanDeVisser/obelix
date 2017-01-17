@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libstdlib.h"
+#include "libjson.h"
 
 #ifdef HAVE_PTHREAD_H
 #include <pthread.h>

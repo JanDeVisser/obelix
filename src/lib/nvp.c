@@ -33,7 +33,7 @@ static void         _nvp_free(nvp_t *);
 static char *       _nvp_allocstring(nvp_t *);
 static data_t *     _nvp_resolve(nvp_t *, char *);
 
-static data_t *     _nvp_create(char *, array_t *, dict_t *);
+static data_t *     _nvp_create(char *, arguments_t *);
 
 /* ------------------------------------------------------------------------ */
 
@@ -79,9 +79,9 @@ void _nvp_free(nvp_t *nvp) {
 char * _nvp_allocstring(nvp_t *nvp) {
   char *buf;
 
-  asprintf(&buf, "%s=%s",
-	   data_tostring(nvp -> name),
-	   data_tostring(nvp -> value));
+  asprintf(&buf, "%s=%s", 
+      data_tostring(nvp -> name), 
+      data_tostring(nvp -> value));
   return buf;
 }
 
@@ -94,9 +94,7 @@ data_t * _nvp_resolve(nvp_t *nvp, char *name) {
     return NULL;
   }
 }
-
-
-
+  
 /* ------------------------------------------------------------------------ */
 
 nvp_t * nvp_create(data_t *name, data_t *value) {
@@ -147,6 +145,8 @@ unsigned int nvp_hash(nvp_t *nvp) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _nvp_create(char *name, array_t *args, dict_t *kwargs) {
-  return (data_t *) nvp_create(data_array_get(args, 0), data_array_get(args, 1));
+data_t * _nvp_create(char *name, arguments_t *args) {
+  return (data_t *) nvp_create(
+      data_uncopy(arguments_get_arg(args, 0)),
+      data_uncopy(arguments_get_arg(args, 1)));
 }

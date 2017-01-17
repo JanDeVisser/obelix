@@ -19,7 +19,7 @@
 
 #include "libcore.h"
 
-#include <arguments.h>
+#include <data.h>
 #include <exception.h>
 #include <str.h>
 
@@ -129,6 +129,36 @@ arguments_t * arguments_create(array_t *args, dict_t *kwargs) {
   return (arguments_t *) data_create(Arguments, args, kwargs);
 }
 
+arguments_t * arguments_create_args(int num, ...) {
+  arguments_t *args = arguments_create(NULL, NULL);
+  va_list      list;
+
+  va_start(list, num);
+  for (int ix = 0; ix < 0; ix++) {
+    datalist_push(args -> args, va_arg(list, data_t *));
+  }
+  return args;
+}
+
+static datalist_t * _arguments_copy_args(data_t *entry, datalist_t *args) {
+  datalist_push(args, entry);
+  return args;
+}
+
+static dictionary_t * _arguments_copy_kwargs(entry_t *entry, dictionary_t *kwargs) {
+  dictionary_set(kwargs, (char *) entry -> key, (data_t *) entry -> value);
+  return kwargs;
+}
+
+arguments_t * arguments_deepcopy(arguments_t *src) {
+  arguments_t *dest = arguments_create(NULL, NULL);
+
+  array_reduce(data_as_array(src -> args),
+      (reduce_t) _arguments_copy_args, dest -> args);
+  dictionary_reduce(src -> kwargs, (reduce_t) _arguments_copy_kwargs, dest -> kwargs);
+  return dest;
+}
+
 arguments_t * arguments_create_from_cmdline(int argc, char **argv) {
   array_t *args = array_create(argc);
 
@@ -148,4 +178,15 @@ data_t * arguments_get_arg(arguments_t *arguments, int ix) {
 
 data_t * arguments_get_kwarg(arguments_t *arguments, char *name) {
   return dictionary_get(arguments -> kwargs, name);
+}
+
+arguments_t * arguments_shift(arguments_t *arguments, data_t **shifted) {
+  arguments_t *ret = arguments_deepcopy(arguments);
+  array_t     *args = data_as_array(ret -> args);
+  data_t      *s = array_remove(args, 0);
+
+  if (shifted) {
+    *shifted = data_copy(s);
+  }
+  return ret;
 }

@@ -42,8 +42,6 @@ typedef struct _re {
 } re_t;
 
 OBLCORE_IMPEXP re_t *   regexp_create(char *, char *);
-OBLCORE_IMPEXP re_t *   regexp_vcreate(va_list);
-OBLCORE_IMPEXP int      regexp_cmp(re_t *, re_t *);
 OBLCORE_IMPEXP data_t * regexp_match(re_t *, char *);
 OBLCORE_IMPEXP data_t * regexp_replace(re_t *, char *, array_t *);
 

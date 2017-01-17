@@ -85,7 +85,7 @@ mth_t * mth_create(methoddescr_t *md, data_t *self) {
   return (mth_t *) data_create(RuntimeMethod, md, self);
 }
 
-data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
+data_t * mth_call(mth_t *mth, arguments_t *args) {
   typedescr_t   *type;
   methoddescr_t *md;
   int            i;
@@ -101,7 +101,7 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
   md = mth -> method;
   type = data_typedescr(mth -> self);
 
-  len = (args) ? array_size(args) : 0;
+  len = (args) ? datalist_size(args -> args) : 0;
   maxargs = md -> maxargs;
   if (!maxargs) {
     maxargs = (md -> varargs) ? INT_MAX : md -> minargs;
@@ -129,7 +129,7 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
   }
   buf[0] = 0;
   for (i = 0; i < len; i++) {
-    arg = data_array_get(args, i);
+    arg = arguments_get_arg(args, i);
     if (i < md -> minargs) {
       t = md -> argtypes[i];
     } else {
@@ -140,20 +140,20 @@ data_t * mth_call(mth_t *mth, array_t *args, dict_t *kwargs) {
     }
     if (!data_hastype(arg, t)) {
       return data_exception(ErrorType, "Type mismatch: Type of argument %d of %s.%s must be %s, not %s",
-                        i+1, typename(type), md -> name,
-                        typename(typedescr_get(t)),
+                        i + 1, typename(type), md -> name,
+                        typename(kind_get(t)),
                         data_typename(arg));
     }
     if (method_debug) {
       if (i > 0) {
         strcat(buf, ", ");
       }
-      snprintf(argstr, 1024, "%s [%s]", data_tostring(data_array_get(args, i)), data_typename(arg));
+      snprintf(argstr, 1024, "%s [%s]", arguments_arg_tostring(args, i), data_typename(arg));
       strcat(buf, argstr);
     }
   }
   debug(method, "Calling %s -> %s(%s)", data_tostring(mth -> self), md -> name, buf)
-  return md -> method(mth -> self, md -> name, args, kwargs);
+  return md -> method(mth -> self, md -> name, args);
 }
 
 unsigned int mth_hash(mth_t *mth) {

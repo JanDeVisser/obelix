@@ -21,7 +21,7 @@
 #include <string.h>
 
 #include "libcore.h"
-#include <dictionary.h>
+#include <data.h>
 #include <exception.h>
 #include <nvp.h>
 #include <str.h>
@@ -42,7 +42,7 @@ static char *             _dictionary_encode(dictionary_t *);
 static dictionary_t *     _dictionary_serialize(dictionary_t *);
 static data_t *           _dictionary_deserialize(dictionary_t *);
 
-static data_t *           _dictionary_create(data_t *, char *, array_t *, dict_t *);
+static data_t *           _dictionary_create(data_t *, char *, arguments_t *);
 
 static dictionary_t *     _dictionary_serializer(entry_t *, dictionary_t *);
 static dictionary_t *     _dictionary_set_all_reducer(data_t *, dictionary_t *);
@@ -253,14 +253,12 @@ dictionary_t * _dictionary_serialize(dictionary_t *dictionary) {
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _dictionary_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _dictionary_create(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {
   dictionary_t *obj;
 
-  (void) self;
-  (void) name;
   dictionary_init();
   obj = dictionary_create(NULL);
-  dict_reduce(kwargs, (reduce_t) _dictionary_set_kwargs_reducer, obj);
+  dictionary_reduce(args -> kwargs, (reduce_t) _dictionary_set_kwargs_reducer, obj);
   return (data_t *) obj;
 }
 
@@ -340,6 +338,10 @@ int dictionary_has(dictionary_t *dictionary, char *name) {
 
 int dictionary_size(dictionary_t *obj) {
   return dict_size(obj -> attributes);
+}
+
+data_t * _dictionary_reduce(dictionary_t *dict, reduce_t reducer, data_t *initial) {
+  return (data_t *) dict_reduce(dict -> attributes, reducer, initial);
 }
 
 /* ----------------------------------------------------------------------- */

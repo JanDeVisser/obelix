@@ -383,6 +383,10 @@ START_TEST(test_str_format)
   ck_assert_str_eq(str_chars(str), "test ${unknown} test");
   str_free(str);
 
+  str = str_formatf("test \\${2} ${0;d} test ${1---} ${2;f} test ${1;s}", 42, "foo", 3.14);
+  ck_assert_str_eq(str_chars(str), "test \\${2} 42 test ${1---} 3.140000 test foo");
+  str_free(str);
+
   array_free(args);
   dict_free(kwargs);
 END_TEST

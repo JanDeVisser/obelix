@@ -22,9 +22,7 @@
 
 #include "libcore.h"
 #include <data.h>
-#include <name.h>
 #include <nvp.h>
-#include <str.h>
 
 /* ------------------------------------------------------------------------ */
 
@@ -39,9 +37,9 @@ static data_t *      _hierarchy_resolve(hierarchy_t *, char *);
 
 static void          _hierarchy_get_nodes(hierarchy_t *, array_t *);
 
-static data_t *      _hierarchy_append(hierarchy_t *, char *, array_t *, dict_t *);
-static data_t *      _hierarchy_insert(hierarchy_t *, char *, array_t *, dict_t *);
-static data_t *      _hierarchy_find(hierarchy_t *, char *, array_t *, dict_t *);
+static data_t *      _hierarchy_append(hierarchy_t *, char *, arguments_t *);
+static data_t *      _hierarchy_insert(hierarchy_t *, char *, arguments_t *);
+static data_t *      _hierarchy_find(hierarchy_t *, char *, arguments_t *);
 
 static vtable_t _vtable_Hierarchy[] = {
   { .id = FunctionNew,         .fnc = (void_t) _hierarchy_new},
@@ -196,7 +194,7 @@ hierarchy_t * hierarchy_insert(hierarchy_t *hierarchy, name_t *name, data_t *dat
   for (ix = 0; ix < sz; ix++) {
     label = name_get(name, ix);
     up = hierarchy;
-    hierarchy = (hierarchy_t *) hierarchy_get_bylabel(up, label);
+    hierarchy = hierarchy_get_bylabel(up, label);
     if (!hierarchy) {
       hierarchy = hierarchy_append(up, label, NULL);
     }
@@ -322,27 +320,24 @@ hierarchy_t * hierarchy_match(hierarchy_t *hierarchy, name_t *name, int *match_l
 
 /* -- H I E R A R C H Y  M E T H O D S -------------------------------------*/
 
-data_t * _hierarchy_append(hierarchy_t *hierarchy, char *n, array_t *args, dict_t *kwargs) {
+data_t * _hierarchy_append(hierarchy_t *hierarchy, char *n, arguments_t *args) {
   (void) n;
-  (void) kwargs;
 
   return (data_t *) hierarchy_append(hierarchy,
-    data_tostring(data_array_get(args, 0)),
-    data_array_get(args, 0));
+    arguments_arg_tostring(args, 0),
+    arguments_get_arg(args, 0));
 }
 
-data_t * _hierarchy_insert(hierarchy_t *hierarchy, char *name, array_t *args, dict_t *kwargs) {
+data_t * _hierarchy_insert(hierarchy_t *hierarchy, char *name, arguments_t *args) {
   (void) name;
-  (void) kwargs;
 
   return (data_t *) hierarchy_insert(hierarchy,
-    (name_t *) array_get(args, 0),
-    data_array_get(args, 0));
+    (name_t *) arguments_get_arg(args, 0), arguments_get_arg(args, 0));
 }
 
-data_t * _hierarchy_find(hierarchy_t *hierarchy, char *name, array_t *args, dict_t *kwargs) {
+data_t * _hierarchy_find(hierarchy_t *hierarchy, char *name, arguments_t *args) {
   (void) name;
-  (void) kwargs;
 
-  return (data_t *) hierarchy_find(hierarchy, (name_t *) array_get(args, 0));
+  return (data_t *) hierarchy_find(hierarchy,
+      data_as_name(arguments_get_arg(args, 0)));
 }

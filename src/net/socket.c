@@ -23,7 +23,6 @@
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif /* HAVE_NETDB_H */
-#include <string.h>
 #ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
 #endif /* HAVE_WS2TCPIP_H */
@@ -31,10 +30,7 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
-#include <data.h>
 #include <exception.h>
-#include <net.h>
-#include <thread.h>
 
 #ifndef HAVE_SOCKLEN_T
 typedef int socklen_t;
@@ -145,7 +141,6 @@ socket_t * _socket_new(socket_t *socket, va_list args) {
   socket -> host = (host) ? strdup(host) : NULL;
   socket -> service = strdup(service);
   socket -> fh = -1;
-  socket -> error = NULL;
   stream_init((stream_t *) socket,
       (read_t) socket_read,
       (write_t) socket_write);
@@ -154,7 +149,6 @@ socket_t * _socket_new(socket_t *socket, va_list args) {
 
 void _socket_free(socket_t *socket) {
   if (socket) {
-    data_free(socket -> error);
     socket_close(socket);
     free(socket -> host);
     free(socket -> service);
@@ -175,7 +169,7 @@ data_t * _socket_resolve(socket_t *s, char *attr) {
   } else if (!strcmp(attr, "service")) {
     return str_to_data(s -> service);
   } else if (!strcmp(attr, "error")) {
-    return data_copy(s -> error);
+    return data_copy(s -> _stream.error);
   } else {
     return NULL;
   }
@@ -302,10 +296,10 @@ int _socket_accept(socket_t *socket) {
   char                     hoststr[80];
   char                     portstr[32];
 
-  client_fd = TEMP_FAILURE_RETRY(accept(socket -> fh, (struct sockaddr *) &client, &sz));
+  client_fd = (int) TEMP_FAILURE_RETRY(accept(socket -> fh, (struct sockaddr *) &client, &sz));
   if (client_fd > 0) {
     if (TEMP_FAILURE_RETRY(getnameinfo((struct sockaddr *) &client, sz,
-				       hoststr, 80, portstr, 32, 0))) {
+        hoststr, 80, portstr, 32, 0))) {
       socket_set_errno(socket, "getnameinfo()");
       return -1;
     }
@@ -355,20 +349,19 @@ int _socket_accept_loop(socket_t *socket) {
 }
 
 int _socket_listen(socket_t *socket, service_t service, void *context, int async) {
-  if (TEMP_FAILURE_RETRY(listen(socket -> fh, 5))) {
+  if (TEMP_FAILURE_RETRY(listen(socket->fh, 5))) {
     socket_set_errormsg(socket, "Error setting up listener");
     return -1;
   } else {
-    socket -> service_handler = service;
-    socket -> context = context;
+    socket->service_handler = service;
+    socket->context = context;
     socket_nonblock(socket);
     if (!async) {
       _socket_accept_loop(socket);
     } else {
-      socket -> thread = thread_new("Socket Listener Thread",
-		                    (threadproc_t) _socket_accept_loop,
-                                    socket);
-      if (!socket -> thread) {
+      socket->thread = thread_new("Socket Listener Thread",
+          (threadproc_t) _socket_accept_loop, socket);
+      if (!socket->thread) {
         socket_set_errormsg(socket, "Could not create listener thread");
         return -1;
       }
@@ -434,9 +427,9 @@ socket_t * serversocket_create_byservice(char *service) {
 /* -- E R R O R  H A N D L I N G ------------------------------------------ */
 
 socket_t * socket_clear_error(socket_t *s) {
-  ((stream_t *) s) -> _errno = 0;
-  data_free(s -> error);
-  s -> error = NULL;
+  s -> _stream._errno = 0;
+  data_free(s -> _stream.error);
+  s -> _stream.error = NULL;
   return s;
 }
 
@@ -461,7 +454,7 @@ socket_t * socket_set_errno(socket_t *socket, char *msg) {
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		(LPSTR) &error, 0, NULL);
 #else
-  int len;
+  size_t len;
 
   s -> _errno = errno;
   len = strlen(strerror(socket_errno(s)));
@@ -477,7 +470,7 @@ socket_t * socket_set_error(socket_t *socket, data_t *error) {
   socket_clear_error(socket);
   debug(socket, "Setting error on '%s': %s",
     socket_tostring(socket), data_tostring(error))
-  socket -> error = error;
+  socket -> _stream.error = error;
   return socket;
 }
 

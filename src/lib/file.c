@@ -64,15 +64,18 @@ typedef int _oshandle_t;
 
 extern void          file_init(void);
 
+static stream_t *    _stream_new(stream_t *, va_list args);
 static void          _stream_free(stream_t *);
+static data_t *      _stream_resolve(stream_t *, char *);
 static stream_t *    _stream_enter(stream_t *);
 static data_t *      _stream_query(stream_t *, data_t *, array_t *);
 static data_t *      _stream_iter(stream_t *);
-static data_t *      _stream_readline(stream_t *, char *, array_t *, dict_t *);
-static data_t *      _stream_print(stream_t *, char *, array_t *, dict_t *);
+static data_t *      _stream_readline(stream_t *, char *, arguments_t *);
+static data_t *      _stream_print(stream_t *, char *, arguments_t *);
 
 static _oshandle_t   _file_oshandle(file_t *);
 
+static file_t *      _file_new(file_t *, va_list);
 static void          _file_free(file_t *);
 static char *        _file_allocstring(file_t *file);
 static int           _file_intval(file_t *);
@@ -80,17 +83,19 @@ static data_t *      _file_cast(file_t *, int);
 static data_t *      _file_leave(file_t *, data_t *);
 static data_t *      _file_resolve(file_t *, char *);
 
-extern data_t *      _file_open(char *, array_t *, dict_t *);
-extern data_t *      _file_adopt(char *, array_t *, dict_t *);
+extern data_t *      _file_open(char *, arguments_t *);
+extern data_t *      _file_adopt(char *, arguments_t *);
 
-static data_t *      _file_close(data_t *, char *, array_t *, dict_t *);
-static data_t *      _file_isopen(data_t *, char *, array_t *, dict_t *);
-static data_t *      _file_redirect(data_t *, char *, array_t *, dict_t *);
-static data_t *      _file_seek(data_t *, char *, array_t *, dict_t *);
-static data_t *      _file_flush(data_t *, char *, array_t *, dict_t *);
+static data_t *      _file_close(data_t *, char *, arguments_t *);
+static data_t *      _file_isopen(data_t *, char *, arguments_t *);
+static data_t *      _file_redirect(data_t *, char *, arguments_t *);
+static data_t *      _file_seek(data_t *, char *, arguments_t *);
+static data_t *      _file_flush(data_t *, char *, arguments_t *);
 
 static vtable_t _vtable_Stream[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _stream_new },
   { .id = FunctionFree,        .fnc = (void_t) _stream_free },
+  { .id = FunctionResolve,     .fnc = (void_t) _stream_resolve },
   { .id = FunctionRead,        .fnc = (void_t) stream_read },
   { .id = FunctionWrite,       .fnc = (void_t) stream_write },
   { .id = FunctionEnter,       .fnc = (void_t) _stream_enter },
@@ -106,8 +111,9 @@ static methoddescr_t _methods_Stream[] = {
 };
 
 static vtable_t _vtable_File[] = {
-  { .id = FunctionCmp,         .fnc = (void_t) file_cmp },
+  { .id = FunctionNew,         .fnc = (void_t) _file_new },
   { .id = FunctionFree,        .fnc = (void_t) _file_free },
+  { .id = FunctionCmp,         .fnc = (void_t) file_cmp },
   { .id = FunctionAllocString, .fnc = (void_t) _file_allocstring },
   { .id = FunctionIntValue,    .fnc = (void_t) _file_intval },
   { .id = FunctionCast,        .fnc = (void_t) _file_cast },
@@ -156,11 +162,7 @@ int Stream = -1;
 int File = -1;
 int StreamIter = -1;
 
-#define data_isStreamiter(d)  ((d) && data_hastype((data_t *) (d), StreamIter))
-#define data_asStreamiter(d)  (data_isStreamiter((d)) ? ((streamiter_t *) (d)) : NULL)
-#define streamiter_copy(o)     ((streamiter_t *) data_copy((data_t *) (o)))
-#define streamiter_free(o)     (data_free((data_t *) (o)))
-#define streamiter_tostring(o) (data_tostring((data_t *) (o)))
+type_skel(streamiter, StreamIter, streamiter_t);
 
 /* ------------------------------------------------------------------------ */
 
@@ -180,10 +182,16 @@ void file_init(void) {
 
 /* -- S T R E A M  A B S T R A C T  T Y P E ------------------------------- */
 
+stream_t * _stream_new(stream_t *stream, va_list args) {
+  stream -> _eof = 0;
+  stream -> _errno = 0;
+  stream -> error = NULL;
+}
+
 void _stream_free(stream_t *stream) {
   if (stream) {
     str_free(stream -> buffer);
-    free(stream -> error);
+    data_free(stream -> error);
   }
 }
 
@@ -191,6 +199,22 @@ stream_t * _stream_enter(stream_t *stream) {
   debug(file, "%s._stream_enter()", data_tostring((data_t *) stream));
   return stream;
 }
+
+data_t * _stream_resolve(stream_t *stream, char *name) {
+  if (!strcmp(name, "errno")) {
+    return int_to_data(stream -> _errno);
+  } else if (!strcmp(name, "errormsg")) {
+    return str_to_data(data_tostring(stream_error(stream)));
+  } else if (!strcmp(name, "error")) {
+    return (stream_error(stream)) ? data_copy(stream_error(stream)) : data_null();
+  } else if (!strcmp(name, "eof")) {
+    return int_as_bool(stream_eof(stream));
+  } else {
+    return NULL;
+  }
+}
+
+
 
 data_t * _stream_iter(stream_t *stream) {
   streamiter_t *ret;
@@ -212,13 +236,9 @@ data_t * _stream_query(stream_t *stream, data_t *selector, array_t *params) {
   return (data_t *) ret;
 }
 
-data_t * _stream_readline(stream_t *stream, char *name, array_t *args, dict_t *kwargs) {
+data_t * _stream_readline(stream_t *stream, char _unused_ *name, arguments_t _unused_ *args) {
   char   *line;
   data_t *ret;
-
-  (void) name;
-  (void) args;
-  (void) kwargs;
 
   line = stream_readline(stream);
   if (line) {
@@ -232,17 +252,14 @@ data_t * _stream_readline(stream_t *stream, char *name, array_t *args, dict_t *k
   return ret;
 }
 
-data_t * _stream_print(stream_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _stream_print(stream_t *self, char _unused_ *name, arguments_t *args) {
   int     ret = 1;
   data_t *retval = NULL;
   data_t *fmt;
 
-  (void) name;
-  fmt = data_array_get(args, 0);
-  assert(fmt);
-  args = array_slice(args, 1, -1);
-  ret = stream_print(self, data_tostring(fmt), args, kwargs);
-  array_free(args);
+  args = arguments_shift(args, &fmt);
+  ret = stream_print(self, data_tostring(fmt), args);
+  arguments_free(args);
   if (ret < 0) {
     retval = data_exception_from_my_errno(self -> _errno);
   } else {
@@ -256,16 +273,13 @@ data_t * _stream_print(stream_t *self, char *name, array_t *args, dict_t *kwargs
 stream_t * stream_init(stream_t *stream, read_t reader, write_t writer) {
   stream -> reader = reader;
   stream -> writer = writer;
-  stream -> _eof = 0;
-  stream -> _errno = 0;
-  stream -> error = NULL;
   return stream;
 }
 
-char * stream_error(stream_t *stream) {
+data_t * stream_error(stream_t *stream) {
   if (stream -> _errno) {
-    free(stream -> error);
-    stream -> error = strdup(strerror(stream -> _errno));
+    data_free(stream -> error);
+    stream -> error = data_exception_from_my_errno(stream -> _errno);
   }
   return stream -> error;
 }
@@ -334,33 +348,26 @@ int stream_read(stream_t *stream, char *buf, int num) {
   return ix;
 }
 
-#define WriteToStream(s, l)                                                  \
-  if (retval >= 0) {                                                         \
-    int _len = strlen((l));                                                  \
-    debug(file, "Writing %d bytes to %s", _len, stream_tostring(s));         \
-    retval = (s -> writer)((s), (l), _len);                                  \
-    if (file_debug) {                                                        \
-      if (retval >= 0) {                                                     \
-        _debug("Wrote %d bytes", retval);                                    \
-      } else {                                                               \
-        _debug("error: %s (%d)", strerror(errno), errno);                    \
-      }                                                                      \
-    }                                                                        \
-  }
-
-int stream_write(stream_t *stream, char *buf, int num) {
-  int retval = 0;
-
-  debug(file, "Writing %d bytes to %s", num, stream_tostring(stream));
-  retval = (stream -> writer)(stream, buf, num);
-  if (file_debug) {
-    if (retval >= 0) {
-      _debug("Wrote %d bytes", retval);
-    } else {
-      _debug("Error: %s (%d)", strerror(errno), errno);
+static inline int _stream_write_buffer(stream_t *stream, char *buf, int num, int retval) {
+  if (!retval) {
+    int _len = (num > 0) ? num : strlen(buf);
+    if (_len > 0) {
+      debug(file, "Writing %d bytes to %s", _len, stream_tostring(stream));
+      retval = (stream->writer)(stream, buf, _len);
+      if (retval > 0) {
+        debug(file, "Wrote %d bytes", retval);
+        retval = (retval == _len) ? 0 : -1;
+      } else {
+        debug(file, "error: %s (%d)", strerror(errno), errno);
+        retval = -1;
+      }
     }
   }
   return retval;
+}
+
+int stream_write(stream_t *stream, char *buf, int num) {
+  return _stream_write_buffer(stream, buf, num, 0);
 }
 
 char * stream_readline(stream_t *stream) {
@@ -368,6 +375,7 @@ char * stream_readline(stream_t *stream) {
   int     num = 0;
   int     ch;
   int     cursz = 40;
+  char   *ptr;
 
   buf = stralloc(cursz);
   do {
@@ -381,30 +389,25 @@ char * stream_readline(stream_t *stream) {
       buf[num++] = ch;
       if (num >= cursz) {
         buf = resize_block(buf, cursz * 2, cursz);
-        cursz *= 2;
+        cursz *= 1.6;
       }
     }
   } while (ch > 0);
-  while (*buf && iscntrl(buf[strlen(buf) - 1])) {
-    buf[strlen(buf) - 1] = 0;
+  ptr = buf + (strlen(buf) - 1);
+  while (*buf && iscntrl(*ptr)) {
+    *ptr-- = 0;
   }
   return buf;
 }
 
 int _stream_print_data(stream_t *stream, data_t *s) {
-  char   *line;
-  char   *buf;
   int     retval = 0;
   data_t *r = NULL;
 
-  line = data_tostring(s);
-  buf = stralloc(strlen(line) + 3);
-  strcpy(buf, line);
-  strcat(buf, "\r\n");
-  WriteToStream(stream, buf);
-  free(buf);
-  if ((retval >= 0) && data_hasmethod((data_t *) stream, "flush")) {
-    r = data_execute((data_t *) stream, "flush", NULL, NULL);
+  retval = _stream_write_buffer(stream, data_tostring(s), 0, 0);
+  retval = _stream_write_buffer(stream, "\r\n", 2, retval);
+  if (!retval && data_hasmethod((data_t *) stream, "flush")) {
+    r = data_execute((data_t *) stream, "flush", NULL);
     if ((data_type(r) != Bool) || !data_intval(r)) {
       retval = -1;
     }
@@ -413,14 +416,14 @@ int _stream_print_data(stream_t *stream, data_t *s) {
   return retval;
 }
 
-int stream_print(stream_t *stream, char *fmt, array_t *args, dict_t *kwargs) {
+int stream_print(stream_t *stream, char *fmt, arguments_t *args) {
   str_t *s;
   int    ret;
 
   if (strstr(fmt, "${")) {
-    s = str_format(fmt, args, kwargs);
+    s = str_format(fmt, args);
   } else {
-    s = str_copy_chars(fmt);
+    s = str_wrap(fmt);
   }
   ret = _stream_print_data(stream, (data_t *) s);
   str_free(s);
@@ -450,14 +453,14 @@ int stream_printf(stream_t *stream, char *fmt, ...) {
 /* -- S T R E A M  I T E R A T O R ---------------------------------------- */
 
 streamiter_t * _streamiter_readnext(streamiter_t *iter) {
-  data_t  *matches;
-  array_t *matchvals;
-  int      ix;
-  data_t  *line;
-  array_t *args;
+  data_t      *matches;
+  array_t     *matchvals;
+  int          ix;
+  data_t      *line;
+  arguments_t *args;
 
   while (list_empty(iter -> next)) {
-    line = data_execute(iter -> stream, "readline", NULL, NULL);
+    line = data_execute(iter -> stream, "readline", NULL);
     if (data_isnull(line)) {
       list_push(iter -> next,
                 data_exception(ErrorExhausted, "Iterator exhausted"));
@@ -467,9 +470,8 @@ streamiter_t * _streamiter_readnext(streamiter_t *iter) {
       if (!iter -> selector) {
         list_push(iter -> next, data_copy(line));
       } else {
-        args = array_create(1);
-        array_push(args, line);
-        matches = data_execute(iter -> selector, "match", args, NULL);
+        args = arguments_create_args(1, line);
+        matches = data_execute(iter -> selector, "match", args);
         if (data_is_exception(matches) || data_is_string(matches)) {
           list_push(iter -> next, data_copy(matches));
         } else if (data_is_list(matches)) {
@@ -480,7 +482,7 @@ streamiter_t * _streamiter_readnext(streamiter_t *iter) {
           }
         }
         data_free(matches);
-        array_free(args);
+        arguments_free(args);
       }
     }
     data_free(line);
@@ -502,7 +504,7 @@ streamiter_t * _streamiter_create(stream_t *stream, data_t *selector) {
   }
   // FIXME: Error handling for bad regexp.
   if (data_hasmethod(ret -> stream, "seek")) {
-    retval = data_execute(ret -> stream, "seek", NULL, NULL);
+    retval = data_execute(ret -> stream, "seek", NULL);
   }
   ret -> next = data_list_create();
   if (!retval || data_intval(retval) >= 0) {
@@ -537,11 +539,10 @@ char * _streamiter_allocstring(streamiter_t *streamiter) {
 
   if (streamiter -> selector) {
     asprintf(&buf, "%s `%s`",
-	     data_tostring(streamiter -> stream),
-	     data_tostring(streamiter -> selector));
+        data_tostring(streamiter -> stream),
+        data_tostring(streamiter -> selector));
   } else {
-    asprintf(&buf, "%s",
-	     file_tostring(streamiter -> stream));
+    buf = strdup(data_tostring(streamiter -> stream));
   }
   return buf;
 }
@@ -576,6 +577,13 @@ _oshandle_t _unused_ _file_oshandle(file_t *file) {
 #else
   return file -> fh;
 #endif /* __WIN32__ */
+}
+
+file_t * _file_new(file_t *file, va_list args) {
+  file -> fh = va_arg(args, int);
+  file -> fname = NULL;
+  stream_init((stream_t *) file, (read_t) file_read, (write_t) file_write);
+  return file;
 }
 
 void _file_free(file_t *file) {
@@ -616,16 +624,10 @@ data_t * _file_leave(file_t *file, data_t *param) {
 }
 
 data_t * _file_resolve(file_t *file, char *name) {
-  if (!strcmp(name, "errno")) {
-    return int_to_data(file_errno(file));
-  } else if (!strcmp(name, "errormsg")) {
-    return str_to_data(file_error(file));
-  } else if (!strcmp(name, "name")) {
+  if (!strcmp(name, "name")) {
     return str_to_data(file_name(file));
   } else if (!strcmp(name, "fh")) {
     return int_to_data(file -> fh);
-  } else if (!strcmp(name, "eof")) {
-    return int_as_bool(file_eof(file));
   } else {
     return NULL;
   }
@@ -637,11 +639,7 @@ file_t * file_create(int fh) {
   file_t *ret;
 
   file_init();
-  ret = data_new(File, file_t);
-  ret -> fh = fh;
-  ret -> fname = NULL;
-  stream_init((stream_t *) ret, (read_t) file_read, (write_t) file_write);
-  return ret;
+  return (file_t *) data_create(File, fh);
 }
 
 int file_flags(char *flags) {
@@ -914,17 +912,15 @@ int file_redirect(file_t *file, char *newname) {
 
 /* -- F I L E  D A T A T Y P E  M E T H O D S ----------------------------- */
 
-data_t * _file_open(char *name, array_t *args, dict_t *kwargs) {
+data_t * _file_open(char _unused_ *name, arguments_t *args) {
   char   *n;
   data_t *file;
 
-  (void) name;
-  (void) kwargs;
-  if (array_size(args) > 1) {
+  if (datalist_size(args -> args) > 1) {
     // FIXME open mode!
     return data_exception(ErrorArgCount, "open() takes exactly one argument");
   } else {
-    n = data_tostring(array_get(args, 0));
+    n = arguments_arg_tostring(args, 0);
   }
   file = (data_t *) file_open(n);
   if (!file) {
@@ -933,25 +929,21 @@ data_t * _file_open(char *name, array_t *args, dict_t *kwargs) {
   return file;
 }
 
-data_t * _file_adopt(char *name, array_t *args, dict_t *kwargs) {
-  data_t *handle = data_array_get(args, 0);
+data_t * _file_adopt(char _unused_ *name, arguments_t *args) {
+  data_t *handle = arguments_get_arg(args, 0);
   file_t *ret = file_create(data_intval(handle));
 
-  (void) name;
-  (void) kwargs;
   debug(file, "_file_adopt(%d) -> %s", data_intval(handle), file_tostring(ret));
   return (data_t *) ret;
 }
 
-data_t * _file_seek(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _file_seek(data_t *self, char _unused_ *name, arguments_t *args) {
   file_t *file = (file_t *) self;
-  int     offset = (args && array_size(args))
-                        ? data_intval(data_array_get(args, 0)) : 0;
+  int     offset = (arguments_has_args(args))
+                        ? data_intval(arguments_get_arg(args, 0)) : 0;
   int     retval;
   data_t *ret;
 
-  (void) name;
-  (void) kwargs;
   retval = file_seek(file, offset);
   if (retval >= 0) {
     ret = int_to_data(retval);
@@ -961,13 +953,10 @@ data_t * _file_seek(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return ret;
 }
 
-data_t * _file_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _file_close(data_t *self, char _unused_ *name, arguments_t _unused_ *args) {
   file_t *file = (file_t *) self;
   int     retval = file_close(file);
 
-  (void) name;
-  (void) args;
-  (void) kwargs;
   if (!retval) {
     return data_true();
   } else {
@@ -975,13 +964,10 @@ data_t * _file_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   }
 }
 
-data_t * _file_flush(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _file_flush(data_t *self, char _unused_ *name, arguments_t _unused_ *args) {
   file_t *file = (file_t *) self;
   int     retval = file_flush(file);
 
-  (void) name;
-  (void) args;
-  (void) kwargs;
   if (!retval) {
     return data_true();
   } else {
@@ -989,19 +975,13 @@ data_t * _file_flush(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   }
 }
 
-data_t * _file_isopen(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _file_isopen(data_t *self, char _unused_ *name, arguments_t _unused_ *args) {
   file_t *file = (file_t *) self;
 
-  (void) name;
-  (void) args;
-  (void) kwargs;
   return int_as_bool(file_isopen(file));
 }
 
-data_t * _file_redirect(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  (void) name;
-  (void) args;
+data_t * _file_redirect(data_t *self, char _unused_ *name, arguments_t _unused_ *args) {
   return int_as_bool(
-    file_redirect((file_t *) self,
-                  data_tostring(data_array_get(args, 0))) == 0);
+    file_redirect((file_t *) self, arguments_arg_tostring(args, 0)) == 0);
 }

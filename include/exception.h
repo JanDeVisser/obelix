@@ -47,6 +47,7 @@ typedef enum _errorcode {
   ErrorSysError,
   ErrorFunctionUndefined,
   ErrorParameterValue,
+  ErrorOverflow,
   ErrorNotIterable,
   ErrorNotIterator,
   ErrorExhausted,
@@ -55,6 +56,7 @@ typedef enum _errorcode {
   ErrorReturn,
   ErrorExit,
   ErrorYield,
+  ErrorQuit
 } errorcode_t;
 
 typedef struct _exception_t {

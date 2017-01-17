@@ -17,7 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <limits.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -27,14 +26,9 @@
 
 #include "libcore.h"
 #include <data.h>
-#include <dictionary.h>
 #include <exception.h>
-#include <list.h>
-#include <logging.h>
 #include <method.h>
-#include <name.h>
 #include <str.h>
-#include <typedescr.h>
 
 static data_t *    _data_call_constructor(data_t *, new_t, va_list);
 static data_t *    _data_call_constructors(typedescr_t *, va_list);
@@ -282,6 +276,9 @@ data_t * data_deserialize(data_t *serialized) {
   typedescr_t *descr;
   void_t       deserialize;
 
+  if (!serialized) {
+    return NULL;
+  }
   descr = data_typedescr(serialized);
   debug(data, "Deserializing %s : '%s'", typename(descr), data_tostring(serialized));
   deserialize = typedescr_get_function(descr, FunctionDeserialize);
@@ -300,21 +297,26 @@ data_t * data_serialize(data_t *data) {
   if (!data) {
     return data_null();
   }
+  assert(data_is_data(data));
   type = data_typedescr(data);
   if (type) {
     serialize = typedescr_get_function(type, FunctionSerialize);
     if (serialize) {
-      serialized = ((data_t * (*)(data_t *)) serialize)(data);
-      if (data_is_dictionary(serialized)) {
-        dict = data_as_dictionary(serialized);
-        typestr = str_wrap(typename(type));
-        dictionary_set(dict, "__obl_type__",
-            data_uncopy(data_serialize((data_t *) typestr)));
-        str_free(typestr);
-      }
+      serialized = ((data_t *(*)(data_t *)) serialize)(data);
+    } else if (typetype(type) >= Dynamic) {
+      dict = dictionary_create(NULL);
+      dictionary_set(dict, "value", str_to_data(data_tostring(data)));
+      serialized = (data_t *) dict;
     } else {
       serialized = data_copy(data);
     }
+  }
+  if (data_is_dictionary(serialized)) {
+    dict = data_as_dictionary(serialized);
+    typestr = str_wrap(typename(type));
+    dictionary_set(dict, "__obl_type__",
+        data_uncopy(data_serialize((data_t *) typestr)));
+    str_free(typestr);
   }
   return serialized;
 }
@@ -390,25 +392,11 @@ unsigned int data_hash(data_t *data) {
   }
 }
 
-data_t * data_copy(data_t *src) {
-  if (src) {
-    src -> refs++;
-  }
-  return src;
-}
-
-data_t * data_uncopy(data_t *src) {
-  if (src) {
-    src -> refs--;
-  }
-  return src;
-}
-
-data_t * data_call(data_t *self, array_t *args, dict_t *kwargs) {
+data_t * data_call(data_t *self, arguments_t *args) {
   call_t call = (call_t) data_get_function(self, FunctionCall);
 
   assert(data_is_callable(self));
-  return call(self, args, kwargs);
+  return call(self, args);
 }
 
 int data_hasmethod(data_t *data, char *name) {
@@ -430,8 +418,9 @@ data_t * data_method(data_t *data, char *name) {
   md = typedescr_get_method(type, name);
   if (md) {
     ret = (data_t *) mth_create(md, data);
-    debug(data, "%s[%s].data_method(%s) = %s", data_tostring(data),
-          data_typename(data), name, runtimemethod_tostring(ret));
+    debug(data, "%s[%s].data_method(%s) = %s",
+        data_tostring(data), data_typename(data),
+        name, data_tostring(ret));
   } else {
     debug(data, "%s[%s].data_method(%s) = NULL", data_tostring(data),
           data_typename(data), name);
@@ -488,23 +477,19 @@ data_t * data_resolve(data_t *data, name_t *name) {
   return ret;
 }
 
-data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) {
-  data_t  *callable;
-  data_t  *ret = NULL;
-  array_t *args_shifted = NULL;
+data_t * data_invoke(data_t *self, name_t *name, arguments_t *args) {
+  data_t      *callable;
+  data_t      *ret = NULL;
+  arguments_t *args_shifted = NULL;
 
   mdebug(data, "data_invoke(%s, %s, %s)",
-         data_tostring(self), name_tostring(name), (args) ? array_tostring(args) : "''");
-  if (!self && array_size(args)) {
-    self = data_array_get(args, 0);
-    args_shifted = array_slice(args, 1, -1);
-    if (!args_shifted) {
-      args_shifted = data_array_create(1);
-    }
-    args = args_shifted;
-  }
+         data_tostring(self), name_tostring(name), arguments_tostring(args));
   if (!self) {
-    ret = data_exception(ErrorArgCount, "No 'self' object specified for method '%s'", name);
+    args_shifted = arguments_shift(args, &self);
+    args = args_shifted;
+    if (!self) {
+      ret = data_exception(ErrorArgCount, "No 'self' object specified for method '%s'", name);
+    }
   }
 
   if (!ret) {
@@ -513,7 +498,7 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
       ret = callable;
     } else if (callable) {
       if (data_is_callable(callable)) {
-        ret = data_call(callable, args, kwargs);
+        ret = data_call(callable, args);
       } else {
         ret = data_exception(ErrorNotCallable,
                          "Atom '%s' is not callable",
@@ -526,17 +511,19 @@ data_t * data_invoke(data_t *self, name_t *name, array_t *args, dict_t *kwargs) 
     }
   }
   if (args_shifted) {
-    array_free(args_shifted);
+    arguments_free(args_shifted);
   }
-  mdebug(data, "data_invoke(%s, %s, %s) = %s", data_tostring(self), name_tostring(name), array_tostring(args), data_tostring(ret));
+  debug(data, "%s.%s(%s) = %s",
+      data_tostring(self), name_tostring(name), arguments_tostring(args),
+      data_tostring(ret));
   return ret;
 }
 
-data_t * data_execute(data_t *data, char *name, array_t *args, dict_t *kwargs) {
+data_t * data_execute(data_t *data, char *name, arguments_t *args) {
   name_t *n = name_create(1, name);
   data_t *ret;
 
-  ret = data_invoke(data, n, args, kwargs);
+  ret = data_invoke(data, n, args);
   name_free(n);
   return ret;
 }
@@ -912,12 +899,12 @@ data_t * data_visit(data_t *iterable, data_t *visitor) {
 }
 
 data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
-  data_t  *iterator = data_iter(iterable);
-  data_t  *has_next = NULL;
-  data_t  *current = NULL;
-  data_t  *accum = NULL;
-  data_t  *ret = iterable;
-  array_t *args = NULL;
+  data_t      *iterator = data_iter(iterable);
+  data_t      *has_next = NULL;
+  data_t      *current = NULL;
+  data_t      *accum = NULL;
+  data_t      *ret = iterable;
+  arguments_t *args = NULL;
 
   /*
    * TODO: Allow types to provide their own FunctionReduce. Could be have
@@ -931,18 +918,18 @@ data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
   if (data_is_unhandled_exception(has_next)) {
     ret = data_copy(has_next);
   } else {
-    args = data_array_create(1);
-    array_set(args, 0, data_copy(initial));
+    args = arguments_create(NULL, NULL);
+    datalist_set(args -> args, 0, initial);
     while (data_intval(has_next)) {
       current = data_next(iterator);
       if (data_is_unhandled_exception(current)) {
         ret = data_copy(current);
         break;
       }
-      array_set(args, 1, data_copy(current));
-      accum = data_call(reducer, args, NULL);
-      data_uncopy(data_array_get(args, 0));
-      data_uncopy(data_array_get(args, 1));
+      datalist_set(args -> args, 1, data_copy(current));
+      accum = data_call(reducer, args);
+      data_uncopy(arguments_get_arg(args, 0));
+      data_uncopy(arguments_get_arg(args, 1));
       if (data_is_unhandled_exception(accum)) {
         ret = data_copy(accum);
         break;
@@ -953,12 +940,12 @@ data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
         ret = data_copy(has_next);
         break;
       }
-      array_set(args, 0, data_copy(accum));
+      datalist_set(args -> args, 0, accum);
       data_free(ret);
       ret = data_copy(accum);
     }
   }
-  array_free(args);
+  arguments_free(args);
   data_free(accum);
   data_free(current);
   data_free(has_next);
@@ -1057,20 +1044,17 @@ data_t * data_pop(data_t *scope) {
 
 /* -------------------------------------------------------------------------*/
 
-data_t * data_interpolate(data_t *self, array_t *args, dict_t *kwargs) {
+data_t * data_interpolate(data_t *self, arguments_t *args) {
   typedescr_t  *type;
-  data_t *    (*interpolate)(data_t *, array_t *, dict_t *);
+  call_t        interpolate;
   data_t       *ret = self;
 
   assert(self);
   type = data_typedescr(self);
-  interpolate = (data_t *(*)(data_t *, array_t *, dict_t *))
-    typedescr_get_function(type, FunctionInterpolate);
-  if ((args && array_size(args)) || (kwargs && dict_size(kwargs))) {
-    ret = (interpolate)
-      ? interpolate(self, args, kwargs)
-      : (data_t *) str_format(data_tostring(self), args, kwargs);
-  }
+  interpolate = (call_t) typedescr_get_function(type, FunctionInterpolate);
+  ret = (interpolate)
+    ? interpolate(self, args)
+    : (data_t *) str_format(data_tostring(self), args);
   return ret;
 }
 

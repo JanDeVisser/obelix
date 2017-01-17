@@ -33,4 +33,4 @@ extern void net_init(void);
 
 extern int net_debug;
 
-#endif /* __LIBSQL_H__ */
+#endif /* __LIBNET_H__ */

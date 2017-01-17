@@ -18,13 +18,13 @@
  */
 
 
-#include <limits.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "libcore.h"
+
+#include <stdio.h>
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
+
 #include <data.h>
 
 extern void          int_init(void);
@@ -34,17 +34,16 @@ static int           _int_cmp(int_t *, int_t *);
 static char *        _int_allocstring(int_t *);
 static data_t *      _int_cast(int_t *, int);
 static unsigned int  _int_hash(int_t *);
-static data_t *      _int_parse(char *);
 static data_t *      _int_incr(int_t *);
 static data_t *      _int_decr(int_t *);
 static double        _int_fltvalue(int_t *);
 static int           _int_intvalue(int_t *);
 
-static data_t *      _int_add(data_t *, char *, array_t *, dict_t *);
-static data_t *      _int_mult(data_t *, char *, array_t *, dict_t *);
-static data_t *      _int_div(data_t *, char *, array_t *, dict_t *);
-static data_t *      _int_mod(data_t *, char *, array_t *, dict_t *);
-static data_t *      _int_abs(data_t *, char *, array_t *, dict_t *);
+static data_t *      _int_add(data_t *, char *, arguments_t *);
+static data_t *      _int_mult(data_t *, char *, arguments_t *);
+static data_t *      _int_div(data_t *, char *, arguments_t *);
+static data_t *      _int_mod(data_t *, char *, arguments_t *);
+static data_t *      _int_abs(data_t *, char *, arguments_t *);
 
 static data_t *      _bool_new(int, va_list);
 static char *        _bool_tostring(int_t *);
@@ -55,7 +54,7 @@ static vtable_t _vtable_Int[] = {
   { .id = FunctionFactory,     .fnc = (void_t) _int_new },
   { .id = FunctionCmp,         .fnc = (void_t) _int_cmp },
   { .id = FunctionAllocString, .fnc = (void_t) _int_allocstring },
-  { .id = FunctionParse,       .fnc = (void_t) _int_parse },
+  { .id = FunctionParse,       .fnc = (void_t) int_parse },
   { .id = FunctionCast,        .fnc = (void_t) _int_cast },
   { .id = FunctionHash,        .fnc = (void_t) _int_hash },
   { .id = FunctionFltValue,    .fnc = (void_t) _int_fltvalue },
@@ -91,7 +90,6 @@ static vtable_t _vtable_Bool[] = {
 
 static methoddescr_t * _methods_Bool = NULL;
 
-dict_t * _ints = NULL;
 int_t *  bool_true = NULL;
 int_t *  bool_false = NULL;
 
@@ -109,15 +107,14 @@ void int_init(void) {
   typedescr_get(Bool) -> promote_to = Int;
   typedescr_set_size(Bool, int_t);
   typedescr_assign_inheritance(Bool, Int);
-  _ints = intdata_dict_create();
   bool_true = (int_t *) data_create(Bool, 1);
   bool_true -> _d.free_me = Constant;
   bool_false = (int_t *) data_create(Bool, 0);
   bool_false -> _d.free_me = Constant;
 }
 
-data_t * _int_new(int type, va_list arg) {
-  return (data_t *) int_create(va_arg(arg, long));
+data_t * _int_new(int _unused_ type, va_list arg) {
+  return (data_t *) int_create(va_arg(arg, intptr_t));
 }
 
 unsigned int _int_hash(int_t *data) {
@@ -125,7 +122,7 @@ unsigned int _int_hash(int_t *data) {
 }
 
 int _int_cmp(int_t *self, int_t *other) {
-  return self -> i - other -> i;
+  return (int) (self -> i - other -> i);
 }
 
 char * _int_allocstring(int_t *data) {
@@ -146,16 +143,6 @@ data_t * _int_cast(int_t *data, int totype) {
   }
 }
 
-data_t * _int_parse(char *str) {
-  long  val;
-
-  if (!strtoint(str, &val)) {
-    return int_to_data((long) val);
-  } else {
-    return NULL;
-  }
-}
-
 data_t * _int_incr(int_t *self) {
   return int_to_data(self -> i + 1);
 }
@@ -169,12 +156,12 @@ double _int_fltvalue(int_t *data) {
 }
 
 int _int_intvalue(int_t *data) {
-  return data -> i;
+  return (int) data -> i;
 }
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _int_add(data_t *self, char *name, arguments_t *args) {
   data_t  *d;
   data_t  *ret;
   int      type = Int;
@@ -185,14 +172,14 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   long     longval;
   int      minus = name && (name[0] == '-');
 
-  if (!args || !array_size(args)) {
+  if (!args || !arguments_args_size(args)) {
     intret = ((int_t *) self) -> i;
     return int_to_data((minus) ? -1 * intret : intret);
   }
 
-  for (ix = 0; ix < array_size(args); ix++) {
-    d = (data_t *) array_get(args, ix);
-    if (data_type(d) == Float) {
+  for (ix = 0; ix < arguments_args_size(args); ix++) {
+    d = data_uncopy(arguments_get_arg(args, ix));
+    if (data_hastype(d, Float)) {
       type = Float;
       break;
     }
@@ -202,41 +189,38 @@ data_t * _int_add(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   } else {
     intret = data_intval(self);
   }
-  for (ix = 0; ix < array_size(args); ix++) {
-    d = (data_t *) array_get(args, ix);
-    switch(type) {
-      case Int:
-        /* Type of d must be Int, can't be Float */
-        longval = data_intval(d);
-        if (minus) {
-          longval = -longval;
-        }
-        intret += longval;
-        break;
-      case Float:
-        dblval = data_floatval(d);
-        if (minus) {
-          dblval = -dblval;
-        }
-        fltret += dblval;
-        break;
+  for (ix = 0; ix < arguments_args_size(args); ix++) {
+    d = data_uncopy(arguments_get_arg(args, ix));
+    if (type == Int) {
+      /* Type of d must be Int, can't be Float */
+      longval = data_intval(d);
+      if (minus) {
+        longval = -longval;
+      }
+      intret += longval;
+    } else {
+      dblval = data_floatval(d);
+      if (minus) {
+        dblval = -dblval;
+      }
+      fltret += dblval;
     }
   }
-  ret = (type == Int) ? (data_t *) int_create(intret) : (data_t *) flt_create(fltret);
+  ret = (type == Int) ? (data_t *) int_create(intret) : (data_t *) float_create(fltret);
   return ret;
 }
 
-data_t * _int_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _int_mult(data_t *self, char _unused_ *name, arguments_t *args) {
   data_t *d;
   data_t *ret;
   int     type = Int;
   int     ix;
-  double  fltret;
-  long    intret;
+  double  fltret = 0.0;
+  long    intret = 0;
 
-  for (ix = 0; ix < array_size(args); ix++) {
-    d = (data_t *) array_get(args, ix);
-    if (data_type(d) == Float) {
+  for (ix = 0; ix < arguments_args_size(args); ix++) {
+    d = data_uncopy(arguments_get_arg(args, ix));
+    if (data_hastype(d, Float)) {
       type = Float;
       break;
     }
@@ -246,50 +230,43 @@ data_t * _int_mult(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   } else {
     intret = data_intval(self);
   }
-  for (ix = 0; ix < array_size(args); ix++) {
-    d = (data_t *) array_get(args, ix);
-    switch(type) {
-      case Int:
-        /* Type of d must be Int, can't be Float */
-        intret *= data_intval(d);
-        break;
-      case Float:
-        fltret *= data_floatval(d);
-        break;
+  for (ix = 0; ix < arguments_args_size(args); ix++) {
+    d = data_uncopy(arguments_get_arg(args, ix));
+    if (type == Int) {
+      intret *= data_intval(d);
+    } else {
+      fltret *= data_floatval(d);
     }
   }
-  ret = (type == Int) ? (data_t *) int_create(intret) : (data_t *) flt_create(fltret);
+  ret = (type == Int) ? (data_t *) int_create(intret) : (data_t *) float_create(fltret);
   return ret;
 }
 
-data_t * _int_div(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _int_div(data_t *self, char _unused_ *name, arguments_t *args) {
   data_t *denom;
   data_t *ret;
   long    intret = 0;
-  double  fltret = 0.0;
+  double  fltret;
 
-  denom = (data_t *) array_get(args, 0);
-  switch (data_type(denom)) {
-    case Int:
-      intret = data_intval(self) / data_intval(denom);
-      ret = int_to_data(intret);
-      break;
-    case Float:
-      fltret = data_floatval(self) / data_floatval(denom);
-      ret = flt_to_data(fltret);
-      break;
+  denom = data_uncopy(arguments_get_arg(args, 0));
+  if (data_hastype(denom, Int)) {
+    intret = data_intval(self) / data_intval(denom);
+    ret = int_to_data(intret);
+  } else {
+    fltret = data_floatval(self) / data_floatval(denom);
+    ret = flt_to_data(fltret);
   }
   return ret;
 }
 
-data_t * _int_mod(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _int_mod(data_t *self, char _unused_ *name, arguments_t *args) {
   data_t *denom;
 
-  denom = (data_t *) array_get(args, 0);
+  denom = arguments_get_arg(args, 0);
   return int_to_data(data_intval(self) % data_intval(denom));
 }
 
-data_t * _int_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _int_abs(data_t *self, char _unused_ *name, arguments_t _unused_ *args) {
   return int_to_data(labs(data_intval(self)));
 }
 
@@ -299,7 +276,7 @@ data_t * _int_abs(data_t *self, char *name, array_t *args, dict_t *kwargs) {
  * --------------------------------------------------------------------------
  */
 
-data_t * _bool_new(int type, va_list arg) {
+data_t * _bool_new(int _unused_ type, va_list arg) {
   long   val;
   int_t *ret;
 
@@ -318,7 +295,7 @@ char * _bool_tostring(int_t *data) {
 }
 
 data_t * _bool_parse(char *str) {
-  data_t *i = _int_parse(str);
+  data_t *i = (data_t *) int_parse(str);
 
   if (i) {
     return int_as_bool(data_intval(i));
@@ -338,17 +315,71 @@ data_t * _bool_cast(int_t *data, int totype) {
 
 /* ----------------------------------------------------------------------- */
 
+static void _integer_cache_init(void);
+
+#define INTEGER_CACHE_SIZE     256
+static int_t                  *_integer_cache[INTEGER_CACHE_SIZE];
+static dict_t *                _ints = NULL;
+static int_t *                 _zero;
+static int_t *                 _one;
+static int_t *                 _minusone;
+static int_t *                 _two;
+static pthread_once_t          _integer_cache_once = PTHREAD_ONCE_INIT;
+
+static int_t * _int_make(intptr_t i) {
+  int_t *ret;
+
+  ret = data_new(Int, int_t);
+  ret -> i = i;
+  ret -> _d.free_me = Constant;
+  return ret;
+}
+
+static void _integer_cache_init(void) {
+  for (int ix = 0; ix < INTEGER_CACHE_SIZE; ix++) {
+    _integer_cache[ix] = NULL;
+  }
+  _ints = intdata_dict_create();
+  _zero = _int_make(0);
+  _one = _int_make(1);
+  _minusone = _int_make(-1);
+  _two = _int_make(2);
+}
+
 int_t * int_create(intptr_t val) {
   int_t *ret;
 
-  ret = (int_t *) data_dict_get(_ints, (void *) val);
-  if (!ret) {
-    ret = data_new(Int, int_t);
-    ret -> i = val;
-    ret -> _d.free_me = Constant;
-    dict_put(_ints, (void *) val, ret);
+  pthread_once(&_integer_cache_once, _integer_cache_init);
+  if (!val) {
+    ret = _zero;
+  } else if (val == 1) {
+    ret = _one;
+  } else if (val == -1) {
+    ret = _minusone;
+  } else if (val == 2) {
+    ret = _two;
+  } else if (val < INTEGER_CACHE_SIZE) {
+    if (!(ret = _integer_cache[val])) {
+      ret = _int_make(val);
+      _integer_cache[val] = ret;
+    }
+  } else {
+    if (!(ret = (int_t *) data_dict_get(_ints, (void *) val))) {
+      ret = _int_make(val);
+      dict_put(_ints, (void *) val, ret);
+    }
   }
   return ret;
+}
+
+int_t * int_parse(char *str) {
+  long  val;
+
+  if (!strtoint(str, &val)) {
+    return int_create(val);
+  } else {
+    return NULL;
+  }
 }
 
 int_t * bool_get(long value) {

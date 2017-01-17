@@ -17,29 +17,14 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <ctype.h>
-#include <errno.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
-#include <time.h>
 
 #include "libcore.h"
+#include <data.h>
 
-#ifdef HAVE_SIGNAL_H
-#include <signal.h>
-#endif
-
-#include <resolve.h>
-
-typedef struct _memmonitor {
-  size_t  blocksize;
-  int     count;
-} memmonitor_t;
-
-static void            _outofmemory(const char *, int) __attribute__ ((noreturn));
+static void            _outofmemory(const char *, size_t) __attribute__ ((noreturn));
 #define outofmemory(i) _outofmemory(__func__, (i))
 
 static type_t _type_str = {
@@ -65,7 +50,7 @@ static application_t *_app = NULL;
 
 /* ------------------------------------------------------------------------ */
 
-static inline void _outofmemory(const char *func, int sz) {
+static void _outofmemory(const char *func, size_t sz _unused_) {
   fputs("Could not allocate memory in function ", stderr);
   fputs(func, stderr);
   fputs(". Out of Memory. Terminating...\n", stderr);
@@ -90,7 +75,7 @@ void application_terminate(void) {
   }
 }
 
-void * _new(int sz) {
+void * _new(size_t sz) {
   void *ret;
 
   ret = malloc(sz);
@@ -102,7 +87,7 @@ void * _new(int sz) {
   return ret;
 }
 
-void * new_array(int num, int sz) {
+void * new_array(size_t num, size_t sz) {
   void * ret = calloc(num, sz);
 
   if (num && !ret) {
@@ -111,11 +96,11 @@ void * new_array(int num, int sz) {
   return ret;
 }
 
-void * new_ptrarray(int num) {
+void * new_ptrarray(size_t num) {
   return new_array(num, sizeof(void *));
 }
 
-void * resize_block(void *block, int newsz, int oldsz) {
+void * resize_block(void *block, size_t newsz, size_t oldsz) {
   void *ret;
 
   if (block) {
@@ -131,7 +116,7 @@ void * resize_block(void *block, int newsz, int oldsz) {
   return ret;
 }
 
-void * resize_ptrarray(void *array, int newsz, int oldsz) {
+void * resize_ptrarray(void *array, size_t newsz, size_t oldsz) {
   return resize_block(array, newsz * sizeof(void *), oldsz * sizeof(void *));
 }
 
@@ -173,7 +158,7 @@ int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
 }
 #else
 int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
-  int ret;
+  size_t ret;
 
   ret = vasprintf(strp, fmt, args);
   if (ret < 0) {
@@ -200,7 +185,7 @@ char * label_for_code(code_label_t *table, int code) {
 }
 
 char * labels_for_bitmap(code_label_t *table, int bitmap, char *buf, size_t maxlen) {
-  int     bit = 1;
+  int     bit;
   int     ix;
   size_t  len = 0;
   char   *label;

@@ -80,8 +80,7 @@ __DLL_EXPORT__ parser_t * expr_call_op(parser_t *parser) {
   datastack_push(parser -> stack, res);
   array_free(params);
   token_free(op);
-  token_free(v1);
-  token_free(v2);
+  data_free(v2);
   data_free(v1);
   data_free(signed1);
   return parser;

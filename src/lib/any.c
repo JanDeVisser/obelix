@@ -20,7 +20,6 @@
 #include "libcore.h"
 #include <data.h>
 #include <exception.h>
-#include <name.h>
 #include <range.h>
 #include <str.h>
 
@@ -41,35 +40,35 @@ static void_t _type_initializers[] = {
   NULL
 };
 
-static data_t *    _any_cmp(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_not(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_and(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_or(data_t *, char *, array_t *, dict_t *);
-static str_t *     _any_tostring(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_hash(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_len(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_type(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_hasattr(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_getattr(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_setattr(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_callable(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_iterable(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_iterator(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_iter(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_next(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_has_next(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_reduce(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_visit(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_format(data_t *, char *, array_t *, dict_t *);
-static data_t *    _any_query(data_t *, char *, array_t *, dict_t *);
-static data_t *    _range_create(data_t *, char *, array_t *, dict_t *);
-static data_t *    _set_loglevel(data_t *, char *, array_t *, dict_t *);
-static data_t *    _set_logfile(data_t *, char *, array_t *, dict_t *);
+static data_t *    _any_cmp(data_t *, char *, arguments_t *);
+static data_t *    _any_not(data_t *, char *, arguments_t *);
+static data_t *    _any_and(data_t *, char *, arguments_t *);
+static data_t *    _any_or(data_t *, char *, arguments_t *);
+static str_t *     _any_tostring(data_t *, char *, arguments_t *);
+static data_t *    _any_hash(data_t *, char *, arguments_t *);
+static data_t *    _any_len(data_t *, char *, arguments_t *);
+static data_t *    _any_type(data_t *, char *, arguments_t *);
+static data_t *    _any_hasattr(data_t *, char *, arguments_t *);
+static data_t *    _any_getattr(data_t *, char *, arguments_t *);
+static data_t *    _any_setattr(data_t *, char *, arguments_t *);
+static data_t *    _any_callable(data_t *, char *, arguments_t *);
+static data_t *    _any_iterable(data_t *, char *, arguments_t *);
+static data_t *    _any_iterator(data_t *, char *, arguments_t *);
+static data_t *    _any_iter(data_t *, char *, arguments_t *);
+static data_t *    _any_next(data_t *, char *, arguments_t *);
+static data_t *    _any_has_next(data_t *, char *, arguments_t *);
+static data_t *    _any_reduce(data_t *, char *, arguments_t *);
+static data_t *    _any_visit(data_t *, char *, arguments_t *);
+static data_t *    _any_format(data_t *, char *, arguments_t *);
+static data_t *    _any_query(data_t *, char *, arguments_t *);
+static data_t *    _range_create(data_t *, char *, arguments_t *);
+static data_t *    _set_loglevel(data_t *, char *, arguments_t *);
+static data_t *    _set_logfile(data_t *, char *, arguments_t *);
 #ifndef NDEBUG
-static data_t *    _enable_debug(data_t *, char *, array_t *, dict_t *);
+static data_t *    _enable_debug(data_t *, char *, arguments_t *);
 #endif /* !NDEBUG */
 
-extern data_t *    _mutex_create(data_t *, char *, array_t *, dict_t *);
+extern data_t *    _mutex_create(data_t *, char *, arguments_t *);
 
 
 /* ------------------------------------------------------------------------ */
@@ -128,8 +127,8 @@ void any_init(void) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *other = (data_t *) array_get(args, 0);
+data_t * _any_cmp(data_t *self, char *name, arguments_t *args) {
+  data_t *other = arguments_get_arg(args, 0);
   int_t  *ret;
   int     cmp = data_cmp(self, other);
 
@@ -152,13 +151,13 @@ data_t * _any_cmp(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return (data_t *) ret;
 }
 
-data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_not(data_t *self, char *name, arguments_t *args) {
   data_t *asbool = data_cast(self, Bool);
   data_t *ret;
 
   (void) name;
   (void) args;
-  (void) kwargs;
+
   if (!asbool) {
     ret = data_exception(ErrorSyntax,
                          "not(): Cannot convert value '%s' of type '%s' to boolean",
@@ -171,20 +170,20 @@ data_t * _any_not(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return ret;
 }
 
-data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_and(data_t *self, char *name, arguments_t *args) {
   data_t *asbool;
   int     boolval;
   int     ix;
 
   (void) name;
-  (void) kwargs;
-  for (ix = -1; ix < array_size(args); ix++) {
-    asbool = data_cast((ix < 0) ? self : data_array_get(args, ix), Bool);
+
+  for (ix = -1; ix < arguments_args_size(args); ix++) {
+    asbool = data_cast((ix < 0) ? self : arguments_get_arg(args, ix), Bool);
     if (!asbool) {
       return data_exception(ErrorSyntax,
                         "and(): Cannot convert value '%s' of type '%s' to boolean",
-                        data_tostring(data_array_get(args, ix)),
-                        data_typename(data_array_get(args, ix)));
+                        arguments_arg_tostring(args, ix),
+                        data_typename(arguments_get_arg(args, ix)));
     }
     boolval = data_intval(asbool);
     data_free(asbool);
@@ -195,22 +194,22 @@ data_t * _any_and(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return data_true();
 }
 
-data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_or(data_t *self, char *name, arguments_t *args) {
   data_t *asbool;
   data_t *data;
   int     boolval;
   int     ix;
 
   (void) name;
-  (void) kwargs;
-  for (ix = -1; ix < array_size(args); ix++) {
-    data = (ix < 0) ? self : data_array_get(args, ix);
+
+  for (ix = -1; ix < arguments_args_size(args); ix++) {
+    data = (ix < 0) ? self : arguments_get_arg(args, ix);
     asbool = data_cast(data, Bool);
     if (!asbool) {
       return data_exception(ErrorSyntax,
                         "or(): Cannot convert value '%s' of type '%s' to boolean",
-                        data_tostring(data_array_get(args, ix)),
-                        data_typename(data_array_get(args, ix)));
+                        arguments_arg_tostring(args, ix),
+                        data_typename(arguments_get_arg(args, ix)));
     }
     boolval = data_intval(asbool);
     data_free(asbool);
@@ -221,63 +220,63 @@ data_t * _any_or(data_t *self, char *name, array_t *args, dict_t *kwargs) {
   return data_false();
 }
 
-str_t * _any_tostring(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+str_t * _any_tostring(data_t *self, char *name, arguments_t *args) {
   str_t  *ret;
   int     ix;
 
   (void) self;
   (void) name;
-  (void) kwargs;
-  ret = str_from_data(data_array_get(args, 0));
-  for (ix = 1; ix < array_size(args); ix++) {
-    str_append_chars(ret, data_tostring(data_array_get(args, ix)));
+
+  ret = str_from_data(arguments_get_arg(args, 0));
+  for (ix = 1; ix < arguments_args_size(args); ix++) {
+    str_append_chars(ret, arguments_arg_tostring(args, ix));
   }
   return ret;
 }
 
-data_t * _any_hash(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_hash(data_t *self, char *name, arguments_t *args) {
   data_t *obj;
 
   (void) name;
-  (void) kwargs;
-  obj = (args && array_size(args)) ? data_array_get(args, 0) : self;
+
+  obj = (args && arguments_args_size(args)) ? arguments_get_arg(args, 0) : self;
   return (data_t *) int_create(data_hash(obj));
 }
 
-data_t * _any_len(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_len(data_t *self, char *name, arguments_t *args) {
   data_t *obj;
 
   (void) name;
-  (void) kwargs;
-  obj = (args && array_size(args)) ? data_array_get(args, 0) : self;
+
+  obj = (args && arguments_args_size(args)) ? arguments_get_arg(args, 0) : self;
   return data_len(obj);
 }
 
-data_t * _any_type(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
+data_t * _any_type(data_t *self, char *func_name, arguments_t *args) {
   data_t      *d;
   typedescr_t *type;
 
   (void) func_name;
-  (void) kwargs;
-  d = (args  && array_size(args)) ? data_array_get(args, 0) : self;
+
+  d = (args  && arguments_args_size(args)) ? arguments_get_arg(args, 0) : self;
   type = data_typedescr(d);
   return (data_t *) type;
 }
 
-data_t * _any_hasattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
-  data_t *attrname = data_array_get(args, 0);
+data_t * _any_hasattr(data_t *self, char *func_name, arguments_t *args) {
+  data_t *attrname = arguments_get_arg(args, 0);
   name_t *name = name_create(1, data_tostring(attrname));
   data_t *r = data_resolve(self, name);
   data_t *ret = int_as_bool(r != NULL);
 
   (void) func_name;
-  (void) kwargs;
+
   name_free(name);
   return ret;
 }
 
-data_t * _any_getattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
-  data_t  *attrname = data_array_get(args, 0);
+data_t * _any_getattr(data_t *self, char _unused_ *func_name, arguments_t *args) {
+  data_t  *attrname = arguments_get_arg(args, 0);
   name_t  *name = name_create(1, data_tostring(attrname));
   data_t  *ret;
 
@@ -286,9 +285,9 @@ data_t * _any_getattr(data_t *self, char *func_name, array_t *args, dict_t *kwar
   return ret;
 }
 
-data_t * _any_setattr(data_t *self, char *func_name, array_t *args, dict_t *kwargs) {
-  data_t  *attrname = data_array_get(args, 0);
-  data_t  *value = data_array_get(args, 1);
+data_t * _any_setattr(data_t *self, char _unused_ *func_name, arguments_t *args) {
+  data_t  *attrname = arguments_get_arg(args, 0);
+  data_t  *value = arguments_get_arg(args, 1);
   name_t  *name = name_create(1, data_tostring(attrname));
   data_t  *ret;
 
@@ -297,91 +296,82 @@ data_t * _any_setattr(data_t *self, char *func_name, array_t *args, dict_t *kwar
   return ret;
 }
 
-data_t * _any_callable(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_callable(data_t *self, char _unused_ *name, arguments_t *args) {
   data_t *obj;
 
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  obj = (arguments_args_size(args)) ? arguments_get_arg(args, 0) : self;
   return int_as_bool(data_is_callable(obj));
 }
 
-data_t * _any_iterable(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_iterable(data_t *self, char _unused_ *name, arguments_t *args) {
   data_t *obj;
 
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  obj = (arguments_args_size(args)) ? arguments_get_arg(args, 0) : self;
   return int_as_bool(data_is_iterable(obj));
 }
 
-data_t * _any_iterator(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_iterator(data_t *self, char _unused_ *name, arguments_t *args) {
   data_t *obj;
 
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  obj = (arguments_args_size(args)) ? arguments_get_arg(args, 0) : self;
   return int_as_bool(data_is_iterator(obj));
 }
 
-data_t * _any_iter(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_iter(data_t *self, char _unused_ *name, arguments_t *args) {
   data_t *obj;
 
-  (void) name;
-  (void) kwargs;
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  obj = (arguments_args_size(args)) ? arguments_get_arg(args, 0) : self;
   return data_iter(obj);
 }
 
-data_t * _any_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_next(data_t *self, char _unused_ *name, arguments_t *args) {
   data_t *obj;
 
-  (void) name;
-  (void) kwargs;
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  obj = (arguments_args_size(args)) ? arguments_get_arg(args, 0) : self;
   return data_next(obj);
 }
 
-data_t * _any_has_next(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _any_has_next(data_t *self, char _unused_ *name, arguments_t *args) {
   data_t *obj;
 
-  (void) name;
-  (void) kwargs;
-  obj = (array_size(args)) ? data_array_get(args, 0) : self;
+  obj = (arguments_args_size(args)) ? arguments_get_arg(args, 0) : self;
   return data_has_next(obj);
 }
 
-data_t * _any_reduce(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *initial = (array_size(args) > 1) ? data_array_get(args, 1) : data_null();
+data_t * _any_reduce(data_t *self, char _unused_ *name, arguments_t *args) {
+  data_t *initial = (arguments_args_size(args) > 1) ? arguments_get_arg(args, 1) : data_null();
 
-  return data_reduce(self, data_array_get(args, 0), initial);
+  return data_reduce(self, arguments_get_arg(args, 0), initial);
 }
 
-data_t * _any_visit(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_visit(self, data_array_get(args, 0));
+data_t * _any_visit(data_t *self, char _unused_ *name, arguments_t *args) {
+  return data_visit(self, arguments_get_arg(args, 0));
 }
 
-data_t * _any_format(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return data_interpolate(self, args, kwargs);
+data_t * _any_format(data_t *self, char _unused_ *name, arguments_t *args) {
+  return data_interpolate(self, args);
 }
 
-data_t * _any_query(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  array_t *params;
-  data_t  *querytext;
-  data_t  *q;
-  data_t  *ret = NULL;
+data_t * _any_query(data_t *self, char _unused_ *name, arguments_t *args) {
+  arguments_t *shifted;
+  data_t      *querytext;
+  data_t      *q;
+  data_t      *ret = NULL;
 
-  (void) name;
-  querytext = data_array_get(args, 0);
+  querytext = arguments_get_arg(args, 0);
   q = data_query(self, querytext);
   if (q) {
-    params = ((array_size(args) > 1)) ? array_slice(args, 1, -1) : NULL;
-    ret = data_interpolate(q, params, kwargs);
+    shifted = arguments_shift(args, NULL);
+    ret = data_interpolate(q, shifted);
     if (q != ret) {
       data_free(q);
     }
-    if (params) {
-      array_free(params);
-    }
+    arguments_free(shifted);
   }
   return ret;
 }
 
-data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _range_create(data_t *self, char *name, arguments_t *args) {
   data_t *from;
   data_t *to;
   int     infix = !strcmp(name, "~");
@@ -389,35 +379,33 @@ data_t * _range_create(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   if (data_debug) {
     _debug("_range_create");
     if (infix) {
-      _debug("'%s' ~ '%s'",
-	    data_tostring(self),
-	    data_tostring(data_array_get(args, 0)));
+      _debug("'%s' ~ '%s'", data_tostring(self), arguments_arg_tostring(args, 0));
     } else {
-      _debug("range('%s', '%s')",
-	    data_tostring(data_array_get(args, 0)),
-	    data_tostring(data_array_get(args, 1)));
+      _debug("range('%s', '%s')", arguments_arg_tostring(args, 0), arguments_arg_tostring(args, 1));
     }
   }
-  from = (infix) ? self : data_array_get(args, 0);
-  to = data_array_get(args, (infix) ? 0 : 1);
-  return (data_t *) range_create(from, to);
+  from = (infix) ? self : arguments_get_arg(args, 0);
+  to = arguments_get_arg(args, (infix) ? 0 : 1);
+  return range_create(from, to);
 }
 
-data_t * _set_loglevel(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return int_to_data(logging_set_level(data_tostring(data_array_get(args, 0))));
+data_t * _set_loglevel(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {
+  logging_set_level(arguments_arg_tostring(args, 0));
+  return data_true();
 }
 
-data_t * _set_logfile(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  return int_to_data(logging_set_file(data_tostring(data_array_get(args, 0))));
+data_t * _set_logfile(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {
+  logging_set_file(arguments_arg_tostring(args, 0));
+  return data_true();
 }
 
 #ifndef NDEBUG
 
-data_t * _enable_debug(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  char *cat = data_tostring(data_array_get(args, 0));
+data_t * _enable_debug(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {
+  char *cat = arguments_arg_tostring(args, 0);
 
   logging_enable(cat);
-  return data_copy(data_array_get(args, 0));
+  return data_copy(arguments_get_arg(args, 0));
 }
 
 #endif /* !NDEBUG */

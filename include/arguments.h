@@ -25,17 +25,40 @@
 #ifndef __ARGUMENTS_H__
 #define __ARGUMENTS_H__
 
-typedef struct _arguments {
-  data_t        _d;
-  datalist_t   *args;
-  dictionary_t *kwargs;
-} arguments_t;
-
-type_skel(arguments, Arguments, arguments_t);
-
 OBLCORE_IMPEXP arguments_t * arguments_create(array_t *, dict_t *);
+OBLCORE_IMPEXP arguments_t * arguments_create_args(int num, ...);
+OBLCORE_IMPEXP arguments_t * arguments_deepcopy(arguments_t *);
+OBLCORE_IMPEXP arguments_t * arguments_shift(arguments_t *, data_t **);
 OBLCORE_IMPEXP arguments_t * arguments_create_from_cmdline(int, char **);
 OBLCORE_IMPEXP data_t *      arguments_get_arg(arguments_t *, int);
 OBLCORE_IMPEXP data_t *      arguments_get_kwarg(arguments_t *, char *);
+
+OBLCORE_IMPEXP int Arguments;
+
+type_skel(arguments, Arguments, arguments_t);
+
+static inline char * arguments_arg_tostring(arguments_t *arguments, int ix) {
+  return data_tostring(data_uncopy(datalist_get(arguments -> args, ix)));
+}
+
+static inline char * arguments_kwarg_tostring(arguments_t *arguments, char *kwarg) {
+  return data_tostring(data_uncopy(dictionary_get(arguments -> kwargs, kwarg)));
+}
+
+static inline int arguments_has_args(arguments_t *args) {
+  return args && args -> args && datalist_size(args -> args);
+}
+
+static inline int arguments_args_size(arguments_t *args) {
+  return (args && args -> args) ? datalist_size(args -> args) : 0;
+}
+
+static inline int arguments_has_kwargs(arguments_t *args) {
+  return args && args -> kwargs && dictionary_size(args -> kwargs);
+}
+
+static inline int arguments_kwargs_size(arguments_t *args) {
+  return (args && args -> kwargs) ? dictionary_size(args -> kwargs) : 0;
+}
 
 #endif /* __ARGUMENTS_H__ */

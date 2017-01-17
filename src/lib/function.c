@@ -17,24 +17,19 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
 #include <stdio.h>
 
 #include "libcore.h"
 #include <data.h>
-#include <exception.h>
 #include <function.h>
-#include <name.h>
 #include <resolve.h>
-#include <str.h>
-#include <typedescr.h>
 
 static inline void  _function_init(void);
 static function_t * _function_new(function_t *, va_list);
 static void         _function_free(function_t *);
 static char *       _function_allocstring(function_t *);
 static data_t *     _function_cast(function_t *, int);
-static data_t *     _function_call(function_t *, array_t *, dict_t *);
+static data_t *     _function_call(function_t *, arguments_t *);
 
 static vtable_t _vtable_FunctionType[] = {
   { .id = FunctionNew,         .fnc = (void_t) _function_new },
@@ -73,9 +68,9 @@ function_t * _function_new(function_t *function, va_list args) {
 }
 
 char * _function_allocstring(function_t *fnc) {
-  char  *buf;
-  str_t *params;
-  int    len;
+  char   *buf;
+  str_t  *params;
+  size_t  len;
 
   params = (fnc -> params && array_size(fnc -> params))
     ? array_join(fnc -> params, ",")
@@ -111,8 +106,8 @@ data_t * _function_cast(function_t *fnc, int totype) {
   return ret;
 }
 
-data_t * _function_call(function_t *fnc, array_t *args, dict_t *kwargs) {
-  return function_call(fnc, function_funcname(fnc), args, kwargs);
+data_t * _function_call(function_t *fnc, arguments_t *args) {
+  return function_call(fnc, function_funcname(fnc), args);
 }
 
 
@@ -140,7 +135,7 @@ function_t * function_create_noresolve(char *name) {
 
 function_t * function_parse(char *str) {
   name_t     *name_params = name_split(str, "(");
-  function_t *ret;
+  function_t *ret = NULL;
   char       *p;
   name_t     *params = NULL;
 
@@ -198,19 +193,19 @@ unsigned int function_hash(function_t *fnc) {
   return hashblend(name_hash(fnc -> name), hashptr(fnc -> fnc));
 }
 
-data_t * function_call(function_t *fnc, char *name, array_t *args, dict_t *kwargs) {
+data_t * function_call(function_t *fnc, char *name, arguments_t *args) {
   if (!fnc -> fnc) {
     function_resolve(fnc);
   }
   if (!fnc -> fnc) {
     debug(function, "Cannot execute %s(%s): function could not be resolved",
-      function_tostring(fnc), array_tostring(args));
+      function_tostring(fnc), arguments_tostring(args));
     return data_exception(ErrorFunctionUndefined,
       "Cannot execute %s(%s): function could not be resolved",
-      function_tostring(fnc), array_tostring(args));
+      function_tostring(fnc), arguments_tostring(args));
   } else {
-    debug(function, "Executing %s(%s)", function_tostring(fnc), array_tostring(args));
-    return ((native_t) fnc -> fnc)(name, args, kwargs);
+    debug(function, "Executing %s(%s)", function_tostring(fnc), arguments_tostring(args));
+    return ((native_t) fnc -> fnc)(name, args);
   }
 }
 

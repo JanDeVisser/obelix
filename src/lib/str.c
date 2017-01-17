@@ -24,11 +24,12 @@
 #include <stdio.h>
 
 #include "libcore.h"
+#include <arguments.h>
 #include <array.h>
 #include <data.h>
+#include <dictionary.h>
 #include <exception.h>
 #include <str.h>
-#include <typedescr.h>
 
 extern void         str_init(void);
 
@@ -38,26 +39,26 @@ static reduce_ctx * _str_join_reducer(char *, reduce_ctx *);
 static int          _str_readinto(str_t *, data_t *, int, int);
 static int          _str_read_from_stream(str_t *, void *, read_t, int, int);
 
-static data_t * _str_create(int, va_list);
-static void     _str_free(str_t *);
-static data_t * _str_cast(str_t *, int);
-static str_t *  _str_parse(char *str);
-static data_t * _str_resolve(str_t *, char *);
-static char *   _str_encode(str_t *);
-static str_t *  _str_serialize(str_t *);
-static data_t * _str_deserialize(str_t *);
+static data_t *     _str_create(int, va_list);
+static void         _str_free(str_t *);
+static data_t *     _str_cast(str_t *, int);
+static str_t *      _str_parse(char *str);
+static data_t *     _str_resolve(str_t *, char *);
+static char *       _str_encode(str_t *);
+static str_t *      _str_serialize(str_t *);
+static data_t *     _str_deserialize(str_t *);
 
-static data_t * _string_slice(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_at(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_forcecase(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_has(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_indexof(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_rindexof(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_startswith(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_endswith(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_concat(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_repeat(data_t *, char *, array_t *, dict_t *);
-static data_t * _string_split(data_t *, char *, array_t *, dict_t *);
+static data_t *     _string_slice(data_t *, char *, arguments_t *);
+static data_t *     _string_at(data_t *, char *, arguments_t *);
+static data_t *     _string_forcecase(data_t *, char *, arguments_t *);
+static data_t *     _string_has(data_t *, char *, arguments_t *);
+static data_t *     _string_indexof(data_t *, char *, arguments_t *);
+static data_t *     _string_rindexof(data_t *, char *, arguments_t *);
+static data_t *     _string_startswith(data_t *, char *, arguments_t *);
+static data_t *     _string_endswith(data_t *, char *, arguments_t *);
+static data_t *     _string_concat(data_t *, char *, arguments_t *);
+static data_t *     _string_repeat(data_t *, char *, arguments_t *);
+static data_t *     _string_split(data_t *, char *, arguments_t *);
 
 #define _DEFAULT_SIZE   32
 
@@ -80,12 +81,9 @@ static vtable_t _vtable_String[] = {
 };
 
 static methoddescr_t _methods_String[] = {
-  { .type = String, .name = "at", .method = _string_at, .argtypes =
-    { Int, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "slice", .method = _string_slice, .argtypes =
-    { Int, NoType, NoType}, .minargs = 1, .varargs = 1},
-  { .type = String, .name = "upper", .method = _string_forcecase, .argtypes =
-    { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
+  { .type = String, .name = "at",    .method = _string_at,        .argtypes = { Int, NoType, NoType}, .minargs = 1, .varargs = 0},
+  { .type = String, .name = "slice", .method = _string_slice,     .argtypes = { Int, NoType, NoType}, .minargs = 1, .varargs = 1},
+  { .type = String, .name = "upper", .method = _string_forcecase, .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
   { .type = String, .name = "lower", .method = _string_forcecase, .argtypes =
     { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
   { .type = String, .name = "has", .method = _string_has, .argtypes =
@@ -113,10 +111,12 @@ static methoddescr_t _methods_String[] = {
 };
 
 extern int data_debug;
+int str_debug;
 
 /* ------------------------------------------------------------------------ */
 
 void str_init(void) {
+  logging_register_module(str);
   builtin_typedescr_register(String, "string", str_t);
 }
 
@@ -131,9 +131,9 @@ void _str_free(str_t *str) {
 }
 
 data_t * _str_resolve(str_t *str, char *slice) {
-  int sz = str_len(str);
-  long ix;
-  char buf[2];
+  size_t sz = str_len(str);
+  long   ix;
+  char   buf[2];
 
   if (!strtoint(slice, &ix)) {
     if ((ix >= sz) || (ix < -sz)) {
@@ -144,7 +144,7 @@ data_t * _str_resolve(str_t *str, char *slice) {
       if (ix < 0) {
         ix = sz + ix;
       }
-      buf[0] = str_at(str, ix);
+      buf[0] = (char) str_at(str, ix);
       buf[1] = 0;
       return str_to_data(buf);
     }
@@ -191,9 +191,9 @@ str_t * _str_parse(char *str) {
 }
 
 str_t * _str_serialize(str_t *str) {
-  char  *encoded = _str_encode(str);
-  int    len = strlen(encoded);
-  str_t *ret = str_create(len + 2);
+  char    *encoded = _str_encode(str);
+  size_t   len = strlen(encoded);
+  str_t   *ret = str_create(len + 2);
 
   *ret -> buffer = '"';
   strcpy(ret -> buffer + 1, encoded);
@@ -204,8 +204,8 @@ str_t * _str_serialize(str_t *str) {
 }
 
 char * _str_strip_quotes(char *buf) {
-  int   len = strlen(buf);
-  char *ret = buf;
+  size_t  len = strlen(buf);
+  char   *ret = buf;
 
   if ((buf[0] == '"') && (buf[len - 1] == '"')) {
     buf[len - 1] = 0;
@@ -276,6 +276,7 @@ str_t * _str_initialize(void) {
 }
 
 data_t * _str_create(int type, va_list args) {
+  (void) type;
   return (data_t *) str_copy_chars(va_arg(args, char *));
 }
 
@@ -288,7 +289,7 @@ str_t * _str_expand(str_t *str, size_t targetlen) {
     targetlen = str -> bufsize;
   }
   if (str -> bufsize < (targetlen + 1)) {
-    for (newsize = str -> bufsize * 2; newsize < (targetlen + 1); newsize *= 2);
+    for (newsize = (size_t)(str -> bufsize * 1.6); newsize < (targetlen + 1); newsize *= 1.6);
     oldbuf = str -> buffer;
     str -> buffer = realloc(str -> buffer, newsize);
     if (str -> buffer) {
@@ -852,7 +853,7 @@ array_t * str_split(const str_t *str, const char *sep) {
   return ret;
 }
 
-str_t * str_format(const char *fmt, const array_t *args, const dict_t *kwargs) {
+str_t * str_format(const char *fmt, const arguments_t *args) {
   char   *copy;
   char   *ptr;
   char   *specstart;
@@ -866,7 +867,8 @@ str_t * str_format(const char *fmt, const array_t *args, const dict_t *kwargs) {
 
   copy = strdup(fmt);
   for (ptr = copy; *ptr; ptr++) {
-    if ((*ptr == '$') && (*(ptr + 1) == '{')) {
+    if ((*ptr == '$') && (*(ptr + 1) == '{') &&
+        ((ptr == copy) || (*(ptr - 1) != '\\'))) {
       ptr += 2;
       specstart = ptr;
       for (; *ptr && (*ptr != '}'); ptr++);
@@ -885,11 +887,12 @@ str_t * str_format(const char *fmt, const array_t *args, const dict_t *kwargs) {
         }
         strncpy(spec, specstart, len);
         spec[len] = 0;
-        if (kwargs && dict_has_key(kwargs, spec)) {
-          str_append_chars(ret, data_tostring(data_dict_get(kwargs, spec)));
+        if (dictionary_has(args -> kwargs, spec)) {
+          str_append_chars(ret, dictionary_value_tostring(args -> kwargs, spec));
         } else {
-          if (!strtoint(spec, &ix) && args && (ix >= 0) && (ix < array_size(args))) {
-            str_append_chars(ret, data_tostring(data_array_get(args, ix)));
+          if (!strtoint(spec, &ix) && (ix >= 0) && (ix < datalist_size(args -> args))) {
+            str_append_chars(ret,
+                data_tostring(data_uncopy(datalist_get(args -> args, ix))));
           } else {
             str_append_printf(ret, "${%s}", spec);
           }
@@ -904,72 +907,121 @@ str_t * str_format(const char *fmt, const array_t *args, const dict_t *kwargs) {
   return ret;
 }
 
+struct _placeholder {
+  int    num;
+  size_t start;
+  size_t len;
+  int    type;
+};
+
 str_t * str_vformatf(const char *fmt, va_list args) {
-  array_t *arr;
+  array_t             *arr = NULL;
+  arguments_t         *arguments;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-  char    *f = fmt;
+  char                *f = fmt;
 #pragma GCC diagnostic pop
-  char    *ptr;
-  int      ix;
-  int      num = 0;
-  char     needle[32];
-  str_t   *ret;
-  int      done;
+  char                *ptr;
+  int                  ix;
+  size_t               last;
+  int                  ixx;
+  int                  lastix;
+  int                  num = 0;
+  char                 needle[32];
+  str_t               *ret;
+  size_t               needlelen;
+  struct _placeholder  placeholders[99];
 
   if (!strstr(fmt, "${")) {
     return str_copy_chars(fmt);
   }
   strcpy(needle, "${");
+  debug(str, "fmt: %s", fmt);
   do {
-    done = 1;
+    placeholders[num].start = (size_t) -1;
     sprintf(needle + 2, "%d", num);
-    ptr = strstr(fmt, needle);
-    if (ptr) {
-      ptr = ptr + strlen(needle);
-      if (strpbrk(ptr, ":;}") == ptr) {
-        done = 0;
-        num++;
-      }
-    }
-  } while (!done);
-  if (num > 0) {
-    arr = data_array_create(num);
-    for (ix = 0; ix < num; ix++) {
-      done = 0;
-      sprintf(needle + 2, "%d;", ix);
-      if ((ptr = strstr(f, needle))) {
-        if (f == fmt) {
-          f = strdup(fmt);
-          ptr = strstr(f, needle);
-        }
-        ptr += strlen(needle);
-        if (strpbrk(ptr, "dspf") == ptr) {
-          switch (ptr[0]) {
-            case 'd':
-              array_push(arr, int_to_data(va_arg(args, long)));
+    needlelen = strlen(needle);
+    for (ptr = strstr(fmt, needle); ptr; ptr = strstr(ptr, needle)) {
+      if ((ptr == fmt) || (*(ptr - 1) != '\\')) {
+        ptr = ptr + needlelen;
+        if (strpbrk(ptr, ":;}") == ptr) {
+          placeholders[num].num = num;
+          placeholders[num].start = ptr - fmt;
+          switch (*ptr) {
+            case ':':
+            case ';':
+              if ((strpbrk(ptr + 1, "adspf") != (ptr + 1)) || (*(ptr + 2) != '}')) {
+                return NULL;
+              } else {
+                placeholders[num].type = *(ptr + 1);
+              }
               break;
-            case 's':
-              array_push(arr, str_to_data(va_arg(args, char *)));
+            case '}':
+              placeholders[num].type = 't';
               break;
-            case 'p':
-              array_push(arr, ptr_to_data(0, va_arg(args, void *)));
-              break;
-            case 'f':
-              array_push(arr, flt_to_data(va_arg(args, double)));
+            default:
+              /* Nothing; can't happen */
               break;
           }
-          done = 1;
-          memmove(ptr - 1, ptr + 1, strlen(ptr + 1) + 1);
+          num++;
+          break;
         }
       }
-      if (!done) {
-        array_push(arr, data_copy(va_arg(args, data_t *)));
+      ptr++;
+    }
+  } while ((ptr) && (num < 100));
+
+  if (num > 0) {
+    for (ix = 0; ix < num; ix++) {
+      for (ixx = 0, last = (size_t) -1, lastix = -1; ixx < num; ixx++) {
+        if ((placeholders[ixx].num != -1) && (placeholders[ixx].start > last)) {
+          last = placeholders[ixx].start;
+          lastix = ixx;
+        }
+      }
+      assert(lastix >= 0);
+      assert(lastix < num);
+      placeholders[lastix].num = -1;
+      if (f == fmt) {
+        if (placeholders[lastix].type != 't') {
+          f = strdup(fmt);
+        }
+      }
+      ptr = f + last;
+      if (placeholders[lastix].type != 't') {
+        memmove(ptr, ptr + 2, strlen(ptr + 2) + 1);
+      }
+    }
+    arr = data_array_create(num);
+    for (ix = 0; ix < num; ix++) {
+      switch (placeholders[ix].type) {
+        case 'd':
+          array_push(arr, int_to_data(va_arg(args, long)));
+          break;
+        case 's':
+          array_push(arr, str_to_data(va_arg(args, char *)));
+          break;
+        case 'p':
+          array_push(arr, ptr_to_data(0, va_arg(args, void *)));
+          break;
+        case 'f':
+          array_push(arr, flt_to_data(va_arg(args, double)));
+          break;
+        case 't':
+        case 'a':
+          array_push(arr, data_copy(va_arg(args, data_t *)));
+          break;
+        default:
+          /* Nothing; can't happen */
+          break;
       }
     }
   }
-  ret = str_format(f, arr, NULL);
+
+  arguments = arguments_create(arr, NULL);
   array_free(arr);
+  ret = str_format(f, arguments);
+  arguments_free(arguments);
   if (f != fmt) {
     free(f);
   }
@@ -988,15 +1040,13 @@ str_t * str_formatf(const char *fmt, ...) {
 
 /* -- S T R I N G   T Y P E   M E T H O D S ------------------------------- */
 
-data_t * _string_at(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  (void) name;
-  (void) kwargs;
-  return _str_resolve((str_t *) self, data_tostring(data_array_get(args, 0)));
+data_t * _string_at(data_t *self, _unused_ char *name, arguments_t *args) {
+  return _str_resolve((str_t *) self, arguments_arg_tostring(args, 0));
 }
 
-data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  data_t *from = data_array_get(args, 0);
-  data_t *to = data_array_get(args, 1);
+data_t * _string_slice(data_t *self, char *name, arguments_t *args) {
+  data_t *from = data_uncopy(arguments_get_arg(args, 0));
+  data_t *to = data_uncopy(arguments_get_arg(args, 1));
   data_t *ret;
   size_t  len = strlen(data_tostring(self));
   size_t  i;
@@ -1033,35 +1083,35 @@ data_t * _string_slice(data_t *self, char *name, array_t *args, dict_t *kwargs) 
   }
 }
 
-data_t * _string_forcecase(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  int upper = name[0] == 'u';
+data_t * _string_forcecase(data_t *self, char *name, arguments_t *args) {
+  int    upper = name[0] == 'u';
   str_t *ret = str_copy_chars(data_tostring(self));
 
   return (data_t *) str_forcecase(ret, upper);
 }
 
-data_t * _string_has(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  char *needle = data_tostring(data_array_get(args, 0));
+data_t * _string_has(data_t *self, char _unused_ *name, arguments_t *args) {
+  char *needle = arguments_arg_tostring(args, 0);
 
   return int_as_bool(str_indexof_chars((str_t *) self, needle) >= 0);
 }
 
-data_t * _string_indexof(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  char *needle = data_tostring(data_array_get(args, 0));
+data_t * _string_indexof(data_t *self, char _unused_ *name, arguments_t *args) {
+  char *needle = arguments_arg_tostring(args, 0);
 
   return int_to_data(str_indexof_chars((str_t *) self, needle));
 }
 
-data_t * _string_rindexof(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  char *needle = data_tostring(data_array_get(args, 0));
+data_t * _string_rindexof(data_t *self, char _unused_ *name, arguments_t *args) {
+  char *needle = arguments_arg_tostring(args, 0);
 
   return int_to_data(str_rindexof_chars((str_t *) self, needle));
 }
 
-data_t * _string_startswith(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  char *prefix = data_tostring(data_array_get(args, 0));
-  int len;
-  int prflen;
+data_t * _string_startswith(data_t *self, char _unused_ *name, arguments_t *args) {
+  char   *prefix = arguments_arg_tostring(args, 0);
+  size_t  len;
+  size_t  prflen;
 
   len = str_len((str_t *) self);
   prflen = strlen(prefix);
@@ -1072,11 +1122,11 @@ data_t * _string_startswith(data_t *self, char *name, array_t *args, dict_t *kwa
   }
 }
 
-data_t * _string_endswith(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  char *suffix = data_tostring(data_array_get(args, 0));
-  int len;
-  int suflen;
-  char *ptr;
+data_t * _string_endswith(data_t *self, char *name, arguments_t *args) {
+  char   *suffix = arguments_arg_tostring(args, 0);
+  size_t  len;
+  size_t  suflen;
+  char    *ptr;
 
   len = str_len((str_t *) self);
   suflen = strlen(suffix);
@@ -1088,26 +1138,26 @@ data_t * _string_endswith(data_t *self, char *name, array_t *args, dict_t *kwarg
   }
 }
 
-data_t * _string_concat(data_t *self, char *name, array_t *args, dict_t *kwargs) {
-  str_t *ret = str_copy_chars(data_tostring(self));
-  int ix;
-  int len = str_len(ret);
+data_t * _string_concat(data_t *self, char _unused_ *name, arguments_t *args) {
+  str_t  *ret = str_copy_chars(data_tostring(self));
+  int     ix;
+  size_t  len = str_len(ret);
 
-  for (ix = 0; ix < array_size(args); ix++) {
-    len += strlen(data_tostring(data_array_get(args, ix)));
+  for (ix = 0; ix < arguments_args_size(args); ix++) {
+    len += strlen(arguments_arg_tostring(args, ix));
   }
   _str_expand(ret, len);
-  for (ix = 0; ix < array_size(args); ix++) {
-    str_append_chars(ret, data_tostring(data_array_get(args, ix)));
+  for (ix = 0; ix < arguments_args_size(args); ix++) {
+    str_append_chars(ret, arguments_arg_tostring(args, ix));
   }
   return (data_t *) ret;
 }
 
-data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _string_repeat(data_t *self, char _unused_ *name, arguments_t *args) {
   char   *s = data_tostring(self);
   str_t  *ret = str_copy_chars(s);
   size_t  len = str_len(ret);
-  int     numval = data_intval(data_array_get(args, 0));
+  int     numval = data_intval(arguments_get_arg(args, 0));
   int     ix;
 
   len *= numval;
@@ -1122,9 +1172,9 @@ data_t * _string_repeat(data_t *self, char *name, array_t *args, dict_t *kwargs)
   return (data_t *) ret;
 }
 
-data_t * _string_split(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _string_split(data_t *self, char _unused_ *name, arguments_t *args) {
   array_t *split = array_split(data_tostring(self),
-                               data_tostring(data_array_get(args, 0)));
+                               arguments_arg_tostring(args, 0));
   data_t  *ret = (data_t *) str_array_to_datalist(split);
 
   array_free(split);

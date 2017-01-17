@@ -58,8 +58,8 @@ OBLCORE_IMPEXP int             typedescr_is(typedescr_t *, int);
 OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
 OBLCORE_IMPEXP methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 
-#define typename(t)                        ((t) ? ((t) -> _d.name) : "")
-#define typetype(t)                        ((t) ? (t) -> _d.type : -1)
+#define typename(t)                        ((t) ? (((kind_t *) (t)) -> name) : "")
+#define typetype(t)                        ((t) ? ((kind_t *) (t)) -> type : -1)
 #define typedescr_get_local_function(t, f) (((t) && (t) -> vtable) ? (t) -> vtable[(f)].fnc : NULL)
 #define typedescr_get_function(t, f)       (((t) && (t) -> inherited_vtable) ? (t) -> inherited_vtable[(f)].fnc : NULL)
 #define typedescr_register_method(t, m)    kind_register_method((kind_t *) (t), (m))
@@ -123,7 +123,5 @@ OBLCORE_IMPEXP methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */
-
-#undef __INCLUDING_TYPEDESCR_H__
 
 #endif /* __TYPEDESCR_H__ */

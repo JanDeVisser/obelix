@@ -17,21 +17,22 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <oblconfig.h>
 #include <stdio.h>
 #include <time.h>
+#ifdef HAVE_PTHREAD_H
+#include <pthread.h>
+#endif
 
 #include "obelix.h"
-#include <data.h>
-#include <exception.h>
-#include <file.h>
 #include <fsentry.h>
 #include <grammarparser.h>
-#include <thread.h>
 #include <user.h>
+#include <arguments.h>
 
 extern grammar_t *      grammar_build(void);
 
-static inline void      _scriptloader_init(void);
+static void             __scriptloader_init(void);
 static file_t *         _scriptloader_open_file(scriptloader_t *, char *, module_t *);
 static data_t *         _scriptloader_open_reader(scriptloader_t *, module_t *);
 static data_t *         _scriptloader_get_object(scriptloader_t *, int, ...);
@@ -44,6 +45,7 @@ static void             _scriptloader_free(scriptloader_t *);
 static char *           _scriptloader_allocstring(scriptloader_t *);
 static data_t *         _scriptloader_call(scriptloader_t *, array_t *, dict_t *);
 static data_t *         _scriptloader_resolve(scriptloader_t *, char *);
+static data_t *         _scriptloader_set(scriptloader_t *, char *, data_t *);
 
 static _unused_ code_label_t obelix_option_labels[] = {
   { .code = ObelixOptionList,  .label = "ObelixOptionList" },
@@ -57,22 +59,32 @@ static vtable_t _vtable_ScriptLoader[] = {
   { .id = FunctionAllocString, .fnc = (void_t) _scriptloader_allocstring },
   { .id = FunctionCall,        .fnc = (void_t) _scriptloader_call },
   { .id = FunctionResolve,     .fnc = (void_t) _scriptloader_resolve },
+  { .id = FunctionSet,         .fnc = (void_t) _scriptloader_set },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
 int ScriptLoader = -1;
 
+static grammar_t *           _obelix_grammar = NULL;
+static pthread_once_t        _scriptloader_once = PTHREAD_ONCE_INIT;
+
+#define _scriptloader_init() pthread_once(&_scriptloader_once, __scriptloader_init)
+
 /* ------------------------------------------------------------------------ */
 
-void _scriptloader_init(void) {
+void __scriptloader_init(void) {
   if (ScriptLoader < 0) {
     typedescr_register(ScriptLoader, scriptloader_t);
+  }
+  if (!_obelix_grammar) {
+    _obelix_grammar = grammar_build();
   }
 }
 
 /* -- S C R I P T L O A D E R   D A T A   F U N C T I O N S --------------- */
 
 scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
+  char             *obl_dir = getenv("OBL_DIR");
   char             *sys_dir = va_arg(args, char *);
   array_t          *user_path = va_arg(args, array_t *);
   char             *grammarpath = va_arg(args, char *);
@@ -83,17 +95,22 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
   int               ix;
   int               len;
   log_timestamp_t  *ts;
+  char              sys_dir_buf[MAX_PATH];
 
   ts = log_timestamp_start(obelix);
   resolve_library("liboblparser");
   resolve_library("libscriptparse");
   if (!sys_dir) {
-    sys_dir = getenv("OBELIX_SYS_PATH");
+    sys_dir = getenv("OBL_SYS_DIR");
+  }
+  if (!sys_dir && obl_dir) {
+    sys_dir = sys_dir_buf;
+    snprintf(sys_dir, MAX_PATH, "%s/share", obl_dir);
   }
   if (!sys_dir) {
     sys_dir = OBELIX_DATADIR;
   }
-  len = strlen(sys_dir);
+  len = (int) strlen(sys_dir);
   loader -> system_dir = (char *) new (len + ((*(sys_dir + (len - 1)) != '/') ? 2 : 1));
   strcpy(loader -> system_dir, sys_dir);
   if (*(loader -> system_dir + (strlen(loader -> system_dir) - 1)) != '/') {
@@ -104,7 +121,9 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
     if (user_path) {
       array_free(user_path);
     }
-    user_path = array_split(getenv("OBELIX_USER_PATH"), ":");
+    if (getenv("OBL_USER_PATH")) {
+      user_path = array_split(getenv("OBL_USER_PATH"), ":");
+    }
   }
   if (!user_path || !array_size(user_path)) {
     if (!user_path) {
@@ -118,7 +137,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
 
   if (!grammarpath || !*grammarpath) {
     debug(obelix, "Using stock, compiled-in grammar");
-    loader -> grammar = grammar_build();
+    loader -> grammar = grammar_copy(_obelix_grammar);
   } else {
     debug(obelix, "grammar file: %s", grammarpath);
     file = (data_t *) file_open(grammarpath);
@@ -133,7 +152,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
   debug(obelix, "  Loaded grammar");
   loader -> options = data_array_create((int) ObelixOptionLAST);
   for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
-    scriptloader_set_option(loader, ix, 0L);
+    scriptloader_set_option(loader, (obelix_option_t) ix, 0L);
   }
 
   loader -> load_path = (datalist_t *) data_create(List, 1, str_to_data(loader -> system_dir));
@@ -171,6 +190,9 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
 
 void _scriptloader_free(scriptloader_t *loader) {
   if (loader) {
+    if (data_thread_kernel() == (data_t *) loader) {
+      data_thread_set_kernel(NULL);
+    }
     free(loader -> system_dir);
     datalist_free(loader -> load_path);
     array_free(loader -> options);
@@ -222,9 +244,7 @@ data_t * _scriptloader_set(scriptloader_t *loader, char *name, data_t *value) {
     scriptloader_set_option(loader, ObelixOptionTrace, data_intval(value));
     return value;
   }
-  return data_exception(ErrorType,
-                        "Cannot set '%s' on objects of type '%s'",
-                        name, data_typename(loader));
+  return NULL;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -332,15 +352,12 @@ static data_t * _scriptloader_get_object(scriptloader_t *loader, int count, ...)
 
 static data_t * _scriptloader_set_value(scriptloader_t *loader, data_t *obj,
                                         char *name, data_t *value) {
-  name_t *n;
   data_t *ret;
 
-  n = name_create(1, name);
-  ret = data_set(obj, n, value);
+  ret = data_set_attribute(obj, name, value);
   if (!data_is_exception(ret)) {
     ret = obj;
   }
-  name_free(n);
   return ret;
 }
 
@@ -509,7 +526,7 @@ data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
   return ret;
 }
 
-data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, dict_t *kwargs) {
+data_t * scriptloader_run(scriptloader_t *loader, name_t *name, arguments_t *args) {
   data_t          *data;
   object_t        *obj;
   data_t          *sys;
@@ -517,6 +534,7 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
 
   ts = log_timestamp_start(obelix);
   debug(obelix, "scriptloader_run(%s)", name_tostring(name));
+  data_thread_set_kernel((data_t *) loader);
   sys = _scriptloader_get_object(loader, 1, "sys");
   if (sys && !data_is_exception(sys)) {
     _scriptloader_set_value(loader, sys, "argv", (data_t *) datalist_create(args));
@@ -540,6 +558,7 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, array_t *args, d
     data = (sys) ? sys : data_exception(ErrorName, "Could not resolve module 'sys'");
   }
   data_thread_clear_exit_code();
+  data_thread_set_kernel(NULL);
   log_timestamp_end(obelix, ts, "scriptloader_run(%s) = %s in ", name_tostring(name), data_tostring(data));
   return data;
 }

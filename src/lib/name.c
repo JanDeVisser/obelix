@@ -22,14 +22,13 @@
 
 #include "libcore.h"
 #include <data.h>
-#include <name.h>
 #include <str.h>
 
 static void          _name_debug(name_t *, char *);
 
 static void          _name_free(name_t *);
 static char *        _name_tostring(name_t *);
-static data_t *      _name_append(data_t *, char *, array_t *, dict_t *);
+static data_t *      _name_append(data_t *, char *, arguments_t *);
 static data_t *      _name_resolve(name_t *, char *);
 
 static name_t *      _name_create(int);
@@ -65,12 +64,12 @@ void name_init(void) {
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _name_append(data_t *self, char *fnc_name, array_t *args, dict_t *kwargs) {
+data_t * _name_append(data_t *self, char _unused_ *fnc_name, arguments_t *args) {
   name_t *name = data_as_name(self);
   int     ix;
 
-  for (ix = 0; ix < array_size(args); ix++) {
-    name_extend(name, data_tostring(data_array_get(args, ix)));
+  for (ix = 0; ix < datalist_size(args -> args); ix++) {
+    name_extend(name, arguments_arg_tostring(args, ix));
   }
   return self;
 }
@@ -109,7 +108,7 @@ data_t * _name_resolve(name_t *n, char *name) {
 
   if (!strtoint(name, &ix)) {
     return ((ix >= 0) && (ix < name_size(n)))
-      ? str_to_data(name_get(n, ix))
+      ? str_to_data(name_get(n, (int) ix))
       : NULL;
   } else {
     return NULL;
@@ -189,9 +188,9 @@ name_t * name_append(name_t *name, name_t *additions) {
 name_t * name_extend_data(name_t *name, data_t *data) {
   char *str;
 
-  if (data_type(data) == Int) {
+  if (data_hastype(data, Int)) {
     char buf[2];
-    buf[0] = data_intval(data);
+    buf[0] = (char) data_intval(data);
     buf[1] = 0;
     str = buf;
   } else {

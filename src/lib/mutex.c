@@ -24,20 +24,20 @@
 #include <exception.h>
 
 static void          _mutex_free(mutex_t *);
-static data_t *      _mutex_new(int, va_list);
+static data_t *      _mutex_new(mutex_t *, va_list);
 static char *        _mutex_tostring(mutex_t *);
 static data_t *      _mutex_enter(mutex_t *);
 static data_t *      _mutex_leave(mutex_t *, data_t *);
 
-extern data_t *      _mutex_create(data_t *, char *, array_t *, dict_t *);
+extern data_t *      _mutex_create(data_t *, char *, arguments_t *);
 
-static data_t *      _mutex_lock(mutex_t *, char *, array_t *, dict_t *);
-static data_t *      _mutex_unlock(mutex_t *, char *, array_t *, dict_t *);
+static data_t *      _mutex_lock(mutex_t *, char *, arguments_t *);
+static data_t *      _mutex_unlock(mutex_t *, char *, arguments_t *);
 
 static int Mutex = -1;
 
 static vtable_t _vtable_Mutex[] = {
-  { .id = FunctionFactory,  .fnc = (void_t) _mutex_new },
+  { .id = FunctionNew,      .fnc = (void_t) _mutex_new },
   { .id = FunctionCmp,      .fnc = (void_t) mutex_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _mutex_free },
   { .id = FunctionToString, .fnc = (void_t) _mutex_tostring },
@@ -61,12 +61,12 @@ static char *        _condition_tostring(condition_t *);
 static data_t *      _condition_enter(condition_t *);
 static data_t *      _condition_leave(condition_t *, data_t *);
 
-extern data_t *      _condition_create(char *, array_t *, dict_t *);
+extern data_t *      _condition_create(char *, arguments_t *);
 
-static data_t *      _condition_acquire(condition_t *, char *, array_t *, dict_t *);
-static data_t *      _condition_release(condition_t *, char *, array_t *, dict_t *);
-static data_t *      _condition_wakeup(condition_t *, char *, array_t *, dict_t *);
-static data_t *      _condition_sleep(condition_t *, char *, array_t *, dict_t *);
+static data_t *      _condition_acquire(condition_t *, char *, arguments_t *);
+static data_t *      _condition_release(condition_t *, char *, arguments_t *);
+static data_t *      _condition_wakeup(condition_t *, char *, arguments_t *);
+static data_t *      _condition_sleep(condition_t *, char *, arguments_t *);
 
 static vtable_t _vtable_Condition[] = {
   { .id = FunctionNew,      .fnc = (void_t) _condition_new },
@@ -101,12 +101,32 @@ void mutex_init(void) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _mutex_new(int type, va_list args) {
-  data_t *ret;
+data_t * _mutex_new(mutex_t *mutex, _unused_ va_list args) {
+#ifdef HAVE_PTHREAD_H
+  pthread_mutexattr_t  attr;
+#endif /* HAVE_PTHREAD_H */
+  data_t              *ret = NULL;
+  char                *name = va_arg(args, char *);
 
-  ret = (data_t *) mutex_create();
-  if (!ret) {
+#ifdef HAVE_PTHREAD_H
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  if ((errno = pthread_mutex_init(&mutex -> mutex, &attr))) {
+    error("Error creating mutex: %s", strerror(errno));
+    free(mutex);
     ret = data_exception_from_errno();
+  }
+  pthread_mutexattr_destroy(&attr);
+#elif defined(HAVE_INITIALIZECRITICALSECTION)
+  InitializeCriticalSection(&(mutex -> cs));
+#endif /* HAVE_PTHREAD_H */
+  if (!ret) {
+    debug(mutex, "Mutex created");
+    ret = (data_t *) mutex;
+    if (name) {
+      ret->str = strdup(name);
+      ret->free_str = DontFreeData;
+    }
   }
   return ret;
 }
@@ -121,7 +141,7 @@ void _mutex_free(mutex_t *mutex) {
   }
 }
 
-char * _mutex_tostring(mutex_t *data) {
+char * _mutex_tostring(mutex_t _unused_ *data) {
   return "mutex";
 }
 
@@ -136,30 +156,35 @@ data_t * _mutex_leave(mutex_t *mutex, data_t *param) {
 /* ------------------------------------------------------------------------ */
 
 mutex_t * mutex_create() {
-#ifdef HAVE_PTHREAD_H
-  pthread_mutexattr_t  attr;
-#endif /* HAVE_PTHREAD_H */
-  mutex_t             *mutex;
+  data_t  *obj;
+  mutex_t *ret = NULL;
 
   mutex_init();
-  mutex = data_new(Mutex, mutex_t);
-#ifdef HAVE_PTHREAD_H
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  if ((errno = pthread_mutex_init(&mutex -> mutex, &attr))) {
-    free(mutex);
-    mutex = NULL;
+  obj = data_create(Mutex, NULL);
+  if (!data_is_mutex(obj)) {
+    data_free(obj);
+  } else {
+    ret = (mutex_t *) obj;
   }
-  pthread_mutexattr_destroy(&attr);
-#elif defined(HAVE_INITIALIZECRITICALSECTION)
-  InitializeCriticalSection(&(mutex -> cs));
-#endif /* HAVE_PTHREAD_H */
-  mdebug(mutex, "Mutex created");
-  return mutex;
+  return ret;
+}
+
+mutex_t * mutex_create_withname(char *name) {
+  data_t  *obj;
+  mutex_t *ret = NULL;
+
+  mutex_init();
+  obj = data_create(Mutex, name);
+  if (!data_is_mutex(obj)) {
+    data_free(obj);
+  } else {
+    ret = (mutex_t *) obj;
+  }
+  return ret;
 }
 
 int mutex_cmp(mutex_t *m1, mutex_t *m2) {
-  return ((char *) m1) - ((char *) m2);
+  return (int) (((char *) m1) - ((char *) m2));
 }
 
 unsigned int mutex_hash(mutex_t *mutex) {
@@ -242,24 +267,26 @@ int mutex_unlock(mutex_t *mutex) {
 /* ------------------------------------------------------------------------ */
 
 
-data_t * _mutex_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _mutex_create(data_t *self, char *name, arguments_t *args) {
   (void) self;
   (void) name;
   (void) args;
-  (void) kwargs;
 
   mutex_init();
-  return data_create(Mutex);
+  if (arguments_args_size(args)) {
+    return data_create(Mutex, arguments_arg_tostring(args, 0));
+  } else {
+    return data_create(Mutex, NULL);
+  }
 }
 
-data_t * _mutex_lock(mutex_t *mutex, char *name, array_t *args, dict_t *kwargs) {
+data_t * _mutex_lock(mutex_t *mutex, char *name, arguments_t *args) {
 	int wait = TRUE;
 
   (void) name;
-  (void) kwargs;
 
-  if (args && array_size(args)) {
-    wait = data_intval(data_array_get(args, 0));
+  if (arguments_args_size(args)) {
+    wait = data_intval(data_uncopy(arguments_get_arg(args, 0)));
   }
   if (wait) {
     return _mutex_enter(mutex);
@@ -275,10 +302,9 @@ data_t * _mutex_lock(mutex_t *mutex, char *name, array_t *args, dict_t *kwargs) 
   }
 }
 
-data_t * _mutex_unlock(mutex_t *mutex, char *name, array_t *args, dict_t *kwargs) {
+data_t * _mutex_unlock(mutex_t *mutex, char *name, arguments_t *args) {
   (void) name;
   (void) args;
-  (void) kwargs;
 
   return _mutex_leave(mutex, data_true());
 }
@@ -310,7 +336,7 @@ void _condition_free(condition_t *condition) {
   }
 }
 
-char * _condition_tostring(condition_t *data) {
+char * _condition_tostring(_unused_ condition_t *condition) {
   return "condition";
 }
 
@@ -330,7 +356,7 @@ condition_t * condition_create() {
 }
 
 int condition_cmp(condition_t *c1, condition_t *c2) {
-  return ((char *) c1) - ((char *) c2);
+  return (int) (((char *) c1) - ((char *) c2));
 }
 
 unsigned int condition_hash(condition_t *condition) {
@@ -404,42 +430,39 @@ if (retval) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _condition_create(char *name, array_t *args, dict_t *kwargs) {
+data_t * _condition_create(char *name, arguments_t *args) {
   (void) name;
   (void) args;
-  (void) kwargs;
 
   mutex_init();
-  return data_create(Condition);
+  return data_create(Condition, NULL);
 }
 
-data_t * _condition_acquire(condition_t *condition, char *name, array_t *args, dict_t *kwargs) {
-	int wait = TRUE;
+data_t * _condition_acquire(condition_t *condition, char *name, arguments_t *args) {
+  int wait = TRUE;
 
   (void) name;
-  (void) kwargs;
 
-  if (args && array_size(args)) {
-    wait = data_intval(data_array_get(args, 0));
+  if (args && arguments_args_size(args)) {
+    wait = data_intval(data_uncopy(arguments_get_arg(args, 0)));
   }
   if (wait) {
     return _condition_enter(condition);
   } else {
     switch (condition_tryacquire(condition)) {
-    	case 1:
+      case 1:
         return data_false();
-    	case -1:
+      case -1:
         return data_exception_from_errno();
-    	default:
+      default:
         return data_true();
     }
   }
 }
 
-data_t * _condition_release(condition_t *condition, char *name, array_t *args, dict_t *kwargs) {
+data_t * _condition_release(condition_t *condition, char *name, arguments_t *args) {
   (void) name;
   (void) args;
-  (void) kwargs;
 
   if (condition_release(condition) < 0) {
     return data_exception_from_errno();
@@ -448,18 +471,16 @@ data_t * _condition_release(condition_t *condition, char *name, array_t *args, d
   }
 }
 
-data_t * _condition_wakeup(condition_t *condition, char *name, array_t *args, dict_t *kwargs) {
+data_t * _condition_wakeup(condition_t *condition, char *name, arguments_t *args) {
   (void) name;
   (void) args;
-  (void) kwargs;
 
   return _condition_leave(condition, data_true());
 }
 
-data_t * _condition_sleep(condition_t *condition, char *name, array_t *args, dict_t *kwargs) {
+data_t * _condition_sleep(condition_t *condition, char *name, arguments_t *args) {
   (void) name;
   (void) args;
-  (void) kwargs;
 
   return condition_sleep(condition) ? data_exception_from_errno() : data_true();
 }

@@ -106,7 +106,7 @@ OBLCORE_IMPEXP int             str_pushback(str_t *, size_t);
 OBLCORE_IMPEXP int             str_write(str_t *, char *, size_t);
 OBLCORE_IMPEXP str_t *         str_reset(str_t *);
 
-OBLCORE_IMPEXP str_t *         str_format(const char *, const array_t *, const dict_t *);
+OBLCORE_IMPEXP str_t *         str_format(const char *, const arguments_t *);
 OBLCORE_IMPEXP str_t *         str_vformatf(const char *fmt, va_list args);
 OBLCORE_IMPEXP str_t *         str_formatf(const char *fmt, ...);
 

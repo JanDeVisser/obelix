@@ -18,12 +18,12 @@
  */
 
 #include <errno.h>
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "libcore.h"
 #include <data.h>
+#include <dictionary.h>
 #include <exception.h>
 #include <name.h>
 #include <str.h>
@@ -39,6 +39,7 @@ static code_label_t _builtin_exceptions[] = {
   { .code = ErrorRange,                 .label = "ErrorRange" },
   { .code = ErrorIOError,               .label = "ErrorIOError" },
   { .code = ErrorSysError,              .label = "ErrorSysError" },
+  { .code = ErrorOverflow,              .label = "ErrorOverflow" },
   { .code = ErrorNotIterable,           .label = "ErrorNotIterable" },
   { .code = ErrorExhausted,             .label = "ErrorExhausted" },
   { .code = ErrorNotIterator,           .label = "ErrorNotIterator" },
@@ -47,7 +48,7 @@ static code_label_t _builtin_exceptions[] = {
   { .code = ErrorReturn,                .label = "ErrorReturn", },
   { .code = ErrorExit,                  .label = "ErrorExit", },
   { .code = ErrorYield,                 .label = "ErrorYield", },
-  { .code = ErrorNoError,               .label = NULL },
+  { .code = ErrorQuit,                  .label = "ErrorQuit" },
   { .code = ErrorNoError,               .label = NULL },
   { .code = ErrorNoError,               .label = NULL },
   { .code = ErrorNoError,               .label = NULL },
@@ -63,14 +64,17 @@ static code_label_t _builtin_exceptions[] = {
 static int           _exceptions_sz = 30;
 static code_label_t *_exceptions = _builtin_exceptions;
 
-extern void          exception_init(void);
-extern void          _exception_free(exception_t *);
-extern char *        _exception_allocstring(exception_t *);
-static int           _exception_intval(data_t *);
-static data_t *      _exception_resolve(data_t *, char *);
-static data_t *      _exception_call(data_t *, array_t *, dict_t *);
-static data_t *      _exception_cast(data_t *, int);
-static data_t *      _data_exception_from_exception(exception_t *);
+extern void           exception_init(void);
+extern void           _exception_free(exception_t *);
+extern char *         _exception_allocstring(exception_t *);
+static int            _exception_intval(data_t *);
+static data_t *       _exception_resolve(data_t *, char *);
+static data_t *       _exception_call(data_t *, arguments_t *);
+static data_t *       _exception_cast(data_t *, int);
+static dictionary_t * _exception_serialize(exception_t *);
+static exception_t *  _exception_deserialize(dictionary_t *);
+
+static data_t *       _data_exception_from_exception(exception_t *);
 
 static vtable_t _vtable_Exception[] = {
   { .id = FunctionCmp,         .fnc = (void_t) exception_cmp },
@@ -81,6 +85,8 @@ static vtable_t _vtable_Exception[] = {
   { .id = FunctionResolve,     .fnc = (void_t) _exception_resolve },
   { .id = FunctionCall,        .fnc = (void_t) _exception_call },
   { .id = FunctionCast,        .fnc = (void_t) _exception_cast },
+  { .id = FunctionSerialize,   .fnc = (void_t) _exception_serialize },
+  { .id = FunctionDeserialize, .fnc = (void_t) _exception_deserialize },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -251,15 +257,41 @@ data_t * _exception_resolve(data_t *exception, char *name) {
   }
 }
 
-data_t * _exception_call(data_t *exception, array_t *args, dict_t *kwargs) {
+data_t * _exception_call(data_t *exception, arguments_t *args) {
   exception_t *e = data_as_exception(exception);
 
   if ((e -> throwable) && data_is_callable(e -> throwable)) {
-    return data_call(e -> throwable, args, kwargs);
+    return data_call(e -> throwable, args);
   } else {
     return NULL;
   }
 }
+
+dictionary_t * _exception_serialize(exception_t *e) {
+  dictionary_t *ret = dictionary_create(NULL);
+
+  dictionary_set(ret, "code", int_to_data(e -> code));
+  dictionary_set(ret, "message", str_to_data(e -> msg));
+  dictionary_set(ret, "throwable", data_serialize(e -> throwable));
+  dictionary_set(ret, "stacktrace", data_serialize(e -> trace));
+  return ret;
+}
+
+static exception_t * _exception_deserialize(dictionary_t *d) {
+  exception_t *ret;
+  int          code;
+  char        *msg;
+
+  code = (dictionary_has(d, "code"))
+         ? (errorcode_t) data_intval(data_uncopy(dictionary_get(d, "code")))
+         : ErrorNoError;
+  msg = data_tostring(data_uncopy(dictionary_get(d, "message")));
+  ret = exception_create(code, msg);
+  ret -> throwable = data_deserialize(data_uncopy(dictionary_get(d, "throwable")));
+  ret -> trace = data_deserialize(data_uncopy(dictionary_get(d, "stacktrace")));
+  return ret;
+}
+
 
 /* -- E X C E P T I O N  F A C T O R Y  F U N C T I O N S ----------------- */
 

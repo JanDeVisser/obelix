@@ -49,10 +49,10 @@ static char *            _list_encode(pointer_t *);
 static datalist_t *      _list_serialize(datalist_t *);
 static datalist_t *      _list_deserialize(datalist_t *);
 
-static datalist_t *      _list_create(data_t *, char *, array_t *, dict_t *);
-//static data_t *          _list_range(datalist_t *, char *, array_t *, dict_t *);
-static data_t *          _list_at(datalist_t *, char *, array_t *, dict_t *);
-static datalist_t *      _list_slice(datalist_t *, char *, array_t *, dict_t *);
+static datalist_t *      _list_create(data_t *, char *, arguments_t *);
+//static data_t *          _list_range(datalist_t *, char *, arguments_t *);
+static data_t *          _list_at(datalist_t *, char *, arguments_t *);
+static datalist_t *      _list_slice(datalist_t *, char *, arguments_t *);
 
 static vtable_t _vtable_List[] = {
   { .id = FunctionFactory,     .fnc = (void_t) _list_new },
@@ -244,8 +244,6 @@ datalist_t * _list_serialize(datalist_t *list) {
 datalist_t * _list_deserialize(datalist_t *list) {
   datalist_t   *ret = datalist_create(NULL);
   data_t       *elem;
-  dictionary_t *dict;
-  datalist_t   *l;
 
   for (int ix = 0; ix < datalist_size(list); ix++) {
     elem = datalist_get(list, ix);
@@ -264,7 +262,7 @@ datalist_t * datalist_create(array_t *array) {
   if (array) {
     array_reduce(array, (reduce_t) data_add_all_reducer, data_as_array(ret));
   }
-  return (datalist_t *) ret;
+  return ret;
 }
 
 array_t * datalist_to_array(datalist_t *list) {
@@ -292,8 +290,13 @@ datalist_t * str_array_to_datalist(array_t *src) {
   return ret;
 }
 
+datalist_t * _datalist_set(datalist_t *list, int ix, data_t *value) {
+  array_set(data_as_array(list), ix, data_copy(value));
+  return list;
+}
+
 datalist_t * _datalist_push(datalist_t *list, data_t *value) {
-  array_push(data_as_array(list), value);
+  array_push(data_as_array(list), data_copy(value));
   return list;
 }
 
@@ -314,27 +317,33 @@ int datalist_size(datalist_t *list) {
   return array_size(data_as_array(list));
 }
 
+data_t * datalist_pop(datalist_t *list) {
+  return (data_t *) array_pop(data_as_array(list));
+}
+
+data_t * datalist_remove(datalist_t *list, int ix) {
+  return (data_t *) array_remove(data_as_array(list), ix);
+}
+
 /* ----------------------------------------------------------------------- */
 
-datalist_t * _list_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+datalist_t * _list_create(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {
   datalist_t *ret = (datalist_t *) data_create(List, 0);
 
   if (args) {
-    array_reduce(args, (reduce_t) data_add_all_reducer, data_as_array(ret));
+    array_reduce(data_as_array(args -> args), (reduce_t) data_add_all_reducer, data_as_array(ret));
   }
   return ret;
 }
 
-data_t * _list_at(datalist_t *self, char *name, array_t *args, dict_t *kwargs) {
-  (void) name;
-  (void) kwargs;
-  return _list_resolve(self, data_tostring(data_array_get(args, 0)));
+data_t * _list_at(datalist_t *self, char _unused_ *name, arguments_t *args) {
+  return _list_resolve(self, data_tostring(arguments_get_arg(args, 0)));
 }
 
-datalist_t * _list_slice(datalist_t *self, char *name, array_t *args, dict_t *kwargs) {
+datalist_t * _list_slice(datalist_t *self, char _unused_ *name, arguments_t *args) {
   array_t *slice = array_slice(data_as_array(self),
-                               data_intval(data_array_get(args, 1)),
-                               data_intval(data_array_get(args, 1)));
+                               data_intval(arguments_get_arg(args, 0)),
+                               data_intval(arguments_get_arg(args, 1)));
   datalist_t  *ret = datalist_create(slice);
 
   array_free(slice);

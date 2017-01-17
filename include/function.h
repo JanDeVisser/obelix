@@ -27,7 +27,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-typedef data_t * (*native_t)(char *, array_t *, dict_t *);
+typedef data_t * (*native_t)(char *, arguments_t *);
 
 typedef struct _function {
   data_t         _d;
@@ -45,17 +45,13 @@ OBLCORE_IMPEXP function_t *    function_parse(char *);
 OBLCORE_IMPEXP unsigned int    function_hash(function_t *);
 OBLCORE_IMPEXP int             function_cmp(function_t *, function_t *);
 OBLCORE_IMPEXP function_t *    function_resolve(function_t *fnc);
-OBLCORE_IMPEXP data_t *        function_call(function_t *, char *, array_t *, dict_t *);
+OBLCORE_IMPEXP data_t *        function_call(function_t *, char *, arguments_t *);
 OBLCORE_IMPEXP char *          function_funcname(function_t *);
 OBLCORE_IMPEXP char *          function_libname(function_t *);
 
 OBLCORE_IMPEXP int             FunctionType;
 
-#define data_is_function(d)  ((d) && data_hastype((d), FunctionType))
-#define data_as_function(d)  (data_is_function((d)) ? ((function_t *) (d)) : NULL)
-#define function_copy(o)     ((function_t *) data_copy((data_t *) (o)))
-#define function_tostring(o) (data_tostring((data_t *) (o)))
-#define function_free(o)     (data_free((data_t *) (o)))
+type_skel(function, FunctionType, function_t);
 
 #ifdef  __cplusplus
 }

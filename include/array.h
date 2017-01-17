@@ -50,6 +50,7 @@ OBLCORE_IMPEXP int           array_capacity(const array_t *);
 OBLCORE_IMPEXP int           array_set(array_t *, int, void *);
 OBLCORE_IMPEXP void *        array_get(const array_t *, int);
 OBLCORE_IMPEXP void *        array_pop(array_t *);
+OBLCORE_IMPEXP void *        array_remove(array_t *, int);
 OBLCORE_IMPEXP void *        array_reduce(array_t *, reduce_t, void *);
 OBLCORE_IMPEXP void *        array_reduce_chars(array_t *, reduce_t, void *);
 OBLCORE_IMPEXP void *        array_reduce_str(array_t *, reduce_t, void *);
@@ -67,17 +68,38 @@ OBLCORE_IMPEXP int           array_has_prev(array_t *);
 OBLCORE_IMPEXP void *        array_next(array_t *);
 OBLCORE_IMPEXP void *        array_prev(array_t *);
 
+static inline int array_size(const array_t *a) {
+  return (a) ? a -> size : -1;
+}
 
-#define array_size(a)            ((a) ? ((a) -> size) : -1)
+static inline int array_set_int(array_t *a, int i, intptr_t v) {
+  return array_set(a, i, (void *) v);
+}
 
-#define array_set_int(a, i, v)   array_put((a), (i), (void *)((intptr_t) (v)))
-#define array_get_int(a, i)      ((intptr_t) array_get((a), (i)));
-#define array_push(a, d)         (array_set((a), -1, (d)))
-#define array_empty(a)           (array_size((a)) == 0)
-#define array_notempty(a)        (array_size((a)) > 0)
+static inline intptr_t array_get_int(const array_t *a, int i) {
+  return (intptr_t) array_get(a, i);
+}
 
-#define str_array_create(i)     (array_set_type(array_create(i), type_str))
-#define str_array_get(a, i)     ((char *) array_get((a), (i)))
+static inline int array_push(array_t *a, void *d) {
+  return array_set(a, -1, d);
+}
+
+static inline int array_empty(const array_t *a) {
+  return array_size(a) == 0;
+}
+
+static inline int array_notempty(const array_t *a) {
+  return array_size(a) > 0;
+}
+
+static inline array_t * str_array_create(int sz) {
+  return array_set_type(array_create(sz), type_str);
+}
+
+static inline char * str_array_get(const array_t *a, int ix) {
+  return (char *) array_get(a, ix);
+}
+
 #define array_join(a, g)        (_str_join((g), (a), (obj_reduce_t) array_reduce_chars))
 
 #endif /* __ARRAY_H__ */

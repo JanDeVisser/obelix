@@ -32,19 +32,14 @@ typedef struct _method {
   data_t        *self;
 } mth_t;
 
-extern mth_t *       mth_create(methoddescr_t *, data_t *);
-extern mth_t *       mth_copy(mth_t *);
-extern data_t *      mth_call(mth_t *, array_t *, dict_t *);
-extern unsigned int  mth_hash(mth_t *);
-extern int           mth_cmp(mth_t *, mth_t *);
+OBLCORE_IMPEXP mth_t *       mth_create(methoddescr_t *, data_t *);
+OBLCORE_IMPEXP mth_t *       mth_copy(mth_t *);
+OBLCORE_IMPEXP data_t *      mth_call(mth_t *, arguments_t *);
+OBLCORE_IMPEXP unsigned int  mth_hash(mth_t *);
+OBLCORE_IMPEXP int           mth_cmp(mth_t *, mth_t *);
 
-extern int RuntimeMethod;
-
-#define data_is_runtimemethod(d)   ((d) && (data_hastype((d), RuntimeMethod)))
-#define data_as_runtimemethod(d)   ((method_t *) (data_is_runtimemethod((d)) ? (d) : NULL))
-#define runtimemethod_free(o)      (data_free((data_t *) (o)))
-#define runtimemethod_tostring(o)  (data_tostring((data_t *) (o)))
-#define runtimemethod_copy(o)      ((data_t *) data_copy((data_t *) (o)))
+OBLCORE_IMPEXP int RuntimeMethod;
+type_skel(runtimemethod, RuntimeMethod, mth_t);
 
 #ifdef	__cplusplus
 }

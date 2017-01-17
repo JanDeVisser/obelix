@@ -51,27 +51,23 @@ OBLCORE_IMPEXP data_t *            data_deserialize(data_t *);
 OBLCORE_IMPEXP char *              data_encode(data_t *);
 OBLCORE_IMPEXP data_t *            data_serialize(data_t *);
 OBLCORE_IMPEXP void                data_free(data_t *);
-OBLCORE_IMPEXP data_t *            data_copy(data_t *);
-OBLCORE_IMPEXP data_t *            data_uncopy(data_t *);
 OBLCORE_IMPEXP unsigned int        data_hash(data_t *);
 OBLCORE_IMPEXP data_t *            data_len(data_t *);
 OBLCORE_IMPEXP char *              _data_tostring(data_t *);
 OBLCORE_IMPEXP double              _data_floatval(data_t *);
 OBLCORE_IMPEXP int                 _data_intval(data_t *);
 OBLCORE_IMPEXP int                 data_cmp(data_t *, data_t *);
-OBLCORE_IMPEXP data_t *            data_call(data_t *, array_t *, dict_t *);
+OBLCORE_IMPEXP data_t *            data_call(data_t *, arguments_t *);
 OBLCORE_IMPEXP int                 data_hasmethod(data_t *, char *);
 OBLCORE_IMPEXP data_t *            data_method(data_t *, char *);
-OBLCORE_IMPEXP data_t *            data_execute(data_t *, char *,
-                                                array_t *, dict_t *);
-OBLCORE_IMPEXP data_t *            data_resolve(data_t *, struct _name *);
-OBLCORE_IMPEXP data_t *            data_invoke(data_t *, struct _name *,
-                                               array_t *, dict_t *);
-OBLCORE_IMPEXP int                 data_has(data_t *, struct _name *);
-OBLCORE_IMPEXP int                 data_has_callable(data_t *, struct _name *);
-OBLCORE_IMPEXP data_t *            data_get(data_t *, struct _name *);
+OBLCORE_IMPEXP data_t *            data_execute(data_t *, char *, arguments_t *);
+OBLCORE_IMPEXP data_t *            data_resolve(data_t *, name_t *);
+OBLCORE_IMPEXP data_t *            data_invoke(data_t *, name_t *, arguments_t *);
+OBLCORE_IMPEXP int                 data_has(data_t *, name_t *);
+OBLCORE_IMPEXP int                 data_has_callable(data_t *, name_t *);
+OBLCORE_IMPEXP data_t *            data_get(data_t *, name_t *);
 OBLCORE_IMPEXP data_t *            data_get_attribute(data_t *, char *);
-OBLCORE_IMPEXP data_t *            data_set(data_t *, struct _name *, data_t *);
+OBLCORE_IMPEXP data_t *            data_set(data_t *, name_t *, data_t *);
 OBLCORE_IMPEXP data_t *            data_set_attribute(data_t *, char *, data_t *);
 OBLCORE_IMPEXP data_t *            data_iter(data_t *);
 OBLCORE_IMPEXP data_t *            data_has_next(data_t *);
@@ -84,7 +80,7 @@ OBLCORE_IMPEXP data_t *            data_write(data_t *, char *, int);
 OBLCORE_IMPEXP data_t *            data_push(data_t *, data_t *);
 OBLCORE_IMPEXP data_t *            data_pop(data_t *);
 OBLCORE_IMPEXP int                 data_count(void);
-OBLCORE_IMPEXP data_t *            data_interpolate(data_t *, array_t *, dict_t *);
+OBLCORE_IMPEXP data_t *            data_interpolate(data_t *, arguments_t *);
 OBLCORE_IMPEXP data_t *            data_query(data_t *, data_t *);
 
 /* ------------------------------------------------------------------------ */
@@ -101,6 +97,20 @@ OBLCORE_IMPEXP type_t         *type_data;
 #endif /* __INCLUDING_TYPEDESCR_H__ */
 
 #define data_new(dt,st)         ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
+
+static inline data_t * data_copy(data_t *src) {
+  if (src) {
+    src -> refs++;
+  }
+  return src;
+}
+
+static inline data_t * data_uncopy(data_t *src) {
+  if (src) {
+    src -> refs--;
+  }
+  return src;
+}
 
 static inline int data_is_data(void *data) {
 #ifndef NDEBUG
@@ -162,33 +172,76 @@ static inline char * data_tostring(void *data) {
   return _data_tostring(data_as_data(data));
 }
 
-#define data_is_callable(d)    (data_hastype((d), Callable))
-#define data_is_iterable(d)    (data_hastype((d), Iterable))
-#define data_is_iterator(d)    (data_hastype((d), Iterator))
+static inline int data_is_callable(void *d) {
+  return data_hastype(d, Callable);
+}
+
+static inline int data_is_iterable(void *d) {
+  return data_hastype(d, Iterable);
+}
+
+static inline int data_is_iterator(void *d) {
+  return data_hastype(d, Iterator);
+}
+
+#define type_skel(id, code, type)                                            \
+  static inline int data_is_ ## id(void *d) {                                \
+    return data_hastype(d, code);                                            \
+  }                                                                          \
+  static inline type * data_as_ ## id(void *d) {                             \
+    return (data_is_ ## id(d)) ? (type *) d : NULL;                          \
+  }                                                                          \
+  static inline void id ## _free(type *d) {                                  \
+    data_free((data_t *) d);                                                 \
+  }                                                                          \
+  static inline char * id ## _tostring(type *d) {                            \
+    return data_tostring((data_t *) d);                                      \
+  }                                                                          \
+  static inline type * id ## _copy(type *d) {                                \
+    return (type *) data_copy((data_t *) d);                                 \
+  }
 
 /* -- P O I N T E R  T Y P E ---------------------------------------------- */
 
-OBLCORE_IMPEXP pointer_t *     ptr_create(int, void *);
-OBLCORE_IMPEXP data_t *        data_null(void);
-OBLCORE_IMPEXP int             data_isnull(data_t *);
-OBLCORE_IMPEXP int             data_notnull(data_t *);
+OBLCORE_IMPEXP data_t * data_null(void);
 
-#define data_is_pointer(d)     (data_hastype((d), Pointer))
-#define ptr_to_data(s, p)      ((data_t *) ptr_create((s), (p)))
-#define data_as_pointer(d)     (data_is_pointer((data_t *) (d)) ? (pointer_t *) (d) : NULL)
-#define data_wrap(p)           ((data_t *) ptr_create(0, (p)))
-#define data_unwrap(d)         (data_is_pointer((data_t *) (d)) ? (data_as_pointer(d) -> ptr) : NULL)
+type_skel(pointer, Pointer, pointer_t);
+
+static inline pointer_t * ptr_create(size_t sz, void *ptr) {
+  return (pointer_t *) data_create(Pointer, sz, ptr);
+}
+
+static inline data_t * data_wrap(void *p) {
+  return (data_t *) ptr_create(0, p);
+}
+
+static inline void * data_unwrap(void *p) {
+  return data_is_pointer(p) ? (data_as_pointer(p) -> ptr) : NULL;
+}
+
+static inline int data_isnull(data_t *data) {
+  return !data || (data == data_null());
+}
+
+static inline int data_notnull(data_t *data) {
+  return data && (data != data_null());
+}
+
+static inline data_t * ptr_to_data(size_t sz, void *p) {
+  return (data_t *) ptr_create(sz, p);
+}
 
 /* -- D A T A L I S T  T Y P E -------------------------------------------- */
-
-typedef pointer_t              datalist_t;
 
 OBLCORE_IMPEXP datalist_t *    datalist_create(array_t *);
 OBLCORE_IMPEXP array_t *       datalist_to_array(datalist_t *);
 OBLCORE_IMPEXP array_t *       datalist_to_str_array(datalist_t *);
 OBLCORE_IMPEXP datalist_t *    str_array_to_datalist(array_t *);
+OBLCORE_IMPEXP datalist_t *    _datalist_set(datalist_t *, int, data_t *);
 OBLCORE_IMPEXP datalist_t *    _datalist_push(datalist_t *, data_t *);
 OBLCORE_IMPEXP data_t *        datalist_get(datalist_t *, int);
+OBLCORE_IMPEXP data_t *        datalist_pop(datalist_t *);
+OBLCORE_IMPEXP data_t *        datalist_remove(datalist_t *, int);
 OBLCORE_IMPEXP int             datalist_size(datalist_t *);
 
 static inline datalist_t * data_as_list(void *data) {
@@ -209,6 +262,10 @@ static datalist_t * datalist_push(datalist_t *list, void *data) {
   return _datalist_push(list, data_as_data(data));
 }
 
+static datalist_t * datalist_set(datalist_t *list, int ix, void *data) {
+  return _datalist_set(list, ix, data_as_data(data));
+}
+
 static char * datalist_tostring(datalist_t *list) {
   return data_tostring(list);
 }
@@ -222,15 +279,40 @@ static int data_is_datalist(void *data) {
 /* -- N U M E R I C  T Y P E S -------------------------------------------- */
 
 OBLCORE_IMPEXP int_t *         int_create(intptr_t);
-OBLCORE_IMPEXP flt_t *         flt_create(double);
+OBLCORE_IMPEXP int_t *         int_parse(char *);
+OBLCORE_IMPEXP flt_t *         float_parse(char *);
 
-#define int_to_data(i)         ((data_t *) int_create((i)))
-#define data_intval(d)         (_data_intval((data_t *) (d)))
-#define flt_to_data(f)         ((data_t *) flt_create((f)))
-#define data_floatval(d)       (_data_floatval((data_t *) (d)))
-#define data_is_numeric(d)     (data_hastype((d), Number))
-#define data_is_int(d)         (data_hastype((d), Int))
-#define data_is_float(d)       (data_hastype((d), Float))
+static inline int data_intval(void *d) {
+  return _data_intval(data_as_data(d));
+}
+
+static flt_t * float_create(double d) {
+  return (flt_t *) data_create(Float, d);
+}
+
+static inline double data_floatval(void *d) {
+  return _data_floatval(data_as_data(d));
+}
+
+static inline int data_is_numeric(void *d) {
+  return data_hastype(d, Number);
+}
+
+static inline int data_is_int(void *d) {
+  return data_hastype(d, Int);
+}
+
+static inline int data_is_float(void *d) {
+  return data_hastype(d, Float);
+}
+
+static inline data_t * int_to_data(intptr_t i) {
+  return (data_t *) int_create(i);
+}
+
+static inline data_t * flt_to_data(double f) {
+  return (data_t *) float_create(f);
+}
 
 /* -- B O O L  T Y P E ---------------------------------------------------- */
 
@@ -273,23 +355,11 @@ OBLCORE_IMPEXP int_t *         bool_get(long);
 
 #define data_set_create()      (set_set_type(set_create(NULL), type_data))
 
-#define type_skel(id, code, type)                                            \
-  extern int code;                                                           \
-  static inline int data_is_ ## id(void *d) {                                \
-    return data_hastype(d, code);                                            \
-  }                                                                          \
-  static inline type * data_as_ ## id(void *d) {                             \
-    return (data_is_ ## id(d)) ? (type *) d : NULL;                          \
-  }                                                                          \
-  static inline void id ## _free(type *d) {                                  \
-    data_free((data_t *) d);                                                 \
-  }                                                                          \
-  static inline char * id ## _tostring(type *d) {                            \
-    return data_tostring((data_t *) d);                                      \
-  }                                                                          \
-  static inline type * id ## _copy(type *d) {                                \
-    return (type *) data_copy((data_t *) d);                                 \
-  }
+#include <arguments.h>
+#include <dictionary.h>
+#include <exception.h>
+#include <name.h>
+#include <str.h>
 
 #ifdef  __cplusplus
 }

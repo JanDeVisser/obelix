@@ -1,5 +1,5 @@
 /*
- * /obelix/include/json.h - Copyright (c) 2017 Jan de Visser <jan@finiandarcy.com>
+ * /obelix/src/parser/libparser.h - Copyright (c) 2016 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -17,16 +17,13 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __JSON_H__
-#define __JSON_H__
 
-#ifndef OBLJSON_IMPEXP
-  #define OBLJSON_IMPEXP	__DLL_IMPORT__
-#endif /* OBLJSON_IMPEXP */
+#ifndef __LIBSTDLIB_H__
+#define __LIBSTDLIB_H__
 
-#include <data.h>
+#include <oblconfig.h>
+#define OBLJSON_IMPEXP __DLL_EXPORT__
 
-OBLJSON_IMPEXP char *     json_encode(data_t *value);
-OBLJSON_IMPEXP data_t *   json_decode(data_t *jsontext);
+#include <json.h>
 
-#endif /* __JSON_H__ */
+#endif /* __LIBSTDLIB_H__ */

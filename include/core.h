@@ -55,26 +55,26 @@ typedef struct _code_label {
 
 #define code_label(c)       { .code = c, .label = #c }
 
-typedef void      (*void_t)(void);
-typedef void      (*voidptr_t)(void *);
-typedef void *    (*voidptrvoidptr_t)(void *);
-typedef voidptr_t visit_t;
-typedef voidptr_t free_t;
+typedef void         (*void_t)(void);
+typedef void         (*voidptr_t)(void *);
+typedef void *       (*voidptrvoidptr_t)(void *);
+typedef voidptr_t    visit_t;
+typedef voidptr_t    free_t;
 
-typedef void *    (*create_t)(void);
-typedef void *    (*vcreate_t)(va_list);
-typedef int       (*cmp_t)(const void *, const void *);
-typedef int       (*hash_t)(const void *);
-typedef void *    (*copy_t)(const void *);
-typedef char *    (*tostring_t)(const void *);
-typedef void *    (*parse_t)(const char *);
-typedef void *    (*copydata_t)(void *, const void *);
-typedef void *    (*new_t)(const void *, va_list);
-typedef void *    (*reduce_t)(void *, void *);
-typedef int       (*read_t)(void *, char *, int);
-typedef int       (*write_t)(void *, char *, int);
-typedef void      (*obj_visit_t)(void *, visit_t);
-typedef void *    (*obj_reduce_t)(void *, reduce_t, void *);
+typedef void *       (*create_t)(void);
+typedef void *       (*vcreate_t)(va_list);
+typedef int          (*cmp_t)(const void *, const void *);
+typedef unsigned int (*hash_t)(const void *);
+typedef void *       (*copy_t)(const void *);
+typedef char *       (*tostring_t)(const void *);
+typedef void *       (*parse_t)(const char *);
+typedef void *       (*copydata_t)(void *, const void *);
+typedef void *       (*new_t)(const void *, va_list);
+typedef void *       (*reduce_t)(void *, void *);
+typedef int          (*read_t)(void *, char *, int);
+typedef int          (*write_t)(void *, char *, int);
+typedef void         (*obj_visit_t)(void *, visit_t);
+typedef void *       (*obj_reduce_t)(void *, reduce_t, void *);
 
 typedef struct _type {
   hash_t     hash;
@@ -106,11 +106,11 @@ typedef struct _reduce_ctx {
 OBLCORE_IMPEXP application_t * application_init(const char *, int, char **);
 OBLCORE_IMPEXP void            application_terminate(void);
 
-OBLCORE_IMPEXP void *          _new(int);
-OBLCORE_IMPEXP void *          new_array(int, int);
-OBLCORE_IMPEXP void *          new_ptrarray(int);
-OBLCORE_IMPEXP void *          resize_block(void *, int, int);
-OBLCORE_IMPEXP void *          resize_ptrarray(void *, int, int);
+OBLCORE_IMPEXP void *          _new(size_t);
+OBLCORE_IMPEXP void *          new_array(size_t, size_t);
+OBLCORE_IMPEXP void *          new_ptrarray(size_t);
+OBLCORE_IMPEXP void *          resize_block(void *, size_t, size_t);
+OBLCORE_IMPEXP void *          resize_ptrarray(void *, size_t, size_t);
 
 OBLCORE_IMPEXP int             oblcore_asprintf(char **, const char *, ...);
 OBLCORE_IMPEXP int             oblcore_vasprintf(char **, const char *, va_list);
