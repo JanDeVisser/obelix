@@ -60,9 +60,9 @@ static inline char * dictionary_value_tostring(dictionary_t *dict, char *key) {
   return data_tostring(data_uncopy(dictionary_get(dict, key)));
 }
 
-static inline data_t * dictionary_reduce(dictionary_t *dict, reduce_t reducer, void *initial) {
+static inline data_t * dictionary_reduce(dictionary_t *dict, void *reducer, void *initial) {
   assert(!initial || data_is_data(initial));
-  return _dictionary_reduce(dict, reducer, data_as_data(initial));
+  return _dictionary_reduce(dict, (reduce_t) reducer, data_as_data(initial));
 }
 
 #ifdef __cplusplus

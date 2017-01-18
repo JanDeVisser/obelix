@@ -22,11 +22,6 @@
 #include <string.h>
 
 #include "libparser.h"
-#include <data.h>
-#include <exception.h>
-#include <lexer.h>
-#include <logging.h>
-#include <nvp.h>
 
 typedef struct _parser_stack_entry {
   data_t  _d;
@@ -58,8 +53,9 @@ static parser_t *             _parser_lr1(token_t *, parser_t *);
 
 static parser_t *             _parser_new(parser_t *, va_list);
 static void                   _parser_free(parser_t *);
+static data_t *               _parser_resolve(parser_t *, char *);
 static char *                 _parser_allocstring(parser_t *);
-static data_t *               _parser_call(parser_t *, array_t *, dict_t *);
+static data_t *               _parser_call(parser_t *, arguments_t *);
 
 int parser_debug = 0;
 int Parser = -1;
@@ -81,6 +77,7 @@ static code_label_t _parser_states[] = {
 static vtable_t _vtable_Parser[] = {
   { .id = FunctionNew,         .fnc = (void_t) _parser_new },
   { .id = FunctionFree,        .fnc = (void_t) _parser_free },
+  { .id = FunctionResolve,     .fnc = (void_t) _parser_resolve },
   { .id = FunctionAllocString, .fnc = (void_t) _parser_allocstring },
   { .id = FunctionCall,        .fnc = (void_t) _parser_call },
   { .id = FunctionNone,        .fnc = NULL }
@@ -349,12 +346,12 @@ parser_t * _parser_set(entry_t *e, parser_t *parser) {
   return parser;
 }
 
-data_t * _parser_call(parser_t *parser, array_t *args, dict_t *kwargs) {
-  data_t *reader = data_array_get(args, 0);
+data_t * _parser_call(parser_t *parser, arguments_t *args) {
+  data_t *reader = arguments_get_arg(args, 0);
 
   parser_clear(parser);
-  if (kwargs) {
-    dict_reduce(kwargs, (reduce_t) _parser_set, parser);
+  if (arguments_kwargs_size(args)) {
+    dictionary_reduce(args -> kwargs, (reduce_t) _parser_set, parser);
   }
   return parser_parse(parser, reader);
 }
@@ -452,9 +449,9 @@ int _parser_ll1_token_handler(token_t *token, parser_t *parser, int attempts) {
      * handle the same action more than once, just bail.
      */
     if ((code != TokenCodeEnd) && !attempts) {
-      parser -> error = data_exception(ErrorSyntax,
-				       "Expected end of text, read unexpected token '%s'",
-				       token_tostring(token));
+      parser->error = data_exception(ErrorSyntax,
+          "Expected end of text, read unexpected token '%s'",
+          token_tostring(token));
     }
     parser -> state |= ParserStateError;
   } else {

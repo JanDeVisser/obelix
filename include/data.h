@@ -98,20 +98,6 @@ OBLCORE_IMPEXP type_t         *type_data;
 
 #define data_new(dt,st)         ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
 
-static inline data_t * data_copy(data_t *src) {
-  if (src) {
-    src -> refs++;
-  }
-  return src;
-}
-
-static inline data_t * data_uncopy(data_t *src) {
-  if (src) {
-    src -> refs--;
-  }
-  return src;
-}
-
 static inline int data_is_data(void *data) {
 #ifndef NDEBUG
   if (data) {
@@ -166,6 +152,21 @@ static inline void_t data_get_function(void  *data, vtable_id_t func) {
   return (data)
       ? typedescr_get_function(data_typedescr(data_as_data(data)), func)
       : NULL;
+}
+
+static inline data_t * data_copy(data_t *src) {
+  if (src) {
+    src -> refs++;
+  }
+  return src;
+}
+
+static inline data_t * data_uncopy(void *src) {
+  data_t *s = data_as_data(src);
+  if (s) {
+    s -> refs--;
+  }
+  return s;
 }
 
 static inline char * data_tostring(void *data) {

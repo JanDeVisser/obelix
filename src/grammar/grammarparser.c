@@ -22,7 +22,6 @@
 #include <string.h>
 
 #include "libgrammar.h"
-#include <exception.h>
 #include <grammarparser.h>
 #include <nvp.h>
 
@@ -518,7 +517,7 @@ grammar_parser_t * _grammar_parser_state_separator(token_t *token, grammar_parse
   if (data_is_token(xformed)) {
     _grammar_parser_expand_modifier(gp, (token_t *) xformed);
     if ((token_t *) xformed != token) {
-      token_free(xformed);
+      data_free(xformed);
     }
   } else {
     _grammar_parser_syntax_error(gp, (exception_t *) xformed);
@@ -608,6 +607,6 @@ grammar_t * grammar_parser_parse(grammar_parser_t *gp) {
       error("Error(s) analyzing grammar - re-run with -d grammar for details");
     }
   }
-  lexer_free(lexer);
+  lexer_config_free(lexer);
   return gp -> grammar;
 }

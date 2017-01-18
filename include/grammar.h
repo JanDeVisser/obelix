@@ -172,7 +172,7 @@ OBLGRAMMAR_IMPEXP rule_t *                nonterminal_get_rule(nonterminal_t *, 
 #define nonterminal_set_option(nt, n, t)   ((nonterminal_t *) ge_set_option((ge_t *) (nt), (n), (t)))
 #define nonterminal_set_variable(nt, n, v) ((nonterminal_t *) ge_set_variable((ge_t *) (nt), (n), (v)))
 #define nonterminal_add_action(nt, a)      ((nonterminal_t *) ge_add_action((ge_t *) (nt), (a)))
-#define nonterminal_dump(nt)                ((nonterminal_t *) ge_dump((ge_t *) (nt)))
+#define nonterminal_dump(nt)               ((nonterminal_t *) ge_dump((ge_t *) (nt)))
 #define nonterminal_copy(nt)               ((nonterminal_t *) data_copy((data_t *) (nt)))
 #define nonterminal_free(nt)               (data_free((data_t *) (nt)))
 #define nonterminal_tostring(nt)           (data_tostring((data_t *) (nt)))

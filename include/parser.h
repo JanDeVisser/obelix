@@ -63,14 +63,7 @@ typedef struct _parser {
   dict_t         *variables;
 } parser_t;
 
-#define data_is_parser(d)     ((d) && data_hastype((data_t *) (d), Parser))
-#define data_as_parser(d)     (data_is_parser((d)) ? ((parser_t *) (d)) : NULL)
-#define parser_copy(p)        ((parser_t *) data_copy((data_t *) (p)))
-#define parser_free(p)        (data_free((data_t *) (p)))
-#define parser_tostring(p)    (data_tostring((data_t *) (p)))
-#define parser_set(p,n,v)     (dictionary_set((dictionary_t *) (p), (n), (v)))
-#define parser_get(p,n)       (dictionary_get((dictionary_t *) (p), (n)))
-#define parser_pop(p,n)       (dictionary_pop((dictionary_t *) (p), (n)))
+type_skel(parser, Parser, parser_t);
 
 typedef parser_t * (*parser_data_fnc_t)(parser_t *, data_t *);
 typedef parser_t * (*parser_fnc_t)(parser_t *);
@@ -82,6 +75,18 @@ OBLPARSER_IMPEXP data_t *   parser_parse(parser_t *, data_t *);
 OBLPARSER_IMPEXP data_t *   parser_parse_reader(parser_t *, data_t *);
 OBLPARSER_IMPEXP data_t *   parser_send_token(parser_t *, token_t *);
 OBLPARSER_IMPEXP data_t *   parser_end(parser_t *);
+
+static inline data_t * parser_set(parser_t *parser, char *key, data_t *value) {
+  return dictionary_set(data_as_dictionary(parser), key, value);
+}
+
+static inline data_t * parser_get(parser_t *parser, char *key) {
+  return dictionary_get(data_as_dictionary(parser), key);
+}
+
+static inline data_t * parser_pop(parser_t *parser, char *key) {
+  return dictionary_pop(data_as_dictionary(parser), key);
+}
 
 /* -- P A R S E R L I B  F U N C T I O N S -------------------------------- */
 

@@ -333,53 +333,51 @@ START_TEST(test_str_data)
 END_TEST
 
 START_TEST(test_str_format)
-  str_t   *str;
-  array_t *args;
-  dict_t  *kwargs;
+  str_t       *str;
+  arguments_t *args;
+  dict_t      *kwargs;
 
-  args = data_array_create(0);
   str = str_wrap("test");
   ck_assert_str_eq(str_chars(str), "test");
   ck_assert_str_eq(data_tostring((data_t *) str), "test");
-  array_push(args, str);
-  array_push(args, str_wrap("arg2"));
+  args = arguments_create_args(1, data_uncopy(str), data_uncopy(str_wrap("arg2")));
 
-  str = str_format("test ${0} test", args, NULL);
+  str = str_format("test ${0} test", args);
   ck_assert_str_eq(str_chars(str), "test test test");
   str_free(str);
 
-  str = str_format("test ${9} test", args, NULL);
+  str = str_format("test ${9} test", args);
   ck_assert_str_eq(str_chars(str), "test ${9} test");
   str_free(str);
 
-  str = str_format("${0} test", args, NULL);
+  str = str_format("${0} test", args);
   ck_assert_str_eq(str_chars(str), "test test");
   str_free(str);
 
-  str = str_format("test ${0}", args, NULL);
+  str = str_format("test ${0}", args);
   ck_assert_str_eq(str_chars(str), "test test");
   str_free(str);
 
-  str = str_format("test ${ test", args, NULL);
+  str = str_format("test ${ test", args);
   ck_assert_str_eq("test ${ test", str_chars(str));
   str_free(str);
 
-  str = str_format("test ${0} test ${1} test", args, NULL);
+  str = str_format("test ${0} test ${1} test", args);
   ck_assert_str_eq(str_chars(str), "test test test arg2 test");
   str_free(str);
 
-  str = str_format("test ${1} test ${0} test", args, NULL);
+  str = str_format("test ${1} test ${0} test", args);
   ck_assert_str_eq(str_chars(str), "test arg2 test test test");
   str_free(str);
 
   kwargs = strdata_dict_create();
-  dict_put(kwargs, strdup("test"), str_wrap("test"));
+  arguments_set_kwarg(args, "test", data_uncopy(str_wrap("test")));
 
-  str = str_format("test ${test} test", NULL, kwargs);
+  str = str_format("test ${test} test", args);
   ck_assert_str_eq(str_chars(str), "test test test");
   str_free(str);
 
-  str = str_format("test ${unknown} test", NULL, kwargs);
+  str = str_format("test ${unknown} test", args);
   ck_assert_str_eq(str_chars(str), "test ${unknown} test");
   str_free(str);
 
@@ -387,8 +385,7 @@ START_TEST(test_str_format)
   ck_assert_str_eq(str_chars(str), "test \\${2} 42 test ${1---} 3.140000 test foo");
   str_free(str);
 
-  array_free(args);
-  dict_free(kwargs);
+  arguments_free(args);
 END_TEST
 
 START_TEST(test_str_replace)

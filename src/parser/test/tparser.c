@@ -59,26 +59,26 @@ __DLL_EXPORT__ parser_t * expr_assign_result(parser_t *parser) {
   data_t  *value = datastack_pop(parser -> stack);
   token_t *sign = (token_t *) datastack_pop(parser -> stack);
 
-  result = data_execute(value, token_token(sign), NULL, NULL);
+  result = data_execute(value, token_token(sign), NULL);
   return parser;
 }
 
 __DLL_EXPORT__ parser_t * expr_call_op(parser_t *parser) {
-  data_t  *v1, *v2, *res, *signed1;
-  token_t *s1, *s2, *op;
-  array_t *params = data_array_create(1);
+  data_t      *v1, *v2, *res, *signed1;
+  token_t     *s1, *s2, *op;
+  arguments_t *args;
 
   v2 = datastack_pop(parser -> stack);
   s2 = (token_t *) datastack_pop(parser -> stack);
-  array_push(params, data_execute(v2, token_token(s2), NULL, NULL));
+  args = arguments_create_args(1, data_execute(v2, token_token(s2), NULL));
   op = (token_t *) datastack_pop(parser -> stack);
   v1 = datastack_pop(parser -> stack);
   s1 = (token_t *) datastack_pop(parser -> stack);
-  signed1 = data_execute(v1, token_token(s1), NULL, NULL);
-  res = data_execute(signed1, token_token(op), params, NULL);
+  signed1 = data_execute(v1, token_token(s1), NULL);
+  res = data_execute(signed1, token_token(op), args);
   datastack_push(parser -> stack, data_uncopy((data_t *) token_create(TokenCodePlus, "+")));
   datastack_push(parser -> stack, res);
-  array_free(params);
+  arguments_free(args);
   token_free(op);
   data_free(v2);
   data_free(v1);
