@@ -25,10 +25,10 @@ static void          _generator_free(generator_t *);
 static char *        _generator_allocstring(generator_t *);
 static data_t *      _generator_set(generator_t *, char *, data_t *);
 static data_t *      _generator_resolve(generator_t *, char *);
-static data_t *      _generator_call(generator_t *, array_t *, dict_t *);
+static data_t *      _generator_call(generator_t *, arguments_t *);
 static data_t *      _generator_iter(generator_t *);
 static data_t *      _generator_has_next(generator_t *);
-static data_t *      _generator_interrupt(data_t *, char *, array_t *, dict_t *);
+static data_t *      _generator_interrupt(data_t *, char *, arguments_t *);
 static generator_t * _generator_next(generator_t *);
 
 static vtable_t _vtable_Generator[] = {
@@ -99,7 +99,7 @@ generator_t * _generator_next(generator_t *generator) {
   return generator;
 }
 
-data_t * _generator_call(generator_t *generator, array_t *args, dict_t *kwargs) {
+data_t * _generator_call(generator_t *generator, arguments_t *args) {
   // Materialize the generated values to a list.
   return data_null();
 }
@@ -112,7 +112,7 @@ data_t *_generator_set(generator_t *generator, char *name, data_t *value) {
   return closure_set(generator -> closure, name, value);
 }
 
-data_t * _generator_interrupt(data_t *generator, char *name, array_t *params, dict_t *kwargs) {
+data_t * _generator_interrupt(data_t *generator, char *name, arguments_t *args) {
   generator_interrupt(data_as_generator(generator));
   return generator;
 }

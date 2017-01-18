@@ -27,15 +27,15 @@ static char *        _object_allocstring(object_t *);
 static data_t *      _object_cast(object_t *, int);
 static int           _object_len(object_t *);
 
-static data_t *      _object_mth_create(data_t *, char *, array_t *, dict_t *);
-static data_t *      _object_mth_new(data_t *, char *, array_t *, dict_t *);
+static data_t *      _object_mth_create(data_t *, char *, arguments_t *);
+static data_t *      _object_mth_new(data_t *, char *, arguments_t *);
 
-static data_t *      _object_call_attribute(object_t *, char *, array_t *, dict_t *);
+static data_t *      _object_call_attribute(object_t *, char *, arguments_t *);
 static object_t *    _object_set_all_reducer(entry_t *, object_t *);
 
   /* ----------------------------------------------------------------------- */
 
-static vtable_t _vtable_Object[] = {
+_unused_ static vtable_t _vtable_Object[] = {
   { .id = FunctionNew,         .fnc = (void_t) _object_new },
   { .id = FunctionCmp,         .fnc = (void_t) object_cmp },
   { .id = FunctionCast,        .fnc = (void_t) _object_cast },
@@ -51,14 +51,14 @@ static vtable_t _vtable_Object[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methods_Object[] = {
+_unused_ static methoddescr_t _methods_Object[] = {
   { .type = Any,    .name = "object", .method = _object_mth_create, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
   { .type = Any,    .name = "new",    .method = _object_mth_new,    .argtypes = { Any, Any, Any },          .minargs = 1, .varargs = 1 },
   { .type = NoType, .name = NULL,     .method = NULL,               .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
-int Object = -1;
-int object_debug = 0;
+int          Object = -1;
+_unused_ int object_debug = 0;
 
 /* ----------------------------------------------------------------------- */
 
@@ -76,11 +76,11 @@ object_t * _object_new(object_t *obj, va_list args) {
   object_t       *constructor_obj = NULL;
   data_t         *c = NULL;
   bound_method_t *bm;
-  dict_t         *tmpl = NULL;
+  dictionary_t   *tmpl = NULL;
 
   debug(object, "new '%s'", data_tostring(constructor));
   obj -> constructing = FALSE;
-  obj -> variables = strdata_dict_create();
+  obj -> variables = dictionary_create(NULL);
   obj -> ptr = NULL;
   if (data_is_script(constructor)) {
     bm = script_bind(data_as_script(constructor), obj);
@@ -97,15 +97,15 @@ object_t * _object_new(object_t *obj, va_list args) {
   }
   obj -> constructor = c;
   if (tmpl) {
-    dict_reduce(tmpl, (reduce_t) _object_set_all_reducer, obj);
+    dictionary_reduce(tmpl, _object_set_all_reducer, obj);
   }
   return obj;
 }
 
 void _object_free(object_t *object) {
   if (object) {
-    data_free(_object_call_attribute(object, "__finalize__", NULL, NULL));
-    dict_free(object -> variables);
+    data_free(_object_call_attribute(object, "__finalize__", NULL));
+    dictionary_free(object -> variables);
     data_free(object -> constructor);
     data_free(object -> retval);
   }
@@ -118,7 +118,7 @@ char * _object_allocstring(object_t *object) {
   if (!object -> constructing) {
     data = object_get(object, "name");
     if (!data) {
-      data = _object_call_attribute(object, "__str__", NULL, NULL);
+      data = _object_call_attribute(object, "__str__", NULL);
     }
   }
   if (!data) {
@@ -140,39 +140,39 @@ data_t * _object_cast(object_t *obj, int totype) {
 
   switch (totype) {
     case Bool:
-      ret = int_as_bool(obj && dict_size(obj -> variables));
+      ret = int_as_bool(obj && dictionary_size(obj -> variables));
       break;
   }
   return ret;
 }
 
 int _object_len(object_t *obj) {
-  return dict_size(obj -> variables);
+  return dictionary_size(obj -> variables);
 }
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _object_mth_create(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _object_mth_create(data_t *self, char *name, arguments_t *args) {
   object_t *obj;
 
   (void) self;
   (void) name;
   _object_init();
   obj = (object_t *) data_create(Object, NULL);
-  dict_reduce(kwargs, (reduce_t) _object_set_all_reducer, obj);
+  arguments_reduce_kwargs(args, _object_set_all_reducer, obj);
   return (data_t *) obj;
 }
 
-data_t * _object_mth_new(data_t *self, char *fncname, array_t *args, dict_t *kwargs) {
+data_t * _object_mth_new(data_t *self, char *fncname, arguments_t *args) {
   data_t      *ret;
   name_t      *name = NULL;
   data_t      *n;
   script_t    *script = NULL;
-  array_t     *shifted;
+  arguments_t *shifted;
 
   (void) fncname;
   _object_init();
-  n = data_copy(data_array_get(args, 0));
+  shifted = arguments_shift(args, &n);
   if (data_is_name(n)) {
     name = name_copy(data_as_name(n));
   } else if (data_type(n) == String) {
@@ -193,19 +193,18 @@ data_t * _object_mth_new(data_t *self, char *fncname, array_t *args, dict_t *kwa
       script = data_as_bound_method(n) -> script;
     }
     if (script) {
-      shifted = array_slice(args, 1, 0);
-      debug(object, "'%s'.new(%s, %s)",
-        data_tostring(n), array_tostring(shifted), dict_tostring(kwargs));
-      ret = script_create_object(script, shifted, kwargs);
-      array_free(shifted);
+      debug(object, "'%s'.new(%s, %s)", data_tostring(n), arguments_tostring(shifted));
+      ret = script_create_object(script, shifted);
       assert(data_is_object(ret) || data_is_exception(ret));
     } else {
-      ret = data_exception(ErrorType, "Cannot use '%s' of type '%s' as an object factory",
-			   data_tostring(n), data_typename(n));
+      ret = data_exception(ErrorType,
+          "Cannot use '%s' of type '%s' as an object factory",
+          data_tostring(n), data_typename(n));
     }
   } else {
     ret = data_copy(n);
   }
+  arguments_free(shifted);
   name_free(name);
   data_free(n);
   return ret;
@@ -213,13 +212,13 @@ data_t * _object_mth_new(data_t *self, char *fncname, array_t *args, dict_t *kwa
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _object_call_attribute(object_t *object, char *name, array_t *args, dict_t *kwargs) {
+data_t * _object_call_attribute(object_t *object, char *name, arguments_t *args) {
   data_t *func;
   data_t *ret = NULL;
 
   func = object_get(object, name);
   if (data_is_callable(func)) {
-    ret = data_call(func, args, kwargs);
+    ret = data_call(func, args);
   }
   data_free(func);
   return ret;
@@ -238,7 +237,7 @@ object_t * object_create(data_t *constructor) {
 }
 
 object_t * object_bind_all(object_t *object, data_t *template) {
-  dict_t *variables = NULL;
+  dictionary_t *variables = NULL;
 
   if (data_is_script(template)) {
     variables = data_as_script(template) -> functions;
@@ -248,7 +247,7 @@ object_t * object_bind_all(object_t *object, data_t *template) {
     variables = data_as_closure(template) -> script -> functions;
   }
   if (variables) {
-    dict_reduce(variables, (reduce_t) _object_set_all_reducer, object);
+    dictionary_reduce(variables, _object_set_all_reducer, object);
   }
   return object;
 }
@@ -256,7 +255,7 @@ object_t * object_bind_all(object_t *object, data_t *template) {
 data_t * object_get(object_t *object, char *name) {
   data_t *ret;
 
-  ret = (data_t *) dict_get(object -> variables, name);
+  ret = dictionary_get(object -> variables, name);
   if (ret) {
     ret = data_copy(ret);
   } else if (!strcmp(name, "$constructing")) {
@@ -280,25 +279,24 @@ data_t * object_set(object_t *object, char *name, data_t *value) {
   if (bm) {
     value = (data_t *) bound_method_copy(bm);
   }
-  dict_put(object -> variables, strdup(name), data_copy(value));
+  dictionary_set(object -> variables, name, value);
   debug(object, "   After set('%s') -> variables = %s",
-    object_tostring(object), dict_tostring(object -> variables));
+    object_tostring(object), dictionary_tostring(object -> variables));
   return value;
 }
 
-int object_has(object_t *object, char *name) {
+_unused_ int object_has(object_t *object, char *name) {
   int ret;
-  ret = dict_has_key(object -> variables, name);
+  ret = dictionary_has(object -> variables, name);
   debug(object, "   object_has('%s', '%s'): %d", object_tostring(object), name, ret);
   return ret;
 }
 
-data_t * object_call(object_t *object, array_t *args, dict_t *kwargs) {
+data_t * object_call(object_t *object, arguments_t *args) {
   data_t *ret;
 
-  debug(object, "object_call('%s', %s, %s)",
-    object_tostring(object), array_tostring(args), dict_tostring(kwargs));
-  ret = _object_call_attribute(object, "__call__", args, kwargs);
+  debug(object, "object_call('%s', %s)", object_tostring(object), arguments_tostring(args));
+  ret = _object_call_attribute(object, "__call__", args);
   if (!ret || data_is_exception(ret)) {
     data_free(ret);
     ret = data_exception(ErrorNotCallable, "Object '%s' is not callable",
@@ -312,25 +310,24 @@ unsigned int object_hash(object_t *object) {
   data_t       *data;
   unsigned int  ret;
 
-  data = _object_call_attribute(object, "__hash__", NULL, NULL);
-  ret = (data && (data_type(data) == Int)) ? data_intval(data) : hashptr(object);
+  data = _object_call_attribute(object, "__hash__", NULL);
+  ret = (data && (data_type(data) == Int)) ? (unsigned int) data_intval(data) : hashptr(object);
   data_free(data);
   return ret;
 }
 
 int object_cmp(object_t *o1, object_t *o2) {
-  data_t  *data;
-  array_t *args;
-  int      ret;
+  data_t      *data;
+  arguments_t *args;
+  int          ret;
 
-  args = data_array_create(1);
-  array_set(args, 0, (data_t *) object_copy(o2));
-  data = _object_call_attribute(o1, "__cmp__", args, NULL);
+  args = arguments_create_args(1, (data_t *) object_copy(o2));
+  data = _object_call_attribute(o1, "__cmp__", args);
   ret = (data && !data_is_exception(data))
       ? data_intval(data)
-      : o1 - o2;
+      : (int) (((intptr_t) o1) - ((intptr_t) o2));
   data_free(data);
-  array_free(args);
+  arguments_free(args);
   return ret;
 }
 
@@ -338,34 +335,34 @@ data_t * object_ctx_enter(object_t *object) {
   data_t *ret = NULL;
 
   debug(object, "'%s'.__enter__", object_tostring(object));
-  ret = _object_call_attribute(object, "__enter__", NULL, NULL);
+  ret = _object_call_attribute(object, "__enter__", NULL);
   if (ret && !data_is_exception(ret)) {
     ret = NULL;
   }
   return ret;
 }
 
-data_t *  object_ctx_leave(object_t *object, data_t *param) {
-  array_t  *params;
-  data_t   *ret = NULL;
+data_t *  object_ctx_leave(object_t *object, data_t *arg) {
+  arguments_t *args;
+  data_t      *ret = NULL;
 
   debug(object, "'%s'.__exit__('%s')",
-    object_tostring(object), data_tostring(param));
-  params = data_array_create(1);
-  array_push(params, data_copy(param));
-  if (data_is_exception(param)) {
-    ret = _object_call_attribute(object, "__catch__", params, NULL);
+    object_tostring(object), data_tostring(arg));
+  args = arguments_create_args(1, arg);
+  if (data_is_exception(arg)) {
+    ret = _object_call_attribute(object, "__catch__", args);
   }
   if (ret && data_is_exception(ret)) {
     /*
      * If __catch__ returns an exception, this exception is passed to
      * __exit__ instead of the original exception.
      */
-    data_free(array_pop(params));
-    data_free(param);
-    array_set(params, 0, ret);
+    data_free(arg);
+    arguments_free(args);
+    args = arguments_create_args(1, ret);
   }
-  ret = _object_call_attribute(object, "__exit__", params, NULL);
-  array_free(params);
+  data_free(ret);
+  ret = _object_call_attribute(object, "__exit__", args);
+  arguments_free(args);
   return ret;
 }

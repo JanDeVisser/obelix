@@ -55,20 +55,19 @@ typedef struct _script       script_t;
 /* O B J E C T _ T -------------------------------------------------------- */
 
 typedef struct _object {
-  data_t   _d;
-  data_t  *constructor;
-  int      constructing;
-  void    *ptr;
-  dict_t  *variables;
-  data_t  *retval;
+  data_t        _d;
+  data_t       *constructor;
+  int           constructing;
+  void         *ptr;
+  dictionary_t *variables;
+  data_t       *retval;
 } object_t;
 
 OBLVM_IMPEXP object_t *       object_create(data_t *);
-OBLVM_IMPEXP object_t *       object_copy(object_t *);
 OBLVM_IMPEXP data_t *         object_get(object_t *, char *);
 OBLVM_IMPEXP data_t *         object_set(object_t *, char *, data_t *);
 OBLVM_IMPEXP int              object_has(object_t *, char *);
-OBLVM_IMPEXP data_t *         object_call(object_t *, array_t *, dict_t *);
+OBLVM_IMPEXP data_t *         object_call(object_t *, arguments_t *);
 OBLVM_IMPEXP unsigned int     object_hash(object_t *);
 OBLVM_IMPEXP int              object_cmp(object_t *, object_t *);
 OBLVM_IMPEXP data_t *         object_resolve(object_t *, char *);
@@ -76,14 +75,10 @@ OBLVM_IMPEXP object_t *       object_bind_all(object_t *, data_t *);
 OBLVM_IMPEXP data_t *         object_ctx_enter(object_t *);
 OBLVM_IMPEXP data_t *         object_ctx_leave(object_t *, data_t *);
 
-#define data_is_object(d)     ((d) && (data_hastype((data_t *) (d), Object)))
-#define data_as_object(d)     ((object_t *) (data_is_object((data_t *) (d)) ? (d) : NULL))
-#define object_free(o)        (data_free((data_t *) (o)))
-#define object_tostring(o)    (data_tostring((data_t *) (o)))
-#define object_copy(o)        ((object_t *) data_copy((data_t *) (o)))
-#define data_create_object(o) data_create(Object, (o))
-
 OBLVM_IMPEXP int Object;
+
+type_skel(object, Object, object_t);
+#define data_create_object(o) data_create(Object, (o))
 
 /* -- M O D U L E _ T ----------------------------------------------------- */
 
@@ -112,7 +107,7 @@ OBLVM_IMPEXP unsigned int  mod_hash(module_t *);
 OBLVM_IMPEXP int           mod_cmp(module_t *, module_t *);
 OBLVM_IMPEXP int           mod_cmp_name(module_t *, name_t *);
 OBLVM_IMPEXP object_t *    mod_get(module_t *);
-OBLVM_IMPEXP data_t *      mod_set(module_t *, script_t *, array_t *, dict_t *);
+OBLVM_IMPEXP data_t *      mod_set(module_t *, script_t *, arguments_t *);
 OBLVM_IMPEXP data_t *      mod_resolve(module_t *, char *);
 OBLVM_IMPEXP data_t *      mod_import(module_t *, name_t *);
 OBLVM_IMPEXP module_t *    mod_exit(module_t *, data_t *);
@@ -120,11 +115,7 @@ OBLVM_IMPEXP data_t *      mod_exit_code(module_t *);
 
 OBLVM_IMPEXP int Module;
 
-#define data_is_module(d)      ((d) && (data_hastype((data_t *) (d), Module)))
-#define data_as_module(d)      ((module_t *) (data_is_module((data_t *) (d)) ? (d) : NULL))
-#define mod_free(o)            (data_free((data_t *) (o)))
-#define mod_tostring(o)        (data_tostring((data_t *) (o)))
-#define mod_copy(o)            ((module_t *) data_copy((data_t *) (o)))
+type_skel(mod, Module, module_t);
 #define data_create_module(o)  data_create(Module, (o))
 
 /* -- N A M E S P A C E _ T ----------------------------------------------- */
@@ -140,18 +131,14 @@ typedef struct _namespace {
 
 OBLVM_IMPEXP namespace_t * ns_create(char *, void *, import_t);
 OBLVM_IMPEXP data_t *      ns_import(namespace_t *, name_t *);
-OBLVM_IMPEXP data_t *      ns_execute(namespace_t *, name_t *, array_t *, dict_t *);
+OBLVM_IMPEXP data_t *      ns_execute(namespace_t *, name_t *, arguments_t *);
 OBLVM_IMPEXP data_t *      ns_get(namespace_t *, name_t *);
 OBLVM_IMPEXP namespace_t * ns_exit(namespace_t *, data_t *);
 OBLVM_IMPEXP data_t *      ns_exit_code(namespace_t *);
 
 OBLVM_IMPEXP int Namespace;
 
-#define data_is_namespace(d)   ((d) && (data_hastype((data_t *) (d), Namespace)))
-#define data_as_namespace(d)   ((namespace_t *) (data_is_namespace((data_t *) (d)) ? (d) : NULL))
-#define ns_free(o)             (data_free((data_t *) (o)))
-#define ns_tostring(o)         (data_tostring((data_t *) (o)))
-#define ns_copy(o)             ((namespace_t *) data_copy((data_t *) (o)))
+type_skel(ns, Namespace, namespace_t);
 
 /* -- S C R I P T _ T ----------------------------------------------------- */
 
@@ -168,7 +155,7 @@ typedef struct _script {
   name_t        *fullname;
   script_type_t  type;
   list_t        *baseclasses;
-  dict_t        *functions;
+  dictionary_t  *functions;
   array_t       *params;
   module_t      *mod;
   bytecode_t    *bytecode;
@@ -180,17 +167,13 @@ OBLVM_IMPEXP int              script_cmp(script_t *, script_t *);
 OBLVM_IMPEXP unsigned int     script_hash(script_t *);
 OBLVM_IMPEXP void             script_list(script_t *);
 OBLVM_IMPEXP script_t *       script_get_toplevel(script_t *);
-OBLVM_IMPEXP data_t *         script_execute(script_t *, array_t *, dict_t *);
-OBLVM_IMPEXP data_t *         script_create_object(script_t *, array_t *, dict_t *);
+OBLVM_IMPEXP data_t *         script_execute(script_t *, arguments_t *);
+OBLVM_IMPEXP data_t *         script_create_object(script_t *, arguments_t *);
 OBLVM_IMPEXP bound_method_t * script_bind(script_t *, object_t *);
 
 OBLVM_IMPEXP int Script;
 
-#define data_is_script(d)     ((d) && data_hastype((d), Script))
-#define data_as_script(d)     (data_is_script((d)) ? ((script_t *) (d)) : NULL)
-#define script_copy(s)        ((script_t *) data_copy((data_t *) (s)))
-#define script_tostring(s)    (data_tostring((data_t *) (s)))
-#define script_free(s)        (data_free((data_t *) (s)))
+type_skel(script, Script, script_t);
 
 #define data_create_script(s) data_create(Script, (s))
 
@@ -206,15 +189,11 @@ typedef struct _bound_method {
 OBLVM_IMPEXP bound_method_t * bound_method_create(script_t *, object_t *);
 OBLVM_IMPEXP int              bound_method_cmp(bound_method_t *, bound_method_t *);
 OBLVM_IMPEXP closure_t *      bound_method_get_closure(bound_method_t *);
-OBLVM_IMPEXP data_t *         bound_method_execute(bound_method_t *, array_t *, dict_t *);
+OBLVM_IMPEXP data_t *         bound_method_execute(bound_method_t *, arguments_t *);
 
 OBLVM_IMPEXP int BoundMethod;
 
-#define data_is_bound_method(d)   ((d) && (data_hastype((data_t *) (d), BoundMethod)))
-#define data_as_bound_method(d)   ((bound_method_t *) (data_is_bound_method((data_t *) (d)) ? (d) : NULL))
-#define bound_method_free(o)      (data_free((data_t *) (o)))
-#define bound_method_tostring(o)  (data_tostring((data_t *) (o)))
-#define bound_method_copy(o)      ((bound_method_t *) data_copy((data_t *) (o)))
+type_skel(bound_method, BoundMethod, bound_method_t);
 
 /* -- B Y T E C O D E _ T ------------------------------------------------- */
 
@@ -231,8 +210,6 @@ typedef struct _bytecode {
 } bytecode_t;
 
 OBLVM_IMPEXP bytecode_t * bytecode_create(data_t *owner);
-OBLVM_IMPEXP void         bytecode_free(bytecode_t *);
-OBLVM_IMPEXP char *       bytecode_tostring(bytecode_t *);
 OBLVM_IMPEXP bytecode_t * bytecode_push_instruction(bytecode_t *, data_t *);
 OBLVM_IMPEXP bytecode_t * bytecode_start_deferred_block(bytecode_t *);
 OBLVM_IMPEXP bytecode_t * bytecode_end_deferred_block(bytecode_t *);
@@ -244,11 +221,7 @@ OBLVM_IMPEXP void         bytecode_list(bytecode_t *);
 
 OBLVM_IMPEXP int Bytecode;
 
-#define data_is_bytecode(d)   ((d) && data_hastype((d), Bytecode))
-#define data_as_bytecode(d)   ((bytecode_t *) (data_is_bytecode((d)) ? (d) : NULL))
-#define bytecode_copy(bc)     ((bytecode_t *) data_copy((data_t *) (bc)))
-#define bytecode_free(bc)     (data_free((data_t *) (bc)))
-#define bytecode_tostring(bc) (data_tostring((data_t *) (bc)))
+type_skel(bytecode, Bytecode, bytecode_t);
 
 /* -- V M _ T ------------------------------------------------------------- */
 
@@ -289,11 +262,7 @@ OBLVM_IMPEXP data_t * vm_initialize(vm_t *, data_t *);
 
 OBLVM_IMPEXP int VM;
 
-#define data_is_vm(d)   ((d) && data_hastype((d), VM))
-#define data_as_vm(d)   ((vm_t *) (data_is_vm((d)) ? (d) : NULL))
-#define vm_copy(vm)     ((vm_t *) data_copy((data_t *) (vm)))
-#define vm_free(vm)     (data_free((data_t *) (vm)))
-#define vm_tostring(vm) (data_tostring((data_t *) (vm)))
+type_skel(vm, VM, vm_t);
 
 /* -- S T A C K F R A M E _ T --------------------------------------------- */
 
@@ -310,11 +279,7 @@ OBLVM_IMPEXP int             stackframe_cmp(stackframe_t *, stackframe_t *);
 
 OBLVM_IMPEXP int Stackframe;
 
-#define data_is_stackframe(d)  ((d) && data_hastype((data_t *) (d), Stackframe))
-#define data_as_stackframe(d)  (data_is_stackframe((d)) ? ((stackframe_t *) (d)) : NULL)
-#define stackframe_copy(o)     ((stackframe_t *) data_copy((data_t *) (o)))
-#define stackframe_free(o)     (data_free((data_t *) (o)))
-#define stackframe_tostring(o) (data_tostring((data_t *) (o)))
+type_skel(stackframe, Stackframe, stackframe_t);
 
 /* -- S T A C K T R A C E _ T --------------------------------------------- */
 
@@ -329,11 +294,7 @@ OBLVM_IMPEXP stacktrace_t * stacktrace_push(stacktrace_t *, data_t *);
 
 OBLVM_IMPEXP int Stacktrace;
 
-#define data_is_stacktrace(d)  ((d) && data_hastype((data_t *) (d), Stacktrace))
-#define data_as_stacktrace(d)  (data_is_stacktrace((d)) ? ((stacktrace_t *) (d)) : NULL)
-#define stacktrace_copy(o)     ((stacktrace_t *) data_copy((data_t *) (o)))
-#define stacktrace_free(o)     (data_free((data_t *) (o)))
-#define stacktrace_tostring(o) (data_tostring((data_t *) (o)))
+type_skel(stacktrace, Stacktrace, stacktrace_t);
 
 /* -- I N S T R U C T I O N _ T ------------------------------------------- */
 
@@ -414,11 +375,7 @@ OBLVM_IMPEXP data_t *        instruction_create_function(name_t *, callflag_t, l
 OBLVM_IMPEXP instruction_t * instruction_assign_label(instruction_t *);
 OBLVM_IMPEXP instruction_t * instruction_set_label(instruction_t *, data_t *);
 
-#define data_is_instruction(d)  ((d) && data_hastype((d), Instruction))
-#define data_as_instruction(d)  ((instruction_t *) (data_is_instruction((d)) ? (d) : NULL))
-#define instruction_free(i)     (data_free((data_t *) (i)))
-#define instruction_tostring(i) (data_tostring((data_t *) (i)))
-#define instruction_copy(i)     ((instruction_t *) data_copy((data_t *) (i)))
+type_skel(instruction, Instruction, instruction_t);
 
 #define instruction_create_assign(n)        ((data_t *) instruction_create_Assign(name_tostring((n)), (data_t *) (n)))
 #define instruction_create_decr()           ((data_t *) instruction_create_Decr(NULL, NULL))
@@ -450,39 +407,27 @@ typedef struct _closure {
   script_t        *script;
   bytecode_t      *bytecode;
   data_t          *self;
-  dict_t          *params;
-  int              free_params;
-  dict_t          *variables;
+  dictionary_t    *params;
+  dictionary_t    *variables;
   data_t          *thread;
   int              line;
 } closure_t;
 
 OBLVM_IMPEXP closure_t *        closure_create(script_t *, closure_t *, data_t *);
-OBLVM_IMPEXP closure_t *        closure_copy(closure_t *);
 OBLVM_IMPEXP int                closure_cmp(closure_t *, closure_t *);
 OBLVM_IMPEXP unsigned int       closure_hash(closure_t *);
 OBLVM_IMPEXP data_t *           closure_set(closure_t *, char *, data_t *);
 OBLVM_IMPEXP data_t *           closure_get(closure_t *, char *);
 OBLVM_IMPEXP int                closure_has(closure_t *, char *);
 OBLVM_IMPEXP data_t *           closure_resolve(closure_t *, char *);
-OBLVM_IMPEXP data_t *           closure_execute(closure_t *, array_t *, dict_t *);
+OBLVM_IMPEXP data_t *           closure_execute(closure_t *, arguments_t *);
 OBLVM_IMPEXP data_t *           closure_import(closure_t *, name_t *);
 OBLVM_IMPEXP exception_t *      closure_yield(closure_t *, vm_t *);
-OBLVM_IMPEXP data_t * closure_eval(closure_t *, script_t *);
-OBLVM_IMPEXP closure_t *        closure_copy(closure_t *);
-OBLVM_IMPEXP char *             closure_tostring(closure_t *);
-OBLVM_IMPEXP void               closure_free(closure_t *);
-OBLVM_IMPEXP int                data_is_closure(data_t *);
-OBLVM_IMPEXP closure_t *        data_as_closure(data_t *);
+OBLVM_IMPEXP data_t *           closure_eval(closure_t *, script_t *);
 
 OBLVM_IMPEXP int Closure;
-
-#define data_is_closure(d)        ((d) && data_hastype((d), Closure))
-#define data_as_closure(d)        ((closure_t *) (data_is_closure((d)) ? (d) : NULL))
-#define closure_copy(c)           ((closure_t *) data_copy((data_t *) (c)))
-#define closure_free(c)           (data_free((data_t *) (c)))
-#define closure_tostring(c)       (data_tostring((data_t *) (c)))
-#define data_create_closure(c)    data_create(Closure, (c))
+type_skel(closure, Closure, closure_t);
+#define data_create_closure(c)  data_create(Closure, (c))
 
 /* -- G E N E R A T O R _ T ----------------------------------------------- */
 
@@ -499,12 +444,7 @@ OBLVM_IMPEXP int              generator_has_next(generator_t *);
 OBLVM_IMPEXP generator_t *    generator_interrupt(generator_t *);
 
 OBLVM_IMPEXP int Generator;
-
-#define data_is_generator(d)  ((d) && data_hastype((d), Generator))
-#define data_as_generator(d)  ((generator_t *) (data_is_generator((d)) ? (d) : NULL))
-#define generator_copy(c)     ((generator_t *) data_copy((data_t *) (c)))
-#define generator_free(c)     (data_free((data_t *) (c)))
-#define generator_tostring(c) (data_tostring((data_t *) (c)))
+type_skel(generator, Generator, generator_t);
 
 #ifdef  __cplusplus
 }

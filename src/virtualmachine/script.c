@@ -52,7 +52,7 @@ void _script_init(void) {
 script_t * _script_new(script_t *script, va_list args) {
   data_t   *enclosing = va_arg(args, data_t *);
   char     *name = va_arg(args, char *);
-  module_t *mod;
+  module_t *mod = NULL;
   script_t *up = NULL;
   char      anon[40];
 
@@ -62,12 +62,12 @@ script_t * _script_new(script_t *script, va_list args) {
   }
 
   debug(script, "Creating script '%s'", name);
-  if (data_is_module(enclosing)) {
+  if (data_is_mod(enclosing)) {
     mod = (module_t *) enclosing;
     script -> name = name_create(0);
   } else if (data_is_script(enclosing)) {
     up = (script_t *) enclosing;
-    dict_put(up -> functions, strdup(name), script_copy(script));
+    dictionary_set(up -> functions, name, script);
     mod = up -> mod;
     script -> name = name_deepcopy(up -> name);
     name_extend(script -> name, name);
@@ -76,7 +76,7 @@ script_t * _script_new(script_t *script, va_list args) {
   script -> up = script_copy(up);
   script -> mod = mod_copy(mod);
 
-  script -> functions = strdata_dict_create();
+  script -> functions = dictionary_create(NULL);
   script -> params = NULL;
   script -> type = STNone;
 
@@ -93,7 +93,7 @@ void _script_free(script_t *script) {
   if (script) {
     bytecode_free(script -> bytecode);
     array_free(script -> params);
-    dict_free(script -> functions);
+    dictionary_free(script -> functions);
     script_free(script -> up);
     mod_free(script -> mod);
     name_free(script -> name);
@@ -129,7 +129,7 @@ int script_cmp(script_t *s1, script_t *s2) {
 }
 
 unsigned int script_hash(script_t *script) {
-  return (script) ? name_hash(script_fullname(script)) : 0L;
+  return (script) ? name_hash(script_fullname(script)) : 0;
 }
 
 script_t * script_get_toplevel(script_t *script) {
@@ -139,19 +139,19 @@ script_t * script_get_toplevel(script_t *script) {
   return ret;
 }
 
-data_t * script_execute(script_t *script, array_t *args, dict_t *kwargs) {
+data_t * script_execute(script_t *script, arguments_t *args) {
   closure_t *closure;
   data_t    *retval;
 
   debug(script, "script_execute(%s)", script_tostring(script));
   closure = closure_create(script, NULL, NULL);
-  retval = closure_execute(closure, args, kwargs);
+  retval = closure_execute(closure, args);
   closure_free(closure);
   debug(script, "  script_execute returns %s", data_tostring(retval));
   return retval;
 }
 
-data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparams) {
+data_t * script_create_object(script_t *script, arguments_t *args) {
   object_t       *retobj;
   data_t         *retval;
   closure_t      *closure;
@@ -166,7 +166,7 @@ data_t * script_create_object(script_t *script, array_t *params, dict_t *kwparam
   bm = data_as_bound_method(retobj -> constructor);
   closure = bound_method_get_closure(bm);
   retobj -> constructing = TRUE;
-  retval = closure_execute(closure, params, kwparams);
+  retval = closure_execute(closure, args);
   retobj -> constructing = FALSE;
   if (!data_is_exception(retval)) {
     retobj -> retval = retval;

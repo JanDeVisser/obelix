@@ -26,7 +26,7 @@ static void         _vm_free(vm_t *);
 static char *       _vm_tostring(vm_t *);
 static data_t *     _vm_call(vm_t *, array_t *, dict_t *);
 static vm_t *       _vm_prepare(vm_t *, data_t *);
-static listnode_t * _vm_execute_instruction(data_t *, array_t *);
+static listnode_t * _vm_execute_instruction(data_t *, arguments_t *);
 
 int VM = -1;
 
@@ -77,13 +77,13 @@ data_t * _vm_call(vm_t *vm, array_t *args, dict_t *kwargs) {
 }
 
 vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
-  char    *str;
-  int      dbg = logging_status("script");
-  array_t *args = data_array_create(3);
+  char        *str;
+  int          dbg = logging_status("script");
+  arguments_t *args;
 
   if (!vm -> stack) {
     vm -> stack = datastack_create(
-      (dbg) ? vm_tostring(vm -> bytecode) : "VM");
+      (dbg) ? bytecode_tostring(vm -> bytecode) : "VM");
     datastack_set_debug(vm -> stack, dbg);
 
     if (dbg) {
@@ -97,10 +97,7 @@ vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
     }
     datastack_set_debug(vm -> contexts, dbg);
 
-    array_push(args, data_copy(scope));
-    array_push(args, (data_t *) vm_copy(vm));
-    array_push(args, (data_t *) bytecode_copy(vm -> bytecode));
-
+    args = arguments_create_args(3, scope, vm, vm -> bytecode);
     vm -> processor = lp_create(vm -> bytecode -> instructions,
                                 (reduce_t) _vm_execute_instruction,
                                 args);
@@ -109,7 +106,7 @@ vm_t * _vm_prepare(vm_t *vm, data_t *scope) {
 }
 
 vm_t * _vm_cleanup(vm_t *vm) {
-  array_free(vm -> processor -> data);
+  data_free(vm -> processor -> data);
   lp_free(vm -> processor);
   vm -> processor = NULL;
   datastack_free(vm -> stack);
@@ -119,17 +116,17 @@ vm_t * _vm_cleanup(vm_t *vm) {
   return vm;
 }
 
-listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
-  data_t       *ret = NULL;
-  data_t       *exit_code;
-  int           call_me = FALSE;
-  data_t       *label = NULL;
-  listnode_t   *node = NULL;
-  vm_t         *vm = (vm_t *) data_array_get(args, 1);
-  bytecode_t   *bytecode = (bytecode_t *) data_array_get(args, 2);
-  exception_t  *ex = NULL;
-  data_t       *ex_data;
-  nvp_t        *catchpoint;
+listnode_t * _vm_execute_instruction(data_t *instr, arguments_t *args) {
+  data_t      *ret = NULL;
+  data_t      *exit_code;
+  int          call_me = FALSE;
+  data_t      *label = NULL;
+  listnode_t  *node = NULL;
+  vm_t        *vm = (vm_t *) data_uncopy(arguments_get_arg(args, 1));
+  bytecode_t  *bytecode = (bytecode_t *) data_uncopy(arguments_get_arg(args, 2));
+  exception_t *ex = NULL;
+  data_t      *ex_data;
+  nvp_t       *catchpoint;
 
   if (vm -> status != VMStatusExit) {
     exit_code = data_thread_exit_code();
@@ -154,7 +151,7 @@ listnode_t * _vm_execute_instruction(data_t *instr, array_t *args) {
   }
 
   if (call_me) {
-    ret = data_call(instr, args, NULL);
+    ret = data_call(instr, args);
   }
 
   if (!exit_code && ret) {

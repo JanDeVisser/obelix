@@ -18,7 +18,6 @@
  */
 
 #include "libvm.h"
-#include <datastack.h>
 #include <thread.h>
 
 static inline void    _stacktrace_init(void);

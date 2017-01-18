@@ -292,18 +292,23 @@ dictionary_t * _dictionary_set_all_reducer(data_t *value, dictionary_t *dictiona
 }
 
 dictionary_t * _dictionary_from_dict_reducer(entry_t *entry, dictionary_t *dictionary) {
-  dictionary_set(
-    dictionary,
-    (char *) entry -> key,
-    (data_t *) str_copy_chars((char *) entry -> value));
+  data_t *value;
+
+  value = (data_is_data(entry -> value))
+          ? data_as_data(entry -> value)
+          : (data_t *) str_copy_chars((char *) entry -> value);
+  dictionary_set(dictionary, (char *) entry -> key, value);
   return dictionary;
 }
 
 /* ----------------------------------------------------------------------- */
 
-dictionary_t * dictionary_create(data_t *template) {
+dictionary_t * dictionary_create(void *template) {
+  data_t *data;
+
   dictionary_init();
-  return (dictionary_t *) data_create(Dictionary, template);
+  data = (data_is_data(template)) ? data_as_data(template) : NULL;
+  return (dictionary_t *) data_create(Dictionary, data);
 }
 
 dictionary_t * dictionary_create_from_dict(dict_t *dict) {
@@ -311,8 +316,7 @@ dictionary_t * dictionary_create_from_dict(dict_t *dict) {
 
   ret = dictionary_create(NULL);
   if (ret) {
-    dict_reduce_chars(
-      dict, (reduce_t) _dictionary_from_dict_reducer, ret);
+    dict_reduce_chars(dict, (reduce_t) _dictionary_from_dict_reducer, ret);
   }
   return ret;
 }
@@ -342,6 +346,13 @@ int dictionary_size(dictionary_t *obj) {
 
 data_t * _dictionary_reduce(dictionary_t *dict, reduce_t reducer, data_t *initial) {
   return (data_t *) dict_reduce(dict -> attributes, reducer, initial);
+}
+
+dictionary_t * dictionary_update(dictionary_t *target, dictionary_t *src) {
+  if (src) {
+    dictionary_reduce(src, _dictionary_from_dict_reducer, target);
+  }
+  return target;
 }
 
 /* ----------------------------------------------------------------------- */

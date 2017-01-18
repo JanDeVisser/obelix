@@ -94,12 +94,12 @@ closure_t * bound_method_get_closure(bound_method_t *bm) {
   return closure_create(bm -> script, bm -> closure, self);
 }
 
-data_t * bound_method_execute(bound_method_t *bm, array_t *params, dict_t *kwparams) {
+data_t * bound_method_execute(bound_method_t *bm, arguments_t *args) {
   closure_t *closure;
   data_t    *ret;
 
   closure = bound_method_get_closure(bm);
-  ret = closure_execute(closure, params, kwparams);
+  ret = closure_execute(closure, args);
   closure_free(closure);
   return ret;
 }

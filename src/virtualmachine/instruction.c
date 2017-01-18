@@ -18,10 +18,6 @@
  */
 
 #include "libvm.h"
-#include <array.h>
-#include <exception.h>
-#include <name.h>
-#include <nvp.h>
 #include <thread.h>
 
 int script_trace = 0;
@@ -38,7 +34,7 @@ static void             __instruction_tracemsg(char *, ...);
 
 static instruction_t *  _instr_new(instruction_t *, va_list);
 static void             _instr_free(instruction_t *);
-static data_t *         _instruction_call(data_t *, array_t *, dict_t *);
+static data_t *         _instruction_call(data_t *, arguments_t *);
 
 static char *           _instruction_tostring_name(data_t *);
 static char *           _instruction_tostring_value(data_t *);
@@ -51,7 +47,7 @@ static void             _instruction_add_label(instruction_t *, char *);
 int Instruction = -1;
 int Scope = -1;
 
-static vtable_t _vtable_Instruction[] = {
+_unused_ static vtable_t _vtable_Instruction[] = {
   { .id = FunctionCall, .fnc = (void_t) _instruction_call },
   { .id = FunctionNew,  .fnc = (void_t) _instr_new },
   { .id = FunctionFree, .fnc = (void_t) _instr_free },
@@ -60,28 +56,28 @@ static vtable_t _vtable_Instruction[] = {
 
 int ITByValue = -1;
 
-static vtable_t _vtable_ITByValue[] = {
+_unused_ static vtable_t _vtable_ITByValue[] = {
   { .id = FunctionToString, .fnc = (void_t) _instruction_tostring_value },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 int ITByName = -1;
 
-static vtable_t _vtable_ITByName[] = {
+_unused_ static vtable_t _vtable_ITByName[] = {
   { .id = FunctionToString, .fnc = (void_t) _instruction_tostring_name },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 int ITByNameValue = -1;
 
-static vtable_t _vtable_ITByNameValue[] = {
+_unused_ static vtable_t _vtable_ITByNameValue[] = {
   { .id = FunctionToString, .fnc = (void_t) _instruction_tostring_name_value },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
 int ITByValueOrName = -1;
 
-static vtable_t _vtable_ITByValueOrName[] = {
+_unused_ static vtable_t _vtable_ITByValueOrName[] = {
   { .id = FunctionToString, .fnc = (void_t) _instruction_tostring_value_or_name },
   { .id = FunctionNone,     .fnc = NULL }
 };
@@ -136,11 +132,12 @@ InstructionType(Yield,        Name);
 static function_call_t * _call_new(int, va_list);
 static void              _call_free(function_call_t *);
 static char *            _call_allocstring(function_call_t *);
-static dict_t *          _call_build_kwargs(function_call_t *, vm_t *);
+static arguments_t *     _call_build_kwargs(function_call_t *, vm_t *, arguments_t *);
+static arguments_t *     _call_build_args(function_call_t *, vm_t *, arguments_t *);
 
 static int Call = -1;
 
-static vtable_t _vtable_Call[] = {
+_unused_ static vtable_t _vtable_Call[] = {
   { .id = FunctionFactory,     .fnc = (void_t) _call_new },
   { .id = FunctionFree,        .fnc = (void_t) _call_free },
   { .id = FunctionAllocString, .fnc = (void_t) _call_allocstring },
@@ -220,7 +217,7 @@ void __instruction_tracemsg(char *fmt, ...) {
   }
 }
 
-void _instruction_trace(char *op, char *fmt, ...) {
+_unused_ void _instruction_trace(char *op, char *fmt, ...) {
   va_list  args;
   char    *buf;
 
@@ -264,9 +261,8 @@ char * _call_allocstring(function_call_t *call) {
   return buf;
 }
 
-dict_t * _call_build_kwargs(function_call_t *call, vm_t *vm) {
+arguments_t * _call_build_kwargs(function_call_t *call, vm_t *vm, arguments_t *args) {
   int     num;
-  dict_t *ret = NULL;
   data_t *value;
   int     ix;
   data_t *arg_name;
@@ -274,20 +270,18 @@ dict_t * _call_build_kwargs(function_call_t *call, vm_t *vm) {
   num = (call -> kwargs) ? array_size(call -> kwargs) : 0;
   debug(script, " -- #kwargs: %d", num);
   if (num) {
-    ret = strdata_dict_create();
     for (ix = 0; ix < num; ix++) {
       value = vm_pop(vm);
       assert(value);
       arg_name = data_array_get(call -> kwargs, num - ix - 1);
-      dict_put(ret, strdup(data_tostring(arg_name)), value);
+      arguments_set_kwarg(args, data_tostring(arg_name), value);
     }
   }
-  return ret;
+  return args;
 }
 
-array_t * _call_build_args(function_call_t *call, vm_t *vm) {
+arguments_t * _call_build_args(function_call_t *call, vm_t *vm, arguments_t *args) {
   int      num;
-  array_t *ret = NULL;
   data_t  *value;
   int      ix;
 
@@ -299,14 +293,13 @@ array_t * _call_build_args(function_call_t *call, vm_t *vm) {
   }
   debug(script, " -- #arguments: %d", num);
   if (num) {
-    ret = data_array_create(num);
     for (ix = 0; ix < num; ix++) {
       value = vm_pop(vm);
       assert(value);
-      array_set(ret, num - ix - 1, value);
+      arguments_set_arg(args, num - ix - 1, value);
     }
   }
-  return ret;
+  return args;
 }
 
 /* -- T O _ S T R I N G  F U N C T I O N S -------------------------------- */
@@ -370,10 +363,10 @@ char * _instruction_label_string(char *label, char *buffer) {
 }
 
 char * _instruction_tostring(instruction_t *instruction, char *s) {
-  char *lbl;
-  char  line[7];
-  int   count = 0;
-  int   sz;
+  char   *lbl;
+  char    line[7];
+  size_t  count = 0;
+  size_t  sz;
 
   if (instruction -> line > 0) {
     snprintf(line, 7, "%6d", instruction -> line);
@@ -381,7 +374,7 @@ char * _instruction_tostring(instruction_t *instruction, char *s) {
     line[0] = 0;
   }
   if (instruction -> labels) {
-    sz = set_size(instruction -> labels);
+    sz = (size_t) set_size(instruction -> labels);
     count = (sz * 12) + ((sz > 1) ? ((sz - 1) * 8) : 0) + 1;
     lbl = (char *) new(count);
     lbl[0] = 0;
@@ -426,7 +419,7 @@ data_t * _instruction_get_variable(instruction_t *instr, data_t *scope) {
 
 /* -- V A R I A B L E  M A N A G E M E N T ------------------------------- */
 
-data_t * _instruction_execute_Assign(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Assign(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   name_t *path = data_as_name(instr -> value);
   data_t *value;
   data_t *ret;
@@ -439,7 +432,7 @@ data_t * _instruction_execute_Assign(instruction_t *instr, data_t *scope, vm_t *
   return (data_is_unhandled_exception(ret)) ? ret : NULL;
 }
 
-data_t * _instruction_execute_Deref(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Deref(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value;
   data_t *ret;
   data_t *start_obj = vm_pop(vm);
@@ -455,7 +448,7 @@ data_t * _instruction_execute_Deref(instruction_t *instr, data_t *scope, vm_t *v
   return ret;
 }
 
-data_t * _instruction_execute_Subscript(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Subscript(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *subscript = vm_pop(vm);
   data_t *subscripted  = vm_pop(vm);
   name_t *name = name_create(1, data_tostring(subscript));
@@ -480,14 +473,14 @@ data_t * _instruction_execute_Subscript(instruction_t *instr, data_t *scope, vm_
   return ret;
 }
 
-data_t * _instruction_execute_PushScope(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_PushScope(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   vm_push(vm, scope);
   return NULL;
 }
 
 /* -- E X C E P T I O N  H A N D L I N G ---------------------------------- */
 
-data_t * _instruction_execute_EnterContext(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_EnterContext(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t     *context;
   data_t     *ret = NULL;
   data_t *  (*fnc)(data_t *);
@@ -509,7 +502,7 @@ data_t * _instruction_execute_EnterContext(instruction_t *instr, data_t *scope, 
   return ret;
 }
 
-data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t      *error;
   exception_t *e = NULL;
   data_t      *context;
@@ -573,13 +566,13 @@ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t *scope, 
   return ret;
 }
 
-data_t * _instruction_execute_Throw(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Throw(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *exception = vm_pop(vm);
 
   return !data_is_exception(exception) ? data_throwable(exception) : exception;
 }
 
-data_t * _instruction_execute_Return(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Return(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t      *retval = vm_pop(vm);
   exception_t *ex;
 
@@ -588,7 +581,7 @@ data_t * _instruction_execute_Return(instruction_t *instr, data_t *scope, vm_t *
   return (data_t *) ex;
 }
 
-data_t * _instruction_execute_Yield(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Yield(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t      *retval = vm_pop(vm);
   exception_t *ex;
 
@@ -599,7 +592,7 @@ data_t * _instruction_execute_Yield(instruction_t *instr, data_t *scope, vm_t *v
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _instruction_execute_PushCtx(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_PushCtx(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *context;
   nvp_t  *cp;
 
@@ -615,7 +608,7 @@ data_t * _instruction_execute_PushCtx(instruction_t *instr, data_t *scope, vm_t 
   }
 }
 
-data_t * _instruction_execute_PushVal(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_PushVal(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   assert(instr -> value);
   vm_push(vm, instr -> value);
   return NULL;
@@ -625,8 +618,8 @@ data_t * _instruction_setup_constructor(data_t *callable, data_t *scope,
                                         function_call_t *constructor) {
   data_t         *self;
   object_t       *obj;
-  script_t       *script;
-  data_t         *ret;
+  script_t       *script = NULL;
+  data_t         *ret = NULL;
 
   self = data_get(scope, name_self);
   if (data_is_object(self)) {
@@ -646,18 +639,18 @@ data_t * _instruction_setup_constructor(data_t *callable, data_t *scope,
   return ret;
 }
 
-data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   function_call_t *call = (function_call_t *) instr -> value;
   data_t          *ret = NULL;
-  data_t          *callable;
-  dict_t          *kwargs = NULL;
-  array_t         *args = NULL;
+  data_t          *callable = NULL;
+  arguments_t     *args = NULL;
 
   if (call -> flags & CFInfix) {
     callable = vm_pop(vm);
   }
-  kwargs = _call_build_kwargs(call, vm);
-  args = _call_build_args(call, vm);
+  args = arguments_create(NULL, NULL);
+  _call_build_kwargs(call, vm, args);
+  _call_build_args(call, vm, args);
   if (!(call -> flags & CFInfix)) {
     callable = vm_pop(vm);
   }
@@ -668,13 +661,10 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
   debug(script, " -- Calling %s(%s, %s)",
         instr -> name,
         data_tostring(callable),
-        (args) ? array_tostring(args) : "[]",
-        (kwargs) ? dict_tostring(kwargs) : "{}");
-  instruction_trace("Calling %s(%s, %s)",
-                    instr -> name,
-                    (args) ? array_tostring(args) : "[]",
-                    (kwargs) ? dict_tostring(kwargs) : "{}");
-  ret = data_call(callable, args, kwargs);
+        arguments_tostring(args));
+  instruction_trace("Calling %s(%s)",
+                    instr -> name, arguments_tostring(args));
+  ret = data_call(callable, args);
   if (ret) {
     if (data_is_exception(ret)) {
       debug(script, " -- exception '%s' thrown", data_tostring(ret));
@@ -687,12 +677,11 @@ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t *scope, 
     debug(script, " -- return value NULL");
   }
   data_free(callable);
-  array_free(args);
-  dict_free(kwargs);
+  arguments_free(args);
   return ret;
 }
 
-data_t * _instruction_execute_Decr(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Decr(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value = vm_pop(vm);
 
   vm_push(vm, (data_t *) int_create(data_intval(value) - 1));
@@ -700,7 +689,7 @@ data_t * _instruction_execute_Decr(instruction_t *instr, data_t *scope, vm_t *vm
   return NULL;
 }
 
-data_t * _instruction_execute_Incr(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Incr(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value = vm_pop(vm);
 
   vm_push(vm, (data_t *) int_create(data_intval(value) + 1));
@@ -710,17 +699,17 @@ data_t * _instruction_execute_Incr(instruction_t *instr, data_t *scope, vm_t *vm
 
 /* -- F L O W  C O N T R O L ---------------------------------------------- */
 
-data_t * _instruction_execute_VMStatus(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_VMStatus(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   vm -> status |= data_intval(instr -> value);
   return NULL;
 }
 
-data_t * _instruction_execute_Jump(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Jump(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   assert(instr -> name);
   return (data_t *) str_copy_chars(instr -> name);
 }
 
-data_t * _instruction_execute_EndLoop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_EndLoop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *ret;
 
   ret = (vm -> status != VMStatusBreak)
@@ -737,7 +726,7 @@ data_t * _instruction_execute_EndLoop(instruction_t *instr, data_t *scope, vm_t 
  * converted to Bool, an exception is thrown. If the casted value is bool:True,
  * no jump is indicated.
  */
-data_t * _instruction_execute_Test(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Test(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *ret;
   data_t *value;
   data_t *casted = NULL;
@@ -759,7 +748,7 @@ data_t * _instruction_execute_Test(instruction_t *instr, data_t *scope, vm_t *vm
   return ret;
 }
 
-data_t * _instruction_execute_Iter(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Iter(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value;
   data_t *iter;
   data_t *ret = NULL;
@@ -775,7 +764,7 @@ data_t * _instruction_execute_Iter(instruction_t *instr, data_t *scope, vm_t *vm
   return ret;
 }
 
-data_t * _instruction_execute_Next(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Next(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t  *ret = NULL;
   data_t  *iter;
   data_t  *next;
@@ -797,14 +786,14 @@ data_t * _instruction_execute_Next(instruction_t *instr, data_t *scope, vm_t *vm
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _instruction_execute_Nop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Nop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   //if (instr -> value) {
   //  vm_set_location(closure, instr -> value);
   //}
   return NULL;
 }
 
-data_t * _instruction_execute_Pop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Pop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *value;
 
   value = vm_pop(vm);
@@ -812,12 +801,12 @@ data_t * _instruction_execute_Pop(instruction_t *instr, data_t *scope, vm_t *vm,
   return NULL;
 }
 
-data_t * _instruction_execute_Dup(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Dup(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   vm_push(vm, data_copy(vm_peek(vm)));
   return NULL;
 }
 
-data_t * _instruction_execute_Swap(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Swap(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   data_t *v1;
   data_t *v2;
 
@@ -830,15 +819,15 @@ data_t * _instruction_execute_Swap(instruction_t *instr, data_t *scope, vm_t *vm
 
 /* ----------------------------------------------------------------------- */
 
-data_t * _instruction_execute_Stash(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Stash(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   assert(data_intval(instr -> value) < NUM_STASHES);
-  vm_stash(vm, data_intval(instr -> value), data_copy(vm_pop(vm)));
+  vm_stash(vm, (unsigned int) data_intval(instr -> value), data_copy(vm_pop(vm)));
   return NULL;
 }
 
-data_t * _instruction_execute_Unstash(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
+_unused_ data_t * _instruction_execute_Unstash(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   assert(data_intval(instr -> value) < NUM_STASHES);
-  vm_push(vm, data_copy(vm_unstash(vm, data_intval(instr -> value))));
+  vm_push(vm, data_copy(vm_unstash(vm, (unsigned int) data_intval(instr -> value))));
   return NULL;
 }
 
@@ -866,11 +855,11 @@ void _instr_free(instruction_t *instr) {
   free(instr);
 }
 
-data_t * _instruction_call(data_t *data, array_t *p, dict_t *kw) {
+data_t * _instruction_call(data_t *data, arguments_t *args) {
   instruction_t *instr = (instruction_t *) data;
-  data_t        *scope = data_array_get(p, 0);
-  vm_t          *vm = (vm_t *) data_array_get(p, 1);
-  bytecode_t    *bytecode = (bytecode_t *) data_array_get(p, 2);
+  data_t        *scope = arguments_get_arg(args, 0);
+  vm_t          *vm = (vm_t *) arguments_get_arg(args, 1);
+  bytecode_t    *bytecode = (bytecode_t *) arguments_get_arg(args, 2);
 
   debug(script, "Executing %s", instruction_tostring(instr));
   _instruction_tracemsg("%-60.60s%s",
@@ -914,7 +903,7 @@ data_t * instruction_create_function(name_t *name, callflag_t flags,
   return (data_t *) instruction_create_FunctionCall(name_last(name), call);
 }
 
-instruction_t * instruction_assign_label(instruction_t *instruction) {
+_unused_ instruction_t * instruction_assign_label(instruction_t *instruction) {
   char *lbl = stralloc(9);
 
   strrand(lbl, 8);

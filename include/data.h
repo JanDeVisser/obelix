@@ -100,17 +100,7 @@ OBLCORE_IMPEXP type_t         *type_data;
 
 static inline int data_is_data(void *data) {
 #ifndef NDEBUG
-  if (data) {
-    if (((data_t *) data) -> cookie == MAGIC_COOKIE) {
-      return TRUE;
-    } else {
-      fprintf(stderr, "data_as_data(%p): cookie = %x\n",
-          data, ((data_t *) data) -> cookie);
-      abort();
-    }
-  } else {
-    return TRUE;
-  }
+  return !data || (((data_t *) data) -> cookie == MAGIC_COOKIE);
 #else /* NDEBUG */
   return TRUE;
 #endif
@@ -118,7 +108,15 @@ static inline int data_is_data(void *data) {
 
 static inline data_t * data_as_data(void *data) {
 #ifndef NDEBUG
-  return (data_is_data(data)) ? (data_t *) data : NULL;
+  if (!data) {
+    return NULL;
+  } else if (data_is_data(data)) {
+    return (data_t *) data;
+  } else {
+    fprintf(stderr, "data_as_data(%p): cookie = %x\n",
+        data, ((data_t *) data) -> cookie);
+    abort();
+  }
 #else
   return (data_t *) data;
 #endif

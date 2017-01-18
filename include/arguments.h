@@ -71,4 +71,8 @@ static inline arguments_t * arguments_set_kwarg(arguments_t *args, char *key, vo
   return _arguments_set_kwarg(args, key, data_as_data(data));
 }
 
+static inline data_t * arguments_reduce_kwargs(arguments_t *args, void *reducer, void *initial) {
+  return dictionary_reduce(args -> kwargs, reducer, initial);
+}
+
 #endif /* __ARGUMENTS_H__ */
