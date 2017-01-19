@@ -148,4 +148,6 @@
 #define _unused_
 #endif
 
+#define __PLUGIN__ __DLL_EXPORT__ _unused_
+
 #endif /* __OBLCONFIG_H__ */

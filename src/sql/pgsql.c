@@ -46,7 +46,7 @@ static data_t *      _pgsqlconn_enter(pgsqlconn_t *);
 static data_t *      _pgsqlconn_query(pgsqlconn_t *, data_t *);
 static data_t *      _pgsqlconn_leave(pgsqlconn_t *, data_t *);
 
-static vtable_t _vtable_PGSQLConnection[] = {
+_unused_ static vtable_t _vtable_PGSQLConnection[] = {
   { .id = FunctionNew,   .fnc = (void_t) _pgsqlconn_new },
   { .id = FunctionFree,  .fnc = (void_t) _pgsqlconn_free },
   { .id = FunctionEnter, .fnc = (void_t) _pgsqlconn_enter },
@@ -57,12 +57,12 @@ static vtable_t _vtable_PGSQLConnection[] = {
 
 static data_t *     _pgsqlstmt_new(pgsqlstmt_t *, va_list);
 static void         _pgsqlstmt_free(pgsqlstmt_t *);
-static data_t *     _pgsqlstmt_interpolate(pgsqlstmt_t *, array_t *, dict_t *);
+static data_t *     _pgsqlstmt_interpolate(pgsqlstmt_t *, arguments_t *);
 static data_t *     _pgsqlstmt_has_next(pgsqlstmt_t *);
 static datalist_t * _pgsqlstmt_next(pgsqlstmt_t *);
-static data_t *     _pgsqlstmt_execute(pgsqlstmt_t *, array_t *, dict_t *);
+static data_t *     _pgsqlstmt_execute(pgsqlstmt_t *, arguments_t *);
 
-static vtable_t _vtable_PGSQLStmt[] = {
+_unused_ static vtable_t _vtable_PGSQLStmt[] = {
   { .id = FunctionNew,         .fnc = (void_t) _pgsqlstmt_new },
   { .id = FunctionFree,        .fnc = (void_t) _pgsqlstmt_free },
   { .id = FunctionInterpolate, .fnc = (void_t) _pgsqlstmt_interpolate },
@@ -128,7 +128,7 @@ data_t * _pgsqlconn_query(pgsqlconn_t *c, data_t *query) {
   return ret;
 }
 
-/* -- S Q L I T E S T M T ------------------------------------------------- */
+/* -- P G S Q L S T M T --------------------------------------------------- */
 
 data_t * _pgsqlstmt_new(pgsqlstmt_t *stmt, va_list args) {
   pgsqlconn_t *c = va_arg(args, pgsqlconn_t *);
@@ -171,31 +171,32 @@ pgsqlstmt_t * _pgsqlstmt_bind_param(pgsqlstmt_t *stmt, int ix, data_t *param) {
   return stmt;
 }
 
-data_t * _pgsqlstmt_interpolate(pgsqlstmt_t *stmt, array_t *params, dict_t *kwparams) {
+data_t * _pgsqlstmt_interpolate(pgsqlstmt_t *stmt, arguments_t *args) {
   int             ix;
   data_t         *param;
-  data_t         *ret = NULL;
   dictiterator_t *di;
   entry_t        *kw;
   char           *pat = NULL;
   char           *repl;
   char           *key;
-  int             bufsize = 0;
+  size_t          bufsize = 0;
   str_t *         q;
+  datalist_t     *kwargs = NULL;
 
   debug(sql, "PGSqlStatement interpolate '%s'", stmt -> _d.str);
-  stmt -> nParams = (params) ? array_size(params) : 0;
+  stmt -> nParams = (args) ? arguments_args_size(args) : 0;
   q = str_copy_chars(stmt -> _d.str);
 
   /*
-   * Count the number of kwparams that actually appear in the query and replace
+   * Count the number of kwargs that actually appear in the query and replace
    * the ${foo} patterns into $n.
    *
    * All this because pgsql doesn't do named paramaters, only numbered.
    */
-  if (!ret && kwparams && dict_size(kwparams)) {
-    for (di = di_create(kwparams); !ret && di_has_next(di); ) {
-      kw = (entry_t *) di_next(di);
+  if (args && arguments_kwargs_size(args)) {
+    kwargs = datalist_create(NULL);
+    for (di = di_create(args -> kwargs -> attributes); di_has_next(di); ) {
+      kw = di_next(di);
       key = (char *) kw -> key;
       if (bufsize < (strlen(key) + 4)) {
         free(pat);
@@ -208,48 +209,45 @@ data_t * _pgsqlstmt_interpolate(pgsqlstmt_t *stmt, array_t *params, dict_t *kwpa
       pat[strlen(key) + 3] = 0;
       asprintf(&repl, "$%d", stmt -> nParams + 1);
       if (str_replace_all(q, pat, repl) > 0) {
+        datalist_push(kwargs, (data_t *) kw -> value);
         stmt -> nParams++;
       }
       free(repl);
     }
     di_free(di);
-    free(pat);
     free(stmt -> _d.str);
     stmt -> _d.str = strdup(str_chars(q));
     str_free(q);
   }
   if (stmt -> nParams) {
-    stmt -> paramValues = (char **) new_ptrarray(stmt -> nParams);
+    stmt -> paramValues = (char **) new_ptrarray((size_t) stmt -> nParams);
     ix = 0;
-    if (params && array_size(params)) {
-      for (ix = 0; ix < array_size(params); ix++) {
-        param = data_array_get(params, ix);
+    if (arguments_args_size(args)) {
+      for (ix = 0; ix < arguments_args_size(args); ix++) {
+        param = arguments_get_arg(args, ix);
         _pgsqlstmt_bind_param(stmt, ix, param);
       }
     }
-    if (!params || (stmt -> nParams > array_size(params))) {
-      for (di = di_create(kwparams); di_has_next(di); ix++) {
-        kw = (entry_t *) di_next(di);
-        key = (char *) kw -> key;
-        param = (data_t *) kw -> value;
-        str_replace_all(q, pat, repl);
-        _pgsqlstmt_bind_param(stmt, ix, param);
+    if (kwargs) {
+      for (; ix < stmt -> nParams; ix++) {
+        _pgsqlstmt_bind_param(stmt, ix, datalist_shift(kwargs));
       }
-      di_free(di);
     }
   }
+  datalist_free(kwargs);
+  free(pat);
   return (data_t *) stmt;
 }
 
-data_t * _pgsqlstmt_execute(pgsqlstmt_t *stmt, array_t *params, dict_t *kwparams) {
+data_t * _pgsqlstmt_execute(pgsqlstmt_t *stmt, arguments_t *args) {
   data_t         *ret = (data_t *) stmt;
   long            count;
   ExecStatusType  status;
 
   if (!stmt -> result) {
-    if (((params && array_size(params)) || (kwparams && dict_size(kwparams))) &&
+    if (args && (arguments_args_size(args) || arguments_kwargs_size(args)) &&
         !stmt -> paramValues) {
-      _pgsqlstmt_interpolate(stmt, params, kwparams);
+      _pgsqlstmt_interpolate(stmt, args);
     }
     stmt -> result = PQexecParams(stmt -> conn -> conn,
       stmt -> _d.str, stmt -> nParams, stmt -> paramTypes,
@@ -279,7 +277,7 @@ data_t * _pgsqlstmt_has_next(pgsqlstmt_t *stmt) {
   data_t *ret = NULL;
 
   if (!stmt -> result) {
-    ret = _pgsqlstmt_execute(stmt, NULL, NULL);
+    ret = _pgsqlstmt_execute(stmt, NULL);
   }
   if (!data_is_exception(ret)) {
     data_free(ret);
@@ -336,14 +334,14 @@ datalist_t * _pgsqlstmt_next(pgsqlstmt_t *stmt) {
         assert(type);
         data = data_parse(type, value);
       }
-      datalist_push(rs, data);
     }
+    datalist_push(rs, data);
   }
   stmt -> current++;
   return rs;
 }
 
-__DLL_EXPORT__ typedescr_t * postgresql_register(void) {
+__PLUGIN__ typedescr_t * postgresql_register(void) {
   typedescr_register_with_name(PGSQLConnection, "postgresql", pgsqlconn_t);
   typedescr_register(PGSQLStmt, pgsqlstmt_t);
   return typedescr_get(PGSQLConnection);

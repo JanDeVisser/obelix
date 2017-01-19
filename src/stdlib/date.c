@@ -50,7 +50,7 @@ __DLL_EXPORT__ data_t * date_create(int, int, int);
 __DLL_EXPORT__ data_t * datetime_create(datetime_t *, datetime_t *);
 
 static void             _date_init(void);
-__DLL_EXPORT__ data_t * _function_date_init(char *, array_t *, dict_t *);
+__DLL_EXPORT__ data_t * _function_date_init(char *, arguments_t *);
 
 static datetime_t *   _timebase_new(datetime_t *, va_list);
 static data_t *       _timebase_resolve(datetime_t *, char *);
@@ -76,7 +76,7 @@ static char *           _timeofday_tostring(datetime_t *);
 static data_t *         _timeofday_parse(char *);
 static data_t *         _timeofday_resolve(datetime_t *, char *);
 static data_t *         _timeofday_set(datetime_t *, char *, data_t *);
-static data_t *         _function_time(data_t *, char *, array_t *, dict_t *);
+static data_t *         _function_time(data_t *, char *, arguments_t *);
 
 static vtable_t _vtable_Time[] = {
   { .id = FunctionNew,         .fnc = (void_t) _timeofday_new },
@@ -99,7 +99,7 @@ static data_t *     _date_parse(char *);
 static data_t *     _date_resolve(datetime_t *, char *);
 static data_t *     _date_set(datetime_t *, char *, data_t *);
 
-static data_t *     _function_date(data_t *, char *, array_t *, dict_t *);
+static data_t *     _function_date(data_t *, char *, arguments_t *);
 
 static vtable_t _vtable_Date[] = {
   { .id = FunctionNew,         .fnc = (void_t) _date_new },
@@ -121,7 +121,7 @@ static char *       _datetime_tostring(datetime_t *);
 static data_t *     _datetime_resolve(datetime_t *, char *);
 static data_t *     _datetime_parse(char *);
 
-static data_t *     _function_datetime(data_t *, char *, array_t *, dict_t *);
+static data_t *     _function_datetime(data_t *, char *, arguments_t *);
 
 static vtable_t _vtable_Datetime[] = {
   { .id = FunctionNew,         .fnc = (void_t) _datetime_new },
@@ -437,25 +437,25 @@ data_t * _timeofday_set(datetime_t *datetime, char *name, data_t *value) {
   return ret;
 }
 
-data_t * _timeofday_decode_from_params(array_t *params, int *ixptr) {
+data_t * _timeofday_decode_from_arguments(arguments_t *args, int *ixptr) {
   int_t  *h;
-  data_t *param, *m, *s;
+  data_t *arg, *m, *s;
   int     ix = *ixptr;
   data_t *ret;
 
-  if (ix > (array_size(params) - 3)) {
+  if (ix > (arguments_args_size(args) - 3)) {
     return data_exception(ErrorArgCount,
       "Not enough parameters supplied to construct a Time");
   }
-  param = data_array_get(params, ix++);
-  h = (int_t *) data_cast(param, Int);
+  arg = arguments_get_arg(args, ix++);
+  h = (int_t *) data_cast(arg, Int);
   if (h) {
-    m = data_array_get(params, ix++);
-    s = (ix < array_size(params)) ? data_array_get(params, ix++) : NULL;
+    m = arguments_get_arg(args, ix++);
+    s = (ix < arguments_args_size(args)) ? arguments_get_arg(args, ix++) : NULL;
     ret = data_create(Date, DatetimeFlagDataHMS, h, m, s);
     data_free((data_t *) h);
   } else {
-    ret = data_parse(Time, data_tostring(param));
+    ret = data_parse(Time, data_tostring(arg));
   }
   if (!data_is_exception(ret)) {
     *ixptr = ix;
@@ -463,29 +463,21 @@ data_t * _timeofday_decode_from_params(array_t *params, int *ixptr) {
   return ret;
 }
 
-data_t * _function_date_init(char *name, array_t *args, dict_t *kwargs) {
-  (void) name;
-  (void) args;
-  (void) kwargs;
-
+data_t * _function_date_init(char _unused_ *name, arguments_t _unused_ *arg) {
   _date_init();
   return data_true();
 }
 
-data_t * _function_time(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _function_time(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {
   int     sz;
   data_t *d;
   int_t  *t;
   data_t *min, *sec;
 
-  (void) self;
-  (void) name;
-  (void) kwargs;
-
-  if (!args || !(sz = array_size(args))) {
+  if (!args || !(sz = arguments_args_size(args))) {
     return data_create(Time, -1, time(NULL));
   }
-  d = data_array_get(args, 0);
+  d = arguments_get_arg(args, 0);
   t = (int_t *) data_cast(d, Int);
   if (sz == 1) {
     return (t)
@@ -493,8 +485,8 @@ data_t * _function_time(data_t *self, char *name, array_t *args, dict_t *kwargs)
       : data_parse(Time, data_tostring(d));
   }
   if (t) {
-    min = data_array_get(args, 1);
-    sec = (sz == 3) ? data_array_get(args, 2) : NULL;
+    min = arguments_get_arg(args, 1);
+    sec = (sz == 3) ? arguments_get_arg(args, 2) : NULL;
     return data_create(Time, DatetimeFlagDataHMS, (data_t *) t, min, sec);
   } else {
     return data_exception(ErrorParameterValue,
@@ -504,7 +496,7 @@ data_t * _function_time(data_t *self, char *name, array_t *args, dict_t *kwargs)
 
 data_t * time_create(int hour, int min, int sec) {
   _date_init();
-  return (data_t *) data_create(Time, DatetimeFlagHMS, hour, min, sec);
+  return data_create(Time, DatetimeFlagHMS, hour, min, sec);
 }
 
 /* -- D A T E ------------------------------------------------------------- */
@@ -680,20 +672,20 @@ data_t * _date_set(datetime_t *datetime, char *name, data_t *value) {
   return ret;
 }
 
-data_t * _date_decode_from_params(array_t *params, int *ixptr) {
+data_t * _date_decode_from_arguments(arguments_t *args, int *ixptr) {
   int_t      *y;
   data_t     *param, *m, *d, *ret;
   int         ix = *ixptr;
 
-  if (ix > (array_size(params) - 3)) {
+  if (ix > (arguments_args_size(args) - 3)) {
     return data_exception(ErrorArgCount,
       "Not enough parameters supplied to construct a Date");
   }
-  param = data_array_get(params, ix++);
+  param = arguments_get_arg(args, ix++);
   y = (int_t *) data_cast(param, Int);
   if (y) {
-    d = data_array_get(params, ix++);
-    m = data_array_get(params, ix++);
+    d = arguments_get_arg(args, ix++);
+    m = arguments_get_arg(args, ix++);
     ret = data_create(Date, DatetimeFlagDataYMD, y, m, d);
     data_free((data_t *) y);
   } else {
@@ -705,27 +697,23 @@ data_t * _date_decode_from_params(array_t *params, int *ixptr) {
   return ret;
 }
 
-data_t * _function_date(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _function_date(_unused_ data_t *self, _unused_ char *name, arguments_t *args) {
   int     sz;
   data_t *d;
   int_t  *t;
   data_t *ret, *month, *day;
 
-  (void) self;
-  (void) name;
-  (void) kwargs;
-
-  if (!args || !(sz = array_size(args))) {
+  if (!args || !(sz = arguments_args_size(args))) {
     return data_create(Date, DatetimeFlagTimeT, time(NULL));
   }
-  d = data_array_get(args, 0);
+  d = arguments_get_arg(args, 0);
   t = (int_t *) data_cast(d, Int);
   if (t) {
     if (sz == 1) {
       return data_create(Date, DatetimeFlagTimeT, (time_t) data_intval(t));
     } else {
-      month = data_array_get(args, 1);
-      day = data_array_get(args, 2);
+      month = arguments_get_arg(args, 1);
+      day = arguments_get_arg(args, 2);
       return data_create(Date, DatetimeFlagDataYMD, t, month, day);
     }
   } else if (sz == 1) {
@@ -835,7 +823,7 @@ data_t * _datetime_resolve(datetime_t *datetime, char *name) {
   return NULL;
 }
 
-data_t * _function_datetime(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _function_datetime(_unused_ data_t *self, _unused_ char *name, arguments_t *args) {
   int     sz;
   data_t *arg;
   data_t *ret = NULL;
@@ -844,15 +832,11 @@ data_t * _function_datetime(data_t *self, char *name, array_t *args, dict_t *kwa
   int     ix = 0;
   int     type;
 
-  (void) self;
-  (void) name;
-  (void) kwargs;
-
-  if (!args || !(sz = array_size(args))) {
+  if (!args || !(sz = arguments_args_size(args))) {
     return data_create(Datetime, DatetimeFlagTimeT, time(NULL));
   }
   while (!ret && (!d || !t) && (ix < sz)) {
-    arg = data_array_get(args, ix);
+    arg = arguments_get_arg(args, ix);
     type = data_type(arg);
     if ((type == Datetime) && (sz == 1)) {
       ret = data_create(Datetime, DatetimeFlagCopy, arg);
@@ -864,11 +848,11 @@ data_t * _function_datetime(data_t *self, char *name, array_t *args, dict_t *kwa
       ix++;
     } else {
       if (!d) {
-        if (data_is_exception(d = _date_decode_from_params(args, &ix))) {
+        if (data_is_exception(d = _date_decode_from_arguments(args, &ix))) {
           ret = d;
         }
       } else {
-        if (data_is_exception(t = _timeofday_decode_from_params(args, &ix))) {
+        if (data_is_exception(t = _timeofday_decode_from_arguments(args, &ix))) {
           ret = t;
         }
       }
@@ -880,8 +864,8 @@ data_t * _function_datetime(data_t *self, char *name, array_t *args, dict_t *kwa
       : data_exception(ErrorArgCount,
           "Not enough parameters supplied to construct a Datetime");
   }
-  data_free((data_t *) d);
-  data_free((data_t *) t);
+  data_free(d);
+  data_free(t);
   return ret;
 }
 

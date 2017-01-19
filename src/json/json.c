@@ -23,9 +23,7 @@
 #include <pthread.h>
 #endif
 
-#include <exception.h>
 #include <grammar.h>
-#include <json.h>
 #include <nvp.h>
 #include <parser.h>
 
@@ -87,26 +85,31 @@ data_t * json_decode(data_t *jsontext) {
 
 /* ------------------------------------------------------------------------ */
 
-__DLL_EXPORT__ data_t * _function_encode(char *func_name, array_t *params, dict_t *kwargs) {
+__PLUGIN__ data_t * _function_encode(char *func_name, arguments_t *args) {
   data_t *value;
 
-  if (!params || !array_size(params) || !data_array_get(params, 0)) {
+  if (!args ||
+      !arguments_args_size(args) ||
+      !(value = data_uncopy(arguments_get_arg(args, 0)))) {
     return data_null();
   }
-  value = data_array_get(params, 0);
   return (data_t *) str_adopt(json_encode(value));
 }
 
-__DLL_EXPORT__ data_t * _function_decode(char *func_name, array_t *params, dict_t *kwargs) {
-  if (!params || !array_size(params) || !data_array_get(params, 0)) {
+__PLUGIN__ data_t * _function_decode(char *func_name, arguments_t *args) {
+  data_t *encoded;
+
+  if (!args ||
+      !arguments_args_size(args) ||
+      !(encoded = data_uncopy(arguments_get_arg(args, 0)))) {
     return data_null();
   }
-  return json_decode(data_array_get(params, 0));
+  return json_decode(encoded);
 }
 
 /* ------------------------------------------------------------------------ */
 
-__DLL_EXPORT__ parser_t * json_parse_get_value(parser_t *parser) {
+__PLUGIN__ parser_t * json_parse_get_value(parser_t *parser) {
   data_t *obj = datastack_pop(parser -> stack);
 
   parser -> data = data_deserialize(obj);
@@ -114,7 +117,7 @@ __DLL_EXPORT__ parser_t * json_parse_get_value(parser_t *parser) {
   return parser;
 }
 
-__DLL_EXPORT__ parser_t * json_parse_to_dictionary(parser_t *parser) {
+__PLUGIN__ parser_t * json_parse_to_dictionary(parser_t *parser) {
   datalist_t   *list = (datalist_t *) datastack_pop(parser -> stack);
   int           ix;
   nvp_t        *nvp;

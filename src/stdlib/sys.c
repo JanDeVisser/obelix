@@ -32,12 +32,7 @@
 #endif /* HAVE_UNISTD_H */
 
 #include <data.h>
-#include <dictionary.h>
-#include <exception.h>
-#include <vm.h>
-#include <str.h>
 #include <user.h>
-#include <math.h>
 
 extern char   **environ;
 
@@ -46,11 +41,6 @@ static char *   _windows_release(OSVERSIONINFOEX *);
 static char *   _windows_version(OSVERSIONINFOEX *);
 static char *   _windows_machine(SYSTEM_INFO *);
 #endif /* HAVE_GETVERSIONEX */
-
-__DLL_EXPORT__ data_t * _function_getenv(char *, array_t *, dict_t *);
-__DLL_EXPORT__ data_t * _function_uname(char *, array_t *, dict_t *);
-__DLL_EXPORT__ data_t * _function_user(char *, array_t *, dict_t *);
-__DLL_EXPORT__ data_t * _function_exit(char *, array_t *, dict_t *);
 
 /* ------------------------------------------------------------------------ */
 
@@ -143,21 +133,16 @@ char * _windows_machine(SYSTEM_INFO *sysinfo) {
 
 #endif /* HAVE_GETVERSIONEX */
 
-static void _object_set(object_t *obj, char *attr, data_t *value) {
-  object_set(obj, attr, value);
-  data_free(value);
-}
-
 /* ------------------------------------------------------------------------ */
 
-data_t * _function_getenv(char *name, array_t *params, dict_t *kwargs) {
+__DLL_EXPORT__ _unused_ data_t * _function_getenv(_unused_ char *name, _unused_ arguments_t *args) {
   dictionary_t  *env;
   data_t        *value;
   char         **e;
   char          *n = NULL;
   char          *v;
-  int            len = 0;
-  int            l;
+  size_t         len = 0;
+  size_t         l;
 
   env = dictionary_create(NULL);
   for (e = environ; *e; e++) {
@@ -181,44 +166,43 @@ data_t * _function_getenv(char *name, array_t *params, dict_t *kwargs) {
   return (data_t *) env;
 }
 
-data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
-  object_t         *obj;
-  data_t           *ret = NULL;
+__DLL_EXPORT__ _unused_ data_t * _function_uname(_unused_ char *name, _unused_ arguments_t *args) {
+  dictionary_t    *obj;
+  data_t          *ret = NULL;
 #ifdef HAVE_SYS_UTSNAME_H
-  struct utsname    buf;
+  struct utsname   buf;
 #else
-  char              hostname[80];
+  char             hostname[80];
 #endif /* HAVE_UTSNAME_H */
 #ifdef HAVE_GETVERSIONEX
-  OSVERSIONINFOEX   version;
-  SYSTEM_INFO       sysinfo;
-  char              hostname[80];
+  OSVERSIONINFOEX  version;
+  SYSTEM_INFO      sysinfo;
+  char             hostname[80];
 #endif /* HAVE_GETVERSIONEX */
 
+  obj = dictionary_create(NULL);
 #ifdef HAVE_SYS_UTSNAME_H
   if (!uname(&buf)) {
-    obj = object_create(NULL);
-    object_set(obj, "sysname", str_to_data(buf.sysname));
-    object_set(obj, "nodename", str_to_data(buf.nodename));
-    object_set(obj, "release", str_to_data(buf.release));
-    object_set(obj, "version", str_to_data(buf.version));
-    object_set(obj, "machine", str_to_data(buf.machine));
+    dictionary_set(obj, "sysname", data_uncopy(str_to_data(buf.sysname)));
+    dictionary_set(obj, "nodename", data_uncopy(str_to_data(buf.nodename)));
+    dictionary_set(obj, "release", data_uncopy(str_to_data(buf.release)));
+    dictionary_set(obj, "version", data_uncopy(str_to_data(buf.version)));
+    dictionary_set(obj, "machine", data_uncopy(str_to_data(buf.machine)));
 #ifdef _GNU_SOURCE
-    object_set(obj, "domainname", str_to_data(buf.domainname));
+    dictionary_set(obj, "domainname", data_uncopy(str_to_data(buf.domainname)));
 #endif
     ret = (data_t *) obj;
   } else {
-    ret = data_exception(ErrorSysError, "Error executing uname(): %s",
-			 strerror(errno));
+    ret = data_exception(ErrorSysError,
+        "Error executing uname(): %s", strerror(errno));
   }
 #endif /* HAVE_SYS_UTSNAME_H */
 
 #ifdef HAVE_GETVERSIONEX
-  obj = object_create(NULL);
 #ifdef HAVE_GETHOSTNAME
   if (gethostname(hostname, 80)) {
-    object_set(obj, "sysname", str_to_data(hostname));
-    object_set(obj, "nodename", str_to_data(hostname));
+    dictionary_set(obj, "sysname", str_to_data(hostname));
+    dictionary_set(obj, "nodename", str_to_data(hostname));
   } else {
     ret = data_exception(ErrorSysError, "Error executing gethostname()");
   }
@@ -226,9 +210,9 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
   if (!ret) {
     version.dwOSVersionInfoSize = sizeof(version);
     if (GetVersionEx((OSVERSIONINFO *) &version)) {
-      object_set(obj, "release",
-		 str_to_data(_windows_release(&version)));
-      object_set(obj, "version",
+        dictionary_set(obj, "release",
+str_to_data(_windows_release(&version)));
+      dictionary_set(obj, "version",
 		 str_to_data(_windows_version(&version)));
     } else {
       ret = data_exception(ErrorSysError, "Error executing GetVersionEx()");
@@ -237,7 +221,7 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
 #ifdef HAVE_GETSYSTEMINFO
   if (!ret) {
     GetSystemInfo(&sysinfo);
-    object_set(obj, "machine",
+    dictionary_set(obj, "machine",
 	       str_to_data(_windows_machine(&sysinfo)));
   }
 #endif /* HAVE_GETSYSTEMINFO */
@@ -249,35 +233,35 @@ data_t * _function_uname(char *name, array_t *params, dict_t *kwargs) {
   return ret;
 }
 
-data_t * _function_exit(char *name, array_t *params, dict_t *kwargs) {
+__DLL_EXPORT__ _unused_ data_t * _function_exit(_unused_ char *name, arguments_t *args) {
   data_t *exit_code;
   data_t *error;
 
-  if (params && array_size(params)) {
-    exit_code = data_copy(data_array_get(params, 0));
+  if (args && arguments_args_size(args)) {
+    exit_code = arguments_get_arg(args, 0);
   } else {
     exit_code = int_to_data(0);
   }
 
   error = data_exception(ErrorExit,
-			 "Exit with code '%s'", data_tostring(exit_code));
+      "Exit with code '%s'", data_tostring(exit_code));
   data_as_exception(error) -> throwable = exit_code;
   return error;
 }
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _function_user(char *name, array_t *params, dict_t *kwargs) {
+__DLL_EXPORT__ _unused_ data_t * _function_user(char *name, arguments_t *args) {
   int_t *uid;
 
-  if (!strcmp(name, "current_user") || !params || !array_size(params)) {
+  if (!strcmp(name, "current_user") || !args || !arguments_args_size(args)) {
     return current_user();
   } else {
-    uid = (int_t *) data_cast(data_array_get(params, 0), Int);
+    uid = (int_t *) data_cast(data_uncopy(arguments_get_arg(args, 0)), Int);
     if (uid) {
       return create_user_byuid((uid_t) data_intval(uid));
     } else {
-      return create_user_byname(data_tostring(data_array_get(params, 0)));
+      return create_user_byname(arguments_arg_tostring(args, 0));
     }
   }
 }

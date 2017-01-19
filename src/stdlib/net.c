@@ -18,48 +18,43 @@
  */
 
 #include <net.h>
-#include <data.h>
-#include <exception.h>
 
 /* -------------------------------------------------------------------------*/
 
-__DLL_EXPORT__ socket_t * _function_connect(char *name, array_t *params, dict_t *kwargs) {
-  data_t   *host;
-  data_t   *service;
+__DLL_EXPORT__ _unused_ socket_t * _function_connect(_unused_ char *name, arguments_t *args) {
+  char     *host;
+  char     *service;
   socket_t *socket;
 
-  assert(params && (array_size(params) >= 2));
-  host = (data_t *) array_get(params, 0);
-  service = (data_t *) array_get(params, 1);
+  assert(args && (arguments_args_size(args) >= 2));
+  host = arguments_arg_tostring(args, 0);
+  service = arguments_arg_tostring(args, 1);
 
-  socket = socket_create_byservice(data_tostring(host), data_tostring(service));
+  socket = socket_create_byservice(host, service);
   return socket;
 }
 
 /*
  * TODO: Parameterize what interface we want to listen on.
  */
-__DLL_EXPORT__ socket_t * _function_server(char *name, array_t *params, dict_t *kwargs) {
-  data_t   *service;
+__DLL_EXPORT__ _unused_ socket_t * _function_server(_unused_ char *name, arguments_t *args) {
+  char *service;
 
-  assert(params && (array_size(params) >= 1));
-  service = (data_t *) array_get(params, 0);
+  assert(args && (arguments_args_size(args) >= 1));
+  service = arguments_arg_tostring(args, 1);
 
-  return serversocket_create_byservice(data_tostring(service));
+  return serversocket_create_byservice(service);
 }
 
-__DLL_EXPORT__ data_t * _function_listener(char *name, array_t *params, dict_t *kwargs) {
+__DLL_EXPORT__ _unused_ data_t * _function_listener(_unused_ char *name, arguments_t *args) {
   socket_t *listener;
-  data_t   *service;
   data_t   *server;
 
-  assert(params && (array_size(params) >= 2));
-  service = data_array_get(params, 0);
-  server = data_array_get(params, 1);
-  assert(data_is_callable(server));
-
-  listener = serversocket_create_byservice(data_tostring(service));
+  assert(args && (arguments_args_size(args) >= 2));
+  listener = _function_server(NULL, args);
   if (listener) {
+    server = arguments_get_arg(args, 1);
+    assert(data_is_callable(server));
     socket_listen(listener, connection_listener_service, server);
   }
   return data_exception_from_errno();

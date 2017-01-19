@@ -253,16 +253,20 @@ static inline array_t * data_as_array(void *data) {
   return (array_t *) (((pointer_t *) list) -> ptr);
 }
 
-static void datalist_free(datalist_t *list) {
+static inline void datalist_free(datalist_t *list) {
   data_free((data_t *) list);
 }
 
-static datalist_t * datalist_push(datalist_t *list, void *data) {
+static inline datalist_t * datalist_push(datalist_t *list, void *data) {
   return _datalist_push(list, data_as_data(data));
 }
 
-static datalist_t * datalist_set(datalist_t *list, int ix, void *data) {
+static inline datalist_t * datalist_set(datalist_t *list, int ix, void *data) {
   return _datalist_set(list, ix, data_as_data(data));
+}
+
+static inline data_t * datalist_shift(datalist_t *list) {
+  return (datalist_size(list)) ? datalist_remove(list, 0) : NULL;
 }
 
 static char * datalist_tostring(datalist_t *list) {

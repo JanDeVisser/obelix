@@ -22,60 +22,44 @@
 
 #include <array.h>
 #include <data.h>
-#include <dict.h>
-#include <exception.h>
-#include <name.h>
-#include <str.h>
 
-__DLL_EXPORT__ data_t * _function_print(char *, array_t *, dict_t *);
-__DLL_EXPORT__ data_t * _function_sleep(char *, array_t *, dict_t *);
-__DLL_EXPORT__ data_t * _function_usleep(char *, array_t *, dict_t *);
-
-data_t * _function_print(char *func_name, array_t *params, dict_t *kwargs) {
-  data_t  *fmt;
+__DLL_EXPORT__ _unused_ data_t * _function_print(char *_unused_ func_name, arguments_t *args) {
+  data_t  *fmt = NULL;
   data_t  *s;
 
-  (void) func_name;
-  assert(array_size(params));
-  fmt = (data_t *) array_get(params, 0);
-  assert(fmt);
-  if ((array_size(params) > 1) || (kwargs && dict_size(kwargs))) {
-    params = array_slice(params, 1, -1);
-    s = data_interpolate(fmt, params, kwargs);
-    array_free(params);
+  assert(args && arguments_args_size(args));
+  if ((arguments_args_size(args) > 1) || (arguments_kwargs_size(args))) {
+    args = arguments_shift(args, &fmt);
+    s = data_interpolate(fmt, args);
+    arguments_free(args);
   } else {
-    s = fmt;
+    s = arguments_get_arg(args, 0);
   }
   if (!data_is_exception(s)) {
     printf("%s\n", data_tostring(s));
-    if (s != fmt) {
+    if (fmt) {
       data_free(s);
+      data_free(fmt);
     }
     s = data_true();
   }
   return s;
 }
 
-data_t * _function_sleep(char *func_name, array_t *args, dict_t *kwargs) {
+__DLL_EXPORT__ _unused_ data_t * _function_sleep(char _unused_ *func_name, arguments_t *args) {
   data_t       *naptime;
-  int           ret;
 
-  (void) func_name;
-  (void) kwargs;
-  assert(array_size(args));
-  naptime = (data_t *) array_get(args, 0);
+  assert(args && arguments_args_size(args));
+  naptime = data_uncopy(arguments_get_arg(args, 0));
   assert(naptime);
-  ret = sleep((unsigned int) data_intval(naptime));
-  return int_to_data(ret);
+  return int_to_data(sleep((unsigned int) data_intval(naptime)));
 }
 
-data_t * _function_usleep(char *func_name, array_t *args, dict_t *kwargs) {
+__DLL_EXPORT__ _unused_ data_t * _function_usleep(char _unused_ *func_name, arguments_t *args) {
   data_t  *naptime;
 
-  (void) func_name;
-  (void) kwargs;
-  assert(array_size(args));
-  naptime = (data_t *) array_get(args, 0);
+  assert(args && arguments_args_size(args));
+  naptime = data_uncopy(arguments_get_arg(args, 0));
   assert(naptime);
-  return int_to_data(usleep(data_intval(naptime)));
+  return int_to_data(usleep((useconds_t) data_intval(naptime)));
 }

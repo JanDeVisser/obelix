@@ -30,8 +30,6 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
-#include <exception.h>
-
 #ifndef HAVE_SOCKLEN_T
 typedef int socklen_t;
 #endif
@@ -75,9 +73,9 @@ static socket_t *   _socket_setopt(socket_t *, int);
 static data_t *     _socket_resolve(socket_t *, char *);
 static data_t *     _socket_leave(socket_t *, data_t *);
 
-static data_t *     _socket_close(data_t *, char *, array_t *, dict_t *);
-static data_t *     _socket_listen_mth(data_t *, char *, array_t *, dict_t *);
-static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
+static data_t *     _socket_close(data_t *, char *, arguments_t *);
+static data_t *     _socket_listen_mth(data_t *, char *, arguments_t *);
+static data_t *     _socket_interrupt(data_t *, char *, arguments_t *);
 
 /*
  * TODO:
@@ -85,7 +83,7 @@ static data_t *     _socket_interrupt(data_t *, char *, array_t *, dict_t *);
  *   - Allow UDP connections (and unix streams?)
  */
 
-static vtable_t _vtable_Socket[] = {
+_unused_ static vtable_t _vtable_Socket[] = {
   { .id = FunctionNew,         .fnc = (void_t) _socket_new },
   { .id = FunctionCmp,         .fnc = (void_t) socket_cmp },
   { .id = FunctionFree,        .fnc = (void_t) _socket_free },
@@ -96,7 +94,7 @@ static vtable_t _vtable_Socket[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methods_Socket[] = {
+_unused_ static methoddescr_t _methods_Socket[] = {
   { .type = -1,     .name = "close",     .method = _socket_close,      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "listen",    .method = _socket_listen_mth, .argtypes = { Callable, NoType, NoType }, .minargs = 1, .varargs = 0 },
   { .type = -1,     .name = "interrupt", .method = _socket_interrupt,  .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
@@ -445,7 +443,6 @@ socket_t * socket_set_errormsg(socket_t *socket, char *fmt, ...) {
 
 socket_t * socket_set_errno(socket_t *socket, char *msg) {
   char     *error;
-  stream_t *s = (stream_t *) socket;
 
 #ifdef HAVE_WINSOCK2_H
   s -> _errno = WSAGetLastError();
@@ -456,10 +453,10 @@ socket_t * socket_set_errno(socket_t *socket, char *msg) {
 #else
   size_t len;
 
-  s -> _errno = errno;
-  len = strlen(strerror(socket_errno(s)));
+  socket -> _stream._errno = errno;
+  len = strlen(strerror(socket_errno(socket)));
   error = stralloc(len + 1);
-  error = strerror_r(socket_errno(s), error, len + 1);
+  error = strerror_r(socket_errno(socket), error, len + 1);
 #endif
   socket_set_errormsg(socket, "%s failed: %s (%d)",
     msg, error, socket_errno(socket));
@@ -610,34 +607,30 @@ int socket_write(socket_t *socket, void *buf, int num) {
 
 /* ------------------------------------------------------------------------ */
 
-data_t * _socket_close(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _socket_close(data_t *self, char *name, arguments_t *args) {
   socket_t *s = (socket_t *) self;
 
-  return (socket_close(s)) ? data_copy(s -> error) : data_true();
+  return (socket_close(s)) ? data_copy(s -> _stream.error) : data_true();
 }
 
-data_t * _socket_listen_mth(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _socket_listen_mth(data_t *self, char _unused_ *name, arguments_t *args) {
   socket_t *socket = (socket_t *) self;
 
-  (void) name;
-  (void) kwargs;
   if (socket -> host) {
     return data_exception(ErrorSocket,
       "Cannot listen - socket '%s' is not a server socket", socket_tostring(socket));
   } else {
-    if (socket_listen(socket, connection_listener_service, data_array_get(args, 0))) {
-      return data_copy(socket -> error);
+    if (socket_listen(socket, connection_listener_service, arguments_get_arg(args, 0))) {
+      return data_copy(socket -> _stream.error);
     } else {
       return data_true();
     }
   }
 }
 
-data_t * _socket_interrupt(data_t *self, char *name, array_t *args, dict_t *kwargs) {
+data_t * _socket_interrupt(data_t *self, char _unused_ *name, arguments_t _unused_ *args) {
   socket_t *socket = (socket_t *) self;
 
-  (void) name;
-  (void) kwargs;
   if (socket -> host) {
     return data_exception(ErrorSocket,
       "Socket '%s' cannot be interrupted because it is not a server socket",
@@ -651,14 +644,13 @@ data_t * _socket_interrupt(data_t *self, char *name, array_t *args, dict_t *kwar
 /* ------------------------------------------------------------------------ */
 
 void * connection_listener_service(connection_t *connection) {
-  data_t   *server = connection -> context;
-  socket_t *client = (socket_t *) connection -> client;
-  data_t   *ret;
-  array_t  *p;
+  data_t      *server = connection -> context;
+  socket_t    *client = connection -> client;
+  data_t      *ret;
+  arguments_t *args;
 
-  p = data_array_create(1);
-  array_push(p, data_copy((data_t *) client));
-  ret = data_call(server, p, NULL);
-  array_free(p);
+  args = arguments_create_args(1, client);
+  ret = data_call(server, args);
+  arguments_free(args);
   return ret;
 }

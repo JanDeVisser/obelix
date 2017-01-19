@@ -40,7 +40,7 @@ static data_t *       _sqliteconn_enter(sqliteconn_t *);
 static data_t *       _sqliteconn_query(sqliteconn_t *, data_t *);
 static data_t *       _sqliteconn_leave(sqliteconn_t *, data_t *);
 
-static vtable_t _vtable_SQLiteConnection[] = {
+_unused_ static vtable_t _vtable_SQLiteConnection[] = {
   { .id = FunctionNew,   .fnc = (void_t) _sqliteconn_new },
   { .id = FunctionFree,  .fnc = (void_t) _sqliteconn_free },
   { .id = FunctionEnter, .fnc = (void_t) _sqliteconn_enter },
@@ -55,12 +55,12 @@ static data_t *       _sqlitestmt_bind_param(sqlitestmt_t *, int, data_t *);
 
 static data_t *       _sqlitestmt_new(sqlitestmt_t *, va_list);
 static void           _sqlitestmt_free(sqlitestmt_t *);
-static data_t *       _sqlitestmt_interpolate(sqlitestmt_t *, array_t *, dict_t *);
+static data_t *       _sqlitestmt_interpolate(sqlitestmt_t *, arguments_t *);
 static data_t *       _sqlitestmt_has_next(sqlitestmt_t *);
 static datalist_t *   _sqlitestmt_next(sqlitestmt_t *);
-static data_t *       _sqlitestmt_execute(sqlitestmt_t *, array_t *, dict_t *);
+static data_t *       _sqlitestmt_execute(sqlitestmt_t *, arguments_t *);
 
-static vtable_t _vtable_SQLiteStmt[] = {
+_unused_ static vtable_t _vtable_SQLiteStmt[] = {
   { .id = FunctionNew,         .fnc = (void_t) _sqlitestmt_new },
   { .id = FunctionFree,        .fnc = (void_t) _sqlitestmt_free },
   { .id = FunctionInterpolate, .fnc = (void_t) _sqlitestmt_interpolate },
@@ -74,11 +74,8 @@ static vtable_t _vtable_SQLiteStmt[] = {
 static int     SQLiteConnection = -1;
 static int     SQLiteStmt = -1;
 
-#define data_is_sqliteconn(d)  ((d) && data_hastype((d), SQLiteConnection))
-#define sqliteconn_copy(d)     ((sqliteconn_t *) data_copy((data_t *) (d)))
-#define data_as_sqliteconn(d)  (data_is_sqliteconn((d)) ? ((uri_t *) (d)) : NULL)
-#define sqliteconn_free(d)     (data_free((data_t *) (d)))
-#define sqliteconn_tostring(d) (data_tostring((data_t *) (d)))
+type_skel(sqliteconn, SQLiteConnection, sqliteconn_t);
+type_skel(sqlitestmt, SQLiteStmt, sqlitestmt_t);
 
 /* -- S Q L I T E C O N N E C T I O N   D A T A   T Y P E ----------------- */
 
@@ -167,7 +164,7 @@ data_t * _sqlitestmt_bind_param(sqlitestmt_t *stmt, int ix, data_t *param) {
     ret = sqlite3_bind_double(stmt -> stmt, ix, data_floatval(param));
   } else {
     s = data_tostring(param);
-    ret = sqlite3_bind_text(stmt -> stmt, ix, s, strlen(s), SQLITE_STATIC);
+    ret = sqlite3_bind_text(stmt -> stmt, ix, s, (int) strlen(s), SQLITE_STATIC);
   }
   return (ret != SQLITE_OK)
     ? data_exception(ErrorSQL,
@@ -197,7 +194,7 @@ void _sqlitestmt_free(sqlitestmt_t *stmt) {
   }
 }
 
-data_t * _sqlitestmt_interpolate(sqlitestmt_t *stmt, array_t *params, dict_t *kwparams) {
+data_t * _sqlitestmt_interpolate(sqlitestmt_t *stmt, arguments_t *args) {
   int             ix;
   data_t         *param;
   data_t         *ret = NULL;
@@ -207,35 +204,37 @@ data_t * _sqlitestmt_interpolate(sqlitestmt_t *stmt, array_t *params, dict_t *kw
   if ((ret = _sqlitestmt_prepare(stmt))) {
     return ret;
   }
-  if (params && array_size(params)) {
-    for (ix = 0; ix < array_size(params); ix++) {
-      param = data_array_get(params, ix);
-      if ((ret = _sqlitestmt_bind_param(stmt, ix + 1, param))) {
-        break;
-      }
-    }
-  }
-  if (!ret && kwparams && dict_size(kwparams)) {
-    for (di = di_create(kwparams); !ret && di_has_next(di); ) {
-      kw = (entry_t *) di_next(di);
-      if ((ix = sqlite3_bind_parameter_index(stmt -> stmt, (char *) kw -> key))) {
-        if ((ret = _sqlitestmt_bind_param(stmt, ix + 1, (data_t *) kw -> value))) {
+  if (args) {
+    if (arguments_args_size(args)) {
+      for (ix = 0; ix < arguments_args_size(args); ix++) {
+        param = arguments_get_arg(args, ix);
+        if ((ret = _sqlitestmt_bind_param(stmt, ix + 1, param))) {
           break;
         }
       }
     }
-    di_free(di);
+    if (arguments_kwargs_size(args)) {
+      for (di = di_create(args -> kwargs -> attributes); !ret && di_has_next(di);) {
+        kw = di_next(di);
+        if ((ix = sqlite3_bind_parameter_index(stmt->stmt, (char *) kw->key))) {
+          if ((ret = _sqlitestmt_bind_param(stmt, ix + 1, (data_t *) kw->value))) {
+            break;
+          }
+        }
+      }
+      di_free(di);
+    }
   }
   return (ret) ? ret : (data_t *) stmt;
 }
 
-data_t * _sqlitestmt_execute(sqlitestmt_t *stmt, array_t *params, dict_t *kwparams) {
+data_t * _sqlitestmt_execute(sqlitestmt_t *stmt, arguments_t *args) {
   data_t  *ret = (data_t *) stmt;
   long     count;
   data_t  *row;
 
-  if (((params && array_size(params)) || (kwparams && dict_size(kwparams)))) {
-    _sqlitestmt_interpolate(stmt, params, kwparams);
+  if (args && (arguments_args_size(args) || arguments_kwargs_size(args))) {
+    _sqlitestmt_interpolate(stmt, args);
   }
   count = 0;
   for (row = _sqlitestmt_has_next(stmt);
@@ -299,7 +298,7 @@ datalist_t * _sqlitestmt_next(sqlitestmt_t *stmt) {
   return rs;
 }
 
-__DLL_EXPORT__ typedescr_t * sqlite_register(void) {
+__PLUGIN__ typedescr_t * sqlite_register(void) {
   typedescr_register_with_name(SQLiteConnection, "sqlite", sqliteconn_t);
   typedescr_register(SQLiteStmt, sqlitestmt_t);
   return typedescr_get(SQLiteConnection);

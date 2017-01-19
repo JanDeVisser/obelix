@@ -18,27 +18,24 @@
  */
 
 #include "libsql.h"
-#include <exception.h>
 #include <function.h>
-#include <mutex.h>
-#include <str.h>
 
 /* -------------------------------------------------------------------------*/
 
 static         void          _sql_init(void);
 static         typedescr_t * _dbconn_register(typedescr_t *);
 static         int           _dbconn_get_driver(char *);
-__DLL_EXPORT__ data_t *      _function_dbconnect(char *, array_t *, dict_t *);
+__PLUGIN__     data_t *      _function_dbconnect(char *, arguments_t *);
 
 static dbconn_t * _dbconn_new(dbconn_t *, va_list);
 static void       _dbconn_free(dbconn_t *);
 static char *     _dbconn_tostring(dbconn_t *);
 static data_t *   _dbconn_resolve(dbconn_t *, char *);
 
-static data_t *   _dbconn_execute(dbconn_t *, char *, array_t *, dict_t *);
-static data_t *   _dbconn_tx(dbconn_t *, char *, array_t *, dict_t *);
+static data_t *   _dbconn_execute(dbconn_t *, char *, arguments_t *);
+static data_t *   _dbconn_tx(dbconn_t *, char *, arguments_t *);
 
-static vtable_t _vtable_DBConnection[] = {
+_unused_ static vtable_t _vtable_DBConnection[] = {
   { .id = FunctionNew,      .fnc = (void_t) _dbconn_new },
   { .id = FunctionFree,     .fnc = (void_t) _dbconn_free },
   { .id = FunctionToString, .fnc = (void_t) _dbconn_tostring },
@@ -46,7 +43,7 @@ static vtable_t _vtable_DBConnection[] = {
   { .id = FunctionNone,     .fnc = NULL }
 };
 
-static methoddescr_t _methods_DBConnection[] = {
+_unused_ static methoddescr_t _methods_DBConnection[] = {
   { .type = -1,     .name = "execute", .method = (method_t) _dbconn_execute, .argtypes = { String, Any, Any },         .minargs = 1, .varargs = 1 },
   { .type = -1,     .name = "tx",      .method = (method_t) _dbconn_tx,      .argtypes = { Any, Any, Any },            .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,      .method = NULL,                       .argtypes = { NoType, NoType, NoType },   .minargs = 0, .varargs = 0 }
@@ -59,7 +56,7 @@ static data_t * _tx_enter(tx_t *);
 static data_t * _tx_leave(tx_t *, data_t *);
 static data_t * _tx_query(tx_t *, data_t *);
 
-static vtable_t _vtable_DBTransaction[] = {
+_unused_ static vtable_t _vtable_DBTransaction[] = {
   { .id = FunctionNew,         .fnc = (void_t) _tx_new },
   { .id = FunctionFree,        .fnc = (void_t) _tx_free },
   { .id = FunctionAllocString, .fnc = (void_t) _tx_tostring },
@@ -69,10 +66,10 @@ static vtable_t _vtable_DBTransaction[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-int              sql_debug = -1;
-int              ErrorSQL = -1;
-int              DBConnection = -1;
-int              DBTransaction = -1;
+_unused_ int  sql_debug = -1;
+int           ErrorSQL = -1;
+int           DBConnection = -1;
+int           DBTransaction = -1;
 
 static dict_t   *_drivers = NULL;
 static mutex_t  *_driver_mutex = NULL;
@@ -128,27 +125,20 @@ data_t * _dbconn_resolve(dbconn_t *conn, char *name) {
   }
 }
 
-data_t * _dbconn_execute(dbconn_t *conn, char *name, array_t *params, dict_t *kwparams) {
-  data_t  *stmt;
-  array_t *query_params;
-  data_t  *query;
-  data_t  *ret;
+data_t * _dbconn_execute(dbconn_t *conn, _unused_ char *name, arguments_t *args) {
+  data_t      *stmt;
+  arguments_t *query_args;
+  data_t      *query;
+  data_t      *ret;
 
-  (void) name;
-  query = data_array_get(params, 0);
+  query_args = arguments_shift(args, &query);
   stmt = data_query((data_t *) conn, query);
-  query_params = ((array_size(params) > 1)) ? array_slice(params, 1, -1) : NULL;
-  ret = data_call(stmt, query_params, kwparams);
-  if (query_params) {
-    array_free(query_params);
-  }
+  ret = data_call(stmt, query_args);
+  arguments_free(query_args);
   return ret;
 }
 
-data_t * _dbconn_tx(dbconn_t *conn, char *name, array_t *params, dict_t *kwparams) {
-  (void) name;
-  (void) params;
-  (void) kwparams;
+data_t * _dbconn_tx(dbconn_t *conn, _unused_ char *name, _unused_ arguments_t *args) {
   return data_create(DBTransaction, conn);
 }
 
@@ -195,7 +185,7 @@ int _dbconn_get_driver(char *name) {
 
 data_t * dbconn_create(char *connectstr) {
   uri_t    *uri;
-  int       driver;
+  int       driver = -1;
   data_t   *ret = NULL;
 
   _sql_init();
@@ -206,7 +196,7 @@ data_t * dbconn_create(char *connectstr) {
                          uri_tostring(uri), data_tostring(uri -> error));
   }
   if (!ret) {
-    driver = (int) _dbconn_get_driver(uri -> scheme);
+    driver = _dbconn_get_driver(uri -> scheme);
     if (!driver) {
       ret = data_exception(ErrorParameterValue,
                           "Database URI '%s' has unknown type prefix '%s'",
@@ -221,13 +211,7 @@ data_t * dbconn_create(char *connectstr) {
 
 /* -------------------------------------------------------------------------*/
 
-data_t * _function_dbconnect(char *func_name, array_t *params, dict_t *kwargs) {
-  _sql_init();
-  debug(sql, "Connecting to database %s", data_tostring(data_array_get(params, 0)));
-  return (!params || !array_size(params))
-    ? data_exception(ErrorArgCount, "No database URI specified in function '%s'", func_name)
-    : dbconn_create(data_tostring(data_array_get(params, 0)));
-}
+__PLUGIN__ data_t * _function_dbconnect(char *func_name, arguments_t *args);
 
 /* -- T X _ T  ------------------------------------------------------------ */
 
@@ -252,26 +236,34 @@ char * _tx_tostring(tx_t *tx) {
 }
 
 data_t * _tx_enter(tx_t *tx) {
-  data_t  *ret;
-  array_t *params = data_array_create(1);
+  data_t      *ret;
+  arguments_t *args;
 
-  array_push(params, str_wrap("BEGIN"));
-  ret = data_execute((data_t *) tx -> conn, "execute", params, NULL);
-  array_free(params);
+  args = arguments_create_args(1, str_wrap("BEGIN"));
+  ret = data_execute((data_t *) tx -> conn, "execute", args);
+  arguments_free(args);
   return (data_is_exception(ret)) ? ret : (data_t *) tx;
 }
 
 data_t * _tx_leave(tx_t *tx, data_t *error) {
   data_t  *ret;
-  array_t *params = data_array_create(1);
+  arguments_t *args;
 
-  array_push(params,
-    str_wrap((data_is_exception(error)) ? "ROLLBACK" : "COMMIT"));
-  ret = data_execute((data_t *) tx -> conn, "execute", params, NULL);
-  array_free(params);
+  args = arguments_create_args(1,
+      str_wrap((data_is_exception(error)) ? "ROLLBACK" : "COMMIT"));
+  ret = data_execute((data_t *) tx -> conn, "execute", args);
+  arguments_free(args);
   return (data_is_exception(ret)) ? ret : error;
 }
 
 data_t * _tx_query(tx_t *tx, data_t *query) {
   return data_query((data_t *) tx -> conn, query);
+}
+
+__PLUGIN__ data_t *_function_dbconnect(char *func_name, arguments_t *args) {
+  _sql_init();
+  debug(sql, "Connecting to database %s", arguments_arg_tostring(args, 0));
+  return (!args || !arguments_args_size(args))
+         ? data_exception(ErrorArgCount, "No database URI specified in function '%s'", func_name)
+         : dbconn_create(arguments_arg_tostring(args, 0));
 }
