@@ -20,8 +20,6 @@
 #include "libcore.h"
 
 #include <data.h>
-#include <exception.h>
-#include <str.h>
 
 static void            _arguments_init(void);
 static arguments_t *   _arguments_new(arguments_t *, va_list);
@@ -34,18 +32,19 @@ static arguments_t *   _arguments_deserialize(dictionary_t *);
 
 /* ----------------------------------------------------------------------- */
 
-static vtable_t _vtable_Arguments[] = {
+_unused_ static vtable_t _vtable_Arguments[] = {
   { .id = FunctionNew,          .fnc = (void_t) _arguments_new },
   { .id = FunctionCast,         .fnc = (void_t) _arguments_cast },
   { .id = FunctionFree,         .fnc = (void_t) _arguments_free },
   { .id = FunctionAllocString,  .fnc = (void_t) _arguments_tostring },
   { .id = FunctionResolve,      .fnc = (void_t) _arguments_resolve },
+  { .id = FunctionLen,          .fnc = (void_t) arguments_args_size },
   { .id = FunctionSerialize,    .fnc = (void_t) _arguments_serialize },
   { .id = FunctionDeserialize,  .fnc = (void_t) _arguments_deserialize },
   { .id = FunctionNone,         .fnc = NULL }
 };
 
-static methoddescr_t _methods_Arguments[] = {
+_unused_ static methoddescr_t _methods_Arguments[] = {
   { .type = NoType, .name = NULL,         .method = NULL,             .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
 
@@ -101,9 +100,15 @@ data_t * _arguments_cast(arguments_t *obj, int totype) {
 data_t * _arguments_resolve(arguments_t *arguments, char *name) {
   long l;
 
-  return (strtoint(name, &l))
-    ? arguments_get_kwarg(arguments, name)
-    : arguments_get_arg(arguments, l);
+  if (!strcmp(name, "kwargs")) {
+    return data_copy(arguments->kwargs);
+  } else if (!strcmp(name, "args")) {
+    return data_copy(arguments->args);
+  } else {
+    return (strtoint(name, &l))
+           ? arguments_get_kwarg(arguments, name)
+           : arguments_get_arg(arguments, (int) l);
+  }
 }
 
 arguments_t * _arguments_deserialize(dictionary_t *dict) {
@@ -131,12 +136,15 @@ arguments_t * arguments_create(array_t *args, dict_t *kwargs) {
 
 arguments_t * arguments_create_args(int num, ...) {
   arguments_t *args = arguments_create(NULL, NULL);
+  data_t      *data;
   va_list      list;
 
   va_start(list, num);
-  for (int ix = 0; ix < 0; ix++) {
-    datalist_push(args -> args, va_arg(list, data_t *));
+  for (int ix = 0; ix < num; ix++) {
+    data = va_arg(list, data_t *);
+    datalist_push(args -> args, data);
   }
+  va_end(list);
   return args;
 }
 
@@ -150,7 +158,7 @@ static dictionary_t * _arguments_copy_kwargs(entry_t *entry, dictionary_t *kwarg
   return kwargs;
 }
 
-arguments_t * arguments_deepcopy(arguments_t *src) {
+arguments_t * arguments_deepcopy(const arguments_t *src) {
   arguments_t *dest = arguments_create(NULL, NULL);
 
   array_reduce(data_as_array(src -> args),
@@ -160,23 +168,25 @@ arguments_t * arguments_deepcopy(arguments_t *src) {
 }
 
 arguments_t * arguments_create_from_cmdline(int argc, char **argv) {
-  array_t *args = array_create(argc);
+  arguments_t *ret = arguments_create(NULL, NULL);
 
   for (int ix = 0; ix < argc; ix++) {
-    array_push(args, str_copy_chars(argv[ix]));
+    datalist_push(ret -> args, str_copy_chars(argv[ix]));
   }
-  return arguments_create(args, NULL);
+  return ret;
 }
 
-data_t * arguments_get_arg(arguments_t *arguments, int ix) {
-  if (!arguments -> args || (ix < 0) || (ix >= datalist_size(arguments -> args))) {
+data_t * arguments_get_arg(const arguments_t *arguments, int ix) {
+  if (!arguments -> args ||
+      (ix < -datalist_size(arguments -> args)) ||
+      (ix >= datalist_size(arguments -> args))) {
     return data_exception(ErrorRange, "Index out of range");
   } else {
     return data_copy(datalist_get(arguments -> args, ix));
   }
 }
 
-data_t * arguments_get_kwarg(arguments_t *arguments, char *name) {
+data_t * arguments_get_kwarg(const arguments_t *arguments, char *name) {
   return dictionary_get(arguments -> kwargs, name);
 }
 
@@ -190,7 +200,7 @@ arguments_t * _arguments_set_kwarg(arguments_t *arguments, char *key, data_t *da
   return arguments;
 }
 
-arguments_t * arguments_shift(arguments_t *arguments, data_t **shifted) {
+arguments_t * arguments_shift(const arguments_t *arguments, data_t **shifted) {
   arguments_t *ret = arguments_deepcopy(arguments);
   array_t     *args = data_as_array(ret -> args);
   data_t      *s = array_remove(args, 0);

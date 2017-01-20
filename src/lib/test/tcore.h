@@ -25,7 +25,9 @@
 
 extern void list_init(void);
 extern void dict_init(void);
+extern void tdatalist_init();
 extern void str_test_init(void);
+extern void str_format_init(void);
 extern void resolve_init(char *);
 extern void init_suite(int, char **);
 

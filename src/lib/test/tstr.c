@@ -332,6 +332,24 @@ START_TEST(test_str_data)
   ck_assert_str_eq(data_tostring(data), "This is a test");
 END_TEST
 
+START_TEST(test_str_replace)
+  str_t   *str;
+  int      count;
+
+  str = str_copy_chars("This is the best test string in history");
+  count = str_replace_all(str, "is", "was");
+  ck_assert_int_eq(count, 3);
+  ck_assert_str_eq(str_chars(str), "Thwas was the best test string in hwastory");
+  str_free(str);
+  str = str_copy_chars("This is the best test string in history");
+  count = str_replace_one(str, "is", "was");
+  ck_assert_int_eq(count, 1);
+  ck_assert_str_eq(str_chars(str), "Thwas is the best test string in history");
+  str_free(str);
+END_TEST
+
+/* ------------------------------------------------------------------------ */
+
 START_TEST(test_str_format)
   str_t       *str;
   arguments_t *args;
@@ -340,7 +358,8 @@ START_TEST(test_str_format)
   str = str_wrap("test");
   ck_assert_str_eq(str_chars(str), "test");
   ck_assert_str_eq(data_tostring((data_t *) str), "test");
-  args = arguments_create_args(1, data_uncopy(str), data_uncopy(str_wrap("arg2")));
+  args = arguments_create_args(2, data_uncopy(str), data_uncopy(str_wrap("arg2")));
+  ck_assert_str_eq(arguments_arg_tostring(args, 0), "test");
 
   str = str_format("test ${0} test", args);
   ck_assert_str_eq(str_chars(str), "test test test");
@@ -388,21 +407,7 @@ START_TEST(test_str_format)
   arguments_free(args);
 END_TEST
 
-START_TEST(test_str_replace)
-  str_t   *str;
-  int      count;
-
-  str = str_copy_chars("This is the best test string in history");
-  count = str_replace_all(str, "is", "was");
-  ck_assert_int_eq(count, 3);
-  ck_assert_str_eq(str_chars(str), "Thwas was the best test string in hwastory");
-  str_free(str);
-  str = str_copy_chars("This is the best test string in history");
-  count = str_replace_one(str, "is", "was");
-  ck_assert_int_eq(count, 1);
-  ck_assert_str_eq(str_chars(str), "Thwas is the best test string in history");
-  str_free(str);
-END_TEST
+/* ------------------------------------------------------------------------ */
 
 extern void str_test_init(void) {
   TCase *tc = tcase_create("Str");
@@ -418,7 +423,13 @@ extern void str_test_init(void) {
   tcase_add_test(tc, test_str_split);
   tcase_add_test(tc, test_str_join);
   tcase_add_test(tc, test_str_data);
-  tcase_add_test(tc, test_str_format);
   tcase_add_test(tc, test_str_replace);
+  add_tcase(tc);
+}
+
+extern void str_format_init(void) {
+  TCase *tc = tcase_create("Format");
+
+  tcase_add_test(tc, test_str_format);
   add_tcase(tc);
 }

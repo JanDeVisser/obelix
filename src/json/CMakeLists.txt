@@ -15,7 +15,7 @@ else(WIN32)
   )
 endif(WIN32)
 
-add_library(obljson MODULE
+add_library(obljson SHARED
   json.c
   jsongrammar.c
 )

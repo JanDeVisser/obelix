@@ -31,7 +31,7 @@ static void_t _type_initializers[] = {
   str_init,
   int_init,
   float_init,
-  list_init,
+  datalist_init,
   exception_init,
   ptr_init,
   file_init,

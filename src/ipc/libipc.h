@@ -79,6 +79,5 @@
 extern void ipc_init(void);
 
 extern int           ipc_debug;
-extern code_label_t  message_codes[]
 
 #endif /* __LIBIPC_H__ */

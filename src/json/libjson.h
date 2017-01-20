@@ -18,12 +18,12 @@
  */
 
 
-#ifndef __LIBSTDLIB_H__
-#define __LIBSTDLIB_H__
+#ifndef __LIBJSON_H__
+#define __LIBJSON_H__
 
 #include <oblconfig.h>
 #define OBLJSON_IMPEXP __DLL_EXPORT__
 
 #include <json.h>
 
-#endif /* __LIBSTDLIB_H__ */
+#endif /* __LIBJSON_H__ */

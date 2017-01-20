@@ -28,7 +28,6 @@
 #include <fsentry.h>
 #include <grammarparser.h>
 #include <user.h>
-#include <arguments.h>
 
 extern grammar_t *      grammar_build(void);
 
@@ -43,7 +42,7 @@ static data_t *         _scriptloader_set_loadpath(scriptloader_t *, array_t *);
 static scriptloader_t * _scriptloader_new(scriptloader_t *, va_list);
 static void             _scriptloader_free(scriptloader_t *);
 static char *           _scriptloader_allocstring(scriptloader_t *);
-static data_t *         _scriptloader_call(scriptloader_t *, array_t *, dict_t *);
+static data_t *         _scriptloader_call(scriptloader_t *, arguments_t *);
 static data_t *         _scriptloader_resolve(scriptloader_t *, char *);
 static data_t *         _scriptloader_set(scriptloader_t *, char *, data_t *);
 
@@ -53,7 +52,7 @@ static _unused_ code_label_t obelix_option_labels[] = {
   { .code = ObelixOptionLAST,  .label = NULL }
 };
 
-static vtable_t _vtable_ScriptLoader[] = {
+_unused_ static vtable_t _vtable_ScriptLoader[] = {
   { .id = FunctionNew,         .fnc = (void_t) _scriptloader_new },
   { .id = FunctionFree,        .fnc = (void_t) _scriptloader_free },
   { .id = FunctionAllocString, .fnc = (void_t) _scriptloader_allocstring },
@@ -93,7 +92,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
   data_t           *root;
   data_t           *sys;
   int               ix;
-  int               len;
+  size_t            len;
   log_timestamp_t  *ts;
   char              sys_dir_buf[MAX_PATH];
 
@@ -111,7 +110,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
     sys_dir = OBELIX_DATADIR;
   }
   len = (int) strlen(sys_dir);
-  loader -> system_dir = (char *) new (len + ((*(sys_dir + (len - 1)) != '/') ? 2 : 1));
+  loader -> system_dir = stralloc(len + ((*(sys_dir + (len - 1)) != '/') ? 1 : 0));
   strcpy(loader -> system_dir, sys_dir);
   if (*(loader -> system_dir + (strlen(loader -> system_dir) - 1)) != '/') {
     strcat(loader -> system_dir, "/");
@@ -158,14 +157,14 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
   loader -> load_path = (datalist_t *) data_create(List, 1, str_to_data(loader -> system_dir));
   loader -> ns = ns_create("loader", loader, (import_t) scriptloader_load);
   root = ns_import(loader -> ns, NULL);
-  if (!data_is_module(root)) {
+  if (!data_is_mod(root)) {
     error("Error initializing loader scope: %s", data_tostring(root));
     ns_free(loader -> ns);
     loader -> ns = NULL;
   } else {
     debug(obelix, "  Created loader namespace");
     sys = _scriptloader_import_sys(loader);
-    if (!data_is_module(sys)) {
+    if (!data_is_mod(sys)) {
       error("Error initializing loader scope: %s", data_tostring(sys));
       ns_free(loader -> ns);
       loader -> ns = NULL;
@@ -209,13 +208,13 @@ char *_scriptloader_allocstring(scriptloader_t *loader) {
   return buf;
 }
 
-data_t *_scriptloader_call(scriptloader_t *loader, array_t *args, dict_t *kwargs) {
-  name_t  *name = data_as_name(data_array_get(args, 0));
-  array_t *args_shifted = array_slice(args, 1, -1);
-  data_t  *ret;
+data_t *_scriptloader_call(scriptloader_t *loader, arguments_t *args) {
+  name_t      *name;
+  arguments_t *args_shifted = arguments_shift(args, (data_t **) &name);
+  data_t      *ret;
 
-  ret = scriptloader_run(loader, name, args_shifted, kwargs);
-  free(args_shifted);
+  ret = scriptloader_run(loader, name, args_shifted);
+  arguments_free(args_shifted);
   return ret;
 }
 
@@ -278,7 +277,6 @@ static file_t * _scriptloader_open_file(scriptloader_t *loader,
     }
   }
   e = fsentry_create(fname);
-  init = NULL;
   if (fsentry_isdir(e)) {
     debug(obelix, "'%s' is a directory", fname);
     init = fsentry_getentry(e, "__init__.obl");
@@ -343,7 +341,7 @@ static data_t * _scriptloader_get_object(scriptloader_t *loader, int count, ...)
   va_end(args);
   data = ns_get(loader -> ns, name);
   name_free(name);
-  mod = data_as_module(data);
+  mod = data_as_mod(data);
   if (mod) {
     data = (data_t *) object_copy(mod -> obj);
   }
@@ -429,8 +427,8 @@ long scriptloader_get_option(scriptloader_t *loader, obelix_option_t option) {
 }
 
 scriptloader_t * scriptloader_add_loadpath(scriptloader_t *loader, char *pathentry) {
-  char *sanitized_entry;
-  int   len;
+  char   *sanitized_entry;
+  size_t  len;
 
   len = strlen(pathentry);
   sanitized_entry = (char *) new (len + ((*(pathentry + (len - 1)) != '/') ? 2 : 1));
@@ -484,8 +482,8 @@ data_t * scriptloader_import(scriptloader_t *loader, name_t *name) {
   data_t   *data;
 
   data = ns_get(loader -> ns, NULL);
-  if (data_is_module(data)) {
-    root = data_as_module(data);
+  if (data_is_mod(data)) {
+    root = data_as_mod(data);
     return closure_import(root -> closure, name);
   } else {
     return data;
@@ -501,7 +499,7 @@ data_t * scriptloader_load(scriptloader_t *loader, module_t *mod) {
 
   assert(loader);
   assert(name);
-  script_name = strdup((name && name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__");
+  script_name = strdup((name_size(mod -> name)) ? name_tostring(mod -> name) : "__root__");
   debug(obelix, "scriptloader_load('%s')", script_name);
   if (mod -> state == ModStateLoading) {
     if ((rdr = _scriptloader_open_reader(loader, mod))) {
@@ -537,12 +535,12 @@ data_t * scriptloader_run(scriptloader_t *loader, name_t *name, arguments_t *arg
   data_thread_set_kernel((data_t *) loader);
   sys = _scriptloader_get_object(loader, 1, "sys");
   if (sys && !data_is_exception(sys)) {
-    _scriptloader_set_value(loader, sys, "argv", (data_t *) datalist_create(args));
+    _scriptloader_set_value(loader, sys, "argv", (data_t *) args);
     if (scriptloader_get_option(loader, ObelixOptionTrace)) {
       logging_enable("trace");
     }
     data_free(sys);
-    data = ns_execute(loader -> ns, name, args, kwargs);
+    data = ns_execute(loader -> ns, name, args);
     if ((obj = data_as_object(data))) {
       data = data_copy(obj -> retval);
       object_free(obj);
@@ -570,8 +568,8 @@ data_t * scriptloader_eval(scriptloader_t *loader, data_t *src) {
   parser_t *parser;
 
   data = ns_get(loader -> ns, NULL);
-  if (data_is_module(data)) {
-    root = data_as_module(data);
+  if (data_is_mod(data)) {
+    root = data_as_mod(data);
     data = scriptloader_load_fromreader(loader, root, src);
     if (!data_is_exception(data)) {
       if (!data_intval(data)) {

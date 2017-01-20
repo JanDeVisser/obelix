@@ -22,9 +22,7 @@
 
 #include "libcore.h"
 #include <data.h>
-#include <exception.h>
 #include <nvp.h>
-#include <str.h>
 
 typedef struct _dictionaryiter {
   data_t          _d;
@@ -36,7 +34,6 @@ static dictionary_t *     _dictionary_new(dictionary_t *, va_list);
 static void               _dictionary_free(dictionary_t *);
 static char *             _dictionary_tostring(dictionary_t *);
 static data_t *           _dictionary_cast(dictionary_t *, int);
-static data_t *           _dictionary_resolve(dictionary_t *, char *);
 static dictionaryiter_t * _dictionary_iter(dictionary_t *);
 static char *             _dictionary_encode(dictionary_t *);
 static dictionary_t *     _dictionary_serialize(dictionary_t *);
@@ -51,12 +48,12 @@ static dictionary_t *     _dictionary_set_kwargs_reducer(entry_t *, dictionary_t
 
 /* ----------------------------------------------------------------------- */
 
-static vtable_t _vtable_Dictionary[] = {
+_unused_ static vtable_t _vtable_Dictionary[] = {
   { .id = FunctionNew,         .fnc = (void_t) _dictionary_new },
   { .id = FunctionCast,        .fnc = (void_t) _dictionary_cast },
   { .id = FunctionFree,        .fnc = (void_t) _dictionary_free },
   { .id = FunctionToString,    .fnc = (void_t) _dictionary_tostring },
-  { .id = FunctionResolve,     .fnc = (void_t) _dictionary_resolve },
+  { .id = FunctionResolve,     .fnc = (void_t) dictionary_get },
   { .id = FunctionSet,         .fnc = (void_t) dictionary_set },
   { .id = FunctionLen,         .fnc = (void_t) dictionary_size },
   { .id = FunctionIter,        .fnc = (void_t) _dictionary_iter },
@@ -66,7 +63,7 @@ static vtable_t _vtable_Dictionary[] = {
   { .id = FunctionNone,        .fnc = NULL }
 };
 
-static methoddescr_t _methods_Dictionary[] = {
+_unused_ static methoddescr_t _methods_Dictionary[] = {
   { .type = Any,    .name = "dictionary", .method = _dictionary_create, .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 1 },
   { .type = NoType, .name = NULL,         .method = NULL,               .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
@@ -76,7 +73,7 @@ static void               _dictionaryiter_free(dictionaryiter_t *);
 static data_t *           _dictionaryiter_has_next(dictionaryiter_t *);
 static data_t *           _dictionaryiter_next(dictionaryiter_t *);
 
-static vtable_t _vtable_DictionaryIter[] = {
+_unused_ static vtable_t _vtable_DictionaryIter[] = {
   { .id = FunctionNew,         .fnc = (void_t) _dictionaryiter_new },
   { .id = FunctionFree,        .fnc = (void_t) _dictionaryiter_free },
   { .id = FunctionHasNext,     .fnc = (void_t) _dictionaryiter_has_next },
@@ -129,10 +126,6 @@ data_t * _dictionary_cast(dictionary_t *obj, int totype) {
       break;
   }
   return ret;
-}
-
-data_t * _dictionary_resolve(dictionary_t *dictionary, char *name) {
-  return (data_t *) dict_get(dictionary -> attributes, name);
 }
 
 dictionaryiter_t * _dictionary_iter(dictionary_t *dict) {
@@ -315,14 +308,14 @@ dictionary_t * dictionary_create_from_dict(dict_t *dict) {
   dictionary_t *ret;
 
   ret = dictionary_create(NULL);
-  if (ret) {
+  if (ret && dict) {
     dict_reduce_chars(dict, (reduce_t) _dictionary_from_dict_reducer, ret);
   }
   return ret;
 }
 
-data_t * dictionary_get(dictionary_t *dictionary, char *name) {
-  return data_copy(_dictionary_resolve(dictionary,name));
+data_t * dictionary_get(const dictionary_t *dictionary, char *name) {
+  return data_copy(dict_get(dictionary -> attributes, name));
 }
 
 data_t * dictionary_pop(dictionary_t *dictionary, char *name) {
@@ -334,13 +327,13 @@ data_t * _dictionary_set(dictionary_t *dictionary, char *name, data_t *value) {
   return value;
 }
 
-int dictionary_has(dictionary_t *dictionary, char *name) {
+int dictionary_has(const dictionary_t *dictionary, char *name) {
   int ret = dict_has_key(dictionary -> attributes, name);
   debug(data, "   dictionary_has('%s'): %d", name, ret);
   return ret;
 }
 
-int dictionary_size(dictionary_t *obj) {
+int dictionary_size(const dictionary_t *obj) {
   return dict_size(obj -> attributes);
 }
 
@@ -383,7 +376,7 @@ data_t * _dictionaryiter_next(dictionaryiter_t *iter) {
   if (e) {
     ret = (data_t *) nvp_create(str_to_data((char *) e -> key), data_copy(e -> value));
   } else {
-    ret = (data_t *) data_exception(ErrorExhausted, "Iterator exhausted");
+    ret = data_exception(ErrorExhausted, "Iterator exhausted");
   }
   return ret;
 }

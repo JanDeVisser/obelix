@@ -131,7 +131,7 @@ data_t * _servermessage_parse(char *str) {
   if (ret) {
     servermessage_free(msg);
   }
-  return (ret) ? ret : msg;
+  return (ret) ? ret : (data_t *) msg;
 }
 
 void _servermessage_free(servermessage_t *msg) {
@@ -152,7 +152,7 @@ char * _servermessage_tostring(servermessage_t *msg) {
     str_append_chars(str, data_tostring(datalist_get(msg -> args, ix)));
   }
   if (msg -> payload) {
-    str_append_char(str, ' -- ');
+    str_append_chars(str, " -- ");
     str_append_chars(str, data_tostring(int_to_data(msg -> payload_size)));
   }
   return str_reassign(str);

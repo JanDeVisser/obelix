@@ -23,6 +23,8 @@
 void init_suite(int argc, char **argv) {
   list_init();
   dict_init();
+  tdatalist_init();
   str_test_init();
+  str_format_init();
   resolve_init(argv[0]);
 }

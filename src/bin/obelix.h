@@ -55,7 +55,7 @@ typedef struct _obelix {
   int           argc;
   char        **argv;
   name_t       *script;
-  array_t      *script_args;
+  arguments_t  *script_args;
   char         *grammar;
   char         *debug;
   char         *log_level;
@@ -74,7 +74,7 @@ extern name_t *            obelix_build_name(char *);
 extern obelix_t *          obelix_initialize(int, char **);
 extern scriptloader_t *    obelix_create_loader(obelix_t *);
 extern data_t *            obelix_get_loader(obelix_t *, char *);
-extern obelix_t       *    obelix_decommission_loader(obelix_t *, scriptloader_t *);
+extern obelix_t       *    obelix_decommission_loader(obelix_t *, char *);
 extern obelix_t *          obelix_set_option(obelix_t *, obelix_option_t, long);
 extern long                obelix_get_option(obelix_t *, obelix_option_t);
 extern data_t *            obelix_run(obelix_t *, name_t *, arguments_t *);

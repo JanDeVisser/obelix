@@ -100,7 +100,7 @@ int ListIterator;
  * --------------------------------------------------------------------------
  */
 
-void list_init(void) {
+void datalist_init(void) {
   builtin_typedescr_register(List, "list", pointer_t);
   typedescr_register(ListIterator, datalist_iter_t);
 }
@@ -259,7 +259,7 @@ datalist_t * datalist_create(array_t *array) {
   datalist_t  *ret;
 
   ret = (datalist_t *) data_create(List, 0);
-  if (array) {
+  if (ret && array) {
     array_reduce(array, (reduce_t) data_add_all_reducer, data_as_array(ret));
   }
   return ret;
@@ -298,31 +298,6 @@ datalist_t * _datalist_set(datalist_t *list, int ix, data_t *value) {
 datalist_t * _datalist_push(datalist_t *list, data_t *value) {
   array_push(data_as_array(list), data_copy(value));
   return list;
-}
-
-data_t * datalist_get(datalist_t *datalist, int ix) {
-  array_t *list = data_as_array(datalist);
-  int      sz = array_size(list);
-
-  if ((ix >= sz) || (ix < -sz)) {
-    return data_exception(ErrorRange,
-                          "Index %d is not in range %d ~ %d",
-                          ix, -sz, sz - 1);
-  } else {
-    return data_copy(data_array_get(list, ix));
-  }
-}
-
-int datalist_size(datalist_t *list) {
-  return array_size(data_as_array(list));
-}
-
-data_t * datalist_pop(datalist_t *list) {
-  return (data_t *) array_pop(data_as_array(list));
-}
-
-data_t * datalist_remove(datalist_t *list, int ix) {
-  return (data_t *) array_remove(data_as_array(list), ix);
 }
 
 /* ----------------------------------------------------------------------- */

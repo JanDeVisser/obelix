@@ -7,7 +7,7 @@ add_library(oblipc SHARED
   server.c
 )
 
-target_link_libraries(oblipc PUBLIC oblcore oblnet)
+target_link_libraries(oblipc PUBLIC oblcore oblnet obljson)
 
 install(TARGETS oblipc
         ARCHIVE DESTINATION lib

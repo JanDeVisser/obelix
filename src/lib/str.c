@@ -887,12 +887,13 @@ str_t * str_format(const char *fmt, const arguments_t *args) {
         }
         strncpy(spec, specstart, len);
         spec[len] = 0;
-        if (dictionary_has(args -> kwargs, spec)) {
-          str_append_chars(ret, dictionary_value_tostring(args -> kwargs, spec));
+        if (arguments_get_kwarg(args, spec)) {
+          str_append_chars(ret, arguments_kwarg_tostring(args, spec));
         } else {
-          if (!strtoint(spec, &ix) && (ix >= 0) && (ix < datalist_size(args -> args))) {
+          if (!strtoint(spec, &ix) && (ix >= 0) &&
+              (ix < arguments_args_size(args))) {
             str_append_chars(ret,
-                data_tostring(data_uncopy(datalist_get(args -> args, ix))));
+                data_tostring(data_uncopy(arguments_get_arg(args, (int) ix))));
           } else {
             str_append_printf(ret, "${%s}", spec);
           }
@@ -939,6 +940,17 @@ str_t * str_vformatf(const char *fmt, va_list args) {
   debug(str, "fmt: %s", fmt);
   do {
     placeholders[num].start = (size_t) -1;
+
+    /* micro-optimization for sprintf(needle+2, "%d", num): */
+    if (num < 10) {
+      needle[2] = (char) ('0' + num);
+      needle[3] = 0;
+    } else {
+      needle[2] = (char) ('0' + (num / 10));
+      needle[3] = (char) ('0' + (num % 10));
+      needle[4] = 0;
+    }
+
     sprintf(needle + 2, "%d", num);
     needlelen = strlen(needle);
     for (ptr = strstr(fmt, needle); ptr; ptr = strstr(ptr, needle)) {
@@ -974,7 +986,8 @@ str_t * str_vformatf(const char *fmt, va_list args) {
   if (num > 0) {
     for (ix = 0; ix < num; ix++) {
       for (ixx = 0, last = (size_t) -1, lastix = -1; ixx < num; ixx++) {
-        if ((placeholders[ixx].num != -1) && (placeholders[ixx].start > last)) {
+        if ((placeholders[ixx].num != -1) &&
+            ((placeholders[ixx].start > last) || (last == -1))) {
           last = placeholders[ixx].start;
           lastix = ixx;
         }

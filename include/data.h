@@ -152,11 +152,12 @@ static inline void_t data_get_function(void  *data, vtable_id_t func) {
       : NULL;
 }
 
-static inline data_t * data_copy(data_t *src) {
-  if (src) {
-    src -> refs++;
+static inline data_t * data_copy(void *src) {
+  data_t *s = data_as_data(src);
+  if (s) {
+    s -> refs++;
   }
-  return src;
+  return s;
 }
 
 static inline data_t * data_uncopy(void *src) {
@@ -232,29 +233,30 @@ static inline data_t * ptr_to_data(size_t sz, void *p) {
 
 /* -- D A T A L I S T  T Y P E -------------------------------------------- */
 
+#define data_array_create(i)   (array_set_type(array_create((i)), type_data))
+#define data_array_get(a, i)   ((data_t *) array_get((a), (i)))
+
 OBLCORE_IMPEXP datalist_t *    datalist_create(array_t *);
 OBLCORE_IMPEXP array_t *       datalist_to_array(datalist_t *);
 OBLCORE_IMPEXP array_t *       datalist_to_str_array(datalist_t *);
 OBLCORE_IMPEXP datalist_t *    str_array_to_datalist(array_t *);
 OBLCORE_IMPEXP datalist_t *    _datalist_set(datalist_t *, int, data_t *);
 OBLCORE_IMPEXP datalist_t *    _datalist_push(datalist_t *, data_t *);
-OBLCORE_IMPEXP data_t *        datalist_get(datalist_t *, int);
-OBLCORE_IMPEXP data_t *        datalist_pop(datalist_t *);
-OBLCORE_IMPEXP data_t *        datalist_remove(datalist_t *, int);
-OBLCORE_IMPEXP int             datalist_size(datalist_t *);
 
 static inline datalist_t * data_as_list(void *data) {
   return (data_hastype(data_as_data(data), List)) ? (datalist_t *) data : NULL;
 }
 
 static inline array_t * data_as_array(void *data) {
-  datalist_t *list = data_as_list(data);
-
-  return (array_t *) (((pointer_t *) list) -> ptr);
+  return (array_t *) (((pointer_t *) data_as_list(data)) -> ptr);
 }
 
 static inline void datalist_free(datalist_t *list) {
   data_free((data_t *) list);
+}
+
+static inline int datalist_size(datalist_t *list) {
+  return array_size(data_as_array(list));
 }
 
 static inline datalist_t * datalist_push(datalist_t *list, void *data) {
@@ -265,8 +267,20 @@ static inline datalist_t * datalist_set(datalist_t *list, int ix, void *data) {
   return _datalist_set(list, ix, data_as_data(data));
 }
 
+static inline data_t * datalist_remove(datalist_t *list, int ix) {
+  return (data_t *) array_remove(data_as_array(list), ix);
+}
+
 static inline data_t * datalist_shift(datalist_t *list) {
   return (datalist_size(list)) ? datalist_remove(list, 0) : NULL;
+}
+
+static inline data_t * datalist_get(datalist_t *datalist, int ix) {
+  return data_copy(data_array_get(data_as_array(datalist), ix));
+}
+
+static inline data_t * datalist_pop(datalist_t *list) {
+  return (data_t *) array_pop(data_as_array(list));
 }
 
 static char * datalist_tostring(datalist_t *list) {
@@ -348,9 +362,6 @@ OBLCORE_IMPEXP int_t *         bool_get(long);
                                  type_data))
 
 #define data_dict_get(d, k)    ((data_t *) dict_get((d), (k)))
-
-#define data_array_create(i)   (array_set_type(array_create((i)), type_data))
-#define data_array_get(a, i)   ((data_t *) array_get((a), (i)))
 
 #define data_list_create()     (list_set_type(list_create(), type_data))
 #define data_list_pop(l)       (data_t *) list_pop((l))

@@ -52,42 +52,17 @@ typedef struct _mountpoint {
   list_t      *clients;
 } mountpoint_t;
 
-OBLIPC_IMPEXP int Mountpoint;
-
-type_skel(mountpoint, Mountpoint, mountpoint_t);
-
-OBLIPC_IMPEXP data_t *       mountpoint_create(uri_t *, char *);
-OBLIPC_IMPEXP data_t *       mountpoint_checkout_client(mountpoint_t *);
-OBLIPC_IMPEXP mountpoint_t * mountpoint_return_client(mountpoint_t *, client_t *);
-
-/* ------------------------------------------------------------------------ */
-
-typedef struct _remote {
-  data_t        _d;
-  mountpoint_t *mountpoint;
-  name_t       *name;
-} remote_t;
-
-OBLIPC_IMPEXP int Remote;
-
-type_skel(remote, Remote, remote_t);
-
-/* ------------------------------------------------------------------------ */
-
 typedef struct _client {
   data_t        _d;
   mountpoint_t *mountpoint;
   stream_t     *socket;
 } client_t;
 
-OBLIPC_IMPEXP int Client;
-
-type_skel(client, Client, client_t);
-
-OBLIPC_IMPEXP data_t *      client_create(mountpoint_t *);
-OBLIPC_IMPEXP data_t *      client_run(client_t *, remote_t *, arguments_t *);
-
-/* ------------------------------------------------------------------------ */
+typedef struct _remote {
+  data_t        _d;
+  mountpoint_t *mountpoint;
+  name_t       *name;
+} remote_t;
 
 typedef struct _server {
   data_t    _d;
@@ -96,18 +71,6 @@ typedef struct _server {
   data_t   *mountpoint;
   data_t   *data;
 } server_t;
-
-OBLIPC_IMPEXP server_t *    server_create(data_t *, stream_t *);
-OBLIPC_IMPEXP server_t *    server_run(server_t *);
-OBLIPC_IMPEXP int           server_start(data_t *, int);
-
-OBLIPC_IMPEXP int           Server;
-
-type_skel(servermessage, ServerMessage, servermessage_t);
-
-OBLIPC_IMPEXP int ErrorProtocol;
-
-/* ------------------------------------------------------------------------ */
 
 typedef struct _servermessage {
   data_t      _d;
@@ -119,6 +82,45 @@ typedef struct _servermessage {
   int         payload_size;
 } servermessage_t;
 
+/* ------------------------------------------------------------------------ */
+
+OBLIPC_IMPEXP int Mountpoint;
+
+type_skel(mountpoint, Mountpoint, mountpoint_t);
+
+OBLIPC_IMPEXP data_t *       mountpoint_create(uri_t *, char *);
+OBLIPC_IMPEXP data_t *       mountpoint_checkout_client(mountpoint_t *);
+OBLIPC_IMPEXP mountpoint_t * mountpoint_return_client(mountpoint_t *, client_t *);
+
+/* ------------------------------------------------------------------------ */
+
+OBLIPC_IMPEXP int Remote;
+
+type_skel(remote, Remote, remote_t);
+
+/* ------------------------------------------------------------------------ */
+
+OBLIPC_IMPEXP int Client;
+
+type_skel(client, Client, client_t);
+
+OBLIPC_IMPEXP data_t *      client_create(mountpoint_t *);
+OBLIPC_IMPEXP data_t *      client_run(client_t *, remote_t *, arguments_t *);
+
+/* ------------------------------------------------------------------------ */
+
+OBLIPC_IMPEXP server_t *    server_create(data_t *, stream_t *);
+OBLIPC_IMPEXP server_t *    server_run(server_t *);
+OBLIPC_IMPEXP int           server_start(data_t *, int);
+
+OBLIPC_IMPEXP int           Server;
+
+type_skel(server, Server, server_t);
+
+OBLIPC_IMPEXP int ErrorProtocol;
+
+/* ------------------------------------------------------------------------ */
+
 OBLIPC_IMPEXP int               ServerMessage;
 
 OBLIPC_IMPEXP servermessage_t * servermessage_create(int, int, ...);
@@ -129,9 +131,11 @@ OBLIPC_IMPEXP servermessage_t * servermessage_push_int(servermessage_t *, int);
 OBLIPC_IMPEXP servermessage_t * servermessage_push(servermessage_t *, char *);
 OBLIPC_IMPEXP servermessage_t * servermessage_set_payload(servermessage_t *, data_t *);
 
-type_skel(server, Server, server_t);
+type_skel(servermessage, ServerMessage, servermessage_t);
 
 OBLIPC_IMPEXP code_label_t  message_codes[];
+
+/* ------------------------------------------------------------------------ */
 
 OBLIPC_IMPEXP data_t *      protocol_write(stream_t *, char *, int);
 OBLIPC_IMPEXP data_t *      protocol_vprintf(stream_t *, char *, va_list);

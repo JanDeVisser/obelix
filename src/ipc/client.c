@@ -20,7 +20,6 @@
 #include <stdio.h>
 
 #include "libipc.h"
-#include <exception.h>
 
 extern void     client_init(void);
 
@@ -63,8 +62,7 @@ data_t * _client_new(client_t *client, va_list args) {
   }
   client->socket = (stream_t *) socket;
   client->mountpoint = mountpoint;
-  version = protocol_send_handshake(
-      client->socket, mountpoint_tostring(mountpoint));
+  version = protocol_send_handshake(client->socket, mountpoint);
   if (!data_is_exception(version)) {
     if (!mountpoint->version) {
       mountpoint->version = strdup(data_tostring(version));
@@ -80,7 +78,8 @@ data_t * _client_new(client_t *client, va_list args) {
 char * _client_tostring(client_t *client) {
   char *buf;
 
-  asprintf(&buf, "Obelix IPC Client for '%s'", uri_tostring(client->mountpoint->remote));
+  asprintf(&buf, "Obelix IPC Client for '%s'",
+      uri_tostring(client->mountpoint->remote));
   return buf;
 }
 

@@ -96,7 +96,7 @@ int strtoint(const char *str, long *val) {
   strncpy(buf, str, 63);
   buf[63] = 0;
   str = strtrim(buf);
-  while (*str == '0') {
+  while ((*str == '0') && *(str+1)) {
     str++;
   }
 

@@ -18,26 +18,19 @@
  */
 
 #include <assert.h>
-#include <stdio.h>
-#include <string.h>
 
 #include "libparser.h"
-#include <data.h>
-#include <exception.h>
-#include <lexer.h>
-#include <logging.h>
 #include <nvp.h>
 
-
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
-OBLPARSER_IMPEXP parser_t * parser_log(parser_t *parser, data_t *msg) {
+__PLUGIN__ parser_t * parser_log(parser_t *parser, data_t *msg) {
   info("parser_log: %s", data_tostring(msg));
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
+__PLUGIN__ parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
   nvp_t *nvp = nvp_parse(data_tostring(keyval));
 
   if (nvp) {
@@ -49,13 +42,13 @@ OBLPARSER_IMPEXP parser_t * parser_set_variable(parser_t *parser, data_t *keyval
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_pushval(parser_t *parser, data_t *data) {
+__PLUGIN__ parser_t * parser_pushval(parser_t *parser, data_t *data) {
   debug(parser, "    Pushing value %s", data_tostring(data));
   datastack_push(parser -> stack, data_copy(data));
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_push(parser_t *parser) {
+__PLUGIN__ parser_t * parser_push(parser_t *parser) {
   data_t   *data = token_todata(parser -> last_token);
   parser_t *ret = parser_pushval(parser, data);
 
@@ -63,21 +56,20 @@ OBLPARSER_IMPEXP parser_t * parser_push(parser_t *parser) {
   return ret;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_push_token(parser_t *parser) {
+__PLUGIN__ parser_t * parser_push_token(parser_t *parser) {
   return parser_pushval(parser, (data_t *) parser -> last_token);
 }
 
-OBLPARSER_IMPEXP parser_t * parser_push_const(parser_t *parser, data_t *constval) {
+__PLUGIN__ parser_t * parser_push_const(parser_t *parser, data_t *constval) {
   data_t *data = data_decode(data_tostring(constval));
 
   debug(parser, " -- encoded constant: %s", data_tostring(constval));
   assert(data);
   debug(parser, " -- constant: %s:'%s'", data_typename(data), data_tostring(data));
   return parser_pushval(parser, data_uncopy(data));
-  return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_discard(parser_t *parser) {
+__PLUGIN__ parser_t * parser_discard(parser_t *parser) {
   data_t   *data = datastack_pop(parser -> stack);
 
   debug(parser, "    Discarding value %s", data_tostring(data));
@@ -85,11 +77,11 @@ OBLPARSER_IMPEXP parser_t * parser_discard(parser_t *parser) {
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_dup(parser_t *parser) {
+__PLUGIN__ parser_t * parser_dup(parser_t *parser) {
   return parser_pushval(parser, datastack_peek(parser -> stack));
 }
 
-OBLPARSER_IMPEXP parser_t * parser_push_tokenstring(parser_t *parser) {
+__PLUGIN__ parser_t * parser_push_tokenstring(parser_t *parser) {
   data_t   *data = str_to_data(token_token(parser -> last_token));
   parser_t *ret = parser_pushval(parser, data);
 
@@ -97,13 +89,13 @@ OBLPARSER_IMPEXP parser_t * parser_push_tokenstring(parser_t *parser) {
   return ret;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_bookmark(parser_t *parser) {
+__PLUGIN__ parser_t * parser_bookmark(parser_t *parser) {
   debug(parser, "    Setting bookmark at depth %d", datastack_depth(parser -> stack));
   datastack_bookmark(parser -> stack);
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_pop_bookmark(parser_t *parser) {
+__PLUGIN__ parser_t * parser_pop_bookmark(parser_t *parser) {
   array_t *arr;
 
   debug(parser, "    pop bookmark");
@@ -114,7 +106,7 @@ OBLPARSER_IMPEXP parser_t * parser_pop_bookmark(parser_t *parser) {
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_rollup_list(parser_t *parser) {
+__PLUGIN__ parser_t * parser_rollup_list(parser_t *parser) {
   array_t    *arr;
   datalist_t *list;
 
@@ -126,7 +118,7 @@ OBLPARSER_IMPEXP parser_t * parser_rollup_list(parser_t *parser) {
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_rollup_name(parser_t *parser) {
+__PLUGIN__ parser_t * parser_rollup_name(parser_t *parser) {
   name_t  *name;
 
   name = datastack_rollup_name(parser -> stack);
@@ -136,7 +128,7 @@ OBLPARSER_IMPEXP parser_t * parser_rollup_name(parser_t *parser) {
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_rollup_nvp(parser_t *parser) {
+__PLUGIN__ parser_t * parser_rollup_nvp(parser_t *parser) {
   data_t *name;
   data_t *value;
   nvp_t  *nvp;
@@ -151,26 +143,26 @@ OBLPARSER_IMPEXP parser_t * parser_rollup_nvp(parser_t *parser) {
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_new_counter(parser_t *parser) {
+__PLUGIN__ parser_t * parser_new_counter(parser_t *parser) {
   debug(parser, "    Setting new counter");
   datastack_new_counter(parser -> stack);
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_incr(parser_t *parser) {
+__PLUGIN__ parser_t * parser_incr(parser_t *parser) {
   debug(parser, "    Incrementing counter");
   datastack_increment(parser -> stack);
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_count(parser_t *parser) {
+__PLUGIN__ parser_t * parser_count(parser_t *parser) {
   debug(parser, "    Pushing count to stack");
   datastack_push(parser -> stack,
                  int_to_data(datastack_count(parser -> stack)));
   return parser;
 }
 
-OBLPARSER_IMPEXP parser_t * parser_discard_counter(parser_t *parser) {
+__PLUGIN__ parser_t * parser_discard_counter(parser_t *parser) {
   debug(parser, "    Discarding counter");
   datastack_count(parser -> stack);
   return parser;

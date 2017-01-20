@@ -32,11 +32,11 @@ OBLCORE_IMPEXP void            dictionary_init(void);
 OBLCORE_IMPEXP dictionary_t *  dictionary_create(void *);
 OBLCORE_IMPEXP dictionary_t *  dictionary_create_from_dict(dict_t *);
 
-OBLCORE_IMPEXP data_t *        dictionary_get(dictionary_t *, char *);
+OBLCORE_IMPEXP data_t *        dictionary_get(const dictionary_t *, char *);
 OBLCORE_IMPEXP data_t *        dictionary_pop(dictionary_t *, char *);
 OBLCORE_IMPEXP data_t *        _dictionary_set(dictionary_t *, char *, data_t *);
-OBLCORE_IMPEXP int             dictionary_has(dictionary_t *, char *);
-OBLCORE_IMPEXP int             dictionary_size(dictionary_t *);
+OBLCORE_IMPEXP int             dictionary_has(const dictionary_t *, char *);
+OBLCORE_IMPEXP int             dictionary_size(const dictionary_t *);
 OBLCORE_IMPEXP data_t *        _dictionary_reduce(dictionary_t *, reduce_t, data_t *);
 OBLCORE_IMPEXP dictionary_t *  dictionary_update(dictionary_t *, dictionary_t *);
 
@@ -57,7 +57,7 @@ static inline dictionary_t * dictionary_clear(dictionary_t *dict) {
   return dict;
 }
 
-static inline char * dictionary_value_tostring(dictionary_t *dict, char *key) {
+static inline char * dictionary_value_tostring(const dictionary_t *dict, char *key) {
   return data_tostring(data_uncopy(dictionary_get(dict, key)));
 }
 

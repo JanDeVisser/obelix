@@ -33,7 +33,7 @@ data_t * _protocol_read_payload(stream_t *stream, servermessage_t *msg) {
 
   msg -> encoded = stralloc(msg -> payload_size + 1);
   debug(ipc, "Reading %d bytes of data", msg -> payload_size);
-  r = stream_read(stream, msg -> payload, msg -> payload_size);
+  r = stream_read(stream, msg -> encoded, msg -> payload_size);
   if (r == msg -> payload_size) {
     msg -> encoded[msg -> payload_size] = 0;
     strrtrim(msg -> encoded);
@@ -80,7 +80,7 @@ data_t * protocol_vprintf(stream_t *stream, char *fmt, va_list args) {
 
 data_t * protocol_printf(stream_t *stream, char *fmt, ...) {
   data_t  *ret = NULL;
-  va_list *args;
+  va_list  args;
 
   va_start(args, fmt);
   ret = protocol_vprintf(stream, fmt, args);
@@ -127,7 +127,7 @@ data_t * protocol_expect(stream_t *stream, int expected, int numargs, ...) {
     ret = servermessage_vmatch(msg, expected, numargs, types);
     va_end(types);
   }
-  return (ret) ? ret : msg;
+  return (ret) ? ret : (data_t *) msg;
 }
 
 data_t * protocol_send_handshake(stream_t *stream, mountpoint_t *mountpoint) {
