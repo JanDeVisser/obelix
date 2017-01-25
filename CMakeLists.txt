@@ -179,9 +179,14 @@ if(NOT HAVE_PID_T)
 endif(NOT HAVE_PID_T)
 ###############################################################################
 
-if (CMAKE_COMPILER_IS_GNUCC)
-  set(_GNU_SOURCE, 1)
-endif (CMAKE_COMPILER_IS_GNUCC)
+if(CMAKE_COMPILER_IS_GNUCC)
+  set(_GNU_SOURCE 1)
+endif(CMAKE_COMPILER_IS_GNUCC)
+
+find_package(Readline)
+if(READLINE_FOUND)
+  set(WITH_READLINE 1)
+endif(READLINE_FOUND)
 
 ###############################################################################
 # configure a header file to pass some of the CMake settings

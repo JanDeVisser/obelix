@@ -17,8 +17,6 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-
 #include <data.h>
 #include <dictionary.h>
 

@@ -102,6 +102,8 @@
 #cmakedefine HAVE_STRCASECMP                 1
 #cmakedefine HAVE_STRNCASECMP                1
 
+#cmakedefine WITH_READLINE                   1
+
 #ifndef HAVE_PUTENV
 #ifdef HAVE__PUTENV
 #define putenv _putenv

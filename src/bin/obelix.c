@@ -277,6 +277,19 @@ data_t * _obelix_cmdline(obelix_t *obelix) {
 
 /* ------------------------------------------------------------------------ */
 
+#ifdef WITH_READLINE
+char * _obelix_readstring(char *prompt) {
+
+}
+#else /* WITH_READLINE */
+char * _obelix_readstring(char *prompt) {
+  char buf[1024];
+
+  printf(prompt);
+  return fgets(buf, 1024, stdin);
+}
+#endif /* WITH_READLINE */
+
 data_t * _obelix_interactive(obelix_t *obelix) {
   scriptloader_t *loader;
   char           *line = NULL;
@@ -315,8 +328,7 @@ data_t * _obelix_interactive(obelix_t *obelix) {
     scriptloader_free(loader);
     ret = NULL;
   } else {
-    ret = (data_t *) exception_create(ErrorInternalError,
-                                      "Could not create script loader");
+    ret = data_exception(ErrorInternalError, "Could not create script loader");
   }
   return ret;
 }
@@ -325,10 +337,6 @@ data_t * _obelix_interactive(obelix_t *obelix) {
 
 obelix_t * obelix_initialize(int argc, char **argv) {
   int    opt;
-  int    ix;
-  char  *optarg_copy;
-  char  *ptr;
-  uri_t *uri = NULL;
 
   application_init("obelix", argc, argv);
   debug(obelix, "Initialize obelix kernel");

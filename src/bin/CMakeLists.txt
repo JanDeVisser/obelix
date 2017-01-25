@@ -1,3 +1,4 @@
+
 add_custom_command (
   MAIN_DEPENDENCY ${CMAKE_HOME_DIRECTORY}/share/grammar/obelix.grammar
   OUTPUT oblgrammar.c
@@ -6,14 +7,19 @@ add_custom_command (
 )
 
 add_library(scriptparse SHARED scriptparse.c)
-add_executable(obelix
-  oblgrammar.c
-  loader.c
-  obelix.c
-)
-
 target_link_libraries(scriptparse oblvm oblparser oblgrammar obllexer oblcore ${SYSLIBS})
-target_link_libraries(obelix scriptparse oblipc oblnet oblvm oblparser oblgrammar obllexer oblcore readline ${SYSLIBS})
+
+set(SOURCES oblgrammar.c loader.c obelix.c)
+set(LIBS ${SYSLIBS})
+set(INCLUDES "")
+if(READLINE_FOUND)
+  set(LIBS ${READLINE_LIBRARIES} ${LIBS})
+  set(INCLUDES ${INCLUDES} ${READLINE_INCLUDE_DIRS})
+endif(READLINE_FOUND)
+
+add_executable(obelix ${SOURCES})
+target_link_libraries(obelix scriptparse oblipc oblnet oblvm oblparser oblgrammar obllexer oblcore ${LIBS})
+target_include_directories(obelix PRIVATE ${INCLUDES})
 
 install(TARGETS scriptparse obelix
   ARCHIVE DESTINATION lib
