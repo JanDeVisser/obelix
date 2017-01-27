@@ -24,8 +24,6 @@
 
 #include "libcore.h"
 #include <data.h>
-#include <exception.h>
-#include <str.h>
 #include <user.h>
 
 typedef enum {

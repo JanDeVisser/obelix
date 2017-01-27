@@ -27,9 +27,10 @@ set(obelix_VERSION_MINOR 0)
 set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR})
 set(obelix_DIR ${CMAKE_INSTALL_PREFIX})
 set(obelix_DATADIR ${CMAKE_INSTALL_PREFIX}/share)
-find_package(Threads)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(Threads)
+find_package(Check)
 
 check_include_file(alloca.h HAVE_ALLOCA_H)
 check_include_file(dirent.h HAVE_DIRENT_H)

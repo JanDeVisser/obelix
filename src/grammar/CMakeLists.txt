@@ -18,4 +18,6 @@ install(TARGETS panoramix oblgrammar
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
 
-add_subdirectory(test)
+if(CHECK_FOUND)
+  add_subdirectory(test)
+endif(CHECK_FOUND)

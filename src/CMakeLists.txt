@@ -1,5 +1,9 @@
 add_subdirectory(lib)
-add_subdirectory(test)
+
+if(CHECK_FOUND)
+  add_subdirectory(test)
+endif(CHECK_FOUND)
+
 add_subdirectory(lexer)
 add_subdirectory(grammar)
 add_subdirectory(parser)
