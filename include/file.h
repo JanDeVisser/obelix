@@ -47,8 +47,6 @@ typedef struct _stream {
   data_t    *error;
 } stream_t;
 
-OBLCORE_IMPEXP void         file_init(void);
-
 OBLCORE_IMPEXP stream_t *   stream_init(stream_t *, read_t, write_t);
 OBLCORE_IMPEXP data_t *     stream_error(stream_t *);
 OBLCORE_IMPEXP int          stream_read(stream_t *, char *, int);

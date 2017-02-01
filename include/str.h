@@ -50,10 +50,14 @@ OBLCORE_IMPEXP str_t *         str_copy_nchars(const char *, size_t);
 OBLCORE_IMPEXP str_t *         str_from_data(data_t *);
 OBLCORE_IMPEXP str_t *         str_printf(const char *, ...);
 OBLCORE_IMPEXP str_t *         str_vprintf(const char *, va_list);
-OBLCORE_IMPEXP str_t *         str_deepcopy(const str_t *);
+OBLCORE_IMPEXP str_t *         str_duplicate(const str_t *);
 OBLCORE_IMPEXP str_t *         str_create(size_t);
 OBLCORE_IMPEXP void            str_free(str_t *);
 OBLCORE_IMPEXP char *          str_reassign(str_t *);
+
+static inline str_t * str_deepcopy(const str_t *str) {
+  return str_duplicate(str);
+}
 
 /*
  * Functions returning new strings:

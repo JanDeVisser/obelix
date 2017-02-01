@@ -246,10 +246,19 @@ dictentry_t * _bucket_find_entry(const bucket_t *bucket, const void *key) {
   int          ix;
 
   for (ix = 0; ix < bucket -> size; ix++) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4090)
+#else /* _MSC_VER */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+#endif /* _MSC_VER */
     e = _bucket_get_entry(bucket, ix);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else /* _MSC_VER */
 #pragma GCC diagnostic pop
+#endif /* _MSC_VER */
     if (_dict_cmp_keys(bucket -> dict, e -> entry.key, key) == 0) {
       return e;
     }
@@ -342,10 +351,19 @@ bucket_t * _dict_get_bucket_bykey(const dict_t *dict, const void *key) {
   bucket_t     *ret;
 
   hash = _dict_hash(dict, key);
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4090)
+#else /* _MSC_VER */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+#endif /* _MSC_VER */
   ret = _dict_get_bucket(dict, hash % dict -> num_buckets);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else /* _MSC_VER */
 #pragma GCC diagnostic pop
+#endif /* _MSC_VER */
   return ret;
 }
 
@@ -732,10 +750,19 @@ list_t * dict_items(dict_t *dict) {
 }
 
 dict_t * dict_put_all(dict_t *dict, const dict_t *other) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4090)
+#else /* _MSC_VER */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+#endif /* _MSC_VER */
   return dict_reduce(other, (reduce_t) _dict_put_all_reducer, dict);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else /* _MSC_VER */
 #pragma GCC diagnostic pop
+#endif /* _MSC_VER */
 }
 
 str_t * dict_tostr_custom(dict_t *dict, const char *open, const char *fmt,
@@ -754,11 +781,20 @@ str_t * dict_tostr_custom(dict_t *dict, const char *open, const char *fmt,
   entries = str_create(0);
   ctx[0] = dict;
   ctx[1] = entries;
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4090)
+#else /* _MSC_VER */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+#endif /* _MSC_VER */
   ctx[2] = sep;
   ctx[3] = fmt;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else /* _MSC_VER */
 #pragma GCC diagnostic pop
+#endif /* _MSC_VER */
   dict_reduce_chars(dict, (reduce_t) _dict_entry_formatter, ctx);
   str_append(ret, entries);
   str_append_chars(ret, close);
@@ -790,8 +826,13 @@ char * dict_tostring(dict_t *dict) {
 }
 
 str_t * dict_dump(const dict_t *dict, const char *title) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4090)
+#else /* _MSC_VER */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+#endif /* _MSC_VER */
   bucket_t    *bucket;
   int          len, i, j;
   dictentry_t *entry;
@@ -817,7 +858,11 @@ str_t * dict_dump(const dict_t *dict, const char *title) {
     }
   }
   return ret;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else /* _MSC_VER */
 #pragma GCC diagnostic pop
+#endif /* _MSC_VER */
 }
 
 /* -- D I C T I T E R A T O R --------------------------------------------- */

@@ -29,7 +29,7 @@ static size_t        _capacity = 0;
 static typedescr_t **_descriptors = NULL;
 static interface_t **_interfaces = NULL;
 static int           _next_interface = NextInterface;
-static int           _num_interfaces = 0;
+static size_t        _num_interfaces = 0;
 
 extern int           _data_count;
        int           type_debug = 1;
@@ -302,7 +302,7 @@ kind_t * _kind_inherit_methods(kind_t *kind, kind_t *from) {
 /* -- I N T E R F A C E   F U N C T I O N S ------------------------------- */
 
 int _interface_register(int type, char *name, int numfncs, ...) {
-  int           ix;
+  size_t        ix;
   size_t        cursz;
   size_t        newsz;
   interface_t **new_interfaces;
@@ -331,7 +331,10 @@ int _interface_register(int type, char *name, int numfncs, ...) {
   _interfaces[ix] = iface;
   _kind_init((kind_t *) iface, Interface, type, name);
   va_start(fncs, numfncs);
-  for (ix = 0; ix < numfncs; ix++) {
+  if (numfncs < 0) {
+    numfncs = 0;
+  }
+  for (ix = 0; ix < (size_t) numfncs; ix++) {
     iface -> fncs[ix] = va_arg(fncs, int);
   }
   va_end(fncs);
@@ -340,7 +343,7 @@ int _interface_register(int type, char *name, int numfncs, ...) {
 }
 
 interface_t * interface_get(int type) {
-  int          ifix = type - FirstInterface - 1;
+  size_t       ifix = type - FirstInterface - 1;
   interface_t *ret = NULL;
 
   if (!_interfaces) {
@@ -368,7 +371,7 @@ interface_t * interface_get(int type) {
 }
 
 interface_t * interface_get_byname(char *name) {
-  int          ifix;
+  size_t ifix;
 
   if (!_interfaces) {
     typedescr_init();
@@ -383,7 +386,7 @@ interface_t * interface_get_byname(char *name) {
 
 data_t * _interface_resolve(interface_t *iface, char *name) {
   datalist_t  *list;
-  int          ix;
+  size_t       ix;
   typedescr_t *type;
 
   if (!strcmp(name, "implementations")) {
@@ -488,7 +491,7 @@ int vtable_implements(vtable_t *vtable, int type) {
 
 data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
   datalist_t  *list;
-  int          ix;
+  size_t       ix;
   interface_t *iface;
 
   if (!strcmp(name, "inherits")) {
@@ -559,7 +562,7 @@ int _typedescr_check_if_implements(typedescr_t *descr, interface_t *iface) {
 }
 
 int * _typedescr_get_all_interfaces(typedescr_t *descr) {
-  int ix;
+  size_t ix;
 
   if (!descr -> implements || (_num_interfaces > descr -> implements_sz)) {
     free(descr -> implements);
@@ -681,9 +684,9 @@ int _typedescr_register(int type, char *type_name, vtable_t *vtable, methoddescr
     _numtypes = (size_t) (type + 1);
     debug(type, "Giving type '%s' ID %d", type_name, type);
   }
-  if (type >= _capacity) {
+  if ((size_t) type >= _capacity) {
     for (newcap = (_capacity) ? _capacity * 2 : (size_t) Dynamic;
-         newcap < type;
+         newcap < (size_t) type;
          newcap *= 2);
     cursz = _capacity * sizeof(typedescr_t *);
     newsz = newcap * sizeof(typedescr_t *);
@@ -742,7 +745,7 @@ typedescr_t * typedescr_get(int datatype) {
   if (!_descriptors) {
     typedescr_init();
   }
-  if ((datatype >= 0) && (datatype < _numtypes)) {
+  if ((datatype >= 0) && (datatype < (int) _numtypes)) {
     ret = _descriptors[datatype];
   }
   if (!ret) {
@@ -758,7 +761,7 @@ typedescr_t * typedescr_get(int datatype) {
 
 typedescr_t * typedescr_get_byname(char *name) {
   typedescr_t *ret = NULL;
-  int          ix;
+  size_t       ix;
 
   if (!_descriptors) {
     typedescr_init();
@@ -780,7 +783,7 @@ void typedescr_dump_vtable(typedescr_t *type) {
 }
 
 void typedescr_count(void) {
-  int ix;
+  size_t ix;
 
   _debug("Atom count");
   _debug("-------------------------------------------------------");
@@ -857,7 +860,7 @@ int typedescr_is(typedescr_t *descr, int type) {
 }
 
 methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
-  if (!descr -> implements || (_num_interfaces > descr -> implements_sz)) {
+  if (!descr -> implements || ((int) _num_interfaces > descr -> implements_sz)) {
     _typedescr_get_all_interfaces(descr);
   }
   return kind_get_method((kind_t *) descr, name);

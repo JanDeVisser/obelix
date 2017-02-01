@@ -186,6 +186,7 @@ stream_t * _stream_new(stream_t *stream, va_list args) {
   stream -> _eof = 0;
   stream -> _errno = 0;
   stream -> error = NULL;
+  return stream;
 }
 
 void _stream_free(stream_t *stream) {
@@ -372,9 +373,10 @@ int stream_write(stream_t *stream, char *buf, int num) {
 
 char * stream_readline(stream_t *stream) {
   char   *buf;
-  int     num = 0;
+  size_t  num = 0;
   int     ch;
-  int     cursz = 40;
+  size_t  cursz = 40;
+  size_t  newsz;
   char   *ptr;
 
   buf = stralloc(cursz);
@@ -388,8 +390,9 @@ char * stream_readline(stream_t *stream) {
     } else {
       buf[num++] = ch;
       if (num >= cursz) {
-        buf = resize_block(buf, cursz * 2, cursz);
-        cursz *= 1.6;
+        newsz = (size_t)(cursz * 1.6);
+        buf = resize_block(buf, newsz, cursz);
+        cursz = newsz;
       }
     }
   } while (ch > 0);
@@ -636,8 +639,6 @@ data_t * _file_resolve(file_t *file, char *name) {
 /* -- F I L E _ T  P U B L I C  F U N C T I O N S ------------------------- */
 
 file_t * file_create(int fh) {
-  file_t *ret;
-
   file_init();
   return (file_t *) data_create(File, fh);
 }

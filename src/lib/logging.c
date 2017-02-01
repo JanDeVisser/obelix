@@ -18,21 +18,17 @@
  */
 
 #include <errno.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
-typedef struct _log_timestamp {
-  struct timespec start;
-  struct timespec end;
-} log_timestamp_t;
-
-#define __LOGGING_C__
 #include "libcore.h"
 #include <dict.h>
-#include <logging.h>
+#include <threadonce.h>
+#include <mutex.h>
 #include <typedescr.h>
+#include <timer.h>
+#include <logging.h>
 
 typedef struct _logcategory {
   char        *name;
@@ -76,10 +72,10 @@ static type_t _type_logcategory = {
   .cmp      = (cmp_t) _logcategory_cmp
 };
 
-static pthread_once_t  _logging_once = PTHREAD_ONCE_INIT;
-static pthread_mutex_t _logging_mutex;
+THREAD_ONCE(_logging_once);
+static mutex_t *_logging_mutex;
 
-#define _logging_init() pthread_once(&_logging_once, __logging_init)
+#define _logging_init() ONCE(_logging_once, __logging_init)
 
 /* ------------------------------------------------------------------------ */
 
@@ -104,9 +100,9 @@ logcategory_t * _logcategory_create(char *name, int *flag) {
   logcategory_t *ret;
 
   _logging_init();
-  pthread_mutex_lock(&_logging_mutex);
+  mutex_lock(_logging_mutex);
   ret = _logcategory_create_nolock(name, flag);
-  pthread_mutex_unlock(&_logging_mutex);
+  mutex_unlock(_logging_mutex);
   return ret;
 }
 
@@ -173,9 +169,9 @@ void _logging_set_nolock(char *category, int value) {
 
 void _logging_set(char *category, int value) {
   _logging_init();
-  pthread_mutex_lock(&_logging_mutex);
+  mutex_lock(_logging_mutex);
   _logging_set_nolock(category, value);
-  pthread_mutex_unlock(&_logging_mutex);
+  mutex_unlock(_logging_mutex);
 }
 
 char * _log_level_str(log_level_t lvl) {
@@ -194,17 +190,13 @@ void _logging_open_logfile(void) {
 }
 
 void __logging_init(void) {
-  char                *cats;
-  char                *ptr;
-  char                *sepptr;
-  pthread_mutexattr_t  attr;
-  char                *lvl;
+  char *cats;
+  char *ptr;
+  char *sepptr;
+  char *lvl;
 
   // fprintf(stderr, "Initializing logging...\n");
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(&_logging_mutex, &attr);
-  pthread_mutexattr_destroy(&attr);
+  _logging_mutex = mutex_create();
 
   _categories = strvoid_dict_create();
   dict_set_data_type(_categories, &_type_logcategory);
@@ -243,7 +235,7 @@ OBLCORE_IMPEXP void logging_register_category(char *name, int *flag) {
   logcategory_t *cat;
 
   _logging_init();
-  pthread_mutex_lock(&_logging_mutex);
+  mutex_lock(_logging_mutex);
   if ((cat = dict_get(_categories, name))) {
     cat -> flag = flag;
     // fprintf(stderr, "logging_register_category('%s') - Turning flag %s\n",
@@ -255,16 +247,16 @@ OBLCORE_IMPEXP void logging_register_category(char *name, int *flag) {
     // fprintf(stderr, "logging_register_category('%s') - Creating category, setting flag %s\n",
     //   name, (cat -> enabled) ? "ON" : "OFF");
   }
-  pthread_mutex_unlock(&_logging_mutex);
+  mutex_unlock(_logging_mutex);
 }
 
 OBLCORE_IMPEXP void logging_reset(void) {
   int value = 0;
 
   _logging_init();
-  pthread_mutex_lock(&_logging_mutex);
+  mutex_lock(_logging_mutex);
   dict_reduce_values(_categories, (reduce_t) _logging_set_reducer, &value);
-  pthread_mutex_unlock(&_logging_mutex);
+  mutex_unlock(_logging_mutex);
 }
 
 OBLCORE_IMPEXP void logging_enable(char *category) {
@@ -327,13 +319,13 @@ OBLCORE_IMPEXP int logging_status(char *category) {
   logcategory_t *cat;
 
   _logging_init();
-  pthread_mutex_lock(&_logging_mutex);
+  mutex_lock(_logging_mutex);
   cat = dict_get(_categories, category);
   if (!cat) {
     cat = _logcategory_create(category, NULL);
     cat -> enabled = FALSE;
   }
-  pthread_mutex_unlock(&_logging_mutex);
+  mutex_unlock(_logging_mutex);
   return cat -> enabled;
 }
 
@@ -358,38 +350,28 @@ OBLCORE_IMPEXP int logging_set_level(char *log_level) {
 
 OBLCORE_IMPEXP int logging_set_file(char *logfile) {
   _logging_init();
-  pthread_mutex_lock(&_logging_mutex);
+  mutex_lock(_logging_mutex);
   if (_destination && (_destination != stderr)) {
     fclose(_destination);
   }
   _destination = NULL;
   free(_logfile);
   _logfile = (_logfile) ? strdup(logfile) : NULL;
-  pthread_mutex_unlock(&_logging_mutex);
+  mutex_unlock(_logging_mutex);
   return 0;
 }
 
 log_timestamp_t * _log_timestamp_start(void) {
-  log_timestamp_t *ret = NEW(log_timestamp_t);
-
-  clock_gettime(CLOCK_MONOTONIC, &ret -> start);
-  return ret;
+  return (log_timestamp_t *) timer_start();
 }
 
 void _log_timestamp_end(log_timestamp_t *ts, char *file, int line, const char *caller, const char *msg, ...) {
   va_list  args;
-  long     us;
-  time_t   sec;
+  timer_t *t;
 
-  clock_gettime(CLOCK_MONOTONIC, &ts -> end);
-  us = (ts -> end.tv_nsec - ts -> start.tv_nsec) / 1000L;
-  sec = ts -> end.tv_sec - ts -> start.tv_sec;
-  if (us < 0) {
-    sec--;
-    us = 1000000L - us;
-  }
+  t = timer_end((timer_t *) ts);
   va_start(args, msg);
   _vlogmsg_no_nl(LogLevelDebug, file, line, caller, msg, args);
-  fprintf(_destination, "%ld.%06ld sec\n", sec, us);
+  fprintf(_destination, "%ld.%06ld sec\n", t -> seconds, t -> microseconds);
   va_end(args);
 }

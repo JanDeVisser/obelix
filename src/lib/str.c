@@ -36,8 +36,9 @@ extern void         str_init(void);
 static str_t *      _str_initialize(void);
 static str_t *      _str_expand(str_t *, size_t);
 static reduce_ctx * _str_join_reducer(char *, reduce_ctx *);
-static int          _str_readinto(str_t *, data_t *, int, int);
-static int          _str_read_from_stream(str_t *, void *, read_t, int, int);
+static int          _str_readinto(str_t *, data_t *, size_t, size_t);
+static size_t       _str_read_from_stream(str_t *, void *, read_t, size_t, size_t);
+static str_t *      _str_strip_quotes(str_t *);
 
 static data_t *     _str_create(int, va_list);
 static void         _str_free(str_t *);
@@ -131,9 +132,9 @@ void _str_free(str_t *str) {
 }
 
 data_t * _str_resolve(str_t *str, char *slice) {
-  size_t sz = str_len(str);
-  long   ix;
-  char   buf[2];
+  int  sz = (int) str_len(str);
+  int  ix;
+  char buf[2];
 
   if (!strtoint(slice, &ix)) {
     if ((ix >= sz) || (ix < -sz)) {
@@ -172,10 +173,9 @@ static char * _escaped_chars = "\"\\\b\f\n\r\t";
 static char * _escape_codes  = "\"\\bfnrt";
 
 str_t * _str_parse(char *str) {
-  char   buf[strlen(str)];
+  char  *buf = stralloc(strlen(str));
   char  *ptr;
   char  *escptr;
-  str_t *ret;
 
   strcpy(buf, str);
   for (ptr = buf; *ptr; ptr++) {
@@ -186,8 +186,7 @@ str_t * _str_parse(char *str) {
       }
     }
   }
-  ret = str_copy_chars(buf);
-  return ret;
+  return str_adopt(buf);
 }
 
 str_t * _str_serialize(str_t *str) {
@@ -203,21 +202,20 @@ str_t * _str_serialize(str_t *str) {
   return ret;
 }
 
-char * _str_strip_quotes(char *buf) {
-  size_t  len = strlen(buf);
-  char   *ret = buf;
+str_t * _str_strip_quotes(str_t *str) {
+  str_t *ret;
 
-  if ((buf[0] == '"') && (buf[len - 1] == '"')) {
-    buf[len - 1] = 0;
-    ret++;
+  if (str_len(str) && (str_at(str, 0) == '"') && (str_at(str, -1) == '"')) {
+    ret = str_duplicate(str);
+    str_chop(str, 1);
+    str_lchop(str, 1);
+  } else {
+    ret = str_copy(str);
   }
   return ret;
 }
 
 data_t * _str_deserialize(str_t *str) {
-  char  buf[str_len(str) + 1];
-  char *start;
-
   if (!strcmp(str -> buffer, "null")) {
     return data_null();
   } else if (!strcmp(str -> buffer, "true")) {
@@ -225,30 +223,24 @@ data_t * _str_deserialize(str_t *str) {
   } else if (!strcmp(str -> buffer, "false")) {
     return data_true();
   } else {
-    strcpy(buf, str -> buffer);
-    start = _str_strip_quotes(buf);
-    if (buf != start) {
-      return (data_t *) str_copy_chars(start);
-    } else {
-      return data_copy((data_t *) str);
-    }
+    return (data_t *) _str_strip_quotes(str);
   }
 }
 
 char * _str_encode(str_t *str) {
-  char         buf[str_len(str) + 1];
+  char        *buf;
   int          len = 0;
   char        *ptr;
   char        *encoded;
   char        *encptr;
   char        *escptr;
 
-  strcpy(buf, str_chars(str));
-  for (ptr = buf; *ptr; ptr++) {
+  buf = str_chars(str);
+  for (ptr = str -> buffer; *ptr; ptr++) {
     len += (strchr(_escaped_chars, *ptr)) ? 2 : 1;
   }
   encoded = encptr = stralloc(len);
-  for (ptr = buf; *ptr; ptr++) {
+  for (ptr = str -> buffer; *ptr; ptr++) {
     if ((escptr = strchr(_escaped_chars, *ptr)) &&
         ((encoded == escptr) || (*(ptr - 1) != '\\')) &&
         ((*ptr != '\"') || ((ptr != buf) && *(ptr + 1)))) {
@@ -289,7 +281,9 @@ str_t * _str_expand(str_t *str, size_t targetlen) {
     targetlen = str -> bufsize;
   }
   if (str -> bufsize < (targetlen + 1)) {
-    for (newsize = (size_t)(str -> bufsize * 1.6); newsize < (targetlen + 1); newsize *= 1.6);
+    for (newsize = (size_t)(str -> bufsize * 1.6);
+         newsize < (targetlen + 1);
+         newsize = (size_t)(newsize * 1.6));
     oldbuf = str -> buffer;
     str -> buffer = realloc(str -> buffer, newsize);
     if (str -> buffer) {
@@ -314,7 +308,7 @@ reduce_ctx * _str_join_reducer(char *elem, reduce_ctx *ctx) {
   return ctx;
 }
 
-int _str_read_from_stream(str_t *str, void *stream, read_t reader, int pos, int num) {
+size_t _str_read_from_stream(str_t *str, void *stream, read_t reader, size_t pos, size_t num) {
   size_t ret;
 
   if (pos >= str -> bufsize) {
@@ -324,20 +318,20 @@ int _str_read_from_stream(str_t *str, void *stream, read_t reader, int pos, int 
     num = str -> bufsize - pos;
   }
   ret = reader(stream, str -> buffer + pos, num);
-  if ((int) ret < 0) {
+  if (ret < 0) {
     return -1;
   } else {
-    if (pos + ret < str -> bufsize) {
+    if ((pos + ret) < str -> bufsize) {
       str -> buffer[pos + ret] = 0;
     }
     if (pos <= str -> len) {
       str -> len += ret;
     }
-    return (int) ret;
+    return ret;
   }
 }
 
-int _str_readinto(str_t *str, data_t *rdr, int pos, int num) {
+int _str_readinto(str_t *str, data_t *rdr, size_t pos, size_t num) {
   typedescr_t *type = data_typedescr(rdr);
   read_t       fnc;
 
@@ -431,7 +425,7 @@ str_t * str_from_data(data_t *data) {
     : str_copy_chars(data_tostring(data));
 }
 
-str_t * str_deepcopy(const str_t *str) {
+str_t * str_duplicate(const str_t *str) {
   str_t *ret;
   char *b;
 
@@ -804,11 +798,20 @@ str_t * _str_join(const char *glue, const void *collection, obj_reduce_t reducer
   reduce_ctx  ctx;
 
   ret = str_create(0);
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4090)
+#else /* _MSC_VER */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+#endif /* _MSC_VER */
   reduce_ctx_initialize(&ctx, glue, ret, NULL);
   reducer(collection, (reduce_t) _str_join_reducer, &ctx);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else /* _MSC_VER */
 #pragma GCC diagnostic pop
+#endif /* _MSC_VER */
   if (str_len(ret)) {
     str_chop(ret, strlen(glue));
   }
@@ -918,10 +921,19 @@ struct _placeholder {
 str_t * str_vformatf(const char *fmt, va_list args) {
   array_t             *arr = NULL;
   arguments_t         *arguments;
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4090)
+#else /* _MSC_VER */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+#endif /* _MSC_VER */
   char                *f = fmt;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else /* _MSC_VER */
 #pragma GCC diagnostic pop
+#endif /* _MSC_VER */
   char                *ptr;
   int                  ix;
   size_t               last;

@@ -38,11 +38,9 @@ typedef enum _log_level {
   LogLevelFatal
 } log_level_t;
 
-#ifndef __LOGGING_C__
-typedef void log_timestamp_t;
-#endif
-
 extern int core_debug;
+
+typedef void log_timestamp_t;
 
 OBLCORE_IMPEXP void   logging_init(void);
 OBLCORE_IMPEXP void   logging_register_category(char *, int *);
@@ -61,13 +59,13 @@ OBLCORE_IMPEXP log_timestamp_t * _log_timestamp_start(void);
 OBLCORE_IMPEXP void              _log_timestamp_end(log_timestamp_t *, char *, int, const char *, const char *, ...);
 
 #ifndef NDEBUG
+#define log_timestamp_start(module)  ((module ## _debug) ? _log_timestamp_start() : NULL)
 #ifndef _MSC_VER
 #define _debug(fmt, args...)         _logmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, ## args)
 #define _vdebug(fmt, args)           _vlogmsg(LogLevelDebug, __FILE__, __LINE__, __func__, fmt, args)
 #define debug(module, fmt, args...)  if (module ## _debug) { _debug(fmt, ## args); }
 #define mdebug(module, fmt, args...) debug(module, fmt, ##args)
 #define vdebug(module, fmt, args...) if (module ## _debug) { _vdebug(fmt, args); }
-#define log_timestamp_start(module)                  ((module ## _debug) ? _log_timestamp_start() : NULL)
 #define log_timestamp_end(module, ts, fmt, args...)  if (module ## _debug) { _log_timestamp_end(ts, __FILE__, __LINE__, __func__, fmt, ## args); }
 #else /* _MSC_VER */
 #define _debug(fmt, ...)             _logmsg(LogLevelDebug, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
@@ -75,26 +73,23 @@ OBLCORE_IMPEXP void              _log_timestamp_end(log_timestamp_t *, char *, i
 #define debug(module, fmt, ...)      if (module ## _debug) { _debug(fmt, __VA_ARGS__); }
 #define mdebug(module, fmt, ...)     debug(module, fmt, __VA_ARGS__)
 #define vdebug(module, fmt, args)    if (module ## _debug) { _debug(fmt, args); }
-#define log_timestamp_start(module)                  ((module ## _debug) ? _log_timestamp_start() : NULL)
-#define log_timestamp_end(module, ts, fmt, args...)  if (module ## _debug) { _log_timestamp_end(ts, __FILE__, __LINE__, __func__, fmt, __VA_ARGS__); }
+#define log_timestamp_end(module, ts, fmt, ...)  if (module ## _debug) { _log_timestamp_end(ts, __FILE__, __LINE__, __func__, fmt, __VA_ARGS__); }
 #endif /* _MSC_VER */
 #else /* NDEBUG */
+#define log_timestamp_start(module)              (NULL)
+#define log_timestamp_end(module, ts, fmt, ...)
 #ifndef _MSC_VER
 #define _debug(fmt, args...)
 #define _vdebug(fmt, args)
 #define debug(module, fmt, args...)
 #define mdebug(module, fmt, args...)
 #define vdebug(module, fmt, args...)
-#define log_timestamp_start(module)                   (NULL)
-#define log_timestamp_end(module, ts, fmt, args...)
 #else /* _MSC_VER */
 #define _debug(fmt, ...)
 #define _vdebug(fmt, args)
 #define debug(module, fmt, ...)
 #define mdebug(module, fmt, ...)
 #define vdebug(module, fmt, args)
-#define log_timestamp_start(module)                   (NULL)
-#define log_timestamp_end(module, ts, fmt, ...)
 #endif /* _MSC_VER */
 #endif /* NDEBUG */
 

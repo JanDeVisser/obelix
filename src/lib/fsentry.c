@@ -237,7 +237,7 @@ fsentry_iter_t * _fsentry_iter_create(fsentry_t *dir) {
   DIR            *d;
 #elif defined(HAVE__FINDFIRST)
   intptr_t            d;
-  struct _finddata_t *attrib;
+  struct _finddata_t  attrib;
 #endif
 
 #ifdef HAVE_DIRENT_H
@@ -249,10 +249,13 @@ fsentry_iter_t * _fsentry_iter_create(fsentry_t *dir) {
     ret = data_new(FSEntryIter, fsentry_iter_t);
     ret -> dir = dir;
     ret -> dirptr = d;
-#if defined(HAVE__FINDFIRST) && !defined(HAVE_DIRENT_H)
-    memcpy(ret -> entryptr, &attrib, sizeof(struct _filedata));
-#endif
+#ifdef HAVE_DIRENT_H
     ret = _fsentry_iter_readnext(ret);
+#elf defined(HAVE__FINDFIRST)
+    memcpy(&ret -> entry, &attrib, sizeof(struct _finddata_t));
+  } else {
+    ret -> dirptr = 0;
+#endif
   }
   return ret;
 }
@@ -260,7 +263,11 @@ fsentry_iter_t * _fsentry_iter_create(fsentry_t *dir) {
 void _fsentry_iter_free(fsentry_iter_t *iter) {
   if (iter) {
     if (iter -> dirptr) {
+#ifdef HAVE_DIRENT_H
       closedir(iter -> dirptr);
+#elif defined(HAVE__FINDFIRST)
+      _findclose(iter -> dirptr);
+#endif
     }
     free(iter);
   }
@@ -271,17 +278,28 @@ char * _fsentry_iter_tostring(fsentry_iter_t *iter) {
 }
 
 data_t * _fsentry_iter_has_next(fsentry_iter_t *iter) {
-  return int_as_bool(iter -> entryptr != NULL);
+#ifdef HAVE_DIRENT_H
+  return int_as_bool(iter -> dirptr != NULL);
+#elif defined(HAVE__FINDFIRST)
+  return int_as_bool(iter -> dirptr != 0);
+#endif
 }
 
 data_t * _fsentry_iter_next(fsentry_iter_t *iter) {
-  if (iter -> entryptr) {
-    return data_create(FSEntry,
-                       fsentry_getentry(iter -> dir,
-                                        iter -> entryptr -> d_name));
+  data_t *ret;
+  if (iter -> dirptr) {
+    ret = data_create(FSEntry,
+                      fsentry_getentry(iter -> dir,
+#ifdef HAVE_DIRENT_H
+                                       iter -> entryptr -> d_name));
+#elif defined(HAVE__FINDFIRST)
+                                       iter -> entry.name));
+#endif
+    _fsentry_iter_readnext(iter);
   } else {
-    return data_exception(ErrorExhausted, "Iterator exhausted");
+    ret = data_exception(ErrorExhausted, "Iterator exhausted");
   }
+  return ret;
 }
 
 /* -- F S E N T R Y   D A T A   T Y P E   M E T H O D S ------------------- */

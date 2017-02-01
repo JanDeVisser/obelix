@@ -24,9 +24,12 @@
 #include <str.h>
 #ifdef HAVE_REGEX_H
 #include <regex.h>
-#else 
-#include <gnu/regex.h>
-#endif /* HAVE_REGEX_H */
+#elif defined(HAVE_PCRE2_H)
+#define PCRE2_STATIC /* FIXME */
+#include <pcre2posix.h>
+#else
+#error No regular expression implementation available
+#endif /* HAVE_REGEX_H, HAVE_PCRE2_H*/
 #include <stdarg.h>
 
 #ifdef  __cplusplus

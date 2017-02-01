@@ -24,15 +24,14 @@
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif /* HAVE_DLFCN_H */
-#ifdef HAVE_PTHREAD_H
-#include <pthread.h>
-#endif /* HAVE_PTHREAD_H */
 #include <string.h>
 #ifdef HAVE_WINDOWS_H
 #include <windows.h>
 #endif /* HAVE_WINDOWS_H */
 
 #include <resolve.h>
+#include <thread.h>
+#include <threadonce.h>
 
 #define OBL_INIT    "_obl_init"
 
@@ -58,10 +57,12 @@ static inline void        __resolve_init(void);
 static resolve_t *        _resolve_open(resolve_t *, char *);
 
 static resolve_t *        _singleton = NULL;
-static pthread_once_t     _resolve_once = PTHREAD_ONCE_INIT;
-static pthread_mutex_t    _resolve_mutex;
 
-#define _resolve_init() pthread_once(&_resolve_once, __resolve_init)
+THREAD_ONCE(_resolve_once);
+#define _resolve_init() ONCE(_resolve_once, __resolve_init)
+
+static mutex_t *_resolve_mutex;
+
 
 /* ------------------------------------------------------------------------ */
 
@@ -328,7 +329,7 @@ void __resolve_init(void) {
   if (!_resolve_open(_singleton, NULL)) {
     error("Could not load main program image");
   }
-  pthread_mutex_init(&_resolve_mutex, NULL);
+  _resolve_mutex = mutex_create();
   atexit(resolve_free);
 }
 
@@ -356,13 +357,13 @@ resolve_t * _resolve_open(resolve_t *resolve, char *image) {
   resolve_t        *ret = NULL;
   resolve_handle_t *handle;
 
-  pthread_mutex_lock(&_resolve_mutex);
+  mutex_lock(_resolve_mutex);
   if ((handle = _resolve_handle_create(image))) {
     handle -> next = resolve -> images;
     resolve -> images = handle;
     ret = resolve;
   }
-  pthread_mutex_unlock(&_resolve_mutex);
+  mutex_unlock(_resolve_mutex);
   return ret;
 }
 

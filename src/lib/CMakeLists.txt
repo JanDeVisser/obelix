@@ -24,25 +24,30 @@ set(SOURCES
     nvp.c
     pointer.c
     range.c
-    re.c
     set.c
     resolve.c
     str.c
     strutils.c
     thread.c
+    threadonce.c
+    timer.c
     typedescr.c
     user.c
 )
 
-if (NOT HAVE_REGEX_H)
-  set(SOURCES ${SOURCES} regex.c)
-endif (NOT HAVE_REGEX_H)
+if (WITH_RE)
+  set(SOURCES ${SOURCES} re.c)
+endif (WITH_RE)
 
 add_library(oblcore SHARED ${SOURCES})
-
-if (NOT HAVE_REGEX_H)
-  target_compile_definitions(oblcore PRIVATE BUILD_REGEX_DLL;HAVE_CONFIG_H)
-endif (NOT HAVE_REGEX_H)
+if(PCRE2_FOUND)
+  target_link_libraries(oblcore PUBLIC ${PCRE2_LIBRARIES})
+  target_include_directories(oblcore PRIVATE ${PCRE2_INCLUDE_DIR})
+  # link_directories(oblcore ${PCRE2_LIBRARY_DIR})
+endif(PCRE2_FOUND)
+if(HAVE_GETUSERNAME)
+  target_link_libraries(oblcore PUBLIC "secur32")
+endif(HAVE_GETUSERNAME)
 
 install(TARGETS oblcore
         ARCHIVE DESTINATION lib

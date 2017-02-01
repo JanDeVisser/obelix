@@ -43,7 +43,9 @@
 #cmakedefine HAVE_LOCALE_H                   1
 #cmakedefine HAVE_MALLOC_H                   1
 #cmakedefine HAVE_NETDB_H                    1
+#cmakedefine HAVE_PCRE2_H                    1
 #cmakedefine HAVE_PTHREAD_H                  1
+#cmakedefine HAVE_PWD_H                      1
 #cmakedefine HAVE_REGEX_H                    1
 #cmakedefine HAVE_SIGNAL_H                   1
 #cmakedefine HAVE_STDBOOL_H                  1
@@ -51,6 +53,7 @@
 #cmakedefine HAVE_STRINGS_H                  1
 #cmakedefine HAVE_SYS_SOCKET_H               1
 #cmakedefine HAVE_SYS_UTSNAME_H              1
+#cmakedefine HAVE_TIME_H                     1
 #cmakedefine HAVE_UNISTD_H                   1
 #cmakedefine HAVE_WCHAR_H                    1
 #cmakedefine HAVE_WCTYPE_H                   1
@@ -73,6 +76,7 @@
 #cmakedefine HAVE_ASPRINTF                   1
 #cmakedefine HAVE_CREATESEMAPHORE            1
 #cmakedefine HAVE_CREATETHREAD               1
+#cmakedefine HAVE_CLOCK_GETTIME              1
 #cmakedefine HAVE_DTOA                       1
 #cmakedefine HAVE__DTOA                      1
 #cmakedefine HAVE__FINDFIRST                 1
@@ -80,9 +84,13 @@
 #cmakedefine HAVE_FLUSHFILEBUFFERS           1
 #cmakedefine HAVE_GETLINE                    1
 #cmakedefine HAVE_GETHOSTNAME                1
+#cmakedefine HAVE_GETPWNAM                   1
 #cmakedefine HAVE_GETSYSTEMINFO              1
+#cmakedefine HAVE_GETUSERNAME                1
 #cmakedefine HAVE_GETVERSIONEX               1
 #cmakedefine HAVE_INITIALIZECRITICALSECTION  1
+#cmakedefine HAVE_INITONCEEXECUTEONCE        1
+#cmakedefine HAVE_QUERYPERFORMANCECOUNTER    1
 #cmakedefine HAVE_ITOA                       1
 #cmakedefine HAVE__ITOA                      1
 #cmakedefine HAVE_KILL                       1
@@ -92,6 +100,7 @@
 #cmakedefine HAVE_PTHREAD_YIELD              1
 #cmakedefine HAVE_PUTENV                     1
 #cmakedefine HAVE__PUTENV                    1
+#cmakedefine HAVE_SYSCONF                    1
 #cmakedefine HAVE_VASPRINTF                  1
 #cmakedefine HAVE_WCRTOMB                    1
 #cmakedefine HAVE_WCSCOLL                    1
@@ -145,9 +154,11 @@
 #endif /* __WIN32__ */
 
 #ifdef __GNUC__
-#define _unused_ __attribute__((unused))
+#define _unused_   __attribute__((unused))
+#define _noreturn_ __attribute__ ((noreturn))
 #else
 #define _unused_
+#define _noreturn_
 #endif
 
 #define __PLUGIN__ __DLL_EXPORT__ _unused_

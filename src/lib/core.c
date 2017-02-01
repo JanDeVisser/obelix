@@ -24,8 +24,12 @@
 #include "libcore.h"
 #include <data.h>
 
-static void            _outofmemory(const char *, size_t) __attribute__ ((noreturn));
+static void            _outofmemory(const char *, size_t) _noreturn_;
+#ifndef _MSC_VER
 #define outofmemory(i) _outofmemory(__func__, (i))
+#else
+#define outofmemory(i) _outofmemory(__FUNCTION__, (i))
+#endif
 
 static type_t _type_str = {
   .hash     = (hash_t) strhash,
@@ -141,7 +145,7 @@ int oblcore_asprintf(char **strp, const char *fmt, ...) {
 #ifndef HAVE_VASPRINTF
 int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
   va_list  copy;
-  int      ret;
+  size_t   ret;
   char    *str;
 
   va_copy(copy, args);
@@ -149,7 +153,7 @@ int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
   va_end(copy);
   str = stralloc(ret);
   if (!str) {
-    _outofmemory(ret);
+    outofmemory(ret);
   } else {
     vsnprintf(str, ret, fmt, args);
     *strp = str;

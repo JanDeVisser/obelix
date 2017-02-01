@@ -138,7 +138,7 @@ array_t * array_copy(array_t *src) {
  * @return A new array with the components of the string as elements.
  */
 array_t * array_split(const char *str, const char *sep) {
-  char    *ptr;
+  const char *ptr;
   char    *sepptr;
   char    *c;
   array_t *ret;
@@ -149,19 +149,19 @@ array_t * array_split(const char *str, const char *sep) {
   if (!str || !str[0]) {
     return str_array_create(0);
   }
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+//#pragma GCC diagnostic push
+//#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
   ptr = str;
-#pragma GCC diagnostic pop
+//#pragma GCC diagnostic pop
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     count++;
     ptr = sepptr + seplen;
   }
   ret = str_array_create(count);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+//#pragma GCC diagnostic push
+//#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
   ptr = str;
-#pragma GCC diagnostic pop
+//#pragma GCC diagnostic pop
   for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
     len = sepptr - ptr;
     c = stralloc(len);
@@ -252,10 +252,19 @@ unsigned int array_hash(const array_t *array) {
     ctx = NEW(reduce_ctx);
     ctx -> fnc = (void_t) array -> type.hash;
     ctx -> longdata = 0;
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4090)
+#else /* _MSC_VER */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
+#endif /* _MSC_VER */
     array_reduce(array, (reduce_t) collection_hash_reducer, ctx);
+#ifdef _MSC_VER
+#pragma warning(pop)
+#else /* _MSC_VER */
 #pragma GCC diagnostic pop
+#endif /* _MSC_VER */
     hash = (unsigned int) ctx -> longdata;
     free(ctx);
   }

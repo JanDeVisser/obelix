@@ -165,7 +165,7 @@ typedef struct _typedescr {
   int       promote_to;
   int      *ancestors;
   int      *implements;
-  int       implements_sz;
+  size_t    implements_sz;
   int       count;
   int      *inherits;
 } typedescr_t;

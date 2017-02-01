@@ -27,6 +27,7 @@
 #endif /* HAVE_STDINT_H */
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <logging.h>
 
@@ -156,7 +157,11 @@ OBLCORE_IMPEXP type_t          *type_int;
 
 #define new(i)                    (_new((i)))
 #define stralloc(n)               ((char *) _new((n) + 1))
+#ifndef _MSC_VER
 #define asprintf(p, fmt, args...) oblcore_asprintf(p, fmt, ##args)
+#else
+#define asprintf(p, fmt, ...) oblcore_asprintf(p, fmt, __VA_ARGS__)
+#endif
 #define vasprintf(p, fmt, args)   oblcore_vasprintf(p, fmt, args)
 
 #define type_copy(d, s) (memcpy((d), (s), sizeof(type_t)))

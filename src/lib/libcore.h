@@ -23,8 +23,9 @@
 
 #include <oblconfig.h>
 
-#define LIBCORE_IMPLEMENTING
+#ifndef OBLCORE_IMPEXP
 #define OBLCORE_IMPEXP       __DLL_EXPORT__
+#endif
 
 #include <core.h>
 

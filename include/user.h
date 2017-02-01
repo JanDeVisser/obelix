@@ -17,7 +17,11 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_GETPWNAM
 #include <pwd.h>
+#else HAVE_GETUSERNAME
+#include <windows.h>
+#endif
 #include <sys/types.h>
 
 #include <data.h>
@@ -27,7 +31,11 @@
 
 typedef struct _user {
   data_t  _d;
+#ifdef HAVE_GETPWNAM
   uid_t   uid;
+#elif defined(HAVE_GETUSERNAME)
+  PSID    sid;
+#endif
   char   *name;
   char   *fullname;
   char   *home_dir;

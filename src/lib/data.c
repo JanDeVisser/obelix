@@ -222,7 +222,7 @@ data_t * data_parse(int type, char *str) {
 }
 
 data_t * data_decode(char *encoded) {
-  char         copy[strlen(encoded)];
+  char        *copy = NULL;
   char        *ptr;
   char        *t;
   typedescr_t *type;
@@ -230,7 +230,7 @@ data_t * data_decode(char *encoded) {
 
   data_init();
   if (encoded && encoded[0]) {
-    strcpy(copy, encoded);
+    copy = strdup(encoded);
     debug(data, "Decoding '%s'", copy);
     ptr = strchr(copy, ':');
     if (ptr) {
@@ -251,6 +251,7 @@ data_t * data_decode(char *encoded) {
     if (!ret) {
       ret = data_parse(typetype(type), ptr);
     }
+    free(copy);
   }
   return ret;
 }

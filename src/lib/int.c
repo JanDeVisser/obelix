@@ -21,11 +21,9 @@
 #include "libcore.h"
 
 #include <stdio.h>
-#ifdef HAVE_PTHREAD_H
-#include <pthread.h>
-#endif
 
 #include <data.h>
+#include <threadonce.h>
 
 extern void          int_init(void);
 
@@ -324,7 +322,7 @@ static int_t *                 _zero;
 static int_t *                 _one;
 static int_t *                 _minusone;
 static int_t *                 _two;
-static pthread_once_t          _integer_cache_once = PTHREAD_ONCE_INIT;
+THREAD_ONCE(_integer_cache_once);
 
 static int_t * _int_make(intptr_t i) {
   int_t *ret;
@@ -349,7 +347,7 @@ static void _integer_cache_init(void) {
 int_t * int_create(intptr_t val) {
   int_t *ret;
 
-  pthread_once(&_integer_cache_once, _integer_cache_init);
+  ONCE(_integer_cache_once, _integer_cache_init);
   if (!val) {
     ret = _zero;
   } else if (val == 1) {
