@@ -37,12 +37,12 @@
 #define FunctionDestroyScanner  FunctionUsr5
 #define FunctionReconfigScanner FunctionUsr6
 
-extern typedescr_t * comment_register(void);
-extern typedescr_t * identifier_register(void);
-extern typedescr_t * keyword_register(void);
-extern typedescr_t * number_register(void);
-extern typedescr_t * position_register(void);
-extern typedescr_t * qstring_register(void);
-extern typedescr_t * whitespace_register(void);
+OBLLEXER_IMPEXP typedescr_t * comment_register(void);
+OBLLEXER_IMPEXP typedescr_t * identifier_register(void);
+OBLLEXER_IMPEXP typedescr_t * keyword_register(void);
+OBLLEXER_IMPEXP typedescr_t * number_register(void);
+OBLLEXER_IMPEXP typedescr_t * position_register(void);
+OBLLEXER_IMPEXP typedescr_t * qstring_register(void);
+OBLLEXER_IMPEXP typedescr_t * whitespace_register(void);
 
 #endif /* __LIBLEXER_H__ */

@@ -59,6 +59,7 @@ OBLCORE_IMPEXP array_t *     array_add_all(array_t *, array_t *);
 OBLCORE_IMPEXP struct _str * array_tostr(const array_t *);
 OBLCORE_IMPEXP char *        array_tostring(array_t *);
 OBLCORE_IMPEXP void          array_debug(array_t *, const char *);
+OBLCORE_IMPEXP void *        array_find(array_t *, cmp_t, void *);
 
 OBLCORE_IMPEXP array_t *     array_start(array_t *);
 OBLCORE_IMPEXP array_t *     array_end(array_t *);

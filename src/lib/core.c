@@ -61,24 +61,6 @@ static void _outofmemory(const char *func, size_t sz _unused_) {
   abort();
 }
 
-application_t * application_init(const char *appname, int argc, char **argv) {
-  type_str = &_type_str;
-  type_int = &_type_int;
-  logging_init();
-  data_init();
-  typedescr_init();
-
-  _app = NEW(application_t);
-  _app -> name = strdup(appname);
-  return _app;
-}
-
-void application_terminate(void) {
-  if (_app) {
-    free(_app -> name);
-  }
-}
-
 void * _new(size_t sz) {
   void *ret;
 

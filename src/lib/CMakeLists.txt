@@ -1,5 +1,6 @@
 set(SOURCES
     any.c
+    application.c
     arguments.c
     array.c
     core.c
@@ -42,8 +43,6 @@ endif (WITH_RE)
 add_library(oblcore SHARED ${SOURCES})
 if(PCRE2_FOUND)
   target_link_libraries(oblcore PUBLIC ${PCRE2_LIBRARIES})
-  target_include_directories(oblcore PRIVATE ${PCRE2_INCLUDE_DIR})
-  # link_directories(oblcore ${PCRE2_LIBRARY_DIR})
 endif(PCRE2_FOUND)
 if(HAVE_GETUSERNAME)
   target_link_libraries(oblcore PUBLIC "secur32")

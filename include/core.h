@@ -104,9 +104,6 @@ typedef struct _reduce_ctx {
   void_t          fnc;
 } reduce_ctx;
 
-OBLCORE_IMPEXP application_t * application_init(const char *, int, char **);
-OBLCORE_IMPEXP void            application_terminate(void);
-
 OBLCORE_IMPEXP void *          _new(size_t);
 OBLCORE_IMPEXP void *          new_array(size_t, size_t);
 OBLCORE_IMPEXP void *          new_ptrarray(size_t);

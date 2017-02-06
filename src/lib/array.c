@@ -428,6 +428,20 @@ void array_debug(array_t *array, const char *msg) {
   mdebug(core, msg, array_tostring(array));
 }
 
+void * array_find(array_t *array, cmp_t filter, void *what) {
+  int   ix;
+  void *elem;
+
+  for (ix = 0; ix < array -> size; ix++) {
+    if (!filter(array -> contents[ix], what)) {
+      return array -> contents[ix];
+    }
+  }
+  return NULL;
+}
+
+/* ------------------------------------------------------------------------ */
+
 
 array_t * array_start(array_t *array) {
   array -> curix = (array_size(array)) ? 0 : -1;
