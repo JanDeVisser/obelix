@@ -27,6 +27,7 @@ static void            _arguments_free(arguments_t *);
 static char *          _arguments_tostring(arguments_t *);
 static data_t *        _arguments_cast(arguments_t *, int);
 static data_t *        _arguments_resolve(arguments_t *, char *);
+static arguments_t *   _arguments_set(arguments_t *, char *, data_t *);
 static dictionary_t *  _arguments_serialize(arguments_t *);
 static arguments_t *   _arguments_deserialize(dictionary_t *);
 
@@ -38,6 +39,7 @@ _unused_ static vtable_t _vtable_Arguments[] = {
   { .id = FunctionFree,         .fnc = (void_t) _arguments_free },
   { .id = FunctionAllocString,  .fnc = (void_t) _arguments_tostring },
   { .id = FunctionResolve,      .fnc = (void_t) _arguments_resolve },
+  { .id = FunctionSet,          .fnc = (void_t) _arguments_set },
   { .id = FunctionLen,          .fnc = (void_t) arguments_args_size },
   { .id = FunctionSerialize,    .fnc = (void_t) _arguments_serialize },
   { .id = FunctionDeserialize,  .fnc = (void_t) _arguments_deserialize },
@@ -109,6 +111,14 @@ data_t * _arguments_resolve(arguments_t *arguments, char *name) {
            ? arguments_get_kwarg(arguments, name)
            : arguments_get_arg(arguments, (int) l);
   }
+}
+
+arguments_t * _arguments_set(arguments_t *arguments, char *name, data_t *value) {
+  long l;
+
+  return (strtoint(name, &l))
+         ? arguments_set_kwarg(arguments, name, value)
+         : arguments_set_arg(arguments, (int) l, value);
 }
 
 arguments_t * _arguments_deserialize(dictionary_t *dict) {
@@ -190,6 +200,10 @@ data_t * arguments_get_kwarg(const arguments_t *arguments, char *name) {
   return dictionary_get(arguments -> kwargs, name);
 }
 
+int arguments_has_kwarg(const arguments_t *arguments, char *name) {
+  return dictionary_has(arguments -> kwargs, name);
+}
+
 arguments_t * _arguments_set_arg(arguments_t *arguments, int ix, data_t *data) {
   datalist_set(arguments -> args, ix, data);
   return arguments;
@@ -209,4 +223,9 @@ arguments_t * arguments_shift(const arguments_t *arguments, data_t **shifted) {
     *shifted = data_copy(s);
   }
   return ret;
+}
+
+arguments_t * _arguments_push(arguments_t *arguments, data_t *data) {
+  datalist_push(arguments -> args, data);
+  return arguments;
 }

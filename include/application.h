@@ -41,9 +41,10 @@ typedef struct _cmdline_option {
 
 typedef struct _app_description {
   char             *name;
+  char             *shortdescr;
   char             *description;
   char             *legal;
-  cmdline_option_t *options;
+  cmdline_option_t  options[];
 } app_description_t;
 
 typedef struct _application {
@@ -52,16 +53,49 @@ typedef struct _application {
   int                 argc;
   array_t            *argv;
   char               *executable;
-  dictionary_t       *options;
-  datalist_t         *positional_args;
+  arguments_t        *args;
   data_t             *error;
 } application_t;
 
+OBLCORE_IMPEXP void            application_init(void);
 OBLCORE_IMPEXP application_t * application_create(app_description_t *, int, char **);
+OBLCORE_IMPEXP application_t * _application_parse_args(application_t *,
+                                                       app_description_t *,
+                                                       int, char **);
+OBLCORE_IMPEXP data_t *        _application_get_option(application_t *, char *);
+OBLCORE_IMPEXP data_t *        _application_get_arg(application_t *, int);
+OBLCORE_IMPEXP int             _application_has_option(application_t *, char *);
+OBLCORE_IMPEXP int             _application_args_size(application_t *);
 OBLCORE_IMPEXP void            application_terminate(void);
 OBLCORE_IMPEXP int             Application;
 
 type_skel(application, Application, application_t);
+
+static inline application_t * application_parse_args(void * app,
+                                                     app_description_t *descr,
+                                                     int argc, char **argv) {
+  return _application_parse_args(data_as_application(app), descr, argc, argv);
+}
+
+static inline data_t * application_get_option(void *app, char *option) {
+  return _application_get_option(data_as_application(app), option);
+}
+
+static inline data_t * application_get_arg(void *app, int ix) {
+  return _application_get_arg(data_as_application(app), ix);
+}
+
+static inline data_t * application_has_option(void *app, char *option) {
+  return _application_get_option(data_as_application(app), option);
+}
+
+static inline int application_has_args(void *app) {
+  return _application_args_size(data_as_application(app));
+}
+
+static inline int application_args_size(void *app) {
+  return _application_args_size(data_as_application(app));
+}
 
 #ifdef  __cplusplus
 }

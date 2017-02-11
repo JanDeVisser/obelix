@@ -21,11 +21,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "obelix.h"
+#ifdef WITH_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
+#endif /* WITH_READLINE */
 
 #include <ipc.h>
-#include "obelix.h"
 
 #define PS1   ">> "
 #define PS2   " - "
@@ -36,6 +38,19 @@ static data_t * _obelix_new(obelix_t *, va_list);
 static void     _obelix_free(obelix_t *);
 static char *   _obelix_tostring(obelix_t *);
 static data_t * _obelix_resolve(obelix_t *, char *);
+
+static data_t * _obelix_set_grammar(obelix_t *, char *, data_t *);
+static data_t * _obelix_get_grammar(obelix_t *, char *);
+static data_t * _obelix_set_port(obelix_t *, char *, data_t *);
+static data_t * _obelix_get_port(obelix_t *, char *);
+static data_t * _obelix_set_syspath(obelix_t *, char *, data_t *);
+static data_t * _obelix_get_syspath(obelix_t *, char *);
+static data_t * _obelix_set_basepath(obelix_t *, char *, data_t *);
+static data_t * _obelix_get_basepath(obelix_t *, char *);
+static data_t * _obelix_set_list(obelix_t *, char *, data_t *);
+static int_t *  _obelix_get_list(obelix_t *, char *);
+static data_t * _obelix_set_trace(obelix_t *, char *, data_t *);
+static int_t *  _obelix_get_trace(obelix_t *, char *);
 
 static data_t * _obelix_get(data_t *, char *, arguments_t *);
 static data_t * _obelix_run(data_t *, char *, arguments_t *);
@@ -55,6 +70,16 @@ _unused_ static vtable_t _vtable_Obelix[] = {
   { .id = FunctionNone,         .fnc = NULL }
 };
 
+static accessor_t _accessors_Obelix[] = {
+    { .name = "grammar",      .setter = (setvalue_t) _obelix_set_grammar,  .resolver = (resolve_name_t) _obelix_get_grammar },
+    { .name = "serverport",   .setter = (setvalue_t) _obelix_set_port,     .resolver = (resolve_name_t) _obelix_get_port },
+    { .name = "syspath",      .setter = (setvalue_t) _obelix_set_syspath,  .resolver = (resolve_name_t) _obelix_get_syspath },
+    { .name = "basepath",     .setter = (setvalue_t) _obelix_set_basepath, .resolver = (resolve_name_t) _obelix_get_basepath },
+    { .name = "list",         .setter = (setvalue_t) _obelix_set_list,     .resolver = (resolve_name_t) _obelix_get_list },
+    { .name = "trace",        .setter = (setvalue_t) _obelix_set_trace,    .resolver = (resolve_name_t) _obelix_get_trace },
+    { .name = NULL,           .setter = NULL,                              .resolver = NULL },
+};
+
 _unused_ static methoddescr_t _methods_Obelix[] = {
   { .type = Any,    .name = "obelix",  .method = _obelix_get,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
   { .type = -1,     .name = "run",     .method = _obelix_run,         .argtypes = { String, Any, NoType },    .minargs = 1, .varargs = 1 },
@@ -71,8 +96,11 @@ static obelix_t *_obelix;
 
 void _obelix_init(void) {
   if (Obelix < 0) {
+    application_init();
     logging_register_category("obelix", &obelix_debug);
     typedescr_register_with_methods(Obelix, obelix_t);
+    typedescr_register_accessors(Obelix, _accessors_Obelix);
+    typedescr_assign_inheritance(Obelix, Application);
     exception_register(ErrorProtocol);
 
     debug(obelix, "Creating obelix kernel");
@@ -88,7 +116,6 @@ data_t * _obelix_new(obelix_t *obelix, va_list args) {
   if (_obelix) {
     return data_exception(ErrorInternalError, "The Obelix kernel is a singleton");
   }
-  obelix -> logfile = NULL;
   obelix -> options = data_array_create((int) ObelixOptionLAST);
   for (ix = 0; ix < (int) ObelixOptionLAST; ix++) {
     obelix_set_option(obelix, ix, 0L);
@@ -120,6 +147,79 @@ data_t * _obelix_resolve(obelix_t *obelix, char *name) {
   } else {
     return NULL;
   }
+}
+
+/* ------------------------------------------------------------------------ */
+
+data_t * _obelix_set_port(obelix_t *obelix, _unused_ char *name, data_t *value) {
+  int     p;
+  data_t *ret = (data_t *) obelix;
+
+  if (data_is_bool(value) && data_intval(value)) {
+    obelix -> server = -1;
+  } else {
+    p = data_intval(value);
+    if ((p > 0) && (p < 49151)){
+      obelix -> server = p;
+    } else {
+      ret = data_exception(ErrorParameterValue,
+          "Invalid server port value '%s'", data_tostring(value));
+    }
+  }
+  return ret;
+}
+
+data_t * _obelix_get_port(obelix_t *obelix, _unused_ char *name) {
+  return int_to_data(obelix -> server);
+}
+
+data_t * _obelix_set_syspath(obelix_t *obelix, _unused_ char *name, data_t *value) {
+  obelix -> syspath = data_tostring(value);
+  return (data_t *) obelix;
+}
+
+data_t * _obelix_get_syspath(obelix_t *obelix, _unused_ char *name) {
+  return str_to_data(obelix -> syspath);
+}
+
+data_t * _obelix_set_basepath(obelix_t *obelix, _unused_ char *name, data_t *value) {
+  obelix -> basepath = data_tostring(value);
+  return (data_t *) obelix;
+}
+
+data_t * _obelix_get_basepath(obelix_t *obelix, _unused_ char *name) {
+  return str_to_data(obelix -> basepath);
+}
+
+data_t * _obelix_set_grammar(obelix_t *obelix, _unused_ char *name, data_t *value) {
+  obelix -> grammar = data_tostring(value);
+  return (data_t *) obelix;
+}
+
+data_t * _obelix_get_grammar(obelix_t *obelix, _unused_ char *name) {
+  return str_to_data(obelix -> grammar);
+}
+
+data_t * _obelix_set_list(obelix_t *obelix, _unused_ char *name, data_t *value) {
+  obelix_set_option(obelix, ObelixOptionList, data_intval(value));
+  return (data_t *) obelix;
+}
+
+int_t * _obelix_get_list(obelix_t *obelix, _unused_ char *name) {
+  return bool_get(obelix_get_option(obelix, ObelixOptionList));
+}
+
+data_t * _obelix_set_trace(obelix_t *obelix, _unused_ char *name, data_t *value) {
+  data_t *ret = (data_t *) obelix;
+  int     val = data_intval(value);
+
+  obelix_set_option(_obelix, ObelixOptionList, val);
+  obelix_set_option(_obelix, ObelixOptionTrace, val);
+  return ret;
+}
+
+int_t * _obelix_get_trace(obelix_t *obelix, _unused_ char *name) {
+  return bool_get(obelix_get_option(obelix, ObelixOptionTrace));
 }
 
 /* ------------------------------------------------------------------------ */
@@ -253,24 +353,6 @@ data_t * _obelix_startserver(data_t *self, _unused_ char *name, arguments_t *arg
 
 /* ------------------------------------------------------------------------ */
 
-void _obelix_debug_settings(obelix_t *obelix) {
-  array_t *cats;
-  int      ix;
-
-  logging_reset();
-  logging_set_level(obelix -> log_level);
-  if (obelix -> debug) {
-    debug(obelix, "debug optarg: %s", obelix -> debug);
-    cats = array_split(obelix -> debug, ",");
-    for (ix = 0; ix < array_size(cats); ix++) {
-      logging_enable(str_array_get(cats, ix));
-    }
-  }
-  if (obelix -> logfile) {
-    logging_set_file(obelix -> logfile);
-  }
-}
-
 data_t * _obelix_cmdline(obelix_t *obelix) {
   return obelix_run(obelix, obelix -> script, obelix -> script_args);
 }
@@ -279,7 +361,7 @@ data_t * _obelix_cmdline(obelix_t *obelix) {
 
 #ifdef WITH_READLINE
 char * _obelix_readstring(char *prompt) {
-
+  return readline(prompt);
 }
 #else /* WITH_READLINE */
 char * _obelix_readstring(char *prompt) {
@@ -305,10 +387,12 @@ data_t * _obelix_interactive(obelix_t *obelix) {
     if (tty) {
       fprintf(stdout, "Welcome to " OBELIX_NAME " " OBELIX_VERSION "\n");
     }
-    for (prompt = (tty) ? PS1 : "", line = readline(prompt); line; line = readline(prompt)) {
+    for (prompt = (tty) ? PS1 : "", line = _obelix_readstring(prompt); line; line = readline(prompt)) {
       strrtrim(line);
       if (*line) {
+#ifdef WITH_READLINE
         add_history(line);
+#endif /* WITH_READLINE */
         debug(obelix, "Evaluating '%s'", line);
         ret = scriptloader_eval(loader, dline = (data_t *) str_copy_chars(line));
         if (!ret && isatty(fileno(stdin))) {
@@ -335,69 +419,44 @@ data_t * _obelix_interactive(obelix_t *obelix) {
 
 /* -- O B E L I X  P U B L I C  F U N C T I O N S ------------------------- */
 
-obelix_t * obelix_initialize(int argc, char **argv) {
-  int    opt;
+static app_description_t _app_descr_obelix = {
+    .name        = "obelix",
+    .shortdescr  = "Obelix interpreter",
+    .description = "Obelix is a great scripting language. It really is",
+    .legal       = "(c) Jan de Visser <jan@finiandarcy.com> 2014-2017",
+    .options     = {
+        { .longopt = "grammar",    .shortopt = 'g', .description = "Grammar file",        .flags = CMDLINE_OPTION_FLAG_REQUIRED_ARG },
+        { .longopt = "syspath",    .shortopt = 's', .description = "System path",         .flags = CMDLINE_OPTION_FLAG_REQUIRED_ARG },
+        { .longopt = "basepath",   .shortopt = 'p', .description = "Base path",           .flags = CMDLINE_OPTION_FLAG_REQUIRED_ARG },
+        { .longopt = "serverport", .shortopt = 'S', .description = "Server port",         .flags = CMDLINE_OPTION_FLAG_OPTIONAL_ARG },
+        { .longopt = "initfile",   .shortopt = 'i', .description = "Initialization file", .flags = CMDLINE_OPTION_FLAG_REQUIRED_ARG },
+        { .longopt = "list",       .shortopt = 'l', .description = "List bytecode",       .flags = 0 },
+        { .longopt = "trace",      .shortopt = 't', .description = "Trace execution",     .flags = 0 },
+        { .longopt = NULL,         .shortopt = 0,   .description = NULL,                  .flags = 0 }
+    }
+};
 
-  application_init("obelix", argc, argv);
-  debug(obelix, "Initialize obelix kernel");
+obelix_t * obelix_initialize(int argc, char **argv) {
+  application_t *app;
+  data_t        *script;
+
   _obelix_init();
   if (!_obelix) {
     return NULL;
   }
-  _obelix -> argc = argc;
-  _obelix -> argv = argv;
-  while ((opt = getopt(argc, argv, "s:g:d:f:p:v:ltS:i:")) != -1) {
-    switch (opt) {
-      case 'd':
-        _obelix -> debug = optarg;
-        break;
-      case 'f':
-        _obelix -> logfile = optarg;
-        break;
-      case 'g':
-        _obelix -> grammar = optarg;
-        break;
-      case 'i':
-        _obelix -> init_file = optarg;
-        break;
-      case 'l':
-        obelix_set_option(_obelix, ObelixOptionList, 1);
-        break;
-      case 'p':
-        _obelix -> basepath = optarg;
-        break;
-      case 'S':
-        _obelix -> server = -1;
-        break;
-      case 's':
-        _obelix -> syspath = optarg;
-        break;
-      case 't':
-        obelix_set_option(_obelix, ObelixOptionList, 1);
-        obelix_set_option(_obelix, ObelixOptionTrace, 1);
-        break;
-      case 'v':
-        _obelix -> log_level = optarg;
-        break;
-    }
-  }
+  app = (application_t *) _obelix;
+  application_parse_args(app, &_app_descr_obelix, argc, argv);
   if (!_obelix -> server) {
-    if (argc > optind) {
-      _obelix -> script = protocol_build_name(argv[optind]);
-      if (argc > optind + 1) {
-        _obelix -> script_args = arguments_create_from_cmdline(
-            argc - optind - 1, argv + (optind + 1));
-      }
+    if (application_has_args(app)) {
+      _obelix -> script_args = arguments_shift(app -> args, &script);
+      _obelix -> script = protocol_build_name(data_tostring(script));
     }
   }
-  _obelix_debug_settings(_obelix);
   return _obelix;
 }
 
 obelix_t * obelix_set_option(obelix_t *obelix, obelix_option_t option, long value) {
-  data_t *opt = int_to_data(value);
-
-  array_set(obelix -> options, (int) option, opt);
+  array_set(obelix -> options, (int) option, int_to_data(value));
   return obelix;
 }
 

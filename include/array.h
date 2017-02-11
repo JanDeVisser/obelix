@@ -94,7 +94,7 @@ static inline int array_notempty(const array_t *a) {
 }
 
 static inline array_t * str_array_create(int sz) {
-  return array_set_type(array_create(sz), type_str);
+  return array_set_type(array_create(sz), &type_str);
 }
 
 static inline char * str_array_get(const array_t *a, int ix) {

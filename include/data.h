@@ -90,7 +90,7 @@ OBLCORE_IMPEXP array_t *       data_add_all_as_data_reducer(char *, array_t *);
 OBLCORE_IMPEXP array_t *       data_add_strings_reducer(data_t *, array_t *);
 OBLCORE_IMPEXP dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
-OBLCORE_IMPEXP type_t         *type_data;
+OBLCORE_IMPEXP type_t          type_data;
 
 #ifndef __INCLUDING_TYPEDESCR_H__
 #include <typedescr.h>
@@ -233,7 +233,7 @@ static inline data_t * ptr_to_data(size_t sz, void *p) {
 
 /* -- D A T A L I S T  T Y P E -------------------------------------------- */
 
-#define data_array_create(i)   (array_set_type(array_create((i)), type_data))
+#define data_array_create(i)   (array_set_type(array_create((i)), &type_data))
 #define data_array_get(a, i)   ((data_t *) array_get((a), (i)))
 
 OBLCORE_IMPEXP datalist_t *    datalist_create(array_t *);
@@ -319,6 +319,10 @@ static inline int data_is_int(void *d) {
   return data_hastype(d, Int);
 }
 
+static inline int data_is_bool(void *d) {
+  return data_hastype(d, Bool);
+}
+
 static inline int data_is_float(void *d) {
   return data_hastype(d, Float);
 }
@@ -341,33 +345,33 @@ OBLCORE_IMPEXP int_t *         bool_get(long);
 #define data_true()            ((data_t *) bool_true)
 #define data_false()           ((data_t *) bool_false)
 
-/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------ */ 
 
 #define strdata_dict_create()  (dict_set_data_type( \
                                  dict_set_key_type( \
                                    dict_create(NULL), \
-                                   type_str), \
-                                 type_data))
+                                   &type_str), \
+                                 &type_data))
 
 #define intdata_dict_create()  (dict_set_data_type( \
                                  dict_set_key_type( \
                                    dict_create(NULL), \
-                                   type_int), \
-                                 type_data))
+                                   &type_int), \
+                                 &type_data))
 
 #define datadata_dict_create() (dict_set_data_type( \
                                  dict_set_key_type( \
                                    dict_create(NULL), \
-                                   type_data), \
-                                 type_data))
+                                   &type_data), \
+                                 &type_data))
 
 #define data_dict_get(d, k)    ((data_t *) dict_get((d), (k)))
 
-#define data_list_create()     (list_set_type(list_create(), type_data))
+#define data_list_create()     (list_set_type(list_create(), &type_data))
 #define data_list_pop(l)       (data_t *) list_pop((l))
 #define data_list_shift(l)     (data_t *) list_shift((l))
 
-#define data_set_create()      (set_set_type(set_create(NULL), type_data))
+#define data_set_create()      (set_set_type(set_create(NULL), &type_data))
 
 #include <arguments.h>
 #include <dictionary.h>

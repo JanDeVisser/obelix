@@ -26,9 +26,8 @@
 
 #include "libcore.h"
 #include <data.h>
-#include <exception.h>
 #include <method.h>
-#include <str.h>
+#include <threadonce.h>
 
 static data_t *    _data_call_constructor(data_t *, new_t, va_list);
 static data_t *    _data_call_constructors(typedescr_t *, va_list);
@@ -45,17 +44,16 @@ static type_t _type_data = {
   .cmp      = (cmp_t) data_cmp
 };
 
+type_t type_data;
+
 int     data_debug = 0;
 int     _data_count = 0;
-type_t *type_data;
 
 /* -- D A T A  S T A T I C  F U N C T I O N S ----------------------------- */
 
 void data_init(void) {
-  if (!type_data) {
-    logging_register_category("data", &data_debug);
-    type_data = &_type_data;
-  }
+  logging_register_category("data", &data_debug);
+  type_copy(&type_data, &_type_data);
 }
 
 data_t * _data_call_constructor(data_t *data, new_t n, va_list args) {
@@ -96,10 +94,17 @@ data_t * _data_call_resolve(typedescr_t *type, data_t *data, char *name) {
   resolve_name_t  resolve;
   data_t         *ret = NULL;
   int             ix;
+  accessor_t     *accessor;
 
-  resolve = (resolve_name_t) typedescr_get_local_function(type, FunctionResolve);
-  if (resolve) {
-    ret = resolve(data, name);
+  accessor = typedescr_get_accessor(type, name);
+  if (accessor) {
+    ret = accessor -> resolver(data, name);
+  }
+  if (!ret) {
+    resolve = (resolve_name_t) typedescr_get_local_function(type, FunctionResolve);
+    if (resolve) {
+      ret = resolve(data, name);
+    }
   }
   for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
     ret = _data_call_resolve(typedescr_get(type -> inherits[ix]), data, name);
@@ -124,10 +129,17 @@ data_t * _data_call_setter(typedescr_t *type, data_t *data, char *name, data_t *
   setvalue_t  setter;
   data_t     *ret = NULL;
   int         ix;
+  accessor_t *accessor;
 
-  setter = (setvalue_t) typedescr_get_local_function(type, FunctionSet);
-  if (setter) {
-    ret = setter(data, name, value);
+  accessor = typedescr_get_accessor(type, name);
+  if (accessor) {
+    ret = accessor -> setter(data, name, value);
+  }
+  if (!ret) {
+    setter = (setvalue_t) typedescr_get_local_function(type, FunctionSet);
+    if (setter) {
+      ret = setter(data, name, value);
+    }
   }
   for (ix = 0; !ret && (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
     ret = _data_call_setter(typedescr_get(type -> inherits[ix]), data, name, value);
@@ -152,35 +164,27 @@ data_t * data_create_noinit(int type) {
 data_t * data_settype(data_t *data, int type) {
   typedescr_t *descr;
 
-  data_init();
+  // data_init();
   assert(data);
   assert(type > 0);
-  descr = typedescr_get(type);
-  assert(descr);
-  assert(typetype(descr) == type);
-  assert(typename(descr));
-  if (!descr || !typename(descr)) {
-    error("Attempt to initialize atom with non-existant or broken type %d", type);
-    return NULL;
-  }
-  if (!data -> type) {
 #ifndef NDEBUG
-    data -> cookie = MAGIC_COOKIE;
-#endif /* NDEBUG */
-    data -> type = type;
-    data -> refs = 1;
-    data -> str = NULL;
-    data -> free_me = Normal;
-    data -> free_str = Normal;
-    descr -> count++;
-    _data_count++;
-  } else {
-    descr = typedescr_get(data -> type);
-    if (!descr || !typename(descr)) {
-      error("Not re-initializing atom with broken type %d", data -> type);
+  descr = typedescr_get(type);
+  if (!descr || (typetype(descr) != type) || !typename(descr)) {
+    if (type >= Dynamic) {
+      fatal("Attempt to initialize atom with non-existent or broken type %d", type);
+      return NULL;
     }
-    return NULL;
+  } else {
+    descr->count++;
   }
+  _data_count++;
+  data -> cookie = MAGIC_COOKIE;
+#endif /* !NDEBUG */
+  data -> type = type;
+  data -> refs = 1;
+  data -> str = NULL;
+  data -> free_me = Normal;
+  data -> free_str = Normal;
   return data;
 }
 

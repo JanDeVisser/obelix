@@ -26,16 +26,16 @@
 #error "Please provide timer implementation"
 #endif
 
-typedef struct _timer {
+typedef struct _timestamp {
   long seconds;
   long microseconds;
-} timer_t;
+} timestamp_t;
 
 #ifndef OBLCORE_IMPEXP
 #define OBLCORE_IMPEXP __DLL_IMPORT__
 #endif
 
-OBLCORE_IMPEXP timer_t * timer_start(void);
-OBLCORE_IMPEXP timer_t * timer_end(timer_t *);
+OBLCORE_IMPEXP timestamp_t * timer_start(void);
+OBLCORE_IMPEXP timestamp_t * timer_end(timestamp_t *);
 
 #endif /* __TIMER_H__ */

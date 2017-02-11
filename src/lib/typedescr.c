@@ -706,6 +706,7 @@ int _typedescr_register(int type, char *type_name, vtable_t *vtable, methoddescr
   d -> inherits[0] = 0;
   d -> ancestors = NEWARR(1, int);
   d -> ancestors[0] = 0;
+  d -> accessors = NULL;
   _typedescr_get_all_interfaces(d);
   _typedescr_get_constructors(d);
   return type;
@@ -737,13 +738,33 @@ typedescr_t * typedescr_assign_inheritance(int type, int inherits) {
   return td;
 }
 
+typedescr_t * typedescr_register_accessors(int type, accessor_t *accessors) {
+  typedescr_t *descr = typedescr_get(type);
+
+  assert(descr);
+  for (; accessors -> name; accessors++) {
+    if (!descr -> accessors) {
+      descr -> accessors = strvoid_dict_create();
+      dict_set_free_key(descr -> accessors, NULL);
+    }
+    dict_put(descr -> accessors, accessors -> name, accessors);
+  }
+  return descr;
+}
+
+accessor_t * typedescr_get_accessor(typedescr_t *type, char *name) {
+  return (type -> accessors)
+         ? (accessor_t *) dict_get(type -> accessors, name)
+         : NULL;
+}
+
 #define DEBUG_TYPES
 typedescr_t * typedescr_get(int datatype) {
 #ifdef DEBUG_TYPES
   typedescr_t *ret = NULL;
 
   if (!_descriptors) {
-    typedescr_init();
+    return NULL;
   }
   if ((datatype >= 0) && (datatype < (int) _numtypes)) {
     ret = _descriptors[datatype];
@@ -755,7 +776,7 @@ typedescr_t * typedescr_get(int datatype) {
     return ret;
   }
 #else
-  return _descriptors[datatype];
+  return (_descriptors) ? _descriptors[datatype] : NULL;
 #endif
 }
 

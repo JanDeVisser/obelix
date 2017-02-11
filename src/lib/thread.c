@@ -24,7 +24,6 @@
 #include "libcore.h"
 #include <data.h>
 #include <datastack.h>
-#include <exception.h>
 #include <mutex.h>
 #include <thread.h>
 
@@ -39,7 +38,6 @@ typedef struct _thread_ctx {
   condition_t  *condition;
 } thread_ctx_t;
 
-static inline void   _thread_init(void);
 static void *        _thread_start_routine_wrapper(thread_ctx_t *);
 
 extern void          _thread_free(thread_t *);
@@ -76,26 +74,23 @@ static pthread_key_t  self_obj;
 static DWORD          self_ix;
 #endif /* HAVE_PTHREAD_H */
 
-int Thread = -1;
 int thread_debug = 0;
 
 /* ------------------------------------------------------------------------ */
 
-void _thread_init(void) {
+void thread_init(void) {
   thread_t *mainthread;
 
-  if (Thread < 1) {
-    logging_register_category("thread", &thread_debug);
+  logging_register_category("thread", &thread_debug);
 #ifdef HAVE_PTHREAD_H
-    pthread_key_create(&self_obj, /* (void (*)(void *)) _thread_free */ NULL);
+  pthread_key_create(&self_obj, /* (void (*)(void *)) _thread_free */ NULL);
 #elif defined(HAVE_CREATETHREAD)
-    self_ix = TlsAlloc();
+  self_ix = TlsAlloc();
 #endif /* HAVE_PTHREAD_H */
-    typedescr_register_with_methods(Thread, thread_t);
-    mainthread = thread_self();
-    if (mainthread) {
-      thread_setname(mainthread, "main");
-    }
+  builtin_typedescr_register(Thread, "thread", thread_t);
+  mainthread = thread_self();
+  if (mainthread) {
+    thread_setname(mainthread, "main");
   }
 }
 
@@ -189,7 +184,6 @@ thread_t * _thread_get_selfobj(void) {
 thread_t * thread_self(void) {
   thread_t *thread;
 
-  _thread_init();
   thread = _thread_get_selfobj();
   if (!thread) {
     thread = thread_create(_thread_self(), NULL);
@@ -255,7 +249,6 @@ thread_t * thread_create(_thr_t thr_id, char *name) {
   thread_t *ret;
   char     *buf = NULL;
 
-  _thread_init();
   ret = data_new(Thread, thread_t);
   ret -> thread = thr_id;
   ret -> exit_code = NULL;

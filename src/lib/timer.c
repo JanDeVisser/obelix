@@ -48,7 +48,7 @@ typedef struct _timer_impl {
 /* ------------------------------------------------------------------------ */
 
 
-timer_t * timer_start(void) {
+timestamp_t * timer_start(void) {
   timer_impl_t *ret = NEW(timer_impl_t);
 
 #ifdef HAVE_QUERYPERFORMANCECOUNTER
@@ -58,10 +58,10 @@ timer_t * timer_start(void) {
 #ifdef HAVE_CLOCK_GETTIME
   clock_gettime(CLOCK_MONOTONIC, &ret -> start);
 #endif
-  return (timer_t *) ret;
+  return (timestamp_t *) ret;
 }
 
-timer_t * timer_end(timer_t *timer) {
+timestamp_t * timer_end(timestamp_t *timer) {
   timer_impl_t *t = (timer_impl_t *) timer;
 #ifdef HAVE_QUERYPERFORMANCECOUNTER
   LARGE_INTEGER elapsed_microseconds;

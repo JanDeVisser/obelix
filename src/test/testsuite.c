@@ -19,11 +19,9 @@
 
 #include <check.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 
-#include <core.h>
-#include <resolve.h>
+#include <application.h>
 #include <testsuite.h>
 
 static type_t _type_test = {
@@ -35,6 +33,16 @@ static type_t _type_test = {
 };
 
 type_t *type_test = &_type_test;
+
+static app_description_t   _app_descr_testsuite = {
+    .name        = "obelix testrunner",
+    .shortdescr  = "Testrunner for obelix test cases",
+    .description = "Application framework facilitating running test cases for the obelix environment",
+    .legal       = "(c) Jan de Visser <jan@finiandarcy.com> 2014-2017",
+    .options     = {
+        { .longopt = NULL, .shortopt = 0, .description = NULL, .flags = 0 }
+    }
+};
 
 __DLL_EXPORT__ test_t * test_factory(char *data) {
   return test_create(data);
@@ -90,7 +98,7 @@ int main(int argc, char **argv){
   int      number_failed;
   SRunner *sr;
 
-  application_init(argv[0], argc, argv);
+  application_create(&_app_descr_testsuite, argc, argv);
   _suite = suite_create("default");
   init_suite(argc, argv);
   sr = srunner_create(_suite);

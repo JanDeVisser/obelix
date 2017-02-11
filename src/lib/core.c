@@ -47,10 +47,15 @@ static type_t _type_int = {
   .cmp      = NULL
 };
 
-type_t *type_str = NULL;
-type_t *type_int = NULL;
+type_t type_str;
+type_t type_int;
 
-static application_t *_app = NULL;
+/* ------------------------------------------------------------------------ */
+
+void core_init(void) {
+  type_copy(&type_str, &_type_str);
+  type_copy(&type_int, &_type_int);
+}
 
 /* ------------------------------------------------------------------------ */
 
@@ -106,6 +111,7 @@ void * resize_ptrarray(void *array, size_t newsz, size_t oldsz) {
   return resize_block(array, newsz * sizeof(void *), oldsz * sizeof(void *));
 }
 
+/* ------------------------------------------------------------------------ */
 
 #ifdef asprintf
   #undef asprintf
@@ -124,7 +130,8 @@ int oblcore_asprintf(char **strp, const char *fmt, ...) {
   return ret;
 }
 
-#ifndef HAVE_VASPRINTF
+#define USE_GLIBC_VASPRINTF
+#if !defined(HAVE_VASPRINTF) || !defined(USE_GLIBC_VASPRINTF)
 int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
   va_list  copy;
   size_t   ret;
@@ -153,6 +160,8 @@ int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
   return ret;
 }
 #endif
+
+/* ------------------------------------------------------------------------ */
 
 /*
  * code_label_t public functions
@@ -211,6 +220,8 @@ int code_for_label(code_label_t *table, char *label) {
   }
   return -1;
 }
+
+/* ------------------------------------------------------------------------ */
 
 /*
  * reduce_ctx public functions

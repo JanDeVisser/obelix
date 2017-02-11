@@ -57,8 +57,8 @@ void _scanner_config_init(void) {
   if (ScannerConfig < 0) {
     typedescr_register(ScannerConfig, scanner_config_t);
     _scanners_configs = dict_create(NULL);
-    dict_set_key_type(_scanners_configs, type_str);
-    dict_set_data_type(_scanners_configs, type_int);
+    dict_set_key_type(_scanners_configs, &type_str);
+    dict_set_data_type(_scanners_configs, &type_int);
     _scanner_config_mutex = mutex_create();
 
     scanner_config_register(comment_register());

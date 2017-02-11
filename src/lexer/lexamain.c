@@ -23,39 +23,41 @@
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
+#include <application.h>
 #include <file.h>
 #include <lexa.h>
 
-int main(int argc, char **argv) {
-  lexa_t   *lexa;
-  char     *scratch = NULL;
-  int       opt;
-
-  lexa = lexa_create();
-  while ((opt = getopt(argc, argv, "d:v:s:")) != -1) {
-    switch (opt) {
-      case 'd':
-        if (!lexa -> debug) {
-          lexa -> debug = strdup(optarg);
-        } else {
-          asprintf(&scratch, "%s,%s", lexa -> debug, optarg);
-          free(lexa -> debug);
-          lexa -> debug = scratch;
-        }
-        break;
-      case 's':
-        lexa_add_scanner(lexa, optarg);
-        break;
-      case 'v':
-        lexa -> log_level = optarg;
-        break;
+static app_description_t _app_descr_lexa = {
+    .name        = "lexa",
+    .shortdescr  = "Generic lexer",
+    .description = "Read an input stream and tokenize it",
+    .legal       = "(c) Jan de Visser <jan@finiandarcy.com> 2014-2017",
+    .options     = {
+        { .longopt = "scanner", .shortopt = 's', .description = "Add a scanner", .flags = CMDLINE_OPTION_FLAG_REQUIRED_ARG | CMDLINE_OPTION_FLAG_MANY_ARG },
+        { .longopt = NULL,      .shortopt = 0,   .description = NULL,            .flags = 0 }
     }
+};
+
+int main(int argc, char **argv) {
+  application_t *app;
+  lexa_t        *lexa;
+  datalist_t    *scanners;
+  int            ix;
+  char          *scratch = NULL;
+  int            opt;
+
+  app = application_create(&_app_descr_lexa, argc, argv);
+  lexa = lexa_create();
+
+  scanners = (datalist_t *) application_get_option(app, "scanner");
+  for (ix = 0; ix < datalist_size(scanners); ix++) {
+    lexa_add_scanner(lexa, data_tostring(datalist_get(scanners, ix)));
   }
-  lexa_debug_settings(lexa);
-  if (optind >= argc) {
+
+  if (!application_has_args(app)) {
     lexa -> stream = (data_t *) file_create(1);
   } else {
-    lexa -> stream = (data_t *) file_open(argv[optind]);
+    lexa -> stream = (data_t *) file_open(data_tostring(application_get_arg(app, 0)));
   }
   lexa_build_lexer(lexa);
   lexa_tokenize(lexa);

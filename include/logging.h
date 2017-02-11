@@ -31,6 +31,7 @@ extern "C" {
 #endif
 
 typedef enum _log_level {
+  LogLevelNone = -1,
   LogLevelDebug = 0,
   LogLevelInfo,
   LogLevelWarning,
@@ -94,22 +95,26 @@ OBLCORE_IMPEXP void              _log_timestamp_end(log_timestamp_t *, char *, i
 #endif /* NDEBUG */
 
 #ifndef _MSC_VER
+#define log(fmt, args...)            _logmsg(LogLevelNone, __FILE__, __LINE__, __func__, fmt, ## args)
 #define info(fmt, args...)           _logmsg(LogLevelInfo, __FILE__, __LINE__, __func__, fmt, ## args)
 #define warn(fmt, args...)           _logmsg(LogLevelWarning, __FILE__, __LINE__, __func__, fmt, ## args)
 #define error(fmt, args...)          _logmsg(LogLevelError, __FILE__, __LINE__, __func__, fmt, ## args)
 #define fatal(fmt, args...)          { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); abort(); }
 #define oassert(value, fmt, args...) { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, ## args); abort(); } }
+#define vlog(fmt, args)              _vlogmsg(LogLevelNone, __FILE__, __LINE__, __func__, fmt, args)
 #define vinfo(fmt, args)             _vlogmsg(LogLevelInfo, __FILE__, __LINE__, __func__, fmt, args)
 #define vwarn(fmt, args)             _vlogmsg(LogLevelWarning, __FILE__, __LINE__, __func__, fmt, args)
 #define verror(fmt, args)            _vlogmsg(LogLevelError, __FILE__, __LINE__, __func__, fmt, args)
 #define vfatal(fmt, args)            { _vlogmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, args); abort(); }
 #define voassert(value, fmt, args)   { if (!(value)) { _vlogmsg(LogLevelFatal, __FILE__, __LINE__, __func__, fmt, args); abort(); } }
 #else /* _MSC_VER */
+#define log(fmt, ...)                _logmsg(LogLevelNone, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define info(fmt, ...)               _logmsg(LogLevelInfo, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define warn(fmt, ...)               _logmsg(LogLevelWarning, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define error(fmt, ...)              _logmsg(LogLevelError, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
 #define fatal(fmt, ...)              { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__); exit(-10); }
 #define oassert(value, fmt, ...)     { if (!(value)) { _logmsg(LogLevelFatal, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__); assert(0); } }
+#define vlog(fmt, args)              _logmsg(LogLevelNone, __FILE__, __LINE__, __FUNCTION__, fmt, args)
 #define vinfo(fmt, args)             _logmsg(LogLevelInfo, __FILE__, __LINE__, __FUNCTION__, fmt, args)
 #define vwarn(fmt, args)             _logmsg(LogLevelWarning, __FILE__, __LINE__, __FUNCTION__, fmt, args)
 #define verror(fmt, args)            _logmsg(LogLevelError, __FILE__, __LINE__, __FUNCTION__, fmt, args)

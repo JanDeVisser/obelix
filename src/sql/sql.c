@@ -82,8 +82,8 @@ void _sql_init(void) {
     if (!_drivers) {
       _driver_mutex = mutex_create();
       _drivers = dict_create(NULL);
-      dict_set_key_type(_drivers, type_str);
-      dict_set_data_type(_drivers, type_int);
+      dict_set_key_type(_drivers, &type_str);
+      dict_set_data_type(_drivers, &type_int);
     }
     if (ErrorSQL < 1) {
       exception_register(ErrorSQL);

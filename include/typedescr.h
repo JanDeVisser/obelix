@@ -47,6 +47,8 @@ OBLCORE_IMPEXP int             vtable_implements(vtable_t *, int);
 OBLCORE_IMPEXP int             _typedescr_register(int, char *, vtable_t *, methoddescr_t *);
 OBLCORE_IMPEXP typedescr_t *   typedescr_assign_inheritance(int, int);
 OBLCORE_IMPEXP typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
+OBLCORE_IMPEXP typedescr_t *   typedescr_register_accessors(int, accessor_t *);
+OBLCORE_IMPEXP accessor_t *    typedescr_get_accessor(typedescr_t *, char *);
 OBLCORE_IMPEXP typedescr_t *   typedescr_get(int);
 OBLCORE_IMPEXP typedescr_t *   typedescr_get_byname(char *);
 OBLCORE_IMPEXP void            typedescr_count(void);

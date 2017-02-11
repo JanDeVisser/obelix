@@ -37,6 +37,7 @@ static void_t _type_initializers[] = {
   file_init,
   mutex_init,
   name_init,
+  thread_init,
   NULL
 };
 

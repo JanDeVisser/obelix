@@ -21,25 +21,24 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <data.h>
+#include <application.h>
 #include <file.h>
 #include "libgrammar.h"
 #include <grammarparser.h>
 
 int panoramix_debug;
 
-void debug_settings(char *debug) {
-  array_t *cats;
-  int      ix;
-
-  if (debug) {
-    _debug("debug optarg: %s", debug);
-    cats = array_split(debug, ",");
-    for (ix = 0; ix < array_size(cats); ix++) {
-      logging_enable(str_array_get(cats, ix));
+static app_description_t   _app_descr_panoramix = {
+    .name        = "panoramix",
+    .shortdescr  = "Grammar parser",
+    .description = "Panoramix will convert a formal grammar file into C code.",
+    .legal       = "(c) Jan de Visser <jan@finiandarcy.com> 2014-2017",
+    .options     = {
+        { .longopt = "grammar", .shortopt = 'g', .description = "Grammar file", .flags = CMDLINE_OPTION_FLAG_REQUIRED_ARG },
+        { .longopt = "syspath", .shortopt = 's', .description = "System path",  .flags = CMDLINE_OPTION_FLAG_REQUIRED_ARG },
+        { .longopt = NULL,      .shortopt = 0,   .description = NULL,           .flags = 0 }
     }
-  }
-}
+};
 
 grammar_t * load(char *sys_dir, char *grammarpath) {
   size_t            len;
@@ -89,32 +88,24 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
 }
 
 int main(int argc, char **argv) {
-  grammar_t *grammar;
-  char      *grammarfile = NULL;
-  char      *debug = NULL;
-  char      *syspath = NULL;
-  int        opt;
+  application_t *app;
+  grammar_t     *grammar;
+  char          *grammarfile = NULL;
+  char          *syspath = NULL;
 
-  application_init("panoramix", argc, argv);
+  app = application_create(&_app_descr_panoramix, argc, argv);
   logging_register_module(panoramix);
-  while ((opt = getopt(argc, argv, "s:g:d:v:")) != -1) {
-    switch (opt) {
-      case 's':
-        syspath = optarg;
-        break;
-      case 'g':
-        grammarfile = optarg;
-        break;
-      case 'd':
-        debug = optarg;
-        break;
-      case 'v':
-        logging_set_level(optarg);
-        break;
-    }
-  }
-  debug_settings(debug);
 
+  if (application_has_option(app, "grammar")) {
+    grammarfile = data_tostring(application_get_option(app, "grammar"));
+  }
+  if (application_has_option(app, "syspath")) {
+    syspath = data_tostring(application_get_option(app, "syspath"));
+  }
+  if (!grammarfile) {
+    fprintf(stderr, "No grammar file specified.\n");
+    exit(1);
+  }
   grammar = load(syspath, grammarfile);
   if (grammar) {
     grammar_dump(grammar);

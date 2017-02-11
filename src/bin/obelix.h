@@ -21,6 +21,7 @@
 #define __OBELIX_H__
 
 #include "scriptparse.h"
+#include <application.h>
 #include <dict.h>
 #include <grammar.h>
 #include <name.h>
@@ -51,22 +52,17 @@ typedef struct _scriptloader {
 } scriptloader_t;
 
 typedef struct _obelix {
-  data_t        _d;
-  int           argc;
-  char        **argv;
-  name_t       *script;
-  arguments_t  *script_args;
-  char         *grammar;
-  char         *debug;
-  char         *log_level;
-  char         *logfile;
-  char         *basepath;
-  char         *syspath;
-  array_t      *options;
-  int           server;
-  char         *init_file;
-  char         *cookie;
-  dictionary_t *loaders;
+  application_t   _app;
+  name_t         *script;
+  arguments_t    *script_args;
+  char           *grammar;
+  char           *basepath;
+  char           *syspath;
+  array_t        *options;
+  int             server;
+  char           *init_file;
+  char           *cookie;
+  dictionary_t   *loaders;
 } obelix_t;
 
 extern name_t *            obelix_build_name(char *);

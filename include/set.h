@@ -56,8 +56,8 @@ OBLCORE_IMPEXP void *   set_find(set_t *, cmp_t, void *);
 OBLCORE_IMPEXP str_t *  set_tostr(set_t *);
 OBLCORE_IMPEXP char *   set_tostring(set_t *);
 
-#define intset_create()       (set_set_type(set_create(NULL), type_int))
-#define strset_create()       (set_set_type(set_create(NULL), type_str))
+#define intset_create()       (set_set_type(set_create(NULL), &type_int))
+#define strset_create()       (set_set_type(set_create(NULL), &type_str))
 #define set_add_int(s, i)     set_add((s), (void *)((intptr_t) (i)))
 #define set_has_int(s, i)     set_has((s), (void *)((intptr_t) (i)))
 #define set_remove_int(s, i)  set_remove((s), (void *)((intptr_t) (i)))

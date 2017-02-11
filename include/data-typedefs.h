@@ -44,7 +44,10 @@ typedef enum _datatype {
   Int,        /* 8 */
   Float,      /* 9 */
   Bool,       /* 10 */
-  List        /* 11 */
+  List,       /* 11 */
+  Mutex,      /* 12 */
+  Condition,  /* 13 */
+  Thread,     /* 14 */
 } datatype_t;
 
 typedef enum _free_semantics {
@@ -55,7 +58,7 @@ typedef enum _free_semantics {
 
 typedef enum _metatype {
   NoType          = 0,
-  Dynamic         = 12,
+  Dynamic         = 15,
   FirstInterface  = 1000, /* Marker */
   Number,        /* 1001 */
   InputStream,   /* 1002 */
@@ -137,6 +140,39 @@ typedef struct _data {
   char               *str;
 } data_t;
 
+typedef struct _pointer {
+  data_t  _d;
+  void   *ptr;
+  size_t  size;
+} pointer_t;
+
+typedef pointer_t datalist_t;
+
+typedef struct _dictionary {
+  data_t  _d;
+  dict_t *attributes;
+} dictionary_t;
+
+typedef struct _arguments {
+  data_t        _d;
+  datalist_t   *args;
+  dictionary_t *kwargs;
+} arguments_t;
+
+/* ------------------------------------------------------------------------ */
+
+typedef data_t * (*factory_t)(int, va_list);
+typedef data_t * (*cast_t)(data_t *, int);
+typedef data_t * (*resolve_name_t)(void *, char *);
+typedef data_t * (*call_t)(void *, arguments_t *);
+typedef data_t * (*setvalue_t)(void *, char *, data_t *);
+typedef data_t * (*data_fnc_t)(data_t *);
+typedef data_t * (*data2_fnc_t)(data_t *, data_t *);
+typedef data_t * (*data_valist_t)(data_t *, va_list);
+typedef data_t * (*method_t)(data_t *, char *, arguments_t *);
+
+/* ------------------------------------------------------------------------ */
+
 typedef struct _kind {
   data_t  _d;
   int     type;
@@ -154,12 +190,19 @@ typedef struct _vtable {
   void_t      fnc;
 } vtable_t;
 
+typedef struct _accessor {
+  char           *name;
+  setvalue_t      setter;
+  resolve_name_t  resolver;
+} accessor_t;
+
 typedef struct _typedescr {
   kind_t    _d;
   size_t    size;
   int       debug;
   vtable_t *vtable;
   vtable_t *inherited_vtable;
+  dict_t   *accessors;
   void_t   *constructors;
   void     *ptr;
   int       promote_to;
@@ -180,32 +223,12 @@ typedef struct _int {
   long   i;
 } int_t;
 
-typedef struct _pointer {
-  data_t  _d;
-  void   *ptr;
-  size_t  size;
-} pointer_t;
-
-typedef pointer_t datalist_t;
-
-typedef struct _dictionary {
-  data_t  _d;
-  dict_t *attributes;
-} dictionary_t;
-
-typedef struct _arguments {
-  data_t        _d;
-  datalist_t   *args;
-  dictionary_t *kwargs;
-} arguments_t;
-
 typedef struct _name {
   data_t   _d;
   array_t *name;
   char    *sep;
 } name_t;
 
-typedef data_t * (*method_t)(data_t *, char *, arguments_t *);
 
 typedef struct _methoddescr {
   data_t    _d;
@@ -217,17 +240,6 @@ typedef struct _methoddescr {
   int       varargs;
   int       argtypes[MAX_METHOD_PARAMS];
 } methoddescr_t;
-
-/* ------------------------------------------------------------------------ */
-
-typedef data_t * (*factory_t)(int, va_list);
-typedef data_t * (*cast_t)(data_t *, int);
-typedef data_t * (*resolve_name_t)(void *, char *);
-typedef data_t * (*call_t)(void *, arguments_t *);
-typedef data_t * (*setvalue_t)(void *, char *, data_t *);
-typedef data_t * (*data_fnc_t)(data_t *);
-typedef data_t * (*data2_fnc_t)(data_t *, data_t *);
-typedef data_t * (*data_valist_t)(data_t *, va_list);
 
 /* ------------------------------------------------------------------------ */
 

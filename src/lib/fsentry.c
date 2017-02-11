@@ -251,7 +251,7 @@ fsentry_iter_t * _fsentry_iter_create(fsentry_t *dir) {
     ret -> dirptr = d;
 #ifdef HAVE_DIRENT_H
     ret = _fsentry_iter_readnext(ret);
-#elf defined(HAVE__FINDFIRST)
+#elif defined(HAVE__FINDFIRST)
     memcpy(&ret -> entry, &attrib, sizeof(struct _finddata_t));
   } else {
     ret -> dirptr = 0;

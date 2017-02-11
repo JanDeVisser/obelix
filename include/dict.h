@@ -117,15 +117,15 @@ OBLCORE_IMPEXP char *        dict_tostring_custom(dict_t *, const char *,
 
 OBLCORE_IMPEXP struct _str * dict_dump(const dict_t *, const char *);
 
-#define strvoid_dict_create()   (dict_set_key_type(dict_create(NULL), type_str))
+#define strvoid_dict_create()   (dict_set_key_type(dict_create(NULL), &type_str))
 #define strdict_create()        (strvoid_dict_create())
-#define strint_dict_create()    (dict_set_data_type(strvoid_dict_create(), type_int))
-#define strstr_dict_create()    (dict_set_data_type(strvoid_dict_create(), type_str))
+#define strint_dict_create()    (dict_set_data_type(strvoid_dict_create(), &type_int))
+#define strstr_dict_create()    (dict_set_data_type(strvoid_dict_create(), &type_str))
 
-#define intvoid_dict_create()   (dict_set_key_type(dict_create(NULL), type_int))
+#define intvoid_dict_create()   (dict_set_key_type(dict_create(NULL), &type_int))
 #define intdict_create()        (intvoid_dict_create())
-#define intint_dict_create()    (dict_set_data_type(intvoid_dict_create(), type_int))
-#define intstr_dict_create()    (dict_set_data_type(intvoid_dict_create(), type_str))
+#define intint_dict_create()    (dict_set_data_type(intvoid_dict_create(), &type_int))
+#define intstr_dict_create()    (dict_set_data_type(intvoid_dict_create(), &type_str))
 
 #define dict_put_int(d, i, v)   dict_put((d), (void *)((intptr_t) (i)), (v))
 #define dict_get_int(d, i)      dict_get((d), (void *)((intptr_t) (i)))

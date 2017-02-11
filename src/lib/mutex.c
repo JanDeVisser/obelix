@@ -24,8 +24,6 @@
 #include <exception.h>
 
 static void          _mutex_free(mutex_t *);
-static data_t *      _mutex_new(mutex_t *, va_list);
-static char *        _mutex_tostring(mutex_t *);
 static data_t *      _mutex_enter(mutex_t *);
 static data_t *      _mutex_leave(mutex_t *, data_t *);
 
@@ -34,13 +32,9 @@ extern data_t *      _mutex_create(data_t *, char *, arguments_t *);
 static data_t *      _mutex_lock(mutex_t *, char *, arguments_t *);
 static data_t *      _mutex_unlock(mutex_t *, char *, arguments_t *);
 
-static int Mutex = -1;
-
 static vtable_t _vtable_Mutex[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _mutex_new },
   { .id = FunctionCmp,      .fnc = (void_t) mutex_cmp },
   { .id = FunctionFree,     .fnc = (void_t) _mutex_free },
-  { .id = FunctionToString, .fnc = (void_t) _mutex_tostring },
   { .id = FunctionHash,     .fnc = (void_t) mutex_hash },
   { .id = FunctionEnter,    .fnc = (void_t) _mutex_enter },
   { .id = FunctionLeave,    .fnc = (void_t) _mutex_leave },
@@ -52,8 +46,6 @@ static methoddescr_t _methods_Mutex[] = {
   { .type = -1,     .name = "unlock",  .method = (method_t) _mutex_unlock,  .argtypes = { Any, Any, Any },          .minargs = 0, .varargs = 0 },
   { .type = NoType, .name = NULL,      .method = NULL,                      .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
 };
-
-static int Condition = -1;
 
 static void          _condition_free(condition_t *);
 static data_t *      _condition_new(condition_t *, va_list);
@@ -92,44 +84,11 @@ int mutex_debug = -1;
 /* ------------------------------------------------------------------------ */
 
 void mutex_init(void) {
-  if (Mutex < 1) {
-    logging_register_category("mutex", &mutex_debug);
-    typedescr_register_with_methods(Mutex, mutex_t);
-    typedescr_register_with_methods(Condition, condition_t);
-  }
+  builtin_typedescr_register(Mutex, "mutex", mutex_t);
+  builtin_typedescr_register(Condition, "condition", condition_t);
 }
 
 /* ------------------------------------------------------------------------ */
-
-data_t * _mutex_new(mutex_t *mutex, _unused_ va_list args) {
-#ifdef HAVE_PTHREAD_H
-  pthread_mutexattr_t  attr;
-#endif /* HAVE_PTHREAD_H */
-  data_t              *ret = NULL;
-  char                *name = va_arg(args, char *);
-
-#ifdef HAVE_PTHREAD_H
-  pthread_mutexattr_init(&attr);
-  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  if ((errno = pthread_mutex_init(&mutex -> mutex, &attr))) {
-    error("Error creating mutex: %s", strerror(errno));
-    free(mutex);
-    ret = data_exception_from_errno();
-  }
-  pthread_mutexattr_destroy(&attr);
-#elif defined(HAVE_INITIALIZECRITICALSECTION)
-  InitializeCriticalSection(&(mutex -> cs));
-#endif /* HAVE_PTHREAD_H */
-  if (!ret) {
-    debug(mutex, "Mutex created");
-    ret = (data_t *) mutex;
-    if (name) {
-      ret->str = strdup(name);
-      ret->free_str = DontFreeData;
-    }
-  }
-  return ret;
-}
 
 void _mutex_free(mutex_t *mutex) {
   if (mutex) {
@@ -139,10 +98,6 @@ void _mutex_free(mutex_t *mutex) {
     DeleteCriticalSection(&(mutex -> cs));
 #endif /* HAVE_PTHREAD_H */
   }
-}
-
-char * _mutex_tostring(mutex_t _unused_ *data) {
-  return "mutex";
 }
 
 data_t * _mutex_enter(mutex_t *mutex) {
@@ -155,32 +110,38 @@ data_t * _mutex_leave(mutex_t *mutex, data_t *param) {
 
 /* ------------------------------------------------------------------------ */
 
-mutex_t * mutex_create() {
-  data_t  *obj;
-  mutex_t *ret = NULL;
-
-  mutex_init();
-  obj = data_create(Mutex, NULL);
-  if (!data_is_mutex(obj)) {
-    data_free(obj);
-  } else {
-    ret = (mutex_t *) obj;
-  }
-  return ret;
+mutex_t * mutex_create(void) {
+  return mutex_create_withname(NULL);
 }
 
 mutex_t * mutex_create_withname(char *name) {
-  data_t  *obj;
-  mutex_t *ret = NULL;
+  mutex_t *mutex;
+#ifdef HAVE_PTHREAD_H
+  pthread_mutexattr_t  attr;
+#endif /* HAVE_PTHREAD_H */
 
-  mutex_init();
-  obj = data_create(Mutex, name);
-  if (!data_is_mutex(obj)) {
-    data_free(obj);
-  } else {
-    ret = (mutex_t *) obj;
+ mutex = data_new(Mutex, mutex_t);
+#ifdef HAVE_PTHREAD_H
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  if ((errno = pthread_mutex_init(&mutex -> mutex, &attr))) {
+    error("Error creating mutex: %s", strerror(errno));
+    free(mutex);
+    return NULL;
   }
-  return ret;
+  pthread_mutexattr_destroy(&attr);
+#elif defined(HAVE_INITIALIZECRITICALSECTION)
+  InitializeCriticalSection(&(mutex -> cs));
+#endif /* HAVE_PTHREAD_H */
+  // fprintf(stderr, "Mutex created\n");
+  if (name) {
+    mutex->_d.str = strdup(name);
+    mutex->_d.free_str = DontFreeData;
+  } else {
+    mutex->_d.str = "mutex";
+    mutex->_d.free_str = Constant;
+  }
+  return mutex;
 }
 
 int mutex_cmp(mutex_t *m1, mutex_t *m2) {

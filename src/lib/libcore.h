@@ -30,6 +30,7 @@
 #include <core.h>
 
 extern void     any_init(void);
+extern void     core_init();
 extern void     str_init(void);
 extern void     int_init(void);
 extern void     float_init(void);
@@ -38,6 +39,7 @@ extern void     exception_init(void);
 extern void     ptr_init(void);
 extern void     file_init(void);
 extern void     mutex_init(void);
+extern void     thread_init(void);
 extern void     name_init(void);
 extern void     hierarchy_init(void);
 

@@ -115,7 +115,6 @@ void socket_init(void) {
 
   if (Socket < 1) {
     logging_register_category("socket", &socket_debug);
-    file_init();
     typedescr_register_with_methods(Socket, socket_t);
     typedescr_assign_inheritance(Socket, Stream);
     exception_register(ErrorSocket);

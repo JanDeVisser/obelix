@@ -19,7 +19,7 @@
 
 #ifdef HAVE_GETPWNAM
 #include <pwd.h>
-#else HAVE_GETUSERNAME
+#elif defined(HAVE_GETUSERNAME)
 #include <windows.h>
 #endif
 #include <sys/types.h>

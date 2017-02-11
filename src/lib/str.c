@@ -133,7 +133,7 @@ void _str_free(str_t *str) {
 
 data_t * _str_resolve(str_t *str, char *slice) {
   int  sz = (int) str_len(str);
-  int  ix;
+  long ix;
   char buf[2];
 
   if (!strtoint(slice, &ix)) {
