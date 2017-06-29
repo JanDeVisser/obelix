@@ -34,29 +34,29 @@ extern "C" {
 #endif /* __cplusplus */
 
 typedef enum _errorcode {
-  ErrorNoError = 0,
-  ErrorSyntax = 1,
-  ErrorArgCount,
-  ErrorMaxStackDepthExceeded,
-  ErrorInternalError,
-  ErrorType,
-  ErrorName,
-  ErrorNotCallable,
-  ErrorRange,
-  ErrorIOError,
-  ErrorSysError,
-  ErrorFunctionUndefined,
-  ErrorParameterValue,
-  ErrorOverflow,
-  ErrorNotIterable,
-  ErrorNotIterator,
-  ErrorExhausted,
-  ErrorThrowable,
-  ErrorLeave,
-  ErrorReturn,
-  ErrorExit,
-  ErrorYield,
-  ErrorQuit
+  ErrorNoError                 = 0,
+  ErrorSyntax                  = 1,
+  ErrorArgCount,              /* 2 */
+  ErrorMaxStackDepthExceeded, /* 3 */
+  ErrorInternalError,         /* 4 */
+  ErrorType,                  /* 5 */
+  ErrorName,                  /* 6 */
+  ErrorNotCallable,           /* 7 */
+  ErrorRange,                 /* 8 */
+  ErrorIOError,               /* 9 */
+  ErrorSysError,              /* 10 */
+  ErrorFunctionUndefined,     /* 11 */
+  ErrorParameterValue,        /* 12 */
+  ErrorOverflow,              /* 13 */
+  ErrorNotIterable,           /* 14 */
+  ErrorNotIterator,           /* 15 */
+  ErrorExhausted,             /* 16 */
+  ErrorThrowable,             /* 17 */
+  ErrorLeave,                 /* 18 */
+  ErrorReturn,                /* 19 */
+  ErrorExit,                  /* 20 */
+  ErrorYield,                 /* 21 */
+  ErrorQuit                   /* 22 */
 } errorcode_t;
 
 typedef struct _exception_t {
@@ -76,6 +76,7 @@ OBLCORE_IMPEXP exception_t *  exception_from_errno(void);
 OBLCORE_IMPEXP unsigned int   exception_hash(exception_t *);
 OBLCORE_IMPEXP int            exception_cmp(exception_t *, exception_t *);
 OBLCORE_IMPEXP void           exception_report(exception_t *);
+OBLCORE_IMPEXP char *         _exception_getcodestr(exception_t *);
 
 OBLCORE_IMPEXP data_t *       data_exception(int, char *, ...);
 OBLCORE_IMPEXP data_t *       data_exception_from_my_errno(int);
@@ -83,13 +84,46 @@ OBLCORE_IMPEXP data_t *       data_exception_from_errno(void);
 OBLCORE_IMPEXP data_t *       data_throwable(data_t *);
 
 #define exception_register(e)            (e = _exception_register( #e ))
-#define data_is_exception(d)             ((d) && data_hastype((d), Exception))
-#define data_is_unhandled_exception(d)   ((d) && data_is_exception((d)) && !(((exception_t *) (d)) -> handled))
-#define data_as_exception(d)             ((exception_t *) ((data_is_exception((d)) ? (d) : NULL)))
-#define data_is_exception_with_code(d,c) (data_is_exception((d)) && (data_as_exception((d)) -> code == (c)))
-#define exception_free(e)                (data_free((data_t *) (e)))
-#define exception_tostring(e)            (data_tostring((data_t *) (e)))
-#define exception_copy(e)                ((exception_t *) data_copy((data_t *) (e)))
+
+type_skel(exception, Exception, exception_t);
+
+static inline int data_is_unhandled_exception(void *ex) {
+  return data_is_exception(ex) && !(data_as_exception(ex) -> handled);
+}
+
+static inline int data_is_exception_with_code(void *ex, int code) {
+  return data_is_exception(ex) && ((data_as_exception(ex) -> code) == code);
+}
+
+static inline char * exception_getmessage(void *ex) {
+  return data_is_exception(ex)
+    ? data_as_exception(ex) -> msg : data_tostring(ex);
+}
+
+static inline int exception_getcode(void *ex) {
+  return data_is_exception(ex)
+    ? data_as_exception(ex) -> code : -1;
+}
+
+static inline char * exception_getcodestr(void *ex) {
+  return data_is_exception(ex)
+    ? _exception_getcodestr(data_as_exception(ex)) : NULL;
+}
+
+static inline int exception_handled(void *ex) {
+  return data_is_exception(ex)
+    ? data_as_exception(ex) -> handled : -1;
+}
+
+static inline data_t * exception_throwable(void *ex) {
+  return data_is_exception(ex)
+    ? data_as_exception(ex) -> throwable : NULL;
+}
+
+static inline data_t * exception_trace(void *ex) {
+  return data_is_exception(ex)
+    ? data_as_exception(ex) -> trace : NULL;
+}
 
 #ifdef __WIN32__
 #define get_last_error()               (GetLastError())

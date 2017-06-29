@@ -6,6 +6,7 @@ add_library(oblvm SHARED
   instruction.c
   namespace.c
   object.c
+  property.c
   script.c
   stacktrace.c
   vm.c

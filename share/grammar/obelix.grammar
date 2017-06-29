@@ -24,6 +24,7 @@ statement                   := conditional
                              | continue
                              | switch
                              | func_def
+                             | prop_def
                              | return_stmt
                              | yield_stmt
                              | import_stmt
@@ -133,6 +134,7 @@ func_def                    := func_type
 func_type                   := "func"            [ pushval: 0                ]
                              | "threadfunc"      [ pushval: 1                ]
                              | "generator"       [ pushval: 2                ]
+                             | "persistent"      [ pushval: 3                ]
                              ;
 
 func_block                  :=                   [ start_function            ]
@@ -182,6 +184,30 @@ param                       := 'i'               [ push                      ]
 parlist_tail                := ,
                                parlist
                              |
+                             ;
+
+prop_def                    := "prop"
+                               prop_type         [ push                      ]
+                               prop_name         [ push define_prop          ]
+                               prop_attribute *  [ end_define_prop           ]
+                             ;
+
+prop_type                   := identifier
+                             ;
+
+prop_name                   := 'i'
+                             ;
+
+prop_attribute              := "label" '\"'
+                             | "key"
+                             | "required"
+                             | "choices" list
+                             | "default" expr
+                             | "transient"
+                             | "private"
+                             | "set" expr
+                             | "get" expr
+                             | "check" expr
                              ;
 
 lambda                      := "lambda"

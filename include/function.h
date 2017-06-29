@@ -37,6 +37,7 @@ typedef struct _function {
   int            max_params;
   int            type;
   array_t       *params;
+  dictionary_t  *config;
 } function_t;
 
 OBLCORE_IMPEXP function_t *    function_create(char *, void_t);

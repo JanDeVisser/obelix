@@ -120,7 +120,7 @@ mutex_t * mutex_create_withname(char *name) {
   pthread_mutexattr_t  attr;
 #endif /* HAVE_PTHREAD_H */
 
- mutex = data_new(Mutex, mutex_t);
+  mutex = data_new(Mutex, mutex_t);
 #ifdef HAVE_PTHREAD_H
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);

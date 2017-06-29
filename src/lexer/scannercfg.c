@@ -22,8 +22,6 @@
 #include "liblexer.h"
 #include <function.h>
 #include <mutex.h>
-#include <resolve.h>
-#include <lexer.h>
 
 /* ------------------------------------------------------------------------ */
 

@@ -81,11 +81,11 @@ static accessor_t _accessors_Obelix[] = {
 };
 
 _unused_ static methoddescr_t _methods_Obelix[] = {
-  { .type = Any,    .name = "obelix",  .method = _obelix_get,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
-  { .type = -1,     .name = "run",     .method = _obelix_run,         .argtypes = { String, Any, NoType },    .minargs = 1, .varargs = 1 },
-  { .type = -1,     .name = "mount",   .method = _obelix_mount,       .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
-  { .type = -1,     .name = "server",  .method = _obelix_startserver, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
-  { .type = NoType, .name = NULL,      .method = NULL,                .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
+    { .type = Any,    .name = "mount",   .method = _obelix_mount,       .argtypes = { String, NoType, NoType }, .minargs = 1, .varargs = 0 },
+    { .type = Any,    .name = "obelix",  .method = _obelix_get,         .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 },
+    { .type = -1,     .name = "server",  .method = _obelix_startserver, .argtypes = { Int, NoType, NoType },    .minargs = 1, .varargs = 0 },
+    { .type = -1,     .name = "run",     .method = _obelix_run,         .argtypes = { String, Any, NoType },    .minargs = 1, .varargs = 1 },
+    { .type = NoType, .name = NULL,      .method = NULL,                .argtypes = { NoType, NoType, NoType }, .minargs = 0, .varargs = 0 }
 };
 
        int       Obelix = -1;
@@ -446,7 +446,7 @@ obelix_t * obelix_initialize(int argc, char **argv) {
   }
   app = (application_t *) _obelix;
   application_parse_args(app, &_app_descr_obelix, argc, argv);
-  if (!_obelix -> server) {
+  if (!_obelix -> server && !app -> error) {
     if (application_has_args(app)) {
       _obelix -> script_args = arguments_shift(app -> args, &script);
       _obelix -> script = protocol_build_name(data_tostring(script));
@@ -535,8 +535,9 @@ int main(int argc, char **argv) {
   data_t      *data = NULL;
   exception_t *ex;
 
-  if (!(obelix = obelix_initialize(argc, argv))) {
-    fprintf(stderr, "Usage: obelix [options ...] [<script filename> [script arguments]]\n");
+  obelix = obelix_initialize(argc, argv);
+  if (!obelix || application_error(obelix)) {
+    application_help(obelix);
     exit(1);
   }
 

@@ -27,7 +27,7 @@ static data_t * _remote_new(remote_t *, va_list);
 static void     _remote_free(remote_t *);
 static char *   _remote_tostring(remote_t *);
 static data_t * _remote_resolve(remote_t *, char *);
-static data_t * _remote_call(remote_t *, array_t *, dict_t *);
+static data_t * _remote_call(remote_t *, arguments_t *);
 
 static vtable_t _vtable_Remote[] = {
   { .id = FunctionNew,         .fnc = (void_t) _remote_new },
@@ -79,10 +79,9 @@ data_t * _remote_resolve(remote_t *remote, char *name) {
   return data_create(Remote, remote -> mountpoint, n);
 }
 
-data_t * _remote_call(remote_t *remote, array_t *args, dict_t *kwargs) {
+data_t * _remote_call(remote_t *remote, arguments_t *args) {
   client_t    *client;
   data_t      *ret;
-  arguments_t *a;
 
   debug(ipc, "Running '%s' on mountpoint %s",
       name_tostring(remote->name),
@@ -90,9 +89,7 @@ data_t * _remote_call(remote_t *remote, array_t *args, dict_t *kwargs) {
   ret = mountpoint_checkout_client(remote->mountpoint);
   if (data_is_client(ret)) {
     client = (client_t *) ret;
-    a = arguments_create(args, kwargs);
-    ret = client_run(client, remote, a);
-    arguments_free(a);
+    ret = client_run(client, remote, args);
     mountpoint_return_client(remote->mountpoint, client);
   }
   return ret;

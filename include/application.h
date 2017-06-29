@@ -66,6 +66,7 @@ OBLCORE_IMPEXP data_t *        _application_get_option(application_t *, char *);
 OBLCORE_IMPEXP data_t *        _application_get_arg(application_t *, int);
 OBLCORE_IMPEXP int             _application_has_option(application_t *, char *);
 OBLCORE_IMPEXP int             _application_args_size(application_t *);
+OBLCORE_IMPEXP void            _application_help(application_t *);
 OBLCORE_IMPEXP void            application_terminate(void);
 OBLCORE_IMPEXP int             Application;
 
@@ -95,6 +96,14 @@ static inline int application_has_args(void *app) {
 
 static inline int application_args_size(void *app) {
   return _application_args_size(data_as_application(app));
+}
+
+static inline data_t * application_error(void *app) {
+  return data_as_application(app) -> error;
+}
+
+static inline void application_help(void *app) {
+  _application_help(data_as_application(app));
 }
 
 #ifdef  __cplusplus

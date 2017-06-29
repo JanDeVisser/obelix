@@ -29,6 +29,7 @@
 #include <method.h>
 #include <threadonce.h>
 
+static void        _data_init(void);
 static data_t *    _data_call_constructor(data_t *, new_t, va_list);
 static data_t *    _data_call_constructors(typedescr_t *, va_list);
 static void        _data_call_free(typedescr_t *, data_t *);
@@ -44,17 +45,25 @@ static type_t _type_data = {
   .cmp      = (cmp_t) data_cmp
 };
 
-type_t type_data;
-
-int     data_debug = 0;
-int     _data_count = 0;
+       type_t type_data;
+static int    _data_initialized = 0;
+       int    data_debug = 0;
+       int    _data_count = 0;
 
 /* -- D A T A  S T A T I C  F U N C T I O N S ----------------------------- */
 
 void data_init(void) {
-  logging_register_category("data", &data_debug);
-  type_copy(&type_data, &_type_data);
+  _data_init();
 }
+
+void _data_init(void) {
+  if (!_data_initialized) {
+    logging_register_category("data", &data_debug);
+    type_copy(&type_data, &_type_data);
+    _data_initialized = 1;
+  }
+}
+#define data_init()  if (!_data_initialized) _data_init()
 
 data_t * _data_call_constructor(data_t *data, new_t n, va_list args) {
   data_t  *ret;
@@ -389,9 +398,12 @@ unsigned int data_hash(data_t *data) {
   hash_t       hash;
 
   if (data) {
-    type = data_typedescr(data);
-    hash = (hash_t) typedescr_get_function(type, FunctionHash);
-    return (hash) ? hash(data) : hashptr(data);
+    if (!data -> hash) {
+      type = data_typedescr(data);
+      hash = (hash_t) typedescr_get_function(type, FunctionHash);
+      data -> hash = (hash) ? hash(data) : hashptr(data);
+    }
+    return data -> hash;
   } else {
     return 0;
   }
@@ -727,21 +739,24 @@ int data_cmp(data_t *d1, data_t *d2) {
     } else {
       p2 = data_promote(d2);
       if (p2 && (d1 -> type == p2 -> type)) {
-	      ret = data_cmp(d1, p2);
+	ret = data_cmp(d1, p2);
       } else if (p1 && !p2) {
-	      ret = data_cmp(p1, d2);
+	ret = data_cmp(p1, d2);
       } else if (!p1 && p2) {
-	      ret = data_cmp(d1, p2);
+	ret = data_cmp(d1, p2);
       } else if (p1 && p2) {
-	      ret = data_cmp(p1, p2);
+	ret = data_cmp(p1, p2);
       } else {
-	      ret = d1 -> type - d2 -> type;
+	ret = d1 -> type - d2 -> type;
       }
       data_free(p2);
     }
     data_free(p1);
     return ret;
   } else {
+    if (data_hash(d1) != data_hash(d2)) {
+      return 0;
+    }
     type = data_typedescr(d1);
     cmp = (cmp_t) typedescr_get_function(type, FunctionCmp);
     return (cmp) ? cmp(d1, d2) : (d1 == d2);
