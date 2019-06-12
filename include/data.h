@@ -27,7 +27,6 @@
 #include <data-typedefs.h>
 #include <array.h>
 #include <dict.h>
-#include <typedescr.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -90,13 +89,64 @@ OBLCORE_IMPEXP array_t *       data_add_all_as_data_reducer(char *, array_t *);
 OBLCORE_IMPEXP array_t *       data_add_strings_reducer(data_t *, array_t *);
 OBLCORE_IMPEXP dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
+/* ------------------------------------------------------------------------ */
+
+OBLCORE_IMPEXP void            typedescr_init(void);
+OBLCORE_IMPEXP kind_t *        kind_get(int);
+OBLCORE_IMPEXP kind_t *        kind_get_byname(char *);
+
+OBLCORE_IMPEXP void            kind_register_method(kind_t *, methoddescr_t *);
+OBLCORE_IMPEXP methoddescr_t * kind_get_method(kind_t *, char *);
+
+/* ------------------------------------------------------------------------ */
+
+OBLCORE_IMPEXP int                       _interface_register(int, char *, int, ...);
+OBLCORE_IMPEXP interface_t *             interface_get(int);
+OBLCORE_IMPEXP interface_t *             interface_get_byname(char *);
+#define interface_register_method(i, m)  kind_register_method((kind_t *) (i), (m))
+#define interface_get_method(i, m)       kind_get_method((kind_t *) (i), (m))
+
+/* ------------------------------------------------------------------------ */
+
+OBLCORE_IMPEXP vtable_t *      vtable_build(vtable_t[]);
+OBLCORE_IMPEXP void            vtable_dump(vtable_t *);
+OBLCORE_IMPEXP void_t          vtable_get(vtable_t *, int);
+OBLCORE_IMPEXP int             vtable_implements(vtable_t *, int);
+
+/* ------------------------------------------------------------------------ */
+
+OBLCORE_IMPEXP int             _typedescr_register(int, char *, vtable_t *, methoddescr_t *);
+OBLCORE_IMPEXP typedescr_t *   typedescr_assign_inheritance(int, int);
+OBLCORE_IMPEXP typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
+OBLCORE_IMPEXP typedescr_t *   typedescr_register_accessors(int, accessor_t *);
+OBLCORE_IMPEXP accessor_t *    typedescr_get_accessor(typedescr_t *, char *);
+OBLCORE_IMPEXP typedescr_t *   typedescr_get(int);
+OBLCORE_IMPEXP typedescr_t *   typedescr_get_byname(char *);
+OBLCORE_IMPEXP void            typedescr_count(void);
+OBLCORE_IMPEXP unsigned int    typedescr_hash(typedescr_t *);
+OBLCORE_IMPEXP void            typedescr_register_methods(int, methoddescr_t[]);
+OBLCORE_IMPEXP int             typedescr_implements(typedescr_t *, int);
+OBLCORE_IMPEXP int             typedescr_inherits(typedescr_t *, int);
+OBLCORE_IMPEXP int             typedescr_is(typedescr_t *, int);
+OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
+OBLCORE_IMPEXP methoddescr_t * typedescr_get_method(typedescr_t *, char *);
+
+
 OBLCORE_IMPEXP type_t          type_data;
 
-#ifndef __INCLUDING_TYPEDESCR_H__
-#include <typedescr.h>
-#endif /* __INCLUDING_TYPEDESCR_H__ */
+/* ------------------------------------------------------------------------ */
 
-#define data_new(dt,st)         ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
+#define typename(t)                        ((t) ? (((kind_t *) (t)) -> name) : "")
+#define typetype(t)                        ((t) ? ((kind_t *) (t)) -> type : -1)
+#define typedescr_get_local_function(t, f) (((t) && (t) -> vtable) ? (t) -> vtable[(f)].fnc : NULL)
+#define typedescr_get_function(t, f)       (((t) && (t) -> inherited_vtable) ? (t) -> inherited_vtable[(f)].fnc : NULL)
+#define typedescr_register_method(t, m)    kind_register_method((kind_t *) (t), (m))
+#define typedescr_constructors(t)          ((t) -> constructors)
+#define typedescr_set_size(d, t)           (typedescr_get((d)) -> size = sizeof(t))
+  
+/* ------------------------------------------------------------------------ */
+
+#define data_new(dt,st)                    ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
 
 static inline int data_is_data(void *data) {
 #ifndef NDEBUG
@@ -126,32 +176,6 @@ static inline int data_type(void *data) {
   return (data) ? data_as_data(data) -> type : -1;
 }
 
-static inline typedescr_t * data_typedescr(void *data) {
-  return (data)
-    ? typedescr_get(data_as_data(data) -> type)
-    : NULL;
-}
-
-static inline char * data_typename(void *data) {
-  return (data)
-    ? typename(typedescr_get(data_type(data_as_data(data))))
-    : "null";
-}
-
-static inline int data_hastype(void *data, int type) {
-  data_t *d = data_as_data(data);
-
-  return (d)
-    ? (d -> type == type) || typedescr_is(typedescr_get(d -> type), type)
-    : FALSE;
-}
-
-static inline void_t data_get_function(void  *data, vtable_id_t func) {
-  return (data)
-      ? typedescr_get_function(data_typedescr(data_as_data(data)), func)
-      : NULL;
-}
-
 static inline data_t * data_copy(void *src) {
   data_t *s = data_as_data(src);
   if (s) {
@@ -170,6 +194,85 @@ static inline data_t * data_uncopy(void *src) {
 
 static inline char * data_tostring(void *data) {
   return _data_tostring(data_as_data(data));
+}
+
+static inline int data_hastype(void *data, int type) {
+  data_t *d = data_as_data(data);
+
+  return (d)
+    ? (d -> type == type) || typedescr_is(typedescr_get(d -> type), type)
+    : FALSE;
+}
+
+/* -- T Y P E D E S C R  T Y P E ----------------------------------------- */
+
+type_skel(typedescr, Type, typedescr_t)
+type_skel(interface, Interface, interface_t)
+type_skel(method, Method, methoddescr_t)
+
+#define typedescr_register(t, type)                                          \
+    if (t < 1) {                                                             \
+      t = _typedescr_register(t, #t , _vtable_ ## t, NULL);                  \
+      typedescr_set_size(t, type);                                           \
+    }
+
+#define typedescr_register_with_name(t, name, type)                          \
+    if (t < 1) {                                                             \
+      t = _typedescr_register(t, name , _vtable_ ## t, NULL);                \
+      typedescr_set_size(t, type);                                           \
+    }
+
+#define typedescr_register_with_methods(t, type)                             \
+  if (t < 1) {                                                               \
+    t = _typedescr_register(t, #t , _vtable_ ## t, _methods_ ## t);          \
+    typedescr_set_size(t, type);                                             \
+  }
+
+#define typedescr_register_with_name_and_methods(t, name, type)              \
+  if (t < 1) {                                                               \
+    t = _typedescr_register(t, name , _vtable_ ## t, _methods_ ## t);        \
+    typedescr_set_size(t, type);                                             \
+  }
+
+#define builtin_typedescr_register(t, name, type)                            \
+  assert(t > 0);                                                             \
+  _typedescr_register(t, name , _vtable_ ## t, _methods_ ## t);              \
+  typedescr_set_size(t, type);                                               \
+
+#ifndef _MSC_VER
+#define builtin_interface_register(i, num, fncs...)                          \
+  _interface_register(i, #i , num, ## fncs);
+
+#define interface_register(i, num, fncs...)                                  \
+  if (i < 1) {                                                               \
+    i = _interface_register(i, #i , num, ## fncs);                           \
+  }
+#else /* _MSC_VER */
+#define builtin_interface_register(i, num, ...)                          \
+  _interface_register(i, #i , num, __VA_ARGS__);
+
+#define interface_register(i, num, ...)                                  \
+  if (i < 1) {                                                               \
+    i = _interface_register(i, #i , num, __VA_ARGS__);                           \
+  }
+#endif /* _MSC_VER */
+
+static inline typedescr_t * data_typedescr(void *data) {
+  return (data)
+    ? typedescr_get(data_as_data(data) -> type)
+    : NULL;
+}
+
+static inline char * data_typename(void *data) {
+  return (data)
+    ? typename(typedescr_get(data_type(data_as_data(data))))
+    : "null";
+}
+
+static inline void_t data_get_function(void  *data, vtable_id_t func) {
+  return (data)
+      ? typedescr_get_function(data_typedescr(data_as_data(data)), func)
+      : NULL;
 }
 
 static inline int data_is_callable(void *d) {

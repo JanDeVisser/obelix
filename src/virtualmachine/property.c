@@ -52,6 +52,10 @@ int TransientValidator = -1;
 static dict_t *  _validators;
 static mutex_t * _validators_mutex;
 
+static vtable_t _vtable_Validator[] = {
+        { .id = FunctionNone,    .fnc = NULL }
+};
+
 static vtable_t _vtable_RequiredValidator[] = {
     { .id = FunctionAssign,  .fnc = (void_t) _validator_required },
     { .id = FunctionPersist, .fnc = (void_t) _validator_required },
@@ -66,6 +70,7 @@ static vtable_t _vtable_TransientValidator[] = {
 
 void _property_init(void) {
   logging_register_module(property);
+
 
   typedescr_register(Validator, validator_t);
   _validators = dict_create(NULL);
