@@ -289,9 +289,9 @@ data_t * object_set(object_t *object, char *name, data_t *value) {
     prop = script_get_property(constructor, name);
   }
   if (prop) {
-    value = property_assign(prop, value);
+    value = property_cast(prop, value);
   }
-  if (!data_is_unhandled_exception(value)) {
+  if (!data_is_unhandled_exception((value)) {
     dictionary_set(object -> variables, name, value);
     debug(object, "   After set('%s') -> variables = %s",
         object_tostring(object), dictionary_tostring(object -> variables));

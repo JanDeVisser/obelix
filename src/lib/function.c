@@ -122,7 +122,7 @@ data_t * _function_set(function_t *fnc, char *name, data_t *value) {
 data_t * _function_resolve(function_t *fnc, char *name) {
   if (!strcmp(name, "name")) {
     return data_copy(fnc -> name);
-  } else if (!strcmp(name, "#") || !strcmp(name, "numparams")) {
+  } else if (!strcmp(name, "#") || !strcmp("numparams")) {
     return int_to_data(fnc -> min_params);
   } else {
     return dictionary_get(fnc -> config, name);
