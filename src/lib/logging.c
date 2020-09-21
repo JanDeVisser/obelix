@@ -17,8 +17,6 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// #define TRACE_DEBUG
-
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,7 +34,6 @@ typedef struct _logcategory {
   char        *str;
 } logcategory_t;
 
-static logcategory_t * _logcategory_create_nolock(char *, int *);
 static logcategory_t * _logcategory_create(char *, int *);
 static char *          _logcategory_tostring(logcategory_t *);
 static void            _logcategory_free(logcategory_t *);
@@ -44,9 +41,7 @@ static int             _logcategory_cmp(logcategory_t *, logcategory_t *);
 static int             _logcategory_hash(logcategory_t *);
 static logcategory_t * _logcategory_set(logcategory_t *, int);
 
-static logcategory_t * _logging_set_nolock(char *, int);
-static void            _logging_dump_all_categories(FILE *);
-static logcategory_t * _logging_set(char *, int);
+static void            _logging_set(char *, int);
 static char *          _log_level_str(log_level_t lvl);
 
 static char *          _logfile = NULL;
@@ -80,9 +75,7 @@ static mutex_t *_logging_mutex = NULL;
 logcategory_t * _logcategory_create_nolock(char *name, int *flag) {
   logcategory_t *ret = NEW(logcategory_t);
 
-#ifdef TRACE_DEBUG
-  fprintf(stderr, "Creating log category '%s'\n", name);
-#endif
+  // fprintf(stderr, "Creating log category '%s'\n", name);
   assert(!dict_has_key(_categories, name));
   ret -> name = strdup(name);
   ret -> flag = flag;
@@ -91,12 +84,7 @@ logcategory_t * _logcategory_create_nolock(char *name, int *flag) {
     *flag = 0;
   }
   ret -> enabled = 0;
-  ret -> str = NULL;
   dict_put(_categories, strdup(name), ret);
-#ifdef TRACE_DEBUG
-  fprintf(stderr, "Registered categories:\n");
-  _logging_dump_all_categories(stderr);
-#endif /* TRACE_DEBUG */
   // assert(dict_has_key(_categories, name));
   return ret;
 }
@@ -120,11 +108,7 @@ logcategory_t * _logcategory_get(char *name) {
 }
 
 char * _logcategory_tostring(logcategory_t *cat) {
-  char *flag = (cat -> flag) ? (*(cat -> flag) ? "ON" : "OFF") : "--";
-  char *enabled = (cat -> enabled) ? "enabled" : "disabled";
-
-  free(cat -> str);
-  asprintf(&cat -> str, "%s/%s/%s", cat -> name, enabled, flag);
+  asprintf(&cat -> str, "%s:%d", cat -> name, *(cat -> flag));
   return cat -> str;
 }
 
@@ -145,10 +129,6 @@ void _logcategory_free(logcategory_t *cat) {
 }
 
 logcategory_t * _logcategory_set(logcategory_t *cat, int value) {
-#ifdef TRACE_DEBUG
-  fprintf(stderr, "Setting category %s to %s\n",
-    cat -> name, (value) ? "ON" : "OFF");
-#endif /* TRACE_DEBUG */
   if (value) {
     debug(core, "Enabling %s logging", cat -> name);
   }
@@ -164,45 +144,32 @@ int * _logging_set_reducer(logcategory_t *cat, int *value) {
   return value;
 }
 
-logcategory_t * _logging_set_nolock(char *category, int value) {
-  logcategory_t *cat = NULL;
+void _logging_set_nolock(char *category, int value) {
+  logcategory_t *cat;
 
   if (strcmp(category, "all")) {
     cat = dict_get(_categories, category);
-    if (!cat) {
+    if (cat) {
+      _logcategory_set(cat, value);
+    } else {
       cat = _logcategory_create_nolock(category, NULL);
+      cat -> enabled = value;
     }
-    _logcategory_set(cat, value);
   } else {
     dict_reduce_values(_categories, (reduce_t) _logging_set_reducer, &value);
   }
-  return cat;
 }
 
-logcategory_t * _logging_set(char *category, int value) {
-  logcategory_t *cat = NULL;
-
+void _logging_set(char *category, int value) {
   logging_init();
   mutex_lock(_logging_mutex);
-  cat = _logging_set_nolock(category, value);
+  _logging_set_nolock(category, value);
   mutex_unlock(_logging_mutex);
-  return cat;
 }
 
 char * _log_level_str(log_level_t lvl) {
   assert(_log_level_labels[lvl - LogLevelNone].code == lvl);
   return _log_level_labels[lvl - LogLevelNone].label;
-}
-
-FILE * _logging_dump_reducer(logcategory_t *cat, FILE *file) {
-  fprintf(file, "%s ", _logcategory_tostring(cat));
-  return file;
-}
-
-void _logging_dump_all_categories(FILE *file) {
-  fprintf(file, "%d ", dict_size(_categories));
-  dict_reduce_values(_categories, (reduce_t) _logging_dump_reducer, file);
-  fprintf(file, "\n");
 }
 
 /* ------------------------------------------------------------------------ */
@@ -216,19 +183,16 @@ void _logging_open_logfile(void) {
 }
 
 void logging_init(void) {
-  char          *cats;
-  char          *ptr;
-  char          *sepptr;
-  char          *lvl;
-  logcategory_t *cat;
+  char *cats;
+  char *ptr;
+  char *sepptr;
+  char *lvl;
 
   if (_logging_mutex) {
     return;
   }
 
-#ifdef TRACE_DEBUG
-  fprintf(stderr, "Initializing logging...\n");
-#endif /* TRACE_DEBUG */
+  // fprintf(stderr, "Initializing logging...\n");
   _logging_mutex = mutex_create();
 
   _categories = strvoid_dict_create();
@@ -239,29 +203,21 @@ void logging_init(void) {
   if (lvl && *lvl) {
     logging_set_level(lvl);
   }
-#ifdef TRACE_DEBUG
-  fprintf(stderr, "Log level set to '%s'\n", _log_level_str(_log_level));
-#endif /* TRACE_DEBUG */
 
   cats = getenv("OBL_DEBUG");
   if (!cats) {
     cats = getenv("DEBUG");
   }
   if (cats && *cats) {
-#ifdef TRACE_DEBUG
-    fprintf(stderr, "Enabling debug categories '%s'\n", cats);
-#endif /* TRACE_DEBUG */
     cats = strdup(cats);
     ptr = cats;
     for (sepptr = strpbrk(ptr, ";,:"); sepptr; sepptr = strpbrk(ptr, ";,:")) {
       *sepptr = 0;
-      cat = _logging_set_nolock(ptr, 1);
-      assert(!cat || cat -> enabled);
+      _logging_set_nolock(ptr, 1);
       ptr = sepptr + 1;
     }
     if (ptr && *ptr) {
-      cat = _logging_set_nolock(ptr, 1);
-      assert(!cat || cat -> enabled);
+      _logging_set_nolock(ptr, 1);
     }
     free(cats);
   }
@@ -276,15 +232,14 @@ OBLCORE_IMPEXP void logging_register_category(char *name, int *flag) {
   mutex_lock(_logging_mutex);
   if ((cat = dict_get(_categories, name))) {
     cat -> flag = flag;
-#ifdef TRACE_DEBUG
-    fprintf(stderr,
-      "logging_register_category('%s') - Flag is %s\n",
-      name, (cat -> enabled) ? "ON" : "OFF");
-#endif /* TRACE_DEBUG */
+    // fprintf(stderr, "logging_register_category('%s') - Turning flag %s\n",
+    //   name, (cat -> enabled) ? "ON" : "OFF");
     *flag = cat -> enabled;
   } else {
     cat = _logcategory_create_nolock(name, flag);
     assert(*flag == cat -> enabled);
+    // fprintf(stderr, "logging_register_category('%s') - Creating category, setting flag %s\n",
+    //   name, (cat -> enabled) ? "ON" : "OFF");
   }
   mutex_unlock(_logging_mutex);
 }
@@ -309,22 +264,19 @@ OBLCORE_IMPEXP void logging_disable(char *category) {
 OBLCORE_IMPEXP void _vlogmsg_no_nl(log_level_t lvl, char *file, int line, const char *caller, const char *msg, va_list args) {
   char *f;
 
-#ifdef TRACE_DEBUG
-  // fprintf(stderr, "msg %s\n", msg);
-#endif
-  if ((lvl <= 0) || (lvl >= _log_level)) {
-    if (!_destination) {
-      if (_logfile) {
-        _destination = fopen(_logfile, "w");
-        if (!_destination) {
-          fprintf(stderr, "Could not open logfile '%s': %s\n", _logfile, strerror(errno));
-          fprintf(stderr, "Falling back to stderr\n");
-        }
-      }
+  if (!_destination) {
+    if (_logfile) {
+      _destination = fopen(_logfile, "w");
       if (!_destination) {
-        _destination = stderr;
+        fprintf(stderr, "Could not open logfile '%s': %s\n", _logfile, strerror(errno));
+        fprintf(stderr, "Falling back to stderr\n");
       }
     }
+    if (!_destination) {
+      _destination = stderr;
+    }
+  }
+  if ((lvl <= 0) || (lvl >= _log_level)) {
     f = file;
     if (*file == '/') {
       f = strrchr(f, '/');
@@ -336,10 +288,6 @@ OBLCORE_IMPEXP void _vlogmsg_no_nl(log_level_t lvl, char *file, int line, const 
     }
     fprintf(_destination, "%-12.12s:%4d:%-20.20s:%-5.5s:", f, line, caller, _log_level_str(lvl));
     vfprintf(_destination, msg, args);
-  } else {
-#ifdef TRACE_DEBUG
-    // fprintf(stderr, "*skipped\n");
-#endif
   }
 }
 

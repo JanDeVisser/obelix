@@ -26,6 +26,7 @@ static data_t *           _app_resolve(application_t *, char *);
 static data_t *           _app_set(application_t *, char *, data_t *);
 static void               _app_free(application_t *);
 
+static void               _app_help(application_t *);
 static void               _app_debug(application_t *, char *);
 static cmdline_option_t * _app_find_longopt(application_t *, char *);
 static cmdline_option_t * _app_find_shortopt(application_t *, char);
@@ -83,6 +84,43 @@ data_t * _app_resolve(application_t *app, char *name) {
 data_t * _app_set(application_t *app, char *name, data_t *value) {
   arguments_set_kwarg(app -> args, name, value);
   return (data_t *) app;
+}
+
+_noreturn_ void _app_help(application_t *app) {
+  int ix;
+
+  if (app -> descr -> name) {
+    fprintf(stderr, "%s", app->descr->name);
+    if (app->descr->shortdescr) {
+      fprintf(stderr, " - %s", app->descr->shortdescr);
+    }
+    fprintf(stderr, "\n\n");
+  } else {
+    fprintf(stderr, "%s\n\n", app->executable);
+  }
+  if (app->descr->description) {
+    fprintf(stderr, "%s\n\n", app->descr->description);
+  }
+  if (app->descr->legal) {
+    fprintf(stderr, "%s\n\n", app->descr->legal);
+  }
+  if (app->descr->options) {
+    for (ix = 0; app->descr->options[ix].longopt; ix++) {
+      fprintf(stderr, "\t--%s", app->descr->options[ix].longopt);
+      if (app->descr->options[ix].shortopt) {
+        fprintf(stderr, ", -%c", app->descr->options[ix].shortopt);
+      }
+      if (app->descr->options[ix].description) {
+        fprintf(stderr, "\t%s", app->descr->options[ix].description);
+      }
+      fprintf(stderr, "\n");
+    }
+  }
+  fprintf(stderr,
+      "\t--debug, -d\tLog debug messages for the given comma-separated modules\n"
+      "\t--loglevel, -v\tLog level (ERROR, WARN, INFO, DEBUG)\n"
+      "\t--logfile\tLog file\n\n");
+  exit(1);
 }
 
 void _app_debug(application_t *app, char *arg) {
@@ -166,6 +204,7 @@ leave:
   debug(application, "app -> args[%s] = %s",
       opt -> longopt,
       data_tostring(arguments_get_kwarg(app -> args, opt -> longopt)));
+  fprintf(stderr, "Return: %d\n", ret);
   return ret;
 }
 
@@ -192,10 +231,7 @@ application_t * application_create(app_description_t *descr, int argc, char **ar
   return application_parse_args(app, descr, argc, argv);
 }
 
-application_t * _application_parse_args(
-    application_t *app,
-    app_description_t *descr,
-    int argc, char **argv) {
+application_t * _application_parse_args(application_t *app, app_description_t *descr, int argc, char **argv) {
   int               ix;
   int               ixx;
   char             *arg;
@@ -218,7 +254,7 @@ application_t * _application_parse_args(
     arg = argv[ix];
     debug(application, "argv[%d] = %s", ix, arg);
     if (!strcmp(arg, "--help")) {
-      _application_help(app);
+      _app_help(app);
     } else if (!strcmp(arg, "--debug") || !strcmp(arg, "-d")) {
       if (ix < (app -> argc - 1)) {
         _app_debug(app, argv[++ix]);
@@ -273,11 +309,12 @@ application_t * _application_parse_args(
   }
 
   if (app -> error) {
-    fprintf(stderr, "Error: %s\n", exception_getmessage(app -> error));
-  } else {
     for (; ix < app -> argc; ix++) {
       arguments_push(app -> args, str_to_data(argv[ix]));
     }
+  }
+  if (app -> error) {
+    fprintf(stderr, "Error: %s\n", data_tostring(app -> error));
   }
   return app;
 }
@@ -296,43 +333,6 @@ int _application_has_option(application_t *app, char *option) {
 
 int _application_args_size(application_t *app) {
   return arguments_args_size(app -> args);
-}
-
-_noreturn_ void _application_help(application_t *app) {
-  int ix;
-
-  if (app -> descr -> name) {
-    fprintf(stderr, "%s", app->descr->name);
-    if (app->descr->shortdescr) {
-      fprintf(stderr, " - %s", app->descr->shortdescr);
-    }
-    fprintf(stderr, "\n\n");
-  } else {
-    fprintf(stderr, "%s\n\n", app->executable);
-  }
-  if (app->descr->description) {
-    fprintf(stderr, "%s\n\n", app->descr->description);
-  }
-  if (app->descr->legal) {
-    fprintf(stderr, "%s\n\n", app->descr->legal);
-  }
-  if (app->descr->options) {
-    for (ix = 0; app->descr->options[ix].longopt; ix++) {
-      fprintf(stderr, "\t--%s", app->descr->options[ix].longopt);
-      if (app->descr->options[ix].shortopt) {
-        fprintf(stderr, ", -%c", app->descr->options[ix].shortopt);
-      }
-      if (app->descr->options[ix].description) {
-        fprintf(stderr, "\t%s", app->descr->options[ix].description);
-      }
-      fprintf(stderr, "\n");
-    }
-  }
-  fprintf(stderr,
-      "\t--debug, -d\tLog debug messages for the given comma-separated modules\n"
-      "\t--loglevel, -v\tLog level (ERROR, WARN, INFO, DEBUG)\n"
-      "\t--logfile\tLog file\n\n");
-  exit(1);
 }
 
 void application_terminate(void) {

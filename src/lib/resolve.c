@@ -326,10 +326,10 @@ void __resolve_init(void) {
 
   _singleton -> images = NULL;
   _singleton -> functions = strvoid_dict_create();
-  _resolve_mutex = mutex_create();
   if (!_resolve_open(_singleton, NULL)) {
     error("Could not load main program image");
   }
+  _resolve_mutex = mutex_create();
   atexit(resolve_free);
 }
 

@@ -367,6 +367,7 @@ grammar_parser_t * _grammar_parser_state_header(token_t *token, grammar_parser_t
 grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_parser_t *grammar_parser) {
   switch (token_code(token)) {
     case TokenCodeIdentifier:
+      info("Non-terminal '%s'", token_token(token));
       grammar_parser -> nonterminal = nonterminal_create(grammar_parser -> grammar,
                                                          token_token(token));
       grammar_parser -> rule = NULL;

@@ -266,8 +266,6 @@ data_t * object_get(object_t *object, char *name) {
 
 data_t * object_set(object_t *object, char *name, data_t *value) {
   bound_method_t *bm = NULL;
-  script_t       *constructor;
-  property_t     *prop = NULL;
 
   debug(object, "object_set('%s', '%s', '%s')",
     object_tostring(object), name, data_tostring(value));
@@ -281,21 +279,9 @@ data_t * object_set(object_t *object, char *name, data_t *value) {
   if (bm) {
     value = (data_t *) bound_method_copy(bm);
   }
-
-  if (data_is_bound_method(object -> constructor)) {
-    constructor = data_as_bound_method(object -> constructor) -> script;
-  }
-  if (constructor) {
-    prop = script_get_property(constructor, name);
-  }
-  if (prop) {
-    value = property_cast(prop, value);
-  }
-  if (!data_is_unhandled_exception((value)) {
-    dictionary_set(object -> variables, name, value);
-    debug(object, "   After set('%s') -> variables = %s",
-        object_tostring(object), dictionary_tostring(object -> variables));
-  }
+  dictionary_set(object -> variables, name, value);
+  debug(object, "   After set('%s') -> variables = %s",
+    object_tostring(object), dictionary_tostring(object -> variables));
   return value;
 }
 

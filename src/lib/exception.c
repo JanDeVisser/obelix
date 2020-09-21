@@ -29,7 +29,6 @@
 #include <str.h>
 
 static code_label_t _builtin_exceptions[] = {
-  { .code = ErrorNoError,               .label = "ErrorNoError" },
   { .code = ErrorSyntax,                .label = "ErrorSyntax" },
   { .code = ErrorArgCount,              .label = "ErrorArgCount" },
   { .code = ErrorMaxStackDepthExceeded, .label = "ErrorMaxStackDepthExceeded" },
@@ -40,12 +39,10 @@ static code_label_t _builtin_exceptions[] = {
   { .code = ErrorRange,                 .label = "ErrorRange" },
   { .code = ErrorIOError,               .label = "ErrorIOError" },
   { .code = ErrorSysError,              .label = "ErrorSysError" },
-  { .code = ErrorFunctionUndefined,     .label = "ErrorFunctionUndefined" },
-  { .code = ErrorParameterValue,        .label = "ErrorParameterValue" },
   { .code = ErrorOverflow,              .label = "ErrorOverflow" },
   { .code = ErrorNotIterable,           .label = "ErrorNotIterable" },
-  { .code = ErrorNotIterator,           .label = "ErrorNotIterator" },
   { .code = ErrorExhausted,             .label = "ErrorExhausted" },
+  { .code = ErrorNotIterator,           .label = "ErrorNotIterator" },
   { .code = ErrorThrowable,             .label = "ErrorThrowable" },
   { .code = ErrorLeave,                 .label = "ErrorLeave", },
   { .code = ErrorReturn,                .label = "ErrorReturn", },
@@ -195,15 +192,11 @@ void exception_init(void) {
   builtin_typedescr_register(Exception, "exception", exception_t);
 }
 
-char * _exception_getcodestr(exception_t *exception) {
-  return label_for_code(_exceptions, exception -> code);
-}
-
 char * _exception_allocstring(exception_t *exception) {
   char *buf;
 
-  label_for_code(_exceptions, exception -> code),
   asprintf(&buf, "Error %s (%d): %s",
+          label_for_code(_exceptions, exception -> code),
           exception -> code,
           exception -> msg);
   return buf;

@@ -78,10 +78,10 @@ extern void _scanner_init(void);
 
 void lexer_init(void) {
   if (Lexer < 0) {
-    logging_register_category("lexer", &lexer_debug);
     _lexer_config_init();
     _scanner_config_init();
     _scanner_init();
+    logging_register_category("lexer", &lexer_debug);
     typedescr_register_with_methods(Lexer, lexer_t);
   }
 }
@@ -340,9 +340,9 @@ token_t * lexer_next_token(lexer_t *lexer) {
 
   if (lexer -> last_token) {
     debug(lexer, "lexer_next_token out: token: %s [%s], state %s",
-                 token_code_name(token_code(lexer -> last_token)),
-                 token_token(lexer -> last_token),
-                 lexer_state_name(lexer -> state));
+                token_code_name(token_code(lexer -> last_token)),
+                token_token(lexer -> last_token),
+                lexer_state_name(lexer -> state));
   }
   return token_copy(lexer -> last_token);
 }

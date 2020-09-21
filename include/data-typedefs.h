@@ -134,7 +134,6 @@ typedef struct _data {
   unsigned short int  cookie;
 #endif /* !NDEBUG */
   int                 type;
-  unsigned int        hash;
   free_semantics_t    free_me;
   free_semantics_t    free_str;
   int                 refs;
@@ -243,23 +242,6 @@ typedef struct _methoddescr {
 } methoddescr_t;
 
 /* ------------------------------------------------------------------------ */
-
-#define type_skel(id, code, type)                                            \
-  static inline int data_is_ ## id(void *d) {                                \
-    return data_hastype(d, code);                                            \
-  }                                                                          \
-  static inline type * data_as_ ## id(void *d) {                             \
-    return (data_is_ ## id(d)) ? (type *) d : NULL;                          \
-  }                                                                          \
-  static inline void id ## _free(type *d) {                                  \
-    data_free((data_t *) d);                                                 \
-  }                                                                          \
-  static inline char * id ## _tostring(type *d) {                            \
-    return data_tostring((data_t *) d);                                      \
-  }                                                                          \
-  static inline type * id ## _copy(type *d) {                                \
-    return (type *) data_copy((data_t *) d);                                 \
-  }
 
 #ifdef  __cplusplus
 }

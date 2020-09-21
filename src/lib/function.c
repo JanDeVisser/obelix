@@ -30,8 +30,6 @@ static void         _function_free(function_t *);
 static char *       _function_allocstring(function_t *);
 static data_t *     _function_cast(function_t *, int);
 static data_t *     _function_call(function_t *, arguments_t *);
-static data_t *     _function_set(function_t *, char *, data_t *);
-static data_t *     _function_resolve(function_t *, char *);
 
 static vtable_t _vtable_FunctionType[] = {
   { .id = FunctionNew,         .fnc = (void_t) _function_new },
@@ -42,8 +40,6 @@ static vtable_t _vtable_FunctionType[] = {
   { .id = FunctionCast,        .fnc = (void_t) _function_cast },
   { .id = FunctionHash,        .fnc = (void_t) function_hash },
   { .id = FunctionCall,        .fnc = (void_t) _function_call },
-  { .id = FunctionSet,         .fnc = (void_t) _function_set },
-  { .id = FunctionResolve,     .fnc = (void_t) _function_resolve },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -67,8 +63,7 @@ function_t * _function_new(function_t *function, va_list args) {
   function -> params = NULL;
   function -> type = 0;
   function -> name = name_split(name, ":");
-  function -> fnc = NULL;
-  function -> config = dictionary_create(NULL);
+  function ->  fnc = NULL;
   return function;
 }
 
@@ -115,19 +110,6 @@ data_t * _function_call(function_t *fnc, arguments_t *args) {
   return function_call(fnc, function_funcname(fnc), args);
 }
 
-data_t * _function_set(function_t *fnc, char *name, data_t *value) {
-  return dictionary_set(fnc -> config, name, value);
-}
-
-data_t * _function_resolve(function_t *fnc, char *name) {
-  if (!strcmp(name, "name")) {
-    return data_copy(fnc -> name);
-  } else if (!strcmp(name, "#") || !strcmp("numparams")) {
-    return int_to_data(fnc -> min_params);
-  } else {
-    return dictionary_get(fnc -> config, name);
-  }
-}
 
 /* -- F U N C T I O N  P U B L I C  F U N C T I O N S --------------------- */
 

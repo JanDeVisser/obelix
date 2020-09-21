@@ -140,44 +140,6 @@ OBLVM_IMPEXP int Namespace;
 
 type_skel(ns, Namespace, namespace_t);
 
-
-/* -- P R O P E R T Y _ T ------------------------------------------------- */
-
-typedef struct _property {
-  data_t      _d;
-  data_t     *class;
-  data_t     *default_value;
-  int         key;
-  int         private;
-  int         transient;
-  datalist_t *validators;
-} property_t;
-
-OBLVM_IMPEXP property_t *       property_create_of_type(char *, int);
-OBLVM_IMPEXP property_t *       property_create_of_class(char *, data_t *);
-OBLVM_IMPEXP data_t *           property_assign(property_t *, data_t *);
-
-OBLVM_IMPEXP int Property;
-
-type_skel(property, Property, property_t);
-
-/* -- V A L I D A T O R _ T ----------------------------------------------- */
-
-#define FunctionInit            FunctionUsr1
-#define FunctionAssign          FunctionUsr2
-#define FunctionPersist         FunctionUsr3
-#define FunctionRetrieve        FunctionUsr4
-
-typedef struct _validator {
-  data_t      _d;
-  property_t *prop;
-} validator_t;
-
-OBLVM_IMPEXP typedescr_t *      validator_register(typedescr_t *);
-OBLVM_IMPEXP validator_t *      validator_create(char *, property_t *);
-OBLVM_IMPEXP typedescr_t *      validator_get(char *);
-OBLVM_IMPEXP typedescr_t *      validator_load(char *, char *);
-
 /* -- S C R I P T _ T ----------------------------------------------------- */
 
 typedef enum _script_type {
@@ -194,7 +156,6 @@ typedef struct _script {
   script_type_t  type;
   list_t        *baseclasses;
   dictionary_t  *functions;
-  dictionary_t  *properties;
   array_t       *params;
   module_t      *mod;
   bytecode_t    *bytecode;
@@ -209,9 +170,6 @@ OBLVM_IMPEXP script_t *       script_get_toplevel(script_t *);
 OBLVM_IMPEXP data_t *         script_execute(script_t *, arguments_t *);
 OBLVM_IMPEXP data_t *         script_create_object(script_t *, arguments_t *);
 OBLVM_IMPEXP bound_method_t * script_bind(script_t *, object_t *);
-OBLVM_IMPEXP int              script_isa(script_t *, data_t *);
-OBLVM_IMPEXP script_t *       script_add_property(script_t *, property_t *);
-OBLVM_IMPEXP property_t *     script_get_property(script_t *, char *);
 
 OBLVM_IMPEXP int Script;
 

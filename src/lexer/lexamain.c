@@ -17,6 +17,12 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+#include <string.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+
 #include <application.h>
 #include <file.h>
 #include <lexa.h>
@@ -37,6 +43,8 @@ int main(int argc, char **argv) {
   lexa_t        *lexa;
   datalist_t    *scanners;
   int            ix;
+  char          *scratch = NULL;
+  int            opt;
 
   app = application_create(&_app_descr_lexa, argc, argv);
   lexa = lexa_create();

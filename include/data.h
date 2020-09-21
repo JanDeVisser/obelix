@@ -184,6 +184,23 @@ static inline int data_is_iterator(void *d) {
   return data_hastype(d, Iterator);
 }
 
+#define type_skel(id, code, type)                                            \
+  static inline int data_is_ ## id(void *d) {                                \
+    return data_hastype(d, code);                                            \
+  }                                                                          \
+  static inline type * data_as_ ## id(void *d) {                             \
+    return (data_is_ ## id(d)) ? (type *) d : NULL;                          \
+  }                                                                          \
+  static inline void id ## _free(type *d) {                                  \
+    data_free((data_t *) d);                                                 \
+  }                                                                          \
+  static inline char * id ## _tostring(type *d) {                            \
+    return data_tostring((data_t *) d);                                      \
+  }                                                                          \
+  static inline type * id ## _copy(type *d) {                                \
+    return (type *) data_copy((data_t *) d);                                 \
+  }
+
 /* -- P O I N T E R  T Y P E ---------------------------------------------- */
 
 OBLCORE_IMPEXP data_t * data_null(void);

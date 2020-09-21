@@ -77,7 +77,6 @@ script_t * _script_new(script_t *script, va_list args) {
   script -> mod = mod_copy(mod);
 
   script -> functions = dictionary_create(NULL);
-  script -> properties = dictionary_create(NULL);
   script -> params = NULL;
   script -> type = STNone;
 
@@ -183,13 +182,4 @@ data_t * script_create_object(script_t *script, arguments_t *args) {
 
 bound_method_t * script_bind(script_t *script, object_t *object) {
   return bound_method_create(script, object);
-}
-
-script_t * script_add_property(script_t *script, property_t *prop) {
-  dictionary_set(script -> properties, prop -> _d.str, prop);
-  return script;
-}
-
-property_t * script_get_property(script_t *script, char *name) {
-  return (property_t *) dictionary_get(script -> properties, name);
 }

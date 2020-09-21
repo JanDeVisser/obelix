@@ -66,11 +66,23 @@ OBLCORE_IMPEXP methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 #define typedescr_get_function(t, f)       (((t) && (t) -> inherited_vtable) ? (t) -> inherited_vtable[(f)].fnc : NULL)
 #define typedescr_register_method(t, m)    kind_register_method((kind_t *) (t), (m))
 #define typedescr_constructors(t)          ((t) -> constructors)
-#define typedescr_set_size(d, t)           (typedescr_get((d)) -> size = sizeof(t))
 
-type_skel(typedescr, Type, typedescr_t)
-type_skel(interface, Interface, interface_t)
-type_skel(method, Method, methoddescr_t)
+#define data_is_typedescr(d)   ((d) && (data_hastype((d), Type)))
+#define data_as_typedescr(d)   ((typedescr_t *) (data_is_typedescr((d)) ? ((typedescr_t *) (d)) : NULL))
+#define typedescr_tostring(s)  (data_tostring((data_t *) (s)))
+#define typedescr_copy(s)      ((typedescr_t *) data_copy((data_t *) (s)))
+
+#define data_is_interface(d)   ((d) && (data_hastype((d), Interface)))
+#define data_as_interface(d)   ((interface_t *) (data_is_interface((d)) ? ((interface_t *) (d)) : NULL))
+#define interface_tostring(s)  (data_tostring((data_t *) (s)))
+#define interface_copy(s)      ((interface_t *) data_copy((data_t *) (s)))
+
+#define data_is_method(d)      ((d) && (data_hastype((d), Method)))
+#define data_as_method(d)      ((methoddescr_t *) (data_is_method((d)) ? ((methoddescr_t *) (d)) : NULL))
+#define method_tostring(s)     (data_tostring((data_t *) (s)))
+#define method_copy(s)         ((methoddescr_t *) data_copy((data_t *) (s)))
+
+#define typedescr_set_size(d, t)    (typedescr_get((d)) -> size = sizeof(t))
 
 #define typedescr_register(t, type)                                          \
     if (t < 1) {                                                             \
