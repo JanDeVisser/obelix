@@ -379,6 +379,7 @@ data_t * _obelix_interactive(obelix_t *obelix) {
   data_t         *ret;
   int             tty = isatty(fileno(stdin));
   char           *prompt;
+  exception_t    *ex;
 
   ret = obelix_get_loader(obelix, obelix -> cookie);
   if (ret && data_is_scriptloader(ret)) {
@@ -387,7 +388,7 @@ data_t * _obelix_interactive(obelix_t *obelix) {
     if (tty) {
       fprintf(stdout, "Welcome to " OBELIX_NAME " " OBELIX_VERSION "\n");
     }
-    for (prompt = (tty) ? PS1 : "", line = _obelix_readstring(prompt); line; line = readline(prompt)) {
+    for (prompt = (tty) ? PS1 : "", line = _obelix_readstring(prompt); line; line = _obelix_readstring(prompt)) {
       strrtrim(line);
       if (*line) {
 #ifdef WITH_READLINE
@@ -395,11 +396,15 @@ data_t * _obelix_interactive(obelix_t *obelix) {
 #endif /* WITH_READLINE */
         debug(obelix, "Evaluating '%s'", line);
         ret = scriptloader_eval(loader, dline = (data_t *) str_copy_chars(line));
-        if (!ret && isatty(fileno(stdin))) {
+        if (!ret && tty) {
           prompt = PS2;
         } else {
           if (!data_isnull(ret)) {
-            puts(data_tostring(ret));
+            if (data_is_exception_with_code(ret, ErrorExit)) {
+              break;
+            } else {
+              puts(data_tostring(ret));
+            }
           }
           prompt = (tty) ? PS1 : "";
         }
@@ -410,7 +415,12 @@ data_t * _obelix_interactive(obelix_t *obelix) {
     }
     fprintf(stdout, "\n");
     scriptloader_free(loader);
-    ret = NULL;
+    if (data_is_exception_with_code(ret, ErrorExit)) {
+      ret = (ex = data_as_exception(ret)) -> throwable;
+      exception_free(ex);
+    } else {
+      ret = NULL;
+    }
   } else {
     ret = data_exception(ErrorInternalError, "Could not create script loader");
   }
