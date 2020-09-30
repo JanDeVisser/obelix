@@ -308,7 +308,7 @@ application_t * _application_parse_args(application_t *app, app_description_t *d
     }
   }
 
-  if (app -> error) {
+  if (!app -> error) {
     for (; ix < app -> argc; ix++) {
       arguments_push(app -> args, str_to_data(argv[ix]));
     }
