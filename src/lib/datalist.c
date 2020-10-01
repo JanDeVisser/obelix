@@ -29,6 +29,7 @@
 #include <exception.h>
 
 typedef struct _datalist_iter {
+  data_t   _d;
   array_t *array;
   int      ix;
 } datalist_iter_t;
