@@ -33,7 +33,7 @@ def check_stream(script, which, stream):
                     if isinstance(script[which], (list,tuple))
                     else script[which])
         if written != expected:
-            print "%s: %s '%s' != '%s'" % (script["name"], which, written, expected)
+            print("%s: %s '%s' != '%s'" % (script["name"], which, written, expected))
             ret = 1
     return ret
 
@@ -54,13 +54,13 @@ def test_script(name):
         if "exit" in script:
             expected = script["exit"]
             if ex != expected and ex != expected + 256 and ex != expected - 256:
-                print "%s: Exit code %s != %s" % (name, ex, script["exit"])
+                print("%s: Exit code %s != %s" % (name, ex, script["exit"]))
                 error += 1
         error += check_stream(script, "stdout", out)
         error += check_stream(script, "stderr", err)
     os.remove("stdout")
     os.remove("stderr")
-    print "%s: %s" % (name, "OK" if error == 0 else "Failed")
+    print("%s: %s" % (name, "OK" if error == 0 else "Failed"))
 
     return error == 0
 
@@ -86,7 +86,7 @@ def config_test(name):
     os.path.exists("stderr") and os.remove("stderr")
     f = name + ".obl"
 
-    print name
+    print(name)
     script = { "name": name }
     with open("stdout", "w+") as out, open("stderr", "w+") as err:
         ex = subprocess.call(["obelix", f], stdout = out, stderr = err)
@@ -103,7 +103,7 @@ def config_test(name):
     with open(name + ".json", "w+") as fd:
         json.dump(script, fd)
     json.dump(script, sys.stdout)
-    print
+    print()
     os.remove("stdout")
     os.remove("stderr")
 
@@ -129,7 +129,7 @@ def remove_all_tests():
 def print_index():
     scripts = load_test_names()
     for script in scripts:
-        print script
+        print(script)
 
 
 def config_tests(tests):
@@ -137,22 +137,22 @@ def config_tests(tests):
         map(config_test, [name.strip() for name in fd if not name.startswith("#")])
 
 def help():
-    print "run_tests - Execute and manage obelix tests."
-    print ""
-    print "Usage: python run_tests.py [option]"
-    print "Options:"
-    print " -c <test>:   Add test script <test>.obl to test suite."
-    print "              Execute script, capture and register exit code and stdout/stderr."
-    print " -f <file>:   Add all tests in <file>. <file> contains test script names,"
-    print "              one per line, without .obl extension."
-    print " -x <test>:   Run test <test>."
-    print "              Compare exit code and stderr/out with registered values."
-    print " -a, --all:   Run all registered tests."
-    print " -d <test>:   Remove test <test> from registry."
-    print " --clear:     Clear test registry."
-    print " -i, --index: Print an index of all registered tests. Output can be used by -f."
-    print " -h, --help:  Display this message."
-    print ""
+    print("run_tests - Execute and manage obelix tests.")
+    print("")
+    print("Usage: python run_tests.py [option]")
+    print("Options:")
+    print(" -c <test>:   Add test script <test>.obl to test suite.")
+    print("              Execute script, capture and register exit code and stdout/stderr.")
+    print(" -f <file>:   Add all tests in <file>. <file> contains test script names,")
+    print("              one per line, without .obl extension.")
+    print(" -x <test>:   Run test <test>.")
+    print("              Compare exit code and stderr/out with registered values.")
+    print(" -a, --all:   Run all registered tests.")
+    print(" -d <test>:   Remove test <test> from registry.")
+    print(" --clear:     Clear test registry.")
+    print(" -i, --index: Print an index of all registered tests. Output can be used by -f.")
+    print(" -h, --help:  Display this message.")
+    print("")
 
 
 if len(sys.argv) > 1:
@@ -173,8 +173,8 @@ if len(sys.argv) > 1:
     elif sys.argv[1] in ["-i", "--index"]:
         print_index()
     else:
-        print "Unrecognized option " + sys.argv[1]
-        print ""
+        print("Unrecognized option " + sys.argv[1])
+        print("")
         help()
 else:
     help()
