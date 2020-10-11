@@ -27,7 +27,6 @@
 
 /* ------------------------------------------------------------------------ */
 
-static inline void  _nvp_init(void);
 static nvp_t *      _nvp_new(nvp_t *, va_list);
 static void         _nvp_free(nvp_t *);
 static char *       _nvp_allocstring(nvp_t *);
@@ -52,7 +51,7 @@ int NVP = -1;
 
 /* ------------------------------------------------------------------------ */
 
-void _nvp_init(void) {
+void nvp_init(void) {
   if (NVP < 1) {
     typedescr_register(NVP, nvp_t);
   }
@@ -98,7 +97,7 @@ data_t * _nvp_resolve(nvp_t *nvp, char *name) {
 /* ------------------------------------------------------------------------ */
 
 nvp_t * nvp_create(data_t *name, data_t *value) {
-  _nvp_init();
+  nvp_init();
   return (nvp_t *) data_create(NVP, name, value);
 }
 

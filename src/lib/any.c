@@ -38,6 +38,7 @@ static void_t _type_initializers[] = {
   mutex_init,
   name_init,
   thread_init,
+  nvp_init,
   NULL
 };
 
