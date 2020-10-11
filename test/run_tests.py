@@ -50,7 +50,7 @@ def test_script(name):
         out.seek(0)
         err.seek(0)
 
-        error = 0;
+        error = 0
         if "exit" in script:
             expected = script["exit"]
             if ex != expected and ex != expected + 256 and ex != expected - 256:
@@ -161,7 +161,7 @@ if len(sys.argv) > 1:
     elif sys.argv[1] == "-d":
         remove_test(sys.argv[2])
     elif sys.argv[1] == "--clear":
-        remove_all_tests(sys.argv[2])
+        remove_all_tests()
     elif sys.argv[1] == "-f":
         config_tests(sys.argv[2])
     elif sys.argv[1] in ["-a", "--all"]:
