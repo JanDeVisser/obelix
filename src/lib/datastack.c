@@ -91,6 +91,14 @@ void _stack_list_visitor(data_t *entry) {
   _debug("   . %-40.40s [%-10.10s]", data_tostring(entry), data_typename(entry));
 }
 
+void _stack_counters_visitor(counter_t *counter) {
+  _debug("   . %-6.6d", counter -> count);
+}
+
+void _stack_bookmarks_visitor(bookmark_t *bookmark) {
+  _debug("   . %-6.6d", bookmark -> depth);
+}
+
 /* ------------------------------------------------------------------------ */
 
 datastack_t * datastack_create(char *name) {
@@ -166,6 +174,14 @@ datastack_t * _datastack_push(datastack_t *stack, data_t *data) {
 datastack_t * datastack_list(datastack_t *stack) {
   _debug("-- Stack '%s' ---------------------------------------------", stack -> name);
   array_visit(stack -> list, (visit_t) _stack_list_visitor);
+  if (array_size(stack -> counters) > 0) {
+    _debug("---- Counters ---------------------------------------------");
+    array_visit(stack -> counters, (visit_t) _stack_counters_visitor);
+  }
+  if (array_size(stack -> bookmarks) > 0) {
+    _debug("---- Bookmarks ---------------------------------------------");
+    array_visit(stack -> counters, (visit_t) _stack_bookmarks_visitor);
+  }
   _debug("------------------------------------------------------------------");
   return stack;
 }
