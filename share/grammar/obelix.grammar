@@ -415,7 +415,7 @@ comprehension               := "for"
                                expr              [ for                       ]
                                where_or_empty    [ comprehension
                                                    end_loop
-                                                   set_variable: "varargs=bool:1" ]
+                                                   set_variable: "nvp:varargs=bool:1" ]
                               ;
 
 where_or_empty              := where
