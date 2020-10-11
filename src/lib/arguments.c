@@ -81,9 +81,18 @@ void _arguments_free(arguments_t *arguments) {
 char * _arguments_tostring(arguments_t *arguments) {
   char *buf;
 
-  asprintf(&buf, "%s, %s",
-      datalist_tostring(arguments -> args),
-      dictionary_tostring(arguments -> kwargs));
+  if (datalist_size(arguments -> args) && dictionary_size(arguments -> kwargs)) {
+    asprintf(&buf, "%s, %s",
+        datalist_tostring(arguments -> args),
+        dict_tostring_custom(arguments -> kwargs -> attributes, "", "%s=%s", ", ", ""));
+  } else if (datalist_size(arguments -> args) && !dictionary_size(arguments -> kwargs)) {
+    asprintf(&buf, "%s", datalist_tostring(arguments -> args));
+  } else if (!datalist_size(arguments -> args) && dictionary_size(arguments -> kwargs)) {
+    asprintf(&buf, "%s",
+        dict_tostring_custom(arguments -> kwargs -> attributes, "", "%s=%s", ", ", ""));
+  } else {
+    asprintf(&buf, "%s", "");
+  }
   return buf;
 }
 
