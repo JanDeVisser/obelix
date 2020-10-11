@@ -26,10 +26,9 @@ static inline void      _instruction_init(void);
 static void             _instruction_register_types(void);
 static int              _instruction_type_register(char *, int, vtable_t *);
 static void             __instruction_tracemsg(char *, ...);
+static void             _instruction_trace(char *, char *, ...);
 
-#define _instruction_tracemsg(fmt, args...) if (script_trace) {              \
-                                     __instruction_tracemsg(fmt, ##args);    \
-                                            }
+#define _instruction_tracemsg __instruction_tracemsg
 
 
 static instruction_t *  _instr_new(instruction_t *, va_list);
@@ -154,7 +153,7 @@ void _instruction_init(void) {
     _instruction_register_types();
   }
 }
-
+ 
 void _instruction_register_types(void) {
   logging_register_category("trace", &script_trace);
 
@@ -206,13 +205,19 @@ int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
   return t;
 }
 
+void __instruction_vtracemsg(char *fmt, va_list args) {
+  if (script_trace) {
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+  }
+}
+
 void __instruction_tracemsg(char *fmt, ...) {
   va_list args;
 
   if (script_trace) {
     va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
+    __instruction_vtracemsg(fmt, args);
     va_end(args);
   }
 }
@@ -228,6 +233,16 @@ _unused_ void _instruction_trace(char *op, char *fmt, ...) {
     _instruction_tracemsg("%-16.16s%s", op, buf);
     free(buf);
   }
+}
+
+OBLVM_IMPEXP void instruction_trace(_unused_ instruction_t *inst, char *fmt, ...) {
+  va_list  args;
+  
+  if (script_trace) {                
+    va_start(args, fmt);
+    __instruction_vtracemsg(fmt, args);
+  }
+  va_end(args);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -560,9 +575,6 @@ _unused_ data_t * _instruction_execute_LeaveContext(instruction_t *instr, data_t
   }
   data_free(error);
   data_free(context);
-  if (script_debug && ret) {
-    _debug("    Leave: retval '%s'", data_tostring(ret));
-  }
   return ret;
 }
 
@@ -658,23 +670,12 @@ _unused_ data_t * _instruction_execute_FunctionCall(instruction_t *instr, data_t
   if (call -> flags & CFConstructor) {
     callable = _instruction_setup_constructor(callable, scope, call);
   }
-  debug(script, " -- Calling %s(%s, %s)",
-        instr -> name,
-        data_tostring(callable),
-        arguments_tostring(args));
-  instruction_trace("Calling %s(%s)",
-                    instr -> name, arguments_tostring(args));
   ret = data_call(callable, args);
   if (ret) {
-    if (data_is_exception(ret)) {
-      debug(script, " -- exception '%s' thrown", data_tostring(ret));
-    } else {
-      debug(script, " -- return value '%s' [%s]", data_tostring(ret), data_typename(ret));
+    if (!data_is_exception(ret)) {
       vm_push(vm, ret);
       ret = NULL;
     }
-  } else {
-    debug(script, " -- return value NULL");
   }
   data_free(callable);
   arguments_free(args);
@@ -844,7 +845,6 @@ instruction_t * _instr_new(instruction_t *instr, va_list args) {
   instr -> labels = NULL;
   instr -> execute = (execute_t) typedescr_get_function(td, FunctionUsr1);
   assert(instr -> execute);
-  debug(script, "Created '%s'", instruction_tostring(instr));
   return instr;
 }
 
@@ -861,10 +861,6 @@ data_t * _instruction_call(data_t *data, arguments_t *args) {
   vm_t          *vm = (vm_t *) arguments_get_arg(args, 1);
   bytecode_t    *bytecode = (bytecode_t *) arguments_get_arg(args, 2);
 
-  debug(script, "Executing %s", instruction_tostring(instr));
-  _instruction_tracemsg("%-60.60s%s",
-                        instruction_tostring(instr),
-                        data_tostring(scope));
   assert(instr -> execute);
   return instr -> execute(instr, scope, vm, bytecode);
 }

@@ -40,11 +40,11 @@ static vtable_t _vtable_VM[] = {
 
 /* ------------------------------------------------------------------------ */
 
+extern int script_trace;
+
 void _vm_init(void) {
   typedescr_register(VM, vm_t);
 }
-
-extern int script_trace;
 
 /* ------------------------------------------------------------------------ */
 
@@ -118,7 +118,7 @@ vm_t * _vm_cleanup(vm_t *vm) {
 
 listnode_t * _vm_execute_instruction(data_t *instr, arguments_t *args) {
   data_t      *ret = NULL;
-  data_t      *exit_code;
+  data_t      *exit_code = NULL;
   int          call_me = FALSE;
   data_t      *label = NULL;
   listnode_t  *node = NULL;
@@ -127,6 +127,7 @@ listnode_t * _vm_execute_instruction(data_t *instr, arguments_t *args) {
   exception_t *ex = NULL;
   data_t      *ex_data;
   nvp_t       *catchpoint;
+  debugcmd_t   debugcmd;
 
   if (vm -> status != VMStatusExit) {
     exit_code = data_thread_exit_code();
@@ -151,7 +152,13 @@ listnode_t * _vm_execute_instruction(data_t *instr, arguments_t *args) {
   }
 
   if (call_me) {
-    ret = data_call(instr, args);
+    debugcmd = debugger_step_before(vm -> debugger, data_as_instruction(instr));
+    if (debugcmd == DebugCmdHalt) {
+      ret = data_exception(ErrorExit, "Cancelled by debugger");
+    } else {
+      ret = data_call(instr, args);
+      debugger_step_after(vm -> debugger, data_as_instruction(instr), ret);
+    }
   }
 
   if (!exit_code && ret) {
@@ -174,7 +181,8 @@ listnode_t * _vm_execute_instruction(data_t *instr, arguments_t *args) {
       if ((ex -> code != ErrorYield) && (ex -> code != ErrorExit) && (ex -> code != ErrorReturn)) {
         ex -> trace = (data_t *) stacktrace_create();
       }
-      instruction_trace("Throws", "%s", exception_tostring(ex));
+      instruction_trace(data_as_instruction(instr), 
+                        "Throws %s", exception_tostring(ex));
       vm -> exception = (data_t *) ex;
       if (ex -> code != ErrorYield) {
         if (datastack_depth(vm -> contexts)) {
@@ -188,10 +196,10 @@ listnode_t * _vm_execute_instruction(data_t *instr, arguments_t *args) {
   }
   data_free(ret);
   if (label) {
-    debug(script, "  Jumping to '%s'", data_tostring(label));
-    instruction_trace("Jump To", "%s", data_tostring(label));
     node = (listnode_t *) dict_get(bytecode -> labels,
-      (data_is_string(label)) ? str_chars((str_t *) label) : data_tostring(label));
+      (data_is_string(label)) 
+        ? str_chars((str_t *) label) 
+        : data_tostring(label));
     if (!node) {
       fatal("Label %s not found", data_tostring(label));
     }
@@ -210,7 +218,7 @@ vm_t * vm_create(bytecode_t *bytecode) {
 data_t * vm_pop(vm_t *vm) {
   data_t *ret = datastack_pop(vm -> stack);
 
-  instruction_trace("Popped", "%s", data_tostring(ret));
+  debug(script, "Popped", "%s", data_tostring(ret));
   return ret;
 }
 
@@ -227,7 +235,7 @@ data_t * vm_peek(vm_t *vm) {
  * @return closure_t* The same closure as the one passed in.
  */
 data_t * vm_push(vm_t *vm, data_t *value) {
-  instruction_trace("Pushing", "%s", data_tostring(value));
+  debug(script, "Pushing", "%s", data_tostring(value));
   datastack_push(vm -> stack, data_copy(value));
   return value;
 }
@@ -290,6 +298,11 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
     data_free(vm -> exception);
     vm -> exception = NULL;
 
+    vm -> debugger = debugger_create(vm, scope);
+    if (script_trace) {
+      vm -> debugger -> status = DebugStatusSingleStep;
+    }
+    debugger_start(vm -> debugger);
     while (lp_step(vm -> processor)) {
       if (vm -> exception) {
         ex = data_as_exception(vm -> exception);
@@ -315,7 +328,8 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
         ret = (datastack_notempty(vm -> stack) ? vm_pop(vm) : data_null());
       }
     }
-    debug(script, "    Execution of %s done: %s", vm_tostring(vm), data_tostring(ret));
+    debugger_exit(vm -> debugger, ret);
+    debugger_free(vm -> debugger);
     data_thread_pop_stackframe();
   }
   _vm_cleanup(vm);

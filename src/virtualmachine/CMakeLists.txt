@@ -2,6 +2,7 @@ add_library(oblvm SHARED
   boundmethod.c
   bytecode.c
   closure.c
+  debug.c
   generator.c
   instruction.c
   namespace.c

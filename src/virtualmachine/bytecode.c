@@ -27,7 +27,7 @@ static void         _bytecode_free(bytecode_t *);
 static char *       _bytecode_allocstring(bytecode_t *);
 
 static bytecode_t * _bytecode_set_instructions(bytecode_t *, list_t *);
-static void         _bytecode_list_block(list_t *);
+static void         _bytecode_list_block(list_t *, instruction_t *);
 
 int bytecode_debug = 0;
 int Bytecode = -1;
@@ -93,12 +93,12 @@ bytecode_t * _bytecode_set_instructions(bytecode_t *bytecode, list_t *block) {
   return bytecode;
 }
 
-void _bytecode_list_block(list_t *block) {
-  data_t *instr;
+void _bytecode_list_block(list_t *block, instruction_t *mark) {
+  instruction_t *instr;
 
   for (list_start(block); list_has_next(block); ) {
-    instr = (data_t *) list_next(block);
-    fprintf(stderr, "%s\n", data_tostring(instr));
+    instr = (instruction_t *) list_next(block);
+    printf("%c %s\n", (instr == mark) ? '*' : ' ', instruction_tostring(instr));
   }
 }
 
@@ -203,12 +203,17 @@ bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *bytecode) {
   return bytecode;
 }
 
-void bytecode_list(bytecode_t *bytecode) {
-  fprintf(stderr, "// ===============================================================\n");
-  fprintf(stderr, "// Bytecode Listing - %s\n", bytecode_tostring(bytecode));
-  fprintf(stderr, "// ---------------------------------------------------------------\n");
-  fprintf(stderr, "// %-6s %-11.11s%-15.15s\n", "Line", "Label", "Instruction");
-  fprintf(stderr, "// ---------------------------------------------------------------\n");
-  _bytecode_list_block(bytecode -> instructions);
-  fprintf(stderr, "// ---------------------------------------------------------------\n");
+void bytecode_list_and_mark(bytecode_t *bytecode, instruction_t *instr) {
+  printf("// ===============================================================\n");
+  printf("// Bytecode Listing - %s\n", bytecode_tostring(bytecode));
+  printf("// ---------------------------------------------------------------\n");
+  printf("// %-6s %-11.11s%-15.15s\n", "Line", "Label", "Instruction");
+  printf("// ---------------------------------------------------------------\n");
+  _bytecode_list_block(bytecode -> instructions, instr);
+  printf("// ---------------------------------------------------------------\n");
 }
+
+void bytecode_list(bytecode_t *bytecode) {
+  bytecode_list_and_mark(bytecode, NULL);
+}
+
