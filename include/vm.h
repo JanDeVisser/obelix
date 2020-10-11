@@ -54,14 +54,14 @@ typedef struct _script       script_t;
 
 /* O B J E C T _ T -------------------------------------------------------- */
 
-typedef struct _object {
+struct _object {
   data_t        _d;
   data_t       *constructor;
   int           constructing;
   void         *ptr;
   dictionary_t *variables;
   data_t       *retval;
-} object_t;
+};
 
 OBLVM_IMPEXP object_t *       object_create(data_t *);
 OBLVM_IMPEXP data_t *         object_get(object_t *, char *);
@@ -90,7 +90,7 @@ typedef enum _modstate {
   ModStateActive
 } modstate_t;
 
-typedef struct _module {
+struct _module {
   data_t       _d;
   name_t      *name;
   data_t      *source;
@@ -100,7 +100,7 @@ typedef struct _module {
   closure_t   *closure;
   set_t       *imports;
   data_t      *parser;
-} module_t;
+};
 
 OBLVM_IMPEXP module_t *    mod_create(namespace_t *, name_t *);
 OBLVM_IMPEXP unsigned int  mod_hash(module_t *);
@@ -120,14 +120,14 @@ type_skel(mod, Module, module_t);
 
 /* -- N A M E S P A C E _ T ----------------------------------------------- */
 
-typedef struct _namespace {
+struct _namespace {
   data_t    _d;
   char     *name;
   void     *import_ctx;
   import_t  import_fnc;
   data_t   *exit_code;
   dict_t   *modules;
-} namespace_t;
+};
 
 OBLVM_IMPEXP namespace_t * ns_create(char *, void *, import_t);
 OBLVM_IMPEXP data_t *      ns_import(namespace_t *, name_t *);
@@ -148,7 +148,7 @@ typedef enum _script_type {
   STGenerator
 } script_type_t;
 
-typedef struct _script {
+struct _script {
   data_t         _d;
   script_t      *up;
   name_t        *name;
@@ -159,7 +159,7 @@ typedef struct _script {
   array_t       *params;
   module_t      *mod;
   bytecode_t    *bytecode;
-} script_t;
+};
 
 OBLVM_IMPEXP script_t *       script_create(data_t *, char *);
 OBLVM_IMPEXP name_t *         script_fullname(script_t *);
@@ -179,12 +179,12 @@ type_skel(script, Script, script_t);
 
 /* -- B O U N D M E T H O D _ T ------------------------------------------- */
 
-typedef struct _bound_method {
+struct _bound_method {
   data_t     _d;
   script_t  *script;
   object_t  *self;
   closure_t *closure;
-} bound_method_t;
+};
 
 OBLVM_IMPEXP bound_method_t * bound_method_create(script_t *, object_t *);
 OBLVM_IMPEXP int              bound_method_cmp(bound_method_t *, bound_method_t *);
@@ -197,7 +197,7 @@ type_skel(bound_method, BoundMethod, bound_method_t);
 
 /* -- B Y T E C O D E _ T ------------------------------------------------- */
 
-typedef struct _bytecode {
+struct _bytecode {
   data_t       _d;
   data_t      *owner;
   list_t      *instructions;
@@ -207,7 +207,7 @@ typedef struct _bytecode {
   datastack_t *pending_labels;
   dict_t      *labels;
   int          current_line;
-} bytecode_t;
+};
 
 OBLVM_IMPEXP bytecode_t * bytecode_create(data_t *owner);
 OBLVM_IMPEXP bytecode_t * bytecode_push_instruction(bytecode_t *, data_t *);
@@ -217,6 +217,7 @@ OBLVM_IMPEXP bytecode_t * bytecode_pop_deferred_block(bytecode_t *);
 OBLVM_IMPEXP bytecode_t * bytecode_bookmark(bytecode_t *);
 OBLVM_IMPEXP bytecode_t * bytecode_discard_bookmark(bytecode_t *);
 OBLVM_IMPEXP bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *);
+OBLVM_IMPEXP void         bytecode_list_and_mark(bytecode_t *, instruction_t *);
 OBLVM_IMPEXP void         bytecode_list(bytecode_t *);
 
 OBLVM_IMPEXP int Bytecode;
@@ -237,14 +238,15 @@ typedef enum _vmstatus {
 } VMStatus;
 
 typedef struct _vm {
-  data_t           _d;
-  data_t          *stashes[NUM_STASHES];
-  bytecode_t      *bytecode;
-  data_t          *exception;
-  int              status;
-  datastack_t     *stack;
-  datastack_t     *contexts;
-  listprocessor_t *processor;
+  data_t            _d;
+  data_t           *stashes[NUM_STASHES];
+  bytecode_t       *bytecode;
+  data_t           *exception;
+  int               status;
+  datastack_t      *stack;
+  datastack_t      *contexts;
+  listprocessor_t  *processor;
+  struct _debugger *debugger;
 } vm_t;
 
 OBLVM_IMPEXP vm_t *   vm_create(bytecode_t *);
@@ -300,14 +302,14 @@ type_skel(stacktrace, Stacktrace, stacktrace_t);
 
 typedef data_t * (*execute_t)(instruction_t *, data_t *, vm_t *, bytecode_t *);
 
-typedef struct _instruction {
+struct _instruction {
   data_t     _d;
   execute_t  execute;
   int        line;
   set_t     *labels;
   char      *name;
   data_t    *value;
-} instruction_t;
+};
 
 typedef enum _callflag {
   CFNone        = 0x0000,
@@ -364,16 +366,13 @@ DeclareInstructionType(VMStatus);
 DeclareInstructionType(Yield);
 
 OBLVM_IMPEXP instruction_t * instruction_create_byname(char *, char *, data_t *);
-OBLVM_IMPEXP void            _instruction_trace(char *, char *, ...);
-#define instruction_trace(fmt, args...) if (script_trace) {                  \
-                                          _instruction_trace(fmt, ##args);   \
-                                        }
-
 OBLVM_IMPEXP data_t *        instruction_create_enter_context(name_t *, data_t *);
 OBLVM_IMPEXP data_t *        instruction_create_function(name_t *, callflag_t, long, array_t *);
 
 OBLVM_IMPEXP instruction_t * instruction_assign_label(instruction_t *);
 OBLVM_IMPEXP instruction_t * instruction_set_label(instruction_t *, data_t *);
+
+OBLVM_IMPEXP void            instruction_trace(instruction_t *, char *, ...);
 
 type_skel(instruction, Instruction, instruction_t);
 
@@ -401,7 +400,7 @@ type_skel(instruction, Instruction, instruction_t);
 
 /* -- C L O S U R E _ T --------------------------------------------------- */
 
-typedef struct _closure {
+struct _closure {
   data_t           _d;
   struct _closure *up;
   script_t        *script;
@@ -411,7 +410,7 @@ typedef struct _closure {
   dictionary_t    *variables;
   data_t          *thread;
   int              line;
-} closure_t;
+};
 
 OBLVM_IMPEXP closure_t *        closure_create(script_t *, closure_t *, data_t *);
 OBLVM_IMPEXP int                closure_cmp(closure_t *, closure_t *);
@@ -429,7 +428,8 @@ OBLVM_IMPEXP int Closure;
 type_skel(closure, Closure, closure_t);
 #define data_create_closure(c)  data_create(Closure, (c))
 
-/* -- G E N E R A T O R _ T ----------------------------------------------- */
+/*
+ * -- G E N E R A T O R _ T ----------------------------------------------- */
 
 typedef struct _generator {
   data_t       _d;
@@ -445,6 +445,37 @@ OBLVM_IMPEXP generator_t *    generator_interrupt(generator_t *);
 
 OBLVM_IMPEXP int Generator;
 type_skel(generator, Generator, generator_t);
+
+/*
+ * -- D E B U G G E R ---------------------------------------------------- */
+
+typedef enum _debugcmd {
+  DebugCmdNone,
+  DebugCmdGo,
+  DebugCmdHalt
+} debugcmd_t;
+
+typedef enum _debugstatus {
+  DebugStatusRun,
+  DebugStatusSingleStep,
+  DebugStatusRunOut,
+  DebugStatusHalt
+} debugstatus_t;
+
+typedef struct _debugger {
+  data_t        *scope;
+  vm_t          *vm;
+  bytecode_t    *bytecode;
+  debugstatus_t  status;
+  debugcmd_t     last_command;
+} debugger_t;
+
+OBLVM_IMPEXP debugger_t * debugger_create(vm_t *vm, data_t *scope);
+OBLVM_IMPEXP void         debugger_start(debugger_t *);
+OBLVM_IMPEXP debugcmd_t   debugger_step_before(debugger_t *, instruction_t *);
+OBLVM_IMPEXP void         debugger_step_after(debugger_t *, instruction_t *, data_t *);
+OBLVM_IMPEXP void         debugger_exit(debugger_t *, data_t *);
+OBLVM_IMPEXP void         debugger_free(debugger_t *);
 
 #ifdef  __cplusplus
 }
