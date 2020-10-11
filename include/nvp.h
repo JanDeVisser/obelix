@@ -29,6 +29,7 @@ typedef struct _nvp {
   data_t *value;
 } nvp_t;
 
+extern void                 nvp_init(void);
 OBLCORE_IMPEXP nvp_t *      nvp_create(data_t *, data_t *);
 OBLCORE_IMPEXP nvp_t *      nvp_parse(char *);
 OBLCORE_IMPEXP int          nvp_cmp(nvp_t *, nvp_t *);
