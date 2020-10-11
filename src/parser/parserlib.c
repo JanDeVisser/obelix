@@ -31,7 +31,13 @@ __PLUGIN__ parser_t * parser_log(parser_t *parser, data_t *msg) {
 }
 
 __PLUGIN__ parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
-  nvp_t *nvp = nvp_parse(data_tostring(keyval));
+  nvp_t *nvp;
+  
+  if (data_is_nvp(keyval)) {
+    nvp = data_as_nvp(nvp_copy(data_as_nvp(keyval)));
+  } else {
+    nvp = nvp_parse(data_tostring(keyval));
+  }
 
   if (nvp) {
     parser_set(parser, data_tostring(nvp -> name), data_copy(nvp -> value));
