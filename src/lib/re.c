@@ -205,7 +205,7 @@ data_t * _regexp_create(char _unused_ *name, arguments_t *args) {
 
   debug(regexp, "_regexp_create(%s))", pattern);
   flags = (arguments_args_size(args) == 2) ? arguments_arg_tostring(args, 1) : "";
-  ret = regexp_create(data_tostring(pattern), flags);
+  ret = regexp_create(pattern, flags);
   return (data_t *) ret;
 }
 
