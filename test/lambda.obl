@@ -16,6 +16,7 @@ print("foo(g (lambda)) ${0}", foo(g))
 print("foo(h (func)) ${0}", foo(h))
 g = h
 print("foo(g (reassigned to func h)) ${0}", foo(g))
+print("foo(lamba(x) return 5*x end) ${0}", foo(lambda(x) return 5*x end))
 
 print("foo(lambda) ${0}", foo(lambda(x) return 5*x end))
 
