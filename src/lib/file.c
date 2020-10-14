@@ -148,6 +148,7 @@ static char *         _streamiter_allocstring(streamiter_t *);
 static data_t *       _streamiter_has_next(streamiter_t *);
 static data_t *       _streamiter_next(streamiter_t *);
 static streamiter_t * _streamiter_readnext(streamiter_t *);
+static data_t *       _streamiter_interpolate(streamiter_t *, arguments_t *);
 
 static vtable_t _vtable_StreamIter[] = {
   { .id = FunctionCmp,         .fnc = (void_t) _streamiter_cmp },
@@ -155,6 +156,7 @@ static vtable_t _vtable_StreamIter[] = {
   { .id = FunctionAllocString, .fnc = (void_t) _streamiter_allocstring },
   { .id = FunctionHasNext,     .fnc = (void_t) _streamiter_has_next },
   { .id = FunctionNext,        .fnc = (void_t) _streamiter_next },
+  { .id = FunctionInterpolate, .fnc = (void_t) _streamiter_interpolate },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -570,6 +572,10 @@ data_t * _streamiter_has_next(streamiter_t *si) {
 data_t * _streamiter_next(streamiter_t *si) {
   _streamiter_readnext(si);
   return list_shift(si -> next);
+}
+
+data_t * _streamiter_interpolate(streamiter_t *si, arguments_t *args) {
+  return (data_t *) si;
 }
 
 /* -- F I L E _ T  S T A T I C  F U N C T I O N S ------------------------- */
