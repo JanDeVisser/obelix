@@ -575,6 +575,9 @@ data_t * _streamiter_next(streamiter_t *si) {
 }
 
 data_t * _streamiter_interpolate(streamiter_t *si, arguments_t *args) {
+  if (si -> selector) {
+    si -> selector = data_interpolate(si -> selector, args);
+  }
   return (data_t *) si;
 }
 
