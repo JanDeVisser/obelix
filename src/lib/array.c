@@ -355,7 +355,7 @@ void * array_remove(array_t *array, int ix) {
     ret = array->contents[ix];
     memmove(array->contents + ix,
         array->contents + (ix + 1),
-        (array->capacity - (ix - 1)) * sizeof(void *));
+        (array->capacity - (ix + 1)) * sizeof(void *));
     array->size--;
   }
   return ret;
