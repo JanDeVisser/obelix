@@ -293,7 +293,9 @@ void _condition_free(condition_t *condition) {
 #ifdef HAVE_PTHREAD_H
     pthread_cond_destroy(&condition -> condition);
 #endif /* HAVE_PTHREAD_H */
-    mutex_free(condition -> mutex);
+    if (!condition -> borrowed_mutex) {
+      mutex_free(condition -> mutex);
+    }
   }
 }
 
