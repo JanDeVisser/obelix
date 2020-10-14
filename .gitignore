@@ -47,4 +47,6 @@ Win32/*
 CTestTestfile.cmake
 Testing/
 linux/
+kdev_build/
+.vscode/
 
