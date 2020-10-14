@@ -373,12 +373,12 @@ void data_free(data_t *data) {
     free_str = data -> free_str;
     type = data_typedescr(data);
     _data_call_free(type, data);
-    if (free_str != DontFreeData) {
+    if (free_str == Normal) {
       free(data -> str);
     }
     type -> count--;
     _data_count--;
-    if (free_me != DontFreeData) {
+    if (free_me == Normal) {
       free(data);
     }
   }
