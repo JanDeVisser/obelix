@@ -372,59 +372,59 @@ char * _obelix_readstring(char *prompt) {
 }
 #endif /* WITH_READLINE */
 
-data_t * _obelix_interactive(obelix_t *obelix) {
-  scriptloader_t *loader;
-  char           *line = NULL;
-  data_t         *dline;
-  data_t         *ret;
-  int             tty = isatty(fileno(stdin));
-  char           *prompt;
-  exception_t    *ex;
+data_t *_obelix_interactive(obelix_t *obelix) {
+    scriptloader_t *loader;
+    char           *line = NULL;
+    data_t         *dline;
+    data_t         *ret;
+    int             tty = isatty(fileno(stdin));
+    char           *prompt;
+    exception_t    *ex;
 
-  ret = obelix_get_loader(obelix, obelix -> cookie);
-  if (ret && data_is_scriptloader(ret)) {
-    loader = data_as_scriptloader(ret);
-    scriptloader_source_initfile(loader);
-    if (tty) {
-      fprintf(stdout, "Welcome to " OBELIX_NAME " " OBELIX_VERSION "\n");
-    }
-    for (prompt = (tty) ? PS1 : "", line = _obelix_readstring(prompt); line; line = _obelix_readstring(prompt)) {
-      strrtrim(line);
-      if (*line) {
-#ifdef WITH_READLINE
-        add_history(line);
-#endif /* WITH_READLINE */
-        debug(obelix, "Evaluating '%s'", line);
-        ret = scriptloader_eval(loader, dline = (data_t *) str_copy_chars(line));
-        if (!ret && tty) {
-          prompt = PS2;
-        } else {
-          if (!data_isnull(ret)) {
-            if (data_is_exception_with_code(ret, ErrorExit)) {
-              break;
-            } else {
-              puts(data_tostring(ret));
-            }
-          }
-          prompt = (tty) ? PS1 : "";
+    ret = obelix_get_loader(obelix, obelix -> cookie);
+    if (ret && data_is_scriptloader(ret)) {
+        loader = data_as_scriptloader(ret);
+        scriptloader_source_initfile(loader);
+        if (tty) {
+            fprintf(stdout, "Welcome to " OBELIX_NAME " " OBELIX_VERSION "\n");
         }
-        data_free(ret);
-        data_free(dline);
-      }
-      free(line);
-    }
-    fprintf(stdout, "\n");
-    scriptloader_free(loader);
-    if (data_is_exception_with_code(ret, ErrorExit)) {
-      ret = (ex = data_as_exception(ret)) -> throwable;
-      exception_free(ex);
+        for (prompt = (tty) ? PS1 : "", line = _obelix_readstring(prompt); line; line = _obelix_readstring(prompt)) {
+            strrtrim(line);
+            if (*line) {
+#ifdef WITH_READLINE
+                add_history(line);
+#endif /* WITH_READLINE */
+                debug(obelix, "Evaluating '%s'", line);
+                ret = scriptloader_eval(loader, dline = (data_t *) str_copy_chars(line));
+                if (!ret && tty) {
+                    prompt = PS2;
+                } else {
+                    if (!data_isnull(ret)) {
+                        if (data_is_exception_with_code(ret, ErrorExit)) {
+                            break;
+                        } else {
+                            puts(data_tostring(ret));
+                        }
+                    }
+                    prompt = (tty) ? PS1 : "";
+                }
+                data_free(ret);
+                data_free(dline);
+            }
+            free(line);
+        }
+        fprintf(stdout, "\n");
+        scriptloader_free(loader);
+        if (data_is_exception_with_code(ret, ErrorExit)) {
+            ret = (ex = data_as_exception(ret)) -> throwable;
+            exception_free(ex);
+        } else {
+            ret = NULL;
+        }
     } else {
-      ret = NULL;
+        ret = data_exception(ErrorInternalError, "Could not create script loader");
     }
-  } else {
-    ret = data_exception(ErrorInternalError, "Could not create script loader");
-  }
-  return ret;
+    return ret;
 }
 
 /* -- O B E L I X  P U B L I C  F U N C T I O N S ------------------------- */
