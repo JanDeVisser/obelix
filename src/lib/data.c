@@ -179,6 +179,7 @@ data_t * data_settype(data_t *data, int type) {
   }
   _data_count++;
   data -> cookie = MAGIC_COOKIE;
+  data -> typename = typename(descr);
 #endif /* !NDEBUG */
   data -> type = type;
   data -> refs = 1;
