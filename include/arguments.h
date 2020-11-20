@@ -55,6 +55,10 @@ static inline int arguments_args_size(const arguments_t *args) {
   return (args && args -> args) ? datalist_size(args -> args) : 0;
 }
 
+static inline void * arguments_reduce_args(arguments_t *args, void *reducer, void *initial) {
+  return array_reduce(data_as_array(args -> args), reducer, initial);
+}
+
 static inline int arguments_has_kwargs(const arguments_t *args) {
   return args && args -> kwargs && dictionary_size(args -> kwargs);
 }
