@@ -29,8 +29,8 @@ extern int      data_debug;
 
 static void_t _type_initializers[] = {
   str_init,
-  int_init,
   float_init,
+  int_init,
   datalist_init,
   exception_init,
   ptr_init,
@@ -121,10 +121,10 @@ static methoddescr_t _methoddescr_interfaces[] = {
 void any_init(void) {
   int ix;
 
+  typedescr_register_methods(Any, _methoddescr_interfaces);
   for (ix = 0; _type_initializers[ix]; ix++) {
     _type_initializers[ix]();
   }
-  typedescr_register_methods(Any, _methoddescr_interfaces);
 }
 
 /* ------------------------------------------------------------------------ */
