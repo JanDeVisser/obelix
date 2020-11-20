@@ -4,6 +4,7 @@ if(CHECK_FOUND)
   add_subdirectory(test)
 endif(CHECK_FOUND)
 
+add_subdirectory(ast)
 add_subdirectory(lexer)
 add_subdirectory(grammar)
 add_subdirectory(parser)
