@@ -18,6 +18,9 @@
  */
 
 #include <range.h>
+#include <file.h>
+#include <grammarparser.h>
+#include <parser.h>
 #include "tast.h"
 
 /* ----------------------------------------------------------------------- */
@@ -394,6 +397,143 @@ END_TEST
 
 /* ----------------------------------------------------------------------- */
 
+static file_t           *file = NULL;
+static grammar_parser_t *gp = NULL;
+static grammar_t        *grammar = NULL;
+static parser_t         *parser = NULL;
+
+static data_t           *result = NULL;
+
+static void create_parser() {
+  char *grammar_path = "./ast.grammar";
+
+  file = file_open(grammar_path);
+  ck_assert(file_isopen(file));
+  gp = grammar_parser_create((data_t *) file);
+  ck_assert(gp);
+  grammar = grammar_parser_parse(gp);
+  ck_assert(grammar);
+  parser = parser_create(gp -> grammar);
+  ck_assert(parser);
+}
+
+static data_t * evaluate(char *str, int expected) {
+  str_t  *text = str_copy_chars(str);
+  data_t *ret;
+
+  create_parser();
+  // grammar_dump(grammar);
+  ret = parser_parse(parser, (data_t *) text);
+  str_free(text);
+  if (ret) {
+    error("parser_parse: %s", data_tostring(ret));
+  }
+  ck_assert_ptr_eq(ret, NULL);
+  ck_assert(result);
+  ck_assert_int_eq(expected, data_intval(result));
+  return result;
+}
+
+static void _teardown(void) {
+  data_free(result);
+  parser_free(parser);
+  grammar_free(grammar);
+  grammar_parser_free(gp);
+  file_free(file);
+}
+
+__DLL_EXPORT__ parser_t * ast_make_prefix(parser_t *parser) {
+  ast_expr_t   *value;
+  token_t      *sign;
+  ast_prefix_t *expr;
+
+  value = (ast_expr_t *) datastack_pop(parser -> stack);
+  sign = (token_t *) datastack_pop(parser -> stack);
+  expr = ast_prefix_create((data_t *) sign, value);
+  debug(tast, "expr: %s", ast_prefix_tostring(expr));
+  datastack_push(parser -> stack, expr);
+  return parser;
+}
+
+__DLL_EXPORT__ parser_t * ast_make_infix(parser_t *parser) {
+  ast_expr_t  *left;
+  ast_expr_t  *right;
+  token_t     *op;
+  ast_infix_t *expr;
+
+  right = (ast_expr_t *) datastack_pop(parser -> stack);
+  op = (token_t *) datastack_pop(parser -> stack);
+  left = (ast_expr_t *) datastack_pop(parser -> stack);
+  expr = ast_infix_create(left, (data_t *) op, right);
+  debug(tast, "expr: %s", ast_infix_tostring(expr));
+  datastack_push(parser -> stack, expr);
+  return parser;
+}
+
+__DLL_EXPORT__ parser_t * ast_make_const(parser_t *parser) {
+  data_t      *number = token_todata(parser -> last_token);
+  ast_const_t *expr = ast_const_create(number);
+
+  return parser_pushval(parser, (data_t *) expr);
+}
+
+__DLL_EXPORT__ parser_t * ast_make_variable(parser_t *parser) {
+  data_t         *name = token_todata(parser -> last_token);
+  name_t         *n = name_create(1, data_tostring(name));
+  ast_variable_t *expr = ast_variable_create(n);
+
+  data_free(name);
+  name_free(n);
+  return parser_pushval(parser, (data_t *) expr);
+}
+
+__DLL_EXPORT__ parser_t * assign_result(parser_t *parser) {
+  ast_expr_t   *expr = (ast_expr_t *) datastack_pop(parser -> stack);
+  dictionary_t *ctx = dictionary_create(NULL);
+
+  dictionary_set(ctx, "x", int_to_data(12));
+  result = ast_execute(expr, ctx);
+  return parser;
+}
+
+/* ----------------------------------------------------------------------- */
+
+START_TEST(ast_parser_create)
+  create_parser();
+END_TEST
+
+START_TEST(ast_parser_parse)
+  evaluate("1+1", 2);
+END_TEST
+
+START_TEST(ast_parser_stack_order)
+  evaluate("1 - 2", -1);
+END_TEST
+
+START_TEST(ast_parser_parens)
+  evaluate("2 * (3 + 4)", 14);
+END_TEST
+
+START_TEST(ast_parser_signed_number)
+  evaluate("1 - -2", 3);
+END_TEST
+
+START_TEST(ast_parser_two_pairs_of_parens)
+  evaluate("(1+2) * (3 + 4)", 21);
+END_TEST
+
+START_TEST(ast_parser_nested_parens)
+  evaluate("2 * ((3*2) + 4)", 20);
+END_TEST
+
+START_TEST(ast_parser_precedence)
+  evaluate("2 * (4 + 3*2)", 20);
+END_TEST
+
+START_TEST(ast_parser_variable)
+  evaluate("2 * (4 + 3*x)", 80);
+END_TEST
+
 /* ----------------------------------------------------------------------- */
 
 void ast_expr(void) {
@@ -418,10 +558,26 @@ void ast_expr(void) {
   add_tcase(tc);
 }
 
+void ast_parser(void) {
+  TCase *tc = tcase_create("Parser");
+  tcase_add_checked_fixture(tc, NULL, _teardown);
+  tcase_add_test(tc, ast_parser_create);
+  tcase_add_test(tc, ast_parser_parse);
+  tcase_add_test(tc, ast_parser_stack_order);
+  tcase_add_test(tc, ast_parser_parens);
+  tcase_add_test(tc, ast_parser_signed_number);
+  tcase_add_test(tc, ast_parser_two_pairs_of_parens);
+  tcase_add_test(tc, ast_parser_nested_parens);
+  tcase_add_test(tc, ast_parser_precedence);
+  tcase_add_test(tc, ast_parser_variable);
+  add_tcase(tc);
+}
+
 extern void init_suite(int argc, char **argv) {
   logging_register_module(tast);
   logging_set_level("DEBUG");
   logging_enable("ast");
   logging_enable("tast");
   ast_expr();
+  ast_parser();
 }

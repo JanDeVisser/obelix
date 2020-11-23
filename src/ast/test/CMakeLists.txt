@@ -3,7 +3,7 @@ link_directories(${CHECK_LIBRARY_DIRS})
 
 add_executable(tast tast.c)
 
-target_link_libraries(tast oblast obltest oblcore ${CHECK_LIBRARIES} ${SYSLIBS})
+target_link_libraries(tast oblast oblparser oblgrammar obllexer obltest oblcore ${CHECK_LIBRARIES} ${SYSLIBS})
 
 if(CMAKE_COMPILER_IS_GNUCC)
   target_compile_definitions(tast PRIVATE _GNU_SOURCE)
