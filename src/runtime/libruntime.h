@@ -18,18 +18,15 @@
  */
 
 
-#ifndef __LIBAST_H__
-#define __LIBAST_H__
+#ifndef __LIBRUNTIME_H__
+#define __LIBRUNTIME_H__
 
 #include <oblconfig.h>
-#define OBLAST_IMPEXP __DLL_EXPORT__
+#define OBLRUNTIME_IMPEXP __DLL_EXPORT__
 
 #include <stdio.h>
-#include <ast.h>
-#include <lexer.h>
-#include <token.h>
+#include <runtime.h>
 
 extern int script_debug;
-extern int script_trace;
 
-#endif /* __LIBAST_H__ */
+#endif /* __LIBRUNTIME_H__ */

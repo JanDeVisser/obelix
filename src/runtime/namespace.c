@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvm.h"
+#include "libruntime.h"
 
 static inline void   _namespace_init(void);
 

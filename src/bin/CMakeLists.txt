@@ -18,7 +18,7 @@ if(READLINE_FOUND)
 endif(READLINE_FOUND)
 
 add_executable(obelix ${SOURCES})
-target_link_libraries(obelix scriptparse oblipc oblnet oblvm oblparser oblgrammar obllexer oblcore ${LIBS})
+target_link_libraries(obelix scriptparse oblipc oblnet oblruntime oblvm oblparser oblgrammar obllexer oblcore ${LIBS})
 target_include_directories(obelix PRIVATE ${INCLUDES})
 
 install(TARGETS scriptparse obelix

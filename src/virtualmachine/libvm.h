@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <vm.h>
 
-extern int script_debug;
-extern int script_trace;
+extern int vm_debug;
+extern int vm_trace;
 
 #endif /* __LIBVM_H__ */

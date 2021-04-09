@@ -26,6 +26,7 @@
 #include <grammar.h>
 #include <name.h>
 #include <net.h>
+#include <runtime.h>
 #include <vm.h>
 
 #ifdef __cplusplus

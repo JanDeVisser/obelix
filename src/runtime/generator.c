@@ -17,7 +17,9 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libvm.h"
+#include "libruntime.h"
+
+#include <vm.h>
 
 static inline void   _generator_init(void);
 static generator_t * _generator_new(generator_t *, va_list);

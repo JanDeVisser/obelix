@@ -40,7 +40,7 @@ static vtable_t _vtable_VM[] = {
 
 /* ------------------------------------------------------------------------ */
 
-extern int script_trace;
+extern int vm_trace;
 
 void _vm_init(void) {
   typedescr_register(VM, vm_t);
@@ -218,7 +218,7 @@ vm_t * vm_create(bytecode_t *bytecode) {
 data_t * vm_pop(vm_t *vm) {
   data_t *ret = datastack_pop(vm -> stack);
 
-  debug(script, "Popped", "%s", data_tostring(ret));
+  debug(vm, "Popped", "%s", data_tostring(ret));
   return ret;
 }
 
@@ -235,7 +235,7 @@ data_t * vm_peek(vm_t *vm) {
  * @return closure_t* The same closure as the one passed in.
  */
 data_t * vm_push(vm_t *vm, data_t *value) {
-  debug(script, "Pushing", "%s", data_tostring(value));
+  debug(vm, "Pushing", "%s", data_tostring(value));
   datastack_push(vm -> stack, data_copy(value));
   return value;
 }
@@ -299,7 +299,7 @@ data_t * vm_execute(vm_t *vm, data_t *scope) {
     vm -> exception = NULL;
 
     vm -> debugger = debugger_create(vm, scope);
-    if (script_trace) {
+    if (vm_trace) {
       vm -> debugger -> status = DebugStatusSingleStep;
     }
     debugger_start(vm -> debugger);

@@ -20,7 +20,7 @@
 #include "libvm.h"
 #include <thread.h>
 
-int script_trace = 0;
+int vm_trace = 0;
 
 static inline void      _instruction_init(void);
 static void             _instruction_register_types(void);
@@ -155,7 +155,7 @@ void _instruction_init(void) {
 }
  
 void _instruction_register_types(void) {
-  logging_register_category("trace", &script_trace);
+  logging_register_category("trace", &vm_trace);
 
   typedescr_register(Instruction, instruction_t);
   typedescr_register(ITByName, instruction_t);
@@ -206,7 +206,7 @@ int _instruction_type_register(char *name, int inherits, vtable_t *vtable) {
 }
 
 void __instruction_vtracemsg(char *fmt, va_list args) {
-  if (script_trace) {
+  if (vm_trace) {
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
   }
@@ -215,7 +215,7 @@ void __instruction_vtracemsg(char *fmt, va_list args) {
 void __instruction_tracemsg(char *fmt, ...) {
   va_list args;
 
-  if (script_trace) {
+  if (vm_trace) {
     va_start(args, fmt);
     __instruction_vtracemsg(fmt, args);
     va_end(args);
@@ -226,7 +226,7 @@ _unused_ void _instruction_trace(char *op, char *fmt, ...) {
   va_list  args;
   char    *buf;
 
-  if (script_trace) {
+  if (vm_trace) {
     va_start(args, fmt);
     vasprintf(&buf, fmt, args);
     va_end(args);
@@ -238,7 +238,7 @@ _unused_ void _instruction_trace(char *op, char *fmt, ...) {
 OBLVM_IMPEXP void instruction_trace(_unused_ instruction_t *inst, char *fmt, ...) {
   va_list  args;
   
-  if (script_trace) {                
+  if (vm_trace) {
     va_start(args, fmt);
     __instruction_vtracemsg(fmt, args);
   }
@@ -283,7 +283,7 @@ arguments_t * _call_build_kwargs(function_call_t *call, vm_t *vm, arguments_t *a
   data_t *arg_name;
 
   num = (call -> kwargs) ? array_size(call -> kwargs) : 0;
-  debug(script, " -- #kwargs: %d", num);
+  debug(vm, " -- #kwargs: %d", num);
   if (num) {
     for (ix = 0; ix < num; ix++) {
       value = vm_pop(vm);
@@ -306,7 +306,7 @@ arguments_t * _call_build_args(function_call_t *call, vm_t *vm, arguments_t *arg
     num += data_intval(value);
     data_free(value);
   }
-  debug(script, " -- #arguments: %d", num);
+  debug(vm, " -- #arguments: %d", num);
   if (num) {
     for (ix = 0; ix < num; ix++) {
       value = vm_pop(vm);
@@ -421,7 +421,7 @@ data_t * _instruction_get_variable(instruction_t *instr, data_t *scope) {
 
   if (path && name_size(path)) {
     variable = data_get(scope, path);
-    debug(script, "%s.get(%s) = %s", data_tostring(scope), name_tostring(path), data_tostring(variable));
+    debug(vm, "%s.get(%s) = %s", data_tostring(scope), name_tostring(path), data_tostring(variable));
   }
   return variable;
 }
@@ -441,7 +441,7 @@ _unused_ data_t * _instruction_execute_Assign(instruction_t *instr, data_t *scop
 
   value = vm_pop(vm);
   assert(value);
-  debug(script, " -- value '%s'", data_tostring(value));
+  debug(vm, " -- value '%s'", data_tostring(value));
   ret = data_set(scope, path, value);
   data_free(value);
   return (data_is_unhandled_exception(ret)) ? ret : NULL;
@@ -456,7 +456,7 @@ _unused_ data_t * _instruction_execute_Deref(instruction_t *instr, data_t *scope
   if (data_is_unhandled_exception(value)) {
     ret = value;
   } else {
-    debug(script, " -- value '%s'", data_tostring(value));
+    debug(vm, " -- value '%s'", data_tostring(value));
     vm_push(vm, value);
     ret = NULL;
   }

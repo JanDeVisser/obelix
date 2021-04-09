@@ -311,7 +311,13 @@ ast_infix_t *_ast_infix_new(ast_infix_t *node, va_list args) {
   ast_expr_t *right = va_arg(args, ast_expr_t *);
 
   node -> left = ast_expr_copy(left);
-  node -> op = data_copy(op);
+  if (data_is_token(op)) {
+    node -> op = str_to_data(token_token((token_t *) op));
+  } else if (data_is_string(op)){
+    node -> op = data_copy(op);
+  } else {
+    node -> op = str_to_data(data_tostring(op));
+  }
   node -> right = ast_expr_copy(right);
   return node;
 }
@@ -371,7 +377,13 @@ ast_prefix_t *_ast_prefix_new(ast_prefix_t *node, va_list args) {
   data_t     *op = va_arg(args, data_t *);
   ast_expr_t *operand = va_arg(args, ast_expr_t *);
 
-  node -> op = data_copy(op);
+  if (data_is_token(op)) {
+    node -> op = str_to_data(token_token((token_t *) op));
+  } else if (data_is_string(op)){
+    node -> op = data_copy(op);
+  } else {
+    node -> op = str_to_data(data_tostring(op));
+  }
   node -> operand = ast_expr_copy(operand);
   return node;
 }
@@ -386,20 +398,26 @@ void _ast_prefix_free(ast_prefix_t *node) {
 data_t * _ast_prefix_call(ast_prefix_t *node, arguments_t *args) {
   data_t      *operand_val;
   arguments_t *op_args;
+  data_t      *ret_val;
   data_t      *ret;
 
-  operand_val = data_call((data_t *) node -> operand, args);
-
-  if (!data_is_ast_const(operand_val)) {
-    ret = (data_t *) ast_prefix_create(
-      data_copy(node -> op),
-      data_as_ast_expr(operand_val));
+  operand_val = data_call((data_t *) node->operand, args);
+  if (!strcmp(data_tostring(node->op), "+")) {
+    ret = operand_val;
   } else {
-    op_args = arguments_create_args(0);
-    ret = data_execute(data_as_ast_const(operand_val)->value,
-                       data_tostring(node->op),
-                       op_args);
-    arguments_free(op_args);
+    if (!data_is_ast_const(operand_val)) {
+      ret = (data_t *) ast_prefix_create(
+        data_copy(node->op),
+        data_as_ast_expr(operand_val));
+    } else {
+      op_args = arguments_create_args(0);
+      ret_val = data_execute(data_as_ast_const(operand_val)->value,
+                             data_tostring(node->op),
+                             op_args);
+      arguments_free(op_args);
+      ret = (data_t *) ast_const_create(ret_val);
+      data_free(ret_val);
+    }
   }
   debug(ast, "%s %s = %s",
         data_tostring(node -> op),
