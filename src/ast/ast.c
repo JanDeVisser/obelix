@@ -19,182 +19,62 @@
 
 #include "libast.h"
 
-static ast_node_t *       _ast_node_new(ast_node_t *, va_list);
-static void               _ast_node_free(ast_node_t *);
+static ast_Node_t *       _ast_Node_new(ast_Node_t *, va_list);
+static void               _ast_Node_free(ast_Node_t *);
 
-static ast_const_t *      _ast_const_new(ast_const_t *, va_list);
-static void               _ast_const_free(ast_const_t *);
-static data_t *           _ast_const_call(ast_const_t *, arguments_t *);
-static char *             _ast_const_tostring(ast_const_t *);
-
-static ast_infix_t *      _ast_infix_new(ast_infix_t *, va_list);
-static void               _ast_infix_free(ast_infix_t *);
-static data_t *           _ast_infix_call(ast_infix_t *, arguments_t *);
-static char *             _ast_infix_tostring(ast_infix_t *);
-
-static ast_prefix_t *     _ast_prefix_new(ast_prefix_t *, va_list);
-static void               _ast_prefix_free(ast_prefix_t *);
-static data_t *           _ast_prefix_call(ast_prefix_t *, arguments_t *);
-static char *             _ast_prefix_tostring(ast_prefix_t *);
-
-static ast_ternary_t *    _ast_ternary_new(ast_ternary_t *, va_list);
-static void               _ast_ternary_free(ast_ternary_t *);
-static data_t *           _ast_ternary_call(ast_ternary_t *, arguments_t *);
-static char *             _ast_ternary_tostring(ast_ternary_t *);
-
-static ast_variable_t *   _ast_variable_new(ast_variable_t *, va_list);
-static void               _ast_variable_free(ast_variable_t *);
-static data_t *           _ast_variable_call(ast_variable_t *, arguments_t *);
-static char *             _ast_variable_tostring(ast_variable_t *);
-
-static ast_generator_t *  _ast_generator_new(ast_generator_t *, va_list);
-static void               _ast_generator_free(ast_generator_t *);
-static data_t *           _ast_generator_call(ast_generator_t *, arguments_t *);
-static char *             _ast_generator_tostring(ast_generator_t *);
-
-static ast_call_t *       _ast_call_new(ast_call_t *, va_list);
-static void               _ast_call_free(ast_call_t *);
-static data_t *           _ast_call_call(ast_call_t *, arguments_t *);
-static char *             _ast_call_tostring(ast_call_t *);
-
-static ast_block_t *      _ast_block_new(ast_block_t *, va_list);
-static void               _ast_block_free(ast_block_t *);
-static data_t *           _ast_block_call(ast_block_t *, arguments_t *);
-static char *             _ast_block_tostring(ast_block_t *);
-
-static ast_assignment_t * _ast_assignment_new(ast_assignment_t *, va_list);
-static void               _ast_assignment_free(ast_assignment_t *);
-static data_t *           _ast_assignment_call(ast_assignment_t *, arguments_t *);
-static char *             _ast_assignment_tostring(ast_assignment_t *);
-
-static ast_loop_t *       _ast_loop_new(ast_loop_t *, va_list);
-static void               _ast_loop_free(ast_loop_t *);
-static data_t *           _ast_loop_call(ast_loop_t *, arguments_t *);
-static char *             _ast_loop_tostring(ast_loop_t *);
-
-static ast_script_t *   _ast_script_new(ast_script_t *, va_list);
-static void             _ast_script_free(ast_script_t *);
-static char *           _ast_script_tostring(ast_script_t *);
-
-static ast_builder_t *  _ast_builder_new(ast_builder_t *, va_list);
-static void             _ast_builder_free(ast_builder_t *);
-static char *           _ast_builder_tostring(ast_builder_t *);
+static ast_builder_t *    _ast_builder_new(ast_builder_t *, va_list);
+static void               _ast_builder_free(ast_builder_t *);
+static char *             _ast_builder_tostring(ast_builder_t *);
 
 /* -- data_t type description structures ---------------------------------- */
 
 static vtable_t _vtable_ASTNode[] = {
-  { .id = FunctionNew, .fnc = (void_t) _ast_node_new },
-  { .id = FunctionFree, .fnc = (void_t) _ast_node_free },
+  { .id = FunctionNew, .fnc = (void_t) _ast_Node_new },
+  { .id = FunctionFree, .fnc = (void_t) _ast_Node_free },
   { .id = FunctionNone, .fnc = NULL }
 };
+
+#define AST_NODE_TYPE(t)                                                           \
+static ast_ ## t ## _t * _ast_ ## t  ## _new(ast_ ## t  ## _t *, va_list);         \
+static void              _ast_ ## t  ## _free(ast_ ## t ## _t *);                  \
+static data_t *          _ast_ ## t  ## _call(ast_ ## t  ## _t *, arguments_t *);  \
+static char *            _ast_ ## t  ## _tostring(ast_ ## t  ## _t *);             \
+                                                                                   \
+static vtable_t _vtable_AST ## t[] = {                                             \
+  { .id = FunctionNew,         .fnc = (void_t) _ast_ ## t ## _new },               \
+  { .id = FunctionFree,        .fnc = (void_t) _ast_ ## t ## _free },              \
+  { .id = FunctionCall,        .fnc = (void_t) _ast_ ## t ## _call },              \
+  { .id = FunctionAllocString, .fnc = (void_t) _ast_ ## t ## _tostring },          \
+  { .id = FunctionNone,        .fnc = NULL }                                       \
+};                                                                                 \
+int AST ## t = -1;
+
+#define AST_DUMMY_NODE_TYPE(t)                                                     \
+static vtable_t _vtable_AST ## t[] = {                                             \
+  { .id = FunctionNone,        .fnc = NULL }                                       \
+};                                                                                 \
+int AST ## t = -1;
 
 static vtable_t _vtable_ASTExpr[] = {
   { .id = FunctionNone, .fnc = NULL }
 };
+int ASTExpr = -1;
 
-static vtable_t _vtable_ASTConst[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_const_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_const_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_const_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_const_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTInfix[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_infix_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_infix_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_infix_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_infix_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTPrefix[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_prefix_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_prefix_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_prefix_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_prefix_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTTernary[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_ternary_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_ternary_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_ternary_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_ternary_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTVariable[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_variable_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_variable_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_variable_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_variable_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTGenerator[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_generator_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_generator_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_generator_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_generator_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTCall[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_call_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_call_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_call_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_call_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTBlock[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_block_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_block_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_block_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_block_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTAssignment[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_assignment_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_assignment_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_assignment_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_assignment_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTLoop[] = {
-  { .id = FunctionNew,         .fnc = (void_t) _ast_loop_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ast_loop_free },
-  { .id = FunctionCall,        .fnc = (void_t) _ast_loop_call },
-  { .id = FunctionAllocString, .fnc = (void_t) _ast_loop_tostring },
-  { .id = FunctionNone,        .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTScript[] = {
-  { .id = FunctionNew,      .fnc = (void_t) _ast_script_new },
-  { .id = FunctionFree,     .fnc = (void_t) _ast_script_free },
-  { .id = FunctionToString, .fnc = (void_t) _ast_script_tostring },
-  { .id = FunctionCall,     .fnc = NULL },
-  { .id = FunctionNone,     .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTStatement[] = {
-  { .id = FunctionNone, .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTIf[] = {
-  { .id = FunctionNone, .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTPass[] = {
-  { .id = FunctionNone, .fnc = NULL }
-};
-
-static vtable_t _vtable_ASTWhile[] = {
-  { .id = FunctionNone, .fnc = NULL }
-};
+AST_NODE_TYPE(Const);
+AST_NODE_TYPE(Infix);
+AST_NODE_TYPE(Prefix);
+AST_NODE_TYPE(Ternary);
+AST_NODE_TYPE(Variable);
+AST_NODE_TYPE(Generator);
+AST_NODE_TYPE(Call);
+AST_NODE_TYPE(Block);
+AST_NODE_TYPE(Assignment);
+AST_NODE_TYPE(Loop);
+AST_NODE_TYPE(Script);
+AST_DUMMY_NODE_TYPE(Statement);
+AST_DUMMY_NODE_TYPE(If);
+AST_DUMMY_NODE_TYPE(Pass);
+AST_DUMMY_NODE_TYPE(While);
 
 static vtable_t _vtable_ASTBuilder[] = {
   { .id = FunctionNew, .fnc = (void_t) _ast_builder_new },
@@ -205,26 +85,7 @@ static vtable_t _vtable_ASTBuilder[] = {
 
 int ASTNode = -1;
 
-int ASTExpr = -1;
-int ASTConst = -1;
-int ASTInfix = -1;
-int ASTPrefix = -1;
-int ASTTernary = -1;
-int ASTVariable = -1;
-int ASTGenerator = -1;
-int ASTCall = -1;
-
-int ASTAssignment = -1;
-int ASTBlock = -1;
-int ASTLoop = -1;
-
-int ASTScript = -1;
-int ASTStatement = -1;
 int ASTBuilder = -1;
-
-int ASTIf = -1;
-int ASTPass = -1;
-int ASTWhile = -1;
 
 int ast_debug = 0;
 
@@ -233,50 +94,50 @@ int ast_debug = 0;
 void ast_init(void) {
   if (ASTNode < 0) {
     logging_register_module(ast);
-    typedescr_register(ASTNode, ast_node_t);
+    typedescr_register(ASTNode, ast_Node_t);
 
-    typedescr_register(ASTExpr, ast_expr_t);
+    typedescr_register(ASTExpr, ast_Expr_t);
     typedescr_assign_inheritance(ASTExpr, ASTNode);
-    typedescr_register(ASTConst, ast_const_t);
+    typedescr_register(ASTConst, ast_Const_t);
     typedescr_assign_inheritance(ASTConst, ASTExpr);
-    typedescr_register(ASTInfix, ast_infix_t);
+    typedescr_register(ASTInfix, ast_Infix_t);
     typedescr_assign_inheritance(ASTInfix, ASTExpr);
-    typedescr_register(ASTPrefix, ast_prefix_t);
+    typedescr_register(ASTPrefix, ast_Prefix_t);
     typedescr_assign_inheritance(ASTPrefix, ASTExpr);
-    typedescr_register(ASTTernary, ast_ternary_t);
+    typedescr_register(ASTTernary, ast_Ternary_t);
     typedescr_assign_inheritance(ASTTernary, ASTExpr);
-    typedescr_register(ASTVariable, ast_variable_t);
+    typedescr_register(ASTVariable, ast_Variable_t);
     typedescr_assign_inheritance(ASTVariable, ASTExpr);
-    typedescr_register(ASTGenerator, ast_generator_t);
+    typedescr_register(ASTGenerator, ast_Generator_t);
     typedescr_assign_inheritance(ASTGenerator, ASTExpr);
-    typedescr_register(ASTCall, ast_call_t);
+    typedescr_register(ASTCall, ast_Call_t);
     typedescr_assign_inheritance(ASTCall, ASTExpr);
 
-    typedescr_register(ASTBlock, ast_block_t);
+    typedescr_register(ASTBlock, ast_Block_t);
     typedescr_assign_inheritance(ASTBlock, ASTExpr);
-    typedescr_register(ASTAssignment, ast_assignment_t);
+    typedescr_register(ASTAssignment, ast_Assignment_t);
     typedescr_assign_inheritance(ASTAssignment, ASTExpr);
-    typedescr_register(ASTLoop, ast_loop_t);
+    typedescr_register(ASTLoop, ast_Loop_t);
     typedescr_assign_inheritance(ASTLoop, ASTExpr);
   }
 }
 
 /* -- A S T  S T A T I C  F U N C T I O N S  ----------------------------- */
 
-ast_node_t *_ast_node_new(ast_node_t *node, va_list args) {
+ast_Node_t *_ast_Node_new(ast_Node_t *node, va_list args) {
   node->children = datalist_create(NULL);
   return node;
 }
 
-void _ast_node_free(ast_node_t *node) {
+void _ast_Node_free(ast_Node_t *node) {
   if (node) {
-    ast_node_free(node->parent);
+    ast_Node_free(node->parent);
   }
 }
 
 /* ----------------------------------------------------------------------- */
 
-ast_const_t *_ast_const_new(ast_const_t *node, va_list args) {
+ast_Const_t *_ast_Const_new(ast_Const_t *node, va_list args) {
   data_t *value = va_arg(args, data_t *);
 
   if (!value) {
@@ -286,18 +147,18 @@ ast_const_t *_ast_const_new(ast_const_t *node, va_list args) {
   return node;
 }
 
-void _ast_const_free(ast_const_t *node) {
+void _ast_Const_free(ast_Const_t *node) {
   if (node) {
     data_free(node -> value);
   }
 }
 
-data_t * _ast_const_call(ast_const_t *node, arguments_t *args) {
+data_t * _ast_Const_call(ast_Const_t *node, arguments_t *args) {
   debug(ast, "%s", data_tostring(node));
   return data_copy(node);
 }
 
-char * _ast_const_tostring(ast_const_t *node) {
+char * _ast_Const_tostring(ast_Const_t *node) {
   char *ret;
   asprintf(&ret, "'%s':%s", data_tostring(node -> value), data_typename(node -> value));
   return ret;
@@ -305,12 +166,12 @@ char * _ast_const_tostring(ast_const_t *node) {
 
 /* ----------------------------------------------------------------------- */
 
-ast_infix_t *_ast_infix_new(ast_infix_t *node, va_list args) {
-  ast_expr_t *left = va_arg(args, ast_expr_t *);
+ast_Infix_t *_ast_Infix_new(ast_Infix_t *node, va_list args) {
+  ast_Expr_t *left = va_arg(args, ast_Expr_t *);
   data_t     *op = va_arg(args, data_t *);
-  ast_expr_t *right = va_arg(args, ast_expr_t *);
+  ast_Expr_t *right = va_arg(args, ast_Expr_t *);
 
-  node -> left = ast_expr_copy(left);
+  node -> left = ast_Expr_copy(left);
   if (data_is_token(op)) {
     node -> op = str_to_data(token_token((token_t *) op));
   } else if (data_is_string(op)){
@@ -318,19 +179,19 @@ ast_infix_t *_ast_infix_new(ast_infix_t *node, va_list args) {
   } else {
     node -> op = str_to_data(data_tostring(op));
   }
-  node -> right = ast_expr_copy(right);
+  node -> right = ast_Expr_copy(right);
   return node;
 }
 
-void _ast_infix_free(ast_infix_t *node) {
+void _ast_Infix_free(ast_Infix_t *node) {
   if (node) {
-    ast_expr_free(node -> left);
+    ast_Expr_free(node -> left);
     data_free(node -> op);
-    ast_expr_free(node -> right);
+    ast_Expr_free(node -> right);
   }
 }
 
-data_t * _ast_infix_call(ast_infix_t *node, arguments_t *args) {
+data_t * _ast_Infix_call(ast_Infix_t *node, arguments_t *args) {
   data_t      *left_val;
   data_t      *right_val;
   arguments_t *op_args;
@@ -340,18 +201,18 @@ data_t * _ast_infix_call(ast_infix_t *node, arguments_t *args) {
   left_val = data_call((data_t *) node -> left, args);
   right_val = data_call((data_t *) node -> right, args);
 
-  if (!data_is_ast_const(left_val) || !data_is_ast_const(right_val)) {
-    ret = (data_t *) ast_infix_create(
-      data_as_ast_expr(left_val),
+  if (!data_is_ast_Const(left_val) || !data_is_ast_Const(right_val)) {
+    ret = (data_t *) ast_Infix_create(
+      data_as_ast_Expr(left_val),
       data_copy(node -> op),
-      data_as_ast_expr(right_val));
+      data_as_ast_Expr(right_val));
   } else {
-    op_args = arguments_create_args(1, data_as_ast_const(right_val)->value);
-    ret_val = data_execute(data_as_ast_const(left_val)->value,
+    op_args = arguments_create_args(1, data_as_ast_Const(right_val)->value);
+    ret_val = data_execute(data_as_ast_Const(left_val)->value,
                            data_tostring(node->op),
                            op_args);
     arguments_free(op_args);
-    ret = (data_t *) ast_const_create(ret_val);
+    ret = (data_t *) ast_Const_create(ret_val);
     data_free(ret_val);
   }
   debug(ast, "%s %s %s = %s",
@@ -362,7 +223,7 @@ data_t * _ast_infix_call(ast_infix_t *node, arguments_t *args) {
   return ret;
 }
 
-char * _ast_infix_tostring(ast_infix_t *node) {
+char * _ast_Infix_tostring(ast_Infix_t *node) {
   char *ret;
   asprintf(&ret, "(%s %s %s)",
            data_tostring(node -> left),
@@ -373,9 +234,9 @@ char * _ast_infix_tostring(ast_infix_t *node) {
 
 /* ----------------------------------------------------------------------- */
 
-ast_prefix_t *_ast_prefix_new(ast_prefix_t *node, va_list args) {
+ast_Prefix_t *_ast_Prefix_new(ast_Prefix_t *node, va_list args) {
   data_t     *op = va_arg(args, data_t *);
-  ast_expr_t *operand = va_arg(args, ast_expr_t *);
+  ast_Expr_t *operand = va_arg(args, ast_Expr_t *);
 
   if (data_is_token(op)) {
     node -> op = str_to_data(token_token((token_t *) op));
@@ -384,18 +245,18 @@ ast_prefix_t *_ast_prefix_new(ast_prefix_t *node, va_list args) {
   } else {
     node -> op = str_to_data(data_tostring(op));
   }
-  node -> operand = ast_expr_copy(operand);
+  node -> operand = ast_Expr_copy(operand);
   return node;
 }
 
-void _ast_prefix_free(ast_prefix_t *node) {
+void _ast_Prefix_free(ast_Prefix_t *node) {
   if (node) {
     data_free(node -> op);
-    ast_expr_free(node -> operand);
+    ast_Expr_free(node -> operand);
   }
 }
 
-data_t * _ast_prefix_call(ast_prefix_t *node, arguments_t *args) {
+data_t * _ast_Prefix_call(ast_Prefix_t *node, arguments_t *args) {
   data_t      *operand_val;
   arguments_t *op_args;
   data_t      *ret_val;
@@ -405,17 +266,17 @@ data_t * _ast_prefix_call(ast_prefix_t *node, arguments_t *args) {
   if (!strcmp(data_tostring(node->op), "+")) {
     ret = operand_val;
   } else {
-    if (!data_is_ast_const(operand_val)) {
-      ret = (data_t *) ast_prefix_create(
+    if (!data_is_ast_Const(operand_val)) {
+      ret = (data_t *) ast_Prefix_create(
         data_copy(node->op),
-        data_as_ast_expr(operand_val));
+        data_as_ast_Expr(operand_val));
     } else {
       op_args = arguments_create_args(0);
-      ret_val = data_execute(data_as_ast_const(operand_val)->value,
+      ret_val = data_execute(data_as_ast_Const(operand_val)->value,
                              data_tostring(node->op),
                              op_args);
       arguments_free(op_args);
-      ret = (data_t *) ast_const_create(ret_val);
+      ret = (data_t *) ast_Const_create(ret_val);
       data_free(ret_val);
     }
   }
@@ -426,7 +287,7 @@ data_t * _ast_prefix_call(ast_prefix_t *node, arguments_t *args) {
   return ret;
 }
 
-char * _ast_prefix_tostring(ast_prefix_t *node) {
+char * _ast_Prefix_tostring(ast_Prefix_t *node) {
   char *ret;
   asprintf(&ret, "%s (%s)",
            data_tostring(node -> op),
@@ -436,39 +297,39 @@ char * _ast_prefix_tostring(ast_prefix_t *node) {
 
 /* ----------------------------------------------------------------------- */
 
-ast_ternary_t *_ast_ternary_new(ast_ternary_t *node, va_list args) {
-  ast_expr_t *condition = va_arg(args, ast_expr_t *);
-  ast_expr_t *true_value = va_arg(args, ast_expr_t *);
-  ast_expr_t *false_value = va_arg(args, ast_expr_t *);
+ast_Ternary_t *_ast_Ternary_new(ast_Ternary_t *node, va_list args) {
+  ast_Expr_t *condition = va_arg(args, ast_Expr_t *);
+  ast_Expr_t *true_value = va_arg(args, ast_Expr_t *);
+  ast_Expr_t *false_value = va_arg(args, ast_Expr_t *);
 
-  node -> condition = ast_expr_copy(condition);
-  node -> true_value = ast_expr_copy(true_value);
-  node -> false_value = ast_expr_copy(false_value);
+  node -> condition = ast_Expr_copy(condition);
+  node -> true_value = ast_Expr_copy(true_value);
+  node -> false_value = ast_Expr_copy(false_value);
   return node;
 }
 
-void _ast_ternary_free(ast_ternary_t *node) {
+void _ast_Ternary_free(ast_Ternary_t *node) {
   if (node) {
-    ast_expr_free(node -> condition);
-    ast_expr_free(node -> true_value);
-    ast_expr_free(node -> false_value);
+    ast_Expr_free(node -> condition);
+    ast_Expr_free(node -> true_value);
+    ast_Expr_free(node -> false_value);
   }
 }
 
-data_t * _ast_ternary_call(ast_ternary_t *node, arguments_t *args) {
+data_t * _ast_Ternary_call(ast_Ternary_t *node, arguments_t *args) {
   data_t      *condition_val;
   data_t      *casted = NULL;
   data_t      *ret;
 
   condition_val = data_call((data_t *) node -> condition, args);
 
-  if (!data_is_ast_const(condition_val)) {
-    ret = (data_t *) ast_ternary_create(
-      data_as_ast_expr(condition_val),
-      data_as_ast_expr(node -> true_value),
-      data_as_ast_expr(node -> false_value));
+  if (!data_is_ast_Const(condition_val)) {
+    ret = (data_t *) ast_Ternary_create(
+      data_as_ast_Expr(condition_val),
+      data_as_ast_Expr(node -> true_value),
+      data_as_ast_Expr(node -> false_value));
   } else {
-    casted = data_cast(data_as_ast_const(condition_val) -> value, Bool);
+    casted = data_cast(data_as_ast_Const(condition_val) -> value, Bool);
     if (!casted) {
       ret = data_exception(ErrorType, "Cannot convert %s '%s' to boolean",
                            data_typename(condition_val),
@@ -485,7 +346,7 @@ data_t * _ast_ternary_call(ast_ternary_t *node, arguments_t *args) {
   return ret;
 }
 
-char * _ast_ternary_tostring(ast_ternary_t *node) {
+char * _ast_Ternary_tostring(ast_Ternary_t *node) {
   char *ret;
   asprintf(&ret, "(%s) ? (%s) : (%s)",
            data_tostring(node -> condition),
@@ -496,20 +357,20 @@ char * _ast_ternary_tostring(ast_ternary_t *node) {
 
 /* ----------------------------------------------------------------------- */
 
-ast_variable_t *_ast_variable_new(ast_variable_t *node, va_list args) {
+ast_Variable_t *_ast_Variable_new(ast_Variable_t *node, va_list args) {
   name_t     *name = va_arg(args, name_t *);
 
   node -> name = name_copy(name);
   return node;
 }
 
-void _ast_variable_free(ast_variable_t *node) {
+void _ast_Variable_free(ast_Variable_t *node) {
   if (node) {
     name_free(node -> name);
   }
 }
 
-data_t * _ast_variable_call(ast_variable_t *node, arguments_t *args) {
+data_t * _ast_Variable_call(ast_Variable_t *node, arguments_t *args) {
   data_t *ctx = arguments_get_arg(args, 0);
   data_t *val;
   data_t *ret;
@@ -517,7 +378,7 @@ data_t * _ast_variable_call(ast_variable_t *node, arguments_t *args) {
   val = data_get(ctx, node -> name);
 
   if (!data_is_exception(val)) {
-    ret = (data_t *) ast_const_create(val);
+    ret = (data_t *) ast_Const_create(val);
     data_free(val);
   } else {
     ret = val;
@@ -526,7 +387,7 @@ data_t * _ast_variable_call(ast_variable_t *node, arguments_t *args) {
   return ret;
 }
 
-char * _ast_variable_tostring(ast_variable_t *node) {
+char * _ast_Variable_tostring(ast_Variable_t *node) {
   char *ret;
   asprintf(&ret, "[%s]",
            name_tostring(node -> name));
@@ -535,7 +396,7 @@ char * _ast_variable_tostring(ast_variable_t *node) {
 
 /* ----------------------------------------------------------------------- */
 
-ast_generator_t *_ast_generator_new(ast_generator_t *node, va_list args) {
+ast_Generator_t *_ast_Generator_new(ast_Generator_t *node, va_list args) {
   data_t *generator = va_arg(args, data_t *);
 
   node -> generator = data_copy(generator);
@@ -543,13 +404,13 @@ ast_generator_t *_ast_generator_new(ast_generator_t *node, va_list args) {
   return node;
 }
 
-void _ast_generator_free(ast_generator_t *node) {
+void _ast_Generator_free(ast_Generator_t *node) {
   if (node) {
     data_free(node -> generator);
   }
 }
 
-data_t * _ast_generator_call(ast_generator_t *node, arguments_t *args) {
+data_t * _ast_Generator_call(ast_Generator_t *node, arguments_t *args) {
   data_t *ctx = arguments_get_arg(args, 0);
   data_t *val;
   data_t *ret;
@@ -565,16 +426,16 @@ data_t * _ast_generator_call(ast_generator_t *node, arguments_t *args) {
   val = data_next(node -> iter);
 
   if (!data_is_exception(val)) {
-    ret = (data_t *) ast_const_create(val);
+    ret = (data_t *) ast_Const_create(val);
     data_free(val);
   } else {
     ret = val;
   }
-  debug(ast, "%s = %s", ast_generator_tostring(node), data_tostring(ret));
+  debug(ast, "%s = %s", ast_Generator_tostring(node), data_tostring(ret));
   return ret;
 }
 
-char * _ast_generator_tostring(ast_generator_t *node) {
+char * _ast_Generator_tostring(ast_Generator_t *node) {
   char *ret;
   asprintf(&ret, " .. %s .. ", data_tostring(node -> generator));
   return ret;
@@ -582,17 +443,17 @@ char * _ast_generator_tostring(ast_generator_t *node) {
 
 /* ----------------------------------------------------------------------- */
 
-ast_call_t *_ast_call_new(ast_call_t *node, va_list args) {
-  ast_expr_t *function = va_arg(args, ast_expr_t *);
+ast_Call_t *_ast_Call_new(ast_Call_t *node, va_list args) {
+  ast_Expr_t *function = va_arg(args, ast_Expr_t *);
 
-  node -> function = ast_expr_copy(function);
+  node -> function = ast_Expr_copy(function);
   node -> args = NULL;
   return node;
 }
 
-void _ast_call_free(ast_call_t *node) {
+void _ast_Call_free(ast_Call_t *node) {
   if (node) {
-    ast_expr_free(node -> function);
+    ast_Expr_free(node -> function);
     arguments_free(node -> args);
   }
 }
@@ -604,18 +465,18 @@ typedef struct _arg_reduce_ctx {
   int          all_resolved;
 } arg_reduce_ctx_t;
 
-arg_reduce_ctx_t * _ast_call_execute_arg(ast_expr_t *arg, arg_reduce_ctx_t *ctx) {
+arg_reduce_ctx_t * _ast_Call_execute_arg(ast_Expr_t *arg, arg_reduce_ctx_t *ctx) {
   data_t    *arg_val;
 
   arg_val = data_call((data_t *) arg, ctx -> args);
-  ctx -> all_resolved &= data_is_ast_const(arg_val);
+  ctx -> all_resolved &= data_is_ast_Const(arg_val);
   arguments_push(ctx -> arg_vals, arg_val);
   arguments_push(ctx -> arg_atoms,
-                 data_is_ast_const(arg_val) ? data_as_ast_const(arg_val) -> value : data_null());
+                 data_is_ast_Const(arg_val) ? data_as_ast_Const(arg_val) -> value : data_null());
   return ctx;
 }
 
-data_t *_ast_call_call(ast_call_t *node, arguments_t *args) {
+data_t *_ast_Call_call(ast_Call_t *node, arguments_t *args) {
   data_t           *fnc_val;
   data_t           *fnc;
   data_t           *ret = NULL;
@@ -627,26 +488,26 @@ data_t *_ast_call_call(ast_call_t *node, arguments_t *args) {
   };
 
   fnc_val = data_call((data_t *) node->function, args);
-  if (!data_is_ast_const(fnc_val)) {
-    ret = (data_t *) ast_call_create(ast_expr_copy(node->function));
+  if (!data_is_ast_Const(fnc_val)) {
+    ret = (data_t *) ast_Call_create(ast_Expr_copy(node->function));
   }
 
   if (!ret) {
     reduce_ctx.arg_vals = arguments_create(NULL, NULL);
     reduce_ctx.arg_atoms = arguments_create(NULL, NULL);
     reduce_ctx.all_resolved = TRUE;
-    arguments_reduce_args(node->args, (reduce_t) _ast_call_execute_arg, &reduce_ctx);
+    arguments_reduce_args(node->args, (reduce_t) _ast_Call_execute_arg, &reduce_ctx);
     if (!reduce_ctx.all_resolved) {
-      ret = (data_t *) ast_call_create(data_as_ast_expr(fnc));
+      ret = (data_t *) ast_Call_create(data_as_ast_Expr(fnc));
     }
   }
 
   if (!ret) {
-    fnc = data_as_ast_const(fnc_val) -> value;
+    fnc = data_as_ast_Const(fnc_val) -> value;
     if (data_is_callable(fnc)) {
       ret_val = data_call(fnc, reduce_ctx.arg_atoms);
       if (!data_is_exception(ret_val)) {
-        ret = (data_t *) ast_const_create(ret_val);
+        ret = (data_t *) ast_Const_create(ret_val);
         data_free(ret_val);
       } else {
         ret = ret_val;
@@ -659,42 +520,42 @@ data_t *_ast_call_call(ast_call_t *node, arguments_t *args) {
     }
   }
 
-  if (data_is_ast_call(ret)) {
-    data_as_ast_call(ret)->args = arguments_copy(reduce_ctx.arg_vals);
+  if (data_is_ast_Call(ret)) {
+    data_as_ast_Call(ret)->args = arguments_copy(reduce_ctx.arg_vals);
   }
   debug(ast, "%s = %s",
-        ast_call_tostring(node),
+        ast_Call_tostring(node),
         data_tostring(ret));
   return ret;
 }
 
-char * _ast_call_tostring(ast_call_t *node) {
+char * _ast_Call_tostring(ast_Call_t *node) {
   char *ret;
   asprintf(&ret, "%s(%s)",
-           ast_expr_tostring(node -> function),
+           ast_Expr_tostring(node -> function),
            arguments_tostring(node->args));
   return ret;
 }
 
 /* ----------------------------------------------------------------------- */
 
-ast_block_t *_ast_block_new(ast_block_t *node, va_list args) {
+ast_Block_t *_ast_Block_new(ast_Block_t *node, va_list args) {
   node -> statements = datalist_create(NULL);
   return node;
 }
 
-void _ast_block_free(ast_block_t *node) {
+void _ast_Block_free(ast_Block_t *node) {
   if (node) {
     datalist_free(node -> statements);
   }
 }
 
-typedef struct _ast_block_execute_ctx {
+typedef struct _ast_Block_execute_ctx {
   arguments_t *args;
   data_t      *ret;
-} ast_block_execute_ctx_t;
+} ast_Block_execute_ctx_t;
 
-ast_block_execute_ctx_t * _ast_block_execute_statement(ast_expr_t *stmt, ast_block_execute_ctx_t *ctx) {
+ast_Block_execute_ctx_t * _ast_Block_execute_statement(ast_Expr_t *stmt, ast_Block_execute_ctx_t *ctx) {
   if (!data_is_exception(ctx -> ret)) {
     data_free(ctx -> ret);
     ctx -> ret = data_call((data_t *) stmt, ctx -> args);
@@ -702,23 +563,23 @@ ast_block_execute_ctx_t * _ast_block_execute_statement(ast_expr_t *stmt, ast_blo
   return ctx;
 }
 
-data_t * _ast_block_call(ast_block_t *node, arguments_t *args) {
+data_t * _ast_Block_call(ast_Block_t *node, arguments_t *args) {
   array_t                 *statements;
-  ast_block_execute_ctx_t  ctx;
+  ast_Block_execute_ctx_t  ctx;
 
-  debug(ast, "%s", ast_block_tostring(node));
+  debug(ast, "%s", ast_Block_tostring(node));
   statements = datalist_to_array(node -> statements);
   ctx.args = args;
   ctx.ret = data_null();
-  array_reduce(statements, (reduce_t) _ast_block_execute_statement, &ctx);
+  array_reduce(statements, (reduce_t) _ast_Block_execute_statement, &ctx);
   array_free(statements);
   debug(ast, "%s -> %s",
-        ast_block_tostring(node),
+        ast_Block_tostring(node),
         data_tostring(ctx.ret));
   return ctx.ret;
 }
 
-char * _ast_block_tostring(ast_block_t *node) {
+char * _ast_Block_tostring(ast_Block_t *node) {
   char *ret;
   asprintf(&ret, "{ %d node(s) }", datalist_size(node -> statements));
   return ret;
@@ -726,23 +587,23 @@ char * _ast_block_tostring(ast_block_t *node) {
 
 /* ----------------------------------------------------------------------- */
 
-ast_assignment_t *_ast_assignment_new(ast_assignment_t *node, va_list args) {
+ast_Assignment_t *_ast_Assignment_new(ast_Assignment_t *node, va_list args) {
   name_t     *name = va_arg(args, name_t *);
-  ast_expr_t *value = va_arg(args, ast_expr_t *);
+  ast_Expr_t *value = va_arg(args, ast_Expr_t *);
 
   node -> name = name_copy(name);
-  node -> value = ast_expr_copy(value);
+  node -> value = ast_Expr_copy(value);
   return node;
 }
 
-void _ast_assignment_free(ast_assignment_t *node) {
+void _ast_Assignment_free(ast_Assignment_t *node) {
   if (node) {
     name_free(node -> name);
-    ast_expr_free(node -> value);
+    ast_Expr_free(node -> value);
   }
 }
 
-data_t * _ast_assignment_call(ast_assignment_t *node, arguments_t *args) {
+data_t * _ast_Assignment_call(ast_Assignment_t *node, arguments_t *args) {
   data_t      *ctx = arguments_get_arg(args, 0);
   data_t      *val;
   data_t      *ret;
@@ -757,8 +618,8 @@ data_t * _ast_assignment_call(ast_assignment_t *node, arguments_t *args) {
     } else {
       ret = data_copy(val);
     }
-  } else if (data_is_ast_expr(val)) {
-    ret = (data_t *) ast_assignment_create(name_copy(node -> name), data_as_ast_expr(val));
+  } else if (data_is_ast_Expr(val)) {
+    ret = (data_t *) ast_Assignment_create(name_copy(node -> name), data_as_ast_Expr(val));
   } else {
     ret = data_set(ctx, node -> name, val);
     if (!data_is_exception(ret)) {
@@ -774,39 +635,39 @@ data_t * _ast_assignment_call(ast_assignment_t *node, arguments_t *args) {
   return ret;
 }
 
-char * _ast_assignment_tostring(ast_assignment_t *node) {
+char * _ast_Assignment_tostring(ast_Assignment_t *node) {
   char *ret;
   asprintf(&ret, "[%s] := %s",
            name_tostring(node -> name),
-           ast_expr_tostring(node -> value));
+           ast_Expr_tostring(node -> value));
   return ret;
 }
 
 /* ----------------------------------------------------------------------- */
 
-ast_loop_t *_ast_loop_new(ast_loop_t *node, va_list args) {
-  ast_expr_t *condition = va_arg(args, ast_expr_t *);
-  ast_expr_t *block = va_arg(args, ast_expr_t *);
+ast_Loop_t *_ast_Loop_new(ast_Loop_t *node, va_list args) {
+  ast_Expr_t *condition = va_arg(args, ast_Expr_t *);
+  ast_Expr_t *block = va_arg(args, ast_Expr_t *);
 
-  node -> condition = ast_expr_copy(condition);
-  node -> block = ast_expr_copy(block);
+  node -> condition = ast_Expr_copy(condition);
+  node -> block = ast_Expr_copy(block);
   return node;
 }
 
-void _ast_loop_free(ast_loop_t *node) {
+void _ast_Loop_free(ast_Loop_t *node) {
   if (node) {
-    ast_expr_free(node -> condition);
-    ast_expr_free(node -> block);
+    ast_Expr_free(node -> condition);
+    ast_Expr_free(node -> block);
   }
 }
 
-typedef struct _ast_loop_ctx {
-  ast_loop_t *node;
+typedef struct _ast_Loop_ctx {
+  ast_Loop_t *node;
   data_t     *ctx;
   data_t     *cond_val;
-} ast_loop_ctx_t;
+} ast_Loop_ctx_t;
 
-int _ast_loop_eval_condition(ast_loop_ctx_t *ctx) {
+int _ast_Loop_eval_condition(ast_Loop_ctx_t *ctx) {
   data_t      *val;
   exception_t *ex;
   int          ret;
@@ -822,8 +683,8 @@ int _ast_loop_eval_condition(ast_loop_ctx_t *ctx) {
   if (data_is_exception(val)) {
     ctx->cond_val = data_copy(val);
     ret = 0;
-  } else if (data_is_ast_expr(val)) {
-    ctx -> cond_val = (data_t *) ast_loop_create(ctx -> node -> condition,
+  } else if (data_is_ast_Expr(val)) {
+    ctx -> cond_val = (data_t *) ast_Loop_create(ctx -> node -> condition,
                                                  ctx -> node -> block);
     ret = 0;
   } else {
@@ -834,8 +695,8 @@ int _ast_loop_eval_condition(ast_loop_ctx_t *ctx) {
   return ret;
 }
 
-data_t * _ast_loop_call(ast_loop_t *node, arguments_t *args) {
-  ast_loop_ctx_t  ctx;
+data_t * _ast_Loop_call(ast_Loop_t *node, arguments_t *args) {
+  ast_Loop_ctx_t  ctx;
   int             cond;
   data_t         *val;
   data_t         *ret;
@@ -843,36 +704,36 @@ data_t * _ast_loop_call(ast_loop_t *node, arguments_t *args) {
   ctx.node = node;
   ctx.cond_val = NULL;
   ctx.ctx = arguments_get_arg(args, 0);
-  for (cond = _ast_loop_eval_condition(&ctx); cond; cond = _ast_loop_eval_condition(&ctx)) {
+  for (cond = _ast_Loop_eval_condition(&ctx); cond; cond = _ast_Loop_eval_condition(&ctx)) {
     val = ast_execute(node -> block, ctx.ctx);
     if (data_is_exception(val)) {
       ctx.cond_val = data_copy(val);
     }
     data_free(val);
   }
-  debug(ast, "%s -> %s", ast_loop_tostring(node), data_tostring(ctx.cond_val));
+  debug(ast, "%s -> %s", ast_Loop_tostring(node), data_tostring(ctx.cond_val));
   if (data_is_exception(ctx.cond_val)) {
     ret = ctx.cond_val;
-  } else if (data_is_ast_expr(ctx.cond_val)) {
+  } else if (data_is_ast_Expr(ctx.cond_val)) {
     ret = ctx.cond_val;
   } else {
-    ret = (data_t *) ast_const_create(ctx.cond_val);
+    ret = (data_t *) ast_Const_create(ctx.cond_val);
     data_free(ctx.cond_val);
   }
   return ret;
 }
 
-char * _ast_loop_tostring(ast_loop_t *node) {
+char * _ast_Loop_tostring(ast_Loop_t *node) {
   char *ret;
   asprintf(&ret, "for ( %s ) %s",
-           ast_expr_tostring(node -> condition),
-           ast_expr_tostring(node -> block));
+           ast_Expr_tostring(node -> condition),
+           ast_Expr_tostring(node -> block));
   return ret;
 }
 
 /* ----------------------------------------------------------------------- */
 
-ast_script_t *_ast_script_new(ast_script_t *script, va_list args) {
+ast_Script_t *_ast_Script_new(ast_Script_t *script, va_list args) {
   char *name = va_arg(args, char *);
   char anon[40];
 
@@ -885,11 +746,16 @@ ast_script_t *_ast_script_new(ast_script_t *script, va_list args) {
   return script;
 }
 
-char *_ast_script_tostring(ast_script_t *script) {
+char *_ast_Script_tostring(ast_Script_t *script) {
   return name_tostring(script->name);
 }
 
-void _ast_script_free(ast_script_t *script) {
+data_t * _ast_Script_call(ast_Script_t *node, arguments_t *args) {
+  // FIXME implement
+  return data_null();
+}
+
+void _ast_Script_free(ast_Script_t *script) {
   if (script) {
     name_free(script->name);
   }
@@ -898,18 +764,18 @@ void _ast_script_free(ast_script_t *script) {
 /* ----------------------------------------------------------------------- */
 
 ast_builder_t *_ast_builder_new(ast_builder_t *builder, va_list args) {
-  builder->script = ast_script_create(va_arg(args, char *));
-  builder->current_node = data_as_ast_node(builder->script);
+  builder->script = ast_Script_create(va_arg(args, char *));
+  builder->current_node = data_as_ast_Node(builder->script);
   return builder;
 }
 
 char *_ast_builder_tostring(ast_builder_t *builder) {
-  return ast_script_tostring(builder->script);
+  return ast_Script_tostring(builder->script);
 }
 
 void _ast_builder_free(ast_builder_t *builder) {
   if (builder) {
-    ast_script_free(builder->script);
+    ast_Script_free(builder->script);
   }
 }
 
@@ -921,24 +787,24 @@ data_t * ast_execute(void *ast, data_t *ctx) {
   data_t      *ret;
   data_t      *r;
 
-  if (!data_is_ast_node(ast)) {
+  if (!data_is_ast_Node(ast)) {
     return data_exception(ErrorType, "ast_execute called with %s (%s)",
                           data_tostring(ast), data_typename(ast));
   }
   node = (data_t *) ast;
   args = arguments_create_args(1, ctx);
   ret = data_call(node, args);
-  if (data_is_ast_const(ret)) {
+  if (data_is_ast_Const(ret)) {
     // Maybe we need a more generic ast_node_unwrap method?
     r = ret;
-    ret = data_copy(data_as_ast_const(r) -> value);
+    ret = data_copy(data_as_ast_Const(r) -> value);
     data_free(r);
   }
   arguments_free(args);
   return ret;
 }
 
-ast_node_t *ast_append(ast_node_t *node, ast_node_t *child) {
+ast_Node_t *ast_append(ast_Node_t *node, ast_Node_t *child) {
   datalist_push(node->children, child);
   child->parent = node;
   return node;

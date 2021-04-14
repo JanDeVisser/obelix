@@ -1,3 +1,5 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "altera-struct-pack-align"
 /*
  * /obelix/include/ast.h - Copyright (c) 2020 Jan de Visser <jan@de-visser.net>
  *
@@ -43,229 +45,173 @@ OBLAST_IMPEXP void             ast_init(void);
 
 /* ----------------------------------------------------------------------- */
 
-typedef struct _ast_node {
+typedef struct _ast_Node {
   data_t            _d;
-  struct _ast_node *parent;
+  struct _ast_Node *parent;
   datalist_t       *children;
-} ast_node_t;
+} ast_Node_t;
 OBLAST_IMPEXP int ASTNode;
-type_skel(ast_node, ASTNode, ast_node_t);
+type_skel(ast_Node, ASTNode, ast_Node_t);
 
 /* ----------------------------------------------------------------------- */
 
-typedef struct _ast_expr {
-  ast_node_t  node;
-} ast_expr_t;
-OBLAST_IMPEXP int ASTExpr;
-type_skel(ast_expr, ASTExpr, ast_expr_t);
+#define AST_NODE_TYPE_DEF(t, base)               \
+typedef struct _ast_ ## t {                      \
+  ast_ ## base ## _t  base ;                     \
+  CUSTOM_FIELDS ;                                \
+} ast_ ## t ## _t;                               \
+OBLAST_IMPEXP int AST ## t;                      \
+type_skel(ast_ ## t, AST ## t, ast_ ## t ## _t);
 
-typedef struct _ast_const {
-  ast_expr_t  expr;
-  data_t     *value;
-} ast_const_t;
+#define CUSTOM_FIELDS
+AST_NODE_TYPE_DEF(Expr, Node)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTConst;
-type_skel(ast_const, ASTConst, ast_const_t);
 
-static inline ast_const_t * ast_const_create(data_t *value) {
+#define CUSTOM_FIELDS data_t *value
+AST_NODE_TYPE_DEF(Const, Expr)
+#undef CUSTOM_FIELDS
+
+static inline ast_Const_t * ast_Const_create(data_t *value) {
   ast_init();
-  return (ast_const_t *) data_create(ASTConst, value);
+  return (ast_Const_t *) data_create(ASTConst, value);
 }
 
-typedef struct _ast_infix {
-  ast_expr_t  expr;
-  data_t     *op;
-  ast_expr_t *left;
-  ast_expr_t *right;
-} ast_infix_t;
+#define CUSTOM_FIELDS   data_t *op; ast_Expr_t *left; ast_Expr_t *right;
+AST_NODE_TYPE_DEF(Infix, Expr)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTInfix;
-type_skel(ast_infix, ASTInfix, ast_infix_t);
-
-static inline ast_infix_t * ast_infix_create(ast_expr_t *left, data_t *op, ast_expr_t *right) {
+static inline ast_Infix_t * ast_Infix_create(ast_Expr_t *left, data_t *op, ast_Expr_t *right) {
   ast_init();
-  return (ast_infix_t *) data_create(ASTInfix, left, op, right);
+  return (ast_Infix_t *) data_create(ASTInfix, left, op, right);
 }
 
-typedef struct _ast_prefix {
-  ast_expr_t  expr;
-  data_t     *op;
-  ast_expr_t *operand;
-} ast_prefix_t;
+#define CUSTOM_FIELDS   data_t *op; ast_Expr_t *operand;
+AST_NODE_TYPE_DEF(Prefix, Expr)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTPrefix;
-type_skel(ast_prefix, ASTPrefix, ast_prefix_t);
-
-static inline ast_prefix_t * ast_prefix_create(data_t *op, ast_expr_t *operand) {
+static inline ast_Prefix_t * ast_Prefix_create(data_t *op, ast_Expr_t *operand) {
   ast_init();
-  return (ast_prefix_t *) data_create(ASTPrefix, op, operand);
+  return (ast_Prefix_t *) data_create(ASTPrefix, op, operand);
 }
 
-typedef struct _ast_ternary {
-  ast_expr_t  expr;
-  ast_expr_t *condition;
-  ast_expr_t *true_value;
-  ast_expr_t *false_value;
-} ast_ternary_t;
+#define CUSTOM_FIELDS   ast_Expr_t *condition; ast_Expr_t *true_value; ast_Expr_t *false_value;
+AST_NODE_TYPE_DEF(Ternary, Expr)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTTernary;
-type_skel(ast_ternary, ASTTernary, ast_ternary_t);
-
-static inline ast_ternary_t * ast_ternary_create(ast_expr_t *condition,
-                                                 ast_expr_t *true_value,
-                                                 ast_expr_t *false_value) {
+static inline ast_Ternary_t * ast_Ternary_create(ast_Expr_t *condition,
+                                                 ast_Expr_t *true_value,
+                                                 ast_Expr_t *false_value) {
   ast_init();
-  return (ast_ternary_t *) data_create(ASTTernary, condition, true_value, false_value);
+  return (ast_Ternary_t *) data_create(ASTTernary, condition, true_value, false_value);
 }
 
-typedef struct _ast_variable {
-  ast_expr_t  expr;
-  name_t     *name;
-} ast_variable_t;
+#define CUSTOM_FIELDS   name_t     *name;
+AST_NODE_TYPE_DEF(Variable, Expr)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTVariable;
-type_skel(ast_variable, ASTVariable, ast_variable_t);
-
-static inline ast_variable_t * ast_variable_create(name_t *name) {
+static inline ast_Variable_t * ast_Variable_create(name_t *name) {
   ast_init();
-  return (ast_variable_t *) data_create(ASTVariable, name);
+  return (ast_Variable_t *) data_create(ASTVariable, name);
 }
 
-typedef struct _ast_generator {
-  ast_expr_t  expr;
-  data_t     *generator;
-  data_t     *iter;
-} ast_generator_t;
+#define CUSTOM_FIELDS     data_t *generator; data_t *iter;
+AST_NODE_TYPE_DEF(Generator, Expr)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTGenerator;
-type_skel(ast_generator, ASTGenerator, ast_generator_t);
-
-static inline ast_generator_t * ast_generator_create(data_t *generator) {
+static inline ast_Generator_t * ast_Generator_create(data_t *generator) {
   ast_init();
-  return (ast_generator_t *) data_create(ASTGenerator, generator);
+  return (ast_Generator_t *) data_create(ASTGenerator, generator);
 }
 
-typedef struct _ast_call {
-  ast_expr_t   expr;
-  ast_expr_t  *function;
-  arguments_t *args;
-} ast_call_t;
+#define CUSTOM_FIELDS ast_Expr_t  *function; arguments_t *args;
+AST_NODE_TYPE_DEF(Call, Expr)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTCall;
-type_skel(ast_call, ASTCall, ast_call_t);
-
-static inline ast_call_t * ast_call_create(ast_expr_t *function) {
+static inline ast_Call_t * ast_Call_create(ast_Expr_t *function) {
   ast_init();
-  return (ast_call_t *) data_create(ASTCall, function);
+  return (ast_Call_t *) data_create(ASTCall, function);
 }
 
 /* ----------------------------------------------------------------------- */
 
-typedef struct _ast_block {
-  ast_expr_t  expr;
-  datalist_t *statements;
-} ast_block_t;
+#define CUSTOM_FIELDS
+AST_NODE_TYPE_DEF(Statement, Node)
+#undef CUSTOM_FIELDS
+static inline ast_Statement_t * ast_Statement_create() {
+  return (ast_Statement_t *) data_create(ASTStatement);
+}
 
-OBLAST_IMPEXP int ASTBlock;
-type_skel(ast_block, ASTBlock, ast_block_t);
+#define CUSTOM_FIELDS datalist_t *statements;
+AST_NODE_TYPE_DEF(Block, Expr)
+#undef CUSTOM_FIELDS
 
-static inline ast_block_t * ast_block_create() {
+static inline ast_Block_t * ast_Block_create() {
   ast_init();
-  return (ast_block_t *) data_create(ASTBlock);
+  return (ast_Block_t *) data_create(ASTBlock);
 }
 
-typedef struct _ast_loop {
-  ast_expr_t  expr;
-  ast_expr_t *condition;
-  ast_expr_t *block;
-} ast_loop_t;
+static inline ast_Block_t * ast_Block_append(data_t *b, ast_Statement_t *stmt) {
+  ast_Block_t *block = data_as_ast_Block(b);
+  datalist_push(block -> statements, data_copy(stmt));
+  return block;
+}
 
-OBLAST_IMPEXP int ASTLoop;
-type_skel(ast_loop, ASTLoop, ast_loop_t);
+#define CUSTOM_FIELDS ast_Expr_t *condition; ast_Expr_t *block;
+AST_NODE_TYPE_DEF(Loop, Expr)
+#undef CUSTOM_FIELDS
 
-static inline ast_loop_t * ast_loop_create(ast_expr_t *condition, ast_expr_t *block) {
+static inline ast_Loop_t * ast_Loop_create(ast_Expr_t *condition, ast_Expr_t *block) {
   ast_init();
-  return (ast_loop_t *) data_create(ASTLoop, condition, block);
+  return (ast_Loop_t *) data_create(ASTLoop, condition, block);
 }
 
-typedef struct _ast_script {
-  ast_block_t  block;
-  name_t      *name;
-} ast_script_t;
+#define CUSTOM_FIELDS name_t *name;
+AST_NODE_TYPE_DEF(Script, Block)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTScript;
-type_skel(ast_script, ASTScript, ast_script_t)
-
-ast_script_t *ast_script_create(char *name) {
+ast_Script_t *ast_Script_create(char *name) {
   ast_init();
-  return (ast_script_t *) data_create(ASTScript, name);
+  return (ast_Script_t *) data_create(ASTScript, name);
 }
 
-typedef struct _ast_statement {
-  ast_node_t   node;
-} ast_statement_t;
+#define CUSTOM_FIELDS name_t *name; ast_Expr_t *value;
+AST_NODE_TYPE_DEF(Assignment, Expr)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTStatement;
-type_skel(ast_statement, ASTStatement, ast_statement_t)
-
-static inline ast_statement_t * ast_statement_create() {
-  return (ast_statement_t *) data_create(ASTStatement);
-}
-
-typedef struct _ast_assignment {
-  ast_expr_t  expr;
-  name_t     *name;
-  ast_expr_t *value;
-} ast_assignment_t;
-
-OBLAST_IMPEXP int ASTAssignment;
-type_skel(ast_assignment, ASTAssignment, ast_assignment_t)
-
-static inline ast_assignment_t  * ast_assignment_create(name_t *name, ast_expr_t *value) {
+static inline ast_Assignment_t * ast_Assignment_create(name_t *name, ast_Expr_t *value) {
   ast_init();
-  return (ast_assignment_t *) data_create(ASTAssignment, name, value);
+  return (ast_Assignment_t *) data_create(ASTAssignment, name, value);
 }
 
-typedef struct _ast_if {
-  ast_block_t     block;
-  ast_expr_t     *expr;
-  struct _ast_if *elif_block;
-} ast_if_t;
+#define CUSTOM_FIELDS ast_Expr_t *expr; struct _ast_If *elif_block;
+AST_NODE_TYPE_DEF(If, Block)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTIf;
-type_skel(ast_if, ASTIf, ast_if_t)
-
-static inline ast_if_t * ast_if_create() {
-  return (ast_if_t *) data_create(ASTIf);
+static inline ast_If_t * ast_If_create() {
+  return (ast_If_t *) data_create(ASTIf);
 }
 
-typedef struct _ast_pass {
-  ast_node_t  node;
-} ast_pass_t;
+#define CUSTOM_FIELDS
+AST_NODE_TYPE_DEF(Pass, Statement)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTPass;
-type_skel(ast_pass, ASTPass, ast_pass_t)
-
-static inline ast_pass_t * ast_pass_create() {
-  return (ast_pass_t *) data_create(ASTPass);
+static inline ast_Pass_t * ast_Pass_create() {
+  return (ast_Pass_t *) data_create(ASTPass);
 }
 
-typedef struct _ast_while {
-  ast_block_t  block;
-  ast_expr_t  *expr;
-} ast_while_t;
+#define CUSTOM_FIELDS ast_Expr_t *expr;
+AST_NODE_TYPE_DEF(While, Block)
+#undef CUSTOM_FIELDS
 
-OBLAST_IMPEXP int ASTWhile;
-type_skel(ast_while, ASTWhile, ast_if_t)
-
-static inline ast_while_t * ast_while_create() {
-  return (ast_while_t *) data_create(ASTWhile);
+static inline ast_While_t * ast_While_create() {
+  return (ast_While_t *) data_create(ASTWhile);
 }
 
 typedef struct _ast_builder {
   data_t           _d;
-  ast_script_t    *script;
-  ast_node_t      *current_node;
+  ast_Script_t    *script;
+  ast_Node_t      *current_node;
 } ast_builder_t;
 
 OBLAST_IMPEXP int ASTBuilder;
@@ -279,10 +225,12 @@ static inline ast_builder_t *ast_builder_create(char *name) {
 /* ----------------------------------------------------------------------- */
 
 OBLAST_IMPEXP data_t *         ast_execute(void *, data_t *);
-OBLAST_IMPEXP ast_node_t *     ast_append(ast_node_t *, ast_node_t *);
+OBLAST_IMPEXP ast_Node_t *     ast_append(ast_Node_t *, ast_Node_t *);
 
 #ifdef  __cplusplus
 }
 #endif /* __cplusplus */
 
 #endif /* __AST_H__ */
+
+#pragma clang diagnostic pop
