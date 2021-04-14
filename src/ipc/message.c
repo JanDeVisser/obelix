@@ -213,10 +213,10 @@ data_t * servermessage_vmatch(servermessage_t *msg, int expected, int numargs, v
       type = va_arg(types, int);
       if (type != data_type(datalist_get(msg -> args, ix))) {
         ret = data_exception(ErrorProtocol,
-            "Expected IPC message with tag '%s' and argument %d of type '%s' but got %s",
-            msg -> tag, ix,
-            typename(typedescr_get(type)),
-            data_tostring(datalist_get(msg -> args, ix)));
+                             "Expected IPC message with tag '%s' and argument %d of type '%s' but got %s",
+                             msg -> tag, ix,
+                             type_name(typedescr_get(type)),
+                             data_tostring(datalist_get(msg -> args, ix)));
         break;
       }
     }
@@ -237,12 +237,12 @@ data_t * servermessage_match(servermessage_t *msg, int expected, int numargs, ..
 data_t * servermessage_match_payload(servermessage_t *msg, int type) {
   if (!msg -> payload) {
     return data_exception(ErrorProtocol,
-        "Expected IPC message with tag '%s' and payload of type '%s' but there is no payload",
-        msg->tag, typename(typedescr_get(type)));
+                          "Expected IPC message with tag '%s' and payload of type '%s' but there is no payload",
+                          msg->tag, type_name(typedescr_get(type)));
   } else if (!data_hastype(msg -> payload, type)) {
     return data_exception(ErrorProtocol,
-        "Expected IPC message with tag '%s' and payload of type '%s' but the payload has type '%s'",
-        msg->tag, typename(typedescr_get(type)), data_typename(msg->payload));
+                          "Expected IPC message with tag '%s' and payload of type '%s' but the payload has type '%s'",
+                          msg->tag, type_name(typedescr_get(type)), data_typename(msg->payload));
   } else {
     return NULL;
   }

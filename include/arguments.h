@@ -56,7 +56,7 @@ static inline int arguments_args_size(const arguments_t *args) {
 }
 
 static inline void * arguments_reduce_args(arguments_t *args, void *reducer, void *initial) {
-  return array_reduce(data_as_array(args -> args), reducer, initial);
+  return array_reduce(data_as_array(args -> args), (reduce_t) reducer, initial);
 }
 
 static inline int arguments_has_kwargs(const arguments_t *args) {

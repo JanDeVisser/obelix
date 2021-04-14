@@ -52,7 +52,7 @@ test_dict_ctx_t * ctx_create(int num) {
   dict = dict_create((cmp_t) strcmp);
   ck_assert_ptr_ne(dict, NULL);
   ck_assert_int_eq(dict_size(dict), 0);
-  dict_set_key_type(dict, &type_str);
+  dict_set_key_type(dict, coretype(CTString));
   ck_assert_ptr_eq(dict -> key_type.cmp, strcmp);
   ck_assert_ptr_eq(dict -> key_type.hash, strhash);
   ck_assert_ptr_eq(dict -> key_type.free, free);

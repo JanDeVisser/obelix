@@ -136,7 +136,7 @@ OBLCORE_IMPEXP char *          unescape(char *, char);
 
 OBLCORE_IMPEXP char *          label_for_code(code_label_t *, int);
 OBLCORE_IMPEXP char *          labels_for_bitmap(code_label_t *, int, char *, size_t);
-OBLCORE_IMPEXP int             code_for_label(code_label_t *, char *);
+OBLCORE_IMPEXP int             code_for_label(code_label_t *, const char *);
 
 OBLCORE_IMPEXP reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
 OBLCORE_IMPEXP reduce_ctx *    reduce_ctx_initialize(reduce_ctx *, void *, void *, void_t);
@@ -144,8 +144,12 @@ OBLCORE_IMPEXP reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
 OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
 
-OBLCORE_IMPEXP type_t           type_str;
-OBLCORE_IMPEXP type_t           type_int;
+typedef enum coretype {
+  CTString,
+  CTInteger
+} coretype_t ;
+
+OBLCORE_IMPEXP type_t *         coretype(coretype_t);
 
 #define new(i)                    (_new((i)))
 #define stralloc(n)               ((char *) _new((n) + 1))

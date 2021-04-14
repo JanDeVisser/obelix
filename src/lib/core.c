@@ -47,14 +47,40 @@ static type_t _type_int = {
   .cmp      = NULL
 };
 
-type_t type_str;
-type_t type_int;
+//type_t type_str;
+//type_t type_int;
+
+static int _core_initialized = 0;
+
+
 
 /* ------------------------------------------------------------------------ */
 
-void core_init(void) {
-  type_copy(&type_str, &_type_str);
-  type_copy(&type_int, &_type_int);
+static void _core_init(void) {
+//  type_copy(&type_str, &_type_str);
+//  type_copy(&type_int, &_type_int);
+  _core_initialized = 1;
+}
+
+void core_init() {
+  if (!_core_initialized) {
+    _core_init();
+  }
+}
+
+#define CORE_INIT (if (!_core_initialized) _core_init())
+
+/* ------------------------------------------------------------------------ */
+
+type_t * coretype(coretype_t t) {
+  switch (t) {
+    case CTString:
+      return &_type_str;
+    case CTInteger:
+      return &_type_int;
+    default:
+      assert(0);
+  }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -208,7 +234,7 @@ char * labels_for_bitmap(code_label_t *table, int bitmap, char *buf, size_t maxl
   return buf;
 }
 
-int code_for_label(code_label_t *table, char *label) {
+int code_for_label(code_label_t *table, const char *label) {
   assert(table);
   assert(label);
   while (table -> label) {

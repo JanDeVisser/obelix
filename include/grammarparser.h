@@ -23,6 +23,10 @@
 
 #include <grammar.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum _gp_state_ {
   GPStateStart,
   GPStateOptions,
@@ -38,23 +42,27 @@ typedef enum _gp_state_ {
 } gp_state_t;
 
 typedef struct _grammar_parser {
-  data_t        *reader;
-  grammar_t     *grammar;
-  gp_state_t     state;
-  gp_state_t     old_state;
-  token_t       *last_token;
-  ge_t          *ge;
+  data_t *reader;
+  grammar_t *grammar;
+  gp_state_t state;
+  gp_state_t old_state;
+  token_t *last_token;
+  ge_t *ge;
   nonterminal_t *nonterminal;
-  rule_t        *rule;
-  rule_entry_t  *entry;
-  int            modifier;
-  int            dryrun;
-  dict_t        *keywords;
-  unsigned int   next_keyword_code;
+  rule_t *rule;
+  rule_entry_t *entry;
+  int modifier;
+  int dryrun;
+  dict_t *keywords;
+  unsigned int next_keyword_code;
 } grammar_parser_t;
 
-OBLGRAMMAR_IMPEXP grammar_parser_t * grammar_parser_create(data_t *);
-OBLGRAMMAR_IMPEXP void               grammar_parser_free(grammar_parser_t *);
-OBLGRAMMAR_IMPEXP grammar_t *        grammar_parser_parse(grammar_parser_t *);
+OBLGRAMMAR_IMPEXP grammar_parser_t *grammar_parser_create(data_t *);
+OBLGRAMMAR_IMPEXP void grammar_parser_free(grammar_parser_t *);
+OBLGRAMMAR_IMPEXP grammar_t *grammar_parser_parse(grammar_parser_t *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __GRAMMARPARSER_H__ */

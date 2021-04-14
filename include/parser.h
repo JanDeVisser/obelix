@@ -77,7 +77,7 @@ OBLPARSER_IMPEXP data_t *   parser_send_token(parser_t *, token_t *);
 OBLPARSER_IMPEXP data_t *   parser_end(parser_t *);
 
 static inline data_t * parser_set(parser_t *parser, char *key, data_t *value) {
-  return dictionary_set(data_as_dictionary(parser), key, value);
+  return data_as_data(dictionary_set(data_as_dictionary(parser), key, value));
 }
 
 static inline data_t * parser_get(parser_t *parser, char *key) {

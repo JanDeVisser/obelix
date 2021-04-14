@@ -154,7 +154,7 @@ data_t * data_create_noinit(int type) {
   data_t      *ret;
 
   descr = typedescr_get(type);
-  debug(data, "Allocating %d bytes for new '%s'", descr -> size, typename(descr));
+  debug(data, "Allocating %d bytes for new '%s'", descr -> size, type_name(descr));
   ret = (data_t *) _new((descr -> size) ? descr -> size : sizeof(data_t));
   ret = data_settype(ret, type);
   ret -> free_me = Normal;
@@ -169,7 +169,7 @@ data_t * data_settype(data_t *data, int type) {
   assert(type > 0);
 #ifndef NDEBUG
   descr = typedescr_get(type);
-  if (!descr || (typetype(descr) != type) || !typename(descr)) {
+  if (!descr || (typetype(descr) != type) || !type_name(descr)) {
     if (type >= Dynamic) {
       fatal("Attempt to initialize atom with non-existent or broken type %d", type);
       return NULL;
@@ -179,7 +179,7 @@ data_t * data_settype(data_t *data, int type) {
   }
   _data_count++;
   data -> cookie = MAGIC_COOKIE;
-  data -> typename = typename(descr);
+  data -> type_name = type_name(descr);
 #endif /* !NDEBUG */
   data -> type = type;
   data -> refs = 1;
@@ -219,7 +219,7 @@ data_t * data_parse(int type, char *str) {
 
   data_init();
   descr = typedescr_get(type);
-  debug(data, "Parsing %s : '%s'", typename(descr), str);
+  debug(data, "Parsing %s : '%s'", type_name(descr), str);
   parse = typedescr_get_function(descr, FunctionParse);
   return (parse)
     ? ((data_t * (*)(char *)) parse)(str)
@@ -286,7 +286,7 @@ data_t * data_deserialize(data_t *serialized) {
     return NULL;
   }
   descr = data_typedescr(serialized);
-  debug(data, "Deserializing %s : '%s'", typename(descr), data_tostring(serialized));
+  debug(data, "Deserializing %s : '%s'", type_name(descr), data_tostring(serialized));
   deserialize = typedescr_get_function(descr, FunctionDeserialize);
   return (deserialize)
     ? ((data_t * (*)(data_t *)) deserialize)(serialized)
@@ -319,7 +319,7 @@ data_t * data_serialize(data_t *data) {
   }
   if (data_is_dictionary(serialized)) {
     dict = data_as_dictionary(serialized);
-    typestr = str_wrap(typename(type));
+    typestr = str_wrap(type_name(type));
     dictionary_set(dict, "__obl_type__",
         data_uncopy(data_serialize((data_t *) typestr)));
     str_free(typestr);
@@ -457,7 +457,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
     if (!strcmp(n, "type")) {
       ret = (data_t *) type;
     } else if (!strcmp(n, "typename")) {
-      ret = (data_t *) str_copy_chars(typename(type));
+      ret = (data_t *) str_copy_chars(type_name(type));
     } else if (!strcmp(n, "typeid")) {
       ret = int_to_data(typetype(type));
     }
@@ -467,9 +467,9 @@ data_t * data_resolve(data_t *data, name_t *name) {
   }
   if (!ret) {
     ret = data_exception(ErrorType,
-            "Cannot resolve name '%s' in %s '%s'",
-            name_tostring(name), typename(type),
-            data_tostring(data));
+                         "Cannot resolve name '%s' in %s '%s'",
+                         name_tostring(name), type_name(type),
+                         data_tostring(data));
   }
   if (ret && (!data_is_exception(ret) || data_as_exception(ret) -> handled)
           && (name_size(name) > 1)) {

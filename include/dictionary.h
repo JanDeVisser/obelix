@@ -32,10 +32,10 @@ OBLCORE_IMPEXP void            dictionary_init(void);
 OBLCORE_IMPEXP dictionary_t *  dictionary_create(void *);
 OBLCORE_IMPEXP dictionary_t *  dictionary_create_from_dict(dict_t *);
 
-OBLCORE_IMPEXP data_t *        dictionary_get(const dictionary_t *, char *);
-OBLCORE_IMPEXP data_t *        dictionary_pop(dictionary_t *, char *);
-OBLCORE_IMPEXP data_t *        _dictionary_set(dictionary_t *, char *, data_t *);
-OBLCORE_IMPEXP int             dictionary_has(const dictionary_t *, char *);
+OBLCORE_IMPEXP data_t *        dictionary_get(const dictionary_t *, const char *);
+OBLCORE_IMPEXP data_t *        dictionary_pop(dictionary_t *, const char *);
+OBLCORE_IMPEXP data_t *        _dictionary_set(dictionary_t *, const char *, data_t *);
+OBLCORE_IMPEXP int             dictionary_has(const dictionary_t *, const char *);
 OBLCORE_IMPEXP int             dictionary_size(const dictionary_t *);
 OBLCORE_IMPEXP data_t *        _dictionary_reduce(dictionary_t *, reduce_t, data_t *);
 OBLCORE_IMPEXP dictionary_t *  dictionary_update(dictionary_t *, dictionary_t *);
@@ -44,11 +44,11 @@ OBLCORE_IMPEXP int Dictionary;
 
 type_skel(dictionary, Dictionary, dictionary_t);
 
-static inline void * dictionary_set(dictionary_t *dict, char *key, void *value) {
+static inline void * dictionary_set(dictionary_t *dict, const char *key, void *value) {
   return _dictionary_set(dict, key, data_as_data(value));
 }
 
-static inline void dictionary_remove(dictionary_t *dict, char *key) {
+static inline void dictionary_remove(dictionary_t *dict, const char *key) {
   (void) dictionary_pop(dict, key);
 }
 
@@ -57,7 +57,7 @@ static inline dictionary_t * dictionary_clear(dictionary_t *dict) {
   return dict;
 }
 
-static inline char * dictionary_value_tostring(const dictionary_t *dict, char *key) {
+static inline char * dictionary_value_tostring(const dictionary_t *dict, const char *key) {
   return data_tostring(data_uncopy(dictionary_get(dict, key)));
 }
 

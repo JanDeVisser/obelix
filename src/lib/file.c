@@ -652,7 +652,7 @@ file_t * file_create(int fh) {
   return (file_t *) data_create(File, fh);
 }
 
-int file_flags(char *flags) {
+int file_flags(const char *flags) {
   int ret;
 
   if (!strcasecmp(flags, "r")) {
@@ -673,7 +673,7 @@ int file_flags(char *flags) {
   return ret;
 }
 
-int file_mode(char *mode) {
+int file_mode(const char *mode) {
   int      ret = 0;
   array_t *parts;
   char    *str;
@@ -745,7 +745,7 @@ int file_mode(char *mode) {
   return ret;
 }
 
-file_t * file_open_ext(char *fname, ...) {
+file_t * file_open_ext(const char *fname, ...) {
   file_t  *ret = NULL;
   char    *n;
   int      fh = -1;
@@ -803,7 +803,7 @@ file_t * file_open_ext(char *fname, ...) {
   return ret;
 }
 
-file_t * file_open(char *fname) {
+file_t * file_open(const char *fname) {
   return file_open_ext(fname, NULL);
 }
 

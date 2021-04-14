@@ -57,8 +57,8 @@ void _scanner_config_init(void) {
   if (ScannerConfig < 0) {
     typedescr_register(ScannerConfig, scanner_config_t);
     _scanners_configs = dict_create(NULL);
-    dict_set_key_type(_scanners_configs, &type_str);
-    dict_set_data_type(_scanners_configs, &type_int);
+    dict_set_key_type(_scanners_configs, coretype(CTString));
+    dict_set_data_type(_scanners_configs, coretype(CTInteger));
     _scanner_config_mutex = mutex_create();
 
     scanner_config_register(comment_register());
@@ -230,8 +230,8 @@ typedescr_t * scanner_config_register(typedescr_t *def) {
   lexer_init();
   mutex_lock(_scanner_config_mutex);
   typedescr_assign_inheritance(typetype(def), ScannerConfig);
-  debug(lexer, "Registering scanner type '%s' (%d)", typename(def), typetype(def));
-  dict_put(_scanners_configs, strdup(typename(def)), (void *) ((intptr_t) typetype(def)));
+  debug(lexer, "Registering scanner type '%s' (%d)", type_name(def), typetype(def));
+  dict_put(_scanners_configs, strdup(type_name(def)), (void *) ((intptr_t) typetype(def)));
   mutex_unlock(_scanner_config_mutex);
   return def;
 }

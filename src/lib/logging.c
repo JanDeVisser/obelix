@@ -34,14 +34,14 @@ typedef struct _logcategory {
   char        *str;
 } logcategory_t;
 
-static logcategory_t * _logcategory_create(char *, int *);
+static logcategory_t * _logcategory_create(const char *, int *);
 static char *          _logcategory_tostring(logcategory_t *);
 static void            _logcategory_free(logcategory_t *);
 static int             _logcategory_cmp(logcategory_t *, logcategory_t *);
 static int             _logcategory_hash(logcategory_t *);
 static logcategory_t * _logcategory_set(logcategory_t *, int);
 
-static void            _logging_set(char *, int);
+static void            _logging_set(const char *, int);
 static char *          _log_level_str(log_level_t lvl);
 
 static char *          _logfile = NULL;
@@ -72,7 +72,7 @@ static mutex_t *_logging_mutex = NULL;
 
 /* ------------------------------------------------------------------------ */
 
-logcategory_t * _logcategory_create_nolock(char *name, int *flag) {
+logcategory_t * _logcategory_create_nolock(const char *name, int *flag) {
   logcategory_t *ret = NEW(logcategory_t);
 
   // fprintf(stderr, "Creating log category '%s'\n", name);
@@ -89,7 +89,7 @@ logcategory_t * _logcategory_create_nolock(char *name, int *flag) {
   return ret;
 }
 
-logcategory_t * _logcategory_create(char *name, int *flag) {
+logcategory_t * _logcategory_create(const char *name, int *flag) {
   logcategory_t *ret;
 
   logging_init();
@@ -99,7 +99,7 @@ logcategory_t * _logcategory_create(char *name, int *flag) {
   return ret;
 }
 
-logcategory_t * _logcategory_get(char *name) {
+logcategory_t * _logcategory_get(const char *name) {
   logcategory_t *ret;
 
   logging_init();
@@ -144,7 +144,7 @@ int * _logging_set_reducer(logcategory_t *cat, int *value) {
   return value;
 }
 
-void _logging_set_nolock(char *category, int value) {
+void _logging_set_nolock(const char *category, int value) {
   logcategory_t *cat;
 
   if (strcmp(category, "all")) {
@@ -160,7 +160,7 @@ void _logging_set_nolock(char *category, int value) {
   }
 }
 
-void _logging_set(char *category, int value) {
+void _logging_set(const char *category, int value) {
   logging_init();
   mutex_lock(_logging_mutex);
   _logging_set_nolock(category, value);
@@ -225,7 +225,7 @@ void logging_init(void) {
   _logcategory_create_nolock("mutex", &mutex_debug);
 }
 
-OBLCORE_IMPEXP void logging_register_category(char *name, int *flag) {
+OBLCORE_IMPEXP void logging_register_category(const char *name, int *flag) {
   logcategory_t *cat;
 
   logging_init();
@@ -253,16 +253,17 @@ OBLCORE_IMPEXP void logging_reset(void) {
   mutex_unlock(_logging_mutex);
 }
 
-OBLCORE_IMPEXP void logging_enable(char *category) {
+OBLCORE_IMPEXP void logging_enable(const char *category) {
   _logging_set(category, 1);
 }
 
-OBLCORE_IMPEXP void logging_disable(char *category) {
+OBLCORE_IMPEXP void logging_disable(const char *category) {
   _logging_set(category, 0);
 }
 
-OBLCORE_IMPEXP void _vlogmsg_no_nl(log_level_t lvl, char *file, int line, const char *caller, const char *msg, va_list args) {
-  char *f;
+OBLCORE_IMPEXP void _vlogmsg_no_nl(log_level_t lvl, const char *file, int line,
+                                   const char *caller, const char *msg, va_list args) {
+  char *f = NULL;
 
   if (!_destination) {
     if (_logfile) {
@@ -277,21 +278,19 @@ OBLCORE_IMPEXP void _vlogmsg_no_nl(log_level_t lvl, char *file, int line, const 
     }
   }
   if ((lvl <= 0) || (lvl >= _log_level)) {
-    f = file;
     if (*file == '/') {
-      f = strrchr(f, '/');
-      if (!f) {
-        f = file;
-      } else {
+      f = strrchr(file, '/');
+      if (f) {
         f = f + 1;
       }
     }
-    fprintf(_destination, "%-12.12s:%4d:%-20.20s:%-5.5s:", f, line, caller, _log_level_str(lvl));
+    fprintf(_destination, "%-12.12s:%4d:%-20.20s:%-5.5s:", (f) ? f : file, line, caller, _log_level_str(lvl));
     vfprintf(_destination, msg, args);
   }
 }
 
-OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, va_list args) {
+OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, const char *file, int line,
+                             const char *caller, const char *msg, va_list args) {
   if ((lvl <= 0) || (lvl >= _log_level)) {
     _vlogmsg_no_nl(lvl, file, line, caller, msg, args);
     fprintf(_destination, "\n");
@@ -299,7 +298,7 @@ OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, char *file, int line, const char *
 }
 
 
-OBLCORE_IMPEXP void _logmsg(log_level_t lvl, char *file, int line, const char *caller, const char *msg, ...) {
+OBLCORE_IMPEXP void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, const char *msg, ...) {
   va_list args;
 
   if ((lvl <= 0) || (lvl >= _log_level)) {
@@ -309,7 +308,7 @@ OBLCORE_IMPEXP void _logmsg(log_level_t lvl, char *file, int line, const char *c
   }
 }
 
-OBLCORE_IMPEXP int logging_status(char *category) {
+OBLCORE_IMPEXP int logging_status(const char *category) {
   logcategory_t *cat;
 
   logging_init();
@@ -327,7 +326,7 @@ OBLCORE_IMPEXP int logging_level(void) {
   return _log_level;
 }
 
-OBLCORE_IMPEXP int logging_set_level(char *log_level) {
+OBLCORE_IMPEXP int logging_set_level(const char *log_level) {
   long level = -1;
 
   if (log_level) {
@@ -342,7 +341,7 @@ OBLCORE_IMPEXP int logging_set_level(char *log_level) {
   return _log_level;
 }
 
-OBLCORE_IMPEXP int logging_set_file(char *logfile) {
+OBLCORE_IMPEXP int logging_set_file(const char *logfile) {
   logging_init();
   mutex_lock(_logging_mutex);
   if (_destination && (_destination != stderr)) {
@@ -359,7 +358,7 @@ log_timestamp_t * _log_timestamp_start(void) {
   return (log_timestamp_t *) timer_start();
 }
 
-void _log_timestamp_end(log_timestamp_t *ts, char *file, int line, const char *caller, const char *msg, ...) {
+void _log_timestamp_end(log_timestamp_t *ts, const char *file, int line, const char *caller, const char *msg, ...) {
   va_list      args;
   timestamp_t *t;
 

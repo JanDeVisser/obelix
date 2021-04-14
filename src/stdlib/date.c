@@ -204,7 +204,7 @@ int _timebase_intval(datetime_t *datetime) {
 
 data_t * _timebase_cast(datetime_t *timebase, int totype) {
   debug(date, "Casting datetime '%s' to type '%s'",
-    data_tostring(timebase), typename(typedescr_get(totype)));
+        data_tostring(timebase), type_name(typedescr_get(totype)));
   if (totype == Int) {
     return int_to_data(timebase -> dt);
   } else if (totype == Bool) {

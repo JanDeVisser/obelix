@@ -112,8 +112,8 @@ OBLCORE_IMPEXP list_t *            list_split(list_t *);
 #define list_visit(l, v)           (_list_visit((l), (visit_t) (v)))
 #define list_process(l, r, d)      (_list_process((l), (reduce_t) (r), (d)))
 
-#define str_list_create()          (list_set_type(list_create(), &type_str))
-#define int_list_create()          (list_set_type(list_create(), &type_int))
+#define str_list_create()          (list_set_type(list_create(), coretype(CTString)))
+#define int_list_create()          (list_set_type(list_create(), coretype(CTInteger)))
 
 OBLCORE_IMPEXP listiterator_t *    li_create(list_t *);
 OBLCORE_IMPEXP void                li_free(listiterator_t *);

@@ -132,7 +132,7 @@ typedef enum _vtable_id {
 typedef struct _data {
 #ifndef NDEBUG
   unsigned short int  cookie;
-  char               *typename;
+  char               *type_name;
 #endif /* !NDEBUG */
   int                 type;
   free_semantics_t    free_me;

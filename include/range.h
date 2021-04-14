@@ -23,25 +23,33 @@
 
 #include <data.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _range {
-  data_t  _d;
+  data_t _d;
   data_t *from;
   data_t *to;
   data_t *next;
-  int     direction;
+  int direction;
 } range_t;
 
-OBLCORE_IMPEXP data_t *      range_create(data_t *from, data_t *to);
-OBLCORE_IMPEXP int           range_cmp(range_t *, range_t *);
-OBLCORE_IMPEXP unsigned int  range_hash(range_t *);
-OBLCORE_IMPEXP data_t *      range_iter(range_t *);
-OBLCORE_IMPEXP data_t *      range_next(range_t *);
-OBLCORE_IMPEXP data_t *      range_has_next(range_t *);
+OBLCORE_IMPEXP data_t *range_create(data_t *from, data_t *to);
+OBLCORE_IMPEXP int range_cmp(range_t *, range_t *);
+OBLCORE_IMPEXP unsigned int range_hash(range_t *);
+OBLCORE_IMPEXP data_t *range_iter(range_t *);
+OBLCORE_IMPEXP data_t *range_next(range_t *);
+OBLCORE_IMPEXP data_t *range_has_next(range_t *);
 
 #define data_is_range(d)  ((d) && (data_hastype((d), Name)))
 #define data_as_range(d)  ((range_t *) (data_is_range((d)) ? (d) : NULL))
 #define range_free(n)     (data_free((data_t *) (n)))
 #define range_tostring(n) (data_tostring((data_t *) (n)))
 #define range_copy(n)     ((range_t *) data_copy((data_t *) (n)))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __RANGE_H__ */

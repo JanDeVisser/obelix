@@ -64,11 +64,11 @@ typedef struct _file {
   char     *fname;
 } file_t;
 
-OBLCORE_IMPEXP int          file_flags(char *);
-OBLCORE_IMPEXP int          file_mode(char *);
+OBLCORE_IMPEXP int          file_flags(const char *);
+OBLCORE_IMPEXP int          file_mode(const char *);
 OBLCORE_IMPEXP file_t *     file_create(int);
-OBLCORE_IMPEXP file_t *     file_open_ext(char *, ...);
-OBLCORE_IMPEXP file_t *     file_open(char *);
+OBLCORE_IMPEXP file_t *     file_open_ext(const char *, ...);
+OBLCORE_IMPEXP file_t *     file_open(const char *);
 OBLCORE_IMPEXP int          file_close(file_t *);
 OBLCORE_IMPEXP char *       file_name(file_t *);
 OBLCORE_IMPEXP unsigned int file_hash(file_t *);

@@ -44,20 +44,20 @@ extern int core_debug;
 typedef void log_timestamp_t;
 
 OBLCORE_IMPEXP void   logging_init(void);
-OBLCORE_IMPEXP void   logging_register_category(char *, int *);
+OBLCORE_IMPEXP void   logging_register_category(const char *, int *);
 OBLCORE_IMPEXP void   logging_reset(void);
-OBLCORE_IMPEXP void   logging_enable(char *);
-OBLCORE_IMPEXP void   logging_disable(char *);
-OBLCORE_IMPEXP void   _vlogmsg_no_nl(log_level_t, char *, int, const char *, const char *, va_list);
-OBLCORE_IMPEXP void   _vlogmsg(log_level_t, char *, int, const char *, const char *, va_list);
-OBLCORE_IMPEXP void   _logmsg(log_level_t, char *, int, const char *, const char *, ...);
-OBLCORE_IMPEXP int    logging_status(char *);
+OBLCORE_IMPEXP void   logging_enable(const char *);
+OBLCORE_IMPEXP void   logging_disable(const char *);
+OBLCORE_IMPEXP void   _vlogmsg_no_nl(log_level_t, const char *, int, const char *, const char *, va_list);
+OBLCORE_IMPEXP void   _vlogmsg(log_level_t, const char *, int, const char *, const char *, va_list);
+OBLCORE_IMPEXP void   _logmsg(log_level_t, const char *, int, const char *, const char *, ...);
+OBLCORE_IMPEXP int    logging_status(const char *);
 OBLCORE_IMPEXP int    logging_level(void);
-OBLCORE_IMPEXP int    logging_set_level(char *);
-OBLCORE_IMPEXP int    logging_set_file(char *);
+OBLCORE_IMPEXP int    logging_set_level(const char *);
+OBLCORE_IMPEXP int    logging_set_file(const char *);
 
 OBLCORE_IMPEXP log_timestamp_t * _log_timestamp_start(void);
-OBLCORE_IMPEXP void              _log_timestamp_end(log_timestamp_t *, char *, int, const char *, const char *, ...);
+OBLCORE_IMPEXP void              _log_timestamp_end(log_timestamp_t *, const char *, int, const char *, const char *, ...);
 
 #ifndef NDEBUG
 #define log_timestamp_start(module)  ((module ## _debug) ? _log_timestamp_start() : NULL)

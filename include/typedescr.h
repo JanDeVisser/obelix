@@ -60,7 +60,7 @@ OBLCORE_IMPEXP int             typedescr_is(typedescr_t *, int);
 OBLCORE_IMPEXP void            typedescr_dump_vtable(typedescr_t *);
 OBLCORE_IMPEXP methoddescr_t * typedescr_get_method(typedescr_t *, char *);
 
-#define typename(t)                        ((t) ? (((kind_t *) (t)) -> name) : "")
+#define type_name(t)                        ((t) ? (((kind_t *) (t)) -> name) : "")
 #define typetype(t)                        ((t) ? ((kind_t *) (t)) -> type : -1)
 #define typedescr_get_local_function(t, f) (((t) && (t) -> vtable) ? (t) -> vtable[(f)].fnc : NULL)
 #define typedescr_get_function(t, f)       (((t) && (t) -> inherited_vtable) ? (t) -> inherited_vtable[(f)].fnc : NULL)

@@ -314,20 +314,20 @@ dictionary_t * dictionary_create_from_dict(dict_t *dict) {
   return ret;
 }
 
-data_t * dictionary_get(const dictionary_t *dictionary, char *name) {
+data_t * dictionary_get(const dictionary_t *dictionary, const char *name) {
   return data_copy(dict_get(dictionary -> attributes, name));
 }
 
-data_t * dictionary_pop(dictionary_t *dictionary, char *name) {
-  return (data_t *) dict_pop(dictionary -> attributes, name);
+data_t * dictionary_pop(dictionary_t *dictionary, const char *name) {
+  return (data_t *) dict_pop(dictionary -> attributes, (void *) name);
 }
 
-data_t * _dictionary_set(dictionary_t *dictionary, char *name, data_t *value) {
+data_t * _dictionary_set(dictionary_t *dictionary, const char *name, data_t *value) {
   dict_put(dictionary -> attributes, strdup(name), data_copy(value));
   return value;
 }
 
-int dictionary_has(const dictionary_t *dictionary, char *name) {
+int dictionary_has(const dictionary_t *dictionary, const char *name) {
   int ret = dict_has_key(dictionary -> attributes, name);
   debug(data, "   dictionary_has('%s'): %d", name, ret);
   return ret;

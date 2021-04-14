@@ -789,8 +789,8 @@ typedescr_t * typedescr_get_byname(char *name) {
   }
   for (ix = 0; ix < _numtypes; ix++) {
     if (_descriptors[ix] &&
-        typename(_descriptors[ix]) &&
-        !strcasecmp(name, typename(_descriptors[ix]))) {
+        type_name(_descriptors[ix]) &&
+        !strcasecmp(name, type_name(_descriptors[ix]))) {
       return _descriptors[ix];
     }
   }

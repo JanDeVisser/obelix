@@ -82,8 +82,8 @@ void _sql_init(void) {
     if (!_drivers) {
       _driver_mutex = mutex_create();
       _drivers = dict_create(NULL);
-      dict_set_key_type(_drivers, &type_str);
-      dict_set_data_type(_drivers, &type_int);
+      dict_set_key_type(_drivers, coretype(CTString));
+      dict_set_data_type(_drivers, coretype(CTInteger));
     }
     if (ErrorSQL < 1) {
       exception_register(ErrorSQL);
@@ -148,8 +148,8 @@ typedescr_t * _dbconn_register(typedescr_t *def) {
   _sql_init();
   mutex_lock(_driver_mutex);
   typedescr_assign_inheritance(typetype(def), DBConnection);
-  debug(sql, "Registering SQL driver '%s' (%d)", typename(def), typetype(def));
-  dict_put(_drivers, strdup(typename(def)), (void *) ((intptr_t) typetype(def)));
+  debug(sql, "Registering SQL driver '%s' (%d)", type_name(def), typetype(def));
+  dict_put(_drivers, strdup(type_name(def)), (void *) ((intptr_t) typetype(def)));
   mutex_unlock(_driver_mutex);
   return def;
 }

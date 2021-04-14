@@ -132,9 +132,9 @@ static inline typedescr_t * data_typedescr(void *data) {
     : NULL;
 }
 
-static inline char * data_typename(void *data) {
+static inline const char * data_typename(void *data) {
   return (data)
-    ? typename(typedescr_get(data_type(data_as_data(data))))
+    ? type_name(typedescr_get(data_type(data_as_data(data))))
     : "null";
 }
 
@@ -350,13 +350,13 @@ OBLCORE_IMPEXP int_t *         bool_get(long);
 #define strdata_dict_create()  (dict_set_data_type( \
                                  dict_set_key_type( \
                                    dict_create(NULL), \
-                                   &type_str), \
+                                   coretype(CTString)), \
                                  &type_data))
 
 #define intdata_dict_create()  (dict_set_data_type( \
                                  dict_set_key_type( \
                                    dict_create(NULL), \
-                                   &type_int), \
+                                   coretype(CTInteger)), \
                                  &type_data))
 
 #define datadata_dict_create() (dict_set_data_type( \
