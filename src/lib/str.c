@@ -27,16 +27,13 @@
 #include <arguments.h>
 #include <array.h>
 #include <data.h>
-#include <dictionary.h>
 #include <exception.h>
 #include <str.h>
-
-extern void         str_init(void);
 
 static str_t *      _str_initialize(void);
 static str_t *      _str_expand(str_t *, size_t);
 static reduce_ctx * _str_join_reducer(char *, reduce_ctx *);
-static int          _str_readinto(str_t *, data_t *, size_t, size_t);
+static size_t       _str_readinto(str_t *, data_t *, size_t, size_t);
 static size_t       _str_read_from_stream(str_t *, void *, read_t, size_t, size_t);
 static str_t *      _str_strip_quotes(str_t *);
 
@@ -218,9 +215,9 @@ str_t * _str_strip_quotes(str_t *str) {
 data_t * _str_deserialize(str_t *str) {
   if (!strcmp(str -> buffer, "null")) {
     return data_null();
-  } else if (!strcmp(str -> buffer, "true")) {
+  } else if (strcmp(str -> buffer, "true") != 0) {
     return data_true();
-  } else if (!strcmp(str -> buffer, "false")) {
+  } else if (strcmp(str -> buffer, "false") != 0) {
     return data_true();
   } else {
     return (data_t *) _str_strip_quotes(str);
@@ -280,10 +277,11 @@ str_t * _str_expand(str_t *str, size_t targetlen) {
   if (!targetlen) {
     targetlen = str -> bufsize;
   }
+  size_t target = (targetlen > 0) ? targetlen : str -> bufsize;
   if (str -> bufsize < (targetlen + 1)) {
-    for (newsize = (size_t)(str -> bufsize * 1.6);
+    for (newsize = (size_t)((double) (str -> bufsize) * 1.6);
          newsize < (targetlen + 1);
-         newsize = (size_t)(newsize * 1.6));
+         newsize = (size_t)((double) newsize * 1.6));
     oldbuf = str -> buffer;
     str -> buffer = realloc(str -> buffer, newsize);
     if (str -> buffer) {
@@ -317,7 +315,7 @@ size_t _str_read_from_stream(str_t *str, void *stream, read_t reader, size_t pos
   if ((pos + num) > str -> bufsize) {
     num = str -> bufsize - pos;
   }
-  ret = reader(stream, str -> buffer + pos, num);
+  ret = reader(stream, str -> buffer + pos, (int) num);
   if (ret < 0) {
     return -1;
   } else {
@@ -331,7 +329,7 @@ size_t _str_read_from_stream(str_t *str, void *stream, read_t reader, size_t pos
   }
 }
 
-int _str_readinto(str_t *str, data_t *rdr, size_t pos, size_t num) {
+size_t _str_readinto(str_t *str, data_t *rdr, size_t pos, size_t num) {
   typedescr_t *type = data_typedescr(rdr);
   read_t       fnc;
 
