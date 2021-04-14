@@ -336,7 +336,6 @@ OBLCORE_IMPEXP int logging_set_level(const char *log_level) {
     if ((level >= LogLevelDebug) && (level <= LogLevelFatal)) {
       _log_level = level;
     }
-    fprintf(stderr, "_log_level = %s\n", _log_level_str(_log_level));
   }
   return _log_level;
 }
