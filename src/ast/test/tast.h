@@ -22,7 +22,6 @@
 #include <stdlib.h>
 
 #include <ast.h>
-#include <testsuite.h>
 
 #ifndef __TAST_H__
 #define __TAST_H__
