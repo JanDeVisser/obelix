@@ -1058,7 +1058,7 @@ data_t * data_pop(data_t *scope) {
 
   if (scope) {
     type = data_typedescr(scope);
-    popfnc = (data_fnc_t) typedescr_get_function(type, FunctionPush);
+    popfnc = (data_fnc_t) typedescr_get_function(type, FunctionPop);
     if (popfnc) {
       ret = popfnc(scope);
     }
