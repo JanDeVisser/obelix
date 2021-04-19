@@ -145,11 +145,19 @@ int datastack_depth(datastack_t *stack) {
 }
 
 data_t * datastack_pop(datastack_t *stack) {
-  data_t *ret;
+  data_t *ret = NULL;
 
-  ret = (data_t *) array_pop(stack -> list);
-  if (stack -> debug) {
-    _debug("  - %s", data_tostring(ret));
+  if (datastack_depth(stack)) {
+    ret = (data_t *) array_pop(stack->list);
+    if (stack->debug) {
+      _debug("After pop:");
+      datastack_list(stack);
+      _debug("  - %s", data_tostring(ret));
+    }
+  } else {
+    if (stack->debug) {
+      _debug("Stack empty!");
+    }
   }
   return ret;
 }
