@@ -69,6 +69,8 @@ static vtable_t _vtable_List[] = {
   { .id = FunctionEncode,      .fnc = (void_t) _list_encode },
   { .id = FunctionSerialize,   .fnc = (void_t) _list_serialize },
   { .id = FunctionDeserialize, .fnc = (void_t) _list_deserialize },
+  { .id = FunctionPush,        .fnc = (void_t) _datalist_push },
+  { .id = FunctionPop,         .fnc = (void_t) datalist_pop },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -299,6 +301,10 @@ datalist_t * _datalist_set(datalist_t *list, int ix, data_t *value) {
 datalist_t * _datalist_push(datalist_t *list, data_t *value) {
   array_push(data_as_array(list), data_copy(value));
   return list;
+}
+
+data_t * datalist_pop(datalist_t *list) {
+  return (data_t *) array_pop(data_as_array(list));
 }
 
 /* ----------------------------------------------------------------------- */

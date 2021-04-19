@@ -248,6 +248,7 @@ extern array_t *       datalist_to_str_array(datalist_t *);
 extern datalist_t *    str_array_to_datalist(array_t *);
 extern datalist_t *    _datalist_set(datalist_t *, int, data_t *);
 extern datalist_t *    _datalist_push(datalist_t *, data_t *);
+extern data_t *        datalist_pop(datalist_t *);
 
 static inline datalist_t * data_as_list(void *data) {
   return (data_hastype(data_as_data(data), List)) ? (datalist_t *) data : NULL;
@@ -283,10 +284,6 @@ static inline data_t * datalist_shift(datalist_t *list) {
 
 static inline data_t * datalist_get(datalist_t *datalist, int ix) {
   return data_copy(data_array_get(data_as_array(datalist), ix));
-}
-
-static inline data_t * datalist_pop(datalist_t *list) {
-  return (data_t *) array_pop(data_as_array(list));
 }
 
 static char * datalist_tostring(datalist_t *list) {
