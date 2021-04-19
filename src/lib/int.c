@@ -106,9 +106,9 @@ void int_init(void) {
   typedescr_set_size(Bool, int_t);
   typedescr_assign_inheritance(Bool, Int);
   bool_true = (int_t *) data_create(Bool, 1);
-  bool_true -> _d.free_me = Constant;
+  bool_true -> _d.data_semantics = DataSemanticsConstant;
   bool_false = (int_t *) data_create(Bool, 0);
-  bool_false -> _d.free_me = Constant;
+  bool_false -> _d.data_semantics = DataSemanticsConstant;
 }
 
 data_t * _int_new(int _unused_ type, va_list arg) {
@@ -329,7 +329,7 @@ static int_t * _int_make(intptr_t i) {
 
   ret = data_new(Int, int_t);
   ret -> i = i;
-  ret -> _d.free_me = Constant;
+  ret -> _d.data_semantics = DataSemanticsConstant;
   return ret;
 }
 

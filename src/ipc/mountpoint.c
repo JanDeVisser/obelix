@@ -81,7 +81,7 @@ data_t * _mountpoint_new(mountpoint_t *mp, va_list args) {
   mp -> maxclients = 5;
   mp -> current = 0;
   mp -> _d.str = (cookie) ? strdup(cookie) : strrand(NULL, 32);
-  mp -> _d.free_str = DontFreeData;
+  data_set_string_semantics(mp, StrSemanticsStatic);
   if (mp -> remote -> query &&
       dict_has_key(mp -> remote -> query, "maxclients")) {
     max = (char *) dict_get(remote -> query, "maxclients");

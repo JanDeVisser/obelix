@@ -50,11 +50,24 @@ typedef enum _datatype {
   Thread,     /* 14 */
 } datatype_t;
 
-typedef enum _free_semantics {
-  Normal,
-  DontFreeData,
-  Constant
-} free_semantics_t;
+typedef unsigned int data_semantics_t;
+
+static data_semantics_t DataSemanticsNormal   = 0x01;
+static data_semantics_t DataSemanticsDontFree = 0x02;
+static data_semantics_t DataSemanticsConstant = 0x04;
+
+
+typedef unsigned int str_semantics_t;
+
+static str_semantics_t StrSemanticsFree      = 0x01;  /* I own memory, free whenever str is changed     */
+static str_semantics_t StrSemanticsDontFree  = 0x02;  /* I don't own memory. Don't free it.             */
+static str_semantics_t StrSemanticsDontCache = 0x08;  /* Refresh on every str on every call             */
+static str_semantics_t StrSemanticsCache     = 0x10;  /* Don't refresh on every str on every call       */
+
+static str_semantics_t StrSemanticsNormal       = 0x09; /* StrSemanticsFree | StrSemanticsDontCache     */
+static str_semantics_t StrSemanticsStatic       = 0x11; /* StrSemanticsFree | StrSemanticsCache         */
+static str_semantics_t StrSemanticsExtern       = 0x0a; /* StrSemanticsDontFree | StrSemanticsDontCache */
+static str_semantics_t StrSemanticsExternStatic = 0x12; /* StrSemanticsDontFree | StrSemanticsCache     */
 
 typedef enum _metatype {
   NoType          = 0,
@@ -65,11 +78,11 @@ typedef enum _metatype {
   OutputStream,  /* 1003 */
   Iterable,      /* 1004 */
   Iterator,      /* 1005 */
-  Callable,      /* 1007 */
-  Connector,     /* 1008 */
-  CtxHandler,    /* 1009 */
-  Incrementable, /* 1010 */
-  Any,           /* 1011 */
+  Callable,      /* 1006 */
+  Connector,     /* 1007 */
+  CtxHandler,    /* 1008 */
+  Incrementable, /* 1009 */
+  Any,           /* 1010 */
   NextInterface  /* 1012 - Marker */
 } metatype_t;
 
@@ -135,8 +148,8 @@ typedef struct _data {
   char               *type_name;
 #endif /* !NDEBUG */
   int                 type;
-  free_semantics_t    free_me;
-  free_semantics_t    free_str;
+  data_semantics_t    data_semantics;
+  str_semantics_t     str_semantics;
   int                 refs;
   char               *str;
 } data_t;

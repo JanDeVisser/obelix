@@ -181,7 +181,7 @@ data_t * _sqlitestmt_new(sqlitestmt_t *stmt, va_list args) {
   data_t       *ret = (data_t *) stmt;
 
   stmt -> _d.str = strdup(data_tostring(query));
-  stmt -> _d.free_str = DontFreeData;
+  data_set_string_semantics(stmt, StrSemanticsStatic);
   stmt -> conn = sqliteconn_copy(c);
   stmt -> stmt = NULL;
   return ret;
@@ -190,7 +190,6 @@ data_t * _sqlitestmt_new(sqlitestmt_t *stmt, va_list args) {
 void _sqlitestmt_free(sqlitestmt_t *stmt) {
   if (stmt) {
     _sqlitestmt_close(stmt);
-    free(stmt -> _d.str);
   }
 }
 

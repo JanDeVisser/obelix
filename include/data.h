@@ -54,6 +54,12 @@ OBLCORE_IMPEXP void                data_free(data_t *);
 OBLCORE_IMPEXP unsigned int        data_hash(data_t *);
 OBLCORE_IMPEXP data_t *            data_len(data_t *);
 OBLCORE_IMPEXP char *              _data_tostring(data_t *);
+OBLCORE_IMPEXP str_semantics_t     _data_string_semantics(data_t *);
+#define data_string_semantics(d)   _data_string_semantics(data_as_data((d)));
+OBLCORE_IMPEXP data_t *            _data_set_string_semantics(data_t *, str_semantics_t);
+#define data_set_string_semantics(d, s) _data_set_string_semantics(data_as_data((d)), (s))
+OBLCORE_IMPEXP data_t *            _data_invalidate_string(data_t *);
+#define data_invalidate_string(d)  _data_invalidate_string(data_as_data((d)))
 OBLCORE_IMPEXP double              _data_floatval(data_t *);
 OBLCORE_IMPEXP int                 _data_intval(data_t *);
 OBLCORE_IMPEXP int                 data_cmp(data_t *, data_t *);

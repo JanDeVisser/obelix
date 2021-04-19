@@ -136,7 +136,7 @@ data_t * _pgsqlstmt_new(pgsqlstmt_t *stmt, va_list args) {
   data_t      *ret = (data_t *) stmt;
 
   stmt -> _d.str = strdup(data_tostring(query));
-  stmt -> _d.free_str = DontFreeData;
+  data_set_string_semantics(stmt, StrSemanticsStatic);
   stmt -> conn = (pgsqlconn_t *) data_copy((data_t *) c);
   stmt -> result = NULL;
   stmt -> nParams = 0;
@@ -150,7 +150,6 @@ data_t * _pgsqlstmt_new(pgsqlstmt_t *stmt, va_list args) {
 
 void _pgsqlstmt_free(pgsqlstmt_t *stmt) {
   if (stmt) {
-    free(stmt -> _d.str);
     if (stmt -> result) {
       PQclear(stmt -> result);
     }

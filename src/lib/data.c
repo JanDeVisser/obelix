@@ -157,7 +157,7 @@ data_t * data_create_noinit(int type) {
   debug(data, "Allocating %d bytes for new '%s'", descr -> size, type_name(descr));
   ret = (data_t *) _new((descr -> size) ? descr -> size : sizeof(data_t));
   ret = data_settype(ret, type);
-  ret -> free_me = Normal;
+  ret -> data_semantics = DataSemanticsNormal;
   return ret;
 }
 
@@ -184,8 +184,8 @@ data_t * data_settype(data_t *data, int type) {
   data -> type = type;
   data -> refs = 1;
   data -> str = NULL;
-  data -> free_me = Normal;
-  data -> free_str = Normal;
+  data -> data_semantics = DataSemanticsNormal;
+  data -> str_semantics = StrSemanticsNormal;
   return data;
 }
 
@@ -365,21 +365,21 @@ data_t * data_promote(data_t *data) {
 }
 
 void data_free(data_t *data) {
-  typedescr_t      *type;
-  free_semantics_t  free_me;
-  free_semantics_t  free_str;
+  typedescr_t     *type;
+  str_semantics_t  data_semantics;
+  str_semantics_t  str_semantics;
 
-  if (data && (data -> free_me != Constant) && (--data -> refs <= 0)) {
-    free_me = data -> free_me;
-    free_str = data -> free_str;
+  if (data && !(data -> data_semantics & DataSemanticsConstant) && (--data -> refs <= 0)) {
+    data_semantics = data -> data_semantics;
+    str_semantics = data -> str_semantics;
     type = data_typedescr(data);
     _data_call_free(type, data);
-    if (free_str == Normal) {
+    if (str_semantics & StrSemanticsFree) {
       free(data -> str);
     }
     type -> count--;
     _data_count--;
-    if (free_me == Normal) {
+    if (data_semantics & DataSemanticsNormal) {
       free(data);
     }
   }
@@ -401,7 +401,10 @@ unsigned int data_hash(data_t *data) {
 data_t * data_call(data_t *self, arguments_t *args) {
   call_t call = (call_t) data_get_function(self, FunctionCall);
 
-  assert(data_is_callable(self));
+  if (!data_is_callable(self)) {
+    error("Atom '%s' (%s) is not callable", data_tostring(self), data_typename(self));
+    assert(data_is_callable(self));
+  }
   return call(self, args);
 }
 
@@ -466,7 +469,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
     ret = data_method(data, n);
   }
   if (!ret) {
-    ret = data_exception(ErrorType,
+    ret = data_exception(ErrorName,
                          "Cannot resolve name '%s' in %s '%s'",
                          name_tostring(name), type_name(type),
                          data_tostring(data));
@@ -616,6 +619,25 @@ int data_has_callable(data_t *self, name_t *name) {
   return ret;
 }
 
+data_t * _data_invalidate_string(data_t *data) {
+  if (!data || !data->str) {
+    return data;
+  }
+  if (data->str_semantics & StrSemanticsFree) {
+    free(data->str);
+  }
+  data->str = NULL;
+  return data;
+}
+
+data_t * _data_set_string_semantics(data_t *data, str_semantics_t semantics) {
+  data->str_semantics = semantics;
+}
+
+str_semantics_t _data_string_semantics(data_t *data) {
+  return data->str_semantics;
+}
+
 char * _data_tostring(data_t *data) {
   char        *ret;
   typedescr_t *type;
@@ -623,21 +645,21 @@ char * _data_tostring(data_t *data) {
 
   if (!data) {
     return "null";
-  } else if (data -> str && (data -> free_str == DontFreeData)) {
+  } else if (data -> str && (data -> str_semantics & StrSemanticsCache)) {
     return data -> str;
   } else {
-    free(data -> str);
-    data -> str = NULL;
+    data_invalidate_string(data);
     type = data_typedescr(data);
     tostring = (tostring_t) typedescr_get_function(type, FunctionAllocString);
     if (tostring) {
+      data -> str_semantics |= StrSemanticsFree;
       data -> str = tostring(data);
     }
     if (!data -> str) {
       tostring = (tostring_t) typedescr_get_function(type, FunctionToString);
       if (tostring) {
         ret = tostring(data);
-        if (ret && !data -> str) {
+        if (ret && *ret) {
           data -> str = strdup(ret);
         }
       }
@@ -645,8 +667,8 @@ char * _data_tostring(data_t *data) {
     if (!data -> str) {
       tostring = (tostring_t) typedescr_get_function(type, FunctionStaticString);
       if (tostring) {
+        data -> str_semantics |= StrSemanticsDontFree;
         data -> str = tostring(data);
-        data -> free_str = DontFreeData;
       }
     }
     if (!data -> str) {

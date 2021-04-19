@@ -136,10 +136,10 @@ mutex_t * mutex_create_withname(char *name) {
   // fprintf(stderr, "Mutex created\n");
   if (name) {
     mutex->_d.str = strdup(name);
-    mutex->_d.free_str = DontFreeData;
+    data_set_string_semantics(mutex, StrSemanticsStatic);
   } else {
     mutex->_d.str = "mutex";
-    mutex->_d.free_str = Constant;
+    data_set_string_semantics(mutex, StrSemanticsExternStatic);
   }
   return mutex;
 }

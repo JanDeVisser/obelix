@@ -142,24 +142,31 @@ static code_label_t _function_id_labels[] = {
 /* ------------------------------------------------------------------------ */
 
 void typedescr_init(void) {
-  if (!_descriptors && !_interfaces) {
+  if (!_descriptors || !_interfaces) {
     logging_register_module(type);
-    builtin_interface_register(Any,           0);
-    builtin_interface_register(Callable,      1, FunctionCall);
-    builtin_interface_register(InputStream,   1, FunctionRead);
-    builtin_interface_register(OutputStream,  1, FunctionWrite);
-    builtin_interface_register(Iterable,      1, FunctionIter);
-    builtin_interface_register(Iterator,      2, FunctionNext, FunctionHasNext);
-    builtin_interface_register(Connector,     1, FunctionQuery);
-    builtin_interface_register(CtxHandler,    2, FunctionEnter, FunctionLeave);
+  }
+  if (!_interfaces) {
+    builtin_interface_register(Any, 0);
+    builtin_interface_register(Callable, 1, FunctionCall);
+    builtin_interface_register(InputStream, 1, FunctionRead);
+    builtin_interface_register(OutputStream, 1, FunctionWrite);
+    builtin_interface_register(Iterable, 1, FunctionIter);
+    builtin_interface_register(Iterator, 2, FunctionNext, FunctionHasNext);
+    builtin_interface_register(Connector, 1, FunctionQuery);
+    builtin_interface_register(CtxHandler, 2, FunctionEnter, FunctionLeave);
     builtin_interface_register(Incrementable, 2, FunctionIncr, FunctionDecr);
-
-    builtin_typedescr_register(Kind, "Kind", kind_t);
-    builtin_typedescr_register(Type, "Type", typedescr_t);
+  }
+  if (!_descriptors) {
+    builtin_typedescr_register_nomethods(Kind, "Kind", kind_t);
+    builtin_typedescr_register_nomethods(Type, "Type", typedescr_t);
     typedescr_assign_inheritance(Type, Kind);
-    builtin_typedescr_register(Interface, "interface", interface_t);
+    builtin_typedescr_register_nomethods(Interface, "interface", interface_t);
     typedescr_assign_inheritance(Interface, Kind);
-    builtin_typedescr_register(Method, "Method", methoddescr_t);
+    builtin_typedescr_register_nomethods(Method, "Method", methoddescr_t);
+    typedescr_register_methods(Kind, _methods_Kind);
+    typedescr_register_methods(Type, _methods_Type);
+    typedescr_register_methods(Interface, _methods_Interface);
+    typedescr_register_methods(Method, _methods_Method);
     any_init();
   }
 }
@@ -233,8 +240,8 @@ kind_t * _kind_init(kind_t * descr, int kind, int type, char *name) {
   descr -> _d.cookie = MAGIC_COOKIE;
 #endif /* NDEBUG */
   descr -> _d.type = kind;
-  descr -> _d.free_me = Constant;
-  descr -> _d.free_str = Constant;
+  descr -> _d.data_semantics = DataSemanticsConstant;
+  data_set_string_semantics(descr, StrSemanticsExternStatic);
   descr -> _d.refs = 1;
   descr -> _d.str = NULL;
   descr -> type = type;
@@ -249,9 +256,10 @@ void kind_register_method(kind_t *kind, methoddescr_t *method) {
   }
   if (!dict_has_key(kind -> methods, method -> name)) {
     method -> _d.type = Method;
-    method -> _d.free_me = Constant;
+    method -> _d.data_semantics = DataSemanticsConstant;
     method -> _d.refs = 1;
     method -> _d.str = NULL;
+    data_set_string_semantics(method, StrSemanticsExternStatic);
     dict_put(kind -> methods, strdup(method -> name), method);
   }
 }
@@ -675,7 +683,7 @@ int _typedescr_register(int type, char *type_name, vtable_t *vtable, methoddescr
   size_t        newsz;
   size_t        newcap;
 
-  if ((type != Type) && !_descriptors) {
+  if ((type != Kind) && !_descriptors) {
     typedescr_init();
   }
   debug(type, "Registering type '%s' [%d]", type_name, type);
@@ -690,7 +698,7 @@ int _typedescr_register(int type, char *type_name, vtable_t *vtable, methoddescr
          newcap *= 2);
     cursz = _capacity * sizeof(typedescr_t *);
     newsz = newcap * sizeof(typedescr_t *);
-    debug(type, "Expaning type dictionary buffer from %d to %d (%d/%d bytes)",
+    debug(type, "Expanding type dictionary buffer from %d to %d (%d/%d bytes)",
         _capacity, newcap, cursz, newsz);
     _descriptors = (typedescr_t **) resize_block(_descriptors, newsz, cursz);
     _capacity = newcap;
@@ -820,10 +828,15 @@ void typedescr_register_methods(int type, methoddescr_t methods[]) {
   kind_t        *kind;
   int            ix;
 
+  typedescr_init();
+  if (!methods) {
+    return;
+  }
   for (method = methods; method -> type != NoType; method++) {
     if (method -> type < 0) {
       method -> type = type;
     }
+    data_settype((data_t *) method, Method);
     for (ix = 0; (ix < MAX_METHOD_PARAMS) && method -> argtypes[ix]; ix++) {
       if (method -> argtypes[ix] < 0) {
         method -> argtypes[ix] = type;

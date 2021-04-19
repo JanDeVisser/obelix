@@ -106,7 +106,7 @@ static vtable_t _vtable_PSEType ## t [] = {                                  \
   { .id = FunctionNone,        .fnc = NULL }                                 \
 };                                                                           \
 void _register_ ## t(void) {                                                 \
-  typedescr_register(PSEType ## t, parser_t);                                \
+  typedescr_register(PSEType ## t, parser_stack_entry_t);                    \
   typedescr_assign_inheritance(PSEType ## t, ParserStackEntry);              \
 }
 

@@ -161,7 +161,6 @@ name_t * name_split(char *name, char *sep) {
     ret = _name_create(array_size(array));
     name_append_array(ret, array);
     array_free(array);
-    ret -> _d.str = strdup(name);
     ret -> sep = strdup(sep);
   } else {
     ret = name_create(0);
@@ -175,8 +174,7 @@ name_t * name_parse(char *name) {
 
 name_t * name_extend(name_t *name, char *n) {
   array_push(name -> name, strdup(n));
-  free(name -> _d.str);
-  name -> _d.str = NULL;
+  data_invalidate_string(name);
   _name_debug(name, "name_extend");
   return name;
 }
@@ -196,6 +194,7 @@ name_t * name_extend_data(name_t *name, data_t *data) {
   } else {
     str = data_tostring(data);
   }
+  data_invalidate_string(name);
   return name_extend(name, str);
 }
 
@@ -205,8 +204,7 @@ name_t * name_append_array(name_t *name, array_t *additions) {
   for (ix = 0; ix < array_size(additions); ix++) {
     array_push(name -> name, strdup(str_array_get(additions, ix)));
   }
-  free(name -> _d.str);
-  name -> _d.str = NULL;
+  data_invalidate_string(name);
   _name_debug(name, "name_append_array");
   return name;
 }
@@ -266,14 +264,10 @@ char * name_tostring_sep(name_t *name, char *sep) {
   if (!name) {
     return "name:NULL";
   }
-  if (name -> sep && strcmp(name -> sep, sep)) {
-    if (name -> _d.free_str == Normal) {
-      free(name -> _d.str);
-    }
+  if (name -> sep && (strcmp(name -> sep, sep) != 0)) {
     free(name -> sep);
     name -> sep = NULL;
-    name -> _d.str = NULL;
-    name -> _d.free_str = Normal;
+    data_invalidate_string(name);
   }
   if (!name -> sep) {
     name -> sep = strdup(sep);
@@ -282,13 +276,15 @@ char * name_tostring_sep(name_t *name, char *sep) {
     if (name_size(name)) {
       s = array_join(name -> name, name -> sep);
       name -> _d.str = str_reassign(s);
-      name -> _d.free_str = Normal;
+      data_set_string_semantics(name, StrSemanticsStatic);
     } else {
       name -> _d.str = "";
-      name -> _d.free_str = DontFreeData;
+      data_set_string_semantics(name, StrSemanticsExternStatic);
     }
   }
   return name -> _d.str;
+
+  return data_tostring(name);
 }
 
 int name_cmp(name_t *n1, name_t *n2) {

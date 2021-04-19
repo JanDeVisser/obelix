@@ -89,7 +89,7 @@ uri_t * _uri_new(uri_t *uri, va_list args) {
   str_t    *s;
 
   uri -> _d.str = strdup(va_arg(args, char *));
-  uri -> _d.free_str = DontFreeData;
+  data_set_string_semantics(uri, StrSemanticsStatic);
   uri -> error = NULL;
   uri -> scheme = NULL;
   uri -> user = NULL;
@@ -122,7 +122,6 @@ uri_t * _uri_new(uri_t *uri, va_list args) {
 
 void _uri_free(uri_t *uri) {
   if (uri) {
-    free(uri -> _d.str);
     data_free(uri -> error);
     free(uri -> scheme);
     free(uri -> user);

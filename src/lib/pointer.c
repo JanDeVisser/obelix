@@ -69,7 +69,7 @@ static pointer_t * _null = NULL;
 void ptr_init(void) {
   builtin_typedescr_register(Pointer, "ptr", pointer_t);
   _null = ptr_create(0, NULL);
-  _null -> _d.free_me = Constant;
+  _null -> _d.data_semantics = DataSemanticsConstant;
 }
 
 pointer_t * _ptr_new(pointer_t *ptr, va_list args) {
