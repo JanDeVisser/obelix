@@ -22,7 +22,6 @@
 #define __LIBAST_H__
 
 #include <oblconfig.h>
-#define OBLAST_IMPEXP __DLL_EXPORT__
 
 #include <stdio.h>
 

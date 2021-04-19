@@ -225,7 +225,7 @@ void logging_init(void) {
   _logcategory_create_nolock("mutex", &mutex_debug);
 }
 
-OBLCORE_IMPEXP void logging_register_category(const char *name, int *flag) {
+extern void logging_register_category(const char *name, int *flag) {
   logcategory_t *cat;
 
   logging_init();
@@ -244,7 +244,7 @@ OBLCORE_IMPEXP void logging_register_category(const char *name, int *flag) {
   mutex_unlock(_logging_mutex);
 }
 
-OBLCORE_IMPEXP void logging_reset(void) {
+extern void logging_reset(void) {
   int value = 0;
 
   logging_init();
@@ -253,15 +253,15 @@ OBLCORE_IMPEXP void logging_reset(void) {
   mutex_unlock(_logging_mutex);
 }
 
-OBLCORE_IMPEXP void logging_enable(const char *category) {
+extern void logging_enable(const char *category) {
   _logging_set(category, 1);
 }
 
-OBLCORE_IMPEXP void logging_disable(const char *category) {
+extern void logging_disable(const char *category) {
   _logging_set(category, 0);
 }
 
-OBLCORE_IMPEXP void _vlogmsg_no_nl(log_level_t lvl, const char *file, int line,
+extern void _vlogmsg_no_nl(log_level_t lvl, const char *file, int line,
                                    const char *caller, const char *msg, va_list args) {
   char *f = NULL;
 
@@ -289,7 +289,7 @@ OBLCORE_IMPEXP void _vlogmsg_no_nl(log_level_t lvl, const char *file, int line,
   }
 }
 
-OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, const char *file, int line,
+extern void _vlogmsg(log_level_t lvl, const char *file, int line,
                              const char *caller, const char *msg, va_list args) {
   if ((lvl <= 0) || (lvl >= _log_level)) {
     _vlogmsg_no_nl(lvl, file, line, caller, msg, args);
@@ -298,7 +298,7 @@ OBLCORE_IMPEXP void _vlogmsg(log_level_t lvl, const char *file, int line,
 }
 
 
-OBLCORE_IMPEXP void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, const char *msg, ...) {
+extern void _logmsg(log_level_t lvl, const char *file, int line, const char *caller, const char *msg, ...) {
   va_list args;
 
   if ((lvl <= 0) || (lvl >= _log_level)) {
@@ -308,7 +308,7 @@ OBLCORE_IMPEXP void _logmsg(log_level_t lvl, const char *file, int line, const c
   }
 }
 
-OBLCORE_IMPEXP int logging_status(const char *category) {
+extern int logging_status(const char *category) {
   logcategory_t *cat;
 
   logging_init();
@@ -322,11 +322,11 @@ OBLCORE_IMPEXP int logging_status(const char *category) {
   return cat -> enabled;
 }
 
-OBLCORE_IMPEXP int logging_level(void) {
+extern int logging_level(void) {
   return _log_level;
 }
 
-OBLCORE_IMPEXP int logging_set_level(const char *log_level) {
+extern int logging_set_level(const char *log_level) {
   long level = -1;
 
   if (log_level) {
@@ -340,7 +340,7 @@ OBLCORE_IMPEXP int logging_set_level(const char *log_level) {
   return _log_level;
 }
 
-OBLCORE_IMPEXP int logging_set_file(const char *logfile) {
+extern int logging_set_file(const char *logfile) {
   logging_init();
   mutex_lock(_logging_mutex);
   if (_destination && (_destination != stderr)) {

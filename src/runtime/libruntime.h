@@ -22,7 +22,6 @@
 #define __LIBRUNTIME_H__
 
 #include <oblconfig.h>
-#define OBLRUNTIME_IMPEXP __DLL_EXPORT__
 
 #include <stdio.h>
 #include <runtime.h>

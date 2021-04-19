@@ -297,7 +297,7 @@ datalist_t * _sqlitestmt_next(sqlitestmt_t *stmt) {
   return rs;
 }
 
-__PLUGIN__ typedescr_t * sqlite_register(void) {
+extern typedescr_t * sqlite_register(void) {
   typedescr_register_with_name(SQLiteConnection, "sqlite", sqliteconn_t);
   typedescr_register(SQLiteStmt, sqlitestmt_t);
   return typedescr_get(SQLiteConnection);

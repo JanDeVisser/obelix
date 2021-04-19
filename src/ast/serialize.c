@@ -107,12 +107,12 @@ name_t * _script_parse_pop_operation(parser_t *parser) {
   return ret;
 }
 
-__PLUGIN__ parser_t * _script_parse_prolog(parser_t *parser) {
+extern parser_t * _script_parse_prolog(parser_t *parser) {
   push_instruction(parser, instruction_create_enter_context(NULL, data_error));
   return parser;
 }
 
-__PLUGIN__ parser_t * _script_parse_epilog(parser_t *parser) {
+extern parser_t * _script_parse_epilog(parser_t *parser) {
   bytecode_t *bytecode;
   data_t     *data;
   data_t     *instr;
@@ -157,7 +157,7 @@ long _script_parse_get_option(parser_t *parser, obelix_option_t option) {
 
 /* ----------------------------------------------------------------------- */
 
-__PLUGIN__ parser_t * script_parse_init(parser_t *parser) {
+extern parser_t * script_parse_init(parser_t *parser) {
   char     *name;
   module_t *mod;
   data_t   *data;
@@ -179,12 +179,12 @@ __PLUGIN__ parser_t * script_parse_init(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_done(parser_t *parser) {
+extern parser_t * script_parse_done(parser_t *parser) {
   debug(obelix, "script_parse_done");
   return _script_parse_epilog(parser);
 }
 
-__PLUGIN__ parser_t * script_parse_statement_start(parser_t *parser) {
+extern parser_t * script_parse_statement_start(parser_t *parser) {
   data_t *depth;
 
   depth = parser_get(parser, "in_statement");
@@ -194,7 +194,7 @@ __PLUGIN__ parser_t * script_parse_statement_start(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_statement_end(parser_t *parser) {
+extern parser_t * script_parse_statement_end(parser_t *parser) {
   data_t *depth;
 
   depth = parser_get(parser, "in_statement");
@@ -204,7 +204,7 @@ __PLUGIN__ parser_t * script_parse_statement_end(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_mark_line(parser_t *parser, data_t *line) {
+extern parser_t * script_parse_mark_line(parser_t *parser, data_t *line) {
   //bytecode_t *bytecode;
 
   // if (parser -> data) {
@@ -214,7 +214,7 @@ __PLUGIN__ parser_t * script_parse_mark_line(parser_t *parser, data_t *line) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_make_nvp(parser_t *parser) {
+extern parser_t * script_make_nvp(parser_t *parser) {
   data_t *name;
   data_t *data;
 
@@ -261,14 +261,14 @@ data_t * _script_parse_infix_function(parser_t *parser, name_t *func, int num_ar
  *   +-----------------+
  *   | . . .           |
  */
-__PLUGIN__ parser_t * script_parse_init_function(parser_t *parser) {
+extern parser_t * script_parse_init_function(parser_t *parser) {
   datastack_new_counter(parser -> stack);
   datastack_bookmark(parser -> stack);
   parser_set(parser, "constructor", data_false());
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_setup_constructor(parser_t *parser) {
+extern parser_t * script_parse_setup_constructor(parser_t *parser) {
   name_t *name;
   data_t *func;
 
@@ -282,7 +282,7 @@ __PLUGIN__ parser_t * script_parse_setup_constructor(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_setup_function(parser_t *parser, data_t *func) {
+extern parser_t * script_parse_setup_function(parser_t *parser, data_t *func) {
   name_t *name;
 
   name = name_create(1, data_tostring(func));
@@ -292,7 +292,7 @@ __PLUGIN__ parser_t * script_parse_setup_function(parser_t *parser, data_t *func
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_deref_function(parser_t *parser, data_t *func) {
+extern parser_t * script_parse_deref_function(parser_t *parser, data_t *func) {
   name_t *name;
 
   name = name_create(1, data_tostring(func));
@@ -301,37 +301,37 @@ __PLUGIN__ parser_t * script_parse_deref_function(parser_t *parser, data_t *func
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_start_deferred_block(parser_t *parser) {
+extern parser_t * script_parse_start_deferred_block(parser_t *parser) {
   bytecode_start_deferred_block((bytecode_t *) parser -> data);
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_end_deferred_block(parser_t *parser) {
+extern parser_t * script_parse_end_deferred_block(parser_t *parser) {
   bytecode_end_deferred_block((bytecode_t *) parser -> data);
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_pop_deferred_block(parser_t *parser) {
+extern parser_t * script_parse_pop_deferred_block(parser_t *parser) {
   bytecode_pop_deferred_block((bytecode_t *) parser -> data);
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_instruction_bookmark(parser_t *parser) {
+extern parser_t * script_parse_instruction_bookmark(parser_t *parser) {
   bytecode_bookmark((bytecode_t *) parser -> data);
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_discard_instruction_bookmark(parser_t *parser) {
+extern parser_t * script_parse_discard_instruction_bookmark(parser_t *parser) {
   bytecode_discard_bookmark((bytecode_t *) parser -> data);
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_defer_bookmarked_block(parser_t *parser) {
+extern parser_t * script_parse_defer_bookmarked_block(parser_t *parser) {
   bytecode_defer_bookmarked_block((bytecode_t *) parser -> data);
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_instruction(parser_t *parser, data_t *type) {
+extern parser_t * script_parse_instruction(parser_t *parser, data_t *type) {
   instruction_t *instr;
 
   instr = instruction_create_byname(data_tostring(type), NULL, NULL);
@@ -345,7 +345,7 @@ __PLUGIN__ parser_t * script_parse_instruction(parser_t *parser, data_t *type) {
 
 /* ----------------------------------------------------------------------- */
 
-__PLUGIN__ parser_t * script_parse_assign(parser_t *parser) {
+extern parser_t * script_parse_assign(parser_t *parser) {
   name_t *varname;
 
   varname = data_as_name(datastack_pop(parser -> stack));
@@ -354,7 +354,7 @@ __PLUGIN__ parser_t * script_parse_assign(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_deref(parser_t *parser) {
+extern parser_t * script_parse_deref(parser_t *parser) {
   name_t *varname;
 
   varname = data_as_name(datastack_pop(parser -> stack));
@@ -363,7 +363,7 @@ __PLUGIN__ parser_t * script_parse_deref(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_push_token(parser_t *parser) {
+extern parser_t * script_parse_push_token(parser_t *parser) {
   data_t *data;
 
   debug(obelix, " -- token: '%s'", token_tostring(parser -> last_token));
@@ -375,7 +375,7 @@ __PLUGIN__ parser_t * script_parse_push_token(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_pushval_from_stack(parser_t *parser) {
+extern parser_t * script_parse_pushval_from_stack(parser_t *parser) {
   data_t *data;
 
   data = datastack_pop(parser -> stack);
@@ -386,12 +386,12 @@ __PLUGIN__ parser_t * script_parse_pushval_from_stack(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_dupval(parser_t *parser) {
+extern parser_t * script_parse_dupval(parser_t *parser) {
   push_instruction(parser, instruction_create_dup());
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_pushconst(parser_t *parser, data_t *constval) {
+extern parser_t * script_parse_pushconst(parser_t *parser, data_t *constval) {
   data_t *data;
 
   data = data_decode(data_tostring(constval));
@@ -402,7 +402,7 @@ __PLUGIN__ parser_t * script_parse_pushconst(parser_t *parser, data_t *constval)
   return parser;
 }
 
-__PLUGIN__ parser_t *script_parse_push_signed_val(parser_t *parser) {
+extern parser_t *script_parse_push_signed_val(parser_t *parser) {
   data_t *data;
   data_t *signed_val;
   name_t *op;
@@ -421,7 +421,7 @@ __PLUGIN__ parser_t *script_parse_push_signed_val(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_unary_op(parser_t *parser) {
+extern parser_t * script_parse_unary_op(parser_t *parser) {
   data_t *op = datastack_pop(parser -> stack);
   name_t *name = name_create(1, data_tostring(op));
 
@@ -431,7 +431,7 @@ __PLUGIN__ parser_t * script_parse_unary_op(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_infix_op(parser_t *parser) {
+extern parser_t * script_parse_infix_op(parser_t *parser) {
   data_t *op = str_to_data(token_token(parser -> last_token));
   name_t *name = name_create(0);
   data_t *instr;
@@ -444,32 +444,32 @@ __PLUGIN__ parser_t * script_parse_infix_op(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_call_op(parser_t *parser) {
+extern parser_t * script_parse_call_op(parser_t *parser) {
   data_t *instr = datastack_pop(parser -> stack);
 
   push_instruction(parser, instr);
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_jump(parser_t *parser, data_t *label) {
+extern parser_t * script_parse_jump(parser_t *parser, data_t *label) {
   debug(obelix, " -- label: %s", data_tostring(label));
   push_instruction(parser, instruction_create_jump(data_copy(label)));
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_stash(parser_t *parser, data_t *stash) {
+extern parser_t * script_parse_stash(parser_t *parser, data_t *stash) {
   push_instruction(parser, instruction_create_stash(data_intval(stash)));
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_unstash(parser_t *parser, data_t *stash) {
+extern parser_t * script_parse_unstash(parser_t *parser, data_t *stash) {
   push_instruction(parser, instruction_create_unstash(data_intval(stash)));
   return parser;
 }
 
 /* -- R E D U C E --------------------------------------------------------- */
 
-__PLUGIN__ parser_t * script_parse_reduce(parser_t *parser) {
+extern parser_t * script_parse_reduce(parser_t *parser) {
   data_t *initial = datastack_pop(parser -> stack);
   int     init = data_intval(initial);
   int     argc = (init) ? 2 : 1;
@@ -483,7 +483,7 @@ __PLUGIN__ parser_t * script_parse_reduce(parser_t *parser) {
 
 /* -- C O M P R E H E N S I O N ------------------------------------------- */
 
-__PLUGIN__ parser_t * script_parse_comprehension(parser_t *parser) {
+extern parser_t * script_parse_comprehension(parser_t *parser) {
   bytecode_t *bytecode = (bytecode_t *) parser -> data;
 
   debug(obelix, " -- Comprehension");
@@ -520,7 +520,7 @@ __PLUGIN__ parser_t * script_parse_comprehension(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_where(parser_t *parser) {
+extern parser_t * script_parse_where(parser_t *parser) {
   data_t *label;
 
   debug(obelix, " -- Comprehension Where");
@@ -530,7 +530,7 @@ __PLUGIN__ parser_t * script_parse_where(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_func_call(parser_t *parser) {
+extern parser_t * script_parse_func_call(parser_t *parser) {
   int         arg_count = 0;
   array_t    *kwargs;
   data_t     *is_constr = parser_get(parser, "constructor");
@@ -556,19 +556,19 @@ __PLUGIN__ parser_t * script_parse_func_call(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_pop(parser_t *parser) {
+extern parser_t * script_parse_pop(parser_t *parser) {
   push_instruction(parser, instruction_create_pop());
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_nop(parser_t *parser) {
+extern parser_t * script_parse_nop(parser_t *parser) {
   push_instruction(parser, instruction_create_nop());
   return parser;
 }
 
 /* -- L O O P S ----------------------------------------------------------- */
 
-__PLUGIN__ parser_t * script_parse_for(parser_t *parser) {
+extern parser_t * script_parse_for(parser_t *parser) {
   bytecode_t *bytecode;
   data_t     *next_label = _script_parse_gen_label();
   data_t     *end_label = _script_parse_gen_label();
@@ -588,7 +588,7 @@ __PLUGIN__ parser_t * script_parse_for(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_start_loop(parser_t *parser) {
+extern parser_t * script_parse_start_loop(parser_t *parser) {
   bytecode_t *bytecode;
   data_t     *label = _script_parse_gen_label();
 
@@ -599,7 +599,7 @@ __PLUGIN__ parser_t * script_parse_start_loop(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_end_loop(parser_t *parser) {
+extern parser_t * script_parse_end_loop(parser_t *parser) {
   bytecode_t *bytecode;
   data_t     *label;
   data_t     *block_label;
@@ -624,19 +624,19 @@ __PLUGIN__ parser_t * script_parse_end_loop(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_break(parser_t *parser) {
+extern parser_t * script_parse_break(parser_t *parser) {
   push_instruction(parser, instruction_create_VMStatus(NULL, int_to_data(VMStatusBreak)));
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_continue(parser_t *parser) {
+extern parser_t * script_parse_continue(parser_t *parser) {
   push_instruction(parser, instruction_create_VMStatus(NULL, int_to_data(VMStatusContinue)));
   return parser;
 }
 
 /* -- C O N D I T I O N A L ----------------------------------------------- */
 
-__PLUGIN__ parser_t * script_parse_if(parser_t *parser) {
+extern parser_t * script_parse_if(parser_t *parser) {
   data_t *endlabel = _script_parse_gen_label();
 
   debug(obelix, " -- if     endlabel %s--", data_tostring(endlabel));
@@ -645,7 +645,7 @@ __PLUGIN__ parser_t * script_parse_if(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_test(parser_t *parser) {
+extern parser_t * script_parse_test(parser_t *parser) {
   data_t *elselabel = _script_parse_gen_label();
 
   debug(obelix, " -- test   elselabel %s--", data_tostring(elselabel));
@@ -655,7 +655,7 @@ __PLUGIN__ parser_t * script_parse_test(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_elif(parser_t *parser) {
+extern parser_t * script_parse_elif(parser_t *parser) {
   bytecode_t *bytecode = (bytecode_t *) parser -> data;
   data_t     *elselabel = datastack_pop(parser -> stack);
   data_t     *endlabel = data_copy(datastack_peek(parser -> stack));
@@ -669,7 +669,7 @@ __PLUGIN__ parser_t * script_parse_elif(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_else(parser_t *parser) {
+extern parser_t * script_parse_else(parser_t *parser) {
   bytecode_t *bytecode = (bytecode_t *) parser -> data;
   data_t     *elselabel = datastack_pop(parser -> stack);
   data_t     *endlabel = data_copy(datastack_peek(parser -> stack));
@@ -685,7 +685,7 @@ __PLUGIN__ parser_t * script_parse_else(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_end_conditional(parser_t *parser) {
+extern parser_t * script_parse_end_conditional(parser_t *parser) {
   bytecode_t *bytecode = (bytecode_t *) parser -> data;
   data_t     *elselabel = datastack_pop(parser -> stack);
   data_t     *endlabel = datastack_pop(parser -> stack);
@@ -702,7 +702,7 @@ __PLUGIN__ parser_t * script_parse_end_conditional(parser_t *parser) {
 
 /* -- S W I T C H  S T A T E M E N T ---------------------------------------*/
 
-__PLUGIN__ parser_t * script_parse_case_prolog(parser_t *parser) {
+extern parser_t * script_parse_case_prolog(parser_t *parser) {
   bytecode_t *bytecode;
   data_t   *endlabel;
   data_t   *elselabel;
@@ -738,7 +738,7 @@ __PLUGIN__ parser_t * script_parse_case_prolog(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_case(parser_t *parser) {
+extern parser_t * script_parse_case(parser_t *parser) {
   data_t *instr;
 
   instr = _script_parse_infix_function(parser, name_equals, 1);
@@ -747,7 +747,7 @@ __PLUGIN__ parser_t * script_parse_case(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_rollup_cases(parser_t *parser) {
+extern parser_t * script_parse_rollup_cases(parser_t *parser) {
   int count = datastack_count(parser -> stack);
 
   if (count > 1) {
@@ -758,7 +758,7 @@ __PLUGIN__ parser_t * script_parse_rollup_cases(parser_t *parser) {
 
 /* -- F U N C T I O N  D E F I N I T I O N S -------------------------------*/
 
-__PLUGIN__ parser_t * script_parse_start_function(parser_t *parser) {
+extern parser_t * script_parse_start_function(parser_t *parser) {
   bytecode_t    *up;
   script_t      *func;
   data_t        *data;
@@ -795,7 +795,7 @@ __PLUGIN__ parser_t * script_parse_start_function(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_baseclass_constructors(parser_t *parser) {
+extern parser_t * script_parse_baseclass_constructors(parser_t *parser) {
   push_instruction(parser, instruction_create_pushscope());
   _script_parse_infix_function(parser, name_hasattr, 1);
   push_instruction(parser, instruction_create_pushval(data_self));
@@ -807,13 +807,13 @@ __PLUGIN__ parser_t * script_parse_baseclass_constructors(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_end_constructors(parser_t *parser) {
+extern parser_t * script_parse_end_constructors(parser_t *parser) {
   datastack_push(((bytecode_t *) parser -> data) -> pending_labels,
                  datastack_pop(parser -> stack));
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_end_function(parser_t *parser) {
+extern parser_t * script_parse_end_function(parser_t *parser) {
   bytecode_t *bytecode = (bytecode_t *) parser -> data;
   script_t   *func = data_as_script(bytecode -> owner);
 
@@ -822,7 +822,7 @@ __PLUGIN__ parser_t * script_parse_end_function(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_native_function(parser_t *parser) {
+extern parser_t * script_parse_native_function(parser_t *parser) {
   bytecode_t    *bytecode;
   script_t      *script;
   function_t    *func;
@@ -863,7 +863,7 @@ __PLUGIN__ parser_t * script_parse_native_function(parser_t *parser) {
 
 #define LAMBDA            "lambda_"
 
-__PLUGIN__ parser_t * script_parse_start_lambda(parser_t *parser) {
+extern parser_t * script_parse_start_lambda(parser_t *parser) {
   bytecode_t    *up;
   script_t      *func;
   char           fname[strlen(LAMBDA) + 5 + 1];
@@ -889,7 +889,7 @@ __PLUGIN__ parser_t * script_parse_start_lambda(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_end_lambda(parser_t *parser) {
+extern parser_t * script_parse_end_lambda(parser_t *parser) {
   bytecode_t *bytecode = (bytecode_t *) parser -> data;
   script_t   *func = data_as_script(bytecode -> owner);
 
@@ -902,7 +902,7 @@ __PLUGIN__ parser_t * script_parse_end_lambda(parser_t *parser) {
 
 /* -- E X C E P T I O N  H A N D L I N G -----------------------------------*/
 
-__PLUGIN__ parser_t * script_parse_begin_context_block(parser_t *parser) {
+extern parser_t * script_parse_begin_context_block(parser_t *parser) {
   name_t *varname;
   data_t *data;
   data_t *label = _script_parse_gen_label();
@@ -915,18 +915,18 @@ __PLUGIN__ parser_t * script_parse_begin_context_block(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_throw_exception(parser_t *parser) {
+extern parser_t * script_parse_throw_exception(parser_t *parser) {
   push_instruction(parser, instruction_create_throw());
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_leave(parser_t *parser) {
+extern parser_t * script_parse_leave(parser_t *parser) {
   push_instruction(parser, instruction_create_pushval(data_exception(ErrorLeave, "Leave")));
   push_instruction(parser, instruction_create_throw());
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_end_context_block(parser_t *parser) {
+extern parser_t * script_parse_end_context_block(parser_t *parser) {
   name_t     *varname;
   data_t     *data_varname;
   data_t     *label;
@@ -946,7 +946,7 @@ __PLUGIN__ parser_t * script_parse_end_context_block(parser_t *parser) {
 
 /* -- Q U E R Y ----------------------------------------------------------- */
 
-__PLUGIN__ parser_t * script_parse_init_query(parser_t *parser) {
+extern parser_t * script_parse_init_query(parser_t *parser) {
   data_t *query = token_todata(parser -> last_token);
 
   datastack_new_counter(parser -> stack);
@@ -957,7 +957,7 @@ __PLUGIN__ parser_t * script_parse_init_query(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * script_parse_query(parser_t *parser) {
+extern parser_t * script_parse_query(parser_t *parser) {
   int arg_count = datastack_count(parser -> stack);
 
   _script_parse_function(parser, name_query, arg_count + 1);
@@ -966,12 +966,12 @@ __PLUGIN__ parser_t * script_parse_query(parser_t *parser) {
 
 /* -- R E G E X P --------------------------------------------------------- */
 
-__PLUGIN__ parser_t * script_parse_qstring_disable_slash(parser_t *parser) {
+extern parser_t * script_parse_qstring_disable_slash(parser_t *parser) {
   return lexer_reconfigure_scanner(parser -> lexer, "qstring", "quotes", quotes_with_without_slash)
     ? parser : NULL;
 }
 
-__PLUGIN__ parser_t * script_parse_qstring_enable_slash(parser_t *parser) {
+extern parser_t * script_parse_qstring_enable_slash(parser_t *parser) {
   return lexer_reconfigure_scanner(parser -> lexer, "qstring", "quotes", quotes_with_slash)
     ? parser : NULL;
 }

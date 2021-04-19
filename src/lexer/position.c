@@ -117,7 +117,7 @@ token_t * _pos_match(scanner_t *scanner) {
   return ret;
 }
 
-__DLL_EXPORT__ typedescr_t * position_register(void) {
+extern typedescr_t * position_register(void) {
   logging_register_category("position", &position_debug);
   typedescr_register_with_name(PosScannerConfig, "position", pos_config_t);
   return typedescr_get(PosScannerConfig);

@@ -22,7 +22,6 @@
 #define __LIBSTDLIB_H__
 
 #include <oblconfig.h>
-#define OBLSTDLIB_IMPEXP __DLL_EXPORT__
 
 #include <data.h>
 

@@ -22,7 +22,6 @@
 #define __LIBGRAMMAR_H__
 
 #include <oblconfig.h>
-#define  OBLGRAMMAR_IMPEXP  __DLL_EXPORT__
 
 #include <stdio.h>
 

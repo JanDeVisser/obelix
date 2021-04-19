@@ -22,7 +22,7 @@
 #define __LIBSQL_H__
 
 #include <oblconfig.h>
-#define OBLSQL_IMPEXP __DLL_EXPORT__
+#define extern extern
 
 #include <stdio.h>
 #include <net.h>

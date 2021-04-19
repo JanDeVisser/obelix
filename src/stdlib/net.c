@@ -21,7 +21,7 @@
 
 /* -------------------------------------------------------------------------*/
 
-__DLL_EXPORT__ _unused_ socket_t * _function_connect(_unused_ char *name, arguments_t *args) {
+extern _unused_ socket_t * _function_connect(_unused_ char *name, arguments_t *args) {
   char     *host;
   char     *service;
   socket_t *socket;
@@ -37,7 +37,7 @@ __DLL_EXPORT__ _unused_ socket_t * _function_connect(_unused_ char *name, argume
 /*
  * TODO: Parameterize what interface we want to listen on.
  */
-__DLL_EXPORT__ _unused_ socket_t * _function_server(_unused_ char *name, arguments_t *args) {
+extern _unused_ socket_t * _function_server(_unused_ char *name, arguments_t *args) {
   char *service;
 
   assert(args && (arguments_args_size(args) >= 1));
@@ -46,7 +46,7 @@ __DLL_EXPORT__ _unused_ socket_t * _function_server(_unused_ char *name, argumen
   return serversocket_create_byservice(service);
 }
 
-__DLL_EXPORT__ _unused_ data_t * _function_listener(_unused_ char *name, arguments_t *args) {
+extern _unused_ data_t * _function_listener(_unused_ char *name, arguments_t *args) {
   socket_t *listener;
   data_t   *server;
 

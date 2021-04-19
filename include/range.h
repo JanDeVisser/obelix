@@ -35,12 +35,12 @@ typedef struct _range {
   int direction;
 } range_t;
 
-OBLCORE_IMPEXP data_t *range_create(data_t *from, data_t *to);
-OBLCORE_IMPEXP int range_cmp(range_t *, range_t *);
-OBLCORE_IMPEXP unsigned int range_hash(range_t *);
-OBLCORE_IMPEXP data_t *range_iter(range_t *);
-OBLCORE_IMPEXP data_t *range_next(range_t *);
-OBLCORE_IMPEXP data_t *range_has_next(range_t *);
+extern data_t *range_create(data_t *from, data_t *to);
+extern int range_cmp(range_t *, range_t *);
+extern unsigned int range_hash(range_t *);
+extern data_t *range_iter(range_t *);
+extern data_t *range_next(range_t *);
+extern data_t *range_has_next(range_t *);
 
 #define data_is_range(d)  ((d) && (data_hastype((d), Name)))
 #define data_as_range(d)  ((range_t *) (data_is_range((d)) ? (d) : NULL))

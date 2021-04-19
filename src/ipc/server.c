@@ -64,11 +64,11 @@ void server_init(void) {
   if (Server < 1) {
     typedescr_register(Server, server_t);
     _bye = servermessage_create(OBLSERVER_CODE_BYE, 0);
-    _bye -> _d.data_semantics = Constant;
+    _bye -> _d.data_semantics = DataSemanticsConstant;
     _hello = servermessage_create(OBLSERVER_CODE_HELLO, 0);
-    _hello -> _d.data_semantics = Constant;
+    _hello -> _d.data_semantics = DataSemanticsConstant;
     _ready = servermessage_create(OBLSERVER_CODE_READY, 0);
-    _ready -> _d.data_semantics = Constant;
+    _ready -> _d.data_semantics = DataSemanticsConstant;
   }
 }
 

@@ -20,7 +20,7 @@ add_library(obljson SHARED
   jsongrammar.c
 )
 
-target_link_libraries(obljson PUBLIC oblparser oblvm oblnet)
+target_link_libraries(obljson PUBLIC oblparser oblnet)
 
 install(TARGETS obljson
   ARCHIVE DESTINATION lib

@@ -24,7 +24,7 @@
 #ifndef SCRIPTPARSE_IMPEXP
   #if (defined __WIN32__) || (defined _WIN32)
     #ifdef scriptparse_EXPORTS
-      #define SCRIPTPARSE_IMPEXP	__DLL_EXPORT__
+      #define SCRIPTPARSE_IMPEXP	extern
     #else /* ! scriptparse_EXPORTS */
       #define SCRIPTPARSE_IMPEXP	__DLL_IMPORT__
     #endif
@@ -37,67 +37,67 @@
 
 SCRIPTPARSE_IMPEXP int obelix_debug;
 
-__PLUGIN__ parser_t * script_parse_init(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_done(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_mark_line(parser_t *parser, data_t *line);
-__PLUGIN__ parser_t * script_make_nvp(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_init_function(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_setup_constructor(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_setup_function(parser_t *parser, data_t *func);
-__PLUGIN__ parser_t * script_parse_deref_function(parser_t *parser, data_t *func);
-__PLUGIN__ parser_t * script_parse_start_deferred_block(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_end_deferred_block(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_pop_deferred_block(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_instruction_bookmark(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_discard_instruction_bookmark(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_defer_bookmarked_block(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_instruction(parser_t *parser, data_t *type);
-__PLUGIN__ parser_t * script_parse_assign(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_deref(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_push_token(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_pushval_from_stack(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_dupval(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_pushconst(parser_t *parser, data_t *constval);
-__PLUGIN__ parser_t * script_parse_push_signed_val(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_unary_op(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_infix_op(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_call_op(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_jump(parser_t *parser, data_t *label);
-__PLUGIN__ parser_t * script_parse_stash(parser_t *parser, data_t *stash);
-__PLUGIN__ parser_t * script_parse_unstash(parser_t *parser, data_t *stash);
-__PLUGIN__ parser_t * script_parse_reduce(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_comprehension(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_where(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_func_call(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_pop(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_nop(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_for(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_start_loop(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_end_loop(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_break(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_continue(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_if(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_test(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_elif(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_else(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_end_conditional(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_case_prolog(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_case(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_rollup_cases(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_start_function(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_baseclass_constructors(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_end_constructors(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_end_function(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_native_function(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_start_lambda(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_end_lambda(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_begin_context_block(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_throw_exception(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_leave(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_end_context_block(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_init_query(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_query(parser_t *parser);
-__PLUGIN__ parser_t * script_parse_qstring_disable_slash(parser_t *);
-__PLUGIN__ parser_t * script_parse_qstring_enable_slash(parser_t *);
+extern parser_t * script_parse_init(parser_t *parser);
+extern parser_t * script_parse_done(parser_t *parser);
+extern parser_t * script_parse_mark_line(parser_t *parser, data_t *line);
+extern parser_t * script_make_nvp(parser_t *parser);
+extern parser_t * script_parse_init_function(parser_t *parser);
+extern parser_t * script_parse_setup_constructor(parser_t *parser);
+extern parser_t * script_parse_setup_function(parser_t *parser, data_t *func);
+extern parser_t * script_parse_deref_function(parser_t *parser, data_t *func);
+extern parser_t * script_parse_start_deferred_block(parser_t *parser);
+extern parser_t * script_parse_end_deferred_block(parser_t *parser);
+extern parser_t * script_parse_pop_deferred_block(parser_t *parser);
+extern parser_t * script_parse_instruction_bookmark(parser_t *parser);
+extern parser_t * script_parse_discard_instruction_bookmark(parser_t *parser);
+extern parser_t * script_parse_defer_bookmarked_block(parser_t *parser);
+extern parser_t * script_parse_instruction(parser_t *parser, data_t *type);
+extern parser_t * script_parse_assign(parser_t *parser);
+extern parser_t * script_parse_deref(parser_t *parser);
+extern parser_t * script_parse_push_token(parser_t *parser);
+extern parser_t * script_parse_pushval_from_stack(parser_t *parser);
+extern parser_t * script_parse_dupval(parser_t *parser);
+extern parser_t * script_parse_pushconst(parser_t *parser, data_t *constval);
+extern parser_t * script_parse_push_signed_val(parser_t *parser);
+extern parser_t * script_parse_unary_op(parser_t *parser);
+extern parser_t * script_parse_infix_op(parser_t *parser);
+extern parser_t * script_parse_call_op(parser_t *parser);
+extern parser_t * script_parse_jump(parser_t *parser, data_t *label);
+extern parser_t * script_parse_stash(parser_t *parser, data_t *stash);
+extern parser_t * script_parse_unstash(parser_t *parser, data_t *stash);
+extern parser_t * script_parse_reduce(parser_t *parser);
+extern parser_t * script_parse_comprehension(parser_t *parser);
+extern parser_t * script_parse_where(parser_t *parser);
+extern parser_t * script_parse_func_call(parser_t *parser);
+extern parser_t * script_parse_pop(parser_t *parser);
+extern parser_t * script_parse_nop(parser_t *parser);
+extern parser_t * script_parse_for(parser_t *parser);
+extern parser_t * script_parse_start_loop(parser_t *parser);
+extern parser_t * script_parse_end_loop(parser_t *parser);
+extern parser_t * script_parse_break(parser_t *parser);
+extern parser_t * script_parse_continue(parser_t *parser);
+extern parser_t * script_parse_if(parser_t *parser);
+extern parser_t * script_parse_test(parser_t *parser);
+extern parser_t * script_parse_elif(parser_t *parser);
+extern parser_t * script_parse_else(parser_t *parser);
+extern parser_t * script_parse_end_conditional(parser_t *parser);
+extern parser_t * script_parse_case_prolog(parser_t *parser);
+extern parser_t * script_parse_case(parser_t *parser);
+extern parser_t * script_parse_rollup_cases(parser_t *parser);
+extern parser_t * script_parse_start_function(parser_t *parser);
+extern parser_t * script_parse_baseclass_constructors(parser_t *parser);
+extern parser_t * script_parse_end_constructors(parser_t *parser);
+extern parser_t * script_parse_end_function(parser_t *parser);
+extern parser_t * script_parse_native_function(parser_t *parser);
+extern parser_t * script_parse_start_lambda(parser_t *parser);
+extern parser_t * script_parse_end_lambda(parser_t *parser);
+extern parser_t * script_parse_begin_context_block(parser_t *parser);
+extern parser_t * script_parse_throw_exception(parser_t *parser);
+extern parser_t * script_parse_leave(parser_t *parser);
+extern parser_t * script_parse_end_context_block(parser_t *parser);
+extern parser_t * script_parse_init_query(parser_t *parser);
+extern parser_t * script_parse_query(parser_t *parser);
+extern parser_t * script_parse_qstring_disable_slash(parser_t *);
+extern parser_t * script_parse_qstring_enable_slash(parser_t *);
 
 #endif /* __SCRIPTPARSE_H__ */

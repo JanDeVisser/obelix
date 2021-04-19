@@ -57,17 +57,17 @@ typedef struct _application {
   data_t             *error;
 } application_t;
 
-OBLCORE_IMPEXP void            application_init(void);
-OBLCORE_IMPEXP application_t * application_create(app_description_t *, int, char **);
-OBLCORE_IMPEXP application_t * _application_parse_args(application_t *,
+extern void            application_init(void);
+extern application_t * application_create(app_description_t *, int, char **);
+extern application_t * _application_parse_args(application_t *,
                                                        app_description_t *,
                                                        int, char **);
-OBLCORE_IMPEXP data_t *        _application_get_option(application_t *, char *);
-OBLCORE_IMPEXP data_t *        _application_get_arg(application_t *, int);
-OBLCORE_IMPEXP int             _application_has_option(application_t *, char *);
-OBLCORE_IMPEXP int             _application_args_size(application_t *);
-OBLCORE_IMPEXP void            application_terminate(void);
-OBLCORE_IMPEXP int             Application;
+extern data_t *        _application_get_option(application_t *, char *);
+extern data_t *        _application_get_arg(application_t *, int);
+extern int             _application_has_option(application_t *, char *);
+extern int             _application_args_size(application_t *);
+extern void            application_terminate(void);
+extern int             Application;
 
 type_skel(application, Application, application_t);
 

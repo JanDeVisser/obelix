@@ -23,19 +23,19 @@
 #ifndef __ARGUMENTS_H__
 #define __ARGUMENTS_H__
 
-OBLCORE_IMPEXP arguments_t * arguments_create(array_t *, dict_t *);
-OBLCORE_IMPEXP arguments_t * arguments_create_args(int num, ...);
-OBLCORE_IMPEXP arguments_t * arguments_deepcopy(const arguments_t *);
-OBLCORE_IMPEXP arguments_t * arguments_shift(const arguments_t *, data_t **);
-OBLCORE_IMPEXP arguments_t * arguments_create_from_cmdline(int, char **);
-OBLCORE_IMPEXP data_t *      arguments_get_arg(const arguments_t *, int);
-OBLCORE_IMPEXP data_t *      arguments_get_kwarg(const arguments_t *, char *);
-OBLCORE_IMPEXP int           arguments_has_kwarg(const arguments_t *, char *);
-OBLCORE_IMPEXP arguments_t * _arguments_set_arg(arguments_t *, int, data_t *);
-OBLCORE_IMPEXP arguments_t * _arguments_set_kwarg(arguments_t *, char *, data_t *);
-OBLCORE_IMPEXP arguments_t * _arguments_push(arguments_t *arguments, data_t *);
+extern arguments_t * arguments_create(array_t *, dict_t *);
+extern arguments_t * arguments_create_args(int num, ...);
+extern arguments_t * arguments_deepcopy(const arguments_t *);
+extern arguments_t * arguments_shift(const arguments_t *, data_t **);
+extern arguments_t * arguments_create_from_cmdline(int, char **);
+extern data_t *      arguments_get_arg(const arguments_t *, int);
+extern data_t *      arguments_get_kwarg(const arguments_t *, char *);
+extern int           arguments_has_kwarg(const arguments_t *, char *);
+extern arguments_t * _arguments_set_arg(arguments_t *, int, data_t *);
+extern arguments_t * _arguments_set_kwarg(arguments_t *, char *, data_t *);
+extern arguments_t * _arguments_push(arguments_t *arguments, data_t *);
 
-OBLCORE_IMPEXP int Arguments;
+extern int Arguments;
 
 type_skel(arguments, Arguments, arguments_t);
 

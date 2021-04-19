@@ -22,7 +22,6 @@
 #define __LIBJSON_H__
 
 #include <oblconfig.h>
-#define OBLJSON_IMPEXP __DLL_EXPORT__
 
 #include <json.h>
 

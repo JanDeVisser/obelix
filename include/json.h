@@ -20,13 +20,9 @@
 #ifndef __JSON_H__
 #define __JSON_H__
 
-#ifndef OBLJSON_IMPEXP
-  #define OBLJSON_IMPEXP	__DLL_IMPORT__
-#endif /* OBLJSON_IMPEXP */
-
 #include <data.h>
 
-OBLJSON_IMPEXP char *     json_encode(data_t *value);
-OBLJSON_IMPEXP data_t *   json_decode(data_t *jsontext);
+extern char *     json_encode(data_t *value);
+extern data_t *   json_decode(data_t *jsontext);
 
 #endif /* __JSON_H__ */

@@ -42,18 +42,18 @@ typedef struct _fsentry {
   int          exists;
 } fsentry_t;
 
-OBLCORE_IMPEXP fsentry_t *  fsentry_create(char *);
-OBLCORE_IMPEXP fsentry_t *  fsentry_getentry(fsentry_t *, char *name);
-OBLCORE_IMPEXP unsigned int fsentry_hash(fsentry_t *);
-OBLCORE_IMPEXP int          fsentry_cmp(fsentry_t *, fsentry_t *);
-OBLCORE_IMPEXP int          fsentry_exists(fsentry_t *);
-OBLCORE_IMPEXP int          fsentry_isfile(fsentry_t *);
-OBLCORE_IMPEXP int          fsentry_isdir(fsentry_t *);
-OBLCORE_IMPEXP int          fsentry_canread(fsentry_t *);
-OBLCORE_IMPEXP int          fsentry_canwrite(fsentry_t *);
-OBLCORE_IMPEXP int          fsentry_canexecute(fsentry_t *);
-OBLCORE_IMPEXP list_t *     fsentry_getentries(fsentry_t *);
-OBLCORE_IMPEXP file_t *     fsentry_open(fsentry_t *);
+extern fsentry_t *  fsentry_create(char *);
+extern fsentry_t *  fsentry_getentry(fsentry_t *, char *name);
+extern unsigned int fsentry_hash(fsentry_t *);
+extern int          fsentry_cmp(fsentry_t *, fsentry_t *);
+extern int          fsentry_exists(fsentry_t *);
+extern int          fsentry_isfile(fsentry_t *);
+extern int          fsentry_isdir(fsentry_t *);
+extern int          fsentry_canread(fsentry_t *);
+extern int          fsentry_canwrite(fsentry_t *);
+extern int          fsentry_canexecute(fsentry_t *);
+extern list_t *     fsentry_getentries(fsentry_t *);
+extern file_t *     fsentry_open(fsentry_t *);
 
 #define data_is_fsentry(d)  ((d) && (data_hastype((d), FSEntry)))
 #define data_as_fsentry(d)  ((fsentry_t *) (data_is_fsentry((d)) ? ((fsentry_t *) (d)) : NULL))

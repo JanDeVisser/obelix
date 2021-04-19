@@ -340,7 +340,7 @@ datalist_t * _pgsqlstmt_next(pgsqlstmt_t *stmt) {
   return rs;
 }
 
-__PLUGIN__ typedescr_t * postgresql_register(void) {
+extern typedescr_t * postgresql_register(void) {
   typedescr_register_with_name(PGSQLConnection, "postgresql", pgsqlconn_t);
   typedescr_register(PGSQLStmt, pgsqlstmt_t);
   return typedescr_get(PGSQLConnection);

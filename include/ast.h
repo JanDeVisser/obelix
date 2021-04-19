@@ -37,11 +37,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#ifndef OBLAST_IMPEXP
-#define OBLAST_IMPEXP	__DLL_IMPORT__
-#endif /* OBLAST_IMPEXP */
-
-OBLAST_IMPEXP void             ast_init(void);
+extern void             ast_init(void);
 
 /* ----------------------------------------------------------------------- */
 
@@ -50,7 +46,7 @@ typedef struct _ast_Node {
   struct _ast_Node *parent;
   datalist_t       *children;
 } ast_Node_t;
-OBLAST_IMPEXP int ASTNode;
+extern int ASTNode;
 type_skel(ast_Node, ASTNode, ast_Node_t);
 
 /* ----------------------------------------------------------------------- */
@@ -78,7 +74,7 @@ typedef struct _ast_ ## t {                                \
   ast_ ## base ## _t  base ;                               \
   __VA_ARGS__;                                             \
 } ast_ ## t ## _t;                                         \
-OBLAST_IMPEXP int AST ## t;                                \
+extern int AST ## t;                                \
 type_skel(ast_ ## t, AST ## t, ast_ ## t ## _t);
 ENUMERATE_AST_NODE_TYPES
 #undef __ENUMERATE_AST_NODE_TYPE
@@ -162,8 +158,8 @@ static inline ast_Return_t * ast_Return_create(ast_Expr_t *ret_expr) {
 
 /* ----------------------------------------------------------------------- */
 
-OBLAST_IMPEXP data_t *         ast_parse(void *, data_t *);
-OBLAST_IMPEXP data_t *         ast_execute(void *, data_t *);
+extern data_t *         ast_parse(void *, data_t *);
+extern data_t *         ast_execute(void *, data_t *);
 
 #ifdef  __cplusplus
 }

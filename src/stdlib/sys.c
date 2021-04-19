@@ -135,7 +135,7 @@ char * _windows_machine(SYSTEM_INFO *sysinfo) {
 
 /* ------------------------------------------------------------------------ */
 
-__DLL_EXPORT__ _unused_ data_t * _function_getenv(_unused_ char *name, _unused_ arguments_t *args) {
+extern _unused_ data_t * _function_getenv(_unused_ char *name, _unused_ arguments_t *args) {
   dictionary_t  *env;
   data_t        *value;
   char         **e;
@@ -166,7 +166,7 @@ __DLL_EXPORT__ _unused_ data_t * _function_getenv(_unused_ char *name, _unused_ 
   return (data_t *) env;
 }
 
-__DLL_EXPORT__ _unused_ data_t * _function_uname(_unused_ char *name, _unused_ arguments_t *args) {
+extern _unused_ data_t * _function_uname(_unused_ char *name, _unused_ arguments_t *args) {
   dictionary_t    *obj;
   data_t          *ret = NULL;
 #ifdef HAVE_SYS_UTSNAME_H
@@ -233,7 +233,7 @@ str_to_data(_windows_release(&version)));
   return ret;
 }
 
-__DLL_EXPORT__ _unused_ data_t * _function_exit(_unused_ char *name, arguments_t *args) {
+extern _unused_ data_t * _function_exit(_unused_ char *name, arguments_t *args) {
   data_t *exit_code;
   data_t *error;
 
@@ -251,7 +251,7 @@ __DLL_EXPORT__ _unused_ data_t * _function_exit(_unused_ char *name, arguments_t
 
 /* ------------------------------------------------------------------------ */
 
-__DLL_EXPORT__ _unused_ data_t * _function_user(char *name, arguments_t *args) {
+extern _unused_ data_t * _function_user(char *name, arguments_t *args) {
   int_t *uid;
 
   if (!strcmp(name, "current_user") || !args || !arguments_args_size(args)) {

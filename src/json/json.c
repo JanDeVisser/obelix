@@ -85,7 +85,7 @@ data_t * json_decode(data_t *jsontext) {
 
 /* ------------------------------------------------------------------------ */
 
-__PLUGIN__ data_t * _function_encode(char *func_name, arguments_t *args) {
+extern data_t * _function_encode(char *func_name, arguments_t *args) {
   data_t *value;
 
   if (!args ||
@@ -96,7 +96,7 @@ __PLUGIN__ data_t * _function_encode(char *func_name, arguments_t *args) {
   return (data_t *) str_adopt(json_encode(value));
 }
 
-__PLUGIN__ data_t * _function_decode(char *func_name, arguments_t *args) {
+extern data_t * _function_decode(char *func_name, arguments_t *args) {
   data_t *encoded;
 
   if (!args ||
@@ -109,7 +109,7 @@ __PLUGIN__ data_t * _function_decode(char *func_name, arguments_t *args) {
 
 /* ------------------------------------------------------------------------ */
 
-__PLUGIN__ parser_t * json_parse_get_value(parser_t *parser) {
+extern parser_t * json_parse_get_value(parser_t *parser) {
   data_t *obj = datastack_pop(parser -> stack);
 
   parser -> data = data_deserialize(obj);
@@ -117,7 +117,7 @@ __PLUGIN__ parser_t * json_parse_get_value(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * json_parse_to_dictionary(parser_t *parser) {
+extern parser_t * json_parse_to_dictionary(parser_t *parser) {
   datalist_t   *list = (datalist_t *) datastack_pop(parser -> stack);
   int           ix;
   nvp_t        *nvp;

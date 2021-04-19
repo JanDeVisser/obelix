@@ -22,7 +22,6 @@
 #define __LIBIPC_H__
 
 #include <oblconfig.h>
-#define OBLIPC_IMPEXP __DLL_EXPORT__
 
 #include <stdio.h>
 #include <data.h>

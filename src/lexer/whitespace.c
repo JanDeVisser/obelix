@@ -186,7 +186,7 @@ token_t * _ws_match(scanner_t *scanner) {
   return ret;
 }
 
-__DLL_EXPORT__ typedescr_t * whitespace_register(void) {
+extern typedescr_t * whitespace_register(void) {
   logging_register_category("whitespace", &whitespace_debug);
   typedescr_register_with_name(WSScannerConfig, "whitespace", ws_config_t);
   return typedescr_get(WSScannerConfig);

@@ -45,12 +45,12 @@ typedef struct _datetime {
   struct tm  tm;
 } datetime_t;
 
-__DLL_EXPORT__ data_t * time_create(int, int, int);
-__DLL_EXPORT__ data_t * date_create(int, int, int);
-__DLL_EXPORT__ data_t * datetime_create(datetime_t *, datetime_t *);
+extern data_t * time_create(int, int, int);
+extern data_t * date_create(int, int, int);
+extern data_t * datetime_create(datetime_t *, datetime_t *);
 
 static void             _date_init(void);
-__DLL_EXPORT__ data_t * _function_date_init(char *, arguments_t *);
+extern data_t * _function_date_init(char *, arguments_t *);
 
 static datetime_t *   _timebase_new(datetime_t *, va_list);
 static data_t *       _timebase_resolve(datetime_t *, char *);

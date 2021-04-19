@@ -25,9 +25,6 @@
 #include <time.h>
 #endif
 
-#ifndef OBLCORE_IMPEXP
-#define OBLCORE_IMPEXP __DLL_EXPORT__
-#endif
 #include <timer.h>
 #include <core.h>
 

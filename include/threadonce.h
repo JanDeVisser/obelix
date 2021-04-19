@@ -33,7 +33,7 @@
 
 #include <windows.h>
 
-OBLCORE_IMPEXP BOOL CALLBACK InitHandleFunction(PINIT_ONCE, PVOID, PVOID *);
+extern BOOL CALLBACK InitHandleFunction(PINIT_ONCE, PVOID, PVOID *);
 #define THREAD_ONCE(var)  static INIT_ONCE var = INIT_ONCE_STATIC_INIT;
 #define ONCE(var, fnc)    (void) InitOnceExecuteOnce(&var, InitHandleFunction, (fnc), NULL);
 

@@ -44,7 +44,7 @@ static app_description_t   _app_descr_testsuite = {
     }
 };
 
-__DLL_EXPORT__ test_t * test_factory(char *data) {
+extern test_t * test_factory(char *data) {
   return test_create(data);
 }
 

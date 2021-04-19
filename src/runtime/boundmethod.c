@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../virtualmachine/libvm.h"
+#include "libruntime.h"
 
 /* ------------------------------------------------------------------------ */
 

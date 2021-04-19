@@ -25,7 +25,7 @@ static inline void  _closure_init(void);
 static closure_t *  _closure_new(closure_t *, va_list);
 static closure_t *  _closure_create_closure_reducer(entry_t *, closure_t *);
 static data_t *     _closure_get(closure_t *, char *);
-static data_t *     _closure_eval(closure_t *, bytecode_t *);
+static data_t *     _closure_eval(closure_t *, ast_Expr_t *);
 static data_t *     _closure_start(closure_t *);
 
 static char *       _closure_allocstring(closure_t *closure);
@@ -73,7 +73,7 @@ closure_t * _closure_new(closure_t *closure, va_list args) {
   debug(script, "Creating closure for script '%s'", script_tostring(script));
 
   closure -> script = script_copy(script);
-  closure -> bytecode = bytecode_copy(script -> bytecode);
+  closure -> ast = ast_Expr_copy(data_as_ast_Expr(script -> ast));
 
   closure -> variables = NULL;
   closure -> params = NULL;
@@ -131,12 +131,11 @@ data_t * _closure_get(closure_t *closure, char *varname) {
   return ret;
 }
 
-data_t * _closure_eval(closure_t *closure, bytecode_t *bytecode) {
-  vm_t        *vm = vm_create(bytecode);
+data_t * _closure_eval(closure_t *closure, ast_Expr_t *ast) {
   data_t      *ret;
   exception_t *e;
 
-  e = closure_yield(closure, vm);
+  e = closure_yield(closure, ast);
   switch (e -> code) {
     case ErrorReturn:
       ret = data_copy(e -> throwable);
@@ -153,12 +152,11 @@ data_t * _closure_eval(closure_t *closure, bytecode_t *bytecode) {
       ret = (data_t *) exception_copy(e);
       break;
   }
-  vm_free(vm);
   return ret;
 }
 
 data_t * _closure_start(closure_t *closure) {
-  return _closure_eval(closure, closure -> bytecode);
+  return _closure_eval(closure, closure->ast);
 }
 
 char * _closure_allocstring(closure_t *closure) {
@@ -288,18 +286,18 @@ data_t * closure_execute(closure_t *closure, arguments_t *args) {
                                    (threadproc_t) _closure_start,
                                    closure_copy(closure));
     case STGenerator:
-      return (data_t *) generator_create(closure, vm_create(closure -> bytecode), NULL);
+      return (data_t *) generator_create(closure, NULL);
     default:
       return _closure_start(closure);
   }
 }
 
-exception_t * closure_yield(closure_t *closure, vm_t *vm) {
+exception_t * closure_yield(closure_t *closure, ast_Expr_t *ast) {
   data_t      *ret;
   exception_t *e;
   data_t      *d;
 
-  ret = vm_execute(vm, d = (data_t *) closure_copy(closure));
+  ret = ast_execute(ast, d = (data_t *) closure_copy(closure));
   if (data_is_exception(ret)) {
     e = data_as_exception(ret);
     if ((e -> code == ErrorExit) && (e -> throwable)) {
@@ -320,7 +318,7 @@ data_t * closure_eval(closure_t *closure, script_t *script) {
   dictionary_reduce(script -> functions, _closure_create_closure_reducer, closure);
   dictionary_free(closure -> params);
   closure -> params = NULL;
-  return _closure_eval(closure, script -> bytecode);
+  return _closure_eval(closure, data_as_ast_Expr(script->ast));
 }
 
 /* -- C L O S U R E  D A T A  M E T H O D S --------------------------------*/

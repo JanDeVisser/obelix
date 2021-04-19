@@ -475,7 +475,7 @@ void _comment_free_scanner(comment_scanner_t *c_scanner) {
   free(c_scanner -> newbuf);
 }
 
-__DLL_EXPORT__ typedescr_t *comment_register(void) {
+extern typedescr_t *comment_register(void) {
   typedescr_register_with_name(CommentScannerConfig, "comment", comment_config_t);
   return typedescr_get(CommentScannerConfig);
 }

@@ -28,19 +28,19 @@
 extern "C" {
 #endif
 
-OBLCORE_IMPEXP void            dictionary_init(void);
-OBLCORE_IMPEXP dictionary_t *  dictionary_create(void *);
-OBLCORE_IMPEXP dictionary_t *  dictionary_create_from_dict(dict_t *);
+extern void            dictionary_init(void);
+extern dictionary_t *  dictionary_create(void *);
+extern dictionary_t *  dictionary_create_from_dict(dict_t *);
 
-OBLCORE_IMPEXP data_t *        dictionary_get(const dictionary_t *, const char *);
-OBLCORE_IMPEXP data_t *        dictionary_pop(dictionary_t *, const char *);
-OBLCORE_IMPEXP data_t *        _dictionary_set(dictionary_t *, const char *, data_t *);
-OBLCORE_IMPEXP int             dictionary_has(const dictionary_t *, const char *);
-OBLCORE_IMPEXP int             dictionary_size(const dictionary_t *);
-OBLCORE_IMPEXP data_t *        _dictionary_reduce(dictionary_t *, reduce_t, void *);
-OBLCORE_IMPEXP dictionary_t *  dictionary_update(dictionary_t *, dictionary_t *);
+extern data_t *        dictionary_get(const dictionary_t *, const char *);
+extern data_t *        dictionary_pop(dictionary_t *, const char *);
+extern data_t *        _dictionary_set(dictionary_t *, const char *, data_t *);
+extern int             dictionary_has(const dictionary_t *, const char *);
+extern int             dictionary_size(const dictionary_t *);
+extern data_t *        _dictionary_reduce(dictionary_t *, reduce_t, void *);
+extern dictionary_t *  dictionary_update(dictionary_t *, dictionary_t *);
 
-OBLCORE_IMPEXP int Dictionary;
+extern int Dictionary;
 
 type_skel(dictionary, Dictionary, dictionary_t);
 

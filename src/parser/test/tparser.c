@@ -55,7 +55,7 @@ static void _teardown(void) {
 
 /* ----------------------------------------------------------------------- */
 
-__DLL_EXPORT__ parser_t * expr_assign_result(parser_t *parser) {
+extern parser_t * expr_assign_result(parser_t *parser) {
   data_t  *value = datastack_pop(parser -> stack);
   token_t *sign = (token_t *) datastack_pop(parser -> stack);
 
@@ -63,7 +63,7 @@ __DLL_EXPORT__ parser_t * expr_assign_result(parser_t *parser) {
   return parser;
 }
 
-__DLL_EXPORT__ parser_t * expr_call_op(parser_t *parser) {
+extern parser_t * expr_call_op(parser_t *parser) {
   data_t      *v1, *v2, *res, *signed1;
   token_t     *s1, *s2, *op;
   arguments_t *args;

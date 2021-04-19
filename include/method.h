@@ -32,13 +32,13 @@ typedef struct _method {
   data_t        *self;
 } mth_t;
 
-OBLCORE_IMPEXP mth_t *       mth_create(methoddescr_t *, data_t *);
-OBLCORE_IMPEXP mth_t *       mth_copy(mth_t *);
-OBLCORE_IMPEXP data_t *      mth_call(mth_t *, arguments_t *);
-OBLCORE_IMPEXP unsigned int  mth_hash(mth_t *);
-OBLCORE_IMPEXP int           mth_cmp(mth_t *, mth_t *);
+extern mth_t *       mth_create(methoddescr_t *, data_t *);
+extern mth_t *       mth_copy(mth_t *);
+extern data_t *      mth_call(mth_t *, arguments_t *);
+extern unsigned int  mth_hash(mth_t *);
+extern int           mth_cmp(mth_t *, mth_t *);
 
-OBLCORE_IMPEXP int RuntimeMethod;
+extern int RuntimeMethod;
 type_skel(runtimemethod, RuntimeMethod, mth_t);
 
 #ifdef	__cplusplus

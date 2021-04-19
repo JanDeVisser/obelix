@@ -28,11 +28,11 @@ typedef struct _context {
   struct _context *up;
 } context_t;
 
-OBLCORE_IMPEXP context_t * context_create(context_t *);
-OBLCORE_IMPEXP void        context_free(context_t *);
-OBLCORE_IMPEXP context_t * context_up(context_t *);
-OBLCORE_IMPEXP data_t *    context_resolve(context_t *, char *);
-OBLCORE_IMPEXP context_t * context_set(context_t *, char *, data_t *);
+extern context_t * context_create(context_t *);
+extern void        context_free(context_t *);
+extern context_t * context_up(context_t *);
+extern data_t *    context_resolve(context_t *, char *);
+extern context_t * context_set(context_t *, char *, data_t *);
 
 typedef data_t * (*eval_t)(context_t *, void *, list_t *);
 
@@ -46,18 +46,18 @@ typedef struct _expr {
 } expr_t;
 
 
-OBLCORE_IMPEXP expr_t * expr_create(expr_t *, eval_t, void *);
-OBLCORE_IMPEXP expr_t * expr_set_context(expr_t *, context_t *);
-OBLCORE_IMPEXP expr_t * expr_set_data_free(expr_t *, free_t);
-OBLCORE_IMPEXP expr_t * expr_add_node(expr_t *, expr_t *);
-OBLCORE_IMPEXP void     expr_free(expr_t *);
-OBLCORE_IMPEXP data_t * expr_evaluate(expr_t *);
+extern expr_t * expr_create(expr_t *, eval_t, void *);
+extern expr_t * expr_set_context(expr_t *, context_t *);
+extern expr_t * expr_set_data_free(expr_t *, free_t);
+extern expr_t * expr_add_node(expr_t *, expr_t *);
+extern void     expr_free(expr_t *);
+extern data_t * expr_evaluate(expr_t *);
 
-OBLCORE_IMPEXP expr_t * expr_str_literal(expr_t *, char *);
-OBLCORE_IMPEXP expr_t * expr_int_literal(expr_t *, int);
-OBLCORE_IMPEXP expr_t * expr_float_literal(expr_t *, float);
-OBLCORE_IMPEXP expr_t * expr_bool_literal(expr_t *, unsigned char);
-OBLCORE_IMPEXP expr_t * expr_deref(expr_t *, char *);
-OBLCORE_IMPEXP expr_t * expr_funccall(expr_t *, eval_t);
+extern expr_t * expr_str_literal(expr_t *, char *);
+extern expr_t * expr_int_literal(expr_t *, int);
+extern expr_t * expr_float_literal(expr_t *, float);
+extern expr_t * expr_bool_literal(expr_t *, unsigned char);
+extern expr_t * expr_deref(expr_t *, char *);
+extern expr_t * expr_funccall(expr_t *, eval_t);
 
 #endif /* __EXPR_H__ */

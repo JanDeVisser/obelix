@@ -22,7 +22,6 @@
 #define __LIBVM_H__
 
 #include <oblconfig.h>
-#define OBLVM_IMPEXP __DLL_EXPORT__
 
 #include <stdio.h>
 #include <vm.h>

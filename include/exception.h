@@ -68,19 +68,19 @@ typedef struct _exception_t {
   struct _data *trace;
 } exception_t;
 
-OBLCORE_IMPEXP int            _exception_register(char *str);
-OBLCORE_IMPEXP exception_t *  exception_create(int, char *, ...);
-OBLCORE_IMPEXP exception_t *  exception_vcreate(int, char *, va_list);
-OBLCORE_IMPEXP exception_t *  exception_from_my_errno(int);
-OBLCORE_IMPEXP exception_t *  exception_from_errno(void);
-OBLCORE_IMPEXP unsigned int   exception_hash(exception_t *);
-OBLCORE_IMPEXP int            exception_cmp(exception_t *, exception_t *);
-OBLCORE_IMPEXP void           exception_report(exception_t *);
+extern int            _exception_register(char *str);
+extern exception_t *  exception_create(int, char *, ...);
+extern exception_t *  exception_vcreate(int, char *, va_list);
+extern exception_t *  exception_from_my_errno(int);
+extern exception_t *  exception_from_errno(void);
+extern unsigned int   exception_hash(exception_t *);
+extern int            exception_cmp(exception_t *, exception_t *);
+extern void           exception_report(exception_t *);
 
-OBLCORE_IMPEXP data_t *       data_exception(int, char *, ...);
-OBLCORE_IMPEXP data_t *       data_exception_from_my_errno(int);
-OBLCORE_IMPEXP data_t *       data_exception_from_errno(void);
-OBLCORE_IMPEXP data_t *       data_throwable(data_t *);
+extern data_t *       data_exception(int, char *, ...);
+extern data_t *       data_exception_from_my_errno(int);
+extern data_t *       data_exception_from_errno(void);
+extern data_t *       data_throwable(data_t *);
 
 #define exception_register(e)            (e = _exception_register( #e ))
 #define data_is_exception(d)             ((d) && data_hastype((d), Exception))

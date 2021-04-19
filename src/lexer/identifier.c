@@ -236,7 +236,7 @@ token_t * _id_match(scanner_t *scanner) {
 
 /* -- I D E N T I F I E R  S C A N N E R ---------------------------------- */
 
-__DLL_EXPORT__ typedescr_t * identifier_register(void) {
+extern typedescr_t * identifier_register(void) {
   typedescr_register_with_name(IDScannerConfig, "identifier", id_config_t);
   return typedescr_get(IDScannerConfig);
 }

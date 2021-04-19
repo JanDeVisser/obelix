@@ -31,11 +31,7 @@ typedef struct _timestamp {
   long microseconds;
 } timestamp_t;
 
-#ifndef OBLCORE_IMPEXP
-#define OBLCORE_IMPEXP __DLL_IMPORT__
-#endif
-
-OBLCORE_IMPEXP timestamp_t * timer_start(void);
-OBLCORE_IMPEXP timestamp_t * timer_end(timestamp_t *);
+extern timestamp_t * timer_start(void);
+extern timestamp_t * timer_end(timestamp_t *);
 
 #endif /* __TIMER_H__ */

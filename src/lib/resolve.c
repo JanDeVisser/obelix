@@ -333,12 +333,12 @@ void __resolve_init(void) {
   atexit(resolve_free);
 }
 
-OBLCORE_IMPEXP resolve_t * resolve_get(void) {
+extern resolve_t * resolve_get(void) {
   _resolve_init();
   return _singleton;
 }
 
-OBLCORE_IMPEXP void resolve_free(void) {
+extern void resolve_free(void) {
   resolve_handle_t *image;
   if (_singleton) {
     debug(resolve, "resolve_free");
@@ -367,13 +367,13 @@ resolve_t * _resolve_open(resolve_t *resolve, char *image) {
   return ret;
 }
 
-OBLCORE_IMPEXP resolve_t * resolve_open(resolve_t *resolve, char *image) {
+extern resolve_t * resolve_open(resolve_t *resolve, char *image) {
   _resolve_init();
   return _resolve_open(resolve, image);
 }
 
 
-OBLCORE_IMPEXP void_t resolve_resolve(resolve_t *resolve, char *func_name) {
+extern void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   resolve_handle_t *handle;
   void_t            ret = NULL;
   int               err = 0;
@@ -410,7 +410,7 @@ OBLCORE_IMPEXP void_t resolve_resolve(resolve_t *resolve, char *func_name) {
   return ret;
 }
 
-OBLCORE_IMPEXP int resolve_library(char *library) {
+extern int resolve_library(char *library) {
   resolve_t *resolve;
 
   resolve = resolve_get();
@@ -418,7 +418,7 @@ OBLCORE_IMPEXP int resolve_library(char *library) {
   return resolve_open(resolve, library) != NULL;
 }
 
-OBLCORE_IMPEXP void_t resolve_function(char *func_name) {
+extern void_t resolve_function(char *func_name) {
   resolve_t *resolve;
   void_t     fnc;
 

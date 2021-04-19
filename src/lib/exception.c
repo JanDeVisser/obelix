@@ -94,7 +94,7 @@ static methoddescr_t * _methods_Exception = NULL;
 
 /* --  E X C E P T I O N _ T  F U N C T I O N S --------------------------- */
 
-OBLCORE_IMPEXP int _exception_register(char *str) {
+extern int _exception_register(char *str) {
   code_label_t *new_exceptions;
   int           newsz;
   int           cursz;

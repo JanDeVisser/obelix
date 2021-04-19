@@ -55,22 +55,22 @@ typedef struct _condition {
 #endif
 } condition_t;
 
-OBLCORE_IMPEXP mutex_t *     mutex_create(void);
-OBLCORE_IMPEXP mutex_t *     mutex_create_withname(char *);
-OBLCORE_IMPEXP unsigned int  mutex_hash(mutex_t *);
-OBLCORE_IMPEXP int           mutex_cmp(mutex_t *, mutex_t *);
-OBLCORE_IMPEXP int           mutex_lock(mutex_t *);
-OBLCORE_IMPEXP int           mutex_trylock(mutex_t *);
-OBLCORE_IMPEXP int           mutex_unlock(mutex_t *);
+extern mutex_t *     mutex_create(void);
+extern mutex_t *     mutex_create_withname(char *);
+extern unsigned int  mutex_hash(mutex_t *);
+extern int           mutex_cmp(mutex_t *, mutex_t *);
+extern int           mutex_lock(mutex_t *);
+extern int           mutex_trylock(mutex_t *);
+extern int           mutex_unlock(mutex_t *);
 
-OBLCORE_IMPEXP condition_t * condition_create();
-OBLCORE_IMPEXP unsigned int  condition_hash(condition_t *);
-OBLCORE_IMPEXP int           condition_cmp(condition_t *, condition_t *);
-OBLCORE_IMPEXP int           condition_acquire(condition_t *);
-OBLCORE_IMPEXP int           condition_tryacquire(condition_t *);
-OBLCORE_IMPEXP int           condition_release(condition_t *);
-OBLCORE_IMPEXP int           condition_wakeup(condition_t *);
-OBLCORE_IMPEXP int           condition_sleep(condition_t *);
+extern condition_t * condition_create();
+extern unsigned int  condition_hash(condition_t *);
+extern int           condition_cmp(condition_t *, condition_t *);
+extern int           condition_acquire(condition_t *);
+extern int           condition_tryacquire(condition_t *);
+extern int           condition_release(condition_t *);
+extern int           condition_wakeup(condition_t *);
+extern int           condition_sleep(condition_t *);
 
 #define data_is_mutex(d)      ((d) && (data_hastype((d), Mutex)))
 #define data_as_mutex(d)      ((mutex_t *) (data_is_mutex((d)) ? (d) : NULL))

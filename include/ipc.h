@@ -21,9 +21,6 @@
 #define __IPC_H__
 
 #include <oblconfig.h>
-#ifndef OBLIPC_IMPEXP
-  #define OBLIPC_IMPEXP	__DLL_IMPORT__
-#endif /* OBLIPC_IMPEXP */
 
 #include <arguments.h>
 #include <data.h>
@@ -84,74 +81,74 @@ typedef struct _servermessage {
 
 /* ------------------------------------------------------------------------ */
 
-OBLIPC_IMPEXP int Mountpoint;
+extern int Mountpoint;
 
 type_skel(mountpoint, Mountpoint, mountpoint_t);
 
-OBLIPC_IMPEXP data_t *       mountpoint_create(uri_t *, char *);
-OBLIPC_IMPEXP data_t *       mountpoint_checkout_client(mountpoint_t *);
-OBLIPC_IMPEXP mountpoint_t * mountpoint_return_client(mountpoint_t *, client_t *);
+extern data_t *       mountpoint_create(uri_t *, char *);
+extern data_t *       mountpoint_checkout_client(mountpoint_t *);
+extern mountpoint_t * mountpoint_return_client(mountpoint_t *, client_t *);
 
 /* ------------------------------------------------------------------------ */
 
-OBLIPC_IMPEXP int Remote;
+extern int Remote;
 
 type_skel(remote, Remote, remote_t);
 
 /* ------------------------------------------------------------------------ */
 
-OBLIPC_IMPEXP int Client;
+extern int Client;
 
 type_skel(client, Client, client_t);
 
-OBLIPC_IMPEXP data_t *      client_create(mountpoint_t *);
-OBLIPC_IMPEXP data_t *      client_run(client_t *, remote_t *, arguments_t *);
+extern data_t *      client_create(mountpoint_t *);
+extern data_t *      client_run(client_t *, remote_t *, arguments_t *);
 
 /* ------------------------------------------------------------------------ */
 
-OBLIPC_IMPEXP server_t *    server_create(data_t *, stream_t *);
-OBLIPC_IMPEXP server_t *    server_run(server_t *);
-OBLIPC_IMPEXP int           server_start(data_t *, int);
+extern server_t *    server_create(data_t *, stream_t *);
+extern server_t *    server_run(server_t *);
+extern int           server_start(data_t *, int);
 
-OBLIPC_IMPEXP int           Server;
+extern int           Server;
 
 type_skel(server, Server, server_t);
 
-OBLIPC_IMPEXP int ErrorProtocol;
+extern int ErrorProtocol;
 
 /* ------------------------------------------------------------------------ */
 
-OBLIPC_IMPEXP int               ServerMessage;
+extern int               ServerMessage;
 
-OBLIPC_IMPEXP servermessage_t * servermessage_create(int, int, ...);
-OBLIPC_IMPEXP data_t *          servermessage_vmatch(servermessage_t *, int, int , va_list);
-OBLIPC_IMPEXP data_t *          servermessage_match(servermessage_t *, int, int , ...);
-OBLIPC_IMPEXP data_t *          servermessage_match_payload(servermessage_t *, int);
-OBLIPC_IMPEXP servermessage_t * servermessage_push_int(servermessage_t *, int);
-OBLIPC_IMPEXP servermessage_t * servermessage_push(servermessage_t *, char *);
-OBLIPC_IMPEXP servermessage_t * servermessage_set_payload(servermessage_t *, data_t *);
+extern servermessage_t * servermessage_create(int, int, ...);
+extern data_t *          servermessage_vmatch(servermessage_t *, int, int , va_list);
+extern data_t *          servermessage_match(servermessage_t *, int, int , ...);
+extern data_t *          servermessage_match_payload(servermessage_t *, int);
+extern servermessage_t * servermessage_push_int(servermessage_t *, int);
+extern servermessage_t * servermessage_push(servermessage_t *, char *);
+extern servermessage_t * servermessage_set_payload(servermessage_t *, data_t *);
 
 type_skel(servermessage, ServerMessage, servermessage_t);
 
-OBLIPC_IMPEXP code_label_t  message_codes[];
+extern code_label_t  message_codes[];
 
 /* ------------------------------------------------------------------------ */
 
-OBLIPC_IMPEXP data_t *      protocol_write(stream_t *, char *, int);
-OBLIPC_IMPEXP data_t *      protocol_vprintf(stream_t *, char *, va_list);
-OBLIPC_IMPEXP data_t *      protocol_printf(stream_t *, char *, ...);
-OBLIPC_IMPEXP data_t *      protocol_newline(stream_t *);
-OBLIPC_IMPEXP data_t *      protocol_readline(stream_t *);
+extern data_t *      protocol_write(stream_t *, char *, int);
+extern data_t *      protocol_vprintf(stream_t *, char *, va_list);
+extern data_t *      protocol_printf(stream_t *, char *, ...);
+extern data_t *      protocol_newline(stream_t *);
+extern data_t *      protocol_readline(stream_t *);
 
-OBLIPC_IMPEXP data_t *      protocol_send_data(stream_t *, int code, data_t *);
-OBLIPC_IMPEXP data_t *      protocol_send_message(stream_t *, servermessage_t *);
-OBLIPC_IMPEXP data_t *      protocol_send_handshake(stream_t *, mountpoint_t *);
-OBLIPC_IMPEXP data_t *      protocol_return_result(stream_t *, data_t *);
+extern data_t *      protocol_send_data(stream_t *, int code, data_t *);
+extern data_t *      protocol_send_message(stream_t *, servermessage_t *);
+extern data_t *      protocol_send_handshake(stream_t *, mountpoint_t *);
+extern data_t *      protocol_return_result(stream_t *, data_t *);
 
-OBLIPC_IMPEXP data_t *      protocol_expect(stream_t *, int, int, ...);
-OBLIPC_IMPEXP data_t *      protocol_read_message(stream_t *);
+extern data_t *      protocol_expect(stream_t *, int, int, ...);
+extern data_t *      protocol_read_message(stream_t *);
 
-OBLIPC_IMPEXP name_t *      protocol_build_name(char *);
+extern name_t *      protocol_build_name(char *);
 
 #ifdef	__cplusplus
 }

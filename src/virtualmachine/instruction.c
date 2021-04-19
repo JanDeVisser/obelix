@@ -235,7 +235,7 @@ _unused_ void _instruction_trace(char *op, char *fmt, ...) {
   }
 }
 
-OBLVM_IMPEXP void instruction_trace(_unused_ instruction_t *inst, char *fmt, ...) {
+extern void instruction_trace(_unused_ instruction_t *inst, char *fmt, ...) {
   va_list  args;
   
   if (vm_trace) {

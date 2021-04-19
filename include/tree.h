@@ -29,14 +29,14 @@ typedef struct _tree {
   free_t        free_data;
 } tree_t;
 
-OBLCORE_IMPEXP tree_t *         tree_create(void *);
-OBLCORE_IMPEXP void             tree_free(tree_t *);
-OBLCORE_IMPEXP tree_t *         tree_up(tree_t *);
-OBLCORE_IMPEXP void *           tree_get(tree_t *);
-OBLCORE_IMPEXP void             tree_set(tree_t *, void *);
-OBLCORE_IMPEXP listiterator_t * tree_down(tree_t *);
-OBLCORE_IMPEXP tree_t *         tree_append(tree_t *, void *);
-OBLCORE_IMPEXP tree_t *         tree_visit(tree_t *, visit_t);
-OBLCORE_IMPEXP void *           tree_reduce(tree_t *, reduce_t, void *);
+extern tree_t *         tree_create(void *);
+extern void             tree_free(tree_t *);
+extern tree_t *         tree_up(tree_t *);
+extern void *           tree_get(tree_t *);
+extern void             tree_set(tree_t *, void *);
+extern listiterator_t * tree_down(tree_t *);
+extern tree_t *         tree_append(tree_t *, void *);
+extern tree_t *         tree_visit(tree_t *, visit_t);
+extern void *           tree_reduce(tree_t *, reduce_t, void *);
 
 #endif /* __TREE_H__ */

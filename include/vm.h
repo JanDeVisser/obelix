@@ -37,10 +37,6 @@ extern "C" {
 
 /* ------------------------------------------------------------------------ */
 
-#ifndef OBLVM_IMPEXP
-  #define OBLVM_IMPEXP	__DLL_IMPORT__
-#endif /* OBLVM_IMPEXP */
-
 /* -- F O R W A R D  D E C L A R A T I O N S ------------------------------ */
 
 typedef struct _bytecode     bytecode_t;
@@ -60,18 +56,18 @@ struct _bytecode {
   int          current_line;
 };
 
-OBLVM_IMPEXP bytecode_t * bytecode_create(data_t *owner);
-OBLVM_IMPEXP bytecode_t * bytecode_push_instruction(bytecode_t *, data_t *);
-OBLVM_IMPEXP bytecode_t * bytecode_start_deferred_block(bytecode_t *);
-OBLVM_IMPEXP bytecode_t * bytecode_end_deferred_block(bytecode_t *);
-OBLVM_IMPEXP bytecode_t * bytecode_pop_deferred_block(bytecode_t *);
-OBLVM_IMPEXP bytecode_t * bytecode_bookmark(bytecode_t *);
-OBLVM_IMPEXP bytecode_t * bytecode_discard_bookmark(bytecode_t *);
-OBLVM_IMPEXP bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *);
-OBLVM_IMPEXP void         bytecode_list_and_mark(bytecode_t *, instruction_t *);
-OBLVM_IMPEXP void         bytecode_list(bytecode_t *);
+extern bytecode_t * bytecode_create(data_t *owner);
+extern bytecode_t * bytecode_push_instruction(bytecode_t *, data_t *);
+extern bytecode_t * bytecode_start_deferred_block(bytecode_t *);
+extern bytecode_t * bytecode_end_deferred_block(bytecode_t *);
+extern bytecode_t * bytecode_pop_deferred_block(bytecode_t *);
+extern bytecode_t * bytecode_bookmark(bytecode_t *);
+extern bytecode_t * bytecode_discard_bookmark(bytecode_t *);
+extern bytecode_t * bytecode_defer_bookmarked_block(bytecode_t *);
+extern void         bytecode_list_and_mark(bytecode_t *, instruction_t *);
+extern void         bytecode_list(bytecode_t *);
 
-OBLVM_IMPEXP int Bytecode;
+extern int Bytecode;
 
 type_skel(bytecode, Bytecode, bytecode_t);
 
@@ -100,20 +96,20 @@ typedef struct _vm {
   struct _debugger *debugger;
 } vm_t;
 
-OBLVM_IMPEXP vm_t *   vm_create(bytecode_t *);
-OBLVM_IMPEXP data_t * vm_pop(vm_t *);
-OBLVM_IMPEXP data_t * vm_peek(vm_t *);
-OBLVM_IMPEXP data_t * vm_push(vm_t *, data_t *);
-OBLVM_IMPEXP vm_t *   vm_dup(vm_t *);
-OBLVM_IMPEXP data_t * vm_stash(vm_t *, unsigned int, data_t *);
-OBLVM_IMPEXP data_t * vm_unstash(vm_t *, unsigned int);
-OBLVM_IMPEXP nvp_t *  vm_push_context(vm_t *, char *, data_t *);
-OBLVM_IMPEXP nvp_t *  vm_peek_context(vm_t *);
-OBLVM_IMPEXP nvp_t *  vm_pop_context(vm_t *);
-OBLVM_IMPEXP data_t * vm_execute(vm_t *, data_t *);
-OBLVM_IMPEXP data_t * vm_initialize(vm_t *, data_t *);
+extern vm_t *   vm_create(bytecode_t *);
+extern data_t * vm_pop(vm_t *);
+extern data_t * vm_peek(vm_t *);
+extern data_t * vm_push(vm_t *, data_t *);
+extern vm_t *   vm_dup(vm_t *);
+extern data_t * vm_stash(vm_t *, unsigned int, data_t *);
+extern data_t * vm_unstash(vm_t *, unsigned int);
+extern nvp_t *  vm_push_context(vm_t *, char *, data_t *);
+extern nvp_t *  vm_peek_context(vm_t *);
+extern nvp_t *  vm_pop_context(vm_t *);
+extern data_t * vm_execute(vm_t *, data_t *);
+extern data_t * vm_initialize(vm_t *, data_t *);
 
-OBLVM_IMPEXP int VM;
+extern int VM;
 
 type_skel(vm, VM, vm_t);
 
@@ -127,10 +123,10 @@ typedef struct _stackframe {
   int         line;
 } stackframe_t;
 
-OBLVM_IMPEXP stackframe_t *  stackframe_create(data_t *);
-OBLVM_IMPEXP int             stackframe_cmp(stackframe_t *, stackframe_t *);
+extern stackframe_t *  stackframe_create(data_t *);
+extern int             stackframe_cmp(stackframe_t *, stackframe_t *);
 
-OBLVM_IMPEXP int Stackframe;
+extern int Stackframe;
 
 type_skel(stackframe, Stackframe, stackframe_t);
 
@@ -141,11 +137,11 @@ typedef struct _stacktrace {
   datastack_t *stack;
 } stacktrace_t;
 
-OBLVM_IMPEXP stacktrace_t * stacktrace_create(void);
-OBLVM_IMPEXP int            stacktrace_cmp(stacktrace_t *, stacktrace_t *);
-OBLVM_IMPEXP stacktrace_t * stacktrace_push(stacktrace_t *, data_t *);
+extern stacktrace_t * stacktrace_create(void);
+extern int            stacktrace_cmp(stacktrace_t *, stacktrace_t *);
+extern stacktrace_t * stacktrace_push(stacktrace_t *, data_t *);
 
-OBLVM_IMPEXP int Stacktrace;
+extern int Stacktrace;
 
 type_skel(stacktrace, Stacktrace, stacktrace_t);
 
@@ -178,16 +174,16 @@ typedef struct _function_call {
   char       *str;
 } function_call_t;
 
-OBLVM_IMPEXP int Instruction;
-OBLVM_IMPEXP int Scope;
-OBLVM_IMPEXP int ITByValue;
-OBLVM_IMPEXP int ITByName;
-OBLVM_IMPEXP int ITByNameValue;
-OBLVM_IMPEXP int ITByValueOrName;
+extern int Instruction;
+extern int Scope;
+extern int ITByValue;
+extern int ITByName;
+extern int ITByNameValue;
+extern int ITByValueOrName;
 
 #define DeclareInstructionType(t)                                            \
-OBLVM_IMPEXP int IT ## t;                                                    \
-OBLVM_IMPEXP instruction_t * instruction_create_ ## t(char *, data_t *);
+extern int IT ## t;                                                    \
+extern instruction_t * instruction_create_ ## t(char *, data_t *);
 
 DeclareInstructionType(Assign);
 DeclareInstructionType(Decr);
@@ -216,14 +212,14 @@ DeclareInstructionType(Unstash);
 DeclareInstructionType(VMStatus);
 DeclareInstructionType(Yield);
 
-OBLVM_IMPEXP instruction_t * instruction_create_byname(char *, char *, data_t *);
-OBLVM_IMPEXP data_t *        instruction_create_enter_context(name_t *, data_t *);
-OBLVM_IMPEXP data_t *        instruction_create_function(name_t *, callflag_t, long, array_t *);
+extern instruction_t * instruction_create_byname(char *, char *, data_t *);
+extern data_t *        instruction_create_enter_context(name_t *, data_t *);
+extern data_t *        instruction_create_function(name_t *, callflag_t, long, array_t *);
 
-OBLVM_IMPEXP instruction_t * instruction_assign_label(instruction_t *);
-OBLVM_IMPEXP instruction_t * instruction_set_label(instruction_t *, data_t *);
+extern instruction_t * instruction_assign_label(instruction_t *);
+extern instruction_t * instruction_set_label(instruction_t *, data_t *);
 
-OBLVM_IMPEXP void            instruction_trace(instruction_t *, char *, ...);
+extern void            instruction_trace(instruction_t *, char *, ...);
 
 type_skel(instruction, Instruction, instruction_t);
 
@@ -273,12 +269,12 @@ typedef struct _debugger {
   debugcmd_t     last_command;
 } debugger_t;
 
-OBLVM_IMPEXP debugger_t * debugger_create(vm_t *vm, data_t *scope);
-OBLVM_IMPEXP void         debugger_start(debugger_t *);
-OBLVM_IMPEXP debugcmd_t   debugger_step_before(debugger_t *, instruction_t *);
-OBLVM_IMPEXP void         debugger_step_after(debugger_t *, instruction_t *, data_t *);
-OBLVM_IMPEXP void         debugger_exit(debugger_t *, data_t *);
-OBLVM_IMPEXP void         debugger_free(debugger_t *);
+extern debugger_t * debugger_create(vm_t *vm, data_t *scope);
+extern void         debugger_start(debugger_t *);
+extern debugcmd_t   debugger_step_before(debugger_t *, instruction_t *);
+extern void         debugger_step_after(debugger_t *, instruction_t *, data_t *);
+extern void         debugger_exit(debugger_t *, data_t *);
+extern void         debugger_free(debugger_t *);
 
 #ifdef  __cplusplus
 }

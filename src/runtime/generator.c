@@ -65,7 +65,7 @@ void _generator_init(void) {
 
 generator_t * _generator_new(generator_t *generator, va_list args) {
   generator -> closure = closure_copy(va_arg(args, closure_t *));
-  generator -> vm = vm_copy(va_arg(args, vm_t *));
+  generator -> ast = ast_Expr_copy(va_arg(args, ast_Expr_t *));
   generator -> status = exception_copy(va_arg(args, exception_t *));
   return generator;
 }
@@ -73,7 +73,7 @@ generator_t * _generator_new(generator_t *generator, va_list args) {
 void _generator_free(generator_t *generator) {
   if (generator) {
     closure_free(generator -> closure);
-    vm_free(generator -> vm);
+    ast_Expr_free(generator -> ast);
     exception_free(generator -> status);
     free(generator);
   }
@@ -97,7 +97,7 @@ data_t * _generator_has_next(generator_t *generator) {
 
 generator_t * _generator_next(generator_t *generator) {
   exception_free(generator -> status);
-  generator -> status = closure_yield(generator -> closure, generator -> vm);
+  generator -> status = closure_yield(generator -> closure, generator -> ast);
   return generator;
 }
 
@@ -122,9 +122,9 @@ data_t * _generator_interrupt(data_t *generator, char *name, arguments_t *args) 
 
 /* ------------------------------------------------------------------------ */
 
-generator_t * generator_create(closure_t *closure, vm_t *vm, exception_t *status) {
+generator_t * generator_create(closure_t *closure, exception_t *status) {
   _generator_init();
-  return (generator_t *) data_create(Generator, closure, vm, status);
+  return (generator_t *) data_create(Generator, closure, status);
 }
 
 int generator_has_next(generator_t *generator) {

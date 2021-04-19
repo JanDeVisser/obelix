@@ -464,7 +464,7 @@ token_t * _kw_match(scanner_t *scanner) {
   }
 }
 
-__DLL_EXPORT__ typedescr_t * keyword_register(void) {
+extern typedescr_t * keyword_register(void) {
   typedescr_register_with_name_and_methods(KWScannerConfig, "keyword", kw_config_t);
   return typedescr_get(KWScannerConfig);
 }

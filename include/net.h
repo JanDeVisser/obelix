@@ -21,9 +21,6 @@
 #define __NET_H__
 
 #include <oblconfig.h>
-#ifndef OBLNET_IMPEXP
-  #define OBLNET_IMPEXP	__DLL_IMPORT__
-#endif /* OBLNET_IMPEXP */
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -65,11 +62,11 @@ typedef struct _uri {
   char    *fragment;
 } uri_t;
 
-OBLNET_IMPEXP uri_t * uri_create(char *);
-OBLNET_IMPEXP int     uri_path_absolute(uri_t *);
-OBLNET_IMPEXP char *  uri_path(uri_t *);
+extern uri_t * uri_create(char *);
+extern int     uri_path_absolute(uri_t *);
+extern char *  uri_path(uri_t *);
 
-OBLNET_IMPEXP int URI;
+extern int URI;
 
 type_skel(uri, URI, uri_t);
 
@@ -96,29 +93,29 @@ typedef struct _socket {
   void      *context;
 } socket_t;
 
-OBLNET_IMPEXP socket_t *           socket_create(char *, int);
-OBLNET_IMPEXP socket_t *           socket_create_byservice(char *, char *);
-OBLNET_IMPEXP socket_t *           socket_open(uri_t *);
-OBLNET_IMPEXP socket_t *           serversocket_create(int);
-OBLNET_IMPEXP socket_t *           serversocket_create_byservice(char *);
-OBLNET_IMPEXP int                  socket_close(socket_t *);
-OBLNET_IMPEXP unsigned int         socket_hash(socket_t *);
-OBLNET_IMPEXP int                  socket_cmp(socket_t *, socket_t *);
-OBLNET_IMPEXP int                  socket_listen(socket_t *, service_t, void *);
-OBLNET_IMPEXP int                  socket_listen_detach(socket_t *, service_t, void *);
-OBLNET_IMPEXP socket_t *           socket_interrupt(socket_t *);
-OBLNET_IMPEXP socket_t *           socket_nonblock(socket_t *);
-OBLNET_IMPEXP int                  socket_read(socket_t *, void *, int);
-OBLNET_IMPEXP int                  socket_write(socket_t *, void *, int);
-OBLNET_IMPEXP socket_t *           socket_clear_error(socket_t *);
-OBLNET_IMPEXP socket_t *           socket_set_errormsg(socket_t *, char *, ...);
-OBLNET_IMPEXP socket_t *           socket_set_error(socket_t *, data_t *);
-OBLNET_IMPEXP socket_t *           socket_set_errno(socket_t *, char *);
+extern socket_t *           socket_create(char *, int);
+extern socket_t *           socket_create_byservice(char *, char *);
+extern socket_t *           socket_open(uri_t *);
+extern socket_t *           serversocket_create(int);
+extern socket_t *           serversocket_create_byservice(char *);
+extern int                  socket_close(socket_t *);
+extern unsigned int         socket_hash(socket_t *);
+extern int                  socket_cmp(socket_t *, socket_t *);
+extern int                  socket_listen(socket_t *, service_t, void *);
+extern int                  socket_listen_detach(socket_t *, service_t, void *);
+extern socket_t *           socket_interrupt(socket_t *);
+extern socket_t *           socket_nonblock(socket_t *);
+extern int                  socket_read(socket_t *, void *, int);
+extern int                  socket_write(socket_t *, void *, int);
+extern socket_t *           socket_clear_error(socket_t *);
+extern socket_t *           socket_set_errormsg(socket_t *, char *, ...);
+extern socket_t *           socket_set_error(socket_t *, data_t *);
+extern socket_t *           socket_set_errno(socket_t *, char *);
 
-OBLNET_IMPEXP void *               connection_listener_service(connection_t *);
+extern void *               connection_listener_service(connection_t *);
 
-OBLNET_IMPEXP int Socket;
-OBLNET_IMPEXP int ErrorSocket;
+extern int Socket;
+extern int ErrorSocket;
 
 type_skel(socket, Socket, socket_t);
 

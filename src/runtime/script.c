@@ -80,8 +80,11 @@ script_t * _script_new(script_t *script, va_list args) {
   script -> params = NULL;
   script -> type = STNone;
 
-  script -> fullname = NULL;
-  script -> bytecode = bytecode_create((data_t *) script_copy(script));
+  script -> fullname = name_deepcopy(script -> mod -> name);
+  name_append(script -> fullname, script -> name);
+  script->_d.str = strdup(name_tostring(script->fullname));
+  data_set_string_semantics(script, StrSemanticsStatic);
+  script->ast = ast_Script_create(script_tostring(script));
   return script;
 }
 
@@ -91,7 +94,7 @@ char * _script_tostring(script_t *script) {
 
 void _script_free(script_t *script) {
   if (script) {
-    bytecode_free(script -> bytecode);
+    ast_Script_free(script->ast);
     array_free(script -> params);
     dictionary_free(script -> functions);
     script_free(script -> up);
@@ -109,10 +112,6 @@ script_t * script_create(data_t *enclosing, char *name) {
 }
 
 name_t * script_fullname(script_t *script) {
-  if (!script -> fullname) {
-    script -> fullname = name_deepcopy(script -> mod -> name);
-    name_append(script -> fullname, script -> name);
-  }
   return script -> fullname;
 }
 

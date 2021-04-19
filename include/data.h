@@ -38,65 +38,65 @@ extern "C" {
 #define MAGIC_COOKIE               ((unsigned short int) 0xDEADBEEF)
 #endif /* !NDEBUG */
 
-OBLCORE_IMPEXP void                data_init(void);
-OBLCORE_IMPEXP data_t *            data_create_noinit(int);
-OBLCORE_IMPEXP data_t *            data_create(int, ...);
-OBLCORE_IMPEXP data_t *            data_settype(data_t *, int);
-OBLCORE_IMPEXP data_t *            data_cast(data_t *, int);
-OBLCORE_IMPEXP data_t *            data_promote(data_t *);
-OBLCORE_IMPEXP data_t *            data_parse(int, char *);
-OBLCORE_IMPEXP data_t *            data_decode(char *);
-OBLCORE_IMPEXP data_t *            data_deserialize(data_t *);
+extern void                data_init(void);
+extern data_t *            data_create_noinit(int);
+extern data_t *            data_create(int, ...);
+extern data_t *            data_settype(data_t *, int);
+extern data_t *            data_cast(data_t *, int);
+extern data_t *            data_promote(data_t *);
+extern data_t *            data_parse(int, char *);
+extern data_t *            data_decode(char *);
+extern data_t *            data_deserialize(data_t *);
 
-OBLCORE_IMPEXP char *              data_encode(data_t *);
-OBLCORE_IMPEXP data_t *            data_serialize(data_t *);
-OBLCORE_IMPEXP void                data_free(data_t *);
-OBLCORE_IMPEXP unsigned int        data_hash(data_t *);
-OBLCORE_IMPEXP data_t *            data_len(data_t *);
-OBLCORE_IMPEXP char *              _data_tostring(data_t *);
-OBLCORE_IMPEXP str_semantics_t     _data_string_semantics(data_t *);
+extern char *              data_encode(data_t *);
+extern data_t *            data_serialize(data_t *);
+extern void                data_free(data_t *);
+extern unsigned int        data_hash(data_t *);
+extern data_t *            data_len(data_t *);
+extern char *              _data_tostring(data_t *);
+extern str_semantics_t     _data_string_semantics(data_t *);
 #define data_string_semantics(d)   _data_string_semantics(data_as_data((d)));
-OBLCORE_IMPEXP data_t *            _data_set_string_semantics(data_t *, str_semantics_t);
+extern data_t *            _data_set_string_semantics(data_t *, str_semantics_t);
 #define data_set_string_semantics(d, s) _data_set_string_semantics(data_as_data((d)), (s))
-OBLCORE_IMPEXP data_t *            _data_invalidate_string(data_t *);
+extern data_t *            _data_invalidate_string(data_t *);
 #define data_invalidate_string(d)  _data_invalidate_string(data_as_data((d)))
-OBLCORE_IMPEXP double              _data_floatval(data_t *);
-OBLCORE_IMPEXP int                 _data_intval(data_t *);
-OBLCORE_IMPEXP int                 data_cmp(data_t *, data_t *);
-OBLCORE_IMPEXP data_t *            data_call(data_t *, arguments_t *);
-OBLCORE_IMPEXP int                 data_hasmethod(data_t *, char *);
-OBLCORE_IMPEXP data_t *            data_method(data_t *, char *);
-OBLCORE_IMPEXP data_t *            data_execute(data_t *, char *, arguments_t *);
-OBLCORE_IMPEXP data_t *            data_resolve(data_t *, name_t *);
-OBLCORE_IMPEXP data_t *            data_invoke(data_t *, name_t *, arguments_t *);
-OBLCORE_IMPEXP int                 data_has(data_t *, name_t *);
-OBLCORE_IMPEXP int                 data_has_callable(data_t *, name_t *);
-OBLCORE_IMPEXP data_t *            data_get(data_t *, name_t *);
-OBLCORE_IMPEXP data_t *            data_get_attribute(data_t *, char *);
-OBLCORE_IMPEXP data_t *            data_set(data_t *, name_t *, data_t *);
-OBLCORE_IMPEXP data_t *            data_set_attribute(data_t *, char *, data_t *);
-OBLCORE_IMPEXP data_t *            data_iter(data_t *);
-OBLCORE_IMPEXP data_t *            data_has_next(data_t *);
-OBLCORE_IMPEXP data_t *            data_next(data_t *);
-OBLCORE_IMPEXP data_t *            data_visit(data_t *, data_t *);
-OBLCORE_IMPEXP data_t *            data_reduce(data_t *, data_t *, data_t *);
-OBLCORE_IMPEXP data_t *            data_reduce_with_fnc(data_t *, reduce_t, data_t *);
-OBLCORE_IMPEXP data_t *            data_read(data_t *, char *, int);
-OBLCORE_IMPEXP data_t *            data_write(data_t *, char *, int);
-OBLCORE_IMPEXP data_t *            data_push(data_t *, data_t *);
-OBLCORE_IMPEXP data_t *            data_pop(data_t *);
-OBLCORE_IMPEXP int                 data_count(void);
-OBLCORE_IMPEXP data_t *            data_interpolate(data_t *, arguments_t *);
-OBLCORE_IMPEXP data_t *            data_query(data_t *, data_t *);
+extern double              _data_floatval(data_t *);
+extern int                 _data_intval(data_t *);
+extern int                 data_cmp(data_t *, data_t *);
+extern data_t *            data_call(data_t *, arguments_t *);
+extern int                 data_hasmethod(data_t *, char *);
+extern data_t *            data_method(data_t *, char *);
+extern data_t *            data_execute(data_t *, char *, arguments_t *);
+extern data_t *            data_resolve(data_t *, name_t *);
+extern data_t *            data_invoke(data_t *, name_t *, arguments_t *);
+extern int                 data_has(data_t *, name_t *);
+extern int                 data_has_callable(data_t *, name_t *);
+extern data_t *            data_get(data_t *, name_t *);
+extern data_t *            data_get_attribute(data_t *, char *);
+extern data_t *            data_set(data_t *, name_t *, data_t *);
+extern data_t *            data_set_attribute(data_t *, char *, data_t *);
+extern data_t *            data_iter(data_t *);
+extern data_t *            data_has_next(data_t *);
+extern data_t *            data_next(data_t *);
+extern data_t *            data_visit(data_t *, data_t *);
+extern data_t *            data_reduce(data_t *, data_t *, data_t *);
+extern data_t *            data_reduce_with_fnc(data_t *, reduce_t, data_t *);
+extern data_t *            data_read(data_t *, char *, int);
+extern data_t *            data_write(data_t *, char *, int);
+extern data_t *            data_push(data_t *, data_t *);
+extern data_t *            data_pop(data_t *);
+extern int                 data_count(void);
+extern data_t *            data_interpolate(data_t *, arguments_t *);
+extern data_t *            data_query(data_t *, data_t *);
 
 /* ------------------------------------------------------------------------ */
 
-OBLCORE_IMPEXP array_t *       data_add_all_reducer(data_t *, array_t *);
-OBLCORE_IMPEXP array_t *       data_add_all_as_data_reducer(char *, array_t *);
-OBLCORE_IMPEXP array_t *       data_add_strings_reducer(data_t *, array_t *);
-OBLCORE_IMPEXP dict_t *        data_put_all_reducer(entry_t *, dict_t *);
+extern array_t *       data_add_all_reducer(data_t *, array_t *);
+extern array_t *       data_add_all_as_data_reducer(char *, array_t *);
+extern array_t *       data_add_strings_reducer(data_t *, array_t *);
+extern dict_t *        data_put_all_reducer(entry_t *, dict_t *);
 
-OBLCORE_IMPEXP type_t          type_data;
+extern type_t          type_data;
 
 #ifndef __INCLUDING_TYPEDESCR_H__
 #include <typedescr.h>
@@ -209,7 +209,7 @@ static inline int data_is_iterator(void *d) {
 
 /* -- P O I N T E R  T Y P E ---------------------------------------------- */
 
-OBLCORE_IMPEXP data_t * data_null(void);
+extern data_t * data_null(void);
 
 type_skel(pointer, Pointer, pointer_t);
 
@@ -242,12 +242,12 @@ static inline data_t * ptr_to_data(size_t sz, void *p) {
 #define data_array_create(i)   (array_set_type(array_create((i)), &type_data))
 #define data_array_get(a, i)   ((data_t *) array_get((a), (i)))
 
-OBLCORE_IMPEXP datalist_t *    datalist_create(array_t *);
-OBLCORE_IMPEXP array_t *       datalist_to_array(datalist_t *);
-OBLCORE_IMPEXP array_t *       datalist_to_str_array(datalist_t *);
-OBLCORE_IMPEXP datalist_t *    str_array_to_datalist(array_t *);
-OBLCORE_IMPEXP datalist_t *    _datalist_set(datalist_t *, int, data_t *);
-OBLCORE_IMPEXP datalist_t *    _datalist_push(datalist_t *, data_t *);
+extern datalist_t *    datalist_create(array_t *);
+extern array_t *       datalist_to_array(datalist_t *);
+extern array_t *       datalist_to_str_array(datalist_t *);
+extern datalist_t *    str_array_to_datalist(array_t *);
+extern datalist_t *    _datalist_set(datalist_t *, int, data_t *);
+extern datalist_t *    _datalist_push(datalist_t *, data_t *);
 
 static inline datalist_t * data_as_list(void *data) {
   return (data_hastype(data_as_data(data), List)) ? (datalist_t *) data : NULL;
@@ -301,9 +301,9 @@ static int data_is_datalist(void *data) {
 
 /* -- N U M E R I C  T Y P E S -------------------------------------------- */
 
-OBLCORE_IMPEXP int_t *         int_create(intptr_t);
-OBLCORE_IMPEXP int_t *         int_parse(char *);
-OBLCORE_IMPEXP flt_t *         float_parse(char *);
+extern int_t *         int_create(intptr_t);
+extern int_t *         int_parse(char *);
+extern flt_t *         float_parse(char *);
 
 static inline int data_intval(void *d) {
   return _data_intval(data_as_data(d));
@@ -343,9 +343,9 @@ static inline data_t * flt_to_data(double f) {
 
 /* -- B O O L  T Y P E ---------------------------------------------------- */
 
-OBLCORE_IMPEXP int_t *         bool_true;
-OBLCORE_IMPEXP int_t *         bool_false;
-OBLCORE_IMPEXP int_t *         bool_get(long);
+extern int_t *         bool_true;
+extern int_t *         bool_false;
+extern int_t *         bool_get(long);
 
 #define int_as_bool(i)         ((data_t *) bool_get((i)))
 #define data_true()            ((data_t *) bool_true)

@@ -25,12 +25,12 @@
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
-__PLUGIN__ parser_t * parser_log(parser_t *parser, data_t *msg) {
+extern parser_t * parser_log(parser_t *parser, data_t *msg) {
   info("parser_log: %s", data_tostring(msg));
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
+extern parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
   nvp_t *nvp;
   
   if (data_is_nvp(keyval)) {
@@ -48,13 +48,13 @@ __PLUGIN__ parser_t * parser_set_variable(parser_t *parser, data_t *keyval) {
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_pushval(parser_t *parser, data_t *data) {
+extern parser_t * parser_pushval(parser_t *parser, data_t *data) {
   debug(parser, "    Pushing value %s", data_tostring(data));
   datastack_push(parser -> stack, data_copy(data));
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_push(parser_t *parser) {
+extern parser_t * parser_push(parser_t *parser) {
   data_t   *data = token_todata(parser -> last_token);
   parser_t *ret = parser_pushval(parser, data);
 
@@ -62,11 +62,11 @@ __PLUGIN__ parser_t * parser_push(parser_t *parser) {
   return ret;
 }
 
-__PLUGIN__ parser_t * parser_push_token(parser_t *parser) {
+extern parser_t * parser_push_token(parser_t *parser) {
   return parser_pushval(parser, (data_t *) parser -> last_token);
 }
 
-__PLUGIN__ parser_t * parser_push_const(parser_t *parser, data_t *constval) {
+extern parser_t * parser_push_const(parser_t *parser, data_t *constval) {
   data_t *data = data_decode(data_tostring(constval));
 
   debug(parser, " -- encoded constant: %s", data_tostring(constval));
@@ -75,7 +75,7 @@ __PLUGIN__ parser_t * parser_push_const(parser_t *parser, data_t *constval) {
   return parser_pushval(parser, data_uncopy(data));
 }
 
-__PLUGIN__ parser_t * parser_discard(parser_t *parser) {
+extern parser_t * parser_discard(parser_t *parser) {
   data_t   *data = datastack_pop(parser -> stack);
 
   debug(parser, "    Discarding value %s", data_tostring(data));
@@ -83,11 +83,11 @@ __PLUGIN__ parser_t * parser_discard(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_dup(parser_t *parser) {
+extern parser_t * parser_dup(parser_t *parser) {
   return parser_pushval(parser, datastack_peek(parser -> stack));
 }
 
-__PLUGIN__ parser_t * parser_push_tokenstring(parser_t *parser) {
+extern parser_t * parser_push_tokenstring(parser_t *parser) {
   data_t   *data = str_to_data(token_token(parser -> last_token));
   parser_t *ret = parser_pushval(parser, data);
 
@@ -95,13 +95,13 @@ __PLUGIN__ parser_t * parser_push_tokenstring(parser_t *parser) {
   return ret;
 }
 
-__PLUGIN__ parser_t * parser_bookmark(parser_t *parser) {
+extern parser_t * parser_bookmark(parser_t *parser) {
   debug(parser, "    Setting bookmark at depth %d", datastack_depth(parser -> stack));
   datastack_bookmark(parser -> stack);
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_pop_bookmark(parser_t *parser) {
+extern parser_t * parser_pop_bookmark(parser_t *parser) {
   array_t *arr;
 
   debug(parser, "    pop bookmark");
@@ -112,7 +112,7 @@ __PLUGIN__ parser_t * parser_pop_bookmark(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_rollup_list(parser_t *parser) {
+extern parser_t * parser_rollup_list(parser_t *parser) {
   array_t    *arr;
   datalist_t *list;
 
@@ -124,7 +124,7 @@ __PLUGIN__ parser_t * parser_rollup_list(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_rollup_name(parser_t *parser) {
+extern parser_t * parser_rollup_name(parser_t *parser) {
   name_t  *name;
 
   name = datastack_rollup_name(parser -> stack);
@@ -134,7 +134,7 @@ __PLUGIN__ parser_t * parser_rollup_name(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_rollup_nvp(parser_t *parser) {
+extern parser_t * parser_rollup_nvp(parser_t *parser) {
   data_t *name;
   data_t *value;
   nvp_t  *nvp;
@@ -149,26 +149,26 @@ __PLUGIN__ parser_t * parser_rollup_nvp(parser_t *parser) {
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_new_counter(parser_t *parser) {
+extern parser_t * parser_new_counter(parser_t *parser) {
   debug(parser, "    Setting new counter");
   datastack_new_counter(parser -> stack);
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_incr(parser_t *parser) {
+extern parser_t * parser_incr(parser_t *parser) {
   debug(parser, "    Incrementing counter");
   datastack_increment(parser -> stack);
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_count(parser_t *parser) {
+extern parser_t * parser_count(parser_t *parser) {
   debug(parser, "    Pushing count to stack");
   datastack_push(parser -> stack,
                  int_to_data(datastack_count(parser -> stack)));
   return parser;
 }
 
-__PLUGIN__ parser_t * parser_discard_counter(parser_t *parser) {
+extern parser_t * parser_discard_counter(parser_t *parser) {
   debug(parser, "    Discarding counter");
   datastack_count(parser -> stack);
   return parser;

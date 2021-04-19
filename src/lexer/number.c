@@ -271,7 +271,7 @@ token_t * _num_match(scanner_t *scanner) {
  * ---------------------------------------------------------------------------
  */
 
-__DLL_EXPORT__ typedescr_t * number_register(void) {
+extern typedescr_t * number_register(void) {
   typedescr_register_with_name(NumScannerConfig, "number", num_config_t);
   return typedescr_get(NumScannerConfig);
 }

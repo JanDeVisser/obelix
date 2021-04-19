@@ -24,7 +24,7 @@ extern int foo;
 
 int foo = 12;
 
-__DLL_EXPORT__ void * testlib_helloworld(char *name) {
+extern void * testlib_helloworld(char *name) {
   printf("Hello world and %s! The testlib was successfully loaded, and foo is %d!\n", name, foo);
   return name;
 }

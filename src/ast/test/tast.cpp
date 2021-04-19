@@ -494,7 +494,7 @@ protected:
 
 extern "C" {
 
-__DLL_EXPORT__ parser_t *make_prefix(parser_t *parser) {
+extern parser_t *make_prefix(parser_t *parser) {
   ast_Expr_t *value;
   token_t *sign;
   ast_Prefix_t *expr;
@@ -507,7 +507,7 @@ __DLL_EXPORT__ parser_t *make_prefix(parser_t *parser) {
   return parser;
 }
 
-__DLL_EXPORT__ parser_t *make_infix(parser_t *parser) {
+extern parser_t *make_infix(parser_t *parser) {
   ast_Expr_t *left;
   ast_Expr_t *right;
   token_t *op;
@@ -522,14 +522,14 @@ __DLL_EXPORT__ parser_t *make_infix(parser_t *parser) {
   return parser;
 }
 
-__DLL_EXPORT__ parser_t *make_const(parser_t *parser) {
+extern parser_t *make_const(parser_t *parser) {
   data_t *number = token_todata(parser->last_token);
   ast_Const_t *expr = ast_Const_create(number);
 
   return parser_pushval(parser, (data_t *) expr);
 }
 
-__DLL_EXPORT__ parser_t *make_variable(parser_t *parser) {
+extern parser_t *make_variable(parser_t *parser) {
   data_t *name = token_todata(parser->last_token);
   name_t *n = name_create(1, data_tostring(name));
   ast_Variable_t *expr = ast_Variable_create(n);
@@ -539,7 +539,7 @@ __DLL_EXPORT__ parser_t *make_variable(parser_t *parser) {
   return parser_pushval(parser, (data_t *) expr);
 }
 
-__DLL_EXPORT__ parser_t *assign_result(parser_t *parser) {
+extern parser_t *assign_result(parser_t *parser) {
   ast_Expr_t *expr = (ast_Expr_t *) datastack_pop(parser->stack);
   dictionary_t *ctx = dictionary_create(NULL);
 

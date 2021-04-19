@@ -101,7 +101,7 @@ static void _debug_print_var(debugger_t *debugger, char *cmd) {
 
 /* ----------------------------------------------------------------------- */
 
-OBLVM_IMPEXP debugger_t * debugger_create(vm_t *vm, data_t *scope) {
+extern debugger_t * debugger_create(vm_t *vm, data_t *scope) {
   debugger_t *ret = NEW(debugger_t);
   
   ret -> scope = scope;
@@ -111,13 +111,13 @@ OBLVM_IMPEXP debugger_t * debugger_create(vm_t *vm, data_t *scope) {
   return ret;
 }
 
-OBLVM_IMPEXP void debugger_start(debugger_t *debugger) {
+extern void debugger_start(debugger_t *debugger) {
   if (debugger -> status == DebugStatusSingleStep) {
     printf("Starting '%s'\n", vm_tostring(debugger -> vm));
   }
 }
 
-OBLVM_IMPEXP debugcmd_t debugger_step_before(debugger_t *debugger, instruction_t *instr) {
+extern debugcmd_t debugger_step_before(debugger_t *debugger, instruction_t *instr) {
   char       *line;
   char       *trimmed;
   debugcmd_t  ret = DebugCmdNone;
@@ -168,13 +168,13 @@ OBLVM_IMPEXP debugcmd_t debugger_step_before(debugger_t *debugger, instruction_t
   return ret;
 }
 
-OBLVM_IMPEXP void debugger_step_after(debugger_t *debugger, instruction_t * instr, data_t *ret) {
+extern void debugger_step_after(debugger_t *debugger, instruction_t * instr, data_t *ret) {
   if ((debugger -> status == DebugStatusSingleStep) && ret && (ret != data_null())) {
     printf("  -> %s (%s)\n", data_tostring(ret), data_typename(ret));
   }
 }
 
-OBLVM_IMPEXP void debugger_exit(debugger_t *debugger, data_t *ret) {
+extern void debugger_exit(debugger_t *debugger, data_t *ret) {
   if (debugger -> status == DebugStatusSingleStep) {
     printf("  '%s' returns %s (%s)\n", 
            vm_tostring(debugger -> vm), 
@@ -183,6 +183,6 @@ OBLVM_IMPEXP void debugger_exit(debugger_t *debugger, data_t *ret) {
   }
 }
 
-OBLVM_IMPEXP void debugger_free(debugger_t *debugger) {
+extern void debugger_free(debugger_t *debugger) {
   free(debugger);
 }

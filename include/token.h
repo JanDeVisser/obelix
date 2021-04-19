@@ -83,20 +83,20 @@ typedef struct _token {
   int           column;
 } token_t;
 
-OBLLEXER_IMPEXP char *       token_code_name(token_code_t);
+extern char *       token_code_name(token_code_t);
 
-OBLLEXER_IMPEXP token_t *    token_create(unsigned int, char *);
-OBLLEXER_IMPEXP token_t *    token_parse(char *);
-OBLLEXER_IMPEXP unsigned int token_hash(token_t *);
-OBLLEXER_IMPEXP int          token_cmp(token_t *, token_t *);
-OBLLEXER_IMPEXP unsigned int token_code(token_t *);
-OBLLEXER_IMPEXP char *       token_token(token_t *);
-OBLLEXER_IMPEXP token_t *    token_assign(token_t *, unsigned int, char *);
-OBLLEXER_IMPEXP int          token_iswhitespace(token_t *);
-OBLLEXER_IMPEXP void         token_dump(token_t *);
-OBLLEXER_IMPEXP data_t *     token_todata(token_t *);
+extern token_t *    token_create(unsigned int, char *);
+extern token_t *    token_parse(char *);
+extern unsigned int token_hash(token_t *);
+extern int          token_cmp(token_t *, token_t *);
+extern unsigned int token_code(token_t *);
+extern char *       token_token(token_t *);
+extern token_t *    token_assign(token_t *, unsigned int, char *);
+extern int          token_iswhitespace(token_t *);
+extern void         token_dump(token_t *);
+extern data_t *     token_todata(token_t *);
 
-OBLLEXER_IMPEXP int Token;
+extern int Token;
 type_skel(token, Token, token_t);
 
 #define strtoken_dict_create()  strdata_dict_create()

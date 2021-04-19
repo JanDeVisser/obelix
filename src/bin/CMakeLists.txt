@@ -7,7 +7,7 @@ add_custom_command (
 )
 
 add_library(scriptparse SHARED scriptparse.c)
-target_link_libraries(scriptparse oblvm oblparser oblgrammar obllexer oblcore ${SYSLIBS})
+target_link_libraries(scriptparse oblast oblparser oblgrammar obllexer oblcore ${SYSLIBS})
 
 set(SOURCES oblgrammar.c loader.c obelix.c)
 set(LIBS ${SYSLIBS})
@@ -18,7 +18,7 @@ if(READLINE_FOUND)
 endif(READLINE_FOUND)
 
 add_executable(obelix ${SOURCES})
-target_link_libraries(obelix scriptparse oblipc oblnet oblruntime oblvm oblparser oblgrammar obllexer oblcore ${LIBS})
+target_link_libraries(obelix scriptparse oblipc oblnet oblruntime oblast oblparser oblgrammar obllexer oblcore ${LIBS})
 target_include_directories(obelix PRIVATE ${INCLUDES})
 
 install(TARGETS scriptparse obelix

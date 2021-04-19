@@ -7,7 +7,7 @@ add_library(oblruntime SHARED
         script.c
 )
 
-target_link_libraries(oblruntime PUBLIC oblvm oblcore)
+target_link_libraries(oblruntime PUBLIC oblast oblcore)
 
 install(TARGETS oblruntime
         ARCHIVE DESTINATION lib

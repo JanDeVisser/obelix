@@ -25,7 +25,7 @@
 static         void          _sql_init(void);
 static         typedescr_t * _dbconn_register(typedescr_t *);
 static         int           _dbconn_get_driver(char *);
-__PLUGIN__     data_t *      _function_dbconnect(char *, arguments_t *);
+extern     data_t *      _function_dbconnect(char *, arguments_t *);
 
 static dbconn_t * _dbconn_new(dbconn_t *, va_list);
 static void       _dbconn_free(dbconn_t *);
@@ -211,7 +211,7 @@ data_t * dbconn_create(char *connectstr) {
 
 /* -------------------------------------------------------------------------*/
 
-__PLUGIN__ data_t * _function_dbconnect(char *func_name, arguments_t *args);
+extern data_t * _function_dbconnect(char *func_name, arguments_t *args);
 
 /* -- T X _ T  ------------------------------------------------------------ */
 
@@ -260,7 +260,7 @@ data_t * _tx_query(tx_t *tx, data_t *query) {
   return data_query((data_t *) tx -> conn, query);
 }
 
-__PLUGIN__ data_t *_function_dbconnect(char *func_name, arguments_t *args) {
+extern data_t *_function_dbconnect(char *func_name, arguments_t *args) {
   _sql_init();
   debug(sql, "Connecting to database %s", arguments_arg_tostring(args, 0));
   return (!args || !arguments_args_size(args))

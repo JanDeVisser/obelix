@@ -31,10 +31,6 @@
 
 #include <logging.h>
 
-#ifndef OBLCORE_IMPEXP
-  #define OBLCORE_IMPEXP       __DLL_IMPORT__
-#endif /* OBLCORE_IMPEXP */
-
 #ifndef HAVE_INTPTR_T
 typedef long long intptr_t; /* FIXME: 32bits! */
 #endif /* HAVE_INTPTR_T */
@@ -99,57 +95,57 @@ typedef struct _reduce_ctx {
   void_t          fnc;
 } reduce_ctx;
 
-OBLCORE_IMPEXP void *          _new(size_t);
-OBLCORE_IMPEXP void *          new_array(size_t, size_t);
-OBLCORE_IMPEXP void *          new_ptrarray(size_t);
-OBLCORE_IMPEXP void *          resize_block(void *, size_t, size_t);
-OBLCORE_IMPEXP void *          resize_ptrarray(void *, size_t, size_t);
+extern void *          _new(size_t);
+extern void *          new_array(size_t, size_t);
+extern void *          new_ptrarray(size_t);
+extern void *          resize_block(void *, size_t, size_t);
+extern void *          resize_ptrarray(void *, size_t, size_t);
 
-OBLCORE_IMPEXP int             oblcore_asprintf(char **, const char *, ...);
-OBLCORE_IMPEXP int             oblcore_vasprintf(char **, const char *, va_list);
-OBLCORE_IMPEXP unsigned int    hash(const void *, size_t);
-OBLCORE_IMPEXP unsigned int    hashptr(const void *);
-OBLCORE_IMPEXP unsigned int    hashlong(long);
-OBLCORE_IMPEXP unsigned int    hashdouble(double);
-OBLCORE_IMPEXP unsigned int    hashblend(unsigned int, unsigned int);
+extern int             oblcore_asprintf(char **, const char *, ...);
+extern int             oblcore_vasprintf(char **, const char *, va_list);
+extern unsigned int    hash(const void *, size_t);
+extern unsigned int    hashptr(const void *);
+extern unsigned int    hashlong(long);
+extern unsigned int    hashdouble(double);
+extern unsigned int    hashblend(unsigned int, unsigned int);
 
-OBLCORE_IMPEXP void            initialize_random(void);
-OBLCORE_IMPEXP char *          strrand(char *, size_t);
-OBLCORE_IMPEXP unsigned int    strhash(const char *);
-OBLCORE_IMPEXP char *          strltrim(char *);
-OBLCORE_IMPEXP char *          strrtrim(char *);
-OBLCORE_IMPEXP char *          strtrim(char *);
-OBLCORE_IMPEXP char *          chars(const void *);
-OBLCORE_IMPEXP int             atob(const char *);
-OBLCORE_IMPEXP char *          btoa(long);
-OBLCORE_IMPEXP int             strtoint(const char *, long *);
-OBLCORE_IMPEXP char *          oblcore_itoa(long);
-OBLCORE_IMPEXP char *          oblcore_dtoa(double);
+extern void            initialize_random(void);
+extern char *          strrand(char *, size_t);
+extern unsigned int    strhash(const char *);
+extern char *          strltrim(char *);
+extern char *          strrtrim(char *);
+extern char *          strtrim(char *);
+extern char *          chars(const void *);
+extern int             atob(const char *);
+extern char *          btoa(long);
+extern int             strtoint(const char *, long *);
+extern char *          oblcore_itoa(long);
+extern char *          oblcore_dtoa(double);
 
-OBLCORE_IMPEXP int             oblcore_strcasecmp(const char *, const char *);
-OBLCORE_IMPEXP int             oblcore_strncasecmp(const char *, const char *, size_t);
+extern int             oblcore_strcasecmp(const char *, const char *);
+extern int             oblcore_strncasecmp(const char *, const char *, size_t);
 
-OBLCORE_IMPEXP char *          escape(char *, const char *, char);
-OBLCORE_IMPEXP char *          unescape(char *, char);
+extern char *          escape(char *, const char *, char);
+extern char *          unescape(char *, char);
 #define c_escape(s)            (escape((s), "\"\\", '\\'))
 #define c_unescape(s)          (unescape((s), '\\'))
 
-OBLCORE_IMPEXP char *          label_for_code(code_label_t *, int);
-OBLCORE_IMPEXP char *          labels_for_bitmap(code_label_t *, int, char *, size_t);
-OBLCORE_IMPEXP int             code_for_label(code_label_t *, const char *);
+extern char *          label_for_code(code_label_t *, int);
+extern char *          labels_for_bitmap(code_label_t *, int, char *, size_t);
+extern int             code_for_label(code_label_t *, const char *);
 
-OBLCORE_IMPEXP reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
-OBLCORE_IMPEXP reduce_ctx *    reduce_ctx_initialize(reduce_ctx *, void *, void *, void_t);
-OBLCORE_IMPEXP reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
-OBLCORE_IMPEXP reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
-OBLCORE_IMPEXP visit_t         collection_visitor(void *, visit_t);
+extern reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
+extern reduce_ctx *    reduce_ctx_initialize(reduce_ctx *, void *, void *, void_t);
+extern reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
+extern reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
+extern visit_t         collection_visitor(void *, visit_t);
 
 typedef enum coretype {
   CTString,
   CTInteger
 } coretype_t ;
 
-OBLCORE_IMPEXP type_t *         coretype(coretype_t);
+extern type_t *         coretype(coretype_t);
 
 #define new(i)                    (_new((i)))
 #define stralloc(n)               ((char *) _new((n) + 1))

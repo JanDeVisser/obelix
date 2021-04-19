@@ -47,16 +47,16 @@ typedef struct _stream {
   data_t    *error;
 } stream_t;
 
-OBLCORE_IMPEXP stream_t *   stream_init(stream_t *, read_t, write_t);
-OBLCORE_IMPEXP data_t *     stream_error(stream_t *);
-OBLCORE_IMPEXP int          stream_read(stream_t *, char *, int);
-OBLCORE_IMPEXP int          stream_write(stream_t *, char *, int);
-OBLCORE_IMPEXP int          stream_getchar(stream_t *);
-OBLCORE_IMPEXP char *       stream_readline(stream_t *);
-OBLCORE_IMPEXP int          stream_print(stream_t *, char *, arguments_t *);
-OBLCORE_IMPEXP int          stream_vprintf(stream_t *, char *, va_list);
-OBLCORE_IMPEXP int          stream_printf(stream_t *, char *, ...);
-OBLCORE_IMPEXP int          stream_eof(stream_t *);
+extern stream_t *   stream_init(stream_t *, read_t, write_t);
+extern data_t *     stream_error(stream_t *);
+extern int          stream_read(stream_t *, char *, int);
+extern int          stream_write(stream_t *, char *, int);
+extern int          stream_getchar(stream_t *);
+extern char *       stream_readline(stream_t *);
+extern int          stream_print(stream_t *, char *, arguments_t *);
+extern int          stream_vprintf(stream_t *, char *, va_list);
+extern int          stream_printf(stream_t *, char *, ...);
+extern int          stream_eof(stream_t *);
 
 typedef struct _file {
   stream_t  _stream;
@@ -64,24 +64,24 @@ typedef struct _file {
   char     *fname;
 } file_t;
 
-OBLCORE_IMPEXP int          file_flags(const char *);
-OBLCORE_IMPEXP int          file_mode(const char *);
-OBLCORE_IMPEXP file_t *     file_create(int);
-OBLCORE_IMPEXP file_t *     file_open_ext(const char *, ...);
-OBLCORE_IMPEXP file_t *     file_open(const char *);
-OBLCORE_IMPEXP int          file_close(file_t *);
-OBLCORE_IMPEXP char *       file_name(file_t *);
-OBLCORE_IMPEXP unsigned int file_hash(file_t *);
-OBLCORE_IMPEXP int          file_cmp(file_t *, file_t *);
-OBLCORE_IMPEXP int          file_write(file_t *, char *, int);
-OBLCORE_IMPEXP int          file_read(file_t *, char *, int);
-OBLCORE_IMPEXP int          file_seek(file_t *, int);
-OBLCORE_IMPEXP int          file_isopen(file_t *);
-OBLCORE_IMPEXP int          file_flush(file_t *);
-OBLCORE_IMPEXP int          file_redirect(file_t *, char *);
+extern int          file_flags(const char *);
+extern int          file_mode(const char *);
+extern file_t *     file_create(int);
+extern file_t *     file_open_ext(const char *, ...);
+extern file_t *     file_open(const char *);
+extern int          file_close(file_t *);
+extern char *       file_name(file_t *);
+extern unsigned int file_hash(file_t *);
+extern int          file_cmp(file_t *, file_t *);
+extern int          file_write(file_t *, char *, int);
+extern int          file_read(file_t *, char *, int);
+extern int          file_seek(file_t *, int);
+extern int          file_isopen(file_t *);
+extern int          file_flush(file_t *);
+extern int          file_redirect(file_t *, char *);
 
-OBLCORE_IMPEXP int          Stream;
-OBLCORE_IMPEXP int          File;
+extern int          Stream;
+extern int          File;
 
 type_skel(stream, Stream, stream_t);
 type_skel(file, File, file_t);

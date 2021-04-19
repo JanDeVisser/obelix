@@ -24,10 +24,6 @@
 #include <data.h>
 #include <net.h>
 
-#ifndef OBLSQL_IMPEXP
-  #define OBLSQL_IMPEXP	__DLL_IMPORT__
-#endif /* OBLSQL_IMPEXP */
-
 typedef enum _dbconn_status {
   DBConnUninitialized = 0,
   DBConnInitialized,
@@ -46,11 +42,11 @@ typedef struct _tx {
   dbconn_t *conn;
 } tx_t;
 
-OBLSQL_IMPEXP data_t * dbconn_create(char *);
+extern data_t * dbconn_create(char *);
 
-OBLSQL_IMPEXP int ErrorSQL;
-OBLSQL_IMPEXP int DBConnection;
-OBLSQL_IMPEXP int DBTransaction;
+extern int ErrorSQL;
+extern int DBConnection;
+extern int DBTransaction;
 
 type_skel(dbconn, DBConnection, dbconn_t);
 type_skel(tx, DBTransaction, tx_t);

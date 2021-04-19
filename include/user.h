@@ -41,13 +41,13 @@ typedef struct _user {
   char   *home_dir;
 } user_t;
 
-OBLCORE_IMPEXP data_t *     current_user(void);
-OBLCORE_IMPEXP data_t *     create_user_byuid(uid_t);
-OBLCORE_IMPEXP data_t *     create_user_byname(char *);
-OBLCORE_IMPEXP int          user_cmp(user_t *, user_t *);
-OBLCORE_IMPEXP unsigned int user_hash(user_t *);
+extern data_t *     current_user(void);
+extern data_t *     create_user_byuid(uid_t);
+extern data_t *     create_user_byname(char *);
+extern int          user_cmp(user_t *, user_t *);
+extern unsigned int user_hash(user_t *);
 
-OBLCORE_IMPEXP int User;
+extern int User;
 
 #define data_is_user(d)     ((d) && data_hastype((d), User))
 #define data_as_user(d)     (data_is_user((d)) ? ((user_t *) (d)) : NULL)

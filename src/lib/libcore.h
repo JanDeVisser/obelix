@@ -23,10 +23,6 @@
 
 #include <oblconfig.h>
 
-#ifndef OBLCORE_IMPEXP
-#define OBLCORE_IMPEXP       __DLL_EXPORT__
-#endif
-
 #include <core.h>
 
 extern void     any_init(void);
@@ -44,7 +40,7 @@ extern void     name_init(void);
 extern void     hierarchy_init(void);
 extern void     nvp_init(void);
 
-extern int  data_debug;
-extern int  name_debug;
+extern int      data_debug;
+extern int      name_debug;
 
 #endif /* __LIBCORE_H__ */

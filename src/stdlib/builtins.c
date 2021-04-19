@@ -23,7 +23,7 @@
 #include <array.h>
 #include <data.h>
 
-__DLL_EXPORT__ _unused_ data_t * _function_print(char *_unused_ func_name, arguments_t *args) {
+extern _unused_ data_t * _function_print(char *_unused_ func_name, arguments_t *args) {
   data_t  *fmt = NULL;
   data_t  *s;
 
@@ -46,7 +46,7 @@ __DLL_EXPORT__ _unused_ data_t * _function_print(char *_unused_ func_name, argum
   return s;
 }
 
-__DLL_EXPORT__ _unused_ data_t * _function_sleep(char _unused_ *func_name, arguments_t *args) {
+extern _unused_ data_t * _function_sleep(char _unused_ *func_name, arguments_t *args) {
   data_t       *naptime;
 
   assert(args && arguments_args_size(args));
@@ -55,7 +55,7 @@ __DLL_EXPORT__ _unused_ data_t * _function_sleep(char _unused_ *func_name, argum
   return int_to_data(sleep((unsigned int) data_intval(naptime)));
 }
 
-__DLL_EXPORT__ _unused_ data_t * _function_usleep(char _unused_ *func_name, arguments_t *args) {
+extern _unused_ data_t * _function_usleep(char _unused_ *func_name, arguments_t *args) {
   data_t  *naptime;
 
   assert(args && arguments_args_size(args));

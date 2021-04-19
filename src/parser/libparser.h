@@ -22,7 +22,6 @@
 #define __LIBPARSER_H__
 
 #include <oblconfig.h>
-#define OBLPARSER_IMPEXP __DLL_EXPORT__
 
 #include <parser.h>
 

@@ -30,17 +30,13 @@
 #include <name.h>
 #include <nvp.h>
 #include <set.h>
-#include <vm.h>
+#include <ast.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
 /* ------------------------------------------------------------------------ */
-
-#ifndef OBLRUNTIME_IMPEXP
-  #define OBLRUNTIME_IMPEXP	__DLL_IMPORT__
-#endif /* OBLRUNTIME_IMPEXP */
 
 /* -- F O R W A R D  D E C L A R A T I O N S ------------------------------ */
 
@@ -62,19 +58,19 @@ struct _object {
   data_t       *retval;
 };
 
-OBLRUNTIME_IMPEXP object_t *       object_create(data_t *);
-OBLRUNTIME_IMPEXP data_t *         object_get(object_t *, char *);
-OBLRUNTIME_IMPEXP data_t *         object_set(object_t *, char *, data_t *);
-OBLRUNTIME_IMPEXP int              object_has(object_t *, char *);
-OBLRUNTIME_IMPEXP data_t *         object_call(object_t *, arguments_t *);
-OBLRUNTIME_IMPEXP unsigned int     object_hash(object_t *);
-OBLRUNTIME_IMPEXP int              object_cmp(object_t *, object_t *);
-OBLRUNTIME_IMPEXP data_t *         object_resolve(object_t *, char *);
-OBLRUNTIME_IMPEXP object_t *       object_bind_all(object_t *, data_t *);
-OBLRUNTIME_IMPEXP data_t *         object_ctx_enter(object_t *);
-OBLRUNTIME_IMPEXP data_t *         object_ctx_leave(object_t *, data_t *);
+extern object_t *       object_create(data_t *);
+extern data_t *         object_get(object_t *, char *);
+extern data_t *         object_set(object_t *, char *, data_t *);
+extern int              object_has(object_t *, char *);
+extern data_t *         object_call(object_t *, arguments_t *);
+extern unsigned int     object_hash(object_t *);
+extern int              object_cmp(object_t *, object_t *);
+extern data_t *         object_resolve(object_t *, char *);
+extern object_t *       object_bind_all(object_t *, data_t *);
+extern data_t *         object_ctx_enter(object_t *);
+extern data_t *         object_ctx_leave(object_t *, data_t *);
 
-OBLRUNTIME_IMPEXP int Object;
+extern int Object;
 
 type_skel(object, Object, object_t);
 #define data_create_object(o) data_create(Object, (o))
@@ -101,18 +97,18 @@ struct _module {
   data_t      *parser;
 };
 
-OBLRUNTIME_IMPEXP module_t *    mod_create(namespace_t *, name_t *);
-OBLRUNTIME_IMPEXP unsigned int  mod_hash(module_t *);
-OBLRUNTIME_IMPEXP int           mod_cmp(module_t *, module_t *);
-OBLRUNTIME_IMPEXP int           mod_cmp_name(module_t *, name_t *);
-OBLRUNTIME_IMPEXP object_t *    mod_get(module_t *);
-OBLRUNTIME_IMPEXP data_t *      mod_set(module_t *, script_t *, arguments_t *);
-OBLRUNTIME_IMPEXP data_t *      mod_resolve(module_t *, char *);
-OBLRUNTIME_IMPEXP data_t *      mod_import(module_t *, name_t *);
-OBLRUNTIME_IMPEXP module_t *    mod_exit(module_t *, data_t *);
-OBLRUNTIME_IMPEXP data_t *      mod_exit_code(module_t *);
+extern module_t *    mod_create(namespace_t *, name_t *);
+extern unsigned int  mod_hash(module_t *);
+extern int           mod_cmp(module_t *, module_t *);
+extern int           mod_cmp_name(module_t *, name_t *);
+extern object_t *    mod_get(module_t *);
+extern data_t *      mod_set(module_t *, script_t *, arguments_t *);
+extern data_t *      mod_resolve(module_t *, char *);
+extern data_t *      mod_import(module_t *, name_t *);
+extern module_t *    mod_exit(module_t *, data_t *);
+extern data_t *      mod_exit_code(module_t *);
 
-OBLRUNTIME_IMPEXP int Module;
+extern int Module;
 
 type_skel(mod, Module, module_t);
 #define data_create_module(o)  data_create(Module, (o))
@@ -128,14 +124,14 @@ struct _namespace {
   dict_t   *modules;
 };
 
-OBLRUNTIME_IMPEXP namespace_t * ns_create(char *, void *, import_t);
-OBLRUNTIME_IMPEXP data_t *      ns_import(namespace_t *, name_t *);
-OBLRUNTIME_IMPEXP data_t *      ns_execute(namespace_t *, name_t *, arguments_t *);
-OBLRUNTIME_IMPEXP data_t *      ns_get(namespace_t *, name_t *);
-OBLRUNTIME_IMPEXP namespace_t * ns_exit(namespace_t *, data_t *);
-OBLRUNTIME_IMPEXP data_t *      ns_exit_code(namespace_t *);
+extern namespace_t * ns_create(char *, void *, import_t);
+extern data_t *      ns_import(namespace_t *, name_t *);
+extern data_t *      ns_execute(namespace_t *, name_t *, arguments_t *);
+extern data_t *      ns_get(namespace_t *, name_t *);
+extern namespace_t * ns_exit(namespace_t *, data_t *);
+extern data_t *      ns_exit_code(namespace_t *);
 
-OBLRUNTIME_IMPEXP int Namespace;
+extern int Namespace;
 
 type_skel(ns, Namespace, namespace_t);
 
@@ -157,20 +153,20 @@ struct _script {
   dictionary_t  *functions;
   array_t       *params;
   module_t      *mod;
-  bytecode_t    *bytecode;
+  ast_Script_t  *ast;
 };
 
-OBLRUNTIME_IMPEXP script_t *       script_create(data_t *, char *);
-OBLRUNTIME_IMPEXP name_t *         script_fullname(script_t *);
-OBLRUNTIME_IMPEXP int              script_cmp(script_t *, script_t *);
-OBLRUNTIME_IMPEXP unsigned int     script_hash(script_t *);
-OBLRUNTIME_IMPEXP void             script_list(script_t *);
-OBLRUNTIME_IMPEXP script_t *       script_get_toplevel(script_t *);
-OBLRUNTIME_IMPEXP data_t *         script_execute(script_t *, arguments_t *);
-OBLRUNTIME_IMPEXP data_t *         script_create_object(script_t *, arguments_t *);
-OBLRUNTIME_IMPEXP bound_method_t * script_bind(script_t *, object_t *);
+extern script_t *       script_create(data_t *, char *);
+extern name_t *         script_fullname(script_t *);
+extern int              script_cmp(script_t *, script_t *);
+extern unsigned int     script_hash(script_t *);
+extern void             script_list(script_t *);
+extern script_t *       script_get_toplevel(script_t *);
+extern data_t *         script_execute(script_t *, arguments_t *);
+extern data_t *         script_create_object(script_t *, arguments_t *);
+extern bound_method_t * script_bind(script_t *, object_t *);
 
-OBLRUNTIME_IMPEXP int Script;
+extern int Script;
 
 type_skel(script, Script, script_t);
 
@@ -178,19 +174,19 @@ type_skel(script, Script, script_t);
 
 /* -- B O U N D M E T H O D _ T ------------------------------------------- */
 
-struct _bound_method {
+typedef struct _bound_method {
   data_t     _d;
   script_t  *script;
   object_t  *self;
   closure_t *closure;
-};
+} bound_method_t;
 
-OBLRUNTIME_IMPEXP bound_method_t * bound_method_create(script_t *, object_t *);
-OBLRUNTIME_IMPEXP int              bound_method_cmp(bound_method_t *, bound_method_t *);
-OBLRUNTIME_IMPEXP closure_t *      bound_method_get_closure(bound_method_t *);
-OBLRUNTIME_IMPEXP data_t *         bound_method_execute(bound_method_t *, arguments_t *);
+extern bound_method_t * bound_method_create(script_t *, object_t *);
+extern int              bound_method_cmp(bound_method_t *, bound_method_t *);
+extern closure_t *      bound_method_get_closure(bound_method_t *);
+extern data_t *         bound_method_execute(bound_method_t *, arguments_t *);
 
-OBLRUNTIME_IMPEXP int BoundMethod;
+extern int BoundMethod;
 
 type_skel(bound_method, BoundMethod, bound_method_t);
 
@@ -200,7 +196,7 @@ struct _closure {
   data_t           _d;
   struct _closure *up;
   script_t        *script;
-  bytecode_t      *bytecode;
+  ast_Expr_t      *ast;
   data_t          *self;
   dictionary_t    *params;
   dictionary_t    *variables;
@@ -208,19 +204,19 @@ struct _closure {
   int              line;
 };
 
-OBLRUNTIME_IMPEXP closure_t *        closure_create(script_t *, closure_t *, data_t *);
-OBLRUNTIME_IMPEXP int                closure_cmp(closure_t *, closure_t *);
-OBLRUNTIME_IMPEXP unsigned int       closure_hash(closure_t *);
-OBLRUNTIME_IMPEXP data_t *           closure_set(closure_t *, char *, data_t *);
-OBLRUNTIME_IMPEXP data_t *           closure_get(closure_t *, char *);
-OBLRUNTIME_IMPEXP int                closure_has(closure_t *, char *);
-OBLRUNTIME_IMPEXP data_t *           closure_resolve(closure_t *, char *);
-OBLRUNTIME_IMPEXP data_t *           closure_execute(closure_t *, arguments_t *);
-OBLRUNTIME_IMPEXP data_t *           closure_import(closure_t *, name_t *);
-OBLRUNTIME_IMPEXP exception_t *      closure_yield(closure_t *, vm_t *);
-OBLRUNTIME_IMPEXP data_t *           closure_eval(closure_t *, script_t *);
+extern closure_t *        closure_create(script_t *, closure_t *, data_t *);
+extern int                closure_cmp(closure_t *, closure_t *);
+extern unsigned int       closure_hash(closure_t *);
+extern data_t *           closure_set(closure_t *, char *, data_t *);
+extern data_t *           closure_get(closure_t *, char *);
+extern int                closure_has(closure_t *, char *);
+extern data_t *           closure_resolve(closure_t *, char *);
+extern data_t *           closure_execute(closure_t *, arguments_t *);
+extern data_t *           closure_import(closure_t *, name_t *);
+extern exception_t *      closure_yield(closure_t *, ast_Expr_t *);
+extern data_t *           closure_eval(closure_t *, script_t *);
 
-OBLRUNTIME_IMPEXP int Closure;
+extern int Closure;
 type_skel(closure, Closure, closure_t);
 #define data_create_closure(c)  data_create(Closure, (c))
 
@@ -228,21 +224,21 @@ type_skel(closure, Closure, closure_t);
  * -- G E N E R A T O R _ T ----------------------------------------------- */
 
 typedef struct _generator {
-  data_t       _d;
-  closure_t   *closure;
-  vm_t        *vm;
-  exception_t *status;
+  data_t        _d;
+  closure_t    *closure;
+  ast_Expr_t   *ast;
+  exception_t  *status;
 } generator_t;
 
-OBLRUNTIME_IMPEXP generator_t *    generator_create(closure_t *, vm_t *, exception_t *);
-OBLRUNTIME_IMPEXP data_t *         generator_next(generator_t *);
-OBLRUNTIME_IMPEXP int              generator_has_next(generator_t *);
-OBLRUNTIME_IMPEXP generator_t *    generator_interrupt(generator_t *);
+extern generator_t *    generator_create(closure_t *, exception_t *);
+extern data_t *         generator_next(generator_t *);
+extern int              generator_has_next(generator_t *);
+extern generator_t *    generator_interrupt(generator_t *);
 
-OBLRUNTIME_IMPEXP int Generator;
+extern int Generator;
 type_skel(generator, Generator, generator_t);
 
-#ifdef  __ cplusplus
+#ifdef  __cplusplus
 }
 #endif /* __cplusplus */
 

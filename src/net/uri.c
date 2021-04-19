@@ -34,8 +34,8 @@ static uri_t *        _uri_new(uri_t *, va_list);
 static data_t *       _uri_resolve(uri_t *, char *);
 static void           _uri_free(uri_t *);
 
-__DLL_EXPORT__ data_t *    _function_create_uri(char *, array_t *, dict_t *);
-__DLL_EXPORT__ data_t *    _function_net_init(char *, array_t *, dict_t *);
+extern data_t *    _function_create_uri(char *, array_t *, dict_t *);
+extern data_t *    _function_net_init(char *, array_t *, dict_t *);
 
 extern         grammar_t * uri_grammar_build(void);
 
@@ -203,12 +203,12 @@ char * uri_path(uri_t *uri) {
 
 /* ------------------------------------------------------------------------ */
 
-OBLNET_IMPEXP parser_t * uri_parse_init(parser_t *parser) {
+extern parser_t * uri_parse_init(parser_t *parser) {
   debug(net, "parsing starting");
   return parser;
 }
 
-OBLNET_IMPEXP parser_t * uri_parse_set_scheme(parser_t *parser) {
+extern parser_t * uri_parse_set_scheme(parser_t *parser) {
   uri_t *uri = (uri_t *) parser -> data;
 
   uri -> scheme = strdup(token_token(parser -> last_token));
@@ -216,7 +216,7 @@ OBLNET_IMPEXP parser_t * uri_parse_set_scheme(parser_t *parser) {
   return parser;
 }
 
-OBLNET_IMPEXP parser_t * uri_parse_set_credentials(parser_t *parser) {
+extern parser_t * uri_parse_set_credentials(parser_t *parser) {
   uri_t *uri = (uri_t *) parser -> data;
   str_t *password = (str_t *) datastack_pop(parser -> stack);
   str_t *user = (str_t *) datastack_pop(parser -> stack);
@@ -227,7 +227,7 @@ OBLNET_IMPEXP parser_t * uri_parse_set_credentials(parser_t *parser) {
   return parser;
 }
 
-OBLNET_IMPEXP parser_t * uri_parse_set_host(parser_t *parser) {
+extern parser_t * uri_parse_set_host(parser_t *parser) {
   uri_t *uri = (uri_t *) parser -> data;
   str_t *host = (str_t *) datastack_pop(parser -> stack);
 
@@ -236,7 +236,7 @@ OBLNET_IMPEXP parser_t * uri_parse_set_host(parser_t *parser) {
   return parser;
 }
 
-OBLNET_IMPEXP parser_t * uri_parse_set_port(parser_t *parser) {
+extern parser_t * uri_parse_set_port(parser_t *parser) {
   uri_t *uri = (uri_t *) parser -> data;
   str_t *portstr = (str_t *) datastack_pop(parser -> stack);
   long   port;
@@ -252,7 +252,7 @@ OBLNET_IMPEXP parser_t * uri_parse_set_port(parser_t *parser) {
   return parser;
 }
 
-OBLNET_IMPEXP parser_t * uri_parse_set_path(parser_t *parser) {
+extern parser_t * uri_parse_set_path(parser_t *parser) {
   uri_t  *uri = (uri_t *) parser -> data;
 
   uri -> path = (name_t *) datastack_pop(parser -> stack);
@@ -260,7 +260,7 @@ OBLNET_IMPEXP parser_t * uri_parse_set_path(parser_t *parser) {
   return parser;
 }
 
-OBLNET_IMPEXP parser_t * uri_parse_set_query(parser_t *parser) {
+extern parser_t * uri_parse_set_query(parser_t *parser) {
   uri_t   *uri = (uri_t *) parser -> data;
   data_t  *data;
   array_t *query = data_as_array(data = datastack_pop(parser -> stack));
@@ -282,7 +282,7 @@ OBLNET_IMPEXP parser_t * uri_parse_set_query(parser_t *parser) {
   return parser;
 }
 
-OBLNET_IMPEXP parser_t * uri_parse_set_fragment(parser_t *parser) {
+extern parser_t * uri_parse_set_fragment(parser_t *parser) {
   uri_t *uri = (uri_t *) parser -> data;
 
   uri -> fragment = strdup(token_token(parser -> last_token));
@@ -290,7 +290,7 @@ OBLNET_IMPEXP parser_t * uri_parse_set_fragment(parser_t *parser) {
   return parser;
 }
 
-OBLNET_IMPEXP parser_t * uri_parse_done(parser_t *parser) {
+extern parser_t * uri_parse_done(parser_t *parser) {
   debug(net, "parsing done");
   return parser;
 }

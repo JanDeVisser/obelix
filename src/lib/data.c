@@ -660,6 +660,7 @@ char * _data_tostring(data_t *data) {
       if (tostring) {
         ret = tostring(data);
         if (ret && *ret) {
+          data -> str_semantics |= StrSemanticsFree;
           data -> str = strdup(ret);
         }
       }

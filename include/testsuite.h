@@ -52,7 +52,7 @@ typedef struct _test {
 extern "C" {
 #endif
 
-__DLL_EXPORT__ test_t * test_factory(char *);
+extern test_t * test_factory(char *);
 extern test_t *         test_create(char *);
 extern test_t *         test_copy(test_t *);
 extern unsigned int     test_hash(test_t *);

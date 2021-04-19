@@ -57,9 +57,9 @@ typedef struct _grammar_parser {
   unsigned int next_keyword_code;
 } grammar_parser_t;
 
-OBLGRAMMAR_IMPEXP grammar_parser_t *grammar_parser_create(data_t *);
-OBLGRAMMAR_IMPEXP void grammar_parser_free(grammar_parser_t *);
-OBLGRAMMAR_IMPEXP grammar_t *grammar_parser_parse(grammar_parser_t *);
+extern grammar_parser_t *grammar_parser_create(data_t *);
+extern void grammar_parser_free(grammar_parser_t *);
+extern grammar_t *grammar_parser_parse(grammar_parser_t *);
 
 #ifdef __cplusplus
 }
