@@ -1,6 +1,9 @@
 add_library(oblast SHARED
         ast.c
         ast_stmt.c
+        parse_to_ast.c
+        libast.h
+        ../../include/ast.h
 )
 
 target_link_libraries(oblast PUBLIC oblcore)
