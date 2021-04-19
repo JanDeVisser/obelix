@@ -8,12 +8,17 @@
   lexer:       "comment: marker=/* */;marker=//;marker=^#"
 %
 
-program                     := [ init ] statements [ done ]
+program                     :=                  [ init                       ]
+                               statements       [ done                       ]
                              ;
 
-statements                  :=                   [ statement_start           ]
-                               statement         [ statement_end             ]
-                               statements
+
+statements                  := _statements      [ discard                    ]
+                             ;
+
+_statements                 :=                  [ statement_start            ]
+                               statement        [ add_statement              ]
+                               _statements
                              |
                              ;
 
@@ -31,7 +36,7 @@ statement                   := conditional
                              | context_block
                              | throw
                              | leave
-                             | pass              [ nop                       ]
+                             | pass
                              | assignment_or_call
                              | standalone_expr
                              ;
@@ -40,15 +45,15 @@ standalone_expr             := '(' expr ')'
                              ;
 
 pass                        := ';'
-                             | "pass"
+                             | "pass"            [ make_pass                 ]
                              ;
 
-conditional                 := "if"              [ if                        ]
-                               expr              [ test                      ]
+conditional                 := "if"
+                               expr              [ make_ternary              ]
                                statements
                                elif_seq
                                else
-                               "end"             [ end_conditional           ]
+                               "end"
                              ;
 
 elif_seq                    := elif
@@ -56,28 +61,28 @@ elif_seq                    := elif
                              |
                              ;
 
-elif                        := "elif"            [ elif                      ]
-                               expr              [ test                      ]
-                               statements
+elif                        := "elif"
+                               expr              [ make_elif_ternary         ]
+                               statements        [ discard                   ]
                              ;
 
-else                        := "else"            [ else                      ]
+else                        := "else"            [ set_false_block           ]
                                statements
-                             |
+                             |                   [ set_empty_false_block     ]
                              ;
 
-while_loop                  := "while"           [ start_loop                ]
-                               expr              [ test                      ]
+while_loop                  := "while"
+                               expr              [ make_loop                 ]
                                statements
-                               "end"             [ end_loop                  ]
+                               "end"
                              ;
 
 for_loop                    := "for"
                                identifier
                                "in"
-                               expr              [ for                       ]
+                               expr              [ make_for                  ]
                                statements
-                               "end"             [ end_loop                  ]
+                               "end"
                              ;
 
 break                       := "break"           [ break                     ]
