@@ -407,6 +407,7 @@ parser_t * _parser_ll1(token_t *token, parser_t *parser) {
         token_tostring(token),
         labels_for_bitmap(_parser_states, parser -> state, buf, 127));
       _parser_dump_prod_stack(parser);
+      datastack_list(parser->stack);
     }
     _parser_ll1_token_handler(token, parser, attempts++);
   } while (!parser -> error && (parser -> state < ParserStateDone));
