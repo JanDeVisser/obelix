@@ -21,38 +21,16 @@ _statements                 := statement        [ add_statement              ]
                              |
                              ;
 
-statement                   := conditional
-                             | while_loop
+statement                   := for_loop
                              | pass              [ make_pass                 ]
                              | assignment
                              | standalone_expr
                              ;
 
-conditional                 := "if"
-                               expr              [ make_ternary              ]
-                               statements
-                               elif_seq
-                               else
-                               "end"
-                             ;
-
-elif_seq                    := elif
-                               elif_seq
-                             |
-                             ;
-
-elif                        := "elif"
-                               expr              [ make_elif_ternary         ]
-                               statements        [ discard                   ]
-                             ;
-
-else                        := "else"            [ set_false_block           ]
-                               statements
-                             |                   [ set_empty_false_block     ]
-                             ;
-
-while_loop                  := "while"
-                               expr              [ make_loop                 ]
+for_loop                    := "for"
+                               'i'               [ make_const                ]
+                               "in"
+                               expr              [ make_for                  ]
                                statements
                                "end"
                              ;
@@ -92,6 +70,7 @@ factortail                  := mult_op           [ push_token                ]
 factor                      := ( expr )
                              | 'i'               [ make_variable             ]
                              | sign number       [ make_prefix               ]
+                             | list
                              ;
 
 sign                        := '+'               [ push_token                ]
@@ -113,3 +92,25 @@ add_op                      := + | - | ~
 
 mult_op                     := * | / | ^ | %
                              ;
+
+list                        := '['               [ start_list                ]
+                               entrylist_or_empty
+                               ']'               [ make_generator            ]
+                             ;
+
+entrylist_or_empty          := entrylist
+                             |
+                             ;
+
+entry                       := expr              [ add_to_list               ]
+                             ;
+
+entrylist                   := entry
+                               entrylist_tail
+                             ;
+
+entrylist_tail              := ,
+                               entrylist
+                             |
+                             ;
+

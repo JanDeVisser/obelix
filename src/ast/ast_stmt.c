@@ -88,7 +88,7 @@ data_t * _ast_Block_call(ast_Block_t *node, arguments_t *args) {
 
 char * _ast_Block_tostring(ast_Block_t *node) {
   char *ret;
-  asprintf(&ret, "%s %s [%d expression(s)]",
+  asprintf(&ret, "%s %s [%d]",
            data_typename(node),
            name_tostring(node->name),
            datalist_size(node->statements));
@@ -110,11 +110,11 @@ ast_Script_t *_ast_Script_new(ast_Script_t *script, va_list args) {
 }
 
 char *_ast_Script_tostring(ast_Script_t *script) {
+  return _ast_Block_tostring(data_as_ast_Block(script));
 }
 
 data_t * _ast_Script_call(ast_Script_t *node, arguments_t *args) {
-  // FIXME implement
-  return data_null();
+  return _ast_Block_call(data_as_ast_Block(node), args);
 }
 
 void _ast_Script_free(ast_Script_t *script) {
