@@ -337,7 +337,7 @@ int dictionary_size(const dictionary_t *obj) {
   return dict_size(obj -> attributes);
 }
 
-data_t * _dictionary_reduce(dictionary_t *dict, reduce_t reducer, data_t *initial) {
+data_t * _dictionary_reduce(dictionary_t *dict, reduce_t reducer, void *initial) {
   return (data_t *) dict_reduce(dict -> attributes, reducer, initial);
 }
 

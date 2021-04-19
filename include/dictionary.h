@@ -37,7 +37,7 @@ OBLCORE_IMPEXP data_t *        dictionary_pop(dictionary_t *, const char *);
 OBLCORE_IMPEXP data_t *        _dictionary_set(dictionary_t *, const char *, data_t *);
 OBLCORE_IMPEXP int             dictionary_has(const dictionary_t *, const char *);
 OBLCORE_IMPEXP int             dictionary_size(const dictionary_t *);
-OBLCORE_IMPEXP data_t *        _dictionary_reduce(dictionary_t *, reduce_t, data_t *);
+OBLCORE_IMPEXP data_t *        _dictionary_reduce(dictionary_t *, reduce_t, void *);
 OBLCORE_IMPEXP dictionary_t *  dictionary_update(dictionary_t *, dictionary_t *);
 
 OBLCORE_IMPEXP int Dictionary;
@@ -62,8 +62,7 @@ static inline char * dictionary_value_tostring(const dictionary_t *dict, const c
 }
 
 static inline data_t * dictionary_reduce(dictionary_t *dict, void *reducer, void *initial) {
-  assert(!initial || data_is_data(initial));
-  return _dictionary_reduce(dict, (reduce_t) reducer, data_as_data(initial));
+  return _dictionary_reduce(dict, (reduce_t) reducer, initial);
 }
 
 #ifdef __cplusplus
