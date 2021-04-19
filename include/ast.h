@@ -116,8 +116,8 @@ static inline ast_Call_t * ast_Call_create(ast_Expr_t *function) {
   return (ast_Call_t *) data_create(ASTCall, function);
 }
 
-void ast_Call_add_argument(ast_Call_t *, ast_Expr_t *);
-void ast_Call_add_kwarg(ast_Call_t *, ast_Const_t *, ast_Expr_t *);
+extern void ast_Call_add_argument(ast_Call_t *, ast_Expr_t *);
+extern void ast_Call_add_kwarg(ast_Call_t *, ast_Const_t *, ast_Expr_t *);
 
 /* ----------------------------------------------------------------------- */
 
@@ -126,7 +126,7 @@ static inline ast_Block_t * ast_Block_create(char *name) {
   return (ast_Block_t *) data_create(ASTBlock, name);
 }
 
-void ast_Block_add_statement(ast_Block_t *, ast_Expr_t *);
+extern void ast_Block_add_statement(ast_Block_t *, ast_Expr_t *);
 
 static inline ast_Loop_t * ast_Loop_create(ast_Expr_t *condition, ast_Expr_t *block) {
   ast_init();
