@@ -55,49 +55,48 @@ type_skel(ast_Node, ASTNode, ast_Node_t);
 
 /* ----------------------------------------------------------------------- */
 
-#define AST_NODE_TYPE_DEF(t, base)               \
-typedef struct _ast_ ## t {                      \
-  ast_ ## base ## _t  base ;                     \
-  CUSTOM_FIELDS ;                                \
-} ast_ ## t ## _t;                               \
-OBLAST_IMPEXP int AST ## t;                      \
+#define ENUMERATE_AST_NODE_TYPES                                                                                   \
+  __ENUMERATE_AST_NODE_TYPE(Expr, Node)                                                                            \
+  __ENUMERATE_AST_NODE_TYPE(Const, Expr, data_t *value)                                                            \
+  __ENUMERATE_AST_NODE_TYPE(Infix, Expr, data_t *op; ast_Expr_t *left; ast_Expr_t *right)                          \
+  __ENUMERATE_AST_NODE_TYPE(Prefix, Expr, data_t *op; ast_Expr_t *operand)                                         \
+  __ENUMERATE_AST_NODE_TYPE(Ternary, Expr, ast_Expr_t *condition; ast_Expr_t *true_value; ast_Expr_t *false_value) \
+  __ENUMERATE_AST_NODE_TYPE(Variable, Expr, name_t *name)                                                          \
+  __ENUMERATE_AST_NODE_TYPE(Generator, Expr, data_t *generator; data_t *iter)                                      \
+  __ENUMERATE_AST_NODE_TYPE(Loop, Expr, ast_Expr_t *condition; ast_Expr_t *block)                                  \
+  __ENUMERATE_AST_NODE_TYPE(Call, Expr, ast_Expr_t *function; arguments_t *args)                                   \
+  __ENUMERATE_AST_NODE_TYPE(Block, Expr, name_t *name; datalist_t *statements)                                     \
+  __ENUMERATE_AST_NODE_TYPE(Script, Block)                                                                         \
+  __ENUMERATE_AST_NODE_TYPE(Return, Expr, ast_Expr_t *expr)                                                        \
+  __ENUMERATE_AST_NODE_TYPE(Assignment, Expr, name_t *name; ast_Expr_t *value)                                     \
+  __ENUMERATE_AST_NODE_TYPE(ConstAssignment, Expr)                                                                 \
+  __ENUMERATE_AST_NODE_TYPE(Pass, Expr)
+
+
+#define __ENUMERATE_AST_NODE_TYPE(t, base, ...)            \
+typedef struct _ast_ ## t {                                \
+  ast_ ## base ## _t  base ;                               \
+  __VA_ARGS__;                                             \
+} ast_ ## t ## _t;                                         \
+OBLAST_IMPEXP int AST ## t;                                \
 type_skel(ast_ ## t, AST ## t, ast_ ## t ## _t);
-
-#define CUSTOM_FIELDS
-AST_NODE_TYPE_DEF(Expr, Node)
-#undef CUSTOM_FIELDS
-
-
-#define CUSTOM_FIELDS data_t *value
-AST_NODE_TYPE_DEF(Const, Expr)
-#undef CUSTOM_FIELDS
+ENUMERATE_AST_NODE_TYPES
+#undef __ENUMERATE_AST_NODE_TYPE
 
 static inline ast_Const_t * ast_Const_create(data_t *value) {
   ast_init();
   return (ast_Const_t *) data_create(ASTConst, value);
 }
 
-#define CUSTOM_FIELDS   data_t *op; ast_Expr_t *left; ast_Expr_t *right;
-AST_NODE_TYPE_DEF(Infix, Expr)
-#undef CUSTOM_FIELDS
-
 static inline ast_Infix_t * ast_Infix_create(ast_Expr_t *left, data_t *op, ast_Expr_t *right) {
   ast_init();
   return (ast_Infix_t *) data_create(ASTInfix, left, op, right);
 }
 
-#define CUSTOM_FIELDS   data_t *op; ast_Expr_t *operand;
-AST_NODE_TYPE_DEF(Prefix, Expr)
-#undef CUSTOM_FIELDS
-
 static inline ast_Prefix_t * ast_Prefix_create(data_t *op, ast_Expr_t *operand) {
   ast_init();
   return (ast_Prefix_t *) data_create(ASTPrefix, op, operand);
 }
-
-#define CUSTOM_FIELDS   ast_Expr_t *condition; ast_Expr_t *true_value; ast_Expr_t *false_value;
-AST_NODE_TYPE_DEF(Ternary, Expr)
-#undef CUSTOM_FIELDS
 
 static inline ast_Ternary_t * ast_Ternary_create(ast_Expr_t *condition,
                                                  ast_Expr_t *true_value,
@@ -106,126 +105,65 @@ static inline ast_Ternary_t * ast_Ternary_create(ast_Expr_t *condition,
   return (ast_Ternary_t *) data_create(ASTTernary, condition, true_value, false_value);
 }
 
-#define CUSTOM_FIELDS   name_t     *name;
-AST_NODE_TYPE_DEF(Variable, Expr)
-#undef CUSTOM_FIELDS
-
 static inline ast_Variable_t * ast_Variable_create(name_t *name) {
   ast_init();
   return (ast_Variable_t *) data_create(ASTVariable, name);
 }
-
-#define CUSTOM_FIELDS     data_t *generator; data_t *iter;
-AST_NODE_TYPE_DEF(Generator, Expr)
-#undef CUSTOM_FIELDS
 
 static inline ast_Generator_t * ast_Generator_create(data_t *generator) {
   ast_init();
   return (ast_Generator_t *) data_create(ASTGenerator, generator);
 }
 
-#define CUSTOM_FIELDS ast_Expr_t  *function; arguments_t *args;
-AST_NODE_TYPE_DEF(Call, Expr)
-#undef CUSTOM_FIELDS
-
 static inline ast_Call_t * ast_Call_create(ast_Expr_t *function) {
   ast_init();
   return (ast_Call_t *) data_create(ASTCall, function);
 }
 
+void ast_Call_add_argument(ast_Call_t *, ast_Expr_t *);
+void ast_Call_add_kwarg(ast_Call_t *, ast_Const_t *, ast_Expr_t *);
+
 /* ----------------------------------------------------------------------- */
 
-#define CUSTOM_FIELDS
-AST_NODE_TYPE_DEF(Statement, Node)
-#undef CUSTOM_FIELDS
-static inline ast_Statement_t * ast_Statement_create() {
-  return (ast_Statement_t *) data_create(ASTStatement);
-}
-
-#define CUSTOM_FIELDS datalist_t *statements;
-AST_NODE_TYPE_DEF(Block, Expr)
-#undef CUSTOM_FIELDS
-
-static inline ast_Block_t * ast_Block_create() {
+static inline ast_Block_t * ast_Block_create(char *name) {
   ast_init();
-  return (ast_Block_t *) data_create(ASTBlock);
+  return (ast_Block_t *) data_create(ASTBlock, name);
 }
 
-static inline ast_Block_t * ast_Block_append(data_t *b, ast_Statement_t *stmt) {
-  ast_Block_t *block = data_as_ast_Block(b);
-  datalist_push(block -> statements, data_copy(stmt));
-  return block;
-}
-
-#define CUSTOM_FIELDS ast_Expr_t *condition; ast_Expr_t *block;
-AST_NODE_TYPE_DEF(Loop, Expr)
-#undef CUSTOM_FIELDS
+void ast_Block_add_statement(ast_Block_t *, ast_Expr_t *);
 
 static inline ast_Loop_t * ast_Loop_create(ast_Expr_t *condition, ast_Expr_t *block) {
   ast_init();
   return (ast_Loop_t *) data_create(ASTLoop, condition, block);
 }
 
-#define CUSTOM_FIELDS name_t *name;
-AST_NODE_TYPE_DEF(Script, Block)
-#undef CUSTOM_FIELDS
-
-ast_Script_t *ast_Script_create(char *name) {
+static inline ast_Script_t *ast_Script_create(char *name) {
   ast_init();
   return (ast_Script_t *) data_create(ASTScript, name);
 }
-
-#define CUSTOM_FIELDS name_t *name; ast_Expr_t *value;
-AST_NODE_TYPE_DEF(Assignment, Expr)
-#undef CUSTOM_FIELDS
 
 static inline ast_Assignment_t * ast_Assignment_create(name_t *name, ast_Expr_t *value) {
   ast_init();
   return (ast_Assignment_t *) data_create(ASTAssignment, name, value);
 }
 
-#define CUSTOM_FIELDS ast_Expr_t *expr; struct _ast_If *elif_block;
-AST_NODE_TYPE_DEF(If, Block)
-#undef CUSTOM_FIELDS
-
-static inline ast_If_t * ast_If_create() {
-  return (ast_If_t *) data_create(ASTIf);
+static inline ast_ConstAssignment_t * ast_ConstAssignment_create(name_t *name, ast_Expr_t *value) {
+  ast_init();
+  return (ast_ConstAssignment_t *) data_create(ASTConstAssignment, name, value);
 }
-
-#define CUSTOM_FIELDS
-AST_NODE_TYPE_DEF(Pass, Statement)
-#undef CUSTOM_FIELDS
 
 static inline ast_Pass_t * ast_Pass_create() {
   return (ast_Pass_t *) data_create(ASTPass);
 }
 
-#define CUSTOM_FIELDS ast_Expr_t *expr;
-AST_NODE_TYPE_DEF(While, Block)
-#undef CUSTOM_FIELDS
-
-static inline ast_While_t * ast_While_create() {
-  return (ast_While_t *) data_create(ASTWhile);
-}
-
-typedef struct _ast_builder {
-  data_t           _d;
-  ast_Script_t    *script;
-  ast_Node_t      *current_node;
-} ast_builder_t;
-
-OBLAST_IMPEXP int ASTBuilder;
-type_skel(ast_builder, ASTBuilder, ast_builder_t);
-
-static inline ast_builder_t *ast_builder_create(char *name) {
-  ast_init();
-  return (ast_builder_t *) data_create(ASTBuilder, name);
+static inline ast_Return_t * ast_Return_create(ast_Expr_t *ret_expr) {
+  return (ast_Return_t *) data_create(ASTReturn, ret_expr);
 }
 
 /* ----------------------------------------------------------------------- */
 
+OBLAST_IMPEXP data_t *         ast_parse(void *, data_t *);
 OBLAST_IMPEXP data_t *         ast_execute(void *, data_t *);
-OBLAST_IMPEXP ast_Node_t *     ast_append(ast_Node_t *, ast_Node_t *);
 
 #ifdef  __cplusplus
 }

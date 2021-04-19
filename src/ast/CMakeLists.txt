@@ -1,5 +1,6 @@
 add_library(oblast SHARED
-  ast.c
+        ast.c
+        ast_stmt.c
 )
 
 target_link_libraries(oblast PUBLIC oblcore)

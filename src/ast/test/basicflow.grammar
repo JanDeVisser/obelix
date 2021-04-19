@@ -1,0 +1,104 @@
+%
+  prefix:      ast_
+  lexer:       "whitespace: ignorews=1"
+  lexer:       keyword
+  lexer:       identifier
+  lexer:       "number: signed=0"
+  lexer:       qstring
+  lexer:       "comment: marker=/* */,marker=//,marker=^#"
+%
+
+main                        :=                  [ make_block                 ]
+                               statements
+                             ;
+
+
+statements                  := _statements      [ discard                    ]
+                             ;
+
+_statements                 := statement        [ add_statement              ]
+                               _statements
+                             |
+                             ;
+
+statement                   := conditional
+                             | while_loop
+                             | pass              [ make_pass                 ]
+                             | assignment
+                             | standalone_expr
+                             ;
+
+conditional                 := "if"
+                               expr              [ make_ternary              ]
+                               statements
+                               else
+                               "end"
+                             ;
+
+else                        := "else"            [ set_false_block           ]
+                               statements
+                             |                   [ set_empty_false_block     ]
+                             ;
+
+while_loop                  := "while"
+                               expr              [ make_loop                 ]
+                               statements
+                               "end"
+                             ;
+
+standalone_expr             := '(' expr ')'
+                             ;
+
+pass                        := ';'
+                             | "pass"
+                             ;
+
+assignment                  := 'i'               [ make_const                ]
+                               =
+                               expr              [ make_assignment           ]
+                             ;
+
+expr                        := term
+                               termtail
+                             ;
+
+termtail                    := add_op            [ push_token                ]
+                               term              [ make_infix                ]
+                               termtail
+                             |
+                             ;
+
+term                        := factor
+                               factortail
+                             ;
+
+factortail                  := mult_op           [ push_token                ]
+                               factor            [ make_infix                ]
+                               factortail
+                             |
+                             ;
+
+factor                      := ( expr )
+                             | 'i'               [ make_variable             ]
+                             | sign number       [ make_prefix               ]
+                             ;
+
+sign                        := '+'               [ push_token                ]
+                             | '-'               [ push_token                ]
+                             |                   [ push_const = "token:43:+" ]
+                             ;
+
+
+number                      := _number           [ make_const                ]
+                             ;
+
+_number                     := 'd'
+                             | 'f'
+                             | 'x'
+                             ;
+
+add_op                      := + | - | ~
+                             ;
+
+mult_op                     := * | / | ^ | %
+                             ;

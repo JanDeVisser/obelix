@@ -25,10 +25,22 @@
 #define OBLAST_IMPEXP __DLL_EXPORT__
 
 #include <stdio.h>
+
 #include <ast.h>
+#include <exception.h>
 #include <lexer.h>
 #include <token.h>
 
+#define __ENUMERATE_AST_NODE_TYPE(t, base, ...)                                    \
+extern ast_ ## t ## _t * _ast_ ## t  ## _new(ast_ ## t  ## _t *, va_list);         \
+extern void              _ast_ ## t  ## _free(ast_ ## t ## _t *);                  \
+extern data_t *          _ast_ ## t  ## _call(ast_ ## t  ## _t *, arguments_t *);  \
+extern char *            _ast_ ## t  ## _tostring(ast_ ## t  ## _t *);             \
+extern int AST ## t;
+ENUMERATE_AST_NODE_TYPES
+#undef __ENUMERATE_AST_NODE_TYPE
+
+extern int ast_debug;
 extern int script_debug;
 extern int script_trace;
 

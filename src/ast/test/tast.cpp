@@ -264,7 +264,7 @@ TEST(ASTTest, test_ast_Call_call) {
   arg = data_as_ast_Expr(ast_Const_create(int_to_data(2)));
   expr = ast_Call_create(self);
   EXPECT_TRUE(expr) ;
-  expr -> args = arguments_create_args(1, arg);
+  ast_Call_add_argument(expr, arg);
   debug(tast, "%s", data_tostring(expr));
   ctx = dictionary_create(NULL);
   dictionary_set(ctx, "x", int_to_data(3));
@@ -273,6 +273,33 @@ TEST(ASTTest, test_ast_Call_call) {
   EXPECT_NE(data_type(ret), Exception);
   EXPECT_EQ(data_intval(ret), 5);
 }
+
+TEST(ASTTest, test_ast_Call_call_parse) {
+  ast_Call_t   *expr;
+  name_t       *name;
+  ast_Expr_t   *self;
+  ast_Expr_t   *arg;
+  data_t       *ret;
+  dictionary_t *ctx;
+
+  name = name_create(2, "x", "sum");
+  self = data_as_ast_Expr(ast_Variable_create(name));
+  arg = data_as_ast_Expr(ast_Const_create(int_to_data(2)));
+  expr = ast_Call_create(self);
+  EXPECT_TRUE(expr) ;
+  ast_Call_add_argument(expr, arg);
+  debug(tast, "%s", data_tostring(expr));
+  ctx = dictionary_create(NULL);
+  ret = ast_parse(expr, (data_t *) ctx);
+  EXPECT_EQ(data_type(ret), ASTCall);
+
+  dictionary_set(ctx, "x", int_to_data(3));
+  ret = ast_execute(ret, (data_t *) ctx);
+  debug(tast, "Call result: %s", data_tostring(ret));
+  EXPECT_NE(data_type(ret), Exception);
+  EXPECT_EQ(data_intval(ret), 5);
+}
+
 
 TEST(ASTTest, test_ast_Assignment_call) {
   ast_Assignment_t *expr;
@@ -402,8 +429,10 @@ TEST(ASTTest, test_ast_Generator_loop) {
 class ASTParserTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    const char *grammar_path = "./ast.grammar";
+    const char *grammar_path = "/home/jan/projects/obelix/src/ast/test/ast.grammar";
 
+    logging_set_level("DEBUG");
+    logging_enable("ast");
     file = file_open(grammar_path);
     EXPECT_TRUE(file_isopen(file)) ;
     gp = grammar_parser_create((data_t *) file);
@@ -414,8 +443,8 @@ protected:
     EXPECT_TRUE(parser) ;
   }
 
-  data_t * evaluate(const char *str, int expected) {
-    str_t  *text = str_copy_chars(str);
+  void parse(const char *str) {
+    str_t *text = str_copy_chars(str);
     data_t *ret;
 
     // grammar_dump(grammar);
@@ -426,9 +455,27 @@ protected:
       error("parser_parse: %s", data_tostring(ret));
     }
     EXPECT_FALSE(ret);
+  }
+
+  data_t * evaluate(const char *str, int expected) {
+    parse(str);
     data_t *result = data_as_data(parser->data);
-    EXPECT_TRUE(result) ;
+    EXPECT_NE(result, nullptr) ;
+    EXPECT_EQ(data_type(result), Int);
     EXPECT_EQ(expected, data_intval(result));
+    return result;
+  }
+
+  data_t * execute(const char *str, int expected) {
+    parse(str);
+    data_t *script = data_as_data(parser->data);
+    EXPECT_TRUE(script) ;
+    EXPECT_TRUE(data_is_ast_Node(script));
+
+    dictionary_t *ctx = dictionary_create(NULL);
+    dictionary_set(ctx, "y", int_to_data(6));
+    data_t *result = ast_execute(script, data_as_data(ctx));
+    parser->data = result;
     return result;
   }
 
@@ -539,6 +586,17 @@ TEST_F(ASTParserTest, parser_precedence) {
 
 TEST_F(ASTParserTest, parser_variable) {
   evaluate("2 * (4 + 3*x)", 80);
+}
+
+TEST_F(ASTParserTest, parser_variable_does_not_exist) {
+  parse("2 * (4 + 3*y)");
+  data_t *result = data_as_data(parser->data);
+  EXPECT_TRUE(result) ;
+  EXPECT_TRUE(data_is_ast_Node(result));
+}
+
+TEST_F(ASTParserTest, parser_variable_execute) {
+  execute("2 * (4*2 + 3*y)", 52);
 }
 
 /* ----------------------------------------------------------------------- */
