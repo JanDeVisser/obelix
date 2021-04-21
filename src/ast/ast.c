@@ -390,7 +390,7 @@ data_t * _ast_Generator_call(ast_Generator_t *node, arguments_t *args) {
 
   if (!data_is_exception(val)) {
     if (data_is_ast_Expr(val)) {
-      ret = ast_execute(data_as_ast_Expr(val), args);
+      ret = ast_execute(data_as_ast_Expr(val), ctx);
     } else {
       ret = (data_t *) ast_Const_create(val);
     }
