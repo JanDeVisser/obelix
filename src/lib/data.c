@@ -19,15 +19,16 @@
 
 #include <math.h>
 #include <stdarg.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "libcore.h"
 #include <data.h>
 #include <method.h>
-#include <threadonce.h>
+
+#ifndef REFCOUNTING
+#include <heap.h>
+#endif
 
 static data_t *    _data_call_constructor(data_t *, new_t, va_list);
 static data_t *    _data_call_constructors(typedescr_t *, va_list);
@@ -155,7 +156,11 @@ data_t * data_create_noinit(int type) {
 
   descr = typedescr_get(type);
   debug(data, "Allocating %d bytes for new '%s'", descr -> size, type_name(descr));
+#ifdef REFCOUNTING
   ret = (data_t *) _new((descr -> size) ? descr -> size : sizeof(data_t));
+#else
+  ret = (data_t *) heap_allocate((descr -> size) ? descr -> size : sizeof(data_t));
+#endif
   ret = data_settype(ret, type);
   ret -> data_semantics = DataSemanticsNormal;
   return ret;
@@ -167,7 +172,6 @@ data_t * data_settype(data_t *data, int type) {
   // data_init();
   assert(data);
   assert(type > 0);
-#ifndef NDEBUG
   descr = typedescr_get(type);
   if (!descr || (typetype(descr) != type) || !type_name(descr)) {
     if (type >= Dynamic) {
@@ -180,7 +184,6 @@ data_t * data_settype(data_t *data, int type) {
   _data_count++;
   data -> cookie = MAGIC_COOKIE;
   data -> type_name = type_name(descr);
-#endif /* !NDEBUG */
   data -> type = type;
   data -> refs = 1;
   data -> str = NULL;
@@ -188,6 +191,19 @@ data_t * data_settype(data_t *data, int type) {
   data -> str_semantics = StrSemanticsNormal;
   return data;
 }
+
+
+data_t * _data_new(int type, int size) {
+  data_t *data;
+
+#ifndef REFCOUNTING
+  data = (data_t *) heap_allocate(size);
+#else
+  data = (data_t *) _new(size);
+#endif
+  return data_settype(data, type);
+}
+
 
 data_t * data_create(int type, ...) {
   va_list      args;
@@ -364,12 +380,32 @@ data_t * data_promote(data_t *data) {
     : NULL;
 }
 
+#ifndef REFCOUNTING
+
 void data_free(data_t *data) {
+  /* NO-OP */
+}
+
+void data_destroy(data_t *data) {
+
+  #else /* REFCOUNTING */
+
+void data_destroy(data_t *data) {
+  /* NO-OP */
+}
+
+void data_free(data_t *data) {
+
+#endif
   typedescr_t     *type;
   str_semantics_t  data_semantics;
   str_semantics_t  str_semantics;
 
+#ifdef REFCOUNTING
   if (data && !(data -> data_semantics & DataSemanticsConstant) && (--data -> refs <= 0)) {
+#else
+  if (data && !(data -> data_semantics & DataSemanticsConstant)) {
+#endif
     data_semantics = data -> data_semantics;
     str_semantics = data -> str_semantics;
     type = data_typedescr(data);
@@ -379,9 +415,11 @@ void data_free(data_t *data) {
     }
     type -> count--;
     _data_count--;
+#ifdef REFCOUNTING
     if (data_semantics & DataSemanticsNormal) {
       free(data);
     }
+#endif
   }
 }
 
@@ -1026,6 +1064,19 @@ data_t * data_reduce_with_fnc(data_t *iterable, reduce_t reduce, data_t *initial
   data_free(has_next);
   data_free(iterator);
   return ret;
+}
+
+void * data_reduce_children(data_t *data, reduce_t reducer, void *ctx) {
+  typedescr_t  *type;
+  data_reduce_t reducefnc;
+
+  assert(data);
+  type = data_typedescr(data);
+  reducefnc = (data_reduce_t) typedescr_get_function(type, FunctionReduce);
+  if (reducefnc) {
+    ctx = reducefnc(data, reducer, ctx);
+  }
+  return ctx;
 }
 
 /* - S C O P E -------------------------------------------------------------*/

@@ -772,7 +772,7 @@ typedescr_t * typedescr_get(int datatype) {
   typedescr_t *ret = NULL;
 
   if (!_descriptors) {
-    return NULL;
+    typedescr_init();
   }
   if ((datatype >= 0) && (datatype < (int) _numtypes)) {
     ret = _descriptors[datatype];

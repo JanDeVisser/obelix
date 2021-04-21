@@ -143,10 +143,10 @@ typedef enum _vtable_id {
 /* -- S T R U C T S ------------------------------------------------------- */
 
 typedef struct _data {
-#ifndef NDEBUG
+  unsigned char       is_live;
+  unsigned char       marked;
   unsigned short int  cookie;
   char               *type_name;
-#endif /* !NDEBUG */
   int                 type;
   data_semantics_t    data_semantics;
   str_semantics_t     str_semantics;
@@ -184,6 +184,7 @@ typedef data_t * (*data_fnc_t)(data_t *);
 typedef data_t * (*data2_fnc_t)(data_t *, data_t *);
 typedef data_t * (*data_valist_t)(data_t *, va_list);
 typedef data_t * (*method_t)(data_t *, char *, arguments_t *);
+typedef void *   (*data_reduce_t)(data_t *, reduce_t, void *);
 
 /* ------------------------------------------------------------------------ */
 

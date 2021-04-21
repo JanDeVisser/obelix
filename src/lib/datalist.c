@@ -49,6 +49,7 @@ static datalist_iter_t * _list_iter(datalist_t *);
 static char *            _list_encode(pointer_t *);
 static datalist_t *      _list_serialize(datalist_t *);
 static datalist_t *      _list_deserialize(datalist_t *);
+static void *            _list_reduce_children(datalist_t *, reduce_t, void *ctx);
 
 static datalist_t *      _list_create(data_t *, char *, arguments_t *);
 //static data_t *          _list_range(datalist_t *, char *, arguments_t *);
@@ -71,6 +72,7 @@ static vtable_t _vtable_List[] = {
   { .id = FunctionDeserialize, .fnc = (void_t) _list_deserialize },
   { .id = FunctionPush,        .fnc = (void_t) _datalist_push },
   { .id = FunctionPop,         .fnc = (void_t) datalist_pop },
+  { .id = FunctionReduce,      .fnc = (void_t) _list_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -254,6 +256,15 @@ datalist_t * _list_deserialize(datalist_t *list) {
     data_free(elem);
   }
   return ret;
+}
+
+void * _list_reduce_children(datalist_t *list, reduce_t action, void *ctx) {
+  data_t *elem;
+
+  for (int ix = 0; ix < datalist_size(list); ix++) {
+    elem = datalist_get(list, ix);
+    action(elem, ctx);
+  }
 }
 
 /* ----------------------------------------------------------------------- */

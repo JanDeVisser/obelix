@@ -33,14 +33,13 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#ifndef NDEBUG
 /* Sentinel value used to identify legitimate data_t structures: */
-#define MAGIC_COOKIE               ((unsigned short int) 0xDEADBEEF)
-#endif /* !NDEBUG */
+#define MAGIC_COOKIE               ((unsigned short int) 0x714EBEEF)
 
 extern void                data_init(void);
 extern data_t *            data_create_noinit(int);
 extern data_t *            data_create(int, ...);
+extern data_t *            _data_new(int type, int size);
 extern data_t *            data_settype(data_t *, int);
 extern data_t *            data_cast(data_t *, int);
 extern data_t *            data_promote(data_t *);
@@ -51,6 +50,7 @@ extern data_t *            data_deserialize(data_t *);
 extern char *              data_encode(data_t *);
 extern data_t *            data_serialize(data_t *);
 extern void                data_free(data_t *);
+extern void                data_destroy(data_t *);
 extern unsigned int        data_hash(data_t *);
 extern data_t *            data_len(data_t *);
 extern char *              _data_tostring(data_t *);
@@ -81,6 +81,7 @@ extern data_t *            data_next(data_t *);
 extern data_t *            data_visit(data_t *, data_t *);
 extern data_t *            data_reduce(data_t *, data_t *, data_t *);
 extern data_t *            data_reduce_with_fnc(data_t *, reduce_t, data_t *);
+extern void *              data_reduce_children(data_t *, reduce_t, void *);
 extern data_t *            data_read(data_t *, char *, int);
 extern data_t *            data_write(data_t *, char *, int);
 extern data_t *            data_push(data_t *, data_t *);
@@ -102,18 +103,13 @@ extern type_t          type_data;
 #include <typedescr.h>
 #endif /* __INCLUDING_TYPEDESCR_H__ */
 
-#define data_new(dt,st)         ((st *) data_settype((data_t *) _new(sizeof(st)), dt))
+#define data_new(dt,st)     ((st *) _data_new(dt, sizeof(st)))
 
 static inline int data_is_data(void *data) {
-#ifndef NDEBUG
   return !data || (((data_t *) data) -> cookie == MAGIC_COOKIE);
-#else /* NDEBUG */
-  return TRUE;
-#endif
 }
 
 static inline data_t * data_as_data(void *data) {
-#ifndef NDEBUG
   if (!data) {
     return NULL;
   } else if (data_is_data(data)) {
@@ -123,9 +119,6 @@ static inline data_t * data_as_data(void *data) {
         data, ((data_t *) data) -> cookie);
     abort();
   }
-#else
-  return (data_t *) data;
-#endif
 }
 
 static inline int data_type(void *data) {
