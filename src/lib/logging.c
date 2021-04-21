@@ -20,10 +20,10 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "libcore.h"
 #include <dict.h>
-#include <mutex.h>
 #include <timer.h>
 
 typedef struct _logcategory {
@@ -33,6 +33,9 @@ typedef struct _logcategory {
   log_level_t  level;
   char        *str;
 } logcategory_t;
+
+static void            _logging_lock();
+static void            _logging_unlock();
 
 static logcategory_t * _logcategory_create(const char *, int *);
 static char *          _logcategory_tostring(logcategory_t *);
@@ -68,7 +71,26 @@ static type_t _type_logcategory = {
   .cmp      = (cmp_t) _logcategory_cmp
 };
 
-static mutex_t *_logging_mutex = NULL;
+static int             _initialized = 0;
+static pthread_mutex_t _mutex;
+
+/* ------------------------------------------------------------------------ */
+
+void _logging_lock() {
+  errno = pthread_mutex_lock(&_mutex);
+  if (errno) {
+    fprintf(stderr, "Error locking logging mutex: %s\n", strerror(errno));
+    abort();
+  }
+}
+
+void _logging_unlock() {
+  errno = pthread_mutex_unlock(&_mutex);
+  if (errno) {
+    fprintf(stderr, "Error locking logging mutex: %s\n", strerror(errno));
+    abort();
+  }
+}
 
 /* ------------------------------------------------------------------------ */
 
@@ -93,9 +115,9 @@ logcategory_t * _logcategory_create(const char *name, int *flag) {
   logcategory_t *ret;
 
   logging_init();
-  mutex_lock(_logging_mutex);
+  _logging_lock();
   ret = _logcategory_create_nolock(name, flag);
-  mutex_unlock(_logging_mutex);
+  _logging_unlock();
   return ret;
 }
 
@@ -162,9 +184,9 @@ void _logging_set_nolock(const char *category, int value) {
 
 void _logging_set(const char *category, int value) {
   logging_init();
-  mutex_lock(_logging_mutex);
+  _logging_lock();
   _logging_set_nolock(category, value);
-  mutex_unlock(_logging_mutex);
+  _logging_unlock();
 }
 
 char * _log_level_str(log_level_t lvl) {
@@ -183,17 +205,24 @@ void _logging_open_logfile(void) {
 }
 
 void logging_init(void) {
-  char *cats;
-  char *ptr;
-  char *sepptr;
-  char *lvl;
+  pthread_mutexattr_t  attr;
+  char                *cats;
+  char                *ptr;
+  char                *sepptr;
+  char                *lvl;
 
-  if (_logging_mutex) {
+  if (_initialized) {
     return;
   }
 
   // fprintf(stderr, "Initializing logging...\n");
-  _logging_mutex = mutex_create();
+  pthread_mutexattr_init(&attr);
+  pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+  if ((errno = pthread_mutex_init(&_mutex, &attr))) {
+    fprintf(stderr, "Error initializing logging mutex: %s\n", strerror(errno));
+    abort();
+  }
+  pthread_mutexattr_destroy(&attr);
 
   _categories = strvoid_dict_create();
   dict_set_data_type(_categories, &_type_logcategory);
@@ -223,13 +252,14 @@ void logging_init(void) {
   }
   _logcategory_create_nolock("core", &core_debug);
   _logcategory_create_nolock("mutex", &mutex_debug);
+  _initialized = 1;
 }
 
 extern void logging_register_category(const char *name, int *flag) {
   logcategory_t *cat;
 
   logging_init();
-  mutex_lock(_logging_mutex);
+  _logging_lock();
   if ((cat = dict_get(_categories, name))) {
     cat -> flag = flag;
     // fprintf(stderr, "logging_register_category('%s') - Turning flag %s\n",
@@ -241,16 +271,16 @@ extern void logging_register_category(const char *name, int *flag) {
     // fprintf(stderr, "logging_register_category('%s') - Creating category, setting flag %s\n",
     //   name, (cat -> enabled) ? "ON" : "OFF");
   }
-  mutex_unlock(_logging_mutex);
+  _logging_unlock();
 }
 
 extern void logging_reset(void) {
   int value = 0;
 
   logging_init();
-  mutex_lock(_logging_mutex);
+  _logging_lock();
   dict_reduce_values(_categories, (reduce_t) _logging_set_reducer, &value);
-  mutex_unlock(_logging_mutex);
+  _logging_unlock();
 }
 
 extern void logging_enable(const char *category) {
@@ -312,13 +342,13 @@ extern int logging_status(const char *category) {
   logcategory_t *cat;
 
   logging_init();
-  mutex_lock(_logging_mutex);
+  _logging_lock();
   cat = dict_get(_categories, category);
   if (!cat) {
     cat = _logcategory_create(category, NULL);
     cat -> enabled = FALSE;
   }
-  mutex_unlock(_logging_mutex);
+  _logging_unlock();
   return cat -> enabled;
 }
 
@@ -342,14 +372,14 @@ extern int logging_set_level(const char *log_level) {
 
 extern int logging_set_file(const char *logfile) {
   logging_init();
-  mutex_lock(_logging_mutex);
+  _logging_lock();
   if (_destination && (_destination != stderr)) {
     fclose(_destination);
   }
   _destination = NULL;
   free(_logfile);
   _logfile = (_logfile) ? strdup(logfile) : NULL;
-  mutex_unlock(_logging_mutex);
+  _logging_unlock();
   return 0;
 }
 
