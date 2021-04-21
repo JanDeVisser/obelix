@@ -811,6 +811,11 @@ int file_close(file_t *file) {
   int ret = 0;
 
   if (file -> fh >= 0) {
+    if (file->fname && *(file->fname)) {
+      debug(file, "Closing %s", file->fname);
+    } else {
+      debug(file, "Closing file #%d", file->fh);
+    }
     ret = close(file -> fh);
     if (ret) {
       if (errno) {
