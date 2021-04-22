@@ -28,7 +28,7 @@ typedef struct _dictionaryiter {
   data_t          _d;
   dictionary_t   *dictionary;
   dictiterator_t *di;
-} dictionaryiter_t;
+} __attribute__((aligned(64))) dictionaryiter_t;
 
 static dictionary_t *     _dictionary_new(dictionary_t *, va_list);
 static void               _dictionary_free(dictionary_t *);
@@ -38,10 +38,12 @@ static dictionaryiter_t * _dictionary_iter(dictionary_t *);
 static char *             _dictionary_encode(dictionary_t *);
 static dictionary_t *     _dictionary_serialize(dictionary_t *);
 static data_t *           _dictionary_deserialize(dictionary_t *);
+static void *             _dictionary_reduce_children(dictionary_t *, reduce_t, void *);
 
 static data_t *           _dictionary_create(data_t *, char *, arguments_t *);
 
 static dictionary_t *     _dictionary_serializer(entry_t *, dictionary_t *);
+static void *             _dictionary_visitor(entry_t *, ctx_wrapper_t *);
 static dictionary_t *     _dictionary_set_all_reducer(data_t *, dictionary_t *);
 static dictionary_t *     _dictionary_from_dict_reducer(entry_t *, dictionary_t *);
 static dictionary_t *     _dictionary_set_kwargs_reducer(entry_t *, dictionary_t *);
@@ -60,6 +62,7 @@ _unused_ static vtable_t _vtable_Dictionary[] = {
   { .id = FunctionEncode,      .fnc = (void_t) _dictionary_encode },
   { .id = FunctionSerialize,   .fnc = (void_t) _dictionary_serialize },
   { .id = FunctionDeserialize, .fnc = (void_t) _dictionary_deserialize },
+  { .id = FunctionReduce,      .fnc = (void_t) _dictionary_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -72,12 +75,14 @@ static dictionaryiter_t * _dictionaryiter_new(dictionaryiter_t *, va_list);
 static void               _dictionaryiter_free(dictionaryiter_t *);
 static data_t *           _dictionaryiter_has_next(dictionaryiter_t *);
 static data_t *           _dictionaryiter_next(dictionaryiter_t *);
+static void *             _dictionaryiter_reduce_children(dictionaryiter_t *iter, reduce_t reducer, void *ctx);
 
 _unused_ static vtable_t _vtable_DictionaryIter[] = {
   { .id = FunctionNew,         .fnc = (void_t) _dictionaryiter_new },
   { .id = FunctionFree,        .fnc = (void_t) _dictionaryiter_free },
   { .id = FunctionHasNext,     .fnc = (void_t) _dictionaryiter_has_next },
   { .id = FunctionNext,        .fnc = (void_t) _dictionaryiter_next },
+  { .id = FunctionReduce,      .fnc = (void_t) _dictionaryiter_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -244,6 +249,21 @@ dictionary_t * _dictionary_serialize(dictionary_t *dictionary) {
       dictionary_create(NULL));
 }
 
+void * _dictionary_visitor(entry_t *entry, ctx_wrapper_t *wrapper) {
+  wrapper->ctx = wrapper->reducer(entry -> value, wrapper->ctx);
+  return wrapper;
+}
+
+void * _dictionary_reduce_children(dictionary_t *dictionary, reduce_t reducer, void *ctx) {
+  ctx_wrapper_t wrapper;
+
+  wrapper.ctx = ctx;
+  wrapper.reducer = reducer;
+  dict_reduce(dictionary -> attributes, (reduce_t) _dictionary_visitor, &wrapper);
+  return wrapper.ctx;
+}
+
+
 /* ----------------------------------------------------------------------- */
 
 data_t * _dictionary_create(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {
@@ -380,3 +400,8 @@ data_t * _dictionaryiter_next(dictionaryiter_t *iter) {
   }
   return ret;
 }
+
+void * _dictionaryiter_reduce_children(dictionaryiter_t *iter, reduce_t reducer, void *ctx) {
+  return reducer(iter->dictionary, ctx);
+}
+

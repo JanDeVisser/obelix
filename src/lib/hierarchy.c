@@ -34,8 +34,10 @@ static data_t *      _hierarchy_iter(hierarchy_t *);
 static void          _hierarchy_free(hierarchy_t *);
 static char *        _hierarchy_tostring(hierarchy_t *);
 static data_t *      _hierarchy_resolve(hierarchy_t *, char *);
+static void *        _hierarchy_reduce_children(hierarchy_t *, reduce_t, void *);
 
-static void          _hierarchy_get_nodes(hierarchy_t *, array_t *);
+
+  static void          _hierarchy_get_nodes(hierarchy_t *, array_t *);
 
 static data_t *      _hierarchy_append(hierarchy_t *, char *, arguments_t *);
 static data_t *      _hierarchy_insert(hierarchy_t *, char *, arguments_t *);
@@ -44,12 +46,11 @@ static data_t *      _hierarchy_find(hierarchy_t *, char *, arguments_t *);
 static vtable_t _vtable_Hierarchy[] = {
   { .id = FunctionNew,         .fnc = (void_t) _hierarchy_new},
   { .id = FunctionCmp,         .fnc = (void_t) _hierarchy_cmp},
-  { .id = FunctionFree,        .fnc = (void_t) _hierarchy_free },
-  { .id = FunctionAllocString, .fnc = (void_t) _hierarchy_tostring },
   { .id = FunctionHash,        .fnc = (void_t) _hierarchy_hash },
   { .id = FunctionResolve,     .fnc = (void_t) _hierarchy_resolve },
   { .id = FunctionLen,         .fnc = (void_t) _hierarchy_size },
   { .id = FunctionIter,        .fnc = (void_t) _hierarchy_iter },
+  { .id = FunctionReduce,      .fnc = (void_t) _hierarchy_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -80,42 +81,39 @@ void hierarchy_init(void) {
 /* -- H I E R A R C H Y --------------------------------------------------- */
 
 hierarchy_t * _hierarchy_new(hierarchy_t *hierarchy, va_list args) {
-  char   *label = va_arg(args, char *);
-  data_t *data = NULL;
+  char        *label = va_arg(args, char *);
+  data_t      *data = NULL;
   hierarchy_t *up = NULL;
 
+  data = va_arg(args, data_t *);
   if (label) {
-    data = va_arg(args, data_t *);
     up = va_arg(args, hierarchy_t *);
-    hierarchy -> label = strdup(label);
   } else {
-    hierarchy -> label = strdup("/");
+    label = strdup("/");
   }
-  hierarchy -> data = data_copy(data);
-  hierarchy -> up = hierarchy_copy(up);
-  hierarchy -> branches = data_list_create();
+  data_set_static_string(hierarchy, strdup(label));
+  hierarchy -> data = data;
+  hierarchy -> up = up;
+  hierarchy -> branches = datalist_create(NULL);
   return hierarchy;
 };
 
 unsigned long _hierarchy_hash(hierarchy_t *hierarchy) {
-  return strhash(hierarchy -> label);
+  return strhash(hierarchy -> _d.str);
 }
 
 int _hierarchy_size(hierarchy_t *hierarchy) {
-  return list_size(hierarchy -> branches);
+  return datalist_size(hierarchy -> branches);
 }
 
 int _hierarchy_cmp(hierarchy_t *l1, hierarchy_t *l2) {
-  return strcmp(l1 -> label, l2 -> label);
+  return strcmp(l1 -> _d.str, l2 -> _d.str);
 }
 
-void _hierarchy_free(hierarchy_t *hierarchy) {
-  if (hierarchy) {
-    free(hierarchy -> label);
-    data_free(hierarchy -> data);
-    hierarchy_free(hierarchy -> up);
-    list_free(hierarchy -> branches);
-  }
+void * _hierarchy_reduce_children(hierarchy_t *hierarchy, reduce_t reducer, void *ctx) {
+  ctx = reducer(hierarchy->data, ctx);
+  ctx = reducer(hierarchy->up, ctx);
+  return reducer(hierarchy->branches, ctx);
 }
 
 data_t * _hierarchy_iter(hierarchy_t *hierarchy) {
@@ -129,13 +127,6 @@ data_t * _hierarchy_iter(hierarchy_t *hierarchy) {
   iter = data_iter(list);
   data_free(list);
   return iter;
-}
-
-char * _hierarchy_tostring(hierarchy_t *hierarchy) {
-  char *buf;
-
-  asprintf(&buf, "%s/%s", hierarchy -> label, list_tostring(hierarchy -> branches));
-  return buf;
 }
 
 data_t * _hierarchy_resolve(hierarchy_t *hierarchy, char *name) {
@@ -159,11 +150,11 @@ data_t * _hierarchy_resolve(hierarchy_t *hierarchy, char *name) {
 /* -- H I E R A R C H Y  A P I ---------------------------------------------*/
 
 void _hierarchy_get_nodes(hierarchy_t *hierarchy, array_t *nodes) {
-  listiterator_t *iter;
-  hierarchy_t    *branch;
+  int          ix;
+  hierarchy_t *branch;
 
-  for (iter = li_create(hierarchy -> branches); li_has_next(iter); ) {
-    branch = (hierarchy_t *) li_next(iter);
+  for (ix = 0; ix < datalist_size(hierarchy->branches); ix++) {
+    branch = (hierarchy_t *) datalist_get(hierarchy->branches, ix);
     if (branch -> data) {
       array_push(nodes,
           nvp_create((data_t *) hierarchy_name(branch), data_copy(branch -> data)));
@@ -172,16 +163,16 @@ void _hierarchy_get_nodes(hierarchy_t *hierarchy, array_t *nodes) {
   }
 }
 
-hierarchy_t * hierarchy_create(void) {
+hierarchy_t * hierarchy_create(char *label, data_t *data, hierarchy_t *up) {
   hierarchy_init();
-  return (hierarchy_t *) data_create(Hierarchy, NULL);
+  return (hierarchy_t *) data_create(Hierarchy, label, data, up);
 }
 
 hierarchy_t * hierarchy_append(hierarchy_t *hierarchy, char *label, data_t *data) {
   hierarchy_t *ret;
 
-  ret = (hierarchy_t *) data_create(Hierarchy, label, data, hierarchy);
-  list_append(hierarchy -> branches, ret);
+  ret = hierarchy_create(label, data, hierarchy);
+  datalist_push(hierarchy -> branches, ret);
   return ret;
 }
 
@@ -205,10 +196,10 @@ hierarchy_t * hierarchy_insert(hierarchy_t *hierarchy, name_t *name, data_t *dat
 }
 
 hierarchy_t * hierarchy_remove(hierarchy_t *hierarchy, name_t *name) {
-  hierarchy_t    *leaf;
-  hierarchy_t    *up;
-  hierarchy_t    *ret = NULL;
-  listiterator_t *li;
+  hierarchy_t *leaf;
+  hierarchy_t *up;
+  hierarchy_t *ret = NULL;
+  int          ix;
 
   if (!name_size(name)) {
     return NULL;
@@ -216,13 +207,12 @@ hierarchy_t * hierarchy_remove(hierarchy_t *hierarchy, name_t *name) {
   leaf = hierarchy_find(hierarchy, name);
   if (leaf) {
     up = leaf -> up;
-    for (li = li_create(up -> branches); !ret && li_has_next(li); ) {
-      if (leaf == li_next(li)) {
-        li_remove(li);
+    for (ix = 0; ix < datalist_size(hierarchy->branches); ix++) {
+      if (data_cmp((data_t *) leaf, (data_t *) datalist_get(hierarchy->branches, ix))) {
+        datalist_remove(hierarchy->branches, ix);
         ret = hierarchy;
       }
     }
-    li_free(li);
   } else {
     return NULL;
   }
@@ -230,24 +220,23 @@ hierarchy_t * hierarchy_remove(hierarchy_t *hierarchy, name_t *name) {
 }
 
 hierarchy_t * hierarchy_get_bylabel(hierarchy_t *hierarchy, char *label) {
-  hierarchy_t    *branch;
-  hierarchy_t    *ret = NULL;
-  listiterator_t *li;
+  hierarchy_t *branch;
+  hierarchy_t *ret = NULL;
+  int          ix;
 
 
-  for (li = li_create(hierarchy -> branches); !ret && li_has_next(li); ) {
-    branch = (hierarchy_t *) li_next(li);
-    if (!strcmp(label, branch -> label)) {
+  for (ix = 0; ix < datalist_size(hierarchy->branches); ix++) {
+    branch = (hierarchy_t *) datalist_get(hierarchy->branches, ix);
+    if (!strcmp(label, branch -> _d.str)) {
       ret = branch;
     }
   }
-  li_free(li);
   return ret;
 }
 
 hierarchy_t * hierarchy_get(hierarchy_t *hierarchy, int ix) {
-  return ((ix >= 0) && (ix < list_size(hierarchy -> branches)))
-    ? (hierarchy_t *) list_get(hierarchy -> branches, ix)
+  return ((ix >= 0) && (ix < datalist_size(hierarchy -> branches)))
+    ? (hierarchy_t *) datalist_get(hierarchy -> branches, ix)
     : NULL;
 }
 
@@ -270,7 +259,7 @@ name_t * hierarchy_name(hierarchy_t *hierarchy) {
   array_t *labels = array_create(ix + 1);
 
   for (; hierarchy; ix--, hierarchy = hierarchy -> up) {
-    array_set(labels, ix, hierarchy -> label);
+    array_set(labels, ix, hierarchy -> _d.str);
   }
   name_append_array(ret, labels);
   array_free(labels);
@@ -320,24 +309,18 @@ hierarchy_t * hierarchy_match(hierarchy_t *hierarchy, name_t *name, int *match_l
 
 /* -- H I E R A R C H Y  M E T H O D S -------------------------------------*/
 
-data_t * _hierarchy_append(hierarchy_t *hierarchy, char *n, arguments_t *args) {
-  (void) n;
-
+data_t * _hierarchy_append(hierarchy_t *hierarchy, _unused_ char *name, arguments_t *args) {
   return (data_t *) hierarchy_append(hierarchy,
     arguments_arg_tostring(args, 0),
     arguments_get_arg(args, 0));
 }
 
-data_t * _hierarchy_insert(hierarchy_t *hierarchy, char *name, arguments_t *args) {
-  (void) name;
-
+data_t * _hierarchy_insert(hierarchy_t *hierarchy, _unused_ char *name, arguments_t *args) {
   return (data_t *) hierarchy_insert(hierarchy,
     (name_t *) arguments_get_arg(args, 0), arguments_get_arg(args, 0));
 }
 
-data_t * _hierarchy_find(hierarchy_t *hierarchy, char *name, arguments_t *args) {
-  (void) name;
-
+data_t * _hierarchy_find(hierarchy_t *hierarchy, _unused_ char *name, arguments_t *args) {
   return (data_t *) hierarchy_find(hierarchy,
       data_as_name(arguments_get_arg(args, 0)));
 }

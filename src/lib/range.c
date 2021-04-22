@@ -30,18 +30,16 @@
 
 static inline void _range_init(void);
 static data_t *    _range_new(range_t *, va_list);
-static void        _range_free(range_t *);
-static char *      _range_allocstring(range_t *);
+static void *      _range_reduce_children(range_t *, reduce_t, void *);
 
 static vtable_t _vtable_Range[] = {
   { .id = FunctionNew,         .fnc = (void_t) _range_new },
   { .id = FunctionCmp,         .fnc = (void_t) range_cmp },
-  { .id = FunctionFree,        .fnc = (void_t) _range_free },
-  { .id = FunctionAllocString, .fnc = (void_t) _range_allocstring },
   { .id = FunctionHash,        .fnc = (void_t) range_hash },
   { .id = FunctionIter,        .fnc = (void_t) range_iter },
   { .id = FunctionNext,        .fnc = (void_t) range_next },
   { .id = FunctionHasNext,     .fnc = (void_t) range_has_next },
+  { .id = FunctionReduce,      .fnc = (void_t) _range_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -72,28 +70,21 @@ data_t * _range_new(range_t *range, va_list args) {
                           "Cannot build range: type '%s' is not incrementable",
                           typedescr_tostring(type));
   }
-  range = data_new(Range, range_t);
-  range -> from = data_copy(from);
-  range -> to = data_copy(to);
+  range -> from = from;
+  range -> to = to;
   range -> direction = (data_cmp(from, to) <= 0) ? FunctionIncr : FunctionDecr;
   range -> next = NULL;
+  asprintf(&range->_d.str, "%s ~ %s", data_tostring(from), data_tostring(to));
+  data_set_string_semantics(range, StrSemanticsStatic);
   return (data_t *) range;
 }
 
-void _range_free(range_t *range) {
-  if (range) {
-    data_free(range -> from);
-    data_free(range -> to);
-    data_free(range -> next);
-  }
+void * _range_reduce_children(range_t *range, reduce_t reducer, void *ctx) {
+  ctx = reducer(range->from, ctx);
+  ctx = reducer(range->to, ctx);
+  return reducer(range->next, ctx);
 }
 
-char * _range_allocstring(range_t *r) {
-  char *buf;
-
-  asprintf(&buf, "%s ~ %s", data_tostring(r -> from), data_tostring(r -> to));
-  return buf;
-}
 
 /* -- R A N G E _ T  P U B L I C  F U N C T I O N S ----------------------- */
 
@@ -114,8 +105,8 @@ unsigned int range_hash(range_t *r) {
 }
 
 data_t * range_iter(range_t *r) {
-  r -> next = data_copy(r -> from);
-  return data_copy((data_t *) r);
+  r -> next = r -> from;
+  return data_as_data(r);
 }
 
 data_t * range_next(range_t *r) {

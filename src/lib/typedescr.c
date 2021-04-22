@@ -37,30 +37,32 @@ extern int           _data_count;
 extern void          any_init(void);
 static datalist_t *  _add_method_reducer(methoddescr_t *, datalist_t *);
 
-static char *        _methoddescr_tostring(methoddescr_t *);
-static int           _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
-static data_t *      _methoddescr_resolve(methoddescr_t *, char *);
-static unsigned int  _methoddescr_hash(methoddescr_t *);
+static char *          _methoddescr_tostring(methoddescr_t *);
+static int             _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
+static data_t *        _methoddescr_resolve(methoddescr_t *, char *);
+static unsigned int    _methoddescr_hash(methoddescr_t *);
 
-static kind_t *      _kind_init(kind_t *, int, int, char *);
-static int           _kind_cmp(kind_t *, kind_t *);
-static char *        _kind_tostring(kind_t *);
-static unsigned int  _kind_hash(kind_t *);
-static data_t *      _kind_resolve(kind_t *, char *);
-static kind_t *      _kind_inherit_methods(kind_t *, kind_t *);
-static kind_t *      _inherit_method_reducer(methoddescr_t *, kind_t *);
+static kind_t *        _kind_init(kind_t *, int, int, char *);
+static int             _kind_cmp(kind_t *, kind_t *);
+static char *          _kind_tostring(kind_t *);
+static unsigned int    _kind_hash(kind_t *);
+static data_t *        _kind_resolve(kind_t *, char *);
+static ctx_wrapper_t * _kind_reduce_methods(methoddescr_t *, ctx_wrapper_t *);
+static void *          _kind_reduce_children(kind_t *, reduce_t, void *);
+static kind_t *        _kind_inherit_methods(kind_t *, kind_t *);
+static kind_t *        _inherit_method_reducer(methoddescr_t *, kind_t *);
 
-static data_t *      _interface_resolve(interface_t *, char *);
-static data_t *      _interface_isimplementedby(interface_t *, char *, arguments_t *);
-static data_t *      _interface_implements(data_t *, char *, arguments_t *);
+static data_t *        _interface_resolve(interface_t *, char *);
+static data_t *        _interface_isimplementedby(interface_t *, char *, arguments_t *);
+static data_t *        _interface_implements(data_t *, char *, arguments_t *);
 
-static int *         _typedescr_get_all_interfaces(typedescr_t *);
-static void_t *      _typedescr_get_constructors(typedescr_t *);
-static typedescr_t * _typedescr_initialize_vtable(typedescr_t *, vtable_t[]);
+static int *           _typedescr_get_all_interfaces(typedescr_t *);
+static void_t *        _typedescr_get_constructors(typedescr_t *);
+static typedescr_t *   _typedescr_initialize_vtable(typedescr_t *, vtable_t[]);
 
-static data_t *      _typedescr_resolve(typedescr_t *, char *);
-static data_t *      _typedescr_gettype(data_t *, char *, arguments_t *);
-static data_t *      _typedescr_hastype(data_t *, char *, arguments_t *);
+static data_t *        _typedescr_resolve(typedescr_t *, char *);
+static data_t *        _typedescr_gettype(data_t *, char *, arguments_t *);
+static data_t *        _typedescr_hastype(data_t *, char *, arguments_t *);
 
 static vtable_t _vtable_Method[] = {
   { .id = FunctionCmp,          .fnc = (void_t) _methoddescr_cmp },
@@ -77,6 +79,7 @@ static vtable_t _vtable_Kind[] = {
   { .id = FunctionStaticString, .fnc = (void_t) _kind_tostring },
   { .id = FunctionResolve,      .fnc = (void_t) _kind_resolve },
   { .id = FunctionHash,         .fnc = (void_t) _kind_hash },
+  { .id = FunctionReduce,       .fnc = (void_t) _kind_reduce_children },
   { .id = FunctionNone,         .fnc = NULL }
 };
 
@@ -160,7 +163,7 @@ void typedescr_init(void) {
     builtin_typedescr_register_nomethods(Kind, "Kind", kind_t);
     builtin_typedescr_register_nomethods(Type, "Type", typedescr_t);
     typedescr_assign_inheritance(Type, Kind);
-    builtin_typedescr_register_nomethods(Interface, "interface", interface_t);
+    builtin_typedescr_register_nomethods(Interface, "Interface", interface_t);
     typedescr_assign_inheritance(Interface, Kind);
     builtin_typedescr_register_nomethods(Method, "Method", methoddescr_t);
     typedescr_register_methods(Kind, _methods_Kind);
@@ -236,9 +239,7 @@ unsigned int _methoddescr_hash(methoddescr_t *mth) {
 /* -- G E N E R I C  T Y P E  D E S C R I P T O R ------------------------- */
 
 kind_t * _kind_init(kind_t * descr, int kind, int type, char *name) {
-#ifndef NDEBUG
   descr -> _d.cookie = MAGIC_COOKIE;
-#endif /* NDEBUG */
   descr -> _d.type = kind;
   descr -> _d.data_semantics = DataSemanticsConstant;
   data_set_string_semantics(descr, StrSemanticsExternStatic);
@@ -247,6 +248,7 @@ kind_t * _kind_init(kind_t * descr, int kind, int type, char *name) {
   descr -> type = type;
   descr -> name = strdup(name);
   descr -> methods = strdata_dict_create();
+  data_register(descr);
   return descr;
 }
 
@@ -527,6 +529,22 @@ data_t * _typedescr_resolve(typedescr_t *descr, char *name) {
     return (data_t *) list;
   } else {
     return NULL;
+  }
+}
+
+ctx_wrapper_t * _kind_reduce_methods(methoddescr_t *mth, ctx_wrapper_t *wrapper) {
+  wrapper->ctx = wrapper->reducer(mth, wrapper->ctx);
+  return wrapper;
+}
+
+void * _kind_reduce_children(kind_t *kind, reduce_t reducer, void *ctx) {
+  ctx_wrapper_t wrapper;
+
+  if (kind && kind->methods) {
+    wrapper.reducer = reducer;
+    wrapper.ctx = ctx;
+    dict_reduce_values(kind->methods, (reduce_t) _kind_reduce_methods, &wrapper);
+    return wrapper.ctx;
   }
 }
 

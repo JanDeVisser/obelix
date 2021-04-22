@@ -31,6 +31,7 @@ static nvp_t *      _nvp_new(nvp_t *, va_list);
 static void         _nvp_free(nvp_t *);
 static char *       _nvp_allocstring(nvp_t *);
 static data_t *     _nvp_resolve(nvp_t *, char *);
+static void *       _nvp_reduce_children(nvp_t *, reduce_t, void *);
 
 static data_t *     _nvp_create(char *, arguments_t *);
 
@@ -38,12 +39,11 @@ static data_t *     _nvp_create(char *, arguments_t *);
 
 static vtable_t _vtable_NVP[] = {
   { .id = FunctionNew,         .fnc = (void_t) _nvp_new },
-  { .id = FunctionFree,        .fnc = (void_t) _nvp_free },
   { .id = FunctionCmp,         .fnc = (void_t) nvp_cmp },
-  { .id = FunctionAllocString, .fnc = (void_t) _nvp_allocstring },
   { .id = FunctionParse,       .fnc = (void_t) nvp_parse },
   { .id = FunctionHash,        .fnc = (void_t) nvp_hash },
   { .id = FunctionResolve,     .fnc = (void_t) _nvp_resolve },
+  { .id = FunctionReduce,      .fnc = (void_t) _nvp_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -63,37 +63,29 @@ nvp_t * _nvp_new(nvp_t *nvp, va_list args) {
 
   name = va_arg(args, data_t *);
   value = va_arg(args, data_t *);
-  nvp -> name = data_copy(name);
-  nvp -> value = data_copy(value);
+  nvp -> name = name;
+  nvp -> value = value;
+  asprintf(&nvp->_d.str, "%s=%s",
+           data_tostring(nvp -> name),
+           data_tostring(nvp -> value));
+  data_set_string_semantics(nvp, StrSemanticsStatic);
   return nvp;
-}
-
-void _nvp_free(nvp_t *nvp) {
-  if (nvp) {
-    data_free(nvp -> name);
-    data_free(nvp -> value);
-  }
-}
-
-char * _nvp_allocstring(nvp_t *nvp) {
-  char *buf;
-
-  asprintf(&buf, "%s=%s", 
-      data_tostring(nvp -> name), 
-      data_tostring(nvp -> value));
-  return buf;
 }
 
 data_t * _nvp_resolve(nvp_t *nvp, char *name) {
   if (!strcmp(name, "name")) {
-    return data_copy(nvp -> name);
+    return nvp -> name;
   } else if (!strcmp(name, "value")) {
-    return data_copy(nvp -> value);
+    return nvp -> value;
   } else {
     return NULL;
   }
 }
-  
+
+void * _nvp_reduce_children(nvp_t *nvp, reduce_t reducer, void *ctx) {
+  return reducer(nvp->value, reducer(nvp->name, ctx));
+}
+
 /* ------------------------------------------------------------------------ */
 
 nvp_t * nvp_create(data_t *name, data_t *value) {
@@ -145,7 +137,5 @@ unsigned int nvp_hash(nvp_t *nvp) {
 /* ------------------------------------------------------------------------ */
 
 data_t * _nvp_create(char *name, arguments_t *args) {
-  return (data_t *) nvp_create(
-      data_uncopy(arguments_get_arg(args, 0)),
-      data_uncopy(arguments_get_arg(args, 1)));
+  return (data_t *) nvp_create(arguments_get_arg(args, 0), arguments_get_arg(args, 1));
 }

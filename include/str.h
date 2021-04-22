@@ -120,7 +120,7 @@ extern str_t *         str_formatf(const char *fmt, ...);
 #define str_replace_one(s,p,r) (str_replace((str_t *) (s), (p), (r), 1))
 #define str_replace_all(s,p,r) (str_replace((str_t *) (s), (p), (r), INT_MAX))
 
-#define data_is_string(d)      ((d) && (data_hastype((d), String)))
+#define data_is_string(d)      ((d) && data_is_data(d) && data_hastype((d), String))
 #define data_as_string(d)      ((str_t *) (data_is_string((d)) ? ((str_t *) (d)) : NULL))
 #define str_free(s)            (data_free((data_t *) (s)))
 #define str_tostring(s)        (data_tostring((data_t *) (s)))

@@ -22,11 +22,11 @@
 #add_executable(readfile readfile.c)
 #target_link_libraries(readfile oblcore ${SYSLIBS})
 
-add_executable(heaptest heaptest.cpp)
-target_link_libraries(heaptest ${GTEST_LDFLAGS} oblcore ${SYSLIBS})
-target_compile_options(heaptest PUBLIC ${GTEST_CFLAGS})
+add_executable(coretest heaptest.cpp nametest.cpp)
+target_link_libraries(coretest ${GTEST_LDFLAGS} oblcore ${SYSLIBS})
+target_compile_options(coretest PUBLIC ${GTEST_CFLAGS})
 
-install(TARGETS heaptest)
+install(TARGETS coretest)
 
 include(CTest)
-add_test(obelix_tests heaptest)
+add_test(obelix_tests coretest)

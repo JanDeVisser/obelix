@@ -95,11 +95,7 @@ type_skel(file, File, file_t);
 #define file_readline(f)           (stream_readline((stream_t *) (f)))
 #define file_print(s, f, a, kw)    (stream_print((stream_t *) (s), (f), (a), (kw)))
 #define file_vprintf(s, f, args)   (stream_printf((stream_t *) (s), (f), args))
-#ifndef _MSC_VER
 #define file_printf(s, f, args...) (stream_printf((stream_t *) (s), (f), ## args))
-#else
-#define file_printf(s, ...)        (stream_printf((stream_t *) (s), __VA_ARGS__))
-#endif /* _MSC_VER */
 
 #ifdef __cplusplus
 }

@@ -33,12 +33,12 @@ static void     _regexp_init(void);
 static re_t *   _regexp_new(re_t *, va_list);
 static void     _regexp_free(re_t *);
 static int      _regexp_cmp(re_t *, re_t *);
-static char *   _regexp_allocstring(re_t *);
 static data_t * _regexp_call(re_t *, arguments_t *);
 static data_t * _regexp_interpolate(re_t *, arguments_t *);
 static data_t * _regexp_match(data_t *, char *, arguments_t *);
 static data_t * _regexp_replace(data_t *, char *, arguments_t *);
 static data_t * _regexp_compile(re_t *);
+static void *   _regexp_reduce_children(re_t *, reduce_t, void *);
 
 extern data_t * _regexp_create(char *, arguments_t *);
 
@@ -46,9 +46,9 @@ static vtable_t _vtable_Regexp[] = {
     { .id = FunctionNew,         .fnc = (void_t) _regexp_new },
     { .id = FunctionFree,        .fnc = (void_t) _regexp_free },
     { .id = FunctionCmp,         .fnc = (void_t) _regexp_cmp },
-    { .id = FunctionAllocString, .fnc = (void_t) _regexp_allocstring },
     { .id = FunctionCall,        .fnc = (void_t) _regexp_call },
     { .id = FunctionInterpolate, .fnc = (void_t) _regexp_interpolate },
+    { .id = FunctionReduce,      .fnc = (void_t) _regexp_reduce_children },
     { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -83,13 +83,15 @@ re_t * _regexp_new(re_t *regex, va_list args) {
     }
   }
   regex -> is_compiled = FALSE;
+  asprintf(&regex->_d.str, "/%s/%s",
+           str_tostring(regex -> pattern), (regex -> flags) ? (regex -> flags) : "");
+  data_set_string_semantics(regex, StrSemanticsStatic);
   debug(regexp, "Created re %s", regexp_tostring(regex));
   return regex;
 }
 
 void _regexp_free(re_t *regex) {
   if (regex) {
-    str_free(regex -> pattern);
     free(regex -> flags);
     if (regex -> is_compiled) {
       regfree(&regex -> compiled);
@@ -99,14 +101,6 @@ void _regexp_free(re_t *regex) {
 
 int _regexp_cmp(re_t *regex1, re_t *regex2) {
   return str_cmp(regex1 -> pattern, regex2 -> pattern);
-}
-
-char * _regexp_allocstring(re_t *regex) {
-  char *buf;
-
-  asprintf(&buf, "/%s/%s",
-      str_tostring(regex -> pattern), (regex -> flags) ? (regex -> flags) : "");
-  return buf;
 }
 
 data_t * _regexp_call(re_t *re, arguments_t *args) {
@@ -147,6 +141,11 @@ data_t * _regexp_compile(re_t *re) {
   }
   return (data_t *) re;
 }
+
+void * _regexp_reduce_children(re_t *re, reduce_t reducer, void *ctx) {
+  return reducer(re->pattern, ctx);
+}
+
 
 /* ------------------------------------------------------------------------ */
 

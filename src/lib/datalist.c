@@ -318,6 +318,10 @@ data_t * datalist_pop(datalist_t *list) {
   return (data_t *) array_pop(data_as_array(list));
 }
 
+void * datalist_reduce(datalist_t *list, reduce_t reducer, void *ctx) {
+  return array_reduce(data_as_array(list), reducer, ctx);
+}
+
 /* ----------------------------------------------------------------------- */
 
 datalist_t * _list_create(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {

@@ -63,12 +63,11 @@ static void            _heap_init();
 static heap_page_t *   _heap_new_page(size_t);
 static heap_page_t *   _heap_new_page_for_size(size_t);
 static heap_page_t *   _heap_find_page_for(void *block);
-static data_t *        _heap_visit_data(data_t *, reduce_t, void *);
 static void            _heap_unmark();
 static void            _heap_find_and_mark_all_live_blocks();
 static void            _heap_sweep();
 
-static void            _data_add_live_block(data_t *, list_t *);
+static void *          _data_add_live_block(void *, void *);
 
 static int heap_debug = 0;
 
@@ -238,32 +237,28 @@ static heap_page_t * _heap_find_page_for(void *block) {
   return NULL;
 }
 
-static void _data_add_live_block(data_t *data, list_t *live) {
-  data->marked = 1;
-  list_append(live, data);
+static void * _data_add_live_block(void *data, _unused_ void *ctx) {
+  if (data && (data_is_data(data) || _heap_find_page_for(data))) {
+    ((free_block_t *) data)->marked = 1;
+  }
+  return NULL;
 }
 
 static void _heap_find_and_mark_all_live_blocks() {
-  list_t       *live;
   block_ptr_t  *ptr;
   free_block_t *block;
   data_t       *data;
 
-  live = list_create();
   for (ptr = the_heap.roots; ptr; ptr = ptr->next) {
-    list_append(live, ptr->block);
-  }
-  for (list_start(live); list_has_next(live); ) {
-    block = (free_block_t *) list_next(live);
+    block = (free_block_t *) ptr->block;
     if (block->is_live) {
       block->marked = 1;
       if (data_is_data(block)) {
         data = data_as_data(block);
-        data_reduce_children(data, (reduce_t) _data_add_live_block, live);
+        data_reduce_children(data, (reduce_t) _data_add_live_block, NULL);
       }
     }
   }
-  list_free(live);
 }
 
 static void _heap_sweep() {

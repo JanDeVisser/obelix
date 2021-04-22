@@ -25,6 +25,7 @@ static application_t *    _app_new(application_t *, va_list);
 static data_t *           _app_resolve(application_t *, char *);
 static data_t *           _app_set(application_t *, char *, data_t *);
 static void               _app_free(application_t *);
+static void *             _app_reduce_children(application_t *app, reduce_t reducer, void *ctx);
 
 static void               _app_help(application_t *);
 static void               _app_debug(application_t *, char *);
@@ -38,6 +39,7 @@ static vtable_t _vtable_Application[] = {
   { .id = FunctionFree,        .fnc = (void_t) _app_free },
   { .id = FunctionResolve,     .fnc = (void_t) _app_resolve },
   { .id = FunctionSet,         .fnc = (void_t) _app_set },
+  { .id = FunctionReduce,      .fnc = (void_t) _app_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -65,9 +67,6 @@ application_t * _app_new(application_t *app, va_list args) {
 void _app_free(application_t *app) {
   if (app) {
     free(app -> executable);
-    array_free(app -> argv);
-    arguments_free(app -> args);
-    data_free(app -> error);
   }
 }
 
@@ -84,6 +83,10 @@ data_t * _app_resolve(application_t *app, char *name) {
 data_t * _app_set(application_t *app, char *name, data_t *value) {
   arguments_set_kwarg(app -> args, name, value);
   return (data_t *) app;
+}
+
+void * _app_reduce_children(application_t *app, reduce_t reducer, void *ctx) {
+  return reducer(app->error, reducer(app->args, ctx));
 }
 
 _noreturn_ void _app_help(application_t *app) {

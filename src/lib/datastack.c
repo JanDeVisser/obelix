@@ -31,16 +31,67 @@ typedef struct _counter {
   int count;
 } counter_t;
 
-static bookmark_t * _bookmark_create(datastack_t *);
-static void         _bookmark_free(bookmark_t *);
-static int          _bookmark_depth(bookmark_t *);
+static bookmark_t *   _bookmark_create(datastack_t *);
+static void           _bookmark_free(bookmark_t *);
+static int            _bookmark_depth(bookmark_t *);
+                      
+static counter_t *    _counter_create();
+static void           _counter_free(counter_t *);
+static int            _counter_count(counter_t *);
+static counter_t *    _counter_incr(counter_t *);
+                      
+static void           _stack_list_visitor(data_t *);
 
-static counter_t *  _counter_create();
-static void         _counter_free(counter_t *);
-static int          _counter_count(counter_t *);
-static counter_t *  _counter_incr(counter_t *);
+static datastack_t *  _datastack_new(datastack_t *, va_list);
+static void           _datastack_free(datastack_t *);
+static void *         _datastack_reduce_children(datastack_t *, reduce_t, void *);
 
-static void         _stack_list_visitor(data_t *);
+
+_unused_ static vtable_t _vtable_DataStack[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _datastack_new },
+  { .id = FunctionFree,        .fnc = (void_t) _datastack_free },
+  { .id = FunctionHash,        .fnc = (void_t) datastack_hash },
+  { .id = FunctionCmp,         .fnc = (void_t) datastack_cmp },
+  { .id = FunctionPush,        .fnc = (void_t) _datastack_push },
+  { .id = FunctionPop,         .fnc = (void_t) datastack_pop },
+  { .id = FunctionReduce,      .fnc = (void_t) _datastack_reduce_children },
+  { .id = FunctionNone,        .fnc = NULL }
+};
+
+int DataStack = -1;
+extern int data_debug;
+
+/* ----------------------------------------------------------------------- */
+
+void datastack_init(void) {
+  if (DataStack < 1) {
+    typedescr_register(DataStack, datastack_t);
+  }
+}
+
+/* ----------------------------------------------------------------------- */
+
+datastack_t * _datastack_new(datastack_t *stack, va_list args) {
+  char *name = va_arg(args, char *);
+  stack -> _d.str = strdup(name);
+  data_set_string_semantics(stack, StrSemanticsStatic);
+  stack -> list = data_array_create(4);
+  stack -> bookmarks = NULL;
+  stack -> counters = NULL;
+  return stack;
+}
+
+void _datastack_free(datastack_t *stack) {
+  if (stack) {
+    array_free(stack -> list);
+    array_free(stack -> bookmarks);
+    array_free(stack -> counters);
+  }
+}
+
+void * _datastack_reduce_children(datastack_t *stack, reduce_t reducer, void *ctx) {
+  return array_reduce(stack->list, reducer, ctx);
+}
 
 /* ------------------------------------------------------------------------ */
 
@@ -102,15 +153,7 @@ void _stack_bookmarks_visitor(bookmark_t *bookmark) {
 /* ------------------------------------------------------------------------ */
 
 datastack_t * datastack_create(char *name) {
-  datastack_t *ret;
-
-  ret = NEW(datastack_t);
-  ret -> name = strdup(name);
-  ret -> debug = 0;
-  ret -> list = data_array_create(4);
-  ret -> bookmarks = NULL;
-  ret -> counters = NULL;
-  return ret;
+  return (datastack_t *) data_create(DataStack, name);
 }
 
 datastack_t * datastack_set_debug(datastack_t *stack, int debug) {
@@ -118,26 +161,12 @@ datastack_t * datastack_set_debug(datastack_t *stack, int debug) {
   return stack;
 }
 
-void datastack_free(datastack_t *stack) {
-  if (stack) {
-    array_free(stack -> list);
-    array_free(stack -> bookmarks);
-    array_free(stack -> counters);
-    free(stack -> name);
-    free(stack);
-  }
-}
-
-char * datastack_tostring(datastack_t *stack) {
-  return stack -> name;
-}
-
 int datastack_hash(datastack_t *stack) {
-  return strhash(stack -> name);
+  return strhash(stack -> _d.str);
 }
 
 int datastack_cmp(datastack_t *s1, datastack_t *s2) {
-  return strcmp(s1 -> name, s2 -> name);
+  return strcmp(s1 -> _d.str, s2 -> _d.str);
 }
 
 int datastack_depth(datastack_t *stack) {
@@ -180,7 +209,7 @@ datastack_t * _datastack_push(datastack_t *stack, data_t *data) {
 }
 
 datastack_t * datastack_list(datastack_t *stack) {
-  _debug("-- Stack '%s' ---------------------------------------------", stack -> name);
+  _debug("-- Stack '%s' ---------------------------------------------", datastack_tostring(stack) );
   array_visit(stack -> list, (visit_t) _stack_list_visitor);
   if (array_size(stack -> counters) > 0) {
     _debug("---- Counters ---------------------------------------------");
@@ -260,7 +289,7 @@ name_t * datastack_rollup_name(datastack_t *stack) {
   ret = name_create(0);
   for (ix = 0; ix < array_size(arr); ix++) {
     data = data_array_get(arr, ix);
-    name_extend_data(ret, data);
+    name_extend(ret, data);
   }
   array_free(arr);
   return ret;

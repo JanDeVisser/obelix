@@ -118,7 +118,6 @@ extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
   _typedescr_register(t, name , _vtable_ ## t, NULL);                        \
   typedescr_set_size(t, type);                                               \
 
-#ifndef _MSC_VER
 #define builtin_interface_register(i, num, fncs...)                          \
   _interface_register(i, #i , num, ## fncs);
 
@@ -126,15 +125,6 @@ extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
   if (i < 1) {                                                               \
     i = _interface_register(i, #i , num, ## fncs);                           \
   }
-#else /* _MSC_VER */
-#define builtin_interface_register(i, num, ...)                          \
-  _interface_register(i, #i , num, __VA_ARGS__);
-
-#define interface_register(i, num, ...)                                  \
-  if (i < 1) {                                                               \
-    i = _interface_register(i, #i , num, __VA_ARGS__);                           \
-  }
-#endif /* _MSC_VER */
 
 #ifdef  __cplusplus
 }

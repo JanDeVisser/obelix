@@ -79,7 +79,7 @@ typedef struct _type {
   copy_t     copy;
   free_t     free;
   cmp_t      cmp;
-} type_t;
+} __attribute__((aligned(64))) type_t;
 
 typedef enum _reduce_type {
   RTObjects = 1,
@@ -87,13 +87,18 @@ typedef enum _reduce_type {
   RTStrs = 4
 } reduce_type_t;
 
+typedef struct _ctx_wrapper_t {
+  reduce_t  reducer;
+  void     *ctx;
+} __attribute__((aligned(16))) ctx_wrapper_t;
+
 typedef struct _reduce_ctx {
   void           *obj;
   void           *user;
   void           *data;
   long            longdata;
   void_t          fnc;
-} reduce_ctx;
+} __attribute__((aligned(64))) reduce_ctx;
 
 extern void *          _new(size_t);
 extern void *          new_array(size_t, size_t);

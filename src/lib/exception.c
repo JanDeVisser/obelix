@@ -73,6 +73,7 @@ static data_t *       _exception_call(data_t *, arguments_t *);
 static data_t *       _exception_cast(data_t *, int);
 static dictionary_t * _exception_serialize(exception_t *);
 static exception_t *  _exception_deserialize(dictionary_t *);
+static void *         _exception_reduce_children(exception_t *, reduce_t, void *);
 
 static data_t *       _data_exception_from_exception(exception_t *);
 
@@ -87,6 +88,7 @@ static vtable_t _vtable_Exception[] = {
   { .id = FunctionCast,        .fnc = (void_t) _exception_cast },
   { .id = FunctionSerialize,   .fnc = (void_t) _exception_serialize },
   { .id = FunctionDeserialize, .fnc = (void_t) _exception_deserialize },
+  { .id = FunctionReduce,      .fnc = (void_t) _exception_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -205,8 +207,6 @@ char * _exception_allocstring(exception_t *exception) {
 void _exception_free(exception_t *exception) {
   if (exception) {
     free(exception -> msg);
-    data_free(exception -> throwable);
-    data_free(exception -> trace);
   }
 }
 
@@ -292,6 +292,9 @@ static exception_t * _exception_deserialize(dictionary_t *d) {
   return ret;
 }
 
+void * _exception_reduce_children(exception_t *exception, reduce_t reducer, void *ctx) {
+  return reducer(exception->trace, reducer(exception->throwable, ctx));
+}
 
 /* -- E X C E P T I O N  F A C T O R Y  F U N C T I O N S ----------------- */
 

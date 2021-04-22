@@ -28,24 +28,34 @@
 #include <file.h>
 #include <fsentry.h>
 
-static void     _fsentry_init(void);
-static void     _fsentry_free(fsentry_t *);
-static char *   _fsentry_allocstring(fsentry_t *);
-static data_t * _fsentry_resolve(fsentry_t *, char *);
+typedef struct _fsentry_iter {
+  data_t              _d;
+  fsentry_t          *dir;
+  DIR                *dirptr;
+  struct dirent      *entryptr;
+} fsentry_iter_t;
 
-extern data_t * _fsentry_create(char *, arguments_t *);
+static void             _fsentry_init(void);
+static fsentry_t *      _fsentry_new(fsentry_t *, va_list);
+static void             _fsentry_free(fsentry_t *);
+static data_t *         _fsentry_resolve(fsentry_t *, char *);
+static fsentry_iter_t * _fsentry_iterator(fsentry_t *);
+static void *           _fsentry_reduce_children(fsentry_t *, reduce_t, void *);
 
-static data_t * _fsentry_open(data_t *, char *, arguments_t *);
-static data_t * _fsentry_isfile(data_t *, char *, arguments_t *);
-static data_t * _fsentry_isdir(data_t *, char *, arguments_t *);
-static data_t * _fsentry_exists(data_t *, char *, arguments_t *);
+extern fsentry_t *      _fsentry_create(char *, arguments_t *);
+
+static data_t *         _fsentry_open(data_t *, char *, arguments_t *);
+static data_t *         _fsentry_isfile(data_t *, char *, arguments_t *);
+static data_t *         _fsentry_isdir(data_t *, char *, arguments_t *);
+static data_t *         _fsentry_exists(data_t *, char *, arguments_t *);
 
 static vtable_t _vtable_FSEntry[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _fsentry_new },
   { .id = FunctionCmp,         .fnc = (void_t) fsentry_cmp },
-  { .id = FunctionFree,        .fnc = (void_t) _fsentry_free },
-  { .id = FunctionAllocString, .fnc = (void_t) _fsentry_allocstring },
   { .id = FunctionHash,        .fnc = (void_t) fsentry_hash },
   { .id = FunctionResolve,     .fnc = (void_t) _fsentry_resolve },
+  { .id = FunctionIter,        .fnc = (void_t) _fsentry_iterator },
+  { .id = FunctionReduce,      .fnc = (void_t) _fsentry_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -61,30 +71,19 @@ static int FSEntry = -1;
 
 /* ------------------------------------------------------------------------ */
 
-typedef struct _fsentry_iter {
-  data_t              _d;
-  fsentry_t          *dir;
-#ifdef HAVE_DIRENT_H
-  DIR                *dirptr;
-  struct dirent      *entryptr;
-#elif HAVE__FINDFIRST
-  intptr_t            dirptr;
-  struct _finddata_t  entry;
-#endif /* HAVE_DIRENT_H / HAVE__FINDFIRST */
-} fsentry_iter_t;
-
+static fsentry_iter_t * _fsentry_iter_new(fsentry_iter_t *, va_list);
 static fsentry_iter_t * _fsentry_iter_readnext(fsentry_iter_t *);
-static fsentry_iter_t * _fsentry_iter_create(fsentry_t *);
 static void             _fsentry_iter_free(fsentry_iter_t *);
-static char *           _fsentry_iter_tostring(fsentry_iter_t *);
 static data_t *         _fsentry_iter_has_next(fsentry_iter_t *);
 static data_t *         _fsentry_iter_next(fsentry_iter_t *);
+static void *           _fsentry_iter_reduce_children(fsentry_iter_t *, reduce_t, void *);
 
 static vtable_t _vtable_FSEntryIter[] = {
+  { .id = FunctionNew,      .fnc = (void_t) _fsentry_iter_new },
   { .id = FunctionFree,     .fnc = (void_t) _fsentry_iter_free },
-  { .id = FunctionToString, .fnc = (void_t) _fsentry_iter_tostring },
   { .id = FunctionHasNext,  .fnc = (void_t) _fsentry_iter_has_next },
   { .id = FunctionNext,     .fnc = (void_t) _fsentry_iter_next },
+  { .id = FunctionReduce,   .fnc = (void_t) _fsentry_iter_reduce_children },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -101,15 +100,14 @@ void _fsentry_init(void) {
 
 /* -- F S E N T R Y _ T  S T A T I C   F U N C T I O N S ------------------ */
 
-void _fsentry_free(fsentry_t *e) {
-  if (e) {
-    free(e -> name);
-  }
+fsentry_t * _fsentry_new(fsentry_t *fse, va_list args) {
+  char *name = va_arg(args, char *);
+
+  data_set_static_string(fse, name);
+  fse -> exists = (stat(name, &fse->statbuf)) ? errno : 0;
+  return fse;
 }
 
-char * _fsentry_allocstring(fsentry_t *e) {
-  return strdup(e -> name);
-}
 
 data_t * _fsentry_resolve(fsentry_t *entry, char *name) {
   fsentry_t *e = NULL;
@@ -128,16 +126,26 @@ data_t * _fsentry_resolve(fsentry_t *entry, char *name) {
   }
 }
 
+fsentry_iter_t * _fsentry_iterator(fsentry_t *dir) {
+  fsentry_iter_t *ret = NULL;
+  DIR            *d;
+
+  d = opendir(fsentry_tostring(dir));
+  if (d && ((intptr_t) d != -1L)) {
+    ret = (fsentry_iter_t *) data_create(FSEntryIter, dir, d);
+  }
+  return ret;
+}
+
+void * _fsentry_reduce_children(fsentry_t *entry, reduce_t reducer, void *ctx) {
+  return ctx;
+}
+
 /* -- F S E N T R Y _ T  P U B L I C  F U N C T I O N S ------------------- */
 
 fsentry_t * fsentry_create(char *name) {
-  fsentry_t *ret;
-
   _fsentry_init();
-  ret = data_new(FSEntry, fsentry_t);
-  ret -> name = strdup(name);
-  ret -> exists = (stat(ret->name, &ret->statbuf)) ? errno : 0;
-  return ret;
+  return (fsentry_t *) data_create(FSEntry, name);
 }
 
 fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
@@ -147,7 +155,8 @@ fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
   if (!dir || !fsentry_isdir(dir) || !name) {
     return NULL;
   } else {
-    strcpy(n, dir -> name);
+    strncpy(n, fsentry_tostring(dir), MAX_PATH-1);
+    n[MAX_PATH-1] = 0;
     if (n[strlen(n) - 1] != '/') {
       strcat(n, "/");
     }
@@ -158,11 +167,11 @@ fsentry_t * fsentry_getentry(fsentry_t *dir, char *name) {
 }
 
 unsigned int fsentry_hash(fsentry_t *e) {
-  return strhash(e -> name);
+  return strhash(fsentry_tostring(e));
 }
 
 int fsentry_cmp(fsentry_t *e1, fsentry_t *e2) {
-  return strcmp(e1 -> name, e2 -> name);
+  return strcmp(fsentry_tostring(e1), fsentry_tostring(e2));
 }
 
 int fsentry_exists(fsentry_t *e) {
@@ -194,7 +203,7 @@ list_t * fsentry_getentries(fsentry_t *dir) {
   fsentry_iter_t *iter;
   data_t         *d;
 
-  iter = _fsentry_iter_create(dir);
+  iter = _fsentry_iterator(dir);
   if (iter) {
     ret = data_list_create();
     for (d = _fsentry_iter_has_next(iter);
@@ -211,78 +220,39 @@ file_t * fsentry_open(fsentry_t *e) {
   if (!fsentry_isfile(e)) {
     return NULL;
   }
-  return file_open(e -> name);
+  return file_open(fsentry_tostring(e));
 }
 
 /* -- F S E N T R Y I T E R ----------------------------------------------- */
 
+fsentry_iter_t * _fsentry_iter_new(fsentry_iter_t *iter, va_list args) {
+  fsentry_t *dir = va_arg(args, fsentry_t *);
+  DIR       *dirptr = va_arg(args, DIR *);
+
+  iter -> dir = dir;
+  iter -> dirptr = dirptr;
+  iter = _fsentry_iter_readnext(iter);
+  data_set_static_string(iter, fsentry_tostring(dir));
+  return iter;
+}
+
 fsentry_iter_t * _fsentry_iter_readnext(fsentry_iter_t *iter) {
-#ifdef HAVE_DIRENT_H
   iter -> entryptr = readdir(iter -> dirptr);
   if (!iter -> entryptr) {
     closedir(iter -> dirptr);
     iter -> dirptr = NULL;
-#elif defined(HAVE__FINDFIRST)
-  if (_findnext(iter -> dirptr, &iter -> entry)) {
-    _findclose(iter -> dirptr);
-    iter -> dirptr = 0;
-#endif
   }
   return iter;
 }
 
-fsentry_iter_t * _fsentry_iter_create(fsentry_t *dir) {
-  fsentry_iter_t *ret = NULL;
-#ifdef HAVE_DIRENT_H
-  DIR            *d;
-#elif defined(HAVE__FINDFIRST)
-  intptr_t            d;
-  struct _finddata_t  attrib;
-#endif
-
-#ifdef HAVE_DIRENT_H
-  d = opendir(dir -> name);
-#elif defined(HAVE__FINDFIRST)
-  d =_findfirst("*.*", &attrib);
-#endif
-  if (d && ((intptr_t) d != -1L)) {
-    ret = data_new(FSEntryIter, fsentry_iter_t);
-    ret -> dir = dir;
-    ret -> dirptr = d;
-#ifdef HAVE_DIRENT_H
-    ret = _fsentry_iter_readnext(ret);
-#elif defined(HAVE__FINDFIRST)
-    memcpy(&ret -> entry, &attrib, sizeof(struct _finddata_t));
-  } else {
-    ret -> dirptr = 0;
-#endif
-  }
-  return ret;
-}
-
 void _fsentry_iter_free(fsentry_iter_t *iter) {
-  if (iter) {
-    if (iter -> dirptr) {
-#ifdef HAVE_DIRENT_H
-      closedir(iter -> dirptr);
-#elif defined(HAVE__FINDFIRST)
-      _findclose(iter -> dirptr);
-#endif
-    }
-    free(iter);
+  if (iter && iter -> dirptr) {
+    closedir(iter -> dirptr);
   }
-}
-
-char * _fsentry_iter_tostring(fsentry_iter_t *iter) {
-  return fsentry_tostring(iter -> dir);
 }
 
 data_t * _fsentry_iter_has_next(fsentry_iter_t *iter) {
-#ifdef HAVE_DIRENT_H
   return int_as_bool(iter -> dirptr != NULL);
-#elif defined(HAVE__FINDFIRST)
-  return int_as_bool(iter -> dirptr != 0);
-#endif
 }
 
 data_t * _fsentry_iter_next(fsentry_iter_t *iter) {
@@ -290,11 +260,7 @@ data_t * _fsentry_iter_next(fsentry_iter_t *iter) {
   if (iter -> dirptr) {
     ret = data_create(FSEntry,
                       fsentry_getentry(iter -> dir,
-#ifdef HAVE_DIRENT_H
                                        iter -> entryptr -> d_name));
-#elif defined(HAVE__FINDFIRST)
-                                       iter -> entry.name));
-#endif
     _fsentry_iter_readnext(iter);
   } else {
     ret = data_exception(ErrorExhausted, "Iterator exhausted");
@@ -302,36 +268,43 @@ data_t * _fsentry_iter_next(fsentry_iter_t *iter) {
   return ret;
 }
 
-/* -- F S E N T R Y   D A T A   T Y P E   M E T H O D S ------------------- */
-
-data_t * _fsentry_create(char *name, arguments_t *args) {
-  (void) name;
-
-  return (data_t *) fsentry_create(arguments_arg_tostring(args, 0));
+void * _fsentry_iter_reduce_children(fsentry_iter_t *iter, reduce_t reducer, void *ctx) {
+  return reducer(iter->dir, ctx);
 }
 
-data_t * _fsentry_open(data_t *e, char *n, arguments_t *args) {
+/* -- F S E N T R Y   D A T A   T Y P E   M E T H O D S ------------------- */
+
+fsentry_t * _fsentry_create(_unused_ char *name, arguments_t *args) {
+  data_t    *first_arg;
+  fsentry_t *dir = NULL;
+
+  first_arg = arguments_get_arg(args, 0);
+  if (data_is_fsentry(first_arg)) {
+    dir = data_as_fsentry(first_arg);
+  } else {
+    dir = fsentry_create(arguments_arg_tostring(args, 0));
+  }
+  if (dir && (arguments_args_size(args) == 1)) {
+    return dir;
+  } else {
+    return fsentry_getentry(dir, arguments_arg_tostring(args, 1));
+  }
+}
+
+data_t * _fsentry_open(_unused_ data_t *e, _unused_ char *n, arguments_t *args) {
   data_t *ret = (data_t *) fsentry_open((fsentry_t *) e);
 
-  (void) n;
-  (void) args;
   return (ret) ? ret : data_null();
 }
 
-data_t * _fsentry_isfile(data_t *e, char *n, arguments_t *args) {
-  (void) n;
-  (void) args;
+data_t * _fsentry_isfile(_unused_ data_t *e, _unused_ char *n, arguments_t *args) {
   return int_as_bool(fsentry_isfile((fsentry_t *) e));
 }
 
-data_t * _fsentry_isdir(data_t *e, char *n, arguments_t *args) {
-  (void) n;
-  (void) args;
+data_t * _fsentry_isdir(_unused_ data_t *e, _unused_ char *n, arguments_t *args) {
   return int_as_bool(fsentry_isdir((fsentry_t *) e));
 }
 
-data_t * _fsentry_exists(data_t *e, char *n, arguments_t *args) {
-  (void) n;
-  (void) args;
+data_t * _fsentry_exists(_unused_ data_t *e, _unused_ char *n, arguments_t *args) {
   return int_as_bool(fsentry_exists((fsentry_t *) e));
 }

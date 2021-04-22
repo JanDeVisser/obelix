@@ -37,7 +37,6 @@ extern "C" {
 
 typedef struct _fsentry {
   data_t       _d;
-  char        *name;
   struct stat  statbuf;
   int          exists;
 } fsentry_t;

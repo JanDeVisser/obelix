@@ -51,6 +51,13 @@ extern char *              data_encode(data_t *);
 extern data_t *            data_serialize(data_t *);
 extern void                data_free(data_t *);
 extern void                data_destroy(data_t *);
+
+extern void                _data_release(data_t *);
+#define data_release(d)    _data_release(data_as_data(d));
+extern void                _data_register(data_t *);
+#define data_register(d)   _data_register(data_as_data(d));
+
+
 extern unsigned int        data_hash(data_t *);
 extern data_t *            data_len(data_t *);
 extern char *              _data_tostring(data_t *);
@@ -60,6 +67,8 @@ extern data_t *            _data_set_string_semantics(data_t *, str_semantics_t)
 #define data_set_string_semantics(d, s) _data_set_string_semantics(data_as_data((d)), (s))
 extern data_t *            _data_invalidate_string(data_t *);
 #define data_invalidate_string(d)  _data_invalidate_string(data_as_data((d)))
+void                       _data_set_static_string(data_t *, char *);
+#define data_set_static_string(d, s) _data_set_static_string(data_as_data((d)), (s))
 extern double              _data_floatval(data_t *);
 extern int                 _data_intval(data_t *);
 extern int                 data_cmp(data_t *, data_t *);
@@ -185,7 +194,7 @@ static inline int data_is_iterator(void *d) {
 
 #define type_skel(id, code, type)                                            \
   static inline int data_is_ ## id(void *d) {                                \
-    return data_hastype(d, code);                                            \
+    return d && data_is_data(d) && data_hastype(d, code);                    \
   }                                                                          \
   static inline type * data_as_ ## id(void *d) {                             \
     return (data_is_ ## id(d)) ? (type *) d : NULL;                          \
@@ -242,6 +251,7 @@ extern datalist_t *    str_array_to_datalist(array_t *);
 extern datalist_t *    _datalist_set(datalist_t *, int, data_t *);
 extern datalist_t *    _datalist_push(datalist_t *, data_t *);
 extern data_t *        datalist_pop(datalist_t *);
+extern void *          datalist_reduce(datalist_t *, reduce_t, void *);
 
 static inline datalist_t * data_as_list(void *data) {
   return (data_hastype(data_as_data(data), List)) ? (datalist_t *) data : NULL;
@@ -279,12 +289,16 @@ static inline data_t * datalist_get(datalist_t *datalist, int ix) {
   return data_copy(data_array_get(data_as_array(datalist), ix));
 }
 
+static inline datalist_t * datalist_slice(datalist_t *datalist, int from, int to) {
+  return datalist_create(array_slice(data_as_array(datalist), from, to));
+}
+
 static char * datalist_tostring(datalist_t *list) {
   return data_tostring(list);
 }
 
 static int data_is_datalist(void *data) {
-  return data_hastype(data, List);
+  return data && data_is_data(data) && data_hastype(data, List);
 }
 
 #define data_is_list(d)        (data_is_datalist((d)))

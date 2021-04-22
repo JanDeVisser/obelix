@@ -27,16 +27,14 @@
 
 static void          _mth_init(void);
 static mth_t *       _mth_new(mth_t *, va_list);
-static void          _mth_free(mth_t *);
-static char *        _mth_allocstring(mth_t *);
+static void *        _mth_reduce_children(mth_t *, reduce_t, void *);
 
 static vtable_t _vtable_RuntimeMethod[] = {
   { .id = FunctionNew,         .fnc = (void_t) _mth_new },
-  { .id = FunctionFree,        .fnc = (void_t) _mth_free },
   { .id = FunctionCmp,         .fnc = (void_t) mth_cmp },
-  { .id = FunctionAllocString, .fnc = (void_t) _mth_allocstring },
   { .id = FunctionHash,        .fnc = (void_t) mth_hash },
   { .id = FunctionCall,        .fnc = (void_t) mth_call },
+  { .id = FunctionReduce,      .fnc = (void_t) _mth_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -51,6 +49,10 @@ mth_t * _mth_new(mth_t *mth, va_list args) {
 
   mth -> method = md;
   mth -> self = data_copy(self);
+  asprintf(&mth->_d.str, "%s.%s",
+           data_tostring(mth->self),
+           mth->method->name);
+  data_set_string_semantics(mth, StrSemanticsStatic);
   return mth;
 }
 
@@ -61,19 +63,8 @@ void _mth_init(void) {
   }
 }
 
-void _mth_free(mth_t *mth) {
-  if (mth) {
-    data_free(mth -> self);
-  }
-}
-
-char * _mth_allocstring(mth_t *mth) {
-  char *buf;
-
-  asprintf(&buf, "%s.%s",
-           data_tostring(mth -> self),
-           mth -> method -> name);
-  return buf;
+void * _mth_reduce_children(mth_t *mth, reduce_t reducer, void *ctx) {
+  return reducer(mth->self, ctx);
 }
 
 /* -- M T H _ T  P U B L I C  F U N C T I O N S --------------------------- */

@@ -31,6 +31,7 @@ extern void     str_init(void);
 extern void     int_init(void);
 extern void     float_init(void);
 extern void     datalist_init(void);
+extern void     datastack_init(void);
 extern void     exception_init(void);
 extern void     ptr_init(void);
 extern void     file_init(void);

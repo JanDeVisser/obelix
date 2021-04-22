@@ -20,13 +20,7 @@
 #ifndef __THREAD_H__
 #define	__THREAD_H__
 
-#ifdef HAVE_PTHREAD_H
-  #include <pthread.h>
-#elif defined(HAVE_CREATETHREAD)
-  #ifdef HAVE_WINDOWS_H
-    #include <windows.h>
-  #endif /* HAVE_WINDOWS_H */
-#endif /* HAVE_PTHREAD_H */
+#include <pthread.h>
 
 #include <data.h>
 #include <mutex.h>
@@ -35,13 +29,6 @@
 extern "C" {
 #endif
 
-#ifdef HAVE_PTHREAD_H
-typedef pthread_t _thr_t;
-#elif defined(HAVE_CREATETHREAD)
-typedef HANDLE    _thr_t;
-#endif /* HAVE_CREATETHREAD */
-
-
 typedef enum _thread_status_flag {
   TSFNone  = 0x0000,
   TSFLeave = 0x0001
@@ -49,12 +36,11 @@ typedef enum _thread_status_flag {
 
 typedef struct _thread {
   data_t           _d;
-  _thr_t           thread;
+  pthread_t        thread;
   mutex_t         *mutex;
   struct _thread  *parent;
   data_t          *kernel;
   void            *stack;
-  free_t           onfree;
   int              status;
   data_t          *exit_code;
   char            *name;
@@ -63,7 +49,7 @@ typedef struct _thread {
 
 typedef void * (*threadproc_t)(void *);
 
-extern thread_t *    thread_create(_thr_t, char *);
+extern thread_t *    thread_create(pthread_t, char *);
 extern thread_t *    thread_new(char *, threadproc_t, void *);
 extern thread_t *    thread_self(void);
 extern unsigned int  thread_hash(thread_t *);

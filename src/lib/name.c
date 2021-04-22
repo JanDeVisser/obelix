@@ -30,8 +30,9 @@ static void          _name_free(name_t *);
 static char *        _name_tostring(name_t *);
 static data_t *      _name_append(data_t *, char *, arguments_t *);
 static data_t *      _name_resolve(name_t *, char *);
+static void *        _name_reduce_children(name_t *, reduce_t, void *);
 
-static name_t *      _name_create(int);
+static name_t *      _name_create();
 
 static vtable_t _vtable_Name[] = {
   { .id = FunctionParse,    .fnc = (void_t) name_parse },
@@ -41,6 +42,7 @@ static vtable_t _vtable_Name[] = {
   { .id = FunctionHash,     .fnc = (void_t) name_hash },
   { .id = FunctionResolve,  .fnc = (void_t) _name_resolve },
   { .id = FunctionLen,      .fnc = (void_t) name_size },
+  { .id = FunctionReduce,   .fnc = (void_t) _name_reduce_children },
   { .id = FunctionNone,     .fnc = NULL }
 };
 
@@ -80,12 +82,12 @@ void _name_debug(name_t *name, char *msg) {
   debug(name, "%s: %p = %s (%d)", msg, name, name_tostring(name), name -> _d.refs);
 }
 
-name_t * _name_create(int count) {
+name_t * _name_create() {
   name_t *ret;
 
   name_init();
   ret = data_new(Name, name_t);
-  ret -> name = str_array_create(count);
+  ret -> name = datalist_create(NULL);
   ret -> sep = NULL;
   _name_debug(ret, "_name_create");
   return ret;
@@ -93,7 +95,6 @@ name_t * _name_create(int count) {
 
 void _name_free(name_t *name) {
   if (name) {
-    array_free(name -> name);
     free(name -> sep);
   }
 }
@@ -115,6 +116,10 @@ data_t * _name_resolve(name_t *n, char *name) {
   }
 }
 
+void * _name_reduce_children(name_t *name, reduce_t reducer, void *ctx) {
+  return reducer(name->name, ctx);
+}
+
 /* ----------------------------------------------------------------------- */
 
 name_t * name_create(int count, ...) {
@@ -132,7 +137,7 @@ name_t * name_vcreate(int count, va_list components) {
   name_t *ret;
   int     ix;
 
-  ret = _name_create(count);
+  ret = _name_create();
   for (ix = 0; ix < count; ix++) {
     name_extend(ret, va_arg(components, char *));
   }
@@ -143,16 +148,14 @@ name_t * name_vcreate(int count, va_list components) {
 name_t * name_deepcopy(name_t *src) {
   name_t *ret;
 
+  ret = _name_create();
   if (src && name_size(src)) {
-    ret = _name_create(name_size(src));
     name_append(ret, src);
-  } else {
-    ret = _name_create(0);
   }
   return ret;
 }
 
-name_t * name_split(char *name, char *sep) {
+name_t * name_split(const char *name, const char *sep) {
   name_t  *ret;
   array_t *array;
 
@@ -168,97 +171,100 @@ name_t * name_split(char *name, char *sep) {
   return ret;
 }
 
-name_t * name_parse(char *name) {
+name_t * name_parse(const char *name) {
   return name_split(name, ".");
 }
 
-name_t * name_extend(name_t *name, char *n) {
-  array_push(name -> name, strdup(n));
+name_t * name_extend(name_t *name, void *n) {
+  if (!n) {
+    return name;
+  }
+  if (data_is_string(n)) {
+    datalist_push(name->name, n);
+  } else if (data_is_datalist(n)) {
+    name_append_datalist(name, data_as_list(n));
+  } else if (data_is_name(n)) {
+    name_append(name, data_as_name(n));
+  } else if (data_is_data(n)) {
+    datalist_push(name->name, str_to_data(data_tostring(data_as_data(n))));
+  } else {
+    datalist_push(name->name, str_to_data((char *) n));
+  }
   data_invalidate_string(name);
   _name_debug(name, "name_extend");
   return name;
 }
 
 name_t * name_append(name_t *name, name_t *additions) {
-  return name_append_array(name, additions -> name);
-}
-
-name_t * name_extend_data(name_t *name, data_t *data) {
-  char *str;
-
-  if (data_hastype(data, Int)) {
-    char buf[2];
-    buf[0] = (char) data_intval(data);
-    buf[1] = 0;
-    str = buf;
-  } else {
-    str = data_tostring(data);
-  }
-  data_invalidate_string(name);
-  return name_extend(name, str);
+  return name_append_datalist(name, additions->name);
 }
 
 name_t * name_append_array(name_t *name, array_t *additions) {
   int ix;
 
   for (ix = 0; ix < array_size(additions); ix++) {
-    array_push(name -> name, strdup(str_array_get(additions, ix)));
+    name_extend(name, array_get(additions, ix));
   }
   data_invalidate_string(name);
   _name_debug(name, "name_append_array");
   return name;
 }
 
-name_t * name_append_data_array(name_t *name, array_t *additions) {
+name_t * name_append_datalist(name_t *name, datalist_t *additions) {
   int ix;
 
-  for (ix = 0; ix < array_size(additions); ix++) {
-    name_extend_data(name, data_array_get(additions, ix));
+  for (ix = 0; ix < datalist_size(additions); ix++) {
+    name_extend(name, datalist_get(additions, ix));
   }
+  data_invalidate_string(name);
+  _name_debug(name, "name_append_datalist");
   return name;
 }
 
 int name_size(name_t *name) {
-  return array_size(name -> name);
+  return datalist_size(name -> name);
 }
 
 char * name_first(name_t *name) {
-  return (name && (name_size(name) > 0)) ? str_array_get(name -> name, 0) : NULL;
+  return (name && (name_size(name) > 0)) ? data_tostring(datalist_get(name->name, 0)) : NULL;
 }
 
 char * name_last(name_t *name) {
-  return (name && (name_size(name) > 0)) ? str_array_get(name -> name, -1) : NULL;
+  return (name && (name_size(name) > 0)) ? data_tostring(datalist_get(name->name, -1)) : NULL;
 }
 
 char * name_get(name_t *name, int ix) {
-  return str_array_get(name -> name, ix);
+  data_t *elem = datalist_get(name->name, ix);
+  return (elem) ? data_tostring(elem) : NULL;
 }
 
 array_t * name_as_array(name_t *name) {
-  return array_copy(name -> name);
+  return datalist_to_array(name->name);
+}
+
+datalist_t * name_as_list(name_t *name) {
+  return name->name;
 }
 
 name_t * name_tail(name_t *name) {
   name_t  *ret = data_new(Name, name_t);
-  array_t *tail = array_slice(name -> name, 1, -1);
+  array_t *tail = array_slice(data_as_array(name->name), 1, -1);
 
-  ret -> name = str_array_create(name_size(name) - 1);
-  name_append_array(ret, tail);
+  ret->name = datalist_create(tail);
   array_free(tail);
   return ret;
 }
 
 name_t * name_head(name_t *name) {
   name_t  *ret = data_new(Name, name_t);
-  array_t *head = array_slice(name -> name, 0, -2);
+  array_t *head = array_slice(data_as_array(name->name), 0, -2);
 
-  ret -> name = str_array_create(name_size(name) - 1);
-  name_append_array(ret, head);
+  ret->name = datalist_create(head);
   array_free(head);
   return ret;
 }
 
-char * name_tostring_sep(name_t *name, char *sep) {
+char * name_tostring_sep(name_t *name, const char *sep) {
   str_t *s = NULL;
 
   if (!name) {
@@ -274,7 +280,7 @@ char * name_tostring_sep(name_t *name, char *sep) {
   }
   if (!name -> _d.str) {
     if (name_size(name)) {
-      s = array_join(name -> name, name -> sep);
+      s = array_join(data_as_array(name->name), name -> sep);
       name -> _d.str = str_reassign(s);
       data_set_string_semantics(name, StrSemanticsStatic);
     } else {
@@ -283,8 +289,6 @@ char * name_tostring_sep(name_t *name, char *sep) {
     }
   }
   return name -> _d.str;
-
-  return data_tostring(name);
 }
 
 int name_cmp(name_t *n1, name_t *n2) {

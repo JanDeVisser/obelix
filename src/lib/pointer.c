@@ -155,7 +155,7 @@ data_t * _ptr_serialize(pointer_t *ptr) {
   } else {
     ret = dictionary_create(NULL);
     dictionary_set(ret, "value",
-        data_uncopy((data_t *) str_copy_chars(data_tostring(ptr))));
+        data_as_data(str_copy_chars(data_tostring(ptr))));
     return (data_t *) ret;
   }
 }

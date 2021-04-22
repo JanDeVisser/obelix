@@ -30,19 +30,20 @@ static data_t *        _arguments_resolve(arguments_t *, char *);
 static arguments_t *   _arguments_set(arguments_t *, char *, data_t *);
 static dictionary_t *  _arguments_serialize(arguments_t *);
 static arguments_t *   _arguments_deserialize(dictionary_t *);
+static void *          _arguments_reduce_children(arguments_t *, reduce_t, void *);
 
 /* ----------------------------------------------------------------------- */
 
 _unused_ static vtable_t _vtable_Arguments[] = {
   { .id = FunctionNew,          .fnc = (void_t) _arguments_new },
   { .id = FunctionCast,         .fnc = (void_t) _arguments_cast },
-  { .id = FunctionFree,         .fnc = (void_t) _arguments_free },
   { .id = FunctionAllocString,  .fnc = (void_t) _arguments_tostring },
   { .id = FunctionResolve,      .fnc = (void_t) _arguments_resolve },
   { .id = FunctionSet,          .fnc = (void_t) _arguments_set },
   { .id = FunctionLen,          .fnc = (void_t) arguments_args_size },
   { .id = FunctionSerialize,    .fnc = (void_t) _arguments_serialize },
   { .id = FunctionDeserialize,  .fnc = (void_t) _arguments_deserialize },
+  { .id = FunctionReduce,       .fnc = (void_t) _arguments_reduce_children },
   { .id = FunctionNone,         .fnc = NULL }
 };
 
@@ -69,13 +70,6 @@ arguments_t * _arguments_new(arguments_t *arguments, va_list args) {
   arguments -> args = datalist_create(argv);
   arguments -> kwargs = dictionary_create_from_dict(kwargs);
   return arguments;
-}
-
-void _arguments_free(arguments_t *arguments) {
-  if (arguments) {
-    dictionary_free(arguments -> kwargs);
-    datalist_free(arguments -> args);
-  }
 }
 
 char * _arguments_tostring(arguments_t *arguments) {
@@ -144,6 +138,10 @@ dictionary_t * _arguments_serialize(arguments_t *arguments) {
   dictionary_set(ret, "args", data_serialize((data_t *) arguments -> args));
   dictionary_set(ret, "kwargs", data_serialize((data_t *) arguments -> kwargs));
   return ret;
+}
+
+void * _arguments_reduce_children(arguments_t *args, reduce_t reducer, void *ctx) {
+  return reducer(args->kwargs, reducer(args->args, ctx));
 }
 
 /* ----------------------------------------------------------------------- */

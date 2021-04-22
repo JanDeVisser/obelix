@@ -79,33 +79,21 @@ static vtable_t _vtable_String[] = {
 };
 
 static methoddescr_t _methods_String[] = {
-  { .type = String, .name = "at",    .method = _string_at,        .argtypes = { Int, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "slice", .method = _string_slice,     .argtypes = { Int, NoType, NoType}, .minargs = 1, .varargs = 1},
-  { .type = String, .name = "upper", .method = _string_forcecase, .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
-  { .type = String, .name = "lower", .method = _string_forcecase, .argtypes =
-    { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
-  { .type = String, .name = "has", .method = _string_has, .argtypes =
-    { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "indexof", .method = _string_indexof, .argtypes =
-    { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "rindexof", .method = _string_rindexof, .argtypes =
-    { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "startswith", .method = _string_startswith, .argtypes =
-    { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "endswith", .method = _string_endswith, .argtypes =
-    { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "+", .method = _string_concat, .argtypes =
-    { String, NoType, NoType}, .minargs = 1, .varargs = 1},
-  { .type = String, .name = "concat", .method = _string_concat, .argtypes =
-    { String, NoType, NoType}, .minargs = 1, .varargs = 1},
-  { .type = String, .name = "*", .method = _string_repeat, .argtypes =
-    { Int, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "repeat", .method = _string_repeat, .argtypes =
-    { Int, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "split", .method = _string_split, .argtypes =
-    { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = NoType, .name = NULL, .method = NULL, .argtypes =
-    { NoType, NoType, NoType}, .minargs = 0, .varargs = 0}
+  { .type = String, .name = "at",         .method = _string_at,         .argtypes = { Int, NoType, NoType},    .minargs = 1, .varargs = 0},
+  { .type = String, .name = "slice",      .method = _string_slice,      .argtypes = { Int, NoType, NoType},    .minargs = 1, .varargs = 1},
+  { .type = String, .name = "upper",      .method = _string_forcecase,  .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
+  { .type = String, .name = "lower",      .method = _string_forcecase,  .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
+  { .type = String, .name = "has",        .method = _string_has,        .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
+  { .type = String, .name = "indexof",    .method = _string_indexof,    .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
+  { .type = String, .name = "rindexof",   .method = _string_rindexof,   .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
+  { .type = String, .name = "startswith", .method = _string_startswith, .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
+  { .type = String, .name = "endswith",   .method = _string_endswith,   .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
+  { .type = String, .name = "+",          .method = _string_concat,     .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 1},
+  { .type = String, .name = "concat",     .method = _string_concat,     .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 1},
+  { .type = String, .name = "*",          .method = _string_repeat,     .argtypes = { Int, NoType, NoType},    .minargs = 1, .varargs = 0},
+  { .type = String, .name = "repeat",     .method = _string_repeat,     .argtypes = { Int, NoType, NoType},    .minargs = 1, .varargs = 0},
+  { .type = String, .name = "split",      .method = _string_split,      .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
+  { .type = NoType, .name = NULL,         .method = NULL,               .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0}
 };
 
 extern int data_debug;
@@ -455,7 +443,7 @@ char * str_reassign(str_t *str) {
   char *ret = str -> buffer;
 
   str -> bufsize = 0;
-  free(str);
+  data_release(str);
   return ret;
 }
 

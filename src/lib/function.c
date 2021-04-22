@@ -30,16 +30,17 @@ static void         _function_free(function_t *);
 static char *       _function_allocstring(function_t *);
 static data_t *     _function_cast(function_t *, int);
 static data_t *     _function_call(function_t *, arguments_t *);
+static void *       _function_reduce_children(function_t *, reduce_t, void *);
 
 static vtable_t _vtable_FunctionType[] = {
   { .id = FunctionNew,         .fnc = (void_t) _function_new },
   { .id = FunctionCmp,         .fnc = (void_t) function_cmp },
-  { .id = FunctionFree,        .fnc = (void_t) _function_free },
   { .id = FunctionAllocString, .fnc = (void_t) _function_allocstring },
   { .id = FunctionParse,       .fnc = (void_t) function_parse },
   { .id = FunctionCast,        .fnc = (void_t) _function_cast },
   { .id = FunctionHash,        .fnc = (void_t) function_hash },
   { .id = FunctionCall,        .fnc = (void_t) _function_call },
+  { .id = FunctionReduce,      .fnc = (void_t) _function_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -63,7 +64,7 @@ function_t * _function_new(function_t *function, va_list args) {
   function -> params = NULL;
   function -> type = 0;
   function -> name = name_split(name, ":");
-  function ->  fnc = NULL;
+  function -> fnc = NULL;
   return function;
 }
 
@@ -72,7 +73,7 @@ char * _function_allocstring(function_t *fnc) {
   str_t  *params;
   size_t  len;
 
-  params = (fnc -> params && array_size(fnc -> params))
+  params = (fnc -> params && datalist_size(fnc -> params))
     ? array_join(fnc -> params, ",")
     : NULL;
   asprintf(&buf, "%s", name_tostring_sep(fnc -> name, ":"));
@@ -88,13 +89,6 @@ char * _function_allocstring(function_t *fnc) {
   return buf;
 }
 
-void _function_free(function_t *fnc) {
-  if (fnc) {
-    name_free(fnc -> name);
-    array_free(fnc -> params);
-  }
-}
-
 data_t * _function_cast(function_t *fnc, int totype) {
   data_t     *ret = NULL;
 
@@ -108,6 +102,13 @@ data_t * _function_cast(function_t *fnc, int totype) {
 
 data_t * _function_call(function_t *fnc, arguments_t *args) {
   return function_call(fnc, function_funcname(fnc), args);
+}
+
+void * _function_reduce_children(function_t *fnc, reduce_t reducer, void *ctx) {
+  if (fnc->params) {
+    ctx = datalist_reduce(fnc->params, reducer, ctx);
+  }
+  return reducer(fnc->name, ctx);
 }
 
 
@@ -156,7 +157,7 @@ function_t * function_parse(char *str) {
   }
   if (params) {
     ret = function_create(name_first(name_params), NULL);
-    ret -> params = name_as_array(params);
+    ret -> params = name_as_list(params);
   }
   name_free(params);
   name_free(name_params);

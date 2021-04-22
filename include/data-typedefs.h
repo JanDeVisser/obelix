@@ -239,11 +239,10 @@ typedef struct _int {
 } int_t;
 
 typedef struct _name {
-  data_t   _d;
-  array_t *name;
-  char    *sep;
+  data_t      _d;
+  datalist_t *name;
+  char       *sep;
 } name_t;
-
 
 typedef struct _methoddescr {
   data_t    _d;

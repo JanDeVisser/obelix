@@ -23,21 +23,14 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
 
 #include "libcore.h"
-#ifdef HAVE_IO_H
-#include <io.h>
-#endif /* HAVE_IO_H */
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
 #endif /* HAVE_STRINGS_H */
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
-#ifdef HAVE_WINDOWS_H
-#include <windows.h>
-#endif /* HAVE_WINDOWS_H */
 
 #include <array.h>
 #include <data.h>
@@ -49,20 +42,9 @@
 
 int file_debug = 0;
 
-#if defined(__WIN32__) || defined(_MSC_VER)
-#define close(f)       _close((f))
-#define lseek(...)     _lseek(__VA_ARGS__)
-#define open(...)      _open(__VA_ARGS__)
-#define read(...)      _read(__VA_ARGS__)
-#define write(...)     _write(__VA_ARGS__)
-typedef HANDLE         _oshandle_t;
-#else
 typedef int _oshandle_t;
-#endif /* __WIN32__ */
 
 /* ------------------------------------------------------------------------ */
-
-extern void          file_init(void);
 
 static stream_t *    _stream_new(stream_t *, va_list args);
 static void          _stream_free(stream_t *);
@@ -72,6 +54,7 @@ static data_t *      _stream_query(stream_t *, data_t *, array_t *);
 static data_t *      _stream_iter(stream_t *);
 static data_t *      _stream_readline(stream_t *, char *, arguments_t *);
 static data_t *      _stream_print(stream_t *, char *, arguments_t *);
+static void *        _stream_reduce_children(stream_t *, reduce_t, void *);
 
 static _oshandle_t   _file_oshandle(file_t *);
 
@@ -82,6 +65,7 @@ static int           _file_intval(file_t *);
 static data_t *      _file_cast(file_t *, int);
 static data_t *      _file_leave(file_t *, data_t *);
 static data_t *      _file_resolve(file_t *, char *);
+static void *        _file_reduce_children(file_t *, reduce_t, void *);
 
 extern data_t *      _file_open(char *, arguments_t *);
 extern data_t *      _file_adopt(char *, arguments_t *);
@@ -101,6 +85,7 @@ static vtable_t _vtable_Stream[] = {
   { .id = FunctionEnter,       .fnc = (void_t) _stream_enter },
   { .id = FunctionIter,        .fnc = (void_t) _stream_iter },
   { .id = FunctionQuery,       .fnc = (void_t) _stream_query },
+  { .id = FunctionReduce,      .fnc = (void_t) _stream_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -120,6 +105,7 @@ static vtable_t _vtable_File[] = {
   { .id = FunctionHash,        .fnc = (void_t) file_hash },
   { .id = FunctionLeave,       .fnc = (void_t) _file_leave },
   { .id = FunctionResolve,     .fnc = (void_t) _file_resolve },
+  { .id = FunctionReduce,      .fnc = (void_t) _file_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -149,6 +135,7 @@ static data_t *       _streamiter_has_next(streamiter_t *);
 static data_t *       _streamiter_next(streamiter_t *);
 static streamiter_t * _streamiter_readnext(streamiter_t *);
 static data_t *       _streamiter_interpolate(streamiter_t *, arguments_t *);
+static void *         _streamiter_reduce_children(streamiter_t *, reduce_t, void *);
 
 static vtable_t _vtable_StreamIter[] = {
   { .id = FunctionCmp,         .fnc = (void_t) _streamiter_cmp },
@@ -157,6 +144,7 @@ static vtable_t _vtable_StreamIter[] = {
   { .id = FunctionHasNext,     .fnc = (void_t) _streamiter_has_next },
   { .id = FunctionNext,        .fnc = (void_t) _streamiter_next },
   { .id = FunctionInterpolate, .fnc = (void_t) _streamiter_interpolate },
+  { .id = FunctionReduce,      .fnc = (void_t) _streamiter_reduce_children },
   { .id = FunctionNone,        .fnc = NULL }
 };
 
@@ -217,8 +205,6 @@ data_t * _stream_resolve(stream_t *stream, char *name) {
   }
 }
 
-
-
 data_t * _stream_iter(stream_t *stream) {
   streamiter_t *ret;
 
@@ -238,6 +224,12 @@ data_t * _stream_query(stream_t *stream, data_t *selector, array_t *params) {
         streamiter_tostring(ret));
   return (data_t *) ret;
 }
+
+void * _stream_reduce_children(stream_t *stream, reduce_t reducer, void *ctx) {
+  return reducer(stream->error, reducer(stream->buffer, ctx));
+}
+
+/* ------------------------------------------------------------------------ */
 
 data_t * _stream_readline(stream_t *stream, char _unused_ *name, arguments_t _unused_ *args) {
   char   *line;
@@ -581,14 +573,17 @@ data_t * _streamiter_interpolate(streamiter_t *si, arguments_t *args) {
   return (data_t *) si;
 }
 
+void * _streamiter_reduce_children(streamiter_t *si, reduce_t reducer, void *ctx) {
+  ctx = list_reduce(si->next, reducer, ctx);
+  return reducer(si->selector, reducer(si->stream, ctx));
+}
+
+/* ------------------------------------------------------------------------ */
+
 /* -- F I L E _ T  S T A T I C  F U N C T I O N S ------------------------- */
 
 _oshandle_t _unused_ _file_oshandle(file_t *file) {
-#if defined(__WIN32__) || defined(_MSC_VER)
-  return (_oshandle_t) _get_osfhandle(file -> fh);
-#else
   return file -> fh;
-#endif /* __WIN32__ */
 }
 
 file_t * _file_new(file_t *file, va_list args) {
@@ -645,6 +640,10 @@ data_t * _file_resolve(file_t *file, char *name) {
   }
 }
 
+void * _file_reduce_children(file_t *file, reduce_t reducer, void *ctx) {
+  return ctx;
+}
+
 /* -- F I L E _ T  P U B L I C  F U N C T I O N S ------------------------- */
 
 file_t * file_create(int fh) {
@@ -674,12 +673,12 @@ int file_flags(const char *flags) {
 }
 
 int file_mode(const char *mode) {
-  int      ret = 0;
-  array_t *parts;
-  char    *str;
-  char    *ptr;
-  int      ix;
-  int      mask;
+  unsigned int  ret = 0;
+  array_t      *parts;
+  char         *str;
+  char         *ptr;
+  int           ix;
+  unsigned int  mask = 0;
 
   parts = array_split(mode, ",");
   for (ix = 0; (ret != -1) && (ix < array_size(parts)); ix++) {
@@ -689,26 +688,20 @@ int file_mode(const char *mode) {
       switch (*ptr) {
         case 'u':
         case 'U':
-#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
-          mask |= S_IRWXU;
-#else
-          mask |= S_IREAD | S_IWRITE;
-#endif
+          mask |= (unsigned int) S_IRWXU;
           break;
-#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
         case 'g':
         case 'G':
-          mask |= S_IRWXG;
+          mask |= (unsigned int) S_IRWXG;
           break;
         case 'o':
         case 'O':
-          mask |= S_IRWXO;
+          mask |= (unsigned int) S_IRWXO;
           break;
         case 'a':
         case 'A':
-          mask |= S_IRWXU | S_IRWXG | S_IRWXO;
+          mask |= (unsigned int) S_IRWXU | (unsigned int) S_IRWXG | (unsigned int) S_IRWXO;
           break;
-#endif
       }
     }
     if (*ptr == '=') {
@@ -716,25 +709,15 @@ int file_mode(const char *mode) {
         switch (*ptr) {
           case 'r':
           case 'R':
-#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
-            ret |= (mask & (S_IRUSR | S_IRGRP | S_IROTH));
-#else
-            ret |= (mask & S_IREAD);
-#endif
+            ret |= (mask & ((unsigned int) S_IRUSR | (unsigned int) S_IRGRP | (unsigned int) S_IROTH));
             break;
           case 'w':
           case 'W':
-#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
-            ret |= (mask & (S_IWUSR | S_IWGRP | S_IWOTH));
-#else
-            ret |= (mask & S_IWRITE);
-#endif
+            ret |= (mask & ((unsigned int) S_IWUSR | (unsigned int) S_IWGRP | (unsigned int) S_IWOTH));
             break;
           case 'x':
           case 'X':
-#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
-            ret |= (mask & (S_IXUSR | S_IXGRP | S_IXOTH));
-#endif
+            ret |= (mask & ((unsigned int) S_IXUSR | (unsigned int) S_IXGRP | (unsigned int) S_IXOTH));
             break;
         }
       }
@@ -742,7 +725,7 @@ int file_mode(const char *mode) {
       ret = -1;
     }
   }
-  return ret;
+  return (int) ret;
 }
 
 file_t * file_open_ext(const char *fname, ...) {
@@ -773,11 +756,7 @@ file_t * file_open_ext(const char *fname, ...) {
           errno = EINVAL;
         }
       } else {
-#if !defined(__WIN32__) &&  !defined(_MSC_VER) // FIXME
         open_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
-#else
-        open_mode = S_IREAD | S_IWRITE;
-#endif
       }
     }
   } else {

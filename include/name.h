@@ -31,22 +31,22 @@ extern "C" {
 
 extern name_t *          name_create(int, ...);
 extern name_t *          name_vcreate(int, va_list);
-extern name_t *          name_split(char *, char *);
-extern name_t *          name_parse(char *);
+extern name_t *          name_split(const char *, const char *);
+extern name_t *          name_parse(const char *);
 extern name_t *          name_deepcopy(name_t *);
 extern int               name_size(name_t *);
 extern char *            name_first(name_t *);
 extern char *            name_last(name_t *);
 extern char *            name_get(name_t *, int);
 extern array_t *         name_as_array(name_t *);
+extern datalist_t *      name_as_list(name_t *);
 extern name_t *          name_tail(name_t *);
 extern name_t *          name_head(name_t *);
-extern char *            name_tostring_sep(name_t *, char *);
-extern name_t *          name_extend(name_t *, char *);
-extern name_t *          name_extend_data(name_t *, struct _data *);
+extern char *            name_tostring_sep(name_t *, const char *);
+extern name_t *          name_extend(name_t *, void *);
 extern name_t *          name_append(name_t *, name_t *);
 extern name_t *          name_append_array(name_t *, array_t *);
-extern name_t *          name_append_data_array(name_t *, array_t *);
+extern name_t *          name_append_datalist(name_t *, datalist_t *);
 extern int               name_cmp(name_t *, name_t *);
 extern int               name_startswith(name_t *, name_t *);
 extern unsigned int      name_hash(name_t *);
@@ -59,13 +59,12 @@ type_skel(name, Name, name_t);
 
 typedef struct _hierarchy {
   data_t             _d;
-  char              *label;
   data_t            *data;
   struct _hierarchy *up;
-  list_t            *branches;
+  datalist_t        *branches;
 } hierarchy_t;
 
-extern hierarchy_t *     hierarchy_create(void);
+extern hierarchy_t *     hierarchy_create(char *, data_t *, hierarchy_t *);
 extern hierarchy_t *     hierarchy_insert(hierarchy_t *, name_t *, data_t *);
 extern hierarchy_t *     hierarchy_append(hierarchy_t *, char *, data_t *);
 extern hierarchy_t *     hierarchy_remove(hierarchy_t *, name_t *);

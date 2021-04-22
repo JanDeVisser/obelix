@@ -35,13 +35,13 @@ static data_t *    _data_call_constructors(typedescr_t *, va_list);
 static void        _data_call_free(typedescr_t *, data_t *);
 static data_t *    _data_call_resolve(typedescr_t *, data_t *, char *);
 static data_t *    _data_call_setter(typedescr_t *, data_t *, char *, data_t *);
-
+static void *      _data_call_reduce(typedescr_t *type, data_t *, reduce_t, void *);
 
 static type_t _type_data = {
   .hash     = (hash_t) data_hash,
   .tostring = (tostring_t) _data_tostring,
   .copy     = (copy_t)  data_copy,
-  .free     = (free_t) data_free,
+  .free     = NULL,
   .cmp      = (cmp_t) data_cmp
 };
 
@@ -146,6 +146,32 @@ data_t * _data_call_setter(typedescr_t *type, data_t *data, char *name, data_t *
     ret = _data_call_setter(typedescr_get(type -> inherits[ix]), data, name, value);
   }
   return ret;
+}
+
+ctx_wrapper_t * _data_recursive_reduce(void *data, ctx_wrapper_t *wrapper) {
+  wrapper->ctx = wrapper->reducer(data, wrapper->ctx);
+  if (data && data_is_data(data)) {
+    wrapper->ctx = (ctx_wrapper_t *) _data_call_reduce(data_typedescr(data), data, wrapper->reducer, wrapper->ctx);
+  }
+  return wrapper;
+}
+
+void * _data_call_reduce(typedescr_t *type, data_t *data, reduce_t reducer, void *ctx) {
+  ctx_wrapper_t wrapper;
+  data_reduce_t reduce;
+  int           ix;
+
+  wrapper.reducer = reducer;
+  wrapper.ctx = ctx;
+  reduce = (data_reduce_t) typedescr_get_local_function(type, FunctionReduce);
+  if (reduce) {
+    reduce(data, (reduce_t) _data_recursive_reduce, &wrapper);
+  }
+  ctx = wrapper.ctx;
+  for (ix = 0; (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
+    ctx = _data_call_reduce(typedescr_get(type -> inherits[ix]), data, reducer, ctx);
+  }
+  return ctx;
 }
 
 /* -- D A T A  P U B L I C  F U N C T I O N S ----------------------------- */
@@ -384,6 +410,14 @@ data_t * data_promote(data_t *data) {
 
 void data_free(data_t *data) {
   /* NO-OP */
+}
+
+void _data_release(data_t *data) {
+  heap_deallocate(data);
+}
+
+void _data_register(data_t *data) {
+  heap_register_root(data);
 }
 
 void data_destroy(data_t *data) {
@@ -674,6 +708,11 @@ data_t * _data_set_string_semantics(data_t *data, str_semantics_t semantics) {
 
 str_semantics_t _data_string_semantics(data_t *data) {
   return data->str_semantics;
+}
+
+void _data_set_static_string(data_t *data, char *str) {
+  data->str = strdup(str);
+  _data_set_string_semantics(data, StrSemanticsStatic);
 }
 
 char * _data_tostring(data_t *data) {
@@ -983,40 +1022,31 @@ data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
   }
   has_next = data_has_next(iterator);
   if (data_is_unhandled_exception(has_next)) {
-    ret = data_copy(has_next);
+    ret = has_next;
   } else {
     args = arguments_create(NULL, NULL);
     datalist_set(args -> args, 0, initial);
     while (data_intval(has_next)) {
       current = data_next(iterator);
       if (data_is_unhandled_exception(current)) {
-        ret = data_copy(current);
+        ret = current;
         break;
       }
       datalist_set(args -> args, 1, data_copy(current));
       accum = data_call(reducer, args);
-      data_uncopy(arguments_get_arg(args, 0));
-      data_uncopy(arguments_get_arg(args, 1));
       if (data_is_unhandled_exception(accum)) {
-        ret = data_copy(accum);
+        ret = accum;
         break;
       }
-      data_free(has_next);
       has_next = data_has_next(iterator);
       if (data_is_unhandled_exception(has_next)) {
-        ret = data_copy(has_next);
+        ret = has_next;
         break;
       }
       datalist_set(args -> args, 0, accum);
-      data_free(ret);
-      ret = data_copy(accum);
+      ret = accum;
     }
   }
-  arguments_free(args);
-  data_free(accum);
-  data_free(current);
-  data_free(has_next);
-  data_free(iterator);
   return ret;
 }
 
@@ -1033,50 +1063,41 @@ data_t * data_reduce_with_fnc(data_t *iterable, reduce_t reduce, data_t *initial
   }
   has_next = data_has_next(iterator);
   if (data_is_unhandled_exception(has_next)) {
-    ret = data_copy(has_next);
+    ret = has_next;
   } else {
-    current_accum = data_copy(initial);
+    current_accum = initial;
     while (data_intval(has_next)) {
       current = data_next(iterator);
       if (data_is_unhandled_exception(current)) {
-        ret = data_copy(current);
+        ret = current;
         break;
       }
       accum = reduce(current, current_accum);
-      data_free(current);
-      data_free(current_accum);
       if (data_is_unhandled_exception(accum)) {
-        ret = data_copy(accum);
+        ret = accum;
         break;
       }
       current_accum = accum;
-      data_free(has_next);
       has_next = data_has_next(iterator);
       if (data_is_unhandled_exception(has_next)) {
-        ret = data_copy(has_next);
+        ret = has_next;
         break;
       }
-      data_free(ret);
-      ret = data_copy(accum);
+      ret = accum;
     }
   }
-  data_free(accum);
-  data_free(has_next);
-  data_free(iterator);
   return ret;
 }
 
 void * data_reduce_children(data_t *data, reduce_t reducer, void *ctx) {
-  typedescr_t  *type;
-  data_reduce_t reducefnc;
-
-  assert(data);
-  type = data_typedescr(data);
-  reducefnc = (data_reduce_t) typedescr_get_function(type, FunctionReduce);
-  if (reducefnc) {
-    ctx = reducefnc(data, reducer, ctx);
+  if (data) {
+    if (data_is_data(data)) {
+      ctx = _data_call_reduce(data_typedescr(data), data, reducer, ctx);
+    }
+    return reducer(data, ctx);
+  } else {
+    return ctx;
   }
-  return ctx;
 }
 
 /* - S C O P E -------------------------------------------------------------*/

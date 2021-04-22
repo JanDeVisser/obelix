@@ -36,7 +36,7 @@ typedef struct _function {
   int            min_params;
   int            max_params;
   int            type;
-  array_t       *params;
+  datalist_t    *params;
 } function_t;
 
 extern function_t *    function_create(char *, void_t);
