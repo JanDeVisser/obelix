@@ -154,8 +154,6 @@ extern type_t *         coretype(coretype_t);
 
 #define new(i)                    (_new((i)))
 #define stralloc(n)               ((char *) _new((n) + 1))
-#define asprintf(p, fmt, args...) oblcore_asprintf(p, fmt, ##args)
-#define vasprintf(p, fmt, args)   oblcore_vasprintf(p, fmt, args)
 
 #define type_copy(d, s) (memcpy((d), (s), sizeof(type_t)))
 

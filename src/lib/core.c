@@ -139,56 +139,6 @@ void * resize_ptrarray(void *array, size_t newsz, size_t oldsz) {
 
 /* ------------------------------------------------------------------------ */
 
-#ifdef asprintf
-  #undef asprintf
-#endif
-#ifdef vasprintf
-  #undef vasprintf
-#endif
-
-int oblcore_asprintf(char **strp, const char *fmt, ...) {
-  va_list args;
-  int     ret;
-
-  va_start(args, fmt);
-  ret = oblcore_vasprintf(strp, fmt, args);
-  va_end(args);
-  return ret;
-}
-
-#define USE_GLIBC_VASPRINTF
-#if !defined(HAVE_VASPRINTF) || !defined(USE_GLIBC_VASPRINTF)
-int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
-  va_list  copy;
-  size_t   ret;
-  char    *str;
-
-  va_copy(copy, args);
-  ret = vsnprintf(NULL, 0, fmt, copy);
-  va_end(copy);
-  str = stralloc(ret);
-  if (!str) {
-    outofmemory(ret);
-  } else {
-    vsnprintf(str, ret, fmt, args);
-    *strp = str;
-  }
-  return ret;
-}
-#else
-int oblcore_vasprintf(char **strp, const char *fmt, va_list args) {
-  size_t ret;
-
-  ret = vasprintf(strp, fmt, args);
-  if (ret < 0) {
-    outofmemory(ret);
-  }
-  return ret;
-}
-#endif
-
-/* ------------------------------------------------------------------------ */
-
 /*
  * code_label_t public functions
  */
