@@ -171,7 +171,7 @@ datalist_t * _list_copy(datalist_t *dest, datalist_t *src) {
 
   for (ix = 0; ix < array_size(src_arr); ix++) {
     data = data_array_get(src_arr, ix);
-    array_push(dest_arr, data_copy(data));
+    array_push(dest_arr, data);
   }
   return dest;
 }
@@ -305,12 +305,12 @@ datalist_t * str_array_to_datalist(array_t *src) {
 }
 
 datalist_t * _datalist_set(datalist_t *list, int ix, data_t *value) {
-  array_set(data_as_array(list), ix, data_copy(value));
+  array_set(data_as_array(list), ix, value);
   return list;
 }
 
 datalist_t * _datalist_push(datalist_t *list, data_t *value) {
-  array_push(data_as_array(list), data_copy(value));
+  array_push(data_as_array(list), value);
   return list;
 }
 
@@ -362,7 +362,7 @@ void _datalist_iter_free(datalist_iter_t *iter) {
 }
 
 data_t * _datalist_iter_next(datalist_iter_t *iter) {
-  return data_copy(data_array_get(iter -> array, iter -> ix++));
+  return data_array_get(iter -> array, iter -> ix++);
 }
 
 data_t * _datalist_iter_has_next(datalist_iter_t *iter) {

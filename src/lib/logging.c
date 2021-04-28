@@ -396,4 +396,5 @@ void _log_timestamp_end(log_timestamp_t *ts, const char *file, int line, const c
   _vlogmsg_no_nl(LogLevelDebug, file, line, caller, msg, args);
   fprintf(_destination, "%ld.%06ld sec\n", t -> seconds, t -> microseconds);
   va_end(args);
+  free(t);
 }

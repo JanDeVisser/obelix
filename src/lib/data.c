@@ -40,7 +40,7 @@ static void *      _data_call_reduce(typedescr_t *type, data_t *, reduce_t, void
 static type_t _type_data = {
   .hash     = (hash_t) data_hash,
   .tostring = (tostring_t) _data_tostring,
-  .copy     = (copy_t)  data_copy,
+  .copy     = NULL,
   .free     = NULL,
   .cmp      = (cmp_t) data_cmp
 };
@@ -86,7 +86,7 @@ data_t * _data_call_constructors(typedescr_t *type, va_list args) {
       }
     }
   } else {
-    ret = data_copy(va_arg(args, data_t *));
+    ret = va_arg(args, data_t *);
   }
   return ret;
 }
@@ -148,26 +148,14 @@ data_t * _data_call_setter(typedescr_t *type, data_t *data, char *name, data_t *
   return ret;
 }
 
-ctx_wrapper_t * _data_recursive_reduce(void *data, ctx_wrapper_t *wrapper) {
-  wrapper->ctx = wrapper->reducer(data, wrapper->ctx);
-  if (data && data_is_data(data)) {
-    wrapper->ctx = (ctx_wrapper_t *) _data_call_reduce(data_typedescr(data), data, wrapper->reducer, wrapper->ctx);
-  }
-  return wrapper;
-}
-
 void * _data_call_reduce(typedescr_t *type, data_t *data, reduce_t reducer, void *ctx) {
-  ctx_wrapper_t wrapper;
   data_reduce_t reduce;
   int           ix;
 
-  wrapper.reducer = reducer;
-  wrapper.ctx = ctx;
   reduce = (data_reduce_t) typedescr_get_local_function(type, FunctionReduce);
   if (reduce) {
-    reduce(data, (reduce_t) _data_recursive_reduce, &wrapper);
+    ctx = reduce(data, reducer, ctx);
   }
-  ctx = wrapper.ctx;
   for (ix = 0; (ix < MAX_INHERITS) && type -> inherits[ix]; ix++) {
     ctx = _data_call_reduce(typedescr_get(type -> inherits[ix]), data, reducer, ctx);
   }
@@ -211,7 +199,6 @@ data_t * data_settype(data_t *data, int type) {
   data -> cookie = MAGIC_COOKIE;
   data -> type_name = type_name(descr);
   data -> type = type;
-  data -> refs = 1;
   data -> str = NULL;
   data -> data_semantics = DataSemanticsNormal;
   data -> str_semantics = StrSemanticsNormal;
@@ -332,7 +319,7 @@ data_t * data_deserialize(data_t *serialized) {
   deserialize = typedescr_get_function(descr, FunctionDeserialize);
   return (deserialize)
     ? ((data_t * (*)(data_t *)) deserialize)(serialized)
-    : data_copy(serialized);
+    : serialized;
 }
 
 data_t * data_serialize(data_t *data) {
@@ -356,14 +343,14 @@ data_t * data_serialize(data_t *data) {
       dictionary_set(dict, "value", str_to_data(data_tostring(data)));
       serialized = (data_t *) dict;
     } else {
-      serialized = data_copy(data);
+      serialized = data;
     }
   }
   if (data_is_dictionary(serialized)) {
     dict = data_as_dictionary(serialized);
     typestr = str_wrap(type_name(type));
     dictionary_set(dict, "__obl_type__",
-        data_uncopy(data_serialize((data_t *) typestr)));
+        data_serialize((data_t *) typestr));
     str_free(typestr);
   }
   return serialized;
@@ -377,7 +364,7 @@ data_t * data_cast(data_t *data, int totype) {
 
   assert(data);
   if (data_type(data) == totype) {
-    return data_copy(data);
+    return data;
   } else {
     descr = typedescr_get(data_type(data));
     assert(descr);
@@ -406,14 +393,14 @@ data_t * data_promote(data_t *data) {
     : NULL;
 }
 
-#ifndef REFCOUNTING
-
 void data_free(data_t *data) {
   /* NO-OP */
 }
 
 void _data_release(data_t *data) {
-  heap_deallocate(data);
+  if (data) {
+    heap_deallocate(data);
+  }
 }
 
 void _data_register(data_t *data) {
@@ -421,25 +408,11 @@ void _data_register(data_t *data) {
 }
 
 void data_destroy(data_t *data) {
-
-  #else /* REFCOUNTING */
-
-void data_destroy(data_t *data) {
-  /* NO-OP */
-}
-
-void data_free(data_t *data) {
-
-#endif
   typedescr_t     *type;
   str_semantics_t  data_semantics;
   str_semantics_t  str_semantics;
 
-#ifdef REFCOUNTING
-  if (data && !(data -> data_semantics & DataSemanticsConstant) && (--data -> refs <= 0)) {
-#else
   if (data && !(data -> data_semantics & DataSemanticsConstant)) {
-#endif
     data_semantics = data -> data_semantics;
     str_semantics = data -> str_semantics;
     type = data_typedescr(data);
@@ -449,11 +422,6 @@ void data_free(data_t *data) {
     }
     type -> count--;
     _data_count--;
-#ifdef REFCOUNTING
-    if (data_semantics & DataSemanticsNormal) {
-      free(data);
-    }
-#endif
   }
 }
 
@@ -523,7 +491,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
         name_tostring(name), name_size(name));
   n = (name_size(name)) ? name_first(name) : NULL;
   if (name_size(name) == 0) {
-    ret = data_copy(data);
+    ret = data;
   }
   if (!ret) {
     ret = _data_call_resolve(type, data, n);
@@ -942,7 +910,7 @@ data_t * data_iter(data_t *data) {
                            data_tostring(data));
     }
   } else if (data_is_iterator(data)) {
-    ret = data_copy(data);
+    ret = data;
   } else {
     ret = data_exception(ErrorNotIterable,
                      "Atom '%s' is not iterable",
@@ -1032,7 +1000,7 @@ data_t * data_reduce(data_t *iterable, data_t *reducer, data_t *initial) {
         ret = current;
         break;
       }
-      datalist_set(args -> args, 1, data_copy(current));
+      datalist_set(args -> args, 1, current);
       accum = data_call(reducer, args);
       if (data_is_unhandled_exception(accum)) {
         ret = accum;
@@ -1188,7 +1156,7 @@ array_t * data_add_strings_reducer(data_t *data, array_t *target) {
 }
 
 array_t * data_add_all_reducer(data_t *data, array_t *target) {
-  array_push(target, data_copy(data));
+  array_push(target, data);
   return target;
 }
 
@@ -1198,6 +1166,6 @@ array_t * data_add_all_as_data_reducer(char *str, array_t *target) {
 }
 
 dict_t * data_put_all_reducer(entry_t *e, dict_t *target) {
-  dict_put(target, strdup(e -> key), data_copy(e -> value));
+  dict_put(target, strdup(e -> key), e -> value);
   return target;
 }

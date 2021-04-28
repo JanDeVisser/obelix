@@ -109,12 +109,12 @@ extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
   }
 
 #define builtin_typedescr_register(t, name, type)                            \
-  assert(t > 0);                                                             \
+  assert(t >= 0);                                                             \
   _typedescr_register(t, name , _vtable_ ## t, _methods_ ## t);              \
   typedescr_set_size(t, type);                                               \
 
 #define builtin_typedescr_register_nomethods(t, name, type)                  \
-  assert(t > 0);                                                             \
+  assert(t >= 0);                                                             \
   _typedescr_register(t, name , _vtable_ ## t, NULL);                        \
   typedescr_set_size(t, type);                                               \
 

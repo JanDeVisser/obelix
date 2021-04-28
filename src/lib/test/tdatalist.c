@@ -64,14 +64,14 @@ START_TEST(test_datalist_create)
 END_TEST
 
 START_TEST(test_datalist_get)
-  ck_assert_str_eq(data_tostring(data_uncopy(datalist_get(list_array, 0))), "test");
-  ck_assert_int_eq(data_intval(data_uncopy(datalist_get(list_array, 3))), 42);
+  ck_assert_str_eq(data_tostring(datalist_get(list_array, 0))), "test";
+  ck_assert_int_eq(data_intval(datalist_get(list_array, 3))), 42;
 END_TEST
 
 START_TEST(test_datalist_push)
   datalist_push(list_null, str_wrap("push"));
   check_list(list_null, 1);
-  ck_assert_str_eq(data_tostring(data_uncopy(datalist_get(list_null, 0))), "push");
+  ck_assert_str_eq(data_tostring(datalist_get(list_null, 0))), "push";
 END_TEST
 
 START_TEST(test_datalist_pop)
@@ -95,11 +95,11 @@ END_TEST
 START_TEST(test_datalist_set)
   datalist_set(list_array, 2, str_wrap("at2"));
   check_list(list_array, 4);
-  ck_assert_str_eq(data_tostring(data_uncopy(datalist_get(list_array, 2))), "at2");
+  ck_assert_str_eq(data_tostring(datalist_get(list_array, 2))), "at2";
 
   datalist_set(list_array, 6, str_wrap("at6"));
   check_list(list_array, 7);
-  ck_assert_str_eq(data_tostring(data_uncopy(datalist_get(list_array, 6))), "at6");
+  ck_assert_str_eq(data_tostring(datalist_get(list_array, 6))), "at6";
 END_TEST
 
 void tdatalist_init(void) {

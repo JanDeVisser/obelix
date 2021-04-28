@@ -178,7 +178,7 @@ data_t * regexp_match(re_t *re, char *str) {
     ret = data_false();
   } else if (array_size(matches) == 1) {
     debug(regexp, "%s .match(%s): One match", regexp_tostring(re), str);
-    ret = data_copy(data_array_get(matches, 0));
+    ret = data_array_get(matches, 0);
   } else {
     debug(regexp, "%s .match(%s): %d matches", regexp_tostring(re), str, array_size(matches));
     ret = (data_t *) datalist_create(matches);
@@ -214,8 +214,8 @@ data_t * _regexp_match(data_t *self, char _unused_ *name, arguments_t *args) {
 }
 
 data_t * _regexp_replace(data_t *self, char _unused_ *name, arguments_t *args) {
-  data_t *str = data_uncopy(arguments_get_arg(args, 0));
-  data_t *replacements = data_uncopy(arguments_get_arg(args, 1));
+  data_t *str = arguments_get_arg(args, 0);
+  data_t *replacements = arguments_get_arg(args, 1);
   re_t   *re = data_as_regexp(self);
 
   return regexp_replace(re, data_tostring(str), data_as_array(replacements));

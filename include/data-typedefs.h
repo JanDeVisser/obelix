@@ -34,6 +34,7 @@ extern "C" {
 /* -- E N U M E R A T I O N S --------------------------------------------- */
 
 typedef enum _datatype {
+  Data         = 0,
   Exception    = 1,
   Kind,       /* 2 */
   Type,       /* 3 */
@@ -150,7 +151,6 @@ typedef struct _data {
   int                 type;
   data_semantics_t    data_semantics;
   str_semantics_t     str_semantics;
-  int                 refs;
   char               *str;
 } data_t;
 

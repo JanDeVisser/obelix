@@ -72,7 +72,7 @@ void _app_free(application_t *app) {
 
 data_t * _app_resolve(application_t *app, char *name) {
   if (!strcmp(name, "args")) {
-    return data_copy((data_t *) app -> args);
+    return (data_t *) app -> args;
   } else if (!strcmp(name, "executable")) {
     return str_to_data(app -> executable);
   } else {

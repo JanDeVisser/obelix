@@ -86,6 +86,7 @@ void thread_init(void) {
   if (mainthread) {
     thread_setname(mainthread, "main");
   }
+  data_register(mainthread);
 }
 
 void * _thread_start_routine_wrapper(thread_ctx_t *ctx) {
@@ -254,7 +255,7 @@ data_t * thread_resolve(thread_t *thread, char *name) {
     return int_to_data((long) thread -> thread);
   } else if (!strcmp(name, "exit_code")) {
     while (!ret && thread) {
-      ret = data_copy(thread -> exit_code);
+      ret = thread -> exit_code;
       thread = thread -> parent;
     }
     return ret;
@@ -321,7 +322,7 @@ data_t * data_current_thread(void) {
   if (!current -> stack) {
     current -> stack = datastack_create(current->_d.str);
   }
-  return data_copy((data_t *) current);
+  return (data_t *) current;
 }
 
 data_t * data_thread_push_stackframe(data_t *frame) {
@@ -365,7 +366,7 @@ data_t * data_thread_stacktrace(data_t *thread) {
   data_t      *ret;
 
   if (!thread) {
-    thread = data_uncopy(data_current_thread());
+    thread = data_current_thread();
   }
   thr = data_as_thread(thread);
   stack = (datastack_t *) thr -> stack;
@@ -377,7 +378,7 @@ data_t * data_thread_set_kernel(data_t *kernel) {
   thread_t    *thread = data_as_thread(data_current_thread());
 
   data_free(thread -> kernel);
-  thread -> kernel = data_copy(kernel);
+  thread -> kernel = kernel;
   return kernel;
 }
 
@@ -387,7 +388,7 @@ data_t * data_thread_kernel(void) {
   data_t      *ret = NULL;
 
   while (!ret && thread) {
-    ret = data_copy(thread -> kernel);
+    ret = thread -> kernel;
     thread = thread -> parent;
   }
   return ret;
@@ -398,7 +399,7 @@ data_t * data_thread_set_exit_code(data_t *code) {
   thread_t    *thread = data_as_thread(data);
 
   while (thread) {
-    thread -> exit_code = data_copy(code);
+    thread -> exit_code = code;
     thread = thread -> parent;
   }
   return code;
@@ -410,7 +411,7 @@ data_t *data_thread_exit_code(void) {
   data_t      *ret = NULL;
 
   while (!ret && thread) {
-    ret = data_copy(thread -> exit_code);
+    ret = thread -> exit_code;
     thread = thread -> parent;
   }
   return ret;

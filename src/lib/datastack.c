@@ -289,7 +289,7 @@ name_t * datastack_rollup_name(datastack_t *stack) {
   ret = name_create(0);
   for (ix = 0; ix < array_size(arr); ix++) {
     data = data_array_get(arr, ix);
-    name_extend(ret, data);
+    name_extend_data(ret, data);
   }
   array_free(arr);
   return ret;

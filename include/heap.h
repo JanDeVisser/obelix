@@ -27,7 +27,10 @@ extern "C" {
 extern void *heap_allocate(size_t);
 extern void heap_deallocate(void *);
 extern void heap_register_root(void *);
+extern void heap_unregister_root(void *);
 extern void heap_gc();
+extern void heap_destroy();
+extern void heap_report();
 
 #ifdef __cplusplus
 }

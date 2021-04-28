@@ -44,9 +44,9 @@ START_TEST(data_int)
 
   array_clear(args);
   d2 = int_to_data(1);
-  array_push(args, data_copy(d1));
+  array_push(args, d1);
   array_push(args, d2);
-  array_push(args, data_copy(d2));
+  array_push(args, d2);
   sum = data_execute(NULL, "+", args, NULL);
   ck_assert_int_eq(sum -> type, Int);
   ck_assert_int_eq(sum -> intval, 3);

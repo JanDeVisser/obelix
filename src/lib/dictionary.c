@@ -105,7 +105,7 @@ dictionary_t * _dictionary_new(dictionary_t *dictionary, va_list args) {
   data_t *template = va_arg(args, data_t *);
 
   dictionary -> attributes = strdata_dict_create();
-  if (data_is_iterable(template)) {
+  if (data_is_data(template) && data_is_iterable(template)) {
     data_reduce_with_fnc(template,
       (reduce_t) _dictionary_set_all_reducer, (data_t *) dictionary);
   }
@@ -145,7 +145,7 @@ list_t * _dictionary_serialize_and_encode_entry(entry_t *e, list_t *encoded) {
 
   bufsz = (intptr_t) ((pointer_t *) list_head(encoded)) -> ptr;
   key = (data_t *) str_wrap((char *) e -> key);
-  value = data_copy((data_t *) e -> value);
+  value = (data_t *) e -> value;
   nvp = nvp_create(
       data_serialize(key),
       (data_t *) str_adopt(data_encode(value)));
@@ -231,7 +231,7 @@ data_t * _dictionary_deserialize(dictionary_t *dict) {
   }
   if (!ret) {
     dictionary_remove(dict, "__obl_type__");
-    ret = data_copy((data_t *) dict);
+    ret = (data_t *) dict;
   }
   return ret;
 }
@@ -289,7 +289,7 @@ dictionary_t * _dictionary_set_all_reducer(data_t *value, dictionary_t *dictiona
   if (data_is_nvp(value)) {
     nvp = (nvp_t *) value;
     dictionary_set(dictionary,
-      data_tostring(nvp -> name), data_copy(nvp -> value));
+      data_tostring(nvp -> name), nvp -> value);
   } else {
     argv = data_as_list(dictionary_get(dictionary, "$"));
     if (!argv) {
@@ -298,7 +298,7 @@ dictionary_t * _dictionary_set_all_reducer(data_t *value, dictionary_t *dictiona
     } else {
       assert(data_is_list(argv));
     }
-    datalist_push(argv, data_copy(value));
+    datalist_push(argv, value);
     datalist_free(argv);
   }
   return dictionary;
@@ -335,7 +335,7 @@ dictionary_t * dictionary_create_from_dict(dict_t *dict) {
 }
 
 data_t * dictionary_get(const dictionary_t *dictionary, const char *name) {
-  return data_copy(dict_get(dictionary -> attributes, name));
+  return dict_get(dictionary -> attributes, name);
 }
 
 data_t * dictionary_pop(dictionary_t *dictionary, const char *name) {
@@ -343,7 +343,7 @@ data_t * dictionary_pop(dictionary_t *dictionary, const char *name) {
 }
 
 data_t * _dictionary_set(dictionary_t *dictionary, const char *name, data_t *value) {
-  dict_put(dictionary -> attributes, strdup(name), data_copy(value));
+  dict_put(dictionary -> attributes, strdup(name), value);
   return value;
 }
 
@@ -394,7 +394,7 @@ data_t * _dictionaryiter_next(dictionaryiter_t *iter) {
   data_t  *ret;
 
   if (e) {
-    ret = (data_t *) nvp_create(str_to_data((char *) e -> key), data_copy(e -> value));
+    ret = (data_t *) nvp_create(str_to_data((char *) e -> key), e -> value);
   } else {
     ret = data_exception(ErrorExhausted, "Iterator exhausted");
   }

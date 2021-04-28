@@ -176,7 +176,7 @@ data_t * _int_add(data_t *self, char *name, arguments_t *args) {
   }
 
   for (ix = 0; ix < arguments_args_size(args); ix++) {
-    d = data_uncopy(arguments_get_arg(args, ix));
+    d = arguments_get_arg(args, ix);
     if (data_hastype(d, Float)) {
       type = Float;
       break;
@@ -188,7 +188,7 @@ data_t * _int_add(data_t *self, char *name, arguments_t *args) {
     intret = data_intval(self);
   }
   for (ix = 0; ix < arguments_args_size(args); ix++) {
-    d = data_uncopy(arguments_get_arg(args, ix));
+    d = arguments_get_arg(args, ix);
     if (type == Int) {
       /* Type of d must be Int, can't be Float */
       longval = data_intval(d);
@@ -217,7 +217,7 @@ data_t * _int_mult(data_t *self, char _unused_ *name, arguments_t *args) {
   long    intret = 0;
 
   for (ix = 0; ix < arguments_args_size(args); ix++) {
-    d = data_uncopy(arguments_get_arg(args, ix));
+    d = arguments_get_arg(args, ix);
     if (data_hastype(d, Float)) {
       type = Float;
       break;
@@ -229,7 +229,7 @@ data_t * _int_mult(data_t *self, char _unused_ *name, arguments_t *args) {
     intret = data_intval(self);
   }
   for (ix = 0; ix < arguments_args_size(args); ix++) {
-    d = data_uncopy(arguments_get_arg(args, ix));
+    d = arguments_get_arg(args, ix);
     if (type == Int) {
       intret *= data_intval(d);
     } else {
@@ -246,7 +246,7 @@ data_t * _int_div(data_t *self, char _unused_ *name, arguments_t *args) {
   long    intret = 0;
   double  fltret;
 
-  denom = data_uncopy(arguments_get_arg(args, 0));
+  denom = arguments_get_arg(args, 0);
   if (data_hastype(denom, Int)) {
     intret = data_intval(self) / data_intval(denom);
     ret = int_to_data(intret);

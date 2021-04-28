@@ -67,7 +67,7 @@ typedef struct _scanner_config {
   struct _lexer_config    *lexer_config;
   matcher_t                match;
   matcher_t                match_2nd_pass;
-  dict_t                  *config;
+  dictionary_t            *config;
 } scanner_config_t;
 
 typedef struct _scanner {

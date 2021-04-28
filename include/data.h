@@ -113,6 +113,8 @@ extern type_t          type_data;
 #endif /* __INCLUDING_TYPEDESCR_H__ */
 
 #define data_new(dt,st)     ((st *) _data_new(dt, sizeof(st)))
+#define data_copy(d)        (d)
+#define data_uncopy(d)      (d)
 
 static inline int data_is_data(void *data) {
   return !data || (((data_t *) data) -> cookie == MAGIC_COOKIE);
@@ -147,33 +149,20 @@ static inline const char * data_typename(void *data) {
 }
 
 static inline int data_hastype(void *data, int type) {
-  data_t *d = data_as_data(data);
+  data_t *d;
 
-  return (d)
-    ? (d -> type == type) || typedescr_is(typedescr_get(d -> type), type)
-    : FALSE;
+  if (data && data_is_data(data)) {
+    d = data_as_data(data);
+    return (d->type == type) || typedescr_is(typedescr_get(d->type), type);
+  } else {
+    return FALSE;
+  }
 }
 
 static inline void_t data_get_function(void  *data, vtable_id_t func) {
-  return (data)
+  return (data && data_is_data(data))
       ? typedescr_get_function(data_typedescr(data_as_data(data)), func)
       : NULL;
-}
-
-static inline data_t * data_copy(void *src) {
-  data_t *s = data_as_data(src);
-  if (s) {
-    s -> refs++;
-  }
-  return s;
-}
-
-static inline data_t * data_uncopy(void *src) {
-  data_t *s = data_as_data(src);
-  if (s) {
-    s -> refs--;
-  }
-  return s;
 }
 
 static inline char * data_tostring(void *data) {
@@ -200,13 +189,12 @@ static inline int data_is_iterator(void *d) {
     return (data_is_ ## id(d)) ? (type *) d : NULL;                          \
   }                                                                          \
   static inline void id ## _free(type *d) {                                  \
-    data_free((data_t *) d);                                                 \
   }                                                                          \
   static inline char * id ## _tostring(type *d) {                            \
     return data_tostring((data_t *) d);                                      \
   }                                                                          \
   static inline type * id ## _copy(type *d) {                                \
-    return (type *) data_copy((data_t *) d);                                 \
+    return (d);                                                              \
   }
 
 /* -- P O I N T E R  T Y P E ---------------------------------------------- */
@@ -286,7 +274,7 @@ static inline data_t * datalist_shift(datalist_t *list) {
 }
 
 static inline data_t * datalist_get(datalist_t *datalist, int ix) {
-  return data_copy(data_array_get(data_as_array(datalist), ix));
+  return data_array_get(data_as_array(datalist), ix);
 }
 
 static inline datalist_t * datalist_slice(datalist_t *datalist, int from, int to) {

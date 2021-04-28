@@ -408,7 +408,7 @@ data_t * _enable_debug(data_t _unused_ *self, char _unused_ *name, arguments_t *
   char *cat = arguments_arg_tostring(args, 0);
 
   logging_enable(cat);
-  return data_copy(arguments_get_arg(args, 0));
+  return arguments_get_arg(args, 0);
 }
 
 #endif /* !NDEBUG */

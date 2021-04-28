@@ -48,7 +48,7 @@ mth_t * _mth_new(mth_t *mth, va_list args) {
   data_t        *self = va_arg(args, data_t *);
 
   mth -> method = md;
-  mth -> self = data_copy(self);
+  mth -> self = self;
   asprintf(&mth->_d.str, "%s.%s",
            data_tostring(mth->self),
            mth->method->name);

@@ -241,13 +241,13 @@ data_t * _exception_resolve(data_t *exception, char *name) {
   if (!strcmp(name, "message")) {
     return (data_t *) str_copy_chars(e -> msg);
   } else if (!strcmp(name, "stacktrace")) {
-    return data_copy(e -> trace);
+    return e -> trace;
   } else if (!strcmp(name, "code")) {
     return (data_t *) int_create(e -> code);
   } else if (!strcmp(name, "codename")) {
     return (data_t *) str_wrap(_exceptions[e -> code].label);
   } else if (!strcmp(name, "throwable")) {
-    return data_copy(e -> throwable);
+    return e -> throwable;
   } else if (e -> throwable) {
     ret = data_resolve(e -> throwable, n = name_create(1, name));
     name_free(n);
@@ -283,12 +283,12 @@ static exception_t * _exception_deserialize(dictionary_t *d) {
   char        *msg;
 
   code = (dictionary_has(d, "code"))
-         ? (errorcode_t) data_intval(data_uncopy(dictionary_get(d, "code")))
+         ? (errorcode_t) data_intval(dictionary_get(d, "code"))
          : ErrorNoError;
-  msg = data_tostring(data_uncopy(dictionary_get(d, "message")));
+  msg = data_tostring(dictionary_get(d, "message"));
   ret = exception_create(code, msg);
-  ret -> throwable = data_deserialize(data_uncopy(dictionary_get(d, "throwable")));
-  ret -> trace = data_deserialize(data_uncopy(dictionary_get(d, "stacktrace")));
+  ret -> throwable = data_deserialize(dictionary_get(d, "throwable"));
+  ret -> trace = data_deserialize(dictionary_get(d, "stacktrace"));
   return ret;
 }
 
@@ -299,7 +299,7 @@ void * _exception_reduce_children(exception_t *exception, reduce_t reducer, void
 /* -- E X C E P T I O N  F A C T O R Y  F U N C T I O N S ----------------- */
 
 _unused_ data_t * _data_exception_from_exception(exception_t *exception) {
-  return data_copy((data_t *) exception);
+  return (data_t *) exception;
 }
 
 data_t * data_exception(int code, char *msg, ...) {
@@ -324,6 +324,6 @@ data_t * data_throwable(data_t *throwable) {
   exception_t *exception;
 
   exception = exception_create(ErrorThrowable, data_tostring(throwable));
-  exception -> throwable = data_copy(throwable);
+  exception -> throwable = throwable;
   return (data_t *) exception;
 }

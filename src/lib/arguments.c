@@ -106,9 +106,9 @@ data_t * _arguments_resolve(arguments_t *arguments, char *name) {
   long l;
 
   if (!strcmp(name, "kwargs")) {
-    return data_copy(arguments->kwargs);
+    return data_as_data(arguments->kwargs);
   } else if (!strcmp(name, "args")) {
-    return data_copy(arguments->args);
+    return data_as_data(arguments->args);
   } else {
     return (strtoint(name, &l))
            ? arguments_get_kwarg(arguments, name)
@@ -199,7 +199,7 @@ data_t * arguments_get_arg(const arguments_t *arguments, int ix) {
       (ix >= datalist_size(arguments -> args))) {
     return data_exception(ErrorRange, "Index out of range");
   } else {
-    return data_copy(datalist_get(arguments -> args, ix));
+    return datalist_get(arguments -> args, ix);
   }
 }
 
@@ -227,7 +227,7 @@ arguments_t * arguments_shift(const arguments_t *arguments, data_t **shifted) {
   data_t      *s = array_remove(args, 0);
 
   if (shifted) {
-    *shifted = data_copy(s);
+    *shifted = s;
   }
   return ret;
 }

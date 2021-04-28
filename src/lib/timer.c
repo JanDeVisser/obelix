@@ -18,12 +18,7 @@
  */
 
 #include <oblconfig.h>
-#ifdef HAVE_QUERYPERFORMANCECOUNTER
-#include <windows.h>
-#endif
-#ifdef HAVE_CLOCK_GETTIME
 #include <time.h>
-#endif
 
 #include <timer.h>
 #include <core.h>
@@ -31,15 +26,8 @@
 typedef struct _timer_impl {
   long            seconds;
   long            microseconds;
-#ifdef HAVE_QUERYPERFORMANCECOUNTER
-  LARGE_INTEGER   frequency;
-  LARGE_INTEGER   start;
-  LARGE_INTEGER   end;
-#endif
-#ifdef HAVE_CLOCK_GETTIME
   struct timespec start;
   struct timespec end;
-#endif
 } timer_impl_t;
 
 /* ------------------------------------------------------------------------ */
@@ -48,45 +36,18 @@ typedef struct _timer_impl {
 timestamp_t * timer_start(void) {
   timer_impl_t *ret = NEW(timer_impl_t);
 
-#ifdef HAVE_QUERYPERFORMANCECOUNTER
-  QueryPerformanceFrequency(&ret -> frequency);
-  QueryPerformanceCounter(&ret -> start);
-#endif
-#ifdef HAVE_CLOCK_GETTIME
   clock_gettime(CLOCK_MONOTONIC, &ret -> start);
-#endif
   return (timestamp_t *) ret;
 }
 
 timestamp_t * timer_end(timestamp_t *timer) {
   timer_impl_t *t = (timer_impl_t *) timer;
-#ifdef HAVE_QUERYPERFORMANCECOUNTER
-  LARGE_INTEGER elapsed_microseconds;
-
-  QueryPerformanceCounter(&t -> end);
-  elapsed_microseconds.QuadPart = t -> end.QuadPart - t -> start.QuadPart;
-  /*
-   * https://msdn.microsoft.com/en-us/library/windows/desktop/dn553408(v=vs.85).aspx
-   *
-   * We now have the elapsed number of ticks, along with the number of
-   * ticks-per-second. We use these values to convert to the number of *
-   * elapsed microseconds. To guard against loss-of-precision, we convert
-   * to microseconds *before* dividing by ticks-per-second.
-   */
-
-  elapsed_microseconds.QuadPart *= 1000000;
-  elapsed_microseconds.QuadPart /= t -> frequency.QuadPart;
-  t -> seconds = (long) (elapsed_microseconds.QuadPart / 1000000);
-  t -> microseconds = (long) (elapsed_microseconds.QuadPart % 1000000);
-#endif
-#ifdef HAVE_CLOCK_GETTIME
-  clock_gettime(CLOCK_MONOTONIC, &t -> start);
+  clock_gettime(CLOCK_MONOTONIC, &t -> end);
   t -> microseconds = (t -> end.tv_nsec - t -> start.tv_nsec) / 1000L;
   t -> seconds = t -> end.tv_sec - t -> start.tv_sec;
   if (t -> microseconds < 0) {
     t -> seconds--;
     t -> microseconds = 1000000L - t -> microseconds;
   }
-#endif
   return timer;
 }

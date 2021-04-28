@@ -116,7 +116,7 @@ mutex_t * mutex_create_withname(char *name) {
   mutex_t *mutex;
   pthread_mutexattr_t  attr;
 
- mutex = data_new(Mutex, mutex_t);
+  mutex = data_new(Mutex, mutex_t);
   pthread_mutexattr_init(&attr);
   pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
   if ((errno = pthread_mutex_init(&mutex -> mutex, &attr))) {
@@ -217,7 +217,7 @@ data_t * _mutex_lock(mutex_t *mutex, _unused_ char *name, arguments_t *args) {
 	int wait = TRUE;
 
   if (arguments_args_size(args)) {
-    wait = data_intval(data_uncopy(arguments_get_arg(args, 0)));
+    wait = data_intval(arguments_get_arg(args, 0));
   }
   if (wait) {
     return _mutex_enter(mutex);
@@ -353,7 +353,7 @@ data_t * _condition_acquire(condition_t *condition, _unused_ char *name, argumen
   int wait = TRUE;
 
   if (args && arguments_args_size(args)) {
-    wait = data_intval(data_uncopy(arguments_get_arg(args, 0)));
+    wait = data_intval(arguments_get_arg(args, 0));
   }
   if (wait) {
     return _condition_enter(condition);

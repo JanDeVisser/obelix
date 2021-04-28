@@ -134,15 +134,15 @@ data_t * _hierarchy_resolve(hierarchy_t *hierarchy, char *name) {
   long         l;
 
   if ((branch = hierarchy_get_bylabel(hierarchy, name))) {
-    return data_copy((data_t *) branch);
+    return (data_t *) branch;
   } else if (!strtoint(name, &l) && (l >= 0) && (l < list_size(hierarchy -> branches))) {
-    return data_copy((data_t *) hierarchy_get(hierarchy, l));
+    return (data_t *) hierarchy_get(hierarchy, l);
   } else if (!strcmp(name, "up")) {
-    return data_copy((data_t *) hierarchy -> up);
+    return (data_t *) hierarchy -> up;
   } else if (!strcmp(name, "depth")) {
     return int_to_data(hierarchy_depth(hierarchy));
   } else if (!strcmp(name, "root")) {
-    return data_copy((data_t *) hierarchy_root(hierarchy));
+    return (data_t *) hierarchy_root(hierarchy);
   }
   return NULL;
 }
@@ -157,7 +157,7 @@ void _hierarchy_get_nodes(hierarchy_t *hierarchy, array_t *nodes) {
     branch = (hierarchy_t *) datalist_get(hierarchy->branches, ix);
     if (branch -> data) {
       array_push(nodes,
-          nvp_create((data_t *) hierarchy_name(branch), data_copy(branch -> data)));
+          nvp_create((data_t *) hierarchy_name(branch), branch -> data));
     }
     _hierarchy_get_nodes(branch, nodes);
   }
@@ -191,7 +191,7 @@ hierarchy_t * hierarchy_insert(hierarchy_t *hierarchy, name_t *name, data_t *dat
     }
   }
   data_free(hierarchy -> data);
-  hierarchy -> data = data_copy(data);
+  hierarchy -> data = data;
   return hierarchy;
 }
 

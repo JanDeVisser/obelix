@@ -44,11 +44,11 @@ static app_description_t   _app_descr_testsuite = {
     }
 };
 
-extern test_t * test_factory(char *data) {
+extern test_t * test_factory(const char *data) {
   return test_create(data);
 }
 
-test_t * test_create(char *data) {
+test_t * test_create(const char *data) {
   test_t *ret;
 
   ret = NEW(test_t);
@@ -82,29 +82,4 @@ void test_free(test_t *test) {
     free(test -> data);
   }
   free(test);
-}
-
-static Suite *_suite = NULL;
-
-void add_tcase(TCase *tc) {
-  if (_suite && tc) {
-    suite_add_tcase(_suite, tc);
-  }
-}
-
-extern void init_suite(int, char **);
-
-int main(int argc, char **argv){
-  int      number_failed;
-  SRunner *sr;
-
-  application_create(&_app_descr_testsuite, argc, argv);
-  _suite = suite_create("default");
-  init_suite(argc, argv);
-  sr = srunner_create(_suite);
-  //srunner_set_fork_status(sr, CK_NOFORK);
-  srunner_run_all(sr, CK_VERBOSE);
-  number_failed = srunner_ntests_failed(sr);
-  srunner_free(sr);
-  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -79,7 +79,7 @@ data_t * _name_append(data_t *self, char _unused_ *fnc_name, arguments_t *args) 
 /* ----------------------------------------------------------------------- */
 
 void _name_debug(name_t *name, char *msg) {
-  debug(name, "%s: %p = %s (%d)", msg, name, name_tostring(name), name -> _d.refs);
+  debug(name, "%s: %p = %s", msg, name, name_tostring(name));
 }
 
 name_t * _name_create() {
@@ -175,7 +175,7 @@ name_t * name_parse(const char *name) {
   return name_split(name, ".");
 }
 
-name_t * name_extend(name_t *name, void *n) {
+name_t * name_extend_data(name_t *name, data_t *n) {
   if (!n) {
     return name;
   }
@@ -185,11 +185,19 @@ name_t * name_extend(name_t *name, void *n) {
     name_append_datalist(name, data_as_list(n));
   } else if (data_is_name(n)) {
     name_append(name, data_as_name(n));
-  } else if (data_is_data(n)) {
-    datalist_push(name->name, str_to_data(data_tostring(data_as_data(n))));
   } else {
-    datalist_push(name->name, str_to_data((char *) n));
+    datalist_push(name->name, str_to_data(data_tostring(data_as_data(n))));
   }
+  data_invalidate_string(name);
+  _name_debug(name, "name_extend_data");
+  return name;
+}
+
+name_t * name_extend(name_t *name, const char *n) {
+  if (!n) {
+    return name;
+  }
+  datalist_push(name->name, str_to_data((char *) n));
   data_invalidate_string(name);
   _name_debug(name, "name_extend");
   return name;
@@ -203,7 +211,11 @@ name_t * name_append_array(name_t *name, array_t *additions) {
   int ix;
 
   for (ix = 0; ix < array_size(additions); ix++) {
-    name_extend(name, array_get(additions, ix));
+    if (additions->type.tostring == (tostring_t) _data_tostring) { // HACK
+      name_extend_data(name, (data_t *) array_get(additions, ix));
+    } else {
+      name_extend(name, (const char *) array_get(additions, ix));
+    }
   }
   data_invalidate_string(name);
   _name_debug(name, "name_append_array");
@@ -214,7 +226,7 @@ name_t * name_append_datalist(name_t *name, datalist_t *additions) {
   int ix;
 
   for (ix = 0; ix < datalist_size(additions); ix++) {
-    name_extend(name, datalist_get(additions, ix));
+    name_extend_data(name, datalist_get(additions, ix));
   }
   data_invalidate_string(name);
   _name_debug(name, "name_append_datalist");

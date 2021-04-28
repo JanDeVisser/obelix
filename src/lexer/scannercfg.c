@@ -36,6 +36,7 @@ static data_t *           _scanner_config_resolve(scanner_config_t *, char *);
 static scanner_config_t * _scanner_config_set(scanner_config_t *, char *, data_t *);
 static data_t *           _scanner_config_call(scanner_config_t *, arguments_t *args);
 static scanner_config_t * _scanner_config_setstring(scanner_config_t *, char *);
+static void *             _scanner_config_reduce_children(scanner_config_t *, reduce_t, void *);
 
 static vtable_t _vtable_ScannerConfig[] = {
   { .id = FunctionNew,          .fnc = (void_t) _scanner_config_new },
@@ -44,6 +45,7 @@ static vtable_t _vtable_ScannerConfig[] = {
   { .id = FunctionResolve,      .fnc = (void_t) _scanner_config_resolve },
   { .id = FunctionSet,          .fnc = (void_t) _scanner_config_set },
   { .id = FunctionCall,         .fnc = (void_t) _scanner_config_call },
+  { .id = FunctionReduce,       .fnc = (void_t) _scanner_config_reduce_children },
   { .id = FunctionNone,         .fnc = NULL }
 };
 
@@ -152,14 +154,14 @@ data_t * _scanner_config_resolve(scanner_config_t *config, char *name) {
   ret = NULL;
   if (!strcmp(name, PARAM_CONFIGURATION)) {
     if (config -> config) {
-      ret = (data_t *) str_copy_chars(dict_tostring(config -> config));
+      ret = (data_t *) str_copy_chars(dictionary_tostring(config -> config));
     } else {
       ret = data_null();
     }
   } else if (!strcmp(name, PARAM_PRIORITY)) {
     return int_to_data(config -> priority);
   } else if (config -> config) {
-    ret = data_copy(data_dict_get(config -> config, name));
+    ret = dictionary_get(config -> config, name);
   }
   return ret;
 }
@@ -175,10 +177,10 @@ scanner_config_t * _scanner_config_set(scanner_config_t *config, char *name, dat
     debug(lexer, "Setting value '%s' for parameter '%s' on scanner config '%s'",
           data_tostring(value), name, data_typename(config));
     if (!config -> config) {
-      config -> config = strdata_dict_create();
+      config -> config = dictionary_create(NULL);
     }
     ret = config;
-    dict_put(config -> config, strdup(name), data_copy(value));
+    dictionary_set(config -> config, strdup(name), value);
   }
   return ret;
 }
@@ -205,7 +207,7 @@ scanner_config_t * _scanner_config_setstring(scanner_config_t *config, char *val
   }
   name = strtrim(value);
 
-  if (strcmp(name, "configuration")) {
+  if (strcmp(name, "configuration") != 0) {
     ret = scanner_config_setvalue(config, name, v);
   }
   free(value);
@@ -218,6 +220,14 @@ data_t * _scanner_config_call(scanner_config_t *config, arguments_t *args) {
   lexer = (lexer_t *) data_uncopy(arguments_get_arg(args, 0));
   return (data_t *) scanner_config_instantiate(config, lexer);
 }
+
+void * _scanner_config_reduce_children(scanner_config_t *config, reduce_t reducer, void *ctx) {
+  ctx = reducer(config->prev, ctx);
+  ctx = reducer(config->next, ctx);
+  ctx = reducer(config->lexer_config, ctx);
+  return reducer(config->config, ctx);
+}
+
 
 /* ------------------------------------------------------------------------ */
 

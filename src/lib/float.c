@@ -158,7 +158,7 @@ data_t * _number_add(data_t *self, char *name, arguments_t *args) {
   int     plus = (name[0] == '+') || !strcmp(name, "sum");
 
   if (!arguments_has_args(args)) {
-    return (plus) ? data_copy(self) : flt_to_data(-1.0 * data_floatval(self));
+    return (plus) ? self : flt_to_data(-1.0 * data_floatval(self));
   }
   retval = ((flt_t *) self) -> dbl;
   for (ix = 0; ix < arguments_args_size(args); ix++) {
@@ -249,7 +249,7 @@ data_t * _number_minmax(data_t *self, char *name, arguments_t *args) {
       ? ((data_floatval(ret) > data_floatval(d)) ? ret : d)
       : ((data_floatval(ret) < data_floatval(d)) ? ret : d);
   }
-  return data_copy(ret);
+  return ret;
 }
 
 /* ----------------------------------------------------------------------- */

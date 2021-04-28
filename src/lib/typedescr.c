@@ -74,6 +74,10 @@ static vtable_t _vtable_Method[] = {
 
 static methoddescr_t * _methods_Method = NULL;
 
+static vtable_t _vtable_Data[] = {
+  { .id = FunctionNone,         .fnc = NULL }
+};
+
 static vtable_t _vtable_Kind[] = {
   { .id = FunctionCmp,          .fnc = (void_t) _kind_cmp },
   { .id = FunctionStaticString, .fnc = (void_t) _kind_tostring },
@@ -170,6 +174,7 @@ void typedescr_init(void) {
     typedescr_register_methods(Type, _methods_Type);
     typedescr_register_methods(Interface, _methods_Interface);
     typedescr_register_methods(Method, _methods_Method);
+    builtin_typedescr_register_nomethods(Data, "Data", data_t);
     any_init();
   }
 }
@@ -243,7 +248,6 @@ kind_t * _kind_init(kind_t * descr, int kind, int type, char *name) {
   descr -> _d.type = kind;
   descr -> _d.data_semantics = DataSemanticsConstant;
   data_set_string_semantics(descr, StrSemanticsExternStatic);
-  descr -> _d.refs = 1;
   descr -> _d.str = NULL;
   descr -> type = type;
   descr -> name = strdup(name);
@@ -259,7 +263,6 @@ void kind_register_method(kind_t *kind, methoddescr_t *method) {
   if (!dict_has_key(kind -> methods, method -> name)) {
     method -> _d.type = Method;
     method -> _d.data_semantics = DataSemanticsConstant;
-    method -> _d.refs = 1;
     method -> _d.str = NULL;
     data_set_string_semantics(method, StrSemanticsExternStatic);
     dict_put(kind -> methods, strdup(method -> name), method);
@@ -414,7 +417,7 @@ data_t * _interface_resolve(interface_t *iface, char *name) {
 }
 
 data_t * _interface_isimplementedby(interface_t *iface, char _unused_ *name, arguments_t *args) {
-  data_t      *data = data_uncopy(arguments_get_arg(args, 0));
+  data_t      *data = arguments_get_arg(args, 0);
   typedescr_t *type;
 
   if (data_hastype(data, Interface)) {
@@ -429,7 +432,7 @@ data_t * _interface_isimplementedby(interface_t *iface, char _unused_ *name, arg
 
 data_t * _interface_implements(data_t *self, char *name, arguments_t *args) {
   arguments_t *a;
-  interface_t *iface = data_as_interface(data_uncopy(arguments_get_arg(args, 0)));
+  interface_t *iface = data_as_interface(arguments_get_arg(args, 0));
   data_t      *ret;
 
   a = arguments_create_args(1, self);
@@ -549,7 +552,7 @@ void * _kind_reduce_children(kind_t *kind, reduce_t reducer, void *ctx) {
 }
 
 data_t * _typedescr_gettype(data_t _unused_ *self, char _unused_ *name, arguments_t *args) {
-  data_t      *t = data_uncopy(arguments_get_arg(args, 0));
+  data_t      *t = arguments_get_arg(args, 0);
   typedescr_t *type;
 
   type = (data_is_int(t))
@@ -561,7 +564,7 @@ data_t * _typedescr_gettype(data_t _unused_ *self, char _unused_ *name, argument
 }
 
 data_t * _typedescr_hastype(data_t *self, char _unused_ *name, arguments_t *args) {
-  typedescr_t *type = data_as_typedescr(data_uncopy(arguments_get_arg(args, 0)));
+  typedescr_t *type = data_as_typedescr(arguments_get_arg(args, 0));
 
   return data_hastype(self, type -> _d.type) ? data_true() : data_false();
 }
@@ -705,7 +708,7 @@ int _typedescr_register(int type, char *type_name, vtable_t *vtable, methoddescr
     typedescr_init();
   }
   debug(type, "Registering type '%s' [%d]", type_name, type);
-  if (type <= 0) {
+  if ((type <= 0) && (strcmp(type_name, "Data") != 0)) {
     type = (_numtypes > (size_t) Dynamic) ? (int) _numtypes : (int) Dynamic;
     _numtypes = (size_t) (type + 1);
     debug(type, "Giving type '%s' ID %d", type_name, type);
@@ -792,7 +795,7 @@ typedescr_t * typedescr_get(int datatype) {
   if (!_descriptors) {
     typedescr_init();
   }
-  if ((datatype >= 0) && (datatype < (int) _numtypes)) {
+  if ((datatype >= Data) && (datatype < (int) _numtypes)) {
     ret = _descriptors[datatype];
   }
   if (!ret) {

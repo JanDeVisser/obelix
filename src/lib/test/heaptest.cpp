@@ -23,9 +23,10 @@
 class HeapTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    logging_set_level("DEBUG");
-    logging_enable("heap");
-    logging_enable("file");
+    logging_set_level("WARN");
+//    logging_enable("heap");
+//    logging_enable("file");
+//    heap_report();
   }
 
   void *allocate(size_t size) {
@@ -38,6 +39,7 @@ protected:
   }
 
   void TearDown() override {
+    heap_destroy();
   }
 };
 

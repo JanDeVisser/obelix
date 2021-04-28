@@ -197,7 +197,7 @@ data_t * _stream_resolve(stream_t *stream, char *name) {
   } else if (!strcmp(name, "errormsg")) {
     return str_to_data(data_tostring(stream_error(stream)));
   } else if (!strcmp(name, "error")) {
-    return (stream_error(stream)) ? data_copy(stream_error(stream)) : data_null();
+    return (stream_error(stream)) ? stream_error(stream) : data_null();
   } else if (!strcmp(name, "eof")) {
     return int_as_bool(stream_eof(stream));
   } else {
@@ -462,20 +462,20 @@ streamiter_t * _streamiter_readnext(streamiter_t *iter) {
       list_push(iter -> next,
                 data_exception(ErrorExhausted, "Iterator exhausted"));
     } else if (data_is_exception(line)) {
-      list_push(iter -> next, data_copy(line));
+      list_push(iter -> next, line);
     } else {
       if (!iter -> selector) {
-        list_push(iter -> next, data_copy(line));
+        list_push(iter -> next, line);
       } else {
         args = arguments_create_args(1, line);
         matches = data_execute(iter -> selector, "match", args);
         if (data_is_exception(matches) || data_is_string(matches)) {
-          list_push(iter -> next, data_copy(matches));
+          list_push(iter -> next, matches);
         } else if (data_is_list(matches)) {
           /* FIXME: Should be able to handle any iterable */
           matchvals = data_as_array(matches);
           for (ix = 0; ix < array_size(matchvals); ix++) {
-            list_push(iter -> next, data_copy(data_array_get(matchvals, ix)));
+            list_push(iter -> next, data_array_get(matchvals, ix));
           }
         }
         data_free(matches);
@@ -491,9 +491,9 @@ streamiter_t * _streamiter_create(stream_t *stream, data_t *selector) {
   streamiter_t  *ret = data_new(StreamIter, streamiter_t);
   data_t        *retval = NULL;
 
-  ret -> stream = data_copy((data_t *) stream);
+  ret -> stream = (data_t *) stream;
   if (selector && data_hasmethod(selector, "match")) {
-    ret -> selector = data_copy(selector);
+    ret -> selector = selector;
   } else if (selector && !data_isnull(selector)) {
     ret -> selector = (data_t *) regexp_create(data_tostring(selector), NULL);
   } else {
@@ -507,7 +507,7 @@ streamiter_t * _streamiter_create(stream_t *stream, data_t *selector) {
   if (!retval || data_intval(retval) >= 0) {
     _streamiter_readnext(ret);
   } else {
-    list_push(ret -> next, data_copy(retval));
+    list_push(ret -> next, retval);
   }
   data_free(retval);
   return ret;
@@ -553,7 +553,7 @@ data_t * _streamiter_has_next(streamiter_t *si) {
   next = list_head(si -> next);
   if (data_is_exception(next)) {
     ex = data_as_exception(next);
-    ret = (ex -> code == ErrorExhausted) ? data_false() : data_copy(next);
+    ret = (ex -> code == ErrorExhausted) ? data_false() : next;
   } else {
     ret = data_true();
   }
