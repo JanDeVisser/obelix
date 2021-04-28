@@ -29,7 +29,7 @@
 
 static void _init_types(void) __attribute__((constructor(101)));
 
-data_t * execute(data_t *self, char *name, int numargs, ...) {
+data_t * execute(data_t *self, const char *name, int numargs, ...) {
   va_list  arglist;
   array_t *args;
   data_t  *ret;
@@ -51,7 +51,7 @@ data_t * execute(data_t *self, char *name, int numargs, ...) {
         d = int_to_data(intval);
         break;
       case Float:
-        intval = va_arg(arglist, double);
+        dblval = va_arg(arglist, double);
         d = data_create(Float, dblval);
         break;
       case String:
@@ -63,7 +63,7 @@ data_t * execute(data_t *self, char *name, int numargs, ...) {
         d = data_create(Bool, intval);
         break;
       default:
-        debug("Cannot do type %d. Ignored", type);
+        _debug("Cannot do type %d. Ignored", type);
         ptr = va_arg(arglist, char *);
         break;
     }
@@ -72,7 +72,7 @@ data_t * execute(data_t *self, char *name, int numargs, ...) {
     }
   }
   va_end(arglist);
-  ret = data_execute(self, name, args, NULL);
+  ret = data_execute(self, (char *) name, args, NULL);
   if (ret && data_is_exception(ret)) {
     debug("Error executing '%s'.'%s': %s", data_tostring(self),
 	  name, data_tostring(ret));

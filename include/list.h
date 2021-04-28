@@ -22,79 +22,83 @@
 
 #include <core.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct _list;
 struct _str;
 
 typedef struct _listnode {
   struct _listnode *prev;
   struct _listnode *next;
-  struct _list     *list;
-  void             *data;
+  struct _list *list;
+  void *data;
 } listnode_t;
 
 typedef struct _listiter {
   struct _list *list;
-  listnode_t   *current;
+  listnode_t *current;
 } listiterator_t;
 
 typedef struct _list {
-  listnode_t      head;
-  listnode_t      tail;
-  int             size;
-  type_t          type;
-  listiterator_t  iter;
-  char           *str;
+  listnode_t head;
+  listnode_t tail;
+  int size;
+  type_t type;
+  listiterator_t iter;
+  char *str;
 } list_t;
 
 typedef struct _listprocessor {
-  list_t     *list;
-  reduce_t    processor;
-  void       *data;
+  list_t *list;
+  reduce_t processor;
+  void *data;
   listnode_t *current;
 } listprocessor_t;
 
-extern list_t *            list_create();
-extern list_t *            list_clone(list_t *);
-extern list_t *            list_set_type(list_t *, type_t *);
-extern list_t *            _list_set_free(list_t *, visit_t);
-extern list_t *            _list_set_cmp(list_t *, cmp_t);
-extern list_t *            _list_set_tostring(list_t *, tostring_t);
-extern list_t *            _list_set_hash(list_t *, hash_t);
-extern void                list_free(list_t *);
-extern list_t *            list_append(list_t *, void *);
-extern list_t *            list_unshift(list_t *, void *);
-extern list_t *            list_add_all(list_t *, list_t *);
-extern list_t *            list_join(list_t *, list_t *);
-extern unsigned int        list_hash(list_t *);
-extern void *              list_get(list_t *, int);
-extern void *              __list_reduce(list_t *, reduce_t, void *, reduce_type_t);
-extern void *              _list_reduce(list_t *, reduce_t, void *);
-extern void *              _list_reduce_chars(list_t *, reduce_t, void *);
-extern void *              _list_reduce_str(list_t *, reduce_t, void *);
-extern list_t *            _list_visit(list_t *, visit_t);
-extern void *              _list_process(list_t *, reduce_t, void *);
-extern list_t *            list_clear(list_t *);
-extern void *              list_head(list_t *);
-extern void *              list_tail(list_t *);
-extern listnode_t *        list_head_pointer(list_t *);
-extern listnode_t *        list_tail_pointer(list_t *);
-extern void *              list_shift(list_t *);
-extern void *              list_pop(list_t *);
-extern struct _str *       list_tostr(list_t *);
-extern char *              list_tostring(list_t *);
+extern list_t *list_create();
+extern list_t *list_clone(list_t *);
+extern list_t *list_set_type(list_t *, type_t *);
+extern list_t *_list_set_free(list_t *, visit_t);
+extern list_t *_list_set_cmp(list_t *, cmp_t);
+extern list_t *_list_set_tostring(list_t *, tostring_t);
+extern list_t *_list_set_hash(list_t *, hash_t);
+extern void list_free(list_t *);
+extern list_t *list_append(list_t *, void *);
+extern list_t *list_unshift(list_t *, void *);
+extern list_t *list_add_all(list_t *, list_t *);
+extern list_t *list_join(list_t *, list_t *);
+extern unsigned int list_hash(list_t *);
+extern void *list_get(list_t *, int);
+extern void *__list_reduce(list_t *, reduce_t, void *, reduce_type_t);
+extern void *_list_reduce(list_t *, reduce_t, void *);
+extern void *_list_reduce_chars(list_t *, reduce_t, void *);
+extern void *_list_reduce_str(list_t *, reduce_t, void *);
+extern list_t *_list_visit(list_t *, visit_t);
+extern void *_list_process(list_t *, reduce_t, void *);
+extern list_t *list_clear(list_t *);
+extern void *list_head(list_t *);
+extern void *list_tail(list_t *);
+extern listnode_t *list_head_pointer(list_t *);
+extern listnode_t *list_tail_pointer(list_t *);
+extern void *list_shift(list_t *);
+extern void *list_pop(list_t *);
+extern struct _str *list_tostr(list_t *);
+extern char *list_tostring(list_t *);
 
-extern listiterator_t *    list_start(list_t *);
-extern listiterator_t *    list_end(list_t *);
-extern listiterator_t *    list_position(listnode_t *);
-extern void *              list_current(list_t *);
-extern int                 list_has_next(list_t *);
-extern int                 list_has_prev(list_t *);
-extern void *              list_next(list_t *);
-extern void *              list_prev(list_t *);
-extern void                list_remove(list_t *);
-extern int                 list_atstart(list_t *);
-extern int                 list_atend(list_t *);
-extern list_t *            list_split(list_t *);
+extern listiterator_t *list_start(list_t *);
+extern listiterator_t *list_end(list_t *);
+extern listiterator_t *list_position(listnode_t *);
+extern void *list_current(list_t *);
+extern int list_has_next(list_t *);
+extern int list_has_prev(list_t *);
+extern void *list_next(list_t *);
+extern void *list_prev(list_t *);
+extern void list_remove(list_t *);
+extern int list_atstart(list_t *);
+extern int list_atend(list_t *);
+extern list_t *list_split(list_t *);
 
 #define list_size(l)               ((l) -> size)
 #define list_push(l, d)            list_append((l), (d))
@@ -115,33 +119,37 @@ extern list_t *            list_split(list_t *);
 #define str_list_create()          (list_set_type(list_create(), coretype(CTString)))
 #define int_list_create()          (list_set_type(list_create(), coretype(CTInteger)))
 
-extern listiterator_t *    li_create(list_t *);
-extern void                li_free(listiterator_t *);
-extern void                li_head(listiterator_t *);
-extern void                li_tail(listiterator_t *);
-extern void                li_position(listiterator_t *, listnode_t *);
-extern void *              li_current(listiterator_t *);
-extern listnode_t *        li_pointer(listiterator_t *);
-extern void                li_replace(listiterator_t *, void *);
-extern int                 li_insert(listiterator_t *, void *);
-extern void                li_remove(listiterator_t *);
-extern int                 li_has_next(listiterator_t *);
-extern int                 li_has_prev(listiterator_t *);
-extern void *              li_next(listiterator_t *);
-extern void *              li_prev(listiterator_t *);
-extern int                 li_atstart(listiterator_t *);
-extern int                 li_atend(listiterator_t *);
+extern listiterator_t *li_create(list_t *);
+extern void li_free(listiterator_t *);
+extern void li_head(listiterator_t *);
+extern void li_tail(listiterator_t *);
+extern void li_position(listiterator_t *, listnode_t *);
+extern void *li_current(listiterator_t *);
+extern listnode_t *li_pointer(listiterator_t *);
+extern void li_replace(listiterator_t *, void *);
+extern int li_insert(listiterator_t *, void *);
+extern void li_remove(listiterator_t *);
+extern int li_has_next(listiterator_t *);
+extern int li_has_prev(listiterator_t *);
+extern void *li_next(listiterator_t *);
+extern void *li_prev(listiterator_t *);
+extern int li_atstart(listiterator_t *);
+extern int li_atend(listiterator_t *);
 
-extern listprocessor_t *   lp_create(list_t *, reduce_t, void *);
-extern void                lp_free(listprocessor_t *);
-extern void *              lp_run(listprocessor_t *);
-extern listprocessor_t *   lp_step(listprocessor_t *);
-extern listprocessor_t *   lp_run_to(listprocessor_t *, void *);
-extern int                 lp_atstart(listprocessor_t *);
-extern int                 lp_atend(listprocessor_t *);
-extern void *              lp_current(listprocessor_t *);
+extern listprocessor_t *lp_create(list_t *, reduce_t, void *);
+extern void lp_free(listprocessor_t *);
+extern void *lp_run(listprocessor_t *);
+extern listprocessor_t *lp_step(listprocessor_t *);
+extern listprocessor_t *lp_run_to(listprocessor_t *, void *);
+extern int lp_atstart(listprocessor_t *);
+extern int lp_atend(listprocessor_t *);
+extern void *lp_current(listprocessor_t *);
 
-extern list_t             *EmptyList;
-extern listnode_t         *ProcessEnd;
+extern list_t *EmptyList;
+extern listnode_t *ProcessEnd;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __LIST_H__ */

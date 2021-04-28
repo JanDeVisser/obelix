@@ -30,7 +30,8 @@ set(obelix_DATADIR ${CMAKE_INSTALL_PREFIX}/share)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(Threads)
-find_package(Check)
+find_package(PkgConfig)
+pkg_search_module(GTEST REQUIRED gtest_main)
 
 check_include_file(alloca.h HAVE_ALLOCA_H)
 check_include_file(dirent.h HAVE_DIRENT_H)
@@ -256,7 +257,7 @@ endif(NOT MSVC)
 #   set(ENV{PATH},$ENV{PATH};${CMAKE_CURRENT_BINARY_DIR}/src/lib;${CMAKE_CURRENT_BINARY_DIR}/src/lexer;${CMAKE_CURRENT_BINARY_DIR}/src/grammar)
 # endif(WIN32)
 
-add_custom_target(install_${PROJECT_NAME}
-  $(MAKE) install
-  DEPENDS ${PROJECT_NAME}
-  COMMENT "Installing ${PROJECT_NAME}")
+#add_custom_target(install_${PROJECT_NAME}
+#  $(MAKE) install
+#  DEPENDS ${PROJECT_NAME}
+#  COMMENT "Installing ${PROJECT_NAME}")

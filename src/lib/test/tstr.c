@@ -358,7 +358,7 @@ START_TEST(test_str_format)
   str = str_wrap("test");
   ck_assert_str_eq(str_chars(str), "test");
   ck_assert_str_eq(data_tostring((data_t *) str), "test");
-  args = arguments_create_args(2, data_uncopy(str), data_uncopy(str_wrap("arg2")));
+  args = arguments_create_args(2, str), data_uncopy(str_wrap("arg2"));
   ck_assert_str_eq(arguments_arg_tostring(args, 0), "test");
 
   str = str_format("test ${0} test", args);
@@ -390,7 +390,7 @@ START_TEST(test_str_format)
   str_free(str);
 
   kwargs = strdata_dict_create();
-  arguments_set_kwarg(args, "test", data_uncopy(str_wrap("test")));
+  arguments_set_kwarg(args, "test", str_wrap("test"));
 
   str = str_format("test ${test} test", args);
   ck_assert_str_eq(str_chars(str), "test test test");

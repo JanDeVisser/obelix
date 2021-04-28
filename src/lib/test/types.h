@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-extern data_t * execute(data_t *, char *, int, ...);
+extern data_t * execute(data_t *, const char *, int, ...);
 
 #ifdef	__cplusplus
 }

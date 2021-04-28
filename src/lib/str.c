@@ -30,70 +30,86 @@
 #include <exception.h>
 #include <str.h>
 
-static str_t *      _str_initialize(void);
-static str_t *      _str_expand(str_t *, size_t);
-static reduce_ctx * _str_join_reducer(char *, reduce_ctx *);
-static size_t       _str_readinto(str_t *, data_t *, size_t, size_t);
-static size_t       _str_read_from_stream(str_t *, void *, read_t, size_t, size_t);
-static str_t *      _str_strip_quotes(str_t *);
+static str_t *_str_inflate(str_t *, const char *, size_t);
+static str_t *_str_adopt(str_t *, char *);
+static str_t *_str_wrap(str_t *, const char *);
+static str_t *_str_initialize(void);
+static str_t *_str_expand(str_t *, size_t);
+static reduce_ctx *_str_join_reducer(char *, reduce_ctx *);
+static size_t _str_readinto(str_t *, data_t *, size_t, size_t);
+static size_t _str_read_from_stream(str_t *, void *, read_t, size_t, size_t);
+static str_t *_str_strip_quotes(str_t *);
 
-static data_t *     _str_create(int, va_list);
-static void         _str_free(str_t *);
-static data_t *     _str_cast(str_t *, int);
-static str_t *      _str_parse(char *str);
-static data_t *     _str_resolve(str_t *, char *);
-static char *       _str_encode(str_t *);
-static str_t *      _str_serialize(str_t *);
-static data_t *     _str_deserialize(str_t *);
+static data_t *_str_create(int, va_list);
+static void _str_free(str_t *);
+static data_t *_str_cast(str_t *, int);
+static str_t *_str_parse(char *str);
+static data_t *_str_resolve(str_t *, char *);
+static char *_str_encode(str_t *);
+static str_t *_str_serialize(str_t *);
+static data_t *_str_deserialize(str_t *);
 
-static data_t *     _string_slice(data_t *, char *, arguments_t *);
-static data_t *     _string_at(data_t *, char *, arguments_t *);
-static data_t *     _string_forcecase(data_t *, char *, arguments_t *);
-static data_t *     _string_has(data_t *, char *, arguments_t *);
-static data_t *     _string_indexof(data_t *, char *, arguments_t *);
-static data_t *     _string_rindexof(data_t *, char *, arguments_t *);
-static data_t *     _string_startswith(data_t *, char *, arguments_t *);
-static data_t *     _string_endswith(data_t *, char *, arguments_t *);
-static data_t *     _string_concat(data_t *, char *, arguments_t *);
-static data_t *     _string_repeat(data_t *, char *, arguments_t *);
-static data_t *     _string_split(data_t *, char *, arguments_t *);
+static data_t *_string_slice(data_t *, char *, arguments_t *);
+static data_t *_string_at(data_t *, char *, arguments_t *);
+static data_t *_string_forcecase(data_t *, char *, arguments_t *);
+static data_t *_string_has(data_t *, char *, arguments_t *);
+static data_t *_string_indexof(data_t *, char *, arguments_t *);
+static data_t *_string_rindexof(data_t *, char *, arguments_t *);
+static data_t *_string_startswith(data_t *, char *, arguments_t *);
+static data_t *_string_endswith(data_t *, char *, arguments_t *);
+static data_t *_string_concat(data_t *, char *, arguments_t *);
+static data_t *_string_repeat(data_t *, char *, arguments_t *);
+static data_t *_string_split(data_t *, char *, arguments_t *);
 
 #define _DEFAULT_SIZE   32
 
 static vtable_t _vtable_String[] = {
-  { .id = FunctionFactory,     .fnc = (void_t) _str_create },
-  { .id = FunctionCmp,         .fnc = (void_t) str_cmp },
-  { .id = FunctionFree,        .fnc = (void_t) _str_free },
-  { .id = FunctionToString,    .fnc = (void_t) str_chars },
-  { .id = FunctionParse,       .fnc = (void_t) _str_parse },
-  { .id = FunctionCast,        .fnc = (void_t) _str_cast },
-  { .id = FunctionHash,        .fnc = (void_t) str_hash },
-  { .id = FunctionLen,         .fnc = (void_t) str_len },
-  { .id = FunctionRead,        .fnc = (void_t) str_read },
-  { .id = FunctionWrite,       .fnc = (void_t) str_write },
-  { .id = FunctionResolve,     .fnc = (void_t) _str_resolve },
-  { .id = FunctionEncode,      .fnc = (void_t) _str_encode },
-  { .id = FunctionSerialize,   .fnc = (void_t) _str_serialize },
-  { .id = FunctionDeserialize, .fnc = (void_t) _str_deserialize },
-  { .id = FunctionNone,        .fnc = NULL}
+  {.id = FunctionFactory, .fnc = (void_t) _str_create},
+  {.id = FunctionCmp, .fnc = (void_t) str_cmp},
+  {.id = FunctionFree, .fnc = (void_t) _str_free},
+  {.id = FunctionToString, .fnc = (void_t) str_chars},
+  {.id = FunctionParse, .fnc = (void_t) _str_parse},
+  {.id = FunctionCast, .fnc = (void_t) _str_cast},
+  {.id = FunctionHash, .fnc = (void_t) str_hash},
+  {.id = FunctionLen, .fnc = (void_t) str_len},
+  {.id = FunctionRead, .fnc = (void_t) str_read},
+  {.id = FunctionWrite, .fnc = (void_t) str_write},
+  {.id = FunctionResolve, .fnc = (void_t) _str_resolve},
+  {.id = FunctionEncode, .fnc = (void_t) _str_encode},
+  {.id = FunctionSerialize, .fnc = (void_t) _str_serialize},
+  {.id = FunctionDeserialize, .fnc = (void_t) _str_deserialize},
+  {.id = FunctionNone, .fnc = NULL}
 };
 
 static methoddescr_t _methods_String[] = {
-  { .type = String, .name = "at",         .method = _string_at,         .argtypes = { Int, NoType, NoType},    .minargs = 1, .varargs = 0},
-  { .type = String, .name = "slice",      .method = _string_slice,      .argtypes = { Int, NoType, NoType},    .minargs = 1, .varargs = 1},
-  { .type = String, .name = "upper",      .method = _string_forcecase,  .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
-  { .type = String, .name = "lower",      .method = _string_forcecase,  .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0},
-  { .type = String, .name = "has",        .method = _string_has,        .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "indexof",    .method = _string_indexof,    .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "rindexof",   .method = _string_rindexof,   .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "startswith", .method = _string_startswith, .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "endswith",   .method = _string_endswith,   .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = String, .name = "+",          .method = _string_concat,     .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 1},
-  { .type = String, .name = "concat",     .method = _string_concat,     .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 1},
-  { .type = String, .name = "*",          .method = _string_repeat,     .argtypes = { Int, NoType, NoType},    .minargs = 1, .varargs = 0},
-  { .type = String, .name = "repeat",     .method = _string_repeat,     .argtypes = { Int, NoType, NoType},    .minargs = 1, .varargs = 0},
-  { .type = String, .name = "split",      .method = _string_split,      .argtypes = { String, NoType, NoType}, .minargs = 1, .varargs = 0},
-  { .type = NoType, .name = NULL,         .method = NULL,               .argtypes = { NoType, NoType, NoType}, .minargs = 0, .varargs = 0}
+  {.type = String, .name = "at", .method = _string_at, .argtypes = {Int, NoType, NoType}, .minargs = 1, .varargs = 0},
+  {.type = String, .name = "slice", .method = _string_slice, .argtypes = {Int, NoType,
+                                                                          NoType}, .minargs = 1, .varargs = 1},
+  {.type = String, .name = "upper", .method = _string_forcecase, .argtypes = {NoType, NoType,
+                                                                              NoType}, .minargs = 0, .varargs = 0},
+  {.type = String, .name = "lower", .method = _string_forcecase, .argtypes = {NoType, NoType,
+                                                                              NoType}, .minargs = 0, .varargs = 0},
+  {.type = String, .name = "has", .method = _string_has, .argtypes = {String, NoType,
+                                                                      NoType}, .minargs = 1, .varargs = 0},
+  {.type = String, .name = "indexof", .method = _string_indexof, .argtypes = {String, NoType,
+                                                                              NoType}, .minargs = 1, .varargs = 0},
+  {.type = String, .name = "rindexof", .method = _string_rindexof, .argtypes = {String, NoType,
+                                                                                NoType}, .minargs = 1, .varargs = 0},
+  {.type = String, .name = "startswith", .method = _string_startswith, .argtypes = {String, NoType,
+                                                                                    NoType}, .minargs = 1, .varargs = 0},
+  {.type = String, .name = "endswith", .method = _string_endswith, .argtypes = {String, NoType,
+                                                                                NoType}, .minargs = 1, .varargs = 0},
+  {.type = String, .name = "+", .method = _string_concat, .argtypes = {String, NoType,
+                                                                       NoType}, .minargs = 1, .varargs = 1},
+  {.type = String, .name = "concat", .method = _string_concat, .argtypes = {String, NoType,
+                                                                            NoType}, .minargs = 1, .varargs = 1},
+  {.type = String, .name = "*", .method = _string_repeat, .argtypes = {Int, NoType,
+                                                                       NoType}, .minargs = 1, .varargs = 0},
+  {.type = String, .name = "repeat", .method = _string_repeat, .argtypes = {Int, NoType,
+                                                                            NoType}, .minargs = 1, .varargs = 0},
+  {.type = String, .name = "split", .method = _string_split, .argtypes = {String, NoType,
+                                                                          NoType}, .minargs = 1, .varargs = 0},
+  {.type = NoType, .name = NULL, .method = NULL, .argtypes = {NoType, NoType, NoType}, .minargs = 0, .varargs = 0}
 };
 
 extern int data_debug;
@@ -110,14 +126,14 @@ void str_init(void) {
 
 void _str_free(str_t *str) {
   if (str) {
-    if (str -> bufsize) {
-      free(str -> buffer);
+    if (str->bufsize) {
+      free(str->buffer);
     }
   }
 }
 
-data_t * _str_resolve(str_t *str, char *slice) {
-  int  sz = (int) str_len(str);
+data_t *_str_resolve(str_t *str, char *slice) {
+  int sz = (int) str_len(str);
   long ix;
   char buf[2];
 
@@ -139,7 +155,7 @@ data_t * _str_resolve(str_t *str, char *slice) {
   }
 }
 
-data_t * _str_cast(str_t *data, int totype) {
+data_t *_str_cast(str_t *data, int totype) {
   typedescr_t *type;
   parse_t parse;
   char *str = str_chars(data);
@@ -154,13 +170,13 @@ data_t * _str_cast(str_t *data, int totype) {
   }
 }
 
-static char * _escaped_chars = "\"\\\b\f\n\r\t";
-static char * _escape_codes  = "\"\\bfnrt";
+static char *_escaped_chars = "\"\\\b\f\n\r\t";
+static char *_escape_codes = "\"\\bfnrt";
 
-str_t * _str_parse(char *str) {
-  char  *buf = stralloc(strlen(str));
-  char  *ptr;
-  char  *escptr;
+str_t *_str_parse(char *str) {
+  char *buf = stralloc(strlen(str));
+  char *ptr;
+  char *escptr;
 
   strcpy(buf, str);
   for (ptr = buf; *ptr; ptr++) {
@@ -174,20 +190,20 @@ str_t * _str_parse(char *str) {
   return str_adopt(buf);
 }
 
-str_t * _str_serialize(str_t *str) {
-  char    *encoded = _str_encode(str);
-  size_t   len = strlen(encoded);
-  str_t   *ret = str_create(len + 2);
+str_t *_str_serialize(str_t *str) {
+  char *encoded = _str_encode(str);
+  size_t len = strlen(encoded);
+  str_t *ret = str_create(len + 2);
 
-  *ret -> buffer = '"';
-  strcpy(ret -> buffer + 1, encoded);
-  ret -> buffer[len + 1] = '"';
-  ret -> buffer[len + 2] = 0;
-  ret -> len = len + 2;
+  *ret->buffer = '"';
+  strcpy(ret->buffer + 1, encoded);
+  ret->buffer[len + 1] = '"';
+  ret->buffer[len + 2] = 0;
+  ret->len = len + 2;
   return ret;
 }
 
-str_t * _str_strip_quotes(str_t *str) {
+str_t *_str_strip_quotes(str_t *str) {
   str_t *ret;
 
   if (str_len(str) && (str_at(str, 0) == '"') && (str_at(str, -1) == '"')) {
@@ -200,32 +216,32 @@ str_t * _str_strip_quotes(str_t *str) {
   return ret;
 }
 
-data_t * _str_deserialize(str_t *str) {
-  if (!strcmp(str -> buffer, "null")) {
+data_t *_str_deserialize(str_t *str) {
+  if (!strcmp(str->buffer, "null")) {
     return data_null();
-  } else if (strcmp(str -> buffer, "true") != 0) {
+  } else if (strcmp(str->buffer, "true") != 0) {
     return data_true();
-  } else if (strcmp(str -> buffer, "false") != 0) {
+  } else if (strcmp(str->buffer, "false") != 0) {
     return data_true();
   } else {
     return (data_t *) _str_strip_quotes(str);
   }
 }
 
-char * _str_encode(str_t *str) {
-  char        *buf;
-  int          len = 0;
-  char        *ptr;
-  char        *encoded;
-  char        *encptr;
-  char        *escptr;
+char *_str_encode(str_t *str) {
+  char *buf;
+  int len = 0;
+  char *ptr;
+  char *encoded;
+  char *encptr;
+  char *escptr;
 
   buf = str_chars(str);
-  for (ptr = str -> buffer; *ptr; ptr++) {
+  for (ptr = str->buffer; *ptr; ptr++) {
     len += (strchr(_escaped_chars, *ptr)) ? 2 : 1;
   }
   encoded = encptr = stralloc(len);
-  for (ptr = str -> buffer; *ptr; ptr++) {
+  for (ptr = str->buffer; *ptr; ptr++) {
     if ((escptr = strchr(_escaped_chars, *ptr)) &&
         ((encoded == escptr) || (*(ptr - 1) != '\\')) &&
         ((*ptr != '\"') || ((ptr != buf) && *(ptr + 1)))) {
@@ -239,79 +255,143 @@ char * _str_encode(str_t *str) {
   return encoded;
 }
 
-/* -- S T R _ T   S T A T I C   F U N C T I O N S ------------------------- */
-
-str_t * _str_initialize(void) {
-  str_t *ret;
-
-  ret = data_new(String, str_t);
-  ret -> buffer = NULL;
-  ret -> pos = 0;
-  ret -> len = 0;
-  ret -> bufsize = 0;
-  return ret;
-}
-
-data_t * _str_create(int type, va_list args) {
+data_t *_str_create(int type, va_list args) {
   (void) type;
   return (data_t *) str_copy_chars(va_arg(args, char *));
 }
 
-str_t * _str_expand(str_t *str, size_t targetlen) {
-  size_t  newsize;
-  char   *oldbuf;
-  str_t  *ret = str;
+/* -- S T R _ T   S T A T I C   F U N C T I O N S ------------------------- */
 
-  if (!targetlen) {
-    targetlen = str -> bufsize;
+str_t *_str_allocate(str_t *str, size_t size) {
+  if (!str) {
+    return NULL;
   }
-  size_t target = (targetlen > 0) ? targetlen : str -> bufsize;
-  if (str -> bufsize < (targetlen + 1)) {
-    for (newsize = (size_t)((double) (str -> bufsize) * 1.6);
+  size = size ? size : _DEFAULT_SIZE;
+  if (str->bufsize > 0) {
+    return _str_expand(str, size);
+  }
+  str->buffer = stralloc(size);
+  if (!str->buffer) {
+    str = str_free(str);
+  } else {
+    memset(str->buffer, 0, size);
+    str->bufsize = size;
+    str->len = 0;
+  }
+  return str;
+}
+
+str_t *_str_inflate(str_t *str, const char *buffer, size_t len) {
+  char *b;
+
+  if (!str || str->buffer != NULL) {
+    return NULL;
+  }
+  if (buffer) {
+    len = ((len >= 0) && (len <= strlen(buffer))) ? len : strlen(buffer);
+    b = (char *) new(len + 1);
+    if (!b) {
+      str = str_free(str);
+      return str;
+    }
+    strncpy(b, buffer, len);
+    *(b + len) = 0;
+    str->buffer = b;
+    str->len = len;
+    str->bufsize = str->len + 1;
+  }
+  return str;
+}
+
+str_t *_str_wrap(str_t *str, const char *buffer) {
+  if (!str || str->buffer != NULL) {
+    return NULL;
+  }
+  if (str && buffer) {
+    str->buffer = (char *) buffer;
+    str->len = strlen(buffer);
+  }
+  return str;
+}
+
+str_t *_str_adopt(str_t *str, char *buffer) {
+  if (!str || str->buffer != NULL) {
+    return NULL;
+  }
+  if (str && buffer) {
+    str->buffer = buffer;
+    str->len = strlen(buffer);
+    str->bufsize = str->len + 1;
+  }
+  return str;
+}
+
+str_t *_str_initialize(void) {
+  str_t *ret;
+
+  ret = data_new(String, str_t);
+  if (ret) {
+    ret->buffer = NULL;
+    ret->pos = 0;
+    ret->len = 0;
+    ret->bufsize = 0;
+  }
+  return ret;
+}
+
+str_t *_str_expand(str_t *str, size_t targetlen) {
+  size_t newsize;
+  char *oldbuf;
+  str_t *ret = str;
+
+  if (!str || (targetlen < 0)) {
+    return NULL;
+  }
+  if (str->bufsize == 0) {
+    return _str_allocate(str, targetlen);
+  }
+  if (targetlen <= str->bufsize) {
+    return str;
+  }
+  if (!targetlen) {
+    targetlen = str->bufsize;
+  }
+  size_t target = (targetlen > 0) ? targetlen : str->bufsize;
+  if (str->bufsize < (targetlen + 1)) {
+    for (newsize = (size_t) ((double) (str->bufsize) * 1.6);
          newsize < (targetlen + 1);
-         newsize = (size_t)((double) newsize * 1.6));
-    oldbuf = str -> buffer;
-    str -> buffer = realloc(str -> buffer, newsize);
-    if (str -> buffer) {
-      memset(str -> buffer + str -> len, 0, newsize - str -> len);
-      str -> bufsize = newsize;
+         newsize = (size_t) ((double) newsize * 1.6));
+    oldbuf = str->buffer;
+    str->buffer = realloc(str->buffer, newsize);
+    if (str->buffer) {
+      memset(str->buffer + str->len, 0, newsize - str->len);
+      str->bufsize = newsize;
     } else {
-      str -> buffer = oldbuf;
+      str->buffer = oldbuf;
       ret = NULL;
     }
   }
   return ret;
 }
 
-reduce_ctx * _str_join_reducer(char *elem, reduce_ctx *ctx) {
-  str_t *target;
-  char  *glue;
-
-  target = (str_t *) ctx -> data;
-  glue = (char *) ctx -> user;
-  str_append_chars(target, elem);
-  str_append_chars(target, glue);
-  return ctx;
-}
-
 size_t _str_read_from_stream(str_t *str, void *stream, read_t reader, size_t pos, size_t num) {
   size_t ret;
 
-  if (pos >= str -> bufsize) {
+  if (pos >= str->bufsize) {
     return -1;
   }
-  if ((pos + num) > str -> bufsize) {
-    num = str -> bufsize - pos;
+  if ((pos + num) > str->bufsize) {
+    num = str->bufsize - pos;
   }
-  ret = reader(stream, str -> buffer + pos, (int) num);
+  ret = reader(stream, str->buffer + pos, (int) num);
   if (ret < 0) {
     return -1;
   } else {
-    if ((pos + ret) < str -> bufsize) {
-      str -> buffer[pos + ret] = 0;
+    if ((pos + ret) < str->bufsize) {
+      str->buffer[pos + ret] = 0;
     }
-    if (pos <= str -> len) {
-      str -> len += ret;
+    if (pos <= str->len) {
+      str->len += ret;
     }
     return ret;
   }
@@ -319,7 +399,7 @@ size_t _str_read_from_stream(str_t *str, void *stream, read_t reader, size_t pos
 
 size_t _str_readinto(str_t *str, data_t *rdr, size_t pos, size_t num) {
   typedescr_t *type = data_typedescr(rdr);
-  read_t       fnc;
+  read_t fnc;
 
   fnc = (read_t) typedescr_get_function(type, FunctionRead);
   if (fnc) {
@@ -331,43 +411,53 @@ size_t _str_readinto(str_t *str, data_t *rdr, size_t pos, size_t num) {
 
 /* -- S T R _ T   P U B L I C   F U N C T I O N S ------------------------- */
 
-str_t * str_create(size_t size) {
-  str_t *ret;
-
-  ret = _str_initialize();
-  size = size ? size : _DEFAULT_SIZE;
-  ret -> buffer = stralloc(size);
-  memset(ret -> buffer, 0, size);
-  ret -> bufsize = size;
-  return ret;
-}
-
-str_t * str_wrap(char *buffer) {
+str_t *str_create(size_t size) {
   str_t *ret;
 
   ret = _str_initialize();
   if (ret) {
-    ret -> buffer = buffer;
-    ret -> len = strlen(buffer);
+    if (!_str_allocate(ret, size)) {
+      ret = str_free(ret);
+    }
+    size = size ? size : _DEFAULT_SIZE;
+    ret->buffer = stralloc(size);
+    if (!ret->buffer) {
+      ret = str_free(ret);
+    } else {
+      memset(ret->buffer, 0, size);
+      ret->bufsize = size;
+    }
   }
   return ret;
 }
 
-str_t * str_adopt(char *buffer) {
+str_t *str_wrap(const char *buffer) {
+  str_t *str;
+
+  str = _str_initialize();
+  if (str && buffer) {
+    if (!_str_wrap(str, buffer)) {
+      str = str_free(str);
+    }
+  }
+  return str;
+}
+
+str_t *str_adopt(char *buffer) {
+  str_t *str;
+
+  str = _str_initialize();
+  if (str && buffer) {
+    if (!_str_adopt(str, buffer)) {
+      str = str_free(str);
+    }
+  }
+  return str;
+}
+
+str_t *str_printf(const char *fmt, ...) {
   str_t *ret;
-
-  ret = _str_initialize();
-  if (ret) {
-    ret -> buffer = buffer;
-    ret -> len = strlen(buffer);
-    ret -> bufsize = ret -> len + 1;
-  }
-  return ret;
-}
-
-str_t * str_printf(const char *fmt, ...) {
-  str_t   *ret;
-  va_list  args;
+  va_list args;
 
   va_start(args, fmt);
   ret = str_vprintf(fmt, args);
@@ -375,59 +465,125 @@ str_t * str_printf(const char *fmt, ...) {
   return ret;
 }
 
-str_t * str_vprintf(const char *fmt, va_list args) {
-  str_t *ret;
+str_t *str_vprintf(const char *fmt, va_list args) {
+  str_t *str;
+  char *buffer = NULL;
 
-  ret = _str_initialize();
-  if (ret) {
-    vasprintf(&ret -> buffer, fmt, args);
-    ret -> len = strlen(ret -> buffer);
-    ret -> bufsize = ret -> len + 1;
+  str = _str_initialize();
+  if (str) {
+    if ((vasprintf(&buffer, fmt, args) < 0) || !_str_adopt(str, buffer)) {
+      str = str_free(str);
+      free(buffer);
+    }
   }
-  return ret;
+  return str;
 }
 
-str_t * str_copy_chars(const char *buffer) {
-  return str_copy_nchars(buffer, strlen(buffer));
+str_t *str_copy_chars(const char *buffer) {
+  return str_copy_nchars(buffer, (buffer) ? strlen(buffer) : 0);
 }
 
-str_t * str_copy_nchars(const char *buffer, size_t len) {
-  str_t *ret;
-  char  *b;
+str_t *str_copy_nchars(const char *buffer, size_t len) {
+  str_t *str;
+  char *b;
 
-  len = (len <= strlen(buffer)) ? len : strlen(buffer);
-  ret = _str_initialize();
-  b = (char *) new(len + 1);
-  strncpy(b, buffer, len);
-  ret -> buffer = b;
-  ret -> len = len;
-  ret -> bufsize = ret -> len + 1;
-  return ret;
+  str = _str_initialize();
+  if (str && buffer) {
+    if (!_str_inflate(str, buffer, len)) {
+      str = str_free(str);
+    }
+  }
+  return str;
 }
 
-str_t * str_from_data(data_t *data) {
-  return (data_is_string(data))
-    ? (str_t *) data_copy(data)
-    : str_copy_chars(data_tostring(data));
+str_t *str_from_data(data_t *data) {
+  if (data && (data != data_null())) {
+    return (data_is_string(data))
+           ? (str_t *) data
+           : str_copy_chars(data_tostring(data));
+  } else {
+    return _str_initialize();
+  }
 }
 
-str_t * str_duplicate(const str_t *str) {
+str_t *str_duplicate(const str_t *str) {
   str_t *ret;
   char *b;
 
   ret = _str_initialize();
-  if (ret) {
+  if (ret && str && !str_is_null(str)) {
     b = strdup(str_chars(str));
-    if (b) {
-      ret -> buffer = b;
-      ret -> len = strlen(b);
-      ret -> bufsize = ret -> len + 1;
-    } else {
-      free(ret);
-      ret = NULL;
+    if (!b || !_str_adopt(ret, b)) {
+      ret = str_free(ret);
+      free(b);
     }
   }
   return ret;
+}
+
+reduce_ctx *_str_join_reducer(char *elem, reduce_ctx *ctx) {
+  str_t *target;
+
+  target = (str_t *) ctx->data;
+  if (target && !str_is_null(target) && !str_is_static(target) && str_len(target)) {
+    target = str_append_chars(target, (char *) ctx->user /* glue */);
+  }
+  if (target && !str_is_null(target) && !str_is_static(target)) {
+    target = str_append_chars(target, elem);
+  }
+  ctx->data = target;
+  return ctx;
+}
+
+/**
+ * Builds a new string from a collection of `char *` elements. This collection
+ * must be reducable using the standard `reduce` pattern. The actual reduce
+ * function is passed in as a parameter.
+ *
+ * In practice, use the `str_join` define which will cast the `reducer` to
+ * the appropriate function pointer type.
+ *
+ * @param glue String to place between elements of the collection. Can be
+ * `NULL` or the empty string to place the elements back-to-back.
+ * @param collection Collection of `char *` elements to join into the new
+ * string.
+ * @param reducer Reduce function for the collection. This function is called
+ * with the `collection` pointer, a standard `reduce_t` reduce callback, and
+ * an opaque `void *` reduce context pointer. It is expected to call the
+ * callback with a `char *` and the opaque `void *` context pointer.
+ * @return A pointer to a new str_t object consisting of the `char *` elements
+ * of the `collection` joined together connected by the `glue` string, in the
+ * order generated by the `reducer` function. If `collection` or `reducer` are
+ * `NULL`, `NULL` is returned.
+ */
+str_t *_str_join(const char *glue, const void *collection, obj_reduce_t reducer) {
+  str_t *ret;
+  reduce_ctx ctx;
+
+  if (!collection || !reducer) {
+    return NULL;
+  }
+  if (!glue) {
+    glue = "";
+  }
+
+  ret = str_create(0);
+  reduce_ctx_initialize(&ctx, (char *) glue, ret, NULL);
+  reducer((void *) collection, (reduce_t) _str_join_reducer, &ctx);
+  return ret;
+}
+
+/*
+ * =======================================================================
+ *
+ *     S T R _ T  D I S P O S A L
+ *
+ * =======================================================================
+ */
+
+str_t *str_free(str_t *str) {
+  data_release(str);
+  return NULL;
 }
 
 /**
@@ -439,51 +595,108 @@ str_t * str_duplicate(const str_t *str) {
  * @param str String to free and return the buffer of.
  * @return char buffer of the str_t object passed in.
  */
-char * str_reassign(str_t *str) {
-  char *ret = str -> buffer;
+char *str_reassign(str_t *str) {
+  char *ret;
 
-  str -> bufsize = 0;
+  if (!str) {
+    return NULL;
+  }
+  ret = str->buffer;
+  str->bufsize = 0;
   data_release(str);
   return ret;
 }
 
+/*
+ * =======================================================================
+ *
+ *     S T R _ T  A C C E S S O R S
+ *
+ * =======================================================================
+ */
+
+int str_is_null(const str_t *str) {
+  return str && str->buffer == NULL;
+}
+
+int str_is_static(const str_t *str) {
+  return str && !str_is_null(str) && (str->bufsize == 0);
+}
+
 size_t str_len(const str_t *str) {
-  return str -> len;
+  return (str && !str_is_null(str)) ? str->len : -1;
 }
 
-char * str_chars(const str_t *str) {
-  return str -> buffer;
+char *str_chars(const str_t *str) {
+  return (str && !str_is_null(str)) ? str->buffer : NULL;
 }
 
-int str_at(const str_t* str, size_t i) {
-  if ((int) i < 0) {
-    i = str -> len + i;
+int str_at(const str_t *str, size_t i) {
+  int ix = (int) i;
+  if (!str || str_is_null(str)) {
+    return -1;
   }
-  return (i < str -> len) ? str -> buffer[i] : -1;
+  if (ix < 0) {
+    ix = str->len + ix;
+  }
+  return ((ix >= 0) && (ix < str->len)) ? str->buffer[ix] : -1;
 }
 
 unsigned int str_hash(const str_t *str) {
-  return strhash(str -> buffer);
+  return (str && !str_is_null(str)) ? strhash(str->buffer) : 0;
 }
 
 int str_cmp(const str_t *s1, const str_t *s2) {
-  return strcmp(s1 -> buffer, s2 -> buffer);
+  if (str_is_null(s1)) {
+    return (str_is_null(s2)) ? 0 : -1;
+  }
+  if (str_is_null(s2)) {
+    return 1;
+  }
+  return strcmp(s1->buffer, s2->buffer);
 }
 
 int str_cmp_chars(const str_t *s1, const char *s2) {
-  return strcmp(s1 -> buffer, s2);
+  if (str_is_null(s1)) {
+    return (s2 == NULL) ? 0 : -1;
+  }
+  if (s2 == NULL) {
+    return 1;
+  }
+  return strcmp(s1->buffer, s2);
 }
 
 int str_ncmp(const str_t *s1, const str_t *s2, size_t numchars) {
-  return strncmp(s1 -> buffer, s2 -> buffer, numchars);
+  if (numchars == 0) {
+    return 0;
+  }
+  if (str_is_null(s1)) {
+    return (str_is_null(s2)) ? 0 : -1;
+  }
+  if (str_is_null(s2)) {
+    return 1;
+  }
+  return strncmp(s1->buffer, s2->buffer, numchars);
 }
 
 int str_ncmp_chars(const str_t *s1, const char *s2, size_t numchars) {
-  return strncmp(s1 -> buffer, s2, numchars);
+  if (numchars == 0) {
+    return 0;
+  }
+  if (str_is_null(s1)) {
+    return (s2 == NULL) ? 0 : -1;
+  }
+  if (s2 == NULL) {
+    return 1;
+  }
+  return strncmp(s1->buffer, s2, numchars);
 }
 
 int str_indexof(const str_t *str, const str_t *pattern) {
-  if (pattern -> len > str -> len) {
+  if (!str || str_is_null(str) || !pattern || str_is_null(pattern)) {
+    return -1;
+  }
+  if (pattern->len > str->len) {
     return -1;
   } else {
     return str_indexof_chars(str, str_chars(pattern));
@@ -493,7 +706,10 @@ int str_indexof(const str_t *str, const str_t *pattern) {
 int str_indexof_chars(const str_t *str, const char *pattern) {
   char *ptr;
 
-  if (strlen(pattern) > str -> len) {
+  if (!str || str_is_null(str) || !pattern) {
+    return -1;
+  }
+  if (strlen(pattern) > str->len) {
     return -1;
   } else {
     ptr = strstr(str_chars(str), pattern);
@@ -502,20 +718,26 @@ int str_indexof_chars(const str_t *str, const char *pattern) {
 }
 
 int str_rindexof(const str_t *str, const str_t *pattern) {
+  if (!str || str_is_null(str) || !pattern || str_is_null(pattern)) {
+    return -1;
+  }
   return str_rindexof_chars(str, str_chars(pattern));
 }
 
 int str_rindexof_chars(const str_t *str, const char *pattern) {
-  char   *ptr;
-  size_t  len;
+  char *ptr;
+  size_t len;
 
+  if (!str || str_is_null(str) || !pattern) {
+    return -1;
+  }
   len = strlen(pattern);
-  if (len > str -> len) {
+  if (len > str->len) {
     return -1;
   } else {
-    for (ptr = str -> buffer + (str -> len - len); ptr != str -> buffer; ptr--) {
+    for (ptr = str->buffer + (str->len - len); ptr != str->buffer; ptr--) {
       if (!strncmp(ptr, pattern, len)) {
-        return ptr - str -> buffer;
+        return ptr - str->buffer;
       }
     }
     return -1;
@@ -523,178 +745,182 @@ int str_rindexof_chars(const str_t *str, const char *pattern) {
 }
 
 int str_rewind(str_t *str) {
-  str -> pos = 0;
+  str->pos = 0;
   return 0;
 }
 
 int str_read(str_t *str, char *target, size_t num) {
-  if ((str -> pos + num) > str -> len) {
-    num = str -> len - str -> pos;
+  if ((str->pos + num) > str->len) {
+    num = str->len - str->pos;
   }
   if (num > 0) {
-    strncpy(target, str -> buffer + str -> pos, num);
-    str -> pos = str -> pos + num;
+    strncpy(target, str->buffer + str->pos, num);
+    str->pos = str->pos + num;
     return num;
   } else {
     return 0;
   }
 }
 
-int str_peek(const str_t * str) {
-  return (str -> pos < str -> len) ? str -> buffer[str -> pos] : 0;
+int str_peek(const str_t *str) {
+  return (str->pos < str->len) ? str->buffer[str->pos] : 0;
 }
 
 int str_readchar(str_t *str) {
   int ret;
 
   ret = str_peek(str);
-  str -> pos++;
+  str->pos++;
   return ret;
 }
 
 int str_skip(str_t *str, int num) {
-  if (str -> pos + num > str -> len) {
-    num = str -> len - str -> pos;
+  if (str->pos + num > str->len) {
+    num = str->len - str->pos;
   }
-  str -> pos += num;
+  str->pos += num;
   return num;
 }
 
 int str_pushback(str_t *str, size_t num) {
-  if (num > str -> pos) {
-    num = str -> pos;
+  if (num > str->pos) {
+    num = str->pos;
   }
-  str -> pos -= num;
+  str->pos -= num;
   return num;
 }
 
 int str_readinto(str_t *str, data_t *rdr) {
-  return _str_readinto(str, rdr, 0, str -> bufsize);
+  return _str_readinto(str, rdr, 0, str->bufsize);
 }
 
 int str_fillup(str_t *str, data_t *rdr) {
-  return _str_readinto(str, rdr, str -> len, str -> bufsize - str -> len);
+  return _str_readinto(str, rdr, str->len, str->bufsize - str->len);
 }
 
 int str_replenish(str_t *str, data_t *rdr) {
-  if (str -> pos > str -> len) {
-    str -> pos = str -> len;
+  if (str->pos > str->len) {
+    str->pos = str->len;
   }
-  if (str -> len < str -> bufsize) {
+  if (str->len < str->bufsize) {
     return str_fillup(str, rdr);
   } else {
     _str_expand(str, 0);
-    return _str_readinto(str, rdr, str -> len, str -> len);
+    return _str_readinto(str, rdr, str->len, str->len);
   }
 }
 
 /**
  * Chop everything from the string before the current read position.
  */
-str_t * str_reset(str_t *str) {
-  if (str -> pos) {
-    str_lchop(str, str -> pos);
+str_t *str_reset(str_t *str) {
+  if (str->pos) {
+    str_lchop(str, str->pos);
   }
   return str;
 }
 
 int str_read_from_stream(str_t *str, void *stream, read_t reader) {
   str_erase(str);
-  return _str_read_from_stream(str, stream, reader, 0, str -> bufsize);
+  return _str_read_from_stream(str, stream, reader, 0, str->bufsize);
 }
 
 int str_write(str_t *str, char *buf, size_t num) {
   return (str_append_nchars(str, buf, num)) ? num : -1;
 }
 
-str_t * str_set(str_t* str, size_t i, int ch) {
-  str_t *ret = NULL;
-
-  if (str -> bufsize) {
-    if ((int) i < 0) {
-      i = 0;
-    }
-    if (i < str -> len) {
-      str -> buffer[i] = ch;
-      str -> pos = 0;
-      ret = str;
-      if (!ch) {
-        str -> len = i;
-      }
-    }
-  }
-  return ret;
-}
-
-str_t * str_forcecase(str_t *str, int upper) {
-  size_t len = str_len(str);
-  int    c;
-  size_t ix;
-
-  for (ix = 0; ix < len; ix++) {
-    c = str_at(str, ix);
-    str_set(str, ix, upper ? toupper(c) : tolower(c));
-  }
-  return str;
-}
-
 int str_replace(str_t *str, const char *pat, const char *repl, int max) {
-  int   pos;
-  int   pat_len = strlen(pat);
-  int   repl_len = strlen(repl);
-  int   diff = repl_len - pat_len;
-  int   num = 0;
-  char *target;
+  char *ptr;
+  size_t pat_len;
+  size_t repl_len;
+  size_t offset;
+  int diff;
+  int num;
+  char *end;
 
-  for (pos = str_indexof_chars(str, pat);
-       max && (pos >= 0);
-       max--, pos = str_indexof_chars(str, pat), num++) {
+  if (!str || str_is_static(str)) {
+    return -1;
+  }
+  if (str_is_null(str)) {
+    return 0;
+  }
+  if (!pat || !repl) {
+    return -1;
+  }
+  if (max == 0) {
+    max = -1;
+  }
+  pat_len = strlen(pat);
+  repl_len = strlen(repl);
+  diff = (int) repl_len - (int) pat_len;
+
+  for (num = 0, ptr = strstr(str->buffer, pat);
+       max && ptr;
+       max--, ptr = strstr(ptr + repl_len, pat), num++) {
+    offset = ptr - str->buffer;
     if (diff > 0) {
-      _str_expand(str, str -> len + diff);
+      _str_expand(str, str->len + diff + 1);
+      ptr = str->buffer + offset;
     }
-    target = str -> buffer + pos;
     if (diff) {
-      memmove(target + (pat_len + diff), target + pat_len,
-          str -> len - pos - pat_len);
-      str -> len += diff;
+      end = str->buffer + str->len;
+      memmove(ptr + repl_len, ptr + pat_len,
+              (str->len - offset) - pat_len + 1);
+      str->len += diff;
     }
-    memcpy(str -> buffer + pos, repl, repl_len);
-    str -> pos = 0;
+    memcpy(ptr, repl, repl_len);
+    if (str->bufsize > str->len + 1) {
+      memset(str->buffer + str->len, 0, str->bufsize - str->len);
+    }
+    str->pos = 0;
   }
   return num;
 }
 
-str_t * str_append_char(str_t *str, int ch) {
+str_t *str_append_char(str_t *str, int ch) {
   str_t *ret = NULL;
 
-  if (str -> bufsize && (ch > 0)) {
-    if (_str_expand(str, str -> len + 1)) {
-      str -> buffer[str -> len++] = ch;
+  if (str->bufsize && (ch > 0)) {
+    if (_str_expand(str, str->len + 1)) {
+      str->buffer[str->len++] = ch;
       ret = str;
     }
   }
   return ret;
 }
 
-str_t * str_append_chars(str_t *str, const char *other) {
+str_t *str_append_chars(str_t *str, const char *other) {
+  if (!str) {
+    return NULL;
+  }
+  if (!other) {
+    return str;
+  }
   return str_append_nchars(str, other, strlen(other));
 }
 
-str_t * str_append_nchars(str_t *str, const char *other, size_t n) {
-  str_t   *ret = NULL;
-
-  if (other && _str_expand(str, str_len(str) + n + 1)) {
-    strncat(str -> buffer, other, n);
-    str -> len += (strlen(other) > n) ? n : strlen(other);
-    str -> buffer[str -> len] = 0;
-    ret = str;
+str_t *str_append_nchars(str_t *str, const char *other, size_t len) {
+  if (!str) {
+    return NULL;
   }
-  return ret;
+  if (!str_is_null(str) && str->bufsize == 0) {
+    return NULL;
+  }
+  if (!other) {
+    return str;
+  }
+  len = ((len >= 0) && (len <= strlen(other))) ? len : strlen(other);
+  if (_str_expand(str, str_len(str) + len + 1)) {
+    strncat(str->buffer, other, len);
+    str->len += len;
+    str->buffer[str->len] = 0;
+  }
+  return str;
 }
 
-str_t * str_append_printf(str_t *str, const char *other, ...) {
-  va_list  args;
-  str_t   *ret;
+str_t *str_append_printf(str_t *str, const char *other, ...) {
+  va_list args;
+  str_t *ret;
 
   va_start(args, other);
   ret = str_append_vprintf(str, other, args);
@@ -702,135 +928,151 @@ str_t * str_append_printf(str_t *str, const char *other, ...) {
   return ret;
 }
 
-str_t * str_append_vprintf(str_t *str, const char *other, va_list args) {
-  str_t  *ret = NULL;
-  char   *b = NULL;
-  size_t  len = 0;
+str_t *str_append_vprintf(str_t *str, const char *other, va_list args) {
+  char *b = NULL;
+  size_t len = 0;
 
-  if (str -> bufsize) {
-    len = vasprintf(&b, other, args);
-    if (b && _str_expand(str, str_len(str) + len + 1)) {
-      strcat(str -> buffer, b);
-      str -> len += len;
-      ret = str;
-    }
-    free(b);
+  if (!str) {
+    return NULL;
   }
-  return ret;
+  if (!str_is_null(str) && str->bufsize == 0) {
+    return NULL;
+  }
+  if ((len = vasprintf(&b, other, args)) < 0) {
+    if (b) free(b);
+    return NULL;
+  }
+  str = str_append_chars(str, b);
+  free(b);
+  return str;
 }
 
-str_t * str_append(str_t *str, const str_t *other) {
-  str_t *ret = NULL;
-
-  if (str -> bufsize) {
-    if (_str_expand(str, str_len(str) + str_len(other) + 1)) {
-      strcat(str -> buffer, str_chars(other));
-      str -> len += str_len(other);
-      ret = str;
-    }
+str_t *str_append(str_t *str, const str_t *other) {
+  if (!str) {
+    return NULL;
   }
-  return ret;
+  if (!str_is_null(str) && str->bufsize == 0) {
+    return NULL;
+  }
+  if (!other || str_is_null(other)) {
+    return str;
+  }
+  str = str_append_chars(str, str_chars(other));
+  return str;
 }
 
-str_t * str_chop(str_t *str, size_t num) {
-  str_t *ret = NULL;
-
-  if (str -> bufsize) {
-    if (num >= str -> len) {
-      str_erase(str);
-    } else if (num > 0) {
-      str -> len = str -> len - num;
-      memset(str -> buffer + str -> len, 0, num);
-    }
-    if (str -> pos > str -> len) {
-      str -> pos = str -> len;
-    }
-    ret = str;
+str_t *str_chop(str_t *str, int num) {
+  if (!str || str_is_static(str)) {
+    return NULL;
   }
-  return ret;
+  if (str_is_null(str)) {
+    return str;
+  }
+  if (num >= (int) str->len) {
+    str_erase(str);
+  } else if (num > 0) {
+    str->len = str->len - num;
+    memset(str->buffer + str->len, 0, num);
+  }
+  if (str->pos > str->len) {
+    str->pos = str->len;
+  }
+  return str;
 }
 
-str_t * str_lchop(str_t *str, size_t num) {
-  str_t *ret = NULL;
-
-  if (str -> bufsize) {
-    if (num >= str_len(str)) {
-      str_erase(str);
-    } else if (num > 0) {
-      memmove(str -> buffer, str -> buffer + num, str -> len - num);
-      memset(str -> buffer + str -> len - num, 0, num);
-      str -> len = str -> len - num;
-    }
-    str -> pos = (str -> pos < num) ? 0 : (str -> pos - num);
-    ret = str;
+str_t *str_lchop(str_t *str, int num) {
+  if (!str || str_is_static(str)) {
+    return NULL;
   }
-  return ret;
+  if (str_is_null(str)) {
+    return str;
+  }
+  if (num >= (int) str_len(str)) {
+    str_erase(str);
+  } else if (num > 0) {
+    memmove(str->buffer, str->buffer + num, str->len - num);
+    memset(str->buffer + str->len - num, 0, num);
+    str->len = str->len - num;
+  }
+  str->pos = (str->pos < num) ? 0 : (str->pos - num);
+  return str;
 }
 
-str_t * str_erase(str_t *str) {
-  str_t *ret = NULL;
-
-  if (str -> bufsize) {
-    memset(str -> buffer, 0, str -> bufsize);
-    str -> len = 0;
-    str -> pos = 0;
-    ret = str;
+str_t *str_erase(str_t *str) {
+  if (!str || str_is_static(str)) {
+    return NULL;
   }
-  return ret;
+  if (str_is_null(str)) {
+    return str;
+  }
+  memset(str->buffer, 0, str->bufsize);
+  str->len = 0;
+  str->pos = 0;
+  return str;
 }
 
-str_t * _str_join(const char *glue, const void *collection, obj_reduce_t reducer) {
-  str_t      *ret;
-  reduce_ctx  ctx;
-
-  ret = str_create(0);
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4090)
-#else /* _MSC_VER */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-#endif /* _MSC_VER */
-  reduce_ctx_initialize(&ctx, glue, ret, NULL);
-  reducer(collection, (reduce_t) _str_join_reducer, &ctx);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#else /* _MSC_VER */
-#pragma GCC diagnostic pop
-#endif /* _MSC_VER */
-  if (str_len(ret)) {
-    str_chop(ret, strlen(glue));
+str_t *str_set(str_t *str, size_t index, int ch) {
+  if (!str || str_is_static(str) || (index >= str->len)) {
+    return NULL;
   }
-  return ret;
+  str->buffer[index] = ch;
+  str->pos = 0;
+  if (!ch) {
+    str->len = index;
+  }
+  return str;
 }
 
-str_t * str_slice(const str_t *str, size_t from, size_t upto) {
-  str_t  *ret;
-  size_t  len;
+str_t *str_forcecase(str_t *str, int upper) {
+  char c;
+  size_t ix;
 
+  if (!str || str_is_static(str)) {
+    return NULL;
+  }
+  for (ix = 0; ix < str->len; ix++) {
+    c = str->buffer[ix];
+    str->buffer[ix] = upper ? (char) toupper(c) : (char) tolower(c);
+  }
+  return str;
+}
+
+str_t *str_slice(const str_t *str, int from, int upto) {
+  str_t *ret;
+  size_t len;
+
+  if (!str || str_is_null(str)) {
+    return _str_initialize();
+  }
   if ((int) from < 0) {
     from = 0;
   }
-  if ((upto > str_len(str)) || ((int) upto < 0)) {
-    upto = str_len(str);
+  if (upto > (int) str_len(str)) {
+    upto = (int) str_len(str);
+  }
+  if (upto < 0) {
+    upto = (int) str_len(str) + upto;
+  }
+  if (upto < from) {
+    return str_create(1);
   }
   len = upto - from;
-  ret = str_copy_chars(str_chars(str) + from);
-  if (ret && (str_len(ret) > len)) {
-    str_chop(ret, str_len(ret) - len);
-  }
+  ret = str_copy_nchars(str_chars(str) + from, len);
   return ret;
 }
 
-array_t * str_split(const str_t *str, const char *sep) {
-  char    *ptr;
-  char    *sepptr;
+array_t *str_split(const str_t *str, const char *sep) {
+  char *ptr;
+  char *sepptr;
   array_t *ret;
-  str_t   *c;
+  str_t *c;
 
   ret = data_array_create(4);
-  if (str_len(str)) {
-    ptr = str -> buffer;
+  if (!sep) {
+    sep = " ";
+  }
+  if (str && !str_is_null(str) && str_len(str)) {
+    ptr = str->buffer;
     for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
       c = str_copy_nchars(ptr, sepptr - ptr);
       array_push(ret, c);
@@ -842,17 +1084,17 @@ array_t * str_split(const str_t *str, const char *sep) {
   return ret;
 }
 
-str_t * str_format(const char *fmt, const arguments_t *args) {
-  char   *copy;
-  char   *ptr;
-  char   *specstart;
-  long    ix;
-  str_t  *ret = str_create(strlen(fmt));
-  char    buf[_DEFAULT_SIZE];
-  size_t  bufsize = _DEFAULT_SIZE;
-  char   *bigbuf = NULL;
-  char   *spec = buf;
-  size_t  len;
+str_t *str_format(const char *fmt, const arguments_t *args) {
+  char *copy;
+  char *ptr;
+  char *specstart;
+  long ix;
+  str_t *ret = str_create(strlen(fmt));
+  char buf[_DEFAULT_SIZE];
+  size_t bufsize = _DEFAULT_SIZE;
+  char *bigbuf = NULL;
+  char *spec = buf;
+  size_t len;
 
   copy = strdup(fmt);
   for (ptr = copy; *ptr; ptr++) {
@@ -882,7 +1124,7 @@ str_t * str_format(const char *fmt, const arguments_t *args) {
           if (!strtoint(spec, &ix) && (ix >= 0) &&
               (ix < arguments_args_size(args))) {
             str_append_chars(ret,
-                data_tostring(data_uncopy(arguments_get_arg(args, (int) ix))));
+                             data_tostring(arguments_get_arg(args, (int) ix)));
           } else {
             str_append_printf(ret, "${%s}", spec);
           }
@@ -898,38 +1140,26 @@ str_t * str_format(const char *fmt, const arguments_t *args) {
 }
 
 struct _placeholder {
-  int    num;
+  int num;
   size_t start;
   size_t len;
-  int    type;
+  int type;
 };
 
-str_t * str_vformatf(const char *fmt, va_list args) {
-  array_t             *arr = NULL;
-  arguments_t         *arguments;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4090)
-#else /* _MSC_VER */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-#endif /* _MSC_VER */
-  char                *f = fmt;
-#ifdef _MSC_VER
-#pragma warning(pop)
-#else /* _MSC_VER */
-#pragma GCC diagnostic pop
-#endif /* _MSC_VER */
-  char                *ptr;
-  int                  ix;
-  size_t               last;
-  int                  ixx;
-  int                  lastix;
-  int                  num = 0;
-  char                 needle[32];
-  str_t               *ret;
-  size_t               needlelen;
-  struct _placeholder  placeholders[99];
+str_t *str_vformatf(const char *fmt, va_list args) {
+  array_t *arr = NULL;
+  arguments_t *arguments;
+  char *f = (char *) fmt;
+  char *ptr;
+  int ix;
+  size_t last;
+  int ixx;
+  int lastix;
+  int num = 0;
+  char needle[32];
+  str_t *ret;
+  size_t needlelen;
+  struct _placeholder placeholders[99];
 
   if (!strstr(fmt, "${")) {
     return str_copy_chars(fmt);
@@ -1020,7 +1250,7 @@ str_t * str_vformatf(const char *fmt, va_list args) {
           break;
         case 't':
         case 'a':
-          array_push(arr, data_copy(va_arg(args, data_t *)));
+          array_push(arr, va_arg(args, data_t *));
           break;
         default:
           /* Nothing; can't happen */
@@ -1039,7 +1269,7 @@ str_t * str_vformatf(const char *fmt, va_list args) {
   return ret;
 }
 
-str_t * str_formatf(const char *fmt, ...) {
+str_t *str_formatf(const char *fmt, ...) {
   va_list args;
   str_t *ret;
 
@@ -1051,18 +1281,18 @@ str_t * str_formatf(const char *fmt, ...) {
 
 /* -- S T R I N G   T Y P E   M E T H O D S ------------------------------- */
 
-data_t * _string_at(data_t *self, _unused_ char *name, arguments_t *args) {
+data_t *_string_at(data_t *self, _unused_ char *name, arguments_t *args) {
   return _str_resolve((str_t *) self, arguments_arg_tostring(args, 0));
 }
 
-data_t * _string_slice(data_t *self, char *name, arguments_t *args) {
-  data_t *from = data_uncopy(arguments_get_arg(args, 0));
-  data_t *to = data_uncopy(arguments_get_arg(args, 1));
+data_t *_string_slice(data_t *self, char *name, arguments_t *args) {
+  data_t *from = arguments_get_arg(args, 0);
+  data_t *to = arguments_get_arg(args, 1);
   data_t *ret;
-  size_t  len = strlen(data_tostring(self));
-  size_t  i;
-  size_t  j;
-  char   *buf;
+  size_t len = strlen(data_tostring(self));
+  size_t i;
+  size_t j;
+  char *buf;
 
   /* FIXME: second argument (to) is optional; ommiting it gives you the tail */
   i = (size_t) data_intval(from);
@@ -1094,35 +1324,35 @@ data_t * _string_slice(data_t *self, char *name, arguments_t *args) {
   }
 }
 
-data_t * _string_forcecase(data_t *self, char *name, arguments_t *args) {
-  int    upper = name[0] == 'u';
+data_t *_string_forcecase(data_t *self, char *name, arguments_t *args) {
+  int upper = name[0] == 'u';
   str_t *ret = str_copy_chars(data_tostring(self));
 
   return (data_t *) str_forcecase(ret, upper);
 }
 
-data_t * _string_has(data_t *self, char _unused_ *name, arguments_t *args) {
+data_t *_string_has(data_t *self, char _unused_ *name, arguments_t *args) {
   char *needle = arguments_arg_tostring(args, 0);
 
   return int_as_bool(str_indexof_chars((str_t *) self, needle) >= 0);
 }
 
-data_t * _string_indexof(data_t *self, char _unused_ *name, arguments_t *args) {
+data_t *_string_indexof(data_t *self, char _unused_ *name, arguments_t *args) {
   char *needle = arguments_arg_tostring(args, 0);
 
   return int_to_data(str_indexof_chars((str_t *) self, needle));
 }
 
-data_t * _string_rindexof(data_t *self, char _unused_ *name, arguments_t *args) {
+data_t *_string_rindexof(data_t *self, char _unused_ *name, arguments_t *args) {
   char *needle = arguments_arg_tostring(args, 0);
 
   return int_to_data(str_rindexof_chars((str_t *) self, needle));
 }
 
-data_t * _string_startswith(data_t *self, char _unused_ *name, arguments_t *args) {
-  char   *prefix = arguments_arg_tostring(args, 0);
-  size_t  len;
-  size_t  prflen;
+data_t *_string_startswith(data_t *self, char _unused_ *name, arguments_t *args) {
+  char *prefix = arguments_arg_tostring(args, 0);
+  size_t len;
+  size_t prflen;
 
   len = str_len((str_t *) self);
   prflen = strlen(prefix);
@@ -1133,11 +1363,11 @@ data_t * _string_startswith(data_t *self, char _unused_ *name, arguments_t *args
   }
 }
 
-data_t * _string_endswith(data_t *self, char *name, arguments_t *args) {
-  char   *suffix = arguments_arg_tostring(args, 0);
-  size_t  len;
-  size_t  suflen;
-  char    *ptr;
+data_t *_string_endswith(data_t *self, char *name, arguments_t *args) {
+  char *suffix = arguments_arg_tostring(args, 0);
+  size_t len;
+  size_t suflen;
+  char *ptr;
 
   len = str_len((str_t *) self);
   suflen = strlen(suffix);
@@ -1149,10 +1379,10 @@ data_t * _string_endswith(data_t *self, char *name, arguments_t *args) {
   }
 }
 
-data_t * _string_concat(data_t *self, char _unused_ *name, arguments_t *args) {
-  str_t  *ret = str_copy_chars(data_tostring(self));
-  int     ix;
-  size_t  len = str_len(ret);
+data_t *_string_concat(data_t *self, char _unused_ *name, arguments_t *args) {
+  str_t *ret = str_copy_chars(data_tostring(self));
+  int ix;
+  size_t len = str_len(ret);
 
   for (ix = 0; ix < arguments_args_size(args); ix++) {
     len += strlen(arguments_arg_tostring(args, ix));
@@ -1164,12 +1394,12 @@ data_t * _string_concat(data_t *self, char _unused_ *name, arguments_t *args) {
   return (data_t *) ret;
 }
 
-data_t * _string_repeat(data_t *self, char _unused_ *name, arguments_t *args) {
-  char   *s = data_tostring(self);
-  str_t  *ret = str_copy_chars(s);
-  size_t  len = str_len(ret);
-  int     numval = data_intval(arguments_get_arg(args, 0));
-  int     ix;
+data_t *_string_repeat(data_t *self, char _unused_ *name, arguments_t *args) {
+  char *s = data_tostring(self);
+  str_t *ret = str_copy_chars(s);
+  size_t len = str_len(ret);
+  int numval = data_intval(arguments_get_arg(args, 0));
+  int ix;
 
   len *= numval;
   if ((int) len < 0) {
@@ -1183,10 +1413,10 @@ data_t * _string_repeat(data_t *self, char _unused_ *name, arguments_t *args) {
   return (data_t *) ret;
 }
 
-data_t * _string_split(data_t *self, char _unused_ *name, arguments_t *args) {
+data_t *_string_split(data_t *self, char _unused_ *name, arguments_t *args) {
   array_t *split = array_split(data_tostring(self),
                                arguments_arg_tostring(args, 0));
-  data_t  *ret = (data_t *) str_array_to_datalist(split);
+  data_t *ret = (data_t *) str_array_to_datalist(split);
 
   array_free(split);
   return ret;

@@ -22,8 +22,16 @@
 #add_executable(readfile readfile.c)
 #target_link_libraries(readfile oblcore ${SYSLIBS})
 
-add_executable(coretest heaptest.cpp nametest.cpp)
-target_link_libraries(coretest ${GTEST_LDFLAGS} oblcore ${SYSLIBS})
+add_executable(coretest
+        listtest.cpp
+        heaptest.cpp
+        nametest.cpp
+        strtest.h
+        strcreate.cpp
+        strmutate.cpp
+        straccess.cpp)
+
+target_link_libraries(coretest ${GTEST_LDFLAGS} obltest oblcore ${SYSLIBS})
 target_compile_options(coretest PUBLIC ${GTEST_CFLAGS})
 
 install(TARGETS coretest)
