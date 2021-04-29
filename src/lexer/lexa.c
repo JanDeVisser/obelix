@@ -18,18 +18,19 @@
  */
 
 #include "liblexer.h"
-#include <file.h>
 #include <lexa.h>
 
 int lexa_debug;
 int Lexa = -1;
 
+static void *   _lexa_reduce_children(lexa_t *, reduce_t, void *);
 static void     _lexa_free(lexa_t *);
 static char *   _lexa_staticstring(lexa_t *);
 static data_t * _lexa_call(lexa_t *, arguments_t *);
 
 static vtable_t _vtable_Lexa[] = {
   { .id = FunctionFree,         .fnc = (void_t) _lexa_free },
+  { .id = FunctionReduce,       .fnc = (void_t) _lexa_reduce_children },
   { .id = FunctionStaticString, .fnc = (void_t) _lexa_staticstring },
   { .id = FunctionCall,         .fnc = (void_t) _lexa_call },
   { .id = FunctionNone,         .fnc = NULL }
@@ -39,12 +40,16 @@ static vtable_t _vtable_Lexa[] = {
 
 void _lexa_free(lexa_t *lexa) {
   if (lexa) {
-    dict_free(lexa -> scanners);
-    lexer_config_free(lexa -> config);
-    data_free(lexa -> stream);
     free(lexa -> debug);
     dict_free(lexa -> tokens_by_type);
   }
+}
+
+void * _lexa_reduce_children(lexa_t *lexa, reduce_t reducer, void *ctx) {
+  ctx = reducer(lexa->config, ctx);
+  ctx = reducer(lexa->scanners, ctx);
+  ctx = reducer(lexa->stream, ctx);
+  return ctx;
 }
 
 char * _lexa_staticstring(lexa_t *lexa) {
@@ -68,7 +73,7 @@ lexa_t * lexa_create(void) {
   ret = data_new(Lexa, lexa_t);
   ret -> debug = NULL;
   ret -> log_level = NULL;
-  ret -> scanners = strdata_dict_create();
+  ret -> scanners = dictionary_create(NULL);
   ret -> config = NULL;
   ret -> stream = NULL;
   ret -> tokens = 0;
@@ -99,7 +104,7 @@ lexa_t * lexa_build_lexer(lexa_t *lexa) {
   }
   lexa -> config = lexer_config_create();
   lexa -> config -> data = data_copy((data_t *) lexa);
-  dict_reduce(lexa -> scanners, (reduce_t) _lexa_build_scanner, lexa);
+  dictionary_reduce(lexa -> scanners, (reduce_t) _lexa_build_scanner, lexa);
   return lexa;
 }
 
@@ -208,8 +213,7 @@ scanner_config_t * lexa_get_scanner(lexa_t *lexa, char *code) {
 lexa_t * lexa_set_config_value(lexa_t *lexa, char *code, char *config) {
   lexa_debug_settings(lexa);
   debug(lexa, "Setting scanner config value %s: %s", code, config);
-  dict_put(lexa -> scanners, strdup(code),
-           (config) ? (data_t *) str_copy_chars(config) : NULL);
+  dictionary_set(lexa -> scanners, code, (config) ? (data_t *) str_copy_chars(config) : NULL);
   if (lexa -> config) {
     lexa_build_lexer(lexa);
   }
@@ -229,3 +233,4 @@ lexa_t * lexa_set_tokenfilter(lexa_t *lexa, void (*filter)(token_t *)) {
   lexa -> tokenfilter = filter;
   return lexa;
 }
+

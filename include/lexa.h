@@ -30,7 +30,7 @@ typedef struct _lexa {
   data_t           _d;
   char            *debug;
   char            *log_level;
-  dict_t          *scanners;
+  dictionary_t    *scanners;
   lexer_config_t  *config;
   data_t          *stream;
   int              tokens;
@@ -48,11 +48,5 @@ extern lexa_t *           lexa_tokenize(lexa_t *);
 extern int                lexa_tokens_with_code(lexa_t *, token_code_t);
 extern lexa_t *           lexa_set_stream(lexa_t *, data_t *);
 extern lexa_t *           lexa_set_tokenfilter(lexa_t *, void (*)(token_t *));
-
-#define data_is_lexa(d)   ((d) && data_hastype((d), Lexa))
-#define data_as_lexa(d)   (data_is_lexa((d)) ? ((lexa_t *) (d)) : NULL)
-#define lexa_copy(l)      ((lexa_t *) data_copy((data_t *) (l)))
-#define lexa_free(l)      (data_free((data_t *) (l)))
-#define lexa_tostring(l)  (data_tostring((data_t *) (l)))
 
 #endif /* __LEXA_H__ */

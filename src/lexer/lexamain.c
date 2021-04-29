@@ -61,6 +61,5 @@ int main(int argc, char **argv) {
   }
   lexa_build_lexer(lexa);
   lexa_tokenize(lexa);
-  lexa_free(lexa);
   return 0;
 }
