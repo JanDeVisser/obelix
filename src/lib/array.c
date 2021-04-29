@@ -20,62 +20,69 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
-#include "libcore.h"
 #include <array.h>
 #include <core.h>
 #include <str.h>
 
-#define ARRAY_DEF_CAPACITY    8
+#define ARRAY_DEFAULT_CAPACITY    8
 
 static int       _array_resize(array_t *, int);
 static void *    _array_reduce(array_t *, reduce_t, void *, reduce_type_t);
-static array_t * _array_append(array_t *, void *);
+static array_t * _array_append(void *, array_t *);
 
 // ---------------------------
 // array_t static functions
 
-int _array_resize(array_t *array, int mincap) {
-  void **newcontents;
-  int    newcap;
+int _array_resize(array_t *array, int minimum_capacity) {
+  void **new_contents;
+  int    new_capacity;
 
-  mincap = (mincap > 0) ? mincap : ARRAY_DEF_CAPACITY;
-  if (mincap <= array -> capacity) {
+  minimum_capacity = (minimum_capacity > 0)
+    ? minimum_capacity
+    : ARRAY_DEFAULT_CAPACITY;
+  if (minimum_capacity <= array-> capacity) {
     return TRUE;
   }
-  newcap = array -> capacity ? array -> capacity : mincap;
+  new_capacity = array-> capacity ? array-> capacity : minimum_capacity;
 
-  while(newcap < mincap) {
-    newcap *= 2;
+  while(new_capacity < minimum_capacity) {
+    new_capacity *= 2;
   }
-  newcontents = (void **) resize_ptrarray(array -> contents,
-                                          newcap,
-                                          array -> capacity);
-  if (newcontents) {
-    array -> contents= newcontents;
-    array -> capacity = newcap;
+  new_contents = (void **) resize_ptrarray(array-> contents,
+                                           new_capacity,
+                                           array -> capacity);
+  if (new_contents) {
+    array -> contents = new_contents;
+    array -> capacity = new_capacity;
   }
-  return newcontents != NULL;
+  return new_contents != NULL;
 }
 
 void * _array_reduce(array_t *array, reduce_t reducer, void *data, reduce_type_t type) {
   free_t      f;
   int         ix;
   void       *elem;
+  const void *e;
 
   f = (type == RTStrs) ? (free_t) data_free : NULL;
   for (ix = 0; ix < array_size(array); ix++) {
-    elem = array -> contents[ix];
+    e = array -> contents[ix];
     switch (type) {
       case RTChars:
-        elem =  array -> type.tostring(elem);
+        assert(array->type.tostring);
+        elem =  array -> type.tostring(e);
         break;
       case RTStrs:
-        elem =  str_wrap(array -> type.tostring(elem));
+        assert(array->type.tostring);
+        elem =  str_wrap(array -> type.tostring(e));
+        break;
+      case RTObjects:
+        elem = (void *) e;
+        f = NULL;
         break;
       default:
-        break;
+        assert(0);
     }
     data = reducer(elem, data);
     if (f) {
@@ -85,11 +92,10 @@ void * _array_reduce(array_t *array, reduce_t reducer, void *data, reduce_type_t
   return data;
 }
 
-/*
- * Since array_push is a macro, we need a function we can feed into array_reduce
- * for array_add_all.
- */
-array_t * _array_append(array_t *array, void *data) {
+array_t * _array_append(void *data, array_t *array) {
+  if (array->type.copy) {
+    data = array->type.copy(data);
+  }
   array_push(array, data);
   return array;
 }
@@ -105,7 +111,6 @@ array_t * array_create(int capacity) {
   if (a) {
     a -> capacity = 0;
     a -> contents = NULL;
-    a -> refs = 1;
     a -> str = NULL;
     if (_array_resize(a, capacity)) {
       ret = a;
@@ -117,14 +122,23 @@ array_t * array_create(int capacity) {
   return ret;
 }
 
-array_t * array_copy(array_t *src) {
-  if (src) {
-    src -> refs++;
-  }
-  return src;
+array_t * str_array_create(int sz) {
+  return array_set_type(array_create(sz), coretype(CTString));
 }
 
+array_t * array_copy(const array_t *src) {
+  array_t *copy = NULL;
 
+  if (!src) {
+    return NULL;
+  }
+  copy = array_create(array_capacity(src));
+  if (!copy) {
+    return NULL;
+  }
+  array_add_all(copy, src);
+  return copy;
+}
 
 /**
  * Creates a new <code>array_t</code> from the components of <code>str</code>.
@@ -132,37 +146,31 @@ array_t * array_copy(array_t *src) {
  * components are copied and the return array is set up to free these strings
  * when the array is freed.
  *
- * @param str The string to be split.
+ * @param string The string to be split.
  * @param sep The separator string.
  *
  * @return A new array with the components of the string as elements.
  */
-array_t * array_split(const char *str, const char *sep) {
-  const char *ptr;
-  char    *sepptr;
-  char    *c;
-  array_t *ret;
-  int      count = 1;
-  int      seplen = strlen(sep);
-  int      len;
+array_t * array_split(const char *string, const char *separator) {
+  const char    *ptr;
+  char          *sepptr;
+  char          *c;
+  array_t       *ret;
+  int            count = 1;
+  unsigned long  seplen = strlen(separator);
+  long           len;
 
-  if (!str || !str[0]) {
+  if (!string || !string[0]) {
     return str_array_create(0);
   }
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-  ptr = str;
-//#pragma GCC diagnostic pop
-  for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
+  ptr = string;
+  for (sepptr = strstr(ptr, separator); sepptr; sepptr = strstr(ptr, separator)) {
     count++;
     ptr = sepptr + seplen;
   }
   ret = str_array_create(count);
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-  ptr = str;
-//#pragma GCC diagnostic pop
-  for (sepptr = strstr(ptr, sep); sepptr; sepptr = strstr(ptr, sep)) {
+  ptr = string;
+  for (sepptr = strstr(ptr, separator); sepptr; sepptr = strstr(ptr, separator)) {
     len = sepptr - ptr;
     c = stralloc(len);
     if (len) {
@@ -242,6 +250,18 @@ array_t * array_set_tostring(array_t *array, tostring_t tostring) {
   return array;
 }
 
+int array_size(const array_t * a) {
+  return (a) ? a->size : -1;
+}
+
+int array_empty(const array_t * a) {
+  return array_size(a) == 0;
+}
+
+int array_not_empty(const array_t * a) {
+  return array_size(a) > 0;
+}
+
 unsigned int array_hash(const array_t *array) {
   unsigned int hash;
   reduce_ctx *ctx;
@@ -252,19 +272,7 @@ unsigned int array_hash(const array_t *array) {
     ctx = NEW(reduce_ctx);
     ctx -> fnc = (void_t) array -> type.hash;
     ctx -> longdata = 0;
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4090)
-#else /* _MSC_VER */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-#endif /* _MSC_VER */
-    array_reduce(array, (reduce_t) collection_hash_reducer, ctx);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#else /* _MSC_VER */
-#pragma GCC diagnostic pop
-#endif /* _MSC_VER */
+    array_reduce((array_t *) array, (reduce_t) collection_hash_reducer, ctx);
     hash = (unsigned int) ctx -> longdata;
     free(ctx);
   }
@@ -277,13 +285,10 @@ int array_capacity(const array_t *array) {
 
 void array_free(array_t *array) {
   if (array) {
-    array -> refs--;
-    if (array -> refs <= 0) {
-      array_clear(array);
-      free(array -> contents);
-      free(array -> str);
-      free(array);
-    }
+    array_clear(array);
+    free(array -> contents);
+    free(array -> str);
+    free(array);
   }
 }
 
@@ -293,7 +298,7 @@ array_t * array_clear(array_t *array) {
   if (array -> type.free) {
     for (ix = 0; ix < array_size(array); ix++) {
       if (array -> contents[ix]) {
-        array -> type.free(array -> contents[ix]);
+        array -> type.free((void *) array -> contents[ix]);
       }
     }
   }
@@ -310,13 +315,25 @@ int array_set(array_t *array, int ix, void *data) {
     return FALSE;
   }
   if (array -> type.free && array -> contents[ix]) {
-    array -> type.free(array -> contents[ix]);
+    array -> type.free((void *) array -> contents[ix]);
+  }
+  if (array->type.copy) {
+    data = array->type.copy(data);
   }
   array -> contents[ix] = data;
   if (ix >= array_size(array)) {
     array -> size = ix + 1;
   }
   return TRUE;
+}
+
+int array_set_int(array_t * array, int ix, intptr_t value) {
+  return array_set(array, ix, (void *) value);
+}
+
+array_t * array_add_all(array_t *array, const array_t *other) {
+  array_reduce((array_t *) other, (reduce_t) _array_append, array);
+  return array;
 }
 
 void * array_get(const array_t *array, int ix) {
@@ -331,6 +348,14 @@ void * array_get(const array_t *array, int ix) {
   return array -> contents[ix];
 }
 
+intptr_t array_get_int(const array_t * a, int i) {
+  return (intptr_t) array_get(a, i);
+}
+
+char * str_array_get(const array_t * a, int ix) {
+  return (char *) array_get(a, ix);
+}
+
 void * array_pop(array_t *array) {
   void *ret = NULL;
 
@@ -340,6 +365,10 @@ void * array_pop(array_t *array) {
     array -> contents[array -> size] = NULL;
   }
   return ret;
+}
+
+int array_push(array_t * array, void *data) {
+  return array_set(array, -1, data);
 }
 
 void * array_remove(array_t *array, int ix) {
@@ -380,17 +409,7 @@ array_t *array_visit(array_t *array, visit_t visitor) {
   return array;
 }
 
-array_t * array_add_all(array_t *array, array_t *other) {
-  reduce_ctx *ctx = NEW(reduce_ctx);
-
-  ctx -> fnc = (void_t) _array_append;
-  ctx -> obj = array;
-  ctx = array_reduce(other, (reduce_t) collection_add_all_reducer, ctx);
-  free(ctx);
-  return array;
-}
-
-str_t * array_tostr(const array_t *array) {
+str_t * array_to_str(const array_t *array) {
   str_t *ret;
   str_t *s;
 
@@ -414,7 +433,7 @@ char * array_tostring(array_t *array) {
   str_t *str;
 
   if (array) {
-    str = array_tostr(array);
+    str = array_to_str(array);
     free(array -> str);
     array -> str = strdup(str_chars(str));
     str_free(str);
@@ -428,9 +447,8 @@ void array_debug(array_t *array, const char *msg) {
   mdebug(core, msg, array_tostring(array));
 }
 
-void * array_find(array_t *array, cmp_t filter, void *what) {
+void * array_find(const array_t *array, cmp_t filter, void *what) {
   int   ix;
-  void *elem;
 
   for (ix = 0; ix < array -> size; ix++) {
     if (!filter(array -> contents[ix], what)) {
@@ -440,35 +458,39 @@ void * array_find(array_t *array, cmp_t filter, void *what) {
   return NULL;
 }
 
+str_t * array_join(const array_t *array, const char *glue) {
+  return _str_join(glue, array, (obj_reduce_t) array_reduce_chars);
+}
+
 /* ------------------------------------------------------------------------ */
 
 
 array_t * array_start(array_t *array) {
-  array -> curix = (array_size(array)) ? 0 : -1;
+  array -> cur_ix = (array_size(array)) ? 0 : -1;
   return array;
 }
 
 array_t * array_end(array_t *array) {
-  array -> curix = array_size(array) - 1;
+  array -> cur_ix = array_size(array) - 1;
   return array;
 }
 
-void * array_current(array_t *array) {
-  return (array -> curix >= 0) ? array -> contents[array -> curix] : 0;
+void * array_current(const array_t *array) {
+  return (array -> cur_ix >= 0) ? array-> contents[array-> cur_ix] : 0;
 }
 
-int array_has_next(array_t *array) {
-  return (array -> curix >= 0) && (array -> curix < array_size(array));
+int array_has_next(const array_t *array) {
+  return (array -> cur_ix >= 0) && (array-> cur_ix < array_size(array));
 }
 
-int array_has_prev(array_t *array) {
-  return (array -> curix > 0) && (array -> curix <= array_size(array) - 1);
+int array_has_prev(const array_t *array) {
+  return (array -> cur_ix > 0) && (array-> cur_ix <= array_size(array) - 1);
 }
 
 void * array_next(array_t *array) {
-  return array -> contents[array -> curix++];
+  return array -> contents[array -> cur_ix++];
 }
 
 void * array_prev(array_t *array) {
-  return array -> contents[array -> curix--];
+  return array -> contents[array -> cur_ix--];
 }

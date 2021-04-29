@@ -24,13 +24,6 @@
 #include <list.h>
 #include <logging.h>
 
-typedef struct _free_block {
-  unsigned char       is_live;
-  unsigned char       marked;
-  unsigned short int  cookie;
-  void               *next;
-} __attribute__((aligned(16))) free_block_t;
- 
 typedef struct _heap_page {
   size_t  index;
   size_t  block_size;
@@ -79,7 +72,7 @@ static heap_page_t *   _heap_page_create(size_t, size_t, size_t);
 static void *          _heap_page_checkout(heap_page_t *);
 static int             _heap_page_has_block(heap_page_t *, void *);
 static void            _heap_page_destroy_block(heap_page_t *, void *);
-static free_block_t  * _heap_page_free_block(heap_page_t *, void *);
+static heap_block_t  * _heap_page_free_block(heap_page_t *, void *);
 static void            _heap_page_unmark(heap_page_t *);
 static void            _heap_page_sweep(heap_page_t *);
 static heap_page_t *   _heap_page_free(heap_page_t *);
@@ -93,7 +86,7 @@ static void            _heap_unmark();
 static void            _heap_find_and_mark_all_live_blocks();
 static void            _heap_sweep();
 
-static void *          _data_add_live_block(free_block_t *, void *);
+static void *          _data_add_live_block(heap_block_t *, void *);
 
 static int             heap_debug = 0;
 static pthread_mutex_t _mutex;
@@ -173,7 +166,7 @@ static heap_page_t * _heap_page_create(size_t index, size_t pagesize, size_t blo
   void         *raw_page;
   heap_page_t  *page;
   size_t        blocks = pagesize / blocksize - 1;
-  free_block_t *blockptr, *prev_blockptr;
+  heap_block_t *blockptr, *prev_blockptr;
   int           ix;
 
   assert(blocksize >= sizeof(data_t));
@@ -190,7 +183,7 @@ static heap_page_t * _heap_page_create(size_t index, size_t pagesize, size_t blo
   page->blocks = blocks;
   page->next_page = NULL;
 
-  for (prev_blockptr = NULL, ix = 0, blockptr = (free_block_t *) (raw_page + blocksize);
+  for (prev_blockptr = NULL, ix = 0, blockptr = (heap_block_t *) (raw_page + blocksize);
        ix < blocks;
        prev_blockptr = blockptr, ix++, blockptr = ((void *) blockptr) + blocksize) {
     blockptr->is_live = BLOCK_DEAD;
@@ -207,7 +200,7 @@ static heap_page_t * _heap_page_create(size_t index, size_t pagesize, size_t blo
 }
 
 static void * _heap_page_checkout(heap_page_t *page) {
-  free_block_t *ret = page->freelist;
+  heap_block_t *ret = page->freelist;
 
   debug(heap, "Checking out block %p from page %d, blocksize %d", ret, page->index, page->block_size);
   if (ret) {
@@ -234,7 +227,7 @@ static int _heap_page_has_block(heap_page_t *page, void *block) {
 static void _heap_page_destroy_block(heap_page_t *page, void *block) {
   data_t *data;
 
-  if (block && ((free_block_t *) block)->is_live && data_is_data(block)) {
+  if (block && ((heap_block_t *) block)->is_live && data_is_data(block)) {
     data = data_as_data(block);
     debug(heap, "Destroying data object of type %s", data_typename(data));
     if (data -> data_semantics & DataSemanticsConstant) {
@@ -244,17 +237,17 @@ static void _heap_page_destroy_block(heap_page_t *page, void *block) {
   }
 }
 
-static free_block_t  * _heap_page_free_block(heap_page_t *page, void *block) {
-  free_block_t *free_block;
+static heap_block_t  * _heap_page_free_block(heap_page_t *page, void *block) {
+  heap_block_t *free_block;
 
   assert(_heap_page_has_block(page, block));
-  free_block = (free_block_t *) block;
+  free_block = (heap_block_t *) block;
   if (!free_block->is_live) {
     return free_block;
   }
   debug(heap, "Returning block %p to page %d, blocksize %d", block, page->index, page->block_size);
   _heap_page_destroy_block(page, block);
-  free_block = (free_block_t *) block;
+  free_block = (heap_block_t *) block;
   free_block->is_live = BLOCK_DEAD;
   free_block->marked = 0;
   free_block->cookie = FREEBLOCK_COOKIE;
@@ -268,17 +261,17 @@ static void _heap_page_unmark(heap_page_t *page) {
   void *vp = (void *) page;
   
   for (block = vp + page->block_size; block < vp + page->page_size; block += page->block_size) {
-    ((free_block_t *) block)->marked = 0;  
+    ((heap_block_t *) block)->marked = 0;
   }
 }
 
 static void _heap_page_sweep(heap_page_t *page) {
   void         *block;
   void         *vp = (void *) page;
-  free_block_t *free_block;
+  heap_block_t *free_block;
 
   for (block = vp + page->block_size; block < vp + page->page_size; block += page->block_size) {
-    free_block = (free_block_t *) block;
+    free_block = (heap_block_t *) block;
     if ((BLOCK_IS_HERDED(free_block) && !free_block->marked) || BLOCK_IS_PENNED(free_block)) {
       _heap_page_free_block(page, free_block);
     }
@@ -288,7 +281,7 @@ static void _heap_page_sweep(heap_page_t *page) {
 static heap_page_t * _heap_page_free(heap_page_t *page) {
   void         *block;
   void         *vp = (void *) page;
-  free_block_t *free_block;
+  heap_block_t *free_block;
   heap_page_t  *next = page->next_page;
 
   debug(heap, "Freeing page #%d", page->index);
@@ -303,10 +296,10 @@ static size_t _heap_page_report(heap_page_t *page) {
   size_t        allocated = 0;
   void         *block;
   void         *vp = (void *) page;
-  free_block_t *free_block;
+  heap_block_t *free_block;
 
   for (block = vp + page->block_size; block < vp + page->page_size; block += page->block_size) {
-    free_block = (free_block_t *) block;
+    free_block = (heap_block_t *) block;
     if (free_block->is_live) allocated++;
   }
   info("%-4d %6d %6d %6d %6d %6d",
@@ -374,7 +367,7 @@ static heap_page_t * _heap_find_page_for(void *block) {
   return NULL;
 }
 
-static void * _data_add_live_block(free_block_t *block, _unused_ void *ctx) {
+static void * _data_add_live_block(heap_block_t *block, _unused_ void *ctx) {
   data_t *data;
 
   if (block && (data_is_data(block) || _heap_find_page_for(block))) {
@@ -393,11 +386,11 @@ static void * _data_add_live_block(free_block_t *block, _unused_ void *ctx) {
 
 static void _heap_find_and_mark_all_live_blocks() {
   block_ptr_t  *ptr;
-  free_block_t *block;
+  heap_block_t *block;
   data_t       *data;
 
   for (ptr = the_heap.roots; ptr; ptr = ptr->next) {
-    block = (free_block_t *) ptr->block;
+    block = (heap_block_t *) ptr->block;
     if (block->is_live) {
       block->marked = 1;
       if (data_is_data(block)) {
@@ -458,7 +451,7 @@ extern void * heap_allocate(size_t size) {
 }
 
 extern void heap_unpen(void *block) {
-  free_block_t *free_block = (free_block_t *) block;
+  heap_block_t *free_block = (heap_block_t *) block;
 
   if (free_block) {
     BLOCK_UNPEN(free_block);
@@ -467,7 +460,7 @@ extern void heap_unpen(void *block) {
 
 extern void heap_deallocate(void *block) {
   heap_page_t  *page;
-  free_block_t *free_block;
+  heap_block_t *free_block;
 
   _heap_init();
   debug(heap, "Deallocating block %p", block);
@@ -482,7 +475,7 @@ extern void heap_deallocate(void *block) {
 
 extern void heap_register_root(void *block) {
   block_ptr_t   *root;
-  free_block_t *free_block = (free_block_t *) block;
+  heap_block_t *free_block = (heap_block_t *) block;
   
   _heap_init();
   free_block->is_live |= BLOCK_ALIVE_SHEPARD;
@@ -498,7 +491,7 @@ extern void heap_register_root(void *block) {
 extern void heap_unregister_root(void *block) {
   block_ptr_t   *cur;
   block_ptr_t  **prev = NULL;
-  free_block_t  *free_block = (free_block_t *) block;
+  heap_block_t  *free_block = (heap_block_t *) block;
 
   /*
    * Syntactically more complex than it needs to be. Proof of context eliminating

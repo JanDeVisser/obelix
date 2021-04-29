@@ -100,60 +100,59 @@ typedef struct _reduce_ctx {
   void_t          fnc;
 } __attribute__((aligned(64))) reduce_ctx;
 
-extern void *          _new(size_t);
-extern void *          new_array(size_t, size_t);
-extern void *          new_ptrarray(size_t);
-extern void *          resize_block(void *, size_t, size_t);
-extern void *          resize_ptrarray(void *, size_t, size_t);
-
-extern int             oblcore_asprintf(char **, const char *, ...);
-extern int             oblcore_vasprintf(char **, const char *, va_list);
-extern unsigned int    hash(const void *, size_t);
-extern unsigned int    hashptr(const void *);
-extern unsigned int    hashlong(long);
-extern unsigned int    hashdouble(double);
-extern unsigned int    hashblend(unsigned int, unsigned int);
-
-extern void            initialize_random(void);
-extern char *          strrand(char *, size_t);
-extern unsigned int    strhash(const char *);
-extern char *          strltrim(char *);
-extern char *          strrtrim(char *);
-extern char *          strtrim(char *);
-extern char *          chars(const void *);
-extern int             atob(const char *);
-extern char *          btoa(long);
-extern int             strtoint(const char *, long *);
-extern char *          oblcore_itoa(long);
-extern char *          oblcore_dtoa(double);
-
-extern int             oblcore_strcasecmp(const char *, const char *);
-extern int             oblcore_strncasecmp(const char *, const char *, size_t);
-
-extern char *          escape(char *, const char *, char);
-extern char *          unescape(char *, char);
-#define c_escape(s)            (escape((s), "\"\\", '\\'))
-#define c_unescape(s)          (unescape((s), '\\'))
-
-extern char *          label_for_code(code_label_t *, int);
-extern char *          labels_for_bitmap(code_label_t *, int, char *, size_t);
-extern int             code_for_label(code_label_t *, const char *);
-
-extern reduce_ctx *    reduce_ctx_create(void *, void *, void_t);
-extern reduce_ctx *    reduce_ctx_initialize(reduce_ctx *, void *, void *, void_t);
-extern reduce_ctx *    collection_hash_reducer(void *, reduce_ctx *);
-extern reduce_ctx *    collection_add_all_reducer(void *, reduce_ctx *);
-extern visit_t         collection_visitor(void *, visit_t);
-
 typedef enum coretype {
   CTString,
   CTInteger
 } coretype_t ;
 
+extern void *           _new(size_t);
+extern void *           new_array(size_t, size_t);
+extern void *           new_ptrarray(size_t);
+extern void *           resize_block(void *, size_t, size_t);
+extern void *           resize_ptrarray(void *, size_t, size_t);
+
+extern int              oblcore_asprintf(char **, const char *, ...);
+extern int              oblcore_vasprintf(char **, const char *, va_list);
+extern unsigned int     hash(const void *, size_t);
+extern unsigned int     hashptr(const void *);
+extern unsigned int     hashlong(long);
+extern unsigned int     hashdouble(double);
+extern unsigned int     hashblend(unsigned int, unsigned int);
+
+extern void             initialize_random(void);
+extern char *           strrand(char *, size_t);
+extern unsigned int     strhash(const char *);
+extern char *           strltrim(char *);
+extern char *           strrtrim(char *);
+extern char *           strtrim(char *);
+extern char *           chars(const void *);
+extern int              atob(const char *);
+extern char *           btoa(long);
+extern int              strtoint(const char *, long *);
+extern char *           oblcore_itoa(long);
+extern char *           oblcore_dtoa(double);
+
+extern int              oblcore_strcasecmp(const char *, const char *);
+extern int              oblcore_strncasecmp(const char *, const char *, size_t);
+
+extern char *           escape(char *, const char *, char);
+extern char *           unescape(char *, char);
+#define c_escape(s)     (escape((s), "\"\\", '\\'))
+#define c_unescape(s)   (unescape((s), '\\'))
+
+extern char *           label_for_code(code_label_t *, int);
+extern char *           labels_for_bitmap(code_label_t *, int, char *, size_t);
+extern int              code_for_label(code_label_t *, const char *);
+
+extern reduce_ctx *     reduce_ctx_create(void *, void *, void_t);
+extern reduce_ctx *     reduce_ctx_initialize(reduce_ctx *, void *, void *, void_t);
+extern reduce_ctx *     collection_hash_reducer(void *, reduce_ctx *);
+extern reduce_ctx *     collection_add_all_reducer(void *, reduce_ctx *);
+extern visit_t          collection_visitor(void *, visit_t);
 extern type_t *         coretype(coretype_t);
 
-#define new(i)                    (_new((i)))
-#define stralloc(n)               ((char *) _new((n) + 1))
+#define new(i)          (_new((i)))
+#define stralloc(n)     ((char *) _new((n) + 1))
 
 #define type_copy(d, s) (memcpy((d), (s), sizeof(type_t)))
 

@@ -24,14 +24,21 @@ extern "C" {
 
 #define FREEBLOCK_COOKIE   ((unsigned short int) 0xDEADBEEF)
 
-extern void *heap_allocate(size_t);
-extern void heap_unpen(void *);
-extern void heap_deallocate(void *);
-extern void heap_register_root(void *);
-extern void heap_unregister_root(void *);
-extern void heap_gc();
-extern void heap_destroy();
-extern void heap_report();
+typedef struct _heap_block {
+  unsigned char       is_live;
+  unsigned char       marked;
+  unsigned short int  cookie;
+  void               *next;
+} __attribute__((aligned(16))) heap_block_t;
+
+extern void * heap_allocate(size_t);
+extern void   heap_unpen(void *);
+extern void   heap_deallocate(void *);
+extern void   heap_register_root(void *);
+extern void   heap_unregister_root(void *);
+extern void   heap_gc();
+extern void   heap_destroy();
+extern void   heap_report();
 
 #ifdef __cplusplus
 }

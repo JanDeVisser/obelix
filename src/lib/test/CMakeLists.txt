@@ -24,6 +24,7 @@
 
 add_executable(coretest
         heaptest.cpp
+        arraytest.cpp
         listtest.cpp
         nametest.cpp
         strtest.h

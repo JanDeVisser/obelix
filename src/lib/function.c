@@ -74,7 +74,7 @@ char * _function_allocstring(function_t *fnc) {
   size_t  len;
 
   params = (fnc -> params && datalist_size(fnc -> params))
-    ? array_join(fnc -> params, ",")
+    ? array_to_str(data_as_array(fnc -> params))
     : NULL;
   asprintf(&buf, "%s", name_tostring_sep(fnc -> name, ":"));
   if (params) {
