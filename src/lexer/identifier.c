@@ -62,6 +62,7 @@ typedef struct _id_config {
 } id_config_t;
 
 static id_config_t * _id_config_create(id_config_t *config, va_list args);
+static void          _id_config_free(id_config_t *config);
 static data_t *      _id_config_set(id_config_t *, char *, data_t *);
 static data_t *      _id_config_resolve(id_config_t *, char *);
 static id_config_t * _id_config_config(id_config_t *, array_t *);
@@ -70,6 +71,7 @@ static token_t *     _id_match(scanner_t *);
 
 static vtable_t _vtable_IDScannerConfig[] = {
   { .id = FunctionNew,       .fnc = (void_t) _id_config_create },
+  { .id = FunctionFree,      .fnc = (void_t) _id_config_free },
   { .id = FunctionResolve,   .fnc = (void_t) _id_config_resolve },
   { .id = FunctionSet,       .fnc = (void_t) _id_config_set },
   { .id = FunctionMatch,     .fnc = (void_t) _id_match },
@@ -91,6 +93,13 @@ id_config_t * _id_config_create(id_config_t *config, va_list args) {
   config -> startwith_digits = FALSE;
   debug(lexer, "_id_config_create - match: %p", config -> _sc.match);
   return config;
+}
+
+void _id_config_free(id_config_t *config) {
+  if (config) {
+    free(config->startwith);
+    free(config->filter);
+  }
 }
 
 data_t * _id_config_set(id_config_t *id_config, char *name, data_t *value) {
