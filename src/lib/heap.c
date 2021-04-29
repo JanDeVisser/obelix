@@ -122,6 +122,8 @@ void _heap_lock_init() {
   pthread_attr_init(&thr_attr);
   pthread_create(&_gc_thread, &thr_attr, _heap_gc_thread, NULL);
   pthread_attr_destroy(&thr_attr);
+
+  atexit(heap_destroy);
 }
 
 void _heap_lock() {
