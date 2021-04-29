@@ -40,10 +40,10 @@ typedef enum _kw_scanner_state {
 
 typedef struct _kw_config {
   scanner_config_t   _sc;
-  int       num_keywords;
-  size_t    size;
-  size_t    maxlen;
-  token_t **keywords;
+  int                num_keywords;
+  size_t             size;
+  size_t             maxlen;
+  token_t          **keywords;
 } kw_config_t;
 
 typedef struct _kw_scanner {
@@ -68,6 +68,7 @@ static code_label_t _scanner_state_names[] = {
 
 static kw_config_t *  _kw_config_create(kw_config_t *, va_list);
 static void           _kw_config_free(kw_config_t *);
+static void *         _kw_config_reduce_children(kw_config_t *, reduce_t, void *);
 static data_t *       _kw_config_resolve(kw_config_t *, char *);
 static kw_config_t *  _kw_config_set(kw_config_t *, char *, data_t *);
 static kw_config_t *  _kw_config_mth_dump(kw_config_t *, char *, arguments_t *);
@@ -90,6 +91,7 @@ static vtable_t _vtable_KWScannerConfig[] = {
   { .id = FunctionFree,           .fnc = (void_t) _kw_config_free },
   { .id = FunctionResolve,        .fnc = (void_t) _kw_config_resolve },
   { .id = FunctionSet,            .fnc = (void_t) _kw_config_set },
+  { .id = FunctionReduce,         .fnc = (void_t) _kw_config_reduce_children },
   { .id = FunctionMatch,          .fnc = (void_t) _kw_match },
   { .id = FunctionDestroyScanner, .fnc = (void_t) _kw_scanner_free },
   { .id = FunctionDump,           .fnc = (void_t) _kw_config_dump },
@@ -126,6 +128,15 @@ void _kw_config_free(kw_config_t *config) {
     free(config -> keywords);
   }
 }
+
+void * _kw_config_reduce_children(kw_config_t *config, reduce_t reducer, void *ctx) {
+  int ix;
+  for (ix = 0; ix < config->num_keywords; ix++) {
+    ctx = reducer(config->keywords[ix], ctx);
+  }
+  return ctx;
+}
+
 
 kw_config_t * _kw_config_set(kw_config_t *config, char *name, data_t *value) {
   if (!strcmp(PARAM_KEYWORD, name)) {
