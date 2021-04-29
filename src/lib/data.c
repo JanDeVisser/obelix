@@ -403,6 +403,13 @@ void _data_release(data_t *data) {
   }
 }
 
+data_t * _data_set_free(data_t *data) {
+  if (data) {
+    heap_unpen(data);
+  }
+  return data;
+}
+
 void _data_register(data_t *data) {
   heap_register_root(data);
 }

@@ -23,8 +23,8 @@
 class HeapTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    logging_set_level("WARN");
-//    logging_enable("heap");
+    logging_set_level("INFO");
+    logging_enable("heap");
 //    logging_enable("file");
 //    heap_report();
   }
@@ -135,13 +135,12 @@ TEST_F(HeapTest, list_with_strings_as_root) {
   heap_register_root(list);
   str_t *s = str_copy_chars("elem 1");
   datalist_push(list, s);
-  datalist_push(list, str_copy_chars("elem 2"));
-  datalist_push(list, str_copy_chars("elem 3"));
-  datalist_push(list, str_copy_chars("elem 4"));
-  datalist_push(list, str_copy_chars("elem 5"));
-
+  datalist_push(list, data_set_free(str_copy_chars("elem 2")));
+  datalist_push(list, data_set_free(str_copy_chars("elem 3")));
+  datalist_push(list, data_set_free(str_copy_chars("elem 4")));
+  datalist_push(list, data_set_free(str_copy_chars("elem 5")));
+  data_set_free(s);
   heap_gc();
   ASSERT_TRUE(((data_t *) list)->is_live);
   ASSERT_TRUE(((data_t *) s)->is_live);
 }
-

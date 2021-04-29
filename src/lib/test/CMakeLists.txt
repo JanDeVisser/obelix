@@ -23,8 +23,8 @@
 #target_link_libraries(readfile oblcore ${SYSLIBS})
 
 add_executable(coretest
-        listtest.cpp
         heaptest.cpp
+        listtest.cpp
         nametest.cpp
         strtest.h
         strcreate.cpp

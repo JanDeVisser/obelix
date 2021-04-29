@@ -15,6 +15,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
+#include <pthread.h>
+#include <time.h>
+
 #include <data.h>
 #include <heap.h>
 #include <list.h>
@@ -42,16 +46,34 @@ typedef struct _block_ptr {
 } __attribute__((aligned(16))) block_ptr_t;
 
 typedef struct _heap {
-  size_t        pagesize;
-  size_t        pages;
-  heap_page_t  *first;
-  heap_page_t  *last;
-  block_ptr_t  *roots;
+  size_t         pagesize;
+  size_t         pages;
+  heap_page_t   *first;
+  heap_page_t   *last;
+  block_ptr_t   *roots;
+  unsigned long  allocations_since_last_gc;
+  unsigned long  allocated_bytes_since_last_gc;
 } __attribute__((aligned(64))) heap_t;
 
 /* ----------------------------------------------------------------------- */
 
 /* ----------------------------------------------------------------------- */
+
+#define BLOCK_DEAD           0x00u
+#define BLOCK_ALIVE_HERDED   0x01u
+#define BLOCK_ALIVE_SHEPARD  0x02u
+#define BLOCK_ALIVE_PENNED   0x04u
+#define BLOCK_UNPENNED       ~BLOCK_ALIVE_PENNED
+
+#define BLOCK_IS_HERDED(b)   ((b)->is_live & BLOCK_ALIVE_HERDED)
+#define BLOCK_IS_SHEPARD(b)  ((b)->is_live & BLOCK_ALIVE_SHEPARD)
+#define BLOCK_IS_PENNED(b)   ((b)->is_live & BLOCK_ALIVE_PENNED)
+#define BLOCK_UNPEN(b)       ((b)->is_live = ((b)->is_live & BLOCK_UNPENNED)|BLOCK_ALIVE_HERDED)
+
+static void            _heap_lock_init();
+static void            _heap_lock();
+static void            _heap_unlock();
+static void *          _heap_gc_thread(void *);
 
 static heap_page_t *   _heap_page_create(size_t, size_t, size_t);
 static void *          _heap_page_checkout(heap_page_t *);
@@ -73,7 +95,75 @@ static void            _heap_sweep();
 
 static void *          _data_add_live_block(free_block_t *, void *);
 
-static int heap_debug = 0;
+static int             heap_debug = 0;
+static pthread_mutex_t _mutex;
+static pthread_once_t  _init = PTHREAD_ONCE_INIT;
+static pthread_t       _gc_thread;
+
+static heap_t the_heap = {
+  .pagesize = 0,
+  .pages = 0,
+  .first = NULL,
+  .last = NULL,
+  .roots = NULL,
+  .allocations_since_last_gc = 0L,
+  .allocated_bytes_since_last_gc = 0L,
+};
+
+/* ------------------------------------------------------------------------ */
+
+void _heap_lock_init() {
+  pthread_mutexattr_t mutex_attr;
+  pthread_attr_t      thr_attr;
+
+  logging_register_module(heap);
+  debug(heap, "Initializing heap multi-threading infrastructure");
+  pthread_mutexattr_init(&mutex_attr);
+  pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+  if ((errno = pthread_mutex_init(&_mutex, &mutex_attr))) {
+    fprintf(stderr, "Error initializing logging mutex: %s\n", strerror(errno));
+    abort();
+  }
+  pthread_mutexattr_destroy(&mutex_attr);
+
+  pthread_attr_init(&thr_attr);
+  pthread_create(&_gc_thread, &thr_attr, _heap_gc_thread, NULL);
+  pthread_attr_destroy(&thr_attr);
+}
+
+void _heap_lock() {
+  errno = pthread_mutex_lock(&_mutex);
+  if (errno) {
+    fprintf(stderr, "Error locking heap mutex: %s\n", strerror(errno));
+    abort();
+  }
+}
+
+void _heap_unlock() {
+  errno = pthread_mutex_unlock(&_mutex);
+  if (errno) {
+    fprintf(stderr, "Error locking heap mutex: %s\n", strerror(errno));
+    abort();
+  }
+}
+
+_Noreturn void * _heap_gc_thread(_unused_ void *ctx) {
+  struct timespec ts;
+  debug(heap, "GC thread started");
+  for (;;) {
+    ts.tv_sec = 1;
+    ts.tv_nsec = 0;
+    (void) nanosleep(&ts, NULL);
+    _heap_init();
+    _heap_lock();
+    if ((the_heap.pagesize > 0) && (the_heap.allocations_since_last_gc > 1000)) {
+      debug(heap, "GC thread: %d allocations since last GC", the_heap.allocations_since_last_gc);
+      heap_gc();
+    }
+    _heap_unlock();
+  }
+//  return NULL;
+}
 
 /* -- F R E E _ B L O C k ------------------------------------------------ */
 
@@ -103,7 +193,7 @@ static heap_page_t * _heap_page_create(size_t index, size_t pagesize, size_t blo
   for (prev_blockptr = NULL, ix = 0, blockptr = (free_block_t *) (raw_page + blocksize);
        ix < blocks;
        prev_blockptr = blockptr, ix++, blockptr = ((void *) blockptr) + blocksize) {
-    blockptr->is_live = 0;
+    blockptr->is_live = BLOCK_DEAD;
     blockptr->marked = 0;
     blockptr->cookie = FREEBLOCK_COOKIE;
     if (prev_blockptr) {
@@ -124,7 +214,7 @@ static void * _heap_page_checkout(heap_page_t *page) {
     assert(ret->cookie == FREEBLOCK_COOKIE);
     page->freelist = ret->next;
     ret->cookie = 0;
-    ret->is_live = 1;
+    ret->is_live = BLOCK_ALIVE_PENNED;
   }
   return ret;
 }
@@ -142,7 +232,7 @@ static int _heap_page_has_block(heap_page_t *page, void *block) {
 }
 
 static void _heap_page_destroy_block(heap_page_t *page, void *block) {
-  data_t       *data;
+  data_t *data;
 
   if (block && ((free_block_t *) block)->is_live && data_is_data(block)) {
     data = data_as_data(block);
@@ -165,7 +255,7 @@ static free_block_t  * _heap_page_free_block(heap_page_t *page, void *block) {
   debug(heap, "Returning block %p to page %d, blocksize %d", block, page->index, page->block_size);
   _heap_page_destroy_block(page, block);
   free_block = (free_block_t *) block;
-  free_block->is_live = 0;
+  free_block->is_live = BLOCK_DEAD;
   free_block->marked = 0;
   free_block->cookie = FREEBLOCK_COOKIE;
   free_block->next = page->freelist;
@@ -189,7 +279,7 @@ static void _heap_page_sweep(heap_page_t *page) {
 
   for (block = vp + page->block_size; block < vp + page->page_size; block += page->block_size) {
     free_block = (free_block_t *) block;
-    if (free_block->is_live && !free_block->marked) {
+    if ((BLOCK_IS_HERDED(free_block) && !free_block->marked) || BLOCK_IS_PENNED(free_block)) {
       _heap_page_free_block(page, free_block);
     }
   }
@@ -227,25 +317,26 @@ static size_t _heap_page_report(heap_page_t *page) {
 
 /* -- H E A P ------------------------------------------------------------ */
 
-static heap_t the_heap = { .pagesize = 0, .pages = 0, .first = NULL, .last = NULL, .roots = NULL };
-
 static void _heap_init() {
-  size_t       min_blocksize = 1;
-  size_t       blocksize;
-  int          ix;
+  size_t min_blocksize = 1;
+  size_t blocksize;
+  int    ix;
 
   if (the_heap.pagesize > 0) {
     return;
   }
+
+  pthread_once(&_init, _heap_lock_init);
+  _heap_lock();
   the_heap.pagesize = (16 * 1024);
-  logging_register_module(heap);
-  debug(heap, "Initalizing the heap");
+  debug(heap, "Initializing the heap");
   for (; min_blocksize < sizeof(data_t); min_blocksize *= 2);
   for (blocksize = min_blocksize; blocksize <= 256; blocksize *= 2) {
     for (ix = 0; ix < 4; ix++) {
       _heap_new_page(blocksize);
     }
   }
+  _heap_unlock();
 }
 
 static heap_page_t * _heap_new_page(size_t blocksize) {
@@ -289,6 +380,8 @@ static void * _data_add_live_block(free_block_t *block, _unused_ void *ctx) {
   if (block && (data_is_data(block) || _heap_find_page_for(block))) {
     if (!block->marked) {
       block->marked = 1;
+      BLOCK_UNPEN(block);
+      block->is_live |= BLOCK_ALIVE_HERDED;
       if (data_is_data(block)) {
         data = data_as_data(block);
         ctx = data_reduce_children(data, (reduce_t) _data_add_live_block, ctx);
@@ -342,6 +435,10 @@ extern void * heap_allocate(size_t size) {
   _heap_init();
   assert(size >= sizeof(data_t));
   debug(heap, "Allocating block of size %d", size);
+  _heap_lock();
+  if (the_heap.allocations_since_last_gc > 1000) {
+    heap_gc();
+  }
   for (page = the_heap.first; page; page = page->next_page) {
     if (page->freelist && (page->block_size >= size) && (page->block_size < smallest)) {
       smallest_page = page;
@@ -354,7 +451,18 @@ extern void * heap_allocate(size_t size) {
     page = _heap_new_page_for_size(size);
   }
   ret = _heap_page_checkout(page);
+  the_heap.allocations_since_last_gc++;
+  the_heap.allocated_bytes_since_last_gc += page->block_size;
+  _heap_unlock();
   return ret;
+}
+
+extern void heap_unpen(void *block) {
+  free_block_t *free_block = (free_block_t *) block;
+
+  if (free_block) {
+    BLOCK_UNPEN(free_block);
+  }
 }
 
 extern void heap_deallocate(void *block) {
@@ -363,11 +471,13 @@ extern void heap_deallocate(void *block) {
 
   _heap_init();
   debug(heap, "Deallocating block %p", block);
+  _heap_lock();
   heap_unregister_root(block);
   page = _heap_find_page_for(block);
   if (page) {
     _heap_page_free_block(page, block);
   }
+  _heap_unlock();
 }
 
 extern void heap_register_root(void *block) {
@@ -375,11 +485,14 @@ extern void heap_register_root(void *block) {
   free_block_t *free_block = (free_block_t *) block;
   
   _heap_init();
-  free_block->is_live |= (unsigned char) 0x02;
+  free_block->is_live |= BLOCK_ALIVE_SHEPARD;
+  BLOCK_UNPEN(free_block);
   root = NEW(block_ptr_t);
   root->block = block;
+  _heap_lock();
   root->next = the_heap.roots;
   the_heap.roots = root;
+  _heap_unlock();
 }
 
 extern void heap_unregister_root(void *block) {
@@ -392,9 +505,10 @@ extern void heap_unregister_root(void *block) {
    * an if block.
    */
   _heap_init();
-  if (!(free_block->is_live & (unsigned char) 0x02)) {
+  if (!BLOCK_IS_SHEPARD(free_block)) {
     return;
   }
+  _heap_lock();
   for (prev = &the_heap.roots; *prev; prev = &(cur->next)) {
     cur = *prev;
     if (cur->block == block) {
@@ -403,7 +517,8 @@ extern void heap_unregister_root(void *block) {
       break;
     }
   }
-  free_block->is_live &= (unsigned char) ~((unsigned char) 0x02);
+  _heap_unlock();
+  free_block->is_live &= ~BLOCK_ALIVE_SHEPARD;
 }
 
 extern void heap_gc() {
@@ -412,9 +527,15 @@ extern void heap_gc() {
   _heap_init();
   info("Garbage collection");
   ts = log_timestamp_start(heap);
-  _heap_unmark();
-  _heap_find_and_mark_all_live_blocks();
-  _heap_sweep();
+  _heap_lock();
+  if (the_heap.pagesize > 0) {
+    _heap_unmark();
+    _heap_find_and_mark_all_live_blocks();
+    _heap_sweep();
+    the_heap.allocations_since_last_gc = 0;
+    the_heap.allocated_bytes_since_last_gc = 0;
+  }
+  _heap_unlock();
   log_timestamp_end(heap, ts, "GC Sweep took ")
 }
 
@@ -430,6 +551,7 @@ extern void heap_destroy() {
     heap_report();
   }
 
+  _heap_lock();
   while (the_heap.roots) {
     ptr = the_heap.roots;
     the_heap.roots = ptr->next;
@@ -444,6 +566,9 @@ extern void heap_destroy() {
   the_heap.roots = NULL;
   the_heap.pages = 0;
   the_heap.pagesize = 0;
+  the_heap.allocations_since_last_gc = 0L;
+  the_heap.allocated_bytes_since_last_gc = 0L;
+  _heap_unlock();
 }
 
 extern void heap_report() {

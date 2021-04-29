@@ -52,9 +52,9 @@ TEST_F(StrTest, ReassignNullString) {
   char *dest;
 
   ASSERT_TRUE(str && str_is_null(str));
-  ASSERT_EQ(((data_t *) str)->is_live, 1);
+  ASSERT_TRUE(((data_t *) str)->is_live);
   dest = str_reassign(str);
-  ASSERT_EQ(((data_t *) str)->is_live, 0);
+  ASSERT_FALSE(((data_t *) str)->is_live);
   ASSERT_FALSE(dest);
 }
 
@@ -68,7 +68,7 @@ TEST_F(StrTest, Append) {
   ASSERT_EQ(str, appended);
   ASSERT_STREQ(str->buffer, TEST_STRING);
   ASSERT_GE(str->bufsize, TEST_STRING_LEN + 1);
-  data_release(append);
+  data_set_free(append);
 }
 
 TEST_F(StrTest, AppendToStatic) {
@@ -76,7 +76,7 @@ TEST_F(StrTest, AppendToStatic) {
   str_t *append = str_wrap(DIGITS);
   str_t *appended = str_append(str, append);
   ASSERT_FALSE(appended);
-  data_release(append);
+  data_set_free(append);
 }
 
 TEST_F(StrTest, AppendNull) {
@@ -94,7 +94,7 @@ TEST_F(StrTest, AppendNullStr) {
   ASSERT_TRUE(appended);
   ASSERT_EQ(str, appended);
   ASSERT_STREQ(str->buffer, TEST_STRING);
-  data_release(append);
+  data_set_free(append);
 }
 
 TEST_F(StrTest, AppendToNull) {
@@ -110,7 +110,7 @@ TEST_F(StrTest, AppendToNullStr) {
   ASSERT_TRUE(appended);
   ASSERT_EQ(str, appended);
   ASSERT_STREQ(str->buffer, TEST_STRING);
-  data_release(append);
+  data_set_free(append);
 }
 
 /* -- str_append_chars --------------------------------------------------- */

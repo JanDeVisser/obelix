@@ -53,16 +53,18 @@ extern void                data_free(data_t *);
 extern void                data_destroy(data_t *);
 
 extern void                _data_release(data_t *);
-#define data_release(d)    _data_release(data_as_data(d));
+#define data_release(d)    _data_release(data_as_data((d)))
+extern data_t *            _data_set_free(data_t *);
+#define data_set_free(d)   _data_set_free(data_as_data((d)))
 extern void                _data_register(data_t *);
-#define data_register(d)   _data_register(data_as_data(d));
+#define data_register(d)   _data_register(data_as_data((d)))
 
 
 extern unsigned int        data_hash(data_t *);
 extern data_t *            data_len(data_t *);
 extern char *              _data_tostring(data_t *);
 extern str_semantics_t     _data_string_semantics(data_t *);
-#define data_string_semantics(d)   _data_string_semantics(data_as_data((d)));
+#define data_string_semantics(d)   _data_string_semantics(data_as_data((d)))
 extern data_t *            _data_set_string_semantics(data_t *, str_semantics_t);
 #define data_set_string_semantics(d, s) _data_set_string_semantics(data_as_data((d)), (s))
 extern data_t *            _data_invalidate_string(data_t *);

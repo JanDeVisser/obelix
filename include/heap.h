@@ -7,7 +7,7 @@
  * the Free Software Foundation, version 3.
  *
  * This program is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
  * General Public License for more details.
  *
@@ -25,6 +25,7 @@ extern "C" {
 #define FREEBLOCK_COOKIE   ((unsigned short int) 0xDEADBEEF)
 
 extern void *heap_allocate(size_t);
+extern void heap_unpen(void *);
 extern void heap_deallocate(void *);
 extern void heap_register_root(void *);
 extern void heap_unregister_root(void *);
