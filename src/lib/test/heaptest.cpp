@@ -24,7 +24,7 @@ class HeapTest : public ::testing::Test {
 protected:
   void SetUp() override {
     logging_set_level("INFO");
-    logging_enable("heap");
+//    logging_enable("heap");
 //    logging_enable("file");
 //    heap_report();
   }
@@ -76,17 +76,27 @@ TEST_F(HeapTest, deallocate) {
   ASSERT_TRUE(buf5);
 
   heap_deallocate(buf3);
-  ASSERT_FALSE(((data_t *) buf3)->is_live);
-  ASSERT_EQ(((data_t *) buf3)->cookie, FREEBLOCK_COOKIE);
+  ASSERT_FALSE(((heap_block_t *) buf3)->is_live);
+  ASSERT_EQ(((heap_block_t *) buf3)->cookie, FREEBLOCK_COOKIE);
 }
 
-TEST_F(HeapTest, gc) {
+TEST_F(HeapTest, DontGcPennedBlock) {
   void *buf = allocate(0);
   ASSERT_TRUE(buf);
 
   heap_gc();
-  ASSERT_FALSE(((data_t *) buf)->is_live);
-  ASSERT_EQ(((data_t *) buf)->cookie, FREEBLOCK_COOKIE);
+  ASSERT_TRUE(((heap_block_t *) buf)->is_live);
+  ASSERT_EQ(((heap_block_t *) buf)->cookie, 0);
+}
+
+TEST_F(HeapTest, GcUnpennedBlock) {
+  void *buf = allocate(0);
+  ASSERT_TRUE(buf);
+  heap_unpen(buf);
+
+  heap_gc();
+  ASSERT_FALSE(((heap_block_t *) buf)->is_live);
+  ASSERT_EQ(((heap_block_t *) buf)->cookie, FREEBLOCK_COOKIE);
 }
 
 TEST_F(HeapTest, gc_with_root) {
@@ -95,8 +105,8 @@ TEST_F(HeapTest, gc_with_root) {
   heap_register_root(buf);
 
   heap_gc();
-  ASSERT_TRUE(((data_t *) buf)->is_live);
-  ASSERT_TRUE(((data_t *) buf)->marked);
+  ASSERT_TRUE(((heap_block_t *) buf)->is_live);
+  ASSERT_TRUE(((heap_block_t *) buf)->marked);
 }
 
 TEST_F(HeapTest, create_data) {
@@ -108,39 +118,41 @@ TEST_F(HeapTest, create_data) {
 TEST_F(HeapTest, create_file) {
   file_t *f = file_open("/etc/passwd");
   ASSERT_TRUE(f);
+  heap_unpen(f);
 
   heap_gc();
-  ASSERT_FALSE(((data_t *) f)->is_live);
-  ASSERT_EQ(((data_t *) f)->cookie, FREEBLOCK_COOKIE);
+  ASSERT_FALSE(((heap_block_t *) f)->is_live);
+  ASSERT_EQ(((heap_block_t *) f)->cookie, FREEBLOCK_COOKIE);
 }
 
-TEST_F(HeapTest, list_with_strings) {
+TEST_F(HeapTest, ListWithStrings) {
   datalist_t *list = datalist_create(NULL);
   ASSERT_TRUE(list);
-  str_t *s = str_copy_chars("elem 1");
+  str_t *s = str("elem 1");
   datalist_push(list, s);
-  datalist_push(list, str_copy_chars("elem 2"));
-  datalist_push(list, str_copy_chars("elem 3"));
-  datalist_push(list, str_copy_chars("elem 4"));
-  datalist_push(list, str_copy_chars("elem 5"));
+  datalist_push(list, str("elem 2"));
+  datalist_push(list, str("elem 3"));
+  datalist_push(list, str("elem 4"));
+  datalist_push(list, str("elem 5"));
+  heap_unpen(list);
 
   heap_gc();
-  ASSERT_FALSE(((data_t *) list)->is_live);
-  ASSERT_FALSE(((data_t *) s)->is_live);
+  ASSERT_FALSE(((heap_block_t *) list)->is_live);
+  ASSERT_TRUE(((heap_block_t *) s)->is_live);
 }
 
 TEST_F(HeapTest, list_with_strings_as_root) {
   datalist_t *list = datalist_create(NULL);
   ASSERT_TRUE(list);
   heap_register_root(list);
-  str_t *s = str_copy_chars("elem 1");
+  str_t *s = str("elem 1");
   datalist_push(list, s);
-  datalist_push(list, data_set_free(str_copy_chars("elem 2")));
-  datalist_push(list, data_set_free(str_copy_chars("elem 3")));
-  datalist_push(list, data_set_free(str_copy_chars("elem 4")));
-  datalist_push(list, data_set_free(str_copy_chars("elem 5")));
+  datalist_push(list, data_set_free(str("elem 2")));
+  datalist_push(list, data_set_free(str("elem 3")));
+  datalist_push(list, data_set_free(str("elem 4")));
+  datalist_push(list, data_set_free(str("elem 5")));
   data_set_free(s);
   heap_gc();
-  ASSERT_TRUE(((data_t *) list)->is_live);
-  ASSERT_TRUE(((data_t *) s)->is_live);
+  ASSERT_TRUE(((heap_block_t *) list)->is_live);
+  ASSERT_TRUE(((heap_block_t *) s)->is_live);
 }

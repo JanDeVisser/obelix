@@ -74,7 +74,7 @@ static int             _heap_page_has_block(heap_page_t *, void *);
 static void            _heap_page_destroy_block(heap_page_t *, void *);
 static heap_block_t  * _heap_page_free_block(heap_page_t *, void *);
 static void            _heap_page_unmark(heap_page_t *);
-static void            _heap_page_sweep(heap_page_t *);
+static int             _heap_page_sweep(heap_page_t *);
 static heap_page_t *   _heap_page_free(heap_page_t *);
 static size_t          _heap_page_report(heap_page_t *);
 
@@ -84,7 +84,7 @@ static heap_page_t *   _heap_new_page_for_size(size_t);
 static heap_page_t *   _heap_find_page_for(void *block);
 static void            _heap_unmark();
 static void            _heap_find_and_mark_all_live_blocks();
-static void            _heap_sweep();
+static int             _heap_sweep();
 
 static void *          _data_add_live_block(heap_block_t *, void *);
 
@@ -267,17 +267,20 @@ static void _heap_page_unmark(heap_page_t *page) {
   }
 }
 
-static void _heap_page_sweep(heap_page_t *page) {
+static int _heap_page_sweep(heap_page_t *page) {
+  int           freed = 0;
   void         *block;
   void         *vp = (void *) page;
   heap_block_t *free_block;
 
   for (block = vp + page->block_size; block < vp + page->page_size; block += page->block_size) {
     free_block = (heap_block_t *) block;
-    if ((BLOCK_IS_HERDED(free_block) && !free_block->marked) || BLOCK_IS_PENNED(free_block)) {
+    if (!(free_block->marked || BLOCK_IS_PENNED(free_block))) {
       _heap_page_free_block(page, free_block);
+      freed++;
     }
   }
+  return freed;
 }
 
 static heap_page_t * _heap_page_free(heap_page_t *page) {
@@ -403,12 +406,14 @@ static void _heap_find_and_mark_all_live_blocks() {
   }
 }
 
-static void _heap_sweep() {
+static int _heap_sweep() {
+  int          freed = 0;
   heap_page_t *page;
   
   for (page = the_heap.first; page; page = page->next_page) {
-    _heap_page_sweep(page);
+    freed += _heap_page_sweep(page);
   }
+  return freed;
 }
 
 static void _heap_unmark() {
@@ -517,6 +522,7 @@ extern void heap_unregister_root(void *block) {
 }
 
 extern void heap_gc() {
+  int              freed = 0;
   log_timestamp_t *ts;
 
   _heap_init();
@@ -526,7 +532,8 @@ extern void heap_gc() {
   if (the_heap.pagesize > 0) {
     _heap_unmark();
     _heap_find_and_mark_all_live_blocks();
-    _heap_sweep();
+    freed = _heap_sweep();
+    info("Freed %d blocks", freed);
     the_heap.allocations_since_last_gc = 0;
     the_heap.allocated_bytes_since_last_gc = 0;
   }
