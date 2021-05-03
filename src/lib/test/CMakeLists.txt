@@ -30,7 +30,9 @@ add_executable(coretest
         strtest.h
         strcreate.cpp
         strmutate.cpp
-        straccess.cpp)
+        straccess.cpp
+        strbuffer.cpp
+)
 
 target_link_libraries(coretest ${GTEST_LDFLAGS} obltest oblcore ${SYSLIBS})
 target_compile_options(coretest PUBLIC ${GTEST_CFLAGS})

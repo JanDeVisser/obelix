@@ -23,130 +23,130 @@
 #include <list.h>
 
 TEST_F(StrTest, Create) {
-  str = str_create(10);
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str_is_null(str));
-  ASSERT_EQ(strcmp(str->buffer, ""), 0);
-  ASSERT_EQ(str->bufsize, 10);
+  string = str_create(10);
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(str_is_null(string));
+  ASSERT_STREQ(string->buffer, "");
+  ASSERT_EQ(string->bufsize, 10);
 }
 
 TEST_F(StrTest, CopyChars) {
-  str = str_copy_chars(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(strcmp(str_chars(str), TEST_STRING), 0);
-  ASSERT_EQ(str->bufsize, TEST_STRING_LEN + 1);
+  string = str(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(strcmp(str_chars(string), TEST_STRING), 0);
+  ASSERT_EQ(string->bufsize, TEST_STRING_LEN + 1);
 }
 
 TEST_F(StrTest, CopyCharsNull) {
-  str = str_copy_chars(NULL);
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str->buffer);
-  ASSERT_TRUE(str_is_null(str));
+  string = str(NULL);
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(string->buffer);
+  ASSERT_TRUE(str_is_null(string));
 }
 
 TEST_F(StrTest, StrWrap) {
-  str = str_wrap(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(str_len(str), TEST_STRING_LEN);
-  ASSERT_EQ(str->buffer, TEST_STRING);
-  ASSERT_EQ(str->bufsize, 0);
+  string = str_wrap(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(str_len(string), TEST_STRING_LEN);
+  ASSERT_EQ(string->buffer, TEST_STRING);
+  ASSERT_EQ(string->bufsize, 0);
 }
 
 TEST_F(StrTest, StrWrapRelease) {
-  str = str_wrap(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(str_len(str), TEST_STRING_LEN);
-  ASSERT_EQ(str->buffer, TEST_STRING);
-  ASSERT_EQ(str->bufsize, 0);
-  data_release(str);
-  ASSERT_EQ(((data_t *) str)->is_live, 0);
+  string = str_wrap(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(str_len(string), TEST_STRING_LEN);
+  ASSERT_EQ(string->buffer, TEST_STRING);
+  ASSERT_EQ(string->bufsize, 0);
+  data_release(string);
+  ASSERT_EQ(((data_t *) string)->is_live, 0);
 }
 
 TEST_F(StrTest, StrWrapNull) {
-  str = str_wrap(NULL);
-  ASSERT_TRUE(str);
-  ASSERT_TRUE(str_is_null(str));
+  string = str_wrap(NULL);
+  ASSERT_TRUE(string);
+  ASSERT_TRUE(str_is_null(string));
 }
 
 TEST_F(StrTest, StrAdopt) {
   char *copy = strdup(TEST_STRING);
-  str = str_adopt(copy);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(strcmp(str_chars(str), TEST_STRING), 0);
-  ASSERT_EQ(str->bufsize, TEST_STRING_LEN + 1);
+  string = str_adopt(copy);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(strcmp(str_chars(string), TEST_STRING), 0);
+  ASSERT_EQ(string->bufsize, TEST_STRING_LEN + 1);
 }
 
 TEST_F(StrTest, StrAdoptNull) {
-  str = str_adopt(NULL);
-  ASSERT_TRUE(str);
-  ASSERT_TRUE(str_is_null(str));
+  string = str_adopt(NULL);
+  ASSERT_TRUE(string);
+  ASSERT_TRUE(str_is_null(string));
 }
 
 TEST_F(StrTest, StrCopyNChars) {
-  str = str_copy_nchars(TEST_STRING, 10);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(strncmp(str_chars(str), TEST_STRING, 10), 0);
-  ASSERT_EQ(str->bufsize, 11);
+  string = str_n(TEST_STRING, 10);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(strncmp(str_chars(string), TEST_STRING, 10), 0);
+  ASSERT_EQ(string->bufsize, 11);
 }
 
 TEST_F(StrTest, StrCopyNCharsNIsZero) {
-  str = str_copy_nchars(TEST_STRING, 0);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(str->buffer[0], 0);
-  ASSERT_EQ(str->bufsize, 1);
-  ASSERT_EQ(str_len(str), 0);
+  string = str_n(TEST_STRING, 0);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(string->buffer[0], 0);
+  ASSERT_EQ(string->bufsize, 1);
+  ASSERT_EQ(str_len(string), 0);
 }
 
 TEST_F(StrTest, StrCopyNCharsNIsNegative) {
-  str = str_copy_nchars(TEST_STRING, -2);
-  ASSERT_TRUE(str);
-  ASSERT_STREQ(str->buffer, TEST_STRING);
+  string = str_n(TEST_STRING, -2);
+  ASSERT_TRUE(string);
+  ASSERT_STREQ(string->buffer, TEST_STRING);
 }
 
 TEST_F(StrTest, StrCopyNCharsNExactStringLength) {
-  str = str_copy_nchars(TEST_STRING, TEST_STRING_LEN);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(strcmp(str_chars(str), TEST_STRING), 0);
-  ASSERT_EQ(str->bufsize, TEST_STRING_LEN + 1);
+  string = str_n(TEST_STRING, TEST_STRING_LEN);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(strcmp(str_chars(string), TEST_STRING), 0);
+  ASSERT_EQ(string->bufsize, TEST_STRING_LEN + 1);
 }
 
 TEST_F(StrTest, StrCopyNCharsNLargerThanStringLength) {
-  str = str_copy_nchars(TEST_STRING, 40);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(strcmp(str_chars(str), TEST_STRING), 0);
-  ASSERT_EQ(str->bufsize, TEST_STRING_LEN + 1);
+  string = str_n(TEST_STRING, 40);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(strcmp(str_chars(string), TEST_STRING), 0);
+  ASSERT_EQ(string->bufsize, TEST_STRING_LEN + 1);
 }
 
 /* -- str_from_data ------------------------------------------------------ */
 
 TEST_F(StrTest, FromDataStr) {
   data = data_create(String, TEST_STRING);
-  str = str_from_data(data);
-  ASSERT_TRUE(str);
-  ASSERT_EQ((data_t *) str, data);
-  ASSERT_EQ(strcmp(str_chars(str), TEST_STRING), 0);
-  ASSERT_EQ(str->bufsize, TEST_STRING_LEN + 1);
+  string = str_from_data(data);
+  ASSERT_TRUE(string);
+  ASSERT_EQ((data_t *) string, data);
+  ASSERT_EQ(strcmp(str_chars(string), TEST_STRING), 0);
+  ASSERT_EQ(string->bufsize, TEST_STRING_LEN + 1);
 }
 
 TEST_F(StrTest, FromDataInt) {
   data = int_to_data(42);
-  str = str_from_data(data);
-  ASSERT_TRUE(str);
-  ASSERT_NE((data_t *) str, data);
-  ASSERT_EQ(strcmp(str_chars(str), "42"), 0);
-  ASSERT_EQ(str->bufsize, 3);
+  string = str_from_data(data);
+  ASSERT_TRUE(string);
+  ASSERT_NE((data_t *) string, data);
+  ASSERT_EQ(strcmp(str_chars(string), "42"), 0);
+  ASSERT_EQ(string->bufsize, 3);
 }
 
 TEST_F(StrTest, FromDataNull) {
-  str = str_from_data(NULL);
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str_chars(str));
+  string = str_from_data(NULL);
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(str_chars(string));
 }
 
 TEST_F(StrTest, FromDataDataNull) {
-  str = str_from_data(data_null());
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str_chars(str));
+  string = str_from_data(data_null());
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(str_chars(string));
 }
 
 /* -- str_printf --------------------------------------------------------- */
@@ -154,16 +154,16 @@ TEST_F(StrTest, FromDataDataNull) {
 TEST_F(StrTest, Printf) {
   char *s;
   asprintf(&s, FMT, 1, 1, 2);
-  str = str_printf(FMT, 1, 1, 2);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(strcmp(str_chars(str), s), 0);
-  ASSERT_EQ(str->bufsize, strlen(s) + 1);
+  string = str_printf(FMT, 1, 1, 2);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(strcmp(str_chars(string), s), 0);
+  ASSERT_EQ(string->bufsize, strlen(s) + 1);
   free(s);
 }
 
 TEST_F(StrTest, PrintfNull) {
-  str = str_printf(NULL, 1, 1, 2);
-  ASSERT_FALSE(str);
+  string = str_printf(NULL, 1, 1, 2);
+  ASSERT_FALSE(string);
 }
 
 /* -- str_vprintf -------------------------------------------------------- */
@@ -177,10 +177,10 @@ TEST_F(StrTest, VPrintf) {
     return str_vprintf(fmt, args);
     va_end(args);
   };
-  str = va_list_maker(FMT, 1, 1, 2);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(strcmp(str_chars(str), s), 0);
-  ASSERT_EQ(str->bufsize, strlen(s) + 1);
+  string = va_list_maker(FMT, 1, 1, 2);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(strcmp(str_chars(string), s), 0);
+  ASSERT_EQ(string->bufsize, strlen(s) + 1);
   free(s);
 }
 
@@ -191,25 +191,25 @@ TEST_F(StrTest, VPrintfNull) {
     return str_vprintf(fmt, args);
     va_end(args);
   };
-  str = va_list_maker(NULL, 1, 1, 2);
-  ASSERT_FALSE(str);
+  string = va_list_maker(NULL, 1, 1, 2);
+  ASSERT_FALSE(string);
 }
 
 /* -- str_duplicate ------------------------------------------------------ */
 
 TEST_F(StrTest, Duplicate) {
   str_t *s = str_wrap(TEST_STRING);
-  str = str_duplicate(s);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(strcmp(str_chars(str), TEST_STRING), 0);
-  ASSERT_EQ(str->bufsize, TEST_STRING_LEN + 1);
+  string = str_duplicate(s);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(strcmp(str_chars(string), TEST_STRING), 0);
+  ASSERT_EQ(string->bufsize, TEST_STRING_LEN + 1);
   str_free(s);
 }
 
 TEST_F(StrTest, DuplicateNull) {
-  str = str_duplicate(NULL);
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str_chars(str));
+  string = str_duplicate(NULL);
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(str_chars(string));
 }
 
 /* -- str_deepcopy ------------------------------------------------------- */
@@ -220,80 +220,80 @@ TEST_F(StrTest, DuplicateNull) {
 
 TEST_F(StrTest, DeepCopy) {
   str_t *s = str_wrap(TEST_STRING);
-  str = str_deepcopy(s);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(strcmp(str_chars(str), TEST_STRING), 0);
-  ASSERT_EQ(str->bufsize, TEST_STRING_LEN + 1);
+  string = str_deepcopy(s);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(strcmp(str_chars(string), TEST_STRING), 0);
+  ASSERT_EQ(string->bufsize, TEST_STRING_LEN + 1);
   str_free(s);
 }
 
 TEST_F(StrTest, DeepCopyNull) {
-  str = str_deepcopy(NULL);
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str_chars(str));
+  string = str_deepcopy(NULL);
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(str_chars(string));
 }
 
 /* -- str_slice ---------------------------------------------------------- */
 
 TEST_F(StrTest, Slice) {
-  str = str_wrap(TEST_STRING);
-  str_t *slice = str_slice(str, 10, 20);
+  string = str_wrap(TEST_STRING);
+  str_t *slice = str_slice(string, 10, 20);
   ASSERT_EQ(strcmp(slice->buffer, TEST_SLICE), 0);
   data_release(slice);
 }
 
 TEST_F(StrTest, SliceStart) {
-  str = str_wrap(TEST_STRING);
-  str_t *slice = str_slice(str, 0, 10);
+  string = str_wrap(TEST_STRING);
+  str_t *slice = str_slice(string, 0, 10);
   ASSERT_EQ(strcmp(slice->buffer, TEST_SLICE_START), 0);
   data_release(slice);
 }
 
 TEST_F(StrTest, SliceEnd) {
-  str = str_wrap(TEST_STRING);
-  str_t *slice = str_slice(str, 26, 36);
+  string = str_wrap(TEST_STRING);
+  str_t *slice = str_slice(string, 26, 36);
   ASSERT_EQ(strcmp(slice->buffer, TEST_SLICE_END), 0);
   data_release(slice);
 }
 
 TEST_F(StrTest, SliceBeforeStart) {
-  str = str_wrap(TEST_STRING);
-  str_t *slice = str_slice(str, -10, 10);
+  string = str_wrap(TEST_STRING);
+  str_t *slice = str_slice(string, -10, 10);
   ASSERT_EQ(strcmp(slice->buffer, TEST_SLICE_START), 0);
   data_release(slice);
 }
 
 TEST_F(StrTest, SliceAfterEnd) {
-  str = str_wrap(TEST_STRING);
-  str_t *slice = str_slice(str, 26, 50);
+  string = str_wrap(TEST_STRING);
+  str_t *slice = str_slice(string, 26, 50);
   ASSERT_EQ(strcmp(slice->buffer, TEST_SLICE_END), 0);
   data_release(slice);
 }
 
 TEST_F(StrTest, SliceOffsetFromEnd) {
-  str = str_wrap(TEST_STRING);
-  str_t *slice = str_slice(str, 10, -16);
+  string = str_wrap(TEST_STRING);
+  str_t *slice = str_slice(string, 10, -16);
   ASSERT_EQ(strcmp(slice->buffer, TEST_SLICE), 0);
   data_release(slice);
 }
 
 TEST_F(StrTest, SliceFromGreaterUpto) {
-  str = str_wrap(TEST_STRING);
-  str_t *slice = str_slice(str, 10, 5);
+  string = str_wrap(TEST_STRING);
+  str_t *slice = str_slice(string, 10, 5);
   ASSERT_EQ(strcmp(slice->buffer, ""), 0);
   data_release(slice);
 }
 
 TEST_F(StrTest, SliceFromEqualsUpto) {
-  str = str_wrap(TEST_STRING);
-  str_t *slice = str_slice(str, 10, 10);
+  string = str_wrap(TEST_STRING);
+  str_t *slice = str_slice(string, 10, 10);
   ASSERT_EQ(strcmp(slice->buffer, ""), 0);
   data_release(slice);
 }
 
 TEST_F(StrTest, SliceUptoOffsetFromEndBeforeFrom) {
-  str = str_wrap(TEST_STRING);
-  str_t *slice = str_slice(str, 10, -28);
+  string = str_wrap(TEST_STRING);
+  str_t *slice = str_slice(string, 10, -28);
   ASSERT_EQ(strcmp(slice->buffer, ""), 0);
   data_release(slice);
 }
@@ -305,9 +305,9 @@ TEST_F(StrTest, SliceNull) {
 }
 
 TEST_F(StrTest, SliceNullStr) {
-  str = str_wrap(NULL);
-  ASSERT_TRUE(str_is_null(str));
-  str_t *slice = str_slice(str, 10, 20);
+  string = str_wrap(NULL);
+  ASSERT_TRUE(str_is_null(string));
+  str_t *slice = str_slice(string, 10, 20);
   ASSERT_TRUE(str_is_null(slice));
   data_release(slice);
 }
@@ -321,9 +321,9 @@ TEST_F(StrTest, Join) {
   list_append(list, (void *) "Quick");
   list_append(list, (void *) "Brown");
   list_append(list, (void *) "Fox");
-  str = str_join(" ", list, _list_reduce);
-  ASSERT_TRUE(str);
-  ASSERT_STREQ(str_chars(str), "The Quick Brown Fox");
+  string = str_join(" ", list, _list_reduce);
+  ASSERT_TRUE(string);
+  ASSERT_STREQ(str_chars(string), "The Quick Brown Fox");
   list_free(list);
 }
 
@@ -334,9 +334,9 @@ TEST_F(StrTest, JoinArray) {
   array_set(arr, 1, (void *) "Quick");
   array_set(arr, 2, (void *) "Brown");
   array_set(arr, 3, (void *) "Fox");
-  str = str_join(" ", arr, array_reduce);
-  ASSERT_TRUE(str);
-  ASSERT_STREQ(str_chars(str), "The Quick Brown Fox");
+  string = str_join(" ", arr, array_reduce);
+  ASSERT_TRUE(string);
+  ASSERT_STREQ(str_chars(string), "The Quick Brown Fox");
   array_free(arr);
 }
 
@@ -347,15 +347,15 @@ TEST_F(StrTest, JoinNullGlue) {
   list_append(list, (void *) "Quick");
   list_append(list, (void *) "Brown");
   list_append(list, (void *) "Fox");
-  str = str_join(NULL, list, _list_reduce);
-  ASSERT_TRUE(str);
-  ASSERT_STREQ(str_chars(str), "TheQuickBrownFox");
+  string = str_join(NULL, list, _list_reduce);
+  ASSERT_TRUE(string);
+  ASSERT_STREQ(str_chars(string), "TheQuickBrownFox");
   list_free(list);
 }
 
 TEST_F(StrTest, JoinNullCollection) {
-  str = str_join(" ", NULL, _list_reduce);
-  ASSERT_FALSE(str);
+  string = str_join(" ", NULL, _list_reduce);
+  ASSERT_FALSE(string);
 }
 
 TEST_F(StrTest, JoinWithNullReducer) {
@@ -365,7 +365,7 @@ TEST_F(StrTest, JoinWithNullReducer) {
   list_append(list, (void *) "Quick");
   list_append(list, (void *) "Brown");
   list_append(list, (void *) "Fox");
-  str = str_join(" ", list, NULL);
-  ASSERT_FALSE(str);
+  string = str_join(" ", list, NULL);
+  ASSERT_FALSE(string);
   list_free(list);
 }

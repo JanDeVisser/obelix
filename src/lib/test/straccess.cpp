@@ -22,21 +22,21 @@
 /* -- str_is_null -------------------------------------------------------- */
 
 TEST_F(StrTest, IsNullStr) {
-  str = str_wrap(NULL);
-  ASSERT_TRUE(str);
-  ASSERT_TRUE(str_is_null(str));
+  string = str_wrap(NULL);
+  ASSERT_TRUE(string);
+  ASSERT_TRUE(str_is_null(string));
 }
 
 TEST_F(StrTest, NotNullStr) {
-  str = str_copy_chars(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str_is_null(str));
+  string = str(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(str_is_null(string));
 }
 
 TEST_F(StrTest, StaticIsNotNullStr) {
-  str = str_wrap(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str_is_null(str));
+  string = str_wrap(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(str_is_null(string));
 }
 
 TEST_F(StrTest, NullIsNotNullStr) {
@@ -46,21 +46,21 @@ TEST_F(StrTest, NullIsNotNullStr) {
 /* -- str_is_static ------------------------------------------------------ */
 
 TEST_F(StrTest, IsStatic) {
-  str = str_wrap(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_TRUE(str_is_static(str));
+  string = str_wrap(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_TRUE(str_is_static(string));
 }
 
 TEST_F(StrTest, NotStatic) {
-  str = str_copy_chars(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str_is_static(str));
+  string = str(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(str_is_static(string));
 }
 
 TEST_F(StrTest, NullStrIsNotStatic) {
-  str = str_wrap(NULL);
-  ASSERT_TRUE(str);
-  ASSERT_FALSE(str_is_static(str));
+  string = str_wrap(NULL);
+  ASSERT_TRUE(string);
+  ASSERT_FALSE(str_is_static(string));
 }
 
 TEST_F(StrTest, NullIsNotStatic) {
@@ -70,21 +70,31 @@ TEST_F(StrTest, NullIsNotStatic) {
 /* -- str_len ------------------------------------------------------------ */
 
 TEST_F(StrTest, StrLen) {
-  str = str_copy_chars(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(str_len(str), TEST_STRING_LEN);
+  string = str(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(str_len(string), TEST_STRING_LEN);
 }
 
 TEST_F(StrTest, StrLenStatic) {
-  str = str_wrap(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_EQ(str_len(str), TEST_STRING_LEN);
+  string = str_wrap(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(str_len(string), TEST_STRING_LEN);
+}
+
+TEST_F(StrTest, StrLenModifiedStatic) {
+  char s[80];
+  strcpy(s, "ABCD");
+  string = str_wrap(s);
+  ASSERT_TRUE(string);
+  ASSERT_EQ(str_len(string), 4);
+  strcat(s, "EFGH");
+  ASSERT_EQ(str_len(string), 8);
 }
 
 TEST_F(StrTest, StrLenEmpty) {
-  str = str_wrap("");
-  ASSERT_TRUE(str);
-  ASSERT_EQ(str_len(str), 0);
+  string = str_wrap("");
+  ASSERT_TRUE(string);
+  ASSERT_EQ(str_len(string), 0);
 }
 
 TEST_F(StrTest, StrLenNull) {
@@ -92,16 +102,16 @@ TEST_F(StrTest, StrLenNull) {
 }
 
 TEST_F(StrTest, StrLenNullStr) {
-  str = str_wrap(NULL);
-  ASSERT_EQ(str_len(str), -1);
+  string = str_wrap(NULL);
+  ASSERT_EQ(str_len(string), -1);
 }
 
 /* -- str_chars ---------------------------------------------------------- */
 
 TEST_F(StrTest, Chars) {
-  str = str_copy_chars(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_STREQ(str_chars(str), TEST_STRING);
+  string = str(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_STREQ(str_chars(string), TEST_STRING);
 }
 
 TEST_F(StrTest, CharsNull) {
@@ -109,38 +119,38 @@ TEST_F(StrTest, CharsNull) {
 }
 
 TEST_F(StrTest, CharsNullStr) {
-  str = str_wrap(NULL);
-  ASSERT_TRUE(str_is_null(str));
+  string = str_wrap(NULL);
+  ASSERT_TRUE(str_is_null(string));
   ASSERT_FALSE(str_chars(NULL));
 }
 
 TEST_F(StrTest, CharsStatic) {
-  str = str_wrap(TEST_STRING);
-  ASSERT_TRUE(str);
-  ASSERT_TRUE(str_is_static(str));
-  ASSERT_STREQ(str_chars(str), TEST_STRING);
+  string = str_wrap(TEST_STRING);
+  ASSERT_TRUE(string);
+  ASSERT_TRUE(str_is_static(string));
+  ASSERT_STREQ(str_chars(string), TEST_STRING);
 }
 
 /* -- str_hash ----------------------------------------------------------- */
 
 TEST_F(StrTest, Hash) {
   int hash = strhash(TEST_STRING);
-  str = str_copy_chars(TEST_STRING);
-  ASSERT_TRUE(str);
-  EXPECT_EQ(str_hash(str), hash);
+  string = str(TEST_STRING);
+  ASSERT_TRUE(string);
+  EXPECT_EQ(str_hash(string), hash);
 }
 
 TEST_F(StrTest, HashStatic) {
   int hash = strhash(TEST_STRING);
-  str = str_wrap(TEST_STRING);
-  ASSERT_TRUE(str);
-  EXPECT_EQ(str_hash(str), hash);
+  string = str_wrap(TEST_STRING);
+  ASSERT_TRUE(string);
+  EXPECT_EQ(str_hash(string), hash);
 }
 
 TEST_F(StrTest, HashNullStr) {
-  str = str_wrap(NULL);
-  ASSERT_TRUE(str);
-  EXPECT_EQ(str_hash(str), 0);
+  string = str_wrap(NULL);
+  ASSERT_TRUE(string);
+  EXPECT_EQ(str_hash(string), 0);
 }
 
 TEST_F(StrTest, HashNull) {
@@ -150,33 +160,33 @@ TEST_F(StrTest, HashNull) {
 /* -- str_at ------------------------------------------------------------- */
 
 TEST_F(StrTest, At) {
-  str = str_copy_chars(DIGITS);
-  ASSERT_EQ(str_at(str, 5), '5');
+  string = str(DIGITS);
+  ASSERT_EQ(str_at(string, 5), '5');
 }
 
 TEST_F(StrTest, AtZero) {
-  str = str_copy_chars(DIGITS);
-  ASSERT_EQ(str_at(str, 0), '0');
+  string = str(DIGITS);
+  ASSERT_EQ(str_at(string, 0), '0');
 }
 
 TEST_F(StrTest, AtStrlenMinusOne) {
-  str = str_copy_chars(DIGITS);
-  ASSERT_EQ(str_at(str, 9), '9');
+  string = str(DIGITS);
+  ASSERT_EQ(str_at(string, 9), '9');
 }
 
 TEST_F(StrTest, AtStrlen) {
-  str = str_copy_chars(DIGITS);
-  ASSERT_EQ(str_at(str, 10), -1);
+  string = str(DIGITS);
+  ASSERT_EQ(str_at(string, 10), -1);
 }
 
 TEST_F(StrTest, AtLarge) {
-  str = str_copy_chars(DIGITS);
-  ASSERT_EQ(str_at(str, 100), -1);
+  string = str(DIGITS);
+  ASSERT_EQ(str_at(string, 100), -1);
 }
 
 TEST_F(StrTest, AtNegative) {
-  str = str_copy_chars(DIGITS);
-  ASSERT_EQ(str_at(str, -2), '8');
+  string = str(DIGITS);
+  ASSERT_EQ(str_at(string, -2), '8');
 }
 
 TEST_F(StrTest, AtNull) {
@@ -184,12 +194,176 @@ TEST_F(StrTest, AtNull) {
 }
 
 TEST_F(StrTest, AtNullStr) {
-  str = str_wrap(NULL);
+  string = str_wrap(NULL);
   ASSERT_EQ(str_at(NULL, 5), -1);
 }
 
 TEST_F(StrTest, AtStatic) {
-  str = str_wrap(DIGITS);
-  ASSERT_EQ(str_at(str, 5), '5');
+  string = str_wrap(DIGITS);
+  ASSERT_EQ(str_at(string, 5), '5');
+}
+
+/* -- str_cmp ------------------------------------------------------------- */
+
+TEST_F(StrTest, CmpS1LtS2) {
+  string = str("ABCD");
+  str_t *string2 = str("EFGH");
+
+  ASSERT_LT(str_cmp(string, string2), 0);
+  ASSERT_GT(str_cmp(string2, string), 0);
+  str_free(string2);
+}
+
+TEST_F(StrTest, CmpS1GtS2) {
+  string = str("EFGH");
+  str_t *string2 = str("ABCD");
+
+  ASSERT_GT(str_cmp(string, string2), 0);
+  ASSERT_LT(str_cmp(string2, string), 0);
+  str_free(string2);
+}
+
+TEST_F(StrTest, CmpS1EqS2) {
+  string = str("ABCD");
+  str_t *string2 = str("ABCD");
+
+  ASSERT_EQ(str_cmp(string, string2), 0);
+  ASSERT_EQ(str_cmp(string2, string), 0);
+  str_free(string2);
+}
+
+TEST_F(StrTest, CmpS1PrefixOfS2) {
+  string = str("ABCD");
+  str_t *string2 = str("ABCDE");
+
+  ASSERT_LT(str_cmp(string, string2), 0);
+  ASSERT_GT(str_cmp(string2, string), 0);
+  str_free(string2);
+}
+
+TEST_F(StrTest, CmpS2PrefixOfS1) {
+  string = str("ABCDE");
+  str_t *string2 = str("ABCD");
+
+  ASSERT_GT(str_cmp(string, string2), 0);
+  ASSERT_LT(str_cmp(string2, string), 0);
+  str_free(string2);
+}
+
+TEST_F(StrTest, CmpS2Null) {
+  string = str("ABCD");
+  str_t *string2 = NULL;
+
+  ASSERT_GT(str_cmp(string, string2), 0);
+  ASSERT_LT(str_cmp(string2, string), 0);
+}
+
+TEST_F(StrTest, CmpS2StrNull) {
+  string = str("ABCD");
+  str_t *string2 = str_wrap(NULL);
+
+  ASSERT_GT(str_cmp(string, string2), 0);
+  ASSERT_LT(str_cmp(string2, string), 0);
+  str_free(string2);
+}
+
+TEST_F(StrTest, CmpS1NullS2Null) {
+  string = NULL;
+  str_t *string2 = NULL;
+
+  ASSERT_EQ(str_cmp(string, string2), 0);
+  ASSERT_EQ(str_cmp(string2, string), 0);
+}
+
+TEST_F(StrTest, CmpS1NullS2StrNull) {
+  string = NULL;
+  str_t *string2 = str_wrap(NULL);
+
+  ASSERT_LT(str_cmp(string, string2), 0);
+  ASSERT_GT(str_cmp(string2, string), 0);
+  str_free(string2);
+}
+
+TEST_F(StrTest, CmpS1StrNullS2StrNull) {
+  string = str_wrap(NULL);
+  str_t *string2 = str_wrap(NULL);
+
+  ASSERT_EQ(str_cmp(string, string2), 0);
+  ASSERT_EQ(str_cmp(string2, string), 0);
+  str_free(string2);
+}
+
+TEST_F(StrTest, CmpStatic) {
+  string = str_wrap("ABCD");
+  str_t *string2 = str_wrap("EFGH");
+
+  ASSERT_LT(str_cmp(string, string2), 0);
+  ASSERT_GT(str_cmp(string2, string), 0);
+  str_free(string2);
+}
+
+/* -- str_cmp_chars ------------------------------------------------------ */
+
+TEST_F(StrTest, CmpCharsS1LtS2) {
+  string = str("ABCD");
+  const char *string2 = "EFGH";
+
+  ASSERT_LT(str_cmp_chars(string, string2), 0);
+}
+
+TEST_F(StrTest, CmpCharsS1GtS2) {
+  string = str("EFGH");
+  const char *string2 = "ABCD";
+
+  ASSERT_GT(str_cmp_chars(string, string2), 0);
+}
+
+TEST_F(StrTest, CmpCharsS1EqS2) {
+  string = str("ABCD");
+  const char *string2 = "ABCD";
+
+  ASSERT_EQ(str_cmp_chars(string, string2), 0);
+}
+
+TEST_F(StrTest, CmpCharsS1PrefixOfS2) {
+  string = str("ABCD");
+  const char *string2 = "ABCDE";
+
+  ASSERT_LT(str_cmp_chars(string, string2), 0);
+}
+
+TEST_F(StrTest, CmpCharsS2PrefixOfS1) {
+  string = str("ABCDE");
+  const char *string2 = "ABCD";
+
+  ASSERT_GT(str_cmp_chars(string, string2), 0);
+}
+
+TEST_F(StrTest, CmpCharsS2Null) {
+  string = str("ABCD");
+  const char *string2 = NULL;
+
+  ASSERT_GT(str_cmp_chars(string, string2), 0);
+}
+
+TEST_F(StrTest, CmpCharsS1Null) {
+  string = NULL;
+  const char *string2 = "ABCD";
+
+  ASSERT_LT(str_cmp_chars(string, string2), 0);
+}
+
+TEST_F(StrTest, CmpCharsS1NullS2Null) {
+  string = NULL;
+  const char *string2 = NULL;
+
+  ASSERT_EQ(str_cmp_chars(string, string2), 0);
+}
+
+TEST_F(StrTest, CmpCharsStatic) {
+  string = str_wrap("ABCD");
+  const char *string2 = "EFGH";
+
+  ASSERT_LT(str_cmp_chars(string, string2), 0);
 }
 

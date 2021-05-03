@@ -45,8 +45,8 @@ struct _data;
  */
 extern str_t *         str_wrap(const char *);
 extern str_t *         str_adopt(char *);
-extern str_t *         str_copy_chars(const char *);
-extern str_t *         str_copy_nchars(const char *, size_t);
+extern str_t *         str(const char *);
+extern str_t *         str_n(const char *, size_t);
 extern str_t *         str_from_data(data_t *);
 extern str_t *         str_printf(const char *, ...);
 extern str_t *         str_vprintf(const char *, va_list);
@@ -100,7 +100,7 @@ extern int             str_rindexof_chars(const str_t *, const char *);
 extern struct _array * str_split(const str_t *, const char *);
 
 extern int             str_rewind(str_t *);
-extern int             str_read(str_t *, char *, size_t);
+extern int             str_read(str_t *, char *, int);
 extern int             str_peek(const str_t *);
 extern int             str_readchar(str_t *);
 extern int             str_readinto(str_t *, struct _data *);
@@ -126,7 +126,7 @@ extern str_t *         str_formatf(const char *fmt, ...);
 #define data_as_string(d)      ((str_t *) (data_is_string((d)) ? ((str_t *) (d)) : NULL))
 #define str_tostring(s)        (data_tostring((data_t *) (s)))
 #define str_copy(s)            ((str_t *) data_copy((data_t *) (s)))
-#define str_to_data(s)         ((data_t *) str_copy_chars((s)))
+#define str_to_data(s)         ((data_t *) str((s)))
 
 #ifdef __cplusplus
 }

@@ -41,7 +41,7 @@ constexpr int          ALPHABET_LEN = 26;
 
 class StrTest : public ::testing::Test {
 public:
-  str_t       *str { NULL };
+  str_t       *string { NULL };
   data_t      *data { NULL };
   exception_t *e { NULL };
 protected:
@@ -49,11 +49,11 @@ protected:
   }
 
   void TearDown() override {
-    if (data != data_as_data(str)) {
+    if (data != data_as_data(string)) {
       data_release(data);
     }
-    data_release(str);
-    str = NULL;
+    data_release(string);
+    string = NULL;
     data = NULL;
     e = NULL;
   }
@@ -61,7 +61,7 @@ protected:
   str_t * str_append_va_list_maker(const char *fmt, ...) const {
     va_list args;
     va_start(args, fmt);
-    str_t *ret = str_append_vprintf(str, fmt, args);
+    str_t *ret = str_append_vprintf(string, fmt, args);
     va_end(args);
     return ret;
   };
