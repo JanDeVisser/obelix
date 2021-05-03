@@ -738,6 +738,9 @@ file_t * file_open_ext(const char *fname, ...) {
   int      open_flags = 0;
   int      open_mode = 0;
 
+  if (!fname) {
+    return NULL;
+  }
   n = strdup(fname);
   va_start(args, fname);
   flags = va_arg(args, char *);
@@ -789,12 +792,8 @@ file_t * file_open(const char *fname) {
 int file_close(file_t *file) {
   int ret = 0;
 
-  if (file -> fh >= 0) {
-    if (file->fname && *(file->fname)) {
-      debug(file, "Closing %s", file->fname);
-    } else {
-      debug(file, "Closing file #%d", file->fh);
-    }
+  if (file -> fh >= 0 && file->fname) {
+    debug(file, "Closing %s", file->fname);
     ret = close(file -> fh);
     if (ret) {
       if (errno) {
