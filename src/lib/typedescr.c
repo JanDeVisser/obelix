@@ -467,7 +467,7 @@ vtable_t * vtable_build(vtable_t vtable[]) {
   vtable_id_t  fnc_id;
   vtable_t    *ret;
 
-  ret = (vtable_t *) new((FunctionEndOfListDummy + 1) * sizeof(vtable_t));
+  ret = NEWARR(FunctionEndOfListDummy + 1, vtable_t);
   for (ix = FunctionNone; ix <= FunctionEndOfListDummy; ix++) {
     ret[ix].id = ix;
     ret[ix].fnc = NULL;

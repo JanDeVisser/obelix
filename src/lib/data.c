@@ -455,7 +455,7 @@ data_t * data_call(data_t *self, arguments_t *args) {
   return call(self, args);
 }
 
-int data_hasmethod(data_t *data, char *name) {
+int data_hasmethod(data_t *data, const char *name) {
   typedescr_t   *type = data_typedescr(data);
   methoddescr_t *md;
 
@@ -464,7 +464,7 @@ int data_hasmethod(data_t *data, char *name) {
   return (md) ? TRUE : FALSE;
 }
 
-data_t * data_method(data_t *data, char *name) {
+data_t * data_method(data_t *data, const char *name) {
   typedescr_t   *type = NULL;
   methoddescr_t *md;
   data_t        *ret = NULL;
@@ -575,7 +575,7 @@ data_t * data_invoke(data_t *self, name_t *name, arguments_t *args) {
   return ret;
 }
 
-data_t * data_execute(data_t *data, char *name, arguments_t *args) {
+data_t * data_execute(data_t *data, const char *name, arguments_t *args) {
   name_t *n = name_create(1, name);
   data_t *ret;
 
@@ -595,7 +595,7 @@ data_t * data_get(data_t *data, name_t *name) {
   return ret;
 }
 
-data_t * data_get_attribute(data_t *data, char *name) {
+data_t * data_get_attribute(data_t *data, const char *name) {
   name_t *n;
   data_t *ret;
 
@@ -632,7 +632,7 @@ data_t * data_set(data_t *data, name_t *name, data_t *value) {
   return ret;
 }
 
-data_t * data_set_attribute(data_t *data, char *name, data_t *value) {
+data_t * data_set_attribute(data_t *data, const char *name, data_t *value) {
   name_t *n;
   data_t *ret;
 

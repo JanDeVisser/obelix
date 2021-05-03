@@ -276,7 +276,7 @@ str_t *_str_inflate(str_t *s, const char *buffer, size_t len) {
   }
   if (buffer) {
     len = ((len >= 0) && (len <= strlen(buffer))) ? len : strlen(buffer);
-    b = (char *) new(len + 1);
+    b = (char *) _new(len + 1);
     if (!b) {
       s = str_free(s);
       return s;
@@ -1177,7 +1177,7 @@ str_t * str_format(const char *fmt, const arguments_t *args) {
         }
         if (bufsize > _DEFAULT_SIZE) {
           free(bigbuf);
-          bigbuf = (char *) new(bufsize);
+          bigbuf = (char *) _new(bufsize);
           spec = bigbuf;
         }
         strncpy(spec, specstart, len);
