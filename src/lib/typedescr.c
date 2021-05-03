@@ -24,25 +24,25 @@
 #include <exception.h>
 #include <str.h>
 
-static size_t        _numtypes = Dynamic;
-static size_t        _capacity = 0;
-static typedescr_t **_descriptors = NULL;
-static interface_t **_interfaces = NULL;
-static int           _next_interface = NextInterface;
-static size_t        _num_interfaces = 0;
+static size_t          _numtypes = Dynamic;
+static size_t          _capacity = 0;
+static typedescr_t   **_descriptors = NULL;
+static interface_t   **_interfaces = NULL;
+static int             _next_interface = NextInterface;
+static size_t          _num_interfaces = 0;
 
-extern int           _data_count;
-       int           type_debug = 1;
+extern int             _data_count;
+       int             type_debug = 1;
 
-extern void          any_init(void);
-static datalist_t *  _add_method_reducer(methoddescr_t *, datalist_t *);
+extern void            any_init(void);
+static datalist_t *    _add_method_reducer(methoddescr_t *, datalist_t *);
 
 static char *          _methoddescr_tostring(methoddescr_t *);
 static int             _methoddescr_cmp(methoddescr_t *, methoddescr_t *);
 static data_t *        _methoddescr_resolve(methoddescr_t *, char *);
 static unsigned int    _methoddescr_hash(methoddescr_t *);
 
-static kind_t *        _kind_init(kind_t *, int, int, char *);
+static kind_t *        _kind_init(kind_t *, int, int, const char *);
 static int             _kind_cmp(kind_t *, kind_t *);
 static char *          _kind_tostring(kind_t *);
 static unsigned int    _kind_hash(kind_t *);
@@ -185,7 +185,7 @@ kind_t * kind_get(int ix) {
     : (kind_t *) interface_get(ix);
 }
 
-kind_t * kind_get_byname(char *name) {
+kind_t * kind_get_byname(const char *name) {
   kind_t *ret;
   ret = (kind_t *) typedescr_get_byname(name);
 
@@ -243,7 +243,7 @@ unsigned int _methoddescr_hash(methoddescr_t *mth) {
 
 /* -- G E N E R I C  T Y P E  D E S C R I P T O R ------------------------- */
 
-kind_t * _kind_init(kind_t * descr, int kind, int type, char *name) {
+kind_t * _kind_init(kind_t * descr, int kind, int type, const char *name) {
   descr -> _d.cookie = MAGIC_COOKIE;
   descr -> _d.type = kind;
   descr -> _d.data_semantics = DataSemanticsConstant;
@@ -269,7 +269,7 @@ void kind_register_method(kind_t *kind, methoddescr_t *method) {
   }
 }
 
-methoddescr_t * kind_get_method(kind_t *kind, char *name) {
+methoddescr_t * kind_get_method(kind_t *kind, const char *name) {
   return (methoddescr_t *) dict_get(kind -> methods, name);
 }
 
@@ -383,7 +383,7 @@ interface_t * interface_get(int type) {
   return ret;
 }
 
-interface_t * interface_get_byname(char *name) {
+interface_t * interface_get_byname(const char *name) {
   size_t ifix;
 
   if (!_interfaces) {
@@ -698,7 +698,8 @@ typedescr_t * _typedescr_initialize_vtable(typedescr_t *type, vtable_t vtable[])
 
 /* -- T Y P E D E S C R  P U B L I C  F U N C T I O N S ------------------- */
 
-int _typedescr_register(int type, char *type_name, vtable_t *vtable, methoddescr_t *methods) {
+int _typedescr_register(int type, const char *type_name, vtable_t *vtable,
+                        methoddescr_t *methods) {
   typedescr_t  *d;
   size_t        cursz;
   size_t        newsz;
@@ -781,7 +782,7 @@ typedescr_t * typedescr_register_accessors(int type, accessor_t *accessors) {
   return descr;
 }
 
-accessor_t * typedescr_get_accessor(typedescr_t *type, char *name) {
+accessor_t * typedescr_get_accessor(typedescr_t *type, const char *name) {
   return (type -> accessors)
          ? (accessor_t *) dict_get(type -> accessors, name)
          : NULL;
@@ -809,7 +810,7 @@ typedescr_t * typedescr_get(int datatype) {
 #endif
 }
 
-typedescr_t * typedescr_get_byname(char *name) {
+typedescr_t * typedescr_get_byname(const char *name) {
   typedescr_t *ret = NULL;
   size_t       ix;
 
@@ -914,7 +915,7 @@ int typedescr_is(typedescr_t *descr, int type) {
   return ret;
 }
 
-methoddescr_t * typedescr_get_method(typedescr_t *descr, char *name) {
+methoddescr_t * typedescr_get_method(typedescr_t *descr, const char *name) {
   if (!descr -> implements || ((int) _num_interfaces > descr -> implements_sz)) {
     _typedescr_get_all_interfaces(descr);
   }

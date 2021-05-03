@@ -28,14 +28,14 @@ extern "C" {
 
 extern void            typedescr_init(void);
 extern kind_t *        kind_get(int);
-extern kind_t *        kind_get_byname(char *);
+extern kind_t *        kind_get_byname(const char *);
 
 extern void            kind_register_method(kind_t *, methoddescr_t *);
-extern methoddescr_t * kind_get_method(kind_t *, char *);
+extern methoddescr_t * kind_get_method(kind_t *, const char *);
 
 extern int                       _interface_register(int, char *, int, ...);
 extern interface_t *             interface_get(int);
-extern interface_t *             interface_get_byname(char *);
+extern interface_t *             interface_get_byname(const char *);
 #define interface_register_method(i, m)  kind_register_method((kind_t *) (i), (m))
 #define interface_get_method(i, m)       kind_get_method((kind_t *) (i), (m))
 
@@ -44,13 +44,13 @@ extern void            vtable_dump(vtable_t *);
 extern void_t          vtable_get(vtable_t *, int);
 extern int             vtable_implements(vtable_t *, int);
 
-extern int             _typedescr_register(int, char *, vtable_t *, methoddescr_t *);
+extern int             _typedescr_register(int, const char *, vtable_t *, methoddescr_t *);
 extern typedescr_t *   typedescr_assign_inheritance(int, int);
 extern typedescr_t *   typedescr_register_function(typedescr_t *, int, void_t);
 extern typedescr_t *   typedescr_register_accessors(int, accessor_t *);
-extern accessor_t *    typedescr_get_accessor(typedescr_t *, char *);
+extern accessor_t *    typedescr_get_accessor(typedescr_t *, const char *);
 extern typedescr_t *   typedescr_get(int);
-extern typedescr_t *   typedescr_get_byname(char *);
+extern typedescr_t *   typedescr_get_byname(const char *);
 extern void            typedescr_count(void);
 extern unsigned int    typedescr_hash(typedescr_t *);
 extern void            typedescr_register_methods(int, methoddescr_t[]);
@@ -58,7 +58,7 @@ extern int             typedescr_implements(typedescr_t *, int);
 extern int             typedescr_inherits(typedescr_t *, int);
 extern int             typedescr_is(typedescr_t *, int);
 extern void            typedescr_dump_vtable(typedescr_t *);
-extern methoddescr_t * typedescr_get_method(typedescr_t *, char *);
+extern methoddescr_t * typedescr_get_method(typedescr_t *, const char *);
 
 #define type_name(t)                        ((t) ? (((kind_t *) (t)) -> name) : "")
 #define typetype(t)                        ((t) ? ((kind_t *) (t)) -> type : -1)
