@@ -68,7 +68,7 @@ static inline datastack_t *datastack_push_int(datastack_t *stack, long l) {
 }
 
 static inline datastack_t *datastack_push_string(datastack_t *stack, char *s) {
-  return _datastack_push(stack, data_as_data(str_copy_chars(s)));
+  return _datastack_push(stack, data_as_data(str(s)));
 }
 
 static inline datastack_t *datastack_push_float(datastack_t *stack, double d) {

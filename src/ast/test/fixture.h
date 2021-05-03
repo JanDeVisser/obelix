@@ -44,8 +44,8 @@ protected:
     EXPECT_TRUE(parser) ;
   }
 
-  void parse(const char *str) {
-    str_t *text = str_copy_chars(str);
+  void parse(const char *s) {
+    str_t *text = str(s);
     data_t *ret;
 
     // grammar_dump(grammar);
@@ -58,8 +58,8 @@ protected:
     EXPECT_FALSE(ret);
   }
 
-  data_t * evaluate(const char *str, int expected) {
-    parse(str);
+  data_t * evaluate(const char *s, int expected) {
+    parse(s);
     data_t *result = data_as_data(parser->data);
     EXPECT_TRUE(result) ;
     EXPECT_EQ(data_type(result), ASTBlock);

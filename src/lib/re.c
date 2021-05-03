@@ -154,10 +154,10 @@ re_t * regexp_create(char *pattern, char *flags) {
   return (re_t *) data_create(Regexp, pattern, flags);
 }
 
-data_t * regexp_match(re_t *re, char *str) {
+data_t * regexp_match(re_t *re, char *s) {
   regmatch_t  rm[2];
-  char       *ptr = str;
-  size_t      len = strlen(str);
+  char       *ptr = s;
+  size_t      len = strlen(s);
   char       *work = stralloc(len);
   array_t    *matches = data_array_create(4);
   data_t     *ret;

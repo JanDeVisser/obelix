@@ -371,7 +371,7 @@ str_t * set_tostr(set_t *set) {
   if (!set) {
     return NULL;
   }
-  ret = str_copy_chars("{");
+  ret = str("{");
   catted = str_join(", ", set, set_reduce_chars);
   if (ret && catted) {
     str_append(ret, catted);

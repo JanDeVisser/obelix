@@ -188,7 +188,7 @@ arguments_t * arguments_create_from_cmdline(int argc, char **argv) {
   arguments_t *ret = arguments_create(NULL, NULL);
 
   for (int ix = 0; ix < argc; ix++) {
-    datalist_push(ret -> args, str_copy_chars(argv[ix]));
+    datalist_push(ret -> args, str(argv[ix]));
   }
   return ret;
 }

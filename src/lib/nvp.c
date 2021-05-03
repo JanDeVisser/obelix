@@ -93,7 +93,7 @@ nvp_t * nvp_create(data_t *name, data_t *value) {
   return (nvp_t *) data_create(NVP, name, value);
 }
 
-nvp_t * nvp_parse(char *str) {
+nvp_t * nvp_parse(char *s) {
   char   *cpy;
   char   *ptr;
   char   *name;
@@ -103,7 +103,7 @@ nvp_t * nvp_parse(char *str) {
   nvp_t  *ret;
 
   // FIXME Woefully inadequate.
-  cpy = strdup(str);
+  cpy = strdup(s);
   ptr = strchr(cpy, '=');
   name = cpy;
   val = NULL;

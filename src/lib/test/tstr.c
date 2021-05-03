@@ -28,11 +28,11 @@
 
 static void _init_tresolve(void) __attribute__((constructor(300)));
 
-START_TEST(test_str_copy_chars)
+START_TEST(test_str)
   char *text = "This is a test string";
   str_t *str;
 
-  str = str_copy_chars(text);
+  str = str(text);
   ck_assert_ptr_ne(str, NULL);
   ck_assert_int_eq(str_len(str), strlen(text));
   str_free(str);
@@ -64,7 +64,7 @@ START_TEST(test_str_slice)
   char *text = "This is a test string";
   str_t *str, *slice;
 
-  str = str_copy_chars(text);
+  str = str(text);
   ck_assert_ptr_ne(str, NULL);
   ck_assert_int_eq(str_len(str), strlen(text));
   slice = str_slice(str, 1, 4);
@@ -104,7 +104,7 @@ START_TEST(test_str_chop)
   char *text = "This is a test string";
   str_t *str, *ret;
 
-  str = str_copy_chars(text);
+  str = str(text);
   ck_assert_ptr_ne(str, NULL);
   ck_assert_int_eq(str_len(str), strlen(text));
   ret = str_chop(str, 7);

@@ -373,7 +373,7 @@ data_t * data_cast(data_t *data, int totype) {
     if (totype == String) {
       tostring = (tostring_t) typedescr_get_function(descr, FunctionToString);
       if (tostring) {
-        return (data_t *) str_copy_chars(tostring(data));
+        return (data_t *) str(tostring(data));
       }
     }
     cast = (cast_t) typedescr_get_function(descr, FunctionCast);
@@ -507,7 +507,7 @@ data_t * data_resolve(data_t *data, name_t *name) {
     if (!strcmp(n, "type")) {
       ret = (data_t *) type;
     } else if (!strcmp(n, "typename")) {
-      ret = (data_t *) str_copy_chars(type_name(type));
+      ret = (data_t *) str(type_name(type));
     } else if (!strcmp(n, "typeid")) {
       ret = int_to_data(typetype(type));
     }
@@ -1167,8 +1167,8 @@ array_t * data_add_all_reducer(data_t *data, array_t *target) {
   return target;
 }
 
-array_t * data_add_all_as_data_reducer(char *str, array_t *target) {
-  array_push(target, (data_t *) str_copy_chars(str));
+array_t * data_add_all_as_data_reducer(char *s, array_t *target) {
+  array_push(target, (data_t *) str(s));
   return target;
 }
 

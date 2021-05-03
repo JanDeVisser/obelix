@@ -158,7 +158,7 @@ extern _unused_ data_t * _function_getenv(_unused_ char *name, _unused_ argument
     v = strchr(n, '=');
     if (v) {
       *v++ = 0;
-      value = (data_t *) str_copy_chars(v);
+      value = (data_t *) str(v);
       dictionary_set(env, n, data_uncopy(value));
     }
   }

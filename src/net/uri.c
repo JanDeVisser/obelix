@@ -103,7 +103,7 @@ uri_t * _uri_new(uri_t *uri, va_list args) {
 
   parser = parser_create(_uri_grammar);
   parser -> data = uri;
-  s = str_copy_chars(uri -> _d.str);
+  s = str(uri -> _d.str);
   if ((uri -> error = parser_parse(parser, (data_t *) s))) {
     uri -> scheme = NULL;
     uri -> user = NULL;
@@ -133,7 +133,7 @@ void _uri_free(uri_t *uri) {
   }
 }
 
-#define WRAP_IFNOTNULL(d) ((d) ? ((data_t *) str_copy_chars((d))) : data_null())
+#define WRAP_IFNOTNULL(d) ((d) ? ((data_t *) str((d))) : data_null())
 
 data_t * _uri_resolve(uri_t *uri, char *name) {
   if (!strcmp(name, "scheme")) {

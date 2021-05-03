@@ -707,7 +707,7 @@ _unused_ data_t * _instruction_execute_VMStatus(instruction_t *instr, data_t *sc
 
 _unused_ data_t * _instruction_execute_Jump(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
   assert(instr -> name);
-  return (data_t *) str_copy_chars(instr -> name);
+  return (data_t *) str(instr -> name);
 }
 
 _unused_ data_t * _instruction_execute_EndLoop(instruction_t *instr, data_t *scope, vm_t *vm, bytecode_t *bytecode) {
@@ -742,7 +742,7 @@ _unused_ data_t * _instruction_execute_Test(instruction_t *instr, data_t *scope,
                          data_typename(value),
                          data_tostring(value));
   } else {
-    ret = (!data_intval(casted)) ? (data_t *) str_copy_chars(instr -> name) : NULL;
+    ret = (!data_intval(casted)) ? (data_t *) str(instr -> name) : NULL;
   }
   data_free(casted);
   data_free(value);
@@ -777,7 +777,7 @@ _unused_ data_t * _instruction_execute_Next(instruction_t *instr, data_t *scope,
   next = data_next(iter);
   if (data_is_exception(next) && (data_as_exception(next) -> code == ErrorExhausted)) {
     data_free(iter);
-    ret = (data_t *) str_copy_chars(instr -> name);
+    ret = (data_t *) str(instr -> name);
   } else {
     vm_push(vm, iter);
     vm_push(vm, next);

@@ -87,7 +87,7 @@ extern parser_t * expr_call_op(parser_t *parser) {
 }
 
 data_t * evaluate(char *str) {
-  str_t  *text = str_copy_chars(str);
+  str_t  *text = str(str);
   data_t *ret;
 
   _create_parser("expr");

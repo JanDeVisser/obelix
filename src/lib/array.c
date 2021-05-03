@@ -417,7 +417,7 @@ str_t * array_to_str(const array_t *array) {
     if (!array -> size) {
       ret = str_wrap("[]");
     } else {
-      ret = str_copy_chars("[ ");
+      ret = str("[ ");
       s = array_join(array, ", ");
       str_append(ret, s);
       str_free(s);

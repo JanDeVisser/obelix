@@ -381,7 +381,7 @@ str_t * list_tostr(list_t *list) {
     if (!list -> size) {
       ret = str_wrap("<>");
     } else {
-      ret = str_copy_chars("<");
+      ret = str("<");
       catted = str_join(", ", list, _list_reduce_chars);
       if (ret && catted) {
         str_append(ret, catted);

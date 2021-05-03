@@ -290,7 +290,7 @@ datalist_t * _sqlitestmt_next(sqlitestmt_t *stmt) {
         datalist_push(rs, data_null());
         break;
       case SQLITE_TEXT:
-        datalist_push(rs, (data_t *) str_copy_chars((char *) sqlite3_column_text(stmt -> stmt, ix)));
+        datalist_push(rs, (data_t *) str((char *) sqlite3_column_text(stmt -> stmt, ix)));
         break;
     }
   }

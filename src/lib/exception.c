@@ -239,7 +239,7 @@ data_t * _exception_resolve(data_t *exception, char *name) {
   data_t      *ret;
 
   if (!strcmp(name, "message")) {
-    return (data_t *) str_copy_chars(e -> msg);
+    return (data_t *) str(e -> msg);
   } else if (!strcmp(name, "stacktrace")) {
     return e -> trace;
   } else if (!strcmp(name, "code")) {

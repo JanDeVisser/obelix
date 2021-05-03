@@ -309,7 +309,7 @@ dictionary_t * _dictionary_from_dict_reducer(entry_t *entry, dictionary_t *dicti
 
   value = (data_is_data(entry -> value))
           ? data_as_data(entry -> value)
-          : (data_t *) str_copy_chars((char *) entry -> value);
+          : (data_t *) str((char *) entry -> value);
   dictionary_set(dictionary, (char *) entry -> key, value);
   return dictionary;
 }

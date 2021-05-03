@@ -184,7 +184,7 @@ data_t * _pgsqlstmt_interpolate(pgsqlstmt_t *stmt, arguments_t *args) {
 
   debug(sql, "PGSqlStatement interpolate '%s'", stmt -> _d.str);
   stmt -> nParams = (args) ? arguments_args_size(args) : 0;
-  q = str_copy_chars(stmt -> _d.str);
+  q = str(stmt -> _d.str);
 
   /*
    * Count the number of kwargs that actually appear in the query and replace
@@ -326,7 +326,7 @@ datalist_t * _pgsqlstmt_next(pgsqlstmt_t *stmt) {
         case 19: /* name */
         case 25: /* text */
         default:
-          data = (data_t *) str_copy_chars(value);
+          data = (data_t *) str(value);
           break;
       }
       if (!data) {

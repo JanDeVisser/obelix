@@ -395,7 +395,7 @@ data_t *_obelix_interactive(obelix_t *obelix) {
                 add_history(line);
 #endif /* WITH_READLINE */
                 debug(obelix, "Evaluating '%s'", line);
-                ret = scriptloader_eval(loader, dline = (data_t *) str_copy_chars(line));
+                ret = scriptloader_eval(loader, dline = (data_t *) str(line));
                 if (!ret && tty) {
                     prompt = PS2;
                 } else {

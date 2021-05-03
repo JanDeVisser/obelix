@@ -777,7 +777,7 @@ str_t * dict_tostr_custom(dict_t *dict, const char *open, const char *fmt,
   assert(dict -> key_type.tostring);
   assert(dict -> data_type.tostring);
 
-  ret = str_copy_chars(open);
+  ret = str(open);
   entries = str_create(0);
   ctx[0] = dict;
   ctx[1] = entries;
