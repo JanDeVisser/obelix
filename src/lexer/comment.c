@@ -273,7 +273,7 @@ data_t * _comment_config_resolve(comment_config_t *config, char *name) {
   if (!strcmp(name, PARAM_MARKER)) {
     markers = datalist_create(NULL);
     for (marker = config -> markers; marker; marker = marker -> next) {
-      datalist_push(markers, (data_t *) str_copy_chars(_comment_marker_tostring(marker)));
+      datalist_push(markers, (data_t *) str(_comment_marker_tostring(marker)));
     }
     return (data_t *) markers;
   } else {

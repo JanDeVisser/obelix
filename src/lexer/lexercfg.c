@@ -28,6 +28,7 @@
 extern inline void      _lexer_config_init(void);
 static lexer_config_t * _lexer_config_new(lexer_config_t *, va_list);
 static void             _lexer_config_free(lexer_config_t *);
+static void *           _lexer_config_reduce_children(lexer_config_t *, reduce_t, void *);
 static char *           _lexer_config_staticstring(lexer_config_t *);
 static data_t *         _lexer_config_resolve(lexer_config_t *, char *);
 static data_t *         _lexer_config_set(lexer_config_t *, char *, data_t *);
@@ -37,6 +38,7 @@ static data_t *         _lexer_config_mth_tokenize(lexer_config_t *, char *, arg
 static vtable_t _vtable_LexerConfig[] = {
   { .id = FunctionNew,          .fnc = (void_t) _lexer_config_new },
   { .id = FunctionFree,         .fnc = (void_t) _lexer_config_free },
+  { .id = FunctionReduce,       .fnc = (void_t) _lexer_config_reduce_children },
   { .id = FunctionStaticString, .fnc = (void_t) _lexer_config_staticstring },
   { .id = FunctionResolve,      .fnc = (void_t) _lexer_config_resolve },
   { .id = FunctionSet,          .fnc = (void_t) _lexer_config_set },
@@ -63,25 +65,21 @@ lexer_config_t * _lexer_config_new(lexer_config_t *config, va_list args) {
   config -> bufsize = LEXER_BUFSIZE;
   config -> build_func = NULL;
   config -> data = NULL;
-  config -> scanners = NULL;
+  config -> scanners = datalist_create(NULL);
   config -> num_scanners = 0;
   return config;
 }
 
 
 void _lexer_config_free(lexer_config_t *config) {
-  scanner_config_t *scanner, *prev;
-
   if (config) {
-    scanner = config -> scanners;
-    while (scanner) {
-      prev = scanner -> prev;
-      scanner_config_free(scanner);
-      scanner = prev;
-    }
+    free(config -> build_func);
   }
-  free(config -> build_func);
-  data_free(config -> data);
+}
+
+void * _lexer_config_reduce_children(lexer_config_t *config, reduce_t reducer, void *ctx) {
+  ctx = reducer(config->scanners, ctx);
+  return reducer(config->data, ctx);
 }
 
 char * _lexer_config_staticstring(lexer_config_t *config) {
@@ -89,14 +87,16 @@ char * _lexer_config_staticstring(lexer_config_t *config) {
 }
 
 data_t * _lexer_config_resolve(lexer_config_t *config, char *name) {
+  int               scanner_ix;
   scanner_config_t *scanner;
 
   if (!strcmp(name, "buffersize")) {
     return int_to_data(config -> bufsize);
   } else {
-    for (scanner = config -> scanners; scanner; scanner = scanner -> next) {
+    for (scanner_ix = 0; scanner_ix < config->num_scanners; scanner_ix++) {
+      scanner = data_as_scanner_config(datalist_get(config->scanners, scanner_ix));
       if (!strcmp(data_typename(scanner), name)) {
-        return (data_t *) scanner;
+        return data_as_data(scanner);
       }
     }
     return NULL;
@@ -148,27 +148,18 @@ scanner_config_t * _lexer_config_add_scanner(lexer_config_t *config, char *code)
   scanner_config_t *next;
   scanner_config_t *prev;
   int               priority;
+  int               ix;
 
   debug(lexer, "Adding scanner w/ code '%s'", code);
   scanner = scanner_config_create(code, config);
   if (scanner) {
     priority = scanner -> priority;
-    for (next = config -> scanners, prev = NULL;
-         next && next -> priority >= priority;
-         next = next -> next) {
-      prev = next;
-    };
-    scanner -> next = next;
-    scanner -> prev = prev;
-    if (next) {
-      scanner -> prev = next -> prev;
-      next -> prev = scanner;
+    for (ix = config->num_scanners - 1;
+         ix >= 0 && (data_as_scanner_config(datalist_get(config->scanners, ix))->priority < priority);
+         ix--) {
+      datalist_set(config->scanners, ix+1, datalist_get(config->scanners, ix));
     }
-    if (prev) {
-      prev -> next = scanner;
-    } else {
-      config -> scanners = scanner;
-    }
+    datalist_set(config->scanners, ix+1, scanner);
     config -> num_scanners++;
     debug(lexer, "Created scanner config '%s'", scanner_config_tostring(scanner));
   } else {
@@ -184,7 +175,7 @@ lexer_config_t * lexer_config_create(void) {
   return (lexer_config_t *) data_create(LexerConfig);
 }
 
-scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_config) {
+scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, const char *code_config) {
   char             *copy;
   char             *ptr = NULL;
   char             *code;
@@ -218,13 +209,17 @@ scanner_config_t * lexer_config_add_scanner(lexer_config_t *config, char *code_c
   return scanner;
 }
 
-scanner_config_t * lexer_config_get_scanner(lexer_config_t *config, char *code) {
-  scanner_config_t *scanner;
+scanner_config_t * lexer_config_get_scanner(lexer_config_t *config, const char *code) {
+  data_t *scanner;
+  int     ix;
 
-  for (scanner = config -> scanners;
-       scanner && strcmp(data_typename((data_t *) scanner), code);
-       scanner = scanner -> next);
-  return scanner;
+  for (ix = 0; ix < config->num_scanners; ix++) {
+    scanner = datalist_get(config->scanners, ix);
+    if (strcmp(data_typename(scanner), code) == 0) {
+      return data_as_scanner_config(scanner);
+    }
+  }
+  return NULL;
 }
 
 data_t * lexer_config_set(lexer_config_t *config, char *code, data_t *param) {
@@ -279,15 +274,15 @@ lexer_config_t * lexer_config_tokenize(lexer_config_t *config, reduce_t tokenize
 }
 
 lexer_config_t * lexer_config_dump(lexer_config_t *config) {
-  scanner_config_t        *scanner;
+  int               ix;
 
   printf("lexer_config_t * %s(lexer_config_t *lexer_config) {\n"
          "  scanner_config_t *scanner_config;\n\n"
          "  lexer_config_set_bufsize(lexer_config, %ld);\n",
       (config -> build_func) ? config -> build_func : "lexer_config_build",
       lexer_config_get_bufsize(config));
-  for (scanner = config -> scanners; scanner; scanner = scanner -> next) {
-    scanner_config_dump(scanner);
+  for (ix = 0; ix < config->num_scanners; ix++) {
+    scanner_config_dump(data_as_scanner_config(datalist_get(config->scanners, ix)));
   }
   printf("  return lexer_config;\n"
          "}\n\n");

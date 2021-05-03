@@ -26,16 +26,14 @@
 extern inline void      _scanner_init(void);
 static scanner_t *      _scanner_new(scanner_t *, va_list);
 static void             _scanner_free(scanner_t *);
+static void *           _scanner_reduce_children(scanner_t *, reduce_t, void *);
 static char *           _scanner_allocstring(scanner_t *);
-static data_t *         _scanner_resolve(scanner_t *, char *);
-static data_t *         _scanner_set(scanner_t *, char *, data_t *);
 
 static vtable_t _vtable_Scanner[] = {
   { .id = FunctionNew,          .fnc = (void_t) _scanner_new },
   { .id = FunctionFree,         .fnc = (void_t) _scanner_free },
+  { .id = FunctionReduce,       .fnc = (void_t) _scanner_reduce_children },
   { .id = FunctionStaticString, .fnc = (void_t) _scanner_allocstring },
-  { .id = FunctionResolve,      .fnc = (void_t) _scanner_resolve },
-  { .id = FunctionSet,          .fnc = (void_t) _scanner_set },
   { .id = FunctionNone,         .fnc = NULL }
 };
 
@@ -52,22 +50,11 @@ void _scanner_init(void) {
 scanner_t * _scanner_new(scanner_t *scanner, va_list args) {
   scanner_config_t *config;
   lexer_t          *lexer;
-  scanner_t        *last = NULL;
-  scanner_t        *next;
 
   config = va_arg(args, scanner_config_t *);
   lexer = va_arg(args, lexer_t *);
-  for (next = lexer -> scanners; next; next = next -> next) {
-    last = next;
-  }
-  scanner -> next = NULL;
-  scanner -> prev = last;
-  if (last) {
-    last -> next = scanner;
-  } else {
-    lexer -> scanners = scanner;
-  }
-  scanner -> config = scanner_config_copy(config);
+  datalist_push(lexer->scanners, scanner);
+  scanner -> config = config;
   scanner -> lexer = lexer;
   scanner -> state = 0;
   scanner -> data = NULL;
@@ -76,17 +63,20 @@ scanner_t * _scanner_new(scanner_t *scanner, va_list args) {
 }
 
 void _scanner_free(scanner_t *scanner) {
-  void (*destroy_scanner)(scanner_t *);
+  voidptr_t destroy_scanner;
 
-  if (scanner) {
-    destroy_scanner = (void (*)(scanner_t *)) data_get_function((data_t *) scanner -> config, FunctionDestroyScanner);
-    if (destroy_scanner && scanner -> data) {
+  if (scanner && scanner->data) {
+    destroy_scanner = (voidptr_t) data_get_function((data_t *) scanner -> config, FunctionDestroyScanner);
+    if (destroy_scanner) {
       destroy_scanner(scanner -> data);
     } else {
       free(scanner -> data);
     }
-    scanner_config_free(scanner -> config);
   }
+}
+
+void * _scanner_reduce_children(scanner_t *scanner, reduce_t reducer, void *ctx) {
+  return reducer(scanner->config, ctx);
 }
 
 char * _scanner_allocstring(scanner_t *scanner) {
@@ -94,14 +84,6 @@ char * _scanner_allocstring(scanner_t *scanner) {
 
   asprintf(&buf, "'%s' scanner", data_typename(scanner -> config));
   return buf;
-}
-
-data_t * _scanner_resolve(scanner_t *scanner, char *name) {
-  return NULL;
-}
-
-data_t * _scanner_set(scanner_t *scanner, char *name, data_t *value) {
-  return NULL;
 }
 
 scanner_t * scanner_create(scanner_config_t *config, lexer_t *lexer) {

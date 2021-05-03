@@ -40,7 +40,7 @@ typedef struct _qstr_scanner {
 } qstr_scanner_t;
 
 static qstr_config_t *  _qstr_config_create(qstr_config_t *config, va_list args);
-static void             _qstr_config_free(qstr_config_t *);
+static void *           _qstr_config_reduce_children(qstr_config_t *, reduce_t, void *);
 static data_t *         _qstr_config_resolve(qstr_config_t *, char *);
 static qstr_config_t *  _qstr_config_set(qstr_config_t *, char *, data_t *);
 static qstr_config_t *  _qstr_config_set_quotes(qstr_config_t *, data_t *);
@@ -53,7 +53,7 @@ static scanner_t *      _qstr_scanner_config(scanner_t *, char *, data_t *);
 
 static vtable_t _vtable_QStrScannerConfig[] = {
   { .id = FunctionNew,             .fnc = (void_t) _qstr_config_create },
-  { .id = FunctionFree,            .fnc = (void_t) _qstr_config_free },
+  { .id = FunctionReduce,          .fnc = (void_t) _qstr_config_reduce_children },
   { .id = FunctionResolve,         .fnc = (void_t) _qstr_config_resolve },
   { .id = FunctionSet,             .fnc = (void_t) _qstr_config_set },
   { .id = FunctionMatch,           .fnc = (void_t) _qstr_match },
@@ -72,10 +72,8 @@ qstr_config_t *_qstr_config_create(qstr_config_t *config, va_list args) {
   return config;
 }
 
-void _qstr_config_free(qstr_config_t *config) {
-  if (config) {
-    str_free(config -> quotechars);
-  }
+void * _qstr_config_reduce_children(qstr_config_t *config, reduce_t reducer, void *ctx) {
+  return reducer(config -> quotechars, ctx);
 }
 
 qstr_config_t * _qstr_config_set(qstr_config_t *config,

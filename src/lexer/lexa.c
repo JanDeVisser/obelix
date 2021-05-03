@@ -176,7 +176,7 @@ lexa_t * lexa_debug_settings(lexa_t *lexa) {
   return lexa;
 }
 
-lexa_t * lexa_add_scanner(lexa_t *lexa, char *code_config) {
+lexa_t * lexa_add_scanner(lexa_t *lexa, const char *code_config) {
   char   *copy;
   char   *ptr = NULL;
   char   *code;
@@ -206,14 +206,14 @@ lexa_t * lexa_add_scanner(lexa_t *lexa, char *code_config) {
   return lexa;
 }
 
-scanner_config_t * lexa_get_scanner(lexa_t *lexa, char *code) {
+scanner_config_t * lexa_get_scanner(lexa_t *lexa, const char *code) {
   return (lexa -> config) ? lexer_config_get_scanner(lexa -> config, code) : NULL;
 }
 
 lexa_t * lexa_set_config_value(lexa_t *lexa, char *code, char *config) {
   lexa_debug_settings(lexa);
   debug(lexa, "Setting scanner config value %s: %s", code, config);
-  dictionary_set(lexa -> scanners, code, (config) ? (data_t *) str_copy_chars(config) : NULL);
+  dictionary_set(lexa -> scanners, code, (config) ? (data_t *) str(config) : NULL);
   if (lexa -> config) {
     lexa_build_lexer(lexa);
   }
@@ -229,7 +229,7 @@ lexa_t * lexa_set_stream(lexa_t *lexa, data_t *stream) {
   return lexa;
 }
 
-lexa_t * lexa_set_tokenfilter(lexa_t *lexa, void (*filter)(token_t *)) {
+lexa_t * lexa_set_tokenfilter(lexa_t *lexa, tokenfilter_t filter) {
   lexa -> tokenfilter = filter;
   return lexa;
 }

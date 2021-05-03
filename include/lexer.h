@@ -29,6 +29,10 @@
 
 #include <token.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define LEXER_BUFSIZE             16384
 #define LEXER_INIT_TOKEN_SZ       256
 #define LEXER_MAX_SCANNERS        32
@@ -62,8 +66,6 @@ typedef token_t * (*matcher_t)(struct _scanner *);
 typedef struct _scanner_config {
   data_t                   _d;
   int                      priority;
-  struct _scanner_config  *prev;
-  struct _scanner_config  *next;
   struct _lexer_config    *lexer_config;
   matcher_t                match;
   matcher_t                match_2nd_pass;
@@ -72,8 +74,6 @@ typedef struct _scanner_config {
 
 typedef struct _scanner {
   data_t            _d;
-  struct _scanner  *next;
-  struct _scanner  *prev;
   scanner_config_t *config;
   struct _lexer    *lexer;
   int               state;
@@ -81,18 +81,18 @@ typedef struct _scanner {
 } scanner_t;
 
 typedef struct _lexer_config {
-  data_t            _d;
-  int               num_scanners;
-  scanner_config_t *scanners;
-  size_t            bufsize;
-  char             *build_func;
-  data_t           *data;
+  data_t      _d;
+  int         num_scanners;
+  datalist_t *scanners;
+  size_t      bufsize;
+  char       *build_func;
+  data_t     *data;
 } lexer_config_t;
 
 typedef struct _lexer {
   data_t           _d;
   lexer_config_t  *config;
-  scanner_t       *scanners;
+  datalist_t      *scanners;
   data_t          *reader;
   str_t           *buffer;
   str_t           *token;
@@ -123,7 +123,7 @@ extern typedescr_t *      scanner_config_load(char *, char *);
 extern typedescr_t *      scanner_config_get(char *);
 extern scanner_config_t * scanner_config_create(char *, lexer_config_t *);
 extern scanner_t *        scanner_config_instantiate(scanner_config_t *, lexer_t *);
-extern scanner_config_t * scanner_config_setvalue(scanner_config_t *, char *, data_t *);
+extern scanner_config_t * scanner_config_setvalue(scanner_config_t *, const char *, data_t *);
 extern scanner_config_t * scanner_config_configure(scanner_config_t *, data_t *);
 extern scanner_config_t * scanner_config_dump(scanner_config_t *);
 
@@ -144,8 +144,8 @@ extern scanner_t *        scanner_reconfigure(scanner_t *, char *, data_t *);
  */
 
 extern lexer_config_t *   lexer_config_create(void);
-extern scanner_config_t * lexer_config_add_scanner(lexer_config_t *, char *);
-extern scanner_config_t * lexer_config_get_scanner(lexer_config_t *, char *);
+extern scanner_config_t * lexer_config_add_scanner(lexer_config_t *, const char *);
+extern scanner_config_t * lexer_config_get_scanner(lexer_config_t *, const char *);
 extern lexer_config_t *   lexer_config_set_bufsize(lexer_config_t *, size_t);
 extern size_t             lexer_config_get_bufsize(lexer_config_t *);
 extern data_t *           lexer_config_set(lexer_config_t *, char *, data_t *);
@@ -196,5 +196,9 @@ type_skel(scanner, Scanner, scanner_t);
 static inline void * lexer_tokenize(lexer_t *lexer, void *reducer, void *ctx) {
   return _lexer_tokenize(lexer, (reduce_t) reducer, ctx);
 }
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* __LEXER_H__ */

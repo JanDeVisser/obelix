@@ -23,30 +23,40 @@
 #include <data.h>
 #include <lexer.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int lexa_debug;
 extern int Lexa;
 
+typedef void (*tokenfilter_t)(token_t *);
+
 typedef struct _lexa {
-  data_t           _d;
-  char            *debug;
-  char            *log_level;
-  dictionary_t    *scanners;
-  lexer_config_t  *config;
-  data_t          *stream;
-  int              tokens;
-  dict_t          *tokens_by_type;
-  void           (*tokenfilter)(token_t *);
+  data_t          _d;
+  char           *debug;
+  char           *log_level;
+  dictionary_t   *scanners;
+  lexer_config_t *config;
+  data_t         *stream;
+  int             tokens;
+  dict_t         *tokens_by_type;
+  tokenfilter_t   tokenfilter;
 } lexa_t;
 
 extern lexa_t *           lexa_create(void);
 extern lexa_t *           lexa_build_lexer(lexa_t *);
-extern lexa_t *           lexa_add_scanner(lexa_t *, char *);
-extern scanner_config_t * lexa_get_scanner(lexa_t *, char *);
+extern lexa_t *           lexa_add_scanner(lexa_t *, const char *);
+extern scanner_config_t * lexa_get_scanner(lexa_t *, const char *);
 extern lexa_t *           lexa_set_config_value(lexa_t *, char *, char *);
 extern lexa_t *           lexa_debug_settings(lexa_t *);
 extern lexa_t *           lexa_tokenize(lexa_t *);
 extern int                lexa_tokens_with_code(lexa_t *, token_code_t);
 extern lexa_t *           lexa_set_stream(lexa_t *, data_t *);
-extern lexa_t *           lexa_set_tokenfilter(lexa_t *, void (*)(token_t *));
+extern lexa_t *           lexa_set_tokenfilter(lexa_t *, tokenfilter_t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __LEXA_H__ */

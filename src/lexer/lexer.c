@@ -28,10 +28,10 @@
 typedef struct _tokenize_ctx {
   data_t      *parser;
   arguments_t *args;
-} tokenize_ctx_t;
+} __attribute__((aligned(16))) tokenize_ctx_t;
 
 static lexer_t *        _lexer_new(lexer_t *, va_list);
-static void             _lexer_free(lexer_t *);
+static void *           _lexer_reduce_children(lexer_t *, reduce_t, void *);
 static char *           _lexer_allocstring(lexer_t *);
 static data_t *         _lexer_resolve(lexer_t *, char *);
 static data_t *         _lexer_has_next(lexer_t *);
@@ -53,7 +53,7 @@ static code_label_t lexer_state_names[] = {
 
 static vtable_t _vtable_Lexer[] = {
   { .id = FunctionNew,         .fnc = (void_t) _lexer_new },
-  { .id = FunctionFree,        .fnc = (void_t) _lexer_free },
+  { .id = FunctionReduce,      .fnc = (void_t) _lexer_reduce_children },
   { .id = FunctionAllocString, .fnc = (void_t) _lexer_allocstring },
   { .id = FunctionCall,        .fnc = (void_t) _lexer_call },
   { .id = FunctionResolve,     .fnc = (void_t) _lexer_resolve },
@@ -108,6 +108,7 @@ char * lexer_state_name(lexer_state_t state) {
 lexer_t * _lexer_new(lexer_t *ret, va_list args) {
   lexer_config_t   *config = va_arg(args, lexer_config_t *);
   data_t           *reader = va_arg(args, data_t *);
+  int               scanner_ix;
   scanner_config_t *scanner_config;
 
   ret -> config = lexer_config_copy(config);
@@ -124,31 +125,21 @@ lexer_t * _lexer_new(lexer_t *ret, va_list args) {
   ret -> prev_char = 0;
   ret -> token = str_create(LEXER_INIT_TOKEN_SZ);
 
-  ret -> scanners = NULL;
-  for (scanner_config = config -> scanners; scanner_config; scanner_config = scanner_config -> next) {
+  ret->scanners = datalist_create(NULL);
+  for (scanner_ix = 0; scanner_ix < datalist_size(config->scanners); scanner_ix++) {
+    scanner_config = data_as_scanner_config(datalist_get(config->scanners, scanner_ix));
     scanner_config_instantiate(scanner_config, ret);
   }
   return ret;
 }
 
-void _lexer_free(lexer_t *lexer) {
-  scanner_t *scanner;
-
-  if (lexer) {
-    token_free(lexer -> last_token);
-    for (scanner = lexer -> scanners; scanner; scanner = lexer -> scanners) {
-      if (scanner -> next) {
-        scanner -> next -> prev = NULL;
-      }
-      lexer -> scanners = scanner -> next;
-      scanner_free(scanner);
-    }
-    lexer -> scanners = NULL;
-    str_free(lexer -> token);
-    if ((data_t *) lexer -> buffer != lexer -> reader) {
-      str_free(lexer -> buffer);
-    }
-  }
+void * _lexer_reduce_children(lexer_t *lexer, reduce_t reducer, void *ctx) {
+  ctx = reducer(lexer->config, ctx);
+  ctx = reducer(lexer->scanners, ctx);
+  ctx = reducer(lexer->reader, ctx);
+  ctx = reducer(lexer->buffer, ctx);
+  ctx = reducer(lexer->token, ctx);
+  return reducer(lexer->last_token, ctx);
 }
 
 char * _lexer_allocstring(lexer_t *lexer) {
@@ -187,7 +178,7 @@ tokenize_ctx_t * _lexer_tokenize_reducer(token_t *token, tokenize_ctx_t *ctx) {
 
   arguments_set_arg(ctx -> args, 0, token);
   d = data_call(ctx -> parser, ctx -> args);
-  if (d != data_uncopy(arguments_get_arg(ctx -> args, 0))) {
+  if (d != arguments_get_arg(ctx -> args, 0)) {
     arguments_set_arg(ctx -> args, 0, d);
   }
   if (!data_cmp(d, data_null()) || ((data_type(d) == Bool) && !data_intval(d))) {
@@ -233,6 +224,7 @@ lexer_t * _lexer_init_buffer(lexer_t *lexer) {
 
 token_t * _lexer_match_token(lexer_t *lexer) {
   token_t   *ret;
+  int        scanner_ix;
   scanner_t *scanner;
   int        ch;
   int        line = lexer -> line;
@@ -241,9 +233,8 @@ token_t * _lexer_match_token(lexer_t *lexer) {
   debug(lexer, "_lexer_match_token", NULL);
   lexer -> state = LexerStateInit;
   lexer -> scanned = 0;
-  for (scanner = lexer -> scanners;
-       scanner;
-       scanner = scanner -> next) {
+  for (scanner_ix = 0; scanner_ix < datalist_size(lexer->scanners); scanner_ix++) {
+    scanner = data_as_scanner(datalist_get(lexer->scanners, scanner_ix));
     lexer -> scan_count = 0;
     if (scanner -> config -> match) {
       lexer_rewind(lexer);
@@ -253,9 +244,8 @@ token_t * _lexer_match_token(lexer_t *lexer) {
     }
   }
   if (!lexer -> last_token && (lexer -> state != LexerStateSuccess)) {
-    for (scanner = lexer -> scanners;
-         scanner;
-         scanner = scanner -> next) {
+    for (scanner_ix = 0; scanner_ix < datalist_size(lexer->scanners); scanner_ix++) {
+      scanner = data_as_scanner(datalist_get(lexer->scanners, scanner_ix));
       lexer -> scan_count = 0;
       if (scanner -> config -> match_2nd_pass) {
         lexer_rewind(lexer);
@@ -497,9 +487,11 @@ int lexer_get_char(lexer_t *lexer) {
 }
 
 scanner_t * lexer_get_scanner(lexer_t *lexer, char *code) {
+  int        scanner_ix;
   scanner_t *scanner;
 
-  for (scanner = lexer -> scanners; scanner; scanner = scanner -> next) {
+  for (scanner_ix =  0; scanner_ix < datalist_size(lexer->scanners); scanner_ix++) {
+    scanner = data_as_scanner(datalist_get(lexer->scanners, scanner_ix));
     if (!strcmp(code, data_typename((data_t *) scanner -> config))) {
       return scanner;
     }

@@ -107,7 +107,6 @@ scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list args) {
 
   lexer_config = va_arg(args, lexer_config_t *);
   config -> priority = 0;
-  config -> prev = config -> next = NULL;
   config -> lexer_config = lexer_config_copy(lexer_config);
   config -> match = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionMatch);
   config -> match_2nd_pass = (matcher_t) typedescr_get_function(data_typedescr((data_t *) config), FunctionMatch2);
@@ -154,7 +153,7 @@ data_t * _scanner_config_resolve(scanner_config_t *config, char *name) {
   ret = NULL;
   if (!strcmp(name, PARAM_CONFIGURATION)) {
     if (config -> config) {
-      ret = (data_t *) str_copy_chars(dictionary_tostring(config -> config));
+      ret = (data_t *) str(dictionary_tostring(config -> config));
     } else {
       ret = data_null();
     }
@@ -217,14 +216,11 @@ scanner_config_t * _scanner_config_setstring(scanner_config_t *config, char *val
 data_t * _scanner_config_call(scanner_config_t *config, arguments_t *args) {
   lexer_t *lexer;
 
-  lexer = (lexer_t *) data_uncopy(arguments_get_arg(args, 0));
+  lexer = (lexer_t *) arguments_get_arg(args, 0);
   return (data_t *) scanner_config_instantiate(config, lexer);
 }
 
 void * _scanner_config_reduce_children(scanner_config_t *config, reduce_t reducer, void *ctx) {
-  ctx = reducer(config->prev, ctx);
-  ctx = reducer(config->next, ctx);
-  ctx = reducer(config->lexer_config, ctx);
   return reducer(config->config, ctx);
 }
 
@@ -293,12 +289,12 @@ scanner_t * scanner_config_instantiate(scanner_config_t *config, lexer_t *lexer)
   return scanner_create(config, lexer);
 }
 
-scanner_config_t * scanner_config_setvalue(scanner_config_t *config, char *name, data_t *value) {
+scanner_config_t * scanner_config_setvalue(scanner_config_t *config, const char *name, data_t *value) {
   if (name) {
     debug(lexer, "scanner_config_setvalue %s[%s] := %s",
                    data_tostring((data_t *) config),
                    name, data_tostring(value));
-    data_set_attribute((data_t *) config, name, value);
+    data_set_attribute((data_t *) config, (char *) name, value);
   }
   return config;
 }
