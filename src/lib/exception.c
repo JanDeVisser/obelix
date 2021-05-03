@@ -113,7 +113,7 @@ extern int _exception_register(char *str) {
   cursz = _exceptions_sz * sizeof(code_label_t);
   newsz = 2 * cursz;
   if (_exceptions == _builtin_exceptions) {
-    new_exceptions = (code_label_t *) new(newsz);
+    new_exceptions = (code_label_t *) _new(newsz);
     memcpy(new_exceptions, _exceptions, cursz);
   } else {
     new_exceptions = (code_label_t *) resize_block(_exceptions, newsz, cursz);
