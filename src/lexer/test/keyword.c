@@ -17,7 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "tlexer.h"
+#include "lexertest.h"
 #include <nvp.h>
 
 static int _prepare_with_big(void) {
@@ -101,7 +101,7 @@ static void _tokenize(char *str, int total_count, int big_count) {
   int code;
 
   code = _prepare_with_big();
-  lexa_set_stream(lexa, (data_t *) str_copy_chars(str));
+  lexa_set_stream(lexa, (data_t *) str(str));
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, total_count);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, code), big_count);

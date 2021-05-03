@@ -1,10 +1,11 @@
-include_directories(${CHECK_INCLUDE_DIRS})
-link_directories(${CHECK_LIBRARY_DIRS})
+add_executable(lexertest
+        lexertest.cpp
+)
 
-add_executable(tlexer tlexer.c comment.c qstring.c keyword.c number.c)
+target_link_libraries(lexertest ${GTEST_LDFLAGS} obllexer obltest oblcore ${SYSLIBS})
+target_compile_options(lexertest PUBLIC ${GTEST_CFLAGS})
 
-target_link_libraries(tlexer obllexer obltest oblcore ${CHECK_LIBRARIES} ${SYSLIBS})
+install(TARGETS lexertest)
 
-if(CMAKE_COMPILER_IS_GNUCC)
-  target_compile_definitions(tlexer PRIVATE _GNU_SOURCE)
-endif(CMAKE_COMPILER_IS_GNUCC)
+include(CTest)
+add_test(obelix_tests lexertest)

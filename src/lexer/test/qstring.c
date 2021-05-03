@@ -17,12 +17,12 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "tlexer.h"
+#include "lexertest.h"
 
 /* ----------------------------------------------------------------------- */
 
 START_TEST(test_lexa_qstring)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'single quotes' `backticks` \"double quotes\" World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 'single quotes' `backticks` \"double quotes\" World"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 10);
@@ -34,7 +34,7 @@ START_TEST(test_lexa_qstring)
 END_TEST
 
 START_TEST(test_lexa_qstring_noclose)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'no close quote"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 'no close quote"));
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 1);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
@@ -51,7 +51,7 @@ void _test_filter(token_t *token) {
 }
 
 START_TEST(test_lexa_qstring_escaped_backslash)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'escaped backslash \\\\'"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 'escaped backslash \\\\'"));
   filter = "escaped backslash \\";
   lexa_set_tokenfilter(lexa, _test_filter);
   lexa_tokenize(lexa);
@@ -59,7 +59,7 @@ START_TEST(test_lexa_qstring_escaped_backslash)
 END_TEST
 
 START_TEST(test_lexa_qstring_escaped_quote)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'escaped quote \\''"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 'escaped quote \\''"));
   filter = "escaped quote '";
   lexa_set_tokenfilter(lexa, _test_filter);
   lexa_tokenize(lexa);
@@ -67,7 +67,7 @@ START_TEST(test_lexa_qstring_escaped_quote)
 END_TEST
 
 START_TEST(test_lexa_qstring_no_escape)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'escape \\"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 'escape \\"));
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 1);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
@@ -75,7 +75,7 @@ START_TEST(test_lexa_qstring_no_escape)
 END_TEST
 
 START_TEST(test_lexa_qstring_newline)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'escaped\\nnewline''"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 'escaped\\nnewline''"));
   filter = "escaped\nnewline";
   lexa_set_tokenfilter(lexa, _test_filter);
   lexa_tokenize(lexa);
@@ -83,7 +83,7 @@ START_TEST(test_lexa_qstring_newline)
 END_TEST
 
 START_TEST(test_lexa_qstring_gratuitous_escape)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 'escaped \\$ dollarsign''"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 'escaped \\$ dollarsign''"));
   filter = "escaped $ dollarsign";
   lexa_set_tokenfilter(lexa, _test_filter);
   lexa_tokenize(lexa);

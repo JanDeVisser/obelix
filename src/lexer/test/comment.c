@@ -17,7 +17,7 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "tlexer.h"
+#include "lexertest.h"
 
 /* ----------------------------------------------------------------------- */
 
@@ -30,7 +30,7 @@ void _setup_comment_lexer(void) {
 }
 
 START_TEST(test_lexa_run_comment_lexer)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("BeforeComment /* comment */ AfterComment"));
+  lexa_set_stream(lexa, (data_t *) str("BeforeComment /* comment */ AfterComment"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 5);

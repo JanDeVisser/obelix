@@ -17,29 +17,37 @@
  * along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <check.h>
-#include <stdio.h>
-#include <stdlib.h>
+#pragma once
 
+#include <cstring>
+#include <cstdio>
+#include <gtest/gtest.h>
 #include <lexa.h>
-#include <testsuite.h>
+#include <heap.h>
 
-#ifndef __TLEXER_H__
-#define __TLEXER_H__
+class LexerTest : public ::testing::Test {
+public:
+  lexa_t * lexa { NULL };
 
-extern lexa_t *lexa;
+protected:
+  void SetUp() override {
+    logging_enable("lexer");
+    logging_set_level("DEBUG");
+    lexa = lexa_create();
+    ASSERT_TRUE(lexa);
+  }
 
-extern lexa_t * setup(void);
-extern lexa_t * setup_with_scanners(void);
-extern void     teardown();
+  lexa_t * withScanners() const {
+    lexa_add_scanner(lexa, "identifier");
+    lexa_add_scanner(lexa, "whitespace");
+    lexa_add_scanner(lexa, "qstring: quotes='`\"");
+    return lexa;
+  }
 
-extern void     _setup_with_scanners(void);
-extern void     _teardown();
+  void TearDown() override {
+    data_release(lexa);
+    lexa = NULL;
+    heap_gc();
+  }
 
-extern void     create_lexa(void);
-extern void     create_number(void);
-extern void     create_qstring(void);
-extern void     create_comment(void);
-extern void     create_keyword(void);
-
-#endif /* __TLEXER_H__ */
+};

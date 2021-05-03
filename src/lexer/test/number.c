@@ -19,7 +19,7 @@
 
 // grep START_TEST number.c | sed -e 's/START_TEST[(]/  tcase_add_test\(tc, /g' -e 's/$/;/g'
 
-#include "tlexer.h"
+#include "lexertest.h"
 
 /* ----------------------------------------------------------------------- */
 
@@ -32,7 +32,7 @@ void _setup_number_lexer(void) {
 }
 
 START_TEST(test_lexa_integer)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234 World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 1234 World"));
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 6);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
@@ -41,7 +41,7 @@ START_TEST(test_lexa_integer)
 END_TEST
 
 START_TEST(test_lexa_neg_integer)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello -1234 World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello -1234 World"));
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 6);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
@@ -50,7 +50,7 @@ START_TEST(test_lexa_neg_integer)
 END_TEST
 
 START_TEST(test_lexa_integer_nospace)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello -1234World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello -1234World"));
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 5);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
@@ -59,7 +59,7 @@ START_TEST(test_lexa_integer_nospace)
 END_TEST
 
 START_TEST(test_lexa_hex)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 0x1234abcd World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 0x1234abcd World"));
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 6);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
@@ -68,7 +68,7 @@ START_TEST(test_lexa_hex)
 END_TEST
 
 START_TEST(test_lexa_hex_nothexdigit)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 0x1234abcj World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 0x1234abcj World"));
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 7);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 3);
@@ -78,7 +78,7 @@ END_TEST
 
 START_TEST(test_lexa_float_unconfigured)
   lexa_set_config_value(lexa, "number", "float=0");
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234.12 World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 1234.12 World"));
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 8);
   ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
@@ -88,7 +88,7 @@ START_TEST(test_lexa_float_unconfigured)
 END_TEST
 
 START_TEST(test_lexa_float)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234.56 World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 1234.56 World"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 6);
@@ -98,7 +98,7 @@ START_TEST(test_lexa_float)
 END_TEST
 
 START_TEST(test_lexa_neg_float)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello -1234.56 World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello -1234.56 World"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 6);
@@ -108,7 +108,7 @@ START_TEST(test_lexa_neg_float)
 END_TEST
 
 START_TEST(test_lexa_sci_float)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234.56e+02 World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 1234.56e+02 World"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 6);
@@ -118,7 +118,7 @@ START_TEST(test_lexa_sci_float)
 END_TEST
 
 START_TEST(test_lexa_sci_float_nosign)
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello 1234.56e02 World"));
+  lexa_set_stream(lexa, (data_t *) str("Hello 1234.56e02 World"));
   ck_assert_ptr_ne(lexa -> stream, NULL);
   lexa_tokenize(lexa);
   ck_assert_int_eq(lexa -> tokens, 6);
