@@ -169,7 +169,7 @@ unsigned int _ptr_hash(pointer_t *data) {
 pointer_t * _ptr_copy(pointer_t *p, char *name, arguments_t *args) {
   void      *newbuf;
 
-  newbuf = new(p -> size);
+  newbuf = _new(p -> size);
   memcpy(newbuf, p -> ptr, p -> size);
   return ptr_create(p -> size, newbuf);
 }

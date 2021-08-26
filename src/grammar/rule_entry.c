@@ -22,16 +22,14 @@
 #include "libgrammar.h"
 
 static rule_entry_t * _rule_entry_new(rule_entry_t *, va_list);
-static void           _rule_entry_free(rule_entry_t *);
-static char *         _rule_entry_allocstring(rule_entry_t *);
+static void *         _rule_entry_reduce_children(rule_entry_t *, reduce_t, void *);
 static rule_entry_t * _rule_entry_dump_pre(ge_dump_ctx_t *);
 
 static rule_entry_t * _rule_entry_create(rule_t *, int, void *);
 
 static vtable_t _vtable_RuleEntry[] = {
   { .id = FunctionNew,         .fnc = (void_t) _rule_entry_new },
-  { .id = FunctionFree,        .fnc = (void_t) _rule_entry_free },
-  { .id = FunctionAllocString, .fnc = (void_t) _rule_entry_allocstring },
+  { .id = FunctionReduce,      .fnc = (void_t) _rule_entry_reduce_children },
   { .id = FunctionUsr2,        .fnc = (void_t) _rule_entry_dump_pre },
   { .id = FunctionNone,        .fnc = NULL }
 };
@@ -48,9 +46,10 @@ extern void rule_entry_register(void) {
 /* -- R U L E _ E N T R Y  S T A T I C  F U N C T I O N S ----------------- */
 
 rule_entry_t * _rule_entry_new(rule_entry_t *entry, va_list args) {
-  rule_t    *rule;
-  int        terminal;
-  void      *ptr;
+  rule_t  *rule;
+  int      terminal;
+  void    *ptr;
+  char    *buf;
 
   va_arg(args, grammar_t *);
   rule = va_arg(args, rule_t *);
@@ -58,46 +57,32 @@ rule_entry_t * _rule_entry_new(rule_entry_t *entry, va_list args) {
   ptr = va_arg(args, void *);
   entry -> terminal = terminal;
   if (terminal) {
-    entry -> token = (ptr) ? token_copy((token_t *) ptr)
+    entry -> token = (ptr) ? (token_t *) ptr
                            : token_create(TokenCodeEmpty, "E");
+    asprintf(&buf, "'%s'", token_token(entry -> token));
+    data_set_static_string(entry, buf);
+    free(buf);
   } else {
-    entry -> nonterminal = strdup((char *) ptr);
+    entry->token = NULL;
+    data_set_static_string(entry, (char *) ptr);
   }
-  array_push(rule -> entries, entry);
+  datalist_push(rule -> entries, entry);
   return entry;
 }
 
-char * _rule_entry_allocstring(rule_entry_t *entry) {
-  char *buf;
-
-  if (entry -> terminal) {
-    asprintf(&buf, "'%s'", token_token(entry -> token));
-  } else {
-    buf = strdup(entry -> nonterminal);
-  }
-  return buf;
-}
-
-void _rule_entry_free(rule_entry_t *entry) {
-  if (entry) {
-    if (entry -> terminal) {
-      token_free(entry -> token);
-    } else {
-      free(entry -> nonterminal);
-    }
-  }
+void * _rule_entry_reduce_children(rule_entry_t *entry, reduce_t reducer, void *ctx) {
+  ctx = reducer(entry->token, ctx);
+  return ctx;
 }
 
 rule_entry_t * _rule_entry_dump_pre(ge_dump_ctx_t *ctx) {
-  rule_entry_t *entry = (rule_entry_t *) ctx -> obj;
+  rule_entry_t * entry = (rule_entry_t *) ctx->obj;
 
-  if (entry -> terminal) {
+  if (entry->terminal) {
     printf("  ge = (ge_t *) rule_entry_terminal((rule_t *) owner, token_create(%d, \"%s\"));\n",
-           token_code(entry -> token),
-           (token_code(entry -> token) != 34) ? token_token(entry -> token) : "\\\"");
+           token_code(entry->token), (token_code(entry->token) != 34) ? token_token(entry->token) : "\\\"");
   } else {
-    printf("  ge = (ge_t *) rule_entry_non_terminal((rule_t *) owner, \"%s\");\n",
-           entry -> nonterminal);
+    printf("  ge = (ge_t *) rule_entry_non_terminal((rule_t *) owner, \"%s\");\n", data_tostring(entry));
   }
   return entry;
 }
@@ -105,14 +90,13 @@ rule_entry_t * _rule_entry_dump_pre(ge_dump_ctx_t *ctx) {
 /* ----------------------------------------------------------------------- */
 
 set_t * _rule_entry_get_firsts(rule_entry_t *entry, set_t *firsts) {
-  nonterminal_t *nonterminal;
+  nonterminal_t * nonterminal;
 
-  if (entry -> terminal) {
-    set_add_int(firsts, token_code(entry -> token));
+  if (entry->terminal) {
+    set_add_int(firsts, token_code(entry->token));
   } else {
-    nonterminal = grammar_get_nonterminal(rule_entry_get_grammar(entry),
-                                          entry -> nonterminal);
-    oassert(nonterminal, "Non-terminal '%s' not found", entry -> nonterminal);
+    nonterminal = grammar_get_nonterminal(rule_entry_get_grammar(entry), data_tostring(entry));
+    oassert(nonterminal, "Non-terminal '%s' not found", entry->nonterminal);
     set_union(firsts, _nonterminal_get_firsts(nonterminal));
   }
   return firsts;

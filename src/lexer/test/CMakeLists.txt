@@ -1,5 +1,9 @@
 add_executable(lexertest
         lexertest.cpp
+        comment.cpp
+        keyword.cpp
+        number.cpp
+        qstring.cpp
 )
 
 target_link_libraries(lexertest ${GTEST_LDFLAGS} obllexer obltest oblcore ${SYSLIBS})

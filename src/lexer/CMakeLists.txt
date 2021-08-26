@@ -23,6 +23,4 @@ install(TARGETS lexa obllexer
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)
 
-if(CHECK_FOUND)
-  add_subdirectory(test)
-endif(CHECK_FOUND)
+add_subdirectory(test)

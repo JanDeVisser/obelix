@@ -21,28 +21,31 @@
 
 /* ----------------------------------------------------------------------- */
 
-START_TEST(test_lexa_qstring)
-  lexa_set_stream(lexa, (data_t *) str("Hello 'single quotes' `backticks` \"double quotes\" World"));
-  ck_assert_ptr_ne(lexa -> stream, NULL);
-  lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa -> tokens, 10);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 4);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeSQuotedStr), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeBQuotedStr), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeDQuotedStr), 1);
-END_TEST
+class QStringTest : public LexerTest {
+};
 
-START_TEST(test_lexa_qstring_noclose)
+TEST_F(QStringTest, QString) {
+  lexa_set_stream(lexa, (data_t *) str("Hello 'single quotes' `backticks` \"double quotes\" World"));
+  EXPECT_TRUE(lexa -> stream);
+  lexa_tokenize(lexa);
+  EXPECT_EQ(lexa -> tokens, 10);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 4);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeSQuotedStr), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeBQuotedStr), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeDQuotedStr), 1);
+}
+
+TEST_F(QStringTest, NoClose) {
   lexa_set_stream(lexa, (data_t *) str("Hello 'no close quote"));
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeError), 1);
-END_TEST
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeError), 1);
+}
 
 int ok = 0;
-char *filter;
+const char *filter;
 
 void _test_filter(token_t *token) {
   if (token_code(token) == TokenCodeSQuotedStr) {
@@ -50,57 +53,44 @@ void _test_filter(token_t *token) {
   }
 }
 
-START_TEST(test_lexa_qstring_escaped_backslash)
+TEST_F(QStringTest, EscapedBackslash) {
   lexa_set_stream(lexa, (data_t *) str("Hello 'escaped backslash \\\\'"));
   filter = "escaped backslash \\";
   lexa_set_tokenfilter(lexa, _test_filter);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(ok, 1);
-END_TEST
+  EXPECT_EQ(ok, 1);
+}
 
-START_TEST(test_lexa_qstring_escaped_quote)
+TEST_F(QStringTest, EscapedQuote) {
   lexa_set_stream(lexa, (data_t *) str("Hello 'escaped quote \\''"));
   filter = "escaped quote '";
   lexa_set_tokenfilter(lexa, _test_filter);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(ok, 1);
-END_TEST
+  EXPECT_EQ(ok, 1);
+}
 
-START_TEST(test_lexa_qstring_no_escape)
+TEST_F(QStringTest, NoEscape) {
   lexa_set_stream(lexa, (data_t *) str("Hello 'escape \\"));
   lexa_tokenize(lexa);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
-  ck_assert_int_eq(lexa_tokens_with_code(lexa, TokenCodeError), 1);
-END_TEST
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeError), 1);
+}
 
-START_TEST(test_lexa_qstring_newline)
+TEST_F(QStringTest, Newline) {
   lexa_set_stream(lexa, (data_t *) str("Hello 'escaped\\nnewline''"));
   filter = "escaped\nnewline";
   lexa_set_tokenfilter(lexa, _test_filter);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(ok, 1);
-END_TEST
+  EXPECT_EQ(ok, 1);
+}
 
-START_TEST(test_lexa_qstring_gratuitous_escape)
+TEST_F(QStringTest, GratuitousEscape) {
   lexa_set_stream(lexa, (data_t *) str("Hello 'escaped \\$ dollarsign''"));
   filter = "escaped $ dollarsign";
   lexa_set_tokenfilter(lexa, _test_filter);
   lexa_tokenize(lexa);
-  ck_assert_int_eq(ok, 1);
-END_TEST
+  EXPECT_EQ(ok, 1);
+}
 
 /* ------------------------------------------------------------------------ */
-
-void create_qstring(void) {
-  TCase *tc = tcase_create("QString");
-  tcase_add_checked_fixture(tc, _setup_with_scanners, _teardown);
-  tcase_add_test(tc, test_lexa_qstring);
-  tcase_add_test(tc, test_lexa_qstring_noclose);
-  tcase_add_test(tc, test_lexa_qstring_escaped_backslash);
-  tcase_add_test(tc, test_lexa_qstring_escaped_quote);
-  tcase_add_test(tc, test_lexa_qstring_no_escape);
-  tcase_add_test(tc, test_lexa_qstring_newline);
-  tcase_add_test(tc, test_lexa_qstring_gratuitous_escape);
-  add_tcase(tc);
-}

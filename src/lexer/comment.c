@@ -141,11 +141,11 @@ comment_config_t *_comment_config_create(comment_config_t *config,
 
 void _comment_config_free(comment_config_t *config) {
   comment_marker_t *marker;
-  comment_marker_t *last;
+  comment_marker_t *next;
 
   if (config) {
-    for (marker = config -> markers; marker; marker = last -> next) {
-      last = marker;
+    for (marker = config -> markers; marker; marker = next) {
+      next = marker->next;
       _comment_marker_free(marker);
     }
   }

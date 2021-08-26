@@ -119,8 +119,8 @@ extern char *             lexer_state_name(lexer_state_t);
 
 extern int                scanner_config_typeid(void);
 extern typedescr_t *      scanner_config_register(typedescr_t *);
-extern typedescr_t *      scanner_config_load(char *, char *);
-extern typedescr_t *      scanner_config_get(char *);
+extern typedescr_t *      scanner_config_load(const char *, const char *);
+extern typedescr_t *      scanner_config_get(const char *);
 extern scanner_config_t * scanner_config_create(char *, lexer_config_t *);
 extern scanner_t *        scanner_config_instantiate(scanner_config_t *, lexer_t *);
 extern scanner_config_t * scanner_config_setvalue(scanner_config_t *, const char *, data_t *);

@@ -136,7 +136,7 @@ scriptloader_t * _scriptloader_new(scriptloader_t *loader, va_list args) {
 
   if (!grammarpath || !*grammarpath) {
     debug(obelix, "Using stock, compiled-in grammar");
-    loader -> grammar = grammar_copy(_obelix_grammar);
+    loader -> grammar = _obelix_grammar;
   } else {
     debug(obelix, "grammar file: %s", grammarpath);
     file = (data_t *) file_open(grammarpath);
@@ -196,7 +196,6 @@ void _scriptloader_free(scriptloader_t *loader) {
     datalist_free(loader -> load_path);
     array_free(loader -> options);
     free(loader -> cookie);
-    grammar_free(loader -> grammar);
     ns_free(loader -> ns);
   }
 }

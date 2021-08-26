@@ -40,7 +40,7 @@ static void _create_grammar_parser(char *grammar) {
 static void _teardown(void) {
   file_free(file);
   grammar_parser_free(gp);
-  grammar_free(grammar);
+//  grammar_free(grammar);
 }
 
 /* ----------------------------------------------------------------------- */

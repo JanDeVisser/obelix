@@ -42,23 +42,26 @@ typedef enum _gp_state_ {
 } gp_state_t;
 
 typedef struct _grammar_parser {
-  data_t *reader;
-  grammar_t *grammar;
-  gp_state_t state;
-  gp_state_t old_state;
-  token_t *last_token;
-  ge_t *ge;
+  data_t         _d;
+  data_t        *reader;
+  grammar_t     *grammar;
+  gp_state_t     state;
+  gp_state_t     old_state;
+  token_t       *last_token;
+  ge_t          *ge;
   nonterminal_t *nonterminal;
-  rule_t *rule;
-  rule_entry_t *entry;
-  int modifier;
-  int dryrun;
-  dict_t *keywords;
-  unsigned int next_keyword_code;
+  rule_t        *rule;
+  rule_entry_t  *entry;
+  int            modifier;
+  int            dryrun;
+  dictionary_t  *keywords;
+  unsigned int   next_keyword_code;
 } grammar_parser_t;
 
+extern int GrammarParser;
+type_skel(grammar_parser, GrammarParser, grammar_parser_t);
+
 extern grammar_parser_t *grammar_parser_create(data_t *);
-extern void grammar_parser_free(grammar_parser_t *);
 extern grammar_t *grammar_parser_parse(grammar_parser_t *);
 
 #ifdef __cplusplus

@@ -309,7 +309,7 @@ int _pse_execute_Action(parser_stack_entry_t *e, parser_t *parser, token_t *toke
 /* -- P A R S E R  D A T A  F U N C T I O N S ----------------------------- */
 
 parser_t * _parser_new(parser_t *parser, va_list args) {
-  parser -> grammar = grammar_copy(va_arg(args, grammar_t *));
+  parser -> grammar = va_arg(args, grammar_t *);
   parser -> lexer = NULL;
   parser -> prod_stack = list_create();
   parser -> last_token = NULL;
@@ -360,7 +360,7 @@ data_t * _parser_resolve(parser_t *parser, char *name) {
   if (!strcmp(name, "lexer")) {
     return (data_t *) lexer_copy(parser -> lexer);
   } else if (!strcmp(name, "grammar")) {
-    return (data_t *) grammar_copy(parser -> grammar);
+    return (data_t *) parser -> grammar;
   } else {
     return data_copy(parser_get(parser, name));
   }

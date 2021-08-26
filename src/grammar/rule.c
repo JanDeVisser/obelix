@@ -22,6 +22,7 @@
 
 static rule_t *            _rule_new(rule_t *, va_list);
 static void                _rule_free(rule_t *);
+static void *              _rule_reduce_children(rule_t *, reduce_t, void *);
 static char *              _rule_tostring(rule_t *);
 static rule_t *            _rule_dump_pre(rule_t *rule);
 static list_t *            _rule_dump_get_children(rule_t *rule, list_t *);
@@ -29,6 +30,7 @@ static list_t *            _rule_dump_get_children(rule_t *rule, list_t *);
 static vtable_t _vtable_Rule[] = {
   { .id = FunctionNew,      .fnc = (void_t) _rule_new },
   { .id = FunctionFree,     .fnc = (void_t) _rule_free },
+  { .id = FunctionReduce,   .fnc = (void_t) _rule_reduce_children },
   { .id = FunctionToString, .fnc = (void_t) _rule_tostring },
   { .id = FunctionUsr2,     .fnc = (void_t) _rule_dump_pre },
   { .id = FunctionUsr3,     .fnc = (void_t) _rule_dump_get_children },
@@ -53,21 +55,24 @@ rule_t * _rule_new(rule_t *rule, va_list args) {
   nonterminal = va_arg(args, nonterminal_t *);
   rule -> firsts = NULL;
   rule -> follows = NULL;
-  rule -> entries = data_array_create(3);
-  array_push(nonterminal -> rules, rule_copy(rule));
+  rule -> entries = datalist_create(NULL);
+  datalist_push(nonterminal -> rules, rule);
   return rule;
 }
 
 void _rule_free(rule_t *rule) {
   if (rule) {
-    array_free(rule -> entries);
     set_free(rule -> firsts);
     set_free(rule -> follows);
   }
 }
 
+void * _rule_reduce_children(rule_t *rule, reduce_t reducer, void *ctx) {
+  return reducer(rule->entries, ctx);
+}
+
 char * _rule_tostring(rule_t *rule) {
-  return array_tostring(rule -> entries);
+  return datalist_tostring(rule -> entries);
 }
 
 rule_t * _rule_dump_pre(rule_t *rule) {
@@ -76,7 +81,7 @@ rule_t * _rule_dump_pre(rule_t *rule) {
 }
 
 list_t * _rule_dump_get_children(rule_t *rule, list_t *children) {
-  return array_reduce(rule -> entries, (reduce_t) ge_append_child, children);
+  return datalist_reduce(rule -> entries, (reduce_t) ge_append_child, children);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -104,7 +109,7 @@ set_t * _rule_get_firsts(rule_t *rule) {
     rule -> firsts = intset_create();
     if (rule -> firsts) {
       set_add_int(rule -> firsts, TokenCodeEmpty);
-      for (j = 0; set_has_int(rule -> firsts, TokenCodeEmpty) && (j < array_size(rule -> entries)); j++) {
+      for (j = 0; set_has_int(rule -> firsts, TokenCodeEmpty) && (j < datalist_size(rule -> entries)); j++) {
         set_remove_int(rule -> firsts, TokenCodeEmpty);
         e = rule_get_entry(rule, j);
         _rule_entry_get_firsts(e, rule -> firsts);
@@ -124,7 +129,7 @@ rule_t * _rule_add_parse_table_entry(long tokencode, rule_t *rule) {
   nonterminal = rule_get_nonterminal(rule);
   if (tokencode != TokenCodeEmpty) {
     if (!dict_has_int(nonterminal -> parse_table, (int) tokencode)) {
-      dict_put_int(nonterminal -> parse_table, (int) tokencode, rule_copy(rule));
+      dict_put_int(nonterminal -> parse_table, (int) tokencode, rule);
     }
   } else {
     set_reduce(nonterminal -> follows,
@@ -145,3 +150,8 @@ rule_t * rule_create(nonterminal_t *nonterminal) {
   grammar_init();
   return (rule_t *) data_create(Rule, nonterminal_get_grammar(nonterminal), nonterminal);
 }
+
+rule_entry_t * rule_get_entry(rule_t *rule, int ix) {
+  return (rule_entry_t *) datalist_get(rule->entries, ix);
+}
+

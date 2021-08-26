@@ -45,6 +45,15 @@ static grammar_parser_t * _grammar_parser_state_modifier(token_t *, grammar_pars
 static grammar_parser_t * _grammar_parser_state_separator(token_t *, grammar_parser_t *);
 static void               _grammar_parser_syntax_error(grammar_parser_t *, exception_t *);
 
+static grammar_parser_t * _grammar_parser_new(grammar_parser_t *, va_list);
+static void *             _grammar_parser_reduce_children(grammar_parser_t *, reduce_t, void *);
+
+static vtable_t _vtable_RuleEntry[] = {
+  { .id = FunctionNew,         .fnc = (void_t) _grammar_parser_new },
+  { .id = FunctionReduce,      .fnc = (void_t) _grammar_parser_reduce_children },
+  { .id = FunctionNone,        .fnc = NULL }
+};
+
 static gp_state_rec_t _gp_state_recs[] = {
   { "GPStateStart",        (reduce_t) _grammar_parser_state_start },
   { "GPStateOptions",      (reduce_t) _grammar_parser_state_options },
@@ -58,23 +67,51 @@ static gp_state_rec_t _gp_state_recs[] = {
   { "GPStateSeparator",    (reduce_t) _grammar_parser_state_separator }
 };
 
+int GrammarParser = -1;
+
 
 /*
  * grammar_parser_t static functions
  */
 
- grammar_parser_t * _grammar_parser_set_option(grammar_parser_t *grammar_parser, token_t *value) {
-   data_t *val = (value) ? (data_t *) str(token_token(value)) : NULL;
+grammar_parser_t * _grammar_parser_new(grammar_parser_t * gp, va_list args) {
+  gp->reader = va_arg(args, data_t *);
+  gp->state = GPStateStart;
+  gp->grammar = NULL;
+  gp->last_token = NULL;
+  gp->nonterminal = NULL;
+  gp->rule = NULL;
+  gp->entry = NULL;
+  gp->ge = NULL;
+  gp->dryrun = FALSE;
+  gp->keywords = dictionary_create(NULL);
+  gp->next_keyword_code = 300;
+  data_set_static_string(gp, "Grammar Parser");
+  return gp;
+}
 
-   if (grammar_parser -> last_token) {
-     data_set_attribute((data_t *) grammar_parser -> ge,
-                        token_token(grammar_parser -> last_token),
-                        val);
-     data_free(val);
-     token_free(grammar_parser -> last_token);
-     grammar_parser -> last_token = NULL;
-   }
-   return grammar_parser;
+void * _grammar_parser_reduce_children(grammar_parser_t *gp, reduce_t reducer, void *ctx) {
+  ctx = reducer(gp->reader, ctx);
+  ctx = reducer(gp->grammar, ctx);
+  ctx = reducer(gp->last_token, ctx);
+  ctx = reducer(gp->ge, ctx);
+  ctx = reducer(gp->nonterminal, ctx);
+  ctx = reducer(gp->rule, ctx);
+  ctx = reducer(gp->entry, ctx);
+  ctx = reducer(gp->keywords, ctx);
+  return ctx;
+}
+
+grammar_parser_t * _grammar_parser_set_option(grammar_parser_t * grammar_parser, token_t * value) {
+  data_t * val = (value) ? (data_t *) str(token_token(value)) : NULL;
+
+  if (grammar_parser->last_token) {
+    data_set_attribute((data_t *) grammar_parser->ge, token_token(grammar_parser->last_token), val);
+    data_free(val);
+    token_free(grammar_parser->last_token);
+    grammar_parser->last_token = NULL;
+  }
+  return grammar_parser;
 }
 
 data_t * _grammar_parser_xform(grammar_parser_t *gp, token_t *token) {
@@ -92,14 +129,13 @@ data_t * _grammar_parser_xform(grammar_parser_t *gp, token_t *token) {
       if (len >= 1) {
         token_free(token);
         assert(gp -> grammar -> lexer);
-        token = (token_t *) dict_get(gp -> keywords, str);
+        token = (token_t *) dictionary_get(gp -> keywords, str);
         if (!token) {
           token = token_create(gp -> next_keyword_code++, str);
           kw = nvp_create(data_uncopy((data_t *) str_wrap("keyword")),
                           (data_t *) token_copy(token));
           lexer_config_set(gp -> grammar -> lexer, "keyword", (data_t *) kw);
-          nvp_free(kw);
-          dict_put(gp -> keywords, strdup(str), token);
+          dictionary_set(gp -> keywords, strdup(str), token);
         }
       } else { /* len == 0 */
         ret = (data_t *) exception_create(ErrorSyntax,
@@ -144,8 +180,7 @@ grammar_parser_t * _grammar_parser_replace_entry(grammar_parser_t *gp, char *nt)
    */
 
   /* Pop current entry from current rule and free it: */
-  entry = array_pop(gp -> rule -> entries);
-  rule_entry_free(entry);
+  (void) datalist_pop(gp -> rule -> entries);
 
   /* Build new entry: */
   gp -> entry = rule_entry_non_terminal(gp -> rule, nt);
@@ -171,7 +206,7 @@ grammar_parser_t * _grammar_parser_make_optional(grammar_parser_t *gp) {
     nt = nonterminal_create(gp -> grammar, synthetic_nt_name);
     rule = rule_create(nt);
     /* Add entry currently being processed to synthetic rule: */
-    array_push(rule -> entries, rule_entry_copy(gp -> entry));
+    datalist_push(rule -> entries, gp -> entry);
     /* Create empty rule: */
     rule_create(nt);
   }
@@ -207,7 +242,7 @@ grammar_parser_t * _grammar_parser_expand_modifier(grammar_parser_t *gp, token_t
   if (!nt) {
     nt = nonterminal_create(gp -> grammar, nt_plus_sep);
     rule = rule_create(nt);
-    array_push(rule -> entries, rule_entry_copy(gp -> entry));
+    datalist_push(rule -> entries, gp -> entry);
     rule_entry_non_terminal(rule, nt_sep);
   }
 
@@ -397,8 +432,7 @@ grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_par
       if (grammar_parser -> nonterminal) {
         _grammar_parser_syntax_error(grammar_parser,
           exception_create(ErrorSyntax,
-            "Unexpected end-of-file in definition of non-terminal '%s'",
-            grammar_parser -> nonterminal -> name));
+            "Unexpected end-of-file in definition of non-terminal '%s'", data_tostring(grammar_parser->nonterminal)));
       }
       break;
 
@@ -407,7 +441,7 @@ grammar_parser_t * _grammar_parser_state_nonterminal(token_t *token, grammar_par
         _grammar_parser_syntax_error(grammar_parser,
           exception_create(ErrorSyntax,
             "Unexpected token '%s' in definition of non-terminal '%s'",
-            token_tostring(token), grammar_parser -> nonterminal -> name));
+            token_tostring(token), data_tostring(grammar_parser -> nonterminal)));
       } else {
         _grammar_parser_syntax_error(grammar_parser,
           exception_create(ErrorSyntax,
@@ -471,7 +505,7 @@ grammar_parser_t * _grammar_parser_state_rule(token_t *token, grammar_parser_t *
       break;
   }
   if (xformed_token != token) {
-    token_free(xformed_token);
+    data_set_free(xformed_token);
   }
   return grammar_parser;
 }
@@ -550,29 +584,11 @@ lexer_config_t * _grammar_token_handler(token_t *token, lexer_config_t *lexer) {
  */
 
 grammar_parser_t * grammar_parser_create(data_t *reader) {
+  typedescr_register(RuleEntry, rule_entry_t);
   grammar_parser_t *grammar_parser;
 
-  grammar_parser = NEW(grammar_parser_t);
-  grammar_parser -> reader = reader;
-  grammar_parser -> state = GPStateStart;
-  grammar_parser -> grammar = NULL;
-  grammar_parser -> last_token = NULL;
-  grammar_parser -> nonterminal = NULL;
-  grammar_parser -> rule = NULL;
-  grammar_parser -> entry = NULL;
-  grammar_parser -> ge = NULL;
-  grammar_parser -> dryrun = FALSE;
-  grammar_parser -> keywords = strdata_dict_create();
-  grammar_parser -> next_keyword_code = 300;
+  grammar_parser = (grammar_parser_t *) data_create(GrammarParser, reader);
   return grammar_parser;
-}
-
-void grammar_parser_free(grammar_parser_t *grammar_parser) {
-  if (grammar_parser) {
-    token_free(grammar_parser -> last_token);
-    dict_free(grammar_parser -> keywords);
-    free(grammar_parser);
-  }
 }
 
 grammar_t * grammar_parser_parse(grammar_parser_t *gp) {

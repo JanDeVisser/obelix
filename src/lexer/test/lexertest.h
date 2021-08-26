@@ -31,9 +31,12 @@ public:
 
 protected:
   void SetUp() override {
-    logging_enable("lexer");
-    logging_set_level("DEBUG");
+    if (debugOn()) {
+      logging_enable("lexer");
+      logging_set_level("DEBUG");
+    }
     lexa = lexa_create();
+    withScanners();
     ASSERT_TRUE(lexa);
   }
 
@@ -48,6 +51,10 @@ protected:
     data_release(lexa);
     lexa = NULL;
     heap_gc();
+  }
+
+  virtual bool debugOn() {
+    return false;
   }
 
 };

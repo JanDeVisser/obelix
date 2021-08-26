@@ -61,6 +61,7 @@ application_t * _app_new(application_t *app, va_list args) {
   app -> argc = 0;
   app -> argv = str_array_create(0);
   app -> args = arguments_create(NULL, NULL);
+  data_register(app);
   return app;
 }
 
@@ -86,7 +87,8 @@ data_t * _app_set(application_t *app, char *name, data_t *value) {
 }
 
 void * _app_reduce_children(application_t *app, reduce_t reducer, void *ctx) {
-  return reducer(app->error, reducer(app->args, ctx));
+  ctx = reducer(app->error, reducer(app->args, ctx));
+  return reducer(app->app, ctx);
 }
 
 _noreturn_ void _app_help(application_t *app) {

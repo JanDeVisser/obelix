@@ -55,6 +55,7 @@ typedef struct _application {
   char               *executable;
   arguments_t        *args;
   data_t             *error;
+  data_t             *app;
 } application_t;
 
 extern void            application_init(void);

@@ -111,8 +111,8 @@ lexer_t * _lexer_new(lexer_t *ret, va_list args) {
   int               scanner_ix;
   scanner_config_t *scanner_config;
 
-  ret -> config = lexer_config_copy(config);
-  ret -> reader = data_copy(reader);
+  ret -> config = config;
+  ret -> reader = reader;
 
   ret -> buffer = NULL;
   ret -> state = LexerStateFresh;
@@ -126,7 +126,8 @@ lexer_t * _lexer_new(lexer_t *ret, va_list args) {
   ret -> token = str_create(LEXER_INIT_TOKEN_SZ);
 
   ret->scanners = datalist_create(NULL);
-  for (scanner_ix = 0; scanner_ix < datalist_size(config->scanners); scanner_ix++) {
+  debug(lexer, "Creating lexer. Config defines %d scanners", config->num_scanners);
+  for (scanner_ix = 0; scanner_ix < config->num_scanners; scanner_ix++) {
     scanner_config = data_as_scanner_config(datalist_get(config->scanners, scanner_ix));
     scanner_config_instantiate(scanner_config, ret);
   }
@@ -237,6 +238,7 @@ token_t * _lexer_match_token(lexer_t *lexer) {
     scanner = data_as_scanner(datalist_get(lexer->scanners, scanner_ix));
     lexer -> scan_count = 0;
     if (scanner -> config -> match) {
+      debug(lexer, "First pass with scanner '%s'", data_typename(scanner -> config));
       lexer_rewind(lexer);
       scanner -> config -> match(scanner);
       debug(lexer, "First pass with scanner '%s' = %s",

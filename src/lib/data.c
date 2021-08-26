@@ -26,9 +26,7 @@
 #include <data.h>
 #include <method.h>
 
-#ifndef REFCOUNTING
 #include <heap.h>
-#endif
 
 static data_t *    _data_call_constructor(data_t *, new_t, va_list);
 static data_t *    _data_call_constructors(typedescr_t *, va_list);
@@ -170,11 +168,7 @@ data_t * data_create_noinit(int type) {
 
   descr = typedescr_get(type);
   debug(data, "Allocating %d bytes for new '%s'", descr -> size, type_name(descr));
-#ifdef REFCOUNTING
-  ret = (data_t *) _new((descr -> size) ? descr -> size : sizeof(data_t));
-#else
   ret = (data_t *) heap_allocate((descr -> size) ? descr -> size : sizeof(data_t));
-#endif
   ret = data_settype(ret, type);
   ret -> data_semantics = DataSemanticsNormal;
   return ret;
@@ -209,11 +203,7 @@ data_t * data_settype(data_t *data, int type) {
 data_t * _data_new(int type, int size) {
   data_t *data;
 
-#ifndef REFCOUNTING
   data = (data_t *) heap_allocate(size);
-#else
-  data = (data_t *) _new(size);
-#endif
   return data_settype(data, type);
 }
 

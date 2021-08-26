@@ -21,12 +21,12 @@
 
 static grammar_action_t * _ga_new(grammar_action_t *, va_list);
 static char *             _ga_allocstring(grammar_action_t *);
-static void               _ga_free(grammar_action_t *);
+static void *             _ga_reduce_children(grammar_action_t *, reduce_t, void *);
 static grammar_action_t * _ga_dump(ge_dump_ctx_t *);
 
 static vtable_t _vtable_GrammarAction[] = {
   { .id = FunctionNew,         .fnc = (void_t) _ga_new },
-  { .id = FunctionFree,        .fnc = (void_t) _ga_free },
+  { .id = FunctionReduce,      .fnc = (void_t) _ga_reduce_children },
   { .id = FunctionCmp,         .fnc = (void_t) grammar_action_cmp },
   { .id = FunctionHash,        .fnc = (void_t) grammar_action_hash },
   { .id = FunctionAllocString, .fnc = (void_t) _ga_allocstring },
@@ -45,16 +45,15 @@ extern void grammar_action_register(void) {
 /* -- G R A M M A R _ A C T I O N ----------------------------------------- */
 
 grammar_action_t * _ga_new(grammar_action_t *ga, va_list args) {
-  ga -> fnc = function_copy(va_arg(args, function_t *));
-  ga -> data = data_copy(va_arg(args, data_t *));
+  ga -> fnc = va_arg(args, function_t *);
+  ga -> data = va_arg(args, data_t *);
   return ga;
 }
 
-void _ga_free(grammar_action_t *grammar_action) {
-  if (grammar_action) {
-    function_free(grammar_action -> fnc);
-    data_free(grammar_action -> data);
-  }
+void * _ga_reduce_children(grammar_action_t *ga, reduce_t reducer, void *ctx) {
+  ctx = reducer(ga->fnc, ctx);
+  ctx = reducer(ga->data, ctx);
+  return reducer(ga->owner, ctx);
 }
 
 char * _ga_allocstring(grammar_action_t *ga) {

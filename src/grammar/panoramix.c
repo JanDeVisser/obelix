@@ -32,7 +32,7 @@ static app_description_t   _app_descr_panoramix = {
     .name        = "panoramix",
     .shortdescr  = "Grammar parser",
     .description = "Panoramix will convert a formal grammar file into C code.",
-    .legal       = "(c) Jan de Visser <jan@finiandarcy.com> 2014-2017",
+    .legal       = "(c) Jan de Visser <jan@finiandarcy.com> 2014-2021",
     .options     = {
         { .longopt = "grammar", .shortopt = 'g', .description = "Grammar file", .flags = CMDLINE_OPTION_FLAG_REQUIRED_ARG },
         { .longopt = "syspath", .shortopt = 's', .description = "System path",  .flags = CMDLINE_OPTION_FLAG_REQUIRED_ARG },
@@ -55,14 +55,14 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
     sys_dir = OBELIX_DATADIR;
   }
   len = strlen(sys_dir);
-  system_dir = (char *) new (len + ((*(sys_dir + (len - 1)) != '/') ? 2 : 1));
+  system_dir = (char *) _new (len + ((*(sys_dir + (len - 1)) != '/') ? 2 : 1));
   strcpy(system_dir, sys_dir);
   if ((*system_dir + (strlen(system_dir) - 1)) != '/') {
     strcat(system_dir, "/");
   }
 
   if (!grammarpath) {
-    grammar_p = (char *) new(strlen(system_dir) + strlen("grammar.txt") + 1);
+    grammar_p = (char *) _new(strlen(system_dir) + strlen("grammar.txt") + 1);
     strcpy(grammar_p, system_dir);
     strcat(grammar_p, "grammar.txt");
     grammarpath = grammar_p;
@@ -75,14 +75,15 @@ grammar_t * load(char *sys_dir, char *grammarpath) {
   gp = grammar_parser_create((data_t *) file);
   gp -> dryrun = 1;
   ret = grammar_parser_parse(gp);
-  grammar_parser_free(gp);
+  data_set_free(gp);
+  file_close(file);
   if (!grammar_analyze(ret)) {
-    grammar_free(ret);
+    data_set_free(ret);
     ret = NULL;
   } else {
     info("  Loaded grammar");
   }
-  file_free(file);
+  data_set_free(file);
   free(grammar_p);
   return ret;
 }
@@ -108,8 +109,8 @@ int main(int argc, char **argv) {
   }
   grammar = load(syspath, grammarfile);
   if (grammar) {
+    app->app = data_as_data(grammar);
     grammar_dump(grammar);
-    grammar_free(grammar);
   }
   application_terminate();
   return 0;

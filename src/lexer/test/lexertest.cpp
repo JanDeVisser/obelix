@@ -23,97 +23,97 @@
 
 /* ----------------------------------------------------------------------- */
 
-TEST_F(LexerTest, build_lexer) {
+TEST_F(LexerTest, BuildLexer) {
   lexa_build_lexer(lexa);
-  ASSERT_TRUE(lexa->config);
+  EXPECT_TRUE(lexa->config);
 }
 
-TEST_F(LexerTest, tokenize) {
+TEST_F(LexerTest, Tokenize) {
   lexa_build_lexer(lexa);
-  ASSERT_TRUE(lexa->config);
+  EXPECT_TRUE(lexa->config);
   lexa_set_stream(lexa, (data_t *) str("Hello World"));
-  ASSERT_TRUE(lexa->stream);
+  EXPECT_TRUE(lexa->stream);
   lexa_tokenize(lexa);
-  ASSERT_EQ(lexa->tokens, 4);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
+  EXPECT_EQ(lexa->tokens, 4);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 1);
 }
 
-TEST_F(LexerTest, newline) {
+TEST_F(LexerTest, Newline) {
   lexa_build_lexer(lexa);
-  ASSERT_TRUE(lexa->config);
+  EXPECT_TRUE(lexa->config);
   lexa_set_stream(lexa, (data_t *) str("Hello  World\nSecond Line"));
-  ASSERT_TRUE(lexa->stream);
+  EXPECT_TRUE(lexa->stream);
   lexa_tokenize(lexa);
-  ASSERT_EQ(lexa->tokens, 8);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 4);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeNewLine), 1);
+  EXPECT_EQ(lexa->tokens, 8);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 4);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 2);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeNewLine), 1);
 }
 
-TEST_F(LexerTest, symbols) {
+TEST_F(LexerTest, Symbols) {
   lexa_build_lexer(lexa);
-  ASSERT_TRUE(lexa->config);
-  lexa_set_stream(lexa, (data_t *) str_copy_chars("Hello !@ /\\ * && World"));
-  ASSERT_TRUE(lexa->stream);
+  EXPECT_TRUE(lexa->config);
+  lexa_set_stream(lexa, (data_t *) str("Hello !@ /\\ * && World"));
+  EXPECT_TRUE(lexa->stream);
   lexa_tokenize(lexa);
-  ASSERT_EQ(lexa->tokens, 15);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 5);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeExclPoint), 1);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeAt), 1);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeSlash), 1);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeBackslash), 1);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeAsterisk), 1);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeAmpersand), 2);
+  EXPECT_EQ(lexa->tokens, 15);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 2);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 5);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeExclPoint), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeAt), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeSlash), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeBackslash), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeAsterisk), 1);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeAmpersand), 2);
 }
 
-TEST_F(LexerTest, ignore_ws) {
+TEST_F(LexerTest, IgnoreWS) {
   scanner_config_t * ws_config;
 
   lexa_build_lexer(lexa);
   ws_config = lexa_get_scanner(lexa, "whitespace");
   scanner_config_setvalue(ws_config, "ignorews", data_true());
   scanner_config_setvalue(ws_config, "ignorenl", data_false());
-  ASSERT_TRUE(lexa->config);
-  lexa_set_stream(lexa, (data_t *) str_copy_chars(" Hello  World\nSecond Line \n Third Line "));
-  ASSERT_TRUE(lexa->stream);
+  EXPECT_TRUE(lexa->config);
+  lexa_set_stream(lexa, (data_t *) str(" Hello  World\nSecond Line \n Third Line "));
+  EXPECT_TRUE(lexa->stream);
   lexa_tokenize(lexa);
-  ASSERT_EQ(lexa->tokens, 9);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeNewLine), 2);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 0);
+  EXPECT_EQ(lexa->tokens, 9);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeNewLine), 2);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 0);
 }
 
-TEST_F(LexerTest, ignore_nl) {
+TEST_F(LexerTest, IgnoreNL) {
   scanner_config_t * ws_config;
 
   lexa_build_lexer(lexa);
   ws_config = lexa_get_scanner(lexa, "whitespace");
   scanner_config_setvalue(ws_config, "ignorews", data_false());
   scanner_config_setvalue(ws_config, "ignorenl", data_true());
-  ASSERT_TRUE(lexa->config);
-  lexa_set_stream(lexa, (data_t *) str_copy_chars(" Hello  World\nSecond Line \n Third Line "));
-  ASSERT_TRUE(lexa->stream);
+  EXPECT_TRUE(lexa->config);
+  lexa_set_stream(lexa, (data_t *) str(" Hello  World\nSecond Line \n Third Line "));
+  EXPECT_TRUE(lexa->stream);
   lexa_tokenize(lexa);
-  ASSERT_EQ(lexa->tokens, 14);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeNewLine), 0);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 7);
+  EXPECT_EQ(lexa->tokens, 14);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeNewLine), 0);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 7);
 }
 
-TEST_F(LexerTest, ignore_all_ws) {
+TEST_F(LexerTest, IgnoreAllWS) {
   scanner_config_t * ws_config;
 
   lexa_build_lexer(lexa);
   ws_config = lexa_get_scanner(lexa, "whitespace");
   scanner_config_setvalue(ws_config, "ignoreall", data_true());
-  ASSERT_TRUE(lexa->config);
-  lexa_set_stream(lexa, (data_t *) str_copy_chars(" Hello  World\nSecond Line \n Third Line "));
-  ASSERT_TRUE(lexa->stream);
+  EXPECT_TRUE(lexa->config);
+  lexa_set_stream(lexa, (data_t *) str(" Hello  World\nSecond Line \n Third Line "));
+  EXPECT_TRUE(lexa->stream);
   lexa_tokenize(lexa);
-  ASSERT_EQ(lexa->tokens, 7);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeNewLine), 0);
-  ASSERT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 0);
+  EXPECT_EQ(lexa->tokens, 7);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeIdentifier), 6);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeNewLine), 0);
+  EXPECT_EQ(lexa_tokens_with_code(lexa, TokenCodeWhitespace), 0);
 }

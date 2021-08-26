@@ -23,14 +23,14 @@
 
 static nonterminal_t * _nonterminal_new(nonterminal_t *, va_list);
 static void            _nonterminal_free(nonterminal_t *);
-extern char *          _nonterminal_tostring(nonterminal_t *);
+static void *          _nonterminal_reduce_children(nonterminal_t *, reduce_t, void *);
 static nonterminal_t * _nonterminal_dump_pre(ge_dump_ctx_t *);
 static nonterminal_t * _nonterminal_dump_get_children(nonterminal_t *, list_t *);
 
 static vtable_t _vtable_NonTerminal[] = {
   { .id = FunctionNew,      .fnc = (void_t) _nonterminal_new },
   { .id = FunctionFree,     .fnc = (void_t) _nonterminal_free },
-  { .id = FunctionToString, .fnc = (void_t) _nonterminal_tostring },
+  { .id = FunctionReduce,   .fnc = (void_t) _nonterminal_reduce_children },
   { .id = FunctionUsr2,     .fnc = (void_t) _nonterminal_dump_pre },
   { .id = FunctionUsr3,     .fnc = (void_t) _nonterminal_dump_get_children },
   { .id = FunctionNone,     .fnc = NULL }
@@ -54,12 +54,12 @@ nonterminal_t * _nonterminal_new(nonterminal_t *nonterminal, va_list args) {
   nonterminal -> firsts = NULL;
   nonterminal -> follows = NULL;
   nonterminal -> parse_table = NULL;
-  nonterminal -> name = strdup(va_arg(args, char *));
-  nonterminal -> rules = data_array_create(2);
-  nonterminal -> state = strhash(nonterminal -> name);
-  debug(grammar, "Creating nonterminal '%s'", nonterminal -> name);
-  if (!dict_has_key(grammar -> nonterminals, nonterminal -> name)) {
-    dict_put(grammar -> nonterminals, strdup(nonterminal -> name), nonterminal);
+  data_set_static_string(nonterminal, va_arg(args, char *));
+  nonterminal -> rules = datalist_create(NULL);
+  nonterminal -> state = strhash(nonterminal->ge._d.str);
+  debug(grammar, "Creating nonterminal '%s'", nonterminal->ge._d.str);
+  if (!dictionary_has(grammar -> nonterminals, nonterminal->ge._d.str)) {
+    dictionary_set(grammar -> nonterminals, nonterminal->ge._d.str, nonterminal);
   }
   if (!grammar -> entrypoint) {
     grammar -> entrypoint = nonterminal;
@@ -67,29 +67,27 @@ nonterminal_t * _nonterminal_new(nonterminal_t *nonterminal, va_list args) {
   return nonterminal;
 }
 
-char * _nonterminal_tostring(nonterminal_t *nonterminal) {
-  return nonterminal -> name;
-}
-
 void _nonterminal_free(nonterminal_t *nonterminal) {
   if (nonterminal) {
-    free(nonterminal -> name);
-    array_free(nonterminal -> rules);
     set_free(nonterminal -> firsts);
     set_free(nonterminal -> follows);
     dict_free(nonterminal -> parse_table);
   }
 }
 
+void * _nonterminal_reduce_children(nonterminal_t *nonterminal, reduce_t reducer, void *ctx) {
+  return reducer(nonterminal->rules, ctx);
+}
+
 nonterminal_t * _nonterminal_dump_pre(ge_dump_ctx_t *ctx) {
   nonterminal_t *nonterminal = (nonterminal_t *) ctx -> obj;
 
-  printf("  ge = (ge_t *) nonterminal_create(grammar, \"%s\");\n", nonterminal -> name);
+  printf("  ge = (ge_t *) nonterminal_create(grammar, \"%s\");\n", data_tostring(nonterminal));
   return nonterminal;
 }
 
 nonterminal_t * _nonterminal_dump_get_children(nonterminal_t *nt, list_t *children) {
-  array_reduce(nt -> rules, (reduce_t) ge_append_child, children);
+  datalist_reduce(nt->rules, ge_append_child, children);
   return nt;
 }
 
@@ -118,7 +116,7 @@ set_t * _nonterminal_get_firsts(nonterminal_t *nonterminal) {
   if (!nonterminal -> firsts) {
     nonterminal -> firsts = intset_create();
     if (nonterminal -> firsts) {
-      for (i = 0; i < array_size(nonterminal -> rules); i++) {
+      for (i = 0; i < datalist_size(nonterminal -> rules); i++) {
         rule = nonterminal_get_rule(nonterminal, i);
         set_union(nonterminal -> firsts, _rule_get_firsts(rule));
       }
@@ -158,15 +156,15 @@ int _nonterminal_check_LL1(nonterminal_t *nonterminal) {
   set_t  *f_i, *f_j;
 
   ret = 1;
-  for (i = 0; i < array_size(nonterminal -> rules); i++) {
+  for (i = 0; i < datalist_size(nonterminal -> rules); i++) {
     r_i = nonterminal_get_rule(nonterminal, i);
     f_i = _rule_get_firsts(r_i);
-    for (j = i + 1; j < array_size(nonterminal -> rules); j++) {
+    for (j = i + 1; j < datalist_size(nonterminal -> rules); j++) {
       r_j = nonterminal_get_rule(nonterminal, j);
       f_j = _rule_get_firsts(r_j);
       ok = set_disjoint(f_i, f_j);
       if (!ok) {
-        error("Grammar not LL(1): non-terminal %s - Firsts for rules %d and %d not disjoint", nonterminal -> name, i, j);
+        error("Grammar not LL(1): non-terminal %s - Firsts for rules %d and %d not disjoint", data_tostring(nonterminal), i, j);
         error("FIRSTS(%d): %s", i, set_tostring(f_i));
         error("FIRSTS(%d): %s", j, set_tostring(f_j));
       }
@@ -174,7 +172,7 @@ int _nonterminal_check_LL1(nonterminal_t *nonterminal) {
       if (set_has_int(f_j, TokenCodeEnd)) {
         ok = set_disjoint(f_i, _rule_get_follows(r_i));
         if (!ok) {
-          error("Grammar not LL(1): non-terminal %s - Firsts for rule %d follows not disjoint", nonterminal -> name, i);
+          error("Grammar not LL(1): non-terminal %s - Firsts for rule %d follows not disjoint", data_tostring(nonterminal), i);
         }
         ret &= ok;
         ret = ret && set_disjoint(f_i, nonterminal -> follows);
@@ -190,7 +188,7 @@ int _nonterminal_check_LL1(nonterminal_t *nonterminal) {
 void _nonterminal_build_parse_table(nonterminal_t *nonterminal) {
   nonterminal -> parse_table = intdata_dict_create();
   if (nonterminal -> parse_table) {
-    array_visit(nonterminal -> rules, (visit_t) _rule_build_parse_table);
+    datalist_visit(nonterminal -> rules, _rule_build_parse_table);
   }
 }
 
@@ -220,7 +218,6 @@ nonterminal_t * nonterminal_create(grammar_t *grammar, char *name) {
 }
 
 rule_t * nonterminal_get_rule(nonterminal_t *nonterminal, int ix) {
-  assert(ix >= 0);
-  assert(ix < array_size(nonterminal -> rules));
-  return (rule_t *) array_get(nonterminal -> rules, ix);
+  assert(ix >= 0 && ix < datalist_size(nonterminal -> rules));
+  return (rule_t *) datalist_get(nonterminal -> rules, ix);
 }

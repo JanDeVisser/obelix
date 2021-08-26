@@ -20,7 +20,7 @@
 #include "libgrammar.h"
 
 static ge_t *          _ge_new(ge_t *, va_list);
-static void            _ge_free(ge_t *);
+static void *          _ge_reduce_children(ge_t *, reduce_t, void *);
 static ge_t *          _ge_set(ge_t *, char *, data_t *);
 static data_t *        _ge_resolve(ge_t *, char *);
 
@@ -30,7 +30,7 @@ static ge_t *          _ge_dump_common(ge_dump_ctx_t *);
 
 static vtable_t _vtable_GrammarElement[] = {
   { .id = FunctionNew,     .fnc = (void_t) _ge_new },
-  { .id = FunctionFree,    .fnc = (void_t) _ge_free },
+  { .id = FunctionReduce,  .fnc = (void_t) _ge_reduce_children },
   { .id = FunctionSet,     .fnc = (void_t) _ge_set },
   { .id = FunctionResolve, .fnc = (void_t) _ge_resolve },
   { .id = FunctionUsr1,    .fnc = (void_t) _ge_dump_main },
@@ -47,22 +47,22 @@ extern void grammar_element_register(void) {
 
 /* -- G R A M M A R _ E L E M E N T --------------------------------------- */
 
-ge_t * _ge_new(ge_t *ge, va_list args) {
-  ge -> grammar = va_arg(args, grammar_t *);
-  if (!ge -> grammar) {
-    ge -> grammar = (grammar_t *) ge;
+ge_t * _ge_new(ge_t * ge, va_list args) {
+  ge->grammar = va_arg(args, grammar_t *);
+  if (!ge->grammar) {
+    ge->grammar = (grammar_t *) ge;
   }
-  ge -> owner = va_arg(args, ge_t *);
-  ge -> actions = data_list_create();
-  ge -> variables = strtoken_dict_create();
+  ge->owner = va_arg(args, ge_t *);
+  ge->actions = datalist_create(NULL);
+  ge->variables = dictionary_create(NULL);
   return ge;
 }
 
-void _ge_free(ge_t *ge) {
-  if (ge) {
-    dict_free(ge -> variables);
-    list_free(ge -> actions);
-  }
+void * _ge_reduce_children(ge_t *ge, reduce_t reducer, void *ctx) {
+  ctx = reducer(ge->grammar, ctx);
+  ctx = reducer(ge->owner, ctx);
+  ctx = reducer(ge->variables, ctx);
+  return reducer(ge->actions, ctx);
 }
 
 ge_t * _ge_set(ge_t *ge, char *name, data_t *value) {
@@ -82,15 +82,11 @@ ge_t * _ge_set(ge_t *ge, char *name, data_t *value) {
     gv = (data_type(data) == GrammarVariable)
             ? (grammar_variable_t *) data
             : grammar_variable_create(ge, name, data);
-    dict_put(ge -> variables, strdup(name), gv);
-    if ((data_t *) gv != data) {
-      grammar_variable_free(gv);
-    }
+    dictionary_set(ge -> variables, strdup(name), gv);
   } else {
     fnc = grammar_resolve_function(ge -> grammar, name);
     if (fnc) {
       ge_add_action(ge, grammar_action_create(fnc, data));
-      function_free(fnc);
     } else {
       error("_ge_set: Cannot set grammar option '%s' on %s",
             name, ge_tostring(ge));
@@ -103,19 +99,19 @@ ge_t * _ge_set(ge_t *ge, char *name, data_t *value) {
 
 data_t * _ge_resolve(ge_t *ge, char *name) {
   data_t           *ret = NULL;
-  listiterator_t   *li;
   grammar_action_t *action;
+  int               ix;
 
   debug(grammar, "  Getting option %s from grammar element %s", name, ge_tostring(ge));
-  for (li = li_create(ge -> actions); !ret && li_has_next(li); ) {
-    action = list_next(ge -> actions);
-    if (!strcmp(name_tostring(action -> fnc -> name), name)) {
+  for (ix = 0; ix < datalist_size(ge->actions); ix++) {
+    action = (grammar_action_t *) datalist_get(ge->actions, ix);
+    if (!strcmp(name_tostring(action->fnc->name), name)) {
       ret = (data_t *) action;
+      break;
     }
   }
-  li_free(li);
   if (!ret) {
-    ret = (data_t *) dict_get(ge -> variables, name);
+    ret = dictionary_get(ge -> variables, name);
   }
   return ret;
 }
@@ -170,7 +166,7 @@ ge_t * _ge_dump_common(ge_dump_ctx_t *ctx) {
   list_t                *children;
 
   children = list_create();
-  dict_reduce_values(ge -> variables, (reduce_t) ge_append_child, children);
+  dictionary_reduce_values(ge -> variables, (reduce_t) ge_append_child, children);
   list_reduce(ge -> actions, (reduce_t) ge_append_child, children);
   if (get_children) {
     get_children((data_t *) ctx -> obj, children);
@@ -193,7 +189,7 @@ ge_t * ge_add_action(ge_t *ge, grammar_action_t *action) {
   assert(action);
   debug(grammar, "Adding action '%s' to element '%s'",
       data_tostring((data_t *) action), data_tostring((data_t *) ge))
-  list_append(ge -> actions, grammar_action_copy(action));
+  list_append(ge -> actions, action);
   return ge;
 }
 

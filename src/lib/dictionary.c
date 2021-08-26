@@ -361,6 +361,18 @@ data_t * _dictionary_reduce(dictionary_t *dict, reduce_t reducer, void *initial)
   return (data_t *) dict_reduce(dict -> attributes, reducer, initial);
 }
 
+data_t * _dictionary_reduce_keys(dictionary_t *dict, reduce_t reducer, void *initial) {
+  return (data_t *) dict_reduce_keys(dict -> attributes, reducer, initial);
+}
+
+data_t * _dictionary_reduce_values(dictionary_t *dict, reduce_t reducer, void *initial) {
+  return (data_t *) dict_reduce_values(dict -> attributes, reducer, initial);
+}
+
+void _dictionary_visit(dictionary_t *dict, visit_t visitor) {
+  dict_visit(dict -> attributes, visitor);
+}
+
 dictionary_t * dictionary_update(dictionary_t *target, dictionary_t *src) {
   if (src) {
     dictionary_reduce(src, _dictionary_from_dict_reducer, target);

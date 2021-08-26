@@ -158,9 +158,9 @@ data_t * _id_config_set(id_config_t *id_config, char *name, data_t *value) {
 
 data_t * _id_config_resolve(id_config_t *id_config, char *name) {
   if (!strcmp(name, PARAM_STARTWITH)) {
-    return (data_t *) str_copy_chars(id_config -> startwith ? id_config -> startwith : "");
+    return (data_t *) str(id_config -> startwith ? id_config -> startwith : "");
   } else if (!strcmp(name, PARAM_FILTER)) {
-    return (data_t *) str_copy_chars(id_config -> filter ? id_config -> filter : "");
+    return (data_t *) str(id_config -> filter ? id_config -> filter : "");
   } else if (!strcmp(name, PARAM_TOKENCODE)) {
     return int_to_data(id_config -> code);
   } else {
@@ -171,10 +171,10 @@ data_t * _id_config_resolve(id_config_t *id_config, char *name) {
 id_config_t * _id_config_config(id_config_t *config, array_t *cfg) {
   array_push(cfg, nvp_create(
     str_to_data(PARAM_FILTER),
-    (data_t *) str_copy_chars(config -> filter ? config -> filter : "")));
+    (data_t *) str(config -> filter ? config -> filter : "")));
   array_push(cfg, nvp_create(
     str_to_data(PARAM_STARTWITH),
-    (data_t *) str_copy_chars(config -> startwith ? config -> startwith : "")));
+    (data_t *) str(config -> startwith ? config -> startwith : "")));
   array_push(cfg, nvp_create(str_to_data(PARAM_TOKENCODE), int_to_data(config -> code)));
   return config;
 }

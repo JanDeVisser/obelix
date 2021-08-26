@@ -241,7 +241,11 @@ extern datalist_t *    str_array_to_datalist(array_t *);
 extern datalist_t *    _datalist_set(datalist_t *, int, data_t *);
 extern datalist_t *    _datalist_push(datalist_t *, data_t *);
 extern data_t *        datalist_pop(datalist_t *);
-extern void *          datalist_reduce(datalist_t *, reduce_t, void *);
+extern void *          _datalist_reduce(datalist_t *, reduce_t, void *);
+extern void            _datalist_visit(datalist_t *, visit_t);
+
+#define datalist_reduce(l, r, c)  _datalist_reduce((l), (reduce_t)(r), c)
+#define datalist_visit(l, v)      _datalist_visit((l), (visit_t)(v))
 
 static inline datalist_t * data_as_list(void *data) {
   return (data_hastype(data_as_data(data), List)) ? (datalist_t *) data : NULL;

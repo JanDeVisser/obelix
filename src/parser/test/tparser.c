@@ -48,7 +48,7 @@ static void _create_parser(char *grammarfile) {
 static void _teardown(void) {
   data_free(result);
   parser_free(parser);
-  grammar_free(grammar);
+//  grammar_free(grammar);
   grammar_parser_free(gp);
   file_free(file);
 }

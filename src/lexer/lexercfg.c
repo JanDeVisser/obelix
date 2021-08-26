@@ -133,7 +133,7 @@ data_t * _lexer_config_mth_tokenize(lexer_config_t *config, char *n, arguments_t
   arguments_t *tail;
   data_t      *ret;
 
-  lexer = (data_t *) lexer_create(config, data_uncopy(arguments_get_arg(args, 0)));
+  lexer = (data_t *) lexer_create(config, arguments_get_arg(args, 0));
   tail = arguments_shift(args, &lexer);
   ret = data_call(lexer, tail);
   data_free(lexer);

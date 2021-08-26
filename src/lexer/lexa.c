@@ -148,7 +148,7 @@ lexa_t * lexa_tokenize(lexa_t *lexa) {
   return lexa;
 }
 
-int lexa_tokens_with_code(lexa_t *lexa, token_code_t token_code) {
+int lexa_tokens_with_code(lexa_t *lexa, unsigned int token_code) {
   int code;
 
   code = (int) token_code;
@@ -210,7 +210,7 @@ scanner_config_t * lexa_get_scanner(lexa_t *lexa, const char *code) {
   return (lexa -> config) ? lexer_config_get_scanner(lexa -> config, code) : NULL;
 }
 
-lexa_t * lexa_set_config_value(lexa_t *lexa, char *code, char *config) {
+lexa_t * lexa_set_config_value(lexa_t *lexa, const char *code, const char *config) {
   lexa_debug_settings(lexa);
   debug(lexa, "Setting scanner config value %s: %s", code, config);
   dictionary_set(lexa -> scanners, code, (config) ? (data_t *) str(config) : NULL);

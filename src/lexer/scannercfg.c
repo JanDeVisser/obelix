@@ -28,7 +28,7 @@
 /* ------------------------------------------------------------------------ */
 
 extern inline void        _scanner_config_init(void);
-static typedescr_t *      _scanner_config_load_nolock(char *, char *);
+static typedescr_t *      _scanner_config_load_nolock(const char *, const char *);
 static scanner_config_t * _scanner_config_new(scanner_config_t *config, va_list);
 static void               _scanner_config_free(scanner_config_t *);
 static char *             _scanner_config_allocstring(scanner_config_t *);
@@ -73,14 +73,14 @@ void _scanner_config_init(void) {
   }
 }
 
-typedescr_t * _scanner_config_load_nolock(char *code, char *regfnc_name) {
+typedescr_t * _scanner_config_load_nolock(const char *code, const char *regfnc_name) {
   function_t  *fnc;
   char        *fncname;
   typedescr_t *ret = NULL;
   create_t     regfnc;
 
   if (regfnc_name) {
-    fncname = regfnc_name;
+    fncname = (char *) regfnc_name;
   } else {
     asprintf(&fncname, "%s_register", code);
   }
@@ -139,7 +139,7 @@ char * _scanner_config_allocstring(scanner_config_t *config) {
   }
   if (configbuf) {
     asprintf(&buf, "%s: %s", data_typename(config), str_chars(configbuf));
-    free(configbuf);
+    data_set_free(configbuf);
   } else {
     asprintf(&buf, "%s", data_typename(config));
   }
@@ -200,7 +200,7 @@ scanner_config_t * _scanner_config_setstring(scanner_config_t *config, char *val
   if (ptr) {
     *ptr = 0;
     ptr = strtrim(ptr + 1);
-    v = (data_t *) str_copy_chars(ptr);
+    v = (data_t *) str(ptr);
   } else {
     v = data_true();
   }
@@ -242,7 +242,7 @@ typedescr_t * scanner_config_register(typedescr_t *def) {
   return def;
 }
 
-typedescr_t * scanner_config_load(char *code, char *regfnc_name) {
+typedescr_t * scanner_config_load(const char *code, const char *regfnc_name) {
   typedescr_t *ret = NULL;
 
   lexer_init();
@@ -254,7 +254,7 @@ typedescr_t * scanner_config_load(char *code, char *regfnc_name) {
   return ret;
 }
 
-typedescr_t * scanner_config_get(char *code) {
+typedescr_t * scanner_config_get(const char *code) {
   typedescr_t *ret;
   int          type;
 

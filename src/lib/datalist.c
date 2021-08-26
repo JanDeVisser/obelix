@@ -318,8 +318,12 @@ data_t * datalist_pop(datalist_t *list) {
   return (data_t *) array_pop(data_as_array(list));
 }
 
-void * datalist_reduce(datalist_t *list, reduce_t reducer, void *ctx) {
+void * _datalist_reduce(datalist_t *list, reduce_t reducer, void *ctx) {
   return array_reduce(data_as_array(list), reducer, ctx);
+}
+
+void _datalist_visit(datalist_t *list, visit_t visitor) {
+  array_visit(data_as_array(list), visitor);
 }
 
 /* ----------------------------------------------------------------------- */

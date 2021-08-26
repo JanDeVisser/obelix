@@ -23,6 +23,7 @@ int grammar_debug = 0;
 
 static grammar_t * _grammar_new(grammar_t *, va_list);
 static void        _grammar_free(grammar_t *);
+static void *      _grammar_reduce_children(grammar_t *, reduce_t, void *);
 static char *      _grammar_tostring(grammar_t *);
 static grammar_t * _grammar_set(grammar_t *, char *, data_t *);
 static char *      _grammar_tostring(grammar_t *);
@@ -35,6 +36,7 @@ static grammar_t * _grammar_dump_post(ge_dump_ctx_t *);
 static vtable_t _vtable_Grammar[] = {
   { .id = FunctionNew,      .fnc = (void_t) _grammar_new },
   { .id = FunctionFree,     .fnc = (void_t) _grammar_free },
+  { .id = FunctionReduce,   .fnc = (void_t) _grammar_reduce_children },
   { .id = FunctionToString, .fnc = (void_t) _grammar_tostring },
   { .id = FunctionSet,      .fnc = (void_t) _grammar_set },
   { .id = FunctionUsr2,     .fnc = (void_t) _grammar_dump_pre },
@@ -75,7 +77,7 @@ grammar_t * _grammar_new(grammar_t *grammar, va_list args) {
   grammar -> dryrun = FALSE;
 
   grammar -> keywords = intdata_dict_create();
-  grammar -> nonterminals = strdata_dict_create();
+  grammar -> nonterminals = dictionary_create(NULL);
   grammar -> lexer = lexer_config_create();
 
   return grammar;
@@ -83,12 +85,18 @@ grammar_t * _grammar_new(grammar_t *grammar, va_list args) {
 
 void _grammar_free(grammar_t *grammar) {
   if (grammar) {
-    dict_free(grammar -> nonterminals);
-    dict_free(grammar -> keywords);
-    lexer_config_free(grammar -> lexer);
-    free(grammar -> prefix);
-    free(grammar -> build_func);
+    dict_free(grammar->keywords);
+    free(grammar->prefix);
+    free(grammar->build_func);
+    array_free(grammar->libs);
   }
+}
+
+void * _grammar_reduce_children(grammar_t *grammar, reduce_t reducer, void *ctx) {
+  ctx = reducer(grammar->lexer, ctx);
+  ctx = reducer(grammar->nonterminals, ctx);
+  ctx = reducer(grammar->entrypoint, ctx);
+  return dict_reduce_values(grammar->keywords, reducer, ctx);
 }
 
 char * _grammar_tostring(grammar_t *grammar) {
@@ -142,7 +150,7 @@ list_t * _grammar_dump_nonterminal_reducer(nonterminal_t *nt, list_t *children) 
   grammar_t *grammar = nonterminal_get_grammar(nt);
 
   if (grammar -> entrypoint &&
-      !strcmp(nt -> name, grammar -> entrypoint -> name)) {
+      !strcmp(data_tostring(nt), data_tostring(grammar -> entrypoint))) {
     list_unshift(children, nt);
   } else {
     list_append(children, nt);
@@ -150,10 +158,8 @@ list_t * _grammar_dump_nonterminal_reducer(nonterminal_t *nt, list_t *children) 
   return children;
 }
 
-grammar_t * _grammar_dump_get_children(grammar_t *grammar, list_t *children) {
-  dict_reduce_values(grammar -> nonterminals,
-                     (reduce_t) _grammar_dump_nonterminal_reducer,
-                     children);
+grammar_t * _grammar_dump_get_children(grammar_t * grammar, list_t * children) {
+  dictionary_reduce_values(grammar->nonterminals, (reduce_t) _grammar_dump_nonterminal_reducer, children);
   return grammar;
 }
 
@@ -254,16 +260,16 @@ void * _grammar_follows_reducer(entry_t *entry, int *current_sum) {
 
   nonterminal = (nonterminal_t *) (entry -> value);
 
-  debug(grammar, "Building FOLLOW sets for rule %s", nonterminal -> name);
+  debug(grammar, "Building FOLLOW sets for rule %s", data_tostring(nonterminal));
   follows = _nonterminal_get_follows(nonterminal);
-  for (i = 0; i < array_size(nonterminal -> rules); i++) {
+  for (i = 0; i < datalist_size(nonterminal -> rules); i++) {
     rule = nonterminal_get_rule(nonterminal, i);
-    for (j = 0; j < array_size(rule -> entries); j++) {
+    for (j = 0; j < datalist_size(rule -> entries); j++) {
       rule_entry = rule_get_entry(rule, j);
       if (!rule_entry -> terminal) {
         next_firsts = intset_create();
         next = NULL;
-        for (k = j + 1; k < array_size(rule -> entries); k++) {
+        for (k = j + 1; k < datalist_size(rule -> entries); k++) {
           it = rule_get_entry(rule, k);
           if (!next) {
             next = it;
@@ -369,7 +375,7 @@ grammar_t * grammar_analyze(grammar_t *grammar) {
   int sum, prev_sum, iter, ll_1;
 
   debug(grammar, "Building FIRST sets");
-  dict_visit(grammar -> nonterminals, (visit_t) _grammar_get_firsts_visitor);
+  dictionary_visit(grammar -> nonterminals, _grammar_get_firsts_visitor);
 
   debug(grammar, "Building FOLLOW sets");
   sum = 0;
@@ -377,19 +383,19 @@ grammar_t * grammar_analyze(grammar_t *grammar) {
   do {
     prev_sum = sum;
     sum = 0;
-    dict_reduce(grammar -> nonterminals, (reduce_t) _grammar_follows_reducer, &sum);
+    dictionary_reduce(grammar -> nonterminals, _grammar_follows_reducer, &sum);
     debug(grammar, "_grammar_analyze - build follows: iter: %d sum: %d", iter++, sum);
   } while (sum != prev_sum);
 
   debug(grammar, "Checking grammar for LL(1)-ness");
   debug(grammar, "Keywords: %s", dict_tostring(grammar -> keywords));
   ll_1 = 1;
-  dict_reduce(grammar -> nonterminals, (reduce_t) _grammar_check_LL1_reducer, &ll_1);
+  dictionary_reduce(grammar -> nonterminals, _grammar_check_LL1_reducer, &ll_1);
   if (ll_1) {
     if (grammar_debug) {
       info("Grammar is LL(1)");
     }
-    dict_visit(grammar -> nonterminals, (visit_t) _grammar_build_parse_table_visitor);
+    dictionary_visit(grammar -> nonterminals, _grammar_build_parse_table_visitor);
     debug(grammar, "Parse tables built");
   } else {
     error("Grammar is not LL(1)");

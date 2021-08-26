@@ -38,6 +38,9 @@ extern data_t *        _dictionary_set(dictionary_t *, const char *, data_t *);
 extern int             dictionary_has(const dictionary_t *, const char *);
 extern int             dictionary_size(const dictionary_t *);
 extern data_t *        _dictionary_reduce(dictionary_t *, reduce_t, void *);
+extern data_t *        _dictionary_reduce_keys(dictionary_t *, reduce_t, void *);
+extern data_t *        _dictionary_reduce_values(dictionary_t *, reduce_t, void *);
+extern void            _dictionary_visit(dictionary_t *, visit_t);
 extern dictionary_t *  dictionary_update(dictionary_t *, dictionary_t *);
 
 extern int Dictionary;
@@ -58,12 +61,13 @@ static inline dictionary_t * dictionary_clear(dictionary_t *dict) {
 }
 
 static inline char * dictionary_value_tostring(const dictionary_t *dict, const char *key) {
-  return data_tostring(data_uncopy(dictionary_get(dict, key)));
+  return data_tostring(dictionary_get(dict, key));
 }
 
-static inline data_t * dictionary_reduce(dictionary_t *dict, void *reducer, void *initial) {
-  return _dictionary_reduce(dict, (reduce_t) reducer, initial);
-}
+#define dictionary_reduce(d, r, i)         (_dictionary_reduce((d), (reduce_t) (r), (i)))
+#define dictionary_reduce_keys(d, r, i)    (_dictionary_reduce_keys((d), (reduce_t) (r), (i)))
+#define dictionary_reduce_values(d, r, i)  (_dictionary_reduce_values((d), (reduce_t) (r), (i)))
+#define dictionary_visit(d, v)             (_dictionary_visit((d), (visit_t) (v)))
 
 #ifdef __cplusplus
 }

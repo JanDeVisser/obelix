@@ -21,12 +21,12 @@
 
 extern void                  grammar_init();
 static grammar_variable_t *  _gv_new(grammar_variable_t *, va_list);
-static void                  _gv_free(grammar_variable_t *);
+static void *                _gv_reduce_children(grammar_variable_t *, reduce_t, void *);
 static grammar_variable_t *  _gv_dump(grammar_variable_t *);
 
 static vtable_t _vtable_GrammarVariable[] = {
   { .id = FunctionNew,         .fnc = (void_t) _gv_new },
-  { .id = FunctionFree,        .fnc = (void_t) _gv_free },
+  { .id = FunctionReduce,      .fnc = (void_t) _gv_reduce_children },
   { .id = FunctionUsr1,        .fnc = (void_t) _gv_dump },
   { .id = FunctionNone,        .fnc = NULL }
 };
@@ -43,16 +43,14 @@ extern void grammar_variable_register(void) {
 
 grammar_variable_t * _gv_new(grammar_variable_t *gv, va_list args) {
   gv -> owner = data_copy(va_arg(args, data_t *));
-  ((data_t * ) gv) -> str = strdup(va_arg(args, char *));
+  data_set_static_string(gv, va_arg(args, char *));
   gv -> value = data_copy(va_arg(args, data_t *));
   return gv;
 }
 
-void _gv_free(grammar_variable_t *gv) {
-  if (gv) {
-    data_free(gv -> owner);
-    data_free(gv -> value);
-  }
+void * _gv_reduce_children(grammar_variable_t *gv, reduce_t reducer, void *ctx) {
+  ctx = reducer(gv->owner, ctx);
+  return reducer(gv->value, ctx);
 }
 
 grammar_variable_t * _gv_dump(grammar_variable_t *gv) {

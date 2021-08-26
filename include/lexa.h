@@ -48,10 +48,10 @@ extern lexa_t *           lexa_create(void);
 extern lexa_t *           lexa_build_lexer(lexa_t *);
 extern lexa_t *           lexa_add_scanner(lexa_t *, const char *);
 extern scanner_config_t * lexa_get_scanner(lexa_t *, const char *);
-extern lexa_t *           lexa_set_config_value(lexa_t *, char *, char *);
+extern lexa_t *           lexa_set_config_value(lexa_t *, const char *, const char *);
 extern lexa_t *           lexa_debug_settings(lexa_t *);
 extern lexa_t *           lexa_tokenize(lexa_t *);
-extern int                lexa_tokens_with_code(lexa_t *, token_code_t);
+extern int                lexa_tokens_with_code(lexa_t *, unsigned int);
 extern lexa_t *           lexa_set_stream(lexa_t *, data_t *);
 extern lexa_t *           lexa_set_tokenfilter(lexa_t *, tokenfilter_t);
 

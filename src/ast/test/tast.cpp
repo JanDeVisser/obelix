@@ -480,10 +480,10 @@ protected:
   }
 
   void TearDown() override {
-    parser_free(parser);
-    grammar_free(grammar);
-    grammar_parser_free(gp);
-    file_free(file);
+//    parser_free(parser);
+//    grammar_free(grammar);
+//    grammar_parser_free(gp);
+//    file_free(file);
   }
 
   file_t           *file = NULL;
