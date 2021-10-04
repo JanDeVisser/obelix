@@ -29,11 +29,25 @@ public:
         m_dictionary[key] = ptr_cast<Object>(value);
     }
 
-    std::optional<Obj> get(std::string const& key)
+    [[nodiscard]] bool contains(std::string const& key) const
     {
-        if (!m_dictionary.contains(key))
-            return {};
-        return m_dictionary[key];
+        return m_dictionary.contains(key);
+    }
+
+    [[nodiscard]] std::optional<Obj> get(std::string const& key) const
+    {
+        auto it = m_dictionary.find(key);
+        if (it != m_dictionary.end())
+            return (*it).second;
+        return {};
+    }
+
+    [[nodiscard]] std::optional<Obj> get(std::string const& key, Ptr<Object> default_result) const
+    {
+        auto it = m_dictionary.find(key);
+        if (it != m_dictionary.end())
+            return (*it).second;
+        return default_result;
     }
 
     template <class ObjClass>

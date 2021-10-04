@@ -43,8 +43,8 @@ std::optional<Obj> Arguments::resolve(std::string const& name) const
         auto num = num_maybe.value();
         if ((num >= 0) && (num < m_args.size()))
             return ptr_cast<Object>(m_args[num]);
-    } else if (m_kwargs.contains(name)) {
-        return ptr_cast<Object>(m_kwargs.at(name));
+    } else if (m_kwargs->contains(name)) {
+        return ptr_cast<Object>(m_kwargs->get(name).value());
     }
     return {};
 }

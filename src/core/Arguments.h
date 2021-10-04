@@ -5,6 +5,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <core/Dictionary.h>
 #include <core/List.h>
 #include <core/Object.h>
 
@@ -25,9 +26,7 @@ public:
 
     [[nodiscard]] std::optional<Obj> get(std::string const& keyword) const
     {
-        if (m_kwargs.contains(keyword))
-            return m_kwargs.at(keyword);
-        return {};
+        return m_kwargs.get(keyword);
     }
 
     void add(Obj const& obj)
@@ -36,13 +35,13 @@ public:
     }
 
     [[nodiscard]] Ptr<List> const& arguments() const { return m_args; }
-    [[nodiscard]] std::unordered_map<std::string, Obj> const& kwargs() const { return m_kwargs; }
+    [[nodiscard]] Ptr<Dictionary> const& kwargs() const { return m_kwargs; }
     std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
     [[nodiscard]] std::optional<Obj> resolve(std::string const&) const override;
 
 private:
     Ptr<List> m_args;
-    std::unordered_map<std::string, Obj> m_kwargs {};
+    Ptr<Dictionary> m_kwargs;
 };
 
 }
