@@ -169,6 +169,13 @@ std::string ErrorCode_message(ErrorCode code)
     }
 }
 
+Exception::Exception(ErrorCode code, std::string const& message)
+    : Object("exception")
+    , m_code(code)
+{
+    m_message = ErrorCode_name(code) + ": " + message;
+}
+
 Exception::Exception(ErrorCode code, ...)
     : Object("exception")
     , m_code(code)

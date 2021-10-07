@@ -5,7 +5,9 @@ add_library(
         Dictionary.cpp
         Format.cpp
         List.cpp
+        Logging.cpp
         Object.cpp
+        Regex.cpp
         StringUtil.cpp
 )
 

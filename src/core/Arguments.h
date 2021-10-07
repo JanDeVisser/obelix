@@ -15,7 +15,7 @@ class Arguments : public Object {
 public:
     Arguments();
     explicit Arguments(Obj const& args);
-    Arguments(Obj const&, std::unordered_map<std::string, Obj>);
+    Arguments(Obj const&, Ptr<Dictionary>);
 #if 0
     explicit Arguments(int, ...);
 #endif
@@ -26,7 +26,7 @@ public:
 
     [[nodiscard]] std::optional<Obj> get(std::string const& keyword) const
     {
-        return m_kwargs.get(keyword);
+        return m_kwargs->get(keyword);
     }
 
     void add(Obj const& obj)

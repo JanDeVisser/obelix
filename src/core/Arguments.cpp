@@ -20,10 +20,10 @@ Arguments::Arguments(Obj const& args)
     }
 }
 
-Arguments::Arguments(Obj const& args, std::unordered_map<std::string, Obj> kwargs)
+Arguments::Arguments(Obj const& args, Ptr<Dictionary> kwargs)
     : Object("arguments")
     , m_args(make_typed<List>())
-    , m_kwargs(move(kwargs))
+    , m_kwargs(std::move(kwargs))
 
 {
     for (auto& arg : args) {

@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include <core/Format.h>
+#include <core/Logging.h>
 #include <core/StringUtil.h>
 
 namespace Obelix {
@@ -100,6 +101,7 @@ public:
     [[nodiscard]] virtual std::optional<double> to_double() const;
     [[nodiscard]] virtual std::optional<bool> to_bool() const;
     [[nodiscard]] virtual std::string to_string() const;
+    [[nodiscard]] virtual bool is_exception() const { return false; }
     [[nodiscard]] virtual size_t size() const { return 1; }
     [[nodiscard]] virtual bool empty() const { return size() == 0; }
 
@@ -462,8 +464,9 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
 std::string format(std::string const&, std::vector<Obj> const&);
 
 #define ENUMERATE_ERROR_CODES(S)       \
-    S(NoError, "There is no error!") \
-    S(SyntaxError, "Syntax error!") \
+    S(NoError, "There is no error") \
+    S(SyntaxError, "Syntax error") \
+    S(RegexpSyntaxError, "Regular expression syntax error") \
     S(TypeMismatch, "Type mismatch in operation '{}'. Expected '{}', got '{}'") \
     S(CouldNotResolveNode, "Could not resolve node") \
     S(CantUseAsUnaryOp, "Cannot use '{}' as a unary operation")
@@ -486,12 +489,16 @@ public:
     {
         m_message = ErrorCode_name(code) + ": " + format(ErrorCode_message(code), args);
     }
+
+    Exception(ErrorCode code, std::string const &);
     explicit Exception(ErrorCode code, ...);
+
 
     [[nodiscard]] ErrorCode code() const { return m_code; }
     [[nodiscard]] std::optional<long> to_long() const override { return {}; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return {}; }
     [[nodiscard]] std::string to_string() const override { return m_message; }
+    [[nodiscard]] bool is_exception() const override { return true; }
 
 private:
     ErrorCode m_code { ErrorCode::NoError };

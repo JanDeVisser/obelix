@@ -2,63 +2,83 @@
 // Created by Jan de Visser on 2021-09-18.
 //
 
-#include "Token.h"
+#include <core/Regex.h>
+#include <lexer/Token.h>
 
-std::string TokenType_name(TokenType t)
-{
-    switch (t) {
-#undef __ENUMERATE_TOKEN_TYPE
-#define __ENUMERATE_TOKEN_TYPE(type, c, str) \
-    case TokenType::type:          \
-        return #type;
-        ENUMERATE_TOKEN_TYPES(__ENUMERATE_TOKEN_TYPE)
-#undef __ENUMERATE_TOKEN_TYPE
-    default:
-        assert(false);
-    }
-}
+namespace Obelix {
 
 std::string Token::to_string() const
 {
-    std::string ret = TokenType_name(type());
+    std::string ret = code_name();
     if (!m_value.empty()) {
         ret += " [" + value() + "]";
     }
     return ret;
 }
 
-std::optional<int> Token::to_number() const
+std::optional<long> Token::to_long() const
 {
-    char* endptr;
-    auto ret = std::strtol(m_value.c_str(), &endptr, 10);
-    if (endptr == m_value.c_str()) {
-        return ret;
-    }
-    return {};
+    return Obelix::to_long(m_value);
 }
 
-std::shared_ptr<Object> Token::to_object() const
+std::optional<double> Token::to_double() const
 {
-    switch (type()) {
-    case TokenType::Number:
-        {
-            auto maybe_number = to_number();
-            if (maybe_number.has_value())
-                return std::make_shared<Number>(maybe_number.value());
+    return Obelix::to_double(m_value);
+}
+
+std::optional<bool> Token::to_bool() const
+{
+    auto number_maybe = to_long();
+    if (number_maybe.has_value())
+        return number_maybe.value() != 0;
+    return Obelix::to_bool(m_value);
+}
+
+Ptr<Object> Token::to_object() const
+{
+    switch (code()) {
+    case TokenCode::Integer: {
+        auto maybe_number = to_long();
+        assert(maybe_number.has_value());
+        return make_obj<Integer>(maybe_number.value());
+    };
+    case TokenCode::Float: {
+        auto maybe_number = to_double();
+        assert(maybe_number.has_value());
+        return make_obj<Float>(maybe_number.value());
+    };
+    case TokenCode::DoubleQuotedString:
+    case TokenCode::SingleQuotedString:
+    case TokenCode::BackQuotedString:
+        return make_obj<String>(m_value);
+    case TokenCode::Identifier:
+        if (value() == "true")
+            return to_obj(Boolean::True());
+        if (value() == "false")
+            return to_obj(Boolean::False());
+        if (value() == "null")
+            return Object::null();
+        break;
+    case TokenCode::Slash:
+        if (value() != "/") {
+            return make_obj<Regex>(value());
         }
-        break;
-    case TokenType::DoubleQuotedString:
-    case TokenType::SingleQuotedString:
-    case TokenType::BackQuotedString:
-        return std::make_shared<String>(m_value);
-    case TokenType::Identifier:
-        if (m_value == "true")
-            return Boolean::True();
-        if (m_value == "false")
-            return Boolean::False();
-        break;
     default:
         break;
     }
-    return nullptr;
+    return make_obj<String>(code_name());
+}
+
+int Token::compare(Token const& other) const
+{
+    if (m_code == other.m_code)
+        return m_value.compare(other.m_value);
+    else
+        return (int)m_code - (int)other.m_code;
+}
+
+bool Token::is_whitespace() const
+{
+    return (code() == TokenCode::Whitespace) || (code() == TokenCode::NewLine);
+}
 }
