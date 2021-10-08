@@ -72,7 +72,7 @@ constexpr char const* TokenCode_name(TokenCode t)
         ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
     default:
-        assert(false);
+        return "Custom";
     }
 }
 
@@ -85,7 +85,7 @@ constexpr TokenCode TokenCode_by_char(int ch)
     }
     ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
-    assert(false);
+    return TokenCode::Unknown;
 }
 
 
@@ -95,6 +95,11 @@ public:
     explicit Token(TokenCode code, std::string value = "")
         : m_code(code)
         , m_value(move(value))
+    {
+    }
+
+    explicit Token(int code, std::string value = "")
+        : Token((TokenCode) code, move(value))
     {
     }
 

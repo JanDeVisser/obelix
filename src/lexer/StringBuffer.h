@@ -10,7 +10,10 @@ namespace Obelix {
 
 class StringBuffer {
 public:
+    StringBuffer() = default;
     explicit StringBuffer(std::string);
+    explicit StringBuffer(std::string_view const&);
+    explicit StringBuffer(char const*);
     void rewind();
     std::string read(size_t);
     int peek();

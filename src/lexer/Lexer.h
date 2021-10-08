@@ -57,7 +57,7 @@ class Scanner;
 
 class Scanner {
 public:
-    explicit Scanner(Lexer& lexer, int priority = 0)
+    explicit Scanner(Lexer& lexer, int priority = 10)
         : m_lexer(lexer)
         , m_priority(priority)
     {
@@ -79,7 +79,7 @@ class Lexer {
 public:
     Lexer() = default;
     explicit Lexer(std::string_view const&);
-    std::vector<Token> const& tokenize();
+    std::vector<Token> const& tokenize(std::optional<std::string_view const> = {});
 
     int get_char();
     void discard();
@@ -102,6 +102,12 @@ public:
     {
         auto ret = std::make_shared<ScannerClass>(*this, std::forward<Args>(args)...);
         m_scanners.push_back(ret);
+        std::sort(m_scanners.begin(), m_scanners.end(), [](std::shared_ptr<Scanner> const& a, std::shared_ptr<Scanner> const& b) {
+            if (a->priority() != b->priority())
+                return a->priority() > b->priority();
+            return strcmp(a->name(), b->name()) > 0;
+        });
+
         return ret;
     }
 
@@ -119,7 +125,7 @@ private:
     void match_token();
 
     std::vector<std::shared_ptr<Scanner>> m_scanners {};
-    StringBuffer m_buffer {""};
+    StringBuffer m_buffer;
     std::string m_token {};
     LexerState m_state { LexerState::Fresh };
     std::vector<Token> m_tokens {};
@@ -130,6 +136,7 @@ private:
     int m_line { 1 };
     int m_column { 1 };
     bool m_eof { false };
+    bool m_has_catch_all { false };
 };
 
 #define ENUMERATE_QSTR_STATES(S) \
@@ -304,7 +311,8 @@ public:
         }
     }
 
-    KeywordScanner(Lexer&, Token const[]);
+    KeywordScanner(Lexer&, std::vector<Token> const&);
+    KeywordScanner(Lexer&, int, ...);
     void match() override;
     [[nodiscard]] char const* name() override { return "keyword"; }
 

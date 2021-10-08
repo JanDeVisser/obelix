@@ -8,7 +8,8 @@
 
 static void check_qstring(std::string const& in, std::string const& out)
 {
-    Obelix::Lexa lexa("Hello " + in);
+    std::string s = "Hello " + in;
+    Obelix::Lexa lexa(s.c_str());
     lexa.add_scanner<Obelix::QStringScanner>();
     lexa.add_scanner<Obelix::IdentifierScanner>();
     lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false });
@@ -23,7 +24,7 @@ static void check_qstring(std::string const& in, std::string const& out)
 
 static void check_qstring_error(std::string const& in)
 {
-    Obelix::Lexa lexa("Hello " + in);
+    Obelix::Lexa lexa(("Hello " + in).c_str());
     lexa.add_scanner<Obelix::QStringScanner>();
     lexa.add_scanner<Obelix::IdentifierScanner>();
     lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false });

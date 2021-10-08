@@ -7,18 +7,18 @@
 namespace Obelix {
 
 WhitespaceScanner::WhitespaceScanner(Lexer& lexer)
-    : Scanner(lexer)
+    : Scanner(lexer, 20)
 {
 }
 
 WhitespaceScanner::WhitespaceScanner(Lexer& lexer, WhitespaceScanner::Config const& config)
-    : Scanner(lexer)
+    : Scanner(lexer, 20)
     , m_config(config)
 {
 }
 
 WhitespaceScanner::WhitespaceScanner(Lexer& lexer, bool ignore_all_ws)
-    : Scanner(lexer)
+    : Scanner(lexer, 20)
 {
     if (ignore_all_ws) {
         m_config.newlines_are_spaces = true;
@@ -28,12 +28,8 @@ WhitespaceScanner::WhitespaceScanner(Lexer& lexer, bool ignore_all_ws)
 
 void WhitespaceScanner::match()
 {
-    int ch;
-
     for (m_state = WhitespaceState::Init; m_state != WhitespaceState::Done; ) {
-
-        ch = lexer().get_char();
-
+        auto ch = lexer().get_char();
         if (ch == '\n') {
             // TODO update line number in lexer here
 

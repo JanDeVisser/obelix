@@ -11,7 +11,7 @@ logging_category(lexer);
 class CatchAll : public Scanner {
 public:
     explicit CatchAll(Lexer& lexer)
-        : Scanner(lexer)
+        : Scanner(lexer, 0)
     {
     }
 
@@ -33,14 +33,21 @@ private:
 };
 
 Lexer::Lexer(std::string_view const& text)
-    : m_buffer(std::string(text))
+    : m_buffer(text)
 {
 }
 
-std::vector<Token> const& Lexer::tokenize()
+std::vector<Token> const& Lexer::tokenize(std::optional<std::string_view const> text)
 {
+    if (text.has_value()) {
+        m_buffer = StringBuffer(text.value());
+        m_tokens.clear();
+    }
     if (m_tokens.empty()) {
-        add_scanner<CatchAll>();
+        if (!m_has_catch_all) {
+            add_scanner<CatchAll>();
+            m_has_catch_all = true;
+        }
         while (!m_eof) {
             match_token();
         }
@@ -193,6 +200,7 @@ int Lexer::get_char() {
         return 0;
     m_current = m_buffer.readchar();
     if (m_current <= 0) {
+        debug(lexer, "EOF reached");
         m_eof = true;
         m_current = 0;
         return 0;

@@ -11,6 +11,16 @@ StringBuffer::StringBuffer(std::string str)
 {
 }
 
+StringBuffer::StringBuffer(std::string_view const& str)
+    : StringBuffer(std::string(str))
+{
+}
+
+StringBuffer::StringBuffer(char const* str)
+    : StringBuffer(std::string(str ? str : ""))
+{
+}
+
 void StringBuffer::rewind()
 {
     m_pos = 0;
