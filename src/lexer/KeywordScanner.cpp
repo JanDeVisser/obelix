@@ -2,12 +2,12 @@
 // Created by Jan de Visser on 2021-10-06.
 //
 
-#include <lexer/Lexer.h>
+#include <lexer/Tokenizer.h>
 
 namespace Obelix {
 
-KeywordScanner::KeywordScanner(Lexer& lexer, std::vector<Token> const& keywords)
-    : Scanner(lexer, 10)
+KeywordScanner::KeywordScanner(Tokenizer& tokenizer, std::vector<Token> const& keywords)
+    : Scanner(tokenizer, 10)
 {
     for (auto& keyword : keywords) {
         m_keywords.push_back(keyword);
@@ -17,8 +17,8 @@ KeywordScanner::KeywordScanner(Lexer& lexer, std::vector<Token> const& keywords)
     });
 }
 
-KeywordScanner::KeywordScanner(Lexer& lexer, int num, ...)
-    : Scanner(lexer)
+KeywordScanner::KeywordScanner(Tokenizer& tokenizer, int num, ...)
+    : Scanner(tokenizer)
 {
     va_list keywords;
     va_start(keywords, num);
@@ -144,9 +144,9 @@ void KeywordScanner::match()
 
     reset();
     bool carry_on { true };
-    for (int ch = lexer().get_char();
+    for (int ch = tokenizer().get_char();
          ch && carry_on;
-         ch = lexer().get_char()) {
+         ch = tokenizer().get_char()) {
         match_character(ch);
 
         carry_on = false;
@@ -174,13 +174,13 @@ void KeywordScanner::match()
             fatal("Unreachable");
         }
         if (carry_on) {
-            lexer().push();
+            tokenizer().push();
         }
     };
 
     debug(lexer, "KeywordScanner::match returns '%s' (%d)", KeywordScannerState_name(m_state), m_state);
     if ((m_state == KeywordScannerState::FullMatchLost) || (m_state == KeywordScannerState::FullMatch)) {
-        lexer().accept(m_token.code());
+        tokenizer().accept(m_token.code());
     }
 }
 

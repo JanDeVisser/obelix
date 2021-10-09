@@ -3,11 +3,12 @@ add_library(
         SHARED
         IdentifierScanner.cpp
         KeywordScanner.cpp
-        Lexer.cpp
+        Lexer.h
         NumberScanner.cpp
         QStringScanner.cpp
         StringBuffer.cpp
         Token.cpp
+        Tokenizer.cpp
         WhitespaceScanner.cpp
 )
 

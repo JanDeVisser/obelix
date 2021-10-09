@@ -2,17 +2,17 @@
 // Created by Jan de Visser on 2021-10-05.
 //
 
-#include <lexer/Lexer.h>
+#include <lexer/Tokenizer.h>
 
 namespace Obelix {
 
-NumberScanner::NumberScanner(Lexer& lexer)
-    : Scanner(lexer)
+NumberScanner::NumberScanner(Tokenizer& tokenizer)
+    : Scanner(tokenizer)
 {
 }
 
-NumberScanner::NumberScanner(Lexer& lexer, Config const& config)
-    : Scanner(lexer)
+NumberScanner::NumberScanner(Tokenizer& tokenizer, Config const& config)
+    : Scanner(tokenizer)
     , m_config(config)
 {
 }
@@ -53,7 +53,7 @@ TokenCode NumberScanner::process(int ch)
     case NumberScannerState::Period:
         if (isdigit(ch)) {
             m_state = NumberScannerState::Float;
-        } else if (m_config.scientific && (ch == 'e') && (lexer().token().length() > 1)) {
+        } else if (m_config.scientific && (ch == 'e') && (tokenizer().token().length() > 1)) {
             m_state = NumberScannerState::SciFloat;
         } else {
             m_state = NumberScannerState::Done;
@@ -67,13 +67,13 @@ TokenCode NumberScanner::process(int ch)
              * Chop the previous zero and keep the state. This zero will be chopped
              * next time around.
              */
-            lexer().chop();
+            tokenizer().chop();
         } else if (isdigit(ch)) {
             /*
              * We don't want octal numbers. Therefore we strip
              * leading zeroes.
              */
-            lexer().chop();
+            tokenizer().chop();
             m_state = NumberScannerState::Number;
         } else if (m_config.fractions && (ch == '.')) {
             m_state = NumberScannerState::Float;
@@ -146,7 +146,7 @@ TokenCode NumberScanner::process(int ch)
         oassert(false, "Unreachable");
     }
     if ((m_state != NumberScannerState::Done) && (m_state != NumberScannerState::Error)) {
-        lexer().push();
+        tokenizer().push();
     }
     return code;
 }
@@ -159,13 +159,13 @@ void NumberScanner::match()
 
     for (m_state = NumberScannerState::None;
          (m_state != NumberScannerState::Done) && (m_state != NumberScannerState::Error);) {
-        ch = tolower(lexer().get_char());
+        ch = tolower(tokenizer().get_char());
         code = process(ch);
     }
     if (m_state == NumberScannerState::Error) {
-        lexer().accept_token(Token(TokenCode::Error, "Malformed number"));
+        tokenizer().accept_token(Token(TokenCode::Error, "Malformed number"));
     } else if (code != TokenCode::Unknown) {
-        lexer().accept(code);
+        tokenizer().accept(code);
     }
 }
 

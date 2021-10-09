@@ -2,7 +2,7 @@
 // Created by Jan de Visser on 2021-09-20.
 //
 
-#include <lexer/Lexer.h>
+#include <lexer/Tokenizer.h>
 
 namespace Obelix {
 
@@ -10,19 +10,19 @@ logging_category(lexer);
 
 class CatchAll : public Scanner {
 public:
-    explicit CatchAll(Lexer& lexer)
-        : Scanner(lexer, 0)
+    explicit CatchAll(Tokenizer& tokenizer)
+        : Scanner(tokenizer, 0)
     {
     }
 
     void match_2nd_pass() override
     {
-        if (lexer().state() != LexerState::Success) {
+        if (tokenizer().state() != TokenizerState::Success) {
             debug(lexer, "Catchall scanner 2nd pass");
-            auto ch = lexer().get_char();
+            auto ch = tokenizer().get_char();
             if (ch > 0) {
-                lexer().push();
-                lexer().accept(TokenCode_by_char(ch));
+                tokenizer().push();
+                tokenizer().accept(TokenCode_by_char(ch));
             }
         }
     }
@@ -32,12 +32,17 @@ public:
 private:
 };
 
-Lexer::Lexer(std::string_view const& text)
+Tokenizer::Tokenizer(std::string_view const& text)
     : m_buffer(text)
 {
 }
 
-std::vector<Token> const& Lexer::tokenize(std::optional<std::string_view const> text)
+Tokenizer::Tokenizer(StringBuffer text)
+    : m_buffer(std::move(text))
+{
+}
+
+std::vector<Token> const& Tokenizer::tokenize(std::optional<std::string_view const> text)
 {
     if (text.has_value()) {
         m_buffer = StringBuffer(text.value());
@@ -57,27 +62,27 @@ std::vector<Token> const& Lexer::tokenize(std::optional<std::string_view const> 
     return m_tokens;
 }
 
-void Lexer::match_token()
+void Tokenizer::match_token()
 {
-    debug(lexer, "lexer::match_token");
-    m_state = LexerState::Init;
+    debug(lexer, "tokenizer::match_token");
+    m_state = TokenizerState::Init;
     m_scanned = 0;
 
     for (auto& scanner : m_scanners) {
         debug(lexer, "First pass with scanner '%s'", scanner->name());
         rewind();
         scanner->match();
-        if (m_state == LexerState::Success) {
+        if (m_state == TokenizerState::Success) {
             debug(lexer, "First pass with scanner %s succeeded", scanner->name());
             break;
         }
     }
-    if (m_state != LexerState::Success) {
+    if (m_state != TokenizerState::Success) {
         for (auto& scanner : m_scanners) {
             debug(lexer, "Second pass with scanner '%s'", scanner->name());
             rewind();
             scanner->match_2nd_pass();
-            if (m_state == LexerState::Success) {
+            if (m_state == TokenizerState::Success) {
                 debug(lexer, "Second pass with scanner %s succeeded", scanner->name());
                 break;
             }
@@ -90,37 +95,37 @@ void Lexer::match_token()
     }
 }
 
-std::string const& Lexer::token() const
+std::string const& Tokenizer::token() const
 {
     return m_token;
 }
 
-void Lexer::chop(size_t num)
+void Tokenizer::chop(size_t num)
 {
     m_token.erase(0, num);
 }
 
-LexerState Lexer::state() const
+TokenizerState Tokenizer::state() const
 {
     return m_state;
 }
 
-bool Lexer::at_top() const
+bool Tokenizer::at_top() const
 {
     return m_total_count == 0;
 }
 
-bool Lexer::at_end() const
+bool Tokenizer::at_end() const
 {
     return m_eof;
 }
 
 /**
- * Rewind the lexer to the point just after the last token was identified.
+ * Rewind the tokenizer to the point just after the last token was identified.
  */
-void Lexer::rewind()
+void Tokenizer::rewind()
 {
-    debug(lexer, "Rewinding lexer");
+    debug(lexer, "Rewinding tokenizer");
     if (m_scanned > 0)
         m_eof = false;
     m_token = "";
@@ -132,8 +137,8 @@ void Lexer::rewind()
 /**
  * Mark the current point, discarding everything that came before it.
  */
-void Lexer::reset() {
-    debug(lexer, "Resetting lexer");
+void Tokenizer::reset() {
+    debug(lexer, "Resetting tokenizer");
     m_buffer.rewind();
     m_buffer.skip(m_consumed);
     m_buffer.reset();
@@ -146,31 +151,31 @@ void Lexer::reset() {
     m_consumed = 0;
 }
 
-Token Lexer::accept(TokenCode code)
+Token Tokenizer::accept(TokenCode code)
 {
     return accept_token(Token(code, m_token));
 }
 
-Token Lexer::accept_token(Token const& token)
+Token Tokenizer::accept_token(Token const& token)
 {
     skip();
     debug(lexer, "Lexer::accept_token(%s)", token.to_string().c_str());
-    m_state = LexerState::Success;
+    m_state = TokenizerState::Success;
     m_tokens.push_back(token);
     return token;
 }
 
-void Lexer::skip()
+void Tokenizer::skip()
 {
     reset();
-    m_state = LexerState::Success;
+    m_state = TokenizerState::Success;
 }
 
 /**
  * Rewinds the buffer and reads <code>num</code> characters from the buffer,
  * returning the read string as a token with code <code>code</code>.
  */
-Token Lexer::get_accept(TokenCode code, int num) {
+Token Tokenizer::get_accept(TokenCode code, int num) {
     rewind();
     for (auto i = 0; i < num; i++) {
         get_char();
@@ -179,11 +184,11 @@ Token Lexer::get_accept(TokenCode code, int num) {
     return accept(code);
 }
 
-void Lexer::push() {
+void Tokenizer::push() {
     push_as(m_current);
 }
 
-void Lexer::push_as(int ch) {
+void Tokenizer::push_as(int ch) {
     m_consumed++;
     if (ch) {
         m_token += (char) ch;
@@ -191,11 +196,11 @@ void Lexer::push_as(int ch) {
     m_current = 0;
 }
 
-void Lexer::discard() {
+void Tokenizer::discard() {
     push_as(0);
 }
 
-int Lexer::get_char() {
+int Tokenizer::get_char() {
     if (m_eof)
         return 0;
     m_current = m_buffer.readchar();

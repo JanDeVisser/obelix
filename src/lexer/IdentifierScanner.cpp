@@ -2,17 +2,17 @@
 // Created by Jan de Visser on 2021-10-05.
 //
 
-#include <lexer/Lexer.h>
+#include <lexer/Tokenizer.h>
 
 namespace Obelix {
 
-IdentifierScanner::IdentifierScanner(Lexer& lexer)
-    : Scanner(lexer)
+IdentifierScanner::IdentifierScanner(Tokenizer& tokenizer)
+    : Scanner(tokenizer)
 {
 }
 
-IdentifierScanner::IdentifierScanner(Lexer& lexer, Config const& config)
-    : Scanner(lexer)
+IdentifierScanner::IdentifierScanner(Tokenizer& tokenizer, Config const& config)
+    : Scanner(tokenizer)
 {
 }
 
@@ -44,7 +44,7 @@ bool IdentifierScanner::filter_character(int ch) {
     };
     ret = filter_against(m_config.filter, m_config.alpha, m_config.digits);
 
-    if (ret && lexer().token().empty()) {
+    if (ret && tokenizer().token().empty()) {
         ret = filter_against(m_config.starts_with, m_config.startswith_alpha, m_config.startswith_digits);
     }
     return ret;
@@ -55,26 +55,26 @@ void IdentifierScanner::match()
     int ch;
     bool identifier_found { false };
 
-    for (ch = lexer().get_char(); filter_character(ch); ch = lexer().get_char()) {
+    for (ch = tokenizer().get_char(); filter_character(ch); ch = tokenizer().get_char()) {
         identifier_found = true;
         switch (m_config.alpha) {
         case IdentifierCharacterClass::CaseSensitive:
         case IdentifierCharacterClass::OnlyLower:
         case IdentifierCharacterClass::OnlyUpper:
-            lexer().push();
+            tokenizer().push();
             break;
         case IdentifierCharacterClass::FoldToUpper:
-            lexer().push_as(toupper(ch));
+            tokenizer().push_as(toupper(ch));
             break;
         case IdentifierCharacterClass::FoldToLower:
-            lexer().push_as(tolower(ch));
+            tokenizer().push_as(tolower(ch));
             break;
         default:
             break;
         }
     }
     if (identifier_found)
-        lexer().accept(m_config.code);
+        tokenizer().accept(m_config.code);
 }
 
 }

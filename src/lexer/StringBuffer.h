@@ -21,6 +21,8 @@ public:
     void skip(size_t = 1);
     void pushback(size_t = 1);
     void reset();
+    StringBuffer& assign(char const*);
+    StringBuffer& assign(std::string);
 
 private:
     std::string m_buffer;

@@ -4,25 +4,36 @@
 
 #pragma once
 
-#include <lexer/Lexer.h>
 #include <gtest/gtest.h>
+#include <lexer/Lexer.h>
+#include <lexer/Tokenizer.h>
 
-namespace Obelix {
+class LexerTest : public ::testing::Test {
+public:
+    Obelix::Lexer lexer;
 
-struct Lexa {
-    explicit Lexa(char const* txt = nullptr, bool dbg = false)
-        : text(txt)
-    {
-        if (dbg)
+protected:
+    void SetUp() override {
+        if (debugOn()) {
             Obelix::Logger::get_logger().enable("lexer");
-        else
-            Obelix::Logger::get_logger().disable("lexer");
+        }
     }
 
-    void tokenize(char const*txt = nullptr)
+    void initialize()
     {
-        if (txt)
-            text = txt;
+        lexer = Obelix::Lexer();
+        lexer.add_scanner<Obelix::QStringScanner>();
+        lexer.add_scanner<Obelix::IdentifierScanner>();
+        lexer.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false });
+    }
+
+    void tokenize(std::string const& s)
+    {
+        tokenize(s.c_str());
+    }
+
+    void tokenize(char const* text = nullptr)
+    {
         tokens = lexer.tokenize(text);
         for (auto& token : tokens) {
             auto tokens_for = tokens_by_code[token.code()];
@@ -37,12 +48,12 @@ struct Lexa {
         va_list codes;
         va_start(codes, count);
         for (auto ix = 0; (ix < count) && (ix < tokens.size()); ix++) {
-            TokenCode code = va_arg(codes, TokenCode);
+            Obelix::TokenCode code = va_arg(codes, Obelix::TokenCode);
             EXPECT_EQ(tokens[ix].code_name(), TokenCode_name(code));
         }
     }
 
-    size_t count_tokens_with_code(TokenCode code)
+    size_t count_tokens_with_code(Obelix::TokenCode code)
     {
         return tokens_by_code[code].size();
     }
@@ -54,32 +65,8 @@ struct Lexa {
         return ret;
     }
 
-    Lexer lexer;
-    char const* text;
-    std::vector<Token> tokens;
-    std::unordered_map<TokenCode, std::vector<Token>> tokens_by_code {};
-};
-
-}
-
-class LexerTestF : public ::testing::Test {
-public:
-    Obelix::Lexa lexa;
-
-protected:
-    void SetUp() override {
-        if (debugOn()) {
-            Obelix::Logger::get_logger().enable("lexer");
-        }
-    }
-
-    void initialize()
-    {
-        lexa = Obelix::Lexa();
-        lexa.add_scanner<Obelix::QStringScanner>();
-        lexa.add_scanner<Obelix::IdentifierScanner>();
-        lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false });
-    }
+    std::vector<Obelix::Token> tokens;
+    std::unordered_map<Obelix::TokenCode, std::vector<Obelix::Token>> tokens_by_code {};
 
     void TearDown() override {
     }

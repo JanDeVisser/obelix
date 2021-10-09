@@ -1,9 +1,10 @@
-#include <ast/Syntax.h>
 #include <cstdio>
 #include <fcntl.h>
 #include <iostream>
 #include <lexer/Lexer.h>
+#include <lexer/StringBuffer.h>
 #include <lexer/Token.h>
+#include <obelix/Syntax.h>
 #include <optional>
 #include <string>
 #include <sys/stat.h>
@@ -15,31 +16,68 @@ namespace Obelix {
 class FileBuffer {
 public:
     explicit FileBuffer(char const* file_name)
-        : m_file_name(file_name)
+        : m_buffer(std::make_unique<StringBuffer>())
+        , m_file_name(file_name)
     {
         int fh = open(file_name, O_RDONLY);
         if (fh < 0) {
             perror("Open");
             return;
         }
-        struct stat sb {
-        };
+        struct stat sb { };
         if (auto rc = fstat(fh, &sb); rc < 0) {
             perror("Stat");
             close(fh);
             return;
         }
 
-        m_size = sb.st_size;
-        m_buf = new char[m_size];
-        if (auto rc = read(fh, (void*)m_buf, m_size); rc < m_size) {
+        auto size = sb.st_size;
+        auto buf = new char[size + 1];
+        if (auto rc = ::read(fh, (void*) buf, size); rc < size) {
             perror("read");
-            m_size = 0;
-            delete[] m_buf;
-            m_buf = nullptr;
+            size = 0;
+        } else {
+            buf[size] = '\0';
+            m_buffer->assign(buf);
         }
         close(fh);
-        m_lexer = Lexer(m_buf);
+        delete[] buf;
+    }
+
+    explicit FileBuffer(std::string const& file_name)
+        : FileBuffer(file_name.c_str())
+    {
+    }
+
+    StringBuffer& buffer()
+    {
+        return *m_buffer;
+    }
+
+private:
+    std::string m_file_name;
+    std::unique_ptr<StringBuffer> m_buffer;
+};
+
+class Parser {
+public:
+    constexpr static TokenCode KeywordVar = ((TokenCode)100);
+    constexpr static TokenCode KeywordFunc = ((TokenCode)101);
+    constexpr static TokenCode KeywordIf = ((TokenCode)102);
+    constexpr static TokenCode KeywordElse = ((TokenCode)103);
+    constexpr static TokenCode KeywordWhile = ((TokenCode)104);
+
+    Parser(std::string const& file_name)
+        : m_file_name(file_name)
+        , m_file_buffer(file_name)
+    {
+    }
+
+    Lexer m_lexer {};
+
+    std::shared_ptr<Module> parse()
+    {
+        m_lexer = Lexer(m_file_buffer.buffer());
         m_lexer.add_scanner<QStringScanner>();
         m_lexer.add_scanner<IdentifierScanner>();
         m_lexer.add_scanner<NumberScanner>();
@@ -51,53 +89,15 @@ public:
             "else",
             "while");
 
-        m_tokens = m_lexer.tokenize();
-    }
-
-    constexpr static TokenCode KeywordVar = ((TokenCode)100);
-    constexpr static TokenCode KeywordFunc = ((TokenCode)101);
-    constexpr static TokenCode KeywordIf = ((TokenCode)102);
-    constexpr static TokenCode KeywordElse = ((TokenCode)103);
-    constexpr static TokenCode KeywordWhile = ((TokenCode)104);
-
-    Token const& peek(size_t how_many = 0)
-    {
-        oassert(m_current + how_many < m_tokens.size(), "Token buffer underflow");
-        return m_tokens[m_current + how_many];
-    }
-
-    Token const& lex()
-    {
-        auto const& ret = peek(0);
-        if (m_current < (m_tokens.size() - 1))
-            m_current++;
-        fprintf(stdout, "%s ", ret.to_string().c_str());
-        return ret;
-    }
-
-    std::optional<Token const> match(TokenCode code)
-    {
-        if (m_tokens[m_current].code() != code)
-            return {};
-        return lex();
-    }
-
-    bool expect(TokenCode code)
-    {
-        auto token_maybe = match(code);
-        return token_maybe.has_value();
-    }
-
-    std::shared_ptr<Module> parse()
-    {
         std::shared_ptr<Module> module = std::make_shared<Module>(m_file_name);
         parse_statements(std::dynamic_pointer_cast<Block>(module));
         return module;
     }
 
-    void parse_statements(std::shared_ptr<Block> block)
+private:
+    void parse_statements(std::shared_ptr<Block> const& block)
     {
-        for (auto token = lex(); token.code() != TokenCode::EndOfFile; token = lex()) {
+        for (auto token = m_lexer.lex(); token.code() != TokenCode::EndOfFile; token = m_lexer.lex()) {
             switch (token.code()) {
             case TokenCode::Identifier:
                 block->append(std::make_shared<ProcedureCall>(parse_function_call(token.value())));
@@ -111,7 +111,7 @@ public:
             default:
                 break;
             }
-            if (!expect(TokenCode::SemiColon)) {
+            if (!m_lexer.expect(TokenCode::SemiColon)) {
                 fprintf(stderr, "Syntax Error: Expected ';' after statement\n");
                 exit(1);
             }
@@ -120,10 +120,9 @@ public:
         printf("\n");
     }
 
-private:
     std::shared_ptr<FunctionCall> parse_function_call(std::string const& func_name)
     {
-        if (!expect(TokenCode::OpenParen)) {
+        if (!m_lexer.expect(TokenCode::OpenParen)) {
             fprintf(stderr, "Syntax Error: Expected '(' after function name\n");
             exit(1);
         }
@@ -131,7 +130,7 @@ private:
         auto done = false;
         do {
             args.push_back(parse_expression());
-            auto next = lex();
+            auto next = m_lexer.lex();
             switch (next.code()) {
             case TokenCode::Comma:
                 break;
@@ -148,13 +147,13 @@ private:
 
     std::shared_ptr<Assignment> parse_variable_declaration()
     {
-        auto identifier_maybe = match(TokenCode::Identifier);
+        auto identifier_maybe = m_lexer.match(TokenCode::Identifier);
         if (!identifier_maybe.has_value()) {
             fprintf(stderr, "Syntax Error: expecting variable name after the 'var' keyword\n");
             exit(1);
         }
         auto identifier = identifier_maybe.value();
-        if (!expect(TokenCode::Equals)) {
+        if (!m_lexer.expect(TokenCode::Equals)) {
             fprintf(stderr, "Syntax Error: expecting '=' after variable name in assignment\n");
             exit(1);
         }
@@ -204,14 +203,14 @@ private:
 
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence)
     {
-        auto next = peek();
+        auto next = m_lexer.peek();
         while (binary_precedence(next) >= min_precedence) {
-            auto op = lex();
+            auto op = m_lexer.lex();
             auto rhs = parse_primary_expression();
-            next = peek();
+            next = m_lexer.peek();
             while (binary_precedence(next) > binary_precedence(op)) {
                 rhs = parse_expression_1(rhs, binary_precedence(op) + 1);
-                next = peek();
+                next = m_lexer.peek();
             }
             lhs = std::make_shared<BinaryExpression>(lhs, op, rhs);
         }
@@ -220,11 +219,11 @@ private:
 
     std::shared_ptr<Expression> parse_primary_expression()
     {
-        auto t = lex();
+        auto t = m_lexer.lex();
         switch (t.code()) {
         case TokenCode::Plus:
         case TokenCode::Minus: {
-            auto operand = parse_atom(lex());
+            auto operand = parse_atom(m_lexer.lex());
             return std::make_shared<UnaryExpression>(t, operand);
         }
         default:
@@ -250,20 +249,17 @@ private:
         }
     }
 
+    FileBuffer m_file_buffer;
     std::string m_file_name;
-    const char* m_buf { nullptr };
-    Obelix::Lexer m_lexer {};
-    std::vector<Token> m_tokens {};
-    size_t m_size { 0 };
-    size_t m_current { 0 };
 };
 
 }
 
 int main(int argc, char** argv)
 {
-    Obelix::FileBuffer buffer(argv[1]);
-    auto tree = buffer.parse();
+    Obelix::Parser parser(argv[1]);
+
+    auto tree = parser.parse();
     tree->dump();
     tree->execute();
     return 0;

@@ -2,12 +2,12 @@
 // Created by Jan de Visser on 2021-10-05.
 //
 
-#include <lexer/Lexer.h>
+#include <lexer/Tokenizer.h>
 
 namespace Obelix {
 
-QStringScanner::QStringScanner(Lexer& lexer, std::string quotes)
-    : Scanner(lexer)
+QStringScanner::QStringScanner(Tokenizer& tokenizer, std::string quotes)
+    : Scanner(tokenizer)
     , m_quotes(move(quotes))
 {
 }
@@ -17,7 +17,7 @@ void QStringScanner::match()
     int ch;
 
     for (m_state = QStrState::Init; m_state != QStrState::Done; ) {
-        ch = lexer().get_char();
+        ch = tokenizer().get_char();
         if (!ch) {
             break;
         }
@@ -25,7 +25,7 @@ void QStringScanner::match()
         switch (m_state) {
         case QStrState::Init:
             if (m_quotes.find_first_of(ch) != std::string::npos) {
-                lexer().discard();
+                tokenizer().discard();
                 m_quote = ch;
                 m_state = QStrState::QString;
             } else {
@@ -35,26 +35,26 @@ void QStringScanner::match()
 
         case QStrState::QString:
             if (ch == m_quote) {
-                lexer().discard();
-                lexer().accept(TokenCode_by_char(m_quote));
+                tokenizer().discard();
+                tokenizer().accept(TokenCode_by_char(m_quote));
                 m_state = QStrState::Done;
             } else if (ch == '\\') {
-                lexer().discard();
+                tokenizer().discard();
                 m_state = QStrState::Escape;
             } else {
-                lexer().push();
+                tokenizer().push();
             }
             break;
 
         case QStrState::Escape:
             if (ch == 'r') {
-                lexer().push_as('\r');
+                tokenizer().push_as('\r');
             } else if (ch == 'n') {
-                lexer().push_as('\n');
+                tokenizer().push_as('\n');
             } else if (ch == 't') {
-                lexer().push_as('\t');
+                tokenizer().push_as('\t');
             } else {
-                lexer().push();
+                tokenizer().push();
             }
             m_state = QStrState::QString;
             break;
@@ -64,7 +64,7 @@ void QStringScanner::match()
         }
     }
     if (!ch && ((m_state == QStrState::QString) || (m_state == QStrState::Escape))) {
-        lexer().accept_token(Token(TokenCode::Error, "Unterminated string"));
+        tokenizer().accept_token(Token(TokenCode::Error, "Unterminated string"));
     }
 }
 

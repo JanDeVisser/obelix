@@ -2,23 +2,23 @@
 // Created by Jan de Visser on 2021-10-05.
 //
 
-#include <lexer/Lexer.h>
+#include <lexer/Tokenizer.h>
 
 namespace Obelix {
 
-WhitespaceScanner::WhitespaceScanner(Lexer& lexer)
-    : Scanner(lexer, 20)
+WhitespaceScanner::WhitespaceScanner(Tokenizer& tokenizer)
+    : Scanner(tokenizer, 20)
 {
 }
 
-WhitespaceScanner::WhitespaceScanner(Lexer& lexer, WhitespaceScanner::Config const& config)
-    : Scanner(lexer, 20)
+WhitespaceScanner::WhitespaceScanner(Tokenizer& tokenizer, WhitespaceScanner::Config const& config)
+    : Scanner(tokenizer, 20)
     , m_config(config)
 {
 }
 
-WhitespaceScanner::WhitespaceScanner(Lexer& lexer, bool ignore_all_ws)
-    : Scanner(lexer, 20)
+WhitespaceScanner::WhitespaceScanner(Tokenizer& tokenizer, bool ignore_all_ws)
+    : Scanner(tokenizer, 20)
 {
     if (ignore_all_ws) {
         m_config.newlines_are_spaces = true;
@@ -29,24 +29,24 @@ WhitespaceScanner::WhitespaceScanner(Lexer& lexer, bool ignore_all_ws)
 void WhitespaceScanner::match()
 {
     for (m_state = WhitespaceState::Init; m_state != WhitespaceState::Done; ) {
-        auto ch = lexer().get_char();
+        auto ch = tokenizer().get_char();
         if (ch == '\n') {
-            // TODO update line number in lexer here
+            // TODO update line number in tokenizer here
 
             if (!m_config.newlines_are_spaces) {
                 if (m_state == WhitespaceState::Whitespace) {
                     if (m_config.ignore_spaces) {
-                        lexer().skip();
+                        tokenizer().skip();
                     } else {
-                        lexer().accept(TokenCode::Whitespace);
+                        tokenizer().accept(TokenCode::Whitespace);
                     }
                 }
 
-                lexer().push_as('\n');
+                tokenizer().push_as('\n');
                 if (m_config.ignore_newlines) {
-                    lexer().skip();
+                    tokenizer().skip();
                 } else {
-                    lexer().accept(TokenCode::NewLine);
+                    tokenizer().accept(TokenCode::NewLine);
                 }
                 m_state = WhitespaceState::Done;
                 continue;
@@ -61,7 +61,7 @@ void WhitespaceScanner::match()
                 } else {
                     m_state = WhitespaceState::Whitespace;
                 }
-                lexer().push();
+                tokenizer().push();
             } else {
                 m_state = WhitespaceState::Done;
             }
@@ -69,28 +69,28 @@ void WhitespaceScanner::match()
 
         case WhitespaceState::CR:
             if (ch == '\r') {
-                // TODO update line number in lexer here
+                // TODO update line number in tokenizer here
                 if (m_config.newlines_are_spaces) {
-                    lexer().push();
+                    tokenizer().push();
                     break;
                 }
             }
             if (m_config.ignore_newlines) {
-                lexer().skip();
+                tokenizer().skip();
             } else {
-                lexer().accept(TokenCode::NewLine);
+                tokenizer().accept(TokenCode::NewLine);
             }
             m_state = WhitespaceState::Done;
             break;
 
         case WhitespaceState::Whitespace:
             if (isspace(ch)) {
-                lexer().push();
+                tokenizer().push();
             } else {
                 if (m_config.ignore_spaces) {
-                    lexer().skip();
+                    tokenizer().skip();
                 } else {
-                    lexer().accept(TokenCode::Whitespace);
+                    tokenizer().accept(TokenCode::Whitespace);
                 }
                 m_state = WhitespaceState::Done;
             }

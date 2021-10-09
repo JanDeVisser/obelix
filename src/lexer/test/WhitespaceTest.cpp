@@ -7,17 +7,16 @@
 //
 
 #include <gtest/gtest.h>
-#include <lexer/Lexer.h>
-#include <lexer/test/Lexa.h>
+#include <lexer/Tokenizer.h>
+#include <lexer/test/LexerTest.h>
 
-TEST(WhitespaceTest, lexer_lex_with_whitespace)
+TEST_F(LexerTest, tokenizer_lex_with_whitespace)
 {
-    Obelix::Lexa lexa("1 + 2 + a");
-    lexa.add_scanner<Obelix::NumberScanner>();
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false });
-    lexa.tokenize();
-    lexa.check_codes(10,
+    add_scanner<Obelix::NumberScanner>();
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false });
+    tokenize("1 + 2 + a");
+    check_codes(10,
         Obelix::TokenCode::Integer,
         Obelix::TokenCode::Whitespace,
         Obelix::TokenCode::Plus,
@@ -30,13 +29,12 @@ TEST(WhitespaceTest, lexer_lex_with_whitespace)
         Obelix::TokenCode::EndOfFile);
 }
 
-TEST(WhitespaceTest, lexer_whitespace_newline)
+TEST_F(LexerTest, tokenizer_whitespace_newline)
 {
-    Obelix::Lexa lexa("Hello  World\nSecond Line");
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false, false });
-    lexa.tokenize();
-    lexa.check_codes(8,
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false, false });
+    tokenize("Hello  World\nSecond Line");
+    check_codes(8,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Whitespace,
         Obelix::TokenCode::Identifier,
@@ -45,16 +43,15 @@ TEST(WhitespaceTest, lexer_whitespace_newline)
         Obelix::TokenCode::Whitespace,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::EndOfFile);
-    EXPECT_EQ(lexa.tokens[3].value(), "\n");
+    EXPECT_EQ(tokens[3].value(), "\n");
 }
 
-TEST(WhitespaceTest, Symbols)
+TEST_F(LexerTest, Symbols)
 {
-    Obelix::Lexa lexa("Hello !@ /\\ * && World");
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(true);
-    lexa.tokenize();
-    lexa.check_codes(10,
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(true);
+    tokenize("Hello !@ /\\ * && World");
+    check_codes(10,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::ExclamationPoint,
         Obelix::TokenCode::AtSign,
@@ -65,16 +62,15 @@ TEST(WhitespaceTest, Symbols)
         Obelix::TokenCode::Ampersand,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::EndOfFile);
-    EXPECT_EQ(lexa.tokens[8].value(), "World");
+    EXPECT_EQ(tokens[8].value(), "World");
 }
 
-TEST(WhitespaceTest, TrailingWhitespace)
+TEST_F(LexerTest, TrailingWhitespace)
 {
-    Obelix::Lexa lexa("Hello  World  \nSecond Line");
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false, false });
-    lexa.tokenize();
-    lexa.check_codes(9,
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false, false });
+    tokenize("Hello  World  \nSecond Line");
+    check_codes(9,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Whitespace,
         Obelix::TokenCode::Identifier,
@@ -84,16 +80,15 @@ TEST(WhitespaceTest, TrailingWhitespace)
         Obelix::TokenCode::Whitespace,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::EndOfFile);
-    EXPECT_EQ(lexa.tokens[3].value(), "  ");
+    EXPECT_EQ(tokens[3].value(), "  ");
 }
 
-TEST(WhitespaceTest, IgnoreWS)
+TEST_F(LexerTest, IgnoreWS)
 {
-    Obelix::Lexa lexa(" Hello  World\nSecond Line \n Third Line ");
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, true, false });
-    lexa.tokenize();
-    lexa.check_codes(9,
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, true, false });
+    tokenize(" Hello  World\nSecond Line \n Third Line ");
+    check_codes(9,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::NewLine,
@@ -105,13 +100,12 @@ TEST(WhitespaceTest, IgnoreWS)
         Obelix::TokenCode::EndOfFile);
 }
 
-TEST(WhitespaceTest, IgnoreNL)
+TEST_F(LexerTest, IgnoreNL)
 {
-    Obelix::Lexa lexa(" Hello  World\nSecond Line \n Third Line ");
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, false, false });
-    lexa.tokenize();
-    lexa.check_codes(14,
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, false, false });
+    tokenize(" Hello  World\nSecond Line \n Third Line ");
+    check_codes(14,
         Obelix::TokenCode::Whitespace,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Whitespace,
@@ -128,13 +122,12 @@ TEST(WhitespaceTest, IgnoreNL)
         Obelix::TokenCode::EndOfFile);
 }
 
-TEST(WhitespaceTest, IgnoreAllWS_newlines_are_not_spaces)
+TEST_F(LexerTest, IgnoreAllWS_newlines_are_not_spaces)
 {
-    Obelix::Lexa lexa(" Hello  World\nSecond Line \n Third Line ");
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
-    lexa.tokenize();
-    lexa.check_codes(7,
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
+    tokenize(" Hello  World\nSecond Line \n Third Line ");
+    check_codes(7,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Identifier,
@@ -144,13 +137,12 @@ TEST(WhitespaceTest, IgnoreAllWS_newlines_are_not_spaces)
         Obelix::TokenCode::EndOfFile);
 }
 
-TEST(WhitespaceTest, IgnoreAllWS_newlines_are_spaces)
+TEST_F(LexerTest, IgnoreAllWS_newlines_are_spaces)
 {
-    Obelix::Lexa lexa(" Hello  World\nSecond Line \n Third Line ");
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, true });
-    lexa.tokenize();
-    lexa.check_codes(7,
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, true });
+    tokenize(" Hello  World\nSecond Line \n Third Line ");
+    check_codes(7,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Identifier,
@@ -160,13 +152,12 @@ TEST(WhitespaceTest, IgnoreAllWS_newlines_are_spaces)
         Obelix::TokenCode::EndOfFile);
 }
 
-TEST(WhitespaceTest, IgnoreNoWhitespace)
+TEST_F(LexerTest, IgnoreNoWhitespace)
 {
-    Obelix::Lexa lexa(" Hello  World\nSecond Line \n Third Line ");
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false, false });
-    lexa.tokenize();
-    lexa.check_codes(16,
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false, false });
+    tokenize(" Hello  World\nSecond Line \n Third Line ");
+    check_codes(16,
         Obelix::TokenCode::Whitespace,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Whitespace,
@@ -185,13 +176,12 @@ TEST(WhitespaceTest, IgnoreNoWhitespace)
         Obelix::TokenCode::EndOfFile);
 }
 
-TEST(WhitespaceTest, IgnoreNoWhitespace_newlines_are_spaces)
+TEST_F(LexerTest, IgnoreNoWhitespace_newlines_are_spaces)
 {
-    Obelix::Lexa lexa(" Hello  World\nSecond Line \n Third Line ");
-    lexa.add_scanner<Obelix::IdentifierScanner>();
-    lexa.add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false, true });
-    lexa.tokenize();
-    lexa.check_codes(14,
+    add_scanner<Obelix::IdentifierScanner>();
+    add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false, true });
+    tokenize(" Hello  World\nSecond Line \n Third Line ");
+    check_codes(14,
         Obelix::TokenCode::Whitespace,
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Whitespace,
@@ -206,6 +196,6 @@ TEST(WhitespaceTest, IgnoreNoWhitespace_newlines_are_spaces)
         Obelix::TokenCode::Identifier,
         Obelix::TokenCode::Whitespace,
         Obelix::TokenCode::EndOfFile);
-    EXPECT_EQ(lexa.tokens[8].value(), " \n ");
+    EXPECT_EQ(tokens[8].value(), " \n ");
 
 }

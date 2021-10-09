@@ -21,6 +21,18 @@ StringBuffer::StringBuffer(char const* str)
 {
 }
 
+StringBuffer& StringBuffer::assign(std::string buffer)
+{
+    m_buffer = move(buffer);
+    return *this;
+}
+
+StringBuffer& StringBuffer::assign(const char* buffer)
+{
+    m_buffer = buffer;
+    return *this;
+}
+
 void StringBuffer::rewind()
 {
     m_pos = 0;
