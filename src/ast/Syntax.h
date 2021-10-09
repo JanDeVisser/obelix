@@ -4,50 +4,151 @@
 
 #pragma once
 
-#include "lexer/Token.h"
+#include <lexer/Token.h>
 #include <string>
+
+namespace Obelix {
 
 class SyntaxNode {
 public:
-    [[nodiscard]] virtual std::shared_ptr<SyntaxNode> evaluate(std::shared_ptr<Object> scope, bool must_resolve) const = 0;
-    [[nodiscard]] virtual bool is_exception() const { return false; }
-    [[nodiscard]] virtual bool is_literal() const { return false; }
+    ~SyntaxNode() = default;
+    virtual void dump() = 0;
 };
 
-class Literal;
-
-class Block : public SyntaxNode {
+class Statement : public SyntaxNode
+{
 public:
-    Block() : SyntaxNode() { }
-    void append(std::shared_ptr<SyntaxNode> const& child) {
-        m_children.push_back(child);
+    virtual void execute() {
+        fatal("Not implemented");
+    }
+};
+
+class Block : public Statement {
+public:
+    Block()
+        : Statement()
+    {
+    }
+    ~Block() = default;
+
+    void append(std::shared_ptr<Statement> const& statement)
+    {
+        m_statements.push_back(statement);
     }
 
-    [[nodiscard]] std::shared_ptr<SyntaxNode> evaluate(std::shared_ptr<Object> scope, bool must_resolve) const override;
+    void dump() override {
+       for (auto& statement : m_statements) {
+           statement->dump();
+       }
+    }
+
+    void execute() override
+    {
+        for (auto& statement : m_statements) {
+            statement->execute();
+        }
+    }
 
 private:
-    std::vector<std::shared_ptr<SyntaxNode>> m_children { };
+    std::vector<std::shared_ptr<Statement>> m_statements {};
+};
+
+class Module : public Block
+{
+public:
+    explicit Module(std::string name)
+        : Block()
+        , m_name(move(name))
+    {
+    }
+
+    void dump() override {
+        printf("module %s\n\n", m_name.c_str());
+        Block::dump();
+    }
+
+private:
+    std::string m_name;
+};
+
+class FunctionDef : public Block
+{
+public:
+    FunctionDef(std::string name, std::vector<std::string> arguments)
+        : Block()
+        , m_name(move(name))
+        , m_arguments(move(arguments))
+    {
+    }
+
+    void dump() override {
+        printf("func %s(", m_name.c_str());
+        bool first = true;
+        for (auto& arg : m_arguments) {
+            if (!first)
+                printf(", ");
+            first = false;
+            printf("%s", arg.c_str());
+        }
+        printf(")\n");
+    }
+
+private:
+    std::string m_name;
+    std::vector<std::string> m_arguments;
+};
+
+class NativeFunctionDef : public SyntaxNode
+{
+public:
+    NativeFunctionDef(std::string name, std::vector<std::string> arguments, std::function<Obj(Ptr<Arguments>)> function)
+        : SyntaxNode()
+        , m_name(move(name))
+        , m_arguments(move(arguments))
+        , m_function(move(function))
+    {
+    }
+
+    void dump() override {
+        printf("native func %s(", m_name.c_str());
+        bool first = true;
+        for (auto& arg : m_arguments) {
+            if (!first)
+                printf(", ");
+            first = false;
+            printf("%s", arg.c_str());
+        }
+        printf(")\n");
+    }
+
+private:
+    std::string m_name;
+    std::vector<std::string> m_arguments;
+    std::function<Obj(Ptr<Arguments>)> m_function;
 };
 
 class ErrorNode : public SyntaxNode {
 public:
-    ErrorNode(ErrorCode code)
+    explicit ErrorNode(ErrorCode code)
         : SyntaxNode()
         , m_code(code)
     {
     }
 
-    [[nodiscard]] bool is_exception() const override { return true; }
-    [[nodiscard]] std::shared_ptr<SyntaxNode> evaluate(std::shared_ptr<Object> scope, bool must_resolve) const override
-    {
-        return std::make_shared<ErrorNode>(m_code);
+    void dump() override {
+        printf("ERROR %d\n", (int) m_code);
     }
 
 private:
-    ErrorCode m_code { ErrorCode::NoError }
+    ErrorCode m_code { ErrorCode::NoError };
 };
 
 class Expression : public SyntaxNode {
+public:
+    virtual Obj evaluate()
+    {
+        fatal("Not yet implemented");
+    }
 };
 
 class Literal : public Expression {
@@ -55,27 +156,36 @@ public:
     explicit Literal(Token token)
         : Expression()
         , m_literal(std::move(token))
-        , m_object(m_literal.to_object())
     {
     }
 
-    explicit Literal(std::shared_ptr<Object> object)
-        : Expression()
-        , m_literal(TokenType::Unknown, object->to_string())
-        , m_object(std::move(object))
-    {
+    void dump() override {
+        printf("%s", m_literal.value().c_str());
     }
 
-    [[nodiscard]] std::shared_ptr<SyntaxNode> evaluate(std::shared_ptr<Object> scope, bool must_resolve) const override
-    {
-        return std::make_shared<Literal>(m_object);
+    Obj evaluate() override {
+        return m_literal.to_object();
     }
 
-    [[nodiscard]] bool is_literal() const override { return true; }
-    [[nodiscard]] std::shared_ptr<Object> to_object() const { return m_object; }
 private:
     Token m_literal;
-    std::shared_ptr<Object> m_object;
+};
+
+class VariableReference : public Expression {
+public:
+    explicit VariableReference(std::string name)
+        : Expression()
+        , m_name(std::move(name))
+    {
+    }
+
+    void dump() override
+    {
+        printf("%s", m_name.c_str());
+    }
+
+private:
+    std::string m_name;
 };
 
 class BinaryExpression : public Expression {
@@ -88,23 +198,29 @@ public:
     {
     }
 
-    [[nodiscard]] std::shared_ptr<SyntaxNode> evaluate(std::shared_ptr<Object> scope, bool must_resolve) const override
-    {
-        auto lhs_result = std::dynamic_pointer_cast<Expression>(m_lhs->evaluate(scope, must_resolve));
-        auto rhs_result = std::dynamic_pointer_cast<Expression>(m_rhs->evaluate(scope, must_resolve));
-        if (lhs_result->is_exception()) {
-            return lhs_result;
-        }
-        if (rhs_result->is_exception()) {
-            return rhs_result;
-        }
-        if (lhs_result->is_literal() && rhs_result->is_literal()) {
-            auto lhs_object = std::dynamic_pointer_cast<Literal>(lhs_result)->to_object();
-            std::vector<std::shared_ptr<Object>> args;
-            args.push_back(std::dynamic_pointer_cast<Literal>(rhs_result)->to_object());
-            return std::make_shared<Literal>(lhs_object->evaluate(m_operator.to_string(), args));
-        } else {
-            return std::make_shared<BinaryExpression>(lhs_result, m_operator, rhs_result);
+    void dump() override {
+        printf("(");
+        m_lhs->dump();
+        printf(") %s (", m_operator.value().c_str());
+        m_rhs->dump();
+        printf(")");
+    }
+
+    Obj evaluate() override {
+        Obj lhs = m_lhs->evaluate();
+        Obj rhs = m_rhs->evaluate();
+        oassert(lhs->type() == "integer" && rhs.type() == "integer", "Binary expression only works on integers");
+        switch (m_operator.code()) {
+        case TokenCode::Plus:
+            return make_obj<Integer>(lhs.to_long().value() + rhs.to_long().value());
+        case TokenCode::Minus:
+            return make_obj<Integer>(lhs.to_long().value() - rhs.to_long().value());
+        case TokenCode::Asterisk:
+            return make_obj<Integer>(lhs.to_long().value() * rhs.to_long().value());
+        case TokenCode::Slash:
+            return make_obj<Integer>(lhs.to_long().value() / rhs.to_long().value());
+        default:
+            fatal("Unreached");
         }
     }
 
@@ -114,8 +230,8 @@ private:
     std::shared_ptr<Expression> m_rhs;
 };
 
-#if 0
 class UnaryExpression : public Expression {
+public:
     UnaryExpression(Token op, std::shared_ptr<Expression> operand)
         : Expression()
         , m_operator(std::move(op))
@@ -123,21 +239,22 @@ class UnaryExpression : public Expression {
     {
     }
 
-    [[nodiscard]] std::shared_ptr<SyntaxNode> evaluate(std::shared_ptr<Object> scope, bool must_resolve) const override
-    {
-        auto operand = std::dynamic_pointer_cast<Expression>(m_operand->evaluate(scope, must_resolve));
-        if (operand->is_exception()) {
+    void dump() override {
+        printf(" %s (", m_operator.to_string().c_str());
+        m_operand->dump();
+        printf(")");
+    }
+
+    Obj evaluate() override {
+        Obj operand = m_operand->evaluate();
+        oassert(operand->type() == "integer", "Unary expression only works on integers");
+        switch (m_operator.code()) {
+        case TokenCode::Plus:
             return operand;
-        }
-        if (operand->is_literal()) {
-            auto object = std::dynamic_pointer_cast<Literal>(operand)->to_object();
-            std::vector<std::shared_ptr<Object>> args;
-            return std::make_shared<Literal>(object->evaluate(m_operator.to_string(), args));
-        } else if (!must_resolve) {
-            auto n = new UnaryExpression(m_operator, operand);
-            return std::make_shared<UnaryExpression>(m_operator, operand);
-        } else {
-            return std::make_shared<ErrorNode>(ErrorCode::CouldNotResolveNode);
+        case TokenCode::Minus:
+            return make_obj<Integer>( - operand.to_long().value());
+        default:
+            fatal("Unreached");
         }
     }
 
@@ -145,17 +262,92 @@ private:
     Token m_operator;
     std::shared_ptr<Expression> m_operand;
 };
-#endif
 
-class Identifier : public Expression {
+class FunctionCall : public Expression
+{
 public:
+    FunctionCall(std::string name, std::vector<std::shared_ptr<Expression>> arguments)
+        : Expression()
+        , m_name(move(name))
+        , m_arguments(move(arguments))
+    {
+    }
+
+    void dump() override {
+        printf("%s(", m_name.c_str());
+        bool first = true;
+        for (auto& arg : m_arguments) {
+            if (!first)
+                printf(", ");
+            first = false;
+            arg->dump();
+        }
+        printf(")");
+    }
+
+    Obj evaluate() override
+    {
+        if (m_name == "print") {
+            bool first = true;
+            for (auto& arg : m_arguments) {
+                if (!first)
+                    printf(", ");
+                first = false;
+                auto val = arg->evaluate();
+                printf("%s", val.to_string().c_str());
+            }
+            printf("\n");
+        }
+        return Obj::null();
+    }
+
 private:
-    Token m_identifier;
+    std::string m_name;
+    std::vector<std::shared_ptr<Expression>> m_arguments;
 };
 
-class Assignment : public SyntaxNode {
+class Assignment : public Statement {
 public:
+    Assignment(std::string variable, std::shared_ptr<Expression> expression)
+        : Statement()
+        , m_variable(move(variable))
+        , m_expression(move(expression))
+    {
+    }
+
+    void dump() override
+    {
+        printf("var %s = ", m_variable.c_str());
+        m_expression->dump();
+        printf("\n");
+    }
+
 private:
     std::string m_variable;
     std::shared_ptr<Expression> m_expression;
 };
+
+class ProcedureCall : public Statement {
+public:
+    explicit ProcedureCall(std::shared_ptr<FunctionCall> call_expression)
+        : Statement()
+        , m_call_expression(move(call_expression))
+    {
+    }
+
+    void dump() override
+    {
+        m_call_expression->dump();
+        printf("\n");
+    }
+
+    void execute() override
+    {
+        m_call_expression->evaluate();
+    }
+
+private:
+    std::shared_ptr<FunctionCall> m_call_expression;
+};
+
+}

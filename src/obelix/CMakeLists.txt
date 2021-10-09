@@ -3,5 +3,10 @@ add_executable(
         main.cpp
 )
 
-target_link_libraries(obelix2 obllexer oblcore ${LIBS})
+target_link_libraries(
+        obelix2
+        obllexer
+        oblcore
+        ${LIBS}
+)
 
