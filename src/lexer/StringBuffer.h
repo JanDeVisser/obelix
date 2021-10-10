@@ -14,6 +14,7 @@ public:
     explicit StringBuffer(std::string);
     explicit StringBuffer(std::string_view const&);
     explicit StringBuffer(char const*);
+    std::string const& str() const { return m_buffer; }
     void rewind();
     std::string read(size_t);
     int peek();
@@ -23,6 +24,7 @@ public:
     void reset();
     StringBuffer& assign(char const*);
     StringBuffer& assign(std::string);
+    StringBuffer& assign(StringBuffer);
 
 private:
     std::string m_buffer;

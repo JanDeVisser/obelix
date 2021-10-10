@@ -80,6 +80,11 @@ public:
     Tokenizer() = default;
     explicit Tokenizer(std::string_view const&);
     explicit Tokenizer(StringBuffer);
+    void assign(StringBuffer buffer);
+    void assign(char const*);
+    void assign(std::string);
+    [[nodiscard]] StringBuffer const& buffer() const { return m_buffer; }
+
     std::vector<Token> const& tokenize(std::optional<std::string_view const> = {});
 
     int get_char();

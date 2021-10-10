@@ -130,14 +130,14 @@ private:
 #define fatal(fmt, args...)                                                                      \
     {                                                                                            \
         Logger::get_logger().logmsg(LogLevel::Fatal, __FILE__, __LINE__, __func__, fmt, ##args); \
-        abort();                                                                                 \
+        exit(-1);                                                                                \
     }                                                                                            \
     (void)0
 #define oassert(value, fmt, args...)                                                                 \
     {                                                                                                \
         if (!(value)) {                                                                              \
             Logger::get_logger().logmsg(LogLevel::Fatal, __FILE__, __LINE__, __func__, fmt, ##args); \
-            abort();                                                                                 \
+            exit(-1);                                                                                \
         }                                                                                            \
     }                                                                                                \
     (void)0

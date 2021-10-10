@@ -25,10 +25,19 @@ public:
     {
     }
 
+    void assign(char const* text)
+    {
+        m_tokenizer.assign(text);
+    }
+
+    [[nodiscard]] StringBuffer const& buffer() const { return m_tokenizer.buffer(); }
+
     std::vector<Token> const& tokenize(char const* text = nullptr)
     {
-        std::string s = (text) ? text : "";
-        m_tokens = m_tokenizer.tokenize(s);
+        if (text)
+            m_tokens = m_tokenizer.tokenize(text);
+        else
+            m_tokens = m_tokenizer.tokenize();
         return m_tokens;
     }
 

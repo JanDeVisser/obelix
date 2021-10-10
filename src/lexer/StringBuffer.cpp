@@ -24,12 +24,21 @@ StringBuffer::StringBuffer(char const* str)
 StringBuffer& StringBuffer::assign(std::string buffer)
 {
     m_buffer = move(buffer);
+    rewind();
     return *this;
 }
 
 StringBuffer& StringBuffer::assign(const char* buffer)
 {
     m_buffer = buffer;
+    rewind();
+    return *this;
+}
+
+StringBuffer& StringBuffer::assign(StringBuffer buffer)
+{
+    m_buffer = move(buffer.m_buffer);
+    rewind();
     return *this;
 }
 

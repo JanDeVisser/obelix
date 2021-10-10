@@ -15,10 +15,10 @@ public:
     virtual void dump() = 0;
 };
 
-class Statement : public SyntaxNode
-{
+class Statement : public SyntaxNode {
 public:
-    virtual void execute() {
+    virtual void execute()
+    {
         fatal("Not implemented");
     }
 };
@@ -36,10 +36,11 @@ public:
         m_statements.push_back(statement);
     }
 
-    void dump() override {
-       for (auto& statement : m_statements) {
-           statement->dump();
-       }
+    void dump() override
+    {
+        for (auto& statement : m_statements) {
+            statement->dump();
+        }
     }
 
     void execute() override
@@ -53,8 +54,7 @@ private:
     std::vector<std::shared_ptr<Statement>> m_statements {};
 };
 
-class Module : public Block
-{
+class Module : public Block {
 public:
     explicit Module(std::string name)
         : Block()
@@ -62,7 +62,8 @@ public:
     {
     }
 
-    void dump() override {
+    void dump() override
+    {
         printf("module %s\n\n", m_name.c_str());
         Block::dump();
     }
@@ -71,8 +72,7 @@ private:
     std::string m_name;
 };
 
-class FunctionDef : public Block
-{
+class FunctionDef : public Block {
 public:
     FunctionDef(std::string name, std::vector<std::string> arguments)
         : Block()
@@ -81,7 +81,8 @@ public:
     {
     }
 
-    void dump() override {
+    void dump() override
+    {
         printf("func %s(", m_name.c_str());
         bool first = true;
         for (auto& arg : m_arguments) {
@@ -98,8 +99,7 @@ private:
     std::vector<std::string> m_arguments;
 };
 
-class NativeFunctionDef : public SyntaxNode
-{
+class NativeFunctionDef : public SyntaxNode {
 public:
     NativeFunctionDef(std::string name, std::vector<std::string> arguments, std::function<Obj(Ptr<Arguments>)> function)
         : SyntaxNode()
@@ -109,7 +109,8 @@ public:
     {
     }
 
-    void dump() override {
+    void dump() override
+    {
         printf("native func %s(", m_name.c_str());
         bool first = true;
         for (auto& arg : m_arguments) {
@@ -135,8 +136,9 @@ public:
     {
     }
 
-    void dump() override {
-        printf("ERROR %d\n", (int) m_code);
+    void dump() override
+    {
+        printf("ERROR %d\n", (int)m_code);
     }
 
 private:
@@ -159,11 +161,13 @@ public:
     {
     }
 
-    void dump() override {
+    void dump() override
+    {
         printf("%s", m_literal.value().c_str());
     }
 
-    Obj evaluate() override {
+    Obj evaluate() override
+    {
         return m_literal.to_object();
     }
 
@@ -198,7 +202,8 @@ public:
     {
     }
 
-    void dump() override {
+    void dump() override
+    {
         printf("(");
         m_lhs->dump();
         printf(") %s (", m_operator.value().c_str());
@@ -206,7 +211,8 @@ public:
         printf(")");
     }
 
-    Obj evaluate() override {
+    Obj evaluate() override
+    {
         Obj lhs = m_lhs->evaluate();
         Obj rhs = m_rhs->evaluate();
         oassert(lhs->type() == "integer" && rhs.type() == "integer", "Binary expression only works on integers");
@@ -239,20 +245,22 @@ public:
     {
     }
 
-    void dump() override {
+    void dump() override
+    {
         printf(" %s (", m_operator.to_string().c_str());
         m_operand->dump();
         printf(")");
     }
 
-    Obj evaluate() override {
+    Obj evaluate() override
+    {
         Obj operand = m_operand->evaluate();
         oassert(operand->type() == "integer", "Unary expression only works on integers");
         switch (m_operator.code()) {
         case TokenCode::Plus:
             return operand;
         case TokenCode::Minus:
-            return make_obj<Integer>( - operand.to_long().value());
+            return make_obj<Integer>(-operand.to_long().value());
         default:
             fatal("Unreached");
         }
@@ -263,8 +271,7 @@ private:
     std::shared_ptr<Expression> m_operand;
 };
 
-class FunctionCall : public Expression
-{
+class FunctionCall : public Expression {
 public:
     FunctionCall(std::string name, std::vector<std::shared_ptr<Expression>> arguments)
         : Expression()
@@ -273,7 +280,8 @@ public:
     {
     }
 
-    void dump() override {
+    void dump() override
+    {
         printf("%s(", m_name.c_str());
         bool first = true;
         for (auto& arg : m_arguments) {
@@ -348,6 +356,45 @@ public:
 
 private:
     std::shared_ptr<FunctionCall> m_call_expression;
+};
+
+class IfStatement : public Statement {
+public:
+    IfStatement(std::shared_ptr<Expression> condition, std::shared_ptr<Block> if_block, std::shared_ptr<Block> else_block)
+        : Statement()
+        , m_condition(move(condition))
+        , m_if_block(move(if_block))
+        , m_else_block(move(else_block))
+    {
+    }
+
+    void execute() override
+    {
+        Obj condition = m_condition->evaluate();
+        if (condition->to_bool().value()) {
+            m_if_block->execute();
+        } else {
+            m_else_block->execute();
+        }
+    }
+
+    void dump() override
+    {
+        printf("if ");
+        m_condition->dump();
+        printf(" {\n");
+        m_if_block->dump();
+        if (m_else_block) {
+            printf("} else {\n");
+            m_else_block->dump();
+        }
+        printf("}\n");
+    }
+
+private:
+    std::shared_ptr<Expression> m_condition;
+    std::shared_ptr<Block> m_if_block;
+    std::shared_ptr<Block> m_else_block;
 };
 
 }

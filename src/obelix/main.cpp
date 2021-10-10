@@ -66,41 +66,52 @@ public:
     constexpr static TokenCode KeywordIf = ((TokenCode)102);
     constexpr static TokenCode KeywordElse = ((TokenCode)103);
     constexpr static TokenCode KeywordWhile = ((TokenCode)104);
+    constexpr static TokenCode KeywordTrue = ((TokenCode)105);
+    constexpr static TokenCode KeywordFalse = ((TokenCode)106);
 
-    Parser(std::string const& file_name)
+    explicit Parser(std::string const& file_name)
         : m_file_name(file_name)
         , m_file_buffer(file_name)
+        , m_lexer(m_file_buffer.buffer())
     {
-    }
-
-    Lexer m_lexer {};
-
-    std::shared_ptr<Module> parse()
-    {
-        m_lexer = Lexer(m_file_buffer.buffer());
         m_lexer.add_scanner<QStringScanner>();
         m_lexer.add_scanner<IdentifierScanner>();
         m_lexer.add_scanner<NumberScanner>();
         m_lexer.add_scanner<WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
-        m_lexer.add_scanner<KeywordScanner>(5,
+        m_lexer.add_scanner<KeywordScanner>(7,
             "var",
             "func",
             "if",
             "else",
-            "while");
+            "while",
+            "true",
+            "false");
+    }
 
+    std::shared_ptr<Module> parse()
+    {
         std::shared_ptr<Module> module = std::make_shared<Module>(m_file_name);
-        parse_statements(std::dynamic_pointer_cast<Block>(module));
+        parse_statements(std::dynamic_pointer_cast<Block>(module), true);
         return module;
     }
 
 private:
-    void parse_statements(std::shared_ptr<Block> const& block)
+    void parse_statements(std::shared_ptr<Block> const& block, bool to_eof = false)
     {
-        for (auto token = m_lexer.lex(); token.code() != TokenCode::EndOfFile; token = m_lexer.lex()) {
+        auto done = [to_eof](Token const& token) {
+            if (to_eof)
+                return token.code() == TokenCode::EndOfFile;
+            else
+                return token.code() == TokenCode::CloseBrace;
+        };
+
+        for (auto token = m_lexer.lex(); !done(token); token = m_lexer.lex()) {
             switch (token.code()) {
             case TokenCode::Identifier:
                 block->append(std::make_shared<ProcedureCall>(parse_function_call(token.value())));
+                break;
+            case KeywordIf:
+                block->append(parse_if_statement());
                 break;
             case KeywordVar:
                 block->append(parse_variable_declaration());
@@ -111,10 +122,10 @@ private:
             default:
                 break;
             }
-            if (!m_lexer.expect(TokenCode::SemiColon)) {
-                fprintf(stderr, "Syntax Error: Expected ';' after statement\n");
-                exit(1);
-            }
+//            if (!m_lexer.expect(TokenCode::SemiColon)) {
+//                fprintf(stderr, "Syntax Error: Expected ';' after statement\n");
+//                exit(1);
+//            }
             fprintf(stdout, "\n");
         }
         printf("\n");
@@ -143,6 +154,29 @@ private:
             }
         } while (!done);
         return std::make_shared<FunctionCall>(func_name, args);
+    }
+
+    std::shared_ptr<IfStatement> parse_if_statement()
+    {
+        auto condition = parse_expression();
+        if (!m_lexer.expect(TokenCode::OpenBrace)) {
+            fprintf(stderr, "Syntax Error: Expected '{'");
+            exit(1);
+        }
+        std::shared_ptr<Block> if_block = std::make_shared<Block>();
+        std::shared_ptr<Block> else_block = nullptr;
+        parse_statements(if_block);
+        auto else_maybe = m_lexer.peek();
+        if (else_maybe.code() == KeywordElse) {
+            m_lexer.lex();
+            if (!m_lexer.expect(TokenCode::OpenBrace)) {
+                fprintf(stderr, "Syntax Error: Expected '{'");
+                exit(1);
+            }
+            else_block = std::make_shared<Block>();
+            parse_statements(else_block);
+        }
+        return std::make_shared<IfStatement>(condition, if_block, else_block);
     }
 
     std::shared_ptr<Assignment> parse_variable_declaration()
@@ -238,6 +272,8 @@ private:
         case TokenCode::Float:
         case TokenCode::DoubleQuotedString:
         case TokenCode::SingleQuotedString:
+        case KeywordTrue:
+        case KeywordFalse:
             return std::make_shared<Literal>(atom);
             break;
         case TokenCode::Identifier:
@@ -251,14 +287,39 @@ private:
 
     FileBuffer m_file_buffer;
     std::string m_file_name;
+    Lexer m_lexer;
 };
 
 }
 
+void usage()
+{
+    printf(
+        "Obelix v2 - A programming language\n"
+        "USAGE:\n"
+        "    obelix [--debug] path/to/script.obl\n");
+    exit(1);
+}
+
+
 int main(int argc, char** argv)
 {
-    Obelix::Parser parser(argv[1]);
+    std::string file_name;
+    for (int ix = 1; ix < argc; ++ix) {
+        if (!strcmp(argv[ix], "--help")) {
+            usage();
+        } else if (!strcmp(argv[ix], "--debug")) {
+            Obelix::Logger::get_logger().enable("lexer");
+        } else {
+            file_name = argv[ix];
+        }
+    }
 
+    if (file_name.empty()) {
+        usage();
+    }
+
+    Obelix::Parser parser(file_name);
     auto tree = parser.parse();
     tree->dump();
     tree->execute();

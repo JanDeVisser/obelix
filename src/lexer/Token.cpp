@@ -51,19 +51,17 @@ Ptr<Object> Token::to_object() const
     case TokenCode::SingleQuotedString:
     case TokenCode::BackQuotedString:
         return make_obj<String>(m_value);
-    case TokenCode::Identifier:
+    case TokenCode::Slash:
+        if (value() != "/") {
+            return make_obj<Regex>(value());
+        }
+    default:
         if (value() == "true")
             return to_obj(Boolean::True());
         if (value() == "false")
             return to_obj(Boolean::False());
         if (value() == "null")
             return Object::null();
-        break;
-    case TokenCode::Slash:
-        if (value() != "/") {
-            return make_obj<Regex>(value());
-        }
-    default:
         break;
     }
     return make_obj<String>(code_name());

@@ -42,6 +42,21 @@ Tokenizer::Tokenizer(StringBuffer text)
 {
 }
 
+void Tokenizer::assign(StringBuffer buffer)
+{
+    m_buffer.assign(std::move(buffer));
+}
+
+void Tokenizer::assign(char const* text)
+{
+    m_buffer.assign(text);
+}
+
+void Tokenizer::assign(std::string text)
+{
+    m_buffer.assign(move(text));
+}
+
 std::vector<Token> const& Tokenizer::tokenize(std::optional<std::string_view const> text)
 {
     if (text.has_value()) {
