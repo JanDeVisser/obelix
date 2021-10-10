@@ -23,6 +23,17 @@ public:
     }
 };
 
+class Pass : public Statement {
+    void dump() override
+    {
+        printf(";\n");
+    }
+
+    void execute() override
+    {
+    }
+};
+
 class Block : public Statement {
 public:
     Block()
@@ -38,9 +49,11 @@ public:
 
     void dump() override
     {
+        printf("{\n");
         for (auto& statement : m_statements) {
             statement->dump();
         }
+        printf("}\n");
     }
 
     void execute() override

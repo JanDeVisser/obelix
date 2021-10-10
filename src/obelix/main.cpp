@@ -76,7 +76,7 @@ public:
     {
         m_lexer.add_scanner<QStringScanner>();
         m_lexer.add_scanner<IdentifierScanner>();
-        m_lexer.add_scanner<NumberScanner>();
+        m_lexer.add_scanner<NumberScanner>(Obelix::NumberScanner::Config { true, false, true, true });
         m_lexer.add_scanner<WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
         m_lexer.add_scanner<KeywordScanner>(7,
             "var",
@@ -102,7 +102,7 @@ private:
         switch (token.code()) {
         case TokenCode::SemiColon:
             m_lexer.lex();
-            break;
+            return std::make_shared<Pass>();
         case TokenCode::OpenBrace:
             m_lexer.lex();
             return parse_block();
@@ -119,8 +119,9 @@ private:
             //                m_lexer.lex();
             //                return parse_function_declaration(token);
         default:
-            return nullptr;
+            break;
         }
+        return nullptr;
     }
 
     void parse_statements(std::shared_ptr<Block> const& block)
@@ -174,10 +175,6 @@ private:
     std::shared_ptr<IfStatement> parse_if_statement()
     {
         auto condition = parse_expression();
-        if (!m_lexer.expect(TokenCode::OpenBrace)) {
-            fprintf(stderr, "Syntax Error: Expected '{'");
-            exit(1);
-        }
         std::shared_ptr<Statement> else_stmt = nullptr;
         auto if_stmt = parse_statement();
         auto else_maybe = m_lexer.peek();

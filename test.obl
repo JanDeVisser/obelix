@@ -1,1 +1,7 @@
-print(-42 * 2 + 12 * 3);
+print(-42*2 + 3*(10+2))
+print(true);
+if (true)
+    print(1)
+else {
+  print(0);
+}
