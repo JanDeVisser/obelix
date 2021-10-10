@@ -360,11 +360,11 @@ private:
 
 class IfStatement : public Statement {
 public:
-    IfStatement(std::shared_ptr<Expression> condition, std::shared_ptr<Block> if_block, std::shared_ptr<Block> else_block)
+    IfStatement(std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt, std::shared_ptr<Statement> else_stmt)
         : Statement()
         , m_condition(move(condition))
-        , m_if_block(move(if_block))
-        , m_else_block(move(else_block))
+        , m_if(move(if_stmt))
+        , m_else(move(else_stmt))
     {
     }
 
@@ -372,9 +372,9 @@ public:
     {
         Obj condition = m_condition->evaluate();
         if (condition->to_bool().value()) {
-            m_if_block->execute();
+            m_if->execute();
         } else {
-            m_else_block->execute();
+            m_else->execute();
         }
     }
 
@@ -382,19 +382,18 @@ public:
     {
         printf("if ");
         m_condition->dump();
-        printf(" {\n");
-        m_if_block->dump();
-        if (m_else_block) {
-            printf("} else {\n");
-            m_else_block->dump();
+        printf("\n");
+        m_if->dump();
+        if (m_else) {
+            printf("else\n");
+            m_else->dump();
         }
-        printf("}\n");
     }
 
 private:
     std::shared_ptr<Expression> m_condition;
-    std::shared_ptr<Block> m_if_block;
-    std::shared_ptr<Block> m_else_block;
+    std::shared_ptr<Statement> m_if;
+    std::shared_ptr<Statement> m_else;
 };
 
 }

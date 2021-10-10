@@ -91,44 +91,59 @@ public:
     std::shared_ptr<Module> parse()
     {
         std::shared_ptr<Module> module = std::make_shared<Module>(m_file_name);
-        parse_statements(std::dynamic_pointer_cast<Block>(module), true);
+        parse_statements(std::dynamic_pointer_cast<Block>(module));
         return module;
     }
 
 private:
-    void parse_statements(std::shared_ptr<Block> const& block, bool to_eof = false)
+    std::shared_ptr<Statement> parse_statement()
     {
-        auto done = [to_eof](Token const& token) {
-            if (to_eof)
-                return token.code() == TokenCode::EndOfFile;
-            else
-                return token.code() == TokenCode::CloseBrace;
-        };
-
-        for (auto token = m_lexer.lex(); !done(token); token = m_lexer.lex()) {
-            switch (token.code()) {
-            case TokenCode::Identifier:
-                block->append(std::make_shared<ProcedureCall>(parse_function_call(token.value())));
-                break;
-            case KeywordIf:
-                block->append(parse_if_statement());
-                break;
-            case KeywordVar:
-                block->append(parse_variable_declaration());
-                break;
-                //            case KeywordFunc:
-                //                ret->append(parse_function_declaration(token));
-                //                break;
-            default:
-                break;
-            }
-//            if (!m_lexer.expect(TokenCode::SemiColon)) {
-//                fprintf(stderr, "Syntax Error: Expected ';' after statement\n");
-//                exit(1);
-//            }
-            fprintf(stdout, "\n");
+        auto token = m_lexer.peek();
+        switch (token.code()) {
+        case TokenCode::SemiColon:
+            m_lexer.lex();
+            break;
+        case TokenCode::OpenBrace:
+            m_lexer.lex();
+            return parse_block();
+        case TokenCode::Identifier:
+            m_lexer.lex();
+            return std::make_shared<ProcedureCall>(parse_function_call(token.value()));
+        case KeywordIf:
+            m_lexer.lex();
+            return parse_if_statement();
+        case KeywordVar:
+            m_lexer.lex();
+            return parse_variable_declaration();
+            //            case KeywordFunc:
+            //                m_lexer.lex();
+            //                return parse_function_declaration(token);
+        default:
+            return nullptr;
         }
+    }
+
+    void parse_statements(std::shared_ptr<Block> const& block)
+    {
+        while (true) {
+            auto statement = parse_statement();
+            if (!statement)
+                break;
+            block->append(statement);
+            fprintf(stdout, "\n");
+        };
         printf("\n");
+    }
+
+    std::shared_ptr<Block> parse_block()
+    {
+        auto ret = std::make_shared<Block>();
+        parse_statements(ret);
+        if (!m_lexer.expect(TokenCode::CloseBrace)) {
+            fprintf(stderr, "Syntax Error: Expected '}'\n");
+            exit(1);
+        }
+        return ret;
     }
 
     std::shared_ptr<FunctionCall> parse_function_call(std::string const& func_name)
@@ -163,20 +178,14 @@ private:
             fprintf(stderr, "Syntax Error: Expected '{'");
             exit(1);
         }
-        std::shared_ptr<Block> if_block = std::make_shared<Block>();
-        std::shared_ptr<Block> else_block = nullptr;
-        parse_statements(if_block);
+        std::shared_ptr<Statement> else_stmt = nullptr;
+        auto if_stmt = parse_statement();
         auto else_maybe = m_lexer.peek();
         if (else_maybe.code() == KeywordElse) {
             m_lexer.lex();
-            if (!m_lexer.expect(TokenCode::OpenBrace)) {
-                fprintf(stderr, "Syntax Error: Expected '{'");
-                exit(1);
-            }
-            else_block = std::make_shared<Block>();
-            parse_statements(else_block);
+            else_stmt = parse_statement();
         }
-        return std::make_shared<IfStatement>(condition, if_block, else_block);
+        return std::make_shared<IfStatement>(condition, if_stmt, else_stmt);
     }
 
     std::shared_ptr<Assignment> parse_variable_declaration()
@@ -255,6 +264,14 @@ private:
     {
         auto t = m_lexer.lex();
         switch (t.code()) {
+        case TokenCode::OpenParen: {
+            auto ret = parse_expression();
+            if (!m_lexer.expect(TokenCode::CloseParen)) {
+                fprintf(stderr, "Syntax Error: Expected ')'\n");
+                exit(1);
+            }
+            return ret;
+        }
         case TokenCode::Plus:
         case TokenCode::Minus: {
             auto operand = parse_atom(m_lexer.lex());
@@ -280,7 +297,7 @@ private:
             return std::make_shared<VariableReference>(atom.value());
             break;
         default:
-            fprintf(stderr, "ERROR: Expected literal or variable, got '%s'\n", atom.to_string().c_str());
+            fprintf(stderr, "ERROR: Expected literal or variable, got '%s'\n", atom.value().c_str());
             exit(1);
         }
     }
