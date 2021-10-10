@@ -12,7 +12,12 @@ namespace Obelix {
 class SyntaxNode {
 public:
     ~SyntaxNode() = default;
-    virtual void dump() = 0;
+    virtual void dump(int) = 0;
+    static void indent_line(int num)
+    {
+        if (num > 0)
+            printf("%*s", num, "");
+    }
 };
 
 class Statement : public SyntaxNode {
@@ -24,8 +29,9 @@ public:
 };
 
 class Pass : public Statement {
-    void dump() override
+    void dump(int indent) override
     {
+        indent_line(indent);
         printf(";\n");
     }
 
@@ -47,12 +53,14 @@ public:
         m_statements.push_back(statement);
     }
 
-    void dump() override
+    void dump(int indent) override
     {
+        indent_line(indent);
         printf("{\n");
         for (auto& statement : m_statements) {
-            statement->dump();
+            statement->dump(indent + 2);
         }
+        indent_line(indent);
         printf("}\n");
     }
 
@@ -75,10 +83,11 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
+        indent_line(indent);
         printf("module %s\n\n", m_name.c_str());
-        Block::dump();
+        Block::dump(indent);
     }
 
 private:
@@ -94,8 +103,9 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
+        indent_line(indent);
         printf("func %s(", m_name.c_str());
         bool first = true;
         for (auto& arg : m_arguments) {
@@ -105,6 +115,7 @@ public:
             printf("%s", arg.c_str());
         }
         printf(")\n");
+        Block::dump(indent);
     }
 
 private:
@@ -122,8 +133,9 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
+        indent_line(indent);
         printf("native func %s(", m_name.c_str());
         bool first = true;
         for (auto& arg : m_arguments) {
@@ -149,8 +161,9 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
+        indent_line(indent);
         printf("ERROR %d\n", (int)m_code);
     }
 
@@ -174,7 +187,7 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
         printf("%s", m_literal.value().c_str());
     }
@@ -196,7 +209,7 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
         printf("%s", m_name.c_str());
     }
@@ -215,12 +228,12 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
         printf("(");
-        m_lhs->dump();
+        m_lhs->dump(indent);
         printf(") %s (", m_operator.value().c_str());
-        m_rhs->dump();
+        m_rhs->dump(indent);
         printf(")");
     }
 
@@ -258,10 +271,10 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
         printf(" %s (", m_operator.to_string().c_str());
-        m_operand->dump();
+        m_operand->dump(indent);
         printf(")");
     }
 
@@ -293,15 +306,16 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
+        indent_line(indent);
         printf("%s(", m_name.c_str());
         bool first = true;
         for (auto& arg : m_arguments) {
             if (!first)
                 printf(", ");
             first = false;
-            arg->dump();
+            arg->dump(indent);
         }
         printf(")");
     }
@@ -336,10 +350,10 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
         printf("var %s = ", m_variable.c_str());
-        m_expression->dump();
+        m_expression->dump(indent);
         printf("\n");
     }
 
@@ -356,9 +370,9 @@ public:
     {
     }
 
-    void dump() override
+    void dump(int indent) override
     {
-        m_call_expression->dump();
+        m_call_expression->dump(indent);
         printf("\n");
     }
 
@@ -391,15 +405,17 @@ public:
         }
     }
 
-    void dump() override
+    void dump(int indent) override
     {
+        indent_line(indent);
         printf("if ");
-        m_condition->dump();
+        m_condition->dump(indent);
         printf("\n");
-        m_if->dump();
+        m_if->dump(indent + 2);
         if (m_else) {
+            indent_line(indent);
             printf("else\n");
-            m_else->dump();
+            m_else->dump(indent + 2);
         }
     }
 

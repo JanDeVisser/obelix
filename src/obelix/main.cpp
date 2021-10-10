@@ -335,7 +335,7 @@ int main(int argc, char** argv)
 
     Obelix::Parser parser(file_name);
     auto tree = parser.parse();
-    tree->dump();
+    tree->dump(0);
     tree->execute();
     return 0;
 }
