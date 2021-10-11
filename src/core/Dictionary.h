@@ -29,6 +29,11 @@ public:
         m_dictionary[key] = ptr_cast<Object>(value);
     }
 
+    void put(Ptr<NVP> nvp)
+    {
+        m_dictionary[nvp->name()] = nvp->value();
+    }
+
     [[nodiscard]] bool contains(std::string const& key) const
     {
         return m_dictionary.contains(key);

@@ -2,6 +2,7 @@ enable_testing()
 
 add_executable(
         CoreTest
+        Arguments.cpp
         CEscape.cpp
         Join.cpp
         ParsePairs.cpp

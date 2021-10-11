@@ -117,29 +117,21 @@ public:
         return at(ix);
     }
     
-    [[nodiscard]] int compare_skel(Object const& other) const
-    {
-        if (type() != other.type())
-            return -1;
-        return compare(other);
-    }
-
-    [[nodiscard]] int compare_skel(Obj const&other) const;
-    [[nodiscard]] virtual int compare(Object const& other) const { return -1; }
+    [[nodiscard]] virtual int compare(Obj const& other) const { return -1; }
     
-    bool operator==(Object const& other) const { return compare_skel(other) == 0; }
-    bool operator!=(Object const& other) const { return compare_skel(other) != 0; }
-    bool operator<(Object const& other) const { return compare_skel(other) < 0; }
-    bool operator>(Object const& other) const { return compare_skel(other) > 0; }
-    bool operator<=(Object const& other) const { return compare_skel(other) <= 0; }
-    bool operator>=(Object const& other) const { return compare_skel(other) >= 0; }
+    bool operator==(Object const& other) const { return compare(other.self()) == 0; }
+    bool operator!=(Object const& other) const { return compare(other.self()) != 0; }
+    bool operator<(Object const& other) const { return compare(other.self()) < 0; }
+    bool operator>(Object const& other) const { return compare(other.self()) > 0; }
+    bool operator<=(Object const& other) const { return compare(other.self()) <= 0; }
+    bool operator>=(Object const& other) const { return compare(other.self()) >= 0; }
 
-    bool operator==(Obj const& other) const { return compare_skel(other) == 0; }
-    bool operator!=(Obj const& other) const { return compare_skel(other) != 0; }
-    bool operator<(Obj const& other) const { return compare_skel(other) < 0; }
-    bool operator>(Obj const& other) const { return compare_skel(other) > 0; }
-    bool operator<=(Obj const& other) const { return compare_skel(other) <= 0; }
-    bool operator>=(Obj const& other) const { return compare_skel(other) >= 0; }
+    bool operator==(Obj const& other) const { return compare(other) == 0; }
+    bool operator!=(Obj const& other) const { return compare(other) != 0; }
+    bool operator<(Obj const& other) const { return compare(other) < 0; }
+    bool operator>(Obj const& other) const { return compare(other) > 0; }
+    bool operator<=(Obj const& other) const { return compare(other) <= 0; }
+    bool operator>=(Obj const& other) const { return compare(other) >= 0; }
 
     virtual std::optional<Obj> operator()(Ptr<Arguments>);
 
@@ -170,9 +162,9 @@ public:
     [[nodiscard]] std::optional<long> to_long() const override { return {}; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return false; }
     [[nodiscard]] std::string to_string() const override { return "(null)"; }
-    [[nodiscard]] int compare(Object const& other) const override
+    [[nodiscard]] int compare(Obj const& other) const override
     {
-        return true;
+        return 1;
     }
 };
 
@@ -189,11 +181,7 @@ public:
     [[nodiscard]] std::optional<double> to_double() const override { return m_value; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return m_value != 0; }
     [[nodiscard]] std::string to_string() const override { return std::to_string(m_value); }
-    [[nodiscard]] int compare(Object const& other) const override
-    {
-        auto i = dynamic_cast<Integer const&>(other);
-        return m_value - i.m_value;
-    }
+    [[nodiscard]] int compare(Obj const& other) const override;
 
 private:
     int m_value { 0 };
@@ -213,10 +201,7 @@ public:
     [[nodiscard]] std::optional<long> to_long() const override { return (m_value) ? 1 : 0; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return m_value; }
     [[nodiscard]] std::string to_string() const override { return Obelix::to_string(m_value); }
-    [[nodiscard]] int compare(Object const& other) const override
-    {
-        return to_long().value() - other.to_long().value();
-    }
+    [[nodiscard]] int compare(Obj const& other) const override;
 
 private:
     bool m_value { true };
@@ -235,15 +220,7 @@ public:
     [[nodiscard]] std::optional<double> to_double() const override { return m_value; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return m_value != 0; }
     [[nodiscard]] std::string to_string() const override { return std::to_string(m_value); }
-    [[nodiscard]] int compare(Object const& other) const override
-    {
-        auto f = dynamic_cast<Float const&>(other);
-        double diff = m_value - f.m_value;
-        if (diff < std::numeric_limits<double>::epsilon())
-            return 0;
-        else
-            return (diff < 0) ? -1 : 1;
-    }
+    [[nodiscard]] int compare(Obj const& other) const override;
 
 private:
     double m_value { 0 };
@@ -385,19 +362,19 @@ public:
 #pragma clang diagnostic pop
     [[nodiscard]] bool operator!() const { return !((bool)(*this)); }
 
-    bool operator==(Object const& other) const { return m_ptr->compare_skel(other) == 0; }
-    bool operator!=(Object const& other) const { return m_ptr->compare_skel(other) != 0; }
-    bool operator<(Object const& other) const { return m_ptr->compare_skel(other) < 0; }
-    bool operator>(Object const& other) const { return m_ptr->compare_skel(other) > 0; }
-    bool operator<=(Object const& other) const { return m_ptr->compare_skel(other) <= 0; }
-    bool operator>=(Object const& other) const { return m_ptr->compare_skel(other) >= 0; }
+    bool operator==(Object const& other) const { return m_ptr->compare(other.self()) == 0; }
+    bool operator!=(Object const& other) const { return m_ptr->compare(other.self()) != 0; }
+    bool operator<(Object const& other) const { return m_ptr->compare(other.self()) < 0; }
+    bool operator>(Object const& other) const { return m_ptr->compare(other.self()) > 0; }
+    bool operator<=(Object const& other) const { return m_ptr->compare(other.self()) <= 0; }
+    bool operator>=(Object const& other) const { return m_ptr->compare(other.self()) >= 0; }
 
-    bool operator==(Obj const& other) const { return m_ptr->compare_skel(other) == 0; }
-    bool operator!=(Obj const& other) const { return m_ptr->compare_skel(other) != 0; }
-    bool operator<(Obj const& other) const { return m_ptr->compare_skel(other) < 0; }
-    bool operator>(Obj const& other) const { return m_ptr->compare_skel(other) > 0; }
-    bool operator<=(Obj const& other) const { return m_ptr->compare_skel(other) <= 0; }
-    bool operator>=(Obj const& other) const { return m_ptr->compare_skel(other) >= 0; }
+    bool operator==(Obj const& other) const { return m_ptr->compare(other) == 0; }
+    bool operator!=(Obj const& other) const { return m_ptr->compare(other) != 0; }
+    bool operator<(Obj const& other) const { return m_ptr->compare(other) < 0; }
+    bool operator>(Obj const& other) const { return m_ptr->compare(other) > 0; }
+    bool operator<=(Obj const& other) const { return m_ptr->compare(other) <= 0; }
+    bool operator>=(Obj const& other) const { return m_ptr->compare(other) >= 0; }
 
 private:
     std::shared_ptr<Object> m_ptr { nullptr };
@@ -513,17 +490,9 @@ public:
     {
     }
 
-    //    std::shared_ptr<Object> evaluate(std::string const&, std::vector<std::shared_ptr<Object>>) override;
+    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
     [[nodiscard]] std::string to_string() const override { return m_value; }
-    [[nodiscard]] int compare(Object const& other) const override
-    {
-        if (to_string() == other.to_string())
-            return 0;
-        else if (to_string() < other.to_string())
-            return -1;
-        else
-            return 1;
-    }
+    [[nodiscard]] int compare(Obj const& other) const override;
 
 private:
     std::string m_value {};
@@ -540,16 +509,7 @@ public:
     [[nodiscard]] std::string const& name() const { return m_pair.first; }
     [[nodiscard]] Obj value() const { return m_pair.second; }
     [[nodiscard]] std::string to_string() const override { return "(" + name() + "," + value().to_string() + ")"; }
-    [[nodiscard]] int compare(Object const& other) const override
-    {
-        auto nvp = dynamic_cast<NVP const&>(other);
-        if (m_pair.first == nvp.m_pair.first)
-            return m_pair.second->compare_skel(nvp.m_pair.second);
-        else if (m_pair.first < nvp.m_pair.first)
-            return -1;
-        else
-            return 1;
-    }
+    [[nodiscard]] int compare(Obj const& other) const override;
 
 private:
     std::pair<std::string, Obj> m_pair;

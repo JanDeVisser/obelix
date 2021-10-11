@@ -66,10 +66,10 @@ std::string Regex::to_string() const
     return ret;
 }
 
-int Regex::compare(Object const& other) const
+int Regex::compare(Obj const& other) const
 {
-    auto other_re = dynamic_cast<Regex const&>(other);
-    return m_pattern.compare(other_re.m_pattern);
+    auto other_re = ptr_cast<Regex>(other);
+    return m_pattern.compare(other_re->m_pattern);
 }
 
 }

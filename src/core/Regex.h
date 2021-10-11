@@ -24,7 +24,7 @@ public:
      Ptr<Object> match(std::string const& text);
      Ptr<Object> replace(std::string const& text, std::vector<std::string> replacements);
      [[nodiscard]] std::string to_string() const override;
-     [[nodiscard]] int compare(Object const& other) const override;
+     [[nodiscard]] int compare(Obj const& other) const override;
 
 
 private:

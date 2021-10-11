@@ -9,26 +9,26 @@ namespace Obelix {
 Arguments::Arguments()
     : Object("arguments")
     , m_args(make_typed<List>())
+    , m_kwargs(make_typed<Dictionary>())
 {
 }
 
-Arguments::Arguments(Obj const& args)
+#if 0
+Arguments::Arguments(Obj const& arg1, Obj const& arg2)
     : Arguments()
 {
-    for (auto& arg : args) {
-        m_args->push_back(arg);
-    }
+    m_args->push_back(arg1);
+    if (arg2->type() != "null")
+        m_args->push_back(arg2);
 }
+#endif
 
-Arguments::Arguments(Obj const& args, Ptr<Dictionary> kwargs)
+Arguments::Arguments(Ptr<List> args, Ptr<Dictionary> kwargs)
     : Object("arguments")
-    , m_args(make_typed<List>())
+    , m_args(std::move(args))
     , m_kwargs(std::move(kwargs))
 
 {
-    for (auto& arg : args) {
-        m_args->push_back(arg);
-    }
 }
 
 std::optional<Obj> Arguments::evaluate(std::string const& name, Ptr<Arguments> args)

@@ -4,6 +4,7 @@
 #include <lexer/Lexer.h>
 #include <lexer/StringBuffer.h>
 #include <lexer/Token.h>
+#include <obelix/Scope.h>
 #include <obelix/Syntax.h>
 #include <optional>
 #include <string>
@@ -106,12 +107,24 @@ private:
         case TokenCode::OpenBrace:
             m_lexer.lex();
             return parse_block();
-        case TokenCode::Identifier:
+        case TokenCode::Identifier: {
             m_lexer.lex();
-            return std::make_shared<ProcedureCall>(parse_function_call(token.value()));
+            switch (m_lexer.current_code()) {
+            case TokenCode::OpenParen:
+                return std::make_shared<ProcedureCall>(parse_function_call(token.value()));
+            case TokenCode::Equals:
+                return parse_assignment(token.value());
+            default:
+                fprintf(stderr, "Syntax Error: Expected '(' or ' ='\n");
+                exit(1);
+            }
+        }
         case KeywordIf:
             m_lexer.lex();
             return parse_if_statement();
+        case KeywordWhile:
+            m_lexer.lex();
+            return parse_while_statement();
         case KeywordVar:
             m_lexer.lex();
             return parse_variable_declaration();
@@ -172,6 +185,13 @@ private:
         return std::make_shared<FunctionCall>(func_name, args);
     }
 
+    std::shared_ptr<Assignment> parse_assignment(std::string const& identifier)
+    {
+        m_lexer.lex(); // Consume the equals
+        auto expr = parse_expression();
+        return std::make_shared<Assignment>(identifier, expr);
+    }
+
     std::shared_ptr<IfStatement> parse_if_statement()
     {
         auto condition = parse_expression();
@@ -183,6 +203,13 @@ private:
             else_stmt = parse_statement();
         }
         return std::make_shared<IfStatement>(condition, if_stmt, else_stmt);
+    }
+
+    std::shared_ptr<WhileStatement> parse_while_statement()
+    {
+        auto condition = parse_expression();
+        auto stmt = parse_statement();
+        return std::make_shared<WhileStatement>(condition, stmt);
     }
 
     std::shared_ptr<Assignment> parse_variable_declaration()
@@ -230,12 +257,15 @@ private:
 
     static int binary_precedence(Token token) {
         switch (token.code()) {
+        case TokenCode::LessThan:
+        case TokenCode::GreaterThan:
+            return 1;
         case TokenCode::Plus:
         case TokenCode::Minus:
-            return 1;
+            return 2;
         case TokenCode::Asterisk:
         case TokenCode::Slash:
-            return 2;
+            return 3;
         default:
             return -1;
         }
@@ -336,6 +366,7 @@ int main(int argc, char** argv)
     Obelix::Parser parser(file_name);
     auto tree = parser.parse();
     tree->dump(0);
-    tree->execute();
+    Obelix::Scope global_scope;
+    tree->execute(global_scope);
     return 0;
 }

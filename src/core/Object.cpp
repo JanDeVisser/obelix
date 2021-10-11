@@ -25,8 +25,21 @@ Object::Object(std::string type)
 {
 }
 
-std::optional<Obj> Object::evaluate(std::string const&, Ptr<Arguments>)
+std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args)
 {
+    if (name == "<") {
+        return make_obj<Boolean>(compare(args->get(0)) < 0);
+    } else if (name == ">") {
+        return make_obj<Boolean>(compare(args->get(0)) > 0);
+    } else if (name == "<=") {
+        return make_obj<Boolean>(compare(args->get(0)) <= 0);
+    } else if (name == "=>") {
+        return make_obj<Boolean>(compare(args->get(0)) >= 0);
+    } else if (name == "==") {
+        return make_obj<Boolean>(compare(args->get(0)) == 0);
+    } else if (name == "!=") {
+        return make_obj<Boolean>(compare(args->get(0)) == 0);
+    }
     return {};
 }
 
@@ -65,11 +78,6 @@ Obj const& Object::at(size_t ix)
 {
     assert(ix == 0);
     return self();
-}
-
-int Object::compare_skel(Obj const& other) const
-{
-    return compare_skel(*other);
 }
 
 std::optional<Obj> Object::operator()(Ptr<Arguments>)
@@ -186,6 +194,15 @@ Exception::Exception(ErrorCode code, ...)
     va_end(args);
 }
 
+int Integer::compare(Obj const& other) const
+{
+    auto long_maybe = other->to_long();
+    if (!long_maybe.has_value())
+        return 1;
+    return (int) m_value - long_maybe.value();
+}
+
+
 std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
 {
     if (op == "+") {
@@ -243,6 +260,26 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
     }
 }
 
+int Boolean::compare(Obj const& other) const
+{
+    auto long_maybe = other->to_long();
+    if (!long_maybe.has_value())
+        return 1;
+    return (int) to_long().value() - long_maybe.value();
+}
+
+int Float::compare(Obj const& other) const
+{
+    auto double_maybe = other->to_double();
+    if (!double_maybe.has_value())
+        return 1;
+    double diff = m_value - double_maybe.value();
+    if (diff < std::numeric_limits<double>::epsilon())
+        return 0;
+    else
+        return (diff < 0) ? -1 : 1;
+}
+
 std::optional<Obj> Float::evaluate(std::string const& op, Ptr<Arguments> args)
 {
     return Object::evaluate(op, args);
@@ -259,6 +296,35 @@ Ptr<Boolean> const& Boolean::False()
     static Ptr<Boolean> s_false = make_typed<Boolean>(false);
     return s_false;
 }
+
+int String::compare(Obj const& other) const
+{
+    return to_string().compare(other->to_string());
+}
+
+std::optional<Obj> String::evaluate(std::string const& op, Ptr<Arguments> args)
+{
+    if (op == "+") {
+        auto ret = m_value;
+        for (auto& arg : args->arguments()) {
+            ret += arg->to_string();
+        }
+        return make_obj<String>(ret);
+    }
+    return Object::evaluate(op, args);
+}
+
+int NVP::compare(Obj const& other) const
+{
+    auto nvp = ptr_cast<NVP>(other);
+    if (m_pair.first == nvp->m_pair.first)
+        return m_pair.second->compare(nvp->m_pair.second);
+    else if (m_pair.first < nvp->m_pair.first)
+        return -1;
+    else
+        return 1;
+}
+
 
 std::unordered_map<std::string, ObjectType> ObjectType::s_types;
 [[maybe_unused]] ObjectType s_integer("integer", [](std::vector<Obj> const& args) {
