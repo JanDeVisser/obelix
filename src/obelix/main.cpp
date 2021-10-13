@@ -79,14 +79,14 @@ public:
         m_lexer.add_scanner<IdentifierScanner>();
         m_lexer.add_scanner<NumberScanner>(Obelix::NumberScanner::Config { true, false, true, true });
         m_lexer.add_scanner<WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
-        m_lexer.add_scanner<KeywordScanner>(7,
-            "var",
-            "func",
-            "if",
-            "else",
-            "while",
-            "true",
-            "false");
+        m_lexer.add_scanner<KeywordScanner>(
+            Token(KeywordVar, "var"),
+            Token(KeywordFunc, "func"),
+            Token(KeywordIf, "if"),
+            Token(KeywordElse, "else"),
+            Token(KeywordWhile, "while"),
+            Token(KeywordTrue, "true"),
+            Token(KeywordFalse, "false"));
     }
 
     std::shared_ptr<Module> parse()
@@ -144,9 +144,7 @@ private:
             if (!statement)
                 break;
             block->append(statement);
-            fprintf(stdout, "\n");
         };
-        printf("\n");
     }
 
     std::shared_ptr<Block> parse_block()
@@ -178,7 +176,7 @@ private:
                 done = true;
                 break;
             default:
-                fprintf(stderr, "Syntax Errpr: Expected ',' or ')' in function argument list");
+                fprintf(stderr, "Syntax Error: Expected ',' or ')' in function argument list");
                 exit(1);
             }
         } while (!done);
@@ -365,7 +363,7 @@ int main(int argc, char** argv)
 
     Obelix::Parser parser(file_name);
     auto tree = parser.parse();
-    tree->dump(0);
+//    tree->dump(0);
     Obelix::Scope global_scope;
     tree->execute(global_scope);
     return 0;

@@ -6,29 +6,15 @@
 
 namespace Obelix {
 
-KeywordScanner::KeywordScanner(Tokenizer& tokenizer, std::vector<Token> const& keywords)
-    : Scanner(tokenizer, 10)
-{
-    for (auto& keyword : keywords) {
-        m_keywords.push_back(keyword);
-    }
-    std::sort(m_keywords.begin(), m_keywords.end(), [](Token const& a, Token const& b) {
-        return a.value().compare(b.value());
-    });
-}
+size_t KeywordScanner::s_next_identifier = 100;
 
-KeywordScanner::KeywordScanner(Tokenizer& tokenizer, int num, ...)
-    : Scanner(tokenizer)
+void KeywordScanner::sort_keywords()
 {
-    va_list keywords;
-    va_start(keywords, num);
-    for (auto ix = 0; ix < num; ix++) {
-        m_keywords.emplace_back((TokenCode) (100 + ix), va_arg(keywords, const char*));
-    }
     std::sort(m_keywords.begin(), m_keywords.end(), [](Token const& a, Token const& b) {
         return a.value() < b.value();
     });
 }
+
 
 void KeywordScanner::match_character(int ch)
 {

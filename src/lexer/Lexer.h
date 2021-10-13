@@ -54,7 +54,6 @@ public:
         auto const& ret = peek(0);
         if (m_current < (m_tokens.size() - 1))
             m_current++;
-        fprintf(stdout, "%s ", ret.to_string().c_str());
         return ret;
     }
 

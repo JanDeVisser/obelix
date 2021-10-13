@@ -13,14 +13,14 @@ protected:
     unsigned int prepareWithBig()
     {
         initialize();
-        add_scanner<Obelix::KeywordScanner>(1, "Big");
+        add_scanner<Obelix::KeywordScanner>("Big");
         return 100;
     }
 
     void prepareWithBigBad(unsigned int* big, unsigned int* bad)
     {
         initialize();
-        add_scanner<Obelix::KeywordScanner>(2, "Big", "Bad");
+        add_scanner<Obelix::KeywordScanner>("Big", "Bad");
         *big = 100;
         *bad = 101;
     }
@@ -28,7 +28,7 @@ protected:
     unsigned int prepareWithAbc()
     {
         initialize();
-        add_scanner<Obelix::KeywordScanner>(9,
+        add_scanner<Obelix::KeywordScanner>(
             "abb",
             "aca",
             "aba",

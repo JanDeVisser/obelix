@@ -317,14 +317,58 @@ public:
         }
     }
 
-    KeywordScanner(Tokenizer&, std::vector<Token> const&);
-    KeywordScanner(Tokenizer&, int, ...);
+    template <typename... Args>
+    explicit KeywordScanner(Tokenizer& tokenizer, Args&&... args)
+        : Scanner(tokenizer)
+    {
+        add_keywords(std::forward<Args>(args)...);
+    }
+
     void match() override;
     [[nodiscard]] char const* name() override { return "keyword"; }
+
+    template <typename T, typename... Args>
+    void add_keywords(T t, Args&&... args)
+    {
+        add_keyword(t);
+        add_keywords(std::forward<Args>(args)...);
+    }
+
+    void add_keywords() { }
+
+    template <typename T>
+    void add_keyword(T keyword)
+    {
+        fatal("Cannot add keyword");
+    }
+
+    template <>
+    void add_keyword<std::string>(std::string keyword)
+    {
+        m_keywords.emplace_back((TokenCode) s_next_identifier++, move(keyword));
+        sort_keywords();
+    }
+
+    template <>
+    void add_keyword<char const*>(char const* keyword)
+    {
+        m_keywords.emplace_back((TokenCode) s_next_identifier++, keyword);
+        sort_keywords();
+    }
+
+    template <>
+    void add_keyword<Token>(Token keyword)
+    {
+        m_keywords.push_back(keyword);
+        sort_keywords();
+    }
+
 
 private:
     void reset();
     void match_character(int);
+    void sort_keywords();
+    static size_t s_next_identifier;
 
     std::vector<Token> m_keywords;
     KeywordScannerState m_state { KeywordScannerState::Init };
