@@ -6,9 +6,12 @@ add_library(
         Format.cpp
         List.cpp
         Logging.cpp
+        NativeFunction.cpp
         Object.cpp
         Regex.cpp
+        StringBuffer.cpp
         StringUtil.cpp
+        Resolve.cpp
 )
 
 install(TARGETS oblcore

@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <core/Format.h>
+#include <core/StringUtil.h>
+#include <core/Logging.h>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -11,9 +14,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <core/Format.h>
-#include <core/Logging.h>
-#include <core/StringUtil.h>
 
 namespace Obelix {
 
@@ -22,7 +22,8 @@ class ObjectIterator;
 class Null;
 class Arguments;
 
-template <typename T> class Ptr;
+template<typename T>
+class Ptr;
 typedef Ptr<Object> Obj;
 
 class IteratorState {
@@ -34,7 +35,7 @@ public:
     virtual ~IteratorState() = default;
     virtual void increment(ptrdiff_t delta) = 0;
     virtual std::shared_ptr<Object> dereference() = 0;
-    [[nodiscard]] virtual IteratorState * copy() const = 0;
+    [[nodiscard]] virtual IteratorState* copy() const = 0;
     [[nodiscard]] virtual bool equals(IteratorState const* other) const = 0;
 
     [[nodiscard]] Object& container() const
@@ -46,6 +47,7 @@ public:
     {
         return equals(other.get());
     }
+
 protected:
     explicit IteratorState(Object& container)
         : m_container(container)
@@ -69,15 +71,15 @@ public:
 
     std::shared_ptr<Object> dereference() override;
 
-    [[nodiscard]] IteratorState * copy() const override
+    [[nodiscard]] IteratorState* copy() const override
     {
         return new SimpleIteratorState(*this, m_index);
     }
-    
+
     [[nodiscard]] bool equals(IteratorState const* other) const override
     {
         auto other_casted = dynamic_cast<SimpleIteratorState const*>(other);
-//        assert(container() == other_casted.container());
+        //        assert(container() == other_casted.container());
         return m_index == other_casted->m_index;
     }
 
@@ -105,7 +107,7 @@ public:
     [[nodiscard]] virtual size_t size() const { return 1; }
     [[nodiscard]] virtual bool empty() const { return size() == 0; }
 
-    [[nodiscard]] virtual IteratorState * iterator_state(IteratorState::IteratorWhere where)
+    [[nodiscard]] virtual IteratorState* iterator_state(IteratorState::IteratorWhere where)
     {
         return new SimpleIteratorState(*this, where);
     }
@@ -116,9 +118,9 @@ public:
     {
         return at(ix);
     }
-    
+
     [[nodiscard]] virtual int compare(Obj const& other) const { return -1; }
-    
+
     bool operator==(Object const& other) const { return compare(other.self()) == 0; }
     bool operator!=(Object const& other) const { return compare(other.self()) != 0; }
     bool operator<(Object const& other) const { return compare(other.self()) < 0; }
@@ -133,7 +135,13 @@ public:
     bool operator<=(Obj const& other) const { return compare(other) <= 0; }
     bool operator>=(Obj const& other) const { return compare(other) >= 0; }
 
-    virtual std::optional<Obj> operator()(Ptr<Arguments>);
+    [[nodiscard]] virtual unsigned long hash() const
+    {
+        return std::hash<std::string> {}(to_string());
+    }
+
+    virtual std::optional<Obj> call(Ptr<Arguments>);
+    std::optional<Obj> operator()(Ptr<Arguments> args);
 
     virtual ObjectIterator begin();
     virtual ObjectIterator end();
@@ -230,10 +238,10 @@ class ObjectIterator {
 public:
     friend Object;
     using iterator_category = std::forward_iterator_tag;
-    using difference_type   = std::ptrdiff_t;
-    using value_type        = Ptr<Object>;
-    using pointer           = Ptr<Object>*;
-    using reference         = Ptr<Object>&;
+    using difference_type = std::ptrdiff_t;
+    using value_type = Ptr<Object>;
+    using pointer = Ptr<Object>*;
+    using reference = Ptr<Object>&;
 
     bool operator==(ObjectIterator const& other) const
     {
@@ -276,7 +284,7 @@ private:
     {
     }
 
-    explicit ObjectIterator(IteratorState * state)
+    explicit ObjectIterator(IteratorState* state)
         : m_state(state)
     {
     }
@@ -285,7 +293,7 @@ private:
     std::shared_ptr<Object const> m_current { nullptr };
 };
 
-template <typename ObjClass>
+template<typename ObjClass>
 class Ptr {
 public:
     Ptr() = default;
@@ -346,21 +354,25 @@ public:
     }
 
     [[nodiscard]] std::shared_ptr<Object> pointer() const { return m_ptr; }
-    [[nodiscard]] explicit operator ObjClass * () const { return m_ptr.get(); }
-    [[nodiscard]] explicit operator ObjClass * () { return m_ptr.get(); }
+    [[nodiscard]] explicit operator ObjClass*() const { return m_ptr.get(); }
+    [[nodiscard]] explicit operator ObjClass*() { return m_ptr.get(); }
     [[nodiscard]] ObjClass const& operator*() const { return *(std::dynamic_pointer_cast<ObjClass>(m_ptr)); }
     [[nodiscard]] ObjClass& operator*() { return *(std::dynamic_pointer_cast<ObjClass>(m_ptr)); }
-    [[nodiscard]] ObjClass * operator->() { return dynamic_cast<ObjClass*>(&*m_ptr); }
+    [[nodiscard]] ObjClass* operator->() { return dynamic_cast<ObjClass*>(&*m_ptr); }
     [[nodiscard]] ObjClass const* operator->() const { return dynamic_cast<ObjClass const*>(&*m_ptr); }
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "google-explicit-constructor"
-    [[nodiscard]] operator bool() const {
+    [[nodiscard]] operator bool() const
+    {
         auto b = m_ptr->to_bool();
         assert(b.has_value());
         return b.value();
     }
 #pragma clang diagnostic pop
-    [[nodiscard]] bool operator!() const { return !((bool)(*this)); }
+    [[nodiscard]] bool operator!() const
+    {
+        return !((bool)(*this));
+    }
 
     bool operator==(Object const& other) const { return m_ptr->compare(other.self()) == 0; }
     bool operator!=(Object const& other) const { return m_ptr->compare(other.self()) != 0; }
@@ -379,15 +391,21 @@ public:
 private:
     std::shared_ptr<Object> m_ptr { nullptr };
 
-    template <class ObjCls, class... Args> friend Ptr<ObjCls> make_typed(Args&&... args);
-    template <class ObjCls, class... Args> friend Ptr<Object> make_obj(Args&&... args);
-    template <class ObjCls, class OtherObjClass> friend Ptr<ObjCls> ptr_cast(Ptr<OtherObjClass> const&);
-    template <class ObjCls> friend Ptr<ObjCls> make_from_shared(std::shared_ptr<ObjCls>);
-    template <class ObjCls> friend Ptr<Object> to_obj(Ptr<ObjCls> const&);
-    template <class OtherObjClass> friend class Ptr;
+    template<class ObjCls, class... Args>
+    friend Ptr<ObjCls> make_typed(Args&&... args);
+    template<class ObjCls, class... Args>
+    friend Ptr<Object> make_obj(Args&&... args);
+    template<class ObjCls, class OtherObjClass>
+    friend Ptr<ObjCls> ptr_cast(Ptr<OtherObjClass> const&);
+    template<class ObjCls>
+    friend Ptr<ObjCls> make_from_shared(std::shared_ptr<ObjCls>);
+    template<class ObjCls>
+    friend Ptr<Object> to_obj(Ptr<ObjCls> const&);
+    template<class OtherObjClass>
+    friend class Ptr;
     friend class Object;
 
-    template <class OtherObjClass>
+    template<class OtherObjClass>
     explicit Ptr(Ptr<OtherObjClass> const& other)
         : m_ptr(other.m_ptr)
     {
@@ -405,13 +423,13 @@ public:
     [[nodiscard]] ObjectIterator cend() const { return m_ptr->cend(); }
 };
 
-template <class ObjCls>
+template<class ObjCls>
 Ptr<ObjCls> make_from_shared(std::shared_ptr<ObjCls> ptr)
 {
     return Ptr<ObjCls>(ptr);
 }
 
-template <class ObjCls, class... Args>
+template<class ObjCls, class... Args>
 Ptr<ObjCls> make_typed(Args&&... args)
 {
     auto ptr = std::make_shared<ObjCls>(std::forward<Args>(args)...);
@@ -420,19 +438,19 @@ Ptr<ObjCls> make_typed(Args&&... args)
     return ret;
 }
 
-template <class ObjCls>
+template<class ObjCls>
 Ptr<Object> to_obj(Ptr<ObjCls> const& from)
 {
     return Ptr<Object>(from);
 }
 
-template <class ObjCls, class... Args>
+template<class ObjCls, class... Args>
 Ptr<Object> make_obj(Args&&... args)
 {
     return to_obj(make_typed<ObjCls>(std::forward<Args>(args)...));
 }
 
-template <class ObjCls, class OtherObjCls>
+template<class ObjCls, class OtherObjCls>
 Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
 {
     return Ptr<ObjCls>(from);
@@ -440,12 +458,13 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
 
 std::string format(std::string const&, std::vector<Obj> const&);
 
-#define ENUMERATE_ERROR_CODES(S)       \
-    S(NoError, "There is no error") \
-    S(SyntaxError, "Syntax error") \
-    S(RegexpSyntaxError, "Regular expression syntax error") \
+#define ENUMERATE_ERROR_CODES(S)                                                \
+    S(NoError, "There is no error")                                             \
+    S(SyntaxError, "Syntax error")                                              \
+    S(FunctionUndefined, "Function '{}' in image '{}' is undefined")            \
+    S(RegexpSyntaxError, "Regular expression syntax error")                     \
     S(TypeMismatch, "Type mismatch in operation '{}'. Expected '{}', got '{}'") \
-    S(CouldNotResolveNode, "Could not resolve node") \
+    S(CouldNotResolveNode, "Could not resolve node")                            \
     S(CantUseAsUnaryOp, "Cannot use '{}' as a unary operation")
 
 enum class ErrorCode {
@@ -467,8 +486,15 @@ public:
         m_message = ErrorCode_name(code) + ": " + format(ErrorCode_message(code), args);
     }
 
-    Exception(ErrorCode code, std::string const &);
-    explicit Exception(ErrorCode code, ...);
+    Exception(ErrorCode code, std::string const&);
+
+    template <typename... Args>
+    explicit Exception(ErrorCode code, Args&&... args)
+        : Object("exception")
+        , m_code(code)
+    {
+        m_message = ErrorCode_name(code) + ": " + format(std::string(ErrorCode_message(code)), std::forward<Args>(args)...);
+    }
 
 
     [[nodiscard]] ErrorCode code() const { return m_code; }
@@ -525,15 +551,15 @@ public:
         s_types[name] = *this;
     }
 
-//    static std::optional<ObjectType const&> const& get(std::string const&);
+    //    static std::optional<ObjectType const&> const& get(std::string const&);
 private:
     Obj make(std::vector<Obj> const& params)
     {
         return m_factory(params);
     }
 
-    template <class ObjClass, typename ...Args>
-    Obj make(std::vector<Obj> params, Ptr<ObjClass> value, Args ...args)
+    template<class ObjClass, typename... Args>
+    Obj make(std::vector<Obj> params, Ptr<ObjClass> value, Args... args)
     {
         params.emplace_back(value);
         return make(params, args...);

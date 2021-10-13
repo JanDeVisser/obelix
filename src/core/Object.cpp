@@ -80,10 +80,16 @@ Obj const& Object::at(size_t ix)
     return self();
 }
 
-std::optional<Obj> Object::operator()(Ptr<Arguments>)
+std::optional<Obj> Object::call(Ptr<Arguments>)
 {
     return {};
 }
+
+std::optional<Obj> Object::operator()(Ptr<Arguments> args)
+{
+    return call(args);
+}
+
 
 ObjectIterator Object::begin()
 {
@@ -184,16 +190,6 @@ Exception::Exception(ErrorCode code, std::string const& message)
     m_message = ErrorCode_name(code) + ": " + message;
 }
 
-Exception::Exception(ErrorCode code, ...)
-    : Object("exception")
-    , m_code(code)
-{
-    va_list args;
-    va_start(args, code);
-    m_message = ErrorCode_name(code) + ": " + vformat(ErrorCode_message(code), args);
-    va_end(args);
-}
-
 int Integer::compare(Obj const& other) const
 {
     auto long_maybe = other->to_long();
@@ -210,7 +206,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         for (auto& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
             if (!int_maybe.has_value()) {
-                return make_obj<Exception>(ErrorCode::TypeMismatch, op.c_str(), "int", arg->type().c_str());
+                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
             }
             ret += int_maybe.value();
         }

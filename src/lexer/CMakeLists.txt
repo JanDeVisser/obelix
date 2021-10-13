@@ -6,7 +6,7 @@ add_library(
         Lexer.h
         NumberScanner.cpp
         QStringScanner.cpp
-        StringBuffer.cpp
+        ../core/StringBuffer.cpp
         Token.cpp
         Tokenizer.cpp
         WhitespaceScanner.cpp

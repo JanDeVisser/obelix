@@ -5,9 +5,17 @@
 #pragma once
 
 #include <map>
+#include <mutex>
 #include <string>
+#include <core/Format.h>
 
 namespace Obelix {
+
+#ifndef NDEBUG
+constexpr static bool DEBUG=true;
+#else
+constexpr static bool DEBUG=false;
+#endif
 
 #define ENUMERATE_LOG_LEVELS(S) \
     S(None, -1)                 \
@@ -27,36 +35,18 @@ enum class LogLevel {
 std::string_view LogLevel_name(LogLevel);
 std::optional<LogLevel> LogLevel_by_name(std::string_view const&);
 
-class Logger;
-
-class LoggingCategory {
-public:
-    explicit LoggingCategory(std::string name) noexcept;
-    LoggingCategory(LoggingCategory const&) = default;
-
-    [[nodiscard]] bool enabled() const;
-    [[nodiscard]] std::string name() const { return m_name; }
-
-    void vlogmsg_no_nl(LogLevel level, std::string_view const& file, int line, std::string_view const& function,
-        std::string_view const& message, va_list args);
-    void vlogmsg(LogLevel level, std::string_view const& file, int line, std::string_view const& function,
-        std::string_view const& message, va_list args);
-    void logmsg(LogLevel level, std::string_view const& file, int line, std::string_view const& function,
-        char const* message, ...);
-    static std::clock_t start();
-    void log_duration(std::clock_t, std::string_view const&, int, std::string_view const&, const char*, ...);
-
-private:
-    friend Logger;
-    void enable() { m_enabled = true; }
-    void disable() { m_enabled = false; }
-    void set(bool value) { m_enabled = value; }
-
-    bool m_enabled { false };
-    std::string m_name {};
-    LogLevel m_level;
-    Logger* m_logger { nullptr };
+struct LogMessage {
+    std::string_view file;
+    size_t line;
+    std::string_view function;
+    LogLevel level;
+    std::string message;
 };
+
+class Logger;
+class LoggingCategory;
+
+extern std::mutex g_logging_mutex;
 
 class Logger {
 public:
@@ -70,13 +60,62 @@ public:
     LogLevel set_level(LogLevel);
     void set_file(std::string const&);
 
-    void vlogmsg_no_nl(LogLevel level, std::string_view const& file, int line, std::string_view const& function,
-        std::string_view const& message, va_list args);
-    void vlogmsg(LogLevel level, std::string_view const& file, int line, std::string_view const& function,
-        std::string_view const& message, va_list args);
-    void logmsg(LogLevel level, std::string_view const& file, int line, std::string_view const& function,
-        char const* message, ...);
+    template <typename... Args>
+    void logmsg(LogMessage const& msg, Args&&... args)
+    {
+        if (msg.level == LogLevel::Debug && !DEBUG)
+            return;
+        const std::lock_guard<std::mutex> lock(g_logging_mutex);
+        if (!m_destination) {
+            if (!m_logfile.empty()) {
+                m_destination = fopen(m_logfile.c_str(), "w");
+                if (!m_destination) {
+                    fprintf(stderr, "Could not open logfile '%s': %s\n", m_logfile.c_str(), strerror(errno));
+                    fprintf(stderr, "Falling back to stderr\n");
+                }
+            }
+            if (!m_destination) {
+                m_destination = stderr;
+            }
+        }
+        if ((msg.level <= LogLevel::Debug) || (msg.level >= m_level)) {
+            std::string_view f(msg.file);
+            if (f.front() == '/') {
+                auto ix = f.find_last_of('/');
+                if (ix != std::string_view::npos) {
+                    f = f.substr(ix + 1);
+                }
+            }
+            auto file_line = format("{s}:{d}", f, msg.line);
+            auto prefix = format("{<20s}:{<20s}:{<5s}:", file_line, msg.function, LogLevel_name(msg.level));
+            fprintf(m_destination, "%s", prefix.c_str());
+            auto message = format(msg.message, std::forward<Args>(args)...);
+            fprintf(m_destination, "%s\n", message.c_str());
+        }
+    }
 
+    template <typename... Args>
+    void error_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
+    {
+        logmsg({ file, line, function, LogLevel::Error, message }, std::forward<Args>(args)...);
+        exit(1);
+    }
+
+    template <typename... Args>
+    [[noreturn]] void fatal_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
+    {
+        logmsg({ file, line, function, LogLevel::Fatal, message }, std::forward<Args>(args)...);
+        exit(1);
+    }
+
+    template <typename... Args>
+    void assert_msg(std::string_view const& file, size_t line, std::string_view const& function, bool condition, char const* message, Args&&... args)
+    {
+        if (condition)
+            return;
+        logmsg({ file, line, function, LogLevel::Fatal, message }, std::forward<Args>(args)...);
+        exit(1);
+    }
     static Logger& get_logger();
 
 private:
@@ -94,69 +133,99 @@ private:
     bool m_all_enabled { false };
 };
 
-#ifndef NDEBUG
-#    define logging_category(module) LoggingCategory module##_logger(#    module)
-#    define log_timestamp_start(module)  ((module ## _logger).enabled()) ? (module ## _logger).start() : NULL)
-#    define _debug(fmt, args...) Logger::get_logger().logmsg(LogLevel::Debug, __FILE__, __LINE__, __func__, fmt, ##args)
-#    define _vdebug(fmt, args) Logger::get_logger().vlogmsg(LogLevel::Debug, __FILE__, __LINE__, __func__, fmt, args)
-#    define debug(module, fmt, args...)                                                         \
-        if (module##_logger.enabled()) {                                                        \
-            module##_logger.logmsg(LogLevel::Debug, __FILE__, __LINE__, __func__, fmt, ##args); \
-        }                                                                                       \
-        (void)0
-#    define vdebug(module, fmt, args...)                                                       \
-        if ((module##_logger).enabled()) {                                                     \
-            module##_logger.vlogmsg(LogLevel::Debug, __FILE__, __LINE__, __func__, fmt, args); \
-        }                                                                                      \
-        (void)0
-#    define log_timestamp_end(module, ts, fmt, args...)                                    \
-        if ((module##_logger).enabled()) {                                                 \
-            (module##_logger).log_duration(ts, __FILE__, __LINE__, __func__, fmt, ##args); \
-        }
-#else /* NDEBUG */
-#    define log_timestamp_start(module) (NULL)
-#    define log_timestamp_end(module, ts, fmt, ...)
-#    define _debug(fmt, args...)
-#    define _vdebug(fmt, args)
-#    define debug(module, fmt, args...)
-#    define mdebug(module, fmt, args...)
-#    define vdebug(module, fmt, args...)
-#endif /* NDEBUG */
+class LoggingCategory {
+public:
+    explicit LoggingCategory(std::string name) noexcept;
+    LoggingCategory(LoggingCategory const&) = default;
 
-#define logmessage(fmt, args...) Logger::get_logger().logmsg(LogLevel::None, __FILE__, __LINE__, __func__, fmt, ##args)
-#define info(fmt, args...) Logger::get_logger().logmsg(LogLevel::Info, __FILE__, __LINE__, __func__, fmt, ##args)
-#define warn(fmt, args...) Logger::get_logger().logmsg(LogLevel::Warning, __FILE__, __LINE__, __func__, fmt, ##args)
-#define error(fmt, args...) Logger::get_logger().logmsg(LogLevel::Error, __FILE__, __LINE__, __func__, fmt, ##args)
-#define fatal(fmt, args...)                                                                      \
-    {                                                                                            \
-        Logger::get_logger().logmsg(LogLevel::Fatal, __FILE__, __LINE__, __func__, fmt, ##args); \
-        exit(-1);                                                                                \
-    }                                                                                            \
-    (void)0
-#define oassert(value, fmt, args...)                                                                 \
-    {                                                                                                \
-        if (!(value)) {                                                                              \
-            Logger::get_logger().logmsg(LogLevel::Fatal, __FILE__, __LINE__, __func__, fmt, ##args); \
-            exit(-1);                                                                                \
-        }                                                                                            \
-    }                                                                                                \
-    (void)0
-#define vlogmessage(fmt, args) Logger::get_logger().vlogmsg(LogLevel::None, __FILE__, __LINE__, __func__, fmt, args)
-#define vinfo(fmt, args) Logger::get_logger().vlogmsg(LogLevel::Info, __FILE__, __LINE__, __func__, fmt, args)
-#define vwarn(fmt, args) Logger::get_logger().vlogmsg(LogLevel::Warning, __FILE__, __LINE__, __func__, fmt, args)
-#define verror(fmt, args) Logger::get_logger().vlogmsg(LogLevel::Error, __FILE__, __LINE__, __func__, fmt, args)
-#define vfatal(fmt, args)                                                                       \
-    {                                                                                           \
-        Logger::get_logger().vlogmsg(LogLevel::Fatal, __FILE__, __LINE__, __func__, fmt, args); \
-        abort();                                                                                \
-    }                                                                                           \
-    (void)0
-#define voassert(value, fmt, args)                                                                  \
-    {                                                                                               \
-        if (!(value)) {                                                                             \
-            Logger::get_logger().vlogmsg(LogLevel::Fatal, __FILE__, __LINE__, __func__, fmt, args); \
-            abort();                                                                                \
-        }                                                                                           \
-    }                                                                                               \
-    (void)0
+    [[nodiscard]] bool enabled() const;
+    [[nodiscard]] std::string name() const { return m_name; }
+
+    template <typename... Args>
+    void logmsg(LogMessage const& msg, Args&&... args)
+    {
+        if (m_logger && m_enabled)
+            m_logger->logmsg(msg, std::forward<Args>(args)...);
+    }
+
+    template <typename... Args>
+    void debug_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
+    {
+        if constexpr (!DEBUG)
+            return;
+        if (m_logger != nullptr && m_enabled) {
+            m_logger->logmsg({ file, line, function, LogLevel::Debug, message }, std::forward<Args>(args)...);
+        }
+    }
+
+    template <typename... Args>
+    void info_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
+    {
+        if (m_logger != nullptr && m_enabled) {
+            m_logger->logmsg({ file, line, function, LogLevel::Info, message }, std::forward<Args>(args)...);
+        }
+    }
+
+    template <typename... Args>
+    void warning_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
+    {
+        if (m_logger != nullptr && m_enabled) {
+            m_logger->logmsg({ file, line, function, LogLevel::Warning, message }, std::forward<Args>(args)...);
+        }
+    }
+
+    template <typename... Args>
+    void error_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
+    {
+        if (m_logger != nullptr && m_enabled) {
+            m_logger->logmsg({ file, line, function, LogLevel::Error, message }, std::forward<Args>(args)...);
+        }
+    }
+
+    static std::clock_t start();
+
+    template <typename... Args>
+    void log_duration(std::clock_t clock_start, std::string_view const& file, size_t line, std::string_view const& caller, const char *msg, Args&&... args)
+    {
+        if constexpr(!DEBUG)
+            return;
+        auto clock_end = std::clock();
+        auto duration_ms = (unsigned long) (1000.0 * ((float) clock_end - (float) clock_start) / CLOCKS_PER_SEC);
+
+        auto msg_with_timing = std::string(msg).append(" {d}.{03d} sec");
+        LogMessage log_message {
+            file, line, caller, LogLevel::Debug, msg_with_timing
+        };
+        logmsg(log_message, std::forward<Args>(args)..., duration_ms / 1000, duration_ms % 1000);
+    }
+
+private:
+    friend Logger;
+    void enable() { m_enabled = true; }
+    void disable() { m_enabled = false; }
+    void set(bool value) { m_enabled = value; }
+
+    bool m_enabled { false };
+    std::string m_name {};
+    LogLevel m_level;
+    Logger* m_logger { nullptr };
+};
+
+#define logging_category(module) LoggingCategory module##_logger(#module)
+#define debug(module, fmt, args...) (module ## _logger).debug_msg(__FILE__, __LINE__, __func__, fmt, ##args)
+#define info(module, fmt, args...) (module ## _logger).info_msg(__FILE__, __LINE__, __func__, fmt, ##args)
+#define warning(module, fmt, args...) (module ## _logger).warning_msg(__FILE__, __LINE__, __func__, fmt, ##args)
+#define log_timestamp_start(module) ((module ## _logger).start())
+#define log_timestamp_end(module, ts, fmt, ...) (module ## _logger).log_duration(ts, __FILE__, __LINE__, __func__, fmt, ##args)
+
+#define error(fmt, args...) Logger::get_logger().error_msg(__FILE__, __LINE__, __func__, fmt, ##args)
+#define fatal(fmt, args...) Logger::get_logger().fatal_msg(__FILE__, __LINE__, __func__, fmt, ##args)
+#ifdef assert
+#undef assert
+#endif
+#define assert(condition) Logger::get_logger().assert_msg(__FILE__, __LINE__, __func__, condition, "Assertion error: " #condition);
+#define oassert(condition, fmt, args...) Logger::get_logger().assert_msg(__FILE__, __LINE__, __func__, condition, fmt, ##args)
+#define log_timestamp_start(module) ((module ## _logger).start())
+#define log_timestamp_end(module, ts, fmt, ...) (module ## _logger).log_duration(ts, __FILE__, __LINE__, __func__, fmt, ##args)
+
 }

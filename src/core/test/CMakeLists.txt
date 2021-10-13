@@ -4,6 +4,7 @@ add_executable(
         CoreTest
         Arguments.cpp
         CEscape.cpp
+        Format.cpp
         Join.cpp
         ParsePairs.cpp
         Split.cpp

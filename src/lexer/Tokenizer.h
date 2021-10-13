@@ -6,8 +6,8 @@
 
 #include <core/Arguments.h>
 #include <core/Object.h>
+#include <core/StringBuffer.h>
 #include <functional>
-#include <lexer/StringBuffer.h>
 #include <lexer/Token.h>
 #include <map>
 #include <memory>

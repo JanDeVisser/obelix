@@ -84,21 +84,21 @@ void Tokenizer::match_token()
     m_scanned = 0;
 
     for (auto& scanner : m_scanners) {
-        debug(lexer, "First pass with scanner '%s'", scanner->name());
+        debug(lexer, "First pass with scanner '{}'", scanner->name());
         rewind();
         scanner->match();
         if (m_state == TokenizerState::Success) {
-            debug(lexer, "First pass with scanner %s succeeded", scanner->name());
+            debug(lexer, "First pass with scanner {} succeeded", scanner->name());
             break;
         }
     }
     if (m_state != TokenizerState::Success) {
         for (auto& scanner : m_scanners) {
-            debug(lexer, "Second pass with scanner '%s'", scanner->name());
+            debug(lexer, "Second pass with scanner '{}'", scanner->name());
             rewind();
             scanner->match_2nd_pass();
             if (m_state == TokenizerState::Success) {
-                debug(lexer, "Second pass with scanner %s succeeded", scanner->name());
+                debug(lexer, "Second pass with scanner {} succeeded", scanner->name());
                 break;
             }
         }
@@ -174,7 +174,7 @@ Token Tokenizer::accept(TokenCode code)
 Token Tokenizer::accept_token(Token const& token)
 {
     skip();
-    debug(lexer, "Lexer::accept_token(%s)", token.to_string().c_str());
+    debug(lexer, "Lexer::accept_token({})", token.to_string().c_str());
     m_state = TokenizerState::Success;
     m_tokens.push_back(token);
     return token;
@@ -226,7 +226,7 @@ int Tokenizer::get_char() {
         return 0;
     }
     m_scanned++;
-    debug(lexer, "m_current %c m_scanned %d", m_current, m_scanned);
+    debug(lexer, "m_current '{c}' m_scanned {}", m_current, m_scanned);
     return m_current;
 }
 

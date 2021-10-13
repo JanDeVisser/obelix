@@ -61,9 +61,8 @@ void KeywordScanner::match_character(int ch)
     } else {
         m_matchcount = m_match_max - m_match_min;
     }
-    debug(lexer, "_kw_scanner_match: scanned: %s matchcount: %d match_min: %d, match_max: %d",
-        m_scanned.c_str(), m_matchcount, m_match_min,
-        m_match_max);
+    debug(lexer, "_kw_scanner_match: scanned: {s} matchcount: {d} match_min: {d}, match_max: {d}",
+        m_scanned, m_matchcount, m_match_min, m_match_max);
 
     /*
      * Determine new state.
@@ -178,7 +177,7 @@ void KeywordScanner::match()
         }
     };
 
-    debug(lexer, "KeywordScanner::match returns '%s' (%d)", KeywordScannerState_name(m_state), m_state);
+    debug(lexer, "KeywordScanner::match returns '{s}' {d}", KeywordScannerState_name(m_state), m_state);
     if ((m_state == KeywordScannerState::FullMatchLost) || (m_state == KeywordScannerState::FullMatch)) {
         tokenizer().accept(m_token.code());
     }

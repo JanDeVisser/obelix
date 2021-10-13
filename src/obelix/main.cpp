@@ -1,8 +1,8 @@
+#include <core/StringBuffer.h>
 #include <cstdio>
 #include <fcntl.h>
 #include <iostream>
 #include <lexer/Lexer.h>
-#include <lexer/StringBuffer.h>
 #include <lexer/Token.h>
 #include <obelix/Scope.h>
 #include <obelix/Syntax.h>

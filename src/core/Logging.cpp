@@ -49,43 +49,13 @@ bool LoggingCategory::enabled() const {
     return m_enabled || m_logger->m_all_enabled;
 }
 
-
-void LoggingCategory::vlogmsg_no_nl(LogLevel level, std::string_view const& file, int line, std::string_view const& function, std::string_view const& message, va_list args)
+std::clock_t LoggingCategory::start()
 {
-    if (m_logger && m_enabled)
-        m_logger->vlogmsg_no_nl(level, file, line, function, message, args);
-}
-
-void LoggingCategory::vlogmsg(LogLevel level, std::string_view const& file, int line, std::string_view const& function, std::string_view const& message, va_list args)
-{
-    if (m_logger && m_enabled)
-        m_logger->vlogmsg(level, file, line, function, message, args);
-}
-
-void LoggingCategory::logmsg(LogLevel level, std::string_view const& file, int line, std::string_view const& function, char const* message, ...)
-{
-    if (m_logger && m_enabled) {
-        va_list args;
-        va_start(args, message);
-        m_logger->vlogmsg(level, file, line, function, message, args);
-        va_end(args);
+    if constexpr (DEBUG) {
+        return std::clock();
+    } else {
+        return 0;
     }
-}
-
-std::clock_t LoggingCategory::start() {
-    return std::clock();
-}
-
-void LoggingCategory::log_duration(std::clock_t clock_start, std::string_view const& file, int line, std::string_view const& caller, const char *msg, ...) {
-    auto clock_end = std::clock();
-    auto duration_ms = (unsigned long) (1000.0 * ((float) clock_end - (float) clock_start) / CLOCKS_PER_SEC);
-
-    va_list args;
-    va_start(args, msg);
-    vlogmsg_no_nl(LogLevel::Debug, file, line, caller, msg, args);
-    // FIXME
-    fprintf(m_logger -> m_destination, "%ld.%03ld sec\n", duration_ms / 1000, duration_ms % 1000);
-    va_end(args);
 }
 
 void Logger::set_nolock(std::basic_string_view<char> cat, bool enabled)
@@ -182,54 +152,6 @@ void Logger::set_file(std::string const& filename)
     }
     m_destination = nullptr;
     m_logfile = filename;
-}
-
-void Logger::vlogmsg_no_nl(LogLevel level, std::string_view const& file, int line, std::string_view const& function, std::string_view const& message, va_list args)
-{
-    const std::lock_guard<std::mutex> lock(g_logging_mutex);
-    if (!m_destination) {
-        if (!m_logfile.empty()) {
-            m_destination = fopen(m_logfile.c_str(), "w");
-            if (!m_destination) {
-                fprintf(stderr, "Could not open logfile '%s': %s\n", m_logfile.c_str(), strerror(errno));
-                fprintf(stderr, "Falling back to stderr\n");
-            }
-        }
-        if (!m_destination) {
-            m_destination = stderr;
-        }
-    }
-    if ((level == LogLevel::None) || (level >= m_level)) {
-        std::string_view f(file);
-        if (f.front() == '/') {
-            auto ix = f.find_last_of('/');
-            if (ix != std::string_view::npos) {
-                f = f.substr(ix + 1);
-            }
-        }
-        fprintf(m_destination, "%-12.12s:%4d:%-20.20s:%-5.5s:",
-            f.data(), line, function.data(), LogLevel_name(level).data());
-        vfprintf(m_destination, message.data(), args);
-    }
-}
-
-void Logger::vlogmsg(LogLevel level, std::string_view const& file, int line, std::string_view const& function, std::string_view const& message, va_list args)
-{
-    if ((level == LogLevel::None) || (level >= m_level)) {
-        vlogmsg_no_nl(level, file, line, function, message, args);
-        fprintf(m_destination, "\n");
-    }
-}
-
-void Logger::logmsg(LogLevel level, std::string_view const& file, int line, std::string_view const& function, char const* message, ...)
-{
-    va_list args;
-
-    if ((level == LogLevel::None) || (level >= m_level)) {
-        va_start(args, message);
-        vlogmsg(level, file, line, function, message, args);
-        va_end(args);
-    }
 }
 
 Logger::Logger()
