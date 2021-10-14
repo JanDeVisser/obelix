@@ -87,7 +87,7 @@ public:
                 }
             }
             auto file_line = format("{s}:{d}", f, msg.line);
-            auto prefix = format("{<20s}:{<20s}:{<5s}:", file_line, msg.function, LogLevel_name(msg.level));
+            auto prefix = format("{<24s}:{<20s}:{<5s}:", file_line, msg.function, LogLevel_name(msg.level));
             fprintf(m_destination, "%s", prefix.c_str());
             auto message = format(msg.message, std::forward<Args>(args)...);
             fprintf(m_destination, "%s\n", message.c_str());
