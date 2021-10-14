@@ -163,7 +163,7 @@ void KeywordScanner::match()
         }
     };
 
-    debug(lexer, "KeywordScanner::match returns '{s}' {d}", KeywordScannerState_name(m_state), m_state);
+    debug(lexer, "KeywordScanner::match returns '{s}' {d}", KeywordScannerState_name(m_state), (int) m_state);
     if ((m_state == KeywordScannerState::FullMatchLost) || (m_state == KeywordScannerState::FullMatch)) {
         tokenizer().accept(m_token.code());
     }
