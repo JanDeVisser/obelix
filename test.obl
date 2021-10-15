@@ -1,7 +1,29 @@
 print(-42*2 + 3*(10+2))
 print(true);
+print("Hello world!");
+
+print(2 > 1)
+print(2 == 1)
+
 if (true)
     print(1)
 else {
   print(0);
 }
+
+var a = "Variable a"
+print(a)
+a = "Variable a again"
+print(a)
+
+var ix = 0;
+while ix < 10 {
+  print("I = {}", ix);
+  ix = ix + 1;
+}
+
+func hello(name) {
+  print("Hello {}", name);
+}
+
+hello("jan")

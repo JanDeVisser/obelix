@@ -5,6 +5,7 @@
 #pragma once
 
 #include <lexer/Token.h>
+#include <obelix/BoundFunction.h>
 #include <obelix/Scope.h>
 #include <string>
 
@@ -65,7 +66,7 @@ public:
         printf("}\n");
     }
 
-    void execute_block(Scope& block_scope)
+    void execute_block(Scope& block_scope) const
     {
         for (auto& statement : m_statements) {
             statement->execute(block_scope);
@@ -126,6 +127,10 @@ public:
         }
         printf(")\n");
         Block::dump(indent);
+    }
+
+    void execute(Scope& scope) override {
+        scope.declare(name(), make_obj<BoundFunction>(scope, *this));
     }
 
 private:
