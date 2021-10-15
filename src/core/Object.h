@@ -5,8 +5,8 @@
 #pragma once
 
 #include <core/Format.h>
-#include <core/StringUtil.h>
 #include <core/Logging.h>
+#include <core/StringUtil.h>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -140,8 +140,8 @@ public:
         return std::hash<std::string> {}(to_string());
     }
 
-    virtual std::optional<Obj> call(Ptr<Arguments>);
-    std::optional<Obj> operator()(Ptr<Arguments> args);
+    virtual Obj call(Ptr<Arguments>);
+    Obj operator()(Ptr<Arguments> args);
 
     virtual ObjectIterator begin();
     virtual ObjectIterator end();
@@ -206,6 +206,7 @@ public:
     static Ptr<Boolean> const& True();
     static Ptr<Boolean> const& False();
 
+    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
     [[nodiscard]] std::optional<long> to_long() const override { return (m_value) ? 1 : 0; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return m_value; }
     [[nodiscard]] std::string to_string() const override { return Obelix::to_string(m_value); }
@@ -223,7 +224,7 @@ public:
     {
     }
 
-    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
+    //    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
     [[nodiscard]] std::optional<long> to_long() const override { return m_value; }
     [[nodiscard]] std::optional<double> to_double() const override { return m_value; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return m_value != 0; }
@@ -311,6 +312,11 @@ public:
     [[nodiscard]] std::optional<long> to_long() const
     {
         return m_ptr->to_long();
+    }
+
+    [[nodiscard]] std::optional<double> to_double() const
+    {
+        return m_ptr->to_double();
     }
 
     [[nodiscard]] std::optional<bool> to_bool() const
@@ -456,11 +462,10 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
     return Ptr<ObjCls>(from);
 }
 
-std::string format(std::string const&, std::vector<Obj> const&);
-
 #define ENUMERATE_ERROR_CODES(S)                                                \
     S(NoError, "There is no error")                                             \
     S(SyntaxError, "Syntax error")                                              \
+    S(ObjectNotCallable, "Object is not callable")                              \
     S(FunctionUndefined, "Function '{}' in image '{}' is undefined")            \
     S(RegexpSyntaxError, "Regular expression syntax error")                     \
     S(TypeMismatch, "Type mismatch in operation '{}'. Expected '{}', got '{}'") \
@@ -479,23 +484,15 @@ std::string ErrorCode_message(ErrorCode);
 
 class Exception : public Object {
 public:
-    Exception(ErrorCode code, std::vector<Obj> const& args)
-        : Object("exception")
-        , m_code(code)
-    {
-        m_message = ErrorCode_name(code) + ": " + format(ErrorCode_message(code), args);
-    }
-
     Exception(ErrorCode code, std::string const&);
 
-    template <typename... Args>
+    template<typename... Args>
     explicit Exception(ErrorCode code, Args&&... args)
         : Object("exception")
         , m_code(code)
     {
         m_message = ErrorCode_name(code) + ": " + format(std::string(ErrorCode_message(code)), std::forward<Args>(args)...);
     }
-
 
     [[nodiscard]] ErrorCode code() const { return m_code; }
     [[nodiscard]] std::optional<long> to_long() const override { return {}; }
@@ -569,5 +566,14 @@ private:
     std::function<Obj(std::vector<Obj> const&)> m_factory {};
     static std::unordered_map<std::string, ObjectType> s_types;
 };
+
+static inline std::string format(std::string const& fmt, std::vector<Obj> args)
+{
+    std::string ret = fmt;
+    for (auto& arg : args) {
+        ret = format_one<Obj>(fmt, arg);
+    }
+    return ret;
+}
 
 }

@@ -94,8 +94,16 @@ public:
     template<typename T>
     [[nodiscard]] std::string format(T arg) const
     {
-        assert("Can't format this type");
-        return "";
+        switch (m_type) {
+        case FormatSpecifierType::Default:
+        case FormatSpecifierType::String:
+            return format(std::string(arg.to_string()));
+        case FormatSpecifierType::Int:
+        case FormatSpecifierType::Character:
+            return format((long) arg.to_long().value());
+        default:
+            return format((double) arg.to_double().value());
+        }
     }
 
     template<>
@@ -505,8 +513,8 @@ static inline std::string format(std::string const& fmt)
     return fmt;
 }
 
-template<typename T, typename... Args>
-std::string format(std::string const& fmt, T arg, Args&&... args)
+template<typename T>
+std::string format_one(std::string const& fmt, T arg)
 {
     std::optional<FormatSpecifier> specifier_maybe = FormatSpecifier::first_specifier(fmt);
     if (!specifier_maybe.has_value()) {
@@ -515,7 +523,13 @@ std::string format(std::string const& fmt, T arg, Args&&... args)
     }
     auto specifier = specifier_maybe.value();
     auto repl = specifier.format<T>(arg);
-    std::string fmt_first_substituted = fmt.substr(0, specifier.start()) + repl + fmt.substr(specifier.start() + specifier.length());
+    return fmt.substr(0, specifier.start()) + repl + fmt.substr(specifier.start() + specifier.length());
+}
+
+template<typename T, typename... Args>
+std::string format(std::string const& fmt, T arg, Args&&... args)
+{
+    std::string fmt_first_substituted = format_one<T>(fmt, arg);
     return format(fmt_first_substituted, std::forward<Args>(args)...);
 }
 

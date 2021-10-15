@@ -80,14 +80,14 @@ Obj const& Object::at(size_t ix)
     return self();
 }
 
-std::optional<Obj> Object::call(Ptr<Arguments>)
+Obj Object::call(Ptr<Arguments>)
 {
-    return {};
+    return make_obj<Exception>(ErrorCode::ObjectNotCallable);
 }
 
-std::optional<Obj> Object::operator()(Ptr<Arguments> args)
+Obj Object::operator()(Ptr<Arguments> args)
 {
-    return call(args);
+    return call(std::move(args));
 }
 
 
@@ -201,7 +201,7 @@ int Integer::compare(Obj const& other) const
 
 std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
 {
-    if (op == "+") {
+    if ((op == "+") || (op == "add")) {
         long ret = m_value;
         for (auto& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
@@ -211,7 +211,20 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
             ret += int_maybe.value();
         }
         return make_obj<Integer>(ret);
-    } else if (op == "-") {
+    }
+    if ((op == "!") || (op == "negate")) {
+        if (!args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Logical operation '{}' only takes a single operand", op));
+        }
+        return make_obj<Boolean>(!(to_bool().value()));
+    }
+    if ((op == "~") || (op == "invert")) {
+        if (!args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Bitwise operation '{}' only takes a single operand", op));
+        }
+        return make_obj<Integer>(~m_value);
+    }
+    if ((op == "-") || (op == "sub")) {
         long ret = m_value;
         if (args->arguments().empty()) {
             ret = -ret;
@@ -225,9 +238,10 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
             }
         }
         return make_obj<Integer>(ret);
-    } else if (op == "*") {
-        if (args->arguments().empty()) {
-            return make_obj<Exception>(ErrorCode::CantUseAsUnaryOp, op.c_str(), "12");
+    }
+    if ((op == "*") || (op == "mult")) {
+        if (args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Arithmetical operation '{}' requires at least 2 operands", op));
         }
         long ret = m_value;
         for (auto& arg : args->arguments()) {
@@ -238,22 +252,100 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
             ret *= int_maybe.value();
         }
         return make_obj<Integer>(ret);
-    } else if (op == "/") {
-        if (args->arguments().empty()) {
-            return make_obj<Exception>(ErrorCode::CantUseAsUnaryOp, op.c_str(), "!@");
+    }
+    if ((op == "/") || (op == "div")) {
+        if (args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Arithmetical operation '{}' requires at least 2 operands", op));
         }
         long ret = m_value;
         for (auto& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
             if (!int_maybe.has_value()) {
-                return make_obj<Exception>(ErrorCode::TypeMismatch, op.c_str(), "int", arg->type().c_str());
+                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
             }
             ret /= int_maybe.value();
         }
         return make_obj<Integer>(ret);
-    } else {
-        return Object::evaluate(op, args);
     }
+    if ((op == "%") || (op == "mod")) {
+        if (args->size() != 1) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Arithmetical operation '{}' requires exactly 2 operands", op));
+        }
+        long ret = m_value;
+        auto& arg = args->at(0);
+        auto int_maybe = arg->to_long();
+        if (!int_maybe.has_value()) {
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+        }
+        ret %= int_maybe.value();
+        return make_obj<Integer>(ret);
+    }
+    if ((op == "<<") || (op == "shl")) {
+        if (args->size() != 1) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Bitwise operation '{}' requires exactly 2 operands", op));
+        }
+        long ret = m_value;
+        auto& arg = args->at(0);
+        auto int_maybe = arg->to_long();
+        if (!int_maybe.has_value()) {
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+        }
+        ret <<= int_maybe.value();
+        return make_obj<Integer>(ret);
+    }
+    if ((op == "<<") || (op == "shr")) {
+        if (args->size() != 1) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Bitwise operation '{}' requires exactly 2 operands", op));
+        }
+        long ret = m_value;
+        auto& arg = args->at(0);
+        auto int_maybe = arg->to_long();
+        if (!int_maybe.has_value()) {
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+        }
+        ret >>= int_maybe.value();
+        return make_obj<Integer>(ret);
+    }
+    if ((op == "|") || (op == "bitwise_or")) {
+        if (args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Bitwise operation '{}' requires at least 2 operands", op));
+        }
+        long ret = m_value;
+        auto& arg = args->at(0);
+        auto int_maybe = arg->to_long();
+        if (!int_maybe.has_value()) {
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+        }
+        ret |= int_maybe.value();
+        return make_obj<Integer>(ret);
+    }
+    if ((op == "&") || (op == "bitwise_and")) {
+        if (args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Bitwise operation '{}' requires at least 2 operands", op));
+        }
+        long ret = m_value;
+        auto& arg = args->at(0);
+        auto int_maybe = arg->to_long();
+        if (!int_maybe.has_value()) {
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+        }
+        ret &= int_maybe.value();
+        return make_obj<Integer>(ret);
+    }
+    if ((op == "^") || (op == "bitwise_xor")) {
+        if (args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Bitwise operation '{}' requires at least 2 operands", op));
+        }
+        long ret = m_value;
+        auto& arg = args->at(0);
+        auto int_maybe = arg->to_long();
+        if (!int_maybe.has_value()) {
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+        }
+        ret ^= int_maybe.value();
+        return make_obj<Integer>(ret);
+    }
+    return Object::evaluate(op, args);
 }
 
 int Boolean::compare(Obj const& other) const
@@ -276,8 +368,46 @@ int Float::compare(Obj const& other) const
         return (diff < 0) ? -1 : 1;
 }
 
-std::optional<Obj> Float::evaluate(std::string const& op, Ptr<Arguments> args)
+std::optional<Obj> Boolean::evaluate(std::string const& op, Ptr<Arguments> args)
 {
+    if ((op == "!") || (op == "negate")) {
+        if (!args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Logical operation '{}' only takes a single operand", op));
+        }
+        return make_obj<Boolean>(!m_value);
+    }
+    if ((op == "||") || (op == "or")) {
+        if (args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Logical operation '{}' requires at least 2 operands", op));
+        }
+        if (m_value)
+            return to_obj(True());
+        for (auto& arg : args->arguments()) {
+            auto bool_maybe = arg->to_bool();
+            if (!bool_maybe.has_value()) {
+                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "bool", arg->type());
+            }
+            if (bool_maybe.value())
+                return to_obj(True());
+        }
+        return to_obj(False());
+    }
+    if ((op == "&&") || (op == "and")) {
+        if (args->empty()) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Logical operation '{}' requires at least 2 operands", op));
+        }
+        if (!m_value)
+            return to_obj(False());
+        for (auto& arg : args->arguments()) {
+            auto bool_maybe = arg->to_bool();
+            if (!bool_maybe.has_value()) {
+                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "bool", arg->type());
+            }
+            if (!bool_maybe.value())
+                return to_obj(False());
+        }
+        return to_obj(True());
+    }
     return Object::evaluate(op, args);
 }
 
@@ -304,6 +434,24 @@ std::optional<Obj> String::evaluate(std::string const& op, Ptr<Arguments> args)
         auto ret = m_value;
         for (auto& arg : args->arguments()) {
             ret += arg->to_string();
+        }
+        return make_obj<String>(ret);
+    }
+    if ((op == "*") || (op == "repeat")) {
+        if (args->size() != 1) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("String operation '{}' requires exactly 2 operands", op));
+        }
+        std::string ret;
+        auto& arg = args->at(0);
+        auto int_maybe = arg->to_long();
+        if (!int_maybe.has_value()) {
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+        }
+        if (int_maybe.value() < 0) {
+            return make_obj<Exception>(ErrorCode::SyntaxError, format("Repeat count of string operation '{}' cannot be negative", op));
+        }
+        for (auto ix = 0u; ix < int_maybe.value(); ix++) {
+            ret += m_value;
         }
         return make_obj<String>(ret);
     }

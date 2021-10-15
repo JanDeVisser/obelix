@@ -363,6 +363,12 @@ public:
         sort_keywords();
     }
 
+    template <>
+    void add_keyword<TokenCode>(TokenCode keyword)
+    {
+        m_keywords.emplace_back(keyword, TokenCode_name(keyword));
+        sort_keywords();
+    }
 
 private:
     void reset();

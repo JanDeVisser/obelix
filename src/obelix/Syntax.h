@@ -65,11 +65,17 @@ public:
         printf("}\n");
     }
 
-    void execute(Scope& scope) override
+    void execute_block(Scope& block_scope)
     {
         for (auto& statement : m_statements) {
-            statement->execute(scope);
+            statement->execute(block_scope);
         }
+    }
+
+    void execute(Scope& scope) override
+    {
+        Scope block_scope(&scope);
+        execute_block(block_scope);
     }
 
 private:
@@ -97,19 +103,22 @@ private:
 
 class FunctionDef : public Block {
 public:
-    FunctionDef(std::string name, std::vector<std::string> arguments)
+    FunctionDef(std::string name, std::vector<std::string> parameters)
         : Block()
         , m_name(move(name))
-        , m_arguments(move(arguments))
+        , m_parameters(move(parameters))
     {
     }
+
+    [[nodiscard]] std::string const& name() const { return m_name; }
+    [[nodiscard]] std::vector<std::string> const& parameters() const { return m_parameters; }
 
     void dump(int indent) override
     {
         indent_line(indent);
         printf("func %s(", m_name.c_str());
         bool first = true;
-        for (auto& arg : m_arguments) {
+        for (auto& arg : m_parameters) {
             if (!first)
                 printf(", ");
             first = false;
@@ -121,7 +130,7 @@ public:
 
 private:
     std::string m_name;
-    std::vector<std::string> m_arguments;
+    std::vector<std::string> m_parameters;
 };
 
 class NativeFunctionDef : public SyntaxNode {
@@ -319,18 +328,15 @@ public:
 
     Obj evaluate(Scope const& scope) override
     {
-        if (m_name == "print") {
-            bool first = true;
-            for (auto& arg : m_arguments) {
-                if (!first)
-                    printf(", ");
-                first = false;
-                auto val = arg->evaluate(scope);
-                printf("%s", val.to_string().c_str());
-            }
-            printf("\n");
+        auto callable_maybe = scope.get(m_name);
+        if (!callable_maybe.has_value())
+            return Obj::null();
+        auto callable = callable_maybe.value();
+        auto args = make_typed<Arguments>();
+        for (auto& arg : m_arguments) {
+            args->add(arg->evaluate(scope));
         }
-        return Obj::null();
+        return callable->call(args);
     }
 
 private:
@@ -340,9 +346,10 @@ private:
 
 class Assignment : public Statement {
 public:
-    Assignment(std::string variable, std::shared_ptr<Expression> expression)
+    Assignment(std::string variable, std::shared_ptr<Expression> expression, bool declaration = false)
         : Statement()
         , m_variable(move(variable))
+        , m_declaration(declaration)
         , m_expression(move(expression))
     {
     }
@@ -356,11 +363,16 @@ public:
 
     void execute(Scope& scope) override
     {
-        scope.set(m_variable, m_expression->evaluate(scope));
+        if (m_declaration) {
+            scope.declare(m_variable, m_expression->evaluate(scope));
+        } else {
+            scope.set(m_variable, m_expression->evaluate(scope));
+        }
     }
 
 private:
     std::string m_variable;
+    bool m_declaration { false };
     std::shared_ptr<Expression> m_expression;
 };
 

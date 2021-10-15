@@ -63,10 +63,10 @@ private:
 
         lib_handle_t m_handle { nullptr };
         std::string m_image;
-        std::string m_platform_image { nullptr };
+        std::string m_platform_image;
     };
 
-    Resolver() = default;
+    Resolver();
     std::vector<ResolveHandle> m_images;
     std::unordered_map<std::string, void_t> m_functions;
 };

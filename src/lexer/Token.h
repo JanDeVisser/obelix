@@ -34,18 +34,27 @@ namespace Obelix {
     S(Dollar, '$', nullptr)            \
     S(Percent, '%', nullptr)           \
     S(Ampersand, '&', nullptr)         \
+    S(Hat, '^', nullptr)         \
     S(UnderScore, '_', nullptr)        \
     S(Equals, '=', nullptr)            \
     S(Pipe, '|', nullptr)              \
     S(Colon, ':', nullptr)             \
-    S(LessEqualThan, -1, "<=")         \
-    S(GreaterEqualThan, -1, ">=")      \
     S(LessThan, '<', nullptr)          \
     S(GreaterThan, '>', nullptr)       \
     S(Comma, ',', nullptr)             \
     S(Period, '.', nullptr)            \
     S(SemiColon, ';', nullptr)         \
     S(Tilde, '~', nullptr)             \
+                                       \
+    S(LessEqualThan, -1, "<=")         \
+    S(GreaterEqualThan, -1, ">=")      \
+    S(EqualsTo, -1, "==")         \
+    S(NotEqualTo, -1, "!=")      \
+    S(LogicalAnd, -1, "&&")         \
+    S(LogicalOr, -1, "||")         \
+    S(ShiftLeft, -1, "<<")      \
+    S(ShiftRight, -1, ">>")      \
+                                   \
                                        \
     S(Integer, -1, nullptr)            \
     S(HexNumber, -1, nullptr)          \
@@ -68,6 +77,8 @@ constexpr char const* TokenCode_name(TokenCode t)
 #undef __ENUMERATE_TOKEN_CODE
 #define __ENUMERATE_TOKEN_CODE(code, c, str) \
     case TokenCode::code:                    \
+        if (str != nullptr)                                     \
+            return str;                                    \
         return #code;
         ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE

@@ -24,15 +24,15 @@
 
 namespace Obelix {
 
-typedef Obj * (*native_t)(char const*, Ptr<Arguments> *);
+typedef void (*native_t)(char const*, Ptr<Arguments> *, Obj *);
 
 class NativeFunction : public Object {
 public:
     NativeFunction(std::string name, void_t, std::vector<std::string> = {});
     explicit NativeFunction(std::string name, std::vector<std::string> = {});
     bool resolve();
-    std::optional<Obj> call(Ptr<Arguments>) override;
-    std::optional<Obj> call(std::string const&, Ptr<Arguments>);
+    Obj call(Ptr<Arguments>) override;
+    Obj call(std::string const&, Ptr<Arguments>);
     static std::optional<NativeFunction> parse(std::string const&);
     [[nodiscard]] int compare(Obj const&) const override;
     [[nodiscard]] std::string const& name() const { return m_name; }

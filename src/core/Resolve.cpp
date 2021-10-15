@@ -37,7 +37,7 @@ Resolver::ResolveResult::ResolveResult(void* res)
 {
     if (!res) {
         std::string err = dlerror();
-        debug(resolve, "dlerror(): %s", err.c_str());
+        debug(resolve, "dlerror(): {}", err);
         if (!err.empty() && err.find_first_of("undefined symbol")) {
             error = err;
             errorcode = -1;
@@ -47,9 +47,9 @@ Resolver::ResolveResult::ResolveResult(void* res)
     }
     result = (errorcode) ? nullptr : res;
     if (!error.empty()) {
-        debug(resolve, "resolve_result has error '%s' (%d)", error.c_str(), errorcode);
+        debug(resolve, "resolve_result has error '{s}' ({d})", error, errorcode);
     } else {
-        debug(resolve, "resolve_result OK, result is %sNULL", (result) ? "NOT " : "");
+        debug(resolve, "resolve_result OK, result is {s}NULL", (result) ? "NOT " : "");
     }
 }
 
@@ -57,6 +57,7 @@ Resolver::ResolveResult::ResolveResult(void* res)
 Resolver::ResolveHandle::ResolveHandle(std::string img)
     : m_image(move(img))
 {
+    open();
 }
 
 Resolver::ResolveHandle::~ResolveHandle()
@@ -110,7 +111,7 @@ void Resolver::ResolveHandle::try_open(std::string const& dir)
         } else {
             path = image;
         }
-        debug(resolve, "Attempting to open library '%s'", path.c_str());
+        debug(resolve, "Attempting to open library '{s}'", path);
     } else {
         debug(resolve, "Attempting to open main program module");
     }
@@ -119,7 +120,7 @@ void Resolver::ResolveHandle::try_open(std::string const& dir)
     ResolveResult res((void*)libhandle);
     m_handle = (lib_handle_t) res.result;
     if (m_handle) {
-        debug(resolve, "Successfully opened '%s'", (!image.empty()) ? path.c_str() : "main program module");
+        debug(resolve, "Successfully opened '{s}'", (!image.empty()) ? path : "main program module");
     }
 }
 
@@ -127,7 +128,7 @@ bool Resolver::ResolveHandle::open()
 {
     auto image = platform_image();
     if (!image.empty()) {
-        debug(resolve, "resolve_open('%s') ~ '%s'", m_image.c_str(), image.c_str());
+        debug(resolve, "resolve_open('{s}') ~ '{s}'", m_image, image);
     } else {
         debug(resolve, "resolve_open('Main Program Image')");
     }
@@ -163,20 +164,20 @@ bool Resolver::ResolveHandle::open()
         if (!image.empty()) {
             auto result = get_function(OBL_INIT);
             if (result.result) {
-                debug(resolve, "resolve_open('%s') Executing initializer", to_string().c_str());
+                debug(resolve, "resolve_open('{s}') Executing initializer", to_string());
                 ((void_t)result.result)();
             } else if (!result.errorcode) {
-                debug(resolve, "resolve_open('%s') No initializer", to_string().c_str());
+                debug(resolve, "resolve_open('{s}') No initializer", to_string());
             } else {
-                error("resolve_open('%s') Error finding initializer: %s (%d)",
-                    to_string().c_str(), result.error.c_str(), result.errorcode);
+                error("resolve_open('{s}') Error finding initializer: {s} ({d})",
+                    to_string(), result.error, result.errorcode);
                 return false;
             }
         }
-        debug(resolve, "Library '%s' opened successfully", to_string().c_str());
+        debug(resolve, "Library '{s}' opened successfully", to_string());
         return true;
     } else {
-        error("resolve_open('%s') FAILED", to_string().c_str());
+        error("resolve_open('{s}') FAILED", to_string());
         return false;
     }
 }
@@ -185,7 +186,7 @@ Resolver::ResolveResult Resolver::ResolveHandle::get_function(std::string const&
 {
    void_t function;
 
-    debug(resolve, "dlsym('%s', '%s')", to_string().c_str(), function_name.c_str());
+    debug(resolve, "dlsym('{s}', '{s}')", to_string(), function_name);
     dlerror();
     function = (void_t) dlsym(m_handle, function_name.c_str());
     return Resolver::ResolveResult((void*) function);
@@ -211,27 +212,32 @@ void_t Resolver::resolve(std::string const& func_name)
 
     if (m_functions.contains(s)) {
         auto ret = m_functions[s];
-        debug(resolve, "Function '%s' was cached", func_name.c_str());
+        debug(resolve, "Function '{}' was cached", func_name);
         return ret;
     }
 
-    debug(resolve, "dlsym('%s')", func_name.c_str());
+    debug(resolve, "dlsym('{}')", func_name);
     void_t ret;
     for (auto& img : m_images) {
         auto result = img.get_function(s);
         if (result.errorcode) {
-            error("Error resolving function '%s' in library '%s': %s (%d)",
-                func_name.c_str(), img.to_string().c_str(),
-                result.error.c_str(), result.errorcode);
+            error("Error resolving function '{}' in library '{}': {} ({})",
+                func_name, img.to_string(), result.error, result.errorcode);
             continue;
         }
         ret = (void_t) result.result;
         if (ret) {
             m_functions.insert_or_assign(s, ret);
             return ret;
+        } else {
+            error("Error resolving function '{}' in library '{}': got nullptr)", func_name, img.to_string());
         }
     }
     return nullptr;
+}
+
+Resolver::Resolver()
+{
 }
 
 Resolver& Resolver::get_resolver()

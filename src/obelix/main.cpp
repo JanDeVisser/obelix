@@ -1,13 +1,12 @@
+#include <core/NativeFunction.h>
 #include <core/StringBuffer.h>
 #include <cstdio>
 #include <fcntl.h>
-#include <iostream>
 #include <lexer/Lexer.h>
 #include <lexer/Token.h>
 #include <obelix/Scope.h>
 #include <obelix/Syntax.h>
 #include <optional>
-#include <string>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
@@ -25,7 +24,8 @@ public:
             perror("Open");
             return;
         }
-        struct stat sb { };
+        struct stat sb {
+        };
         if (auto rc = fstat(fh, &sb); rc < 0) {
             perror("Stat");
             close(fh);
@@ -34,7 +34,7 @@ public:
 
         auto size = sb.st_size;
         auto buf = new char[size + 1];
-        if (auto rc = ::read(fh, (void*) buf, size); rc < size) {
+        if (auto rc = ::read(fh, (void*)buf, size); rc < size) {
             perror("read");
             size = 0;
         } else {
@@ -62,13 +62,14 @@ private:
 
 class Parser {
 public:
-    constexpr static TokenCode KeywordVar = ((TokenCode)100);
-    constexpr static TokenCode KeywordFunc = ((TokenCode)101);
-    constexpr static TokenCode KeywordIf = ((TokenCode)102);
-    constexpr static TokenCode KeywordElse = ((TokenCode)103);
-    constexpr static TokenCode KeywordWhile = ((TokenCode)104);
-    constexpr static TokenCode KeywordTrue = ((TokenCode)105);
-    constexpr static TokenCode KeywordFalse = ((TokenCode)106);
+    constexpr static TokenCode KeywordVar = ((TokenCode)200);
+    constexpr static TokenCode KeywordFunc = ((TokenCode)201);
+    constexpr static TokenCode KeywordIf = ((TokenCode)202);
+    constexpr static TokenCode KeywordElse = ((TokenCode)203);
+    constexpr static TokenCode KeywordWhile = ((TokenCode)204);
+    constexpr static TokenCode KeywordTrue = ((TokenCode)205);
+    constexpr static TokenCode KeywordFalse = ((TokenCode)206);
+    constexpr static TokenCode KeywordReturn = ((TokenCode)207);
 
     explicit Parser(std::string const& file_name)
         : m_file_name(file_name)
@@ -86,7 +87,16 @@ public:
             Token(KeywordElse, "else"),
             Token(KeywordWhile, "while"),
             Token(KeywordTrue, "true"),
-            Token(KeywordFalse, "false"));
+            Token(KeywordFalse, "false"),
+            Token(KeywordReturn, "return"),
+            TokenCode::GreaterEqualThan,
+            TokenCode::LessEqualThan,
+            TokenCode::EqualsTo,
+            TokenCode::NotEqualTo,
+            TokenCode::LogicalAnd,
+            TokenCode::LogicalOr,
+            TokenCode::ShiftLeft,
+            TokenCode::ShiftRight);
     }
 
     std::shared_ptr<Module> parse()
@@ -106,7 +116,7 @@ private:
             return std::make_shared<Pass>();
         case TokenCode::OpenBrace:
             m_lexer.lex();
-            return parse_block();
+            return parse_block(std::make_shared<Block>());
         case TokenCode::Identifier: {
             m_lexer.lex();
             switch (m_lexer.current_code()) {
@@ -128,9 +138,9 @@ private:
         case KeywordVar:
             m_lexer.lex();
             return parse_variable_declaration();
-            //            case KeywordFunc:
-            //                m_lexer.lex();
-            //                return parse_function_declaration(token);
+        case KeywordFunc:
+            m_lexer.lex();
+            return parse_function_definition();
         default:
             break;
         }
@@ -147,15 +157,14 @@ private:
         };
     }
 
-    std::shared_ptr<Block> parse_block()
+    std::shared_ptr<Block> parse_block(std::shared_ptr<Block> block)
     {
-        auto ret = std::make_shared<Block>();
-        parse_statements(ret);
+        parse_statements(block);
         if (!m_lexer.expect(TokenCode::CloseBrace)) {
             fprintf(stderr, "Syntax Error: Expected '}'\n");
             exit(1);
         }
-        return ret;
+        return block;
     }
 
     std::shared_ptr<FunctionCall> parse_function_call(std::string const& func_name)
@@ -165,8 +174,8 @@ private:
             exit(1);
         }
         std::vector<std::shared_ptr<Expression>> args {};
-        auto done = false;
-        do {
+        auto done = m_lexer.current_code() == TokenCode::CloseParen;
+        while (!done) {
             args.push_back(parse_expression());
             auto next = m_lexer.lex();
             switch (next.code()) {
@@ -179,7 +188,7 @@ private:
                 fprintf(stderr, "Syntax Error: Expected ',' or ')' in function argument list");
                 exit(1);
             }
-        } while (!done);
+        };
         return std::make_shared<FunctionCall>(func_name, args);
     }
 
@@ -188,6 +197,47 @@ private:
         m_lexer.lex(); // Consume the equals
         auto expr = parse_expression();
         return std::make_shared<Assignment>(identifier, expr);
+    }
+
+    std::shared_ptr<FunctionDef> parse_function_definition()
+    {
+        auto name_maybe = m_lexer.match(TokenCode::Identifier);
+        if (!name_maybe.has_value()) {
+            fprintf(stderr, "Syntax Error: expecting variable name after the 'func' keyword\n");
+            exit(1);
+        }
+        if (!m_lexer.expect(TokenCode::OpenParen)) {
+            fprintf(stderr, "Syntax Error: expecting '(' after function name in definition\n");
+            exit(1);
+        }
+        std::vector<std::string> params {};
+        auto done = m_lexer.current_code() == TokenCode::CloseParen;
+        while (!done) {
+            auto param_name_maybe = m_lexer.match(TokenCode::Identifier);
+            if (!param_name_maybe.has_value()) {
+                fprintf(stderr, "Syntax Error: Expected parameter name\n");
+                exit(1);
+            }
+            params.push_back(param_name_maybe.value().value());
+            auto next = m_lexer.lex();
+            switch (next.code()) {
+            case TokenCode::Comma:
+                break;
+            case TokenCode::CloseParen:
+                done = true;
+                break;
+            default:
+                fprintf(stderr, "Syntax Error: Expected ',' or ')' in function parameter list");
+                exit(1);
+            }
+        }
+        if (!m_lexer.expect(TokenCode::OpenBrace)) {
+            fprintf(stderr, "Syntax Error: expecting '{' after function parameter list\n");
+            exit(1);
+        }
+        auto function_def = std::make_shared<FunctionDef>(name_maybe.value().value(), params);
+        parse_block(function_def);
+        return function_def;
     }
 
     std::shared_ptr<IfStatement> parse_if_statement()
@@ -217,17 +267,15 @@ private:
             fprintf(stderr, "Syntax Error: expecting variable name after the 'var' keyword\n");
             exit(1);
         }
-        auto identifier = identifier_maybe.value();
         if (!m_lexer.expect(TokenCode::Equals)) {
             fprintf(stderr, "Syntax Error: expecting '=' after variable name in assignment\n");
             exit(1);
         }
         auto expr = parse_expression();
-        return std::make_shared<Assignment>(identifier.value(), expr);
+        return std::make_shared<Assignment>(identifier_maybe.value().value(), expr, true);
     }
 
     /*
-     *
      * Precedence climbing method (https://en.wikipedia.org/wiki/Operator-precedence_parser):
      *
      * parse_expression()
@@ -253,17 +301,37 @@ private:
         return parse_expression_1(parse_primary_expression(), 0);
     }
 
-    static int binary_precedence(Token token) {
+    static int binary_precedence(Token const& token)
+    {
         switch (token.code()) {
-        case TokenCode::LessThan:
+        case TokenCode::LogicalOr:
+            return 3;
+        case TokenCode::LogicalAnd:
+            return 4;
+        case TokenCode::Pipe:
+            return 5;
+        case TokenCode::Hat:
+            return 6;
+        case TokenCode::Ampersand:
+            return 7;
+        case TokenCode::EqualsTo:
+        case TokenCode::NotEqualTo:
+            return 8;
         case TokenCode::GreaterThan:
-            return 1;
+        case TokenCode::LessThan:
+        case TokenCode::GreaterEqualThan:
+        case TokenCode::LessEqualThan:
+            return 9;
+        case TokenCode::ShiftLeft:
+        case TokenCode::ShiftRight:
+            return 10;
         case TokenCode::Plus:
         case TokenCode::Minus:
-            return 2;
+            return 11;
         case TokenCode::Asterisk:
         case TokenCode::Slash:
-            return 3;
+        case TokenCode::Percent:
+            return 12;
         default:
             return -1;
         }
@@ -297,6 +365,8 @@ private:
             }
             return ret;
         }
+        case TokenCode::Tilde:
+        case TokenCode::ExclamationPoint:
         case TokenCode::Plus:
         case TokenCode::Minus: {
             auto operand = parse_atom(m_lexer.lex());
@@ -332,6 +402,39 @@ private:
     Lexer m_lexer;
 };
 
+std::string format_arguments(Ptr<Arguments> args)
+{
+    std::string fmt;
+    std::vector<Obelix::Obj> format_args;
+    for (auto& a : args->arguments()) {
+        if (fmt.empty()) {
+            fmt = a->to_string();
+        } else {
+            format_args.push_back(a);
+        }
+    }
+    return format(fmt, format_args);
+}
+
+extern "C" void oblfunc_print(const char* name, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
+{
+    Ptr <Arguments> arguments = *args;
+    printf("%s\n", format_arguments(arguments).c_str());
+    *ret = Object::null();
+}
+
+extern "C" void oblfunc_format(const char* name, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
+{
+    Ptr <Arguments> arguments = *args;
+    *ret = make_obj<String>(format_arguments(arguments).c_str());
+}
+
+void seed_global_scope(Obelix::Scope& global_scope)
+{
+    Resolver::get_resolver().open("");
+    global_scope.declare("print", Obelix::make_obj<Obelix::NativeFunction>("oblfunc_print"));
+}
+
 }
 
 void usage()
@@ -352,6 +455,7 @@ int main(int argc, char** argv)
             usage();
         } else if (!strcmp(argv[ix], "--debug")) {
             Obelix::Logger::get_logger().enable("lexer");
+            Obelix::Logger::get_logger().enable("resolve");
         } else {
             file_name = argv[ix];
         }
@@ -365,6 +469,7 @@ int main(int argc, char** argv)
     auto tree = parser.parse();
 //    tree->dump(0);
     Obelix::Scope global_scope;
+    seed_global_scope(global_scope);
     tree->execute(global_scope);
     return 0;
 }

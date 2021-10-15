@@ -84,27 +84,29 @@ bool NativeFunction::resolve()
     case 1:
         m_fnc = (void_t) Resolver::get_resolver().resolve(name.back());
         if (!m_fnc) {
-            error("Error resolving function '%s'", m_name.c_str());
+            error("Error resolving function '{}'", m_name);
             return false;
         }
         return true;
     default:
-        error("Invalid function reference '%s'", m_name.c_str());
+        error("Invalid function reference '{}'", m_name);
         return false;
     }
 }
 
-std::optional<Obj> NativeFunction::call(Ptr<Arguments> args) {
+Obj NativeFunction::call(Ptr<Arguments> args) {
     return call(name(), std::move(args));
 }
 
-std::optional<Obj> NativeFunction::call(std::string const& name, Ptr<Arguments> args) {
+Obj NativeFunction::call(std::string const& name, Ptr<Arguments> args) {
     if (!m_fnc) {
         if (!resolve()) {
             return make_obj<Exception>(ErrorCode::FunctionUndefined, m_name, image_name());
         }
     }
-    return *((native_t) m_fnc)(name.c_str(), &args);
+    Obj ret;
+    ((native_t) m_fnc)(name.c_str(), &args, &ret);
+    return ret;
 }
 
 std::string NativeFunction::image_name() const
