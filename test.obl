@@ -17,9 +17,11 @@ a = "Variable a again"
 print(a)
 
 var ix = 0;
-while ix < 10 {
-  print("I = {}", ix);
+while ix < 15 {
   ix = ix + 1;
+  if (ix == 3) continue;
+  print("I = {}", ix);
+  if (ix > 10) break;
 }
 
 func hello(name) {

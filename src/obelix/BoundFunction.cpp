@@ -32,8 +32,21 @@ Obj BoundFunction::call(std::string const& name, Ptr<Arguments> args) {
     for (auto ix = 0; ix < args->size(); ix++) {
         function_scope.declare(m_definition.parameters()[ix], args->at(ix));
     }
-    m_definition.execute_block(function_scope);
-    return Obj::null();
+    auto result = m_definition.execute_block(function_scope);
+    Obj return_value;
+    switch (result.code) {
+        case ExecutionResultCode::None:
+            // All good
+            break;
+        case ExecutionResultCode::Return:
+            return_value = result.return_value;
+            break;
+        case ExecutionResultCode::Continue:
+        case ExecutionResultCode::Break:
+            return_value = make_obj<Exception>(ErrorCode::SyntaxError, "Encountered 'break' or 'continue' without enclosing loop");
+            break;
+    }
+    return return_value;
 }
 
 }

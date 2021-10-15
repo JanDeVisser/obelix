@@ -1,9 +1,9 @@
-#include <core/NativeFunction.h>
 #include <core/StringBuffer.h>
 #include <cstdio>
 #include <fcntl.h>
 #include <lexer/Lexer.h>
 #include <lexer/Token.h>
+#include <obelix/NativeFunction.h>
 #include <obelix/Scope.h>
 #include <obelix/Syntax.h>
 #include <optional>
@@ -70,6 +70,8 @@ public:
     constexpr static TokenCode KeywordTrue = ((TokenCode)205);
     constexpr static TokenCode KeywordFalse = ((TokenCode)206);
     constexpr static TokenCode KeywordReturn = ((TokenCode)207);
+    constexpr static TokenCode KeywordBreak = ((TokenCode)208);
+    constexpr static TokenCode KeywordContinue = ((TokenCode)209);
 
     explicit Parser(std::string const& file_name)
         : m_file_name(file_name)
@@ -89,6 +91,8 @@ public:
             Token(KeywordTrue, "true"),
             Token(KeywordFalse, "false"),
             Token(KeywordReturn, "return"),
+            Token(KeywordBreak, "break"),
+            Token(KeywordContinue, "continue"),
             TokenCode::GreaterEqualThan,
             TokenCode::LessEqualThan,
             TokenCode::EqualsTo,
@@ -141,6 +145,15 @@ private:
         case KeywordFunc:
             m_lexer.lex();
             return parse_function_definition();
+        case KeywordReturn:
+            m_lexer.lex();
+            return std::make_shared<Return>(parse_expression());
+        case KeywordBreak:
+            m_lexer.lex();
+            return std::make_shared<Break>();
+        case KeywordContinue:
+            m_lexer.lex();
+            return std::make_shared<Continue>();
         default:
             break;
         }

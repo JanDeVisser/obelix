@@ -11,6 +11,18 @@
 
 namespace Obelix {
 
+enum class ExecutionResultCode {
+    None,
+    Break,
+    Continue,
+    Return,
+};
+
+struct ExecutionResult {
+    ExecutionResultCode code { ExecutionResultCode::None };
+    Obj return_value;
+};
+
 class SyntaxNode {
 public:
     ~SyntaxNode() = default;
@@ -24,7 +36,7 @@ public:
 
 class Statement : public SyntaxNode {
 public:
-    virtual void execute(Scope&)
+    virtual ExecutionResult execute(Scope&)
     {
         fatal("Not implemented");
     }
@@ -37,8 +49,9 @@ class Pass : public Statement {
         printf(";\n");
     }
 
-    void execute(Scope&) override
+    ExecutionResult execute(Scope&) override
     {
+        return {};
     }
 };
 
@@ -48,6 +61,7 @@ public:
         : Statement()
     {
     }
+    
     ~Block() = default;
 
     void append(std::shared_ptr<Statement> const& statement)
@@ -66,17 +80,21 @@ public:
         printf("}\n");
     }
 
-    void execute_block(Scope& block_scope) const
+    ExecutionResult execute_block(Scope& block_scope) const
     {
+        ExecutionResult result;
         for (auto& statement : m_statements) {
-            statement->execute(block_scope);
+            result = statement->execute(block_scope);
+            if (result.code != ExecutionResultCode::None)
+                return result;
         }
+        return result;
     }
 
-    void execute(Scope& scope) override
+    ExecutionResult execute(Scope& scope) override
     {
         Scope block_scope(&scope);
-        execute_block(block_scope);
+        return execute_block(block_scope);
     }
 
 private:
@@ -129,8 +147,10 @@ public:
         Block::dump(indent);
     }
 
-    void execute(Scope& scope) override {
-        scope.declare(name(), make_obj<BoundFunction>(scope, *this));
+    ExecutionResult execute(Scope& scope) override {
+        auto bound_function = make_obj<BoundFunction>(scope, *this);
+        scope.declare(name(), bound_function);
+        return { ExecutionResultCode::None, bound_function};
     }
 
 private:
@@ -366,19 +386,81 @@ public:
         printf("\n");
     }
 
-    void execute(Scope& scope) override
+    ExecutionResult execute(Scope& scope) override
     {
+        auto value = m_expression->evaluate(scope);
         if (m_declaration) {
-            scope.declare(m_variable, m_expression->evaluate(scope));
+            scope.declare(m_variable, value);
         } else {
-            scope.set(m_variable, m_expression->evaluate(scope));
+            scope.set(m_variable, value);
         }
+        return { ExecutionResultCode::None, value };
     }
 
 private:
     std::string m_variable;
     bool m_declaration { false };
     std::shared_ptr<Expression> m_expression;
+};
+
+class Return : public Statement {
+public:
+    explicit Return(std::shared_ptr<Expression> expression)
+        : Statement()
+        , m_expression(move(expression))
+    {
+    }
+
+    void dump(int indent) override
+    {
+        printf("return ");
+        m_expression->dump(indent);
+        printf("\n");
+    }
+
+    ExecutionResult execute(Scope& scope) override
+    {
+        return { ExecutionResultCode::Return, m_expression->evaluate(scope) };
+    }
+
+private:
+    std::shared_ptr<Expression> m_expression;
+};
+
+class Break : public Statement {
+public:
+    Break()
+        : Statement()
+    {
+    }
+
+    void dump(int indent) override
+    {
+        printf("break\n");
+    }
+
+    ExecutionResult execute(Scope& scope) override
+    {
+        return { ExecutionResultCode::Break, {} };
+    }
+};
+
+class Continue : public Statement {
+public:
+    Continue()
+        : Statement()
+    {
+    }
+
+    void dump(int indent) override
+    {
+        printf("continue\n");
+    }
+
+    ExecutionResult execute(Scope& scope) override
+    {
+        return { ExecutionResultCode::Continue, {} };
+    }
 };
 
 class ProcedureCall : public Statement {
@@ -395,9 +477,9 @@ public:
         printf("\n");
     }
 
-    void execute(Scope& scope) override
+    ExecutionResult execute(Scope& scope) override
     {
-        m_call_expression->evaluate(scope);
+        return { ExecutionResultCode::None, m_call_expression->evaluate(scope) };
     }
 
 private:
@@ -414,13 +496,15 @@ public:
     {
     }
 
-    void execute(Scope& scope) override
+    ExecutionResult execute(Scope& scope) override
     {
         Obj condition = m_condition->evaluate(scope);
         if (condition->to_bool().value()) {
-            m_if->execute(scope);
+            return m_if->execute(scope);
+        } else if (m_else != nullptr){
+            return m_else->execute(scope);
         } else {
-            m_else->execute(scope);
+            return {};
         }
     }
 
@@ -454,11 +538,15 @@ public:
     {
     }
 
-    void execute(Scope& scope) override
+    ExecutionResult execute(Scope& scope) override
     {
+        ExecutionResult result;
         for (Obj condition = m_condition->evaluate(scope); condition->to_bool().value(); condition = m_condition->evaluate(scope)) {
-            m_stmt->execute(scope);
+            result = m_stmt->execute(scope);
+            if (result.code == ExecutionResultCode::Break || result.code == ExecutionResultCode::Return)
+                return {};
         }
+        return result;
     }
 
     void dump(int indent) override

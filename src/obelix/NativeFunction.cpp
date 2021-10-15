@@ -17,8 +17,8 @@
  * along with obelix2.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <core/NativeFunction.h>
 #include <core/StringUtil.h>
+#include <obelix/NativeFunction.h>
 
 namespace Obelix {
 

@@ -1,10 +1,11 @@
 add_executable(
         obelix2
         main.cpp
-        BoundFunction.h
+        BoundFunction.cpp
+        NativeFunction.cpp
         Scope.h
         Syntax.h
-        BoundFunction.cpp)
+)
 
 target_link_libraries(
         obelix2
