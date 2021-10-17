@@ -13,32 +13,32 @@ protected:
     unsigned int prepareWithBig()
     {
         initialize();
-        add_scanner<Obelix::KeywordScanner>("Big");
-        return 100;
+        add_scanner<Obelix::KeywordScanner>(Token(200, "Big"));
+        return 200;
     }
 
     void prepareWithBigBad(unsigned int* big, unsigned int* bad)
     {
         initialize();
-        add_scanner<Obelix::KeywordScanner>("Big", "Bad");
-        *big = 100;
-        *bad = 101;
+        add_scanner<Obelix::KeywordScanner>(Token(200, "Big"), Token(201, "Bad"));
+        *big = 200;
+        *bad = 201;
     }
 
     unsigned int prepareWithAbc()
     {
         initialize();
         add_scanner<Obelix::KeywordScanner>(
-            "abb",
-            "aca",
-            "aba",
-            "aaa",
-            "aab",
-            "abc",
-            "aac",
-            "acc",
-            "acb");
-        return 105;
+            Token(200, "abb"),
+            Token(201, "aca"),
+            Token(202, "aba"),
+            Token(203, "aaa"),
+            Token(204, "aab"),
+            Token(205, "abc"),
+            Token(206, "aac"),
+            Token(207, "acc"),
+            Token(208, "acb"));
+        return 205;
     }
 
     void tokenizeBig(const char* s, int total_count, int big_count)
@@ -47,7 +47,7 @@ protected:
         tokenize(s);
         EXPECT_EQ(tokens.size(), total_count);
         for (auto& token : tokens) {
-            debug(lexer, "%s\n", token.to_string().c_str());
+            debug(lexer, "{}", token.to_string());
         }
         EXPECT_EQ(tokens_by_code[(Obelix::TokenCode)code].size(), big_count);
     }
@@ -58,10 +58,16 @@ protected:
         unsigned int big, bad;
         prepareWithBigBad(&big, &bad);
         tokenize(s);
+        debug(lexer, "{}", tokens[0].to_string());
         EXPECT_EQ(tokens.size(), total_count);
         EXPECT_EQ(tokens_by_code[(Obelix::TokenCode)big].size(), big_count);
         EXPECT_EQ(tokens_by_code[(Obelix::TokenCode)bad].size(), bad_count);
     }
+
+    bool debugOn() override {
+        return false;
+    }
+
 };
 
 TEST_F(KeywordTest, Keyword)

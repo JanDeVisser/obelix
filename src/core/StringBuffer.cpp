@@ -47,6 +47,13 @@ void StringBuffer::rewind()
     m_pos = 0;
 }
 
+void StringBuffer::partial_rewind(size_t num)
+{
+    if (num > m_pos)
+        num = m_pos;
+    m_pos -= num;
+}
+
 std::string StringBuffer::read(size_t num)
 {
     if ((num < 0) || ((m_pos + num) > m_buffer.length())) {

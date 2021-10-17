@@ -6,7 +6,7 @@
 
 namespace Obelix {
 
-size_t KeywordScanner::s_next_identifier = 100;
+size_t KeywordScanner::s_next_identifier = 200;
 
 void KeywordScanner::sort_keywords()
 {

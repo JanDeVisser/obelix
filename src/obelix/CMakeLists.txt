@@ -14,3 +14,10 @@ target_link_libraries(
         ${LIBS}
 )
 
+install(TARGETS obelix2
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib)
+
+
+

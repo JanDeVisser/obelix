@@ -101,6 +101,7 @@ public:
     [[nodiscard]] bool at_end() const;
     void reset();
     void rewind();
+    void partial_rewind(size_t);
     Token get_accept(TokenCode, int);
 
     template<class ScannerClass, class... Args>
@@ -200,6 +201,99 @@ public:
 private:
     Config m_config {};
     WhitespaceState m_state { WhitespaceState::Init };
+};
+
+#define ENUMERATE_COMMENT_STATES(S) \
+    S(None)                    \
+    S(StartMarker)              \
+    S(Text)                      \
+    S(EndMarker)                    \
+    S(End)                          \
+    S(Unterminated)
+
+class CommentScanner : public Scanner {
+public:
+    enum class CommentState {
+#undef _COMMENT_STATE
+#define _COMMENT_STATE(value) value,
+        ENUMERATE_COMMENT_STATES(_COMMENT_STATE)
+#undef _COMMENT_STATE
+    };
+
+    struct CommentMarker {
+        bool hashpling;
+        bool eol;
+        std::string start;
+        std::string end;
+        bool matched { true };
+
+        std::string to_string()
+        {
+            return format("{}{}{}{}",
+                (hashpling) ? "^" : "", start,
+                (!end.empty()) ? " " : "",
+                (!end.empty()) ? end : "");
+        }
+    };
+
+    explicit CommentScanner(Tokenizer& tokenizer)
+        : Scanner(tokenizer)
+    {
+    }
+
+    template <typename... Args>
+    explicit CommentScanner(Tokenizer& tokenizer, Args&&... args)
+        : Scanner(tokenizer)
+    {
+        add_markers(std::forward<Args>(args)...);
+    }
+
+    template <typename T, typename... Args>
+    void add_markers(T t, Args&&... args)
+    {
+        add_marker(t);
+        add_markers(std::forward<Args>(args)...);
+    }
+
+    void add_markers() { }
+
+    template <typename T>
+    void add_marker(T marker)
+    {
+        fatal("Cannot add marker");
+    }
+
+    template <>
+    void add_marker<CommentMarker>(CommentMarker marker)
+    {
+        m_markers.push_back(std::move(marker));
+    }
+
+    template <>
+    void add_marker<std::string>(std::string marker)
+    {
+        m_markers.push_back({ false, true, move(marker), "" });
+    }
+
+    template <>
+    void add_marker<char const*>(char const* marker)
+    {
+        add_marker(std::string(marker));
+    }
+
+    void match() override;
+    [[nodiscard]] char const* name() override { return "comment"; }
+
+private:
+    void find_eol();
+    void find_end_marker();
+
+    std::vector<CommentMarker> m_markers {};
+    CommentState m_state { CommentState::None };
+    std::vector<bool> m_matched;
+    size_t m_num_matches { 0 };
+    CommentMarker* m_match { nullptr };
+    std::string m_token {};
 };
 
 #define ENUMERATE_NUMBER_SCANNER_STATES(S) \

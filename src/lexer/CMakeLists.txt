@@ -10,7 +10,7 @@ add_library(
         Token.cpp
         Tokenizer.cpp
         WhitespaceScanner.cpp
-)
+        CommentScanner.cpp)
 
 target_link_libraries(
         obllexer

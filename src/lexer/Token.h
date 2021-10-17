@@ -10,57 +10,57 @@
 
 namespace Obelix {
 
-#define ENUMERATE_TOKEN_CODES(S)       \
-    S(EndOfFile, -1, nullptr)          \
-    S(Error, -1, nullptr)              \
-    S(Unknown, -1, nullptr)            \
-    S(Whitespace, ' ', nullptr)        \
-    S(NewLine, -1, nullptr)            \
-    S(Plus, '+', nullptr)              \
-    S(Minus, '-', nullptr)             \
-    S(Slash, '/', nullptr)             \
-    S(Backslash, '\\', nullptr)        \
-    S(Asterisk, '*', nullptr)          \
-    S(OpenParen, '(', nullptr)         \
-    S(CloseParen, ')', nullptr)        \
-    S(OpenBrace, '{', nullptr)         \
-    S(CloseBrace, '}', nullptr)        \
-    S(OpenBracket, '[', nullptr)       \
-    S(CloseBracket, ']', nullptr)      \
-    S(ExclamationPoint, '!', nullptr)  \
-    S(QuestionMark, '?', nullptr)      \
-    S(AtSign, '@', nullptr)            \
-    S(Pound, '#', nullptr)             \
-    S(Dollar, '$', nullptr)            \
-    S(Percent, '%', nullptr)           \
-    S(Ampersand, '&', nullptr)         \
-    S(Hat, '^', nullptr)         \
-    S(UnderScore, '_', nullptr)        \
-    S(Equals, '=', nullptr)            \
-    S(Pipe, '|', nullptr)              \
-    S(Colon, ':', nullptr)             \
-    S(LessThan, '<', nullptr)          \
-    S(GreaterThan, '>', nullptr)       \
-    S(Comma, ',', nullptr)             \
-    S(Period, '.', nullptr)            \
-    S(SemiColon, ';', nullptr)         \
-    S(Tilde, '~', nullptr)             \
-                                       \
-    S(LessEqualThan, -1, "<=")         \
-    S(GreaterEqualThan, -1, ">=")      \
-    S(EqualsTo, -1, "==")         \
-    S(NotEqualTo, -1, "!=")      \
-    S(LogicalAnd, -1, "&&")         \
-    S(LogicalOr, -1, "||")         \
-    S(ShiftLeft, -1, "<<")      \
-    S(ShiftRight, -1, ">>")      \
-                                   \
-                                       \
-    S(Integer, -1, nullptr)            \
-    S(HexNumber, -1, nullptr)          \
-    S(Float, -1, nullptr)              \
-    S(Identifier, -1, nullptr)         \
-    S(DoubleQuotedString, '"', nullptr) \
+#define ENUMERATE_TOKEN_CODES(S)         \
+    S(Unknown, -1, nullptr)              \
+    S(EndOfFile, -1, nullptr)            \
+    S(Error, -1, nullptr)                \
+    S(Comment, ' ', nullptr)             \
+    S(Whitespace, ' ', nullptr)          \
+    S(NewLine, -1, nullptr)              \
+    S(Plus, '+', nullptr)                \
+    S(Minus, '-', nullptr)               \
+    S(Slash, '/', nullptr)               \
+    S(Backslash, '\\', nullptr)          \
+    S(Asterisk, '*', nullptr)            \
+    S(OpenParen, '(', nullptr)           \
+    S(CloseParen, ')', nullptr)          \
+    S(OpenBrace, '{', nullptr)           \
+    S(CloseBrace, '}', nullptr)          \
+    S(OpenBracket, '[', nullptr)         \
+    S(CloseBracket, ']', nullptr)        \
+    S(ExclamationPoint, '!', nullptr)    \
+    S(QuestionMark, '?', nullptr)        \
+    S(AtSign, '@', nullptr)              \
+    S(Pound, '#', nullptr)               \
+    S(Dollar, '$', nullptr)              \
+    S(Percent, '%', nullptr)             \
+    S(Ampersand, '&', nullptr)           \
+    S(Hat, '^', nullptr)                 \
+    S(UnderScore, '_', nullptr)          \
+    S(Equals, '=', nullptr)              \
+    S(Pipe, '|', nullptr)                \
+    S(Colon, ':', nullptr)               \
+    S(LessThan, '<', nullptr)            \
+    S(GreaterThan, '>', nullptr)         \
+    S(Comma, ',', nullptr)               \
+    S(Period, '.', nullptr)              \
+    S(SemiColon, ';', nullptr)           \
+    S(Tilde, '~', nullptr)               \
+                                         \
+    S(LessEqualThan, -1, "<=")           \
+    S(GreaterEqualThan, -1, ">=")        \
+    S(EqualsTo, -1, "==")                \
+    S(NotEqualTo, -1, "!=")              \
+    S(LogicalAnd, -1, "&&")              \
+    S(LogicalOr, -1, "||")               \
+    S(ShiftLeft, -1, "<<")               \
+    S(ShiftRight, -1, ">>")              \
+                                         \
+    S(Integer, -1, nullptr)              \
+    S(HexNumber, -1, nullptr)            \
+    S(Float, -1, nullptr)                \
+    S(Identifier, -1, nullptr)           \
+    S(DoubleQuotedString, '"', nullptr)  \
     S(SingleQuotedString, '\'', nullptr) \
     S(BackQuotedString, '`', nullptr)
 
@@ -70,22 +70,6 @@ enum class TokenCode {
     ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
 };
-
-constexpr char const* TokenCode_name(TokenCode t)
-{
-    switch (t) {
-#undef __ENUMERATE_TOKEN_CODE
-#define __ENUMERATE_TOKEN_CODE(code, c, str) \
-    case TokenCode::code:                    \
-        if (str != nullptr)                                     \
-            return str;                                    \
-        return #code;
-        ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
-#undef __ENUMERATE_TOKEN_CODE
-    default:
-        return "Custom";
-    }
-}
 
 constexpr TokenCode TokenCode_by_char(int ch)
 {
@@ -99,6 +83,7 @@ constexpr TokenCode TokenCode_by_char(int ch)
     return TokenCode::Unknown;
 }
 
+std::string TokenCode_name(TokenCode);
 
 class Token {
 public:
@@ -110,7 +95,7 @@ public:
     }
 
     explicit Token(int code, std::string value = "")
-        : Token((TokenCode) code, move(value))
+        : Token((TokenCode)code, move(value))
     {
     }
 
@@ -127,6 +112,7 @@ public:
 
     size_t line { 0 };
     size_t column { 0 };
+
 private:
     TokenCode m_code { TokenCode::Unknown };
     std::string m_value {};

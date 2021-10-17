@@ -149,6 +149,16 @@ void Tokenizer::rewind()
     m_consumed = 0;
 }
 
+void Tokenizer::partial_rewind(size_t num)
+{
+    if (num > m_consumed)
+        num = m_scanned;
+    m_scanned -= num;
+    m_consumed -= num;
+    m_token = m_token.substr(0, m_token.length() - num);
+    m_buffer.partial_rewind(num);
+}
+
 /**
  * Mark the current point, discarding everything that came before it.
  */
@@ -174,7 +184,7 @@ Token Tokenizer::accept(TokenCode code)
 Token Tokenizer::accept_token(Token const& token)
 {
     skip();
-    debug(lexer, "Lexer::accept_token({})", token.to_string().c_str());
+    debug(lexer, "Lexer::accept_token({})", token.to_string());
     m_state = TokenizerState::Success;
     m_tokens.push_back(token);
     return token;

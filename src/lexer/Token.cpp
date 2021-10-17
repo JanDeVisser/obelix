@@ -7,6 +7,22 @@
 
 namespace Obelix {
 
+std::string TokenCode_name(TokenCode t)
+{
+    switch (t) {
+#undef __ENUMERATE_TOKEN_CODE
+#define __ENUMERATE_TOKEN_CODE(code, c, str) \
+    case TokenCode::code:                    \
+        if (str != nullptr)                  \
+            return str;                      \
+        return #code;
+        ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
+#undef __ENUMERATE_TOKEN_CODE
+    default:
+        return format("Custom ({})", (int) t);
+    }
+}
+
 std::string Token::to_string() const
 {
     std::string ret = code_name();

@@ -16,6 +16,7 @@ public:
     explicit StringBuffer(char const*);
     [[nodiscard]] std::string const& str() const { return m_buffer; }
     void rewind();
+    void partial_rewind(size_t);
     std::string read(size_t);
     [[nodiscard]] int peek(size_t = 0) const;
     int one_of(std::string const&);
