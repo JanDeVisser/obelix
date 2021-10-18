@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace Obelix {
@@ -83,6 +84,18 @@ public:
     void assign(StringBuffer buffer);
     void assign(char const*);
     void assign(std::string);
+
+    template<typename... Args>
+    void filter_codes(TokenCode code, Args&&... args)
+    {
+        m_filtered_codes.insert(code);
+        filter_codes(std::forward<Args>(args)...);
+    }
+
+    void filter_codes()
+    {
+    }
+
     [[nodiscard]] StringBuffer const& buffer() const { return m_buffer; }
 
     std::vector<Token> const& tokenize(std::optional<std::string_view const> = {});
@@ -131,6 +144,7 @@ public:
 private:
     void match_token();
 
+    std::unordered_set<TokenCode> m_filtered_codes {};
     std::vector<std::shared_ptr<Scanner>> m_scanners {};
     StringBuffer m_buffer;
     std::string m_token {};

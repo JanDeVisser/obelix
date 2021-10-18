@@ -25,6 +25,12 @@ public:
     {
     }
 
+    template<typename... Args>
+    void filter_codes(Args&&... args)
+    {
+        m_tokenizer.filter_codes(std::forward<Args>(args)...);
+    }
+
     void assign(char const* text)
     {
         m_tokenizer.assign(text);

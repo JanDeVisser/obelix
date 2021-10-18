@@ -72,6 +72,10 @@ public:
     constexpr static TokenCode KeywordReturn = ((TokenCode)207);
     constexpr static TokenCode KeywordBreak = ((TokenCode)208);
     constexpr static TokenCode KeywordContinue = ((TokenCode)209);
+    constexpr static TokenCode KeywordElif = ((TokenCode)210);
+    constexpr static TokenCode KeywordSwitch = ((TokenCode)211);
+    constexpr static TokenCode KeywordCase = ((TokenCode)212);
+    constexpr static TokenCode KeywordDefault = ((TokenCode)213);
 
     explicit Parser(std::string const& file_name)
         : m_file_name(file_name)
@@ -82,6 +86,7 @@ public:
         m_lexer.add_scanner<IdentifierScanner>();
         m_lexer.add_scanner<NumberScanner>(Obelix::NumberScanner::Config { true, false, true, true });
         m_lexer.add_scanner<WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
+        m_lexer.filter_codes(TokenCode::Whitespace, TokenCode::Comment);
         m_lexer.add_scanner<KeywordScanner>(
             Token(KeywordVar, "var"),
             Token(KeywordFunc, "func"),
@@ -93,6 +98,10 @@ public:
             Token(KeywordReturn, "return"),
             Token(KeywordBreak, "break"),
             Token(KeywordContinue, "continue"),
+            Token(KeywordElif, "elif"),
+            Token(KeywordSwitch, "switch"),
+            Token(KeywordCase, "case"),
+            Token(KeywordDefault, "default"),
             TokenCode::GreaterEqualThan,
             TokenCode::LessEqualThan,
             TokenCode::EqualsTo,
@@ -106,7 +115,7 @@ public:
     std::shared_ptr<Module> parse()
     {
         std::shared_ptr<Module> module = std::make_shared<Module>(m_file_name);
-        parse_statements(std::dynamic_pointer_cast<Block>(module));
+        parse_statements(module);
         return module;
     }
 
@@ -136,6 +145,9 @@ private:
         case KeywordIf:
             m_lexer.lex();
             return parse_if_statement();
+        case KeywordSwitch:
+            m_lexer.lex();
+            return parse_switch_statement();
         case KeywordWhile:
             m_lexer.lex();
             return parse_while_statement();
@@ -240,7 +252,7 @@ private:
                 done = true;
                 break;
             default:
-                fprintf(stderr, "Syntax Error: Expected ',' or ')' in function parameter list");
+                fprintf(stderr, "Syntax Error: Expected ',' or ')' in function parameter list, got '%s'", next.to_string().c_str());
                 exit(1);
             }
         }
@@ -255,15 +267,64 @@ private:
 
     std::shared_ptr<IfStatement> parse_if_statement()
     {
-        auto condition = parse_expression();
-        std::shared_ptr<Statement> else_stmt = nullptr;
-        auto if_stmt = parse_statement();
-        auto else_maybe = m_lexer.peek();
-        if (else_maybe.code() == KeywordElse) {
-            m_lexer.lex();
-            else_stmt = parse_statement();
+        std::shared_ptr<IfStatement> ret = std::make_shared<IfStatement>(parse_expression(), parse_statement());
+        while (true) {
+            switch (m_lexer.current_code()) {
+            case KeywordElif:
+                m_lexer.lex();
+                ret->append_elif(parse_expression(), parse_statement());
+                break;
+            case KeywordElse:
+                m_lexer.lex();
+                ret->append_else(parse_statement());
+                return ret;
+            default:
+                return ret;
+            }
         }
-        return std::make_shared<IfStatement>(condition, if_stmt, else_stmt);
+    }
+
+    std::shared_ptr<SwitchStatement> parse_switch_statement()
+    {
+        std::shared_ptr<SwitchStatement> ret = std::make_shared<SwitchStatement>(parse_expression());
+        if (auto brace = m_lexer.peek(); brace.code() != TokenCode::OpenBrace) {
+            fprintf(stderr, "Syntax Error: Expected '{' after switch expression, got '%s'\n", brace.to_string().c_str());
+            exit(1);
+        }
+        m_lexer.lex();
+        while (true) {
+            switch (m_lexer.current_code()) {
+            case KeywordCase: {
+                m_lexer.lex();
+                auto expr = parse_expression();
+                if (auto colon = m_lexer.peek(); colon.code() != TokenCode::Colon) {
+                    fprintf(stderr, "Syntax Error: Expected ':' after switch expression, got '%s'\n", colon.to_string().c_str());
+                    exit(1);
+                }
+                m_lexer.lex();
+                ret->append_case(expr, parse_statement());
+            } break;
+            case KeywordDefault:
+                m_lexer.lex();
+                if (auto colon = m_lexer.peek(); colon.code() != TokenCode::Colon) {
+                    fprintf(stderr, "Syntax Error: Expected ':' after 'default' keyword, got '%s'\n", colon.to_string().c_str());
+                    exit(1);
+                }
+                m_lexer.lex();
+                if (ret->default_case()) {
+                    fprintf(stderr, "Syntax Error: Cam only specify one 'default' clause in a switch statement\n");
+                    exit(1);
+                }
+                ret->set_default(parse_statement());
+                break;
+            case TokenCode::CloseBrace:
+                m_lexer.lex();
+                return ret;
+            default:
+                fprintf(stderr, "Syntax Error: Unexpected token '%s' in switch statement\n", m_lexer.peek().to_string().c_str());
+                exit(1);
+            }
+        }
     }
 
     std::shared_ptr<WhileStatement> parse_while_statement()
@@ -382,30 +443,23 @@ private:
         case TokenCode::ExclamationPoint:
         case TokenCode::Plus:
         case TokenCode::Minus: {
-            auto operand = parse_atom(m_lexer.lex());
+            auto operand = parse_primary_expression();
             return std::make_shared<UnaryExpression>(t, operand);
         }
-        default:
-            return parse_atom(t);
-        }
-    }
-
-    static std::shared_ptr<Expression> parse_atom(Token const& atom)
-    {
-        switch (atom.code()) {
         case TokenCode::Integer:
         case TokenCode::Float:
         case TokenCode::DoubleQuotedString:
         case TokenCode::SingleQuotedString:
         case KeywordTrue:
         case KeywordFalse:
-            return std::make_shared<Literal>(atom);
-            break;
+            return std::make_shared<Literal>(t);
         case TokenCode::Identifier:
-            return std::make_shared<VariableReference>(atom.value());
-            break;
+            if (m_lexer.current_code() == TokenCode::OpenParen) {
+                return parse_function_call(t.value());
+            }
+            return std::make_shared<VariableReference>(t.value());
         default:
-            fprintf(stderr, "ERROR: Expected literal or variable, got '%s'\n", atom.value().c_str());
+            fprintf(stderr, "ERROR: Expected literal or variable, got '%s'\n", t.value().c_str());
             exit(1);
         }
     }
@@ -446,6 +500,7 @@ void seed_global_scope(Obelix::Scope& global_scope)
 {
     Resolver::get_resolver().open("");
     global_scope.declare("print", Obelix::make_obj<Obelix::NativeFunction>("oblfunc_print"));
+    global_scope.declare("format", Obelix::make_obj<Obelix::NativeFunction>("oblfunc_format"));
 }
 
 }
@@ -480,9 +535,13 @@ int main(int argc, char** argv)
 
     Obelix::Parser parser(file_name);
     auto tree = parser.parse();
-//    tree->dump(0);
+    tree->dump(0);
     Obelix::Scope global_scope;
     seed_global_scope(global_scope);
-    tree->execute(global_scope);
+    auto result = tree->execute(global_scope);
+    if (auto exit_code = result.return_value; exit_code) {
+        if (auto long_maybe = exit_code.to_long(); long_maybe.has_value())
+            return (int)long_maybe.value();
+    }
     return 0;
 }

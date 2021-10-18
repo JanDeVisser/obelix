@@ -186,7 +186,8 @@ Token Tokenizer::accept_token(Token const& token)
     skip();
     debug(lexer, "Lexer::accept_token({})", token.to_string());
     m_state = TokenizerState::Success;
-    m_tokens.push_back(token);
+    if (!m_filtered_codes.contains(token.code()))
+        m_tokens.push_back(token);
     return token;
 }
 
