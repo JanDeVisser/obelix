@@ -64,7 +64,7 @@ std::optional<Ptr<Object>> Object::resolve(std::string const& name) const
 
 std::optional<bool> Object::to_bool() const
 {
-    return Obelix::to_bool(to_string());
+    return true;
 }
 
 std::string Object::to_string() const

@@ -395,7 +395,7 @@ public:
     bool operator>=(Obj const& other) const { return m_ptr->compare(other) >= 0; }
 
 private:
-    std::shared_ptr<Object> m_ptr { nullptr };
+    std::shared_ptr<Object> m_ptr { std::make_shared<Null>() };
 
     template<class ObjCls, class... Args>
     friend Ptr<ObjCls> make_typed(Args&&... args);
