@@ -2,6 +2,7 @@ enable_testing()
 
 add_executable(
         LexerTest
+        CommentTest.cpp
         KeywordTest.cpp
         LexerTest.cpp
         QStringTest.cpp
