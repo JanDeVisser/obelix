@@ -16,6 +16,8 @@ enum class ExecutionResultCode {
     Break,
     Continue,
     Return,
+    Skipped,
+    Error
 };
 
 struct ExecutionResult {
@@ -61,7 +63,7 @@ public:
         : Statement()
     {
     }
-    
+
     ~Block() = default;
 
     void append(std::shared_ptr<Statement> const& statement)
@@ -147,10 +149,11 @@ public:
         Block::dump(indent);
     }
 
-    ExecutionResult execute(Scope& scope) override {
+    ExecutionResult execute(Scope& scope) override
+    {
         auto bound_function = make_obj<BoundFunction>(scope, *this);
         scope.declare(name(), bound_function);
-        return { ExecutionResultCode::None, bound_function};
+        return { ExecutionResultCode::None, bound_function };
     }
 
 private:
@@ -216,24 +219,30 @@ public:
 
 class Literal : public Expression {
 public:
-    explicit Literal(Token token)
+    explicit Literal(Token const& token)
         : Expression()
-        , m_literal(std::move(token))
+        , m_literal(token.to_object())
+    {
+    }
+
+    explicit Literal(Obj value)
+        : Expression()
+        , m_literal(std::move(value))
     {
     }
 
     void dump(int indent) override
     {
-        printf("%s", m_literal.value().c_str());
+        printf("%s", m_literal->to_string().c_str());
     }
 
     Obj evaluate(Scope const&) override
     {
-        return m_literal.to_object();
+        return m_literal;
     }
 
 private:
-    Token m_literal;
+    Obj m_literal;
 };
 
 class VariableReference : public Expression {
@@ -381,7 +390,10 @@ public:
 
     void dump(int indent) override
     {
-        printf("var %s = ", m_variable.c_str());
+        indent_line(indent);
+        if (m_declaration)
+            printf("var ");
+        printf("%s = ", m_variable.c_str());
         m_expression->dump(indent);
         printf("\n");
     }
@@ -413,6 +425,7 @@ public:
 
     void dump(int indent) override
     {
+        indent_line(indent);
         printf("return ");
         m_expression->dump(indent);
         printf("\n");
@@ -436,6 +449,7 @@ public:
 
     void dump(int indent) override
     {
+        indent_line(indent);
         printf("break\n");
     }
 
@@ -454,6 +468,7 @@ public:
 
     void dump(int indent) override
     {
+        indent_line(indent);
         printf("continue\n");
     }
 
@@ -486,48 +501,110 @@ private:
     std::shared_ptr<FunctionCall> m_call_expression;
 };
 
-class IfStatement : public Statement {
+class Branch : public Statement {
 public:
-    IfStatement(std::shared_ptr<Expression> condition, std::shared_ptr<Statement> if_stmt, std::shared_ptr<Statement> else_stmt)
+    Branch(std::string keyword, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> statement)
         : Statement()
+        , m_keyword(move(keyword))
         , m_condition(move(condition))
-        , m_if(move(if_stmt))
-        , m_else(move(else_stmt))
+        , m_statement(move(statement))
     {
     }
 
-    ExecutionResult execute(Scope& scope) override
+    Branch(std::string keyword, std::shared_ptr<Statement> statement)
+        : Statement()
+        , m_keyword(move(keyword))
+        , m_statement(move(statement))
     {
-        Obj condition = m_condition->evaluate(scope);
-        if (condition->to_bool().value()) {
-            return m_if->execute(scope);
-        } else if (m_else != nullptr){
-            return m_else->execute(scope);
-        } else {
-            return {};
-        }
     }
+
+    [[nodiscard]] std::shared_ptr<Expression> const& condition() const { return m_condition; }
+    [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
 
     void dump(int indent) override
     {
         indent_line(indent);
-        printf("if ");
-        m_condition->dump(indent);
+        printf("%s ", m_keyword.c_str());
+        if (m_condition)
+            m_condition->dump(indent);
         printf("\n");
-        m_if->dump(indent + 2);
-        if (m_else) {
-            indent_line(indent);
-            printf("else\n");
-            m_else->dump(indent + 2);
+        m_statement->dump(indent + 2);
+    }
+
+    ExecutionResult execute(Scope& scope) override
+    {
+        if (!m_condition || m_condition->evaluate(scope)) {
+            return m_statement->execute(scope);
         }
+        return { ExecutionResultCode::Skipped };
     }
 
 private:
-    std::shared_ptr<Expression> m_condition;
-    std::shared_ptr<Statement> m_if;
-    std::shared_ptr<Statement> m_else;
+    std::string m_keyword;
+    std::shared_ptr<Expression> m_condition { nullptr };
+    std::shared_ptr<Statement> m_statement;
 };
 
+class ElseStatement : public Branch {
+public:
+    explicit ElseStatement(std::shared_ptr<Statement> const& stmt)
+        : Branch("else", stmt)
+    {
+    }
+};
+
+class ElifStatement : public Branch {
+public:
+    ElifStatement(std::shared_ptr<Expression> const& condition, std::shared_ptr<Statement> const& stmt)
+        : Branch("elif", stmt)
+    {
+    }
+};
+
+class IfStatement : public Branch {
+public:
+    IfStatement(std::shared_ptr<Expression> const& condition, std::shared_ptr<Statement> const& if_stmt)
+        : Branch("if", condition, if_stmt)
+    {
+    }
+
+    void append_elif(std::shared_ptr<Expression> const& condition, std::shared_ptr<Statement> const& stmt)
+    {
+        m_elseifs.push_back(std::make_shared<ElifStatement>(condition, stmt));
+    }
+
+    void append_else(std::shared_ptr<Statement> const& else_stmt)
+    {
+        m_else = std::make_shared<ElseStatement>(else_stmt);
+    }
+
+    ExecutionResult execute(Scope& scope) override
+    {
+        if (auto result = Branch::execute(scope); result.code != ExecutionResultCode::Skipped)
+            return result;
+        for (auto& elif : m_elseifs) {
+            if (auto result = elif->execute(scope); result.code != ExecutionResultCode::Skipped)
+                return result;
+        }
+        if (m_else)
+            return m_else->execute(scope);
+        return {};
+    }
+
+    void dump(int indent) override
+    {
+        Branch::dump(indent);
+        for (auto& elif : m_elseifs) {
+            elif->dump(indent);
+        }
+        if (m_else)
+            m_else->dump(indent);
+    }
+
+private:
+    std::vector<std::shared_ptr<ElifStatement>> m_elseifs {};
+    std::shared_ptr<Statement> m_else {};
+};
 
 class WhileStatement : public Statement {
 public:
@@ -561,6 +638,80 @@ public:
 private:
     std::shared_ptr<Expression> m_condition;
     std::shared_ptr<Statement> m_stmt;
+};
+
+class CaseStatement : public Branch {
+public:
+    explicit CaseStatement(std::shared_ptr<Expression> case_expression, std::shared_ptr<Statement> const& stmt)
+        : Branch("case", case_expression, stmt)
+    {
+    }
+};
+
+class DefaultCase : public Branch {
+public:
+    explicit DefaultCase(std::shared_ptr<Statement> const& stmt)
+        : Branch("default", stmt)
+    {
+    }
+};
+
+class SwitchStatement : public Statement {
+public:
+    explicit SwitchStatement(std::shared_ptr<Expression> switch_expression)
+        : Statement()
+        , m_switch_expression(move(switch_expression))
+    {
+    }
+
+    void append_case(std::shared_ptr<Expression> case_expression, std::shared_ptr<Statement> statement)
+    {
+        m_cases.push_back(std::make_shared<CaseStatement>(
+            std::make_shared<BinaryExpression>(m_switch_expression, Token(TokenCode::EqualsTo, "=="), move(case_expression)),
+            move(statement)));
+    }
+
+    void set_default(std::shared_ptr<Statement> statement)
+    {
+        if (m_default) {
+            fprintf(stderr, "Switch statement already has a default case\n");
+            exit(1);
+        }
+        m_default = move(std::make_shared<DefaultCase>(move(statement)));
+    }
+
+    ExecutionResult execute(Scope& scope) override
+    {
+        for (auto& case_stmt : m_cases) {
+            if (auto result = case_stmt->execute(scope); result.code != ExecutionResultCode::Skipped)
+                return result;
+        }
+        if (m_default)
+            return m_default->execute(scope);
+        return {};
+    }
+
+    void dump(int indent) override
+    {
+        indent_line(indent);
+        printf("switch (");
+        m_switch_expression->dump(indent);
+        printf(") {\n");
+        for (auto& case_stmt : m_cases) {
+            case_stmt->dump(indent);
+        }
+        if (m_default)
+            m_default->dump(indent);
+        indent_line(indent);
+        printf("}\n");
+    }
+
+    [[nodiscard]] std::shared_ptr<DefaultCase> const& default_case() const { return m_default; }
+
+private:
+    std::shared_ptr<Expression> m_switch_expression;
+    std::vector<std::shared_ptr<CaseStatement>> m_cases {};
+    std::shared_ptr<DefaultCase> m_default {};
 };
 
 }
