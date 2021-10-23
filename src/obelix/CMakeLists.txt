@@ -1,20 +1,21 @@
 add_executable(
-        obelix2
+        obelix
         main.cpp
         BoundFunction.cpp
-        NativeFunction.cpp
+        Functions.cpp
+        Parser.cpp
         Scope.h
         Syntax.h
 )
 
 target_link_libraries(
-        obelix2
+        obelix
         obllexer
         oblcore
         ${LIBS}
 )
 
-install(TARGETS obelix2
+install(TARGETS obelix
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)

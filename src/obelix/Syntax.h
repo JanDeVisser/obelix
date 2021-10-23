@@ -27,7 +27,7 @@ struct ExecutionResult {
 
 class SyntaxNode {
 public:
-    ~SyntaxNode() = default;
+    virtual ~SyntaxNode() = default;
     virtual void dump(int) = 0;
     static void indent_line(int num)
     {
@@ -677,7 +677,7 @@ public:
             fprintf(stderr, "Switch statement already has a default case\n");
             exit(1);
         }
-        m_default = move(std::make_shared<DefaultCase>(move(statement)));
+        m_default = std::make_shared<DefaultCase>(move(statement));
     }
 
     ExecutionResult execute(Scope& scope) override

@@ -30,7 +30,7 @@ class NativeFunction : public Object {
 public:
     NativeFunction(std::string name, void_t, std::vector<std::string> = {});
     explicit NativeFunction(std::string name, std::vector<std::string> = {});
-    bool resolve();
+    bool resolve_function();
     Obj call(Ptr<Arguments>) override;
     Obj call(std::string const&, Ptr<Arguments>);
     static std::optional<NativeFunction> parse(std::string const&);
@@ -41,10 +41,10 @@ public:
 private:
     std::string m_name;
     void_t m_fnc { nullptr };
-    int m_min_params { 0 };
-    int m_max_params { 0 };
-    std::string m_return_type { "integer" };
-    std::vector<std::string> m_parameters {};
+    [[maybe_unused]] int m_min_params { 0 };
+    [[maybe_unused]] int m_max_params { 0 };
+    [[maybe_unused]] std::string m_return_type { "integer" };
+    [[maybe_unused]] std::vector<std::string> m_parameters {};
 };
 
 }

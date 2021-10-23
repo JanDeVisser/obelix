@@ -17,8 +17,8 @@
  * along with obelix2.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <core/NativeFunction.h>
 #include <core/StringUtil.h>
-#include <obelix/NativeFunction.h>
 
 namespace Obelix {
 
@@ -37,7 +37,7 @@ NativeFunction::NativeFunction(std::string name, std::vector<std::string> params
     , m_name(move(name))
     , m_parameters(move(params))
 {
-    resolve();
+    resolve_function();
 }
 
 std::optional<NativeFunction> NativeFunction::parse(std::string const& str) {
@@ -64,7 +64,7 @@ int NativeFunction::compare(Obj const& other) const
     return m_name.compare(other_func->m_name);
 }
 
-bool NativeFunction::resolve()
+bool NativeFunction::resolve_function()
 {
     if (m_fnc)
         return true;
@@ -100,7 +100,7 @@ Obj NativeFunction::call(Ptr<Arguments> args) {
 
 Obj NativeFunction::call(std::string const& name, Ptr<Arguments> args) {
     if (!m_fnc) {
-        if (!resolve()) {
+        if (!resolve_function()) {
             return make_obj<Exception>(ErrorCode::FunctionUndefined, m_name, image_name());
         }
     }

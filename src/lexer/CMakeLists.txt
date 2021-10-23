@@ -1,12 +1,12 @@
 add_library(
         obllexer
         SHARED
+        FileBuffer.cpp
         IdentifierScanner.cpp
         KeywordScanner.cpp
         Lexer.h
         NumberScanner.cpp
         QStringScanner.cpp
-        ../core/StringBuffer.cpp
         Token.cpp
         Tokenizer.cpp
         WhitespaceScanner.cpp

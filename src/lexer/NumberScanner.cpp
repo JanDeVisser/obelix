@@ -163,7 +163,7 @@ void NumberScanner::match()
         code = process(ch);
     }
     if (m_state == NumberScannerState::Error) {
-        tokenizer().accept_token(Token(TokenCode::Error, "Malformed number"));
+        tokenizer().accept_token(TokenCode::Error, "Malformed number");
     } else if (code != TokenCode::Unknown) {
         tokenizer().accept(code);
     }

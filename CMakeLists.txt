@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(obelix2)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_FLAGS "-Wall")
 
 include_directories("${PROJECT_SOURCE_DIR}/src")
 add_subdirectory(src)
