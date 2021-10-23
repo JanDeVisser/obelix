@@ -37,8 +37,8 @@ std::optional<LogLevel> LogLevel_by_name(std::string_view const& name)
 }
 
 LoggingCategory::LoggingCategory(std::string name) noexcept
-    : m_name(move(name))
-    , m_enabled(false)
+    : m_enabled(false)
+    , m_name(move(name))
     , m_logger(&Logger::get_logger())
 {
     m_level = m_logger->level();
