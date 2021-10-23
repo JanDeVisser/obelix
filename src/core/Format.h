@@ -504,7 +504,7 @@ private:
     GroupingOption m_grouping_option { GroupingOption::None };
     size_t m_width { 0 };
     size_t m_precision { 0 };
-    bool m_locale_aware { false };
+    [[maybe_unused]] bool m_locale_aware { false };
     std::string m_specifier;
 };
 
