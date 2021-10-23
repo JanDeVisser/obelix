@@ -1,0 +1,2 @@
+var x = format("Hello {}", "Obelix")
+print(x)

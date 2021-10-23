@@ -26,6 +26,8 @@ while ix < 15 {
 
 func hello(name) {
   print("Hello {}", name);
+  return 42;
 }
 
-hello("jan")
+x = hello("jan")
+print(x);
