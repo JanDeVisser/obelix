@@ -96,6 +96,7 @@ private:
 
 class Object {
 public:
+    virtual ~Object() = default;
     [[nodiscard]] std::string const& type() const { return m_type; }
     virtual std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>);
     [[nodiscard]] virtual std::optional<Obj> resolve(std::string const& name) const;
@@ -366,15 +367,12 @@ public:
     [[nodiscard]] ObjClass& operator*() { return *(std::dynamic_pointer_cast<ObjClass>(m_ptr)); }
     [[nodiscard]] ObjClass* operator->() { return dynamic_cast<ObjClass*>(&*m_ptr); }
     [[nodiscard]] ObjClass const* operator->() const { return dynamic_cast<ObjClass const*>(&*m_ptr); }
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "google-explicit-constructor"
     [[nodiscard]] operator bool() const
     {
         auto b = m_ptr->to_bool();
         assert(b.has_value());
         return b.value();
     }
-#pragma clang diagnostic pop
     [[nodiscard]] bool operator!() const
     {
         return !((bool)(*this));
