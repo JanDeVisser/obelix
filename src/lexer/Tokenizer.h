@@ -4,17 +4,18 @@
 
 #pragma once
 
-#include <core/Arguments.h>
-#include <core/Object.h>
-#include <core/StringBuffer.h>
-#include <functional>
-#include <lexer/Token.h>
 #include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include <core/Arguments.h>
+#include <core/Object.h>
+#include <core/StringBuffer.h>
+#include <functional>
+#include <lexer/Token.h>
 
 namespace Obelix {
 
@@ -63,6 +64,7 @@ public:
         , m_priority(priority)
     {
     }
+    virtual ~Scanner() = default;
 
     [[nodiscard]] Tokenizer& tokenizer() const { return m_tokenizer; }
     [[nodiscard]] int priority() const { return m_priority; }
@@ -103,7 +105,8 @@ public:
     int get_char();
     void discard();
     Token accept(TokenCode);
-    Token accept_token(Token const&);
+    Token accept_token(TokenCode, std::string);
+    Token accept_token(Token&);
     void push();
     void push_as(int);
     void skip();
@@ -153,9 +156,9 @@ private:
     size_t m_scanned { 0 };
     size_t m_consumed { 0 };
     size_t m_total_count { 0 };
+    bool m_prev_was_cr { false };
     int m_current { 0 };
-    int m_line { 1 };
-    int m_column { 1 };
+    Span m_location { 1, 1, 1, 1 };
     bool m_eof { false };
     bool m_has_catch_all { false };
 };

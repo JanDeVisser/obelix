@@ -88,7 +88,7 @@ void CommentScanner::find_end_marker()
         }
     }
     if (!ch) {
-        tokenizer().accept_token(Token(TokenCode::Error, "Unterminated comment"));
+        tokenizer().accept_token(TokenCode::Error, "Unterminated comment");
     }
 }
 

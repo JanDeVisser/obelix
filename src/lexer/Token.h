@@ -11,58 +11,58 @@
 namespace Obelix {
 
 #define ENUMERATE_TOKEN_CODES(S)         \
-    S(Unknown, -1, nullptr)              \
-    S(EndOfFile, -1, nullptr)            \
-    S(Error, -1, nullptr)                \
-    S(Comment, ' ', nullptr)             \
-    S(Whitespace, ' ', nullptr)          \
-    S(NewLine, -1, nullptr)              \
-    S(Plus, '+', nullptr)                \
-    S(Minus, '-', nullptr)               \
-    S(Slash, '/', nullptr)               \
-    S(Backslash, '\\', nullptr)          \
-    S(Asterisk, '*', nullptr)            \
-    S(OpenParen, '(', nullptr)           \
-    S(CloseParen, ')', nullptr)          \
-    S(OpenBrace, '{', nullptr)           \
-    S(CloseBrace, '}', nullptr)          \
-    S(OpenBracket, '[', nullptr)         \
-    S(CloseBracket, ']', nullptr)        \
-    S(ExclamationPoint, '!', nullptr)    \
-    S(QuestionMark, '?', nullptr)        \
-    S(AtSign, '@', nullptr)              \
-    S(Pound, '#', nullptr)               \
-    S(Dollar, '$', nullptr)              \
-    S(Percent, '%', nullptr)             \
-    S(Ampersand, '&', nullptr)           \
-    S(Hat, '^', nullptr)                 \
-    S(UnderScore, '_', nullptr)          \
-    S(Equals, '=', nullptr)              \
-    S(Pipe, '|', nullptr)                \
-    S(Colon, ':', nullptr)               \
-    S(LessThan, '<', nullptr)            \
-    S(GreaterThan, '>', nullptr)         \
-    S(Comma, ',', nullptr)               \
-    S(Period, '.', nullptr)              \
-    S(SemiColon, ';', nullptr)           \
-    S(Tilde, '~', nullptr)               \
+    S(Unknown, nullptr, nullptr)         \
+    S(EndOfFile, nullptr, nullptr)       \
+    S(Error, nullptr, nullptr)           \
+    S(Comment, nullptr, nullptr)         \
+    S(Whitespace, " ", nullptr)          \
+    S(NewLine, nullptr, nullptr)         \
+    S(Plus, "+", nullptr)                \
+    S(Minus, "-", nullptr)               \
+    S(Slash, "/", nullptr)               \
+    S(Backslash, "\\", nullptr)          \
+    S(Asterisk, "*", nullptr)            \
+    S(OpenParen, "(", nullptr)           \
+    S(CloseParen, ")", nullptr)          \
+    S(OpenBrace, "{", nullptr)           \
+    S(CloseBrace, "}", nullptr)          \
+    S(OpenBracket, "[", nullptr)         \
+    S(CloseBracket, "]", nullptr)        \
+    S(ExclamationPoint, "!", nullptr)    \
+    S(QuestionMark, "?", nullptr)        \
+    S(AtSign, "@", nullptr)              \
+    S(Pound, "#", nullptr)               \
+    S(Dollar, "$", nullptr)              \
+    S(Percent, "%", nullptr)             \
+    S(Ampersand, "&", nullptr)           \
+    S(Hat, "^", nullptr)                 \
+    S(UnderScore, "_", nullptr)          \
+    S(Equals, "=", nullptr)              \
+    S(Pipe, "|", nullptr)                \
+    S(Colon, ":", nullptr)               \
+    S(LessThan, "<", nullptr)            \
+    S(GreaterThan, ">", nullptr)         \
+    S(Comma, ",", nullptr)               \
+    S(Period, ".", nullptr)              \
+    S(SemiColon, ";", nullptr)           \
+    S(Tilde, "~", nullptr)               \
                                          \
-    S(LessEqualThan, -1, "<=")           \
-    S(GreaterEqualThan, -1, ">=")        \
-    S(EqualsTo, -1, "==")                \
-    S(NotEqualTo, -1, "!=")              \
-    S(LogicalAnd, -1, "&&")              \
-    S(LogicalOr, -1, "||")               \
-    S(ShiftLeft, -1, "<<")               \
-    S(ShiftRight, -1, ">>")              \
+    S(LessEqualThan, nullptr, "<=")      \
+    S(GreaterEqualThan, nullptr, ">=")   \
+    S(EqualsTo, nullptr, "==")           \
+    S(NotEqualTo, nullptr, "!=")         \
+    S(LogicalAnd, nullptr, "&&")         \
+    S(LogicalOr, nullptr, "||")          \
+    S(ShiftLeft, nullptr, "<<")          \
+    S(ShiftRight, nullptr, ">>")         \
                                          \
-    S(Integer, -1, nullptr)              \
-    S(HexNumber, -1, nullptr)            \
-    S(Float, -1, nullptr)                \
-    S(Identifier, -1, nullptr)           \
-    S(DoubleQuotedString, '"', nullptr)  \
-    S(SingleQuotedString, '\'', nullptr) \
-    S(BackQuotedString, '`', nullptr)
+    S(Integer, nullptr, nullptr)         \
+    S(HexNumber, nullptr, nullptr)       \
+    S(Float, nullptr, nullptr)           \
+    S(Identifier, nullptr, nullptr)      \
+    S(DoubleQuotedString, "\"", nullptr) \
+    S(SingleQuotedString, "'", nullptr)  \
+    S(BackQuotedString, "`", nullptr)
 
 enum class TokenCode {
 #undef __ENUMERATE_TOKEN_CODE
@@ -74,16 +74,45 @@ enum class TokenCode {
 constexpr TokenCode TokenCode_by_char(int ch)
 {
 #undef __ENUMERATE_TOKEN_CODE
-#define __ENUMERATE_TOKEN_CODE(code, c, str) \
-    if (ch == c) {                           \
-        return TokenCode::code;              \
+#define __ENUMERATE_TOKEN_CODE(code, c, str)          \
+    {                                                 \
+        auto c_str = static_cast<char const*>(c);     \
+        if ((c_str != nullptr) && (ch == c_str[0])) { \
+            return TokenCode::code;                   \
+        }                                             \
     }
     ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
     return TokenCode::Unknown;
 }
 
+constexpr char const* TokenCode_to_string(TokenCode code)
+{
+    switch (code) {
+#undef __ENUMERATE_TOKEN_CODE
+#define __ENUMERATE_TOKEN_CODE(code, c, str) \
+    case TokenCode::code:                    \
+        return (c != nullptr) ? c : str;
+        ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
+#undef __ENUMERATE_TOKEN_CODE
+    default:
+        return "Custom";
+    }
+}
+
 std::string TokenCode_name(TokenCode);
+
+struct Span {
+    size_t start_line;
+    size_t start_column;
+    size_t end_line;
+    size_t end_column;
+
+    std::string to_string()
+    {
+        return format("{}:{} - {}:{}", start_line, start_column, end_line, end_column);
+    }
+};
 
 class Token {
 public:
@@ -110,13 +139,11 @@ public:
     [[nodiscard]] int compare(Token const& other) const;
     [[nodiscard]] bool is_whitespace() const;
 
-    size_t line { 0 };
-    size_t column { 0 };
+    Span location { 0, 0, 0, 0 };
 
 private:
     TokenCode m_code { TokenCode::Unknown };
     std::string m_value {};
     std::string m_token {};
 };
-
 }

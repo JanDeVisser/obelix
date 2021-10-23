@@ -64,7 +64,7 @@ void QStringScanner::match()
         }
     }
     if (!ch && ((m_state == QStrState::QString) || (m_state == QStrState::Escape))) {
-        tokenizer().accept_token(Token(TokenCode::Error, "Unterminated string"));
+        tokenizer().accept_token(TokenCode::Error, "Unterminated string");
     }
 }
 

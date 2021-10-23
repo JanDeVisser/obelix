@@ -106,7 +106,7 @@ void Tokenizer::match_token()
     reset();
     if (m_eof) {
         debug(lexer, "End-of-file. Accepting TokenCode::EndOfFile");
-        accept_token(Token(TokenCode::EndOfFile, "End of File Marker"));
+        accept_token(TokenCode::EndOfFile, "End of File Marker");
     }
 }
 
@@ -147,6 +147,8 @@ void Tokenizer::rewind()
     m_buffer.rewind();
     m_scanned = 0;
     m_consumed = 0;
+    m_location.end_line = m_location.start_line;
+    m_location.end_column = m_location.start_column;
 }
 
 void Tokenizer::partial_rewind(size_t num)
@@ -157,6 +159,9 @@ void Tokenizer::partial_rewind(size_t num)
     m_consumed -= num;
     m_token = m_token.substr(0, m_token.length() - num);
     m_buffer.partial_rewind(num);
+
+    // FIXME doesn't work if we're rewinding over a linebreak
+    m_location.end_column -= num;
 }
 
 /**
@@ -174,15 +179,25 @@ void Tokenizer::reset() {
     m_total_count += m_consumed;
     m_scanned = 0;
     m_consumed = 0;
+    m_prev_was_cr = false;
+    m_location.start_line = m_location.end_line;
+    m_location.start_column = m_location.end_column;
 }
 
 Token Tokenizer::accept(TokenCode code)
 {
-    return accept_token(Token(code, m_token));
+    return accept_token(code, m_token);
 }
 
-Token Tokenizer::accept_token(Token const& token)
+Token Tokenizer::accept_token(TokenCode code, std::string value)
 {
+    Token ret = Token(code, value);
+    return accept_token(ret);
+}
+
+Token Tokenizer::accept_token(Token& token)
+{
+    token.location = m_location;
     skip();
     debug(lexer, "Lexer::accept_token({})", token.to_string());
     m_state = TokenizerState::Success;
@@ -215,6 +230,7 @@ void Tokenizer::push() {
 }
 
 void Tokenizer::push_as(int ch) {
+    m_location.end_column++;
     m_consumed++;
     if (ch) {
         m_token += (char) ch;
@@ -226,7 +242,8 @@ void Tokenizer::discard() {
     push_as(0);
 }
 
-int Tokenizer::get_char() {
+int Tokenizer::get_char()
+{
     if (m_eof)
         return 0;
     m_current = m_buffer.readchar();
@@ -236,6 +253,11 @@ int Tokenizer::get_char() {
         m_current = 0;
         return 0;
     }
+    if ((m_current == '\n') || m_prev_was_cr) {
+        m_location.end_line++;
+        m_location.end_column = 1;
+    }
+    m_prev_was_cr = (m_current == '\r');
     m_scanned++;
     debug(lexer, "m_current '{c}' m_scanned {}", m_current, m_scanned);
     return m_current;

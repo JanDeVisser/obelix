@@ -31,8 +31,6 @@ void WhitespaceScanner::match()
     for (m_state = WhitespaceState::Init; m_state != WhitespaceState::Done; ) {
         auto ch = tokenizer().get_char();
         if (ch == '\n') {
-            // TODO update line number in tokenizer here
-
             if (!m_config.newlines_are_spaces) {
                 if (m_state == WhitespaceState::Whitespace) {
                     if (m_config.ignore_spaces) {
@@ -69,7 +67,6 @@ void WhitespaceScanner::match()
 
         case WhitespaceState::CR:
             if (ch == '\r') {
-                // TODO update line number in tokenizer here
                 if (m_config.newlines_are_spaces) {
                     tokenizer().push();
                     break;
