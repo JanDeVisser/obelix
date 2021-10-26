@@ -33,4 +33,6 @@
 
 cmake-build-debug/*
 install/*
+test/*
+share/*
 config.h
