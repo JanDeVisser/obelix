@@ -31,7 +31,7 @@ struct ParseError {
         , filename(fname)
         , token(tok)
     {
-        if (msg.find_first_of("{}") != std::string::npos)
+        if (msg.find("{}") != std::string::npos)
             message = format(msg, token.value());
     }
 
@@ -61,6 +61,7 @@ public:
     constexpr static TokenCode KeywordSwitch = ((TokenCode)211);
     constexpr static TokenCode KeywordCase = ((TokenCode)212);
     constexpr static TokenCode KeywordDefault = ((TokenCode)213);
+    constexpr static TokenCode KeywordLink = ((TokenCode)214);
 
     explicit Parser(std::string const& file_name);
     std::shared_ptr<Module> parse();

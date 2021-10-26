@@ -39,6 +39,7 @@ public:
     [[nodiscard]] std::string image_name() const;
 
 private:
+    static Resolver& s_resolver;
     std::string m_name;
     void_t m_fnc { nullptr };
     [[maybe_unused]] int m_min_params { 0 };

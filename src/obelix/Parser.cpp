@@ -51,6 +51,7 @@ Parser::Parser(std::string const& file_name)
         Token(KeywordSwitch, "switch"),
         Token(KeywordCase, "case"),
         Token(KeywordDefault, "default"),
+        Token(KeywordLink, "->"),
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
         TokenCode::EqualsTo,
@@ -221,12 +222,25 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
             return nullptr;
         }
     }
-    if (!expect(TokenCode::OpenBrace, "after function parameter list")) {
+    switch (current_code()) {
+    case TokenCode::OpenBrace: {
+        lex();
+        auto function_def = std::make_shared<FunctionDef>(name_maybe.value().value(), params);
+        parse_block(function_def);
+        return function_def;
+    }
+    case KeywordLink: {
+        lex();
+        if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
+            return std::make_shared<NativeFunctionDef>(name_maybe.value().value(), params, link_target_maybe.value().value());
+        } else {
+            return nullptr;
+        }
+    }
+    default:
+        add_error(lex(), "Expected '{' or '->' after function declaration");
         return nullptr;
     }
-    auto function_def = std::make_shared<FunctionDef>(name_maybe.value().value(), params);
-    parse_block(function_def);
-    return function_def;
 }
 
 std::shared_ptr<IfStatement> Parser::parse_if_statement()

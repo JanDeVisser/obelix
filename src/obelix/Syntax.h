@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <core/NativeFunction.h>
 #include <lexer/Token.h>
 #include <obelix/BoundFunction.h>
 #include <obelix/Scope.h>
@@ -44,7 +45,31 @@ public:
     }
 };
 
+class Import : public Statement {
+public:
+    explicit Import(std::string name)
+        : Statement()
+        , m_name(move(name))
+    {
+    }
+
+    void dump(int indent) override
+    {
+        indent_line(indent);
+        printf("import %s\n", m_name.c_str());
+    }
+
+    ExecutionResult execute(Scope&) override
+    {
+        return {};
+    }
+
+private:
+    std::string m_name;
+};
+
 class Pass : public Statement {
+public:
     void dump(int indent) override
     {
         indent_line(indent);
@@ -136,16 +161,8 @@ public:
 
     void dump(int indent) override
     {
-        indent_line(indent);
-        printf("func %s(", m_name.c_str());
-        bool first = true;
-        for (auto& arg : m_parameters) {
-            if (!first)
-                printf(", ");
-            first = false;
-            printf("%s", arg.c_str());
-        }
-        printf(")\n");
+        dump_arguments(indent);
+        printf("\n");
         Block::dump(indent);
     }
 
@@ -156,39 +173,48 @@ public:
         return { ExecutionResultCode::None, bound_function };
     }
 
-private:
-    std::string m_name;
-    std::vector<std::string> m_parameters;
-};
-
-class NativeFunctionDef : public SyntaxNode {
-public:
-    NativeFunctionDef(std::string name, std::vector<std::string> arguments, std::function<Obj(Ptr<Arguments>)> function)
-        : SyntaxNode()
-        , m_name(move(name))
-        , m_arguments(move(arguments))
-        , m_function(move(function))
-    {
-    }
-
-    void dump(int indent) override
+protected:
+    void dump_arguments(int indent)
     {
         indent_line(indent);
-        printf("native func %s(", m_name.c_str());
+        printf("func %s(", m_name.c_str());
         bool first = true;
-        for (auto& arg : m_arguments) {
+        for (auto& arg : m_parameters) {
             if (!first)
                 printf(", ");
             first = false;
             printf("%s", arg.c_str());
         }
-        printf(")\n");
+        printf(")");
+    }
+
+    std::string m_name;
+    std::vector<std::string> m_parameters;
+};
+
+class NativeFunctionDef : public FunctionDef {
+public:
+    NativeFunctionDef(std::string name, std::vector<std::string> parameters, std::string native_function_name)
+        : FunctionDef(move(name), move(parameters))
+        , m_native_function_name(move(native_function_name))
+    {
+    }
+
+    void dump(int indent) override
+    {
+        dump_arguments(indent);
+        printf(" -> \"%s\"\n", m_native_function_name.c_str());
+    }
+
+    ExecutionResult execute(Scope& scope) override
+    {
+        auto native_function = Obelix::make_obj<Obelix::NativeFunction>(m_native_function_name);
+        scope.declare(m_name, native_function);
+        return { ExecutionResultCode::None, native_function };
     }
 
 private:
-    std::string m_name;
-    std::vector<std::string> m_arguments;
-    std::function<Obj(Ptr<Arguments>)> m_function;
+    std::string m_native_function_name;
 };
 
 class ErrorNode : public SyntaxNode {

@@ -24,6 +24,8 @@ namespace Obelix {
 
 logging_category(function);
 
+Resolver& NativeFunction::s_resolver = Resolver::get_resolver();
+
 NativeFunction::NativeFunction(std::string name, void_t fnc, std::vector<std::string> params)
     : Object("native")
     , m_name(move(name))
@@ -72,25 +74,12 @@ bool NativeFunction::resolve_function()
     if (m_name.empty())
         return false;
 
-    debug(function, "Resolving %s", m_name.c_str());
-    auto name = split(m_name, ':');
-    switch (name.size()) {
-    case 2:
-        if (!Resolver::get_resolver().open(name.front())) {
-            error("Error loading library '%s'", name.front().c_str());
-            return false;
-        }
-        /* fall through */
-    case 1:
-        m_fnc = (void_t) Resolver::get_resolver().resolve(name.back());
-        if (!m_fnc) {
-            error("Error resolving function '{}'", m_name);
-            return false;
-        }
-        return true;
-    default:
-        error("Invalid function reference '{}'", m_name);
+    debug(function, "Resolving {}", m_name);
+    if (auto result = s_resolver.resolve(m_name); result.errorcode) {
         return false;
+    } else {
+        m_fnc = result.function;
+        return true;
     }
 }
 
