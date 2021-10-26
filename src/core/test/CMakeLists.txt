@@ -1,5 +1,12 @@
 enable_testing()
 
+add_library(
+        testlib
+        SHARED
+        testlib.cpp
+)
+
+
 add_executable(
         CoreTest
         Arguments.cpp
@@ -7,6 +14,7 @@ add_executable(
         Format.cpp
         Join.cpp
         ParsePairs.cpp
+        Resolve.cpp
         Split.cpp
         Strip.cpp
 
@@ -16,6 +24,7 @@ target_link_libraries(
         CoreTest
         gtest_main
         oblcore
+        testlib
 )
 
 include(GoogleTest)

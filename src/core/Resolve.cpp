@@ -1,30 +1,29 @@
 /*
-* /obelix/src/core/Resolve.cpp - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
-*
-* This file is part of obelix.
-*
-* obelix is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* obelix is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with obelix.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * /obelix/src/core/Resolve.cpp - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
+ *
+ * This file is part of obelix.
+ *
+ * obelix is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * obelix is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-#include <cstdio>
-#include <climits>
 #include <dlfcn.h>
 #include <mutex>
-#include <cstring>
 
+#include <config.h>
 #include <core/Logging.h>
 #include <core/Resolve.h>
+#include <core/StringUtil.h>
 
 namespace Obelix {
 
@@ -33,77 +32,83 @@ std::mutex g_resolve_mutex;
 
 /* ------------------------------------------------------------------------ */
 
-Resolver::ResolveResult::ResolveResult(void* res)
+ResolveResult::ResolveResult(void* res, std::optional<std::string> msg)
+    : result(res)
 {
     if (!res) {
+        if (msg.has_value()) {
+            message = msg.value();
+            errorcode = -1;
+            return;
+        }
         std::string err = dlerror();
         debug(resolve, "dlerror(): {}", err);
-        if (!err.empty() && err.find_first_of("undefined symbol")) {
-            error = err;
+
+        // 'undefined symbol' is returned with an empty result pointer
+#ifdef __APPLE__
+        if (err.find("symbol not found") == std::string::npos) {
+#else
+        if (err.find("undefined symbol") == std::string::npos) {
+#endif
+            message = err;
             errorcode = -1;
         } else {
-            error = "";
+            message = "";
+            errorcode = 0;
         }
     }
-    result = (errorcode) ? nullptr : res;
-    if (!error.empty()) {
-        debug(resolve, "resolve_result has error '{s}' ({d})", error, errorcode);
+    if (!message.empty()) {
+        debug(resolve, "resolve_result has error '{s}' ({d})", message, errorcode);
     } else {
         debug(resolve, "resolve_result OK, result is {s}NULL", (result) ? "NOT " : "");
     }
 }
 
-
-Resolver::ResolveHandle::ResolveHandle(std::string img)
+Resolver::Library::Library(std::string img)
     : m_image(move(img))
 {
     open();
 }
 
-Resolver::ResolveHandle::~ResolveHandle()
+Resolver::Library::~Library()
 {
-    dlclose(m_handle);
+    if (m_handle)
+        dlclose(m_handle);
 }
 
-std::string Resolver::ResolveHandle::to_string()
+std::string Resolver::Library::to_string()
 {
     return (!m_image.empty()) ? m_image : "Main Program Image";
 }
 
-std::string Resolver::ResolveHandle::platform_image()
+std::string Resolver::Library::platform_image(std::string const& image)
 {
-    if (m_image.empty()) {
+    if (image.empty()) {
         return "";
     }
-    if (m_platform_image.empty()) {
-        std::string canonical;
-        auto len = m_image.length();
-        for (auto ix = 0; ix < len; ix++) {
-            m_platform_image[ix] = m_image[ix];
-            if (m_image[ix] == '\\') {
-                m_platform_image += '/';
-            } else {
-                m_platform_image += m_image[ix];
-            }
-        }
-        auto dot = m_platform_image.find_last_of('.');
-        if (dot >= 0) {
-            m_platform_image = m_platform_image.substr(0, dot + 1);
-        } else {
-            m_platform_image += '.';
-        }
-#ifdef __APPLE__
-        m_platform_image += "dylib";
-#else
-        m_platform_image += "so";
-#endif
+    auto platform_image = image;
+    for (auto backslash = platform_image.find_first_of('\\');
+         backslash != std::string::npos;
+         backslash = platform_image.find_first_of('\\')) {
+        platform_image[backslash] = '/';
     }
-    return m_platform_image;
+    auto dot = platform_image.find_last_of('.');
+    if (dot != std::string::npos) {
+        platform_image = platform_image.substr(0, dot + 1);
+    } else {
+        platform_image += '.';
+    }
+#ifdef __APPLE__
+    platform_image += "dylib";
+#else
+    platform_image += "so";
+#endif
+    return platform_image;
 }
 
-void Resolver::ResolveHandle::try_open(std::string const& dir)
+ResolveResult Resolver::Library::try_open(std::string const& dir)
 {
-    auto image = platform_image();
+    auto image = platform_image(m_image);
     std::string path;
     if (!image.empty()) {
         if (!dir.empty()) {
@@ -117,132 +122,146 @@ void Resolver::ResolveHandle::try_open(std::string const& dir)
     }
     dlerror();
     auto libhandle = dlopen((!image.empty()) ? path.c_str() : nullptr, RTLD_NOW | RTLD_GLOBAL);
-    ResolveResult res((void*)libhandle);
-    m_handle = (lib_handle_t) res.result;
-    if (m_handle) {
+    if (libhandle) {
         debug(resolve, "Successfully opened '{s}'", (!image.empty()) ? path : "main program module");
     }
+    return ResolveResult((void*)libhandle);
 }
 
-bool Resolver::ResolveHandle::open()
+ResolveResult Resolver::Library::open()
 {
-    auto image = platform_image();
+    auto image = platform_image(m_image);
     if (!image.empty()) {
         debug(resolve, "resolve_open('{s}') ~ '{s}'", m_image, image);
     } else {
         debug(resolve, "resolve_open('Main Program Image')");
     }
+    ResolveResult ret;
     m_handle = nullptr;
     if (!image.empty()) {
-        std::string obldir = getenv("OBL_DIR");
+        std::string obldir = getenv("OBL_DIR") ? getenv("OBL_DIR") : "";
         if (obldir.empty()) {
-            obldir = "/Users/jan/projects/obelix2/cmake-build-debug"; //OBELIX_DIR;
+            obldir = OBELIX_DIR;
         }
-        try_open(obldir + "/lib");
-        if (!m_handle) {
-            try_open(obldir + "/bin");
+        ret = try_open(obldir + "/lib");
+        if (ret.errorcode) {
+            ret = try_open(obldir + "/bin");
         }
-        if (!m_handle) {
-            try_open(obldir);
+        if (ret.errorcode) {
+            ret = try_open(obldir);
         }
-        if (!m_handle) {
-            try_open(obldir + "/share/lib");
+        if (ret.errorcode) {
+            ret = try_open(obldir + "/share/lib");
         }
-        if (!m_handle) {
-            try_open("lib");
+        if (ret.errorcode) {
+            ret = try_open("lib");
         }
-        if (!m_handle) {
-            try_open("bin");
+        if (ret.errorcode) {
+            ret = try_open("bin");
         }
-        if (!m_handle) {
-            try_open("share/lib");
+        if (ret.errorcode) {
+            ret = try_open("share/lib");
+        }
+        if (ret.errorcode) {
+            ret = try_open("");
         }
     } else {
-        try_open("");
+        ret = try_open("");
     }
-    if (m_handle) {
+    if (!ret.errorcode) {
+        m_handle = ret.handle;
         if (!image.empty()) {
             auto result = get_function(OBL_INIT);
             if (result.result) {
                 debug(resolve, "resolve_open('{s}') Executing initializer", to_string());
-                ((void_t)result.result)();
+                (result.function)();
             } else if (!result.errorcode) {
                 debug(resolve, "resolve_open('{s}') No initializer", to_string());
             } else {
                 error("resolve_open('{s}') Error finding initializer: {s} ({d})",
-                    to_string(), result.error, result.errorcode);
-                return false;
+                    to_string(), result.message, result.errorcode);
+                m_my_result = result;
+                return result;
             }
         }
         debug(resolve, "Library '{s}' opened successfully", to_string());
-        return true;
+        return ResolveResult(m_handle);
     } else {
-        error("resolve_open('{s}') FAILED", to_string());
-        return false;
+        error("Resolver::Library::open('{s}') FAILED", to_string());
+        m_my_result = ret;
+        return ret;
     }
 }
 
-Resolver::ResolveResult Resolver::ResolveHandle::get_function(std::string const& function_name)
+ResolveResult Resolver::Library::get_function(std::string const& function_name)
 {
-   void_t function;
-
-    debug(resolve, "dlsym('{s}', '{s}')", to_string(), function_name);
+    if (m_my_result.errorcode)
+        return m_my_result;
     dlerror();
-    function = (void_t) dlsym(m_handle, function_name.c_str());
-    return Resolver::ResolveResult((void*) function);
+    if (m_functions.contains(function_name))
+        return m_functions[function_name];
+    debug(resolve, "dlsym('{s}', '{s}')", to_string(), function_name);
+    auto function = ResolveResult(dlsym(m_handle, function_name.c_str()));
+    m_functions[function_name] = function;
+    return function;
 }
 
 /* ------------------------------------------------------------------------ */
 
-bool Resolver::open(std::string const& image)
+ResolveResult Resolver::open(std::string const& image)
 {
-    const std::lock_guard<std::mutex> lock(g_resolve_mutex);
-    m_images.emplace_back(image);
-    return true;
+    auto platform_image = Library::platform_image(image);
+    if (!m_images.contains(platform_image)) {
+        auto lib = std::make_shared<Library>(image);
+        if (lib->is_valid()) {
+            m_images[platform_image] = lib;
+        } else {
+            return lib->result();
+        }
+    }
+    return m_images[platform_image]->result();
 }
 
-void_t Resolver::resolve(std::string const& func_name)
+ResolveResult Resolver::resolve(std::string const& func_name)
 {
     const std::lock_guard<std::mutex> lock(g_resolve_mutex);
     auto s = func_name;
-    auto paren = s.find_first_of('(');
-    if (paren > 0) {
-        s = s.substr(0, paren);
+    if (auto paren = s.find_first_of('('); paren != std::string::npos) {
+        s.erase(paren);
+        while (s[s.length() - 1] == ' ')
+            s.erase(s.length() - 1);
+    }
+    if (auto space = s.find_first_of(' '); space != std::string::npos) {
+        s.erase(0, space);
+        while (s[0] == ' ')
+            s.erase(0, 1);
     }
 
-    if (m_functions.contains(s)) {
-        auto ret = m_functions[s];
-        debug(resolve, "Function '{}' was cached", func_name);
-        return ret;
+    std::string image;
+    std::string function;
+    auto name = split(s, ':');
+    switch (name.size()) {
+    case 2:
+        image = name.front();
+        /* fall through */
+    case 1:
+        function = name.back();
+        break;
+    default:
+        return ResolveResult(nullptr, format("Invalid function reference '{}'", func_name));
     }
 
-    debug(resolve, "dlsym('{}')", func_name);
-    void_t ret;
-    for (auto& img : m_images) {
-        auto result = img.get_function(s);
-        if (result.errorcode) {
-            error("Error resolving function '{}' in library '{}': {} ({})",
-                func_name, img.to_string(), result.error, result.errorcode);
-            continue;
-        }
-        ret = (void_t) result.result;
-        if (ret) {
-            m_functions.insert_or_assign(s, ret);
-            return ret;
-        } else {
-            error("Error resolving function '{}' in library '{}': got nullptr)", func_name, img.to_string());
-        }
+    if (auto result = open(image); result.errorcode) {
+        return result;
+    } else {
+        auto lib = m_images[Library::platform_image(image)];
+        return lib->get_function(function);
     }
-    return nullptr;
 }
 
-Resolver::Resolver()
+Resolver& Resolver::get_resolver() noexcept
 {
-}
-
-Resolver& Resolver::get_resolver()
-{
-    static Resolver *resolver = nullptr;
+    static Resolver* resolver = nullptr;
     const std::lock_guard<std::mutex> lock(g_resolve_mutex);
     if (!resolver)
         resolver = new Resolver();

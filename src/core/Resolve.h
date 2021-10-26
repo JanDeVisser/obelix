@@ -19,11 +19,10 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#define HAVE_DLFCN_H
 
 namespace Obelix {
 
@@ -33,42 +32,53 @@ constexpr static char const* OBL_INIT = "_obl_init";
 typedef void (*void_t)();
 
 typedef void* lib_handle_t;
-typedef int resolve_error_t;
+
+struct ResolveResult {
+    ResolveResult() = default;
+    explicit ResolveResult(void* res, std::optional<std::string> message = {});
+
+    union {
+        void* result { nullptr };
+        lib_handle_t handle;
+        void_t function;
+    };
+
+    int errorcode { 0 };
+    std::string message {};
+};
 
 class Resolver {
 public:
-    static Resolver& get_resolver();
-    bool open(std::string const&);
-    void_t resolve(std::string const&);
+    ~Resolver() = default;
+    static Resolver& get_resolver() noexcept;
+    ResolveResult open(std::string const&);
+    ResolveResult resolve(std::string const&);
 
 private:
-    struct ResolveResult {
-        explicit ResolveResult(void* res);
-
-        void* result;
-        int errorcode { 0 };
-        std::string error {};
-    };
-
-    class ResolveHandle {
+    class Library {
     public:
-        explicit ResolveHandle(std::string img);
-        ~ResolveHandle();
+        explicit Library(std::string img);
+        ~Library();
         std::string to_string();
-        std::string platform_image();
-        bool open();
+        static std::string platform_image(std::string const&);
+        [[nodiscard]] bool is_valid() const { return m_my_result.errorcode == 0; }
+        [[nodiscard]] ResolveResult const& result() const { return m_my_result; }
         ResolveResult get_function(std::string const&);
+
     private:
-        void try_open(std::string const&);
+        ResolveResult open();
+        ResolveResult try_open(std::string const&);
 
         lib_handle_t m_handle { nullptr };
-        std::string m_image;
-        std::string m_platform_image;
+        std::string m_image {};
+        std::string m_platform_image {};
+        ResolveResult m_my_result;
+        std::unordered_map<std::string, ResolveResult> m_functions {};
+        friend Resolver;
     };
 
-    Resolver();
-    std::vector<ResolveHandle> m_images;
-    std::unordered_map<std::string, void_t> m_functions;
+    Resolver() = default;
+    std::unordered_map<std::string, std::shared_ptr<Library>> m_images;
 };
 
 }
