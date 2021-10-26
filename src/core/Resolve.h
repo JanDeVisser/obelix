@@ -71,7 +71,6 @@ private:
 
         lib_handle_t m_handle { nullptr };
         std::string m_image {};
-        std::string m_platform_image {};
         ResolveResult m_my_result;
         std::unordered_map<std::string, ResolveResult> m_functions {};
         friend Resolver;
