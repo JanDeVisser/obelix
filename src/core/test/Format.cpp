@@ -25,5 +25,5 @@ TEST(Format, format_char)
 TEST(Format, format_char_and_int)
 {
     std::string formatted = Obelix::format("String: '{}' int: {}-", "Hello World!", 42);
-    EXPECT_EQ(formatted, "String: 'Hello World!' int: {}-");
+    EXPECT_EQ(formatted, "String: 'Hello World!' int: 42-");
 }
