@@ -4,7 +4,20 @@ project(obelix2)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "-Wall")
 
-include_directories("${PROJECT_SOURCE_DIR}/src")
+set(obelix_NAME Obelix)
+set(obelix_VERSION_MAJOR 1)
+set(obelix_VERSION_MINOR 0)
+
+set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR})
+set(obelix_DIR ${CMAKE_INSTALL_PREFIX})
+set(obelix_DATADIR ${CMAKE_INSTALL_PREFIX}/share)
+
+configure_file(
+        "${PROJECT_SOURCE_DIR}/config.h.in"
+        "${PROJECT_SOURCE_DIR}/config.h"
+)
+
+include_directories("${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}")
 add_subdirectory(src)
 
 include(FetchContent)
