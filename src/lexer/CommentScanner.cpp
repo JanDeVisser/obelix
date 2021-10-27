@@ -58,24 +58,19 @@ void CommentScanner::find_end_marker()
              * Append current character to our token:
              */
             m_token += (char)ch;
-            if (m_token == m_match->end) {
+            if ((m_token.length() == m_match->end.length()) && (m_token.back() == m_match->end.back())) {
                 /*
                  * We matched the full end marker. Set the state of the scanner.
                  */
                 tokenizer().discard();
                 m_state = CommentState::None;
                 tokenizer().accept(TokenCode::Comment);
-            } else if (m_token != m_match->end.substr(0, m_token.length())) {
+            } else if (m_token.back() != m_match->end[m_token.length() - 1]) {
                 /*
                  * The match of the end marker was lost. Reset the state. It's possible
                  * though that this is the start of a new end marker match though.
                  */
-                tokenizer().partial_rewind(m_token.length());
-                for (auto& c : m_token) {
-                    tokenizer().push_as(c);
-                }
                 m_state = CommentState::Text;
-                ch = tokenizer().get_char();
             } else {
                 /*
                  * Still matching the end marker. Read next character:
