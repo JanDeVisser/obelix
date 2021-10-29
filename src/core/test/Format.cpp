@@ -18,7 +18,7 @@ TEST(Format, format_string) {
 
 TEST(Format, format_char)
 {
-    std::string formatted = Obelix::format("{}","Hello World!");
+    std::string formatted = Obelix::format("{}", "Hello World!");
     EXPECT_EQ(formatted, "Hello World!");
 }
 
@@ -26,4 +26,10 @@ TEST(Format, format_char_and_int)
 {
     std::string formatted = Obelix::format("String: '{}' int: {}-", "Hello World!", 42);
     EXPECT_EQ(formatted, "String: 'Hello World!' int: 42-");
+}
+
+TEST(Format, format_escape)
+{
+    std::string formatted = Obelix::format("String: '{}' Escaped brace: {{ and a close } int: {}-", "Hello World!", 42);
+    EXPECT_EQ(formatted, "String: 'Hello World!' Escaped brace: { and a close } int: 42-");
 }
