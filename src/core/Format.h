@@ -15,6 +15,7 @@ class FormatSpecifier {
 public:
     enum class FormatState {
         String,
+        FormatMaybe,
         Format,
         Escape
     };
@@ -314,23 +315,35 @@ public:
         FormatState state = FormatState::String;
         std::string format_specifier;
         size_t start;
+        std::string prefix;
 
         for (size_t ix = offset; ix < msg.length(); ix++) {
             auto ch = msg[ix];
             switch (state) {
             case FormatState::String:
                 if (ch == '{') {
-                    state = FormatState::Format;
+                    state = FormatState::FormatMaybe;
                     start = ix;
+                } else {
+                    prefix += ch;
                 }
                 break;
+            case FormatState::FormatMaybe:
+                if (ch == '{') {
+                    state = FormatState::String;
+                    prefix += ch;
+                    start = -1;
+                    break;
+                }
+                state = FormatState::Format;
+                /* Fall through */
             case FormatState::Format:
                 switch (ch) {
                 case '\\':
                     state = FormatState::Escape;
                     break;
                 case '}':
-                    return FormatSpecifier(msg.substr(start, ix - start + 1), start);
+                    return FormatSpecifier(msg.substr(start, ix - start + 1), start, prefix);
                 default:
                     break;
                 }
@@ -342,27 +355,11 @@ public:
         return {};
     }
 
-    static std::vector<FormatSpecifier> parse_format_message(std::string const& msg)
-    {
-        std::vector<FormatSpecifier> ret;
-        if (msg.empty())
-            return ret;
-
-        size_t offset = 0;
-        while (offset < msg.length()) {
-            auto specifier_maybe = first_specifier(msg, offset);
-            if (!specifier_maybe.has_value())
-                break;
-            ret.push_back(specifier_maybe.value());
-            offset += specifier_maybe.value().m_length;
-        }
-        return ret;
-    }
-
-    explicit FormatSpecifier(std::string const& specifier, size_t start)
+    explicit FormatSpecifier(std::string const& specifier, size_t start, std::string prefix)
         : m_start(start)
         , m_length(specifier.length())
         , m_specifier(specifier)
+        , m_prefix(move(prefix))
     {
         if (specifier.empty())
             return;
@@ -491,6 +488,8 @@ public:
         }
     }
 
+    [[nodiscard]] std::string const& prefix() const { return m_prefix; }
+
 private:
     FormatSpecifierType m_type { FormatSpecifierType::Default };
     size_t m_start { 0 };
@@ -506,6 +505,7 @@ private:
     size_t m_precision { 0 };
     [[maybe_unused]] bool m_locale_aware { false };
     std::string m_specifier;
+    std::string m_prefix;
 };
 
 static inline std::string format(std::string const& fmt)
@@ -523,7 +523,7 @@ std::string format_one(std::string const& fmt, T arg)
     }
     auto specifier = specifier_maybe.value();
     auto repl = specifier.format<T>(arg);
-    return fmt.substr(0, specifier.start()) + repl + fmt.substr(specifier.start() + specifier.length());
+    return specifier.prefix() + repl + fmt.substr(specifier.start() + specifier.length());
 }
 
 template<typename T, typename... Args>
