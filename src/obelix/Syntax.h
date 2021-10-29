@@ -7,27 +7,21 @@
 #include <core/NativeFunction.h>
 #include <lexer/Token.h>
 #include <obelix/BoundFunction.h>
+#include <obelix/Runtime.h>
 #include <obelix/Scope.h>
 #include <string>
 
 namespace Obelix {
 
-enum class ExecutionResultCode {
-    None,
-    Break,
-    Continue,
-    Return,
-    Skipped,
-    Error
-};
-
-struct ExecutionResult {
-    ExecutionResultCode code { ExecutionResultCode::None };
-    Obj return_value;
-};
+class Module;
 
 class SyntaxNode {
 public:
+    explicit SyntaxNode(SyntaxNode* parent)
+        : m_parent(parent)
+    {
+    }
+
     virtual ~SyntaxNode() = default;
     virtual void dump(int) = 0;
     static void indent_line(int num)
@@ -35,11 +29,23 @@ public:
         if (num > 0)
             printf("%*s", num, "");
     }
+
+    [[nodiscard]] SyntaxNode* parent() const { return m_parent; }
+    [[nodiscard]] virtual Runtime& runtime() const;
+    [[nodiscard]] virtual Module const* module() const;
+
+private:
+    SyntaxNode* m_parent;
 };
 
 class Statement : public SyntaxNode {
 public:
-    virtual ExecutionResult execute(Scope&)
+    explicit Statement(SyntaxNode* parent)
+        : SyntaxNode(parent)
+    {
+    }
+
+    virtual ExecutionResult execute(Ptr<Scope>)
     {
         fatal("Not implemented");
     }
@@ -47,8 +53,8 @@ public:
 
 class Import : public Statement {
 public:
-    explicit Import(std::string name)
-        : Statement()
+    explicit Import(SyntaxNode* parent, std::string name)
+        : Statement(parent)
         , m_name(move(name))
     {
     }
@@ -59,10 +65,7 @@ public:
         printf("import %s\n", m_name.c_str());
     }
 
-    ExecutionResult execute(Scope&) override
-    {
-        return {};
-    }
+    ExecutionResult execute(Ptr<Scope>) override;
 
 private:
     std::string m_name;
@@ -70,13 +73,18 @@ private:
 
 class Pass : public Statement {
 public:
+    explicit Pass(SyntaxNode* parent)
+        : Statement(parent)
+    {
+    }
+
     void dump(int indent) override
     {
         indent_line(indent);
         printf(";\n");
     }
 
-    ExecutionResult execute(Scope&) override
+    ExecutionResult execute(Ptr<Scope>) override
     {
         return {};
     }
@@ -84,12 +92,11 @@ public:
 
 class Block : public Statement {
 public:
-    Block()
-        : Statement()
+    explicit Block(SyntaxNode* parent)
+        : Statement(parent)
+        , m_scope(make_null<Scope>())
     {
     }
-
-    ~Block() = default;
 
     void append(std::shared_ptr<Statement> const& statement)
     {
@@ -107,7 +114,7 @@ public:
         printf("}\n");
     }
 
-    ExecutionResult execute_block(Scope& block_scope) const
+    [[nodiscard]] ExecutionResult execute_block(Ptr<Scope> const& block_scope) const
     {
         ExecutionResult result;
         for (auto& statement : m_statements) {
@@ -118,21 +125,25 @@ public:
         return result;
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
-        Scope block_scope(&scope);
-        return execute_block(block_scope);
+        m_scope = make_typed<Scope>(scope);
+        return execute_block(m_scope);
     }
+
+    [[nodiscard]] Ptr<Scope>& scope() { return m_scope; }
 
 private:
     std::vector<std::shared_ptr<Statement>> m_statements {};
+    Ptr<Scope> m_scope;
 };
 
 class Module : public Block {
 public:
-    explicit Module(std::string name)
-        : Block()
+    explicit Module(std::string name, Runtime& runtime)
+        : Block(nullptr)
         , m_name(move(name))
+        , m_runtime(runtime)
     {
     }
 
@@ -143,14 +154,18 @@ public:
         Block::dump(indent);
     }
 
+    [[nodiscard]] Module const* module() const override;
+    [[nodiscard]] Runtime& runtime() const override;
+
 private:
     std::string m_name;
+    Runtime& m_runtime;
 };
 
 class FunctionDef : public Block {
 public:
-    FunctionDef(std::string name, std::vector<std::string> parameters)
-        : Block()
+    FunctionDef(SyntaxNode* parent, std::string name, std::vector<std::string> parameters)
+        : Block(parent)
         , m_name(move(name))
         , m_parameters(move(parameters))
     {
@@ -166,12 +181,14 @@ public:
         Block::dump(indent);
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         auto bound_function = make_obj<BoundFunction>(scope, *this);
-        scope.declare(name(), bound_function);
+        scope->declare(name(), bound_function);
         return { ExecutionResultCode::None, bound_function };
     }
+
+    std::string const& name() { return m_name; }
 
 protected:
     void dump_arguments(int indent)
@@ -194,8 +211,8 @@ protected:
 
 class NativeFunctionDef : public FunctionDef {
 public:
-    NativeFunctionDef(std::string name, std::vector<std::string> parameters, std::string native_function_name)
-        : FunctionDef(move(name), move(parameters))
+    NativeFunctionDef(SyntaxNode* parent, std::string name, std::vector<std::string> parameters, std::string native_function_name)
+        : FunctionDef(parent, move(name), move(parameters))
         , m_native_function_name(move(native_function_name))
     {
     }
@@ -206,10 +223,10 @@ public:
         printf(" -> \"%s\"\n", m_native_function_name.c_str());
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         auto native_function = Obelix::make_obj<Obelix::NativeFunction>(m_native_function_name);
-        scope.declare(m_name, native_function);
+        scope->declare(m_name, native_function);
         return { ExecutionResultCode::None, native_function };
     }
 
@@ -217,42 +234,59 @@ private:
     std::string m_native_function_name;
 };
 
-class ErrorNode : public SyntaxNode {
+class Expression : public SyntaxNode {
 public:
-    explicit ErrorNode(ErrorCode code)
-        : SyntaxNode()
-        , m_code(code)
+    explicit Expression(SyntaxNode* parent)
+        : SyntaxNode(parent)
+    {
+    }
+
+    virtual Obj evaluate(Ptr<Scope>)
+    {
+        fatal("Not yet implemented");
+    }
+
+    virtual std::optional<Obj> assign(Ptr<Scope>, Obj const&)
+    {
+        return {};
+    }
+};
+
+class ExpressionStatement : public Statement {
+public:
+    explicit ExpressionStatement(std::shared_ptr<Expression> expression)
+        : Statement(expression->parent())
+        , m_expression(move(expression))
     {
     }
 
     void dump(int indent) override
     {
         indent_line(indent);
-        printf("ERROR %d\n", (int)m_code);
+        m_expression->dump(indent);
+        printf("\n");
+    }
+
+    ExecutionResult execute(Ptr<Scope> scope) override
+    {
+        m_expression->evaluate(scope);
+        return {};
     }
 
 private:
-    ErrorCode m_code { ErrorCode::NoError };
-};
-
-class Expression : public SyntaxNode {
-public:
-    virtual Obj evaluate(Scope const&)
-    {
-        fatal("Not yet implemented");
-    }
+    std::shared_ptr<Expression> m_expression;
 };
 
 class Literal : public Expression {
 public:
-    explicit Literal(Token const& token)
-        : Expression()
+    Literal(SyntaxNode* parent, Token const& token)
+        : Expression(parent)
         , m_literal(token.to_object())
     {
     }
 
-    explicit Literal(Obj value)
-        : Expression()
+    Literal(SyntaxNode* parent, Obj value)
+        : Expression(parent)
         , m_literal(std::move(value))
     {
     }
@@ -262,7 +296,7 @@ public:
         printf("%s", m_literal->to_string().c_str());
     }
 
-    Obj evaluate(Scope const&) override
+    Obj evaluate(Ptr<Scope>) override
     {
         return m_literal;
     }
@@ -271,10 +305,28 @@ private:
     Obj m_literal;
 };
 
+class This : public Expression {
+public:
+    explicit This(SyntaxNode* parent)
+        : Expression(parent)
+    {
+    }
+
+    void dump(int indent) override
+    {
+        printf("this");
+    }
+
+    Obj evaluate(Ptr<Scope> scope) override
+    {
+        return to_obj(scope);
+    }
+};
+
 class VariableReference : public Expression {
 public:
-    explicit VariableReference(std::string name)
-        : Expression()
+    VariableReference(SyntaxNode* parent, std::string name)
+        : Expression(parent)
         , m_name(std::move(name))
     {
     }
@@ -284,9 +336,9 @@ public:
         printf("%s", m_name.c_str());
     }
 
-    [[nodiscard]] Obj evaluate(Scope const& scope) override
+    [[nodiscard]] Obj evaluate(Ptr<Scope> scope) override
     {
-        auto value_maybe = scope.get(m_name);
+        auto value_maybe = scope->resolve(m_name);
         if (!value_maybe.has_value()) {
             fprintf(stderr, "Runtime Error: unknown variable '%s'", m_name.c_str());
             exit(1);
@@ -301,9 +353,17 @@ private:
 class BinaryExpression : public Expression {
 public:
     BinaryExpression(std::shared_ptr<Expression> lhs, Token op, std::shared_ptr<Expression> rhs)
-        : Expression()
+        : Expression(lhs->parent())
         , m_lhs(std::move(lhs))
-        , m_operator(std::move(op))
+        , m_operator(op.value())
+        , m_rhs(std::move(rhs))
+    {
+    }
+
+    BinaryExpression(std::shared_ptr<Expression> lhs, std::string op, std::shared_ptr<Expression> rhs)
+        : Expression(lhs->parent())
+        , m_lhs(std::move(lhs))
+        , m_operator(move(op))
         , m_rhs(std::move(rhs))
     {
     }
@@ -312,31 +372,45 @@ public:
     {
         printf("(");
         m_lhs->dump(indent);
-        printf(") %s (", m_operator.value().c_str());
+        printf(") %s (", m_operator.c_str());
         m_rhs->dump(indent);
         printf(")");
     }
 
-    Obj evaluate(Scope const& scope) override
+    std::optional<Obj> assign(Ptr<Scope> scope, Obj const& value) override
     {
         Obj lhs = m_lhs->evaluate(scope);
         Obj rhs = m_rhs->evaluate(scope);
-        auto ret_maybe = lhs.evaluate(m_operator.value(), make_typed<Arguments>(rhs));
+        return lhs->assign(rhs->to_string(), value);
+    }
+
+    Obj evaluate(Ptr<Scope> scope) override
+    {
+        Obj rhs = m_rhs->evaluate(scope);
+        if (m_operator == "=") {
+            if (auto ret_maybe = m_lhs->assign(scope, rhs); ret_maybe.has_value()) {
+                return ret_maybe.value();
+            } else {
+                return make_obj<Exception>(ErrorCode::SyntaxError, "Could not assign to non-lvalue");
+            }
+        }
+        Obj lhs = m_lhs->evaluate(scope);
+        auto ret_maybe = lhs.evaluate(m_operator, make_typed<Arguments>(rhs));
         if (!ret_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::RegexpSyntaxError, "Could not resolve operator");
+            return make_obj<Exception>(ErrorCode::FunctionUndefined, "Could not resolve operator");
         return ret_maybe.value();
     }
 
 private:
     std::shared_ptr<Expression> m_lhs;
-    Token m_operator;
+    std::string m_operator;
     std::shared_ptr<Expression> m_rhs;
 };
 
 class UnaryExpression : public Expression {
 public:
     UnaryExpression(Token op, std::shared_ptr<Expression> operand)
-        : Expression()
+        : Expression(operand->parent())
         , m_operator(std::move(op))
         , m_operand(std::move(operand))
     {
@@ -349,7 +423,7 @@ public:
         printf(")");
     }
 
-    Obj evaluate(Scope const& scope) override
+    Obj evaluate(Ptr<Scope> scope) override
     {
         Obj operand = m_operand->evaluate(scope);
         auto ret_maybe = operand.evaluate(m_operator.value(), make_typed<Arguments>());
@@ -365,9 +439,9 @@ private:
 
 class FunctionCall : public Expression {
 public:
-    FunctionCall(std::string name, std::vector<std::shared_ptr<Expression>> arguments)
-        : Expression()
-        , m_name(move(name))
+    FunctionCall(std::shared_ptr<Expression> function, std::vector<std::shared_ptr<Expression>> arguments)
+        : Expression(function->parent())
+        , m_function(move(function))
         , m_arguments(move(arguments))
     {
     }
@@ -375,7 +449,8 @@ public:
     void dump(int indent) override
     {
         indent_line(indent);
-        printf("%s(", m_name.c_str());
+        m_function->dump(indent);
+        printf("(");
         bool first = true;
         for (auto& arg : m_arguments) {
             if (!first)
@@ -386,12 +461,9 @@ public:
         printf(")");
     }
 
-    Obj evaluate(Scope const& scope) override
+    Obj evaluate(Ptr<Scope> scope) override
     {
-        auto callable_maybe = scope.get(m_name);
-        if (!callable_maybe.has_value())
-            return Obj::null();
-        auto callable = callable_maybe.value();
+        auto callable = m_function->evaluate(scope);
         auto args = make_typed<Arguments>();
         for (auto& arg : m_arguments) {
             args->add(arg->evaluate(scope));
@@ -400,14 +472,14 @@ public:
     }
 
 private:
-    std::string m_name;
+    std::shared_ptr<Expression> m_function;
     std::vector<std::shared_ptr<Expression>> m_arguments;
 };
 
 class Assignment : public Statement {
 public:
     Assignment(std::string variable, std::shared_ptr<Expression> expression, bool declaration = false)
-        : Statement()
+        : Statement(expression->parent())
         , m_variable(move(variable))
         , m_declaration(declaration)
         , m_expression(move(expression))
@@ -424,13 +496,13 @@ public:
         printf("\n");
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         auto value = m_expression->evaluate(scope);
         if (m_declaration) {
-            scope.declare(m_variable, value);
+            scope->declare(m_variable, value);
         } else {
-            scope.set(m_variable, value);
+            scope->set(m_variable, value);
         }
         return { ExecutionResultCode::None, value };
     }
@@ -443,8 +515,8 @@ private:
 
 class Return : public Statement {
 public:
-    explicit Return(std::shared_ptr<Expression> expression)
-        : Statement()
+    explicit Return(SyntaxNode* parent, std::shared_ptr<Expression> expression)
+        : Statement(parent)
         , m_expression(move(expression))
     {
     }
@@ -457,7 +529,7 @@ public:
         printf("\n");
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         return { ExecutionResultCode::Return, m_expression->evaluate(scope) };
     }
@@ -468,8 +540,8 @@ private:
 
 class Break : public Statement {
 public:
-    Break()
-        : Statement()
+    explicit Break(SyntaxNode* parent)
+        : Statement(parent)
     {
     }
 
@@ -479,7 +551,7 @@ public:
         printf("break\n");
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         return { ExecutionResultCode::Break, {} };
     }
@@ -487,8 +559,8 @@ public:
 
 class Continue : public Statement {
 public:
-    Continue()
-        : Statement()
+    explicit Continue(SyntaxNode* parent)
+        : Statement(parent)
     {
     }
 
@@ -498,7 +570,7 @@ public:
         printf("continue\n");
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         return { ExecutionResultCode::Continue, {} };
     }
@@ -506,8 +578,8 @@ public:
 
 class ProcedureCall : public Statement {
 public:
-    explicit ProcedureCall(std::shared_ptr<FunctionCall> call_expression)
-        : Statement()
+    ProcedureCall(SyntaxNode* parent, std::shared_ptr<FunctionCall> call_expression)
+        : Statement(parent)
         , m_call_expression(move(call_expression))
     {
     }
@@ -518,7 +590,7 @@ public:
         printf("\n");
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         return { ExecutionResultCode::None, m_call_expression->evaluate(scope) };
     }
@@ -530,7 +602,7 @@ private:
 class Branch : public Statement {
 public:
     Branch(std::string keyword, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> statement)
-        : Statement()
+        : Statement(statement->parent())
         , m_keyword(move(keyword))
         , m_condition(move(condition))
         , m_statement(move(statement))
@@ -538,7 +610,7 @@ public:
     }
 
     Branch(std::string keyword, std::shared_ptr<Statement> statement)
-        : Statement()
+        : Statement(statement->parent())
         , m_keyword(move(keyword))
         , m_statement(move(statement))
     {
@@ -557,7 +629,7 @@ public:
         m_statement->dump(indent + 2);
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         if (!m_condition || m_condition->evaluate(scope)) {
             return m_statement->execute(scope);
@@ -604,7 +676,7 @@ public:
         m_else = std::make_shared<ElseStatement>(else_stmt);
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         if (auto result = Branch::execute(scope); result.code != ExecutionResultCode::Skipped)
             return result;
@@ -634,14 +706,14 @@ private:
 
 class WhileStatement : public Statement {
 public:
-    WhileStatement(std::shared_ptr<Expression> condition, std::shared_ptr<Statement> stmt)
-        : Statement()
+    WhileStatement(SyntaxNode* parent, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> stmt)
+        : Statement(parent)
         , m_condition(move(condition))
         , m_stmt(move(stmt))
     {
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         ExecutionResult result;
         for (Obj condition = m_condition->evaluate(scope); condition->to_bool().value(); condition = m_condition->evaluate(scope)) {
@@ -684,8 +756,8 @@ public:
 
 class SwitchStatement : public Statement {
 public:
-    explicit SwitchStatement(std::shared_ptr<Expression> switch_expression)
-        : Statement()
+    explicit SwitchStatement(SyntaxNode* parent, std::shared_ptr<Expression> switch_expression)
+        : Statement(parent)
         , m_switch_expression(move(switch_expression))
     {
     }
@@ -706,7 +778,7 @@ public:
         m_default = std::make_shared<DefaultCase>(move(statement));
     }
 
-    ExecutionResult execute(Scope& scope) override
+    ExecutionResult execute(Ptr<Scope> scope) override
     {
         for (auto& case_stmt : m_cases) {
             if (auto result = case_stmt->execute(scope); result.code != ExecutionResultCode::Skipped)

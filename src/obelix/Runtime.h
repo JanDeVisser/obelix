@@ -1,5 +1,5 @@
 /*
- * FileBuffer.h - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
+ * Runtime.h - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix2.
  *
@@ -19,21 +19,25 @@
 
 #pragma once
 
-#include <core/StringBuffer.h>
-#include <sys/stat.h>
+#include <unordered_map>
 
 namespace Obelix {
 
-class FileBuffer {
+struct ExecutionResult;
+class Module;
+class Scope;
+
+class Runtime {
 public:
-    explicit FileBuffer(std::string file_name);
-    StringBuffer& buffer();
+    Runtime();
+    std::shared_ptr<Module> import_module(std::string const&);
+    ExecutionResult run(std::string const&);
 
 private:
-    std::pair<int, struct stat> try_open(std::string const&);
+    std::shared_ptr<Module> _import_file(std::string const&, Ptr<Scope>);
 
-    std::string m_file_name;
-    std::unique_ptr<StringBuffer> m_buffer;
+    std::shared_ptr<Module> m_root;
+    std::unordered_map<std::string, std::shared_ptr<Module>> m_modules;
 };
 
 }

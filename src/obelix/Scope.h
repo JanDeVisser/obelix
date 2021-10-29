@@ -11,43 +11,38 @@
 #include <string>
 
 namespace Obelix {
-class Scope {
+
+enum class ExecutionResultCode {
+    None,
+    Break,
+    Continue,
+    Return,
+    Skipped,
+    Error
+};
+
+struct ExecutionResult {
+    ExecutionResultCode code { ExecutionResultCode::None };
+    Obj return_value;
+};
+
+class Scope : public Object {
 public:
-    explicit Scope(Scope* parent = nullptr)
-        : m_parent(parent)
-    {
-    }
+    explicit Scope(Ptr<Scope> parent);
 
-    void declare(std::string const& name, Obj value)
-    {
-        if (m_variables.contains(name))
-            fatal("Variable {} already declared in scope", name);
-        m_variables.put(name, std::move(value));
-    }
+    void declare(std::string const& name, Obj value);
+    void set(std::string const& name, Obj value);
+    [[nodiscard]] std::optional<Obj> resolve(std::string const&) const override;
+    [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
+    [[nodiscard]] Ptr<Scope> clone();
 
-    void set(std::string const& name, Obj value)
-    {
-        if (m_variables.contains(name)) {
-            m_variables.put(name, std::move(value));
-            return;
-        }
-        if (!m_parent)
-            fatal("Undeclared variable {}", name);
-        m_parent->set(name, std::move(value));
-    }
-
-    [[nodiscard]] std::optional<Obj> get(std::string const& name) const
-    {
-        if (m_variables.contains(name))
-            return m_variables.get(name);
-        if (m_parent)
-            return m_parent->get(name);
-        return {};
-    }
+    [[nodiscard]] std::string to_string() const override { return "scope"; }
+    [[nodiscard]] ExecutionResult const& result() const { return m_result; }
 
 private:
-    Scope* m_parent;
+    Ptr<Scope> m_parent;
     Dictionary m_variables {};
+    ExecutionResult m_result {};
 };
 
 }

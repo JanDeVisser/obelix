@@ -2,14 +2,37 @@
 // Created by Jan de Visser on 2021-09-18.
 //
 
+#include <core/Logging.h>
 #include <obelix/Syntax.h>
 
-std::shared_ptr<SyntaxNode> Block::evaluate(std::shared_ptr<Object> scope, bool must_resolve) const
+namespace Obelix {
+
+Runtime& SyntaxNode::runtime() const
 {
-    std::shared_ptr<SyntaxNode> ret = std::make_shared<Literal>(Object::null());
-    for (auto& child : m_children) {
-        ret = child->evaluate(scope, must_resolve);
-    }
-    return ret;
+    return module()->runtime();
 }
 
+Module const* SyntaxNode::module() const
+{
+    assert(parent());
+    return parent()->module();
+}
+
+Module const* Module::module() const
+{
+    return this;
+}
+
+Runtime& Module::runtime() const
+{
+    return m_runtime;
+}
+
+ExecutionResult Import::execute(Ptr<Scope> scope)
+{
+    auto module = runtime().import_module(m_name);
+    scope->declare(m_name, to_obj(module->scope()));
+    return {};
+}
+
+}

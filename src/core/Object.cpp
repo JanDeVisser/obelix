@@ -3,6 +3,7 @@
 //
 
 #include <core/Arguments.h>
+#include <core/Logging.h>
 #include <core/Object.h>
 
 namespace Obelix {
@@ -27,7 +28,13 @@ Object::Object(std::string type)
 
 std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args)
 {
-    if (name == "<") {
+    if (name == ".") {
+        assert(args->size() == 1);
+        return resolve(args->at(0).to_string());
+    } else if (name == "=") {
+        assert(args->size() == 2);
+        return assign(args->at(0).to_string(), args->at(1));
+    } else if (name == "<") {
         return make_obj<Boolean>(compare(args->get(0)) < 0);
     } else if (name == ">") {
         return make_obj<Boolean>(compare(args->get(0)) > 0);
@@ -49,6 +56,11 @@ std::optional<Ptr<Object>> Object::resolve(std::string const& name) const
         auto ret = make_obj<String>(type());
         return ret;
     }
+    return {};
+}
+
+std::optional<Ptr<Object>> Object::assign(std::string const&, Obj const&)
+{
     return {};
 }
 

@@ -21,6 +21,7 @@
 
 #include <lexer/FileBuffer.h>
 #include <lexer/Lexer.h>
+#include <obelix/Runtime.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
@@ -62,27 +63,34 @@ public:
     constexpr static TokenCode KeywordCase = ((TokenCode)212);
     constexpr static TokenCode KeywordDefault = ((TokenCode)213);
     constexpr static TokenCode KeywordLink = ((TokenCode)214);
+    constexpr static TokenCode KeywordImport = ((TokenCode)215);
 
     explicit Parser(std::string const& file_name);
-    std::shared_ptr<Module> parse();
+    std::shared_ptr<Module> parse(Runtime&);
     [[nodiscard]] std::vector<ParseError> const& errors() const { return m_errors; };
     [[nodiscard]] bool has_errors() const { return !m_errors.empty(); }
 
 private:
-    std::shared_ptr<Statement> parse_statement();
+    std::shared_ptr<Statement> parse_statement(SyntaxNode*);
     void parse_statements(std::shared_ptr<Block> const& block);
     std::shared_ptr<Block> parse_block(std::shared_ptr<Block> block);
-    std::shared_ptr<FunctionCall> parse_function_call(std::string const& func_name);
-    std::shared_ptr<Assignment> parse_assignment(std::string const& identifier);
-    std::shared_ptr<FunctionDef> parse_function_definition();
-    std::shared_ptr<IfStatement> parse_if_statement();
-    std::shared_ptr<SwitchStatement> parse_switch_statement();
-    std::shared_ptr<WhileStatement> parse_while_statement();
-    std::shared_ptr<Assignment> parse_variable_declaration();
-    std::shared_ptr<Expression> parse_expression();
+    std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression>);
+    std::shared_ptr<Assignment> parse_assignment(SyntaxNode*, std::string const& identifier);
+    std::shared_ptr<FunctionDef> parse_function_definition(SyntaxNode*);
+    std::shared_ptr<IfStatement> parse_if_statement(SyntaxNode*);
+    std::shared_ptr<SwitchStatement> parse_switch_statement(SyntaxNode*);
+    std::shared_ptr<WhileStatement> parse_while_statement(SyntaxNode*);
+    std::shared_ptr<Assignment> parse_variable_declaration(SyntaxNode*);
+    std::shared_ptr<Import> parse_import_statement(SyntaxNode*);
+    std::shared_ptr<Expression> parse_expression(SyntaxNode*);
     static int binary_precedence(Token const& token);
+    static int unary_precedence(Token const& token);
+    static int is_postfix_unary_operator(Token const& token);
+    static int is_prefix_unary_operator(Token const& token);
+
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
-    std::shared_ptr<Expression> parse_primary_expression();
+    std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> expression);
+    std::shared_ptr<Expression> parse_primary_expression(SyntaxNode*, bool);
 
     Token const& peek();
     TokenCode current_code();

@@ -100,6 +100,7 @@ public:
     [[nodiscard]] std::string const& type() const { return m_type; }
     virtual std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>);
     [[nodiscard]] virtual std::optional<Obj> resolve(std::string const& name) const;
+    [[nodiscard]] virtual std::optional<Obj> assign(std::string const&, Obj const&);
     [[nodiscard]] virtual std::optional<long> to_long() const;
     [[nodiscard]] virtual std::optional<double> to_double() const;
     [[nodiscard]] virtual std::optional<bool> to_bool() const;
@@ -369,6 +370,8 @@ public:
     [[nodiscard]] ObjClass const* operator->() const { return dynamic_cast<ObjClass const*>(&*m_ptr); }
     [[nodiscard]] operator bool() const
     {
+        if (!m_ptr)
+            return false;
         auto b = m_ptr->to_bool();
         assert(b.has_value());
         return b.value();
@@ -395,6 +398,8 @@ public:
 private:
     std::shared_ptr<Object> m_ptr { std::make_shared<Null>() };
 
+    template<class ObjCls>
+    friend Ptr<ObjCls> make_null() noexcept;
     template<class ObjCls, class... Args>
     friend Ptr<ObjCls> make_typed(Args&&... args);
     template<class ObjCls, class... Args>
@@ -431,6 +436,14 @@ template<class ObjCls>
 Ptr<ObjCls> make_from_shared(std::shared_ptr<ObjCls> ptr)
 {
     return Ptr<ObjCls>(ptr);
+}
+
+template<class ObjCls>
+Ptr<ObjCls> make_null() noexcept
+{
+    std::shared_ptr<ObjCls> ptr = nullptr;
+    Ptr<ObjCls> ret(ptr);
+    return ret;
 }
 
 template<class ObjCls, class... Args>

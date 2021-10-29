@@ -28,18 +28,12 @@ class FunctionDef;
 
 class BoundFunction : public Object {
 public:
-    BoundFunction(Scope& scope, FunctionDef const& definition)
-        : Object("boundfunction")
-        , m_scope(scope)
-        , m_definition(definition)
-    {
-    }
-
+    BoundFunction(Ptr<Scope>, FunctionDef const&);
     Obj call(Ptr<Arguments> args) override;
     Obj call(std::string const& name, Ptr<Arguments> args);
 
 private:
-    Scope& m_scope;
+    Ptr<Scope> m_scope;
     FunctionDef const& m_definition;
 };
 

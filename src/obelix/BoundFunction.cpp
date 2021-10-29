@@ -22,15 +22,24 @@
 
 namespace Obelix {
 
-Obj BoundFunction::call(Ptr<Arguments> args) {
+BoundFunction::BoundFunction(Ptr<Scope> scope, FunctionDef const& definition)
+    : Object("boundfunction")
+    , m_scope(make_typed<Scope>(scope))
+    , m_definition(definition)
+{
+}
+
+Obj BoundFunction::call(Ptr<Arguments> args)
+{
     return call(m_definition.name(), std::move(args));
 }
 
-Obj BoundFunction::call(std::string const& name, Ptr<Arguments> args) {
+Obj BoundFunction::call(std::string const& name, Ptr<Arguments> args)
+{
     assert(args->size() == m_definition.parameters().size());
-    Scope function_scope(&m_scope);
+    Ptr<Scope> function_scope = m_scope->clone();
     for (auto ix = 0; ix < args->size(); ix++) {
-        function_scope.declare(m_definition.parameters()[ix], args->at(ix));
+        function_scope->declare(m_definition.parameters()[ix], args->at(ix));
     }
     auto result = m_definition.execute_block(function_scope);
     Obj return_value;

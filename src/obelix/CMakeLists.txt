@@ -4,8 +4,9 @@ add_executable(
         BoundFunction.cpp
         Functions.cpp
         Parser.cpp
-        Scope.h
-        Syntax.h
+        Runtime.cpp
+        Scope.cpp
+        Syntax.cpp
 )
 
 target_link_libraries(

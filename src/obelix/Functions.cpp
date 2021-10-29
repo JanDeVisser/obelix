@@ -18,7 +18,9 @@
  */
 
 #include <core/Arguments.h>
+#include <core/Logging.h>
 #include <core/Object.h>
+#include <unistd.h>
 
 namespace Obelix {
 
@@ -36,17 +38,33 @@ std::string format_arguments(Ptr<Arguments> args)
     return format(fmt, format_args);
 }
 
-extern "C" void oblfunc_print(const char* name, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
+extern "C" void oblfunc_print(char const*, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
 {
     Ptr<Arguments> arguments = *args;
     printf("%s\n", format_arguments(arguments).c_str());
     *ret = Object::null();
 }
 
-extern "C" void oblfunc_format(const char* name, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
+extern "C" void oblfunc_format(char const*, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
 {
     Ptr<Arguments> arguments = *args;
     *ret = make_obj<String>(format_arguments(arguments).c_str());
+}
+
+[[maybe_unused]] extern "C" void oblfunc_sleep(char const*, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
+{
+    assert(*args && !args->empty());
+    auto naptime = args->at(0).to_long();
+    assert(naptime.has_value());
+    *ret = make_obj<Integer>(sleep((unsigned int)naptime.value()));
+}
+
+[[maybe_unused]] extern "C" void oblfunc_usleep(char const*, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
+{
+    assert(*args && !args->empty());
+    auto naptime = args->at(0).to_long();
+    assert(naptime.has_value());
+    *ret = make_obj<Integer>(sleep((useconds_t)naptime.value()));
 }
 
 }
