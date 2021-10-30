@@ -25,6 +25,7 @@ target_link_libraries(
         gtest_main
         oblcore
         testlib
+        dl
 )
 
 include(GoogleTest)

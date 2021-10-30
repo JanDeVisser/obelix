@@ -13,6 +13,7 @@ target_link_libraries(
         obelix
         obllexer
         oblcore
+        dl
         ${LIBS}
 )
 
