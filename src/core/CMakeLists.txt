@@ -14,6 +14,11 @@ add_library(
         Resolve.cpp
 )
 
+target_link_libraries(
+        oblcore
+        dl
+)
+
 install(TARGETS oblcore
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
