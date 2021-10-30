@@ -14,6 +14,7 @@ target_link_libraries(
         gtest_main
         oblcore
         obllexer
+        dl
 )
 
 include(GoogleTest)
