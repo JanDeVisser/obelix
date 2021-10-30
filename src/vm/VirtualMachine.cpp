@@ -283,7 +283,7 @@ bool VirtualMachine::is_valid_pointer(VMValue const& value) const
 {
     if ((value.type == ValueType::Pointer) && (value.pointer_value < MEM_SIZE))
         return true;
-    if ((value.type == ValueType::Int) && (value.int_value >= 0) && (value.int_value < MEM_SIZE))
+    if ((value.type == ValueType::Int) && (value.int_value >= 0) && ((size_t)value.int_value < MEM_SIZE))
         return true;
     return false;
 }
@@ -295,7 +295,7 @@ bool VirtualMachine::is_valid_register(uint32_t value) const
 
 bool VirtualMachine::is_valid_register(VMValue const& value) const
 {
-    if ((value.type != ValueType::Int) || (value.int_value < 0) || (value.int_value >= NUM_REGS))
+    if ((value.type != ValueType::Int) || (value.int_value < 0) || ((size_t)value.int_value >= NUM_REGS))
         return false;
     return true;
 }
@@ -399,14 +399,14 @@ VMValue VirtualMachine::run()
 
 void VirtualMachine::dump()
 {
-    for (int ix = 0; ix < NUM_REGS / 2; ix++) {
+    for (auto ix = 0u; ix < NUM_REGS / 2; ix++) {
         VMValue value = m_registers[ix];
         fprintf(stderr, "Reg%02d %s %lu ", ix, ValueType_name(value.type), value.int_value);
     }
     fprintf(stderr, "\n");
-    for (int ix = NUM_REGS / 2; ix < NUM_REGS; ix++) {
+    for (auto ix = NUM_REGS / 2; ix < NUM_REGS; ix++) {
         auto value = m_registers[ix];
-        fprintf(stderr, "Reg%02d %s %lu ", ix, ValueType_name(value.type), value.int_value);
+        fprintf(stderr, "Reg%02ld %s %lu ", ix, ValueType_name(value.type), value.int_value);
     }
     fprintf(stderr, "\n\nStack:\n");
     for (size_t ix = m_stack.size() - 1; (int)ix >= 0; ix--) {

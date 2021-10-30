@@ -5,8 +5,8 @@
     <excludeRoots>
       <file path="$PROJECT_DIR$/cmake-build-debug" />
       <file path="$PROJECT_DIR$/install" />
-      <file path="$PROJECT_DIR$/share" />
-      <file path="$PROJECT_DIR$/test" />
+      <file path="$PROJECT_DIR$/share_x" />
+      <file path="$PROJECT_DIR$/test_x" />
     </excludeRoots>
   </component>
 </project>

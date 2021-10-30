@@ -32,6 +32,8 @@
 *.app
 
 cmake-build-debug/*
+cmake-build-debug-gcc-11/*
+
 install/*
 test_x/*
 share_x/*

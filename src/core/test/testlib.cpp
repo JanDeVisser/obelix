@@ -19,7 +19,8 @@
 
 #include <cstring>
 
-extern "C" int testlib_variable = 12;
+extern "C" int testlib_variable;
+int testlib_variable = 12;
 
 extern "C" size_t testlib_function(const char* message)
 {

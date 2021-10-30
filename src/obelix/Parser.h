@@ -48,22 +48,22 @@ struct ParseError {
 
 class Parser {
 public:
-    constexpr static TokenCode KeywordVar = ((TokenCode)200);
-    constexpr static TokenCode KeywordFunc = ((TokenCode)201);
-    constexpr static TokenCode KeywordIf = ((TokenCode)202);
-    constexpr static TokenCode KeywordElse = ((TokenCode)203);
-    constexpr static TokenCode KeywordWhile = ((TokenCode)204);
-    constexpr static TokenCode KeywordTrue = ((TokenCode)205);
-    constexpr static TokenCode KeywordFalse = ((TokenCode)206);
-    constexpr static TokenCode KeywordReturn = ((TokenCode)207);
-    constexpr static TokenCode KeywordBreak = ((TokenCode)208);
-    constexpr static TokenCode KeywordContinue = ((TokenCode)209);
-    constexpr static TokenCode KeywordElif = ((TokenCode)210);
-    constexpr static TokenCode KeywordSwitch = ((TokenCode)211);
-    constexpr static TokenCode KeywordCase = ((TokenCode)212);
-    constexpr static TokenCode KeywordDefault = ((TokenCode)213);
-    constexpr static TokenCode KeywordLink = ((TokenCode)214);
-    constexpr static TokenCode KeywordImport = ((TokenCode)215);
+    constexpr static TokenCode KeywordVar = TokenCode::Keyword0;
+    constexpr static TokenCode KeywordFunc = TokenCode::Keyword1;
+    constexpr static TokenCode KeywordIf = TokenCode::Keyword2;
+    constexpr static TokenCode KeywordElse = TokenCode::Keyword3;
+    constexpr static TokenCode KeywordWhile = TokenCode::Keyword4;
+    constexpr static TokenCode KeywordTrue = TokenCode::Keyword5;
+    constexpr static TokenCode KeywordFalse = TokenCode::Keyword6;
+    constexpr static TokenCode KeywordReturn = TokenCode::Keyword7;
+    constexpr static TokenCode KeywordBreak = TokenCode::Keyword8;
+    constexpr static TokenCode KeywordContinue = TokenCode::Keyword9;
+    constexpr static TokenCode KeywordElif = TokenCode::Keyword10;
+    constexpr static TokenCode KeywordSwitch = TokenCode::Keyword11;
+    constexpr static TokenCode KeywordCase = TokenCode::Keyword12;
+    constexpr static TokenCode KeywordDefault = TokenCode::Keyword13;
+    constexpr static TokenCode KeywordLink = TokenCode::Keyword14;
+    constexpr static TokenCode KeywordImport = TokenCode::Keyword15;
 
     explicit Parser(std::string const& file_name);
     std::shared_ptr<Module> parse(Runtime&);

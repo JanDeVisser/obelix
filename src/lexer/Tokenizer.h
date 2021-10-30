@@ -274,26 +274,17 @@ public:
 
     void add_markers() { }
 
-    template <typename T>
-    void add_marker(T marker)
-    {
-        fatal("Cannot add marker");
-    }
-
-    template <>
-    void add_marker<CommentMarker>(CommentMarker marker)
+    void add_marker(CommentMarker marker)
     {
         m_markers.push_back(std::move(marker));
     }
 
-    template <>
-    void add_marker<std::string>(std::string marker)
+    void add_marker(std::string marker)
     {
         m_markers.push_back({ false, true, move(marker), "" });
     }
 
-    template <>
-    void add_marker<char const*>(char const* marker)
+    void add_marker(char const* marker)
     {
         add_marker(std::string(marker));
     }
@@ -424,7 +415,7 @@ public:
             ENUMERATE_KEYWORD_SCANNER_STATES(_KEYWORD_SCANNER_STATE)
 #undef _KEYWORD_SCANNER_STATE
         default:
-            assert(false);
+            fatal("Unreachable");
         }
     }
 
@@ -447,35 +438,25 @@ public:
 
     void add_keywords() { }
 
-    template <typename T>
-    void add_keyword(T keyword)
+    void add_keyword(std::string keyword)
     {
-        fatal("Cannot add keyword");
-    }
-
-    template <>
-    void add_keyword<std::string>(std::string keyword)
-    {
-        m_keywords.emplace_back((TokenCode) s_next_identifier++, move(keyword));
+        m_keywords.emplace_back((TokenCode)s_next_identifier++, move(keyword));
         sort_keywords();
     }
 
-    template <>
-    void add_keyword<char const*>(char const* keyword)
+    void add_keyword(char const* keyword)
     {
-        m_keywords.emplace_back((TokenCode) s_next_identifier++, keyword);
+        m_keywords.emplace_back((TokenCode)s_next_identifier++, keyword);
         sort_keywords();
     }
 
-    template <>
-    void add_keyword<Token>(Token keyword)
+    void add_keyword(Token keyword)
     {
         m_keywords.push_back(keyword);
         sort_keywords();
     }
 
-    template <>
-    void add_keyword<TokenCode>(TokenCode keyword)
+    void add_keyword(TokenCode keyword)
     {
         m_keywords.emplace_back(keyword, TokenCode_name(keyword));
         sort_keywords();

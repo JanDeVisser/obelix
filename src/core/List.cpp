@@ -40,7 +40,7 @@ std::optional<Obj> List::evaluate(std::string const& name, Ptr<Arguments> args)
 
 std::optional<Obj> List::resolve(std::string const& name) const
 {
-    auto num_maybe = Obelix::to_long(name);
+    auto num_maybe = Obelix::to_ulong(name);
     if (num_maybe.has_value()) {
         auto num = num_maybe.value();
         if ((num >= 0) && (num < m_list.size()))

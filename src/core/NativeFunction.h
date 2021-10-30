@@ -42,10 +42,10 @@ private:
     static Resolver& s_resolver;
     std::string m_name;
     void_t m_fnc { nullptr };
-    [[maybe_unused]] int m_min_params { 0 };
-    [[maybe_unused]] int m_max_params { 0 };
-    [[maybe_unused]] std::string m_return_type { "integer" };
-    [[maybe_unused]] std::vector<std::string> m_parameters {};
+    //    [[maybe_unused]] int m_min_params { 0 };
+    //    [[maybe_unused]] int m_max_params { 0 };
+    //    [[maybe_unused]] std::string m_return_type { "integer" };
+    std::vector<std::string> m_parameters {};
 };
 
 }

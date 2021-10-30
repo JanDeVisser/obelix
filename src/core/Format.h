@@ -11,6 +11,137 @@
 
 namespace Obelix {
 
+template<typename T>
+struct Converter {
+    static std::string to_string(T)
+    {
+        fprintf(stderr, "Specialize me!\n");
+        exit(1);
+    }
+
+    static double to_double(T)
+    {
+        fprintf(stderr, "Specialize me!\n");
+        exit(1);
+    }
+
+    static long to_long(T)
+    {
+        fprintf(stderr, "Specialize me!\n");
+        exit(1);
+    }
+};
+
+template<>
+struct Converter<std::string> {
+    static std::string to_string(std::string val)
+    {
+        return val;
+    }
+
+    static double to_double(std::string val)
+    {
+        return std::stod(val);
+    }
+
+    static long to_long(std::string val)
+    {
+        return std::stol(val);
+    }
+};
+
+template<>
+struct Converter<char const*> : public Converter<std::string> {
+};
+
+template<>
+struct Converter<char const[]> : public Converter<std::string> {
+};
+
+template<>
+struct Converter<std::string_view> {
+    static std::string to_string(std::string_view val)
+    {
+        return std::string(val);
+    }
+
+    static double to_double(std::string_view val)
+    {
+        return std::stod(std::string(val));
+    }
+
+    static long to_long(std::string_view val)
+    {
+        return std::stol(std::string(val));
+    }
+};
+
+template<>
+struct Converter<double> {
+    static std::string to_string(double val)
+    {
+        return std::to_string(val);
+    }
+
+    static double to_double(double val)
+    {
+        return val;
+    }
+
+    static long to_long(double val)
+    {
+        return static_cast<long>(val);
+    }
+};
+
+template<>
+struct Converter<long> {
+    static std::string to_string(long val)
+    {
+        return std::to_string(val);
+    }
+
+    static double to_double(long val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static long to_long(long val)
+    {
+        return val;
+    }
+};
+
+template<>
+struct Converter<unsigned long> {
+    static std::string to_string(unsigned long val)
+    {
+        return std::to_string(val);
+    }
+
+    static double to_double(unsigned long val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static unsigned long to_long(unsigned long val)
+    {
+        return val;
+    }
+};
+
+template<>
+struct Converter<int> : public Converter<long> {
+};
+
+template<>
+struct Converter<short> : public Converter<long> {
+};
+
+template<>
+struct Converter<char> : public Converter<long> {
+};
+
 class FormatSpecifier {
 public:
     enum class FormatState {
@@ -65,7 +196,7 @@ public:
     [[nodiscard]] size_t start() const { return m_start; }
     [[nodiscard]] size_t length() const { return m_length; }
 
-    std::string left_align(std::string const& str, size_t width) const
+    [[nodiscard]] std::string left_align(std::string const& str, size_t width) const
     {
         auto ret = str;
         while (ret.length() < width)
@@ -73,7 +204,7 @@ public:
         return ret;
     }
 
-    std::string right_align(std::string const& str, size_t width) const
+    [[nodiscard]] std::string right_align(std::string const& str, size_t width) const
     {
         auto ret = str;
         while (ret.length() < width)
@@ -81,7 +212,7 @@ public:
         return ret;
     }
 
-    std::string center(std::string const& str, size_t width) const
+    [[nodiscard]] std::string center(std::string const& str, size_t width) const
     {
         auto ret = str;
         while (ret.length() < width) {
@@ -95,38 +226,20 @@ public:
     template<typename T>
     [[nodiscard]] std::string format(T arg) const
     {
+        Converter<T> converter;
         switch (m_type) {
         case FormatSpecifierType::Default:
         case FormatSpecifierType::String:
-            return format(std::string(arg.to_string()));
+            return format_string(converter.to_string(arg));
         case FormatSpecifierType::Int:
         case FormatSpecifierType::Character:
-            return format((long) arg.to_long().value());
+            return format_long(converter.to_long(arg));
         default:
-            return format((double) arg.to_double().value());
+            return format(converter.to_double(arg));
         }
     }
 
-    template<>
-    [[nodiscard]] std::string format<char const*>(char const* arg) const
-    {
-        return format(std::string(arg));
-    }
-
-    template<>
-    [[nodiscard]] std::string format<char[]>(char arg[]) const
-    {
-        return format(std::string(arg));
-    }
-
-    template<>
-    [[nodiscard]] std::string format(std::string_view arg) const
-    {
-        return format(std::string(arg));
-    }
-
-    template<>
-    [[nodiscard]] std::string format(std::string arg) const
+    [[nodiscard]] std::string format_string(std::string arg) const
     {
         auto ret = move(arg);
         if ((m_precision > 0) && (ret.length() > m_precision)) {
@@ -151,44 +264,7 @@ public:
         return ret;
     }
 
-    template<>
-    [[nodiscard]] std::string format<int>(int arg) const
-    {
-        return format((long)arg);
-    }
-
-    template<>
-    [[nodiscard]] std::string format<unsigned int>(unsigned int arg) const
-    {
-        return format((unsigned long)arg);
-    }
-
-    template<>
-    [[nodiscard]] std::string format<short>(short arg) const
-    {
-        return format((long)arg);
-    }
-
-    template<>
-    [[nodiscard]] std::string format<unsigned short>(unsigned short arg) const
-    {
-        return format((unsigned long)arg);
-    }
-
-    template<>
-    [[nodiscard]] std::string format<char>(char arg) const
-    {
-        return format((long)arg);
-    }
-
-    template<>
-    [[nodiscard]] std::string format<unsigned char>(unsigned char arg) const
-    {
-        return format((unsigned long)arg);
-    }
-
-    template<>
-    [[nodiscard]] std::string format<long>(long arg) const
+    [[nodiscard]] std::string format_long(long arg) const
     {
         std::string sign;
         switch (m_display_sign) {
@@ -225,7 +301,7 @@ public:
             ret += static_cast<char>(integer);
             break;
         default:
-            fprintf(stderr, "format: %s: Type '%c' not allowed for integer values\n", m_specifier.c_str(), m_type);
+            fprintf(stderr, "format: %s: Type '%c' not allowed for integer values\n", m_specifier.c_str(), (char)m_type);
             exit(1);
         }
         if (m_width > 0) {
@@ -260,7 +336,7 @@ public:
         return ret;
     }
 
-    std::string render_integer(unsigned long integer) const
+    [[nodiscard]] std::string render_integer(unsigned long integer) const
     {
         if (integer == 0)
             return "0";
@@ -278,8 +354,7 @@ public:
         return ret;
     }
 
-    template<>
-    [[nodiscard]] std::string format<unsigned long>(unsigned long arg) const
+    [[nodiscard]] std::string format_long(unsigned long arg) const
     {
         std::string sign;
         switch (m_display_sign) {
@@ -295,17 +370,16 @@ public:
         return format_integer(arg, sign);
     }
 
-    template<>
-    std::string format(double arg) const
+    [[nodiscard]] std::string format_double(double arg) const
     {
         auto precision = m_precision;
         if (precision == 0)
             precision = 6;
-        auto coercion = m_case_coercion;
+        //        auto coercion = m_case_coercion;
         auto type = m_type;
         if (type == FormatSpecifierType::Default) {
             type = FormatSpecifierType::General;
-            coercion = CaseCoercion::ToLower;
+            //            coercion = CaseCoercion::ToLower;
         }
         return std::to_string(arg);
     }
@@ -503,7 +577,7 @@ private:
     GroupingOption m_grouping_option { GroupingOption::None };
     size_t m_width { 0 };
     size_t m_precision { 0 };
-    [[maybe_unused]] bool m_locale_aware { false };
+    //[[maybe_unused]] bool m_locale_aware { false };
     std::string m_specifier;
     std::string m_prefix;
 };

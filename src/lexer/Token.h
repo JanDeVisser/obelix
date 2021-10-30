@@ -62,7 +62,29 @@ namespace Obelix {
     S(Identifier, nullptr, nullptr)      \
     S(DoubleQuotedString, "\"", nullptr) \
     S(SingleQuotedString, "'", nullptr)  \
-    S(BackQuotedString, "`", nullptr)
+    S(BackQuotedString, "`", nullptr)    \
+                                         \
+    S(Keyword0, nullptr, nullptr)        \
+    S(Keyword1, nullptr, nullptr)        \
+    S(Keyword2, nullptr, nullptr)        \
+    S(Keyword3, nullptr, nullptr)        \
+    S(Keyword4, nullptr, nullptr)        \
+    S(Keyword5, nullptr, nullptr)        \
+    S(Keyword6, nullptr, nullptr)        \
+    S(Keyword7, nullptr, nullptr)        \
+    S(Keyword8, nullptr, nullptr)        \
+    S(Keyword9, nullptr, nullptr)        \
+    S(Keyword10, nullptr, nullptr)       \
+    S(Keyword11, nullptr, nullptr)       \
+    S(Keyword12, nullptr, nullptr)       \
+    S(Keyword13, nullptr, nullptr)       \
+    S(Keyword14, nullptr, nullptr)       \
+    S(Keyword15, nullptr, nullptr)       \
+    S(Keyword16, nullptr, nullptr)       \
+    S(Keyword17, nullptr, nullptr)       \
+    S(Keyword18, nullptr, nullptr)       \
+    S(Keyword19, nullptr, nullptr)       \
+    S(Keyword20, nullptr, nullptr)
 
 enum class TokenCode {
 #undef __ENUMERATE_TOKEN_CODE

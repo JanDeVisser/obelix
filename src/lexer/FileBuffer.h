@@ -20,6 +20,7 @@
 #pragma once
 
 #include <core/StringBuffer.h>
+#include <memory>
 #include <sys/stat.h>
 
 namespace Obelix {

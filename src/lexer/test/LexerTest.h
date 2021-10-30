@@ -47,7 +47,7 @@ protected:
         EXPECT_EQ(count, tokens.size());
         va_list codes;
         va_start(codes, count);
-        for (auto ix = 0; (ix < count) && (ix < tokens.size()); ix++) {
+        for (auto ix = 0u; (ix < count) && (ix < tokens.size()); ix++) {
             Obelix::TokenCode code = va_arg(codes, Obelix::TokenCode);
             EXPECT_EQ(tokens[ix].code_name(), TokenCode_name(code));
         }

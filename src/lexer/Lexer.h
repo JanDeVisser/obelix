@@ -90,8 +90,8 @@ public:
 
 private:
     Tokenizer m_tokenizer;
-    std::vector<Token> m_tokens { };
-    int m_current { 0 };
+    std::vector<Token> m_tokens {};
+    size_t m_current { 0 };
 };
 
 }

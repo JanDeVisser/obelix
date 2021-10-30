@@ -2,6 +2,7 @@
 // Created by Jan de Visser on 2021-09-20.
 //
 
+#include <cassert>
 #include <core/StringUtil.h>
 
 namespace Obelix {
@@ -20,8 +21,8 @@ std::string c_escape(std::string const& s)
 
 std::vector<std::string> split(std::string const& s, char sep)
 {
-    auto start = 0;
-    auto ptr = 0;
+    auto start = 0u;
+    auto ptr = 0u;
     std::vector<std::string> ret;
     do {
         start = ptr;
@@ -106,7 +107,7 @@ std::vector<std::pair<std::string, std::string>> parse_pairs(std::string const& 
         default:
             if (!strip(nvp[0]).empty()) {
                 std::vector<std::string> tail;
-                for (auto ix = 1; ix < nvp.size(); ix++) {
+                for (auto ix = 1u; ix < nvp.size(); ix++) {
                     tail.push_back(nvp[ix]);
                 }
                 auto value = strip(join(tail, name_value_sep));
@@ -143,6 +144,26 @@ std::string to_string(bool value)
     return (value) ? "true" : "false";
 }
 
+bool check_zero(std::string const& str)
+{
+    int zeroes = 0;
+    for (auto& ch : str) {
+        switch (ch) {
+        case 'x':
+        case 'X':
+            if (zeroes != 1)
+                return false;
+            break;
+        case '0':
+            zeroes += (ch == '0') ? 1 : 0;
+            break;
+        default:
+            return false;
+        }
+    }
+    return true;
+}
+
 std::optional<long> to_long(std::string const& str)
 {
     char* end;
@@ -150,23 +171,20 @@ std::optional<long> to_long(std::string const& str)
     auto ret = strtol(str.c_str(), &end, 0);
     if ((end != (str.c_str() + str.length())) || (errno != 0))
         return {};
-    if (ret == 0) {
-        int zeroes = 0;
-        for (auto& ch : str) {
-            switch (ch) {
-            case 'x':
-            case 'X':
-                if (zeroes != 1)
-                    return {};
-                break;
-            case '0':
-                zeroes += (ch == '0') ? 1 : 0;
-                break;
-            default:
-                return {};
-            }
-        }
-    }
+    if ((ret == 0) && !check_zero(str))
+        return {};
+    return ret;
+}
+
+std::optional<unsigned long> to_ulong(std::string const& str)
+{
+    char* end;
+    errno = 0;
+    auto ret = strtoul(str.c_str(), &end, 0);
+    if ((end != (str.c_str() + str.length())) || (errno != 0))
+        return {};
+    if ((ret == 0) && !check_zero(str))
+        return {};
     return ret;
 }
 

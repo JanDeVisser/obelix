@@ -25,6 +25,7 @@ std::string to_hex_string(long);
 std::string to_string(double);
 std::string to_string(bool);
 std::optional<long> to_long(std::string const&);
+std::optional<unsigned long> to_ulong(std::string const&);
 std::optional<double> to_double(std::string const&);
 std::optional<bool> to_bool(std::string const&);
 long to_long_unconditional(std::string const&);

@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include <core/Format.h>
+#include <cstring>
 #include <map>
 #include <mutex>
 #include <string>
-#include <core/Format.h>
 
 namespace Obelix {
 

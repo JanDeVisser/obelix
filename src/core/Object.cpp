@@ -177,7 +177,7 @@ std::string ErrorCode_name(ErrorCode code)
         ENUMERATE_ERROR_CODES(__ENUMERATE_ERROR_CODE)
 #undef __ENUMERATE_ERROR_CODE
     default:
-        assert(false);
+        fatal("Unreachable");
     }
 }
 
@@ -191,7 +191,7 @@ std::string ErrorCode_message(ErrorCode code)
         ENUMERATE_ERROR_CODES(__ENUMERATE_ERROR_CODE)
 #undef __ENUMERATE_ERROR_CODE
     default:
-        assert(false);
+        fatal("Unreachable");
     }
 }
 

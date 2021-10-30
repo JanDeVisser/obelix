@@ -51,7 +51,7 @@ extern "C" void oblfunc_format(char const*, Obelix::Ptr<Obelix::Arguments>* args
     *ret = make_obj<String>(format_arguments(arguments).c_str());
 }
 
-[[maybe_unused]] extern "C" void oblfunc_sleep(char const*, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
+extern "C" void oblfunc_sleep(char const*, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
 {
     assert(*args && !args->empty());
     auto naptime = args->at(0).to_long();
@@ -59,7 +59,7 @@ extern "C" void oblfunc_format(char const*, Obelix::Ptr<Obelix::Arguments>* args
     *ret = make_obj<Integer>(sleep((unsigned int)naptime.value()));
 }
 
-[[maybe_unused]] extern "C" void oblfunc_usleep(char const*, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
+extern "C" void oblfunc_usleep(char const*, Obelix::Ptr<Obelix::Arguments>* args, Obj* ret)
 {
     assert(*args && !args->empty());
     auto naptime = args->at(0).to_long();

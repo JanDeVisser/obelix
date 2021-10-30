@@ -578,6 +578,50 @@ private:
     static std::unordered_map<std::string, ObjectType> s_types;
 };
 
+template<>
+struct Converter<Object> {
+    static std::string to_string(Object val)
+    {
+        return val.to_string();
+    }
+
+    static double to_double(Object val)
+    {
+        auto dbl = val.to_double();
+        assert(dbl.has_value());
+        return dbl.value();
+    }
+
+    static long to_long(Object val)
+    {
+        auto l = val.to_long();
+        assert(l.has_value());
+        return l.value();
+    }
+};
+
+template<class ObjClass>
+struct Converter<Ptr<ObjClass>> {
+    static std::string to_string(Ptr<ObjClass> val)
+    {
+        return val.to_string();
+    }
+
+    static double to_double(Ptr<ObjClass> val)
+    {
+        auto dbl = val.to_double();
+        assert(dbl.has_value());
+        return dbl.value();
+    }
+
+    static long to_long(Ptr<ObjClass> val)
+    {
+        auto l = val.to_long();
+        assert(l.has_value());
+        return l.value();
+    }
+};
+
 static inline std::string format(std::string const& fmt, std::vector<Obj> args)
 {
     std::string ret = fmt;

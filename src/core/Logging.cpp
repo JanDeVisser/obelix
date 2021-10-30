@@ -20,7 +20,7 @@ std::string_view LogLevel_name(LogLevel level)
         ENUMERATE_LOG_LEVELS(__ENUMERATE_LOG_LEVEL)
 #undef __ENUMERATE_LOG_LEVEL
     default:
-        assert(false);
+        fatal("Unreachable");
     }
 }
 
