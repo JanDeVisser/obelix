@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdarg>
 #include <gtest/gtest.h>
 #include <lexer/Lexer.h>
 #include <lexer/Tokenizer.h>
