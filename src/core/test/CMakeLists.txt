@@ -4,8 +4,11 @@ add_library(
         testlib
         SHARED
         testlib.cpp
-)
+	)
 
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+	set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -Wl,--export-dynamic")
+endif(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 
 add_executable(
         CoreTest

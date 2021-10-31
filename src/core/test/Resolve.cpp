@@ -26,20 +26,17 @@
 
 namespace Obelix {
 
-// typedef test_t * (*testfactory_t)(char *);
-typedef void* (*helloworld_t)(char*);
-
-[[maybe_unused]] void set_obldir(char* argv0)
+extern "C" size_t test_function_in_program_image(const char* text)
 {
-    auto str = format("OBL_DIR={}");
-    if (auto slash = str.find_last_of('/'); slash != std::string::npos) {
-        str.erase(slash);
-        putenv(const_cast<char*>(str.c_str()));
-    }
+    return strlen(text);
 }
 
 TEST(Resolve, get_resolver)
 {
+    static char cwd[1024];
+    getcwd(cwd, 1024);
+    if (!strstr(cwd, "src/core/test"))
+        putenv(const_cast<char*>("OBL_DIR=src/core/test"));
     [[maybe_unused]] Resolver& resolver = Resolver::get_resolver();
 }
 
@@ -50,16 +47,12 @@ TEST(Resolve, OpenProgramImage)
     EXPECT_EQ(resolver.open("").errorcode, 0);
 }
 
-extern "C" size_t test_function_in_program_image(const char* text)
-{
-    return strlen(text);
-}
-
 TEST(Resolve, ResolveInProgramImage)
 {
     Resolver& resolver = Resolver::get_resolver();
     auto result = resolver.resolve("test_function_in_program_image");
     EXPECT_EQ(result.errorcode, 0);
+    EXPECT_NE(result.function, nullptr);
     auto f = (size_t(*)(const char*))result.function;
     EXPECT_EQ(f("Hello, World!"), strlen("Hello, World!"));
 }

@@ -154,16 +154,16 @@ ResolveResult Resolver::Library::open()
             ret = try_open(obldir + "/share/lib");
         }
         if (ret.errorcode) {
-            ret = try_open("lib");
+            ret = try_open("./lib");
         }
         if (ret.errorcode) {
-            ret = try_open("bin");
+            ret = try_open("./bin");
         }
         if (ret.errorcode) {
-            ret = try_open("share/lib");
+            ret = try_open("./share/lib");
         }
         if (ret.errorcode) {
-            ret = try_open("");
+            ret = try_open("./");
         }
     } else {
         ret = try_open("");
@@ -263,8 +263,9 @@ Resolver& Resolver::get_resolver() noexcept
 {
     static Resolver* resolver = nullptr;
     const std::lock_guard<std::mutex> lock(g_resolve_mutex);
-    if (!resolver)
+    if (!resolver) {
         resolver = new Resolver();
+    }
     return *resolver;
 }
 
