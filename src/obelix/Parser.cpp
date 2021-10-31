@@ -75,6 +75,7 @@ std::shared_ptr<Module> Parser::parse(Runtime& runtime)
 std::shared_ptr<Statement> Parser::parse_statement(SyntaxNode* parent)
 {
     auto token = peek();
+    std::shared_ptr<Statement> ret = nullptr;
     switch (token.code()) {
     case TokenCode::SemiColon:
         lex();
@@ -88,7 +89,8 @@ std::shared_ptr<Statement> Parser::parse_statement(SyntaxNode* parent)
     }
     case KeywordImport:
         lex();
-        return parse_import_statement(parent);
+        ret = parse_import_statement(parent);
+        break;
     case KeywordIf:
         lex();
         return parse_if_statement(parent);
@@ -100,31 +102,41 @@ std::shared_ptr<Statement> Parser::parse_statement(SyntaxNode* parent)
         return parse_while_statement(parent);
     case KeywordVar:
         lex();
-        return parse_variable_declaration(parent);
+        ret = parse_variable_declaration(parent);
+        break;
     case KeywordFunc:
         lex();
-        return parse_function_definition(parent);
+        ret = parse_function_definition(parent);
+        break;
     case KeywordReturn: {
         lex();
         auto expr = parse_expression(parent);
         if (!expr)
             return nullptr;
-        return std::make_shared<Return>(parent, expr);
-    }
+        ret = std::make_shared<Return>(parent, expr);
+    } break;
     case KeywordBreak:
         lex();
-        return std::make_shared<Break>(parent);
+        ret = std::make_shared<Break>(parent);
+        break;
     case KeywordContinue:
         lex();
-        return std::make_shared<Continue>(parent);
+        ret = std::make_shared<Continue>(parent);
+        break;
     case TokenCode::CloseBrace:
     case TokenCode::EndOfFile:
-        break;
-    default:
+        return nullptr;
+    default: {
         auto expr = parse_expression(parent);
-        return std::make_shared<ExpressionStatement>(expr);
+        ret = std::make_shared<ExpressionStatement>(expr);
+    } break;
     }
-    return nullptr;
+    if (current_code() != TokenCode::SemiColon) {
+        add_error(peek(), format("Expected ';', got '{}'", peek().value()));
+        return nullptr;
+    }
+    lex();
+    return ret;
 }
 
 void Parser::parse_statements(std::shared_ptr<Block> const& block)
@@ -133,6 +145,7 @@ void Parser::parse_statements(std::shared_ptr<Block> const& block)
         auto statement = parse_statement(std::dynamic_pointer_cast<SyntaxNode>(block).get());
         if (!statement)
             break;
+        statement->dump(0);
         block->append(statement);
     }
 }
