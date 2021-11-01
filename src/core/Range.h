@@ -1,5 +1,5 @@
 /*
- * Runtime.h - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
+ * Range.h - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix2.
  *
@@ -19,30 +19,22 @@
 
 #pragma once
 
-#include <unordered_map>
+#include <core/Object.h>
 
 namespace Obelix {
 
-struct ExecutionResult;
-class Module;
-class Scope;
-
-class Runtime {
+class Range : public Object {
 public:
-    struct Config {
-        bool show_tree { false };
-    };
+    Range(Obj const&, Obj const&);
 
-    explicit Runtime(Runtime::Config const&);
-    std::shared_ptr<Module> import_module(std::string const&);
-    ExecutionResult run(std::string const&);
+    [[nodiscard]] IteratorState* iterator_state(IteratorState::IteratorWhere where) override;
+    [[nodiscard]] std::string to_string() const override;
+    std::optional<Obj> evaluate(std::string const& name, Ptr<Arguments>) override;
+    [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
 
 private:
-    std::shared_ptr<Module> _import_file(std::string const&, Ptr<Scope>);
-
-    Config m_config;
-    std::shared_ptr<Module> m_root;
-    std::unordered_map<std::string, std::shared_ptr<Module>> m_modules;
+    Obj m_low;
+    Obj m_high;
 };
 
 }

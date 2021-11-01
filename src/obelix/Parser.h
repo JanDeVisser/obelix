@@ -64,8 +64,12 @@ public:
     constexpr static TokenCode KeywordDefault = TokenCode::Keyword13;
     constexpr static TokenCode KeywordLink = TokenCode::Keyword14;
     constexpr static TokenCode KeywordImport = TokenCode::Keyword15;
+    constexpr static TokenCode KeywordFor = TokenCode::Keyword16;
+    constexpr static TokenCode KeywordIn = TokenCode::Keyword17;
+    constexpr static TokenCode KeywordRange = TokenCode::Keyword18;
 
-    explicit Parser(std::string const& file_name);
+    Parser(Runtime::Config const& parser_config, std::string const& file_name);
+
     std::shared_ptr<Module> parse(Runtime&);
     [[nodiscard]] std::vector<ParseError> const& errors() const { return m_errors; };
     [[nodiscard]] bool has_errors() const { return !m_errors.empty(); }
@@ -80,6 +84,7 @@ private:
     std::shared_ptr<IfStatement> parse_if_statement(SyntaxNode*);
     std::shared_ptr<SwitchStatement> parse_switch_statement(SyntaxNode*);
     std::shared_ptr<WhileStatement> parse_while_statement(SyntaxNode*);
+    std::shared_ptr<ForStatement> parse_for_statement(SyntaxNode*);
     std::shared_ptr<Assignment> parse_variable_declaration(SyntaxNode*);
     std::shared_ptr<Import> parse_import_statement(SyntaxNode*);
     std::shared_ptr<Expression> parse_expression(SyntaxNode*);
@@ -99,8 +104,9 @@ private:
     bool expect(TokenCode, char const* = nullptr);
     void add_error(Token const&, std::string const&);
 
-    FileBuffer m_file_buffer;
+    Runtime::Config m_config;
     std::string m_file_name;
+    FileBuffer m_file_buffer;
     Lexer m_lexer;
     std::vector<ParseError> m_errors {};
 };
