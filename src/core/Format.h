@@ -142,6 +142,24 @@ template<>
 struct Converter<char> : public Converter<long> {
 };
 
+template<>
+struct Converter<bool> {
+    static std::string to_string(bool val)
+    {
+        return (val) ? "true" : "false";
+    }
+
+    static double to_double(bool val)
+    {
+        return (double)to_long(val);
+    }
+
+    static unsigned long to_long(bool val)
+    {
+        return (val) ? 1 : 0;
+    }
+};
+
 class FormatSpecifier {
 public:
     enum class FormatState {
