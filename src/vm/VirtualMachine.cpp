@@ -176,7 +176,7 @@ InstructionResult Instruction::execute(VirtualMachine& vm)
         }
         Obj ret;
         ((native_t)function_ptr)("**function**", &args, &ret);
-        auto ret_value_maybe = ret.to_long();
+        auto ret_value_maybe = ret->to_long();
         long ret_value = (ret_value_maybe.has_value()) ? ret_value_maybe.value() : 0L;
         return InstructionResult { InstructionResultCode::Success, VMValue { ValueType::Int, { ret_value } } };
     };

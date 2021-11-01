@@ -2,13 +2,18 @@ add_library(
         oblcore
         SHARED
         Arguments.cpp
+        Boolean.cpp
         Dictionary.cpp
         Format.cpp
+        Integer.cpp
+        Iterator.cpp
         List.cpp
         Logging.cpp
         NativeFunction.cpp
         Object.cpp
+        Range.cpp
         Regex.cpp
+        String.cpp
         StringBuffer.cpp
         StringUtil.cpp
         Resolve.cpp

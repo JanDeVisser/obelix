@@ -57,7 +57,7 @@ Obj BoundFunction::call(std::string const& name, Ptr<Arguments> args)
     case ExecutionResultCode::Skipped:
         return_value = make_obj<Exception>(ErrorCode::SyntaxError, "Unhandled 'Skipped' execution result");
     case ExecutionResultCode::Error:
-        return_value = make_obj<Exception>(ErrorCode::SyntaxError, result.return_value.to_string());
+        return_value = make_obj<Exception>(ErrorCode::SyntaxError, result.return_value->to_string());
         break;
     }
     return return_value;
