@@ -23,9 +23,8 @@ void KeywordScanner::match_character(int ch)
         m_match_max = m_keywords.size();
         m_scanned = "";
     }
-    auto len = m_scanned.length();
     m_scanned += (char)ch;
-//    debug(lexer, "Matching '%c' scanned '%s'", ch, m_scanned.c_str());
+    auto len = m_scanned.length();
 
     for (auto ix = m_match_min; ix < m_match_max; ix++) {
         std::string kw = m_keywords[ix].value();
@@ -47,7 +46,7 @@ void KeywordScanner::match_character(int ch)
     } else {
         m_matchcount = m_match_max - m_match_min;
     }
-    debug(lexer, "_kw_scanner_match: scanned: {s} matchcount: {d} match_min: {d}, match_max: {d}",
+    debug(lexer, "_kw_scanner_match: scanned: '{s}' matchcount: {d} match_min: {d}, match_max: {d}",
         m_scanned, m_matchcount, m_match_min, m_match_max);
 
     /*
@@ -154,6 +153,20 @@ void KeywordScanner::match()
             break;
 
         case KeywordScannerState::FullMatchLost:
+            /*
+             * Here we have to do a heuristic hack: suppose we have the
+             * keyword 'for' and we're matching against 'format', that
+             * obviously shouldn't match. So the hack here is that if
+             * we lost the match we only recognize the keyword if the next
+             * character is not whitespace or a delimiter.
+             *
+             * FIXME this hack misses cases like a>=b where '>=' is the keyword
+             * This could be fixed by introducing an 'operator' scanner that
+             * explicitly looks for things like this.
+             */
+            if (!isalnum(ch) && (ch != '_'))
+                break;
+            m_state = KeywordScannerState::NoMatch;
             break;
         default:
             fatal("Unreachable");
