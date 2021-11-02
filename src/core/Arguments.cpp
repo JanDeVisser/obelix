@@ -41,7 +41,7 @@ std::optional<Obj> Arguments::resolve(std::string const& name) const
     auto num_maybe = Obelix::to_long(name);
     if (num_maybe.has_value()) {
         auto num = num_maybe.value();
-        if ((num >= 0) && ((size_t)num < m_args.size()))
+        if ((num >= 0) && ((size_t)num < m_args->size()))
             return ptr_cast<Object>(m_args[num]);
     } else if (m_kwargs->contains(name)) {
         return ptr_cast<Object>(m_kwargs->get(name).value());

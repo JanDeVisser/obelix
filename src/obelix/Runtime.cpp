@@ -23,8 +23,9 @@
 
 namespace Obelix {
 
-Runtime::Runtime()
-    : m_root(_import_file("", make_null<Scope>()))
+Runtime::Runtime(Config const& config)
+    : m_config(config)
+    , m_root(_import_file("", make_null<Scope>()))
 {
 }
 
@@ -48,7 +49,7 @@ std::shared_ptr<Module> Runtime::_import_file(std::string const& module, Ptr<Sco
         if ((file_name[ix] == '.') && (file_name.substr(ix) != ".obl"))
             file_name[ix] = '/';
     }
-    Parser parser(file_name);
+    Parser parser(m_config, file_name);
     auto tree = parser.parse(*this);
     if (!tree || parser.has_errors()) {
         for (auto& error : parser.errors()) {

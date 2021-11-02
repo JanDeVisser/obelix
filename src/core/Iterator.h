@@ -1,5 +1,5 @@
 /*
- * Runtime.h - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
+ * Iterator.h - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix2.
  *
@@ -19,30 +19,26 @@
 
 #pragma once
 
-#include <unordered_map>
+#include <core/Object.h>
 
 namespace Obelix {
 
-struct ExecutionResult;
-class Module;
-class Scope;
-
-class Runtime {
+class SimpleIteratorState : public IteratorState {
 public:
-    struct Config {
-        bool show_tree { false };
-    };
+    explicit SimpleIteratorState(Object&, IteratorWhere = IteratorWhere::Begin);
+    ~SimpleIteratorState() override = default;
 
-    explicit Runtime(Runtime::Config const&);
-    std::shared_ptr<Module> import_module(std::string const&);
-    ExecutionResult run(std::string const&);
+    void increment(ptrdiff_t delta) override;
+    Ptr<Object> const& dereference() override;
+    [[nodiscard]] IteratorState* copy() const override;
+    [[nodiscard]] bool equals(IteratorState const* other) const override;
 
 private:
-    std::shared_ptr<Module> _import_file(std::string const&, Ptr<Scope>);
+    SimpleIteratorState(SimpleIteratorState const& original) = default;
+    SimpleIteratorState(SimpleIteratorState const& original, size_t index);
 
-    Config m_config;
-    std::shared_ptr<Module> m_root;
-    std::unordered_map<std::string, std::shared_ptr<Module>> m_modules;
+    size_t m_index { 0 };
+    Ptr<Object> m_current {};
 };
 
 }

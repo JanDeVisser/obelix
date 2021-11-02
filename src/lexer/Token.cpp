@@ -19,7 +19,7 @@ std::string TokenCode_name(TokenCode t)
         ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE
     default:
-        return format("Custom ({})", (int) t);
+        return format("Custom ({})", (int)t);
     }
 }
 
@@ -53,7 +53,8 @@ std::optional<bool> Token::to_bool() const
 Ptr<Object> Token::to_object() const
 {
     switch (code()) {
-    case TokenCode::Integer: {
+    case TokenCode::Integer:
+    case TokenCode::HexNumber: {
         auto maybe_number = to_long();
         assert(maybe_number.has_value());
         return make_obj<Integer>(maybe_number.value());

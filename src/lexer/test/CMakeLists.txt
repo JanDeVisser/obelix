@@ -5,6 +5,7 @@ add_executable(
         CommentTest.cpp
         KeywordTest.cpp
         LexerTest.cpp
+        NumberTest.cpp
         QStringTest.cpp
         WhitespaceTest.cpp
 )

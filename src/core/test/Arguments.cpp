@@ -24,7 +24,7 @@ TEST(Arguments, OneObj)
     auto obj = args->get(0);
     EXPECT_TRUE(obj);
     auto i = ptr_cast<Integer>(obj);
-    EXPECT_EQ(i.to_long().value(), 42);
+    EXPECT_EQ(i->to_long().value(), 42);
 }
 
 TEST(Arguments, OneInt)
@@ -34,7 +34,7 @@ TEST(Arguments, OneInt)
     auto obj = args->get(0);
     EXPECT_TRUE(obj);
     auto i = ptr_cast<Integer>(obj);
-    EXPECT_EQ(i.to_long().value(), 42);
+    EXPECT_EQ(i->to_long().value(), 42);
 }
 
 TEST(Arguments, TwoInts)
@@ -44,11 +44,11 @@ TEST(Arguments, TwoInts)
     auto obj = args->get(0);
     EXPECT_TRUE(obj);
     auto i = ptr_cast<Integer>(obj);
-    EXPECT_EQ(i.to_long().value(), 42);
+    EXPECT_EQ(i->to_long().value(), 42);
     obj = args->get(1);
     EXPECT_TRUE(obj);
     i = ptr_cast<Integer>(obj);
-    EXPECT_EQ(i.to_long().value(), 12);
+    EXPECT_EQ(i->to_long().value(), 12);
 }
 
 TEST(Arguments, TwoIntsOneString)
@@ -58,15 +58,15 @@ TEST(Arguments, TwoIntsOneString)
     auto obj = args->get(0);
     EXPECT_TRUE(obj);
     auto i = ptr_cast<Integer>(obj);
-    EXPECT_EQ(i.to_long().value(), 42);
+    EXPECT_EQ(i->to_long().value(), 42);
     obj = args->get(1);
     EXPECT_TRUE(obj);
     i = ptr_cast<Integer>(obj);
-    EXPECT_EQ(i.to_long().value(), 12);
+    EXPECT_EQ(i->to_long().value(), 12);
     obj = args->get(2);
     EXPECT_EQ(obj->type(), "string");
     auto s = ptr_cast<String>(obj);
-    EXPECT_EQ(s.to_string(), "foo");
+    EXPECT_EQ(s->to_string(), "foo");
 }
 
 TEST(Arguments, TwoLongsOneStdString)
@@ -76,15 +76,15 @@ TEST(Arguments, TwoLongsOneStdString)
     auto obj = args->get(0);
     EXPECT_TRUE(obj);
     auto i = ptr_cast<Integer>(obj);
-    EXPECT_EQ(i.to_long().value(), 42);
+    EXPECT_EQ(i->to_long().value(), 42);
     obj = args->get(1);
     EXPECT_TRUE(obj);
     i = ptr_cast<Integer>(obj);
-    EXPECT_EQ(i.to_long().value(), 12);
+    EXPECT_EQ(i->to_long().value(), 12);
     obj = args->get(2);
     EXPECT_EQ(obj->type(), "string");
     auto s = ptr_cast<String>(obj);
-    EXPECT_EQ(s.to_string(), "foo");
+    EXPECT_EQ(s->to_string(), "foo");
 }
 
 TEST(Arguments, NVP)

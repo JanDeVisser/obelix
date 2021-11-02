@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <core/Logging.h>
 #include <core/NativeFunction.h>
+#include <core/Range.h>
 #include <lexer/Token.h>
 #include <obelix/BoundFunction.h>
 #include <obelix/Runtime.h>
@@ -384,22 +386,7 @@ public:
         return lhs->assign(rhs->to_string(), value);
     }
 
-    Obj evaluate(Ptr<Scope> scope) override
-    {
-        Obj rhs = m_rhs->evaluate(scope);
-        if (m_operator == "=") {
-            if (auto ret_maybe = m_lhs->assign(scope, rhs); ret_maybe.has_value()) {
-                return ret_maybe.value();
-            } else {
-                return make_obj<Exception>(ErrorCode::SyntaxError, "Could not assign to non-lvalue");
-            }
-        }
-        Obj lhs = m_lhs->evaluate(scope);
-        auto ret_maybe = lhs.evaluate(m_operator, make_typed<Arguments>(rhs));
-        if (!ret_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::FunctionUndefined, "Could not resolve operator");
-        return ret_maybe.value();
-    }
+    Obj evaluate(Ptr<Scope> scope) override;
 
 private:
     std::shared_ptr<Expression> m_lhs;
@@ -426,7 +413,7 @@ public:
     Obj evaluate(Ptr<Scope> scope) override
     {
         Obj operand = m_operand->evaluate(scope);
-        auto ret_maybe = operand.evaluate(m_operator.value(), make_typed<Arguments>());
+        auto ret_maybe = operand->evaluate(m_operator.value(), make_typed<Arguments>());
         if (!ret_maybe.has_value())
             return make_obj<Exception>(ErrorCode::RegexpSyntaxError, "Could not resolve operator");
         return ret_maybe.value();
@@ -435,6 +422,33 @@ public:
 private:
     Token m_operator;
     std::shared_ptr<Expression> m_operand;
+};
+
+class RangeExpression : public Expression {
+public:
+    RangeExpression(std::shared_ptr<Expression> low, std::shared_ptr<Expression> high)
+        : Expression(low->parent())
+        , m_low(move(low))
+        , m_high(move(high))
+    {
+    }
+
+    void dump(int indent) override
+    {
+        indent_line(indent);
+        m_low->dump(indent);
+        printf("..");
+        m_high->dump(indent);
+    }
+
+    Obj evaluate(Ptr<Scope> scope) override
+    {
+        return make_obj<Range>(m_low->evaluate(scope), m_high->evaluate(scope));
+    }
+
+private:
+    std::shared_ptr<Expression> m_low;
+    std::shared_ptr<Expression> m_high;
 };
 
 class FunctionCall : public Expression {
@@ -735,6 +749,46 @@ public:
 
 private:
     std::shared_ptr<Expression> m_condition;
+    std::shared_ptr<Statement> m_stmt;
+};
+
+class ForStatement : public Statement {
+public:
+    ForStatement(SyntaxNode* parent, std::string variable, std::shared_ptr<Expression> range, std::shared_ptr<Statement> stmt)
+        : Statement(parent)
+        , m_variable(move(variable))
+        , m_range(move(range))
+        , m_stmt(move(stmt))
+    {
+    }
+
+    ExecutionResult execute(Ptr<Scope> scope) override
+    {
+        ExecutionResult result;
+        auto new_scope = make_typed<Scope>(scope);
+        new_scope->declare(m_variable, make_obj<Integer>(0));
+        auto range = m_range->evaluate(new_scope);
+        for (auto& value : range) {
+            new_scope->set(m_variable, value);
+            result = m_stmt->execute(new_scope);
+            if (result.code == ExecutionResultCode::Break || result.code == ExecutionResultCode::Return)
+                return {};
+        }
+        return result;
+    }
+
+    void dump(int indent) override
+    {
+        indent_line(indent);
+        printf("for (%s in ", m_variable.c_str());
+        m_range->dump(indent);
+        printf(")\n");
+        m_stmt->dump(indent + 2);
+    }
+
+private:
+    std::string m_variable {};
+    std::shared_ptr<Expression> m_range;
     std::shared_ptr<Statement> m_stmt;
 };
 

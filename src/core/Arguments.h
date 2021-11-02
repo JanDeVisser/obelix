@@ -25,6 +25,7 @@ public:
     Arguments(Ptr<List>, Ptr<Dictionary>);
 
     [[nodiscard]] size_t size() const override { return m_args->size(); }
+    [[nodiscard]] bool empty() const override { return m_args->empty(); }
     [[nodiscard]] Obj const& get(size_t ix) const { return m_args[ix]; }
     [[nodiscard]] Obj const& at(size_t ix) override { return m_args[ix]; }
     [[nodiscard]] size_t kwsize() const { return m_kwargs->size(); }

@@ -22,9 +22,10 @@
 
 namespace Obelix {
 
-Parser::Parser(std::string const& file_name)
-    : m_file_buffer(file_name)
+Parser::Parser(Runtime::Config const& config, std::string const& file_name)
+    : m_config(config)
     , m_file_name(file_name)
+    , m_file_buffer(file_name)
     , m_lexer(m_file_buffer.buffer())
 {
     m_lexer.add_scanner<QStringScanner>();
@@ -53,6 +54,9 @@ Parser::Parser(std::string const& file_name)
         Token(KeywordDefault, "default"),
         Token(KeywordLink, "->"),
         Token(KeywordImport, "import"),
+        Token(KeywordFor, "for"),
+        Token(KeywordIn, "in"),
+        Token(KeywordRange, ".."),
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
         TokenCode::EqualsTo,
@@ -67,6 +71,8 @@ std::shared_ptr<Module> Parser::parse(Runtime& runtime)
 {
     std::shared_ptr<Module> module = std::make_shared<Module>(m_file_name, runtime);
     parse_statements(module);
+    if (m_config.show_tree)
+        module->dump(0);
     if (has_errors())
         return nullptr;
     return module;
@@ -100,6 +106,9 @@ std::shared_ptr<Statement> Parser::parse_statement(SyntaxNode* parent)
     case KeywordWhile:
         lex();
         return parse_while_statement(parent);
+    case KeywordFor:
+        lex();
+        return parse_for_statement(parent);
     case KeywordVar:
         lex();
         ret = parse_variable_declaration(parent);
@@ -145,7 +154,6 @@ void Parser::parse_statements(std::shared_ptr<Block> const& block)
         auto statement = parse_statement(std::dynamic_pointer_cast<SyntaxNode>(block).get());
         if (!statement)
             break;
-        statement->dump(0);
         block->append(statement);
     }
 }
@@ -332,13 +340,37 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement(SyntaxNode* pare
 
 std::shared_ptr<WhileStatement> Parser::parse_while_statement(SyntaxNode* parent)
 {
+    if (!expect(TokenCode::OpenParen, " in 'while' statement"))
+        return nullptr;
     auto condition = parse_expression(parent);
     if (!condition)
+        return nullptr;
+    if (!expect(TokenCode::CloseParen, " in 'while' statement"))
         return nullptr;
     auto stmt = parse_statement(parent);
     if (!stmt)
         return nullptr;
     return std::make_shared<WhileStatement>(parent, condition, stmt);
+}
+
+std::shared_ptr<ForStatement> Parser::parse_for_statement(SyntaxNode* parent)
+{
+    if (!expect(TokenCode::OpenParen, " in 'for' statement"))
+        return nullptr;
+    auto variable = match(TokenCode::Identifier, " in 'for' ststement");
+    if (!variable.has_value())
+        return nullptr;
+    if (!expect(KeywordIn, " in 'for' statement"))
+        return nullptr;
+    auto expr = parse_expression(parent);
+    if (!expr)
+        return nullptr;
+    if (!expect(TokenCode::CloseParen, " in 'for' statement"))
+        return nullptr;
+    auto stmt = parse_statement(parent);
+    if (!stmt)
+        return nullptr;
+    return std::make_shared<ForStatement>(parent, variable.value().value(), expr, stmt);
 }
 
 std::shared_ptr<Assignment> Parser::parse_variable_declaration(SyntaxNode* parent)
@@ -415,6 +447,7 @@ int Parser::binary_precedence(Token const& token)
         return 7;
     case TokenCode::EqualsTo:
     case TokenCode::NotEqualTo:
+    case KeywordRange:
         return 8;
     case TokenCode::GreaterThan:
     case TokenCode::LessThan:
@@ -548,7 +581,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(SyntaxNode* parent,
             std::make_shared<This>(parent), ".", std::make_shared<Literal>(parent, make_obj<String>(t.value())));
     }
     default:
-        add_error(t, "Syntax Error: Expected literal or variable, got '{}'");
+        add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
         return nullptr;
     }
 }
@@ -596,8 +629,8 @@ bool Parser::expect(TokenCode code, char const* where)
     auto token = peek();
     if (token.code() != code) {
         std::string msg = (where)
-            ? format("Syntax Error: expected '{}' {}, got '{}'", TokenCode_to_string(code), where, token.value())
-            : format("Syntax Error: expected '{}', got '{}'", TokenCode_to_string(code), token.value());
+            ? format("Syntax Error: expected '{}' {}, got '{}' ({})", TokenCode_to_string(code), where, token.value(), token.code_name())
+            : format("Syntax Error: expected '{}', got '{}' ({})", TokenCode_to_string(code), token.value(), token.code_name());
         add_error(token, msg);
         return false;
     }

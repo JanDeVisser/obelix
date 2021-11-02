@@ -19,11 +19,11 @@ TEST(Object, Instantiate)
 TEST(Object, InstantiateHandle)
 {
     auto i = Obelix::make_typed<Obelix::Integer>(42);
-    EXPECT_EQ(i.to_long().has_value(), true);
-    EXPECT_EQ(i.to_long().value(), 42);
+    EXPECT_EQ(i->to_long().has_value(), true);
+    EXPECT_EQ(i->to_long().value(), 42);
     auto o = Obelix::make_obj<Obelix::Integer>(42);
-    EXPECT_EQ(o.to_long().has_value(), true);
-    EXPECT_EQ(o.to_long().value(), 42);
+    EXPECT_EQ(o->to_long().has_value(), true);
+    EXPECT_EQ(o->to_long().value(), 42);
 }
 
 TEST(Object, List)
@@ -52,10 +52,10 @@ TEST(Object, Dictionary)
     EXPECT_EQ(dict->size(), 0);
     dict->put("42", Obelix::make_obj<Obelix::Integer>(42));
     EXPECT_EQ(dict->size(), 1);
-    EXPECT_EQ(dict->get("42").value().to_string(), "42");
+    EXPECT_EQ(dict->get("42").value()->to_string(), "42");
     dict->put("12", Obelix::make_obj<Obelix::Integer>(12));
-    EXPECT_EQ(dict->get("12").value().to_string(), "12");
-    EXPECT_EQ(dict->get("42").value().to_string(), "42");
+    EXPECT_EQ(dict->get("12").value()->to_string(), "12");
+    EXPECT_EQ(dict->get("42").value()->to_string(), "42");
     EXPECT_EQ(dict->size(), 2);
     long sum = 0;
     for (Obelix::Ptr<Obelix::Object> const& elem : dict) {
@@ -73,9 +73,9 @@ TEST(Object, HandleAdd)
     auto j = Obelix::make_obj<Obelix::Integer>(42);
     auto args = Obelix::make_typed<Obelix::Arguments>();
     args->add(j);
-    auto sum_maybe = i.evaluate("+", args);
+    auto sum_maybe = i->evaluate("+", args);
     EXPECT_TRUE(sum_maybe.has_value());
     auto sum = sum_maybe.value();
-    EXPECT_TRUE(sum.to_long().has_value());
-    EXPECT_EQ(sum.to_long().value(), 84);
+    EXPECT_TRUE(sum->to_long().has_value());
+    EXPECT_EQ(sum->to_long().value(), 84);
 }
