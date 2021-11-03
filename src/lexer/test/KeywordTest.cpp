@@ -148,26 +148,27 @@ TEST_F(KeywordTest, keyword_abc)
 
 TEST_F(KeywordTest, keyword_for_format)
 {
-    Logger::get_logger().enable("lexer");
+    //    Logger::get_logger().enable("lexer");
     initialize();
     add_scanner<Obelix::KeywordScanner>(
         Token(TokenCode::Keyword0, "for"),
         Token(TokenCode::Keyword1, "format"),
         Token(TokenCode::Keyword2, "font"),
-        Token(TokenCode::Keyword3, "aaa"),
+        TokenCode::GreaterEqualThan,
         Token(TokenCode::Keyword4, "aab"),
         Token(TokenCode::Keyword5, "abc"),
         Token(TokenCode::Keyword6, "aac"),
         Token(TokenCode::Keyword7, "acc"),
         Token(TokenCode::Keyword8, "acb"));
 
-    tokenize("xxx for format font fo formatting");
-    EXPECT_EQ(tokens.size(), 12);
+    tokenize("xxx for format font fo formatting >=xxx");
+    EXPECT_EQ(tokens.size(), 15);
     EXPECT_EQ(tokens_by_code[TokenCode::Keyword0].size(), 1);
     EXPECT_EQ(tokens_by_code[TokenCode::Keyword1].size(), 1);
     EXPECT_EQ(tokens_by_code[TokenCode::Keyword2].size(), 1);
-    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Identifier].size(), 3);
-    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Whitespace].size(), 5);
+    EXPECT_EQ(tokens_by_code[TokenCode::GreaterEqualThan].size(), 1);
+    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Identifier].size(), 4);
+    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Whitespace].size(), 6);
 }
 
 }

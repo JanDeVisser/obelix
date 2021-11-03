@@ -6,15 +6,21 @@
 
 namespace Obelix {
 
-size_t KeywordScanner::s_next_identifier = 200;
-
-void KeywordScanner::sort_keywords()
+void KeywordScanner::add_keyword(TokenCode keyword_code)
 {
-    std::sort(m_keywords.begin(), m_keywords.end(), [](Token const& a, Token const& b) {
-        return a.value() < b.value();
-    });
+    add_keyword(Token { keyword_code, TokenCode_name(keyword_code) });
 }
 
+void KeywordScanner::add_keyword(Token const& keyword_token)
+{
+    Keyword keyword = { keyword_token };
+    auto ch = keyword_token.value()[keyword_token.value().length() - 1];
+    keyword.is_operator = (!isalnum(ch) && (ch != '_'));
+    m_keywords.push_back(keyword);
+    std::sort(m_keywords.begin(), m_keywords.end(), [](Keyword const& a, Keyword const& b) {
+        return a.token.value() < b.token.value();
+    });
+}
 
 void KeywordScanner::match_character(int ch)
 {
@@ -27,12 +33,12 @@ void KeywordScanner::match_character(int ch)
     auto len = m_scanned.length();
 
     for (auto ix = m_match_min; ix < m_match_max; ix++) {
-        std::string kw = m_keywords[ix].value();
+        std::string kw = m_keywords[ix].token.value();
         auto cmp = kw.compare(m_scanned);
         if (cmp < 0) {
             m_match_min = ix + 1;
         } else if (cmp == 0) {
-            m_token = m_keywords[ix];
+            m_keyword = m_keywords[ix];
         } else { /* cmp > 0 */
             if (m_scanned.substr(0, len) != kw.substr(0, len)) {
                 m_match_max = ix;
@@ -93,7 +99,7 @@ void KeywordScanner::match_character(int ch)
          * Only one match. If it's a full match, i.e. the token matches the
          * keyword, we have a full match. Otherwise it's a prefix match.
          */
-        m_state = (m_token.code() != TokenCode::Unknown)
+        m_state = (m_keyword.token.code() != TokenCode::Unknown)
             ? KeywordScannerState::FullMatch
             : KeywordScannerState::PrefixMatched;
         break;
@@ -105,7 +111,7 @@ void KeywordScanner::match_character(int ch)
          * matches exactly the keyword, it's a full-and-prefix match, otherwise
          * it's a prefixes-match.
          */
-        m_state = (m_token.code() != TokenCode::Unknown)
+        m_state = (m_keyword.token.code() != TokenCode::Unknown)
             ? KeywordScannerState::FullMatchAndPrefixes
             : KeywordScannerState::PrefixesMatched;
         break;
@@ -116,7 +122,7 @@ void KeywordScanner::reset()
 {
     m_state = KeywordScannerState::Init;
     m_matchcount = 0;
-    m_token = Token();
+    m_keyword = { Token(), false };
 }
 
 void KeywordScanner::match()
@@ -157,14 +163,11 @@ void KeywordScanner::match()
              * Here we have to do a heuristic hack: suppose we have the
              * keyword 'for' and we're matching against 'format', that
              * obviously shouldn't match. So the hack here is that if
-             * we lost the match we only recognize the keyword if the next
-             * character is not whitespace or a delimiter.
-             *
-             * FIXME this hack misses cases like a>=b where '>=' is the keyword
-             * This could be fixed by introducing an 'operator' scanner that
-             * explicitly looks for things like this.
+             * we lost the match we only recognize the keyword if the
+             * keyword is an operator, which is loosely defined as a keyword
+             * that ends in a non-alphanumeric, non-underscore character.
              */
-            if (!isalnum(ch) && (ch != '_'))
+            if (m_keyword.is_operator || (!isalnum(ch) && (ch != '_')))
                 break;
             m_state = KeywordScannerState::NoMatch;
             break;
@@ -174,11 +177,11 @@ void KeywordScanner::match()
         if (carry_on) {
             tokenizer().push();
         }
-    };
+    }
 
     debug(lexer, "KeywordScanner::match returns '{s}' {d}", KeywordScannerState_name(m_state), (int) m_state);
     if ((m_state == KeywordScannerState::FullMatchLost) || (m_state == KeywordScannerState::FullMatch)) {
-        tokenizer().accept(m_token.code());
+        tokenizer().accept(m_keyword.token.code());
     }
 }
 

@@ -398,6 +398,11 @@ private:
 
 class KeywordScanner : public Scanner {
 public:
+    struct Keyword {
+        Token token;
+        bool is_operator { true };
+    };
+
     enum class KeywordScannerState {
 #undef _KEYWORD_SCANNER_STATE
 #define _KEYWORD_SCANNER_STATE(state) state,
@@ -429,7 +434,7 @@ public:
     void match() override;
     [[nodiscard]] char const* name() override { return "keyword"; }
 
-    template <typename T, typename... Args>
+    template<typename T, typename... Args>
     void add_keywords(T t, Args&&... args)
     {
         add_keyword(t);
@@ -438,43 +443,21 @@ public:
 
     void add_keywords() { }
 
-    void add_keyword(std::string keyword)
-    {
-        m_keywords.emplace_back((TokenCode)s_next_identifier++, move(keyword));
-        sort_keywords();
-    }
-
-    void add_keyword(char const* keyword)
-    {
-        m_keywords.emplace_back((TokenCode)s_next_identifier++, keyword);
-        sort_keywords();
-    }
-
-    void add_keyword(Token keyword)
-    {
-        m_keywords.push_back(keyword);
-        sort_keywords();
-    }
-
-    void add_keyword(TokenCode keyword)
-    {
-        m_keywords.emplace_back(keyword, TokenCode_name(keyword));
-        sort_keywords();
-    }
+    void add_keyword(Token const&);
+    void add_keyword(TokenCode);
 
 private:
     void reset();
     void match_character(int);
-    void sort_keywords();
     static size_t s_next_identifier;
 
-    std::vector<Token> m_keywords;
+    std::vector<Keyword> m_keywords;
     KeywordScannerState m_state { KeywordScannerState::Init };
     size_t m_matchcount { 0 };
     size_t m_match_min { 0 };
     size_t m_match_max { 0 };
-    Token m_token { };
-    std::string m_scanned { };
+    Keyword m_keyword {};
+    std::string m_scanned {};
 };
 
 #if 0
