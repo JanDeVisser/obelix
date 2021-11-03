@@ -43,7 +43,7 @@ public:
 
     bool debugOn() override
     {
-        return true;
+        return false;
     }
 };
 
