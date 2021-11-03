@@ -72,7 +72,7 @@ TEST_F(KeywordTest, KeywordSpace)
 
 TEST_F(KeywordTest, KeywordIsPrefix)
 {
-    tokenizeBig("Bigger", 3, 1);
+    tokenizeBig("Bigger", 2, 0);
     EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Identifier].size(), 1);
 }
 
