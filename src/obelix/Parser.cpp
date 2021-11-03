@@ -574,6 +574,8 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(SyntaxNode* parent,
             return nullptr;
         return std::make_shared<UnaryExpression>(t, operand);
     }
+    case TokenCode::OpenBracket:
+        return parse_list_literal(parent);
     case TokenCode::Integer:
     case TokenCode::Float:
     case TokenCode::DoubleQuotedString:
@@ -591,6 +593,25 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(SyntaxNode* parent,
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
         return nullptr;
     }
+}
+
+std::shared_ptr<ListLiteral> Parser::parse_list_literal(SyntaxNode* parent)
+{
+    std::vector<std::shared_ptr<Expression>> elements;
+    while (current_code() != TokenCode::CloseBracket) {
+        auto element = parse_expression(parent);
+        if (!element)
+            return nullptr;
+        elements.push_back(element);
+        if (current_code() == TokenCode::Comma) {
+            lex();
+        } else if (current_code() != TokenCode::CloseBracket) {
+            add_error(peek(), format("Expecting ',' after list element, got '{}'", peek().value()));
+            return nullptr;
+        }
+    }
+    lex();
+    return std::make_shared<ListLiteral>(parent, elements);
 }
 
 Token const& Parser::peek()

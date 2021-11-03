@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <core/List.h>
 #include <core/Logging.h>
 #include <core/NativeFunction.h>
 #include <core/Range.h>
@@ -305,6 +306,40 @@ public:
 
 private:
     Obj m_literal;
+};
+
+class ListLiteral : public Expression {
+public:
+    ListLiteral(SyntaxNode* parent, std::vector<std::shared_ptr<Expression>> elements)
+        : Expression(parent)
+        , m_elements(move(elements))
+    {
+    }
+
+    void dump(int indent) override
+    {
+        printf("[");
+        bool first = true;
+        for (auto& e : m_elements) {
+            if (first)
+                printf(", ");
+            e->dump(indent);
+            first = false;
+        }
+        printf("]");
+    }
+
+    Obj evaluate(Ptr<Scope> scope) override
+    {
+        Ptr<List> list = make_typed<List>();
+        for (auto& e : m_elements) {
+            list->push_back(e->evaluate(scope));
+        }
+        return to_obj(list);
+    }
+
+private:
+    std::vector<std::shared_ptr<Expression>> m_elements;
 };
 
 class This : public Expression {

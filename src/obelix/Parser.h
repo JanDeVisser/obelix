@@ -97,6 +97,7 @@ private:
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> expression);
     std::shared_ptr<Expression> parse_primary_expression(SyntaxNode*, bool);
+    std::shared_ptr<ListLiteral> parse_list_literal(SyntaxNode*);
 
     Token const& peek();
     TokenCode current_code();
