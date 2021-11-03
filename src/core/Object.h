@@ -355,7 +355,7 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
 
 #define ENUMERATE_ERROR_CODES(S)                                                \
     S(NoError, "There is no error")                                             \
-    S(SyntaxError, "Syntax error")                                              \
+    S(SyntaxError, "{}")                                                        \
     S(ObjectNotCallable, "Object is not callable")                              \
     S(FunctionUndefined, "Function '{}' in image '{}' is undefined")            \
     S(RegexpSyntaxError, "Regular expression syntax error")                     \

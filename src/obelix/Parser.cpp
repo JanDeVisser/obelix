@@ -23,10 +23,15 @@
 namespace Obelix {
 
 Parser::Parser(Runtime::Config const& config, std::string const& file_name)
+    : Parser(config, FileBuffer(file_name).buffer())
+{
+    m_file_name = file_name;
+}
+
+Parser::Parser(Runtime::Config const& config, StringBuffer& src)
     : m_config(config)
-    , m_file_name(file_name)
-    , m_file_buffer(file_name)
-    , m_lexer(m_file_buffer.buffer())
+    , m_src(src)
+    , m_lexer(src)
 {
     m_lexer.add_scanner<QStringScanner>();
     m_lexer.add_scanner<IdentifierScanner>();
@@ -137,6 +142,8 @@ std::shared_ptr<Statement> Parser::parse_statement(SyntaxNode* parent)
         return nullptr;
     default: {
         auto expr = parse_expression(parent);
+        if (!expr)
+            return nullptr;
         ret = std::make_shared<ExpressionStatement>(expr);
     } break;
     }
@@ -567,6 +574,8 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(SyntaxNode* parent,
             return nullptr;
         return std::make_shared<UnaryExpression>(t, operand);
     }
+    case TokenCode::OpenBracket:
+        return parse_list_literal(parent);
     case TokenCode::Integer:
     case TokenCode::Float:
     case TokenCode::DoubleQuotedString:
@@ -584,6 +593,25 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(SyntaxNode* parent,
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
         return nullptr;
     }
+}
+
+std::shared_ptr<ListLiteral> Parser::parse_list_literal(SyntaxNode* parent)
+{
+    std::vector<std::shared_ptr<Expression>> elements;
+    while (current_code() != TokenCode::CloseBracket) {
+        auto element = parse_expression(parent);
+        if (!element)
+            return nullptr;
+        elements.push_back(element);
+        if (current_code() == TokenCode::Comma) {
+            lex();
+        } else if (current_code() != TokenCode::CloseBracket) {
+            add_error(peek(), format("Expecting ',' after list element, got '{}'", peek().value()));
+            return nullptr;
+        }
+    }
+    lex();
+    return std::make_shared<ListLiteral>(parent, elements);
 }
 
 Token const& Parser::peek()

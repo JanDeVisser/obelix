@@ -68,6 +68,7 @@ public:
     constexpr static TokenCode KeywordIn = TokenCode::Keyword17;
     constexpr static TokenCode KeywordRange = TokenCode::Keyword18;
 
+    Parser(Runtime::Config const& parser_config, StringBuffer& src);
     Parser(Runtime::Config const& parser_config, std::string const& file_name);
 
     std::shared_ptr<Module> parse(Runtime&);
@@ -96,6 +97,7 @@ private:
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> expression);
     std::shared_ptr<Expression> parse_primary_expression(SyntaxNode*, bool);
+    std::shared_ptr<ListLiteral> parse_list_literal(SyntaxNode*);
 
     Token const& peek();
     TokenCode current_code();
@@ -105,8 +107,8 @@ private:
     void add_error(Token const&, std::string const&);
 
     Runtime::Config m_config;
-    std::string m_file_name;
-    FileBuffer m_file_buffer;
+    std::string m_file_name { "<literal>" };
+    StringBuffer m_src;
     Lexer m_lexer;
     std::vector<ParseError> m_errors {};
 };

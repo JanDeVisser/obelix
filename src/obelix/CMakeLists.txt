@@ -1,6 +1,6 @@
-add_executable(
-        obelix
-        main.cpp
+add_library(
+        oblparser
+        SHARED
         BoundFunction.cpp
         Functions.cpp
         Parser.cpp
@@ -10,17 +10,24 @@ add_executable(
 )
 
 target_link_libraries(
-        obelix
+        oblparser
         obllexer
-        oblcore
-        dl
+)
+
+add_executable(
+        obelix
+        main.cpp
+)
+
+target_link_libraries(
+        obelix
+        oblparser
         ${LIBS}
 )
 
-install(TARGETS obelix
+install(TARGETS oblparser obelix
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)
 
-
-
+add_subdirectory(test)

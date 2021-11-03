@@ -23,9 +23,9 @@
 
 namespace Obelix {
 
-Runtime::Runtime(Config const& config)
+Runtime::Runtime(Config const& config, bool stdlib)
     : m_config(config)
-    , m_root(_import_file("", make_null<Scope>()))
+    , m_root((stdlib) ? _import_file("", make_null<Scope>()) : std::make_shared<Module>("", *this))
 {
 }
 
@@ -40,6 +40,24 @@ ExecutionResult Runtime::run(std::string const& file_name)
 {
     auto mod = _import_file(file_name, m_root->scope());
     return mod->scope()->result();
+}
+
+Ptr<Scope> Runtime::evaluate(std::string const& src)
+{
+    StringBuffer source_text(src);
+    Parser parser(m_config, source_text);
+    auto tree = parser.parse(*this);
+    if (!tree || parser.has_errors()) {
+        auto errors = make_typed<List>();
+        for (auto& error : parser.errors()) {
+            errors->push_back(make_obj<Exception>(ErrorCode::SyntaxError, error.to_string()));
+        }
+        auto ret = make_typed<Scope>(make_null<Scope>());
+        ret->set_result({ ExecutionResultCode::Error, to_obj<List>(errors) });
+        return ret;
+    }
+    tree->execute(make_null<Scope>());
+    return tree->scope();
 }
 
 std::shared_ptr<Module> Runtime::_import_file(std::string const& module, Ptr<Scope> into_scope)
