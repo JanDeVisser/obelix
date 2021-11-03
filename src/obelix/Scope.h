@@ -38,6 +38,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override { return "scope"; }
     [[nodiscard]] ExecutionResult const& result() const { return m_result; }
+    void set_result(ExecutionResult const& result) { m_result = result; }
 
 private:
     Ptr<Scope> m_parent;

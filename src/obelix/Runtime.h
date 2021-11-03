@@ -33,9 +33,10 @@ public:
         bool show_tree { false };
     };
 
-    explicit Runtime(Runtime::Config const&);
+    explicit Runtime(Runtime::Config const&, bool = true);
     std::shared_ptr<Module> import_module(std::string const&);
     ExecutionResult run(std::string const&);
+    Ptr<Scope> evaluate(std::string const&);
 
 private:
     std::shared_ptr<Module> _import_file(std::string const&, Ptr<Scope>);

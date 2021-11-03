@@ -23,10 +23,15 @@
 namespace Obelix {
 
 Parser::Parser(Runtime::Config const& config, std::string const& file_name)
+    : Parser(config, FileBuffer(file_name).buffer())
+{
+    m_file_name = file_name;
+}
+
+Parser::Parser(Runtime::Config const& config, StringBuffer& src)
     : m_config(config)
-    , m_file_name(file_name)
-    , m_file_buffer(file_name)
-    , m_lexer(m_file_buffer.buffer())
+    , m_src(src)
+    , m_lexer(src)
 {
     m_lexer.add_scanner<QStringScanner>();
     m_lexer.add_scanner<IdentifierScanner>();
@@ -137,6 +142,8 @@ std::shared_ptr<Statement> Parser::parse_statement(SyntaxNode* parent)
         return nullptr;
     default: {
         auto expr = parse_expression(parent);
+        if (!expr)
+            return nullptr;
         ret = std::make_shared<ExpressionStatement>(expr);
     } break;
     }

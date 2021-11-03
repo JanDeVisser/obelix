@@ -116,7 +116,7 @@ public:
         printf("}\n");
     }
 
-    [[nodiscard]] ExecutionResult execute_block(Ptr<Scope> const& block_scope) const
+    [[nodiscard]] ExecutionResult execute_block(Ptr<Scope>& block_scope) const
     {
         ExecutionResult result;
         for (auto& statement : m_statements) {
@@ -124,6 +124,7 @@ public:
             if (result.code != ExecutionResultCode::None)
                 return result;
         }
+        block_scope->set_result(result);
         return result;
     }
 
@@ -271,8 +272,7 @@ public:
 
     ExecutionResult execute(Ptr<Scope> scope) override
     {
-        m_expression->evaluate(scope);
-        return {};
+        return { ExecutionResultCode::None, m_expression->evaluate(scope) };
     }
 
 private:
