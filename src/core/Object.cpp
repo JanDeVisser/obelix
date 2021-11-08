@@ -159,10 +159,10 @@ void Object::set_self(Ptr<Object> self)
     m_self = self.pointer();
 }
 
-Obj Object::self() const
+Obj const& Object::self() const
 {
     assert(m_self.get());
-    return make_from_shared(m_self);
+    return *((Ptr<Object>*)(&m_self));
 }
 
 Ptr<Null> const& Null::null()

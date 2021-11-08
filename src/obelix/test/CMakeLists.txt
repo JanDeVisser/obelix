@@ -2,8 +2,9 @@ enable_testing()
 
 add_executable(
         ParserTest
+        Assignment.cpp
         ListLiteral.cpp
-)
+        DeclareVar.cpp)
 
 target_link_libraries(
         ParserTest

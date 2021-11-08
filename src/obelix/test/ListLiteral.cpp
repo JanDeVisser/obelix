@@ -50,4 +50,13 @@ TEST_F(ParserTest, ListLiteralNoClose)
     EXPECT_EQ(list[0]->type(), "exception");
 }
 
+TEST_F(ParserTest, ListLiteralIterate)
+{
+    auto scope = parse("var x = 0; for (i in [1, 2]) { x = x + i; }");
+    auto x_opt = scope->resolve("x");
+    EXPECT_TRUE(x_opt.has_value());
+    Ptr<Integer> x = ptr_cast<Integer>(x_opt.value());
+    EXPECT_EQ(x->to_long().value(), 3);
+}
+
 }

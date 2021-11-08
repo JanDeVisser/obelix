@@ -37,8 +37,10 @@ public:
     std::shared_ptr<Module> import_module(std::string const&);
     ExecutionResult run(std::string const&);
     Ptr<Scope> evaluate(std::string const&);
+    Ptr<Scope> evaluate(std::string const&, Ptr<Scope> scope);
 
 private:
+    std::shared_ptr<Module> _import_file(std::string const&);
     std::shared_ptr<Module> _import_file(std::string const&, Ptr<Scope>);
 
     Config m_config;

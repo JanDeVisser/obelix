@@ -28,10 +28,11 @@ struct ExecutionResult {
 
 class Scope : public Object {
 public:
-    explicit Scope(Ptr<Scope> parent);
+    explicit Scope();
+    explicit Scope(Ptr<Scope> const& parent);
 
-    void declare(std::string const& name, Obj value);
-    void set(std::string const& name, Obj value);
+    void declare(std::string const& name, Obj const& value);
+    void set(std::string const& name, Obj const& value);
     [[nodiscard]] std::optional<Obj> resolve(std::string const&) const override;
     [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
     [[nodiscard]] Ptr<Scope> clone();

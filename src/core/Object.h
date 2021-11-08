@@ -111,7 +111,7 @@ public:
 
     static Obj const& null();
     void set_self(Ptr<Object>);
-    [[nodiscard]] Obj self() const;
+    [[nodiscard]] Obj const& self() const;
 
 protected:
     explicit Object(std::string type);

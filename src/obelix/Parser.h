@@ -46,8 +46,15 @@ struct ParseError {
     Token token;
 };
 
+typedef std::vector<std::shared_ptr<Statement>> Statements;
+
 class Parser {
 public:
+    enum class Associativity {
+        LeftToRight,
+        RightToLeft,
+    };
+
     constexpr static TokenCode KeywordVar = TokenCode::Keyword0;
     constexpr static TokenCode KeywordFunc = TokenCode::Keyword1;
     constexpr static TokenCode KeywordIf = TokenCode::Keyword2;
@@ -77,8 +84,8 @@ public:
 
 private:
     std::shared_ptr<Statement> parse_statement(SyntaxNode*);
-    void parse_statements(std::shared_ptr<Block> const& block);
-    std::shared_ptr<Block> parse_block(std::shared_ptr<Block> block);
+    void parse_statements(SyntaxNode*, Statements&);
+    std::shared_ptr<Block> parse_block(SyntaxNode*, Statements&);
     std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression>);
     std::shared_ptr<Assignment> parse_assignment(SyntaxNode*, std::string const& identifier);
     std::shared_ptr<FunctionDef> parse_function_definition(SyntaxNode*);
@@ -89,10 +96,11 @@ private:
     std::shared_ptr<Assignment> parse_variable_declaration(SyntaxNode*);
     std::shared_ptr<Import> parse_import_statement(SyntaxNode*);
     std::shared_ptr<Expression> parse_expression(SyntaxNode*);
-    static int binary_precedence(Token const& token);
-    static int unary_precedence(Token const& token);
-    static int is_postfix_unary_operator(Token const& token);
-    static int is_prefix_unary_operator(Token const& token);
+    static int binary_precedence(TokenCode);
+    static int unary_precedence(TokenCode);
+    static Associativity associativity(TokenCode);
+    static int is_postfix_unary_operator(TokenCode);
+    static int is_prefix_unary_operator(TokenCode);
 
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> expression);
