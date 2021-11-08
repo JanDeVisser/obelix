@@ -21,28 +21,33 @@
 
 namespace Obelix {
 
-Scope::Scope(Ptr<Scope> parent)
+Scope::Scope(Ptr<Scope> const& parent)
     : Object("scope")
-    , m_parent(std::move(parent))
+    , m_parent(parent)
 {
 }
 
-void Scope::declare(std::string const& name, Obj value)
+Scope::Scope()
+    : Scope(make_null<Scope>())
+{
+}
+
+void Scope::declare(std::string const& name, Obj const& value)
 {
     if (m_variables.contains(name))
         fatal("Variable {} already declared in scope", name);
-    m_variables.put(name, std::move(value));
+    m_variables.put(name, value);
 }
 
-void Scope::set(std::string const& name, Obj value)
+void Scope::set(std::string const& name, Obj const& value)
 {
     if (m_variables.contains(name)) {
-        m_variables.put(name, std::move(value));
+        m_variables.put(name, value);
         return;
     }
     if (!m_parent)
         fatal("Undeclared variable {}", name);
-    m_parent->set(name, std::move(value));
+    m_parent->set(name, value);
 }
 
 std::optional<Obj> Scope::resolve(std::string const& name) const

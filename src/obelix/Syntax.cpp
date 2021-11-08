@@ -7,7 +7,7 @@
 
 namespace Obelix {
 
-logging_category(syntax);
+extern_logging_category(parser);
 
 Runtime& SyntaxNode::runtime() const
 {
@@ -30,14 +30,14 @@ Runtime& Module::runtime() const
     return m_runtime;
 }
 
-ExecutionResult Import::execute(Ptr<Scope> scope)
+ExecutionResult Import::execute(Ptr<Scope>& scope)
 {
     auto module = runtime().import_module(m_name);
     scope->declare(m_name, to_obj(module->scope()));
     return {};
 }
 
-Obj BinaryExpression::evaluate(Ptr<Scope> scope)
+Obj BinaryExpression::evaluate(Ptr<Scope>& scope)
 {
     Obj rhs = m_rhs->evaluate(scope);
     if (m_operator == "=") {
@@ -48,9 +48,9 @@ Obj BinaryExpression::evaluate(Ptr<Scope> scope)
         }
     }
     Obj lhs = m_lhs->evaluate(scope);
-    debug(syntax, "BinaryOp {}: lhs.type(): {}, lhs->type(): {} lhs->self().type() {}", m_operator, lhs.type(), lhs->type(), lhs->self().type());
-    debug(syntax, "BinaryOp {}: rhs.type(): {}, rhs->type(): {}", m_operator, rhs.type(), rhs->type());
-    debug(syntax, "BinaryOp {}: rhs.type(): {}, rhs->type(): {} rhs->self().type() {}", m_operator, rhs.type(), rhs->type(), rhs->self().type());
+    debug(parser, "BinaryOp {}: lhs.type(): {}, lhs->type(): {} lhs->self().type() {}", m_operator, lhs.type(), lhs->type(), lhs->self().type());
+    debug(parser, "BinaryOp {}: rhs.type(): {}, rhs->type(): {}", m_operator, rhs.type(), rhs->type());
+    debug(parser, "BinaryOp {}: rhs.type(): {}, rhs->type(): {} rhs->self().type() {}", m_operator, rhs.type(), rhs->type(), rhs->self().type());
     auto ret_maybe = lhs->evaluate(m_operator, make_typed<Arguments>(rhs));
     if (!ret_maybe.has_value())
         return make_obj<Exception>(ErrorCode::FunctionUndefined, m_operator);
