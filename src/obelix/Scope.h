@@ -32,6 +32,7 @@ public:
     explicit Scope(Ptr<Scope> const& parent);
 
     void declare(std::string const& name, Obj const& value);
+    [[nodiscard]] bool contains(std::string name) const { return m_variables.contains(name); }
     void set(std::string const& name, Obj const& value);
     [[nodiscard]] std::optional<Obj> resolve(std::string const&) const override;
     [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;

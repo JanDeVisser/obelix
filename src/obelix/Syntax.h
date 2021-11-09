@@ -276,7 +276,8 @@ public:
 
     ExecutionResult execute(Ptr<Scope>& scope) override
     {
-        return { ExecutionResultCode::None, m_expression->evaluate(scope) };
+        auto result = m_expression->evaluate(scope);
+        return { (result->is_exception()) ? ExecutionResultCode::Error : ExecutionResultCode::None, result };
     }
 
 private:
@@ -337,7 +338,10 @@ public:
     {
         Ptr<List> list = make_typed<List>();
         for (auto& e : m_elements) {
-            list->push_back(e->evaluate(scope));
+            auto result = e->evaluate(scope);
+            if (result->is_exception())
+                return result;
+            list->push_back(result);
         }
         return to_obj(list);
     }
@@ -390,8 +394,15 @@ public:
     std::optional<Obj> assign(Ptr<Scope>& scope, Obj const& value) override
     {
         Obj lhs = m_lhs->evaluate(scope);
+        if (lhs->is_exception())
+            return lhs;
         Obj rhs = m_rhs->evaluate(scope);
-        return lhs->assign(rhs->to_string(), value);
+        if (rhs->is_exception())
+            return rhs;
+        auto result = lhs->assign(rhs->to_string(), value);
+        if (!result.has_value())
+            return make_obj<Exception>(ErrorCode::CannotAssignToObject, lhs->to_string());
+        return result.value();
     }
 
     Obj evaluate(Ptr<Scope>& scope) override;
@@ -419,6 +430,8 @@ public:
     Obj evaluate(Ptr<Scope>& scope) override
     {
         Obj operand = m_operand->evaluate(scope);
+        if (operand->is_exception())
+            return operand;
         auto ret_maybe = operand->evaluate(m_operator.value(), make_typed<Arguments>());
         if (!ret_maybe.has_value())
             return make_obj<Exception>(ErrorCode::RegexpSyntaxError, "Could not resolve operator");
@@ -456,9 +469,14 @@ public:
     Obj evaluate(Ptr<Scope>& scope) override
     {
         auto callable = m_function->evaluate(scope);
+        if (callable->is_exception())
+            return callable;
         auto args = make_typed<Arguments>();
         for (auto& arg : m_arguments) {
-            args->add(arg->evaluate(scope));
+            auto evaluated_arg = arg->evaluate(scope);
+            if (evaluated_arg->is_exception())
+                return evaluated_arg;
+            args->add(evaluated_arg);
         }
         return callable->call(args);
     }
@@ -489,9 +507,13 @@ public:
 
     ExecutionResult execute(Ptr<Scope>& scope) override
     {
-        auto value = m_expression->evaluate(scope);
-        if (m_declaration) {
-            scope->declare(m_variable, value);
+        if (scope->contains(m_variable))
+            return { ExecutionResultCode::Error, make_obj<Exception>(ErrorCode::VariableAlreadyDeclared, m_variable) };
+        Obj value;
+        if (m_expression) {
+            value = m_expression->evaluate(scope);
+            if (value->is_exception())
+                return { ExecutionResultCode::Error, value };
         } else {
             scope->set(m_variable, value);
         }
@@ -519,7 +541,8 @@ public:
 
     ExecutionResult execute(Ptr<Scope>& scope) override
     {
-        return { ExecutionResultCode::Return, m_expression->evaluate(scope) };
+        auto result = m_expression->evaluate(scope);
+        return { (result->is_exception()) ? ExecutionResultCode::Error : ExecutionResultCode::Return, result };
     }
 
 private:
@@ -591,7 +614,13 @@ public:
 
     ExecutionResult execute(Ptr<Scope>& scope) override
     {
-        if (!m_condition || m_condition->evaluate(scope)) {
+        Obj condition_result;
+        if (m_condition) {
+            condition_result = m_condition->evaluate(scope);
+            if (condition_result->is_exception())
+                return { ExecutionResultCode::Error, condition_result };
+        }
+        if (!m_condition || condition_result) {
             return m_statement->execute(scope);
         }
         return { ExecutionResultCode::Skipped };
@@ -673,12 +702,24 @@ public:
 
     ExecutionResult execute(Ptr<Scope>& scope) override
     {
-        ExecutionResult result;
-        for (Obj condition = m_condition->evaluate(scope); condition->to_bool().value(); condition = m_condition->evaluate(scope)) {
+        ExecutionResult result { ExecutionResultCode::None, make_obj<Null>() };
+        do {
+            auto condition_value = m_condition->evaluate(scope);
+            if (condition_value->is_exception())
+                return { ExecutionResultCode::Error, condition_value };
+            auto bool_value = condition_value->to_bool();
+            if (!bool_value.has_value())
+                return { ExecutionResultCode::Error, make_obj<Exception>(ErrorCode::ConversionError, bool_value, "bool") };
+            if (!bool_value.value())
+                break;
             result = m_stmt->execute(scope);
-            if (result.code == ExecutionResultCode::Break || result.code == ExecutionResultCode::Return)
+            if (result.code == ExecutionResultCode::Error)
+                return result;
+            if (result.code == ExecutionResultCode::Break)
                 return {};
-        }
+            if (result.code == ExecutionResultCode::Return)
+                return result;
+        } while (result.code == ExecutionResultCode::None);
         return result;
     }
 
@@ -708,11 +749,17 @@ public:
         auto new_scope = make_typed<Scope>(scope);
         new_scope->declare(m_variable, make_obj<Integer>(0));
         auto range = m_range->evaluate(new_scope);
+        if (range->is_exception())
+            return { ExecutionResultCode::Error, range };
         for (auto& value : range) {
             new_scope->set(m_variable, value);
             result = m_stmt->execute(new_scope);
-            if (result.code == ExecutionResultCode::Break || result.code == ExecutionResultCode::Return)
+            if (result.code == ExecutionResultCode::Error)
+                return result;
+            if (result.code == ExecutionResultCode::Break)
                 return {};
+            if (result.code == ExecutionResultCode::Return)
+                return result;
         }
         return result;
     }
