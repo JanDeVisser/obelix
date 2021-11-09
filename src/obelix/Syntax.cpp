@@ -48,9 +48,6 @@ Obj BinaryExpression::evaluate(Ptr<Scope>& scope)
         }
     }
     Obj lhs = m_lhs->evaluate(scope);
-    debug(parser, "BinaryOp {}: lhs.type(): {}, lhs->type(): {} lhs->self().type() {}", m_operator, lhs.type(), lhs->type(), lhs->self().type());
-    debug(parser, "BinaryOp {}: rhs.type(): {}, rhs->type(): {}", m_operator, rhs.type(), rhs->type());
-    debug(parser, "BinaryOp {}: rhs.type(): {}, rhs->type(): {} rhs->self().type() {}", m_operator, rhs.type(), rhs->type(), rhs->self().type());
     auto ret_maybe = lhs->evaluate(m_operator, make_typed<Arguments>(rhs));
     if (!ret_maybe.has_value())
         return make_obj<Exception>(ErrorCode::FunctionUndefined, m_operator);
