@@ -376,19 +376,20 @@ std::shared_ptr<ForStatement> Parser::parse_for_statement(SyntaxNode* parent)
     return make_node<ForStatement>(parent, variable.value().value(), expr, stmt);
 }
 
-std::shared_ptr<Assignment> Parser::parse_variable_declaration(SyntaxNode* parent)
+std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(SyntaxNode* parent)
 {
     auto identifier_maybe = match(TokenCode::Identifier);
     if (!identifier_maybe.has_value()) {
         return nullptr;
     }
-    if (!expect(TokenCode::Equals, "after variable name in assignment")) {
-        return nullptr;
+    if (current_code() != TokenCode::Equals) {
+        return make_node<VariableDeclaration>(parent, identifier_maybe.value().value());
     }
+    lex();
     auto expr = parse_expression(parent);
     if (!expr)
         return nullptr;
-    return make_node<Assignment>(identifier_maybe.value().value(), expr, true);
+    return make_node<VariableDeclaration>(parent, identifier_maybe.value().value(), expr);
 }
 
 std::shared_ptr<Import> Parser::parse_import_statement(SyntaxNode* parent)

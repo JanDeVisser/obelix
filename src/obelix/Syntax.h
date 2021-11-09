@@ -531,23 +531,18 @@ private:
     std::vector<std::shared_ptr<Expression>> m_arguments;
 };
 
-class Assignment : public Statement {
+class VariableDeclaration : public Statement {
 public:
-    Assignment(std::string variable, std::shared_ptr<Expression> expression, bool declaration = false)
-        : Statement(expression->parent())
+    VariableDeclaration(SyntaxNode* parent, std::string variable, std::shared_ptr<Expression> expression = nullptr)
+        : Statement(parent)
         , m_variable(move(variable))
-        , m_declaration(declaration)
         , m_expression(move(expression))
     {
     }
 
     std::string to_string(int indent) override
     {
-        std::string ret;
-        if (m_declaration)
-            ret = format("{}var ", pad(indent));
-        ret += format("{} = {}", m_variable, m_expression->to_string(indent));
-        return ret;
+        return format("{}var {}", pad(indent), m_variable);
     }
 
     ExecutionResult execute(Ptr<Scope>& scope) override
@@ -560,14 +555,14 @@ public:
             if (value->is_exception())
                 return { ExecutionResultCode::Error, value };
         } else {
-            scope->set(m_variable, value);
+            value = make_obj<Integer>(0);
         }
+        scope->declare(m_variable, value);
         return { ExecutionResultCode::None, value };
     }
 
 private:
     std::string m_variable;
-    bool m_declaration { false };
     std::shared_ptr<Expression> m_expression;
 };
 

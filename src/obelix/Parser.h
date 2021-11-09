@@ -87,13 +87,13 @@ private:
     void parse_statements(SyntaxNode*, Statements&);
     std::shared_ptr<Block> parse_block(SyntaxNode*, Statements&);
     std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression>);
-    std::shared_ptr<Assignment> parse_assignment(SyntaxNode*, std::string const& identifier);
+    std::shared_ptr<VariableDeclaration> parse_assignment(SyntaxNode*, std::string const& identifier);
     std::shared_ptr<FunctionDef> parse_function_definition(SyntaxNode*);
     std::shared_ptr<IfStatement> parse_if_statement(SyntaxNode*);
     std::shared_ptr<SwitchStatement> parse_switch_statement(SyntaxNode*);
     std::shared_ptr<WhileStatement> parse_while_statement(SyntaxNode*);
     std::shared_ptr<ForStatement> parse_for_statement(SyntaxNode*);
-    std::shared_ptr<Assignment> parse_variable_declaration(SyntaxNode*);
+    std::shared_ptr<VariableDeclaration> parse_variable_declaration(SyntaxNode*);
     std::shared_ptr<Import> parse_import_statement(SyntaxNode*);
     std::shared_ptr<Expression> parse_expression(SyntaxNode*);
     static int binary_precedence(TokenCode);
