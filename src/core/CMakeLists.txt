@@ -4,6 +4,7 @@ add_library(
         Arguments.cpp
         Boolean.cpp
         Dictionary.cpp
+        Exception.cpp
         Format.cpp
         Integer.cpp
         Iterator.cpp

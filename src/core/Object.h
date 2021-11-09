@@ -375,8 +375,6 @@ std::string ErrorCode_message(ErrorCode);
 
 class Exception : public Object {
 public:
-    Exception(ErrorCode code, std::string const&);
-
     template<typename... Args>
     explicit Exception(ErrorCode code, Args&&... args)
         : Object("exception")
@@ -386,6 +384,9 @@ public:
     }
 
     [[nodiscard]] ErrorCode code() const { return m_code; }
+    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
+    [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
+    [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
     [[nodiscard]] std::optional<long> to_long() const override { return {}; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return {}; }
     [[nodiscard]] std::string to_string() const override { return m_message; }
