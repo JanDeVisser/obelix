@@ -120,7 +120,7 @@ Obj const& Object::at(size_t ix)
 
 Obj Object::call(Ptr<Arguments>)
 {
-    return make_obj<Exception>(ErrorCode::ObjectNotCallable);
+    return make_obj<Exception>(ErrorCode::ObjectNotCallable, to_string());
 }
 
 Obj Object::operator()(Ptr<Arguments> args)
@@ -171,41 +171,6 @@ Ptr<Null> const& Null::null()
     return s_null;
 }
 
-std::string ErrorCode_name(ErrorCode code)
-{
-    switch (code) {
-#undef __ENUMERATE_ERROR_CODE
-#define __ENUMERATE_ERROR_CODE(code, msg) \
-    case ErrorCode::code:          \
-        return #code;
-        ENUMERATE_ERROR_CODES(__ENUMERATE_ERROR_CODE)
-#undef __ENUMERATE_ERROR_CODE
-    default:
-        fatal("Unreachable");
-    }
-}
-
-std::string ErrorCode_message(ErrorCode code)
-{
-    switch (code) {
-#undef __ENUMERATE_ERROR_CODE
-#define __ENUMERATE_ERROR_CODE(code, msg) \
-    case ErrorCode::code:          \
-        return msg;
-        ENUMERATE_ERROR_CODES(__ENUMERATE_ERROR_CODE)
-#undef __ENUMERATE_ERROR_CODE
-    default:
-        fatal("Unreachable");
-    }
-}
-
-Exception::Exception(ErrorCode code, std::string const& message)
-    : Object("exception")
-    , m_code(code)
-{
-    m_message = ErrorCode_name(code) + ": " + message;
-}
-
 int Float::compare(Obj const& other) const
 {
     auto double_maybe = other->to_double();
@@ -229,6 +194,14 @@ int NVP::compare(Obj const& other) const
         return 1;
 }
 
+std::optional<Obj> NVP::resolve(std::string const& name) const
+{
+    if (name == "name")
+        return make_obj<String>(m_pair.first);
+    if (name == "value")
+        return m_pair.second;
+    return Object::resolve(name);
+}
 
 std::unordered_map<std::string, ObjectType> ObjectType::s_types;
 [[maybe_unused]] ObjectType s_integer("integer", [](std::vector<Obj> const& args) {

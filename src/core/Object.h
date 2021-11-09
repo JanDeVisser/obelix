@@ -356,7 +356,10 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
 #define ENUMERATE_ERROR_CODES(S)                                                \
     S(NoError, "There is no error")                                             \
     S(SyntaxError, "{}")                                                        \
-    S(ObjectNotCallable, "Object is not callable")                              \
+    S(ObjectNotCallable, "Object '{}' is not callable")                         \
+    S(CannotAssignToObject, "Cannot assign to object '{}'")                     \
+    S(VariableAlreadyDeclared, "Variable '{}' is already declared")             \
+    S(ConversionError, "Cannot convert '{}' to {}")                             \
     S(FunctionUndefined, "Function '{}' in image '{}' is undefined")            \
     S(RegexpSyntaxError, "Regular expression syntax error")                     \
     S(TypeMismatch, "Type mismatch in operation '{}'. Expected '{}', got '{}'") \
@@ -421,6 +424,7 @@ public:
     [[nodiscard]] Obj value() const { return m_pair.second; }
     [[nodiscard]] std::string to_string() const override { return "(" + name() + "," + value()->to_string() + ")"; }
     [[nodiscard]] int compare(Obj const& other) const override;
+    [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
 
 private:
     std::pair<std::string, Obj> m_pair;
