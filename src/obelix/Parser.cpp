@@ -590,6 +590,8 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(SyntaxNode* parent,
     }
     case TokenCode::OpenBracket:
         return parse_list_literal(parent);
+    case TokenCode::OpenBrace:
+        return parse_dictionary_literal(parent);
     case TokenCode::Integer:
     case TokenCode::Float:
     case TokenCode::DoubleQuotedString:
@@ -626,6 +628,30 @@ std::shared_ptr<ListLiteral> Parser::parse_list_literal(SyntaxNode* parent)
     }
     lex();
     return make_node<ListLiteral>(parent, elements);
+}
+
+std::shared_ptr<DictionaryLiteral> Parser::parse_dictionary_literal(SyntaxNode* parent)
+{
+    DictionaryLiteralEntries entries;
+    while (current_code() != TokenCode::CloseBrace) {
+        auto name = match(TokenCode::Identifier, "Expecting entry name in dictionary literal");
+        if (!name.has_value())
+            return nullptr;
+        if (!expect(TokenCode::Colon, "in dictionary literal"))
+            return nullptr;
+        auto value = parse_expression(parent);
+        if (!value)
+            return nullptr;
+        entries.push_back({ name.value().value(), value });
+        if (current_code() == TokenCode::Comma) {
+            lex();
+        } else if (current_code() != TokenCode::CloseBrace) {
+            add_error(peek(), format("Expecting ',' after dictionary element, got '{}'", peek().value()));
+            return nullptr;
+        }
+    }
+    lex();
+    return make_node<DictionaryLiteral>(parent, entries);
 }
 
 Token const& Parser::peek()

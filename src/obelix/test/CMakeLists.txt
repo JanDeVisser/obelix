@@ -3,6 +3,7 @@ enable_testing()
 add_executable(
         ParserTest
         Assignment.cpp
+        DictionaryLiteral.cpp
         ListLiteral.cpp
         DeclareVar.cpp)
 

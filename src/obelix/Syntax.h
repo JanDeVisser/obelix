@@ -350,6 +350,51 @@ private:
     std::vector<std::shared_ptr<Expression>> m_elements;
 };
 
+struct DictionaryLiteralEntry {
+    std::string name;
+    std::shared_ptr<Expression> value;
+};
+
+typedef std::vector<DictionaryLiteralEntry> DictionaryLiteralEntries;
+
+class DictionaryLiteral : public Expression {
+public:
+    DictionaryLiteral(SyntaxNode* parent, DictionaryLiteralEntries entries)
+        : Expression(parent)
+        , m_entries(move(entries))
+    {
+    }
+
+    std::string to_string(int indent) override
+    {
+        std::string ret = "{";
+        bool first = true;
+        for (auto& e : m_entries) {
+            if (!first)
+                ret += ", ";
+            ret += format("{}: {}", e.name, e.value->to_string(indent));
+            first = false;
+        }
+        ret += "}";
+        return ret;
+    }
+
+    Obj evaluate(Ptr<Scope>& scope) override
+    {
+        auto dictionary = make_typed<Dictionary>();
+        for (auto& e : m_entries) {
+            auto result = e.value->evaluate(scope);
+            if (result->is_exception())
+                return result;
+            dictionary->put(e.name, result);
+        }
+        return to_obj(dictionary);
+    }
+
+private:
+    DictionaryLiteralEntries m_entries;
+};
+
 class This : public Expression {
 public:
     explicit This(SyntaxNode* parent)
