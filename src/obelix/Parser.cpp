@@ -78,7 +78,7 @@ template<class T, class... Args>
 std::shared_ptr<T> make_node(Args&&... args)
 {
     auto ret = std::make_shared<T>(std::forward<Args>(args)...);
-    debug(parser, "make_node<{}>: {}", typeid(T).name(), ret->to_string(0));
+    debug(parser, "make_node<{}>", typeid(T).name());
     return ret;
 }
 
