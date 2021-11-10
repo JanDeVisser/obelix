@@ -5,7 +5,9 @@ add_executable(
         Assignment.cpp
         DictionaryLiteral.cpp
         ListLiteral.cpp
-        DeclareVar.cpp)
+        ListComprehension.cpp
+        DeclareVar.cpp
+)
 
 target_link_libraries(
         ParserTest

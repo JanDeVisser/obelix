@@ -74,6 +74,7 @@ public:
     constexpr static TokenCode KeywordFor = TokenCode::Keyword16;
     constexpr static TokenCode KeywordIn = TokenCode::Keyword17;
     constexpr static TokenCode KeywordRange = TokenCode::Keyword18;
+    constexpr static TokenCode KeywordWhere = TokenCode::Keyword19;
 
     Parser(Runtime::Config const& parser_config, StringBuffer& src);
     Parser(Runtime::Config const& parser_config, std::string const& file_name);
@@ -87,7 +88,6 @@ private:
     void parse_statements(SyntaxNode*, Statements&);
     std::shared_ptr<Block> parse_block(SyntaxNode*, Statements&);
     std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression>);
-    std::shared_ptr<VariableDeclaration> parse_assignment(SyntaxNode*, std::string const& identifier);
     std::shared_ptr<FunctionDef> parse_function_definition(SyntaxNode*);
     std::shared_ptr<IfStatement> parse_if_statement(SyntaxNode*);
     std::shared_ptr<SwitchStatement> parse_switch_statement(SyntaxNode*);
@@ -105,7 +105,8 @@ private:
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> expression);
     std::shared_ptr<Expression> parse_primary_expression(SyntaxNode*, bool);
-    std::shared_ptr<ListLiteral> parse_list_literal(SyntaxNode*);
+    std::shared_ptr<Expression> parse_list_literal(SyntaxNode*);
+    std::shared_ptr<ListComprehension> parse_list_comprehension(std::shared_ptr<Expression>);
     std::shared_ptr<DictionaryLiteral> parse_dictionary_literal(SyntaxNode*);
 
     Token const& peek();

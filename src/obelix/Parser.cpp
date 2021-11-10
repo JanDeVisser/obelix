@@ -64,6 +64,7 @@ Parser::Parser(Runtime::Config const& config, StringBuffer& src)
         Token(KeywordFor, "for"),
         Token(KeywordIn, "in"),
         Token(KeywordRange, ".."),
+        Token(KeywordWhere, "where"),
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
         TokenCode::EqualsTo,
@@ -602,9 +603,8 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(SyntaxNode* parent,
         return make_node<Literal>(parent, t);
     case TokenCode::Identifier: {
         if (in_deref_chain)
-            return make_node<Literal>(parent, make_obj<String>(t.value()));
-        return make_node<BinaryExpression>(
-            make_node<This>(parent), ".", make_node<Literal>(parent, make_obj<String>(t.value())));
+            return make_node<Identifier>(parent, t.value());
+        return make_node<BinaryExpression>(make_node<This>(parent), Token(TokenCode::Period, "."), make_node<Identifier>(parent, t.value()));
     }
     default:
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
@@ -612,13 +612,17 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(SyntaxNode* parent,
     }
 }
 
-std::shared_ptr<ListLiteral> Parser::parse_list_literal(SyntaxNode* parent)
+std::shared_ptr<Expression> Parser::parse_list_literal(SyntaxNode* parent)
 {
     std::vector<std::shared_ptr<Expression>> elements;
     while (current_code() != TokenCode::CloseBracket) {
         auto element = parse_expression(parent);
         if (!element)
             return nullptr;
+        if (elements.empty() && (current_code() == KeywordFor)) {
+            lex();
+            return parse_list_comprehension(element);
+        }
         elements.push_back(element);
         if (current_code() == TokenCode::Comma) {
             lex();
@@ -629,6 +633,28 @@ std::shared_ptr<ListLiteral> Parser::parse_list_literal(SyntaxNode* parent)
     }
     lex();
     return make_node<ListLiteral>(parent, elements);
+}
+
+std::shared_ptr<ListComprehension> Parser::parse_list_comprehension(std::shared_ptr<Expression> element)
+{
+    auto rangevar_maybe = match(TokenCode::Identifier, "after 'for' in list comprehension");
+    if (!rangevar_maybe.has_value())
+        return nullptr;
+    if (!expect(KeywordIn, "after range variable in list comprehensiom"))
+        return nullptr;
+    auto generator = parse_expression(element->parent());
+    if (!generator)
+        return nullptr;
+    if (current_code() != KeywordWhere) {
+        if (!expect(TokenCode::CloseBracket, "after generator expression in list comprehension"))
+            return nullptr;
+        return make_node<ListComprehension>(element, rangevar_maybe.value().value(), generator);
+    }
+    lex();
+    auto where = parse_expression(element->parent());
+    if (!expect(TokenCode::CloseBracket, "after generator condition in list comprehension"))
+        return nullptr;
+    return make_node<ListComprehension>(element, rangevar_maybe.value().value(), generator, where);
 }
 
 std::shared_ptr<DictionaryLiteral> Parser::parse_dictionary_literal(SyntaxNode* parent)

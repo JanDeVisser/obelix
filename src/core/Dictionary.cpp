@@ -22,7 +22,6 @@ public:
 
     void increment(ptrdiff_t delta) override
     {
-        assert(delta >= 0);
         while (delta-- > 0) {
             m_iter++;
         }
@@ -97,12 +96,18 @@ std::optional<Obj> Dictionary::evaluate(std::string const& name, Ptr<Arguments> 
     return Object::evaluate(name, args);
 }
 
-[[nodiscard]] std::optional<Obj> Dictionary::resolve(std::string const& name) const
+std::optional<Obj> Dictionary::resolve(std::string const& name) const
 {
     if (m_dictionary.contains(name)) {
         return get(name);
     }
     return Object::resolve(name);
+}
+
+std::optional<Obj> Dictionary::assign(std::string const& name, std::string const&, Obj const& value)
+{
+    m_dictionary[name] = value;
+    return value;
 }
 
 IteratorState* Dictionary::iterator_state(IteratorState::IteratorWhere where)

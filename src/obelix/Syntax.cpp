@@ -40,18 +40,33 @@ ExecutionResult Import::execute(Ptr<Scope>& scope)
 Obj BinaryExpression::evaluate(Ptr<Scope>& scope)
 {
     Obj rhs = m_rhs->evaluate(scope);
-    if (m_operator == "=") {
-        if (auto ret_maybe = m_lhs->assign(scope, rhs); ret_maybe.has_value()) {
+    switch (m_operator.code()) {
+    case TokenCode::Equals:
+        if (auto ret_maybe = m_lhs->assign(scope, m_operator, rhs); ret_maybe.has_value())
             return ret_maybe.value();
-        } else {
-            return make_obj<Exception>(ErrorCode::SyntaxError, "Could not assign to non-lvalue");
-        }
+        return make_obj<Exception>(ErrorCode::SyntaxError, "Could not assign to non-lvalue");
+    default: {
+        Obj lhs = m_lhs->evaluate(scope);
+        auto ret_maybe = lhs->evaluate(m_operator.value(), make_typed<Arguments>(rhs));
+        if (!ret_maybe.has_value())
+            return make_obj<Exception>(ErrorCode::FunctionUndefined, m_operator);
+        return ret_maybe.value();
     }
+    }
+}
+
+std::optional<Obj> BinaryExpression::assign(Ptr<Scope>& scope, Token const& op, Obj const& value)
+{
     Obj lhs = m_lhs->evaluate(scope);
-    auto ret_maybe = lhs->evaluate(m_operator, make_typed<Arguments>(rhs));
-    if (!ret_maybe.has_value())
-        return make_obj<Exception>(ErrorCode::FunctionUndefined, m_operator);
-    return ret_maybe.value();
+    if (lhs->is_exception())
+        return lhs;
+    Obj rhs = m_rhs->evaluate(scope);
+    if (rhs->is_exception())
+        return rhs;
+    auto result = lhs->assign(rhs->to_string(), op.value(), value);
+    if (!result.has_value())
+        return make_obj<Exception>(ErrorCode::CannotAssignToObject, lhs->to_string());
+    return result.value();
 }
 
 }

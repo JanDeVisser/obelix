@@ -255,7 +255,7 @@ public:
         fatal("Not yet implemented");
     }
 
-    virtual std::optional<Obj> assign(Ptr<Scope>& scope, Obj const&)
+    virtual std::optional<Obj> assign(Ptr<Scope>& scope, Token const&, Obj const&)
     {
         return {};
     }
@@ -312,6 +312,28 @@ private:
     Obj m_literal;
 };
 
+class Identifier : public Expression {
+public:
+    Identifier(SyntaxNode* parent, std::string identifier)
+        : Expression(parent)
+        , m_identifier(move(identifier))
+    {
+    }
+
+    std::string to_string(int indent) override
+    {
+        return m_identifier;
+    }
+
+    Obj evaluate(Ptr<Scope>& scope) override
+    {
+        return make_obj<String>(m_identifier);
+    }
+
+private:
+    std::string m_identifier;
+};
+
 class ListLiteral : public Expression {
 public:
     ListLiteral(SyntaxNode* parent, std::vector<std::shared_ptr<Expression>> elements)
@@ -348,6 +370,63 @@ public:
 
 private:
     std::vector<std::shared_ptr<Expression>> m_elements;
+};
+
+class ListComprehension : public Expression {
+public:
+    ListComprehension(std::shared_ptr<Expression> element,
+        std::string rangevar,
+        std::shared_ptr<Expression> generator,
+        std::shared_ptr<Expression> condition = nullptr)
+        : Expression(element->parent())
+        , m_element(move(element))
+        , m_rangevar(move(rangevar))
+        , m_generator(move(generator))
+        , m_condition(move(condition))
+    {
+    }
+
+    std::string to_string(int indent) override
+    {
+        auto ret = format("[ {} for {} in {}", m_element->to_string(indent), m_rangevar, m_generator->to_string(indent));
+        if (m_condition)
+            ret += format(" where {}", m_condition->to_string(indent));
+        return ret;
+    }
+
+    Obj evaluate(Ptr<Scope>& scope) override
+    {
+        auto list = make_typed<List>();
+        auto new_scope = make_typed<Scope>(scope);
+        auto range = m_generator->evaluate(new_scope);
+        if (range->is_exception())
+            return range;
+        new_scope->declare(m_rangevar, make_obj<Integer>(0));
+        for (auto& value : range) {
+            new_scope->set(m_rangevar, value);
+            auto elem = m_element->evaluate(new_scope);
+            if (elem->is_exception())
+                return elem;
+            if (m_condition) {
+                auto include_elem = m_condition->evaluate(new_scope);
+                if (include_elem->is_exception())
+                    return include_elem;
+                auto include_maybe = include_elem->to_bool();
+                if (!include_maybe.has_value())
+                    return make_obj<Exception>(ErrorCode::ConversionError, "Cannot convert list comprehension condition result '{}' to boolean", include_elem->to_string());
+                if (!include_maybe.value())
+                    continue;
+            }
+            list->push_back(elem);
+        }
+        return to_obj(list);
+    }
+
+private:
+    std::shared_ptr<Expression> m_element;
+    std::string m_rangevar;
+    std::shared_ptr<Expression> m_generator;
+    std::shared_ptr<Expression> m_condition;
 };
 
 struct DictionaryLiteralEntry {
@@ -415,18 +494,10 @@ public:
 
 class BinaryExpression : public Expression {
 public:
-    BinaryExpression(std::shared_ptr<Expression> lhs, Token const& op, std::shared_ptr<Expression> rhs)
+    BinaryExpression(std::shared_ptr<Expression> lhs, Token op, std::shared_ptr<Expression> rhs)
         : Expression(lhs->parent())
         , m_lhs(std::move(lhs))
-        , m_operator(op.value())
-        , m_rhs(std::move(rhs))
-    {
-    }
-
-    BinaryExpression(std::shared_ptr<Expression> lhs, std::string op, std::shared_ptr<Expression> rhs)
-        : Expression(lhs->parent())
-        , m_lhs(std::move(lhs))
-        , m_operator(move(op))
+        , m_operator(std::move(op))
         , m_rhs(std::move(rhs))
     {
     }
@@ -436,25 +507,12 @@ public:
         return format("({}) {} ({})", m_lhs->to_string(indent), m_operator, m_rhs->to_string(indent));
     }
 
-    std::optional<Obj> assign(Ptr<Scope>& scope, Obj const& value) override
-    {
-        Obj lhs = m_lhs->evaluate(scope);
-        if (lhs->is_exception())
-            return lhs;
-        Obj rhs = m_rhs->evaluate(scope);
-        if (rhs->is_exception())
-            return rhs;
-        auto result = lhs->assign(rhs->to_string(), value);
-        if (!result.has_value())
-            return make_obj<Exception>(ErrorCode::CannotAssignToObject, lhs->to_string());
-        return result.value();
-    }
-
+    std::optional<Obj> assign(Ptr<Scope>& scope, Token const& op, Obj const& value) override;
     Obj evaluate(Ptr<Scope>& scope) override;
 
 private:
     std::shared_ptr<Expression> m_lhs;
-    std::string m_operator;
+    Token m_operator;
     std::shared_ptr<Expression> m_rhs;
 };
 

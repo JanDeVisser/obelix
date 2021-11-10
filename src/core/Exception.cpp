@@ -59,7 +59,7 @@ std::optional<Obj> Exception::resolve(std::string const& name) const
     return self();
 }
 
-std::optional<Obj> Exception::assign(std::string const&, Obj const&)
+std::optional<Obj> Exception::assign(std::string const&, std::string const&, Obj const&)
 {
     return self();
 }

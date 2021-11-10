@@ -59,15 +59,16 @@ std::optional<Obj> Scope::resolve(std::string const& name) const
     return {};
 }
 
-std::optional<Obj> Scope::assign(std::string const& name, Obj const& value)
+std::optional<Obj> Scope::assign(std::string const& name, std::string const& op, Obj const& value)
 {
+    assert(op == "=");
     if (m_variables.contains(name)) {
         m_variables.put(name, value);
         return value;
     }
     if (!m_parent)
         return {};
-    return m_parent->assign(name, value);
+    return m_parent->assign(name, op, value);
 }
 
 [[nodiscard]] Ptr<Scope> Scope::clone()
