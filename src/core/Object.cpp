@@ -45,11 +45,10 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
     if (name == ".") {
         assert(args->size() == 1);
         auto ret = resolve(args->at(0)->to_string());
-        debug(object, "operator '.': ret.has_value): {}", ret.has_value());
         return ret;
     } else if (name == "=") {
         assert(args->size() == 2);
-        return assign(args->at(0)->to_string(), args->at(1));
+        return assign(args->at(0)->to_string(), name, args->at(1));
     } else if (name == "<") {
         return make_obj<Boolean>(compare(args->get(0)) < 0);
     } else if (name == ">") {
@@ -63,8 +62,6 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
     } else if (name == "!=") {
         return make_obj<Boolean>(compare(args->get(0)) != 0);
     } else if (name == "..") {
-        debug(object, "evaluate:.. {}", type());
-        debug(object, "evaluate:.. {}", m_self->type());
         return make_obj<Range>(self(), args[0]);
     } else if (name == "typename") {
         return make_obj<String>(type());
@@ -85,7 +82,7 @@ std::optional<Ptr<Object>> Object::resolve(std::string const& name) const
     return {};
 }
 
-std::optional<Ptr<Object>> Object::assign(std::string const&, Obj const&)
+std::optional<Ptr<Object>> Object::assign(std::string const&, std::string const&, Obj const&)
 {
     return {};
 }
