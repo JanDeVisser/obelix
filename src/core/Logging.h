@@ -225,7 +225,7 @@ private:
 #ifdef assert
 #undef assert
 #endif
-#define assert(condition) Logger::get_logger().assert_msg(__FILE__, __LINE__, __func__, condition, "Assertion error: " #condition);
+#define assert(condition) Logger::get_logger().assert_msg(__FILE__, __LINE__, __func__, condition, "Assertion error: " #condition)
 #define oassert(condition, fmt, args...) Logger::get_logger().assert_msg(__FILE__, __LINE__, __func__, condition, fmt, ##args)
 #define log_timestamp_start(module) ((module ## _logger).start())
 #define log_timestamp_end(module, ts, fmt, ...) (module ## _logger).log_duration(ts, __FILE__, __LINE__, __func__, fmt, ##args)
