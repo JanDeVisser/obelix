@@ -61,7 +61,7 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
     } else if (name == "==") {
         return make_obj<Boolean>(compare(args->get(0)) == 0);
     } else if (name == "!=") {
-        return make_obj<Boolean>(compare(args->get(0)) == 0);
+        return make_obj<Boolean>(compare(args->get(0)) != 0);
     } else if (name == "..") {
         debug(object, "evaluate:.. {}", type());
         debug(object, "evaluate:.. {}", m_self->type());
