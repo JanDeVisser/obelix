@@ -65,6 +65,8 @@ Parser::Parser(Runtime::Config const& config, StringBuffer& src)
         Token(KeywordIn, "in"),
         Token(KeywordRange, ".."),
         Token(KeywordWhere, "where"),
+        Token(KeywordIncEquals, "+="),
+        Token(KeywordDecEquals, "-="),
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
         TokenCode::EqualsTo,
@@ -444,6 +446,8 @@ int Parser::binary_precedence(TokenCode code)
 {
     switch (code) {
     case TokenCode::Equals:
+    case KeywordIncEquals:
+    case KeywordDecEquals:
         return 1;
     case TokenCode::LogicalOr:
         return 3;
@@ -485,6 +489,8 @@ Parser::Associativity Parser::associativity(TokenCode code)
 {
     switch (code) {
     case TokenCode::Equals:
+    case KeywordIncEquals:
+    case KeywordDecEquals:
         return Associativity::RightToLeft;
     default:
         return Associativity::LeftToRight;

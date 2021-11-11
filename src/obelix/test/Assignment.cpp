@@ -68,4 +68,52 @@ TEST_F(ParserTest, ChainedAssign)
     EXPECT_EQ(c->to_long().value(), 4);
 }
 
+TEST_F(ParserTest, AssignIncEquals)
+{
+    auto root_scope = make_typed<Scope>();
+    root_scope->declare("x", make_obj<Integer>(1));
+    auto scope = parse("x += 2;", root_scope);
+    EXPECT_NE(scope->result().code, ExecutionResultCode::Error);
+    auto x_opt = scope->resolve("x");
+    EXPECT_TRUE(x_opt.has_value());
+    Ptr<Integer> x = ptr_cast<Integer>(x_opt.value());
+    EXPECT_EQ(x->to_long().value(), 3);
+}
+
+TEST_F(ParserTest, LoopIncEquals)
+{
+    auto root_scope = make_typed<Scope>();
+    root_scope->declare("x", make_obj<Integer>(1));
+    auto scope = parse("while (x < 10) { x += 2; }", root_scope);
+    EXPECT_NE(scope->result().code, ExecutionResultCode::Error);
+    auto x_opt = scope->resolve("x");
+    EXPECT_TRUE(x_opt.has_value());
+    Ptr<Integer> x = ptr_cast<Integer>(x_opt.value());
+    EXPECT_EQ(x->to_long().value(), 11);
+}
+
+TEST_F(ParserTest, AssignDecEquals)
+{
+    auto root_scope = make_typed<Scope>();
+    root_scope->declare("x", make_obj<Integer>(3));
+    auto scope = parse("x -= 2;", root_scope);
+    EXPECT_NE(scope->result().code, ExecutionResultCode::Error);
+    auto x_opt = scope->resolve("x");
+    EXPECT_TRUE(x_opt.has_value());
+    Ptr<Integer> x = ptr_cast<Integer>(x_opt.value());
+    EXPECT_EQ(x->to_long().value(), 1);
+}
+
+TEST_F(ParserTest, LoopDecEquals)
+{
+    auto root_scope = make_typed<Scope>();
+    root_scope->declare("x", make_obj<Integer>(11));
+    auto scope = parse("while (x > 0) { x -= 2; }", root_scope);
+    EXPECT_NE(scope->result().code, ExecutionResultCode::Error);
+    auto x_opt = scope->resolve("x");
+    EXPECT_TRUE(x_opt.has_value());
+    Ptr<Integer> x = ptr_cast<Integer>(x_opt.value());
+    EXPECT_EQ(x->to_long().value(), -1);
+}
+
 }

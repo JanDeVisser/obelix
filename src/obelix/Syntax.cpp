@@ -3,6 +3,7 @@
 //
 
 #include <core/Logging.h>
+#include <obelix/Parser.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
@@ -42,6 +43,8 @@ Obj BinaryExpression::evaluate(Ptr<Scope>& scope)
     Obj rhs = m_rhs->evaluate(scope);
     switch (m_operator.code()) {
     case TokenCode::Equals:
+    case Parser::KeywordIncEquals:
+    case Parser::KeywordDecEquals:
         if (auto ret_maybe = m_lhs->assign(scope, m_operator, rhs); ret_maybe.has_value())
             return ret_maybe.value();
         return make_obj<Exception>(ErrorCode::SyntaxError, "Could not assign to non-lvalue");

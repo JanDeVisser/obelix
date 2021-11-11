@@ -75,6 +75,8 @@ public:
     constexpr static TokenCode KeywordIn = TokenCode::Keyword17;
     constexpr static TokenCode KeywordRange = TokenCode::Keyword18;
     constexpr static TokenCode KeywordWhere = TokenCode::Keyword19;
+    constexpr static TokenCode KeywordIncEquals = TokenCode::Keyword20;
+    constexpr static TokenCode KeywordDecEquals = TokenCode::Keyword21;
 
     Parser(Runtime::Config const& parser_config, StringBuffer& src);
     Parser(Runtime::Config const& parser_config, std::string const& file_name);
