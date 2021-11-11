@@ -104,7 +104,7 @@ std::optional<Obj> Dictionary::resolve(std::string const& name) const
     return Object::resolve(name);
 }
 
-std::optional<Obj> Dictionary::assign(std::string const& name, std::string const&, Obj const& value)
+std::optional<Obj> Dictionary::assign(std::string const& name, Obj const& value)
 {
     m_dictionary[name] = value;
     return value;
