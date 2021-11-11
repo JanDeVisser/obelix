@@ -67,7 +67,7 @@ std::optional<Obj> Scope::assign(std::string const& name, Obj const& value)
     }
     if (!m_parent)
         return {};
-    ` return m_parent->assign(name, value);
+    return m_parent->assign(name, value);
 }
 
 [[nodiscard]] Ptr<Scope> Scope::clone()
