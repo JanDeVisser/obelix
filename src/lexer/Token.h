@@ -84,7 +84,16 @@ namespace Obelix {
     S(Keyword17, nullptr, nullptr)       \
     S(Keyword18, nullptr, nullptr)       \
     S(Keyword19, nullptr, nullptr)       \
-    S(Keyword20, nullptr, nullptr)
+    S(Keyword20, nullptr, nullptr)       \
+    S(Keyword21, nullptr, nullptr)       \
+    S(Keyword22, nullptr, nullptr)       \
+    S(Keyword23, nullptr, nullptr)       \
+    S(Keyword24, nullptr, nullptr)       \
+    S(Keyword25, nullptr, nullptr)       \
+    S(Keyword26, nullptr, nullptr)       \
+    S(Keyword27, nullptr, nullptr)       \
+    S(Keyword28, nullptr, nullptr)       \
+    S(Keyword29, nullptr, nullptr)
 
 enum class TokenCode {
 #undef __ENUMERATE_TOKEN_CODE
