@@ -42,6 +42,17 @@ IteratorState* Object::iterator_state(IteratorState::IteratorWhere where)
 
 std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args)
 {
+    auto apply_and_assign = [this, args](std::string const& op) -> std::optional<Obj> {
+        auto attribute = args[0]->to_string();
+        auto current_val_maybe = resolve(attribute);
+        if (!current_val_maybe.has_value())
+            return make_obj<Exception>(ErrorCode::NameUnresolved, attribute);
+        auto new_val_maybe = current_val_maybe.value()->evaluate(op, make_typed<Arguments>(args[1]));
+        if (!new_val_maybe.has_value())
+            return make_obj<Exception>(ErrorCode::OperatorUnresolved, current_val_maybe, op);
+        return assign(attribute, new_val_maybe.value());
+    };
+
     if (name == ".") {
         assert(args->size() == 1);
         auto ret = resolve(args->at(0)->to_string());
@@ -63,6 +74,8 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
         return make_obj<Boolean>(compare(args->get(0)) != 0);
     } else if (name == "..") {
         return make_obj<Range>(self(), args[0]);
+    } else if (name.ends_with("=")) {
+        return apply_and_assign(name.substr(0, name.length() - 1));
     } else if (name == "typename") {
         return make_obj<String>(type());
     } else if (name == "size") {

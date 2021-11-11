@@ -359,6 +359,8 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
     S(ObjectNotCallable, "Object '{}' is not callable")                         \
     S(CannotAssignToObject, "Cannot assign to object '{}'")                     \
     S(VariableAlreadyDeclared, "Variable '{}' is already declared")             \
+    S(NameUnresolved, "Could not resolve '{}'")                                 \
+    S(OperatorUnresolved, "Could not apply '{}' to '{}'")                       \
     S(ConversionError, "Cannot convert '{}' to {}")                             \
     S(FunctionUndefined, "Function '{}' in image '{}' is undefined")            \
     S(RegexpSyntaxError, "Regular expression syntax error")                     \

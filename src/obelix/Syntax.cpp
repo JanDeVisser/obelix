@@ -49,7 +49,7 @@ Obj BinaryExpression::evaluate(Ptr<Scope>& scope)
         Obj lhs = m_lhs->evaluate(scope);
         auto ret_maybe = lhs->evaluate(m_operator.value(), make_typed<Arguments>(rhs));
         if (!ret_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::FunctionUndefined, m_operator);
+            return make_obj<Exception>(ErrorCode::OperatorUnresolved, lhs, m_operator.value());
         return ret_maybe.value();
     }
     }
@@ -63,7 +63,7 @@ std::optional<Obj> BinaryExpression::assign(Ptr<Scope>& scope, Token const& op, 
     Obj rhs = m_rhs->evaluate(scope);
     if (rhs->is_exception())
         return rhs;
-    auto result = lhs->assign(rhs->to_string(), op.value(), value);
+    auto result = lhs->evaluate(op.value(), make_typed<Arguments>(rhs->to_string(), value));
     if (!result.has_value())
         return make_obj<Exception>(ErrorCode::CannotAssignToObject, lhs->to_string());
     return result.value();
