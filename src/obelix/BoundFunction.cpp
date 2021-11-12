@@ -37,7 +37,7 @@ Obj BoundFunction::call(Ptr<Arguments> args)
 Obj BoundFunction::call(std::string const& name, Ptr<Arguments> args)
 {
     assert(args->size() == m_definition.parameters().size());
-    Ptr<Scope> function_scope = m_scope->clone();
+    Ptr<Scope> function_scope = ptr_cast<Scope>(m_scope->copy());
     for (auto ix = 0u; ix < args->size(); ix++) {
         function_scope->declare(m_definition.parameters()[ix], args->at(ix));
     }

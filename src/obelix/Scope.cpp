@@ -70,14 +70,14 @@ std::optional<Obj> Scope::assign(std::string const& name, Obj const& value)
     return m_parent->assign(name, value);
 }
 
-[[nodiscard]] Ptr<Scope> Scope::clone()
+[[nodiscard]] Ptr<Object> Scope::copy() const
 {
     auto ret = make_typed<Scope>(m_parent);
     for (Obj const& elem : m_variables) {
         auto nvp = Obelix::ptr_cast<Obelix::NVP>(elem);
         ret->declare(nvp->name(), nvp->value());
     }
-    return ret;
+    return to_obj(ret);
 }
 
 }

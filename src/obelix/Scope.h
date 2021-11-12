@@ -36,7 +36,7 @@ public:
     void set(std::string const& name, Obj const& value);
     [[nodiscard]] std::optional<Obj> resolve(std::string const&) const override;
     [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
-    [[nodiscard]] Ptr<Scope> clone();
+    [[nodiscard]] Ptr<Object> copy() const override;
 
     [[nodiscard]] std::string to_string() const override { return "scope"; }
     [[nodiscard]] ExecutionResult const& result() const { return m_result; }
