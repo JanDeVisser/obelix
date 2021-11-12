@@ -37,7 +37,7 @@ std::optional<Obj> String::evaluate(std::string const& op, Ptr<Arguments> args)
 {
     if (op == "+") {
         auto ret = m_value;
-        for (auto& arg : args->arguments()) {
+        for (auto const& arg : args->arguments()) {
             ret += arg->to_string();
         }
         return make_obj<String>(ret);

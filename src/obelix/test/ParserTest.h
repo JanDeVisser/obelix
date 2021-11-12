@@ -38,7 +38,7 @@ protected:
         EXPECT_NE(scope->result().code, ExecutionResultCode::Error);
         if (ret->result().code == ExecutionResultCode::Error) {
             auto errors = ptr_cast<List>(ret->result().return_value);
-            for (auto& error : errors) {
+            for (auto const& error : errors) {
                 fprintf(stderr, "%s\n", error->to_string().c_str());
             }
         }

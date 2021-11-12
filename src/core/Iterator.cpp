@@ -21,92 +21,92 @@
 
 namespace Obelix {
 
-SimpleIteratorState::SimpleIteratorState(Object& container, IteratorWhere where)
-    : IteratorState(container)
-    , m_index((where == IteratorWhere::Begin) ? 0 : container.size())
-{
-}
-
-SimpleIteratorState::SimpleIteratorState(SimpleIteratorState const& original, size_t index)
-    : IteratorState(dynamic_cast<IteratorState const&>(original))
+SimpleIterator::SimpleIterator(Object const& container, size_t index)
+    : Object("iterator")
+    , m_container(container)
     , m_index(index)
 {
 }
 
-void SimpleIteratorState::increment(ptrdiff_t delta)
+Ptr<Object> SimpleIterator::copy() const
 {
-    m_index += delta;
-    m_current = make_null<Object>();
+    return make_obj<SimpleIterator>(m_container, m_index);
 }
 
-IteratorState* SimpleIteratorState::copy() const
+std::optional<Ptr<Object>> SimpleIterator::next()
 {
-    return new SimpleIteratorState(*this, m_index);
-}
-
-bool SimpleIteratorState::equals(IteratorState const* other) const
-{
-    auto other_casted = dynamic_cast<SimpleIteratorState const*>(other);
-    return m_index == other_casted->m_index;
-}
-
-Ptr<Object> const& SimpleIteratorState::dereference()
-{
-    if (!m_current.has_nullptr())
-        return m_current;
-    if ((m_index >= 0) && (m_index < container().size()))
-        return container().at(m_index);
-    return m_current;
+    if ((m_index >= 0) && (m_index < m_container.size())) {
+        return m_container.at(m_index++);
+    }
+    return {};
 }
 
 // --------------------------------------------------------------------------
 
 ObjectIterator::ObjectIterator(ObjectIterator& other)
-    : m_state(other.m_state->copy())
+    : m_state(other.m_state->copy().pointer())
 {
 }
 
-ObjectIterator::ObjectIterator(IteratorState* state)
-    : m_state(state)
+ObjectIterator::ObjectIterator(Obj const& state)
+    : m_state(state.pointer())
 {
+    if (m_state)
+        dereference();
 }
 
-ObjectIterator ObjectIterator::begin(Object& container)
+void ObjectIterator::dereference()
 {
-    return ObjectIterator(container.iterator_state(IteratorState::IteratorWhere::Begin));
+    auto next = m_state->next();
+    if (next.has_value())
+        m_current = next->pointer();
+    else
+        m_current = nullptr;
 }
 
-ObjectIterator ObjectIterator::end(Object& container)
+ObjectIterator ObjectIterator::begin(Object const& container)
 {
-    return ObjectIterator(container.iterator_state(IteratorState::IteratorWhere::End));
+    auto iter_maybe = container.iterator();
+    assert(iter_maybe.has_value());
+    return ObjectIterator(iter_maybe.value());
+}
+
+ObjectIterator ObjectIterator::end(Object const& container)
+{
+    return ObjectIterator(make_null<Object>());
 }
 
 bool ObjectIterator::operator==(ObjectIterator const& other) const
 {
-    return m_state->equals(other.m_state);
+    if ((m_current == nullptr) != (other.m_current == nullptr))
+        return false;
+    if (m_current == nullptr)
+        return true;
+    return m_current->compare(*other.m_current) == 0;
 }
 
 bool ObjectIterator::operator!=(ObjectIterator const& other) const
 {
-    return !m_state->equals(other.m_state);
+    return !operator==(other);
 }
 
 ObjectIterator& ObjectIterator::operator++()
 {
-    m_state->increment(1);
+    dereference();
     return *this;
 }
 
 ObjectIterator ObjectIterator::operator++(int)
 {
     ObjectIterator tmp(*this);
-    m_state->increment(1);
+    dereference();
     return tmp;
 }
 
-Obj const& ObjectIterator::operator*()
+Obj ObjectIterator::operator*()
 {
-    return const_cast<Ptr<Object> const&>(m_state->dereference());
+    assert(m_current != nullptr);
+    return make_from_shared<Object>(m_current);
 }
 
 }

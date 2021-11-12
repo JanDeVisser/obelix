@@ -40,7 +40,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
 {
     if ((op == "+") || (op == "add")) {
         long ret = m_value;
-        for (auto& arg : args->arguments()) {
+        for (auto const& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
             if (!int_maybe.has_value()) {
                 return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
@@ -66,7 +66,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         if (args->arguments()->empty()) {
             ret = -ret;
         } else {
-            for (auto& arg : args->arguments()) {
+            for (auto const& arg : args->arguments()) {
                 auto int_maybe = arg->to_long();
                 if (!int_maybe.has_value()) {
                     return make_obj<Exception>(ErrorCode::TypeMismatch, op.c_str(), "int", arg->type().c_str());
@@ -81,7 +81,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
             return make_obj<Exception>(ErrorCode::SyntaxError, format("Arithmetical operation '{}' requires at least 2 operands", op));
         }
         long ret = m_value;
-        for (auto& arg : args->arguments()) {
+        for (auto const& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
             if (!int_maybe.has_value()) {
                 return make_obj<Exception>(ErrorCode::TypeMismatch, op.c_str(), "int", arg->type().c_str());
@@ -95,7 +95,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
             return make_obj<Exception>(ErrorCode::SyntaxError, format("Arithmetical operation '{}' requires at least 2 operands", op));
         }
         long ret = m_value;
-        for (auto& arg : args->arguments()) {
+        for (auto const& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
             if (!int_maybe.has_value()) {
                 return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());

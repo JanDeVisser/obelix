@@ -29,7 +29,7 @@ std::string format_arguments(Ptr<Arguments> args)
 {
     std::string fmt;
     std::vector<Obj> format_args;
-    for (auto& a : args->arguments()) {
+    for (auto const& a : args->arguments()) {
         if (fmt.empty()) {
             fmt = a->to_string();
         } else {

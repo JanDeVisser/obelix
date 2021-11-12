@@ -20,17 +20,17 @@ std::string List::to_string() const
 std::optional<Obj> List::evaluate(std::string const& name, Ptr<Arguments> args)
 {
     if ((name == "add") || (name == "+=")) {
-        for (auto& arg : *args) {
+        for (auto const& arg : *args) {
             m_list.push_back(arg);
         }
         return Obj::True();
     } else if (name == "+") {
         std::shared_ptr<List> aggregate = std::make_shared<List>();
-        for (auto& obj : *this) {
+        for (auto const& obj : *this) {
             aggregate->push_back(obj);
         }
         for (Ptr<Object> arg : *args) {
-            for (auto& obj : *arg) {
+            for (auto const& obj : *arg) {
                 aggregate->push_back(obj);
             }
         }

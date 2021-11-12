@@ -21,7 +21,7 @@ public:
     [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
     [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
     [[nodiscard]] std::optional<Obj> get(std::string const& key, Ptr<Object> default_result) const;
-    [[nodiscard]] IteratorState* iterator_state(IteratorState::IteratorWhere where) override;
+    [[nodiscard]] std::optional<Obj> iterator() const override;
     void put(Ptr<NVP> nvp);
     [[nodiscard]] bool contains(std::string const& key) const;
     [[nodiscard]] std::optional<Obj> get(std::string const& key) const;
@@ -39,7 +39,7 @@ public:
     }
 
 private:
-    friend class MapIteratorState;
+    friend class MapIterator;
 
     std::unordered_map<std::string, Obj> m_dictionary {};
 };

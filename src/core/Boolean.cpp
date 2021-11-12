@@ -50,7 +50,7 @@ std::optional<Obj> Boolean::evaluate(std::string const& op, Ptr<Arguments> args)
         }
         if (m_value)
             return to_obj(True());
-        for (auto& arg : args->arguments()) {
+        for (auto const& arg : args->arguments()) {
             auto bool_maybe = arg->to_bool();
             if (!bool_maybe.has_value()) {
                 return make_obj<Exception>(ErrorCode::TypeMismatch, op, "bool", arg->type());
@@ -66,7 +66,7 @@ std::optional<Obj> Boolean::evaluate(std::string const& op, Ptr<Arguments> args)
         }
         if (!m_value)
             return to_obj(False());
-        for (auto& arg : args->arguments()) {
+        for (auto const& arg : args->arguments()) {
             auto bool_maybe = arg->to_bool();
             if (!bool_maybe.has_value()) {
                 return make_obj<Exception>(ErrorCode::TypeMismatch, op, "bool", arg->type());

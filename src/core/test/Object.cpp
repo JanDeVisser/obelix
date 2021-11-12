@@ -38,7 +38,7 @@ TEST(Object, List)
     EXPECT_EQ(list->size(), 2);
 
     long sum = 0;
-    for (auto& elem : list) {
+    for (auto elem : list) {
         auto int_maybe = elem->to_long();
         EXPECT_TRUE(int_maybe.has_value());
         sum += int_maybe.value();

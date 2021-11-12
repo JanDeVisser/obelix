@@ -26,7 +26,7 @@ public:
         m_list.push_back(make_obj<ObjClass>(std::forward<Args>(args)...));
     }
 
-    template <class ObjClass>
+    template<class ObjClass>
     void push_back(Ptr<ObjClass> const& elem)
     {
         m_list.push_back(elem);
@@ -38,7 +38,13 @@ public:
         return m_list.at(ix);
     }
 
-    template <class ObjClass>
+    [[nodiscard]] Obj const& at(size_t ix) const override
+    {
+        assert(ix < size());
+        return m_list.at(ix);
+    }
+
+    template<class ObjClass>
     Ptr<ObjClass> at_typed(size_t ix)
     {
         return ptr_cast<ObjClass>(at(ix));

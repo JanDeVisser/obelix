@@ -402,7 +402,7 @@ public:
         if (range->is_exception())
             return range;
         new_scope->declare(m_rangevar, make_obj<Integer>(0));
-        for (auto& value : range) {
+        for (auto const& value : range) {
             new_scope->set(m_rangevar, value);
             auto elem = m_element->evaluate(new_scope);
             if (elem->is_exception())

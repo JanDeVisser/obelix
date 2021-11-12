@@ -23,22 +23,17 @@
 
 namespace Obelix {
 
-class SimpleIteratorState : public IteratorState {
+class SimpleIterator : public Object {
 public:
-    explicit SimpleIteratorState(Object&, IteratorWhere = IteratorWhere::Begin);
-    ~SimpleIteratorState() override = default;
+    explicit SimpleIterator(Object const&, size_t = 0);
+    ~SimpleIterator() override = default;
 
-    void increment(ptrdiff_t delta) override;
-    Ptr<Object> const& dereference() override;
-    [[nodiscard]] IteratorState* copy() const override;
-    [[nodiscard]] bool equals(IteratorState const* other) const override;
+    [[nodiscard]] Ptr<Object> copy() const override;
+    std::optional<Ptr<Object>> next() override;
 
 private:
-    SimpleIteratorState(SimpleIteratorState const& original) = default;
-    SimpleIteratorState(SimpleIteratorState const& original, size_t index);
-
+    Object const& m_container;
     size_t m_index { 0 };
-    Ptr<Object> m_current {};
 };
 
 }

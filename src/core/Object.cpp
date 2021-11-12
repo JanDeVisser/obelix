@@ -35,9 +35,9 @@ int Object::compare(Object const& other) const
     return compare(other.self());
 }
 
-IteratorState* Object::iterator_state(IteratorState::IteratorWhere where)
+Obj Object::copy() const
 {
-    return new SimpleIteratorState(*this, where);
+    fatal("Not implemented");
 }
 
 std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args)
@@ -100,6 +100,36 @@ std::optional<Ptr<Object>> Object::assign(std::string const&, Obj const&)
     return {};
 }
 
+std::optional<Ptr<Object>> Object::iterator() const
+{
+    return make_obj<SimpleIterator>(*this);
+}
+
+std::optional<Ptr<Object>> Object::next()
+{
+    return {};
+}
+
+ObjectIterator Object::begin() const
+{
+    return ObjectIterator::begin(*this);
+}
+
+ObjectIterator Object::end() const
+{
+    return ObjectIterator::end(*this);
+}
+
+ObjectIterator Object::cbegin() const
+{
+    return ObjectIterator::begin(*this);
+}
+
+ObjectIterator Object::cend() const
+{
+    return ObjectIterator::end(*this);
+}
+
 [[nodiscard]] std::optional<long> Object::to_long() const
 {
     return Obelix::to_long(to_string());
@@ -117,12 +147,16 @@ std::optional<bool> Object::to_bool() const
 
 std::string Object::to_string() const
 {
-    char buf[80];
     return format("{}:{x}", type(), (unsigned long)this);
-    return buf;
 }
 
 Obj const& Object::at(size_t ix)
+{
+    assert(ix == 0);
+    return self();
+}
+
+Obj const& Object::at(size_t ix) const
 {
     assert(ix == 0);
     return self();
@@ -136,26 +170,6 @@ Obj Object::call(Ptr<Arguments>)
 Obj Object::operator()(Ptr<Arguments> args)
 {
     return call(std::move(args));
-}
-
-ObjectIterator Object::begin()
-{
-    return ObjectIterator::begin(*this);
-}
-
-ObjectIterator Object::end()
-{
-    return ObjectIterator::end(*this);
-}
-
-ObjectIterator Object::cbegin()
-{
-    return ObjectIterator::begin(*this);
-}
-
-ObjectIterator Object::cend()
-{
-    return ObjectIterator::end(*this);
 }
 
 Obj const& Object::null()

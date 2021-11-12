@@ -28,46 +28,16 @@ class Ptr;
 
 typedef Ptr<Object> Obj;
 
-class IteratorState {
-public:
-    enum class IteratorWhere {
-        Begin,
-        End
-    };
-    virtual ~IteratorState() = default;
-    virtual void increment(ptrdiff_t delta) = 0;
-    virtual Ptr<Object> const& dereference() = 0;
-    [[nodiscard]] virtual IteratorState* copy() const = 0;
-    [[nodiscard]] virtual bool equals(IteratorState const* other) const = 0;
-
-    [[nodiscard]] Object& container() const
-    {
-        return m_container;
-    }
-
-    [[nodiscard]] virtual bool equals(std::unique_ptr<IteratorState> const& other) const
-    {
-        return equals(other.get());
-    }
-
-protected:
-    explicit IteratorState(Object& container)
-        : m_container(container)
-    {
-    }
-
-    IteratorState(IteratorState const& original) = default;
-
-    Object& m_container;
-};
-
 class Object {
 public:
     virtual ~Object() = default;
     [[nodiscard]] std::string const& type() const { return m_type; }
     virtual std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>);
+    [[nodiscard]] virtual Obj copy() const;
     [[nodiscard]] virtual std::optional<Obj> resolve(std::string const& name) const;
     [[nodiscard]] virtual std::optional<Obj> assign(std::string const&, Obj const&);
+    [[nodiscard]] virtual std::optional<Obj> iterator() const;
+    [[nodiscard]] virtual std::optional<Obj> next();
     [[nodiscard]] virtual std::optional<long> to_long() const;
     [[nodiscard]] virtual std::optional<double> to_double() const;
     [[nodiscard]] virtual std::optional<bool> to_bool() const;
@@ -76,11 +46,11 @@ public:
     [[nodiscard]] virtual size_t size() const { return 1; }
     [[nodiscard]] virtual bool empty() const { return size() == 0; }
 
-    [[nodiscard]] virtual IteratorState* iterator_state(IteratorState::IteratorWhere where);
-
     [[nodiscard]] virtual Obj const& at(size_t);
+    [[nodiscard]] virtual Obj const& at(size_t) const;
 
     Obj const& operator[](size_t ix) { return at(ix); }
+    Obj const& operator[](size_t ix) const { return at(ix); }
 
     [[nodiscard]] virtual int compare(Obj const& other) const { return -1; }
     [[nodiscard]] int compare(Object const&) const;
@@ -104,20 +74,47 @@ public:
     virtual Obj call(Ptr<Arguments>);
     Obj operator()(Ptr<Arguments> args);
 
-    virtual ObjectIterator begin();
-    virtual ObjectIterator end();
-    virtual ObjectIterator cbegin();
-    virtual ObjectIterator cend();
-
     static Obj const& null();
     void set_self(Ptr<Object>);
     [[nodiscard]] Obj const& self() const;
+
+    [[nodiscard]] ObjectIterator begin() const;
+    [[nodiscard]] ObjectIterator end() const;
+    [[nodiscard]] ObjectIterator cbegin() const;
+    [[nodiscard]] ObjectIterator cend() const;
 
 protected:
     explicit Object(std::string type);
 
     std::string m_type;
     std::shared_ptr<Object> m_self { nullptr };
+};
+
+class ObjectIterator {
+public:
+    friend class Iterable;
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = Ptr<Object>;
+    using pointer = Ptr<Object>*;
+    using reference = Ptr<Object>&;
+
+    bool operator==(ObjectIterator const& other) const;
+    bool operator!=(ObjectIterator const& other) const;
+    ObjectIterator& operator++();
+    ObjectIterator operator++(int);
+    Ptr<Object> operator*();
+
+private:
+    friend Object;
+    static ObjectIterator begin(Object const& container);
+    static ObjectIterator end(Object const& container);
+    ObjectIterator(ObjectIterator& other);
+    explicit ObjectIterator(Obj const& state);
+    void dereference();
+
+    std::shared_ptr<Object> m_state;
+    std::shared_ptr<Object> m_current {};
 };
 
 class Null : public Object {
@@ -135,30 +132,6 @@ public:
     {
         return 1;
     }
-};
-
-class ObjectIterator {
-public:
-    friend Object;
-    using iterator_category = std::forward_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-    using value_type = Ptr<Object>;
-    using pointer = Ptr<Object>*;
-    using reference = Ptr<Object>&;
-
-    bool operator==(ObjectIterator const& other) const;
-    bool operator!=(ObjectIterator const& other) const;
-    ObjectIterator& operator++();
-    ObjectIterator operator++(int);
-    Ptr<Object> const& operator*();
-
-private:
-    static ObjectIterator begin(Object& container);
-    static ObjectIterator end(Object& container);
-    ObjectIterator(ObjectIterator& other);
-    explicit ObjectIterator(IteratorState* state);
-
-    std::unique_ptr<IteratorState> m_state;
 };
 
 class Integer : public Object {
@@ -273,6 +246,11 @@ public:
     bool operator<=(Obj const& other) const { return m_ptr->compare(other) <= 0; }
     bool operator>=(Obj const& other) const { return m_ptr->compare(other) >= 0; }
 
+    [[nodiscard]] ObjectIterator begin() const { return m_ptr->begin(); }
+    [[nodiscard]] ObjectIterator end() const { return m_ptr->end(); }
+    [[nodiscard]] ObjectIterator cbegin() const { return m_ptr->cbegin(); }
+    [[nodiscard]] ObjectIterator cend() const { return m_ptr->cend(); }
+
 private:
     template<class OtherObjClass>
     explicit Ptr(Ptr<OtherObjClass> const& other)
@@ -304,12 +282,7 @@ private:
     template<class OtherObjClass>
     friend class Ptr;
     friend class Object;
-
-public:
-    [[nodiscard]] ObjectIterator begin() const { return m_ptr->begin(); }
-    [[nodiscard]] ObjectIterator end() const { return m_ptr->end(); }
-    [[nodiscard]] ObjectIterator cbegin() const { return m_ptr->cbegin(); }
-    [[nodiscard]] ObjectIterator cend() const { return m_ptr->cend(); }
+    friend class ObjectIterator;
 };
 
 template<class ObjCls>
@@ -357,6 +330,7 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
     S(NoError, "There is no error")                                             \
     S(SyntaxError, "{}")                                                        \
     S(ObjectNotCallable, "Object '{}' is not callable")                         \
+    S(ObjectNotIterable, "Object '{}' is not iterable")                         \
     S(CannotAssignToObject, "Cannot assign to object '{}'")                     \
     S(VariableAlreadyDeclared, "Variable '{}' is already declared")             \
     S(NameUnresolved, "Could not resolve '{}'")                                 \

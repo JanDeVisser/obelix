@@ -8,52 +8,37 @@
 
 namespace Obelix {
 
-class MapIteratorState : public IteratorState {
+class MapIterator : public Object {
 public:
-    MapIteratorState(Object& container, std::unordered_map<std::string, Obj>::iterator iter,
-        std::unordered_map<std::string, Obj>::iterator end)
-        : IteratorState(container)
+    MapIterator(std::unordered_map<std::string, Obj>::const_iterator iter, std::unordered_map<std::string, Obj>::const_iterator end)
+        : Object("mapiterator")
         , m_iter(iter)
         , m_end(end)
     {
     }
 
-    ~MapIteratorState() override = default;
+    ~MapIterator() override = default;
 
-    void increment(ptrdiff_t delta) override
+    [[nodiscard]] Ptr<Object> copy() const override
     {
-        while (delta-- > 0) {
-            m_iter++;
-        }
-        m_current = {};
+        return make_obj<MapIterator>(m_iter, m_end);
     }
 
-    Ptr<Object> const& dereference() override
+    std::optional<Ptr<Object>> next() override
     {
-        if (!m_current.has_nullptr())
-            return m_current;
         if (m_iter != m_end) {
             auto& pair = *m_iter;
             m_current = make_obj<NVP>(pair.first, pair.second);
+            m_iter++;
+            return m_current;
+        } else {
+            return {};
         }
-        return m_current;
-    }
-
-    [[nodiscard]] IteratorState* copy() const override
-    {
-        return new MapIteratorState(*this);
-    }
-
-    [[nodiscard]] bool equals(IteratorState const* other) const override
-    {
-        auto other_casted = dynamic_cast<MapIteratorState const*>(other);
-        return m_iter == other_casted->m_iter;
     }
 
 private:
-    MapIteratorState(MapIteratorState const& original) = default;
-    std::unordered_map<std::string, Obj>::iterator m_iter;
-    std::unordered_map<std::string, Obj>::iterator m_end;
+    std::unordered_map<std::string, Obj>::const_iterator m_iter;
+    std::unordered_map<std::string, Obj>::const_iterator m_end;
     Ptr<Object> m_current {};
 };
 
@@ -110,13 +95,11 @@ std::optional<Obj> Dictionary::assign(std::string const& name, Obj const& value)
     return value;
 }
 
-IteratorState* Dictionary::iterator_state(IteratorState::IteratorWhere where)
+std::optional<Ptr<Object>> Dictionary::iterator() const
 {
+    auto iter = m_dictionary.begin();
     auto end = m_dictionary.end();
-    auto iter = end;
-    if (where == IteratorState::IteratorWhere::Begin)
-        iter = m_dictionary.begin();
-    return new MapIteratorState(*this, iter, end);
+    return make_obj<MapIterator>(iter, end);
 }
 
 void Dictionary::put(Ptr<NVP> nvp)
