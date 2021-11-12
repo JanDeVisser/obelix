@@ -401,9 +401,15 @@ public:
         auto range = m_generator->evaluate(new_scope);
         if (range->is_exception())
             return range;
+        auto iter_maybe = range->iterator();
+        if (!iter_maybe.has_value())
+            return make_obj<Exception>(ErrorCode::ObjectNotIterable, range);
+        auto iter = iter_maybe.value();
         new_scope->declare(m_rangevar, make_obj<Integer>(0));
-        for (auto const& value : range) {
-            new_scope->set(m_rangevar, value);
+        for (auto value = iter->next(); value.has_value(); value = iter->next()) {
+            assert(value.has_value());
+            auto v = value.value();
+            new_scope->set(m_rangevar, v);
             auto elem = m_element->evaluate(new_scope);
             if (elem->is_exception())
                 return elem;
@@ -849,8 +855,14 @@ public:
         auto range = m_range->evaluate(new_scope);
         if (range->is_exception())
             return { ExecutionResultCode::Error, range };
-        for (auto& value : range) {
-            new_scope->set(m_variable, value);
+        auto iter_maybe = range->iterator();
+        if (!iter_maybe.has_value())
+            return { ExecutionResultCode::Error, make_obj<Exception>(ErrorCode::ObjectNotIterable, range) };
+        auto iter = iter_maybe.value();
+        for (auto value = iter->next(); value.has_value(); value = iter->next()) {
+            assert(value.has_value());
+            auto v = value.value();
+            new_scope->set(m_variable, v);
             result = m_stmt->execute(new_scope);
             if (result.code == ExecutionResultCode::Error)
                 return result;
