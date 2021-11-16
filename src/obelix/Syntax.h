@@ -159,7 +159,13 @@ public:
 
     ExecutionResult execute(Ptr<Scope>& scope) override
     {
-        m_scope = (scope) ? scope : make_typed<Scope>(scope);
+        Ptr<Scope> s = (scope) ? scope : make_typed<Scope>(scope);
+        return execute_in(s);
+    }
+
+    ExecutionResult execute_in(Ptr<Scope>& scope)
+    {
+        m_scope = scope;
         return execute_block(m_scope);
     }
 

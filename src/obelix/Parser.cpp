@@ -31,9 +31,14 @@ Parser::Parser(Runtime::Config const& config, std::string const& file_name)
 }
 
 Parser::Parser(Runtime::Config const& config, StringBuffer& src)
+    : Parser(config)
+{
+    m_lexer.assign(src.str());
+}
+
+Parser::Parser(Runtime::Config const& config)
     : m_config(config)
-    , m_src(src)
-    , m_lexer(src)
+    , m_lexer()
 {
     m_lexer.add_scanner<QStringScanner>();
     m_lexer.add_scanner<IdentifierScanner>();
@@ -83,6 +88,12 @@ std::shared_ptr<T> make_node(Args&&... args)
     auto ret = std::make_shared<T>(std::forward<Args>(args)...);
     debug(parser, "make_node<{}>", typeid(T).name());
     return ret;
+}
+
+std::shared_ptr<Module> Parser::parse(Runtime& runtime, std::string const& text)
+{
+    m_lexer.assign(text);
+    return parse(runtime);
 }
 
 std::shared_ptr<Module> Parser::parse(Runtime& runtime)

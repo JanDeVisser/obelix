@@ -38,6 +38,8 @@ public:
     ExecutionResult run(std::string const&);
     Ptr<Scope> evaluate(std::string const&);
     Ptr<Scope> evaluate(std::string const&, Ptr<Scope> scope);
+    [[nodiscard]] Config const& config() const { return m_config; }
+    [[nodiscard]] Ptr<Scope> new_scope() const;
 
 private:
     std::shared_ptr<Module> _import_file(std::string const&);

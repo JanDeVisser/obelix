@@ -38,7 +38,7 @@ struct ParseError {
 
     [[nodiscard]] std::string to_string() const
     {
-        return format("{}:{}:{} {}", filename, token.location.start_line, token.location.start_column, message);
+        return format("{}:{} {}", filename, token.location.to_string(), message);
     }
 
     std::string message;
@@ -80,8 +80,10 @@ public:
 
     Parser(Runtime::Config const& parser_config, StringBuffer& src);
     Parser(Runtime::Config const& parser_config, std::string const& file_name);
+    explicit Parser(Runtime::Config const& parser_config);
 
     std::shared_ptr<Module> parse(Runtime&);
+    std::shared_ptr<Module> parse(Runtime&, std::string const&);
     [[nodiscard]] std::vector<ParseError> const& errors() const { return m_errors; };
     [[nodiscard]] bool has_errors() const { return !m_errors.empty(); }
 
@@ -120,7 +122,6 @@ private:
 
     Runtime::Config m_config;
     std::string m_file_name { "<literal>" };
-    StringBuffer m_src;
     Lexer m_lexer;
     std::vector<ParseError> m_errors {};
 };

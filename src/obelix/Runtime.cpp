@@ -47,6 +47,11 @@ Ptr<Scope> Runtime::evaluate(std::string const& src)
     return evaluate(src, make_typed<Scope>());
 }
 
+Ptr<Scope> Runtime::new_scope() const
+{
+    return make_typed<Scope>(m_root->scope());
+}
+
 Ptr<Scope> Runtime::evaluate(std::string const& src, Ptr<Scope> scope)
 {
     StringBuffer source_text(src);
@@ -60,7 +65,7 @@ Ptr<Scope> Runtime::evaluate(std::string const& src, Ptr<Scope> scope)
         scope->set_result({ ExecutionResultCode::Error, to_obj<List>(errors) });
         return scope;
     }
-    tree->execute(scope);
+    tree->execute_in(scope);
     return tree->scope();
 }
 
