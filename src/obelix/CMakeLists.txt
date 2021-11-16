@@ -1,3 +1,11 @@
+set(LIBS)
+set(INCLUDES)
+find_package(Readline)
+if(READLINE_FOUND)
+    set(LIBS ${READLINE_LIBRARIES} ${LIBS})
+    set(INCLUDES ${INCLUDES} ${READLINE_INCLUDE_DIRS})
+endif(READLINE_FOUND)
+
 add_library(
         oblparser
         SHARED

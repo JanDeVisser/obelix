@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
-project(obelix2)
+project(obelix)
+
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "-Wall")
 
 set(obelix_NAME Obelix)
-set(obelix_VERSION_MAJOR 1)
+set(obelix_VERSION_MAJOR 2)
 set(obelix_VERSION_MINOR 0)
 
 set(CMAKE_INSTALL_PREFIX ${PROJECT_BINARY_DIR})
