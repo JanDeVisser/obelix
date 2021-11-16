@@ -15,19 +15,19 @@ template<typename T>
 struct Converter {
     static std::string to_string(T)
     {
-        fprintf(stderr, "Specialize me!\n");
+        fprintf(stderr, "Specialize me! - %s\n", typeid(T).name());
         exit(1);
     }
 
     static double to_double(T)
     {
-        fprintf(stderr, "Specialize me!\n");
+        fprintf(stderr, "Specialize me! - %s\n", typeid(T).name());
         exit(1);
     }
 
     static long to_long(T)
     {
-        fprintf(stderr, "Specialize me!\n");
+        fprintf(stderr, "Specialize me! - %s\n", typeid(T).name());
         exit(1);
     }
 };
