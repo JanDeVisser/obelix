@@ -139,7 +139,7 @@ struct Span {
     size_t end_line;
     size_t end_column;
 
-    std::string to_string()
+    [[nodiscard]] std::string to_string() const
     {
         return format("{}:{} - {}:{}", start_line, start_column, end_line, end_column);
     }
@@ -177,4 +177,23 @@ private:
     std::string m_value {};
     std::string m_token {};
 };
+
+template<>
+struct Converter<Token> {
+    static std::string to_string(Token t)
+    {
+        return format("{}:{}", t.location.to_string(), t.to_string());
+    }
+
+    static double to_double(Token t)
+    {
+        fatal("Can't convert Token to double");
+    }
+
+    static long to_long(Token t)
+    {
+        fatal("Can't convert Token to long");
+    }
+};
+
 }
