@@ -34,8 +34,13 @@ FileBuffer::FileBuffer(std::string file_name)
     : m_file_name(move(file_name))
     , m_buffer(std::make_unique<StringBuffer>())
 {
-    auto fh_stat = try_open(m_file_name.empty() ? "." : m_file_name);
+    char cwd[1024];
+    getcwd(cwd, 1024);
+
     std::string obl_dir = (getenv("OBL_DIR")) ? getenv("OBL_DIR") : OBELIX_DIR;
+    debug(filebuffer, "FileBuffer'{}' CWD: {} obl_dir: {}", file_name, std::string(cwd), obl_dir);
+
+    auto fh_stat = try_open(m_file_name.empty() ? "." : m_file_name);
     if (fh_stat.first < 0)
         fh_stat = try_open(obl_dir + "/share/" + m_file_name);
     if (fh_stat.first < 0)
@@ -43,7 +48,7 @@ FileBuffer::FileBuffer(std::string file_name)
     if (fh_stat.first < 0)
         fh_stat = try_open("./" + m_file_name);
     if (fh_stat.first < 0)
-        fatal("Could not find file '{}'", m_file_name);
+        oassert(false, "Could not find file '{}'", m_file_name);
 
     auto size = fh_stat.second.st_size;
     auto buf = new char[size + 1];
@@ -72,6 +77,17 @@ std::pair<int, struct stat> FileBuffer::try_open(std::string const& path)
         fatal("Open '{}': {} ({})", path, std::string(strerror(errno)), errno);
     }
     ret.first = fh;
+    if (fh > 0) {
+        if (auto rc = fstat(fh, &ret.second); rc < 0) {
+            perror(format("Stat '{}'", path).c_str());
+            exit(1);
+        }
+        if (S_ISDIR(ret.second.st_mode)) {
+            return try_open(path + "/__init__.obl");
+        }
+        return ret;
+    }
+
     if (fh < 0) {
         if (path.ends_with(".obl")) {
             return ret;
