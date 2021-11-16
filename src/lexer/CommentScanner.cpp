@@ -21,37 +21,37 @@
 
 namespace Obelix {
 
-void CommentScanner::find_eol()
+void CommentScanner::find_eol(Tokenizer& tokenizer)
 {
-    for (auto ch = tokenizer().get_char(); m_state == CommentState::Text;) {
+    for (auto ch = tokenizer.get_char(); m_state == CommentState::Text;) {
         if (!ch || (ch == '\r') || (ch == '\n')) {
             m_state = CommentState::None;
-            tokenizer().accept(TokenCode::Comment);
+            tokenizer.accept(TokenCode::Comment);
         } else {
-            tokenizer().discard();
-            ch = tokenizer().get_char();
+            tokenizer.discard();
+            ch = tokenizer.get_char();
         }
     }
 }
 
-void CommentScanner::find_end_marker()
+void CommentScanner::find_end_marker(Tokenizer& tokenizer)
 {
     Token ret {};
     assert(!m_match->end.empty());
     debug(lexer, "find_end_marker: {}", m_match->end);
     int ch;
-    for (ch = tokenizer().get_char(); ch && (m_state != CommentState::None);) {
+    for (ch = tokenizer.get_char(); ch && (m_state != CommentState::None);) {
         switch (m_state) {
         case CommentState::Text:
             if (ch == m_match->end[0]) {
                 m_token = "";
                 m_token += (char)ch;
                 m_state = CommentState::EndMarker;
-                tokenizer().discard();
+                tokenizer.discard();
             } else {
-                tokenizer().push();
+                tokenizer.push();
             }
-            ch = tokenizer().get_char();
+            ch = tokenizer.get_char();
             break;
         case CommentState::EndMarker:
             /*
@@ -62,9 +62,9 @@ void CommentScanner::find_end_marker()
                 /*
                  * We matched the full end marker. Set the state of the scanner.
                  */
-                tokenizer().discard();
+                tokenizer.discard();
                 m_state = CommentState::None;
-                tokenizer().accept(TokenCode::Comment);
+                tokenizer.accept(TokenCode::Comment);
             } else if (m_token.back() != m_match->end[m_token.length() - 1]) {
                 /*
                  * The match of the end marker was lost. Reset the state. It's possible
@@ -75,28 +75,28 @@ void CommentScanner::find_end_marker()
                 /*
                  * Still matching the end marker. Read next character:
                  */
-                ch = tokenizer().get_char();
+                ch = tokenizer.get_char();
             }
             break;
         default:
-            break;
+            fatal("Unreachable");
         }
     }
     if (!ch) {
-        tokenizer().accept_token(TokenCode::Error, "Unterminated comment");
+        tokenizer.accept_token(TokenCode::Error, "Unterminated comment");
     }
 }
 
-void CommentScanner::match()
+void CommentScanner::match(Tokenizer& tokenizer)
 {
     m_state = CommentState::None;
     m_token = "";
-    auto at_top = tokenizer().at_top();
+    auto at_top = tokenizer.at_top();
     for (auto& marker : m_markers) {
         marker.matched = !marker.hashpling || at_top;
     }
     int ch;
-    for (m_state = CommentState::StartMarker, ch = tokenizer().get_char();
+    for (m_state = CommentState::StartMarker, ch = tokenizer.get_char();
          ch && m_state != CommentState::None;) {
 
         /*
@@ -115,19 +115,19 @@ void CommentScanner::match()
         }
 
         if ((m_num_matches == 1) && (m_token == m_match->start)) {
-            tokenizer().discard();
+            tokenizer.discard();
             debug(lexer, "Full match of comment start marker '{}'", m_match->start);
             m_state = CommentState::Text;
             if (!m_match->eol) {
-                find_end_marker();
+                find_end_marker(tokenizer);
             } else {
-                find_eol();
+                find_eol(tokenizer);
             }
         } else if (m_num_matches > 0) {
-            tokenizer().discard();
+            tokenizer.discard();
             debug(lexer, "Matching '{}' comment start markers", m_num_matches);
             m_match = nullptr;
-            ch = tokenizer().get_char();
+            ch = tokenizer.get_char();
         } else {
             m_match = nullptr;
             m_state = CommentState::None;

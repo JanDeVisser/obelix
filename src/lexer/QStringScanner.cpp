@@ -6,27 +6,27 @@
 
 namespace Obelix {
 
-QStringScanner::QStringScanner(Tokenizer& tokenizer, std::string quotes)
-    : Scanner(tokenizer)
+QStringScanner::QStringScanner(std::string quotes)
+    : Scanner()
     , m_quotes(move(quotes))
 {
 }
 
-void QStringScanner::match()
+void QStringScanner::match(Tokenizer& tokenizer)
 {
     int ch;
 
     for (m_state = QStrState::Init; m_state != QStrState::Done; ) {
-        ch = tokenizer().get_char();
+        ch = tokenizer.get_char();
         if (!ch) {
             break;
         }
 
         switch (m_state) {
         case QStrState::Init:
-            if (m_quotes.find_first_of(ch) != std::string::npos) {
-                tokenizer().discard();
-                m_quote = ch;
+            if (m_quotes.find_first_of((char) ch) != std::string::npos) {
+                tokenizer.discard();
+                m_quote = (char) ch;
                 m_state = QStrState::QString;
             } else {
                 m_state = QStrState::Done;
@@ -35,26 +35,26 @@ void QStringScanner::match()
 
         case QStrState::QString:
             if (ch == m_quote) {
-                tokenizer().discard();
-                tokenizer().accept(TokenCode_by_char(m_quote));
+                tokenizer.discard();
+                tokenizer.accept(TokenCode_by_char(m_quote));
                 m_state = QStrState::Done;
             } else if (ch == '\\') {
-                tokenizer().discard();
+                tokenizer.discard();
                 m_state = QStrState::Escape;
             } else {
-                tokenizer().push();
+                tokenizer.push();
             }
             break;
 
         case QStrState::Escape:
             if (ch == 'r') {
-                tokenizer().push_as('\r');
+                tokenizer.push_as('\r');
             } else if (ch == 'n') {
-                tokenizer().push_as('\n');
+                tokenizer.push_as('\n');
             } else if (ch == 't') {
-                tokenizer().push_as('\t');
+                tokenizer.push_as('\t');
             } else {
-                tokenizer().push();
+                tokenizer.push();
             }
             m_state = QStrState::QString;
             break;
@@ -64,7 +64,7 @@ void QStringScanner::match()
         }
     }
     if (!ch && ((m_state == QStrState::QString) || (m_state == QStrState::Escape))) {
-        tokenizer().accept_token(TokenCode::Error, "Unterminated string");
+        tokenizer.accept_token(TokenCode::Error, "Unterminated string");
     }
 }
 

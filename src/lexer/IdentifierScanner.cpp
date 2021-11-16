@@ -6,17 +6,18 @@
 
 namespace Obelix {
 
-IdentifierScanner::IdentifierScanner(Tokenizer& tokenizer)
-    : Scanner(tokenizer)
+IdentifierScanner::IdentifierScanner()
+    : Scanner(15)
 {
 }
 
-IdentifierScanner::IdentifierScanner(Tokenizer& tokenizer, Config const& config)
-    : Scanner(tokenizer)
+IdentifierScanner::IdentifierScanner(Config config)
+    : Scanner()
+    , m_config(std::move(config))
 {
 }
 
-bool IdentifierScanner::filter_character(int ch) {
+bool IdentifierScanner::filter_character(Tokenizer& tokenizer, int ch) const {
     bool ret;
 
     if (!ch) {
@@ -44,37 +45,37 @@ bool IdentifierScanner::filter_character(int ch) {
     };
     ret = filter_against(m_config.filter, m_config.alpha, m_config.digits);
 
-    if (ret && tokenizer().token().empty()) {
+    if (ret && tokenizer.token().empty()) {
         ret = filter_against(m_config.starts_with, m_config.startswith_alpha, m_config.startswith_digits);
     }
     return ret;
 }
 
-void IdentifierScanner::match()
+void IdentifierScanner::match(Tokenizer& tokenizer)
 {
     int ch;
     bool identifier_found { false };
 
-    for (ch = tokenizer().get_char(); filter_character(ch); ch = tokenizer().get_char()) {
+    for (ch = tokenizer.get_char(); filter_character(tokenizer, ch); ch = tokenizer.get_char()) {
         identifier_found = true;
         switch (m_config.alpha) {
         case IdentifierCharacterClass::CaseSensitive:
         case IdentifierCharacterClass::OnlyLower:
         case IdentifierCharacterClass::OnlyUpper:
-            tokenizer().push();
+            tokenizer.push();
             break;
         case IdentifierCharacterClass::FoldToUpper:
-            tokenizer().push_as(toupper(ch));
+            tokenizer.push_as(toupper(ch));
             break;
         case IdentifierCharacterClass::FoldToLower:
-            tokenizer().push_as(tolower(ch));
+            tokenizer.push_as(tolower(ch));
             break;
         default:
             break;
         }
     }
     if (identifier_found)
-        tokenizer().accept(m_config.code);
+        tokenizer.accept(m_config.code);
 }
 
 }

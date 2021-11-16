@@ -10,24 +10,16 @@ logging_category(lexer);
 
 class CatchAll : public Scanner {
 public:
-    explicit CatchAll(Tokenizer& tokenizer)
-        : Scanner(tokenizer, 0)
+    explicit CatchAll()
+        : Scanner(99)
     {
     }
 
-    void match_2nd_pass() override
+    void match(Tokenizer& tokenizer) override
     {
-        if (tokenizer().state() != TokenizerState::Success) {
-            debug(lexer, "Catchall scanner 2nd pass");
-            auto ch = tokenizer().get_char();
-            if (ch > 0) {
-                tokenizer().push();
-                tokenizer().accept(TokenCode_by_char(ch));
-            }
-        }
     }
 
-    [[nodiscard]] char const* name() override { return "catchall"; }
+    [[nodiscard]] char const* name() const override { return "catchall"; }
 
 private:
 };
@@ -45,16 +37,22 @@ Tokenizer::Tokenizer(StringBuffer text)
 void Tokenizer::assign(StringBuffer buffer)
 {
     m_buffer.assign(std::move(buffer));
+    m_tokens.clear();
+    reset();
 }
 
 void Tokenizer::assign(char const* text)
 {
     m_buffer.assign(text);
+    m_tokens.clear();
+    reset();
 }
 
 void Tokenizer::assign(std::string text)
 {
     m_buffer.assign(move(text));
+    m_tokens.clear();
+    reset();
 }
 
 std::vector<Token> const& Tokenizer::tokenize(std::optional<std::string_view const> text)
@@ -64,9 +62,9 @@ std::vector<Token> const& Tokenizer::tokenize(std::optional<std::string_view con
         m_tokens.clear();
     }
     if (m_tokens.empty()) {
-        if (!m_has_catch_all) {
-            add_scanner<CatchAll>();
-            m_has_catch_all = true;
+        debug(lexer, "Scanners:");
+        for (auto &scanner : m_scanners) {
+            debug(lexer, "{} priority {}", scanner->name(), scanner->priority());
         }
         while (!m_eof) {
             match_token();
@@ -84,25 +82,25 @@ void Tokenizer::match_token()
     m_scanned = 0;
 
     for (auto& scanner : m_scanners) {
-        debug(lexer, "First pass with scanner '{}'", scanner->name());
+        debug(lexer, "Matching with scanner '{}'", scanner->name());
         rewind();
-        scanner->match();
+        scanner->match(*this);
         if (m_state == TokenizerState::Success) {
-            debug(lexer, "First pass with scanner {} succeeded", scanner->name());
+            debug(lexer, "Match with scanner {} succeeded", scanner->name());
             break;
         }
     }
-    if (m_state != TokenizerState::Success) {
-        for (auto& scanner : m_scanners) {
-            debug(lexer, "Second pass with scanner '{}'", scanner->name());
-            rewind();
-            scanner->match_2nd_pass();
-            if (m_state == TokenizerState::Success) {
-                debug(lexer, "Second pass with scanner {} succeeded", scanner->name());
-                break;
-            }
+
+    if (state() != TokenizerState::Success) {
+        rewind();
+        debug(lexer, "Catchall scanner");
+        auto ch = get_char();
+        if (ch > 0) {
+            push();
+            accept(TokenCode_by_char(ch));
         }
     }
+
     reset();
     if (m_eof) {
         debug(lexer, "End-of-file. Accepting TokenCode::EndOfFile");

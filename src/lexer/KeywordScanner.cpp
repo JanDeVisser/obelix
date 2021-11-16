@@ -125,7 +125,7 @@ void KeywordScanner::reset()
     m_keyword = { Token(), false };
 }
 
-void KeywordScanner::match()
+void KeywordScanner::match(Tokenizer& tokenizer)
 {
     if (m_keywords.empty()) {
         debug(lexer, "No keywords...");
@@ -134,9 +134,9 @@ void KeywordScanner::match()
 
     reset();
     bool carry_on { true };
-    for (int ch = tokenizer().get_char();
+    for (int ch = tokenizer.get_char();
          ch && carry_on;
-         ch = tokenizer().get_char()) {
+         ch = tokenizer.get_char()) {
         match_character(ch);
 
         carry_on = false;
@@ -175,13 +175,13 @@ void KeywordScanner::match()
             fatal("Unreachable");
         }
         if (carry_on) {
-            tokenizer().push();
+            tokenizer.push();
         }
     }
 
     debug(lexer, "KeywordScanner::match returns '{s}' {d}", KeywordScannerState_name(m_state), (int) m_state);
     if ((m_state == KeywordScannerState::FullMatchLost) || (m_state == KeywordScannerState::FullMatch)) {
-        tokenizer().accept(m_keyword.token.code());
+        tokenizer.accept(m_keyword.token.code());
     }
 }
 

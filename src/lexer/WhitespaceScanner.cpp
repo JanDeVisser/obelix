@@ -6,19 +6,19 @@
 
 namespace Obelix {
 
-WhitespaceScanner::WhitespaceScanner(Tokenizer& tokenizer)
-    : Scanner(tokenizer, 20)
+WhitespaceScanner::WhitespaceScanner()
+    : Scanner(20)
 {
 }
 
-WhitespaceScanner::WhitespaceScanner(Tokenizer& tokenizer, WhitespaceScanner::Config const& config)
-    : Scanner(tokenizer, 20)
+WhitespaceScanner::WhitespaceScanner(WhitespaceScanner::Config const& config)
+    : Scanner(20)
     , m_config(config)
 {
 }
 
-WhitespaceScanner::WhitespaceScanner(Tokenizer& tokenizer, bool ignore_all_ws)
-    : Scanner(tokenizer, 20)
+WhitespaceScanner::WhitespaceScanner(bool ignore_all_ws)
+    : Scanner(20)
 {
     if (ignore_all_ws) {
         m_config.newlines_are_spaces = true;
@@ -26,25 +26,25 @@ WhitespaceScanner::WhitespaceScanner(Tokenizer& tokenizer, bool ignore_all_ws)
     }
 }
 
-void WhitespaceScanner::match()
+void WhitespaceScanner::match(Tokenizer& tokenizer)
 {
     for (m_state = WhitespaceState::Init; m_state != WhitespaceState::Done; ) {
-        auto ch = tokenizer().get_char();
+        auto ch = tokenizer.get_char();
         if (ch == '\n') {
             if (!m_config.newlines_are_spaces) {
                 if (m_state == WhitespaceState::Whitespace) {
                     if (m_config.ignore_spaces) {
-                        tokenizer().skip();
+                        tokenizer.skip();
                     } else {
-                        tokenizer().accept(TokenCode::Whitespace);
+                        tokenizer.accept(TokenCode::Whitespace);
                     }
                 }
 
-                tokenizer().push_as('\n');
+                tokenizer.push_as('\n');
                 if (m_config.ignore_newlines) {
-                    tokenizer().skip();
+                    tokenizer.skip();
                 } else {
-                    tokenizer().accept(TokenCode::NewLine);
+                    tokenizer.accept(TokenCode::NewLine);
                 }
                 m_state = WhitespaceState::Done;
                 continue;
@@ -59,7 +59,7 @@ void WhitespaceScanner::match()
                 } else {
                     m_state = WhitespaceState::Whitespace;
                 }
-                tokenizer().push();
+                tokenizer.push();
             } else {
                 m_state = WhitespaceState::Done;
             }
@@ -68,26 +68,26 @@ void WhitespaceScanner::match()
         case WhitespaceState::CR:
             if (ch == '\r') {
                 if (m_config.newlines_are_spaces) {
-                    tokenizer().push();
+                    tokenizer.push();
                     break;
                 }
             }
             if (m_config.ignore_newlines) {
-                tokenizer().skip();
+                tokenizer.skip();
             } else {
-                tokenizer().accept(TokenCode::NewLine);
+                tokenizer.accept(TokenCode::NewLine);
             }
             m_state = WhitespaceState::Done;
             break;
 
         case WhitespaceState::Whitespace:
             if (isspace(ch)) {
-                tokenizer().push();
+                tokenizer.push();
             } else {
                 if (m_config.ignore_spaces) {
-                    tokenizer().skip();
+                    tokenizer.skip();
                 } else {
-                    tokenizer().accept(TokenCode::Whitespace);
+                    tokenizer.accept(TokenCode::Whitespace);
                 }
                 m_state = WhitespaceState::Done;
             }

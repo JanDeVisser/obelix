@@ -10,40 +10,51 @@ namespace Obelix {
 
 class Lexer {
 public:
-    explicit Lexer(std::string text)
-        : m_tokenizer(move(text))
-    {
-    }
-
     explicit Lexer(char const* text = nullptr)
-        : m_tokenizer((text) ? text : "")
+        : m_buffer((text) ? text : "")
     {
     }
 
     explicit Lexer(StringBuffer text)
-        : m_tokenizer(std::move(text))
+        : m_buffer(std::move(text))
     {
     }
 
     template<typename... Args>
-    void filter_codes(Args&&... args)
+    void filter_codes(TokenCode code, Args&&... args)
     {
-        m_tokenizer.filter_codes(std::forward<Args>(args)...);
+        m_filtered_codes.insert(code);
+        filter_codes(std::forward<Args>(args)...);
+    }
+
+    void filter_codes()
+    {
     }
 
     void assign(char const* text)
     {
-        m_tokenizer.assign(text);
+        m_buffer.assign(text);
+        m_tokens.clear();
+        m_current = 0;
     }
 
-    [[nodiscard]] StringBuffer const& buffer() const { return m_tokenizer.buffer(); }
+    void assign(std::string const& text)
+    {
+        m_buffer.assign(text);
+        m_tokens.clear();
+        m_current = 0;
+    }
+
+    [[nodiscard]] StringBuffer const& buffer() const { return m_buffer; }
 
     std::vector<Token> const& tokenize(char const* text = nullptr)
     {
         if (text)
-            m_tokens = m_tokenizer.tokenize(text);
-        else
-            m_tokens = m_tokenizer.tokenize();
+            assign(text);
+        Tokenizer tokenizer(m_buffer);
+        tokenizer.add_scanners(m_scanners);
+        tokenizer.filter_codes(m_filtered_codes);
+        m_tokens = tokenizer.tokenize();
         return m_tokens;
     }
 
@@ -84,14 +95,17 @@ public:
     template<class ScannerClass, class... Args>
     std::shared_ptr<ScannerClass> add_scanner(Args&&... args)
     {
-        auto ret = m_tokenizer.add_scanner<ScannerClass>(std::forward<Args>(args)...);
+        auto ret = std::make_shared<ScannerClass>(std::forward<Args>(args)...);
+        m_scanners.insert(std::dynamic_pointer_cast<Scanner>(ret));
         return ret;
     }
 
 private:
-    Tokenizer m_tokenizer;
+    StringBuffer m_buffer;
     std::vector<Token> m_tokens {};
     size_t m_current { 0 };
+    std::unordered_set<TokenCode> m_filtered_codes {};
+    std::set<std::shared_ptr<Scanner>> m_scanners {};
 };
 
 }

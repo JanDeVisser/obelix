@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -26,11 +28,11 @@ namespace Obelix {
 extern LoggingCategory lexer_logger;
 
 #define ENUMERATE_TOKENIZER_STATES(S) \
-    S(NoState)                    \
-    S(Fresh)                      \
-    S(Init)                       \
-    S(Success)                    \
-    S(Done)                       \
+    S(NoState)                        \
+    S(Fresh)                          \
+    S(Init)                           \
+    S(Success)                        \
+    S(Done)                           \
     S(Stale)
 
 enum class TokenizerState {
@@ -59,22 +61,25 @@ class Scanner;
 
 class Scanner {
 public:
-    explicit Scanner(Tokenizer& tokenizer, int priority = 10)
-        : m_tokenizer(tokenizer)
-        , m_priority(priority)
+    explicit Scanner(int priority = 10)
+        : m_priority(priority)
     {
     }
     virtual ~Scanner() = default;
 
-    [[nodiscard]] Tokenizer& tokenizer() const { return m_tokenizer; }
     [[nodiscard]] int priority() const { return m_priority; }
 
-    virtual char const* name() = 0;
-    virtual void match() { }
-    virtual void match_2nd_pass() { };
+    [[nodiscard]] virtual char const* name() const = 0;
+    virtual void match(Tokenizer&) { }
+
+    bool operator<(Obelix::Scanner const& other) const
+    {
+        if (priority() != other.priority())
+            return priority() < other.priority();
+        return strcmp(name(), other.name()) < 0;
+    }
 
 private:
-    Tokenizer& m_tokenizer;
     int m_priority { 0 };
 };
 
@@ -96,6 +101,11 @@ public:
 
     void filter_codes()
     {
+    }
+
+    void filter_codes(std::unordered_set<TokenCode> codes)
+    {
+        m_filtered_codes.merge(codes);
     }
 
     [[nodiscard]] StringBuffer const& buffer() const { return m_buffer; }
@@ -123,15 +133,14 @@ public:
     template<class ScannerClass, class... Args>
     std::shared_ptr<ScannerClass> add_scanner(Args&&... args)
     {
-        auto ret = std::make_shared<ScannerClass>(*this, std::forward<Args>(args)...);
-        m_scanners.push_back(ret);
-        std::sort(m_scanners.begin(), m_scanners.end(), [](std::shared_ptr<Scanner> const& a, std::shared_ptr<Scanner> const& b) {
-            if (a->priority() != b->priority())
-                return a->priority() > b->priority();
-            return strcmp(a->name(), b->name()) > 0;
-        });
-
+        auto ret = std::make_shared<ScannerClass>(std::forward<Args>(args)...);
+        m_scanners.insert(std::dynamic_pointer_cast<Scanner>(ret));
         return ret;
+    }
+
+    void add_scanners(std::set<std::shared_ptr<Scanner>> scanners)
+    {
+        m_scanners.merge(scanners);
     }
 
     std::shared_ptr<Scanner> get_scanner(std::string const& name)
@@ -148,7 +157,15 @@ private:
     void match_token();
 
     std::unordered_set<TokenCode> m_filtered_codes {};
-    std::vector<std::shared_ptr<Scanner>> m_scanners {};
+
+    struct ScannerCmp {
+        bool operator()(std::shared_ptr<Obelix::Scanner> const& a, std::shared_ptr<Obelix::Scanner> const& b) const
+        {
+            return (*a < *b);
+        }
+    };
+
+    std::set<std::shared_ptr<Scanner>, ScannerCmp> m_scanners {};
     StringBuffer m_buffer;
     std::string m_token {};
     TokenizerState m_state { TokenizerState::Fresh };
@@ -160,7 +177,6 @@ private:
     int m_current { 0 };
     Span m_location { 1, 1, 1, 1 };
     bool m_eof { false };
-    bool m_has_catch_all { false };
 };
 
 #define ENUMERATE_QSTR_STATES(S) \
@@ -178,14 +194,14 @@ enum class QStrState {
 
 class QStringScanner : public Scanner {
 public:
-    explicit QStringScanner(Tokenizer&, std::string = "'`\"");
+    explicit QStringScanner(std::string = "'`\"");
     [[nodiscard]] std::string quotes() const { return m_quotes; }
-    void match() override;
-    [[nodiscard]] char const* name() override { return "qstring"; }
+    void match(Tokenizer& tokenizer) override;
+    [[nodiscard]] char const* name() const override { return "qstring"; }
 
 private:
     std::string m_quotes;
-    char m_quote;
+    char m_quote {};
     QStrState m_state { QStrState::Init };
 };
 
@@ -209,11 +225,11 @@ public:
         bool ignore_spaces { true };
         bool newlines_are_spaces { true };
     };
-    explicit WhitespaceScanner(Tokenizer&);
-    WhitespaceScanner(Tokenizer&, Config const&);
-    WhitespaceScanner(Tokenizer&, bool);
-    void match() override;
-    [[nodiscard]] char const* name() override { return "whitespace"; }
+    WhitespaceScanner();
+    explicit WhitespaceScanner(Config const&);
+    explicit WhitespaceScanner(bool);
+    void match(Tokenizer&) override;
+    [[nodiscard]] char const* name() const override { return "whitespace"; }
 
 private:
     Config m_config {};
@@ -221,9 +237,9 @@ private:
 };
 
 #define ENUMERATE_COMMENT_STATES(S) \
-    S(None)                    \
-    S(StartMarker)              \
-    S(Text)                      \
+    S(None)                         \
+    S(StartMarker)                  \
+    S(Text)                         \
     S(EndMarker)                    \
     S(End)                          \
     S(Unterminated)
@@ -253,19 +269,19 @@ public:
         }
     };
 
-    explicit CommentScanner(Tokenizer& tokenizer)
-        : Scanner(tokenizer)
+    explicit CommentScanner()
+        : Scanner()
     {
     }
 
-    template <typename... Args>
-    explicit CommentScanner(Tokenizer& tokenizer, Args&&... args)
-        : Scanner(tokenizer)
+    template<typename... Args>
+    explicit CommentScanner(Args&&... args)
+        : Scanner()
     {
         add_markers(std::forward<Args>(args)...);
     }
 
-    template <typename T, typename... Args>
+    template<typename T, typename... Args>
     void add_markers(T t, Args&&... args)
     {
         add_marker(t);
@@ -289,12 +305,12 @@ public:
         add_marker(std::string(marker));
     }
 
-    void match() override;
-    [[nodiscard]] char const* name() override { return "comment"; }
+    void match(Tokenizer&) override;
+    [[nodiscard]] char const* name() const override { return "comment"; }
 
 private:
-    void find_eol();
-    void find_end_marker();
+    void find_eol(Tokenizer&);
+    void find_end_marker(Tokenizer&);
 
     std::vector<CommentMarker> m_markers {};
     CommentState m_state { CommentState::None };
@@ -333,13 +349,13 @@ public:
         bool hex { true };
         bool fractions { true };
     };
-    explicit NumberScanner(Tokenizer&);
-    NumberScanner(Tokenizer&, Config const&);
-    void match() override;
-    [[nodiscard]] char const* name() override { return "number"; }
+    NumberScanner();
+    explicit NumberScanner(Config const&);
+    void match(Tokenizer&) override;
+    [[nodiscard]] char const* name() const override { return "number"; }
 
 private:
-    TokenCode process(int);
+    TokenCode process(Tokenizer&, int);
 
     NumberScannerState m_state { NumberScannerState::None };
     Config m_config {};
@@ -375,25 +391,25 @@ public:
         bool startswith_digits { false };
     };
 
-    explicit IdentifierScanner(Tokenizer&);
-    IdentifierScanner(Tokenizer&, Config const&);
-    void match() override;
-    [[nodiscard]] char const* name() override { return "identifier"; }
+    IdentifierScanner();
+    explicit IdentifierScanner(Config);
+    void match(Tokenizer&) override;
+    [[nodiscard]] char const* name() const override { return "identifier"; }
 
 private:
-    bool filter_character(int);
+    bool filter_character(Tokenizer&, int) const;
 
     Config m_config {};
 };
 
 #define ENUMERATE_KEYWORD_SCANNER_STATES(S) \
-    S(Init) \
-    S(PrefixMatched) \
-    S(PrefixesMatched) \
-    S(FullMatch) \
-    S(FullMatchAndPrefixes) \
-    S(FullMatchLost) \
-    S(PrefixMatchLost) \
+    S(Init)                                 \
+    S(PrefixMatched)                        \
+    S(PrefixesMatched)                      \
+    S(FullMatch)                            \
+    S(FullMatchAndPrefixes)                 \
+    S(FullMatchLost)                        \
+    S(PrefixMatchLost)                      \
     S(NoMatch)
 
 class KeywordScanner : public Scanner {
@@ -415,7 +431,7 @@ public:
         switch (state) {
 #undef _KEYWORD_SCANNER_STATE
 #define _KEYWORD_SCANNER_STATE(value) \
-    case KeywordScannerState::value: \
+    case KeywordScannerState::value:  \
         return #value;
             ENUMERATE_KEYWORD_SCANNER_STATES(_KEYWORD_SCANNER_STATE)
 #undef _KEYWORD_SCANNER_STATE
@@ -424,15 +440,15 @@ public:
         }
     }
 
-    template <typename... Args>
-    explicit KeywordScanner(Tokenizer& tokenizer, Args&&... args)
-        : Scanner(tokenizer)
+    template<typename... Args>
+    explicit KeywordScanner(Args&&... args)
+        : Scanner()
     {
         add_keywords(std::forward<Args>(args)...);
     }
 
-    void match() override;
-    [[nodiscard]] char const* name() override { return "keyword"; }
+    void match(Tokenizer&) override;
+    [[nodiscard]] char const* name() const override { return "keyword"; }
 
     template<typename T, typename... Args>
     void add_keywords(T t, Args&&... args)
