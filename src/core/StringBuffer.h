@@ -15,6 +15,7 @@ public:
     explicit StringBuffer(std::string_view const&);
     explicit StringBuffer(char const*);
     [[nodiscard]] std::string const& str() const { return m_buffer; }
+    [[nodiscard]] operator std::string_view() const { return std::string_view(m_buffer); }
     void rewind();
     void partial_rewind(size_t);
     std::string read(size_t);
