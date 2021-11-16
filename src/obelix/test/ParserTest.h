@@ -19,7 +19,7 @@ protected:
     void SetUp() override
     {
         if (debugOn()) {
-            Logger::get_logger().enable("parser");
+            Logger::get_logger().enable("all");
         }
     }
 
