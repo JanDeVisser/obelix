@@ -19,23 +19,47 @@ public:
     {
     }
 
+    enum class ParseResult {
+        Execute,
+        WantMore,
+        Errors
+    };
+
     int run()
     {
         Parser parser(m_runtime.config());
         printf("Obelix 1.99 - A programming language\n");
         bool quit = false;
+        bool show_tree = false;
         auto scope = m_runtime.new_scope();
+        std::string buffer;
         do {
             auto line = readline(m_prompt.c_str());
-            if (!line || !strcmp(line, "exit")) {
+            if (!line || !strcmp(line, "#exit")) {
                 quit = true;
+            } else if (!strcmp(line, "#show")) {
+                show_tree = !show_tree;
+                printf("%sshowing parse results\n", (show_tree) ? "" : "Not ");
             } else {
-                auto tree = parser.parse(m_runtime, line);
-                for (auto& e : parser.errors()) {
-                    printf("ERROR: %s\n", e.to_string().c_str());
+                buffer += line;
+                auto tree = parser.parse(m_runtime, buffer);
+                if (!tree && (parser.current_code() == TokenCode::EndOfFile)) {
+                    m_prompt = ". ";
+                    continue;
                 }
+
+                buffer = "";
+                m_prompt = "> ";
+                if (!tree) {
+                    for (auto& e : parser.errors()) {
+                        printf("ERROR: %s\n", e.to_string().c_str());
+                    }
+                    continue;
+                }
+
                 if (tree) {
-                    printf("%s\n", tree->to_string(0).c_str());
+                    if (show_tree)
+                        printf("%s\n", tree->to_string(0).c_str());
                     if (auto result = tree->execute_in(scope); result.code == ExecutionResultCode::Error) {
                         printf("ERROR: %s\n", result.return_value->to_string().c_str());
                     } else if (result.return_value){

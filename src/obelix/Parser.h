@@ -86,6 +86,8 @@ public:
     std::shared_ptr<Module> parse(Runtime&, std::string const&);
     [[nodiscard]] std::vector<ParseError> const& errors() const { return m_errors; };
     [[nodiscard]] bool has_errors() const { return !m_errors.empty(); }
+    Token const& peek();
+    TokenCode current_code();
 
 private:
     std::shared_ptr<Statement> parse_statement(SyntaxNode*);
@@ -113,8 +115,6 @@ private:
     std::shared_ptr<ListComprehension> parse_list_comprehension(std::shared_ptr<Expression>);
     std::shared_ptr<DictionaryLiteral> parse_dictionary_literal(SyntaxNode*);
 
-    Token const& peek();
-    TokenCode current_code();
     Token const& lex();
     std::optional<Token const> match(TokenCode, char const* = nullptr);
     bool expect(TokenCode, char const* = nullptr);

@@ -99,6 +99,7 @@ std::shared_ptr<Module> Parser::parse(Runtime& runtime, std::string const& text)
 std::shared_ptr<Module> Parser::parse(Runtime& runtime)
 {
     Statements statements;
+    m_errors.clear();
     parse_statements(nullptr, statements);
     if (has_errors())
         return nullptr;
