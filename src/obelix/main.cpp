@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <lexer/Token.h>
 #include <obelix/Parser.h>
+#include <obelix/Processor.h>
 #include <obelix/Runtime.h>
 #include <obelix/Scope.h>
 #include <optional>
@@ -14,8 +15,8 @@ namespace Obelix {
 
 class Repl {
 public:
-    explicit Repl(Runtime &runtime)
-        : m_runtime(runtime)
+    explicit Repl(Ptr<Runtime> runtime)
+        : m_runtime(std::move(runtime))
     {
     }
 
@@ -27,11 +28,10 @@ public:
 
     int run()
     {
-        Parser parser(m_runtime.config());
+        Parser parser(m_runtime->config());
         printf("Obelix 1.99 - A programming language\n");
         bool quit = false;
         bool show_tree = false;
-        auto scope = m_runtime.new_scope();
         std::string buffer;
         do {
             auto line = readline(m_prompt.c_str());
@@ -42,7 +42,7 @@ public:
                 printf("%sshowing parse results\n", (show_tree) ? "" : "Not ");
             } else {
                 buffer += line;
-                auto tree = parser.parse(m_runtime, buffer);
+                auto tree = parser.parse(buffer);
                 if (!tree && (parser.current_code() == TokenCode::EndOfFile)) {
                     m_prompt = ". ";
                     continue;
@@ -60,12 +60,14 @@ public:
                 if (tree) {
                     if (show_tree)
                         printf("%s\n", tree->to_string(0).c_str());
-                    if (auto result = tree->execute_in(scope); result.code == ExecutionResultCode::Error) {
+                    auto transformed = fold_constants(tree);
+                    if (show_tree)
+                        printf("%s\n", transformed->to_string(0).c_str());
+                    if (auto result = std::dynamic_pointer_cast<Module>(transformed)->execute_in(m_runtime->as_scope()); result.code == ExecutionResultCode::Error) {
                         printf("ERROR: %s\n", result.return_value->to_string().c_str());
                     } else if (result.return_value){
                         printf("%s\n", result.return_value->to_string().c_str());
                     }
-                    scope = tree->scope();
                 }
             }
         } while (!quit);
@@ -73,7 +75,7 @@ public:
     }
 
 private:
-    Runtime& m_runtime;
+    Ptr<Runtime> m_runtime;
     std::string m_prompt { "> "};
 };
 
@@ -92,7 +94,7 @@ void usage()
 int main(int argc, char** argv)
 {
     std::string file_name;
-    Obelix::Runtime::Config config { false };
+    Obelix::Config config { false };
     for (int ix = 1; ix < argc; ++ix) {
         if (!strcmp(argv[ix], "--help")) {
             usage();
@@ -105,13 +107,13 @@ int main(int argc, char** argv)
         }
     }
 
-    auto runtime = Obelix::Runtime(config);
+    auto runtime = Obelix::make_typed<Obelix::Runtime>(config);
 
     if (file_name.empty()) {
         return Obelix::Repl(runtime).run();
     }
 
-    auto result = runtime.run(file_name);
+    auto result = runtime->run(file_name);
 
     if (auto exit_code = result.return_value; exit_code) {
         if (auto long_maybe = exit_code->to_long(); long_maybe.has_value())

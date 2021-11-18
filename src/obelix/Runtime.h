@@ -20,34 +20,35 @@
 #pragma once
 
 #include <unordered_map>
+#include <obelix/Scope.h>
 
 namespace Obelix {
 
 struct ExecutionResult;
 class Module;
-class Scope;
 
-class Runtime {
+class Runtime : public Scope {
 public:
-    struct Config {
-        bool show_tree { false };
-    };
-
-    explicit Runtime(Runtime::Config const&, bool = true);
-    std::shared_ptr<Module> import_module(std::string const&);
+    explicit Runtime(Config const&, bool = true);
     ExecutionResult run(std::string const&);
-    Ptr<Scope> evaluate(std::string const&);
-    Ptr<Scope> evaluate(std::string const&, Ptr<Scope> scope);
-    [[nodiscard]] Config const& config() const { return m_config; }
-    [[nodiscard]] Ptr<Scope> new_scope() const;
+    [[nodiscard]] Config const& config() const override { return m_config; }
+    Ptr<Scope> import_module(std::string const& module) override { return _import_module(module); }
+    [[nodiscard]] Ptr<Scope> make_scope() const { return make_typed<Scope>(ptr_cast<Scope>(self())); }
+    [[nodiscard]] Ptr<Scope>& as_scope()
+    {
+        if (!m_as_scope)
+            m_as_scope = ptr_cast<Scope>(self());
+        return m_as_scope;
+    }
+    void construct() override;
 
 private:
-    std::shared_ptr<Module> _import_file(std::string const&);
-    std::shared_ptr<Module> _import_file(std::string const&, Ptr<Scope>);
+    Ptr<Scope> _import_module(std::string const&);
 
+    Ptr<Scope> m_as_scope;
     Config m_config;
-    std::shared_ptr<Module> m_root;
-    std::unordered_map<std::string, std::shared_ptr<Module>> m_modules;
+    std::unordered_map<std::string, Ptr<Scope>> m_modules;
+    bool m_stdlib;
 };
 
 }

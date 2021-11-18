@@ -21,6 +21,7 @@
 
 #include <core/Object.h>
 #include <obelix/Scope.h>
+#include <obelix/Syntax.h>
 
 namespace Obelix {
 
@@ -34,7 +35,7 @@ public:
 
 private:
     Ptr<Scope> m_scope;
-    FunctionDef const& m_definition;
+    FunctionDef m_definition;
 };
 
 }

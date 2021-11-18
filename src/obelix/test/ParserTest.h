@@ -12,7 +12,7 @@ namespace Obelix {
 
 class ParserTest : public ::testing::Test {
 public:
-    Runtime* runtime;
+    Ptr<Runtime> runtime;
     bool show_tree = false;
 
 protected:
@@ -21,20 +21,18 @@ protected:
         if (debugOn()) {
             Logger::get_logger().enable("all");
         }
+        Config config { show_tree };
+        runtime = make_typed<Runtime>(config, false);
     }
 
     Ptr<Scope> parse(std::string const& s)
     {
-        Runtime::Config config { show_tree };
-        runtime = new Runtime(config, false);
-        return runtime->evaluate(s);
+        return runtime->eval(s);
     }
 
-    Ptr<Scope> parse(std::string const& s, Ptr<Scope> const& scope)
+    Ptr<Scope> parse(std::string const& s, Ptr<Scope>& scope)
     {
-        Runtime::Config config { show_tree };
-        runtime = new Runtime(config, false);
-        auto ret = runtime->evaluate(s, scope);
+        auto ret = scope->eval(s);
         EXPECT_NE(scope->result().code, ExecutionResultCode::Error);
         if (ret->result().code == ExecutionResultCode::Error) {
             auto errors = ptr_cast<List>(ret->result().return_value);

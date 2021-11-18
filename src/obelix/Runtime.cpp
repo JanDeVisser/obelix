@@ -18,79 +18,60 @@
  */
 
 #include <obelix/Parser.h>
+#include <obelix/Processor.h>
 #include <obelix/Runtime.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
 
 Runtime::Runtime(Config const& config, bool stdlib)
-    : m_config(config)
-    , m_root((stdlib) ? _import_file("") : std::make_shared<Module>("", *this, Statements()))
+    : Scope()
+    , m_as_scope(make_null<Scope>())
+    , m_config(config)
+    , m_stdlib(stdlib)
 {
 }
 
-std::shared_ptr<Module> Runtime::import_module(std::string const& module)
+void Runtime::construct()
 {
-    if (!m_modules.contains(module))
-        m_modules[module] = _import_file(module, m_root->scope());
-    return m_modules[module];
+    if (m_stdlib)
+        _import_module("");
 }
 
 ExecutionResult Runtime::run(std::string const& file_name)
 {
-    auto mod = _import_file(file_name, m_root->scope());
-    return mod->scope()->result();
+    auto scope = _import_module(file_name);
+    return scope->result();
 }
 
-Ptr<Scope> Runtime::evaluate(std::string const& src)
+Ptr<Scope> Runtime::_import_module(std::string const& module)
 {
-    return evaluate(src, make_typed<Scope>());
-}
-
-Ptr<Scope> Runtime::new_scope() const
-{
-    return make_typed<Scope>(m_root->scope());
-}
-
-Ptr<Scope> Runtime::evaluate(std::string const& src, Ptr<Scope> scope)
-{
-    StringBuffer source_text(src);
-    Parser parser(m_config, source_text);
-    auto tree = parser.parse(*this);
-    if (!tree || parser.has_errors()) {
-        auto errors = make_typed<List>();
-        for (auto& error : parser.errors()) {
-            errors->push_back(make_obj<Exception>(ErrorCode::SyntaxError, error.to_string()));
+    std::shared_ptr<Module> tree;
+    if (!m_modules.contains(module)) {
+        auto file_name = module;
+        for (auto ix = 0u; ix < module.length(); ++ix) {
+            if ((file_name[ix] == '.') && (file_name.substr(ix) != ".obl"))
+                file_name[ix] = '/';
         }
-        scope->set_result({ ExecutionResultCode::Error, to_obj<List>(errors) });
+        Parser parser(m_config, file_name);
+        tree = std::dynamic_pointer_cast<Module>(parser.parse());
+        auto transformed = fold_constants(tree);
+        if (config().show_tree)
+            printf("%s\n", transformed->to_string(0).c_str());
+        if (!tree || parser.has_errors()) {
+            for (auto& error : parser.errors()) {
+                fprintf(stderr, "%s\n", error.to_string().c_str());
+            }
+            exit(1);
+        }
+        auto as_scope = ptr_cast<Scope>(self());
+        Ptr<Scope> scope = (module.empty()) ? as_scope : make_typed<Scope>(as_scope);
+        tree->execute_in(scope);
+        m_modules[module] = scope;
         return scope;
+    } else {
+        return m_modules.at(module);
     }
-    tree->execute_in(scope);
-    return tree->scope();
-}
-
-std::shared_ptr<Module> Runtime::_import_file(std::string const& module)
-{
-    return _import_file(module, make_typed<Scope>());
-}
-
-std::shared_ptr<Module> Runtime::_import_file(std::string const& module, Ptr<Scope> into_scope)
-{
-    auto file_name = module;
-    for (auto ix = 0u; ix < module.length(); ++ix) {
-        if ((file_name[ix] == '.') && (file_name.substr(ix) != ".obl"))
-            file_name[ix] = '/';
-    }
-    Parser parser(m_config, file_name);
-    auto tree = parser.parse(*this);
-    if (!tree || parser.has_errors()) {
-        for (auto& error : parser.errors()) {
-            fprintf(stderr, "%s\n", error.to_string().c_str());
-        }
-        exit(1);
-    }
-    tree->execute(into_scope);
-    return tree;
 }
 
 }

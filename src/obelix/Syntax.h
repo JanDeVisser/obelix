@@ -9,7 +9,6 @@
 #include <core/NativeFunction.h>
 #include <core/Range.h>
 #include <lexer/Token.h>
-#include <obelix/BoundFunction.h>
 #include <obelix/Runtime.h>
 #include <obelix/Scope.h>
 #include <string>
@@ -18,6 +17,60 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
+#define ENUMERATE_SYNTAXNODETYPES(S) \
+    S(SyntaxNode)                    \
+    S(Statement)                     \
+    S(Block)                         \
+    S(Module)                        \
+    S(Expression)                    \
+    S(Literal)                       \
+    S(Identifier)                    \
+    S(ListLiteral)                   \
+    S(ListComprehension)             \
+    S(DictionaryLiteral)             \
+    S(This)                          \
+    S(BinaryExpression)              \
+    S(UnaryExpression)               \
+    S(FunctionCall)                  \
+    S(Import)                        \
+    S(Pass)                          \
+    S(FunctionDef)                   \
+    S(NativeFunctionDef)             \
+    S(ExpressionStatement)           \
+    S(VariableDeclaration)           \
+    S(Return)                        \
+    S(Break)                         \
+    S(Continue)                      \
+    S(Branch)                        \
+    S(ElseStatement)                 \
+    S(ElifStatement)                 \
+    S(IfStatement)                   \
+    S(WhileStatement)                \
+    S(ForStatement)                  \
+    S(CaseStatement)                 \
+    S(DefaultCase)                   \
+    S(SwitchStatement)
+
+enum class SyntaxNodeType {
+#undef __SYNTAXNODETYPE
+#define __SYNTAXNODETYPE(type) type,
+    ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
+#undef __SYNTAXNODETYPE
+};
+
+constexpr char const* SyntaxNodeType_name(SyntaxNodeType type)
+{
+    switch (type) {
+#undef __SYNTAXNODETYPE
+#define __SYNTAXNODETYPE(type) \
+    case SyntaxNodeType::type: \
+        return #type;
+        ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
+#undef __SYNTAXNODETYPE
+    }
+}
+
+class SyntaxNode;
 class Module;
 
 static inline std::string pad(int num)
@@ -30,42 +83,32 @@ static inline std::string pad(int num)
 
 class SyntaxNode {
 public:
-    explicit SyntaxNode(SyntaxNode* parent)
-        : m_parent(parent)
-    {
-    }
-
+    SyntaxNode() = default;
     virtual ~SyntaxNode() = default;
+
     virtual std::string to_string(int) = 0;
+    [[nodiscard]] virtual SyntaxNodeType node_type() const = 0;
 
     [[nodiscard]] SyntaxNode* parent() const { return m_parent; }
-    [[nodiscard]] virtual Runtime& runtime() const;
-    [[nodiscard]] virtual Module const* module() const;
 
 private:
-    SyntaxNode* m_parent;
+    SyntaxNode* m_parent { nullptr };
 };
 
 class Statement : public SyntaxNode {
 public:
-    explicit Statement(SyntaxNode* parent)
-        : SyntaxNode(parent)
-    {
-    }
-
-    virtual ExecutionResult execute(Ptr<Scope>&)
-    {
-        fatal("Not implemented");
-    }
+    Statement() = default;
+    virtual ExecutionResult execute(Ptr<Scope>&) = 0;
 };
 
 class Import : public Statement {
 public:
-    explicit Import(SyntaxNode* parent, std::string name)
-        : Statement(parent)
+    explicit Import(std::string name)
+        : Statement()
         , m_name(move(name))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Import; }
 
     std::string to_string(int indent) override
     {
@@ -80,10 +123,8 @@ private:
 
 class Pass : public Statement {
 public:
-    explicit Pass(SyntaxNode* parent)
-        : Statement(parent)
-    {
-    }
+    Pass() = default;
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Pass; }
 
     std::string to_string(int indent) override
     {
@@ -96,14 +137,17 @@ public:
     }
 };
 
+typedef std::vector<std::shared_ptr<Statement>> Statements;
+
 class Block : public Statement {
 public:
-    explicit Block(SyntaxNode* parent, std::vector<std::shared_ptr<Statement>> statements)
-        : Statement(parent)
+    explicit Block(Statements statements)
+        : Statement()
         , m_statements(move(statements))
         , m_scope(make_null<Scope>())
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Block; }
 
     std::string to_string(int indent) override
     {
@@ -135,20 +179,21 @@ public:
     }
 
     [[nodiscard]] Ptr<Scope>& scope() { return m_scope; }
+    [[nodiscard]] Statements const& statements() const { return m_statements; }
 
 protected:
-    std::vector<std::shared_ptr<Statement>> m_statements {};
+    Statements m_statements {};
     Ptr<Scope> m_scope;
 };
 
 class Module : public Block {
 public:
-    explicit Module(std::string name, Runtime& runtime, std::vector<std::shared_ptr<Statement>> const& statements)
-        : Block(nullptr, statements)
+    explicit Module(std::string name, std::vector<std::shared_ptr<Statement>> const& statements)
+        : Block(statements)
         , m_name(move(name))
-        , m_runtime(runtime)
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Module; }
 
     std::string to_string(int indent) override
     {
@@ -169,25 +214,27 @@ public:
         return execute_block(m_scope);
     }
 
-    [[nodiscard]] Module const* module() const override;
-    [[nodiscard]] Runtime& runtime() const override;
-
+    [[nodiscard]] const std::string& name() const { return m_name; }
 private:
     std::string m_name;
-    Runtime& m_runtime;
 };
+
+typedef std::vector<std::string> Strings;
 
 class FunctionDef : public Block {
 public:
-    FunctionDef(SyntaxNode* parent, std::string name, std::vector<std::string> parameters, std::vector<std::shared_ptr<Statement>> const& statements)
-        : Block(parent, statements)
+    FunctionDef(std::string name, Strings parameters, Statements const& statements)
+        : Block(statements)
         , m_name(move(name))
         , m_parameters(move(parameters))
     {
+        debug(parser, "name {} #parameters {}", m_name, m_parameters.size());
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionDef; }
 
     [[nodiscard]] std::string const& name() const { return m_name; }
     [[nodiscard]] std::vector<std::string> const& parameters() const { return m_parameters; }
+    ExecutionResult execute(Ptr<Scope>& scope) override;
 
     std::string to_string(int indent) override
     {
@@ -195,13 +242,6 @@ public:
         ret += '\n';
         ret += Block::to_string(indent);
         return ret;
-    }
-
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        auto bound_function = make_obj<BoundFunction>(scope, *this);
-        scope->declare(name(), bound_function);
-        return { ExecutionResultCode::None, bound_function };
     }
 
     std::string const& name() { return m_name; }
@@ -222,16 +262,17 @@ protected:
     }
 
     std::string m_name;
-    std::vector<std::string> m_parameters;
+    Strings m_parameters;
 };
 
 class NativeFunctionDef : public FunctionDef {
 public:
-    NativeFunctionDef(SyntaxNode* parent, std::string name, std::vector<std::string> parameters, std::string native_function_name)
-        : FunctionDef(parent, move(name), move(parameters), std::vector<std::shared_ptr<Statement>>())
+    NativeFunctionDef(std::string name, std::vector<std::string> parameters, std::string native_function_name)
+        : FunctionDef(move(name), move(parameters), std::vector<std::shared_ptr<Statement>>())
         , m_native_function_name(move(native_function_name))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::NativeFunctionDef; }
 
     std::string to_string(int indent) override
     {
@@ -251,15 +292,12 @@ private:
 
 class Expression : public SyntaxNode {
 public:
-    explicit Expression(SyntaxNode* parent)
-        : SyntaxNode(parent)
+    explicit Expression()
+        : SyntaxNode()
     {
     }
 
-    virtual Obj evaluate(Ptr<Scope>& scope)
-    {
-        fatal("Not yet implemented");
-    }
+    virtual Obj evaluate(Ptr<Scope>& scope) = 0;
 
     virtual std::optional<Obj> assign(Ptr<Scope>& scope, Token const&, Obj const&)
     {
@@ -270,10 +308,11 @@ public:
 class ExpressionStatement : public Statement {
 public:
     explicit ExpressionStatement(std::shared_ptr<Expression> expression)
-        : Statement(expression->parent())
+        : Statement()
         , m_expression(move(expression))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ExpressionStatement; }
 
     std::string to_string(int indent) override
     {
@@ -285,6 +324,7 @@ public:
         auto result = m_expression->evaluate(scope);
         return { (result->is_exception()) ? ExecutionResultCode::Error : ExecutionResultCode::None, result };
     }
+    [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
 
 private:
     std::shared_ptr<Expression> m_expression;
@@ -292,27 +332,21 @@ private:
 
 class Literal : public Expression {
 public:
-    Literal(SyntaxNode* parent, Token const& token)
-        : Expression(parent)
+    explicit Literal(Token const& token)
+        : Expression()
         , m_literal(token.to_object())
     {
     }
 
-    Literal(SyntaxNode* parent, Obj value)
-        : Expression(parent)
+    explicit Literal(Obj value)
+        : Expression()
         , m_literal(std::move(value))
     {
     }
 
-    std::string to_string(int indent) override
-    {
-        return m_literal->to_string();
-    }
-
-    Obj evaluate(Ptr<Scope>& scope) override
-    {
-        return m_literal;
-    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Literal; }
+    std::string to_string(int indent) override { return m_literal->to_string(); }
+    Obj evaluate(Ptr<Scope>& scope) override { return m_literal; }
 
 private:
     Obj m_literal;
@@ -320,33 +354,30 @@ private:
 
 class Identifier : public Expression {
 public:
-    Identifier(SyntaxNode* parent, std::string identifier)
-        : Expression(parent)
+    explicit Identifier(std::string identifier)
+        : Expression()
         , m_identifier(move(identifier))
     {
     }
 
-    std::string to_string(int indent) override
-    {
-        return m_identifier;
-    }
-
-    Obj evaluate(Ptr<Scope>& scope) override
-    {
-        return make_obj<String>(m_identifier);
-    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Identifier; }
+    std::string to_string(int indent) override { return m_identifier; }
+    Obj evaluate(Ptr<Scope>& scope) override { return make_obj<String>(m_identifier); }
 
 private:
     std::string m_identifier;
 };
 
+typedef std::vector<std::shared_ptr<Expression>> Expressions;
+
 class ListLiteral : public Expression {
 public:
-    ListLiteral(SyntaxNode* parent, std::vector<std::shared_ptr<Expression>> elements)
-        : Expression(parent)
+    explicit ListLiteral(Expressions elements)
+        : Expression()
         , m_elements(move(elements))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ListLiteral; }
 
     std::string to_string(int indent) override
     {
@@ -373,9 +404,10 @@ public:
         }
         return to_obj(list);
     }
+    [[nodiscard]] Expressions const& elements() const { return m_elements; }
 
 private:
-    std::vector<std::shared_ptr<Expression>> m_elements;
+    Expressions m_elements;
 };
 
 class ListComprehension : public Expression {
@@ -384,13 +416,14 @@ public:
         std::string rangevar,
         std::shared_ptr<Expression> generator,
         std::shared_ptr<Expression> condition = nullptr)
-        : Expression(element->parent())
+        : Expression()
         , m_element(move(element))
         , m_rangevar(move(rangevar))
         , m_generator(move(generator))
         , m_condition(move(condition))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ListComprehension; }
 
     std::string to_string(int indent) override
     {
@@ -434,6 +467,11 @@ public:
         return to_obj(list);
     }
 
+    [[nodiscard]] std::shared_ptr<Expression> const& element() const { return m_element; }
+    [[nodiscard]] std::string const& rangevar() const { return m_rangevar; }
+    [[nodiscard]] std::shared_ptr<Expression> const& generator() const { return m_generator; }
+    [[nodiscard]] std::shared_ptr<Expression> const& condition() const { return m_condition; }
+
 private:
     std::shared_ptr<Expression> m_element;
     std::string m_rangevar;
@@ -450,11 +488,12 @@ typedef std::vector<DictionaryLiteralEntry> DictionaryLiteralEntries;
 
 class DictionaryLiteral : public Expression {
 public:
-    DictionaryLiteral(SyntaxNode* parent, DictionaryLiteralEntries entries)
-        : Expression(parent)
+    explicit DictionaryLiteral(DictionaryLiteralEntries entries)
+        : Expression()
         , m_entries(move(entries))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::DictionaryLiteral; }
 
     std::string to_string(int indent) override
     {
@@ -481,6 +520,7 @@ public:
         }
         return to_obj(dictionary);
     }
+    [[nodiscard]] DictionaryLiteralEntries const& entries() const { return m_entries; }
 
 private:
     DictionaryLiteralEntries m_entries;
@@ -488,10 +528,11 @@ private:
 
 class This : public Expression {
 public:
-    explicit This(SyntaxNode* parent)
-        : Expression(parent)
+    explicit This()
+        : Expression()
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::This; }
 
     std::string to_string(int indent) override
     {
@@ -507,20 +548,25 @@ public:
 class BinaryExpression : public Expression {
 public:
     BinaryExpression(std::shared_ptr<Expression> lhs, Token op, std::shared_ptr<Expression> rhs)
-        : Expression(lhs->parent())
+        : Expression()
         , m_lhs(std::move(lhs))
         , m_operator(std::move(op))
         , m_rhs(std::move(rhs))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BinaryExpression; }
 
     std::string to_string(int indent) override
     {
-        return format("({}) {} ({})", m_lhs->to_string(indent), m_operator, m_rhs->to_string(indent));
+        return format("({}) {} ({})", m_lhs->to_string(indent), m_operator.value(), m_rhs->to_string(indent));
     }
 
     std::optional<Obj> assign(Ptr<Scope>& scope, Token const& op, Obj const& value) override;
     Obj evaluate(Ptr<Scope>& scope) override;
+
+    [[nodiscard]] std::shared_ptr<Expression> const& lhs() const { return m_lhs; }
+    [[nodiscard]] std::shared_ptr<Expression> const& rhs() const { return m_rhs; }
+    [[nodiscard]] Token op() const { return m_operator; }
 
 private:
     std::shared_ptr<Expression> m_lhs;
@@ -531,11 +577,12 @@ private:
 class UnaryExpression : public Expression {
 public:
     UnaryExpression(Token op, std::shared_ptr<Expression> operand)
-        : Expression(operand->parent())
+        : Expression()
         , m_operator(std::move(op))
         , m_operand(std::move(operand))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::UnaryExpression; }
 
     std::string to_string(int indent) override
     {
@@ -553,6 +600,9 @@ public:
         return ret_maybe.value();
     }
 
+    [[nodiscard]] Token op() const { return m_operator; }
+    [[nodiscard]] std::shared_ptr<Expression> const& operand() const { return m_operand; }
+
 private:
     Token m_operator;
     std::shared_ptr<Expression> m_operand;
@@ -560,12 +610,13 @@ private:
 
 class FunctionCall : public Expression {
 public:
-    FunctionCall(std::shared_ptr<Expression> function, std::vector<std::shared_ptr<Expression>> arguments)
-        : Expression(function->parent())
+    FunctionCall(std::shared_ptr<Expression> function, Expressions arguments)
+        : Expression()
         , m_function(move(function))
         , m_arguments(move(arguments))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionCall; }
 
     std::string to_string(int indent) override
     {
@@ -595,24 +646,27 @@ public:
         }
         return callable->call(args);
     }
+    [[nodiscard]] std::shared_ptr<Expression> const& function() const { return m_function; }
+    [[nodiscard]] Expressions const& arguments() const { return m_arguments; }
 
 private:
     std::shared_ptr<Expression> m_function;
-    std::vector<std::shared_ptr<Expression>> m_arguments;
+    Expressions m_arguments;
 };
 
 class VariableDeclaration : public Statement {
 public:
-    VariableDeclaration(SyntaxNode* parent, std::string variable, std::shared_ptr<Expression> expression = nullptr)
-        : Statement(parent)
+    explicit VariableDeclaration(std::string variable, std::shared_ptr<Expression> expression = nullptr)
+        : Statement()
         , m_variable(move(variable))
         , m_expression(move(expression))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::VariableDeclaration; }
 
     std::string to_string(int indent) override
     {
-        return format("{}var {}", pad(indent), m_variable);
+        return format("{}var {} = {}", pad(indent), m_variable, m_expression->to_string(indent));
     }
 
     ExecutionResult execute(Ptr<Scope>& scope) override
@@ -630,6 +684,8 @@ public:
         scope->declare(m_variable, value);
         return { ExecutionResultCode::None, value };
     }
+    [[nodiscard]] std::string const& variable() const { return m_variable; }
+    [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
 
 private:
     std::string m_variable;
@@ -638,11 +694,12 @@ private:
 
 class Return : public Statement {
 public:
-    explicit Return(SyntaxNode* parent, std::shared_ptr<Expression> expression)
-        : Statement(parent)
+    explicit Return(std::shared_ptr<Expression> expression)
+        : Statement()
         , m_expression(move(expression))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Return; }
 
     std::string to_string(int indent) override
     {
@@ -654,6 +711,7 @@ public:
         auto result = m_expression->evaluate(scope);
         return { (result->is_exception()) ? ExecutionResultCode::Error : ExecutionResultCode::Return, result };
     }
+    [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
 
 private:
     std::shared_ptr<Expression> m_expression;
@@ -661,10 +719,11 @@ private:
 
 class Break : public Statement {
 public:
-    explicit Break(SyntaxNode* parent)
-        : Statement(parent)
+    explicit Break()
+        : Statement()
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Break; }
 
     std::string to_string(int indent) override
     {
@@ -679,10 +738,11 @@ public:
 
 class Continue : public Statement {
 public:
-    explicit Continue(SyntaxNode* parent)
-        : Statement(parent)
+    explicit Continue()
+        : Statement()
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Continue; }
 
     std::string to_string(int indent) override
     {
@@ -697,8 +757,16 @@ public:
 
 class Branch : public Statement {
 public:
+    Branch(std::shared_ptr<Expression> condition, std::shared_ptr<Statement> statement)
+        : Statement()
+        , m_keyword("branch")
+        , m_condition(move(condition))
+        , m_statement(move(statement))
+    {
+    }
+
     Branch(std::string keyword, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> statement)
-        : Statement(statement->parent())
+        : Statement()
         , m_keyword(move(keyword))
         , m_condition(move(condition))
         , m_statement(move(statement))
@@ -706,15 +774,16 @@ public:
     }
 
     Branch(std::string keyword, std::shared_ptr<Statement> statement)
-        : Statement(statement->parent())
+        : Statement()
         , m_keyword(move(keyword))
         , m_statement(move(statement))
     {
     }
 
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Branch; }
     std::string to_string(int indent) override
     {
-        auto ret = format("{}{} ", pad(indent), m_keyword);
+        auto ret = format("{}{} ", pad(indent), keyword());
         if (m_condition)
             ret += m_condition->to_string(indent);
         ret += '\n';
@@ -735,6 +804,9 @@ public:
         }
         return { ExecutionResultCode::Skipped };
     }
+    [[nodiscard]] std::string const& keyword() const { return m_keyword; }
+    [[nodiscard]] std::shared_ptr<Expression> const& condition() const { return m_condition; }
+    [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
 
 private:
     std::string m_keyword;
@@ -748,6 +820,11 @@ public:
         : Branch("else", stmt)
     {
     }
+    ElseStatement(std::shared_ptr<Expression> const&, std::shared_ptr<Statement> const& stmt)
+        : Branch("else", stmt)
+    {
+    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ElseStatement; }
 };
 
 class ElifStatement : public Branch {
@@ -756,6 +833,7 @@ public:
         : Branch("elif", stmt)
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ElifStatement; }
 };
 
 typedef std::vector<std::shared_ptr<ElifStatement>> ElifStatements;
@@ -771,6 +849,7 @@ public:
         , m_else(move(else_stmt))
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IfStatement; }
 
     ExecutionResult execute(Ptr<Scope>& scope) override
     {
@@ -795,6 +874,8 @@ public:
             ret += m_else->to_string(indent);
         return ret;
     }
+    [[nodiscard]] ElifStatements const& elifs() const { return m_elifs; }
+    [[nodiscard]] std::shared_ptr<Statement> const& else_stmt() const { return m_else; }
 
 private:
     ElifStatements m_elifs {};
@@ -803,13 +884,12 @@ private:
 
 class WhileStatement : public Statement {
 public:
-    WhileStatement(SyntaxNode* parent, std::shared_ptr<Expression> condition, std::shared_ptr<Statement> stmt)
-        : Statement(parent)
+    WhileStatement(std::shared_ptr<Expression> condition, std::shared_ptr<Statement> stmt)
+        : Statement()
         , m_condition(move(condition))
         , m_stmt(move(stmt))
     {
     }
-
     ExecutionResult execute(Ptr<Scope>& scope) override
     {
         ExecutionResult result { ExecutionResultCode::None, make_obj<Null>() };
@@ -833,10 +913,13 @@ public:
         return result;
     }
 
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::WhileStatement; }
     std::string to_string(int indent) override
     {
         return format("{}while {}\n{}", pad(indent), m_condition->to_string(indent), m_stmt->to_string(indent + 2));
     }
+    [[nodiscard]] std::shared_ptr<Expression> const& condition() const { return m_condition; }
+    [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_stmt; }
 
 private:
     std::shared_ptr<Expression> m_condition;
@@ -845,8 +928,8 @@ private:
 
 class ForStatement : public Statement {
 public:
-    ForStatement(SyntaxNode* parent, std::string variable, std::shared_ptr<Expression> range, std::shared_ptr<Statement> stmt)
-        : Statement(parent)
+    ForStatement(std::string variable, std::shared_ptr<Expression> range, std::shared_ptr<Statement> stmt)
+        : Statement()
         , m_variable(move(variable))
         , m_range(move(range))
         , m_stmt(move(stmt))
@@ -880,10 +963,14 @@ public:
         return result;
     }
 
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ForStatement; }
     std::string to_string(int indent) override
     {
         return format("{}for {} in {}\n{}", pad(indent), m_variable, m_range->to_string(indent), m_stmt->to_string(indent + 2));
     }
+    [[nodiscard]] std::string const& variable() const { return m_variable; }
+    [[nodiscard]] std::shared_ptr<Expression> const& range() const { return m_range; }
+    [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_stmt; }
 
 private:
     std::string m_variable {};
@@ -897,6 +984,7 @@ public:
         : Branch("case", case_expression, stmt)
     {
     }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::CaseStatement; }
 };
 
 typedef std::vector<std::shared_ptr<CaseStatement>> CaseStatements;
@@ -907,13 +995,18 @@ public:
         : Branch("default", stmt)
     {
     }
+    DefaultCase(std::shared_ptr<Expression> const&, std::shared_ptr<Statement> const& stmt)
+        : Branch("default", stmt)
+    {
+    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::DefaultCase; }
 };
 
 class SwitchStatement : public Statement {
 public:
-    explicit SwitchStatement(SyntaxNode* parent, std::shared_ptr<Expression> switch_expression,
+    explicit SwitchStatement(std::shared_ptr<Expression> switch_expression,
         CaseStatements case_statements, std::shared_ptr<DefaultCase> default_case)
-        : Statement(parent)
+        : Statement()
         , m_switch_expression(move(switch_expression))
         , m_cases(move(case_statements))
         , m_default(move(default_case))
@@ -931,6 +1024,7 @@ public:
         return {};
     }
 
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::SwitchStatement; }
     std::string to_string(int indent) override
     {
         auto ret = format("{}switch ({}) {\n", pad(indent), m_switch_expression->to_string(indent));
@@ -942,10 +1036,13 @@ public:
         ret += format("{}}", pad(indent));
         return ret;
     }
+    [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_switch_expression; }
+    [[nodiscard]] CaseStatements const& cases() const { return m_cases; }
+    [[nodiscard]] std::shared_ptr<DefaultCase> const& default_case() const { return m_default; }
 
 private:
     std::shared_ptr<Expression> m_switch_expression;
-    std::vector<std::shared_ptr<CaseStatement>> m_cases {};
+    CaseStatements m_cases {};
     std::shared_ptr<DefaultCase> m_default {};
 };
 

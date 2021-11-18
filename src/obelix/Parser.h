@@ -27,10 +27,10 @@
 namespace Obelix {
 
 struct ParseError {
-    ParseError(std::string const& msg, std::string const& fname, Token const& tok)
+    ParseError(std::string const& msg, std::string fname, Token tok)
         : message(msg)
-        , filename(fname)
-        , token(tok)
+        , filename(move(fname))
+        , token(std::move(tok))
     {
         if (msg.find("{}") != std::string::npos)
             message = format(msg, token.value());
@@ -45,8 +45,6 @@ struct ParseError {
     std::string filename;
     Token token;
 };
-
-typedef std::vector<std::shared_ptr<Statement>> Statements;
 
 class Parser {
 public:
@@ -78,30 +76,30 @@ public:
     constexpr static TokenCode KeywordIncEquals = TokenCode::Keyword20;
     constexpr static TokenCode KeywordDecEquals = TokenCode::Keyword21;
 
-    Parser(Runtime::Config const& parser_config, StringBuffer& src);
-    Parser(Runtime::Config const& parser_config, std::string const& file_name);
-    explicit Parser(Runtime::Config const& parser_config);
+    Parser(Config const& parser_config, StringBuffer& src);
+    Parser(Config const& parser_config, std::string const& file_name);
+    explicit Parser(Config const& parser_config);
 
-    std::shared_ptr<Module> parse(Runtime&);
-    std::shared_ptr<Module> parse(Runtime&, std::string const&);
+    std::shared_ptr<Module> parse();
+    std::shared_ptr<Module> parse(std::string const&);
     [[nodiscard]] std::vector<ParseError> const& errors() const { return m_errors; };
     [[nodiscard]] bool has_errors() const { return !m_errors.empty(); }
     Token const& peek();
     TokenCode current_code();
 
 private:
-    std::shared_ptr<Statement> parse_statement(SyntaxNode*);
-    void parse_statements(SyntaxNode*, Statements&);
-    std::shared_ptr<Block> parse_block(SyntaxNode*, Statements&);
-    std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression>);
-    std::shared_ptr<FunctionDef> parse_function_definition(SyntaxNode*);
-    std::shared_ptr<IfStatement> parse_if_statement(SyntaxNode*);
-    std::shared_ptr<SwitchStatement> parse_switch_statement(SyntaxNode*);
-    std::shared_ptr<WhileStatement> parse_while_statement(SyntaxNode*);
-    std::shared_ptr<ForStatement> parse_for_statement(SyntaxNode*);
-    std::shared_ptr<VariableDeclaration> parse_variable_declaration(SyntaxNode*);
-    std::shared_ptr<Import> parse_import_statement(SyntaxNode*);
-    std::shared_ptr<Expression> parse_expression(SyntaxNode*);
+    std::shared_ptr<Statement> parse_statement();
+    void parse_statements(Statements&);
+    std::shared_ptr<Block> parse_block(Statements&);
+    std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression> const&);
+    std::shared_ptr<FunctionDef> parse_function_definition();
+    std::shared_ptr<IfStatement> parse_if_statement();
+    std::shared_ptr<SwitchStatement> parse_switch_statement();
+    std::shared_ptr<WhileStatement> parse_while_statement();
+    std::shared_ptr<ForStatement> parse_for_statement();
+    std::shared_ptr<VariableDeclaration> parse_variable_declaration();
+    std::shared_ptr<Import> parse_import_statement();
+    std::shared_ptr<Expression> parse_expression();
     static int binary_precedence(TokenCode);
     static int unary_precedence(TokenCode);
     static Associativity associativity(TokenCode);
@@ -109,18 +107,18 @@ private:
     static int is_prefix_unary_operator(TokenCode);
 
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
-    std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> expression);
-    std::shared_ptr<Expression> parse_primary_expression(SyntaxNode*, bool);
-    std::shared_ptr<Expression> parse_list_literal(SyntaxNode*);
-    std::shared_ptr<ListComprehension> parse_list_comprehension(std::shared_ptr<Expression>);
-    std::shared_ptr<DictionaryLiteral> parse_dictionary_literal(SyntaxNode*);
+    std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression);
+    std::shared_ptr<Expression> parse_primary_expression(bool);
+    std::shared_ptr<Expression> parse_list_literal();
+    std::shared_ptr<ListComprehension> parse_list_comprehension(std::shared_ptr<Expression> const&);
+    std::shared_ptr<DictionaryLiteral> parse_dictionary_literal();
 
     Token const& lex();
     std::optional<Token const> match(TokenCode, char const* = nullptr);
     bool expect(TokenCode, char const* = nullptr);
     void add_error(Token const&, std::string const&);
 
-    Runtime::Config m_config;
+    Config m_config;
     std::string m_file_name { "<literal>" };
     Lexer m_lexer;
     std::vector<ParseError> m_errors {};
