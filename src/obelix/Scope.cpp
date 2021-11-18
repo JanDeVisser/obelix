@@ -17,6 +17,7 @@
  * along with obelix2.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <obelix/Parser.h>
 #include <obelix/Scope.h>
 
 namespace Obelix {
@@ -24,11 +25,6 @@ namespace Obelix {
 Scope::Scope(Ptr<Scope> const& parent)
     : Object("scope")
     , m_parent(parent)
-{
-}
-
-Scope::Scope()
-    : Scope(make_null<Scope>())
 {
 }
 
@@ -78,6 +74,24 @@ std::optional<Obj> Scope::assign(std::string const& name, Obj const& value)
         ret->declare(nvp->name(), nvp->value());
     }
     return to_obj(ret);
+}
+
+Ptr<Scope> Scope::eval(std::string const& src)
+{
+    StringBuffer source_text(src);
+    Parser parser(config(), source_text);
+    auto tree = parser.parse();
+    if (!tree || parser.has_errors()) {
+        auto errors = make_typed<List>();
+        for (auto& error : parser.errors()) {
+            errors->push_back(make_obj<Exception>(ErrorCode::SyntaxError, error.to_string()));
+        }
+        set_result({ ExecutionResultCode::Error, to_obj<List>(errors) });
+        return ptr_cast<Scope>(self());
+    }
+    auto as_scope = ptr_cast<Scope>(self());
+    tree->execute_in(as_scope);
+    return tree->scope();
 }
 
 }

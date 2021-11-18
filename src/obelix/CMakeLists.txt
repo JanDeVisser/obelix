@@ -12,6 +12,7 @@ add_library(
         BoundFunction.cpp
         Functions.cpp
         Parser.cpp
+        Processor.cpp
         Runtime.cpp
         Scope.cpp
         Syntax.cpp

@@ -75,8 +75,8 @@ public:
     Obj operator()(Ptr<Arguments> args);
 
     static Obj const& null();
-    void set_self(Ptr<Object>);
     [[nodiscard]] Obj const& self() const;
+    virtual void construct() { }
 
     [[nodiscard]] ObjectIterator begin() const;
     [[nodiscard]] ObjectIterator end() const;
@@ -85,9 +85,13 @@ public:
 
 protected:
     explicit Object(std::string type);
+    void set_self(Ptr<Object>);
 
     std::string m_type;
     std::shared_ptr<Object> m_self { nullptr };
+
+    template<class ObjCls, class... Args>
+    friend Ptr<ObjCls> make_typed(Args&&... args);
 };
 
 class ObjectIterator {
@@ -305,6 +309,7 @@ Ptr<ObjCls> make_typed(Args&&... args)
     auto ptr = std::make_shared<ObjCls>(std::forward<Args>(args)...);
     Ptr<ObjCls> ret(ptr);
     ptr->set_self(to_obj((ret)));
+    ptr->construct();
     return ret;
 }
 

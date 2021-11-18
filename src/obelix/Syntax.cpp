@@ -3,6 +3,7 @@
 //
 
 #include <core/Logging.h>
+#include <obelix/BoundFunction.h>
 #include <obelix/Parser.h>
 #include <obelix/Syntax.h>
 
@@ -10,32 +11,18 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-Runtime& SyntaxNode::runtime() const
-{
-    return module()->runtime();
-}
-
-Module const* SyntaxNode::module() const
-{
-    assert(parent());
-    return parent()->module();
-}
-
-Module const* Module::module() const
-{
-    return this;
-}
-
-Runtime& Module::runtime() const
-{
-    return m_runtime;
-}
-
 ExecutionResult Import::execute(Ptr<Scope>& scope)
 {
-    auto module = runtime().import_module(m_name);
-    scope->declare(m_name, to_obj(module->scope()));
+    auto module_scope = scope->import_module(m_name);
+    scope->declare(m_name, to_obj(module_scope));
     return {};
+}
+
+ExecutionResult FunctionDef::execute(Ptr<Scope>& scope)
+{
+    auto bound_function = make_obj<BoundFunction>(scope, *this);
+    scope->declare(name(), bound_function);
+    return { ExecutionResultCode::None, bound_function };
 }
 
 Obj BinaryExpression::evaluate(Ptr<Scope>& scope)

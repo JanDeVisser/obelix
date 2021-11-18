@@ -26,17 +26,28 @@ struct ExecutionResult {
     Obj return_value;
 };
 
+struct Config {
+    bool show_tree { false };
+};
+
 class Scope : public Object {
 public:
-    explicit Scope();
+    Scope()
+        : Scope(make_null<Scope>())
+    {
+    }
+
     explicit Scope(Ptr<Scope> const& parent);
 
     void declare(std::string const& name, Obj const& value);
-    [[nodiscard]] bool contains(std::string name) const { return m_variables.contains(name); }
+    [[nodiscard]] bool contains(std::string const& name) const { return m_variables.contains(name); }
     void set(std::string const& name, Obj const& value);
     [[nodiscard]] std::optional<Obj> resolve(std::string const&) const override;
     [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
     [[nodiscard]] Ptr<Object> copy() const override;
+    virtual Ptr<Scope> import_module(std::string const& module_name) { assert(m_parent); return m_parent->import_module(module_name); }
+    [[nodiscard]] virtual Config const& config() const { assert(m_parent); return m_parent->config(); }
+    Ptr<Scope> eval(std::string const& src);
 
     [[nodiscard]] std::string to_string() const override { return "scope"; }
     [[nodiscard]] ExecutionResult const& result() const { return m_result; }

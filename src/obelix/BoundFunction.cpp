@@ -22,11 +22,14 @@
 
 namespace Obelix {
 
+extern_logging_category(parser);
+
 BoundFunction::BoundFunction(Ptr<Scope> scope, FunctionDef const& definition)
     : Object("boundfunction")
     , m_scope(make_typed<Scope>(scope))
     , m_definition(definition)
 {
+    debug(parser, "name {} #parameters {}", m_definition.name(), m_definition.parameters().size());
 }
 
 Obj BoundFunction::call(Ptr<Arguments> args)
@@ -36,7 +39,10 @@ Obj BoundFunction::call(Ptr<Arguments> args)
 
 Obj BoundFunction::call(std::string const& name, Ptr<Arguments> args)
 {
-    assert(args->size() == m_definition.parameters().size());
+    if (args->size() != m_definition.parameters().size()) {
+        return make_obj<Exception>(ErrorCode::SyntaxError,
+            format("Function {}: argument count mismatch: expected {}, got {}", m_definition.name(), m_definition.parameters().size(), args->size()));
+    }
     Ptr<Scope> function_scope = ptr_cast<Scope>(m_scope->copy());
     for (auto ix = 0u; ix < args->size(); ix++) {
         function_scope->declare(m_definition.parameters()[ix], args->at(ix));
