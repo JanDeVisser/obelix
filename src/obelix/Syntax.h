@@ -221,32 +221,40 @@ private:
 
 typedef std::vector<std::string> Strings;
 
-class FunctionDef : public Block {
+class FunctionDef : public Statement {
 public:
-    FunctionDef(std::string name, Strings parameters, Statements const& statements)
-        : Block(statements)
+    FunctionDef(std::string name, Strings parameters, std::shared_ptr<Statement> statement)
+        : Statement()
         , m_name(move(name))
         , m_parameters(move(parameters))
+        , m_statement(move(statement))
     {
-        debug(parser, "name {} #parameters {}", m_name, m_parameters.size());
     }
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionDef; }
 
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionDef; }
     [[nodiscard]] std::string const& name() const { return m_name; }
     [[nodiscard]] std::vector<std::string> const& parameters() const { return m_parameters; }
     ExecutionResult execute(Ptr<Scope>& scope) override;
-
+    [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
     std::string to_string(int indent) override
     {
         auto ret = to_string_arguments(indent);
         ret += '\n';
-        ret += Block::to_string(indent);
+        ret += m_statement->to_string(indent+2);
         return ret;
     }
 
     std::string const& name() { return m_name; }
 
 protected:
+    FunctionDef(std::string name, Strings parameters)
+        : Statement()
+        , m_name(move(name))
+        , m_parameters(move(parameters))
+        , m_statement(nullptr)
+    {
+    }
+
     std::string to_string_arguments(int indent)
     {
         auto ret = format("{}func {}(", pad(indent), m_name);
@@ -263,12 +271,13 @@ protected:
 
     std::string m_name;
     Strings m_parameters;
+    std::shared_ptr<Statement> m_statement;
 };
 
 class NativeFunctionDef : public FunctionDef {
 public:
     NativeFunctionDef(std::string name, std::vector<std::string> parameters, std::string native_function_name)
-        : FunctionDef(move(name), move(parameters), std::vector<std::shared_ptr<Statement>>())
+        : FunctionDef(move(name), move(parameters))
         , m_native_function_name(move(native_function_name))
     {
     }

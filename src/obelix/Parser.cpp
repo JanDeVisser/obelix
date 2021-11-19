@@ -145,8 +145,7 @@ std::shared_ptr<Statement> Parser::parse_statement()
         break;
     case KeywordFunc:
         lex();
-        ret = parse_function_definition();
-        break;
+        return parse_function_definition();
     case KeywordReturn: {
         lex();
         auto expr = parse_expression();
@@ -256,26 +255,16 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
         }
     }
     lex();
-    switch (current_code()) {
-    case TokenCode::OpenBrace: {
+    if (current_code() == KeywordLink) {
         lex();
-        Statements statements;
-        parse_block(statements);
-        return make_node<FunctionDef>(name_maybe.value().value(), params, statements);
-    }
-    case KeywordLink: {
-        lex();
-        if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
+        if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value())
             return make_node<NativeFunctionDef>(name_maybe.value().value(), params, link_target_maybe.value().value());
-        } else {
-            return nullptr;
-        }
-    }
-    default:
-        auto t = peek();
-        add_error(lex(), format("Expected '{{' or '->' after function declaration, got '{}'", t.value()));
         return nullptr;
     }
+    auto stmt = parse_statement();
+    if (stmt == nullptr)
+        return nullptr;
+    return make_node<FunctionDef>(name_maybe.value().value(), params, stmt);
 }
 
 std::shared_ptr<IfStatement> Parser::parse_if_statement()

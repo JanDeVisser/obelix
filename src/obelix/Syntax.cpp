@@ -39,7 +39,7 @@ Obj BinaryExpression::evaluate(Ptr<Scope>& scope)
         Obj lhs = m_lhs->evaluate(scope);
         auto ret_maybe = lhs->evaluate(m_operator.value(), make_typed<Arguments>(rhs));
         if (!ret_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::OperatorUnresolved, lhs, m_operator.value());
+            return make_obj<Exception>(ErrorCode::OperatorUnresolved, m_operator.value(), lhs);
         return ret_maybe.value();
     }
     }

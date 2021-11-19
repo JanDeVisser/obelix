@@ -79,7 +79,8 @@ std::shared_ptr<SyntaxNode> process_tree(std::shared_ptr<SyntaxNode> const& tree
     }
     case SyntaxNodeType::FunctionDef: {
         auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
-        return process_node<FunctionDef>(map, func_def->name(), func_def->parameters(), xform_block(func_def->statements()));
+        auto statement = std::dynamic_pointer_cast<Statement>(process_tree(func_def->statement(), map));
+        return process_node<FunctionDef>(map, func_def->name(), func_def->parameters(), statement);
     }
     case SyntaxNodeType::ExpressionStatement: {
         auto stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);

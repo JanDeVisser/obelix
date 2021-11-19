@@ -49,7 +49,7 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
             return make_obj<Exception>(ErrorCode::NameUnresolved, attribute);
         auto new_val_maybe = current_val_maybe.value()->evaluate(op, make_typed<Arguments>(args[1]));
         if (!new_val_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::OperatorUnresolved, current_val_maybe, op);
+            return make_obj<Exception>(ErrorCode::OperatorUnresolved, op, current_val_maybe);
         return assign(attribute, new_val_maybe.value());
     };
 

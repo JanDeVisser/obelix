@@ -26,7 +26,7 @@ extern_logging_category(parser);
 
 BoundFunction::BoundFunction(Ptr<Scope> scope, FunctionDef const& definition)
     : Object("boundfunction")
-    , m_scope(make_typed<Scope>(scope))
+    , m_scope(scope)
     , m_definition(definition)
 {
     debug(parser, "name {} #parameters {}", m_definition.name(), m_definition.parameters().size());
@@ -43,16 +43,14 @@ Obj BoundFunction::call(std::string const& name, Ptr<Arguments> args)
         return make_obj<Exception>(ErrorCode::SyntaxError,
             format("Function {}: argument count mismatch: expected {}, got {}", m_definition.name(), m_definition.parameters().size(), args->size()));
     }
-    Ptr<Scope> function_scope = ptr_cast<Scope>(m_scope->copy());
+    Ptr<Scope> function_scope = make_typed<Scope>(m_scope);
     for (auto ix = 0u; ix < args->size(); ix++) {
         function_scope->declare(m_definition.parameters()[ix], args->at(ix));
     }
-    auto result = m_definition.execute_block(function_scope);
+    auto result = m_definition.statement()->execute(function_scope);
     Obj return_value;
     switch (result.code) {
     case ExecutionResultCode::None:
-        // All good
-        break;
     case ExecutionResultCode::Return:
         return_value = result.return_value;
         break;
