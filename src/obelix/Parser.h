@@ -87,6 +87,12 @@ public:
     Token const& peek();
     TokenCode current_code();
 
+    static int binary_precedence(TokenCode);
+    static int unary_precedence(TokenCode);
+    static Associativity associativity(TokenCode);
+    static int is_postfix_unary_operator(TokenCode);
+    static int is_prefix_unary_operator(TokenCode);
+
 private:
     std::shared_ptr<Statement> parse_statement();
     void parse_statements(Statements&);
@@ -100,11 +106,6 @@ private:
     std::shared_ptr<VariableDeclaration> parse_variable_declaration();
     std::shared_ptr<Import> parse_import_statement();
     std::shared_ptr<Expression> parse_expression();
-    static int binary_precedence(TokenCode);
-    static int unary_precedence(TokenCode);
-    static Associativity associativity(TokenCode);
-    static int is_postfix_unary_operator(TokenCode);
-    static int is_prefix_unary_operator(TokenCode);
 
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression);

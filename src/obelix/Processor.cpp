@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
 namespace Obelix {
@@ -194,6 +195,26 @@ std::shared_ptr<SyntaxNode> fold_constants(std::shared_ptr<SyntaxNode> const& tr
         if ((expr->lhs()->node_type() == SyntaxNodeType::Literal) && (expr->rhs()->node_type() == SyntaxNodeType::Literal)) {
             auto scope = make_typed<Scope>();
             return std::make_shared<Literal>(expr->evaluate(scope));
+        }
+        if ((expr->lhs()->node_type() == SyntaxNodeType::Literal) && (expr->rhs()->node_type() == SyntaxNodeType::BinaryExpression)) {
+            auto rhs_expr = std::dynamic_pointer_cast<BinaryExpression>(expr->rhs());
+            if ((rhs_expr->lhs()->node_type() == SyntaxNodeType::Literal) &&
+                (Parser::binary_precedence(expr->op().code()) == Parser::binary_precedence(rhs_expr->op().code()))) {
+                auto scope = make_typed<Scope>();
+                auto literals = std::make_shared<BinaryExpression>(expr->lhs(), expr->op(), rhs_expr->lhs());
+                auto literal = std::make_shared<Literal>(literals->evaluate(scope));
+                return std::make_shared<BinaryExpression>(literal, rhs_expr->op(), rhs_expr->rhs());
+            }
+        }
+        if ((expr->rhs()->node_type() == SyntaxNodeType::Literal) && (expr->lhs()->node_type() == SyntaxNodeType::BinaryExpression)) {
+            auto lhs_expr = std::dynamic_pointer_cast<BinaryExpression>(expr->lhs());
+            if ((lhs_expr->rhs()->node_type() == SyntaxNodeType::Literal) &&
+                (Parser::binary_precedence(expr->op().code()) == Parser::binary_precedence(lhs_expr->op().code()))) {
+                auto scope = make_typed<Scope>();
+                auto literals = std::make_shared<BinaryExpression>(lhs_expr->rhs(), expr->op(), expr->rhs());
+                auto literal = std::make_shared<Literal>(literals->evaluate(scope));
+                return std::make_shared<BinaryExpression>(lhs_expr->lhs(), lhs_expr->op(), literal);
+            }
         }
         return tree;
     };
