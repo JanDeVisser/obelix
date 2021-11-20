@@ -29,9 +29,10 @@ class FunctionDef;
 
 class BoundFunction : public Object {
 public:
-    BoundFunction(Ptr<Scope>, FunctionDef const&);
+    BoundFunction(Ptr<Scope>, FunctionDef);
     Obj call(Ptr<Arguments> args) override;
     Obj call(std::string const& name, Ptr<Arguments> args);
+    [[nodiscard]] std::string to_string() const override;
 
 private:
     Ptr<Scope> m_scope;

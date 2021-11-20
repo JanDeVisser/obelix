@@ -81,12 +81,17 @@ std::shared_ptr<SyntaxNode> process_tree(std::shared_ptr<SyntaxNode> const& tree
     case SyntaxNodeType::FunctionDef: {
         auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
         auto statement = std::dynamic_pointer_cast<Statement>(process_tree(func_def->statement(), map));
-        return process_node<FunctionDef>(map, func_def->name(), func_def->parameters(), statement);
+        return process_node<FunctionDef>(map, func_def->identifier(), func_def->parameters(), statement);
     }
     case SyntaxNodeType::ExpressionStatement: {
         auto stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);
         auto expr = std::dynamic_pointer_cast<Expression>(process_tree(stmt->expression(), map));
         return process_node<ExpressionStatement>(map, expr);
+    }
+    case SyntaxNodeType::TypedExpression: {
+        auto typed_expression = std::dynamic_pointer_cast<TypedExpression>(tree);
+        auto expr = std::dynamic_pointer_cast<Expression>(process_tree(typed_expression->expression(), map));
+        return process_node<TypedExpression>(map, expr, typed_expression->type());
     }
     case SyntaxNodeType::ListLiteral: {
         auto list_literal = std::dynamic_pointer_cast<ListLiteral>(tree);
@@ -230,8 +235,5 @@ std::shared_ptr<SyntaxNode> fold_constants(std::shared_ptr<SyntaxNode> const& tr
 
     return process_tree(tree, fold_constants_map);
 }
-
-
-
 
 }

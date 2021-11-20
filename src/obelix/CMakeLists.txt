@@ -9,6 +9,7 @@ endif(READLINE_FOUND)
 add_library(
         oblparser
         SHARED
+        BindTypes.cpp
         BoundFunction.cpp
         Functions.cpp
         Parser.cpp
@@ -16,7 +17,7 @@ add_library(
         Runtime.cpp
         Scope.cpp
         Syntax.cpp
-)
+        Type.cpp Type.h Symbol.h)
 
 target_link_libraries(
         oblparser

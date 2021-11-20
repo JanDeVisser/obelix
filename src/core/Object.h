@@ -342,6 +342,7 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
     S(OperatorUnresolved, "Could not apply '{}' to '{}'")                       \
     S(ConversionError, "Cannot convert '{}' to {}")                             \
     S(FunctionUndefined, "Function '{}' in image '{}' is undefined")            \
+    S(UndeclaredVariable, "Undeclared variable '{}'")                           \
     S(RegexpSyntaxError, "Regular expression syntax error")                     \
     S(TypeMismatch, "Type mismatch in operation '{}'. Expected '{}', got '{}'") \
     S(CouldNotResolveNode, "Could not resolve node")                            \

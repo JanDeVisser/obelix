@@ -28,28 +28,43 @@ Scope::Scope(Ptr<Scope> const& parent)
 {
 }
 
-void Scope::declare(std::string const& name, Obj const& value)
+std::optional<Symbol> Scope::get_declared_symbol(const std::string& name) const
 {
-    if (m_variables.contains(name))
-        fatal("Variable {} already declared in scope", name);
-    m_variables.put(name, value);
+    Symbol sym(name);
+    auto found = m_variables.find(sym);
+    if (found == m_variables.end())
+        return {};
+    return found->first;
 }
 
-void Scope::set(std::string const& name, Obj const& value)
+std::optional<Obj> Scope::declare(Symbol const& name, Obj const& value)
 {
-    if (m_variables.contains(name)) {
-        m_variables.put(name, value);
-        return;
+    if (m_variables.contains(name))
+        return make_obj<Exception>(ErrorCode::VariableAlreadyDeclared, name.identifier());
+    if ((name.type() != ObelixType::Unknown) && (ObelixType_of(value) != name.type()))
+        return make_obj<Exception>(ErrorCode::TypeMismatch, "declaration", ObelixType_name(name.type()), ObelixType_name(ObelixType_of(value)));
+    m_variables[name] = value;
+    return {};
+}
+
+std::optional<Obj> Scope::set(Symbol const& name, Obj const& value)
+{
+    if (auto sym = get_declared_symbol(name.identifier()); sym.has_value()) {
+        if ((sym.value().type() != ObelixType::Unknown) && (ObelixType_of(value) != sym.value().type()))
+            return make_obj<Exception>(ErrorCode::TypeMismatch, "assignment", ObelixType_name(sym.value().type()), ObelixType_name(ObelixType_of(value)));
+        m_variables[name] = value;
+        return {};
     }
     if (!m_parent)
-        fatal("Undeclared variable {}", name);
-    m_parent->set(name, value);
+        return make_obj<Exception>(ErrorCode::UndeclaredVariable, name.identifier());
+    return m_parent->set(name, value);
 }
 
 std::optional<Obj> Scope::resolve(std::string const& name) const
 {
-    if (m_variables.contains(name))
-        return m_variables.get(name);
+    Symbol sym(name);
+    if (m_variables.contains(sym))
+        return m_variables.at(sym);
     if (m_parent)
         return m_parent->resolve(name);
     return {};
@@ -57,23 +72,7 @@ std::optional<Obj> Scope::resolve(std::string const& name) const
 
 std::optional<Obj> Scope::assign(std::string const& name, Obj const& value)
 {
-    if (m_variables.contains(name)) {
-        m_variables.put(name, value);
-        return value;
-    }
-    if (!m_parent)
-        return {};
-    return m_parent->assign(name, value);
-}
-
-[[nodiscard]] Ptr<Object> Scope::copy() const
-{
-    auto ret = make_typed<Scope>(m_parent);
-    for (Obj const& elem : m_variables) {
-        auto nvp = Obelix::ptr_cast<Obelix::NVP>(elem);
-        ret->declare(nvp->name(), nvp->value());
-    }
-    return to_obj(ret);
+    return set(Symbol { name, ObelixType::Unknown }, value);
 }
 
 Ptr<Scope> Scope::eval(std::string const& src)

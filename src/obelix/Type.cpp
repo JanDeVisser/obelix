@@ -1,5 +1,5 @@
 /*
- * Processor.h - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
+ * Type.cpp - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
  *
  * This file is part of obelix.
  *
@@ -17,20 +17,25 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
-
-#include <functional>
-#include <typeindex>
-#include <unordered_map>
-
-#include <obelix/Syntax.h>
+#include <obelix/Type.h>
 
 namespace Obelix {
 
-typedef std::unordered_map<SyntaxNodeType, std::function<std::shared_ptr<Obelix::SyntaxNode>(std::shared_ptr<Obelix::SyntaxNode> const&)>> ProcessorMap;
-
-std::shared_ptr<SyntaxNode> process_tree(std::shared_ptr<SyntaxNode> const&, ProcessorMap const&);
-std::shared_ptr<SyntaxNode> fold_constants(std::shared_ptr<SyntaxNode> const&);
-std::shared_ptr<SyntaxNode> bind_types(std::shared_ptr<SyntaxNode> const&);
+ObelixType ObelixType_of(Obj const& obj)
+{
+    if (obj->type() == "integer")
+        return ObelixType::Int;
+    if (obj->type() == "string")
+        return ObelixType::String;
+    if (obj->type() == "float")
+        return ObelixType::Float;
+    if (obj->type() == "null")
+        return ObelixType::Null;
+    if (obj->type() == "list")
+        return ObelixType::List;
+    if (obj->type() == "dictionary")
+        return ObelixType::Object;
+    return ObelixType::Unknown;
+}
 
 }

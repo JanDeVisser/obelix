@@ -4,11 +4,14 @@
 
 #pragma once
 
+#include <string>
+#include <unordered_map>
+
 #include <core/Arguments.h>
 #include <core/Dictionary.h>
 #include <core/Object.h>
 #include <lexer/Token.h>
-#include <string>
+#include <obelix/Symbol.h>
 
 namespace Obelix {
 
@@ -39,14 +42,23 @@ public:
 
     explicit Scope(Ptr<Scope> const& parent);
 
-    void declare(std::string const& name, Obj const& value);
-    [[nodiscard]] bool contains(std::string const& name) const { return m_variables.contains(name); }
-    void set(std::string const& name, Obj const& value);
+    std::optional<Obj> declare(Symbol const& name, Obj const& value);
+    std::optional<Obj> declare(std::string const& name, Obj const& value) { return declare(Symbol { name }, value); }
+    [[nodiscard]] bool contains(std::string const& name) const { return contains(Symbol(name)); }
+    [[nodiscard]] bool contains(Symbol const& name) const { return m_variables.contains(name); }
+    std::optional<Obj> set(Symbol const& name, Obj const& value);
     [[nodiscard]] std::optional<Obj> resolve(std::string const&) const override;
-    [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
-    [[nodiscard]] Ptr<Object> copy() const override;
-    virtual Ptr<Scope> import_module(std::string const& module_name) { assert(m_parent); return m_parent->import_module(module_name); }
-    [[nodiscard]] virtual Config const& config() const { assert(m_parent); return m_parent->config(); }
+    std::optional<Obj> assign(std::string const&, Obj const&) override;
+    virtual Ptr<Scope> import_module(std::string const& module_name)
+    {
+        assert(m_parent);
+        return m_parent->import_module(module_name);
+    }
+    [[nodiscard]] virtual Config const& config() const
+    {
+        assert(m_parent);
+        return m_parent->config();
+    }
     Ptr<Scope> eval(std::string const& src);
 
     [[nodiscard]] std::string to_string() const override { return "scope"; }
@@ -54,8 +66,10 @@ public:
     void set_result(ExecutionResult const& result) { m_result = result; }
 
 private:
+    [[nodiscard]] std::optional<Symbol> get_declared_symbol(std::string const&) const;
+
     Ptr<Scope> m_parent;
-    Dictionary m_variables {};
+    std::unordered_map<Symbol, Obj> m_variables {};
     ExecutionResult m_result {};
 };
 

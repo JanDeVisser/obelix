@@ -233,7 +233,7 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
     if (!expect(TokenCode::OpenParen, "after function name in definition")) {
         return nullptr;
     }
-    std::vector<std::string> params {};
+    Symbols params {};
     auto done = current_code() == TokenCode::CloseParen;
     while (!done) {
         auto param_name_maybe = match(TokenCode::Identifier);
@@ -241,7 +241,7 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
             add_error(peek(), "Syntax Error: Expected parameter name, got '{}'");
             return nullptr;
         }
-        params.push_back(param_name_maybe.value().value());
+        params.emplace_back(param_name_maybe.value().value());
         switch (current_code()) {
         case TokenCode::Comma:
             lex();
@@ -258,13 +258,13 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value())
-            return make_node<NativeFunctionDef>(name_maybe.value().value(), params, link_target_maybe.value().value());
+            return make_node<NativeFunctionDef>(Symbol(name_maybe.value().value()), params, link_target_maybe.value().value());
         return nullptr;
     }
     auto stmt = parse_statement();
     if (stmt == nullptr)
         return nullptr;
-    return make_node<FunctionDef>(name_maybe.value().value(), params, stmt);
+    return make_node<FunctionDef>(Symbol(name_maybe.value().value()), params, stmt);
 }
 
 std::shared_ptr<IfStatement> Parser::parse_if_statement()
@@ -387,13 +387,13 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration()
         return nullptr;
     }
     if (current_code() != TokenCode::Equals) {
-        return make_node<VariableDeclaration>(identifier_maybe.value().value());
+        return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value()));
     }
     lex();
     auto expr = parse_expression();
     if (!expr)
         return nullptr;
-    return make_node<VariableDeclaration>(identifier_maybe.value().value(), expr);
+    return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value()), expr);
 }
 
 std::shared_ptr<Import> Parser::parse_import_statement()
