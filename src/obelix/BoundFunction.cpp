@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <core/Arguments.h>
 #include <obelix/BoundFunction.h>
 #include <obelix/Syntax.h>
 #include <obelix/Processor.h>

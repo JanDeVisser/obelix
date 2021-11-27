@@ -180,50 +180,10 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         break;
     }
 
-    case SyntaxNodeType::ListLiteral: {
-        auto list_literal = std::dynamic_pointer_cast<ListLiteral>(tree);
-        auto elements = TRY(xform_expressions(list_literal->elements(), ctx));
-        if (elements != list_literal->elements())
-            return process_node<ListLiteral>(ctx, elements);
-        break;
-    }
-
-    case SyntaxNodeType::ListComprehension: {
-        auto comprehension = std::dynamic_pointer_cast<ListComprehension>(tree);
-        auto element_expr = TRY_AND_CAST(Expression, process_tree(comprehension->element(), ctx));
-        auto generator = TRY_AND_CAST(Expression, process_tree(comprehension->generator(), ctx));
-        auto condition = TRY_AND_CAST(Expression, process_tree(comprehension->condition(), ctx));
-        if ((element_expr != comprehension->element()) || (generator != comprehension->generator()) || (condition != comprehension->generator()))
-            return process_node<ListComprehension>(ctx, element_expr, comprehension->rangevar(), generator, condition);
-        break;
-    }
-
-    case SyntaxNodeType::DictionaryLiteral: {
-        auto dict_literal = std::dynamic_pointer_cast<DictionaryLiteral>(tree);
-        DictionaryLiteral::Entries entries;
-        for (auto& entry : dict_literal->entries()) {
-            entries.push_back({ entry.name, TRY_AND_CAST(Expression, process_tree(entry.value, ctx)) });
-        }
-        if (entries != dict_literal->entries())
-            return process_node<DictionaryLiteral>(ctx, entries);
-        break;
-    }
-
     case SyntaxNodeType::BinaryExpression: {
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
 
-//        ({                                                           \
-//            auto __##var##_maybe = (expr);                           \
-//            if (__##var##_maybe.is_error())                          \
-//                return tree;                                         \
-//            std::dynamic_pointer_cast<cls>(__##var##_maybe.value()); \
-//        })
-        auto lhs_maybe = process_tree(expr->lhs(), ctx);
-        if (lhs_maybe.is_error())
-            return tree;
-        auto lhs = std::dynamic_pointer_cast<Expression>(lhs_maybe.value());
-
-//        auto lhs = TRY_AND_CAST(Expression, process_tree(expr->lhs(), ctx));
+        auto lhs = TRY_AND_CAST(Expression, process_tree(expr->lhs(), ctx));
         auto rhs = TRY_AND_CAST(Expression, process_tree(expr->rhs(), ctx));
         if ((lhs != expr->lhs()) || (rhs != expr->rhs()))
             return process_node<BinaryExpression>(ctx, lhs, expr->op(), rhs);

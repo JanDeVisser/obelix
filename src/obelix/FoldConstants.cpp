@@ -129,9 +129,6 @@ ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const& tree)
         return to_literal(std::dynamic_pointer_cast<Expression>(tree));
     };
 
-    fold_constants_map[SyntaxNodeType::ListLiteral] = fold_constants_map[SyntaxNodeType::UnaryExpression];
-    fold_constants_map[SyntaxNodeType::DictionaryLiteral] = fold_constants_map[SyntaxNodeType::UnaryExpression];
-
     FoldContext root(fold_constants_map);
     return process_tree(tree, root);
 }

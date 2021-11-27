@@ -624,10 +624,6 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool in_deref_chain
             return nullptr;
         return make_node<UnaryExpression>(t, operand);
     }
-    case TokenCode::OpenBracket:
-        return parse_list_literal();
-    case TokenCode::OpenBrace:
-        return parse_dictionary_literal();
     case TokenCode::Integer:
     case TokenCode::Float:
     case TokenCode::DoubleQuotedString:
@@ -644,75 +640,6 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool in_deref_chain
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
         return nullptr;
     }
-}
-
-std::shared_ptr<Expression> Parser::parse_list_literal()
-{
-    std::vector<std::shared_ptr<Expression>> elements;
-    while (current_code() != TokenCode::CloseBracket) {
-        auto element = parse_expression();
-        if (!element)
-            return nullptr;
-        if (elements.empty() && (current_code() == KeywordFor)) {
-            lex();
-            return parse_list_comprehension(element);
-        }
-        elements.push_back(element);
-        if (current_code() == TokenCode::Comma) {
-            lex();
-        } else if (current_code() != TokenCode::CloseBracket) {
-            add_error(peek(), format("Expecting ',' after list element, got '{}'", peek().value()));
-            return nullptr;
-        }
-    }
-    lex();
-    return make_node<ListLiteral>(elements);
-}
-
-std::shared_ptr<ListComprehension> Parser::parse_list_comprehension(std::shared_ptr<Expression> const& element)
-{
-    auto rangevar_maybe = match(TokenCode::Identifier, "after 'for' in list comprehension");
-    if (!rangevar_maybe.has_value())
-        return nullptr;
-    if (!expect(KeywordIn, "after range variable in list comprehensiom"))
-        return nullptr;
-    auto generator = parse_expression();
-    if (!generator)
-        return nullptr;
-    if (current_code() != KeywordWhere) {
-        if (!expect(TokenCode::CloseBracket, "after generator expression in list comprehension"))
-            return nullptr;
-        return make_node<ListComprehension>(element, rangevar_maybe.value().value(), generator);
-    }
-    lex();
-    auto where = parse_expression();
-    if (!expect(TokenCode::CloseBracket, "after generator condition in list comprehension"))
-        return nullptr;
-    return make_node<ListComprehension>(element, rangevar_maybe.value().value(), generator, where);
-}
-
-std::shared_ptr<DictionaryLiteral> Parser::parse_dictionary_literal()
-{
-    DictionaryLiteral::Entries entries;
-    while (current_code() != TokenCode::CloseBrace) {
-        auto name = match(TokenCode::Identifier, "Expecting entry name in dictionary literal");
-        if (!name.has_value())
-            return nullptr;
-        if (!expect(TokenCode::Colon, "in dictionary literal"))
-            return nullptr;
-        auto value = parse_expression();
-        if (!value)
-            return nullptr;
-        entries.push_back({ name.value().value(), value });
-        if (current_code() == TokenCode::Comma) {
-            lex();
-        } else if (current_code() != TokenCode::CloseBrace) {
-            add_error(peek(), format("Expecting ',' after dictionary element, got '{}'", peek().value()));
-            return nullptr;
-        }
-    }
-    lex();
-    return make_node<DictionaryLiteral>(entries);
 }
 
 Token const& Parser::peek()

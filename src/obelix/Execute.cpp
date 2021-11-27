@@ -17,7 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
+#include <core/Arguments.h>
 #include <obelix/BoundFunction.h>
 #include <obelix/Processor.h>
 
@@ -225,37 +225,6 @@ ErrorOrNode execute(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& root)
         auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
         auto ret = OBJ(expr, ctx);
         return std::make_shared<Literal>(ret);
-    };
-
-    execute_map[SyntaxNodeType::ListLiteral] = execute_map[SyntaxNodeType::UnaryExpression];
-    execute_map[SyntaxNodeType::DictionaryLiteral] = execute_map[SyntaxNodeType::UnaryExpression];
-
-    execute_map[SyntaxNodeType::ListComprehension] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
-        auto comprehension = std::dynamic_pointer_cast<ListComprehension>(tree);
-        auto list = make_typed<List>();
-        auto new_ctx = Context<Obj>(ctx);
-        auto range = OBJ(comprehension->generator(), ctx);
-        auto iter_maybe = range->iterator();
-        if (!iter_maybe.has_value())
-            return Error(ErrorCode::ObjectNotIterable, range);
-        auto iter = iter_maybe.value();
-        new_ctx.declare(comprehension->rangevar(), make_obj<Integer>(0));
-        for (auto value = iter->next(); value.has_value(); value = iter->next()) {
-            assert(value.has_value());
-            auto v = value.value();
-            new_ctx.set(comprehension->rangevar(), v);
-            auto elem = OBJ(comprehension->element(), new_ctx);
-            if (comprehension->condition()) {
-                auto include_elem = OBJ(comprehension->condition(), new_ctx);
-                auto include_maybe = include_elem->to_bool();
-                if (!include_maybe.has_value())
-                    return Error(ErrorCode::ConversionError, "Cannot convert list comprehension condition result '{}' to boolean", include_elem->to_string());
-                if (!include_maybe.value())
-                    continue;
-            }
-            list->push_back(elem);
-        }
-        return std::make_shared<Literal>(to_obj(list));
     };
 
     execute_map[SyntaxNodeType::FunctionCall] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {

@@ -22,7 +22,6 @@
 #include <lexer/Token.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
-#include <obelix/Scope.h>
 #include <optional>
 
 #include <readline/readline.h>

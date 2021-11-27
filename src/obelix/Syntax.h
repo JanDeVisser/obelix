@@ -25,8 +25,6 @@
 #include <core/Range.h>
 #include <core/Type.h>
 #include <lexer/Token.h>
-#include <obelix/Runtime.h>
-#include <obelix/Scope.h>
 #include <obelix/Symbol.h>
 #include <string>
 
@@ -43,10 +41,6 @@ extern_logging_category(parser);
     S(TypedExpression)               \
     S(Literal)                       \
     S(Identifier)                    \
-    S(Symbol)                        \
-    S(ListLiteral)                   \
-    S(ListComprehension)             \
-    S(DictionaryLiteral)             \
     S(This)                          \
     S(BinaryExpression)              \
     S(UnaryExpression)               \
@@ -393,133 +387,6 @@ private:
 };
 
 typedef std::vector<std::shared_ptr<Expression>> Expressions;
-
-class ListLiteral : public Expression {
-public:
-    explicit ListLiteral(Expressions elements)
-        : Expression()
-        , m_elements(move(elements))
-    {
-    }
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ListLiteral; }
-
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        std::string ret = "[";
-        bool first = true;
-        for (auto& e : m_elements) {
-            if (!first)
-                ret += ", ";
-            ret += e->to_string(indent);
-            first = false;
-        }
-        ret += "]";
-        return ret;
-    }
-
-    ErrorOr<std::optional<Obj>> to_object() const override
-    {
-        Ptr<List> list = make_typed<List>();
-        for (auto& e : elements()) {
-            auto obj = TO_OBJECT(e);
-            if (obj->is_exception())
-                return ptr_cast<Exception>(obj)->error();
-            list->push_back(obj);
-        }
-        return to_obj(list);
-    }
-    [[nodiscard]] Expressions const& elements() const { return m_elements; }
-
-private:
-    Expressions m_elements;
-};
-
-class ListComprehension : public Expression {
-public:
-    ListComprehension(std::shared_ptr<Expression> element,
-        std::string rangevar,
-        std::shared_ptr<Expression> generator,
-        std::shared_ptr<Expression> condition = nullptr)
-        : Expression()
-        , m_element(move(element))
-        , m_rangevar(move(rangevar))
-        , m_generator(move(generator))
-        , m_condition(move(condition))
-    {
-    }
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ListComprehension; }
-
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        auto ret = format("[ {} for {} in {}", m_element->to_string(indent), m_rangevar, m_generator->to_string(indent));
-        if (m_condition)
-            ret += format(" where {}", m_condition->to_string(indent));
-        return ret;
-    }
-
-    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
-    [[nodiscard]] std::shared_ptr<Expression> const& element() const { return m_element; }
-    [[nodiscard]] std::string const& rangevar() const { return m_rangevar; }
-    [[nodiscard]] std::shared_ptr<Expression> const& generator() const { return m_generator; }
-    [[nodiscard]] std::shared_ptr<Expression> const& condition() const { return m_condition; }
-
-private:
-    std::shared_ptr<Expression> m_element;
-    std::string m_rangevar;
-    std::shared_ptr<Expression> m_generator;
-    std::shared_ptr<Expression> m_condition;
-};
-
-class DictionaryLiteral : public Expression {
-public:
-    struct Entry {
-        std::string name;
-        std::shared_ptr<Expression> value;
-
-        [[nodiscard]] bool operator==(Entry const& other) const
-        {
-            return name == other.name && value == other.value;
-        }
-    };
-    using Entries = std::vector<Entry>;
-
-    explicit DictionaryLiteral(Entries entries)
-        : Expression()
-        , m_entries(move(entries))
-    {
-    }
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::DictionaryLiteral; }
-
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        std::string ret = "{";
-        bool first = true;
-        for (auto& e : m_entries) {
-            if (!first)
-                ret += ", ";
-            ret += format("{}: {}", e.name, e.value->to_string(indent));
-            first = false;
-        }
-        ret += "}";
-        return ret;
-    }
-
-    ErrorOr<std::optional<Obj>> to_object() const override
-    {
-        auto dictionary = make_typed<Dictionary>();
-        for (auto& e : m_entries) {
-            auto result = TO_OBJECT(e.value);
-            if (result->is_exception())
-                return result;
-            dictionary->put(e.name, result);
-        }
-        return to_obj(dictionary);
-    }
-    [[nodiscard]] Entries const& entries() const { return m_entries; }
-
-private:
-    Entries m_entries;
-};
 
 class This : public Expression {
 public:

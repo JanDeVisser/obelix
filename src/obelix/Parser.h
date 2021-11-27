@@ -21,10 +21,13 @@
 
 #include <lexer/FileBuffer.h>
 #include <lexer/Lexer.h>
-#include <obelix/Runtime.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
+
+struct Config {
+    bool show_tree { false };
+};
 
 struct ParseError {
     ParseError(std::string const& msg, std::string fname, Token tok)
@@ -113,9 +116,6 @@ private:
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression);
     std::shared_ptr<Expression> parse_primary_expression(bool);
-    std::shared_ptr<Expression> parse_list_literal();
-    std::shared_ptr<ListComprehension> parse_list_comprehension(std::shared_ptr<Expression> const&);
-    std::shared_ptr<DictionaryLiteral> parse_dictionary_literal();
 
     Token const& lex();
     std::optional<Token const> match(TokenCode, char const* = nullptr);

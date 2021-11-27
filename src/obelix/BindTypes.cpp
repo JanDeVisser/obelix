@@ -65,18 +65,6 @@ ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree)
         return std::make_shared<TypedExpression>(literal, literal->literal()->type());
     };
 
-    bind_types_map[SyntaxNodeType::ListLiteral] = [](std::shared_ptr<SyntaxNode> const& tree, BindContext& ctx) -> ErrorOrNode
-    {
-        auto expr = std::dynamic_pointer_cast<Expression>(tree);
-        return std::make_shared<TypedExpression>(expr, TypeList);
-    };
-
-    bind_types_map[SyntaxNodeType::ListComprehension] = bind_types_map[SyntaxNodeType::ListLiteral];
-    bind_types_map[SyntaxNodeType::DictionaryLiteral] = [](std::shared_ptr<SyntaxNode> const& tree, BindContext& ctx) -> ErrorOrNode
-    {
-        auto expr = std::dynamic_pointer_cast<Expression>(tree);
-        return std::make_shared<TypedExpression>(expr, TypeObject);
-    };
     BindContext root(bind_types_map);
     return process_tree(tree, root);
 }
