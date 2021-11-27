@@ -25,7 +25,7 @@ namespace Obelix {
 TEST_F(ParserTest, ListLiteral)
 {
     auto scope = parse("[ 1, 2 ];");
-    EXPECT_EQ(scope->result().return_value->type(), "list");
+    EXPECT_EQ(scope->result().return_value->type_name(), "list");
     Ptr<List> list = ptr_cast<List>(scope->result().return_value);
     EXPECT_EQ(list->size(), 2);
     EXPECT_EQ(list[0], make_typed<Integer>(1));
@@ -35,7 +35,7 @@ TEST_F(ParserTest, ListLiteral)
 TEST_F(ParserTest, EmptyListLiteral)
 {
     auto scope = parse("[ ];");
-    EXPECT_EQ(scope->result().return_value->type(), "list");
+    EXPECT_EQ(scope->result().return_value->type_name(), "list");
     Ptr<List> list = ptr_cast<List>(scope->result().return_value);
     EXPECT_EQ(list->size(), 0);
 }
@@ -44,10 +44,10 @@ TEST_F(ParserTest, ListLiteralNoClose)
 {
     auto scope = parse("var a = [ 1, 2 ; var b = a;");
     EXPECT_EQ(scope->result().code, ExecutionResultCode::Error);
-    EXPECT_EQ(scope->result().return_value->type(), "list");
+    EXPECT_EQ(scope->result().return_value->type_name(), "list");
     Ptr<List> list = ptr_cast<List>(scope->result().return_value);
     EXPECT_EQ(list->size(), 1);
-    EXPECT_EQ(list[0]->type(), "exception");
+    EXPECT_EQ(list[0]->type_name(), "exception");
 }
 
 TEST_F(ParserTest, ListLiteralIterate)

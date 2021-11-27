@@ -11,13 +11,13 @@ add_library(
         SHARED
         BindTypes.cpp
         BoundFunction.cpp
+        Execute.cpp
+        FoldConstants.cpp
         Functions.cpp
         Parser.cpp
-        Processor.cpp
-        Runtime.cpp
-        Scope.cpp
         Syntax.cpp
-        Type.cpp Type.h Symbol.h)
+        Symbol.h
+        Context.h)
 
 target_link_libraries(
         oblparser

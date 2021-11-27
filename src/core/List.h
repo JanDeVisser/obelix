@@ -11,7 +11,7 @@ namespace Obelix {
 class List : public Object {
 public:
     List()
-        : Object("list")
+        : Object(TypeList)
     {
     }
 

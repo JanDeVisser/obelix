@@ -24,13 +24,13 @@
 #include <string>
 #include <vector>
 
-#include <obelix/Type.h>
+#include <core/Type.h>
 
 namespace Obelix {
 
 class Symbol {
 public:
-    explicit Symbol(std::string identifier, ObelixType type = ObelixType::Unknown)
+    explicit Symbol(std::string identifier, ObelixType type = TypeUnknown)
         : m_identifier(move(identifier))
         , m_type(type)
     {

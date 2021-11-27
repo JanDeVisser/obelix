@@ -23,7 +23,7 @@
 namespace Obelix {
 
 String::String(std::string value)
-    : Object("string")
+    : Object(TypeString)
     , m_value(move(value))
 {
 }
@@ -50,7 +50,7 @@ std::optional<Obj> String::evaluate(std::string const& op, Ptr<Arguments> args)
         auto& arg = args->at(0);
         auto int_maybe = arg->to_long();
         if (!int_maybe.has_value()) {
-            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
         }
         if (int_maybe.value() < 0) {
             return make_obj<Exception>(ErrorCode::SyntaxError, format("Repeat count of string operation '{}' cannot be negative", op));

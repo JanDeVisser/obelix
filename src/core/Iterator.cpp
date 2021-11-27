@@ -22,7 +22,7 @@
 namespace Obelix {
 
 SimpleIterator::SimpleIterator(Object const& container, size_t index)
-    : Object("iterator")
+    : Object(TypeIterator)
     , m_container(container)
     , m_index(index)
 {

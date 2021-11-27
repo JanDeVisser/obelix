@@ -56,6 +56,7 @@ TEST_F(ParserTest, ChainedAssign)
     EXPECT_NE(scope->result().code, ExecutionResultCode::Error);
     auto a_opt = scope->resolve("a");
     EXPECT_TRUE(a_opt.has_value());
+    ASSERT_EQ(a_opt.value().type(), TypeInt);
     Ptr<Integer> a = ptr_cast<Integer>(a_opt.value());
     EXPECT_EQ(a->to_long().value(), 4);
     auto b_opt = scope->resolve("b");

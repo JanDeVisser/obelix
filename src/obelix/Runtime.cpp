@@ -55,10 +55,13 @@ Ptr<Scope> Runtime::_import_module(std::string const& module)
         }
         Parser parser(m_config, file_name);
         tree = std::dynamic_pointer_cast<Module>(parser.parse());
-        auto transformed = fold_constants(tree);
+        auto constants_folded = fold_constants(tree);
         if (config().show_tree)
-            printf("%s\n", transformed->to_string(0).c_str());
-        if (!tree || parser.has_errors()) {
+            printf("%s\n", constants_folded->to_string(0).c_str());
+        auto types_bound = bind_types(constants_folded);
+        if (config().show_tree)
+            printf("%s\n", types_bound->to_string(0).c_str());
+        if (!types_bound || parser.has_errors()) {
             for (auto& error : parser.errors()) {
                 fprintf(stderr, "%s\n", error.to_string().c_str());
             }
@@ -66,7 +69,7 @@ Ptr<Scope> Runtime::_import_module(std::string const& module)
         }
         auto as_scope = ptr_cast<Scope>(self());
         Ptr<Scope> scope = (module.empty()) ? as_scope : make_typed<Scope>(as_scope);
-        tree->execute_in(scope);
+        std::dynamic_pointer_cast<Module>(types_bound)->execute_in(scope);
         m_modules[module] = scope;
         return scope;
     } else {

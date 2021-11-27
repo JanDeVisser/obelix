@@ -178,7 +178,7 @@ ResolveResult Resolver::Library::open()
             } else if (!result.errorcode) {
                 debug(resolve, "resolve_open('{s}') No initializer", to_string());
             } else {
-                error("resolve_open('{s}') Error finding initializer: {s} ({d})",
+                log_error("resolve_open('{s}') Error finding initializer: {s} ({d})",
                     to_string(), result.message, result.errorcode);
                 m_my_result = result;
                 return result;
@@ -187,7 +187,7 @@ ResolveResult Resolver::Library::open()
         debug(resolve, "Library '{s}' opened successfully", to_string());
         return ResolveResult(m_handle);
     } else {
-        error("Resolver::Library::open('{s}') FAILED", to_string());
+        log_error("Resolver::Library::open('{s}') FAILED", to_string());
         m_my_result = ret;
         return ret;
     }

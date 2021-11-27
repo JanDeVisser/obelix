@@ -25,7 +25,7 @@ namespace Obelix {
 TEST_F(ParserTest, DictionaryLiteral)
 {
     auto scope = parse("var a = { foo: 12, bar: 42 };");
-    EXPECT_EQ(scope->result().return_value->type(), "dictionary");
+    EXPECT_EQ(scope->result().return_value->type(), TypeObject);
     auto dict = ptr_cast<Dictionary>(scope->result().return_value);
     EXPECT_EQ(dict->size(), 2);
     EXPECT_EQ(dict->get("foo"), make_typed<Integer>(12));
@@ -35,7 +35,7 @@ TEST_F(ParserTest, DictionaryLiteral)
 TEST_F(ParserTest, EmptyDictionaryLiteral)
 {
     auto scope = parse("var a = { };");
-    EXPECT_EQ(scope->result().return_value->type(), "dictionary");
+    EXPECT_EQ(scope->result().return_value->type(), TypeObject);
     auto dict = ptr_cast<Dictionary>(scope->result().return_value);
     EXPECT_EQ(dict->size(), 0);
 }
@@ -44,10 +44,10 @@ TEST_F(ParserTest, DictionaryLiteralNoClose)
 {
     auto scope = parse("var a = { foo: 12, bar: 42; var b = a;");
     EXPECT_EQ(scope->result().code, ExecutionResultCode::Error);
-    EXPECT_EQ(scope->result().return_value->type(), "list");
+    EXPECT_EQ(scope->result().return_value->type(), TypeList);
     Ptr<List> list = ptr_cast<List>(scope->result().return_value);
     EXPECT_EQ(list->size(), 1);
-    EXPECT_EQ(list[0]->type(), "exception");
+    EXPECT_EQ(list[0]->type(), TypeException);
 }
 
 TEST_F(ParserTest, DictionaryLiteralIterate)

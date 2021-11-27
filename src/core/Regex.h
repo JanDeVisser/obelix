@@ -12,7 +12,7 @@ namespace Obelix {
 class Regex : public Object {
 public:
      explicit Regex(std::string pattern, std::string flags = "")
-        : Object("regex")
+        : Object(TypeRegex)
         , m_pattern("(" + move(pattern) + ")")
         , m_flags(move(flags))
      {

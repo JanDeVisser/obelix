@@ -4,7 +4,7 @@ add_library(
         Arguments.cpp
         Boolean.cpp
         Dictionary.cpp
-        Exception.cpp
+        Error.cpp
         Format.cpp
         Integer.cpp
         Iterator.cpp
@@ -14,10 +14,11 @@ add_library(
         Object.cpp
         Range.cpp
         Regex.cpp
+        Resolve.cpp
         String.cpp
         StringBuffer.cpp
         StringUtil.cpp
-        Resolve.cpp
+        Type.cpp
 )
 
 target_link_libraries(

@@ -64,7 +64,7 @@ TEST(Arguments, TwoIntsOneString)
     i = ptr_cast<Integer>(obj);
     EXPECT_EQ(i->to_long().value(), 12);
     obj = args->get(2);
-    EXPECT_EQ(obj->type(), "string");
+    EXPECT_EQ(obj->type(), TypeString);
     auto s = ptr_cast<String>(obj);
     EXPECT_EQ(s->to_string(), "foo");
 }
@@ -82,7 +82,7 @@ TEST(Arguments, TwoLongsOneStdString)
     i = ptr_cast<Integer>(obj);
     EXPECT_EQ(i->to_long().value(), 12);
     obj = args->get(2);
-    EXPECT_EQ(obj->type(), "string");
+    EXPECT_EQ(obj->type(), TypeString);
     auto s = ptr_cast<String>(obj);
     EXPECT_EQ(s->to_string(), "foo");
 }

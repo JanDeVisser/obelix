@@ -23,7 +23,7 @@
 namespace Obelix {
 
 Boolean::Boolean(bool value)
-    : Object("boolean")
+    : Object(TypeBoolean)
     , m_value(value)
 {
 }
@@ -53,7 +53,7 @@ std::optional<Obj> Boolean::evaluate(std::string const& op, Ptr<Arguments> args)
         for (auto const& arg : args->arguments()) {
             auto bool_maybe = arg->to_bool();
             if (!bool_maybe.has_value()) {
-                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "bool", arg->type());
+                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "bool", arg->type_name());
             }
             if (bool_maybe.value())
                 return to_obj(True());
@@ -69,7 +69,7 @@ std::optional<Obj> Boolean::evaluate(std::string const& op, Ptr<Arguments> args)
         for (auto const& arg : args->arguments()) {
             auto bool_maybe = arg->to_bool();
             if (!bool_maybe.has_value()) {
-                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "bool", arg->type());
+                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "bool", arg->type_name());
             }
             if (!bool_maybe.value())
                 return to_obj(False());

@@ -23,11 +23,11 @@
 #include <core/Logging.h>
 #include <core/NativeFunction.h>
 #include <core/Range.h>
+#include <core/Type.h>
 #include <lexer/Token.h>
 #include <obelix/Runtime.h>
 #include <obelix/Scope.h>
 #include <obelix/Symbol.h>
-#include <obelix/Type.h>
 #include <string>
 
 namespace Obelix {
@@ -68,7 +68,8 @@ extern_logging_category(parser);
     S(ForStatement)                  \
     S(CaseStatement)                 \
     S(DefaultCase)                   \
-    S(SwitchStatement)
+    S(SwitchStatement)               \
+    S(StatementExecutionResult)
 
 enum class SyntaxNodeType {
 #undef __SYNTAXNODETYPE
@@ -102,6 +103,14 @@ static inline std::string pad(int num)
     return ret;
 }
 
+#define TO_OBJECT(expr)                                     \
+    ({                                                      \
+        auto _to_obj_temp_maybe = TRY((expr)->to_object()); \
+        if (!_to_obj_temp_maybe.has_value())                \
+            return std::optional<Obj> {};                   \
+        _to_obj_temp_maybe.value();                         \
+    })
+
 class SyntaxNode {
 public:
     SyntaxNode() = default;
@@ -111,10 +120,11 @@ public:
     [[nodiscard]] virtual SyntaxNodeType node_type() const = 0;
 };
 
+using Nodes = std::vector<std::shared_ptr<SyntaxNode>>;
+
 class Statement : public SyntaxNode {
 public:
     Statement() = default;
-    virtual ExecutionResult execute(Ptr<Scope>&) = 0;
 };
 
 class Expression : public SyntaxNode {
@@ -124,8 +134,7 @@ public:
     {
     }
 
-    virtual Obj evaluate(Ptr<Scope>& scope) = 0;
-    virtual std::optional<Obj> assign(Ptr<Scope>& scope, Token const&, Obj const&) { return {}; }
+    [[nodiscard]] virtual ErrorOr<std::optional<Obj>> to_object() const = 0;
 };
 
 class TypedExpression : public Expression {
@@ -138,8 +147,7 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::TypedExpression; }
-    Obj evaluate(Ptr<Scope>& scope) override { return m_expression->evaluate(scope); }
-    std::optional<Obj> assign(Ptr<Scope>& scope, Token const& op, Obj const& value) override { return m_expression->assign(scope, op, value); }
+    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return m_expression->to_object(); }
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
     [[nodiscard]] ObelixType type() const { return m_type; }
 
@@ -150,7 +158,7 @@ public:
 
 private:
     std::shared_ptr<Expression> m_expression;
-    ObelixType m_type { ObelixType::Unknown };
+    ObelixType m_type { TypeUnknown };
 };
 
 class Import : public Statement {
@@ -167,8 +175,6 @@ public:
         return format("{}import {}", pad(indent), m_name);
     }
 
-    ExecutionResult execute(Ptr<Scope>&) override;
-
 private:
     std::string m_name;
 };
@@ -182,11 +188,6 @@ public:
     {
         return format("{};", pad(indent));
     }
-
-    ExecutionResult execute(Ptr<Scope>&) override
-    {
-        return {};
-    }
 };
 
 typedef std::vector<std::shared_ptr<Statement>> Statements;
@@ -196,9 +197,15 @@ public:
     explicit Block(Statements statements)
         : Statement()
         , m_statements(move(statements))
-        , m_scope(make_null<Scope>())
     {
     }
+
+    explicit Block(std::shared_ptr<Block> const&, Statements statements)
+        : Statement()
+        , m_statements(move(statements))
+    {
+    }
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Block; }
 
     [[nodiscard]] std::string to_string(int indent) const override
@@ -211,40 +218,26 @@ public:
         ret += format("{}}", pad(indent));
         return ret;
     }
-
-    [[nodiscard]] ExecutionResult execute_block(Ptr<Scope>& block_scope) const
-    {
-        ExecutionResult result;
-        for (auto& statement : m_statements) {
-            result = statement->execute(block_scope);
-            if (result.code != ExecutionResultCode::None)
-                return result;
-        }
-        block_scope->set_result(result);
-        return result;
-    }
-
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        m_scope = make_typed<Scope>(scope);
-        return execute_block(m_scope);
-    }
-
-    [[nodiscard]] Ptr<Scope>& scope() { return m_scope; }
     [[nodiscard]] Statements const& statements() const { return m_statements; }
 
 protected:
     Statements m_statements {};
-    Ptr<Scope> m_scope;
 };
 
 class Module : public Block {
 public:
-    explicit Module(std::string name, std::vector<std::shared_ptr<Statement>> const& statements)
+    Module(std::vector<std::shared_ptr<Statement>> const& statements, std::string name)
         : Block(statements)
         , m_name(move(name))
     {
     }
+
+    Module(std::shared_ptr<Module> const& original, std::vector<std::shared_ptr<Statement>> const& statements)
+        : Block(statements)
+        , m_name(original->name())
+    {
+    }
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Module; }
 
     [[nodiscard]] std::string to_string(int indent) const override
@@ -252,18 +245,6 @@ public:
         auto ret = format("{}module {}\n", pad(indent), m_name);
         ret += Block::to_string(indent);
         return ret;
-    }
-
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        Ptr<Scope> s = (scope) ? scope : make_typed<Scope>(scope);
-        return execute_in(s);
-    }
-
-    ExecutionResult execute_in(Ptr<Scope>& scope)
-    {
-        m_scope = scope;
-        return execute_block(m_scope);
     }
 
     [[nodiscard]] const std::string& name() const { return m_name; }
@@ -294,7 +275,6 @@ public:
     [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
     [[nodiscard]] std::string const& name() const { return m_identifier.identifier(); }
     [[nodiscard]] Symbols const& parameters() const { return m_parameters; }
-    ExecutionResult execute(Ptr<Scope>& scope) override;
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
     [[nodiscard]] std::string to_string(int indent) const override
     {
@@ -346,12 +326,7 @@ public:
         return format("{}{} -> \"{}\"", to_string_arguments(indent), m_native_function_name);
     }
 
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        auto native_function = Obelix::make_obj<Obelix::NativeFunction>(m_native_function_name);
-        scope->declare(identifier(), native_function);
-        return { ExecutionResultCode::None, native_function };
-    }
+    [[nodiscard]] std::string const& native_function_name() const { return m_native_function_name; }
 
 private:
     std::string m_native_function_name;
@@ -371,11 +346,6 @@ public:
         return format("{}{}", pad(indent), m_expression->to_string(indent));
     }
 
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        auto result = m_expression->evaluate(scope);
-        return { (result->is_exception()) ? ExecutionResultCode::Error : ExecutionResultCode::None, result };
-    }
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
 
 private:
@@ -393,7 +363,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Identifier; }
     [[nodiscard]] std::string const& name() const { return m_name; }
     [[nodiscard]] std::string to_string(int indent) const override { return m_name; }
-    Obj evaluate(Ptr<Scope>& scope) override { return make_obj<String>(name()); }
+    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
 
 private:
     std::string m_name;
@@ -415,8 +385,8 @@ public:
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Literal; }
     [[nodiscard]] std::string to_string(int indent) const override { return m_literal->to_string(); }
-    Obj evaluate(Ptr<Scope>& scope) override { return literal(); }
     [[nodiscard]] Obj const& literal() const { return m_literal; }
+    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return literal(); }
 
 private:
     Obj m_literal;
@@ -447,14 +417,14 @@ public:
         return ret;
     }
 
-    Obj evaluate(Ptr<Scope>& scope) override
+    ErrorOr<std::optional<Obj>> to_object() const override
     {
         Ptr<List> list = make_typed<List>();
-        for (auto& e : m_elements) {
-            auto result = e->evaluate(scope);
-            if (result->is_exception())
-                return result;
-            list->push_back(result);
+        for (auto& e : elements()) {
+            auto obj = TO_OBJECT(e);
+            if (obj->is_exception())
+                return ptr_cast<Exception>(obj)->error();
+            list->push_back(obj);
         }
         return to_obj(list);
     }
@@ -487,40 +457,7 @@ public:
         return ret;
     }
 
-    Obj evaluate(Ptr<Scope>& scope) override
-    {
-        auto list = make_typed<List>();
-        auto new_scope = make_typed<Scope>(scope);
-        auto range = m_generator->evaluate(new_scope);
-        if (range->is_exception())
-            return range;
-        auto iter_maybe = range->iterator();
-        if (!iter_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::ObjectNotIterable, range);
-        auto iter = iter_maybe.value();
-        new_scope->declare(m_rangevar, make_obj<Integer>(0));
-        for (auto value = iter->next(); value.has_value(); value = iter->next()) {
-            assert(value.has_value());
-            auto v = value.value();
-            new_scope->assign(m_rangevar, v);
-            auto elem = m_element->evaluate(new_scope);
-            if (elem->is_exception())
-                return elem;
-            if (m_condition) {
-                auto include_elem = m_condition->evaluate(new_scope);
-                if (include_elem->is_exception())
-                    return include_elem;
-                auto include_maybe = include_elem->to_bool();
-                if (!include_maybe.has_value())
-                    return make_obj<Exception>(ErrorCode::ConversionError, "Cannot convert list comprehension condition result '{}' to boolean", include_elem->to_string());
-                if (!include_maybe.value())
-                    continue;
-            }
-            list->push_back(elem);
-        }
-        return to_obj(list);
-    }
-
+    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
     [[nodiscard]] std::shared_ptr<Expression> const& element() const { return m_element; }
     [[nodiscard]] std::string const& rangevar() const { return m_rangevar; }
     [[nodiscard]] std::shared_ptr<Expression> const& generator() const { return m_generator; }
@@ -533,16 +470,20 @@ private:
     std::shared_ptr<Expression> m_condition;
 };
 
-struct DictionaryLiteralEntry {
-    std::string name;
-    std::shared_ptr<Expression> value;
-};
-
-typedef std::vector<DictionaryLiteralEntry> DictionaryLiteralEntries;
-
 class DictionaryLiteral : public Expression {
 public:
-    explicit DictionaryLiteral(DictionaryLiteralEntries entries)
+    struct Entry {
+        std::string name;
+        std::shared_ptr<Expression> value;
+
+        [[nodiscard]] bool operator==(Entry const& other) const
+        {
+            return name == other.name && value == other.value;
+        }
+    };
+    using Entries = std::vector<Entry>;
+
+    explicit DictionaryLiteral(Entries entries)
         : Expression()
         , m_entries(move(entries))
     {
@@ -563,21 +504,21 @@ public:
         return ret;
     }
 
-    Obj evaluate(Ptr<Scope>& scope) override
+    ErrorOr<std::optional<Obj>> to_object() const override
     {
         auto dictionary = make_typed<Dictionary>();
         for (auto& e : m_entries) {
-            auto result = e.value->evaluate(scope);
+            auto result = TO_OBJECT(e.value);
             if (result->is_exception())
                 return result;
             dictionary->put(e.name, result);
         }
         return to_obj(dictionary);
     }
-    [[nodiscard]] DictionaryLiteralEntries const& entries() const { return m_entries; }
+    [[nodiscard]] Entries const& entries() const { return m_entries; }
 
 private:
-    DictionaryLiteralEntries m_entries;
+    Entries m_entries;
 };
 
 class This : public Expression {
@@ -593,10 +534,7 @@ public:
         return "this";
     }
 
-    Obj evaluate(Ptr<Scope>& scope) override
-    {
-        return to_obj(scope);
-    }
+    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
 };
 
 class BinaryExpression : public Expression {
@@ -614,9 +552,7 @@ public:
     {
         return format("({}) {} ({})", m_lhs->to_string(indent), m_operator.value(), m_rhs->to_string(indent));
     }
-
-    std::optional<Obj> assign(Ptr<Scope>& scope, Token const& op, Obj const& value) override;
-    Obj evaluate(Ptr<Scope>& scope) override;
+    ErrorOr<std::optional<Obj>> to_object() const override;
 
     [[nodiscard]] std::shared_ptr<Expression> const& lhs() const { return m_lhs; }
     [[nodiscard]] std::shared_ptr<Expression> const& rhs() const { return m_rhs; }
@@ -643,14 +579,14 @@ public:
         return format("{}({})", m_operator.value(), m_operand->to_string(indent));
     }
 
-    Obj evaluate(Ptr<Scope>& scope) override
+    ErrorOr<std::optional<Obj>> to_object() const override
     {
-        Obj operand = m_operand->evaluate(scope);
+        auto operand = TO_OBJECT(m_operand);
         if (operand->is_exception())
             return operand;
-        auto ret_maybe = operand->evaluate(m_operator.value(), make_typed<Arguments>());
+        auto ret_maybe = operand->evaluate(m_operator.value());
         if (!ret_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::RegexpSyntaxError, "Could not resolve operator");
+            return make_obj<Exception>(ErrorCode::OperatorUnresolved, "Could not resolve operator");
         return ret_maybe.value();
     }
 
@@ -686,19 +622,9 @@ public:
         return ret;
     }
 
-    Obj evaluate(Ptr<Scope>& scope) override
+    ErrorOr<std::optional<Obj>> to_object() const override
     {
-        auto callable = m_function->evaluate(scope);
-        if (callable->is_exception())
-            return callable;
-        auto args = make_typed<Arguments>();
-        for (auto& arg : m_arguments) {
-            auto evaluated_arg = arg->evaluate(scope);
-            if (evaluated_arg->is_exception())
-                return evaluated_arg;
-            args->add(evaluated_arg);
-        }
-        return callable->call(args);
+        return std::optional<Obj> {};
     }
     [[nodiscard]] std::shared_ptr<Expression> const& function() const { return m_function; }
     [[nodiscard]] Expressions const& arguments() const { return m_arguments; }
@@ -726,23 +652,8 @@ public:
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}var {} = {}", pad(indent), m_variable.identifier(), m_expression->to_string(indent));
-    }
-
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        if (scope->contains(m_variable.identifier()))
-            return { ExecutionResultCode::Error, make_obj<Exception>(ErrorCode::VariableAlreadyDeclared, m_variable) };
-        Obj value;
-        if (m_expression) {
-            value = m_expression->evaluate(scope);
-            if (value->is_exception())
-                return { ExecutionResultCode::Error, value };
-        } else {
-            value = make_obj<Integer>(0);
-        }
-        scope->declare(m_variable.identifier(), value);
-        return { ExecutionResultCode::None, value };
+        return format("{}var {} : {} = {}", pad(indent), m_variable.identifier(), ObelixType_name(m_variable.type()),
+            m_expression->to_string(indent));
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::VariableDeclaration; }
@@ -761,18 +672,13 @@ public:
         , m_expression(move(expression))
     {
     }
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Return; }
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
         return format("{}return {}", pad(indent), m_expression->to_string(indent));
     }
 
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        auto result = m_expression->evaluate(scope);
-        return { (result->is_exception()) ? ExecutionResultCode::Error : ExecutionResultCode::Return, result };
-    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Return; }
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
 
 private:
@@ -792,10 +698,6 @@ public:
         return format("{}break", pad(indent));
     }
 
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        return { ExecutionResultCode::Break, {} };
-    }
 };
 
 class Continue : public Statement {
@@ -811,10 +713,6 @@ public:
         return format("{}continue", pad(indent));
     }
 
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        return { ExecutionResultCode::Continue, {} };
-    }
 };
 
 class Branch : public Statement {
@@ -853,19 +751,6 @@ public:
         return ret;
     }
 
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        Obj condition_result;
-        if (m_condition) {
-            condition_result = m_condition->evaluate(scope);
-            if (condition_result->is_exception())
-                return { ExecutionResultCode::Error, condition_result };
-        }
-        if (!m_condition || condition_result) {
-            return m_statement->execute(scope);
-        }
-        return { ExecutionResultCode::Skipped };
-    }
     [[nodiscard]] std::string const& keyword() const { return m_keyword; }
     [[nodiscard]] std::shared_ptr<Expression> const& condition() const { return m_condition; }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
@@ -911,20 +796,8 @@ public:
         , m_else(move(else_stmt))
     {
     }
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IfStatement; }
 
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        if (auto result = Branch::execute(scope); result.code != ExecutionResultCode::Skipped)
-            return result;
-        for (auto& elif : m_elifs) {
-            if (auto result = elif->execute(scope); result.code != ExecutionResultCode::Skipped)
-                return result;
-        }
-        if (m_else)
-            return m_else->execute(scope);
-        return {};
-    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IfStatement; }
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
@@ -936,6 +809,8 @@ public:
             ret += m_else->to_string(indent);
         return ret;
     }
+
+    [[nodiscard]] std::shared_ptr<Statement> const& if_stmt() const { return statement(); }
     [[nodiscard]] ElifStatements const& elifs() const { return m_elifs; }
     [[nodiscard]] std::shared_ptr<Statement> const& else_stmt() const { return m_else; }
 
@@ -951,28 +826,6 @@ public:
         , m_condition(move(condition))
         , m_stmt(move(stmt))
     {
-    }
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        ExecutionResult result { ExecutionResultCode::None, make_obj<Null>() };
-        do {
-            auto condition_value = m_condition->evaluate(scope);
-            if (condition_value->is_exception())
-                return { ExecutionResultCode::Error, condition_value };
-            auto bool_value = condition_value->to_bool();
-            if (!bool_value.has_value())
-                return { ExecutionResultCode::Error, make_obj<Exception>(ErrorCode::ConversionError, bool_value, "bool") };
-            if (!bool_value.value())
-                break;
-            result = m_stmt->execute(scope);
-            if (result.code == ExecutionResultCode::Error)
-                return result;
-            if (result.code == ExecutionResultCode::Break)
-                return {};
-            if (result.code == ExecutionResultCode::Return)
-                return result;
-        } while (result.code == ExecutionResultCode::None);
-        return result;
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::WhileStatement; }
@@ -996,33 +849,6 @@ public:
         , m_range(move(range))
         , m_stmt(move(stmt))
     {
-    }
-
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        ExecutionResult result;
-        auto new_scope = make_typed<Scope>(scope);
-        new_scope->declare(m_variable, make_obj<Integer>(0));
-        auto range = m_range->evaluate(new_scope);
-        if (range->is_exception())
-            return { ExecutionResultCode::Error, range };
-        auto iter_maybe = range->iterator();
-        if (!iter_maybe.has_value())
-            return { ExecutionResultCode::Error, make_obj<Exception>(ErrorCode::ObjectNotIterable, range) };
-        auto iter = iter_maybe.value();
-        for (auto value = iter->next(); value.has_value(); value = iter->next()) {
-            assert(value.has_value());
-            auto v = value.value();
-            new_scope->assign(m_variable, v);
-            result = m_stmt->execute(new_scope);
-            if (result.code == ExecutionResultCode::Error)
-                return result;
-            if (result.code == ExecutionResultCode::Break)
-                return {};
-            if (result.code == ExecutionResultCode::Return)
-                return result;
-        }
-        return result;
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ForStatement; }
@@ -1075,17 +901,6 @@ public:
     {
     }
 
-    ExecutionResult execute(Ptr<Scope>& scope) override
-    {
-        for (auto& case_stmt : m_cases) {
-            if (auto result = case_stmt->execute(scope); result.code != ExecutionResultCode::Skipped)
-                return result;
-        }
-        if (m_default)
-            return m_default->execute(scope);
-        return {};
-    }
-
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::SwitchStatement; }
     [[nodiscard]] std::string to_string(int indent) const override
     {
@@ -1107,5 +922,7 @@ private:
     CaseStatements m_cases {};
     std::shared_ptr<DefaultCase> m_default {};
 };
+
+ErrorOr<std::shared_ptr<SyntaxNode>> to_literal(std::shared_ptr<Expression> const& expr);
 
 }

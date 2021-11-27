@@ -103,9 +103,7 @@ std::shared_ptr<Module> Parser::parse()
     parse_statements(statements);
     if (has_errors())
         return nullptr;
-    auto ret = make_node<Module>(m_file_name, statements);
-    if (m_config.show_tree)
-        fprintf(stdout, "%s\n", ret->to_string(0).c_str());
+    auto ret = make_node<Module>(statements, m_file_name);
     return ret;
 }
 
@@ -666,7 +664,7 @@ std::shared_ptr<ListComprehension> Parser::parse_list_comprehension(std::shared_
 
 std::shared_ptr<DictionaryLiteral> Parser::parse_dictionary_literal()
 {
-    DictionaryLiteralEntries entries;
+    DictionaryLiteral::Entries entries;
     while (current_code() != TokenCode::CloseBrace) {
         auto name = match(TokenCode::Identifier, "Expecting entry name in dictionary literal");
         if (!name.has_value())

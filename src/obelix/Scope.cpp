@@ -23,7 +23,7 @@
 namespace Obelix {
 
 Scope::Scope(Ptr<Scope> const& parent)
-    : Object("scope")
+    : Object(TypeScope)
     , m_parent(parent)
 {
 }
@@ -41,8 +41,8 @@ std::optional<Obj> Scope::declare(Symbol const& name, Obj const& value)
 {
     if (m_variables.contains(name))
         return make_obj<Exception>(ErrorCode::VariableAlreadyDeclared, name.identifier());
-    if ((name.type() != ObelixType::Unknown) && (ObelixType_of(value) != name.type()))
-        return make_obj<Exception>(ErrorCode::TypeMismatch, "declaration", ObelixType_name(name.type()), ObelixType_name(ObelixType_of(value)));
+    if ((name.type() != TypeUnknown) && (value->type() != name.type()))
+        return make_obj<Exception>(ErrorCode::TypeMismatch, "declaration", ObelixType_name(name.type()), value->type_name());
     m_variables[name] = value;
     return {};
 }
@@ -50,8 +50,8 @@ std::optional<Obj> Scope::declare(Symbol const& name, Obj const& value)
 std::optional<Obj> Scope::set(Symbol const& name, Obj const& value)
 {
     if (auto sym = get_declared_symbol(name.identifier()); sym.has_value()) {
-        if ((sym.value().type() != ObelixType::Unknown) && (ObelixType_of(value) != sym.value().type()))
-            return make_obj<Exception>(ErrorCode::TypeMismatch, "assignment", ObelixType_name(sym.value().type()), ObelixType_name(ObelixType_of(value)));
+        if ((sym.value().type() != TypeUnknown) && (value->type() != sym.value().type()))
+            return make_obj<Exception>(ErrorCode::TypeMismatch, "assignment", ObelixType_name(sym.value().type()), value->type_name());
         m_variables[name] = value;
         return {};
     }
@@ -72,7 +72,7 @@ std::optional<Obj> Scope::resolve(std::string const& name) const
 
 std::optional<Obj> Scope::assign(std::string const& name, Obj const& value)
 {
-    return set(Symbol { name, ObelixType::Unknown }, value);
+    return set(Symbol { name, TypeUnknown }, value);
 }
 
 Ptr<Scope> Scope::eval(std::string const& src)

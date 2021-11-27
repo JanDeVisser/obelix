@@ -27,7 +27,7 @@ logging_category(function);
 Resolver& NativeFunction::s_resolver = Resolver::get_resolver();
 
 NativeFunction::NativeFunction(std::string name, void_t fnc, std::vector<std::string> params)
-    : Object("native")
+    : Object(TypeNativeFunction)
     , m_name(move(name))
     , m_fnc(fnc)
     , m_parameters(move(params))
@@ -35,7 +35,7 @@ NativeFunction::NativeFunction(std::string name, void_t fnc, std::vector<std::st
 }
 
 NativeFunction::NativeFunction(std::string name, std::vector<std::string> params)
-    : Object("native")
+    : Object(TypeNativeFunction)
     , m_name(move(name))
     , m_parameters(move(params))
 {
@@ -61,7 +61,7 @@ std::optional<NativeFunction> NativeFunction::parse(std::string const& str) {
 
 int NativeFunction::compare(Obj const& other) const
 {
-    oassert(other->type() == "native", "Can't compare NativeFunctions to objects of type '%s'", other->type().c_str());
+    oassert(other->type() == TypeNativeFunction, "Can't compare NativeFunctions to objects of type_name '%s'", other->type_name());
     auto other_func = ptr_cast<NativeFunction>(other);
     return m_name.compare(other_func->m_name);
 }

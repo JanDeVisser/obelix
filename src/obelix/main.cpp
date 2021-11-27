@@ -22,7 +22,6 @@
 #include <lexer/Token.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
-#include <obelix/Runtime.h>
 #include <obelix/Scope.h>
 #include <optional>
 
@@ -34,31 +33,24 @@ namespace Obelix {
 
 class Repl {
 public:
-    explicit Repl(Ptr<Runtime> runtime)
-        : m_runtime(std::move(runtime))
+    explicit Repl(Config const& config)
+        : m_config(config)
     {
     }
 
-    enum class ParseResult {
-        Execute,
-        WantMore,
-        Errors
-    };
-
-    int run()
+    ErrorOr<int> repl()
     {
-        Parser parser(m_runtime->config());
+        Parser parser(config());
         printf("Obelix 1.99 - A programming language\n");
         bool quit = false;
-        bool show_tree = false;
         std::string buffer;
         do {
             auto line = readline(m_prompt.c_str());
             if (!line || !strcmp(line, "#exit")) {
                 quit = true;
             } else if (!strcmp(line, "#show")) {
-                show_tree = !show_tree;
-                printf("%sshowing parse results\n", (show_tree) ? "" : "Not ");
+                config().show_tree = !config().show_tree;
+                printf("%sshowing parse results\n", (config().show_tree) ? "" : "Not ");
             } else {
                 buffer += line;
                 auto tree = parser.parse(buffer);
@@ -75,27 +67,61 @@ public:
                     }
                     continue;
                 }
-
-                if (tree) {
-                    if (show_tree)
-                        printf("%s\n", tree->to_string(0).c_str());
-                    auto transformed = fold_constants(tree);
-                    if (show_tree)
-                        printf("%s\n", transformed->to_string(0).c_str());
-                    if (auto result = std::dynamic_pointer_cast<Module>(transformed)->execute_in(m_runtime->as_scope()); result.code == ExecutionResultCode::Error) {
-                        printf("ERROR: %s\n", result.return_value->to_string().c_str());
-                    } else if (result.return_value){
-                        printf("%s\n", result.return_value->to_string().c_str());
-                    }
+                if (auto eval_result = evaluate_tree(tree); eval_result.is_error()) {
+                    printf("ERROR: %s\n", eval_result.error().message().c_str());
+                } else {
+                    printf("%s\n", eval_result.value()->to_string(0).c_str());
                 }
             }
         } while (!quit);
-	return 0;
+        return 0;
     }
 
+    ErrorOr<int> run(std::string const& file_name)
+    {
+        std::string fname = file_name;
+        for (auto ix = 0u; ix < fname.length(); ++ix) {
+            if ((fname[ix] == '.') && (fname.substr(ix) != ".obl"))
+                fname[ix] = '/';
+        }
+        Parser parser(config(), fname);
+        auto tree = std::dynamic_pointer_cast<Module>(parser.parse());
+        if (!tree) {
+            for (auto& e : parser.errors()) {
+                printf("ERROR: %s\n", e.to_string().c_str());
+            }
+            return Error { ErrorCode::SyntaxError, parser.errors()[0].message };
+        }
+        if (auto eval_result = evaluate_tree(tree); eval_result.is_error()) {
+            printf("ERROR: %s\n", eval_result.error().message().c_str());
+        } else {
+            printf("%s\n", eval_result.value()->to_string(0).c_str());
+        }
+        return 0;
+    }
+
+    [[nodiscard]] Config& config() { return m_config; }
+
 private:
-    Ptr<Runtime> m_runtime;
-    std::string m_prompt { "> "};
+    ErrorOr<std::shared_ptr<SyntaxNode>> evaluate_tree(std::shared_ptr<SyntaxNode> const& tree)
+    {
+        if (tree) {
+            if (config().show_tree)
+                printf("%s\n", tree->to_string(0).c_str());
+            auto transformed = TRY(bind_types(tree));
+            if (config().show_tree)
+                printf("%s\n", transformed->to_string(0).c_str());
+            transformed = TRY(fold_constants(transformed));
+            if (config().show_tree)
+                printf("%s\n", transformed->to_string(0).c_str());
+            Context<Obj> root;
+            return execute(transformed, root);
+        }
+        return tree;
+    }
+
+    Config m_config;
+    std::string m_prompt { "> " };
 };
 
 }
@@ -108,6 +134,7 @@ void usage()
         "    obelix [--debug] [--show-tree] path/to/script.obl\n");
     exit(1);
 }
+
 
 
 int main(int argc, char** argv)
@@ -126,17 +153,11 @@ int main(int argc, char** argv)
         }
     }
 
-    auto runtime = Obelix::make_typed<Obelix::Runtime>(config);
-
-    if (file_name.empty()) {
-        return Obelix::Repl(runtime).run();
+    Obelix::Repl repl(config);
+    auto ret_or_error = (file_name.empty()) ? repl.repl() : repl.run(file_name);
+    if (ret_or_error.is_error()) {
+        printf("ERROR: %s\n", ret_or_error.error().message().c_str());
+        return -1;
     }
-
-    auto result = runtime->run(file_name);
-
-    if (auto exit_code = result.return_value; exit_code) {
-        if (auto long_maybe = exit_code->to_long(); long_maybe.has_value())
-            return (int)long_maybe.value();
-    }
-    return 0;
+    return ret_or_error.value();
 }

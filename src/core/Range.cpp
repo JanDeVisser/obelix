@@ -27,7 +27,7 @@ logging_category(range);
 class RangeIterator : public Object {
 public:
     RangeIterator(Obj from, Obj to)
-        : Object("rangeiterator")
+        : Object(TypeRangeIterator)
         , m_from(std::move(from))
         , m_to(std::move(to))
         , m_current_value(m_from->to_long().value())
@@ -57,7 +57,7 @@ private:
 };
 
 Range::Range(Obj const& low, Obj const& high)
-    : Object("range")
+    : Object(TypeRange)
     , m_low(low)
     , m_high(high)
 {

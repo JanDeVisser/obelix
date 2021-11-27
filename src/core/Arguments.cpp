@@ -7,24 +7,14 @@
 namespace Obelix {
 
 Arguments::Arguments()
-    : Object("arguments")
+    : Object(TypeArguments)
     , m_args(make_typed<List>())
     , m_kwargs(make_typed<Dictionary>())
 {
 }
 
-#if 0
-Arguments::Arguments(Obj const& arg1, Obj const& arg2)
-    : Arguments()
-{
-    m_args->push_back(arg1);
-    if (arg2->type() != "null")
-        m_args->push_back(arg2);
-}
-#endif
-
 Arguments::Arguments(Ptr<List> args, Ptr<Dictionary> kwargs)
-    : Object("arguments")
+    : Object(TypeArguments)
     , m_args(std::move(args))
     , m_kwargs(std::move(kwargs))
 

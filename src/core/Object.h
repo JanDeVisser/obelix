@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include <core/Format.h>
-#include <core/Logging.h>
-#include <core/StringUtil.h>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -14,6 +11,12 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <core/Error.h>
+#include <core/Format.h>
+#include <core/Logging.h>
+#include <core/StringUtil.h>
+#include <core/Type.h>
 
 namespace Obelix {
 
@@ -30,9 +33,14 @@ typedef Ptr<Object> Obj;
 
 class Object {
 public:
+    template<class ObjCls, class... Args>
+    friend Ptr<ObjCls> make_typed(Args&&... args);
+
     virtual ~Object() = default;
-    [[nodiscard]] std::string const& type() const { return m_type; }
+    [[nodiscard]] ObelixType type() const { return m_type; }
+    [[nodiscard]] char const* type_name() const { return ObelixType_name(type()); }
     virtual std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>);
+    std::optional<Obj> evaluate(std::string const&);
     [[nodiscard]] virtual Obj copy() const;
     [[nodiscard]] virtual std::optional<Obj> resolve(std::string const& name) const;
     [[nodiscard]] virtual std::optional<Obj> assign(std::string const&, Obj const&);
@@ -84,14 +92,11 @@ public:
     [[nodiscard]] ObjectIterator cend() const;
 
 protected:
-    explicit Object(std::string type);
+    explicit Object(ObelixType type);
     void set_self(Ptr<Object>);
 
-    std::string m_type;
+    ObelixType m_type;
     std::shared_ptr<Object> m_self { nullptr };
-
-    template<class ObjCls, class... Args>
-    friend Ptr<ObjCls> make_typed(Args&&... args);
 };
 
 class ObjectIterator {
@@ -124,7 +129,7 @@ private:
 class Null : public Object {
 public:
     Null()
-        : Object("null")
+        : Object(TypeNull)
     {
     }
 
@@ -161,6 +166,7 @@ public:
     static Ptr<Boolean> const& False();
 
     std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
+
     [[nodiscard]] std::optional<long> to_long() const override { return (m_value) ? 1 : 0; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return m_value; }
     [[nodiscard]] std::string to_string() const override { return Obelix::to_string(m_value); }
@@ -173,7 +179,7 @@ private:
 class Float : public Object {
 public:
     explicit Float(double value = 0)
-        : Object("float")
+        : Object(TypeFloat)
         , m_value(value)
     {
     }
@@ -203,7 +209,8 @@ public:
 
     [[nodiscard]] bool has_nullptr() const { return m_ptr == nullptr; }
 
-    [[nodiscard]] char const* type() const { return (m_ptr) ? m_ptr->type().c_str() : "nullptr!"; }
+    [[nodiscard]] ObelixType type() const { return (m_ptr) ? m_ptr->type() : TypeUnknown; }
+    [[nodiscard]] char const* type_name() const { return (m_ptr) ? m_ptr->type_name().c_str() : "nullptr!"; }
     Obj const& operator[](size_t ix) const { return m_ptr->at(ix); }
     std::optional<Obj> operator()(Ptr<Arguments> args) { return m_ptr->operator()(std::move(args)); }
 
@@ -287,6 +294,24 @@ private:
     friend class Ptr;
     friend class Object;
     friend class ObjectIterator;
+
+public:
+    std::optional<Obj> evaluate(std::string const& name, Ptr<Arguments> const& args)
+    {
+        return m_ptr->evaluate(name, args);
+    }
+
+    std::optional<Obj> evaluate(std::string const& name)
+    {
+        return m_ptr->evaluate(name);
+    }
+
+    template <typename... Args>
+    std::optional<Obj> evaluate(std::string const& name, Args&&... args)
+    {
+        return m_ptr->evaluate(name, make_typed<Arguments>(std::forward<Args>(args)...));
+    }
+
 };
 
 template<class ObjCls>
@@ -331,55 +356,33 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
     return Ptr<ObjCls>(from);
 }
 
-#define ENUMERATE_ERROR_CODES(S)                                                \
-    S(NoError, "There is no error")                                             \
-    S(SyntaxError, "{}")                                                        \
-    S(ObjectNotCallable, "Object '{}' is not callable")                         \
-    S(ObjectNotIterable, "Object '{}' is not iterable")                         \
-    S(CannotAssignToObject, "Cannot assign to object '{}'")                     \
-    S(VariableAlreadyDeclared, "Variable '{}' is already declared")             \
-    S(NameUnresolved, "Could not resolve '{}'")                                 \
-    S(OperatorUnresolved, "Could not apply '{}' to '{}'")                       \
-    S(ConversionError, "Cannot convert '{}' to {}")                             \
-    S(FunctionUndefined, "Function '{}' in image '{}' is undefined")            \
-    S(UndeclaredVariable, "Undeclared variable '{}'")                           \
-    S(RegexpSyntaxError, "Regular expression syntax error")                     \
-    S(TypeMismatch, "Type mismatch in operation '{}'. Expected '{}', got '{}'") \
-    S(CouldNotResolveNode, "Could not resolve node")                            \
-    S(CantUseAsUnaryOp, "Cannot use '{}' as a unary operation")
-
-enum class ErrorCode {
-#undef __ENUMERATE_ERROR_CODE
-#define __ENUMERATE_ERROR_CODE(code, msg) code,
-    ENUMERATE_ERROR_CODES(__ENUMERATE_ERROR_CODE)
-#undef __ENUMERATE_ERROR_CODE
-};
-
-std::string ErrorCode_name(ErrorCode);
-std::string ErrorCode_message(ErrorCode);
-
 class Exception : public Object {
 public:
-    template<typename... Args>
-    explicit Exception(ErrorCode code, Args&&... args)
-        : Object("exception")
-        , m_code(code)
+    explicit Exception(Error error)
+        : Object(TypeException)
+        , m_error(std::move(error))
     {
-        m_message = ErrorCode_name(code) + ": " + format(std::string(ErrorCode_message(code)), std::forward<Args>(args)...);
     }
 
-    [[nodiscard]] ErrorCode code() const { return m_code; }
+    template<typename... Args>
+    explicit Exception(ErrorCode code, Args&&... args)
+        : Object(TypeException)
+        , m_error(Error(code, std::forward<Args>(args)...))
+    {
+    }
+
+    [[nodiscard]] ErrorCode code() const { return m_error.code(); }
     std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
     [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
     [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
     [[nodiscard]] std::optional<long> to_long() const override { return {}; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return {}; }
-    [[nodiscard]] std::string to_string() const override { return m_message; }
+    [[nodiscard]] std::string to_string() const override { return m_error.message(); }
     [[nodiscard]] bool is_exception() const override { return true; }
+    [[nodiscard]] Error const& error() const;
 
 private:
-    ErrorCode m_code { ErrorCode::NoError };
-    std::string m_message {};
+    Error m_error;
 };
 
 class String : public Object {
@@ -397,7 +400,7 @@ private:
 class NVP : public Object {
 public:
     NVP(std::string name, Obj value)
-        : Object("nvp")
+        : Object(TypeNVP)
         , m_pair(std::move(name), std::move(value))
     {
     }
@@ -410,35 +413,6 @@ public:
 
 private:
     std::pair<std::string, Obj> m_pair;
-};
-
-class ObjectType {
-public:
-    ObjectType() = default;
-    ObjectType(std::string name, std::function<Obj(std::vector<Obj> const&)> factory) noexcept
-        : m_name(move(name))
-        , m_factory(move(factory))
-    {
-        s_types[name] = *this;
-    }
-
-    //    static std::optional<ObjectType const&> const& get(std::string const&);
-private:
-    Obj make(std::vector<Obj> const& params)
-    {
-        return m_factory(params);
-    }
-
-    template<class ObjClass, typename... Args>
-    Obj make(std::vector<Obj> params, Ptr<ObjClass> value, Args... args)
-    {
-        params.emplace_back(value);
-        return make(params, args...);
-    }
-
-    std::string m_name {};
-    std::function<Obj(std::vector<Obj> const&)> m_factory {};
-    static std::unordered_map<std::string, ObjectType> s_types;
 };
 
 template<>

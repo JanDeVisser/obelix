@@ -23,7 +23,7 @@
 namespace Obelix {
 
 Integer::Integer(int value)
-    : Object("integer")
+    : Object(ObelixType::TypeInt)
     , m_value(value)
 {
 }
@@ -43,7 +43,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         for (auto const& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
             if (!int_maybe.has_value()) {
-                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
             }
             ret += int_maybe.value();
         }
@@ -69,7 +69,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
             for (auto const& arg : args->arguments()) {
                 auto int_maybe = arg->to_long();
                 if (!int_maybe.has_value()) {
-                    return make_obj<Exception>(ErrorCode::TypeMismatch, op.c_str(), "int", arg->type().c_str());
+                    return make_obj<Exception>(ErrorCode::TypeMismatch, op.c_str(), "int", arg->type_name());
                 }
                 ret -= int_maybe.value();
             }
@@ -84,7 +84,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         for (auto const& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
             if (!int_maybe.has_value()) {
-                return make_obj<Exception>(ErrorCode::TypeMismatch, op.c_str(), "int", arg->type().c_str());
+                return make_obj<Exception>(ErrorCode::TypeMismatch, op.c_str(), "int", arg->type_name());
             }
             ret *= int_maybe.value();
         }
@@ -98,7 +98,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         for (auto const& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
             if (!int_maybe.has_value()) {
-                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
             }
             ret /= int_maybe.value();
         }
@@ -112,7 +112,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         auto& arg = args->at(0);
         auto int_maybe = arg->to_long();
         if (!int_maybe.has_value()) {
-            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
         }
         ret %= int_maybe.value();
         return make_obj<Integer>(ret);
@@ -125,7 +125,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         auto& arg = args->at(0);
         auto int_maybe = arg->to_long();
         if (!int_maybe.has_value()) {
-            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
         }
         ret <<= int_maybe.value();
         return make_obj<Integer>(ret);
@@ -138,7 +138,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         auto& arg = args->at(0);
         auto int_maybe = arg->to_long();
         if (!int_maybe.has_value()) {
-            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
         }
         ret >>= int_maybe.value();
         return make_obj<Integer>(ret);
@@ -151,7 +151,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         auto& arg = args->at(0);
         auto int_maybe = arg->to_long();
         if (!int_maybe.has_value()) {
-            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
         }
         ret |= int_maybe.value();
         return make_obj<Integer>(ret);
@@ -164,7 +164,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         auto& arg = args->at(0);
         auto int_maybe = arg->to_long();
         if (!int_maybe.has_value()) {
-            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
         }
         ret &= int_maybe.value();
         return make_obj<Integer>(ret);
@@ -177,7 +177,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         auto& arg = args->at(0);
         auto int_maybe = arg->to_long();
         if (!int_maybe.has_value()) {
-            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type());
+            return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
         }
         ret ^= int_maybe.value();
         return make_obj<Integer>(ret);

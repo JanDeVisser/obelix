@@ -11,7 +11,7 @@ namespace Obelix {
 class MapIterator : public Object {
 public:
     MapIterator(std::unordered_map<std::string, Obj>::const_iterator iter, std::unordered_map<std::string, Obj>::const_iterator end)
-        : Object("mapiterator")
+        : Object(TypeMapIterator)
         , m_iter(iter)
         , m_end(end)
     {
@@ -43,7 +43,7 @@ private:
 };
 
 Dictionary::Dictionary()
-    : Object("dictionary")
+    : Object(TypeObject)
 {
 }
 

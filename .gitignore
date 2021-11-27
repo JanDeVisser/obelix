@@ -26,8 +26,6 @@ obelix.sublime-workspace
 *.layout
 config.h
 src/bin/grammar.c
-obelix
-panoramix
 callgrind.out*
 CMakeCache.txt
 **/CMakeFiles

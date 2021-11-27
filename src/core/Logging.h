@@ -106,7 +106,7 @@ public:
     [[noreturn]] void fatal_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
     {
         logmsg({ file, line, function, LogLevel::Fatal, message }, std::forward<Args>(args)...);
-        exit(1);
+        abort();
     }
 
     template <typename... Args>
@@ -220,7 +220,7 @@ private:
 #define log_timestamp_start(module) ((module ## _logger).start())
 #define log_timestamp_end(module, ts, fmt, ...) (module ## _logger).log_duration(ts, __FILE__, __LINE__, __func__, fmt, ##args)
 
-#define error(fmt, args...) Logger::get_logger().error_msg(__FILE__, __LINE__, __func__, fmt, ##args)
+#define log_error(fmt, args...) Logger::get_logger().error_msg(__FILE__, __LINE__, __func__, fmt, ##args)
 #define fatal(fmt, args...) Logger::get_logger().fatal_msg(__FILE__, __LINE__, __func__, fmt, ##args)
 #ifdef assert
 #undef assert

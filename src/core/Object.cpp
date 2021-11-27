@@ -25,8 +25,8 @@ std::optional<ObjectType const&> const& ObjectType::get(std::string const& type_
 
 logging_category(object);
 
-Object::Object(std::string type)
-    : m_type(move(type))
+Object::Object(ObelixType type)
+    : m_type(type)
 {
 }
 
@@ -77,7 +77,7 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
     } else if (name.ends_with("=")) {
         return apply_and_assign(name.substr(0, name.length() - 1));
     } else if (name == "typename") {
-        return make_obj<String>(type());
+        return make_obj<String>(type_name());
     } else if (name == "size") {
         return make_obj<Integer>(size());
     } else if (name == "empty") {
@@ -86,10 +86,15 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
     return {};
 }
 
+std::optional<Obj> Object::evaluate(std::string const& name)
+{
+    return evaluate(name, make_typed<Arguments>());
+}
+
 std::optional<Ptr<Object>> Object::resolve(std::string const& name) const
 {
     if (name == "type") {
-        auto ret = make_obj<String>(type());
+        auto ret = make_obj<String>(type_name());
         return ret;
     }
     return {};
@@ -147,7 +152,7 @@ std::optional<bool> Object::to_bool() const
 
 std::string Object::to_string() const
 {
-    return format("{}:{x}", type(), (unsigned long)this);
+    return format("{}:{x}", type_name(), (unsigned long)this);
 }
 
 Obj const& Object::at(size_t ix)
@@ -195,6 +200,26 @@ Ptr<Null> const& Null::null()
     return s_null;
 }
 
+std::optional<Obj> Exception::evaluate(std::string const&, Ptr<Arguments>)
+{
+    return {};
+}
+
+std::optional<Obj> Exception::resolve(std::string const& name) const
+{
+    return self();
+}
+
+std::optional<Obj> Exception::assign(std::string const&, Obj const&)
+{
+    return self();
+}
+
+Error const& Exception::error() const
+{
+    return m_error;
+}
+
 int Float::compare(Obj const& other) const
 {
     auto double_maybe = other->to_double();
@@ -226,14 +251,5 @@ std::optional<Obj> NVP::resolve(std::string const& name) const
         return m_pair.second;
     return Object::resolve(name);
 }
-
-std::unordered_map<std::string, ObjectType> ObjectType::s_types;
-[[maybe_unused]] ObjectType s_integer("integer", [](std::vector<Obj> const& args) {
-   if (args.size() == 1) {
-       return make_obj<Integer>(args[0]->to_long().value());
-   } else {
-       return make_obj<Integer>();
-   }
-});
 
 }
