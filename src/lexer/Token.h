@@ -105,12 +105,27 @@ enum class TokenCode {
 constexpr TokenCode TokenCode_by_char(int ch)
 {
 #undef __ENUMERATE_TOKEN_CODE
-#define __ENUMERATE_TOKEN_CODE(code, c, str)          \
-    {                                                 \
-        auto c_str = static_cast<char const*>(c);     \
-        if ((c_str != nullptr) && (ch == c_str[0])) { \
-            return TokenCode::code;                   \
-        }                                             \
+#define __ENUMERATE_TOKEN_CODE(code, c, str)                                \
+    {                                                                       \
+        auto c_str = static_cast<char const*>(c);                           \
+        if ((c_str != nullptr) && (ch == c_str[0]) && (c_str[1] == '\0')) { \
+            return TokenCode::code;                                         \
+        }                                                                   \
+    }
+    ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
+#undef __ENUMERATE_TOKEN_CODE
+    return TokenCode::Unknown;
+}
+
+inline TokenCode TokenCode_by_string(char const* str)
+{
+#undef __ENUMERATE_TOKEN_CODE
+#define __ENUMERATE_TOKEN_CODE(code, c, str)                   \
+    {                                                          \
+        auto c_str = static_cast<char const*>(c);              \
+        if ((c_str != nullptr) && (strcmp(str, c_str) == 0)) { \
+            return TokenCode::code;                            \
+        }                                                      \
     }
     ENUMERATE_TOKEN_CODES(__ENUMERATE_TOKEN_CODE)
 #undef __ENUMERATE_TOKEN_CODE

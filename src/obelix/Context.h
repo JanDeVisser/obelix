@@ -74,9 +74,15 @@ public:
         return {};
     }
 
-    void set(std::string const& name, T const& value)
+    bool set(std::string const& name, T const& value)
     {
-        m_names[name] = value;
+        if (m_names.contains(name)) {
+            m_names[name] = value;
+            return true;
+        }
+        if (m_parent)
+            return m_parent->set(name, value);
+        return false;
     }
 
     std::optional<Error> declare(std::string const& name, T const& value)
@@ -85,6 +91,16 @@ public:
             return Error(ErrorCode::VariableAlreadyDeclared, name);
         m_names[name] = value;
         return {};
+    }
+
+    void unset(std::string const& name)
+    {
+        if (m_names.contains(name)) {
+            m_names.erase(name);
+            return;
+        }
+        if (m_parent)
+            return m_parent->unset(name);
     }
 
     [[nodiscard]] ProcessorMap const& map() const { return m_map; }

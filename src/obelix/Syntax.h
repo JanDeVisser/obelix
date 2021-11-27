@@ -606,7 +606,6 @@ public:
         , m_arguments(move(arguments))
     {
     }
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionCall; }
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
@@ -626,6 +625,8 @@ public:
     {
         return std::optional<Obj> {};
     }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionCall; }
     [[nodiscard]] std::shared_ptr<Expression> const& function() const { return m_function; }
     [[nodiscard]] Expressions const& arguments() const { return m_arguments; }
 
@@ -636,32 +637,36 @@ private:
 
 class VariableDeclaration : public Statement {
 public:
-    explicit VariableDeclaration(std::string variable, ObelixType type, std::shared_ptr<Expression> expr = nullptr)
+    explicit VariableDeclaration(std::string variable, ObelixType type, std::shared_ptr<Expression> expr = nullptr, bool constant = false)
         : Statement()
         , m_variable(move(variable), type)
+        , m_const(constant)
         , m_expression(move(expr))
     {
     }
 
-    explicit VariableDeclaration(Symbol identifier, std::shared_ptr<Expression> expr = nullptr)
+    explicit VariableDeclaration(Symbol identifier, std::shared_ptr<Expression> expr = nullptr, bool constant = false)
         : Statement()
         , m_variable(std::move(identifier))
+        , m_const(constant)
         , m_expression(move(expr))
     {
     }
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}var {} : {} = {}", pad(indent), m_variable.identifier(), ObelixType_name(m_variable.type()),
+        return format("{}{} {} : {} = {}", pad(indent), (m_const) ? "const" : "var", m_variable.identifier(), ObelixType_name(m_variable.type()),
             m_expression->to_string(indent));
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::VariableDeclaration; }
     [[nodiscard]] Symbol const& variable() const { return m_variable; }
+    [[nodiscard]] bool is_const() const { return m_const; }
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
 
 private:
     Symbol m_variable;
+    bool m_const { false };
     std::shared_ptr<Expression> m_expression;
 };
 

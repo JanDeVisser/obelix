@@ -72,6 +72,7 @@ Parser::Parser(Config const& config)
         Token(KeywordWhere, "where"),
         Token(KeywordIncEquals, "+="),
         Token(KeywordDecEquals, "-="),
+        Token(KeywordConst, "const"),
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
         TokenCode::EqualsTo,
@@ -138,8 +139,9 @@ std::shared_ptr<Statement> Parser::parse_statement()
         lex();
         return parse_for_statement();
     case KeywordVar:
+    case KeywordConst:
         lex();
-        ret = parse_variable_declaration();
+        ret = parse_variable_declaration(token.code() == KeywordConst);
         break;
     case KeywordFunc:
         lex();
@@ -378,20 +380,24 @@ std::shared_ptr<ForStatement> Parser::parse_for_statement()
     return make_node<ForStatement>(variable.value().value(), expr, stmt);
 }
 
-std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration()
+std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(bool constant)
 {
     auto identifier_maybe = match(TokenCode::Identifier);
     if (!identifier_maybe.has_value()) {
         return nullptr;
     }
     if (current_code() != TokenCode::Equals) {
-        return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value()));
+        if (constant) {
+            add_error(peek(), format("Syntax Error: Expected expression after constant declaration, got '{}' ({})", peek().value(), peek().code_name()));
+            return nullptr;
+        }
+        return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value()), nullptr, constant);
     }
     lex();
     auto expr = parse_expression();
     if (!expr)
         return nullptr;
-    return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value()), expr);
+    return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value()), expr, constant);
 }
 
 std::shared_ptr<Import> Parser::parse_import_statement()
@@ -530,6 +536,29 @@ int Parser::is_prefix_unary_operator(TokenCode code)
     case TokenCode::Minus:
     case TokenCode::Tilde:
     case TokenCode::ExclamationPoint:
+        return true;
+    default:
+        return false;
+    }
+}
+
+TokenCode Parser::operator_for_assignment_operator(TokenCode code)
+{
+    switch (code) {
+        case KeywordIncEquals:
+            return TokenCode::Plus;
+        case KeywordDecEquals:
+            return TokenCode::Minus;
+        default:
+            return TokenCode::Unknown;
+    }
+}
+
+bool Parser::is_assignment_operator(TokenCode code)
+{
+    switch (code) {
+    case KeywordIncEquals:
+    case KeywordDecEquals:
         return true;
     default:
         return false;

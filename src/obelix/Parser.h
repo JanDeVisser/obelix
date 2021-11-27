@@ -75,6 +75,7 @@ public:
     constexpr static TokenCode KeywordWhere = TokenCode::Keyword19;
     constexpr static TokenCode KeywordIncEquals = TokenCode::Keyword20;
     constexpr static TokenCode KeywordDecEquals = TokenCode::Keyword21;
+    constexpr static TokenCode KeywordConst = TokenCode::Keyword22;
 
     Parser(Config const& parser_config, StringBuffer& src);
     Parser(Config const& parser_config, std::string const& file_name);
@@ -92,6 +93,8 @@ public:
     static Associativity associativity(TokenCode);
     static int is_postfix_unary_operator(TokenCode);
     static int is_prefix_unary_operator(TokenCode);
+    static TokenCode operator_for_assignment_operator(TokenCode);
+    static bool is_assignment_operator(TokenCode);
 
 private:
     std::shared_ptr<Statement> parse_statement();
@@ -103,7 +106,7 @@ private:
     std::shared_ptr<SwitchStatement> parse_switch_statement();
     std::shared_ptr<WhileStatement> parse_while_statement();
     std::shared_ptr<ForStatement> parse_for_statement();
-    std::shared_ptr<VariableDeclaration> parse_variable_declaration();
+    std::shared_ptr<VariableDeclaration> parse_variable_declaration(bool);
     std::shared_ptr<Import> parse_import_statement();
     std::shared_ptr<Expression> parse_expression();
 

@@ -2,11 +2,7 @@ enable_testing()
 
 add_executable(
         ParserTest
-        Assignment.cpp
-        DictionaryLiteral.cpp
-        ListLiteral.cpp
-        ListComprehension.cpp
-        DeclareVar.cpp
+        FoldConstants
 )
 
 target_link_libraries(
