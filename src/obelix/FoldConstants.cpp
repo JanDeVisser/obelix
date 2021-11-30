@@ -112,15 +112,6 @@ ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const& tree)
             }
         }
 
-        // +=, -= and friends: rewrite to a straight-up assignment to a binary
-        if (Parser::is_assignment_operator(expr->op().code()) && expr->lhs()->node_type() == SyntaxNodeType::Identifier) {
-            auto id = std::dynamic_pointer_cast<Identifier>(expr->lhs());
-            auto tok = expr->op().value();
-            Token new_op(Parser::operator_for_assignment_operator(expr->op().code()), tok.substr(0, tok.length()-1));
-            auto new_rhs = std::make_shared<BinaryExpression>(std::make_shared<Identifier>(id->name()), new_op, expr->rhs());
-            return std::make_shared<BinaryExpression>(id, Token(TokenCode::Equals, "="), new_rhs);
-        }
-
         return tree;
     };
 

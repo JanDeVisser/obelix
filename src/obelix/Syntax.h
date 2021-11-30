@@ -47,6 +47,8 @@ extern_logging_category(parser);
     S(FunctionCall)                  \
     S(Import)                        \
     S(Pass)                          \
+    S(Label)                         \
+    S(Goto)                          \
     S(FunctionDef)                   \
     S(NativeFunctionDef)             \
     S(ExpressionStatement)           \
@@ -107,11 +109,18 @@ static inline std::string pad(int num)
 
 class SyntaxNode {
 public:
-    SyntaxNode() = default;
+    SyntaxNode();
+    SyntaxNode(SyntaxNode const& ancestor);
     virtual ~SyntaxNode() = default;
+    [[nodiscard]] int node_id() const { return m_node_id; }
 
     [[nodiscard]] virtual std::string to_string(int) const = 0;
     [[nodiscard]] virtual SyntaxNodeType node_type() const = 0;
+    void set_node_id(int node_id) { m_node_id = node_id; }
+
+private:
+    static int s_current_id;
+    int m_node_id;
 };
 
 using Nodes = std::vector<std::shared_ptr<SyntaxNode>>;
@@ -182,6 +191,60 @@ public:
     {
         return format("{};", pad(indent));
     }
+};
+
+class Goto;
+
+class Label : public Statement {
+public:
+    Label()
+        : Statement()
+        , m_label_id(reserve_id())
+    {
+    }
+
+    explicit Label(std::shared_ptr<Goto> const&);
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Label; }
+
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        return format("{}:", m_label_id);
+    }
+
+    [[nodiscard]] int label_id() const { return m_label_id; }
+
+    static int reserve_id() { return m_current_id++; }
+
+private:
+    static int m_current_id;
+    int m_label_id;
+};
+
+class Goto : public Statement {
+public:
+    Goto()
+        : Statement()
+        , m_label_id(Label::reserve_id())
+    {
+    }
+
+    explicit Goto(std::shared_ptr<Label> const& label)
+        : Statement()
+        , m_label_id(label->label_id())
+    {
+    }
+
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        return format("{}goto {}", pad(indent), m_label_id);
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Goto; }
+    [[nodiscard]] int label_id() const { return m_label_id; }
+
+private:
+    int m_label_id;
 };
 
 typedef std::vector<std::shared_ptr<Statement>> Statements;
@@ -474,6 +537,13 @@ public:
     {
     }
 
+    explicit FunctionCall(std::shared_ptr<Expression> function)
+        : Expression()
+        , m_function(move(function))
+        , m_arguments(Expressions())
+    {
+    }
+
     [[nodiscard]] std::string to_string(int indent) const override
     {
         auto ret = format("{}(", m_function->to_string(indent));
@@ -569,7 +639,6 @@ public:
     {
         return format("{}break", pad(indent));
     }
-
 };
 
 class Continue : public Statement {
@@ -584,7 +653,6 @@ public:
     {
         return format("{}continue", pad(indent));
     }
-
 };
 
 class Branch : public Statement {
@@ -666,6 +734,20 @@ public:
         : Branch("if", condition, move(if_stmt))
         , m_elifs(move(elifs))
         , m_else(move(else_stmt))
+    {
+    }
+
+    IfStatement(std::shared_ptr<Expression> const& condition,
+        std::shared_ptr<Statement> if_stmt,
+        std::shared_ptr<ElseStatement> else_stmt)
+        : Branch("if", condition, move(if_stmt))
+        , m_elifs(ElifStatements())
+        , m_else(move(else_stmt))
+    {
+    }
+
+    IfStatement(std::shared_ptr<Expression> const& condition, std::shared_ptr<Statement> if_stmt)
+        : Branch("if", condition, move(if_stmt))
     {
     }
 

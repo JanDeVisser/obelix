@@ -26,6 +26,26 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
+int SyntaxNode::s_current_id = 0;
+int Label::m_current_id = 0;
+
+SyntaxNode::SyntaxNode()
+    : m_node_id(s_current_id++)
+{
+}
+
+SyntaxNode::SyntaxNode(SyntaxNode const& ancestor)
+    : m_node_id(ancestor.node_id())
+{
+}
+
+
+Label::Label(std::shared_ptr<Goto> const& goto_stmt)
+    : Statement()
+    , m_label_id(goto_stmt->label_id())
+{
+}
+
 ErrorOr<std::shared_ptr<SyntaxNode>> to_literal(std::shared_ptr<Expression> const& expr)
 {
     auto obj_maybe = TRY(expr->to_object());

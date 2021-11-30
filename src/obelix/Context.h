@@ -28,6 +28,8 @@
 
 namespace Obelix {
 
+extern_logging_category(parser);
+
 using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>>;
 
 template<typename T>
@@ -67,8 +69,11 @@ public:
 
     [[nodiscard]] std::optional<T> get(std::string const& name)
     {
-        if (m_names.contains(name))
-            return m_names.at(name);
+        if (m_names.contains(name)) {
+            auto value = m_names.at(name);
+            debug(parser, "Context::get({}) = '{}'", name, value);
+            return value;
+        }
         if (m_parent)
             return m_parent->get(name);
         return {};
@@ -77,6 +82,7 @@ public:
     bool set(std::string const& name, T const& value)
     {
         if (m_names.contains(name)) {
+            debug(parser, "Context::set({}, '{}')", name, value);
             m_names[name] = value;
             return true;
         }
@@ -89,6 +95,19 @@ public:
     {
         if (m_names.contains(name))
             return Error(ErrorCode::VariableAlreadyDeclared, name);
+        debug(parser, "Context::declare({}, '{}')", name, value);
+        m_names[name] = value;
+        return {};
+    }
+
+    std::optional<Error> declare_global(std::string const& name, T const& value)
+    {
+        if (m_parent)
+            return m_parent->declare_global(name, value);
+
+        if (m_names.contains(name))
+            return Error(ErrorCode::VariableAlreadyDeclared, name);
+        debug(parser, "Context::declare_global({}, '{}')", name, value);
         m_names[name] = value;
         return {};
     }
@@ -96,6 +115,7 @@ public:
     void unset(std::string const& name)
     {
         if (m_names.contains(name)) {
+            debug(parser, "Context::unset({})", name);
             m_names.erase(name);
             return;
         }
@@ -135,10 +155,10 @@ public:
     }
 
 private:
-    std::unordered_map<std::string, T> m_names;
-    Context<T>* m_parent;
+    std::unordered_map<std::string, T> m_names {};
+    Context<T>* m_parent { nullptr };
     ProcessorMap m_map {};
-    std::vector<Error> m_errors;
+    std::vector<Error> m_errors {};
 };
 
 }

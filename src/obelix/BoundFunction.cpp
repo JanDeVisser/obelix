@@ -56,11 +56,8 @@ Obj BoundFunction::call(std::string const& name, Ptr<Arguments> args)
         case FlowControl::None:
         case FlowControl::Return:
             return execution_result->result();
-        case FlowControl::Continue:
-        case FlowControl::Break:
-            return make_obj<Exception>(ErrorCode::SyntaxError, "Encountered 'break' or 'continue' without enclosing loop");
-        case FlowControl::Skipped:
-            return make_obj<Exception>(ErrorCode::SyntaxError, "Unhandled 'Skipped' execution result");
+        default:
+            return make_obj<Exception>(ErrorCode::SyntaxError, "Function call returning '{}'", FlowControl_name(execution_result->flow_control()));
         }
     }
     default: {

@@ -17,7 +17,7 @@ add_library(
         Parser.cpp
         Syntax.cpp
         Symbol.h
-        Context.h)
+        Context.h Lower.cpp)
 
 target_link_libraries(
         oblparser

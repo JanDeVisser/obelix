@@ -110,6 +110,9 @@ private:
             auto transformed = TRY(bind_types(tree));
             if (config().show_tree)
                 printf("%s\n", transformed->to_string(0).c_str());
+            transformed = TRY(lower(tree));
+            if (config().show_tree)
+                printf("%s\n", transformed->to_string(0).c_str());
             transformed = TRY(fold_constants(transformed));
             if (config().show_tree)
                 printf("%s\n", transformed->to_string(0).c_str());

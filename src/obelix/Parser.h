@@ -96,7 +96,7 @@ public:
     static Associativity associativity(TokenCode);
     static int is_postfix_unary_operator(TokenCode);
     static int is_prefix_unary_operator(TokenCode);
-    static TokenCode operator_for_assignment_operator(TokenCode);
+    static Token operator_for_assignment_operator(TokenCode);
     static bool is_assignment_operator(TokenCode);
 
 private:

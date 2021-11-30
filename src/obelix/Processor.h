@@ -29,6 +29,8 @@
 
 namespace Obelix {
 
+extern_logging_category(parser);
+
 #define TRY_AND_CAST(cls, expr)                                  \
     ({                                                           \
         auto __##var##_maybe = (expr);                           \
@@ -42,6 +44,8 @@ namespace Obelix {
     S(Break)                      \
     S(Continue)                   \
     S(Return)                     \
+    S(Goto)                       \
+    S(Label)                      \
     S(Skipped)
 
 enum class FlowControl {
@@ -117,20 +121,38 @@ inline std::shared_ptr<StatementExecutionResult> skip_block()
     return s_skipped;
 }
 
-template <class NodeClass, typename T, typename... Args>
-ErrorOrNode process_node(Context<T>& ctx, Args&&... args)
+inline std::shared_ptr<StatementExecutionResult> goto_label(int id)
 {
-    auto new_tree = std::make_shared<NodeClass>(std::forward<Args>(args)...);
-    if (!new_tree)
-        return new_tree;
-    return ctx.process(new_tree);
+    return std::make_shared<StatementExecutionResult>(make_obj<Integer>(id), FlowControl::Goto);
 }
 
-template <typename Context>
+inline std::shared_ptr<StatementExecutionResult> mark_label(int id)
+{
+    return std::make_shared<StatementExecutionResult>(make_obj<Integer>(id), FlowControl::Label);
+}
+
+template<typename Context>
+ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
+{
+    ErrorOrNode ret_or_error = ctx.process(tree);
+    if (!ret_or_error.is_error()) {
+        auto ret = ret_or_error.value();
+        if (ret != tree)
+            ret -> set_node_id(tree->node_id());
+        if (auto processor_maybe = ctx.processor_for(SyntaxNodeType::Statement); processor_maybe.has_value()) {
+            auto new_tree = TRY(ctx.add_if_error(processor_maybe.value()(ret, ctx)));
+        }
+        return ret;
+    } else {
+        debug(parser, "process_tree returns error: {}", ret_or_error.error().message());
+        return ret_or_error.error();
+    }
+}
+
+template<typename Context>
 ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
 {
-    auto xform_expressions = [](Expressions const& expressions, Context& ctx) -> ErrorOr<Expressions>
-    {
+    auto xform_expressions = [](Expressions const& expressions, Context& ctx) -> ErrorOr<Expressions> {
         Expressions ret;
         for (auto& expr : expressions) {
             auto new_expr = process_tree(expr, ctx);
@@ -144,15 +166,23 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
     if (!tree)
         return tree;
 
+    std::shared_ptr<SyntaxNode> ret = tree;
+
+    if (auto processor_maybe = ctx.processor_for(SyntaxNodeType::SyntaxNode); processor_maybe.has_value()) {
+        auto new_tree = TRY(ctx.add_if_error(processor_maybe.value()(tree, ctx)));
+    }
+
     switch (tree->node_type()) {
 
     case SyntaxNodeType::Block: {
-        return process_block<Block>(tree, ctx);
+        ret = TRY(process_block<Block>(tree, ctx));
+        break;
     }
 
     case SyntaxNodeType::Module: {
         auto module = std::dynamic_pointer_cast<Module>(tree);
-        return process_block<Module>(tree, ctx, module->name());
+        ret = TRY(process_block<Module>(tree, ctx, module->name()));
+        break;
     }
 
     case SyntaxNodeType::FunctionDef: {
@@ -160,7 +190,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         Context child_ctx(&ctx);
         auto statement = TRY_AND_CAST(Statement, process_tree(func_def->statement(), child_ctx));
         if (statement != func_def->statement())
-            return process_node<FunctionDef>(ctx, func_def->identifier(), func_def->parameters(), statement);
+            ret = std::make_shared<FunctionDef>(func_def->identifier(), func_def->parameters(), statement);
         break;
     }
 
@@ -168,7 +198,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         auto stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);
         auto expr = TRY_AND_CAST(Expression, process_tree(stmt->expression(), ctx));
         if (expr != stmt->expression())
-            return process_node<ExpressionStatement>(ctx, expr);
+            ret = std::make_shared<ExpressionStatement>(expr);
         break;
     }
 
@@ -176,7 +206,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         auto typed_expression = std::dynamic_pointer_cast<TypedExpression>(tree);
         auto expr = TRY_AND_CAST(Expression, process_tree(typed_expression->expression(), ctx));
         if (expr != typed_expression->expression())
-            return process_node<TypedExpression>(ctx, expr, typed_expression->type());
+            ret = std::make_shared<TypedExpression>(expr, typed_expression->type());
         break;
     }
 
@@ -186,7 +216,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         auto lhs = TRY_AND_CAST(Expression, process_tree(expr->lhs(), ctx));
         auto rhs = TRY_AND_CAST(Expression, process_tree(expr->rhs(), ctx));
         if ((lhs != expr->lhs()) || (rhs != expr->rhs()))
-            return process_node<BinaryExpression>(ctx, lhs, expr->op(), rhs);
+            ret = std::make_shared<BinaryExpression>(lhs, expr->op(), rhs);
         break;
     }
 
@@ -194,7 +224,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
         auto operand = TRY_AND_CAST(Expression, process_tree(expr->operand(), ctx));
         if (operand != expr->operand())
-            return process_node<UnaryExpression>(ctx, expr->op(), operand);
+            ret = std::make_shared<UnaryExpression>(expr->op(), operand);
         break;
     }
 
@@ -203,7 +233,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         auto func = TRY_AND_CAST(Expression, process_tree(func_call->function(), ctx));
         auto arguments = TRY(xform_expressions(func_call->arguments(), ctx));
         if ((func != func_call->function()) || (arguments != func_call->arguments()))
-            return process_node<FunctionCall>(ctx, func, arguments);
+            ret = std::make_shared<FunctionCall>(func, arguments);
         break;
     }
 
@@ -211,28 +241,31 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
         auto expr = TRY_AND_CAST(Expression, process_tree(var_decl->expression(), ctx));
         if (expr != var_decl->expression())
-            return process_node<VariableDeclaration>(ctx, var_decl->variable(), expr);
+            ret = std::make_shared<VariableDeclaration>(var_decl->variable(), expr);
         break;
     }
 
     case SyntaxNodeType::Return: {
-        auto ret = std::dynamic_pointer_cast<Return>(tree);
-        auto expr = TRY_AND_CAST(Expression, process_tree(ret->expression(), ctx));
-        if (expr != ret->expression())
-            return process_node<Return>(ctx, expr);
+        auto return_stmt = std::dynamic_pointer_cast<Return>(tree);
+        auto expr = TRY_AND_CAST(Expression, process_tree(return_stmt->expression(), ctx));
+        if (expr != return_stmt->expression())
+            ret = std::make_shared<Return>(expr);
         break;
     }
 
     case SyntaxNodeType::Branch: {
-        return process_branch<Branch>(tree, ctx, false);
+        ret = TRY(process_branch<Branch>(tree, ctx, false));
+        break;
     }
 
     case SyntaxNodeType::ElseStatement: {
-        return process_branch<ElseStatement>(tree, ctx, false);
+        ret = TRY(process_branch<ElseStatement>(tree, ctx, false));
+        break;
     }
 
     case SyntaxNodeType::ElifStatement: {
-        return process_branch<ElifStatement>(tree, ctx, false);
+        ret = TRY(process_branch<ElifStatement>(tree, ctx, false));
+        break;
     }
 
     case SyntaxNodeType::IfStatement: {
@@ -244,7 +277,8 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
                 elifs.push_back(std::dynamic_pointer_cast<ElifStatement>(elif_maybe.value()));
         }
         auto else_stmt = TRY_AND_CAST(ElseStatement, process_tree(if_stmt->else_stmt(), ctx));
-        return process_branch<IfStatement>(tree, ctx, elifs != if_stmt->elifs() || else_stmt != if_stmt->else_stmt(), elifs, else_stmt);
+        ret = TRY(process_branch<IfStatement>(tree, ctx, elifs != if_stmt->elifs() || else_stmt != if_stmt->else_stmt(), elifs, else_stmt));
+        break;
     }
 
     case SyntaxNodeType::WhileStatement: {
@@ -252,7 +286,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         auto condition = TRY_AND_CAST(Expression, process_tree(while_stmt->condition(), ctx));
         auto stmt = TRY_AND_CAST(Statement, process_tree(while_stmt->statement(), ctx));
         if ((condition != while_stmt->condition()) || (stmt != while_stmt->statement()))
-            return process_node<WhileStatement>(ctx, condition, stmt);
+            ret = std::make_shared<WhileStatement>(condition, stmt);
         break;
     }
 
@@ -261,16 +295,18 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         auto range = TRY_AND_CAST(Expression, process_tree(for_stmt->range(), ctx));
         auto stmt = TRY_AND_CAST(Statement, process_tree(for_stmt->statement(), ctx));
         if ((range != for_stmt->range()) || (stmt != for_stmt->statement()))
-            return process_node<ForStatement>(ctx, for_stmt->variable(), range, stmt);
+            ret = std::make_shared<ForStatement>(for_stmt->variable(), range, stmt);
         break;
     }
 
     case SyntaxNodeType::CaseStatement: {
-        return process_branch<CaseStatement>(tree, ctx, false);
+        ret = TRY(process_branch<CaseStatement>(tree, ctx, false));
+        break;
     }
 
     case SyntaxNodeType::DefaultCase: {
-        return process_branch<DefaultCase>(tree, ctx, false);
+        ret = TRY(process_branch<DefaultCase>(tree, ctx, false));
+        break;
     }
 
     case SyntaxNodeType::SwitchStatement: {
@@ -282,17 +318,32 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         }
         auto default_case = TRY_AND_CAST(DefaultCase, process_tree(switch_stmt->default_case(), ctx));
         if (expr != switch_stmt->expression() || cases != switch_stmt->cases() || default_case != switch_stmt->default_case())
-            return process_node<SwitchStatement>(ctx, expr, cases, default_case);
+            ret = std::make_shared<SwitchStatement>(expr, cases, default_case);
         break;
     }
 
     default:
         break;
     }
-    return ctx.process(tree);
+
+    if (ret != tree)
+        ret -> set_node_id(tree->node_id());
+    ErrorOrNode ret_or_error = ctx.process(ret);
+    if (!ret_or_error.is_error()) {
+        ret = ret_or_error.value();
+        if (ret != tree)
+            ret -> set_node_id(tree->node_id());
+        if (auto processor_maybe = ctx.processor_for(SyntaxNodeType::Statement); processor_maybe.has_value()) {
+            auto new_tree = TRY(ctx.add_if_error(processor_maybe.value()(ret, ctx)));
+        }
+        return ret;
+    } else {
+        debug(parser, "process_tree returns error: {}", ret_or_error.error().message());
+        return ret_or_error.error();
+    }
 }
 
-template <class StmtClass, typename Context, typename... Args>
+template<class StmtClass, typename Context, typename... Args>
 ErrorOrNode process_block(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Args&&... args)
 {
     auto block = std::dynamic_pointer_cast<Block>(tree);
@@ -304,25 +355,26 @@ ErrorOrNode process_block(std::shared_ptr<SyntaxNode> const& tree, Context& ctx,
         statements.push_back(new_statement);
     }
     if (statements != block->statements())
-        return process_node<StmtClass>(ctx, statements, std::forward<Args>(args)...);
+        return std::make_shared<StmtClass>(statements, std::forward<Args>(args)...);
     else
         return tree;
 }
 
-template <class BranchClass, typename Context, typename... Args>
+template<class BranchClass, typename Context, typename... Args>
 ErrorOrNode process_branch(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, bool dirty, Args&&... args)
 {
     auto branch = std::dynamic_pointer_cast<Branch>(tree);
     auto condition = TRY_AND_CAST(Expression, process_tree(branch->condition(), ctx));
     auto statement = TRY_AND_CAST(Statement, process_tree(branch->statement(), ctx));
     if (dirty || (condition != branch->condition()) || (statement != branch->statement()))
-        return process_node<BranchClass>(ctx, condition, statement, std::forward<Args>(args)...);
+        return std::make_shared<BranchClass>(condition, statement, std::forward<Args>(args)...);
     else
         return tree;
 }
 
 ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const&);
+ErrorOrNode lower(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode execute(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode execute(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& root);
 

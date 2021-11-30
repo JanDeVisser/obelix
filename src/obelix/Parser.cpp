@@ -542,15 +542,15 @@ int Parser::is_prefix_unary_operator(TokenCode code)
     }
 }
 
-TokenCode Parser::operator_for_assignment_operator(TokenCode code)
+Token Parser::operator_for_assignment_operator(TokenCode code)
 {
     switch (code) {
         case KeywordIncEquals:
-            return TokenCode::Plus;
+            return Token(TokenCode::Plus, "+");
         case KeywordDecEquals:
-            return TokenCode::Minus;
+            return Token(TokenCode::Minus, "-");
         default:
-            return TokenCode::Unknown;
+            return Token(TokenCode::Unknown, "??");
     }
 }
 
@@ -604,7 +604,7 @@ std::shared_ptr<Expression> Parser::parse_postfix_unary_operator(std::shared_ptr
     }
 }
 
-std::shared_ptr<Expression> Parser::parse_primary_expression(bool in_deref_chain)
+std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_chain*/)
 {
     auto t = lex();
     switch (t.code()) {
@@ -632,9 +632,9 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool in_deref_chain
     case KeywordFalse:
         return make_node<Literal>(t);
     case TokenCode::Identifier: {
-        if (in_deref_chain)
-            return make_node<Identifier>(t.value());
-        return make_node<BinaryExpression>(make_node<This>(), Token(TokenCode::Period, "."), make_node<Identifier>(t.value()));
+//        if (in_deref_chain)
+        return make_node<Identifier>(t.value());
+//        return make_node<BinaryExpression>(make_node<This>(), Token(TokenCode::Period, "."), make_node<Identifier>(t.value()));
     }
     default:
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));

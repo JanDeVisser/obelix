@@ -2,7 +2,7 @@ enable_testing()
 
 add_executable(
         ParserTest
-        FoldConstants
+        FoldConstants.cpp
 )
 
 target_link_libraries(

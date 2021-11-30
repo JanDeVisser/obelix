@@ -40,7 +40,7 @@ ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree)
     bind_types_map[SyntaxNodeType::BinaryExpression] = [](std::shared_ptr<SyntaxNode> const& tree, BindContext& ctx) -> ErrorOrNode
     {
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-        if (expr->lhs()->node_type() == SyntaxNodeType::TypedExpression && expr->lhs()->node_type() == SyntaxNodeType::TypedExpression) {
+        if (expr->lhs()->node_type() == SyntaxNodeType::TypedExpression && expr->rhs()->node_type() == SyntaxNodeType::TypedExpression) {
             auto lhs = std::dynamic_pointer_cast<TypedExpression>(expr->lhs());
             auto rhs = std::dynamic_pointer_cast<TypedExpression>(expr->rhs());
             std::vector<ObelixType> arg_types;
