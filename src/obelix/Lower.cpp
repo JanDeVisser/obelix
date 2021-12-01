@@ -51,7 +51,10 @@ ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
         for_block.push_back(
             std::make_shared<VariableDeclaration>(
                 Symbol { "$range", TypeUnknown },
-                for_stmt->range(),
+                std::make_shared<UnaryExpression>(
+                    Token(TokenCode::Colon, ":"),
+                    for_stmt->range()
+                    ),
                 false));
         for_block.push_back(
             std::make_shared<VariableDeclaration>(
@@ -60,7 +63,7 @@ ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
         for_block.push_back(
             std::make_shared<IfStatement>(
                 std::make_shared<UnaryExpression>(
-                    Token(TokenCode::ExclamationPoint),
+                    Token(TokenCode::ExclamationPoint, "!"),
                     std::make_shared<UnaryExpression>(
                         Token(TokenCode::Asterisk, "*"),
                         std::make_shared<Identifier>("$range"))),
@@ -73,7 +76,7 @@ ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
                     std::make_shared<Identifier>(for_stmt->variable()),
                     Token(TokenCode::Equals, "="),
                     std::make_shared<UnaryExpression>(
-                        Token(TokenCode::AtSign),
+                        Token(TokenCode::AtSign, "@"),
                         std::make_shared<Identifier>("$range")))));
         for_block.push_back(for_stmt->statement());
         for_block.push_back(

@@ -74,6 +74,8 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
         return make_obj<Boolean>(compare(args->get(0)) != 0);
     } else if (name == "..") {
         return make_obj<Range>(self(), args[0]);
+    } else if (name == ":") {
+        return iterator();
     } else if (name.ends_with("=")) {
         return apply_and_assign(name.substr(0, name.length() - 1));
     } else if (name == "typename") {

@@ -243,7 +243,7 @@ ErrorOrNode process_UnaryExpression(std::shared_ptr<SyntaxNode> const& tree, Con
     auto operand = OBJ(expr->operand(), ctx);
     auto ret_maybe = operand->evaluate(expr->op().value());
     if (!ret_maybe.has_value())
-        return Error { ErrorCode::OperatorUnresolved, "Could not resolve operator" };
+        return Error { ErrorCode::OperatorUnresolved, expr->op().value(), operand };
     return std::make_shared<Literal>(ret_maybe.value());
 };
 

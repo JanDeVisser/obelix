@@ -38,7 +38,7 @@ public:
 
     std::optional<Ptr<Object>> next() override
     {
-        if (m_current_value <= m_to->to_long().value())
+        if (m_current_value < m_to->to_long().value())
             return make_obj<Integer>(m_current_value++);
         return {};
     }
@@ -48,6 +48,17 @@ public:
         Ptr<RangeIterator> ret = make_typed<RangeIterator>(m_from, m_to);
         ret->m_current_value = m_current_value;
         return to_obj(ret);
+    }
+
+    std::optional<Obj> evaluate(std::string const& op, Ptr<Arguments> args) override
+    {
+        if ((op == "*") || (op == "has_next")) {
+            return make_obj<Boolean>(m_current_value < m_to->to_long().value());
+        }
+        if ((op == "@") || (op == "current")) {
+            return make_obj<Integer>(m_current_value++);
+        }
+        return {};
     }
 
 private:
@@ -77,9 +88,9 @@ std::optional<Ptr<Object>> Range::iterator() const
     return make_obj<RangeIterator>(m_low, m_high);
 }
 
-std::optional<Obj> Range::evaluate(std::string const& name, Ptr<Arguments> args)
+std::optional<Obj> Range::evaluate(std::string const& op, Ptr<Arguments> args)
 {
-    return Object::evaluate(name, args);
+    return Object::evaluate(op, args);
 }
 
 [[nodiscard]] std::optional<Obj> Range::resolve(std::string const& name) const

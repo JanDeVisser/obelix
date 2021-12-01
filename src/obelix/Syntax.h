@@ -516,7 +516,7 @@ public:
             return operand;
         auto ret_maybe = operand->evaluate(m_operator.value());
         if (!ret_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::OperatorUnresolved, "Could not resolve operator");
+            return make_obj<Exception>(ErrorCode::OperatorUnresolved, m_operator.value(), operand);
         return ret_maybe.value();
     }
 
@@ -592,8 +592,10 @@ public:
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}{} {} : {} = {}", pad(indent), (m_const) ? "const" : "var", m_variable.identifier(), ObelixType_name(m_variable.type()),
-            m_expression->to_string(indent));
+        auto ret = format("{}{} {} : {}", pad(indent), (m_const) ? "const" : "var", m_variable.identifier(), ObelixType_name(m_variable.type()));
+        if (m_expression)
+            ret = format("{} = {}", ret, m_expression->to_string(indent));
+        return ret;
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::VariableDeclaration; }
