@@ -1,6 +1,7 @@
 add_library(
         obllexer
         SHARED
+        BasicParser.cpp
         FileBuffer.cpp
         IdentifierScanner.cpp
         KeywordScanner.cpp
