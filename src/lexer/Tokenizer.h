@@ -330,6 +330,7 @@ private:
     S(SciFloat)                            \
     S(SciFloatExpSign)                     \
     S(SciFloatExp)                         \
+    S(HexIntegerStart)                     \
     S(HexInteger)                          \
     S(Done)                                \
     S(Error)
@@ -347,6 +348,7 @@ public:
         bool scientific { true };
         bool sign { true };
         bool hex { true };
+        bool dollar_hex { false };
         bool fractions { true };
     };
     NumberScanner();

@@ -27,7 +27,7 @@ class NumberTest : public LexerTest {
 public:
     void check_number(std::string const& in, Obelix::Obj out, Obelix::TokenCode code)
     {
-        add_scanner<Obelix::NumberScanner>(Obelix::NumberScanner::Config { true, false, true, true });
+        add_scanner<Obelix::NumberScanner>(Obelix::NumberScanner::Config { true, false, true, true, true });
         add_scanner<Obelix::IdentifierScanner>();
         add_scanner<Obelix::WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, false });
         tokenize(Obelix::format("Foo = {}", in));
@@ -60,4 +60,9 @@ TEST_F(NumberTest, number_float)
 TEST_F(NumberTest, number_hex)
 {
     check_number("0xDEADC0DE", Obelix::make_obj<Obelix::Integer>(3735929054), Obelix::TokenCode::HexNumber);
+}
+
+TEST_F(NumberTest, number_dollar_hex)
+{
+    check_number("$DEADC0DE", Obelix::make_obj<Obelix::Integer>(3735929054), Obelix::TokenCode::HexNumber);
 }

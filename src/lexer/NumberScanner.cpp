@@ -31,6 +31,8 @@ TokenCode NumberScanner::process(Tokenizer& tokenizer, int ch)
             m_state = NumberScannerState::Number;
         } else if (m_config.fractions && (ch == '.')) {
             m_state = NumberScannerState::Period;
+        } else if (m_config.dollar_hex && (ch == '$')) {
+            m_state = NumberScannerState::HexIntegerStart;
         } else {
             m_state = NumberScannerState::Done;
             code = TokenCode::Unknown;
@@ -83,7 +85,7 @@ TokenCode NumberScanner::process(Tokenizer& tokenizer, int ch)
              * 0x. This allows us to send both base-10 and hex ints
              * to strtol and friends.
              */
-            m_state = NumberScannerState::HexInteger;
+            m_state = NumberScannerState::HexIntegerStart;
         } else {
             m_state = NumberScannerState::Done;
             code = TokenCode::Integer;
@@ -132,6 +134,14 @@ TokenCode NumberScanner::process(Tokenizer& tokenizer, int ch)
             m_state = NumberScannerState::SciFloatExp;
         } else {
             m_state = NumberScannerState::Error;
+        }
+        break;
+
+    case NumberScannerState::HexIntegerStart:
+        if (!isxdigit(ch)) {
+            m_state = NumberScannerState::Error;
+        } else {
+            m_state = NumberScannerState::HexInteger;
         }
         break;
 

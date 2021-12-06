@@ -93,7 +93,37 @@ namespace Obelix {
     S(Keyword26, nullptr, nullptr)       \
     S(Keyword27, nullptr, nullptr)       \
     S(Keyword28, nullptr, nullptr)       \
-    S(Keyword29, nullptr, nullptr)
+    S(Keyword29, nullptr, nullptr)       \
+    S(Keyword30, nullptr, nullptr)       \
+    S(Keyword31, nullptr, nullptr)       \
+    S(Keyword32, nullptr, nullptr)       \
+    S(Keyword33, nullptr, nullptr)       \
+    S(Keyword34, nullptr, nullptr)       \
+    S(Keyword35, nullptr, nullptr)       \
+    S(Keyword36, nullptr, nullptr)       \
+    S(Keyword37, nullptr, nullptr)       \
+    S(Keyword38, nullptr, nullptr)       \
+    S(Keyword39, nullptr, nullptr)       \
+    S(Keyword40, nullptr, nullptr)       \
+    S(Keyword41, nullptr, nullptr)       \
+    S(Keyword42, nullptr, nullptr)       \
+    S(Keyword43, nullptr, nullptr)       \
+    S(Keyword44, nullptr, nullptr)       \
+    S(Keyword45, nullptr, nullptr)       \
+    S(Keyword46, nullptr, nullptr)       \
+    S(Keyword47, nullptr, nullptr)       \
+    S(Keyword48, nullptr, nullptr)       \
+    S(Keyword49, nullptr, nullptr)       \
+    S(Keyword50, nullptr, nullptr)       \
+    S(Keyword51, nullptr, nullptr)       \
+    S(Keyword52, nullptr, nullptr)       \
+    S(Keyword53, nullptr, nullptr)       \
+    S(Keyword54, nullptr, nullptr)       \
+    S(Keyword55, nullptr, nullptr)       \
+    S(Keyword56, nullptr, nullptr)       \
+    S(Keyword57, nullptr, nullptr)       \
+    S(Keyword58, nullptr, nullptr)       \
+    S(Keyword59, nullptr, nullptr)
 
 enum class TokenCode {
 #undef __ENUMERATE_TOKEN_CODE
