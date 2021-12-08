@@ -343,7 +343,7 @@ public:
                 ret = right_align(sign + ret, m_width);
                 break;
             case FormatSpecifierAlignment::RightButSignLeft:
-                ret = right_align(sign + ret, m_width - 1);
+                ret = right_align(sign + ret, m_width - sign.length());
                 ret = sign + ret;
                 break;
             case FormatSpecifierAlignment::Center:
