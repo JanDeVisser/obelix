@@ -19,25 +19,9 @@ target_link_libraries(
         ${LIBS}
 )
 
-enable_testing()
-
-add_executable(
-        AsmTest
-        AsmTest.cpp
-)
-
-target_link_libraries(
-        AsmTest
-        gtest_main
-        oblparser
-        oblasm
-)
-
-include(GoogleTest)
-gtest_discover_tests(AsmTest)
-
-
 install(TARGETS oblasm
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)
+
+add_subdirectory(test)

@@ -17,27 +17,11 @@
 * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <cstdio>
 #include <gtest/gtest.h>
 
 #include <oblasm/Assembler.h>
 
-#include <oblasm/Assembler.h>
-
 namespace Obelix::Assembler {
-
-TEST(AsmTest, ParseNop)
-{
-    Image image;
-
-    Assembler assembler(image);
-    assembler.parse("nop");
-    EXPECT_EQ(image.current_address(), 1);
-    auto bytes = image.assemble();
-    ASSERT_GE(bytes.size(), 1);
-    EXPECT_EQ(bytes.size(), 1);
-    EXPECT_EQ(bytes[0], 0);
-}
 
 TEST(AsmTest, ParseMovAImm)
 {
@@ -51,6 +35,21 @@ TEST(AsmTest, ParseMovAImm)
     EXPECT_EQ(bytes.size(), 2);
     EXPECT_EQ(bytes[0], 1);
     EXPECT_EQ(bytes[1], 0x55);
+}
+
+TEST(AsmTest, ParseMovAIndImm)
+{
+    Image image;
+
+    Assembler assembler(image);
+    assembler.parse("mov a,*$c0de");
+    EXPECT_EQ(image.current_address(), 3);
+    auto bytes = image.assemble();
+    ASSERT_GE(bytes.size(), 3);
+    EXPECT_EQ(bytes.size(), 3);
+    EXPECT_EQ(bytes[0], 2);
+    EXPECT_EQ(bytes[1], 0xde);
+    EXPECT_EQ(bytes[2], 0xc0);
 }
 
 TEST(AsmTest, ParseMovAB)
