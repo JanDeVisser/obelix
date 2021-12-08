@@ -220,7 +220,6 @@ public:
 private:
     TokenCode m_code { TokenCode::Unknown };
     std::string m_value {};
-    std::string m_token {};
 };
 
 template<>
