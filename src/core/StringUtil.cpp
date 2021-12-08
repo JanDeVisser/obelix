@@ -164,12 +164,41 @@ bool check_zero(std::string const& str)
     return true;
 }
 
+unsigned long parse_binary(char const* str, char const** end)
+{
+    unsigned long ret = 0;
+    if ((strlen(str) > 2) && (str[0] == '0') && (toupper(str[1]) == 'B')) {
+        str += 2;
+    }
+    *end = str;
+    for (*end = str; **end; (*end)++) {
+        if (**end == '0') {
+            ret <<= 1;
+            continue;
+        }
+        if (**end == '1') {
+            ret = (ret<<1) + 1;
+            continue;
+        }
+        break;
+    }
+    return ret;
+}
+
 std::optional<long> to_long(std::string const& str)
 {
-    char* end;
+    char const* end;
     errno = 0;
-    auto ret = strtol(str.c_str(), &end, 0);
-    if ((end != (str.c_str() + str.length())) || (errno != 0))
+    std::string s = str;
+    if ((s.length() > 1) && (s[0] == '$'))
+        s = "0x" + s.substr(1);
+    long ret;
+    if ((s.length() > 2) && (s[0] == '0') && (toupper(s[1]) == 'B')) {
+        ret = (long) parse_binary(s.c_str(), &end);
+    } else {
+        ret = strtol(s.c_str(), const_cast<char**>(&end), 0);
+    }
+    if ((end != (s.c_str() + s.length())) || (errno != 0))
         return {};
     if ((ret == 0) && !check_zero(str))
         return {};
@@ -178,11 +207,17 @@ std::optional<long> to_long(std::string const& str)
 
 std::optional<unsigned long> to_ulong(std::string const& str)
 {
-    char* end;
+    char const* end;
     errno = 0;
-    auto ret = strtoul(str.c_str(), &end, 0);
-    if ((end != (str.c_str() + str.length())) || (errno != 0))
-        return {};
+    std::string s = str;
+    if ((s.length() > 1) && (s[0] == '$'))
+        s = "0x" + s.substr(1);
+    unsigned long ret;
+    if ((s.length() > 2) && (s[0] == '0') && (toupper(s[1]) == 'B')) {
+        ret = parse_binary(s.c_str(), &end);
+    } else {
+        ret = strtoul(s.c_str(), const_cast<char**>(&end), 0);
+    }
     if ((ret == 0) && !check_zero(str))
         return {};
     return ret;
