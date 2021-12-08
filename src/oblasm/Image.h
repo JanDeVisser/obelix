@@ -37,9 +37,9 @@ public:
     explicit Image(uint16_t size = 16*1024);
     void add(std::shared_ptr<Entry> const& directive);
     void add(std::shared_ptr<Label> const& label);
+    void add(std::shared_ptr<Segment> const& segment);
     [[nodiscard]] bool has_label(std::string const&) const;
     [[nodiscard]] std::shared_ptr<Label> const& label(std::string const&) const;
-    void new_segment(uint16_t);
     [[nodiscard]] uint16_t current_address() const { return m_current->current_address(); }
     [[nodiscard]] std::vector<std::string> const& errors() const;
     std::vector<uint8_t> const& assemble();

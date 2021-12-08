@@ -17,6 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <array>
 #include <cstdio>
 
 #include <core/Format.h>
@@ -28,12 +29,25 @@ std::vector<std::string> bytes_to_strings(std::vector<uint8_t> bytes)
 {
     std::vector<std::string> ret;
     int ix = 0;
+    std::array<uint8_t, 8> prev_row = {};
+    std::array<uint8_t, 8> cur_row = {};
     while (ix < bytes.size()) {
-        auto s = format("{04x}  ", bytes);
-        for (auto b = 0; (ix < bytes.size()) && (b < 8); ++b, ++ix) {
-            s += format("{02x} ", bytes[ix]);
+        for (auto b = ix; (b < bytes.size()) && (b < (ix + 8)); ++b) {
+            cur_row[b - ix] = bytes[b];
         }
-        ret.push_back(s);
+        if ((ix == 0) || (cur_row != prev_row)) {
+            auto s = format("{04x}  ", ix);
+            for (auto b = ix; (b < bytes.size()) && (b < (ix + 8)); ++b) {
+                s += format("{02x} ", bytes[b]);
+            }
+            ret.push_back(s);
+        } else {
+            std::string s = "      ...";
+            if (ret.back() != s)
+                ret.push_back(s);
+        }
+        ix += 8;
+        prev_row = cur_row;
     }
     return ret;
 }
@@ -56,6 +70,14 @@ void Image::add(std::shared_ptr<Label> const& label)
     m_labels.insert_or_assign(label->label(), label);
 }
 
+void Image::add(std::shared_ptr<Segment> const& segment)
+{
+    if (m_current->entries().empty())
+        m_segments.pop_back();
+    m_segments.push_back(segment);
+    m_current = m_segments.back();
+}
+
 bool Image::has_label(const std::string& label) const
 {
     return m_labels.contains(label);
@@ -74,15 +96,6 @@ std::optional<uint16_t> Image::label_value(std::string const& label_name) const
         return lbl->value();
     }
     return {};
-}
-
-void Image::new_segment(uint16_t addr)
-{
-    if (m_current->size() == 0)
-        m_segments.pop_back();
-    auto segment = std::make_shared<Segment>(addr);
-    m_segments.push_back(segment);
-    m_current = segment;
 }
 
 void Image::append(std::string const& data)
@@ -162,8 +175,7 @@ void Image::set_address(uint16_t address)
     assert(address >= m_address);
     if (!m_start_address.has_value())
         m_start_address = address;
-    while (m_address < address)
-        append(0);
+    m_image.resize(address);
 }
 
 void Image::align(uint16_t boundary)
@@ -177,8 +189,8 @@ void Image::dump()
 {
     printf("\nBinary dump\n");
     auto strings = bytes_to_strings(m_image);
-    for (auto& s : strings) {
-        printf("%s\n", s.c_str());
+    for (auto& row : strings) {
+        printf("%s\n", row.c_str());
     }
 }
 
@@ -187,6 +199,7 @@ ErrorOr<uint16_t> Image::write(const std::string& file_name)
     FILE *file = fopen(file_name.c_str(), "wb");
     if (!file)
         return Error { ErrorCode::IOError, format("Could not open file {} for writing: {}", file_name, strerror(errno)) };
+    m_image.resize(m_size);
     uint16_t ret = fwrite(m_image.data(), 1, m_image.size(), file);
     fclose(file);
     if (ret != m_image.size())
