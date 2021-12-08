@@ -100,10 +100,27 @@ public:
         return ret;
     }
 
+    void mark()
+    {
+        m_bookmarks.push_back(m_current);
+    }
+
+    void discard_mark()
+    {
+        m_bookmarks.pop_back();
+    }
+
+    void rewind()
+    {
+        m_current = m_bookmarks.back();
+        discard_mark();
+    }
+
 private:
     StringBuffer m_buffer;
     std::vector<Token> m_tokens {};
     size_t m_current { 0 };
+    std::vector<size_t> m_bookmarks {};
     std::unordered_set<TokenCode> m_filtered_codes {};
     std::set<std::shared_ptr<Scanner>> m_scanners {};
 };
