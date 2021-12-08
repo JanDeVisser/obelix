@@ -104,7 +104,8 @@ void Assembler::parse_directive()
     switch(current_code()) {
     case KeywordSegment: {
         lex();
-        auto start_address = match(TokenCode::Integer);
+        // FIXME also match decimal (and binary) numbers
+        auto start_address = match(TokenCode::HexNumber);
         if (!start_address)
             return;
         auto segment = std::make_shared<Segment>(start_address.value().value());
@@ -196,7 +197,7 @@ ErrorOr<Argument> Assembler::parse_argument()
     if (current_code() == TokenCode::Asterisk) {
         lex();
         ret.indirect = true;
-        if (auto reg_maybe = get_register(current_code()); reg_maybe.has_value()) {
+        if (auto reg_maybe = get_register(peek().value()); reg_maybe.has_value()) {
             auto token = lex();
             if (reg_maybe.value().bits != 16) {
                 add_error(token, format("Only 16-bit registers can be used in indirect addressing"));
