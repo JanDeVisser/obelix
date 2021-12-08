@@ -13,8 +13,14 @@ void KeywordScanner::add_keyword(TokenCode keyword_code)
 
 void KeywordScanner::add_keyword(Token const& keyword_token)
 {
-    Keyword keyword = { keyword_token };
-    auto ch = keyword_token.value()[keyword_token.value().length() - 1];
+    Token token;
+    if (m_case_sensitive) {
+        token = keyword_token;
+    } else {
+        token = Token(keyword_token.code(), to_upper(keyword_token.value()));
+    }
+    Keyword keyword = { token };
+    auto ch = token.value()[token.value().length() - 1];
     keyword.is_operator = (!isalnum(ch) && (ch != '_'));
     m_keywords.push_back(keyword);
     std::sort(m_keywords.begin(), m_keywords.end(), [](Keyword const& a, Keyword const& b) {
@@ -29,6 +35,8 @@ void KeywordScanner::match_character(int ch)
         m_match_max = m_keywords.size();
         m_scanned = "";
     }
+    if (!m_case_sensitive)
+        ch = toupper(ch);
     m_scanned += (char)ch;
     auto len = m_scanned.length();
 

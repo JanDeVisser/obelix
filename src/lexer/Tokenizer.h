@@ -443,6 +443,14 @@ public:
     }
 
     template<typename... Args>
+    explicit KeywordScanner(bool case_sensitive, Args&&... args)
+        : Scanner()
+        , m_case_sensitive(case_sensitive)
+    {
+        add_keywords(std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
     explicit KeywordScanner(Args&&... args)
         : Scanner()
     {
@@ -476,6 +484,8 @@ private:
     size_t m_match_max { 0 };
     Keyword m_keyword {};
     std::string m_scanned {};
+
+    bool m_case_sensitive { true };
 };
 
 #if 0
