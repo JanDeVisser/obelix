@@ -1,0 +1,256 @@
+/*
+ * oblasm.cpp - Copyright (c) 2021 Jan de Visser <jan@finiandarcy.com>
+ *
+ * This file is part of obelix2.
+ *
+ * obelix2 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * obelix2 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with obelix2.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <optional>
+#include <string>
+
+#include <lexer/Token.h>
+#include <oblasm/Assembler.h>
+#include <oblasm/Directive.h>
+#include <oblasm/Image.h>
+#include <oblasm/Instruction.h>
+#include <oblasm/Opcode.h>
+
+namespace Obelix::Assembler {
+
+Assembler::Assembler(Image& image)
+    : BasicParser()
+    , m_image(image)
+{
+    lexer().add_scanner<QStringScanner>();
+    lexer().add_scanner<IdentifierScanner>();
+    lexer().add_scanner<NumberScanner>(Obelix::NumberScanner::Config { false, false, true, true, false });
+    lexer().add_scanner<WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
+    lexer().add_scanner<CommentScanner>(
+        CommentScanner::CommentMarker { false, false, "/*", "*/" },
+        CommentScanner::CommentMarker { false, true, "//", "" },
+        CommentScanner::CommentMarker { false, true, ";", "" });
+    lexer().filter_codes(TokenCode::Whitespace, TokenCode::Comment);
+    lexer().add_scanner<KeywordScanner>(false,
+#undef __Mnemonic
+#define __Mnemonic(value, arg_template, num) \
+    Token(Keyword##value, #value),
+            __ENUM_Mnemonic(__Mnemonic)
+#undef __Mnemonic
+        Token(KeywordA, "a"),
+        Token(KeywordB, "b"),
+        Token(KeywordC, "c"),
+        Token(KeywordD, "d"),
+        Token(KeywordAB, "ab"),
+        Token(KeywordCD, "cd"),
+        Token(KeywordSi, "si"),
+        Token(KeywordDi, "di"),
+        Token(KeywordSP, "sp"),
+        Token(KeywordSegment, "segment"),
+        Token(KeywordDefine, "define"),
+        Token(KeywordInclude, "include"),
+        Token(KeywordAlign, "align"));
+}
+
+void Assembler::parse(std::string const& text)
+{
+    lexer().assign(text);
+    do {
+        auto token = peek();
+        switch (token.code()) {
+        case TokenCode::EndOfFile:
+            lex();
+            return;
+        case TokenCode::Period:
+            lex();
+            parse_directive();
+            break;
+        case TokenCode::Identifier: {
+            auto const& identifier = token.value();
+            lex();
+            parse_label(identifier);
+        }
+        default:
+            parse_mnemonic();
+            break;
+        }
+    } while (true);
+}
+
+void Assembler::parse_label(std::string const& label)
+{
+    if (expect(TokenCode::Colon))
+        return;
+    auto lbl = std::make_shared<Label>(label, m_image.current_address());
+    m_image.add(lbl);
+}
+
+void Assembler::parse_directive()
+{
+    switch(current_code()) {
+    case KeywordSegment: {
+        lex();
+        auto start_address = match(TokenCode::Integer);
+        if (!start_address)
+            return;
+        auto segment = std::make_shared<Segment>(start_address.value().value());
+        m_image.add(segment);
+        break;
+    }
+    case KeywordInclude: {
+        lex();
+        auto include_file = match(TokenCode::DoubleQuotedString);
+        auto assembler = Assembler(m_image);
+        assembler.parse(FileBuffer(include_file->value()).buffer().str());
+        break;
+    }
+    case KeywordAlign: {
+        lex();
+        auto boundary = match(TokenCode::Integer);
+        if (!boundary)
+           return;
+        auto align = std::make_shared<Align>(boundary.value().value());
+        m_image.add(align);
+        break;
+    }
+    case KeywordDefine: {
+        lex();
+        auto label = match(TokenCode::Identifier);
+        if (!label)
+            return;
+        auto value = match(TokenCode::Integer);
+        if (!value)
+            return;
+        auto define = std::make_shared<Define>(label.value().value(), value.value().value()); // lol
+        m_image.add(std::dynamic_pointer_cast<Label>(define)); // ugly
+        break;
+    }
+    default:
+        add_error(peek(), format("Unexpected directive '{}'", peek().value()));
+        break;
+    }
+}
+
+void Assembler::parse_mnemonic()
+{
+    auto m_maybe = get_mnemonic(current_code());
+    if (!m_maybe.has_value()) {
+        add_error(peek(), "Expected mnemonic");
+        return;
+    }
+    auto m = m_maybe.value();
+    auto token = lex();
+
+    switch (m) {
+    case Mnemonic::DB:
+    case Mnemonic::DW:
+    case Mnemonic::BUFFER:
+    case Mnemonic::DATA:
+    case Mnemonic::ASCIZ:
+    case Mnemonic::STR:
+        break;
+    default: {
+        Argument dest, source;
+        auto dest_maybe = parse_argument();
+        if (dest_maybe.is_error()) {
+            return;
+        }
+        dest = dest_maybe.value();
+        if (dest.valid() && (current_code() == TokenCode::Comma)) {
+            lex();
+            auto source_maybe = parse_argument();
+            if (!source_maybe.has_value()) {
+                add_error(peek(), "Could not parse source argument");
+                return;
+            }
+            source = source_maybe.value();
+        }
+        auto instr = std::make_shared<Instruction>(m, dest, source);
+        if (!instr->valid()) {
+            add_error(token, format("Invalid instruction '{}'", instr->to_string()));
+            return;
+        }
+        m_image.add(instr);
+        break;
+    }
+    }
+}
+
+ErrorOr<Argument> Assembler::parse_argument()
+{
+    Argument ret;
+    if (current_code() == TokenCode::Asterisk) {
+        lex();
+        ret.indirect = true;
+        if (auto reg_maybe = get_register(current_code()); reg_maybe.has_value()) {
+            auto token = lex();
+            if (reg_maybe.value().bits != 16) {
+                add_error(token, format("Only 16-bit registers can be used in indirect addressing"));
+                return Error { ErrorCode::SyntaxError, "Only 16-bit registers can be used in indirect addressing" };
+            }
+            ret.type = Argument::ArgumentType::Register;
+            ret.reg = reg_maybe.value().reg;
+            return ret;
+        }
+        if ((current_code() == TokenCode::Integer) || (current_code() == TokenCode::HexNumber) || (current_code() == TokenCode::BinaryNumber)) {
+            auto token = lex();
+            ret.type = Argument::ArgumentType::Constant;
+            ret.constant = to_long_unconditional(token.value());
+            return ret;
+        }
+        if (current_code() == TokenCode::Percent) {
+            lex();
+            auto token_maybe = match(TokenCode::Identifier);
+            if (!token_maybe.has_value()) {
+                return Error { ErrorCode::SyntaxError, "Expected label name after '%'" };
+            }
+            ret.type = Argument::ArgumentType::Label;
+            ret.label = token_maybe.value().value();
+            return ret;
+        }
+    }
+    if (current_code() == TokenCode::Pound) {
+        lex();
+        ret.indirect = false;
+        if ((current_code() == TokenCode::Integer) || (current_code() == TokenCode::HexNumber) || (current_code() == TokenCode::BinaryNumber)) {
+            auto token = lex();
+            ret.type = Argument::ArgumentType::Constant;
+            ret.constant = to_long_unconditional(token.value());
+            return ret;
+        }
+        if (current_code() == TokenCode::Percent) {
+            lex();
+            auto token_maybe = match(TokenCode::Identifier);
+            if (!token_maybe.has_value()) {
+                return Error { ErrorCode::SyntaxError, "Expected label name after '%'" };
+            }
+            ret.type = Argument::ArgumentType::Label;
+            ret.label = token_maybe.value().value();
+            return ret;
+        }
+    }
+    if (auto reg_maybe = get_register(peek().value()); reg_maybe.has_value()) {
+        auto reg = reg_maybe.value();
+        auto token = lex();
+        ret.type = Argument::ArgumentType::Register;
+        ret.reg = reg.reg;
+        return ret;
+    }
+    return ret;
+}
+
+}
