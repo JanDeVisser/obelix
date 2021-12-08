@@ -135,11 +135,23 @@ struct Converter<int> : public Converter<long> {
 };
 
 template<>
+struct Converter<unsigned int> : public Converter<unsigned long> {
+};
+
+template<>
 struct Converter<short> : public Converter<long> {
 };
 
 template<>
+struct Converter<unsigned short> : public Converter<unsigned long> {
+};
+
+template<>
 struct Converter<char> : public Converter<long> {
+};
+
+template<>
+struct Converter<unsigned char> : public Converter<unsigned long> {
 };
 
 template<>
