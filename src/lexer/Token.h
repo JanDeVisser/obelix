@@ -58,6 +58,7 @@ namespace Obelix {
                                          \
     S(Integer, nullptr, nullptr)         \
     S(HexNumber, nullptr, nullptr)       \
+    S(BinaryNumber, nullptr, nullptr)    \
     S(Float, nullptr, nullptr)           \
     S(Identifier, nullptr, nullptr)      \
     S(DoubleQuotedString, "\"", nullptr) \
