@@ -3,9 +3,39 @@
 //
 
 #include <cassert>
+#include <cctype>
+
 #include <core/StringUtil.h>
 
 namespace Obelix {
+
+int stricmp(const char* a, const char* b)
+{
+    unsigned char ca, cb;
+    do {
+        ca = tolower(toupper((unsigned char)*a++));
+        cb = tolower(toupper((unsigned char)*b++));
+    } while (ca == cb && ca != '\0');
+    return ca - cb;
+}
+
+std::string to_upper(std::string const& input)
+{
+    std::string ret;
+    for (auto& ch : input) {
+        ret += (char) toupper((int) ch);
+    }
+    return ret;
+}
+
+std::string to_lower(std::string const& input)
+{
+    std::string ret;
+    for (auto& ch : input) {
+        ret += (char) tolower((int) ch);
+    }
+    return ret;
+}
 
 std::string c_escape(std::string const& s)
 {
