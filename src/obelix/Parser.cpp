@@ -25,31 +25,31 @@ namespace Obelix {
 logging_category(parser);
 
 Parser::Parser(Config const& config, std::string const& file_name)
-    : Parser(config, FileBuffer(file_name).buffer())
+    : BasicParser(file_name)
+    , m_config(config)
 {
-    m_file_name = file_name;
 }
 
 Parser::Parser(Config const& config, StringBuffer& src)
-    : Parser(config)
+    : BasicParser(src)
+    , m_config(config)
 {
-    m_lexer.assign(src.str());
 }
 
 Parser::Parser(Config const& config)
-    : m_config(config)
-    , m_lexer()
+    : BasicParser()
+    , m_config(config)
 {
-    m_lexer.add_scanner<QStringScanner>();
-    m_lexer.add_scanner<IdentifierScanner>();
-    m_lexer.add_scanner<NumberScanner>(Obelix::NumberScanner::Config { true, false, true, true });
-    m_lexer.add_scanner<WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
-    m_lexer.add_scanner<CommentScanner>(
+    lexer().add_scanner<QStringScanner>();
+    lexer().add_scanner<IdentifierScanner>();
+    lexer().add_scanner<NumberScanner>(Obelix::NumberScanner::Config { true, false, true, false, true });
+    lexer().add_scanner<WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
+    lexer().add_scanner<CommentScanner>(
         CommentScanner::CommentMarker { false, false, "/*", "*/" },
         CommentScanner::CommentMarker { false, true, "//", "" },
         CommentScanner::CommentMarker { true, true, "#", "" });
-    m_lexer.filter_codes(TokenCode::Whitespace, TokenCode::Comment);
-    m_lexer.add_scanner<KeywordScanner>(
+    lexer().filter_codes(TokenCode::Whitespace, TokenCode::Comment);
+    lexer().add_scanner<KeywordScanner>(
         Token(KeywordVar, "var"),
         Token(KeywordFunc, "func"),
         Token(KeywordIf, "if"),
@@ -93,18 +93,18 @@ std::shared_ptr<T> make_node(Args&&... args)
 
 std::shared_ptr<Module> Parser::parse(std::string const& text)
 {
-    m_lexer.assign(text);
+    lexer().assign(text);
     return parse();
 }
 
 std::shared_ptr<Module> Parser::parse()
 {
     Statements statements;
-    m_errors.clear();
+    clear_errors();
     parse_statements(statements);
     if (has_errors())
         return nullptr;
-    auto ret = make_node<Module>(statements, m_file_name);
+    auto ret = make_node<Module>(statements, file_name());
     return ret;
 }
 
@@ -640,68 +640,6 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
         return nullptr;
     }
-}
-
-Token const& Parser::peek()
-{
-    static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");
-    auto& ret = m_lexer.peek();
-    debug(parser, "Parser::peek(): {}", ret.to_string());
-    if (ret.code() != TokenCode::Error)
-        return ret;
-    add_error(ret, ret.value());
-    return s_eof;
-}
-
-TokenCode Parser::current_code()
-{
-    return peek().code();
-}
-
-Token const& Parser::lex()
-{
-    static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");
-    auto& ret = m_lexer.lex();
-    debug(parser, "Parser::lex(): {}", ret.to_string());
-    if (ret.code() != TokenCode::Error)
-        return ret;
-    add_error(ret, ret.value());
-    return s_eof;
-}
-
-std::optional<Token const> Parser::match(TokenCode code, char const* where)
-{
-    debug(parser, "Parser::match({})", TokenCode_name(code));
-    auto token = peek();
-    if (token.code() != code) {
-        std::string msg = (where)
-            ? format("Syntax Error: expected '{}' {}, got '{}'", TokenCode_name(code), where, token.value())
-            : format("Syntax Error: expected '{}', got '{}'", TokenCode_name(code), token.value());
-        add_error(token, msg);
-        return {};
-    }
-    return lex();
-}
-
-bool Parser::expect(TokenCode code, char const* where)
-{
-    debug(parser, "Parser::expect({})", TokenCode_name(code));
-    auto token = peek();
-    if (token.code() != code) {
-        std::string msg = (where)
-            ? format("Syntax Error: expected '{}' {}, got '{}' ({})", TokenCode_to_string(code), where, token.value(), token.code_name())
-            : format("Syntax Error: expected '{}', got '{}' ({})", TokenCode_to_string(code), token.value(), token.code_name());
-        add_error(token, msg);
-        return false;
-    }
-    lex();
-    return true;
-}
-
-void Parser::add_error(Token const& token, std::string const& message)
-{
-    debug(parser, "Parser::add_error({}, '{}')", token.to_string(), message);
-    m_errors.emplace_back(message, m_file_name, token);
 }
 
 }

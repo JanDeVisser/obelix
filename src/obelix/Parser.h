@@ -21,6 +21,7 @@
 
 #include <lexer/FileBuffer.h>
 #include <lexer/Lexer.h>
+#include <lexer/BasicParser.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
@@ -29,27 +30,7 @@ struct Config {
     bool show_tree { false };
 };
 
-struct ParseError {
-    ParseError(std::string const& msg, std::string fname, Token tok)
-        : message(msg)
-        , filename(move(fname))
-        , token(std::move(tok))
-    {
-        if (msg.find("{}") != std::string::npos)
-            message = format(msg, token.value());
-    }
-
-    [[nodiscard]] std::string to_string() const
-    {
-        return format("{}:{} {}", filename, token.location.to_string(), message);
-    }
-
-    std::string message;
-    std::string filename;
-    Token token;
-};
-
-class Parser {
+class Parser : public BasicParser {
 public:
     enum class Associativity {
         LeftToRight,
@@ -86,10 +67,6 @@ public:
 
     std::shared_ptr<Module> parse();
     std::shared_ptr<Module> parse(std::string const&);
-    [[nodiscard]] std::vector<ParseError> const& errors() const { return m_errors; };
-    [[nodiscard]] bool has_errors() const { return !m_errors.empty(); }
-    Token const& peek();
-    TokenCode current_code();
 
     static int binary_precedence(TokenCode);
     static int unary_precedence(TokenCode);
@@ -117,15 +94,7 @@ private:
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression);
     std::shared_ptr<Expression> parse_primary_expression(bool);
 
-    Token const& lex();
-    std::optional<Token const> match(TokenCode, char const* = nullptr);
-    bool expect(TokenCode, char const* = nullptr);
-    void add_error(Token const&, std::string const&);
-
     Config m_config;
-    std::string m_file_name { "<literal>" };
-    Lexer m_lexer;
-    std::vector<ParseError> m_errors {};
 };
 
 }

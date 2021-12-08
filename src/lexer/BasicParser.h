@@ -62,6 +62,9 @@ public:
     void clear_errors() { m_errors.clear(); }
     [[nodiscard]] Lexer& lexer() { return m_lexer; }
     [[nodiscard]] std::string const& file_name() const { return m_file_name; }
+    void mark() { m_lexer.mark(); }
+    void discard_mark() { m_lexer.discard_mark(); }
+    void rewind() { m_lexer.rewind(); }
 
 private:
     std::string m_file_name { "<literal>" };
