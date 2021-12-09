@@ -93,7 +93,7 @@ void Assembler::parse(std::string const& text)
 
 void Assembler::parse_label(std::string const& label)
 {
-    if (expect(TokenCode::Colon))
+    if (!expect(TokenCode::Colon))
         return;
     auto lbl = std::make_shared<Label>(label, m_image.current_address());
     m_image.add(lbl);
@@ -174,11 +174,14 @@ void Assembler::parse_mnemonic()
         if (dest.valid() && (current_code() == TokenCode::Comma)) {
             lex();
             auto source_maybe = parse_argument();
-            if (!source_maybe.has_value()) {
-                add_error(peek(), "Could not parse source argument");
+            if (source_maybe.is_error()) {
                 return;
             }
             source = source_maybe.value();
+            if (!source.valid()) {
+                add_error(peek(), "Could not parse source argument");
+                return;
+            }
         }
         auto instr = std::make_shared<Instruction>(m, dest, source);
         if (!instr->valid()) {

@@ -71,7 +71,10 @@ void Instruction::append_to(Image& image)
         auto constant_maybe = m_target.constant_value(image);
         if (!constant_maybe.has_value())
             constant_maybe = m_source.constant_value(image);
-        assert(constant_maybe.has_value());
+       if (!constant_maybe.has_value()) {
+           add_error(format("Could not resolve immediate value for {}", to_string()));
+           return;
+       }
         auto constant = constant_maybe.value();
         image.append((uint8_t) (constant & 0x00FF));
         if (m_definition.bytes > 2) {

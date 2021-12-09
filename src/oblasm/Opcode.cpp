@@ -29,7 +29,7 @@ RegisterDefinition registers[] = {
     { Register::c, "c", 8, 46 },
     { Register::d, "d", 8, 47 },
     { Register::ab, "ab", 16, 48 },
-    { Register::cd, "ab", 16, 49 },
+    { Register::cd, "cd", 16, 49 },
     { Register::si, "si", 16, 50 },
     { Register::di, "di", 16, 51 },
     { Register::sp, "sp", 16, 52 },
@@ -103,13 +103,13 @@ OpcodeDefinition opcode_definitions[] = {
     /* mov d,b       */ { Mnemonic::MOV, false, false, Register::d, false, false, Register::b, 19, 1 },
     /* mov d,c       */ { Mnemonic::MOV, false, false, Register::d, false, false, Register::c, 20, 1 },
     /* mov sp,#$xxxx */ { Mnemonic::MOV, false, false, Register::sp, true, false, Register::None, 21, 3 },
-    /* mov sp,#$xxxx */ { Mnemonic::MOV, false, false, Register::sp, false, true, Register::None, 22, 3 },
+    /* mov sp,*$xxxx */ { Mnemonic::MOV, false, false, Register::sp, true, true, Register::None, 22, 3 },
     /* mov sp,si     */ { Mnemonic::MOV, false, false, Register::sp, false, false, Register::si, 23, 1 },
     /* mov si,#$xxxx */ { Mnemonic::MOV, false, false, Register::si, true, false, Register::None, 24, 3 },
-    /* mov si,#$xxxx */ { Mnemonic::MOV, false, false, Register::si, false, true, Register::None, 25, 3 },
+    /* mov si,*$xxxx */ { Mnemonic::MOV, false, false, Register::si, true, true, Register::None, 25, 3 },
     /* mov si,cd     */ { Mnemonic::MOV, false, false, Register::si, false, false, Register::cd, 26, 1 },
     /* mov di,#$xxxx */ { Mnemonic::MOV, false, false, Register::di, true, false, Register::None, 27, 3 },
-    /* mov di,#$xxxx */ { Mnemonic::MOV, false, false, Register::di, false, true, Register::None, 28, 3 },
+    /* mov di,*$xxxx */ { Mnemonic::MOV, false, false, Register::di, true, true, Register::None, 28, 3 },
     /* mov di,cd     */ { Mnemonic::MOV, false, false, Register::di, false, false, Register::cd, 29, 1 },
     /* mov a,*si     */ { Mnemonic::MOV, false, false, Register::a, false, true, Register::si, 30, 1 },
     /* mov b,*si     */ { Mnemonic::MOV, false, false, Register::b, false, true, Register::si, 31, 1 },
@@ -121,23 +121,23 @@ OpcodeDefinition opcode_definitions[] = {
     /* mov d,*di     */ { Mnemonic::MOV, false, false, Register::d, false, true, Register::di, 37, 1 },
     /* mov *di,*si   */ { Mnemonic::MOV, false, true, Register::di, false, true, Register::si, 38, 1 },
     /* jmp #$xxxx    */ { Mnemonic::JMP, true, false, Register::None, false, false, Register::None, 39, 3 },
-    /* jnz #$xxxx    */ { Mnemonic::JNZ, true, false, Register::None, false, false, Register::None, 39, 3 },
-    /* jc #$xxxx     */ { Mnemonic::JC, true, false, Register::None, false, false, Register::None, 39, 3 },
-    /* jv #$xxxx     */ { Mnemonic::JV, true, false, Register::None, false, false, Register::None, 39, 3 },
-    /* call #$xxxx   */ { Mnemonic::CALL, true, false, Register::None, false, false, Register::None, 39, 3 },
+    /* jnz #$xxxx    */ { Mnemonic::JNZ, true, false, Register::None, false, false, Register::None, 40, 3 },
+    /* jc #$xxxx     */ { Mnemonic::JC, true, false, Register::None, false, false, Register::None, 41, 3 },
+    /* jv #$xxxx     */ { Mnemonic::JV, true, false, Register::None, false, false, Register::None, 42, 3 },
+    /* call #$xxxx   */ { Mnemonic::CALL, true, false, Register::None, false, false, Register::None, 43, 3 },
     /* ret           */ { Mnemonic::RET, false, false, Register::None, false, false, Register::None, 44, 1 },
-    /* push a        */ { Mnemonic::PUSH, false, false, Register::a, false, false, Register::None, 45},
-    /* push b        */ { Mnemonic::PUSH, false, false, Register::b, false, false, Register::None, 46},
-    /* push c        */ { Mnemonic::PUSH, false, false, Register::c, false, false, Register::None, 47},
-    /* push d        */ { Mnemonic::PUSH, false, false, Register::d, false, false, Register::None, 48},
-    /* push si       */ { Mnemonic::PUSH, false, false, Register::si, false, false, Register::None, 49},
-    /* push di       */ { Mnemonic::PUSH, false, false, Register::di, false, false, Register::None, 50},
-    /* pop a         */ { Mnemonic::POP, false, false, Register::a, false, false, Register::None, 51},
-    /* pop b         */ { Mnemonic::POP, false, false, Register::b, false, false, Register::None, 52},
-    /* pop c         */ { Mnemonic::POP, false, false, Register::c, false, false, Register::None, 53},
-    /* pop d         */ { Mnemonic::POP, false, false, Register::d, false, false, Register::None, 54},
-    /* pop si        */ { Mnemonic::POP, false, false, Register::si, false, false, Register::None, 55},
-    /* pop di        */ { Mnemonic::POP, false, false, Register::di, false, false, Register::None, 56},
+    /* push a        */ { Mnemonic::PUSH, false, false, Register::a, false, false, Register::None, 45, 1 },
+    /* push b        */ { Mnemonic::PUSH, false, false, Register::b, false, false, Register::None, 46, 1 },
+    /* push c        */ { Mnemonic::PUSH, false, false, Register::c, false, false, Register::None, 47, 1 },
+    /* push d        */ { Mnemonic::PUSH, false, false, Register::d, false, false, Register::None, 48, 1 },
+    /* push si       */ { Mnemonic::PUSH, false, false, Register::si, false, false, Register::None, 49, 1 },
+    /* push di       */ { Mnemonic::PUSH, false, false, Register::di, false, false, Register::None, 50, 1 },
+    /* pop a         */ { Mnemonic::POP, false, false, Register::a, false, false, Register::None, 51, 1 },
+    /* pop b         */ { Mnemonic::POP, false, false, Register::b, false, false, Register::None, 52, 1 },
+    /* pop c         */ { Mnemonic::POP, false, false, Register::c, false, false, Register::None, 53, 1 },
+    /* pop d         */ { Mnemonic::POP, false, false, Register::d, false, false, Register::None, 54, 1 },
+    /* pop si        */ { Mnemonic::POP, false, false, Register::si, false, false, Register::None, 55, 1 },
+    /* pop di        */ { Mnemonic::POP, false, false, Register::di, false, false, Register::None, 56, 1 },
     /* mov *$xxxx,a  */ { Mnemonic::MOV, true, true, Register::None, false, false, Register::a, 57, 3},
     /* mov *di,a     */ { Mnemonic::MOV, false, true, Register::di, false, false, Register::a, 58, 1},
     /* mov *$xxxx,b  */ { Mnemonic::MOV, true, true, Register::None, false, false, Register::b, 59, 3},
@@ -257,11 +257,23 @@ OpcodeDefinition opcode_definitions[] = {
     /* jz *$xxxx     */ { Mnemonic::JZ, true, true, Register::None, false, false, Register::None, 173, 3 },
     /* mov *cd,a     */ { Mnemonic::MOV, false, true, Register::cd, false, false, Register::a, 174, 1 },
     /* mov *cd,b     */ { Mnemonic::MOV, false, true, Register::cd, false, false, Register::b, 175, 1 },
+    /* cmp a,#$xx    */ { Mnemonic::CMP, false, false, Register::a, true, false, Register::None, 176, 2 },
+    /* cmp b,#$xx    */ { Mnemonic::CMP, false, false, Register::b, true, false, Register::None, 177, 2 },
+    /* cmp c,#$xx    */ { Mnemonic::CMP, false, false, Register::c, true, false, Register::None, 178, 2 },
+    /* cmp d,#$xx    */ { Mnemonic::CMP, false, false, Register::d, true, false, Register::None, 179, 2 },
+    /* and a,#$xx    */ { Mnemonic::AND, false, false, Register::a, true, false, Register::None, 180, 2 },
+    /* and b,#$xx    */ { Mnemonic::AND, false, false, Register::b, true, false, Register::None, 181, 2 },
+    /* and c,#$xx    */ { Mnemonic::AND, false, false, Register::c, true, false, Register::None, 182, 2 },
+    /* and d,#$xx    */ { Mnemonic::AND, false, false, Register::d, true, false, Register::None, 183, 2 },
+    /* or a,#$xx     */ { Mnemonic::OR, false, false, Register::a, true, false, Register::None, 184, 2 },
+    /* or b,#$xx     */ { Mnemonic::OR, false, false, Register::b, true, false, Register::None, 185, 2 },
+    /* or c,#$xx     */ { Mnemonic::OR, false, false, Register::c, true, false, Register::None, 186, 2 },
+    /* or d,#$xx     */ { Mnemonic::OR, false, false, Register::d, true, false, Register::None, 187, 2 },
     /* mov a,*cd     */ { Mnemonic::MOV, false, false, Register::a, false, true, Register::cd, 188, 1 },
     /* mov b,*cd     */ { Mnemonic::MOV, false, false, Register::b, false, true, Register::cd, 189, 1 },
 
     /* rti           */ { Mnemonic::RTI, false, false, Register::None, false, false, Register::None, 253, 1 },
-    /* nmi #$xxxx    */ { Mnemonic::NMI, true, false, Register::None, false, false, Register::None, 254, 2 },
+    /* nmi #$xxxx    */ { Mnemonic::NMI, true, false, Register::None, false, false, Register::None, 254, 3 },
     /* hlt           */ { Mnemonic::HLT, false, false, Register::None, false, false, Register::None, 255, 1 },
 
                         { Mnemonic::None, false, false, Register::None, false, false, Register::None, 0, 0 },
@@ -271,8 +283,10 @@ OpcodeDefinition const& get_opcode_definition(Mnemonic m, Argument const& target
 {
     bool target_immediate = target.valid() && (target.type != Argument::ArgumentType::Register);
     bool target_indirect = target.valid() && target.indirect;
+    Register target_reg = (target.valid()) ? target.reg : Register::None;
     bool source_immediate = source.valid() && (source.type != Argument::ArgumentType::Register);
     bool source_indirect = source.valid() && source.indirect;
+    Register source_reg = (source.valid()) ? source.reg : Register::None;
 
     auto ix = 0;
     for (; opcode_definitions[ix].mnemonic != Mnemonic::None; ++ix) {
@@ -280,7 +294,10 @@ OpcodeDefinition const& get_opcode_definition(Mnemonic m, Argument const& target
         if ((opcode_definitions[ix].source_immediate != source_immediate) ||
             (opcode_definitions[ix].source_indirect != source_indirect) ||
             (opcode_definitions[ix].target_immediate != target_immediate) ||
-                    (opcode_definitions[ix].target_indirect != target_indirect))
+            (opcode_definitions[ix].target_indirect != target_indirect))
+            continue;
+        if ((target_reg != opcode_definitions[ix].target) ||
+            (source_reg != opcode_definitions[ix].source))
             continue;
         return opcode_definitions[ix];
     }

@@ -37,8 +37,25 @@ TEST(AsmTest, ParseSegment)
     ASSERT_GE(bytes.size(), 0x0101);
     EXPECT_EQ(bytes.size(), 0x0101);
     EXPECT_EQ(bytes[0x0100], 3);
-    image.list(true);
-    image.dump();
+}
+
+TEST(AsmTest, ParseTwoSegments)
+{
+    Image image;
+
+    Assembler assembler(image);
+    assembler.parse(
+        ".segment $0100 "
+        "mov a,b "
+        ".segment $0200 "
+        "mov a,c "
+    );
+    EXPECT_EQ(image.current_address(), 0x0201);
+    auto bytes = image.assemble();
+    ASSERT_GE(bytes.size(), 0x0201);
+    EXPECT_EQ(bytes.size(), 0x0201);
+    EXPECT_EQ(bytes[0x0100], 3);
+    EXPECT_EQ(bytes[0x0200], 4);
 }
 
 }

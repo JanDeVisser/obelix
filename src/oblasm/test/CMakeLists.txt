@@ -3,9 +3,8 @@ enable_testing()
 add_executable(
         AsmTest
         Directive.cpp
-        Misc.cpp
-        Mov.cpp
-)
+        General.cpp
+        Instructions.cpp)
 
 target_link_libraries(
         AsmTest

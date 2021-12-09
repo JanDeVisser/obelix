@@ -144,6 +144,8 @@ std::vector<uint8_t> const& Image::assemble()
         segment->append_to(*this);
         m_errors.insert(m_errors.end(), segment->errors().cbegin(), segment->errors().cend());
     }
+    if (!errors().empty())
+        m_image.clear();
     return m_image;
 }
 
