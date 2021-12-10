@@ -20,7 +20,7 @@
 #pragma once
 
 #include <core/Logging.h>
-#include <oblasm/Opcode.h>
+#include <oblasm/AssemblyTypes.h>
 
 namespace Obelix::Assembler {
 

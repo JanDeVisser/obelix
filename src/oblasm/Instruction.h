@@ -23,10 +23,10 @@
 
 #include <core/Format.h>
 #include <core/StringUtil.h>
+#include <oblasm/AssemblyTypes.h>
 #include <oblasm/Buffer.h>
 #include <oblasm/Bytes.h>
 #include <oblasm/Directive.h>
-#include <oblasm/Opcode.h>
 #include <oblasm/String.h>
 
 namespace Obelix::Assembler {

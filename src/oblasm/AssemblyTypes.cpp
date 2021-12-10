@@ -18,8 +18,8 @@
  */
 
 #include <core/StringUtil.h>
+#include <oblasm/AssemblyTypes.h>
 #include <oblasm/Image.h>
-#include <oblasm/Opcode.h>
 
 namespace Obelix::Assembler {
 
@@ -79,7 +79,7 @@ bool is_register(TokenCode code)
     return get_register(code).has_value();
 }
 
-OpcodeDefinition opcode_definitions[] = {
+OpcodeDefinition opcode_definitions[256] = {
     // mnemonic, src imm, src ind, src reg, target imm, target ind, target reg, opcode, bytes
     /* nop           */ { Mnemonic::NOP, false, false, Register::None, false, false, Register::None, 0, 1 },
     /* mov a,#$xx    */ { Mnemonic::MOV, false, false, Register::a, true, false, Register::None, 1, 2 },

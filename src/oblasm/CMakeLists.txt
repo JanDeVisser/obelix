@@ -2,12 +2,12 @@ add_library(
         oblasm
         SHARED
         Assembler.cpp
+        AssemblyTypes.cpp
         Buffer.cpp
         Bytes.cpp
         Directive.cpp
         Image.cpp
         Instruction.cpp
-        Opcode.cpp
         Segment.cpp
         String.cpp
 )

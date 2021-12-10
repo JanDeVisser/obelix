@@ -25,10 +25,10 @@
 
 #include <lexer/Token.h>
 #include <oblasm/Assembler.h>
+#include <oblasm/AssemblyTypes.h>
 #include <oblasm/Directive.h>
 #include <oblasm/Image.h>
 #include <oblasm/Instruction.h>
-#include <oblasm/Opcode.h>
 
 namespace Obelix::Assembler {
 

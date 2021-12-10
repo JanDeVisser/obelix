@@ -25,12 +25,12 @@
 
 namespace Obelix::Assembler {
 
-CHECK_INSTR(UpperCase, "NOP",  1,  0)
-CHECK_INSTR(MixedCase, "Nop",  1,  0)
-CHECK_INSTR(MovAImmBA, "mov a,#$55 mov b,a", 3, 1, 0x55, 8)
-CHECK_INSTR(OtherHexFormat, "mov a,#0x55", 2, 1, 0x55)
-CHECK_INSTR(ImmInd, "mov *$c0de, a", 3, 57, 0xde, 0xc0)
-CHECK_INSTR(OtherHexFormatImmInd, "mov *0xc0de, a", 3, 57, 0xde, 0xc0)
+CHECK_INSTR(UpperCase, "NOP",  1,  NOP)
+CHECK_INSTR(MixedCase, "Nop",  1,  NOP)
+CHECK_INSTR(MovAImmBA, "mov a,#$55 mov b,a", 3, MOV_A_IMM, 0x55, MOV_B_A)
+CHECK_INSTR(OtherHexFormat, "mov a,#0x55", 2, MOV_A_IMM, 0x55)
+CHECK_INSTR(ImmInd, "mov *$c0de, a", 3, MOV_IMM_IND_A, 0xde, 0xc0)
+CHECK_INSTR(OtherHexFormatImmInd, "mov *0xc0de, a", 3, MOV_IMM_IND_A, 0xde, 0xc0)
 CHECK_ERROR(InvalidMov, "mov a, cd")
 CHECK_ERROR(NopWithOneArgument, "nop a")
 CHECK_ERROR(NopWithTwoArguments, "nop a,b")
@@ -39,7 +39,8 @@ CHECK_ERROR(NopWithImmIndArgument, "nop *$c0de")
 CHECK_ERROR(InvalidMovIntoImmediate, "mov #55, a")
 CHECK_ERROR(NoSourceRegisterAfterComma, "mov a, \n mov b,c")
 
-CHECK_INSTR(Label, "nop lbl: nop jmp #%lbl", 5, 0, 0, 39, 0x01, 0x00)
+CHECK_INSTR(Label, "nop lbl: nop jmp #%lbl", 5, NOP, NOP, JMP, 0x01, 0x00)
+CHECK_INSTR(JumpAhead, "nop jmp #%lbl nop lbl: nop", 6, NOP, JMP, 0x05, 0x00, NOP, NOP )
 CHECK_ASSEMBLY_ERROR(LabelMissing, "nop lbl: nop jmp #%notthere", 5)
 
 }
