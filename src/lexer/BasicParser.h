@@ -3,18 +3,18 @@
  *
  * This file is part of obelix2.
  *
- * obelix2 is free software: you can redistribute it and/or modify
+ * obelix is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * obelix2 is distributed in the hope that it will be useful,
+ * obelix is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with obelix2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #pragma once
@@ -60,6 +60,7 @@ public:
     bool expect(TokenCode, char const* = nullptr);
     void add_error(Token const&, std::string const&);
     void clear_errors() { m_errors.clear(); }
+    [[nodiscard]] bool was_successful() const { return m_errors.empty(); }
     [[nodiscard]] Lexer& lexer() { return m_lexer; }
     [[nodiscard]] std::string const& file_name() const { return m_file_name; }
     void mark() { m_lexer.mark(); }
