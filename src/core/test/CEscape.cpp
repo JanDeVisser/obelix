@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 //
 // Created by Jan de Visser on 2021-09-22.
 //
@@ -5,7 +11,8 @@
 #include <core/StringUtil.h>
 #include <gtest/gtest.h>
 
-TEST(StringUtil, c_escape_DQuote) {
+TEST(StringUtil, c_escape_DQuote)
+{
     std::string input = "ab\"cd\"ef";
     EXPECT_EQ("ab\\\"cd\\\"ef", Obelix::c_escape(input));
 }

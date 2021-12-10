@@ -1,6 +1,10 @@
 #!/usr/bin/python
+
+#  Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
 #
-# test/run_tests.py - Copyright (c) 2015 Jan de Visser <jan@finiandarcy.com>
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
+#
 #
 # This file is part of Obelix.
 #
@@ -19,10 +23,10 @@
 #
 
 
-import sys
+import json
 import os
 import subprocess
-import json
+import sys
 
 
 def check_stream(script, which, stream):

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 //
 // Created by Jan de Visser on 2021-09-20.
 //
@@ -7,8 +13,8 @@
 #include <map>
 #include <optional>
 #include <string>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 namespace Obelix {
 

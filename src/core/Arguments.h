@@ -1,13 +1,19 @@
+/*
+ * Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 //
 // Created by Jan de Visser on 2021-09-20.
 //
 
 #pragma once
 
-#include <unordered_map>
 #include <core/Dictionary.h>
 #include <core/List.h>
 #include <core/Object.h>
+#include <unordered_map>
 
 namespace Obelix {
 

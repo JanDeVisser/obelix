@@ -1,7 +1,8 @@
+#  Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
 #
-# ${file} - Copyright (c) ${year} Jan de Visser <jan@finiandarcy.com>  
-#  
-# This file is part of Obelix.
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
+#
 #
 # Obelix is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
