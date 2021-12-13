@@ -13,15 +13,18 @@ namespace Obelix::Assembler {
 class Bytes : public Entry {
 public:
     enum class Width {
-        Byte,  // 8 bits
-        Word,  // 16 bits
-        DWord  // 32 bits
+        Byte = 0x01,  // 8 bits
+        Word = 0x02,  // 16 bits
+        DWord = 0x04, // 32 bits
+        LWord = 0x08, // 64 bits
     };
 
     Bytes(Mnemonic, std::string const&);
     void append(uint8_t);
     void append(uint16_t);
     void append(uint32_t);
+    void append(uint64_t);
+    void append(unsigned long lword) { return append((uint64_t)lword); }
     void append(std::string const& data);
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] uint16_t size() const override { return m_bytes.size(); }
@@ -30,6 +33,8 @@ public:
 private:
     Width m_width { Width::Byte };
     std::vector<uint8_t> m_bytes {};
+
+    void push_back(auto data_value);
 };
 
 }

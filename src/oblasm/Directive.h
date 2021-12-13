@@ -24,6 +24,7 @@ public:
 
     void add_error(std::string const& error) { m_errors.push_back(error); }
     [[nodiscard]] std::vector<std::string> const& errors() const { return m_errors; }
+    [[nodiscard]] bool is_valid() const { return m_errors.empty(); }
 
     [[nodiscard]] virtual std::string_view prefix() const;
     [[nodiscard]] virtual std::string to_string() const;

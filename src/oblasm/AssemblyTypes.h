@@ -81,10 +81,11 @@ constexpr inline char const* InstructionTemplate_name(InstructionTemplate instr_
     S(NMI, Jump, 34)       \
     S(DB, Bytes, 35)       \
     S(DW, Bytes, 36)       \
-    S(DATA, Bytes, 37)     \
-    S(BUFFER, Buffer, 38)  \
-    S(ASCIZ, String, 39)   \
-    S(STR, String, 40)
+    S(DDW, Bytes, 37)      \
+    S(DLW, Bytes, 38)      \
+    S(BUFFER, Buffer, 39)  \
+    S(ASCIZ, String, 40)   \
+    S(STR, String, 41)
 
 enum class Mnemonic {
     None = -1,
@@ -186,10 +187,11 @@ constexpr static TokenCode KeywordJZ = TokenCode::Keyword33;
 constexpr static TokenCode KeywordNMI = TokenCode::Keyword34;
 constexpr static TokenCode KeywordDB = TokenCode::Keyword35;
 constexpr static TokenCode KeywordDW = TokenCode::Keyword36;
-constexpr static TokenCode KeywordDATA = TokenCode::Keyword37;
-constexpr static TokenCode KeywordBUFFER = TokenCode::Keyword38;
-constexpr static TokenCode KeywordASCIZ = TokenCode::Keyword39;
-constexpr static TokenCode KeywordSTR = TokenCode::Keyword40;
+constexpr static TokenCode KeywordDDW = TokenCode::Keyword37;
+constexpr static TokenCode KeywordDLW = TokenCode::Keyword38;
+constexpr static TokenCode KeywordBUFFER = TokenCode::Keyword39;
+constexpr static TokenCode KeywordASCIZ = TokenCode::Keyword40;
+constexpr static TokenCode KeywordSTR = TokenCode::Keyword41;
 
 // Directives:
 constexpr static TokenCode KeywordSegment = TokenCode::Keyword40;

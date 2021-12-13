@@ -26,7 +26,6 @@ public:
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] uint16_t size() const override;
     void append_to(Image& image) override;
-    [[nodiscard]] bool valid() const;
     [[nodiscard]] Argument const& target() const { return m_target; }
     [[nodiscard]] Argument const& source() const { return m_source; }
     [[nodiscard]] OpcodeDefinition const& definition() const { return m_definition; }

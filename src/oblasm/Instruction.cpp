@@ -11,28 +11,37 @@
 
 namespace Obelix::Assembler {
 
-Instruction::Instruction(Mnemonic mnemonic)
-    : Entry(mnemonic, "")
+Instruction::Instruction(Mnemonic m)
+    : Entry(m, "")
 {
     if (m_definition.mnemonic == Mnemonic::None)
-        m_definition = get_opcode_definition(mnemonic, m_target, m_source);
+        m_definition = get_opcode_definition(m, m_target, m_source);
+    if (m_definition.mnemonic != mnemonic()) {
+        add_error("Invalid opcode");
+    }
 }
 
-Instruction::Instruction(Mnemonic mnemonic, Argument target)
-    : Entry(mnemonic, "")
+Instruction::Instruction(Mnemonic m, Argument target)
+    : Entry(m, "")
     , m_target(std::move(target))
 {
     if (m_definition.mnemonic == Mnemonic::None)
-        m_definition = get_opcode_definition(mnemonic, m_target, m_source);
+        m_definition = get_opcode_definition(m, m_target, m_source);
+    if (m_definition.mnemonic != mnemonic()) {
+        add_error("Invalid opcode");
+    }
 }
 
-Instruction::Instruction(Mnemonic mnemonic, Argument target, Argument source)
-    : Entry(mnemonic, "")
+Instruction::Instruction(Mnemonic m, Argument target, Argument source)
+    : Entry(m, "")
     , m_target(std::move(target))
     , m_source(std::move(source))
 {
     if (m_definition.mnemonic == Mnemonic::None)
-        m_definition = get_opcode_definition(mnemonic, m_target, m_source);
+        m_definition = get_opcode_definition(m, m_target, m_source);
+    if (m_definition.mnemonic != mnemonic()) {
+        add_error("Invalid opcode");
+    }
 }
 
 std::string Instruction::to_string() const
@@ -68,11 +77,6 @@ void Instruction::append_to(Image& image)
             image.append((uint8_t) (constant >> 8));
         }
     }
-}
-
-bool Instruction::valid() const
-{
-    return m_definition.mnemonic == mnemonic();
 }
 
 }

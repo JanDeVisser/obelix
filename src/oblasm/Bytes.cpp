@@ -20,45 +20,75 @@ Bytes::Bytes(Mnemonic m, const std::string& args)
     case Mnemonic::DW:
         m_width = Width::Word;
         break;
-    case Mnemonic::DATA:
-        m_width = Width::Byte;
+    case Mnemonic::DDW:
+        m_width = Width::DWord;
+        break;
+    case Mnemonic::DLW:
+        m_width = Width::LWord;
         break;
     default:
         assert(false);
         break;
     }
-
+    append(args);
 }
+
+template<typename T>
+T shr(T t)
+{
+    return t >> 8;
+}
+
+template<>
+uint8_t shr(uint8_t t)
+{
+    return 0;
+}
+
+void Bytes::push_back(auto data_value)
+{
+    auto num_bytes_to_push = std::min((int)m_width, (int)sizeof(data_value));
+    auto ix = 0;
+    while (ix++ < num_bytes_to_push) {
+        m_bytes.push_back((uint8_t)(data_value & 0xFF));
+        data_value = shr(data_value);
+    }
+    while (ix++ < (int)m_width) {
+        m_bytes.push_back(0);
+    }
+};
 
 void Bytes::append(uint8_t byte)
 {
-    m_bytes.push_back(byte);
-    if (m_width != Width::Byte)
-        m_bytes.push_back(0);
+    push_back(byte);
 }
 
 void Bytes::append(uint16_t word)
 {
-    m_bytes.push_back(word & 0xFF);
-    if (m_width != Width::Byte)
-        m_bytes.push_back(word >> 8);
+    push_back(word);
 }
 
 void Bytes::append(uint32_t dword)
 {
-    append((uint16_t) (dword & 0x0000FFFF));
-    if (m_width == Width::DWord)
-        append((uint16_t) (dword >> 16));
+    push_back(dword);
+}
+
+void Bytes::append(uint64_t lword)
+{
+    push_back(lword);
 }
 
 void Bytes::append(const std::string& data)
 {
-    auto ulong_maybe = to_ulong(data);
-    if (!ulong_maybe.has_value()) {
-        add_error(format("Could not parse {} value '{}'", data, Mnemonic_name(mnemonic())));
-        return;
+    auto parts = split(data, ' ');
+    for (auto& part : parts) {
+        auto ulong_maybe = to_ulong(part);
+        if (!ulong_maybe.has_value()) {
+            add_error(format("Could not parse {} value '{}'", data, Mnemonic_name(mnemonic())));
+            return;
+        }
+        append(ulong_maybe.value());
     }
-    append((uint32_t) ulong_maybe.value());
 }
 
 std::string Bytes::to_string() const

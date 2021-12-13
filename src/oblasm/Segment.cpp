@@ -33,12 +33,18 @@ std::string Segment::to_string() const
 
 void Segment::add(std::shared_ptr<Entry> const& entry)
 {
-    m_entries.push_back(entry);
-    m_size += entry->size();
+    if (entry->is_valid()) {
+        m_entries.push_back(entry);
+        m_size += entry->size();
+        return;
+    }
+    add_errors(entry->errors());
 }
 
 void Segment::append_to(Image& image)
 {
+    if (!errors().empty())
+        return;
     auto addr = start_address();
     image.set_address(addr);
     for (auto& entry : entries()) {

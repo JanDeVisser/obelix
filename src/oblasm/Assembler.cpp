@@ -26,7 +26,7 @@ Assembler::Assembler(Image& image)
     lexer().add_scanner<QStringScanner>();
     lexer().add_scanner<IdentifierScanner>();
     lexer().add_scanner<NumberScanner>(Obelix::NumberScanner::Config { false, false, true, true, false });
-    lexer().add_scanner<WhitespaceScanner>(Obelix::WhitespaceScanner::Config { true, true, false });
+    lexer().add_scanner<WhitespaceScanner>(Obelix::WhitespaceScanner::Config { false, true, false });
     lexer().add_scanner<CommentScanner>(
         CommentScanner::CommentMarker { false, false, "/*", "*/" },
         CommentScanner::CommentMarker { false, true, "//", "" },
@@ -62,6 +62,9 @@ void Assembler::parse(std::string const& text)
         case TokenCode::EndOfFile:
             lex();
             return;
+        case TokenCode::NewLine:
+            lex();
+            break;
         case TokenCode::Period:
             lex();
             parse_directive();
@@ -143,13 +146,29 @@ void Assembler::parse_mnemonic()
     auto m = m_maybe.value();
     auto token = lex();
 
+    std::shared_ptr<Entry> entry = nullptr;
     switch (m) {
     case Mnemonic::DB:
     case Mnemonic::DW:
+    case Mnemonic::DDW:
+    case Mnemonic::DLW: {
+        std::vector<std::string> data;
+        while ((current_code() != TokenCode::NewLine) && (current_code() != TokenCode::EndOfFile)) {
+            auto data_token = lex();
+            data.push_back(data_token.value());
+        }
+        entry = std::make_shared<Bytes>(m, join(data, ' '));
+        break;
+    }
     case Mnemonic::BUFFER:
-    case Mnemonic::DATA:
+        if (auto buffer_size = match(TokenCode::HexNumber); buffer_size.has_value())
+            entry = std::make_shared<Buffer>(m, buffer_size.value().value());
+        break;
     case Mnemonic::ASCIZ:
     case Mnemonic::STR:
+        if (current_code() == TokenCode::DoubleQuotedString || current_code() == TokenCode::SingleQuotedString) {
+            entry = std::make_shared<String>(m, lex().value());
+        }
         break;
     default: {
         Argument dest, source;
@@ -170,14 +189,13 @@ void Assembler::parse_mnemonic()
                 return;
             }
         }
-        auto instr = std::make_shared<Instruction>(m, dest, source);
-        if (!instr->valid()) {
-            add_error(token, format("Invalid instruction '{}'", instr->to_string()));
-            return;
-        }
-        m_image.add(instr);
+        entry = std::make_shared<Instruction>(m, dest, source);
         break;
     }
+    }
+    m_image.add(entry);
+    for (auto& e : entry->errors()) {
+        add_error(token, e);
     }
 }
 
