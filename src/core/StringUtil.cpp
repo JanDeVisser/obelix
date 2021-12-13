@@ -225,12 +225,14 @@ std::optional<long> to_long(std::string const& str)
 {
     char const* end;
     errno = 0;
+    if (str.empty())
+        return {};
     std::string s = str;
     if ((s.length() > 1) && (s[0] == '$'))
         s = "0x" + s.substr(1);
     long ret;
     if ((s.length() > 2) && (s[0] == '0') && (toupper(s[1]) == 'B')) {
-        ret = (long) parse_binary(s.c_str(), &end);
+        ret = (long)parse_binary(s.c_str(), &end);
     } else {
         ret = strtol(s.c_str(), const_cast<char**>(&end), 0);
     }
