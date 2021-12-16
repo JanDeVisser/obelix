@@ -56,8 +56,8 @@ public:
     enum OperatorFlags {
         None = 0x00,
         IOIn = 0x01,
-        Inc = 0x01,
-        Dec = 0x02,
+        INC = 0x01,
+        DEC = 0x02,
         Flags = 0x04,
         MSB = 0x08,
         Halt = 0x08,

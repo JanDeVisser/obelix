@@ -19,20 +19,20 @@
 namespace Obelix::JV80::CPU {
 
 static MicroCode mcNMI = {
-    .opcode = 0xFE, .instruction = "__nmi", .addressingMode = Immediate, .steps = {
-                                                                             // Push the processor flags:
-                                                                             { .action = MicroCode::XADDR, .src = SP, .target = MEMADDR, .opflags = SystemBus::Inc },
-                                                                             { .action = MicroCode::XADDR, .src = RHS, .target = MEM, .opflags = SystemBus::None },
+    .opcode = 0xFE, .instruction = "__nmi", .addressingMode = AddressingMode::Implied, .steps = {
+                                                                                           // Push the processor flags:
+                                                                                           { .action = MicroCode::XADDR, .src = SP, .target = MEMADDR, .opflags = SystemBus::INC },
+                                                                                           { .action = MicroCode::XADDR, .src = RHS, .target = MEM, .opflags = SystemBus::None },
 
-                                                                             // Push the return address:
-                                                                             { .action = MicroCode::XADDR, .src = SP, .target = MEMADDR, .opflags = SystemBus::Inc },
-                                                                             { .action = MicroCode::XDATA, .src = PC, .target = MEM, .opflags = SystemBus::None },
-                                                                             { .action = MicroCode::XADDR, .src = SP, .target = MEMADDR, .opflags = SystemBus::Inc },
-                                                                             { .action = MicroCode::XDATA, .src = PC, .target = MEM, .opflags = SystemBus::MSB },
+                                                                                           // Push the return address:
+                                                                                           { .action = MicroCode::XADDR, .src = SP, .target = MEMADDR, .opflags = SystemBus::INC },
+                                                                                           { .action = MicroCode::XDATA, .src = PC, .target = MEM, .opflags = SystemBus::None },
+                                                                                           { .action = MicroCode::XADDR, .src = SP, .target = MEMADDR, .opflags = SystemBus::INC },
+                                                                                           { .action = MicroCode::XDATA, .src = PC, .target = MEM, .opflags = SystemBus::MSB },
 
-                                                                             // Load PC with the subroutine address:
-                                                                             { .action = MicroCode::XADDR, .src = CONTROLLER, .target = PC, .opflags = SystemBus::Done },
-                                                                         }
+                                                                                           // Load PC with the subroutine address:
+                                                                                           { .action = MicroCode::XADDR, .src = CONTROLLER, .target = PC, .opflags = SystemBus::Done },
+                                                                                       }
 };
 
 MicroCodeRunner::MicroCodeRunner(Controller* controller, SystemBus* bus, const MicroCode* microCode)
@@ -73,47 +73,47 @@ void MicroCodeRunner::evaluateCondition()
 void MicroCodeRunner::fetchSteps()
 {
     switch (mc->addressingMode & AddressingMode::Mask) {
-    case DirectByte:
-        fetchDirectByte();
+    case AddressingMode::ImmediateByte:
+        fetchImmediateByte();
         break;
-    case DirectWord:
-        fetchDirectWord();
+    case AddressingMode::ImmediateWord:
+        fetchImmediateWord();
         break;
-    case AbsoluteByte:
-        fetchAbsoluteByte();
+    case AddressingMode::IndirectByte:
+        fetchIndirectByte();
         break;
-    case AbsoluteWord:
-        fetchAbsoluteWord();
+    case AddressingMode::IndirectWord:
+        fetchIndirectWord();
         break;
     default:
         break;
     }
 }
 
-void MicroCodeRunner::fetchDirectByte()
+void MicroCodeRunner::fetchImmediateByte()
 {
     byte target = (valid) ? mc->target : TX;
-    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::Inc });
+    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     steps.push_back({ MicroCode::Action::XDATA, MEM, target, SystemBus::None });
 }
 
-void MicroCodeRunner::fetchDirectWord()
+void MicroCodeRunner::fetchImmediateWord()
 {
     byte target = (valid && (mc->target != PC) && (mc->target != MEMADDR)) ? mc->target : TX;
-    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::Inc });
+    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     steps.push_back({ MicroCode::Action::XDATA, MEM, target, SystemBus::None });
-    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::Inc });
+    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     steps.push_back({ MicroCode::Action::XDATA, MEM, target, SystemBus::MSB });
     if (valid && mc->target != target) {
         steps.push_back({ MicroCode::Action::XADDR, TX, mc->target, SystemBus::None });
     }
 }
 
-void MicroCodeRunner::fetchAbsoluteByte()
+void MicroCodeRunner::fetchIndirectByte()
 {
-    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::Inc });
+    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     steps.push_back({ MicroCode::Action::XDATA, MEM, TX, SystemBus::None });
-    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::Inc });
+    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     steps.push_back({ MicroCode::Action::XDATA, MEM, TX, SystemBus::MSB });
     if (valid) {
         steps.push_back({ MicroCode::Action::XADDR, TX, MEMADDR, SystemBus::None });
@@ -121,14 +121,14 @@ void MicroCodeRunner::fetchAbsoluteByte()
     }
 }
 
-void MicroCodeRunner::fetchAbsoluteWord()
+void MicroCodeRunner::fetchIndirectWord()
 {
-    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::Inc });
+    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     steps.push_back({ MicroCode::Action::XDATA, MEM, TX, SystemBus::None });
-    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::Inc });
+    steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     steps.push_back({ MicroCode::Action::XDATA, MEM, TX, SystemBus::MSB });
     if (valid) {
-        steps.push_back({ MicroCode::Action::XADDR, TX, MEMADDR, SystemBus::Inc });
+        steps.push_back({ MicroCode::Action::XADDR, TX, MEMADDR, SystemBus::INC });
         steps.push_back({ MicroCode::Action::XDATA, MEM, mc->target, SystemBus::None });
         steps.push_back({ MicroCode::Action::XADDR, TX, MEMADDR, SystemBus::None });
         steps.push_back({ MicroCode::Action::XDATA, MEM, mc->target, SystemBus::MSB });
@@ -138,20 +138,20 @@ void MicroCodeRunner::fetchAbsoluteWord()
 bool MicroCodeRunner::grabConstant(int step)
 {
     switch (mc->addressingMode & Mask) {
-    case Immediate:
+    case AddressingMode::Implied:
         m_complete = (step == 1);
         break;
-    case DirectByte:
-    case ImmediateByte:
+    case AddressingMode::ImmediateByte:
+    case AddressingMode::ImpliedByte:
         if (step == 2) {
             m_constant = m_bus->readDataBus();
             m_complete = true;
         }
         break;
-    case ImmediateWord:
-    case DirectWord:
-    case AbsoluteByte:
-    case AbsoluteWord:
+    case AddressingMode::ImmediateWord:
+    case AddressingMode::ImpliedWord:
+    case AddressingMode::IndirectWord:
+    case AddressingMode::IndirectByte:
         if (step == 2) {
             m_constant = m_bus->readDataBus();
         } else if (step == 4) {
@@ -309,7 +309,7 @@ SystemError Controller::onLowClock()
 
     switch (step) {
     case 0:
-        bus()->xaddr(PC, MEMADDR, SystemBus::Inc);
+        bus()->xaddr(PC, MEMADDR, SystemBus::INC);
         break;
     case 1:
         bus()->xdata(MEM, IR, SystemBus::None);
@@ -356,7 +356,7 @@ SystemError Controller::onLowClock()
                 step = 1;
             } else {
                 step = 0;
-                bus()->xaddr(PC, MEMADDR, SystemBus::Inc);
+                bus()->xaddr(PC, MEMADDR, SystemBus::INC);
             }
         }
         break;

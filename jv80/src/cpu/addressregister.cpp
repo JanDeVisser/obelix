@@ -46,7 +46,7 @@ SystemError AddressRegister::onRisingClockEdge()
                 bus()->putOnDataBus(value & 0x00FF);
             }
         } else if (!bus()->xaddr()) {
-            if (bus()->opflags() & SystemBus::Dec) {
+            if (bus()->opflags() & SystemBus::DEC) {
                 setValue(value - (word)1);
                 if (bus()->opflags() & SystemBus::Flags) {
                     bus()->clearFlags();
@@ -57,7 +57,7 @@ SystemError AddressRegister::onRisingClockEdge()
             }
             bus()->putOnDataBus(value & 0x00FF);
             bus()->putOnAddrBus((value & 0xFF00) >> 8);
-            if (bus()->opflags() & SystemBus::Inc) {
+            if (bus()->opflags() & SystemBus::INC) {
                 setValue(value + (word)1);
                 if (bus()->opflags() & SystemBus::Flags) {
                     bus()->clearFlags();

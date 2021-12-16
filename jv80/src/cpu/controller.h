@@ -14,13 +14,13 @@
 namespace Obelix::JV80::CPU {
 
 enum AddressingMode {
-    Immediate = 0x00,
-    ImmediateByte = 0x01,
-    ImmediateWord = 0x02,
-    DirectByte = 0x11,
-    DirectWord = 0x21,
-    AbsoluteByte = 0x12,
-    AbsoluteWord = 0x22,
+    Implied = 0x00,
+    ImpliedByte = 0x01,
+    ImpliedWord = 0x02,
+    ImmediateByte = 0x11,
+    ImmediateWord = 0x21,
+    IndirectByte = 0x12,
+    IndirectWord = 0x22,
     Mask = 0x7F,
     Done = 0x80
 };
@@ -106,10 +106,10 @@ private:
 
     void evaluateCondition();
     void fetchSteps();
-    void fetchDirectByte();
-    void fetchDirectWord();
-    void fetchAbsoluteByte();
-    void fetchAbsoluteWord();
+    void fetchImmediateByte();
+    void fetchImmediateWord();
+    void fetchIndirectByte();
+    void fetchIndirectWord();
 
 public:
     MicroCodeRunner(Controller*, SystemBus*, const MicroCode*);

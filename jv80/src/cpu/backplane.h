@@ -6,12 +6,13 @@
 
 #pragma once
 
+#include <functional>
+#include <vector>
+
 #include <cpu/clock.h>
 #include <cpu/controller.h>
 #include <cpu/memory.h>
 #include <cpu/systembus.h>
-#include <functional>
-#include <vector>
 
 namespace Obelix::JV80::CPU {
 

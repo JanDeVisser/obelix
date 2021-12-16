@@ -9,7 +9,7 @@ add_library(
         controller.cpp
         iochannel.cpp
         memory.cpp
-        microcode.inc
+        microcode.h
         register.cpp
         systembus.cpp
 )
