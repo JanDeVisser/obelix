@@ -123,12 +123,12 @@
     }
 // clang=format on
 
-#define POP_REG(reg)                                      \
-    {                                                     \
-        .opcode = POP_##reg,                              \
-        .instruction = "POP " #reg,                       \
-        .addressingMode = AddressingMode::Implied,        \
-        .steps = { POP_REG_STEPS(GP_A, SystemBus::Done) } \
+#define POP_REG(reg)                                          \
+    {                                                         \
+        .opcode = POP_##reg,                                  \
+        .instruction = "POP " #reg,                           \
+        .addressingMode = AddressingMode::Implied,            \
+        .steps = { POP_REG_STEPS(GP_##reg, SystemBus::Done) } \
     }
 
 // clang-format off
@@ -288,7 +288,7 @@
         .addressingMode = ImmediateByte,                                                                                           \
         .target = CONTROLLER,                                                                                                      \
         .steps = {                                                                                                                 \
-            { .action = MicroCode::IO, .src = DEREFCONTROLLER, .target = GP_##reg, .opflags = SystemBus::IOIn | SystemBus::Done }, \
+            { .action = MicroCode::IO, .target = DEREFCONTROLLER, .src = GP_##reg, .opflags = SystemBus::IOIn | SystemBus::Done }, \
         }                                                                                                                          \
     }
 

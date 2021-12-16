@@ -77,10 +77,10 @@ struct OpTest {
     ALU::Operations m_op = ALU::Operations::NOT;
 
     OpTest(int reg, byte op_instr, ALU::Operations op, int reg2 = GP_B)
-        : m_reg(reg)
-        , m_op_instr(op_instr)
-        , m_op(op)
+        : m_op_instr(op_instr)
+        , m_reg(reg)
         , m_reg2(reg2)
+        , m_op(op)
     {
     }
 
