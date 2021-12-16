@@ -64,6 +64,7 @@ public:
     static bool is_assignment_operator(TokenCode);
 
 private:
+    void initialize();
     std::shared_ptr<Statement> parse_statement();
     void parse_statements(Statements&);
     std::shared_ptr<Block> parse_block(Statements&);

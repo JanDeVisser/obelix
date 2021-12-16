@@ -15,17 +15,24 @@ Parser::Parser(Config const& config, std::string const& file_name)
     : BasicParser(file_name)
     , m_config(config)
 {
+    initialize();
 }
 
 Parser::Parser(Config const& config, StringBuffer& src)
     : BasicParser(src)
     , m_config(config)
 {
+    initialize();
 }
 
 Parser::Parser(Config const& config)
     : BasicParser()
     , m_config(config)
+{
+    initialize();
+}
+
+void Parser::initialize()
 {
     lexer().add_scanner<QStringScanner>();
     lexer().add_scanner<IdentifierScanner>();
