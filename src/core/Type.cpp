@@ -35,11 +35,13 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 
 [[maybe_unused]] auto s_integer = ObjectType::register_type(TypeInt,
     [](ObjectType& type) {
-        type.add_method(MethodDescription {"+", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription {"-", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription {"*", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription {"/", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription {"..", TypeRange, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "+", TypeInt });
+        type.add_method(MethodDescription { "-", TypeInt });
+        type.add_method(MethodDescription { "+", TypeInt, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "-", TypeInt, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "*", TypeInt, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "/", TypeInt, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeInt } });
         type.will_be_a(TypeComparable);
     });
 
@@ -52,10 +54,12 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 
 [[maybe_unused]] auto s_float = ObjectType::register_type(TypeFloat,
     [](ObjectType& type) {
-        type.add_method(MethodDescription {"+", TypeFloat, MethodParameter { "other", TypeFloat } });
-        type.add_method(MethodDescription {"-", TypeFloat, MethodParameter { "other", TypeFloat } });
-        type.add_method(MethodDescription {"*", TypeFloat, MethodParameter { "other", TypeFloat } });
-        type.add_method(MethodDescription {"/", TypeFloat, MethodParameter { "other", TypeFloat } });
+        type.add_method(MethodDescription { "+", TypeFloat });
+        type.add_method(MethodDescription { "-", TypeFloat });
+        type.add_method(MethodDescription { "+", TypeFloat, MethodParameter { "other", TypeFloat } });
+        type.add_method(MethodDescription { "-", TypeFloat, MethodParameter { "other", TypeFloat } });
+        type.add_method(MethodDescription { "*", TypeFloat, MethodParameter { "other", TypeFloat } });
+        type.add_method(MethodDescription { "/", TypeFloat, MethodParameter { "other", TypeFloat } });
         type.will_be_a(TypeComparable);
     });
 
