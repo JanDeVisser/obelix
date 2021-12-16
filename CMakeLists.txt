@@ -22,9 +22,8 @@ configure_file(
         "${PROJECT_SOURCE_DIR}/config.h"
 )
 
-include_directories("${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/jv80/src" "${PROJECT_SOURCE_DIR}")
+include_directories("${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}")
 add_subdirectory(src)
-add_subdirectory(jv80)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -40,3 +39,4 @@ add_test(NAME CoreTest COMMAND CoreTest)
 add_test(NAME LexerTest COMMAND LexerTest)
 add_test(NAME ParserTest COMMAND ParserTest)
 add_test(NAME AsmTest COMMAND AsmTest)
+add_test(NAME JV80CpuTest COMMAND JV80CpuTest)
