@@ -124,7 +124,18 @@ public:
     {
     }
 
+    explicit Expression(ObelixType type)
+        : SyntaxNode()
+        , m_type(type)
+    {
+    }
+
+    [[nodiscard]] ObelixType type() const { return m_type; }
+    [[nodiscard]] bool is_typed() { return m_type != ObelixType::TypeUnknown; }
     [[nodiscard]] virtual ErrorOr<std::optional<Obj>> to_object() const = 0;
+
+private:
+    ObelixType m_type { TypeUnknown };
 };
 
 class TypedExpression : public Expression {
@@ -416,13 +427,13 @@ private:
 class Literal : public Expression {
 public:
     explicit Literal(Token const& token)
-        : Expression()
+        : Expression(token.to_object()->type()) // Ick
         , m_literal(token.to_object())
     {
     }
 
     explicit Literal(Obj value)
-        : Expression()
+        : Expression(value.type())
         , m_literal(std::move(value))
     {
     }
@@ -463,6 +474,15 @@ public:
         , m_rhs(std::move(rhs))
     {
     }
+
+    BinaryExpression(std::shared_ptr<BinaryExpression> const& expr, ObelixType type)
+        : Expression(type)
+        , m_lhs(expr->lhs())
+        , m_operator(expr->op())
+        , m_rhs(expr->rhs())
+    {
+    }
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BinaryExpression; }
 
     [[nodiscard]] std::string to_string(int indent) const override
@@ -489,6 +509,14 @@ public:
         , m_operand(std::move(operand))
     {
     }
+
+    UnaryExpression(std::shared_ptr<UnaryExpression> const& expr, ObelixType type)
+        : Expression(type)
+        , m_operator(expr->op())
+        , m_operand(expr->operand())
+    {
+    }
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::UnaryExpression; }
 
     [[nodiscard]] std::string to_string(int indent) const override
