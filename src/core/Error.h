@@ -15,8 +15,9 @@ namespace Obelix {
 
 #define ENUMERATE_ERROR_CODES(S)                                                \
     S(NoError, "There is no error")                                             \
-    S(IOError, "{}")                                                        \
+    S(IOError, "{}")                                                            \
     S(SyntaxError, "{}")                                                        \
+    S(NotYetImplemented, "{}")                                                  \
     S(ObjectNotCallable, "Object '{}' is not callable")                         \
     S(ObjectNotIterable, "Object '{}' is not iterable")                         \
     S(CannotAssignToObject, "Cannot assign to object '{}'")                     \
