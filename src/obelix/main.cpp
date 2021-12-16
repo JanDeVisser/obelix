@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <lexer/Token.h>
+#include <obelix/OutputJV80.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <optional>
@@ -99,11 +100,12 @@ private:
             transformed = TRY(lower(tree));
             if (config().show_tree)
                 printf("%s\n", transformed->to_string(0).c_str());
-            transformed = TRY(fold_constants(transformed));
-            if (config().show_tree)
-                printf("%s\n", transformed->to_string(0).c_str());
+            //            transformed = TRY(fold_constants(transformed));
+            //            if (config().show_tree)
+            //                printf("%s\n", transformed->to_string(0).c_str());
             Context<Obj> root;
-            return execute(transformed, root);
+            return output_jv80(transformed);
+            //            return execute(transformed, root);
         }
         return tree;
     }

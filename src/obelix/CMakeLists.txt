@@ -14,6 +14,7 @@ add_library(
         Execute.cpp
         FoldConstants.cpp
         Functions.cpp
+        OutputJV80.cpp
         Parser.cpp
         Syntax.cpp
         Symbol.h

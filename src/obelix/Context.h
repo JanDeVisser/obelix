@@ -39,6 +39,12 @@ public:
     {
     }
 
+    Context(Context<T>& parent)
+        : m_parent(&parent)
+        , m_map(parent.map())
+    {
+    }
+
     Context(Context<T>* parent, ProcessorMap const& map)
         : m_parent(parent)
         , m_map(map)
