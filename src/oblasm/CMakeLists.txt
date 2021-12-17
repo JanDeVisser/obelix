@@ -19,7 +19,18 @@ target_link_libraries(
         ${LIBS}
 )
 
-install(TARGETS oblasm
+add_executable(
+        jv80asm
+        main.cpp
+)
+
+target_link_libraries(
+        jv80asm
+        oblasm
+        ${LIBS}
+)
+
+install(TARGETS oblasm jv80asm
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)
