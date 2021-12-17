@@ -18,6 +18,9 @@ namespace Obelix {
     S(IOError, "{}")                                                            \
     S(SyntaxError, "{}")                                                        \
     S(NotYetImplemented, "{}")                                                  \
+    S(NoSuchFile, "File '{}' does not exist")                                   \
+    S(PathIsDirectory, "Path '{}' is a directory")                              \
+    S(PathIsFile, "Path '{}' is a file")                                        \
     S(ObjectNotCallable, "Object '{}' is not callable")                         \
     S(ObjectNotIterable, "Object '{}' is not iterable")                         \
     S(CannotAssignToObject, "Cannot assign to object '{}'")                     \
@@ -70,10 +73,9 @@ private:
     std::string m_message {};
 };
 
-template <typename ReturnType>
+template<typename ReturnType>
 class [[nodiscard]] ErrorOr {
 public:
-
     ErrorOr(ReturnType const& return_value)
         : m_value(return_value)
     {
@@ -85,10 +87,7 @@ public:
     }
 
     template<typename U>
-    ErrorOr(U&& value)
-        requires(!std::is_same_v<std::remove_cvref_t<U>, ReturnType> &&
-            !std::is_same_v<std::remove_cvref_t<U>, ErrorOr<ReturnType>> &&
-            !std::is_same_v<std::remove_cvref_t<U>, Error>)
+    ErrorOr(U&& value) requires(!std::is_same_v<std::remove_cvref_t<U>, ReturnType> && !std::is_same_v<std::remove_cvref_t<U>, ErrorOr<ReturnType>> && !std::is_same_v<std::remove_cvref_t<U>, Error>)
         : m_value(std::forward<U>(value))
     {
     }
