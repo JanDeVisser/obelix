@@ -61,7 +61,15 @@ struct Converter<char const*> : public Converter<std::string> {
 };
 
 template<>
+struct Converter<char*> : public Converter<std::string> {
+};
+
+template<>
 struct Converter<char const[]> : public Converter<std::string> {
+};
+
+template<>
+struct Converter<char[]> : public Converter<std::string> {
 };
 
 template<>
