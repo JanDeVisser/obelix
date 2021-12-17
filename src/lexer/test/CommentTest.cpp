@@ -4,14 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//
-// Created by Jan de Visser on 2021-10-07.
-//
-
-//
-// Created by Jan de Visser on 2021-09-22.
-//
-
 #include <gtest/gtest.h>
 #include <lexer/Tokenizer.h>
 #include <lexer/test/LexerTest.h>
