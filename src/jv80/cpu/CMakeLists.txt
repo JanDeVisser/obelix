@@ -7,6 +7,7 @@ add_library(
         clock.cpp
         component.cpp
         controller.cpp
+        emulator.cpp
         iochannel.cpp
         memory.cpp
         microcode.h

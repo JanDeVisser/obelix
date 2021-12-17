@@ -4,13 +4,16 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <iostream>
-#include <jv80/cpu/backplane.h>
+#include <cstdio>
+
+#include <jv80/cpu/emulator.h>
 
 int main(int argc, char** argv)
 {
-    auto* system = new Obelix::JV80::CPU::BackPlane();
-    system->defaultSetup();
-    system->run();
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <image file>.bin\n", argv[0]);
+    }
+    Obelix::JV80::CPU::CPU cpu(argv[1]);
+    printf("%d\n", cpu.run());
     return 0;
 }
