@@ -106,7 +106,7 @@ void Assembler::parse_directive()
         lex();
         auto include_file = match(TokenCode::DoubleQuotedString);
         auto assembler = Assembler(m_image);
-        assembler.parse(FileBuffer(include_file->value()).buffer().str());
+        assembler.parse(OblBuffer(include_file->value()).buffer().str());
         break;
     }
     case KeywordAlign: {
@@ -123,7 +123,7 @@ void Assembler::parse_directive()
         auto label = match(TokenCode::Identifier);
         if (!label)
             return;
-        auto value = match(TokenCode::Integer);
+        auto value = match(TokenCode::HexNumber);
         if (!value)
             return;
         auto define = std::make_shared<Define>(label.value().value(), value.value().value()); // lol

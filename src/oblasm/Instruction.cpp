@@ -17,7 +17,7 @@ Instruction::Instruction(Mnemonic m)
     if (m_definition.mnemonic == Mnemonic::None)
         m_definition = get_opcode_definition(m, m_target, m_source);
     if (m_definition.mnemonic != mnemonic()) {
-        add_error("Invalid opcode");
+        add_error(format("Invalid opcode '{}'", to_string()));
     }
 }
 
@@ -28,7 +28,7 @@ Instruction::Instruction(Mnemonic m, Argument target)
     if (m_definition.mnemonic == Mnemonic::None)
         m_definition = get_opcode_definition(m, m_target, m_source);
     if (m_definition.mnemonic != mnemonic()) {
-        add_error("Invalid opcode");
+        add_error(format("Invalid opcode '{}'", to_string()));
     }
 }
 
@@ -40,7 +40,7 @@ Instruction::Instruction(Mnemonic m, Argument target, Argument source)
     if (m_definition.mnemonic == Mnemonic::None)
         m_definition = get_opcode_definition(m, m_target, m_source);
     if (m_definition.mnemonic != mnemonic()) {
-        add_error("Invalid opcode");
+        add_error(format("Invalid opcode '{}'", to_string()));
     }
 }
 
