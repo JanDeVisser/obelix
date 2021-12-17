@@ -7,12 +7,6 @@ db/*
 install/*
 doxygen/*
 doxygen_sqlite3.db
-**/*.o
-**/*.so*
-**/*.dll
-**/*.exe
-**/*.a
-**/*.gch
 **/Makefile
 .kdev4*
 .settings
@@ -56,6 +50,7 @@ kdev_build/
 *.lo
 *.o
 *.obj
+*.bin
 
 # Precompiled Headers
 *.gch
