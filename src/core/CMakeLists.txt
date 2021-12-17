@@ -5,6 +5,7 @@ add_library(
         Boolean.cpp
         Dictionary.cpp
         Error.cpp
+        FileBuffer.cpp
         Format.cpp
         Integer.cpp
         Iterator.cpp
@@ -32,4 +33,3 @@ install(TARGETS oblcore
         LIBRARY DESTINATION lib)
 
 add_subdirectory(test)
-

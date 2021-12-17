@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <lexer/FileBuffer.h>
 #include <lexer/Lexer.h>
+#include <lexer/OblBuffer.h>
 
 namespace Obelix {
 

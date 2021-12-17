@@ -11,7 +11,7 @@ namespace Obelix {
 extern_logging_category(lexer);
 
 BasicParser::BasicParser(std::string const& file_name)
-    : BasicParser(FileBuffer(file_name).buffer())
+    : BasicParser(OblBuffer(file_name).buffer())
 {
     m_file_name = file_name;
 }
