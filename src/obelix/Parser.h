@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <lexer/FileBuffer.h>
-#include <lexer/Lexer.h>
 #include <lexer/BasicParser.h>
+#include <lexer/Lexer.h>
+#include <lexer/OblBuffer.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
