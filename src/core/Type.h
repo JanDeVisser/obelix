@@ -12,6 +12,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <core/Format.h>
+
 namespace Obelix {
 
 #define ENUMERATE_OBELIX_TYPES(S) \
@@ -63,6 +65,24 @@ constexpr const char* ObelixType_name(ObelixType t)
 #undef __ENUM_OBELIX_TYPE
     }
 }
+
+template<>
+struct Converter<ObelixType> {
+    static std::string to_string(ObelixType val)
+    {
+        return ObelixType_name(val);
+    }
+
+    static double to_double(ObelixType val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static long to_long(ObelixType val)
+    {
+        return val;
+    }
+};
 
 struct MethodParameter {
     MethodParameter(char const* n, ObelixType t)
