@@ -386,7 +386,7 @@ public:
             return "0";
         std::string ret;
         while (integer > 0) {
-            ret += "01234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"[integer % m_base];
+            ret += "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[integer % m_base];
             integer /= m_base;
         }
         if (m_grouping_option != GroupingOption::None) {
