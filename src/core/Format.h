@@ -19,22 +19,19 @@ namespace Obelix {
 
 template<typename T>
 struct Converter {
-    static std::string to_string(T)
+    static std::string to_string(T const& t)
     {
-        fprintf(stderr, "Specialize me! - %s\n", typeid(T).name());
-        exit(1);
+        return t.to_string();
     }
 
-    static double to_double(T)
+    static double to_double(T const& t)
     {
-        fprintf(stderr, "Specialize me! - %s\n", typeid(T).name());
-        exit(1);
+        return std::stod(t.to_string());
     }
 
-    static long to_long(T)
+    static long to_long(T const& t)
     {
-        fprintf(stderr, "Specialize me! - %s\n", typeid(T).name());
-        exit(1);
+        return std::stol(t.to_string());
     }
 };
 
