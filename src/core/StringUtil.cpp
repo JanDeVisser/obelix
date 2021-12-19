@@ -185,6 +185,10 @@ bool check_zero(std::string const& str)
     int zeroes = 0;
     for (auto& ch : str) {
         switch (ch) {
+        case '$':
+            if (zeroes != 0)
+                return false;
+            break;
         case 'x':
         case 'X':
             if (zeroes != 1)
