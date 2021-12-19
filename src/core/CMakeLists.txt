@@ -16,6 +16,7 @@ add_library(
         Range.cpp
         Regex.cpp
         Resolve.cpp
+        ScopeGuard.h
         String.cpp
         StringBuffer.cpp
         StringUtil.cpp
