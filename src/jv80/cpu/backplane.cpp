@@ -68,12 +68,12 @@ void BackPlane::setRunMode(SystemBus::RunMode runMode)
 
 std::shared_ptr<Controller> BackPlane::controller() const
 {
-    return dynamic_pointer_cast<Controller>(component(IR));
+    return component<Controller>();
 }
 
 std::shared_ptr<Memory> BackPlane::memory() const
 {
-    return dynamic_pointer_cast<Memory>(component(MEMADDR));
+    return component<Memory>();
 }
 
 SystemError BackPlane::loadImage(word sz, const byte* data, word addr, bool writable)
@@ -91,7 +91,7 @@ SystemError BackPlane::run(word fromAddress)
 
     // TODO: Better: build a prolog microcode script, or maybe
     // assembly, to setup SP, NMI, and PC.
-    auto pc = std::dynamic_pointer_cast<AddressRegister>(component(PC));
+    auto pc = component<AddressRegister>(PC);
     if ((fromAddress != 0xFFFF) && (fromAddress != pc->getValue())) {
         pc->setValue(fromAddress);
     }

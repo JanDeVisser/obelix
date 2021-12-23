@@ -34,12 +34,12 @@ class TESTNAME : public HarnessTest {
 protected:
     void test_jump_immediate(byte opcode, bool ok)
     {
-        auto mem = std::dynamic_pointer_cast<Memory>(system.component(MEMADDR));
+        auto mem = system.component<Memory>(MEMADDR);
         mem->initialize(RAM_START, 9, jmp_immediate);
         check_memory(RAM_START, JMP);
         ASSERT_FALSE(mem->poke(RAM_START, opcode).is_error());
 
-        auto pc = std::dynamic_pointer_cast<AddressRegister>(system.component(PC));
+        auto pc = system.component<AddressRegister>(PC);
         pc->setValue(RAM_START);
         ASSERT_EQ(pc->getValue(), RAM_START);
 
@@ -55,12 +55,12 @@ protected:
 
     void test_jump_ind(byte opcode, bool ok)
     {
-        auto mem = std::dynamic_pointer_cast<Memory>(system.component(MEMADDR));
+        auto mem = system.component<Memory>(MEMADDR);
         mem->initialize(RAM_START, 11, jmp_ind);
         check_memory(RAM_START, JMP_IND);
         ASSERT_FALSE(mem->poke(RAM_START, opcode).is_error());
 
-        auto pc = std::dynamic_pointer_cast<AddressRegister>(system.component(PC));
+        auto pc = system.component<AddressRegister>(PC);
         pc->setValue(RAM_START);
         ASSERT_EQ(pc->getValue(), RAM_START);
 

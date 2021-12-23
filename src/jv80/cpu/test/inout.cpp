@@ -21,14 +21,14 @@ class TESTNAME : public HarnessTest {
 protected:
     void test_io(byte opcode_init, byte opcode_io, byte channel = CHANNEL_OUT)
     {
-        auto mem = std::dynamic_pointer_cast<Memory>(system.component(MEMADDR));
+        auto mem = system.component<Memory>(MEMADDR);
         mem->initialize(RAM_START, 5, out);
         check_memory(RAM_START + 2, OUT_A);
         ASSERT_FALSE(mem->poke(RAM_START, opcode_init).is_error());
         ASSERT_FALSE(mem->poke(RAM_START + 2, opcode_io).is_error());
         ASSERT_FALSE(mem->poke(RAM_START + 3, channel).is_error());
 
-        auto pc = std::dynamic_pointer_cast<AddressRegister>(system.component(PC));
+        auto pc = system.component<AddressRegister>(PC);
         pc->setValue(RAM_START);
         ASSERT_EQ(pc->getValue(), RAM_START);
 

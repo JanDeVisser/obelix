@@ -319,7 +319,7 @@ SystemError Controller::onLowClock()
 
     switch (m_step) {
     case 0:
-        m_pc = dynamic_pointer_cast<AddressRegister>(bus()->backplane()->component(PC))->getValue();
+        m_pc = bus()->backplane()->component<AddressRegister>(PC)->getValue();
         bus()->xaddr(PC, MEMADDR, SystemBus::INC);
         break;
     case 1:
@@ -367,7 +367,7 @@ SystemError Controller::onLowClock()
                 m_step = 1;
             } else {
                 m_step = 0;
-                m_pc = dynamic_pointer_cast<AddressRegister>(bus()->backplane()->component(PC))->getValue();
+                m_pc = bus()->backplane()->component<AddressRegister>(PC)->getValue();
                 bus()->xaddr(PC, MEMADDR, SystemBus::INC);
             }
         }

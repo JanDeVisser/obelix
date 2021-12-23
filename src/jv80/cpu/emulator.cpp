@@ -61,7 +61,7 @@ ErrorOr<uint16_t, SystemErrorCode> CPU::run(bool trace, word addr)
         auto e = err.error();
         return ErrorOr<uint16_t, SystemErrorCode> { e };
     }
-    return ErrorOr<uint16_t, SystemErrorCode> { (uint16_t)m_system.component(DI)->getValue() };
+    return ErrorOr<uint16_t, SystemErrorCode> { (uint16_t)m_system.component<AddressRegister>(DI)->getValue() };
 }
 
 void CPU::componentEvent(Component const* sender, int ev)
@@ -80,13 +80,13 @@ void CPU::componentEvent(Component const* sender, int ev)
             printf("%04x %-6.6s%-9.9s    %02x %02x %02x %02x %04x %04x %04x\n",
                 dynamic_cast<Controller const*>(sender)->pc(),
                 mnemonic.c_str(), args.c_str(),
-                std::dynamic_pointer_cast<Register>(m_system.component(GP_A))->getValue(),
-                std::dynamic_pointer_cast<Register>(m_system.component(GP_B))->getValue(),
-                std::dynamic_pointer_cast<Register>(m_system.component(GP_C))->getValue(),
-                std::dynamic_pointer_cast<Register>(m_system.component(GP_D))->getValue(),
-                std::dynamic_pointer_cast<AddressRegister>(m_system.component(SI))->getValue(),
-                std::dynamic_pointer_cast<AddressRegister>(m_system.component(DI))->getValue(),
-                std::dynamic_pointer_cast<AddressRegister>(m_system.component(SP))->getValue());
+                m_system.component<Register>(GP_A)->getValue(),
+                m_system.component<Register>(GP_B)->getValue(),
+                m_system.component<Register>(GP_C)->getValue(),
+                m_system.component<Register>(GP_D)->getValue(),
+                m_system.component<AddressRegister>(SI)->getValue(),
+                m_system.component<AddressRegister>(DI)->getValue(),
+                m_system.component<AddressRegister>(SP)->getValue());
         }
         break;
     default:

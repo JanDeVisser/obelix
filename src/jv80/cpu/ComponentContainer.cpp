@@ -10,10 +10,9 @@ namespace Obelix::JV80::CPU {
 
 ComponentContainer::ComponentContainer()
     : m_bus(this)
-    , m_components()
+    , m_slots()
     , m_aliases()
 {
-    m_components.resize(16);
     m_aliases.resize(16);
     m_io.resize(16);
 };
@@ -27,16 +26,11 @@ ComponentContainer::ComponentContainer(std::shared_ptr<ConnectedComponent> const
 void ComponentContainer::insert(std::shared_ptr<ConnectedComponent> const& component)
 {
     component->bus(&m_bus);
-    m_components[component->address()] = component;
+    m_slots.push_back(component);
     m_aliases[component->address()] = component->address();
     if (component->address() != component->alias()) {
         m_aliases[component->alias()] = component->address();
     }
-}
-
-[[nodiscard]] std::shared_ptr<ConnectedComponent> const& ComponentContainer::component(int ix) const
-{
-    return m_components[m_aliases[ix]];
 }
 
 void ComponentContainer::insertIO(std::shared_ptr<ConnectedComponent> const& component)
@@ -63,7 +57,7 @@ SystemBus& ComponentContainer::bus()
     case 0xF:
         return "ADDR";
     default: {
-        auto& c = component(ix);
+        auto c = component<ConnectedComponent>(ix);
         return (c) ? c->name() : "";
     }
     }
@@ -71,7 +65,7 @@ SystemBus& ComponentContainer::bus()
 
 [[nodiscard]] SystemError ComponentContainer::forAllComponents(const ComponentHandler& handler) const
 {
-    for (auto& component : m_components) {
+    for (auto& component : m_slots) {
         if (!component)
             continue;
         if (auto err = handler(*component); err.is_error()) {

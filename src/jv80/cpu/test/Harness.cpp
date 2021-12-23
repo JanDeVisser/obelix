@@ -6,11 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include <jv80/cpu/alu.h>
-#include <jv80/cpu/controller.h>
 #include <jv80/cpu/harness.h>
 #include <jv80/cpu/iochannel.h>
-#include <jv80/cpu/memory.h>
 
 #include <jv80/cpu/microcode.h>
 
@@ -27,6 +24,15 @@ TEST(Harness, CreateHarness)
 TEST_F(HarnessTest, CreateHarness)
 {
     ASSERT_EQ(system.to_string(), "Harness");
+}
+
+TEST_F(HarnessTest, InsertRegister)
+{
+    gp_d = std::make_shared<Register>(0x3);
+    system.insert(gp_d);
+
+    auto gp = system.component<Register>(0x3);
+    ASSERT_NE(gp, nullptr);
 }
 
 byte nop[] = {

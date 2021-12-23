@@ -98,7 +98,7 @@ struct OpTest {
 
     void execute(Harness& system, int cycles = -1) const
     {
-        auto mem = std::dynamic_pointer_cast<Memory>(system.component(MEMADDR));
+        auto mem = system.component<Memory>();
         const byte* b = bytes();
         mem->initialize(RAM_START, bytesSize(), b);
         ASSERT_FALSE(mem->poke(RAM_START, reg2instr[m_reg]).is_error());
@@ -113,7 +113,7 @@ struct OpTest {
         }
         ASSERT_FALSE(mem->poke(instrAddr, m_op_instr).is_error());
 
-        auto pc = std::dynamic_pointer_cast<AddressRegister>(system.component(PC));
+        auto pc = system.component<AddressRegister>(PC);
         pc->setValue(RAM_START);
         ASSERT_EQ(pc->getValue(), RAM_START);
 
@@ -123,7 +123,7 @@ struct OpTest {
         ASSERT_EQ(cycles_used_or_error.value(), (cycles < 0) ? cycleCount() : cycles);
         ASSERT_EQ(system.bus().halt(), false);
 
-        auto r = std::dynamic_pointer_cast<Register>(system.component(m_reg));
+        auto r = system.component<Register>(m_reg);
         ASSERT_EQ(r->getValue(), e);
     }
 };
@@ -878,11 +878,11 @@ const byte wide_binary_op[] = {
 
 void test_wide_op(Harness& system, byte opcode)
 {
-    auto mem = std::dynamic_pointer_cast<Memory>(system.component(MEMADDR));
+    auto mem = system.component<Memory>();
     mem->initialize(RAM_START, 10, wide_binary_op);
     ASSERT_FALSE(mem->poke(0x2008, opcode).is_error());
 
-    auto pc = std::dynamic_pointer_cast<AddressRegister>(system.component(PC));
+    auto pc = system.component<AddressRegister>(PC);
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 
@@ -1094,11 +1094,11 @@ const byte wide_unary_op[] = {
 
 void test_wide_unary_op(Harness& system, byte opcode)
 {
-    auto mem = std::dynamic_pointer_cast<Memory>(system.component(MEMADDR));
+    auto mem = system.component<Memory>();
     mem->initialize(RAM_START, 8, wide_unary_op);
     ASSERT_FALSE(mem->poke(0x2006, opcode).is_error());
 
-    auto pc = std::dynamic_pointer_cast<AddressRegister>(system.component(PC));
+    auto pc = system.component<AddressRegister>(PC);
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 

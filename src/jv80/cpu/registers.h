@@ -9,6 +9,7 @@
 namespace Obelix::JV80::CPU {
 
 constexpr static int GP_A = 0;
+constexpr static int RSP = 0;
 constexpr static int GP_B = 1;
 constexpr static int GP_C = 2;
 constexpr static int GP_D = 3;
