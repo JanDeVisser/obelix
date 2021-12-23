@@ -83,10 +83,8 @@ public:
     [[nodiscard]] RunMode runMode() const { return m_runMode; }
     void setRunMode(RunMode runMode) { m_runMode = runMode; }
 
-    ComponentContainer* backplane()
-    {
-        return m_backplane;
-    }
+    ComponentContainer* backplane() { return m_backplane; }
+    [[nodiscard]] ComponentContainer* backplane() const { return m_backplane; }
 
 private:
     ComponentContainer* m_backplane;
@@ -130,104 +128,6 @@ private:
     SystemBus* systemBus = nullptr;
     int ident = -1;
     std::string componentName = "?";
-};
-
-class ComponentContainer : public Component {
-public:
-    ~ComponentContainer() override = default;
-
-    void insert(std::shared_ptr<ConnectedComponent> const& component)
-    {
-        component->bus(&m_bus);
-        m_components[component->id()] = component;
-        m_aliases[component->id()] = component->id();
-        if (component->id() != component->alias()) {
-            m_aliases[component->alias()] = component->id();
-        }
-    }
-
-    [[nodiscard]] std::shared_ptr<ConnectedComponent> const& component(int ix) const
-    {
-        return m_components[m_aliases[ix]];
-    }
-
-    void insertIO(std::shared_ptr<ConnectedComponent> const& component)
-    {
-        component->bus(&m_bus);
-        m_io[component->id()] = component;
-    }
-
-    SystemBus& bus()
-    {
-        return m_bus;
-    }
-
-    [[nodiscard]] SystemBus const& bus() const
-    {
-        return m_bus;
-    }
-
-    [[nodiscard]] std::string name(int ix) const
-    {
-        switch (ix) {
-        case 0x7:
-            return "MEM";
-        case 0xF:
-            return "ADDR";
-        default: {
-            auto& c = component(ix);
-            return (c) ? c->name() : "";
-        }
-        }
-    }
-
-    SystemError forAllComponents(const ComponentHandler& handler) const
-    {
-        for (auto& component : m_components) {
-            if (!component)
-                continue;
-            if (auto err = handler(*component); err.is_error()) {
-                return err;
-            }
-        }
-        return {};
-    }
-
-    SystemError forAllChannels(const ComponentHandler& handler)
-    {
-        for (auto& channel : m_io) {
-            if (!channel)
-                continue;
-            if (auto err = handler(*channel); err.is_error()) {
-                return err;
-            }
-        }
-        return {};
-    }
-
-protected:
-    SystemBus m_bus;
-
-    explicit ComponentContainer()
-        : m_bus(this)
-        , m_components()
-        , m_aliases()
-    {
-        m_components.resize(16);
-        m_aliases.resize(16);
-        m_io.resize(16);
-    };
-
-    explicit ComponentContainer(std::shared_ptr<ConnectedComponent> const& c)
-        : ComponentContainer()
-    {
-        insert(c);
-    };
-
-private:
-    std::vector<std::shared_ptr<ConnectedComponent>> m_components;
-    std::vector<int> m_aliases;
-    std::vector<std::shared_ptr<ConnectedComponent>> m_io;
 };
 
 }

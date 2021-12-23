@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <jv80/cpu/systembus.h>
 #include <core/ScopeGuard.h>
+#include <jv80/cpu/systembus.h>
+#include <jv80/cpu/ComponentContainer.h>
 
 namespace Obelix::JV80::CPU {
 

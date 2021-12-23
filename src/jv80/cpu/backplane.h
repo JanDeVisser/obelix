@@ -13,6 +13,7 @@
 #include <jv80/cpu/controller.h>
 #include <jv80/cpu/memory.h>
 #include <jv80/cpu/systembus.h>
+#include <jv80/cpu/ComponentContainer.h>
 
 namespace Obelix::JV80::CPU {
 

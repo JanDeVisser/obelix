@@ -15,6 +15,7 @@
 #include <jv80/cpu/opcodes.h>
 #include <jv80/cpu/register.h>
 #include <jv80/cpu/registers.h>
+#include <jv80/cpu/ComponentContainer.h>
 
 namespace Obelix::JV80::CPU {
 

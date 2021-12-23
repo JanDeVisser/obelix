@@ -13,7 +13,7 @@ add_library(
         microcode.h
         register.cpp
         systembus.cpp
-)
+        ComponentContainer.cpp ComponentContainer.h)
 
 target_link_libraries(jv80cpu oblcore)
 
