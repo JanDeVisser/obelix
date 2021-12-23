@@ -24,7 +24,7 @@ class MemoryBank {
 public:
     MemoryBank() = default;
     MemoryBank(word, word, bool = true, const byte* = nullptr) noexcept;
-    ~MemoryBank();
+    ~MemoryBank() = default;
 
     [[nodiscard]] ErrorOr<byte, SystemErrorCode> peek(std::size_t) const;
     SystemError poke(std::size_t, byte);
@@ -52,7 +52,7 @@ private:
     word m_start { 0 };
     word m_size { 0 };
     bool m_writable { false };
-    byte* m_image { nullptr };
+    std::shared_ptr<class Block> m_image;
 };
 
 using MemoryBanks = std::vector<MemoryBank>;

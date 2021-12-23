@@ -12,6 +12,44 @@
 
 namespace Obelix::JV80::CPU {
 
+class Block {
+public:
+    explicit Block(size_t size)
+        : m_size(size)
+        , m_bytes((size) ? new byte[size] : nullptr)
+    {
+    }
+
+    ~Block()
+    {
+        delete[] m_bytes;
+    }
+
+    [[nodiscard]] byte* operator*() const { return m_bytes; }
+    byte& operator[](size_t ix)
+    {
+        assert(ix < m_size);
+        return m_bytes[ix];
+    }
+    byte const& operator[](size_t ix) const
+    {
+        assert(ix < m_size);
+        return m_bytes[ix];
+    }
+    void copy(byte const* bytes, size_t size)
+    {
+        memcpy(m_bytes, bytes, std::min(m_size, size));
+    }
+    void erase()
+    {
+        memset(m_bytes, 0, m_size);
+    }
+
+private:
+    size_t m_size { 0 };
+    byte* m_bytes { nullptr };
+};
+
 /* ----------------------------------------------------------------------- */
 
 MemoryBank::MemoryBank(word start, word size, bool writable, const byte* image) noexcept
@@ -23,24 +61,18 @@ MemoryBank::MemoryBank(word start, word size, bool writable, const byte* image) 
         m_start = m_size = 0x00;
         return;
     }
-
-    m_image = new byte[size];
+    m_image = std::make_shared<Block>(size);
     if (image) {
-        memcpy(m_image, image, size);
+        m_image->copy(image, size);
     } else {
         erase();
     }
 }
 
-MemoryBank::~MemoryBank()
-{
-    delete[] m_image;
-}
-
 SystemError MemoryBank::poke(std::size_t addr, byte value)
 {
     if (mapped(addr) && writable()) {
-        m_image[offset(addr)] = value;
+        (*m_image)[offset(addr)] = value;
         return {};
     } else {
         return SystemErrorCode::ProtectedMemory;
@@ -50,7 +82,7 @@ SystemError MemoryBank::poke(std::size_t addr, byte value)
 ErrorOr<byte, SystemErrorCode> MemoryBank::peek(std::size_t addr) const
 {
     if (mapped(addr)) {
-        return m_image[offset(addr)];
+        return (*m_image)[offset(addr)];
     } else {
         return SystemErrorCode::ProtectedMemory;
     }
@@ -93,15 +125,13 @@ std::string MemoryBank::name() const
 
 void MemoryBank::erase()
 {
-    memset(m_image, 0, m_size);
+    m_image->erase();
 }
 
 void MemoryBank::copy(size_t addr, size_t size, const byte* contents)
 {
     if (fits(addr, size)) {
-        for (auto ix = 0; ix < size; ix++) {
-            m_image[offset(addr) + ix] = contents[ix];
-        }
+        m_image->copy(contents, size);
     }
 }
 
