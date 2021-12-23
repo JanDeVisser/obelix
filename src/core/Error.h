@@ -73,7 +73,7 @@ private:
     std::string m_message {};
 };
 
-template<typename ReturnType>
+template<typename ReturnType, typename ErrorType = Error>
 class [[nodiscard]] ErrorOr {
 public:
     ErrorOr(ReturnType const& return_value)
@@ -87,17 +87,17 @@ public:
     }
 
     template<typename U>
-    ErrorOr(U&& value) requires(!std::is_same_v<std::remove_cvref_t<U>, ReturnType> && !std::is_same_v<std::remove_cvref_t<U>, ErrorOr<ReturnType>> && !std::is_same_v<std::remove_cvref_t<U>, Error>)
+    ErrorOr(U&& value) requires(!std::is_same_v<std::remove_cvref_t<U>, ReturnType> && !std::is_same_v<std::remove_cvref_t<U>, ErrorOr<ReturnType, ErrorType>> && !std::is_same_v<std::remove_cvref_t<U>, ErrorType>)
         : m_value(std::forward<U>(value))
     {
     }
 
-    ErrorOr(Error const& error)
+    ErrorOr(ErrorType const& error)
         : m_error(error)
     {
     }
 
-    ErrorOr(Error&& error)
+    ErrorOr(ErrorType&& error)
         : m_error(std::move(error))
     {
     }
@@ -112,11 +112,35 @@ public:
     [[nodiscard]] bool has_value() const { return m_value.has_value(); }
     ReturnType& value() { return m_value.value(); }
     [[nodiscard]] bool is_error() const { return m_error.has_value(); }
-    Error& error() { return m_error.value(); }
+    ErrorType& error() { return m_error.value(); }
 
 private:
     std::optional<ReturnType> m_value {};
-    std::optional<Error> m_error {};
+    std::optional<ErrorType> m_error {};
+};
+
+template<typename ErrorType>
+class [[nodiscard]] ErrorOr<void, ErrorType> {
+public:
+    ErrorOr(ErrorType const& error)
+        : m_error(error)
+    {
+    }
+
+    ErrorOr() = default;
+    ErrorOr(ErrorOr&& other) noexcept = default;
+    ErrorOr(ErrorOr const& other) = default;
+    ~ErrorOr() = default;
+
+    ErrorOr& operator=(ErrorOr&& other) noexcept = default;
+    ErrorOr& operator=(ErrorOr const& other) = default;
+
+    ErrorType& error() { return m_error.value(); }
+    [[nodiscard]] bool is_error() const { return m_error.has_value(); }
+    void release_value() { }
+
+private:
+    std::optional<ErrorType> m_error;
 };
 
 #define TRY(expr)                             \
@@ -126,6 +150,10 @@ private:
             return _temporary_result.error(); \
         _temporary_result.value();            \
     })
+
+#define TRY_RETURN(expr)                   \
+    if (auto err = (expr); err.is_error()) \
+    return err
 
 #define TRY_OR_EXCEPTION(expr)                                     \
     ({                                                             \
