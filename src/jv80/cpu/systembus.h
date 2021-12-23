@@ -107,27 +107,4 @@ private:
     RunMode m_runMode = RunMode::Continuous;
 };
 
-class ConnectedComponent : public Component {
-public:
-    [[nodiscard]] virtual int address() const { return m_address; }
-    [[nodiscard]] virtual int alias() const { return address(); }
-    [[nodiscard]] virtual std::string name() const { return componentName; }
-    void bus(SystemBus* bus) { systemBus = bus; }
-    [[nodiscard]] SystemBus* bus() const { return systemBus; }
-    [[nodiscard]] virtual int getValue() const { return 0; }
-
-protected:
-    ConnectedComponent() = default;
-    explicit ConnectedComponent(int address, std::string n)
-        : m_address(address)
-    {
-        componentName = std::move(n);
-    }
-
-private:
-    SystemBus* systemBus = nullptr;
-    int m_address = -1;
-    std::string componentName = "?";
-};
-
 }

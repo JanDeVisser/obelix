@@ -6,10 +6,7 @@
 
 #pragma once
 
-#include <string>
-#include <utility>
-
-#include <jv80/cpu/systembus.h>
+#include <jv80/cpu/ConnectedComponent.h>
 
 namespace Obelix::JV80::CPU {
 
