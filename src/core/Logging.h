@@ -19,9 +19,9 @@
 namespace Obelix {
 
 #ifndef NDEBUG
-constexpr static bool DEBUG=true;
+constexpr static bool DEBUG = true;
 #else
-constexpr static bool DEBUG=false;
+constexpr static bool DEBUG = false;
 #endif
 
 #define ENUMERATE_LOG_LEVELS(S) \
@@ -67,7 +67,7 @@ public:
     LogLevel set_level(LogLevel);
     void set_file(std::string const&);
 
-    template <typename... Args>
+    template<typename... Args>
     void logmsg(LogMessage const& msg, Args&&... args)
     {
         if (msg.level == LogLevel::Debug && !DEBUG)
@@ -101,21 +101,21 @@ public:
         }
     }
 
-    template <typename... Args>
+    template<typename... Args>
     void error_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
     {
         logmsg({ file, line, function, LogLevel::Error, message }, std::forward<Args>(args)...);
         exit(1);
     }
 
-    template <typename... Args>
+    template<typename... Args>
     [[noreturn]] void fatal_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
     {
         logmsg({ file, line, function, LogLevel::Fatal, message }, std::forward<Args>(args)...);
         abort();
     }
 
-    template <typename... Args>
+    template<typename... Args>
     void assert_msg(std::string_view const& file, size_t line, std::string_view const& function, bool condition, char const* message, Args&&... args)
     {
         if (condition)
@@ -148,14 +148,14 @@ public:
     [[nodiscard]] bool enabled() const;
     [[nodiscard]] std::string name() const { return m_name; }
 
-    template <typename... Args>
+    template<typename... Args>
     void logmsg(LogMessage const& msg, Args&&... args)
     {
         if (m_logger && m_enabled)
             m_logger->logmsg(msg, std::forward<Args>(args)...);
     }
 
-    template <typename... Args>
+    template<typename... Args>
     void debug_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
     {
         if constexpr (!DEBUG)
@@ -165,7 +165,7 @@ public:
         }
     }
 
-    template <typename... Args>
+    template<typename... Args>
     void info_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
     {
         if (m_logger != nullptr && m_enabled) {
@@ -173,7 +173,7 @@ public:
         }
     }
 
-    template <typename... Args>
+    template<typename... Args>
     void warning_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
     {
         if (m_logger != nullptr && m_enabled) {
@@ -181,7 +181,7 @@ public:
         }
     }
 
-    template <typename... Args>
+    template<typename... Args>
     void error_msg(std::string_view const& file, size_t line, std::string_view const& function, char const* message, Args&&... args)
     {
         if (m_logger != nullptr && m_enabled) {
@@ -191,13 +191,13 @@ public:
 
     static std::clock_t start();
 
-    template <typename... Args>
-    void log_duration(std::clock_t clock_start, std::string_view const& file, size_t line, std::string_view const& caller, const char *msg, Args&&... args)
+    template<typename... Args>
+    void log_duration(std::clock_t clock_start, std::string_view const& file, size_t line, std::string_view const& caller, const char* msg, Args&&... args)
     {
-        if constexpr(!DEBUG)
+        if constexpr (!DEBUG)
             return;
         auto clock_end = std::clock();
-        auto duration_ms = (unsigned long) (1000.0 * ((float) clock_end - (float) clock_start) / CLOCKS_PER_SEC);
+        auto duration_ms = (unsigned long)(1000.0 * ((float)clock_end - (float)clock_start) / CLOCKS_PER_SEC);
 
         auto msg_with_timing = std::string(msg).append(" {d}.{03d} sec");
         LogMessage log_message {
@@ -221,19 +221,17 @@ private:
 #define logging_category(module) LoggingCategory module##_logger(#module)
 #define extern_logging_category(module) extern LoggingCategory module##_logger
 #define debug(module, fmt, args...) (module##_logger).debug_msg(__FILE__, __LINE__, __func__, fmt, ##args)
-#define info(module, fmt, args...) (module ## _logger).info_msg(__FILE__, __LINE__, __func__, fmt, ##args)
-#define warning(module, fmt, args...) (module ## _logger).warning_msg(__FILE__, __LINE__, __func__, fmt, ##args)
-#define log_timestamp_start(module) ((module ## _logger).start())
-#define log_timestamp_end(module, ts, fmt, ...) (module ## _logger).log_duration(ts, __FILE__, __LINE__, __func__, fmt, ##args)
+#define info(module, fmt, args...) (module##_logger).info_msg(__FILE__, __LINE__, __func__, fmt, ##args)
+#define warning(module, fmt, args...) (module##_logger).warning_msg(__FILE__, __LINE__, __func__, fmt, ##args)
+#define log_timestamp_start(module) ((module##_logger).start())
+#define log_timestamp_end(module, ts, fmt, ...) (module##_logger).log_duration(ts, __FILE__, __LINE__, __func__, fmt, ##args)
 
 #define log_error(fmt, args...) Logger::get_logger().error_msg(__FILE__, __LINE__, __func__, fmt, ##args)
 #define fatal(fmt, args...) Logger::get_logger().fatal_msg(__FILE__, __LINE__, __func__, fmt, ##args)
 #ifdef assert
-#undef assert
+#    undef assert
 #endif
-#define assert(condition) Logger::get_logger().assert_msg(__FILE__, __LINE__, __func__, condition, "Assertion error: " #condition)
-#define oassert(condition, fmt, args...) Logger::get_logger().assert_msg(__FILE__, __LINE__, __func__, condition, fmt, ##args)
-#define log_timestamp_start(module) ((module ## _logger).start())
-#define log_timestamp_end(module, ts, fmt, ...) (module ## _logger).log_duration(ts, __FILE__, __LINE__, __func__, fmt, ##args)
+#define assert(condition) Obelix::Logger::get_logger().assert_msg(__FILE__, __LINE__, __func__, condition, "Assertion error: " #condition)
+#define oassert(condition, fmt, args...) Obelix::Logger::get_logger().assert_msg(__FILE__, __LINE__, __func__, condition, fmt, ##args)
 
 }
