@@ -42,7 +42,7 @@ int IOChannel::getValue() const
 
 std::string IOChannel::to_string() const
 {
-    auto ret = format("#%{01x}. {} ", id(), name());
+    auto ret = format("#%{01x}. {} ", address(), name());
     //    if (m_status) {
     //        ret += m_status();
     //    }
@@ -56,7 +56,7 @@ SystemError IOChannel::reset()
 
 SystemError IOChannel::onRisingClockEdge()
 {
-    if (!bus()->io() && (bus()->putID() == id()) && (bus()->opflags() & SystemBus::IOIn)) {
+    if (!bus()->io() && (bus()->putAddress() == address()) && (bus()->opflags() & SystemBus::IOIn)) {
         bus()->putOnDataBus(getValue());
     }
     return {};
@@ -64,7 +64,7 @@ SystemError IOChannel::onRisingClockEdge()
 
 SystemError IOChannel::onHighClock()
 {
-    if (!bus()->io() && (bus()->putID() == id()) && (bus()->opflags() & SystemBus::IOOut)) {
+    if (!bus()->io() && (bus()->putAddress() == address()) && (bus()->opflags() & SystemBus::IOOut)) {
         setValue(bus()->readDataBus());
     }
     return {};

@@ -109,9 +109,9 @@ void SystemBusView::refresh()
     data->setValue(systemBus.readDataBus());
     address->setValue(systemBus.readAddrBus());
 
-    get->setRegister(systemBus.getID());
+    get->setRegister(systemBus.getAddress());
     if (systemBus.io()) {
-        put->setRegister(systemBus.putID());
+        put->setRegister(systemBus.putAddress());
     } else {
         put->clear();
     }

@@ -281,13 +281,13 @@ ErrorOr<byte, SystemErrorCode> Memory::peek(std::size_t addr) const
 
 std::string Memory::to_string() const
 {
-    return format("{01x}. M  {04x}   CONTENTS {01x}. [{02x}]", id(), getValue(),
+    return format("{01x}. M  {04x}   CONTENTS {01x}. [{02x}]", address(), getValue(),
         MEM_ID, (isMapped(getValue()) ? peek(getValue()).value() : 0xFF));
 }
 
 SystemError Memory::onRisingClockEdge()
 {
-    if ((!bus()->xdata() || !bus()->xaddr() || (!bus()->io() && (bus()->opflags() & SystemBus::IOOut))) && (bus()->getID() == MEM_ID)) {
+    if ((!bus()->xdata() || !bus()->xaddr() || (!bus()->io() && (bus()->opflags() & SystemBus::IOOut))) && (bus()->getAddress() == MEM_ID)) {
         if (!isMapped(getValue())) {
             return SystemErrorCode::ProtectedMemory;
         }
@@ -299,10 +299,10 @@ SystemError Memory::onRisingClockEdge()
 
 SystemError Memory::onHighClock()
 {
-    if (((!bus()->xdata() || !bus()->xaddr()) && (bus()->putID() == MEM_ID)) || (!bus()->io() && (bus()->opflags() & SystemBus::IOIn) && (bus()->getID() == MEM_ID))) {
+    if (((!bus()->xdata() || !bus()->xaddr()) && (bus()->putAddress() == MEM_ID)) || (!bus()->io() && (bus()->opflags() & SystemBus::IOIn) && (bus()->getAddress() == MEM_ID))) {
         TRY_RETURN(poke(getValue(), bus()->readDataBus()));
         sendEvent(EV_CONTENTSCHANGED);
-    } else if (bus()->putID() == ADDR_ID) {
+    } else if (bus()->putAddress() == ADDR_ID) {
         if (!(bus()->xaddr())) {
             setValue(((word)bus()->readAddrBus() << 8) | ((word)bus()->readDataBus()));
         } else if (!(bus()->xdata())) {

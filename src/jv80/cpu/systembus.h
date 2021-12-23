@@ -59,8 +59,8 @@ public:
     [[nodiscard]] bool nmi() const { return _nmi; }
     void setNmi() { _nmi = false; }
     void clearNmi() { _nmi = true; }
-    [[nodiscard]] byte putID() const { return put; }
-    [[nodiscard]] byte getID() const { return get; }
+    [[nodiscard]] byte putAddress() const { return put; }
+    [[nodiscard]] byte getAddress() const { return get; }
     [[nodiscard]] byte opflags() const { return op; }
 
     void initialize(bool, bool, bool, byte, byte, byte, byte = 0x00, byte = 0x00);
@@ -109,8 +109,8 @@ private:
 
 class ConnectedComponent : public Component {
 public:
-    [[nodiscard]] virtual int id() const { return ident; }
-    [[nodiscard]] virtual int alias() const { return id(); }
+    [[nodiscard]] virtual int address() const { return m_address; }
+    [[nodiscard]] virtual int alias() const { return address(); }
     [[nodiscard]] virtual std::string name() const { return componentName; }
     void bus(SystemBus* bus) { systemBus = bus; }
     [[nodiscard]] SystemBus* bus() const { return systemBus; }
@@ -118,15 +118,15 @@ public:
 
 protected:
     ConnectedComponent() = default;
-    explicit ConnectedComponent(int id, std::string n)
-        : ident(id)
+    explicit ConnectedComponent(int address, std::string n)
+        : m_address(address)
     {
         componentName = std::move(n);
     }
 
 private:
     SystemBus* systemBus = nullptr;
-    int ident = -1;
+    int m_address = -1;
     std::string componentName = "?";
 };
 

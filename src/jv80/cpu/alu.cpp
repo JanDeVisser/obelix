@@ -17,7 +17,7 @@ ALU::ALU(int ident, std::shared_ptr<Register> lhs)
 
 std::string ALU::to_string() const
 {
-    return format("{01x}. LHS {02x}  {01x}. RHS {02x}", lhs()->id(), lhs()->getValue(), id(), getValue());
+    return format("{01x}. LHS {02x}  {01x}. RHS {02x}", lhs()->address(), lhs()->getValue(), address(), getValue());
 }
 
 SystemError ALU::onRisingClockEdge()
@@ -25,7 +25,7 @@ SystemError ALU::onRisingClockEdge()
     if (auto err = Register::onHighClock(); err.is_error())
         return err;
 
-    if (!bus()->xaddr() && (bus()->getID() == id())) {
+    if (!bus()->xaddr() && (bus()->getAddress() == address())) {
         bus()->putOnAddrBus(0x0);
         bus()->putOnDataBus(bus()->flags());
     }
@@ -79,7 +79,7 @@ SystemError ALU::onHighClock()
     if (auto err = Register::onHighClock(); err.is_error())
         return err;
 
-    if (bus()->putID() == id()) {
+    if (bus()->putAddress() == address()) {
         if (!bus()->xdata()) {
             m_operator = operators[bus()->opflags()];
             if (m_operator) {

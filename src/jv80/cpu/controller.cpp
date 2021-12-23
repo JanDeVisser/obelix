@@ -263,7 +263,7 @@ word Controller::constant() const
 
 std::string Controller::to_string() const
 {
-    return format("{01x}. IR {02x} {04x} {>15s} Step {}", id(), getValue(), constant(), instruction().c_str(), m_step);
+    return format("{01x}. IR {02x} {04x} {>15s} Step {}", address(), getValue(), constant(), instruction().c_str(), m_step);
 }
 
 SystemError Controller::reset()
@@ -275,7 +275,7 @@ SystemError Controller::reset()
 
 SystemError Controller::onRisingClockEdge()
 {
-    if (bus()->getID() == CONTROLLER) {
+    if (bus()->getAddress() == CONTROLLER) {
         if (!bus()->xdata()) {
             bus()->putOnDataBus(scratch());
         } else if (!bus()->xaddr()) {
@@ -290,7 +290,7 @@ SystemError Controller::onRisingClockEdge()
 
 SystemError Controller::onHighClock()
 {
-    if (bus()->putID() == CONTROLLER) {
+    if (bus()->putAddress() == CONTROLLER) {
         if (!bus()->xdata()) {
             m_scratch = bus()->readDataBus();
         } else if (!bus()->xaddr()) {

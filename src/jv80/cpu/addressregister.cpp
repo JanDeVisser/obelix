@@ -25,7 +25,7 @@ void AddressRegister::setValue(word val)
 
 std::string AddressRegister::to_string() const
 {
-    return format("{01x}. {02s}  {04x}\n", id(), name(), m_value);
+    return format("{01x}. {02s}  {04x}\n", address(), name(), m_value);
 }
 
 SystemError AddressRegister::reset()
@@ -37,7 +37,7 @@ SystemError AddressRegister::reset()
 
 SystemError AddressRegister::onRisingClockEdge()
 {
-    if (bus()->getID() == id()) {
+    if (bus()->getAddress() == address()) {
         if (m_xdata && !bus()->xdata()) {
             if (bus()->opflags() & SystemBus::MSB) {
                 bus()->putOnDataBus((m_value & 0xFF00) >> 8);
@@ -73,7 +73,7 @@ SystemError AddressRegister::onRisingClockEdge()
 
 SystemError AddressRegister::onHighClock()
 {
-    if (m_xdata && !bus()->xdata() && (bus()->putID() == id())) {
+    if (m_xdata && !bus()->xdata() && (bus()->putAddress() == address())) {
         if (!(bus()->opflags() & SystemBus::MSB)) {
             m_value &= 0xFF00;
             setValue(m_value | bus()->readDataBus());
@@ -81,7 +81,7 @@ SystemError AddressRegister::onHighClock()
             m_value &= 0x00FF;
             setValue(m_value | ((word)bus()->readDataBus()) << 8);
         }
-    } else if (!bus()->xaddr() && (bus()->putID() == id())) {
+    } else if (!bus()->xaddr() && (bus()->putAddress() == address())) {
         setValue((word)((bus()->readAddrBus() << 8) | bus()->readDataBus()));
     }
     return {};

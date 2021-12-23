@@ -24,7 +24,7 @@ void Register::setValue(byte val)
 
 std::string Register::to_string() const
 {
-    return format("{01x}. {}  {02x}", id(), name().c_str(), value);
+    return format("{01x}. {}  {02x}", address(), name().c_str(), value);
 }
 
 SystemError Register::reset()
@@ -36,7 +36,7 @@ SystemError Register::reset()
 
 SystemError Register::onRisingClockEdge()
 {
-    if ((!bus()->xdata() || (!bus()->io() && (bus()->opflags() & SystemBus::IOOut))) && (bus()->getID() == id())) {
+    if ((!bus()->xdata() || (!bus()->io() && (bus()->opflags() & SystemBus::IOOut))) && (bus()->getAddress() == address())) {
         bus()->putOnDataBus(value);
     }
     return {};
@@ -44,7 +44,7 @@ SystemError Register::onRisingClockEdge()
 
 SystemError Register::onHighClock()
 {
-    if ((!bus()->xdata() && (bus()->putID() == id())) || (!bus()->io() && (bus()->opflags() & SystemBus::IOIn) && (bus()->getID() == id()))) {
+    if ((!bus()->xdata() && (bus()->putAddress() == address())) || (!bus()->io() && (bus()->opflags() & SystemBus::IOIn) && (bus()->getAddress() == address()))) {
         setValue(bus()->readDataBus());
     }
     return {};

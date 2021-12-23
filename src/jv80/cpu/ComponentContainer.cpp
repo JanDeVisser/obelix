@@ -27,10 +27,10 @@ ComponentContainer::ComponentContainer(std::shared_ptr<ConnectedComponent> const
 void ComponentContainer::insert(std::shared_ptr<ConnectedComponent> const& component)
 {
     component->bus(&m_bus);
-    m_components[component->id()] = component;
-    m_aliases[component->id()] = component->id();
-    if (component->id() != component->alias()) {
-        m_aliases[component->alias()] = component->id();
+    m_components[component->address()] = component;
+    m_aliases[component->address()] = component->address();
+    if (component->address() != component->alias()) {
+        m_aliases[component->alias()] = component->address();
     }
 }
 
@@ -42,7 +42,7 @@ void ComponentContainer::insert(std::shared_ptr<ConnectedComponent> const& compo
 void ComponentContainer::insertIO(std::shared_ptr<ConnectedComponent> const& component)
 {
     component->bus(&m_bus);
-    m_io[component->id()] = component;
+    m_io[component->address()] = component;
 }
 
 SystemBus& ComponentContainer::bus()
