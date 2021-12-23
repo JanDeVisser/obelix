@@ -78,7 +78,7 @@ public:
             }
             return Error { ErrorCode::SyntaxError, parser.errors()[0].message };
         }
-        if (auto eval_result = evaluate_tree(tree); eval_result.is_error()) {
+        if (auto eval_result = evaluate_tree(tree, file_name); eval_result.is_error()) {
             printf("ERROR: %s\n", eval_result.error().message().c_str());
         } else {
             printf("%s\n", eval_result.value()->to_string(0).c_str());
@@ -89,7 +89,7 @@ public:
     [[nodiscard]] Config& config() { return m_config; }
 
 private:
-    ErrorOr<std::shared_ptr<SyntaxNode>> evaluate_tree(std::shared_ptr<SyntaxNode> const& tree)
+    ErrorOr<std::shared_ptr<SyntaxNode>> evaluate_tree(std::shared_ptr<SyntaxNode> const& tree, std::string file_name = "")
     {
         if (tree) {
             if (config().show_tree)
@@ -100,12 +100,15 @@ private:
             transformed = TRY(lower(tree));
             if (config().show_tree)
                 printf("%s\n", transformed->to_string(0).c_str());
-            //            transformed = TRY(fold_constants(transformed));
-            //            if (config().show_tree)
-            //                printf("%s\n", transformed->to_string(0).c_str());
-            Context<Obj> root;
-            return output_jv80(transformed);
-            //            return execute(transformed, root);
+            transformed = TRY(fold_constants(transformed));
+            if (config().show_tree)
+                printf("%s\n", transformed->to_string(0).c_str());
+            if (!file_name.empty()) {
+                return output_jv80(transformed, file_name + ".bin");
+            } else {
+                Context<Obj> root;
+                return execute(transformed, root);
+            }
         }
         return tree;
     }

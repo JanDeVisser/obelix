@@ -10,6 +10,6 @@
 
 namespace Obelix {
 
-ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const&);
+ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const&, std::string const& = "");
 
 }

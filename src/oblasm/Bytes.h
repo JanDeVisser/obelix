@@ -19,7 +19,7 @@ public:
         LWord = 0x08, // 64 bits
     };
 
-    Bytes(Mnemonic, std::string const&);
+    explicit Bytes(Mnemonic, std::string const& = "");
     void append(uint8_t);
     void append(uint16_t);
     void append(uint32_t);

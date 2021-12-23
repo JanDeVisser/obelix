@@ -84,7 +84,7 @@ void Bytes::append(const std::string& data)
     for (auto& part : parts) {
         auto ulong_maybe = to_ulong(part);
         if (!ulong_maybe.has_value()) {
-            add_error(format("Could not parse {} value '{}'", data, Mnemonic_name(mnemonic())));
+            add_error(format("Could not parse {} value '{}'", Mnemonic_name(mnemonic()), part));
             return;
         }
         append(ulong_maybe.value());

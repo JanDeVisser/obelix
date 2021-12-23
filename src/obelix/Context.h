@@ -64,7 +64,6 @@ public:
     {
         if (m_names.contains(name)) {
             auto value = m_names.at(name);
-            debug(parser, "Context::get({}) = '{}'", name, value);
             return value;
         }
         if (m_parent)
@@ -75,7 +74,6 @@ public:
     bool set(std::string const& name, T const& value)
     {
         if (m_names.contains(name)) {
-            debug(parser, "Context::set({}, '{}')", name, value);
             m_names[name] = value;
             return true;
         }
@@ -88,7 +86,6 @@ public:
     {
         if (m_names.contains(name))
             return Error(ErrorCode::VariableAlreadyDeclared, name);
-        debug(parser, "Context::declare({}, '{}')", name, value);
         m_names[name] = value;
         return {};
     }
@@ -100,7 +97,6 @@ public:
 
         if (m_names.contains(name))
             return Error(ErrorCode::VariableAlreadyDeclared, name);
-        debug(parser, "Context::declare_global({}, '{}')", name, value);
         m_names[name] = value;
         return {};
     }
@@ -108,7 +104,6 @@ public:
     void unset(std::string const& name)
     {
         if (m_names.contains(name)) {
-            debug(parser, "Context::unset({})", name);
             m_names.erase(name);
             return;
         }

@@ -57,10 +57,14 @@ void Image::add(std::shared_ptr<Label> const& label)
     m_labels.insert_or_assign(label->label(), label);
 }
 
+void Image::add(Segment& segment, std::shared_ptr<Label> const& label)
+{
+    segment.add(std::dynamic_pointer_cast<Entry>(label));
+    m_labels.insert_or_assign(label->label(), label);
+}
+
 void Image::add(std::shared_ptr<Segment> const& segment)
 {
-    if (m_current->entries().empty())
-        m_segments.pop_back();
     m_segments.push_back(segment);
     m_current = m_segments.back();
 }

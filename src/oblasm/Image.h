@@ -21,10 +21,12 @@ std::vector<std::string> bytes_to_strings(std::vector<uint8_t>);
 
 class Image {
 public:
-    explicit Image(uint16_t size = 16*1024);
+    explicit Image(uint16_t size = 16 * 1024);
     void add(std::shared_ptr<Entry> const& directive);
     void add(std::shared_ptr<Label> const& label);
-    void add(std::shared_ptr<Segment> const& segment);
+    void add(Segment&, std::shared_ptr<Label> const&);
+    void add(std::shared_ptr<Segment> const&);
+    [[nodiscard]] std::shared_ptr<Segment> get_segment(int ix) { return m_segments.at(ix); }
     [[nodiscard]] bool has_label(std::string const&) const;
     [[nodiscard]] std::shared_ptr<Label> const& label(std::string const&) const;
     [[nodiscard]] uint16_t current_address() const { return m_current->current_address(); }

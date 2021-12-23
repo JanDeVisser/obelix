@@ -102,9 +102,36 @@ ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const& tree)
         return tree;
     };
 
-    fold_constants_map[SyntaxNodeType::UnaryExpression] = [](std::shared_ptr<SyntaxNode> const& tree, FoldContext& ctx) -> ErrorOrNode
-    {
+    fold_constants_map[SyntaxNodeType::UnaryExpression] = [](std::shared_ptr<SyntaxNode> const& tree, FoldContext& ctx) -> ErrorOrNode {
         return to_literal(std::dynamic_pointer_cast<Expression>(tree));
+    };
+
+    fold_constants_map[SyntaxNodeType::IfStatement] = [](std::shared_ptr<SyntaxNode> const& tree, FoldContext& ctx) -> ErrorOrNode {
+        auto stmt = std::dynamic_pointer_cast<IfStatement>(tree);
+        if (stmt->condition()->node_type() == SyntaxNodeType::Literal) {
+            auto condition = std::dynamic_pointer_cast<Literal>(stmt->condition());
+            auto cond_obj = condition->to_object().value();
+            if (cond_obj) {
+                return stmt->if_stmt();
+            } else {
+                for (auto const& elif : stmt->elifs()) {
+                    if (elif->condition()->node_type() == SyntaxNodeType::Literal) {
+                        auto elif_condition = std::dynamic_pointer_cast<Literal>(elif->condition());
+                        auto elif_cond_obj = condition->to_object().value();
+                        if (elif_cond_obj) {
+                            return elif->statement();
+                        }
+                    } else {
+                        // Punt for now. Should build a new if statement.
+                        return tree;
+                    }
+                }
+                if (stmt->else_stmt())
+                    return stmt->else_stmt();
+                return std::make_shared<Pass>();
+            }
+        }
+        return tree;
     };
 
     FoldContext root(fold_constants_map);

@@ -14,7 +14,6 @@ add_library(
         Execute.cpp
         FoldConstants.cpp
         Functions.cpp
-        OutputJV80.cpp
         Parser.cpp
         Syntax.cpp
         Symbol.h
@@ -28,10 +27,12 @@ target_link_libraries(
 add_executable(
         obelix
         main.cpp
+        OutputJV80.cpp
 )
 
 target_link_libraries(
         obelix
+        oblasm
         oblparser
         ${LIBS}
 )
