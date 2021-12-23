@@ -169,7 +169,7 @@ Terminal::Terminal(QWidget* parent)
     for (int ix = 0; ix < SZ; ix++) {
         screen[ix] = ' ';
         auto label = new QLabel();
-        label->setPixmap(img[' ']);
+        label->setPixmap(img[(int)' ']);
         layout->addWidget(label, ix / W, ix % W);
     }
     drawScreen();

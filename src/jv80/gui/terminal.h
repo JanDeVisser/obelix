@@ -11,8 +11,8 @@
 #include <optional>
 #include <vector>
 
-#include "../../../../../Qt/6.2.1/macos/lib/QtGui.framework/Headers/QKeyEvent"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QWidget"
+#include <QKeyEvent>
+#include <QWidget>
 
 #include <jv80/gui/componentview.h>
 
@@ -55,14 +55,14 @@ public:
         RIS,
     };
 
-    enum class FinalState {
+    enum FinalState {
         InProgress,
         Matched = 10,
         CantMatch = 11
     };
 
 private:
-    enum class State {
+    enum State {
         Start = 0,
         LBracket,
         LBracketNum,

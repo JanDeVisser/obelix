@@ -14,17 +14,18 @@
 namespace Obelix::JV80::CPU {
 
 class AddressRegister : public ConnectedComponent {
-private:
-    word value = 0;
-
 public:
-    AddressRegister(int, std::string);
+    AddressRegister(int, std::string, bool = true);
     void setValue(word val);
-    int getValue() const override { return value; }
-    std::ostream& status(std::ostream&) override;
+    [[nodiscard]] int getValue() const override { return m_value; }
+    [[nodiscard]] std::string to_string() const override;
     SystemError reset() override;
     SystemError onRisingClockEdge() override;
     SystemError onHighClock() override;
+
+private:
+    word m_value = 0;
+    bool m_xdata { false };
 };
 
 }

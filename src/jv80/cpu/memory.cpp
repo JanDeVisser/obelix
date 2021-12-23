@@ -6,9 +6,9 @@
 
 #include <algorithm>
 #include <cstring>
-#include <iostream>
-#include <jv80/cpu/memory.h>
 #include <memory>
+
+#include <jv80/cpu/memory.h>
 
 namespace Obelix::JV80::CPU {
 
@@ -24,69 +24,35 @@ MemoryBank::MemoryBank(word start, word size, bool writable, const byte* image) 
         return;
     }
 
-    m_image = std::shared_ptr<byte>(new byte[m_size], std::default_delete<byte[]>());
+    m_image = new byte[size];
     if (image) {
-        memcpy(m_image.get(), image, size);
+        memcpy(m_image, image, size);
     } else {
         erase();
     }
 }
 
-MemoryBank::MemoryBank(const MemoryBank& other)
-    : m_start(other.start())
-    , m_size(other.size())
-    , m_writable(other.writable())
+MemoryBank::~MemoryBank()
 {
-    m_image = other.m_image;
+    delete[] m_image;
 }
 
-MemoryBank::MemoryBank(MemoryBank&& other) noexcept
+SystemError MemoryBank::poke(std::size_t addr, byte value)
 {
-    m_start = other.start();
-    m_size = other.size();
-    m_writable = other.writable();
-    m_image = other.m_image;
-    other.m_image = nullptr;
-    other.m_size = 0;
-}
-
-MemoryBank& MemoryBank::operator=(const MemoryBank& other)
-{
-    if (this != &other) {
-        m_start = other.start();
-        m_size = other.size();
-        m_writable = other.writable();
-        m_image = other.m_image;
-    }
-    return *this;
-}
-
-MemoryBank& MemoryBank::operator=(MemoryBank&& other) noexcept
-{
-    m_start = other.start();
-    m_size = other.size();
-    m_writable = other.writable();
-    m_image = other.m_image;
-    other.m_image = nullptr;
-    other.m_size = 0;
-    return *this;
-}
-
-byte& MemoryBank::operator[](std::size_t addr)
-{
-    if (mapped(addr)) {
-        return m_image.get()[offset(addr)];
+    if (mapped(addr) && writable()) {
+        m_image[offset(addr)] = value;
+        return {};
     } else {
-        throw std::exception(); // FIXME
+        return SystemErrorCode::ProtectedMemory;
     }
 }
 
-const byte& MemoryBank::operator[](std::size_t addr) const
+ErrorOr<byte, SystemErrorCode> MemoryBank::peek(std::size_t addr) const
 {
     if (mapped(addr)) {
-        return m_image.get()[offset(addr)];
+        return m_image[offset(addr)];
     } else {
-        throw std::exception(); // FIXME
+        return SystemErrorCode::ProtectedMemory;
     }
 }
 
@@ -122,37 +88,19 @@ bool MemoryBank::operator!=(const MemoryBank& other) const
 
 std::string MemoryBank::name() const
 {
-    char buf[80];
-    snprintf(buf, 80, "%s %04x-%04x", ((writable()) ? "RAM" : "ROM"), start(), end());
-    return buf;
+    return format("{} {04x}-{04x}", ((writable()) ? "RAM" : "ROM"), start(), end());
 }
 
 void MemoryBank::erase()
 {
-    memset(m_image.get(), 0, m_size);
-}
-
-void MemoryBank::copy(MemoryBank& other)
-{
-    if (fits(other.start(), other.size())) {
-        for (auto ix = 0; ix < other.size(); ix++) {
-            m_image.get()[offset(other.start()) + ix] = other.m_image.get()[ix];
-        }
-        other.m_image = nullptr;
-        other.m_size = 0;
-    }
-}
-
-void MemoryBank::copy(MemoryBank&& other)
-{
-    copy(other);
+    memset(m_image, 0, m_size);
 }
 
 void MemoryBank::copy(size_t addr, size_t size, const byte* contents)
 {
     if (fits(addr, size)) {
         for (auto ix = 0; ix < size; ix++) {
-            m_image.get()[offset(addr) + ix] = contents[ix];
+            m_image[offset(addr) + ix] = contents[ix];
         }
     }
 }
@@ -180,94 +128,65 @@ Memory::Memory()
 {
 }
 
-Memory::Memory(MemoryBank&& bank)
+Memory::Memory(word ramStart, word ramSize, word romStart, word romSize)
     : Memory()
 {
-    initialize(bank);
+    add(ramStart, ramSize, true);
+    add(romStart, romSize, false);
 }
 
-Memory::Memory(MemoryBank& bank)
-    : Memory()
+std::optional<size_t> Memory::findBankForAddress(size_t addr) const
 {
-    initialize(bank);
-}
-
-Memory::Memory(word ramStart, word ramSize, word romStart, word romSize, MemoryBank& bank)
-    : Memory()
-{
-    add(MemoryBank(ramStart, ramSize, true));
-    add(MemoryBank(romStart, romSize, false));
-    initialize(bank);
-}
-
-Memory::Memory(word ramStart, word ramSize, word romStart, word romSize, MemoryBank&& bank)
-    : Memory(ramStart, ramSize, romStart, romSize, bank)
-{
-}
-
-MemoryBank Memory::findBankForAddress(size_t addr) const
-{
-    static MemoryBank dummy;
-    MemoryBank ret;
-    for (auto& bank : m_banks) {
-        if (bank.mapped(addr)) {
-            ret = bank;
-            return ret;
-        }
+    for (auto ix = 0; ix < m_banks.size(); ++ix) {
+        auto& bank = m_banks[ix];
+        if (bank.mapped(addr))
+            return ix;
     }
-    return dummy;
+    return {};
 }
 
-MemoryBank Memory::findBankForBlock(size_t addr, size_t size) const
+std::optional<size_t> Memory::findBankForBlock(size_t addr, size_t size) const
 {
-    static MemoryBank dummy;
-    MemoryBank ret = findBankForAddress(addr);
-    if (ret.valid() && !ret.fits(addr, size)) {
-        ret = dummy;
+    for (size_t ix = 0; ix < m_banks.size(); ++ix) {
+        auto& bank = m_banks[ix];
+        if (bank.fits(addr, size))
+            return ix;
     }
-    return ret;
+    return {};
 }
 
-MemoryBank Memory::bank(word addr) const
+MemoryBank const& Memory::bank(size_t addr) const
 {
-    return findBankForBlock(addr, 0);
-}
-
-MemoryBanks Memory::banks() const
-{
-    return MemoryBanks(m_banks);
+    auto ix = findBankForAddress(addr);
+    assert(ix.has_value());
+    return m_banks[ix.value()];
 }
 
 word Memory::start() const
 {
-    return (m_banks.begin() != m_banks.end()) ? m_banks.begin()->start() : 0xFFFF;
+    return (!m_banks.empty()) ? (*m_banks.begin()).start() : 0xFFFF;
 }
 
 bool Memory::disjointFromAll(size_t addr, size_t size) const
 {
-    for (auto const& bank : m_banks) {
-        if (bank.disjointFrom(addr, size)) {
-            return true;
-        }
-    }
-    return true;
+    return std::all_of(m_banks.begin(), m_banks.end(),
+        [addr, size](auto& bank) { return bank.disjointFrom(addr, size); });
 }
 
 void Memory::erase()
 {
     for (auto& bank : m_banks) {
-        MemoryBank b(bank);
-        b.erase();
+        bank.erase();
     }
 }
 
 bool Memory::add(word address, word size, bool writable, const byte* contents)
 {
-    MemoryBank b = findBankForBlock(address, size);
-    if (b.valid()) {
-        b.copy(address, size, contents);
+    auto b = findBankForBlock(address, size);
+    if (b.has_value()) {
+        m_banks[b.value()].copy(address, size, contents);
     } else if (disjointFromAll(address, size)) {
-        m_banks.emplace(address, size, writable, contents);
+        m_banks.emplace_back(address, size, writable, contents);
         sendEvent(EV_CONFIGCHANGED);
     } else {
         return false;
@@ -278,142 +197,80 @@ bool Memory::add(word address, word size, bool writable, const byte* contents)
     return true;
 }
 
-bool Memory::add(MemoryBank&& bank)
+bool Memory::remove(word addr, word size)
 {
-    if (!bank.size()) {
-        return true;
-    }
-    MemoryBank b = findBankForBlock(bank.start(), bank.size());
-    if (b.valid()) {
-        b.copy(bank);
-    } else if (disjointFromAll(bank.start(), bank.size())) {
-        m_banks.emplace(bank);
-        sendEvent(EV_CONFIGCHANGED);
-    } else {
-        return false;
-    }
-    sendEvent(EV_IMAGELOADED);
-    return true;
-}
-
-bool Memory::add(MemoryBank& bank)
-{
-    if (!bank.size()) {
-        return true;
-    }
-    MemoryBank b = findBankForBlock(bank.start(), bank.size());
-    if (b.valid()) {
-        b.copy(bank);
-    } else if (disjointFromAll(bank.start(), bank.size())) {
-        m_banks.insert(std::move(bank));
-        sendEvent(EV_CONFIGCHANGED);
-    } else {
-        return false;
-    }
-    sendEvent(EV_IMAGELOADED);
-    return true;
-}
-
-bool Memory::remove(MemoryBank& bank)
-{
-    if (!bank.valid()) {
-        return false;
-    }
-    m_banks.erase(bank);
-    sendEvent(EV_CONFIGCHANGED);
-    return true;
-}
-
-bool Memory::initialize()
-{
-    m_banks.clear();
-    return true;
+    auto ret = std::remove_if(m_banks.begin(), m_banks.end(), [addr, size](auto& bank) {
+        return (bank.start() == addr) && (bank.size() == size);
+    });
+    return ret != m_banks.end();
 }
 
 bool Memory::initialize(word address, word size, const byte* contents, bool writable)
 {
-    return initialize(MemoryBank(address, size, writable, contents));
-}
-
-bool Memory::initialize(MemoryBank& bank)
-{
-    erase();
-    return add(bank);
-}
-
-bool Memory::initialize(MemoryBank&& bank)
-{
-    return initialize(bank);
+    return add(address, size, writable, contents);
 }
 
 bool Memory::inRAM(word addr) const
 {
-    MemoryBank bank = findBankForAddress(addr);
-    return bank.valid() && bank.writable();
+    auto bank_ix = findBankForAddress(addr);
+    return bank_ix.has_value() && m_banks[bank_ix.value()].writable();
 }
 
 bool Memory::inROM(word addr) const
 {
-    MemoryBank bank = findBankForAddress(addr);
-    return bank.valid() && !bank.writable();
+    auto bank_ix = findBankForAddress(addr);
+    return bank_ix.has_value() && !m_banks[bank_ix.value()].writable();
 }
 
 bool Memory::isMapped(word addr) const
 {
-    MemoryBank b(findBankForAddress(addr));
-    return b.valid();
+    return std::any_of(m_banks.begin(), m_banks.end(), [addr](auto& bank) {
+        return bank.mapped(addr);
+    });
 }
 
-byte& Memory::operator[](std::size_t addr)
+SystemError Memory::poke(std::size_t addr, byte value)
 {
-    static byte dummy = 0xFF;
-    MemoryBank bank(findBankForAddress(addr));
-    if (bank.valid()) {
-        return bank[addr];
+    auto bank = findBankForAddress(addr);
+    if (bank.has_value() && m_banks[bank.value()].writable()) {
+        return m_banks[bank.value()].poke(addr, value);
     } else {
-        return dummy;
+        return SystemErrorCode::ProtectedMemory;
     }
 }
 
-const byte& Memory::operator[](std::size_t addr) const
+ErrorOr<byte, SystemErrorCode> Memory::peek(std::size_t addr) const
 {
-    static byte dummy = 0xFF;
-    MemoryBank bank(findBankForAddress(addr));
-    if (bank.valid()) {
-        return bank[addr];
+    auto bank = findBankForAddress(addr);
+    if (bank.has_value()) {
+        return m_banks[bank.value()].peek(addr);
     } else {
-        return dummy;
+        return SystemErrorCode::ProtectedMemory;
     }
 }
 
-std::ostream& Memory::status(std::ostream& os)
+std::string Memory::to_string() const
 {
-    char buf[80];
-    snprintf(buf, 80, "%1x. M  %04x   CONTENTS %1x. [%02x]", id(), getValue(),
-        MEM_ID, (isMapped(getValue()) ? (*this)[getValue()] : 0xFF));
-    os << buf << std::endl;
-    return os;
+    return format("{01x}. M  {04x}   CONTENTS {01x}. [{02x}]", id(), getValue(),
+        MEM_ID, (isMapped(getValue()) ? peek(getValue()).value() : 0xFF));
 }
 
 SystemError Memory::onRisingClockEdge()
 {
     if ((!bus()->xdata() || !bus()->xaddr() || (!bus()->io() && (bus()->opflags() & SystemBus::IOOut))) && (bus()->getID() == MEM_ID)) {
         if (!isMapped(getValue())) {
-            return error(ProtectedMemory);
+            return SystemErrorCode::ProtectedMemory;
         }
         bus()->putOnAddrBus(0x00);
-        bus()->putOnDataBus((*this)[getValue()]);
+        bus()->putOnDataBus(peek(getValue()).value());
     }
-    return NoError;
+    return {};
 }
 
 SystemError Memory::onHighClock()
 {
     if (((!bus()->xdata() || !bus()->xaddr()) && (bus()->putID() == MEM_ID)) || (!bus()->io() && (bus()->opflags() & SystemBus::IOIn) && (bus()->getID() == MEM_ID))) {
-        if (!inRAM(getValue())) {
-            return error(ProtectedMemory);
-        }
-        (*this)[getValue()] = bus()->readDataBus();
+        TRY_RETURN(poke(getValue(), bus()->readDataBus()));
         sendEvent(EV_CONTENTSCHANGED);
     } else if (bus()->putID() == ADDR_ID) {
         if (!(bus()->xaddr())) {
@@ -426,7 +283,7 @@ SystemError Memory::onHighClock()
             }
         }
     }
-    return NoError;
+    return {};
 }
 
 }

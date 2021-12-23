@@ -19,9 +19,9 @@ public:
     explicit Register(int, std::string&& = "");
 
     void setValue(byte val);
-    int getValue() const override { return value; }
+    [[nodiscard]] int getValue() const override { return value; }
 
-    std::ostream& status(std::ostream&) override;
+    [[nodiscard]] std::string to_string() const override;
     SystemError reset() override;
     SystemError onRisingClockEdge() override;
     SystemError onHighClock() override;

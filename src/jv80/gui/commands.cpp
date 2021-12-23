@@ -40,25 +40,13 @@ Command::Command(CommandLineEdit& edit)
     }
 }
 
-void Command::setError(QString&& err)
+void Command::setError(QString const& err)
 {
     m_result = err;
     m_success = false;
 }
 
-void Command::setError(QString& err)
-{
-    m_result = err;
-    m_success = false;
-}
-
-void Command::setResult(QString&& res)
-{
-    m_result = res;
-    m_success = true;
-}
-
-void Command::setResult(QString& res)
+void Command::setResult(QString const& res)
 {
     m_result = res;
     m_success = true;
@@ -82,8 +70,7 @@ CommandDefinition::CommandDefinition(CommandLineEdit* edit, QString&& command,
 CommandDefinition::CommandDefinition(CommandLineEdit* edit, QString& command,
     int minArgs, int maxArgs,
     CommandHandler handler, Completer completer)
-    : m_edit(edit)
-    , m_command(command)
+    : m_command(command)
     , m_minArgs(minArgs)
     , m_maxArgs(maxArgs)
     , m_handler(std::move(handler))

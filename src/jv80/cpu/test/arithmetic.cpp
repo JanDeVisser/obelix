@@ -9,56 +9,58 @@
 
 namespace Obelix::JV80::CPU {
 
+class TESTNAME : public HarnessTest {
+};
+
 //
 // A R I T H M E T I C
 //
 
-typedef std::function<byte(Harness*, byte, byte)> Expect;
+typedef std::function<byte(Harness&, byte, byte)> Expect;
 
 static Expect expect[16] = {
-    /* 0x0 ADD */ [](Harness* system, byte lhs, byte rhs) {
+    /* 0x0 ADD */ [](Harness& system, byte lhs, byte rhs) {
         return (byte)(lhs + rhs);
     },
 
-    /* 0x1 ADC */ [](Harness* system, byte lhs, byte rhs) { return (byte)(lhs + rhs + +(byte)(system->bus().isSet(SystemBus::C))); },
+    /* 0x1 ADC */ [](Harness& system, byte lhs, byte rhs) { return (byte)(lhs + rhs + +(byte)(system.bus().isSet(SystemBus::C))); },
 
-    /* 0x2 SUB */ [](Harness* system, byte lhs, byte rhs) { return (byte)(lhs - rhs); },
+    /* 0x2 SUB */ [](Harness& system, byte lhs, byte rhs) { return (byte)(lhs - rhs); },
 
-    /* 0x3 SBB */ [](Harness* system, byte lhs, byte rhs) { return (byte)(lhs - rhs
-                                                                - (byte)(system->bus().isSet(SystemBus::C))); },
+    /* 0x3 SBB */ [](Harness& system, byte lhs, byte rhs) { return (byte)(lhs - rhs - (byte)(system.bus().isSet(SystemBus::C))); },
 
-    /* 0x4 AND */ [](Harness* system, byte lhs, byte rhs) { return lhs & rhs; },
+    /* 0x4 AND */ [](Harness& system, byte lhs, byte rhs) { return lhs & rhs; },
 
-    /* 0x5 OR  */ [](Harness* system, byte lhs, byte rhs) { return lhs | rhs; },
+    /* 0x5 OR  */ [](Harness& system, byte lhs, byte rhs) { return lhs | rhs; },
 
-    /* 0x6 XOR */ [](Harness* system, byte lhs, byte rhs) { return lhs ^ rhs; },
+    /* 0x6 XOR */ [](Harness& system, byte lhs, byte rhs) { return lhs ^ rhs; },
 
-    /* 0x7 INC */ [](Harness* system, byte lhs, byte rhs) { return (byte)(lhs + 1); },
+    /* 0x7 INC */ [](Harness& system, byte lhs, byte rhs) { return (byte)(lhs + 1); },
 
-    /* 0x8 DEC */ [](Harness* system, byte lhs, byte rhs) { return (byte)(lhs - 1); },
+    /* 0x8 DEC */ [](Harness& system, byte lhs, byte rhs) { return (byte)(lhs - 1); },
 
-    /* 0x9 NOT */ [](Harness* system, byte lhs, byte rhs) { return ~lhs; },
+    /* 0x9 NOT */ [](Harness& system, byte lhs, byte rhs) { return ~lhs; },
 
-    /* 0xA SHL */ [](Harness* system, byte lhs, byte rhs) {
-    byte ret = lhs << 1;
-    if (system -> bus().isSet(SystemBus::C)) {
-      ret |= 0x01;
-    }
-    return ret; },
+    /* 0xA SHL */ [](Harness& system, byte lhs, byte rhs) {
+        byte ret = lhs << 1;
+        if (system.bus().isSet(SystemBus::C)) {
+          ret |= 0x01;
+        }
+        return ret; },
 
-    /* 0xB SHR */ [](Harness* system, byte lhs, byte rhs) {
-    byte ret = lhs >> 1;
-    if (system -> bus().isSet(SystemBus::C)) {
-      ret |= 0x80;
-    }
-    return ret; },
+    /* 0xB SHR */ [](Harness& system, byte lhs, byte rhs) {
+        byte ret = lhs >> 1;
+        if (system.bus().isSet(SystemBus::C)) {
+          ret |= 0x80;
+        }
+        return ret; },
 
     /* 0xC */ nullptr,
     /* 0xD */ nullptr,
 
-    /* 0xE CLR */ [](Harness* system, byte lhs, byte rhs) { return (byte)0; },
+    /* 0xE CLR */ [](Harness& system, byte lhs, byte rhs) { return (byte)0; },
 
-    /* 0xF */ [](Harness* system, byte lhs, byte rhs) { return lhs; },
+    /* 0xF */ [](Harness& system, byte lhs, byte rhs) { return lhs; },
 };
 
 static byte reg2instr[4] {
@@ -84,58 +86,46 @@ struct OpTest {
     {
     }
 
-    virtual const byte* bytes() const = 0;
-    virtual int bytesSize() const = 0;
-    virtual int regs() const = 0;
-    virtual int cycleCount() const = 0;
+    [[nodiscard]] virtual const byte* bytes() const = 0;
+    [[nodiscard]] virtual int bytesSize() const = 0;
+    [[nodiscard]] virtual int regs() const = 0;
+    [[nodiscard]] virtual int cycleCount() const = 0;
 
     void value(byte val)
     {
         m_value = val;
     }
 
-    virtual void execute(Harness* system, int cycles = -1)
+    void execute(Harness& system, int cycles = -1) const
     {
-        auto* mem = dynamic_cast<Memory*>(system->component(MEMADDR));
+        auto mem = std::dynamic_pointer_cast<Memory>(system.component(MEMADDR));
         const byte* b = bytes();
         mem->initialize(RAM_START, bytesSize(), b);
-        ASSERT_EQ((*mem)[RAM_START], b[0]);
-        (*mem)[RAM_START] = reg2instr[m_reg];
-        (*mem)[RAM_START + 1] = m_value;
+        ASSERT_FALSE(mem->poke(RAM_START, reg2instr[m_reg]).is_error());
+        ASSERT_FALSE(mem->poke(RAM_START + 1, m_value).is_error());
         word instrAddr = RAM_START + 2;
         if (regs() > 1) {
-            (*mem)[RAM_START + 2] = reg2instr[m_reg2];
-            (*mem)[RAM_START + 3] = m_value2;
+            ASSERT_FALSE(mem->poke(RAM_START + 2, reg2instr[m_reg2]).is_error());
+            ASSERT_FALSE(mem->poke(RAM_START + 3, m_value2).is_error());
             instrAddr = RAM_START + 4;
         } else if (regs() == -2) {
-            (*mem)[RAM_START + 3] = m_value2;
+            ASSERT_FALSE(mem->poke(RAM_START + 3, m_value2).is_error());
         }
-        (*mem)[instrAddr] = m_op_instr;
+        ASSERT_FALSE(mem->poke(instrAddr, m_op_instr).is_error());
 
-        auto* pc = dynamic_cast<AddressRegister*>(system->component(PC));
+        auto pc = std::dynamic_pointer_cast<AddressRegister>(system.component(PC));
         pc->setValue(RAM_START);
         ASSERT_EQ(pc->getValue(), RAM_START);
 
         byte e = expect[m_op](system, m_value, m_value2);
-        auto cyclesUsed = system->run();
-        ASSERT_EQ(system->error(), NoError);
-        ASSERT_EQ(cyclesUsed, (cycles < 0) ? cycleCount() : cycles);
-        ASSERT_EQ(system->bus().halt(), false);
+        auto cycles_used_or_error = system.run();
+        ASSERT_FALSE(cycles_used_or_error.is_error());
+        ASSERT_EQ(cycles_used_or_error.value(), (cycles < 0) ? cycleCount() : cycles);
+        ASSERT_EQ(system.bus().halt(), false);
 
-        auto* r = dynamic_cast<Register*>(system->component(m_reg));
+        auto r = std::dynamic_pointer_cast<Register>(system.component(m_reg));
         ASSERT_EQ(r->getValue(), e);
     }
-};
-
-// mov a, #xx      4
-// not a           4
-// hlt             3
-// total          11
-const byte unary_op[] = {
-    /* 2000 */ MOV_A_IMM,
-    0x1F,
-    /* 2002 */ NOP,
-    /* 2003 */ HLT,
 };
 
 struct UnaryOpTest : public OpTest {
@@ -144,38 +134,25 @@ struct UnaryOpTest : public OpTest {
     {
     }
 
-    const byte* bytes() const override
+    [[nodiscard]] const byte* bytes() const override
     {
         return unary_op;
     }
 
-    int bytesSize() const override
+    [[nodiscard]] int bytesSize() const override
     {
         return 4;
     }
 
-    int regs() const override
+    [[nodiscard]] int regs() const override
     {
         return 1;
     }
 
-    int cycleCount() const override
+    [[nodiscard]] int cycleCount() const override
     {
         return 11;
     }
-};
-
-// mov a, #xx      4        x2   8
-// add a, b        5             5
-// hlt             3             3
-// total                        16
-const byte binary_op[] = {
-    /* 2000 */ MOV_A_IMM,
-    0x1F,
-    /* 2002 */ MOV_B_IMM,
-    0xF8,
-    /* 2004 */ NOP,
-    /* 2005 */ HLT,
 };
 
 struct BinaryOpTest : public OpTest {
@@ -271,7 +248,7 @@ TEST_F(TESTNAME, addABSetCarry)
     BinaryOpTest t(GP_A, GP_B, ADD_A_B, ALU::Operations::ADD);
     t.values(0xC0, 0xC0);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, addABSetOverflow)
@@ -279,7 +256,7 @@ TEST_F(TESTNAME, addABSetOverflow)
     BinaryOpTest t(GP_A, GP_B, ADD_A_B, ALU::Operations::ADD);
     t.values(100, 50);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::V));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
 }
 
 TEST_F(TESTNAME, addABSetZero)
@@ -287,21 +264,21 @@ TEST_F(TESTNAME, addABSetZero)
     BinaryOpTest t(GP_A, GP_B, ADD_A_B, ALU::Operations::ADD);
     t.values(-20, 20);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, adcABCarrySet)
 {
     BinaryOpTest t(GP_A, GP_B, ADC_A_B, ALU::Operations::ADC);
-    system->bus().setFlag(SystemBus::C);
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
 TEST_F(TESTNAME, adcABCarryNotSet)
 {
     BinaryOpTest t(GP_A, GP_B, ADC_A_B, ALU::Operations::ADC);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
@@ -314,15 +291,15 @@ TEST_F(TESTNAME, subAB)
 TEST_F(TESTNAME, sbbABNoCarry)
 {
     BinaryOpTest t(GP_A, GP_B, SBB_A_B, ALU::Operations::SBB);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
 TEST_F(TESTNAME, sbbABWithCarry)
 {
     BinaryOpTest t(GP_A, GP_B, SBB_A_B, ALU::Operations::SBB);
-    system->bus().clearFlags();
-    system->bus().setFlag(SystemBus::C);
+    system.bus().clearFlags();
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
@@ -368,7 +345,7 @@ TEST_F(TESTNAME, clrA)
 {
     UnaryOpTest t(GP_A, CLR_A, ALU::CLR);
     t.execute(system, 12);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 // Arithmetic A, C.
@@ -384,7 +361,7 @@ TEST_F(TESTNAME, addACSetCarry)
     BinaryOpTest t(GP_A, GP_C, ADD_A_C, ALU::Operations::ADD);
     t.values(0xC0, 0xC0);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, addACSetOverflow)
@@ -392,7 +369,7 @@ TEST_F(TESTNAME, addACSetOverflow)
     BinaryOpTest t(GP_A, GP_C, ADD_A_C, ALU::Operations::ADD);
     t.values(100, 50);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::V));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
 }
 
 TEST_F(TESTNAME, addACSetZero)
@@ -400,21 +377,21 @@ TEST_F(TESTNAME, addACSetZero)
     BinaryOpTest t(GP_A, GP_C, ADD_A_C, ALU::Operations::ADD);
     t.values(-20, 20);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, adcACCarrySet)
 {
     BinaryOpTest t(GP_A, GP_C, ADC_A_C, ALU::Operations::ADC);
-    system->bus().setFlag(SystemBus::C);
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
 TEST_F(TESTNAME, adcACCarryNotSet)
 {
     BinaryOpTest t(GP_A, GP_C, ADC_A_C, ALU::Operations::ADC);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
@@ -427,15 +404,15 @@ TEST_F(TESTNAME, subAC)
 TEST_F(TESTNAME, sbbACNoCarry)
 {
     BinaryOpTest t(GP_A, GP_C, SBB_A_C, ALU::Operations::SBB);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
 TEST_F(TESTNAME, sbbACWithCarry)
 {
     BinaryOpTest t(GP_A, GP_C, SBB_A_C, ALU::Operations::SBB);
-    system->bus().clearFlags();
-    system->bus().setFlag(SystemBus::C);
+    system.bus().clearFlags();
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
@@ -470,7 +447,7 @@ TEST_F(TESTNAME, addADSetCarry)
     BinaryOpTest t(GP_A, GP_D, ADD_A_D, ALU::Operations::ADD);
     t.values(0xC0, 0xC0);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, addADSetOverflow)
@@ -478,7 +455,7 @@ TEST_F(TESTNAME, addADSetOverflow)
     BinaryOpTest t(GP_A, GP_D, ADD_A_D, ALU::Operations::ADD);
     t.values(100, 50);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::V));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
 }
 
 TEST_F(TESTNAME, addADSetZero)
@@ -486,21 +463,21 @@ TEST_F(TESTNAME, addADSetZero)
     BinaryOpTest t(GP_A, GP_D, ADD_A_D, ALU::Operations::ADD);
     t.values(-20, 20);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, adcADCarrySet)
 {
     BinaryOpTest t(GP_A, GP_D, ADC_A_D, ALU::Operations::ADC);
-    system->bus().setFlag(SystemBus::C);
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
 TEST_F(TESTNAME, adcADCarryNotSet)
 {
     BinaryOpTest t(GP_A, GP_D, ADC_A_D, ALU::Operations::ADC);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
@@ -513,15 +490,15 @@ TEST_F(TESTNAME, subAD)
 TEST_F(TESTNAME, sbbADNoCarry)
 {
     BinaryOpTest t(GP_A, GP_D, SBB_A_D, ALU::Operations::SBB);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
 TEST_F(TESTNAME, sbbADWithCarry)
 {
     BinaryOpTest t(GP_A, GP_D, SBB_A_D, ALU::Operations::SBB);
-    system->bus().clearFlags();
-    system->bus().setFlag(SystemBus::C);
+    system.bus().clearFlags();
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
@@ -567,7 +544,7 @@ TEST_F(TESTNAME, clrB)
 {
     UnaryOpTest t(GP_B, CLR_B, ALU::CLR);
     t.execute(system, 12);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 // Arithmetic B, C.
@@ -583,7 +560,7 @@ TEST_F(TESTNAME, addBCSetCarry)
     BinaryOpTest t(GP_B, GP_C, ADD_B_C, ALU::Operations::ADD);
     t.values(0xC0, 0xC0);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, addBCSetOverflow)
@@ -591,7 +568,7 @@ TEST_F(TESTNAME, addBCSetOverflow)
     BinaryOpTest t(GP_B, GP_C, ADD_B_C, ALU::Operations::ADD);
     t.values(100, 50);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::V));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
 }
 
 TEST_F(TESTNAME, addBCSetZero)
@@ -599,21 +576,21 @@ TEST_F(TESTNAME, addBCSetZero)
     BinaryOpTest t(GP_B, GP_C, ADD_B_C, ALU::Operations::ADD);
     t.values(-20, 20);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, adcBCCarrySet)
 {
     BinaryOpTest t(GP_B, GP_C, ADC_B_C, ALU::Operations::ADC);
-    system->bus().setFlag(SystemBus::C);
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
 TEST_F(TESTNAME, adcBCCarryNotSet)
 {
     BinaryOpTest t(GP_B, GP_C, ADC_B_C, ALU::Operations::ADC);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
@@ -626,15 +603,15 @@ TEST_F(TESTNAME, subBC)
 TEST_F(TESTNAME, sbbBCNoCarry)
 {
     BinaryOpTest t(GP_B, GP_C, SBB_B_C, ALU::Operations::SBB);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
 TEST_F(TESTNAME, sbbBCWithCarry)
 {
     BinaryOpTest t(GP_B, GP_C, SBB_B_C, ALU::Operations::SBB);
-    system->bus().clearFlags();
-    system->bus().setFlag(SystemBus::C);
+    system.bus().clearFlags();
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
@@ -669,7 +646,7 @@ TEST_F(TESTNAME, addBDSetCarry)
     BinaryOpTest t(GP_B, GP_D, ADD_B_D, ALU::Operations::ADD);
     t.values(0xC0, 0xC0);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, addBDSetOverflow)
@@ -677,7 +654,7 @@ TEST_F(TESTNAME, addBDSetOverflow)
     BinaryOpTest t(GP_B, GP_D, ADD_B_D, ALU::Operations::ADD);
     t.values(100, 50);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::V));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
 }
 
 TEST_F(TESTNAME, addBDSetZero)
@@ -685,21 +662,21 @@ TEST_F(TESTNAME, addBDSetZero)
     BinaryOpTest t(GP_B, GP_D, ADD_B_D, ALU::Operations::ADD);
     t.values(-20, 20);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, adcBDCarrySet)
 {
     BinaryOpTest t(GP_B, GP_D, ADC_B_D, ALU::Operations::ADC);
-    system->bus().setFlag(SystemBus::C);
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
 TEST_F(TESTNAME, adcBDCarryNotSet)
 {
     BinaryOpTest t(GP_B, GP_D, ADC_B_D, ALU::Operations::ADC);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
@@ -712,15 +689,15 @@ TEST_F(TESTNAME, subBD)
 TEST_F(TESTNAME, sbbBDNoCarry)
 {
     BinaryOpTest t(GP_B, GP_D, SBB_B_D, ALU::Operations::SBB);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
 TEST_F(TESTNAME, sbbBDWithCarry)
 {
     BinaryOpTest t(GP_B, GP_D, SBB_B_D, ALU::Operations::SBB);
-    system->bus().clearFlags();
-    system->bus().setFlag(SystemBus::C);
+    system.bus().clearFlags();
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
@@ -766,7 +743,7 @@ TEST_F(TESTNAME, clrC)
 {
     UnaryOpTest t(GP_C, CLR_C, ALU::CLR);
     t.execute(system, 12);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 // Arithmetic C, D.
@@ -782,7 +759,7 @@ TEST_F(TESTNAME, addCDSetCarry)
     BinaryOpTest t(GP_C, GP_D, ADD_C_D, ALU::Operations::ADD);
     t.values(0xC0, 0xC0);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, addCDSetOverflow)
@@ -790,7 +767,7 @@ TEST_F(TESTNAME, addCDSetOverflow)
     BinaryOpTest t(GP_C, GP_D, ADD_C_D, ALU::Operations::ADD);
     t.values(100, 50);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::V));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
 }
 
 TEST_F(TESTNAME, addCDSetZero)
@@ -798,21 +775,21 @@ TEST_F(TESTNAME, addCDSetZero)
     BinaryOpTest t(GP_C, GP_D, ADD_C_D, ALU::Operations::ADD);
     t.values(-20, 20);
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system->bus().isSet(SystemBus::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
 }
 
 TEST_F(TESTNAME, adcCDCarrySet)
 {
     BinaryOpTest t(GP_C, GP_D, ADC_C_D, ALU::Operations::ADC);
-    system->bus().setFlag(SystemBus::C);
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
 TEST_F(TESTNAME, adcCDCarryNotSet)
 {
     BinaryOpTest t(GP_C, GP_D, ADC_C_D, ALU::Operations::ADC);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
@@ -825,15 +802,15 @@ TEST_F(TESTNAME, subCD)
 TEST_F(TESTNAME, sbbCDNoCarry)
 {
     BinaryOpTest t(GP_C, GP_D, SBB_C_D, ALU::Operations::SBB);
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     t.execute(system);
 }
 
 TEST_F(TESTNAME, sbbCDWithCarry)
 {
     BinaryOpTest t(GP_C, GP_D, SBB_C_D, ALU::Operations::SBB);
-    system->bus().clearFlags();
-    system->bus().setFlag(SystemBus::C);
+    system.bus().clearFlags();
+    system.bus().setFlag(SystemBus::C);
     t.execute(system);
 }
 
@@ -879,7 +856,7 @@ TEST_F(TESTNAME, clrD)
 {
     UnaryOpTest t(GP_D, CLR_D, ALU::CLR);
     t.execute(system, 12);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 // mov a, #xx      4        x4  16
@@ -899,21 +876,20 @@ const byte wide_binary_op[] = {
     /* 2009 */ HLT,
 };
 
-void test_wide_op(Harness* system, byte opcode)
+void test_wide_op(Harness& system, byte opcode)
 {
-    auto* mem = dynamic_cast<Memory*>(system->component(MEMADDR));
+    auto mem = std::dynamic_pointer_cast<Memory>(system.component(MEMADDR));
     mem->initialize(RAM_START, 10, wide_binary_op);
-    ASSERT_EQ((*mem)[RAM_START], MOV_A_IMM);
-    (*mem)[0x2008] = opcode;
+    ASSERT_FALSE(mem->poke(0x2008, opcode).is_error());
 
-    auto* pc = dynamic_cast<AddressRegister*>(system->component(PC));
+    auto pc = std::dynamic_pointer_cast<AddressRegister>(system.component(PC));
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 27);
-    ASSERT_EQ(system->bus().halt(), false);
+    auto cycles_or_error = system.run();
+    ASSERT_FALSE(cycles_or_error.is_error());
+    ASSERT_EQ(cycles_or_error.value(), 27);
+    ASSERT_EQ(system.bus().halt(), false);
 }
 
 TEST_F(TESTNAME, add_AB_CD)
@@ -925,7 +901,7 @@ TEST_F(TESTNAME, add_AB_CD)
 
 TEST_F(TESTNAME, adc_AB_CD_NoCarry)
 {
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     test_wide_op(system, ADC_AB_CD);
     ASSERT_EQ(gp_a->getValue(), (0xF81F + 0xA736) & 0x00FF);
     ASSERT_EQ(gp_b->getValue(), ((0xF81F + 0xA736) & 0xFF00) >> 8);
@@ -933,7 +909,7 @@ TEST_F(TESTNAME, adc_AB_CD_NoCarry)
 
 TEST_F(TESTNAME, adc_AB_CD_CarrySet)
 {
-    system->bus().setFlag(SystemBus::C);
+    system.bus().setFlag(SystemBus::C);
     test_wide_op(system, ADC_AB_CD);
     ASSERT_EQ(gp_a->getValue(), (0xF81F + 0xA736 + 1) & 0x00FF);
     ASSERT_EQ(gp_b->getValue(), ((0xF81F + 0xA736 + 1) & 0xFF00) >> 8);
@@ -948,7 +924,7 @@ TEST_F(TESTNAME, sub_AB_CD)
 
 TEST_F(TESTNAME, sbb_AB_CD_NoCarry)
 {
-    system->bus().clearFlags();
+    system.bus().clearFlags();
     test_wide_op(system, SBB_AB_CD);
     ASSERT_EQ(gp_a->getValue(), (0xF81F - 0xA736) & 0x00FF);
     ASSERT_EQ(gp_b->getValue(), ((0xF81F - 0xA736) & 0xFF00) >> 8);
@@ -956,7 +932,7 @@ TEST_F(TESTNAME, sbb_AB_CD_NoCarry)
 
 TEST_F(TESTNAME, sbb_AB_CD_CarrySet)
 {
-    system->bus().setFlag(SystemBus::C);
+    system.bus().setFlag(SystemBus::C);
     test_wide_op(system, SBB_AB_CD);
     ASSERT_EQ(gp_a->getValue(), (0xF81F - 0xA736 - 1) & 0x00FF);
     ASSERT_EQ(gp_b->getValue(), ((0xF81F - 0xA736 - 1) & 0xFF00) >> 8);
@@ -969,7 +945,7 @@ TEST_F(TESTNAME, cmpABNotEqual)
     BinaryOpTest t(GP_A, GP_B, CMP_A_B, ALU::CMP);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_FALSE(system->bus().isSet(SystemBus::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmpABEqual)
@@ -978,7 +954,7 @@ TEST_F(TESTNAME, cmpABEqual)
     t.values(0x42, 0x42);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmpACNotEqual)
@@ -986,7 +962,7 @@ TEST_F(TESTNAME, cmpACNotEqual)
     BinaryOpTest t(GP_A, GP_C, CMP_A_C, ALU::CMP);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_FALSE(system->bus().isSet(SystemBus::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmpACEqual)
@@ -995,7 +971,7 @@ TEST_F(TESTNAME, cmpACEqual)
     t.values(0x42, 0x42);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmpADNotEqual)
@@ -1003,7 +979,7 @@ TEST_F(TESTNAME, cmpADNotEqual)
     BinaryOpTest t(GP_A, GP_D, CMP_A_D, ALU::CMP);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_FALSE(system->bus().isSet(SystemBus::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmpADEqual)
@@ -1012,7 +988,7 @@ TEST_F(TESTNAME, cmpADEqual)
     t.values(0x42, 0x42);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmpBCNotEqual)
@@ -1020,7 +996,7 @@ TEST_F(TESTNAME, cmpBCNotEqual)
     BinaryOpTest t(GP_B, GP_C, CMP_B_C, ALU::CMP);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_FALSE(system->bus().isSet(SystemBus::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmpBCEqual)
@@ -1029,7 +1005,7 @@ TEST_F(TESTNAME, cmpBCEqual)
     t.values(0x42, 0x42);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmpBDNotEqual)
@@ -1037,7 +1013,7 @@ TEST_F(TESTNAME, cmpBDNotEqual)
     BinaryOpTest t(GP_B, GP_D, CMP_B_D, ALU::CMP);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_FALSE(system->bus().isSet(SystemBus::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmpBDEqual)
@@ -1046,7 +1022,7 @@ TEST_F(TESTNAME, cmpBDEqual)
     t.values(0x42, 0x42);
     t.cycles = 15;
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 // -- INC / DEC ----------------------------------------------------------
@@ -1116,21 +1092,20 @@ const byte wide_unary_op[] = {
     /* 2007 */ HLT,
 };
 
-void test_wide_unary_op(Harness* system, byte opcode)
+void test_wide_unary_op(Harness& system, byte opcode)
 {
-    auto* mem = dynamic_cast<Memory*>(system->component(MEMADDR));
+    auto mem = std::dynamic_pointer_cast<Memory>(system.component(MEMADDR));
     mem->initialize(RAM_START, 8, wide_unary_op);
-    ASSERT_EQ((*mem)[RAM_START], MOV_SI_IMM);
-    (*mem)[0x2006] = opcode;
+    ASSERT_FALSE(mem->poke(0x2006, opcode).is_error());
 
-    auto* pc = dynamic_cast<AddressRegister*>(system->component(PC));
+    auto pc = std::dynamic_pointer_cast<AddressRegister>(system.component(PC));
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 18);
-    ASSERT_EQ(system->bus().halt(), false);
+    auto cycles_or_error = system.run();
+    ASSERT_FALSE(cycles_or_error.is_error());
+    ASSERT_EQ(cycles_or_error.value(), 18);
+    ASSERT_EQ(system.bus().halt(), false);
 }
 
 TEST_F(TESTNAME, incSi)
@@ -1164,7 +1139,7 @@ TEST_F(TESTNAME, cmp_A_0x00_NotEqual)
     BinaryOpConstTest t(GP_A, CMP_A_IMM, ALU::CMP);
     t.cycles = 12;
     t.execute(system);
-    ASSERT_FALSE(system->bus().isSet(SystemBus::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmp_A_0x00_Equal)
@@ -1173,7 +1148,7 @@ TEST_F(TESTNAME, cmp_A_0x00_Equal)
     t.values(0x42, 0x42);
     t.cycles = 12;
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmp_B_0x00_NotEqual)
@@ -1181,7 +1156,7 @@ TEST_F(TESTNAME, cmp_B_0x00_NotEqual)
     BinaryOpConstTest t(GP_B, CMP_B_IMM, ALU::CMP);
     t.cycles = 12;
     t.execute(system);
-    ASSERT_FALSE(system->bus().isSet(SystemBus::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmp_B_0x00_Equal)
@@ -1190,7 +1165,7 @@ TEST_F(TESTNAME, cmp_B_0x00_Equal)
     t.values(0x42, 0x42);
     t.cycles = 12;
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmp_C_0x00_NotEqual)
@@ -1198,7 +1173,7 @@ TEST_F(TESTNAME, cmp_C_0x00_NotEqual)
     BinaryOpConstTest t(GP_C, CMP_C_IMM, ALU::CMP);
     t.cycles = 12;
     t.execute(system);
-    ASSERT_FALSE(system->bus().isSet(SystemBus::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmp_C_0x00_Equal)
@@ -1207,7 +1182,7 @@ TEST_F(TESTNAME, cmp_C_0x00_Equal)
     t.values(0x42, 0x42);
     t.cycles = 12;
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmp_D_0x00_NotEqual)
@@ -1215,7 +1190,7 @@ TEST_F(TESTNAME, cmp_D_0x00_NotEqual)
     BinaryOpConstTest t(GP_D, CMP_D_IMM, ALU::CMP);
     t.cycles = 12;
     t.execute(system);
-    ASSERT_FALSE(system->bus().isSet(SystemBus::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
 }
 
 TEST_F(TESTNAME, cmp_D_0x00_Equal)
@@ -1224,7 +1199,7 @@ TEST_F(TESTNAME, cmp_D_0x00_Equal)
     t.values(0x42, 0x42);
     t.cycles = 12;
     t.execute(system);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 // -- OR X,#0x00

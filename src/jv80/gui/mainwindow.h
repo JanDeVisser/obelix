@@ -6,17 +6,17 @@
 
 #pragma once
 
-#include "../../../../../Qt/6.2.1/macos/lib/QtCore.framework/Headers/QThread"
-#include "../../../../../Qt/6.2.1/macos/lib/QtGui.framework/Headers/QAction"
-#include "../../../../../Qt/6.2.1/macos/lib/QtGui.framework/Headers/QPainter"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QLabel"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QLineEdit"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QMainWindow"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QMenuBar"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QProxyStyle"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QPushButton"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QStyleOption"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QTextEdit"
+#include <QThread>
+#include <QAction>
+#include <QPainter>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMainWindow>
+#include <QMenuBar>
+#include <QProxyStyle>
+#include <QPushButton>
+#include <QStyleOption>
+#include <QTextEdit>
 
 #include <jv80/cpu/backplane.h>
 
@@ -39,7 +39,7 @@ public:
     CPU* cpu() { return m_cpu; }
     QString query(const QString&, const QString&);
     void focusOnAddress(word addr) { m_memdump->focusOnAddress(addr); }
-    MemoryBank& currentBank() { return m_memdump->currentBank(); }
+    MemoryBank const& currentBank() { return m_memdump->currentBank(); }
 
 private:
     CPU* m_cpu = nullptr;

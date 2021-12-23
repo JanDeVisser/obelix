@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <core/Format.h>
 #include <jv80/cpu/systembus.h>
 
 namespace Obelix::JV80::CPU {
 
-SystemBus::SystemBus(ComponentContainer& bp)
+SystemBus::SystemBus(ComponentContainer* bp)
     : m_backplane(bp)
 {
     _reset();
@@ -35,7 +36,7 @@ SystemError SystemBus::reset()
 {
     _reset();
     sendEvent(EV_VALUECHANGED);
-    return NoError;
+    return {};
 }
 
 byte SystemBus::readDataBus() const
@@ -120,18 +121,12 @@ void SystemBus::suspend()
     sendEvent(EV_VALUECHANGED);
 }
 
-std::ostream& SystemBus::status(std::ostream& os)
+std::string SystemBus::to_string() const
 {
-    os << "DATA ADDR  GET PUT OP ACT FLAG" << std::endl;
-
-    char buf[80];
-    snprintf(buf, 80, " %02x   %02x    %01x   %01x  %01x   %c  %s\n",
+    return format("DATA {02x} ADDR {02x} GET {01x} PUT {01x} OP {01x} ACT {1c} FLAGS {}\n",
         data_bus, addr_bus, get, put, op,
         (_xdata) ? ((_xaddr) ? '_' : 'A') : 'D',
-        flagsString().c_str());
-    os << buf;
-    os << "==============================" << std::endl;
-    return os;
+        flagsString());
 }
 
 void SystemBus::setFlags(byte flags)

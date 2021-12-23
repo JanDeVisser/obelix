@@ -9,6 +9,9 @@
 
 namespace Obelix::JV80::CPU {
 
+class TESTNAME : public HarnessTest {
+};
+
 const byte push_a[] = {
     /* 8000 */ MOV_SP_IMM, 0x00, 0x20,
     /* 8003 */ MOV_A_IMM, 0x42,
@@ -19,7 +22,7 @@ const byte push_a[] = {
 TEST_F(TESTNAME, pushA)
 {
     mem->initialize(ROM_START, 7, push_a);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SP_IMM);
+    check_memory(START_VECTOR, MOV_SP_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -29,11 +32,10 @@ TEST_F(TESTNAME, pushA)
     // push a         4 cycles
     // hlt            3 cycles
     // total          17
-    ASSERT_EQ(system->run(), 17);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(17);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(sp->getValue(), 0x2001);
-    ASSERT_EQ((*mem)[0x2000], 0x42);
+    check_memory(0x2000, 0x42);
 }
 
 const byte push_pop_a[] = {
@@ -48,7 +50,7 @@ const byte push_pop_a[] = {
 TEST_F(TESTNAME, pushPopA)
 {
     mem->initialize(ROM_START, 10, push_pop_a);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SP_IMM);
+    check_memory(START_VECTOR, MOV_SP_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -60,11 +62,10 @@ TEST_F(TESTNAME, pushPopA)
     // pop a          4 cycles
     // hlt            3 cycles
     // total          25
-    ASSERT_EQ(system->run(), 25);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(25);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(sp->getValue(), 0x2000);
-    ASSERT_EQ((*mem)[0x2000], 0x42);
+    check_memory(0x2000, 0x42);
 }
 
 const byte push_pop_gp_regs[] = {
@@ -91,7 +92,7 @@ const byte push_pop_gp_regs[] = {
 TEST_F(TESTNAME, pushPopGPRegs)
 {
     mem->initialize(ROM_START, 29, push_pop_gp_regs);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SP_IMM);
+    check_memory(START_VECTOR, MOV_SP_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -103,16 +104,15 @@ TEST_F(TESTNAME, pushPopGPRegs)
     // pop a          4 cycles 4x  16
     // hlt            3 cycles      3
     // total                       73
-    ASSERT_EQ(system->run(), 73);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(73);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(gp_c->getValue(), 0x44);
     ASSERT_EQ(gp_d->getValue(), 0x45);
     ASSERT_EQ(sp->getValue(), 0x2000);
-    ASSERT_EQ((*mem)[0x2000], 0x42);
-    ASSERT_EQ((*mem)[0x2001], 0x43);
-    ASSERT_EQ((*mem)[0x2002], 0x44);
-    ASSERT_EQ((*mem)[0x2003], 0x45);
+    check_memory(0x2000, 0x42);
+    check_memory(0x2001, 0x43);
+    check_memory(0x2002, 0x44);
+    check_memory(0x2003, 0x45);
 }
 
 const byte push_pop_addr_regs[] = {
@@ -131,7 +131,7 @@ const byte push_pop_addr_regs[] = {
 TEST_F(TESTNAME, pushPopAddrRegs)
 {
     mem->initialize(ROM_START, 22, push_pop_addr_regs);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SP_IMM);
+    check_memory(START_VECTOR, MOV_SP_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -142,17 +142,14 @@ TEST_F(TESTNAME, pushPopAddrRegs)
     // pop xx         6 cycles 2x  12
     // hlt            3 cycles      3
     // total                       57
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 57);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(57);
     ASSERT_EQ(si->getValue(), 0x1234);
     ASSERT_EQ(di->getValue(), 0x5678);
     ASSERT_EQ(sp->getValue(), 0x2000);
-    ASSERT_EQ((*mem)[0x2000], 0x34);
-    ASSERT_EQ((*mem)[0x2001], 0x12);
-    ASSERT_EQ((*mem)[0x2002], 0x78);
-    ASSERT_EQ((*mem)[0x2003], 0x56);
+    check_memory(0x2000, 0x34);
+    check_memory(0x2001, 0x12);
+    check_memory(0x2002, 0x78);
+    check_memory(0x2003, 0x56);
 }
 
 }

@@ -9,21 +9,47 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <memory>
+
+#include <core/Error.h>
+#include <core/Logging.h>
 
 namespace Obelix::JV80::CPU {
 
-typedef unsigned char byte;
-typedef unsigned short word;
+typedef uint8_t byte;
+typedef uint16_t word;
 
-enum SystemError {
-    NoError,
-    InvalidComponentID,
-    ProtectedMemory,
-    InvalidInstruction,
-    InvalidMicroCode,
-    NoMicroCode,
-    GeneralError,
+#define ENUMERATE_SYSTEM_ERROR_CODES(S) \
+    S(NoError)                          \
+    S(InvalidComponentID)               \
+    S(ProtectedMemory)                  \
+    S(InvalidInstruction)               \
+    S(InvalidMicroCode)                 \
+    S(NoMicroCode)                      \
+    S(GeneralError)
+
+enum class SystemErrorCode {
+#undef ENUM_SYSTEM_ERROR_CODE
+#define ENUM_SYSTEM_ERROR_CODE(code) code,
+    ENUMERATE_SYSTEM_ERROR_CODES(ENUM_SYSTEM_ERROR_CODE)
+#undef ENUM_SYSTEM_ERROR_CODE
 };
+
+constexpr const char* SystemErrorCode_name(SystemErrorCode code)
+{
+    switch (code) {
+#undef ENUM_SYSTEM_ERROR_CODE
+#define ENUM_SYSTEM_ERROR_CODE(code) \
+    case SystemErrorCode::code:      \
+        return #code;
+        ENUMERATE_SYSTEM_ERROR_CODES(ENUM_SYSTEM_ERROR_CODE)
+#undef ENUM_SYSTEM_ERROR_CODE
+    default:
+        fatal("Unreachable");
+    }
+}
+
+using SystemError = ErrorOr<void, SystemErrorCode>;
 
 class Component;
 
@@ -35,35 +61,54 @@ public:
 };
 
 class Component {
-private:
-    ComponentListener* listener = nullptr;
-    SystemError m_error = NoError;
-
-protected:
-    void sendEvent(int) const;
-
-    SystemError error(SystemError err)
-    {
-        m_error = err;
-        return m_error;
-    }
-
 public:
     virtual ~Component() = default;
     ComponentListener* setListener(ComponentListener*);
-    SystemError error() const { return m_error; }
-    virtual std::ostream& status(std::ostream& os) { return os; }
-    virtual SystemError reset() { return error(NoError); }
-    virtual SystemError onRisingClockEdge() { return error(NoError); }
-    virtual SystemError onHighClock() { return error(NoError); }
-    virtual SystemError onFallingClockEdge() { return error(NoError); }
-    virtual SystemError onLowClock() { return error(NoError); };
+    [[nodiscard]] SystemErrorCode error() const { return m_error; }
+    virtual SystemError reset() { return {}; }
+    virtual SystemError onRisingClockEdge() { return {}; }
+    virtual SystemError onHighClock() { return {}; }
+    virtual SystemError onFallingClockEdge() { return {}; }
+    virtual SystemError onLowClock() { return {}; };
+    [[nodiscard]] virtual std::string to_string() const = 0;
 
-    constexpr static int EV_VALUECHANGED = 0;
+    constexpr static int EV_VALUECHANGED = 0x00;
+    constexpr static int EV_RISING_CLOCK = 0x01;
+    constexpr static int EV_HIGH_CLOCK = 0x02;
+    constexpr static int EV_FALLING_CLOCK = 0x03;
+    constexpr static int EV_LOW_CLOCK = 0x04;
 
-    friend std::ostream& operator<<(std::ostream&, Component&);
+protected:
+    void sendEvent(int) const;
+    SystemErrorCode error(SystemErrorCode err);
+
+private:
+    ComponentListener* m_listener { nullptr };
+    SystemErrorCode m_error = SystemErrorCode::NoError;
 };
 
-typedef std::function<void(Component*)> ComponentHandler;
+using ComponentHandler = std::function<SystemError(Component&)>;
+
+}
+
+namespace Obelix {
+
+template<>
+struct Converter<Obelix::JV80::CPU::SystemErrorCode> {
+    static std::string to_string(Obelix::JV80::CPU::SystemErrorCode val)
+    {
+        return SystemErrorCode_name(val);
+    }
+
+    static double to_double(Obelix::JV80::CPU::SystemErrorCode val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static long to_long(Obelix::JV80::CPU::SystemErrorCode val)
+    {
+        return (long)val;
+    }
+};
 
 }

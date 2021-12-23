@@ -11,41 +11,19 @@
 
 namespace Obelix::JV80::CPU {
 
-typedef std::function<void(void)> Reset;
-typedef std::function<void(std::ostream&)> Status;
-typedef std::function<SystemError()> ClockEvent;
+using Reset = std::function<void(void)>;
+using ClockEvent = std::function<SystemError()>;
 
 class ComponentContainer;
 
 class SystemBus : public Component {
 public:
-    enum RunMode {
+    enum class RunMode {
         Continuous = 0,
         BreakAtInstruction = 1,
         BreakAtClock = 2,
     };
 
-private:
-    ComponentContainer& m_backplane;
-    byte data_bus = 0;
-    byte addr_bus = 0;
-    byte put = 0;
-    byte get = 0;
-    byte op = 0;
-    bool _halt = true;
-    bool _sus = true;
-    bool _nmi = true;
-    bool _xdata = true;
-    bool _xaddr = true;
-    bool rst = false;
-    bool _io = true;
-
-    byte m_flags = 0x0;
-
-    void _reset();
-    RunMode m_runMode = Continuous;
-
-public:
     enum ProcessorFlags {
         Clear = 0x00,
         Z = 0x01,
@@ -65,24 +43,25 @@ public:
         Mask = 0x0F,
         Done = 0x10,
     };
-    explicit SystemBus(ComponentContainer&);
+
+    explicit SystemBus(ComponentContainer*);
     ~SystemBus() override = default;
-    byte readDataBus() const;
+    [[nodiscard]] byte readDataBus() const;
     void putOnDataBus(byte);
-    byte readAddrBus() const;
+    [[nodiscard]] byte readAddrBus() const;
     void putOnAddrBus(byte);
-    bool xdata() const { return _xdata; }
-    bool xaddr() const { return _xaddr; }
-    bool io() const { return _io; }
-    bool halt() const { return _halt; }
-    bool sus() const { return _sus; }
+    [[nodiscard]] bool xdata() const { return _xdata; }
+    [[nodiscard]] bool xaddr() const { return _xaddr; }
+    [[nodiscard]] bool io() const { return _io; }
+    [[nodiscard]] bool halt() const { return _halt; }
+    [[nodiscard]] bool sus() const { return _sus; }
     void clearSus() { _sus = true; }
-    bool nmi() const { return _nmi; }
+    [[nodiscard]] bool nmi() const { return _nmi; }
     void setNmi() { _nmi = false; }
     void clearNmi() { _nmi = true; }
-    byte putID() const { return put; }
-    byte getID() const { return get; }
-    byte opflags() const { return op; }
+    [[nodiscard]] byte putID() const { return put; }
+    [[nodiscard]] byte getID() const { return get; }
+    [[nodiscard]] byte opflags() const { return op; }
 
     void initialize(bool, bool, bool, byte, byte, byte, byte = 0x00, byte = 0x00);
     void xdata(int, int, int);
@@ -91,30 +70,53 @@ public:
     void stop();
     void suspend();
     SystemError reset() override;
-    std::ostream& status(std::ostream&) override;
+    [[nodiscard]] std::string to_string() const override;
 
     void setFlag(ProcessorFlags, bool = true);
     void clearFlag(ProcessorFlags);
     void clearFlags();
     void setFlags(byte);
-    byte flags() const { return m_flags; }
-    bool isSet(ProcessorFlags) const;
-    std::string flagsString() const;
+    [[nodiscard]] byte flags() const { return m_flags; }
+    [[nodiscard]] bool isSet(ProcessorFlags) const;
+    [[nodiscard]] std::string flagsString() const;
 
-    RunMode runMode() const { return m_runMode; }
+    [[nodiscard]] RunMode runMode() const { return m_runMode; }
     void setRunMode(RunMode runMode) { m_runMode = runMode; }
 
-    ComponentContainer& backplane()
+    ComponentContainer* backplane()
     {
         return m_backplane;
     }
+
+private:
+    ComponentContainer* m_backplane;
+    byte data_bus = 0;
+    byte addr_bus = 0;
+    byte put = 0;
+    byte get = 0;
+    byte op = 0;
+    bool _halt = true;
+    bool _sus = true;
+    bool _nmi = true;
+    bool _xdata = true;
+    bool _xaddr = true;
+    bool rst = false;
+    bool _io = true;
+
+    byte m_flags = 0x0;
+
+    void _reset();
+    RunMode m_runMode = RunMode::Continuous;
 };
 
 class ConnectedComponent : public Component {
-private:
-    SystemBus* systemBus = nullptr;
-    int ident = -1;
-    std::string componentName = "?";
+public:
+    [[nodiscard]] virtual int id() const { return ident; }
+    [[nodiscard]] virtual int alias() const { return id(); }
+    [[nodiscard]] virtual std::string name() const { return componentName; }
+    void bus(SystemBus* bus) { systemBus = bus; }
+    [[nodiscard]] SystemBus* bus() const { return systemBus; }
+    [[nodiscard]] virtual int getValue() const { return 0; }
 
 protected:
     ConnectedComponent() = default;
@@ -124,49 +126,17 @@ protected:
         componentName = std::move(n);
     }
 
-public:
-    virtual int id() const { return ident; }
-    virtual int alias() const { return id(); }
-    virtual std::string name() const { return componentName; }
-    void bus(SystemBus* bus) { systemBus = bus; }
-    SystemBus* bus() const { return systemBus; }
-    virtual int getValue() const { return 0; }
+private:
+    SystemBus* systemBus = nullptr;
+    int ident = -1;
+    std::string componentName = "?";
 };
 
 class ComponentContainer : public Component {
-private:
-    std::vector<ConnectedComponent*> m_components;
-    std::vector<int> m_aliases;
-    std::vector<ConnectedComponent*> m_io;
-
-protected:
-    SystemBus m_bus;
-
-    explicit ComponentContainer()
-        : m_components()
-        , m_aliases()
-        , m_bus(*this)
-    {
-        m_components.resize(16);
-        m_aliases.resize(16);
-        m_io.resize(16);
-    };
-
-    explicit ComponentContainer(ConnectedComponent* c)
-        : ComponentContainer()
-    {
-        insert(c);
-    };
-
-    virtual SystemError reportError()
-    {
-        return error();
-    }
-
 public:
-    virtual ~ComponentContainer() override = default;
+    ~ComponentContainer() override = default;
 
-    void insert(ConnectedComponent* component)
+    void insert(std::shared_ptr<ConnectedComponent> const& component)
     {
         component->bus(&m_bus);
         m_components[component->id()] = component;
@@ -176,12 +146,12 @@ public:
         }
     }
 
-    ConnectedComponent* component(int ix) const
+    [[nodiscard]] std::shared_ptr<ConnectedComponent> const& component(int ix) const
     {
         return m_components[m_aliases[ix]];
     }
 
-    void insertIO(ConnectedComponent* component)
+    void insertIO(std::shared_ptr<ConnectedComponent> const& component)
     {
         component->bus(&m_bus);
         m_io[component->id()] = component;
@@ -192,31 +162,35 @@ public:
         return m_bus;
     }
 
-    std::string name(int ix) const
+    [[nodiscard]] SystemBus const& bus() const
+    {
+        return m_bus;
+    }
+
+    [[nodiscard]] std::string name(int ix) const
     {
         switch (ix) {
         case 0x7:
             return "MEM";
         case 0xF:
             return "ADDR";
-        default:
-            ConnectedComponent* c = component(ix);
+        default: {
+            auto& c = component(ix);
             return (c) ? c->name() : "";
+        }
         }
     }
 
-    SystemError forAllComponents(const ComponentHandler& handler)
+    SystemError forAllComponents(const ComponentHandler& handler) const
     {
         for (auto& component : m_components) {
             if (!component)
                 continue;
-            handler(component);
-            error(component->error());
-            if (error() != NoError) {
-                return error();
+            if (auto err = handler(*component); err.is_error()) {
+                return err;
             }
         }
-        return NoError;
+        return {};
     }
 
     SystemError forAllChannels(const ComponentHandler& handler)
@@ -224,14 +198,36 @@ public:
         for (auto& channel : m_io) {
             if (!channel)
                 continue;
-            handler(channel);
-            error(channel->error());
-            if (error() != NoError) {
-                return error();
+            if (auto err = handler(*channel); err.is_error()) {
+                return err;
             }
         }
-        return NoError;
+        return {};
     }
+
+protected:
+    SystemBus m_bus;
+
+    explicit ComponentContainer()
+        : m_bus(this)
+        , m_components()
+        , m_aliases()
+    {
+        m_components.resize(16);
+        m_aliases.resize(16);
+        m_io.resize(16);
+    };
+
+    explicit ComponentContainer(std::shared_ptr<ConnectedComponent> const& c)
+        : ComponentContainer()
+    {
+        insert(c);
+    };
+
+private:
+    std::vector<std::shared_ptr<ConnectedComponent>> m_components;
+    std::vector<int> m_aliases;
+    std::vector<std::shared_ptr<ConnectedComponent>> m_io;
 };
 
 }

@@ -15,12 +15,14 @@ add_library(
         systembus.cpp
 )
 
+target_link_libraries(jv80cpu oblcore)
+
 add_executable(
         emu_cmdline
         emu.cpp
 )
 
-target_link_libraries(emu_cmdline jv80cpu)
+target_link_libraries(emu_cmdline jv80cpu oblcore)
 
 install(TARGETS jv80cpu emu_cmdline
         ARCHIVE DESTINATION lib

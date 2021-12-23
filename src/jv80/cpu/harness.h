@@ -7,122 +7,100 @@
 #pragma once
 
 #include <jv80/cpu/systembus.h>
+#include <core/ScopeGuard.h>
 
 namespace Obelix::JV80::CPU {
 
 class Harness : public ComponentContainer {
 public:
-    bool printStatus = false;
-
     explicit Harness()
-        : ComponentContainer() {};
-
-    explicit Harness(ConnectedComponent* c)
-        : ComponentContainer(c)
+        : ComponentContainer()
     {
     }
 
-    int run(bool debug = false, int cycles = -1)
+    explicit Harness(std::shared_ptr<ConnectedComponent> const& c)
+        : Harness()
     {
-        bool oldPrintStatus = printStatus;
-        printStatus = debug;
-        //    status("Starting Condition", 0);
-        error(NoError);
+        insert(c);
+    }
+
+    ErrorOr<int, SystemErrorCode> run(bool debug = false, int cycles = -1)
+    {
         int i = 0;
         do {
-            error(cycle(i));
-            if (error() != NoError) {
-                goto exit;
-            }
+            if (auto err = cycle(i); err.is_error())
+                return ErrorOr<int, SystemErrorCode> { err.error() };
             i++;
         } while (bus().halt() && ((cycles == -1) || (i < cycles)));
-    exit:
-        printStatus = oldPrintStatus;
-        return i;
+        return ErrorOr<int, SystemErrorCode> { i };
+    }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        return "Harness";
     }
 
     SystemError cycles(int count)
     {
-        //    status("Starting Condition", 0);
         for (int i = 0; i < count; i++) {
-            auto err = cycle(i);
-            if (err != NoError) {
-                return err;
-            }
+            TRY_RETURN(cycle(i));
         }
-        return NoError;
+        return {};
     }
 
     SystemError status_message(const std::string& msg, int num)
     {
-        if (!printStatus)
-            return NoError;
-        std::cout << "Cycle " << num << " " << msg << std::endl;
-        bus().status(std::cout);
-        if (error(bus().error()) == NoError) {
-            forAllComponents([](Component* c) -> SystemError {
-                c->status(std::cout);
-                return c->error();
-            });
-        }
-        return error();
+        std::cout << "Cycle " << num << " " << msg << "\n";
+        std::cout << bus().to_string() << "\n";
+        TRY_RETURN(forAllComponents([](Component& c) -> SystemError {
+            std::cout << c.to_string() << "\n";
+            return {};
+        }));
+        return {};
     }
 
     SystemError onClockEvent(const ComponentHandler& handler)
     {
-        if (error() != NoError) {
-            return error();
-        }
-        error(forAllComponents(handler));
-        if (error() == NoError) {
-            error(forAllChannels(handler));
-        }
-        return error();
+        TRY_RETURN(forAllComponents(handler));
+        TRY_RETURN(forAllChannels(handler));
+        return {};
     }
 
     SystemError onRisingClockEdge() override
     {
-        return onClockEvent([](Component* c) -> SystemError {
-            return c->onRisingClockEdge();
+        return onClockEvent([](Component& c) -> SystemError {
+            return c.onRisingClockEdge();
         });
     }
 
     SystemError onHighClock() override
     {
-        return onClockEvent([](Component* c) -> SystemError {
-            return c->onHighClock();
+        return onClockEvent([](Component& c) -> SystemError {
+            return c.onHighClock();
         });
     }
 
     SystemError onFallingClockEdge() override
     {
-        return onClockEvent([](Component* c) -> SystemError {
-            return c->onFallingClockEdge();
+        return onClockEvent([](Component& c) -> SystemError {
+            return c.onFallingClockEdge();
         });
     }
 
     SystemError onLowClock() override
     {
-        return onClockEvent([](Component* c) -> SystemError {
-            return c->onLowClock();
+        return onClockEvent([](Component& c) -> SystemError {
+            return c.onLowClock();
         });
     }
 
     SystemError cycle(int num)
     {
-        SystemError err = onRisingClockEdge();
-        if (err == NoError) {
-            err = onHighClock();
-            if (err == NoError) {
-                //        status("After onHighClock", num);
-                err = onFallingClockEdge();
-                if (err == NoError) {
-                    err = onLowClock();
-                    //          status("After onLowClock", num);
-                }
-            }
-        }
-        return err;
+        TRY_RETURN(onRisingClockEdge());
+        TRY_RETURN(onHighClock());
+        TRY_RETURN(onFallingClockEdge());
+        TRY_RETURN(onLowClock());
+        return {};
     }
 
     SystemError cycle(bool xdata, bool xaddr, bool io, byte getReg, byte putReg, byte opflags_val,
@@ -138,4 +116,5 @@ public:
         return cycle(xdata, xaddr, true, getReg, putReg, opflags_val, data_bus_val, addr_bus_val);
     }
 };
+
 }

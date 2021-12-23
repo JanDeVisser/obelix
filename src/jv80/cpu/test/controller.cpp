@@ -9,6 +9,9 @@
 
 namespace Obelix::JV80::CPU {
 
+class TESTNAME : public HarnessTest {
+};
+
 byte mov_a_direct[] = {
     /* 8000 */ MOV_A_IMM, 0x42,
     /* 8002 */ HLT
@@ -17,27 +20,25 @@ byte mov_a_direct[] = {
 TEST_F(TESTNAME, movADirect)
 {
     mem->initialize(ROM_START, 3, mov_a_direct);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM);
+    check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
     // mov a, #42 takes 4 cycles. hlt takes 3.
-    ASSERT_EQ(system->run(), 7);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(7);
     ASSERT_EQ(gp_a->getValue(), 0x42);
 }
 
 TEST_F(TESTNAME, movADirectUsingRun)
 {
     mem->initialize(ROM_START, 3, mov_a_direct);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM);
+    check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    ASSERT_EQ(system->run(), 7);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(7);
     ASSERT_EQ(gp_a->getValue(), 0x42);
 }
 
@@ -50,14 +51,13 @@ byte mov_a_absolute[] = {
 TEST_F(TESTNAME, movAAbsolute)
 {
     mem->initialize(ROM_START, 5, mov_a_absolute);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM_IND);
+    check_memory(START_VECTOR, MOV_A_IMM_IND);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
     // mov a, (8004) takes 8 cycles. hlt takes 3.
-    system->cycles(11);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(11);
     ASSERT_EQ(gp_a->getValue(), 0x42);
 }
 
@@ -73,7 +73,7 @@ byte mov_x_a[] = {
 TEST_F(TESTNAME, movAToOtherGPRs)
 {
     mem->initialize(ROM_START, 6, mov_x_a);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM);
+    check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -82,8 +82,7 @@ TEST_F(TESTNAME, movAToOtherGPRs)
     // mov x, a    3 cycles x3
     // hlt         3 cycles
     // Total       16 cycles
-    ASSERT_EQ(system->run(), 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(gp_b->getValue(), 0x42);
     ASSERT_EQ(gp_c->getValue(), 0x42);
@@ -102,13 +101,12 @@ byte mov_x_b[] = {
 TEST_F(TESTNAME, movBToOtherGPRs)
 {
     mem->initialize(ROM_START, 6, mov_x_b);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_B_IMM);
+    check_memory(START_VECTOR, MOV_B_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    ASSERT_EQ(system->run(), 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_b->getValue(), 0x42);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(gp_c->getValue(), 0x42);
@@ -127,13 +125,12 @@ byte mov_x_c[] = {
 TEST_F(TESTNAME, movCToOtherGPRs)
 {
     mem->initialize(ROM_START, 6, mov_x_c);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_C_IMM);
+    check_memory(START_VECTOR, MOV_C_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    ASSERT_EQ(system->run(), 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_c->getValue(), 0x42);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(gp_b->getValue(), 0x42);
@@ -152,13 +149,12 @@ byte mov_x_d[] = {
 TEST_F(TESTNAME, movDToOtherGPRs)
 {
     mem->initialize(ROM_START, 6, mov_x_d);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_D_IMM);
+    check_memory(START_VECTOR, MOV_D_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    ASSERT_EQ(system->run(), 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_d->getValue(), 0x42);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(gp_b->getValue(), 0x42);
@@ -177,15 +173,14 @@ byte mov_x_absolute[] = {
 TEST_F(TESTNAME, movXAbsolute)
 {
     mem->initialize(ROM_START, 14, mov_x_absolute);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM_IND);
+    check_memory(START_VECTOR, MOV_A_IMM_IND);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
     // mov x, (800D) takes 8 cycles x4
     // hlt takes 3.
-    ASSERT_EQ(system->run(), 35);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(35);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(gp_b->getValue(), 0x42);
     ASSERT_EQ(gp_c->getValue(), 0x42);
@@ -211,7 +206,7 @@ byte mov_addr_regs_direct[] = {
 TEST_F(TESTNAME, movAddrRegsDirect)
 {
     mem->initialize(ROM_START, 13, mov_addr_regs_direct);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SI_IMM);
+    check_memory(START_VECTOR, MOV_SI_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -219,8 +214,7 @@ TEST_F(TESTNAME, movAddrRegsDirect)
     // mov si, #3742 takes 6 cycles x3.
     // mov cd, #3742 takes 8 cycles.
     // hlt takes 3.
-    ASSERT_EQ(system->run(), 29);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(29);
     ASSERT_EQ(si->getValue(), 0x3742);
     ASSERT_EQ(di->getValue(), 0x3742);
     ASSERT_EQ(sp->getValue(), 0x3742);
@@ -239,15 +233,14 @@ byte mov_addr_regs_absolute[] = {
 TEST_F(TESTNAME, movAddrRegsAbsolute)
 {
     mem->initialize(ROM_START, 12, mov_addr_regs_absolute);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SI_IMM_IND);
+    check_memory(START_VECTOR, MOV_SI_IMM_IND);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
     // mov si, (8004) takes 10 cycles x3
     // hlt takes 3.
-    ASSERT_EQ(system->run(), 33);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(33);
     ASSERT_EQ(si->getValue(), 0x3742);
     ASSERT_EQ(di->getValue(), 0x3742);
     ASSERT_EQ(sp->getValue(), 0x3742);
@@ -267,7 +260,7 @@ byte mov_addr_regs_from_other_regs[] = {
 TEST_F(TESTNAME, movAddrRegsFromOtherRegs)
 {
     mem->initialize(ROM_START, 8, mov_addr_regs_from_other_regs);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_C_IMM);
+    check_memory(START_VECTOR, MOV_C_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -277,8 +270,7 @@ TEST_F(TESTNAME, movAddrRegsFromOtherRegs)
     // mov sp, si     3 cycles
     // hlt            3 cycles
     // total          22
-    ASSERT_EQ(system->run(), 22);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(22);
     ASSERT_EQ(si->getValue(), 0x3742);
     ASSERT_EQ(di->getValue(), 0x3742);
     ASSERT_EQ(sp->getValue(), 0x3742);
@@ -300,7 +292,7 @@ byte mov_gp_regs_from_si[] = {
 TEST_F(TESTNAME, movGPRegsFromSI)
 {
     mem->initialize(ROM_START, 12, mov_gp_regs_from_si);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SI_IMM);
+    check_memory(START_VECTOR, MOV_SI_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -309,8 +301,7 @@ TEST_F(TESTNAME, movGPRegsFromSI)
     // mov xx, (si)   4 cycles x4
     // hlt            3 cycles
     // total          17
-    ASSERT_EQ(system->run(), 25);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(25);
     ASSERT_EQ(si->getValue(), 0x800C);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(gp_b->getValue(), 0x43);
@@ -334,7 +325,7 @@ byte mov_gp_regs_from_di[] = {
 TEST_F(TESTNAME, movGPRegsFromDI)
 {
     mem->initialize(ROM_START, 12, mov_gp_regs_from_di);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_DI_IMM);
+    check_memory(START_VECTOR, MOV_DI_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -343,8 +334,7 @@ TEST_F(TESTNAME, movGPRegsFromDI)
     // mov xx, (si)   4 cycles x4
     // hlt            3 cycles
     // total          17
-    ASSERT_EQ(system->run(), 25);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(25);
     ASSERT_EQ(di->getValue(), 0x800C);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(gp_b->getValue(), 0x43);
@@ -369,8 +359,8 @@ byte mov_di_from_si[] = {
 TEST_F(TESTNAME, movDIFromSI)
 {
     mem->initialize(ROM_START, 16, mov_di_from_si);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SI_IMM);
-    ASSERT_EQ((*mem)[0x800B], 0x42);
+    check_memory(START_VECTOR, MOV_SI_IMM);
+    check_memory(0x800B, 0x42);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -379,31 +369,30 @@ TEST_F(TESTNAME, movDIFromSI)
     // mov (di), (si) 6 cycles x4
     // hlt            3 cycles
     // total          39
-    ASSERT_EQ(system->run(), 39);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(39);
     ASSERT_EQ(si->getValue(), 0x800F);
     ASSERT_EQ(di->getValue(), 0x2004);
-    ASSERT_EQ((*mem)[0x2000], 0x42);
-    ASSERT_EQ((*mem)[0x2001], 0x43);
-    ASSERT_EQ((*mem)[0x2002], 0x44);
-    ASSERT_EQ((*mem)[0x2003], 0x45);
+    check_memory(0x2000, 0x42);
+    check_memory(0x2001, 0x43);
+    check_memory(0x2002, 0x44);
+    check_memory(0x2003, 0x45);
 }
 
 TEST_F(TESTNAME, busFlagManip)
 {
-    system->bus().clearFlags();
-    system->bus().setFlag(SystemBus::ProcessorFlags::C);
-    system->bus().setFlag(SystemBus::ProcessorFlags::Z);
+    system.bus().clearFlags();
+    system.bus().setFlag(SystemBus::ProcessorFlags::C);
+    system.bus().setFlag(SystemBus::ProcessorFlags::Z);
 
-    ASSERT_TRUE(system->bus().isSet(SystemBus::ProcessorFlags::C));
-    ASSERT_TRUE(system->bus().isSet(SystemBus::ProcessorFlags::Z));
-    ASSERT_FALSE(system->bus().isSet(SystemBus::ProcessorFlags::V));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::ProcessorFlags::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::ProcessorFlags::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::ProcessorFlags::V));
 
-    system->bus().clearFlag(SystemBus::ProcessorFlags::C);
+    system.bus().clearFlag(SystemBus::ProcessorFlags::C);
 
-    ASSERT_FALSE(system->bus().isSet(SystemBus::ProcessorFlags::C));
-    ASSERT_TRUE(system->bus().isSet(SystemBus::ProcessorFlags::Z));
-    ASSERT_FALSE(system->bus().isSet(SystemBus::ProcessorFlags::V));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::ProcessorFlags::C));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::ProcessorFlags::Z));
+    ASSERT_FALSE(system.bus().isSet(SystemBus::ProcessorFlags::V));
 }
 
 // MOV_IMM_IND_A      = 0x39,
@@ -438,7 +427,7 @@ const byte gp_to_absolute_mem[] = {
 TEST_F(TESTNAME, movGPRegToMem)
 {
     mem->initialize(ROM_START, 21, gp_to_absolute_mem);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM);
+    check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -447,14 +436,11 @@ TEST_F(TESTNAME, movGPRegToMem)
     // mov (xxxx), a  8 cycles x4  32
     // hlt            3 cycles      3
     // total                       51
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 51);
-    ASSERT_EQ(system->bus().halt(), false);
-    ASSERT_EQ((*mem)[0x2000], 0x42);
-    ASSERT_EQ((*mem)[0x2001], 0x43);
-    ASSERT_EQ((*mem)[0x2002], 0x44);
-    ASSERT_EQ((*mem)[0x2003], 0x45);
+    check_cycles(51);
+    check_memory(0x2000, 0x42);
+    check_memory(0x2001, 0x43);
+    check_memory(0x2002, 0x44);
+    check_memory(0x2003, 0x45);
 }
 
 const byte gp_to_rom[] = {
@@ -469,15 +455,16 @@ const byte gp_to_rom[] = {
 TEST_F(TESTNAME, cantMovGPRegToROM)
 {
     mem->initialize(ROM_START, 21, gp_to_rom);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM);
+    check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    ASSERT_NE((*mem)[0x8006], 0x42);
-    system->run();
-    ASSERT_EQ(system->error(), ProtectedMemory);
-    ASSERT_NE((*mem)[0x8006], 0x42);
+    check_memory(0x8006, 0x42, false);
+    auto err = system.run();
+    ASSERT_TRUE(err.is_error());
+    ASSERT_EQ(err.error(), SystemErrorCode::ProtectedMemory);
+    check_memory(0x8006, 0x42, false);
 }
 
 const byte gp_to_unmapped[] = {
@@ -492,13 +479,14 @@ const byte gp_to_unmapped[] = {
 TEST_F(TESTNAME, cantMovGPRegToUnmappedMem)
 {
     mem->initialize(ROM_START, 21, gp_to_unmapped);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM);
+    check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    system->run();
-    ASSERT_EQ(system->error(), ProtectedMemory);
+    auto err = system.run();
+    ASSERT_TRUE(err.is_error());
+    ASSERT_EQ(err.error(), SystemErrorCode::ProtectedMemory);
 }
 
 const byte gp_to_di_indirect[] = {
@@ -523,7 +511,7 @@ const byte gp_to_di_indirect[] = {
 TEST_F(TESTNAME, movGPRegToDiIndirect)
 {
     mem->initialize(ROM_START, 16, gp_to_di_indirect);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM);
+    check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -533,14 +521,11 @@ TEST_F(TESTNAME, movGPRegToDiIndirect)
     // mov (di), a    4 cycles x4  16
     // hlt            3 cycles      3
     // total                       41
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 41);
-    ASSERT_EQ(system->bus().halt(), false);
-    ASSERT_EQ((*mem)[0x2000], 0x42);
-    ASSERT_EQ((*mem)[0x2001], 0x43);
-    ASSERT_EQ((*mem)[0x2002], 0x44);
-    ASSERT_EQ((*mem)[0x2003], 0x45);
+    check_cycles(41);
+    check_memory(0x2000, 0x42);
+    check_memory(0x2001, 0x43);
+    check_memory(0x2002, 0x44);
+    check_memory(0x2003, 0x45);
 }
 
 const byte addr_reg_to_absolute_mem[] = {
@@ -569,7 +554,7 @@ const byte addr_reg_to_absolute_mem[] = {
 TEST_F(TESTNAME, movAddrRegToMem)
 {
     mem->initialize(ROM_START, 21, addr_reg_to_absolute_mem);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SI_IMM);
+    check_memory(START_VECTOR, MOV_SI_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -579,16 +564,13 @@ TEST_F(TESTNAME, movAddrRegToMem)
     // mov (xxxx), si 10        x3  30
     // hlt             3             3
     // total                        53
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 53);
-    ASSERT_EQ(system->bus().halt(), false);
-    ASSERT_EQ((*mem)[0x2000], 0x22);
-    ASSERT_EQ((*mem)[0x2001], 0x11);
-    ASSERT_EQ((*mem)[0x2002], 0x44);
-    ASSERT_EQ((*mem)[0x2003], 0x33);
-    ASSERT_EQ((*mem)[0x2004], 0x66);
-    ASSERT_EQ((*mem)[0x2005], 0x55);
+    check_cycles(53);
+    check_memory(0x2000, 0x22);
+    check_memory(0x2001, 0x11);
+    check_memory(0x2002, 0x44);
+    check_memory(0x2003, 0x33);
+    check_memory(0x2004, 0x66);
+    check_memory(0x2005, 0x55);
 }
 
 const byte cd_to_sidi_indirect[] = {
@@ -610,7 +592,7 @@ const byte cd_to_sidi_indirect[] = {
 TEST_F(TESTNAME, movCDRegToMemViaSiDiIndirect)
 {
     mem->initialize(ROM_START, 21, cd_to_sidi_indirect);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_SI_IMM);
+    check_memory(START_VECTOR, MOV_SI_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -620,14 +602,11 @@ TEST_F(TESTNAME, movCDRegToMemViaSiDiIndirect)
     // mov (si), cd    6        x2  12
     // hlt             3             3
     // total                        35
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 35);
-    ASSERT_EQ(system->bus().halt(), false);
-    ASSERT_EQ((*mem)[0x2000], 0x42);
-    ASSERT_EQ((*mem)[0x2001], 0x37);
-    ASSERT_EQ((*mem)[0x2010], 0x42);
-    ASSERT_EQ((*mem)[0x2011], 0x37);
+    check_cycles(35);
+    check_memory(0x2000, 0x42);
+    check_memory(0x2001, 0x37);
+    check_memory(0x2010, 0x42);
+    check_memory(0x2011, 0x37);
 }
 
 const byte a_to_cd_indirect[] = {
@@ -644,7 +623,7 @@ const byte a_to_cd_indirect[] = {
 TEST_F(TESTNAME, movARegToMemViaCDIndirect)
 {
     mem->initialize(ROM_START, 8, a_to_cd_indirect);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM);
+    check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
@@ -653,19 +632,16 @@ TEST_F(TESTNAME, movARegToMemViaCDIndirect)
     // mov *cd, a      5             5
     // hlt             3             3
     // total                        20
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 20);
-    ASSERT_EQ(system->bus().halt(), false);
-    ASSERT_EQ((*mem)[0x2010], 0x42);
+    check_cycles(20);
+    check_memory(0x2010, 0x42);
 }
 
 TEST_F(TESTNAME, movBRegToMemViaCDIndirect)
 {
     mem->initialize(RAM_START, 8, a_to_cd_indirect);
-    ASSERT_EQ((*mem)[RAM_VECTOR], MOV_A_IMM);
-    (*mem)[RAM_VECTOR + 0] = MOV_B_IMM;
-    (*mem)[RAM_VECTOR + 6] = MOV_CD_IND_B;
+    check_memory(RAM_VECTOR, MOV_A_IMM);
+    ASSERT_FALSE(mem->poke(RAM_VECTOR + 0, MOV_B_IMM).is_error());
+    ASSERT_FALSE(mem->poke(RAM_VECTOR + 6, MOV_CD_IND_B).is_error());
 
     pc->setValue(RAM_VECTOR);
     ASSERT_EQ(pc->getValue(), RAM_VECTOR);
@@ -674,11 +650,8 @@ TEST_F(TESTNAME, movBRegToMemViaCDIndirect)
     // mov *cd, a      5             5
     // hlt             3             3
     // total                        20
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 20);
-    ASSERT_EQ(system->bus().halt(), false);
-    ASSERT_EQ((*mem)[0x2010], 0x42);
+    check_cycles(20);
+    check_memory(0x2010, 0x42);
 }
 
 const byte cd_indirect_to_a[] = {
@@ -694,7 +667,7 @@ const byte cd_indirect_to_a[] = {
 TEST_F(TESTNAME, movMemToARegViaCDIndirect)
 {
     mem->initialize(RAM_START, 7, cd_indirect_to_a);
-    ASSERT_EQ((*mem)[RAM_VECTOR], MOV_C_IMM);
+    check_memory(RAM_VECTOR, MOV_C_IMM);
 
     pc->setValue(RAM_VECTOR);
     ASSERT_EQ(pc->getValue(), RAM_VECTOR);
@@ -703,18 +676,15 @@ TEST_F(TESTNAME, movMemToARegViaCDIndirect)
     // mov a, *cd      5             5
     // hlt             3             3
     // total                        16
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_a->getValue(), 0x42);
 }
 
 TEST_F(TESTNAME, movMemToBRegViaCDIndirect)
 {
     mem->initialize(RAM_START, 7, cd_indirect_to_a);
-    ASSERT_EQ((*mem)[RAM_VECTOR], MOV_C_IMM);
-    (*mem)[RAM_VECTOR + 4] = MOV_B_CD_IND;
+    check_memory(RAM_VECTOR, MOV_C_IMM);
+    ASSERT_FALSE(mem->poke(RAM_VECTOR + 4, MOV_B_CD_IND).is_error());
 
     pc->setValue(RAM_VECTOR);
     ASSERT_EQ(pc->getValue(), RAM_VECTOR);
@@ -723,10 +693,7 @@ TEST_F(TESTNAME, movMemToBRegViaCDIndirect)
     // mov a, *cd      5             5
     // hlt             3             3
     // total                        16
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_b->getValue(), 0x42);
 }
 
@@ -743,33 +710,27 @@ const byte mov_const_to_addr_reg_indirect[] = {
 TEST_F(TESTNAME, movConstToSiIndirect)
 {
     mem->initialize(RAM_START, 7, mov_const_to_addr_reg_indirect);
-    ASSERT_EQ((*mem)[RAM_VECTOR], MOV_SI_IMM);
+    check_memory(RAM_VECTOR, MOV_SI_IMM);
 
     pc->setValue(RAM_VECTOR);
     ASSERT_EQ(pc->getValue(), RAM_VECTOR);
 
-    [[maybe_unused]] auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    //  ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
-    ASSERT_EQ((*mem)[0x2006], 0x42);
+    check_cycles(15);
+    check_memory(0x2006, 0x42);
 }
 
 TEST_F(TESTNAME, movConstToDiIndirect)
 {
     mem->initialize(RAM_START, 7, mov_const_to_addr_reg_indirect);
-    ASSERT_EQ((*mem)[RAM_VECTOR], MOV_SI_IMM);
-    (*mem)[RAM_VECTOR] = MOV_DI_IMM;
-    (*mem)[RAM_VECTOR + 3] = MOV_DI_IND_IMM;
+    check_memory(RAM_VECTOR, MOV_SI_IMM);
+    ASSERT_FALSE(mem->poke(RAM_VECTOR, MOV_DI_IMM).is_error());
+    ASSERT_FALSE(mem->poke(RAM_VECTOR + 3, MOV_DI_IND_IMM).is_error());
 
     pc->setValue(RAM_VECTOR);
     ASSERT_EQ(pc->getValue(), RAM_VECTOR);
 
-    [[maybe_unused]] auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    //  ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
-    ASSERT_EQ((*mem)[0x2006], 0x42);
+    check_cycles(15);
+    check_memory(0x2006, 0x42);
 }
 
 const byte mov_const_to_cd_indirect[] = {
@@ -786,16 +747,13 @@ const byte mov_const_to_cd_indirect[] = {
 TEST_F(TESTNAME, movConstToCDIndirect)
 {
     mem->initialize(RAM_START, 8, mov_const_to_cd_indirect);
-    ASSERT_EQ((*mem)[RAM_VECTOR], MOV_C_IMM);
+    check_memory(RAM_VECTOR, MOV_C_IMM);
 
     pc->setValue(RAM_VECTOR);
     ASSERT_EQ(pc->getValue(), RAM_VECTOR);
 
-    [[maybe_unused]] auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    //  ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
-    ASSERT_EQ((*mem)[0x2007], 0x42);
+    check_cycles(18);
+    check_memory(0x2007, 0x42);
 }
 
 }

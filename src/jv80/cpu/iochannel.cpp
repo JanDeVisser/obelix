@@ -8,27 +8,15 @@
 
 namespace Obelix::JV80::CPU {
 
-IOChannel::IOChannel(int channelID, std::string&& name, Input& input)
-    : ConnectedComponent(channelID, name)
+IOChannel::IOChannel(int channelID, std::string name, Input input)
+    : ConnectedComponent(channelID, move(name))
     , m_input(std::move(input))
 {
 }
 
-IOChannel::IOChannel(int channelID, std::string&& name, Output& output)
-    : ConnectedComponent(channelID, name)
+IOChannel::IOChannel(int channelID, std::string name, Output output)
+    : ConnectedComponent(channelID, move(name))
     , m_output(std::move(output))
-{
-}
-
-IOChannel::IOChannel(int channelID, std::string&& name, Input&& input)
-    : ConnectedComponent(channelID, name)
-    , m_input(input)
-{
-}
-
-IOChannel::IOChannel(int channelID, std::string&& name, Output&& output)
-    : ConnectedComponent(channelID, name)
-    , m_output(output)
 {
 }
 
@@ -52,20 +40,18 @@ int IOChannel::getValue() const
     return ret;
 }
 
-std::ostream& IOChannel::status(std::ostream& os)
+std::string IOChannel::to_string() const
 {
-    char buf[80];
-    snprintf(buf, 80, "#%1x. %s ", id(), name().c_str());
-    if (m_status) {
-        m_status(os);
-    }
-    os << buf << std::endl;
-    return os;
+    auto ret = format("#%{01x}. {} ", id(), name());
+    //    if (m_status) {
+    //        ret += m_status();
+    //    }
+    return ret;
 }
 
 SystemError IOChannel::reset()
 {
-    return NoError;
+    return {};
 }
 
 SystemError IOChannel::onRisingClockEdge()
@@ -73,7 +59,7 @@ SystemError IOChannel::onRisingClockEdge()
     if (!bus()->io() && (bus()->putID() == id()) && (bus()->opflags() & SystemBus::IOIn)) {
         bus()->putOnDataBus(getValue());
     }
-    return NoError;
+    return {};
 }
 
 SystemError IOChannel::onHighClock()
@@ -81,6 +67,7 @@ SystemError IOChannel::onHighClock()
     if (!bus()->io() && (bus()->putID() == id()) && (bus()->opflags() & SystemBus::IOOut)) {
         setValue(bus()->readDataBus());
     }
-    return NoError;
+    return {};
 }
+
 }

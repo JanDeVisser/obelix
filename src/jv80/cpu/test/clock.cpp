@@ -26,97 +26,85 @@ public:
     {
     }
 
-    std::ostream& status(std::ostream& os) override
+    [[nodiscard]] std::string to_string() const override
     {
-        //    std::cout << "status" << std::endl;
-        return os;
+        return "Clock Test System";
     }
 
     SystemError reset() override
     {
-        //    std::cout << "reset" << std::endl;
         cycles = 0;
         state = 0;
-        return NoError;
+        return {};
     }
 
     SystemError onRisingClockEdge() override
     {
-        //    std::cout << "onRisingClockEdge" << std::endl;
         if (state != 0) {
-            return GeneralError;
+            return SystemError { SystemErrorCode::GeneralError };
         }
         state = 1;
-        return NoError;
+        return {};
     }
 
     SystemError onHighClock() override
     {
-        //    std::cout << "onHighClock" << std::endl;
         if (state != 1) {
-            return GeneralError;
+            return SystemError { SystemErrorCode::GeneralError };
         }
         state = 2;
-        return NoError;
+        return {};
     }
 
     SystemError onFallingClockEdge() override
     {
-        //    std::cout << "onFallingClockEdge" << std::endl;
         if (state != 2) {
-            return GeneralError;
+            return SystemError { SystemErrorCode::GeneralError };
         }
         state = 3;
-        return NoError;
+        return {};
     }
 
     SystemError onLowClock() override
     {
-        //    std::cout << "onLowClock" << std::endl;
         if (state != 3) {
-            return GeneralError;
+            return SystemError { SystemErrorCode::GeneralError };
         }
         state = 0;
         cycles++;
         if (max_cycles > 0 && (cycles >= max_cycles)) {
             clock.stop();
         }
-        return NoError;
+        return {};
     }
 };
 
 class ClockTest : public ::testing::Test {
 protected:
-    TestSystem* system = nullptr;
+    TestSystem system;
     void SetUp() override
     {
-        system = new TestSystem();
-        system->reset();
-    }
-
-    void TearDown() override
-    {
-        delete system;
+        ASSERT_FALSE(system.reset().is_error());
     }
 };
 
 TEST_F(ClockTest, canStart)
 {
-    system->max_cycles = 1;
-    ASSERT_EQ(system->clock.tick(), 500000);
-    SystemError err = system->clock.start();
-    ASSERT_EQ(err, NoError);
-    ASSERT_EQ(system->cycles, 1);
+    system.max_cycles = 1;
+    ASSERT_EQ(system.clock.tick(), 500000);
+    auto err = system.clock.start();
+    ASSERT_FALSE(err.is_error());
+    ASSERT_EQ(system.cycles, 1);
 }
 
 TEST_F(ClockTest, ticksAreAccurate)
 {
-    system->max_cycles = 1000;
+    system.max_cycles = 1000;
     auto start = std::chrono::high_resolution_clock::now();
-    SystemError err = system->clock.start();
+    auto err = system.clock.start();
     auto finish = std::chrono::high_resolution_clock::now();
-    ASSERT_EQ(err, NoError);
-    ASSERT_EQ(system->cycles, 1000);
+    ASSERT_FALSE(err.is_error());
+    ASSERT_EQ(system.cycles, 1000);
     ASSERT_NEAR(std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count(), 1000, 500);
 }
 

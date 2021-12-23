@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// #include <chrono>
 #include <cmath>
 #include <ctime>
 #include <thread>
@@ -18,12 +17,12 @@ namespace Obelix::JV80::CPU {
  */
 unsigned long Clock::tick() const
 {
-    return (unsigned long)round(1000000.0 / (2.0 * khz));
+    return (unsigned long)round(1000000.0 / (2.0 * m_khz));
 }
 
-ClockListener* Clock::setListener(ClockListener* listener)
+std::shared_ptr<ClockListener> const& Clock::setListener(std::shared_ptr<ClockListener> const& listener)
 {
-    ClockListener* old = m_listener;
+    auto& old = m_listener;
     m_listener = listener;
     return old;
 }
@@ -37,49 +36,46 @@ void Clock::sendEvent(ClockListener::ClockEvent event)
 
 void Clock::sleep() const
 {
-    // auto start = std::chrono::high_resolution_clock::now();
     struct timespec req = { 0 };
     req.tv_sec = 0;
-    req.tv_nsec = tick();
+    req.tv_nsec = (long)tick();
     nanosleep(&req, (struct timespec*)nullptr);
-    // auto finish = std::chrono::high_resolution_clock::now();
-    //  std::cout << std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count() << std::endl;
 }
 
 SystemError Clock::start()
 {
-    SystemError err = NoError;
-    sendEvent(ClockListener::Started);
-    for (state = Running; err == NoError && state == Running;) {
-        if ((err = owner->onRisingClockEdge()) != NoError) {
+    SystemError err;
+    sendEvent(ClockListener::ClockEvent::Started);
+    for (m_state = State::Running; !err.is_error() && m_state == State::Running;) {
+        if ((err = m_owner->onRisingClockEdge()).is_error()) {
             break;
-        };
-        if ((err = owner->onHighClock()) != NoError) {
+        }
+        if ((err = m_owner->onHighClock()).is_error()) {
             break;
-        };
+        }
         sleep();
-        if ((err = owner->onFallingClockEdge()) != NoError) {
+        if ((err = m_owner->onFallingClockEdge()).is_error()) {
             break;
-        };
-        if ((err = owner->onLowClock()) != NoError) {
+        }
+        if ((err = m_owner->onLowClock()).is_error()) {
             break;
         }
         sleep();
     }
-    sendEvent((err != NoError) ? ClockListener::Error : ClockListener::Stopped);
+    sendEvent(err.is_error() ? ClockListener::ClockEvent::Error : ClockListener::ClockEvent::Stopped);
     return err;
 }
 
 void Clock::stop()
 {
-    state = Stopped;
+    m_state = State::Stopped;
 }
 
 bool Clock::setSpeed(double freq)
 {
     if ((freq > 0) && (freq <= 1000)) {
-        khz = freq;
-        sendEvent(ClockListener::FreqChange);
+        m_khz = freq;
+        sendEvent(ClockListener::ClockEvent::FreqChange);
         return true;
     } else {
         return false;

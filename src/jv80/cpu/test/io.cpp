@@ -20,37 +20,32 @@ static int CHANNEL_OUT = 0x5;
 
 class IOTest : public ::testing::Test {
 protected:
-    Harness* system = nullptr;
-    Register* reg;
-    IOChannel* channelIn = nullptr;
-    IOChannel* channelOut = nullptr;
+    Harness system;
+    std::shared_ptr<Register> reg;
+    std::shared_ptr<IOChannel> channelIn;
+    std::shared_ptr<IOChannel> channelOut;
     byte inValue;
     byte outValue;
 
     void SetUp() override
     {
-        channelIn = new IOChannel(CHANNEL_IN, "IN", [this]() {
+        channelIn = std::make_shared<IOChannel>(CHANNEL_IN, "IN", [this]() {
             return inValue;
         });
-        channelOut = new IOChannel(CHANNEL_OUT, "OUT", [this](byte v) {
+        channelOut = std::make_shared<IOChannel>(CHANNEL_OUT, "OUT", [this](byte v) {
             outValue = v;
         });
-        reg = new Register(REGID, "REG");
-        system = new Harness(reg);
-        system->insertIO(channelIn);
-        system->insertIO(channelOut);
-    }
-
-    void TearDown() override
-    {
-        delete system;
+        reg = std::make_shared<Register>(REGID, "REG");
+        system.insert(reg);
+        system.insertIO(channelIn);
+        system.insertIO(channelOut);
     }
 };
 
 TEST_F(IOTest, canSend)
 {
     reg->setValue(0x42);
-    system->cycle(true, true, false, REGID, CHANNEL_OUT, SystemBus::IOOut, 0x37);
+    ASSERT_FALSE(system.cycle(true, true, false, REGID, CHANNEL_OUT, SystemBus::IOOut, 0x37).is_error());
     ASSERT_EQ(outValue, 0x42);
 }
 
@@ -58,7 +53,7 @@ TEST_F(IOTest, canReceive)
 {
     inValue = 0x42;
     reg->setValue(0x37);
-    system->cycle(false, true, true, REGID, CHANNEL_IN, SystemBus::IOIn, 0x39);
+    ASSERT_FALSE(system.cycle(false, true, true, REGID, CHANNEL_IN, SystemBus::IOIn, 0x39).is_error());
 }
 
 //

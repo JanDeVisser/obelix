@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include "../../../../../Qt/6.2.1/macos/lib/QtGui.framework/Headers/QPainter"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QLabel"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QLayout"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QStyleOption"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QWidget"
+#include <QPainter>
+#include <QLabel>
+#include <QLayout>
+#include <QStyleOption>
+#include <QWidget>
 
 #include <jv80/gui/qled.h>
 
@@ -152,7 +152,7 @@ public:
     void setRegister(int id)
     {
         auto bp = m_bus.backplane();
-        auto n = bp.name(id);
+        auto n = bp->name(id);
         while (n.size() < 4)
             n += " ";
         setText(n.c_str());
@@ -199,13 +199,13 @@ public:
     void componentEvent(Component const* sender, int ev) override;
 
 protected:
-    ConnectedComponent* component;
+    std::shared_ptr<ConnectedComponent> component;
     ImpactLabel* name;
     DSegLabel* value;
     QHBoxLayout* layout;
     ValueUpdater updater = nullptr;
 
-    explicit ComponentView(ConnectedComponent*, int = 4, QWidget* = nullptr);
+    explicit ComponentView(std::shared_ptr<ConnectedComponent>, int = 4, QWidget* = nullptr);
 
 protected slots:
     void refresh();
@@ -215,7 +215,7 @@ class RegisterView : public ComponentView {
     Q_OBJECT
 
 public:
-    explicit RegisterView(Register* reg, QWidget* parent = nullptr)
+    explicit RegisterView(std::shared_ptr<Register> reg, QWidget* parent = nullptr)
         : ComponentView(reg, 2, parent)
     {
     }
@@ -225,7 +225,7 @@ class AddressRegisterView : public ComponentView {
     Q_OBJECT
 
 public:
-    explicit AddressRegisterView(AddressRegister* reg, QWidget* parent = nullptr)
+    explicit AddressRegisterView(std::shared_ptr<AddressRegister> reg, QWidget* parent = nullptr)
         : ComponentView(reg, 4, parent)
     {
     }
@@ -238,16 +238,16 @@ signals:
     void stepChanged();
 
 public:
-    explicit InstructionRegisterView(Controller* reg, QWidget* parent = nullptr);
+    explicit InstructionRegisterView(std::shared_ptr<Controller> reg, QWidget* parent = nullptr);
     void componentEvent(Component const*, int) override;
 
 private:
     DSegLabel* step;
 
 protected:
-    Controller* controller() const
+    std::shared_ptr<Controller> controller() const
     {
-        return dynamic_cast<Controller*>(component);
+        return dynamic_pointer_cast<Controller>(component);
     }
 };
 
@@ -260,13 +260,13 @@ signals:
     void imageLoaded();
 
 public:
-    explicit MemoryView(Memory* reg, QWidget* parent = nullptr);
+    explicit MemoryView(std::shared_ptr<Memory> reg, QWidget* parent = nullptr);
     void componentEvent(Component const*, int) override;
 
 protected:
-    Memory* memory() const
+    [[nodiscard]] std::shared_ptr<Memory> memory() const
     {
-        return dynamic_cast<Memory*>(component);
+        return dynamic_pointer_cast<Memory>(component);
     }
 
 private:

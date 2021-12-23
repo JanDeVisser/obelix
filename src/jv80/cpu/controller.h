@@ -55,54 +55,24 @@ struct MicroCode {
     MicroCodeStep steps[24];
 };
 
-class MicroCodeRunner;
-
-class Controller : public Register {
-private:
-    byte step = 0;
-    byte m_scratch = 0;
-    word m_interruptVector = 0xFFFF;
-    bool m_servicingNMI = false;
-    const MicroCode* microCode;
-    MicroCodeRunner* m_runner = nullptr;
-    int m_suspended = 0;
-
-public:
-    explicit Controller(const MicroCode*);
-    std::string name() const override { return "IR"; }
-    int alias() const override { return CONTROLLER; }
-
-    std::string instruction() const;
-    word constant() const;
-    byte scratch() const { return m_scratch; }
-    word interruptVector() const { return m_interruptVector; }
-    int getStep() const { return step; }
-    SystemBus::RunMode runMode() const { return bus()->runMode(); }
-    void setRunMode(SystemBus::RunMode runMode) { bus()->setRunMode(runMode); }
-    std::string instructionWithOpcode(int) const;
-    int opcodeForInstruction(std::string&& instr) const { return opcodeForInstruction(instr); }
-    int opcodeForInstruction(const std::string& instr) const;
-
-    std::ostream& status(std::ostream&) override;
-    SystemError reset() override;
-    SystemError onRisingClockEdge() override;
-    SystemError onHighClock() override;
-    SystemError onLowClock() override;
-    //  void           NMI();
-
-    constexpr static int EV_STEPCHANGED = 0x02;
-    constexpr static int EV_AFTERINSTRUCTION = 0x03;
-};
-
 class MicroCodeRunner {
+public:
+    MicroCodeRunner(class Controller&, SystemBus&, const MicroCode*);
+    SystemError executeNextStep(int step);
+    bool hasStep(int step);
+    bool grabConstant(int step);
+    [[nodiscard]] std::string instruction() const;
+    [[nodiscard]] word constant() const;
+    [[nodiscard]] bool complete() const { return m_complete; }
+
 private:
-    Controller* m_controller;
-    SystemBus* m_bus;
-    const MicroCode* mc;
-    std::vector<MicroCode::MicroCodeStep> steps;
-    bool valid = true;
-    word m_constant = 0;
-    bool m_complete = false;
+    Controller& m_controller;
+    SystemBus& m_bus;
+    const MicroCode* m_mc;
+    std::vector<MicroCode::MicroCodeStep> m_steps;
+    bool m_valid { true };
+    word m_constant { 0 };
+    bool m_complete { false };
 
     void evaluateCondition();
     void fetchSteps();
@@ -110,14 +80,44 @@ private:
     void fetchImmediateWord();
     void fetchIndirectByte();
     void fetchIndirectWord();
-
-public:
-    MicroCodeRunner(Controller*, SystemBus*, const MicroCode*);
-    SystemError executeNextStep(int step);
-    bool hasStep(int step);
-    bool grabConstant(int step);
-    std::string instruction() const;
-    word constant() const;
-    bool complete() const { return m_complete; }
 };
+
+class Controller : public Register {
+public:
+    explicit Controller(const MicroCode*);
+    [[nodiscard]] std::string name() const override { return "IR"; }
+    [[nodiscard]] int alias() const override { return CONTROLLER; }
+
+    [[nodiscard]] word pc() const { return m_pc; }
+    [[nodiscard]] std::string instruction() const;
+    [[nodiscard]] word constant() const;
+    [[nodiscard]] byte scratch() const { return m_scratch; }
+    [[nodiscard]] word interruptVector() const { return m_interruptVector; }
+    [[nodiscard]] int getStep() const { return m_step; }
+    [[nodiscard]] SystemBus::RunMode runMode() const { return bus()->runMode(); }
+    void setRunMode(SystemBus::RunMode runMode) { bus()->setRunMode(runMode); }
+    [[nodiscard]] std::string instructionWithOpcode(int) const;
+    int opcodeForInstruction(std::string&& instr) const { return opcodeForInstruction(instr); }
+    [[nodiscard]] int opcodeForInstruction(const std::string& instr) const;
+
+    [[nodiscard]] std::string to_string() const override;
+    SystemError reset() override;
+    SystemError onRisingClockEdge() override;
+    SystemError onHighClock() override;
+    SystemError onLowClock() override;
+
+    constexpr static int EV_STEPCHANGED = 0x05;
+    constexpr static int EV_AFTERINSTRUCTION = 0x06;
+
+private:
+    byte m_step { 0 };
+    byte m_scratch { 0 };
+    word m_interruptVector { 0xFFFF };
+    bool m_servicingNMI { false };
+    const MicroCode* m_microCode;
+    std::optional<MicroCodeRunner> m_runner {};
+    int m_suspended { 0 };
+    word m_pc { 0 };
+};
+
 }

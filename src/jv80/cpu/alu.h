@@ -19,15 +19,9 @@ namespace Obelix::JV80::CPU {
 
 class ALU;
 
-typedef std::function<word(ALU*)> Operator;
+using Operator = std::function<word(ALU*)>;
 
 class ALU : public Register {
-    Operator m_operator = nullptr;
-    Register* m_lhs;
-
-private:
-    void setOverflow(word);
-
 public:
     enum Operations {
         ADD = 0x00,
@@ -46,12 +40,18 @@ public:
         CMP = 0x0F,
     };
 
-    ALU(int, Register* lhs);
-    Register* lhs() const { return m_lhs; }
+    ALU(int, std::shared_ptr<Register> lhs);
+    [[nodiscard]] std::shared_ptr<Register> const& lhs() const { return m_lhs; }
 
-    std::ostream& status(std::ostream&) override;
+    [[nodiscard]] std::string to_string() const override;
     SystemError onRisingClockEdge() override;
     SystemError onHighClock() override;
+
+private:
+    void setOverflow(word);
+
+    Operator m_operator = nullptr;
+    std::shared_ptr<Register> m_lhs;
 };
 
 }

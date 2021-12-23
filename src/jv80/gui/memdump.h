@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "../../../../../Qt/6.2.1/macos/lib/QtCore.framework/Headers/QAbstractListModel"
-#include "../../../../../Qt/6.2.1/macos/lib/QtGui.framework/Headers/QWindow"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QComboBox"
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QListView"
+#include <QAbstractListModel>
+#include <QWindow>
+#include <QComboBox>
+#include <QListView>
 
 #include <jv80/cpu/backplane.h>
 #include <jv80/cpu/memory.h>
@@ -22,13 +22,13 @@ class MemModel : public QAbstractListModel {
     Q_OBJECT
 
 public:
-    explicit MemModel(const Memory*, word, QObject* parent = nullptr);
+    explicit MemModel(MemoryBank const&, QObject* parent = nullptr);
 
-    int rowCount(const QModelIndex& parent) const override;
-    QVariant data(const QModelIndex& index, int role) const override;
-    QModelIndex indexOf(word addr = 0xFFFF) const;
-    word currentAddress() const { return m_address; }
-    MemoryBank& getBank() { return m_bank; }
+    [[nodiscard]] int rowCount(const QModelIndex& parent) const override;
+    [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
+    [[nodiscard]] QModelIndex indexOf(word addr = 0xFFFF) const;
+    [[nodiscard]] word currentAddress() const { return m_address; }
+    MemoryBank const& getBank() { return m_bank; }
 
 signals:
     void numberPopulated(int number);
@@ -36,10 +36,10 @@ signals:
 public slots:
 
 private:
+    MemoryBank const& m_bank;
     word m_address;
-    MemoryBank m_bank;
 
-    QVariant getRow(int) const;
+    [[nodiscard]] QVariant getRow(int) const;
 };
 
 class MemDump : public QWidget {
@@ -48,21 +48,21 @@ class MemDump : public QWidget {
 public:
     explicit MemDump(BackPlane*, QWidget* = nullptr);
     ~MemDump() override = default;
-    BackPlane* getSystem() const { return m_system; }
+    [[nodiscard]] BackPlane* getSystem() const { return m_system; }
     void reload();
     void focusOnAddress(word addr = 0xFFFF);
-    MemoryBank& currentBank() { return m_model->getBank(); }
+    MemoryBank const& currentBank() { return m_model->getBank(); }
 
 public slots:
     void focus();
-    void selectBank(int ix);
+    void selectBank();
 
 signals:
 
 protected:
 private:
     BackPlane* m_system;
-    Memory* m_memory;
+    std::shared_ptr<Memory> m_memory;
     MemModel* m_model = nullptr;
     QListView* m_view;
     QComboBox* m_banks;

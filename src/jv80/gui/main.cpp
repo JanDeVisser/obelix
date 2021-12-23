@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <jv80/gui/mainwindow.h>
-
 #include <QApplication>
+
+#include <jv80/gui/mainwindow.h>
 
 using namespace Obelix::JV80::GUI;
 

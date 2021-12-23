@@ -4,50 +4,32 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <core/Format.h>
 #include <jv80/cpu/alu.h>
 
 namespace Obelix::JV80::CPU {
 
-#define B_PATTERN "%c%c%c%c%c%c%c%c"
-#define BINARY(byte)               \
-    (byte & 0x80 ? '1' : '0'),     \
-        (byte & 0x40 ? '1' : '0'), \
-        (byte & 0x20 ? '1' : '0'), \
-        (byte & 0x10 ? '1' : '0'), \
-        (byte & 0x08 ? '1' : '0'), \
-        (byte & 0x04 ? '1' : '0'), \
-        (byte & 0x02 ? '1' : '0'), \
-        (byte & 0x01 ? '1' : '0')
-
-#define BOOL_PATTERN "%c"
-#define BOOL(byte) ((byte) ? 't' : 'f')
-
-ALU::ALU(int ident, Register* lhs)
+ALU::ALU(int ident, std::shared_ptr<Register> lhs)
     : Register(ident)
-    , m_lhs(lhs)
+    , m_lhs(move(lhs))
 {
-    //
 }
 
-std::ostream& ALU::status(std::ostream& os)
+std::string ALU::to_string() const
 {
-    char buf[80];
-    snprintf(buf, 80, "%1x. LHS %02x  %1x. RHS %02x", lhs()->id(), lhs()->getValue(), id(), getValue());
-    os << buf << std::endl;
-    return os;
+    return format("{01x}. LHS {02x}  {01x}. RHS {02x}", lhs()->id(), lhs()->getValue(), id(), getValue());
 }
 
 SystemError ALU::onRisingClockEdge()
 {
-    auto err = Register::onHighClock();
-    if (err != NoError) {
+    if (auto err = Register::onHighClock(); err.is_error())
         return err;
-    }
+
     if (!bus()->xaddr() && (bus()->getID() == id())) {
         bus()->putOnAddrBus(0x0);
         bus()->putOnDataBus(bus()->flags());
     }
-    return NoError;
+    return {};
 }
 
 SystemError ALU::onHighClock()
@@ -94,10 +76,9 @@ SystemError ALU::onHighClock()
         /* 0xF */ nullptr,
     };
 
-    auto err = Register::onHighClock();
-    if (err != NoError) {
+    if (auto err = Register::onHighClock(); err.is_error())
         return err;
-    }
+
     if (bus()->putID() == id()) {
         if (!bus()->xdata()) {
             m_operator = operators[bus()->opflags()];
@@ -119,7 +100,7 @@ SystemError ALU::onHighClock()
             bus()->setFlags(bus()->readDataBus());
         }
     }
-    return NoError;
+    return {};
 }
 
 void ALU::setOverflow(word result)

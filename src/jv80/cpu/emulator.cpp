@@ -4,24 +4,24 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <sys/stat.h>
 #include <unistd.h>
 
+#include <core/ScopeGuard.h>
 #include <jv80/cpu/backplane.h>
+#include <jv80/cpu/controller.h>
 #include <jv80/cpu/emulator.h>
-#include <jv80/cpu/memory.h>
+#include <jv80/cpu/register.h>
+#include <jv80/cpu/registers.h>
 
 namespace Obelix::JV80::CPU {
 
 CPU::CPU(std::string const& image)
-    : m_status()
-    , m_queuedKeys()
+    : m_queuedKeys()
 {
-    m_system = new BackPlane();
-    m_system->defaultSetup();
-    m_system->setOutputStream(m_status);
-    m_system->setRunMode(SystemBus::Continuous);
-    m_keyboard = new IOChannel(0x00, "KEY", [this]() {
+    m_system.defaultSetup();
+    m_system.setRunMode(SystemBus::RunMode::Continuous);
+    m_system.controller()->setListener(this);
+    m_keyboard = std::make_shared<IOChannel>(0x00, "KEY", [this]() {
         byte b = 0xFF;
         {
             while (read(0, &b, 1)) {
@@ -35,21 +35,63 @@ CPU::CPU(std::string const& image)
         return b;
     });
 
-    m_terminal = new IOChannel(0x01, "OUT", [this](byte out) {
+    m_terminal = std::make_shared<IOChannel>(0x01, "OUT", [](byte out) {
         write(1, &out, 1);
     });
 
-    m_system->insertIO(m_keyboard);
-    m_system->insertIO(m_terminal);
+    m_system.insertIO(m_keyboard);
+    m_system.insertIO(m_terminal);
 
     openImage(image, 0, false);
 }
 
-uint16_t CPU::run(word addr)
+CPU::~CPU()
 {
-    m_system->reset();
-    m_system->run(addr);
-    return m_system->component(0x0b)->getValue();
+}
+
+ErrorOr<uint16_t, SystemErrorCode> CPU::run(bool trace, word addr)
+{
+    ScopeGuard sg([this]() { m_trace = false; });
+    m_trace = trace;
+    if (auto err = m_system.reset(); err.is_error()) {
+        auto e = err.error();
+        return { e };
+    }
+    if (auto err = m_system.run(addr); err.is_error()) {
+        auto e = err.error();
+        return ErrorOr<uint16_t, SystemErrorCode> { e };
+    }
+    return ErrorOr<uint16_t, SystemErrorCode> { (uint16_t)m_system.component(DI)->getValue() };
+}
+
+void CPU::componentEvent(Component const* sender, int ev)
+{
+    switch (ev) {
+    case Controller::EV_AFTERINSTRUCTION:
+        if (m_trace) {
+            auto instr = dynamic_cast<Controller const*>(sender)->instruction();
+            std::string args;
+            std::string mnemonic = instr;
+            auto pos = instr.find_first_of(' ');
+            if (pos != std::string::npos) {
+                mnemonic = instr.substr(0, pos);
+                args = instr.substr(pos);
+            }
+            printf("%04x %-6.6s%-9.9s    %02x %02x %02x %02x %04x %04x %04x\n",
+                dynamic_cast<Controller const*>(sender)->pc(),
+                mnemonic.c_str(), args.c_str(),
+                std::dynamic_pointer_cast<Register>(m_system.component(GP_A))->getValue(),
+                std::dynamic_pointer_cast<Register>(m_system.component(GP_B))->getValue(),
+                std::dynamic_pointer_cast<Register>(m_system.component(GP_C))->getValue(),
+                std::dynamic_pointer_cast<Register>(m_system.component(GP_D))->getValue(),
+                std::dynamic_pointer_cast<AddressRegister>(m_system.component(SI))->getValue(),
+                std::dynamic_pointer_cast<AddressRegister>(m_system.component(DI))->getValue(),
+                std::dynamic_pointer_cast<AddressRegister>(m_system.component(SP))->getValue());
+        }
+        break;
+    default:
+        break;
+    }
 }
 
 void CPU::openImage(FILE* img, word addr, bool writable)
@@ -67,23 +109,32 @@ void CPU::openImage(FILE* img, word addr, bool writable)
         perror("fseek");
         exit(-1);
     }
+
     byte* bytearr = new byte[sz];
-    if (!fread(bytearr, sz, 1, img)) {
-        perror("fread");
-        exit(-1);
+    {
+        ScopeGuard sg { [bytearr]() { delete[] bytearr; } };
+        if (!fread(bytearr, sz, 1, img)) {
+            perror("fread");
+            exit(-1);
+        }
+        if (auto err = m_system.loadImage(sz, bytearr, addr, writable); err.is_error()) {
+            fprintf(stderr, "Error loading image\n");
+            exit(-1);
+        }
     }
-    m_system->loadImage(sz, bytearr, addr, writable);
-    delete[] bytearr;
 }
 
 void CPU::openImage(std::string const& img, word addr, bool writable)
 {
     FILE* f = fopen(img.c_str(), "rb");
-    if (!f) {
-        perror("fopen");
-        exit(-1);
+    {
+        ScopeGuard sg { [f]() { fclose(f); } };
+        if (!f) {
+            perror("fopen");
+            exit(-1);
+        }
+        openImage(f, addr, writable);
     }
-    openImage(f, addr, writable);
 }
 
 }

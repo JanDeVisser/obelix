@@ -6,14 +6,15 @@
 
 #include <QPainter>
 #include <QStyleOption>
+
 #include <jv80/gui/componentview.h>
 
 namespace Obelix::JV80::GUI {
 
-ComponentView::ComponentView(ConnectedComponent* comp, int width, QWidget* owner)
+ComponentView::ComponentView(std::shared_ptr<ConnectedComponent> comp, int width, QWidget* owner)
     : StyledWidget(owner)
+    , component(std::move(comp))
 {
-    component = comp;
     component->setListener(this);
     layout = new QHBoxLayout;
     setLayout(layout);
@@ -30,7 +31,7 @@ ComponentView::ComponentView(ConnectedComponent* comp, int width, QWidget* owner
 
 void ComponentView::componentEvent(Component const* sender, int ev)
 {
-    if ((ev == Component::EV_VALUECHANGED) && (component->bus()->runMode() != SystemBus::Continuous)) {
+    if ((ev == Component::EV_VALUECHANGED) && (component->bus()->runMode() != SystemBus::RunMode::Continuous)) {
         emit valueChanged();
     }
 }
@@ -46,8 +47,8 @@ void ComponentView::refresh()
 
 // -----------------------------------------------------------------------
 
-InstructionRegisterView::InstructionRegisterView(Controller* reg, QWidget* parent)
-    : ComponentView(reg, 10, parent)
+InstructionRegisterView::InstructionRegisterView(std::shared_ptr<Controller> reg, QWidget* parent)
+    : ComponentView(std::move(reg), 10, parent)
 {
     step = new DSegLabel("0", 1);
     layout->addWidget(step, 0, Qt::AlignRight);
@@ -63,7 +64,7 @@ InstructionRegisterView::InstructionRegisterView(Controller* reg, QWidget* paren
 
 void InstructionRegisterView::componentEvent(Component const* sender, int ev)
 {
-    if ((ev == Controller::EV_STEPCHANGED) && (component->bus()->runMode() != SystemBus::Continuous)) {
+    if ((ev == Controller::EV_STEPCHANGED) && (component->bus()->runMode() != SystemBus::RunMode::Continuous)) {
         emit stepChanged();
     } else {
         ComponentView::componentEvent(sender, ev);
@@ -71,16 +72,16 @@ void InstructionRegisterView::componentEvent(Component const* sender, int ev)
 }
 // -----------------------------------------------------------------------
 
-MemoryView::MemoryView(Memory* reg, QWidget* parent)
-    : ComponentView(reg, 4, parent)
+MemoryView::MemoryView(std::shared_ptr<Memory> reg, QWidget* parent)
+    : ComponentView(std::move(reg), 4, parent)
 {
     contents = new DSegLabel("", 2);
-    contents->setValue((*reg)[reg->getValue()]);
+    contents->setValue(reg->peek(reg->getValue()).value());
     layout->addWidget(contents, 0, Qt::AlignRight);
 
-    updater = [this]() {
+    updater = [this, reg]() {
         value->setValue(component->getValue());
-        contents->setValue((*memory())[component->getValue()]);
+        contents->setValue(reg->peek(component->getValue()).value());
     };
     connect(this, &MemoryView::contentsChanged, this, &MemoryView::refresh);
 }
@@ -92,7 +93,7 @@ void MemoryView::componentEvent(Component const* sender, int ev)
         emit imageLoaded();
         // Fall through
     case Memory::EV_CONTENTSCHANGED:
-        if (component->bus()->runMode() != SystemBus::Continuous) {
+        if (component->bus()->runMode() != SystemBus::RunMode::Continuous) {
             emit contentsChanged();
         }
         break;

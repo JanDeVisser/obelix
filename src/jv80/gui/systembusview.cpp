@@ -5,7 +5,7 @@
  */
 
 #include <QHBoxLayout>
-#include <QVBoxLayout>
+
 #include <jv80/gui/systembusview.h>
 
 namespace Obelix::JV80::GUI {
@@ -18,8 +18,6 @@ SystemBusView::SystemBusView(SystemBus& bus, QWidget* parent)
     auto grid = new QHBoxLayout;
     layout = grid;
     setLayout(layout);
-
-    auto bp = bus.backplane();
 
     auto busData = [](QString&& label, ByteWidget*& bw, QLed*& led1, QLed* ioLed) {
         auto w = new StyledWidget;
@@ -101,7 +99,7 @@ SystemBusView::SystemBusView(SystemBus& bus, QWidget* parent)
 
 void SystemBusView::componentEvent(Component const* sender, int ev)
 {
-    if ((ev == Component::EV_VALUECHANGED) && (systemBus.runMode() != SystemBus::Continuous)) {
+    if ((ev == Component::EV_VALUECHANGED) && (systemBus.runMode() != SystemBus::RunMode::Continuous)) {
         emit valueChanged();
     }
 }

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "../../../../../Qt/6.2.1/macos/lib/QtWidgets.framework/Headers/QWidget"
+#include <QWidget>
 
 #include <jv80/gui/qled.h>
 

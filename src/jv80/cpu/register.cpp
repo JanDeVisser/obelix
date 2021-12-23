@@ -22,19 +22,16 @@ void Register::setValue(byte val)
     sendEvent(EV_VALUECHANGED);
 }
 
-std::ostream& Register::status(std::ostream& os)
+std::string Register::to_string() const
 {
-    char buf[80];
-    snprintf(buf, 80, "%1x. %s  %02x\n", id(), name().c_str(), value);
-    os << buf;
-    return os;
+    return format("{01x}. {}  {02x}", id(), name().c_str(), value);
 }
 
 SystemError Register::reset()
 {
     value = 0;
     sendEvent(EV_VALUECHANGED);
-    return NoError;
+    return {};
 }
 
 SystemError Register::onRisingClockEdge()
@@ -42,7 +39,7 @@ SystemError Register::onRisingClockEdge()
     if ((!bus()->xdata() || (!bus()->io() && (bus()->opflags() & SystemBus::IOOut))) && (bus()->getID() == id())) {
         bus()->putOnDataBus(value);
     }
-    return NoError;
+    return {};
 }
 
 SystemError Register::onHighClock()
@@ -50,7 +47,7 @@ SystemError Register::onHighClock()
     if ((!bus()->xdata() && (bus()->putID() == id())) || (!bus()->io() && (bus()->opflags() & SystemBus::IOIn) && (bus()->getID() == id()))) {
         setValue(bus()->readDataBus());
     }
-    return NoError;
+    return {};
 }
 
 }

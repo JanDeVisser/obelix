@@ -9,22 +9,22 @@
 
 namespace Obelix::JV80::CPU {
 
+class TESTNAME : public HarnessTest {
+};
+
 // SWAP
 
 TEST_F(TESTNAME, swpAB)
 {
     mem->initialize(RAM_START, 6, binary_op);
-    ASSERT_EQ((*mem)[RAM_START], MOV_A_IMM);
-    (*mem)[0x2002] = MOV_B_IMM;
-    (*mem)[0x2004] = SWP_A_B;
+    check_memory(RAM_START, MOV_A_IMM);
+    ASSERT_FALSE(mem->poke(0x2002, MOV_B_IMM).is_error());
+    ASSERT_FALSE(mem->poke(0x2004, SWP_A_B).is_error());
 
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_a->getValue(), 0xF8);
     ASSERT_EQ(gp_b->getValue(), 0x1F);
 }
@@ -32,17 +32,14 @@ TEST_F(TESTNAME, swpAB)
 TEST_F(TESTNAME, swpAC)
 {
     mem->initialize(RAM_START, 6, binary_op);
-    ASSERT_EQ((*mem)[RAM_START], MOV_A_IMM);
-    (*mem)[0x2002] = MOV_C_IMM;
-    (*mem)[0x2004] = SWP_A_C;
+    check_memory(RAM_START, MOV_A_IMM);
+    ASSERT_FALSE(mem->poke(0x2002, MOV_C_IMM).is_error());
+    ASSERT_FALSE(mem->poke(0x2004, SWP_A_C).is_error());
 
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_a->getValue(), 0xF8);
     ASSERT_EQ(gp_c->getValue(), 0x1F);
 }
@@ -50,17 +47,14 @@ TEST_F(TESTNAME, swpAC)
 TEST_F(TESTNAME, swpAD)
 {
     mem->initialize(RAM_START, 6, binary_op);
-    ASSERT_EQ((*mem)[RAM_START], MOV_A_IMM);
-    (*mem)[0x2002] = MOV_D_IMM;
-    (*mem)[0x2004] = SWP_A_D;
+    check_memory(RAM_START, MOV_A_IMM);
+    ASSERT_FALSE(mem->poke(0x2002, MOV_D_IMM).is_error());
+    ASSERT_FALSE(mem->poke(0x2004, SWP_A_D).is_error());
 
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_a->getValue(), 0xF8);
     ASSERT_EQ(gp_d->getValue(), 0x1F);
 }
@@ -68,18 +62,15 @@ TEST_F(TESTNAME, swpAD)
 TEST_F(TESTNAME, swpBC)
 {
     mem->initialize(RAM_START, 6, binary_op);
-    ASSERT_EQ((*mem)[RAM_START], MOV_A_IMM);
-    (*mem)[0x2000] = MOV_B_IMM;
-    (*mem)[0x2002] = MOV_C_IMM;
-    (*mem)[0x2004] = SWP_B_C;
+    check_memory(RAM_START, MOV_A_IMM);
+    ASSERT_FALSE(mem->poke(0x2000, MOV_B_IMM).is_error());
+    ASSERT_FALSE(mem->poke(0x2002, MOV_C_IMM).is_error());
+    ASSERT_FALSE(mem->poke(0x2004, SWP_B_C).is_error());
 
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_b->getValue(), 0xF8);
     ASSERT_EQ(gp_c->getValue(), 0x1F);
 }
@@ -87,18 +78,15 @@ TEST_F(TESTNAME, swpBC)
 TEST_F(TESTNAME, swpBD)
 {
     mem->initialize(RAM_START, 6, binary_op);
-    ASSERT_EQ((*mem)[RAM_START], MOV_A_IMM);
-    (*mem)[0x2000] = MOV_B_IMM;
-    (*mem)[0x2002] = MOV_D_IMM;
-    (*mem)[0x2004] = SWP_B_D;
+    check_memory(RAM_START, MOV_A_IMM);
+    ASSERT_FALSE(mem->poke(0x2000, MOV_B_IMM).is_error());
+    ASSERT_FALSE(mem->poke(0x2002, MOV_D_IMM).is_error());
+    ASSERT_FALSE(mem->poke(0x2004, SWP_B_D).is_error());
 
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_b->getValue(), 0xF8);
     ASSERT_EQ(gp_d->getValue(), 0x1F);
 }
@@ -106,18 +94,15 @@ TEST_F(TESTNAME, swpBD)
 TEST_F(TESTNAME, swpCD)
 {
     mem->initialize(RAM_START, 6, binary_op);
-    ASSERT_EQ((*mem)[RAM_START], MOV_A_IMM);
-    (*mem)[0x2000] = MOV_C_IMM;
-    (*mem)[0x2002] = MOV_D_IMM;
-    (*mem)[0x2004] = SWP_C_D;
+    check_memory(RAM_START, MOV_A_IMM);
+    ASSERT_FALSE(mem->poke(0x2000, MOV_C_IMM).is_error());
+    ASSERT_FALSE(mem->poke(0x2002, MOV_D_IMM).is_error());
+    ASSERT_FALSE(mem->poke(0x2004, SWP_C_D).is_error());
 
     pc->setValue(RAM_START);
     ASSERT_EQ(pc->getValue(), RAM_START);
 
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 16);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(16);
     ASSERT_EQ(gp_c->getValue(), 0xF8);
     ASSERT_EQ(gp_d->getValue(), 0x1F);
 }

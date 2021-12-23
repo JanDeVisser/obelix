@@ -10,7 +10,7 @@
 
 namespace Obelix::JV80::CPU {
 
-enum ClockCycleEvent {
+enum class ClockCycleEvent {
     RisingEdge,
     High,
     FallingEdge,
@@ -19,7 +19,7 @@ enum ClockCycleEvent {
 
 class ClockListener {
 public:
-    enum ClockEvent {
+    enum class ClockEvent {
         Started,
         Stopped,
         Error,
@@ -31,32 +31,21 @@ public:
 
 class Clock {
 public:
-    enum State {
+    enum class State {
         Running,
         Stopped
     };
 
-private:
-    double khz;
-    Component* owner;
-    State state = Stopped;
-    ClockListener* m_listener = nullptr;
-
-    void sendEvent(ClockListener::ClockEvent);
-    void sleep() const;
-
-public:
-    Clock(Component* o, double speed_khz)
-        : khz(speed_khz)
-        , owner(o)
+    Clock(Component* owner, double speed_khz)
+        : m_khz(speed_khz)
+        , m_owner(owner)
     {
     }
 
     virtual ~Clock() = default;
 
-    double frequency() { return khz; }
-
-    unsigned long tick() const;
+    [[nodiscard]] double frequency() const { return m_khz; }
+    [[nodiscard]] unsigned long tick() const;
 
     SystemError start();
 
@@ -64,7 +53,16 @@ public:
 
     bool setSpeed(double);
 
-    ClockListener* setListener(ClockListener*);
+    std::shared_ptr<ClockListener> const& setListener(std::shared_ptr<ClockListener> const&);
+
+private:
+    double m_khz;
+    Component* m_owner;
+    State m_state = State::Stopped;
+    std::shared_ptr<ClockListener> m_listener = nullptr;
+
+    void sendEvent(ClockListener::ClockEvent);
+    void sleep() const;
 };
 
 }

@@ -10,8 +10,8 @@
 #include <mutex>
 #include <sstream>
 
-#include "../../../../../Qt/6.2.1/macos/lib/QtCore.framework/Headers/QThread"
-#include "../../../../../Qt/6.2.1/macos/lib/QtGui.framework/Headers/QKeyEvent"
+#include <QThread>
+#include <QKeyEvent>
 
 #include <jv80/cpu/backplane.h>
 #include <jv80/cpu/iochannel.h>
@@ -37,7 +37,8 @@ public:
 protected:
     void run() override
     {
-        m_system->run(m_address);
+        if (auto err = m_system->run(m_address); err.is_error())
+            fprintf(stderr, "CPU::Executor::run: %s\n", SystemErrorCode_name(err.error()));
     }
 };
 
@@ -75,8 +76,8 @@ signals:
 private:
     Executor* m_thread;
     BackPlane* m_system;
-    IOChannel* m_keyboard;
-    IOChannel* m_terminal;
+    std::shared_ptr<IOChannel> m_keyboard;
+    std::shared_ptr<IOChannel> m_terminal;
     bool m_running;
     std::stringstream m_status {};
     std::list<int> m_pressedKeys;

@@ -13,19 +13,11 @@
 
 namespace Obelix::JV80::GUI {
 
-MemModel::MemModel(const Memory* memory, word bank, QObject* parent)
+MemModel::MemModel(MemoryBank const& bank, QObject* parent)
     : QAbstractListModel(parent)
+    , m_bank(bank)
+    , m_address(m_bank.start())
 {
-    m_bank = memory->bank(bank);
-    if (!m_bank.valid()) {
-        auto banks = memory->banks();
-        if (!banks.empty()) {
-            m_bank = *(banks.begin());
-        } else {
-            m_bank = MemoryBank();
-        }
-    }
-    m_address = m_bank.start();
 }
 
 int MemModel::rowCount(const QModelIndex& parent) const
@@ -54,9 +46,9 @@ QVariant MemModel::getRow(int row) const
 
     auto s = QString("%1   ").arg(start, 4, 16, QLatin1Char('0'));
     for (word ix = start; ix < end; ix++) {
-        s += QString(" %1").arg(m_bank[ix], 2, 16, QLatin1Char('0'));
+        s += QString(" %1").arg(m_bank.peek(ix).value(), 2, 16, QLatin1Char('0'));
     }
-    return QVariant(s);
+    return QVariant { s };
 }
 
 QModelIndex MemModel::indexOf(word addr) const
@@ -100,10 +92,14 @@ MemDump::MemDump(BackPlane* system, QWidget* parent)
 
 void MemDump::createModel(word addr)
 {
-    auto old_model = m_model;
-    m_model = new MemModel(m_memory, addr);
-    m_view->setModel(m_model);
-    delete old_model;
+    auto bank_ix = m_memory->findBankForAddress(addr);
+    if (bank_ix.has_value()) {
+        auto& bank = m_memory->banks()[bank_ix.value()];
+        m_model = new MemModel(bank);
+        auto old_model = m_model;
+        m_view->setModel(m_model);
+        delete old_model;
+    }
     m_view->reset();
 }
 
@@ -127,6 +123,9 @@ void MemDump::reload()
 
 void MemDump::focusOnAddress(word addr)
 {
+    if (!m_memory->isMapped(addr))
+        return;
+
     auto bank = m_memory->bank(addr);
     if (bank != m_model->getBank()) {
         createModel(addr);
@@ -144,7 +143,7 @@ void MemDump::focus()
     focusOnAddress(m_model->currentAddress());
 }
 
-void MemDump::selectBank(int ix)
+void MemDump::selectBank()
 {
     createModel(m_banks->currentData().toInt());
 }

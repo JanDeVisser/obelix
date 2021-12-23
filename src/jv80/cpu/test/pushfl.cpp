@@ -9,6 +9,9 @@
 
 namespace Obelix::JV80::CPU {
 
+class TESTNAME : public HarnessTest {
+};
+
 const byte assembly[] = {
     /* 0000 */ MOV_A_IMM, 0x42, /* mov a,#42  4 */
     /* 0002 */ MOV_B_IMM, 0x42, /* mov b,#42  4 */
@@ -26,7 +29,7 @@ const byte assembly[] = {
 TEST_F(TESTNAME, pushflPopfl)
 {
     mem->initialize(ROM_START, 16, assembly);
-    ASSERT_EQ((*mem)[START_VECTOR], MOV_A_IMM);
+    check_memory(START_VECTOR, MOV_A_IMM);
 
     sp->setValue(RAM_START);
     ASSERT_EQ(sp->getValue(), RAM_START);
@@ -35,14 +38,11 @@ TEST_F(TESTNAME, pushflPopfl)
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
     nmiAt = 0x8011;
-    auto cycles = system->run();
-    ASSERT_EQ(system->error(), NoError);
-    ASSERT_EQ(cycles, 42);
-    ASSERT_EQ(system->bus().halt(), false);
+    check_cycles(42);
     ASSERT_EQ(gp_a->getValue(), 0x42);
     ASSERT_EQ(gp_b->getValue(), 0x42);
     ASSERT_EQ(gp_c->getValue(), 0x37);
-    ASSERT_TRUE(system->bus().isSet(SystemBus::Z));
+    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
 }
 
 }

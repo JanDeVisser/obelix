@@ -25,7 +25,6 @@ typedef std::function<QVector<QString>(const QStringList&)> Completer;
 
 class CommandDefinition {
 private:
-    CommandLineEdit* m_edit = nullptr;
     QString m_command = "";
     int m_minArgs = 0;
     int m_maxArgs = 0;
@@ -39,10 +38,10 @@ public:
 
     void changed(const QStringList&) const;
     void submit(Command&) const;
-    QVector<QString> complete(const QStringList&) const;
-    const QString& command() const { return m_command; }
-    int minArgs() const { return m_minArgs; }
-    int maxArgs() const { return m_maxArgs; }
+    [[nodiscard]] QVector<QString> complete(const QStringList&) const;
+    [[nodiscard]] const QString& command() const { return m_command; }
+    [[nodiscard]] int minArgs() const { return m_minArgs; }
+    [[nodiscard]] int maxArgs() const { return m_maxArgs; }
 };
 
 class Command {
@@ -55,10 +54,8 @@ class Command {
 
 public:
     explicit Command(CommandLineEdit&);
-    void setError(QString&&);
-    void setError(QString&);
-    void setResult(QString&&);
-    void setResult(QString&);
+    void setError(QString const&);
+    void setResult(QString const&);
     void setSuccess();
 
     const CommandDefinition& definition() const { return m_definition; }

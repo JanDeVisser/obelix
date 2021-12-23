@@ -5,7 +5,9 @@ find_package(Qt6 COMPONENTS Svg REQUIRED)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+#include_directories("${Qt6Widgets_INCLUDE_DIRS}" "${Qt6Svg_INCLUDE_DIRS}")
 
+add_definitions("-DNDEBUG")
 add_executable(
         emu
         blockcursorstyle.cpp

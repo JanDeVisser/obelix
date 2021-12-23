@@ -65,23 +65,23 @@ MainWindow::MainWindow(QWidget* parent)
     layout->addWidget(busView, 0, 0, 1, 2);
     for (int r = 0; r < 4; r++) {
         auto reg = system->component(r);
-        auto regView = new RegisterView(dynamic_cast<Register*>(reg), widget);
+        auto regView = new RegisterView(std::dynamic_pointer_cast<Register>(reg), widget);
         layout->addWidget(regView, r / 2 + 1, r % 2);
     }
 
     auto reg = system->component(IR);
-    auto regView = new InstructionRegisterView(dynamic_cast<Controller*>(reg), widget);
+    auto regView = new InstructionRegisterView(dynamic_pointer_cast<Controller>(reg), widget);
     layout->addWidget(regView, 3, 0);
 
     for (int r = 0; r < 4; r++) {
         auto addr_reg = system->component(8 + r);
-        auto addr_regView = new AddressRegisterView(dynamic_cast<AddressRegister*>(addr_reg), widget);
+        auto addr_regView = new AddressRegisterView(dynamic_pointer_cast<AddressRegister>(addr_reg), widget);
         layout->addWidget(addr_regView, r / 2 + 4, r % 2);
     }
 
     int row = 6;
     auto mem = system->component(MEMADDR);
-    auto memView = new MemoryView(dynamic_cast<Memory*>(mem), widget);
+    auto memView = new MemoryView(dynamic_pointer_cast<Memory>(mem), widget);
     layout->addWidget(memView, row++, 0);
     connect(memView, &ComponentView::valueChanged, m_memdump, &MemDump::focus);
     connect(memView, &MemoryView::imageLoaded, m_memdump, &MemDump::reload);
@@ -315,7 +315,7 @@ CommandLineEdit* MainWindow::makeCommandLine()
                 m_cpu->openImage(cmd.arg(0), addr, writable);
             }
         },
-        [this](const QStringList& args) {
+        [](const QStringList& args) {
             return fileCompletions(args);
         });
 
@@ -349,10 +349,11 @@ CommandLineEdit* MainWindow::makeCommandLine()
                     return;
                 }
                 if (poke) {
-                    (*m_cpu->getSystem()->memory())[addr] = value;
+                    if (auto err = m_cpu->getSystem()->memory()->poke(addr, value); err.is_error())
+                        fprintf(stderr, "Poke(%04x, %02x): %s\n", addr, value, SystemErrorCode_name(err.error()));
                 }
                 m_memdump->focusOnAddress(addr);
-                v = (*m_cpu->getSystem()->memory())[addr];
+                v = m_cpu->getSystem()->memory()->peek(addr).value();
                 if ((v >= 32) && (v <= 126)) {
                     cmd.setResult(QString::asprintf("*0x%04x = 0x%02x '%c' %s",
                         addr, v,
@@ -428,10 +429,6 @@ BankCommand::BankCommand(MainWindow* win, Command& command)
 
 void BankCommand::execute()
 {
-    bool writable = true;
-    word addr = 0x0000;
-    word size = 0x4000;
-    bool ok = true;
     QString lwr;
 
     if (window->cpu()->isRunning()) {
@@ -494,7 +491,7 @@ void BankCommand::add()
             QString("Error: A block of size %1 at address %2 overlaps an existing block")
                 .arg(size, addr));
     } else {
-        if (!window->cpu()->getSystem()->memory()->add(MemoryBank(addr, size, writable))) {
+        if (!window->cpu()->getSystem()->memory()->add(addr, size, writable)) {
             cmd.setError(
                 QString("Error: Could not add memory block of size %1 at address %2").arg(size, addr));
         } else {
@@ -528,7 +525,7 @@ void BankCommand::del()
             "yn")
         == "y") {
         bool wasSelected = window->currentBank() == bank;
-        window->cpu()->getSystem()->memory()->remove(bank);
+        window->cpu()->getSystem()->memory()->remove(bank.start(), bank.size());
         if (wasSelected) {
             window->focusOnAddress(0x0000);
         }

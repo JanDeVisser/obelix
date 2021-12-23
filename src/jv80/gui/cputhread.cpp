@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <QFile>
+
 #include <jv80/cpu/backplane.h>
 #include <jv80/cpu/memory.h>
 
 #include <jv80/gui/cputhread.h>
-
-#include <QFile>
 
 namespace Obelix::JV80::GUI {
 
@@ -23,8 +23,7 @@ CPU::CPU(QObject* parent)
 {
     m_system = new BackPlane();
     m_system->defaultSetup();
-    m_system->setOutputStream(m_status);
-    m_keyboard = new IOChannel(0x00, "KEY", [this]() {
+    m_keyboard = std::make_shared<IOChannel>(0x00, "KEY", [this]() {
         byte ret = 0xFF;
         {
             std::lock_guard lg(m_kbdMutex);
@@ -41,7 +40,7 @@ CPU::CPU(QObject* parent)
         return ret;
     });
 
-    m_terminal = new IOChannel(0x01, "OUT", [this](byte out) {
+    m_terminal = std::make_shared<IOChannel>(0x01, "OUT", [this](byte out) {
         emit terminalWrite((int)out);
     });
 
@@ -66,30 +65,31 @@ void CPU::run(word addr)
 
 void CPU::continueExecution()
 {
-    start(SystemBus::Continuous);
+    start(SystemBus::RunMode::Continuous);
 }
 
 void CPU::step(word addr)
 {
-    start(SystemBus::BreakAtInstruction);
+    start(SystemBus::RunMode::BreakAtInstruction);
 }
 
 void CPU::tick(word addr)
 {
-    start(SystemBus::BreakAtClock);
+    start(SystemBus::RunMode::BreakAtClock);
 }
 
 void CPU::interrupt()
 {
     if (m_running) {
-        setRunMode(SystemBus::BreakAtInstruction);
+        setRunMode(SystemBus::RunMode::BreakAtInstruction);
     }
 }
 
 void CPU::reset()
 {
     if (!m_running) {
-        m_system->reset();
+        if (auto err = m_system->reset(); err.is_error())
+            fprintf(stderr, "CPU::Reset: %s", SystemErrorCode_name(err.error()));
     }
 }
 
@@ -140,7 +140,8 @@ void CPU::openImage(QFile& img, word addr, bool writable)
 {
     img.open(QIODevice::ReadOnly);
     auto bytearr = img.readAll();
-    m_system->loadImage(bytearr.size(), (const byte*)bytearr.data(), addr, writable);
+    if (auto err = m_system->loadImage(bytearr.size(), (const byte*)bytearr.data(), addr, writable); err.is_error())
+        fprintf(stderr, "CPU::openImage: %s\n", SystemErrorCode_name(err.error()));
 }
 
 void CPU::openImage(QFile&& img, word addr, bool writable)

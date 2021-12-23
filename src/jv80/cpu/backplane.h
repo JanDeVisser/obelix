@@ -17,33 +17,23 @@
 namespace Obelix::JV80::CPU {
 
 class BackPlane : public ComponentContainer {
-private:
+public:
     enum ClockPhase {
         SystemClock = 0x00,
         IOClock = 0x01,
     };
-    Clock clock;
-    ClockPhase m_phase = SystemClock;
-    std::ostream* m_output = nullptr;
 
-    SystemError onClockEvent(const ComponentHandler&);
-
-protected:
-    SystemError reportError() override;
-
-public:
     BackPlane();
     ~BackPlane() override = default;
-    void run(word = 0x0000);
+    SystemError run(word = 0x0000);
     void stop() { clock.stop(); }
     SystemBus::RunMode runMode();
     void setRunMode(SystemBus::RunMode runMode);
-    Controller* controller() const;
-    Memory* memory() const;
-    void loadImage(word, const byte*, word addr = 0, bool writable = true);
-    void setOutputStream(std::ostream& os) { m_output = &os; }
+    [[nodiscard]] std::shared_ptr<Controller> controller() const;
+    [[nodiscard]] std::shared_ptr<Memory> memory() const;
+    SystemError loadImage(word, const byte*, word addr = 0, bool writable = true);
 
-    std::ostream& status(std::ostream&) override;
+    [[nodiscard]] std::string to_string() const override;
     SystemError reset() override;
     SystemError onRisingClockEdge() override;
     SystemError onHighClock() override;
@@ -54,6 +44,12 @@ public:
     double clockSpeed();
 
     void defaultSetup();
+
+private:
+    Clock clock;
+    ClockPhase m_phase = SystemClock;
+
+    SystemError onClockEvent(const ComponentHandler&);
 };
 
 }

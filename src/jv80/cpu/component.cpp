@@ -8,23 +8,24 @@
 
 namespace Obelix::JV80::CPU {
 
-ComponentListener* Component::setListener(ComponentListener* l)
+ComponentListener* Component::setListener(ComponentListener* listener)
 {
-    ComponentListener* old = listener;
-    listener = l;
+    auto old = m_listener;
+    m_listener = listener;
     return old;
 }
 
 void Component::sendEvent(int ev) const
 {
-    if (listener) {
-        listener->componentEvent(this, ev);
+    if (m_listener) {
+        m_listener->componentEvent(this, ev);
     }
 }
 
-std::ostream& operator<<(std::ostream& os, Component& c)
+SystemErrorCode Component::error(SystemErrorCode err)
 {
-    return c.status(os);
+    m_error = err;
+    return m_error;
 }
 
 }
