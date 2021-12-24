@@ -64,24 +64,24 @@ MainWindow::MainWindow(QWidget* parent)
     auto busView = new SystemBusView(system->bus());
     layout->addWidget(busView, 0, 0, 1, 2);
     for (int r = 0; r < 4; r++) {
-        auto reg = system->component(r);
-        auto regView = new RegisterView(std::dynamic_pointer_cast<Register>(reg), widget);
+        auto reg = system->component<Register>(r);
+        auto regView = new RegisterView(reg, widget);
         layout->addWidget(regView, r / 2 + 1, r % 2);
     }
 
-    auto reg = system->component(IR);
-    auto regView = new InstructionRegisterView(dynamic_pointer_cast<Controller>(reg), widget);
+    auto controller = system->component<Controller>(IR);
+    auto regView = new InstructionRegisterView(controller, widget);
     layout->addWidget(regView, 3, 0);
 
     for (int r = 0; r < 4; r++) {
-        auto addr_reg = system->component(8 + r);
-        auto addr_regView = new AddressRegisterView(dynamic_pointer_cast<AddressRegister>(addr_reg), widget);
+        auto addr_reg = system->component<AddressRegister>(8 + r);
+        auto addr_regView = new AddressRegisterView(addr_reg, widget);
         layout->addWidget(addr_regView, r / 2 + 4, r % 2);
     }
 
     int row = 6;
-    auto mem = system->component(MEMADDR);
-    auto memView = new MemoryView(dynamic_pointer_cast<Memory>(mem), widget);
+    auto mem = system->component<Memory>();
+    auto memView = new MemoryView(mem, widget);
     layout->addWidget(memView, row++, 0);
     connect(memView, &ComponentView::valueChanged, m_memdump, &MemDump::focus);
     connect(memView, &MemoryView::imageLoaded, m_memdump, &MemDump::reload);

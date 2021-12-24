@@ -18,6 +18,7 @@
 #include <jv80/cpu/controller.h>
 #include <jv80/cpu/memory.h>
 #include <jv80/cpu/register.h>
+#include <jv80/cpu/ComponentContainer.h>
 
 #define LED_SIZE 16
 
