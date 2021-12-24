@@ -21,7 +21,7 @@ class TESTNAME : public HarnessTest {
 protected:
     void test_io(byte opcode_init, byte opcode_io, byte channel = CHANNEL_OUT)
     {
-        auto mem = system.component<Memory>(MEMADDR);
+        auto mem = system.component<Memory>();
         mem->initialize(RAM_START, 5, out);
         check_memory(RAM_START + 2, OUT_A);
         ASSERT_FALSE(mem->poke(RAM_START, opcode_init).is_error());

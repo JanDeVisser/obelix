@@ -22,7 +22,7 @@ public:
     {
         for (auto& component : m_slots) {
             auto& c = *component;
-            if ((typeid(c) == typeid(ComponentType&)) && ((component->address() == address) || (component->alias() == address)))
+            if ((typeid(c) == typeid(ComponentType&)) && (component->address() == address))
                 return std::dynamic_pointer_cast<ComponentType>(component);
         }
         return nullptr;
@@ -32,7 +32,7 @@ public:
     [[nodiscard]] std::shared_ptr<ConnectedComponent> component(int address) const
     {
         for (auto& component : m_slots) {
-            if ((component->address() == address) || (component->alias() == address))
+            if (component->address() == address)
                 return component;
         }
         return nullptr;
@@ -64,7 +64,6 @@ protected:
 
 private:
     std::vector<std::shared_ptr<ConnectedComponent>> m_slots;
-    std::vector<int> m_aliases;
     std::vector<std::shared_ptr<ConnectedComponent>> m_io;
 };
 

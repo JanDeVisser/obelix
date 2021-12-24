@@ -28,12 +28,12 @@ public:
     [[nodiscard]] byte* operator*() const { return m_bytes; }
     byte& operator[](size_t ix)
     {
-        assert(ix < m_size);
+        assert(m_bytes && ix < m_size);
         return m_bytes[ix];
     }
     byte const& operator[](size_t ix) const
     {
-        assert(ix < m_size);
+        assert(m_bytes && ix < m_size);
         return m_bytes[ix];
     }
     void copy(byte const* bytes, size_t size)

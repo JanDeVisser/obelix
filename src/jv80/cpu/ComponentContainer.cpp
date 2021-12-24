@@ -11,9 +11,7 @@ namespace Obelix::JV80::CPU {
 ComponentContainer::ComponentContainer()
     : m_bus(this)
     , m_slots()
-    , m_aliases()
 {
-    m_aliases.resize(16);
     m_io.resize(16);
 };
 
@@ -27,10 +25,6 @@ void ComponentContainer::insert(std::shared_ptr<ConnectedComponent> const& compo
 {
     component->bus(&m_bus);
     m_slots.push_back(component);
-    m_aliases[component->address()] = component->address();
-    if (component->address() != component->alias()) {
-        m_aliases[component->alias()] = component->address();
-    }
 }
 
 void ComponentContainer::insertIO(std::shared_ptr<ConnectedComponent> const& component)

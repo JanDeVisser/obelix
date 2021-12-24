@@ -13,7 +13,6 @@ namespace Obelix::JV80::CPU {
 class ConnectedComponent : public Component {
 public:
     [[nodiscard]] virtual int address() const { return m_address; }
-    [[nodiscard]] virtual int alias() const { return address(); }
     [[nodiscard]] virtual std::string name() const { return m_componentName; }
     void bus(SystemBus* bus) { m_systemBus = bus; }
     [[nodiscard]] SystemBus* bus() const { return m_systemBus; }

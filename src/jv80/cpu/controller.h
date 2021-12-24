@@ -86,7 +86,6 @@ class Controller : public Register {
 public:
     explicit Controller(const MicroCode*);
     [[nodiscard]] std::string name() const override { return "IR"; }
-    [[nodiscard]] int alias() const override { return CONTROLLER; }
 
     [[nodiscard]] word pc() const { return m_pc; }
     [[nodiscard]] std::string instruction() const;
