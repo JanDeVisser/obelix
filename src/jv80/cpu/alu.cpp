@@ -22,7 +22,7 @@ std::string ALU::to_string() const
 
 SystemError ALU::onRisingClockEdge()
 {
-    if (auto err = Register::onHighClock(); err.is_error())
+    if (auto err = Register::onRisingClockEdge(); err.is_error())
         return err;
 
     if (!bus()->xaddr() && (bus()->getAddress() == address())) {
