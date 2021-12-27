@@ -123,7 +123,7 @@ void SystemBus::suspend()
 
 std::string SystemBus::to_string() const
 {
-    return format("DATA {02x} ADDR {02x} GET {01x} PUT {01x} OP {01x} ACT {1c} FLAGS {}\n",
+    return format("DATA {02x} ADDR {02x} GET {01x} PUT {01x} OP {01x} ACT {1c} FLAGS {}",
         data_bus, addr_bus, get, put, op,
         (_xdata) ? ((_xaddr) ? '_' : 'A') : 'D',
         flagsString());

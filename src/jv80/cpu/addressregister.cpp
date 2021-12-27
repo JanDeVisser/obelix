@@ -25,7 +25,7 @@ void AddressRegister::setValue(word val)
 
 std::string AddressRegister::to_string() const
 {
-    return format("{01x}. {02s}  {04x}\n", address(), name(), m_value);
+    return format("{01x}. {2s}  {04x}", address(), name(), m_value);
 }
 
 SystemError AddressRegister::reset()

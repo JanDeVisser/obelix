@@ -49,14 +49,15 @@ public:
         return {};
     }
 
-    SystemError status_message(const std::string& msg, int num)
+    SystemError status_message(const std::string& msg)
     {
-        std::cout << "Cycle " << num << " " << msg << "\n";
+        std::cout << msg << "\n";
         std::cout << bus().to_string() << "\n";
         TRY_RETURN(forAllComponents([](Component& c) -> SystemError {
             std::cout << c.to_string() << "\n";
             return {};
         }));
+        std::cout << "\n";
         return {};
     }
 
