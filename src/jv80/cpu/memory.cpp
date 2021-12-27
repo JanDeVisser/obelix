@@ -261,22 +261,27 @@ bool Memory::isMapped(word addr) const
 
 SystemError Memory::poke(std::size_t addr, byte value)
 {
-    auto bank = findBankForAddress(addr);
-    if (bank.has_value() && m_banks[bank.value()].writable()) {
-        return m_banks[bank.value()].poke(addr, value);
-    } else {
+    auto bank_ix = findBankForAddress(addr);
+    if (!bank_ix.has_value()) {
+        std::cout << format("poke({04x}, {02x}): Unmapped address.\n", addr, value);
         return SystemErrorCode::ProtectedMemory;
     }
+    auto bank = m_banks[bank_ix.value()];
+    if (!m_banks[bank_ix.value()].writable()) {
+        std::cout << format("poke({04x}, {02x}): Read-only bank {04x}-{04x}.\n", addr, value, bank.start(), bank.end());
+        return SystemErrorCode::ProtectedMemory;
+    }
+    return bank.poke(addr, value);
 }
 
 ErrorOr<byte, SystemErrorCode> Memory::peek(std::size_t addr) const
 {
-    auto bank = findBankForAddress(addr);
-    if (bank.has_value()) {
-        return m_banks[bank.value()].peek(addr);
-    } else {
+    auto bank_ix = findBankForAddress(addr);
+    if (!bank_ix.has_value()) {
+        std::cout << format("peek({04x}): Unmapped address.\n", addr);
         return SystemErrorCode::ProtectedMemory;
     }
+    return m_banks[bank_ix.value()].peek(addr);
 }
 
 std::string Memory::to_string() const
@@ -289,10 +294,17 @@ SystemError Memory::onRisingClockEdge()
 {
     if ((!bus()->xdata() || !bus()->xaddr() || (!bus()->io() && (bus()->opflags() & SystemBus::IOOut))) && (bus()->getAddress() == MEM_ID)) {
         if (!isMapped(getValue())) {
+            std::cout << format("onRisingClockEdge(): Unmapped address {04x}.\n", getValue());
             return SystemErrorCode::ProtectedMemory;
         }
         bus()->putOnAddrBus(0x00);
         bus()->putOnDataBus(peek(getValue()).value());
+        if (bus()->opflags() & SystemBus::INC) {
+            setValue(AddressRegister::getValue() + 1);
+        }
+        if (bus()->opflags() & SystemBus::DEC) {
+            setValue(AddressRegister::getValue() - 1);
+        }
     }
     return {};
 }
@@ -301,6 +313,12 @@ SystemError Memory::onHighClock()
 {
     if (((!bus()->xdata() || !bus()->xaddr()) && (bus()->putAddress() == MEM_ID)) || (!bus()->io() && (bus()->opflags() & SystemBus::IOIn) && (bus()->getAddress() == MEM_ID))) {
         TRY_RETURN(poke(getValue(), bus()->readDataBus()));
+        if (bus()->opflags() & SystemBus::INC) {
+            setValue(AddressRegister::getValue() + 1);
+        }
+        if (bus()->opflags() & SystemBus::DEC) {
+            setValue(AddressRegister::getValue() - 1);
+        }
         sendEvent(EV_CONTENTSCHANGED);
     } else if (bus()->putAddress() == ADDR_ID) {
         if (!(bus()->xaddr())) {
