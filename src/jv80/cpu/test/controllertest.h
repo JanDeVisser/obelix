@@ -39,12 +39,14 @@ public:
         gp_b = std::make_shared<Register>(0x1);
         gp_c = std::make_shared<Register>(0x2);
         gp_d = std::make_shared<Register>(0x3);
+
         pc = std::make_shared<AddressRegister>(PC, "PC");
-        tx = std::make_shared<AddressRegister>(TX, "TX");
         sp = std::make_shared<AddressRegister>(SP, "SP");
+        rsp = std::make_shared<AddressRegister>(RSP, "RSP");
+        tx = std::make_shared<AddressRegister>(TX, "TX");
         si = std::make_shared<AddressRegister>(SI, "Si");
         di = std::make_shared<AddressRegister>(DI, "Di");
-        alu = std::make_shared<ALU>(RHS, std::make_shared<Register>(LHS));
+        alu = std::make_shared<ALU>(RHS, std::make_shared<Register>(LHS, "LHS"));
 
         system.insert(mem);
         system.insert(c);
@@ -55,6 +57,7 @@ public:
         system.insert(pc);
         system.insert(tx);
         system.insert(sp);
+        system.insert(rsp);
         system.insert(si);
         system.insert(di);
         system.insert(alu);
@@ -73,6 +76,8 @@ public:
     void componentEvent(Component const* sender, int ev) override
     {
         if (ev == Controller::EV_AFTERINSTRUCTION) {
+            if (auto err = system.status_message(c->instruction()); err.is_error())
+                fprintf(stderr, "Error in status_message: %s", SystemErrorCode_name(err.error()));
             if (nmiAt == pc->getValue()) {
                 nmiHit = true;
             } else if (nmiHit) {
@@ -86,7 +91,7 @@ public:
     {
         auto cycles_or_err = system.run();
         if (cycles_or_err.is_error())
-            fprintf(stderr, "system.run() error: %s\n", SystemErrorCode_name(cycles_or_err.error()));
+            fprintf(stdout, "system.run() error: %s\n", SystemErrorCode_name(cycles_or_err.error()));
         ASSERT_FALSE(cycles_or_err.is_error());
         ASSERT_EQ(cycles_or_err.value(), count);
         ASSERT_EQ(system.bus().halt(), false);
@@ -113,6 +118,7 @@ protected:
     std::shared_ptr<AddressRegister> pc;
     std::shared_ptr<AddressRegister> tx;
     std::shared_ptr<AddressRegister> sp;
+    std::shared_ptr<AddressRegister> rsp;
     std::shared_ptr<AddressRegister> si;
     std::shared_ptr<AddressRegister> di;
     std::shared_ptr<ALU> alu;

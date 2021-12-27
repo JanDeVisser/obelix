@@ -70,7 +70,7 @@ protected:
         // total         14
         auto cycles_or_err = system.run();
         ASSERT_FALSE(cycles_or_err.is_error());
-        ASSERT_EQ(cycles_or_err.value(), (ok) ? 17 : 13);
+        ASSERT_EQ(cycles_or_err.value(), (ok) ? 16 : 13);
         ASSERT_EQ(system.bus().halt(), false);
     }
 };

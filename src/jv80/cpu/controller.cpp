@@ -10,6 +10,7 @@
 
 #include <core/Format.h>
 #include <core/StringUtil.h>
+#include <jv80/cpu/alu.h>
 #include <jv80/cpu/addressregister.h>
 #include <jv80/cpu/controller.h>
 #include <jv80/cpu/opcodes.h>
@@ -89,6 +90,10 @@ void MicroCodeRunner::fetchSteps()
     case AddressingMode::IndirectWord:
         fetchIndirectWord();
         break;
+    case AddressingMode::IndexedByte:
+    case AddressingMode::IndexedWord:
+        fetchIndexed();
+        break;
     default:
         break;
     }
@@ -96,20 +101,20 @@ void MicroCodeRunner::fetchSteps()
 
 void MicroCodeRunner::fetchImmediateByte()
 {
-    byte target = (m_valid) ? m_mc->target : TX;
+    byte target = (m_valid) ? m_mc->subject : TX;
     m_steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     m_steps.push_back({ MicroCode::Action::XDATA, MEM, target, SystemBus::None });
 }
 
 void MicroCodeRunner::fetchImmediateWord()
 {
-    byte target = (m_valid && (m_mc->target != PC) && (m_mc->target != MEMADDR)) ? m_mc->target : TX;
+    byte target = (m_valid && (m_mc->subject != PC) && (m_mc->subject != MEMADDR)) ? m_mc->subject : TX;
     m_steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     m_steps.push_back({ MicroCode::Action::XDATA, MEM, target, SystemBus::None });
     m_steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     m_steps.push_back({ MicroCode::Action::XDATA, MEM, target, SystemBus::MSB });
-    if (m_valid && m_mc->target != target) {
-        m_steps.push_back({ MicroCode::Action::XADDR, TX, m_mc->target, SystemBus::None });
+    if (m_valid && m_mc->subject != target) {
+        m_steps.push_back({ MicroCode::Action::XADDR, TX, m_mc->subject, SystemBus::None });
     }
 }
 
@@ -121,7 +126,7 @@ void MicroCodeRunner::fetchIndirectByte()
     m_steps.push_back({ MicroCode::Action::XDATA, MEM, TX, SystemBus::MSB });
     if (m_valid) {
         m_steps.push_back({ MicroCode::Action::XADDR, TX, MEMADDR, SystemBus::None });
-        m_steps.push_back({ MicroCode::Action::XDATA, MEM, m_mc->target, SystemBus::None });
+        m_steps.push_back({ MicroCode::Action::XDATA, MEM, m_mc->subject, SystemBus::None });
     }
 }
 
@@ -132,11 +137,37 @@ void MicroCodeRunner::fetchIndirectWord()
     m_steps.push_back({ MicroCode::Action::XADDR, PC, MEMADDR, SystemBus::INC });
     m_steps.push_back({ MicroCode::Action::XDATA, MEM, TX, SystemBus::MSB });
     if (m_valid) {
-        m_steps.push_back({ MicroCode::Action::XADDR, TX, MEMADDR, SystemBus::INC });
-        m_steps.push_back({ MicroCode::Action::XDATA, MEM, m_mc->target, SystemBus::None });
         m_steps.push_back({ MicroCode::Action::XADDR, TX, MEMADDR, SystemBus::None });
-        m_steps.push_back({ MicroCode::Action::XDATA, MEM, m_mc->target, SystemBus::MSB });
+        m_steps.push_back({ MicroCode::Action::XDATA, MEM, m_mc->subject, SystemBus::INC });
+        m_steps.push_back({ MicroCode::Action::XDATA, MEM, m_mc->subject, SystemBus::MSB });
     }
+}
+
+void MicroCodeRunner::fetchIndexed()
+{
+    // Grab index and copy to LHS:
+    m_steps.push_back({ MicroCode::XADDR, PC, MEMADDR, SystemBus::INC });
+    m_steps.push_back({ MicroCode::XDATA, MEM, LHS, SystemBus::None });
+
+    // Copy the LSB of the subject register to RHS and add:
+    m_steps.push_back({ MicroCode::XDATA, m_mc->subject, RHS, ALU::ADD });
+
+    // Copy new LSB to LSB of MEMADDR:
+    m_steps.push_back({ MicroCode::XDATA, LHS, MEMADDR, SystemBus::None });
+
+    // Copy 0 to LHS:
+    m_steps.push_back({ MicroCode::XDATA, RHS, RHS, ALU::CLR });
+
+    // Copy MSB of subject register to scratch area:
+    // FIXME: If we could use SystemBus::MSB and ALU::ADC together this could be done in one step
+    m_steps.push_back({ MicroCode::XDATA, m_mc->subject, CONTROLLER, SystemBus::MSB });
+
+    // Copy scratch area to RHS and Add with Carry. LHS will be zero, and Carry will still be set from
+    // the LSB add:
+    m_steps.push_back({ MicroCode::XDATA, CONTROLLER, RHS, ALU::ADC });
+
+    // Copy LHS to MSB of MEMADDR:
+    m_steps.push_back({ MicroCode::XDATA, LHS, MEMADDR, SystemBus::MSB });
 }
 
 bool MicroCodeRunner::grabConstant(int step)
@@ -147,6 +178,8 @@ bool MicroCodeRunner::grabConstant(int step)
         break;
     case AddressingMode::ImmediateByte:
     case AddressingMode::ImpliedByte:
+    case AddressingMode::IndexedByte:
+    case AddressingMode::IndexedWord:
         if (step == 2) {
             m_constant = m_bus.readDataBus();
             m_complete = true;

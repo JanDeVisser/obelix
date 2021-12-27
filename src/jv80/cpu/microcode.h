@@ -16,7 +16,7 @@
         .opcode = MOV_##trg##_IMM,                                                                \
         .instruction = "MOV " #trg ",#$xx",                                                       \
         .addressingMode = (AddressingMode)(AddressingMode::ImmediateByte | AddressingMode::Done), \
-        .target = GP_##trg                                                                        \
+        .subject = GP_##trg                                                                       \
     }
 
 #define BYTE_IMM_IND_INTO(trg)                                                                   \
@@ -24,14 +24,14 @@
         .opcode = MOV_##trg##_IMM_IND,                                                           \
         .instruction = "MOV " #trg ",*$xxxx",                                                    \
         .addressingMode = (AddressingMode)(AddressingMode::IndirectByte | AddressingMode::Done), \
-        .target = GP_##trg                                                                       \
+        .subject = GP_##trg                                                                      \
     }
 
 #define BYTE_INTO_IMM_IND(source)                                                                                  \
     {                                                                                                              \
         .opcode = MOV_IMM_IND_##source, .instruction = "MOV *$xxxx," #source,                                      \
         .addressingMode = AddressingMode::ImmediateWord,                                                           \
-        .target = MEMADDR,                                                                                         \
+        .subject = MEMADDR,                                                                                        \
         .steps = { { .action = MicroCode::XDATA, .src = GP_##source, .target = MEM, .opflags = SystemBus::Done } } \
     }
 
@@ -47,21 +47,23 @@
     {                                                                                             \
         .opcode = MOV_##trg##_IMM, .instruction = "MOV " #trg ",#$xxxx",                          \
         .addressingMode = (AddressingMode)(AddressingMode::ImmediateWord | AddressingMode::Done), \
-        .target = trg                                                                             \
+        .subject = trg                                                                            \
     }
+// 6 steps
 
 #define WORD_IMM_IND_INTO(trg)                                                                   \
     {                                                                                            \
         .opcode = MOV_##trg##_IMM_IND, .instruction = "MOV " #trg ",*$xxxx",                     \
         .addressingMode = (AddressingMode)(AddressingMode::IndirectWord | AddressingMode::Done), \
-        .target = trg                                                                            \
+        .subject = trg                                                                           \
     }
+// 9 steps
 
 #define WORD_INTO_IMM_IND(source)                                                                                  \
     {                                                                                                              \
         .opcode = MOV_IMM_IND_##source, .instruction = "MOV *$xxxx," #source,                                      \
         .addressingMode = AddressingMode::ImmediateWord,                                                           \
-        .target = MEMADDR,                                                                                         \
+        .subject = MEMADDR,                                                                                        \
         .steps = { { .action = MicroCode::XDATA, .src = GP_##source, .target = MEM, .opflags = SystemBus::Done } } \
     }
 
@@ -72,6 +74,7 @@
         .addressingMode = AddressingMode::Implied,                                                            \
         .steps = { { .action = MicroCode::XADDR, .src = source, .target = trg, .opflags = SystemBus::Done } } \
     }
+// 3 steps
 
 #define BYTE_XFER_IND(trg, source)                                                                       \
     {                                                                                                    \
@@ -89,7 +92,7 @@
         .opcode = jmp,                                                                            \
         .instruction = #jmp " #$xxxx",                                                            \
         .addressingMode = (AddressingMode)(AddressingMode::ImmediateWord | AddressingMode::Done), \
-        .target = PC,                                                                             \
+        .subject = PC,                                                                            \
         .condition = cond,                                                                        \
         .condition_op = cond_op                                                                   \
     }
@@ -99,7 +102,7 @@
         .opcode = jmp##_IND,                                                                     \
         .instruction = #jmp " *$xxxx",                                                           \
         .addressingMode = (AddressingMode)(AddressingMode::IndirectWord | AddressingMode::Done), \
-        .target = PC,                                                                            \
+        .subject = PC,                                                                           \
         .condition = cond,                                                                       \
         .condition_op = cond_op                                                                  \
     }
@@ -249,7 +252,7 @@
         .opcode = CMP_##reg##_IMM,                                                                                    \
         .instruction = "CMP " #reg ",#$xx",                                                                           \
         .addressingMode = AddressingMode::Implied,                                                                    \
-        .target = TX,                                                                                                 \
+        .subject = TX,                                                                                                \
         .steps = {                                                                                                    \
             { .action = MicroCode::XDATA, .src = GP_##reg, .target = LHS, .opflags = SystemBus::None },               \
             { .action = MicroCode::XADDR, .src = PC, .target = MEMADDR, .opflags = SystemBus::INC },                  \
@@ -275,7 +278,7 @@
         .opcode = OUT_##reg,                                                                                                        \
         .instruction = "OUT #$xx," #reg,                                                                                            \
         .addressingMode = ImmediateByte,                                                                                            \
-        .target = CONTROLLER,                                                                                                       \
+        .subject = CONTROLLER,                                                                                                      \
         .steps = {                                                                                                                  \
             { .action = MicroCode::IO, .src = GP_##reg, .target = DEREFCONTROLLER, .opflags = SystemBus::IOOut | SystemBus::Done }, \
         }                                                                                                                           \
@@ -286,10 +289,56 @@
         .opcode = IN_##reg,                                                                                                        \
         .instruction = "IN " #reg ",#$xx",                                                                                         \
         .addressingMode = ImmediateByte,                                                                                           \
-        .target = CONTROLLER,                                                                                                      \
+        .subject = CONTROLLER,                                                                                                     \
         .steps = {                                                                                                                 \
-            { .action = MicroCode::IO, .target = DEREFCONTROLLER, .src = GP_##reg, .opflags = SystemBus::IOIn | SystemBus::Done }, \
+            { .action = MicroCode::IO, .src = GP_##reg, .target = DEREFCONTROLLER, .opflags = SystemBus::IOIn | SystemBus::Done }, \
         }                                                                                                                          \
+    }
+
+#define WORD_FROM_INDEXED(trg, s)                                                                                  \
+    {                                                                                                              \
+        .opcode = MOV_##trg##_##s##_IDX,                                                                           \
+        .instruction = "MOV " #trg "," #s "[$xx]",                                                                 \
+        .addressingMode = IndexedWord,                                                                             \
+        .subject = s,                                                                                              \
+        .steps = {                                                                                                 \
+            { .action = MicroCode::XDATA, .src = MEM, .target = trg, .opflags = SystemBus::INC },                  \
+            { .action = MicroCode::XDATA, .src = MEM, .target = trg, .opflags = SystemBus::Done | SystemBus::MSB } \
+        }                                                                                                          \
+    }
+
+#define BYTE_FROM_INDEXED(trg, s)                                                                       \
+    {                                                                                                   \
+        .opcode = MOV_##trg##_##s##_IDX,                                                                \
+        .instruction = "MOV " #trg "," #s "[$xx]",                                                      \
+        .addressingMode = IndexedByte,                                                                  \
+        .subject = s,                                                                                   \
+        .steps = {                                                                                      \
+            { .action = MicroCode::XDATA, .src = MEM, .target = GP_##trg, .opflags = SystemBus::Done }, \
+        }                                                                                               \
+    }
+
+#define WORD_TO_INDEXED(trg, s)                                                                                  \
+    {                                                                                                            \
+        .opcode = MOV_##trg##_IDX_##s,                                                                           \
+        .instruction = "MOV " #trg "[$xx]," #s,                                                                  \
+        .addressingMode = IndexedWord,                                                                           \
+        .subject = trg,                                                                                          \
+        .steps = {                                                                                               \
+            { .action = MicroCode::XDATA, .src = s, .target = MEM, .opflags = SystemBus::INC },                  \
+            { .action = MicroCode::XDATA, .src = s, .target = MEM, .opflags = SystemBus::Done | SystemBus::MSB } \
+        }                                                                                                        \
+    }
+
+#define BYTE_TO_INDEXED(trg, s)                                                                       \
+    {                                                                                                 \
+        .opcode = MOV_##trg##_IDX_##s,                                                                \
+        .instruction = "MOV " #trg "[$xx]," #s,                                                       \
+        .addressingMode = IndexedByte,                                                                \
+        .subject = trg,                                                                               \
+        .steps = {                                                                                    \
+            { .action = MicroCode::XDATA, .src = GP_##s, .target = MEM, .opflags = SystemBus::Done }, \
+        }                                                                                             \
     }
 
 namespace Obelix::JV80::CPU {
@@ -373,7 +422,7 @@ constexpr static MicroCode mc[256] = {
         .opcode = CALL,
         .instruction = "CALL #$xxxx",
         .addressingMode = ImmediateWord,
-        .target = TX,
+        .subject = TX,
         .steps = {
             // TX Contains the address to jump to. PC has the address to return to (one past the address)
 
@@ -447,7 +496,7 @@ constexpr static MicroCode mc[256] = {
     {
         .opcode = MOV_IMM_IND_SI,
         .instruction = "MOV *$xxxx,SI",
-        .addressingMode = ImmediateWord, .target = TX, // 0x41
+        .addressingMode = ImmediateWord, .subject = TX, // 0x41
         .steps = {
             { .action = MicroCode::XADDR, .src = TX, .target = MEMADDR, .opflags = SystemBus::INC },
             { .action = MicroCode::XDATA, .src = SI, .target = MEM, .opflags = SystemBus::None },
@@ -459,7 +508,7 @@ constexpr static MicroCode mc[256] = {
         .opcode = MOV_IMM_IND_DI,
         .instruction = "MOV *$xxxx,DI",
         .addressingMode = ImmediateWord,
-        .target = TX, // 0x42
+        .subject = TX, // 0x42
         .steps = {
             { .action = MicroCode::XADDR, .src = TX, .target = MEMADDR, .opflags = SystemBus::INC },
             { .action = MicroCode::XDATA, .src = DI, .target = MEM, .opflags = SystemBus::None },
@@ -471,7 +520,7 @@ constexpr static MicroCode mc[256] = {
         .opcode = MOV_IMM_IND_CD,
         .instruction = "MOV *$xxxx,CD",
         .addressingMode = ImmediateWord,
-        .target = TX, // 0x43
+        .subject = TX, // 0x43
         .steps = {
             { .action = MicroCode::XADDR, .src = TX, .target = MEMADDR, .opflags = SystemBus::INC },
             { .action = MicroCode::XDATA, .src = GP_C, .target = MEM, .opflags = SystemBus::None },
@@ -714,7 +763,7 @@ constexpr static MicroCode mc[256] = {
         .opcode = MOV_SI_IND_IMM,
         .instruction = "MOV *SI,#$xx",
         .addressingMode = ImmediateByte,
-        .target = TX,
+        .subject = TX,
         .steps = {
            { .action = MicroCode::XADDR, .src = SI, .target = MEMADDR, .opflags = SystemBus::None },
            { .action = MicroCode::XDATA, .src = TX, .target = MEM, .opflags = SystemBus::Done },
@@ -724,7 +773,7 @@ constexpr static MicroCode mc[256] = {
         .opcode = MOV_DI_IND_IMM,
         .instruction = "MOV *DI,#$xx",
         .addressingMode = ImmediateByte,
-        .target = TX,
+        .subject = TX,
         .steps = {
             { .action = MicroCode::XADDR, .src = DI, .target = MEMADDR, .opflags = SystemBus::None },
             { .action = MicroCode::XDATA, .src = TX, .target = MEM, .opflags = SystemBus::Done },
@@ -734,7 +783,7 @@ constexpr static MicroCode mc[256] = {
         .opcode = MOV_CD_IND_IMM,
         .instruction = "MOV *CD,#$xx",
         .addressingMode = ImmediateByte,
-        .target = TX,
+        .subject = TX,
         .steps = {
             { .action = MicroCode::XDATA, .src = GP_C, .target = MEMADDR, .opflags = SystemBus::None },
             { .action = MicroCode::XDATA, .src = GP_D, .target = MEMADDR, .opflags = SystemBus::MSB },
@@ -745,14 +794,32 @@ constexpr static MicroCode mc[256] = {
         .opcode = MOV_CD_IMM,
         .instruction = "MOV CD,#$xxxx",
         .addressingMode = ImmediateWord,
-        .target = TX,
+        .subject = TX,
         .steps = {
             { .action = MicroCode::XDATA, .src = TX, .target = GP_C, .opflags = SystemBus::None },
             { .action = MicroCode::XDATA, .src = TX, .target = GP_D, .opflags = SystemBus::MSB | SystemBus::Done },
         }
     },
 
-    { /* 194 */ }, { /* 195 */ }, { /* 196 */ }, { /* 197 */ }, { /* 198 */ }, { /* 199 */ }, { /* 200 */ }, { /* 201 */ }, { /* 202 */ }, { /* 203 */ }, { /* 204 */ }, { /* 205 */ }, { /* 206 */ }, { /* 207 */ }, { /* 208 */ }, { /* 209 */ }, { /* 210 */ }, { /* 211 */ }, { /* 212 */ }, { /* 213 */ }, { /* 214 */ }, { /* 215 */ }, { /* 216 */ }, { /* 217 */ }, { /* 218 */ }, { /* 219 */ }, { /* 220 */ }, { /* 221 */ }, { /* 222 */ }, { /* 223 */ }, { /* 224 */ }, { /* 225 */ }, { /* 226 */ }, { /* 227 */ }, { /* 228 */ }, { /* 229 */ }, { /* 230 */ }, { /* 231 */ }, { /* 232 */ }, { /* 233 */ }, { /* 234 */ }, { /* 235 */ }, { /* 236 */ }, { /* 237 */ }, { /* 238 */ }, { /* 239 */ }, { /* 240 */ }, { /* 241 */ }, { /* 242 */ }, { /* 243 */ }, { /* 244 */ }, { /* 245 */ }, { /* 246 */ }, { /* 247 */ }, { /* 248 */ }, { /* 249 */ }, { /* 250 */ }, { /* 251 */ }, { /* 252 */ },
+    WORD_XFER(RSP, SP),
+    WORD_XFER(SP, RSP),
+
+    WORD_FROM_INDEXED(SI, RSP),
+    WORD_FROM_INDEXED(DI, RSP),
+    WORD_FROM_INDEXED(DI, SI),
+    BYTE_FROM_INDEXED(A, SI),
+    BYTE_FROM_INDEXED(B, SI),
+    BYTE_FROM_INDEXED(C, SI),
+    BYTE_FROM_INDEXED(D, SI),
+    WORD_TO_INDEXED(RSP, SI),
+    WORD_TO_INDEXED(RSP, DI),
+    WORD_TO_INDEXED(SI, DI),
+    BYTE_TO_INDEXED(SI, A),
+    BYTE_TO_INDEXED(SI, B),
+    BYTE_TO_INDEXED(SI, C),
+    BYTE_TO_INDEXED(SI, D),
+
+    { /* 210 */ }, { /* 211 */ }, { /* 212 */ }, { /* 213 */ }, { /* 214 */ }, { /* 215 */ }, { /* 216 */ }, { /* 217 */ }, { /* 218 */ }, { /* 219 */ }, { /* 220 */ }, { /* 221 */ }, { /* 222 */ }, { /* 223 */ }, { /* 224 */ }, { /* 225 */ }, { /* 226 */ }, { /* 227 */ }, { /* 228 */ }, { /* 229 */ }, { /* 230 */ }, { /* 231 */ }, { /* 232 */ }, { /* 233 */ }, { /* 234 */ }, { /* 235 */ }, { /* 236 */ }, { /* 237 */ }, { /* 238 */ }, { /* 239 */ }, { /* 240 */ }, { /* 241 */ }, { /* 242 */ }, { /* 243 */ }, { /* 244 */ }, { /* 245 */ }, { /* 246 */ }, { /* 247 */ }, { /* 248 */ }, { /* 249 */ }, { /* 250 */ }, { /* 251 */ }, { /* 252 */ },
 
     {
         .opcode = RTI,
@@ -768,7 +835,7 @@ constexpr static MicroCode mc[256] = {
         .opcode = NMIVEC,
         .instruction = "NMI #$xxxx",
         .addressingMode = ImmediateWord,
-        .target = TX,
+        .subject = TX,
         .steps = { { .action = MicroCode::XADDR, .src = TX, .target = CONTROLLER, .opflags = SystemBus::Done } }
     },
     {

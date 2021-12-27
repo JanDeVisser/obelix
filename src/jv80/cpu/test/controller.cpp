@@ -12,14 +12,14 @@ namespace Obelix::JV80::CPU {
 class TESTNAME : public HarnessTest {
 };
 
-byte mov_a_direct[] = {
+byte mov_a_immediate[] = {
     /* 8000 */ MOV_A_IMM, 0x42,
     /* 8002 */ HLT
 };
 
-TEST_F(TESTNAME, movADirect)
+TEST_F(TESTNAME, movAImmediate)
 {
-    mem->initialize(ROM_START, 3, mov_a_direct);
+    mem->initialize(ROM_START, 3, mov_a_immediate);
     check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
@@ -32,7 +32,7 @@ TEST_F(TESTNAME, movADirect)
 
 TEST_F(TESTNAME, movADirectUsingRun)
 {
-    mem->initialize(ROM_START, 3, mov_a_direct);
+    mem->initialize(ROM_START, 3, mov_a_immediate);
     check_memory(START_VECTOR, MOV_A_IMM);
 
     pc->setValue(START_VECTOR);
@@ -42,15 +42,15 @@ TEST_F(TESTNAME, movADirectUsingRun)
     ASSERT_EQ(gp_a->getValue(), 0x42);
 }
 
-byte mov_a_absolute[] = {
+byte mov_a_imm_ind[] = {
     /* 8000 */ MOV_A_IMM_IND, 0x04, 0x80,
     /* 8003 */ HLT,
     /* 8004 */ 0x42
 };
 
-TEST_F(TESTNAME, movAAbsolute)
+TEST_F(TESTNAME, movAImmediateIndirect)
 {
-    mem->initialize(ROM_START, 5, mov_a_absolute);
+    mem->initialize(ROM_START, 5, mov_a_imm_ind);
     check_memory(START_VECTOR, MOV_A_IMM_IND);
 
     pc->setValue(START_VECTOR);
@@ -161,7 +161,7 @@ TEST_F(TESTNAME, movDToOtherGPRs)
     ASSERT_EQ(gp_c->getValue(), 0x42);
 }
 
-byte mov_x_absolute[] = {
+byte mov_x_imm_ind[] = {
     /* 8000 */ MOV_A_IMM_IND, 0x0D, 0x80,
     /* 8003 */ MOV_B_IMM_IND, 0x0D, 0x80,
     /* 8006 */ MOV_C_IMM_IND, 0x0D, 0x80,
@@ -170,9 +170,9 @@ byte mov_x_absolute[] = {
     /* 800D */ 0x42
 };
 
-TEST_F(TESTNAME, movXAbsolute)
+TEST_F(TESTNAME, movXImmediateIndirect)
 {
-    mem->initialize(ROM_START, 14, mov_x_absolute);
+    mem->initialize(ROM_START, 14, mov_x_imm_ind);
     check_memory(START_VECTOR, MOV_A_IMM_IND);
 
     pc->setValue(START_VECTOR);
@@ -238,9 +238,9 @@ TEST_F(TESTNAME, movAddrRegsAbsolute)
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    // mov si, (8004) takes 10 cycles x3
+    // mov si, (8004) takes 9 cycles x3
     // hlt takes 3.
-    check_cycles(33);
+    check_cycles(30);
     ASSERT_EQ(si->getValue(), 0x3742);
     ASSERT_EQ(di->getValue(), 0x3742);
     ASSERT_EQ(sp->getValue(), 0x3742);

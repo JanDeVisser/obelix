@@ -21,6 +21,8 @@ enum AddressingMode {
     ImmediateWord = 0x21,
     IndirectByte = 0x12,
     IndirectWord = 0x22,
+    IndexedByte = 0x13,
+    IndexedWord = 0x23,
     Mask = 0x7F,
     Done = 0x80
 };
@@ -49,7 +51,7 @@ struct MicroCode {
     byte opcode;
     const char* instruction;
     AddressingMode addressingMode;
-    byte target;
+    byte subject;
     byte condition;
     Op condition_op;
     MicroCodeStep steps[24];
@@ -80,6 +82,7 @@ private:
     void fetchImmediateWord();
     void fetchIndirectByte();
     void fetchIndirectWord();
+    void fetchIndexed();
 };
 
 class Controller : public Register {

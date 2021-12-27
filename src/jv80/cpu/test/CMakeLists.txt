@@ -15,7 +15,9 @@ add_executable(
         register.cpp
         stack.cpp
         swap.cpp
-        Harness.cpp)
+        Harness.cpp
+        Indexed.cpp
+)
 
 target_link_libraries(
         JV80CpuTest
