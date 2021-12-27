@@ -214,14 +214,14 @@ std::string MicroCodeRunner::instruction() const
 {
     std::string instr = m_mc->instruction;
     bool do_format = false;
-    auto pos = instr.find_first_of("$xxxx");
+    auto pos = instr.find("$xxxx");
     if (pos != std::string::npos) {
-        instr.replace(pos, 5, "{04x}", 5);
+        instr.replace(pos, 5, "${04x}", 6);
         do_format = true;
     } else {
         pos = instr.find_first_of("$xx");
         if (pos != std::string::npos) {
-            instr.replace(pos, 3, "{02x}", 5);
+            instr.replace(pos, 3, "${02x}", 6);
             do_format = true;
         }
     }
@@ -397,4 +397,5 @@ int Controller::opcodeForInstruction(const std::string& instr) const
     }
     return -1;
 }
+
 }
