@@ -72,7 +72,7 @@ SystemError ALU::onHighClock()
       return ret; },
         /* 0xC */ nullptr,
         /* 0xD */ nullptr,
-        /* 0xE */ nullptr,
+        /* 0xE CLR */ [](ALU*) { return (byte)0; },
         /* 0xF */ nullptr,
     };
 
