@@ -253,6 +253,10 @@ enum OpCode {
     MOV_SI_IDX_B = 0xCF,
     MOV_SI_IDX_C = 0xD0,
     MOV_SI_IDX_D = 0xD1,
+    PUSH_RSP = 0xD2,
+    POP_RSP = 0xD3,
+    PUSH_IMM = 0xD4,
+    PUSHW_IMM = 0xD5,
 
     RTI = 0xFD,
     NMIVEC = 0xFE,

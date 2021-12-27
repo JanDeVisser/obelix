@@ -107,24 +107,27 @@
         .condition_op = cond_op                                                                  \
     }
 
+// clang-format off
+#define PUSH_REG_STEPS(reg, flags)                                                           \
+    { .action = MicroCode::XADDR, .src = SP, .target = MEMADDR, .opflags = SystemBus::INC }, \
+    { .action = MicroCode::XDATA, .src = reg, .target = MEM, .opflags = flags }
+// clang-format om
+
 #define PUSH_REG(reg)                                                                                  \
     {                                                                                                  \
         .opcode = PUSH_##reg,                                                                          \
         .instruction = "PUSH " #reg,                                                                   \
         .addressingMode = AddressingMode::Implied,                                                     \
         .steps = {                                                                                     \
-            { .action = MicroCode::XADDR, .src = SP, .target = MEMADDR, .opflags = SystemBus::INC },   \
-            { .action = MicroCode::XDATA, .src = GP_##reg, .target = MEM, .opflags = SystemBus::Done } \
+            PUSH_REG_STEPS(GP_##reg, SystemBus::Done)                                                  \
         }                                                                                              \
     }
 
-// clang=format off
+// clang-format off
 #define POP_REG_STEPS(reg, opflag)                                                           \
     { .action = MicroCode::XADDR, .src = SP, .target = MEMADDR, .opflags = SystemBus::DEC }, \
-    {                                                                                        \
-        .action = MicroCode::XDATA, .src = MEM, .target = reg, .opflags = opflag             \
-    }
-// clang=format on
+    { .action = MicroCode::XDATA, .src = MEM, .target = reg, .opflags = opflag  }
+// clang-format on
 
 #define POP_REG(reg)                                          \
     {                                                         \
@@ -818,8 +821,28 @@ constexpr static MicroCode mc[256] = {
     BYTE_TO_INDEXED(SI, B),
     BYTE_TO_INDEXED(SI, C),
     BYTE_TO_INDEXED(SI, D),
+    PUSH_ADDR(RSP),
+    POP_ADDR(RSP),
+    {
+        .opcode = PUSH_IMM,
+        .instruction = "push $xx",
+        .addressingMode = AddressingMode::ImmediateByte,
+        .subject = TX,
+        .steps = {
+            PUSH_REG_STEPS(TX, SystemBus::Done)
+        }
+    },
+    {
+        .opcode = PUSHW_IMM,
+        .instruction = "pushw $xxxx",
+        .addressingMode = AddressingMode::ImmediateWord,
+        .subject = TX,
+        .steps = {
+            PUSH_ADDR_STEPS(TX, SystemBus::Done)
+        }
+    },
 
-    { /* 210 */ }, { /* 211 */ }, { /* 212 */ }, { /* 213 */ }, { /* 214 */ }, { /* 215 */ }, { /* 216 */ }, { /* 217 */ }, { /* 218 */ }, { /* 219 */ }, { /* 220 */ }, { /* 221 */ }, { /* 222 */ }, { /* 223 */ }, { /* 224 */ }, { /* 225 */ }, { /* 226 */ }, { /* 227 */ }, { /* 228 */ }, { /* 229 */ }, { /* 230 */ }, { /* 231 */ }, { /* 232 */ }, { /* 233 */ }, { /* 234 */ }, { /* 235 */ }, { /* 236 */ }, { /* 237 */ }, { /* 238 */ }, { /* 239 */ }, { /* 240 */ }, { /* 241 */ }, { /* 242 */ }, { /* 243 */ }, { /* 244 */ }, { /* 245 */ }, { /* 246 */ }, { /* 247 */ }, { /* 248 */ }, { /* 249 */ }, { /* 250 */ }, { /* 251 */ }, { /* 252 */ },
+    { /* 214 */ }, { /* 215 */ }, { /* 216 */ }, { /* 217 */ }, { /* 218 */ }, { /* 219 */ }, { /* 220 */ }, { /* 221 */ }, { /* 222 */ }, { /* 223 */ }, { /* 224 */ }, { /* 225 */ }, { /* 226 */ }, { /* 227 */ }, { /* 228 */ }, { /* 229 */ }, { /* 230 */ }, { /* 231 */ }, { /* 232 */ }, { /* 233 */ }, { /* 234 */ }, { /* 235 */ }, { /* 236 */ }, { /* 237 */ }, { /* 238 */ }, { /* 239 */ }, { /* 240 */ }, { /* 241 */ }, { /* 242 */ }, { /* 243 */ }, { /* 244 */ }, { /* 245 */ }, { /* 246 */ }, { /* 247 */ }, { /* 248 */ }, { /* 249 */ }, { /* 250 */ }, { /* 251 */ }, { /* 252 */ },
 
     {
         .opcode = RTI,

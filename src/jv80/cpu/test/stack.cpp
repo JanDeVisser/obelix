@@ -117,39 +117,76 @@ TEST_F(TESTNAME, pushPopGPRegs)
 
 const byte push_pop_addr_regs[] = {
     /* 8000 */ MOV_SP_IMM, 0x00, 0x20,
-    /* 8003 */ MOV_SI_IMM, 0x34, 0x12,
-    /* 8006 */ MOV_DI_IMM, 0x78, 0x56,
-    /* 8009 */ PUSH_SI,
-    /* 800A */ PUSH_DI,
-    /* 800B */ MOV_SI_IMM, 0x55, 0x44,
-    /* 800E */ MOV_DI_IMM, 0x77, 0x66,
-    /* 8012 */ POP_DI,
-    /* 8013 */ POP_SI,
-    /* 8015 */ HLT
+    /* 8003 */ MOV_RSP_SP,
+    /* 8004 */ MOV_SI_IMM, 0x34, 0x12,
+    /* 8007 */ MOV_DI_IMM, 0x78, 0x56,
+    /* 800A */ PUSH_SI,
+    /* 800B */ PUSH_DI,
+    /* 800C */ PUSH_RSP,
+    /* 800D */ MOV_SI_IMM, 0x55, 0x44,
+    /* 8010 */ MOV_DI_IMM, 0x77, 0x66,
+    /* 8013 */ MOV_RSP_SP,
+    /* 8014 */ POP_RSP,
+    /* 8015 */ POP_DI,
+    /* 8016 */ POP_SI,
+    /* 8017 */ HLT
 };
 
 TEST_F(TESTNAME, pushPopAddrRegs)
 {
-    mem->initialize(ROM_START, 22, push_pop_addr_regs);
+    mem->initialize(ROM_START, 24, push_pop_addr_regs);
     check_memory(START_VECTOR, MOV_SP_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    // mov xx, #xxxx  6 cycles 3x  18
-    // push xx        6 cycles 2x  12
-    // mov xx, #xxxx  6 cycles 2x  12
-    // pop xx         6 cycles 2x  12
-    // hlt            3 cycles      3
-    // total                       57
-    check_cycles(57);
+    check_cycles(75);
     ASSERT_EQ(si->getValue(), 0x1234);
     ASSERT_EQ(di->getValue(), 0x5678);
+    ASSERT_EQ(rsp->getValue(), 0x2000);
     ASSERT_EQ(sp->getValue(), 0x2000);
     check_memory(0x2000, 0x34);
     check_memory(0x2001, 0x12);
     check_memory(0x2002, 0x78);
     check_memory(0x2003, 0x56);
+    check_memory(0x2004, 0x00);
+    check_memory(0x2005, 0x20);
+}
+
+TEST_F(TESTNAME, PUSH_IMM)
+{
+    static constexpr byte code[] = {
+        MOV_SP_IMM, 0x00, 0x20,
+        PUSH_IMM, 0x42,
+        POP_A,
+        HLT
+    };
+    mem->initialize(ROM_START, sizeof(code), code);
+    check_memory(START_VECTOR, code[0]);
+
+    pc->setValue(START_VECTOR);
+    ASSERT_EQ(pc->getValue(), START_VECTOR);
+
+    check_cycles(19);
+    ASSERT_EQ(gp_a->getValue(), 0x42);
+}
+
+TEST_F(TESTNAME, PUSHW_IMM)
+{
+    static constexpr byte code[] = {
+        MOV_SP_IMM, 0x00, 0x20,
+        PUSHW_IMM, 0xFE, 0xCA,
+        POP_SI,
+        HLT
+    };
+    mem->initialize(ROM_START, sizeof(code), code);
+    check_memory(START_VECTOR, code[0]);
+
+    pc->setValue(START_VECTOR);
+    ASSERT_EQ(pc->getValue(), START_VECTOR);
+
+    check_cycles(25);
+    ASSERT_EQ(si->getValue(), 0xCAFE);
 }
 
 }
