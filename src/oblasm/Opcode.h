@@ -229,19 +229,44 @@ enum OpCode {
     OR_A_IMM        = 0xB8,
     OR_B_IMM        = 0xB9,
     OR_C_IMM        = 0xBA,
-    OR_D_IMM        = 0xBB,
+    OR_D_IMM = 0xBB,
 
-    MOV_A_IND_CD    = 0xBC,
-    MOV_B_IND_CD    = 0xBD,
+    MOV_A_IND_CD = 0xBC,
+    MOV_B_IND_CD = 0xBD,
 
-    MOV_IND_SI_IMM  = 0xBE,
-    MOV_IND_DI_IMM  = 0xBF,
-    MOV_IND_CD_IMM  = 0xC0,
-    MOV_CD_IMM      = 0xC1,
+    MOV_IND_SI_IMM = 0xBE,
+    MOV_IND_DI_IMM = 0xBF,
+    MOV_IND_CD_IMM = 0xC0,
+    MOV_CD_IMM = 0xC1,
 
-    RTI             = 0xFD,
-    NMIVEC          = 0xFE,
-    HLT             = 0xFF
+    MOV_RSP_SP = 0xC2,
+    MOV_SP_RSP = 0xC3,
+
+    MOV_SI_RSP_IDX = 0xC4,
+    MOV_DI_RSP_IDX = 0xC5,
+    MOV_DI_SI_IDX = 0xC6,
+    MOV_A_SI_IDX = 0xC7,
+    MOV_B_SI_IDX = 0xC8,
+    MOV_C_SI_IDX = 0xC9,
+    MOV_D_SI_IDX = 0xCA,
+
+    MOV_RSP_IDX_SI = 0xCB,
+    MOV_RSP_IDX_DI = 0xCC,
+    MOV_SI_IDX_DI = 0xCD,
+    MOV_SI_IDX_A = 0xCE,
+    MOV_SI_IDX_B = 0xCF,
+    MOV_SI_IDX_C = 0xD0,
+    MOV_SI_IDX_D = 0xD1,
+
+    PUSH_RSP = 0xD2,
+    POP_RSP = 0xD3,
+
+    PUSH_IMM = 0xD4,
+    PUSHW_IMM = 0xD5,
+
+    RTI = 0xFD,
+    NMIVEC = 0xFE,
+    HLT = 0xFF
 };
 
 }

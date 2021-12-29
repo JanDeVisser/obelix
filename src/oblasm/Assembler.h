@@ -23,7 +23,7 @@ private:
     void parse_label(std::string const&);
     void parse_directive();
     void parse_mnemonic();
-    ErrorOr<Argument> parse_argument();
+    std::optional<Argument> parse_argument();
 
     Image& m_image;
 };

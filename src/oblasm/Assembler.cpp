@@ -36,9 +36,9 @@ Assembler::Assembler(Image& image)
 #undef __Mnemonic
 #define __Mnemonic(value, arg_template, num) \
     Token(Keyword##value, #value),
-            __ENUM_Mnemonic(__Mnemonic)
+        ENUM_Mnemonic(__Mnemonic)
 #undef __Mnemonic
-        Token(KeywordA, "a"),
+            Token(KeywordA, "a"),
         Token(KeywordB, "b"),
         Token(KeywordC, "c"),
         Token(KeywordD, "d"),
@@ -47,6 +47,7 @@ Assembler::Assembler(Image& image)
         Token(KeywordSi, "si"),
         Token(KeywordDi, "di"),
         Token(KeywordSP, "sp"),
+        Token(KeywordRSP, "rsp"),
         Token(KeywordSegment, "segment"),
         Token(KeywordDefine, "define"),
         Token(KeywordInclude, "include"),
@@ -96,24 +97,31 @@ void Assembler::parse_directive()
         lex();
         // FIXME also match decimal (and binary) numbers
         auto start_address = match(TokenCode::HexNumber);
-        if (!start_address)
+        if (!start_address) {
+            add_error(peek(), "Expected segment start address");
             return;
+        }
         auto segment = std::make_shared<Segment>(start_address.value().value());
         m_image.add(segment);
         break;
     }
     case KeywordInclude: {
-        lex();
+        auto token = lex();
         auto include_file = match(TokenCode::DoubleQuotedString);
         auto assembler = Assembler(m_image);
         assembler.parse(OblBuffer(include_file->value()).buffer().str());
+        for (auto& error : assembler.errors()) {
+            add_error(token, error.message);
+        }
         break;
     }
     case KeywordAlign: {
         lex();
-        auto boundary = match(TokenCode::Integer);
-        if (!boundary)
-           return;
+        auto boundary = match(TokenCode::HexNumber);
+        if (!boundary) {
+            add_error(peek(), "Expected alignment boundary value");
+            return;
+        }
         auto align = std::make_shared<Align>(boundary.value().value());
         m_image.add(align);
         break;
@@ -121,13 +129,17 @@ void Assembler::parse_directive()
     case KeywordDefine: {
         lex();
         auto label = match(TokenCode::Identifier);
-        if (!label)
+        if (!label) {
+            add_error(peek(), "Expected label name in define");
             return;
+        }
         auto value = match(TokenCode::HexNumber);
-        if (!value)
+        if (!value) {
+            add_error(peek(), "Expected label value in define");
             return;
+        }
         auto define = std::make_shared<Define>(label.value().value(), value.value().value()); // lol
-        m_image.add(std::dynamic_pointer_cast<Label>(define)); // ugly
+        m_image.add(std::dynamic_pointer_cast<Label>(define));                                // ugly
         break;
     }
     default:
@@ -157,36 +169,49 @@ void Assembler::parse_mnemonic()
             auto data_token = lex();
             data.push_back(data_token.value());
         }
+        if (data.empty()) {
+            add_error(token, "Expected data byte values");
+            return;
+        }
         entry = std::make_shared<Bytes>(m, join(data, ' '));
         break;
     }
     case Mnemonic::BUFFER:
-        if (auto buffer_size = match(TokenCode::HexNumber); buffer_size.has_value())
+        if (auto buffer_size = match(TokenCode::HexNumber); buffer_size.has_value()) {
             entry = std::make_shared<Buffer>(m, buffer_size.value().value());
+        } else {
+            add_error(peek(), "Expected buffer size after BUFFER mnemonic");
+            return;
+        }
         break;
     case Mnemonic::ASCIZ:
     case Mnemonic::STR:
-        if (current_code() == TokenCode::DoubleQuotedString || current_code() == TokenCode::SingleQuotedString) {
-            entry = std::make_shared<String>(m, lex().value());
+        if (current_code() != TokenCode::DoubleQuotedString && current_code() != TokenCode::SingleQuotedString) {
+            add_error(peek(), format("Expected quoted string after {}", token.value()));
+            return;
         }
+        entry = std::make_shared<String>(m, lex().value());
         break;
     default: {
         Argument dest, source;
         auto dest_maybe = parse_argument();
-        if (dest_maybe.is_error()) {
-            return;
-        }
-        dest = dest_maybe.value();
-        if (dest.valid() && (current_code() == TokenCode::Comma)) {
-            lex();
-            auto source_maybe = parse_argument();
-            if (source_maybe.is_error()) {
-                return;
-            }
-            source = source_maybe.value();
-            if (!source.valid()) {
-                add_error(peek(), "Could not parse source argument");
-                return;
+        if (dest_maybe.has_value()) {
+            dest = dest_maybe.value();
+            if (dest.addressing_mode != AMNone) {
+                assert(dest.valid());
+                if (current_code() == TokenCode::Comma) {
+                    lex();
+                    auto source_maybe = parse_argument();
+                    if (!source_maybe.has_value()) {
+                        return;
+                    }
+                    source = source_maybe.value();
+                    if (source.addressing_mode == AMNone) {
+                        add_error(peek(), "Missing source argument after ','");
+                        return;
+                    }
+                    assert(source.valid());
+                }
             }
         }
         entry = std::make_shared<Instruction>(m, dest, source);
@@ -199,25 +224,27 @@ void Assembler::parse_mnemonic()
     }
 }
 
-ErrorOr<Argument> Assembler::parse_argument()
+std::optional<Argument> Assembler::parse_argument()
 {
     Argument ret;
+    ret.addressing_mode = AMNone;
     if (current_code() == TokenCode::Asterisk) {
         lex();
-        ret.indirect = true;
         if (auto reg_maybe = get_register(peek().value()); reg_maybe.has_value()) {
             auto token = lex();
             if (reg_maybe.value().bits != 16) {
                 add_error(token, format("Only 16-bit registers can be used in indirect addressing"));
-                return Error { ErrorCode::SyntaxError, "Only 16-bit registers can be used in indirect addressing" };
+                return {};
             }
-            ret.type = Argument::ArgumentType::Register;
+            ret.immediate_type = Argument::ImmediateType::None;
+            ret.addressing_mode = AMRegisterIndirect;
             ret.reg = reg_maybe.value().reg;
             return ret;
         }
         if ((current_code() == TokenCode::Integer) || (current_code() == TokenCode::HexNumber) || (current_code() == TokenCode::BinaryNumber)) {
             auto token = lex();
-            ret.type = Argument::ArgumentType::Constant;
+            ret.addressing_mode = AMImmediateIndirect;
+            ret.immediate_type = Argument::Argument::ImmediateType::Constant;
             ret.constant = to_long_unconditional(token.value());
             return ret;
         }
@@ -225,19 +252,23 @@ ErrorOr<Argument> Assembler::parse_argument()
             lex();
             auto token_maybe = match(TokenCode::Identifier);
             if (!token_maybe.has_value()) {
-                return Error { ErrorCode::SyntaxError, "Expected label name after '%'" };
+                add_error(peek(), "Expected label name after '%'");
+                return {};
             }
-            ret.type = Argument::ArgumentType::Label;
+            ret.addressing_mode = AMImmediateIndirect;
+            ret.immediate_type = Argument::Argument::ImmediateType::Label;
             ret.label = token_maybe.value().value();
             return ret;
         }
+        add_error(peek(), "Expected register, numeric value or label reference after '*'");
+        return {};
     }
     if (current_code() == TokenCode::Pound) {
         lex();
-        ret.indirect = false;
+        ret.addressing_mode = AMImmediate;
         if ((current_code() == TokenCode::Integer) || (current_code() == TokenCode::HexNumber) || (current_code() == TokenCode::BinaryNumber)) {
             auto token = lex();
-            ret.type = Argument::ArgumentType::Constant;
+            ret.immediate_type = Argument::ImmediateType::Constant;
             ret.constant = to_long_unconditional(token.value());
             return ret;
         }
@@ -245,18 +276,49 @@ ErrorOr<Argument> Assembler::parse_argument()
             lex();
             auto token_maybe = match(TokenCode::Identifier);
             if (!token_maybe.has_value()) {
-                return Error { ErrorCode::SyntaxError, "Expected label name after '%'" };
+                add_error(peek(), "Expected label name after '%'");
+                return {};
             }
-            ret.type = Argument::ArgumentType::Label;
+            ret.immediate_type = Argument::ImmediateType::Label;
             ret.label = token_maybe.value().value();
             return ret;
         }
+        add_error(peek(), "Expected numeric value or label reference after '#'");
+        return {};
     }
     if (auto reg_maybe = get_register(peek().value()); reg_maybe.has_value()) {
-        auto reg = reg_maybe.value();
-        auto token = lex();
-        ret.type = Argument::ArgumentType::Register;
-        ret.reg = reg.reg;
+        lex();
+        ret.reg = reg_maybe.value().reg;
+        ret.immediate_type = Argument::ImmediateType::None;
+        if (current_code() == TokenCode::OpenBracket) {
+            lex();
+            ret.addressing_mode = AMIndexed;
+            if ((current_code() == TokenCode::Integer) || (current_code() == TokenCode::HexNumber) || (current_code() == TokenCode::BinaryNumber)) {
+                auto token = lex();
+                ret.immediate_type = Argument::ImmediateType::Constant;
+                ret.constant = to_long_unconditional(token.value());
+            } else if (current_code() == TokenCode::Percent) {
+                lex();
+                auto token_maybe = match(TokenCode::Identifier);
+                if (!token_maybe.has_value()) {
+                    add_error(peek(), "Expected label name after '%'");
+                    return {};
+                }
+                ret.immediate_type = Argument::ImmediateType::Label;
+                ret.label = token_maybe.value().value();
+                return ret;
+            }
+            if (ret.immediate_type == Argument::ImmediateType::None) {
+                add_error(peek(), "Expected numeric value or label reference after '['");
+                return {};
+            }
+            if (!expect(TokenCode::CloseBracket)) {
+                add_error(peek(), "Expected ']' to close indexed argument");
+                return {};
+            }
+            return ret;
+        }
+        ret.addressing_mode = AMRegister;
         return ret;
     }
     return ret;

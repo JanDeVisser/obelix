@@ -25,6 +25,7 @@ CHECK_ERROR(NopWithImmArgument, "nop #$55")
 CHECK_ERROR(NopWithImmIndArgument, "nop *$c0de")
 CHECK_ERROR(InvalidMovIntoImmediate, "mov #55, a")
 CHECK_ERROR(NoSourceRegisterAfterComma, "mov a, \n mov b,c")
+CHECK_ERROR(IndexedNoClosingBracket, "mov a,si[$44")
 
 CHECK_INSTR(Label, "nop lbl: nop jmp #%lbl", 5, NOP, NOP, JMP, 0x01, 0x00)
 CHECK_INSTR(JumpAhead, "nop jmp #%lbl nop lbl: nop", 6, NOP, JMP, 0x05, 0x00, NOP, NOP)

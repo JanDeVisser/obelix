@@ -30,8 +30,8 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
     int count = 0;
 
     code->add(std::make_shared<Instruction>(Mnemonic::MOV,
-        Argument { .type = Argument::ArgumentType::Register, .reg = Register::sp },
-        Argument { .type = Argument::ArgumentType::Constant, .constant = 0x3c00 }));
+        Argument { .addressing_mode = AMRegister, .reg = Register::sp },
+        Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Constant, .constant = 0x3c00 }));
 
     output_jv80_map[SyntaxNodeType::Module] = [](std::shared_ptr<SyntaxNode> const& tree, OutputJV80Context& ctx) -> ErrorOrNode {
         return tree;
@@ -39,26 +39,26 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
 
     output_jv80_map[SyntaxNodeType::BinaryExpression] = [&code](std::shared_ptr<SyntaxNode> const& tree, OutputJV80Context& ctx) -> ErrorOrNode {
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .type = Argument::ArgumentType::Register, .reg = Register::d }));
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .type = Argument::ArgumentType::Register, .reg = Register::c }));
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .type = Argument::ArgumentType::Register, .reg = Register::b }));
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .type = Argument::ArgumentType::Register, .reg = Register::a }));
+        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::d }));
+        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::c }));
+        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::b }));
+        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::a }));
         switch (expr->op().code()) {
         case TokenCode::Plus:
             code->add(std::make_shared<Instruction>(Mnemonic::ADD,
-                Argument { .type = Argument::ArgumentType::Register, .reg = Register::ab },
-                Argument { .type = Argument::ArgumentType::Register, .reg = Register::cd }));
+                Argument { .addressing_mode = AMRegister, .reg = Register::ab },
+                Argument { .addressing_mode = AMRegister, .reg = Register::cd }));
             break;
         case TokenCode::Minus:
             code->add(std::make_shared<Instruction>(Mnemonic::SUB,
-                Argument { .type = Argument::ArgumentType::Register, .reg = Register::ab },
-                Argument { .type = Argument::ArgumentType::Register, .reg = Register::cd }));
+                Argument { .addressing_mode = AMRegister, .reg = Register::ab },
+                Argument { .addressing_mode = AMRegister, .reg = Register::cd }));
             break;
         default:
             return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr->op().value()));
         }
-        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .type = Argument::ArgumentType::Register, .reg = Register::a }));
-        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .type = Argument::ArgumentType::Register, .reg = Register::b }));
+        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::a }));
+        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::b }));
         return tree;
     };
 
@@ -71,9 +71,9 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         case ObelixType::TypeInt: {
             uint16_t v = static_cast<uint16_t>(val->to_long().value());
             code->add(std::make_shared<Instruction>(Mnemonic::MOV,
-                Argument { .type = Argument::ArgumentType::Register, .reg = Register::si },
-                Argument { .type = Argument::ArgumentType::Constant, .constant = v }));
-            code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .type = Argument::ArgumentType::Register, .reg = Register::si }));
+                Argument { .addressing_mode = AMRegister, .reg = Register::si },
+                Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Constant, .constant = v }));
+            code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::si }));
             break;
         }
         default:
@@ -86,9 +86,9 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         auto identifier = std::dynamic_pointer_cast<Identifier>(tree);
         code->add(std::make_shared<Instruction>(
             Mnemonic::MOV,
-            Argument { .type = Argument::ArgumentType::Register, .reg = Register::si },
-            Argument { .indirect = true, .type = Argument::ArgumentType::Label, .label = format("var_{}", identifier->name()) }));
-        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .type = Argument::ArgumentType::Register, .reg = Register::si }));
+            Argument { .addressing_mode = AMRegister, .reg = Register::si },
+            Argument { .addressing_mode = Assembler::AMImmediateIndirect, .immediate_type = Argument::ImmediateType::Label, .label = format("var_{}", identifier->name()) }));
+        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::si }));
         return tree;
     };
 
@@ -102,18 +102,18 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         data->add(bytes);
 
         if (var_decl->expression() != nullptr) {
-            code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .type = Argument::ArgumentType::Register, .reg = Register::si }));
+            code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::si }));
             code->add(std::make_shared<Instruction>(
                 Mnemonic::MOV,
-                Argument { .indirect = true, .type = Argument::ArgumentType::Label, .label = format("var_{}", var_decl->variable().identifier()) },
-                Argument { .type = Argument::ArgumentType::Register, .reg = Register::si }));
+                Argument { .addressing_mode = Assembler::AMImmediateIndirect, .immediate_type = Argument::ImmediateType::Label, .label = format("var_{}", var_decl->variable().identifier()) },
+                Argument { .addressing_mode = AMRegister, .reg = Register::si }));
         }
         return tree;
     };
 
     output_jv80_map[SyntaxNodeType::Return] = [&code](std::shared_ptr<SyntaxNode> const& tree, OutputJV80Context& ctx) -> ErrorOrNode {
         auto return_stmt = std::dynamic_pointer_cast<Return>(tree);
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .type = Argument::ArgumentType::Register, .reg = Register::di }));
+        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::di }));
         code->add(std::make_shared<Instruction>(Mnemonic::HLT));
         return tree;
     };

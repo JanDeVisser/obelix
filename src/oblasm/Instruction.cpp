@@ -14,10 +14,12 @@ namespace Obelix::Assembler {
 Instruction::Instruction(Mnemonic m)
     : Entry(m, "")
 {
-    if (m_definition.mnemonic == Mnemonic::None)
-        m_definition = get_opcode_definition(m, m_target, m_source);
-    if (m_definition.mnemonic != mnemonic()) {
-        add_error(format("Invalid opcode '{}'", to_string()));
+    if (m_definition.mnemonic == Mnemonic::None) {
+        if (auto definition_maybe = get_opcode_definition(m, m_target, m_source); definition_maybe.has_value()) {
+            m_definition = definition_maybe.value();
+        } else {
+            add_error(format("Invalid opcode '{}'", to_string()));
+        }
     }
 }
 
@@ -25,10 +27,12 @@ Instruction::Instruction(Mnemonic m, Argument target)
     : Entry(m, "")
     , m_target(std::move(target))
 {
-    if (m_definition.mnemonic == Mnemonic::None)
-        m_definition = get_opcode_definition(m, m_target, m_source);
-    if (m_definition.mnemonic != mnemonic()) {
-        add_error(format("Invalid opcode '{}'", to_string()));
+    if (m_definition.mnemonic == Mnemonic::None) {
+        if (auto definition_maybe = get_opcode_definition(m, m_target, m_source); definition_maybe.has_value()) {
+            m_definition = definition_maybe.value();
+        } else {
+            add_error(format("Invalid opcode '{}'", to_string()));
+        }
     }
 }
 
@@ -37,10 +41,12 @@ Instruction::Instruction(Mnemonic m, Argument target, Argument source)
     , m_target(std::move(target))
     , m_source(std::move(source))
 {
-    if (m_definition.mnemonic == Mnemonic::None)
-        m_definition = get_opcode_definition(m, m_target, m_source);
-    if (m_definition.mnemonic != mnemonic()) {
-        add_error(format("Invalid opcode '{}'", to_string()));
+    if (m_definition.mnemonic == Mnemonic::None) {
+        if (auto definition_maybe = get_opcode_definition(m, m_target, m_source); definition_maybe.has_value()) {
+            m_definition = definition_maybe.value();
+        } else {
+            add_error(format("Invalid opcode '{}'", to_string()));
+        }
     }
 }
 

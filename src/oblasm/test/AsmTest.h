@@ -38,6 +38,22 @@ namespace Obelix::Assembler {
         EXPECT_EQ(bytes[1], 0x55);               \
     }
 
+#define CHECK_INDEXED(s, code)                   \
+    TEST(AsmTest, ParseCode##code)               \
+    {                                            \
+        Image image;                             \
+                                                 \
+        Assembler assembler(image);              \
+        assembler.parse(format((s), "[$55]"));   \
+        ASSERT_TRUE(assembler.was_successful()); \
+        EXPECT_EQ(image.current_address(), 2);   \
+        auto bytes = image.assemble();           \
+        ASSERT_GE(bytes.size(), 2);              \
+        EXPECT_EQ(bytes.size(), 2);              \
+        EXPECT_EQ(bytes[0], (code));             \
+        EXPECT_EQ(bytes[1], 0x55);               \
+    }
+
 #define CHECK_16BIT_IMM(s, code)                 \
     TEST(AsmTest, ParseCode##code)               \
     {                                            \
@@ -112,4 +128,3 @@ namespace Obelix::Assembler {
     }
 
 }
-
