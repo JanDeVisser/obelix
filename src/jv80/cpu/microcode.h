@@ -825,7 +825,7 @@ constexpr static MicroCode mc[256] = {
     POP_ADDR(RSP),
     {
         .opcode = PUSH_IMM,
-        .instruction = "push $xx",
+        .instruction = "push #$xx",
         .addressingMode = AddressingMode::ImmediateByte,
         .subject = TX,
         .steps = {
@@ -834,7 +834,7 @@ constexpr static MicroCode mc[256] = {
     },
     {
         .opcode = PUSHW_IMM,
-        .instruction = "pushw $xxxx",
+        .instruction = "pushw #$xxxx",
         .addressingMode = AddressingMode::ImmediateWord,
         .subject = TX,
         .steps = {
