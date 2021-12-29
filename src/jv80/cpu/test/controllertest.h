@@ -42,7 +42,7 @@ public:
 
         pc = std::make_shared<AddressRegister>(PC, "PC");
         sp = std::make_shared<AddressRegister>(SP, "SP");
-        rsp = std::make_shared<AddressRegister>(RSP, "RSP");
+        bp = std::make_shared<AddressRegister>(BP, "BP");
         tx = std::make_shared<AddressRegister>(TX, "TX");
         si = std::make_shared<AddressRegister>(SI, "Si");
         di = std::make_shared<AddressRegister>(DI, "Di");
@@ -57,7 +57,7 @@ public:
         system.insert(pc);
         system.insert(tx);
         system.insert(sp);
-        system.insert(rsp);
+        system.insert(bp);
         system.insert(si);
         system.insert(di);
         system.insert(alu);
@@ -118,7 +118,7 @@ protected:
     std::shared_ptr<AddressRegister> pc;
     std::shared_ptr<AddressRegister> tx;
     std::shared_ptr<AddressRegister> sp;
-    std::shared_ptr<AddressRegister> rsp;
+    std::shared_ptr<AddressRegister> bp;
     std::shared_ptr<AddressRegister> si;
     std::shared_ptr<AddressRegister> di;
     std::shared_ptr<ALU> alu;

@@ -240,7 +240,7 @@ enum class Register {
     di,
     sp,
     pc,
-    rsp,
+    bp,
     flags,
 };
 
@@ -260,7 +260,7 @@ constexpr static TokenCode KeywordCD = TokenCode::Keyword49;
 constexpr static TokenCode KeywordSi = TokenCode::Keyword50;
 constexpr static TokenCode KeywordDi = TokenCode::Keyword51;
 constexpr static TokenCode KeywordSP = TokenCode::Keyword52;
-constexpr static TokenCode KeywordRSP = TokenCode::Keyword53;
+constexpr static TokenCode KeywordBP = TokenCode::Keyword53;
 
 std::optional<RegisterDefinition> get_register(char const*);
 std::optional<RegisterDefinition> get_register(std::string const&);

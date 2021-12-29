@@ -117,16 +117,16 @@ TEST_F(TESTNAME, pushPopGPRegs)
 
 const byte push_pop_addr_regs[] = {
     /* 8000 */ MOV_SP_IMM, 0x00, 0x20,
-    /* 8003 */ MOV_RSP_SP,
+    /* 8003 */ MOV_BP_SP,
     /* 8004 */ MOV_SI_IMM, 0x34, 0x12,
     /* 8007 */ MOV_DI_IMM, 0x78, 0x56,
     /* 800A */ PUSH_SI,
     /* 800B */ PUSH_DI,
-    /* 800C */ PUSH_RSP,
+    /* 800C */ PUSH_BP,
     /* 800D */ MOV_SI_IMM, 0x55, 0x44,
     /* 8010 */ MOV_DI_IMM, 0x77, 0x66,
-    /* 8013 */ MOV_RSP_SP,
-    /* 8014 */ POP_RSP,
+    /* 8013 */ MOV_BP_SP,
+    /* 8014 */ POP_BP,
     /* 8015 */ POP_DI,
     /* 8016 */ POP_SI,
     /* 8017 */ HLT
@@ -143,7 +143,7 @@ TEST_F(TESTNAME, pushPopAddrRegs)
     check_cycles(75);
     ASSERT_EQ(si->getValue(), 0x1234);
     ASSERT_EQ(di->getValue(), 0x5678);
-    ASSERT_EQ(rsp->getValue(), 0x2000);
+    ASSERT_EQ(bp->getValue(), 0x2000);
     ASSERT_EQ(sp->getValue(), 0x2000);
     check_memory(0x2000, 0x34);
     check_memory(0x2001, 0x12);

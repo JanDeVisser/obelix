@@ -19,7 +19,7 @@ constexpr static int MEM = 7;
 
 constexpr static int PC = 8;
 constexpr static int SP = 9;
-constexpr static int RSP = 10;
+constexpr static int BP = 10;
 constexpr static int SI = 11;
 constexpr static int DI = 12;
 constexpr static int TX = 13;

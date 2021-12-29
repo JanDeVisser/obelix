@@ -47,7 +47,7 @@ Assembler::Assembler(Image& image)
         Token(KeywordSi, "si"),
         Token(KeywordDi, "di"),
         Token(KeywordSP, "sp"),
-        Token(KeywordRSP, "rsp"),
+        Token(KeywordBP, "bp"),
         Token(KeywordSegment, "segment"),
         Token(KeywordDefine, "define"),
         Token(KeywordInclude, "include"),

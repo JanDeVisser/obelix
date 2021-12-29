@@ -56,54 +56,54 @@ public:
     }
 };
 
-byte mov_rsp_sp[] = {
+byte mov_bp_sp[] = {
     /* 8000 */ MOV_SP_IMM, 0x42, 0x55, // 6
-    /* 0002 */ MOV_RSP_SP,             // 3
+    /* 0002 */ MOV_BP_SP,              // 3
     /* 8003 */ HLT                     // 3
 };
 
-TEST_F(TESTNAME, MOV_RSP_SP)
+TEST_F(TESTNAME, MOV_BP_SP)
 {
-    mem->initialize(ROM_START, 5, mov_rsp_sp);
+    mem->initialize(ROM_START, 5, mov_bp_sp);
     check_memory(START_VECTOR, MOV_SP_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
     check_cycles(12);
-    ASSERT_EQ(rsp->getValue(), 0x5542);
+    ASSERT_EQ(bp->getValue(), 0x5542);
 }
 
-byte mov_sp_rsp[] = {
+byte mov_sp_bp[] = {
     /* 8000 */ MOV_SP_IMM, 0x42, 0x55, // 6
-    /* 0003 */ MOV_RSP_SP,             // 3
+    /* 0003 */ MOV_BP_SP,              // 3
     /* 8004 */ MOV_SP_IMM, 0xFE, 0xCA, // 6
-    /* 0007 */ MOV_SP_RSP,             // 3
+    /* 0007 */ MOV_SP_BP,              // 3
     /* 8008 */ HLT                     // 3
 };
 
-TEST_F(TESTNAME, MOV_SP_RSP)
+TEST_F(TESTNAME, MOV_SP_BP)
 {
-    mem->initialize(ROM_START, 9, mov_sp_rsp);
+    mem->initialize(ROM_START, 9, mov_sp_bp);
     check_memory(START_VECTOR, MOV_SP_IMM);
 
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
     check_cycles(21);
-    ASSERT_EQ(rsp->getValue(), 0x5542);
+    ASSERT_EQ(bp->getValue(), 0x5542);
 }
 
-byte mov_si_rsp_idx[] = {
+byte mov_si_bp_idx[] = {
     /* 8000 */ MOV_SP_IMM, 0x00, 0x20, // 6
-    /* 0003 */ MOV_RSP_SP,             // 3
-    /* 0004 */ MOV_SI_RSP_IDX, 0x02,   //
+    /* 0003 */ MOV_BP_SP,              // 3
+    /* 0004 */ MOV_SI_BP_IDX, 0x02,    //
     /* 8006 */ HLT                     // 3
 };
 
-TEST_F(TESTNAME, MOV_SI_RSP_IDX)
+TEST_F(TESTNAME, MOV_SI_BP_IDX)
 {
-    mem->initialize(ROM_START, 7, mov_si_rsp_idx);
+    mem->initialize(ROM_START, 7, mov_si_bp_idx);
     check_memory(START_VECTOR, MOV_SP_IMM);
     ASSERT_FALSE(mem->poke(0x2002, 0xFE).is_error());
     ASSERT_FALSE(mem->poke(0x2003, 0xCA).is_error());
@@ -115,16 +115,16 @@ TEST_F(TESTNAME, MOV_SI_RSP_IDX)
     ASSERT_EQ(si->getValue(), 0xCAFE);
 }
 
-byte mov_di_rsp_idx[] = {
+byte mov_di_bp_idx[] = {
     /* 8000 */ MOV_SP_IMM, 0x00, 0x20, // 6
-    /* 0003 */ MOV_RSP_SP,             // 3
-    /* 0004 */ MOV_DI_RSP_IDX, 0x02,   //
+    /* 0003 */ MOV_BP_SP,              // 3
+    /* 0004 */ MOV_DI_BP_IDX, 0x02,    //
     /* 8006 */ HLT                     // 3
 };
 
-TEST_F(TESTNAME, MOV_DI_RSP_IDX)
+TEST_F(TESTNAME, MOV_DI_BP_IDX)
 {
-    mem->initialize(ROM_START, 7, mov_di_rsp_idx);
+    mem->initialize(ROM_START, 7, mov_di_bp_idx);
     check_memory(START_VECTOR, MOV_SP_IMM);
     ASSERT_FALSE(mem->poke(0x2002, 0xFE).is_error());
     ASSERT_FALSE(mem->poke(0x2003, 0xCA).is_error());
@@ -176,17 +176,17 @@ TEST_F(TESTNAME, MOV_D_SI_IDX)
     mov_gp_si_idx(MOV_D_SI_IDX, gp_d);
 }
 
-byte mov_rsp_idx_si[] = {
+byte mov_bp_idx_si[] = {
     /* 8000 */ MOV_SP_IMM, 0x00, 0x20, // 6
-    /* 0003 */ MOV_RSP_SP,             // 3
+    /* 0003 */ MOV_BP_SP,              // 3
     /* 8000 */ MOV_SI_IMM, 0xFE, 0xCA, // 6
-    /* 0004 */ MOV_RSP_IDX_SI, 0x02,   //
+    /* 0004 */ MOV_BP_IDX_SI, 0x02,    //
     /* 8006 */ HLT                     // 3
 };
 
-TEST_F(TESTNAME, MOV_RSP_IDX_SI)
+TEST_F(TESTNAME, MOV_BP_IDX_SI)
 {
-    mem->initialize(ROM_START, 10, mov_rsp_idx_si);
+    mem->initialize(ROM_START, 10, mov_bp_idx_si);
     check_memory(START_VECTOR, MOV_SP_IMM);
 
     pc->setValue(START_VECTOR);
@@ -197,17 +197,17 @@ TEST_F(TESTNAME, MOV_RSP_IDX_SI)
     ASSERT_EQ(mem->peek(0x2003).value(), 0xCA);
 }
 
-byte mov_rsp_idx_di[] = {
+byte mov_bp_idx_di[] = {
     /* 8000 */ MOV_SP_IMM, 0x00, 0x20, // 6
-    /* 0003 */ MOV_RSP_SP,             // 3
+    /* 0003 */ MOV_BP_SP,              // 3
     /* 8000 */ MOV_DI_IMM, 0xFE, 0xCA, // 6
-    /* 0004 */ MOV_RSP_IDX_DI, 0x02,   //
+    /* 0004 */ MOV_BP_IDX_DI, 0x02,    //
     /* 8006 */ HLT                     // 3
 };
 
-TEST_F(TESTNAME, MOV_RSP_IDX_DI)
+TEST_F(TESTNAME, MOV_BP_IDX_DI)
 {
-    mem->initialize(ROM_START, 10, mov_rsp_idx_di);
+    mem->initialize(ROM_START, 10, mov_bp_idx_di);
     check_memory(START_VECTOR, MOV_SP_IMM);
 
     pc->setValue(START_VECTOR);
