@@ -77,7 +77,7 @@ void CPU::componentEvent(Component const* sender, int ev)
                 mnemonic = instr.substr(0, pos);
                 args = instr.substr(pos);
             }
-            printf("%04x %-6.6s%-9.9s    %02x %02x %02x %02x %04x %04x %04x\n",
+            printf("%04x %-6.6s%-15.15s    %02x %02x %02x %02x %04x %04x %04x %04x\n",
                 dynamic_cast<Controller const*>(sender)->pc(),
                 mnemonic.c_str(), args.c_str(),
                 m_system.component<Register>(GP_A)->getValue(),
@@ -86,7 +86,8 @@ void CPU::componentEvent(Component const* sender, int ev)
                 m_system.component<Register>(GP_D)->getValue(),
                 m_system.component<AddressRegister>(SI)->getValue(),
                 m_system.component<AddressRegister>(DI)->getValue(),
-                m_system.component<AddressRegister>(SP)->getValue());
+                m_system.component<AddressRegister>(SP)->getValue(),
+                m_system.component<AddressRegister>(BP)->getValue());
         }
         break;
     default:

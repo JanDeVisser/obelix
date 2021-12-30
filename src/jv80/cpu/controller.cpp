@@ -146,8 +146,9 @@ void MicroCodeRunner::fetchIndirectWord()
 void MicroCodeRunner::fetchIndexed()
 {
     m_steps.push_back({ MicroCode::XADDR, PC, MEMADDR, SystemBus::INC });
-    m_steps.push_back({ MicroCode::XDATA, MEM, m_mc->subject, SystemBus::IDX });
+    m_steps.push_back({ MicroCode::XDATA, MEM, TX, SystemBus::None });
     m_steps.push_back({ MicroCode::XADDR, m_mc->subject, MEMADDR, SystemBus::None });
+    m_steps.push_back({ MicroCode::XDATA, TX, MEMADDR, SystemBus::IDX });
 }
 
 bool MicroCodeRunner::grabConstant(int step)

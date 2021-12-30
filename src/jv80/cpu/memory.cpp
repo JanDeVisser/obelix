@@ -142,7 +142,7 @@ bool MemoryBank::mapped(size_t addr) const
 
 bool MemoryBank::fits(size_t addr, size_t size) const
 {
-    return mapped(addr) && mapped(addr + size);
+    return mapped(addr) && mapped(addr + size - 1);
 }
 
 bool MemoryBank::disjointFrom(size_t addr, size_t size) const
@@ -324,10 +324,13 @@ SystemError Memory::onHighClock()
         if (!(bus()->xaddr())) {
             setValue(((word)bus()->readAddrBus() << 8) | ((word)bus()->readDataBus()));
         } else if (!(bus()->xdata())) {
-            if (!(bus()->opflags() & SystemBus::MSB)) {
-                setValue((getValue() & 0xFF00) | bus()->readDataBus());
-            } else {
+            if (bus()->opflags() & SystemBus::IDX) {
+                auto idx = (signed char)bus()->readDataBus();
+                setValue(getValue() + idx);
+            } else if (bus()->opflags() & SystemBus::MSB) {
                 setValue((getValue() & 0x00FF) | (((word)bus()->readDataBus()) << 8));
+            } else {
+                setValue((getValue() & 0xFF00) | bus()->readDataBus());
             }
         }
     }

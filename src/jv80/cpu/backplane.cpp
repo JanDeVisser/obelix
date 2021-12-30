@@ -47,12 +47,13 @@ void BackPlane::defaultSetup()
     insert(std::make_shared<Controller>(mc));            // 0x06
     insert(std::make_shared<AddressRegister>(PC, "PC")); // 0x08
     insert(std::make_shared<AddressRegister>(SP, "SP")); // 0x09
+    insert(std::make_shared<AddressRegister>(BP, "BP")); // 0x09
     insert(std::make_shared<AddressRegister>(SI, "Si")); // 0x0A
     insert(std::make_shared<AddressRegister>(DI, "Di")); // 0x0B
     insert(std::make_shared<AddressRegister>(TX, "TX")); // 0x0C
     auto mem = std::make_shared<Memory>();
     mem->add(0x0000, 0xC000, false, sample_mem);
-    mem->add(0xC000, 0x4000, true);
+    mem->add(0xC000, 0x2000, true);
     insert(mem); // 0x0F
 }
 
@@ -168,7 +169,7 @@ SystemError BackPlane::onLowClock()
 {
     sendEvent(EV_LOW_CLOCK);
     auto on_low_clock = [](Component& c) -> SystemError {
-        return c.onHighClock();
+        return c.onLowClock();
     };
 
     if (auto err = onClockEvent(on_low_clock); err.is_error()) {

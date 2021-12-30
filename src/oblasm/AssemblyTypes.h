@@ -239,8 +239,8 @@ enum class Register {
     si,
     di,
     sp,
-    pc,
     bp,
+    pc,
     flags,
 };
 
@@ -296,7 +296,7 @@ struct Argument {
     {
         if (addressing_mode == AMIndexed) {
             auto r = get_definition(reg);
-            return format("{}[$02x]", r.name, constant);
+            return format("{}[{}]", r.name, (signed int)constant);
         }
         if (addressing_mode == AMNone) {
             return "";

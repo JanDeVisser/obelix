@@ -16,28 +16,57 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
+class OutputJV80Context : public Context<Obj> {
+public:
+    OutputJV80Context(OutputJV80Context& parent)
+        : Context<Obj>(parent)
+    {
+        auto offset_maybe = get("#offset");
+        assert(offset_maybe.has_value());
+        declare("#offset", get("#offset").value());
+    }
+
+    explicit OutputJV80Context(OutputJV80Context* parent)
+        : Context<Obj>(parent)
+    {
+        auto offset_maybe = get("#offset");
+        assert(offset_maybe.has_value());
+        declare("#offset", get("#offset").value());
+    }
+
+    explicit OutputJV80Context(ProcessorMap const& map)
+        : Context(map)
+    {
+        declare("#offset", make_obj<Integer>(0));
+    }
+};
+
 ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string const& file_name)
 {
     using namespace Obelix::Assembler;
 
-    using OutputJV80Context = Context<std::string>;
     OutputJV80Context::ProcessorMap output_jv80_map;
-    Image image(0xFFFF);
+    Image image(0xC000);
     auto code = image.get_segment(0);
-    auto data = std::make_shared<Segment>(0xC000);
-    image.add(code);
-    image.add(data);
-    int count = 0;
+    //    auto data = std::make_shared<Segment>(0xC000);
+    //    image.add(data);
 
     code->add(std::make_shared<Instruction>(Mnemonic::MOV,
         Argument { .addressing_mode = AMRegister, .reg = Register::sp },
-        Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Constant, .constant = 0x3c00 }));
+        Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Constant, .constant = 0xc000 }));
+    code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+        Argument { .addressing_mode = AMRegister, .reg = Register::bp },
+        Argument { .addressing_mode = AMRegister, .reg = Register::sp }));
 
-    output_jv80_map[SyntaxNodeType::Module] = [](std::shared_ptr<SyntaxNode> const& tree, OutputJV80Context& ctx) -> ErrorOrNode {
+    output_jv80_map[SyntaxNodeType::Module] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
         return tree;
     };
 
-    output_jv80_map[SyntaxNodeType::BinaryExpression] = [&code](std::shared_ptr<SyntaxNode> const& tree, OutputJV80Context& ctx) -> ErrorOrNode {
+    output_jv80_map[SyntaxNodeType::Block] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
+        return tree;
+    };
+
+    output_jv80_map[SyntaxNodeType::BinaryExpression] = [&code](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
         code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::d }));
         code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::c }));
@@ -62,7 +91,7 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         return tree;
     };
 
-    output_jv80_map[SyntaxNodeType::Literal] = [&code](std::shared_ptr<SyntaxNode> const& tree, OutputJV80Context& ctx) -> ErrorOrNode {
+    output_jv80_map[SyntaxNodeType::Literal] = [&code](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
         auto literal = std::dynamic_pointer_cast<Literal>(tree);
         auto val_maybe = TRY(literal->to_object());
         assert(val_maybe.has_value());
@@ -70,10 +99,8 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         switch (val.type()) {
         case ObelixType::TypeInt: {
             uint16_t v = static_cast<uint16_t>(val->to_long().value());
-            code->add(std::make_shared<Instruction>(Mnemonic::MOV,
-                Argument { .addressing_mode = AMRegister, .reg = Register::si },
+            code->add(std::make_shared<Instruction>(Mnemonic::PUSHW,
                 Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Constant, .constant = v }));
-            code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::si }));
             break;
         }
         default:
@@ -82,45 +109,44 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         return tree;
     };
 
-    output_jv80_map[SyntaxNodeType::Identifier] = [&code](std::shared_ptr<SyntaxNode> const& tree, OutputJV80Context& ctx) -> ErrorOrNode {
+    output_jv80_map[SyntaxNodeType::Identifier] = [&code](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
         auto identifier = std::dynamic_pointer_cast<Identifier>(tree);
+        auto idx_maybe = ctx.get(identifier->name());
+        assert(idx_maybe.has_value());
+        auto idx = idx_maybe.value();
         code->add(std::make_shared<Instruction>(
             Mnemonic::MOV,
             Argument { .addressing_mode = AMRegister, .reg = Register::si },
-            Argument { .addressing_mode = Assembler::AMImmediateIndirect, .immediate_type = Argument::ImmediateType::Label, .label = format("var_{}", identifier->name()) }));
+            Argument {
+                .addressing_mode = Assembler::AMIndexed,
+                .constant = (uint16_t)idx->to_long().value(),
+                .reg = Register::bp,
+            }));
         code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::si }));
         return tree;
     };
 
-    output_jv80_map[SyntaxNodeType::VariableDeclaration] = [&image, &code, &data, &count](std::shared_ptr<SyntaxNode> const& tree, OutputJV80Context& ctx) -> ErrorOrNode {
+    output_jv80_map[SyntaxNodeType::VariableDeclaration] = [&code](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
-        auto label = format("var_{}_{}", count++, var_decl->variable().identifier());
-        image.add(*data,
-            std::make_shared<Assembler::Label>(label, data->current_address()));
-        auto bytes = std::make_shared<Bytes>(Mnemonic::DW);
-        bytes->append((uint8_t)0);
-        data->add(bytes);
-
-        if (var_decl->expression() != nullptr) {
-            code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::si }));
-            code->add(std::make_shared<Instruction>(
-                Mnemonic::MOV,
-                Argument { .addressing_mode = Assembler::AMImmediateIndirect, .immediate_type = Argument::ImmediateType::Label, .label = format("var_{}", var_decl->variable().identifier()) },
-                Argument { .addressing_mode = AMRegister, .reg = Register::si }));
+        auto offset = (signed char)ctx.get("#offset").value()->to_long().value();
+        ctx.set("#offset", make_obj<Integer>(offset + 2));
+        ctx.declare(var_decl->variable().identifier(), make_obj<Integer>(offset));
+        if (var_decl->expression() == nullptr) {
+            code->add(std::make_shared<Instruction>(Mnemonic::PUSHW, Argument { .addressing_mode = AMImmediate, .constant = 0 }));
         }
         return tree;
     };
 
-    output_jv80_map[SyntaxNodeType::Return] = [&code](std::shared_ptr<SyntaxNode> const& tree, OutputJV80Context& ctx) -> ErrorOrNode {
-        auto return_stmt = std::dynamic_pointer_cast<Return>(tree);
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::di }));
-        code->add(std::make_shared<Instruction>(Mnemonic::HLT));
+    output_jv80_map[SyntaxNodeType::Return] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
         return tree;
     };
 
     OutputJV80Context root(output_jv80_map);
 
     auto ret = process_tree(tree, root);
+
+    code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::di }));
+    code->add(std::make_shared<Instruction>(Mnemonic::HLT));
 
     if (ret.has_value() && !file_name.empty()) {
         if (image.assemble().empty()) {
@@ -129,6 +155,7 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
             }
             return Error { ErrorCode::SyntaxError, "Assembler error(s)" };
         }
+        image.list(true);
         TRY(image.write(file_name));
     }
     return ret;

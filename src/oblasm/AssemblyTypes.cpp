@@ -21,6 +21,8 @@ RegisterDefinition registers[] = {
     { Register::di, "di", 16, 51 },
     { Register::sp, "sp", 16, 52 },
     { Register::bp, "bp", 16, 53 },
+    { Register::pc, "pc", 16, 0 },
+    { Register::flags, "flags", 8, 0 },
     { (Register)-1, nullptr, 0, 0 }
 };
 
@@ -347,14 +349,23 @@ std::optional<OpcodeDefinition> get_opcode_definition(Mnemonic m, Argument const
 
 std::optional<uint16_t> Argument::constant_value(Image const& image) const
 {
-    switch (immediate_type) {
-    case ImmediateType::None:
-        return {};
-    case ImmediateType::Constant:
+    if (addressing_mode == AMIndexed) {
         return constant;
-    case ImmediateType::Label:
-        return image.label_value(label);
     }
+    if (addressing_mode == AMNone) {
+        return {};
+    }
+    if (addressing_mode & AMImmediate) {
+        switch (immediate_type) {
+        case ImmediateType::Label:
+            return image.label_value(label);
+        case ImmediateType::Constant:
+            return constant;
+        default:
+            return {};
+        }
+    }
+    return {};
 }
 
 }
