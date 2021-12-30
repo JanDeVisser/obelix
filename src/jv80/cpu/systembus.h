@@ -36,6 +36,7 @@ public:
         IOIn = 0x01,
         INC = 0x01,
         DEC = 0x02,
+        IDX = 0x04,
         Flags = 0x04,
         MSB = 0x08,
         Halt = 0x08,

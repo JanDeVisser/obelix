@@ -145,29 +145,9 @@ void MicroCodeRunner::fetchIndirectWord()
 
 void MicroCodeRunner::fetchIndexed()
 {
-    // Grab index and copy to LHS:
     m_steps.push_back({ MicroCode::XADDR, PC, MEMADDR, SystemBus::INC });
-    m_steps.push_back({ MicroCode::XDATA, MEM, LHS, SystemBus::None });
-
-    // Copy the LSB of the subject register to RHS and add:
-    m_steps.push_back({ MicroCode::XDATA, m_mc->subject, RHS, ALU::ADD });
-
-    // Copy new LSB to LSB of MEMADDR:
-    m_steps.push_back({ MicroCode::XDATA, LHS, MEMADDR, SystemBus::None });
-
-    // Copy 0 to LHS:
-    m_steps.push_back({ MicroCode::XDATA, RHS, RHS, ALU::CLR });
-
-    // Copy MSB of subject register to scratch area:
-    // FIXME: If we could use SystemBus::MSB and ALU::ADC together this could be done in one step
-    m_steps.push_back({ MicroCode::XDATA, m_mc->subject, CONTROLLER, SystemBus::MSB });
-
-    // Copy scratch area to RHS and Add with Carry. LHS will be zero, and Carry will still be set from
-    // the LSB add:
-    m_steps.push_back({ MicroCode::XDATA, CONTROLLER, RHS, ALU::ADC });
-
-    // Copy LHS to MSB of MEMADDR:
-    m_steps.push_back({ MicroCode::XDATA, LHS, MEMADDR, SystemBus::MSB });
+    m_steps.push_back({ MicroCode::XDATA, MEM, m_mc->subject, SystemBus::IDX });
+    m_steps.push_back({ MicroCode::XADDR, m_mc->subject, MEMADDR, SystemBus::None });
 }
 
 bool MicroCodeRunner::grabConstant(int step)

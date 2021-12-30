@@ -28,7 +28,7 @@ public:
         pc->setValue(RAM_VECTOR);
         ASSERT_EQ(pc->getValue(), RAM_VECTOR);
 
-        check_cycles(20);
+        check_cycles(15);
         ASSERT_EQ(reg->getValue(), 0xFE);
     }
 
@@ -49,7 +49,7 @@ public:
         pc->setValue(RAM_VECTOR);
         ASSERT_EQ(pc->getValue(), RAM_VECTOR);
 
-        check_cycles(24);
+        check_cycles(19);
         auto peek = mem->peek(0x2010);
         ASSERT_FALSE(peek.is_error());
         ASSERT_EQ(peek.value(), 0x42);
@@ -111,7 +111,28 @@ TEST_F(TESTNAME, MOV_SI_BP_IDX)
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    check_cycles(24);
+    check_cycles(19);
+    ASSERT_EQ(si->getValue(), 0xCAFE);
+}
+
+byte mov_si_bp_idx_negative_index[] = {
+    /* 8000 */ MOV_SP_IMM, 0x04, 0x20,  // 6
+    /* 0003 */ MOV_BP_SP,               // 3
+    /* 0004 */ MOV_SI_BP_IDX, (byte)-2, //
+    /* 8006 */ HLT                      // 3
+};
+
+TEST_F(TESTNAME, MOV_SI_BP_IDX_negative_index)
+{
+    mem->initialize(ROM_START, 7, mov_si_bp_idx_negative_index);
+    check_memory(START_VECTOR, MOV_SP_IMM);
+    ASSERT_FALSE(mem->poke(0x2002, 0xFE).is_error());
+    ASSERT_FALSE(mem->poke(0x2003, 0xCA).is_error());
+
+    pc->setValue(START_VECTOR);
+    ASSERT_EQ(pc->getValue(), START_VECTOR);
+
+    check_cycles(19);
     ASSERT_EQ(si->getValue(), 0xCAFE);
 }
 
@@ -132,7 +153,7 @@ TEST_F(TESTNAME, MOV_DI_BP_IDX)
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    check_cycles(24);
+    check_cycles(19);
     ASSERT_EQ(di->getValue(), 0xCAFE);
 }
 
@@ -152,7 +173,7 @@ TEST_F(TESTNAME, MOV_DI_SI_IDX)
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    check_cycles(21);
+    check_cycles(16);
     ASSERT_EQ(di->getValue(), 0xCAFE);
 }
 
@@ -192,7 +213,7 @@ TEST_F(TESTNAME, MOV_BP_IDX_SI)
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    check_cycles(30);
+    check_cycles(25);
     ASSERT_EQ(mem->peek(0x2002).value(), 0xFE);
     ASSERT_EQ(mem->peek(0x2003).value(), 0xCA);
 }
@@ -213,7 +234,7 @@ TEST_F(TESTNAME, MOV_BP_IDX_DI)
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    check_cycles(30);
+    check_cycles(25);
     ASSERT_EQ(mem->peek(0x2002).value(), 0xFE);
     ASSERT_EQ(mem->peek(0x2003).value(), 0xCA);
 }
@@ -233,7 +254,7 @@ TEST_F(TESTNAME, MOV_SI_IDX_DI)
     pc->setValue(START_VECTOR);
     ASSERT_EQ(pc->getValue(), START_VECTOR);
 
-    check_cycles(27);
+    check_cycles(22);
     ASSERT_EQ(mem->peek(0x2002).value(), 0xFE);
     ASSERT_EQ(mem->peek(0x2003).value(), 0xCA);
 }

@@ -74,12 +74,15 @@ SystemError AddressRegister::onRisingClockEdge()
 SystemError AddressRegister::onHighClock()
 {
     if (m_xdata && !bus()->xdata() && (bus()->putAddress() == address())) {
-        if (!(bus()->opflags() & SystemBus::MSB)) {
-            m_value &= 0xFF00;
-            setValue(m_value | bus()->readDataBus());
-        } else {
+        if (bus()->opflags() & SystemBus::IDX) {
+            auto idx = (signed char)bus()->readDataBus();
+            m_value += idx;
+        } else if (bus()->opflags() & SystemBus::MSB) {
             m_value &= 0x00FF;
             setValue(m_value | ((word)bus()->readDataBus()) << 8);
+        } else {
+            m_value &= 0xFF00;
+            setValue(m_value | bus()->readDataBus());
         }
     } else if (!bus()->xaddr() && (bus()->putAddress() == address())) {
         setValue((word)((bus()->readAddrBus() << 8) | bus()->readDataBus()));
