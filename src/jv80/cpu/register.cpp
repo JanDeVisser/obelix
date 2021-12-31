@@ -18,18 +18,19 @@ Register::Register(int registerID, std::string&& name)
 
 void Register::setValue(byte val)
 {
-    value = val;
+    m_value = val;
     sendEvent(EV_VALUECHANGED);
 }
 
 std::string Register::to_string() const
 {
-    return format("{01x}. {}  {02x}", address(), name().c_str(), value);
+    return format("{01x}. {}  {02x}", address(), name().c_str(), m_value);
 }
 
 SystemError Register::reset()
 {
-    value = 0;
+    m_value = 0;
+    m_stash = 0;
     sendEvent(EV_VALUECHANGED);
     return {};
 }
@@ -37,7 +38,12 @@ SystemError Register::reset()
 SystemError Register::onRisingClockEdge()
 {
     if ((!bus()->xdata() || (!bus()->io() && (bus()->opflags() & SystemBus::IOOut))) && (bus()->getAddress() == address())) {
-        bus()->putOnDataBus(value);
+        bus()->putOnDataBus(m_value);
+        return {};
+    }
+    if (!bus()->xaddr() && (bus()->getAddress() == address())) {
+        bus()->putOnDataBus(m_stash & 0x00FF);
+        bus()->putOnAddrBus((m_stash & 0xFF00) >> 8);
     }
     return {};
 }
@@ -46,6 +52,11 @@ SystemError Register::onHighClock()
 {
     if ((!bus()->xdata() && (bus()->putAddress() == address())) || (!bus()->io() && (bus()->opflags() & SystemBus::IOIn) && (bus()->getAddress() == address()))) {
         setValue(bus()->readDataBus());
+        return {};
+    }
+    if (!bus()->xaddr() && (bus()->putAddress() == address())) {
+        m_stash = (word)((bus()->readAddrBus() << 8) | bus()->readDataBus());
+        return {};
     }
     return {};
 }

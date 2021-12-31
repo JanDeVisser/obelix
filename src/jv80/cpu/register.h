@@ -12,13 +12,14 @@ namespace Obelix::JV80::CPU {
 
 class Register : public ConnectedComponent {
 private:
-    byte value = 0;
+    byte m_value = 0;
+    word m_stash = 0;
 
 public:
     explicit Register(int, std::string&& = "");
 
     void setValue(byte val);
-    [[nodiscard]] int getValue() const override { return value; }
+    [[nodiscard]] int getValue() const override { return m_value; }
 
     [[nodiscard]] std::string to_string() const override;
     SystemError reset() override;
