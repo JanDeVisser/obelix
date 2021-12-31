@@ -10,7 +10,6 @@
 
 #include <core/Format.h>
 #include <core/StringUtil.h>
-#include <jv80/cpu/alu.h>
 #include <jv80/cpu/addressregister.h>
 #include <jv80/cpu/controller.h>
 #include <jv80/cpu/opcodes.h>
@@ -188,6 +187,7 @@ SystemError MicroCodeRunner::executeNextStep(int step)
     MicroCode::MicroCodeStep s = m_steps[step];
     byte src = (s.src != DEREFCONTROLLER) ? s.src : m_controller.scratch();
     byte target = (s.target != DEREFCONTROLLER) ? s.target : m_controller.scratch();
+    //    printf("%s\n", s.to_string().c_str());
     switch (s.action) {
     case MicroCode::XDATA:
         m_bus.xdata(src, target, s.opflags & SystemBus::Mask);

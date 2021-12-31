@@ -8,24 +8,24 @@
 
 namespace Obelix::JV80::CPU {
 
-constexpr static int GP_A = 0;
-constexpr static int GP_B = 1;
-constexpr static int GP_C = 2;
-constexpr static int GP_D = 3;
-constexpr static int LHS = 4;
-constexpr static int RHS = 5;
-constexpr static int IR = 6;
-constexpr static int MEM = 7;
+constexpr static int GP_A = 0x00;
+constexpr static int GP_B = 0x01;
+constexpr static int GP_C = 0x02;
+constexpr static int GP_D = 0x03;
+constexpr static int LHS = 0x04;
+constexpr static int RHS = 0x05;
+constexpr static int IR = 0x06;
+constexpr static int MEM = 0x07;
 
-constexpr static int PC = 8;
-constexpr static int SP = 9;
-constexpr static int BP = 10;
-constexpr static int SI = 11;
-constexpr static int DI = 12;
-constexpr static int TX = 13;
-constexpr static int CONTROLLER = 14;
-constexpr static int MEMADDR = 15;
+constexpr static int PC = 0x08;
+constexpr static int SP = 0x09;
+constexpr static int BP = 0x0A;
+constexpr static int SI = 0x0B;
+constexpr static int DI = 0x0C;
+constexpr static int TX = 0x0D;
+constexpr static int CONTROLLER = 0x0E;
+constexpr static int MEMADDR = 0x0F;
 
-constexpr static int DEREFCONTROLLER = 16;
+constexpr static int DEREFCONTROLLER = 0x10;
 
 }

@@ -46,6 +46,26 @@ struct MicroCode {
         byte src;
         byte target;
         byte opflags;
+
+        [[nodiscard]] std::string to_string() const
+        {
+            const char* act;
+            switch (action) {
+            case XDATA:
+                act = "XDATA";
+                break;
+            case XADDR:
+                act = "XADDR";
+                break;
+            case IO:
+                act = "IO";
+                break;
+            default:
+                act = "OTHER";
+                break;
+            }
+            return format("{} {02x}->{02x} [{02x}]", act, src, target, opflags);
+        }
     };
 
     byte opcode;
