@@ -5,6 +5,8 @@
  */
 
 #include <cstdio>
+
+#include <cpu/emulator.h>
 #include <lexer/Token.h>
 #include <obelix/OutputJV80.h>
 #include <obelix/Parser.h>
@@ -13,7 +15,6 @@
 
 #include <readline/readline.h>
 #include <readline/history.h>
-
 
 namespace Obelix {
 
@@ -104,7 +105,14 @@ private:
             if (config().show_tree)
                 printf("%s\n", transformed->to_string(0).c_str());
             if (!file_name.empty()) {
-                return output_jv80(transformed, file_name + ".bin");
+                auto image = file_name + ".bin";
+                if (auto err = output_jv80(transformed, image); err.is_error())
+                    return err;
+                Obelix::CPU::CPU cpu(image);
+                auto ret = cpu.run(true);
+                if (ret.is_error())
+                    return Error { ErrorCode::SyntaxError, format("Runtime error: {}", SystemErrorCode_name(ret.error())) };
+                return std::make_shared<Literal>(make_obj<Integer>(ret.value()));
             } else {
                 Context<Obj> root;
                 return execute(transformed, root);

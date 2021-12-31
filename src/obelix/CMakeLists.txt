@@ -32,6 +32,7 @@ add_executable(
 
 target_link_libraries(
         obelix
+        oblcpu
         oblasm
         oblparser
         ${LIBS}

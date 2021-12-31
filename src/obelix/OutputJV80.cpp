@@ -68,10 +68,8 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
 
     output_jv80_map[SyntaxNodeType::BinaryExpression] = [&code](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::d }));
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::c }));
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::b }));
-        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::a }));
+        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::cd }));
+        code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::ab }));
         switch (expr->op().code()) {
         case TokenCode::Plus:
             code->add(std::make_shared<Instruction>(Mnemonic::ADD,
@@ -86,8 +84,7 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         default:
             return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr->op().value()));
         }
-        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::a }));
-        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::b }));
+        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::ab }));
         return tree;
     };
 
@@ -115,14 +112,12 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         assert(idx_maybe.has_value());
         auto idx = idx_maybe.value();
         code->add(std::make_shared<Instruction>(
-            Mnemonic::MOV,
-            Argument { .addressing_mode = AMRegister, .reg = Register::si },
+            Mnemonic::PUSH,
             Argument {
                 .addressing_mode = Assembler::AMIndexed,
                 .constant = (uint16_t)idx->to_long().value(),
                 .reg = Register::bp,
             }));
-        code->add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::si }));
         return tree;
     };
 
