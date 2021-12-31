@@ -189,4 +189,84 @@ TEST_F(TESTNAME, PUSHW_IMM)
     ASSERT_EQ(si->getValue(), 0xCAFE);
 }
 
+TEST_F(TESTNAME, PUSH_AB)
+{
+    static constexpr byte code[] = {
+        MOV_SP_IMM, 0x00, 0x20,
+        MOV_A_IMM, 0xFE,
+        MOV_B_IMM, 0xCA,
+        PUSH_AB,
+        POP_SI,
+        HLT
+    };
+    mem->initialize(ROM_START, sizeof(code), code);
+    check_memory(START_VECTOR, code[0]);
+
+    pc->setValue(START_VECTOR);
+    ASSERT_EQ(pc->getValue(), START_VECTOR);
+
+    check_cycles(29);
+    ASSERT_EQ(si->getValue(), 0xCAFE);
+}
+
+TEST_F(TESTNAME, PUSH_CD)
+{
+    static constexpr byte code[] = {
+        MOV_SP_IMM, 0x00, 0x20,
+        MOV_C_IMM, 0xFE,
+        MOV_D_IMM, 0xCA,
+        PUSH_CD,
+        POP_SI,
+        HLT
+    };
+    mem->initialize(ROM_START, sizeof(code), code);
+    check_memory(START_VECTOR, code[0]);
+
+    pc->setValue(START_VECTOR);
+    ASSERT_EQ(pc->getValue(), START_VECTOR);
+
+    check_cycles(29);
+    ASSERT_EQ(si->getValue(), 0xCAFE);
+}
+
+TEST_F(TESTNAME, POP_AB)
+{
+    static constexpr byte code[] = {
+        MOV_SP_IMM, 0x00, 0x20,
+        MOV_SI_IMM, 0xFE, 0xCA,
+        PUSH_SI,
+        POP_AB,
+        HLT
+    };
+    mem->initialize(ROM_START, sizeof(code), code);
+    check_memory(START_VECTOR, code[0]);
+
+    pc->setValue(START_VECTOR);
+    ASSERT_EQ(pc->getValue(), START_VECTOR);
+
+    check_cycles(27);
+    ASSERT_EQ(gp_a->getValue(), 0xFE);
+    ASSERT_EQ(gp_b->getValue(), 0xCA);
+}
+
+TEST_F(TESTNAME, POP_CD)
+{
+    static constexpr byte code[] = {
+        MOV_SP_IMM, 0x00, 0x20,
+        MOV_SI_IMM, 0xFE, 0xCA,
+        PUSH_SI,
+        POP_CD,
+        HLT
+    };
+    mem->initialize(ROM_START, sizeof(code), code);
+    check_memory(START_VECTOR, code[0]);
+
+    pc->setValue(START_VECTOR);
+    ASSERT_EQ(pc->getValue(), START_VECTOR);
+
+    check_cycles(27);
+    ASSERT_EQ(gp_c->getValue(), 0xFE);
+    ASSERT_EQ(gp_d->getValue(), 0xCA);
+}
+
 }

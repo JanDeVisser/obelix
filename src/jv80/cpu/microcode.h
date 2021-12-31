@@ -810,17 +810,17 @@ constexpr static MicroCode mc[256] = {
     WORD_FROM_INDEXED(SI, BP),
     WORD_FROM_INDEXED(DI, BP),
     WORD_FROM_INDEXED(DI, SI),
-    BYTE_FROM_INDEXED(A, SI),
-    BYTE_FROM_INDEXED(B, SI),
-    BYTE_FROM_INDEXED(C, SI),
-    BYTE_FROM_INDEXED(D, SI),
+    BYTE_FROM_INDEXED(A, BP),
+    BYTE_FROM_INDEXED(B, BP),
+    BYTE_FROM_INDEXED(C, BP),
+    BYTE_FROM_INDEXED(D, BP),
     WORD_TO_INDEXED(BP, SI),
     WORD_TO_INDEXED(BP, DI),
     WORD_TO_INDEXED(SI, DI),
-    BYTE_TO_INDEXED(SI, A),
-    BYTE_TO_INDEXED(SI, B),
-    BYTE_TO_INDEXED(SI, C),
-    BYTE_TO_INDEXED(SI, D),
+    BYTE_TO_INDEXED(BP, A),
+    BYTE_TO_INDEXED(BP, B),
+    BYTE_TO_INDEXED(BP, C),
+    BYTE_TO_INDEXED(BP, D),
     PUSH_ADDR(BP),
     POP_ADDR(BP),
     {
@@ -841,8 +841,73 @@ constexpr static MicroCode mc[256] = {
             PUSH_ADDR_STEPS(TX, SystemBus::Done)
         }
     },
+    {
+        .opcode = PUSH_AB,
+        .instruction = "push ab",
+        .addressingMode = AddressingMode::Implied,
+        .steps = {
+            PUSH_REG_STEPS(GP_A, SystemBus::None),
+            PUSH_REG_STEPS(GP_B, SystemBus::Done)
+        }
+    },
+    {
+        .opcode = PUSH_CD,
+        .instruction = "push cd",
+        .addressingMode = AddressingMode::Implied,
+        .steps = {
+            PUSH_REG_STEPS(GP_C, SystemBus::None),
+            PUSH_REG_STEPS(GP_D, SystemBus::Done)
+        }
+    },
+{
+        .opcode = PUSH_BP_IDX,
+        .instruction = "push bp[$xx]",
+        .addressingMode = AddressingMode::IndexedWord,
+        .subject = BP,
+        .steps = {
+            { .action = MicroCode::XDATA, .src = MEM, .target = TX, .opflags = SystemBus::INC },
+            { .action = MicroCode::XDATA, .src = MEM, .target = TX, .opflags = SystemBus::MSB },
+            PUSH_ADDR_STEPS(TX, SystemBus::Done)
+        }
+    },
+    {
+        .opcode = POP_AB,
+        .instruction = "pop ab",
+        .addressingMode = AddressingMode::Implied,
+        .steps = {
+            POP_REG_STEPS(GP_B, SystemBus::None),
+            POP_REG_STEPS(GP_A, SystemBus::Done)
+        }
+    },
+    {
+        .opcode = POP_CD,
+        .instruction = "pop cd",
+        .addressingMode = AddressingMode::Implied,
+        .steps = {
+            POP_REG_STEPS(GP_D, SystemBus::None),
+            POP_REG_STEPS(GP_C, SystemBus::Done)
+        }
+    },
+    {
+        .opcode = POP_BP_IDX,
+        .instruction = "pop bp[$xx]",
+        .addressingMode = AddressingMode::IndexedWord,
+        .subject = BP,
+        .steps = {
+            { MicroCode::XADDR, MEMADDR, GP_A, SystemBus::None },
+            POP_ADDR_STEPS(TX, SystemBus::None),
+            { MicroCode::XADDR, GP_A, MEMADDR, SystemBus::None },
+            { .action = MicroCode::XDATA, .src = TX, .target = MEM, .opflags = SystemBus::INC },
+            { .action = MicroCode::XDATA, .src = TX, .target = MEM, .opflags = SystemBus::MSB | SystemBus::Done },
+        }
+    },
 
-    { /* 214 */ }, { /* 215 */ }, { /* 216 */ }, { /* 217 */ }, { /* 218 */ }, { /* 219 */ }, { /* 220 */ }, { /* 221 */ }, { /* 222 */ }, { /* 223 */ }, { /* 224 */ }, { /* 225 */ }, { /* 226 */ }, { /* 227 */ }, { /* 228 */ }, { /* 229 */ }, { /* 230 */ }, { /* 231 */ }, { /* 232 */ }, { /* 233 */ }, { /* 234 */ }, { /* 235 */ }, { /* 236 */ }, { /* 237 */ }, { /* 238 */ }, { /* 239 */ }, { /* 240 */ }, { /* 241 */ }, { /* 242 */ }, { /* 243 */ }, { /* 244 */ }, { /* 245 */ }, { /* 246 */ }, { /* 247 */ }, { /* 248 */ }, { /* 249 */ }, { /* 250 */ }, { /* 251 */ }, { /* 252 */ },
+//POP_AB = 0xD9,
+//POP_CD = 0xDA,
+//POP_BP_IDX = 0xDB,
+
+
+    { /* 220 */ }, { /* 221 */ }, { /* 222 */ }, { /* 223 */ }, { /* 224 */ }, { /* 225 */ }, { /* 226 */ }, { /* 227 */ }, { /* 228 */ }, { /* 229 */ }, { /* 230 */ }, { /* 231 */ }, { /* 232 */ }, { /* 233 */ }, { /* 234 */ }, { /* 235 */ }, { /* 236 */ }, { /* 237 */ }, { /* 238 */ }, { /* 239 */ }, { /* 240 */ }, { /* 241 */ }, { /* 242 */ }, { /* 243 */ }, { /* 244 */ }, { /* 245 */ }, { /* 246 */ }, { /* 247 */ }, { /* 248 */ }, { /* 249 */ }, { /* 250 */ }, { /* 251 */ }, { /* 252 */ },
 
     {
         .opcode = RTI,
