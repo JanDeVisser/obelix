@@ -263,6 +263,8 @@ enum OpCode {
     POP_AB = 0xD9,
     POP_CD = 0xDA,
     POP_BP_IDX = 0xDB,
+    JNC = 0xDC,
+    JNC_IND = 0xDD,
 
     RTI = 0xFD,
     NMIVEC = 0xFE,

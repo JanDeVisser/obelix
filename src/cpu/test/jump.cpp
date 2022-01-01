@@ -9,33 +9,24 @@
 
 namespace Obelix::CPU {
 
-const byte jmp_immediate[] = {
-    /* 2000 */ JMP,
-    0x06,
-    0x20,
-    /* 2003 */ MOV_A_IMM,
-    0x37,
-    /* 2005 */ HLT,
-    /* 2006 */ MOV_A_IMM,
-    0x42,
-    /* 2008 */ HLT,
-};
-
-const byte jmp_ind[] = {
-    /* 2000 */ JMP_IND, 0x09, 0x20,
-    /* 2003 */ MOV_A_IMM, 0x37,
-    /* 2005 */ HLT,
-    /* 2006 */ MOV_A_IMM, 0x42,
-    /* 2008 */ HLT,
-    /* 2009 */ 0x06, 0x20
-};
-
 class TESTNAME : public HarnessTest {
 protected:
     void test_jump_immediate(byte opcode, bool ok)
     {
+        constexpr static byte code[] = {
+            /* 2000 */ JMP,
+            0x06,
+            0x20,
+            /* 2003 */ MOV_A_IMM,
+            0x37,
+            /* 2005 */ HLT,
+            /* 2006 */ MOV_A_IMM,
+            0x42,
+            /* 2008 */ HLT,
+        };
+
         auto mem = system.component<Memory>();
-        mem->initialize(RAM_START, 9, jmp_immediate);
+        mem->initialize(RAM_START, sizeof(code), code);
         check_memory(RAM_START, JMP);
         ASSERT_FALSE(mem->poke(RAM_START, opcode).is_error());
 
@@ -43,20 +34,26 @@ protected:
         pc->setValue(RAM_START);
         ASSERT_EQ(pc->getValue(), RAM_START);
 
-        // jmp            7 cycles
-        // mov a, #xx     4 cycles
-        // hlt            3 cycles
-        // total         14
         auto cycles_or_err = system.run();
         ASSERT_FALSE(cycles_or_err.is_error());
         ASSERT_EQ(cycles_or_err.value(), (ok) ? 14 : 13);
         ASSERT_EQ(system.bus().halt(), false);
+        ASSERT_EQ(gp_a->getValue(), (ok) ? 0x42 : 0x37);
     }
 
     void test_jump_ind(byte opcode, bool ok)
     {
+        constexpr static byte code[] = {
+            /* 2000 */ JMP_IND, 0x09, 0x20,
+            /* 2003 */ MOV_A_IMM, 0x37,
+            /* 2005 */ HLT,
+            /* 2006 */ MOV_A_IMM, 0x42,
+            /* 2008 */ HLT,
+            /* 2009 */ 0x06, 0x20
+        };
+
         auto mem = system.component<Memory>();
-        mem->initialize(RAM_START, 11, jmp_ind);
+        mem->initialize(RAM_START, sizeof(code), code);
         check_memory(RAM_START, JMP_IND);
         ASSERT_FALSE(mem->poke(RAM_START, opcode).is_error());
 
@@ -72,6 +69,7 @@ protected:
         ASSERT_FALSE(cycles_or_err.is_error());
         ASSERT_EQ(cycles_or_err.value(), (ok) ? 16 : 13);
         ASSERT_EQ(system.bus().halt(), false);
+        ASSERT_EQ(gp_a->getValue(), (ok) ? 0x42 : 0x37);
     }
 };
 
@@ -220,6 +218,30 @@ TEST_F(TESTNAME, jzAbsZeroNotSet)
     system.bus().clearFlag(SystemBus::ProcessorFlags::Z);
     test_jump_ind(JZ_IND, false);
     ASSERT_EQ(gp_a->getValue(), 0x37);
+}
+
+TEST_F(TESTNAME, JNC_true)
+{
+    system.bus().clearFlag(SystemBus::ProcessorFlags::C);
+    test_jump_immediate(JNC, true);
+}
+
+TEST_F(TESTNAME, JNC_false)
+{
+    system.bus().setFlag(SystemBus::ProcessorFlags::C);
+    test_jump_immediate(JNC, false);
+}
+
+TEST_F(TESTNAME, JNC_IND_true)
+{
+    system.bus().clearFlag(SystemBus::ProcessorFlags::C);
+    test_jump_ind(JNC_IND, true);
+}
+
+TEST_F(TESTNAME, JNC_IND_false)
+{
+    system.bus().setFlag(SystemBus::ProcessorFlags::C);
+    test_jump_ind(JNC_IND, false);
 }
 
 const byte asm_call_ind[] = {

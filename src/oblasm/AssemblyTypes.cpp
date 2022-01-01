@@ -291,9 +291,9 @@ OpcodeDefinition opcode_definitions[256] = {
     /* pop ab          */ { Mnemonic::POP, AMRegister, Register::ab, AMNone, Register::None, 1 },
     /* pop cd          */ { Mnemonic::POP, AMRegister, Register::cd, AMNone, Register::None, 1 },
     /* pop bp[$xx]     */ { Mnemonic::POP, AMIndexed, Register::bp, AMNone, Register::None, 2 },
+    /* jnc #$xxxx      */ { Mnemonic::JNC, AMImmediate, Register::None, AMNone, Register::None, 3 },
+    /* jnc *$xxxx      */ { Mnemonic::JNC, AMImmediateIndirect, Register::None, AMNone, Register::None, 3 },
 
-    { /* 220 */ },
-    { /* 221 */ },
     { /* 222 */ },
     { /* 223 */ },
     { /* 224 */ },

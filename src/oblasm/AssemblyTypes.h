@@ -75,18 +75,19 @@ constexpr inline char const* InstructionTemplate_name(InstructionTemplate instr_
     S(XOR, TwoArg, 27)    \
     S(CALL, Jump, 28)     \
     S(JC, Jump, 29)       \
-    S(JV, Jump, 30)       \
-    S(JNZ, Jump, 32)      \
-    S(JMP, Jump, 33)      \
-    S(JZ, Jump, 34)       \
-    S(NMI, Jump, 35)      \
-    S(DB, Bytes, 36)      \
-    S(DW, Bytes, 37)      \
-    S(DDW, Bytes, 38)     \
-    S(DLW, Bytes, 39)     \
-    S(BUFFER, Buffer, 40) \
-    S(ASCIZ, String, 41)  \
-    S(STR, String, 42)
+    S(JNC, Jump, 30)      \
+    S(JV, Jump, 31)       \
+    S(JNZ, Jump, 33)      \
+    S(JMP, Jump, 34)      \
+    S(JZ, Jump, 35)       \
+    S(NMI, Jump, 36)      \
+    S(DB, Bytes, 37)      \
+    S(DW, Bytes, 38)      \
+    S(DDW, Bytes, 39)     \
+    S(DLW, Bytes, 40)     \
+    S(BUFFER, Buffer, 41) \
+    S(ASCIZ, String, 42)  \
+    S(STR, String, 43)
 
 enum class Mnemonic {
     None = -1,
@@ -182,18 +183,19 @@ constexpr static TokenCode KeywordSWP = TokenCode::Keyword26;
 constexpr static TokenCode KeywordXOR = TokenCode::Keyword27;
 constexpr static TokenCode KeywordCALL = TokenCode::Keyword28;
 constexpr static TokenCode KeywordJC = TokenCode::Keyword29;
-constexpr static TokenCode KeywordJV = TokenCode::Keyword30;
-constexpr static TokenCode KeywordJNZ = TokenCode::Keyword32;
-constexpr static TokenCode KeywordJMP = TokenCode::Keyword33;
-constexpr static TokenCode KeywordJZ = TokenCode::Keyword34;
-constexpr static TokenCode KeywordNMI = TokenCode::Keyword35;
-constexpr static TokenCode KeywordDB = TokenCode::Keyword36;
-constexpr static TokenCode KeywordDW = TokenCode::Keyword37;
-constexpr static TokenCode KeywordDDW = TokenCode::Keyword38;
-constexpr static TokenCode KeywordDLW = TokenCode::Keyword39;
-constexpr static TokenCode KeywordBUFFER = TokenCode::Keyword40;
-constexpr static TokenCode KeywordASCIZ = TokenCode::Keyword41;
-constexpr static TokenCode KeywordSTR = TokenCode::Keyword42;
+constexpr static TokenCode KeywordJNC = TokenCode::Keyword30;
+constexpr static TokenCode KeywordJV = TokenCode::Keyword31;
+constexpr static TokenCode KeywordJNZ = TokenCode::Keyword33;
+constexpr static TokenCode KeywordJMP = TokenCode::Keyword34;
+constexpr static TokenCode KeywordJZ = TokenCode::Keyword35;
+constexpr static TokenCode KeywordNMI = TokenCode::Keyword36;
+constexpr static TokenCode KeywordDB = TokenCode::Keyword37;
+constexpr static TokenCode KeywordDW = TokenCode::Keyword38;
+constexpr static TokenCode KeywordDDW = TokenCode::Keyword39;
+constexpr static TokenCode KeywordDLW = TokenCode::Keyword40;
+constexpr static TokenCode KeywordBUFFER = TokenCode::Keyword41;
+constexpr static TokenCode KeywordASCIZ = TokenCode::Keyword42;
+constexpr static TokenCode KeywordSTR = TokenCode::Keyword43;
 
 // Directives:
 constexpr static TokenCode KeywordSegment = TokenCode::Keyword40;
