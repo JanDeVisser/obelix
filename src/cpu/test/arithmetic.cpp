@@ -237,627 +237,223 @@ struct BinaryOpConstTest : public OpTest {
     }
 };
 
-TEST_F(TESTNAME, addAB)
-{
-    BinaryOpTest t(GP_A, GP_B, ADD_A_B, ALU::Operations::ADD);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, addABSetCarry)
-{
-    BinaryOpTest t(GP_A, GP_B, ADD_A_B, ALU::Operations::ADD);
-    t.values(0xC0, 0xC0);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, addABSetOverflow)
-{
-    BinaryOpTest t(GP_A, GP_B, ADD_A_B, ALU::Operations::ADD);
-    t.values(100, 50);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
-}
-
-TEST_F(TESTNAME, addABSetZero)
-{
-    BinaryOpTest t(GP_A, GP_B, ADD_A_B, ALU::Operations::ADD);
-    t.values(-20, 20);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, adcABCarrySet)
-{
-    BinaryOpTest t(GP_A, GP_B, ADC_A_B, ALU::Operations::ADC);
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, adcABCarryNotSet)
-{
-    BinaryOpTest t(GP_A, GP_B, ADC_A_B, ALU::Operations::ADC);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, subAB)
-{
-    BinaryOpTest t(GP_A, GP_B, SUB_A_B, ALU::Operations::SUB);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbABNoCarry)
-{
-    BinaryOpTest t(GP_A, GP_B, SBB_A_B, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbABWithCarry)
-{
-    BinaryOpTest t(GP_A, GP_B, SBB_A_B, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, andAB)
-{
-    BinaryOpTest t(GP_A, GP_B, AND_A_B, ALU::Operations::AND);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, orAB)
-{
-    BinaryOpTest t(GP_A, GP_B, OR_A_B, ALU::Operations::OR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, xorAB)
-{
-    BinaryOpTest t(GP_A, GP_B, XOR_A_B, ALU::Operations::XOR);
-    t.execute(system);
-}
-
-// Register A Unary Operations
-
-TEST_F(TESTNAME, notA)
-{
-    UnaryOpTest t(GP_A, NOT_A, ALU::Operations::NOT);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, shlA)
-{
-    UnaryOpTest t(GP_A, SHL_A, ALU::Operations::SHL);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, shrA)
-{
-    UnaryOpTest t(GP_A, SHR_A, ALU::Operations::SHR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, clrA)
-{
-    UnaryOpTest t(GP_A, CLR_A, ALU::CLR);
-    t.execute(system, 12);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-// Arithmetic A, C.
-
-TEST_F(TESTNAME, addAC)
-{
-    BinaryOpTest t(GP_A, GP_C, ADD_A_C, ALU::Operations::ADD);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, addACSetCarry)
-{
-    BinaryOpTest t(GP_A, GP_C, ADD_A_C, ALU::Operations::ADD);
-    t.values(0xC0, 0xC0);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, addACSetOverflow)
-{
-    BinaryOpTest t(GP_A, GP_C, ADD_A_C, ALU::Operations::ADD);
-    t.values(100, 50);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
-}
-
-TEST_F(TESTNAME, addACSetZero)
-{
-    BinaryOpTest t(GP_A, GP_C, ADD_A_C, ALU::Operations::ADD);
-    t.values(-20, 20);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, adcACCarrySet)
-{
-    BinaryOpTest t(GP_A, GP_C, ADC_A_C, ALU::Operations::ADC);
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, adcACCarryNotSet)
-{
-    BinaryOpTest t(GP_A, GP_C, ADC_A_C, ALU::Operations::ADC);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, subAC)
-{
-    BinaryOpTest t(GP_A, GP_C, SUB_A_C, ALU::Operations::SUB);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbACNoCarry)
-{
-    BinaryOpTest t(GP_A, GP_C, SBB_A_C, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbACWithCarry)
-{
-    BinaryOpTest t(GP_A, GP_C, SBB_A_C, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, andAC)
-{
-    BinaryOpTest t(GP_A, GP_C, AND_A_C, ALU::Operations::AND);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, orAC)
-{
-    BinaryOpTest t(GP_A, GP_C, OR_A_C, ALU::Operations::OR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, xorAC)
-{
-    BinaryOpTest t(GP_A, GP_C, XOR_A_C, ALU::Operations::XOR);
-    t.execute(system);
-}
-
-// Arithmetic A, D.
-
-TEST_F(TESTNAME, addAD)
-{
-    BinaryOpTest t(GP_A, GP_D, ADD_A_D, ALU::Operations::ADD);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, addADSetCarry)
-{
-    BinaryOpTest t(GP_A, GP_D, ADD_A_D, ALU::Operations::ADD);
-    t.values(0xC0, 0xC0);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, addADSetOverflow)
-{
-    BinaryOpTest t(GP_A, GP_D, ADD_A_D, ALU::Operations::ADD);
-    t.values(100, 50);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
-}
-
-TEST_F(TESTNAME, addADSetZero)
-{
-    BinaryOpTest t(GP_A, GP_D, ADD_A_D, ALU::Operations::ADD);
-    t.values(-20, 20);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, adcADCarrySet)
-{
-    BinaryOpTest t(GP_A, GP_D, ADC_A_D, ALU::Operations::ADC);
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, adcADCarryNotSet)
-{
-    BinaryOpTest t(GP_A, GP_D, ADC_A_D, ALU::Operations::ADC);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, subAD)
-{
-    BinaryOpTest t(GP_A, GP_D, SUB_A_D, ALU::Operations::SUB);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbADNoCarry)
-{
-    BinaryOpTest t(GP_A, GP_D, SBB_A_D, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbADWithCarry)
-{
-    BinaryOpTest t(GP_A, GP_D, SBB_A_D, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, andAD)
-{
-    BinaryOpTest t(GP_A, GP_D, AND_A_D, ALU::Operations::AND);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, orAD)
-{
-    BinaryOpTest t(GP_A, GP_D, OR_A_D, ALU::Operations::OR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, xorAD)
-{
-    BinaryOpTest t(GP_A, GP_D, XOR_A_D, ALU::Operations::XOR);
-    t.execute(system);
-}
-
-// Register B Unary Operations
-
-TEST_F(TESTNAME, notB)
-{
-    UnaryOpTest t(GP_B, NOT_B, ALU::Operations::NOT);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, shlB)
-{
-    UnaryOpTest t(GP_B, SHL_B, ALU::Operations::SHL);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, shrB)
-{
-    UnaryOpTest t(GP_B, SHR_B, ALU::Operations::SHR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, clrB)
-{
-    UnaryOpTest t(GP_B, CLR_B, ALU::CLR);
-    t.execute(system, 12);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-// Arithmetic B, C.
-
-TEST_F(TESTNAME, addBC)
-{
-    BinaryOpTest t(GP_B, GP_C, ADD_B_C, ALU::Operations::ADD);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, addBCSetCarry)
-{
-    BinaryOpTest t(GP_B, GP_C, ADD_B_C, ALU::Operations::ADD);
-    t.values(0xC0, 0xC0);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, addBCSetOverflow)
-{
-    BinaryOpTest t(GP_B, GP_C, ADD_B_C, ALU::Operations::ADD);
-    t.values(100, 50);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
-}
-
-TEST_F(TESTNAME, addBCSetZero)
-{
-    BinaryOpTest t(GP_B, GP_C, ADD_B_C, ALU::Operations::ADD);
-    t.values(-20, 20);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, adcBCCarrySet)
-{
-    BinaryOpTest t(GP_B, GP_C, ADC_B_C, ALU::Operations::ADC);
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, adcBCCarryNotSet)
-{
-    BinaryOpTest t(GP_B, GP_C, ADC_B_C, ALU::Operations::ADC);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, subBC)
-{
-    BinaryOpTest t(GP_B, GP_C, SUB_B_C, ALU::Operations::SUB);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbBCNoCarry)
-{
-    BinaryOpTest t(GP_B, GP_C, SBB_B_C, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbBCWithCarry)
-{
-    BinaryOpTest t(GP_B, GP_C, SBB_B_C, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, andBC)
-{
-    BinaryOpTest t(GP_B, GP_C, AND_B_C, ALU::Operations::AND);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, orBC)
-{
-    BinaryOpTest t(GP_B, GP_C, OR_B_C, ALU::Operations::OR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, xorBC)
-{
-    BinaryOpTest t(GP_B, GP_C, XOR_B_C, ALU::Operations::XOR);
-    t.execute(system);
-}
-
-// Arithmetic B, D.
-
-TEST_F(TESTNAME, addBD)
-{
-    BinaryOpTest t(GP_B, GP_D, ADD_B_D, ALU::Operations::ADD);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, addBDSetCarry)
-{
-    BinaryOpTest t(GP_B, GP_D, ADD_B_D, ALU::Operations::ADD);
-    t.values(0xC0, 0xC0);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, addBDSetOverflow)
-{
-    BinaryOpTest t(GP_B, GP_D, ADD_B_D, ALU::Operations::ADD);
-    t.values(100, 50);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
-}
-
-TEST_F(TESTNAME, addBDSetZero)
-{
-    BinaryOpTest t(GP_B, GP_D, ADD_B_D, ALU::Operations::ADD);
-    t.values(-20, 20);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, adcBDCarrySet)
-{
-    BinaryOpTest t(GP_B, GP_D, ADC_B_D, ALU::Operations::ADC);
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, adcBDCarryNotSet)
-{
-    BinaryOpTest t(GP_B, GP_D, ADC_B_D, ALU::Operations::ADC);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, subBD)
-{
-    BinaryOpTest t(GP_B, GP_D, SUB_B_D, ALU::Operations::SUB);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbBDNoCarry)
-{
-    BinaryOpTest t(GP_B, GP_D, SBB_B_D, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbBDWithCarry)
-{
-    BinaryOpTest t(GP_B, GP_D, SBB_B_D, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, andBD)
-{
-    BinaryOpTest t(GP_B, GP_D, AND_B_D, ALU::Operations::AND);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, orBD)
-{
-    BinaryOpTest t(GP_B, GP_D, OR_B_D, ALU::Operations::OR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, xorBD)
-{
-    BinaryOpTest t(GP_B, GP_D, XOR_B_D, ALU::Operations::XOR);
-    t.execute(system);
-}
-
-// Register C Unary Operations
-
-TEST_F(TESTNAME, notC)
-{
-    UnaryOpTest t(GP_C, NOT_C, ALU::Operations::NOT);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, shlC)
-{
-    UnaryOpTest t(GP_C, SHL_C, ALU::Operations::SHL);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, shrC)
-{
-    UnaryOpTest t(GP_C, SHR_C, ALU::Operations::SHR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, clrC)
-{
-    UnaryOpTest t(GP_C, CLR_C, ALU::CLR);
-    t.execute(system, 12);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-// Arithmetic C, D.
-
-TEST_F(TESTNAME, addCD)
-{
-    BinaryOpTest t(GP_C, GP_D, ADD_C_D, ALU::Operations::ADD);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, addCDSetCarry)
-{
-    BinaryOpTest t(GP_C, GP_D, ADD_C_D, ALU::Operations::ADD);
-    t.values(0xC0, 0xC0);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, addCDSetOverflow)
-{
-    BinaryOpTest t(GP_C, GP_D, ADD_C_D, ALU::Operations::ADD);
-    t.values(100, 50);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::V));
-}
-
-TEST_F(TESTNAME, addCDSetZero)
-{
-    BinaryOpTest t(GP_C, GP_D, ADD_C_D, ALU::Operations::ADD);
-    t.values(-20, 20);
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-    ASSERT_TRUE(system.bus().isSet(SystemBus::C));
-}
-
-TEST_F(TESTNAME, adcCDCarrySet)
-{
-    BinaryOpTest t(GP_C, GP_D, ADC_C_D, ALU::Operations::ADC);
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, adcCDCarryNotSet)
-{
-    BinaryOpTest t(GP_C, GP_D, ADC_C_D, ALU::Operations::ADC);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, subCD)
-{
-    BinaryOpTest t(GP_C, GP_D, SUB_C_D, ALU::Operations::SUB);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbCDNoCarry)
-{
-    BinaryOpTest t(GP_C, GP_D, SBB_C_D, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, sbbCDWithCarry)
-{
-    BinaryOpTest t(GP_C, GP_D, SBB_C_D, ALU::Operations::SBB);
-    system.bus().clearFlags();
-    system.bus().setFlag(SystemBus::C);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, andCD)
-{
-    BinaryOpTest t(GP_C, GP_D, AND_C_D, ALU::Operations::AND);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, orCD)
-{
-    BinaryOpTest t(GP_C, GP_D, OR_C_D, ALU::Operations::OR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, xorCD)
-{
-    BinaryOpTest t(GP_C, GP_D, XOR_C_D, ALU::Operations::XOR);
-    t.execute(system);
-}
-
-// Register D Unary Operations
-
-TEST_F(TESTNAME, notD)
-{
-    UnaryOpTest t(GP_D, NOT_D, ALU::Operations::NOT);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, shlD)
-{
-    UnaryOpTest t(GP_D, SHL_D, ALU::Operations::SHL);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, shrD)
-{
-    UnaryOpTest t(GP_D, SHR_D, ALU::Operations::SHR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, clrD)
-{
-    UnaryOpTest t(GP_D, CLR_D, ALU::CLR);
-    t.execute(system, 12);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
+#define TEST_ADD(r1, r2)                                                         \
+    TEST_F(TESTNAME, ADD_##r1##_##r2)                                            \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, ADD_##r1##_##r2, ALU::Operations::ADD); \
+        t.execute(system);                                                       \
+    }                                                                            \
+    TEST_F(TESTNAME, ADD_##r1##_##r2##_set_carry)                                \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, ADD_##r1##_##r2, ALU::Operations::ADD); \
+        t.values(0xC0, 0xC0);                                                    \
+        t.execute(system);                                                       \
+        ASSERT_TRUE(system.bus().isSet(SystemBus::C));                           \
+    }                                                                            \
+    TEST_F(TESTNAME, ADD_##r1##_##r2##_set_overflow)                             \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, ADD_##r1##_##r2, ALU::Operations::ADD); \
+        t.values(100, 50);                                                       \
+        t.execute(system);                                                       \
+        ASSERT_TRUE(system.bus().isSet(SystemBus::V));                           \
+    }                                                                            \
+    TEST_F(TESTNAME, ADD_##r1##_##r2##_set_zero)                                 \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, ADD_##r1##_##r2, ALU::Operations::ADD); \
+        t.values(-20, 20);                                                       \
+        t.execute(system);                                                       \
+        ASSERT_TRUE(system.bus().isSet(SystemBus::Z));                           \
+        ASSERT_TRUE(system.bus().isSet(SystemBus::C));                           \
+    }
+
+#define TEST_ADC(r1, r2)                                                         \
+    TEST_F(TESTNAME, ADC_##r1##_##r2##_no_carry)                                 \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, ADC_##r1##_##r2, ALU::Operations::ADC); \
+        system.bus().clearFlags();                                               \
+        t.execute(system);                                                       \
+    }                                                                            \
+    TEST_F(TESTNAME, ADC_##r1##_##r2##_carry)                                    \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, ADC_##r1##_##r2, ALU::Operations::ADC); \
+        system.bus().setFlag(SystemBus::C);                                      \
+        t.execute(system);                                                       \
+    }
+
+#define TEST_SUB(r1, r2)                                                         \
+    TEST_F(TESTNAME, SUB_##r1##_##r2)                                            \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, SUB_##r1##_##r2, ALU::Operations::SUB); \
+        t.execute(system);                                                       \
+    }
+
+#define TEST_SBB(r1, r2)                                                         \
+    TEST_F(TESTNAME, SBB_##r1##_##r2##_no_carry)                                 \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, SBB_##r1##_##r2, ALU::Operations::SBB); \
+        system.bus().clearFlags();                                               \
+        t.execute(system);                                                       \
+    }                                                                            \
+    TEST_F(TESTNAME, SBB_##r1##_##r2##_carry)                                    \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, SBB_##r1##_##r2, ALU::Operations::SBB); \
+        system.bus().setFlag(SystemBus::C);                                      \
+        t.execute(system);                                                       \
+    }
+
+#define TEST_AND(r1, r2)                                                         \
+    TEST_F(TESTNAME, AND_##r1##_##r2)                                            \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, AND_##r1##_##r2, ALU::Operations::AND); \
+        t.execute(system);                                                       \
+    }
+
+#define TEST_OR(r1, r2)                                                        \
+    TEST_F(TESTNAME, OR_##r1##_##r2)                                           \
+    {                                                                          \
+        BinaryOpTest t(GP_##r1, GP_##r2, OR_##r1##_##r2, ALU::Operations::OR); \
+        t.execute(system);                                                     \
+    }
+
+#define TEST_XOR(r1, r2)                                                         \
+    TEST_F(TESTNAME, XOR_##r1##_##r2)                                            \
+    {                                                                            \
+        BinaryOpTest t(GP_##r1, GP_##r2, XOR_##r1##_##r2, ALU::Operations::XOR); \
+        t.execute(system);                                                       \
+    }
+
+#define TEST_REGISTER_PERMUTATION(r1, r2) \
+    TEST_ADD(r1, r2)                      \
+    TEST_ADC(r1, r2)                      \
+    TEST_SUB(r1, r2)                      \
+    TEST_SBB(r1, r2)                      \
+    TEST_AND(r1, r2)                      \
+    TEST_OR(r1, r2)                       \
+    TEST_XOR(r1, r2)
+
+TEST_REGISTER_PERMUTATION(A, B)
+TEST_REGISTER_PERMUTATION(A, C)
+TEST_REGISTER_PERMUTATION(A, D)
+TEST_REGISTER_PERMUTATION(B, C)
+TEST_REGISTER_PERMUTATION(B, D)
+TEST_REGISTER_PERMUTATION(C, A)
+TEST_REGISTER_PERMUTATION(C, B)
+TEST_REGISTER_PERMUTATION(C, D)
+TEST_REGISTER_PERMUTATION(D, A)
+TEST_REGISTER_PERMUTATION(D, B)
+
+#define TEST_UNARY(reg)                                           \
+    TEST_F(TESTNAME, NOT_##reg)                                   \
+    {                                                             \
+        UnaryOpTest t(GP_##reg, NOT_##reg, ALU::Operations::NOT); \
+        t.execute(system);                                        \
+    }                                                             \
+    TEST_F(TESTNAME, SHL_##reg)                                   \
+    {                                                             \
+        UnaryOpTest t(GP_##reg, SHL_##reg, ALU::Operations::SHL); \
+        t.execute(system);                                        \
+    }                                                             \
+    TEST_F(TESTNAME, SHR_##reg)                                   \
+    {                                                             \
+        UnaryOpTest t(GP_##reg, SHR_##reg, ALU::Operations::SHR); \
+        t.execute(system);                                        \
+    }                                                             \
+    TEST_F(TESTNAME, CLR_##reg)                                   \
+    {                                                             \
+        UnaryOpTest t(GP_##reg, CLR_##reg, ALU::Operations::CLR); \
+        t.execute(system, 12);                                    \
+        ASSERT_TRUE(system.bus().isSet(SystemBus::Z));            \
+    }                                                             \
+    TEST_F(TESTNAME, INC_##reg)                                   \
+    {                                                             \
+        UnaryOpTest t(GP_##reg, INC_##reg, ALU::Operations::INC); \
+        t.execute(system);                                        \
+    }                                                             \
+    TEST_F(TESTNAME, DEC_##reg)                                   \
+    {                                                             \
+        UnaryOpTest t(GP_##reg, DEC_##reg, ALU::Operations::DEC); \
+        t.execute(system);                                        \
+    }
+
+TEST_UNARY(A)
+TEST_UNARY(B)
+TEST_UNARY(C)
+TEST_UNARY(D)
+
+#define TEST_CMP(r1, r2)                                             \
+    TEST_F(TESTNAME, CMP_##r1##_##r2##_not_equal)                    \
+    {                                                                \
+        BinaryOpTest t(GP_##r1, GP_##r2, CMP_##r1##_##r2, ALU::CMP); \
+        t.cycles = 15;                                               \
+        t.execute(system);                                           \
+        ASSERT_FALSE(system.bus().isSet(SystemBus::Z));              \
+    }                                                                \
+    TEST_F(TESTNAME, CMP_##r1##_##r2##_equal)                        \
+    {                                                                \
+        BinaryOpTest t(GP_##r1, GP_##r2, CMP_##r1##_##r2, ALU::CMP); \
+        t.values(0x42, 0x42);                                        \
+        t.cycles = 15;                                               \
+        t.execute(system);                                           \
+        ASSERT_TRUE(system.bus().isSet(SystemBus::Z));               \
+    }
+
+TEST_CMP(A, B)
+TEST_CMP(A, C)
+TEST_CMP(A, D)
+TEST_CMP(B, C)
+TEST_CMP(B, D)
+TEST_CMP(C, D)
+
+#define TEST_CMP_IMM(reg)                                         \
+    TEST_F(TESTNAME, CMP_##reg##_IMM_not_equal)                   \
+    {                                                             \
+        BinaryOpConstTest t(GP_##reg, CMP_##reg##_IMM, ALU::CMP); \
+        t.cycles = 12;                                            \
+        t.execute(system);                                        \
+        ASSERT_FALSE(system.bus().isSet(SystemBus::Z));           \
+    }                                                             \
+    TEST_F(TESTNAME, CMP_##reg##_IMM_equal)                       \
+    {                                                             \
+        BinaryOpConstTest t(GP_##reg, CMP_##reg##_IMM, ALU::CMP); \
+        t.values(0x42, 0x42);                                     \
+        t.cycles = 12;                                            \
+        t.execute(system);                                        \
+        ASSERT_TRUE(system.bus().isSet(SystemBus::Z));            \
+    }
+
+#define TEST_AND_IMM(reg)                                         \
+    TEST_F(TESTNAME, AND_##reg##_IMM_not_equal)                   \
+    {                                                             \
+        BinaryOpConstTest t(GP_##reg, AND_##reg##_IMM, ALU::AND); \
+        t.execute(system);                                        \
+    }                                                             \
+    TEST_F(TESTNAME, AND_##reg##_IMM_equal)                       \
+    {                                                             \
+        BinaryOpConstTest t(GP_##reg, AND_##reg##_IMM, ALU::AND); \
+        t.execute(system);                                        \
+    }
+
+#define TEST_OR_IMM(reg)                                        \
+    TEST_F(TESTNAME, OR_##reg##_IMM_not_equal)                  \
+    {                                                           \
+        BinaryOpConstTest t(GP_##reg, OR_##reg##_IMM, ALU::OR); \
+        t.execute(system);                                      \
+    }                                                           \
+    TEST_F(TESTNAME, OR_##reg##_IMM_equal)                      \
+    {                                                           \
+        BinaryOpConstTest t(GP_##reg, OR_##reg##_IMM, ALU::OR); \
+        t.execute(system);                                      \
+    }
+
+#define TEST_IMMEDIATE_OPS(reg) \
+    TEST_CMP_IMM(reg)           \
+    TEST_AND_IMM(reg)           \
+    TEST_OR_IMM(reg)
+
+TEST_IMMEDIATE_OPS(A)
+TEST_IMMEDIATE_OPS(B)
+TEST_IMMEDIATE_OPS(C)
+TEST_IMMEDIATE_OPS(D)
 
 // mov a, #xx      4        x4  16
 // add ab,cd       8             8
@@ -938,143 +534,6 @@ TEST_F(TESTNAME, sbb_AB_CD_CarrySet)
     ASSERT_EQ(gp_b->getValue(), ((0xF81F - 0xA736 - 1) & 0xFF00) >> 8);
 }
 
-// CMP X,Y
-
-TEST_F(TESTNAME, cmpABNotEqual)
-{
-    BinaryOpTest t(GP_A, GP_B, CMP_A_B, ALU::CMP);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmpABEqual)
-{
-    BinaryOpTest t(GP_A, GP_B, CMP_A_B, ALU::CMP);
-    t.values(0x42, 0x42);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmpACNotEqual)
-{
-    BinaryOpTest t(GP_A, GP_C, CMP_A_C, ALU::CMP);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmpACEqual)
-{
-    BinaryOpTest t(GP_A, GP_C, CMP_A_C, ALU::CMP);
-    t.values(0x42, 0x42);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmpADNotEqual)
-{
-    BinaryOpTest t(GP_A, GP_D, CMP_A_D, ALU::CMP);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmpADEqual)
-{
-    BinaryOpTest t(GP_A, GP_D, CMP_A_D, ALU::CMP);
-    t.values(0x42, 0x42);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmpBCNotEqual)
-{
-    BinaryOpTest t(GP_B, GP_C, CMP_B_C, ALU::CMP);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmpBCEqual)
-{
-    BinaryOpTest t(GP_B, GP_C, CMP_B_C, ALU::CMP);
-    t.values(0x42, 0x42);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmpBDNotEqual)
-{
-    BinaryOpTest t(GP_B, GP_D, CMP_B_D, ALU::CMP);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmpBDEqual)
-{
-    BinaryOpTest t(GP_B, GP_D, CMP_B_D, ALU::CMP);
-    t.values(0x42, 0x42);
-    t.cycles = 15;
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-// -- INC / DEC ----------------------------------------------------------
-
-TEST_F(TESTNAME, incA)
-{
-    UnaryOpTest t(GP_A, INC_A, ALU::Operations::INC);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, incB)
-{
-    UnaryOpTest t(GP_B, INC_B, ALU::Operations::INC);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, incC)
-{
-    UnaryOpTest t(GP_C, INC_C, ALU::Operations::INC);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, incD)
-{
-    UnaryOpTest t(GP_D, INC_D, ALU::Operations::INC);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, decA)
-{
-    UnaryOpTest t(GP_A, DEC_A, ALU::Operations::DEC);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, decB)
-{
-    UnaryOpTest t(GP_B, DEC_B, ALU::Operations::DEC);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, decC)
-{
-    UnaryOpTest t(GP_C, DEC_C, ALU::Operations::DEC);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, decD)
-{
-    UnaryOpTest t(GP_D, DEC_D, ALU::Operations::DEC);
-    t.execute(system);
-}
-
 // -- I N C / D E C  SI / DI ---------------------------------------------
 
 // mov si, #xxxx   6  x2 = 12
@@ -1130,128 +589,6 @@ TEST_F(TESTNAME, decDi)
 {
     test_wide_unary_op(system, DEC_DI);
     ASSERT_EQ(di->getValue(), 0x0566);
-}
-
-// -- CMP X,#0x00
-
-TEST_F(TESTNAME, cmp_A_0x00_NotEqual)
-{
-    BinaryOpConstTest t(GP_A, CMP_A_IMM, ALU::CMP);
-    t.cycles = 12;
-    t.execute(system);
-    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmp_A_0x00_Equal)
-{
-    BinaryOpConstTest t(GP_A, CMP_A_IMM, ALU::CMP);
-    t.values(0x42, 0x42);
-    t.cycles = 12;
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmp_B_0x00_NotEqual)
-{
-    BinaryOpConstTest t(GP_B, CMP_B_IMM, ALU::CMP);
-    t.cycles = 12;
-    t.execute(system);
-    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmp_B_0x00_Equal)
-{
-    BinaryOpConstTest t(GP_B, CMP_B_IMM, ALU::CMP);
-    t.values(0x42, 0x42);
-    t.cycles = 12;
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmp_C_0x00_NotEqual)
-{
-    BinaryOpConstTest t(GP_C, CMP_C_IMM, ALU::CMP);
-    t.cycles = 12;
-    t.execute(system);
-    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmp_C_0x00_Equal)
-{
-    BinaryOpConstTest t(GP_C, CMP_C_IMM, ALU::CMP);
-    t.values(0x42, 0x42);
-    t.cycles = 12;
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmp_D_0x00_NotEqual)
-{
-    BinaryOpConstTest t(GP_D, CMP_D_IMM, ALU::CMP);
-    t.cycles = 12;
-    t.execute(system);
-    ASSERT_FALSE(system.bus().isSet(SystemBus::Z));
-}
-
-TEST_F(TESTNAME, cmp_D_0x00_Equal)
-{
-    BinaryOpConstTest t(GP_D, CMP_D_IMM, ALU::CMP);
-    t.values(0x42, 0x42);
-    t.cycles = 12;
-    t.execute(system);
-    ASSERT_TRUE(system.bus().isSet(SystemBus::Z));
-}
-
-// -- OR X,#0x00
-
-TEST_F(TESTNAME, or_A_0x00)
-{
-    BinaryOpConstTest t(GP_A, OR_A_IMM, ALU::Operations::OR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, or_B_0x00)
-{
-    BinaryOpConstTest t(GP_B, OR_B_IMM, ALU::Operations::OR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, or_C_0x00)
-{
-    BinaryOpConstTest t(GP_C, OR_C_IMM, ALU::Operations::OR);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, or_D_0x00)
-{
-    BinaryOpConstTest t(GP_D, OR_D_IMM, ALU::Operations::OR);
-    t.execute(system);
-}
-
-// -- AND X,#0x00
-
-TEST_F(TESTNAME, and_A_0x00)
-{
-    BinaryOpConstTest t(GP_A, AND_A_IMM, ALU::Operations::AND);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, and_B_0x00)
-{
-    BinaryOpConstTest t(GP_B, AND_B_IMM, ALU::Operations::AND);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, and_C_0x00)
-{
-    BinaryOpConstTest t(GP_C, AND_C_IMM, ALU::Operations::AND);
-    t.execute(system);
-}
-
-TEST_F(TESTNAME, and_D_0x00)
-{
-    BinaryOpConstTest t(GP_D, AND_D_IMM, ALU::Operations::AND);
-    t.execute(system);
 }
 
 }

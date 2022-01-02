@@ -272,6 +272,38 @@ enum OpCode {
     JNC = 0xDC,
     JNC_IND = 0xDD,
 
+    ADD_C_A = 0xDE,
+    ADC_C_A = 0xDF,
+    SUB_C_A = 0xE0,
+    SBB_C_A = 0xE1,
+    AND_C_A = 0xE2,
+    OR_C_A = 0xE3,
+    XOR_C_A = 0xE4,
+
+    ADD_C_B = 0xE5,
+    ADC_C_B = 0xE6,
+    SUB_C_B = 0xE7,
+    SBB_C_B = 0xE8,
+    AND_C_B = 0xE9,
+    OR_C_B = 0xEA,
+    XOR_C_B = 0xEB,
+
+    ADD_D_A = 0xEC,
+    ADC_D_A = 0xED,
+    SUB_D_A = 0xEE,
+    SBB_D_A = 0xEF,
+    AND_D_A = 0xF0,
+    OR_D_A = 0xF1,
+    XOR_D_A = 0xF2,
+
+    ADD_D_B = 0xF3,
+    ADC_D_B = 0xF4,
+    SUB_D_B = 0xF5,
+    SBB_D_B = 0xF6,
+    AND_D_B = 0xF7,
+    OR_D_B = 0xF8,
+    XOR_D_B = 0xF9,
+
     RTI = 0xFD,
     NMIVEC = 0xFE,
     HLT = 0xFF
