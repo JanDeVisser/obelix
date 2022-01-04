@@ -1,0 +1,4 @@
+var foo = 12;
+
+var bar = (42+foo)-1;
+return bar+2;
