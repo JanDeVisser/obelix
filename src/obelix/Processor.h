@@ -141,12 +141,14 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
 {
     auto xform_expressions = [](Expressions const& expressions, Context& ctx) -> ErrorOr<Expressions> {
         Expressions ret;
-        for (auto& expr : expressions) {
+        for (auto it = expressions.rbegin(); it != expressions.rend(); ++it) {
+            auto& expr = *it;
             auto new_expr = process_tree(expr, ctx);
             if (new_expr.is_error())
                 return new_expr.error();
             ret.push_back(std::dynamic_pointer_cast<Expression>(new_expr.value()));
         }
+        std::reverse(ret.begin(), ret.end());
         return ret;
     };
 
@@ -172,12 +174,22 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         break;
     }
 
+    case SyntaxNodeType::FunctionDecl: {
+        auto func_decl = std::dynamic_pointer_cast<FunctionDecl>(tree);
+        auto identifier = func_decl->identifier();
+        auto parameters = TRY_AND_CAST(FunctionParameters, process_tree(func_decl->parameters(), ctx));
+        if (parameters != func_decl->parameters())
+            ret = std::make_shared<FunctionDecl>(identifier, parameters);
+        break;
+    }
+
     case SyntaxNodeType::FunctionDef: {
         auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
         Context child_ctx(&ctx);
+        auto func_decl = TRY_AND_CAST(FunctionDecl, process_tree(func_def->declaration(), child_ctx));
         auto statement = TRY_AND_CAST(Statement, process_tree(func_def->statement(), child_ctx));
-        if (statement != func_def->statement())
-            ret = std::make_shared<FunctionDef>(func_def->identifier(), func_def->parameters(), statement);
+        if (func_decl != func_def->declaration() || statement != func_def->statement())
+            ret = std::make_shared<FunctionDef>(func_decl, statement);
         break;
     }
 
@@ -215,10 +227,22 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
         break;
     }
 
+    case SyntaxNodeType::FunctionName: {
+        break;
+    }
+
+    case SyntaxNodeType::FunctionArguments: {
+        auto function_arguments = std::dynamic_pointer_cast<FunctionArguments>(tree);
+        auto arguments = TRY(xform_expressions(function_arguments->arguments(), ctx));
+        if (arguments != function_arguments->arguments())
+            ret = std::make_shared<FunctionArguments>(arguments);
+        break;
+    }
+
     case SyntaxNodeType::FunctionCall: {
         auto func_call = std::dynamic_pointer_cast<FunctionCall>(tree);
-        auto func = TRY_AND_CAST(Expression, process_tree(func_call->function(), ctx));
-        auto arguments = TRY(xform_expressions(func_call->arguments(), ctx));
+        auto func = TRY_AND_CAST(FunctionName, process_tree(func_call->function(), ctx));
+        auto arguments = TRY_AND_CAST(FunctionArguments, process_tree(func_call->arguments(), ctx));
         if ((func != func_call->function()) || (arguments != func_call->arguments()))
             ret = std::make_shared<FunctionCall>(func, arguments);
         break;

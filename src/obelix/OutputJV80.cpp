@@ -58,11 +58,122 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         Argument { .addressing_mode = AMRegister, .reg = Register::bp },
         Argument { .addressing_mode = AMRegister, .reg = Register::sp }));
 
+    code->add(std::make_shared<Instruction>(Mnemonic::PUSH,
+        Argument { .addressing_mode = AMRegister, .reg = Register::bp }));
+    code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+        Argument { .addressing_mode = AMRegister, .reg = Register::bp },
+        Argument { .addressing_mode = AMRegister, .reg = Register::sp }));
+
+    code->add(std::make_shared<Instruction>(Mnemonic::PUSHW,
+        Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Constant, .constant = 0 }));
+
+    // Call main:
+    code->add(std::make_shared<Instruction>(Mnemonic::CALL,
+        Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Label, .label = "func_main" }));
+    // Pop return value:
+    code->add(std::make_shared<Instruction>(Mnemonic::POP,
+        Argument { .addressing_mode = AMRegister, .reg = Register::di }));
+    code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+        Argument { .addressing_mode = AMRegister, .reg = Register::sp },
+        Argument { .addressing_mode = AMRegister, .reg = Register::bp }));
+    code->add(std::make_shared<Instruction>(Mnemonic::POP,
+        Argument { .addressing_mode = AMRegister, .reg = Register::bp }));
+    code->add(std::make_shared<Instruction>(Mnemonic::HLT));
+
     output_jv80_map[SyntaxNodeType::Module] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
         return tree;
     };
 
     output_jv80_map[SyntaxNodeType::Block] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
+        return tree;
+    };
+
+    output_jv80_map[SyntaxNodeType::FunctionParameters] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
+        auto parameters = std::dynamic_pointer_cast<FunctionParameters>(tree);
+        auto ix = -8;
+        for (auto& parameter : parameters->parameters()) {
+            ctx.declare(parameter.identifier(), make_obj<Integer>(ix));
+            ix -= 2;
+        }
+        return tree;
+    };
+
+    output_jv80_map[SyntaxNodeType::FunctionDecl] = [&image, &code](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
+        auto func_decl = std::dynamic_pointer_cast<FunctionDecl>(tree);
+        image.add(std::make_shared<Obelix::Assembler::Label>(format("func_{}", func_decl->identifier().identifier()), image.current_address()));
+        code->add(std::make_shared<Instruction>(Mnemonic::PUSH,
+            Argument { .addressing_mode = AMRegister, .reg = Register::bp }));
+        code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+            Argument { .addressing_mode = AMRegister, .reg = Register::bp },
+            Argument { .addressing_mode = AMRegister, .reg = Register::sp }));
+        return tree;
+    };
+
+    output_jv80_map[SyntaxNodeType::FunctionDef] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
+        auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
+
+        return tree;
+    };
+
+    /*
+     *  +--------------------+
+     *  |       ....         |
+     *  +--------------------+
+     *  |    local var #1    |
+     *  +--------------------+   <---- Called function BP
+     *  |      Temp bp       |
+     *  +------------------- +
+     *  |     Return addr    |
+     *  +--------------------+   <- bp[-4]
+     *  |    return value    |
+     *  +--------------------+   <- bp[-6]
+     *  |     argument 1     |
+     *  +--------------------+
+     *  |       ....         |
+     *  +--------------------+
+     *  |    argument n-1    |
+     *  +------------------- +
+     *  |     argument n     |
+     *  +--------------------+   <---- Temp BP
+     *  | Caller function bp |
+     *  +--------------------+
+     */
+
+    output_jv80_map[SyntaxNodeType::FunctionName] = [&code](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
+        auto func_name = std::dynamic_pointer_cast<FunctionName>(tree);
+        code->add(std::make_shared<Instruction>(Mnemonic::PUSH,
+            Argument { .addressing_mode = AMRegister, .reg = Register::bp }));
+        code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+            Argument { .addressing_mode = AMRegister, .reg = Register::bp },
+            Argument { .addressing_mode = AMRegister, .reg = Register::sp }));
+        return tree;
+    };
+
+    output_jv80_map[SyntaxNodeType::FunctionCall] = [&code](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
+        auto call = std::dynamic_pointer_cast<FunctionCall>(tree);
+        // The arguments will be pushed in reverse order when the argument list was processed.
+        // Reserve spot for return code on stack (will be bp[-4])
+        code->add(std::make_shared<Instruction>(Mnemonic::PUSHW,
+            Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Constant, .constant = 0 }));
+
+        // Call function:
+        auto function = call->function()->identifier().identifier();
+        auto label = format("func_{}", function);
+        code->add(std::make_shared<Instruction>(Mnemonic::CALL,
+            Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Label, .label = label }));
+        // Pop return value:
+        code->add(std::make_shared<Instruction>(Mnemonic::POP,
+            Argument { .addressing_mode = AMRegister, .reg = Register::di }));
+
+        // Load sp with the popped value of bp. This will discard all function arguments
+        code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+            Argument { .addressing_mode = AMRegister, .reg = Register::sp },
+            Argument { .addressing_mode = AMRegister, .reg = Register::bp }));
+        code->add(std::make_shared<Instruction>(Mnemonic::POP,
+            Argument { .addressing_mode = AMRegister, .reg = Register::bp }));
+
+        code->add(std::make_shared<Instruction>(Mnemonic::PUSH,
+            Argument { .addressing_mode = AMRegister, .reg = Register::di }));
         return tree;
     };
 
@@ -132,16 +243,26 @@ ErrorOrNode output_jv80(std::shared_ptr<SyntaxNode> const& tree, std::string con
         return tree;
     };
 
-    output_jv80_map[SyntaxNodeType::Return] = [](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
+    output_jv80_map[SyntaxNodeType::Return] = [&code](std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx) -> ErrorOrNode {
+        code->add(std::make_shared<Instruction>(Mnemonic::POP,
+            Argument { .addressing_mode = AMRegister, .reg = Register::di }));
+        code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+            Argument { .addressing_mode = Assembler::AMIndexed, .constant = (uint16_t)-6, .reg = Register::bp },
+            Argument { .addressing_mode = Assembler::AMRegister, .reg = Register::di }));
+        // Load sp with the current value of bp. This will discard all local variables
+        code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+            Argument { .addressing_mode = AMRegister, .reg = Register::sp },
+            Argument { .addressing_mode = AMRegister, .reg = Register::bp }));
+        // Pop bp:
+        code->add(std::make_shared<Instruction>(Mnemonic::POP,
+            Argument { .addressing_mode = AMRegister, .reg = Register::bp }));
+        code->add(std::make_shared<Instruction>(Mnemonic::RET));
         return tree;
     };
 
     OutputJV80Context root(output_jv80_map);
 
     auto ret = process_tree(tree, root);
-
-    code->add(std::make_shared<Instruction>(Mnemonic::POP, Argument { .addressing_mode = AMRegister, .reg = Register::di }));
-    code->add(std::make_shared<Instruction>(Mnemonic::HLT));
 
     if (ret.has_value() && !file_name.empty()) {
         if (image.assemble().empty()) {

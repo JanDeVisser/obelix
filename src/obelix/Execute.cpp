@@ -239,7 +239,7 @@ ErrorOrNode process_FunctionCall(std::shared_ptr<SyntaxNode> const& tree, Contex
     auto function_call = std::dynamic_pointer_cast<FunctionCall>(tree);
     auto callable = OBJ(function_call->function(), ctx);
     auto args = make_typed<Arguments>();
-    for (auto& arg : function_call->arguments()) {
+    for (auto& arg : function_call->arguments()->arguments()) {
         auto evaluated_arg = OBJ(arg, ctx);
         args->add(evaluated_arg);
     }

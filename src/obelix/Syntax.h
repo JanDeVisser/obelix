@@ -31,11 +31,15 @@ extern_logging_category(parser);
     S(This)                          \
     S(BinaryExpression)              \
     S(UnaryExpression)               \
+    S(FunctionName)                  \
+    S(FunctionArguments)             \
     S(FunctionCall)                  \
     S(Import)                        \
     S(Pass)                          \
     S(Label)                         \
     S(Goto)                          \
+    S(FunctionDecl)                  \
+    S(FunctionParameters)            \
     S(FunctionDef)                   \
     S(NativeFunctionDef)             \
     S(ExpressionStatement)           \
@@ -308,69 +312,89 @@ private:
     std::string m_name;
 };
 
-class FunctionDef : public Statement {
+class FunctionParameters : public SyntaxNode {
 public:
-    FunctionDef(std::string name, ObelixType return_type, Symbols parameters, std::shared_ptr<Statement> statement)
-        : Statement()
-        , m_identifier(move(name), return_type)
+    explicit FunctionParameters(Symbols parameters)
+        : SyntaxNode()
         , m_parameters(move(parameters))
-        , m_statement(move(statement))
     {
     }
 
-    FunctionDef(Symbol identifier, Symbols parameters, std::shared_ptr<Statement> statement)
-        : Statement()
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionParameters; }
+    [[nodiscard]] Symbols const& parameters() const { return m_parameters; }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        std::string ret;
+        bool first = true;
+        for (auto& param : m_parameters) {
+            if (!first)
+                ret += ", ";
+            first = false;
+            ret += param.identifier();
+        }
+        return ret;
+    }
+
+private:
+    Symbols m_parameters;
+};
+
+class FunctionDecl : public SyntaxNode {
+public:
+    explicit FunctionDecl(Symbol identifier, std::shared_ptr<FunctionParameters> parameters)
+        : SyntaxNode()
         , m_identifier(std::move(identifier))
         , m_parameters(move(parameters))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionDecl; }
+    [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
+    [[nodiscard]] std::shared_ptr<FunctionParameters> const& parameters() const { return m_parameters; }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        return format("{}func {}({}) : {}",
+            pad(indent), identifier().identifier(), parameters()->to_string(indent),
+            ObelixType_name(identifier().type()));
+    }
+
+private:
+    Symbol m_identifier;
+    std::shared_ptr<FunctionParameters> m_parameters;
+};
+
+class FunctionDef : public Statement {
+public:
+    explicit FunctionDef(std::shared_ptr<FunctionDecl> func_decl, std::shared_ptr<Statement> statement = nullptr)
+        : Statement()
+        , m_function_decl(move(func_decl))
         , m_statement(move(statement))
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionDef; }
-    [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
-    [[nodiscard]] std::string const& name() const { return m_identifier.identifier(); }
-    [[nodiscard]] Symbols const& parameters() const { return m_parameters; }
+    [[nodiscard]] std::shared_ptr<FunctionDecl> const& declaration() const { return m_function_decl; }
+    [[nodiscard]] Symbol const& identifier() const { return m_function_decl->identifier(); }
+    [[nodiscard]] std::string const& name() const { return identifier().identifier(); }
+    [[nodiscard]] std::shared_ptr<FunctionParameters> const& parameters() const { return m_function_decl->parameters(); }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        auto ret = to_string_arguments(indent);
+        auto ret = m_function_decl->to_string(indent);
         ret += '\n';
         ret += m_statement->to_string(indent + 2);
         return ret;
     }
 
 protected:
-    FunctionDef(Symbol identifier, Symbols parameters)
-        : Statement()
-        , m_identifier(std::move(identifier))
-        , m_parameters(move(parameters))
-        , m_statement(nullptr)
-    {
-    }
-
-    [[nodiscard]] std::string to_string_arguments(int indent) const
-    {
-        auto ret = format("{}func {}(", pad(indent), identifier().identifier());
-        bool first = true;
-        for (auto& arg : m_parameters) {
-            if (!first)
-                ret += ", ";
-            first = false;
-            ret += arg.identifier();
-        }
-        ret += format(") : {}", ObelixType_name(identifier().type()));
-        return ret;
-    }
-
-    Symbol m_identifier;
-    Symbols m_parameters;
+    std::shared_ptr<FunctionDecl> m_function_decl;
     std::shared_ptr<Statement> m_statement;
 };
 
 class NativeFunctionDef : public FunctionDef {
 public:
-    NativeFunctionDef(Symbol name, Symbols parameters, std::string native_function_name)
-        : FunctionDef(std::move(name), move(parameters))
+    NativeFunctionDef(std::shared_ptr<FunctionDecl> func_decl, std::string native_function_name)
+        : FunctionDef(move(func_decl))
         , m_native_function_name(move(native_function_name))
     {
     }
@@ -378,7 +402,10 @@ public:
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}{} -> \"{}\"", to_string_arguments(indent), m_native_function_name);
+        auto ret = m_function_decl->to_string(indent);
+        ret += '\n';
+        ret += m_statement->to_string(indent + 2);
+        return format("{} -> \"{}\"", m_function_decl->to_string(indent), m_native_function_name);
     }
 
     [[nodiscard]] std::string const& native_function_name() const { return m_native_function_name; }
@@ -543,34 +570,80 @@ private:
     std::shared_ptr<Expression> m_operand;
 };
 
+class FunctionName : public SyntaxNode {
+public:
+    explicit FunctionName(Symbol identifier)
+        : SyntaxNode()
+        , m_identifier(std::move(identifier))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionName; }
+    [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        return format("{}{}() : {}",
+            pad(indent), identifier().identifier(), ObelixType_name(identifier().type()));
+    }
+
+private:
+    Symbol m_identifier;
+};
+
+class FunctionArguments : public SyntaxNode {
+public:
+    FunctionArguments()
+        : SyntaxNode()
+        , m_arguments()
+    {
+    }
+
+    explicit FunctionArguments(Expressions arguments)
+        : SyntaxNode()
+        , m_arguments(move(arguments))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionArguments; }
+    [[nodiscard]] Expressions const& arguments() const { return m_arguments; }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        {
+            std::string ret;
+            bool first = true;
+            for (auto& arg : m_arguments) {
+                if (!first)
+                    ret += ", ";
+                first = false;
+                ret += arg->to_string(indent);
+            }
+            return ret;
+        }
+    }
+
+private:
+    Expressions m_arguments;
+};
+
 class FunctionCall : public Expression {
 public:
-    FunctionCall(std::shared_ptr<Expression> function, Expressions arguments)
+    FunctionCall(std::shared_ptr<FunctionName> function, std::shared_ptr<FunctionArguments> arguments)
         : Expression()
         , m_function(move(function))
         , m_arguments(move(arguments))
     {
     }
 
-    explicit FunctionCall(std::shared_ptr<Expression> function)
+    explicit FunctionCall(std::shared_ptr<FunctionName> function)
         : Expression()
         , m_function(move(function))
-        , m_arguments(Expressions())
+        , m_arguments()
     {
     }
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        auto ret = format("{}(", m_function->to_string(indent));
-        bool first = true;
-        for (auto& arg : m_arguments) {
-            if (!first)
-                ret += ", ";
-            first = false;
-            ret += arg->to_string(indent);
-        }
-        ret += ')';
-        return ret;
+        return format("{}{}({})", m_function->identifier().identifier(), m_arguments->to_string(indent));
     }
 
     ErrorOr<std::optional<Obj>> to_object() const override
@@ -579,12 +652,12 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionCall; }
-    [[nodiscard]] std::shared_ptr<Expression> const& function() const { return m_function; }
-    [[nodiscard]] Expressions const& arguments() const { return m_arguments; }
+    [[nodiscard]] std::shared_ptr<FunctionName> const& function() const { return m_function; }
+    [[nodiscard]] std::shared_ptr<FunctionArguments> const& arguments() const { return m_arguments; }
 
 private:
-    std::shared_ptr<Expression> m_function;
-    Expressions m_arguments;
+    std::shared_ptr<FunctionName> m_function;
+    std::shared_ptr<FunctionArguments> m_arguments;
 };
 
 class VariableDeclaration : public Statement {

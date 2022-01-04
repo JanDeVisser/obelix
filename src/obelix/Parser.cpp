@@ -67,6 +67,10 @@ void Parser::initialize()
         Token(KeywordIncEquals, "+="),
         Token(KeywordDecEquals, "-="),
         Token(KeywordConst, "const"),
+        Token(KeywordInt, "int"),
+        Token(KeywordByte, "byte"),
+        Token(KeywordBool, "bool"),
+        Token(KeywordString, "string"),
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
         TokenCode::EqualsTo,
@@ -194,6 +198,11 @@ std::shared_ptr<Block> Parser::parse_block(Statements& block)
 
 std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expression> const& function)
 {
+    // for now the function must be an identifier:
+    if (function->node_type() != SyntaxNodeType::Identifier) {
+        add_error(peek(), "Syntax Error: function reference must be identifier");
+        return nullptr;
+    }
     if (!expect(TokenCode::OpenParen, "after function expression")) {
         return nullptr;
     }
@@ -214,7 +223,10 @@ std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expres
         }
     }
     lex();
-    return make_node<FunctionCall>(function, args);
+    auto ident = std::dynamic_pointer_cast<Identifier>(function);
+    return make_node<FunctionCall>(
+        std::make_shared<FunctionName>(Symbol { ident->name() }),
+        std::make_shared<FunctionArguments>(args));
 }
 
 std::shared_ptr<FunctionDef> Parser::parse_function_definition()
@@ -249,16 +261,18 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
         }
     }
     lex();
+    auto func_params = std::make_shared<FunctionParameters>(params);
+    auto func_decl = std::make_shared<FunctionDecl>(Symbol { name_maybe.value().value() }, func_params);
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value())
-            return make_node<NativeFunctionDef>(Symbol(name_maybe.value().value()), params, link_target_maybe.value().value());
+            return make_node<NativeFunctionDef>(func_decl, link_target_maybe.value().value());
         return nullptr;
     }
     auto stmt = parse_statement();
     if (stmt == nullptr)
         return nullptr;
-    return make_node<FunctionDef>(Symbol(name_maybe.value().value()), params, stmt);
+    return make_node<FunctionDef>(func_decl, stmt);
 }
 
 std::shared_ptr<IfStatement> Parser::parse_if_statement()
@@ -380,18 +394,45 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(bool con
     if (!identifier_maybe.has_value()) {
         return nullptr;
     }
+    ObelixType type = ObelixType::TypeUnknown;
+    if (current_code() == TokenCode::Colon) {
+        lex();
+        switch (current_code()) {
+        case KeywordInt:
+            type = ObelixType::TypeInt;
+            break;
+        case KeywordByte:
+            type = ObelixType::TypeByte;
+            break;
+        case KeywordBool:
+            type = ObelixType::TypeBoolean;
+            break;
+        case KeywordString:
+            type = ObelixType::TypeString;
+            break;
+        default:
+            add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
+            return nullptr;
+        }
+    }
     if (current_code() != TokenCode::Equals) {
         if (constant) {
             add_error(peek(), format("Syntax Error: Expected expression after constant declaration, got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
-        return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value()), nullptr, constant);
+        return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value(), type), nullptr, constant);
     }
     lex();
     auto expr = parse_expression();
     if (!expr)
         return nullptr;
-    return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value()), expr, constant);
+    if (expr->is_typed() && (type != ObelixType::TypeUnknown) && (expr->type() != type)) {
+        add_error(peek(), format("Syntax Error: Expression typw {} differs from declared type {}", ObelixType_name(expr->type()), ObelixType_name(type)));
+        return nullptr;
+    }
+    if (expr->is_typed() && (type == ObelixType::TypeUnknown))
+        type = expr->type();
+    return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value(), type), expr, constant);
 }
 
 std::shared_ptr<Import> Parser::parse_import_statement()
