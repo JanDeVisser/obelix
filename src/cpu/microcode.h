@@ -301,7 +301,7 @@
 #define WORD_FROM_INDEXED(trg, s)                                                                                  \
     {                                                                                                              \
         .opcode = MOV_##trg##_##s##_IDX,                                                                           \
-        .instruction = "MOV " #trg "," #s "[$xx]",                                                                 \
+        .instruction = "MOV " #trg "," #s "[xx]",                                                                  \
         .addressingMode = IndexedWord,                                                                             \
         .subject = s,                                                                                              \
         .steps = {                                                                                                 \
@@ -313,7 +313,7 @@
 #define BYTE_FROM_INDEXED(trg, s)                                                                       \
     {                                                                                                   \
         .opcode = MOV_##trg##_##s##_IDX,                                                                \
-        .instruction = "MOV " #trg "," #s "[$xx]",                                                      \
+        .instruction = "MOV " #trg "," #s "[xx]",                                                       \
         .addressingMode = IndexedByte,                                                                  \
         .subject = s,                                                                                   \
         .steps = {                                                                                      \
@@ -324,7 +324,7 @@
 #define WORD_TO_INDEXED(trg, s)                                                                                  \
     {                                                                                                            \
         .opcode = MOV_##trg##_IDX_##s,                                                                           \
-        .instruction = "MOV " #trg "[$xx]," #s,                                                                  \
+        .instruction = "MOV " #trg "[xx]," #s,                                                                   \
         .addressingMode = IndexedWord,                                                                           \
         .subject = trg,                                                                                          \
         .steps = {                                                                                               \
@@ -336,7 +336,7 @@
 #define BYTE_TO_INDEXED(trg, s)                                                                       \
     {                                                                                                 \
         .opcode = MOV_##trg##_IDX_##s,                                                                \
-        .instruction = "MOV " #trg "[$xx]," #s,                                                       \
+        .instruction = "MOV " #trg "[xx]," #s,                                                        \
         .addressingMode = IndexedByte,                                                                \
         .subject = trg,                                                                               \
         .steps = {                                                                                    \
@@ -861,7 +861,7 @@ constexpr static MicroCode mc[256] = {
     },
 {
         .opcode = PUSH_BP_IDX,
-        .instruction = "push bp[$xx]",
+        .instruction = "push bp[xx]",
         .addressingMode = AddressingMode::IndexedWord,
         .subject = BP,
         .steps = {
@@ -890,7 +890,7 @@ constexpr static MicroCode mc[256] = {
     },
     {
         .opcode = POP_BP_IDX,
-        .instruction = "pop bp[$xx]",
+        .instruction = "pop bp[xx]",
         .addressingMode = AddressingMode::IndexedWord,
         .subject = BP,
         .steps = {

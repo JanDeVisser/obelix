@@ -228,19 +228,30 @@ std::string MicroCodeRunner::instruction() const
 {
     std::string instr = m_mc->instruction;
     bool do_format = false;
+    bool do_unsigned = true;
     auto pos = instr.find("$xxxx");
     if (pos != std::string::npos) {
         instr.replace(pos, 5, "${04x}", 6);
         do_format = true;
-    } else {
-        pos = instr.find_first_of("$xx");
-        if (pos != std::string::npos) {
-            instr.replace(pos, 3, "${02x}", 6);
-            do_format = true;
+    }
+    pos = instr.find("$xx");
+    if (pos != std::string::npos) {
+        instr.replace(pos, 3, "${02x}", 6);
+        do_format = true;
+    }
+    pos = instr.find("xx");
+    if (pos != std::string::npos) {
+        instr.replace(pos, 2, "{}", 2);
+        do_format = true;
+        do_unsigned = false;
+    }
+    if (do_format) {
+        if (do_unsigned) {
+            instr = format(instr, m_constant);
+        } else {
+            instr = format(instr, (char)m_constant);
         }
     }
-    if (do_format)
-        instr = format(instr, m_constant);
     return to_lower(instr);
 }
 
