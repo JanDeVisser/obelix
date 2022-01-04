@@ -77,7 +77,16 @@ void CPU::componentEvent(Component const* sender, int ev)
                 mnemonic = instr.substr(0, pos);
                 args = instr.substr(pos);
             }
-            printf("%04x %-6.6s%-15.15s    %02x %02x %02x %02x %04x %04x %04x %04x\n",
+            auto sp = m_system.component<AddressRegister>(SP)->getValue();
+            auto bp = m_system.component<AddressRegister>(BP)->getValue();
+            auto mem = m_system.component<Memory>();
+            std::string stack;
+            for (auto ix = sp; 0xC000 < ix; ix -= 2) {
+                if (ix == bp)
+                    stack += " | ";
+                stack += format("{04x} ", (((uint16_t)mem->peek(ix - 1).value()) << 8) | mem->peek(ix - 2).value());
+            }
+            printf("%04x %-6.6s%-15.15s    %02x %02x %02x %02x %04x %04x %04x %04x    %s\n",
                 dynamic_cast<Controller const*>(sender)->pc(),
                 mnemonic.c_str(), args.c_str(),
                 m_system.component<Register>(GP_A)->getValue(),
@@ -87,7 +96,8 @@ void CPU::componentEvent(Component const* sender, int ev)
                 m_system.component<AddressRegister>(SI)->getValue(),
                 m_system.component<AddressRegister>(DI)->getValue(),
                 m_system.component<AddressRegister>(SP)->getValue(),
-                m_system.component<AddressRegister>(BP)->getValue());
+                m_system.component<AddressRegister>(BP)->getValue(),
+                stack.c_str());
         }
         break;
     default:
