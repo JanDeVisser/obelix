@@ -298,15 +298,17 @@ struct Argument {
     {
         if (addressing_mode == AMIndexed) {
             auto r = get_definition(reg);
-            return format("{}[{}]", r.name, (signed int)constant);
+            return format("{}[{}]", r.name, (char)constant);
         }
         if (addressing_mode == AMNone) {
             return "";
         }
         std::string ret;
         if (addressing_mode & AMIndirect)
-            ret += "*";
+            ret += '*';
         if (addressing_mode & AMImmediate) {
+            if (!(addressing_mode & AMIndirect))
+                ret += '#';
             switch (immediate_type) {
             case ImmediateType::Label:
                 ret += "%" + label;

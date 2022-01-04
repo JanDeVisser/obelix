@@ -47,7 +47,7 @@ public:
     Label(std::string const& label, uint16_t value);
     Label(std::string const& label, std::string const&);
 
-    [[nodiscard]] std::string to_string() const override { return m_label; }
+    [[nodiscard]] std::string to_string() const override { return format("{}:", m_label); }
     [[nodiscard]] std::string const& label() const { return m_label; }
     [[nodiscard]] uint16_t value() const { return m_value; }
 

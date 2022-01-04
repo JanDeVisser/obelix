@@ -153,6 +153,7 @@ void Assembler::parse_mnemonic()
     auto m_maybe = get_mnemonic(current_code());
     if (!m_maybe.has_value()) {
         add_error(peek(), "Expected mnemonic");
+        lex();
         return;
     }
     auto m = m_maybe.value();

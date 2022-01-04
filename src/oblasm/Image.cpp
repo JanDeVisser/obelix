@@ -9,6 +9,7 @@
 
 #include <core/Format.h>
 #include <oblasm/Image.h>
+#include <oblasm/Instruction.h>
 
 namespace Obelix::Assembler {
 
@@ -143,11 +144,14 @@ std::vector<uint8_t> const& Image::assemble()
 void Image::list(bool list_addresses)
 {
     auto list_entry = [list_addresses](uint16_t address, std::shared_ptr<Entry> const& entry) {
-        std::string_view prefix = entry->prefix();
-        if (prefix.empty()) {
-            prefix = (list_addresses) ? format("{04x}\t", address) : "\t";
+        auto& e = *entry;
+        if (typeid(e) != typeid(Instruction&)) {
+            printf("%s\n", format("{}", entry->to_string()).c_str());
+        } else if (list_addresses) {
+            printf("%s\n", format("{04x}\t{}", address, entry->to_string()).c_str());
+        } else {
+            printf("%s\n", format("\t{}", entry->to_string()).c_str());
         }
-        printf("%s\n", format("{}{}", prefix, entry->to_string()).c_str());
         for (auto& err : entry->errors()) {
             printf("ERROR: %s\n", err.c_str());
         }

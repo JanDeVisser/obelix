@@ -53,7 +53,7 @@ Instruction::Instruction(Mnemonic m, Argument target, Argument source)
 std::string Instruction::to_string() const
 {
     std::string ret = Mnemonic_name(mnemonic());
-    if (m_target.valid()) {
+    if (m_target.addressing_mode != AMNone) {
         ret += " " + m_target.to_string(m_definition.bytes - 1);
         if (m_source.addressing_mode != AMNone)
             ret += "," + m_source.to_string(m_definition.bytes - 1);
