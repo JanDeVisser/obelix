@@ -19,6 +19,9 @@ public:
     [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
     [[nodiscard]] std::optional<Obj> iterator() const override;
 
+    [[nodiscard]] Obj const& low() const { return m_low; }
+    [[nodiscard]] Obj const& high() const { return m_high; }
+
 private:
     Obj m_low;
     Obj m_high;
