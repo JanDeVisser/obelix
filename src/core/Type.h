@@ -139,17 +139,19 @@ private:
 };
 
 typedef std::vector<MethodDescription> MethodDescriptions;
-typedef std::function<void(class ObjectType&)> ObjectTypeBuilder;
 
 class ObjectType {
 public:
     ObjectType() = default;
+
+    template<typename ObjectTypeBuilder>
     ObjectType(ObelixType type, ObjectTypeBuilder const& builder) noexcept
         : m_type(type)
     {
         builder(*this);
     }
 
+    template<typename ObjectTypeBuilder>
     ObjectType(ObelixType type, char const* name, ObjectTypeBuilder const& builder) noexcept
         : m_type(type)
         , m_name(name)
@@ -186,6 +188,7 @@ public:
 
     [[nodiscard]] ObelixType return_type_of(std::string_view method_name, ObelixTypes const& argument_types) const;
 
+    template<typename ObjectTypeBuilder>
     static std::shared_ptr<ObjectType> register_type(ObelixType type, ObjectTypeBuilder const& builder) noexcept
     {
         auto ptr = std::make_shared<ObjectType>(type, builder);

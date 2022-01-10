@@ -30,25 +30,77 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 
 [[maybe_unused]] auto s_assignable = ObjectType::register_type(TypeAssignable,
     [](ObjectType& type) {
-        type.add_method(MethodDescription {"=", TypeArgument, MethodParameter { "other", TypeAny } });
+        type.add_method(MethodDescription { "=", TypeArgument, MethodParameter { "other", TypeCompatible } });
     });
 
 [[maybe_unused]] auto s_integer = ObjectType::register_type(TypeInt,
     [](ObjectType& type) {
         type.add_method(MethodDescription { "+", TypeInt });
         type.add_method(MethodDescription { "-", TypeInt });
+        type.add_method(MethodDescription { "~", TypeInt });
         type.add_method(MethodDescription { "+", TypeInt, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { "-", TypeInt, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { "*", TypeInt, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { "/", TypeInt, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "|", TypeInt, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "&", TypeInt, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "^", TypeInt, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeInt } });
+        type.will_be_a(TypeComparable);
+    });
+
+[[maybe_unused]] auto s_unsigned = ObjectType::register_type(TypeUnsigned,
+    [](ObjectType& type) {
+        type.add_method(MethodDescription { "+", TypeUnsigned });
+        type.add_method(MethodDescription { "-", TypeUnsigned });
+        type.add_method(MethodDescription { "~", TypeUnsigned });
+        type.add_method(MethodDescription { "+", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
+        type.add_method(MethodDescription { "-", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
+        type.add_method(MethodDescription { "*", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
+        type.add_method(MethodDescription { "/", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
+        type.add_method(MethodDescription { "|", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
+        type.add_method(MethodDescription { "&", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
+        type.add_method(MethodDescription { "^", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
+        type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeUnsigned } });
+        type.will_be_a(TypeComparable);
+    });
+
+[[maybe_unused]] auto s_byte = ObjectType::register_type(TypeByte,
+    [](ObjectType& type) {
+        type.add_method(MethodDescription { "+", TypeByte });
+        type.add_method(MethodDescription { "-", TypeByte });
+        type.add_method(MethodDescription { "~", TypeByte });
+        type.add_method(MethodDescription { "+", TypeByte, MethodParameter { "other", TypeByte } });
+        type.add_method(MethodDescription { "-", TypeByte, MethodParameter { "other", TypeByte } });
+        type.add_method(MethodDescription { "*", TypeByte, MethodParameter { "other", TypeByte } });
+        type.add_method(MethodDescription { "/", TypeByte, MethodParameter { "other", TypeByte } });
+        type.add_method(MethodDescription { "|", TypeByte, MethodParameter { "other", TypeByte } });
+        type.add_method(MethodDescription { "&", TypeByte, MethodParameter { "other", TypeByte } });
+        type.add_method(MethodDescription { "^", TypeByte, MethodParameter { "other", TypeByte } });
+        type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeByte } });
+        type.will_be_a(TypeComparable);
+    });
+
+[[maybe_unused]] auto s_char = ObjectType::register_type(TypeChar,
+    [](ObjectType& type) {
+        type.add_method(MethodDescription { "+", TypeChar });
+        type.add_method(MethodDescription { "-", TypeChar });
+        type.add_method(MethodDescription { "~", TypeChar });
+        type.add_method(MethodDescription { "+", TypeChar, MethodParameter { "other", TypeChar } });
+        type.add_method(MethodDescription { "-", TypeChar, MethodParameter { "other", TypeChar } });
+        type.add_method(MethodDescription { "*", TypeChar, MethodParameter { "other", TypeChar } });
+        type.add_method(MethodDescription { "/", TypeChar, MethodParameter { "other", TypeChar } });
+        type.add_method(MethodDescription { "|", TypeChar, MethodParameter { "other", TypeChar } });
+        type.add_method(MethodDescription { "&", TypeChar, MethodParameter { "other", TypeChar } });
+        type.add_method(MethodDescription { "^", TypeChar, MethodParameter { "other", TypeChar } });
+        type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeChar } });
         type.will_be_a(TypeComparable);
     });
 
 [[maybe_unused]] auto s_string = ObjectType::register_type(TypeString,
     [](ObjectType& type) {
-        type.add_method(MethodDescription {"+", TypeString, MethodParameter { "other", TypeString } });
-        type.add_method(MethodDescription {"*", TypeString, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "+", TypeString, MethodParameter { "other", TypeString } });
+        type.add_method(MethodDescription { "*", TypeString, MethodParameter { "other", TypeInt } });
         type.will_be_a(TypeComparable);
     });
 
@@ -61,6 +113,14 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
         type.add_method(MethodDescription { "*", TypeFloat, MethodParameter { "other", TypeFloat } });
         type.add_method(MethodDescription { "/", TypeFloat, MethodParameter { "other", TypeFloat } });
         type.will_be_a(TypeComparable);
+    });
+
+[[maybe_unused]] auto s_boolean = ObjectType::register_type(TypeBoolean,
+    [](ObjectType& type) {
+        type.add_method(MethodDescription { "!", TypeBoolean });
+        type.add_method(MethodDescription { "||", TypeBoolean, MethodParameter { "other", TypeBoolean } });
+        type.add_method(MethodDescription { "&&", TypeBoolean, MethodParameter { "other", TypeBoolean } });
+        type.add_method(MethodDescription { "^", TypeBoolean, MethodParameter { "other", TypeBoolean } });
     });
 
 [[maybe_unused]] auto s_null = ObjectType::register_type(TypeNull,
@@ -77,32 +137,45 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 
 ObelixType ObjectType::return_type_of(std::string_view method_name, ObelixTypes const& argument_types) const
 {
-    for (auto& mth : m_methods) {
-        if (mth.name() != method_name)
-            continue;
-        if (mth.parameters().size() != argument_types.size())
-            continue;
-        auto ix = 0;
-        for (; ix < mth.parameters().size(); ++ix) {
-            auto& param = mth.parameters()[ix];
-            auto arg_type = argument_types[ix];
-            if (param.type != arg_type)
+    auto check_methods_of = [&method_name, &argument_types](ObjectType const& type) {
+        for (auto& mth : type.m_methods) {
+            if (mth.name() != method_name)
+                continue;
+            if (mth.parameters().size() != argument_types.size())
+                continue;
+            auto ix = 0;
+            for (; ix < mth.parameters().size(); ++ix) {
+                auto& param = mth.parameters()[ix];
+                auto arg_type = argument_types[ix];
+                if (param.type != arg_type || (param.type == ObelixType::TypeCompatible && arg_type != type.type()))
+                    break;
+            }
+            if (ix != mth.parameters().size())
                 break;
+            switch (mth.return_type()) {
+            case TypeSelf:
+                return type.type();
+            case TypeArgument:
+                return argument_types[0];
+            default:
+                return mth.return_type();
+            }
         }
-        if (ix != mth.parameters().size())
-            break;
-        switch (mth.return_type()) {
-        case TypeSelf:
-            return type();
-        case TypeArgument:
-            return argument_types[0];
-        default:
-            return mth.return_type();
-        }
+        return ObelixType::TypeUnknown;
+    };
+
+    auto types = m_is_a;
+    types.insert(type());
+    types.insert(ObelixType::TypeAny);
+    for (auto t : types) {
+        auto type = s_types.at(t);
+        types.insert(type->m_is_a.begin(), type->m_is_a.end());
+        if (auto ret = check_methods_of(*type); ret != ObelixType::TypeUnknown)
+            return ret;
     }
+
     return TypeError;
 }
-
 
 std::optional<std::shared_ptr<ObjectType>> ObjectType::get(ObelixType type)
 {
