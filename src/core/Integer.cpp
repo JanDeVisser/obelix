@@ -117,7 +117,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         ret <<= int_maybe.value();
         return make_obj<Integer>(ret);
     }
-    if ((op == "<<") || (op == "shr")) {
+    if ((op == ">>") || (op == "shr")) {
         if (args->size() != 1) {
             return make_obj<Exception>(ErrorCode::SyntaxError, format("Bitwise operation '{}' requires exactly 2 operands", op));
         }
