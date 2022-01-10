@@ -206,7 +206,7 @@ std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expres
     if (!expect(TokenCode::OpenParen, "after function expression")) {
         return nullptr;
     }
-    std::vector<std::shared_ptr<Expression>> args {};
+    Expressions args;
     auto done = current_code() == TokenCode::CloseParen;
     while (!done) {
         args.push_back(parse_expression());
@@ -224,9 +224,7 @@ std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expres
     }
     lex();
     auto ident = std::dynamic_pointer_cast<Identifier>(function);
-    return make_node<FunctionCall>(
-        std::make_shared<FunctionName>(Symbol { ident->name() }),
-        std::make_shared<FunctionArguments>(args));
+    return make_node<FunctionCall>(ident->name(), args);
 }
 
 std::shared_ptr<FunctionDef> Parser::parse_function_definition()
@@ -247,7 +245,16 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
             add_error(peek(), "Syntax Error: Expected parameter name, got '{}'");
             return nullptr;
         }
-        params.emplace_back(param_name_maybe.value().value());
+        if (!expect(TokenCode::Colon))
+            return nullptr;
+
+        auto param_type_maybe = parse_type();
+        if (!param_type_maybe.has_value()) {
+            add_error(peek(), format("Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value(), peek().value()));
+            return nullptr;
+        }
+
+        params.emplace_back(param_name_maybe.value().value(), param_type_maybe.value());
         switch (current_code()) {
         case TokenCode::Comma:
             lex();
@@ -260,9 +267,18 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
             return nullptr;
         }
     }
-    lex();
-    auto func_params = std::make_shared<FunctionParameters>(params);
-    auto func_decl = std::make_shared<FunctionDecl>(Symbol { name_maybe.value().value() }, func_params);
+    lex(); // Eat the closing paren
+
+    if (!expect(TokenCode::Colon))
+        return nullptr;
+
+    auto type_maybe = parse_type();
+    if (!type_maybe.has_value()) {
+        add_error(peek(), format("Syntax Error: Expected return type name, got '{}'", peek().value()));
+        return nullptr;
+    }
+
+    auto func_decl = std::make_shared<FunctionDecl>(Symbol { name_maybe.value().value(), type_maybe.value() }, params);
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value())
@@ -283,7 +299,7 @@ std::shared_ptr<IfStatement> Parser::parse_if_statement()
     auto if_stmt = parse_statement();
     if (!if_stmt)
         return nullptr;
-    ElifStatements elifs;
+    Branches branches;
     while (true) {
         switch (current_code()) {
         case KeywordElif: {
@@ -294,17 +310,17 @@ std::shared_ptr<IfStatement> Parser::parse_if_statement()
             auto elif_stmt = parse_statement();
             if (!elif_stmt)
                 return nullptr;
-            elifs.push_back(std::make_shared<ElifStatement>(elif_condition, elif_stmt));
+            branches.push_back(std::make_shared<Branch>(elif_condition, elif_stmt));
         } break;
         case KeywordElse: {
             lex();
             auto else_stmt = parse_statement();
             if (!else_stmt)
                 return nullptr;
-            return make_node<IfStatement>(condition, if_stmt, elifs, std::make_shared<ElseStatement>(else_stmt));
+            return make_node<IfStatement>(condition, if_stmt, branches, std::make_shared<Branch>(nullptr, else_stmt));
         }
         default:
-            return make_node<IfStatement>(condition, if_stmt, elifs, nullptr);
+            return make_node<IfStatement>(condition, if_stmt, branches, nullptr);
         }
     }
 }
@@ -397,20 +413,8 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(bool con
     ObelixType type = ObelixType::TypeUnknown;
     if (current_code() == TokenCode::Colon) {
         lex();
-        switch (current_code()) {
-        case KeywordInt:
-            type = ObelixType::TypeInt;
-            break;
-        case KeywordByte:
-            type = ObelixType::TypeByte;
-            break;
-        case KeywordBool:
-            type = ObelixType::TypeBoolean;
-            break;
-        case KeywordString:
-            type = ObelixType::TypeString;
-            break;
-        default:
+        auto var_type_maybe = parse_type();
+        if (!var_type_maybe.has_value()) {
             add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
@@ -426,12 +430,6 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(bool con
     auto expr = parse_expression();
     if (!expr)
         return nullptr;
-    if (expr->is_typed() && (type != ObelixType::TypeUnknown) && (expr->type() != type)) {
-        add_error(peek(), format("Syntax Error: Expression typw {} differs from declared type {}", ObelixType_name(expr->type()), ObelixType_name(type)));
-        return nullptr;
-    }
-    if (expr->is_typed() && (type == ObelixType::TypeUnknown))
-        type = expr->type();
     return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value(), type), expr, constant);
 }
 
@@ -667,13 +665,33 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
     case KeywordFalse:
         return make_node<Literal>(t);
     case TokenCode::Identifier: {
-//        if (in_deref_chain)
+        //        if (in_deref_chain)
         return make_node<Identifier>(t.value());
-//        return make_node<BinaryExpression>(make_node<This>(), Token(TokenCode::Period, "."), make_node<Identifier>(t.value()));
+        //        return make_node<BinaryExpression>(make_node<This>(), Token(TokenCode::Period, "."), make_node<Identifier>(t.value()));
     }
     default:
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));
         return nullptr;
+    }
+}
+
+std::optional<ObelixType> Parser::parse_type()
+{
+    switch (current_code()) {
+    case KeywordInt:
+        lex();
+        return ObelixType::TypeInt;
+    case KeywordByte:
+        lex();
+        return ObelixType::TypeByte;
+    case KeywordBool:
+        lex();
+        return ObelixType::TypeBoolean;
+    case KeywordString:
+        lex();
+        return ObelixType::TypeString;
+    default:
+        return {};
     }
 }
 

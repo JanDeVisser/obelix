@@ -27,13 +27,13 @@ Obj BoundFunction::call(Ptr<Arguments> args)
 
 Obj BoundFunction::call(std::string const& name, Ptr<Arguments> args)
 {
-    if (args->size() != m_definition.parameters()->parameters().size()) {
+    if (args->size() != m_definition.parameters().size()) {
         return make_obj<Exception>(ErrorCode::SyntaxError,
             format("Function {}: argument count mismatch: expected {}, got {}", m_definition.name(), m_definition.parameters()->parameters().size(), args->size()));
     }
     Context<Obj> function_ctx = Context<Obj>(m_enclosing_scope);
     for (auto ix = 0u; ix < args->size(); ix++) {
-        function_ctx.declare(m_definition.parameters()->parameters()[ix].identifier(), args->at(ix));
+        function_ctx.declare(m_definition.parameters()[ix].identifier(), args->at(ix));
     }
     auto result = TRY_OR_EXCEPTION(execute(m_definition.statement(),function_ctx));
     switch (result->node_type()) {

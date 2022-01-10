@@ -22,32 +22,15 @@ using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>>;
 template<typename T>
 class Context {
 public:
-    using Processor = std::function<ErrorOrNode(std::shared_ptr<Obelix::SyntaxNode> const&, Context<T>&)>;
-    using ProcessorMap = std::unordered_map<SyntaxNodeType, Processor>;
-
     Context() = default;
-
-    explicit Context(ProcessorMap const& map)
-        : m_parent(nullptr)
-        , m_map(map)
-    {
-    }
 
     explicit Context(Context<T>* parent)
         : m_parent(parent)
-        , m_map(parent->map())
     {
     }
 
     Context(Context<T>& parent)
         : m_parent(&parent)
-        , m_map(parent.map())
-    {
-    }
-
-    Context(Context<T>* parent, ProcessorMap const& map)
-        : m_parent(parent)
-        , m_map(map)
     {
     }
 
@@ -111,15 +94,6 @@ public:
             return m_parent->unset(name);
     }
 
-    [[nodiscard]] ProcessorMap const& map() const { return m_map; }
-    [[nodiscard]] bool has_processor_for(SyntaxNodeType type) { return m_map.contains(type); }
-    [[nodiscard]] std::optional<Processor> processor_for(SyntaxNodeType type)
-    {
-        if (has_processor_for(type))
-            return m_map.at(type);
-        return {};
-    }
-
     ErrorOrNode add_if_error(ErrorOrNode maybe_error)
     {
         if (maybe_error.is_error()) {
@@ -131,21 +105,9 @@ public:
         return maybe_error;
     }
 
-    ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree)
-    {
-        if (!tree)
-            return tree;
-        if (auto processor_maybe = processor_for(tree->node_type()); processor_maybe.has_value()) {
-            auto new_tree_or_error = processor_maybe.value()(tree, *this);
-            return add_if_error(new_tree_or_error);
-        }
-        return tree;
-    }
-
 private:
     std::unordered_map<std::string, T> m_names {};
     Context<T>* m_parent { nullptr };
-    ProcessorMap m_map {};
     std::vector<Error> m_errors {};
 };
 

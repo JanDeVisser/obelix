@@ -94,16 +94,16 @@ private:
     {
         if (tree) {
             if (config().show_tree)
-                printf("%s\n", tree->to_string(0).c_str());
+                printf("Original:\n%s\n", tree->to_string(0).c_str());
             auto transformed = TRY(bind_types(tree));
             if (config().show_tree)
-                printf("%s\n", transformed->to_string(0).c_str());
+                printf("Types bound:\n%s\n", transformed->to_string(0).c_str());
             transformed = TRY(lower(tree));
             if (config().show_tree)
-                printf("%s\n", transformed->to_string(0).c_str());
+                printf("Flattened:\n%s\n", transformed->to_string(0).c_str());
             transformed = TRY(fold_constants(transformed));
             if (config().show_tree)
-                printf("%s\n", transformed->to_string(0).c_str());
+                printf("Constants folded:\n%s\n", transformed->to_string(0).c_str());
             if (!file_name.empty()) {
                 auto image = file_name + ".bin";
                 if (auto err = output_jv80(transformed, image); err.is_error())
@@ -114,8 +114,9 @@ private:
                     return Error { ErrorCode::SyntaxError, format("Runtime error: {}", SystemErrorCode_name(ret.error())) };
                 return std::make_shared<Literal>(make_obj<Integer>(ret.value()));
             } else {
-                Context<Obj> root;
-                return execute(transformed, root);
+                fprintf(stderr, "Script execution temporarily disabled\n");
+                //                Context<Obj> root;
+                //                return execute(transformed, root);
             }
         }
         return tree;

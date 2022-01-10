@@ -11,87 +11,112 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
-{
-    using LowerContext = Context<int>;
-    LowerContext::ProcessorMap lower_map;
+using LowerContext = Context<int>;
 
-    //
-    // for (x in 1..5) {
-    //   foo(x);
-    // }
-    // ==>
-    // {
-    //    var $range = 1..5;
-    //    if (!$range.has_next()) goto label_0; -> ! * $range
-    // label_1:
-    //    x = $range.next();  -> x = @ $range;
-    //    foo(x);
-    //    if ($range.has_next()) goto label_1;
-    // label_0:
-    // }
-    //
-    lower_map[SyntaxNodeType::ForStatement] = [](std::shared_ptr<SyntaxNode> const& tree, LowerContext &ctx) -> ErrorOrNode {
+ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContext ctx)
+{
+    if (!tree)
+        return tree;
+
+    switch (tree->node_type()) {
+
+    case SyntaxNodeType::SwitchStatement: {
+        auto switch_stmt = std::dynamic_pointer_cast<SwitchStatement>(tree);
+        auto switch_expr = TRY_AND_CAST(Expression, lower_processor(switch_stmt->expression(), ctx));
+        auto default_case = TRY_AND_CAST(CaseStatement, lower_processor(switch_stmt->default_case(), ctx));
+
+        CaseStatements cases;
+        for (auto& c : switch_stmt->cases()) {
+            auto new_case = TRY_AND_CAST(CaseStatement, lower_processor(c, ctx));
+            cases.push_back(new_case);
+        }
+
+        Branches branches;
+        for (auto& c : cases) {
+            branches.push_back(std::make_shared<Branch>(
+                std::make_shared<BinaryExpression>(switch_expr, Token { TokenCode::EqualsTo, "==" }, c->condition()),
+                c->statement()));
+        }
+        if (default_case)
+            branches.push_back(std::make_shared<Branch>(nullptr, default_case->statement()));
+        return std::make_shared<IfStatement>(branches);
+    }
+
+    case SyntaxNodeType::ForStatement: {
+        //
+        // for (x in 1..5) {
+        //   foo(x);
+        // }
+        // ==>
+        // {
+        //    var x: int = 1;
+        // label_1:
+        //    if (x >= 5) goto label_0;
+        //    foo(x);
+        //    x = x + 1;
+        //    goto label_1;
+        // label_0:
+        // }
+        //
         auto for_stmt = std::dynamic_pointer_cast<ForStatement>(tree);
+        auto range_expr = TRY_AND_CAST(Expression, lower_processor(for_stmt->range(), ctx));
+        auto stmt = TRY_AND_CAST(Statement, lower_processor(for_stmt->statement(), ctx));
+
         Statements for_block;
+
+        if (range_expr->node_type() != SyntaxNodeType::BinaryExpression)
+            return Error { ErrorCode::SyntaxError, "Invalid for-loop range" };
+        auto range_binary_expr = std::dynamic_pointer_cast<BinaryExpression>(range_expr);
+        if (range_binary_expr->op().code() != Parser::KeywordRange)
+            return Error { ErrorCode::SyntaxError, "Invalid for-loop range" };
+
         for_block.push_back(
             std::make_shared<VariableDeclaration>(
-                Symbol { "$range", TypeUnknown },
-                std::make_shared<UnaryExpression>(
-                    Token(TokenCode::Colon, ":"),
-                    for_stmt->range()
-                    ),
-                false));
-        for_block.push_back(
-            std::make_shared<VariableDeclaration>(
-                Symbol { for_stmt->variable(), TypeUnknown }));
+                Symbol { for_stmt->variable(), ObelixType::TypeInt },
+                range_binary_expr->lhs()));
         auto jump_past_loop = std::make_shared<Goto>();
+        auto jump_back_label = std::make_shared<Label>();
         for_block.push_back(
             std::make_shared<IfStatement>(
-                std::make_shared<UnaryExpression>(
-                    Token(TokenCode::ExclamationPoint, "!"),
-                    std::make_shared<UnaryExpression>(
-                        Token(TokenCode::Asterisk, "*"),
-                        std::make_shared<Identifier>("$range"))),
-                jump_past_loop));
-        auto jump_back_label = std::make_shared<Label>();
-        for_block.push_back(jump_back_label);
-        for_block.push_back(
-            std::make_shared<ExpressionStatement>(
                 std::make_shared<BinaryExpression>(
                     std::make_shared<Identifier>(for_stmt->variable()),
-                    Token(TokenCode::Equals, "="),
-                    std::make_shared<UnaryExpression>(
-                        Token(TokenCode::AtSign, "@"),
-                        std::make_shared<Identifier>("$range")))));
-        for_block.push_back(for_stmt->statement());
-        for_block.push_back(
-            std::make_shared<IfStatement>(
-                std::make_shared<UnaryExpression>(
-                    Token(TokenCode::Asterisk, "*"),
-                    std::make_shared<Identifier>("$range")),
-                std::make_shared<Goto>(jump_back_label)));
+                    Token(TokenCode::GreaterEqualThan, ">="),
+                    range_binary_expr->rhs()),
+                jump_past_loop));
+        for_block.push_back(stmt);
+        for_block.push_back(std::make_shared<ExpressionStatement>(
+            std::make_shared<BinaryExpression>(
+                std::make_shared<Identifier>(Symbol { for_stmt->variable(), ObelixType::TypeInt }),
+                Token { TokenCode::Equals, "= " },
+                std::make_shared<BinaryExpression>(
+                    std::make_shared<Identifier>(Symbol { for_stmt->variable(), ObelixType::TypeInt }),
+                    Token { TokenCode::Plus, "+" },
+                    std::make_shared<Literal>(make_obj<Integer>(1))))));
+        for_block.push_back(std::make_shared<Goto>(jump_back_label));
         for_block.push_back(std::make_shared<Label>(jump_past_loop));
         return std::make_shared<Block>(for_block);
-    };
+    }
 
-    //
-    // while (x < 10) {
-    //   foo(x);
-    //   x += 1;
-    // }
-    // ==>
-    // {
-    // label_0:
-    //   if (!(x<10)) goto label_1;
-    //   foo(x);
-    //   x += 1;
-    //   goto label_0;
-    // label_1:
-    // }
-    //
-    lower_map[SyntaxNodeType::WhileStatement] = [](std::shared_ptr<SyntaxNode> const& tree, LowerContext &ctx) -> ErrorOrNode {
+    case SyntaxNodeType::WhileStatement: {
+        //
+        // while (x < 10) {
+        //   foo(x);
+        //   x += 1;
+        // }
+        // ==>
+        // {
+        // label_0:
+        //   if (!(x<10)) goto label_1;
+        //   foo(x);
+        //   x += 1;
+        //   goto label_0;
+        // label_1:
+        // }
+        //
         auto while_stmt = std::dynamic_pointer_cast<WhileStatement>(tree);
+        auto condition = TRY_AND_CAST(Expression, lower_processor(while_stmt->condition(), ctx));
+        auto stmt = TRY_AND_CAST(Statement, lower_processor(while_stmt->statement(), ctx));
+
         Statements while_block;
         auto start_of_loop = std::make_shared<Label>();
         auto jump_out_of_loop = std::make_shared<Goto>();
@@ -100,31 +125,62 @@ ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
             std::make_shared<IfStatement>(
                 std::make_shared<UnaryExpression>(
                     Token(TokenCode::ExclamationPoint, "!"),
-                    while_stmt->condition()
-                    ),
-                jump_out_of_loop
-                )
-            );
-        while_block.push_back(while_stmt->statement());
+                    condition),
+                jump_out_of_loop));
+        while_block.push_back(stmt);
         while_block.push_back(std::make_shared<Goto>(start_of_loop));
         while_block.push_back(std::make_shared<Label>(jump_out_of_loop));
         return std::make_shared<Block>(while_block);
-    };
+    }
 
-    lower_map[SyntaxNodeType::BinaryExpression] = [](std::shared_ptr<SyntaxNode> const& tree, LowerContext &ctx) -> ErrorOrNode {
+    case SyntaxNodeType::BinaryExpression: {
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-        // +=, -= and friends: rewrite to a straight-up assignment to a binary
-        if (Parser::is_assignment_operator(expr->op().code()) && expr->lhs()->node_type() == SyntaxNodeType::Identifier) {
-            auto id = std::dynamic_pointer_cast<Identifier>(expr->lhs());
-            auto tok = expr->op().value();
-            auto new_rhs = std::make_shared<BinaryExpression>(std::make_shared<Identifier>(id->name()), Parser::operator_for_assignment_operator(expr->op().code()), expr->rhs());
-            return std::make_shared<BinaryExpression>(id, Token(TokenCode::Equals, "="), new_rhs);
-        }
-        return tree;
-    };
+        auto lhs = TRY_AND_CAST(Expression, lower_processor(expr->lhs(), ctx));
+        auto rhs = TRY_AND_CAST(Expression, lower_processor(expr->rhs(), ctx));
 
-    LowerContext ctx(lower_map);
-    return process_tree(tree, ctx);
+        // +=, -= and friends: rewrite to a straight-up assignment to a binary
+        if (Parser::is_assignment_operator(expr->op().code()) && lhs->node_type() == SyntaxNodeType::Identifier) {
+            auto id = std::dynamic_pointer_cast<Identifier>(lhs);
+            auto tok = expr->op().value();
+            auto new_rhs = std::make_shared<BinaryExpression>(
+                std::make_shared<Identifier>(id->name()), Parser::operator_for_assignment_operator(expr->op().code()), rhs, expr->type());
+            return std::make_shared<BinaryExpression>(id, Token(TokenCode::Equals, "="), new_rhs, expr->type());
+        }
+
+        if (expr->op().code() == TokenCode::GreaterEqualThan) {
+            return std::make_shared<BinaryExpression>(
+                std::make_shared<BinaryExpression>(lhs, Token { TokenCode::Equals, "==" }, rhs, ObelixType::TypeBoolean),
+                Token { TokenCode::LogicalOr, "||" },
+                std::make_shared<BinaryExpression>(lhs, Token { TokenCode::GreaterThan, ">" }, rhs, ObelixType::TypeBoolean),
+                ObelixType::TypeBoolean);
+        }
+
+        if (expr->op().code() == TokenCode::LessEqualThan) {
+            return std::make_shared<BinaryExpression>(
+                std::make_shared<BinaryExpression>(lhs, Token { TokenCode::Equals, "==" }, rhs, ObelixType::TypeBoolean),
+                Token { TokenCode::LogicalOr, "||" },
+                std::make_shared<BinaryExpression>(lhs, Token { TokenCode::LessThan, "<" }, rhs, ObelixType::TypeBoolean),
+                ObelixType::TypeBoolean);
+        }
+
+        if (expr->op().code() == TokenCode::NotEqualTo) {
+            return std::make_shared<UnaryExpression>(Token { TokenCode::ExclamationPoint, "!" },
+                std::make_shared<BinaryExpression>(lhs, Token { TokenCode::Equals, "==" }, rhs, ObelixType::TypeBoolean),
+                ObelixType::TypeBoolean);
+        }
+
+        return std::make_shared<BinaryExpression>(lhs, expr->op(), rhs);
+    }
+
+    default:
+        return process_tree(tree, ctx, lower_processor);
+    }
+}
+
+ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
+{
+    LowerContext ctx;
+    return lower_processor(tree, ctx);
 }
 
 }

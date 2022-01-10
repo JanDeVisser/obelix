@@ -25,8 +25,10 @@ public:
 
     std::string to_string() { return format("{}: {}", m_identifier, ObelixType_name(m_type)); }
     [[nodiscard]] std::string const& identifier() const { return m_identifier; }
+    [[nodiscard]] std::string const& name() const { return identifier(); }
     [[nodiscard]] ObelixType type() const { return m_type; }
-    [[nodiscard]] bool operator == (Symbol const& other) const { return m_identifier == other.m_identifier; }
+    [[nodiscard]] bool is_typed() const { return m_type != ObelixType::TypeUnknown; }
+    [[nodiscard]] bool operator==(Symbol const& other) const { return m_identifier == other.m_identifier; }
 
 private:
     std::string m_identifier;

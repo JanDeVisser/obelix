@@ -17,12 +17,10 @@ int SyntaxNode::s_current_id = 0;
 int Label::m_current_id = 0;
 
 SyntaxNode::SyntaxNode()
-    : m_node_id(s_current_id++)
 {
 }
 
 SyntaxNode::SyntaxNode(SyntaxNode const& ancestor)
-    : m_node_id(ancestor.node_id())
 {
 }
 
