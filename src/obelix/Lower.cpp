@@ -169,7 +169,7 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
                 ObelixType::TypeBoolean);
         }
 
-        return std::make_shared<BinaryExpression>(lhs, expr->op(), rhs);
+        return expr;
     }
 
     default:

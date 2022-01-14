@@ -183,7 +183,7 @@ ErrorOr<void> int_int_binary_expression(Image& image, Obelix::Assembler::Segment
     case TokenCode::Minus:
         add_instruction(code, Mnemonic::SUB, Register::ab, Register::cd);
         break;
-    case TokenCode::Equals: {
+    case TokenCode::EqualsTo: {
         add_instruction(code, Mnemonic::CMP, Register::b, Register::d);
         auto push_false = format("lbl_{}", Obelix::Label::reserve_id());
         add_instruction(code, Mnemonic::JNZ, push_false);
@@ -395,6 +395,13 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
         auto processed = TRY(process_tree(tree, ctx, output_jv80_processor));
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(processed);
 
+        if (expr->lhs()->type() == ObelixType::TypeUnknown) {
+            return Error { ErrorCode::UntypedExpression, expr->lhs()->to_string(0) };
+        }
+        if (expr->rhs()->type() == ObelixType::TypeUnknown) {
+            return Error { ErrorCode::UntypedExpression, expr->rhs()->to_string(0) };
+        }
+
         if ((expr->lhs()->type() == ObelixType::TypeInt && expr->lhs()->type() == ObelixType::TypeInt) || (expr->lhs()->type() == ObelixType::TypeUnsigned && expr->lhs()->type() == ObelixType::TypeUnsigned)) {
             TRY_RETURN(int_int_binary_expression(ctx.image(), *code, *expr));
         }
@@ -410,6 +417,10 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
     case SyntaxNodeType::UnaryExpression: {
         auto processed = TRY(process_tree(tree, ctx, output_jv80_processor));
         auto expr = std::dynamic_pointer_cast<UnaryExpression>(processed);
+
+        if (expr->operand()->type() == ObelixType::TypeUnknown) {
+            return Error { ErrorCode::UntypedExpression, expr->operand()->to_string(0) };
+        }
 
         if (expr->operand()->type() == ObelixType::TypeInt || expr->operand()->type() == ObelixType::TypeUnsigned) {
             TRY_RETURN(int_unary_expression(ctx.image(), *code, *expr));
@@ -429,10 +440,15 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
         assert(val_maybe.has_value());
         auto val = val_maybe.value();
         switch (val.type()) {
-        case ObelixType::TypeInt: {
-            uint16_t v = static_cast<uint16_t>(val->to_long().value());
-            code->add(std::make_shared<Instruction>(Mnemonic::PUSHW,
-                Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Constant, .constant = v }));
+        case ObelixType::TypeInt:
+        case ObelixType::TypeUnsigned: {
+            add_instruction(*code, Mnemonic::PUSHW, static_cast<uint16_t>(val->to_long().value()));
+            break;
+        }
+        case ObelixType::TypeChar:
+        case ObelixType::TypeByte:
+        case ObelixType::TypeBoolean: {
+            add_instruction(*code, Mnemonic::PUSH, static_cast<uint8_t>(val->to_long().value()));
             break;
         }
         default:
@@ -444,15 +460,67 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
     case SyntaxNodeType::Identifier: {
         auto identifier = std::dynamic_pointer_cast<Identifier>(tree);
         auto idx_maybe = ctx.get(identifier->name());
-        assert(idx_maybe.has_value());
+        if (!idx_maybe.has_value())
+            return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
         auto idx = idx_maybe.value();
-        code->add(std::make_shared<Instruction>(
-            Mnemonic::PUSH,
-            Argument {
-                .addressing_mode = Assembler::AMIndexed,
-                .constant = (uint16_t)idx->to_long().value(),
-                .reg = Register::bp,
-            }));
+
+        switch (identifier->type()) {
+        case ObelixType::TypeInt:
+        case ObelixType::TypeUnsigned:
+            code->add(std::make_shared<Instruction>(
+                Mnemonic::PUSH,
+                Argument {
+                    .addressing_mode = Assembler::AMIndexed,
+                    .constant = (uint16_t)idx->to_long().value(),
+                    .reg = Register::bp,
+                }));
+            break;
+        case ObelixType::TypeChar:
+        case ObelixType::TypeByte:
+        case ObelixType::TypeBoolean:
+            code->add(std::make_shared<Instruction>(
+                Mnemonic::PUSH,
+                Argument {
+                    .addressing_mode = Assembler::AMIndexed,
+                    .constant = (uint16_t)idx->to_long().value(),
+                    .reg = Register::bp,
+                }));
+            add_instruction(*code, Mnemonic::POP, Register::cd);
+            add_instruction(*code, Mnemonic::PUSH, Register::c);
+            break;
+        default:
+            return Error { ErrorCode::NotYetImplemented, format("Cannot push values of variables of type {} yet", identifier->type()) };
+        }
+        return tree;
+    }
+
+    case SyntaxNodeType::Assignment: {
+        auto assignment = std::dynamic_pointer_cast<Assignment>(tree);
+        TRY_RETURN(output_jv80_processor(assignment->expression(), ctx));
+        auto idx_maybe = ctx.get(assignment->name());
+        if (!idx_maybe.has_value())
+            return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", assignment->name()) };
+        auto idx = (uint16_t)idx_maybe.value();
+
+        switch (assignment->type()) {
+        case ObelixType::TypeInt:
+        case ObelixType::TypeUnsigned:
+            add_instruction(*code, Mnemonic::POP, Register::di);
+            code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+                Argument { .addressing_mode = Assembler::AMIndexed, .constant = (uint16_t)idx, .reg = Register::bp },
+                Argument { .addressing_mode = Assembler::AMRegister, .reg = Register::di }));
+            break;
+        case ObelixType::TypeChar:
+        case ObelixType::TypeBoolean:
+        case ObelixType::TypeByte:
+            add_instruction(*code, Mnemonic::POP, Register::a);
+            code->add(std::make_shared<Instruction>(Mnemonic::MOV,
+                Argument { .addressing_mode = Assembler::AMIndexed, .constant = (uint16_t)idx, .reg = Register::bp },
+                Argument { .addressing_mode = Assembler::AMRegister, .reg = Register::a }));
+            break;
+        default:
+            return Error { ErrorCode::NotYetImplemented, format("Cannot emit assignments of type {} yet", assignment->type()) };
+        }
         return tree;
     }
 
@@ -460,10 +528,20 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
         auto processed = TRY(process_tree(tree, ctx, output_jv80_processor));
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(processed);
         auto offset = (signed char)ctx.get("#offset").value()->to_long().value();
-        ctx.set("#offset", make_obj<Integer>(offset + 2));
+        ctx.set("#offset", make_obj<Integer>(offset + 2)); // FIXME Use type size
         ctx.declare(var_decl->variable().identifier(), make_obj<Integer>(offset));
         if (var_decl->expression() == nullptr) {
-            code->add(std::make_shared<Instruction>(Mnemonic::PUSHW, Argument { .addressing_mode = AMImmediate, .constant = 0 }));
+            switch (var_decl->expression()->type()) {
+            case ObelixType::TypeInt:
+            case ObelixType::TypeUnsigned:
+            case ObelixType::TypeByte:
+            case ObelixType::TypeChar:
+            case ObelixType::TypeBoolean:
+                code->add(std::make_shared<Instruction>(Mnemonic::PUSHW, Argument { .addressing_mode = AMImmediate, .constant = 0 }));
+                break;
+            default:
+                return Error { ErrorCode::NotYetImplemented, format("Cannot initialize variables of type {} yet", var_decl->expression()->type()) };
+            }
         }
         return tree;
     };

@@ -98,7 +98,7 @@ private:
             auto transformed = TRY(bind_types(tree));
             if (config().show_tree)
                 printf("Types bound:\n%s\n", transformed->to_string(0).c_str());
-            transformed = TRY(lower(tree));
+            transformed = TRY(lower(transformed));
             if (config().show_tree)
                 printf("Flattened:\n%s\n", transformed->to_string(0).c_str());
             transformed = TRY(fold_constants(transformed));
@@ -118,6 +118,7 @@ private:
                 //                Context<Obj> root;
                 //                return execute(transformed, root);
             }
+            return transformed;
         }
         return tree;
     }

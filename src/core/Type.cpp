@@ -10,14 +10,19 @@ namespace Obelix {
 
 std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 
+[[maybe_unused]] auto s_assignable = ObjectType::register_type(TypeAssignable,
+    [](ObjectType& type) {
+        type.add_method(MethodDescription { "=", TypeArgument, MethodParameter { "other", TypeCompatible } });
+    });
+
 [[maybe_unused]] auto s_any = ObjectType::register_type(TypeAny,
     [](ObjectType& type) {
-        type.add_method(MethodDescription {"==", TypeBoolean, MethodParameter { "other", TypeCompatible } });
-        type.add_method(MethodDescription {"!=", TypeBoolean, MethodParameter { "other", TypeCompatible } });
-        type.add_method(MethodDescription {".", TypeUnknown, MethodParameter { "attribute", TypeString } });
-        type.add_method(MethodDescription {"typename", TypeString });
-        type.add_method(MethodDescription {"length", TypeInt });
-        type.add_method(MethodDescription {"empty", TypeBoolean });
+        type.add_method(MethodDescription { "==", TypeBoolean, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "!=", TypeBoolean, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { ".", TypeUnknown, MethodParameter { "attribute", TypeString } });
+        type.add_method(MethodDescription { "typename", TypeString });
+        type.add_method(MethodDescription { "length", TypeInt });
+        type.add_method(MethodDescription { "empty", TypeBoolean });
     });
 
 [[maybe_unused]] auto s_comparable = ObjectType::register_type(TypeComparable,
@@ -26,11 +31,6 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
         type.add_method(MethodDescription {"<=", TypeBoolean, MethodParameter { "other", TypeCompatible } });
         type.add_method(MethodDescription {">", TypeBoolean, MethodParameter { "other", TypeCompatible } });
         type.add_method(MethodDescription {">=", TypeBoolean, MethodParameter { "other", TypeCompatible } });
-    });
-
-[[maybe_unused]] auto s_assignable = ObjectType::register_type(TypeAssignable,
-    [](ObjectType& type) {
-        type.add_method(MethodDescription { "=", TypeArgument, MethodParameter { "other", TypeCompatible } });
     });
 
 [[maybe_unused]] auto s_integer = ObjectType::register_type(TypeInt,
@@ -47,6 +47,7 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
         type.add_method(MethodDescription { "^", TypeInt, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeInt } });
         type.will_be_a(TypeComparable);
+        type.will_be_a(TypeAssignable);
     });
 
 [[maybe_unused]] auto s_unsigned = ObjectType::register_type(TypeUnsigned,
@@ -137,7 +138,7 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 
 ObelixType ObjectType::return_type_of(std::string_view method_name, ObelixTypes const& argument_types) const
 {
-    auto check_methods_of = [&method_name, &argument_types](ObjectType const& type) {
+    auto check_methods_of = [&method_name, &argument_types, this](ObjectType const& type) {
         for (auto& mth : type.m_methods) {
             if (mth.name() != method_name)
                 continue;
@@ -147,7 +148,7 @@ ObelixType ObjectType::return_type_of(std::string_view method_name, ObelixTypes 
             for (; ix < mth.parameters().size(); ++ix) {
                 auto& param = mth.parameters()[ix];
                 auto arg_type = argument_types[ix];
-                if (param.type != arg_type || (param.type == ObelixType::TypeCompatible && arg_type != type.type()))
+                if (param.type != arg_type && (param.type == ObelixType::TypeCompatible && arg_type != this->type()) && (param.type == ObelixType::TypeSelf && arg_type != this->type()))
                     break;
             }
             if (ix != mth.parameters().size())
@@ -164,17 +165,18 @@ ObelixType ObjectType::return_type_of(std::string_view method_name, ObelixTypes 
         return ObelixType::TypeUnknown;
     };
 
-    auto types = m_is_a;
-    types.insert(type());
-    types.insert(ObelixType::TypeAny);
-    for (auto t : types) {
+    std::vector<ObelixType> types { ObelixType::TypeAny, type() };
+    while (!types.empty()) {
+        ObelixType t = types.back();
+        types.pop_back();
         auto type = s_types.at(t);
-        types.insert(type->m_is_a.begin(), type->m_is_a.end());
+        for (auto is_a : type->m_is_a) {
+            types.push_back(is_a);
+        }
         if (auto ret = check_methods_of(*type); ret != ObelixType::TypeUnknown)
             return ret;
     }
-
-    return TypeError;
+    return TypeUnknown;
 }
 
 std::optional<std::shared_ptr<ObjectType>> ObjectType::get(ObelixType type)

@@ -30,6 +30,7 @@ extern_logging_category(parser);
     S(This)                          \
     S(BinaryExpression)              \
     S(UnaryExpression)               \
+    S(Assignment)                    \
     S(FunctionCall)                  \
     S(Import)                        \
     S(Pass)                          \
@@ -99,6 +100,7 @@ public:
     virtual ~SyntaxNode() = default;
 
     [[nodiscard]] virtual std::string to_string(int) const = 0;
+    [[nodiscard]] std::string to_string() const { return to_string(0); }
     [[nodiscard]] virtual SyntaxNodeType node_type() const = 0;
 
 private:
@@ -400,7 +402,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Identifier; }
     [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
     [[nodiscard]] std::string const& name() const { return m_identifier.identifier(); }
-    [[nodiscard]] std::string to_string(int indent) const override { return name(); }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{} : {}", name(), type()); }
     [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
 
 private:
@@ -422,7 +424,7 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Literal; }
-    [[nodiscard]] std::string to_string(int indent) const override { return m_literal->to_string(); }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{} : {}", m_literal->to_string(), type()); }
     [[nodiscard]] Obj const& literal() const { return m_literal; }
     [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return literal(); }
 
@@ -470,7 +472,7 @@ public:
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("({}) {} ({})", m_lhs->to_string(indent), m_operator.value(), m_rhs->to_string(indent));
+        return format("({}) {} ({}) : {}", m_lhs->to_string(indent), m_operator.value(), m_rhs->to_string(indent), type());
     }
     ErrorOr<std::optional<Obj>> to_object() const override;
 
@@ -482,6 +484,34 @@ private:
     std::shared_ptr<Expression> m_lhs;
     Token m_operator;
     std::shared_ptr<Expression> m_rhs;
+};
+
+class Assignment : public Expression {
+public:
+    Assignment(std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expression)
+        : Expression(identifier->type())
+        , m_identifier(identifier)
+        , m_expression(expression)
+    {
+        assert(m_identifier->is_typed());
+        assert(m_expression->is_typed());
+        assert(m_identifier->type() == m_expression->type());
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Assignment; }
+    [[nodiscard]] std::shared_ptr<Identifier> const& identifier() const { return m_identifier; }
+    [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
+    [[nodiscard]] std::string const& name() const { return identifier()->name(); }
+    ErrorOr<std::optional<Obj>> to_object() const override { return identifier()->to_object(); }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        auto ret = format("{} = {}", identifier()->to_string(0), expression()->to_string());
+        return ret;
+    }
+
+private:
+    std::shared_ptr<Identifier> m_identifier;
+    std::shared_ptr<Expression> m_expression;
 };
 
 class UnaryExpression : public Expression {
@@ -504,7 +534,7 @@ public:
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}({})", m_operator.value(), m_operand->to_string(indent));
+        return format("{}({}) : {}", m_operator.value(), m_operand->to_string(), type());
     }
 
     ErrorOr<std::optional<Obj>> to_object() const override
@@ -558,7 +588,7 @@ public:
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}{}({})", name(), arguments_to_string());
+        return format("{}{}({}) : {}", name(), arguments_to_string(), type());
     }
 
     ErrorOr<std::optional<Obj>> to_object() const override
@@ -580,7 +610,7 @@ private:
             if (!first)
                 ret += ", ";
             first = false;
-            ret += arg->to_string(0);
+            ret += arg->to_string();
         }
         return ret;
     }
@@ -609,9 +639,9 @@ public:
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        auto ret = format("{}{} {} : {}", pad(indent), (m_const) ? "const" : "var", m_variable.identifier(), ObelixType_name(m_variable.type()));
+        auto ret = format("{}{} {} : {}", pad(indent), (m_const) ? "const" : "var", m_variable.identifier(), m_variable.type());
         if (m_expression)
-            ret = format("{} = {}", ret, m_expression->to_string(indent));
+            ret = format("{} = {}", ret, m_expression->to_string());
         return ret;
     }
 
@@ -639,7 +669,7 @@ public:
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}return {}", pad(indent), m_expression->to_string(indent));
+        return format("{}return {}", pad(indent), m_expression->to_string());
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Return; }
@@ -697,7 +727,7 @@ public:
     {
         auto ret = format("{}if ", pad(indent));
         if (m_condition)
-            ret += m_condition->to_string(indent);
+            ret += m_condition->to_string();
         ret += '\n';
         ret += m_statement->to_string(indent + 2);
         return ret;
@@ -776,7 +806,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::WhileStatement; }
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}while {}\n{}", pad(indent), m_condition->to_string(indent), m_stmt->to_string(indent + 2));
+        return format("{}while {}\n{}", pad(indent), m_condition->to_string(), m_stmt->to_string(indent + 2));
     }
     [[nodiscard]] std::shared_ptr<Expression> const& condition() const { return m_condition; }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_stmt; }
@@ -799,7 +829,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ForStatement; }
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}for {} in {}\n{}", pad(indent), m_variable, m_range->to_string(indent), m_stmt->to_string(indent + 2));
+        return format("{}for {} in {}\n{}", pad(indent), m_variable, m_range->to_string(), m_stmt->to_string(indent + 2));
     }
     [[nodiscard]] std::string const& variable() const { return m_variable; }
     [[nodiscard]] std::shared_ptr<Expression> const& range() const { return m_range; }
@@ -849,7 +879,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::SwitchStatement; }
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        auto ret = format("{}switch ({}) {\n", pad(indent), m_switch_expression->to_string(indent));
+        auto ret = format("{}switch ({}) {\n", pad(indent), m_switch_expression->to_string());
         for (auto& case_stmt : m_cases) {
             ret += case_stmt->to_string(indent);
         }

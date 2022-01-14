@@ -22,7 +22,7 @@ extern_logging_category(parser);
     ({                                                           \
         auto __##var##_maybe = (expr);                           \
         if (__##var##_maybe.is_error())                          \
-            return tree;                                         \
+            return __##var##_maybe.error();                      \
         std::dynamic_pointer_cast<cls>(__##var##_maybe.value()); \
     })
 
@@ -91,6 +91,15 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         auto operand = TRY_AND_CAST(Expression, processor(expr->operand(), ctx));
         if (operand != expr->operand())
             ret = std::make_shared<UnaryExpression>(expr->op(), operand);
+        break;
+    }
+
+    case SyntaxNodeType::Assignment: {
+        auto assignment = std::dynamic_pointer_cast<Assignment>(tree);
+        auto identifier = TRY_AND_CAST(Identifier, processor(assignment->identifier(), ctx));
+        auto expression = TRY_AND_CAST(Expression, processor(assignment->expression(), ctx));
+        if (identifier != assignment->identifier() || expression != assignment->expression())
+            ret = std::make_shared<Assignment>(identifier, expression);
         break;
     }
 

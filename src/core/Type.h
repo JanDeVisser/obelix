@@ -191,6 +191,14 @@ public:
     template<typename ObjectTypeBuilder>
     static std::shared_ptr<ObjectType> register_type(ObelixType type, ObjectTypeBuilder const& builder) noexcept
     {
+        auto ptr = std::make_shared<ObjectType>(type, ObelixType_name(type), builder);
+        s_types[type] = ptr;
+        return ptr;
+    }
+
+    template<typename ObjectTypeBuilder>
+    static std::shared_ptr<ObjectType> register_type(ObelixType type, char const* name, ObjectTypeBuilder const& builder) noexcept
+    {
         auto ptr = std::make_shared<ObjectType>(type, builder);
         s_types[type] = ptr;
         return ptr;

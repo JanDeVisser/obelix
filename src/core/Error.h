@@ -13,31 +13,37 @@
 
 namespace Obelix {
 
-#define ENUMERATE_ERROR_CODES(S)                                                            \
-    S(NoError, "There is no error")                                                         \
-    S(IOError, "{}")                                                                        \
-    S(SyntaxError, "{}")                                                                    \
-    S(NotYetImplemented, "{}")                                                              \
-    S(NoSuchFile, "File '{}' does not exist")                                               \
-    S(PathIsDirectory, "Path '{}' is a directory")                                          \
-    S(PathIsFile, "Path '{}' is a file")                                                    \
-    S(ObjectNotCallable, "Object '{}' is not callable")                                     \
-    S(ObjectNotIterable, "Object '{}' is not iterable")                                     \
-    S(CannotAssignToObject, "Cannot assign to object '{}'")                                 \
-    S(VariableAlreadyDeclared, "Variable '{}' is already declared")                         \
-    S(NameUnresolved, "Could not resolve '{}'")                                             \
-    S(OperatorUnresolved, "Could not apply '{}' to '{}'")                                   \
-    S(ConversionError, "Cannot convert '{}' to {}")                                         \
-    S(FunctionUndefined, "Function '{}' in image '{}' is undefined")                        \
-    S(UndeclaredVariable, "Undeclared variable '{}'")                                       \
-    S(RegexpSyntaxError, "Regular expression syntax error")                                 \
-    S(TypeMismatch, "Type mismatch in '{}'. Expected '{}', got '{}'")                       \
-    S(UntypedVariable, "Variable '{}' is untyped")                                          \
-    S(UntypedFunction, "Function '{}' has no return type")                                  \
-    S(ArgumentCountMismatch, "Function {} called with {} arguments")                        \
-    S(ArgumentTypeMismatch, "Function {} called with argument of type {} for parameter {}") \
-    S(CouldNotResolveNode, "Could not resolve node")                                        \
-    S(CantUseAsUnaryOp, "Cannot use '{}' as a unary operation")
+#define ENUMERATE_ERROR_CODES(S)                                                              \
+    S(NoError, "There is no error")                                                           \
+    S(IOError, "{}")                                                                          \
+    S(InternalError, "{}")                                                                    \
+    S(SyntaxError, "{}")                                                                      \
+    S(NotYetImplemented, "{}")                                                                \
+    S(NoSuchFile, "File '{}' does not exist")                                                 \
+    S(PathIsDirectory, "Path '{}' is a directory")                                            \
+    S(PathIsFile, "Path '{}' is a file")                                                      \
+    S(ObjectNotCallable, "Object '{}' is not callable")                                       \
+    S(ObjectNotIterable, "Object '{}' is not iterable")                                       \
+    S(CannotAssignToObject, "Cannot assign to object '{}'")                                   \
+    S(VariableAlreadyDeclared, "Variable '{}' is already declared")                           \
+    S(NameUnresolved, "Could not resolve '{}'")                                               \
+    S(OperatorUnresolved, "Could not apply '{}' to '{}'")                                     \
+    S(ReturnTypeUnresolved, "Return type of operator '{}' unresolved")                        \
+    S(ConversionError, "Cannot convert '{}' to {}")                                           \
+    S(FunctionUndefined, "Function '{}' in image '{}' is undefined")                          \
+    S(UndeclaredVariable, "Undeclared variable '{}'")                                         \
+    S(RegexpSyntaxError, "Regular expression syntax error")                                   \
+    S(TypeMismatch, "Type mismatch in '{}'. Expected '{}', got '{}'")                         \
+    S(UntypedVariable, "Variable '{}' is untyped")                                            \
+    S(UntypedFunction, "Function '{}' has no return type")                                    \
+    S(UntypedExpression, "Expression '{}' has no type")                                       \
+    S(ArgumentCountMismatch, "Function {} called with {} arguments")                          \
+    S(ArgumentTypeMismatch, "Function {} called with argument of type {} for parameter {}")   \
+    S(CouldNotResolveNode, "Could not resolve node")                                          \
+    S(CantUseAsUnaryOp, "Cannot use '{}' as a unary operation")                               \
+    S(CannotAssignToConstant, "Cannot assign to constant '{}'")                               \
+    S(CannotAssignToFunction, "Identifier '{}' represents a function and cannot be assigned") \
+    S(CannotAssignToRValue, "Cannot assign to expression '{}'")
 
 enum class ErrorCode {
 #undef __ENUMERATE_ERROR_CODE

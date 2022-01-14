@@ -36,7 +36,8 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         }
 
         auto ret = std::make_shared<VariableDeclaration>(var_decl->name(), t, expr);
-        ctx.set(var_decl->name(), ret);
+        ctx.declare(var_decl->name(), ret);
+        printf("VariableDeclaration: %s\n", ret->to_string(0).c_str());
         return ret;
     }
 
@@ -44,7 +45,8 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         auto decl = std::dynamic_pointer_cast<FunctionDecl>(tree);
         if (decl->identifier().type() == ObelixType::TypeUnknown)
             return Error { ErrorCode::UntypedFunction, decl->identifier().identifier() };
-        ctx.set(decl->identifier().identifier(), decl);
+        ctx.declare(decl->identifier().identifier(), decl);
+        printf("FunctionDecl: %s\n", decl->to_string(0).c_str());
         return decl;
     }
 
@@ -52,27 +54,51 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
         auto lhs = TRY_AND_CAST(Expression, bind_types_processor(expr->lhs(), ctx));
         auto rhs = TRY_AND_CAST(Expression, bind_types_processor(expr->rhs(), ctx));
-        if (lhs->is_typed() && rhs->is_typed()) {
-            std::vector<ObelixType> arg_types;
-            arg_types.push_back(rhs->type());
-            auto lhs_type = ObjectType::get(lhs->type());
-            assert(lhs_type.has_value());
-            auto return_type = lhs_type.value()->return_type_of(expr->op().value(), arg_types);
-            return std::make_shared<BinaryExpression>(lhs, expr->op(), rhs, return_type);
+        if (!lhs->is_typed())
+            return Error { ErrorCode::UntypedExpression, lhs->to_string(0) };
+        if (!rhs->is_typed())
+            return Error { ErrorCode::UntypedExpression, rhs->to_string(0) };
+        if (expr->op().code() == TokenCode::Equals) {
+            if (lhs->node_type() != SyntaxNodeType::Identifier)
+                return Error { ErrorCode::CannotAssignToRValue, lhs->to_string() };
+            auto identifier = std::dynamic_pointer_cast<Identifier>(lhs);
+            auto var_decl_maybe = ctx.get(identifier->name());
+            if (!var_decl_maybe.has_value())
+                return Error { ErrorCode::UndeclaredVariable, identifier->name() };
+            if (var_decl_maybe.value()->node_type() != SyntaxNodeType::VariableDeclaration)
+                return Error { ErrorCode::CannotAssignToFunction, identifier->name() };
+            auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(var_decl_maybe.value());
+            if (var_decl->is_const())
+                return Error { ErrorCode::CannotAssignToConstant, var_decl->name() };
+            if (var_decl->type() != rhs->type())
+                return Error { ErrorCode::TypeMismatch, rhs->to_string(), var_decl->type(), rhs->type() };
+            return std::make_shared<Assignment>(identifier, rhs);
         }
-        return expr;
+        std::vector<ObelixType> arg_types;
+        arg_types.push_back(rhs->type());
+        auto lhs_type = ObjectType::get(lhs->type());
+        assert(lhs_type.has_value());
+        auto return_type = lhs_type.value()->return_type_of(expr->op().value(), arg_types);
+        if (return_type == ObelixType::TypeUnknown)
+            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string(0) };
+        auto ret = std::make_shared<BinaryExpression>(lhs, expr->op(), rhs, return_type);
+        printf("BinaryExpression: %s\n", ret->to_string(0).c_str());
+        return ret;
     }
 
     case SyntaxNodeType::UnaryExpression: {
         auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
         auto operand = TRY_AND_CAST(Expression, bind_types_processor(expr->operand(), ctx));
-        if (operand->is_typed()) {
-            auto operand_type = ObjectType::get(expr->operand()->type());
-            assert(operand_type.has_value());
-            auto return_type = operand_type.value()->return_type_of(expr->op().value(), std::vector<ObelixType>());
-            return std::make_shared<UnaryExpression>(expr, return_type);
-        }
-        return expr;
+        if (!operand->is_typed())
+            return Error { ErrorCode::UntypedExpression, operand->to_string(0) };
+        auto operand_type = ObjectType::get(expr->operand()->type());
+        assert(operand_type.has_value());
+        auto return_type = operand_type.value()->return_type_of(expr->op().value(), std::vector<ObelixType>());
+        if (return_type == ObelixType::TypeUnknown)
+            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string(0) };
+        auto ret = std::make_shared<UnaryExpression>(expr, return_type);
+        printf("UnaryExpression: %s\n", ret->to_string(0).c_str());
+        return ret;
     }
 
     case SyntaxNodeType::Identifier: {
@@ -83,7 +109,9 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         if (type_decl_maybe.value()->node_type() != SyntaxNodeType::VariableDeclaration)
             return Error { ErrorCode::SyntaxError, format("Function {} cannot be referenced as a variable", ident->name()) };
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(type_decl_maybe.value());
-        return std::make_shared<Identifier>(Symbol { ident->name(), var_decl->type() });
+        auto ret = std::make_shared<Identifier>(Symbol { ident->name(), var_decl->type() });
+        printf("Identifier: %s\n", ret->to_string(0).c_str());
+        return ret;
     }
 
     case SyntaxNodeType::FunctionCall: {
@@ -109,7 +137,9 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             args.push_back(a);
         }
 
-        return std::make_shared<FunctionCall>(Symbol { func_call->name(), func_decl->type() }, args);
+        auto ret = std::make_shared<FunctionCall>(Symbol { func_call->name(), func_decl->type() }, args);
+        printf("FunctionCall: %s\n", ret->to_string(0).c_str());
+        return ret;
     }
 
     default:
