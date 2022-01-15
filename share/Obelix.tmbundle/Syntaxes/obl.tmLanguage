@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>fileTypes</key>
+	<array>
+		<string>obl</string>
+	</array>
+	<key>keyEquivalent</key>
+	<string>^@O</string>
+	<key>name</key>
+	<string>obl</string>
+	<key>patterns</key>
+	<array>
+		<dict>
+			<key>match</key>
+			<string>\b(func|const|var|if|elif|else|switch|case|default|while|for|in|return|int|string|bool|where|import|continue|break)\b</string>
+			<key>name</key>
+			<string>keyword.control.obl</string>
+		</dict>
+		<dict>
+			<key>begin</key>
+			<string>"</string>
+			<key>end</key>
+			<string>"</string>
+			<key>name</key>
+			<string>string.quoted.double.obl</string>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>match</key>
+					<string>\.</string>
+					<key>name</key>
+					<string>constant.character.escape.obl</string>
+				</dict>
+			</array>
+		</dict>
+	</array>
+	<key>scopeName</key>
+	<string>source.obl</string>
+	<key>uuid</key>
+	<string>F6ED7CD7-C714-46A6-8801-B606230C0340</string>
+</dict>
+</plist>

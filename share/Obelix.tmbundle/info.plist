@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>contactEmailRot13</key>
+	<string>wna@qr-ivffre.arg</string>
+	<key>contactName</key>
+	<string>Jan de Visser</string>
+	<key>description</key>
+	<string>New shiny bundle for obelix.</string>
+	<key>name</key>
+	<string>Obelix</string>
+	<key>uuid</key>
+	<string>817CC077-6671-48DE-9CDC-530CD507C324</string>
+</dict>
+</plist>
