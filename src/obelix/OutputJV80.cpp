@@ -87,6 +87,12 @@ void add_instruction(Segment& code, Mnemonic mnemonic, Register dest, uint16_t c
         Argument { .addressing_mode = Assembler::AMImmediate, .immediate_type = Argument::ImmediateType::Constant, .constant = constant }));
 }
 
+void add_indexed_instruction(Segment& code, Mnemonic mnemonic, Register dest, uint8_t idx)
+{
+    code.add(std::make_shared<Instruction>(mnemonic,
+        Argument { .addressing_mode = Assembler::AMIndexed, .constant = idx, .reg = dest }));
+}
+
 template<typename ExpressionType>
 ErrorOr<void> push_expression_return_value(Obelix::Assembler::Segment& code, ExpressionType const& expr)
 {
@@ -467,24 +473,12 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
         switch (identifier->type()) {
         case ObelixType::TypeInt:
         case ObelixType::TypeUnsigned:
-            code->add(std::make_shared<Instruction>(
-                Mnemonic::PUSH,
-                Argument {
-                    .addressing_mode = Assembler::AMIndexed,
-                    .constant = (uint16_t)idx->to_long().value(),
-                    .reg = Register::bp,
-                }));
+            add_indexed_instruction(*code, Mnemonic::PUSH, Register::bp, static_cast<uint8_t>(idx->to_long().value()));
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeByte:
         case ObelixType::TypeBoolean:
-            code->add(std::make_shared<Instruction>(
-                Mnemonic::PUSH,
-                Argument {
-                    .addressing_mode = Assembler::AMIndexed,
-                    .constant = (uint16_t)idx->to_long().value(),
-                    .reg = Register::bp,
-                }));
+            add_indexed_instruction(*code, Mnemonic::PUSH, Register::bp, static_cast<uint8_t>(idx->to_long().value()));
             add_instruction(*code, Mnemonic::POP, Register::cd);
             add_instruction(*code, Mnemonic::PUSH, Register::c);
             break;

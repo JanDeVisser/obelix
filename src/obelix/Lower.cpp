@@ -20,6 +20,21 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
 
     switch (tree->node_type()) {
 
+    case SyntaxNodeType::FunctionDef: {
+        auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
+        std::shared_ptr<Statement> statement;
+        switch (func_def->statement()->node_type()) {
+        case SyntaxNodeType::Block: {
+            auto block = std::dynamic_pointer_cast<Block>(func_def->statement());
+            return std::make_shared<FunctionDef>(func_def->declaration(), std::make_shared<FunctionBlock>(block->statements()));
+        }
+        case SyntaxNodeType::FunctionBlock:
+            return tree;
+        default:
+            return std::make_shared<FunctionDef>(func_def->declaration(), std::make_shared<FunctionBlock>(statement));
+        }
+    }
+
     case SyntaxNodeType::SwitchStatement: {
         auto switch_stmt = std::dynamic_pointer_cast<SwitchStatement>(tree);
         auto switch_expr = TRY_AND_CAST(Expression, lower_processor(switch_stmt->expression(), ctx));

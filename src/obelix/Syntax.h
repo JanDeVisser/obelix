@@ -23,6 +23,7 @@ extern_logging_category(parser);
     S(SyntaxNode)                    \
     S(Statement)                     \
     S(Block)                         \
+    S(FunctionBlock)                 \
     S(Module)                        \
     S(Expression)                    \
     S(Literal)                       \
@@ -244,6 +245,21 @@ public:
 
 protected:
     Statements m_statements {};
+};
+
+class FunctionBlock : public Block {
+public:
+    explicit FunctionBlock(Statements statements)
+        : Block(move(statements))
+    {
+    }
+
+    explicit FunctionBlock(std::shared_ptr<Statement> statement)
+        : Block(Statements { move(statement) })
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionBlock; }
 };
 
 class Module : public Block {

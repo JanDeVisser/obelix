@@ -45,6 +45,10 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         auto decl = std::dynamic_pointer_cast<FunctionDecl>(tree);
         if (decl->identifier().type() == ObelixType::TypeUnknown)
             return Error { ErrorCode::UntypedFunction, decl->identifier().identifier() };
+        for (auto& param : decl->parameters()) {
+            if (param.type() == ObelixType::TypeUnknown)
+                return Error { ErrorCode::UntypedParameter, param.identifier() };
+        }
         ctx.declare(decl->identifier().identifier(), decl);
         printf("FunctionDecl: %s\n", decl->to_string(0).c_str());
         return decl;

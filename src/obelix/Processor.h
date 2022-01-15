@@ -52,6 +52,11 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         break;
     }
 
+    case SyntaxNodeType::FunctionBlock: {
+        ret = TRY(process_block<FunctionBlock>(tree, ctx, processor));
+        break;
+    }
+
     case SyntaxNodeType::Module: {
         auto module = std::dynamic_pointer_cast<Module>(tree);
         ret = TRY(process_block<Module>(tree, ctx, processor, module->name()));

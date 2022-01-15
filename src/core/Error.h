@@ -36,6 +36,7 @@ namespace Obelix {
     S(TypeMismatch, "Type mismatch in '{}'. Expected '{}', got '{}'")                         \
     S(UntypedVariable, "Variable '{}' is untyped")                                            \
     S(UntypedFunction, "Function '{}' has no return type")                                    \
+    S(UntypedParameter, "Parameter '{}' has no return type")                                  \
     S(UntypedExpression, "Expression '{}' has no type")                                       \
     S(ArgumentCountMismatch, "Function {} called with {} arguments")                          \
     S(ArgumentTypeMismatch, "Function {} called with argument of type {} for parameter {}")   \
