@@ -22,14 +22,16 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
 
     case SyntaxNodeType::FunctionDef: {
         auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
-        std::shared_ptr<Statement> statement;
-        switch (func_def->statement()->node_type()) {
+        auto statement = TRY_AND_CAST(Statement, lower_processor(func_def->statement(), ctx));
+        switch (statement->node_type()) {
         case SyntaxNodeType::Block: {
-            auto block = std::dynamic_pointer_cast<Block>(func_def->statement());
+            auto block = std::dynamic_pointer_cast<Block>(statement);
             return std::make_shared<FunctionDef>(func_def->declaration(), std::make_shared<FunctionBlock>(block->statements()));
         }
-        case SyntaxNodeType::FunctionBlock:
-            return tree;
+        case SyntaxNodeType::FunctionBlock: {
+            auto block = std::dynamic_pointer_cast<FunctionBlock>(statement);
+            return std::make_shared<FunctionDef>(func_def->declaration(), block);
+        }
         default:
             return std::make_shared<FunctionDef>(func_def->declaration(), std::make_shared<FunctionBlock>(statement));
         }
@@ -140,7 +142,7 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
             std::make_shared<IfStatement>(
                 std::make_shared<UnaryExpression>(
                     Token(TokenCode::ExclamationPoint, "!"),
-                    condition),
+                    condition, condition->type()),
                 jump_out_of_loop));
         while_block.push_back(stmt);
         while_block.push_back(std::make_shared<Goto>(start_of_loop));
@@ -153,13 +155,17 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
         auto lhs = TRY_AND_CAST(Expression, lower_processor(expr->lhs(), ctx));
         auto rhs = TRY_AND_CAST(Expression, lower_processor(expr->rhs(), ctx));
 
+        if (expr->op().code() == TokenCode::Equals && lhs->node_type() == SyntaxNodeType::Identifier) {
+            auto identifier = std::dynamic_pointer_cast<Identifier>(lhs);
+            return std::make_shared<Assignment>(identifier, rhs);
+        }
+
         // +=, -= and friends: rewrite to a straight-up assignment to a binary
         if (Parser::is_assignment_operator(expr->op().code()) && lhs->node_type() == SyntaxNodeType::Identifier) {
-            auto id = std::dynamic_pointer_cast<Identifier>(lhs);
-            auto tok = expr->op().value();
+            auto identifier = std::dynamic_pointer_cast<Identifier>(lhs);
             auto new_rhs = std::make_shared<BinaryExpression>(
-                std::make_shared<Identifier>(id->name()), Parser::operator_for_assignment_operator(expr->op().code()), rhs, expr->type());
-            return std::make_shared<BinaryExpression>(id, Token(TokenCode::Equals, "="), new_rhs, expr->type());
+                std::make_shared<Identifier>(identifier->identifier()), Parser::operator_for_assignment_operator(expr->op().code()), rhs, expr->type());
+            return std::make_shared<Assignment>(identifier, new_rhs);
         }
 
         if (expr->op().code() == TokenCode::GreaterEqualThan) {

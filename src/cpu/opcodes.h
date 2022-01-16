@@ -298,6 +298,11 @@ enum OpCode {
     OR_D_B = 0xF8,
     XOR_D_B = 0xF9,
 
+    XOR_A_IMM = 0xFA,
+    XOR_B_IMM = 0xFB,
+    XOR_C_IMM = 0xFC,
+    // XOR_D_IMM = 0xFD, FIXME Restrict 8 bit arithmetic to A and B regs?
+
     RTI = 0xFD,
     NMIVEC = 0xFE,
     HLT = 0xFF

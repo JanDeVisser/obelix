@@ -15,11 +15,19 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
         type.add_method(MethodDescription { "=", TypeArgument, MethodParameter { "other", TypeCompatible } });
     });
 
+[[maybe_unused]] auto s_incrementable = ObjectType::register_type(TypeIncrementable,
+    [](ObjectType& type) {
+        type.add_method(MethodDescription { "++", TypeArgument });
+        type.add_method(MethodDescription { "--", TypeArgument });
+        type.add_method(MethodDescription { "+=", TypeArgument, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "-=", TypeArgument, MethodParameter { "other", TypeCompatible } });
+    });
+
 [[maybe_unused]] auto s_any = ObjectType::register_type(TypeAny,
     [](ObjectType& type) {
         type.add_method(MethodDescription { "==", TypeBoolean, MethodParameter { "other", TypeCompatible } });
         type.add_method(MethodDescription { "!=", TypeBoolean, MethodParameter { "other", TypeCompatible } });
-        type.add_method(MethodDescription { ".", TypeUnknown, MethodParameter { "attribute", TypeString } });
+        type.add_method(MethodDescription { ".", TypeAny, MethodParameter { "attribute", TypeString } });
         type.add_method(MethodDescription { "typename", TypeString });
         type.add_method(MethodDescription { "length", TypeInt });
         type.add_method(MethodDescription { "empty", TypeBoolean });
@@ -27,75 +35,53 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 
 [[maybe_unused]] auto s_comparable = ObjectType::register_type(TypeComparable,
     [](ObjectType& type) {
-        type.add_method(MethodDescription {"<", TypeBoolean, MethodParameter { "other", TypeCompatible } });
-        type.add_method(MethodDescription {"<=", TypeBoolean, MethodParameter { "other", TypeCompatible } });
-        type.add_method(MethodDescription {">", TypeBoolean, MethodParameter { "other", TypeCompatible } });
-        type.add_method(MethodDescription {">=", TypeBoolean, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "<", TypeBoolean, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "<=", TypeBoolean, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { ">", TypeBoolean, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { ">=", TypeBoolean, MethodParameter { "other", TypeCompatible } });
+    });
+
+[[maybe_unused]] auto s_integer_number = ObjectType::register_type(TypeIntegerNumber,
+    [](ObjectType& type) {
+        type.add_method(MethodDescription { "+", TypeArgument });
+        type.add_method(MethodDescription { "~", TypeArgument });
+        type.add_method(MethodDescription { "+", TypeArgument, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "-", TypeArgument, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "*", TypeArgument, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "/", TypeArgument, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "|", TypeArgument, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "&", TypeArgument, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "^", TypeArgument, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeCompatible } });
+        type.will_be_a(TypeComparable);
+        type.will_be_a(TypeAssignable);
+        type.will_be_a(TypeIncrementable);
+    });
+
+[[maybe_unused]] auto s_signed_integer_number = ObjectType::register_type(TypeSignedIntegerNumber,
+    [](ObjectType& type) {
+        type.add_method(MethodDescription { "-", TypeSelf });
+        type.will_be_a(TypeIntegerNumber);
     });
 
 [[maybe_unused]] auto s_integer = ObjectType::register_type(TypeInt,
     [](ObjectType& type) {
-        type.add_method(MethodDescription { "+", TypeInt });
-        type.add_method(MethodDescription { "-", TypeInt });
-        type.add_method(MethodDescription { "~", TypeInt });
-        type.add_method(MethodDescription { "+", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription { "-", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription { "*", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription { "/", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription { "|", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription { "&", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription { "^", TypeInt, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeInt } });
-        type.will_be_a(TypeComparable);
-        type.will_be_a(TypeAssignable);
+        type.will_be_a(TypeSignedIntegerNumber);
     });
 
 [[maybe_unused]] auto s_unsigned = ObjectType::register_type(TypeUnsigned,
     [](ObjectType& type) {
-        type.add_method(MethodDescription { "+", TypeUnsigned });
-        type.add_method(MethodDescription { "-", TypeUnsigned });
-        type.add_method(MethodDescription { "~", TypeUnsigned });
-        type.add_method(MethodDescription { "+", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
-        type.add_method(MethodDescription { "-", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
-        type.add_method(MethodDescription { "*", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
-        type.add_method(MethodDescription { "/", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
-        type.add_method(MethodDescription { "|", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
-        type.add_method(MethodDescription { "&", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
-        type.add_method(MethodDescription { "^", TypeUnsigned, MethodParameter { "other", TypeUnsigned } });
-        type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeUnsigned } });
-        type.will_be_a(TypeComparable);
+        type.will_be_a(TypeIntegerNumber);
     });
 
 [[maybe_unused]] auto s_byte = ObjectType::register_type(TypeByte,
     [](ObjectType& type) {
-        type.add_method(MethodDescription { "+", TypeByte });
-        type.add_method(MethodDescription { "-", TypeByte });
-        type.add_method(MethodDescription { "~", TypeByte });
-        type.add_method(MethodDescription { "+", TypeByte, MethodParameter { "other", TypeByte } });
-        type.add_method(MethodDescription { "-", TypeByte, MethodParameter { "other", TypeByte } });
-        type.add_method(MethodDescription { "*", TypeByte, MethodParameter { "other", TypeByte } });
-        type.add_method(MethodDescription { "/", TypeByte, MethodParameter { "other", TypeByte } });
-        type.add_method(MethodDescription { "|", TypeByte, MethodParameter { "other", TypeByte } });
-        type.add_method(MethodDescription { "&", TypeByte, MethodParameter { "other", TypeByte } });
-        type.add_method(MethodDescription { "^", TypeByte, MethodParameter { "other", TypeByte } });
-        type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeByte } });
-        type.will_be_a(TypeComparable);
+        type.will_be_a(TypeSignedIntegerNumber);
     });
 
 [[maybe_unused]] auto s_char = ObjectType::register_type(TypeChar,
     [](ObjectType& type) {
-        type.add_method(MethodDescription { "+", TypeChar });
-        type.add_method(MethodDescription { "-", TypeChar });
-        type.add_method(MethodDescription { "~", TypeChar });
-        type.add_method(MethodDescription { "+", TypeChar, MethodParameter { "other", TypeChar } });
-        type.add_method(MethodDescription { "-", TypeChar, MethodParameter { "other", TypeChar } });
-        type.add_method(MethodDescription { "*", TypeChar, MethodParameter { "other", TypeChar } });
-        type.add_method(MethodDescription { "/", TypeChar, MethodParameter { "other", TypeChar } });
-        type.add_method(MethodDescription { "|", TypeChar, MethodParameter { "other", TypeChar } });
-        type.add_method(MethodDescription { "&", TypeChar, MethodParameter { "other", TypeChar } });
-        type.add_method(MethodDescription { "^", TypeChar, MethodParameter { "other", TypeChar } });
-        type.add_method(MethodDescription { "..", TypeRange, MethodParameter { "other", TypeChar } });
-        type.will_be_a(TypeComparable);
+        type.will_be_a(TypeIntegerNumber);
     });
 
 [[maybe_unused]] auto s_string = ObjectType::register_type(TypeString,

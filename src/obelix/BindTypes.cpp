@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
 namespace Obelix {
@@ -62,7 +63,14 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             return Error { ErrorCode::UntypedExpression, lhs->to_string(0) };
         if (!rhs->is_typed())
             return Error { ErrorCode::UntypedExpression, rhs->to_string(0) };
-        if (expr->op().code() == TokenCode::Equals) {
+        std::vector<ObelixType> arg_types;
+        arg_types.push_back(rhs->type());
+        auto lhs_type = ObjectType::get(lhs->type());
+        assert(lhs_type.has_value());
+        auto return_type = lhs_type.value()->return_type_of(expr->op().value(), arg_types);
+        if (return_type == ObelixType::TypeUnknown)
+            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string(0) };
+        if (expr->op().code() == TokenCode::Equals || Parser::is_assignment_operator(expr->op().code())) {
             if (lhs->node_type() != SyntaxNodeType::Identifier)
                 return Error { ErrorCode::CannotAssignToRValue, lhs->to_string() };
             auto identifier = std::dynamic_pointer_cast<Identifier>(lhs);
@@ -76,15 +84,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
                 return Error { ErrorCode::CannotAssignToConstant, var_decl->name() };
             if (var_decl->type() != rhs->type())
                 return Error { ErrorCode::TypeMismatch, rhs->to_string(), var_decl->type(), rhs->type() };
-            return std::make_shared<Assignment>(identifier, rhs);
         }
-        std::vector<ObelixType> arg_types;
-        arg_types.push_back(rhs->type());
-        auto lhs_type = ObjectType::get(lhs->type());
-        assert(lhs_type.has_value());
-        auto return_type = lhs_type.value()->return_type_of(expr->op().value(), arg_types);
-        if (return_type == ObelixType::TypeUnknown)
-            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string(0) };
         auto ret = std::make_shared<BinaryExpression>(lhs, expr->op(), rhs, return_type);
         printf("BinaryExpression: %s\n", ret->to_string(0).c_str());
         return ret;

@@ -1,6 +1,6 @@
 add_library(
         obllexer
-        SHARED
+        STATIC
         BasicParser.cpp
         OblBuffer.cpp
         IdentifierScanner.cpp

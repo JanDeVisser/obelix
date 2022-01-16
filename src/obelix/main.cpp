@@ -109,7 +109,7 @@ private:
                 if (auto err = output_jv80(transformed, image); err.is_error())
                     return err;
                 Obelix::CPU::CPU cpu(image);
-                auto ret = cpu.run(true);
+                auto ret = cpu.run(config().show_tree);
                 if (ret.is_error())
                     return Error { ErrorCode::SyntaxError, format("Runtime error: {}", SystemErrorCode_name(ret.error())) };
                 return std::make_shared<Literal>(make_obj<Integer>(ret.value()));

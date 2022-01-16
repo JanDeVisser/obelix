@@ -8,7 +8,7 @@ endif(READLINE_FOUND)
 
 add_library(
         oblparser
-        SHARED
+        STATIC
         BindTypes.cpp
         #BoundFunction.cpp
         #Execute.cpp
@@ -44,4 +44,4 @@ install(TARGETS oblparser obelix
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)
 
-add_subdirectory(test)
+# add_subdirectory(test)

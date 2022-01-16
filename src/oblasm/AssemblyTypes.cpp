@@ -322,9 +322,9 @@ OpcodeDefinition opcode_definitions[256] = {
     /* or d,b          */ { Mnemonic::OR, AMRegister, Register::d, AMRegister, Register::b, 1 },
     /* xor d,b         */ { Mnemonic::XOR, AMRegister, Register::d, AMRegister, Register::b, 1 },
 
-    { /* 250 */ },
-    { /* 251 */ },
-    { /* 252 */ },
+    /* xor a,#$xx      */ { Mnemonic::XOR, AMRegister, Register::a, AMImmediate, Register::None, 2 },
+    /* xor b,#$xx      */ { Mnemonic::XOR, AMRegister, Register::b, AMImmediate, Register::None, 2 },
+    /* xor c,#$xx      */ { Mnemonic::XOR, AMRegister, Register::c, AMImmediate, Register::None, 2 },
 
     /* rti           */ { Mnemonic::RTI, AMNone, Register::None, AMNone, Register::None, 1 },
     /* nmi #$xxxx    */ { Mnemonic::NMI, AMImmediate, Register::None, AMNone, Register::None, 3 },

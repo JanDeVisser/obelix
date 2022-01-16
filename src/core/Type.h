@@ -45,7 +45,10 @@ namespace Obelix {
     S(Argument, 9999)             \
     S(Any, 10000)                 \
     S(Comparable, 10001)          \
-    S(Assignable, 10002)
+    S(Assignable, 10002)          \
+    S(Incrementable, 10003)       \
+    S(IntegerNumber, 10004)       \
+    S(SignedIntegerNumber, 10005)
 
 enum ObelixType {
 #undef __ENUM_OBELIX_TYPE

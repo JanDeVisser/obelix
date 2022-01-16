@@ -31,7 +31,7 @@ static byte sample_mem[] = {
 };
 
 BackPlane::BackPlane()
-    : clock(this, 1.0)
+    : clock(this, 10.0)
 {
 }
 

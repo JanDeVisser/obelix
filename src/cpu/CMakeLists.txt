@@ -1,6 +1,6 @@
 add_library(
         oblcpu
-        SHARED
+        STATIC
         addressregister.cpp
         alu.cpp
         backplane.cpp

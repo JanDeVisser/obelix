@@ -206,9 +206,9 @@ ErrorOr<void> int_int_binary_expression(Image& image, Obelix::Assembler::Segment
     case TokenCode::GreaterThan: {
         add_instruction(code, Mnemonic::CMP, Register::b, Register::d);
         auto push_false = format("lbl_{}", Obelix::Label::reserve_id());
-        add_instruction(code, Mnemonic::JC, push_false);
+        add_instruction(code, Mnemonic::JNC, push_false);
         add_instruction(code, Mnemonic::CMP, Register::a, Register::c);
-        add_instruction(code, Mnemonic::JC, push_false);
+        add_instruction(code, Mnemonic::JNC, push_false);
         add_instruction(code, Mnemonic::PUSH, 0x01);
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         add_instruction(code, Mnemonic::JMP, done);
@@ -220,9 +220,9 @@ ErrorOr<void> int_int_binary_expression(Image& image, Obelix::Assembler::Segment
     case TokenCode::LessThan: {
         add_instruction(code, Mnemonic::CMP, Register::b, Register::d);
         auto push_false = format("lbl_{}", Obelix::Label::reserve_id());
-        add_instruction(code, Mnemonic::JNC, push_false);
+        add_instruction(code, Mnemonic::JC, push_false);
         add_instruction(code, Mnemonic::CMP, Register::a, Register::c);
-        add_instruction(code, Mnemonic::JNC, push_false);
+        add_instruction(code, Mnemonic::JC, push_false);
         add_instruction(code, Mnemonic::PUSH, 0x01);
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         add_instruction(code, Mnemonic::JMP, done);
@@ -273,7 +273,7 @@ ErrorOr<void> byte_byte_binary_expression(Image& image, Obelix::Assembler::Segme
         add_instruction(code, Mnemonic::SUB, Register::a, Register::b);
         break;
     case TokenCode::Equals: {
-        add_instruction(code, Mnemonic::CMP, Register::b, Register::d);
+        add_instruction(code, Mnemonic::CMP, Register::a, Register::b);
         auto push_false = format("lbl_{}", Obelix::Label::reserve_id());
         add_instruction(code, Mnemonic::JNZ, push_false);
         add_instruction(code, Mnemonic::PUSH, 0x01);
@@ -285,7 +285,7 @@ ErrorOr<void> byte_byte_binary_expression(Image& image, Obelix::Assembler::Segme
         return {};
     }
     case TokenCode::GreaterThan: {
-        add_instruction(code, Mnemonic::CMP, Register::b, Register::d);
+        add_instruction(code, Mnemonic::CMP, Register::a, Register::b);
         auto push_false = format("lbl_{}", Obelix::Label::reserve_id());
         add_instruction(code, Mnemonic::JC, push_false);
         add_instruction(code, Mnemonic::PUSH, 0x01);
@@ -297,10 +297,10 @@ ErrorOr<void> byte_byte_binary_expression(Image& image, Obelix::Assembler::Segme
         return {};
     }
     case TokenCode::LessThan: {
-        add_instruction(code, Mnemonic::CMP, Register::b, Register::d);
+        add_instruction(code, Mnemonic::CMP, Register::a, Register::b);
         auto push_false = format("lbl_{}", Obelix::Label::reserve_id());
         add_instruction(code, Mnemonic::JNC, push_false);
-        add_instruction(code, Mnemonic::CMP, Register::a, Register::c);
+        add_instruction(code, Mnemonic::PUSH, 0x01);
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         add_instruction(code, Mnemonic::JMP, done);
         image.add(std::make_shared<Assembler::Label>(push_false, image.current_address()));
@@ -577,7 +577,9 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
         for (auto& branch : if_stmt->branches()) {
             auto else_label = Obelix::Label::reserve_id();
             auto cond = TRY_AND_CAST(Expression, output_jv80_processor(branch->condition(), ctx));
-            code->add(std::make_shared<Instruction>(Mnemonic::JZ, // Jump if false (zero)
+            add_instruction(*code, Mnemonic::POP, Register::a);
+            add_instruction(*code, Mnemonic::CMP, Register::a, 0x00);
+            code->add(std::make_shared<Instruction>(Mnemonic::JNZ, // Jump if false (zero)
                 Argument { .addressing_mode = AMImmediate, .immediate_type = Argument::ImmediateType::Label, .label = format("lbl_{}", else_label) }));
             auto stmt = TRY_AND_CAST(Statement, output_jv80_processor(branch->statement(), ctx));
             ctx.image().add(std::make_shared<Obelix::Assembler::Label>(format("lbl_{}", else_label), ctx.image().current_address()));

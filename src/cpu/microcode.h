@@ -933,7 +933,9 @@ constexpr static MicroCode mc[256] = {
     ALU_OP(OR, D, B),
     ALU_OP(XOR, D, B),
 
-    { /* 250 */ }, { /* 251 */ }, { /* 252 */ },
+    ALU_OP_IMM(XOR, A),
+    ALU_OP_IMM(XOR, B),
+    ALU_OP_IMM(XOR, C),
 
     {
         .opcode = RTI,

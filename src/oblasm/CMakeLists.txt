@@ -1,6 +1,6 @@
 add_library(
         oblasm
-        SHARED
+        STATIC
         Assembler.cpp
         AssemblyTypes.cpp
         Buffer.cpp

@@ -1,6 +1,6 @@
 add_library(
         oblcore
-        SHARED
+        STATIC
         Arguments.cpp
         Boolean.cpp
         Dictionary.cpp
