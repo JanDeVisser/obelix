@@ -21,15 +21,13 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
     switch (tree->node_type()) {
     case SyntaxNodeType::VariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
-        if (var_decl->is_const()) {
-            auto expr = TRY_AND_CAST(Expression, fold_constants_processor(var_decl->expression(), ctx));
-            if (expr->node_type() == SyntaxNodeType::Literal) {
-                auto literal = std::dynamic_pointer_cast<Literal>(expr);
-                ctx.declare(var_decl->variable().identifier(), literal);
-            }
-            if (expr != var_decl->expression())
-                return std::make_shared<VariableDeclaration>(var_decl->variable(), expr, var_decl->is_const());
+        auto expr = TRY_AND_CAST(Expression, fold_constants_processor(var_decl->expression(), ctx));
+        if (var_decl->is_const() && expr->node_type() == SyntaxNodeType::Literal) {
+            auto literal = std::dynamic_pointer_cast<Literal>(expr);
+            ctx.declare(var_decl->variable().identifier(), literal);
         }
+        if (expr != var_decl->expression())
+            return std::make_shared<VariableDeclaration>(var_decl->variable(), expr, var_decl->is_const());
         return tree;
     }
 
