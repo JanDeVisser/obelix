@@ -33,9 +33,9 @@ struct Assembly {
         code = format("{}{}:\n", code, label);
     }
 
-    void add_string(std::string const& label, std::string const& str)
+    void add_string(int id, std::string const& str)
     {
-        text = format("{}{}:\n\t.asciz\t\"{}\"\n", text, label, str);
+        text = format("{}str_{}:\n\t.ascii\t\"{}\"\n", text, id, str);
     }
 
     void syscall(int id)
@@ -75,7 +75,7 @@ public:
     [[nodiscard]] Assembly& assembly() const { return m_assembly; }
     [[nodiscard]] int current_register() const { return m_current_reg; }
     void next_register() { m_current_reg++; }
-    void set_base_register(int reg) { m_current_reg = reg; }
+    void reset_register() { m_current_reg = 4; }
 
 private:
     Assembly& m_assembly;
@@ -108,14 +108,14 @@ void pop<uint8_t>(MacOSXContext& ctx, char const* reg)
 
 void push_imm(MacOSXContext& ctx, long value)
 {
-    ctx.assembly().add_instruction("mov", format("x8,{}", value));
-    push(ctx, "x8");
+    ctx.assembly().add_instruction("mov", format("x0,{}", value));
+    push(ctx, "x0");
 }
 
 void push_imm(MacOSXContext& ctx, uint8_t value)
 {
-    ctx.assembly().add_instruction("movb", format("w8,{}", value));
-    push<uint8_t>(ctx, "w8");
+    ctx.assembly().add_instruction("movb", format("w0,{}", value));
+    push<uint8_t>(ctx, "w0");
 }
 
 template<typename T = long>
@@ -125,8 +125,8 @@ ErrorOr<void> push_var(MacOSXContext& ctx, std::string const& name)
     if (!idx_maybe.has_value())
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
-    ctx.assembly().add_instruction("ldr", format("x8,[fp,{}]", static_cast<T>(idx->to_long().value())));
-    push<T>(ctx, "x8");
+    ctx.assembly().add_instruction("ldr", format("x0,[fp,{}]", static_cast<T>(idx->to_long().value())));
+    push<T>(ctx, "x0");
     return {};
 }
 
@@ -137,8 +137,8 @@ ErrorOr<void> push_var<uint8_t>(MacOSXContext& ctx, std::string const& name)
     if (!idx_maybe.has_value())
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
-    ctx.assembly().add_instruction("movb", format("w8,[fp,{}]", static_cast<uint8_t>(idx->to_long().value())));
-    push<uint8_t>(ctx, "w8");
+    ctx.assembly().add_instruction("movb", format("w0,[fp,{}]", static_cast<uint8_t>(idx->to_long().value())));
+    push<uint8_t>(ctx, "w0");
     return {};
 }
 
@@ -149,8 +149,8 @@ ErrorOr<void> pop_var(MacOSXContext& ctx, std::string const& name)
     if (!idx_maybe.has_value())
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
-    pop<T>(ctx, "x8");
-    ctx.assembly().add_instruction("str", format("x8,[fp,{}]", idx));
+    pop<T>(ctx, "x0");
+    ctx.assembly().add_instruction("str", format("x0,[fp,{}]", idx));
     return {};
 }
 
@@ -161,27 +161,8 @@ ErrorOr<void> pop_var<uint8_t>(MacOSXContext& ctx, std::string const& name)
     if (!idx_maybe.has_value())
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
-    pop<uint8_t>(ctx, "w8");
-    ctx.assembly().add_instruction("strb", format("w8,[fp,{}]", idx));
-    return {};
-}
-
-template<typename ExpressionType>
-ErrorOr<void> push_expression_return_value(MacOSXContext& ctx, ExpressionType const& expr)
-{
-    switch (expr.type()) {
-    case ObelixType::TypeInt:
-    case ObelixType::TypeUnsigned:
-        push(ctx, "x8");
-        break;
-    case ObelixType::TypeBoolean:
-    case ObelixType::TypeByte:
-    case ObelixType::TypeChar:
-        push<uint8_t>(ctx, "w8");
-        break;
-    default:
-        Error { ErrorCode::SyntaxError, format("Unexpected return type {} for expression {}", expr.type(), expr.to_string(0)) };
-    }
+    pop<uint8_t>(ctx, "w0");
+    ctx.assembly().add_instruction("strb", format("w0,[fp,{}]", idx));
     return {};
 }
 
@@ -189,7 +170,7 @@ ErrorOr<void> bool_unary_expression(MacOSXContext& ctx, UnaryExpression const& e
 {
     switch (expr.op().code()) {
     case TokenCode::ExclamationPoint:
-        ctx.assembly().add_instruction("eorb", "w8,w8,#0x01"); // a is 0b00000001 (a was true) or 0b00000000 (a was false)
+        ctx.assembly().add_instruction("eorb", "w0,w0,#0x01"); // a is 0b00000001 (a was true) or 0b00000000 (a was false)
         break;
     default:
         return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
@@ -201,17 +182,17 @@ ErrorOr<void> bool_bool_binary_expression(MacOSXContext& ctx, BinaryExpression c
 {
     switch (expr.op().code()) {
     case TokenCode::LogicalAnd:
-        ctx.assembly().add_instruction("and", "x8,x8,x9");
+        ctx.assembly().add_instruction("and", "x0,x0,x2");
         break;
     case TokenCode::LogicalOr:
-        ctx.assembly().add_instruction("orr", "x8,x8,x9");
+        ctx.assembly().add_instruction("orr", "x0,x0,x2");
         break;
     case TokenCode::Hat:
-        ctx.assembly().add_instruction("xor", "x8,x8,x9");
+        ctx.assembly().add_instruction("xor", "x0,x0,x2");
         break;
     case TokenCode::Equals: {
-        ctx.assembly().add_instruction("eor", "x8,x8,x9");    // a is 0b00000000 (a == b) or 0b00000001 (a != b)
-        ctx.assembly().add_instruction("eor", "x8,x8,#0x01"); // a is 0b00000001 (a == b) or 0b00000000 (a != b)
+        ctx.assembly().add_instruction("eor", "x0,x0,x2");    // a is 0b00000000 (a == b) or 0b00000001 (a != b)
+        ctx.assembly().add_instruction("eor", "x0,x0,#0x01"); // a is 0b00000001 (a == b) or 0b00000000 (a != b)
         break;
     }
     default:
@@ -230,12 +211,12 @@ ErrorOr<void> int_unary_expression(MacOSXContext& ctx, UnaryExpression const& ex
             return Error { ErrorCode::SyntaxError, "Cannot negate unsigned numbers" };
 
         // Perform two's complement. Negate and add 1:
-        ctx.assembly().add_instruction("mvn", "x8,x8");
-        ctx.assembly().add_instruction("add", "x8,#0x01");
+        ctx.assembly().add_instruction("mvn", "x0,x0");
+        ctx.assembly().add_instruction("add", "x0,#0x01");
         break;
     }
     case TokenCode::Tilde:
-        ctx.assembly().add_instruction("mvn", "x8,x8");
+        ctx.assembly().add_instruction("mvn", "x0,x0");
         break;
     default:
         return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
@@ -247,44 +228,50 @@ ErrorOr<void> int_int_binary_expression(MacOSXContext& ctx, BinaryExpression con
 {
     switch (expr.op().code()) {
     case TokenCode::Plus:
-        ctx.assembly().add_instruction("add", "x8,x8,x9");
+        ctx.assembly().add_instruction("add", "x0,x0,x2");
         break;
     case TokenCode::Minus:
-        ctx.assembly().add_instruction("sub", "x8,x8,x9");
+        ctx.assembly().add_instruction("sub", "x0,x0,x2");
+        break;
+    case TokenCode::Asterisk:
+        ctx.assembly().add_instruction("smull", "x0,x0,x2");
+        break;
+    case TokenCode::Slash:
+        ctx.assembly().add_instruction("sdiv", "x0,x0,x2");
         break;
     case TokenCode::EqualsTo: {
-        ctx.assembly().add_instruction("cmp", "x8,x9");
+        ctx.assembly().add_instruction("cmp", "x0,x2");
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bne", set_false);
-        ctx.assembly().add_instruction("mov", "x8,#0x01");
+        ctx.assembly().add_instruction("mov", "x0,#0x01");
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("mov", "x8,#0x00");
+        ctx.assembly().add_instruction("mov", "x0,#0x00");
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::GreaterThan: {
-        ctx.assembly().add_instruction("cmp", "x8,x9");
+        ctx.assembly().add_instruction("cmp", "x0,x2");
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bmi", set_false);
-        ctx.assembly().add_instruction("mov", "x8,#0x01");
+        ctx.assembly().add_instruction("mov", "x0,#0x01");
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("mov", "x8,#0x00");
+        ctx.assembly().add_instruction("mov", "x0,#0x00");
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::LessThan: {
-        ctx.assembly().add_instruction("cmp", "x8,x9");
+        ctx.assembly().add_instruction("cmp", "x0,x2");
         auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bmi", set_true);
-        ctx.assembly().add_instruction("mov", "x8,#0x00");
+        ctx.assembly().add_instruction("mov", "x0,#0x00");
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_true);
-        ctx.assembly().add_instruction("mov", "x8,#0x01");
+        ctx.assembly().add_instruction("mov", "x0,#0x01");
         ctx.assembly().add_label(done);
         return {};
     }
@@ -304,64 +291,83 @@ ErrorOr<void> byte_unary_expression(MacOSXContext& ctx, UnaryExpression const& e
             return Error { ErrorCode::SyntaxError, "Cannot negate unsigned numbers" };
 
         // Perform two's complement. Negate and add 1:
-        ctx.assembly().add_instruction("mvnb", "w8,w8");
-        ctx.assembly().add_instruction("addb", "w8,#0x01");
+        ctx.assembly().add_instruction("mvnb", "w0,w0");
+        ctx.assembly().add_instruction("addb", "w0,#0x01");
         break;
     }
     case TokenCode::Tilde:
-        ctx.assembly().add_instruction("mvnb", "w8,w8");
+        ctx.assembly().add_instruction("mvnb", "w0,w0");
         break;
     default:
         return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
     }
-    return push_expression_return_value(ctx, expr);
+    return {};
 }
 
 ErrorOr<void> byte_byte_binary_expression(MacOSXContext& ctx, BinaryExpression const& expr)
 {
     switch (expr.op().code()) {
     case TokenCode::Plus:
-        ctx.assembly().add_instruction("andb", "w8,w8,w9");
+        ctx.assembly().add_instruction("andb", "w0,w0,w1");
         break;
     case TokenCode::Minus:
-        ctx.assembly().add_instruction("subb", "w8,w8,w9");
+        ctx.assembly().add_instruction("subb", "w0,w0,w1");
+        break;
+    case TokenCode::Asterisk:
+        ctx.assembly().add_instruction("smull", "x0,w0,w2");
+        break;
+    case TokenCode::Slash:
+        ctx.assembly().add_instruction("sdiv", "w0,w0,w2");
         break;
     case TokenCode::EqualsTo: {
-        ctx.assembly().add_instruction("cmpb", "w8,w9");
+        ctx.assembly().add_instruction("cmpb", "w0,w1");
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bne", set_false);
-        ctx.assembly().add_instruction("movb", "w8,#0x01");
+        ctx.assembly().add_instruction("movb", "w0,#0x01");
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("movb", "w8,#0x00");
+        ctx.assembly().add_instruction("movb", "w0,#0x00");
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::GreaterThan: {
-        ctx.assembly().add_instruction("cmpb", "w8,w9");
+        ctx.assembly().add_instruction("cmpb", "w0,w1");
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bmi", set_false);
-        ctx.assembly().add_instruction("movb", "w8,#0x01");
+        ctx.assembly().add_instruction("movb", "w0,#0x01");
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("movb", "w8,#0x00");
+        ctx.assembly().add_instruction("movb", "w0,#0x00");
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::LessThan: {
-        ctx.assembly().add_instruction("cmpb", "w8,w9");
+        ctx.assembly().add_instruction("cmpb", "w0,w1");
         auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bmi", set_true);
-        ctx.assembly().add_instruction("movb", "w8,#0x00");
+        ctx.assembly().add_instruction("movb", "w0,#0x00");
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_true);
-        ctx.assembly().add_instruction("movb", "w8,#0x01");
+        ctx.assembly().add_instruction("movb", "w0,#0x01");
         ctx.assembly().add_label(done);
         return {};
     }
+    default:
+        return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
+    }
+    return {};
+}
+
+ErrorOr<void> string_binary_expression(MacOSXContext& ctx, BinaryExpression const& expr)
+{
+    switch (expr.op().code()) {
+    case TokenCode::Plus:
+        break;
+    case TokenCode::Asterisk:
+        break;
     default:
         return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
     }
@@ -417,15 +423,29 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
     case SyntaxNodeType::FunctionCall: {
         auto call = std::dynamic_pointer_cast<FunctionCall>(tree);
 
+        if (call->name() == "write") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().add_instruction("mov", "w2,w1");
+            ctx.assembly().add_instruction("mov", "x1,x0");
+            ctx.assembly().add_instruction("mov", "x0,#1");
+            ctx.assembly().syscall(0x04);
+            return tree;
+        }
+        if (call->name() == "exit") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().syscall(0x01);
+            return tree;
+        }
+
         // Push fp, and set temp fp to sp:
         push(ctx, "fp");
         ctx.assembly().add_instruction("mov", "fp,sp");
 
         for (auto it = call->arguments().rbegin(); it != call->arguments().rend(); it++) {
             auto argument = *it;
-            ctx.set_base_register(10);
+            ctx.reset_register();
             TRY_RETURN(output_macosx_processor(argument, ctx));
-            push(ctx, "x8");
+            push(ctx, "x0");
         }
 
         // Push temp fp.
@@ -442,28 +462,38 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
         // Pop caller fp:
         pop(ctx, "fp");
-
-        // Move return value from x0 to x8:
-        ctx.assembly().add_instruction("mov", "x8,x0");
         return tree;
     }
 
     case SyntaxNodeType::BinaryExpression: {
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-        auto rhs = TRY_AND_CAST(Expression, output_macosx_processor(expr->rhs(), ctx));
-        if (ctx.current_register() >= 19)
-            return Error { ErrorCode::InternalError, "FIXME: Maximum expression depth reached" };
-        auto reg = format("x{}", ctx.current_register());
-        ctx.next_register();
-        ctx.assembly().add_instruction("mov", format("{},x8", reg));
-        auto lhs = TRY_AND_CAST(Expression, output_macosx_processor(expr->lhs(), ctx));
-        ctx.assembly().add_instruction("mov", format("x9,{}", reg));
-
         if (expr->lhs()->type() == ObelixType::TypeUnknown) {
             return Error { ErrorCode::UntypedExpression, expr->lhs()->to_string(0) };
         }
         if (expr->rhs()->type() == ObelixType::TypeUnknown) {
             return Error { ErrorCode::UntypedExpression, expr->rhs()->to_string(0) };
+        }
+        auto rhs = TRY_AND_CAST(Expression, output_macosx_processor(expr->rhs(), ctx));
+        if (ctx.current_register() >= 19)
+            return Error { ErrorCode::InternalError, "FIXME: Maximum expression depth reached" };
+        auto reg = format("x{}", ctx.current_register());
+        ctx.next_register();
+        ctx.assembly().add_instruction("mov", format("{},x0", reg));
+
+        std::string len_reg;
+        if (rhs->type() == ObelixType::TypeString) {
+            if (ctx.current_register() >= 19)
+                return Error { ErrorCode::InternalError, "FIXME: Maximum expression depth reached" };
+            len_reg = format("w{}", ctx.current_register());
+            ctx.next_register();
+            ctx.assembly().add_instruction("mov", format("{},w1", reg));
+        }
+
+        auto lhs = TRY_AND_CAST(Expression, output_macosx_processor(expr->lhs(), ctx));
+
+        ctx.assembly().add_instruction("mov", format("x2,{}", reg));
+        if (rhs->type() == ObelixType::TypeString) {
+            ctx.assembly().add_instruction("mov", format("x3,{}", len_reg));
         }
 
         if ((expr->lhs()->type() == ObelixType::TypeInt && expr->lhs()->type() == ObelixType::TypeInt) || (expr->lhs()->type() == ObelixType::TypeUnsigned && expr->lhs()->type() == ObelixType::TypeUnsigned)) {
@@ -474,6 +504,9 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         }
         if (expr->lhs()->type() == ObelixType::TypeBoolean && expr->lhs()->type() == ObelixType::TypeBoolean) {
             TRY_RETURN(bool_bool_binary_expression(ctx, *expr));
+        }
+        if (expr->lhs()->type() == ObelixType::TypeString) {
+            TRY_RETURN(string_binary_expression(ctx, *expr));
         }
         return tree;
     }
@@ -506,13 +539,20 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         switch (val.type()) {
         case ObelixType::TypeInt:
         case ObelixType::TypeUnsigned: {
-            ctx.assembly().add_instruction("mov", format("x8,#{}", val->to_long().value()));
+            ctx.assembly().add_instruction("mov", format("x0,#{}", val->to_long().value()));
             break;
         }
         case ObelixType::TypeChar:
         case ObelixType::TypeByte:
         case ObelixType::TypeBoolean: {
-            ctx.assembly().add_instruction("mov", format("w8,#{}", static_cast<uint8_t>(val->to_long().value())));
+            ctx.assembly().add_instruction("mov", format("w0,#{}", static_cast<uint8_t>(val->to_long().value())));
+            break;
+        }
+        case ObelixType::TypeString: {
+            auto str_id = Label::reserve_id();
+            ctx.assembly().add_instruction("adr", format("x0,str_{}", str_id));
+            ctx.assembly().add_instruction("mov", format("w1,#{}", val->to_string().length()));
+            ctx.assembly().add_string(str_id, val->to_string());
             break;
         }
         default:
@@ -530,13 +570,21 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
         switch (identifier->type()) {
         case ObelixType::TypeInt:
+            ctx.assembly().add_instruction("ldr", format("x0,[fp,{}]", idx->to_long().value()));
+            break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("ldr", format("x8,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldr", format("x0,[fp,{}]", idx->to_long().value()));
+            break;
+        case ObelixType::TypeByte:
+            ctx.assembly().add_instruction("ldrbs", format("w0,[fp,{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeChar:
-        case ObelixType::TypeByte:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("ldrb", format("w8,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldrb", format("w0,[fp,{}]", idx->to_long().value()));
+            break;
+        case ObelixType::TypeString:
+            ctx.assembly().add_instruction("ldr", format("x0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldrw", format("w1,[fp,{}]", idx->to_long().value() + 8));
             break;
         default:
             return Error { ErrorCode::NotYetImplemented, format("Cannot push values of variables of type {} yet", identifier->type()) };
@@ -552,20 +600,28 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", assignment->name()) };
         auto idx = idx_maybe.value();
 
-        // Evaluate the expression into w8:
-        ctx.set_base_register(10);
+        // Evaluate the expression into w0:
+        ctx.reset_register();
         TRY_RETURN(output_macosx_processor(assignment->expression(), ctx));
 
         switch (assignment->type()) {
         case ObelixType::TypeInt:
+            ctx.assembly().add_instruction("str", format("x0,[fp,{}]", idx->to_long().value()));
+            break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("str", format("x8,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("str", format("x0,[fp,{}]", idx->to_long().value()));
+            break;
+        case ObelixType::TypeByte:
+            ctx.assembly().add_instruction("strbs", format("x0,[fp,{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-        case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("strb", format("x8,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("strb", format("x0,[fp,{}]", idx->to_long().value()));
             break;
+        case ObelixType::TypeString: {
+            ctx.assembly().add_instruction("str", format("x0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("strw", format("w1,[fp,{}]", idx->to_long().value() + 8));
+        }
         default:
             return Error { ErrorCode::NotYetImplemented, format("Cannot emit assignments of type {} yet", assignment->type()) };
         }
@@ -574,7 +630,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::VariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
-        ctx.set_base_register(10);
+        ctx.reset_register();
         auto offset = (signed char)ctx.get("#offset").value()->to_long().value();
         ctx.set("#offset", make_obj<Integer>(offset + 16)); // FIXME Use type size
         ctx.declare(var_decl->variable().identifier(), make_obj<Integer>(offset));
@@ -582,34 +638,38 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             TRY_RETURN(output_macosx_processor(var_decl->expression(), ctx));
         } else {
             switch (var_decl->expression()->type()) {
+            case ObelixType::TypeString:
+                ctx.assembly().add_instruction("mov", "w1,0");
+                // fall through
             case ObelixType::TypeInt:
             case ObelixType::TypeUnsigned:
             case ObelixType::TypeByte:
             case ObelixType::TypeChar:
             case ObelixType::TypeBoolean:
-                ctx.assembly().add_instruction("mov", "x8,0");
+                ctx.assembly().add_instruction("mov", "x0,0");
                 break;
             default:
                 return Error { ErrorCode::NotYetImplemented, format("Cannot initialize variables of type {} yet", var_decl->expression()->type()) };
             }
         }
-        ctx.assembly().add_instruction("str", "x8,[sp],-16");
+        ctx.assembly().add_instruction("str", "x0,[sp],-16");
+        if (var_decl->expression()->type() == ObelixType::TypeString) {
+            ctx.assembly().add_instruction("strw", "w1,[sp,8]");
+        }
         return tree;
     }
 
     case SyntaxNodeType::ExpressionStatement: {
         auto expr_stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);
-        ctx.set_base_register(10);
+        ctx.reset_register();
         TRY_RETURN(output_macosx_processor(expr_stmt->expression(), ctx));
+        return tree;
     }
 
     case SyntaxNodeType::Return: {
         auto ret = std::dynamic_pointer_cast<Return>(tree);
-        ctx.set_base_register(10);
+        ctx.reset_register();
         TRY_RETURN(output_macosx_processor(ret->expression(), ctx));
-
-        // Move return value to x0 register:
-        ctx.assembly().add_instruction("mov", "x0,x8");
 
         // Load sp with the current value of bp. This will discard all local variables
         ctx.assembly().add_instruction("mov", "sp,fp");
@@ -641,9 +701,9 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         auto count = if_stmt->branches().size() - 1;
         for (auto& branch : if_stmt->branches()) {
             auto else_label = (count) ? Obelix::Label::reserve_id() : end_label;
-            ctx.set_base_register(10);
+            ctx.reset_register();
             auto cond = TRY_AND_CAST(Expression, output_macosx_processor(branch->condition(), ctx));
-            ctx.assembly().add_instruction("cmp", "x8,0x00");
+            ctx.assembly().add_instruction("cmpb", "w0,0x00");
             ctx.assembly().add_instruction("bne", format("lbl_{}", else_label));
             auto stmt = TRY_AND_CAST(Statement, output_macosx_processor(branch->statement(), ctx));
             if (count) {

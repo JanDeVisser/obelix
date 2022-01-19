@@ -24,6 +24,8 @@ class Context {
 public:
     Context() = default;
 
+    Context(Context<T>&&) = delete;
+
     explicit Context(Context<T>* parent)
         : m_parent(parent)
     {

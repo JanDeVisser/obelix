@@ -42,8 +42,9 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         return ret;
     }
 
-    case SyntaxNodeType::FunctionDecl: {
-        auto decl = std::dynamic_pointer_cast<FunctionDecl>(tree);
+    case SyntaxNodeType::FunctionDef: {
+        auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
+        auto decl = func_def->declaration();
         if (decl->identifier().type() == ObelixType::TypeUnknown)
             return Error { ErrorCode::UntypedFunction, decl->identifier().identifier() };
         for (auto& param : decl->parameters()) {
@@ -52,7 +53,15 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         }
         ctx.declare(decl->identifier().identifier(), decl);
         printf("FunctionDecl: %s\n", decl->to_string(0).c_str());
-        return decl;
+
+        BindContext func_ctx(ctx);
+        for (auto& param : decl->parameters()) {
+            if (param.type() == ObelixType::TypeUnknown)
+                return Error { ErrorCode::UntypedParameter, param.identifier() };
+            func_ctx.declare(param.name(), std::make_shared<VariableDeclaration>(param));
+        }
+        auto func_block = TRY_AND_CAST(Statement, bind_types_processor(func_def->statement(), func_ctx));
+        return std::make_shared<FunctionDef>(decl, func_block);
     }
 
     case SyntaxNodeType::BinaryExpression: {
@@ -154,6 +163,11 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree)
 {
     BindContext root;
+
+    // Intrinsics:
+    root.declare("write", std::make_shared<FunctionDecl>(Symbol { "write", ObelixType::TypeInt }, Symbols { Symbol { "s", ObelixType::TypeString } }));
+    root.declare("exit", std::make_shared<FunctionDecl>(Symbol { "exit", ObelixType::TypeInt }, Symbols { Symbol { "code", ObelixType::TypeInt } }));
+
     return bind_types_processor(tree, root);
 }
 

@@ -65,9 +65,8 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::FunctionDef: {
         auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
-        Context child_ctx(&ctx);
-        auto func_decl = TRY_AND_CAST(FunctionDecl, processor(func_def->declaration(), child_ctx));
-        auto statement = TRY_AND_CAST(Statement, processor(func_def->statement(), child_ctx));
+        auto func_decl = TRY_AND_CAST(FunctionDecl, processor(func_def->declaration(), ctx));
+        auto statement = TRY_AND_CAST(Statement, processor(func_def->statement(), ctx));
         if (func_decl != func_def->declaration() || statement != func_def->statement())
             ret = std::make_shared<FunctionDef>(func_decl, statement);
         break;
