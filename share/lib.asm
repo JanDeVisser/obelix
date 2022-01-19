@@ -1,5 +1,6 @@
 ; Runtime library
 
+test_multiply_8:
         mov sp,#$C000
         mov bp,sp
         mov a,#$42

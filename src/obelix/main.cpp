@@ -9,6 +9,7 @@
 #include <cpu/emulator.h>
 #include <lexer/Token.h>
 #include <obelix/OutputJV80.h>
+#include <obelix/MacOSX.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <optional>
@@ -105,6 +106,7 @@ private:
             if (config().show_tree)
                 printf("Constants folded:\n%s\n", transformed->to_string(0).c_str());
             if (!file_name.empty()) {
+#ifdef JV80
                 auto image = file_name + ".bin";
                 if (auto err = output_jv80(transformed, image); err.is_error())
                     return err;
@@ -113,6 +115,13 @@ private:
                 if (ret.is_error())
                     return Error { ErrorCode::SyntaxError, format("Runtime error: {}", SystemErrorCode_name(ret.error())) };
                 return std::make_shared<Literal>(make_obj<Integer>(ret.value()));
+#endif
+#define MACOSX
+#ifdef MACOSX
+                if (auto err = output_macosx(transformed, file_name); err.is_error())
+                    return err;
+                return std::make_shared<Literal>(make_obj<Integer>(0));
+#endif
             } else {
                 fprintf(stderr, "Script execution temporarily disabled\n");
                 //                Context<Obj> root;

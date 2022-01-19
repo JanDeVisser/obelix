@@ -28,6 +28,7 @@ target_link_libraries(
 add_executable(
         obelix
         main.cpp
+        MacOSX.cpp
         OutputJV80.cpp
 )
 

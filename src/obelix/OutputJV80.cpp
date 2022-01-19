@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <fcntl.h>
-
 #include <obelix/OutputJV80.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>

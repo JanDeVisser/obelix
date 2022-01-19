@@ -311,6 +311,19 @@ public:
             pad(indent), identifier().identifier(), parameters_to_string(), type());
     }
 
+    [[nodiscard]] std::string label() const
+    {
+        std::string params;
+        bool first = true;
+        for (auto& param : m_parameters) {
+            if (!first)
+                params += ",";
+            first = false;
+            params += ObelixType_name(param.type());
+        }
+        return format("{}({})", name(), params);
+    }
+
 private:
     [[nodiscard]] std::string parameters_to_string() const
     {

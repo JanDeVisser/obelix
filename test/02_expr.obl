@@ -1,2 +1,4 @@
-1 + (2 * 3);
-
+func main() : int {
+  var x = 1 + 2;
+  return (x+3) + x;
+}

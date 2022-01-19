@@ -1,0 +1,8 @@
+option+shift        mouseclick      add caret
+cmd+option+control  up/down         add caret
+option+shift        G               add carets at end of lines in selection
+cmd                 N               'Generate' menu
+cmd+option          L               Reformat selection / current context
+cmd+option+shift    L               Reformat file
+option              up              Select enclosing context
+option+shift        M               'String Manipulation' menu
