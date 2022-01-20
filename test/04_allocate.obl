@@ -1,0 +1,5 @@
+func main() : int
+{
+  var p : ptr = allocate(64*1024);
+  return 0;
+}

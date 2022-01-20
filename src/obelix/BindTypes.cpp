@@ -165,8 +165,9 @@ ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree)
     BindContext root;
 
     // Intrinsics:
-    root.declare("write", std::make_shared<FunctionDecl>(Symbol { "write", ObelixType::TypeInt }, Symbols { Symbol { "s", ObelixType::TypeString } }));
+    root.declare("allocate", std::make_shared<FunctionDecl>(Symbol { "allocate", ObelixType::TypePointer }, Symbols { Symbol { "size", ObelixType::TypeInt } }));
     root.declare("exit", std::make_shared<FunctionDecl>(Symbol { "exit", ObelixType::TypeInt }, Symbols { Symbol { "code", ObelixType::TypeInt } }));
+    root.declare("write", std::make_shared<FunctionDecl>(Symbol { "write", ObelixType::TypeInt }, Symbols { Symbol { "s", ObelixType::TypeString } }));
 
     return bind_types_processor(tree, root);
 }

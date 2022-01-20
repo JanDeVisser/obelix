@@ -32,6 +32,7 @@ extern_logging_category(parser);
     S(BinaryExpression)              \
     S(UnaryExpression)               \
     S(Assignment)                    \
+    S(CompilerIntrinsic)             \
     S(FunctionCall)                  \
     S(Import)                        \
     S(Pass)                          \
@@ -615,9 +616,9 @@ public:
     {
     }
 
-    [[nodiscard]] std::string to_string(int indent) const override
+    [[nodiscard]] std::string to_string(int) const override
     {
-        return format("{}{}({}) : {}", name(), arguments_to_string(), type());
+        return format("{}({}) : {}", name(), arguments_to_string(), type());
     }
 
     ErrorOr<std::optional<Obj>> to_object() const override
@@ -646,6 +647,16 @@ private:
 
     Symbol m_function;
     Expressions m_arguments;
+};
+
+class CompilerIntrinsic : public FunctionCall {
+public:
+    CompilerIntrinsic(std::shared_ptr<FunctionCall> const& call)
+        : FunctionCall(call->function(), call->arguments())
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::CompilerIntrinsic; }
 };
 
 class VariableDeclaration : public Statement {

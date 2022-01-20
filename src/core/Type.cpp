@@ -118,6 +118,16 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
     [](ObjectType& type) {
     });
 
+[[maybe_unused]] auto s_pointer = ObjectType::register_type(TypePointer,
+    [](ObjectType& type) {
+        type.add_method(MethodDescription { "++", TypeArgument });
+        type.add_method(MethodDescription { "--", TypeArgument });
+        type.add_method(MethodDescription { "+=", TypeArgument, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "-=", TypeArgument, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "+", TypeArgument, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { "-", TypeArgument, MethodParameter { "other", TypeInt } });
+    });
+
 [[maybe_unused]] auto s_dict = ObjectType::register_type(TypeObject,
     [](ObjectType& type) {
     });

@@ -71,6 +71,7 @@ void Parser::initialize()
         Token(KeywordByte, "byte"),
         Token(KeywordBool, "bool"),
         Token(KeywordString, "string"),
+        Token(KeywordPointer, "ptr"),
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
         TokenCode::EqualsTo,
@@ -690,6 +691,9 @@ std::optional<ObelixType> Parser::parse_type()
     case KeywordString:
         lex();
         return ObelixType::TypeString;
+    case KeywordPointer:
+        lex();
+        return ObelixType::TypePointer;
     default:
         return {};
     }

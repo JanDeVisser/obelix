@@ -423,20 +423,6 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
     case SyntaxNodeType::FunctionCall: {
         auto call = std::dynamic_pointer_cast<FunctionCall>(tree);
 
-        if (call->name() == "write") {
-            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
-            ctx.assembly().add_instruction("mov", "w2,w1");
-            ctx.assembly().add_instruction("mov", "x1,x0");
-            ctx.assembly().add_instruction("mov", "x0,#1");
-            ctx.assembly().syscall(0x04);
-            return tree;
-        }
-        if (call->name() == "exit") {
-            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
-            ctx.assembly().syscall(0x01);
-            return tree;
-        }
-
         // Push fp, and set temp fp to sp:
         push(ctx, "fp");
         ctx.assembly().add_instruction("mov", "fp,sp");
@@ -462,6 +448,32 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
         // Pop caller fp:
         pop(ctx, "fp");
+        return tree;
+    }
+
+    case SyntaxNodeType::CompilerIntrinsic: {
+        auto call = std::dynamic_pointer_cast<CompilerIntrinsic>(tree);
+        if (call->name() == "write") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().add_instruction("mov", "w2,w1");
+            ctx.assembly().add_instruction("mov", "x1,x0");
+            ctx.assembly().add_instruction("mov", "x0,#1");
+            ctx.assembly().syscall(0x04);
+        }
+        if (call->name() == "exit") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().syscall(0x01);
+        }
+        if (call->name() == "allocate") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().add_instruction("mov", "x1,x0");
+            ctx.assembly().add_instruction("mov", "x0,#0");
+            ctx.assembly().add_instruction("mov", "w2,#0x03");
+            ctx.assembly().add_instruction("mov", "w3,#0x1002");
+            ctx.assembly().add_instruction("mov", "w4,#-1");
+            ctx.assembly().add_instruction("mov", "w5,#-1");
+            ctx.assembly().syscall(197);
+        }
         return tree;
     }
 
@@ -721,22 +733,44 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
     }
 }
 
+ErrorOrNode extract_intrinsics_processor(std::shared_ptr<SyntaxNode> const& tree, Context<int>& ctx)
+{
+    switch (tree->node_type()) {
+    case SyntaxNodeType::FunctionCall: {
+        auto call = std::dynamic_pointer_cast<FunctionCall>(tree);
+
+        if (call->name() == "allocate" || call->name() == "exit" || call->name() == "write") {
+            return std::make_shared<CompilerIntrinsic>(call);
+        }
+        return tree;
+    }
+    default:
+        return process_tree(tree, ctx, extract_intrinsics_processor);
+    }
+}
+
+ErrorOrNode extract_intrinsics(std::shared_ptr<SyntaxNode> const& tree)
+{
+    Context<int> root;
+    return extract_intrinsics_processor(tree, root);
+}
+
 ErrorOrNode output_macosx(std::shared_ptr<SyntaxNode> const& tree, std::string const& file_name)
 {
+    auto processed = TRY(extract_intrinsics(tree));
+
     Assembly assembly;
     MacOSXContext root(assembly);
 
     assembly.code = ".global _start\n" // Provide program starting address to linker
-                    ".align 2\n\n";
-    assembly.add_label("_start");
-    assembly.add_instruction("mov", "fp,sp");
-    push(root, "fp");
-    assembly.add_instruction("mov", "fp,sp");
-    push(root, "fp");
-    assembly.add_instruction("bl", "func_main");
-    assembly.syscall(1); // Service command code 1 terminates this program
+                    ".align 2\n\n"
+                    "_start:\n"
+                    "\tmov\tfp,sp\n"
+                    "\tbl\tfunc_main\n"
+                    "\tmov\tx16,#1\n"
+                    "\tsvc\t0\n";
 
-    auto ret = output_macosx_processor(tree, root);
+    auto ret = output_macosx_processor(processed, root);
 
     if (ret.is_error()) {
         return ret;

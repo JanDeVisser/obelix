@@ -26,19 +26,20 @@ namespace Obelix {
     S(Boolean, 5)                 \
     S(Float, 6)                   \
     S(String, 7)                  \
-    S(Object, 8)                  \
-    S(List, 9)                    \
-    S(Regex, 10)                  \
-    S(Range, 11)                  \
-    S(Exception, 12)              \
-    S(NVP, 13)                    \
-    S(Arguments, 14)              \
-    S(Iterator, 15)               \
-    S(NativeFunction, 16)         \
-    S(RangeIterator, 17)          \
-    S(BoundFunction, 18)          \
-    S(Scope, 19)                  \
-    S(MapIterator, 20)            \
+    S(Pointer, 8)                 \
+    S(Object, 9)                  \
+    S(List, 10)                   \
+    S(Regex, 11)                  \
+    S(Range, 12)                  \
+    S(Exception, 13)              \
+    S(NVP, 14)                    \
+    S(Arguments, 15)              \
+    S(Iterator, 16)               \
+    S(NativeFunction, 17)         \
+    S(RangeIterator, 18)          \
+    S(BoundFunction, 19)          \
+    S(Scope, 20)                  \
+    S(MapIterator, 21)            \
     S(Error, 9996)                \
     S(Self, 9997)                 \
     S(Compatible, 9998)           \
