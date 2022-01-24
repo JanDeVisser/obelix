@@ -3,6 +3,9 @@ add_library(
         oblrt
         STATIC
         exit.s
+        puthex.s
+        puti.s
+        to_string.s
         write.s
 )
 

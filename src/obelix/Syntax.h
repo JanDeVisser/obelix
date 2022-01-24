@@ -383,9 +383,6 @@ public:
 
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        auto ret = m_function_decl->to_string(indent);
-        ret += '\n';
-        ret += m_statement->to_string(indent + 2);
         return format("{} -> \"{}\"", m_function_decl->to_string(indent), m_native_function_name);
     }
 

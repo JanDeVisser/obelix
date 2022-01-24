@@ -14,6 +14,7 @@ add_library(
         #Execute.cpp
         FoldConstants.cpp
         Functions.cpp
+        Intrinsics.cpp
         Lower.cpp
         Parser.cpp
         Syntax.cpp

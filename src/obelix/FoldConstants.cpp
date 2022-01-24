@@ -120,7 +120,10 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
         auto elif = std::dynamic_pointer_cast<Branch>(tree);
         auto cond = TRY_AND_CAST(Expression, fold_constants_processor(elif->condition(), ctx));
         auto stmt = TRY_AND_CAST(Statement, fold_constants_processor(elif->statement(), ctx));
-        if ((cond == nullptr) || (cond->node_type() == SyntaxNodeType::Literal)) {
+        if (cond == nullptr)
+            return stmt;
+
+        if (cond->node_type() == SyntaxNodeType::Literal) {
             auto cond_literal = std::dynamic_pointer_cast<Literal>(cond);
             auto cond_obj = cond_literal->to_object().value();
             if (cond_obj) {

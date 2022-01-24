@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
@@ -64,6 +65,20 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         return std::make_shared<FunctionDef>(decl, func_block);
     }
 
+    case SyntaxNodeType::NativeFunctionDef: {
+        auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
+        auto decl = func_def->declaration();
+        if (decl->identifier().type() == ObelixType::TypeUnknown)
+            return Error { ErrorCode::UntypedFunction, decl->identifier().identifier() };
+        for (auto& param : decl->parameters()) {
+            if (param.type() == ObelixType::TypeUnknown)
+                return Error { ErrorCode::UntypedParameter, param.identifier() };
+        }
+        ctx.declare(decl->identifier().identifier(), decl);
+        printf("NativeFunctionDecl: %s\n", decl->to_string(0).c_str());
+        return tree;
+    }
+
     case SyntaxNodeType::BinaryExpression: {
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
         auto lhs = TRY_AND_CAST(Expression, bind_types_processor(expr->lhs(), ctx));
@@ -104,12 +119,14 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         auto operand = TRY_AND_CAST(Expression, bind_types_processor(expr->operand(), ctx));
         if (!operand->is_typed())
             return Error { ErrorCode::UntypedExpression, operand->to_string(0) };
-        auto operand_type = ObjectType::get(expr->operand()->type());
+        auto operand_type = ObjectType::get(operand->type());
+        if (!operand_type.has_value())
+            return Error { ErrorCode::InternalError, format("No type definition for '{}'", operand->type()) };
         assert(operand_type.has_value());
         auto return_type = operand_type.value()->return_type_of(expr->op().value(), std::vector<ObelixType>());
         if (return_type == ObelixType::TypeUnknown)
             return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string(0) };
-        auto ret = std::make_shared<UnaryExpression>(expr, return_type);
+        auto ret = std::make_shared<UnaryExpression>(expr->op(), operand, return_type);
         printf("UnaryExpression: %s\n", ret->to_string(0).c_str());
         return ret;
     }
@@ -129,13 +146,15 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 
     case SyntaxNodeType::FunctionCall: {
         auto func_call = std::dynamic_pointer_cast<FunctionCall>(tree);
-        auto type_decl_maybe = ctx.get(func_call->name());
-        if (!type_decl_maybe.has_value())
-            return Error { ErrorCode::UntypedFunction, func_call->name() };
-        if (type_decl_maybe.value()->node_type() != SyntaxNodeType::FunctionDecl)
-            return Error { ErrorCode::SyntaxError, format("Variable {} cannot be called", func_call->name()) };
-        auto func_decl = std::dynamic_pointer_cast<FunctionDecl>(type_decl_maybe.value());
-
+        auto func_decl = get_intrinsic(func_call->name());
+        if (!func_decl) {
+            auto type_decl_maybe = ctx.get(func_call->name());
+            if (!type_decl_maybe.has_value())
+                return Error { ErrorCode::UntypedFunction, func_call->name() };
+            if (type_decl_maybe.value()->node_type() != SyntaxNodeType::FunctionDecl)
+                return Error { ErrorCode::SyntaxError, format("Variable {} cannot be called", func_call->name()) };
+            func_decl = std::dynamic_pointer_cast<FunctionDecl>(type_decl_maybe.value());
+        }
         if (func_call->arguments().size() != func_decl->parameters().size())
             return Error { ErrorCode::ArgumentCountMismatch, func_call->name(), func_call->arguments().size() };
 
@@ -163,12 +182,6 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const& tree)
 {
     BindContext root;
-
-    // Intrinsics:
-    root.declare("allocate", std::make_shared<FunctionDecl>(Symbol { "allocate", ObelixType::TypePointer }, Symbols { Symbol { "size", ObelixType::TypeInt } }));
-    root.declare("exit", std::make_shared<FunctionDecl>(Symbol { "exit", ObelixType::TypeInt }, Symbols { Symbol { "code", ObelixType::TypeInt } }));
-    root.declare("write", std::make_shared<FunctionDecl>(Symbol { "write", ObelixType::TypeInt }, Symbols { Symbol { "s", ObelixType::TypeString } }));
-
     return bind_types_processor(tree, root);
 }
 

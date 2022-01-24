@@ -4,11 +4,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <iostream>
+
+#include <config.h>
+#include <core/Logging.h>
+#include <obelix/Intrinsics.h>
 #include <obelix/MacOSX.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
-#include <oblasm/Image.h>
-#include <oblasm/Instruction.h>
 
 namespace Obelix {
 
@@ -17,6 +20,7 @@ extern_logging_category(parser);
 struct Assembly {
     std::string code;
     std::string text;
+    std::string data;
 
     void add_instruction(std::string const& mnemonic, std::string const& arguments)
     {
@@ -35,13 +39,28 @@ struct Assembly {
 
     void add_string(int id, std::string const& str)
     {
-        text = format("{}str_{}:\n\t.ascii\t\"{}\"\n", text, id, str);
+        text = format("{}.align 2\nstr_{}:\n\t.string\t\"{}\"\n", text, id, str);
+    }
+
+    void add_comment(std::string const& comment)
+    {
+        auto c = comment;
+        for (auto pos = c.find('\n'); pos != std::string::npos; pos = c.find('\n'))
+            c[pos] = ' ';
+        code = format("{}\n\t; {}\n", code, c);
+    }
+
+    void add_data(std::string const& label, std::string d)
+    {
+        if (data.empty())
+            data = ".data\n\n";
+        data = format("{}\n.align 2\n{}:\t{}", data, label, d);
     }
 
     void syscall(int id)
     {
         add_instruction("mov", format("x16, #{}", id));
-        add_instruction("svc", "0");
+        add_instruction("svc", "#0x80");
     }
 };
 
@@ -73,13 +92,30 @@ public:
     }
 
     [[nodiscard]] Assembly& assembly() const { return m_assembly; }
-    [[nodiscard]] int current_register() const { return m_current_reg; }
-    void next_register() { m_current_reg++; }
-    void reset_register() { m_current_reg = 4; }
+
+    int claim_register()
+    {
+        if (m_available_registers.empty()) {
+            fatal("Registers exhausted");
+        }
+        auto ret = m_available_registers.back();
+        m_available_registers.pop_back();
+        return ret;
+    }
+
+    void release_register(int reg)
+    {
+        m_available_registers.push_back(reg);
+    }
+
+    void release_all()
+    {
+        m_available_registers = { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+    }
 
 private:
     Assembly& m_assembly;
-    int m_current_reg;
+    std::vector<int> m_available_registers { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 };
 };
 
 template<typename T = long>
@@ -209,10 +245,7 @@ ErrorOr<void> int_unary_expression(MacOSXContext& ctx, UnaryExpression const& ex
     case TokenCode::Minus: {
         if (expr.operand()->type() == ObelixType::TypeUnsigned)
             return Error { ErrorCode::SyntaxError, "Cannot negate unsigned numbers" };
-
-        // Perform two's complement. Negate and add 1:
-        ctx.assembly().add_instruction("mvn", "x0,x0");
-        ctx.assembly().add_instruction("add", "x0,#0x01");
+        ctx.assembly().add_instruction("neg", "x0,x0");
         break;
     }
     case TokenCode::Tilde:
@@ -247,27 +280,27 @@ ErrorOr<void> int_int_binary_expression(MacOSXContext& ctx, BinaryExpression con
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("mov", "x0,#0x00");
+        ctx.assembly().add_instruction("mov", "w0,wzr");
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::GreaterThan: {
         ctx.assembly().add_instruction("cmp", "x0,x2");
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("bmi", set_false);
+        ctx.assembly().add_instruction("b.le", set_false);
         ctx.assembly().add_instruction("mov", "x0,#0x01");
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("mov", "x0,#0x00");
+        ctx.assembly().add_instruction("mov", "w0,wzr");
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::LessThan: {
         ctx.assembly().add_instruction("cmp", "x0,x2");
         auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("bmi", set_true);
-        ctx.assembly().add_instruction("mov", "x0,#0x00");
+        ctx.assembly().add_instruction("b.lt", set_true);
+        ctx.assembly().add_instruction("mov", "w0,wzr");
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_true);
@@ -320,7 +353,7 @@ ErrorOr<void> byte_byte_binary_expression(MacOSXContext& ctx, BinaryExpression c
         ctx.assembly().add_instruction("sdiv", "w0,w0,w2");
         break;
     case TokenCode::EqualsTo: {
-        ctx.assembly().add_instruction("cmpb", "w0,w1");
+        ctx.assembly().add_instruction("cmp", "w0,w1");
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bne", set_false);
         ctx.assembly().add_instruction("movb", "w0,#0x01");
@@ -332,7 +365,7 @@ ErrorOr<void> byte_byte_binary_expression(MacOSXContext& ctx, BinaryExpression c
         return {};
     }
     case TokenCode::GreaterThan: {
-        ctx.assembly().add_instruction("cmpb", "w0,w1");
+        ctx.assembly().add_instruction("cmp", "w0,w1");
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bmi", set_false);
         ctx.assembly().add_instruction("movb", "w0,#0x01");
@@ -344,7 +377,7 @@ ErrorOr<void> byte_byte_binary_expression(MacOSXContext& ctx, BinaryExpression c
         return {};
     }
     case TokenCode::LessThan: {
-        ctx.assembly().add_instruction("cmpb", "w0,w1");
+        ctx.assembly().add_instruction("cmp", "w0,w1");
         auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bmi", set_true);
         ctx.assembly().add_instruction("movb", "w0,#0x00");
@@ -379,6 +412,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
     switch (tree->node_type()) {
     case SyntaxNodeType::FunctionDecl: {
         auto func_decl = std::dynamic_pointer_cast<FunctionDecl>(tree);
+        ctx.assembly().add_comment(func_decl->to_string(0));
 
         // Set fp offsets of function parameters:
         auto ix = 48;
@@ -395,6 +429,35 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         // Set fp to the current sp. Now a return is setting sp back to fp,
         // and popping lr followed by ret.
         ctx.assembly().add_instruction("mov", "fp,sp");
+        return tree;
+    }
+
+    case SyntaxNodeType::NativeFunctionDef: {
+        auto native_func_def = std::dynamic_pointer_cast<NativeFunctionDef>(tree);
+
+        // Emit function prolog:
+        auto func_decl = TRY_AND_CAST(FunctionDecl, output_macosx_processor(native_func_def->declaration(), ctx));
+
+        // Load arguments in registers w0,w1, etc. Strings use two registers.
+        auto reg = 0;
+        for (auto& parameter : func_decl->parameters()) {
+            auto ix = ctx.get(parameter.name()).value()->to_long().value();
+            ctx.assembly().add_instruction("ldr", format("x{},[fp,{}]", reg++, ix));
+            if (parameter.type() == ObelixType::TypeString)
+                ctx.assembly().add_instruction("ldr", format("x{},[fp,{}]", reg++, ix + 8));
+        }
+
+        // Call the native function
+        ctx.assembly().add_instruction("bl", native_func_def->native_function_name());
+
+        // Load sp with the current value of bp. This will discard all local variables
+        ctx.assembly().add_instruction("mov", "sp,fp");
+
+        // Pop return address into lr:
+        pop(ctx, "lr");
+
+        // Return:
+        ctx.assembly().add_instruction("ret");
         return tree;
     }
 
@@ -429,7 +492,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
         for (auto it = call->arguments().rbegin(); it != call->arguments().rend(); it++) {
             auto argument = *it;
-            ctx.reset_register();
+            ctx.release_all();
             TRY_RETURN(output_macosx_processor(argument, ctx));
             push(ctx, "x0");
         }
@@ -453,27 +516,152 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::CompilerIntrinsic: {
         auto call = std::dynamic_pointer_cast<CompilerIntrinsic>(tree);
-        if (call->name() == "write") {
+        ctx.release_all();
+
+        if (call->name() == "allocate") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().add_instruction("mov", "x1,x0");
+            ctx.assembly().add_instruction("mov", "x0,xzr");
+            ctx.assembly().add_instruction("mov", "w2,#3");
+            ctx.assembly().add_instruction("mov", "w3,#0x1002");
+            ctx.assembly().add_instruction("mov", "w4,#-1");
+            ctx.assembly().add_instruction("mov", "x5,xzr");
+            ctx.assembly().syscall(0xC5);
+        }
+
+        if (call->name() == "close") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().syscall(0x06);
+        }
+
+        if (call->name() == "fputs") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            auto fd_reg = ctx.claim_register();
+            ctx.assembly().add_instruction("mov", format("w{},w0", fd_reg));
+            TRY_RETURN(output_macosx_processor(call->arguments().at(1), ctx));
+            ctx.assembly().add_instruction("mov", "w2,w1");
+            ctx.assembly().add_instruction("mov", "x1,x0");
+            ctx.assembly().add_instruction("mov", format("w0,w{}", fd_reg));
+            ctx.assembly().syscall(0x04);
+        }
+
+        if (call->name() == "itoa") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().add_instruction("mov", "x2,x0");
+            ctx.assembly().add_instruction("sub", "sp,sp,32");
+            ctx.assembly().add_instruction("add", "x0,sp,16");
+            ctx.assembly().add_instruction("mov", "x1,#32");
+            ctx.assembly().add_instruction("mov", "w3,#10");
+            ctx.assembly().add_instruction("bl", "to_string");
+            ctx.assembly().add_instruction("add", "sp,sp,32");
+        }
+
+        if (call->name() == "exit") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().syscall(0x01);
+        }
+
+        if (call->name() == "eputs") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().add_instruction("mov", "w2,w1");
+            ctx.assembly().add_instruction("mov", "x1,x0");
+            ctx.assembly().add_instruction("mov", "x0,#0x02");
+            ctx.assembly().syscall(0x04);
+        }
+
+        if (call->name() == "fsize") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().add_instruction("sub", format("x1,sp,#-{}", sizeof(struct stat)));
+            ctx.assembly().syscall(189);
+            ctx.assembly().add_instruction("cmp", "x0,#0x00");
+            auto lbl = format("lbl_{}", Label::reserve_id());
+            ctx.assembly().add_instruction("bne", lbl);
+            ctx.assembly().add_instruction("ldr", format("x0,[sp,-{}]", sizeof(struct stat) - offsetof(struct stat, st_size)));
+            ctx.assembly().add_label(lbl);
+        }
+
+        if (call->name() == "memset") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(2), ctx));
+            int len_reg = ctx.claim_register();
+            ctx.assembly().add_instruction("mov", format("x{},x0", len_reg));
+            TRY_RETURN(output_macosx_processor(call->arguments().at(1), ctx));
+            int char_reg = ctx.claim_register();
+            ctx.assembly().add_instruction("mov", format("x{},x0", char_reg));
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+
+            int count_reg = ctx.claim_register();
+            ctx.assembly().add_instruction("mov", format("x{},xzr", count_reg));
+
+            auto loop = format("lbl_{}", Label::reserve_id());
+            auto skip = format("lbl_{}", Label::reserve_id());
+            ctx.assembly().add_label(loop);
+            ctx.assembly().add_instruction("cmp", format("x{},x{}", count_reg, len_reg));
+            ctx.assembly().add_instruction("b.ge", skip);
+
+            int ptr_reg = ctx.claim_register();
+            ctx.assembly().add_instruction("add", format("x{},x0,x{}", ptr_reg, count_reg));
+            ctx.assembly().add_instruction("strb", format("w{},[x{}]", char_reg, ptr_reg));
+            ctx.assembly().add_instruction("add", format("x{},x{},#1", count_reg, count_reg));
+            ctx.assembly().add_instruction("b", loop);
+            ctx.assembly().add_label(skip);
+            ctx.release_register(ptr_reg);
+            ctx.release_register(count_reg);
+            ctx.release_register(len_reg);
+            ctx.release_register(char_reg);
+        }
+
+        if (call->name() == "open") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(1), ctx));
+            auto flags_reg = ctx.claim_register();
+            ctx.assembly().add_instruction("mov", format("x{},x0", flags_reg));
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().add_instruction("mov", format("x1,x{}", flags_reg));
+            ctx.release_register(flags_reg);
+            ctx.assembly().syscall(0x05);
+        }
+
+        if (call->name() == "putchar") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().add_instruction("strb", "w0,[sp],-16");
+            ctx.assembly().add_instruction("mov", "x0,#1");    // x0: stdin
+            ctx.assembly().add_instruction("add", "x1,sp,16"); // x1: 16 bytes up from SP
+            ctx.assembly().add_instruction("mov", "x2,#1");    // x2: Number of characters
+            ctx.assembly().syscall(0x04);
+            ctx.assembly().add_instruction("add", "sp,sp,16");
+        }
+
+        if (call->name() == "puts") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
             ctx.assembly().add_instruction("mov", "w2,w1");
             ctx.assembly().add_instruction("mov", "x1,x0");
             ctx.assembly().add_instruction("mov", "x0,#1");
             ctx.assembly().syscall(0x04);
         }
-        if (call->name() == "exit") {
+
+        if (call->name() == "read") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(2), ctx));
+            auto len_reg = ctx.claim_register();
+            ctx.assembly().add_instruction("mov", format("x{},x0", len_reg));
+            TRY_RETURN(output_macosx_processor(call->arguments().at(1), ctx));
+            auto buf_reg = ctx.claim_register();
+            ctx.assembly().add_instruction("mov", format("x{},x0", buf_reg));
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
-            ctx.assembly().syscall(0x01);
+            ctx.assembly().add_instruction("mov", format("x2,x{}", len_reg));
+            ctx.assembly().add_instruction("mov", format("x1,x{}", buf_reg));
+            ctx.release_register(buf_reg);
+            ctx.release_register(len_reg);
+            ctx.assembly().syscall(0x03);
         }
-        if (call->name() == "allocate") {
-            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+
+        if (call->name() == "write") {
+            TRY_RETURN(output_macosx_processor(call->arguments().at(2), ctx));
+            ctx.assembly().add_instruction("mov", "x2,x0");
+            TRY_RETURN(output_macosx_processor(call->arguments().at(1), ctx));
             ctx.assembly().add_instruction("mov", "x1,x0");
-            ctx.assembly().add_instruction("mov", "x0,#0");
-            ctx.assembly().add_instruction("mov", "w2,#0x03");
-            ctx.assembly().add_instruction("mov", "w3,#0x1002");
-            ctx.assembly().add_instruction("mov", "w4,#-1");
-            ctx.assembly().add_instruction("mov", "w5,#-1");
-            ctx.assembly().syscall(197);
+            TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
+            ctx.assembly().syscall(0x04);
         }
+
         return tree;
     }
 
@@ -486,26 +674,22 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             return Error { ErrorCode::UntypedExpression, expr->rhs()->to_string(0) };
         }
         auto rhs = TRY_AND_CAST(Expression, output_macosx_processor(expr->rhs(), ctx));
-        if (ctx.current_register() >= 19)
-            return Error { ErrorCode::InternalError, "FIXME: Maximum expression depth reached" };
-        auto reg = format("x{}", ctx.current_register());
-        ctx.next_register();
-        ctx.assembly().add_instruction("mov", format("{},x0", reg));
+        auto reg_num = ctx.claim_register();
+        ctx.assembly().add_instruction("mov", format("x{},x0", reg_num));
 
-        std::string len_reg;
+        int len_reg;
         if (rhs->type() == ObelixType::TypeString) {
-            if (ctx.current_register() >= 19)
-                return Error { ErrorCode::InternalError, "FIXME: Maximum expression depth reached" };
-            len_reg = format("w{}", ctx.current_register());
-            ctx.next_register();
-            ctx.assembly().add_instruction("mov", format("{},w1", reg));
+            len_reg = ctx.claim_register();
+            ctx.assembly().add_instruction("mov", format("w{},w1", len_reg));
         }
 
         auto lhs = TRY_AND_CAST(Expression, output_macosx_processor(expr->lhs(), ctx));
 
-        ctx.assembly().add_instruction("mov", format("x2,{}", reg));
+        ctx.assembly().add_instruction("mov", format("x2,x{}", reg_num));
+        ctx.release_register(reg_num);
         if (rhs->type() == ObelixType::TypeString) {
-            ctx.assembly().add_instruction("mov", format("x3,{}", len_reg));
+            ctx.assembly().add_instruction("mov", format("x3,x{}", len_reg));
+            ctx.release_register(len_reg);
         }
 
         if ((expr->lhs()->type() == ObelixType::TypeInt && expr->lhs()->type() == ObelixType::TypeInt) || (expr->lhs()->type() == ObelixType::TypeUnsigned && expr->lhs()->type() == ObelixType::TypeUnsigned)) {
@@ -549,6 +733,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         assert(val_maybe.has_value());
         auto val = val_maybe.value();
         switch (val.type()) {
+        case ObelixType::TypePointer:
         case ObelixType::TypeInt:
         case ObelixType::TypeUnsigned: {
             ctx.assembly().add_instruction("mov", format("x0,#{}", val->to_long().value()));
@@ -581,22 +766,23 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         auto idx = idx_maybe.value();
 
         switch (identifier->type()) {
+        case ObelixType::TypePointer:
         case ObelixType::TypeInt:
-            ctx.assembly().add_instruction("ldr", format("x0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldr", format("x0,[fp,-{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("ldr", format("x0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldr", format("x0,[fp,-{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("ldrbs", format("w0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldrbs", format("w0,[fp,-{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("ldrb", format("w0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldrb", format("w0,[fp,-{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeString:
-            ctx.assembly().add_instruction("ldr", format("x0,[fp,{}]", idx->to_long().value()));
-            ctx.assembly().add_instruction("ldrw", format("w1,[fp,{}]", idx->to_long().value() + 8));
+            ctx.assembly().add_instruction("ldr", format("x0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldrw", format("w1,[fp,-{}]", idx->to_long().value() + 8));
             break;
         default:
             return Error { ErrorCode::NotYetImplemented, format("Cannot push values of variables of type {} yet", identifier->type()) };
@@ -613,26 +799,27 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         auto idx = idx_maybe.value();
 
         // Evaluate the expression into w0:
-        ctx.reset_register();
+        ctx.release_all();
         TRY_RETURN(output_macosx_processor(assignment->expression(), ctx));
 
         switch (assignment->type()) {
+        case ObelixType::TypePointer:
         case ObelixType::TypeInt:
-            ctx.assembly().add_instruction("str", format("x0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("str", format("x0,[fp,-{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("str", format("x0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("str", format("x0,[fp,-{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("strbs", format("x0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("strbs", format("x0,[fp,-{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("strb", format("x0,[fp,{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("strb", format("x0,[fp,-{}]", idx->to_long().value()));
             break;
         case ObelixType::TypeString: {
-            ctx.assembly().add_instruction("str", format("x0,[fp,{}]", idx->to_long().value()));
-            ctx.assembly().add_instruction("strw", format("w1,[fp,{}]", idx->to_long().value() + 8));
+            ctx.assembly().add_instruction("str", format("x0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("strw", format("w1,[fp,-{}]", idx->to_long().value() + 8));
         }
         default:
             return Error { ErrorCode::NotYetImplemented, format("Cannot emit assignments of type {} yet", assignment->type()) };
@@ -642,7 +829,8 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::VariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
-        ctx.reset_register();
+        ctx.assembly().add_comment(var_decl->to_string(0));
+        ctx.release_all();
         auto offset = (signed char)ctx.get("#offset").value()->to_long().value();
         ctx.set("#offset", make_obj<Integer>(offset + 16)); // FIXME Use type size
         ctx.declare(var_decl->variable().identifier(), make_obj<Integer>(offset));
@@ -653,6 +841,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             case ObelixType::TypeString:
                 ctx.assembly().add_instruction("mov", "w1,0");
                 // fall through
+            case ObelixType::TypePointer:
             case ObelixType::TypeInt:
             case ObelixType::TypeUnsigned:
             case ObelixType::TypeByte:
@@ -673,14 +862,16 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::ExpressionStatement: {
         auto expr_stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);
-        ctx.reset_register();
+        ctx.assembly().add_comment(expr_stmt->to_string(0));
+        ctx.release_all();
         TRY_RETURN(output_macosx_processor(expr_stmt->expression(), ctx));
         return tree;
     }
 
     case SyntaxNodeType::Return: {
         auto ret = std::dynamic_pointer_cast<Return>(tree);
-        ctx.reset_register();
+        ctx.assembly().add_comment(ret->to_string(0));
+        ctx.release_all();
         TRY_RETURN(output_macosx_processor(ret->expression(), ctx));
 
         // Load sp with the current value of bp. This will discard all local variables
@@ -696,12 +887,14 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::Label: {
         auto label = std::dynamic_pointer_cast<Obelix::Label>(tree);
+        ctx.assembly().add_comment(label->to_string(0));
         ctx.assembly().add_label(format("lbl_{}", label->label_id()));
         return tree;
     }
 
     case SyntaxNodeType::Goto: {
         auto goto_stmt = std::dynamic_pointer_cast<Goto>(tree);
+        ctx.assembly().add_comment(goto_stmt->to_string(0));
         ctx.assembly().add_instruction("b", format("lbl_{}", goto_stmt->label_id()));
         return tree;
     }
@@ -713,10 +906,15 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         auto count = if_stmt->branches().size() - 1;
         for (auto& branch : if_stmt->branches()) {
             auto else_label = (count) ? Obelix::Label::reserve_id() : end_label;
-            ctx.reset_register();
-            auto cond = TRY_AND_CAST(Expression, output_macosx_processor(branch->condition(), ctx));
-            ctx.assembly().add_instruction("cmpb", "w0,0x00");
-            ctx.assembly().add_instruction("bne", format("lbl_{}", else_label));
+            if (branch->condition()) {
+                ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string(0)));
+                ctx.release_all();
+                auto cond = TRY_AND_CAST(Expression, output_macosx_processor(branch->condition(), ctx));
+                ctx.assembly().add_instruction("cmp", "w0,0x00");
+                ctx.assembly().add_instruction("b.eq", format("lbl_{}", else_label));
+            } else {
+                ctx.assembly().add_comment("else");
+            }
             auto stmt = TRY_AND_CAST(Statement, output_macosx_processor(branch->statement(), ctx));
             if (count) {
                 ctx.assembly().add_instruction("b", format("lbl_{}", end_label));
@@ -739,7 +937,7 @@ ErrorOrNode extract_intrinsics_processor(std::shared_ptr<SyntaxNode> const& tree
     case SyntaxNodeType::FunctionCall: {
         auto call = std::dynamic_pointer_cast<FunctionCall>(tree);
 
-        if (call->name() == "allocate" || call->name() == "exit" || call->name() == "write") {
+        if (is_intrinsic(call->name())) {
             return std::make_shared<CompilerIntrinsic>(call);
         }
         return tree;
@@ -762,7 +960,7 @@ ErrorOrNode output_macosx(std::shared_ptr<SyntaxNode> const& tree, std::string c
     Assembly assembly;
     MacOSXContext root(assembly);
 
-    assembly.code = ".global _start\n" // Provide program starting address to linker
+    assembly.code = ".global _start\n"
                     ".align 2\n\n"
                     "_start:\n"
                     "\tmov\tfp,sp\n"
@@ -788,8 +986,15 @@ ErrorOrNode output_macosx(std::shared_ptr<SyntaxNode> const& tree, std::string c
         fprintf(f, "%s\n%s\n", assembly.code.c_str(), assembly.text.c_str());
         fclose(f);
 
-        if (!system(format("as -o {}.o {}.s", bare_file_name, bare_file_name).c_str())) {
-            system(format("ld -o {} {}.o -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _start -arch arm64 -L.", bare_file_name, bare_file_name).c_str());
+        std::string obl_dir = (getenv("OBL_DIR")) ? getenv("OBL_DIR") : OBELIX_DIR;
+        auto as_cmd = format("as -o {}.o {}.s", bare_file_name, bare_file_name);
+        auto ld_cmd = format("ld -o {} {}.o -loblrt -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _start -arch arm64 -L{}/lib",
+            bare_file_name, bare_file_name, obl_dir);
+
+        std::cout << "[CMD] " << as_cmd << "\n";
+        if (!system(as_cmd.c_str())) {
+            std::cout << "[CMD] " << ld_cmd << "\n";
+            system(ld_cmd.c_str());
         }
     }
     return ret;

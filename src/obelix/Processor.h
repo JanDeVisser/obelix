@@ -215,7 +215,9 @@ template<class BranchClass, typename Context, typename Processor, typename... Ar
 ErrorOrNode process_branch(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Processor processor, Args&&... args)
 {
     auto branch = std::dynamic_pointer_cast<Branch>(tree);
-    auto condition = TRY_AND_CAST(Expression, processor(branch->condition(), ctx));
+    std::shared_ptr<Expression> condition { nullptr };
+    if (branch->condition())
+        condition = TRY_AND_CAST(Expression, processor(branch->condition(), ctx));
     auto statement = TRY_AND_CAST(Statement, processor(branch->statement(), ctx));
     return std::make_shared<BranchClass>(condition, statement, std::forward<Args>(args)...);
 }
