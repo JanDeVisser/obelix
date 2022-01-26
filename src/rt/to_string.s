@@ -95,7 +95,7 @@ put_char:
     add     x1,sp,#16
     mov     x2,#1
     mov     x16,#4
-    svc     #0x80
+    svc     #0x00
     add     sp,sp,#16
     ret
 

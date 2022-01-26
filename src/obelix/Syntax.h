@@ -34,13 +34,14 @@ extern_logging_category(parser);
     S(Assignment)                    \
     S(CompilerIntrinsic)             \
     S(FunctionCall)                  \
+    S(NativeFunctionCall)            \
     S(Import)                        \
     S(Pass)                          \
     S(Label)                         \
     S(Goto)                          \
     S(FunctionDecl)                  \
+    S(NativeFunctionDecl)            \
     S(FunctionDef)                   \
-    S(NativeFunctionDef)             \
     S(ExpressionStatement)           \
     S(VariableDeclaration)           \
     S(Return)                        \
@@ -343,6 +344,21 @@ private:
     Symbols m_parameters;
 };
 
+class NativeFunctionDecl : public FunctionDecl {
+public:
+    explicit NativeFunctionDecl(std::shared_ptr<FunctionDecl> const& func_decl, std::string native_function)
+        : FunctionDecl(func_decl->identifier(), func_decl->parameters())
+        , m_native_function_name(move(native_function))
+    {
+    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::NativeFunctionDecl; }
+
+    [[nodiscard]] std::string const& native_function_name() const { return m_native_function_name; }
+
+private:
+    std::string m_native_function_name;
+};
+
 class FunctionDef : public Statement {
 public:
     explicit FunctionDef(std::shared_ptr<FunctionDecl> func_decl, std::shared_ptr<Statement> statement = nullptr)
@@ -362,34 +378,16 @@ public:
     [[nodiscard]] std::string to_string(int indent) const override
     {
         auto ret = m_function_decl->to_string(indent);
-        ret += '\n';
-        ret += m_statement->to_string(indent + 2);
+        if (m_statement) {
+            ret += '\n';
+            ret += m_statement->to_string(indent + 2);
+        }
         return ret;
     }
 
 protected:
     std::shared_ptr<FunctionDecl> m_function_decl;
     std::shared_ptr<Statement> m_statement;
-};
-
-class NativeFunctionDef : public FunctionDef {
-public:
-    NativeFunctionDef(std::shared_ptr<FunctionDecl> func_decl, std::string native_function_name)
-        : FunctionDef(move(func_decl))
-        , m_native_function_name(move(native_function_name))
-    {
-    }
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::NativeFunctionDef; }
-
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{} -> \"{}\"", m_function_decl->to_string(indent), m_native_function_name);
-    }
-
-    [[nodiscard]] std::string const& native_function_name() const { return m_native_function_name; }
-
-private:
-    std::string m_native_function_name;
 };
 
 class ExpressionStatement : public Statement {
@@ -646,9 +644,24 @@ private:
     Expressions m_arguments;
 };
 
+class NativeFunctionCall : public FunctionCall {
+public:
+    explicit NativeFunctionCall(std::shared_ptr<NativeFunctionDecl> decl, std::shared_ptr<FunctionCall> const& call)
+        : FunctionCall(call->function(), call->arguments())
+        , m_declaration(move(decl))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::NativeFunctionCall; }
+    [[nodiscard]] std::shared_ptr<NativeFunctionDecl> const& declaration() const { return m_declaration; }
+
+private:
+    std::shared_ptr<NativeFunctionDecl> m_declaration;
+};
+
 class CompilerIntrinsic : public FunctionCall {
 public:
-    CompilerIntrinsic(std::shared_ptr<FunctionCall> const& call)
+    explicit CompilerIntrinsic(std::shared_ptr<FunctionCall> const& call)
         : FunctionCall(call->function(), call->arguments())
     {
     }

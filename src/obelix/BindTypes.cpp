@@ -54,6 +54,8 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         }
         ctx.declare(decl->identifier().identifier(), decl);
         printf("FunctionDecl: %s\n", decl->to_string(0).c_str());
+        if (decl->node_type() == SyntaxNodeType::NativeFunctionDecl)
+            return tree;
 
         BindContext func_ctx(ctx);
         for (auto& param : decl->parameters()) {
@@ -63,20 +65,6 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         }
         auto func_block = TRY_AND_CAST(Statement, bind_types_processor(func_def->statement(), func_ctx));
         return std::make_shared<FunctionDef>(decl, func_block);
-    }
-
-    case SyntaxNodeType::NativeFunctionDef: {
-        auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
-        auto decl = func_def->declaration();
-        if (decl->identifier().type() == ObelixType::TypeUnknown)
-            return Error { ErrorCode::UntypedFunction, decl->identifier().identifier() };
-        for (auto& param : decl->parameters()) {
-            if (param.type() == ObelixType::TypeUnknown)
-                return Error { ErrorCode::UntypedParameter, param.identifier() };
-        }
-        ctx.declare(decl->identifier().identifier(), decl);
-        printf("NativeFunctionDecl: %s\n", decl->to_string(0).c_str());
-        return tree;
     }
 
     case SyntaxNodeType::BinaryExpression: {
@@ -151,7 +139,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             auto type_decl_maybe = ctx.get(func_call->name());
             if (!type_decl_maybe.has_value())
                 return Error { ErrorCode::UntypedFunction, func_call->name() };
-            if (type_decl_maybe.value()->node_type() != SyntaxNodeType::FunctionDecl)
+            if (type_decl_maybe.value()->node_type() == SyntaxNodeType::VariableDeclaration)
                 return Error { ErrorCode::SyntaxError, format("Variable {} cannot be called", func_call->name()) };
             func_decl = std::dynamic_pointer_cast<FunctionDecl>(type_decl_maybe.value());
         }
@@ -170,6 +158,9 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         }
 
         auto ret = std::make_shared<FunctionCall>(Symbol { func_call->name(), func_decl->type() }, args);
+        if (func_decl->node_type() == SyntaxNodeType::NativeFunctionDecl) {
+            ret = std::make_shared<NativeFunctionCall>(std::dynamic_pointer_cast<NativeFunctionDecl>(func_decl), ret);
+        }
         printf("FunctionCall: %s\n", ret->to_string(0).c_str());
         return ret;
     }

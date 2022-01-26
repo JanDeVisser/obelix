@@ -282,8 +282,10 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
     auto func_decl = std::make_shared<FunctionDecl>(Symbol { name_maybe.value().value(), type_maybe.value() }, params);
     if (current_code() == KeywordLink) {
         lex();
-        if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value())
-            return make_node<NativeFunctionDef>(func_decl, link_target_maybe.value().value());
+        if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
+            func_decl = std::make_shared<NativeFunctionDecl>(func_decl, link_target_maybe.value().value());
+            return make_node<FunctionDef>(func_decl);
+        }
         return nullptr;
     }
     auto stmt = parse_statement();

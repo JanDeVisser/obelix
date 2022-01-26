@@ -5,6 +5,7 @@ add_library(
         exit.s
         puthex.s
         puti.s
+        start.s
         to_string.s
         write.s
 )

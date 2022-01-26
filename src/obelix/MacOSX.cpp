@@ -22,9 +22,10 @@ struct Assembly {
     std::string text;
     std::string data;
 
-    void add_instruction(std::string const& mnemonic, std::string const& arguments)
+    template<typename... Args>
+    void add_instruction(std::string const& mnemonic, Args&&... args)
     {
-        code = format("{}\t{}\t{}\n", code, mnemonic, arguments);
+        code = format("{}\t{}\t{}\n", code, mnemonic, std::forward<Args>(args)...);
     }
 
     void add_instruction(std::string const& mnemonic)
@@ -35,6 +36,11 @@ struct Assembly {
     void add_label(std::string const& label)
     {
         code = format("{}{}:\n", code, label);
+    }
+
+    void add_directive(std::string const& directive, std::string const& args)
+    {
+        code = format("{}{}\t{}\n", code, directive, args);
     }
 
     void add_string(int id, std::string const& str)
@@ -60,8 +66,27 @@ struct Assembly {
     void syscall(int id)
     {
         add_instruction("mov", format("x16, #{}", id));
-        add_instruction("svc", "#0x80");
+        add_instruction("svc", "#0x00");
     }
+};
+
+struct RegisterContext {
+    enum class RegisterContextType {
+        Enclosing,
+        Targeted,
+        Subordinate,
+        Temporary
+    };
+
+    explicit RegisterContext(RegisterContextType context_type = RegisterContextType::Temporary)
+        : type(context_type)
+    {
+    }
+
+    RegisterContextType type { RegisterContextType::Temporary };
+    std::bitset<19> targeted { 0x0 };
+    std::bitset<19> rhs_targeted { 0x0 };
+    std::bitset<19> temporary_registers { 0x0 };
 };
 
 class MacOSXContext : public Context<Obj> {
@@ -93,65 +118,182 @@ public:
 
     [[nodiscard]] Assembly& assembly() const { return m_assembly; }
 
-    int claim_register()
+    void new_targeted_context()
     {
-        if (m_available_registers.empty()) {
+        m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Targeted);
+        auto& reg_ctx = m_register_contexts.back();
+        auto reg = claim_next_target();
+        reg_ctx.targeted.set(reg);
+    }
+
+    void new_enclosing_context();
+
+    void new_temporary_context()
+    {
+        m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Temporary);
+        auto& reg_ctx = m_register_contexts.back();
+        auto reg = claim_temporary_register();
+        reg_ctx.targeted.set(reg);
+    }
+
+    void release_register_context();
+
+    void release_all()
+    {
+        m_available_registers = 0xFFFFFF;
+        m_register_contexts.clear();
+    }
+
+    [[nodiscard]] size_t get_target_count() const
+    {
+        auto& reg_ctx = m_register_contexts.back();
+        return reg_ctx.targeted.count();
+    }
+
+    int get_target_register(size_t ix = 0)
+    {
+        auto& reg_ctx = m_register_contexts.back();
+        assert(ix < reg_ctx.targeted.count());
+        int count = 0;
+        for (auto i = 0; i < 19; i++) {
+            if (reg_ctx.targeted[i] && (count++ == ix))
+                return i;
+        }
+        fatal("Unreachable");
+    }
+
+    [[nodiscard]] size_t get_rhs_count() const
+    {
+        auto& reg_ctx = m_register_contexts.back();
+        return reg_ctx.targeted.count();
+    }
+
+    int get_rhs_register(size_t ix = 0)
+    {
+        auto& reg_ctx = m_register_contexts.back();
+        assert(ix < reg_ctx.rhs_targeted.count());
+        int count = 0;
+        for (auto i = 0; i < 19; i++) {
+            if (reg_ctx.targeted[i] && (count++ == ix))
+                return i;
+        }
+        fatal("Unreachable");
+    }
+
+    int add_target_register()
+    {
+        auto& reg_ctx = m_register_contexts.back();
+        auto reg = (reg_ctx.type == RegisterContext::RegisterContextType::Temporary) ? claim_temporary_register() : claim_next_target();
+        reg_ctx.targeted.set(reg);
+        return reg;
+    }
+
+    int temporary_register()
+    {
+        auto& reg_ctx = m_register_contexts.back();
+        auto ret = claim_temporary_register();
+        reg_ctx.temporary_registers.set(ret);
+        return ret;
+    }
+
+private:
+    RegisterContext& get_current_register_context()
+    {
+        assert(!m_register_contexts.empty());
+        return m_register_contexts.back();
+    }
+
+    RegisterContext* get_previous_register_context()
+    {
+        if (m_register_contexts.size() < 2)
+            return nullptr;
+        return &m_register_contexts[m_register_contexts.size() - 2];
+    }
+
+    int claim_temporary_register()
+    {
+        if (m_available_registers.count() == 0) {
             fatal("Registers exhausted");
         }
-        auto ret = m_available_registers.back();
-        m_available_registers.pop_back();
-        return ret;
+        for (auto ix = 18; ix >= 0; ix--) {
+            if (m_available_registers[ix]) {
+                m_available_registers.reset(ix);
+                return ix;
+            }
+        }
+        fatal("Unreachable");
+    }
+
+    int claim_next_target()
+    {
+        if (m_available_registers.count() == 0) {
+            fatal("Registers exhausted");
+        }
+        for (auto ix = 0; ix < 19; ix++) {
+            if (m_available_registers[ix]) {
+                m_available_registers.reset(ix);
+                return ix;
+            }
+        }
+        fatal("Unreachable");
+    }
+
+    int claim_register(int reg)
+    {
+        if (!m_available_registers[reg])
+            fatal(format("Register {} already claimed", reg).c_str());
+        m_available_registers.reset(reg);
+        return reg;
     }
 
     void release_register(int reg)
     {
-        m_available_registers.push_back(reg);
+        m_available_registers.set(reg);
     }
 
-    void release_all()
-    {
-        m_available_registers = { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 };
-    }
-
-private:
     Assembly& m_assembly;
-    std::vector<int> m_available_registers { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+    std::vector<RegisterContext> m_register_contexts {};
+    std::bitset<19> m_available_registers { 0xFFFFFF };
 };
 
 template<typename T = long>
-void push(MacOSXContext& ctx, char const* reg)
+void push(MacOSXContext& ctx, std::string const& reg)
 {
-    ctx.assembly().add_instruction("str", format("{},[sp],-16", reg));
+    ctx.assembly().add_instruction("str", "{},[sp,-16]!", reg);
 }
 
 template<>
-void push<uint8_t>(MacOSXContext& ctx, char const* reg)
+void push<uint8_t>(MacOSXContext& ctx, std::string const& reg)
 {
-    ctx.assembly().add_instruction("strb", format("{},[sp],-16", reg));
+    ctx.assembly().add_instruction("strb", "{},[sp,-16]!", reg);
 }
 
 template<typename T = long>
-void pop(MacOSXContext& ctx, char const* reg)
+void pop(MacOSXContext& ctx, std::string const& reg)
 {
-    ctx.assembly().add_instruction("ldr", format("{},[sp,16]!", reg));
+    ctx.assembly().add_instruction("ldr", "{},[sp],16", reg);
 }
 
 template<>
-void pop<uint8_t>(MacOSXContext& ctx, char const* reg)
+void pop<uint8_t>(MacOSXContext& ctx, std::string const& reg)
 {
-    ctx.assembly().add_instruction("ldrb", format("{},[sp,16]!", reg));
+    ctx.assembly().add_instruction("ldrb", "{},[sp],16", reg);
 }
 
 void push_imm(MacOSXContext& ctx, long value)
 {
-    ctx.assembly().add_instruction("mov", format("x0,{}", value));
-    push(ctx, "x0");
+    ctx.new_temporary_context();
+    ctx.assembly().add_instruction("mov", "x{},{}", ctx.get_target_register(), value);
+    push(ctx, format("x{}", ctx.get_target_register()));
+    ctx.release_register_context();
 }
 
 void push_imm(MacOSXContext& ctx, uint8_t value)
 {
-    ctx.assembly().add_instruction("movb", format("w0,{}", value));
-    push<uint8_t>(ctx, "w0");
+    ctx.new_temporary_context();
+    ctx.assembly().add_instruction("movb", "w{},{}", ctx.get_target_register(), value);
+    push<uint8_t>(ctx, format("w{}", ctx.get_target_register()));
+    ctx.release_register_context();
 }
 
 template<typename T = long>
@@ -161,8 +303,10 @@ ErrorOr<void> push_var(MacOSXContext& ctx, std::string const& name)
     if (!idx_maybe.has_value())
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
-    ctx.assembly().add_instruction("ldr", format("x0,[fp,{}]", static_cast<T>(idx->to_long().value())));
-    push<T>(ctx, "x0");
+    ctx.new_temporary_context();
+    ctx.assembly().add_instruction("ldr", "x{},[fp,{}]", ctx.get_target_register(), static_cast<T>(idx->to_long().value()));
+    push<T>(ctx, format("x{}", ctx.get_target_register()));
+    ctx.release_register_context();
     return {};
 }
 
@@ -173,8 +317,10 @@ ErrorOr<void> push_var<uint8_t>(MacOSXContext& ctx, std::string const& name)
     if (!idx_maybe.has_value())
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
-    ctx.assembly().add_instruction("movb", format("w0,[fp,{}]", static_cast<uint8_t>(idx->to_long().value())));
-    push<uint8_t>(ctx, "w0");
+    ctx.new_temporary_context();
+    ctx.assembly().add_instruction("ldrb", "w{},[fp,{}]", ctx.get_target_register(), static_cast<uint8_t>(idx->to_long().value()));
+    push<uint8_t>(ctx, format("w{}", ctx.get_target_register()));
+    ctx.release_register_context();
     return {};
 }
 
@@ -185,8 +331,10 @@ ErrorOr<void> pop_var(MacOSXContext& ctx, std::string const& name)
     if (!idx_maybe.has_value())
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
-    pop<T>(ctx, "x0");
-    ctx.assembly().add_instruction("str", format("x0,[fp,{}]", idx));
+    ctx.new_temporary_context();
+    pop<T>(ctx, format("x{}", ctx.get_target_register()));
+    ctx.assembly().add_instruction("str", "x{},[fp,{}]", ctx.get_target_register(), idx);
+    ctx.release_register_context();
     return {};
 }
 
@@ -197,16 +345,70 @@ ErrorOr<void> pop_var<uint8_t>(MacOSXContext& ctx, std::string const& name)
     if (!idx_maybe.has_value())
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
-    pop<uint8_t>(ctx, "w0");
-    ctx.assembly().add_instruction("strb", format("w0,[fp,{}]", idx));
+    ctx.new_temporary_context();
+    pop<uint8_t>(ctx, format("w{}", ctx.get_target_register()));
+    ctx.assembly().add_instruction("strb", "w{},[fp,{}]", ctx.get_target_register(), idx);
+    ctx.release_register_context();
     return {};
+}
+
+void MacOSXContext::new_enclosing_context()
+{
+    if (!m_register_contexts.empty()) {
+        auto& reg_ctx = m_register_contexts.back();
+        for (int ix = 0; ix < reg_ctx.targeted.count(); ix++) {
+            push(*this, format("x{}", get_target_register(ix)));
+        }
+        for (int ix = 0; ix < reg_ctx.rhs_targeted.count(); ix++) {
+            push(*this, format("x{}", get_rhs_register(ix)));
+        }
+    }
+    m_available_registers = 0xFFFFFF;
+    m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Enclosing);
+}
+
+void MacOSXContext::release_register_context()
+{
+    assert(!m_register_contexts.empty());
+    auto& reg_ctx = m_register_contexts.back();
+    auto* prev_ctx = get_previous_register_context();
+
+    m_available_registers |= reg_ctx.temporary_registers;
+    switch (reg_ctx.type) {
+    case RegisterContext::RegisterContextType::Enclosing:
+        m_available_registers = 0xFFFFFF;
+        if (prev_ctx) {
+            m_register_contexts.pop_back();
+            m_available_registers ^= (prev_ctx->targeted | prev_ctx->rhs_targeted);
+            if (prev_ctx->rhs_targeted.count() > 0) {
+                for (auto ix = prev_ctx->rhs_targeted.count() - 1; ix >= 0; ix++) {
+                    pop(*this, format("x{}", get_rhs_register(ix)));
+                }
+            }
+            if (prev_ctx->targeted.count() > 0) {
+                for (auto ix = prev_ctx->targeted.count() - 1; ix >= 0; ix++) {
+                    push(*this, format("x{}", get_target_register(ix)));
+                }
+            }
+            prev_ctx->temporary_registers.reset();
+        }
+        return;
+    case RegisterContext::RegisterContextType::Targeted:
+    case RegisterContext::RegisterContextType::Subordinate:
+        if (prev_ctx)
+            prev_ctx->rhs_targeted |= reg_ctx.targeted | reg_ctx.rhs_targeted;
+        break;
+    case RegisterContext::RegisterContextType::Temporary:
+        m_available_registers |= reg_ctx.targeted | reg_ctx.rhs_targeted;
+        break;
+    }
 }
 
 ErrorOr<void> bool_unary_expression(MacOSXContext& ctx, UnaryExpression const& expr)
 {
     switch (expr.op().code()) {
     case TokenCode::ExclamationPoint:
-        ctx.assembly().add_instruction("eorb", "w0,w0,#0x01"); // a is 0b00000001 (a was true) or 0b00000000 (a was false)
+        ctx.assembly().add_instruction("eorb", "w{},w{},#0x01", ctx.get_target_register()); // a is 0b00000001 (a was true) or 0b00000000 (a was false
         break;
     default:
         return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
@@ -216,19 +418,21 @@ ErrorOr<void> bool_unary_expression(MacOSXContext& ctx, UnaryExpression const& e
 
 ErrorOr<void> bool_bool_binary_expression(MacOSXContext& ctx, BinaryExpression const& expr)
 {
+    auto lhs = ctx.get_target_register();
+    auto rhs = ctx.get_rhs_register();
     switch (expr.op().code()) {
     case TokenCode::LogicalAnd:
-        ctx.assembly().add_instruction("and", "x0,x0,x2");
+        ctx.assembly().add_instruction("and", "x{},x{},x{}", lhs, lhs, rhs);
         break;
     case TokenCode::LogicalOr:
-        ctx.assembly().add_instruction("orr", "x0,x0,x2");
+        ctx.assembly().add_instruction("orr", "x{},x{},x{}", lhs, lhs, rhs);
         break;
     case TokenCode::Hat:
-        ctx.assembly().add_instruction("xor", "x0,x0,x2");
+        ctx.assembly().add_instruction("xor", "x{},x{},x{}", lhs, lhs, rhs);
         break;
     case TokenCode::Equals: {
-        ctx.assembly().add_instruction("eor", "x0,x0,x2");    // a is 0b00000000 (a == b) or 0b00000001 (a != b)
-        ctx.assembly().add_instruction("eor", "x0,x0,#0x01"); // a is 0b00000001 (a == b) or 0b00000000 (a != b)
+        ctx.assembly().add_instruction("eor", "x{},x{},x{}", lhs, lhs, rhs); // a is 0b00000000 (a == b) or 0b00000001 (a != b
+        ctx.assembly().add_instruction("eor", "x{},x{},#0x01", lhs, lhs);    // a is 0b00000001 (a == b) or 0b00000000 (a != b
         break;
     }
     default:
@@ -241,15 +445,16 @@ ErrorOr<void> int_unary_expression(MacOSXContext& ctx, UnaryExpression const& ex
 {
     if (expr.op().code() == TokenCode::Plus)
         return {};
+    auto operand = ctx.get_target_register();
     switch (expr.op().code()) {
     case TokenCode::Minus: {
         if (expr.operand()->type() == ObelixType::TypeUnsigned)
             return Error { ErrorCode::SyntaxError, "Cannot negate unsigned numbers" };
-        ctx.assembly().add_instruction("neg", "x0,x0");
+        ctx.assembly().add_instruction("neg", "x{},x{}", operand, operand);
         break;
     }
     case TokenCode::Tilde:
-        ctx.assembly().add_instruction("mvn", "x0,x0");
+        ctx.assembly().add_instruction("mvn", "x{},x{}", operand, operand);
         break;
     default:
         return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
@@ -259,52 +464,54 @@ ErrorOr<void> int_unary_expression(MacOSXContext& ctx, UnaryExpression const& ex
 
 ErrorOr<void> int_int_binary_expression(MacOSXContext& ctx, BinaryExpression const& expr)
 {
+    auto lhs = ctx.get_target_register();
+    auto rhs = ctx.get_rhs_register();
     switch (expr.op().code()) {
     case TokenCode::Plus:
-        ctx.assembly().add_instruction("add", "x0,x0,x2");
+        ctx.assembly().add_instruction("add", "x{},x{},x{}", lhs, lhs, rhs);
         break;
     case TokenCode::Minus:
-        ctx.assembly().add_instruction("sub", "x0,x0,x2");
+        ctx.assembly().add_instruction("sub", "x{},x{},x{}", lhs, lhs, rhs);
         break;
     case TokenCode::Asterisk:
-        ctx.assembly().add_instruction("smull", "x0,x0,x2");
+        ctx.assembly().add_instruction("mul", "x{},x{},x{}", lhs, lhs, rhs);
         break;
     case TokenCode::Slash:
-        ctx.assembly().add_instruction("sdiv", "x0,x0,x2");
+        ctx.assembly().add_instruction("sdiv", "x{},x{},x{}", lhs, lhs, rhs);
         break;
     case TokenCode::EqualsTo: {
-        ctx.assembly().add_instruction("cmp", "x0,x2");
+        ctx.assembly().add_instruction("cmp", "x{},x{}", lhs, rhs);
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bne", set_false);
-        ctx.assembly().add_instruction("mov", "x0,#0x01");
+        ctx.assembly().add_instruction("mov", "w{},#0x01", lhs);
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("mov", "w0,wzr");
+        ctx.assembly().add_instruction("mov", "w{},wzr", lhs);
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::GreaterThan: {
-        ctx.assembly().add_instruction("cmp", "x0,x2");
+        ctx.assembly().add_instruction("cmp", "x{},x{}", lhs, rhs);
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b.le", set_false);
-        ctx.assembly().add_instruction("mov", "x0,#0x01");
+        ctx.assembly().add_instruction("mov", "w{},#0x01", lhs);
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("mov", "w0,wzr");
+        ctx.assembly().add_instruction("mov", "w{},wzr", lhs);
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::LessThan: {
-        ctx.assembly().add_instruction("cmp", "x0,x2");
+        ctx.assembly().add_instruction("cmp", "x{},x{}", lhs, rhs);
         auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b.lt", set_true);
-        ctx.assembly().add_instruction("mov", "w0,wzr");
+        ctx.assembly().add_instruction("mov", "w{},wzr", lhs);
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_true);
-        ctx.assembly().add_instruction("mov", "x0,#0x01");
+        ctx.assembly().add_instruction("mov", "w{},#0x01", lhs);
         ctx.assembly().add_label(done);
         return {};
     }
@@ -318,18 +525,17 @@ ErrorOr<void> byte_unary_expression(MacOSXContext& ctx, UnaryExpression const& e
 {
     if (expr.op().code() == TokenCode::Plus)
         return {};
+    auto operand = ctx.get_target_register();
     switch (expr.op().code()) {
     case TokenCode::Minus: {
         if (expr.operand()->type() == ObelixType::TypeUnsigned)
             return Error { ErrorCode::SyntaxError, "Cannot negate unsigned numbers" };
 
-        // Perform two's complement. Negate and add 1:
-        ctx.assembly().add_instruction("mvnb", "w0,w0");
-        ctx.assembly().add_instruction("addb", "w0,#0x01");
+        ctx.assembly().add_instruction("neg", "w{},w{}", operand, operand);
         break;
     }
     case TokenCode::Tilde:
-        ctx.assembly().add_instruction("mvnb", "w0,w0");
+        ctx.assembly().add_instruction("mvnb", "w{},w{}", operand, operand);
         break;
     default:
         return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
@@ -339,52 +545,54 @@ ErrorOr<void> byte_unary_expression(MacOSXContext& ctx, UnaryExpression const& e
 
 ErrorOr<void> byte_byte_binary_expression(MacOSXContext& ctx, BinaryExpression const& expr)
 {
+    auto lhs = ctx.get_target_register();
+    auto rhs = ctx.get_rhs_register();
     switch (expr.op().code()) {
     case TokenCode::Plus:
-        ctx.assembly().add_instruction("andb", "w0,w0,w1");
+        ctx.assembly().add_instruction("andb", "w{},w{},w{}", lhs, lhs, rhs);
         break;
     case TokenCode::Minus:
-        ctx.assembly().add_instruction("subb", "w0,w0,w1");
+        ctx.assembly().add_instruction("subb", "w{},w{},w{}", lhs, lhs, rhs);
         break;
     case TokenCode::Asterisk:
-        ctx.assembly().add_instruction("smull", "x0,w0,w2");
+        ctx.assembly().add_instruction("smull", "x{},w{},w{}", lhs, lhs, rhs);
         break;
     case TokenCode::Slash:
-        ctx.assembly().add_instruction("sdiv", "w0,w0,w2");
+        ctx.assembly().add_instruction("sdiv", "w{},w{},w{}", lhs, lhs, rhs);
         break;
     case TokenCode::EqualsTo: {
-        ctx.assembly().add_instruction("cmp", "w0,w1");
+        ctx.assembly().add_instruction("cmp", "w{},w{}", lhs, rhs);
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bne", set_false);
-        ctx.assembly().add_instruction("movb", "w0,#0x01");
+        ctx.assembly().add_instruction("movb", "w{},#0x01", lhs);
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("movb", "w0,#0x00");
+        ctx.assembly().add_instruction("movb", "w{},wzr", lhs);
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::GreaterThan: {
-        ctx.assembly().add_instruction("cmp", "w0,w1");
+        ctx.assembly().add_instruction("cmp", "w{},w{}", lhs, rhs);
         auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bmi", set_false);
-        ctx.assembly().add_instruction("movb", "w0,#0x01");
+        ctx.assembly().add_instruction("movb", "w{},#0x01", lhs);
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("movb", "w0,#0x00");
+        ctx.assembly().add_instruction("movb", "w{},wzr", lhs);
         ctx.assembly().add_label(done);
         return {};
     }
     case TokenCode::LessThan: {
-        ctx.assembly().add_instruction("cmp", "w0,w1");
+        ctx.assembly().add_instruction("cmp", "w{},w{}", lhs, rhs);
         auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("bmi", set_true);
-        ctx.assembly().add_instruction("movb", "w0,#0x00");
+        ctx.assembly().add_instruction("movb", "w{},wzr", lhs);
         auto done = format("lbl_{}", Obelix::Label::reserve_id());
         ctx.assembly().add_instruction("b", done);
         ctx.assembly().add_label(set_true);
-        ctx.assembly().add_instruction("movb", "w0,#0x01");
+        ctx.assembly().add_instruction("movb", "w{},#0x01", lhs);
         ctx.assembly().add_label(done);
         return {};
     }
@@ -421,7 +629,8 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ix += 16;
         }
 
-        ctx.assembly().add_label(format("func_{}", func_decl->name()));
+        ctx.assembly().add_directive(".global", func_decl->name());
+        ctx.assembly().add_label(func_decl->name());
 
         // Push the return value:
         push(ctx, "lr");
@@ -429,35 +638,6 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         // Set fp to the current sp. Now a return is setting sp back to fp,
         // and popping lr followed by ret.
         ctx.assembly().add_instruction("mov", "fp,sp");
-        return tree;
-    }
-
-    case SyntaxNodeType::NativeFunctionDef: {
-        auto native_func_def = std::dynamic_pointer_cast<NativeFunctionDef>(tree);
-
-        // Emit function prolog:
-        auto func_decl = TRY_AND_CAST(FunctionDecl, output_macosx_processor(native_func_def->declaration(), ctx));
-
-        // Load arguments in registers w0,w1, etc. Strings use two registers.
-        auto reg = 0;
-        for (auto& parameter : func_decl->parameters()) {
-            auto ix = ctx.get(parameter.name()).value()->to_long().value();
-            ctx.assembly().add_instruction("ldr", format("x{},[fp,{}]", reg++, ix));
-            if (parameter.type() == ObelixType::TypeString)
-                ctx.assembly().add_instruction("ldr", format("x{},[fp,{}]", reg++, ix + 8));
-        }
-
-        // Call the native function
-        ctx.assembly().add_instruction("bl", native_func_def->native_function_name());
-
-        // Load sp with the current value of bp. This will discard all local variables
-        ctx.assembly().add_instruction("mov", "sp,fp");
-
-        // Pop return address into lr:
-        pop(ctx, "lr");
-
-        // Return:
-        ctx.assembly().add_instruction("ret");
         return tree;
     }
 
@@ -490,18 +670,19 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         push(ctx, "fp");
         ctx.assembly().add_instruction("mov", "fp,sp");
 
-        for (auto it = call->arguments().rbegin(); it != call->arguments().rend(); it++) {
-            auto argument = *it;
-            ctx.release_all();
+        ctx.new_enclosing_context();
+        for (auto& argument : call->arguments()) {
+            ctx.new_targeted_context();
             TRY_RETURN(output_macosx_processor(argument, ctx));
-            push(ctx, "x0");
+            ctx.release_register_context();
         }
+        ctx.release_register_context();
 
         // Push temp fp.
         push(ctx, "fp");
 
         // Call function:
-        ctx.assembly().add_instruction("bl", format("func_{}", call->name()));
+        ctx.assembly().add_instruction("bl", call->name());
 
         // Pop temp fp:
         pop(ctx, "fp");
@@ -514,10 +695,28 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         return tree;
     }
 
+    case SyntaxNodeType::NativeFunctionCall: {
+        auto native_func_call = std::dynamic_pointer_cast<NativeFunctionCall>(tree);
+
+        auto func_decl = native_func_call->declaration();
+
+        ctx.new_enclosing_context();
+        for (auto& arg : native_func_call->arguments()) {
+            ctx.new_targeted_context();
+            TRY_RETURN(output_macosx_processor(arg, ctx));
+            ctx.release_register_context();
+        }
+        ctx.release_register_context();
+
+        // Call the native function
+        ctx.assembly().add_instruction("bl", func_decl->native_function_name());
+        return tree;
+    }
+
     case SyntaxNodeType::CompilerIntrinsic: {
         auto call = std::dynamic_pointer_cast<CompilerIntrinsic>(tree);
-        ctx.release_all();
 
+        ctx.new_enclosing_context();
         if (call->name() == "allocate") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
             ctx.assembly().add_instruction("mov", "x1,x0");
@@ -527,22 +726,28 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "w4,#-1");
             ctx.assembly().add_instruction("mov", "x5,xzr");
             ctx.assembly().syscall(0xC5);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "close") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
             ctx.assembly().syscall(0x06);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "fputs") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
-            auto fd_reg = ctx.claim_register();
-            ctx.assembly().add_instruction("mov", format("w{},w0", fd_reg));
+            auto fd_reg = ctx.temporary_register();
+            ctx.assembly().add_instruction("mov", "w{},w0", fd_reg);
             TRY_RETURN(output_macosx_processor(call->arguments().at(1), ctx));
             ctx.assembly().add_instruction("mov", "w2,w1");
             ctx.assembly().add_instruction("mov", "x1,x0");
-            ctx.assembly().add_instruction("mov", format("w0,w{}", fd_reg));
+            ctx.assembly().add_instruction("mov", "w0,w{}", fd_reg);
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "itoa") {
@@ -567,66 +772,69 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "x1,x0");
             ctx.assembly().add_instruction("mov", "x0,#0x02");
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "fsize") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
-            ctx.assembly().add_instruction("sub", format("x1,sp,#-{}", sizeof(struct stat)));
+            ctx.assembly().add_instruction("sub", "x1,sp,#-{}", sizeof(struct stat));
             ctx.assembly().syscall(189);
             ctx.assembly().add_instruction("cmp", "x0,#0x00");
             auto lbl = format("lbl_{}", Label::reserve_id());
             ctx.assembly().add_instruction("bne", lbl);
-            ctx.assembly().add_instruction("ldr", format("x0,[sp,-{}]", sizeof(struct stat) - offsetof(struct stat, st_size)));
+            ctx.assembly().add_instruction("ldr", "x0,[sp,-{}]", sizeof(struct stat) - offsetof(struct stat, st_size));
             ctx.assembly().add_label(lbl);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "memset") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(2), ctx));
-            int len_reg = ctx.claim_register();
-            ctx.assembly().add_instruction("mov", format("x{},x0", len_reg));
+            int len_reg = ctx.temporary_register();
+            ctx.assembly().add_instruction("mov", "x{},x0", len_reg);
             TRY_RETURN(output_macosx_processor(call->arguments().at(1), ctx));
-            int char_reg = ctx.claim_register();
-            ctx.assembly().add_instruction("mov", format("x{},x0", char_reg));
+            int char_reg = ctx.temporary_register();
+            ctx.assembly().add_instruction("mov", "x{},x0", char_reg);
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
 
-            int count_reg = ctx.claim_register();
-            ctx.assembly().add_instruction("mov", format("x{},xzr", count_reg));
+            int count_reg = ctx.temporary_register();
+            ctx.assembly().add_instruction("mov", "x{},xzr", count_reg);
 
             auto loop = format("lbl_{}", Label::reserve_id());
             auto skip = format("lbl_{}", Label::reserve_id());
             ctx.assembly().add_label(loop);
-            ctx.assembly().add_instruction("cmp", format("x{},x{}", count_reg, len_reg));
+            ctx.assembly().add_instruction("cmp", "x{},x{}", count_reg, len_reg);
             ctx.assembly().add_instruction("b.ge", skip);
 
-            int ptr_reg = ctx.claim_register();
-            ctx.assembly().add_instruction("add", format("x{},x0,x{}", ptr_reg, count_reg));
-            ctx.assembly().add_instruction("strb", format("w{},[x{}]", char_reg, ptr_reg));
-            ctx.assembly().add_instruction("add", format("x{},x{},#1", count_reg, count_reg));
+            int ptr_reg = ctx.temporary_register();
+            ctx.assembly().add_instruction("add", "x{},x0,x{}", ptr_reg, count_reg);
+            ctx.assembly().add_instruction("strb", "w{},[x{}]", char_reg, ptr_reg);
+            ctx.assembly().add_instruction("add", "x{},x{},#1", count_reg, count_reg);
             ctx.assembly().add_instruction("b", loop);
             ctx.assembly().add_label(skip);
-            ctx.release_register(ptr_reg);
-            ctx.release_register(count_reg);
-            ctx.release_register(len_reg);
-            ctx.release_register(char_reg);
         }
 
         if (call->name() == "open") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(1), ctx));
-            auto flags_reg = ctx.claim_register();
-            ctx.assembly().add_instruction("mov", format("x{},x0", flags_reg));
+            auto flags_reg = ctx.temporary_register();
+            ctx.assembly().add_instruction("mov", "x{},x0", flags_reg);
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
-            ctx.assembly().add_instruction("mov", format("x1,x{}", flags_reg));
-            ctx.release_register(flags_reg);
+            ctx.assembly().add_instruction("mov", "x1,x{}", flags_reg);
             ctx.assembly().syscall(0x05);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "putchar") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
-            ctx.assembly().add_instruction("strb", "w0,[sp],-16");
+            ctx.assembly().add_instruction("strb", "w0,[sp,-16]!");
             ctx.assembly().add_instruction("mov", "x0,#1");    // x0: stdin
             ctx.assembly().add_instruction("add", "x1,sp,16"); // x1: 16 bytes up from SP
             ctx.assembly().add_instruction("mov", "x2,#1");    // x2: Number of characters
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
             ctx.assembly().add_instruction("add", "sp,sp,16");
         }
 
@@ -636,21 +844,23 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "x1,x0");
             ctx.assembly().add_instruction("mov", "x0,#1");
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "read") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(2), ctx));
-            auto len_reg = ctx.claim_register();
-            ctx.assembly().add_instruction("mov", format("x{},x0", len_reg));
+            auto len_reg = ctx.temporary_register();
+            ctx.assembly().add_instruction("mov", "x{},x0", len_reg);
             TRY_RETURN(output_macosx_processor(call->arguments().at(1), ctx));
-            auto buf_reg = ctx.claim_register();
-            ctx.assembly().add_instruction("mov", format("x{},x0", buf_reg));
+            auto buf_reg = ctx.temporary_register();
+            ctx.assembly().add_instruction("mov", "x{},x0", buf_reg);
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
-            ctx.assembly().add_instruction("mov", format("x2,x{}", len_reg));
-            ctx.assembly().add_instruction("mov", format("x1,x{}", buf_reg));
-            ctx.release_register(buf_reg);
-            ctx.release_register(len_reg);
+            ctx.assembly().add_instruction("mov", "x2,x{}", len_reg);
+            ctx.assembly().add_instruction("mov", "x1,x{}", buf_reg);
             ctx.assembly().syscall(0x03);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "write") {
@@ -660,8 +870,10 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "x1,x0");
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
-
+        ctx.release_register_context();
         return tree;
     }
 
@@ -673,25 +885,12 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         if (expr->rhs()->type() == ObelixType::TypeUnknown) {
             return Error { ErrorCode::UntypedExpression, expr->rhs()->to_string(0) };
         }
-        auto rhs = TRY_AND_CAST(Expression, output_macosx_processor(expr->rhs(), ctx));
-        auto reg_num = ctx.claim_register();
-        ctx.assembly().add_instruction("mov", format("x{},x0", reg_num));
 
-        int len_reg;
-        if (rhs->type() == ObelixType::TypeString) {
-            len_reg = ctx.claim_register();
-            ctx.assembly().add_instruction("mov", format("w{},w1", len_reg));
-        }
+        ctx.new_targeted_context();
+        auto rhs = TRY_AND_CAST(Expression, output_macosx_processor(expr->rhs(), ctx));
+        ctx.release_register_context();
 
         auto lhs = TRY_AND_CAST(Expression, output_macosx_processor(expr->lhs(), ctx));
-
-        ctx.assembly().add_instruction("mov", format("x2,x{}", reg_num));
-        ctx.release_register(reg_num);
-        if (rhs->type() == ObelixType::TypeString) {
-            ctx.assembly().add_instruction("mov", format("x3,x{}", len_reg));
-            ctx.release_register(len_reg);
-        }
-
         if ((expr->lhs()->type() == ObelixType::TypeInt && expr->lhs()->type() == ObelixType::TypeInt) || (expr->lhs()->type() == ObelixType::TypeUnsigned && expr->lhs()->type() == ObelixType::TypeUnsigned)) {
             TRY_RETURN(int_int_binary_expression(ctx, *expr));
         }
@@ -709,7 +908,9 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::UnaryExpression: {
         auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
+        ctx.new_targeted_context();
         auto operand = TRY_AND_CAST(Expression, output_macosx_processor(expr->operand(), ctx));
+        ctx.release_register_context();
 
         if (operand->type() == ObelixType::TypeUnknown) {
             return Error { ErrorCode::UntypedExpression, operand->to_string(0) };
@@ -736,19 +937,20 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
         case ObelixType::TypeUnsigned: {
-            ctx.assembly().add_instruction("mov", format("x0,#{}", val->to_long().value()));
+            ctx.assembly().add_instruction("mov", "x{},#{}", ctx.get_target_register(), val->to_long().value());
             break;
         }
         case ObelixType::TypeChar:
         case ObelixType::TypeByte:
         case ObelixType::TypeBoolean: {
-            ctx.assembly().add_instruction("mov", format("w0,#{}", static_cast<uint8_t>(val->to_long().value())));
+            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.get_target_register(), static_cast<uint8_t>(val->to_long().value()));
             break;
         }
         case ObelixType::TypeString: {
             auto str_id = Label::reserve_id();
-            ctx.assembly().add_instruction("adr", format("x0,str_{}", str_id));
-            ctx.assembly().add_instruction("mov", format("w1,#{}", val->to_string().length()));
+            ctx.assembly().add_instruction("adr", "x{},str_{}", ctx.get_target_register(), str_id);
+            auto reg = ctx.add_target_register();
+            ctx.assembly().add_instruction("mov", "w{},#{}", reg, val->to_string().length());
             ctx.assembly().add_string(str_id, val->to_string());
             break;
         }
@@ -768,22 +970,24 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         switch (identifier->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
-            ctx.assembly().add_instruction("ldr", format("x0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldr", "x{},[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
             break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("ldr", format("x0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldr", "x0,[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
             break;
         case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("ldrbs", format("w0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldrbs", "w{},[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("ldrb", format("w0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("ldrb", "w{},[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
             break;
-        case ObelixType::TypeString:
-            ctx.assembly().add_instruction("ldr", format("x0,[fp,-{}]", idx->to_long().value()));
-            ctx.assembly().add_instruction("ldrw", format("w1,[fp,-{}]", idx->to_long().value() + 8));
+        case ObelixType::TypeString: {
+            ctx.assembly().add_instruction("ldr", "x{},[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
+            auto reg = ctx.add_target_register();
+            ctx.assembly().add_instruction("ldrw", "w{},[fp,-{}]", reg, idx->to_long().value() + 8);
             break;
+        }
         default:
             return Error { ErrorCode::NotYetImplemented, format("Cannot push values of variables of type {} yet", identifier->type()) };
         }
@@ -798,28 +1002,27 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", assignment->name()) };
         auto idx = idx_maybe.value();
 
-        // Evaluate the expression into w0:
-        ctx.release_all();
         TRY_RETURN(output_macosx_processor(assignment->expression(), ctx));
 
         switch (assignment->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
-            ctx.assembly().add_instruction("str", format("x0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("str", "x{},[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
             break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("str", format("x0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("str", "x{},[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
             break;
         case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("strbs", format("x0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("strbs", "x{},[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("strb", format("x0,[fp,-{}]", idx->to_long().value()));
+            ctx.assembly().add_instruction("strb", "x{},[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
             break;
         case ObelixType::TypeString: {
-            ctx.assembly().add_instruction("str", format("x0,[fp,-{}]", idx->to_long().value()));
-            ctx.assembly().add_instruction("strw", format("w1,[fp,-{}]", idx->to_long().value() + 8));
+            ctx.assembly().add_instruction("str", "x{},[fp,-{}]", ctx.get_target_register(), idx->to_long().value());
+            auto reg = ctx.add_target_register();
+            ctx.assembly().add_instruction("strw", "w{},[fp,-{}]", reg, idx->to_long().value() + 8);
         }
         default:
             return Error { ErrorCode::NotYetImplemented, format("Cannot emit assignments of type {} yet", assignment->type()) };
@@ -830,33 +1033,36 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
     case SyntaxNodeType::VariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
         ctx.assembly().add_comment(var_decl->to_string(0));
-        ctx.release_all();
         auto offset = (signed char)ctx.get("#offset").value()->to_long().value();
         ctx.set("#offset", make_obj<Integer>(offset + 16)); // FIXME Use type size
         ctx.declare(var_decl->variable().identifier(), make_obj<Integer>(offset));
+        ctx.release_all();
+        ctx.new_targeted_context();
         if (var_decl->expression() != nullptr) {
             TRY_RETURN(output_macosx_processor(var_decl->expression(), ctx));
         } else {
             switch (var_decl->expression()->type()) {
-            case ObelixType::TypeString:
-                ctx.assembly().add_instruction("mov", "w1,0");
-                // fall through
+            case ObelixType::TypeString: {
+                auto reg = ctx.add_target_register();
+                ctx.assembly().add_instruction("mov", "w{},wzr", reg);
+            } // fall through
             case ObelixType::TypePointer:
             case ObelixType::TypeInt:
             case ObelixType::TypeUnsigned:
             case ObelixType::TypeByte:
             case ObelixType::TypeChar:
             case ObelixType::TypeBoolean:
-                ctx.assembly().add_instruction("mov", "x0,0");
+                ctx.assembly().add_instruction("mov", "x{},xzr", ctx.get_target_register());
                 break;
             default:
                 return Error { ErrorCode::NotYetImplemented, format("Cannot initialize variables of type {} yet", var_decl->expression()->type()) };
             }
         }
-        ctx.assembly().add_instruction("str", "x0,[sp],-16");
-        if (var_decl->expression()->type() == ObelixType::TypeString) {
-            ctx.assembly().add_instruction("strw", "w1,[sp,8]");
+        ctx.assembly().add_instruction("str", "x{},[sp,-16]", ctx.get_target_register());
+        if (ctx.get_target_count() > 1) {
+            ctx.assembly().add_instruction("strw", "x{},[sp,8]", ctx.get_target_register(1));
         }
+        ctx.release_register_context();
         return tree;
     }
 
@@ -864,7 +1070,9 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         auto expr_stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);
         ctx.assembly().add_comment(expr_stmt->to_string(0));
         ctx.release_all();
+        ctx.new_targeted_context();
         TRY_RETURN(output_macosx_processor(expr_stmt->expression(), ctx));
+        ctx.release_register_context();
         return tree;
     }
 
@@ -872,7 +1080,9 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         auto ret = std::dynamic_pointer_cast<Return>(tree);
         ctx.assembly().add_comment(ret->to_string(0));
         ctx.release_all();
+        ctx.new_targeted_context();
         TRY_RETURN(output_macosx_processor(ret->expression(), ctx));
+        ctx.release_register_context();
 
         // Load sp with the current value of bp. This will discard all local variables
         ctx.assembly().add_instruction("mov", "sp,fp");
@@ -895,12 +1105,13 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
     case SyntaxNodeType::Goto: {
         auto goto_stmt = std::dynamic_pointer_cast<Goto>(tree);
         ctx.assembly().add_comment(goto_stmt->to_string(0));
-        ctx.assembly().add_instruction("b", format("lbl_{}", goto_stmt->label_id()));
+        ctx.assembly().add_instruction("b", "lbl_{}", goto_stmt->label_id());
         return tree;
     }
 
     case SyntaxNodeType::IfStatement: {
         auto if_stmt = std::dynamic_pointer_cast<IfStatement>(tree);
+        ctx.release_all();
 
         auto end_label = Obelix::Label::reserve_id();
         auto count = if_stmt->branches().size() - 1;
@@ -908,16 +1119,16 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             auto else_label = (count) ? Obelix::Label::reserve_id() : end_label;
             if (branch->condition()) {
                 ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string(0)));
-                ctx.release_all();
+                ctx.new_targeted_context();
                 auto cond = TRY_AND_CAST(Expression, output_macosx_processor(branch->condition(), ctx));
-                ctx.assembly().add_instruction("cmp", "w0,0x00");
-                ctx.assembly().add_instruction("b.eq", format("lbl_{}", else_label));
+                ctx.assembly().add_instruction("cmp", "w{},0x00", ctx.get_target_register());
+                ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
             } else {
                 ctx.assembly().add_comment("else");
             }
             auto stmt = TRY_AND_CAST(Statement, output_macosx_processor(branch->statement(), ctx));
             if (count) {
-                ctx.assembly().add_instruction("b", format("lbl_{}", end_label));
+                ctx.assembly().add_instruction("b", "lbl_{}", end_label);
                 ctx.assembly().add_label(format("lbl_{}", else_label));
             }
             count--;
@@ -960,13 +1171,18 @@ ErrorOrNode output_macosx(std::shared_ptr<SyntaxNode> const& tree, std::string c
     Assembly assembly;
     MacOSXContext root(assembly);
 
+#if 0
     assembly.code = ".global _start\n"
                     ".align 2\n\n"
                     "_start:\n"
                     "\tmov\tfp,sp\n"
+                    "\tbl\t_init\n"
                     "\tbl\tfunc_main\n"
                     "\tmov\tx16,#1\n"
                     "\tsvc\t0\n";
+#else
+    assembly.code = ".align 2\n\n";
+#endif
 
     auto ret = output_macosx_processor(processed, root);
 

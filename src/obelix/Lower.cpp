@@ -22,19 +22,22 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
 
     case SyntaxNodeType::FunctionDef: {
         auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
-        auto statement = TRY_AND_CAST(Statement, lower_processor(func_def->statement(), ctx));
-        switch (statement->node_type()) {
-        case SyntaxNodeType::Block: {
-            auto block = std::dynamic_pointer_cast<Block>(statement);
-            return std::make_shared<FunctionDef>(func_def->declaration(), std::make_shared<FunctionBlock>(block->statements()));
+        if (func_def->statement()) {
+            auto statement = TRY_AND_CAST(Statement, lower_processor(func_def->statement(), ctx));
+            switch (statement->node_type()) {
+            case SyntaxNodeType::Block: {
+                auto block = std::dynamic_pointer_cast<Block>(statement);
+                return std::make_shared<FunctionDef>(func_def->declaration(), std::make_shared<FunctionBlock>(block->statements()));
+            }
+            case SyntaxNodeType::FunctionBlock: {
+                auto block = std::dynamic_pointer_cast<FunctionBlock>(statement);
+                return std::make_shared<FunctionDef>(func_def->declaration(), block);
+            }
+            default:
+                return std::make_shared<FunctionDef>(func_def->declaration(), std::make_shared<FunctionBlock>(statement));
+            }
         }
-        case SyntaxNodeType::FunctionBlock: {
-            auto block = std::dynamic_pointer_cast<FunctionBlock>(statement);
-            return std::make_shared<FunctionDef>(func_def->declaration(), block);
-        }
-        default:
-            return std::make_shared<FunctionDef>(func_def->declaration(), std::make_shared<FunctionBlock>(statement));
-        }
+        return tree;
     }
 
     case SyntaxNodeType::SwitchStatement: {
