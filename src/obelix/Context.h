@@ -107,6 +107,10 @@ public:
         return maybe_error;
     }
 
+protected:
+    [[nodiscard]] Context<T>* parent() { return m_parent; }
+    [[nodiscard]] Context<T>* parent() const { return m_parent; }
+
 private:
     std::unordered_map<std::string, T> m_names {};
     Context<T>* m_parent { nullptr };

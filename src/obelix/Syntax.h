@@ -54,6 +54,10 @@ extern_logging_category(parser);
     S(CaseStatement)                 \
     S(DefaultCase)                   \
     S(SwitchStatement)               \
+    S(FunctionParameter)             \
+    S(MaterializedFunctionDecl)      \
+    S(MaterializedFunctionDef)       \
+    S(MaterializedVariableDecl)      \
     S(StatementExecutionResult)
 
 enum class SyntaxNodeType {
@@ -946,6 +950,152 @@ private:
     std::shared_ptr<Expression> m_switch_expression;
     CaseStatements m_cases {};
     std::shared_ptr<DefaultCase> m_default {};
+};
+
+class FunctionParameter : public SyntaxNode {
+public:
+    FunctionParameter(Symbol parameter, int offset)
+        : SyntaxNode()
+        , m_identifier(std::move(parameter))
+        , m_offset(offset)
+    {
+    }
+
+    [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
+    [[nodiscard]] int offset() const { return m_offset; }
+    [[nodiscard]] std::string const& name() const { return identifier().name(); }
+    [[nodiscard]] ObelixType type() const { return identifier().type(); }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionParameter; }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        return format("{}param {} : {} @{}", pad(indent), m_identifier.name(), m_identifier.type(), offset());
+    }
+
+private:
+    Symbol m_identifier;
+    int m_offset;
+};
+
+using FunctionParameters = std::vector<std::shared_ptr<FunctionParameter>>;
+
+class MaterializedFunctionDecl : public SyntaxNode {
+public:
+    explicit MaterializedFunctionDecl(Symbol identifier, FunctionParameters parameters)
+        : SyntaxNode()
+        , m_identifier(std::move(identifier))
+        , m_parameters(move(parameters))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedFunctionDecl; }
+    [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
+    [[nodiscard]] std::string const& name() const { return identifier().identifier(); }
+    [[nodiscard]] ObelixType type() const { return identifier().type(); }
+    [[nodiscard]] FunctionParameters const& parameters() const { return m_parameters; }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        return format("{}func {}({}) : {}",
+            pad(indent), identifier().identifier(), parameters_to_string(), type());
+    }
+
+    [[nodiscard]] std::string label() const
+    {
+        std::string params;
+        bool first = true;
+        for (auto& param : m_parameters) {
+            if (!first)
+                params += ",";
+            first = false;
+            params += ObelixType_name(param->type());
+        }
+        return format("{}({})", name(), params);
+    }
+
+private:
+    [[nodiscard]] std::string parameters_to_string() const
+    {
+        std::string ret;
+        bool first = true;
+        for (auto& param : m_parameters) {
+            if (!first)
+                ret += ", ";
+            first = false;
+            ret += param->name();
+        }
+        return ret;
+    }
+
+    Symbol m_identifier;
+    FunctionParameters m_parameters;
+};
+
+class MaterializedFunctionDef : public Statement {
+public:
+    MaterializedFunctionDef(std::shared_ptr<MaterializedFunctionDecl> func_decl, std::shared_ptr<Statement> statement, int stack_depth)
+        : Statement()
+        , m_function_decl(move(func_decl))
+        , m_statement(move(statement))
+        , m_stack_depth(stack_depth)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedFunctionDef; }
+    [[nodiscard]] std::shared_ptr<MaterializedFunctionDecl> const& declaration() const { return m_function_decl; }
+    [[nodiscard]] Symbol const& identifier() const { return m_function_decl->identifier(); }
+    [[nodiscard]] std::string const& name() const { return identifier().identifier(); }
+    [[nodiscard]] ObelixType type() const { return identifier().type(); }
+    [[nodiscard]] FunctionParameters const& parameters() const { return m_function_decl->parameters(); }
+    [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
+    [[nodiscard]] int stack_depth() const { return m_stack_depth; }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        auto ret = m_function_decl->to_string(indent);
+        if (m_statement) {
+            ret += '\n';
+            ret += m_statement->to_string(indent + 2);
+        }
+        return ret;
+    }
+
+protected:
+    std::shared_ptr<MaterializedFunctionDecl> m_function_decl;
+    std::shared_ptr<Statement> m_statement;
+    int m_stack_depth;
+};
+
+class MaterializedVariableDecl : public Statement {
+public:
+    explicit MaterializedVariableDecl(std::shared_ptr<VariableDeclaration> const& var_decl, int offset)
+        : Statement()
+        , m_variable(var_decl->variable())
+        , m_const(var_decl->is_const())
+        , m_expression(var_decl->expression())
+        , m_offset(offset)
+    {
+    }
+
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        auto ret = format("{}{} {} : {}", pad(indent), (m_const) ? "const" : "var", m_variable.identifier(), m_variable.type());
+        if (m_expression)
+            ret = format("{} = {}", ret, m_expression->to_string());
+        return ret;
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedVariableDecl; }
+    [[nodiscard]] Symbol const& variable() const { return m_variable; }
+    [[nodiscard]] std::string const& name() const { return variable().identifier(); }
+    [[nodiscard]] ObelixType type() const { return variable().type(); }
+    [[nodiscard]] bool is_typed() const { return variable().is_typed(); }
+    [[nodiscard]] bool is_const() const { return m_const; }
+    [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
+    [[nodiscard]] int offset() const { return m_offset; }
+
+private:
+    Symbol m_variable;
+    bool m_const { false };
+    std::shared_ptr<Expression> m_expression;
+    int m_offset;
 };
 
 ErrorOr<std::shared_ptr<SyntaxNode>> to_literal(std::shared_ptr<Expression> const& expr);
