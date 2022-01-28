@@ -121,7 +121,7 @@
 			<key>name</key>
 			<string>Function argument</string>
 			<key>scope</key>
-			<string>variable.parameter</string>
+			<string>variable.identifier</string>
 			<key>settings</key>
 			<dict/>
 		</dict>
