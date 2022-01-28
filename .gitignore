@@ -1,3 +1,14 @@
+# Ignore all
+*
+
+# Unignore all with extensions
+!*.*
+
+# Unignore all dirs
+!*/
+
+### Above combination will ignore all files without extension ###
+
 **/*~
 **/*.log
 **/*.backup
@@ -49,6 +60,7 @@ kdev_build/
 *.slo
 *.lo
 *.o
+*.s
 *.obj
 *.bin
 
@@ -85,3 +97,4 @@ share_x/*
 config.h
 
 src/jv80
+.cache
