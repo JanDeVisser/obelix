@@ -57,7 +57,7 @@ struct Assembly {
         code = format("{}\n\t; {}\n", code, c);
     }
 
-    void add_data(std::string const& label, std::string d)
+    void add_data(std::string const& label, std::string const& d)
     {
         if (data.empty())
             data = ".data\n\n";
@@ -71,17 +71,17 @@ struct Assembly {
     }
 };
 
-#define ENUM_REGISTER_CONTEXT_TYPE(S) \
-    S(Enclosing)                      \
-    S(Targeted)                       \
-    S(Inherited)                      \
+#define ENUM_REGISTER_CONTEXT_TYPES(S) \
+    S(Enclosing)                       \
+    S(Targeted)                        \
+    S(Inherited)                       \
     S(Temporary)
 
 struct RegisterContext {
     enum class RegisterContextType {
 #undef REGISTER_CONTEXT_TYPE
 #define REGISTER_CONTEXT_TYPE(type) type,
-        ENUM_REGISTER_CONTEXT_TYPE(REGISTER_CONTEXT_TYPE)
+        ENUM_REGISTER_CONTEXT_TYPES(REGISTER_CONTEXT_TYPE)
 #undef REGISTER_CONTEXT_TYPE
     };
 
@@ -92,7 +92,7 @@ struct RegisterContext {
 #define REGISTER_CONTEXT_TYPE(type) \
     case RegisterContextType::type: \
         return #type;
-            ENUM_REGISTER_CONTEXT_TYPE(REGISTER_CONTEXT_TYPE)
+            ENUM_REGISTER_CONTEXT_TYPES(REGISTER_CONTEXT_TYPE)
 #undef REGISTER_CONTEXT_TYPE
         }
     }
@@ -107,7 +107,7 @@ struct RegisterContext {
     std::bitset<19> rhs_targeted { 0x0 };
     std::bitset<19> temporary_registers { 0x0 };
 
-    std::string to_string() const
+    [[nodiscard]] std::string to_string() const
     {
         return format("{} lhs: {} rhs: {}", RegisterContextType_name(type), targeted.to_string(), rhs_targeted.to_string());
     }
@@ -154,8 +154,7 @@ public:
     void new_targeted_context()
     {
         ScopeGuard sg([this]() {
-            std::cout << "new context:\n"
-                      << contexts() << "\n";
+            debug(parser, "New targeted context:\n{}", contexts());
         });
         m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Targeted);
         auto& reg_ctx = m_register_contexts.back();
@@ -166,8 +165,7 @@ public:
     void new_inherited_context()
     {
         ScopeGuard sg([this]() {
-            std::cout << "new context:\n"
-                      << contexts() << "\n";
+            debug(parser, "New inherited context:\n{}", contexts());
         });
         assert(!m_register_contexts.empty());
         auto& prev_ctx = m_register_contexts.back();
@@ -175,8 +173,6 @@ public:
         m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Inherited);
         auto& reg_ctx = m_register_contexts.back();
         reg_ctx.targeted |= t;
-
-        std::cout << "new " << reg_ctx.targeted << " prev " << t << "\n";
     }
 
     void new_enclosing_context();
@@ -184,8 +180,7 @@ public:
     void new_temporary_context()
     {
         ScopeGuard sg([this]() {
-            std::cout << "new context:\n"
-                      << contexts() << "\n";
+            debug(parser, "New temporary context:\n{}", contexts());
         });
         m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Temporary);
         auto& reg_ctx = m_register_contexts.back();
@@ -198,8 +193,7 @@ public:
     void release_all()
     {
         ScopeGuard sg([this]() {
-            std::cout << "release_all:\n"
-                      << contexts() << "\n";
+            debug(parser, "Release all contexts:\n{}", contexts());
         });
         m_available_registers = 0xFFFFFF;
         m_register_contexts.clear();
@@ -207,12 +201,14 @@ public:
 
     [[nodiscard]] size_t get_target_count() const
     {
+        assert(!m_register_contexts.empty());
         auto& reg_ctx = m_register_contexts.back();
         return reg_ctx.targeted.count();
     }
 
     int get_target_register(size_t ix = 0)
     {
+        assert(!m_register_contexts.empty());
         auto& reg_ctx = m_register_contexts.back();
         assert(ix < reg_ctx.targeted.count());
         int count = 0;
@@ -225,12 +221,14 @@ public:
 
     [[nodiscard]] size_t get_rhs_count() const
     {
+        assert(!m_register_contexts.empty());
         auto& reg_ctx = m_register_contexts.back();
         return reg_ctx.targeted.count();
     }
 
     int get_rhs_register(size_t ix = 0)
     {
+        assert(!m_register_contexts.empty());
         auto& reg_ctx = m_register_contexts.back();
         assert(ix < reg_ctx.rhs_targeted.count());
         int count = 0;
@@ -243,6 +241,7 @@ public:
 
     int add_target_register()
     {
+        assert(!m_register_contexts.empty());
         auto& reg_ctx = m_register_contexts.back();
         auto reg = (reg_ctx.type == RegisterContext::RegisterContextType::Temporary) ? claim_temporary_register() : claim_next_target();
         reg_ctx.targeted.set(reg);
@@ -251,6 +250,7 @@ public:
 
     int temporary_register()
     {
+        assert(!m_register_contexts.empty());
         auto& reg_ctx = m_register_contexts.back();
         auto ret = claim_temporary_register();
         reg_ctx.temporary_registers.set(ret);
@@ -260,15 +260,15 @@ public:
     void clear_rhs()
     {
         ScopeGuard sg([this]() {
-            std::cout << "clear_rhs:\n"
-                      << contexts() << "\n";
+            debug(parser, "Clearing RHS:\n{}", contexts());
         });
+        assert(!m_register_contexts.empty());
         auto& reg_ctx = m_register_contexts.back();
         m_available_registers |= reg_ctx.rhs_targeted;
         reg_ctx.rhs_targeted.reset();
     }
 
-    void enter_function(std::shared_ptr<MaterializedFunctionDef> func) const
+    void enter_function(std::shared_ptr<MaterializedFunctionDef> const& func) const
     {
         m_function_stack.push_back(func);
         assembly().add_comment(func->declaration()->to_string(0));
@@ -479,8 +479,7 @@ ErrorOr<void> pop_var<uint8_t>(MacOSXContext& ctx, std::string const& name)
 void MacOSXContext::new_enclosing_context()
 {
     ScopeGuard sg([this]() {
-        std::cout << "new_enclosing_context:\n"
-                  << contexts() << "\n";
+        debug(parser, "New enclosing context:\n{}", contexts());
     });
     if (!m_register_contexts.empty()) {
         auto& reg_ctx = m_register_contexts.back();
@@ -498,13 +497,12 @@ void MacOSXContext::new_enclosing_context()
 void MacOSXContext::release_register_context()
 {
     ScopeGuard sg([this]() {
-        std::cout << "release_register_context:\n"
-                  << contexts() << "\n";
+        debug(parser, "Released register context:\n{}", contexts());
     });
     assert(!m_register_contexts.empty());
     auto& reg_ctx = m_register_contexts.back();
     auto* prev_ctx = get_previous_register_context();
-    std::cout << "before release_register_context: " << reg_ctx.to_string() << "\n";
+    debug(parser, "Releasing register context: {}", reg_ctx.to_string());
 
     m_available_registers |= reg_ctx.temporary_registers;
     switch (reg_ctx.type) {
