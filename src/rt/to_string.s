@@ -1,7 +1,5 @@
 .align 4
 .global to_string
-.global put_char
-.global debug_int
 
 //
 // to_string - Convert integer to character string
@@ -20,7 +18,7 @@
 //
 
 to_string:
-    str     lr,[sp],-16 ; Save return address
+    stp     fp,lr,[sp,#-16]! ; Save return address
     mov     x6,x0       ; x6 keeps the pointer passed in safe
     add     x0,x0,x1    ; Make x0 point one past end of the buffer
     mov     x4,x0       ; x4 keeps the end+1 safe so we can calculate the number of bytes used.
@@ -86,34 +84,5 @@ done:
                              ; number of characters generated.
 
 bail:
-    ldr     lr,[sp,16]!      ; Restore return address
-    ret
-
-put_char:
-    strb    w0,[sp],-16
-    mov     x0,#1
-    add     x1,sp,#16
-    mov     x2,#1
-    mov     x16,#4
-    svc     #0x00
-    add     sp,sp,#16
-    ret
-
-debug_int:
-    str     lr,[sp],-16
-    mov     x3,#0
-    mov     x4,x0
-
-debug_int_loop:
-    cmp     x3,x4
-    b.eq    debug_int_done
-    mov     x0,#42
-    bl      put_char
-    add     x3,x3,#1
-    b       debug_int_loop
-
-debug_int_done:
-    mov     x0,#10
-    bl      put_char
-    ldr     lr,[sp,16]!
+    ldp     fp,lr,[sp],#16   ; Restore return address
     ret

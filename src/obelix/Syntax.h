@@ -1091,6 +1091,15 @@ public:
     {
     }
 
+    explicit MaterializedVariableDecl(Symbol identifier, int offset, std::shared_ptr<Expression> expr = nullptr, bool constant = false)
+        : Statement()
+        , m_variable(std::move(identifier))
+        , m_const(constant)
+        , m_expression(move(expr))
+        , m_offset(offset)
+    {
+    }
+
     [[nodiscard]] std::string to_string(int indent) const override
     {
         auto ret = format("{}{} {} : {}", pad(indent), (m_const) ? "const" : "var", m_variable.identifier(), m_variable.type());

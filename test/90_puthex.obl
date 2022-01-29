@@ -1,0 +1,6 @@
+func puthex(x: int) : int -> "puthex";
+
+func main() : int {
+  puthex(1234); putchar(10);
+  return 0;
+}

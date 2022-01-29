@@ -982,6 +982,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().syscall(0x04);
         }
 
+        ctx.clear_context();
         // Add x0 to the register context
         ctx.add_target_register();
         if (call->type() == ObelixType::TypeString)
@@ -1258,6 +1259,9 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
 ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Context<int>& ctx)
 {
+    if (tree == nullptr)
+        return tree;
+
     switch (tree->node_type()) {
     case SyntaxNodeType::FunctionDef: {
         auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
@@ -1294,7 +1298,8 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
     case SyntaxNodeType::VariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
         auto offset = ctx.get("#offset").value();
-        auto ret = std::make_shared<MaterializedVariableDecl>(var_decl, offset);
+        auto expression = TRY_AND_CAST(Expression, prepare_arm64_processor(var_decl->expression(), ctx));
+        auto ret = std::make_shared<MaterializedVariableDecl>(var_decl->variable(), offset, expression, var_decl->is_const());
         switch (var_decl->type()) {
         case ObelixType::TypeString:
             offset += 16;
@@ -1331,18 +1336,7 @@ ErrorOrNode output_macosx(std::shared_ptr<SyntaxNode> const& tree, std::string c
     Assembly assembly;
     MacOSXContext root(assembly);
 
-#if 0
-    assembly.code = ".global _start\n"
-                    ".align 2\n\n"
-                    "_start:\n"
-                    "\tmov\tfp,sp\n"
-                    "\tbl\t_init\n"
-                    "\tbl\tfunc_main\n"
-                    "\tmov\tx16,#1\n"
-                    "\tsvc\t0\n";
-#else
     assembly.code = ".align 2\n\n";
-#endif
 
     auto ret = output_macosx_processor(processed, root);
 

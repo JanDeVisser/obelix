@@ -1,5 +1,5 @@
 .align 4
-.global _puthex
+.global puthex
 
 ;
 ; puthex - Print integer in hexadecimal.
@@ -11,12 +11,12 @@
 ; Registers used: x0-x8
 ;
 
-_puthex:
-    str     lr,[sp,-16]!
+puthex:
+    stp     fp,lr,[sp,#-48]!
+    mov     fp,sp
     mov     x2,x0
-    sub     sp,sp,20
-    add     x0,sp,16
-    mov     x1,#20
+    mov     x0,sp
+    mov     x1,#32
     mov     w3,#16
     bl      to_string
 
@@ -25,6 +25,5 @@ _puthex:
     mov     x0,#1
     mov     x16,#0x04
     svc     #0x00
-    add     sp,sp,20
-    ldr     lr,[sp],16
+    ldp     fp,lr,[sp],#48
     ret

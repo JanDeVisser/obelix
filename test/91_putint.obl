@@ -1,0 +1,6 @@
+func putint(x: int) : int -> "putint";
+
+func main() : int {
+  putint(1234); putchar(10);
+  return 0;
+}

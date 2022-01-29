@@ -4,7 +4,7 @@ add_library(
         STATIC
         exit.s
         puthex.s
-        puti.s
+        putint.s
         start.s
         to_string.s
         write.s
