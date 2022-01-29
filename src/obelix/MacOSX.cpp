@@ -106,6 +106,7 @@ struct RegisterContext {
     std::bitset<19> targeted { 0x0 };
     std::bitset<19> rhs_targeted { 0x0 };
     std::bitset<19> temporary_registers { 0x0 };
+    std::bitset<19> m_saved_available_registers { 0x0 };
 
     [[nodiscard]] std::string to_string() const
     {
@@ -153,50 +154,36 @@ public:
 
     void new_targeted_context()
     {
-        ScopeGuard sg([this]() {
-            debug(parser, "New targeted context:\n{}", contexts());
-        });
         m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Targeted);
-        auto& reg_ctx = m_register_contexts.back();
-        auto reg = claim_next_target();
-        reg_ctx.targeted.set(reg);
+        debug(parser, "New targeted context:\n{}", contexts());
     }
 
     void new_inherited_context()
     {
-        ScopeGuard sg([this]() {
-            debug(parser, "New inherited context:\n{}", contexts());
-        });
         assert(!m_register_contexts.empty());
         auto& prev_ctx = m_register_contexts.back();
         auto t = prev_ctx.targeted;
         m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Inherited);
         auto& reg_ctx = m_register_contexts.back();
         reg_ctx.targeted |= t;
+        debug(parser, "New inherited context:\n{}", contexts());
     }
 
     void new_enclosing_context();
 
     void new_temporary_context()
     {
-        ScopeGuard sg([this]() {
-            debug(parser, "New temporary context:\n{}", contexts());
-        });
         m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Temporary);
-        auto& reg_ctx = m_register_contexts.back();
-        auto reg = claim_temporary_register();
-        reg_ctx.targeted.set(reg);
+        debug(parser, "New temporary context:\n{}", contexts());
     }
 
     void release_register_context();
 
     void release_all()
     {
-        ScopeGuard sg([this]() {
-            debug(parser, "Release all contexts:\n{}", contexts());
-        });
         m_available_registers = 0xFFFFFF;
         m_register_contexts.clear();
+        debug(parser, "Released all contexts:\n{}", contexts());
     }
 
     [[nodiscard]] size_t get_target_count() const
@@ -210,7 +197,14 @@ public:
     {
         assert(!m_register_contexts.empty());
         auto& reg_ctx = m_register_contexts.back();
-        assert(ix < reg_ctx.targeted.count());
+        if ((ix > 0) && (ix >= reg_ctx.targeted.count())) {
+            fatal("{} >= reg_ctx.targeted.count():\n{}", ix, contexts());
+        }
+        if (reg_ctx.targeted.count() == 0 && ix == 0) {
+            auto reg = claim_next_target();
+            reg_ctx.targeted.set(reg);
+            return reg;
+        }
         int count = 0;
         for (auto i = 0; i < 19; i++) {
             if (reg_ctx.targeted.test(i) && (count++ == ix))
@@ -230,7 +224,9 @@ public:
     {
         assert(!m_register_contexts.empty());
         auto& reg_ctx = m_register_contexts.back();
-        assert(ix < reg_ctx.rhs_targeted.count());
+        if (ix >= reg_ctx.rhs_targeted.count()) {
+            fatal("{} >= reg_ctx.rhs_targeted.count():\n{}", ix, contexts());
+        }
         int count = 0;
         for (auto i = 0; i < 19; i++) {
             if (reg_ctx.rhs_targeted.test(i) && (count++ == ix))
@@ -245,6 +241,7 @@ public:
         auto& reg_ctx = m_register_contexts.back();
         auto reg = (reg_ctx.type == RegisterContext::RegisterContextType::Temporary) ? claim_temporary_register() : claim_next_target();
         reg_ctx.targeted.set(reg);
+        debug(parser, "Claimed target register:\n{}", contexts());
         return reg;
     }
 
@@ -254,7 +251,17 @@ public:
         auto& reg_ctx = m_register_contexts.back();
         auto ret = claim_temporary_register();
         reg_ctx.temporary_registers.set(ret);
+        debug(parser, "Claimed temp register:\n{}", contexts());
         return ret;
+    }
+
+    void clear_targeted()
+    {
+        assert(!m_register_contexts.empty());
+        auto& reg_ctx = m_register_contexts.back();
+        m_available_registers |= reg_ctx.targeted;
+        reg_ctx.targeted.reset();
+        debug(parser, "Cleared targets:\n{}", contexts());
     }
 
     void clear_rhs()
@@ -266,6 +273,17 @@ public:
         auto& reg_ctx = m_register_contexts.back();
         m_available_registers |= reg_ctx.rhs_targeted;
         reg_ctx.rhs_targeted.reset();
+    }
+
+    void clear_context()
+    {
+        assert(!m_register_contexts.empty());
+        auto& reg_ctx = m_register_contexts.back();
+        m_available_registers |= reg_ctx.rhs_targeted | reg_ctx.targeted | reg_ctx.temporary_registers;
+        reg_ctx.targeted.reset();
+        reg_ctx.rhs_targeted.reset();
+        reg_ctx.temporary_registers.reset();
+        debug(parser, "Cleared entire context:\n{}", contexts());
     }
 
     void enter_function(std::shared_ptr<MaterializedFunctionDef> const& func) const
@@ -457,7 +475,7 @@ ErrorOr<void> pop_var(MacOSXContext& ctx, std::string const& name)
     auto idx = idx_maybe.value();
     ctx.new_temporary_context();
     pop<T>(ctx, format("x{}", ctx.get_target_register()));
-    ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(), idx);
+    ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.get_target_register(), idx);
     ctx.release_register_context();
     return {};
 }
@@ -471,77 +489,86 @@ ErrorOr<void> pop_var<uint8_t>(MacOSXContext& ctx, std::string const& name)
     auto idx = idx_maybe.value();
     ctx.new_temporary_context();
     pop<uint8_t>(ctx, format("w{}", ctx.get_target_register()));
-    ctx.assembly().add_instruction("strb", "w{},[fp,#{}]", ctx.get_target_register(), idx);
+    ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", ctx.get_target_register(), idx);
     ctx.release_register_context();
     return {};
 }
 
 void MacOSXContext::new_enclosing_context()
 {
-    ScopeGuard sg([this]() {
-        debug(parser, "New enclosing context:\n{}", contexts());
-    });
     if (!m_register_contexts.empty()) {
         auto& reg_ctx = m_register_contexts.back();
-        for (int ix = 0; ix < reg_ctx.targeted.count(); ix++) {
-            push(*this, format("x{}", get_target_register(ix)));
+        for (int ix = 0; ix < reg_ctx.targeted.size(); ix++) {
+            if (reg_ctx.targeted.test(ix))
+                push(*this, format("x{}", ix));
         }
-        for (int ix = 0; ix < reg_ctx.rhs_targeted.count(); ix++) {
-            push(*this, format("x{}", get_rhs_register(ix)));
+        for (int ix = 0; ix < reg_ctx.rhs_targeted.size(); ix++) {
+            if (reg_ctx.rhs_targeted.test(ix))
+                push(*this, format("x{}", ix));
         }
     }
-    m_available_registers = 0xFFFFFF;
     m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Enclosing);
+    auto& reg_ctx = m_register_contexts.back();
+    reg_ctx.m_saved_available_registers = m_available_registers;
+    m_available_registers = 0xFFFFFF;
+    debug(parser, "New enclosing context:\n{}", contexts());
 }
 
 void MacOSXContext::release_register_context()
 {
-    ScopeGuard sg([this]() {
-        debug(parser, "Released register context:\n{}", contexts());
-    });
     assert(!m_register_contexts.empty());
     auto& reg_ctx = m_register_contexts.back();
-    auto* prev_ctx = get_previous_register_context();
+    auto* prev_ctx_pointer = get_previous_register_context();
     debug(parser, "Releasing register context: {}", reg_ctx.to_string());
 
     m_available_registers |= reg_ctx.temporary_registers;
     switch (reg_ctx.type) {
     case RegisterContext::RegisterContextType::Enclosing:
-        m_available_registers = 0xFFFFFF;
-        if (prev_ctx) {
+        m_available_registers = reg_ctx.m_saved_available_registers;
+        if (prev_ctx_pointer) {
+            auto registers_to_copy = reg_ctx.targeted;
             m_register_contexts.pop_back();
-            m_available_registers ^= (prev_ctx->targeted | prev_ctx->rhs_targeted);
-            if (prev_ctx->rhs_targeted.count() > 0) {
-                for (auto ix = prev_ctx->rhs_targeted.count() - 1; ix >= 0; ix++) {
-                    pop(*this, format("x{}", get_rhs_register(ix)));
+            auto& prev_ctx = m_register_contexts.back();
+            for (auto ix = prev_ctx.rhs_targeted.size() - 1; (int)ix >= 0; ix--) {
+                if (prev_ctx.rhs_targeted.test(ix))
+                    pop(*this, format("x{}", ix));
+            }
+            for (auto ix = prev_ctx.targeted.size() - 1; (int)ix >= 0; ix--) {
+                if (prev_ctx.targeted.test(ix))
+                    pop(*this, format("x{}", ix));
+            }
+            for (auto ix = 0; ix < registers_to_copy.size(); ix++) {
+                if (registers_to_copy.test(ix)) {
+                    auto reg = claim_next_target();
+                    prev_ctx.targeted.set(reg);
+                    if (reg != ix)
+                        assembly().add_instruction("mov", "x{},x{}", reg, ix);
                 }
             }
-            if (prev_ctx->targeted.count() > 0) {
-                for (auto ix = prev_ctx->targeted.count() - 1; ix >= 0; ix++) {
-                    push(*this, format("x{}", get_target_register(ix)));
-                }
-            }
-            prev_ctx->temporary_registers.reset();
         }
+        debug(parser, "Released enclosing context:\n{}", contexts());
         return;
     case RegisterContext::RegisterContextType::Targeted:
-        if (prev_ctx) {
-            prev_ctx->rhs_targeted |= reg_ctx.targeted;
+        if (prev_ctx_pointer) {
+            prev_ctx_pointer->rhs_targeted |= reg_ctx.targeted;
             m_available_registers |= reg_ctx.rhs_targeted;
         } else {
             m_available_registers |= reg_ctx.targeted | reg_ctx.rhs_targeted;
         }
+        m_available_registers |= reg_ctx.temporary_registers;
         break;
     case RegisterContext::RegisterContextType::Inherited:
-        assert(prev_ctx);
-        prev_ctx->targeted |= reg_ctx.targeted;
-        prev_ctx->rhs_targeted |= reg_ctx.rhs_targeted;
+        assert(prev_ctx_pointer);
+        prev_ctx_pointer->targeted |= reg_ctx.targeted;
+        prev_ctx_pointer->rhs_targeted |= reg_ctx.rhs_targeted;
+        m_available_registers |= reg_ctx.temporary_registers;
         break;
     case RegisterContext::RegisterContextType::Temporary:
-        m_available_registers |= reg_ctx.targeted | reg_ctx.rhs_targeted;
+        m_available_registers |= reg_ctx.targeted | reg_ctx.rhs_targeted | reg_ctx.temporary_registers;
         break;
     }
     m_register_contexts.pop_back();
+    debug(parser, "Released register context:\n{}", contexts());
 }
 
 ErrorOr<void> bool_unary_expression(MacOSXContext& ctx, UnaryExpression const& expr)
@@ -760,11 +787,12 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
     switch (tree->node_type()) {
     case SyntaxNodeType::MaterializedFunctionDef: {
         auto func_def = std::dynamic_pointer_cast<MaterializedFunctionDef>(tree);
-
-        ctx.enter_function(func_def);
-        TRY_RETURN(output_macosx_processor(func_def->statement(), ctx));
-        ctx.leave_function();
-
+        debug(parser, "func {}", func_def->name());
+        if (func_def->declaration()->node_type() == SyntaxNodeType::MaterializedFunctionDecl) {
+            ctx.enter_function(func_def);
+            TRY_RETURN(output_macosx_processor(func_def->statement(), ctx));
+            ctx.leave_function();
+        }
         return tree;
     }
 
@@ -774,15 +802,19 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         // Load arguments in registers:
         ctx.new_enclosing_context();
         for (auto& argument : call->arguments()) {
-            ctx.new_targeted_context();
+            ctx.new_inherited_context();
             TRY_RETURN(output_macosx_processor(argument, ctx));
             ctx.release_register_context();
         }
-        ctx.release_register_context();
 
+        ctx.clear_context();
         // Call function:
         ctx.assembly().add_instruction("bl", call->name());
-
+        // Add x0 to the register context
+        ctx.add_target_register();
+        if (call->type() == ObelixType::TypeString)
+            ctx.add_target_register();
+        ctx.release_register_context();
         return tree;
     }
 
@@ -793,14 +825,19 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
         ctx.new_enclosing_context();
         for (auto& arg : native_func_call->arguments()) {
-            ctx.new_targeted_context();
+            ctx.new_inherited_context();
             TRY_RETURN(output_macosx_processor(arg, ctx));
             ctx.release_register_context();
         }
-        ctx.release_register_context();
 
+        ctx.clear_context();
         // Call the native function
         ctx.assembly().add_instruction("bl", func_decl->native_function_name());
+        // Add x0 to the register context
+        ctx.add_target_register();
+        if (native_func_call->type() == ObelixType::TypeString)
+            ctx.add_target_register();
+        ctx.release_register_context();
         return tree;
     }
 
@@ -817,15 +854,11 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "w4,#-1");
             ctx.assembly().add_instruction("mov", "x5,xzr");
             ctx.assembly().syscall(0xC5);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "close") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
             ctx.assembly().syscall(0x06);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "fputs") {
@@ -837,8 +870,6 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "x1,x0");
             ctx.assembly().add_instruction("mov", "w0,w{}", fd_reg);
             ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "itoa") {
@@ -863,8 +894,6 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "x1,x0");
             ctx.assembly().add_instruction("mov", "x0,#0x02");
             ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "fsize") {
@@ -876,8 +905,6 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("bne", lbl);
             ctx.assembly().add_instruction("ldr", "x0,[sp,-{}]", sizeof(struct stat) - offsetof(struct stat, st_size));
             ctx.assembly().add_label(lbl);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "memset") {
@@ -913,19 +940,15 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
             ctx.assembly().add_instruction("mov", "x1,x{}", flags_reg);
             ctx.assembly().syscall(0x05);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "putchar") {
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
             ctx.assembly().add_instruction("strb", "w0,[sp,-16]!");
-            ctx.assembly().add_instruction("mov", "x0,#1");    // x0: stdin
-            ctx.assembly().add_instruction("add", "x1,sp,16"); // x1: 16 bytes up from SP
-            ctx.assembly().add_instruction("mov", "x2,#1");    // x2: Number of characters
+            ctx.assembly().add_instruction("mov", "x0,#1"); // x0: stdin
+            ctx.assembly().add_instruction("mov", "x1,sp"); // x1: SP
+            ctx.assembly().add_instruction("mov", "x2,#1"); // x2: Number of characters
             ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
             ctx.assembly().add_instruction("add", "sp,sp,16");
         }
 
@@ -935,8 +958,6 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "x1,x0");
             ctx.assembly().add_instruction("mov", "x0,#1");
             ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "read") {
@@ -950,8 +971,6 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "x2,x{}", len_reg);
             ctx.assembly().add_instruction("mov", "x1,x{}", buf_reg);
             ctx.assembly().syscall(0x03);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "write") {
@@ -961,9 +980,12 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
             ctx.assembly().add_instruction("mov", "x1,x0");
             TRY_RETURN(output_macosx_processor(call->arguments().at(0), ctx));
             ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
+
+        // Add x0 to the register context
+        ctx.add_target_register();
+        if (call->type() == ObelixType::TypeString)
+            ctx.add_target_register();
         ctx.release_register_context();
         return tree;
     }
@@ -1124,6 +1146,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::MaterializedVariableDecl: {
         auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(tree);
+        debug(parser, "{}", var_decl->to_string(0));
         ctx.assembly().add_comment(var_decl->to_string(0));
         ctx.declare(var_decl->variable().identifier(), var_decl->offset());
         ctx.release_all();
@@ -1150,7 +1173,9 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         }
         ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(), var_decl->offset());
         if (ctx.get_target_count() > 1) {
-            ctx.assembly().add_instruction("strw", "x{},[fp,#{}]", ctx.get_target_register(1), var_decl->offset() + 8);
+            debug(parser, "count: {}\n{}", ctx.get_target_count(), ctx.contexts());
+            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(1), var_decl->offset() + 8);
+            debug(parser, "2");
         }
         ctx.release_register_context();
         return tree;
@@ -1158,6 +1183,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::ExpressionStatement: {
         auto expr_stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);
+        debug(parser, "{}", expr_stmt->to_string(0));
         ctx.assembly().add_comment(expr_stmt->to_string(0));
         ctx.release_all();
         ctx.new_targeted_context();
@@ -1168,6 +1194,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::Return: {
         auto ret = std::dynamic_pointer_cast<Return>(tree);
+        debug(parser, "{}", ret->to_string(0));
         ctx.assembly().add_comment(ret->to_string(0));
         ctx.release_all();
         ctx.new_targeted_context();
@@ -1180,6 +1207,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::Label: {
         auto label = std::dynamic_pointer_cast<Obelix::Label>(tree);
+        debug(parser, "{}", label->to_string(0));
         ctx.assembly().add_comment(label->to_string(0));
         ctx.assembly().add_label(format("lbl_{}", label->label_id()));
         return tree;
@@ -1187,6 +1215,7 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
 
     case SyntaxNodeType::Goto: {
         auto goto_stmt = std::dynamic_pointer_cast<Goto>(tree);
+        debug(parser, "{}", goto_stmt->to_string(0));
         ctx.assembly().add_comment(goto_stmt->to_string(0));
         ctx.assembly().add_instruction("b", "lbl_{}", goto_stmt->label_id());
         return tree;
@@ -1201,12 +1230,14 @@ ErrorOrNode output_macosx_processor(std::shared_ptr<SyntaxNode> const& tree, Mac
         for (auto& branch : if_stmt->branches()) {
             auto else_label = (count) ? Obelix::Label::reserve_id() : end_label;
             if (branch->condition()) {
+                debug(parser, "if ({})", branch->condition()->to_string(0));
                 ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string(0)));
                 ctx.new_targeted_context();
                 auto cond = TRY_AND_CAST(Expression, output_macosx_processor(branch->condition(), ctx));
                 ctx.assembly().add_instruction("cmp", "w{},0x00", ctx.get_target_register());
                 ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
             } else {
+                debug(parser, "else");
                 ctx.assembly().add_comment("else");
             }
             auto stmt = TRY_AND_CAST(Statement, output_macosx_processor(branch->statement(), ctx));
@@ -1244,12 +1275,20 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
                 offset += 8;
             }
         }
-        auto new_decl = std::make_shared<MaterializedFunctionDecl>(func_decl->identifier(), function_parameters);
+
+        auto materialized_function_decl = std::make_shared<MaterializedFunctionDecl>(func_decl->identifier(), function_parameters);
+        if (func_decl->node_type() == SyntaxNodeType::NativeFunctionDecl) {
+            auto native_decl = std::dynamic_pointer_cast<NativeFunctionDecl>(func_decl);
+            materialized_function_decl = std::make_shared<MaterializedNativeFunctionDecl>(materialized_function_decl, native_decl->native_function_name());
+        }
 
         func_ctx.declare("#offset", offset);
-        assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
-        auto block = TRY_AND_CAST(FunctionBlock, prepare_arm64_processor(func_def->statement(), func_ctx));
-        return std::make_shared<MaterializedFunctionDef>(new_decl, block, func_ctx.get("#offset").value());
+        std::shared_ptr<Block> block;
+        if (func_def->statement()) {
+            assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
+            block = TRY_AND_CAST(FunctionBlock, prepare_arm64_processor(func_def->statement(), func_ctx));
+        }
+        return std::make_shared<MaterializedFunctionDef>(materialized_function_decl, block, func_ctx.get("#offset").value());
     }
 
     case SyntaxNodeType::VariableDeclaration: {

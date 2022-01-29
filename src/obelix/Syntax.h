@@ -19,45 +19,46 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-#define ENUMERATE_SYNTAXNODETYPES(S) \
-    S(SyntaxNode)                    \
-    S(Statement)                     \
-    S(Block)                         \
-    S(FunctionBlock)                 \
-    S(Module)                        \
-    S(Expression)                    \
-    S(Literal)                       \
-    S(Identifier)                    \
-    S(This)                          \
-    S(BinaryExpression)              \
-    S(UnaryExpression)               \
-    S(Assignment)                    \
-    S(CompilerIntrinsic)             \
-    S(FunctionCall)                  \
-    S(NativeFunctionCall)            \
-    S(Import)                        \
-    S(Pass)                          \
-    S(Label)                         \
-    S(Goto)                          \
-    S(FunctionDecl)                  \
-    S(NativeFunctionDecl)            \
-    S(FunctionDef)                   \
-    S(ExpressionStatement)           \
-    S(VariableDeclaration)           \
-    S(Return)                        \
-    S(Break)                         \
-    S(Continue)                      \
-    S(Branch)                        \
-    S(IfStatement)                   \
-    S(WhileStatement)                \
-    S(ForStatement)                  \
-    S(CaseStatement)                 \
-    S(DefaultCase)                   \
-    S(SwitchStatement)               \
-    S(FunctionParameter)             \
-    S(MaterializedFunctionDecl)      \
-    S(MaterializedFunctionDef)       \
-    S(MaterializedVariableDecl)      \
+#define ENUMERATE_SYNTAXNODETYPES(S)  \
+    S(SyntaxNode)                     \
+    S(Statement)                      \
+    S(Block)                          \
+    S(FunctionBlock)                  \
+    S(Module)                         \
+    S(Expression)                     \
+    S(Literal)                        \
+    S(Identifier)                     \
+    S(This)                           \
+    S(BinaryExpression)               \
+    S(UnaryExpression)                \
+    S(Assignment)                     \
+    S(CompilerIntrinsic)              \
+    S(FunctionCall)                   \
+    S(NativeFunctionCall)             \
+    S(Import)                         \
+    S(Pass)                           \
+    S(Label)                          \
+    S(Goto)                           \
+    S(FunctionDecl)                   \
+    S(NativeFunctionDecl)             \
+    S(FunctionDef)                    \
+    S(ExpressionStatement)            \
+    S(VariableDeclaration)            \
+    S(Return)                         \
+    S(Break)                          \
+    S(Continue)                       \
+    S(Branch)                         \
+    S(IfStatement)                    \
+    S(WhileStatement)                 \
+    S(ForStatement)                   \
+    S(CaseStatement)                  \
+    S(DefaultCase)                    \
+    S(SwitchStatement)                \
+    S(FunctionParameter)              \
+    S(MaterializedFunctionDecl)       \
+    S(MaterializedFunctionDef)        \
+    S(MaterializedVariableDecl)       \
+    S(MaterializedNativeFunctionDecl) \
     S(StatementExecutionResult)
 
 enum class SyntaxNodeType {
@@ -1027,6 +1028,22 @@ private:
 
     Symbol m_identifier;
     FunctionParameters m_parameters;
+};
+
+class MaterializedNativeFunctionDecl : public MaterializedFunctionDecl {
+public:
+    MaterializedNativeFunctionDecl(std::shared_ptr<MaterializedFunctionDecl> const& func_decl, std::string native_function)
+        : MaterializedFunctionDecl(func_decl->identifier(), func_decl->parameters())
+        , m_native_function_name(move(native_function))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedNativeFunctionDecl; }
+
+    [[nodiscard]] std::string const& native_function_name() const { return m_native_function_name; }
+
+private:
+    std::string m_native_function_name;
 };
 
 class MaterializedFunctionDef : public Statement {
