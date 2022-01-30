@@ -42,9 +42,15 @@ struct Assembly {
         code = format("{}{}\t{}\n", code, directive, args);
     }
 
-    void add_string(int id, std::string const& str)
+    int add_string(std::string const& str)
     {
+        if (m_strings.contains(str)) {
+            return m_strings.at(str);
+        }
+        auto id = Label::reserve_id();
         text = format("{}.align 2\nstr_{}:\n\t.string\t\"{}\"\n", text, id, str);
+        m_strings[str] = id;
+        return id;
     }
 
     void add_comment(std::string const& comment)
@@ -67,6 +73,9 @@ struct Assembly {
         add_instruction("mov", format("x16, #{}", id));
         add_instruction("svc", "#0x00");
     }
+
+private:
+    std::unordered_map<std::string, int> m_strings {};
 };
 
 #define ENUM_REGISTER_CONTEXT_TYPES(S) \

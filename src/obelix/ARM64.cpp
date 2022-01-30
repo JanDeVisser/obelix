@@ -515,10 +515,9 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             break;
         }
         case ObelixType::TypeString: {
-            auto str_id = Label::reserve_id();
+            auto str_id = ctx.assembly().add_string(val->to_string());
             ctx.assembly().add_instruction("adr", "x{},str_{}", ctx.add_target_register(), str_id);
             ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_target_register(), val->to_string().length());
-            ctx.assembly().add_string(str_id, val->to_string());
             break;
         }
         default:
