@@ -31,7 +31,7 @@ ErrorOr<void> bool_unary_expression(ARM64Context& ctx, UnaryExpression const& ex
 
 ErrorOr<void> bool_bool_binary_expression(ARM64Context& ctx, BinaryExpression const& expr)
 {
-    auto lhs = ctx.add_target_register();
+    auto lhs = ctx.get_target_register();
     auto rhs = ctx.get_rhs_register();
     switch (expr.op().code()) {
     case TokenCode::LogicalAnd:
@@ -77,7 +77,7 @@ ErrorOr<void> int_unary_expression(ARM64Context& ctx, UnaryExpression const& exp
 
 ErrorOr<void> int_int_binary_expression(ARM64Context& ctx, BinaryExpression const& expr)
 {
-    auto lhs = ctx.add_target_register();
+    auto lhs = ctx.get_target_register();
     auto rhs = ctx.get_rhs_register();
     switch (expr.op().code()) {
     case TokenCode::Plus:
@@ -158,7 +158,7 @@ ErrorOr<void> byte_unary_expression(ARM64Context& ctx, UnaryExpression const& ex
 
 ErrorOr<void> byte_byte_binary_expression(ARM64Context& ctx, BinaryExpression const& expr)
 {
-    auto lhs = ctx.add_target_register();
+    auto lhs = ctx.get_target_register();
     auto rhs = ctx.get_rhs_register();
     switch (expr.op().code()) {
     case TokenCode::Plus:
