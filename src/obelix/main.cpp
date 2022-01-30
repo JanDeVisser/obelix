@@ -9,7 +9,7 @@
 #include <cpu/emulator.h>
 #include <lexer/Token.h>
 #include <obelix/OutputJV80.h>
-#include <obelix/MacOSX.h>
+#include <obelix/ARM64.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 #include <optional>
@@ -118,7 +118,7 @@ private:
 #endif
 #define MACOSX
 #ifdef MACOSX
-                if (auto err = output_macosx(transformed, file_name); err.is_error())
+                if (auto err = output_arm64(transformed, file_name); err.is_error())
                     return err;
                 return std::make_shared<Literal>(make_obj<Integer>(0));
 #endif

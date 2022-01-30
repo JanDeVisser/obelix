@@ -10,6 +10,6 @@
 
 namespace Obelix {
 
-ErrorOrNode output_macosx(std::shared_ptr<SyntaxNode> const&, std::string const& = "");
+ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const&, std::string const& = "");
 
 }
