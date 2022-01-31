@@ -216,7 +216,7 @@ public:
     [[nodiscard]] bool has_nullptr() const { return m_ptr == nullptr; }
 
     [[nodiscard]] ObelixType type() const { return (m_ptr) ? m_ptr->type() : TypeUnknown; }
-    [[nodiscard]] char const* type_name() const { return (m_ptr) ? m_ptr->type_name().c_str() : "nullptr!"; }
+    [[nodiscard]] char const* type_name() const { return (m_ptr) ? m_ptr->type_name() : "nullptr!"; }
     Obj const& operator[](size_t ix) const { return m_ptr->at(ix); }
     std::optional<Obj> operator()(Ptr<Arguments> args) { return m_ptr->operator()(std::move(args)); }
 
