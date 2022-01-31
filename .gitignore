@@ -60,7 +60,7 @@ kdev_build/
 *.slo
 *.lo
 *.o
-*.s
+test/*.s
 *.obj
 *.bin
 
