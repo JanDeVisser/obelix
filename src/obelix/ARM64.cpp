@@ -21,7 +21,7 @@ ErrorOr<void> bool_unary_expression(ARM64Context& ctx, UnaryExpression const& ex
 {
     switch (expr.op().code()) {
     case TokenCode::ExclamationPoint:
-        ctx.assembly().add_instruction("eorb", "w{},w{},#0x01", ctx.get_target_register()); // a is 0b00000001 (a was true) or 0b00000000 (a was false
+        ctx.assembly().add_instruction("eor", "w{},w{},#0x01", ctx.get_target_register(), ctx.get_target_register()); // a is 0b00000001 (a was true) or 0b00000000 (a was false
         break;
     default:
         return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
@@ -573,21 +573,21 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         switch (assignment->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.add_target_register(), idx);
+            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(), idx);
             break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.add_target_register(), idx);
+            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(), idx);
             break;
         case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("strbs", "x{},[fp,#{}]", ctx.add_target_register(), idx);
+            ctx.assembly().add_instruction("strbs", "x{},[fp,#{}]", ctx.get_target_register(), idx);
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("strb", "x{},[fp,#{}]", ctx.add_target_register(), idx);
+            ctx.assembly().add_instruction("strb", "x{},[fp,#{}]", ctx.get_target_register(), idx);
             break;
         case ObelixType::TypeString: {
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.add_target_register(), idx);
-            auto reg = ctx.add_target_register();
+            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(), idx);
+            auto reg = ctx.get_target_register(1);
             ctx.assembly().add_instruction("strw", "w{},[fp,#{}]", reg, idx + 8);
         }
         default:
