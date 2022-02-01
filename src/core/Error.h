@@ -78,6 +78,10 @@ public:
 
     [[nodiscard]] ErrorCode code() const { return m_code; }
     [[nodiscard]] std::string const& message() const { return m_message; }
+    [[nodiscard]] std::string to_string() const
+    {
+        return format("{} {}", ErrorCode_name(code()), message());
+    }
 
 private:
     ErrorCode m_code { ErrorCode::NoError };

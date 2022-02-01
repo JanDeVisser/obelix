@@ -73,6 +73,10 @@ public:
                 fname[ix] = '/';
         }
         Parser parser(config(), fname);
+        if (!parser.buffer_read()) {
+            assert(!parser.errors().empty());
+            return Error { ErrorCode::NoSuchFile, fname };
+        }
         auto tree = std::dynamic_pointer_cast<Module>(parser.parse());
         if (!tree) {
             for (auto& e : parser.errors()) {

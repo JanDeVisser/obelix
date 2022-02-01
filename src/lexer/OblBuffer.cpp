@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <cerrno>
-#include <cstdio>
-#include <fcntl.h>
 #include <unistd.h>
 
 #include <config.h>
@@ -15,6 +12,8 @@
 
 namespace Obelix {
 
+extern_logging_category(lexer);
+
 OblBuffer::OblBuffer(std::string file_name)
     : m_file_name(move(file_name))
 {
@@ -22,14 +21,13 @@ OblBuffer::OblBuffer(std::string file_name)
     getcwd(cwd, 1024);
 
     std::string obl_dir = (getenv("OBL_DIR")) ? getenv("OBL_DIR") : OBELIX_DIR;
+    debug(lexer, "Loading file {}. OBL_DIR= {}", this->file_name(), obl_dir);
 
-    auto opened = try_open(m_file_name.empty() ? "." : m_file_name);
-    if (!opened && (m_error.code() == ErrorCode::NoSuchFile))
-        opened = try_open(obl_dir + "/share/" + m_file_name);
-    if (!opened && (m_error.code() == ErrorCode::NoSuchFile))
-        opened = try_open("./share/" + m_file_name);
-    if (!opened && (m_error.code() == ErrorCode::NoSuchFile))
-        try_open("./" + m_file_name);
+    if (auto err = try_open("."); !err.is_error() || err.error().code() != ErrorCode::NoSuchFile)
+        return;
+    if (auto err = try_open(obl_dir + "/share"); !err.is_error() || err.error().code() != ErrorCode::NoSuchFile)
+        return;
+    auto err = try_open(obl_dir + ",/share");
 }
 
 StringBuffer& OblBuffer::buffer()
@@ -38,29 +36,56 @@ StringBuffer& OblBuffer::buffer()
     return *m_buffer;
 }
 
-bool OblBuffer::try_open(std::string const& path)
+ErrorOr<void> OblBuffer::try_open(std::string const& directory, std::optional<std::string> const& alternative_file_name)
 {
-    assert(!path.empty());
+    assert(!directory.empty());
+    auto f = file_name();
+    if (alternative_file_name.has_value())
+        f = alternative_file_name.value();
+    auto path = directory + "/" + f;
+    debug(lexer, "Attempting {}", path);
 
     FileBuffer fb(path);
     if (fb.file_is_read()) {
         m_buffer = std::move(fb.buffer());
-        return true;
+        m_dir_name = directory;
+        m_effective_file_name = f;
+        debug(lexer, "Success");
+        return {};
     }
     switch (fb.error().code()) {
-    case ErrorCode::PathIsFile:
-        return try_open(path + "/__init__.obl");
+    case ErrorCode::PathIsDirectory: {
+        debug(lexer, "Path is directory");
+        return try_open(directory, "__init__.obl");
+    }
     case ErrorCode::NoSuchFile: {
         if (path.ends_with(".obl")) {
             m_error = fb.error();
-            return false;
+            debug(lexer, "Path does not exist");
+            return m_error;
         }
-        return try_open(path + ".obl");
+        return try_open(directory, f + ".obl");
     }
-    default:
+    default: {
         m_error = fb.error();
-        return false;
+        log_error("I/O Error opening '{}': {}", path, m_error);
+        return m_error;
     }
+    }
+}
+std::string const& OblBuffer::file_name() const
+{
+    return m_file_name;
+}
+
+std::string const& OblBuffer::dir_name() const
+{
+    return m_dir_name;
+}
+
+std::string const& OblBuffer::effective_file_name() const
+{
+    return m_effective_file_name;
 }
 
 }

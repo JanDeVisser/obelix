@@ -11,15 +11,24 @@ namespace Obelix {
 extern_logging_category(lexer);
 
 BasicParser::BasicParser(std::string const& file_name)
-    : BasicParser(OblBuffer(file_name).buffer())
+    : BasicParser()
 {
+    OblBuffer obl_buffer(file_name);
+
     m_file_name = file_name;
+    if (!obl_buffer.file_is_read()) {
+        add_error(Token { TokenCode::Error, file_name }, format("Could not read '{}'", file_name));
+        return;
+    }
+    m_lexer.assign(obl_buffer.buffer().str());
+    m_buffer_read = true;
 }
 
 BasicParser::BasicParser(StringBuffer& src)
     : BasicParser()
 {
     m_lexer.assign(src.str());
+    m_buffer_read = true;
 }
 
 BasicParser::BasicParser()
@@ -30,6 +39,10 @@ BasicParser::BasicParser()
 Token const& BasicParser::peek()
 {
     static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");
+
+    if (!m_buffer_read) {
+        return s_eof;
+    }
     auto& ret = m_lexer.peek();
     debug(lexer, "Parser::peek(): {}", ret.to_string());
     if (ret.code() != TokenCode::Error)
@@ -46,6 +59,10 @@ TokenCode BasicParser::current_code()
 Token const& BasicParser::lex()
 {
     static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");
+
+    if (!m_buffer_read) {
+        return s_eof;
+    }
     auto& ret = m_lexer.lex();
     debug(lexer, "Parser::lex(): {}", ret.to_string());
     if (ret.code() != TokenCode::Error)

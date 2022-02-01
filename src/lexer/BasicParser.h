@@ -53,11 +53,13 @@ public:
     void mark() { m_lexer.mark(); }
     void discard_mark() { m_lexer.discard_mark(); }
     void rewind() { m_lexer.rewind(); }
+    [[nodiscard]] bool buffer_read() const { return m_buffer_read; }
 
 private:
     std::string m_file_name { "<literal>" };
     Lexer m_lexer;
     std::vector<ParseError> m_errors {};
+    bool m_buffer_read { false };
 };
 
 }
