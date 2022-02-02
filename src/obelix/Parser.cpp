@@ -458,8 +458,10 @@ std::shared_ptr<Import> Parser::parse_import_statement()
         module_name += identifier_maybe.value().value();
         if (current_code() != TokenCode::Slash)
             break;
+        lex();
         module_name += '/';
     }
+    m_modules.insert(module_name);
     return make_node<Import>(module_name);
 }
 

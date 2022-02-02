@@ -7,7 +7,11 @@
 #pragma once
 
 #include <bitset>
+#include <cstdio>
+#include <fstream>
+#include <iostream>
 
+#include <config.h>
 #include <core/Logging.h>
 #include <obelix/Context.h>
 #include <obelix/Syntax.h>
@@ -16,30 +20,29 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-struct Assembly {
-    std::string code;
-    std::string text;
-    std::string data;
-
+class Assembly {
+public:
     template<typename... Args>
     void add_instruction(std::string const& mnemonic, Args&&... args)
     {
-        code = format("{}\t{}\t{}\n", code, mnemonic, std::forward<Args>(args)...);
+        m_code = format("{}\t{}\t{}\n", m_code, mnemonic, std::forward<Args>(args)...);
     }
 
     void add_instruction(std::string const& mnemonic)
     {
-        code = format("{}\t{}\n", code, mnemonic);
+        m_code = format("{}\t{}\n", m_code, mnemonic);
     }
 
     void add_label(std::string const& label)
     {
-        code = format("{}{}:\n", code, label);
+        m_code = format("{}{}:\n", m_code, label);
     }
 
     void add_directive(std::string const& directive, std::string const& args)
     {
-        code = format("{}{}\t{}\n", code, directive, args);
+        if (directive == ".global")
+            m_has_exports = true;
+        m_code = format("{}{}\t{}\n", m_code, directive, args);
     }
 
     int add_string(std::string const& str)
@@ -48,7 +51,7 @@ struct Assembly {
             return m_strings.at(str);
         }
         auto id = Label::reserve_id();
-        text = format("{}.align 2\nstr_{}:\n\t.string\t\"{}\"\n", text, id, str);
+        m_text = format("{}.align 2\nstr_{}:\n\t.string\t\"{}\"\n", m_text, id, str);
         m_strings[str] = id;
         return id;
     }
@@ -58,14 +61,14 @@ struct Assembly {
         auto c = comment;
         for (auto pos = c.find('\n'); pos != std::string::npos; pos = c.find('\n'))
             c[pos] = ' ';
-        code = format("{}\n\t; {}\n", code, c);
+        m_code = format("{}\n\t; {}\n", m_code, c);
     }
 
     void add_data(std::string const& label, std::string const& d)
     {
-        if (data.empty())
-            data = ".data\n\n";
-        data = format("{}\n.align 2\n{}:\t{}", data, label, d);
+        if (m_data.empty())
+            m_data = ".data\n\n";
+        m_data = format("{}\n.align 2\n{}:\t{}", m_data, label, d);
     }
 
     void syscall(int id)
@@ -74,7 +77,29 @@ struct Assembly {
         add_instruction("svc", "#0x00");
     }
 
+    [[nodiscard]] std::string to_string() const
+    {
+        return format("{}\n{}\n{}\n", m_code, m_text, m_data);
+    }
+
+    ErrorOr<void> save_as(std::string const& bare_file_name)
+    {
+        std::fstream s(bare_file_name + ".s", std::fstream::out);
+        if (!s.is_open())
+            return Error { ErrorCode::IOError, format("Could not open assembly file {}", bare_file_name + ".s") };
+        s << to_string();
+        if (s.fail() || s.bad())
+            return Error { ErrorCode::IOError, format("Could not write assembly file {}", bare_file_name + ".s") };
+        return {};
+    }
+
+    [[nodiscard]] bool has_exports() const { return m_has_exports; }
+
 private:
+    std::string m_code { ".align 2\n\n" };
+    std::string m_text;
+    std::string m_data;
+    bool m_has_exports { false };
     std::unordered_map<std::string, int> m_strings {};
 };
 

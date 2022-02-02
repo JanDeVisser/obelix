@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <iostream>
+#include <filesystem>
 
 #include <config.h>
 #include <core/Logging.h>
@@ -785,30 +785,30 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
     Assembly assembly;
     ARM64Context root(assembly);
 
-    assembly.code = ".align 2\n\n";
-
     auto ret = output_arm64_processor(processed, root);
 
     if (ret.is_error()) {
         return ret;
     }
 
-    printf("%s\n%s\n", assembly.code.c_str(), assembly.text.c_str());
+    std::cout << assembly.to_string();
 
-    std::string bare_file_name = file_name;
-    if (auto dot = file_name.find_last_of('.'); dot != std::string::npos) {
-        bare_file_name = file_name.substr(0, dot);
-    }
-    auto assembly_file = format("{}.s", bare_file_name);
-    FILE* f = fopen(assembly_file.c_str(), "w");
-    if (f) {
-        fprintf(f, "%s\n%s\n", assembly.code.c_str(), assembly.text.c_str());
-        fclose(f);
+    if (assembly.has_exports()) {
+        std::string bare_file_name = file_name;
+        if (auto dot = file_name.find_last_of('.'); dot != std::string::npos) {
+            bare_file_name = file_name.substr(0, dot);
+        }
+        auto bare_file_path = ".obelix/" + bare_file_name;
+
+        namespace fs = std::filesystem;
+        fs::create_directory(".obelix");
+
+        TRY_RETURN(assembly.save_as(bare_file_path));
 
         std::string obl_dir = (getenv("OBL_DIR")) ? getenv("OBL_DIR") : OBELIX_DIR;
-        auto as_cmd = format("as -o {}.o {}.s", bare_file_name, bare_file_name);
+        auto as_cmd = format("as -o {}.o {}.s", bare_file_path, bare_file_path);
         auto ld_cmd = format("ld -o {} {}.o -loblrt -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _start -arch arm64 -L{}/lib",
-            bare_file_name, bare_file_name, obl_dir);
+            bare_file_name, bare_file_path, obl_dir);
 
         std::cout << "[CMD] " << as_cmd << "\n";
         if (!system(as_cmd.c_str())) {
