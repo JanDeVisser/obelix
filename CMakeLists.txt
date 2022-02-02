@@ -24,6 +24,7 @@ configure_file(
 
 include_directories("${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}")
 add_subdirectory(src)
+add_subdirectory(share)
 
 include(FetchContent)
 FetchContent_Declare(
