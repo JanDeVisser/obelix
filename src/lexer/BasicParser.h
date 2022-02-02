@@ -37,6 +37,7 @@ public:
     explicit BasicParser(std::string const& file_name);
     explicit BasicParser();
 
+    ErrorOr<void> read_file(std::string const&);
     [[nodiscard]] std::vector<ParseError> const& errors() const { return m_errors; };
     [[nodiscard]] bool has_errors() const { return !m_errors.empty(); }
     Token const& peek();

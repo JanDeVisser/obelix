@@ -27,7 +27,7 @@ OblBuffer::OblBuffer(std::string file_name)
         return;
     if (auto err = try_open(obl_dir + "/share"); !err.is_error() || err.error().code() != ErrorCode::NoSuchFile)
         return;
-    auto err = try_open(obl_dir + ",/share");
+    auto err = try_open("./share");
 }
 
 StringBuffer& OblBuffer::buffer()
@@ -45,6 +45,7 @@ ErrorOr<void> OblBuffer::try_open(std::string const& directory, std::optional<st
     auto path = directory + "/" + f;
     debug(lexer, "Attempting {}", path);
 
+    m_error = Error { ErrorCode::NoError };
     FileBuffer fb(path);
     if (fb.file_is_read()) {
         m_buffer = std::move(fb.buffer());
@@ -73,6 +74,7 @@ ErrorOr<void> OblBuffer::try_open(std::string const& directory, std::optional<st
     }
     }
 }
+
 std::string const& OblBuffer::file_name() const
 {
     return m_file_name;

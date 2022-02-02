@@ -36,6 +36,20 @@ BasicParser::BasicParser()
 {
 }
 
+ErrorOr<void> BasicParser::read_file(std::string const& file_name)
+{
+    OblBuffer obl_buffer(file_name);
+
+    m_file_name = obl_buffer.dir_name() + "/" + obl_buffer.effective_file_name();
+    if (!obl_buffer.file_is_read()) {
+        add_error(Token { TokenCode::Error, file_name }, format("Could not read '{}'", file_name));
+        return obl_buffer.error();
+    }
+    m_lexer.assign(obl_buffer.buffer().str());
+    m_buffer_read = true;
+    return {};
+}
+
 Token const& BasicParser::peek()
 {
     static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");

@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <unordered_set>
+
 #include <lexer/BasicParser.h>
 #include <lexer/Lexer.h>
 #include <lexer/OblBuffer.h>
@@ -60,6 +62,9 @@ public:
     std::shared_ptr<Compilation> parse();
     std::shared_ptr<Compilation> parse(std::string const&);
 
+    std::shared_ptr<Module> parse_module(std::string const&);
+    std::shared_ptr<Module> parse_module();
+
     static int binary_precedence(TokenCode);
     static int unary_precedence(TokenCode);
     static Associativity associativity(TokenCode);
@@ -89,6 +94,7 @@ private:
     std::optional<ObelixType> parse_type();
 
     Config m_config;
+    std::unordered_set<std::string> m_modules;
 };
 
 }

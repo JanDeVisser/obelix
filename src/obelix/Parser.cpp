@@ -90,15 +90,33 @@ std::shared_ptr<Compilation> Parser::parse(std::string const& text)
 
 std::shared_ptr<Compilation> Parser::parse()
 {
-    Statements statements;
     clear_errors();
+    m_modules.clear();
+    m_modules.insert("");
+    auto main_module = parse_module();
+    Modules modules { main_module };
+    for (auto& module_name : m_modules) {
+        auto imported_module = parse_module(module_name);
+        if (imported_module)
+            modules.push_back(imported_module);
+    }
+    return make_node<Compilation>(modules);
+}
+
+std::shared_ptr<Module> Parser::parse_module(std::string const& module_name)
+{
+    if (auto ret = read_file(module_name); ret.is_error())
+        return nullptr;
+    return parse_module();
+}
+
+std::shared_ptr<Module> Parser::parse_module()
+{
+    Statements statements;
     parse_statements(statements);
     if (has_errors())
         return nullptr;
-    auto module = make_node<Module>(statements, file_name());
-    Modules modules { module };
-    auto ret = make_node<Compilation>(modules);
-    return ret;
+    return make_node<Module>(statements, file_name());
 }
 
 std::shared_ptr<Statement> Parser::parse_statement()
