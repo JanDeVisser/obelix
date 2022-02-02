@@ -77,7 +77,7 @@ public:
             assert(!parser.errors().empty());
             return Error { ErrorCode::NoSuchFile, fname };
         }
-        auto tree = std::dynamic_pointer_cast<Module>(parser.parse());
+        auto tree = std::dynamic_pointer_cast<Compilation>(parser.parse());
         if (!tree) {
             for (auto& e : parser.errors()) {
                 printf("ERROR: %s\n", e.to_string().c_str());

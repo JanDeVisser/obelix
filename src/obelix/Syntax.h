@@ -24,6 +24,7 @@ extern_logging_category(parser);
     S(Statement)                      \
     S(Block)                          \
     S(FunctionBlock)                  \
+    S(Compilation)                    \
     S(Module)                         \
     S(Expression)                     \
     S(Literal)                        \
@@ -296,6 +297,32 @@ public:
 
 private:
     std::string m_name;
+};
+
+using Modules = std::vector<std::shared_ptr<Module>>;
+
+class Compilation : public SyntaxNode {
+public:
+    explicit Compilation(Modules modules)
+        : SyntaxNode()
+        , m_modules(move(modules))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Compilation; }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        std::string ret;
+        for (auto& module : m_modules) {
+            ret += module->to_string(indent);
+            ret += "\n";
+        }
+        return ret;
+    }
+    [[nodiscard]] Modules const& modules() const { return m_modules; }
+
+private:
+    Modules m_modules;
 };
 
 class FunctionDecl : public SyntaxNode {
@@ -1123,6 +1150,14 @@ private:
     std::shared_ptr<Expression> m_expression;
     int m_offset;
 };
+
+template<class T, class... Args>
+std::shared_ptr<T> make_node(Args&&... args)
+{
+    auto ret = std::make_shared<T>(std::forward<Args>(args)...);
+    debug(parser, "make_node<{}>", SyntaxNodeType_name(ret->node_type()));
+    return ret;
+}
 
 ErrorOr<std::shared_ptr<SyntaxNode>> to_literal(std::shared_ptr<Expression> const& expr);
 

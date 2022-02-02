@@ -47,6 +47,21 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     switch (tree->node_type()) {
 
+    case SyntaxNodeType::Compilation: {
+        auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
+        Modules modules;
+        for (auto& module : compilation->modules()) {
+            modules.push_back(TRY_AND_CAST(Module, processor(module, ctx)));
+        }
+        return make_node<Compilation>(modules);
+    }
+
+    case SyntaxNodeType::Module: {
+        auto module = std::dynamic_pointer_cast<Module>(tree);
+        ret = TRY(process_block<Module>(tree, ctx, processor, module->name()));
+        break;
+    }
+
     case SyntaxNodeType::Block: {
         ret = TRY(process_block<Block>(tree, ctx, processor));
         break;
@@ -54,12 +69,6 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::FunctionBlock: {
         ret = TRY(process_block<FunctionBlock>(tree, ctx, processor));
-        break;
-    }
-
-    case SyntaxNodeType::Module: {
-        auto module = std::dynamic_pointer_cast<Module>(tree);
-        ret = TRY(process_block<Module>(tree, ctx, processor, module->name()));
         break;
     }
 

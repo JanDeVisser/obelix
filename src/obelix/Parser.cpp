@@ -82,28 +82,22 @@ void Parser::initialize()
         TokenCode::ShiftRight);
 }
 
-template<class T, class... Args>
-std::shared_ptr<T> make_node(Args&&... args)
-{
-    auto ret = std::make_shared<T>(std::forward<Args>(args)...);
-    debug(parser, "make_node<{}>", SyntaxNodeType_name(ret->node_type()));
-    return ret;
-}
-
-std::shared_ptr<Module> Parser::parse(std::string const& text)
+std::shared_ptr<Compilation> Parser::parse(std::string const& text)
 {
     lexer().assign(text);
     return parse();
 }
 
-std::shared_ptr<Module> Parser::parse()
+std::shared_ptr<Compilation> Parser::parse()
 {
     Statements statements;
     clear_errors();
     parse_statements(statements);
     if (has_errors())
         return nullptr;
-    auto ret = make_node<Module>(statements, file_name());
+    auto module = make_node<Module>(statements, file_name());
+    Modules modules { module };
+    auto ret = make_node<Compilation>(modules);
     return ret;
 }
 
@@ -444,9 +438,9 @@ std::shared_ptr<Import> Parser::parse_import_statement()
         if (!identifier_maybe.has_value())
             return nullptr;
         module_name += identifier_maybe.value().value();
-        if (current_code() != TokenCode::Period)
+        if (current_code() != TokenCode::Slash)
             break;
-        module_name += '.';
+        module_name += '/';
     }
     return make_node<Import>(module_name);
 }

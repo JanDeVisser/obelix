@@ -57,8 +57,8 @@ public:
     Parser(Config const& parser_config, std::string const& file_name);
     explicit Parser(Config const& parser_config);
 
-    std::shared_ptr<Module> parse();
-    std::shared_ptr<Module> parse(std::string const&);
+    std::shared_ptr<Compilation> parse();
+    std::shared_ptr<Compilation> parse(std::string const&);
 
     static int binary_precedence(TokenCode);
     static int unary_precedence(TokenCode);
