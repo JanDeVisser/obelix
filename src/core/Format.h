@@ -633,7 +633,7 @@ std::string format_one(std::string const& fmt, T arg)
 {
     std::optional<FormatSpecifier> specifier_maybe = FormatSpecifier::first_specifier(fmt);
     if (!specifier_maybe.has_value()) {
-        fprintf(stderr, "Not enough format specifiers\n");
+        fprintf(stderr, "format(\"%s\", ...): Not enough format specifiers\n", fmt.c_str());
         exit(1);
     }
     auto specifier = specifier_maybe.value();
