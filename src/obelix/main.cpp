@@ -151,8 +151,6 @@ void usage()
     exit(1);
 }
 
-
-
 int main(int argc, char** argv)
 {
     std::string file_name;
@@ -160,8 +158,12 @@ int main(int argc, char** argv)
     for (int ix = 1; ix < argc; ++ix) {
         if (!strcmp(argv[ix], "--help")) {
             usage();
-        } else if (!strcmp(argv[ix], "--debug")) {
-            Obelix::Logger::get_logger().enable("all");
+        } else if (!strncmp(argv[ix], "--debug", 7)) {
+            if (argv[ix][7] == '=') {
+                Obelix::Logger::get_logger().enable(argv[ix] + 8);
+            } else {
+                Obelix::Logger::get_logger().enable("all");
+            }
         } else if (!strcmp(argv[ix], "--show-tree")) {
             config.show_tree = true;
         } else {
