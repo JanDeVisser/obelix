@@ -231,6 +231,19 @@ ErrorOr<void> string_binary_expression(ARM64Context& ctx, BinaryExpression const
 ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM64Context& ctx)
 {
     switch (tree->node_type()) {
+
+    case SyntaxNodeType::Compilation: {
+        auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
+        ctx.add_module(ARM64Context::ROOT_MODULE_NAME);
+        return process_tree(tree, ctx, output_arm64_processor);
+    }
+
+    case SyntaxNodeType::Module: {
+        auto module = std::dynamic_pointer_cast<Module>(tree);
+        ctx.add_module(join(split(module->name(), '/'), "-"));
+        return process_tree(tree, ctx, output_arm64_processor);
+    }
+
     case SyntaxNodeType::MaterializedFunctionDef: {
         auto func_def = std::dynamic_pointer_cast<MaterializedFunctionDef>(tree);
         debug(parser, "func {}", func_def->name());
@@ -782,8 +795,7 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
 {
     auto processed = TRY(prepare_arm64(tree));
 
-    Assembly assembly;
-    ARM64Context root(assembly);
+    ARM64Context root;
 
     auto ret = output_arm64_processor(processed, root);
 
@@ -791,30 +803,41 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
         return ret;
     }
 
-    std::cout << assembly.to_string();
+    namespace fs = std::filesystem;
+    fs::create_directory(".obelix");
 
-    if (assembly.has_exports()) {
-        std::string bare_file_name = file_name;
-        if (auto dot = file_name.find_last_of('.'); dot != std::string::npos) {
-            bare_file_name = file_name.substr(0, dot);
+    std::vector<std::string> modules;
+    for (auto& module_assembly : ARM64Context::assemblies()) {
+        auto& module = module_assembly.first;
+        auto& assembly = module_assembly.second;
+
+        if (assembly.has_exports()) {
+            auto file_name_parts = split(module, '.');
+            auto bare_file_name = ".obelix/" + file_name_parts.front();
+
+            std::cout << bare_file_name << ".s:"
+                      << "\n";
+            std::cout << assembly.to_string();
+
+            TRY_RETURN(assembly.save_and_assemble(bare_file_name));
+            modules.push_back(bare_file_name + ".o");
         }
-        auto bare_file_path = ".obelix/" + bare_file_name;
+    }
 
-        namespace fs = std::filesystem;
-        fs::create_directory(".obelix");
-
-        TRY_RETURN(assembly.save_as(bare_file_path));
-
+    if (!modules.empty()) {
         std::string obl_dir = (getenv("OBL_DIR")) ? getenv("OBL_DIR") : OBELIX_DIR;
-        auto as_cmd = format("as -o {}.o {}.s", bare_file_path, bare_file_path);
-        auto ld_cmd = format("ld -o {} {}.o -loblrt -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _start -arch arm64 -L{}/lib",
-            bare_file_name, bare_file_path, obl_dir);
 
-        std::cout << "[CMD] " << as_cmd << "\n";
-        if (!system(as_cmd.c_str())) {
-            std::cout << "[CMD] " << ld_cmd << "\n";
-            system(ld_cmd.c_str());
-        }
+        auto file_parts = split(file_name, '/');
+        auto file_name_parts = split(file_parts.back(), '.');
+        auto bare_file_name = file_name_parts.front();
+
+        auto objects = join(modules, " ");
+        auto ld_cmd = format("ld -o {} {} -loblrt -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _start -arch arm64 -L{}/lib",
+            bare_file_name, objects, obl_dir);
+
+        std::cout << "[CMD] " << ld_cmd << "\n";
+        if (auto code = system(ld_cmd.c_str()))
+            return Error { ErrorCode::ExecutionError, ld_cmd, code };
     }
     return ret;
 }

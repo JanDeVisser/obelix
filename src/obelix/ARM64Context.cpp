@@ -8,11 +8,12 @@
 
 namespace Obelix {
 
-std::vector<std::shared_ptr<MaterializedFunctionDef>> ARM64Context::m_function_stack {};
+std::vector<std::shared_ptr<MaterializedFunctionDef>> ARM64Context::s_function_stack {};
+std::unordered_map<std::string, Assembly> ARM64Context::s_assemblies {};
 
 ARM64Context::ARM64Context(ARM64Context& parent)
     : Context<int>(parent)
-    , m_assembly(parent.assembly())
+    , m_assembly(parent.m_assembly)
 {
     auto offset_maybe = get("#offset");
     assert(offset_maybe.has_value());
@@ -21,17 +22,18 @@ ARM64Context::ARM64Context(ARM64Context& parent)
 
 ARM64Context::ARM64Context(ARM64Context* parent)
     : Context<int>(parent)
-    , m_assembly(parent->assembly())
+    , m_assembly(parent->m_assembly)
 {
     auto offset_maybe = get("#offset");
     assert(offset_maybe.has_value());
     declare("#offset", get("#offset").value());
 }
 
-ARM64Context::ARM64Context(Assembly& assembly)
+ARM64Context::ARM64Context()
     : Context()
-    , m_assembly(assembly)
+    , m_assembly()
 {
+    add_module(ROOT_MODULE_NAME);
     declare("#offset", make_obj<Integer>(0));
 }
 
@@ -247,7 +249,7 @@ void ARM64Context::clear_context()
 
 void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const& func) const
 {
-    m_function_stack.push_back(func);
+    s_function_stack.push_back(func);
     assembly().add_comment(func->declaration()->to_string(0));
     assembly().add_directive(".global", func->name());
     assembly().add_label(func->name());
@@ -275,15 +277,15 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
 
 void ARM64Context::function_return() const
 {
-    assert(!m_function_stack.empty());
-    auto func_def = m_function_stack.back();
+    assert(!s_function_stack.empty());
+    auto func_def = s_function_stack.back();
     assembly().add_instruction("b", format("__{}_return", func_def->name()));
 }
 
 void ARM64Context::leave_function() const
 {
-    assert(!m_function_stack.empty());
-    auto func_def = m_function_stack.back();
+    assert(!s_function_stack.empty());
+    auto func_def = s_function_stack.back();
     assembly().add_label(format("__{}_return", func_def->name()));
     int depth = func_def->stack_depth();
     if (depth % 16) {
@@ -291,7 +293,7 @@ void ARM64Context::leave_function() const
     }
     assembly().add_instruction("ldp", "fp,lr,[sp],#{}", depth);
     assembly().add_instruction("ret");
-    m_function_stack.pop_back();
+    s_function_stack.pop_back();
 }
 
 RegisterContext& ARM64Context::get_current_register_context()

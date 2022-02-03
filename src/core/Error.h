@@ -16,6 +16,7 @@ namespace Obelix {
 #define ENUMERATE_ERROR_CODES(S)                                                              \
     S(NoError, "There is no error")                                                           \
     S(IOError, "{}")                                                                          \
+    S(ExecutionError, "Error executing '{}': {}")                                             \
     S(InternalError, "{}")                                                                    \
     S(SyntaxError, "{}")                                                                      \
     S(NotYetImplemented, "{}")                                                                \

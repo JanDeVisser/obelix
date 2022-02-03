@@ -82,14 +82,20 @@ public:
         return format("{}\n{}\n{}\n", m_code, m_text, m_data);
     }
 
-    ErrorOr<void> save_as(std::string const& bare_file_name)
+    ErrorOr<void> save_and_assemble(std::string const& bare_file_name) const
     {
-        std::fstream s(bare_file_name + ".s", std::fstream::out);
-        if (!s.is_open())
-            return Error { ErrorCode::IOError, format("Could not open assembly file {}", bare_file_name + ".s") };
-        s << to_string();
-        if (s.fail() || s.bad())
-            return Error { ErrorCode::IOError, format("Could not write assembly file {}", bare_file_name + ".s") };
+        {
+            std::fstream s(bare_file_name + ".s", std::fstream::out);
+            if (!s.is_open())
+                return Error { ErrorCode::IOError, format("Could not open assembly file {}", bare_file_name + ".s") };
+            s << to_string();
+            if (s.fail() || s.bad())
+                return Error { ErrorCode::IOError, format("Could not write assembly file {}", bare_file_name + ".s") };
+        }
+        auto as_cmd = format("as -o {}.o {}.s", bare_file_name, bare_file_name);
+        std::cout << "[CMD] " << as_cmd << "\n";
+        if (auto code = system(as_cmd.c_str()))
+            return Error { ErrorCode::ExecutionError, as_cmd, code };
         return {};
     }
 
@@ -150,11 +156,17 @@ struct RegisterContext {
 
 class ARM64Context : public Context<int> {
 public:
+    constexpr static char const* ROOT_MODULE_NAME = "#root";
+
     ARM64Context(ARM64Context& parent);
     explicit ARM64Context(ARM64Context* parent);
-    explicit ARM64Context(Assembly& assembly);
+    ARM64Context();
 
-    [[nodiscard]] Assembly& assembly() const { return m_assembly; }
+    [[nodiscard]] Assembly& assembly() const
+    {
+        assert(m_assembly);
+        return *m_assembly;
+    }
 
     [[nodiscard]] std::string contexts() const;
     void new_targeted_context();
@@ -194,6 +206,16 @@ public:
     void function_return() const;
     void leave_function() const;
 
+    void add_module(std::string const& module)
+    {
+        m_assembly = &s_assemblies[module];
+    }
+
+    [[nodiscard]] static std::unordered_map<std::string, Assembly> const& assemblies()
+    {
+        return s_assemblies;
+    }
+
 private:
     RegisterContext& get_current_register_context();
     RegisterContext* get_previous_register_context();
@@ -202,10 +224,11 @@ private:
     int claim_register(int reg);
     void release_register(int reg);
 
-    Assembly& m_assembly;
+    Assembly* m_assembly { nullptr };
     std::vector<RegisterContext> m_register_contexts {};
     std::bitset<19> m_available_registers { 0xFFFFFF };
-    static std::vector<std::shared_ptr<MaterializedFunctionDef>> m_function_stack;
+    static std::vector<std::shared_ptr<MaterializedFunctionDef>> s_function_stack;
+    static std::unordered_map<std::string, Assembly> s_assemblies;
 };
 
 template<typename T = long>
