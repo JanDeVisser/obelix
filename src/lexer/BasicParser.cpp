@@ -40,9 +40,10 @@ ErrorOr<void> BasicParser::read_file(std::string const& file_name)
 {
     OblBuffer obl_buffer(file_name);
 
-    m_file_name = obl_buffer.dir_name() + "/" + obl_buffer.effective_file_name();
+    m_file_name = file_name;
+    m_effective_file_name = obl_buffer.dir_name() + "/" + obl_buffer.effective_file_name();
     if (!obl_buffer.file_is_read()) {
-        add_error(Token { TokenCode::Error, file_name }, format("Could not read '{}'", file_name));
+        add_error(Token { TokenCode::Error, m_effective_file_name }, format("Could not read '{}'", m_effective_file_name));
         return obl_buffer.error();
     }
     m_lexer.assign(obl_buffer.buffer().str());
@@ -117,7 +118,7 @@ bool BasicParser::expect(TokenCode code, char const* where)
 void BasicParser::add_error(Token const& token, std::string const& message)
 {
     debug(lexer, "Parser::add_error({}, '{}')", token.to_string(), message);
-    m_errors.emplace_back(message, m_file_name, token);
+    m_errors.emplace_back(message, m_effective_file_name, token);
 }
 
 }

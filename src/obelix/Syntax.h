@@ -272,7 +272,7 @@ public:
 
 class Module : public Block {
 public:
-    Module(std::vector<std::shared_ptr<Statement>> const& statements, std::string name)
+    Module(Statements const& statements, std::string name)
         : Block(statements)
         , m_name(move(name))
     {
@@ -301,10 +301,16 @@ private:
 
 using Modules = std::vector<std::shared_ptr<Module>>;
 
-class Compilation : public SyntaxNode {
+class Compilation : public Module {
 public:
-    explicit Compilation(Modules modules)
-        : SyntaxNode()
+    Compilation(std::shared_ptr<Module> root, Modules modules)
+        : Module(root->statements(), "")
+        , m_modules(move(modules))
+    {
+    }
+
+    Compilation(Statements statements, Modules modules)
+        : Module(statements, "")
         , m_modules(move(modules))
     {
     }
@@ -312,7 +318,8 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Compilation; }
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        std::string ret;
+        std::string ret = Module::to_string(indent);
+        ret += "\n";
         for (auto& module : m_modules) {
             ret += module->to_string(indent);
             ret += "\n";

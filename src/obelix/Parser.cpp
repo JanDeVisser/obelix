@@ -92,15 +92,15 @@ std::shared_ptr<Compilation> Parser::parse()
 {
     clear_errors();
     m_modules.clear();
-    m_modules.insert("");
     auto main_module = parse_module();
+    auto root = parse_module("");
     Modules modules { main_module };
     for (auto& module_name : m_modules) {
         auto imported_module = parse_module(module_name);
         if (imported_module)
             modules.push_back(imported_module);
     }
-    return make_node<Compilation>(modules);
+    return make_node<Compilation>(root, modules);
 }
 
 std::shared_ptr<Module> Parser::parse_module(std::string const& module_name)
@@ -296,6 +296,7 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
             func_decl = std::make_shared<NativeFunctionDecl>(func_decl, link_target_maybe.value().value());
+            expect(TokenCode::SemiColon);
             return make_node<FunctionDef>(func_decl);
         }
         return nullptr;

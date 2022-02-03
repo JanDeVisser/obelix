@@ -49,11 +49,19 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::Compilation: {
         auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
+
+        Statements statements;
+        for (auto& stmt : compilation->statements()) {
+            auto new_statement = TRY_AND_CAST(Statement, processor(stmt, ctx));
+            statements.push_back(new_statement);
+        }
+
         Modules modules;
         for (auto& module : compilation->modules()) {
             modules.push_back(TRY_AND_CAST(Module, processor(module, ctx)));
         }
-        return make_node<Compilation>(modules);
+        ret = make_node<Compilation>(statements, modules);
+        break;
     }
 
     case SyntaxNodeType::Module: {

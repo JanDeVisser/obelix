@@ -58,6 +58,7 @@ public:
 
 private:
     std::string m_file_name { "<literal>" };
+    std::string m_effective_file_name { "<literal>" };
     Lexer m_lexer;
     std::vector<ParseError> m_errors {};
     bool m_buffer_read { false };

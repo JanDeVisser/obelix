@@ -1,45 +1,21 @@
 /*
- * share/__init__.obl - Copyright (c) 2015-2021 Jan de Visser <jan@finiandarcy.com>
+ * share/__init__.obl - Copyright (c) 2015-2022 Jan de Visser <jan@finiandarcy.com>
  *
- * This file is part of obelix2.
+ * This file is part of obelix.
  *
- * Obelix2 is free software: you can redistribute it and/or modify
+ * Obelix is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Obelix2 is distributed in the hope that it will be useful,
+ * Obelix is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with obelix2.  If not, see <http://www.gnu.org/licenses/>.
+ * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*
- * obelix root object declaration -
- */
-
-func print(msg)           -> "oblfunc_print";
-func format(msg, args)    -> "oblfunc_format";
-func sleep(naptime)       -> "oblfunc_sleep";
-func usleep(naptime)      -> "oblfunc_usleep";
-func nvp(name, value)     -> "oblfunc_nvp";
-func range(low, high)     -> "oblfunc_range";
-
-// func open(fname, mode)    -> "oblfunc_open";
-// func adopt(fnum)          -> "oblfunc_adopt";
-
-// func fsentry(name)       -> "liboblcore.so:_fsentry_create";
-
-// func regexp(pattern)     -> "liboblcore.so:_regexp_create";
-
-// func encode(value)       -> "liboblstdlib.so:_function_encode";
-// func decode(json)        -> "liboblstdlib.so:_function_decode";
-
-// var stdin = adopt(0);
-// var stdout = adopt(1);
-// var stderr = adopt(2);
-
-var version = "0.1";
+func putint(i : int) : int -> "putint";
+func puthex(i : int) : int -> "puthex";
