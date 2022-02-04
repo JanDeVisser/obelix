@@ -1,0 +1,2 @@
+func foo(x: int, y: int) : string -> "foo_link";
+

@@ -1,0 +1,16 @@
+
+func main() : int
+{
+   var x = 3;
+   switch (x) {
+   case 1:
+     puts("One\n");
+   case 2: {
+     puts("Two\n");
+   }
+   case 3:
+     puts("Three\n");
+   default:
+     puts("Something else\n");
+   }
+}

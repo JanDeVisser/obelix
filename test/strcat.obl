@@ -1,0 +1,7 @@
+func main() : int
+{
+   var x : string = "Hello, ";
+   var y = "World!\n";
+   var bytes = puts(x+y);
+   return bytes;
+}
