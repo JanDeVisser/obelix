@@ -217,8 +217,40 @@ ErrorOr<void> byte_byte_binary_expression(ARM64Context& ctx, BinaryExpression co
 
 ErrorOr<void> string_binary_expression(ARM64Context& ctx, BinaryExpression const& expr)
 {
+    auto lhs_orig = ctx.get_target_register();
+    auto lhs = lhs_orig;
+    auto lhs_len_orig = ctx.get_target_register(1);
+    auto lhs_len = lhs_len_orig;
+    auto rhs = ctx.get_rhs_register();
+    auto rhs_len = ctx.get_rhs_register(1);
     switch (expr.op().code()) {
     case TokenCode::Plus:
+        if (lhs <= 5) {
+            ctx.assembly().add_instruction("mov", "x6,x{}", lhs);
+            lhs = 6;
+        }
+        if (lhs_len <= 6) {
+            ctx.assembly().add_instruction("mov", "w7,w{}", lhs_len);
+            lhs_len = 7;
+        }
+        if (rhs <= 7) {
+            ctx.assembly().add_instruction("mov", "x8,x{}", rhs);
+            rhs = 8;
+        }
+        if (rhs_len <= 8) {
+            ctx.assembly().add_instruction("mov", "w9,w{}", rhs_len);
+            rhs_len = 9;
+        }
+        ctx.assembly().add_instruction("mov", "x0,x{}", lhs);
+        ctx.assembly().add_instruction("add", "w1,w{},w{}", lhs_len, rhs_len);
+        ctx.assembly().add_instruction("add", "w1,w1,#1");
+        ctx.assembly().add_instruction("bl", "allocate_string");
+        ctx.assembly().add_instruction("mov", "w1,w{}", lhs_len);
+        ctx.assembly().add_instruction("mov", "x2,x{}", rhs);
+        ctx.assembly().add_instruction("mov", "w3,w{}", rhs_len);
+        ctx.assembly().add_instruction("bl", "concatenate_string");
+        ctx.assembly().add_instruction("mov", "x{},x0", lhs_orig);
+        ctx.assembly().add_instruction("add", "w{},w{},w{}", lhs_len_orig, lhs_len, rhs_len);
         break;
     case TokenCode::Asterisk:
         break;
@@ -313,28 +345,40 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
         // This is a mmap syscall
         if (call->name() == "allocate") {
-            ctx.reserve_register(0);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            ctx.assembly().add_instruction("mov", "x1,x0");
+            if (ctx.get_target_register() != 1)
+                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register());
             ctx.assembly().add_instruction("mov", "x0,xzr");
             ctx.assembly().add_instruction("mov", "w2,#3");
             ctx.assembly().add_instruction("mov", "w3,#0x1002");
             ctx.assembly().add_instruction("mov", "w4,#-1");
             ctx.assembly().add_instruction("mov", "x5,xzr");
             ctx.assembly().syscall(0xC5);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "close") {
-            ctx.reserve_register(0);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
+            if (ctx.get_target_register(0) != 0)
+                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
             ctx.assembly().syscall(0x06);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "fputs") {
-            ctx.reserve_register(0, 1, 2);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
             TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
+            if (ctx.get_target_register(0) != 0)
+                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
+            if (ctx.get_target_register(1) != 1)
+                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register(1));
+            if (ctx.get_target_register(2) != 2)
+                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "itoa") {
@@ -350,21 +394,28 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         }
 
         if (call->name() == "exit") {
-            ctx.reserve_register(0);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register());
             ctx.assembly().syscall(0x01);
         }
 
         if (call->name() == "eputs") {
-            ctx.assembly().add_instruction("mov", "x0,#0x02");
-            ctx.reserve_register(1, 2);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
+            if (ctx.get_target_register() != 1)
+                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register());
+            if (ctx.get_target_register(1) != 2)
+                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(1));
+            ctx.assembly().add_instruction("mov", "x0,#2");
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "fsize") {
-            ctx.reserve_register(0);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register());
             auto sz = sizeof(struct stat);
             if (sz % 16)
                 sz += 16 - (sz % 16);
@@ -374,17 +425,21 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             ctx.assembly().add_instruction("cmp", "x0,#0x00");
             auto lbl = format("lbl_{}", Label::reserve_id());
             ctx.assembly().add_instruction("bne", lbl);
-            ctx.assembly().add_instruction("ldr", "x0,[sp,#{}]", offsetof(struct stat, st_size));
+            ctx.assembly().add_instruction("ldr", "x{},[sp,#{}]", ctx.get_target_register(), offsetof(struct stat, st_size));
             ctx.assembly().add_label(lbl);
             ctx.assembly().add_instruction("add", "sp,sp,#{}", sz);
         }
 
         if (call->name() == "memset") {
-            ctx.reserve_register(0, 1, 2);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
             TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
             TRY_RETURN(output_arm64_processor(call->arguments().at(2), ctx));
-
+            if (ctx.get_target_register(0) != 0)
+                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
+            if (ctx.get_target_register(1) != 1)
+                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register(1));
+            if (ctx.get_target_register(2) != 2)
+                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
             int count_reg = ctx.temporary_register();
             ctx.assembly().add_instruction("mov", "x{},xzr", count_reg);
 
@@ -400,59 +455,74 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             ctx.assembly().add_instruction("add", "x{},x{},#1", count_reg, count_reg);
             ctx.assembly().add_instruction("b", loop);
             ctx.assembly().add_label(skip);
-            ctx.assembly().add_instruction("mov", "x0,x{}", count_reg);
+            ctx.assembly().add_instruction("mov", "x{},x{}", ctx.get_target_register(), count_reg);
         }
 
         if (call->name() == "open") {
-            ctx.reserve_register(0, 1, 2);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
             TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
-            ctx.assembly().add_instruction("mov", "x1,x2");
+            if (ctx.get_target_register(0) != 1)
+                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register());
+            if (ctx.get_target_register(2) != 2)
+                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
             ctx.assembly().syscall(0x05);
+            if (ctx.get_target_register(0) != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "putchar") {
-            ctx.reserve_register(0);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            ctx.assembly().add_instruction("strb", "w0,[sp,-16]!");
+            ctx.assembly().add_instruction("strb", "w{},[sp,-16]!", ctx.get_target_register());
             ctx.assembly().add_instruction("mov", "x0,#1"); // x0: stdin
             ctx.assembly().add_instruction("mov", "x1,sp"); // x1: SP
             ctx.assembly().add_instruction("mov", "x2,#1"); // x2: Number of characters
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
             ctx.assembly().add_instruction("add", "sp,sp,16");
         }
 
         if (call->name() == "puts") {
-            ctx.reserve_register(1, 2);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
+            if (ctx.get_target_register() != 1)
+                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register());
+            if (ctx.get_target_register(1) != 2)
+                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(1));
             ctx.assembly().add_instruction("mov", "x0,#1");
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "read") {
-            ctx.reserve_register(0, 1, 2);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
             TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
             TRY_RETURN(output_arm64_processor(call->arguments().at(2), ctx));
+            if (ctx.get_target_register(0) != 0)
+                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
+            if (ctx.get_target_register(1) != 1)
+                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register(1));
+            if (ctx.get_target_register(2) != 2)
+                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
             ctx.assembly().syscall(0x03);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
 
         if (call->name() == "write") {
-            ctx.reserve_register(0, 1, 2);
             TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
             TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
             TRY_RETURN(output_arm64_processor(call->arguments().at(2), ctx));
+            if (ctx.get_target_register(0) != 0)
+                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
+            if (ctx.get_target_register(1) != 1)
+                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register(1));
+            if (ctx.get_target_register(2) != 2)
+                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
             ctx.assembly().syscall(0x04);
+            if (ctx.get_target_register() != 0)
+                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
         }
-
-        ctx.clear_context();
-        ctx.reserve_register(0);
-        if (call->type() == ObelixType::TypeString)
-            ctx.reserve_register(1);
-        // Add x0 to the register context
-        ctx.add_target_register();
-        if (call->type() == ObelixType::TypeString)
-            ctx.add_target_register();
         ctx.release_register_context();
         return tree;
     }
@@ -564,7 +634,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         case ObelixType::TypeString: {
             ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_target_register(), idx);
             auto reg = ctx.add_target_register();
-            ctx.assembly().add_instruction("ldrw", "w{},[fp,#{}]", reg, idx + 8);
+            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", reg, idx + 8);
             break;
         }
         default:
@@ -637,7 +707,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             }
         }
         ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(0), var_decl->offset());
-        if (ctx.get_target_count() > 1) {
+        if (var_decl->type() == ObelixType::TypeString) {
             ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(1), var_decl->offset() + 8);
         }
         ctx.release_register_context();

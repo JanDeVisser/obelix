@@ -71,14 +71,6 @@ void ARM64Context::new_temporary_context()
 
 void ARM64Context::new_enclosing_context()
 {
-    if (!m_register_contexts.empty()) {
-        auto& reg_ctx = m_register_contexts.back();
-        auto push_registers = reg_ctx.targeted | reg_ctx.rhs_targeted | reg_ctx.reserved_registers;
-        for (int ix = 0; ix < push_registers.size(); ix++) {
-            if (push_registers.test(ix))
-                push(*this, format("x{}", ix));
-        }
-    }
     m_register_contexts.emplace_back(RegisterContext::RegisterContextType::Enclosing);
     auto& reg_ctx = m_register_contexts.back();
     reg_ctx.m_saved_available_registers = m_available_registers;
@@ -98,12 +90,9 @@ void ARM64Context::release_register_context()
     case RegisterContext::RegisterContextType::Enclosing:
         m_available_registers = reg_ctx.m_saved_available_registers;
         if (prev_ctx_pointer) {
-            m_register_contexts.pop_back();
-            auto& prev_ctx = m_register_contexts.back();
-            auto pop_registers = prev_ctx.targeted | prev_ctx.rhs_targeted | prev_ctx.reserved_registers;
-            for (auto ix = pop_registers.size() - 1; (int)ix >= 0; ix--) {
-                if (pop_registers.test(ix))
-                    pop(*this, format("x{}", ix));
+            for (auto ix = 0; ix < reg_ctx.targeted.count(); ++ix) {
+                int reg = (ix < prev_ctx_pointer->targeted.count()) ? get_target_register(1) : add_target_register(1);
+                assembly().add_instruction("mov", "x{},x{}", reg, get_target_register(ix));
             }
         }
         debug(parser, "Released enclosing context:\n{}", contexts());
@@ -146,15 +135,15 @@ size_t ARM64Context::get_target_count() const
     return reg_ctx.targeted.count();
 }
 
-int ARM64Context::get_target_register(size_t ix)
+int ARM64Context::get_target_register(size_t ix, int level)
 {
-    assert(!m_register_contexts.empty());
-    auto& reg_ctx = m_register_contexts.back();
+    assert(m_register_contexts.size() > level);
+    auto& reg_ctx = m_register_contexts[m_register_contexts.size() - level - 1];
     if ((ix > 0) && (ix >= reg_ctx.targeted.count())) {
         fatal("{} >= reg_ctx.targeted.count():\n{}", ix, contexts());
     }
     if (reg_ctx.targeted.count() == 0 && ix == 0) {
-        auto reg = add_target_register();
+        auto reg = add_target_register(level);
         return reg;
     }
     int count = 0;
@@ -187,10 +176,10 @@ int ARM64Context::get_rhs_register(size_t ix)
     fatal("Unreachable");
 }
 
-int ARM64Context::add_target_register()
+int ARM64Context::add_target_register(int level)
 {
-    assert(!m_register_contexts.empty());
-    auto& reg_ctx = m_register_contexts.back();
+    assert(m_register_contexts.size() > level);
+    auto& reg_ctx = m_register_contexts[m_register_contexts.size() - level - 1];
     if (reg_ctx.reserved_registers.count()) {
         for (auto ix = 0; ix < reg_ctx.reserved_registers.size(); ix++) {
             if (reg_ctx.reserved_registers.test(ix)) {

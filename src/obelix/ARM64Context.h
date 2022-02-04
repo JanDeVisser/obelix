@@ -177,10 +177,10 @@ public:
 
     void release_all();
     [[nodiscard]] size_t get_target_count() const;
-    int get_target_register(size_t ix = 0);
+    int get_target_register(size_t ix = 0, int level = 0);
     [[nodiscard]] size_t get_rhs_count() const;
     int get_rhs_register(size_t ix = 0);
-    int add_target_register();
+    int add_target_register(int level = 0);
     int temporary_register();
 
     template<typename... Ints>
