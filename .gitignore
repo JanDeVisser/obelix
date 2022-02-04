@@ -41,6 +41,7 @@ release/*
 cygwin/
 cmake-build-debug
 **/*.dir/*
+**/.obelix/*
 Win32/*
 /MingW64/
 /Default/
@@ -60,7 +61,6 @@ kdev_build/
 *.slo
 *.lo
 *.o
-test/*.s
 *.obj
 *.bin
 
