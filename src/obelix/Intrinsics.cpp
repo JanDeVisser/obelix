@@ -57,12 +57,6 @@ auto s_itoa = register_intrinsic(std::make_shared<FunctionDecl>(
     Symbol { "itoa", ObelixType::TypeInt },
     Symbols {
         Symbol { "n", ObelixType::TypeInt } }));
-auto s_memset = register_intrinsic(std::make_shared<FunctionDecl>(
-    Symbol { "memset", ObelixType::TypePointer },
-    Symbols {
-        Symbol { "ptr", ObelixType::TypePointer },
-        Symbol { "c", ObelixType::TypeInt },
-        Symbol { "len", ObelixType::TypeInt } }));
 auto s_open = register_intrinsic(std::make_shared<FunctionDecl>(
     Symbol { "open", ObelixType::TypeInt },
     Symbols {

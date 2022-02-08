@@ -31,6 +31,7 @@ add_executable(
         main.cpp
         ARM64.cpp
         ARM64Context.cpp
+        ARM64Intrinsics.cpp
         OutputJV80.cpp)
 
 target_link_libraries(

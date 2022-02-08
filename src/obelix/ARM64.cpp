@@ -7,258 +7,17 @@
 #include <filesystem>
 
 #include <config.h>
+#include <core/Error.h>
 #include <core/Logging.h>
 #include <core/ScopeGuard.h>
-#include <obelix/ARM64Context.h>
-#include <obelix/Intrinsics.h>
 #include <obelix/ARM64.h>
+#include <obelix/ARM64Context.h>
+#include <obelix/ARM64Intrinsics.h>
+#include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
 namespace Obelix {
-
-ErrorOr<void> bool_unary_expression(ARM64Context& ctx, UnaryExpression const& expr)
-{
-    switch (expr.op().code()) {
-    case TokenCode::ExclamationPoint:
-        ctx.assembly().add_instruction("eor", "w{},w{},#0x01", ctx.get_target_register(), ctx.get_target_register()); // a is 0b00000001 (a was true) or 0b00000000 (a was false
-        break;
-    default:
-        return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
-    }
-    return {};
-}
-
-ErrorOr<void> bool_bool_binary_expression(ARM64Context& ctx, BinaryExpression const& expr)
-{
-    auto lhs = ctx.get_target_register();
-    auto rhs = ctx.get_rhs_register();
-    switch (expr.op().code()) {
-    case TokenCode::LogicalAnd:
-        ctx.assembly().add_instruction("and", "x{},x{},x{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::LogicalOr:
-        ctx.assembly().add_instruction("orr", "x{},x{},x{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::Hat:
-        ctx.assembly().add_instruction("xor", "x{},x{},x{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::Equals: {
-        ctx.assembly().add_instruction("eor", "x{},x{},x{}", lhs, lhs, rhs); // a is 0b00000000 (a == b) or 0b00000001 (a != b
-        ctx.assembly().add_instruction("eor", "x{},x{},#0x01", lhs, lhs);    // a is 0b00000001 (a == b) or 0b00000000 (a != b
-        break;
-    }
-    default:
-        return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
-    }
-    return {};
-}
-
-ErrorOr<void> int_unary_expression(ARM64Context& ctx, UnaryExpression const& expr)
-{
-    if (expr.op().code() == TokenCode::Plus)
-        return {};
-    auto operand = ctx.get_target_register();
-    switch (expr.op().code()) {
-    case TokenCode::Minus: {
-        if (expr.operand()->type() == ObelixType::TypeUnsigned)
-            return Error { ErrorCode::SyntaxError, "Cannot negate unsigned numbers" };
-        ctx.assembly().add_instruction("neg", "x{},x{}", operand, operand);
-        break;
-    }
-    case TokenCode::Tilde:
-        ctx.assembly().add_instruction("mvn", "x{},x{}", operand, operand);
-        break;
-    default:
-        return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
-    }
-    return {};
-}
-
-ErrorOr<void> int_int_binary_expression(ARM64Context& ctx, BinaryExpression const& expr)
-{
-    auto lhs = ctx.get_target_register();
-    auto rhs = ctx.get_rhs_register();
-    switch (expr.op().code()) {
-    case TokenCode::Plus:
-        ctx.assembly().add_instruction("add", "x{},x{},x{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::Minus:
-        ctx.assembly().add_instruction("sub", "x{},x{},x{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::Asterisk:
-        ctx.assembly().add_instruction("mul", "x{},x{},x{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::Slash:
-        ctx.assembly().add_instruction("sdiv", "x{},x{},x{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::EqualsTo: {
-        ctx.assembly().add_instruction("cmp", "x{},x{}", lhs, rhs);
-        auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("bne", set_false);
-        ctx.assembly().add_instruction("mov", "w{},#0x01", lhs);
-        auto done = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("b", done);
-        ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("mov", "w{},wzr", lhs);
-        ctx.assembly().add_label(done);
-        return {};
-    }
-    case TokenCode::GreaterThan: {
-        ctx.assembly().add_instruction("cmp", "x{},x{}", lhs, rhs);
-        auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("b.le", set_false);
-        ctx.assembly().add_instruction("mov", "w{},#0x01", lhs);
-        auto done = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("b", done);
-        ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("mov", "w{},wzr", lhs);
-        ctx.assembly().add_label(done);
-        return {};
-    }
-    case TokenCode::LessThan: {
-        ctx.assembly().add_instruction("cmp", "x{},x{}", lhs, rhs);
-        auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("b.lt", set_true);
-        ctx.assembly().add_instruction("mov", "w{},wzr", lhs);
-        auto done = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("b", done);
-        ctx.assembly().add_label(set_true);
-        ctx.assembly().add_instruction("mov", "w{},#0x01", lhs);
-        ctx.assembly().add_label(done);
-        return {};
-    }
-    default:
-        return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
-    }
-    return {};
-}
-
-ErrorOr<void> byte_unary_expression(ARM64Context& ctx, UnaryExpression const& expr)
-{
-    if (expr.op().code() == TokenCode::Plus)
-        return {};
-    auto operand = ctx.get_target_register();
-    switch (expr.op().code()) {
-    case TokenCode::Minus: {
-        if (expr.operand()->type() == ObelixType::TypeUnsigned)
-            return Error { ErrorCode::SyntaxError, "Cannot negate unsigned numbers" };
-
-        ctx.assembly().add_instruction("neg", "w{},w{}", operand, operand);
-        break;
-    }
-    case TokenCode::Tilde:
-        ctx.assembly().add_instruction("mvnb", "w{},w{}", operand, operand);
-        break;
-    default:
-        return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
-    }
-    return {};
-}
-
-ErrorOr<void> byte_byte_binary_expression(ARM64Context& ctx, BinaryExpression const& expr)
-{
-    auto lhs = ctx.get_target_register();
-    auto rhs = ctx.get_rhs_register();
-    switch (expr.op().code()) {
-    case TokenCode::Plus:
-        ctx.assembly().add_instruction("andb", "w{},w{},w{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::Minus:
-        ctx.assembly().add_instruction("subb", "w{},w{},w{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::Asterisk:
-        ctx.assembly().add_instruction("smull", "x{},w{},w{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::Slash:
-        ctx.assembly().add_instruction("sdiv", "w{},w{},w{}", lhs, lhs, rhs);
-        break;
-    case TokenCode::EqualsTo: {
-        ctx.assembly().add_instruction("cmp", "w{},w{}", lhs, rhs);
-        auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("bne", set_false);
-        ctx.assembly().add_instruction("movb", "w{},#0x01", lhs);
-        auto done = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("b", done);
-        ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("movb", "w{},wzr", lhs);
-        ctx.assembly().add_label(done);
-        return {};
-    }
-    case TokenCode::GreaterThan: {
-        ctx.assembly().add_instruction("cmp", "w{},w{}", lhs, rhs);
-        auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("bmi", set_false);
-        ctx.assembly().add_instruction("movb", "w{},#0x01", lhs);
-        auto done = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("b", done);
-        ctx.assembly().add_label(set_false);
-        ctx.assembly().add_instruction("movb", "w{},wzr", lhs);
-        ctx.assembly().add_label(done);
-        return {};
-    }
-    case TokenCode::LessThan: {
-        ctx.assembly().add_instruction("cmp", "w{},w{}", lhs, rhs);
-        auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("bmi", set_true);
-        ctx.assembly().add_instruction("movb", "w{},wzr", lhs);
-        auto done = format("lbl_{}", Obelix::Label::reserve_id());
-        ctx.assembly().add_instruction("b", done);
-        ctx.assembly().add_label(set_true);
-        ctx.assembly().add_instruction("movb", "w{},#0x01", lhs);
-        ctx.assembly().add_label(done);
-        return {};
-    }
-    default:
-        return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
-    }
-    return {};
-}
-
-ErrorOr<void> string_binary_expression(ARM64Context& ctx, BinaryExpression const& expr)
-{
-    auto lhs_orig = ctx.get_target_register();
-    auto lhs = lhs_orig;
-    auto lhs_len_orig = ctx.get_target_register(1);
-    auto lhs_len = lhs_len_orig;
-    auto rhs = ctx.get_rhs_register();
-    auto rhs_len = ctx.get_rhs_register(1);
-    switch (expr.op().code()) {
-    case TokenCode::Plus:
-        if (lhs <= 5) {
-            ctx.assembly().add_instruction("mov", "x6,x{}", lhs);
-            lhs = 6;
-        }
-        if (lhs_len <= 6) {
-            ctx.assembly().add_instruction("mov", "w7,w{}", lhs_len);
-            lhs_len = 7;
-        }
-        if (rhs <= 7) {
-            ctx.assembly().add_instruction("mov", "x8,x{}", rhs);
-            rhs = 8;
-        }
-        if (rhs_len <= 8) {
-            ctx.assembly().add_instruction("mov", "w9,w{}", rhs_len);
-            rhs_len = 9;
-        }
-        ctx.assembly().add_instruction("mov", "x0,x{}", lhs);
-        ctx.assembly().add_instruction("add", "w1,w{},w{}", lhs_len, rhs_len);
-        ctx.assembly().add_instruction("add", "w1,w1,#1");
-        ctx.assembly().add_instruction("bl", "allocate_string");
-        ctx.assembly().add_instruction("mov", "w1,w{}", lhs_len);
-        ctx.assembly().add_instruction("mov", "x2,x{}", rhs);
-        ctx.assembly().add_instruction("mov", "w3,w{}", rhs_len);
-        ctx.assembly().add_instruction("bl", "concatenate_string");
-        ctx.assembly().add_instruction("mov", "x{},x0", lhs_orig);
-        ctx.assembly().add_instruction("add", "w{},w{},w{}", lhs_len_orig, lhs_len, rhs_len);
-        break;
-    case TokenCode::Asterisk:
-        break;
-    default:
-        return Error(ErrorCode::NotYetImplemented, format("Cannot emit operation of type {} yet", expr.op().value()));
-    }
-    return {};
-}
 
 ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM64Context& ctx)
 {
@@ -305,9 +64,9 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         // Call function:
         ctx.assembly().add_instruction("bl", call->name());
         // Add x0 to the register context
-        ctx.add_target_register();
+        ctx.add_register();
         if (call->type() == ObelixType::TypeString)
-            ctx.add_target_register();
+            ctx.add_register();
         ctx.release_register_context();
         return tree;
     }
@@ -324,258 +83,32 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             ctx.release_register_context();
         }
 
-        ctx.clear_context();
-        ctx.reserve_register(0);
-        if (native_func_call->type() == ObelixType::TypeString)
-            ctx.reserve_register(1);
         // Call the native function
         ctx.assembly().add_instruction("bl", func_decl->native_function_name());
         // Add x0 to the register context
-        ctx.add_target_register();
+        ctx.clear_context();
+        ctx.add_register();
         if (native_func_call->type() == ObelixType::TypeString)
-            ctx.add_target_register();
+            ctx.add_register();
         ctx.release_register_context();
         return tree;
     }
 
     case SyntaxNodeType::CompilerIntrinsic: {
         auto call = std::dynamic_pointer_cast<CompilerIntrinsic>(tree);
-
         ctx.new_enclosing_context();
-
-        // This is a mmap syscall
-        if (call->name() == "allocate") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            if (ctx.get_target_register() != 1)
-                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register());
-            ctx.assembly().add_instruction("mov", "x0,xzr");
-            ctx.assembly().add_instruction("mov", "w2,#3");
-            ctx.assembly().add_instruction("mov", "w3,#0x1002");
-            ctx.assembly().add_instruction("mov", "w4,#-1");
-            ctx.assembly().add_instruction("mov", "x5,xzr");
-            ctx.assembly().syscall(0xC5);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
+        for (auto& arg : call->arguments()) {
+            TRY_RETURN(output_arm64_processor(arg, ctx));
         }
-
-        if (call->name() == "close") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            if (ctx.get_target_register(0) != 0)
-                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
-            ctx.assembly().syscall(0x06);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
-        }
-
-        if (call->name() == "fputs") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
-            if (ctx.get_target_register(0) != 0)
-                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
-            if (ctx.get_target_register(1) != 1)
-                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register(1));
-            if (ctx.get_target_register(2) != 2)
-                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
-            ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
-        }
-
-        if (call->name() == "itoa") {
-            ctx.reserve_register(0);
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            ctx.assembly().add_instruction("mov", "x2,x0");
-            ctx.assembly().add_instruction("sub", "sp,sp,32");
-            ctx.assembly().add_instruction("mov", "x0,[sp,-32]!");
-            ctx.assembly().add_instruction("mov", "x1,#32");
-            ctx.assembly().add_instruction("mov", "w3,#10");
-            ctx.assembly().add_instruction("bl", "to_string");
-            ctx.assembly().add_instruction("add", "sp,sp,32");
-        }
-
-        if (call->name() == "exit") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register());
-            ctx.assembly().syscall(0x01);
-        }
-
-        if (call->name() == "eputs") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            if (ctx.get_target_register() != 1)
-                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register());
-            if (ctx.get_target_register(1) != 2)
-                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(1));
-            ctx.assembly().add_instruction("mov", "x0,#2");
-            ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
-        }
-
-        if (call->name() == "fsize") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register());
-            auto sz = sizeof(struct stat);
-            if (sz % 16)
-                sz += 16 - (sz % 16);
-            ctx.assembly().add_instruction("sub", "sp,sp,#{}", sz);
-            ctx.assembly().add_instruction("mov", "x1,sp");
-            ctx.assembly().syscall(189);
-            ctx.assembly().add_instruction("cmp", "x0,#0x00");
-            auto lbl = format("lbl_{}", Label::reserve_id());
-            ctx.assembly().add_instruction("bne", lbl);
-            ctx.assembly().add_instruction("ldr", "x{},[sp,#{}]", ctx.get_target_register(), offsetof(struct stat, st_size));
-            ctx.assembly().add_label(lbl);
-            ctx.assembly().add_instruction("add", "sp,sp,#{}", sz);
-        }
-
-        if (call->name() == "memset") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
-            TRY_RETURN(output_arm64_processor(call->arguments().at(2), ctx));
-            if (ctx.get_target_register(0) != 0)
-                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
-            if (ctx.get_target_register(1) != 1)
-                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register(1));
-            if (ctx.get_target_register(2) != 2)
-                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
-            int count_reg = ctx.temporary_register();
-            ctx.assembly().add_instruction("mov", "x{},xzr", count_reg);
-
-            auto loop = format("lbl_{}", Label::reserve_id());
-            auto skip = format("lbl_{}", Label::reserve_id());
-            ctx.assembly().add_label(loop);
-            ctx.assembly().add_instruction("cmp", "x{},x2", count_reg);
-            ctx.assembly().add_instruction("b.ge", skip);
-
-            int ptr_reg = ctx.temporary_register();
-            ctx.assembly().add_instruction("add", "x{},x0,x{}", ptr_reg, count_reg);
-            ctx.assembly().add_instruction("strb", "w1,[x{}]", ptr_reg);
-            ctx.assembly().add_instruction("add", "x{},x{},#1", count_reg, count_reg);
-            ctx.assembly().add_instruction("b", loop);
-            ctx.assembly().add_label(skip);
-            ctx.assembly().add_instruction("mov", "x{},x{}", ctx.get_target_register(), count_reg);
-        }
-
-        if (call->name() == "open") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
-            if (ctx.get_target_register(0) != 1)
-                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register());
-            if (ctx.get_target_register(2) != 2)
-                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
-            ctx.assembly().syscall(0x05);
-            if (ctx.get_target_register(0) != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
-        }
-
-        if (call->name() == "putchar") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            ctx.assembly().add_instruction("strb", "w{},[sp,-16]!", ctx.get_target_register());
-            ctx.assembly().add_instruction("mov", "x0,#1"); // x0: stdin
-            ctx.assembly().add_instruction("mov", "x1,sp"); // x1: SP
-            ctx.assembly().add_instruction("mov", "x2,#1"); // x2: Number of characters
-            ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
-            ctx.assembly().add_instruction("add", "sp,sp,16");
-        }
-
-        if (call->name() == "puts") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            if (ctx.get_target_register() != 1)
-                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register());
-            if (ctx.get_target_register(1) != 2)
-                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(1));
-            ctx.assembly().add_instruction("mov", "x0,#1");
-            ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
-        }
-
-        if (call->name() == "read") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
-            TRY_RETURN(output_arm64_processor(call->arguments().at(2), ctx));
-            if (ctx.get_target_register(0) != 0)
-                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
-            if (ctx.get_target_register(1) != 1)
-                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register(1));
-            if (ctx.get_target_register(2) != 2)
-                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
-            ctx.assembly().syscall(0x03);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
-        }
-
-        if (call->name() == "write") {
-            TRY_RETURN(output_arm64_processor(call->arguments().at(0), ctx));
-            TRY_RETURN(output_arm64_processor(call->arguments().at(1), ctx));
-            TRY_RETURN(output_arm64_processor(call->arguments().at(2), ctx));
-            if (ctx.get_target_register(0) != 0)
-                ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_target_register(0));
-            if (ctx.get_target_register(1) != 1)
-                ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_target_register(1));
-            if (ctx.get_target_register(2) != 2)
-                ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_target_register(2));
-            ctx.assembly().syscall(0x04);
-            if (ctx.get_target_register() != 0)
-                ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_target_register());
-        }
+        auto intrinsic = get_intrinsic_impl(call->name());
+        auto ret = intrinsic(ctx);
+        if (ret.is_error())
+            return ret.error();
+        ctx.clear_context();
+        ctx.add_register();
+        if (call->type() == ObelixType::TypeString)
+            ctx.add_register();
         ctx.release_register_context();
-        return tree;
-    }
-
-    case SyntaxNodeType::BinaryExpression: {
-        auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-        if (expr->lhs()->type() == ObelixType::TypeUnknown) {
-            return Error { ErrorCode::UntypedExpression, expr->lhs()->to_string(0) };
-        }
-        if (expr->rhs()->type() == ObelixType::TypeUnknown) {
-            return Error { ErrorCode::UntypedExpression, expr->rhs()->to_string(0) };
-        }
-
-        ctx.new_inherited_context();
-        ctx.new_targeted_context();
-        auto rhs = TRY_AND_CAST(Expression, output_arm64_processor(expr->rhs(), ctx));
-        ctx.release_register_context();
-
-        auto lhs = TRY_AND_CAST(Expression, output_arm64_processor(expr->lhs(), ctx));
-        if ((expr->lhs()->type() == ObelixType::TypeInt && expr->lhs()->type() == ObelixType::TypeInt) || (expr->lhs()->type() == ObelixType::TypeUnsigned && expr->lhs()->type() == ObelixType::TypeUnsigned)) {
-            TRY_RETURN(int_int_binary_expression(ctx, *expr));
-        }
-        if ((expr->lhs()->type() == ObelixType::TypeByte && expr->lhs()->type() == ObelixType::TypeByte) || (expr->lhs()->type() == ObelixType::TypeChar && expr->lhs()->type() == ObelixType::TypeChar)) {
-            TRY_RETURN(byte_byte_binary_expression(ctx, *expr));
-        }
-        if (expr->lhs()->type() == ObelixType::TypeBoolean && expr->lhs()->type() == ObelixType::TypeBoolean) {
-            TRY_RETURN(bool_bool_binary_expression(ctx, *expr));
-        }
-        if (expr->lhs()->type() == ObelixType::TypeString) {
-            TRY_RETURN(string_binary_expression(ctx, *expr));
-        }
-        ctx.clear_rhs();
-        ctx.release_register_context();
-        return tree;
-    }
-
-    case SyntaxNodeType::UnaryExpression: {
-        auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
-        auto operand = TRY_AND_CAST(Expression, output_arm64_processor(expr->operand(), ctx));
-
-        if (operand->type() == ObelixType::TypeUnknown) {
-            return Error { ErrorCode::UntypedExpression, operand->to_string(0) };
-        }
-
-        if (operand->type() == ObelixType::TypeInt || operand->type() == ObelixType::TypeUnsigned) {
-            TRY_RETURN(int_unary_expression(ctx, *expr));
-        }
-        if (operand->type() == ObelixType::TypeByte || operand->type() == ObelixType::TypeChar) {
-            TRY_RETURN(byte_unary_expression(ctx, *expr));
-        }
-        if (operand->type() == ObelixType::TypeBoolean) {
-            TRY_RETURN(bool_unary_expression(ctx, *expr));
-        }
         return tree;
     }
 
@@ -588,19 +121,19 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
         case ObelixType::TypeUnsigned: {
-            ctx.assembly().add_instruction("mov", "x{},#{}", ctx.add_target_register(), val->to_long().value());
+            ctx.assembly().add_instruction("mov", "x{},#{}", ctx.add_register(), val->to_long().value());
             break;
         }
         case ObelixType::TypeChar:
         case ObelixType::TypeByte:
         case ObelixType::TypeBoolean: {
-            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_target_register(), static_cast<uint8_t>(val->to_long().value()));
+            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_register(), static_cast<uint8_t>(val->to_long().value()));
             break;
         }
         case ObelixType::TypeString: {
             auto str_id = ctx.assembly().add_string(val->to_string());
-            ctx.assembly().add_instruction("adr", "x{},str_{}", ctx.add_target_register(), str_id);
-            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_target_register(), val->to_string().length());
+            ctx.assembly().add_instruction("adr", "x{},str_{}", ctx.add_register(), str_id);
+            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_register(), val->to_string().length());
             break;
         }
         default:
@@ -619,21 +152,21 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         switch (identifier->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
-            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_target_register(), idx);
+            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_register(), idx);
             break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", ctx.add_target_register(), idx);
+            ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", ctx.add_register(), idx);
             break;
         case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", ctx.add_target_register(), idx);
+            ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", ctx.add_register(), idx);
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", ctx.add_target_register(), idx);
+            ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", ctx.add_register(), idx);
             break;
         case ObelixType::TypeString: {
-            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_target_register(), idx);
-            auto reg = ctx.add_target_register();
+            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_register(), idx);
+            auto reg = ctx.add_register();
             ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", reg, idx + 8);
             break;
         }
@@ -656,21 +189,21 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         switch (assignment->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(), idx);
+            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
             break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(), idx);
+            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
             break;
         case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("strbs", "x{},[fp,#{}]", ctx.get_target_register(), idx);
+            ctx.assembly().add_instruction("strbs", "x{},[fp,#{}]", ctx.get_register(), idx);
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("strb", "x{},[fp,#{}]", ctx.get_target_register(), idx);
+            ctx.assembly().add_instruction("strb", "x{},[fp,#{}]", ctx.get_register(), idx);
             break;
         case ObelixType::TypeString: {
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(), idx);
-            auto reg = ctx.get_target_register(1);
+            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
+            auto reg = ctx.get_register(1);
             ctx.assembly().add_instruction("strw", "w{},[fp,#{}]", reg, idx + 8);
         }
         default:
@@ -689,10 +222,10 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         if (var_decl->expression() != nullptr) {
             TRY_RETURN(output_arm64_processor(var_decl->expression(), ctx));
         } else {
-            auto reg = ctx.add_target_register();
+            auto reg = ctx.add_register();
             switch (var_decl->expression()->type()) {
             case ObelixType::TypeString: {
-                ctx.assembly().add_instruction("mov", "w{},wzr", ctx.add_target_register());
+                ctx.assembly().add_instruction("mov", "w{},wzr", ctx.add_register());
             } // fall through
             case ObelixType::TypePointer:
             case ObelixType::TypeInt:
@@ -706,9 +239,9 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
                 return Error { ErrorCode::NotYetImplemented, format("Cannot initialize variables of type {} yet", var_decl->expression()->type()) };
             }
         }
-        ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(0), var_decl->offset());
+        ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(0), var_decl->offset());
         if (var_decl->type() == ObelixType::TypeString) {
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_target_register(1), var_decl->offset() + 8);
+            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(1), var_decl->offset() + 8);
         }
         ctx.release_register_context();
         return tree;
@@ -767,7 +300,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
                 ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string(0)));
                 ctx.new_targeted_context();
                 auto cond = TRY_AND_CAST(Expression, output_arm64_processor(branch->condition(), ctx));
-                ctx.assembly().add_instruction("cmp", "w{},0x00", ctx.get_target_register());
+                ctx.assembly().add_instruction("cmp", "w{},0x00", ctx.get_register());
                 ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
             } else {
                 debug(parser, "else");
@@ -845,9 +378,88 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
 
     case SyntaxNodeType::FunctionCall: {
         auto call = std::dynamic_pointer_cast<FunctionCall>(tree);
+        auto arguments = TRY(xform_expressions(call->arguments(), ctx, prepare_arm64_processor));
+        call = make_node<FunctionCall>(call->function(), arguments);
         if (is_intrinsic(call->name()))
             return std::make_shared<CompilerIntrinsic>(call);
-        return tree;
+        return call;
+    }
+
+    case SyntaxNodeType::UnaryExpression: {
+        auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
+        auto operand = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->operand(), ctx));
+        std::string func_name;
+        switch (expr->op().code()) {
+        case TokenCode::Plus:
+            return expr->operand();
+        case TokenCode::Minus:
+            func_name = "negate";
+            break;
+        case TokenCode::Tilde:
+            func_name = "invert";
+            break;
+        case TokenCode::ExclamationPoint:
+            func_name = "linvert";
+            break;
+        default:
+            return Error { ErrorCode::InternalError, format("Invalid unary operator '{}'", expr->op()) };
+        }
+        func_name = format("{}_{}", func_name, operand->type());
+        auto call = std::make_shared<FunctionCall>(Symbol { func_name, expr->type() }, Expressions { operand });
+        return std::make_shared<CompilerIntrinsic>(call);
+    }
+
+    case SyntaxNodeType::BinaryExpression: {
+        auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
+        auto lhs = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->lhs(), ctx));
+        auto rhs = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->rhs(), ctx));
+        std::string func_name;
+        switch (expr->op().code()) {
+        case TokenCode::Plus:
+            func_name = "add";
+            break;
+        case TokenCode::Minus:
+            func_name = "subtract";
+            break;
+        case TokenCode::Asterisk:
+            func_name = "multiply";
+            break;
+        case TokenCode::Slash:
+            func_name = "divide";
+            break;
+        case TokenCode::Percent:
+            func_name = "modulo";
+            break;
+        case TokenCode::Pipe:
+            func_name = "or";
+            break;
+        case TokenCode::Ampersand:
+            func_name = "and";
+            break;
+        case TokenCode::LogicalOr:
+            func_name = "lor";
+            break;
+        case TokenCode::LogicalAnd:
+            func_name = "land";
+            break;
+        case TokenCode::Hat:
+            func_name = "xor";
+            break;
+        case TokenCode::EqualsTo:
+            func_name = "equals";
+            break;
+        case TokenCode::GreaterThan:
+            func_name = "greater";
+            break;
+        case TokenCode::LessThan:
+            func_name = "less";
+            break;
+        default:
+            return Error { ErrorCode::InternalError, format("Invalid binary operator '{}'", expr->op()) };
+        }
+        func_name = format("{}_{}_{}", func_name, lhs->type(), rhs->type());
+        auto call = std::make_shared<FunctionCall>(Symbol { func_name, expr->type() }, Expressions { lhs, rhs });
+        return std::make_shared<CompilerIntrinsic>(call);
     }
 
     default:

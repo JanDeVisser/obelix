@@ -17,5 +17,7 @@
  * along with obelix.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-func putint(i : int) : int -> "putint";
-func puthex(i : int) : int -> "puthex";
+func memset(buffer: ptr, ch : int, len: int) : ptr -> "memset";
+func memcpy(dst: ptr, src: ptr, len: int) : ptr -> "memcpy";
+func putint(i: int) : int -> "putint";
+func puthex(i: int) : int -> "puthex";

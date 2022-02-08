@@ -141,16 +141,15 @@ struct RegisterContext {
     }
 
     RegisterContextType type { RegisterContextType::Temporary };
-    std::bitset<19> targeted { 0x0 };
-    std::bitset<19> rhs_targeted { 0x0 };
+    std::bitset<19> assigned { 0x0 };
     std::bitset<19> temporary_registers { 0x0 };
     std::bitset<19> reserved_registers { 0x0 };
     std::bitset<19> m_saved_available_registers { 0x0 };
 
     [[nodiscard]] std::string to_string() const
     {
-        return format("{9s} lhs: {} rhs: {} res: {} temp: {}", RegisterContextType_name(type),
-            targeted, rhs_targeted, reserved_registers, temporary_registers);
+        return format("{9s} assigned: {} res: {} temp: {}", RegisterContextType_name(type),
+            assigned, reserved_registers, temporary_registers);
     }
 };
 
@@ -176,11 +175,8 @@ public:
     void release_register_context();
 
     void release_all();
-    [[nodiscard]] size_t get_target_count() const;
-    int get_target_register(size_t ix = 0, int level = 0);
-    [[nodiscard]] size_t get_rhs_count() const;
-    int get_rhs_register(size_t ix = 0);
-    int add_target_register(int level = 0);
+    int get_register(size_t ix = 0, int level = 0);
+    int add_register(int level = 0);
     int temporary_register();
 
     template<typename... Ints>
@@ -199,8 +195,6 @@ public:
     {
     }
 
-    void clear_targeted();
-    void clear_rhs();
     void clear_context();
     void enter_function(std::shared_ptr<MaterializedFunctionDef> const& func) const;
     void function_return() const;
@@ -259,8 +253,8 @@ template<typename T = long>
 static inline void push_imm(ARM64Context& ctx, T value)
 {
     ctx.new_temporary_context();
-    ctx.assembly().add_instruction("mov", "x{},{}", ctx.get_target_register(), value);
-    push(ctx, format("x{}", ctx.get_target_register()));
+    ctx.assembly().add_instruction("mov", "x{},{}", ctx.get_register(), value);
+    push(ctx, format("x{}", ctx.get_register()));
     ctx.release_register_context();
 }
 
@@ -268,8 +262,8 @@ template<>
 [[maybe_unused]] void push_imm(ARM64Context& ctx, uint8_t value)
 {
     ctx.new_temporary_context();
-    ctx.assembly().add_instruction("movb", "w{},{}", ctx.get_target_register(), value);
-    push<uint8_t>(ctx, format("w{}", ctx.get_target_register()));
+    ctx.assembly().add_instruction("movb", "w{},{}", ctx.get_register(), value);
+    push<uint8_t>(ctx, format("w{}", ctx.get_register()));
     ctx.release_register_context();
 }
 
@@ -281,8 +275,8 @@ static inline ErrorOr<void> push_var(ARM64Context& ctx, std::string const& name)
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
     ctx.new_temporary_context();
-    ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.get_target_register(), idx);
-    push<T>(ctx, format("x{}", ctx.get_target_register()));
+    ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.get_register(), idx);
+    push<T>(ctx, format("x{}", ctx.get_register()));
     ctx.release_register_context();
     return {};
 }
@@ -295,8 +289,8 @@ template<>
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
     ctx.new_temporary_context();
-    ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", ctx.get_target_register(), idx);
-    push<uint8_t>(ctx, format("w{}", ctx.get_target_register()));
+    ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", ctx.get_register(), idx);
+    push<uint8_t>(ctx, format("w{}", ctx.get_register()));
     ctx.release_register_context();
     return {};
 }
@@ -309,8 +303,8 @@ static inline ErrorOr<void> pop_var(ARM64Context& ctx, std::string const& name)
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
     ctx.new_temporary_context();
-    pop<T>(ctx, format("x{}", ctx.get_target_register()));
-    ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.get_target_register(), idx);
+    pop<T>(ctx, format("x{}", ctx.get_register()));
+    ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.get_register(), idx);
     ctx.release_register_context();
     return {};
 }
@@ -323,8 +317,8 @@ template<>
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", name) };
     auto idx = idx_maybe.value();
     ctx.new_temporary_context();
-    pop<uint8_t>(ctx, format("w{}", ctx.get_target_register()));
-    ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", ctx.get_target_register(), idx);
+    pop<uint8_t>(ctx, format("w{}", ctx.get_register()));
+    ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", ctx.get_register(), idx);
     ctx.release_register_context();
     return {};
 }

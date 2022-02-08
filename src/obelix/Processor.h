@@ -29,17 +29,6 @@ extern_logging_category(parser);
 template<typename Context, typename Processor>
 ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Processor& processor)
 {
-    auto xform_expressions = [processor](Expressions const& expressions, Context& ctx) -> ErrorOr<Expressions> {
-        Expressions ret;
-        for (auto& expr : expressions) {
-            auto new_expr = processor(expr, ctx);
-            if (new_expr.is_error())
-                return new_expr.error();
-            ret.push_back(std::dynamic_pointer_cast<Expression>(new_expr.value()));
-        }
-        return ret;
-    };
-
     if (!tree)
         return tree;
 
@@ -128,7 +117,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::FunctionCall: {
         auto func_call = std::dynamic_pointer_cast<FunctionCall>(tree);
-        auto arguments = TRY(xform_expressions(func_call->arguments(), ctx));
+        auto arguments = TRY(xform_expressions(func_call->arguments(), ctx, processor));
         ret = std::make_shared<FunctionCall>(func_call->function(), arguments);
         break;
     }
@@ -240,6 +229,19 @@ ErrorOrNode process_branch(std::shared_ptr<SyntaxNode> const& tree, Context& ctx
     auto statement = TRY_AND_CAST(Statement, processor(branch->statement(), ctx));
     return std::make_shared<BranchClass>(condition, statement, std::forward<Args>(args)...);
 }
+
+template<typename Context, typename Processor>
+ErrorOr<Expressions> xform_expressions(Expressions const& expressions, Context& ctx, Processor processor)
+{
+    Expressions ret;
+    for (auto& expr : expressions) {
+        auto new_expr = processor(expr, ctx);
+        if (new_expr.is_error())
+            return new_expr.error();
+        ret.push_back(std::dynamic_pointer_cast<Expression>(new_expr.value()));
+    }
+    return ret;
+};
 
 ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const&);
