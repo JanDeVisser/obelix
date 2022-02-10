@@ -100,8 +100,10 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         for (auto& arg : call->arguments()) {
             TRY_RETURN(output_arm64_processor(arg, ctx));
         }
-        auto intrinsic = get_intrinsic_impl(call->name());
-        auto ret = intrinsic(ctx);
+        ARM64Implementation impl = Intrinsics::get_arm64_implementation(Signature { call->name(), call->type(), call->argument_types() });
+        if (!impl)
+            return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string(0)) };
+        auto ret = impl(ctx);
         if (ret.is_error())
             return ret.error();
         ctx.clear_context();
@@ -346,18 +348,27 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         }
 
         auto materialized_function_decl = std::make_shared<MaterializedFunctionDecl>(func_decl->identifier(), function_parameters);
-        if (func_decl->node_type() == SyntaxNodeType::NativeFunctionDecl) {
+        switch (func_decl->node_type()) {
+        case SyntaxNodeType::NativeFunctionDecl: {
             auto native_decl = std::dynamic_pointer_cast<NativeFunctionDecl>(func_decl);
             materialized_function_decl = std::make_shared<MaterializedNativeFunctionDecl>(materialized_function_decl, native_decl->native_function_name());
+            return std::make_shared<MaterializedFunctionDef>(materialized_function_decl, nullptr, 0);
         }
-
-        func_ctx.declare("#offset", offset);
-        std::shared_ptr<Block> block;
-        if (func_def->statement()) {
+        case SyntaxNodeType::IntrinsicDecl: {
+            auto intrinsic_decl = std::dynamic_pointer_cast<IntrinsicDecl>(func_decl);
+            materialized_function_decl = std::make_shared<MaterializedIntrinsicDecl>(materialized_function_decl);
+            return std::make_shared<MaterializedFunctionDef>(materialized_function_decl, nullptr, 0);
+        }
+        case SyntaxNodeType::FunctionDecl: {
+            func_ctx.declare("#offset", offset);
+            std::shared_ptr<Block> block;
             assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
             block = TRY_AND_CAST(FunctionBlock, prepare_arm64_processor(func_def->statement(), func_ctx));
+            return std::make_shared<MaterializedFunctionDef>(materialized_function_decl, block, func_ctx.get("#offset").value());
         }
-        return std::make_shared<MaterializedFunctionDef>(materialized_function_decl, block, func_ctx.get("#offset").value());
+        default:
+            fatal("Unreachable");
+        }
     }
 
     case SyntaxNodeType::VariableDeclaration: {
@@ -380,7 +391,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto call = std::dynamic_pointer_cast<FunctionCall>(tree);
         auto arguments = TRY(xform_expressions(call->arguments(), ctx, prepare_arm64_processor));
         call = make_node<FunctionCall>(call->function(), arguments);
-        if (is_intrinsic(call->name()))
+        if (Intrinsics::is_intrinsic(call))
             return std::make_shared<CompilerIntrinsic>(call);
         return call;
     }
@@ -388,24 +399,9 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
     case SyntaxNodeType::UnaryExpression: {
         auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
         auto operand = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->operand(), ctx));
-        std::string func_name;
-        switch (expr->op().code()) {
-        case TokenCode::Plus:
-            return expr->operand();
-        case TokenCode::Minus:
-            func_name = "negate";
-            break;
-        case TokenCode::Tilde:
-            func_name = "invert";
-            break;
-        case TokenCode::ExclamationPoint:
-            func_name = "linvert";
-            break;
-        default:
-            return Error { ErrorCode::InternalError, format("Invalid unary operator '{}'", expr->op()) };
-        }
-        func_name = format("{}_{}", func_name, operand->type());
-        auto call = std::make_shared<FunctionCall>(Symbol { func_name, expr->type() }, Expressions { operand });
+        auto call = std::make_shared<FunctionCall>(Symbol { expr->op().code_name(), expr->type() }, Expressions { operand });
+        if (!Intrinsics::is_intrinsic(Signature { expr->op().code_name(), expr->type(), { operand->type() } }))
+            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string(0)) };
         return std::make_shared<CompilerIntrinsic>(call);
     }
 
@@ -413,52 +409,9 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
         auto lhs = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->lhs(), ctx));
         auto rhs = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->rhs(), ctx));
-        std::string func_name;
-        switch (expr->op().code()) {
-        case TokenCode::Plus:
-            func_name = "add";
-            break;
-        case TokenCode::Minus:
-            func_name = "subtract";
-            break;
-        case TokenCode::Asterisk:
-            func_name = "multiply";
-            break;
-        case TokenCode::Slash:
-            func_name = "divide";
-            break;
-        case TokenCode::Percent:
-            func_name = "modulo";
-            break;
-        case TokenCode::Pipe:
-            func_name = "or";
-            break;
-        case TokenCode::Ampersand:
-            func_name = "and";
-            break;
-        case TokenCode::LogicalOr:
-            func_name = "lor";
-            break;
-        case TokenCode::LogicalAnd:
-            func_name = "land";
-            break;
-        case TokenCode::Hat:
-            func_name = "xor";
-            break;
-        case TokenCode::EqualsTo:
-            func_name = "equals";
-            break;
-        case TokenCode::GreaterThan:
-            func_name = "greater";
-            break;
-        case TokenCode::LessThan:
-            func_name = "less";
-            break;
-        default:
-            return Error { ErrorCode::InternalError, format("Invalid binary operator '{}'", expr->op()) };
-        }
-        func_name = format("{}_{}_{}", func_name, lhs->type(), rhs->type());
-        auto call = std::make_shared<FunctionCall>(Symbol { func_name, expr->type() }, Expressions { lhs, rhs });
+        auto call = std::make_shared<FunctionCall>(Symbol { TokenCode_to_string(expr->op().code()), expr->type() }, Expressions { lhs, rhs });
+        if (!Intrinsics::is_intrinsic(Signature { TokenCode_to_string(expr->op().code()), expr->type(), { lhs->type(), rhs->type() } }))
+            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string(0)) };
         return std::make_shared<CompilerIntrinsic>(call);
     }
 

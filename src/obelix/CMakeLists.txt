@@ -6,9 +6,12 @@ if(READLINE_FOUND)
     set(INCLUDES ${INCLUDES} ${READLINE_INCLUDE_DIRS})
 endif(READLINE_FOUND)
 
-add_library(
-        oblparser
-        STATIC
+add_executable(
+        obelix
+        main.cpp
+        ARM64.cpp
+        ARM64Context.cpp
+        ARM64Intrinsics.cpp
         BindTypes.cpp
         #BoundFunction.cpp
         #Execute.cpp
@@ -16,33 +19,21 @@ add_library(
         Functions.cpp
         Intrinsics.cpp
         Lower.cpp
+        OutputJV80.cpp
         Parser.cpp
         Syntax.cpp
         Symbol.h
-        Context.h)
-
-target_link_libraries(
-        oblparser
-        obllexer
+        Context.h
 )
-
-add_executable(
-        obelix
-        main.cpp
-        ARM64.cpp
-        ARM64Context.cpp
-        ARM64Intrinsics.cpp
-        OutputJV80.cpp)
 
 target_link_libraries(
         obelix
         oblcpu
         oblasm
-        oblparser
         ${LIBS}
 )
 
-install(TARGETS oblparser obelix
+install(TARGETS obelix
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib)

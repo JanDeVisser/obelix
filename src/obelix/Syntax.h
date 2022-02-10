@@ -42,6 +42,7 @@ extern_logging_category(parser);
     S(Goto)                           \
     S(FunctionDecl)                   \
     S(NativeFunctionDecl)             \
+    S(IntrinsicDecl)                  \
     S(FunctionDef)                    \
     S(ExpressionStatement)            \
     S(VariableDeclaration)            \
@@ -60,6 +61,7 @@ extern_logging_category(parser);
     S(MaterializedFunctionDef)        \
     S(MaterializedVariableDecl)       \
     S(MaterializedNativeFunctionDecl) \
+    S(MaterializedIntrinsicDecl)      \
     S(StatementExecutionResult)
 
 enum class SyntaxNodeType {
@@ -346,6 +348,15 @@ public:
     [[nodiscard]] std::string const& name() const { return identifier().identifier(); }
     [[nodiscard]] ObelixType type() const { return identifier().type(); }
     [[nodiscard]] Symbols const& parameters() const { return m_parameters; }
+    [[nodiscard]] ObelixTypes parameter_types() const
+    {
+        ObelixTypes ret;
+        for (auto& parameter : m_parameters) {
+            ret.push_back(parameter.type());
+        }
+        return ret;
+    }
+
     [[nodiscard]] std::string to_string(int indent) const override
     {
         return format("{}func {}({}) : {}",
@@ -396,6 +407,15 @@ public:
 
 private:
     std::string m_native_function_name;
+};
+
+class IntrinsicDecl : public FunctionDecl {
+public:
+    explicit IntrinsicDecl(Symbol identifier, Symbols parameters)
+        : FunctionDecl(std::move(identifier), move(parameters))
+    {
+    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IntrinsicDecl; }
 };
 
 class FunctionDef : public Statement {
@@ -664,6 +684,14 @@ public:
     [[nodiscard]] Symbol const& function() const { return m_function; }
     [[nodiscard]] std::string const& name() const { return m_function.identifier(); }
     [[nodiscard]] Expressions const& arguments() const { return m_arguments; }
+    [[nodiscard]] ObelixTypes argument_types() const
+    {
+        ObelixTypes ret;
+        for (auto& arg : arguments()) {
+            ret.push_back(arg->type());
+        }
+        return ret;
+    }
 
 private:
     [[nodiscard]] std::string arguments_to_string() const
@@ -1078,6 +1106,16 @@ public:
 
 private:
     std::string m_native_function_name;
+};
+
+class MaterializedIntrinsicDecl : public MaterializedFunctionDecl {
+public:
+    explicit MaterializedIntrinsicDecl(std::shared_ptr<MaterializedFunctionDecl> const& func_decl)
+        : MaterializedFunctionDecl(func_decl->identifier(), func_decl->parameters())
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedIntrinsicDecl; }
 };
 
 class MaterializedFunctionDef : public Statement {

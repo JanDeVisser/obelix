@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
 #include <obelix/Syntax.h>
 
@@ -72,6 +73,7 @@ void Parser::initialize()
         Token(KeywordBool, "bool"),
         Token(KeywordString, "string"),
         Token(KeywordPointer, "ptr"),
+        Token(KeywordIntrinsic, "intrinsic"),
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
         TokenCode::EqualsTo,
@@ -157,6 +159,9 @@ std::shared_ptr<Statement> Parser::parse_statement()
     case KeywordFunc:
         lex();
         return parse_function_definition();
+    case KeywordIntrinsic:
+        lex();
+        return parse_intrinsic_definition();
     case KeywordReturn: {
         lex();
         auto expr = parse_expression();
@@ -305,6 +310,65 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
     if (stmt == nullptr)
         return nullptr;
     return make_node<FunctionDef>(func_decl, stmt);
+}
+
+std::shared_ptr<FunctionDef> Parser::parse_intrinsic_definition()
+{
+    auto name_maybe = match(TokenCode::Identifier);
+    if (!name_maybe.has_value()) {
+        add_error(peek(), "Syntax Error: expecting variable name after the 'intrinsic' keyword, got '{}'");
+        return nullptr;
+    }
+    if (!expect(TokenCode::OpenParen, "after intrinsic name in definition")) {
+        return nullptr;
+    }
+    Symbols params {};
+    auto done = current_code() == TokenCode::CloseParen;
+    while (!done) {
+        auto param_name_maybe = match(TokenCode::Identifier);
+        if (!param_name_maybe.has_value()) {
+            add_error(peek(), "Syntax Error: Expected parameter name, got '{}'");
+            return nullptr;
+        }
+        if (!expect(TokenCode::Colon))
+            return nullptr;
+
+        auto param_type_maybe = parse_type();
+        if (!param_type_maybe.has_value()) {
+            add_error(peek(), format("Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value(), peek().value()));
+            return nullptr;
+        }
+
+        params.emplace_back(param_name_maybe.value().value(), param_type_maybe.value());
+        switch (current_code()) {
+        case TokenCode::Comma:
+            lex();
+            break;
+        case TokenCode::CloseParen:
+            done = true;
+            break;
+        default:
+            add_error(peek(), format("Syntax Error: Expected ',' or ')' in function parameter list, got '{}'", peek().value()));
+            return nullptr;
+        }
+    }
+    lex(); // Eat the closing paren
+
+    if (!expect(TokenCode::Colon))
+        return nullptr;
+
+    auto type_maybe = parse_type();
+    if (!type_maybe.has_value()) {
+        add_error(peek(), format("Syntax Error: Expected return type name, got '{}'", peek().value()));
+        return nullptr;
+    }
+
+    auto func_decl = make_node<IntrinsicDecl>(Symbol { name_maybe.value().value(), type_maybe.value() }, params);
+    if (!Intrinsics::is_intrinsic(Signature { func_decl->name(), func_decl->type(), func_decl->parameter_types() })) {
+        add_error(peek(), format("Syntax Error: function '{}' is declared 'intrinsic' but isn't registered as an intrinsic", func_decl->name()));
+    }
+    expect(TokenCode::SemiColon);
+    return make_node<FunctionDef>(func_decl);
 }
 
 std::shared_ptr<IfStatement> Parser::parse_if_statement()

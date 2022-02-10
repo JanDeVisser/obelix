@@ -56,7 +56,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         }
         ctx.declare(decl->identifier().identifier(), decl);
         debug(parser, "FunctionDecl: {}", decl->to_string(0));
-        if (decl->node_type() == SyntaxNodeType::NativeFunctionDecl)
+        if (decl->node_type() != SyntaxNodeType::FunctionDecl)
             return tree;
 
         BindContext func_ctx(ctx);
@@ -136,14 +136,17 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 
     case SyntaxNodeType::FunctionCall: {
         auto func_call = std::dynamic_pointer_cast<FunctionCall>(tree);
-        auto func_decl = get_intrinsic(func_call->name());
-        if (!func_decl) {
+        std::shared_ptr<FunctionDecl> func_decl;
+        if (!Intrinsics::is_intrinsic(func_call)) {
             auto type_decl_maybe = ctx.get(func_call->name());
             if (!type_decl_maybe.has_value())
                 return Error { ErrorCode::UntypedFunction, func_call->name() };
             if (type_decl_maybe.value()->node_type() == SyntaxNodeType::VariableDeclaration)
                 return Error { ErrorCode::SyntaxError, format("Variable {} cannot be called", func_call->name()) };
             func_decl = std::dynamic_pointer_cast<FunctionDecl>(type_decl_maybe.value());
+        } else {
+            auto intrinsic = Intrinsics::get_intrinsic(func_call);
+            func_decl = intrinsic.declaration;
         }
         if (func_call->arguments().size() != func_decl->parameters().size())
             return Error { ErrorCode::ArgumentCountMismatch, func_call->name(), func_call->arguments().size() };

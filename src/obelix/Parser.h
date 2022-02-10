@@ -54,6 +54,7 @@ public:
     constexpr static TokenCode KeywordBool = TokenCode::Keyword25;
     constexpr static TokenCode KeywordString = TokenCode::Keyword26;
     constexpr static TokenCode KeywordPointer = TokenCode::Keyword27;
+    constexpr static TokenCode KeywordIntrinsic = TokenCode::Keyword28;
 
     Parser(Config const& parser_config, StringBuffer& src);
     Parser(Config const& parser_config, std::string const& file_name);
@@ -80,6 +81,7 @@ private:
     std::shared_ptr<Block> parse_block(Statements&);
     std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression> const&);
     std::shared_ptr<FunctionDef> parse_function_definition();
+    std::shared_ptr<FunctionDef> parse_intrinsic_definition();
     std::shared_ptr<IfStatement> parse_if_statement();
     std::shared_ptr<SwitchStatement> parse_switch_statement();
     std::shared_ptr<WhileStatement> parse_while_statement();

@@ -10,13 +10,14 @@
 #include <string>
 #include <unordered_map>
 
+#include <obelix/Intrinsics.h>
 #include <obelix/ARM64Context.h>
 
 namespace Obelix {
 
-using Intrinsic = std::function<ErrorOr<void>(ARM64Context&)>;
-
-auto register_instrinsic_impl(std::string const& name, Intrinsic function);
-Intrinsic get_intrinsic_impl(std::string const& name);
+#undef INTRINSIC_SIGNATURE
+#define INTRINSIC_SIGNATURE(sig) ErrorOr<void> arm64_##sig(ARM64Context&);
+INTRINSIC_SIGNATURE_ENUM(INTRINSIC_SIGNATURE)
+#undef INTRINSIC_SIGNATURE
 
 }
