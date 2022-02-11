@@ -140,14 +140,16 @@ INTRINSIC(to_string)
     if (ctx.get_register(0) != 2)
         ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_register(0));
     ctx.assembly().add_instruction("sub", "sp,sp,32");
-    ctx.assembly().add_instruction("mov", "x0,[sp,-32]!");
+    ctx.assembly().add_instruction("mov", "x0,sp");
     ctx.assembly().add_instruction("mov", "x1,#32");
     ctx.assembly().add_instruction("mov", "w3,#10");
     ctx.assembly().add_instruction("bl", "to_string");
+    ctx.assembly().add_instruction("bl", "string_alloc");
     if (ctx.get_register() != 0)
         ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_register());
     if (ctx.get_register(1) != 1)
         ctx.assembly().add_instruction("mov", "x{},x1", ctx.get_register(1));
+    ctx.assembly().add_instruction("add", "sp,sp,32");
     return {};
 }
 
