@@ -20,16 +20,11 @@ class FunctionCall;
 
 #define INTRINSIC_SIGNATURE_ENUM(S) \
     S(sig_allocate)                 \
-    S(sig_exit)                     \
-    S(sig_close)                    \
     S(sig_eputs)                    \
     S(sig_fputs)                    \
     S(sig_fsize)                    \
-    S(sig_open)                     \
     S(sig_putchar)                  \
     S(sig_puts)                     \
-    S(sig_read)                     \
-    S(sig_write)                    \
     S(sig_to_string)                \
     S(sig_add_int_int)              \
     S(sig_subtract_int_int)         \

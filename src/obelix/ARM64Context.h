@@ -73,7 +73,7 @@ public:
 
     void syscall(int id)
     {
-        add_instruction("mov", format("x16, #{}", id));
+        add_instruction("mov", format("x16,#{}", id));
         add_instruction("svc", "#0x00");
     }
 

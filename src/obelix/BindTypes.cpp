@@ -39,7 +39,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             return Error { ErrorCode::UntypedVariable, var_decl->name() };
         }
 
-        auto ret = std::make_shared<VariableDeclaration>(var_decl->name(), t, expr);
+        auto ret = std::make_shared<VariableDeclaration>(var_decl->name(), t, expr, var_decl->is_const());
         ctx.declare(var_decl->name(), ret);
         debug(parser, "VariableDeclaration: {}", ret->to_string(0));
         return ret;
@@ -83,7 +83,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         assert(lhs_type.has_value());
         auto return_type = lhs_type.value()->return_type_of(expr->op().value(), arg_types);
         if (return_type == ObelixType::TypeUnknown)
-            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string(0) };
+            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
         if (expr->op().code() == TokenCode::Equals || Parser::is_assignment_operator(expr->op().code())) {
             if (lhs->node_type() != SyntaxNodeType::Identifier)
                 return Error { ErrorCode::CannotAssignToRValue, lhs->to_string() };
@@ -100,7 +100,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
                 return Error { ErrorCode::TypeMismatch, rhs->to_string(), var_decl->type(), rhs->type() };
         }
         auto ret = std::make_shared<BinaryExpression>(lhs, expr->op(), rhs, return_type);
-        debug(parser, "BinaryExpression: {}", ret->to_string(0));
+        debug(parser, "BinaryExpression: {}", ret->to_string());
         return ret;
     }
 
@@ -115,9 +115,9 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         assert(operand_type.has_value());
         auto return_type = operand_type.value()->return_type_of(expr->op().value(), std::vector<ObelixType>());
         if (return_type == ObelixType::TypeUnknown)
-            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string(0) };
+            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
         auto ret = std::make_shared<UnaryExpression>(expr->op(), operand, return_type);
-        debug(parser, "UnaryExpression: {}", ret->to_string(0));
+        debug(parser, "UnaryExpression: {}", ret->to_string());
         return ret;
     }
 
@@ -130,7 +130,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             return Error { ErrorCode::SyntaxError, format("Function {} cannot be referenced as a variable", ident->name()) };
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(type_decl_maybe.value());
         auto ret = std::make_shared<Identifier>(Symbol { ident->name(), var_decl->type() });
-        debug(parser, "Identifier: {}", ret->to_string(0));
+        debug(parser, "Identifier: {}", ret->to_string());
         return ret;
     }
 
@@ -166,7 +166,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         if (func_decl->node_type() == SyntaxNodeType::NativeFunctionDecl) {
             ret = std::make_shared<NativeFunctionCall>(std::dynamic_pointer_cast<NativeFunctionDecl>(func_decl), ret);
         }
-        debug(parser, "FunctionCall: {}", ret->to_string(0));
+        debug(parser, "FunctionCall: {}", ret->to_string());
         return ret;
     }
 

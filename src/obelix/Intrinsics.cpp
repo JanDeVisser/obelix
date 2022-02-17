@@ -71,17 +71,12 @@ void Intrinsics::initialize()
     if (s_intrinsics.empty()) {
         s_intrinsics.resize(sig_intrinsic_count);
         s_intrinsics[sig_allocate] = Intrinsic(Signature { "allocate", TypePointer, { TypeInt } });
-        s_intrinsics[sig_exit] = Intrinsic(Signature { "exit", TypeInt, { TypeInt } });
 
-        s_intrinsics[sig_close] = Intrinsic(Signature { "close", TypeInt, { TypeInt } });
         s_intrinsics[sig_eputs] = Intrinsic(Signature { "eputs", TypeInt, { TypeString } });
         s_intrinsics[sig_fputs] = Intrinsic(Signature { "fputs", TypeInt, { TypeInt, TypeString } });
         s_intrinsics[sig_fsize] = Intrinsic(Signature { "fsize", TypeInt, { TypeInt } });
-        s_intrinsics[sig_open] = Intrinsic(Signature { "open", TypeInt, { TypeString, TypeInt } });
         s_intrinsics[sig_putchar] = Intrinsic(Signature { "putchar", TypeInt, { TypeInt } });
         s_intrinsics[sig_puts] = Intrinsic(Signature { "puts", TypeInt, { TypeString } });
-        s_intrinsics[sig_read] = Intrinsic(Signature { "read", TypeInt, { TypeInt, TypePointer, TypeInt } });
-        s_intrinsics[sig_write] = Intrinsic(Signature { "write", TypeInt, { TypeInt, TypePointer, TypeInt } });
 
         s_intrinsics[sig_to_string] = Intrinsic(Signature { "to_string", TypeString, { TypeInt } });
 

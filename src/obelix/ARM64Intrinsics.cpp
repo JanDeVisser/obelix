@@ -71,16 +71,6 @@ INTRINSIC(allocate)
     return {};
 }
 
-INTRINSIC(close)
-{
-    if (ctx.get_register(0) != 0)
-        ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_register(0));
-    ctx.assembly().syscall(0x06);
-    if (ctx.get_register() != 0)
-        ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_register());
-    return {};
-}
-
 INTRINSIC(eputs)
 {
     if (ctx.get_register() != 1)
@@ -91,14 +81,6 @@ INTRINSIC(eputs)
     ctx.assembly().syscall(0x04);
     if (ctx.get_register() != 0)
         ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_register());
-    return {};
-}
-
-INTRINSIC(exit)
-{
-    if (ctx.get_register() != 0)
-        ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_register());
-    ctx.assembly().syscall(0x01);
     return {};
 }
 
@@ -125,12 +107,15 @@ INTRINSIC(fsize)
         sz += 16 - (sz % 16);
     ctx.assembly().add_instruction("sub", "sp,sp,#{}", sz);
     ctx.assembly().add_instruction("mov", "x1,sp");
-    ctx.assembly().syscall(189);
-    ctx.assembly().add_instruction("cmp", "x0,#0x00");
-    auto lbl = format("lbl_{}", Label::reserve_id());
-    ctx.assembly().add_instruction("bne", lbl);
+    ctx.assembly().syscall(339);
+    auto lbl_ok = format("lbl_{}", Label::reserve_id());
+    auto lbl_done = format("lbl_{}", Label::reserve_id());
+    ctx.assembly().add_instruction("b.lo", lbl_ok);
+    ctx.assembly().add_instruction("neg", "x{},x0", ctx.get_register());
+    ctx.assembly().add_instruction("b", lbl_done);
+    ctx.assembly().add_label(lbl_ok);
     ctx.assembly().add_instruction("ldr", "x{},[sp,#{}]", ctx.get_register(), offsetof(struct stat, st_size));
-    ctx.assembly().add_label(lbl);
+    ctx.assembly().add_label(lbl_done);
     ctx.assembly().add_instruction("add", "sp,sp,#{}", sz);
     return {};
 }
@@ -150,18 +135,6 @@ INTRINSIC(to_string)
     if (ctx.get_register(1) != 1)
         ctx.assembly().add_instruction("mov", "x{},x1", ctx.get_register(1));
     ctx.assembly().add_instruction("add", "sp,sp,32");
-    return {};
-}
-
-INTRINSIC(open)
-{
-    if (ctx.get_register(0) != 1)
-        ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_register());
-    if (ctx.get_register(2) != 2)
-        ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_register(2));
-    ctx.assembly().syscall(0x05);
-    if (ctx.get_register(0) != 0)
-        ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_register());
     return {};
 }
 
@@ -185,34 +158,6 @@ INTRINSIC(puts)
     if (ctx.get_register() != 1)
         ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_register());
     ctx.assembly().add_instruction("mov", "x0,#1");
-    ctx.assembly().syscall(0x04);
-    if (ctx.get_register() != 0)
-        ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_register());
-    return {};
-}
-
-INTRINSIC(read)
-{
-    if (ctx.get_register(0) != 0)
-        ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_register(0));
-    if (ctx.get_register(1) != 1)
-        ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_register(1));
-    if (ctx.get_register(2) != 2)
-        ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_register(2));
-    ctx.assembly().syscall(0x03);
-    if (ctx.get_register() != 0)
-        ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_register());
-    return {};
-}
-
-INTRINSIC(write)
-{
-    if (ctx.get_register(0) != 0)
-        ctx.assembly().add_instruction("mov", "x0,x{}", ctx.get_register(0));
-    if (ctx.get_register(1) != 1)
-        ctx.assembly().add_instruction("mov", "x1,x{}", ctx.get_register(1));
-    if (ctx.get_register(2) != 2)
-        ctx.assembly().add_instruction("mov", "x2,x{}", ctx.get_register(2));
     ctx.assembly().syscall(0x04);
     if (ctx.get_register() != 0)
         ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_register());

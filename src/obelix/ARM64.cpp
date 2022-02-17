@@ -102,7 +102,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         }
         ARM64Implementation impl = Intrinsics::get_arm64_implementation(Signature { call->name(), call->type(), call->argument_types() });
         if (!impl)
-            return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string(0)) };
+            return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string()) };
         auto ret = impl(ctx);
         if (ret.is_error())
             return ret.error();
@@ -401,7 +401,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto operand = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->operand(), ctx));
         auto call = std::make_shared<FunctionCall>(Symbol { expr->op().code_name(), expr->type() }, Expressions { operand });
         if (!Intrinsics::is_intrinsic(Signature { expr->op().code_name(), expr->type(), { operand->type() } }))
-            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string(0)) };
+            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string()) };
         return std::make_shared<CompilerIntrinsic>(call);
     }
 
@@ -411,7 +411,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto rhs = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->rhs(), ctx));
         auto call = std::make_shared<FunctionCall>(Symbol { TokenCode_to_string(expr->op().code()), expr->type() }, Expressions { lhs, rhs });
         if (!Intrinsics::is_intrinsic(Signature { TokenCode_to_string(expr->op().code()), expr->type(), { lhs->type(), rhs->type() } }))
-            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string(0)) };
+            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string()) };
         return std::make_shared<CompilerIntrinsic>(call);
     }
 

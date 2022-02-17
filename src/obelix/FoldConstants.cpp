@@ -25,6 +25,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
         if (var_decl->is_const() && expr->node_type() == SyntaxNodeType::Literal) {
             auto literal = std::dynamic_pointer_cast<Literal>(expr);
             ctx.declare(var_decl->variable().identifier(), literal);
+            return make_node<Pass>();
         }
         if (expr != var_decl->expression())
             return std::make_shared<VariableDeclaration>(var_decl->variable(), expr, var_decl->is_const());
@@ -44,18 +45,6 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
         auto rhs = TRY_AND_CAST(Expression, fold_constants_processor(expr->rhs(), ctx));
         auto left_maybe = TRY(lhs->to_object());
         auto right_maybe = TRY(rhs->to_object());
-        if (!left_maybe.has_value() && lhs->node_type() == SyntaxNodeType::Identifier) {
-            auto identifier = std::dynamic_pointer_cast<Identifier>(lhs);
-            if (auto value_maybe = ctx.get(identifier->name()); value_maybe.has_value()) {
-                left_maybe = TRY(value_maybe.value()->to_object());
-            }
-        }
-        if (!right_maybe.has_value() && rhs->node_type() == SyntaxNodeType::Identifier) {
-            auto identifier = std::dynamic_pointer_cast<Identifier>(rhs);
-            if (auto value_maybe = ctx.get(identifier->name()); value_maybe.has_value()) {
-                right_maybe = TRY(value_maybe.value()->to_object());
-            }
-        }
 
         if (left_maybe.has_value() && right_maybe.has_value() && expr->op().code() != TokenCode::Equals && expr->op().code() != Parser::KeywordRange && !Parser::is_assignment_operator(expr->op().code())) {
             auto result_maybe = left_maybe.value().evaluate(expr->op().value(), right_maybe.value());
@@ -114,6 +103,16 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
 
     case SyntaxNodeType::UnaryExpression: {
         return to_literal(std::dynamic_pointer_cast<Expression>(tree));
+    }
+
+    case SyntaxNodeType::Identifier: {
+        auto identifier = std::dynamic_pointer_cast<Identifier>(tree);
+        if (auto value_maybe = ctx.get(identifier->name()); value_maybe.has_value()) {
+            if (auto obj = TRY(value_maybe.value()->to_object()); obj.has_value()) {
+                return std::make_shared<Literal>(obj.value());
+            }
+        }
+        return tree;
     }
 
     case SyntaxNodeType::Branch: {

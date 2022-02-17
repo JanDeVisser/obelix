@@ -83,10 +83,29 @@ constexpr char const* SyntaxNodeType_name(SyntaxNodeType type)
     }
 }
 
+template<>
+struct Converter<SyntaxNodeType> {
+    static std::string to_string(SyntaxNodeType val)
+    {
+        return SyntaxNodeType_name(val);
+    }
+
+    static double to_double(SyntaxNodeType val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static long to_long(SyntaxNodeType val)
+    {
+        return static_cast<long>(val);
+    }
+};
+
 typedef std::vector<std::string> Strings;
 
 class SyntaxNode;
 class Module;
+using Nodes = std::vector<std::shared_ptr<SyntaxNode>>;
 
 static inline std::string pad(int num)
 {
@@ -110,15 +129,48 @@ public:
     SyntaxNode(SyntaxNode const& ancestor);
     virtual ~SyntaxNode() = default;
 
-    [[nodiscard]] virtual std::string to_string(int) const = 0;
-    [[nodiscard]] std::string to_string() const { return to_string(0); }
+    [[nodiscard]] virtual std::string text_contents(int) const
+    {
+        return "";
+    }
+
+    [[nodiscard]] virtual std::string attributes() const
+    {
+        return "";
+    }
+
+    [[nodiscard]] virtual Nodes children() const
+    {
+        return Nodes {};
+    }
+
+    [[nodiscard]] std::string to_xml(int indent) const
+    {
+        auto ret = format("{}<{}", pad(indent), node_type());
+        auto attrs = attributes();
+        auto child_nodes = children();
+        auto text = text_contents(indent + 2);
+        if (!attrs.empty()) {
+            ret += " " + attrs;
+        }
+        if (text.empty() && child_nodes.empty())
+            return ret + "/>";
+        ret += ">\n";
+        for (auto& child : child_nodes) {
+            ret += child->to_xml(indent + 2);
+            ret += "\n";
+        }
+        return ret + format("{}\n{}</{}>", text, pad(indent), node_type());
+    }
+
+    [[nodiscard]] virtual std::string to_string(int) const { return SyntaxNodeType_name(node_type()); }
+
+    [[nodiscard]] std::string to_xml() const { return to_xml(0); }
     [[nodiscard]] virtual SyntaxNodeType node_type() const = 0;
 
 private:
     static int s_current_id;
 };
-
-using Nodes = std::vector<std::shared_ptr<SyntaxNode>>;
 
 class Statement : public SyntaxNode {
 public:
@@ -141,6 +193,9 @@ public:
     [[nodiscard]] ObelixType type() const { return m_type; }
     [[nodiscard]] bool is_typed() { return m_type != ObelixType::TypeUnknown; }
     [[nodiscard]] virtual ErrorOr<std::optional<Obj>> to_object() const = 0;
+    [[nodiscard]] std::string attributes() const override { return format(R"(type="{}")", type()); }
+    [[nodiscard]] virtual std::string to_string() const = 0;
+    [[nodiscard]] std::string to_string(int) const override { return to_string(); }
 
 private:
     ObelixType m_type { TypeUnknown };
@@ -153,12 +208,11 @@ public:
         , m_name(move(name))
     {
     }
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Import; }
 
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{}import {}", pad(indent), m_name);
-    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Import; }
+    [[nodiscard]] std::string attributes() const override { return format("module=\"{}\"", m_name); }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{}import {}", pad(indent), m_name); }
+    [[nodiscard]] std::string const& name() const { return m_name; }
 
 private:
     std::string m_name;
@@ -167,12 +221,24 @@ private:
 class Pass : public Statement {
 public:
     Pass() = default;
+    explicit Pass(std::shared_ptr<Statement> elided_statement)
+        : m_elided_statement(move(elided_statement))
+    {
+    }
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Pass; }
 
-    [[nodiscard]] std::string to_string(int indent) const override
+    [[nodiscard]] std::string text_contents(int indent) const override
     {
-        return format("{};", pad(indent));
+        if (!m_elided_statement)
+            return "";
+        return format("{}/* {} */", pad(indent), m_elided_statement->to_string(0));
     }
+
+    [[nodiscard]] std::string to_string(int indent) const override { return text_contents(indent); }
+
+private:
+    std::shared_ptr<Statement> m_elided_statement;
 };
 
 class Goto;
@@ -188,14 +254,9 @@ public:
     explicit Label(std::shared_ptr<Goto> const& goto_stmt);
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Label; }
-
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{}:", m_label_id);
-    }
-
+    [[nodiscard]] std::string attributes() const override { return format("id=\"{}\"", m_label_id); }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{}:", label_id()); }
     [[nodiscard]] int label_id() const { return m_label_id; }
-
     static int reserve_id() { return m_current_id++; }
 
 private:
@@ -217,11 +278,8 @@ public:
     {
     }
 
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{}goto {}", pad(indent), m_label_id);
-    }
-
+    [[nodiscard]] std::string attributes() const override { return format("label=\"{}\"", m_label_id); }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{}goto {}", pad(indent), label_id()); }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Goto; }
     [[nodiscard]] int label_id() const { return m_label_id; }
 
@@ -240,18 +298,24 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Block; }
+    [[nodiscard]] Statements const& statements() const { return m_statements; }
 
-    [[nodiscard]] std::string to_string(int indent) const override
+    [[nodiscard]] Nodes children() const override
     {
-        auto ret = format("{}{\n", pad(indent));
+        Nodes ret;
         for (auto& statement : m_statements) {
-            ret += statement->to_string(indent + 2);
-            ret += "\n";
+            ret.push_back(statement);
         }
-        ret += format("{}}", pad(indent));
         return ret;
     }
-    [[nodiscard]] Statements const& statements() const { return m_statements; }
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        std::string ret = pad(indent) + "{\n";
+        for (auto& statement : m_statements) {
+            ret += statement->to_string(indent + 2) + "\n";
+        }
+        return ret + pad(indent) + "}";
+    }
 
 protected:
     Statements m_statements {};
@@ -287,12 +351,10 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Module; }
-
+    [[nodiscard]] std::string attributes() const override { return format("name=\"{}\"", m_name); }
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        auto ret = format("{}module {}\n", pad(indent), m_name);
-        ret += Block::to_string(indent);
-        return ret;
+        return format("{}module {} {}", pad(indent), name(), Block::to_string(indent));
     }
 
     [[nodiscard]] const std::string& name() const { return m_name; }
@@ -311,24 +373,32 @@ public:
     {
     }
 
-    Compilation(Statements statements, Modules modules)
+    Compilation(Statements const& statements, Modules modules)
         : Module(statements, "")
         , m_modules(move(modules))
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Compilation; }
-    [[nodiscard]] std::string to_string(int indent) const override
+    [[nodiscard]] Modules const& modules() const { return m_modules; }
+    [[nodiscard]] Nodes children() const override
     {
-        std::string ret = Module::to_string(indent);
-        ret += "\n";
+        Nodes ret;
         for (auto& module : m_modules) {
-            ret += module->to_string(indent);
-            ret += "\n";
+            ret.push_back(module);
         }
         return ret;
     }
-    [[nodiscard]] Modules const& modules() const { return m_modules; }
+
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        std::string ret = Module::to_string(indent);
+        for (auto& module : m_modules) {
+            ret += "\n";
+            ret += module->to_string(indent + 2);
+        }
+        return ret;
+    }
 
 private:
     Modules m_modules;
@@ -357,10 +427,24 @@ public:
         return ret;
     }
 
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" return_type="{}")", identifier().identifier(), type()); }
+
+    [[nodiscard]] std::string text_contents(int indent) const override
+    {
+        std::string ret;
+        bool first = true;
+        for (auto& param : m_parameters) {
+            if (!first)
+                ret += "\n";
+            first = false;
+            ret += format(R"({}<Parameter name="{}" type="{}"/>)", pad(indent), param.identifier(), param.type());
+        }
+        return ret;
+    }
+
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}func {}({}) : {}",
-            pad(indent), identifier().identifier(), parameters_to_string(), type());
+        return format("{}func {}({}): {}", pad(indent), name(), parameters_to_string(), type());
     }
 
     [[nodiscard]] std::string label() const
@@ -402,8 +486,9 @@ public:
     {
     }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::NativeFunctionDecl; }
-
     [[nodiscard]] std::string const& native_function_name() const { return m_native_function_name; }
+    [[nodiscard]] std::string attributes() const override { return format("{} native_function=\"{}\"", FunctionDecl::attributes(), native_function_name()); }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{} -> \"{}\"", FunctionDecl::to_string(indent), native_function_name()); }
 
 private:
     std::string m_native_function_name;
@@ -416,6 +501,7 @@ public:
     {
     }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IntrinsicDecl; }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{} intrinsic", FunctionDecl::to_string(indent)); }
 };
 
 class FunctionDef : public Statement {
@@ -434,12 +520,22 @@ public:
     [[nodiscard]] ObelixType type() const { return identifier().type(); }
     [[nodiscard]] Symbols const& parameters() const { return m_function_decl->parameters(); }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
+    [[nodiscard]] Nodes children() const override
+    {
+        Nodes ret;
+        ret.push_back(m_function_decl);
+        if (m_statement) {
+            ret.push_back(m_statement);
+        }
+        return ret;
+    }
+
     [[nodiscard]] std::string to_string(int indent) const override
     {
         auto ret = m_function_decl->to_string(indent);
         if (m_statement) {
-            ret += '\n';
-            ret += m_statement->to_string(indent + 2);
+            ret += "\n";
+            ret += m_statement->to_string(indent);
         }
         return ret;
     }
@@ -458,12 +554,9 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ExpressionStatement; }
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{}{}", pad(indent), m_expression->to_string(indent));
-    }
-
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
+    [[nodiscard]] Nodes children() const override { return { m_expression }; }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{}{}", pad(indent), m_expression->to_string()); }
 
 private:
     std::shared_ptr<Expression> m_expression;
@@ -486,8 +579,9 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Identifier; }
     [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
     [[nodiscard]] std::string const& name() const { return m_identifier.identifier(); }
-    [[nodiscard]] std::string to_string(int indent) const override { return format("{} : {}", name(), type()); }
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" type="{}")", name(), type()); }
     [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", name(), type()); }
 
 private:
     Symbol m_identifier;
@@ -508,9 +602,10 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Literal; }
-    [[nodiscard]] std::string to_string(int indent) const override { return format("{} : {}", m_literal->to_string(), type()); }
+    [[nodiscard]] std::string text_contents(int indent) const override { return format("{}", m_literal->to_string()); }
     [[nodiscard]] Obj const& literal() const { return m_literal; }
     [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return literal(); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", literal()->to_string(), type()); }
 
 private:
     Obj m_literal;
@@ -526,12 +621,8 @@ public:
     }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::This; }
 
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return "this";
-    }
-
     [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
+    [[nodiscard]] std::string to_string() const override { return "this"; }
 };
 
 class BinaryExpression : public Expression {
@@ -553,12 +644,10 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BinaryExpression; }
-
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("({}) {} ({}) : {}", m_lhs->to_string(indent), m_operator.value(), m_rhs->to_string(indent), type());
-    }
+    [[nodiscard]] std::string attributes() const override { return format(R"(operator="{}" type="{}")", m_operator.value(), type()); }
+    [[nodiscard]] Nodes children() const override { return { m_lhs, m_rhs }; }
     ErrorOr<std::optional<Obj>> to_object() const override;
+    [[nodiscard]] std::string to_string() const override { return format("{} {} {}", lhs()->to_string(), op().value(), rhs()->to_string()); }
 
     [[nodiscard]] std::shared_ptr<Expression> const& lhs() const { return m_lhs; }
     [[nodiscard]] std::shared_ptr<Expression> const& rhs() const { return m_rhs; }
@@ -574,8 +663,8 @@ class Assignment : public Expression {
 public:
     Assignment(std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expression)
         : Expression(identifier->type())
-        , m_identifier(identifier)
-        , m_expression(expression)
+        , m_identifier(move(identifier))
+        , m_expression(move(expression))
     {
         assert(m_identifier->is_typed());
         assert(m_expression->is_typed());
@@ -587,11 +676,8 @@ public:
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
     [[nodiscard]] std::string const& name() const { return identifier()->name(); }
     ErrorOr<std::optional<Obj>> to_object() const override { return identifier()->to_object(); }
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        auto ret = format("{} = {}", identifier()->to_string(0), expression()->to_string());
-        return ret;
-    }
+    [[nodiscard]] Nodes children() const override { return { identifier(), expression() }; }
+    [[nodiscard]] std::string to_string() const override { return format("{} = {}", identifier()->to_string(), expression()->to_string()); }
 
 private:
     std::shared_ptr<Identifier> m_identifier;
@@ -615,11 +701,11 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::UnaryExpression; }
-
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{}({}) : {}", m_operator.value(), m_operand->to_string(), type());
-    }
+    [[nodiscard]] std::string attributes() const override { return format(R"(operator="{}" type="{}")", m_operator.value(), type()); }
+    [[nodiscard]] Nodes children() const override { return { m_operand }; }
+    [[nodiscard]] std::string to_string() const override { return format("{} {}", op().value(), operand()->to_string()); }
+    [[nodiscard]] Token op() const { return m_operator; }
+    [[nodiscard]] std::shared_ptr<Expression> const& operand() const { return m_operand; }
 
     ErrorOr<std::optional<Obj>> to_object() const override
     {
@@ -631,9 +717,6 @@ public:
             return make_obj<Exception>(ErrorCode::OperatorUnresolved, m_operator.value(), operand);
         return ret_maybe.value();
     }
-
-    [[nodiscard]] Token op() const { return m_operator; }
-    [[nodiscard]] std::shared_ptr<Expression> const& operand() const { return m_operand; }
 
 private:
     Token m_operator;
@@ -670,12 +753,34 @@ public:
     {
     }
 
-    [[nodiscard]] std::string to_string(int) const override
+    [[nodiscard]] std::string attributes() const override
     {
-        return format("{}({}) : {}", name(), arguments_to_string(), type());
+        return format(R"(name="{}" type="{}")", name(), type());
     }
 
-    ErrorOr<std::optional<Obj>> to_object() const override
+    [[nodiscard]] std::string text_contents(int indent) const override
+    {
+        std::string ret = format("{}<Arguments", pad(indent));
+        if (m_arguments.empty())
+            return ret + "/>";
+        ret += ">";
+        for (auto& arg : m_arguments) {
+            ret += '\n';
+            ret += arg->to_xml(indent + 2);
+        }
+        return ret += format("\n{}</Arguments>", pad(indent));
+    }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        Strings args;
+        for (auto& arg : m_arguments) {
+            args.push_back(arg->to_string());
+        }
+        return format("{}({}): {}", name(), join(args, ","), type());
+    }
+
+    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override
     {
         return std::optional<Obj> {};
     }
@@ -694,19 +799,6 @@ public:
     }
 
 private:
-    [[nodiscard]] std::string arguments_to_string() const
-    {
-        std::string ret;
-        bool first = true;
-        for (auto& arg : m_arguments) {
-            if (!first)
-                ret += ", ";
-            first = false;
-            ret += arg->to_string();
-        }
-        return ret;
-    }
-
     Symbol m_function;
     Expressions m_arguments;
 };
@@ -715,6 +807,12 @@ class NativeFunctionCall : public FunctionCall {
 public:
     explicit NativeFunctionCall(std::shared_ptr<NativeFunctionDecl> decl, std::shared_ptr<FunctionCall> const& call)
         : FunctionCall(call->function(), call->arguments())
+        , m_declaration(move(decl))
+    {
+    }
+
+    NativeFunctionCall(std::shared_ptr<NativeFunctionDecl> decl, Symbol function, Expressions arguments)
+        : FunctionCall(std::move(function), move(arguments))
         , m_declaration(move(decl))
     {
     }
@@ -730,6 +828,11 @@ class CompilerIntrinsic : public FunctionCall {
 public:
     explicit CompilerIntrinsic(std::shared_ptr<FunctionCall> const& call)
         : FunctionCall(call->function(), call->arguments())
+    {
+    }
+
+    CompilerIntrinsic(Symbol function, Expressions arguments)
+        : FunctionCall(std::move(function), move(arguments))
     {
     }
 
@@ -754,11 +857,23 @@ public:
     {
     }
 
+    [[nodiscard]] std::string attributes() const override
+    {
+        return format(R"(name="{}" type="{}" is_const="{}")", name(), type(), is_const());
+    }
+
+    [[nodiscard]] Nodes children() const override
+    {
+        if (m_expression)
+            return { m_expression };
+        return {};
+    }
+
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        auto ret = format("{}{} {} : {}", pad(indent), (m_const) ? "const" : "var", m_variable.identifier(), m_variable.type());
+        auto ret = format("{}{} {}: {}", pad(indent), (is_const()) ? "const" : "var", name(), type());
         if (m_expression)
-            ret = format("{} = {}", ret, m_expression->to_string());
+            ret += format(" = {}", m_expression->to_string());
         return ret;
     }
 
@@ -784,9 +899,19 @@ public:
     {
     }
 
+    [[nodiscard]] Nodes children() const override
+    {
+        if (m_expression)
+            return { m_expression };
+        return {};
+    }
+
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        return format("{}return {}", pad(indent), m_expression->to_string());
+        std::string ret = format("{}return", pad(indent));
+        if (m_expression)
+            ret = format("{} {}", ret, m_expression->to_string());
+        return ret;
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Return; }
@@ -803,11 +928,7 @@ public:
     {
     }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Break; }
-
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{}break", pad(indent));
-    }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{}break", pad(indent)); }
 };
 
 class Continue : public Statement {
@@ -817,11 +938,7 @@ public:
     {
     }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Continue; }
-
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{}continue", pad(indent));
-    }
+    [[nodiscard]] std::string to_string(int indent) const override { return format("{}continue", pad(indent)); }
 };
 
 class Branch : public Statement {
@@ -840,14 +957,20 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Branch; }
+    [[nodiscard]] Nodes children() const override
+    {
+        Nodes ret;
+        if (m_condition)
+            ret.push_back(m_condition);
+        ret.push_back(m_statement);
+        return ret;
+    }
+
     [[nodiscard]] std::string to_string(int indent) const override
     {
-        auto ret = format("{}if ", pad(indent));
         if (m_condition)
-            ret += m_condition->to_string();
-        ret += '\n';
-        ret += m_statement->to_string(indent + 2);
-        return ret;
+            return format("if ({})\n{}", pad(indent), m_condition->to_string(), m_statement->to_string(indent + 2));
+        return format("{}else\n{}", pad(indent), m_statement->to_string(indent + 2));
     }
 
     [[nodiscard]] std::shared_ptr<Expression> const& condition() const { return m_condition; }
@@ -895,12 +1018,28 @@ public:
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IfStatement; }
 
+    [[nodiscard]] Nodes children() const override
+    {
+        Nodes ret;
+        for (auto& branch : m_branches) {
+            ret.push_back(branch);
+        }
+        return ret;
+    }
+
     [[nodiscard]] std::string to_string(int indent) const override
     {
         std::string ret;
+        bool first;
         for (auto& branch : m_branches) {
-            ret += branch->to_string(indent);
+            if (first)
+                ret = format("{}{}", pad(indent), branch->to_string(indent));
+            else
+                ret += format("{}el{}", pad(indent), branch->to_string(indent));
+            first = false;
         }
+        if (m_else)
+            ret += format("{}else\n{}", pad(indent), m_else->to_string(indent + 2));
         return ret;
     }
 
@@ -921,12 +1060,14 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::WhileStatement; }
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{}while {}\n{}", pad(indent), m_condition->to_string(), m_stmt->to_string(indent + 2));
-    }
+    [[nodiscard]] Nodes children() const override { return { m_condition, m_stmt }; }
     [[nodiscard]] std::shared_ptr<Expression> const& condition() const { return m_condition; }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_stmt; }
+
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        return format("{}while ({})\n{}", pad(indent), m_condition->to_string(), m_stmt->to_string(indent + 2));
+    }
 
 private:
     std::shared_ptr<Expression> m_condition;
@@ -944,13 +1085,16 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ForStatement; }
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        return format("{}for {} in {}\n{}", pad(indent), m_variable, m_range->to_string(), m_stmt->to_string(indent + 2));
-    }
+    [[nodiscard]] std::string attributes() const override { return format(R"(variable="{}")", m_variable); }
+    [[nodiscard]] Nodes children() const override { return { m_range, m_stmt }; }
     [[nodiscard]] std::string const& variable() const { return m_variable; }
     [[nodiscard]] std::shared_ptr<Expression> const& range() const { return m_range; }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_stmt; }
+
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        return format("{}for ({} in {})\n{}", pad(indent), m_range->to_string(), m_stmt->to_string(indent + 2));
+    }
 
 private:
     std::string m_variable {};
@@ -994,20 +1138,36 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::SwitchStatement; }
-    [[nodiscard]] std::string to_string(int indent) const override
-    {
-        auto ret = format("{}switch ({}) {\n", pad(indent), m_switch_expression->to_string());
-        for (auto& case_stmt : m_cases) {
-            ret += case_stmt->to_string(indent);
-        }
-        if (m_default)
-            ret += m_default->to_string(indent);
-        ret += format("{}}", pad(indent));
-        return ret;
-    }
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_switch_expression; }
     [[nodiscard]] CaseStatements const& cases() const { return m_cases; }
     [[nodiscard]] std::shared_ptr<DefaultCase> const& default_case() const { return m_default; }
+
+    [[nodiscard]] Nodes children() const override
+    {
+        Nodes ret;
+        ret.push_back(m_switch_expression);
+        for (auto& case_stmt : m_cases) {
+            ret.push_back(case_stmt);
+        }
+        if (m_default)
+            ret.push_back(m_default);
+        return ret;
+    }
+
+    std::string to_string(int indent) const override
+    {
+        auto ret = format("{}switch ({}) {{\n", pad(indent), expression()->to_string());
+        for (auto& case_stmt : m_cases) {
+            ret += '\n';
+            ret += case_stmt->to_string(indent + 2);
+        }
+        if (m_default) {
+            ret += '\n';
+            ret += m_default->to_string(indent + 2);
+        }
+        ret += format("{}}", pad(indent));
+        return ret;
+    }
 
 private:
     std::shared_ptr<Expression> m_switch_expression;
@@ -1029,9 +1189,9 @@ public:
     [[nodiscard]] std::string const& name() const { return identifier().name(); }
     [[nodiscard]] ObelixType type() const { return identifier().type(); }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionParameter; }
-    [[nodiscard]] std::string to_string(int indent) const override
+    [[nodiscard]] std::string attributes() const override
     {
-        return format("{}param {} : {} @{}", pad(indent), m_identifier.name(), m_identifier.type(), offset());
+        return format(R"(name="{}" type="{}" offset="{}")", m_identifier.name(), m_identifier.type(), offset());
     }
 
 private:
@@ -1055,10 +1215,23 @@ public:
     [[nodiscard]] std::string const& name() const { return identifier().identifier(); }
     [[nodiscard]] ObelixType type() const { return identifier().type(); }
     [[nodiscard]] FunctionParameters const& parameters() const { return m_parameters; }
-    [[nodiscard]] std::string to_string(int indent) const override
+
+    [[nodiscard]] std::string attributes() const override
     {
-        return format("{}func {}({}) : {}",
-            pad(indent), identifier().identifier(), parameters_to_string(), type());
+        return format("name=\"{}\" return_type=\"{}\"", identifier().identifier(), type());
+    }
+
+    [[nodiscard]] std::string text_contents(int indent) const override
+    {
+        std::string ret;
+        bool first = true;
+        for (auto& param : m_parameters) {
+            if (!first)
+                ret += "\n";
+            first = false;
+            ret += format(R"({}<Parameter name="{}" type="{}"/>)", pad(indent), param->identifier().identifier());
+        }
+        return ret;
     }
 
     [[nodiscard]] std::string label() const
@@ -1072,6 +1245,11 @@ public:
             params += ObelixType_name(param->type());
         }
         return format("{}({})", name(), params);
+    }
+
+    [[nodiscard]] std::string to_string(int indent) const override
+    {
+        return format("{}func {}({}): {}", pad(indent), name(), parameters_to_string(), type());
     }
 
 private:
@@ -1101,7 +1279,6 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedNativeFunctionDecl; }
-
     [[nodiscard]] std::string const& native_function_name() const { return m_native_function_name; }
 
 private:
@@ -1136,12 +1313,12 @@ public:
     [[nodiscard]] FunctionParameters const& parameters() const { return m_function_decl->parameters(); }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
     [[nodiscard]] int stack_depth() const { return m_stack_depth; }
-    [[nodiscard]] std::string to_string(int indent) const override
+    [[nodiscard]] std::string to_string(int indent) const override { return format("materialized function def"); }
+    [[nodiscard]] Nodes children() const override
     {
-        auto ret = m_function_decl->to_string(indent);
+        Nodes ret = { m_function_decl };
         if (m_statement) {
-            ret += '\n';
-            ret += m_statement->to_string(indent + 2);
+            ret.push_back(m_statement);
         }
         return ret;
     }
@@ -1172,13 +1349,19 @@ public:
     {
     }
 
-    [[nodiscard]] std::string to_string(int indent) const override
+    [[nodiscard]] std::string attributes() const override
     {
-        auto ret = format("{}{} {} : {}", pad(indent), (m_const) ? "const" : "var", m_variable.identifier(), m_variable.type());
-        if (m_expression)
-            ret = format("{} = {}", ret, m_expression->to_string());
-        return ret;
+        return format(R"(name="{}" type="{}" is_const="{}")", name(), type(), is_const());
     }
+
+    [[nodiscard]] Nodes children() const override
+    {
+        if (m_expression)
+            return { m_expression };
+        return {};
+    }
+
+    [[nodiscard]] std::string to_string(int indent) const override { return format("materialized variable decl"); }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedVariableDecl; }
     [[nodiscard]] Symbol const& variable() const { return m_variable; }

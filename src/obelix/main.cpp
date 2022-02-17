@@ -102,13 +102,13 @@ private:
                 printf("Original:\n%s\n", tree->to_string(0).c_str());
             auto transformed = TRY(bind_types(tree));
             if (config().show_tree)
-                printf("Types bound:\n%s\n", transformed->to_string(0).c_str());
+                printf("\nTypes bound:\n%s\n", transformed->to_string(0).c_str());
             transformed = TRY(lower(transformed));
             if (config().show_tree)
-                printf("Flattened:\n%s\n", transformed->to_string(0).c_str());
+                printf("\nFlattened:\n%s\n", transformed->to_string(0).c_str());
             transformed = TRY(fold_constants(transformed));
             if (config().show_tree)
-                printf("Constants folded:\n%s\n", transformed->to_string(0).c_str());
+                printf("\nConstants folded:\n%s\n", transformed->to_string(0).c_str());
             if (!file_name.empty()) {
 #ifdef JV80
                 auto image = file_name + ".bin";

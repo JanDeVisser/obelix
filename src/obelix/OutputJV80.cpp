@@ -105,7 +105,7 @@ ErrorOr<void> push_expression_return_value(Obelix::Assembler::Segment& code, Exp
         code.add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::a }));
         break;
     default:
-        Error { ErrorCode::SyntaxError, format("Unexpected return type {} for expression {}", expr.type(), expr.to_string(0)) };
+        Error { ErrorCode::SyntaxError, format("Unexpected return type {} for expression {}", expr.type(), expr.to_string()) };
     }
     return {};
 }

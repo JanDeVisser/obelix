@@ -96,13 +96,16 @@ std::shared_ptr<Compilation> Parser::parse()
     m_modules.clear();
     auto main_module = parse_module();
     auto root = parse_module("");
-    Modules modules { main_module };
-    for (auto& module_name : m_modules) {
-        auto imported_module = parse_module(module_name);
-        if (imported_module)
-            modules.push_back(imported_module);
+    if (errors().empty()) {
+        Modules modules { main_module };
+        for (auto& module_name : m_modules) {
+            auto imported_module = parse_module(module_name);
+            if (imported_module)
+                modules.push_back(imported_module);
+        }
+        return make_node<Compilation>(root, modules);
     }
-    return make_node<Compilation>(root, modules);
+    return nullptr;
 }
 
 std::shared_ptr<Module> Parser::parse_module(std::string const& module_name)
@@ -498,6 +501,7 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(bool con
             add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
+        type = var_type_maybe.value();
     }
     if (current_code() != TokenCode::Equals) {
         if (constant) {
@@ -740,6 +744,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
         return make_node<UnaryExpression>(t, operand);
     }
     case TokenCode::Integer:
+    case TokenCode::HexNumber:
     case TokenCode::Float:
     case TokenCode::DoubleQuotedString:
     case TokenCode::SingleQuotedString:

@@ -122,6 +122,20 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
         break;
     }
 
+    case SyntaxNodeType::NativeFunctionCall: {
+        auto func_call = std::dynamic_pointer_cast<NativeFunctionCall>(tree);
+        auto arguments = TRY(xform_expressions(func_call->arguments(), ctx, processor));
+        ret = std::make_shared<NativeFunctionCall>(func_call->declaration(), func_call->function(), arguments);
+        break;
+    }
+
+    case SyntaxNodeType::CompilerIntrinsic: {
+        auto func_call = std::dynamic_pointer_cast<CompilerIntrinsic>(tree);
+        auto arguments = TRY(xform_expressions(func_call->arguments(), ctx, processor));
+        ret = std::make_shared<CompilerIntrinsic>(func_call->function(), arguments);
+        break;
+    }
+
     case SyntaxNodeType::VariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
         auto expr = TRY_AND_CAST(Expression, processor(var_decl->expression(), ctx));
