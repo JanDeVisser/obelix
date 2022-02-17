@@ -37,6 +37,11 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
     case SyntaxNodeType::MaterializedFunctionDef: {
         auto func_def = std::dynamic_pointer_cast<MaterializedFunctionDef>(tree);
+
+        for (auto& param : func_def->declaration()->parameters()) {
+            ctx.declare(param->identifier().identifier(), param->offset());
+        }
+
         debug(parser, "func {}", func_def->name());
         if (func_def->declaration()->node_type() == SyntaxNodeType::MaterializedFunctionDecl) {
             ctx.enter_function(func_def);
