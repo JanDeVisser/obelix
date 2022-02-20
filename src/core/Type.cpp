@@ -8,6 +8,25 @@
 
 namespace Obelix {
 
+std::optional<ObelixType> ObelixType_by_name(std::string const& t)
+{
+    if (t == "int" || t == "s32")
+        return ObelixType::TypeInt;
+    if (t == "unsigned" || t == "u32")
+        return ObelixType::TypeUnsigned;
+    if (t == "byte" || t == "s8")
+        return ObelixType::TypeByte;
+    if (t == "char" || t == "u8")
+        return ObelixType::TypeChar;
+    if (t == "bool")
+        return ObelixType::TypeBoolean;
+    if (t == "string")
+        return ObelixType::TypeString;
+    if (t == "ptr")
+        return ObelixType::TypePointer;
+    return {};
+}
+
 std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 
 [[maybe_unused]] auto s_assignable = ObjectType::register_type(TypeAssignable,

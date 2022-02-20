@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <cstring>
 #include <functional>
+#include <optional>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -27,19 +29,20 @@ namespace Obelix {
     S(Float, 6)                   \
     S(String, 7)                  \
     S(Pointer, 8)                 \
-    S(Object, 9)                  \
-    S(List, 10)                   \
-    S(Regex, 11)                  \
-    S(Range, 12)                  \
-    S(Exception, 13)              \
-    S(NVP, 14)                    \
-    S(Arguments, 15)              \
-    S(Iterator, 16)               \
-    S(NativeFunction, 17)         \
-    S(RangeIterator, 18)          \
-    S(BoundFunction, 19)          \
-    S(Scope, 20)                  \
-    S(MapIterator, 21)            \
+    S(MaxNativeType, 9)           \
+    S(Object, 10)                 \
+    S(List, 11)                   \
+    S(Regex, 12)                  \
+    S(Range, 13)                  \
+    S(Exception, 14)              \
+    S(NVP, 15)                    \
+    S(Arguments, 16)              \
+    S(Iterator, 17)               \
+    S(NativeFunction, 18)         \
+    S(RangeIterator, 19)          \
+    S(BoundFunction, 20)          \
+    S(Scope, 21)                  \
+    S(MapIterator, 22)            \
     S(Error, 9996)                \
     S(Self, 9997)                 \
     S(Compatible, 9998)           \
@@ -71,6 +74,8 @@ constexpr const char* ObelixType_name(ObelixType t)
 #undef __ENUM_OBELIX_TYPE
     }
 }
+
+std::optional<ObelixType> ObelixType_by_name(std::string const& t);
 
 template<>
 struct Converter<ObelixType> {
