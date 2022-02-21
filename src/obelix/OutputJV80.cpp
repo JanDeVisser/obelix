@@ -59,7 +59,7 @@ void add_instruction(Segment& code, Mnemonic mnemonic, Register reg)
     code.add(std::make_shared<Instruction>(mnemonic, Argument { .addressing_mode = AMRegister, .reg = reg }));
 }
 
-void add_instruction(Segment& code, Mnemonic mnemonic, std::string label)
+void add_instruction(Segment& code, Mnemonic mnemonic, std::string const& label)
 {
     code.add(std::make_shared<Instruction>(mnemonic,
         Argument { .addressing_mode = Assembler::AMImmediate, .immediate_type = Argument::ImmediateType::Label, .label = label }));
@@ -91,10 +91,10 @@ void add_indexed_instruction(Segment& code, Mnemonic mnemonic, Register dest, ui
         Argument { .addressing_mode = Assembler::AMIndexed, .constant = idx, .reg = dest }));
 }
 
-template<typename ExpressionType>
-ErrorOr<void> push_expression_return_value(Obelix::Assembler::Segment& code, ExpressionType const& expr)
+template<typename ExprType>
+ErrorOr<void> push_expression_return_value(Obelix::Assembler::Segment& code, ExprType const& expr)
 {
-    switch (expr.type()) {
+    switch (expr.type()->type_id()) {
     case ObelixType::TypeInt:
     case ObelixType::TypeUnsigned:
         code.add(std::make_shared<Instruction>(Mnemonic::PUSH, Argument { .addressing_mode = AMRegister, .reg = Register::ab }));
@@ -155,7 +155,7 @@ ErrorOr<void> int_unary_expression(Image& image, Obelix::Assembler::Segment& cod
     add_instruction(code, Mnemonic::POP, Register::ab);
     switch (expr.op().code()) {
     case TokenCode::Minus: {
-        if (expr.operand()->type() == ObelixType::TypeUnsigned)
+        if (expr.operand()->type()->type_id() == ObelixType::TypeUnsigned)
             return Error { ErrorCode::SyntaxError, "Cannot negate unsigned numbers" };
 
         // Perform two's complement. Negate and add 1:
@@ -242,7 +242,7 @@ ErrorOr<void> byte_unary_expression(Image& image, Obelix::Assembler::Segment& co
     add_instruction(code, Mnemonic::POP, Register::ab);
     switch (expr.op().code()) {
     case TokenCode::Minus: {
-        if (expr.operand()->type() == ObelixType::TypeChar)
+        if (expr.operand()->type()->type_id() == ObelixType::TypeChar)
             return Error { ErrorCode::SyntaxError, "Cannot negate unsigned numbers" };
 
         // Perform two's complement. Negate and add 1:
@@ -399,20 +399,20 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
         auto processed = TRY(process_tree(tree, ctx, output_jv80_processor));
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(processed);
 
-        if (expr->lhs()->type() == ObelixType::TypeUnknown) {
+        if (expr->lhs()->type()->type_id() == ObelixType::TypeUnknown) {
             return Error { ErrorCode::UntypedExpression, expr->lhs()->to_string(0) };
         }
-        if (expr->rhs()->type() == ObelixType::TypeUnknown) {
+        if (expr->rhs()->type()->type_id() == ObelixType::TypeUnknown) {
             return Error { ErrorCode::UntypedExpression, expr->rhs()->to_string(0) };
         }
 
-        if ((expr->lhs()->type() == ObelixType::TypeInt && expr->lhs()->type() == ObelixType::TypeInt) || (expr->lhs()->type() == ObelixType::TypeUnsigned && expr->lhs()->type() == ObelixType::TypeUnsigned)) {
+        if ((expr->lhs()->type()->type_id() == ObelixType::TypeInt && expr->lhs()->type()->type_id() == ObelixType::TypeInt) || (expr->lhs()->type()->type_id() == ObelixType::TypeUnsigned && expr->lhs()->type()->type_id() == ObelixType::TypeUnsigned)) {
             TRY_RETURN(int_int_binary_expression(ctx.image(), *code, *expr));
         }
-        if ((expr->lhs()->type() == ObelixType::TypeByte && expr->lhs()->type() == ObelixType::TypeByte) || (expr->lhs()->type() == ObelixType::TypeChar && expr->lhs()->type() == ObelixType::TypeChar)) {
+        if ((expr->lhs()->type()->type_id() == ObelixType::TypeByte && expr->lhs()->type()->type_id() == ObelixType::TypeByte) || (expr->lhs()->type()->type_id() == ObelixType::TypeChar && expr->lhs()->type()->type_id() == ObelixType::TypeChar)) {
             TRY_RETURN(byte_byte_binary_expression(ctx.image(), *code, *expr));
         }
-        if (expr->lhs()->type() == ObelixType::TypeBoolean && expr->lhs()->type() == ObelixType::TypeBoolean) {
+        if (expr->lhs()->type()->type_id() == ObelixType::TypeBoolean && expr->lhs()->type()->type_id() == ObelixType::TypeBoolean) {
             TRY_RETURN(bool_bool_binary_expression(ctx.image(), *code, *expr));
         }
         return tree;
@@ -422,17 +422,17 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
         auto processed = TRY(process_tree(tree, ctx, output_jv80_processor));
         auto expr = std::dynamic_pointer_cast<UnaryExpression>(processed);
 
-        if (expr->operand()->type() == ObelixType::TypeUnknown) {
+        if (expr->operand()->type()->type_id() == ObelixType::TypeUnknown) {
             return Error { ErrorCode::UntypedExpression, expr->operand()->to_string(0) };
         }
 
-        if (expr->operand()->type() == ObelixType::TypeInt || expr->operand()->type() == ObelixType::TypeUnsigned) {
+        if (expr->operand()->type()->type_id() == ObelixType::TypeInt || expr->operand()->type()->type_id() == ObelixType::TypeUnsigned) {
             TRY_RETURN(int_unary_expression(ctx.image(), *code, *expr));
         }
-        if (expr->operand()->type() == ObelixType::TypeByte || expr->operand()->type() == ObelixType::TypeChar) {
+        if (expr->operand()->type()->type_id() == ObelixType::TypeByte || expr->operand()->type()->type_id() == ObelixType::TypeChar) {
             TRY_RETURN(byte_unary_expression(ctx.image(), *code, *expr));
         }
-        if (expr->operand()->type() == ObelixType::TypeBoolean) {
+        if (expr->operand()->type()->type_id() == ObelixType::TypeBoolean) {
             TRY_RETURN(bool_unary_expression(ctx.image(), *code, *expr));
         }
         return tree;
@@ -468,7 +468,7 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
             return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
         auto idx = idx_maybe.value();
 
-        switch (identifier->type()) {
+        switch (identifier->type()->type_id()) {
         case ObelixType::TypeInt:
         case ObelixType::TypeUnsigned:
             add_indexed_instruction(*code, Mnemonic::PUSH, Register::bp, static_cast<uint8_t>(idx->to_long().value()));
@@ -494,7 +494,7 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
             return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", assignment->name()) };
         auto idx = (uint16_t)idx_maybe.value();
 
-        switch (assignment->type()) {
+        switch (assignment->type()->type_id()) {
         case ObelixType::TypeInt:
         case ObelixType::TypeUnsigned:
             add_instruction(*code, Mnemonic::POP, Register::di);
@@ -523,7 +523,7 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
         ctx.set("#offset", make_obj<Integer>(offset + 2)); // FIXME Use type size
         ctx.declare(var_decl->variable().identifier(), make_obj<Integer>(offset));
         if (var_decl->expression() == nullptr) {
-            switch (var_decl->expression()->type()) {
+            switch (var_decl->expression()->type()->type_id()) {
             case ObelixType::TypeInt:
             case ObelixType::TypeUnsigned:
             case ObelixType::TypeByte:
@@ -536,7 +536,7 @@ ErrorOrNode output_jv80_processor(std::shared_ptr<SyntaxNode> const& tree, Outpu
             }
         }
         return tree;
-    };
+    }
 
     case SyntaxNodeType::Return: {
         auto processed = TRY(process_tree(tree, ctx, output_jv80_processor));

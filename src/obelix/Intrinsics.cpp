@@ -70,47 +70,51 @@ void Intrinsics::initialize()
 {
     if (s_intrinsics.empty()) {
         s_intrinsics.resize(sig_intrinsic_count);
-        s_intrinsics[sig_allocate] = Intrinsic(Signature { "allocate", TypePointer, { TypeInt } });
+        s_intrinsics[sig_allocate] = Intrinsic(
+            Signature {
+                "allocate",
+                ExpressionType::simple_type(TypePointer),
+                { ExpressionType::simple_type(TypeInt) } });
 
-        s_intrinsics[sig_eputs] = Intrinsic(Signature { "eputs", TypeInt, { TypeString } });
-        s_intrinsics[sig_fputs] = Intrinsic(Signature { "fputs", TypeInt, { TypeInt, TypeString } });
-        s_intrinsics[sig_fsize] = Intrinsic(Signature { "fsize", TypeInt, { TypeInt } });
-        s_intrinsics[sig_putchar] = Intrinsic(Signature { "putchar", TypeInt, { TypeInt } });
-        s_intrinsics[sig_puts] = Intrinsic(Signature { "puts", TypeInt, { TypeString } });
+        s_intrinsics[sig_eputs] = Intrinsic(Signature { "eputs", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeString) } });
+        s_intrinsics[sig_fputs] = Intrinsic(Signature { "fputs", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeInt), ExpressionType::simple_type(TypeString) } });
+        s_intrinsics[sig_fsize] = Intrinsic(Signature { "fsize", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_putchar] = Intrinsic(Signature { "putchar", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_puts] = Intrinsic(Signature { "puts", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeString) } });
 
-        s_intrinsics[sig_to_string] = Intrinsic(Signature { "to_string", TypeString, { TypeInt } });
+        s_intrinsics[sig_to_string] = Intrinsic(Signature { "to_string", ExpressionType::simple_type(TypeString), { ExpressionType::simple_type(TypeInt) } });
 
-        s_intrinsics[sig_add_int_int] = Intrinsic(Signature { "+", TypeInt, { TypeInt, TypeInt } });
-        s_intrinsics[sig_subtract_int_int] = Intrinsic(Signature { "-", TypeInt, { TypeInt, TypeInt } });
-        s_intrinsics[sig_multiply_int_int] = Intrinsic(Signature { "*", TypeInt, { TypeInt, TypeInt } });
-        s_intrinsics[sig_divide_int_int] = Intrinsic(Signature { "/", TypeInt, { TypeInt, TypeInt } });
-        s_intrinsics[sig_equals_int_int] = Intrinsic(Signature { "==", TypeBoolean, { TypeInt, TypeInt } });
-        s_intrinsics[sig_greater_int_int] = Intrinsic(Signature { ">", TypeBoolean, { TypeInt, TypeInt } });
-        s_intrinsics[sig_less_int_int] = Intrinsic(Signature { "<", TypeBoolean, { TypeInt, TypeInt } });
-        s_intrinsics[sig_negate_int] = Intrinsic(Signature { "-", TypeInt, { TypeInt } });
-        s_intrinsics[sig_invert_int] = Intrinsic(Signature { "~", TypeInt, { TypeInt } });
+        s_intrinsics[sig_add_int_int] = Intrinsic(Signature { "+", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeInt), ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_subtract_int_int] = Intrinsic(Signature { "-", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeInt), ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_multiply_int_int] = Intrinsic(Signature { "*", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeInt), ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_divide_int_int] = Intrinsic(Signature { "/", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeInt), ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_equals_int_int] = Intrinsic(Signature { "==", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeInt), ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_greater_int_int] = Intrinsic(Signature { ">", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeInt), ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_less_int_int] = Intrinsic(Signature { "<", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeInt), ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_negate_int] = Intrinsic(Signature { "-", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_invert_int] = Intrinsic(Signature { "~", ExpressionType::simple_type(TypeInt), { ExpressionType::simple_type(TypeInt) } });
 
-        s_intrinsics[sig_add_byte_byte] = Intrinsic(Signature { "+", TypeByte, { TypeByte, TypeByte } });
-        s_intrinsics[sig_subtract_byte_byte] = Intrinsic(Signature { "-", TypeByte, { TypeByte, TypeByte } });
-        s_intrinsics[sig_multiply_byte_byte] = Intrinsic(Signature { "*", TypeByte, { TypeByte, TypeByte } });
-        s_intrinsics[sig_divide_byte_byte] = Intrinsic(Signature { "/", TypeByte, { TypeByte, TypeByte } });
-        s_intrinsics[sig_equals_byte_byte] = Intrinsic(Signature { "==", TypeBoolean, { TypeByte, TypeByte } });
-        s_intrinsics[sig_greater_byte_byte] = Intrinsic(Signature { ">", TypeBoolean, { TypeByte, TypeByte } });
-        s_intrinsics[sig_less_byte_byte] = Intrinsic(Signature { "<", TypeBoolean, { TypeByte, TypeByte } });
-        s_intrinsics[sig_negate_byte] = Intrinsic(Signature { "-", TypeByte, { TypeByte } });
-        s_intrinsics[sig_invert_byte] = Intrinsic(Signature { "~", TypeByte, { TypeByte } });
+        s_intrinsics[sig_add_byte_byte] = Intrinsic(Signature { "+", ExpressionType::simple_type(TypeByte), { ExpressionType::simple_type(TypeByte), ExpressionType::simple_type(TypeByte) } });
+        s_intrinsics[sig_subtract_byte_byte] = Intrinsic(Signature { "-", ExpressionType::simple_type(TypeByte), { ExpressionType::simple_type(TypeByte), ExpressionType::simple_type(TypeByte) } });
+        s_intrinsics[sig_multiply_byte_byte] = Intrinsic(Signature { "*", ExpressionType::simple_type(TypeByte), { ExpressionType::simple_type(TypeByte), ExpressionType::simple_type(TypeByte) } });
+        s_intrinsics[sig_divide_byte_byte] = Intrinsic(Signature { "/", ExpressionType::simple_type(TypeByte), { ExpressionType::simple_type(TypeByte), ExpressionType::simple_type(TypeByte) } });
+        s_intrinsics[sig_equals_byte_byte] = Intrinsic(Signature { "==", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeByte), ExpressionType::simple_type(TypeByte) } });
+        s_intrinsics[sig_greater_byte_byte] = Intrinsic(Signature { ">", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeByte), ExpressionType::simple_type(TypeByte) } });
+        s_intrinsics[sig_less_byte_byte] = Intrinsic(Signature { "<", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeByte), ExpressionType::simple_type(TypeByte) } });
+        s_intrinsics[sig_negate_byte] = Intrinsic(Signature { "-", ExpressionType::simple_type(TypeByte), { ExpressionType::simple_type(TypeByte) } });
+        s_intrinsics[sig_invert_byte] = Intrinsic(Signature { "~", ExpressionType::simple_type(TypeByte), { ExpressionType::simple_type(TypeByte) } });
 
-        s_intrinsics[sig_add_str_str] = Intrinsic(Signature { "+", TypeString, { TypeString, TypeString } });
-        s_intrinsics[sig_multiply_str_int] = Intrinsic(Signature { "*", TypeString, { TypeString, TypeInt } });
-        s_intrinsics[sig_equals_str_str] = Intrinsic(Signature { "==", TypeBoolean, { TypeString, TypeString } });
-        s_intrinsics[sig_greater_str_str] = Intrinsic(Signature { ">", TypeBoolean, { TypeString, TypeString } });
-        s_intrinsics[sig_less_str_str] = Intrinsic(Signature { "<", TypeBoolean, { TypeString, TypeString } });
+        s_intrinsics[sig_add_str_str] = Intrinsic(Signature { "+", ExpressionType::simple_type(TypeString), { ExpressionType::simple_type(TypeString), ExpressionType::simple_type(TypeString) } });
+        s_intrinsics[sig_multiply_str_int] = Intrinsic(Signature { "*", ExpressionType::simple_type(TypeString), { ExpressionType::simple_type(TypeString), ExpressionType::simple_type(TypeInt) } });
+        s_intrinsics[sig_equals_str_str] = Intrinsic(Signature { "==", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeString), ExpressionType::simple_type(TypeString) } });
+        s_intrinsics[sig_greater_str_str] = Intrinsic(Signature { ">", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeString), ExpressionType::simple_type(TypeString) } });
+        s_intrinsics[sig_less_str_str] = Intrinsic(Signature { "<", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeString), ExpressionType::simple_type(TypeString) } });
 
-        s_intrinsics[sig_and_bool_bool] = Intrinsic(Signature { "&", TypeBoolean, { TypeBoolean, TypeBoolean } });
-        s_intrinsics[sig_or_bool_bool] = Intrinsic(Signature { "|", TypeBoolean, { TypeBoolean, TypeBoolean } });
-        s_intrinsics[sig_xor_bool_bool] = Intrinsic(Signature { "^", TypeBoolean, { TypeBoolean, TypeBoolean } });
-        s_intrinsics[sig_invert_bool] = Intrinsic(Signature { "!", TypeBoolean, { TypeBoolean } });
-        s_intrinsics[sig_equals_bool_bool] = Intrinsic(Signature { "==", TypeBoolean, { TypeBoolean, TypeBoolean } });
+        s_intrinsics[sig_and_bool_bool] = Intrinsic(Signature { "&", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeBoolean), ExpressionType::simple_type(TypeBoolean) } });
+        s_intrinsics[sig_or_bool_bool] = Intrinsic(Signature { "|", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeBoolean), ExpressionType::simple_type(TypeBoolean) } });
+        s_intrinsics[sig_xor_bool_bool] = Intrinsic(Signature { "^", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeBoolean), ExpressionType::simple_type(TypeBoolean) } });
+        s_intrinsics[sig_invert_bool] = Intrinsic(Signature { "!", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeBoolean) } });
+        s_intrinsics[sig_equals_bool_bool] = Intrinsic(Signature { "==", ExpressionType::simple_type(TypeBoolean), { ExpressionType::simple_type(TypeBoolean), ExpressionType::simple_type(TypeBoolean) } });
 
 #undef INTRINSIC_SIGNATURE
 #define INTRINSIC_SIGNATURE(sig) set_arm64_implementation(sig, arm64_##sig);

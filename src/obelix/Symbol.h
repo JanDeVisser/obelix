@@ -11,28 +11,34 @@
 #include <string>
 #include <vector>
 
-#include <core/Type.h>
+#include <obelix/ExpressionType.h>
 
 namespace Obelix {
 
 class Symbol {
 public:
-    explicit Symbol(std::string identifier, ObelixType type = TypeUnknown)
+    explicit Symbol(std::string identifier, std::shared_ptr<ExpressionType> type = nullptr)
         : m_identifier(move(identifier))
-        , m_type(type)
+        , m_type(move(type))
     {
     }
 
-    std::string to_string() { return format("{}: {}", m_identifier, ObelixType_name(m_type)); }
+    Symbol(std::string identifier, ObelixType type)
+        : m_identifier(move(identifier))
+        , m_type(ExpressionType::simple_type(type))
+    {
+    }
+
+    std::string to_string() { return format("{}: {}", m_identifier, type_name(type())); }
     [[nodiscard]] std::string const& identifier() const { return m_identifier; }
     [[nodiscard]] std::string const& name() const { return identifier(); }
-    [[nodiscard]] ObelixType type() const { return m_type; }
-    [[nodiscard]] bool is_typed() const { return m_type != ObelixType::TypeUnknown; }
+    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return m_type; }
+    [[nodiscard]] bool is_typed() const { return m_type != nullptr; }
     [[nodiscard]] bool operator==(Symbol const& other) const { return m_identifier == other.m_identifier; }
 
 private:
     std::string m_identifier;
-    ObelixType m_type;
+    std::shared_ptr<ExpressionType> m_type;
 };
 
 typedef std::vector<Symbol> Symbols;

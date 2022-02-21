@@ -93,7 +93,7 @@ private:
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
     std::shared_ptr<Expression> parse_postfix_unary_operator(std::shared_ptr<Expression> const& expression);
     std::shared_ptr<Expression> parse_primary_expression(bool);
-    std::optional<ObelixType> parse_type();
+    std::shared_ptr<ExpressionType> parse_type();
 
     Config m_config;
     std::unordered_set<std::string> m_modules;

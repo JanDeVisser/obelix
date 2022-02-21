@@ -12,6 +12,7 @@
 #include <core/Range.h>
 #include <core/Type.h>
 #include <lexer/Token.h>
+#include <obelix/ExpressionType.h>
 #include <obelix/Symbol.h>
 #include <string>
 
@@ -106,6 +107,7 @@ typedef std::vector<std::string> Strings;
 class SyntaxNode;
 class Module;
 using Nodes = std::vector<std::shared_ptr<SyntaxNode>>;
+using Types = std::vector<std::shared_ptr<ExpressionType>>;
 
 static inline std::string pad(int num)
 {
@@ -184,21 +186,21 @@ public:
     {
     }
 
-    explicit Expression(ObelixType type)
+    explicit Expression(std::shared_ptr<ExpressionType> type)
         : SyntaxNode()
-        , m_type(type)
+        , m_type(move(type))
     {
     }
 
-    [[nodiscard]] ObelixType type() const { return m_type; }
-    [[nodiscard]] bool is_typed() { return m_type != ObelixType::TypeUnknown; }
+    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return m_type; }
+    [[nodiscard]] bool is_typed() { return m_type != nullptr && m_type->type_id() != TypeUnknown; }
     [[nodiscard]] virtual ErrorOr<std::optional<Obj>> to_object() const = 0;
     [[nodiscard]] std::string attributes() const override { return format(R"(type="{}")", type()); }
     [[nodiscard]] virtual std::string to_string() const = 0;
     [[nodiscard]] std::string to_string(int) const override { return to_string(); }
 
 private:
-    ObelixType m_type { TypeUnknown };
+    std::shared_ptr<ExpressionType> m_type { nullptr };
 };
 
 class Import : public Statement {
@@ -416,11 +418,11 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionDecl; }
     [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
     [[nodiscard]] std::string const& name() const { return identifier().identifier(); }
-    [[nodiscard]] ObelixType type() const { return identifier().type(); }
+    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return identifier().type(); }
     [[nodiscard]] Symbols const& parameters() const { return m_parameters; }
-    [[nodiscard]] ObelixTypes parameter_types() const
+    [[nodiscard]] Types parameter_types() const
     {
-        ObelixTypes ret;
+        Types ret;
         for (auto& parameter : m_parameters) {
             ret.push_back(parameter.type());
         }
@@ -455,7 +457,7 @@ public:
             if (!first)
                 params += ",";
             first = false;
-            params += ObelixType_name(param.type());
+            params += type_name(param.type());
         }
         return format("{}({})", name(), params);
     }
@@ -517,7 +519,7 @@ public:
     [[nodiscard]] std::shared_ptr<FunctionDecl> const& declaration() const { return m_function_decl; }
     [[nodiscard]] Symbol const& identifier() const { return m_function_decl->identifier(); }
     [[nodiscard]] std::string const& name() const { return identifier().identifier(); }
-    [[nodiscard]] ObelixType type() const { return identifier().type(); }
+    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return identifier().type(); }
     [[nodiscard]] Symbols const& parameters() const { return m_function_decl->parameters(); }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
     [[nodiscard]] Nodes children() const override
@@ -590,13 +592,13 @@ private:
 class Literal : public Expression {
 public:
     explicit Literal(Token const& token)
-        : Expression(token.to_object()->type()) // Ick
+        : Expression(ExpressionType::simple_type(token.to_object()->type())) // Ick
         , m_literal(token.to_object())
     {
     }
 
     explicit Literal(Obj value)
-        : Expression(value.type())
+        : Expression(ExpressionType::simple_type(value.type()))
         , m_literal(std::move(value))
     {
     }
@@ -627,7 +629,7 @@ public:
 
 class BinaryExpression : public Expression {
 public:
-    BinaryExpression(std::shared_ptr<Expression> lhs, Token op, std::shared_ptr<Expression> rhs, ObelixType type = ObelixType::TypeUnknown)
+    BinaryExpression(std::shared_ptr<Expression> lhs, Token op, std::shared_ptr<Expression> rhs, std::shared_ptr<ExpressionType> type = nullptr)
         : Expression(type)
         , m_lhs(std::move(lhs))
         , m_operator(std::move(op))
@@ -635,7 +637,12 @@ public:
     {
     }
 
-    BinaryExpression(std::shared_ptr<BinaryExpression> const& expr, ObelixType type)
+    BinaryExpression(std::shared_ptr<Expression> lhs, Token op, std::shared_ptr<Expression> rhs, ObelixType type)
+        : BinaryExpression(move(lhs), std::move(op), move(rhs), ExpressionType::simple_type(type))
+    {
+    }
+
+    BinaryExpression(std::shared_ptr<BinaryExpression> const& expr, std::shared_ptr<ExpressionType> type)
         : Expression(type)
         , m_lhs(expr->lhs())
         , m_operator(expr->op())
@@ -686,17 +693,27 @@ private:
 
 class UnaryExpression : public Expression {
 public:
-    UnaryExpression(Token op, std::shared_ptr<Expression> operand, ObelixType type = ObelixType::TypeUnknown)
+    UnaryExpression(Token op, std::shared_ptr<Expression> operand, std::shared_ptr<ExpressionType> type = nullptr)
         : Expression(type)
         , m_operator(std::move(op))
         , m_operand(std::move(operand))
     {
     }
 
-    UnaryExpression(std::shared_ptr<UnaryExpression> const& expr, ObelixType type)
+    UnaryExpression(Token op, std::shared_ptr<Expression> operand, ObelixType type)
+        : UnaryExpression(std::move(op), move(operand), ExpressionType::simple_type(type))
+    {
+    }
+
+    UnaryExpression(std::shared_ptr<UnaryExpression> const& expr, std::shared_ptr<ExpressionType> type)
         : Expression(type)
         , m_operator(expr->op())
         , m_operand(expr->operand())
+    {
+    }
+
+    UnaryExpression(std::shared_ptr<UnaryExpression> const& expr, ObelixType type)
+        : UnaryExpression(move(expr), ExpressionType::simple_type(type))
     {
     }
 
@@ -789,9 +806,9 @@ public:
     [[nodiscard]] Symbol const& function() const { return m_function; }
     [[nodiscard]] std::string const& name() const { return m_function.identifier(); }
     [[nodiscard]] Expressions const& arguments() const { return m_arguments; }
-    [[nodiscard]] ObelixTypes argument_types() const
+    [[nodiscard]] Types argument_types() const
     {
-        ObelixTypes ret;
+        Types ret;
         for (auto& arg : arguments()) {
             ret.push_back(arg->type());
         }
@@ -841,7 +858,7 @@ public:
 
 class VariableDeclaration : public Statement {
 public:
-    explicit VariableDeclaration(std::string variable, ObelixType type, std::shared_ptr<Expression> expr = nullptr, bool constant = false)
+    explicit VariableDeclaration(std::string variable, std::shared_ptr<ExpressionType> type, std::shared_ptr<Expression> expr = nullptr, bool constant = false)
         : Statement()
         , m_variable(move(variable), type)
         , m_const(constant)
@@ -880,7 +897,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::VariableDeclaration; }
     [[nodiscard]] Symbol const& variable() const { return m_variable; }
     [[nodiscard]] std::string const& name() const { return variable().identifier(); }
-    [[nodiscard]] ObelixType type() const { return variable().type(); }
+    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return variable().type(); }
     [[nodiscard]] bool is_typed() const { return variable().is_typed(); }
     [[nodiscard]] bool is_const() const { return m_const; }
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
@@ -1187,7 +1204,7 @@ public:
     [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
     [[nodiscard]] int offset() const { return m_offset; }
     [[nodiscard]] std::string const& name() const { return identifier().name(); }
-    [[nodiscard]] ObelixType type() const { return identifier().type(); }
+    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return identifier().type(); }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionParameter; }
     [[nodiscard]] std::string attributes() const override
     {
@@ -1213,7 +1230,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedFunctionDecl; }
     [[nodiscard]] Symbol const& identifier() const { return m_identifier; }
     [[nodiscard]] std::string const& name() const { return identifier().identifier(); }
-    [[nodiscard]] ObelixType type() const { return identifier().type(); }
+    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return identifier().type(); }
     [[nodiscard]] FunctionParameters const& parameters() const { return m_parameters; }
 
     [[nodiscard]] std::string attributes() const override
@@ -1242,7 +1259,7 @@ public:
             if (!first)
                 params += ",";
             first = false;
-            params += ObelixType_name(param->type());
+            params += type_name(param->type());
         }
         return format("{}({})", name(), params);
     }
@@ -1309,7 +1326,7 @@ public:
     [[nodiscard]] std::shared_ptr<MaterializedFunctionDecl> const& declaration() const { return m_function_decl; }
     [[nodiscard]] Symbol const& identifier() const { return m_function_decl->identifier(); }
     [[nodiscard]] std::string const& name() const { return identifier().identifier(); }
-    [[nodiscard]] ObelixType type() const { return identifier().type(); }
+    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return identifier().type(); }
     [[nodiscard]] FunctionParameters const& parameters() const { return m_function_decl->parameters(); }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
     [[nodiscard]] int stack_depth() const { return m_stack_depth; }
@@ -1366,7 +1383,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedVariableDecl; }
     [[nodiscard]] Symbol const& variable() const { return m_variable; }
     [[nodiscard]] std::string const& name() const { return variable().identifier(); }
-    [[nodiscard]] ObelixType type() const { return variable().type(); }
+    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return variable().type(); }
     [[nodiscard]] bool is_typed() const { return variable().is_typed(); }
     [[nodiscard]] bool is_const() const { return m_const; }
     [[nodiscard]] std::shared_ptr<Expression> const& expression() const { return m_expression; }
@@ -1386,6 +1403,24 @@ std::shared_ptr<T> make_node(Args&&... args)
     debug(parser, "make_node<{}>", SyntaxNodeType_name(ret->node_type()));
     return ret;
 }
+
+template<>
+struct Converter<SyntaxNode*> {
+    static std::string to_string(SyntaxNode const* val)
+    {
+        return val->to_string(0);
+    }
+
+    static double to_double(SyntaxNode const* val)
+    {
+        return NAN;
+    }
+
+    static unsigned long to_long(SyntaxNode const* val)
+    {
+        return 0;
+    }
+};
 
 ErrorOr<std::shared_ptr<SyntaxNode>> to_literal(std::shared_ptr<Expression> const& expr);
 

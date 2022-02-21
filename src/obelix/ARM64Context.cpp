@@ -210,7 +210,7 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
     auto reg = 0;
     for (auto& param : func->declaration()->parameters()) {
         assembly().add_instruction("str", "x{},[fp,#{}]", reg++, param->offset());
-        if (param->type() == ObelixType::TypeString)
+        if (param->type()->type_id() == ObelixType::TypeString)
             assembly().add_instruction("str", "x{},[fp,#{}]", reg++, param->offset() + 8);
     }
 }

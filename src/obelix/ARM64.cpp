@@ -12,7 +12,6 @@
 #include <core/ScopeGuard.h>
 #include <obelix/ARM64.h>
 #include <obelix/ARM64Context.h>
-#include <obelix/ARM64Intrinsics.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
@@ -64,13 +63,13 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
         ctx.clear_context();
         ctx.reserve_register(0);
-        if (call->type() == ObelixType::TypeString)
+        if (call->type()->type_id() == ObelixType::TypeString)
             ctx.reserve_register(1);
         // Call function:
         ctx.assembly().add_instruction("bl", call->name());
         // Add x0 to the register context
         ctx.add_register();
-        if (call->type() == ObelixType::TypeString)
+        if (call->type()->type_id() == ObelixType::TypeString)
             ctx.add_register();
         ctx.release_register_context();
         return tree;
@@ -93,7 +92,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         // Add x0 to the register context
         ctx.clear_context();
         ctx.add_register();
-        if (native_func_call->type() == ObelixType::TypeString)
+        if (native_func_call->type()->type_id() == ObelixType::TypeString)
             ctx.add_register();
         ctx.release_register_context();
         return tree;
@@ -113,7 +112,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             return ret.error();
         ctx.clear_context();
         ctx.add_register();
-        if (call->type() == ObelixType::TypeString)
+        if (call->type()->type_id() == ObelixType::TypeString)
             ctx.add_register();
         ctx.release_register_context();
         return tree;
@@ -156,7 +155,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
         auto idx = idx_maybe.value();
 
-        switch (identifier->type()) {
+        switch (identifier->type()->type_id()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
             ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_register(), idx);
@@ -193,7 +192,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
         TRY_RETURN(output_arm64_processor(assignment->expression(), ctx));
 
-        switch (assignment->type()) {
+        switch (assignment->type()->type_id()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
             ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
@@ -230,7 +229,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             TRY_RETURN(output_arm64_processor(var_decl->expression(), ctx));
         } else {
             auto reg = ctx.add_register();
-            switch (var_decl->expression()->type()) {
+            switch (var_decl->expression()->type()->type_id()) {
             case ObelixType::TypeString: {
                 ctx.assembly().add_instruction("mov", "w{},wzr", ctx.add_register());
             } // fall through
@@ -247,7 +246,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             }
         }
         ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(0), var_decl->offset());
-        if (var_decl->type() == ObelixType::TypeString) {
+        if (var_decl->type()->type_id() == ObelixType::TypeString) {
             ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(1), var_decl->offset() + 8);
         }
         ctx.release_register_context();
@@ -343,7 +342,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         FunctionParameters function_parameters;
         for (auto& parameter : func_decl->parameters()) {
             function_parameters.push_back(std::make_shared<FunctionParameter>(parameter, offset));
-            switch (parameter.type()) {
+            switch (parameter.type()->type_id()) {
             case ObelixType::TypeString:
                 offset += 16;
                 break;
@@ -381,7 +380,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto offset = ctx.get("#offset").value();
         auto expression = TRY_AND_CAST(Expression, prepare_arm64_processor(var_decl->expression(), ctx));
         auto ret = std::make_shared<MaterializedVariableDecl>(var_decl->variable(), offset, expression, var_decl->is_const());
-        switch (var_decl->type()) {
+        switch (var_decl->type()->type_id()) {
         case ObelixType::TypeString:
             offset += 16;
             break;

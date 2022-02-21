@@ -23,17 +23,17 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 
     case SyntaxNodeType::VariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
-        ObelixType t = var_decl->variable().type();
+        auto t = var_decl->variable().type();
         std::shared_ptr<Expression> expr { nullptr };
         if (var_decl->expression()) {
             expr = TRY_AND_CAST(Expression, bind_types_processor(var_decl->expression(), ctx));
 
-            if (expr->is_typed() && var_decl->is_typed() && var_decl->type() != ObelixType::TypeAny && expr->type() != var_decl->type())
+            if (expr->is_typed() && var_decl->is_typed() && var_decl->type()->type_id() != ObelixType::TypeAny && expr->type() != var_decl->type())
                 return Error { ErrorCode::TypeMismatch, var_decl->name(), var_decl->type(), expr->type() };
             if (!expr->is_typed() && !var_decl->is_typed())
                 return Error { ErrorCode::UntypedVariable, var_decl->name() };
 
-            if (t == ObelixType::TypeUnknown)
+            if (!t || t->type_id() == ObelixType::TypeUnknown)
                 t = expr->type();
         } else if (!var_decl->is_typed()) {
             return Error { ErrorCode::UntypedVariable, var_decl->name() };
@@ -48,10 +48,10 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
     case SyntaxNodeType::FunctionDef: {
         auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
         auto decl = func_def->declaration();
-        if (decl->identifier().type() == ObelixType::TypeUnknown)
+        if (!decl->identifier().type())
             return Error { ErrorCode::UntypedFunction, decl->identifier().identifier() };
         for (auto& param : decl->parameters()) {
-            if (param.type() == ObelixType::TypeUnknown)
+            if (!param.type())
                 return Error { ErrorCode::UntypedParameter, param.identifier() };
         }
         ctx.declare(decl->identifier().identifier(), decl);
@@ -61,7 +61,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 
         BindContext func_ctx(ctx);
         for (auto& param : decl->parameters()) {
-            if (param.type() == ObelixType::TypeUnknown)
+            if (!param.type())
                 return Error { ErrorCode::UntypedParameter, param.identifier() };
             func_ctx.declare(param.name(), std::make_shared<VariableDeclaration>(param));
         }
@@ -77,9 +77,9 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             return Error { ErrorCode::UntypedExpression, lhs->to_string(0) };
         if (!rhs->is_typed())
             return Error { ErrorCode::UntypedExpression, rhs->to_string(0) };
-        std::vector<ObelixType> arg_types;
-        arg_types.push_back(rhs->type());
-        auto lhs_type = ObjectType::get(lhs->type());
+        ObelixTypes arg_types;
+        arg_types.push_back(static_cast<ObelixType>(rhs->type()->type_id()));
+        auto lhs_type = ObjectType::get(static_cast<ObelixType>(lhs->type()->type_id()));
         assert(lhs_type.has_value());
         auto return_type = lhs_type.value()->return_type_of(expr->op().value(), arg_types);
         if (return_type == ObelixType::TypeUnknown)
@@ -109,7 +109,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         auto operand = TRY_AND_CAST(Expression, bind_types_processor(expr->operand(), ctx));
         if (!operand->is_typed())
             return Error { ErrorCode::UntypedExpression, operand->to_string(0) };
-        auto operand_type = ObjectType::get(operand->type());
+        auto operand_type = ObjectType::get(static_cast<ObelixType>(operand->type()->type_id()));
         if (!operand_type.has_value())
             return Error { ErrorCode::InternalError, format("No type definition for '{}'", operand->type()) };
         assert(operand_type.has_value());

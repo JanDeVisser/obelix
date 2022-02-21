@@ -269,13 +269,13 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
         if (!expect(TokenCode::Colon))
             return nullptr;
 
-        auto param_type_maybe = parse_type();
-        if (!param_type_maybe.has_value()) {
+        auto param_type = parse_type();
+        if (!param_type) {
             add_error(peek(), format("Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value(), peek().value()));
             return nullptr;
         }
 
-        params.emplace_back(param_name_maybe.value().value(), param_type_maybe.value());
+        params.emplace_back(param_name_maybe.value().value(), param_type);
         switch (current_code()) {
         case TokenCode::Comma:
             lex();
@@ -293,13 +293,13 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
     if (!expect(TokenCode::Colon))
         return nullptr;
 
-    auto type_maybe = parse_type();
-    if (!type_maybe.has_value()) {
+    auto type = parse_type();
+    if (!type) {
         add_error(peek(), format("Syntax Error: Expected return type name, got '{}'", peek().value()));
         return nullptr;
     }
 
-    auto func_decl = std::make_shared<FunctionDecl>(Symbol { name_maybe.value().value(), type_maybe.value() }, params);
+    auto func_decl = std::make_shared<FunctionDecl>(Symbol { name_maybe.value().value(), type }, params);
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
@@ -336,13 +336,13 @@ std::shared_ptr<FunctionDef> Parser::parse_intrinsic_definition()
         if (!expect(TokenCode::Colon))
             return nullptr;
 
-        auto param_type_maybe = parse_type();
-        if (!param_type_maybe.has_value()) {
+        auto param_type = parse_type();
+        if (!param_type) {
             add_error(peek(), format("Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value(), peek().value()));
             return nullptr;
         }
 
-        params.emplace_back(param_name_maybe.value().value(), param_type_maybe.value());
+        params.emplace_back(param_name_maybe.value().value(), param_type);
         switch (current_code()) {
         case TokenCode::Comma:
             lex();
@@ -360,13 +360,13 @@ std::shared_ptr<FunctionDef> Parser::parse_intrinsic_definition()
     if (!expect(TokenCode::Colon))
         return nullptr;
 
-    auto type_maybe = parse_type();
-    if (!type_maybe.has_value()) {
+    auto type = parse_type();
+    if (!type) {
         add_error(peek(), format("Syntax Error: Expected return type name, got '{}'", peek().value()));
         return nullptr;
     }
 
-    auto func_decl = make_node<IntrinsicDecl>(Symbol { name_maybe.value().value(), type_maybe.value() }, params);
+    auto func_decl = make_node<IntrinsicDecl>(Symbol { name_maybe.value().value(), type }, params);
     if (!Intrinsics::is_intrinsic(Signature { func_decl->name(), func_decl->type(), func_decl->parameter_types() })) {
         add_error(peek(), format("Syntax Error: function '{}' is declared 'intrinsic' but isn't registered as an intrinsic", func_decl->name()));
     }
@@ -493,15 +493,15 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(bool con
     if (!identifier_maybe.has_value()) {
         return nullptr;
     }
-    ObelixType type = ObelixType::TypeUnknown;
+    std::shared_ptr<ExpressionType> type = nullptr;
     if (current_code() == TokenCode::Colon) {
         lex();
-        auto var_type_maybe = parse_type();
-        if (!var_type_maybe.has_value()) {
+        auto var_type = parse_type();
+        if (!var_type) {
             add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
-        type = var_type_maybe.value();
+        type = var_type;
     }
     if (current_code() != TokenCode::Equals) {
         if (constant) {
@@ -762,27 +762,12 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
     }
 }
 
-std::optional<ObelixType> Parser::parse_type()
+std::shared_ptr<ExpressionType> Parser::parse_type()
 {
-    switch (current_code()) {
-    case KeywordInt:
+    auto ret = ExpressionType::simple_type(peek().value());
+    if (ret != nullptr)
         lex();
-        return ObelixType::TypeInt;
-    case KeywordByte:
-        lex();
-        return ObelixType::TypeByte;
-    case KeywordBool:
-        lex();
-        return ObelixType::TypeBoolean;
-    case KeywordString:
-        lex();
-        return ObelixType::TypeString;
-    case KeywordPointer:
-        lex();
-        return ObelixType::TypePointer;
-    default:
-        return {};
-    }
+    return ret;
 }
 
 }

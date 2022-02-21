@@ -15,16 +15,17 @@ add_executable(
         BindTypes.cpp
         #BoundFunction.cpp
         #Execute.cpp
+        ExpressionType.cpp
         FoldConstants.cpp
         Functions.cpp
         Intrinsics.cpp
         Lower.cpp
+        ExpressionType.cpp
         OutputJV80.cpp
         Parser.cpp
         Syntax.cpp
         Symbol.h
-        Context.h
-)
+        Context.h)
 
 target_link_libraries(
         obelix
