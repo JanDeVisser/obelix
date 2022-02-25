@@ -488,7 +488,7 @@ private:
     size_t m_matchcount { 0 };
     size_t m_match_min { 0 };
     size_t m_match_max { 0 };
-    Keyword m_keyword {};
+    int m_fullmatch = -1;
     std::string m_scanned {};
 
     bool m_case_sensitive { true };

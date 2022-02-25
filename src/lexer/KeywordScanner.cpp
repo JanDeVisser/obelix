@@ -45,6 +45,7 @@ void KeywordScanner::match_character(int ch)
         ch = toupper(ch);
     m_scanned += (char)ch;
     auto len = m_scanned.length();
+    auto fullmatch = -1;
 
     for (auto ix = m_match_min; ix < m_match_max; ix++) {
         std::string kw = m_keywords[ix].token.value();
@@ -52,7 +53,7 @@ void KeywordScanner::match_character(int ch)
         if (cmp < 0) {
             m_match_min = ix + 1;
         } else if (cmp == 0) {
-            m_keyword = m_keywords[ix];
+            fullmatch = (int)ix;
         } else { /* cmp > 0 */
             if (m_scanned.substr(0, len) != kw.substr(0, len)) {
                 m_match_max = ix;
@@ -66,8 +67,6 @@ void KeywordScanner::match_character(int ch)
     } else {
         m_matchcount = m_match_max - m_match_min;
     }
-    debug(lexer, "_kw_scanner_match: scanned: '{s}' matchcount: {d} match_min: {d}, match_max: {d}",
-        m_scanned, m_matchcount, m_match_min, m_match_max);
 
     /*
      * Determine new state.
@@ -113,7 +112,8 @@ void KeywordScanner::match_character(int ch)
          * Only one match. If it's a full match, i.e. the token matches the
          * keyword, we have a full match. Otherwise it's a prefix match.
          */
-        m_state = (m_keyword.token.code() != TokenCode::Unknown)
+        m_fullmatch = fullmatch;
+        m_state = (fullmatch >= 0)
             ? KeywordScannerState::FullMatch
             : KeywordScannerState::PrefixMatched;
         break;
@@ -125,18 +125,21 @@ void KeywordScanner::match_character(int ch)
          * matches exactly the keyword, it's a full-and-prefix match, otherwise
          * it's a prefixes-match.
          */
-        m_state = (m_keyword.token.code() != TokenCode::Unknown)
+        m_fullmatch = fullmatch;
+        m_state = (fullmatch >= 0)
             ? KeywordScannerState::FullMatchAndPrefixes
             : KeywordScannerState::PrefixesMatched;
         break;
     }
+    debug(lexer, "_kw_scanner_match: scanned: '{s}' matchcount: {d} match_min: {d}, match_max: {d} new state {}",
+        m_scanned, m_matchcount, m_match_min, m_match_max, KeywordScannerState_name(m_state));
 }
 
 void KeywordScanner::reset()
 {
     m_state = KeywordScannerState::Init;
     m_matchcount = 0;
-    m_keyword = { Token(), false };
+    m_fullmatch = -1;
 }
 
 void KeywordScanner::match(Tokenizer& tokenizer)
@@ -181,7 +184,7 @@ void KeywordScanner::match(Tokenizer& tokenizer)
              * keyword is an operator, which is loosely defined as a keyword
              * that ends in a non-alphanumeric, non-underscore character.
              */
-            if (m_keyword.is_operator || (!isalnum(ch) && (ch != '_')))
+            if (m_keywords[m_fullmatch].is_operator || (!isalnum(ch) && (ch != '_')))
                 break;
             m_state = KeywordScannerState::NoMatch;
             break;
@@ -195,7 +198,7 @@ void KeywordScanner::match(Tokenizer& tokenizer)
 
     debug(lexer, "KeywordScanner::match returns '{s}' {d}", KeywordScannerState_name(m_state), (int) m_state);
     if ((m_state == KeywordScannerState::FullMatchLost) || (m_state == KeywordScannerState::FullMatch)) {
-        tokenizer.accept(m_keyword.token.code());
+        tokenizer.accept(m_keywords[m_fullmatch].token.code());
     }
 }
 

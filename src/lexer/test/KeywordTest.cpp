@@ -60,7 +60,7 @@ protected:
     }
 
     bool debugOn() override {
-        return false;
+        return true;
     }
 
 };
@@ -152,6 +152,24 @@ TEST_F(KeywordTest, keyword_abc)
     EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Whitespace].size(), 2);
 }
 
+TEST_F(KeywordTest, keyword_for_form)
+{
+    //    Logger::get_logger().enable("lexer");
+    initialize();
+    add_scanner<Obelix::KeywordScanner>(
+        Token(TokenCode::Keyword0, "for"),
+        Token(TokenCode::Keyword1, "format"),
+        Token(TokenCode::Keyword2, "font"),
+        TokenCode::GreaterEqualThan);
+
+    tokenize("for form format fon font");
+    EXPECT_EQ(tokens.size(), 10);
+    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Identifier].size(), 2);
+    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Keyword0].size(), 1);
+    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Keyword1].size(), 1);
+    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Keyword2].size(), 1);
+}
+
 TEST_F(KeywordTest, keyword_for_format)
 {
     //    Logger::get_logger().enable("lexer");
@@ -167,14 +185,14 @@ TEST_F(KeywordTest, keyword_for_format)
         Token(TokenCode::Keyword7, "acc"),
         Token(TokenCode::Keyword8, "acb"));
 
-    tokenize("xxx for format font fo formatting >=xxx");
-    EXPECT_EQ(tokens.size(), 15);
+    tokenize("xxx for format font fo formatting >=xxx form");
+    EXPECT_EQ(tokens.size(), 17);
     EXPECT_EQ(tokens_by_code[TokenCode::Keyword0].size(), 1);
     EXPECT_EQ(tokens_by_code[TokenCode::Keyword1].size(), 1);
     EXPECT_EQ(tokens_by_code[TokenCode::Keyword2].size(), 1);
     EXPECT_EQ(tokens_by_code[TokenCode::GreaterEqualThan].size(), 1);
-    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Identifier].size(), 4);
-    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Whitespace].size(), 6);
+    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Identifier].size(), 5);
+    EXPECT_EQ(tokens_by_code[Obelix::TokenCode::Whitespace].size(), 7);
 }
 
 }
