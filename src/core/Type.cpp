@@ -27,7 +27,8 @@ std::optional<ObelixType> ObelixType_by_name(std::string const& t)
     return {};
 }
 
-std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
+std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types_by_id;
+std::unordered_map<std::string, std::shared_ptr<ObjectType>> ObjectType::s_types_by_name;
 
 [[maybe_unused]] auto s_assignable = ObjectType::register_type(TypeAssignable,
     [](ObjectType& type) {
@@ -86,21 +87,25 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 [[maybe_unused]] auto s_integer = ObjectType::register_type(TypeInt,
     [](ObjectType& type) {
         type.will_be_a(TypeSignedIntegerNumber);
+        type.has_size(4);
     });
 
 [[maybe_unused]] auto s_unsigned = ObjectType::register_type(TypeUnsigned,
     [](ObjectType& type) {
         type.will_be_a(TypeIntegerNumber);
+        type.has_size(4);
     });
 
 [[maybe_unused]] auto s_byte = ObjectType::register_type(TypeByte,
     [](ObjectType& type) {
         type.will_be_a(TypeSignedIntegerNumber);
+        type.has_size(1);
     });
 
 [[maybe_unused]] auto s_char = ObjectType::register_type(TypeChar,
     [](ObjectType& type) {
         type.will_be_a(TypeIntegerNumber);
+        type.has_size(1);
     });
 
 [[maybe_unused]] auto s_string = ObjectType::register_type(TypeString,
@@ -108,6 +113,7 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
         type.add_method(MethodDescription { "+", TypeString, MethodParameter { "other", TypeString } });
         type.add_method(MethodDescription { "*", TypeString, MethodParameter { "other", TypeInt } });
         type.will_be_a(TypeComparable);
+        type.has_size(12);
     });
 
 [[maybe_unused]] auto s_float = ObjectType::register_type(TypeFloat,
@@ -119,6 +125,7 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
         type.add_method(MethodDescription { "*", TypeFloat, MethodParameter { "other", TypeFloat } });
         type.add_method(MethodDescription { "/", TypeFloat, MethodParameter { "other", TypeFloat } });
         type.will_be_a(TypeComparable);
+        type.has_size(4);
     });
 
 [[maybe_unused]] auto s_boolean = ObjectType::register_type(TypeBoolean,
@@ -127,6 +134,7 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
         type.add_method(MethodDescription { "||", TypeBoolean, MethodParameter { "other", TypeBoolean } });
         type.add_method(MethodDescription { "&&", TypeBoolean, MethodParameter { "other", TypeBoolean } });
         type.add_method(MethodDescription { "^", TypeBoolean, MethodParameter { "other", TypeBoolean } });
+        type.has_size(1);
     });
 
 [[maybe_unused]] auto s_null = ObjectType::register_type(TypeNull,
@@ -139,6 +147,8 @@ std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types;
 
 [[maybe_unused]] auto s_pointer = ObjectType::register_type(TypePointer,
     [](ObjectType& type) {
+        type.has_template_parameter("target");
+        type.has_size(8);
         type.add_method(MethodDescription { "++", TypeArgument });
         type.add_method(MethodDescription { "--", TypeArgument });
         type.add_method(MethodDescription { "+=", TypeArgument, MethodParameter { "other", TypeInt } });
@@ -184,7 +194,7 @@ ObelixType ObjectType::return_type_of(std::string_view method_name, ObelixTypes 
     while (!types.empty()) {
         ObelixType t = types.back();
         types.pop_back();
-        auto type = s_types.at(t);
+        auto type = s_types_by_id.at(t);
         for (auto is_a : type->m_is_a) {
             types.push_back(is_a);
         }
@@ -194,11 +204,32 @@ ObelixType ObjectType::return_type_of(std::string_view method_name, ObelixTypes 
     return TypeUnknown;
 }
 
-std::optional<std::shared_ptr<ObjectType>> ObjectType::get(ObelixType type)
+std::shared_ptr<ObjectType> ObjectType::get(ObelixType type)
 {
-    if (!s_types.contains(type))
-        return {};
-    return s_types.at(type);
+    if (!s_types_by_id.contains(type)) {
+        ObjectType::register_type(type,
+            [](ObjectType& type) {
+            });
+    }
+    return s_types_by_id.at(type);
 }
+
+std::shared_ptr<ObjectType> ObjectType::get(std::string const& type)
+{
+    if (s_types_by_name.contains(type))
+        return s_types_by_name.at(type);
+    auto type_maybe = ObelixType_by_name(type);
+    if (type_maybe.has_value() && s_types_by_id.contains(type_maybe.value())) {
+        auto ret = s_types_by_id.at(type_maybe.value());
+        s_types_by_name[type] = ret;
+        return ret;
+    }
+    return nullptr;
+}
+
+// std::shared_ptr<ObjectType> ObjectType::instantiate_template(std::shared_ptr<ObjectType> templ, std::vector<std::shared_ptr<ObjectType>> args)
+//{
+//
+// }
 
 }

@@ -68,11 +68,6 @@ void Parser::initialize()
         Token(KeywordIncEquals, "+="),
         Token(KeywordDecEquals, "-="),
         Token(KeywordConst, "const"),
-        Token(KeywordInt, "int"),
-        Token(KeywordByte, "byte"),
-        Token(KeywordBool, "bool"),
-        Token(KeywordString, "string"),
-        Token(KeywordPointer, "ptr"),
         Token(KeywordIntrinsic, "intrinsic"),
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
@@ -275,7 +270,7 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
             return nullptr;
         }
 
-        params.emplace_back(param_name_maybe.value().value(), param_type);
+        params.emplace_back(param_name_maybe.value().value(), param_type->type());
         switch (current_code()) {
         case TokenCode::Comma:
             lex();
@@ -299,7 +294,7 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
         return nullptr;
     }
 
-    auto func_decl = std::make_shared<FunctionDecl>(Symbol { name_maybe.value().value(), type }, params);
+    auto func_decl = std::make_shared<FunctionDecl>(Symbol { name_maybe.value().value(), type->type() }, params);
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
@@ -338,11 +333,11 @@ std::shared_ptr<FunctionDef> Parser::parse_intrinsic_definition()
 
         auto param_type = parse_type();
         if (!param_type) {
-            add_error(peek(), format("Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value(), peek().value()));
+            add_error(peek(), format("Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value().value(), peek().value()));
             return nullptr;
         }
 
-        params.emplace_back(param_name_maybe.value().value(), param_type);
+        params.emplace_back(param_name_maybe.value().value(), param_type->type());
         switch (current_code()) {
         case TokenCode::Comma:
             lex();
@@ -366,7 +361,7 @@ std::shared_ptr<FunctionDef> Parser::parse_intrinsic_definition()
         return nullptr;
     }
 
-    auto func_decl = make_node<IntrinsicDecl>(Symbol { name_maybe.value().value(), type }, params);
+    auto func_decl = make_node<IntrinsicDecl>(Symbol { name_maybe.value().value(), type->type() }, params);
     if (!Intrinsics::is_intrinsic(Signature { func_decl->name(), func_decl->type(), func_decl->parameter_types() })) {
         add_error(peek(), format("Syntax Error: function '{}' is declared 'intrinsic' but isn't registered as an intrinsic", func_decl->name()));
     }
@@ -508,13 +503,13 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(bool con
             add_error(peek(), format("Syntax Error: Expected expression after constant declaration, got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
-        return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value(), type), nullptr, constant);
+        return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value(), type->type()), nullptr, constant);
     }
     lex();
     auto expr = parse_expression();
     if (!expr)
         return nullptr;
-    return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value(), type), expr, constant);
+    return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value(), type->type()), expr, constant);
 }
 
 std::shared_ptr<Import> Parser::parse_import_statement()
@@ -764,10 +759,26 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
 
 std::shared_ptr<ExpressionType> Parser::parse_type()
 {
-    auto ret = ExpressionType::simple_type(peek().value());
-    if (ret != nullptr)
-        lex();
-    return ret;
+    if (current_code() != TokenCode::Identifier)
+        return nullptr;
+    auto type_name = lex().value();
+    if (current_code() == TokenCode::LessThan) {
+        ExpressionTypes parameters;
+        while (true) {
+            auto parameter = parse_type();
+            if (!parameter) {
+                add_error(peek(), format("Syntax Error: Expected type, got '{}' ({})", peek().value(), peek().code_name()));
+                return nullptr;
+            }
+            parameters.push_back(parameter);
+            if (current_code() == TokenCode::GreaterThan) {
+                return make_node<ExpressionType>(type_name, parameters);
+            }
+            if (!expect(TokenCode::Comma))
+                return nullptr;
+        }
+    }
+    return make_node<ExpressionType>(type_name);
 }
 
 }

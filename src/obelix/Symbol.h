@@ -11,13 +11,13 @@
 #include <string>
 #include <vector>
 
-#include <obelix/ExpressionType.h>
+#include <core/Type.h>
 
 namespace Obelix {
 
 class Symbol {
 public:
-    explicit Symbol(std::string identifier, std::shared_ptr<ExpressionType> type = nullptr)
+    explicit Symbol(std::string identifier, std::shared_ptr<ObjectType> type = nullptr)
         : m_identifier(move(identifier))
         , m_type(move(type))
     {
@@ -25,20 +25,20 @@ public:
 
     Symbol(std::string identifier, ObelixType type)
         : m_identifier(move(identifier))
-        , m_type(ExpressionType::simple_type(type))
+        , m_type(ObjectType::get(type))
     {
     }
 
     std::string to_string() { return format("{}: {}", m_identifier, type_name(type())); }
     [[nodiscard]] std::string const& identifier() const { return m_identifier; }
     [[nodiscard]] std::string const& name() const { return identifier(); }
-    [[nodiscard]] std::shared_ptr<ExpressionType> type() const { return m_type; }
+    [[nodiscard]] std::shared_ptr<ObjectType> type() const { return m_type; }
     [[nodiscard]] bool is_typed() const { return m_type != nullptr; }
     [[nodiscard]] bool operator==(Symbol const& other) const { return m_identifier == other.m_identifier; }
 
 private:
     std::string m_identifier;
-    std::shared_ptr<ExpressionType> m_type;
+    std::shared_ptr<ObjectType> m_type { nullptr };
 };
 
 typedef std::vector<Symbol> Symbols;

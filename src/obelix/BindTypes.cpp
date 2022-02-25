@@ -28,18 +28,18 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         if (var_decl->expression()) {
             expr = TRY_AND_CAST(Expression, bind_types_processor(var_decl->expression(), ctx));
 
-            if (expr->is_typed() && var_decl->is_typed() && var_decl->type()->type_id() != ObelixType::TypeAny && expr->type() != var_decl->type())
+            if (expr->is_typed() && var_decl->is_typed() && var_decl->type()->type() != ObelixType::TypeAny && expr->type()->type()->type() != var_decl->type()->type())
                 return Error { ErrorCode::TypeMismatch, var_decl->name(), var_decl->type(), expr->type() };
             if (!expr->is_typed() && !var_decl->is_typed())
                 return Error { ErrorCode::UntypedVariable, var_decl->name() };
 
-            if (!t || t->type_id() == ObelixType::TypeUnknown)
-                t = expr->type();
+            if (!t || t->type() == ObelixType::TypeUnknown)
+                t = expr->type()->type();
         } else if (!var_decl->is_typed()) {
             return Error { ErrorCode::UntypedVariable, var_decl->name() };
         }
 
-        auto ret = std::make_shared<VariableDeclaration>(var_decl->name(), t, expr, var_decl->is_const());
+        auto ret = std::make_shared<VariableDeclaration>(var_decl->name(), std::make_shared<ExpressionType>(ObelixType_name(t->type())), expr, var_decl->is_const());
         ctx.declare(var_decl->name(), ret);
         debug(parser, "VariableDeclaration: {}", ret->to_string(0));
         return ret;
@@ -78,10 +78,9 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         if (!rhs->is_typed())
             return Error { ErrorCode::UntypedExpression, rhs->to_string(0) };
         ObelixTypes arg_types;
-        arg_types.push_back(static_cast<ObelixType>(rhs->type()->type_id()));
-        auto lhs_type = ObjectType::get(static_cast<ObelixType>(lhs->type()->type_id()));
-        assert(lhs_type.has_value());
-        auto return_type = lhs_type.value()->return_type_of(expr->op().value(), arg_types);
+        arg_types.push_back(static_cast<ObelixType>(rhs->type()->type()->type()));
+        auto lhs_type = ObjectType::get(static_cast<ObelixType>(lhs->type()->type()->type()));
+        auto return_type = lhs_type->return_type_of(expr->op().value(), arg_types);
         if (return_type == ObelixType::TypeUnknown)
             return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
         if (expr->op().code() == TokenCode::Equals || Parser::is_assignment_operator(expr->op().code())) {
@@ -96,7 +95,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(var_decl_maybe.value());
             if (var_decl->is_const())
                 return Error { ErrorCode::CannotAssignToConstant, var_decl->name() };
-            if (var_decl->type() != rhs->type())
+            if (var_decl->type()->type() != rhs->type()->type()->type())
                 return Error { ErrorCode::TypeMismatch, rhs->to_string(), var_decl->type(), rhs->type() };
         }
         auto ret = std::make_shared<BinaryExpression>(lhs, expr->op(), rhs, return_type);
@@ -109,11 +108,10 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         auto operand = TRY_AND_CAST(Expression, bind_types_processor(expr->operand(), ctx));
         if (!operand->is_typed())
             return Error { ErrorCode::UntypedExpression, operand->to_string(0) };
-        auto operand_type = ObjectType::get(static_cast<ObelixType>(operand->type()->type_id()));
-        if (!operand_type.has_value())
+        auto operand_type = ObjectType::get(static_cast<ObelixType>(operand->type()->type()->type()));
+        if (operand_type->type() == TypeUnknown)
             return Error { ErrorCode::InternalError, format("No type definition for '{}'", operand->type()) };
-        assert(operand_type.has_value());
-        auto return_type = operand_type.value()->return_type_of(expr->op().value(), std::vector<ObelixType>());
+        auto return_type = operand_type->return_type_of(expr->op().value(), std::vector<ObelixType>());
         if (return_type == ObelixType::TypeUnknown)
             return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
         auto ret = std::make_shared<UnaryExpression>(expr->op(), operand, return_type);
@@ -156,7 +154,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             auto& arg = func_call->arguments().at(ix);
             auto& param = func_decl->parameters().at(ix);
             auto a = TRY_AND_CAST(Expression, bind_types_processor(arg, ctx));
-            if (a->type() != param.type())
+            if (a->type()->type()->type() != param.type()->type())
                 return Error { ErrorCode::ArgumentTypeMismatch, func_call->name(), a->type(), param.identifier() };
 
             args.push_back(a);

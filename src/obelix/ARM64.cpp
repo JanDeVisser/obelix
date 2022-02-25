@@ -63,13 +63,13 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
         ctx.clear_context();
         ctx.reserve_register(0);
-        if (call->type()->type_id() == ObelixType::TypeString)
+        if (call->type()->type()->type() == ObelixType::TypeString)
             ctx.reserve_register(1);
         // Call function:
         ctx.assembly().add_instruction("bl", call->name());
         // Add x0 to the register context
         ctx.add_register();
-        if (call->type()->type_id() == ObelixType::TypeString)
+        if (call->type()->type()->type() == ObelixType::TypeString)
             ctx.add_register();
         ctx.release_register_context();
         return tree;
@@ -92,7 +92,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         // Add x0 to the register context
         ctx.clear_context();
         ctx.add_register();
-        if (native_func_call->type()->type_id() == ObelixType::TypeString)
+        if (native_func_call->type()->type()->type() == ObelixType::TypeString)
             ctx.add_register();
         ctx.release_register_context();
         return tree;
@@ -104,7 +104,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         for (auto& arg : call->arguments()) {
             TRY_RETURN(output_arm64_processor(arg, ctx));
         }
-        ARM64Implementation impl = Intrinsics::get_arm64_implementation(Signature { call->name(), call->type(), call->argument_types() });
+        ARM64Implementation impl = Intrinsics::get_arm64_implementation(Signature { call->name(), call->type()->type(), call->argument_types() });
         if (!impl)
             return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string()) };
         auto ret = impl(ctx);
@@ -112,7 +112,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             return ret.error();
         ctx.clear_context();
         ctx.add_register();
-        if (call->type()->type_id() == ObelixType::TypeString)
+        if (call->type()->type()->type() == ObelixType::TypeString)
             ctx.add_register();
         ctx.release_register_context();
         return tree;
@@ -155,7 +155,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
         auto idx = idx_maybe.value();
 
-        switch (identifier->type()->type_id()) {
+        switch (identifier->type()->type()->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
             ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_register(), idx);
@@ -192,7 +192,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
         TRY_RETURN(output_arm64_processor(assignment->expression(), ctx));
 
-        switch (assignment->type()->type_id()) {
+        switch (assignment->type()->type()->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
             ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
@@ -229,7 +229,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             TRY_RETURN(output_arm64_processor(var_decl->expression(), ctx));
         } else {
             auto reg = ctx.add_register();
-            switch (var_decl->expression()->type()->type_id()) {
+            switch (var_decl->expression()->type()->type()->type()) {
             case ObelixType::TypeString: {
                 ctx.assembly().add_instruction("mov", "w{},wzr", ctx.add_register());
             } // fall through
@@ -246,7 +246,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             }
         }
         ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(0), var_decl->offset());
-        if (var_decl->type()->type_id() == ObelixType::TypeString) {
+        if (var_decl->type()->type() == ObelixType::TypeString) {
             ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(1), var_decl->offset() + 8);
         }
         ctx.release_register_context();
@@ -342,7 +342,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         FunctionParameters function_parameters;
         for (auto& parameter : func_decl->parameters()) {
             function_parameters.push_back(std::make_shared<FunctionParameter>(parameter, offset));
-            switch (parameter.type()->type_id()) {
+            switch (parameter.type()->type()) {
             case ObelixType::TypeString:
                 offset += 16;
                 break;
@@ -380,7 +380,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto offset = ctx.get("#offset").value();
         auto expression = TRY_AND_CAST(Expression, prepare_arm64_processor(var_decl->expression(), ctx));
         auto ret = std::make_shared<MaterializedVariableDecl>(var_decl->variable(), offset, expression, var_decl->is_const());
-        switch (var_decl->type()->type_id()) {
+        switch (var_decl->type()->type()) {
         case ObelixType::TypeString:
             offset += 16;
             break;
@@ -403,8 +403,8 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
     case SyntaxNodeType::UnaryExpression: {
         auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
         auto operand = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->operand(), ctx));
-        auto call = std::make_shared<FunctionCall>(Symbol { expr->op().code_name(), expr->type() }, Expressions { operand });
-        if (!Intrinsics::is_intrinsic(Signature { expr->op().code_name(), expr->type(), { operand->type() } }))
+        auto call = std::make_shared<FunctionCall>(Symbol { expr->op().code_name(), expr->type()->type() }, Expressions { operand });
+        if (!Intrinsics::is_intrinsic(Signature { expr->op().code_name(), expr->type()->type(), { operand->type()->type() } }))
             return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string()) };
         return std::make_shared<CompilerIntrinsic>(call);
     }
@@ -413,8 +413,8 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
         auto lhs = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->lhs(), ctx));
         auto rhs = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->rhs(), ctx));
-        auto call = std::make_shared<FunctionCall>(Symbol { TokenCode_to_string(expr->op().code()), expr->type() }, Expressions { lhs, rhs });
-        if (!Intrinsics::is_intrinsic(Signature { TokenCode_to_string(expr->op().code()), expr->type(), { lhs->type(), rhs->type() } }))
+        auto call = std::make_shared<FunctionCall>(Symbol { TokenCode_to_string(expr->op().code()), expr->type()->type() }, Expressions { lhs, rhs });
+        if (!Intrinsics::is_intrinsic(Signature { TokenCode_to_string(expr->op().code()), expr->type()->type(), { lhs->type()->type(), rhs->type()->type() } }))
             return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string()) };
         return std::make_shared<CompilerIntrinsic>(call);
     }

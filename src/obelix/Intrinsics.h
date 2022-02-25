@@ -65,8 +65,8 @@ enum InitrinsicSignature {
 
 struct Signature {
     std::string name;
-    std::shared_ptr<ExpressionType> return_type;
-    Types parameter_types;
+    std::shared_ptr<ObjectType> return_type;
+    ObjectTypes parameter_types;
 
     [[nodiscard]] bool operator==(Signature const& other) const
     {
@@ -110,20 +110,17 @@ private:
 
 template<>
 struct std::hash<Obelix::Signature> {
-    static size_t type_hash(std::shared_ptr<Obelix::ExpressionType> const& t)
+    static size_t type_hash(Obelix::ObelixType t)
     {
-        Obelix::TypeID id = Obelix::ObelixType::TypeUnknown;
-        if (t)
-            id = t->type_id();
-        return std::hash<Obelix::TypeID> {}(id);
+        return std::hash<int> {}(t);
     }
 
     auto operator()(Obelix::Signature const& signature) const noexcept
     {
         auto h = std::hash<std::string> {}(signature.name);
-        h ^= type_hash(signature.return_type) << 1;
+        h ^= type_hash(signature.return_type->type()) << 1;
         for (auto& parameter_type : signature.parameter_types) {
-            h ^= type_hash(parameter_type) << 1;
+            h ^= type_hash(parameter_type->type()) << 1;
         }
         return h;
     }

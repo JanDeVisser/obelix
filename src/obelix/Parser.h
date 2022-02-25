@@ -49,12 +49,7 @@ public:
     constexpr static TokenCode KeywordIncEquals = TokenCode::Keyword20;
     constexpr static TokenCode KeywordDecEquals = TokenCode::Keyword21;
     constexpr static TokenCode KeywordConst = TokenCode::Keyword22;
-    constexpr static TokenCode KeywordInt = TokenCode::Keyword23;
-    constexpr static TokenCode KeywordByte = TokenCode::Keyword24;
-    constexpr static TokenCode KeywordBool = TokenCode::Keyword25;
-    constexpr static TokenCode KeywordString = TokenCode::Keyword26;
-    constexpr static TokenCode KeywordPointer = TokenCode::Keyword27;
-    constexpr static TokenCode KeywordIntrinsic = TokenCode::Keyword28;
+    constexpr static TokenCode KeywordIntrinsic = TokenCode::Keyword23;
 
     Parser(Config const& parser_config, StringBuffer& src);
     Parser(Config const& parser_config, std::string const& file_name);

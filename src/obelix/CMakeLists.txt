@@ -13,14 +13,10 @@ add_executable(
         ARM64Context.cpp
         ARM64Intrinsics.cpp
         BindTypes.cpp
-        #BoundFunction.cpp
-        #Execute.cpp
-        ExpressionType.cpp
         FoldConstants.cpp
         Functions.cpp
         Intrinsics.cpp
         Lower.cpp
-        ExpressionType.cpp
         OutputJV80.cpp
         Parser.cpp
         Syntax.cpp
