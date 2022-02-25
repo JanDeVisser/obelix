@@ -37,36 +37,58 @@ struct Converter {
 
 template<>
 struct Converter<std::string> {
-    static std::string to_string(std::string val)
+    static std::string to_string(std::string const& val)
     {
         return val;
     }
 
-    static double to_double(std::string val)
+    static double to_double(std::string const& val)
     {
         return std::stod(val);
     }
 
-    static long to_long(std::string val)
+    static long to_long(std::string const& val)
     {
         return std::stol(val);
     }
 };
 
 template<>
-struct Converter<char const*> : public Converter<std::string> {
+struct Converter<std::string const&> {
+    static std::string to_string(std::string const& val)
+    {
+        return val;
+    }
+
+    static double to_double(std::string const& val)
+    {
+        return std::stod(val);
+    }
+
+    static long to_long(std::string const& val)
+    {
+        return std::stol(val);
+    }
 };
 
 template<>
-struct Converter<char*> : public Converter<std::string> {
+struct Converter<char const*> : public Converter<std::string const&> {
 };
 
 template<>
-struct Converter<char const[]> : public Converter<std::string> {
+struct Converter<char*> : public Converter<std::string const&> {
 };
 
 template<>
-struct Converter<char[]> : public Converter<std::string> {
+struct Converter<char const[]> : public Converter<std::string const&> {
+};
+
+template<>
+struct Converter<char[]> : public Converter<std::string const&> {
+};
+
+template<int N>
+struct Converter<char[N]> : public Converter<std::string const&> {
 };
 
 template<>
@@ -185,19 +207,19 @@ struct Converter<bool> {
 
 template<typename T>
 struct Converter<std::shared_ptr<T>> {
-    static std::string to_string(std::shared_ptr<T> val)
+    static std::string to_string(std::shared_ptr<T> const& val)
     {
-        return Converter<T*>::to_string(val.get());
+        return Converter<T>::to_string(*val);
     }
 
-    static double to_double(std::shared_ptr<T> val)
+    static double to_double(std::shared_ptr<T> const& val)
     {
-        return Converter<T*>::to_double(val.get());
+        return Converter<T>::to_double(*val);
     }
 
-    static unsigned long to_long(std::shared_ptr<T> val)
+    static unsigned long to_long(std::shared_ptr<T> const& val)
     {
-        return Converter<T*>::to_long(val.get());
+        return Converter<T>::to_long(*val);
     }
 };
 
@@ -283,7 +305,7 @@ public:
     }
 
     template<typename T>
-    [[nodiscard]] std::string format(T arg) const
+    [[nodiscard]] std::string format(T const& arg) const
     {
         Converter<T> converter;
         switch (m_type) {
@@ -647,7 +669,7 @@ static inline std::string format(std::string const& fmt)
 }
 
 template<typename T>
-std::string format_one(std::string const& fmt, T arg)
+std::string format_one(std::string const& fmt, T const& arg)
 {
     std::optional<FormatSpecifier> specifier_maybe = FormatSpecifier::first_specifier(fmt);
     if (!specifier_maybe.has_value()) {
@@ -660,7 +682,7 @@ std::string format_one(std::string const& fmt, T arg)
 }
 
 template<typename T, typename... Args>
-std::string format(std::string const& fmt, T arg, Args&&... args)
+std::string format(std::string const& fmt, T const& arg, Args&&... args)
 {
     std::string fmt_first_substituted = format_one<T>(fmt, arg);
     return format(fmt_first_substituted, std::forward<Args>(args)...);
