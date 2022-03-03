@@ -209,17 +209,20 @@ template<typename T>
 struct Converter<std::shared_ptr<T>> {
     static std::string to_string(std::shared_ptr<T> const& val)
     {
-        return Converter<T>::to_string(*val);
+        return val->to_string();
+        //        return Converter<T*>::to_string(val.get());
     }
 
     static double to_double(std::shared_ptr<T> const& val)
     {
-        return Converter<T>::to_double(*val);
+        return to_double_unconditional(val->to_string());
+        //        return Converter<T*>::to_double(val.get());
     }
 
     static unsigned long to_long(std::shared_ptr<T> const& val)
     {
-        return Converter<T>::to_long(*val);
+        return to_long_unconditional(val->to_string());
+        //        return Converter<T*>::to_long(val.get());
     }
 };
 
