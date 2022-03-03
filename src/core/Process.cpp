@@ -20,10 +20,16 @@ ErrorOr<int> execute(std::string const& cmd, std::vector<std::string> const& arg
     int pid = fork();
     if (pid == 0) {
         execvp(cmd.c_str(), argv);
+        return Error { ErrorCode::IOError, format("execvp() failed: {}", strerror(errno)) };
+    } else if (pid == -1) {
+        return Error { ErrorCode::IOError, format("fork() failed: {}", strerror(errno)) };
     }
     int exit_code;
-    waitpid(pid, &exit_code, 0);
-    return exit_code;
+    if (waitpid(pid, &exit_code, 0) == -1)
+        return Error { ErrorCode::IOError, format("waitpid() failed: {}", strerror(errno)) };
+    if (!WIFEXITED(exit_code))
+        return Error { ErrorCode::IOError, format("Child program {} crashed due to signal {}", cmd.c_str(), WTERMSIG(exit_code)) };
+    return WEXITSTATUS(exit_code);
 }
 
 }
