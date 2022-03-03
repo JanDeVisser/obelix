@@ -34,8 +34,11 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         std::shared_ptr<BoundExpression> expr { nullptr };
         if (var_decl->expression()) {
             auto processed_expr = TRY(bind_types_processor(var_decl->expression(), ctx));
-            if (processed_expr->node_type() != SyntaxNodeType::BoundExpression)
+            assert(processed_expr != nullptr);
+            auto processed_expr_as_bound_expr = std::dynamic_pointer_cast<BoundExpression>(processed_expr);
+            if (processed_expr_as_bound_expr == nullptr) {
                 return Error(ErrorCode::UntypedExpression, processed_expr);
+            }
             expr = std::dynamic_pointer_cast<BoundExpression>(processed_expr);
 
             if (var_type && var_type->type() != ObelixType::TypeAny && expr->type()->type() != var_type->type())
@@ -207,6 +210,11 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             return Error { ErrorCode::SyntaxError, format("Function {} cannot be referenced as a variable", ident->name()) };
         auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
         return make_node<BoundIdentifier>(ident, var_decl->type());
+    }
+
+    case SyntaxNodeType::Literal: {
+        auto literal = std::dynamic_pointer_cast<Literal>(tree);
+        return make_node<BoundLiteral>(literal->token());
     }
 
     case SyntaxNodeType::FunctionCall: {

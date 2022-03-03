@@ -511,7 +511,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override
     {
-        auto ret = format("{} {}: {}", (is_const()) ? "const" : "var", name(), expression()->type());
+        auto ret = format("{} {}: {}", (is_const()) ? "const" : "var", name(), type());
         if (m_expression)
             ret += format(" = {}", m_expression->to_string());
         return ret;

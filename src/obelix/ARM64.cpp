@@ -119,7 +119,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
     }
 
     case SyntaxNodeType::BoundLiteral: {
-        auto literal = std::dynamic_pointer_cast<Literal>(tree);
+        auto literal = std::dynamic_pointer_cast<BoundLiteral>(tree);
         auto obj = literal->literal();
         switch (obj.type()) {
         case ObelixType::TypePointer:
