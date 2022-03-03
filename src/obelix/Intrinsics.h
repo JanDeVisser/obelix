@@ -11,6 +11,7 @@
 
 #include <core/Type.h>
 #include <obelix/ARM64Context.h>
+#include <obelix/BoundSyntaxNode.h>
 
 namespace Obelix {
 
@@ -77,29 +78,33 @@ struct Signature {
 struct Intrinsic {
     Intrinsic() = default;
 
-    explicit Intrinsic(Signature const& s, ARM64Implementation impl = nullptr)
-        : signature(s)
+    explicit Intrinsic(Signature s, ARM64Implementation impl = nullptr)
+        : signature(std::move(s))
         , arm64_impl(move(impl))
     {
-        Symbols parameters;
-        for (auto ix = 0; ix < s.parameter_types.size(); ++ix)
-            parameters.emplace_back(format("param_{}", ix), s.parameter_types[ix]);
-        declaration = make_node<IntrinsicDecl>(Symbol { signature.name, signature.return_type }, parameters);
+        auto identifier = std::make_shared<BoundIdentifier>(Token {}, signature.name, signature.return_type);
+        BoundIdentifiers parameters;
+        int ix = 1;
+        for (auto& param_type : signature.parameter_types) {
+            auto parameter = std::make_shared<BoundIdentifier>(Token {}, format("param_{}", ix++), param_type);
+            parameters.push_back(parameter);
+        }
+        declaration = std::make_shared<BoundIntrinsicDecl>(identifier, parameters);
     }
 
     Signature signature;
-    std::shared_ptr<IntrinsicDecl> declaration { nullptr };
+    std::shared_ptr<BoundIntrinsicDecl> declaration { nullptr };
     ARM64Implementation arm64_impl { nullptr };
 };
 
 class Intrinsics {
 public:
     [[nodiscard]] static bool is_intrinsic(Signature const&);
-    [[nodiscard]] static bool is_intrinsic(std::shared_ptr<FunctionCall> const&);
+    [[nodiscard]] static bool is_intrinsic(std::string const&, ObjectTypes const& param_type);
     static Intrinsic const& set_arm64_implementation(InitrinsicSignature, ARM64Implementation const&);
     static ARM64Implementation& get_arm64_implementation(Signature const&);
     static Intrinsic& get_intrinsic(Signature const&);
-    static Intrinsic& get_intrinsic(std::shared_ptr<FunctionCall> const&);
+    static Intrinsic& get_intrinsic(std::string const&, ObjectTypes const& param_type);
 
 private:
     static void initialize();

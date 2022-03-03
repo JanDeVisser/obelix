@@ -190,7 +190,7 @@ void ARM64Context::clear_context()
 void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const& func) const
 {
     s_function_stack.push_back(func);
-    assembly().add_comment(func->declaration()->to_string(0));
+    assembly().add_comment(func->declaration()->to_string());
     assembly().add_directive(".global", func->name());
     assembly().add_label(func->name());
 

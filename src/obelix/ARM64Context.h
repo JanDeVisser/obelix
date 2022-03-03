@@ -14,6 +14,7 @@
 #include <config.h>
 #include <core/Logging.h>
 #include <obelix/Context.h>
+#include <obelix/MaterializedSyntaxNode.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {

@@ -17,11 +17,15 @@ add_executable(
         Functions.cpp
         Intrinsics.cpp
         Lower.cpp
-        OutputJV80.cpp
+        #        OutputJV80.cpp
         Parser.cpp
         Syntax.cpp
+        BoundSyntaxNode.h
+        Context.h
+        MaterializedSyntaxNode.h
         Symbol.h
-        Context.h)
+        SyntaxNodeType.h
+)
 
 target_link_libraries(
         obelix

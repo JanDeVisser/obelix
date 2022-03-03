@@ -13,6 +13,7 @@
 #include <obelix/ARM64.h>
 #include <obelix/ARM64Context.h>
 #include <obelix/Intrinsics.h>
+#include <obelix/MaterializedSyntaxNode.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
@@ -38,7 +39,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         auto func_def = std::dynamic_pointer_cast<MaterializedFunctionDef>(tree);
 
         for (auto& param : func_def->declaration()->parameters()) {
-            ctx.declare(param->identifier().identifier(), param->offset());
+            ctx.declare(param->name(), param->offset());
         }
 
         debug(parser, "func {}", func_def->name());
@@ -50,8 +51,8 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         return tree;
     }
 
-    case SyntaxNodeType::FunctionCall: {
-        auto call = std::dynamic_pointer_cast<FunctionCall>(tree);
+    case SyntaxNodeType::BoundFunctionCall: {
+        auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
 
         // Load arguments in registers:
         ctx.new_enclosing_context();
@@ -63,22 +64,21 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
         ctx.clear_context();
         ctx.reserve_register(0);
-        if (call->type()->type()->type() == ObelixType::TypeString)
+        if (call->type()->type() == ObelixType::TypeString)
             ctx.reserve_register(1);
         // Call function:
         ctx.assembly().add_instruction("bl", call->name());
         // Add x0 to the register context
         ctx.add_register();
-        if (call->type()->type()->type() == ObelixType::TypeString)
+        if (call->type()->type() == ObelixType::TypeString)
             ctx.add_register();
         ctx.release_register_context();
         return tree;
     }
 
-    case SyntaxNodeType::NativeFunctionCall: {
-        auto native_func_call = std::dynamic_pointer_cast<NativeFunctionCall>(tree);
-
-        auto func_decl = native_func_call->declaration();
+    case SyntaxNodeType::BoundNativeFunctionCall: {
+        auto native_func_call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
+        auto func_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(native_func_call->declaration());
 
         ctx.new_enclosing_context();
         for (auto& arg : native_func_call->arguments()) {
@@ -92,19 +92,19 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         // Add x0 to the register context
         ctx.clear_context();
         ctx.add_register();
-        if (native_func_call->type()->type()->type() == ObelixType::TypeString)
+        if (native_func_call->type()->type() == ObelixType::TypeString)
             ctx.add_register();
         ctx.release_register_context();
         return tree;
     }
 
-    case SyntaxNodeType::CompilerIntrinsic: {
-        auto call = std::dynamic_pointer_cast<CompilerIntrinsic>(tree);
+    case SyntaxNodeType::BoundIntrinsicCall: {
+        auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
         ctx.new_enclosing_context();
         for (auto& arg : call->arguments()) {
             TRY_RETURN(output_arm64_processor(arg, ctx));
         }
-        ARM64Implementation impl = Intrinsics::get_arm64_implementation(Signature { call->name(), call->type()->type(), call->argument_types() });
+        ARM64Implementation impl = Intrinsics::get_arm64_implementation(Signature { call->name(), call->type(), call->argument_types() });
         if (!impl)
             return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string()) };
         auto ret = impl(ctx);
@@ -112,50 +112,48 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             return ret.error();
         ctx.clear_context();
         ctx.add_register();
-        if (call->type()->type()->type() == ObelixType::TypeString)
+        if (call->type()->type() == ObelixType::TypeString)
             ctx.add_register();
         ctx.release_register_context();
         return tree;
     }
 
-    case SyntaxNodeType::Literal: {
+    case SyntaxNodeType::BoundLiteral: {
         auto literal = std::dynamic_pointer_cast<Literal>(tree);
-        auto val_maybe = TRY(literal->to_object());
-        assert(val_maybe.has_value());
-        auto val = val_maybe.value();
-        switch (val.type()) {
+        auto obj = literal->literal();
+        switch (obj.type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
         case ObelixType::TypeUnsigned: {
-            ctx.assembly().add_instruction("mov", "x{},#{}", ctx.add_register(), val->to_long().value());
+            ctx.assembly().add_instruction("mov", "x{},#{}", ctx.add_register(), obj->to_long().value());
             break;
         }
         case ObelixType::TypeChar:
         case ObelixType::TypeByte:
         case ObelixType::TypeBoolean: {
-            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_register(), static_cast<uint8_t>(val->to_long().value()));
+            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_register(), static_cast<uint8_t>(obj->to_long().value()));
             break;
         }
         case ObelixType::TypeString: {
-            auto str_id = ctx.assembly().add_string(val->to_string());
+            auto str_id = ctx.assembly().add_string(obj->to_string());
             ctx.assembly().add_instruction("adr", "x{},str_{}", ctx.add_register(), str_id);
-            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_register(), val->to_string().length());
+            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_register(), obj->to_string().length());
             break;
         }
         default:
-            return Error(ErrorCode::NotYetImplemented, format("Cannot emit literals of type {} yet", ObelixType_name(val.type())));
+            return Error(ErrorCode::NotYetImplemented, format("Cannot emit literals of type {} yet", ObelixType_name(obj.type())));
         }
         return tree;
     }
 
-    case SyntaxNodeType::Identifier: {
-        auto identifier = std::dynamic_pointer_cast<Identifier>(tree);
+    case SyntaxNodeType::BoundIdentifier: {
+        auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(tree);
         auto idx_maybe = ctx.get(identifier->name());
         if (!idx_maybe.has_value())
             return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
         auto idx = idx_maybe.value();
 
-        switch (identifier->type()->type()->type()) {
+        switch (identifier->type()->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
             ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_register(), idx);
@@ -182,8 +180,8 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         return tree;
     }
 
-    case SyntaxNodeType::Assignment: {
-        auto assignment = std::dynamic_pointer_cast<Assignment>(tree);
+    case SyntaxNodeType::BoundAssignment: {
+        auto assignment = std::dynamic_pointer_cast<BoundAssignment>(tree);
 
         auto idx_maybe = ctx.get(assignment->name());
         if (!idx_maybe.has_value())
@@ -192,7 +190,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
         TRY_RETURN(output_arm64_processor(assignment->expression(), ctx));
 
-        switch (assignment->type()->type()->type()) {
+        switch (assignment->type()->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
             ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
@@ -220,16 +218,16 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
     case SyntaxNodeType::MaterializedVariableDecl: {
         auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(tree);
-        debug(parser, "{}", var_decl->to_string(0));
-        ctx.assembly().add_comment(var_decl->to_string(0));
-        ctx.declare(var_decl->variable().identifier(), var_decl->offset());
+        debug(parser, "{}", var_decl->to_string());
+        ctx.assembly().add_comment(var_decl->to_string());
+        ctx.declare(var_decl->name(), var_decl->offset());
         ctx.release_all();
         ctx.new_targeted_context();
         if (var_decl->expression() != nullptr) {
             TRY_RETURN(output_arm64_processor(var_decl->expression(), ctx));
         } else {
             auto reg = ctx.add_register();
-            switch (var_decl->expression()->type()->type()->type()) {
+            switch (var_decl->expression()->type()->type()) {
             case ObelixType::TypeString: {
                 ctx.assembly().add_instruction("mov", "w{},wzr", ctx.add_register());
             } // fall through
@@ -253,10 +251,10 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         return tree;
     }
 
-    case SyntaxNodeType::ExpressionStatement: {
-        auto expr_stmt = std::dynamic_pointer_cast<ExpressionStatement>(tree);
-        debug(parser, "{}", expr_stmt->to_string(0));
-        ctx.assembly().add_comment(expr_stmt->to_string(0));
+    case SyntaxNodeType::BoundExpressionStatement: {
+        auto expr_stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
+        debug(parser, "{}", expr_stmt->to_string());
+        ctx.assembly().add_comment(expr_stmt->to_string());
         ctx.release_all();
         ctx.new_targeted_context();
         TRY_RETURN(output_arm64_processor(expr_stmt->expression(), ctx));
@@ -264,10 +262,10 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         return tree;
     }
 
-    case SyntaxNodeType::Return: {
-        auto ret = std::dynamic_pointer_cast<Return>(tree);
-        debug(parser, "{}", ret->to_string(0));
-        ctx.assembly().add_comment(ret->to_string(0));
+    case SyntaxNodeType::BoundReturn: {
+        auto ret = std::dynamic_pointer_cast<BoundReturn>(tree);
+        debug(parser, "{}", ret->to_string());
+        ctx.assembly().add_comment(ret->to_string());
         ctx.release_all();
         ctx.new_targeted_context();
         TRY_RETURN(output_arm64_processor(ret->expression(), ctx));
@@ -279,22 +277,22 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
     case SyntaxNodeType::Label: {
         auto label = std::dynamic_pointer_cast<Obelix::Label>(tree);
-        debug(parser, "{}", label->to_string(0));
-        ctx.assembly().add_comment(label->to_string(0));
+        debug(parser, "{}", label->to_string());
+        ctx.assembly().add_comment(label->to_string());
         ctx.assembly().add_label(format("lbl_{}", label->label_id()));
         return tree;
     }
 
     case SyntaxNodeType::Goto: {
         auto goto_stmt = std::dynamic_pointer_cast<Goto>(tree);
-        debug(parser, "{}", goto_stmt->to_string(0));
-        ctx.assembly().add_comment(goto_stmt->to_string(0));
+        debug(parser, "{}", goto_stmt->to_string());
+        ctx.assembly().add_comment(goto_stmt->to_string());
         ctx.assembly().add_instruction("b", "lbl_{}", goto_stmt->label_id());
         return tree;
     }
 
-    case SyntaxNodeType::IfStatement: {
-        auto if_stmt = std::dynamic_pointer_cast<IfStatement>(tree);
+    case SyntaxNodeType::BoundIfStatement: {
+        auto if_stmt = std::dynamic_pointer_cast<BoundIfStatement>(tree);
         ctx.release_all();
 
         auto end_label = Obelix::Label::reserve_id();
@@ -302,8 +300,8 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         for (auto& branch : if_stmt->branches()) {
             auto else_label = (count) ? Obelix::Label::reserve_id() : end_label;
             if (branch->condition()) {
-                debug(parser, "if ({})", branch->condition()->to_string(0));
-                ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string(0)));
+                debug(parser, "if ({})", branch->condition()->to_string());
+                ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string()));
                 ctx.new_targeted_context();
                 auto cond = TRY_AND_CAST(Expression, output_arm64_processor(branch->condition(), ctx));
                 ctx.assembly().add_instruction("cmp", "w{},0x00", ctx.get_register());
@@ -334,15 +332,15 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         return tree;
 
     switch (tree->node_type()) {
-    case SyntaxNodeType::FunctionDef: {
-        auto func_def = std::dynamic_pointer_cast<FunctionDef>(tree);
+    case SyntaxNodeType::BoundFunctionDef: {
+        auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
         auto func_decl = func_def->declaration();
         Context<int> func_ctx(ctx);
         int offset = 16;
-        FunctionParameters function_parameters;
+        MaterializedFunctionParameters function_parameters;
         for (auto& parameter : func_decl->parameters()) {
-            function_parameters.push_back(std::make_shared<FunctionParameter>(parameter, offset));
-            switch (parameter.type()->type()) {
+            function_parameters.push_back(std::make_shared<MaterializedFunctionParameter>(parameter, offset));
+            switch (parameter->type()->type()) {
             case ObelixType::TypeString:
                 offset += 16;
                 break;
@@ -351,35 +349,35 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
             }
         }
 
-        auto materialized_function_decl = std::make_shared<MaterializedFunctionDecl>(func_decl->identifier(), function_parameters);
+        auto materialized_function_decl = std::make_shared<MaterializedFunctionDecl>(func_decl, function_parameters);
         switch (func_decl->node_type()) {
-        case SyntaxNodeType::NativeFunctionDecl: {
-            auto native_decl = std::dynamic_pointer_cast<NativeFunctionDecl>(func_decl);
-            materialized_function_decl = std::make_shared<MaterializedNativeFunctionDecl>(materialized_function_decl, native_decl->native_function_name());
-            return std::make_shared<MaterializedFunctionDef>(materialized_function_decl, nullptr, 0);
+        case SyntaxNodeType::BoundNativeFunctionDecl: {
+            auto native_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl);
+            materialized_function_decl = std::make_shared<MaterializedNativeFunctionDecl>(native_decl);
+            return std::make_shared<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
         }
-        case SyntaxNodeType::IntrinsicDecl: {
-            auto intrinsic_decl = std::dynamic_pointer_cast<IntrinsicDecl>(func_decl);
-            materialized_function_decl = std::make_shared<MaterializedIntrinsicDecl>(materialized_function_decl);
-            return std::make_shared<MaterializedFunctionDef>(materialized_function_decl, nullptr, 0);
+        case SyntaxNodeType::BoundIntrinsicDecl: {
+            auto intrinsic_decl = std::dynamic_pointer_cast<BoundIntrinsicDecl>(func_decl);
+            materialized_function_decl = std::make_shared<MaterializedIntrinsicDecl>(intrinsic_decl);
+            return std::make_shared<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
         }
-        case SyntaxNodeType::FunctionDecl: {
+        case SyntaxNodeType::BoundFunctionDecl: {
             func_ctx.declare("#offset", offset);
             std::shared_ptr<Block> block;
             assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
             block = TRY_AND_CAST(FunctionBlock, prepare_arm64_processor(func_def->statement(), func_ctx));
-            return std::make_shared<MaterializedFunctionDef>(materialized_function_decl, block, func_ctx.get("#offset").value());
+            return std::make_shared<MaterializedFunctionDef>(func_def, materialized_function_decl, block, func_ctx.get("#offset").value());
         }
         default:
             fatal("Unreachable");
         }
     }
 
-    case SyntaxNodeType::VariableDeclaration: {
-        auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
+    case SyntaxNodeType::BoundVariableDeclaration: {
+        auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
         auto offset = ctx.get("#offset").value();
         auto expression = TRY_AND_CAST(Expression, prepare_arm64_processor(var_decl->expression(), ctx));
-        auto ret = std::make_shared<MaterializedVariableDecl>(var_decl->variable(), offset, expression, var_decl->is_const());
+        auto ret = std::make_shared<MaterializedVariableDecl>(var_decl, offset);
         switch (var_decl->type()->type()) {
         case ObelixType::TypeString:
             offset += 16;
@@ -391,32 +389,42 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         return ret;
     }
 
-    case SyntaxNodeType::FunctionCall: {
-        auto call = std::dynamic_pointer_cast<FunctionCall>(tree);
-        auto arguments = TRY(xform_expressions(call->arguments(), ctx, prepare_arm64_processor));
-        call = make_node<FunctionCall>(call->function(), arguments);
-        if (Intrinsics::is_intrinsic(call))
-            return std::make_shared<CompilerIntrinsic>(call);
-        return call;
+    case SyntaxNodeType::BoundFunctionCall: {
+        auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
+        auto xform_arguments = [&call, &ctx]() -> ErrorOr<BoundExpressions> {
+            BoundExpressions ret;
+            for (auto& expr : call->arguments()) {
+                auto new_expr = prepare_arm64_processor(expr, ctx);
+                if (new_expr.is_error())
+                    return new_expr.error();
+                ret.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
+            }
+            return ret;
+        };
+
+        auto arguments = TRY(xform_arguments());
+        return std::make_shared<BoundFunctionCall>(call, arguments);
     }
 
-    case SyntaxNodeType::UnaryExpression: {
-        auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
-        auto operand = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->operand(), ctx));
-        auto call = std::make_shared<FunctionCall>(Symbol { expr->op().code_name(), expr->type()->type() }, Expressions { operand });
-        if (!Intrinsics::is_intrinsic(Signature { expr->op().code_name(), expr->type()->type(), { operand->type()->type() } }))
-            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string()) };
-        return std::make_shared<CompilerIntrinsic>(call);
+    case SyntaxNodeType::BoundUnaryExpression: {
+        auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
+        auto operand = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->operand(), ctx));
+        Signature s { UnaryOperator_name(expr->op()), expr->type(), { operand->type() } };
+        if (!Intrinsics::is_intrinsic(s))
+            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", s.name) };
+        auto intrinsic = Intrinsics::get_intrinsic(s);
+        return std::make_shared<BoundIntrinsicCall>(expr->token(), intrinsic.declaration, BoundExpressions { operand });
     }
 
-    case SyntaxNodeType::BinaryExpression: {
-        auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-        auto lhs = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->lhs(), ctx));
-        auto rhs = TRY_AND_CAST(Expression, prepare_arm64_processor(expr->rhs(), ctx));
-        auto call = std::make_shared<FunctionCall>(Symbol { TokenCode_to_string(expr->op().code()), expr->type()->type() }, Expressions { lhs, rhs });
-        if (!Intrinsics::is_intrinsic(Signature { TokenCode_to_string(expr->op().code()), expr->type()->type(), { lhs->type()->type(), rhs->type()->type() } }))
-            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", call->to_string()) };
-        return std::make_shared<CompilerIntrinsic>(call);
+    case SyntaxNodeType::BoundBinaryExpression: {
+        auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
+        auto lhs = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->lhs(), ctx));
+        auto rhs = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->rhs(), ctx));
+        Signature s { BinaryOperator_name(expr->op()), expr->type(), { lhs->type(), rhs->type() } };
+        if (!Intrinsics::is_intrinsic(s))
+            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", s.name) };
+        auto intrinsic = Intrinsics::get_intrinsic(s);
+        return std::make_shared<BoundIntrinsicCall>(expr->token(), intrinsic.declaration, BoundExpressions { lhs, rhs });
     }
 
     default:

@@ -8,7 +8,9 @@
 
 #include <cpu/emulator.h>
 #include <lexer/Token.h>
+#ifdef JV80
 #include <obelix/OutputJV80.h>
+#endif
 #include <obelix/ARM64.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
@@ -58,7 +60,7 @@ public:
                 if (auto eval_result = evaluate_tree(tree); eval_result.is_error()) {
                     printf("ERROR: %s\n", eval_result.error().message().c_str());
                 } else {
-                    printf("%s\n", eval_result.value()->to_string(0).c_str());
+                    printf("%s\n", eval_result.value()->to_string().c_str());
                 }
             }
         } while (!quit);
@@ -87,7 +89,7 @@ public:
         if (auto eval_result = evaluate_tree(tree, file_name); eval_result.is_error()) {
             printf("ERROR: %s\n", eval_result.error().message().c_str());
         } else {
-            printf("%s\n", eval_result.value()->to_string(0).c_str());
+            printf("%s\n", eval_result.value()->to_string().c_str());
         }
         return 0;
     }
@@ -99,16 +101,16 @@ private:
     {
         if (tree) {
             if (config().show_tree)
-                printf("Original:\n%s\n", tree->to_string(0).c_str());
+                printf("Original:\n%s\n", tree->to_string().c_str());
             auto transformed = TRY(bind_types(tree));
             if (config().show_tree)
-                printf("\nTypes bound:\n%s\n", transformed->to_string(0).c_str());
+                printf("\nTypes bound:\n%s\n", transformed->to_string().c_str());
             transformed = TRY(lower(transformed));
             if (config().show_tree)
-                printf("\nFlattened:\n%s\n", transformed->to_string(0).c_str());
+                printf("\nFlattened:\n%s\n", transformed->to_string().c_str());
             transformed = TRY(fold_constants(transformed));
             if (config().show_tree)
-                printf("\nConstants folded:\n%s\n", transformed->to_string(0).c_str());
+                printf("\nConstants folded:\n%s\n", transformed->to_string().c_str());
             if (!file_name.empty()) {
 #ifdef JV80
                 auto image = file_name + ".bin";
@@ -124,7 +126,7 @@ private:
 #ifdef MACOSX
                 if (auto err = output_arm64(transformed, file_name); err.is_error())
                     return err;
-                return std::make_shared<Literal>(make_obj<Integer>(0));
+                return std::make_shared<BoundLiteral>(Token {}, make_obj<Integer>(0));
 #endif
             } else {
                 fprintf(stderr, "Script execution temporarily disabled\n");

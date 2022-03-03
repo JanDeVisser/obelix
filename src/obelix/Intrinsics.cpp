@@ -23,9 +23,13 @@ bool Intrinsics::is_intrinsic(Signature const& signature)
     });
 }
 
-bool Intrinsics::is_intrinsic(std::shared_ptr<FunctionCall> const& call)
+bool Intrinsics::is_intrinsic(std::string const& name, ObjectTypes const& parameter_types)
 {
-    return is_intrinsic(Signature { call->name(), ObjectType::get(call->type()->type()->type()), call->argument_types() });
+    if (s_intrinsics.empty())
+        initialize();
+    return std::any_of(s_intrinsics.begin(), s_intrinsics.end(), [&name, &parameter_types](auto& intrinsic) {
+        return name == intrinsic.signature.name && parameter_types == intrinsic.signature.parameter_types;
+    });
 }
 
 Intrinsic const& Intrinsics::set_arm64_implementation(InitrinsicSignature signature, ARM64Implementation const& arm64_implementation)
@@ -61,9 +65,16 @@ Intrinsic& Intrinsics::get_intrinsic(Signature const& signature)
     fatal("Not found");
 }
 
-Intrinsic& Intrinsics::get_intrinsic(std::shared_ptr<FunctionCall> const& call)
+Intrinsic& Intrinsics::get_intrinsic(std::string const& name, ObjectTypes const& parameter_types)
 {
-    return get_intrinsic(Signature { call->name(), call->type()->type(), call->argument_types() });
+    if (s_intrinsics.empty())
+        initialize();
+    for (auto& intrinsic : s_intrinsics) {
+        if (name == intrinsic.signature.name && parameter_types == intrinsic.signature.parameter_types) {
+            return intrinsic;
+        }
+    }
+    fatal("Not found");
 }
 
 void Intrinsics::initialize()

@@ -126,54 +126,42 @@ std::shared_ptr<Statement> Parser::parse_statement()
     std::shared_ptr<Statement> ret = nullptr;
     switch (token.code()) {
     case TokenCode::SemiColon:
-        lex();
-        return make_node<Pass>();
+        return make_node<Pass>(lex());
     case TokenCode::OpenBrace: {
         lex();
         Statements statements;
         return parse_block(statements);
     }
     case KeywordImport:
-        lex();
-        ret = parse_import_statement();
+        ret = parse_import_statement(lex());
         break;
     case KeywordIf:
-        lex();
-        return parse_if_statement();
+        return parse_if_statement(lex());
     case KeywordSwitch:
-        lex();
-        return parse_switch_statement();
+        return parse_switch_statement(lex());
     case KeywordWhile:
-        lex();
-        return parse_while_statement();
+        return parse_while_statement(lex());
     case KeywordFor:
-        lex();
-        return parse_for_statement();
+        return parse_for_statement(lex());
     case KeywordVar:
     case KeywordConst:
-        lex();
-        ret = parse_variable_declaration(token.code() == KeywordConst);
+        ret = parse_variable_declaration(lex(), token.code() == KeywordConst);
         break;
     case KeywordFunc:
-        lex();
-        return parse_function_definition();
     case KeywordIntrinsic:
-        lex();
-        return parse_intrinsic_definition();
+        return parse_function_definition(lex());
     case KeywordReturn: {
         lex();
         auto expr = parse_expression();
         if (!expr)
             return nullptr;
-        ret = make_node<Return>(expr);
+        ret = make_node<Return>(token, expr);
     } break;
     case KeywordBreak:
-        lex();
-        ret = make_node<Break>();
+        ret = make_node<Break>(lex());
         break;
     case KeywordContinue:
-        lex();
-        ret = make_node<Continue>();
+        ret = make_node<Continue>(lex());
         break;
     case TokenCode::CloseBrace:
     case TokenCode::EndOfFile:
@@ -205,11 +193,12 @@ void Parser::parse_statements(Statements& block)
 
 std::shared_ptr<Block> Parser::parse_block(Statements& block)
 {
+    auto token = peek();
     parse_statements(block);
     if (!expect(TokenCode::CloseBrace)) {
         return nullptr;
     }
-    return make_node<Block>(block);
+    return make_node<Block>(token, block);
 }
 
 std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expression> const& function)
@@ -240,20 +229,21 @@ std::shared_ptr<FunctionCall> Parser::parse_function_call(std::shared_ptr<Expres
     }
     lex();
     auto ident = std::dynamic_pointer_cast<Identifier>(function);
-    return make_node<FunctionCall>(ident->name(), args);
+    return make_node<FunctionCall>(ident->token(), ident->name(), args);
 }
 
-std::shared_ptr<FunctionDef> Parser::parse_function_definition()
+std::shared_ptr<FunctionDef> Parser::parse_function_definition(Token const& func_token)
 {
     auto name_maybe = match(TokenCode::Identifier);
     if (!name_maybe.has_value()) {
         add_error(peek(), "Syntax Error: expecting variable name after the 'func' keyword, got '{}'");
         return nullptr;
     }
+    auto name = name_maybe.value();
     if (!expect(TokenCode::OpenParen, "after function name in definition")) {
         return nullptr;
     }
-    Symbols params {};
+    Identifiers params {};
     auto done = current_code() == TokenCode::CloseParen;
     while (!done) {
         auto param_name_maybe = match(TokenCode::Identifier);
@@ -261,6 +251,7 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
             add_error(peek(), "Syntax Error: Expected parameter name, got '{}'");
             return nullptr;
         }
+        auto param_name = param_name_maybe.value();
         if (!expect(TokenCode::Colon))
             return nullptr;
 
@@ -269,8 +260,7 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
             add_error(peek(), format("Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value(), peek().value()));
             return nullptr;
         }
-
-        params.emplace_back(param_name_maybe.value().value(), param_type->type());
+        params.push_back(std::make_shared<Identifier>(param_name, param_name.value(), param_type));
         switch (current_code()) {
         case TokenCode::Comma:
             lex();
@@ -294,82 +284,28 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition()
         return nullptr;
     }
 
-    auto func_decl = std::make_shared<FunctionDecl>(Symbol { name_maybe.value().value(), type->type() }, params);
+    auto func_ident = std::make_shared<Identifier>(name, name.value(), type);
+    std::shared_ptr<FunctionDecl> func_decl;
     if (current_code() == KeywordLink) {
         lex();
         if (auto link_target_maybe = match(TokenCode::DoubleQuotedString, "after '->'"); link_target_maybe.has_value()) {
-            func_decl = std::make_shared<NativeFunctionDecl>(func_decl, link_target_maybe.value().value());
+            func_decl = std::make_shared<NativeFunctionDecl>(name, func_ident, params, link_target_maybe.value().value());
             expect(TokenCode::SemiColon);
-            return make_node<FunctionDef>(func_decl);
+            return make_node<FunctionDef>(func_token, func_decl);
         }
         return nullptr;
+    } else if (func_token.code() == KeywordIntrinsic) {
+        func_decl = std::make_shared<IntrinsicDecl>(name, func_ident, params);
+    } else {
+        func_decl = std::make_shared<FunctionDecl>(name, func_ident, params);
     }
     auto stmt = parse_statement();
     if (stmt == nullptr)
         return nullptr;
-    return make_node<FunctionDef>(func_decl, stmt);
+    return make_node<FunctionDef>(func_token, func_decl, stmt);
 }
 
-std::shared_ptr<FunctionDef> Parser::parse_intrinsic_definition()
-{
-    auto name_maybe = match(TokenCode::Identifier);
-    if (!name_maybe.has_value()) {
-        add_error(peek(), "Syntax Error: expecting variable name after the 'intrinsic' keyword, got '{}'");
-        return nullptr;
-    }
-    if (!expect(TokenCode::OpenParen, "after intrinsic name in definition")) {
-        return nullptr;
-    }
-    Symbols params {};
-    auto done = current_code() == TokenCode::CloseParen;
-    while (!done) {
-        auto param_name_maybe = match(TokenCode::Identifier);
-        if (!param_name_maybe.has_value()) {
-            add_error(peek(), "Syntax Error: Expected parameter name, got '{}'");
-            return nullptr;
-        }
-        if (!expect(TokenCode::Colon))
-            return nullptr;
-
-        auto param_type = parse_type();
-        if (!param_type) {
-            add_error(peek(), format("Syntax Error: Expected type name for parameter {}, got '{}'", param_name_maybe.value().value(), peek().value()));
-            return nullptr;
-        }
-
-        params.emplace_back(param_name_maybe.value().value(), param_type->type());
-        switch (current_code()) {
-        case TokenCode::Comma:
-            lex();
-            break;
-        case TokenCode::CloseParen:
-            done = true;
-            break;
-        default:
-            add_error(peek(), format("Syntax Error: Expected ',' or ')' in function parameter list, got '{}'", peek().value()));
-            return nullptr;
-        }
-    }
-    lex(); // Eat the closing paren
-
-    if (!expect(TokenCode::Colon))
-        return nullptr;
-
-    auto type = parse_type();
-    if (!type) {
-        add_error(peek(), format("Syntax Error: Expected return type name, got '{}'", peek().value()));
-        return nullptr;
-    }
-
-    auto func_decl = make_node<IntrinsicDecl>(Symbol { name_maybe.value().value(), type->type() }, params);
-    if (!Intrinsics::is_intrinsic(Signature { func_decl->name(), func_decl->type(), func_decl->parameter_types() })) {
-        add_error(peek(), format("Syntax Error: function '{}' is declared 'intrinsic' but isn't registered as an intrinsic", func_decl->name()));
-    }
-    expect(TokenCode::SemiColon);
-    return make_node<FunctionDef>(func_decl);
-}
-
-std::shared_ptr<IfStatement> Parser::parse_if_statement()
+std::shared_ptr<IfStatement> Parser::parse_if_statement(Token const& if_token)
 {
     auto condition = parse_expression();
     if (!condition)
@@ -381,29 +317,29 @@ std::shared_ptr<IfStatement> Parser::parse_if_statement()
     while (true) {
         switch (current_code()) {
         case KeywordElif: {
-            lex();
+            auto elif_token = lex();
             auto elif_condition = parse_expression();
             if (!elif_condition)
                 return nullptr;
             auto elif_stmt = parse_statement();
             if (!elif_stmt)
                 return nullptr;
-            branches.push_back(std::make_shared<Branch>(elif_condition, elif_stmt));
+            branches.push_back(std::make_shared<Branch>(elif_token, elif_condition, elif_stmt));
         } break;
         case KeywordElse: {
-            lex();
+            auto else_token = lex();
             auto else_stmt = parse_statement();
             if (!else_stmt)
                 return nullptr;
-            return make_node<IfStatement>(condition, if_stmt, branches, std::make_shared<Branch>(nullptr, else_stmt));
+            return make_node<IfStatement>(if_token, condition, if_stmt, branches, std::make_shared<Branch>(else_token, nullptr, else_stmt));
         }
         default:
-            return make_node<IfStatement>(condition, if_stmt, branches, nullptr);
+            return make_node<IfStatement>(if_token, condition, if_stmt, branches, nullptr);
         }
     }
 }
 
-std::shared_ptr<SwitchStatement> Parser::parse_switch_statement()
+std::shared_ptr<SwitchStatement> Parser::parse_switch_statement(Token const& switch_token)
 {
     auto switch_expr = parse_expression();
     if (!switch_expr)
@@ -415,7 +351,7 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement()
     while (true) {
         switch (current_code()) {
         case KeywordCase: {
-            lex();
+            auto case_token = lex();
             auto expr = parse_expression();
             if (!expr)
                 return nullptr;
@@ -425,7 +361,7 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement()
             auto stmt = parse_statement();
             if (!stmt)
                 return nullptr;
-            cases.push_back(std::make_shared<CaseStatement>(expr, stmt));
+            cases.push_back(std::make_shared<CaseStatement>(case_token, expr, stmt));
         } break;
         case KeywordDefault: {
             auto default_token = lex();
@@ -435,11 +371,11 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement()
             auto stmt = parse_statement();
             if (!stmt)
                 return nullptr;
-            return make_node<SwitchStatement>(switch_expr, cases, std::make_shared<DefaultCase>(stmt));
+            return make_node<SwitchStatement>(switch_token, switch_expr, cases, std::make_shared<DefaultCase>(default_token, stmt));
         }
         case TokenCode::CloseBrace:
             lex();
-            return make_node<SwitchStatement>(switch_expr, cases, nullptr);
+            return make_node<SwitchStatement>(switch_token, switch_expr, cases, nullptr);
         default:
             add_error(peek(), "Syntax Error: Unexpected token '{}' in switch statement");
             return nullptr;
@@ -447,7 +383,7 @@ std::shared_ptr<SwitchStatement> Parser::parse_switch_statement()
     }
 }
 
-std::shared_ptr<WhileStatement> Parser::parse_while_statement()
+std::shared_ptr<WhileStatement> Parser::parse_while_statement(Token const& while_token)
 {
     if (!expect(TokenCode::OpenParen, " in 'while' statement"))
         return nullptr;
@@ -459,10 +395,10 @@ std::shared_ptr<WhileStatement> Parser::parse_while_statement()
     auto stmt = parse_statement();
     if (!stmt)
         return nullptr;
-    return make_node<WhileStatement>(condition, stmt);
+    return make_node<WhileStatement>(while_token, condition, stmt);
 }
 
-std::shared_ptr<ForStatement> Parser::parse_for_statement()
+std::shared_ptr<ForStatement> Parser::parse_for_statement(Token const& for_token)
 {
     if (!expect(TokenCode::OpenParen, " in 'for' statement"))
         return nullptr;
@@ -479,15 +415,16 @@ std::shared_ptr<ForStatement> Parser::parse_for_statement()
     auto stmt = parse_statement();
     if (!stmt)
         return nullptr;
-    return make_node<ForStatement>(variable.value().value(), expr, stmt);
+    return make_node<ForStatement>(for_token, variable.value().value(), expr, stmt);
 }
 
-std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(bool constant)
+std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token const& var_token, bool constant)
 {
     auto identifier_maybe = match(TokenCode::Identifier);
     if (!identifier_maybe.has_value()) {
         return nullptr;
     }
+    auto identifier = identifier_maybe.value();
     std::shared_ptr<ExpressionType> type = nullptr;
     if (current_code() == TokenCode::Colon) {
         lex();
@@ -498,21 +435,22 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(bool con
         }
         type = var_type;
     }
+    auto var_ident = std::make_shared<Identifier>(identifier, identifier.value(), type);
     if (current_code() != TokenCode::Equals) {
         if (constant) {
             add_error(peek(), format("Syntax Error: Expected expression after constant declaration, got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
-        return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value(), type->type()), nullptr, constant);
+        return make_node<VariableDeclaration>(var_token, var_ident, nullptr, constant);
     }
     lex();
     auto expr = parse_expression();
     if (!expr)
         return nullptr;
-    return make_node<VariableDeclaration>(Symbol(identifier_maybe.value().value(), type->type()), expr, constant);
+    return make_node<VariableDeclaration>(var_token, var_ident, expr, constant);
 }
 
-std::shared_ptr<Import> Parser::parse_import_statement()
+std::shared_ptr<Import> Parser::parse_import_statement(Token const& import_token)
 {
     std::string module_name;
     while (true) {
@@ -526,7 +464,7 @@ std::shared_ptr<Import> Parser::parse_import_statement()
         module_name += '/';
     }
     m_modules.insert(module_name);
-    return make_node<Import>(module_name);
+    return make_node<Import>(import_token, module_name);
 }
 
 /*
@@ -748,7 +686,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
         return make_node<Literal>(t);
     case TokenCode::Identifier: {
         //        if (in_deref_chain)
-        return make_node<Identifier>(t.value());
+        return make_node<Identifier>(t, t.value());
         //        return make_node<BinaryExpression>(make_node<This>(), Token(TokenCode::Period, "."), make_node<Identifier>(t.value()));
     }
     default:
@@ -761,8 +699,10 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
 {
     if (current_code() != TokenCode::Identifier)
         return nullptr;
-    auto type_name = lex().value();
+    auto type_token = lex();
+    auto type_name = type_token.value();
     if (current_code() == TokenCode::LessThan) {
+        auto lt_token = lex();
         ExpressionTypes parameters;
         while (true) {
             auto parameter = parse_type();
@@ -772,13 +712,13 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
             }
             parameters.push_back(parameter);
             if (current_code() == TokenCode::GreaterThan) {
-                return make_node<ExpressionType>(type_name, parameters);
+                return make_node<ExpressionType>(lt_token, type_name, parameters);
             }
             if (!expect(TokenCode::Comma))
                 return nullptr;
         }
     }
-    return make_node<ExpressionType>(type_name);
+    return make_node<ExpressionType>(type_token, type_name);
 }
 
 }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <obelix/BoundSyntaxNode.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
@@ -11,7 +12,7 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-using FoldContext = Context<std::shared_ptr<Literal>>;
+using FoldContext = Context<std::shared_ptr<BoundLiteral>>;
 
 ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, FoldContext& ctx)
 {
@@ -19,40 +20,29 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
         return tree;
 
     switch (tree->node_type()) {
-    case SyntaxNodeType::VariableDeclaration: {
-        auto var_decl = std::dynamic_pointer_cast<VariableDeclaration>(tree);
-        auto expr = TRY_AND_CAST(Expression, fold_constants_processor(var_decl->expression(), ctx));
-        if (var_decl->is_const() && expr->node_type() == SyntaxNodeType::Literal) {
-            auto literal = std::dynamic_pointer_cast<Literal>(expr);
-            ctx.declare(var_decl->variable().identifier(), literal);
-            return make_node<Pass>();
+    case SyntaxNodeType::BoundVariableDeclaration: {
+        auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
+        auto expr = TRY_AND_CAST(BoundExpression, fold_constants_processor(var_decl->expression(), ctx));
+        if (var_decl->is_const() && expr->node_type() == SyntaxNodeType::BoundLiteral) {
+            auto literal = std::dynamic_pointer_cast<BoundLiteral>(expr);
+            ctx.declare(var_decl->name(), literal);
+            return make_node<Pass>(var_decl);
         }
-        if (expr != var_decl->expression())
-            return std::make_shared<VariableDeclaration>(var_decl->variable(), expr, var_decl->is_const());
-        return tree;
+        return make_node<BoundVariableDeclaration>(var_decl->token(), var_decl->variable(), var_decl->is_const(), expr);
     }
 
-    case SyntaxNodeType::BinaryExpression: {
-        auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-        auto obj_maybe = TRY(expr->to_object());
-        if (obj_maybe.has_value()) {
-            if (obj_maybe.value()->is_exception())
-                return ptr_cast<Exception>(obj_maybe.value())->error();
-            return std::make_shared<Literal>(obj_maybe.value());
-        }
+    case SyntaxNodeType::BoundBinaryExpression: {
+        auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
+        auto lhs = TRY_AND_CAST(BoundExpression, fold_constants_processor(expr->lhs(), ctx));
+        auto rhs = TRY_AND_CAST(BoundExpression, fold_constants_processor(expr->rhs(), ctx));
 
-        auto lhs = TRY_AND_CAST(Expression, fold_constants_processor(expr->lhs(), ctx));
-        auto rhs = TRY_AND_CAST(Expression, fold_constants_processor(expr->rhs(), ctx));
-        auto left_maybe = TRY(lhs->to_object());
-        auto right_maybe = TRY(rhs->to_object());
+        if (lhs->node_type() == SyntaxNodeType::BoundLiteral && rhs->node_type() == SyntaxNodeType::BoundLiteral && expr->op() != BinaryOperator::Range && !BinaryOperator_is_assignment(expr->op())) {
+            auto lhs_literal = std::dynamic_pointer_cast<BoundLiteral>(lhs);
+            auto rhs_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
 
-        if (left_maybe.has_value() && right_maybe.has_value() && expr->op().code() != TokenCode::Equals && expr->op().code() != Parser::KeywordRange && !Parser::is_assignment_operator(expr->op().code())) {
-            auto result_maybe = left_maybe.value().evaluate(expr->op().value(), right_maybe.value());
-            if (result_maybe.has_value()) {
-                if (result_maybe.value()->is_exception())
-                    return ptr_cast<Exception>(result_maybe.value())->error();
-                return std::make_shared<Literal>(result_maybe.value());
-            }
+            auto ret_maybe = lhs_literal->literal().evaluate(BinaryOperator_name(expr->op()), rhs_literal->literal());
+            if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
+                return std::make_shared<BoundLiteral>(expr->token(), ret_maybe.value());
         }
 
         //
@@ -70,71 +60,84 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
         // FIXME: This implies that equals precedence implies that the operations are associative.
         // This is not necessarily true.
         //
-        if (left_maybe.has_value() && (rhs->node_type() == SyntaxNodeType::BinaryExpression)) {
-            auto rhs_expr = std::dynamic_pointer_cast<BinaryExpression>(rhs);
-            auto lhs_rhs_maybe = TRY(rhs_expr->lhs()->to_object());
-            if (lhs_rhs_maybe.has_value() && (Parser::binary_precedence(expr->op().code()) == Parser::binary_precedence(rhs_expr->op().code()))) {
-                auto result_maybe = left_maybe.value().evaluate(expr->op().value(), lhs_rhs_maybe.value());
-                if (result_maybe.has_value()) {
-                    if (result_maybe.value()->is_exception())
-                        return ptr_cast<Exception>(result_maybe.value())->error();
-                    auto literal = std::make_shared<Literal>(result_maybe.value());
-                    return std::make_shared<BinaryExpression>(literal, rhs_expr->op(), rhs_expr->rhs());
-                }
+        if (lhs->node_type() == SyntaxNodeType::BoundLiteral && rhs->node_type() == SyntaxNodeType::BinaryExpression) {
+            auto lhs_literal = std::dynamic_pointer_cast<BoundLiteral>(lhs);
+            auto rhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(rhs);
+            if (rhs_expr->lhs()->node_type() == SyntaxNodeType::BoundLiteral && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(rhs_expr->op())) {
+                auto rhs_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs_expr->lhs());
+                auto ret_maybe = lhs_literal->literal().evaluate(BinaryOperator_name(expr->op()), rhs_literal->literal());
+                if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
+                    return std::make_shared<BoundBinaryExpression>(expr->token(),
+                        std::make_shared<BoundLiteral>(expr->token(), ret_maybe.value()),
+                        rhs_expr->op(),
+                        rhs_expr->rhs(),
+                        expr->type());
             }
         }
 
-        if (right_maybe.has_value() && (lhs->node_type() == SyntaxNodeType::BinaryExpression)) {
-            auto lhs_expr = std::dynamic_pointer_cast<BinaryExpression>(lhs);
-            auto rhs_lhs_maybe = TRY(lhs_expr->rhs()->to_object());
-            if (rhs_lhs_maybe.has_value() && (Parser::binary_precedence(expr->op().code()) == Parser::binary_precedence(lhs_expr->op().code()))) {
-                auto result_maybe = right_maybe.value()->evaluate(expr->op().value(), make_typed<Arguments>(rhs_lhs_maybe.value()));
-                if (result_maybe.has_value()) {
-                    if (result_maybe.value()->is_exception())
-                        return ptr_cast<Exception>(result_maybe.value())->error();
-                    auto literal = std::make_shared<Literal>(result_maybe.value());
-                    return std::make_shared<BinaryExpression>(lhs_expr->lhs(), lhs_expr->op(), literal);
-                }
+        if (rhs->node_type() == SyntaxNodeType::BoundLiteral && lhs->node_type() == SyntaxNodeType::BinaryExpression) {
+            auto rhs_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
+            auto lhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(lhs);
+            if (lhs_expr->rhs()->node_type() == SyntaxNodeType::BoundLiteral && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(lhs_expr->op())) {
+                auto lhs_literal = std::dynamic_pointer_cast<BoundLiteral>(lhs_expr->lhs());
+                auto ret_maybe = lhs_literal->literal().evaluate(BinaryOperator_name(expr->op()), rhs_literal->literal());
+                if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
+                    if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
+                        return std::make_shared<BoundBinaryExpression>(expr->token(),
+                            lhs_expr->lhs(),
+                            lhs_expr->op(),
+                            std::make_shared<BoundLiteral>(expr->token(), ret_maybe.value()),
+                            expr->type());
             }
         }
-
-        return std::make_shared<BinaryExpression>(lhs, expr->op(), rhs, expr->type());
+        return std::make_shared<BoundBinaryExpression>(expr->token(), lhs, expr->op(), rhs, expr->type());
     }
 
-    case SyntaxNodeType::UnaryExpression: {
-        return to_literal(std::dynamic_pointer_cast<Expression>(tree));
+    case SyntaxNodeType::BoundUnaryExpression: {
+        auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
+        auto operand = TRY_AND_CAST(BoundExpression, fold_constants_processor(expr->operand(), ctx));
+
+        if (expr->op() == UnaryOperator::Identity)
+            return operand;
+
+        if (operand->node_type() == SyntaxNodeType::BoundLiteral) {
+            auto literal = std::dynamic_pointer_cast<BoundLiteral>(operand);
+
+            auto ret_maybe = literal->literal().evaluate(UnaryOperator_name(expr->op()));
+            if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
+                return std::make_shared<BoundLiteral>(expr->token(), ret_maybe.value());
+        }
+        return std::make_shared<BoundUnaryExpression>(expr->token(), operand, expr->op(), expr->type());
     }
 
-    case SyntaxNodeType::Identifier: {
-        auto identifier = std::dynamic_pointer_cast<Identifier>(tree);
-        if (auto value_maybe = ctx.get(identifier->name()); value_maybe.has_value()) {
-            if (auto obj = TRY(value_maybe.value()->to_object()); obj.has_value()) {
-                return std::make_shared<Literal>(obj.value());
-            }
+    case SyntaxNodeType::BoundIdentifier: {
+        auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(tree);
+        if (auto constant_maybe = ctx.get(identifier->name()); constant_maybe.has_value()) {
+            return constant_maybe.value();
         }
         return tree;
     }
 
-    case SyntaxNodeType::Branch: {
-        auto elif = std::dynamic_pointer_cast<Branch>(tree);
-        auto cond = TRY_AND_CAST(Expression, fold_constants_processor(elif->condition(), ctx));
+    case SyntaxNodeType::BoundBranch: {
+        auto elif = std::dynamic_pointer_cast<BoundBranch>(tree);
+        auto cond = TRY_AND_CAST(BoundExpression, fold_constants_processor(elif->condition(), ctx));
         auto stmt = TRY_AND_CAST(Statement, fold_constants_processor(elif->statement(), ctx));
         if (cond == nullptr)
             return stmt;
 
-        if (cond->node_type() == SyntaxNodeType::Literal) {
-            auto cond_literal = std::dynamic_pointer_cast<Literal>(cond);
-            auto cond_obj = cond_literal->to_object().value();
+        if (cond->node_type() == SyntaxNodeType::BoundLiteral) {
+            auto cond_literal = std::dynamic_pointer_cast<BoundLiteral>(cond);
+            auto cond_obj = cond_literal->literal();
             if (cond_obj) {
                 return stmt;
             } else {
                 return nullptr;
             }
         }
-        return std::make_shared<Branch>(cond, stmt);
+        return std::make_shared<BoundBranch>(elif->token(), cond, stmt);
     }
 
-    case SyntaxNodeType::IfStatement: {
+    case SyntaxNodeType::BoundIfStatement: {
         auto stmt = std::dynamic_pointer_cast<IfStatement>(tree);
         Statements branches;
         for (auto const& branch : stmt->branches()) {
@@ -144,11 +147,11 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
         }
 
         bool constant_true_added { false };
-        Branches new_branches;
+        BoundBranches new_branches;
         for (auto const& branch : branches) {
             switch (branch->node_type()) {
-            case SyntaxNodeType::Branch: {
-                new_branches.push_back(std::dynamic_pointer_cast<Branch>(branch));
+            case SyntaxNodeType::BoundBranch: {
+                new_branches.push_back(std::dynamic_pointer_cast<BoundBranch>(branch));
                 break;
             }
             default:
@@ -158,7 +161,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
                 if (new_branches.empty())
                     return branch;
                 if (!constant_true_added) {
-                    new_branches.push_back(std::make_shared<Branch>(nullptr, branch));
+                    new_branches.push_back(std::make_shared<BoundBranch>(branch->token(), nullptr, branch));
                     constant_true_added = true;
                 }
                 break;
@@ -167,10 +170,11 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
 
         // Nothing left. Everything was false:
         if (new_branches.empty())
-            return std::make_shared<Pass>();
+            return std::make_shared<Pass>(stmt->token());
 
-        return std::make_shared<IfStatement>(new_branches);
+        return std::make_shared<BoundIfStatement>(stmt->token(), new_branches);
     }
+
     default:
         return process_tree(tree, ctx, fold_constants_processor);
     }

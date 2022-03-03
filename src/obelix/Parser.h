@@ -75,14 +75,13 @@ private:
     void parse_statements(Statements&);
     std::shared_ptr<Block> parse_block(Statements&);
     std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression> const&);
-    std::shared_ptr<FunctionDef> parse_function_definition();
-    std::shared_ptr<FunctionDef> parse_intrinsic_definition();
-    std::shared_ptr<IfStatement> parse_if_statement();
-    std::shared_ptr<SwitchStatement> parse_switch_statement();
-    std::shared_ptr<WhileStatement> parse_while_statement();
-    std::shared_ptr<ForStatement> parse_for_statement();
-    std::shared_ptr<VariableDeclaration> parse_variable_declaration(bool);
-    std::shared_ptr<Import> parse_import_statement();
+    std::shared_ptr<FunctionDef> parse_function_definition(Token const&);
+    std::shared_ptr<IfStatement> parse_if_statement(Token const&);
+    std::shared_ptr<SwitchStatement> parse_switch_statement(Token const&);
+    std::shared_ptr<WhileStatement> parse_while_statement(Token const&);
+    std::shared_ptr<ForStatement> parse_for_statement(Token const&);
+    std::shared_ptr<VariableDeclaration> parse_variable_declaration(Token const&, bool);
+    std::shared_ptr<Import> parse_import_statement(Token const&);
     std::shared_ptr<Expression> parse_expression();
 
     std::shared_ptr<Expression> parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence);
