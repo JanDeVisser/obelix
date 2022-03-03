@@ -211,6 +211,12 @@ public:
     {
     }
 
+    Token(TokenCode code, Obj const& object)
+        : m_code(code)
+        , m_value(object->to_string())
+    {
+    }
+
     [[nodiscard]] TokenCode code() const { return m_code; }
     [[nodiscard]] std::string code_name() const { return TokenCode_name(code()); }
     [[nodiscard]] std::string const& value() const { return m_value; }
