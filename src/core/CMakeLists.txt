@@ -13,6 +13,7 @@ add_library(
         Logging.cpp
         NativeFunction.cpp
         Object.cpp
+        Process.cpp
         Range.cpp
         Regex.cpp
         Resolve.cpp
