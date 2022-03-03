@@ -4,10 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//
-// Created by Jan de Visser on 2021-09-18.
-//
-
 #include <core/Arguments.h>
 #include <core/Iterator.h>
 #include <core/Logging.h>
@@ -15,19 +11,6 @@
 #include <core/Range.h>
 
 namespace Obelix {
-
-#if 0
-static std::unordered_map<std::string, ObjectType> s_types;
-
-std::optional<ObjectType const&> const& ObjectType::get(std::string const& type_name)
-{
-    if (s_types.contains(type_name)) {
-        auto ret = s_types.at(type_name);
-        return ret;
-    }
-    return {};
-}
-#endif
 
 logging_category(object);
 
@@ -46,26 +29,12 @@ Obj Object::copy() const
     fatal("Not implemented");
 }
 
-std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args)
+std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args) const
 {
-    auto apply_and_assign = [this, args](std::string const& op) -> std::optional<Obj> {
-        auto attribute = args[0]->to_string();
-        auto current_val_maybe = resolve(attribute);
-        if (!current_val_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::NameUnresolved, attribute);
-        auto new_val_maybe = current_val_maybe.value()->evaluate(op, make_typed<Arguments>(args[1]));
-        if (!new_val_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::OperatorUnresolved, op, current_val_maybe.value());
-        return assign(attribute, new_val_maybe.value());
-    };
-
     if (name == ".") {
         assert(args->size() == 1);
         auto ret = resolve(args->at(0)->to_string());
         return ret;
-    } else if (name == "=") {
-        assert(args->size() == 2);
-        return assign(args->at(0)->to_string(), args->at(1));
     } else if (name == "<") {
         return make_obj<Boolean>(compare(args->get(0)) < 0);
     } else if (name == ">") {
@@ -82,8 +51,6 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
         return make_obj<Range>(self(), args[0]);
     } else if (name == ":") {
         return iterator();
-    } else if (name.ends_with("=")) {
-        return apply_and_assign(name.substr(0, name.length() - 1));
     } else if (name == "typename") {
         return make_obj<String>(type_name());
     } else if (name == "size") {
@@ -94,7 +61,7 @@ std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args
     return {};
 }
 
-std::optional<Obj> Object::evaluate(std::string const& name)
+std::optional<Obj> Object::evaluate(std::string const& name) const
 {
     return evaluate(name, make_typed<Arguments>());
 }
@@ -208,7 +175,7 @@ Ptr<Null> const& Null::null()
     return s_null;
 }
 
-std::optional<Obj> Exception::evaluate(std::string const&, Ptr<Arguments>)
+std::optional<Obj> Exception::evaluate(std::string const&, Ptr<Arguments>) const
 {
     return {};
 }

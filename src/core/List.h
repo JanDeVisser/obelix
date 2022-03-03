@@ -23,7 +23,6 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] size_t size() const override { return m_list.size(); }
-    std::optional<Obj> evaluate(std::string const& name, Ptr<Arguments>) override;
     [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
 
     template <class ObjClass, class... Args>

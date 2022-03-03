@@ -23,7 +23,7 @@ int Integer::compare(Obj const& other) const
     return (int)m_value - long_maybe.value();
 }
 
-std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
+std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args) const
 {
     if ((op == "+") || (op == "add")) {
         long ret = m_value;

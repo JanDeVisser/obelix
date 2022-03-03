@@ -27,7 +27,7 @@ Arguments::Arguments(Ptr<List> args, Ptr<Dictionary> kwargs)
 {
 }
 
-std::optional<Obj> Arguments::evaluate(std::string const& name, Ptr<Arguments> args)
+std::optional<Obj> Arguments::evaluate(std::string const& name, Ptr<Arguments> args) const
 {
     return {};
 }

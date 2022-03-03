@@ -15,7 +15,7 @@ public:
     Range(Obj const&, Obj const&);
 
     [[nodiscard]] std::string to_string() const override;
-    std::optional<Obj> evaluate(std::string const& name, Ptr<Arguments>) override;
+    std::optional<Obj> evaluate(std::string const& name, Ptr<Arguments>) const override;
     [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
     [[nodiscard]] std::optional<Obj> iterator() const override;
 

@@ -20,7 +20,7 @@ int String::compare(Obj const& other) const
     return to_string().compare(other->to_string());
 }
 
-std::optional<Obj> String::evaluate(std::string const& op, Ptr<Arguments> args)
+std::optional<Obj> String::evaluate(std::string const& op, Ptr<Arguments> args) const
 {
     if (op == "+") {
         auto ret = m_value;

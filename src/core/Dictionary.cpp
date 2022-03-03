@@ -70,7 +70,7 @@ std::optional<Obj> Dictionary::get(std::string const& key, Ptr<Object> default_r
     return default_result;
 }
 
-std::optional<Obj> Dictionary::evaluate(std::string const& name, Ptr<Arguments> args)
+std::optional<Obj> Dictionary::evaluate(std::string const& name, Ptr<Arguments> args) const
 {
     if (name == "has") {
         assert(!args->empty());

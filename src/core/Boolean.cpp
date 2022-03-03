@@ -23,7 +23,7 @@ int Boolean::compare(Obj const& other) const
     return (int)to_long().value() - long_maybe.value();
 }
 
-std::optional<Obj> Boolean::evaluate(std::string const& op, Ptr<Arguments> args)
+std::optional<Obj> Boolean::evaluate(std::string const& op, Ptr<Arguments> args) const
 {
     if ((op == "!") || (op == "negate")) {
         if (!args->empty()) {

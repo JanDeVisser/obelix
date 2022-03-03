@@ -37,14 +37,14 @@ public:
         return to_obj(ret);
     }
 
-    std::optional<Obj> evaluate(std::string const& op, Ptr<Arguments> args) override
+    std::optional<Obj> evaluate(std::string const& op, Ptr<Arguments> args) const override
     {
         if ((op == "*") || (op == "has_next")) {
             return make_obj<Boolean>(m_current_value < m_to->to_long().value());
         }
-        if ((op == "@") || (op == "current")) {
-            return make_obj<Integer>(m_current_value++);
-        }
+        //        if ((op == "@") || (op == "current")) {
+        //            return make_obj<Integer>(m_current_value++);
+        //        }
         return {};
     }
 
@@ -75,7 +75,7 @@ std::optional<Ptr<Object>> Range::iterator() const
     return make_obj<RangeIterator>(m_low, m_high);
 }
 
-std::optional<Obj> Range::evaluate(std::string const& op, Ptr<Arguments> args)
+std::optional<Obj> Range::evaluate(std::string const& op, Ptr<Arguments> args) const
 {
     return Object::evaluate(op, args);
 }

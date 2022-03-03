@@ -22,7 +22,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override;
     [[nodiscard]] size_t size() const override { return m_dictionary.size(); }
-    std::optional<Obj> evaluate(std::string const& name, Ptr<Arguments>) override;
+    std::optional<Obj> evaluate(std::string const& name, Ptr<Arguments>) const override;
     [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
     [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
     [[nodiscard]] std::optional<Obj> get(std::string const& key, Ptr<Object> default_result) const;

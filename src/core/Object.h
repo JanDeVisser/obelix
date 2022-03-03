@@ -45,8 +45,8 @@ public:
     virtual ~Object() = default;
     [[nodiscard]] ObelixType type() const { return m_type; }
     [[nodiscard]] char const* type_name() const { return ObelixType_name(type()); }
-    virtual std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>);
-    std::optional<Obj> evaluate(std::string const&);
+    [[nodiscard]] virtual std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) const;
+    [[nodiscard]] std::optional<Obj> evaluate(std::string const&) const;
     [[nodiscard]] virtual Obj copy() const;
     [[nodiscard]] virtual std::optional<Obj> resolve(std::string const& name) const;
     [[nodiscard]] virtual std::optional<Obj> assign(std::string const&, Obj const&);
@@ -153,7 +153,7 @@ class Integer : public Object {
 public:
     explicit Integer(int = 0);
 
-    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
+    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) const override;
     [[nodiscard]] std::optional<long> to_long() const override { return m_value; }
     [[nodiscard]] std::optional<double> to_double() const override { return m_value; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return m_value != 0; }
@@ -171,7 +171,7 @@ public:
     static Ptr<Boolean> const& True();
     static Ptr<Boolean> const& False();
 
-    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
+    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) const override;
 
     [[nodiscard]] std::optional<long> to_long() const override { return (m_value) ? 1 : 0; }
     [[nodiscard]] std::optional<bool> to_bool() const override { return m_value; }
@@ -302,22 +302,21 @@ private:
     friend class ObjectIterator;
 
 public:
-    std::optional<Obj> evaluate(std::string const& name, Ptr<Arguments> const& args)
+    [[nodiscard]] std::optional<Obj> evaluate(std::string const& name, Ptr<Arguments> const& args) const
     {
         return m_ptr->evaluate(name, args);
     }
 
-    std::optional<Obj> evaluate(std::string const& name)
+    [[nodiscard]] std::optional<Obj> evaluate(std::string const& name) const
     {
         return m_ptr->evaluate(name);
     }
 
-    template <typename... Args>
-    std::optional<Obj> evaluate(std::string const& name, Args&&... args)
+    template<typename... Args>
+    std::optional<Obj> evaluate(std::string const& name, Args&&... args) const
     {
         return m_ptr->evaluate(name, make_typed<Arguments>(std::forward<Args>(args)...));
     }
-
 };
 
 template<class ObjCls>
@@ -378,7 +377,7 @@ public:
     }
 
     [[nodiscard]] ErrorCode code() const { return m_error.code(); }
-    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
+    [[nodiscard]] std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) const override;
     [[nodiscard]] std::optional<Obj> resolve(std::string const& name) const override;
     [[nodiscard]] std::optional<Obj> assign(std::string const&, Obj const&) override;
     [[nodiscard]] std::optional<long> to_long() const override { return {}; }
@@ -395,7 +394,7 @@ class String : public Object {
 public:
     explicit String(std::string = "");
 
-    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
+    [[nodiscard]] std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) const override;
     [[nodiscard]] std::string to_string() const override { return m_value; }
     [[nodiscard]] int compare(Obj const& other) const override;
 

@@ -123,7 +123,7 @@ public:
 
     [[nodiscard]] Ptr<List> const& arguments() const { return m_args; }
     [[nodiscard]] Ptr<Dictionary> const& kwargs() const { return m_kwargs; }
-    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) override;
+    std::optional<Obj> evaluate(std::string const&, Ptr<Arguments>) const override;
     [[nodiscard]] std::optional<Obj> resolve(std::string const&) const override;
 
 private:
