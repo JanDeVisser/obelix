@@ -9,6 +9,7 @@
 #include <config.h>
 #include <core/Error.h>
 #include <core/Logging.h>
+#include <core/Process.h>
 #include <core/ScopeGuard.h>
 #include <obelix/ARM64.h>
 #include <obelix/ARM64Context.h>
@@ -438,7 +439,7 @@ ErrorOrNode prepare_arm64(std::shared_ptr<SyntaxNode> const& tree)
     return prepare_arm64_processor(tree, root);
 }
 
-ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string const& file_name)
+ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string const& file_name, bool run)
 {
     auto processed = TRY(prepare_arm64(tree));
 
@@ -485,6 +486,14 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
         std::cout << "[CMD] " << ld_cmd << "\n";
         if (auto code = system(ld_cmd.c_str()))
             return Error { ErrorCode::ExecutionError, ld_cmd, code };
+        if (run) {
+            auto run_cmd = format("./{}", bare_file_name);
+            std::cout << "[RUN] " << run_cmd << "\n";
+            auto exit_code = execute(run_cmd.c_str());
+            if (exit_code.is_error())
+                return exit_code.error();
+            ret = std::make_shared<BoundLiteral>(Token { TokenCode::Integer, format("{}", exit_code.value()) });
+        }
     }
     return ret;
 }

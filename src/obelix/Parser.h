@@ -17,6 +17,7 @@ namespace Obelix {
 
 struct Config {
     bool show_tree { false };
+    bool run { false };
 };
 
 class Parser : public BasicParser {

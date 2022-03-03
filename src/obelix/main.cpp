@@ -124,9 +124,13 @@ private:
 #endif
 #define MACOSX
 #ifdef MACOSX
-                if (auto err = output_arm64(transformed, file_name); err.is_error())
+                auto err = output_arm64(transformed, file_name, config().run);
+                if (err.is_error())
                     return err;
-                return std::make_shared<BoundLiteral>(Token {}, make_obj<Integer>(0));
+                auto ret_val = err.value();
+                if (ret_val->node_type() != SyntaxNodeType::BoundLiteral)
+                    ret_val = std::make_shared<BoundLiteral>(Token {}, make_obj<Integer>(0));
+                return ret_val;
 #endif
             } else {
                 fprintf(stderr, "Script execution temporarily disabled\n");
@@ -168,6 +172,8 @@ int main(int argc, char** argv)
             }
         } else if (!strcmp(argv[ix], "--show-tree")) {
             config.show_tree = true;
+        } else if (!strcmp(argv[ix], "--run") || !strcmp(argv[ix], "-r")) {
+            config.run = true;
         } else {
             file_name = argv[ix];
         }
