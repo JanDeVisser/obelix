@@ -479,17 +479,19 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
         auto file_name_parts = split(file_parts.back(), '.');
         auto bare_file_name = file_name_parts.front();
 
-        auto objects = join(modules, " ");
-        auto ld_cmd = format("ld -o {} {} -loblrt -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _start -arch arm64 -L{}/lib",
-            bare_file_name, objects, obl_dir);
+        // FIXME: This is $(xcrun -sdk macosx --show-sdk-path)
+        std::string sdk_path = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk";
+        std::vector<std::string> ld_args = { "-o", bare_file_name, "-loblrt", "-lSystem", "-syslibroot", sdk_path, "-e", "_start", "-arch", "arm64",
+            format("-L{}/lib", obl_dir) };
+        for (auto& m : modules)
+            ld_args.push_back(m);
 
-        std::cout << "[CMD] " << ld_cmd << "\n";
-        if (auto code = system(ld_cmd.c_str()))
-            return Error { ErrorCode::ExecutionError, ld_cmd, code };
+        if (auto code = execute("ld", ld_args); code.is_error())
+            return code.error();
         if (run) {
             auto run_cmd = format("./{}", bare_file_name);
             std::cout << "[RUN] " << run_cmd << "\n";
-            auto exit_code = execute(run_cmd.c_str());
+            auto exit_code = execute(run_cmd);
             if (exit_code.is_error())
                 return exit_code.error();
             ret = std::make_shared<BoundLiteral>(Token { TokenCode::Integer, format("{}", exit_code.value()) });

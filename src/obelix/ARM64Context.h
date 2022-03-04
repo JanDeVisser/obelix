@@ -13,6 +13,7 @@
 
 #include <config.h>
 #include <core/Logging.h>
+#include <core/Process.h>
 #include <obelix/Context.h>
 #include <obelix/MaterializedSyntaxNode.h>
 #include <obelix/Syntax.h>
@@ -93,10 +94,8 @@ public:
             if (s.fail() || s.bad())
                 return Error { ErrorCode::IOError, format("Could not write assembly file {}", bare_file_name + ".s") };
         }
-        auto as_cmd = format("as -o {}.o {}.s", bare_file_name, bare_file_name);
-        std::cout << "[CMD] " << as_cmd << "\n";
-        if (auto code = system(as_cmd.c_str()))
-            return Error { ErrorCode::ExecutionError, as_cmd, code };
+        if (auto code = execute("as", bare_file_name + ".s", "-o", bare_file_name + ".o"); code.is_error())
+            return code.error();
         return {};
     }
 
