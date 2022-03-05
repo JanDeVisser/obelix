@@ -480,7 +480,14 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
         auto bare_file_name = file_name_parts.front();
 
         // FIXME: This is $(xcrun -sdk macosx --show-sdk-path)
-        std::string sdk_path = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk";
+        static std::string sdk_path; // "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk";
+        if (sdk_path.empty()) {
+            Process p("xcrun", "-sdk", "macosx", "--show-sdk-path");
+            if (auto exit_code_or_error = p.execute(); exit_code_or_error.is_error())
+                return exit_code_or_error.error();
+            sdk_path = strip(p.standard_out());
+        }
+
         std::vector<std::string> ld_args = { "-o", bare_file_name, "-loblrt", "-lSystem", "-syslibroot", sdk_path, "-e", "_start", "-arch", "arm64",
             format("-L{}/lib", obl_dir) };
         for (auto& m : modules)

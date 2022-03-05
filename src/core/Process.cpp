@@ -5,6 +5,7 @@
  */
 
 #include <iostream>
+#include <sys/fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -15,16 +16,28 @@ namespace Obelix {
 
 ErrorOr<int> execute(std::string const& cmd, std::vector<std::string> const& args)
 {
-    auto sz = args.size();
+    Process p(cmd, args);
+    return p.execute();
+}
+
+Process::Process(std::string command, std::vector<std::string> arguments)
+    : m_command(move(command))
+    , m_arguments(move(arguments))
+{
+}
+
+ErrorOr<int> Process::execute()
+{
+    auto sz = m_arguments.size();
     char** argv = new char*[sz + 2];
-    argv[0] = new char[cmd.length() + 1];
-    strcpy(argv[0], cmd.c_str());
+    argv[0] = new char[m_command.length() + 1];
+    strcpy(argv[0], m_command.c_str());
     for (int ix = 0; ix < sz; ++ix) {
-        argv[ix + 1] = new char[args[ix].length() + 1];
-        strcpy(argv[ix + 1], args[ix].c_str());
+        argv[ix + 1] = new char[m_arguments[ix].length() + 1];
+        strcpy(argv[ix + 1], m_arguments[ix].c_str());
     }
     argv[sz + 1] = nullptr;
-    std::cout << format("[CMD] {} {}", cmd, join(args, ' ')) << '\n';
+    std::cout << format("[CMD] {} {}", m_command, join(m_arguments, ' ')) << '\n';
 
     ScopeGuard sg([&argv, &sz]() {
         for (auto ix = 0; ix < sz; ++ix)
@@ -32,18 +45,45 @@ ErrorOr<int> execute(std::string const& cmd, std::vector<std::string> const& arg
         delete[] argv;
     });
 
-    int pid = fork();
-    if (pid == 0) {
-        execvp(cmd.c_str(), argv);
-        return Error { ErrorCode::IOError, format("execvp() failed: {}", strerror(errno)) };
-    } else if (pid == -1) {
-        return Error { ErrorCode::IOError, format("fork() failed: {}", strerror(errno)) };
+    int filedes[2];
+    if (pipe(filedes) == -1) {
+        return Error { ErrorCode::IOError, format("pipe() failed: {}", strerror(errno)) };
     }
+
+    pid_t pid = fork();
+    if (pid == -1)
+        return Error { ErrorCode::IOError, format("fork() failed: {}", strerror(errno)) };
+    if (pid == 0) {
+        while ((dup2(filedes[1], STDOUT_FILENO) == -1) && (errno == EINTR)) { }
+        close(filedes[0]);
+        close(filedes[1]);
+        execvp(m_command.c_str(), argv);
+        return Error { ErrorCode::IOError, format("execvp() failed: {}", strerror(errno)) };
+    }
+    close(filedes[1]);
+
+    char buffer[4096];
+    while (true) {
+        auto count = read(filedes[0], buffer, sizeof(buffer) - 1);
+        if (count == -1) {
+            if (errno == EINTR) {
+                continue;
+            } else {
+                return Error { ErrorCode::IOError, format("Error reading child process output: {}", strerror(errno)) };
+            }
+        }
+        if (count == 0)
+            break;
+        buffer[count] = '\0';
+        m_stdout += buffer;
+    }
+    close(filedes[0]);
+
     int exit_code;
     if (waitpid(pid, &exit_code, 0) == -1)
         return Error { ErrorCode::IOError, format("waitpid() failed: {}", strerror(errno)) };
     if (!WIFEXITED(exit_code))
-        return Error { ErrorCode::IOError, format("Child program {} crashed due to signal {}", cmd.c_str(), WTERMSIG(exit_code)) };
+        return Error { ErrorCode::IOError, format("Child program {} crashed due to signal {}", m_command.c_str(), WTERMSIG(exit_code)) };
     return WEXITSTATUS(exit_code);
 }
 
