@@ -70,7 +70,7 @@ public:
     [[nodiscard]] std::string const& name() const { return m_identifier; }
     [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" type="{}")", name(), type()); }
     [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
-    [[nodiscard]] std::string to_string() const override { return format("{}: {}", name(), type()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", name(), type()->to_string()); }
 
 private:
     std::string m_identifier;
@@ -278,7 +278,7 @@ public:
     [[nodiscard]] std::string text_contents() const override { return m_literal->to_string(); }
     [[nodiscard]] Obj const& literal() const { return m_literal; }
     [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return literal(); }
-    [[nodiscard]] std::string to_string() const override { return format("{}: {}", literal()->to_string(), type()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", literal()->to_string(), type()->to_string()); }
 
 private:
     Obj m_literal;

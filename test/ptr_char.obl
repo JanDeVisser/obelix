@@ -1,0 +1,4 @@
+func main(): int
+{
+  var x: ptr<char>;
+}

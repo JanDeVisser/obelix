@@ -228,7 +228,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             TRY_RETURN(output_arm64_processor(var_decl->expression(), ctx));
         } else {
             auto reg = ctx.add_register();
-            switch (var_decl->expression()->type()->type()) {
+            switch (var_decl->type()->type()) {
             case ObelixType::TypeString: {
                 ctx.assembly().add_instruction("mov", "w{},wzr", ctx.add_register());
             } // fall through

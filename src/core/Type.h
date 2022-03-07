@@ -14,6 +14,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include <core/Error.h>
 #include <core/Format.h>
 
 namespace Obelix {
@@ -307,6 +308,9 @@ private:
 
 typedef std::vector<MethodDescription> MethodDescriptions;
 
+class ObjectType;
+using ObjectTypes = std::vector<std::shared_ptr<ObjectType>>;
+
 class ObjectType {
 public:
     ObjectType() = default;
@@ -341,9 +345,9 @@ public:
     {
         std::string ret = name();
         auto glue = '<';
-        for (auto& parameter : template_parameters()) {
+        for (auto& parameter : template_arguments()) {
             ret += glue;
-            ret += parameter;
+            ret += parameter->to_string();
             glue = ',';
         }
         if (glue == ',')
@@ -365,26 +369,25 @@ public:
         return added_md;
     }
 
-    void will_be_a(ObelixType type) { m_is_a.insert(type); }
+    void will_be_a(ObelixType type) { m_is_a.push_back(ObjectType::get(type)); }
     void has_template_parameter(std::string const& parameter) { m_template_parameters.push_back(parameter); }
     void has_size(size_t sz) { m_size = sz; }
 
-    [[nodiscard]] bool is_a(ObelixType other) const
+    [[nodiscard]] bool is_a(std::shared_ptr<ObjectType> other) const
     {
-        if ((other == type()) || (other == TypeAny))
+        if ((other.get() == this) || (other->type() == TypeAny))
             return true;
-        return m_is_a.contains(other);
+        return std::any_of(m_is_a.begin(), m_is_a.end(), [&other](auto& is_a) { return is_a == other; });
     }
 
-    [[nodiscard]] bool is_a(ObjectType const& other) const { return is_a(other.type()); }
     [[nodiscard]] ObelixType return_type_of(std::string_view method_name, ObelixTypes const& argument_types) const;
     [[nodiscard]] bool is_parameterized() const { return !m_template_parameters.empty(); }
     [[nodiscard]] size_t size() const { return m_size; }
     [[nodiscard]] std::vector<std::string> const& template_parameters() const { return m_template_parameters; }
 
     [[nodiscard]] bool is_template_instantiation() const { return m_instantiates_template != nullptr; }
-    [[nodiscard]] std::shared_ptr<ObelixType> instatiates_template() const { return m_instantiates_template; }
-    [[nodiscard]] std::vector<std::shared_ptr<ObelixType>> const& template_arguments() const { return m_template_arguments; }
+    [[nodiscard]] std::shared_ptr<ObjectType> instatiates_template() const { return m_instantiates_template; }
+    [[nodiscard]] ObjectTypes const& template_arguments() const { return m_template_arguments; }
 
     template<typename ObjectTypeBuilder>
     static std::shared_ptr<ObjectType> register_type(ObelixType type, ObjectTypeBuilder const& builder) noexcept
@@ -405,7 +408,50 @@ public:
 
     static std::shared_ptr<ObjectType> get(ObelixType);
     static std::shared_ptr<ObjectType> get(std::string const&);
-    //    static std::shared_ptr<ObjectType> instantiate_template(std::shared_ptr<ObjectType>, std::vector<std::shared_ptr<ObjectType>>);
+
+    static ErrorOr<std::shared_ptr<ObjectType>> resolve(std::string const& type_name, ObjectTypes const& template_args)
+    {
+        auto base_type = ObjectType::get(type_name);
+        if (base_type == nullptr)
+            return Error { ErrorCode::NoSuchType, type_name };
+        if (base_type->is_parameterized() && (template_args.size() != base_type->template_parameters().size()))
+            return Error { ErrorCode::TemplateParameterMismatch, type_name, base_type->template_parameters().size(), template_args.size() };
+        if (!base_type->is_parameterized() && !template_args.empty())
+            return Error { ErrorCode::TypeNotParameterized, type_name };
+        if (!base_type->is_parameterized())
+            return base_type;
+        for (auto& template_instantiation : s_template_instantiations) {
+            if (template_instantiation->instatiates_template() == base_type) {
+                size_t ix;
+                for (ix = 0; ix < template_args.size(); ++ix) {
+                    if (template_instantiation->template_arguments()[ix] != template_args[ix])
+                        break;
+                }
+                if (ix >= template_args.size())
+                    return template_instantiation;
+            }
+        }
+        auto instantiation = std::make_shared<ObjectType>(base_type->type(), [&template_args, &base_type](ObjectType& new_type) {
+            new_type.m_instantiates_template = base_type;
+            new_type.m_template_arguments = template_args;
+        });
+        s_template_instantiations.push_back(instantiation);
+        return instantiation;
+    }
+
+    template<typename... Args>
+    static std::shared_ptr<ObjectType> resolve(std::string const& type_name, std::vector<std::shared_ptr<ObjectType>> template_args, std::shared_ptr<ObjectType> template_arg, Args&&... args)
+    {
+        template_args.push_back(move(template_arg));
+        return resolve(type_name, template_args, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    static std::shared_ptr<ObjectType> resolve(std::string const& type_name, std::shared_ptr<ObjectType> template_arg, Args&&... args)
+    {
+        std::vector<std::shared_ptr<ObjectType>> template_args = { move(template_arg) };
+        return resolve(type_name, template_args, std::forward<Args>(args)...);
+    }
 
 private:
     ObelixType m_type { TypeUnknown };
@@ -413,15 +459,15 @@ private:
     std::string m_name_str;
     size_t m_size { 8 };
     MethodDescriptions m_methods {};
-    std::unordered_set<ObelixType> m_is_a;
+    std::vector<std::shared_ptr<ObjectType>> m_is_a;
     std::vector<std::string> m_template_parameters {};
-    std::shared_ptr<ObelixType> m_instantiates_template { nullptr };
-    std::vector<std::shared_ptr<ObelixType>> m_template_arguments {};
+    std::shared_ptr<ObjectType> m_instantiates_template { nullptr };
+    std::vector<std::shared_ptr<ObjectType>> m_template_arguments {};
     static std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> s_types_by_id;
     static std::unordered_map<std::string, std::shared_ptr<ObjectType>> s_types_by_name;
+    static std::vector<std::shared_ptr<ObjectType>> s_template_instantiations;
 };
 
-using ObjectTypes = std::vector<std::shared_ptr<ObjectType>>;
 std::string type_name(std::shared_ptr<ObjectType> type);
 
 template<>
@@ -446,8 +492,12 @@ struct Converter<ObjectType*> {
 
 template<>
 struct std::hash<Obelix::ObjectType> {
-    auto operator()(Obelix::ObjectType const& type) const noexcept
+    size_t operator()(Obelix::ObjectType const& type) const noexcept
     {
-        return std::hash<int> {}(type.type());
+        size_t ret = std::hash<std::string> {}(type.name());
+        for (auto& template_arg : type.template_arguments()) {
+            ret ^= std::hash<Obelix::ObjectType> {}(*template_arg) << 1;
+        }
+        return ret;
     }
 };

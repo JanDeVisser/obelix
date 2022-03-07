@@ -27,8 +27,9 @@ std::optional<ObelixType> ObelixType_by_name(std::string const& t)
     return {};
 }
 
-std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types_by_id;
-std::unordered_map<std::string, std::shared_ptr<ObjectType>> ObjectType::s_types_by_name;
+std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> ObjectType::s_types_by_id {};
+std::unordered_map<std::string, std::shared_ptr<ObjectType>> ObjectType::s_types_by_name {};
+std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {};
 
 [[maybe_unused]] auto s_assignable = ObjectType::register_type(TypeAssignable,
     [](ObjectType& type) {
@@ -195,8 +196,8 @@ ObelixType ObjectType::return_type_of(std::string_view method_name, ObelixTypes 
         ObelixType t = types.back();
         types.pop_back();
         auto type = s_types_by_id.at(t);
-        for (auto is_a : type->m_is_a) {
-            types.push_back(is_a);
+        for (auto& is_a : type->m_is_a) {
+            types.push_back(is_a->type());
         }
         if (auto ret = check_methods_of(*type); ret != ObelixType::TypeUnknown)
             return ret;
@@ -226,10 +227,5 @@ std::shared_ptr<ObjectType> ObjectType::get(std::string const& type)
     }
     return nullptr;
 }
-
-// std::shared_ptr<ObjectType> ObjectType::instantiate_template(std::shared_ptr<ObjectType> templ, std::vector<std::shared_ptr<ObjectType>> args)
-//{
-//
-// }
 
 }

@@ -703,16 +703,17 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
     auto type_name = type_token.value();
     if (current_code() == TokenCode::LessThan) {
         auto lt_token = lex();
-        ExpressionTypes parameters;
+        ExpressionTypes arguments;
         while (true) {
             auto parameter = parse_type();
             if (!parameter) {
                 add_error(peek(), format("Syntax Error: Expected type, got '{}' ({})", peek().value(), peek().code_name()));
                 return nullptr;
             }
-            parameters.push_back(parameter);
+            arguments.push_back(parameter);
             if (current_code() == TokenCode::GreaterThan) {
-                return make_node<ExpressionType>(lt_token, type_name, parameters);
+                lex();
+                return make_node<ExpressionType>(lt_token, type_name, arguments);
             }
             if (!expect(TokenCode::Comma))
                 return nullptr;

@@ -106,10 +106,10 @@ using ExpressionTypes = std::vector<std::shared_ptr<ExpressionType>>;
 
 class ExpressionType : public SyntaxNode {
 public:
-    ExpressionType(Token token, std::string type_name, ExpressionTypes template_parameters)
+    ExpressionType(Token token, std::string type_name, ExpressionTypes template_arguments)
         : SyntaxNode(std::move(token))
         , m_type_name(move(type_name))
-        , m_template_parameters(move(template_parameters))
+        , m_template_args(move(template_arguments))
     {
     }
 
@@ -126,15 +126,26 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ExpressionType; }
-    [[nodiscard]] bool is_template_instantiation() const { return !m_template_parameters.empty(); }
+    [[nodiscard]] bool is_template_instantiation() const { return !m_template_args.empty(); }
     [[nodiscard]] std::string const& type_name() const { return m_type_name; }
-    [[nodiscard]] ExpressionTypes const& template_parameters() const { return m_template_parameters; }
+    [[nodiscard]] ExpressionTypes const& template_arguments() const { return m_template_args; }
     [[nodiscard]] std::string attributes() const override { return format(R"(type_name="{}")", type_name()); }
+    [[nodiscard]] ErrorOr<std::shared_ptr<ObjectType>> resolve_type() const
+    {
+        ObjectTypes args;
+        for (auto& arg : template_arguments()) {
+            auto arg_type_or_error = arg->resolve_type();
+            if (arg_type_or_error.is_error())
+                return arg_type_or_error.error();
+            args.push_back(arg_type_or_error.value());
+        }
+        return ObjectType::resolve(type_name(), args);
+    }
 
     [[nodiscard]] Nodes children() const override
     {
         Nodes ret;
-        for (auto& parameter : template_parameters()) {
+        for (auto& parameter : template_arguments()) {
             ret.push_back(parameter);
         }
         return ret;
@@ -144,7 +155,7 @@ public:
     {
         auto ret = type_name();
         auto glue = '<';
-        for (auto& parameter : template_parameters()) {
+        for (auto& parameter : template_arguments()) {
             ret += glue;
             glue = ',';
             ret += parameter->to_string();
@@ -156,7 +167,7 @@ public:
 
 private:
     std::string m_type_name;
-    ExpressionTypes m_template_parameters {};
+    ExpressionTypes m_template_args {};
 };
 
 class Expression : public SyntaxNode {
@@ -458,7 +469,7 @@ private:
             if (!first)
                 ret += ", ";
             first = false;
-            ret += param->name() + ": " + param->type_name();
+            ret += param->name() + ": " + param->type()->to_string();
         }
         return ret;
     }

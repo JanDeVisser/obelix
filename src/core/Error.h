@@ -45,7 +45,10 @@ namespace Obelix {
     S(CantUseAsUnaryOp, "Cannot use '{}' as a unary operation")                               \
     S(CannotAssignToConstant, "Cannot assign to constant '{}'")                               \
     S(CannotAssignToFunction, "Identifier '{}' represents a function and cannot be assigned") \
-    S(CannotAssignToRValue, "Cannot assign to expression '{}'")
+    S(CannotAssignToRValue, "Cannot assign to expression '{}'")                               \
+    S(NoSuchType, "Unknown type '{}'")                                                        \
+    S(TemplateParameterMismatch, "Template '{}' expects {} arguments. Got {}")                \
+    S(TypeNotParameterized, "Type '{}' is not parameterized")
 
 enum class ErrorCode {
 #undef __ENUMERATE_ERROR_CODE

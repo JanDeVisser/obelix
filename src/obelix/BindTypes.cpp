@@ -30,7 +30,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         auto t = var_decl->type();
         std::shared_ptr<ObjectType> var_type { nullptr };
         if (t)
-            var_type = ObjectType::get(t->type_name());
+            var_type = TRY(t->resolve_type());
         std::shared_ptr<BoundExpression> expr { nullptr };
         if (var_decl->expression()) {
             auto processed_expr = TRY(bind_types_processor(var_decl->expression(), ctx));
@@ -61,13 +61,18 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         auto decl = std::dynamic_pointer_cast<FunctionDecl>(tree);
         if (decl->type() == nullptr)
             return Error { ErrorCode::UntypedFunction, decl->name() };
-        auto ret_type = ObjectType::get(decl->type_name());
+
+        auto ret_type_or_error = decl->type()->resolve_type();
+        if (ret_type_or_error.is_error())
+            return ret_type_or_error.error();
+        auto ret_type = ret_type_or_error.value();
+
         auto identifier = make_node<BoundIdentifier>(decl->identifier(), ret_type);
         BoundIdentifiers bound_parameters;
         for (auto& parameter : decl->parameters()) {
             if (parameter->type() == nullptr)
                 return Error { ErrorCode::UntypedParameter, parameter->name() };
-            auto parameter_type = ObjectType::get(decl->type_name());
+            auto parameter_type = TRY(parameter->type()->resolve_type());
             bound_parameters.push_back(make_node<BoundIdentifier>(parameter, parameter_type));
         }
         switch (decl->node_type()) {
@@ -105,7 +110,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 
         ObelixTypes arg_types;
         arg_types.push_back(static_cast<ObelixType>(rhs->type()->type()));
-        auto lhs_type = ObjectType::get(static_cast<ObelixType>(lhs->type()->type()));
+        auto lhs_type = lhs->type();
         auto return_type = lhs_type->return_type_of(expr->op().value(), arg_types);
         if (return_type == ObelixType::TypeUnknown)
             return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
