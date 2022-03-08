@@ -41,7 +41,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             }
             expr = std::dynamic_pointer_cast<BoundExpression>(processed_expr);
 
-            if (var_type && var_type->type() != ObelixType::TypeAny && expr->type()->type() != var_type->type())
+            if (var_type && var_type->type() != ObelixType::TypeAny && (*(expr->type()) != *var_type))
                 return Error { ErrorCode::TypeMismatch, var_decl->name(), var_decl->type(), expr->type() };
             if (!var_type)
                 var_type = expr->type();
@@ -108,14 +108,6 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         auto lhs = TRY_AND_CAST(BoundExpression, bind_types_processor(expr->lhs(), ctx));
         auto rhs = TRY_AND_CAST(BoundExpression, bind_types_processor(expr->rhs(), ctx));
 
-        ObelixTypes arg_types;
-        arg_types.push_back(static_cast<ObelixType>(rhs->type()->type()));
-        auto lhs_type = lhs->type();
-        auto return_type = lhs_type->return_type_of(expr->op().value(), arg_types);
-        if (return_type == ObelixType::TypeUnknown)
-            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
-        auto return_type_object = ObjectType::get(return_type);
-
         struct BinaryOperatorMap {
             TokenCode code;
             BinaryOperator op;
@@ -139,8 +131,8 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             { TokenCode::Ampersand, BinaryOperator::BitwiseAnd },
             { TokenCode::Pipe, BinaryOperator::BitwiseOr },
             { TokenCode::Hat, BinaryOperator::BitwiseXor },
-            { Parser::KeywordIncEquals, BinaryOperator::Increment },
-            { Parser::KeywordDecEquals, BinaryOperator::Decrement },
+            { Parser::KeywordIncEquals, BinaryOperator::BinaryIncrement },
+            { Parser::KeywordDecEquals, BinaryOperator::BinaryDecrement },
             { Parser::KeywordRange, BinaryOperator::Range },
         };
 
@@ -154,7 +146,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         if (op == BinaryOperator::Invalid)
             return Error { ErrorCode::OperatorUnresolved, expr->op().value(), lhs->to_string() };
 
-        if (op == BinaryOperator::Assign || Parser::is_assignment_operator(expr->op().code())) { // FIXME move is_assignment_operator to BinaryOperator
+        if (op == BinaryOperator::Assign || BinaryOperator_is_assignment(op)) {
             if (lhs->node_type() != SyntaxNodeType::BoundIdentifier)
                 return Error { ErrorCode::CannotAssignToRValue, lhs->to_string() };
             auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(lhs);
@@ -169,17 +161,17 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             if (var_decl->type()->type() != rhs->type()->type())
                 return Error { ErrorCode::TypeMismatch, rhs->to_string(), var_decl->type(), rhs->type() };
         }
-        return make_node<BoundBinaryExpression>(expr, lhs, op, rhs, return_type_object);
+
+        auto lhs_type = lhs->type();
+        auto return_type = lhs_type->return_type_of(to_operator(op), rhs->type());
+        if (!return_type.has_value())
+            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
+        return make_node<BoundBinaryExpression>(expr, lhs, op, rhs, return_type.value());
     }
 
     case SyntaxNodeType::UnaryExpression: {
         auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
         auto operand = TRY_AND_CAST(BoundExpression, bind_types_processor(expr->operand(), ctx));
-        auto operand_type = operand->type();
-        auto return_type = operand_type->return_type_of(expr->op().value(), ObelixTypes {});
-        if (return_type == ObelixType::TypeUnknown)
-            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
-        auto return_type_object = ObjectType::get(return_type);
 
         struct UnaryOperatorMap {
             TokenCode code;
@@ -193,17 +185,20 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             { TokenCode::Tilde, UnaryOperator::BitwiseInvert },
         };
 
-        UnaryOperator op = UnaryOperator::Invalid;
+        UnaryOperator op { UnaryOperator::InvalidUnary };
         for (auto ix : operator_map) {
             if (ix.code == expr->op().code()) {
                 op = ix.op;
                 break;
             }
         }
-        if (op == UnaryOperator::Invalid)
+        if (op == UnaryOperator::InvalidUnary)
             return Error { ErrorCode::OperatorUnresolved, expr->op().value(), operand->to_string() };
 
-        return make_node<BoundUnaryExpression>(expr, operand, op, return_type_object);
+        auto return_type = operand->type()->return_type_of(to_operator(op));
+        if (!return_type.has_value())
+            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
+        return make_node<BoundUnaryExpression>(expr, operand, op, return_type.value());
     }
 
     case SyntaxNodeType::Identifier: {
@@ -251,7 +246,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         for (auto ix = 0; ix < args.size(); ix++) {
             auto& arg = args.at(ix);
             auto& param = func_decl->parameters().at(ix);
-            if (arg->type()->type() != param->type()->type())
+            if (*(arg->type()) != *(param->type()))
                 return Error { ErrorCode::ArgumentTypeMismatch, func_call->name(), arg->type(), param->name() };
         }
 

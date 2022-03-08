@@ -90,7 +90,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
                             expr->type());
             }
         }
-        return std::make_shared<BoundBinaryExpression>(expr->token(), lhs, expr->op(), rhs, expr->type());
+        return expr;
     }
 
     case SyntaxNodeType::BoundUnaryExpression: {

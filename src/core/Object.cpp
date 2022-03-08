@@ -31,23 +31,23 @@ Obj Object::copy() const
 
 std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args) const
 {
-    if (name == ".") {
+    if ((name == ".") || (name == BinaryOperator_name(BinaryOperator::Dereference))) {
         assert(args->size() == 1);
         auto ret = resolve(args->at(0)->to_string());
         return ret;
-    } else if (name == "<") {
+    } else if (name == "<" || name == BinaryOperator_name(BinaryOperator::Less)) {
         return make_obj<Boolean>(compare(args->get(0)) < 0);
-    } else if (name == ">") {
+    } else if (name == ">" || name == BinaryOperator_name(BinaryOperator::Greater)) {
         return make_obj<Boolean>(compare(args->get(0)) > 0);
-    } else if (name == "<=") {
+    } else if (name == "<=" || name == BinaryOperator_name(BinaryOperator::LessEquals)) {
         return make_obj<Boolean>(compare(args->get(0)) <= 0);
-    } else if (name == "=>") {
+    } else if (name == "=>" || name == BinaryOperator_name(BinaryOperator::GreaterEquals)) {
         return make_obj<Boolean>(compare(args->get(0)) >= 0);
-    } else if (name == "==") {
+    } else if (name == "==" || name == BinaryOperator_name(BinaryOperator::Equals)) {
         return make_obj<Boolean>(compare(args->get(0)) == 0);
-    } else if (name == "!=") {
+    } else if (name == "!=" || name == BinaryOperator_name(BinaryOperator::NotEquals)) {
         return make_obj<Boolean>(compare(args->get(0)) != 0);
-    } else if (name == "..") {
+    } else if (name == ".." || name == BinaryOperator_name(BinaryOperator::Range)) {
         return make_obj<Range>(self(), args[0]);
     } else if (name == ":") {
         return iterator();

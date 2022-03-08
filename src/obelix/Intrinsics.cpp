@@ -95,37 +95,37 @@ void Intrinsics::initialize()
 
         s_intrinsics[sig_to_string] = Intrinsic(Signature { "to_string", ObjectType::get(TypeString), { ObjectType::get(TypeInt) } });
 
-        s_intrinsics[sig_add_int_int] = Intrinsic(Signature { "+", ObjectType::get(TypeInt), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
-        s_intrinsics[sig_subtract_int_int] = Intrinsic(Signature { "-", ObjectType::get(TypeInt), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
-        s_intrinsics[sig_multiply_int_int] = Intrinsic(Signature { "*", ObjectType::get(TypeInt), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
-        s_intrinsics[sig_divide_int_int] = Intrinsic(Signature { "/", ObjectType::get(TypeInt), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
-        s_intrinsics[sig_equals_int_int] = Intrinsic(Signature { "==", ObjectType::get(TypeBoolean), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
-        s_intrinsics[sig_greater_int_int] = Intrinsic(Signature { ">", ObjectType::get(TypeBoolean), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
-        s_intrinsics[sig_less_int_int] = Intrinsic(Signature { "<", ObjectType::get(TypeBoolean), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
-        s_intrinsics[sig_negate_int] = Intrinsic(Signature { "-", ObjectType::get(TypeInt), { ObjectType::get(TypeInt) } });
-        s_intrinsics[sig_invert_int] = Intrinsic(Signature { "~", ObjectType::get(TypeInt), { ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_add_int_int] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Add), ObjectType::get(TypeInt), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_subtract_int_int] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Subtract), ObjectType::get(TypeInt), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_multiply_int_int] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Multiply), ObjectType::get(TypeInt), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_divide_int_int] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Divide), ObjectType::get(TypeInt), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_equals_int_int] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Equals), ObjectType::get(TypeBoolean), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_greater_int_int] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Greater), ObjectType::get(TypeBoolean), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_less_int_int] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Less), ObjectType::get(TypeBoolean), { ObjectType::get(TypeInt), ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_negate_int] = Intrinsic(Signature { UnaryOperator_name(UnaryOperator::Negate), ObjectType::get(TypeInt), { ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_invert_int] = Intrinsic(Signature { UnaryOperator_name(UnaryOperator::BitwiseInvert), ObjectType::get(TypeInt), { ObjectType::get(TypeInt) } });
 
-        s_intrinsics[sig_add_byte_byte] = Intrinsic(Signature { "+", ObjectType::get(TypeByte), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
-        s_intrinsics[sig_subtract_byte_byte] = Intrinsic(Signature { "-", ObjectType::get(TypeByte), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
-        s_intrinsics[sig_multiply_byte_byte] = Intrinsic(Signature { "*", ObjectType::get(TypeByte), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
-        s_intrinsics[sig_divide_byte_byte] = Intrinsic(Signature { "/", ObjectType::get(TypeByte), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
-        s_intrinsics[sig_equals_byte_byte] = Intrinsic(Signature { "==", ObjectType::get(TypeBoolean), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
-        s_intrinsics[sig_greater_byte_byte] = Intrinsic(Signature { ">", ObjectType::get(TypeBoolean), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
-        s_intrinsics[sig_less_byte_byte] = Intrinsic(Signature { "<", ObjectType::get(TypeBoolean), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
-        s_intrinsics[sig_negate_byte] = Intrinsic(Signature { "-", ObjectType::get(TypeByte), { ObjectType::get(TypeByte) } });
-        s_intrinsics[sig_invert_byte] = Intrinsic(Signature { "~", ObjectType::get(TypeByte), { ObjectType::get(TypeByte) } });
+        s_intrinsics[sig_add_byte_byte] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Add), ObjectType::get(TypeByte), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
+        s_intrinsics[sig_subtract_byte_byte] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Subtract), ObjectType::get(TypeByte), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
+        s_intrinsics[sig_multiply_byte_byte] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Multiply), ObjectType::get(TypeByte), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
+        s_intrinsics[sig_divide_byte_byte] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Divide), ObjectType::get(TypeByte), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
+        s_intrinsics[sig_equals_byte_byte] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Equals), ObjectType::get(TypeBoolean), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
+        s_intrinsics[sig_greater_byte_byte] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Greater), ObjectType::get(TypeBoolean), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
+        s_intrinsics[sig_less_byte_byte] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Less), ObjectType::get(TypeBoolean), { ObjectType::get(TypeByte), ObjectType::get(TypeByte) } });
+        s_intrinsics[sig_negate_byte] = Intrinsic(Signature { UnaryOperator_name(UnaryOperator::Negate), ObjectType::get(TypeByte), { ObjectType::get(TypeByte) } });
+        s_intrinsics[sig_invert_byte] = Intrinsic(Signature { UnaryOperator_name(UnaryOperator::BitwiseInvert), ObjectType::get(TypeByte), { ObjectType::get(TypeByte) } });
 
-        s_intrinsics[sig_add_str_str] = Intrinsic(Signature { "+", ObjectType::get(TypeString), { ObjectType::get(TypeString), ObjectType::get(TypeString) } });
-        s_intrinsics[sig_multiply_str_int] = Intrinsic(Signature { "*", ObjectType::get(TypeString), { ObjectType::get(TypeString), ObjectType::get(TypeInt) } });
-        s_intrinsics[sig_equals_str_str] = Intrinsic(Signature { "==", ObjectType::get(TypeBoolean), { ObjectType::get(TypeString), ObjectType::get(TypeString) } });
-        s_intrinsics[sig_greater_str_str] = Intrinsic(Signature { ">", ObjectType::get(TypeBoolean), { ObjectType::get(TypeString), ObjectType::get(TypeString) } });
-        s_intrinsics[sig_less_str_str] = Intrinsic(Signature { "<", ObjectType::get(TypeBoolean), { ObjectType::get(TypeString), ObjectType::get(TypeString) } });
+        s_intrinsics[sig_add_str_str] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Add), ObjectType::get(TypeString), { ObjectType::get(TypeString), ObjectType::get(TypeString) } });
+        s_intrinsics[sig_multiply_str_int] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Multiply), ObjectType::get(TypeString), { ObjectType::get(TypeString), ObjectType::get(TypeInt) } });
+        s_intrinsics[sig_equals_str_str] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Equals), ObjectType::get(TypeBoolean), { ObjectType::get(TypeString), ObjectType::get(TypeString) } });
+        s_intrinsics[sig_greater_str_str] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Greater), ObjectType::get(TypeBoolean), { ObjectType::get(TypeString), ObjectType::get(TypeString) } });
+        s_intrinsics[sig_less_str_str] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Less), ObjectType::get(TypeBoolean), { ObjectType::get(TypeString), ObjectType::get(TypeString) } });
 
-        s_intrinsics[sig_and_bool_bool] = Intrinsic(Signature { "&", ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean), ObjectType::get(TypeBoolean) } });
-        s_intrinsics[sig_or_bool_bool] = Intrinsic(Signature { "|", ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean), ObjectType::get(TypeBoolean) } });
-        s_intrinsics[sig_xor_bool_bool] = Intrinsic(Signature { "^", ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean), ObjectType::get(TypeBoolean) } });
-        s_intrinsics[sig_invert_bool] = Intrinsic(Signature { "!", ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean) } });
-        s_intrinsics[sig_equals_bool_bool] = Intrinsic(Signature { "==", ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean), ObjectType::get(TypeBoolean) } });
+        s_intrinsics[sig_and_bool_bool] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::LogicalAnd), ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean), ObjectType::get(TypeBoolean) } });
+        s_intrinsics[sig_or_bool_bool] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::LogicalOr), ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean), ObjectType::get(TypeBoolean) } });
+        s_intrinsics[sig_xor_bool_bool] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::BitwiseXor), ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean), ObjectType::get(TypeBoolean) } });
+        s_intrinsics[sig_invert_bool] = Intrinsic(Signature { UnaryOperator_name(UnaryOperator::LogicalInvert), ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean) } });
+        s_intrinsics[sig_equals_bool_bool] = Intrinsic(Signature { BinaryOperator_name(BinaryOperator::Equals), ObjectType::get(TypeBoolean), { ObjectType::get(TypeBoolean), ObjectType::get(TypeBoolean) } });
 
 #undef INTRINSIC_SIGNATURE
 #define INTRINSIC_SIGNATURE(sig) set_arm64_implementation(sig, arm64_##sig);
