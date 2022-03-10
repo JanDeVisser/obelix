@@ -3,6 +3,7 @@ add_library(
         oblrt
         STATIC
         close.s
+        cstr_to_str.s
         exit.s
         memcpy.s
         memset.s
