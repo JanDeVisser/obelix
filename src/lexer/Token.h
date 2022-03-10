@@ -61,6 +61,10 @@ namespace Obelix {
     S(LogicalOr, nullptr, "||")          \
     S(ShiftLeft, nullptr, "<<")          \
     S(ShiftRight, nullptr, ">>")         \
+    S(BinaryIncrement, nullptr, "+=")    \
+    S(BinaryDecrement, nullptr, "+=")    \
+    S(UnaryIncrement, nullptr, "++")     \
+    S(UnaryDecrement, nullptr, "--")     \
                                          \
     S(Integer, nullptr, nullptr)         \
     S(HexNumber, nullptr, nullptr)       \
