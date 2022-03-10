@@ -86,6 +86,21 @@ Token const& BasicParser::lex()
     return s_eof;
 }
 
+Token const& BasicParser::replace(Token token)
+{
+    static Token s_eof(TokenCode::EndOfFile, "EOF triggered by lexer error");
+
+    if (!m_buffer_read) {
+        return s_eof;
+    }
+    auto& ret = m_lexer.replace(std::move(token));
+    debug(lexer, "Parser::replace({}): {}", peek(), ret);
+    if (ret.code() != TokenCode::Error)
+        return ret;
+    add_error(ret, ret.value());
+    return s_eof;
+}
+
 std::optional<Token const> BasicParser::match(TokenCode code, char const* where)
 {
     debug(lexer, "Parser::match({})", TokenCode_name(code));

@@ -44,6 +44,7 @@ public:
     TokenCode current_code();
 
     Token const& lex();
+    Token const& replace(Token);
     std::optional<Token const> match(TokenCode, char const* = nullptr);
     bool expect(TokenCode, char const* = nullptr);
     void add_error(Token const&, std::string const&);

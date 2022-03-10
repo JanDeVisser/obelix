@@ -80,6 +80,13 @@ public:
         return ret;
     }
 
+    Token const& replace(Token token)
+    {
+        auto const& ret = peek(0);
+        m_tokens[m_current] = std::move(token);
+        return ret;
+    }
+
     std::optional<Token const> match(TokenCode code)
     {
         if (peek().code() != code)
