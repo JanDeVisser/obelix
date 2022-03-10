@@ -50,10 +50,9 @@ namespace Obelix {
     S(Argument, 9999)             \
     S(Any, 10000)                 \
     S(Comparable, 10001)          \
-    S(Assignable, 10002)          \
-    S(Incrementable, 10003)       \
-    S(IntegerNumber, 10004)       \
-    S(SignedIntegerNumber, 10005)
+    S(Incrementable, 10002)       \
+    S(IntegerNumber, 10003)       \
+    S(SignedIntegerNumber, 10004)
 
 enum ObelixType {
 #undef __ENUM_OBELIX_TYPE
@@ -117,7 +116,7 @@ struct Converter<ObelixType> {
     S(BitwiseXor, false, 6)           \
     S(BinaryIncrement, true, 1)       \
     S(BinaryDecrement, true, 1)       \
-    S(Dereference, false, 14)         \
+    S(MemberAccess, false, 14)        \
     S(BitShiftLeft, false, 10)        \
     S(BitShiftRight, false, 10)       \
     S(AssignShiftLeft, true, 1)       \
@@ -134,7 +133,9 @@ struct Converter<ObelixType> {
     S(UnaryIncrement)                \
     S(UnaryDecrement)                \
     S(LogicalInvert)                 \
-    S(BitwiseInvert)
+    S(BitwiseInvert)                 \
+    S(Dereference)                   \
+    S(AddressOf)
 
 enum class Operator {
 #undef __BINARY_OPERATOR
@@ -145,6 +146,42 @@ enum class Operator {
 #define __UNARY_OPERATOR(op) op,
         ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
 #undef __UNARY_OPERATOR
+};
+
+constexpr char const* Operator_name(Operator op)
+{
+    switch (op) {
+#undef __BINARY_OPERATOR
+#define __BINARY_OPERATOR(op, a, p) \
+    case Operator::op:              \
+        return #op;
+        ENUMERATE_BINARY_OPERATORS(__BINARY_OPERATOR)
+#undef __BINARY_OPERATOR
+#undef __UNARY_OPERATOR
+#define __UNARY_OPERATOR(op) \
+    case Operator::op:       \
+        return #op;
+        ENUMERATE_UNARY_OPERATORS(__UNARY_OPERATOR)
+#undef __UNARY_OPERATOR
+    }
+}
+
+template<>
+struct Converter<Operator> {
+    static std::string to_string(Operator val)
+    {
+        return Operator_name(val);
+    }
+
+    static double to_double(Operator val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static long to_long(Operator val)
+    {
+        return static_cast<long>(val);
+    }
 };
 
 enum class BinaryOperator {
@@ -381,7 +418,8 @@ private:
     MethodParameters m_parameters;
 };
 
-typedef std::vector<MethodDescription> MethodDescriptions;
+using MethodDescriptions = std::vector<MethodDescription>;
+using ObjectTypeBuilder = std::function<void(ObjectType&)>;
 
 class ObjectType {
 public:
@@ -391,7 +429,6 @@ public:
     {
     }
 
-    template<typename ObjectTypeBuilder>
     ObjectType(ObelixType type, ObjectTypeBuilder const& builder) noexcept
         : m_type(type)
     {
@@ -399,7 +436,6 @@ public:
         builder(*this);
     }
 
-    template<typename ObjectTypeBuilder>
     ObjectType(ObelixType type, char const* name, ObjectTypeBuilder const& builder) noexcept
         : m_type(type)
         , m_name(name)
@@ -412,11 +448,7 @@ public:
     }
 
     [[nodiscard]] ObelixType type() const { return m_type; }
-    [[nodiscard]] std::string const& name() const
-    {
-        return m_name_str;
-    }
-
+    [[nodiscard]] std::string const& name() const { return m_name_str; }
     [[nodiscard]] std::string to_string() const;
 
     MethodDescription& add_method(MethodDescription const& md)
@@ -436,10 +468,20 @@ public:
     void will_be_a(ObelixType type) { m_is_a.push_back(ObjectType::get(type)); }
     void has_template_parameter(std::string const& parameter) { m_template_parameters.push_back(parameter); }
     void has_size(size_t sz) { m_size = sz; }
+    void has_template_stamp(ObjectTypeBuilder const& stamp) { m_stamp = stamp; }
 
+    [[nodiscard]] bool is_parameterized() const { return !m_template_parameters.empty(); }
+    [[nodiscard]] size_t size() const { return m_size; }
+    [[nodiscard]] std::vector<std::string> const& template_parameters() const { return m_template_parameters; }
+    [[nodiscard]] bool is_template_instantiation() const { return m_instantiates_template != nullptr; }
+    [[nodiscard]] std::shared_ptr<ObjectType> instantiates_template() const { return m_instantiates_template; }
+    [[nodiscard]] ObjectTypes const& template_arguments() const { return m_template_arguments; }
     [[nodiscard]] bool is_a(ObjectType const* other) const;
     [[nodiscard]] bool is_a(std::shared_ptr<ObjectType> other) const { return is_a(other.get()); }
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, ObjectTypes const& argument_types = {}) const;
+    [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(Operator op, ObjectTypes const& argument_types = {}) const;
+
+    bool operator==(ObjectType const&) const;
 
     template<typename... Args>
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, ObjectTypes& arg_types, std::shared_ptr<ObjectType> arg_type, Args&&... args) const
@@ -455,8 +497,6 @@ public:
         return return_type_of(method_name, arg_types, std::forward<Args>(args)...);
     }
 
-    [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(Operator op, ObjectTypes const& argument_types = {}) const;
-
     template<typename... Args>
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(Operator op, ObjectTypes& arg_types, std::shared_ptr<ObjectType> arg_type, Args&&... args) const
     {
@@ -470,16 +510,6 @@ public:
         ObjectTypes arg_types { move(arg_type) };
         return return_type_of(op, arg_types, std::forward<Args>(args)...);
     }
-
-    [[nodiscard]] bool is_parameterized() const { return !m_template_parameters.empty(); }
-    [[nodiscard]] size_t size() const { return m_size; }
-    [[nodiscard]] std::vector<std::string> const& template_parameters() const { return m_template_parameters; }
-
-    [[nodiscard]] bool is_template_instantiation() const { return m_instantiates_template != nullptr; }
-    [[nodiscard]] std::shared_ptr<ObjectType> instatiates_template() const { return m_instantiates_template; }
-    [[nodiscard]] ObjectTypes const& template_arguments() const { return m_template_arguments; }
-
-    bool operator==(ObjectType const&) const;
 
     static std::shared_ptr<ObjectType> register_type(ObelixType type) noexcept
     {
@@ -526,7 +556,7 @@ public:
     }
 
 private:
-    bool is_compatible(MethodDescription const&, ObjectTypes const&) const;
+    [[nodiscard]] bool is_compatible(MethodDescription const&, ObjectTypes const&) const;
 
     ObelixType m_type { TypeUnknown };
     char const* m_name { nullptr };
@@ -537,6 +567,8 @@ private:
     std::vector<std::string> m_template_parameters {};
     std::shared_ptr<ObjectType> m_instantiates_template { nullptr };
     std::vector<std::shared_ptr<ObjectType>> m_template_arguments {};
+    ObjectTypeBuilder m_stamp {};
+
     static std::unordered_map<ObelixType, std::shared_ptr<ObjectType>> s_types_by_id;
     static std::unordered_map<std::string, std::shared_ptr<ObjectType>> s_types_by_name;
     static std::vector<std::shared_ptr<ObjectType>> s_template_instantiations;

@@ -31,7 +31,7 @@ Obj Object::copy() const
 
 std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args) const
 {
-    if ((name == ".") || (name == BinaryOperator_name(BinaryOperator::Dereference))) {
+    if ((name == ".") || (name == BinaryOperator_name(BinaryOperator::MemberAccess))) {
         assert(args->size() == 1);
         auto ret = resolve(args->at(0)->to_string());
         return ret;

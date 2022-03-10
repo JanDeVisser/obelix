@@ -20,8 +20,14 @@
 
 namespace Obelix {
 
+logging_category(arm64);
+
 ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM64Context& ctx)
 {
+    if (tree == nullptr)
+        return tree;
+
+    debug(parser, "output_arm64_processor({} = {})", tree->node_type(), tree);
     switch (tree->node_type()) {
 
     case SyntaxNodeType::Compilation: {
@@ -105,7 +111,8 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         for (auto& arg : call->arguments()) {
             TRY_RETURN(output_arm64_processor(arg, ctx));
         }
-        ARM64Implementation impl = Intrinsics::get_arm64_implementation(Signature { call->name(), call->type(), call->argument_types() });
+        auto decl = call->declaration();
+        ARM64Implementation impl = Intrinsics::get_arm64_implementation(decl);
         if (!impl)
             return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string()) };
         auto ret = impl(ctx);
@@ -209,7 +216,8 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         case ObelixType::TypeString: {
             ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
             auto reg = ctx.get_register(1);
-            ctx.assembly().add_instruction("strw", "w{},[fp,#{}]", reg, idx + 8);
+            ctx.assembly().add_instruction("str", "w{},[fp,#{}]", reg, idx + 8);
+            break;
         }
         default:
             return Error { ErrorCode::NotYetImplemented, format("Cannot emit assignments of type {} yet", assignment->type()) };
@@ -332,6 +340,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
     if (tree == nullptr)
         return tree;
 
+    debug(parser, "prepare_arm64_processor({} = {})", tree->node_type(), tree);
     switch (tree->node_type()) {
     case SyntaxNodeType::BoundFunctionDef: {
         auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
@@ -340,7 +349,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         int offset = 16;
         MaterializedFunctionParameters function_parameters;
         for (auto& parameter : func_decl->parameters()) {
-            function_parameters.push_back(std::make_shared<MaterializedFunctionParameter>(parameter, offset));
+            function_parameters.push_back(make_node<MaterializedFunctionParameter>(parameter, offset));
             switch (parameter->type()->type()) {
             case ObelixType::TypeString:
                 offset += 16;
@@ -350,24 +359,24 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
             }
         }
 
-        auto materialized_function_decl = std::make_shared<MaterializedFunctionDecl>(func_decl, function_parameters);
+        auto materialized_function_decl = make_node<MaterializedFunctionDecl>(func_decl, function_parameters);
         switch (func_decl->node_type()) {
         case SyntaxNodeType::BoundNativeFunctionDecl: {
             auto native_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl);
-            materialized_function_decl = std::make_shared<MaterializedNativeFunctionDecl>(native_decl);
-            return std::make_shared<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
+            materialized_function_decl = make_node<MaterializedNativeFunctionDecl>(native_decl);
+            return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
         }
         case SyntaxNodeType::BoundIntrinsicDecl: {
             auto intrinsic_decl = std::dynamic_pointer_cast<BoundIntrinsicDecl>(func_decl);
-            materialized_function_decl = std::make_shared<MaterializedIntrinsicDecl>(intrinsic_decl);
-            return std::make_shared<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
+            materialized_function_decl = make_node<MaterializedIntrinsicDecl>(intrinsic_decl);
+            return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
         }
         case SyntaxNodeType::BoundFunctionDecl: {
             func_ctx.declare("#offset", offset);
             std::shared_ptr<Block> block;
             assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
             block = TRY_AND_CAST(FunctionBlock, prepare_arm64_processor(func_def->statement(), func_ctx));
-            return std::make_shared<MaterializedFunctionDef>(func_def, materialized_function_decl, block, func_ctx.get("#offset").value());
+            return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, block, func_ctx.get("#offset").value());
         }
         default:
             fatal("Unreachable");
@@ -377,8 +386,8 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
     case SyntaxNodeType::BoundVariableDeclaration: {
         auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
         auto offset = ctx.get("#offset").value();
-        auto expression = TRY_AND_CAST(Expression, prepare_arm64_processor(var_decl->expression(), ctx));
-        auto ret = std::make_shared<MaterializedVariableDecl>(var_decl, offset);
+        auto expression = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(var_decl->expression(), ctx));
+        auto ret = make_node<MaterializedVariableDecl>(var_decl, offset, expression);
         switch (var_decl->type()->type()) {
         case ObelixType::TypeString:
             offset += 16;
@@ -404,28 +413,67 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         };
 
         auto arguments = TRY(xform_arguments());
-        return std::make_shared<BoundFunctionCall>(call, arguments);
+        return make_node<BoundFunctionCall>(call, arguments);
     }
 
     case SyntaxNodeType::BoundUnaryExpression: {
         auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
         auto operand = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->operand(), ctx));
-        Signature s { UnaryOperator_name(expr->op()), expr->type(), { operand->type() } };
-        if (!Intrinsics::is_intrinsic(s))
-            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", s.name) };
-        auto intrinsic = Intrinsics::get_intrinsic(s);
-        return std::make_shared<BoundIntrinsicCall>(expr->token(), intrinsic.declaration, BoundExpressions { operand });
+
+        std::shared_ptr<BoundFunctionDecl> declaration;
+        switch (expr->op()) {
+        case UnaryOperator::Dereference:
+            declaration = Intrinsics::get_intrinsic(intrinsic_dereference).declaration;
+            declaration = make_node<BoundFunctionDecl>(expr,
+                std::make_shared<BoundIdentifier>(expr->token(), declaration->name(), expr->type()),
+                declaration->parameters());
+            break;
+        default: {
+            Signature s { UnaryOperator_name(expr->op()), expr->type(), { operand->type() } };
+            if (!Intrinsics::is_intrinsic(s))
+                return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", s.name) };
+            declaration = Intrinsics::get_intrinsic(s).declaration;
+            break;
+        }
+        }
+        return make_node<BoundIntrinsicCall>(expr->token(), declaration, BoundExpressions { operand });
     }
 
     case SyntaxNodeType::BoundBinaryExpression: {
         auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
         auto lhs = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->lhs(), ctx));
         auto rhs = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->rhs(), ctx));
+
+        if (lhs->type()->type() == TypePointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract)) {
+            std::shared_ptr<BoundExpression> offset { nullptr };
+            auto target_type = (lhs->type()->is_template_instantiation()) ? lhs->type()->template_arguments()[0] : ObjectType::get(TypeChar);
+
+            if (rhs->node_type() == SyntaxNodeType::BoundLiteral) {
+                auto offset_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
+                auto offset_val = offset_literal->literal()->to_long().value();
+                if (expr->op() == BinaryOperator::Subtract)
+                    offset_val *= -1;
+                offset = make_node<BoundLiteral>(rhs->token(), make_obj<Integer>(target_type->size() * offset_val));
+            } else {
+                offset = rhs;
+                if (expr->op() == BinaryOperator::Subtract)
+                    offset = make_node<BoundUnaryExpression>(expr->token(), offset, UnaryOperator::Negate, expr->type());
+                auto size = make_node<BoundLiteral>(rhs->token(), make_obj<Integer>(target_type->size()));
+                offset = make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, ObjectType::get(TypeInt));
+                offset = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(offset, ctx));
+            }
+            auto intrinsic = Intrinsics::get_intrinsic(IntrinsicType::intrinsic_ptr_math);
+            auto decl = make_node<BoundFunctionDecl>(expr,
+                std::make_shared<BoundIdentifier>(expr->token(), intrinsic.declaration->name(), expr->type()),
+                intrinsic.declaration->parameters());
+            return make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { lhs, offset });
+        }
+
         Signature s { BinaryOperator_name(expr->op()), expr->type(), { lhs->type(), rhs->type() } };
         if (!Intrinsics::is_intrinsic(s))
             return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", s.name) };
         auto intrinsic = Intrinsics::get_intrinsic(s);
-        return std::make_shared<BoundIntrinsicCall>(expr->token(), intrinsic.declaration, BoundExpressions { lhs, rhs });
+        return make_node<BoundIntrinsicCall>(expr->token(), intrinsic.declaration, BoundExpressions { lhs, rhs });
     }
 
     default:
@@ -479,7 +527,6 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
         auto file_name_parts = split(file_parts.back(), '.');
         auto bare_file_name = file_name_parts.front();
 
-        // FIXME: This is $(xcrun -sdk macosx --show-sdk-path)
         static std::string sdk_path; // "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk";
         if (sdk_path.empty()) {
             Process p("xcrun", "-sdk", "macosx", "--show-sdk-path");
@@ -501,7 +548,7 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
             auto exit_code = execute(run_cmd);
             if (exit_code.is_error())
                 return exit_code.error();
-            ret = std::make_shared<BoundLiteral>(Token { TokenCode::Integer, format("{}", exit_code.value()) });
+            ret = make_node<BoundLiteral>(Token { TokenCode::Integer, format("{}", exit_code.value()) });
         }
     }
     return ret;

@@ -65,10 +65,12 @@ void Parser::initialize()
         Token(KeywordIn, "in"),
         Token(KeywordRange, ".."),
         Token(KeywordWhere, "where"),
-        Token(KeywordIncEquals, "+="),
-        Token(KeywordDecEquals, "-="),
         Token(KeywordConst, "const"),
         Token(KeywordIntrinsic, "intrinsic"),
+        TokenCode::BinaryIncrement,
+        TokenCode::BinaryDecrement,
+        TokenCode::UnaryIncrement,
+        TokenCode::UnaryDecrement,
         TokenCode::GreaterEqualThan,
         TokenCode::LessEqualThan,
         TokenCode::EqualsTo,
@@ -561,6 +563,8 @@ int Parser::unary_precedence(TokenCode code)
     case TokenCode::Minus:
     case TokenCode::Tilde:
     case TokenCode::ExclamationPoint:
+    case TokenCode::Asterisk:
+    case TokenCode::AtSign:
         return 13;
     case TokenCode::OpenParen:
         //    case TokenCode::OpenBracket:
@@ -588,6 +592,8 @@ int Parser::is_prefix_unary_operator(TokenCode code)
     case TokenCode::Minus:
     case TokenCode::Tilde:
     case TokenCode::ExclamationPoint:
+    case TokenCode::AtSign:
+    case TokenCode::Asterisk:
         return true;
     default:
         return false;
@@ -667,10 +673,14 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
         }
         return ret;
     }
-    case TokenCode::Tilde:
+    case TokenCode::Asterisk:
+    case TokenCode::AtSign:
     case TokenCode::ExclamationPoint:
+    case TokenCode::Minus:
     case TokenCode::Plus:
-    case TokenCode::Minus: {
+    case TokenCode::UnaryIncrement:
+    case TokenCode::UnaryDecrement:
+    case TokenCode::Tilde: {
         auto operand = parse_primary_expression(false);
         if (!operand)
             return nullptr;
@@ -713,6 +723,10 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
             arguments.push_back(parameter);
             if (current_code() == TokenCode::GreaterThan) {
                 lex();
+                return make_node<ExpressionType>(lt_token, type_name, arguments);
+            }
+            if (current_code() == TokenCode::ShiftRight) {
+                replace(Token { TokenCode::GreaterThan, ">" });
                 return make_node<ExpressionType>(lt_token, type_name, arguments);
             }
             if (!expect(TokenCode::Comma))

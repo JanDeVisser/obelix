@@ -20,7 +20,7 @@
 
 namespace Obelix {
 
-extern_logging_category(parser);
+extern_logging_category(arm64);
 
 class Assembly {
 public:
@@ -187,7 +187,7 @@ public:
         auto& reg_ctx = m_register_contexts.back();
         m_available_registers.reset(reg);
         reg_ctx.reserved_registers.set(reg);
-        debug(parser, "Reserved register {}:\n{}", reg, contexts());
+        debug(arm64, "Reserved register {}:\n{}", reg, contexts());
         reserve_register(std::forward<Ints>(args)...);
     }
 

@@ -19,6 +19,7 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
     if (!tree)
         return tree;
 
+    debug(parser, "lower_processor({} = {})", tree->node_type(), tree);
     switch (tree->node_type()) {
 
     case SyntaxNodeType::BoundFunctionDef: {
@@ -61,13 +62,13 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
 
         BoundBranches branches;
         for (auto& c : cases) {
-            branches.push_back(std::make_shared<BoundBranch>(c->token(),
-                std::make_shared<BoundBinaryExpression>(switch_expr->token(), switch_expr, BinaryOperator::Equals, c->condition(), ObjectType::get(ObelixType::TypeBoolean)),
+            branches.push_back(make_node<BoundBranch>(c->token(),
+                make_node<BoundBinaryExpression>(switch_expr->token(), switch_expr, BinaryOperator::Equals, c->condition(), ObjectType::get(ObelixType::TypeBoolean)),
                 c->statement()));
         }
         if (default_case) {
             auto default_stmt = TRY_AND_CAST(Statement, lower_processor(default_case->statement(), ctx));
-            branches.push_back(std::make_shared<BoundBranch>(default_case->token(), nullptr, default_stmt));
+            branches.push_back(make_node<BoundBranch>(default_case->token(), nullptr, default_stmt));
         }
         return make_node<BoundIfStatement>(switch_stmt->token(), branches);
     }
@@ -105,8 +106,8 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
                 make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), ObjectType::get(ObelixType::TypeInt)),
                 false,
                 range_binary_expr->lhs()));
-        auto jump_past_loop = std::make_shared<Goto>();
-        auto jump_back_label = std::make_shared<Label>();
+        auto jump_past_loop = make_node<Goto>();
+        auto jump_back_label = make_node<Label>();
 
         BoundBranches branches {
             make_node<BoundBranch>(for_stmt->token(),
@@ -182,46 +183,62 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
 
         if (expr->op() == BinaryOperator::Assign && lhs->node_type() == SyntaxNodeType::BoundIdentifier) {
             auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(lhs);
-            return std::make_shared<BoundAssignment>(expr->token(), identifier, rhs);
+            return make_node<BoundAssignment>(expr->token(), identifier, rhs);
         }
 
         // +=, -= and friends: rewrite to a straight-up assignment to a binary
         if (BinaryOperator_is_assignment(expr->op()) && lhs->node_type() == SyntaxNodeType::BoundIdentifier) {
             auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(lhs);
-            auto new_rhs = std::make_shared<BoundBinaryExpression>(expr->token(),
+            auto new_rhs = make_node<BoundBinaryExpression>(expr->token(),
                 identifier, BinaryOperator_for_assignment_operator(expr->op()), rhs, expr->type());
-            return std::make_shared<BoundAssignment>(expr->token(), identifier, new_rhs);
+            return make_node<BoundAssignment>(expr->token(), identifier, new_rhs);
         }
 
         if (expr->op() == BinaryOperator::GreaterEquals) {
-            return std::make_shared<BoundBinaryExpression>(expr->token(),
-                std::make_shared<BoundBinaryExpression>(expr->token(),
+            return make_node<BoundBinaryExpression>(expr->token(),
+                make_node<BoundBinaryExpression>(expr->token(),
                     lhs, BinaryOperator::Equals, rhs, ObjectType::get(ObelixType::TypeBoolean)),
                 BinaryOperator::LogicalOr,
-                std::make_shared<BoundBinaryExpression>(expr->token(),
+                make_node<BoundBinaryExpression>(expr->token(),
                     lhs, BinaryOperator::Greater, rhs, ObjectType::get(ObelixType::TypeBoolean)),
                 ObjectType::get(ObelixType::TypeBoolean));
         }
 
         if (expr->op() == BinaryOperator::LessEquals) {
-            return std::make_shared<BoundBinaryExpression>(expr->token(),
-                std::make_shared<BoundBinaryExpression>(expr->token(),
+            return make_node<BoundBinaryExpression>(expr->token(),
+                make_node<BoundBinaryExpression>(expr->token(),
                     lhs, BinaryOperator::Equals, rhs, ObjectType::get(ObelixType::TypeBoolean)),
                 BinaryOperator::LogicalOr,
-                std::make_shared<BoundBinaryExpression>(expr->token(),
+                make_node<BoundBinaryExpression>(expr->token(),
                     lhs, BinaryOperator::Less, rhs, ObjectType::get(ObelixType::TypeBoolean)),
                 ObjectType::get(ObelixType::TypeBoolean));
         }
 
         if (expr->op() == BinaryOperator::NotEquals) {
-            return std::make_shared<BoundUnaryExpression>(expr->token(),
-                std::make_shared<BoundBinaryExpression>(expr->token(),
+            return make_node<BoundUnaryExpression>(expr->token(),
+                make_node<BoundBinaryExpression>(expr->token(),
                     lhs, BinaryOperator::Equals, rhs, ObjectType::get(ObelixType::TypeBoolean)),
                 UnaryOperator::LogicalInvert,
                 ObjectType::get(ObelixType::TypeBoolean));
         }
 
         return expr;
+    }
+
+    case SyntaxNodeType::BoundUnaryExpression: {
+        auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
+        auto operand = TRY_AND_CAST(BoundExpression, lower_processor(expr->operand(), ctx));
+        if (expr->op() == UnaryOperator::UnaryIncrement || expr->op() == UnaryOperator::UnaryDecrement) {
+            auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(operand);
+            auto new_rhs = make_node<BoundBinaryExpression>(expr->token(),
+                identifier,
+                (expr->op() == UnaryOperator::UnaryIncrement) ? BinaryOperator::Add : BinaryOperator::Subtract,
+                make_node<BoundLiteral>(expr->token(), make_obj<Integer>(1)),
+                identifier->type());
+            debug(parser, "identifier->type() = {} new_rhs->type() = {}", identifier->type(), new_rhs->type());
+            return make_node<BoundAssignment>(expr->token(), identifier, new_rhs);
+        }
+        return tree;
     }
 
     default:

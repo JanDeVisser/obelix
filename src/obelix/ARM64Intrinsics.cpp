@@ -10,8 +10,10 @@
 
 namespace Obelix {
 
+extern_logging_category(arm64);
+
 #define INTRINSIC(intrinsic) \
-    ErrorOr<void> arm64_sig_##intrinsic(ARM64Context& ctx)
+    ErrorOr<void> arm64_intrinsic_##intrinsic(ARM64Context& ctx)
 
 #define INTRINSIC_ALIAS(intrinsic, alias) \
     static auto& s_##intrinsic = Intrinsics::set_arm64_implementation(sig_##intrinsic, arm64_##alias);
@@ -161,6 +163,20 @@ INTRINSIC(puts)
     ctx.assembly().syscall(0x04);
     if (ctx.get_register() != 0)
         ctx.assembly().add_instruction("mov", "x{},x0", ctx.get_register());
+    return {};
+}
+
+INTRINSIC(ptr_math)
+{
+    ctx.assembly().add_instruction("add", "x{},x{},x{}", ctx.get_register(0), ctx.get_register(0), ctx.get_register(1));
+    return {};
+}
+
+INTRINSIC(dereference)
+{
+    auto reg = ctx.temporary_register();
+    ctx.assembly().add_instruction("ldr", "x{},[x{}]", reg, ctx.get_register(0));
+    ctx.assembly().add_instruction("mov", "x{},x{}", ctx.get_register(0), reg);
     return {};
 }
 

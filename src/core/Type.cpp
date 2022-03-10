@@ -4,9 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <core/Logging.h>
 #include <core/Type.h>
 
 namespace Obelix {
+
+logging_category(type);
 
 std::optional<ObelixType> ObelixType_by_name(std::string const& t)
 {
@@ -64,21 +67,17 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 [[maybe_unused]] auto s_compatible = ObjectType::register_type(TypeCompatible);
 [[maybe_unused]] auto s_unknown = ObjectType::register_type(TypeUnknown);
 
-[[maybe_unused]] auto s_assignable = ObjectType::register_type(TypeAssignable,
-    [](ObjectType& type) {
-        type.add_method(MethodDescription { Operator::Assign, TypeArgument, MethodParameter { "other", TypeCompatible } });
-    });
-
 [[maybe_unused]] auto s_incrementable = ObjectType::register_type(TypeIncrementable,
     [](ObjectType& type) {
-        type.add_method(MethodDescription { Operator::UnaryIncrement, TypeArgument });
-        type.add_method(MethodDescription { Operator::UnaryDecrement, TypeArgument });
-        type.add_method(MethodDescription { Operator::BinaryIncrement, TypeArgument, MethodParameter { "other", TypeCompatible } });
-        type.add_method(MethodDescription { Operator::BinaryDecrement, TypeArgument, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { Operator::UnaryIncrement, TypeSelf });
+        type.add_method(MethodDescription { Operator::UnaryDecrement, TypeSelf });
+        type.add_method(MethodDescription { Operator::BinaryIncrement, TypeSelf, MethodParameter { "other", TypeCompatible } });
+        type.add_method(MethodDescription { Operator::BinaryDecrement, TypeSelf, MethodParameter { "other", TypeCompatible } });
     });
 
 [[maybe_unused]] auto s_any = ObjectType::register_type(TypeAny,
     [](ObjectType& type) {
+        type.add_method(MethodDescription { Operator::Assign, TypeSelf, MethodParameter { "other", TypeCompatible } });
         type.add_method(MethodDescription { Operator::Equals, TypeBoolean, MethodParameter { "other", TypeCompatible } });
         type.add_method(MethodDescription { Operator::NotEquals, TypeBoolean, MethodParameter { "other", TypeCompatible } });
         type.add_method(MethodDescription { Operator::Dereference, TypeAny, MethodParameter { "attribute", TypeString } });
@@ -110,7 +109,6 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
         type.add_method(MethodDescription { Operator::BitShiftRight, TypeArgument, MethodParameter { "other", TypeUnsigned } });
         type.add_method(MethodDescription { Operator::Range, TypeRange, MethodParameter { "other", TypeCompatible } });
         type.will_be_a(TypeComparable);
-        type.will_be_a(TypeAssignable);
         type.will_be_a(TypeIncrementable);
     });
 
@@ -187,12 +185,19 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
     [](ObjectType& type) {
         type.has_template_parameter("target");
         type.has_size(8);
-        type.add_method(MethodDescription { Operator::UnaryIncrement, TypeArgument });
-        type.add_method(MethodDescription { Operator::UnaryDecrement, TypeArgument });
+        type.add_method(MethodDescription { Operator::Dereference, TypeChar });
+        type.add_method(MethodDescription { Operator::UnaryIncrement, TypeSelf });
+        type.add_method(MethodDescription { Operator::UnaryDecrement, TypeSelf });
         type.add_method(MethodDescription { Operator::BinaryIncrement, TypeArgument, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { Operator::BinaryDecrement, TypeArgument, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { Operator::Add, TypeArgument, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { Operator::Subtract, TypeArgument, MethodParameter { "other", TypeInt } });
+        type.will_be_a(TypeComparable);
+
+        type.has_template_stamp([](ObjectType& instantiation) {
+            instantiation.add_method(MethodDescription { Operator::Dereference, instantiation.template_arguments()[0] });
+            instantiation.add_method(MethodDescription { Operator::Assign, TypeSelf, MethodParameter { "other", TypeCompatible } });
+        });
     });
 
 [[maybe_unused]] auto s_dict = ObjectType::register_type(TypeObject,
@@ -277,6 +282,8 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(std::strin
         if (auto ret = check_methods_of(type.get()); *ret != *s_unknown)
             return ret;
     }
+    if (is_template_instantiation())
+        return instantiates_template()->return_type_of(method_name, argument_types);
     return {};
 }
 
@@ -288,8 +295,10 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(Operator o
                 continue;
             if (mth.op() != op)
                 continue;
-            if (!is_compatible(mth, argument_types))
+            if (!is_compatible(mth, argument_types)) {
+                debug(type, "Found operator but incompatible argument types");
                 continue;
+            }
             if (*(mth.return_type()) == *s_self)
                 return ObjectType::get(this);
             if (*(mth.return_type()) == *s_argument)
@@ -299,6 +308,7 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(Operator o
         return s_unknown;
     };
 
+    debug(type, "{}::return_type_of({})", this->to_string(), op);
     auto self = get(this);
     ObjectTypes types { s_any, self };
     while (!types.empty()) {
@@ -307,14 +317,21 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(Operator o
         for (auto& is_a : type->m_is_a) {
             types.push_back(is_a);
         }
-        if (auto ret = check_operators_of(type.get()); *ret != *s_unknown)
+        debug(type, "Checking operators of type {}", type->to_string());
+        if (auto ret = check_operators_of(type.get()); *ret != *s_unknown) {
+            debug(type, "Return type is {}", ret->to_string());
             return ret;
+        }
     }
+    if (is_template_instantiation())
+        return instantiates_template()->return_type_of(op, argument_types);
+    debug(type, "No matching operator found");
     return {};
 }
 
 std::shared_ptr<ObjectType> const& ObjectType::get(ObelixType type)
 {
+    debug(type, "ObjectType::get({})", type);
     if (!s_types_by_id.contains(type)) {
         ObjectType::register_type(type,
             [](ObjectType& type) {
@@ -325,6 +342,7 @@ std::shared_ptr<ObjectType> const& ObjectType::get(ObelixType type)
 
 std::shared_ptr<ObjectType> const& ObjectType::get(std::string const& type)
 {
+    debug(type, "ObjectType::get({})", type);
     if (s_types_by_name.contains(type))
         return s_types_by_name.at(type);
     auto type_maybe = ObelixType_by_name(type);
@@ -338,12 +356,14 @@ std::shared_ptr<ObjectType> const& ObjectType::get(std::string const& type)
 
 std::shared_ptr<ObjectType> const& ObjectType::get(ObjectType const* type)
 {
-    if (!type->is_parameterized())
+    if (!type->is_template_instantiation())
         return get(type->name());
 
     for (auto& instantiation : s_template_instantiations) {
-        if (*type == *instantiation)
+
+        if (*type == *instantiation) {
             return instantiation;
+        }
     }
     return s_unknown;
 }
@@ -360,7 +380,7 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::string const& type
     if (!base_type->is_parameterized())
         return base_type;
     for (auto& template_instantiation : s_template_instantiations) {
-        if (template_instantiation->instatiates_template() == base_type) {
+        if (template_instantiation->instantiates_template() == base_type) {
             size_t ix;
             for (ix = 0; ix < template_args.size(); ++ix) {
                 if (template_instantiation->template_arguments()[ix] != template_args[ix])
@@ -373,6 +393,9 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::string const& type
     auto instantiation = std::make_shared<ObjectType>(base_type->type(), [&template_args, &base_type](ObjectType& new_type) {
         new_type.m_instantiates_template = base_type;
         new_type.m_template_arguments = template_args;
+        if (base_type->m_stamp) {
+            base_type->m_stamp(new_type);
+        }
     });
     s_template_instantiations.push_back(instantiation);
     return instantiation;

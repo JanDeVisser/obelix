@@ -22,6 +22,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 {
     if (!tree)
         return tree;
+    debug(parser, "bind_types_processor({} = {})", tree->node_type(), tree);
 
     switch (tree->node_type()) {
 
@@ -162,10 +163,9 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
                 return Error { ErrorCode::TypeMismatch, rhs->to_string(), var_decl->type(), rhs->type() };
         }
 
-        auto lhs_type = lhs->type();
-        auto return_type = lhs_type->return_type_of(to_operator(op), rhs->type());
+        auto return_type = lhs->type()->return_type_of(to_operator(op), rhs->type());
         if (!return_type.has_value())
-            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
+            return Error { ErrorCode::ReturnTypeUnresolved, format("{} {} {}", lhs, op, rhs) };
         return make_node<BoundBinaryExpression>(expr, lhs, op, rhs, return_type.value());
     }
 
@@ -178,10 +178,14 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             UnaryOperator op;
         };
 
-        constexpr static UnaryOperatorMap operator_map[4] = {
+        constexpr static UnaryOperatorMap operator_map[8] = {
+            { TokenCode::Asterisk, UnaryOperator::Dereference },
+            { TokenCode::AtSign, UnaryOperator::AddressOf },
             { TokenCode::Plus, UnaryOperator::Identity },
             { TokenCode::Minus, UnaryOperator::Negate },
             { TokenCode::ExclamationPoint, UnaryOperator::LogicalInvert },
+            { TokenCode::UnaryIncrement, UnaryOperator::UnaryIncrement },
+            { TokenCode::UnaryDecrement, UnaryOperator::UnaryDecrement },
             { TokenCode::Tilde, UnaryOperator::BitwiseInvert },
         };
 
@@ -197,7 +201,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 
         auto return_type = operand->type()->return_type_of(to_operator(op));
         if (!return_type.has_value())
-            return Error { ErrorCode::ReturnTypeUnresolved, expr->to_string() };
+            return Error { ErrorCode::ReturnTypeUnresolved, format("{} {}", op, operand) };
         return make_node<BoundUnaryExpression>(expr, operand, op, return_type.value());
     }
 

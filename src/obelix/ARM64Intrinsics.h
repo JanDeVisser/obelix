@@ -15,9 +15,9 @@
 
 namespace Obelix {
 
-#undef INTRINSIC_SIGNATURE
-#define INTRINSIC_SIGNATURE(sig) ErrorOr<void> arm64_##sig(ARM64Context&);
-INTRINSIC_SIGNATURE_ENUM(INTRINSIC_SIGNATURE)
-#undef INTRINSIC_SIGNATURE
+#undef INTRINSIC_TYPE
+#define INTRINSIC_TYPE(intrinsic) ErrorOr<void> arm64_##intrinsic(ARM64Context&);
+INTRINSIC_TYPE_ENUM(INTRINSIC_TYPE)
+#undef INTRINSIC_TYPE
 
 }

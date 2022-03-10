@@ -18,6 +18,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
 {
     if (!tree)
         return tree;
+    debug(parser, "fold_constants_processor({} = {})", tree->node_type(), tree);
 
     switch (tree->node_type()) {
     case SyntaxNodeType::BoundVariableDeclaration: {

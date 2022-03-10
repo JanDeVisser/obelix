@@ -306,7 +306,7 @@ public:
     [[nodiscard]] std::string attributes() const override { return format(R"(operator="{}" type="{}")", m_operator, type()); }
     [[nodiscard]] Nodes children() const override { return { m_lhs, m_rhs }; }
     ErrorOr<std::optional<Obj>> to_object() const override;
-    [[nodiscard]] std::string to_string() const override { return format("{} {} {}", lhs(), op(), rhs()); }
+    [[nodiscard]] std::string to_string() const override { return format("({} {} {}): {}", lhs(), op(), rhs(), type()); }
 
     [[nodiscard]] std::shared_ptr<BoundExpression> const& lhs() const { return m_lhs; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& rhs() const { return m_rhs; }
@@ -337,7 +337,7 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundUnaryExpression; }
     [[nodiscard]] std::string attributes() const override { return format(R"(operator="{}" type="{}")", m_operator, type()); }
     [[nodiscard]] Nodes children() const override { return { m_operand }; }
-    [[nodiscard]] std::string to_string() const override { return format("{} {}", op(), operand()->to_string()); }
+    [[nodiscard]] std::string to_string() const override { return format("{} ({}): {}", op(), operand()->to_string(), type()); }
     [[nodiscard]] UnaryOperator op() const { return m_operator; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& operand() const { return m_operand; }
 
@@ -448,7 +448,7 @@ public:
     {
     }
 
-    explicit BoundIntrinsicCall(Token token, std::shared_ptr<BoundIntrinsicDecl> const& decl, BoundExpressions arguments)
+    explicit BoundIntrinsicCall(Token token, std::shared_ptr<BoundFunctionDecl> const& decl, BoundExpressions arguments)
         : BoundFunctionCall(std::move(token), decl, move(arguments))
     {
     }
@@ -799,7 +799,8 @@ public:
         , m_identifier(move(identifier))
         , m_expression(move(expression))
     {
-        assert(m_identifier->type()->type() == m_expression->type()->type());
+        debug(parser, "m_identifier->type() = {} m_expression->type() = {}", m_identifier->type(), m_expression->type());
+        assert(*(m_identifier->type()) == *(m_expression->type()));
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundAssignment; }

@@ -160,11 +160,11 @@ protected:
 
 class MaterializedVariableDecl : public Statement {
 public:
-    explicit MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, int offset)
+    explicit MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, int offset, std::shared_ptr<BoundExpression> expression)
         : Statement(var_decl->token())
         , m_variable(var_decl->variable())
         , m_const(var_decl->is_const())
-        , m_expression(var_decl->expression())
+        , m_expression(move(expression))
         , m_offset(offset)
     {
     }
