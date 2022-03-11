@@ -188,8 +188,8 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
         type.add_method(MethodDescription { Operator::Dereference, TypeChar });
         type.add_method(MethodDescription { Operator::UnaryIncrement, TypeSelf });
         type.add_method(MethodDescription { Operator::UnaryDecrement, TypeSelf });
-        type.add_method(MethodDescription { Operator::BinaryIncrement, TypeArgument, MethodParameter { "other", TypeInt } });
-        type.add_method(MethodDescription { Operator::BinaryDecrement, TypeArgument, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { Operator::BinaryIncrement, TypeSelf, MethodParameter { "other", TypeInt } });
+        type.add_method(MethodDescription { Operator::BinaryDecrement, TypeSelf, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { Operator::Add, TypeArgument, MethodParameter { "other", TypeInt } });
         type.add_method(MethodDescription { Operator::Subtract, TypeArgument, MethodParameter { "other", TypeInt } });
         type.will_be_a(TypeComparable);
@@ -197,6 +197,10 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
         type.has_template_stamp([](ObjectType& instantiation) {
             instantiation.add_method(MethodDescription { Operator::Dereference, instantiation.template_arguments()[0] });
             instantiation.add_method(MethodDescription { Operator::Assign, TypeSelf, MethodParameter { "other", TypeCompatible } });
+            instantiation.add_method(MethodDescription { Operator::BinaryIncrement, TypeSelf, MethodParameter { "other", TypeInt } });
+            instantiation.add_method(MethodDescription { Operator::BinaryDecrement, TypeSelf, MethodParameter { "other", TypeInt } });
+            instantiation.add_method(MethodDescription { Operator::Add, TypeSelf, MethodParameter { "other", TypeInt } });
+            instantiation.add_method(MethodDescription { Operator::Subtract, TypeSelf, MethodParameter { "other", TypeInt } });
         });
     });
 

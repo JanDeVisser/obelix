@@ -26,6 +26,12 @@ public:
     {
         return format(R"({} offset="{}")", BoundIdentifier::attributes(), offset());
     }
+    [[nodiscard]] std::string to_string() const override
+    {
+        if (m_offset > 0)
+            return format("{} [{}]", BoundIdentifier::to_string(), m_offset);
+        return BoundIdentifier::to_string();
+    }
 
 private:
     int m_offset;
@@ -81,7 +87,7 @@ public:
         return format("func {}({}): {}", name(), parameters_to_string(), type());
     }
 
-private:
+protected:
     [[nodiscard]] std::string parameters_to_string() const
     {
         std::string ret;
@@ -90,11 +96,12 @@ private:
             if (!first)
                 ret += ", ";
             first = false;
-            ret += param->name();
+            ret += param->to_string();
         }
         return ret;
     }
 
+private:
     std::shared_ptr<BoundIdentifier> m_identifier;
     MaterializedFunctionParameters m_parameters;
 };
@@ -109,6 +116,10 @@ public:
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedNativeFunctionDecl; }
     [[nodiscard]] std::string const& native_function_name() const { return m_native_function_name; }
+    [[nodiscard]] std::string to_string() const override
+    {
+        return format("{} -> \"{}\"", MaterializedFunctionDecl::to_string(), m_native_function_name);
+    }
 
 private:
     std::string m_native_function_name;
@@ -122,6 +133,10 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedIntrinsicDecl; }
+    [[nodiscard]] std::string to_string() const override
+    {
+        return format("intrinsic {}({}): {}", name(), parameters_to_string(), type());
+    }
 };
 
 class MaterializedFunctionDef : public Statement {
@@ -142,7 +157,13 @@ public:
     [[nodiscard]] MaterializedFunctionParameters const& parameters() const { return m_function_decl->parameters(); }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_statement; }
     [[nodiscard]] int stack_depth() const { return m_stack_depth; }
-    [[nodiscard]] std::string to_string() const override { return format("materialized function def"); }
+    [[nodiscard]] std::string to_string() const override
+    {
+        if (m_statement != nullptr)
+            return format("{} [{}]\n{}", m_function_decl, m_stack_depth, m_statement);
+        return m_function_decl->to_string();
+    }
+
     [[nodiscard]] Nodes children() const override
     {
         Nodes ret = { m_function_decl };
@@ -181,7 +202,13 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::string to_string() const override { return format("materialized variable decl"); }
+    [[nodiscard]] std::string to_string() const override
+    {
+        std::string keyword = (m_const) ? "const" : "var";
+        if (m_expression)
+            return format("{} {}: {} [{}]", keyword, m_variable, m_expression, m_offset);
+        return format("{} {} [{}]", keyword, m_variable, m_offset);
+    }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedVariableDecl; }
     [[nodiscard]] std::shared_ptr<BoundIdentifier> const& variable() const { return m_variable; }

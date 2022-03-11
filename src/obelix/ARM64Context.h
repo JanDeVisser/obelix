@@ -109,50 +109,6 @@ private:
     std::unordered_map<std::string, int> m_strings {};
 };
 
-#define ENUM_REGISTER_CONTEXT_TYPES(S) \
-    S(Enclosing)                       \
-    S(Targeted)                        \
-    S(Inherited)                       \
-    S(Temporary)
-
-struct RegisterContext {
-    enum class RegisterContextType {
-#undef REGISTER_CONTEXT_TYPE
-#define REGISTER_CONTEXT_TYPE(type) type,
-        ENUM_REGISTER_CONTEXT_TYPES(REGISTER_CONTEXT_TYPE)
-#undef REGISTER_CONTEXT_TYPE
-    };
-
-    [[nodiscard]] static char const* RegisterContextType_name(RegisterContextType t)
-    {
-        switch (t) {
-#undef REGISTER_CONTEXT_TYPE
-#define REGISTER_CONTEXT_TYPE(type) \
-    case RegisterContextType::type: \
-        return #type;
-            ENUM_REGISTER_CONTEXT_TYPES(REGISTER_CONTEXT_TYPE)
-#undef REGISTER_CONTEXT_TYPE
-        }
-    }
-
-    explicit RegisterContext(RegisterContextType context_type = RegisterContextType::Temporary)
-        : type(context_type)
-    {
-    }
-
-    RegisterContextType type { RegisterContextType::Temporary };
-    std::bitset<19> assigned { 0x0 };
-    std::bitset<19> temporary_registers { 0x0 };
-    std::bitset<19> reserved_registers { 0x0 };
-    std::bitset<19> m_saved_available_registers { 0x0 };
-
-    [[nodiscard]] std::string to_string() const
-    {
-        return format("{9s} assigned: {} res: {} temp: {}", RegisterContextType_name(type),
-            assigned, reserved_registers, temporary_registers);
-    }
-};
-
 class ARM64Context : public Context<int> {
 public:
     constexpr static char const* ROOT_MODULE_NAME = "#root";
@@ -167,35 +123,6 @@ public:
         return *m_assembly;
     }
 
-    [[nodiscard]] std::string contexts() const;
-    void new_targeted_context();
-    void new_inherited_context();
-    void new_enclosing_context();
-    void new_temporary_context();
-    void release_register_context();
-
-    void release_all();
-    int get_register(size_t ix = 0, int level = 0);
-    int add_register(int level = 0);
-    int temporary_register();
-
-    template<typename... Ints>
-    void reserve_register(int reg, Ints... args)
-    {
-        assert(!m_register_contexts.empty());
-        assert(m_available_registers.test(reg));
-        auto& reg_ctx = m_register_contexts.back();
-        m_available_registers.reset(reg);
-        reg_ctx.reserved_registers.set(reg);
-        debug(arm64, "Reserved register {}:\n{}", reg, contexts());
-        reserve_register(std::forward<Ints>(args)...);
-    }
-
-    void reserve_register()
-    {
-    }
-
-    void clear_context();
     void enter_function(std::shared_ptr<MaterializedFunctionDef> const& func) const;
     void function_return() const;
     void leave_function() const;
@@ -210,17 +137,14 @@ public:
         return s_assemblies;
     }
 
-private:
-    RegisterContext& get_current_register_context();
-    RegisterContext* get_previous_register_context();
-    int claim_temporary_register();
-    int claim_next_target();
-    int claim_register(int reg);
-    void release_register(int reg);
+    void initialize_target_register();
+    void release_target_register(ObelixType type = ObelixType::TypeUnknown);
+    void inc_target_register();
+    [[nodiscard]] int target_register() const;
 
+private:
     Assembly* m_assembly { nullptr };
-    std::vector<RegisterContext> m_register_contexts {};
-    std::bitset<19> m_available_registers { 0xFFFFFF };
+    std::vector<int> m_target_register {};
     static std::vector<std::shared_ptr<MaterializedFunctionDef>> s_function_stack;
     static std::unordered_map<std::string, Assembly> s_assemblies;
 };
@@ -232,7 +156,7 @@ static inline void push(ARM64Context& ctx, std::string const& reg)
 }
 
 template<>
-void push<uint8_t>(ARM64Context& ctx, std::string const& reg)
+[[maybe_unused]] void push<uint8_t>(ARM64Context& ctx, std::string const& reg)
 {
     ctx.assembly().add_instruction("strb", "{},[sp,-16]!", reg);
 }
@@ -244,11 +168,12 @@ static inline void pop(ARM64Context& ctx, std::string const& reg)
 }
 
 template<>
-void pop<uint8_t>(ARM64Context& ctx, std::string const& reg)
+[[maybe_unused]] void pop<uint8_t>(ARM64Context& ctx, std::string const& reg)
 {
     ctx.assembly().add_instruction("ldrb", "{},[sp],16", reg);
 }
 
+#if 0
 template<typename T = long>
 static inline void push_imm(ARM64Context& ctx, T value)
 {
@@ -322,5 +247,6 @@ template<>
     ctx.release_register_context();
     return {};
 }
+#endif
 
 }

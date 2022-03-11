@@ -296,11 +296,12 @@ std::shared_ptr<FunctionDef> Parser::parse_function_definition(Token const& func
             return make_node<FunctionDef>(func_token, func_decl);
         }
         return nullptr;
-    } else if (func_token.code() == KeywordIntrinsic) {
-        func_decl = std::make_shared<IntrinsicDecl>(name, func_ident, params);
-    } else {
-        func_decl = std::make_shared<FunctionDecl>(name, func_ident, params);
     }
+    if (func_token.code() == KeywordIntrinsic) {
+        func_decl = std::make_shared<IntrinsicDecl>(name, func_ident, params);
+        return make_node<FunctionDef>(func_token, func_decl, nullptr);
+    }
+    func_decl = std::make_shared<FunctionDecl>(name, func_ident, params);
     auto stmt = parse_statement();
     if (stmt == nullptr)
         return nullptr;

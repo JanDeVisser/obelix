@@ -62,24 +62,15 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
 
         // Load arguments in registers:
-        ctx.new_enclosing_context();
+        ctx.initialize_target_register();
         for (auto& argument : call->arguments()) {
-            ctx.new_inherited_context();
             TRY_RETURN(output_arm64_processor(argument, ctx));
-            ctx.release_register_context();
+            ctx.inc_target_register();
         }
 
-        ctx.clear_context();
-        ctx.reserve_register(0);
-        if (call->type()->type() == ObelixType::TypeString)
-            ctx.reserve_register(1);
         // Call function:
         ctx.assembly().add_instruction("bl", call->name());
-        // Add x0 to the register context
-        ctx.add_register();
-        if (call->type()->type() == ObelixType::TypeString)
-            ctx.add_register();
-        ctx.release_register_context();
+        ctx.release_target_register(call->type()->type());
         return tree;
     }
 
@@ -87,29 +78,25 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         auto native_func_call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
         auto func_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(native_func_call->declaration());
 
-        ctx.new_enclosing_context();
+        ctx.initialize_target_register();
         for (auto& arg : native_func_call->arguments()) {
-            ctx.new_inherited_context();
             TRY_RETURN(output_arm64_processor(arg, ctx));
-            ctx.release_register_context();
+            ctx.inc_target_register();
         }
 
         // Call the native function
         ctx.assembly().add_instruction("bl", func_decl->native_function_name());
-        // Add x0 to the register context
-        ctx.clear_context();
-        ctx.add_register();
-        if (native_func_call->type()->type() == ObelixType::TypeString)
-            ctx.add_register();
-        ctx.release_register_context();
+        ctx.release_target_register(native_func_call->type()->type());
         return tree;
     }
 
     case SyntaxNodeType::BoundIntrinsicCall: {
         auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
-        ctx.new_enclosing_context();
+
+        ctx.initialize_target_register();
         for (auto& arg : call->arguments()) {
             TRY_RETURN(output_arm64_processor(arg, ctx));
+            ctx.inc_target_register();
         }
         auto decl = call->declaration();
         ARM64Implementation impl = Intrinsics::get_arm64_implementation(decl);
@@ -118,34 +105,32 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         auto ret = impl(ctx);
         if (ret.is_error())
             return ret.error();
-        ctx.clear_context();
-        ctx.add_register();
-        if (call->type()->type() == ObelixType::TypeString)
-            ctx.add_register();
-        ctx.release_register_context();
+        ctx.release_target_register(call->type()->type());
         return tree;
     }
 
     case SyntaxNodeType::BoundLiteral: {
         auto literal = std::dynamic_pointer_cast<BoundLiteral>(tree);
         auto obj = literal->literal();
+        auto target = ctx.target_register();
         switch (obj.type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
         case ObelixType::TypeUnsigned: {
-            ctx.assembly().add_instruction("mov", "x{},#{}", ctx.add_register(), obj->to_long().value());
+            ctx.assembly().add_instruction("mov", "x{},#{}", target, obj->to_long().value());
             break;
         }
         case ObelixType::TypeChar:
         case ObelixType::TypeByte:
         case ObelixType::TypeBoolean: {
-            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_register(), static_cast<uint8_t>(obj->to_long().value()));
+            ctx.assembly().add_instruction("mov", "w{},#{}", target, static_cast<uint8_t>(obj->to_long().value()));
             break;
         }
         case ObelixType::TypeString: {
             auto str_id = ctx.assembly().add_string(obj->to_string());
-            ctx.assembly().add_instruction("adr", "x{},str_{}", ctx.add_register(), str_id);
-            ctx.assembly().add_instruction("mov", "w{},#{}", ctx.add_register(), obj->to_string().length());
+            ctx.assembly().add_instruction("adr", "x{},str_{}", target, str_id);
+            ctx.assembly().add_instruction("mov", "w{},#{}", target + 1, obj->to_string().length());
+            ctx.inc_target_register();
             break;
         }
         default:
@@ -160,26 +145,27 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         if (!idx_maybe.has_value())
             return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
         auto idx = idx_maybe.value();
+        auto target = ctx.target_register();
 
         switch (identifier->type()->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
-            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_register(), idx);
+            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, idx);
             break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", ctx.add_register(), idx);
+            ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", target, idx);
             break;
         case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", ctx.add_register(), idx);
+            ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", target, idx);
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", ctx.add_register(), idx);
+            ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", target, idx);
             break;
         case ObelixType::TypeString: {
-            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", ctx.add_register(), idx);
-            auto reg = ctx.add_register();
-            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", reg, idx + 8);
+            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, idx);
+            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target + 1, idx + 8);
+            ctx.inc_target_register();
             break;
         }
         default:
@@ -196,32 +182,33 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", assignment->name()) };
         auto idx = idx_maybe.value();
 
+        ctx.initialize_target_register();
         TRY_RETURN(output_arm64_processor(assignment->expression(), ctx));
 
         switch (assignment->type()->type()) {
         case ObelixType::TypePointer:
         case ObelixType::TypeInt:
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
+            ctx.assembly().add_instruction("str", "x0,[fp,#{}]", idx);
             break;
         case ObelixType::TypeUnsigned:
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
+            ctx.assembly().add_instruction("str", "x0,[fp,#{}]", idx);
             break;
         case ObelixType::TypeByte:
-            ctx.assembly().add_instruction("strbs", "x{},[fp,#{}]", ctx.get_register(), idx);
+            ctx.assembly().add_instruction("strbs", "x0,[fp,#{}]", idx);
             break;
         case ObelixType::TypeChar:
         case ObelixType::TypeBoolean:
-            ctx.assembly().add_instruction("strb", "x{},[fp,#{}]", ctx.get_register(), idx);
+            ctx.assembly().add_instruction("strb", "x0,[fp,#{}]", idx);
             break;
         case ObelixType::TypeString: {
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(), idx);
-            auto reg = ctx.get_register(1);
-            ctx.assembly().add_instruction("str", "w{},[fp,#{}]", reg, idx + 8);
+            ctx.assembly().add_instruction("str", "x0,[fp,#{}]", idx);
+            ctx.assembly().add_instruction("str", "w1,[fp,#{}]", idx + 8);
             break;
         }
         default:
             return Error { ErrorCode::NotYetImplemented, format("Cannot emit assignments of type {} yet", assignment->type()) };
         }
+        ctx.release_target_register(assignment->type()->type());
         return tree;
     }
 
@@ -230,15 +217,13 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         debug(parser, "{}", var_decl->to_string());
         ctx.assembly().add_comment(var_decl->to_string());
         ctx.declare(var_decl->name(), var_decl->offset());
-        ctx.release_all();
-        ctx.new_targeted_context();
+        ctx.initialize_target_register();
         if (var_decl->expression() != nullptr) {
             TRY_RETURN(output_arm64_processor(var_decl->expression(), ctx));
         } else {
-            auto reg = ctx.add_register();
             switch (var_decl->type()->type()) {
             case ObelixType::TypeString: {
-                ctx.assembly().add_instruction("mov", "w{},wzr", ctx.add_register());
+                ctx.assembly().add_instruction("mov", "w1,wzr");
             } // fall through
             case ObelixType::TypePointer:
             case ObelixType::TypeInt:
@@ -246,17 +231,17 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             case ObelixType::TypeByte:
             case ObelixType::TypeChar:
             case ObelixType::TypeBoolean:
-                ctx.assembly().add_instruction("mov", "x{},xzr", reg);
+                ctx.assembly().add_instruction("mov", "x0,xzr");
                 break;
             default:
                 return Error { ErrorCode::NotYetImplemented, format("Cannot initialize variables of type {} yet", var_decl->expression()->type()) };
             }
         }
-        ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(0), var_decl->offset());
+        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", var_decl->offset());
         if (var_decl->type()->type() == ObelixType::TypeString) {
-            ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.get_register(1), var_decl->offset() + 8);
+            ctx.assembly().add_instruction("str", "x1,[fp,#{}]", var_decl->offset() + 8);
         }
-        ctx.release_register_context();
+        ctx.release_target_register(var_decl->type()->type());
         return tree;
     }
 
@@ -264,10 +249,9 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         auto expr_stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
         debug(parser, "{}", expr_stmt->to_string());
         ctx.assembly().add_comment(expr_stmt->to_string());
-        ctx.release_all();
-        ctx.new_targeted_context();
+        ctx.initialize_target_register();
         TRY_RETURN(output_arm64_processor(expr_stmt->expression(), ctx));
-        ctx.release_register_context();
+        ctx.release_target_register();
         return tree;
     }
 
@@ -275,10 +259,9 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         auto ret = std::dynamic_pointer_cast<BoundReturn>(tree);
         debug(parser, "{}", ret->to_string());
         ctx.assembly().add_comment(ret->to_string());
-        ctx.release_all();
-        ctx.new_targeted_context();
+        ctx.initialize_target_register();
         TRY_RETURN(output_arm64_processor(ret->expression(), ctx));
-        ctx.release_register_context();
+        ctx.release_target_register();
         ctx.function_return();
 
         return tree;
@@ -302,7 +285,6 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
     case SyntaxNodeType::BoundIfStatement: {
         auto if_stmt = std::dynamic_pointer_cast<BoundIfStatement>(tree);
-        ctx.release_all();
 
         auto end_label = Obelix::Label::reserve_id();
         auto count = if_stmt->branches().size() - 1;
@@ -311,9 +293,10 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             if (branch->condition()) {
                 debug(parser, "if ({})", branch->condition()->to_string());
                 ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string()));
-                ctx.new_targeted_context();
+                ctx.initialize_target_register();
                 auto cond = TRY_AND_CAST(Expression, output_arm64_processor(branch->condition(), ctx));
-                ctx.assembly().add_instruction("cmp", "w{},0x00", ctx.get_register());
+                ctx.release_target_register();
+                ctx.assembly().add_instruction("cmp", "w0,0x00");
                 ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
             } else {
                 debug(parser, "else");

@@ -460,7 +460,7 @@ public:
         return format("func {}({}): {}", name(), parameters_to_string(), type());
     }
 
-private:
+protected:
     [[nodiscard]] std::string parameters_to_string() const
     {
         std::string ret;
@@ -474,6 +474,7 @@ private:
         return ret;
     }
 
+private:
     std::shared_ptr<Identifier> m_identifier;
     Identifiers m_parameters;
 };
@@ -501,7 +502,10 @@ public:
     {
     }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IntrinsicDecl; }
-    [[nodiscard]] std::string to_string() const override { return format("{} intrinsic", FunctionDecl::to_string()); }
+    [[nodiscard]] std::string to_string() const override
+    {
+        return format("intrinsic {}({}): {}", name(), parameters_to_string(), type());
+    }
 };
 
 class FunctionDef : public Statement {

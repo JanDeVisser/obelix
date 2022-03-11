@@ -70,7 +70,7 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
             auto default_stmt = TRY_AND_CAST(Statement, lower_processor(default_case->statement(), ctx));
             branches.push_back(make_node<BoundBranch>(default_case->token(), nullptr, default_stmt));
         }
-        return make_node<BoundIfStatement>(switch_stmt->token(), branches);
+        return lower_processor(make_node<BoundIfStatement>(switch_stmt->token(), branches), ctx);
     }
 
     case SyntaxNodeType::BoundForStatement: {
@@ -98,17 +98,27 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
         auto range_binary_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(range_expr);
         if (range_binary_expr->op() != BinaryOperator::Range)
             return Error { ErrorCode::SyntaxError, "Invalid for-loop range" };
+        auto variable_type = range_binary_expr->lhs()->type();
 
         Statements for_block;
 
-        for_block.push_back(
-            make_node<BoundVariableDeclaration>(for_stmt->token(),
-                make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), ObjectType::get(ObelixType::TypeInt)),
-                false,
-                range_binary_expr->lhs()));
+        if (for_stmt->must_declare_variable()) {
+            for_block.push_back(
+                make_node<BoundVariableDeclaration>(for_stmt->token(),
+                    make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), variable_type),
+                    false,
+                    range_binary_expr->lhs()));
+        } else {
+            for_block.push_back(
+                make_node<BoundExpressionStatement>(for_stmt->token(),
+                    make_node<BoundAssignment>(for_stmt->token(),
+                        make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), variable_type),
+                        range_binary_expr->lhs())));
+        }
         auto jump_past_loop = make_node<Goto>();
         auto jump_back_label = make_node<Label>();
 
+        for_block.push_back(jump_back_label);
         BoundBranches branches {
             make_node<BoundBranch>(for_stmt->token(),
                 make_node<BoundBinaryExpression>(for_stmt->token(),
@@ -122,20 +132,13 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
         for_block.push_back(stmt);
         for_block.push_back(
             make_node<BoundExpressionStatement>(range_binary_expr->token(),
-                make_node<BoundBinaryExpression>(range_binary_expr->token(),
+                make_node<BoundUnaryExpression>(range_binary_expr->token(),
                     make_node<BoundIdentifier>(range_binary_expr->token(),
-                        for_stmt->variable(), ObjectType::get(ObelixType::TypeInt)),
-                    BinaryOperator::Assign,
-                    make_node<BoundBinaryExpression>(range_binary_expr->token(),
-                        make_node<BoundIdentifier>(range_binary_expr->token(),
-                            for_stmt->variable(), ObjectType::get(ObelixType::TypeInt)),
-                        BinaryOperator::Add,
-                        make_node<BoundLiteral>(range_binary_expr->token(), make_obj<Integer>(1)),
-                        ObjectType::get(ObelixType::TypeInt)),
-                    ObjectType::get(ObelixType::TypeInt))));
+                        for_stmt->variable(), variable_type),
+                    UnaryOperator::UnaryIncrement)));
         for_block.push_back(make_node<Goto>(for_stmt->token(), jump_back_label));
         for_block.push_back(make_node<Label>(jump_past_loop));
-        return make_node<Block>(stmt->token(), for_block);
+        return lower_processor(make_node<Block>(stmt->token(), for_block), ctx);
     }
 
     case SyntaxNodeType::WhileStatement: {
@@ -173,7 +176,7 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
         while_block.push_back(stmt);
         while_block.push_back(make_node<Goto>(while_stmt->token(), start_of_loop));
         while_block.push_back(make_node<Label>(jump_out_of_loop));
-        return make_node<Block>(while_stmt->token(), while_block);
+        return lower_processor(make_node<Block>(while_stmt->token(), while_block), ctx);
     }
 
     case SyntaxNodeType::BoundBinaryExpression: {

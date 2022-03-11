@@ -314,8 +314,33 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
     case SyntaxNodeType::ForStatement: {
         auto stmt = std::dynamic_pointer_cast<ForStatement>(tree);
         auto bound_range = TRY_AND_CAST(BoundExpression, bind_types_processor(stmt->range(), ctx));
-        auto bound_statement = TRY_AND_CAST(Statement, bind_types_processor(stmt->statement(), ctx));
-        return make_node<BoundForStatement>(stmt, bound_range, bound_statement);
+        if (bound_range->node_type() != SyntaxNodeType::BoundBinaryExpression)
+            return Error { ErrorCode::SyntaxError, "Invalid for-loop range" };
+        auto range_binary_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(bound_range);
+        if (range_binary_expr->op() != BinaryOperator::Range)
+            return Error { ErrorCode::SyntaxError, "Invalid for-loop range" };
+        auto variable_type = range_binary_expr->lhs()->type();
+
+        bool must_declare_variable = true;
+        auto type_decl_maybe = ctx.get(stmt->variable());
+        if (type_decl_maybe.has_value()) {
+            if (type_decl_maybe.value()->node_type() == SyntaxNodeType::BoundVariableDeclaration) {
+                auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
+                if (*(var_decl->type()) != *variable_type) {
+                    return Error { ErrorCode::TypeMismatch, var_decl->name(), var_decl->type(), variable_type };
+                }
+                must_declare_variable = false;
+            }
+        }
+
+        BindContext for_ctx(ctx);
+        if (must_declare_variable)
+            for_ctx.declare(stmt->variable(),
+                std::make_shared<BoundVariableDeclaration>(stmt->token(),
+                    std::make_shared<BoundIdentifier>(stmt->token(), stmt->variable(), variable_type),
+                    false, nullptr));
+        auto bound_statement = TRY_AND_CAST(Statement, bind_types_processor(stmt->statement(), for_ctx));
+        return make_node<BoundForStatement>(stmt, bound_range, bound_statement, must_declare_variable);
     }
 
     case SyntaxNodeType::CaseStatement: {

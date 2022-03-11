@@ -137,7 +137,6 @@ protected:
     {
     }
 
-private:
     [[nodiscard]] std::string parameters_to_string() const
     {
         std::string ret;
@@ -151,6 +150,7 @@ private:
         return ret;
     }
 
+private:
     std::shared_ptr<BoundIdentifier> m_identifier;
     BoundIdentifiers m_parameters;
 };
@@ -196,7 +196,10 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundIntrinsicDecl; }
-    [[nodiscard]] std::string to_string() const override { return format("{} intrinsic", BoundFunctionDecl::to_string()); }
+    [[nodiscard]] std::string to_string() const override
+    {
+        return format("intrinsic {}({}): {}", name(), parameters_to_string(), type());
+    }
 };
 
 class BoundFunctionDef : public Statement {
@@ -679,11 +682,12 @@ private:
 
 class BoundForStatement : public Statement {
 public:
-    BoundForStatement(std::shared_ptr<ForStatement> const& orig_for_stmt, std::shared_ptr<BoundExpression> range, std::shared_ptr<Statement> stmt)
+    BoundForStatement(std::shared_ptr<ForStatement> const& orig_for_stmt, std::shared_ptr<BoundExpression> range, std::shared_ptr<Statement> stmt, bool must_declare)
         : Statement(orig_for_stmt->token())
         , m_variable(orig_for_stmt->variable())
         , m_range(move(range))
         , m_stmt(move(stmt))
+        , m_must_declare_variable(must_declare)
     {
     }
 
@@ -692,6 +696,7 @@ public:
         , m_variable(orig_for_stmt->variable())
         , m_range(move(range))
         , m_stmt(move(stmt))
+        , m_must_declare_variable(orig_for_stmt->must_declare_variable())
     {
     }
 
@@ -701,6 +706,7 @@ public:
     [[nodiscard]] std::string const& variable() const { return m_variable; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& range() const { return m_range; }
     [[nodiscard]] std::shared_ptr<Statement> const& statement() const { return m_stmt; }
+    [[nodiscard]] bool must_declare_variable() const { return m_must_declare_variable; }
 
     [[nodiscard]] std::string to_string() const override
     {
@@ -711,6 +717,7 @@ private:
     std::string m_variable {};
     std::shared_ptr<BoundExpression> m_range;
     std::shared_ptr<Statement> m_stmt;
+    bool m_must_declare_variable { false };
 };
 
 class BoundCaseStatement : public BoundBranch {

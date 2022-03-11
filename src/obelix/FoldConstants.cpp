@@ -139,7 +139,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
     }
 
     case SyntaxNodeType::BoundIfStatement: {
-        auto stmt = std::dynamic_pointer_cast<IfStatement>(tree);
+        auto stmt = std::dynamic_pointer_cast<BoundIfStatement>(tree);
         Statements branches;
         for (auto const& branch : stmt->branches()) {
             auto b = TRY_AND_CAST(Statement, fold_constants_processor(branch, ctx));
