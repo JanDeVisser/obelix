@@ -1,0 +1,7 @@
+func main(): int
+{
+  for (x in 0 .. 5) {
+    putint(x); putchar(10);
+  }
+  return 0;
+}
