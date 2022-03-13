@@ -196,11 +196,6 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 
         type.has_template_stamp([](ObjectType& instantiation) {
             instantiation.add_method(MethodDescription { Operator::Dereference, instantiation.template_arguments()[0] });
-            instantiation.add_method(MethodDescription { Operator::Assign, TypeSelf, MethodParameter { "other", TypeCompatible } });
-            instantiation.add_method(MethodDescription { Operator::BinaryIncrement, TypeSelf, MethodParameter { "other", TypeInt } });
-            instantiation.add_method(MethodDescription { Operator::BinaryDecrement, TypeSelf, MethodParameter { "other", TypeInt } });
-            instantiation.add_method(MethodDescription { Operator::Add, TypeSelf, MethodParameter { "other", TypeInt } });
-            instantiation.add_method(MethodDescription { Operator::Subtract, TypeSelf, MethodParameter { "other", TypeInt } });
         });
     });
 
@@ -283,11 +278,11 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(std::strin
         for (auto& is_a : type->m_is_a) {
             types.push_back(is_a);
         }
+        if (type->is_template_instantiation())
+            types.push_back(type->instantiates_template());
         if (auto ret = check_methods_of(type.get()); *ret != *s_unknown)
             return ret;
     }
-    if (is_template_instantiation())
-        return instantiates_template()->return_type_of(method_name, argument_types);
     return {};
 }
 
@@ -321,14 +316,14 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(Operator o
         for (auto& is_a : type->m_is_a) {
             types.push_back(is_a);
         }
+        if (type->is_template_instantiation())
+            types.push_back(type->instantiates_template());
         debug(type, "Checking operators of type {}", type->to_string());
         if (auto ret = check_operators_of(type.get()); *ret != *s_unknown) {
             debug(type, "Return type is {}", ret->to_string());
             return ret;
         }
     }
-    if (is_template_instantiation())
-        return instantiates_template()->return_type_of(op, argument_types);
     debug(type, "No matching operator found");
     return {};
 }
