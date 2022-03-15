@@ -215,12 +215,6 @@ public:
     {
     }
 
-    Token(TokenCode code, Obj const& object)
-        : m_code(code)
-        , m_value(object->to_string())
-    {
-    }
-
     [[nodiscard]] TokenCode code() const { return m_code; }
     [[nodiscard]] std::string code_name() const { return TokenCode_name(code()); }
     [[nodiscard]] std::string const& value() const { return m_value; }
@@ -228,7 +222,6 @@ public:
     [[nodiscard]] std::optional<long> to_long() const;
     [[nodiscard]] std::optional<double> to_double() const;
     [[nodiscard]] std::optional<bool> to_bool() const;
-    [[nodiscard]] Ptr<Object> to_object() const;
     [[nodiscard]] int compare(Token const& other) const;
     [[nodiscard]] bool is_whitespace() const;
 
