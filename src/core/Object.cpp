@@ -14,6 +14,25 @@ namespace Obelix {
 
 logging_category(object);
 
+std::optional<ObelixType> ObelixType_by_name(std::string const& t)
+{
+    if (t == "int" || t == "s32")
+        return ObelixType::TypeInt;
+    if (t == "unsigned" || t == "u32")
+        return ObelixType::TypeUnsigned;
+    if (t == "byte" || t == "s8")
+        return ObelixType::TypeByte;
+    if (t == "char" || t == "u8")
+        return ObelixType::TypeChar;
+    if (t == "bool")
+        return ObelixType::TypeBoolean;
+    if (t == "string")
+        return ObelixType::TypeString;
+    if (t == "ptr")
+        return ObelixType::TypePointer;
+    return {};
+}
+
 Object::Object(ObelixType type)
     : m_type(type)
 {
@@ -31,23 +50,23 @@ Obj Object::copy() const
 
 std::optional<Obj> Object::evaluate(std::string const& name, Ptr<Arguments> args) const
 {
-    if ((name == ".") || (name == BinaryOperator_name(BinaryOperator::MemberAccess))) {
+    if ((name == ".") || (name == "MemberAccess")) {
         assert(args->size() == 1);
         auto ret = resolve(args->at(0)->to_string());
         return ret;
-    } else if (name == "<" || name == BinaryOperator_name(BinaryOperator::Less)) {
+    } else if (name == "<" || name == "Less") {
         return make_obj<Boolean>(compare(args->get(0)) < 0);
-    } else if (name == ">" || name == BinaryOperator_name(BinaryOperator::Greater)) {
+    } else if (name == ">" || name == "Greater") {
         return make_obj<Boolean>(compare(args->get(0)) > 0);
-    } else if (name == "<=" || name == BinaryOperator_name(BinaryOperator::LessEquals)) {
+    } else if (name == "<=" || name == "LessEquals") {
         return make_obj<Boolean>(compare(args->get(0)) <= 0);
-    } else if (name == "=>" || name == BinaryOperator_name(BinaryOperator::GreaterEquals)) {
+    } else if (name == "=>" || name == "GreaterEquals") {
         return make_obj<Boolean>(compare(args->get(0)) >= 0);
-    } else if (name == "==" || name == BinaryOperator_name(BinaryOperator::Equals)) {
+    } else if (name == "==" || name == "Equals") {
         return make_obj<Boolean>(compare(args->get(0)) == 0);
-    } else if (name == "!=" || name == BinaryOperator_name(BinaryOperator::NotEquals)) {
+    } else if (name == "!=" || name == "NotEquals") {
         return make_obj<Boolean>(compare(args->get(0)) != 0);
-    } else if (name == ".." || name == BinaryOperator_name(BinaryOperator::Range)) {
+    } else if (name == ".." || name == "Range") {
         return make_obj<Range>(self(), args[0]);
     } else if (name == ":") {
         return iterator();

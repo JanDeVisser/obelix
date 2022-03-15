@@ -25,13 +25,13 @@ int Boolean::compare(Obj const& other) const
 
 std::optional<Obj> Boolean::evaluate(std::string const& op, Ptr<Arguments> args) const
 {
-    if ((op == "!") || (op == UnaryOperator_name(UnaryOperator::LogicalInvert))) {
+    if ((op == "!") || (op == "LogicalInvert")) {
         if (!args->empty()) {
             return make_obj<Exception>(ErrorCode::SyntaxError, format("Logical operation '{}' only takes a single operand", op));
         }
         return make_obj<Boolean>(!m_value);
     }
-    if ((op == "||") || (op == "or") || op == BinaryOperator_name(BinaryOperator::LogicalOr)) {
+    if ((op == "||") || (op == "or") || op == "LogicalOr") {
         if (args->empty()) {
             return make_obj<Exception>(ErrorCode::SyntaxError, format("Logical operation '{}' requires at least 2 operands", op));
         }
@@ -47,7 +47,7 @@ std::optional<Obj> Boolean::evaluate(std::string const& op, Ptr<Arguments> args)
         }
         return to_obj(False());
     }
-    if ((op == "&&") || (op == "and") || op == BinaryOperator_name(BinaryOperator::LogicalAnd)) {
+    if ((op == "&&") || (op == "and") || op == "LogicalAnd") {
         if (args->empty()) {
             return make_obj<Exception>(ErrorCode::SyntaxError, format("Logical operation '{}' requires at least 2 operands", op));
         }

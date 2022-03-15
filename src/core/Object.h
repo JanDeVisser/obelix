@@ -4,10 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//
-// Created by Jan de Visser on 2021-09-18.
-//
-
 #pragma once
 
 #include <functional>
@@ -22,7 +18,6 @@
 #include <core/Format.h>
 #include <core/Logging.h>
 #include <core/StringUtil.h>
-#include <core/Type.h>
 
 namespace Obelix {
 
@@ -36,6 +31,82 @@ template<typename T>
 class Ptr;
 
 typedef Ptr<Object> Obj;
+
+#define ENUMERATE_OBELIX_TYPES(S) \
+    S(Unknown, -1)                \
+    S(Null, 0)                    \
+    S(Int, 1)                     \
+    S(Unsigned, 2)                \
+    S(Byte, 3)                    \
+    S(Char, 4)                    \
+    S(Boolean, 5)                 \
+    S(Float, 6)                   \
+    S(String, 7)                  \
+    S(Pointer, 8)                 \
+    S(MinUserType, 9)             \
+    S(Object, 10)                 \
+    S(List, 11)                   \
+    S(Regex, 12)                  \
+    S(Range, 13)                  \
+    S(Exception, 14)              \
+    S(NVP, 15)                    \
+    S(Arguments, 16)              \
+    S(Iterator, 17)               \
+    S(NativeFunction, 18)         \
+    S(RangeIterator, 19)          \
+    S(BoundFunction, 20)          \
+    S(Scope, 21)                  \
+    S(MapIterator, 22)            \
+    S(Error, 9996)                \
+    S(Self, 9997)                 \
+    S(Compatible, 9998)           \
+    S(Argument, 9999)             \
+    S(Any, 10000)                 \
+    S(Comparable, 10001)          \
+    S(Incrementable, 10002)       \
+    S(IntegerNumber, 10003)       \
+    S(SignedIntegerNumber, 10004)
+
+enum ObelixType {
+#undef __ENUM_OBELIX_TYPE
+#define __ENUM_OBELIX_TYPE(t, cardinal) Type##t = cardinal,
+    ENUMERATE_OBELIX_TYPES(__ENUM_OBELIX_TYPE)
+#undef __ENUM_OBELIX_TYPE
+};
+
+typedef std::vector<ObelixType> ObelixTypes;
+
+constexpr const char* ObelixType_name(ObelixType t)
+{
+    switch (t) {
+#undef __ENUM_OBELIX_TYPE
+#define __ENUM_OBELIX_TYPE(t, cardinal) \
+    case Type##t:                       \
+        return #t;
+        ENUMERATE_OBELIX_TYPES(__ENUM_OBELIX_TYPE)
+#undef __ENUM_OBELIX_TYPE
+    }
+}
+
+std::optional<ObelixType> ObelixType_by_name(std::string const& t);
+
+template<>
+struct Converter<ObelixType> {
+    static std::string to_string(ObelixType val)
+    {
+        return ObelixType_name(val);
+    }
+
+    static double to_double(ObelixType val)
+    {
+        return static_cast<double>(val);
+    }
+
+    static long to_long(ObelixType val)
+    {
+        return val;
+    }
+};
 
 class Object {
 public:

@@ -21,7 +21,6 @@ add_library(
         String.cpp
         StringBuffer.cpp
         StringUtil.cpp
-        Type.cpp
 )
 
 target_link_libraries(

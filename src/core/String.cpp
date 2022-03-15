@@ -22,14 +22,14 @@ int String::compare(Obj const& other) const
 
 std::optional<Obj> String::evaluate(std::string const& op, Ptr<Arguments> args) const
 {
-    if (op == "+" || op == BinaryOperator_name(BinaryOperator::Add)) {
+    if (op == "+" || op == "Add") {
         auto ret = m_value;
         for (auto const& arg : args->arguments()) {
             ret += arg->to_string();
         }
         return make_obj<String>(ret);
     }
-    if (op == "*" || op == "repeat" || op == BinaryOperator_name(BinaryOperator::Multiply)) {
+    if (op == "*" || op == "repeat" || op == "Multiply") {
         if (args->size() != 1) {
             return make_obj<Exception>(ErrorCode::SyntaxError, format("String operation '{}' requires exactly 2 operands", op));
         }
