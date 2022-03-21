@@ -13,11 +13,11 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-class ExecuteContext : public Context<int> {
+class InterpreterContext : public Context<int> {
 public:
-    ExecuteContext(ExecuteContext& parent);
-    explicit ExecuteContext(ExecuteContext* parent);
-    ExecuteContext();
+    InterpreterContext(InterpreterContext& parent);
+    explicit InterpreterContext(InterpreterContext* parent);
+    InterpreterContext();
 
     [[nodiscard]] std::vector<std::shared_ptr<BoundLiteral>> const& arguments() const
     {
@@ -158,6 +158,6 @@ ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
     }
 }
 
-ErrorOrNode execute(std::shared_ptr<SyntaxNode> const&);
+ErrorOrNode interpret(std::shared_ptr<SyntaxNode> const&);
 
 }

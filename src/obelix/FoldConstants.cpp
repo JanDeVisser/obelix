@@ -5,7 +5,7 @@
  */
 
 #include <obelix/BoundSyntaxNode.h>
-#include <obelix/Execute.h>
+#include <obelix/Interpreter.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
@@ -39,7 +39,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
         auto rhs = TRY_AND_CAST(BoundExpression, fold_constants_processor(expr->rhs(), ctx));
 
         if (lhs->node_type() == SyntaxNodeType::BoundLiteral && rhs->node_type() == SyntaxNodeType::BoundLiteral && expr->op() != BinaryOperator::Range && !BinaryOperator_is_assignment(expr->op())) {
-            return TRY(execute(expr));
+            return TRY(interpret(expr));
         }
 
         //
@@ -62,7 +62,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
             auto rhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(rhs);
             if (rhs_expr->lhs()->node_type() == SyntaxNodeType::BoundLiteral && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(rhs_expr->op())) {
                 std::shared_ptr<BoundExpression> new_lhs = make_node<BoundBinaryExpression>(lhs->token(), lhs, expr->op(), rhs_expr->lhs(), expr->type());
-                new_lhs = TRY_AND_CAST(BoundExpression, execute(new_lhs));
+                new_lhs = TRY_AND_CAST(BoundExpression, interpret(new_lhs));
                 if (new_lhs->node_type() == SyntaxNodeType::BoundLiteral) {
                     return std::make_shared<BoundBinaryExpression>(expr->token(),
                         new_lhs,
@@ -78,7 +78,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
             auto lhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(lhs);
             if (lhs_expr->rhs()->node_type() == SyntaxNodeType::BoundLiteral && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(lhs_expr->op())) {
                 std::shared_ptr<BoundExpression> new_rhs = make_node<BoundBinaryExpression>(rhs->token(), lhs_expr->rhs(), expr->op(), rhs, expr->type());
-                new_rhs = TRY_AND_CAST(BoundExpression, execute(new_rhs));
+                new_rhs = TRY_AND_CAST(BoundExpression, interpret(new_rhs));
                 if (new_rhs->node_type() == SyntaxNodeType::BoundLiteral) {
                     return std::make_shared<BoundBinaryExpression>(expr->token(),
                         lhs_expr->lhs(),
@@ -99,7 +99,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
             return operand;
 
         if (operand->node_type() == SyntaxNodeType::BoundLiteral) {
-            return TRY(execute(expr));
+            return TRY(interpret(expr));
         }
         return std::make_shared<BoundUnaryExpression>(expr->token(), operand, expr->op(), expr->type());
     }

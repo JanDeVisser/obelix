@@ -8,7 +8,7 @@
 #include <core/Arguments.h>
 #include <memory>
 #include <obelix/BoundFunction.h>
-#include <obelix/Execute.h>
+#include <obelix/Interpreter.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Processor.h>
 
@@ -24,12 +24,12 @@ extern_logging_category(parser);
         std::dynamic_pointer_cast<StatementExecutionResult>(__stmt_result);                                                                                \
     })
 
-using ProcessorMap = std::unordered_map<SyntaxNodeType,std::function<ErrorOrNode(std::shared_ptr<SyntaxNode>,ExecuteContext&)>>;
+using ProcessorMap = std::unordered_map<SyntaxNodeType,std::function<ErrorOrNode(std::shared_ptr<SyntaxNode>,InterpreterContext&)>>;
 ProcessorMap stmt_execute_map;
 
-ErrorOrNode execute_processor(std::shared_ptr<SyntaxNode> const&, ExecuteContext&);
+ErrorOrNode interpreter_processor(std::shared_ptr<SyntaxNode> const&, InterpreterContext&);
 
-using FunctionType = std::function<ErrorOr<void>(ExecuteContext&)>;
+using FunctionType = std::function<ErrorOr<void>(InterpreterContext&)>;
 static std::array<FunctionType, IntrinsicType::count> s_intrinsics = {};
 
 bool register_interpreter_intrinsic(IntrinsicType type, FunctionType intrinsic)
@@ -39,9 +39,9 @@ bool register_interpreter_intrinsic(IntrinsicType type, FunctionType intrinsic)
 }
 
 #define INTRINSIC(intrinsic)                                                                                              \
-    ErrorOr<void> interpreter_intrinsic_##intrinsic(ExecuteContext& ctx);                                                 \
+    ErrorOr<void> interpreter_intrinsic_##intrinsic(InterpreterContext& ctx);                                                 \
     auto s_interpreter_##intrinsic##_decl = register_interpreter_intrinsic(intrinsic, interpreter_intrinsic_##intrinsic); \
-    ErrorOr<void> interpreter_intrinsic_##intrinsic(ExecuteContext& ctx)
+    ErrorOr<void> interpreter_intrinsic_##intrinsic(InterpreterContext& ctx)
 
 INTRINSIC(add_int_int)
 {
@@ -51,17 +51,17 @@ INTRINSIC(add_int_int)
     return {};
 }
 
-ExecuteContext::ExecuteContext(ExecuteContext& parent)
+InterpreterContext::InterpreterContext(InterpreterContext& parent)
     : Context<int>(parent)
 {
 }
 
-ExecuteContext::ExecuteContext(ExecuteContext* parent)
+InterpreterContext::InterpreterContext(InterpreterContext* parent)
     : Context<int>(parent)
 {
 }
 
-ExecuteContext::ExecuteContext()
+InterpreterContext::InterpreterContext()
     : Context()
 {
 }
@@ -278,11 +278,11 @@ ErrorOrNode process_Identifier(std::shared_ptr<SyntaxNode> const& tree, Context<
 
 #endif
 
-ErrorOrNode process_BoundBinaryExpression(std::shared_ptr<SyntaxNode> const& tree, ExecuteContext& ctx)
+ErrorOrNode process_BoundBinaryExpression(std::shared_ptr<SyntaxNode> const& tree, InterpreterContext& ctx)
 {
     auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
-    auto lhs = TRY_AND_CAST(BoundExpression, execute_processor(expr->lhs(), ctx));
-    auto rhs = TRY_AND_CAST(BoundExpression, execute_processor(expr->rhs(), ctx));
+    auto lhs = TRY_AND_CAST(BoundExpression, interpreter_processor(expr->lhs(), ctx));
+    auto rhs = TRY_AND_CAST(BoundExpression, interpreter_processor(expr->rhs(), ctx));
 
     if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract))
         return tree;
@@ -306,10 +306,10 @@ ErrorOrNode process_BoundBinaryExpression(std::shared_ptr<SyntaxNode> const& tre
     return ctx.return_value();
 };
 
-ErrorOrNode process_BoundUnaryExpression(std::shared_ptr<SyntaxNode> const& tree, ExecuteContext& ctx)
+ErrorOrNode process_BoundUnaryExpression(std::shared_ptr<SyntaxNode> const& tree, InterpreterContext& ctx)
 {
     auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
-    auto operand = TRY_AND_CAST(BoundExpression, execute_processor(expr->operand(), ctx));
+    auto operand = TRY_AND_CAST(BoundExpression, interpreter_processor(expr->operand(), ctx));
 
     if (operand->type()->type() == PrimitiveType::Pointer)
         return tree;
@@ -368,17 +368,17 @@ ErrorOrNode process_BoundUnaryExpression(std::shared_ptr<SyntaxNode> const& tree
     return true;
 };
 
-ErrorOrNode execute_processor(std::shared_ptr<SyntaxNode> const& tree, ExecuteContext& ctx)
+ErrorOrNode interpreter_processor(std::shared_ptr<SyntaxNode> const& tree, InterpreterContext& ctx)
 {
     if (stmt_execute_map.contains(tree->node_type()))
         return stmt_execute_map[tree->node_type()](tree, ctx);
-    return process_tree(tree, ctx, execute_processor);    
+    return process_tree(tree, ctx, interpreter_processor);    
 }
 
-ErrorOrNode execute(std::shared_ptr<SyntaxNode> const& tree)
+ErrorOrNode interpret(std::shared_ptr<SyntaxNode> const& tree)
 {
-    ExecuteContext root;
-    return execute_processor(tree, root);
+    InterpreterContext root;
+    return interpreter_processor(tree, root);
 }
 
 }
