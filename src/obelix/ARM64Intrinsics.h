@@ -15,9 +15,9 @@
 
 namespace Obelix {
 
-#undef INTRINSIC_TYPE
-#define INTRINSIC_TYPE(intrinsic) ErrorOr<void> arm64_##intrinsic(ARM64Context&);
-INTRINSIC_TYPE_ENUM(INTRINSIC_TYPE)
-#undef INTRINSIC_TYPE
+using ARM64FunctionType = std::function<ErrorOr<void>(ARM64Context&)>;
+
+bool register_arm64_intrinsic(IntrinsicType, ARM64FunctionType);
+ARM64FunctionType const& get_arm64_intrinsic(IntrinsicType);
 
 }

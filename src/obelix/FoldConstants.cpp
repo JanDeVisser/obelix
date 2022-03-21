@@ -5,6 +5,7 @@
  */
 
 #include <obelix/BoundSyntaxNode.h>
+#include <obelix/Execute.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
@@ -38,12 +39,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
         auto rhs = TRY_AND_CAST(BoundExpression, fold_constants_processor(expr->rhs(), ctx));
 
         if (lhs->node_type() == SyntaxNodeType::BoundLiteral && rhs->node_type() == SyntaxNodeType::BoundLiteral && expr->op() != BinaryOperator::Range && !BinaryOperator_is_assignment(expr->op())) {
-            auto lhs_literal = std::dynamic_pointer_cast<BoundLiteral>(lhs);
-            auto rhs_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
-
-            auto ret_maybe = lhs_literal->literal().evaluate(BinaryOperator_name(expr->op()), rhs_literal->literal());
-            if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
-                return std::make_shared<BoundLiteral>(expr->token(), ret_maybe.value());
+            return TRY(execute(expr));
         }
 
         //
@@ -65,14 +61,15 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
             auto lhs_literal = std::dynamic_pointer_cast<BoundLiteral>(lhs);
             auto rhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(rhs);
             if (rhs_expr->lhs()->node_type() == SyntaxNodeType::BoundLiteral && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(rhs_expr->op())) {
-                auto rhs_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs_expr->lhs());
-                auto ret_maybe = lhs_literal->literal().evaluate(BinaryOperator_name(expr->op()), rhs_literal->literal());
-                if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
+                std::shared_ptr<BoundExpression> new_lhs = make_node<BoundBinaryExpression>(lhs->token(), lhs, expr->op(), rhs_expr->lhs(), expr->type());
+                new_lhs = TRY_AND_CAST(BoundExpression, execute(new_lhs));
+                if (new_lhs->node_type() == SyntaxNodeType::BoundLiteral) {
                     return std::make_shared<BoundBinaryExpression>(expr->token(),
-                        std::make_shared<BoundLiteral>(expr->token(), ret_maybe.value()),
+                        new_lhs,
                         rhs_expr->op(),
                         rhs_expr->rhs(),
                         expr->type());
+                }
             }
         }
 
@@ -80,15 +77,15 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
             auto rhs_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
             auto lhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(lhs);
             if (lhs_expr->rhs()->node_type() == SyntaxNodeType::BoundLiteral && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(lhs_expr->op())) {
-                auto lhs_literal = std::dynamic_pointer_cast<BoundLiteral>(lhs_expr->lhs());
-                auto ret_maybe = lhs_literal->literal().evaluate(BinaryOperator_name(expr->op()), rhs_literal->literal());
-                if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
-                    if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
-                        return std::make_shared<BoundBinaryExpression>(expr->token(),
-                            lhs_expr->lhs(),
-                            lhs_expr->op(),
-                            std::make_shared<BoundLiteral>(expr->token(), ret_maybe.value()),
-                            expr->type());
+                std::shared_ptr<BoundExpression> new_rhs = make_node<BoundBinaryExpression>(rhs->token(), lhs_expr->rhs(), expr->op(), rhs, expr->type());
+                new_rhs = TRY_AND_CAST(BoundExpression, execute(new_rhs));
+                if (new_rhs->node_type() == SyntaxNodeType::BoundLiteral) {
+                    return std::make_shared<BoundBinaryExpression>(expr->token(),
+                        lhs_expr->lhs(),
+                        lhs_expr->op(),
+                        new_rhs,
+                        expr->type());
+                }
             }
         }
         return expr;
@@ -102,11 +99,7 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
             return operand;
 
         if (operand->node_type() == SyntaxNodeType::BoundLiteral) {
-            auto literal = std::dynamic_pointer_cast<BoundLiteral>(operand);
-
-            auto ret_maybe = literal->literal().evaluate(UnaryOperator_name(expr->op()));
-            if (ret_maybe.has_value() && ret_maybe.value().type() != ObelixType::TypeException)
-                return std::make_shared<BoundLiteral>(expr->token(), ret_maybe.value());
+            return TRY(execute(expr));
         }
         return std::make_shared<BoundUnaryExpression>(expr->token(), operand, expr->op(), expr->type());
     }
@@ -128,8 +121,8 @@ ErrorOrNode fold_constants_processor(std::shared_ptr<SyntaxNode> const& tree, Fo
 
         if (cond->node_type() == SyntaxNodeType::BoundLiteral) {
             auto cond_literal = std::dynamic_pointer_cast<BoundLiteral>(cond);
-            auto cond_obj = cond_literal->literal();
-            if (cond_obj) {
+            auto cond_value = cond_literal->bool_value();
+            if (cond_value) {
                 return stmt;
             } else {
                 return nullptr;

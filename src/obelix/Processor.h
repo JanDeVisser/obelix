@@ -6,11 +6,10 @@
 
 #pragma once
 
-#include <functional>
+#include <memory>
 #include <unordered_map>
 
 #include <core/Error.h>
-#include <core/Object.h>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Context.h>
 #include <obelix/MaterializedSyntaxNode.h>
@@ -29,6 +28,8 @@ extern_logging_category(parser);
         }                                                            \
         std::dynamic_pointer_cast<cls>(__##var##_maybe.value());     \
     })
+
+using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>>;
 
 template<typename Context, typename Processor>
 ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Processor& processor)

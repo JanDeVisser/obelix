@@ -11,13 +11,11 @@
 #include <vector>
 
 #include <core/Error.h>
-#include <obelix/Syntax.h>
+#include <core/Logging.h>
 
 namespace Obelix {
 
 extern_logging_category(parser);
-
-using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>>;
 
 template<typename T>
 class Context {
@@ -96,7 +94,8 @@ public:
             return m_parent->unset(name);
     }
 
-    ErrorOrNode add_if_error(ErrorOrNode maybe_error)
+    template <typename Payload>
+    ErrorOr<Payload> add_if_error(ErrorOr<Payload> maybe_error)
     {
         if (maybe_error.is_error()) {
             if (m_parent)

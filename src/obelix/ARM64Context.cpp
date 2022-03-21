@@ -60,7 +60,7 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
     auto reg = 0;
     for (auto& param : func->declaration()->parameters()) {
         assembly().add_instruction("str", "x{},[fp,#{}]", reg++, param->offset());
-        if (param->type()->type() == ObelixType::TypeString)
+        if (param->type()->type() == PrimitiveType::String)
             assembly().add_instruction("str", "x{},[fp,#{}]", reg++, param->offset() + 8);
     }
 }
@@ -97,14 +97,14 @@ void ARM64Context::initialize_target_register()
     m_target_register.push_back(0);
 }
 
-void ARM64Context::release_target_register(ObelixType type)
+void ARM64Context::release_target_register(PrimitiveType type)
 {
     m_target_register.pop_back();
     if (!m_target_register.empty()) {
         int current = m_target_register.back();
-        if (current && (type != TypeUnknown)) {
+        if (current && (type != PrimitiveType::Unknown)) {
             assembly().add_instruction("mov", "x{},x0", current);
-            if (type == TypeString) {
+            if (type == PrimitiveType::String) {
                 assembly().add_instruction("mov", "x{},x1", current + 1);
                 inc_target_register();
             }

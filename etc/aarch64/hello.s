@@ -17,11 +17,17 @@
 // and then call MacOS to do it.
 
 _start:
-        mov fp,sp
-        mov x0, #1         // 1 = StdOut
-        adr x1, helloworld // string to print
-        mov x2, #13        // length of our string
-        bl sys$write
-        bl sys$exit
+	adr x0,pool_available
+	ldr x1,[pool_available]
+	cmp x1,string_pool_top
+
 
 helloworld:      .ascii  "Hello World!\n"
+
+.data
+pool_available:
+	.quad string_pool
+
+string_pool:
+	.space 2048,0
+string_pool_top:

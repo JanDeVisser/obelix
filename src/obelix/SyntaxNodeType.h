@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <core/Format.h>
+
 namespace Obelix {
 
 #define ENUMERATE_SYNTAXNODETYPES(S)  \

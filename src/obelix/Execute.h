@@ -6,11 +6,49 @@
 
 #pragma once
 
+#include "obelix/BoundSyntaxNode.h"
 #include <obelix/Processor.h>
 
 namespace Obelix {
 
 extern_logging_category(parser);
+
+class ExecuteContext : public Context<int> {
+public:
+    ExecuteContext(ExecuteContext& parent);
+    explicit ExecuteContext(ExecuteContext* parent);
+    ExecuteContext();
+
+    [[nodiscard]] std::vector<std::shared_ptr<BoundLiteral>> const& arguments() const
+    {
+        return m_arguments;
+    }
+
+    void reset() 
+    {
+        m_return_value = nullptr;
+        m_arguments.clear();
+    }
+
+    void add_argument(std::shared_ptr<BoundLiteral> const& arg)
+    {
+        m_arguments.push_back(arg);
+    }
+
+    void set_return_value(std::shared_ptr<BoundLiteral> return_value)
+    {
+        m_return_value = move(return_value);
+    }
+
+    [[nodiscard]] std::shared_ptr<BoundLiteral> const& return_value() const
+    {
+        return m_return_value;
+    }
+
+private:
+    std::vector<std::shared_ptr<BoundLiteral>> m_arguments {};
+    std::shared_ptr<BoundLiteral> m_return_value { nullptr };
+};
 
 #define ENUMERATE_FLOWCONTROLS(S) \
     S(None)                       \
@@ -49,7 +87,7 @@ public:
     {
     }
 
-    [[nodiscard]] std::string to_string(int) const override { return format("{} [{}]", result()->to_string(), FlowControl_name(flow_control())); }
+    [[nodiscard]] std::string to_string() const override { return format("{} [{}]", result()->to_string(), FlowControl_name(flow_control())); }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::StatementExecutionResult; }
 
     [[nodiscard]] FlowControl flow_control() const { return m_flow_control; }
@@ -121,6 +159,5 @@ ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Context& ctx)
 }
 
 ErrorOrNode execute(std::shared_ptr<SyntaxNode> const&);
-ErrorOrNode execute(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& root);
 
 }

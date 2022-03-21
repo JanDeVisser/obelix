@@ -63,7 +63,7 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
         BoundBranches branches;
         for (auto& c : cases) {
             branches.push_back(make_node<BoundBranch>(c->token(),
-                make_node<BoundBinaryExpression>(switch_expr->token(), switch_expr, BinaryOperator::Equals, c->condition(), ObjectType::get(ObelixType::TypeBoolean)),
+                make_node<BoundBinaryExpression>(switch_expr->token(), switch_expr, BinaryOperator::Equals, c->condition(), ObjectType::get(PrimitiveType::Boolean)),
                 c->statement()));
         }
         if (default_case) {
@@ -122,10 +122,10 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
         BoundBranches branches {
             make_node<BoundBranch>(for_stmt->token(),
                 make_node<BoundBinaryExpression>(for_stmt->token(),
-                    make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), ObjectType::get(ObelixType::TypeInt)),
+                    make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), ObjectType::get(PrimitiveType::Int)),
                     BinaryOperator::GreaterEquals,
                     range_binary_expr->rhs(),
-                    ObjectType::get(ObelixType::TypeBoolean)),
+                    ObjectType::get(PrimitiveType::Boolean)),
                 jump_past_loop),
         };
         for_block.push_back(make_node<BoundIfStatement>(for_stmt->token(), branches));
@@ -169,7 +169,7 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
         BoundBranches branches {
             make_node<BoundBranch>(while_stmt->token(),
                 make_node<BoundUnaryExpression>(condition->token(),
-                    condition, UnaryOperator::LogicalInvert, ObjectType::get(ObelixType::TypeBoolean)),
+                    condition, UnaryOperator::LogicalInvert, ObjectType::get(PrimitiveType::Boolean)),
                 jump_out_of_loop),
         };
         while_block.push_back(make_node<BoundIfStatement>(condition->token(), branches));
@@ -200,29 +200,29 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
         if (expr->op() == BinaryOperator::GreaterEquals) {
             return make_node<BoundBinaryExpression>(expr->token(),
                 make_node<BoundBinaryExpression>(expr->token(),
-                    lhs, BinaryOperator::Equals, rhs, ObjectType::get(ObelixType::TypeBoolean)),
+                    lhs, BinaryOperator::Equals, rhs, ObjectType::get(PrimitiveType::Boolean)),
                 BinaryOperator::LogicalOr,
                 make_node<BoundBinaryExpression>(expr->token(),
-                    lhs, BinaryOperator::Greater, rhs, ObjectType::get(ObelixType::TypeBoolean)),
-                ObjectType::get(ObelixType::TypeBoolean));
+                    lhs, BinaryOperator::Greater, rhs, ObjectType::get(PrimitiveType::Boolean)),
+                ObjectType::get(PrimitiveType::Boolean));
         }
 
         if (expr->op() == BinaryOperator::LessEquals) {
             return make_node<BoundBinaryExpression>(expr->token(),
                 make_node<BoundBinaryExpression>(expr->token(),
-                    lhs, BinaryOperator::Equals, rhs, ObjectType::get(ObelixType::TypeBoolean)),
+                    lhs, BinaryOperator::Equals, rhs, ObjectType::get(PrimitiveType::Boolean)),
                 BinaryOperator::LogicalOr,
                 make_node<BoundBinaryExpression>(expr->token(),
-                    lhs, BinaryOperator::Less, rhs, ObjectType::get(ObelixType::TypeBoolean)),
-                ObjectType::get(ObelixType::TypeBoolean));
+                    lhs, BinaryOperator::Less, rhs, ObjectType::get(PrimitiveType::Boolean)),
+                ObjectType::get(PrimitiveType::Boolean));
         }
 
         if (expr->op() == BinaryOperator::NotEquals) {
             return make_node<BoundUnaryExpression>(expr->token(),
                 make_node<BoundBinaryExpression>(expr->token(),
-                    lhs, BinaryOperator::Equals, rhs, ObjectType::get(ObelixType::TypeBoolean)),
+                    lhs, BinaryOperator::Equals, rhs, ObjectType::get(PrimitiveType::Boolean)),
                 UnaryOperator::LogicalInvert,
-                ObjectType::get(ObelixType::TypeBoolean));
+                ObjectType::get(PrimitiveType::Boolean));
         }
 
         return expr;

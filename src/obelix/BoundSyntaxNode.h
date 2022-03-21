@@ -6,7 +6,11 @@
 
 #pragma once
 
+#include <memory>
+
+#include <obelix/Intrinsics.h>
 #include <obelix/Syntax.h>
+#include <obelix/Type.h>
 
 namespace Obelix {
 
@@ -35,15 +39,18 @@ public:
     {
     }
 
-    explicit BoundExpression(Token token, ObelixType type)
+    explicit BoundExpression(Token token, PrimitiveType type)
         : SyntaxNode(std::move(token))
         , m_type(ObjectType::get(type))
     {
     }
 
+    ~BoundExpression()
+    {
+    }
+
     [[nodiscard]] std::shared_ptr<ObjectType> const& type() const { return m_type; }
     [[nodiscard]] std::string const& type_name() const { return m_type->name(); }
-    [[nodiscard]] virtual ErrorOr<std::optional<Obj>> to_object() const = 0;
     [[nodiscard]] std::string attributes() const override { return format(R"(type="{}")", type()->name()); }
 
 private:
@@ -69,7 +76,6 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundIdentifier; }
     [[nodiscard]] std::string const& name() const { return m_identifier; }
     [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" type="{}")", name(), type()); }
-    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
     [[nodiscard]] std::string to_string() const override { return format("{}: {}", name(), type()->to_string()); }
 
 private:
@@ -259,32 +265,91 @@ protected:
 
 class BoundLiteral : public BoundExpression {
 public:
-    explicit BoundLiteral(std::shared_ptr<Literal> const& literal, std::shared_ptr<ObjectType> type = nullptr)
-        : BoundExpression(literal, move(type))
-        , m_literal(literal->literal())
+    explicit BoundLiteral(std::shared_ptr<Literal> const& literal)
+        : BoundExpression(literal, ObjectType::get(literal->type()->type_name()))
+    {
+        switch (type()->type()) {
+        case PrimitiveType::String:
+            m_string = token().value();
+            m_bool = !m_string.empty();
+            break;
+        case PrimitiveType::Int:
+            m_int = token().to_long().value();
+            m_bool = m_int != 0;
+            break;
+        case PrimitiveType::Float:
+            m_float = token().to_double().value();
+            m_bool = m_float != 0.0;
+            break;
+        case PrimitiveType::Boolean:
+            m_bool = token().to_bool().value();
+            break;
+        default:
+            fatal("Unreachable");
+        }
+    }
+
+    explicit BoundLiteral(Token t, std::string value)
+        : BoundExpression(t, ObjectType::get(PrimitiveType::String))
+        , m_string(move(value))
+        , m_bool(!m_string.empty())
     {
     }
 
-    explicit BoundLiteral(Token const& token)
-        : BoundExpression(token, token.to_object()->type())
-        , m_literal(token.to_object())
+    explicit BoundLiteral(Token t, long value)
+        : BoundExpression(t, ObjectType::get(PrimitiveType::Int))
+        , m_int(value)
+        , m_bool(value != 0)
     {
     }
 
-    explicit BoundLiteral(Token token, Obj value)
-        : BoundExpression(std::move(token), value.type())
-        , m_literal(std::move(value))
+    explicit BoundLiteral(Token t, double value)
+        : BoundExpression(t, ObjectType::get(PrimitiveType::Float))
+        , m_float(value)
+        , m_bool(value != 0.0)
+    {
+    }
+
+    explicit BoundLiteral(Token t, bool value)
+        : BoundExpression(t, ObjectType::get(PrimitiveType::Boolean))
+        , m_bool(value)
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundLiteral; }
-    [[nodiscard]] std::string text_contents() const override { return m_literal->to_string(); }
-    [[nodiscard]] Obj const& literal() const { return m_literal; }
-    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return literal(); }
-    [[nodiscard]] std::string to_string() const override { return format("{}: {}", literal()->to_string(), type()->to_string()); }
+    [[nodiscard]] std::string text_contents() const override { return token().value(); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", token().value(), type()->to_string()); }
+
+    [[nodiscard]] std::string const& string_value() const
+    {
+        assert(type()->type() == PrimitiveType::String);
+        return m_string;
+    }
+
+    [[nodiscard]] long int_value() const
+    {
+        assert(type()->type() == PrimitiveType::Int);
+        return m_int;
+    }
+
+    [[nodiscard]] double float_value() const
+    {
+        assert(type()->type() == PrimitiveType::Float);
+        return m_float;
+    }
+
+    [[nodiscard]] uint8_t char_value() const
+    {
+        assert(type()->type() == PrimitiveType::Char);
+        return static_cast<uint8_t>(m_int);
+    }
+    [[nodiscard]] bool bool_value() const { return m_bool; }
 
 private:
-    Obj m_literal;
+    std::string m_string;
+    long m_int;
+    double m_float;
+    bool m_bool;
 };
 
 class BoundBinaryExpression : public BoundExpression {
@@ -308,7 +373,6 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundBinaryExpression; }
     [[nodiscard]] std::string attributes() const override { return format(R"(operator="{}" type="{}")", m_operator, type()); }
     [[nodiscard]] Nodes children() const override { return { m_lhs, m_rhs }; }
-    ErrorOr<std::optional<Obj>> to_object() const override;
     [[nodiscard]] std::string to_string() const override { return format("({} {} {}): {}", lhs(), op(), rhs(), type()); }
 
     [[nodiscard]] std::shared_ptr<BoundExpression> const& lhs() const { return m_lhs; }
@@ -343,8 +407,6 @@ public:
     [[nodiscard]] std::string to_string() const override { return format("{} ({}): {}", op(), operand()->to_string(), type()); }
     [[nodiscard]] UnaryOperator op() const { return m_operator; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& operand() const { return m_operand; }
-
-    ErrorOr<std::optional<Obj>> to_object() const override;
 
 private:
     UnaryOperator m_operator;
@@ -404,11 +466,6 @@ public:
         return format("{}({}): {}", name(), join(args, ","), type());
     }
 
-    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override
-    {
-        return std::optional<Obj> {};
-    }
-
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundFunctionCall; }
     [[nodiscard]] std::string const& name() const { return m_name; }
     [[nodiscard]] BoundExpressions const& arguments() const { return m_arguments; }
@@ -439,24 +496,70 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundNativeFunctionCall; }
 };
 
-class BoundIntrinsicCall : public BoundFunctionCall {
+class BoundIntrinsicCall : public BoundExpression {
 public:
-    explicit BoundIntrinsicCall(std::shared_ptr<FunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundIntrinsicDecl> decl)
-        : BoundFunctionCall(call, move(arguments), move(decl))
+    explicit BoundIntrinsicCall(std::shared_ptr<FunctionCall> const& call, IntrinsicType intrinsic, BoundExpressions arguments, std::shared_ptr<ObjectType> type)
+        : BoundExpression(call->token(), move(type))
+        , m_name(call->name())
+        , m_arguments(move(arguments))
+        , m_intrinsic(intrinsic)
     {
     }
 
-    explicit BoundIntrinsicCall(std::shared_ptr<BoundFunctionCall> const& call, BoundExpressions arguments)
-        : BoundFunctionCall(call, move(arguments), std::make_shared<BoundIntrinsicDecl>(call->declaration()))
-    {
-    }
-
-    explicit BoundIntrinsicCall(Token token, std::shared_ptr<BoundFunctionDecl> const& decl, BoundExpressions arguments)
-        : BoundFunctionCall(std::move(token), decl, move(arguments))
+    explicit BoundIntrinsicCall(Token token, std::string name, IntrinsicType intrinsic, BoundExpressions arguments, std::shared_ptr<ObjectType> type)
+        : BoundExpression(std::move(token), move(type))
+        , m_name(move(name))
+        , m_arguments(move(arguments))
+        , m_intrinsic(intrinsic)
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundIntrinsicCall; }
+    [[nodiscard]] IntrinsicType intrinsic() const { return m_intrinsic; }
+
+    [[nodiscard]] std::string attributes() const override
+    {
+        return format(R"(name="{}" type="{}")", name(), type());
+    }
+
+    [[nodiscard]] std::string text_contents() const override
+    {
+        std::string ret = "<Arguments";
+        if (m_arguments.empty())
+            return ret + "/>";
+        ret += ">";
+        for (auto& arg : m_arguments) {
+            ret += '\n';
+            ret += arg->to_xml(2);
+        }
+        return ret + "\n</Arguments>";
+    }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        Strings args;
+        for (auto& arg : m_arguments) {
+            args.push_back(arg->to_string());
+        }
+        return format("{}({}): {}", name(), join(args, ","), type());
+    }
+
+    [[nodiscard]] std::string const& name() const { return m_name; }
+    [[nodiscard]] BoundExpressions const& arguments() const { return m_arguments; }
+
+    [[nodiscard]] ObjectTypes argument_types() const
+    {
+        ObjectTypes ret;
+        for (auto& arg : arguments()) {
+            ret.push_back(arg->type());
+        }
+        return ret;
+    }
+
+private:
+    std::string m_name;
+    BoundExpressions m_arguments;
+    IntrinsicType m_intrinsic;
 };
 
 class BoundExpressionStatement : public Statement {
@@ -814,7 +917,6 @@ public:
     [[nodiscard]] std::shared_ptr<BoundIdentifier> const& identifier() const { return m_identifier; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const { return m_expression; }
     [[nodiscard]] std::string const& name() const { return identifier()->name(); }
-    ErrorOr<std::optional<Obj>> to_object() const override { return identifier()->to_object(); }
     [[nodiscard]] Nodes children() const override { return { identifier(), expression() }; }
     [[nodiscard]] std::string to_string() const override { return format("{} = {}", identifier()->to_string(), expression()->to_string()); }
 

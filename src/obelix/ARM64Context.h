@@ -22,6 +22,9 @@ namespace Obelix {
 
 extern_logging_category(arm64);
 
+class ARM64Context;
+using ARM64Implementation = std::function<ErrorOr<void>(ARM64Context&)>;
+
 class Assembly {
 public:
     template<typename... Args>
@@ -138,7 +141,7 @@ public:
     }
 
     void initialize_target_register();
-    void release_target_register(ObelixType type = ObelixType::TypeUnknown);
+    void release_target_register(PrimitiveType type = PrimitiveType::Unknown);
     void inc_target_register();
     [[nodiscard]] int target_register() const;
 

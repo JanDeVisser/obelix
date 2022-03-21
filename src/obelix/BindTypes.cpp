@@ -42,7 +42,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             }
             expr = std::dynamic_pointer_cast<BoundExpression>(processed_expr);
 
-            if (var_type && var_type->type() != ObelixType::TypeAny && (*(expr->type()) != *var_type))
+            if (var_type && var_type->type() != PrimitiveType::Any && (*(expr->type()) != *var_type))
                 return Error { ErrorCode::TypeMismatch, var_decl->name(), var_decl->type(), expr->type() };
             if (!var_type)
                 var_type = expr->type();
@@ -218,7 +218,7 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
 
     case SyntaxNodeType::Literal: {
         auto literal = std::dynamic_pointer_cast<Literal>(tree);
-        return make_node<BoundLiteral>(literal->token());
+        return make_node<BoundLiteral>(literal);
     }
 
     case SyntaxNodeType::FunctionCall: {
@@ -233,17 +233,12 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
             arg_types.push_back(processed_arg->type());
         }
 
-        if (!Intrinsics::is_intrinsic(func_call->name(), arg_types)) {
-            auto type_decl_maybe = ctx.get(func_call->name());
-            if (!type_decl_maybe.has_value())
-                return Error { ErrorCode::UntypedFunction, func_call->name() };
-            if (type_decl_maybe.value()->node_type() == SyntaxNodeType::BoundVariableDeclaration)
-                return Error { ErrorCode::SyntaxError, format("Variable {} cannot be called", func_call->name()) };
-            func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(type_decl_maybe.value());
-        } else {
-            auto intrinsic = Intrinsics::get_intrinsic(func_call->name(), arg_types);
-            func_decl = intrinsic.declaration;
-        }
+        auto type_decl_maybe = ctx.get(func_call->name());
+        if (!type_decl_maybe.has_value())
+            return Error { ErrorCode::UntypedFunction, func_call->name() };
+        if (type_decl_maybe.value()->node_type() == SyntaxNodeType::BoundVariableDeclaration)
+            return Error { ErrorCode::SyntaxError, format("Variable {} cannot be called", func_call->name()) };
+        func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(type_decl_maybe.value());
         if (args.size() != func_decl->parameters().size())
             return Error { ErrorCode::ArgumentCountMismatch, func_call->name(), func_call->arguments().size() };
 
@@ -255,8 +250,12 @@ ErrorOrNode bind_types_processor(std::shared_ptr<SyntaxNode> const& tree, BindCo
         }
 
         switch (func_decl->node_type()) {
-        case SyntaxNodeType::BoundIntrinsicDecl:
-            return make_node<BoundIntrinsicCall>(func_call, args, std::dynamic_pointer_cast<BoundIntrinsicDecl>(func_decl));
+        case SyntaxNodeType::BoundIntrinsicDecl: {
+            auto intrinsic = IntrinsicType_by_name(func_decl->name());
+            if (intrinsic == IntrinsicType::NotIntrinsic)
+                return Error { ErrorCode::SyntaxError, format("Intrinsic {} not defined", func_decl->name()) };
+            return make_node<BoundIntrinsicCall>(func_call, intrinsic, args, func_decl->type());
+        }
         case SyntaxNodeType::BoundNativeFunctionDecl:
             return make_node<BoundNativeFunctionCall>(func_call, args, std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl));
         default:

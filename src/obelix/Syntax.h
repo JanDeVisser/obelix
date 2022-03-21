@@ -6,15 +6,14 @@
 
 #pragma once
 
-#include <core/List.h>
-#include <core/Logging.h>
-#include <core/NativeFunction.h>
-#include <core/Range.h>
-#include <core/Type.h>
-#include <lexer/Token.h>
-#include <obelix/Symbol.h>
-#include <obelix/SyntaxNodeType.h>
+#include <memory>
 #include <string>
+#include <vector>
+
+#include <core/Logging.h>
+#include <lexer/Token.h>
+#include <obelix/Type.h>
+#include <obelix/SyntaxNodeType.h>
 
 namespace Obelix {
 
@@ -35,14 +34,6 @@ static inline std::string pad(int num)
         ret += ' ';
     return ret;
 }
-
-#define TO_OBJECT(expr)                                     \
-    ({                                                      \
-        auto _to_obj_temp_maybe = TRY((expr)->to_object()); \
-        if (!_to_obj_temp_maybe.has_value())                \
-            return std::optional<Obj> {};                   \
-        _to_obj_temp_maybe.value();                         \
-    })
 
 class SyntaxNode {
 public:
@@ -119,9 +110,9 @@ public:
     {
     }
 
-    explicit ExpressionType(Token token, ObelixType type)
+    explicit ExpressionType(Token token, PrimitiveType type)
         : SyntaxNode(std::move(token))
-        , m_type_name(ObelixType_name(type))
+        , m_type_name(PrimitiveType_name(type))
     {
     }
 
@@ -181,7 +172,6 @@ public:
     [[nodiscard]] std::shared_ptr<ExpressionType> const& type() const { return m_type; }
     [[nodiscard]] std::string type_name() const { return (m_type) ? type()->type_name() : "[Unresolved]"; }
     [[nodiscard]] bool is_typed() { return m_type != nullptr; }
-    [[nodiscard]] virtual ErrorOr<std::optional<Obj>> to_object() const = 0;
     [[nodiscard]] std::string attributes() const override { return format(R"(type="{}")", type_name()); }
 
 private:
@@ -199,7 +189,6 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Identifier; }
     [[nodiscard]] std::string const& name() const { return m_identifier; }
     [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" type="{}")", name(), type()->to_string()); }
-    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
     [[nodiscard]] std::string to_string() const override { return format("{}: {}", name(), type()); }
 
 private:
@@ -568,23 +557,17 @@ private:
 
 class Literal : public Expression {
 public:
-    explicit Literal(Token const& token)
-        : Expression(token, std::make_shared<ExpressionType>(token, token.to_object()->type()))
-        , m_literal(token.to_object())
+    Literal(Token const& t, PrimitiveType type)
+        : Expression(t, std::make_shared<ExpressionType>(t, type))
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Literal; }
-    [[nodiscard]] std::string text_contents() const override { return format("{}", m_literal->to_string()); }
-    [[nodiscard]] Obj const& literal() const { return m_literal; }
-    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return literal(); }
-    [[nodiscard]] std::string to_string() const override { return format("{}: {}", literal()->to_string(), type()); }
-
-private:
-    Obj m_literal;
+    [[nodiscard]] std::string text_contents() const override { return token().value(); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", token().value(), type()->to_string()); }
 };
 
-typedef std::vector<std::shared_ptr<Expression>> Expressions;
+using Expressions = std::vector<std::shared_ptr<Expression>>;
 
 class This : public Expression {
 public:
@@ -594,7 +577,6 @@ public:
     }
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::This; }
 
-    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
     [[nodiscard]] std::string to_string() const override { return "this"; }
 };
 
@@ -612,7 +594,6 @@ public:
     [[nodiscard]] std::string attributes() const override { return format(R"(operator="{}" type="{}")", m_operator.value(), type()); }
     [[nodiscard]] Nodes children() const override { return { m_lhs, m_rhs }; }
     [[nodiscard]] std::string to_string() const override { return format("{} {} {}", lhs()->to_string(), op().value(), rhs()->to_string()); }
-    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override { return std::optional<Obj> {}; }
 
     [[nodiscard]] std::shared_ptr<Expression> const& lhs() const { return m_lhs; }
     [[nodiscard]] std::shared_ptr<Expression> const& rhs() const { return m_rhs; }
@@ -639,17 +620,6 @@ public:
     [[nodiscard]] std::string to_string() const override { return format("{} {}", op().value(), operand()->to_string()); }
     [[nodiscard]] Token op() const { return m_operator; }
     [[nodiscard]] std::shared_ptr<Expression> const& operand() const { return m_operand; }
-
-    ErrorOr<std::optional<Obj>> to_object() const override
-    {
-        auto operand = TO_OBJECT(m_operand);
-        if (operand->is_exception())
-            return operand;
-        auto ret_maybe = operand->evaluate(m_operator.value());
-        if (!ret_maybe.has_value())
-            return make_obj<Exception>(ErrorCode::OperatorUnresolved, m_operator.value(), operand);
-        return ret_maybe.value();
-    }
 
 private:
     Token m_operator;
@@ -690,11 +660,6 @@ public:
             args.push_back(arg->to_string());
         }
         return format("{}({}): {}", name(), join(args, ","), type());
-    }
-
-    [[nodiscard]] ErrorOr<std::optional<Obj>> to_object() const override
-    {
-        return std::optional<Obj> {};
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FunctionCall; }

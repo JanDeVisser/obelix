@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "core/StringUtil.h"
 #include <core/Object.h>
 #include <optional>
 #include <string>
@@ -224,6 +225,48 @@ public:
     [[nodiscard]] std::optional<bool> to_bool() const;
     [[nodiscard]] int compare(Token const& other) const;
     [[nodiscard]] bool is_whitespace() const;
+
+    template <typename T>
+    T token_value() const
+    {
+        fatal("Specialize Token::token_value for type '{}'", typeid(T).name());
+    }
+
+    template <>
+    std::string const& token_value() const
+    {
+        return m_value;
+    }
+
+    template <>
+    int token_value() const
+    {
+        assert(m_code == TokenCode::Float || m_code == TokenCode::Integer || m_code == TokenCode::HexNumber);
+        return to_long_unconditional(m_value);
+    }
+
+    template <>
+    long token_value() const
+    {
+        assert(m_code == TokenCode::Float || m_code == TokenCode::Integer || m_code == TokenCode::HexNumber);
+        return to_long_unconditional(m_value);
+    }
+
+    template <>
+    double token_value() const
+    {
+        assert(m_code == TokenCode::Float || m_code == TokenCode::Integer || m_code == TokenCode::HexNumber);
+        return to_long_unconditional(m_value);
+    }
+
+    template <>
+    bool token_value() const
+    {
+        auto number_maybe = to_long();
+        if (number_maybe.has_value())
+            return number_maybe.value() != 0;
+        return Obelix::to_bool_unconditional(m_value);
+    }
 
     Span location { 0, 0, 0, 0 };
 

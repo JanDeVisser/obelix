@@ -4,44 +4,17 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Operator.h"
 #include <core/Arguments.h>
+#include <memory>
 #include <obelix/BoundFunction.h>
+#include <obelix/Execute.h>
+#include <obelix/Intrinsics.h>
 #include <obelix/Processor.h>
 
 namespace Obelix {
 
 extern_logging_category(parser);
-
-ErrorOr<std::optional<Obj>> get_object(std::shared_ptr<Expression> const& expr, Context<Obj>& ctx)
-{
-    if (auto obj_maybe = TRY(expr->to_object()); obj_maybe.has_value()) {
-        return obj_maybe.value();
-    }
-    auto processed = std::dynamic_pointer_cast<Expression>(TRY(process_tree(expr, ctx)));
-    if (processed->node_type() == SyntaxNodeType::Literal)
-        return std::dynamic_pointer_cast<Literal>(processed)->literal();
-    if (auto obj_maybe = TRY(processed->to_object()); obj_maybe.has_value()) {
-        return obj_maybe.value();
-    }
-    return std::optional<Obj> {};
-}
-
-#define OBJ(node, ctx)                                                                                     \
-    ({                                                                                                     \
-        std::shared_ptr<Literal> __literal;                                                                \
-        if ((node)->node_type() != SyntaxNodeType::Literal) {                                              \
-            auto __node_processed = TRY(process_node((node), ctx));                                        \
-            if (__node_processed->node_type() != SyntaxNodeType::Literal)                                  \
-                return Error(ErrorCode::SyntaxError, "Expression '" #node "' does not result in literal"); \
-            __literal = std::dynamic_pointer_cast<Literal>(__node_processed);                              \
-        } else {                                                                                           \
-            __literal = std::dynamic_pointer_cast<Literal>((node));                                        \
-        }                                                                                                  \
-        auto __obj = __literal->literal();                                                                 \
-        if (__obj->is_exception())                                                                         \
-            return std::make_shared<Literal>(__obj);                                                       \
-        __obj;                                                                                             \
-    })
 
 #define STMT_RESULT(expr)                                                                                                                                  \
     ({                                                                                                                                                     \
@@ -51,13 +24,53 @@ ErrorOr<std::optional<Obj>> get_object(std::shared_ptr<Expression> const& expr, 
         std::dynamic_pointer_cast<StatementExecutionResult>(__stmt_result);                                                                                \
     })
 
-using ExecuteContext = Context<Obj>;
-ExecuteContext::ProcessorMap execute_map;
-ExecuteContext::ProcessorMap stmt_execute_map;
+using ProcessorMap = std::unordered_map<SyntaxNodeType,std::function<ErrorOrNode(std::shared_ptr<SyntaxNode>,ExecuteContext&)>>;
+ProcessorMap stmt_execute_map;
+
+ErrorOrNode execute_processor(std::shared_ptr<SyntaxNode> const&, ExecuteContext&);
+
+using FunctionType = std::function<ErrorOr<void>(ExecuteContext&)>;
+static std::array<FunctionType, IntrinsicType::count> s_intrinsics = {};
+
+bool register_interpreter_intrinsic(IntrinsicType type, FunctionType intrinsic)
+{
+    s_intrinsics[type] = intrinsic;
+    return true;
+}
+
+#define INTRINSIC(intrinsic)                                                                                              \
+    ErrorOr<void> interpreter_intrinsic_##intrinsic(ExecuteContext& ctx);                                                 \
+    auto s_interpreter_##intrinsic##_decl = register_interpreter_intrinsic(intrinsic, interpreter_intrinsic_##intrinsic); \
+    ErrorOr<void> interpreter_intrinsic_##intrinsic(ExecuteContext& ctx)
+
+INTRINSIC(add_int_int)
+{
+    ctx.set_return_value(
+        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+            ctx.arguments()[0]->int_value() + ctx.arguments()[1]->int_value()));
+    return {};
+}
+
+ExecuteContext::ExecuteContext(ExecuteContext& parent)
+    : Context<int>(parent)
+{
+}
+
+ExecuteContext::ExecuteContext(ExecuteContext* parent)
+    : Context<int>(parent)
+{
+}
+
+ExecuteContext::ExecuteContext()
+    : Context()
+{
+}
+
+#if 0
 
 ErrorOrNode process_SyntaxNode(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx)
 {
-    debug(parser, "Executing '{}' ({})", tree->to_string(0), SyntaxNodeType_name(tree->node_type()));
+    debug(parser, "Executing '{}' ({})", tree->to_string(), SyntaxNodeType_name(tree->node_type()));
     return tree;
 };
 
@@ -196,44 +209,6 @@ ErrorOrNode process_TypedExpression(std::shared_ptr<SyntaxNode> const& tree, Con
     return std::make_shared<Literal>(ret);
 };
 
-ErrorOrNode process_BinaryExpression(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx)
-{
-    auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
-    if (expr->op().code() == TokenCode::Equals) {
-        if (expr->lhs()->node_type() != SyntaxNodeType::Identifier)
-            return Error(ErrorCode::SyntaxError, "Left hand side of assignment is not an lvalue ({} {})", SyntaxNodeType_name(expr->lhs()->node_type()), expr->lhs()->to_string(0));
-        auto identifier = std::dynamic_pointer_cast<Identifier>(expr->lhs());
-        auto rhs_obj = OBJ(expr->rhs(), ctx);
-        ctx.set(identifier->name(), rhs_obj);
-        return std::make_shared<Literal>(rhs_obj);
-    }
-
-    auto right = OBJ(expr->rhs(), ctx);
-    auto left = OBJ(expr->lhs(), ctx);
-    auto ret_maybe = left.evaluate(expr->op().value(), right);
-    if (!ret_maybe.has_value())
-        return Error { ErrorCode::OperatorUnresolved, expr->op().value(), left };
-    return std::make_shared<Literal>(ret_maybe.value());
-};
-
-ErrorOrNode process_Identifier(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx)
-{
-    auto ident = std::dynamic_pointer_cast<Identifier>(tree);
-    if (auto value_maybe = ctx.get(ident->name()); value_maybe.has_value())
-        return std::make_shared<Literal>(value_maybe.value());
-    return tree;
-};
-
-ErrorOrNode process_UnaryExpression(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx)
-{
-    auto expr = std::dynamic_pointer_cast<UnaryExpression>(tree);
-    auto operand = OBJ(expr->operand(), ctx);
-    auto ret_maybe = operand->evaluate(expr->op().value());
-    if (!ret_maybe.has_value())
-        return Error { ErrorCode::OperatorUnresolved, expr->op().value(), operand };
-    return std::make_shared<Literal>(ret_maybe.value());
-};
-
 ErrorOrNode process_FunctionCall(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx)
 {
     auto function_call = std::dynamic_pointer_cast<FunctionCall>(tree);
@@ -293,8 +268,75 @@ ErrorOrNode process_Block(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>&
     return result;
 };
 
-ErrorOrNode execute(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& root)
+ErrorOrNode process_Identifier(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx)
 {
+    auto ident = std::dynamic_pointer_cast<Identifier>(tree);
+    if (auto value_maybe = ctx.get(ident->name()); value_maybe.has_value())
+        return std::make_shared<Literal>(value_maybe.value());
+    return tree;
+};
+
+#endif
+
+ErrorOrNode process_BoundBinaryExpression(std::shared_ptr<SyntaxNode> const& tree, ExecuteContext& ctx)
+{
+    auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
+    auto lhs = TRY_AND_CAST(BoundExpression, execute_processor(expr->lhs(), ctx));
+    auto rhs = TRY_AND_CAST(BoundExpression, execute_processor(expr->rhs(), ctx));
+
+    if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract))
+        return tree;
+    if (BinaryOperator_is_assignment(expr->op()))
+        return tree;
+
+    auto method_def_maybe = lhs->type()->get_method(to_operator(expr->op()), { rhs->type() });
+    if (!method_def_maybe.has_value())
+        return tree;
+    auto impl = method_def_maybe.value().implementation(Architecture::INTERPRETER);
+    if (!impl.is_intrinsic || impl.intrinsic != IntrinsicType::NotIntrinsic || s_intrinsics[impl.intrinsic] == nullptr)
+        return tree;
+
+    ctx.reset();
+    ctx.add_argument(std::dynamic_pointer_cast<BoundLiteral>(lhs));
+    ctx.add_argument(std::dynamic_pointer_cast<BoundLiteral>(rhs));
+    
+    auto func = s_intrinsics[impl.intrinsic];
+    if (auto err = func(ctx); err.is_error())
+        return err.error();
+    return ctx.return_value();
+};
+
+ErrorOrNode process_BoundUnaryExpression(std::shared_ptr<SyntaxNode> const& tree, ExecuteContext& ctx)
+{
+    auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
+    auto operand = TRY_AND_CAST(BoundExpression, execute_processor(expr->operand(), ctx));
+
+    if (operand->type()->type() == PrimitiveType::Pointer)
+        return tree;
+
+    auto method_def_maybe = operand->type()->get_method(to_operator(expr->op()), {});
+    if (!method_def_maybe.has_value())
+        return tree;
+    auto impl = method_def_maybe.value().implementation(Architecture::INTERPRETER);
+    if (!impl.is_intrinsic || impl.intrinsic != IntrinsicType::NotIntrinsic || s_intrinsics[impl.intrinsic] == nullptr)
+        return tree;
+
+    ctx.reset();
+    ctx.add_argument(std::dynamic_pointer_cast<BoundLiteral>(operand));
+    
+    auto func = s_intrinsics[impl.intrinsic];
+    if (auto err = func(ctx); err.is_error())
+        return err.error();
+    return ctx.return_value();
+};
+
+
+
+[[maybe_unused]] auto dummy = []() {
+    stmt_execute_map[SyntaxNodeType::BoundBinaryExpression] = process_BoundBinaryExpression;
+    stmt_execute_map[SyntaxNodeType::BoundUnaryExpression] = process_BoundUnaryExpression;
+
+#if 0
     stmt_execute_map[SyntaxNodeType::SyntaxNode] = process_SyntaxNode;
     stmt_execute_map[SyntaxNodeType::Statement] = process_Statement;
     stmt_execute_map[SyntaxNodeType::Pass] = process_Pass;
@@ -316,24 +358,27 @@ ErrorOrNode execute(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& root)
     stmt_execute_map[SyntaxNodeType::SwitchStatement] = process_SwitchStatement;
     stmt_execute_map[SyntaxNodeType::ExpressionStatement] = process_ExpressionStatement;
     stmt_execute_map[SyntaxNodeType::TypedExpression] = process_TypedExpression;
-    stmt_execute_map[SyntaxNodeType::BinaryExpression] = process_BinaryExpression;
     stmt_execute_map[SyntaxNodeType::Identifier] = process_Identifier;
-    stmt_execute_map[SyntaxNodeType::UnaryExpression] = process_UnaryExpression;
     stmt_execute_map[SyntaxNodeType::FunctionCall] = process_FunctionCall;
 
     execute_map[SyntaxNodeType::Block] = process_Block;
     stmt_execute_map[SyntaxNodeType::Block] = process_Block;
     execute_map[SyntaxNodeType::Module] = process_Block;
+#endif
+    return true;
+};
 
-    Context<Obj> ctx(&root, execute_map);
-    debug(parser, "Executing '{}'", tree->to_string(0));
-    return process_node(tree, ctx);
+ErrorOrNode execute_processor(std::shared_ptr<SyntaxNode> const& tree, ExecuteContext& ctx)
+{
+    if (stmt_execute_map.contains(tree->node_type()))
+        return stmt_execute_map[tree->node_type()](tree, ctx);
+    return process_tree(tree, ctx, execute_processor);    
 }
 
 ErrorOrNode execute(std::shared_ptr<SyntaxNode> const& tree)
 {
-    Context<Obj> root;
-    return execute(tree, root);
+    ExecuteContext root;
+    return execute_processor(tree, root);
 }
 
 }

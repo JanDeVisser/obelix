@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Intrinsics.h"
+#include "obelix/Operator.h"
+#include "obelix/Type.h"
 #include <filesystem>
 
 #include <config.h>
@@ -13,7 +16,7 @@
 #include <core/ScopeGuard.h>
 #include <obelix/ARM64.h>
 #include <obelix/ARM64Context.h>
-#include <obelix/Intrinsics.h>
+#include <obelix/ARM64Intrinsics.h>
 #include <obelix/MaterializedSyntaxNode.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
@@ -98,8 +101,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             TRY_RETURN(output_arm64_processor(arg, ctx));
             ctx.inc_target_register();
         }
-        auto decl = call->declaration();
-        ARM64Implementation impl = Intrinsics::get_arm64_implementation(decl);
+        ARM64Implementation impl = get_arm64_intrinsic(call->intrinsic());
         if (!impl)
             return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string()) };
         auto ret = impl(ctx);
@@ -111,30 +113,29 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
 
     case SyntaxNodeType::BoundLiteral: {
         auto literal = std::dynamic_pointer_cast<BoundLiteral>(tree);
-        auto obj = literal->literal();
         auto target = ctx.target_register();
-        switch (obj.type()) {
-        case ObelixType::TypePointer:
-        case ObelixType::TypeInt:
-        case ObelixType::TypeUnsigned: {
-            ctx.assembly().add_instruction("mov", "x{},#{}", target, obj->to_long().value());
+        switch (literal->type()->type()) {
+        case PrimitiveType::Pointer:
+        case PrimitiveType::Int:
+        case PrimitiveType::Unsigned: {
+            ctx.assembly().add_instruction("mov", "x{},#{}", target, literal->int_value());
             break;
         }
-        case ObelixType::TypeChar:
-        case ObelixType::TypeByte:
-        case ObelixType::TypeBoolean: {
-            ctx.assembly().add_instruction("mov", "w{},#{}", target, static_cast<uint8_t>(obj->to_long().value()));
+        case PrimitiveType::Char:
+        case PrimitiveType::Byte:
+        case PrimitiveType::Boolean: {
+            ctx.assembly().add_instruction("mov", "w{},#{}", target, static_cast<uint8_t>(literal->int_value()));
             break;
         }
-        case ObelixType::TypeString: {
-            auto str_id = ctx.assembly().add_string(obj->to_string());
+        case PrimitiveType::String: {
+            auto str_id = ctx.assembly().add_string(literal->string_value());
             ctx.assembly().add_instruction("adr", "x{},str_{}", target, str_id);
-            ctx.assembly().add_instruction("mov", "w{},#{}", target + 1, obj->to_string().length());
+            ctx.assembly().add_instruction("mov", "w{},#{}", target + 1, literal->string_value().length());
             ctx.inc_target_register();
             break;
         }
         default:
-            return Error(ErrorCode::NotYetImplemented, format("Cannot emit literals of type {} yet", ObelixType_name(obj.type())));
+            return Error(ErrorCode::NotYetImplemented, format("Cannot emit literals of type {} yet", literal->type()->to_string()));
         }
         return tree;
     }
@@ -148,21 +149,21 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         auto target = ctx.target_register();
 
         switch (identifier->type()->type()) {
-        case ObelixType::TypePointer:
-        case ObelixType::TypeInt:
+        case PrimitiveType::Pointer:
+        case PrimitiveType::Int:
             ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, idx);
             break;
-        case ObelixType::TypeUnsigned:
+        case PrimitiveType::Unsigned:
             ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", target, idx);
             break;
-        case ObelixType::TypeByte:
+        case PrimitiveType::Byte:
             ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", target, idx);
             break;
-        case ObelixType::TypeChar:
-        case ObelixType::TypeBoolean:
+        case PrimitiveType::Char:
+        case PrimitiveType::Boolean:
             ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", target, idx);
             break;
-        case ObelixType::TypeString: {
+        case PrimitiveType::String: {
             ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, idx);
             ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target + 1, idx + 8);
             ctx.inc_target_register();
@@ -186,21 +187,21 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
         TRY_RETURN(output_arm64_processor(assignment->expression(), ctx));
 
         switch (assignment->type()->type()) {
-        case ObelixType::TypePointer:
-        case ObelixType::TypeInt:
+        case PrimitiveType::Pointer:
+        case PrimitiveType::Int:
             ctx.assembly().add_instruction("str", "x0,[fp,#{}]", idx);
             break;
-        case ObelixType::TypeUnsigned:
+        case PrimitiveType::Unsigned:
             ctx.assembly().add_instruction("str", "x0,[fp,#{}]", idx);
             break;
-        case ObelixType::TypeByte:
+        case PrimitiveType::Byte:
             ctx.assembly().add_instruction("strbs", "x0,[fp,#{}]", idx);
             break;
-        case ObelixType::TypeChar:
-        case ObelixType::TypeBoolean:
+        case PrimitiveType::Char:
+        case PrimitiveType::Boolean:
             ctx.assembly().add_instruction("strb", "x0,[fp,#{}]", idx);
             break;
-        case ObelixType::TypeString: {
+        case PrimitiveType::String: {
             ctx.assembly().add_instruction("str", "x0,[fp,#{}]", idx);
             ctx.assembly().add_instruction("str", "w1,[fp,#{}]", idx + 8);
             break;
@@ -222,15 +223,15 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             TRY_RETURN(output_arm64_processor(var_decl->expression(), ctx));
         } else {
             switch (var_decl->type()->type()) {
-            case ObelixType::TypeString: {
+            case PrimitiveType::String: {
                 ctx.assembly().add_instruction("mov", "w1,wzr");
             } // fall through
-            case ObelixType::TypePointer:
-            case ObelixType::TypeInt:
-            case ObelixType::TypeUnsigned:
-            case ObelixType::TypeByte:
-            case ObelixType::TypeChar:
-            case ObelixType::TypeBoolean:
+            case PrimitiveType::Pointer:
+            case PrimitiveType::Int:
+            case PrimitiveType::Unsigned:
+            case PrimitiveType::Byte:
+            case PrimitiveType::Char:
+            case PrimitiveType::Boolean:
                 ctx.assembly().add_instruction("mov", "x0,xzr");
                 break;
             default:
@@ -238,7 +239,7 @@ ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM6
             }
         }
         ctx.assembly().add_instruction("str", "x0,[fp,#{}]", var_decl->offset());
-        if (var_decl->type()->type() == ObelixType::TypeString) {
+        if (var_decl->type()->type() == PrimitiveType::String) {
             ctx.assembly().add_instruction("str", "x1,[fp,#{}]", var_decl->offset() + 8);
         }
         ctx.release_target_register(var_decl->type()->type());
@@ -334,7 +335,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         for (auto& parameter : func_decl->parameters()) {
             function_parameters.push_back(make_node<MaterializedFunctionParameter>(parameter, offset));
             switch (parameter->type()->type()) {
-            case ObelixType::TypeString:
+            case PrimitiveType::String:
                 offset += 16;
                 break;
             default:
@@ -372,7 +373,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto expression = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(var_decl->expression(), ctx));
         auto ret = make_node<MaterializedVariableDecl>(var_decl, offset, expression);
         switch (var_decl->type()->type()) {
-        case ObelixType::TypeString:
+        case PrimitiveType::String:
             offset += 16;
             break;
         default:
@@ -403,23 +404,25 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
         auto operand = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->operand(), ctx));
 
-        std::shared_ptr<BoundFunctionDecl> declaration;
+        IntrinsicType intrinsic;
         switch (expr->op()) {
         case UnaryOperator::Dereference:
-            declaration = Intrinsics::get_intrinsic(intrinsic_dereference).declaration;
-            declaration = make_node<BoundFunctionDecl>(expr,
-                std::make_shared<BoundIdentifier>(expr->token(), declaration->name(), expr->type()),
-                declaration->parameters());
+            intrinsic = IntrinsicType::dereference;
             break;
         default: {
-            Signature s { UnaryOperator_name(expr->op()), expr->type(), { operand->type() } };
-            if (!Intrinsics::is_intrinsic(s))
-                return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", s.name) };
-            declaration = Intrinsics::get_intrinsic(s).declaration;
+            auto method_descr_maybe = operand->type()->get_method(to_operator(expr->op()), {});
+            if (!method_descr_maybe.has_value())
+                return Error { ErrorCode::InternalError, format("No method defined for unary operator {}::{}", 
+                    operand->type()->to_string(), expr->op()) };
+            auto method_descr = method_descr_maybe.value();
+            auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
+            if (!impl.is_intrinsic || impl.intrinsic != IntrinsicType::NotIntrinsic)
+                return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", method_descr.name()) };
+            intrinsic = impl.intrinsic;
             break;
         }
         }
-        return make_node<BoundIntrinsicCall>(expr->token(), declaration, BoundExpressions { operand });
+        return make_node<BoundIntrinsicCall>(expr->token(), UnaryOperator_name(expr->op()), intrinsic, BoundExpressions { operand }, expr->type());
     }
 
     case SyntaxNodeType::BoundBinaryExpression: {
@@ -427,13 +430,13 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
         auto lhs = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->lhs(), ctx));
         auto rhs = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->rhs(), ctx));
 
-        if (lhs->type()->type() == TypePointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract)) {
+        if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract)) {
             std::shared_ptr<BoundExpression> offset { nullptr };
-            auto target_type = (lhs->type()->is_template_instantiation()) ? lhs->type()->template_arguments()[0] : ObjectType::get(TypeChar);
+            auto target_type = (lhs->type()->is_template_instantiation()) ? lhs->type()->template_arguments()[0] : get_type<uint8_t>();
 
             if (rhs->node_type() == SyntaxNodeType::BoundLiteral) {
                 auto offset_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
-                auto offset_val = offset_literal->literal()->to_long().value();
+                auto offset_val = offset_literal->int_value();
                 if (expr->op() == BinaryOperator::Subtract)
                     offset_val *= -1;
                 offset = make_node<BoundLiteral>(rhs->token(), make_obj<Integer>(target_type->size() * offset_val));
@@ -442,21 +445,23 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
                 if (expr->op() == BinaryOperator::Subtract)
                     offset = make_node<BoundUnaryExpression>(expr->token(), offset, UnaryOperator::Negate, expr->type());
                 auto size = make_node<BoundLiteral>(rhs->token(), make_obj<Integer>(target_type->size()));
-                offset = make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, ObjectType::get(TypeInt));
+                offset = make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, get_type<int>());
                 offset = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(offset, ctx));
             }
-            auto intrinsic = Intrinsics::get_intrinsic(IntrinsicType::intrinsic_ptr_math);
-            auto decl = make_node<BoundFunctionDecl>(expr,
-                std::make_shared<BoundIdentifier>(expr->token(), intrinsic.declaration->name(), expr->type()),
-                intrinsic.declaration->parameters());
-            return make_node<BoundIntrinsicCall>(expr->token(), decl, BoundExpressions { lhs, offset });
+            return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), IntrinsicType::ptr_math, BoundExpressions { lhs, offset }, expr->type());
         }
 
-        Signature s { BinaryOperator_name(expr->op()), expr->type(), { lhs->type(), rhs->type() } };
-        if (!Intrinsics::is_intrinsic(s))
-            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", s.name) };
-        auto intrinsic = Intrinsics::get_intrinsic(s);
-        return make_node<BoundIntrinsicCall>(expr->token(), intrinsic.declaration, BoundExpressions { lhs, rhs });
+        auto method_descr_maybe = lhs->type()->get_method(to_operator(expr->op()), { rhs->type() });
+        if (!method_descr_maybe.has_value())
+            return Error { ErrorCode::InternalError, format("No method defined for binary operator {}::{}({})", 
+                lhs->type()->to_string(), expr->op(), rhs->type()->to_string()) };
+        auto method_descr = method_descr_maybe.value();
+        auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
+        if (!impl.is_intrinsic || impl.intrinsic != IntrinsicType::NotIntrinsic)
+            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", method_descr.name()) };
+        auto intrinsic = impl.intrinsic;
+
+        return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), intrinsic, BoundExpressions { lhs, rhs }, expr->type() );
     }
 
     default:
@@ -531,7 +536,7 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
             auto exit_code = execute(run_cmd);
             if (exit_code.is_error())
                 return exit_code.error();
-            ret = make_node<BoundLiteral>(Token { TokenCode::Integer, format("{}", exit_code.value()) });
+            ret = make_node<BoundLiteral>(Token { TokenCode::Integer, format("{}", exit_code.value()) }, (long) exit_code.value());
         }
     }
     return ret;

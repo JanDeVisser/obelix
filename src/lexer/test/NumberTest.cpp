@@ -12,7 +12,8 @@
 
 class NumberTest : public LexerTest {
 public:
-    void check_number(std::string const& in, Obelix::Obj out, Obelix::TokenCode code)
+    template <typename T>
+    void check_number(std::string const& in, T const& out, Obelix::TokenCode code)
     {
         add_scanner<Obelix::NumberScanner>(Obelix::NumberScanner::Config { true, false, true, true, true });
         add_scanner<Obelix::IdentifierScanner>();
@@ -25,7 +26,7 @@ public:
             Obelix::TokenCode::Whitespace,
             code,
             Obelix::TokenCode::EndOfFile);
-        EXPECT_EQ(tokens[4].to_object(), out);
+        EXPECT_EQ(tokens[4].token_value<T>(), out);
     }
 
     bool debugOn() override
@@ -36,20 +37,20 @@ public:
 
 TEST_F(NumberTest, number_integer)
 {
-    check_number("1", Obelix::make_obj<Obelix::Integer>(1), Obelix::TokenCode::Integer);
+    check_number<int>("1", 1, Obelix::TokenCode::Integer);
 }
 
 TEST_F(NumberTest, number_float)
 {
-    check_number("3.14", Obelix::make_obj<Obelix::Float>(3.14), Obelix::TokenCode::Float);
+    check_number<double>("3.14", 3.14, Obelix::TokenCode::Float);
 }
 
 TEST_F(NumberTest, number_hex)
 {
-    check_number("0xDEADC0DE", Obelix::make_obj<Obelix::Integer>(3735929054), Obelix::TokenCode::HexNumber);
+    check_number<long>("0xDEADC0DE", 3735929054, Obelix::TokenCode::HexNumber);
 }
 
 TEST_F(NumberTest, number_dollar_hex)
 {
-    check_number("$DEADC0DE", Obelix::make_obj<Obelix::Integer>(3735929054), Obelix::TokenCode::HexNumber);
+    check_number<long>("$DEADC0DE", 3735929054, Obelix::TokenCode::HexNumber);
 }

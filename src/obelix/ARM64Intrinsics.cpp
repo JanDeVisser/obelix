@@ -7,16 +7,33 @@
 #include <sys/stat.h>
 
 #include <obelix/ARM64Intrinsics.h>
+#include <obelix/Intrinsics.h>
 
 namespace Obelix {
 
 extern_logging_category(arm64);
 
-#define INTRINSIC(intrinsic) \
+static std::array<ARM64FunctionType, IntrinsicType::count> s_intrinsics = {};
+
+bool register_arm64_intrinsic(IntrinsicType type, ARM64FunctionType intrinsic)
+{
+    s_intrinsics[type] = move(intrinsic);
+    return true;
+}
+
+ARM64FunctionType const& get_arm64_intrinsic(IntrinsicType type)
+{
+    assert(type > IntrinsicType::NotIntrinsic && type < IntrinsicType::count);
+    return s_intrinsics[type];
+}
+
+#define INTRINSIC(intrinsic)                                                                      \
+    ErrorOr<void> arm64_intrinsic_##intrinsic(ARM64Context& ctx);                                 \
+    auto s_arm64_##intrinsic##_decl = register_arm64_intrinsic(intrinsic, arm64_intrinsic_##intrinsic); \
     ErrorOr<void> arm64_intrinsic_##intrinsic(ARM64Context& ctx)
 
 #define INTRINSIC_ALIAS(intrinsic, alias) \
-    static auto& s_##intrinsic = Intrinsics::set_arm64_implementation(sig_##intrinsic, arm64_##alias);
+    auto s_##intrinsic##_decl = register_arm64_intrinsic(intrinsic, arm64_intrinsic_##alias); \
 
 INTRINSIC(add_str_str)
 {
@@ -33,6 +50,7 @@ INTRINSIC(add_str_str)
     ctx.assembly().add_instruction("add", "w1,w5,w7");
     return {};
 }
+
 
 // This is a mmap syscall
 INTRINSIC(allocate)
@@ -82,7 +100,7 @@ INTRINSIC(fsize)
     return {};
 }
 
-INTRINSIC(to_string)
+INTRINSIC(int_to_string)
 {
     ctx.assembly().add_instruction("mov", "x2,x0");
     ctx.assembly().add_instruction("sub", "sp,sp,32");
