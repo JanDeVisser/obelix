@@ -4,10 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//
-// Created by Jan de Visser on 2021-10-06.
-//
-
 #pragma once
 
 #include <string>

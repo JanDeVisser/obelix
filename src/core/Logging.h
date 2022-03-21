@@ -4,17 +4,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//
-// Created by Jan de Visser on 2021-10-04.
-//
-
 #pragma once
 
-#include <core/Format.h>
 #include <cstring>
 #include <map>
 #include <mutex>
 #include <string>
+
+#include <core/Format.h>
 
 namespace Obelix {
 
