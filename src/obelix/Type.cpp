@@ -46,33 +46,63 @@ MethodParameter::MethodParameter(char const* n, std::shared_ptr<ObjectType> t)
 {
 }
 
-MethodDescription::MethodDescription(char const* name, PrimitiveType type)
+MethodDescription::MethodDescription(char const* name, PrimitiveType type, IntrinsicType intrinsic, MethodParameters parameters)
     : m_name(name)
     , m_is_operator(false)
     , m_return_type(ObjectType::get(type))
     , m_varargs(false)
+    , m_parameters(move(parameters))
 {
+    if (intrinsic != IntrinsicType::NotIntrinsic)
+        set_default_implementation(intrinsic);
 }
 
-MethodDescription::MethodDescription(Operator op, PrimitiveType type, IntrinsicType intrinsic)
+MethodDescription::MethodDescription(char const* name, std::shared_ptr<ObjectType> type, IntrinsicType intrinsic, MethodParameters parameters)
+    : m_name(name)
+    , m_is_operator(false)
+    , m_return_type(move(type))
+    , m_varargs(false)
+    , m_parameters(move(parameters))
+{
+    if (intrinsic != IntrinsicType::NotIntrinsic)
+        set_default_implementation(intrinsic);
+}
+
+MethodDescription::MethodDescription(Operator op, PrimitiveType type, IntrinsicType intrinsic, MethodParameters parameters)
     : m_operator(op)
     , m_is_operator(true)
     , m_return_type(ObjectType::get(type))
     , m_varargs(false)
+    , m_parameters(move(parameters))
 {
-    set_default_implementation(intrinsic);
+    if (intrinsic != IntrinsicType::NotIntrinsic)
+        set_default_implementation(intrinsic);
+}
+
+MethodDescription::MethodDescription(Operator op, std::shared_ptr<ObjectType> type, IntrinsicType intrinsic, MethodParameters parameters)
+    : m_operator(op)
+    , m_is_operator(true)
+    , m_return_type(move(type))
+    , m_varargs(false)
+    , m_parameters(move(parameters))
+{
+    if (intrinsic != IntrinsicType::NotIntrinsic)
+        set_default_implementation(intrinsic);
 }
 
 void MethodDescription::set_default_implementation(std::string const& native_function)
 {
     m_default_implementation.is_intrinsic = false;
     m_default_implementation.native_function = native_function;
+    m_default_implementation.intrinsic = IntrinsicType::NotIntrinsic;
 }
 
 void MethodDescription::set_default_implementation(IntrinsicType intrinsic)
 {
+    assert(intrinsic > IntrinsicType::NotIntrinsic && intrinsic < IntrinsicType::count);
     m_default_implementation.is_intrinsic = true;
-    m_default_implementation.native_function = intrinsic;
+    m_default_implementation.intrinsic = intrinsic;
+    m_default_implementation.native_function = "";
 }
 
 void MethodDescription::set_implementation(Architecture arch, IntrinsicType intrinsic)
@@ -107,16 +137,16 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
     [](ObjectType& type) {
         type.add_method(MethodDescription { Operator::UnaryIncrement, PrimitiveType::Self });
         type.add_method(MethodDescription { Operator::UnaryDecrement, PrimitiveType::Self });
-        type.add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method(MethodDescription { Operator::BinaryDecrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, MethodParameter { "other", PrimitiveType::Compatible } });
+        type.add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } } });
+        type.add_method(MethodDescription { Operator::BinaryDecrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { { "other", PrimitiveType::Compatible } } });
     });
 
 [[maybe_unused]] auto s_any = ObjectType::register_type(PrimitiveType::Any,
     [](ObjectType& type) {
-        type.add_method(MethodDescription { Operator::Assign, PrimitiveType::Self, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method(MethodDescription { Operator::Equals, PrimitiveType::Boolean, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method(MethodDescription { Operator::NotEquals, PrimitiveType::Boolean, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method(MethodDescription { Operator::Dereference, PrimitiveType::Any, MethodParameter { "attribute", PrimitiveType::String } });
+        type.add_method(MethodDescription { Operator::Assign, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method(MethodDescription { Operator::Equals, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method(MethodDescription { Operator::NotEquals, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method(MethodDescription { Operator::Dereference, PrimitiveType::Any, IntrinsicType::NotIntrinsic, { {  "attribute", PrimitiveType::String }  } });
         type.add_method(MethodDescription { "typename", PrimitiveType::String });
         type.add_method(MethodDescription { "length", PrimitiveType::Int });
         type.add_method(MethodDescription { "empty", PrimitiveType::Boolean });
@@ -124,10 +154,10 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 
 [[maybe_unused]] auto s_comparable = ObjectType::register_type(PrimitiveType::Comparable,
     [](ObjectType& type) {
-        type.add_method(MethodDescription { Operator::Less, PrimitiveType::Boolean, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method(MethodDescription { Operator::LessEquals, PrimitiveType::Boolean, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method(MethodDescription { Operator::Greater, PrimitiveType::Boolean, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method(MethodDescription { Operator::GreaterEquals, PrimitiveType::Boolean, MethodParameter { "other", PrimitiveType::Compatible } });
+        type.add_method(MethodDescription { Operator::Less, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method(MethodDescription { Operator::LessEquals, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method(MethodDescription { Operator::Greater, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method(MethodDescription { Operator::GreaterEquals, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
     });
 
 [[maybe_unused]] auto s_integer_number = ObjectType::register_type(PrimitiveType::IntegerNumber,
@@ -135,19 +165,19 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
         type.add_method(MethodDescription { Operator::Identity, PrimitiveType::Argument });
 
         type.add_method({ Operator::BitwiseInvert, PrimitiveType::Argument, IntrinsicType::invert_int });
-        type.add_method({ Operator::Add, PrimitiveType::Self, IntrinsicType::add_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method({ Operator::Subtract, PrimitiveType::Argument, IntrinsicType::subtract_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method({ Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method({ Operator::Divide, PrimitiveType::Argument, IntrinsicType::divide_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method({ Operator::BitwiseOr, PrimitiveType::Argument, IntrinsicType::bitwise_or_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method({ Operator::BitwiseAnd, PrimitiveType::Argument, IntrinsicType::bitwise_and_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method({ Operator::BitwiseXor, PrimitiveType::Argument, IntrinsicType::bitwise_xor_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method({ Operator::BitShiftLeft, PrimitiveType::Argument, IntrinsicType::shl_int, MethodParameter { "other", PrimitiveType::Unsigned } });
-        type.add_method({ Operator::BitShiftRight, PrimitiveType::Argument, IntrinsicType::shr_int, MethodParameter { "other", PrimitiveType::Unsigned } });
-        type.add_method({ Operator::Equals, PrimitiveType::Boolean, IntrinsicType::equals_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method({ Operator::Less, PrimitiveType::Boolean, IntrinsicType::less_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method({ Operator::Greater, PrimitiveType::Boolean, IntrinsicType::greater_int_int, MethodParameter { "other", PrimitiveType::Compatible } });
-        type.add_method(MethodDescription { Operator::Range, PrimitiveType::Range, MethodParameter { "other", PrimitiveType::Compatible } });
+        type.add_method({ Operator::Add, PrimitiveType::Self, IntrinsicType::add_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method({ Operator::Subtract, PrimitiveType::Self, IntrinsicType::subtract_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method({ Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method({ Operator::Divide, PrimitiveType::Self, IntrinsicType::divide_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method({ Operator::BitwiseOr, PrimitiveType::Argument, IntrinsicType::bitwise_or_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method({ Operator::BitwiseAnd, PrimitiveType::Argument, IntrinsicType::bitwise_and_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method({ Operator::BitwiseXor, PrimitiveType::Argument, IntrinsicType::bitwise_xor_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method({ Operator::BitShiftLeft, PrimitiveType::Argument, IntrinsicType::shl_int, { {  "other", PrimitiveType::Unsigned }  } });
+        type.add_method({ Operator::BitShiftRight, PrimitiveType::Argument, IntrinsicType::shr_int, { {  "other", PrimitiveType::Unsigned }  } });
+        type.add_method({ Operator::Equals, PrimitiveType::Boolean, IntrinsicType::equals_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method({ Operator::Less, PrimitiveType::Boolean, IntrinsicType::less_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method({ Operator::Greater, PrimitiveType::Boolean, IntrinsicType::greater_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type.add_method(MethodDescription { Operator::Range, PrimitiveType::Range,IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
         type.will_be_a(PrimitiveType::Comparable);
         type.will_be_a(PrimitiveType::Incrementable);
     });
@@ -184,20 +214,20 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 
 [[maybe_unused]] auto s_string = ObjectType::register_type(PrimitiveType::String,
     [](ObjectType& type) {
-        type.add_method(MethodDescription { Operator::Add, PrimitiveType::String, IntrinsicType::add_str_str, MethodParameter { "other", PrimitiveType::String } });
-        type.add_method(MethodDescription { Operator::Multiply, PrimitiveType::String, IntrinsicType::multiply_str_int, MethodParameter { "other", PrimitiveType::Unsigned } });
+        type.add_method(MethodDescription { Operator::Add, PrimitiveType::String, IntrinsicType::add_str_str, { {  "other", PrimitiveType::String }  } });
+        type.add_method(MethodDescription { Operator::Multiply, PrimitiveType::String, IntrinsicType::multiply_str_int, { {  "other", PrimitiveType::Unsigned }  } });
         type.will_be_a(PrimitiveType::Comparable);
         type.has_size(12);
     });
 
 [[maybe_unused]] auto s_float = ObjectType::register_type(PrimitiveType::Float,
     [](ObjectType& type) {
-        type.add_method(MethodDescription { Operator::Identity, PrimitiveType::Float });
-        type.add_method(MethodDescription { Operator::Negate, PrimitiveType::Float });
-        type.add_method(MethodDescription { Operator::Add, PrimitiveType::Float, MethodParameter { "other", PrimitiveType::Float } });
-        type.add_method(MethodDescription { Operator::Subtract, PrimitiveType::Float, MethodParameter { "other", PrimitiveType::Float } });
-        type.add_method(MethodDescription { Operator::Multiply, PrimitiveType::Float, MethodParameter { "other", PrimitiveType::Float } });
-        type.add_method(MethodDescription { Operator::Divide, PrimitiveType::Float, MethodParameter { "other", PrimitiveType::Float } });
+        type.add_method(MethodDescription { Operator::Identity, PrimitiveType::Float, IntrinsicType::NotIntrinsic });
+        type.add_method(MethodDescription { Operator::Negate, PrimitiveType::Float, IntrinsicType::NotIntrinsic });
+        type.add_method(MethodDescription { Operator::Add, PrimitiveType::Float, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Float }  } });
+        type.add_method(MethodDescription { Operator::Subtract, PrimitiveType::Float, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Float }  } });
+        type.add_method(MethodDescription { Operator::Multiply, PrimitiveType::Float, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Float }  } });
+        type.add_method(MethodDescription { Operator::Divide, PrimitiveType::Float, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Float }  } });
         type.will_be_a(PrimitiveType::Comparable);
         type.has_size(4);
     });
@@ -205,8 +235,8 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 [[maybe_unused]] auto s_boolean = ObjectType::register_type(PrimitiveType::Boolean,
     [](ObjectType& type) {
         type.add_method(MethodDescription { Operator::LogicalInvert, PrimitiveType::Boolean, IntrinsicType::invert_bool });
-        type.add_method(MethodDescription { Operator::LogicalAnd, PrimitiveType::Boolean, IntrinsicType::and_bool_bool, MethodParameter { "other", PrimitiveType::Boolean } });
-        type.add_method(MethodDescription { Operator::LogicalOr, PrimitiveType::Boolean, IntrinsicType::or_bool_bool, MethodParameter { "other", PrimitiveType::Boolean } });
+        type.add_method(MethodDescription { Operator::LogicalAnd, PrimitiveType::Boolean, IntrinsicType::and_bool_bool, { {  "other", PrimitiveType::Boolean }  } });
+        type.add_method(MethodDescription { Operator::LogicalOr, PrimitiveType::Boolean, IntrinsicType::or_bool_bool, { {  "other", PrimitiveType::Boolean }  } });
         type.has_size(1);
     });
 
@@ -221,10 +251,10 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
         type.add_method(MethodDescription { Operator::Dereference, PrimitiveType::Char });
         type.add_method(MethodDescription { Operator::UnaryIncrement, PrimitiveType::Self });
         type.add_method(MethodDescription { Operator::UnaryDecrement, PrimitiveType::Self });
-        type.add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, MethodParameter { "other", PrimitiveType::Int } });
-        type.add_method(MethodDescription { Operator::BinaryDecrement, PrimitiveType::Self, MethodParameter { "other", PrimitiveType::Int } });
-        type.add_method(MethodDescription { Operator::Add, PrimitiveType::Argument, MethodParameter { "other", PrimitiveType::Int } });
-        type.add_method(MethodDescription { Operator::Subtract, PrimitiveType::Argument, MethodParameter { "other", PrimitiveType::Int } });
+        type.add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
+        type.add_method(MethodDescription { Operator::BinaryDecrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
+        type.add_method(MethodDescription { Operator::Add, PrimitiveType::Argument, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
+        type.add_method(MethodDescription { Operator::Subtract, PrimitiveType::Argument, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
         type.will_be_a(PrimitiveType::Comparable);
 
         type.has_template_stamp([](ObjectType& instantiation) {

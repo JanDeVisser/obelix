@@ -8,6 +8,7 @@
 
 #include <cstring>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <unordered_map>
@@ -90,8 +91,8 @@ class ObjectType;
 using ObjectTypes = std::vector<std::shared_ptr<ObjectType>>;
 
 struct MethodImpl {
-    bool is_intrinsic;
-    IntrinsicType intrinsic;
+    bool is_intrinsic { false };
+    IntrinsicType intrinsic { IntrinsicType::NotIntrinsic };
     std::string native_function;
 };
 
@@ -107,59 +108,18 @@ typedef std::vector<MethodParameter> MethodParameters;
 
 class MethodDescription {
 public:
-    MethodDescription(char const* name, std::shared_ptr<ObjectType> type)
-        : m_name(name)
-        , m_is_operator(false)
-        , m_return_type(move(type))
-        , m_varargs(false)
+    MethodDescription(char const*, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
+    MethodDescription(char const*, std::shared_ptr<ObjectType>, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
+    MethodDescription(Operator, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
+    MethodDescription(Operator, std::shared_ptr<ObjectType>, IntrinsicType = IntrinsicType::NotIntrinsic, MethodParameters = {});
+
+    [[nodiscard]] std::string_view name() const 
     {
+        if (m_is_operator)
+            return Operator_name(m_operator);
+        return m_name;
     }
 
-    MethodDescription(char const* name, PrimitiveType type);
-
-    template<typename... Args>
-    MethodDescription(char const* name, PrimitiveType type, Args&&... args)
-        : MethodDescription(name, type)
-    {
-        add_parameters(std::forward<Args>(args)...);
-    }
-
-    MethodDescription(Operator op, std::shared_ptr<ObjectType> type)
-        : m_operator(op)
-        , m_is_operator(true)
-        , m_return_type(move(type))
-        , m_varargs(false)
-    {
-    }
-
-    MethodDescription(Operator, PrimitiveType, IntrinsicType = IntrinsicType::NotIntrinsic);
-
-    template<typename... Args>
-    MethodDescription(Operator op, PrimitiveType type, IntrinsicType intrinsic = IntrinsicType::NotIntrinsic, Args&&... args)
-        : MethodDescription(op, type, intrinsic)
-    {
-        add_parameters(std::forward<Args>(args)...);
-    }
-
-    template<typename... Args>
-    MethodDescription(Operator op, PrimitiveType type, Args&&... args)
-        : MethodDescription(op, type)
-    {
-        add_parameters(std::forward<Args>(args)...);
-    }
-
-    void add_parameter(MethodParameter const& parameter) { m_parameters.emplace_back(parameter); }
-    void add_parameters(MethodParameter const& parameter) { add_parameter(parameter); }
-    void add_parameters() { }
-
-    template<typename... Args>
-    void add_parameters(MethodParameter const& parameter, Args&&... args)
-    {
-        m_parameters.emplace_back(parameter);
-        add_parameters(std::forward<Args>(args)...);
-    }
-
-    [[nodiscard]] std::string_view name() const { return m_name; }
     [[nodiscard]] Operator op() const { return m_operator; }
     [[nodiscard]] std::shared_ptr<ObjectType> const& return_type() const { return m_return_type; }
     void set_return_type(std::shared_ptr<ObjectType> ret_type) { m_return_type = move(ret_type); }
@@ -222,14 +182,6 @@ public:
     {
         m_methods.push_back(md);
         return m_methods.back();
-    }
-
-    template<typename... Args>
-    MethodDescription& add_method(MethodDescription const& md, Args&&... args)
-    {
-        auto& added_md = add_method(md);
-        added_md.add_parameters(std::forward<Args>(args)...);
-        return added_md;
     }
 
     void will_be_a(PrimitiveType type) { m_is_a.push_back(ObjectType::get(type)); }

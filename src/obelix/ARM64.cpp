@@ -416,7 +416,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
                     operand->type()->to_string(), expr->op()) };
             auto method_descr = method_descr_maybe.value();
             auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
-            if (!impl.is_intrinsic || impl.intrinsic != IntrinsicType::NotIntrinsic)
+            if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
                 return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", method_descr.name()) };
             intrinsic = impl.intrinsic;
             break;
@@ -457,7 +457,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
                 lhs->type()->to_string(), expr->op(), rhs->type()->to_string()) };
         auto method_descr = method_descr_maybe.value();
         auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
-        if (!impl.is_intrinsic || impl.intrinsic != IntrinsicType::NotIntrinsic)
+        if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
             return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", method_descr.name()) };
         auto intrinsic = impl.intrinsic;
 

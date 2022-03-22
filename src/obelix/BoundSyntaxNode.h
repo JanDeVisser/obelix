@@ -303,6 +303,20 @@ public:
     {
     }
 
+    explicit BoundLiteral(Token t, uint8_t value)
+        : BoundExpression(t, ObjectType::get(PrimitiveType::Char))
+        , m_int(value)
+        , m_bool(value != 0)
+    {
+    }
+
+    explicit BoundLiteral(Token t, int8_t value)
+        : BoundExpression(t, ObjectType::get(PrimitiveType::Byte))
+        , m_int(value)
+        , m_bool(value != 0)
+    {
+    }
+
     explicit BoundLiteral(Token t, double value)
         : BoundExpression(t, ObjectType::get(PrimitiveType::Float))
         , m_float(value)
