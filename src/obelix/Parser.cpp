@@ -690,7 +690,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
         return make_node<UnaryExpression>(t, operand);
     }
     case TokenCode::Integer:
-        return make_node<Literal>(t, PrimitiveType::String);
+        return make_node<Literal>(t, PrimitiveType::Int);
     case TokenCode::HexNumber:
         return make_node<Literal>(t, PrimitiveType::Int);
     case TokenCode::Float:
