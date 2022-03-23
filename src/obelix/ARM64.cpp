@@ -444,7 +444,7 @@ ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Con
                 offset = rhs;
                 if (expr->op() == BinaryOperator::Subtract)
                     offset = make_node<BoundUnaryExpression>(expr->token(), offset, UnaryOperator::Negate, expr->type());
-                auto size = make_node<BoundLiteral>(rhs->token(), make_obj<Integer>(target_type->size()));
+                auto size = make_node<BoundLiteral>(rhs->token(), target_type->size());
                 offset = make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, get_type<int>());
                 offset = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(offset, ctx));
             }

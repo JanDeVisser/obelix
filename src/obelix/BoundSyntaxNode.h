@@ -303,6 +303,20 @@ public:
     {
     }
 
+    explicit BoundLiteral(Token t, int value)
+        : BoundExpression(t, ObjectType::get(PrimitiveType::Int))
+        , m_int(value)
+        , m_bool(value != 0)
+    {
+    }
+
+    explicit BoundLiteral(Token t, size_t value)
+        : BoundExpression(t, ObjectType::get(PrimitiveType::Int))
+        , m_int(value)
+        , m_bool(value != 0)
+    {
+    }
+
     explicit BoundLiteral(Token t, uint8_t value)
         : BoundExpression(t, ObjectType::get(PrimitiveType::Char))
         , m_int(value)
@@ -332,7 +346,24 @@ public:
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundLiteral; }
     [[nodiscard]] std::string text_contents() const override { return token().value(); }
-    [[nodiscard]] std::string to_string() const override { return format("{}: {}", token().value(), type()->to_string()); }
+    [[nodiscard]] std::string to_string() const override
+    {
+        switch (type()->type()) {
+            case PrimitiveType::String:
+                return format("{}: {}", m_string, type()->to_string());
+            case PrimitiveType::Int:
+            case PrimitiveType::Unsigned:
+            case PrimitiveType::Byte:
+            case PrimitiveType::Char:
+                return format("{}: {}", m_int, type()->to_string());
+            case PrimitiveType::Float:
+                return format("{}: {}", m_float, type()->to_string());
+            case PrimitiveType::Boolean:
+                return format("{}: {}", m_bool, type()->to_string());
+            default:
+                return format("??: {}", type()->to_string());
+        }
+    }
 
     [[nodiscard]] std::string const& string_value() const
     {
