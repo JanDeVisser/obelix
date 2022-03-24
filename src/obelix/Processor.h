@@ -32,7 +32,7 @@ extern_logging_category(parser);
 using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>>;
 
 template<typename Context, typename Processor>
-ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Processor& processor)
+ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Processor processor)
 {
     if (!tree)
         return tree;

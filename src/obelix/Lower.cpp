@@ -13,30 +13,48 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
+template <typename Ctx>
+struct NodeProcessor {
+    using ProcessorFnc = std::function<ErrorOrNode(std::shared_ptr<SyntaxNode>,Ctx&)>;
+    using ProcessorMap = std::array<ProcessorFnc,static_cast<size_t>(SyntaxNodeType::Count)>;
+    ProcessorMap processor_map = {};
+
+    NodeProcessor()
+    {
+    }
+
+    bool register_node_processor(SyntaxNodeType node_type, ProcessorFnc processor_func)
+    {
+        processor_map[static_cast<size_t>(node_type)] = processor_func;
+        return true;
+    }
+
+    ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
+    {
+        if (!tree)
+            return tree;
+        if (processor_map[static_cast<size_t>(tree->node_type())] != nullptr) {
+            debug(parser, "{} = {}", tree->node_type(), tree);
+            return processor_map[static_cast<size_t>(tree->node_type())](tree, ctx);
+        }
+        return process_tree(tree, ctx, [this](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx) {
+            return this->process(tree, ctx);
+        });
+    }
+};
+
+#define NODE_PROCESSOR(node_type)                                                     \
+    auto s_##node_type = processor.register_node_processor(SyntaxNodeType::node_type, \
+        [](std::shared_ptr<SyntaxNode> const& tree, LowerContext& ctx) -> ErrorOrNode
+
 using LowerContext = Context<int>;
-
-using NodeProcessor = std::function<ErrorOrNode(std::shared_ptr<SyntaxNode>,LowerContext&)>;
-using ProcessorMap = std::array<NodeProcessor,static_cast<size_t>(SyntaxNodeType::Count)>;
-static ProcessorMap processor_map = {};
-
-bool register_node_processor(SyntaxNodeType node_type, NodeProcessor node_processor)
-{
-    processor_map[static_cast<size_t>(node_type)] = node_processor;
-    return true;
-}
-
-ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const&, LowerContext&);
-
-#define NODE_PROCESSOR(node_type)                                                                 \
-    ErrorOrNode process_##node_type(std::shared_ptr<SyntaxNode> const&, LowerContext&);           \
-    auto s_##node_type = register_node_processor(SyntaxNodeType::node_type, process_##node_type); \
-    ErrorOrNode process_##node_type(std::shared_ptr<SyntaxNode> const& tree, LowerContext& ctx)
+static NodeProcessor<LowerContext> processor;
 
 NODE_PROCESSOR(BoundFunctionDef)
 {
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
     if (func_def->statement()) {
-        auto statement = TRY_AND_CAST(Statement, lower_processor(func_def->statement(), ctx));
+        auto statement = TRY_AND_CAST(Statement, processor.process(func_def->statement(), ctx));
         switch (statement->node_type()) {
         case SyntaxNodeType::Block: {
             auto block = std::dynamic_pointer_cast<Block>(statement);
@@ -51,25 +69,25 @@ NODE_PROCESSOR(BoundFunctionDef)
         }
     }
     return tree;
-}
+});
 
 NODE_PROCESSOR(BoundCaseStatement)
 {
     auto case_stmt = std::dynamic_pointer_cast<BoundCaseStatement>(tree);
-    auto condition = TRY_AND_CAST(BoundExpression, lower_processor(case_stmt->condition(), ctx));
-    auto stmt = TRY_AND_CAST(Statement, lower_processor(case_stmt->statement(), ctx));
+    auto condition = TRY_AND_CAST(BoundExpression, processor.process(case_stmt->condition(), ctx));
+    auto stmt = TRY_AND_CAST(Statement, processor.process(case_stmt->statement(), ctx));
     return make_node<BoundCaseStatement>(case_stmt->token(), condition, stmt);
-}
+});
 
 NODE_PROCESSOR(BoundSwitchStatement)
 {
     auto switch_stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
-    auto switch_expr = TRY_AND_CAST(BoundExpression, lower_processor(switch_stmt->expression(), ctx));
-    auto default_case = TRY_AND_CAST(BoundCaseStatement, lower_processor(switch_stmt->default_case(), ctx));
+    auto switch_expr = TRY_AND_CAST(BoundExpression, processor.process(switch_stmt->expression(), ctx));
+    auto default_case = TRY_AND_CAST(BoundCaseStatement, processor.process(switch_stmt->default_case(), ctx));
 
     BoundCaseStatements cases;
     for (auto& c : switch_stmt->cases()) {
-        auto new_case = TRY_AND_CAST(BoundCaseStatement, lower_processor(c, ctx));
+        auto new_case = TRY_AND_CAST(BoundCaseStatement, processor.process(c, ctx));
         cases.push_back(new_case);
     }
 
@@ -80,11 +98,11 @@ NODE_PROCESSOR(BoundSwitchStatement)
             c->statement()));
     }
     if (default_case) {
-        auto default_stmt = TRY_AND_CAST(Statement, lower_processor(default_case->statement(), ctx));
+        auto default_stmt = TRY_AND_CAST(Statement, processor.process(default_case->statement(), ctx));
         branches.push_back(make_node<BoundBranch>(default_case->token(), nullptr, default_stmt));
     }
-    return lower_processor(make_node<BoundIfStatement>(switch_stmt->token(), branches), ctx);
-}
+    return processor.process(make_node<BoundIfStatement>(switch_stmt->token(), branches), ctx);
+});
 
 NODE_PROCESSOR(BoundWhileStatement)
 {
@@ -104,8 +122,8 @@ NODE_PROCESSOR(BoundWhileStatement)
     // }
     //
     auto while_stmt = std::dynamic_pointer_cast<BoundWhileStatement>(tree);
-    auto condition = TRY_AND_CAST(BoundExpression, lower_processor(while_stmt->condition(), ctx));
-    auto stmt = TRY_AND_CAST(Statement, lower_processor(while_stmt->statement(), ctx));
+    auto condition = TRY_AND_CAST(BoundExpression, processor.process(while_stmt->condition(), ctx));
+    auto stmt = TRY_AND_CAST(Statement, processor.process(while_stmt->statement(), ctx));
 
     Statements while_block;
     auto start_of_loop = make_node<Label>(while_stmt->token());
@@ -122,8 +140,8 @@ NODE_PROCESSOR(BoundWhileStatement)
     while_block.push_back(stmt);
     while_block.push_back(make_node<Goto>(while_stmt->token(), start_of_loop));
     while_block.push_back(make_node<Label>(jump_out_of_loop));
-    return lower_processor(make_node<Block>(while_stmt->token(), while_block), ctx);
-}
+    return processor.process(make_node<Block>(while_stmt->token(), while_block), ctx);
+});
 
 NODE_PROCESSOR(BoundForStatement)
 {
@@ -143,8 +161,8 @@ NODE_PROCESSOR(BoundForStatement)
     // }
     //
     auto for_stmt = std::dynamic_pointer_cast<BoundForStatement>(tree);
-    auto range_expr = TRY_AND_CAST(BoundExpression, lower_processor(for_stmt->range(), ctx));
-    auto stmt = TRY_AND_CAST(Statement, lower_processor(for_stmt->statement(), ctx));
+    auto range_expr = TRY_AND_CAST(BoundExpression, processor.process(for_stmt->range(), ctx));
+    auto stmt = TRY_AND_CAST(Statement, processor.process(for_stmt->statement(), ctx));
 
     if (range_expr->node_type() != SyntaxNodeType::BoundBinaryExpression)
         return Error { ErrorCode::SyntaxError, "Invalid for-loop range" };
@@ -192,14 +210,14 @@ NODE_PROCESSOR(BoundForStatement)
                 variable_type)));
     for_block.push_back(make_node<Goto>(for_stmt->token(), jump_back_label));
     for_block.push_back(make_node<Label>(jump_past_loop));
-    return lower_processor(make_node<Block>(stmt->token(), for_block), ctx);
-}
+    return processor.process(make_node<Block>(stmt->token(), for_block), ctx);
+});
 
 NODE_PROCESSOR(BoundBinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
-    auto lhs = TRY_AND_CAST(BoundExpression, lower_processor(expr->lhs(), ctx));
-    auto rhs = TRY_AND_CAST(BoundExpression, lower_processor(expr->rhs(), ctx));
+    auto lhs = TRY_AND_CAST(BoundExpression, processor.process(expr->lhs(), ctx));
+    auto rhs = TRY_AND_CAST(BoundExpression, processor.process(expr->rhs(), ctx));
 
     if (expr->op() == BinaryOperator::Assign && lhs->node_type() == SyntaxNodeType::BoundIdentifier) {
         auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(lhs);
@@ -243,12 +261,12 @@ NODE_PROCESSOR(BoundBinaryExpression)
     }
 
     return expr;
-}
+});
 
 NODE_PROCESSOR(BoundUnaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
-    auto operand = TRY_AND_CAST(BoundExpression, lower_processor(expr->operand(), ctx));
+    auto operand = TRY_AND_CAST(BoundExpression, processor.process(expr->operand(), ctx));
     if (expr->op() == UnaryOperator::UnaryIncrement || expr->op() == UnaryOperator::UnaryDecrement) {
         auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(operand);
         auto new_rhs = make_node<BoundBinaryExpression>(expr->token(),
@@ -260,23 +278,12 @@ NODE_PROCESSOR(BoundUnaryExpression)
         return make_node<BoundAssignment>(expr->token(), identifier, new_rhs);
     }
     return tree;
-}
-
-ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContext& ctx)
-{
-    if (!tree)
-        return tree;
-    if (processor_map[static_cast<size_t>(tree->node_type())] != nullptr) {
-        debug(parser, "{} = {}", tree->node_type(), tree);
-        return processor_map[static_cast<size_t>(tree->node_type())](tree, ctx);
-    }
-    return process_tree(tree, ctx, lower_processor);
-}
+});
 
 ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
 {
     LowerContext ctx;
-    return lower_processor(tree, ctx);
+    return processor.process(tree, ctx);
 }
 
 }
