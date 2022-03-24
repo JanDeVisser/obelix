@@ -75,7 +75,8 @@ namespace Obelix {
     S(BoundNativeFunctionDecl)        \
     S(BoundIntrinsicDecl)             \
     S(BoundAssignment)                \
-    S(BoundFunctionDef)
+    S(BoundFunctionDef)               \
+    S(Count)
 
 enum class SyntaxNodeType {
 #undef __SYNTAXNODETYPE

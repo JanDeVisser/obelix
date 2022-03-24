@@ -16,12 +16,12 @@ extern_logging_category(parser);
 using LowerContext = Context<int>;
 
 using NodeProcessor = std::function<ErrorOrNode(std::shared_ptr<SyntaxNode>,LowerContext&)>;
-using ProcessorMap = std::unordered_map<SyntaxNodeType,NodeProcessor>;
+using ProcessorMap = std::array<NodeProcessor,static_cast<size_t>(SyntaxNodeType::Count)>;
 static ProcessorMap processor_map = {};
 
 bool register_node_processor(SyntaxNodeType node_type, NodeProcessor node_processor)
 {
-    processor_map[node_type] = node_processor;
+    processor_map[static_cast<size_t>(node_type)] = node_processor;
     return true;
 }
 
@@ -266,9 +266,9 @@ ErrorOrNode lower_processor(std::shared_ptr<SyntaxNode> const& tree, LowerContex
 {
     if (!tree)
         return tree;
-    if (processor_map.contains(tree->node_type())) {
+    if (processor_map[static_cast<size_t>(tree->node_type())] != nullptr) {
         debug(parser, "{} = {}", tree->node_type(), tree);
-        return processor_map[tree->node_type()](tree, ctx);
+        return processor_map[static_cast<size_t>(tree->node_type())](tree, ctx);
     }
     return process_tree(tree, ctx, lower_processor);
 }
