@@ -36,6 +36,8 @@ namespace Obelix {
     S(FunctionDef)                    \
     S(ExpressionStatement)            \
     S(VariableDeclaration)            \
+    S(StructDefinition)               \
+    S(StructForward)                  \
     S(Return)                         \
     S(Break)                          \
     S(Continue)                       \
@@ -62,6 +64,7 @@ namespace Obelix {
     S(BoundNativeFunctionCall)        \
     S(BoundIntrinsicCall)             \
     S(BoundVariableDeclaration)       \
+    S(BoundStructDefinition)          \
     S(BoundReturn)                    \
     S(BoundExpressionStatement)       \
     S(BoundBranch)                    \

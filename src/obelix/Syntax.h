@@ -717,6 +717,61 @@ public:
 };
 #endif
 
+class StructForward : public Statement {
+public:
+    StructForward(Token token, std::string name)
+        : Statement(std::move(token))
+        , m_name(move(name))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::StructDefinition; }
+    [[nodiscard]] std::string to_string() const override { return format("forward struct {}", name()); }
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}")", name()); }
+    [[nodiscard]] std::string const& name() const { return m_name; }
+
+private:
+    std::string m_name;
+};
+
+class StructDefinition : public Statement {
+public:
+    StructDefinition(Token token, std::string name, Identifiers fields)
+        : Statement(std::move(token))
+        , m_name(move(name))
+        , m_fields(move(fields))
+    {
+    }
+
+    [[nodiscard]] Nodes children() const override
+    {
+        Nodes ret;
+        for (auto const& field : m_fields) {
+            ret.push_back(field);
+        }
+        return ret;
+    }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        auto ret = format("struct {} {{", name());
+        for (auto const& field : m_fields) {
+            ret += field->to_string() + " ";
+        }
+        ret += "}";
+        return ret;
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::StructDefinition; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}")", name()); }
+    [[nodiscard]] std::string const& name() const { return m_name; }
+    [[nodiscard]] Identifiers const& fields() const { return m_fields; }
+
+private:
+    std::string m_name;
+    Identifiers m_fields;
+};
+
 class VariableDeclaration : public Statement {
 public:
     VariableDeclaration(Token token, std::shared_ptr<Identifier> identifier, std::shared_ptr<Expression> expr = nullptr, bool constant = false)

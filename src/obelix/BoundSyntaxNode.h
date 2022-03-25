@@ -630,6 +630,36 @@ private:
     std::shared_ptr<BoundExpression> m_expression;
 };
 
+class BoundStructDefinition : public Statement {
+public:
+    BoundStructDefinition(std::shared_ptr<StructDefinition> const& struct_def, std::shared_ptr<ObjectType> type)
+        : Statement(struct_def->token())
+        , m_name(struct_def->name())
+        , m_type(move(type))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundStructDefinition; }
+    [[nodiscard]] std::string const& name() const { return m_name; }
+    [[nodiscard]] std::shared_ptr<ObjectType> type() const { return m_type; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}")", name()); }
+
+    [[nodiscard]] std::string to_string() const override
+    {
+        auto ret = format("struct {} {", name());
+        for (auto const& field : type()->fields()) {
+            ret += " ";
+            ret += format("{}: {}", field.name, field.type->to_string());
+        }
+        ret += " }";
+        return ret;
+    }
+
+private:
+    std::string m_name;
+    std::shared_ptr<ObjectType> m_type;
+};
+
 class BoundVariableDeclaration : public Statement {
 public:
     explicit BoundVariableDeclaration(std::shared_ptr<VariableDeclaration> const& decl, std::shared_ptr<BoundIdentifier> variable, std::shared_ptr<BoundExpression> expr)

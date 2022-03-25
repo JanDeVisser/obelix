@@ -47,6 +47,7 @@ namespace Obelix {
     S(CannotAssignToFunction, "Identifier '{}' represents a function and cannot be assigned") \
     S(CannotAssignToRValue, "Cannot assign to expression '{}'")                               \
     S(NoSuchType, "Unknown type '{}'")                                                        \
+    S(DuplicateTypeName, "Duplicate type '{}'")                                               \
     S(TemplateParameterMismatch, "Template '{}' expects {} arguments. Got {}")                \
     S(TypeNotParameterized, "Type '{}' is not parameterized")
 

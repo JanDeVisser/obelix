@@ -51,6 +51,7 @@ public:
     constexpr static TokenCode KeywordDecEquals = TokenCode::Keyword21;
     constexpr static TokenCode KeywordConst = TokenCode::Keyword22;
     constexpr static TokenCode KeywordIntrinsic = TokenCode::Keyword23;
+    constexpr static TokenCode KeywordStruct = TokenCode::Keyword24;
 
     Parser(Config const& parser_config, StringBuffer& src);
     Parser(Config const& parser_config, std::string const& file_name);
@@ -82,6 +83,7 @@ private:
     std::shared_ptr<WhileStatement> parse_while_statement(Token const&);
     std::shared_ptr<ForStatement> parse_for_statement(Token const&);
     std::shared_ptr<VariableDeclaration> parse_variable_declaration(Token const&, bool);
+    std::shared_ptr<Statement> parse_struct(Token const&);
     std::shared_ptr<Import> parse_import_statement(Token const&);
     std::shared_ptr<Expression> parse_expression();
 

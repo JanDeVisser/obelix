@@ -1,0 +1,9 @@
+struct A {
+  foo: int;
+  bar: bool;
+};
+
+func main(argc: int, argv: ptr<ptr<char>>): int
+{
+  return 1;
+}

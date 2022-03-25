@@ -9,6 +9,7 @@
 #include "obelix/Intrinsics.h"
 #include <core/Logging.h>
 #include <ios>
+#include <memory>
 #include <obelix/Type.h>
 
 namespace Obelix {
@@ -122,6 +123,18 @@ MethodImpl const& MethodDescription::implementation(Architecture arch) const
     if (m_implementations.contains(arch))
         return m_implementations.at(arch);
     return m_default_implementation;
+}
+
+FieldDef::FieldDef(std::string n, PrimitiveType t)
+    : name(move(n))
+    , type(ObjectType::get(t))
+{
+}
+
+FieldDef::FieldDef(std::string n, std::shared_ptr<ObjectType> t)
+    : name(move(n))
+    , type(move(t))
+{
 }
 
 std::unordered_map<PrimitiveType, std::shared_ptr<ObjectType>> ObjectType::s_types_by_id {};
@@ -504,6 +517,18 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::string const& type
     });
     s_template_instantiations.push_back(instantiation);
     return instantiation;
+}
+
+ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_type(std::string name, FieldDefs fields)
+{
+    std::shared_ptr<ObjectType> ret;
+    if (s_types_by_name.contains(name))
+        return Error { ErrorCode::DuplicateTypeName, name };
+    assert(!fields.empty()); // TODO return proper error
+    ret = std::make_shared<ObjectType>(PrimitiveType::Struct, name);
+    ret->m_fields = move(fields);
+    s_types_by_name[ret->name()] = ret;
+    return ret;
 }
 
 }

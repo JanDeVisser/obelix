@@ -35,7 +35,8 @@ namespace Obelix {
     S(Float, 7)                      \
     S(String, 8)                     \
     S(Pointer, 9)                    \
-    S(Range, 10)                     \
+    S(Struct, 10)                    \
+    S(Range, 11)                     \
     S(Error, 9996)                   \
     S(Self, 9997)                    \
     S(Compatible, 9998)              \
@@ -104,7 +105,7 @@ struct MethodParameter {
     std::shared_ptr<ObjectType> type;
 };
 
-typedef std::vector<MethodParameter> MethodParameters;
+using MethodParameters = std::vector<MethodParameter>;
 
 class MethodDescription {
 public:
@@ -146,6 +147,17 @@ private:
 };
 
 using MethodDescriptions = std::vector<MethodDescription>;
+
+struct FieldDef {
+    FieldDef(std::string, PrimitiveType);
+    FieldDef(std::string, std::shared_ptr<ObjectType>);
+
+    std::string name;
+    std::shared_ptr<ObjectType> type;
+};
+
+using FieldDefs = std::vector<FieldDef>;
+
 using ObjectTypeBuilder = std::function<void(ObjectType&)>;
 
 class ObjectType {
@@ -153,6 +165,16 @@ public:
     ObjectType(PrimitiveType type, const char* name) noexcept
         : m_type(type)
         , m_name(name)
+    {
+        if (m_name)
+            m_name_str = std::string(m_name);
+        else
+            m_name_str = std::string(PrimitiveType_name(type));
+    }
+
+    ObjectType(PrimitiveType type, std::string name) noexcept
+        : m_type(type)
+        , m_name_str(move(name))
     {
     }
 
@@ -201,6 +223,7 @@ public:
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(Operator op, ObjectTypes const& argument_types = {}) const;
 
     [[nodiscard]] std::optional<MethodDescription> get_method(Operator op, ObjectTypes const& argument_types = {});
+    [[nodiscard]] FieldDefs const& fields() const { return m_fields; }
 
     bool operator==(ObjectType const&) const;
 
@@ -276,6 +299,8 @@ public:
         return resolve(type_name, template_args, std::forward<Args>(args)...);
     }
 
+    static ErrorOr<std::shared_ptr<ObjectType>> make_type(std::string, FieldDefs);
+
 private:
     [[nodiscard]] bool is_compatible(MethodDescription const&, ObjectTypes const&) const;
 
@@ -284,6 +309,7 @@ private:
     std::string m_name_str;
     size_t m_size { 8 };
     MethodDescriptions m_methods {};
+    FieldDefs m_fields {};
     std::vector<std::shared_ptr<ObjectType>> m_is_a;
     std::vector<std::string> m_template_parameters {};
     std::shared_ptr<ObjectType> m_instantiates_template { nullptr };

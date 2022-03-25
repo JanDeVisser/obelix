@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "lexer/Token.h"
 #include "obelix/Type.h"
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Intrinsics.h>
@@ -69,6 +70,7 @@ void Parser::initialize()
         Token(KeywordWhere, "where"),
         Token(KeywordConst, "const"),
         Token(KeywordIntrinsic, "intrinsic"),
+        Token(KeywordStruct, "struct"),
         TokenCode::BinaryIncrement,
         TokenCode::BinaryDecrement,
         TokenCode::UnaryIncrement,
@@ -147,6 +149,9 @@ std::shared_ptr<Statement> Parser::parse_statement()
         return parse_while_statement(lex());
     case KeywordFor:
         return parse_for_statement(lex());
+    case KeywordStruct:
+        ret = parse_struct(lex());
+        break;
     case KeywordVar:
     case KeywordConst:
         ret = parse_variable_declaration(lex(), token.code() == KeywordConst);
@@ -421,6 +426,34 @@ std::shared_ptr<ForStatement> Parser::parse_for_statement(Token const& for_token
     if (!stmt)
         return nullptr;
     return make_node<ForStatement>(for_token, variable.value().value(), expr, stmt);
+}
+
+std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
+{
+    auto identifier_maybe = match(TokenCode::Identifier);
+    if (!identifier_maybe.has_value())
+        return nullptr;
+    auto name = identifier_maybe->value();
+    if (current_code() != TokenCode::OpenBrace)
+        return make_node<StructForward>(lex(), name);
+    lex();
+
+    Identifiers fields;
+    do {
+        auto field_name_maybe = match(TokenCode::Identifier);
+        if (!field_name_maybe.has_value())
+            return nullptr;
+        expect(TokenCode::Colon);
+        auto field_type = parse_type();
+        if (!field_type) {
+            add_error(peek(), format("Syntax Error: Expected type after ':', got '{}' ({})", peek().value(), peek().code_name()));
+            return nullptr;
+        }
+        expect(TokenCode::SemiColon);
+        fields.push_back(make_node<Identifier>(field_name_maybe.value(), field_name_maybe.value().value(), field_type));
+    } while (current_code() != TokenCode::CloseBrace);
+    lex();
+    return make_node<StructDefinition>(struct_token, name, fields);
 }
 
 std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token const& var_token, bool constant)
