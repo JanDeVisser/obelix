@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/SyntaxNodeType.h"
+#include <obelix/Syntax.h>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
@@ -13,42 +13,9 @@ namespace Obelix {
 
 extern_logging_category(parser);
 
-template <typename Ctx>
-struct NodeProcessor {
-    using ProcessorFnc = std::function<ErrorOrNode(std::shared_ptr<SyntaxNode>,Ctx&)>;
-    using ProcessorMap = std::array<ProcessorFnc,static_cast<size_t>(SyntaxNodeType::Count)>;
-    ProcessorMap processor_map = {};
-
-    NodeProcessor()
-    {
-    }
-
-    bool register_node_processor(SyntaxNodeType node_type, ProcessorFnc processor_func)
-    {
-        processor_map[static_cast<size_t>(node_type)] = processor_func;
-        return true;
-    }
-
-    ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
-    {
-        if (!tree)
-            return tree;
-        if (processor_map[static_cast<size_t>(tree->node_type())] != nullptr) {
-            debug(parser, "{} = {}", tree->node_type(), tree);
-            return processor_map[static_cast<size_t>(tree->node_type())](tree, ctx);
-        }
-        return process_tree(tree, ctx, [this](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx) {
-            return this->process(tree, ctx);
-        });
-    }
-};
-
-#define NODE_PROCESSOR(node_type)                                                     \
-    auto s_##node_type = processor.register_node_processor(SyntaxNodeType::node_type, \
-        [](std::shared_ptr<SyntaxNode> const& tree, LowerContext& ctx) -> ErrorOrNode
-
 using LowerContext = Context<int>;
-static NodeProcessor<LowerContext> processor;
+
+INIT_NODE_PROCESSOR(LowerContext);
 
 NODE_PROCESSOR(BoundFunctionDef)
 {
@@ -282,8 +249,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
 
 ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
 {
-    LowerContext ctx;
-    return processor.process(tree, ctx);
+    return processor_for_context<LowerContext>(tree);
 }
 
 }

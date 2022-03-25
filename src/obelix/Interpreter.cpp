@@ -238,6 +238,8 @@ InterpreterContext::InterpreterContext()
 {
 }
 
+INIT_NODE_PROCESSOR(InterpreterContext);
+
 #if 0
 
 ErrorOrNode process_SyntaxNode(std::shared_ptr<SyntaxNode> const& tree, Context<Obj>& ctx)
@@ -450,11 +452,11 @@ ErrorOrNode process_Identifier(std::shared_ptr<SyntaxNode> const& tree, Context<
 
 #endif
 
-ErrorOrNode process_BoundBinaryExpression(std::shared_ptr<SyntaxNode> const& tree, InterpreterContext& ctx)
+NODE_PROCESSOR(BoundBinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
-    auto lhs = TRY_AND_CAST(BoundExpression, interpreter_processor(expr->lhs(), ctx));
-    auto rhs = TRY_AND_CAST(BoundExpression, interpreter_processor(expr->rhs(), ctx));
+    auto lhs = TRY_AND_CAST(BoundExpression, processor.process(expr->lhs(), ctx));
+    auto rhs = TRY_AND_CAST(BoundExpression, processor.process(expr->rhs(), ctx));
 
     if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract))
         return tree;
@@ -476,12 +478,12 @@ ErrorOrNode process_BoundBinaryExpression(std::shared_ptr<SyntaxNode> const& tre
     if (auto err = func(ctx); err.is_error())
         return err.error();
     return ctx.return_value();
-};
+});
 
-ErrorOrNode process_BoundUnaryExpression(std::shared_ptr<SyntaxNode> const& tree, InterpreterContext& ctx)
+NODE_PROCESSOR(BoundUnaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
-    auto operand = TRY_AND_CAST(BoundExpression, interpreter_processor(expr->operand(), ctx));
+    auto operand = TRY_AND_CAST(BoundExpression, processor.process(expr->operand(), ctx));
 
     if (operand->type()->type() == PrimitiveType::Pointer)
         return tree;
@@ -500,13 +502,8 @@ ErrorOrNode process_BoundUnaryExpression(std::shared_ptr<SyntaxNode> const& tree
     if (auto err = func(ctx); err.is_error())
         return err.error();
     return ctx.return_value();
-};
+});
 
-
-
-auto dummy = []() {
-    stmt_execute_map[SyntaxNodeType::BoundBinaryExpression] = process_BoundBinaryExpression;
-    stmt_execute_map[SyntaxNodeType::BoundUnaryExpression] = process_BoundUnaryExpression;
 
 #if 0
     stmt_execute_map[SyntaxNodeType::SyntaxNode] = process_SyntaxNode;
@@ -537,20 +534,10 @@ auto dummy = []() {
     stmt_execute_map[SyntaxNodeType::Block] = process_Block;
     execute_map[SyntaxNodeType::Module] = process_Block;
 #endif
-    return true;
-}();
-
-ErrorOrNode interpreter_processor(std::shared_ptr<SyntaxNode> const& tree, InterpreterContext& ctx)
-{
-    if (stmt_execute_map.contains(tree->node_type()))
-        return stmt_execute_map[tree->node_type()](tree, ctx);
-    return process_tree(tree, ctx, interpreter_processor);    
-}
 
 ErrorOrNode interpret(std::shared_ptr<SyntaxNode> const& tree)
 {
-    InterpreterContext root;
-    return interpreter_processor(tree, root);
+    return processor_for_context<InterpreterContext>(tree);
 }
 
 }
