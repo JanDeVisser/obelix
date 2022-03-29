@@ -1,18 +1,21 @@
 /*
- * Copyright (c) ${YEAR}, Jan de Visser <jan@finiandarcy.com>
+ * Copyright (c) 2022, Jan de Visser <jan@finiandarcy.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #pragma once
 
+#include "core/Object.h"
 #include <cstring>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 #include <core/Error.h>
@@ -160,6 +163,64 @@ using FieldDefs = std::vector<FieldDef>;
 
 using ObjectTypeBuilder = std::function<void(ObjectType&)>;
 
+enum class TemplateParameterType {
+    Type,
+    String,
+    Integer,
+};
+
+struct TemplateParameter {
+    std::string name;
+    TemplateParameterType type;
+};
+
+using TemplateParameters = std::vector<TemplateParameter>;
+
+struct TemplateArgument {
+    TemplateArgument(std::shared_ptr<ObjectType> type) 
+        : parameter_type(TemplateParameterType::Type)
+        , value(type)
+    {
+    }
+
+    TemplateArgument(long integer)
+        : parameter_type(TemplateParameterType::Integer)
+        , value(integer)
+    {
+    }
+
+    TemplateArgument(std::string string)
+        : parameter_type(TemplateParameterType::String)
+        , value(string)
+    {
+    }
+    
+    TemplateParameterType parameter_type;
+    std::variant<std::shared_ptr<ObjectType>, long, std::string> value;
+
+    [[nodiscard]] size_t hash() const;
+    [[nodiscard]] std::string to_string() const;
+    [[nodiscard]] bool operator==(TemplateArgument const&) const;
+
+    [[nodiscard]] std::shared_ptr<ObjectType> as_type() const
+    {
+        assert(std::holds_alternative<std::shared_ptr<ObjectType>>(value));
+        return std::get<std::shared_ptr<ObjectType>>(value);
+    }
+    [[nodiscard]] long as_integer() const
+    {
+        assert(std::holds_alternative<long>(value));
+        return std::get<long>(value);
+    }
+    [[nodiscard]] std::string as_string() const
+    {
+        assert(std::holds_alternative<std::string>(value));
+        return std::get<std::string>(value);
+    }
+};
+
+using TemplateArguments = std::vector<TemplateArgument>;
+
 class ObjectType {
 public:
     ObjectType(PrimitiveType type, const char* name) noexcept
@@ -207,7 +268,7 @@ public:
     }
 
     void will_be_a(PrimitiveType type) { m_is_a.push_back(ObjectType::get(type)); }
-    void has_template_parameter(std::string const& parameter) { m_template_parameters.push_back(parameter); }
+    void has_template_parameter(TemplateParameter const& parameter) { m_template_parameters.push_back(parameter); }
     void has_size(size_t sz) { m_size = sz; }
     void has_template_stamp(ObjectTypeBuilder const& stamp) { m_stamp = stamp; }
 
@@ -215,10 +276,10 @@ public:
     [[nodiscard]] size_t size() const;
     [[nodiscard]] ssize_t offset_of(std::string const&) const;
     [[nodiscard]] ssize_t offset_of(int) const;
-    [[nodiscard]] std::vector<std::string> const& template_parameters() const { return m_template_parameters; }
+    [[nodiscard]] TemplateParameters const& template_parameters() const { return m_template_parameters; }
     [[nodiscard]] bool is_template_instantiation() const { return m_instantiates_template != nullptr; }
     [[nodiscard]] std::shared_ptr<ObjectType> instantiates_template() const { return m_instantiates_template; }
-    [[nodiscard]] ObjectTypes const& template_arguments() const { return m_template_arguments; }
+    [[nodiscard]] TemplateArguments const& template_arguments() const { return m_template_arguments; }
     [[nodiscard]] bool is_a(ObjectType const* other) const;
     [[nodiscard]] bool is_a(std::shared_ptr<ObjectType> other) const { return is_a(other.get()); }
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, ObjectTypes const& argument_types = {}) const;
@@ -286,19 +347,19 @@ public:
     static std::shared_ptr<ObjectType> const& get(PrimitiveType);
     static std::shared_ptr<ObjectType> const& get(std::string const&);
     static std::shared_ptr<ObjectType> const& get(ObjectType const*);
-    static ErrorOr<std::shared_ptr<ObjectType>> resolve(std::string const& type_name, ObjectTypes const& template_args);
+    static ErrorOr<std::shared_ptr<ObjectType>> resolve(std::string const& type_name, TemplateArguments const& template_args);
 
     template<typename... Args>
-    static std::shared_ptr<ObjectType> resolve(std::string const& type_name, std::vector<std::shared_ptr<ObjectType>> template_args, std::shared_ptr<ObjectType> template_arg, Args&&... args)
+    static std::shared_ptr<ObjectType> resolve(std::string const& type_name, TemplateArguments& template_args, TemplateArgument template_arg, Args&&... args)
     {
-        template_args.push_back(move(template_arg));
+        template_args.push_back(std::move(template_arg));
         return resolve(type_name, template_args, std::forward<Args>(args)...);
     }
 
     template<typename... Args>
-    static std::shared_ptr<ObjectType> resolve(std::string const& type_name, std::shared_ptr<ObjectType> template_arg, Args&&... args)
+    static std::shared_ptr<ObjectType> resolve(std::string const& type_name, TemplateArgument template_arg, Args&&... args)
     {
-        std::vector<std::shared_ptr<ObjectType>> template_args = { move(template_arg) };
+        TemplateArguments template_args = { std::move(template_arg) };
         return resolve(type_name, template_args, std::forward<Args>(args)...);
     }
 
@@ -314,9 +375,9 @@ private:
     MethodDescriptions m_methods {};
     FieldDefs m_fields {};
     std::vector<std::shared_ptr<ObjectType>> m_is_a;
-    std::vector<std::string> m_template_parameters {};
+    TemplateParameters m_template_parameters {};
     std::shared_ptr<ObjectType> m_instantiates_template { nullptr };
-    std::vector<std::shared_ptr<ObjectType>> m_template_arguments {};
+    TemplateArguments m_template_arguments {};
     ObjectTypeBuilder m_stamp {};
 
     static std::unordered_map<PrimitiveType, std::shared_ptr<ObjectType>> s_types_by_id;
@@ -407,12 +468,20 @@ std::string type_name(std::shared_ptr<ObjectType> type);
 }
 
 template<>
+struct std::hash<Obelix::ObjectType>;
+
+template<>
+struct std::hash<Obelix::TemplateArgument> {
+    size_t operator()(Obelix::TemplateArgument const& arg) const noexcept { return arg.hash(); }
+};
+
+template<>
 struct std::hash<Obelix::ObjectType> {
     size_t operator()(Obelix::ObjectType const& type) const noexcept
     {
         size_t ret = std::hash<std::string> {}(type.name());
         for (auto& template_arg : type.template_arguments()) {
-            ret ^= std::hash<Obelix::ObjectType> {}(*template_arg) << 1;
+            ret ^= std::hash<Obelix::TemplateArgument> {}(template_arg) << 1;
         }
         return ret;
     }

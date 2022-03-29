@@ -14,7 +14,7 @@
 
 namespace Obelix {
 
-class MaterializeContext : public Context<std::shared_ptr<SyntaxNode>>
+class MaterializeContext : public Context<int>
 {
 public:
     int offset { 0 };
@@ -30,7 +30,9 @@ NODE_PROCESSOR(BoundFunctionDef)
     int offset = 16;
     MaterializedFunctionParameters function_parameters;
     for (auto& parameter : func_decl->parameters()) {
-        function_parameters.push_back(make_node<MaterializedFunctionParameter>(parameter, offset));
+        auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, offset);
+        func_ctx.declare(materialized_parameter->name(), offset);
+        function_parameters.push_back(materialized_parameter);
         offset += parameter->type()->size();
         if (offset % 8)
             offset += 8 - (offset % 8);
@@ -77,11 +79,11 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     auto offset = ctx.offset;
     auto expression = TRY_AND_CAST(BoundExpression, processor.process(var_decl->expression(), ctx));
     auto ret = make_node<MaterializedVariableDecl>(var_decl, offset, expression);
+    ctx.declare(var_decl->name(), offset);
     offset += var_decl->type()->size();
     if (offset % 8)
         offset += 8 - (offset % 8);
     ctx.offset = offset;
-    ctx.declare(var_decl->name(), ret);
     return ret;
 });
 
@@ -136,7 +138,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
 
     if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract)) {
         std::shared_ptr<BoundExpression> offset { nullptr };
-        auto target_type = (lhs->type()->is_template_instantiation()) ? lhs->type()->template_arguments()[0] : get_type<uint8_t>();
+        auto target_type = (lhs->type()->is_template_instantiation()) ? lhs->type()->template_arguments()[0].as_type() : get_type<uint8_t>();
 
         if (rhs->node_type() == SyntaxNodeType::BoundLiteral) {
             auto offset_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
@@ -171,13 +173,10 @@ NODE_PROCESSOR(BoundBinaryExpression)
 NODE_PROCESSOR(BoundIdentifier)
 {
     auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(tree);
-    auto decl_maybe = ctx.get(identifier->name());
-    if (!decl_maybe.has_value())
+    auto offset_maybe = ctx.get(identifier->name());
+    if (!offset_maybe.has_value())
         return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
-    auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(decl_maybe.value());
-    if (!var_decl)
-        return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
-    return make_node<MaterializedIdentifier>(identifier, var_decl->offset());
+    return make_node<MaterializedIdentifier>(identifier, offset_maybe.value());
 });
 
 NODE_PROCESSOR(BoundMemberAccess)

@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include "core/StringUtil.h"
-#include "obelix/SyntaxNodeType.h"
 #include <memory>
 
 #include <obelix/Intrinsics.h>
@@ -523,17 +521,13 @@ public:
         return format(R"(name="{}" type="{}")", name(), type());
     }
 
-    [[nodiscard]] std::string text_contents() const override
+    [[nodiscard]] Nodes children() const override
     {
-        std::string ret = "<Arguments";
-        if (m_arguments.empty())
-            return ret + "/>";
-        ret += ">";
+        Nodes ret;
         for (auto& arg : m_arguments) {
-            ret += '\n';
-            ret += arg->to_xml(2);
+            ret.push_back(arg);
         }
-        return ret + "\n</Arguments>";
+        return ret;
     }
 
     [[nodiscard]] std::string to_string() const override
@@ -601,17 +595,13 @@ public:
         return format(R"(name="{}" type="{}")", name(), type());
     }
 
-    [[nodiscard]] std::string text_contents() const override
+    [[nodiscard]] Nodes children() const override
     {
-        std::string ret = "<Arguments";
-        if (m_arguments.empty())
-            return ret + "/>";
-        ret += ">";
+        Nodes ret;
         for (auto& arg : m_arguments) {
-            ret += '\n';
-            ret += arg->to_xml(2);
+            ret.push_back(arg);
         }
-        return ret + "\n</Arguments>";
+        return ret;
     }
 
     [[nodiscard]] std::string to_string() const override

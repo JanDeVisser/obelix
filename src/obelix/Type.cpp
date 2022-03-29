@@ -4,13 +4,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "core/StringUtil.h"
-#include "obelix/Architecture.h"
-#include "obelix/Intrinsics.h"
-#include <core/Logging.h>
 #include <cstddef>
 #include <ios>
 #include <memory>
+
+#include <core/Logging.h>
+#include <core/StringUtil.h>
+#include <obelix/Architecture.h>
+#include <obelix/Intrinsics.h>
 #include <obelix/Type.h>
 
 namespace Obelix {
@@ -35,6 +36,50 @@ std::optional<PrimitiveType> PrimitiveType_by_name(std::string const& t)
         return PrimitiveType::Pointer;
     return {};
 }
+
+size_t TemplateArgument::hash() const
+{
+    size_t ret = std::hash<int> {}(static_cast<int>(parameter_type));
+    switch (parameter_type) {
+        case TemplateParameterType::Type:
+            ret ^= std::hash<Obelix::ObjectType> {}(*std::get<std::shared_ptr<ObjectType>>(value));
+            break;
+        case TemplateParameterType::Integer:
+            ret ^= std::hash<long> {}(std::get<long>(value));
+            break;
+        case TemplateParameterType::String:
+            ret ^= std::hash<std::string> {}(std::get<std::string>(value));
+            break;
+    }
+    return ret;
+}
+
+std::string TemplateArgument::to_string() const
+{
+    switch (parameter_type) {
+        case TemplateParameterType::Type:
+            return std::get<std::shared_ptr<ObjectType>>(value)->to_string();
+        case TemplateParameterType::Integer:
+            return Obelix::to_string(std::get<long>(value));
+        case TemplateParameterType::String:
+            return std::get<std::string>(value);
+    }
+}
+
+bool TemplateArgument::operator==(TemplateArgument const& other) const
+{
+    if (parameter_type != other.parameter_type)
+        return false;
+    switch (parameter_type) {
+        case TemplateParameterType::Type:
+            return *std::get<std::shared_ptr<ObjectType>>(value) == *std::get<std::shared_ptr<ObjectType>>(other.value);
+        case TemplateParameterType::Integer:
+            return std::get<long>(value) == std::get<long>(other.value);
+        case TemplateParameterType::String:
+            return std::get<std::string>(value) == std::get<std::string>(other.value);
+    }
+}
+
 
 MethodParameter::MethodParameter(char const* n, PrimitiveType t)
     : name(n)
@@ -260,19 +305,19 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 
 [[maybe_unused]] auto s_pointer = ObjectType::register_type(PrimitiveType::Pointer,
     [](ObjectType& type) {
-        type.has_template_parameter("target");
+        type.has_template_parameter({ "target", TemplateParameterType::Type });
         type.has_size(8);
         type.add_method(MethodDescription { Operator::Dereference, PrimitiveType::Char });
         type.add_method(MethodDescription { Operator::UnaryIncrement, PrimitiveType::Self });
         type.add_method(MethodDescription { Operator::UnaryDecrement, PrimitiveType::Self });
         type.add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
         type.add_method(MethodDescription { Operator::BinaryDecrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
-        type.add_method(MethodDescription { Operator::Add, PrimitiveType::Argument, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
-        type.add_method(MethodDescription { Operator::Subtract, PrimitiveType::Argument, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
+        type.add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
+        type.add_method(MethodDescription { Operator::Subtract, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
         type.will_be_a(PrimitiveType::Comparable);
 
         type.has_template_stamp([](ObjectType& instantiation) {
-            instantiation.add_method(MethodDescription { Operator::Dereference, instantiation.template_arguments()[0] });
+            instantiation.add_method(MethodDescription { Operator::Dereference, instantiation.template_arguments()[0].as_type() });
         });
     });
 
@@ -282,7 +327,7 @@ std::string ObjectType::to_string() const
     auto glue = '<';
     for (auto& parameter : template_arguments()) {
         ret += glue;
-        ret += parameter->to_string();
+        ret += parameter.to_string();
         glue = ',';
     }
     if (glue == ',')
@@ -297,7 +342,7 @@ bool ObjectType::operator==(ObjectType const& other) const
     if (template_arguments().size() != other.template_arguments().size())
         return false;
     for (auto ix = 0; ix < template_arguments().size(); ++ix) {
-        if (*template_arguments()[ix] != *other.template_arguments()[ix])
+        if (template_arguments()[ix] != other.template_arguments()[ix])
             return false;
     }
     return true;
@@ -534,7 +579,7 @@ std::shared_ptr<ObjectType> const& ObjectType::get(ObjectType const* type)
     return s_unknown;
 }
 
-ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::string const& type_name, ObjectTypes const& template_args)
+ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::string const& type_name, TemplateArguments const& template_args)
 {
     auto base_type = ObjectType::get(type_name);
     if (base_type == nullptr || *base_type == *s_unknown)

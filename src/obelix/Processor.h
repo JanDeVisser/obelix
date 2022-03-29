@@ -481,8 +481,13 @@ struct NodeProcessor {
         if (!tree)
             return tree;
         if (processor_map[static_cast<size_t>(tree->node_type())] != nullptr) {
-            debug(parser, "{} = {} handled by NodeProcessor", tree->node_type(), tree);
-            return processor_map[static_cast<size_t>(tree->node_type())](*this, tree, ctx);
+            debug(parser, "NodeProcessor: {} = {}", tree, tree->node_type());
+            ErrorOrNode ret = processor_map[static_cast<size_t>(tree->node_type())](*this, tree, ctx);
+            if (ret.is_error())
+                debug(parser, "NodeProcessor for {} = {} returned error {}", tree, tree->node_type(), ret.error());
+            else
+                debug(parser, "NodeProcessor for {} = {} returned {} = {}", tree, tree->node_type(), ret.value(), ret.value()->node_type());
+            return ret;
         }
         debug(parser, "{} = {} forwarding to process_tree", tree->node_type(), tree);
         return process_tree(tree, ctx, [this](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx) {

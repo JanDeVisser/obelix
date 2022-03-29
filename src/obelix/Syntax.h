@@ -123,12 +123,12 @@ public:
     [[nodiscard]] std::string attributes() const override { return format(R"(type_name="{}")", type_name()); }
     [[nodiscard]] ErrorOr<std::shared_ptr<ObjectType>> resolve_type() const
     {
-        ObjectTypes args;
+        TemplateArguments args;
         for (auto& arg : template_arguments()) {
             auto arg_type_or_error = arg->resolve_type();
             if (arg_type_or_error.is_error())
                 return arg_type_or_error.error();
-            args.push_back(arg_type_or_error.value());
+            args.emplace_back(arg_type_or_error.value());
         }
         return ObjectType::resolve(type_name(), args);
     }
@@ -303,7 +303,7 @@ public:
         }
         return ret;
     }
-    [[nodiscard]] std::string to_string() const override { return format("{{ ... {} statements ... }", m_statements.size()); }
+    [[nodiscard]] std::string to_string() const override { return format("[ ... {} statements ... ]", m_statements.size()); }
 
 protected:
     Statements m_statements {};
@@ -515,7 +515,7 @@ public:
     {
         auto ret = m_function_decl->to_string();
         if (m_statement) {
-            ret += "\n";
+            ret += " ";
             ret += m_statement->to_string();
         }
         return ret;
@@ -628,17 +628,13 @@ public:
         return format(R"(name="{}" type="{}")", name(), type());
     }
 
-    [[nodiscard]] std::string text_contents() const override
+    [[nodiscard]] Nodes children() const override
     {
-        std::string ret = "<Arguments";
-        if (m_arguments.empty())
-            return ret + "/>";
-        ret += ">";
+        Nodes ret;
         for (auto& arg : m_arguments) {
-            ret += '\n';
-            ret += arg->to_xml(2);
+            ret.push_back(arg);
         }
-        return ret += "</Arguments>";
+        return ret;
     }
 
     [[nodiscard]] std::string to_string() const override

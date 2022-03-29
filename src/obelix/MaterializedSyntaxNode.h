@@ -81,7 +81,7 @@ public:
 
     [[nodiscard]] std::string to_string() const override
     {
-        return format("M func {}({}): {}", name(), parameters_to_string(), type());
+        return format("func {}({}): {}", name(), parameters_to_string(), type());
     }
 
 protected:
