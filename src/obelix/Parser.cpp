@@ -528,7 +528,7 @@ std::shared_ptr<Import> Parser::parse_import_statement(Token const& import_token
  */
 std::shared_ptr<Expression> Parser::parse_expression()
 {
-    auto primary = parse_primary_expression(false);
+    auto primary = parse_primary_expression();
     if (!primary)
         return nullptr;
     return parse_expression_1(primary, 0);
@@ -666,7 +666,7 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
         auto op = lex();
         std::shared_ptr<Expression> rhs;
         if (associativity(op.code()) == Associativity::LeftToRight) {
-            rhs = parse_primary_expression(op.code() == TokenCode::Period);
+            rhs = parse_primary_expression();
             if (!rhs)
                 return nullptr;
             while (binary_precedence(current_code()) > binary_precedence(op.code())) {
@@ -698,7 +698,7 @@ std::shared_ptr<Expression> Parser::parse_postfix_unary_operator(std::shared_ptr
     }
 }
 
-std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_chain*/)
+std::shared_ptr<Expression> Parser::parse_primary_expression()
 {
     auto t = lex();
     switch (t.code()) {
@@ -717,7 +717,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
     case TokenCode::UnaryIncrement:
     case TokenCode::UnaryDecrement:
     case TokenCode::Tilde: {
-        auto operand = parse_primary_expression(false);
+        auto operand = parse_primary_expression();
         if (!operand)
             return nullptr;
         return make_node<UnaryExpression>(t, operand);
@@ -740,9 +740,7 @@ std::shared_ptr<Expression> Parser::parse_primary_expression(bool /*in_deref_cha
     case KeywordFalse:
         return make_node<Literal>(t, PrimitiveType::Boolean);
     case TokenCode::Identifier: {
-        //        if (in_deref_chain)
         return make_node<Identifier>(t, t.value());
-        //        return make_node<BinaryExpression>(make_node<This>(), Token(TokenCode::Period, "."), make_node<Identifier>(t.value()));
     }
     default:
         add_error(t, format("Syntax Error: Expected literal or variable, got '{}' ({})", t.value(), t.code_name()));

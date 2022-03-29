@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Intrinsics.h"
-#include "obelix/Operator.h"
-#include "obelix/Type.h"
 #include <filesystem>
 
 #include <config.h>
@@ -14,6 +11,7 @@
 #include <core/Logging.h>
 #include <core/Process.h>
 #include <core/ScopeGuard.h>
+#include <memory>
 #include <obelix/ARM64.h>
 #include <obelix/ARM64Context.h>
 #include <obelix/ARM64Intrinsics.h>
@@ -25,463 +23,345 @@ namespace Obelix {
 
 logging_category(arm64);
 
-ErrorOrNode output_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, ARM64Context& ctx)
+INIT_NODE_PROCESSOR(ARM64Context);
+
+NODE_PROCESSOR(Compilation)
 {
-    if (tree == nullptr)
-        return tree;
+    auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
+    ctx.add_module(ARM64Context::ROOT_MODULE_NAME);
+    return process_tree(tree, ctx, ARM64Context_processor);
+});
 
-    debug(parser, "output_arm64_processor({} = {})", tree->node_type(), tree);
-    switch (tree->node_type()) {
+NODE_PROCESSOR(Module)
+{
+    auto module = std::dynamic_pointer_cast<Module>(tree);
+    ctx.add_module(join(split(module->name(), '/'), "-"));
+    return process_tree(tree, ctx, ARM64Context_processor);
+});
 
-    case SyntaxNodeType::Compilation: {
-        auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
-        ctx.add_module(ARM64Context::ROOT_MODULE_NAME);
-        return process_tree(tree, ctx, output_arm64_processor);
+NODE_PROCESSOR(MaterializedFunctionDef)
+{
+    auto func_def = std::dynamic_pointer_cast<MaterializedFunctionDef>(tree);
+
+    for (auto& param : func_def->declaration()->parameters()) {
+        ctx.declare(param->name(), param->offset());
     }
 
-    case SyntaxNodeType::Module: {
-        auto module = std::dynamic_pointer_cast<Module>(tree);
-        ctx.add_module(join(split(module->name(), '/'), "-"));
-        return process_tree(tree, ctx, output_arm64_processor);
+    if (func_def->declaration()->node_type() == SyntaxNodeType::MaterializedFunctionDecl) {
+        ctx.enter_function(func_def);
+        TRY_RETURN(ARM64Context_processor(func_def->statement(), ctx));
+        ctx.leave_function();
+    }
+    return tree;
+});
+
+NODE_PROCESSOR(BoundFunctionCall)
+{
+    auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
+
+    // Load arguments in registers:
+    ctx.initialize_target_register();
+    for (auto& argument : call->arguments()) {
+        TRY_RETURN(ARM64Context_processor(argument, ctx));
+        ctx.inc_target_register();
     }
 
-    case SyntaxNodeType::MaterializedFunctionDef: {
-        auto func_def = std::dynamic_pointer_cast<MaterializedFunctionDef>(tree);
+    // Call function:
+    ctx.assembly().add_instruction("bl", call->name());
+    ctx.release_target_register(call->type()->type());
+    return tree;
+});
 
-        for (auto& param : func_def->declaration()->parameters()) {
-            ctx.declare(param->name(), param->offset());
-        }
+NODE_PROCESSOR(BoundNativeFunctionCall)
+{
+    auto native_func_call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
+    auto func_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(native_func_call->declaration());
 
-        debug(parser, "func {}", func_def->name());
-        if (func_def->declaration()->node_type() == SyntaxNodeType::MaterializedFunctionDecl) {
-            ctx.enter_function(func_def);
-            TRY_RETURN(output_arm64_processor(func_def->statement(), ctx));
-            ctx.leave_function();
-        }
-        return tree;
+    ctx.initialize_target_register();
+    for (auto& arg : native_func_call->arguments()) {
+        TRY_RETURN(ARM64Context_processor(arg, ctx));
+        ctx.inc_target_register();
     }
 
-    case SyntaxNodeType::BoundFunctionCall: {
-        auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
+    // Call the native function
+    ctx.assembly().add_instruction("bl", func_decl->native_function_name());
+    ctx.release_target_register(native_func_call->type()->type());
+    return tree;
+});
 
-        // Load arguments in registers:
-        ctx.initialize_target_register();
-        for (auto& argument : call->arguments()) {
-            TRY_RETURN(output_arm64_processor(argument, ctx));
-            ctx.inc_target_register();
-        }
+NODE_PROCESSOR(BoundIntrinsicCall)
+{
+    auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
 
-        // Call function:
-        ctx.assembly().add_instruction("bl", call->name());
-        ctx.release_target_register(call->type()->type());
-        return tree;
+    ctx.initialize_target_register();
+    for (auto& arg : call->arguments()) {
+        TRY_RETURN(ARM64Context_processor(arg, ctx));
+        ctx.inc_target_register();
     }
+    ARM64Implementation impl = get_arm64_intrinsic(call->intrinsic());
+    if (!impl)
+        return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string()) };
+    auto ret = impl(ctx);
+    if (ret.is_error())
+        return ret.error();
+    ctx.release_target_register(call->type()->type());
+    return tree;
+});
 
-    case SyntaxNodeType::BoundNativeFunctionCall: {
-        auto native_func_call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
-        auto func_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(native_func_call->declaration());
-
-        ctx.initialize_target_register();
-        for (auto& arg : native_func_call->arguments()) {
-            TRY_RETURN(output_arm64_processor(arg, ctx));
-            ctx.inc_target_register();
-        }
-
-        // Call the native function
-        ctx.assembly().add_instruction("bl", func_decl->native_function_name());
-        ctx.release_target_register(native_func_call->type()->type());
-        return tree;
+NODE_PROCESSOR(BoundLiteral)
+{
+    auto literal = std::dynamic_pointer_cast<BoundLiteral>(tree);
+    auto target = ctx.target_register();
+    switch (literal->type()->type()) {
+    case PrimitiveType::Pointer:
+    case PrimitiveType::Int:
+    case PrimitiveType::Unsigned: {
+        ctx.assembly().add_instruction("mov", "x{},#{}", target, literal->int_value());
+        break;
     }
-
-    case SyntaxNodeType::BoundIntrinsicCall: {
-        auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
-
-        ctx.initialize_target_register();
-        for (auto& arg : call->arguments()) {
-            TRY_RETURN(output_arm64_processor(arg, ctx));
-            ctx.inc_target_register();
-        }
-        ARM64Implementation impl = get_arm64_intrinsic(call->intrinsic());
-        if (!impl)
-            return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string()) };
-        auto ret = impl(ctx);
-        if (ret.is_error())
-            return ret.error();
-        ctx.release_target_register(call->type()->type());
-        return tree;
+    case PrimitiveType::Char:
+    case PrimitiveType::Byte:
+    case PrimitiveType::Boolean: {
+        ctx.assembly().add_instruction("mov", "w{},#{}", target, static_cast<uint8_t>(literal->int_value()));
+        break;
     }
-
-    case SyntaxNodeType::BoundLiteral: {
-        auto literal = std::dynamic_pointer_cast<BoundLiteral>(tree);
-        auto target = ctx.target_register();
-        switch (literal->type()->type()) {
-        case PrimitiveType::Pointer:
-        case PrimitiveType::Int:
-        case PrimitiveType::Unsigned: {
-            ctx.assembly().add_instruction("mov", "x{},#{}", target, literal->int_value());
-            break;
-        }
-        case PrimitiveType::Char:
-        case PrimitiveType::Byte:
-        case PrimitiveType::Boolean: {
-            ctx.assembly().add_instruction("mov", "w{},#{}", target, static_cast<uint8_t>(literal->int_value()));
-            break;
-        }
-        case PrimitiveType::String: {
-            auto str_id = ctx.assembly().add_string(literal->string_value());
-            ctx.assembly().add_instruction("adr", "x{},str_{}", target, str_id);
-            ctx.assembly().add_instruction("mov", "w{},#{}", target + 1, literal->string_value().length());
-            ctx.inc_target_register();
-            break;
-        }
-        default:
-            return Error(ErrorCode::NotYetImplemented, format("Cannot emit literals of type {} yet", literal->type()->to_string()));
-        }
-        return tree;
+    case PrimitiveType::String: {
+        auto str_id = ctx.assembly().add_string(literal->string_value());
+        ctx.assembly().add_instruction("adr", "x{},str_{}", target, str_id);
+        ctx.assembly().add_instruction("mov", "w{},#{}", target + 1, literal->string_value().length());
+        ctx.inc_target_register();
+        break;
     }
-
-    case SyntaxNodeType::BoundIdentifier: {
-        auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(tree);
-        auto idx_maybe = ctx.get(identifier->name());
-        if (!idx_maybe.has_value())
-            return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
-        auto idx = idx_maybe.value();
-        auto target = ctx.target_register();
-
-        switch (identifier->type()->type()) {
-        case PrimitiveType::Pointer:
-        case PrimitiveType::Int:
-            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, idx);
-            break;
-        case PrimitiveType::Unsigned:
-            ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", target, idx);
-            break;
-        case PrimitiveType::Byte:
-            ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", target, idx);
-            break;
-        case PrimitiveType::Char:
-        case PrimitiveType::Boolean:
-            ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", target, idx);
-            break;
-        case PrimitiveType::String: {
-            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, idx);
-            ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target + 1, idx + 8);
-            ctx.inc_target_register();
-            break;
-        }
-        default:
-            return Error { ErrorCode::NotYetImplemented, format("Cannot push values of variables of type {} yet", identifier->type()) };
-        }
-        return tree;
-    }
-
-    case SyntaxNodeType::BoundAssignment: {
-        auto assignment = std::dynamic_pointer_cast<BoundAssignment>(tree);
-
-        auto idx_maybe = ctx.get(assignment->name());
-        if (!idx_maybe.has_value())
-            return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", assignment->name()) };
-        auto idx = idx_maybe.value();
-
-        ctx.initialize_target_register();
-        TRY_RETURN(output_arm64_processor(assignment->expression(), ctx));
-
-        switch (assignment->type()->type()) {
-        case PrimitiveType::Pointer:
-        case PrimitiveType::Int:
-            ctx.assembly().add_instruction("str", "x0,[fp,#{}]", idx);
-            break;
-        case PrimitiveType::Unsigned:
-            ctx.assembly().add_instruction("str", "x0,[fp,#{}]", idx);
-            break;
-        case PrimitiveType::Byte:
-            ctx.assembly().add_instruction("strbs", "x0,[fp,#{}]", idx);
-            break;
-        case PrimitiveType::Char:
-        case PrimitiveType::Boolean:
-            ctx.assembly().add_instruction("strb", "x0,[fp,#{}]", idx);
-            break;
-        case PrimitiveType::String: {
-            ctx.assembly().add_instruction("str", "x0,[fp,#{}]", idx);
-            ctx.assembly().add_instruction("str", "w1,[fp,#{}]", idx + 8);
-            break;
-        }
-        default:
-            return Error { ErrorCode::NotYetImplemented, format("Cannot emit assignments of type {} yet", assignment->type()) };
-        }
-        ctx.release_target_register(assignment->type()->type());
-        return tree;
-    }
-
-    case SyntaxNodeType::MaterializedVariableDecl: {
-        auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(tree);
-        debug(parser, "{}", var_decl->to_string());
-        ctx.assembly().add_comment(var_decl->to_string());
-        ctx.declare(var_decl->name(), var_decl->offset());
-        ctx.initialize_target_register();
-        if (var_decl->expression() != nullptr) {
-            TRY_RETURN(output_arm64_processor(var_decl->expression(), ctx));
-        } else {
-            switch (var_decl->type()->type()) {
-            case PrimitiveType::String: {
-                ctx.assembly().add_instruction("mov", "w1,wzr");
-            } // fall through
-            case PrimitiveType::Pointer:
-            case PrimitiveType::Int:
-            case PrimitiveType::Unsigned:
-            case PrimitiveType::Byte:
-            case PrimitiveType::Char:
-            case PrimitiveType::Boolean:
-                ctx.assembly().add_instruction("mov", "x0,xzr");
-                break;
-            default:
-                return Error { ErrorCode::NotYetImplemented, format("Cannot initialize variables of type {} yet", var_decl->expression()->type()) };
-            }
-        }
-        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", var_decl->offset());
-        if (var_decl->type()->type() == PrimitiveType::String) {
-            ctx.assembly().add_instruction("str", "x1,[fp,#{}]", var_decl->offset() + 8);
-        }
-        ctx.release_target_register(var_decl->type()->type());
-        return tree;
-    }
-
-    case SyntaxNodeType::BoundExpressionStatement: {
-        auto expr_stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
-        debug(parser, "{}", expr_stmt->to_string());
-        ctx.assembly().add_comment(expr_stmt->to_string());
-        ctx.initialize_target_register();
-        TRY_RETURN(output_arm64_processor(expr_stmt->expression(), ctx));
-        ctx.release_target_register();
-        return tree;
-    }
-
-    case SyntaxNodeType::BoundReturn: {
-        auto ret = std::dynamic_pointer_cast<BoundReturn>(tree);
-        debug(parser, "{}", ret->to_string());
-        ctx.assembly().add_comment(ret->to_string());
-        ctx.initialize_target_register();
-        TRY_RETURN(output_arm64_processor(ret->expression(), ctx));
-        ctx.release_target_register();
-        ctx.function_return();
-
-        return tree;
-    }
-
-    case SyntaxNodeType::Label: {
-        auto label = std::dynamic_pointer_cast<Obelix::Label>(tree);
-        debug(parser, "{}", label->to_string());
-        ctx.assembly().add_comment(label->to_string());
-        ctx.assembly().add_label(format("lbl_{}", label->label_id()));
-        return tree;
-    }
-
-    case SyntaxNodeType::Goto: {
-        auto goto_stmt = std::dynamic_pointer_cast<Goto>(tree);
-        debug(parser, "{}", goto_stmt->to_string());
-        ctx.assembly().add_comment(goto_stmt->to_string());
-        ctx.assembly().add_instruction("b", "lbl_{}", goto_stmt->label_id());
-        return tree;
-    }
-
-    case SyntaxNodeType::BoundIfStatement: {
-        auto if_stmt = std::dynamic_pointer_cast<BoundIfStatement>(tree);
-
-        auto end_label = Obelix::Label::reserve_id();
-        auto count = if_stmt->branches().size() - 1;
-        for (auto& branch : if_stmt->branches()) {
-            auto else_label = (count) ? Obelix::Label::reserve_id() : end_label;
-            if (branch->condition()) {
-                debug(parser, "if ({})", branch->condition()->to_string());
-                ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string()));
-                ctx.initialize_target_register();
-                auto cond = TRY_AND_CAST(Expression, output_arm64_processor(branch->condition(), ctx));
-                ctx.release_target_register();
-                ctx.assembly().add_instruction("cmp", "w0,0x00");
-                ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
-            } else {
-                debug(parser, "else");
-                ctx.assembly().add_comment("else");
-            }
-            auto stmt = TRY_AND_CAST(Statement, output_arm64_processor(branch->statement(), ctx));
-            if (count) {
-                ctx.assembly().add_instruction("b", "lbl_{}", end_label);
-                ctx.assembly().add_label(format("lbl_{}", else_label));
-            }
-            count--;
-        }
-        ctx.assembly().add_label(format("lbl_{}", end_label));
-        return tree;
-    }
-
     default:
-        return process_tree(tree, ctx, output_arm64_processor);
+        return Error(ErrorCode::NotYetImplemented, format("Cannot emit literals of type {} yet", literal->type()->to_string()));
     }
-}
+    return tree;
+});
 
-ErrorOrNode prepare_arm64_processor(std::shared_ptr<SyntaxNode> const& tree, Context<int>& ctx)
+NODE_PROCESSOR(MaterializedIdentifier)
 {
-    if (tree == nullptr)
+    auto identifier = std::dynamic_pointer_cast<MaterializedIdentifier>(tree);
+    auto target = ctx.target_register();
+
+    switch (identifier->type()->type()) {
+    case PrimitiveType::Pointer:
+    case PrimitiveType::Int:
+        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, identifier->offset());
+        break;
+    case PrimitiveType::Unsigned:
+        ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", target, identifier->offset());
+        break;
+    case PrimitiveType::Byte:
+        ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", target, identifier->offset());
+        break;
+    case PrimitiveType::Char:
+    case PrimitiveType::Boolean:
+        ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", target, identifier->offset());
+        break;
+    case PrimitiveType::String: {
+        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, identifier->offset());
+        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target + 1, identifier->offset()+ 8);
+        ctx.inc_target_register();
+        break;
+    }
+    case PrimitiveType::Struct: {
+        ctx.assembly().add_instruction("add", "x{},fp,#{}", target, identifier->offset());
+        ctx.inc_target_register();
+        break;
+    }
+    default:
+        return Error { ErrorCode::NotYetImplemented, format("Cannot push values of variables of type {} yet", identifier->type()) };
+    }
+    return tree;
+});
+
+NODE_PROCESSOR(MaterializedMemberAccess)
+{
+    auto member_access = std::dynamic_pointer_cast<MaterializedMemberAccess>(tree);
+    auto target = ctx.target_register();
+
+    switch (member_access->type()->type()) {
+    case PrimitiveType::Pointer:
+    case PrimitiveType::Int:
+        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, member_access->offset());
+        break;
+    case PrimitiveType::Unsigned:
+        ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", target, member_access->offset());
+        break;
+    case PrimitiveType::Byte:
+        ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", target, member_access->offset());
+        break;
+    case PrimitiveType::Char:
+    case PrimitiveType::Boolean:
+        ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", target, member_access->offset());
+        break;
+    case PrimitiveType::String: {
+        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, member_access->offset());
+        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target + 1, member_access->offset()+ 8);
+        ctx.inc_target_register();
+        break;
+    }
+    case PrimitiveType::Struct: {
+        ctx.assembly().add_instruction("add", "x{},fp,#{}", target, member_access->offset());
+        ctx.inc_target_register();
+        break;
+    }
+    default:
+        return Error { ErrorCode::NotYetImplemented, format("Cannot push values of struct members of type {} yet", member_access->type()) };
+    }
+    return tree;
+});
+
+NODE_PROCESSOR(BoundAssignment)
+{
+    auto assignment = std::dynamic_pointer_cast<BoundAssignment>(tree);
+    auto assignee = std::dynamic_pointer_cast<MaterializedVariableAccess>(assignment->assignee());
+    if (assignee == nullptr)
+        return Error { ErrorCode::InternalError, format("Variable access '{}' not materialized", assignment->assignee()) };
+    ctx.initialize_target_register();
+    TRY_RETURN(ARM64Context_processor(assignment->expression(), ctx));
+
+    switch (assignment->type()->type()) {
+    case PrimitiveType::Pointer:
+    case PrimitiveType::Int:
+        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", assignee->offset());
+        break;
+    case PrimitiveType::Unsigned:
+        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", assignee->offset());
+        break;
+    case PrimitiveType::Byte:
+        ctx.assembly().add_instruction("strbs", "x0,[fp,#{}]", assignee->offset());
+        break;
+    case PrimitiveType::Char:
+    case PrimitiveType::Boolean:
+        ctx.assembly().add_instruction("strb", "x0,[fp,#{}]", assignee->offset());
+        break;
+    case PrimitiveType::String: {
+        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", assignee->offset());
+        ctx.assembly().add_instruction("str", "w1,[fp,#{}]", assignee->offset( )+ 8);
+        break;
+    }
+    default:
+        return Error { ErrorCode::NotYetImplemented, format("Cannot emit assignments of type {} yet", assignment->type()->to_string()) };
+    }
+    ctx.release_target_register(assignment->type()->type());
+    return tree;
+});
+
+NODE_PROCESSOR(MaterializedVariableDecl)
+{
+    auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(tree);
+    ctx.assembly().add_comment(var_decl->to_string());
+    if (var_decl->type()->type() == PrimitiveType::Struct)
         return tree;
 
-    debug(parser, "prepare_arm64_processor({} = {})", tree->node_type(), tree);
-    switch (tree->node_type()) {
-    case SyntaxNodeType::BoundFunctionDef: {
-        auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
-        auto func_decl = func_def->declaration();
-        Context<int> func_ctx(ctx);
-        int offset = 16;
-        MaterializedFunctionParameters function_parameters;
-        for (auto& parameter : func_decl->parameters()) {
-            function_parameters.push_back(make_node<MaterializedFunctionParameter>(parameter, offset));
-            switch (parameter->type()->type()) {
-            case PrimitiveType::String:
-                offset += 16;
-                break;
-            default:
-                offset += 8;
-            }
-        }
-
-        auto materialized_function_decl = make_node<MaterializedFunctionDecl>(func_decl, function_parameters);
-        switch (func_decl->node_type()) {
-        case SyntaxNodeType::BoundNativeFunctionDecl: {
-            auto native_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(func_decl);
-            materialized_function_decl = make_node<MaterializedNativeFunctionDecl>(native_decl);
-            return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
-        }
-        case SyntaxNodeType::BoundIntrinsicDecl: {
-            auto intrinsic_decl = std::dynamic_pointer_cast<BoundIntrinsicDecl>(func_decl);
-            materialized_function_decl = make_node<MaterializedIntrinsicDecl>(intrinsic_decl);
-            return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, nullptr, 0);
-        }
-        case SyntaxNodeType::BoundFunctionDecl: {
-            func_ctx.declare("#offset", offset);
-            std::shared_ptr<Block> block;
-            assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
-            block = TRY_AND_CAST(FunctionBlock, prepare_arm64_processor(func_def->statement(), func_ctx));
-            return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, block, func_ctx.get("#offset").value());
-        }
-        default:
-            fatal("Unreachable");
-        }
-    }
-
-    case SyntaxNodeType::BoundVariableDeclaration: {
-        auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
-        auto offset = ctx.get("#offset").value();
-        auto expression = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(var_decl->expression(), ctx));
-        auto ret = make_node<MaterializedVariableDecl>(var_decl, offset, expression);
+    ctx.initialize_target_register();
+    if (var_decl->expression() != nullptr) {
+        TRY_RETURN(ARM64Context_processor(var_decl->expression(), ctx));
+    } else {
         switch (var_decl->type()->type()) {
-        case PrimitiveType::String:
-            offset += 16;
+        case PrimitiveType::String: {
+            ctx.assembly().add_instruction("mov", "w1,wzr");
+        } // fall through
+        case PrimitiveType::Pointer:
+        case PrimitiveType::Int:
+        case PrimitiveType::Unsigned:
+        case PrimitiveType::Byte:
+        case PrimitiveType::Char:
+        case PrimitiveType::Boolean:
+            ctx.assembly().add_instruction("mov", "x0,xzr");
             break;
         default:
-            offset += 8;
+            return Error { ErrorCode::NotYetImplemented, format("Cannot initialize variables of type {} yet", var_decl->expression()->type()->to_string()) };
         }
-        ctx.set("#offset", offset);
-        return ret;
     }
-
-    case SyntaxNodeType::BoundFunctionCall: {
-        auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
-        auto xform_arguments = [&call, &ctx]() -> ErrorOr<BoundExpressions> {
-            BoundExpressions ret;
-            for (auto& expr : call->arguments()) {
-                auto new_expr = prepare_arm64_processor(expr, ctx);
-                if (new_expr.is_error())
-                    return new_expr.error();
-                ret.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
-            }
-            return ret;
-        };
-
-        auto arguments = TRY(xform_arguments());
-        return make_node<BoundFunctionCall>(call, arguments);
+    ctx.assembly().add_instruction("str", "x0,[fp,#{}]", var_decl->offset());
+    if (var_decl->type()->type() == PrimitiveType::String) {
+        ctx.assembly().add_instruction("str", "x1,[fp,#{}]", var_decl->offset() + 8);
     }
+    ctx.release_target_register(var_decl->type()->type());
+    return tree;
+});
 
-    case SyntaxNodeType::BoundUnaryExpression: {
-        auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
-        auto operand = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->operand(), ctx));
-
-        IntrinsicType intrinsic;
-        switch (expr->op()) {
-        case UnaryOperator::Dereference:
-            intrinsic = IntrinsicType::dereference;
-            break;
-        default: {
-            auto method_descr_maybe = operand->type()->get_method(to_operator(expr->op()), {});
-            if (!method_descr_maybe.has_value())
-                return Error { ErrorCode::InternalError, format("No method defined for unary operator {}::{}", 
-                    operand->type()->to_string(), expr->op()) };
-            auto method_descr = method_descr_maybe.value();
-            auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
-            if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
-                return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", method_descr.name()) };
-            intrinsic = impl.intrinsic;
-            break;
-        }
-        }
-        return make_node<BoundIntrinsicCall>(expr->token(), UnaryOperator_name(expr->op()), intrinsic, BoundExpressions { operand }, expr->type());
-    }
-
-    case SyntaxNodeType::BoundBinaryExpression: {
-        auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
-        auto lhs = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->lhs(), ctx));
-        auto rhs = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(expr->rhs(), ctx));
-
-        if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract)) {
-            std::shared_ptr<BoundExpression> offset { nullptr };
-            auto target_type = (lhs->type()->is_template_instantiation()) ? lhs->type()->template_arguments()[0] : get_type<uint8_t>();
-
-            if (rhs->node_type() == SyntaxNodeType::BoundLiteral) {
-                auto offset_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
-                auto offset_val = offset_literal->int_value();
-                if (expr->op() == BinaryOperator::Subtract)
-                    offset_val *= -1;
-                offset = make_node<BoundLiteral>(rhs->token(), make_obj<Integer>(target_type->size() * offset_val));
-            } else {
-                offset = rhs;
-                if (expr->op() == BinaryOperator::Subtract)
-                    offset = make_node<BoundUnaryExpression>(expr->token(), offset, UnaryOperator::Negate, expr->type());
-                auto size = make_node<BoundLiteral>(rhs->token(), target_type->size());
-                offset = make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, get_type<int>());
-                offset = TRY_AND_CAST(BoundExpression, prepare_arm64_processor(offset, ctx));
-            }
-            return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), IntrinsicType::ptr_math, BoundExpressions { lhs, offset }, expr->type());
-        }
-
-        auto method_descr_maybe = lhs->type()->get_method(to_operator(expr->op()), { rhs->type() });
-        if (!method_descr_maybe.has_value())
-            return Error { ErrorCode::InternalError, format("No method defined for binary operator {}::{}({})", 
-                lhs->type()->to_string(), expr->op(), rhs->type()->to_string()) };
-        auto method_descr = method_descr_maybe.value();
-        auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
-        if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
-            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", method_descr.name()) };
-        auto intrinsic = impl.intrinsic;
-
-        return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), intrinsic, BoundExpressions { lhs, rhs }, expr->type() );
-    }
-
-    default:
-        return process_tree(tree, ctx, prepare_arm64_processor);
-    }
-}
-
-ErrorOrNode prepare_arm64(std::shared_ptr<SyntaxNode> const& tree)
+NODE_PROCESSOR(BoundExpressionStatement)
 {
-    Context<int> root;
-    return prepare_arm64_processor(tree, root);
-}
+    auto expr_stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
+    debug(parser, "{}", expr_stmt->to_string());
+    ctx.assembly().add_comment(expr_stmt->to_string());
+    ctx.initialize_target_register();
+    TRY_RETURN(ARM64Context_processor(expr_stmt->expression(), ctx));
+    ctx.release_target_register();
+    return tree;
+});
+
+NODE_PROCESSOR(BoundReturn)
+{
+    auto ret = std::dynamic_pointer_cast<BoundReturn>(tree);
+    debug(parser, "{}", ret->to_string());
+    ctx.assembly().add_comment(ret->to_string());
+    ctx.initialize_target_register();
+    TRY_RETURN(ARM64Context_processor(ret->expression(), ctx));
+    ctx.release_target_register();
+    ctx.function_return();
+
+    return tree;
+});
+
+NODE_PROCESSOR(Label)
+{
+    auto label = std::dynamic_pointer_cast<Obelix::Label>(tree);
+    debug(parser, "{}", label->to_string());
+    ctx.assembly().add_comment(label->to_string());
+    ctx.assembly().add_label(format("lbl_{}", label->label_id()));
+    return tree;
+});
+
+NODE_PROCESSOR(Goto)
+{
+    auto goto_stmt = std::dynamic_pointer_cast<Goto>(tree);
+    debug(parser, "{}", goto_stmt->to_string());
+    ctx.assembly().add_comment(goto_stmt->to_string());
+    ctx.assembly().add_instruction("b", "lbl_{}", goto_stmt->label_id());
+    return tree;
+});
+
+NODE_PROCESSOR(BoundIfStatement)
+{
+    auto if_stmt = std::dynamic_pointer_cast<BoundIfStatement>(tree);
+
+    auto end_label = Obelix::Label::reserve_id();
+    auto count = if_stmt->branches().size() - 1;
+    for (auto& branch : if_stmt->branches()) {
+        auto else_label = (count) ? Obelix::Label::reserve_id() : end_label;
+        if (branch->condition()) {
+            debug(parser, "if ({})", branch->condition()->to_string());
+            ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string()));
+            ctx.initialize_target_register();
+            auto cond = TRY_AND_CAST(Expression, ARM64Context_processor(branch->condition(), ctx));
+            ctx.release_target_register();
+            ctx.assembly().add_instruction("cmp", "w0,0x00");
+            ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
+        } else {
+            ctx.assembly().add_comment("else");
+        }
+        auto stmt = TRY_AND_CAST(Statement, ARM64Context_processor(branch->statement(), ctx));
+        if (count) {
+            ctx.assembly().add_instruction("b", "lbl_{}", end_label);
+            ctx.assembly().add_label(format("lbl_{}", else_label));
+        }
+        count--;
+    }
+    ctx.assembly().add_label(format("lbl_{}", end_label));
+    return tree;
+});
 
 ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string const& file_name, bool run)
 {
-    auto processed = TRY(prepare_arm64(tree));
+    auto processed = TRY(materialize_arm64(tree));
+    std::cout << "\n\nMaterialized:\n" << processed->to_xml() << "\n";
 
     ARM64Context root;
-
-    auto ret = output_arm64_processor(processed, root);
+    auto ret = processor_for_context<ARM64Context>(processed, root);
 
     if (ret.is_error()) {
         return ret;
@@ -532,7 +412,6 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
             return code.error();
         if (run) {
             auto run_cmd = format("./{}", bare_file_name);
-            std::cout << "[RUN] " << run_cmd << "\n";
             auto exit_code = execute(run_cmd);
             if (exit_code.is_error())
                 return exit_code.error();

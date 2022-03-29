@@ -12,6 +12,7 @@ add_executable(
         ARM64.cpp
         ARM64Context.cpp
         ARM64Intrinsics.cpp
+        ARM64Materialize.cpp
         BindTypes.cpp
         FoldConstants.cpp
         Functions.cpp

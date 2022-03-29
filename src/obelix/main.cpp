@@ -101,16 +101,16 @@ private:
     {
         if (tree) {
             if (config().show_tree)
-                printf("Original:\n%s\n", tree->to_string().c_str());
+                std::cout << "\n\nOriginal:\n" << tree->to_xml() << "\n";
             auto transformed = TRY(bind_types(tree));
             if (config().show_tree)
-                printf("\nTypes bound:\n%s\n", transformed->to_string().c_str());
+                std::cout << "\n\nTypes bound:\n" << transformed->to_xml() << "\n";
             transformed = TRY(lower(transformed));
             if (config().show_tree)
-                printf("\nFlattened:\n%s\n", transformed->to_string().c_str());
+                std::cout << "\n\nFlattened:\n" << transformed->to_xml() << "\n";
             transformed = TRY(fold_constants(transformed));
             if (config().show_tree)
-                printf("\nConstants folded:\n%s\n", transformed->to_string().c_str());
+                std::cout << "\n\nConstants folded:\n" << transformed->to_xml() << "\n";
             if (!file_name.empty()) {
 #ifdef JV80
                 auto image = file_name + ".bin";

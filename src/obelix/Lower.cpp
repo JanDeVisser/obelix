@@ -186,19 +186,6 @@ NODE_PROCESSOR(BoundBinaryExpression)
     auto lhs = TRY_AND_CAST(BoundExpression, processor.process(expr->lhs(), ctx));
     auto rhs = TRY_AND_CAST(BoundExpression, processor.process(expr->rhs(), ctx));
 
-    if (expr->op() == BinaryOperator::Assign && lhs->node_type() == SyntaxNodeType::BoundIdentifier) {
-        auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(lhs);
-        return make_node<BoundAssignment>(expr->token(), identifier, rhs);
-    }
-
-    // +=, -= and friends: rewrite to a straight-up assignment to a binary
-    if (BinaryOperator_is_assignment(expr->op()) && lhs->node_type() == SyntaxNodeType::BoundIdentifier) {
-        auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(lhs);
-        auto new_rhs = make_node<BoundBinaryExpression>(expr->token(),
-            identifier, BinaryOperator_for_assignment_operator(expr->op()), rhs, expr->type());
-        return make_node<BoundAssignment>(expr->token(), identifier, new_rhs);
-    }
-
     if (expr->op() == BinaryOperator::GreaterEquals) {
         return make_node<BoundBinaryExpression>(expr->token(),
             make_node<BoundBinaryExpression>(expr->token(),

@@ -49,7 +49,9 @@ namespace Obelix {
     S(NoSuchType, "Unknown type '{}'")                                                        \
     S(DuplicateTypeName, "Duplicate type '{}'")                                               \
     S(TemplateParameterMismatch, "Template '{}' expects {} arguments. Got {}")                \
-    S(TypeNotParameterized, "Type '{}' is not parameterized")
+    S(TypeNotParameterized, "Type '{}' is not parameterized")                                 \
+    S(CannotAccessMember, "Cannot access members of non-struct expression '{}'")              \
+    S(NotMember, "Expression '{}' is not a member of '{}'")
 
 enum class ErrorCode {
 #undef __ENUMERATE_ERROR_CODE

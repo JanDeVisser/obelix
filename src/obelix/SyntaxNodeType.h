@@ -54,9 +54,12 @@ namespace Obelix {
     S(MaterializedVariableDecl)       \
     S(MaterializedNativeFunctionDecl) \
     S(MaterializedIntrinsicDecl)      \
+    S(MaterializedIdentifier)         \
+    S(MaterializedMemberAccess)       \
     S(StatementExecutionResult)       \
     S(BoundExpression)                \
     S(BoundIdentifier)                \
+    S(BoundMemberAccess)              \
     S(BoundLiteral)                   \
     S(BoundBinaryExpression)          \
     S(BoundUnaryExpression)           \

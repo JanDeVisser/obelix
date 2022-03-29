@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <memory>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Syntax.h>
 #include <obelix/SyntaxNodeType.h>
@@ -69,22 +70,18 @@ public:
         return format(R"(name="{}" return_type="{}")", name(), type());
     }
 
-    [[nodiscard]] std::string text_contents() const override
+    [[nodiscard]] Nodes children() const override
     {
-        std::string ret;
-        bool first = true;
+        Nodes ret;
         for (auto& param : m_parameters) {
-            if (!first)
-                ret += "\n";
-            first = false;
-            ret += format(R"(<Parameter {}/>)", param->attributes());
+            ret.push_back(param);
         }
         return ret;
     }
 
     [[nodiscard]] std::string to_string() const override
     {
-        return format("func {}({}): {}", name(), parameters_to_string(), type());
+        return format("M func {}({}): {}", name(), parameters_to_string(), type());
     }
 
 protected:
@@ -223,6 +220,58 @@ private:
     bool m_const { false };
     std::shared_ptr<BoundExpression> m_expression;
     int m_offset;
+};
+
+class MaterializedVariableAccess : public BoundVariableAccess {
+public:
+    MaterializedVariableAccess(std::shared_ptr<BoundExpression> const& expr, int offset)
+        : BoundVariableAccess(expr->token(), expr->type())
+        , m_offset(offset)
+    {
+    }
+
+    [[nodiscard]] int offset() const { return m_offset; }
+private:
+    int m_offset { 0 };
+};
+
+class MaterializedIdentifier : public MaterializedVariableAccess {
+public:
+    MaterializedIdentifier(std::shared_ptr<BoundIdentifier> const& identifier, int offset)
+        : MaterializedVariableAccess(identifier, offset)
+        , m_identifier(identifier->name())
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedIdentifier; }
+    [[nodiscard]] std::string const& name() const { return m_identifier; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" type="{}" offset="{}")", name(), type(), offset()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {} [{}]", name(), type()->to_string(), offset()); }
+
+private:
+    std::string m_identifier;
+};
+
+class MaterializedMemberAccess : public MaterializedVariableAccess {
+public:
+    MaterializedMemberAccess(std::shared_ptr<BoundMemberAccess> const& member_access,
+            std::shared_ptr<MaterializedVariableAccess> strukt, std::shared_ptr<BoundExpression> member, int offset)
+        : MaterializedVariableAccess(member_access, strukt->offset() + offset)
+        , m_struct(move(strukt))
+        , m_member(move(member))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedMemberAccess; }
+    [[nodiscard]] std::shared_ptr<MaterializedVariableAccess> const& structure() const { return m_struct; }
+    [[nodiscard]] std::shared_ptr<BoundExpression> const& member() const { return m_member; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(type="{} offset={}")", type(), offset()); }
+    [[nodiscard]] Nodes children() const override { return { m_struct, m_member }; }
+    [[nodiscard]] std::string to_string() const override { return format("{}.{}: {} [{}]", structure(), member(), type()->to_string(), offset()); }
+
+private:
+    std::shared_ptr<MaterializedVariableAccess> m_struct;
+    std::shared_ptr<BoundExpression> m_member;
 };
 
 }

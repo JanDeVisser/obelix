@@ -207,9 +207,9 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::BoundAssignment: {
         auto assignment = std::dynamic_pointer_cast<BoundAssignment>(tree);
-        auto identifier = TRY_AND_CAST(BoundIdentifier, processor(assignment->identifier(), ctx));
+        auto assignee = TRY_AND_CAST(BoundVariableAccess, processor(assignment->assignee(), ctx));
         auto expression = TRY_AND_CAST(BoundExpression, processor(assignment->expression(), ctx));
-        ret = std::make_shared<BoundAssignment>(assignment->token(), identifier, expression);
+        ret = std::make_shared<BoundAssignment>(assignment->token(), assignee, expression);
         break;
     }
 
@@ -481,9 +481,10 @@ struct NodeProcessor {
         if (!tree)
             return tree;
         if (processor_map[static_cast<size_t>(tree->node_type())] != nullptr) {
-            debug(parser, "{} = {}", tree->node_type(), tree);
+            debug(parser, "{} = {} handled by NodeProcessor", tree->node_type(), tree);
             return processor_map[static_cast<size_t>(tree->node_type())](*this, tree, ctx);
         }
+        debug(parser, "{} = {} forwarding to process_tree", tree->node_type(), tree);
         return process_tree(tree, ctx, [this](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx) {
             return this->process(tree, ctx);
         });
@@ -492,21 +493,31 @@ struct NodeProcessor {
 
 
 template <typename Ctx>
-ErrorOrNode processor_for_context(std::shared_ptr<SyntaxNode> const& tree)
+ErrorOrNode processor_for_context(std::shared_ptr<SyntaxNode> const& tree, Ctx &ctx)
 {
-    Ctx ctx;
     return NodeProcessor<Ctx>::the()->process(tree, ctx);
 }
 
-#define INIT_NODE_PROCESSOR(context_type) \
-    using ContextType = context_type;
+template <typename Ctx>
+ErrorOrNode processor_for_context(std::shared_ptr<SyntaxNode> const& tree)
+{
+    Ctx ctx;
+    return processor_for_context<Ctx>(tree, ctx);
+}
 
-#define NODE_PROCESSOR(node_type)                                                                                                                    \
+#define INIT_NODE_PROCESSOR(context_type) \
+    using ContextType = context_type; \
+    ErrorOrNode context_type ## _processor(std::shared_ptr<SyntaxNode> const &tree, ContextType &ctx) \
+    { \
+        return processor_for_context(tree, ctx); \
+    }
+
+#define NODE_PROCESSOR(node_type)                                                                                                                   \
     [[maybe_unused]] static auto node_type ## _ ## __LINE__ = NodeProcessor<ContextType>::the()->register_node_processor(SyntaxNodeType::node_type, \
         [](NodeProcessor<ContextType>& processor, std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx) -> ErrorOrNode
 
-#define ALIAS_NODE_PROCESSOR(node_type, alias_node_type)                                                             \
-    [[maybe_unused]] static auto node_type##_## __LINE__ = NodeProcessor<ContextType>::the()->alias_node_processor( \
+#define ALIAS_NODE_PROCESSOR(node_type, alias_node_type)                                                           \
+    [[maybe_unused]] static auto node_type##_##__LINE__ = NodeProcessor<ContextType>::the()->alias_node_processor( \
         SyntaxNodeType::node_type, SyntaxNodeType::alias_node_type);
 
 ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const&);

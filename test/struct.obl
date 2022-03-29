@@ -1,9 +1,12 @@
 struct A {
   foo: int;
-  bar: bool;
+  bar: int;
 };
 
 func main(argc: int, argv: ptr<ptr<char>>): int
 {
-  return 1;
+  var a: A;
+  a.foo = 2;
+  a.bar = 5;
+  return a.foo;
 }

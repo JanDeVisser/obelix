@@ -10,6 +10,7 @@
 
 namespace Obelix {
 
+ErrorOrNode materialize_arm64(std::shared_ptr<SyntaxNode> const& tree);
 ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const&, std::string const& = "", bool run = false);
 
 }

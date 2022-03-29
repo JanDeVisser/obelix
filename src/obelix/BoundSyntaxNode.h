@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "core/StringUtil.h"
+#include "obelix/SyntaxNodeType.h"
 #include <memory>
 
 #include <obelix/Intrinsics.h>
@@ -59,16 +61,29 @@ private:
 
 using BoundExpressions = std::vector<std::shared_ptr<BoundExpression>>;
 
-class BoundIdentifier : public BoundExpression {
+class BoundVariableAccess : public BoundExpression {
 public:
-    explicit BoundIdentifier(std::shared_ptr<Identifier> const& identifier, std::shared_ptr<ObjectType> type = nullptr)
-        : BoundExpression(identifier, move(type))
+    BoundVariableAccess(std::shared_ptr<Expression> reference, std::shared_ptr<ObjectType> type)
+        : BoundExpression(reference, move(type))
+    {
+    }
+
+    BoundVariableAccess(Token token, std::shared_ptr<ObjectType> type)
+        : BoundExpression(token, move(type))
+    {
+    }
+};
+
+class BoundIdentifier : public BoundVariableAccess {
+public:
+    explicit BoundIdentifier(std::shared_ptr<Identifier> const& identifier, std::shared_ptr<ObjectType> type)
+        : BoundVariableAccess(identifier, move(type))
         , m_identifier(identifier->name())
     {
     }
 
     BoundIdentifier(Token token, std::string identifier, std::shared_ptr<ObjectType> type)
-        : BoundExpression(std::move(token), move(type))
+        : BoundVariableAccess(std::move(token), move(type))
         , m_identifier(move(identifier))
     {
     }
@@ -83,6 +98,27 @@ private:
 };
 
 using BoundIdentifiers = std::vector<std::shared_ptr<BoundIdentifier>>;
+
+class BoundMemberAccess : public BoundVariableAccess {
+public:
+    BoundMemberAccess(std::shared_ptr<BoundExpression> strukt, std::shared_ptr<BoundExpression> member, std::shared_ptr<ObjectType> type)
+        : BoundVariableAccess(strukt->token(), move(type))
+        , m_struct(move(strukt))
+        , m_member(move(member))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundMemberAccess; }
+    [[nodiscard]] std::shared_ptr<BoundExpression> const& structure() const { return m_struct; }
+    [[nodiscard]] std::shared_ptr<BoundExpression> const& member() const { return m_member; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(type="{}")", type()); }
+    [[nodiscard]] Nodes children() const override { return { m_struct, m_member }; }
+    [[nodiscard]] std::string to_string() const override { return format("{}.{}: {}", structure(), member(), type()->to_string()); }
+
+private:
+    std::shared_ptr<BoundExpression> m_struct;
+    std::shared_ptr<BoundExpression> m_member;
+};
 
 class BoundFunctionDecl : public SyntaxNode {
 public:
@@ -117,15 +153,11 @@ public:
 
     [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" return_type="{}")", name(), type_name()); }
 
-    [[nodiscard]] std::string text_contents() const override
+    [[nodiscard]] Nodes children() const override
     {
-        std::string ret;
-        bool first = true;
+        Nodes ret;
         for (auto& param : m_parameters) {
-            if (!first)
-                ret += "\n";
-            first = false;
-            ret += format(R"(<Parameter name="{}" type="{}"/>)", param->name(), param->type_name());
+            ret.push_back(param);
         }
         return ret;
     }
@@ -345,25 +377,8 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundLiteral; }
-    [[nodiscard]] std::string text_contents() const override { return token().value(); }
-    [[nodiscard]] std::string to_string() const override
-    {
-        switch (type()->type()) {
-            case PrimitiveType::String:
-                return format("{}: {}", m_string, type()->to_string());
-            case PrimitiveType::Int:
-            case PrimitiveType::Unsigned:
-            case PrimitiveType::Byte:
-            case PrimitiveType::Char:
-                return format("{}: {}", m_int, type()->to_string());
-            case PrimitiveType::Float:
-                return format("{}: {}", m_float, type()->to_string());
-            case PrimitiveType::Boolean:
-                return format("{}: {}", m_bool, type()->to_string());
-            default:
-                return format("??: {}", type()->to_string());
-        }
-    }
+    [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", as_string(), type()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", as_string(), type()); }
 
     [[nodiscard]] std::string const& string_value() const
     {
@@ -391,6 +406,25 @@ public:
     [[nodiscard]] bool bool_value() const { return m_bool; }
 
 private:
+    [[nodiscard]] std::string as_string() const
+    {
+        switch (type()->type()) {
+            case PrimitiveType::String:
+                return m_string;
+            case PrimitiveType::Int:
+            case PrimitiveType::Unsigned:
+            case PrimitiveType::Byte:
+            case PrimitiveType::Char:
+                return Obelix::to_string(m_int);
+            case PrimitiveType::Float:
+                return Obelix::to_string(m_float);
+            case PrimitiveType::Boolean:
+                return Obelix::to_string(m_bool);
+            default:
+                return "???";
+        }
+    }
+
     std::string m_string;
     long m_int;
     double m_float;
@@ -979,24 +1013,23 @@ private:
 
 class BoundAssignment : public BoundExpression {
 public:
-    BoundAssignment(Token token, std::shared_ptr<BoundIdentifier> identifier, std::shared_ptr<BoundExpression> expression)
-        : BoundExpression(std::move(token), identifier->type())
-        , m_identifier(move(identifier))
+    BoundAssignment(Token token, std::shared_ptr<BoundVariableAccess> assignee, std::shared_ptr<BoundExpression> expression)
+        : BoundExpression(std::move(token), assignee->type())
+        , m_assignee(move(assignee))
         , m_expression(move(expression))
     {
-        debug(parser, "m_identifier->type() = {} m_expression->type() = {}", m_identifier->type(), m_expression->type());
-        assert(*(m_identifier->type()) == *(m_expression->type()));
+        debug(parser, "m_identifier->type() = {} m_expression->type() = {}", m_assignee->type(), m_expression->type());
+        assert(*(m_assignee->type()) == *(m_expression->type()));
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundAssignment; }
-    [[nodiscard]] std::shared_ptr<BoundIdentifier> const& identifier() const { return m_identifier; }
+    [[nodiscard]] std::shared_ptr<BoundVariableAccess> const& assignee() const { return m_assignee; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const { return m_expression; }
-    [[nodiscard]] std::string const& name() const { return identifier()->name(); }
-    [[nodiscard]] Nodes children() const override { return { identifier(), expression() }; }
-    [[nodiscard]] std::string to_string() const override { return format("{} = {}", identifier()->to_string(), expression()->to_string()); }
+    [[nodiscard]] Nodes children() const override { return { assignee(), expression() }; }
+    [[nodiscard]] std::string to_string() const override { return format("{} = {}", assignee()->to_string(), expression()->to_string()); }
 
 private:
-    std::shared_ptr<BoundIdentifier> m_identifier;
+    std::shared_ptr<BoundVariableAccess> m_assignee;
     std::shared_ptr<BoundExpression> m_expression;
 };
 

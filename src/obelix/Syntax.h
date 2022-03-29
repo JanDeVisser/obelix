@@ -71,7 +71,7 @@ public:
             ret += child->to_xml(indent + 2);
             ret += "\n";
         }
-        return ret + format("{}\n{}</{}>", text, pad(indent), node_type());
+        return ret + format("{}{}</{}>", text, pad(indent), node_type());
     }
 
     [[nodiscard]] virtual std::string to_string() const { return SyntaxNodeType_name(node_type()); }
@@ -188,8 +188,8 @@ public:
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Identifier; }
     [[nodiscard]] std::string const& name() const { return m_identifier; }
-    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" type="{}")", name(), type()->to_string()); }
-    [[nodiscard]] std::string to_string() const override { return format("{}: {}", name(), type()); }
+    [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" type="{}")", name(), type_name()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", name(), type_name()); }
 
 private:
     std::string m_identifier;
@@ -303,14 +303,7 @@ public:
         }
         return ret;
     }
-    [[nodiscard]] std::string to_string() const override
-    {
-        std::string ret = "{\n";
-        for (auto& statement : m_statements) {
-            ret += statement->to_string() + "\n";
-        }
-        return ret + "}";
-    }
+    [[nodiscard]] std::string to_string() const override { return format("{{ ... {} statements ... }", m_statements.size()); }
 
 protected:
     Statements m_statements {};
@@ -430,16 +423,11 @@ public:
     }
 
     [[nodiscard]] std::string attributes() const override { return format(R"(name="{}" return_type="{}")", name(), type_name()); }
-
-    [[nodiscard]] std::string text_contents() const override
+    [[nodiscard]] Nodes children() const override
     {
-        std::string ret;
-        bool first = true;
+        Nodes ret;
         for (auto& param : m_parameters) {
-            if (!first)
-                ret += "\n";
-            first = false;
-            ret += format(R"(<Parameter name="{}" type="{}"/>)", param->name(), param->type_name());
+            ret.push_back(param);
         }
         return ret;
     }
@@ -563,7 +551,7 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Literal; }
-    [[nodiscard]] std::string text_contents() const override { return token().value(); }
+    [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", token().value(), type_name()); }
     [[nodiscard]] std::string to_string() const override { return format("{}: {}", token().value(), type()->to_string()); }
 };
 
@@ -591,7 +579,7 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BinaryExpression; }
-    [[nodiscard]] std::string attributes() const override { return format(R"(operator="{}" type="{}")", m_operator.value(), type()); }
+    [[nodiscard]] std::string attributes() const override { return format(R"(operator="{}" type="{}")", m_operator.value(), type_name()); }
     [[nodiscard]] Nodes children() const override { return { m_lhs, m_rhs }; }
     [[nodiscard]] std::string to_string() const override { return format("{} {} {}", lhs()->to_string(), op().value(), rhs()->to_string()); }
 

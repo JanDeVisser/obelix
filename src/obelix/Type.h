@@ -212,7 +212,9 @@ public:
     void has_template_stamp(ObjectTypeBuilder const& stamp) { m_stamp = stamp; }
 
     [[nodiscard]] bool is_parameterized() const { return !m_template_parameters.empty(); }
-    [[nodiscard]] size_t size() const { return m_size; }
+    [[nodiscard]] size_t size() const;
+    [[nodiscard]] ssize_t offset_of(std::string const&) const;
+    [[nodiscard]] ssize_t offset_of(int) const;
     [[nodiscard]] std::vector<std::string> const& template_parameters() const { return m_template_parameters; }
     [[nodiscard]] bool is_template_instantiation() const { return m_instantiates_template != nullptr; }
     [[nodiscard]] std::shared_ptr<ObjectType> instantiates_template() const { return m_instantiates_template; }
@@ -224,6 +226,7 @@ public:
 
     [[nodiscard]] std::optional<MethodDescription> get_method(Operator op, ObjectTypes const& argument_types = {});
     [[nodiscard]] FieldDefs const& fields() const { return m_fields; }
+    [[nodiscard]] FieldDef const& field(std::string const&) const;
 
     bool operator==(ObjectType const&) const;
 

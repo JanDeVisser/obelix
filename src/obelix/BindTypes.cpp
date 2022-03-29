@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "lexer/Token.h"
+#include "obelix/Operator.h"
+#include "obelix/SyntaxNodeType.h"
 #include "obelix/Type.h"
 #include <memory>
 #include <obelix/BoundSyntaxNode.h>
@@ -124,14 +127,15 @@ NODE_PROCESSOR(BinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BinaryExpression>(tree);
     auto lhs = TRY_AND_CAST(BoundExpression, processor.process(expr->lhs(), ctx));
-    auto rhs = TRY_AND_CAST(BoundExpression, processor.process(expr->rhs(), ctx));
+    auto rhs = TRY(processor.process(expr->rhs(), ctx));
+    auto rhs_bound = std::dynamic_pointer_cast<BoundExpression>(rhs);
 
     struct BinaryOperatorMap {
         TokenCode code;
         BinaryOperator op;
     };
 
-    constexpr static BinaryOperatorMap operator_map[20] = {
+    constexpr static BinaryOperatorMap operator_map[] = {
         { TokenCode::Plus, BinaryOperator::Add },
         { TokenCode::Minus, BinaryOperator::Subtract },
         { TokenCode::Asterisk, BinaryOperator::Multiply },
@@ -149,6 +153,7 @@ NODE_PROCESSOR(BinaryExpression)
         { TokenCode::Ampersand, BinaryOperator::BitwiseAnd },
         { TokenCode::Pipe, BinaryOperator::BitwiseOr },
         { TokenCode::Hat, BinaryOperator::BitwiseXor },
+        { TokenCode::Period, BinaryOperator::MemberAccess },
         { Parser::KeywordIncEquals, BinaryOperator::BinaryIncrement },
         { Parser::KeywordDecEquals, BinaryOperator::BinaryDecrement },
         { Parser::KeywordRange, BinaryOperator::Range },
@@ -164,26 +169,59 @@ NODE_PROCESSOR(BinaryExpression)
     if (op == BinaryOperator::Invalid)
         return Error { ErrorCode::OperatorUnresolved, expr->op().value(), lhs->to_string() };
 
-    if (op == BinaryOperator::Assign || BinaryOperator_is_assignment(op)) {
-        if (lhs->node_type() != SyntaxNodeType::BoundIdentifier)
-            return Error { ErrorCode::CannotAssignToRValue, lhs->to_string() };
-        auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(lhs);
-        auto var_decl_maybe = ctx.get(identifier->name());
-        if (!var_decl_maybe.has_value())
-            return Error { ErrorCode::UndeclaredVariable, identifier->name() };
-        if (var_decl_maybe.value()->node_type() != SyntaxNodeType::BoundVariableDeclaration)
-            return Error { ErrorCode::CannotAssignToFunction, identifier->name() };
-        auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(var_decl_maybe.value());
-        if (var_decl->is_const())
-            return Error { ErrorCode::CannotAssignToConstant, var_decl->name() };
-        if (var_decl->type()->type() != rhs->type()->type())
-            return Error { ErrorCode::TypeMismatch, rhs->to_string(), var_decl->type(), rhs->type() };
+    if (op == BinaryOperator::MemberAccess) {
+        if (lhs->type()->type() != PrimitiveType::Struct)
+            return Error { ErrorCode::CannotAccessMember, lhs->to_string() };
+        if (rhs->node_type() != SyntaxNodeType::Identifier)
+            return Error { ErrorCode::NotMember, rhs, lhs };
+        auto ident = std::dynamic_pointer_cast<Identifier>(rhs);
+        auto field = lhs->type()->field(ident->name());
+        if (field.type->type() == PrimitiveType::Unknown)
+            return Error { ErrorCode::NotMember, rhs, lhs };
+        auto member_literal = make_node<BoundLiteral>(rhs->token(), ident->name());
+        return std::make_shared<BoundMemberAccess>(lhs, member_literal, field.type);
     }
 
-    auto return_type = lhs->type()->return_type_of(to_operator(op), rhs->type());
+    if (rhs->node_type() == SyntaxNodeType::Identifier) {
+        auto ident = std::dynamic_pointer_cast<Identifier>(rhs);
+        return Error { ErrorCode::UndeclaredVariable, ident->name() };
+    }
+
+    if (rhs_bound == nullptr)
+        return Error { ErrorCode::UntypedExpression, rhs->to_string() };
+
+    if (op == BinaryOperator::Assign || BinaryOperator_is_assignment(op)) {
+        auto assignee = std::dynamic_pointer_cast<BoundVariableAccess>(lhs);
+        if (assignee == nullptr)
+            return Error { ErrorCode::CannotAssignToRValue, lhs->to_string() };
+        auto lhs_as_ident = std::dynamic_pointer_cast<BoundIdentifier>(assignee);
+        if (lhs_as_ident) {
+            auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(lhs);
+            auto var_decl_maybe = ctx.get(identifier->name());
+            if (!var_decl_maybe.has_value())
+                return Error { ErrorCode::UndeclaredVariable, identifier->name() };
+            if (var_decl_maybe.value()->node_type() != SyntaxNodeType::BoundVariableDeclaration)
+                return Error { ErrorCode::CannotAssignToFunction, identifier->name() };
+            auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(var_decl_maybe.value());
+            if (var_decl->is_const())
+                return Error { ErrorCode::CannotAssignToConstant, var_decl->name() };
+        }
+        if (*(lhs->type()) != *(rhs_bound->type()))
+            return Error { ErrorCode::TypeMismatch, rhs->to_string(), lhs->type(), rhs_bound->type() };
+
+        if (op == BinaryOperator::Assign)
+            return make_node<BoundAssignment>(expr->token(), assignee, rhs_bound);
+
+        // +=, -= and friends: rewrite to a straight-up assignment to a binary
+        auto new_rhs = make_node<BoundBinaryExpression>(expr->token(),
+            lhs, BinaryOperator_for_assignment_operator(op), rhs_bound, rhs_bound->type());
+        return make_node<BoundAssignment>(expr->token(), assignee, new_rhs);
+    }
+
+    auto return_type = lhs->type()->return_type_of(to_operator(op), rhs_bound->type());
     if (!return_type.has_value())
         return Error { ErrorCode::ReturnTypeUnresolved, format("{} {} {}", lhs, op, rhs) };
-    return make_node<BoundBinaryExpression>(expr, lhs, op, rhs, return_type.value());
+    return make_node<BoundBinaryExpression>(expr, lhs, op, rhs_bound, return_type.value());
 });
 
 NODE_PROCESSOR(UnaryExpression)
@@ -228,7 +266,7 @@ NODE_PROCESSOR(Identifier)
     auto ident = std::dynamic_pointer_cast<Identifier>(tree);
     auto type_decl_maybe = ctx.get(ident->name());
     if (!type_decl_maybe.has_value())
-        return Error { ErrorCode::UntypedVariable, ident->name() };
+        return tree;
     if (type_decl_maybe.value()->node_type() != SyntaxNodeType::BoundVariableDeclaration)
         return Error { ErrorCode::SyntaxError, format("Function {} cannot be referenced as a variable", ident->name()) };
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());

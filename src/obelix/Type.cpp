@@ -8,6 +8,7 @@
 #include "obelix/Architecture.h"
 #include "obelix/Intrinsics.h"
 #include <core/Logging.h>
+#include <cstddef>
 #include <ios>
 #include <memory>
 #include <obelix/Type.h>
@@ -204,7 +205,7 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 [[maybe_unused]] auto s_integer = ObjectType::register_type(PrimitiveType::Int,
     [](ObjectType& type) {
         type.will_be_a(PrimitiveType::SignedIntegerNumber);
-        type.has_size(4);
+        type.has_size(8);
     });
 
 [[maybe_unused]] auto s_unsigned = ObjectType::register_type(PrimitiveType::Unsigned,
@@ -300,6 +301,53 @@ bool ObjectType::operator==(ObjectType const& other) const
             return false;
     }
     return true;
+}
+
+size_t ObjectType::size() const
+{
+    if (m_type != PrimitiveType::Struct)
+        return m_size;
+    size_t ret = 0;
+    for (auto const& field : m_fields) {
+        ret += field.type->size();
+    }
+    return ret;
+}
+
+ssize_t ObjectType::offset_of(std::string const& name) const
+{
+    if (m_type != PrimitiveType::Struct)
+        return (size_t) -1;
+    size_t ret = 0;
+    for (auto const& field : m_fields) {
+        if (field.name == name)
+            return ret;
+        ret += field.type->size();
+    }
+    return (size_t) -1;
+}
+
+ssize_t ObjectType::offset_of(int field) const
+{
+    if ((field < 0) || (field >= m_fields.size()))
+        return (size_t) -1;
+    size_t ret = 0;
+    for (auto ix = 0; ix < field; ix++) {
+        ret += m_fields[ix].type->size();
+    }
+    return ret;
+}
+
+FieldDef const& ObjectType::field(std::string const& name) const
+{
+    static FieldDef unknown { "", ObjectType::get(PrimitiveType::Unknown) };
+    if (m_type != PrimitiveType::Struct)
+        return unknown;
+    for (auto const& field : m_fields) {
+        if (field.name == name)
+            return field;
+    }
+    return unknown;
 }
 
 bool ObjectType::is_a(ObjectType const* other) const
