@@ -18,6 +18,8 @@ namespace Obelix {
     S(Compilation)                    \
     S(Module)                         \
     S(ExpressionType)                 \
+    S(StringTemplateArgument)         \
+    S(IntegerTemplateArgument)        \
     S(Expression)                     \
     S(Literal)                        \
     S(Identifier)                     \

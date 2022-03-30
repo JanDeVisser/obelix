@@ -78,7 +78,7 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
 
     case SyntaxNodeType::ExpressionType: {
         auto expr_type = std::dynamic_pointer_cast<ExpressionType>(tree);
-        ExpressionTypes arguments;
+        TemplateArgumentNodes arguments;
         for (auto& arg : expr_type->template_arguments()) {
             auto processed_arg = TRY_AND_CAST(ExpressionType, processor(arg, ctx));
             arguments.push_back(arg);

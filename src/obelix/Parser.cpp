@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "core/StringUtil.h"
 #include "lexer/Token.h"
 #include "obelix/Type.h"
 #include <obelix/BoundSyntaxNode.h>
@@ -756,14 +757,32 @@ std::shared_ptr<ExpressionType> Parser::parse_type()
     auto type_name = type_token.value();
     if (current_code() == TokenCode::LessThan) {
         auto lt_token = lex();
-        ExpressionTypes arguments;
+        TemplateArgumentNodes arguments;
         while (true) {
-            auto parameter = parse_type();
-            if (!parameter) {
-                add_error(peek(), format("Syntax Error: Expected type, got '{}' ({})", peek().value(), peek().code_name()));
+            switch (current_code()) {
+            case TokenCode::DoubleQuotedString: {
+                auto token = lex();
+                arguments.push_back(make_node<StringTemplateArgument>(token, token.value()));
+                break;
+            }
+            case TokenCode::Integer:
+            case TokenCode::HexNumber: {
+                auto token = lex();
+                arguments.push_back(make_node<IntegerTemplateArgument>(token, token.token_value<long>()));
+                break;
+            }
+            case TokenCode::Identifier: {
+                auto parameter = parse_type();
+                if (!parameter) {
+                    add_error(peek(), format("Syntax Error: Expected type, got '{}' ({})", peek().value(), peek().code_name()));
+                    return nullptr;
+                }
+                arguments.push_back(parameter);
+                break;
+            }
+            default:
                 return nullptr;
             }
-            arguments.push_back(parameter);
             if (current_code() == TokenCode::GreaterThan) {
                 lex();
                 return make_node<ExpressionType>(lt_token, type_name, arguments);

@@ -93,25 +93,65 @@ public:
     }
 };
 
-using ExpressionTypes = std::vector<std::shared_ptr<ExpressionType>>;
-
-class ExpressionType : public SyntaxNode {
+class TemplateArgumentNode : public SyntaxNode {
 public:
-    ExpressionType(Token token, std::string type_name, ExpressionTypes template_arguments)
+    explicit TemplateArgumentNode(Token token)
         : SyntaxNode(std::move(token))
+    {
+    }
+};
+
+using TemplateArgumentNodes = std::vector<std::shared_ptr<TemplateArgumentNode>>;
+
+class StringTemplateArgument : public TemplateArgumentNode {
+public:
+    StringTemplateArgument(Token token, std::string value)
+        : TemplateArgumentNode(std::move(token))
+        , m_value(move(value))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::StringTemplateArgument; }
+    [[nodiscard]] std::string to_string() const override { return '"' + value() + '"'; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(argument_type="string" value="{}")", value());}
+    [[nodiscard]] std::string value() const { return m_value; }
+private:
+    std::string m_value;
+};
+
+class IntegerTemplateArgument : public TemplateArgumentNode {
+public:
+    IntegerTemplateArgument(Token token, long value)
+        : TemplateArgumentNode(std::move(token))
+        , m_value(value)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IntegerTemplateArgument; }
+    [[nodiscard]] std::string to_string() const override { return Obelix::to_string(value()); }
+    [[nodiscard]] std::string attributes() const override { return format(R"(argument_type="string" value="{}")", value());}
+    [[nodiscard]] long value() const { return m_value; }
+private:
+    long m_value;
+};
+
+class ExpressionType : public TemplateArgumentNode {
+public:
+    ExpressionType(Token token, std::string type_name, TemplateArgumentNodes template_arguments)
+        : TemplateArgumentNode(std::move(token))
         , m_type_name(move(type_name))
         , m_template_args(move(template_arguments))
     {
     }
 
     explicit ExpressionType(Token token, std::string type_name)
-        : SyntaxNode(std::move(token))
+        : TemplateArgumentNode(std::move(token))
         , m_type_name(move(type_name))
     {
     }
 
     explicit ExpressionType(Token token, PrimitiveType type)
-        : SyntaxNode(std::move(token))
+        : TemplateArgumentNode(std::move(token))
         , m_type_name(PrimitiveType_name(type))
     {
     }
@@ -119,16 +159,30 @@ public:
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ExpressionType; }
     [[nodiscard]] bool is_template_instantiation() const { return !m_template_args.empty(); }
     [[nodiscard]] std::string const& type_name() const { return m_type_name; }
-    [[nodiscard]] ExpressionTypes const& template_arguments() const { return m_template_args; }
-    [[nodiscard]] std::string attributes() const override { return format(R"(type_name="{}")", type_name()); }
+    [[nodiscard]] TemplateArgumentNodes const& template_arguments() const { return m_template_args; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(argument_type="type" value="{}")", type_name()); }
     [[nodiscard]] ErrorOr<std::shared_ptr<ObjectType>> resolve_type() const
     {
         TemplateArguments args;
         for (auto& arg : template_arguments()) {
-            auto arg_type_or_error = arg->resolve_type();
-            if (arg_type_or_error.is_error())
-                return arg_type_or_error.error();
-            args.emplace_back(arg_type_or_error.value());
+            switch (arg->node_type()) {
+            case SyntaxNodeType::ExpressionType: {
+                auto expr_type = std::dynamic_pointer_cast<ExpressionType>(arg);
+                auto arg_type_or_error = expr_type->resolve_type();
+                if (arg_type_or_error.is_error())
+                    return arg_type_or_error.error();
+                args.emplace_back(arg_type_or_error.value());
+                break;
+            }
+            case SyntaxNodeType::StringTemplateArgument:
+                args.emplace_back(std::dynamic_pointer_cast<StringTemplateArgument>(arg)->value());
+                break;
+            case SyntaxNodeType::IntegerTemplateArgument:
+                args.emplace_back(std::dynamic_pointer_cast<IntegerTemplateArgument>(arg)->value());
+                break;
+            default:
+                fatal("Unreachable: nodes of type '{}' can't be template arguments", arg->node_type());
+            }
         }
         return ObjectType::resolve(type_name(), args);
     }
@@ -158,8 +212,10 @@ public:
 
 private:
     std::string m_type_name;
-    ExpressionTypes m_template_args {};
+    TemplateArgumentNodes m_template_args {};
 };
+
+using ExpressionTypes = std::vector<std::shared_ptr<ExpressionType>>;
 
 class Expression : public SyntaxNode {
 public:
@@ -551,8 +607,8 @@ public:
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Literal; }
-    [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", token().value(), type_name()); }
-    [[nodiscard]] std::string to_string() const override { return format("{}: {}", token().value(), type()->to_string()); }
+    [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", Expression::token().value(), type_name()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", Expression::token().value(), type()->to_string()); }
 };
 
 using Expressions = std::vector<std::shared_ptr<Expression>>;
