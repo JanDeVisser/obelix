@@ -111,11 +111,32 @@ public:
     [[nodiscard]] std::shared_ptr<BoundExpression> const& member() const { return m_member; }
     [[nodiscard]] std::string attributes() const override { return format(R"(type="{}")", type()); }
     [[nodiscard]] Nodes children() const override { return { m_struct, m_member }; }
-    [[nodiscard]] std::string to_string() const override { return format("{}.{}: {}", structure(), member(), type()->to_string()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}.{}: {}", structure(), member(), type_name()); }
 
 private:
     std::shared_ptr<BoundExpression> m_struct;
     std::shared_ptr<BoundExpression> m_member;
+};
+
+class BoundArrayAccess : public BoundVariableAccess {
+public:
+    BoundArrayAccess(std::shared_ptr<BoundExpression> array, std::shared_ptr<BoundExpression> index, std::shared_ptr<ObjectType> type)
+        : BoundVariableAccess(array->token(), move(type))
+        , m_array(move(array))
+        , m_index(move(index))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundArrayAccess; }
+    [[nodiscard]] std::shared_ptr<BoundExpression> const& array() const { return m_array; }
+    [[nodiscard]] std::shared_ptr<BoundExpression> const& subscript() const { return m_index; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(type="{}")", type()); }
+    [[nodiscard]] Nodes children() const override { return { m_array, m_index}; }
+    [[nodiscard]] std::string to_string() const override { return format("{}[{}]: {}", array(), subscript(), type_name()); }
+
+private:
+    std::shared_ptr<BoundExpression> m_array;
+    std::shared_ptr<BoundExpression> m_index;
 };
 
 class BoundFunctionDecl : public SyntaxNode {

@@ -129,7 +129,7 @@ public:
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IntegerTemplateArgument; }
     [[nodiscard]] std::string to_string() const override { return Obelix::to_string(value()); }
-    [[nodiscard]] std::string attributes() const override { return format(R"(argument_type="string" value="{}")", value());}
+    [[nodiscard]] std::string attributes() const override { return format(R"(argument_type="integer" value="{}")", value());}
     [[nodiscard]] long value() const { return m_value; }
 private:
     long m_value;

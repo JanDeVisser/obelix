@@ -460,10 +460,7 @@ struct NodeProcessor {
         return s_the;
     }
 
-    NodeProcessor()
-    {
-    }
-
+    NodeProcessor() = default;
     bool register_node_processor(SyntaxNodeType node_type, ProcessorFnc processor_func)
     {
         processor_map[static_cast<size_t>(node_type)] = processor_func;
@@ -517,8 +514,8 @@ ErrorOrNode processor_for_context(std::shared_ptr<SyntaxNode> const& tree)
         return processor_for_context(tree, ctx); \
     }
 
-#define NODE_PROCESSOR(node_type)                                                                                                                   \
-    [[maybe_unused]] static auto node_type ## _ ## __LINE__ = NodeProcessor<ContextType>::the()->register_node_processor(SyntaxNodeType::node_type, \
+#define NODE_PROCESSOR(node_type)                                                                                                                \
+    [[maybe_unused]] static auto node_type ## _pracessor = NodeProcessor<ContextType>::the()->register_node_processor(SyntaxNodeType::node_type, \
         [](NodeProcessor<ContextType>& processor, std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx) -> ErrorOrNode
 
 #define ALIAS_NODE_PROCESSOR(node_type, alias_node_type)                                                           \

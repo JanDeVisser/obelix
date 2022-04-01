@@ -274,4 +274,27 @@ private:
     std::shared_ptr<BoundExpression> m_member;
 };
 
+class MaterializedArrayAccess : public MaterializedVariableAccess {
+public:
+    MaterializedArrayAccess(std::shared_ptr<BoundArrayAccess> const& array_access,
+            std::shared_ptr<MaterializedVariableAccess> array, std::shared_ptr<BoundExpression> index, int element_size)
+        : MaterializedVariableAccess(array_access, element_size)
+        , m_array(move(array))
+        , m_index(move(index))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedArrayAccess; }
+    [[nodiscard]] std::shared_ptr<MaterializedVariableAccess> const& array() const { return m_array; }
+    [[nodiscard]] std::shared_ptr<BoundExpression> const& index() const { return m_index; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(type="{}" element_size="{}")", type(), element_size()); }
+    [[nodiscard]] Nodes children() const override { return { m_array, m_index }; }
+    [[nodiscard]] std::string to_string() const override { return format("{}.{}: {} [{}]", array(), index(), type()->to_string(), offset()); }
+    [[nodiscard]] int element_size() const { return offset(); }
+
+private:
+    std::shared_ptr<MaterializedVariableAccess> m_array;
+    std::shared_ptr<BoundExpression> m_index;
+};
+
 }

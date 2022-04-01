@@ -40,6 +40,7 @@ namespace Obelix {
     S(Pointer, 9)                    \
     S(Struct, 10)                    \
     S(Range, 11)                     \
+    S(Array, 12)                     \
     S(Error, 9996)                   \
     S(Self, 9997)                    \
     S(Compatible, 9998)              \

@@ -201,6 +201,16 @@ NODE_PROCESSOR(BoundMemberAccess)
     return make_node<MaterializedMemberAccess>(member_access, strukt, member, offset);
 });
 
+NODE_PROCESSOR(BoundArrayAccess)
+{
+    auto array_access = std::dynamic_pointer_cast<BoundArrayAccess>(tree);
+    auto array = TRY_AND_CAST(MaterializedVariableAccess, processor.process(array_access->array(), ctx));
+    auto subscript = TRY_AND_CAST(BoundExpression, processor.process(array_access->subscript(), ctx));
+    auto type = array->type()->template_arguments()[0].as_type();
+    auto element_size = type->size();
+   return make_node<MaterializedArrayAccess>(array_access, array, subscript, element_size);
+});
+
 ErrorOrNode materialize_arm64(std::shared_ptr<SyntaxNode> const& tree)
 {
     return processor_for_context<MaterializeContext>(tree);

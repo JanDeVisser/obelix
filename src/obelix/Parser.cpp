@@ -575,6 +575,7 @@ int Parser::binary_precedence(TokenCode code)
     case TokenCode::Percent:
         return 12;
     case TokenCode::Period:
+    case TokenCode::OpenBracket:
         return 14;
     default:
         return -1;
@@ -662,20 +663,25 @@ bool Parser::is_assignment_operator(TokenCode code)
 
 std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expression> lhs, int min_precedence)
 {
-
     while (binary_precedence(current_code()) >= min_precedence) {
         auto op = lex();
         std::shared_ptr<Expression> rhs;
         if (associativity(op.code()) == Associativity::LeftToRight) {
+            auto open_bracket = op.code() == TokenCode::OpenBracket;
             rhs = parse_primary_expression();
             if (!rhs)
                 return nullptr;
-            while (binary_precedence(current_code()) > binary_precedence(op.code())) {
+            while ((open_bracket && (current_code() != TokenCode::CloseBracket)) && (binary_precedence(current_code()) > binary_precedence(op.code()))) {
                 rhs = parse_expression_1(rhs, binary_precedence(op.code()) + 1);
             }
-            if (is_postfix_unary_operator(current_code()) && (unary_precedence(current_code()) > binary_precedence(op.code()))) {
-                lhs = parse_postfix_unary_operator(lhs);
+            if (open_bracket) {
+                if (current_code() != TokenCode::CloseBracket)
+                    return nullptr;
+                lex();
+                open_bracket = false;
             }
+            if (is_postfix_unary_operator(current_code()) && (unary_precedence(current_code()) > binary_precedence(op.code())))
+                lhs = parse_postfix_unary_operator(lhs);
         } else {
             rhs = parse_expression();
         }

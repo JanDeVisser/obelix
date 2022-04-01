@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Type.h"
 #include <filesystem>
 
 #include <config.h>
@@ -212,6 +213,85 @@ NODE_PROCESSOR(MaterializedMemberAccess)
     return tree;
 });
 
+ErrorOr<std::pair<int, int>> calculate_array_element_offset(ARM64Context &ctx, std::shared_ptr<MaterializedArrayAccess> array_access)
+{
+    ctx.inc_target_register();
+    auto target = ctx.target_register();
+    TRY_RETURN(ARM64Context_processor(array_access->index(), ctx));
+    switch (array_access->element_size()) {
+        case 1:
+            ctx.assembly().add_instruction("add", "x{},x{},#{}", target, target, array_access->element_size());
+            break;
+        case 2:
+            ctx.assembly().add_instruction("lsl", "x{},x{},#1", target, target);
+            break;
+        case 4:
+            ctx.assembly().add_instruction("lsl", "x{},x{},#2", target, target);
+            break;
+        case 8:
+            ctx.assembly().add_instruction("lsl", "x{},x{},#3", target, target);
+            break;
+        case 16:
+            ctx.assembly().add_instruction("lsl", "x{},x{},#4", target, target);
+            break;
+        default:
+            return Error { ErrorCode::InternalError, "Cannot access arrays with elements of size {} yet", array_access->element_size()};
+    }
+    ctx.assembly().add_instruction("add", "x{},x{},#{}", target, target, array_access->array()->offset());
+    int target_strlen = -1;
+    if (array_access->type()->type() == PrimitiveType::String) {
+        ctx.inc_target_register();
+        target_strlen = ctx.target_register();
+        ctx.assembly().add_instruction("add", "x{},x{},#{}", target_strlen, target, 8);
+    }
+    return std::pair { target, target_strlen };
+}
+
+NODE_PROCESSOR(MaterializedArrayAccess)
+{
+    auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(tree);
+    ctx.initialize_target_register();
+    auto target = ctx.target_register();
+    int target_strlen = -1;
+    if (array_access->type()->type() == PrimitiveType::String) {
+        ctx.inc_target_register();
+        target_strlen = ctx.target_register();
+    }
+    auto pointer_pair = TRY(calculate_array_element_offset(ctx, array_access));
+    auto pointer = pointer_pair.first;
+    switch (array_access->type()->type()) {
+    case PrimitiveType::Pointer:
+    case PrimitiveType::Int:
+        ctx.assembly().add_instruction("ldr", "x{},[fp,x{}]", target, pointer);
+        break;
+    case PrimitiveType::Unsigned:
+        ctx.assembly().add_instruction("ldr", "x{},[fp,x{}]", target, pointer);
+        break;
+    case PrimitiveType::Byte:
+        ctx.assembly().add_instruction("ldrbs", "w{},[fp,x{}]", target, pointer);
+        break;
+    case PrimitiveType::Char:
+    case PrimitiveType::Boolean:
+        ctx.assembly().add_instruction("ldrb", "w{},[fp,x{}]", target, pointer);
+        break;
+    case PrimitiveType::String: {
+        ctx.assembly().add_instruction("ldr", "x{},[fp,x{}]", target, pointer);
+        auto pointer_strlen = pointer_pair.second;
+        ctx.assembly().add_instruction("ldr", "x{},[fp,x{}]", target_strlen, pointer_strlen);
+        ctx.inc_target_register();
+        break;
+    }
+    case PrimitiveType::Struct: {
+        ctx.assembly().add_instruction("add", "x{},fp,x{}", target, pointer);
+        ctx.inc_target_register();
+        break;
+    }
+    default:
+        return Error { ErrorCode::NotYetImplemented, format("Cannot push values of struct members of type {} yet", array_access->type()) };
+    }
+    return tree;
+});
+
 NODE_PROCESSOR(BoundAssignment)
 {
     auto assignment = std::dynamic_pointer_cast<BoundAssignment>(tree);
@@ -221,24 +301,34 @@ NODE_PROCESSOR(BoundAssignment)
     ctx.initialize_target_register();
     TRY_RETURN(ARM64Context_processor(assignment->expression(), ctx));
 
+    auto offset = format("[fp,#{}]", assignee->offset());
+    auto offset_strlen = format("[fp,#{}]", assignee->offset() + 8);
+    auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(assignee);
+    if (array_access) {
+        auto target_pair = TRY(calculate_array_element_offset(ctx, array_access));
+        auto target = target_pair.first;
+        offset = format("[fp,x{}]", target);
+        offset_strlen = format("[fp,x{}]", target_pair.second);
+    }
+
     switch (assignment->type()->type()) {
     case PrimitiveType::Pointer:
     case PrimitiveType::Int:
-        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", assignee->offset());
+        ctx.assembly().add_instruction("str", "x0,{}", offset);
         break;
     case PrimitiveType::Unsigned:
-        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", assignee->offset());
+        ctx.assembly().add_instruction("str", "x0,{}", offset);
         break;
     case PrimitiveType::Byte:
-        ctx.assembly().add_instruction("strbs", "x0,[fp,#{}]", assignee->offset());
+        ctx.assembly().add_instruction("strbs", "x0,{}", offset);
         break;
     case PrimitiveType::Char:
     case PrimitiveType::Boolean:
-        ctx.assembly().add_instruction("strb", "x0,[fp,#{}]", assignee->offset());
+        ctx.assembly().add_instruction("strb", "x0,{}", offset);
         break;
     case PrimitiveType::String: {
-        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", assignee->offset());
-        ctx.assembly().add_instruction("str", "w1,[fp,#{}]", assignee->offset( )+ 8);
+        ctx.assembly().add_instruction("str", "x0,{}", offset);
+        ctx.assembly().add_instruction("str", "w1,{}", offset_strlen);
         break;
     }
     default:
@@ -252,7 +342,7 @@ NODE_PROCESSOR(MaterializedVariableDecl)
 {
     auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(tree);
     ctx.assembly().add_comment(var_decl->to_string());
-    if (var_decl->type()->type() == PrimitiveType::Struct)
+    if (var_decl->type()->type() == PrimitiveType::Struct || var_decl->type()->type() == PrimitiveType::Array)
         return tree;
 
     ctx.initialize_target_register();

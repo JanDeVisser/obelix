@@ -34,6 +34,8 @@ std::optional<PrimitiveType> PrimitiveType_by_name(std::string const& t)
         return PrimitiveType::String;
     if (t == "ptr")
         return PrimitiveType::Pointer;
+    if (t == "array")
+        return PrimitiveType::Array;
     return {};
 }
 
@@ -318,6 +320,19 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 
         type.has_template_stamp([](ObjectType& instantiation) {
             instantiation.add_method(MethodDescription { Operator::Dereference, instantiation.template_arguments()[0].as_type() });
+        });
+    });
+
+[[maybe_unused]] auto s_array = ObjectType::register_type(PrimitiveType::Array,
+    [](ObjectType& type) {
+        type.has_template_parameter({ "base_type", TemplateParameterType::Type });
+        type.has_template_parameter({ "size", TemplateParameterType::Integer });
+        type.has_size(8);
+
+        type.has_template_stamp([](ObjectType& instantiation) {
+            instantiation.add_method(MethodDescription { Operator::Subscript, instantiation.template_arguments()[0].as_type(),
+                IntrinsicType::NotIntrinsic, { { "subscript", PrimitiveType::Int } } });
+            instantiation.has_size(instantiation.template_arguments()[1].as_integer() * instantiation.template_arguments()[0].as_type()->size());
         });
     });
 

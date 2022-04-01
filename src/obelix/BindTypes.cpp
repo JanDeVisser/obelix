@@ -154,6 +154,7 @@ NODE_PROCESSOR(BinaryExpression)
         { TokenCode::Pipe, BinaryOperator::BitwiseOr },
         { TokenCode::Hat, BinaryOperator::BitwiseXor },
         { TokenCode::Period, BinaryOperator::MemberAccess },
+        { TokenCode::OpenBracket, BinaryOperator::Subscript },
         { Parser::KeywordIncEquals, BinaryOperator::BinaryIncrement },
         { Parser::KeywordDecEquals, BinaryOperator::BinaryDecrement },
         { Parser::KeywordRange, BinaryOperator::Range },
@@ -180,6 +181,20 @@ NODE_PROCESSOR(BinaryExpression)
             return Error { ErrorCode::NotMember, rhs, lhs };
         auto member_literal = make_node<BoundLiteral>(rhs->token(), ident->name());
         return std::make_shared<BoundMemberAccess>(lhs, member_literal, field.type);
+    }
+
+    if (op == BinaryOperator::Subscript) {
+        if (lhs->type()->type() != PrimitiveType::Array)
+            return Error { ErrorCode::CannotAccessMember, lhs->to_string() };
+        if (rhs_bound->type()->type() != PrimitiveType::Int)
+            return Error { ErrorCode::TypeMismatch, rhs, ObjectType::get(PrimitiveType::Int), rhs_bound->type() };
+        if (rhs_bound->node_type() == SyntaxNodeType::BoundLiteral) {
+            auto literal = std::dynamic_pointer_cast<BoundLiteral>(rhs_bound);
+            auto value = literal->int_value();
+            if ((value < 0) || (lhs->type()->template_arguments()[1].as_integer() <= value))
+                return Error { ErrorCode::IndexOutOfBounds, value, lhs->type()->template_arguments()[1].as_integer() };
+        }
+        return std::make_shared<BoundArrayAccess>(lhs, rhs_bound, lhs->type()->template_arguments()[0].as_type());
     }
 
     if (rhs->node_type() == SyntaxNodeType::Identifier) {

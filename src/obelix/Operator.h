@@ -12,6 +12,9 @@
 
 namespace Obelix {
 
+/*
+ * Precendeces according to https://en.cppreference.com/w/c/language/operator_precedence
+ */
 #define ENUMERATE_BINARY_OPERATORS(S) \
     S(Invalid, false, -1)             \
     S(Add, false, 11)                 \
@@ -41,7 +44,8 @@ namespace Obelix {
     S(AssignBitwiseAnd, true, 1)      \
     S(AssignBitwiseOr, true, 1)       \
     S(AssignBitwiseXor, true, 1)      \
-    S(Range, false, 8)
+    S(Range, false, 8)                \
+    S(Subscript, false, 14)
 
 #define ENUMERATE_UNARY_OPERATORS(S) \
     S(InvalidUnary)                  \

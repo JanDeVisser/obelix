@@ -51,7 +51,8 @@ namespace Obelix {
     S(TemplateParameterMismatch, "Template '{}' expects {} arguments. Got {}")                \
     S(TypeNotParameterized, "Type '{}' is not parameterized")                                 \
     S(CannotAccessMember, "Cannot access members of non-struct expression '{}'")              \
-    S(NotMember, "Expression '{}' is not a member of '{}'")
+    S(NotMember, "Expression '{}' is not a member of '{}'")                                   \
+    S(IndexOutOfBounds, "Index value {} not in [0..{}]")
 
 enum class ErrorCode {
 #undef __ENUMERATE_ERROR_CODE
