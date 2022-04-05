@@ -434,7 +434,7 @@ Ptr<ObjCls> ptr_cast(Ptr<OtherObjCls> const& from)
 
 class Exception : public Object {
 public:
-    explicit Exception(Error error)
+    explicit Exception(Error<int> error)
         : Object(TypeException)
         , m_error(std::move(error))
     {
@@ -443,7 +443,7 @@ public:
     template<typename... Args>
     explicit Exception(ErrorCode code, Args&&... args)
         : Object(TypeException)
-        , m_error(Error(code, std::forward<Args>(args)...))
+        , m_error(Error<int>(code, std::forward<Args>(args)...))
     {
     }
 
@@ -455,10 +455,10 @@ public:
     [[nodiscard]] std::optional<bool> to_bool() const override { return {}; }
     [[nodiscard]] std::string to_string() const override { return m_error.message(); }
     [[nodiscard]] bool is_exception() const override { return true; }
-    [[nodiscard]] Error const& error() const;
+    [[nodiscard]] Error<int> const& error() const;
 
 private:
-    Error m_error;
+    Error<int> m_error;
 };
 
 class String : public Object {

@@ -17,6 +17,13 @@ namespace Obelix {
 
 struct Config {
     bool show_tree { false };
+    bool import_root { true };
+    bool lex { true };
+    bool bind { true };
+    bool lower { true };
+    bool fold_constants { true };
+    bool materialize { true };
+    bool compile { true };
     bool run { false };
 };
 

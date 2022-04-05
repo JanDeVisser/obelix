@@ -289,7 +289,7 @@ public:
     [[nodiscard]] std::shared_ptr<BoundExpression> const& index() const { return m_index; }
     [[nodiscard]] std::string attributes() const override { return format(R"(type="{}" element_size="{}")", type(), element_size()); }
     [[nodiscard]] Nodes children() const override { return { m_array, m_index }; }
-    [[nodiscard]] std::string to_string() const override { return format("{}.{}: {} [{}]", array(), index(), type()->to_string(), offset()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}[{}]: {} [{}]", array(), index(), type()->to_string(), offset()); }
     [[nodiscard]] int element_size() const { return offset(); }
 
 private:

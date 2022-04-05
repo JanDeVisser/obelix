@@ -12,10 +12,13 @@
 
 #include <core/Error.h>
 #include <core/Logging.h>
+#include <lexer/Token.h>
 
 namespace Obelix {
 
 extern_logging_category(parser);
+
+using SyntaxError = Error<Token>;
 
 template<typename T>
 class Context {
@@ -65,21 +68,21 @@ public:
         return false;
     }
 
-    std::optional<Error> declare(std::string const& name, T const& value)
+    std::optional<SyntaxError> declare(std::string const& name, T const& value)
     {
         if (m_names.contains(name))
-            return Error(ErrorCode::VariableAlreadyDeclared, name);
+            return SyntaxError(ErrorCode::VariableAlreadyDeclared, name);
         m_names[name] = value;
         return {};
     }
 
-    std::optional<Error> declare_global(std::string const& name, T const& value)
+    std::optional<SyntaxError> declare_global(std::string const& name, T const& value)
     {
         if (m_parent)
             return m_parent->declare_global(name, value);
 
         if (m_names.contains(name))
-            return Error(ErrorCode::VariableAlreadyDeclared, name);
+            return SyntaxError(ErrorCode::VariableAlreadyDeclared, name);
         m_names[name] = value;
         return {};
     }
@@ -95,15 +98,20 @@ public:
     }
 
     template <typename Payload>
-    ErrorOr<Payload> add_if_error(ErrorOr<Payload> maybe_error)
+    ErrorOr<Payload, SyntaxError> add_if_error(ErrorOr<Payload, SyntaxError> maybe_error)
     {
         if (maybe_error.is_error()) {
-            if (m_parent)
-                return m_parent->add_if_error(maybe_error);
-            else
-                m_errors.push_back(maybe_error.error());
+            add_error(maybe_error.error());
         }
         return maybe_error;
+    }
+
+    void add_error(SyntaxError error)
+    {
+        if (m_parent)
+            return m_parent->add_error(error);
+        else
+            m_errors.push_back(error);
     }
 
 protected:
@@ -113,7 +121,7 @@ protected:
 private:
     std::unordered_map<std::string, T> m_names {};
     Context<T>* m_parent { nullptr };
-    std::vector<Error> m_errors {};
+    std::vector<SyntaxError> m_errors {};
 };
 
 }

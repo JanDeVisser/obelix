@@ -20,14 +20,14 @@ public:
     [[nodiscard]] std::unique_ptr<StringBuffer>& buffer() { return m_buffer; }
     [[nodiscard]] std::string const& file_name() const { return m_file_name; }
     [[nodiscard]] bool file_is_read() const { return m_error.code() == ErrorCode::NoError; };
-    [[nodiscard]] Error const& error() const { return m_error; }
+    [[nodiscard]] Error<int> const& error() const { return m_error; }
     [[nodiscard]] size_t size() const { return m_size; }
 
 private:
     std::string m_file_name;
     std::unique_ptr<StringBuffer> m_buffer;
     size_t m_size { 0 };
-    Error m_error { ErrorCode::NoError };
+    Error<int> m_error { ErrorCode::NoError };
 };
 
 }

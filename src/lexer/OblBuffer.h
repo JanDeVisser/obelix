@@ -19,7 +19,7 @@ public:
     explicit OblBuffer(std::string file_name);
     StringBuffer& buffer();
     [[nodiscard]] bool file_is_read() const { return m_error.code() == ErrorCode::NoError; }
-    [[nodiscard]] Error const& error() const { return m_error; }
+    [[nodiscard]] Error<int> const& error() const { return m_error; }
     [[nodiscard]] std::string const& file_name() const;
     [[nodiscard]] std::string const& dir_name() const;
     [[nodiscard]] std::string const& effective_file_name() const;
@@ -31,7 +31,7 @@ private:
     std::string m_dir_name;
     std::string m_effective_file_name;
     std::unique_ptr<StringBuffer> m_buffer { nullptr };
-    Error m_error { ErrorCode::NoError };
+    Error<int> m_error { ErrorCode::NoError };
 };
 
 }

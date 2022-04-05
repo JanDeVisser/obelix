@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "lexer/Token.h"
+#include "obelix/Context.h"
+#include "obelix/Syntax.h"
 #include "obelix/Type.h"
 #include <filesystem>
 
@@ -101,7 +104,7 @@ NODE_PROCESSOR(BoundIntrinsicCall)
     }
     ARM64Implementation impl = get_arm64_intrinsic(call->intrinsic());
     if (!impl)
-        return Error { ErrorCode::InternalError, format("No ARM64 implementation for intrinsic {}", call->to_string()) };
+        return SyntaxError { ErrorCode::InternalError, call->token(), format("No ARM64 implementation for intrinsic {}", call->to_string()) };
     auto ret = impl(ctx);
     if (ret.is_error())
         return ret.error();
@@ -134,7 +137,7 @@ NODE_PROCESSOR(BoundLiteral)
         break;
     }
     default:
-        return Error(ErrorCode::NotYetImplemented, format("Cannot emit literals of type {} yet", literal->type()->to_string()));
+        return SyntaxError(ErrorCode::NotYetImplemented, literal->token(), format("Cannot emit literals of type {} yet", literal->type()->to_string()));
     }
     return tree;
 });
@@ -171,7 +174,7 @@ NODE_PROCESSOR(MaterializedIdentifier)
         break;
     }
     default:
-        return Error { ErrorCode::NotYetImplemented, format("Cannot push values of variables of type {} yet", identifier->type()) };
+        return SyntaxError { ErrorCode::NotYetImplemented, identifier->token(), format("Cannot push values of variables of type {} yet", identifier->type()) };
     }
     return tree;
 });
@@ -208,12 +211,12 @@ NODE_PROCESSOR(MaterializedMemberAccess)
         break;
     }
     default:
-        return Error { ErrorCode::NotYetImplemented, format("Cannot push values of struct members of type {} yet", member_access->type()) };
+        return Error { ErrorCode::NotYetImplemented, member_access->token(), format("Cannot push values of struct members of type {} yet", member_access->type()) };
     }
     return tree;
 });
 
-ErrorOr<std::pair<int, int>> calculate_array_element_offset(ARM64Context &ctx, std::shared_ptr<MaterializedArrayAccess> array_access)
+ErrorOr<std::pair<int, int>, SyntaxError> calculate_array_element_offset(ARM64Context &ctx, std::shared_ptr<MaterializedArrayAccess> array_access)
 {
     ctx.inc_target_register();
     auto target = ctx.target_register();
@@ -235,7 +238,7 @@ ErrorOr<std::pair<int, int>> calculate_array_element_offset(ARM64Context &ctx, s
             ctx.assembly().add_instruction("lsl", "x{},x{},#4", target, target);
             break;
         default:
-            return Error { ErrorCode::InternalError, "Cannot access arrays with elements of size {} yet", array_access->element_size()};
+            return SyntaxError { ErrorCode::InternalError, array_access->token(), "Cannot access arrays with elements of size {} yet", array_access->element_size()};
     }
     ctx.assembly().add_instruction("add", "x{},x{},#{}", target, target, array_access->array()->offset());
     int target_strlen = -1;
@@ -287,7 +290,7 @@ NODE_PROCESSOR(MaterializedArrayAccess)
         break;
     }
     default:
-        return Error { ErrorCode::NotYetImplemented, format("Cannot push values of struct members of type {} yet", array_access->type()) };
+        return SyntaxError { ErrorCode::NotYetImplemented, array_access->token(), format("Cannot push values of struct members of type {} yet", array_access->type()) };
     }
     return tree;
 });
@@ -297,7 +300,7 @@ NODE_PROCESSOR(BoundAssignment)
     auto assignment = std::dynamic_pointer_cast<BoundAssignment>(tree);
     auto assignee = std::dynamic_pointer_cast<MaterializedVariableAccess>(assignment->assignee());
     if (assignee == nullptr)
-        return Error { ErrorCode::InternalError, format("Variable access '{}' not materialized", assignment->assignee()) };
+        return SyntaxError { ErrorCode::InternalError, assignment->token(), format("Variable access '{}' not materialized", assignment->assignee()) };
     ctx.initialize_target_register();
     TRY_RETURN(ARM64Context_processor(assignment->expression(), ctx));
 
@@ -332,7 +335,7 @@ NODE_PROCESSOR(BoundAssignment)
         break;
     }
     default:
-        return Error { ErrorCode::NotYetImplemented, format("Cannot emit assignments of type {} yet", assignment->type()->to_string()) };
+        return SyntaxError { ErrorCode::NotYetImplemented, assignment->token(), format("Cannot emit assignments of type {} yet", assignment->type()->to_string()) };
     }
     ctx.release_target_register(assignment->type()->type());
     return tree;
@@ -362,7 +365,7 @@ NODE_PROCESSOR(MaterializedVariableDecl)
             ctx.assembly().add_instruction("mov", "x0,xzr");
             break;
         default:
-            return Error { ErrorCode::NotYetImplemented, format("Cannot initialize variables of type {} yet", var_decl->expression()->type()->to_string()) };
+            return SyntaxError { ErrorCode::NotYetImplemented, var_decl->token(), format("Cannot initialize variables of type {} yet", var_decl->expression()->type()->to_string()) };
         }
     }
     ctx.assembly().add_instruction("str", "x0,[fp,#{}]", var_decl->offset());
@@ -445,10 +448,13 @@ NODE_PROCESSOR(BoundIfStatement)
     return tree;
 });
 
-ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string const& file_name, bool run)
+ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
 {
     auto processed = TRY(materialize_arm64(tree));
-    std::cout << "\n\nMaterialized:\n" << processed->to_xml() << "\n";
+    if (config.show_tree)
+        std::cout << "\n\nMaterialized:\n" << processed->to_xml() << "\n";
+    if (!config.compile)
+        return processed;
 
     ARM64Context root;
     auto ret = processor_for_context<ARM64Context>(processed, root);
@@ -489,7 +495,7 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
         if (sdk_path.empty()) {
             Process p("xcrun", "-sdk", "macosx", "--show-sdk-path");
             if (auto exit_code_or_error = p.execute(); exit_code_or_error.is_error())
-                return exit_code_or_error.error();
+                return SyntaxError { exit_code_or_error.error(), Token {} };
             sdk_path = strip(p.standard_out());
         }
 
@@ -499,12 +505,12 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, std::string co
             ld_args.push_back(m);
 
         if (auto code = execute("ld", ld_args); code.is_error())
-            return code.error();
-        if (run) {
+            return SyntaxError { code.error(), Token {} };
+        if (config.run) {
             auto run_cmd = format("./{}", bare_file_name);
             auto exit_code = execute(run_cmd);
             if (exit_code.is_error())
-                return exit_code.error();
+                return SyntaxError { exit_code.error(), Token {} };
             ret = make_node<BoundLiteral>(Token { TokenCode::Integer, format("{}", exit_code.value()) }, (long) exit_code.value());
         }
     }

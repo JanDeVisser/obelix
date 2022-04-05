@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Context.h"
 #include <cstdio>
 
 #include <cpu/emulator.h>
@@ -67,7 +68,7 @@ public:
         return 0;
     }
 
-    ErrorOr<int> run(std::string const& file_name)
+    ErrorOr<int, SyntaxError> run(std::string const& file_name)
     {
         std::string fname = file_name;
         for (auto ix = 0u; ix < fname.length(); ++ix) {
@@ -77,14 +78,14 @@ public:
         Parser parser(config(), fname);
         if (!parser.buffer_read()) {
             assert(!parser.errors().empty());
-            return Error { ErrorCode::NoSuchFile, fname };
+            return SyntaxError { ErrorCode::NoSuchFile, fname };
         }
         auto tree = std::dynamic_pointer_cast<Compilation>(parser.parse());
         if (!tree) {
             for (auto& e : parser.errors()) {
                 printf("ERROR: %s\n", e.to_string().c_str());
             }
-            return Error { ErrorCode::SyntaxError, parser.errors()[0].message };
+            return SyntaxError { ErrorCode::SyntaxError, parser.errors()[0].message };
         }
         if (auto eval_result = evaluate_tree(tree, file_name); eval_result.is_error()) {
             printf("ERROR: %s\n", eval_result.error().message().c_str());
@@ -97,20 +98,28 @@ public:
     [[nodiscard]] Config& config() { return m_config; }
 
 private:
-    ErrorOr<std::shared_ptr<SyntaxNode>> evaluate_tree(std::shared_ptr<SyntaxNode> const& tree, std::string file_name = "")
+    ErrorOr<std::shared_ptr<SyntaxNode>, SyntaxError> evaluate_tree(std::shared_ptr<SyntaxNode> const& tree, std::string file_name = "")
     {
         if (tree) {
             if (config().show_tree)
                 std::cout << "\n\nOriginal:\n" << tree->to_xml() << "\n";
+            if (!m_config.bind)
+                return tree;
             auto transformed = TRY(bind_types(tree));
             if (config().show_tree)
                 std::cout << "\n\nTypes bound:\n" << transformed->to_xml() << "\n";
+            if (!m_config.lower)
+                return transformed;
             transformed = TRY(lower(transformed));
             if (config().show_tree)
                 std::cout << "\n\nFlattened:\n" << transformed->to_xml() << "\n";
+            if (!m_config.fold_constants)
+                return transformed;
             transformed = TRY(fold_constants(transformed));
             if (config().show_tree)
                 std::cout << "\n\nConstants folded:\n" << transformed->to_xml() << "\n";
+            if (!m_config.compile)
+                return transformed;
             if (!file_name.empty()) {
 #ifdef JV80
                 auto image = file_name + ".bin";
@@ -124,7 +133,7 @@ private:
 #endif
 #define MACOSX
 #ifdef MACOSX
-                auto err = output_arm64(transformed, file_name, config().run);
+                auto err = output_arm64(transformed, config(), file_name);
                 if (err.is_error())
                     return err;
                 auto ret_val = err.value();
@@ -160,7 +169,7 @@ void usage()
 int main(int argc, char** argv)
 {
     std::string file_name;
-    Obelix::Config config { false };
+    Obelix::Config config;
     for (int ix = 1; ix < argc; ++ix) {
         if (!strcmp(argv[ix], "--help")) {
             usage();
@@ -172,15 +181,43 @@ int main(int argc, char** argv)
             }
         } else if (!strcmp(argv[ix], "--show-tree")) {
             config.show_tree = true;
+        } else if (!strcmp(argv[ix], "--lex")) {
+            config.bind = false;
+        } else if (!strcmp(argv[ix], "--bind")) {
+            config.lower = false;
+        } else if (!strcmp(argv[ix], "--lower")) {
+            config.fold_constants = false;
+        } else if (!strcmp(argv[ix], "--fold")) {
+            config.materialize = false;
+        } else if (!strcmp(argv[ix], "--materialize")) {
+            config.compile = false;
         } else if (!strcmp(argv[ix], "--run") || !strcmp(argv[ix], "-r")) {
             config.run = true;
-        } else {
+        } else if (!strcmp(argv[ix], "--no-root")) {
+            config.import_root = false;
+        } else if (!strncmp(argv[ix], "--", 2) && (strlen(argv[ix]) > 2)) {
+            printf("ERROR: Unknown command line argument '%s'", argv[ix]);
+            exit(-1);
+        } else if (file_name == "") {
             file_name = argv[ix];
+        } else {
+            printf("ERROR: Unknown command line argument '%s'", argv[ix]);
+            exit(-1);
         }
     }
 
     Obelix::Repl repl(config);
-    auto ret_or_error = (file_name.empty()) ? repl.repl() : repl.run(file_name);
+
+    if (file_name.empty()) {
+        auto ret_or_error = repl.repl();
+        if (ret_or_error.is_error()) {
+            printf("ERROR: %s\n", ret_or_error.error().message().c_str());
+            return -1;
+        }
+        return ret_or_error.value();
+    }
+
+    auto ret_or_error = repl.run(file_name);
     if (ret_or_error.is_error()) {
         printf("ERROR: %s\n", ret_or_error.error().message().c_str());
         return -1;

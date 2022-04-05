@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Context.h"
 #include <sys/stat.h>
 
 #include <obelix/ARM64Intrinsics.h>
@@ -27,10 +28,10 @@ ARM64FunctionType const& get_arm64_intrinsic(IntrinsicType type)
     return s_intrinsics[type];
 }
 
-#define INTRINSIC(intrinsic)                                                                      \
-    ErrorOr<void> arm64_intrinsic_##intrinsic(ARM64Context& ctx);                                 \
+#define INTRINSIC(intrinsic)                                                                            \
+    ErrorOr<void, SyntaxError> arm64_intrinsic_##intrinsic(ARM64Context& ctx);                          \
     auto s_arm64_##intrinsic##_decl = register_arm64_intrinsic(intrinsic, arm64_intrinsic_##intrinsic); \
-    ErrorOr<void> arm64_intrinsic_##intrinsic(ARM64Context& ctx)
+    ErrorOr<void, SyntaxError> arm64_intrinsic_##intrinsic(ARM64Context& ctx)
 
 #define INTRINSIC_ALIAS(intrinsic, alias) \
     auto s_##intrinsic##_decl = register_arm64_intrinsic(intrinsic, arm64_intrinsic_##alias); \

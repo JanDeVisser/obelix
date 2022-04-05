@@ -30,7 +30,7 @@ std::optional<Obj> Integer::evaluate(std::string const& op, Ptr<Arguments> args)
         for (auto const& arg : args->arguments()) {
             auto int_maybe = arg->to_long();
             if (!int_maybe.has_value()) {
-                return make_obj<Exception>(ErrorCode::TypeMismatch, op, "int", arg->type_name());
+                return make_obj<Exception>(ErrorCode::TypeMismatch, 0, op, "int", arg->type_name());
             }
             ret += int_maybe.value();
         }

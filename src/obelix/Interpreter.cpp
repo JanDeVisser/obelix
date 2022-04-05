@@ -29,7 +29,7 @@ static ProcessorMap stmt_execute_map = {};
 
 ErrorOrNode interpreter_processor(std::shared_ptr<SyntaxNode> const&, InterpreterContext&);
 
-using FunctionType = std::function<ErrorOr<void>(InterpreterContext&)>;
+using FunctionType = std::function<ErrorOr<void, SyntaxError>(InterpreterContext&)>;
 static std::array<FunctionType, IntrinsicType::count> s_intrinsics = {};
 
 bool register_interpreter_intrinsic(IntrinsicType type, FunctionType intrinsic)
@@ -39,9 +39,9 @@ bool register_interpreter_intrinsic(IntrinsicType type, FunctionType intrinsic)
 }
 
 #define INTRINSIC(intrinsic)                                                                                              \
-    ErrorOr<void> interpreter_intrinsic_##intrinsic(InterpreterContext& ctx);                                             \
+    ErrorOr<void, SyntaxError> interpreter_intrinsic_##intrinsic(InterpreterContext& ctx);                                \
     auto s_interpreter_##intrinsic##_decl = register_interpreter_intrinsic(intrinsic, interpreter_intrinsic_##intrinsic); \
-    ErrorOr<void> interpreter_intrinsic_##intrinsic(InterpreterContext& ctx)
+    ErrorOr<void, SyntaxError> interpreter_intrinsic_##intrinsic(InterpreterContext& ctx)
 
 INTRINSIC(add_int_int)
 {

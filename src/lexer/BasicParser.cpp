@@ -130,6 +130,21 @@ bool BasicParser::expect(TokenCode code, char const* where)
     return true;
 }
 
+bool BasicParser::expect(char const* expected, char const* where)
+{
+    debug(lexer, "Parser::expect({})", expected);
+    auto token = peek();
+    if (strcmp(token.value().c_str(), expected)) {
+        std::string msg = (where)
+            ? format("Syntax Error: expected '{}' {}, got '{}' ({})", expected, where, token.value(), token.code_name())
+            : format("Syntax Error: expected '{}', got '{}' ({})", expected, token.value(), token.code_name());
+        add_error(token, msg);
+        return false;
+    }
+    lex();
+    return true;
+}
+
 void BasicParser::add_error(Token const& token, std::string const& message)
 {
     debug(lexer, "Parser::add_error({}, '{}')", token.to_string(), message);

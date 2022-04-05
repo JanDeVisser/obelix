@@ -23,7 +23,7 @@ namespace Obelix {
 extern_logging_category(arm64);
 
 class ARM64Context;
-using ARM64Implementation = std::function<ErrorOr<void>(ARM64Context&)>;
+using ARM64Implementation = std::function<ErrorOr<void, SyntaxError>(ARM64Context&)>;
 
 class Assembly {
 public:
@@ -87,18 +87,18 @@ public:
         return format("{}\n{}\n{}\n", m_code, m_text, m_data);
     }
 
-    ErrorOr<void> save_and_assemble(std::string const& bare_file_name) const
+    ErrorOr<void, SyntaxError> save_and_assemble(std::string const& bare_file_name) const
     {
         {
             std::fstream s(bare_file_name + ".s", std::fstream::out);
             if (!s.is_open())
-                return Error { ErrorCode::IOError, format("Could not open assembly file {}", bare_file_name + ".s") };
+                return SyntaxError { ErrorCode::IOError, format("Could not open assembly file {}", bare_file_name + ".s") };
             s << to_string();
             if (s.fail() || s.bad())
-                return Error { ErrorCode::IOError, format("Could not write assembly file {}", bare_file_name + ".s") };
+                return SyntaxError { ErrorCode::IOError, format("Could not write assembly file {}", bare_file_name + ".s") };
         }
         if (auto code = execute("as", bare_file_name + ".s", "-o", bare_file_name + ".o"); code.is_error())
-            return code.error();
+            return SyntaxError { code.error().code(), code.error().message() };
         return {};
     }
 

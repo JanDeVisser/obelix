@@ -21,22 +21,22 @@ FileBuffer::FileBuffer(std::string file_name)
     if (fh < 0) {
         switch (errno) {
         case ENOENT:
-            m_error = Error { ErrorCode::NoSuchFile, m_file_name };
+            m_error = Error<int> { ErrorCode::NoSuchFile, ENOENT, m_file_name };
             break;
         default:
-            m_error = Error { ErrorCode::IOError, format("Error opening file '{}': {}", m_file_name, strerror(errno)) };
+            m_error = Error<int> { ErrorCode::IOError, errno, format("Error opening file '{}': {}", m_file_name, strerror(errno)) };
             break;
         }
         return;
     }
     struct stat sb;
     if (auto rc = fstat(fh, &sb); rc < 0) {
-        m_error = Error { ErrorCode::IOError, format("Error stat-ing file '{}': {}", m_file_name, strerror(errno)) };
+        m_error = Error<int> { ErrorCode::IOError, errno, format("Error stat-ing file '{}': {}", m_file_name, strerror(errno)) };
         close(fh);
         return;
     }
     if (S_ISDIR(sb.st_mode)) {
-        m_error = Error { ErrorCode::PathIsDirectory, m_file_name };
+        m_error = Error<int> { ErrorCode::PathIsDirectory, m_file_name };
         close(fh);
         return;
     }
@@ -44,7 +44,7 @@ FileBuffer::FileBuffer(std::string file_name)
     auto size = sb.st_size;
     auto buf = new char[size + 1];
     if (auto rc = ::read(fh, (void*)buf, size); rc < size) {
-        m_error = Error { ErrorCode::IOError, format("Error reading '{}': {}", m_file_name, strerror(errno)) };
+        m_error = Error<int> { ErrorCode::IOError, errno, format("Error reading '{}': {}", m_file_name, strerror(errno)) };
     } else {
         buf[size] = '\0';
         m_buffer->assign(buf);

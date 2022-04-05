@@ -64,6 +64,7 @@ enum class ErrorCode {
 std::string ErrorCode_name(ErrorCode);
 std::string ErrorCode_message(ErrorCode);
 
+template <typename T>
 class Error {
 public:
     Error()
@@ -77,6 +78,21 @@ public:
     {
     }
 
+    Error(ErrorCode code, T t)
+        : m_code(code)
+        , m_message(ErrorCode_name(code))
+        , m_payload(std::move(t))
+    {
+    }
+
+    template <typename U>
+    Error(Error<U> const& other, T t)
+        : m_code(other.code())
+        , m_message(other.message())
+        , m_payload(std::move(t))
+    {
+    }
+
     template<typename... Args>
     explicit Error(ErrorCode code, Args&&... args)
         : m_code(code)
@@ -84,19 +100,26 @@ public:
     {
     }
 
+    template<typename... Args>
+    explicit Error(ErrorCode code, T t, Args&&... args)
+        : m_code(code)
+        , m_message(ErrorCode_name(code) + ": " + format(std::string(ErrorCode_message(code)), std::forward<Args>(args)...))
+        , m_payload(std::move(t))
+    {
+    }
+
     [[nodiscard]] ErrorCode code() const { return m_code; }
     [[nodiscard]] std::string const& message() const { return m_message; }
-    [[nodiscard]] std::string to_string() const
-    {
-        return format("{} {}", ErrorCode_name(code()), message());
-    }
+    [[nodiscard]] std::string to_string() const { return format("{} {}", ErrorCode_name(code()), message()); }
+    [[nodiscard]] T const& payload() const { return m_payload; }
 
 private:
     ErrorCode m_code { ErrorCode::NoError };
     std::string m_message {};
+    T m_payload {};
 };
 
-template<typename ReturnType, typename ErrorType = Error>
+template<typename ReturnType, typename ErrorType = Error<int>>
 class [[nodiscard]] ErrorOr {
 public:
     ErrorOr(ReturnType const& return_value)
@@ -172,6 +195,14 @@ private:
         if (_temporary_result.is_error())     \
             return _temporary_result.error(); \
         _temporary_result.value();            \
+    })
+
+#define TRY_ADAPT(expr, payload)                                                                         \
+    ({                                                                                                   \
+        auto _temporary_result = (expr);                                                                 \
+        if (_temporary_result.is_error())                                                                \
+            return Error<std::remove_cvref_t<decltype(payload)>> { _temporary_result.error(), payload }; \
+        _temporary_result.value();                                                                       \
     })
 
 #define TRY_RETURN(expr)                   \

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "obelix/SyntaxNodeType.h"
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
@@ -31,7 +30,7 @@ extern_logging_category(parser);
         std::dynamic_pointer_cast<cls>(__##var##_maybe.value());     \
     })
 
-using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>>;
+using ErrorOrNode = ErrorOr<std::shared_ptr<SyntaxNode>, SyntaxError>;
 
 template<typename Context, typename Processor>
 ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, Processor processor)
@@ -421,7 +420,7 @@ ErrorOrNode process_branch(std::shared_ptr<SyntaxNode> const& tree, Context& ctx
 }
 
 template<typename Context, typename Processor>
-ErrorOr<Expressions> xform_expressions(Expressions const& expressions, Context& ctx, Processor processor)
+ErrorOr<Expressions, SyntaxError> xform_expressions(Expressions const& expressions, Context& ctx, Processor processor)
 {
     Expressions ret;
     for (auto& expr : expressions) {
@@ -434,7 +433,7 @@ ErrorOr<Expressions> xform_expressions(Expressions const& expressions, Context& 
 };
 
 template<typename Context, typename Processor>
-ErrorOr<BoundExpressions> xform_bound_expressions(BoundExpressions const& expressions, Context& ctx, Processor processor)
+ErrorOr<BoundExpressions, SyntaxError> xform_bound_expressions(BoundExpressions const& expressions, Context& ctx, Processor processor)
 {
     BoundExpressions ret;
     for (auto& expr : expressions) {
@@ -480,10 +479,12 @@ struct NodeProcessor {
         if (processor_map[static_cast<size_t>(tree->node_type())] != nullptr) {
             debug(parser, "NodeProcessor: {} = {}", tree, tree->node_type());
             ErrorOrNode ret = processor_map[static_cast<size_t>(tree->node_type())](*this, tree, ctx);
-            if (ret.is_error())
+            if (ret.is_error()) {
                 debug(parser, "NodeProcessor for {} = {} returned error {}", tree, tree->node_type(), ret.error());
-            else
+                ctx.add_error(ret.error());
+            } else {
                 debug(parser, "NodeProcessor for {} = {} returned {} = {}", tree, tree->node_type(), ret.value(), ret.value()->node_type());
+            }
             return ret;
         }
         debug(parser, "{} = {} forwarding to process_tree", tree->node_type(), tree);

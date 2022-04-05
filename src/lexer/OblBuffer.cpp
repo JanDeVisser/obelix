@@ -45,7 +45,7 @@ ErrorOr<void> OblBuffer::try_open(std::string const& directory, std::optional<st
     auto path = directory + "/" + f;
     debug(lexer, "Attempting {}", path);
 
-    m_error = Error { ErrorCode::NoError };
+    m_error = Error<int> { ErrorCode::NoError };
     FileBuffer fb(path);
     if (fb.file_is_read()) {
         m_buffer = std::move(fb.buffer());

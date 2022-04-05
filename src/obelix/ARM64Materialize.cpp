@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/MaterializedSyntaxNode.h"
-#include "obelix/SyntaxNodeType.h"
+#include "obelix/Context.h"
 #include <memory>
 #include <obelix/ARM64.h>
 #include <obelix/BoundSyntaxNode.h>
@@ -90,7 +89,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
 NODE_PROCESSOR(BoundFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
-    auto xform_arguments = [&call, &ctx, &processor]() -> ErrorOr<BoundExpressions> {
+    auto xform_arguments = [&call, &ctx, &processor]() -> ErrorOr<BoundExpressions, SyntaxError> {
         BoundExpressions ret;
         for (auto& expr : call->arguments()) {
             auto new_expr = processor.process(expr, ctx);
@@ -118,11 +117,11 @@ NODE_PROCESSOR(BoundUnaryExpression)
     default: {
         auto method_descr_maybe = operand->type()->get_method(to_operator(expr->op()), {});
         if (!method_descr_maybe.has_value())
-            return Error { ErrorCode::InternalError, format("No method defined for unary operator {}::{}", operand->type()->to_string(), expr->op()) };
+            return SyntaxError { ErrorCode::InternalError, expr->token(), format("No method defined for unary operator {}::{}", operand->type()->to_string(), expr->op()) };
         auto method_descr = method_descr_maybe.value();
         auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
         if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
-            return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", method_descr.name()) };
+            return SyntaxError { ErrorCode::InternalError, expr->token(), format("No intrinsic defined for {}", method_descr.name()) };
         intrinsic = impl.intrinsic;
         break;
     }
@@ -159,12 +158,12 @@ NODE_PROCESSOR(BoundBinaryExpression)
 
     auto method_descr_maybe = lhs->type()->get_method(to_operator(expr->op()), { rhs->type() });
     if (!method_descr_maybe.has_value())
-        return Error { ErrorCode::InternalError, format("No method defined for binary operator {}::{}({})", 
+        return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No method defined for binary operator {}::{}({})", 
             lhs->type()->to_string(), expr->op(), rhs->type()->to_string()) };
     auto method_descr = method_descr_maybe.value();
     auto impl = method_descr.implementation(Architecture::MACOS_ARM64);
     if (!impl.is_intrinsic || impl.intrinsic == IntrinsicType::NotIntrinsic)
-        return Error { ErrorCode::InternalError, format("No intrinsic defined for {}", method_descr.name()) };
+        return SyntaxError { ErrorCode::InternalError, lhs->token(), format("No intrinsic defined for {}", method_descr.name()) };
     auto intrinsic = impl.intrinsic;
 
     return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), intrinsic, BoundExpressions { lhs, rhs }, expr->type() );
@@ -175,7 +174,7 @@ NODE_PROCESSOR(BoundIdentifier)
     auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(tree);
     auto offset_maybe = ctx.get(identifier->name());
     if (!offset_maybe.has_value())
-        return Error { ErrorCode::InternalError, format("Undeclared variable '{}' during code generation", identifier->name()) };
+        return SyntaxError { ErrorCode::InternalError, identifier->token(), format("Undeclared variable '{}' during code generation", identifier->name()) };
     return make_node<MaterializedIdentifier>(identifier, offset_maybe.value());
 });
 
@@ -197,7 +196,7 @@ NODE_PROCESSOR(BoundMemberAccess)
     }
     auto offset = type->offset_of(member_name);
     if (offset < 0)
-        return Error { ErrorCode::InternalError, format("Invalid member name '{}' for struct of type '{}'", member_name, type->name()) };
+        return SyntaxError { ErrorCode::InternalError, member_access->token(), format("Invalid member name '{}' for struct of type '{}'", member_name, type->name()) };
     return make_node<MaterializedMemberAccess>(member_access, strukt, member, offset);
 });
 

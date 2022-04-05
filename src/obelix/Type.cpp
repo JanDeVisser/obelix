@@ -598,11 +598,11 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::string const& type
 {
     auto base_type = ObjectType::get(type_name);
     if (base_type == nullptr || *base_type == *s_unknown)
-        return Error { ErrorCode::NoSuchType, type_name };
+        return Error<int> { ErrorCode::NoSuchType, type_name };
     if (base_type->is_parameterized() && (template_args.size() != base_type->template_parameters().size()))
-        return Error { ErrorCode::TemplateParameterMismatch, type_name, base_type->template_parameters().size(), template_args.size() };
+        return Error<int> { ErrorCode::TemplateParameterMismatch, type_name, base_type->template_parameters().size(), template_args.size() };
     if (!base_type->is_parameterized() && !template_args.empty())
-        return Error { ErrorCode::TypeNotParameterized, type_name };
+        return Error<int> { ErrorCode::TypeNotParameterized, type_name };
     if (!base_type->is_parameterized())
         return base_type;
     for (auto& template_instantiation : s_template_instantiations) {
@@ -631,7 +631,7 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_type(std::string name, Fie
 {
     std::shared_ptr<ObjectType> ret;
     if (s_types_by_name.contains(name))
-        return Error { ErrorCode::DuplicateTypeName, name };
+        return Error<int> { ErrorCode::DuplicateTypeName, name };
     assert(!fields.empty()); // TODO return proper error
     ret = std::make_shared<ObjectType>(PrimitiveType::Struct, name);
     ret->m_fields = move(fields);

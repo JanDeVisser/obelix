@@ -47,18 +47,18 @@ ErrorOr<int> Process::execute()
 
     int filedes[2];
     if (pipe(filedes) == -1) {
-        return Error { ErrorCode::IOError, format("pipe() failed: {}", strerror(errno)) };
+        return Error<int> { ErrorCode::IOError, errno, format("pipe() failed: {}", strerror(errno)) };
     }
 
     pid_t pid = fork();
     if (pid == -1)
-        return Error { ErrorCode::IOError, format("fork() failed: {}", strerror(errno)) };
+        return Error<int> { ErrorCode::IOError, errno, format("fork() failed: {}", strerror(errno)) };
     if (pid == 0) {
         while ((dup2(filedes[1], STDOUT_FILENO) == -1) && (errno == EINTR)) { }
         close(filedes[0]);
         close(filedes[1]);
         execvp(m_command.c_str(), argv);
-        return Error { ErrorCode::IOError, format("execvp() failed: {}", strerror(errno)) };
+        return Error<int> { ErrorCode::IOError, errno, format("execvp() failed: {}", strerror(errno)) };
     }
     close(filedes[1]);
 
@@ -69,7 +69,7 @@ ErrorOr<int> Process::execute()
             if (errno == EINTR) {
                 continue;
             } else {
-                return Error { ErrorCode::IOError, format("Error reading child process output: {}", strerror(errno)) };
+                return Error<int> { ErrorCode::IOError, errno, format("Error reading child process output: {}", strerror(errno)) };
             }
         }
         if (count == 0)
@@ -81,9 +81,9 @@ ErrorOr<int> Process::execute()
 
     int exit_code;
     if (waitpid(pid, &exit_code, 0) == -1)
-        return Error { ErrorCode::IOError, format("waitpid() failed: {}", strerror(errno)) };
+        return Error<int> { ErrorCode::IOError, errno, format("waitpid() failed: {}", strerror(errno)) };
     if (!WIFEXITED(exit_code))
-        return Error { ErrorCode::IOError, format("Child program {} crashed due to signal {}", m_command.c_str(), WTERMSIG(exit_code)) };
+        return Error<int> { ErrorCode::IOError, errno, format("Child program {} crashed due to signal {}", m_command.c_str(), WTERMSIG(exit_code)) };
     return WEXITSTATUS(exit_code);
 }
 

@@ -132,10 +132,10 @@ NODE_PROCESSOR(BoundForStatement)
     auto stmt = TRY_AND_CAST(Statement, processor.process(for_stmt->statement(), ctx));
 
     if (range_expr->node_type() != SyntaxNodeType::BoundBinaryExpression)
-        return Error { ErrorCode::SyntaxError, "Invalid for-loop range" };
+        return SyntaxError { ErrorCode::SyntaxError, for_stmt->token(), "Invalid for-loop range" };
     auto range_binary_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(range_expr);
     if (range_binary_expr->op() != BinaryOperator::Range)
-        return Error { ErrorCode::SyntaxError, "Invalid for-loop range" };
+        return SyntaxError { ErrorCode::SyntaxError, range_expr->token(), "Invalid for-loop range" };
     auto variable_type = range_binary_expr->lhs()->type();
 
     Statements for_block;

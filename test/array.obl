@@ -1,7 +1,8 @@
 func main(argc: int, argv: ptr<ptr<char>>): int
 {
-  var a: array<int, 2>;
-  a[0] = 2;
-  a[1] = 5;
-  return a[0];
+  var a: array<int, 5>;
+  for (i in 0 .. 4) {
+    a[i] = 2*i;
+  }
+  return a[3];
 }

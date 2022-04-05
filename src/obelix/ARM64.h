@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include <obelix/Parser.h>
 #include <obelix/Processor.h>
 
 namespace Obelix {
 
 ErrorOrNode materialize_arm64(std::shared_ptr<SyntaxNode> const& tree);
-ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const&, std::string const& = "", bool run = false);
+ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const&, Config const& config, std::string const& = "");
 
 }

@@ -209,7 +209,7 @@ std::optional<Obj> Exception::assign(std::string const&, Obj const&)
     return self();
 }
 
-Error const& Exception::error() const
+Error<int> const& Exception::error() const
 {
     return m_error;
 }

@@ -47,6 +47,7 @@ public:
     Token const& replace(Token);
     std::optional<Token const> match(TokenCode, char const* = nullptr);
     bool expect(TokenCode, char const* = nullptr);
+    bool expect(char const*, char const* = nullptr);
     void add_error(Token const&, std::string const&);
     void clear_errors() { m_errors.clear(); }
     [[nodiscard]] bool was_successful() const { return m_errors.empty(); }

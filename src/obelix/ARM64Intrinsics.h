@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "obelix/Context.h"
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -15,7 +16,7 @@
 
 namespace Obelix {
 
-using ARM64FunctionType = std::function<ErrorOr<void>(ARM64Context&)>;
+using ARM64FunctionType = std::function<ErrorOr<void, SyntaxError>(ARM64Context&)>;
 
 bool register_arm64_intrinsic(IntrinsicType, ARM64FunctionType);
 ARM64FunctionType const& get_arm64_intrinsic(IntrinsicType);

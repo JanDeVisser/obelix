@@ -195,12 +195,12 @@ ErrorOr<uint16_t> Image::write(const std::string& file_name)
 {
     FILE *file = fopen(file_name.c_str(), "wb");
     if (!file)
-        return Error { ErrorCode::IOError, format("Could not open file {} for writing: {}", file_name, strerror(errno)) };
+        return Error<int> { ErrorCode::IOError, errno, format("Could not open file {} for writing: {}", file_name, strerror(errno)) };
     m_image.resize(m_size);
     uint16_t ret = fwrite(m_image.data(), 1, m_image.size(), file);
     fclose(file);
     if (ret != m_image.size())
-        return Error { ErrorCode::IOError, format("Could not write image to file {}", file_name) };
+        return Error<int> { ErrorCode::IOError, errno, format("Could not write image to file {}", file_name) };
     return ret;
 }
 

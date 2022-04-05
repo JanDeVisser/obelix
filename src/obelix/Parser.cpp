@@ -97,7 +97,9 @@ std::shared_ptr<Compilation> Parser::parse()
     clear_errors();
     m_modules.clear();
     auto main_module = parse_module();
-    auto root = parse_module("");
+    std::shared_ptr<Module> root = main_module;
+    if (m_config.import_root)
+        root = parse_module("");
     if (errors().empty()) {
         Modules modules { main_module };
         for (auto& module_name : m_modules) {
@@ -416,7 +418,7 @@ std::shared_ptr<ForStatement> Parser::parse_for_statement(Token const& for_token
     auto variable = match(TokenCode::Identifier, " in 'for' ststement");
     if (!variable.has_value())
         return nullptr;
-    if (!expect(KeywordIn, " in 'for' statement"))
+    if (!expect("in", " in 'for' statement"))
         return nullptr;
     auto expr = parse_expression();
     if (!expr)
@@ -577,6 +579,7 @@ int Parser::binary_precedence(TokenCode code)
     case TokenCode::Period:
     case TokenCode::OpenBracket:
         return 14;
+    case TokenCode::CloseBracket:
     default:
         return -1;
     }
@@ -671,7 +674,7 @@ std::shared_ptr<Expression> Parser::parse_expression_1(std::shared_ptr<Expressio
             rhs = parse_primary_expression();
             if (!rhs)
                 return nullptr;
-            while ((open_bracket && (current_code() != TokenCode::CloseBracket)) && (binary_precedence(current_code()) > binary_precedence(op.code()))) {
+            while (binary_precedence(current_code()) > binary_precedence(op.code())) {
                 rhs = parse_expression_1(rhs, binary_precedence(op.code()) + 1);
             }
             if (open_bracket) {
