@@ -1,9 +1,0 @@
-func main() : int
-{
-   var x : int = 0;
-   while (x < 10) {
-     putint(x); putchar(10);
-     x += 1;
-   }
-   return x;
-}

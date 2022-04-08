@@ -1,27 +1,7 @@
-#!/usr/bin/python
-
-#  Copyright (c) 2021, Jan de Visser <jan@finiandarcy.com>
+#!/opt/homebrew/bin/python3
+#  Copyright (c) 2021-2022, Jan de Visser <jan@finiandarcy.com>
 #
 #  SPDX-License-Identifier: GPL-3.0-or-later
-
-#
-#
-# This file is part of Obelix.
-#
-# Obelix is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Obelix is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Obelix.  If not, see <http://www.gnu.org/licenses/>.
-#
-
 
 import json
 import os
@@ -51,8 +31,15 @@ def test_script(name):
 
     with open(name + ".json") as fd:
         script = json.load(fd)
+    with open("/dev/null", "w+") as out, open("/dev/null", "w+") as err:
+        ex = subprocess.call(["../build/bin/obelix", f], stdout=out, stderr=err)
+        if ex != 0:
+            print(f"{name}: Compilation Failed")
+            return False
     with open("stdout", "w+") as out, open("stderr", "w+") as err:
-        ex = subprocess.call(["../install/bin/obelix2", f], stdout=out, stderr=err)
+        cmdline = [f"./{name}"]
+        cmdline.extend(script["args"])
+        ex = subprocess.call(cmdline, stdout=out, stderr=err)
         out.seek(0)
         err.seek(0)
 
@@ -87,20 +74,28 @@ def run_all_tests():
             break
 
 
-def config_test(name):
+def config_test(name, args):
     os.path.exists("stdout") and os.remove("stdout")
     os.path.exists("stderr") and os.remove("stderr")
     f = name + ".obl"
 
     print(name)
     script = {"name": name}
+    with open("/dev/null", "w+") as out, open("/dev/null", "w+") as err:
+        ex = subprocess.call(["../build/bin/obelix", f], stdout=out, stderr=err)
+        if ex != 0:
+            print(f"Compilation of '{f}' failed")
+            sys.exit(1)
     with open("stdout", "w+") as out, open("stderr", "w+") as err:
-        ex = subprocess.call(["../install/bin/obelix2", f], stdout=out, stderr=err)
+        cmdline = [f"./{name}"]
+        cmdline.extend(args)
+        ex = subprocess.call(cmdline, stdout=out, stderr=err)
         out.seek(0)
         err.seek(0)
         script["exit"] = ex
         script["stdout"] = [line.strip() for line in out]
         script["stderr"] = [line.strip() for line in err]
+        script["args"] = args
     scripts = load_test_names()
     if name not in scripts:
         scripts.append(name)
@@ -164,7 +159,7 @@ def usage():
 
 if len(sys.argv) > 1:
     if sys.argv[1] == "-c":
-        config_test(sys.argv[2])
+        config_test(sys.argv[2], sys.argv[3:])
     elif sys.argv[1] == "-d":
         remove_test(sys.argv[2])
     elif sys.argv[1] == "--clear":

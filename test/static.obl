@@ -1,0 +1,6 @@
+static var x: int = 12;
+
+func main(argc: int, argv: ptr<ptr<char>>) : int
+{
+  return x;
+}
