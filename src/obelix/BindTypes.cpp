@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Context.h"
+#include "obelix/SyntaxNodeType.h"
+#include <memory>
 #include <obelix/BoundSyntaxNode.h>
+#include <obelix/Context.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
 #include <obelix/Processor.h>
@@ -79,10 +81,16 @@ NODE_PROCESSOR(VariableDeclaration)
     }
 
     auto identifier = make_node<BoundIdentifier>(var_decl->identifier(), var_type);
-    auto ret = make_node<BoundVariableDeclaration>(var_decl, identifier, expr);
+    std::shared_ptr<BoundVariableDeclaration> ret;
+    if (tree->node_type() == SyntaxNodeType::StaticVariableDeclaration)
+        ret = make_node<BoundStaticVariableDeclaration>(var_decl, identifier, expr);
+    else
+        ret = make_node<BoundVariableDeclaration>(var_decl, identifier, expr);
     ctx.declare(var_decl->name(), ret);
     return ret;
 });
+
+ALIAS_NODE_PROCESSOR(StaticVariableDeclaration, VariableDeclaration);
 
 NODE_PROCESSOR(FunctionDecl)
 {
@@ -297,9 +305,10 @@ NODE_PROCESSOR(Identifier)
     auto type_decl_maybe = ctx.get(ident->name());
     if (!type_decl_maybe.has_value())
         return tree;
-    if (type_decl_maybe.value()->node_type() != SyntaxNodeType::BoundVariableDeclaration)
+    auto type_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
+    if (type_decl == nullptr)
         return SyntaxError { ErrorCode::SyntaxError, ident->token(), format("Function {} cannot be referenced as a variable", ident->name()) };
-    auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
+    auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl);
     return make_node<BoundIdentifier>(ident, var_decl->type());
 });
 
@@ -325,9 +334,9 @@ NODE_PROCESSOR(FunctionCall)
     auto type_decl_maybe = ctx.get(func_call->name());
     if (!type_decl_maybe.has_value())
         return SyntaxError { ErrorCode::UntypedFunction, func_call->token(), func_call->name() };
-    if (type_decl_maybe.value()->node_type() == SyntaxNodeType::BoundVariableDeclaration)
-        return SyntaxError { ErrorCode::SyntaxError, func_call->token(), format("Variable {} cannot be called", func_call->name()) };
     func_decl = std::dynamic_pointer_cast<BoundFunctionDecl>(type_decl_maybe.value());
+    if (func_decl == nullptr)
+        return SyntaxError { ErrorCode::SyntaxError, func_call->token(), format("Variable {} cannot be called", func_call->name()) };
     if (args.size() != func_decl->parameters().size())
         return SyntaxError { ErrorCode::ArgumentCountMismatch, func_call->token(), func_call->name(), func_call->arguments().size() };
 
@@ -418,8 +427,8 @@ NODE_PROCESSOR(ForStatement)
     bool must_declare_variable = true;
     auto type_decl_maybe = ctx.get(stmt->variable());
     if (type_decl_maybe.has_value()) {
-        if (type_decl_maybe.value()->node_type() == SyntaxNodeType::BoundVariableDeclaration) {
-            auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
+        auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(type_decl_maybe.value());
+        if (var_decl != nullptr) {
             if (*(var_decl->type()) != *variable_type) {
                 return SyntaxError { ErrorCode::TypeMismatch, var_decl->token(), var_decl->name(), var_decl->type(), variable_type };
             }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "core/Format.h"
 #include "lexer/Token.h"
 #include "obelix/Context.h"
 #include "obelix/Syntax.h"
@@ -147,74 +148,54 @@ NODE_PROCESSOR(MaterializedIdentifier)
     auto identifier = std::dynamic_pointer_cast<MaterializedIdentifier>(tree);
     auto target = ctx.target_register();
 
-    switch (identifier->type()->type()) {
-    case PrimitiveType::Pointer:
-    case PrimitiveType::Int:
-        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, identifier->offset());
-        break;
-    case PrimitiveType::Unsigned:
-        ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", target, identifier->offset());
-        break;
-    case PrimitiveType::Byte:
-        ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", target, identifier->offset());
-        break;
-    case PrimitiveType::Char:
-    case PrimitiveType::Boolean:
-        ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", target, identifier->offset());
-        break;
-    case PrimitiveType::String: {
-        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, identifier->offset());
-        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target + 1, identifier->offset()+ 8);
+    std::string source = format("[fp,#{}]", identifier->offset());
+    if (!identifier->label().empty()) {
         ctx.inc_target_register();
-        break;
+        auto ptr_reg = ctx.target_register();
+        ctx.assembly().add_instruction("adrp", "x{},{}@PAGE", ptr_reg, identifier->label());
+        source = format("[x{},{}@PAGEOFF]", ptr_reg, identifier->label());
+    } else if (identifier->type()->type() == PrimitiveType::Struct) {
+        source = format("fp,#{}", identifier->offset());
     }
-    case PrimitiveType::Struct: {
-        ctx.assembly().add_instruction("add", "x{},fp,#{}", target, identifier->offset());
-        ctx.inc_target_register();
-        break;
+
+    struct TypeMnemonicMap {
+        PrimitiveType type;
+        char const* mnemonic;
+        char const* target_reg_width;
+    };
+
+    static TypeMnemonicMap mnemonic_map[] = {
+        { PrimitiveType::Int, "ldr", "x"},
+        { PrimitiveType::Pointer, "ldr", "x"},
+        { PrimitiveType::Unsigned, "ldr", "x"},
+        { PrimitiveType::Byte, "ldrbs", "w"},
+        { PrimitiveType::Char, "ldrb", "w"},
+        { PrimitiveType::Boolean, "ldrb", "w"},
+        { PrimitiveType::String, "ldr", "x"},
+        { PrimitiveType::Struct, "add", "x"},
+    };
+
+    char const* mnemonic = nullptr;
+    char const* target_reg_width;
+    for (auto mm : mnemonic_map) {
+        if (mm.type == identifier->type()->type()) {
+            mnemonic = mm.mnemonic;
+            target_reg_width = mm.target_reg_width;
+        }
     }
-    default:
+    if (!mnemonic)
         return SyntaxError { ErrorCode::NotYetImplemented, identifier->token(), format("Cannot push values of variables of type {} yet", identifier->type()) };
+
+    ctx.assembly().add_instruction(mnemonic, "{}{},{}", target_reg_width, target, source);
+    if (identifier->type()->type() == PrimitiveType::String) {
+        ctx.inc_target_register();
+        auto strlen_reg = ctx.target_register();
+        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", strlen_reg, identifier->offset()+ 8);
     }
     return tree;
 });
 
-NODE_PROCESSOR(MaterializedMemberAccess)
-{
-    auto member_access = std::dynamic_pointer_cast<MaterializedMemberAccess>(tree);
-    auto target = ctx.target_register();
-
-    switch (member_access->type()->type()) {
-    case PrimitiveType::Pointer:
-    case PrimitiveType::Int:
-        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, member_access->offset());
-        break;
-    case PrimitiveType::Unsigned:
-        ctx.assembly().add_instruction("ldr", "x0,[fp,#{}]", target, member_access->offset());
-        break;
-    case PrimitiveType::Byte:
-        ctx.assembly().add_instruction("ldrbs", "w{},[fp,#{}]", target, member_access->offset());
-        break;
-    case PrimitiveType::Char:
-    case PrimitiveType::Boolean:
-        ctx.assembly().add_instruction("ldrb", "w{},[fp,#{}]", target, member_access->offset());
-        break;
-    case PrimitiveType::String: {
-        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target, member_access->offset());
-        ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", target + 1, member_access->offset()+ 8);
-        ctx.inc_target_register();
-        break;
-    }
-    case PrimitiveType::Struct: {
-        ctx.assembly().add_instruction("add", "x{},fp,#{}", target, member_access->offset());
-        ctx.inc_target_register();
-        break;
-    }
-    default:
-        return Error { ErrorCode::NotYetImplemented, member_access->token(), format("Cannot push values of struct members of type {} yet", member_access->type()) };
-    }
-    return tree;
-});
+ALIAS_NODE_PROCESSOR(MaterializedMemberAccess, MaterializedIdentifier);
 
 ErrorOr<std::pair<int, int>, SyntaxError> calculate_array_element_offset(ARM64Context &ctx, std::shared_ptr<MaterializedArrayAccess> array_access)
 {
@@ -281,12 +262,10 @@ NODE_PROCESSOR(MaterializedArrayAccess)
         ctx.assembly().add_instruction("ldr", "x{},[fp,x{}]", target, pointer);
         auto pointer_strlen = pointer_pair.second;
         ctx.assembly().add_instruction("ldr", "x{},[fp,x{}]", target_strlen, pointer_strlen);
-        ctx.inc_target_register();
         break;
     }
     case PrimitiveType::Struct: {
         ctx.assembly().add_instruction("add", "x{},fp,x{}", target, pointer);
-        ctx.inc_target_register();
         break;
     }
     default:
@@ -347,6 +326,15 @@ NODE_PROCESSOR(MaterializedVariableDecl)
     ctx.assembly().add_comment(var_decl->to_string());
     if (var_decl->type()->type() == PrimitiveType::Struct || var_decl->type()->type() == PrimitiveType::Array)
         return tree;
+
+    if (!var_decl->label().empty()) {
+        int initial_value = 0;
+        auto literal = std::dynamic_pointer_cast<BoundLiteral>(var_decl->expression());
+        if ((literal != nullptr) || (literal->type()->type() == PrimitiveType::Int))
+            initial_value = literal->int_value();
+        ctx.assembly().add_data(var_decl->label(), true, ".long", initial_value);
+        return tree;
+    }
 
     ctx.initialize_target_register();
     if (var_decl->expression() != nullptr) {

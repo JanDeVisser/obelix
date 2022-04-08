@@ -59,6 +59,7 @@ public:
     constexpr static TokenCode KeywordConst = TokenCode::Keyword22;
     constexpr static TokenCode KeywordIntrinsic = TokenCode::Keyword23;
     constexpr static TokenCode KeywordStruct = TokenCode::Keyword24;
+    constexpr static TokenCode KeywordStatic = TokenCode::Keyword25;
 
     Parser(Config const& parser_config, StringBuffer& src);
     Parser(Config const& parser_config, std::string const& file_name);
@@ -81,7 +82,8 @@ public:
 private:
     void initialize();
     std::shared_ptr<Statement> parse_statement();
-    void parse_statements(Statements&);
+    std::shared_ptr<Statement> parse_top_level_statement();
+    void parse_statements(Statements&, bool = false);
     std::shared_ptr<Block> parse_block(Statements&);
     std::shared_ptr<FunctionCall> parse_function_call(std::shared_ptr<Expression> const&);
     std::shared_ptr<FunctionDef> parse_function_definition(Token const&);
@@ -89,7 +91,8 @@ private:
     std::shared_ptr<SwitchStatement> parse_switch_statement(Token const&);
     std::shared_ptr<WhileStatement> parse_while_statement(Token const&);
     std::shared_ptr<ForStatement> parse_for_statement(Token const&);
-    std::shared_ptr<VariableDeclaration> parse_variable_declaration(Token const&, bool);
+    std::shared_ptr<VariableDeclaration> parse_static_variable_declaration();
+    std::shared_ptr<VariableDeclaration> parse_variable_declaration(Token const&, bool, bool = false);
     std::shared_ptr<Statement> parse_struct(Token const&);
     std::shared_ptr<Import> parse_import_statement(Token const&);
     std::shared_ptr<Expression> parse_expression();

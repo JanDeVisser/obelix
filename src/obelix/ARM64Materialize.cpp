@@ -4,16 +4,20 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Context.h"
+#include "core/Error.h"
+#include "obelix/SyntaxNodeType.h"
 #include <memory>
+
 #include <obelix/ARM64.h>
 #include <obelix/BoundSyntaxNode.h>
+#include <obelix/Context.h>
+#include <obelix/MaterializedSyntaxNode.h>
 #include <obelix/Processor.h>
 #include <obelix/Syntax.h>
 
 namespace Obelix {
 
-class MaterializeContext : public Context<int>
+class MaterializeContext : public Context<std::shared_ptr<SyntaxNode>>
 {
 public:
     int offset { 0 };
@@ -30,7 +34,7 @@ NODE_PROCESSOR(BoundFunctionDef)
     MaterializedFunctionParameters function_parameters;
     for (auto& parameter : func_decl->parameters()) {
         auto materialized_parameter = make_node<MaterializedFunctionParameter>(parameter, offset);
-        func_ctx.declare(materialized_parameter->name(), offset);
+        func_ctx.declare(materialized_parameter->name(), materialized_parameter);
         function_parameters.push_back(materialized_parameter);
         offset += parameter->type()->size();
         if (offset % 8)
@@ -78,7 +82,7 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     auto offset = ctx.offset;
     auto expression = TRY_AND_CAST(BoundExpression, processor.process(var_decl->expression(), ctx));
     auto ret = make_node<MaterializedVariableDecl>(var_decl, offset, expression);
-    ctx.declare(var_decl->name(), offset);
+    ctx.declare(var_decl->name(), ret);
     offset += var_decl->type()->size();
     if (offset % 8)
         offset += 8 - (offset % 8);
@@ -86,22 +90,39 @@ NODE_PROCESSOR(BoundVariableDeclaration)
     return ret;
 });
 
+NODE_PROCESSOR(BoundStaticVariableDeclaration)
+{
+    auto var_decl = std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(tree);
+    auto expression = TRY_AND_CAST(BoundExpression, processor.process(var_decl->expression(), ctx));
+    auto ret = make_node<MaterializedVariableDecl>(var_decl, format("_{}", var_decl->name()), 0, expression);
+    ctx.declare(var_decl->name(), ret);
+    return ret;
+});
+
 NODE_PROCESSOR(BoundFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
-    auto xform_arguments = [&call, &ctx, &processor]() -> ErrorOr<BoundExpressions, SyntaxError> {
-        BoundExpressions ret;
-        for (auto& expr : call->arguments()) {
-            auto new_expr = processor.process(expr, ctx);
-            if (new_expr.is_error())
-                return new_expr.error();
-            ret.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
-        }
-        return ret;
-    };
-
-    auto arguments = TRY(xform_arguments());
+    BoundExpressions arguments;
+    for (auto& expr : call->arguments()) {
+        auto new_expr = processor.process(expr, ctx);
+        if (new_expr.is_error())
+            return new_expr.error();
+        arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
+    }
     return make_node<BoundFunctionCall>(call, arguments);
+});
+
+NODE_PROCESSOR(BoundNativeFunctionCall)
+{
+    auto call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
+    BoundExpressions arguments;
+    for (auto& expr : call->arguments()) {
+        auto new_expr = processor.process(expr, ctx);
+        if (new_expr.is_error())
+            return new_expr.error();
+        arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
+    }
+    return make_node<BoundNativeFunctionCall>(call, arguments);
 });
 
 NODE_PROCESSOR(BoundUnaryExpression)
@@ -172,10 +193,21 @@ NODE_PROCESSOR(BoundBinaryExpression)
 NODE_PROCESSOR(BoundIdentifier)
 {
     auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(tree);
-    auto offset_maybe = ctx.get(identifier->name());
-    if (!offset_maybe.has_value())
+    auto decl_maybe = ctx.get(identifier->name());
+    if (!decl_maybe.has_value())
         return SyntaxError { ErrorCode::InternalError, identifier->token(), format("Undeclared variable '{}' during code generation", identifier->name()) };
-    return make_node<MaterializedIdentifier>(identifier, offset_maybe.value());
+    auto decl = decl_maybe.value();
+    auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(decl);
+    if (var_decl != nullptr) {
+        if (var_decl->label().empty())
+            return make_node<MaterializedIdentifier>(identifier, var_decl->offset());
+        return make_node<MaterializedIdentifier>(identifier, var_decl->label(), var_decl->offset());
+    }
+    auto param_decl = std::dynamic_pointer_cast<MaterializedFunctionParameter>(decl);
+    if (param_decl != nullptr) {
+        return make_node<MaterializedIdentifier>(identifier, param_decl->offset());
+    }
+    return SyntaxError { ErrorCode::InternalError, format("Identifier declaration has unexpected type '{}'", decl->node_type()) };
 });
 
 NODE_PROCESSOR(BoundMemberAccess)

@@ -72,6 +72,7 @@ void Parser::initialize()
         Token(KeywordConst, "const"),
         Token(KeywordIntrinsic, "intrinsic"),
         Token(KeywordStruct, "struct"),
+        Token(KeywordStatic, "static"),
         TokenCode::BinaryIncrement,
         TokenCode::BinaryDecrement,
         TokenCode::UnaryIncrement,
@@ -122,10 +123,58 @@ std::shared_ptr<Module> Parser::parse_module(std::string const& module_name)
 std::shared_ptr<Module> Parser::parse_module()
 {
     Statements statements;
-    parse_statements(statements);
+    parse_statements(statements, true);
     if (has_errors())
         return nullptr;
     return make_node<Module>(statements, file_name());
+}
+
+std::shared_ptr<Statement> Parser::parse_top_level_statement()
+{
+    debug(parser, "Parser::parse_top_level_statement");
+    auto token = peek();
+    std::shared_ptr<Statement> ret = nullptr;
+    switch (token.code()) {
+    case TokenCode::SemiColon:
+        return make_node<Pass>(lex());
+    case TokenCode::OpenBrace: {
+        lex();
+        Statements statements;
+        return parse_block(statements);
+    }
+    case KeywordImport:
+        ret = parse_import_statement(lex());
+        break;
+    case KeywordStruct:
+        ret = parse_struct(lex());
+        break;
+    case KeywordStatic:
+        lex();
+        ret = parse_static_variable_declaration();
+        break;
+    case KeywordVar:
+    case KeywordConst:
+        ret = parse_variable_declaration(lex(), token.code() == KeywordConst, true);
+        break;
+    case KeywordFunc:
+    case KeywordIntrinsic:
+        return parse_function_definition(lex());
+    case TokenCode::CloseBrace:
+    case TokenCode::EndOfFile:
+        return nullptr;
+    default: {
+        auto expr = parse_expression();
+        if (!expr)
+            return nullptr;
+        ret = make_node<ExpressionStatement>(expr);
+    } break;
+    }
+    if (current_code() != TokenCode::SemiColon) {
+        add_error(peek(), format("Expected ';', got '{}'", peek().value()));
+        return nullptr;
+    }
+    lex();
+    return ret;
 }
 
 std::shared_ptr<Statement> Parser::parse_statement()
@@ -152,16 +201,14 @@ std::shared_ptr<Statement> Parser::parse_statement()
         return parse_while_statement(lex());
     case KeywordFor:
         return parse_for_statement(lex());
-    case KeywordStruct:
-        ret = parse_struct(lex());
+    case KeywordStatic:
+        lex();
+        ret = parse_static_variable_declaration();
         break;
     case KeywordVar:
     case KeywordConst:
         ret = parse_variable_declaration(lex(), token.code() == KeywordConst);
         break;
-    case KeywordFunc:
-    case KeywordIntrinsic:
-        return parse_function_definition(lex());
     case KeywordReturn: {
         lex();
         auto expr = parse_expression();
@@ -193,10 +240,10 @@ std::shared_ptr<Statement> Parser::parse_statement()
     return ret;
 }
 
-void Parser::parse_statements(Statements& block)
+void Parser::parse_statements(Statements& block, bool top_level)
 {
     while (true) {
-        auto statement = parse_statement();
+        auto statement = (top_level) ? parse_top_level_statement() : parse_statement();
         if (!statement)
             break;
         block.push_back(statement);
@@ -459,7 +506,19 @@ std::shared_ptr<Statement> Parser::parse_struct(Token const& struct_token)
     return make_node<StructDefinition>(struct_token, name, fields);
 }
 
-std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token const& var_token, bool constant)
+std::shared_ptr<VariableDeclaration> Parser::parse_static_variable_declaration()
+{
+    switch (current_code()) {
+    case KeywordVar:
+    case KeywordConst:
+        return parse_variable_declaration(lex(), current_code() == KeywordConst, true);
+    default:
+        add_error(peek(), format("Syntax Error: Expected 'const' or 'var' after 'static', got '{}' ({})", peek().value(), peek().code_name()));
+        return nullptr;
+    }
+}
+
+std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token const& var_token, bool constant, bool is_static)
 {
     auto identifier_maybe = match(TokenCode::Identifier);
     if (!identifier_maybe.has_value()) {
@@ -482,12 +541,16 @@ std::shared_ptr<VariableDeclaration> Parser::parse_variable_declaration(Token co
             add_error(peek(), format("Syntax Error: Expected expression after constant declaration, got '{}' ({})", peek().value(), peek().code_name()));
             return nullptr;
         }
+        if (is_static)
+            return make_node<StaticVariableDeclaration>(var_token, var_ident, nullptr, constant);
         return make_node<VariableDeclaration>(var_token, var_ident, nullptr, constant);
     }
     lex();
     auto expr = parse_expression();
     if (!expr)
         return nullptr;
+    if (is_static)
+        return make_node<StaticVariableDeclaration>(var_token, var_ident, expr, constant);
     return make_node<VariableDeclaration>(var_token, var_ident, expr, constant);
 }
 

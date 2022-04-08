@@ -587,6 +587,11 @@ public:
     {
     }
 
+    BoundNativeFunctionCall(std::shared_ptr<BoundNativeFunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundFunctionDecl> const& decl = nullptr)
+        : BoundFunctionCall(call, arguments, decl)
+    {
+    }
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundNativeFunctionCall; }
 };
 
@@ -754,6 +759,22 @@ private:
     std::shared_ptr<BoundIdentifier> m_variable;
     bool m_const { false };
     std::shared_ptr<BoundExpression> m_expression;
+};
+
+class BoundStaticVariableDeclaration : public BoundVariableDeclaration {
+public:
+    BoundStaticVariableDeclaration(std::shared_ptr<VariableDeclaration> const& decl, std::shared_ptr<BoundIdentifier> variable, std::shared_ptr<BoundExpression> expr)
+        : BoundVariableDeclaration(decl, move(variable), move(expr))
+    {
+    }
+
+    BoundStaticVariableDeclaration(Token token, std::shared_ptr<BoundIdentifier> variable, bool is_const, std::shared_ptr<BoundExpression> expr)
+        : BoundVariableDeclaration(std::move(token), move(variable), is_const, move(expr))
+    {
+    }
+
+    [[nodiscard]] std::string to_string() const override { return "static " + BoundVariableDeclaration::to_string(); }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundStaticVariableDeclaration; }
 };
 
 class BoundReturn : public Statement {

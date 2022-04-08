@@ -10,6 +10,7 @@
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Syntax.h>
 #include <obelix/SyntaxNodeType.h>
+#include <string>
 
 namespace Obelix {
 
@@ -187,6 +188,16 @@ public:
     {
     }
 
+    explicit MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::string label, int offset, std::shared_ptr<BoundExpression> expression)
+        : Statement(var_decl->token())
+        , m_variable(var_decl->variable())
+        , m_const(var_decl->is_const())
+        , m_expression(move(expression))
+        , m_label(move(label))
+        , m_offset(offset)
+    {
+    }
+
     [[nodiscard]] std::string attributes() const override
     {
         return format(R"(name="{}" type="{}" is_const="{}")", name(), type(), is_const());
@@ -201,10 +212,15 @@ public:
 
     [[nodiscard]] std::string to_string() const override
     {
-        std::string keyword = (m_const) ? "const" : "var";
+        auto keyword = (m_const) ? "const" : "var";
+        if (label().empty()) {
+            if (m_expression)
+                return format("{} {}: {} [{}]", keyword, m_variable, m_expression, m_offset);
+            return format("{} {} [{}]", keyword, m_variable, m_offset);
+        }
         if (m_expression)
-            return format("{} {}: {} [{}]", keyword, m_variable, m_expression, m_offset);
-        return format("{} {} [{}]", keyword, m_variable, m_offset);
+            return format("static {} {}: {} [{}]", keyword, m_variable, m_expression, label());
+        return format("{} {} [{}]", keyword, m_variable, label());
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedVariableDecl; }
@@ -213,12 +229,14 @@ public:
     [[nodiscard]] std::shared_ptr<ObjectType> const& type() const { return variable()->type(); }
     [[nodiscard]] bool is_const() const { return m_const; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const { return m_expression; }
+    [[nodiscard]] std::string const& label() const { return m_label; }
     [[nodiscard]] int offset() const { return m_offset; }
 
 private:
     std::shared_ptr<BoundIdentifier> m_variable;
     bool m_const { false };
     std::shared_ptr<BoundExpression> m_expression;
+    std::string m_label;
     int m_offset;
 };
 
@@ -230,8 +248,17 @@ public:
     {
     }
 
+    MaterializedVariableAccess(std::shared_ptr<BoundExpression> const& expr, std::string label, int offset = 0)
+        : BoundVariableAccess(expr->token(), expr->type())
+        , m_label(move(label))
+        , m_offset(offset)
+    {
+    }
+
     [[nodiscard]] int offset() const { return m_offset; }
+    [[nodiscard]] std::string const& label() const { return m_label; }
 private:
+    std::string m_label;
     int m_offset { 0 };
 };
 
@@ -239,6 +266,12 @@ class MaterializedIdentifier : public MaterializedVariableAccess {
 public:
     MaterializedIdentifier(std::shared_ptr<BoundIdentifier> const& identifier, int offset)
         : MaterializedVariableAccess(identifier, offset)
+        , m_identifier(identifier->name())
+    {
+    }
+
+    MaterializedIdentifier(std::shared_ptr<BoundIdentifier> const& identifier, std::string label, int offset=0)
+        : MaterializedVariableAccess(identifier, move(label), offset)
         , m_identifier(identifier->name())
     {
     }
@@ -262,6 +295,14 @@ public:
     {
     }
 
+    MaterializedMemberAccess(std::shared_ptr<BoundMemberAccess> const& member_access,
+            std::shared_ptr<MaterializedVariableAccess> strukt, std::shared_ptr<BoundExpression> member, std::string label, int offset=0)
+        : MaterializedVariableAccess(member_access, move(label), strukt->offset() + offset)
+        , m_struct(move(strukt))
+        , m_member(move(member))
+    {
+    }
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedMemberAccess; }
     [[nodiscard]] std::shared_ptr<MaterializedVariableAccess> const& structure() const { return m_struct; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& member() const { return m_member; }
@@ -279,6 +320,14 @@ public:
     MaterializedArrayAccess(std::shared_ptr<BoundArrayAccess> const& array_access,
             std::shared_ptr<MaterializedVariableAccess> array, std::shared_ptr<BoundExpression> index, int element_size)
         : MaterializedVariableAccess(array_access, element_size)
+        , m_array(move(array))
+        , m_index(move(index))
+    {
+    }
+
+    MaterializedArrayAccess(std::shared_ptr<BoundArrayAccess> const& array_access,
+            std::shared_ptr<MaterializedVariableAccess> array, std::shared_ptr<BoundExpression> index, std::string label, int element_size)
+        : MaterializedVariableAccess(array_access, move(label), element_size)
         , m_array(move(array))
         , m_index(move(index))
     {

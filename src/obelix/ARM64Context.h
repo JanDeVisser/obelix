@@ -69,11 +69,14 @@ public:
         m_code = format("{}\n\t; {}\n", m_code, c);
     }
 
-    void add_data(std::string const& label, std::string const& d)
+    template <typename Arg>
+    void add_data(std::string const& label, bool global, std::string type, Arg const& arg)
     {
         if (m_data.empty())
-            m_data = ".data\n\n";
-        m_data = format("{}\n.align 2\n{}:\t{}", m_data, label, d);
+            m_data = "\n\n.section __DATA,__data\n";
+        if (global)
+            m_data += format("\n.global {}", label);
+        m_data += format("\n.align 2\n{}:\n\t{}\t{}", label, type, arg);
     }
 
     void syscall(int id)
@@ -105,7 +108,7 @@ public:
     [[nodiscard]] bool has_exports() const { return m_has_exports; }
 
 private:
-    std::string m_code { ".align 2\n\n" };
+    std::string m_code { ".section	__TEXT,__text,regular,pure_instructions\n\n.align 2\n\n" };
     std::string m_text;
     std::string m_data;
     bool m_has_exports { false };

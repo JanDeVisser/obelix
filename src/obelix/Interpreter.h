@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "obelix/BoundSyntaxNode.h"
+#include <obelix/BoundSyntaxNode.h>
 #include <obelix/Processor.h>
 
 namespace Obelix {
