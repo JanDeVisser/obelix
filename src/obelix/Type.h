@@ -36,11 +36,10 @@ namespace Obelix {
     S(Char, 5)                       \
     S(Boolean, 6)                    \
     S(Float, 7)                      \
-    S(String, 8)                     \
-    S(Pointer, 9)                    \
-    S(Struct, 10)                    \
-    S(Range, 11)                     \
-    S(Array, 12)                     \
+    S(Pointer, 8)                    \
+    S(Struct, 9)                     \
+    S(Range, 10)                     \
+    S(Array, 11)                     \
     S(Error, 9996)                   \
     S(Self, 9997)                    \
     S(Compatible, 9998)              \
@@ -162,7 +161,7 @@ struct FieldDef {
 
 using FieldDefs = std::vector<FieldDef>;
 
-using ObjectTypeBuilder = std::function<void(ObjectType&)>;
+using ObjectTypeBuilder = std::function<void(ObjectType*)>;
 
 enum class TemplateParameterType {
     Type,
@@ -244,7 +243,7 @@ public:
         : m_type(type)
     {
         m_name_str = std::string(PrimitiveType_name(type));
-        builder(*this);
+        builder(this);
     }
 
     ObjectType(PrimitiveType type, char const* name, ObjectTypeBuilder const& builder) noexcept
@@ -255,7 +254,7 @@ public:
             m_name_str = std::string(m_name);
         else
             m_name_str = std::string(PrimitiveType_name(type));
-        builder(*this);
+        builder(this);
     }
 
     [[nodiscard]] PrimitiveType type() const { return m_type; }
@@ -345,10 +344,22 @@ public:
         return ptr;
     }
 
+    template<typename ObjectTypeBuilder>
+    static std::shared_ptr<ObjectType> register_struct_type(char const* name, FieldDefs fields, ObjectTypeBuilder const& builder) noexcept
+    {
+        auto type_maybe = ObjectType::make_type(name, move(fields));
+        if (type_maybe.is_error())
+            fatal("make_type '{}' failed: {}", name, type_maybe.error());
+        auto type = type_maybe.value();
+        builder(type.get());
+        return type;
+    }
+
     static std::shared_ptr<ObjectType> const& get(PrimitiveType);
     static std::shared_ptr<ObjectType> const& get(std::string const&);
     static std::shared_ptr<ObjectType> const& get(ObjectType const*);
-    static ErrorOr<std::shared_ptr<ObjectType>> resolve(std::string const& type_name, TemplateArguments const& template_args);
+    static ErrorOr<std::shared_ptr<ObjectType>> resolve(std::shared_ptr<ObjectType> const&, TemplateArguments const&);
+    static ErrorOr<std::shared_ptr<ObjectType>> resolve(std::string const&, TemplateArguments const&);
 
     template<typename... Args>
     static std::shared_ptr<ObjectType> resolve(std::string const& type_name, TemplateArguments& template_args, TemplateArgument template_arg, Args&&... args)
@@ -419,7 +430,7 @@ inline std::shared_ptr<ObjectType> get_type<int8_t>()
 template<>
 inline std::shared_ptr<ObjectType> get_type<std::string>()
 {
-    return ObjectType::get(PrimitiveType::String);
+    return ObjectType::get("string");
 }
 
 template<>

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "core/Object.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -601,14 +602,44 @@ private:
 
 class Literal : public Expression {
 public:
-    Literal(Token const& t, PrimitiveType type)
-        : Expression(t, std::make_shared<ExpressionType>(t, type))
+    enum class Type {
+        Unknown,
+        String,
+        Int,
+        Char,
+        Float,
+        Boolean,
+    };
+
+    static std::string get_type(Type type) {
+        switch (type) {
+        case Type::Unknown:
+            return "unknown";
+        case Type::String:
+            return "string";
+        case Type::Int:
+            return "int";
+        case Type::Char:
+            return "u8";
+        case Type::Float:
+            return "float";
+        case Type::Boolean:
+            return "bool";
+        }
+    }
+
+    Literal(Token const& t, Type type)
+        : Expression(t, std::make_shared<ExpressionType>(t, get_type(type)))
+        , m_literal_type(type)
     {
     }
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Literal; }
     [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", Expression::token().value(), type_name()); }
     [[nodiscard]] std::string to_string() const override { return format("{}: {}", Expression::token().value(), type()->to_string()); }
+    [[nodiscard]] Type literal_type() const { return m_literal_type; }
+private:
+    Type m_literal_type { Type::Unknown };
 };
 
 using Expressions = std::vector<std::shared_ptr<Expression>>;

@@ -60,8 +60,10 @@ void ARM64Context::enter_function(std::shared_ptr<MaterializedFunctionDef> const
     auto reg = 0;
     for (auto& param : func->declaration()->parameters()) {
         assembly().add_instruction("str", "x{},[fp,#{}]", reg++, param->offset());
+#if 0
         if (param->type()->type() == PrimitiveType::String)
             assembly().add_instruction("str", "x{},[fp,#{}]", reg++, param->offset() + 8);
+#endif
     }
 }
 
@@ -104,10 +106,12 @@ void ARM64Context::release_target_register(PrimitiveType type)
         int current = m_target_register.back();
         if (current && (type != PrimitiveType::Unknown)) {
             assembly().add_instruction("mov", "x{},x0", current);
+#if 0
             if (type == PrimitiveType::String) {
                 assembly().add_instruction("mov", "x{},x1", current + 1);
                 inc_target_register();
             }
+#endif
         }
         for (auto ix = 0; ix < current; ++ix) {
             pop(*this, format("x{}", ix));

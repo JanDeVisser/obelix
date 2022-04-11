@@ -4,19 +4,15 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "core/Format.h"
-#include "lexer/Token.h"
-#include "obelix/Context.h"
-#include "obelix/Syntax.h"
-#include "obelix/Type.h"
 #include <filesystem>
+#include <memory>
 
 #include <config.h>
+
 #include <core/Error.h>
 #include <core/Logging.h>
 #include <core/Process.h>
 #include <core/ScopeGuard.h>
-#include <memory>
 #include <obelix/ARM64.h>
 #include <obelix/ARM64Context.h>
 #include <obelix/ARM64Intrinsics.h>
@@ -130,6 +126,7 @@ NODE_PROCESSOR(BoundLiteral)
         ctx.assembly().add_instruction("mov", "w{},#{}", target, static_cast<uint8_t>(literal->int_value()));
         break;
     }
+#if 0
     case PrimitiveType::String: {
         auto str_id = ctx.assembly().add_string(literal->string_value());
         ctx.assembly().add_instruction("adr", "x{},str_{}", target, str_id);
@@ -137,6 +134,7 @@ NODE_PROCESSOR(BoundLiteral)
         ctx.inc_target_register();
         break;
     }
+#endif
     default:
         return SyntaxError(ErrorCode::NotYetImplemented, literal->token(), format("Cannot emit literals of type {} yet", literal->type()->to_string()));
     }
@@ -171,7 +169,6 @@ NODE_PROCESSOR(MaterializedIdentifier)
         { PrimitiveType::Byte, "ldrbs", "w"},
         { PrimitiveType::Char, "ldrb", "w"},
         { PrimitiveType::Boolean, "ldrb", "w"},
-        { PrimitiveType::String, "ldr", "x"},
         { PrimitiveType::Struct, "add", "x"},
     };
 
@@ -187,11 +184,13 @@ NODE_PROCESSOR(MaterializedIdentifier)
         return SyntaxError { ErrorCode::NotYetImplemented, identifier->token(), format("Cannot push values of variables of type {} yet", identifier->type()) };
 
     ctx.assembly().add_instruction(mnemonic, "{}{},{}", target_reg_width, target, source);
-    if (identifier->type()->type() == PrimitiveType::String) {
+#if 0
+    if (identifier->type()->name() == "string") {
         ctx.inc_target_register();
         auto strlen_reg = ctx.target_register();
         ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", strlen_reg, identifier->offset()+ 8);
     }
+#endif
     return tree;
 }
 
@@ -223,11 +222,13 @@ ErrorOr<std::pair<int, int>, SyntaxError> calculate_array_element_offset(ARM64Co
     }
     ctx.assembly().add_instruction("add", "x{},x{},#{}", target, target, array_access->array()->offset());
     int target_strlen = -1;
-    if (array_access->type()->type() == PrimitiveType::String) {
+#if 0
+    if (array_access->type()->name() == "string") {
         ctx.inc_target_register();
         target_strlen = ctx.target_register();
         ctx.assembly().add_instruction("add", "x{},x{},#{}", target_strlen, target, 8);
     }
+#endif
     return std::pair { target, target_strlen };
 }
 
@@ -236,11 +237,13 @@ NODE_PROCESSOR(MaterializedArrayAccess)
     auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(tree);
     ctx.initialize_target_register();
     auto target = ctx.target_register();
+#if 0
     int target_strlen = -1;
-    if (array_access->type()->type() == PrimitiveType::String) {
+    if (array_access->type()->name() == "string") {
         ctx.inc_target_register();
         target_strlen = ctx.target_register();
     }
+#endif
     auto pointer_pair = TRY(calculate_array_element_offset(ctx, array_access));
     auto pointer = pointer_pair.first;
     switch (array_access->type()->type()) {
@@ -258,12 +261,6 @@ NODE_PROCESSOR(MaterializedArrayAccess)
     case PrimitiveType::Boolean:
         ctx.assembly().add_instruction("ldrb", "w{},[fp,x{}]", target, pointer);
         break;
-    case PrimitiveType::String: {
-        ctx.assembly().add_instruction("ldr", "x{},[fp,x{}]", target, pointer);
-        auto pointer_strlen = pointer_pair.second;
-        ctx.assembly().add_instruction("ldr", "x{},[fp,x{}]", target_strlen, pointer_strlen);
-        break;
-    }
     case PrimitiveType::Struct: {
         ctx.assembly().add_instruction("add", "x{},fp,x{}", target, pointer);
         break;
@@ -308,11 +305,6 @@ NODE_PROCESSOR(BoundAssignment)
     case PrimitiveType::Boolean:
         ctx.assembly().add_instruction("strb", "x0,{}", offset);
         break;
-    case PrimitiveType::String: {
-        ctx.assembly().add_instruction("str", "x0,{}", offset);
-        ctx.assembly().add_instruction("str", "w1,{}", offset_strlen);
-        break;
-    }
     default:
         return SyntaxError { ErrorCode::NotYetImplemented, assignment->token(), format("Cannot emit assignments of type {} yet", assignment->type()->to_string()) };
     }
@@ -341,9 +333,6 @@ NODE_PROCESSOR(MaterializedVariableDecl)
         TRY_RETURN(process(var_decl->expression(), ctx));
     } else {
         switch (var_decl->type()->type()) {
-        case PrimitiveType::String: {
-            ctx.assembly().add_instruction("mov", "w1,wzr");
-        } // fall through
         case PrimitiveType::Pointer:
         case PrimitiveType::Int:
         case PrimitiveType::Unsigned:
@@ -357,9 +346,6 @@ NODE_PROCESSOR(MaterializedVariableDecl)
         }
     }
     ctx.assembly().add_instruction("str", "x0,[fp,#{}]", var_decl->offset());
-    if (var_decl->type()->type() == PrimitiveType::String) {
-        ctx.assembly().add_instruction("str", "x1,[fp,#{}]", var_decl->offset() + 8);
-    }
     ctx.release_target_register(var_decl->type()->type());
     return tree;
 }

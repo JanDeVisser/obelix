@@ -796,22 +796,22 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         return make_node<UnaryExpression>(t, operand);
     }
     case TokenCode::Integer:
-        return make_node<Literal>(t, PrimitiveType::Int);
+        return make_node<Literal>(t, Literal::Type::Int);
     case TokenCode::HexNumber:
-        return make_node<Literal>(t, PrimitiveType::Int);
+        return make_node<Literal>(t, Literal::Type::Int);
     case TokenCode::Float:
-        return make_node<Literal>(t, PrimitiveType::Float);
+        return make_node<Literal>(t, Literal::Type::Float);
     case TokenCode::DoubleQuotedString:
-        return make_node<Literal>(t, PrimitiveType::String);
+        return make_node<Literal>(t, Literal::Type::String);
     case TokenCode::SingleQuotedString:
         if (t.value().length() != 1) {
             add_error(t, format("Syntax Error: Single-quoted string should only hold a single character, not '{}'", t.value()));
             return nullptr;
         }
-        return make_node<Literal>(t, PrimitiveType::Char);
+        return make_node<Literal>(t, Literal::Type::Char);
     case KeywordTrue:
     case KeywordFalse:
-        return make_node<Literal>(t, PrimitiveType::Boolean);
+        return make_node<Literal>(t, Literal::Type::Boolean);
     case TokenCode::Identifier: {
         return make_node<Identifier>(t, t.value());
     }

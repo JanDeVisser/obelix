@@ -319,11 +319,12 @@ public:
     explicit BoundLiteral(std::shared_ptr<Literal> const& literal)
         : BoundExpression(literal, ObjectType::get(literal->type()->type_name()))
     {
-        switch (type()->type()) {
-        case PrimitiveType::String:
+        if (*type() == *get_type<std::string>()) {
             m_string = token().value();
             m_bool = !m_string.empty();
-            break;
+            return;
+        }
+        switch (type()->type()) {
         case PrimitiveType::Int:
             m_int = token().to_long().value();
             m_bool = m_int != 0;
@@ -341,7 +342,7 @@ public:
     }
 
     explicit BoundLiteral(Token t, std::string value)
-        : BoundExpression(t, ObjectType::get(PrimitiveType::String))
+        : BoundExpression(t, get_type<std::string>())
         , m_string(move(value))
         , m_bool(!m_string.empty())
     {
@@ -401,7 +402,7 @@ public:
 
     [[nodiscard]] std::string const& string_value() const
     {
-        assert(type()->type() == PrimitiveType::String);
+        assert(type()->name() == "string");
         return m_string;
     }
 
@@ -427,9 +428,10 @@ public:
 private:
     [[nodiscard]] std::string as_string() const
     {
+        if (type()->name() == "string") {
+            return m_string;
+        }
         switch (type()->type()) {
-            case PrimitiveType::String:
-                return m_string;
             case PrimitiveType::Int:
             case PrimitiveType::Unsigned:
             case PrimitiveType::Byte:
