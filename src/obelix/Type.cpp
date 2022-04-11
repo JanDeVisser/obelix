@@ -630,8 +630,19 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::string const& type
 ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_type(std::string name, FieldDefs fields)
 {
     std::shared_ptr<ObjectType> ret;
-    if (s_types_by_name.contains(name))
-        return Error<int> { ErrorCode::DuplicateTypeName, name };
+    if (s_types_by_name.contains(name)) {
+        auto existing = s_types_by_name.at(name);
+        if (existing->type() != PrimitiveType::Struct)
+            return Error<int> { ErrorCode::DuplicateTypeName, name };
+        if (existing->fields().size() != fields.size())
+            return Error<int> { ErrorCode::DuplicateTypeName, name };
+        for (auto ix = 0; ix < fields.size(); ++ix) {
+            auto existing_field = existing->fields()[ix];
+            auto new_field = fields[ix];
+            if (*existing_field.type != *new_field.type || existing_field.name != new_field.name)
+                return Error<int> { ErrorCode::DuplicateTypeName, name };
+        }
+    }
     assert(!fields.empty()); // TODO return proper error
     ret = std::make_shared<ObjectType>(PrimitiveType::Struct, name);
     ret->m_fields = move(fields);
