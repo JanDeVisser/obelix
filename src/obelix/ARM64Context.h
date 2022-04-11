@@ -28,14 +28,14 @@ using ARM64Implementation = std::function<ErrorOr<void, SyntaxError>(ARM64Contex
 class Assembly {
 public:
     template<typename... Args>
-    void add_instruction(std::string const& mnemonic, Args&&... args)
+    void add_instruction(std::string const& mnemonic, std::string const& param, Args&&... args)
     {
-        m_code = format("{}\t{}\t{}\n", m_code, mnemonic, std::forward<Args>(args)...);
+        m_code = format("{}\t{}\t" + param + '\n', m_code, mnemonic, std::forward<Args>(args)...);
     }
 
-    void add_instruction(std::string const& mnemonic)
+    void add_instruction(std::string const& mnemonic, std::string const& param = "")
     {
-        m_code = format("{}\t{}\n", m_code, mnemonic);
+        m_code = m_code + '\t' + mnemonic + '\t' + param + '\n';
     }
 
     void add_label(std::string const& label)
