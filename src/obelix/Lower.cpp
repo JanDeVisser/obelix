@@ -21,7 +21,7 @@ NODE_PROCESSOR(BoundFunctionDef)
 {
     auto func_def = std::dynamic_pointer_cast<BoundFunctionDef>(tree);
     if (func_def->statement()) {
-        auto statement = TRY_AND_CAST(Statement, processor.process(func_def->statement(), ctx));
+        auto statement = TRY_AND_CAST(Statement, process(func_def->statement(), ctx));
         switch (statement->node_type()) {
         case SyntaxNodeType::Block: {
             auto block = std::dynamic_pointer_cast<Block>(statement);
@@ -36,25 +36,25 @@ NODE_PROCESSOR(BoundFunctionDef)
         }
     }
     return tree;
-});
+}
 
 NODE_PROCESSOR(BoundCaseStatement)
 {
     auto case_stmt = std::dynamic_pointer_cast<BoundCaseStatement>(tree);
-    auto condition = TRY_AND_CAST(BoundExpression, processor.process(case_stmt->condition(), ctx));
-    auto stmt = TRY_AND_CAST(Statement, processor.process(case_stmt->statement(), ctx));
+    auto condition = TRY_AND_CAST(BoundExpression, process(case_stmt->condition(), ctx));
+    auto stmt = TRY_AND_CAST(Statement, process(case_stmt->statement(), ctx));
     return make_node<BoundCaseStatement>(case_stmt->token(), condition, stmt);
-});
+}
 
 NODE_PROCESSOR(BoundSwitchStatement)
 {
     auto switch_stmt = std::dynamic_pointer_cast<BoundSwitchStatement>(tree);
-    auto switch_expr = TRY_AND_CAST(BoundExpression, processor.process(switch_stmt->expression(), ctx));
-    auto default_case = TRY_AND_CAST(BoundCaseStatement, processor.process(switch_stmt->default_case(), ctx));
+    auto switch_expr = TRY_AND_CAST(BoundExpression, process(switch_stmt->expression(), ctx));
+    auto default_case = TRY_AND_CAST(BoundCaseStatement, process(switch_stmt->default_case(), ctx));
 
     BoundCaseStatements cases;
     for (auto& c : switch_stmt->cases()) {
-        auto new_case = TRY_AND_CAST(BoundCaseStatement, processor.process(c, ctx));
+        auto new_case = TRY_AND_CAST(BoundCaseStatement, process(c, ctx));
         cases.push_back(new_case);
     }
 
@@ -65,11 +65,11 @@ NODE_PROCESSOR(BoundSwitchStatement)
             c->statement()));
     }
     if (default_case) {
-        auto default_stmt = TRY_AND_CAST(Statement, processor.process(default_case->statement(), ctx));
+        auto default_stmt = TRY_AND_CAST(Statement, process(default_case->statement(), ctx));
         branches.push_back(make_node<BoundBranch>(default_case->token(), nullptr, default_stmt));
     }
-    return processor.process(make_node<BoundIfStatement>(switch_stmt->token(), branches), ctx);
-});
+    return process(make_node<BoundIfStatement>(switch_stmt->token(), branches), ctx);
+}
 
 NODE_PROCESSOR(BoundWhileStatement)
 {
@@ -89,8 +89,8 @@ NODE_PROCESSOR(BoundWhileStatement)
     // }
     //
     auto while_stmt = std::dynamic_pointer_cast<BoundWhileStatement>(tree);
-    auto condition = TRY_AND_CAST(BoundExpression, processor.process(while_stmt->condition(), ctx));
-    auto stmt = TRY_AND_CAST(Statement, processor.process(while_stmt->statement(), ctx));
+    auto condition = TRY_AND_CAST(BoundExpression, process(while_stmt->condition(), ctx));
+    auto stmt = TRY_AND_CAST(Statement, process(while_stmt->statement(), ctx));
 
     Statements while_block;
     auto start_of_loop = make_node<Label>(while_stmt->token());
@@ -107,8 +107,8 @@ NODE_PROCESSOR(BoundWhileStatement)
     while_block.push_back(stmt);
     while_block.push_back(make_node<Goto>(while_stmt->token(), start_of_loop));
     while_block.push_back(make_node<Label>(jump_out_of_loop));
-    return processor.process(make_node<Block>(while_stmt->token(), while_block), ctx);
-});
+    return process(make_node<Block>(while_stmt->token(), while_block), ctx);
+}
 
 NODE_PROCESSOR(BoundForStatement)
 {
@@ -128,8 +128,8 @@ NODE_PROCESSOR(BoundForStatement)
     // }
     //
     auto for_stmt = std::dynamic_pointer_cast<BoundForStatement>(tree);
-    auto range_expr = TRY_AND_CAST(BoundExpression, processor.process(for_stmt->range(), ctx));
-    auto stmt = TRY_AND_CAST(Statement, processor.process(for_stmt->statement(), ctx));
+    auto range_expr = TRY_AND_CAST(BoundExpression, process(for_stmt->range(), ctx));
+    auto stmt = TRY_AND_CAST(Statement, process(for_stmt->statement(), ctx));
 
     if (range_expr->node_type() != SyntaxNodeType::BoundBinaryExpression)
         return SyntaxError { ErrorCode::SyntaxError, for_stmt->token(), "Invalid for-loop range" };
@@ -177,14 +177,14 @@ NODE_PROCESSOR(BoundForStatement)
                 variable_type)));
     for_block.push_back(make_node<Goto>(for_stmt->token(), jump_back_label));
     for_block.push_back(make_node<Label>(jump_past_loop));
-    return processor.process(make_node<Block>(stmt->token(), for_block), ctx);
-});
+    return process(make_node<Block>(stmt->token(), for_block), ctx);
+}
 
 NODE_PROCESSOR(BoundBinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
-    auto lhs = TRY_AND_CAST(BoundExpression, processor.process(expr->lhs(), ctx));
-    auto rhs = TRY_AND_CAST(BoundExpression, processor.process(expr->rhs(), ctx));
+    auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
+    auto rhs = TRY_AND_CAST(BoundExpression, process(expr->rhs(), ctx));
 
     if (expr->op() == BinaryOperator::GreaterEquals) {
         return make_node<BoundBinaryExpression>(expr->token(),
@@ -215,12 +215,12 @@ NODE_PROCESSOR(BoundBinaryExpression)
     }
 
     return expr;
-});
+}
 
 NODE_PROCESSOR(BoundUnaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
-    auto operand = TRY_AND_CAST(BoundExpression, processor.process(expr->operand(), ctx));
+    auto operand = TRY_AND_CAST(BoundExpression, process(expr->operand(), ctx));
     if (expr->op() == UnaryOperator::UnaryIncrement || expr->op() == UnaryOperator::UnaryDecrement) {
         auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(operand);
         auto new_rhs = make_node<BoundBinaryExpression>(expr->token(),
@@ -232,11 +232,11 @@ NODE_PROCESSOR(BoundUnaryExpression)
         return make_node<BoundAssignment>(expr->token(), identifier, new_rhs);
     }
     return tree;
-});
+}
 
 ErrorOrNode lower(std::shared_ptr<SyntaxNode> const& tree)
 {
-    return processor_for_context<LowerContext>(tree);
+    return process<LowerContext>(tree);
 }
 
 }

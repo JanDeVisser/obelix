@@ -57,30 +57,30 @@ NODE_PROCESSOR(BoundFunctionDef)
         func_ctx.offset = offset;
         std::shared_ptr<Block> block;
         assert(func_def->statement()->node_type() == SyntaxNodeType::FunctionBlock);
-        block = TRY_AND_CAST(FunctionBlock, processor.process(func_def->statement(), func_ctx));
+        block = TRY_AND_CAST(FunctionBlock, process(func_def->statement(), func_ctx));
         return make_node<MaterializedFunctionDef>(func_def, materialized_function_decl, block, func_ctx.offset);
     }
     default:
         fatal("Unreachable");
     }
-});
+}
 
 NODE_PROCESSOR(FunctionBlock)
 {
     auto block = std::dynamic_pointer_cast<FunctionBlock>(tree);
     Statements statements;
     for (auto& stmt : block->statements()) {
-        auto new_statement = TRY_AND_CAST(Statement, processor.process(stmt, ctx));
+        auto new_statement = TRY_AND_CAST(Statement, process(stmt, ctx));
         statements.push_back(new_statement);
     }
     return std::make_shared<FunctionBlock>(tree->token(), statements);
-});
+}
 
 NODE_PROCESSOR(BoundVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
     auto offset = ctx.offset;
-    auto expression = TRY_AND_CAST(BoundExpression, processor.process(var_decl->expression(), ctx));
+    auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
     auto ret = make_node<MaterializedVariableDecl>(var_decl, offset, expression);
     ctx.declare(var_decl->name(), ret);
     offset += var_decl->type()->size();
@@ -88,47 +88,47 @@ NODE_PROCESSOR(BoundVariableDeclaration)
         offset += 8 - (offset % 8);
     ctx.offset = offset;
     return ret;
-});
+}
 
 NODE_PROCESSOR(BoundStaticVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundStaticVariableDeclaration>(tree);
-    auto expression = TRY_AND_CAST(BoundExpression, processor.process(var_decl->expression(), ctx));
+    auto expression = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
     auto ret = make_node<MaterializedVariableDecl>(var_decl, format("_{}", var_decl->name()), 0, expression);
     ctx.declare(var_decl->name(), ret);
     return ret;
-});
+}
 
 NODE_PROCESSOR(BoundFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
     BoundExpressions arguments;
     for (auto& expr : call->arguments()) {
-        auto new_expr = processor.process(expr, ctx);
+        auto new_expr = process(expr, ctx);
         if (new_expr.is_error())
             return new_expr.error();
         arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
     }
     return make_node<BoundFunctionCall>(call, arguments);
-});
+}
 
 NODE_PROCESSOR(BoundNativeFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
     BoundExpressions arguments;
     for (auto& expr : call->arguments()) {
-        auto new_expr = processor.process(expr, ctx);
+        auto new_expr = process(expr, ctx);
         if (new_expr.is_error())
             return new_expr.error();
         arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
     }
     return make_node<BoundNativeFunctionCall>(call, arguments);
-});
+}
 
 NODE_PROCESSOR(BoundUnaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
-    auto operand = TRY_AND_CAST(BoundExpression, processor.process(expr->operand(), ctx));
+    auto operand = TRY_AND_CAST(BoundExpression, process(expr->operand(), ctx));
 
     IntrinsicType intrinsic;
     switch (expr->op()) {
@@ -148,13 +148,13 @@ NODE_PROCESSOR(BoundUnaryExpression)
     }
     }
     return make_node<BoundIntrinsicCall>(expr->token(), UnaryOperator_name(expr->op()), intrinsic, BoundExpressions { operand }, expr->type());
-});
+}
 
 NODE_PROCESSOR(BoundBinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
-    auto lhs = TRY_AND_CAST(BoundExpression, processor.process(expr->lhs(), ctx));
-    auto rhs = TRY_AND_CAST(BoundExpression, processor.process(expr->rhs(), ctx));
+    auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
+    auto rhs = TRY_AND_CAST(BoundExpression, process(expr->rhs(), ctx));
 
     if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract)) {
         std::shared_ptr<BoundExpression> offset { nullptr };
@@ -172,7 +172,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
                 offset = make_node<BoundUnaryExpression>(expr->token(), offset, UnaryOperator::Negate, expr->type());
             auto size = make_node<BoundLiteral>(rhs->token(), target_type->size());
             offset = make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, get_type<int>());
-            offset = TRY_AND_CAST(BoundExpression, processor.process(offset, ctx));
+            offset = TRY_AND_CAST(BoundExpression, process(offset, ctx));
         }
         return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), IntrinsicType::ptr_math, BoundExpressions { lhs, offset }, expr->type());
     }
@@ -188,7 +188,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
     auto intrinsic = impl.intrinsic;
 
     return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), intrinsic, BoundExpressions { lhs, rhs }, expr->type() );
-});
+}
 
 NODE_PROCESSOR(BoundIdentifier)
 {
@@ -208,13 +208,13 @@ NODE_PROCESSOR(BoundIdentifier)
         return make_node<MaterializedIdentifier>(identifier, param_decl->offset());
     }
     return SyntaxError { ErrorCode::InternalError, format("Identifier declaration has unexpected type '{}'", decl->node_type()) };
-});
+}
 
 NODE_PROCESSOR(BoundMemberAccess)
 {
     auto member_access = std::dynamic_pointer_cast<BoundMemberAccess>(tree);
-    auto strukt = TRY_AND_CAST(MaterializedVariableAccess, processor.process(member_access->structure(), ctx));
-    auto member = TRY_AND_CAST(BoundExpression, processor.process(member_access->member(), ctx));
+    auto strukt = TRY_AND_CAST(MaterializedVariableAccess, process(member_access->structure(), ctx));
+    auto member = TRY_AND_CAST(BoundExpression, process(member_access->member(), ctx));
     auto type = strukt->type();
     std::string member_name;
     switch (member->node_type()) {
@@ -230,21 +230,21 @@ NODE_PROCESSOR(BoundMemberAccess)
     if (offset < 0)
         return SyntaxError { ErrorCode::InternalError, member_access->token(), format("Invalid member name '{}' for struct of type '{}'", member_name, type->name()) };
     return make_node<MaterializedMemberAccess>(member_access, strukt, member, offset);
-});
+}
 
 NODE_PROCESSOR(BoundArrayAccess)
 {
     auto array_access = std::dynamic_pointer_cast<BoundArrayAccess>(tree);
-    auto array = TRY_AND_CAST(MaterializedVariableAccess, processor.process(array_access->array(), ctx));
-    auto subscript = TRY_AND_CAST(BoundExpression, processor.process(array_access->subscript(), ctx));
+    auto array = TRY_AND_CAST(MaterializedVariableAccess, process(array_access->array(), ctx));
+    auto subscript = TRY_AND_CAST(BoundExpression, process(array_access->subscript(), ctx));
     auto type = array->type()->template_arguments()[0].as_type();
     auto element_size = type->size();
    return make_node<MaterializedArrayAccess>(array_access, array, subscript, element_size);
-});
+}
 
 ErrorOrNode materialize_arm64(std::shared_ptr<SyntaxNode> const& tree)
 {
-    return processor_for_context<MaterializeContext>(tree);
+    return process<MaterializeContext>(tree);
 }
 
 }

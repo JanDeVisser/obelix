@@ -455,8 +455,8 @@ ErrorOrNode process_Identifier(std::shared_ptr<SyntaxNode> const& tree, Context<
 NODE_PROCESSOR(BoundBinaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundBinaryExpression>(tree);
-    auto lhs = TRY_AND_CAST(BoundExpression, processor.process(expr->lhs(), ctx));
-    auto rhs = TRY_AND_CAST(BoundExpression, processor.process(expr->rhs(), ctx));
+    auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
+    auto rhs = TRY_AND_CAST(BoundExpression, process(expr->rhs(), ctx));
 
     if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract))
         return tree;
@@ -478,12 +478,12 @@ NODE_PROCESSOR(BoundBinaryExpression)
     if (auto err = func(ctx); err.is_error())
         return err.error();
     return ctx.return_value();
-});
+}
 
 NODE_PROCESSOR(BoundUnaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
-    auto operand = TRY_AND_CAST(BoundExpression, processor.process(expr->operand(), ctx));
+    auto operand = TRY_AND_CAST(BoundExpression, process(expr->operand(), ctx));
 
     if (operand->type()->type() == PrimitiveType::Pointer)
         return tree;
@@ -502,7 +502,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
     if (auto err = func(ctx); err.is_error())
         return err.error();
     return ctx.return_value();
-});
+}
 
 
 #if 0
@@ -537,7 +537,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
 
 ErrorOrNode interpret(std::shared_ptr<SyntaxNode> const& tree)
 {
-    return processor_for_context<InterpreterContext>(tree);
+    return process<InterpreterContext>(tree);
 }
 
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "obelix/SyntaxNodeType.h"
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
@@ -446,82 +447,67 @@ ErrorOr<BoundExpressions, SyntaxError> xform_bound_expressions(BoundExpressions 
 };
 
 template <typename Ctx>
-struct NodeProcessor {
-    using ProcessorFnc = std::function<ErrorOrNode(NodeProcessor<Ctx>&,std::shared_ptr<SyntaxNode>,Ctx&)>;
-    using ProcessorMap = std::array<ProcessorFnc,static_cast<size_t>(SyntaxNodeType::Count)>;
-    ProcessorMap processor_map = {};
-
-    static NodeProcessor<Ctx>* the()
-    {
-        static NodeProcessor<Ctx>* s_the = nullptr;
-        if (s_the == nullptr)
-            s_the = new NodeProcessor<Ctx>();
-        return s_the;
-    }
-
-    NodeProcessor() = default;
-    bool register_node_processor(SyntaxNodeType node_type, ProcessorFnc processor_func)
-    {
-        processor_map[static_cast<size_t>(node_type)] = processor_func;
-        return true;
-    }
-
-    bool alias_node_processor(SyntaxNodeType node_type, SyntaxNodeType alias_node_type)
-    {
-        processor_map[static_cast<size_t>(node_type)] = processor_map[static_cast<size_t>(alias_node_type)];
-        return true;
-    }
-
-    ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
-    {
-        if (!tree)
-            return tree;
-        if (processor_map[static_cast<size_t>(tree->node_type())] != nullptr) {
-            debug(parser, "NodeProcessor: {} = {}", tree, tree->node_type());
-            ErrorOrNode ret = processor_map[static_cast<size_t>(tree->node_type())](*this, tree, ctx);
-            if (ret.is_error()) {
-                debug(parser, "NodeProcessor for {} = {} returned error {}", tree, tree->node_type(), ret.error());
-                ctx.add_error(ret.error());
-            } else {
-                debug(parser, "NodeProcessor for {} = {} returned {} = {}", tree, tree->node_type(), ret.value(), ret.value()->node_type());
-            }
-            return ret;
-        }
-        debug(parser, "{} = {} forwarding to process_tree", tree->node_type(), tree);
-        return process_tree(tree, ctx, [this](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx) {
-            return this->process(tree, ctx);
-        });
-    }
-};
-
-
-template <typename Ctx>
-ErrorOrNode processor_for_context(std::shared_ptr<SyntaxNode> const& tree, Ctx &ctx)
+ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
 {
-    return NodeProcessor<Ctx>::the()->process(tree, ctx);
+    if (!tree)
+        return tree;
+    switch (tree->node_type()) {
+#undef __SYNTAXNODETYPE
+#define __SYNTAXNODETYPE(type)                                                                                                           \
+    case SyntaxNodeType::type: {                                                                                                         \
+        debug(parser, "NodeProcessor: {}:{} = {}", tree, tree->node_type(), SyntaxNodeType::type);                                       \
+        ErrorOrNode ret = process_node<Ctx, SyntaxNodeType::type>(tree, ctx);                                                            \
+        if (ret.is_error()) {                                                                                                            \
+            debug(parser, "NodeProcessor for {} = {} returned error {}", tree, tree->node_type(), ret.error());                          \
+            ctx.add_error(ret.error());                                                                                                  \
+        } else {                                                                                                                         \
+            debug(parser, "NodeProcessor for {} = {} returned {} = {}", tree, tree->node_type(), ret.value(), ret.value()->node_type()); \
+        }                                                                                                                                \
+        return ret;                                                                                                                      \
+    }
+        ENUMERATE_SYNTAXNODETYPES(__SYNTAXNODETYPE)
+#undef __SYNTAXNODETYPE
+    }    
 }
 
 template <typename Ctx>
-ErrorOrNode processor_for_context(std::shared_ptr<SyntaxNode> const& tree)
+ErrorOrNode process(std::shared_ptr<SyntaxNode> const& tree)
 {
     Ctx ctx;
-    return processor_for_context<Ctx>(tree, ctx);
+    return process<Ctx>(tree, ctx);
 }
 
-#define INIT_NODE_PROCESSOR(context_type) \
-    using ContextType = context_type; \
-    ErrorOrNode context_type ## _processor(std::shared_ptr<SyntaxNode> const &tree, ContextType &ctx) \
-    { \
-        return processor_for_context(tree, ctx); \
+template <typename Ctx, SyntaxNodeType node_type>
+ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
+{
+    debug(parser, "{} = {} forwarding to process_tree", tree->node_type(), tree);
+    return process_tree(tree, ctx, [](std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx) {
+        return process(tree, ctx);
+    });
+}
+
+#define INIT_NODE_PROCESSOR(context_type)                                                           \
+    using ContextType = context_type;                                                               \
+    ErrorOrNode context_type##_processor(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx) \
+    {                                                                                               \
+        return process<context_type>(tree, ctx);                                                    \
     }
 
-#define NODE_PROCESSOR(node_type)                                                                                                                \
-    [[maybe_unused]] static auto node_type ## _pracessor = NodeProcessor<ContextType>::the()->register_node_processor(SyntaxNodeType::node_type, \
-        [](NodeProcessor<ContextType>& processor, std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx) -> ErrorOrNode
+#define NODE_PROCESSOR(node_type) \
+    template<>                    \
+    ErrorOrNode process_node<ContextType, SyntaxNodeType::node_type>(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx)
 
-#define ALIAS_NODE_PROCESSOR(node_type, alias_node_type)                                                           \
-    [[maybe_unused]] static auto node_type##_##__LINE__ = NodeProcessor<ContextType>::the()->alias_node_processor( \
-        SyntaxNodeType::node_type, SyntaxNodeType::alias_node_type);
+// [[maybe_unused]] static auto node_type ## _pracessor = NodeProcessor<ContextType>::the()->register_node_processor(SyntaxNodeType::node_type, \
+    //     [](NodeProcessor<ContextType>& processor, std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx) -> ErrorOrNode
+
+#define ALIAS_NODE_PROCESSOR(node_type, alias_node_type)                                                                        \
+    template<>                                                                                                                  \
+    ErrorOrNode process_node<ContextType, SyntaxNodeType::node_type>(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx) \
+    {                                                                                                                           \
+        return process_node<ContextType, SyntaxNodeType::alias_node_type>(tree, ctx);                                           \
+    }
+    // [[maybe_unused]] static auto node_type##_##__LINE__ = NodeProcessor<ContextType>::the()->alias_node_processor( \
+    //     SyntaxNodeType::node_type, SyntaxNodeType::alias_node_type);
 
 ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const&);

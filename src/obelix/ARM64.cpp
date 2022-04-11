@@ -35,14 +35,14 @@ NODE_PROCESSOR(Compilation)
     auto compilation = std::dynamic_pointer_cast<Compilation>(tree);
     ctx.add_module(ARM64Context::ROOT_MODULE_NAME);
     return process_tree(tree, ctx, ARM64Context_processor);
-});
+}
 
 NODE_PROCESSOR(Module)
 {
     auto module = std::dynamic_pointer_cast<Module>(tree);
     ctx.add_module(join(split(module->name(), '/'), "-"));
     return process_tree(tree, ctx, ARM64Context_processor);
-});
+}
 
 NODE_PROCESSOR(MaterializedFunctionDef)
 {
@@ -54,11 +54,11 @@ NODE_PROCESSOR(MaterializedFunctionDef)
 
     if (func_def->declaration()->node_type() == SyntaxNodeType::MaterializedFunctionDecl) {
         ctx.enter_function(func_def);
-        TRY_RETURN(ARM64Context_processor(func_def->statement(), ctx));
+        TRY_RETURN(process(func_def->statement(), ctx));
         ctx.leave_function();
     }
     return tree;
-});
+}
 
 NODE_PROCESSOR(BoundFunctionCall)
 {
@@ -67,7 +67,7 @@ NODE_PROCESSOR(BoundFunctionCall)
     // Load arguments in registers:
     ctx.initialize_target_register();
     for (auto& argument : call->arguments()) {
-        TRY_RETURN(ARM64Context_processor(argument, ctx));
+        TRY_RETURN(process(argument, ctx));
         ctx.inc_target_register();
     }
 
@@ -75,7 +75,7 @@ NODE_PROCESSOR(BoundFunctionCall)
     ctx.assembly().add_instruction("bl", call->name());
     ctx.release_target_register(call->type()->type());
     return tree;
-});
+}
 
 NODE_PROCESSOR(BoundNativeFunctionCall)
 {
@@ -84,7 +84,7 @@ NODE_PROCESSOR(BoundNativeFunctionCall)
 
     ctx.initialize_target_register();
     for (auto& arg : native_func_call->arguments()) {
-        TRY_RETURN(ARM64Context_processor(arg, ctx));
+        TRY_RETURN(process<ContextType>(arg, ctx));
         ctx.inc_target_register();
     }
 
@@ -92,7 +92,7 @@ NODE_PROCESSOR(BoundNativeFunctionCall)
     ctx.assembly().add_instruction("bl", func_decl->native_function_name());
     ctx.release_target_register(native_func_call->type()->type());
     return tree;
-});
+}
 
 NODE_PROCESSOR(BoundIntrinsicCall)
 {
@@ -100,7 +100,7 @@ NODE_PROCESSOR(BoundIntrinsicCall)
 
     ctx.initialize_target_register();
     for (auto& arg : call->arguments()) {
-        TRY_RETURN(ARM64Context_processor(arg, ctx));
+        TRY_RETURN(process(arg, ctx));
         ctx.inc_target_register();
     }
     ARM64Implementation impl = get_arm64_intrinsic(call->intrinsic());
@@ -111,7 +111,7 @@ NODE_PROCESSOR(BoundIntrinsicCall)
         return ret.error();
     ctx.release_target_register(call->type()->type());
     return tree;
-});
+}
 
 NODE_PROCESSOR(BoundLiteral)
 {
@@ -141,11 +141,11 @@ NODE_PROCESSOR(BoundLiteral)
         return SyntaxError(ErrorCode::NotYetImplemented, literal->token(), format("Cannot emit literals of type {} yet", literal->type()->to_string()));
     }
     return tree;
-});
+}
 
 NODE_PROCESSOR(MaterializedIdentifier)
 {
-    auto identifier = std::dynamic_pointer_cast<MaterializedIdentifier>(tree);
+    auto identifier = std::dynamic_pointer_cast<MaterializedVariableAccess>(tree);
     auto target = ctx.target_register();
 
     std::string source = format("[fp,#{}]", identifier->offset());
@@ -193,7 +193,7 @@ NODE_PROCESSOR(MaterializedIdentifier)
         ctx.assembly().add_instruction("ldr", "x{},[fp,#{}]", strlen_reg, identifier->offset()+ 8);
     }
     return tree;
-});
+}
 
 ALIAS_NODE_PROCESSOR(MaterializedMemberAccess, MaterializedIdentifier);
 
@@ -201,7 +201,7 @@ ErrorOr<std::pair<int, int>, SyntaxError> calculate_array_element_offset(ARM64Co
 {
     ctx.inc_target_register();
     auto target = ctx.target_register();
-    TRY_RETURN(ARM64Context_processor(array_access->index(), ctx));
+    TRY_RETURN(process(array_access->index(), ctx));
     switch (array_access->element_size()) {
         case 1:
             ctx.assembly().add_instruction("add", "x{},x{},#{}", target, target, array_access->element_size());
@@ -272,7 +272,7 @@ NODE_PROCESSOR(MaterializedArrayAccess)
         return SyntaxError { ErrorCode::NotYetImplemented, array_access->token(), format("Cannot push values of struct members of type {} yet", array_access->type()) };
     }
     return tree;
-});
+}
 
 NODE_PROCESSOR(BoundAssignment)
 {
@@ -281,7 +281,7 @@ NODE_PROCESSOR(BoundAssignment)
     if (assignee == nullptr)
         return SyntaxError { ErrorCode::InternalError, assignment->token(), format("Variable access '{}' not materialized", assignment->assignee()) };
     ctx.initialize_target_register();
-    TRY_RETURN(ARM64Context_processor(assignment->expression(), ctx));
+    TRY_RETURN(process(assignment->expression(), ctx));
 
     auto offset = format("[fp,#{}]", assignee->offset());
     auto offset_strlen = format("[fp,#{}]", assignee->offset() + 8);
@@ -318,7 +318,7 @@ NODE_PROCESSOR(BoundAssignment)
     }
     ctx.release_target_register(assignment->type()->type());
     return tree;
-});
+}
 
 NODE_PROCESSOR(MaterializedVariableDecl)
 {
@@ -338,7 +338,7 @@ NODE_PROCESSOR(MaterializedVariableDecl)
 
     ctx.initialize_target_register();
     if (var_decl->expression() != nullptr) {
-        TRY_RETURN(ARM64Context_processor(var_decl->expression(), ctx));
+        TRY_RETURN(process(var_decl->expression(), ctx));
     } else {
         switch (var_decl->type()->type()) {
         case PrimitiveType::String: {
@@ -362,7 +362,7 @@ NODE_PROCESSOR(MaterializedVariableDecl)
     }
     ctx.release_target_register(var_decl->type()->type());
     return tree;
-});
+}
 
 NODE_PROCESSOR(BoundExpressionStatement)
 {
@@ -370,10 +370,10 @@ NODE_PROCESSOR(BoundExpressionStatement)
     debug(parser, "{}", expr_stmt->to_string());
     ctx.assembly().add_comment(expr_stmt->to_string());
     ctx.initialize_target_register();
-    TRY_RETURN(ARM64Context_processor(expr_stmt->expression(), ctx));
+    TRY_RETURN(process(expr_stmt->expression(), ctx));
     ctx.release_target_register();
     return tree;
-});
+}
 
 NODE_PROCESSOR(BoundReturn)
 {
@@ -381,12 +381,12 @@ NODE_PROCESSOR(BoundReturn)
     debug(parser, "{}", ret->to_string());
     ctx.assembly().add_comment(ret->to_string());
     ctx.initialize_target_register();
-    TRY_RETURN(ARM64Context_processor(ret->expression(), ctx));
+    TRY_RETURN(process(ret->expression(), ctx));
     ctx.release_target_register();
     ctx.function_return();
 
     return tree;
-});
+}
 
 NODE_PROCESSOR(Label)
 {
@@ -395,7 +395,7 @@ NODE_PROCESSOR(Label)
     ctx.assembly().add_comment(label->to_string());
     ctx.assembly().add_label(format("lbl_{}", label->label_id()));
     return tree;
-});
+}
 
 NODE_PROCESSOR(Goto)
 {
@@ -404,7 +404,7 @@ NODE_PROCESSOR(Goto)
     ctx.assembly().add_comment(goto_stmt->to_string());
     ctx.assembly().add_instruction("b", "lbl_{}", goto_stmt->label_id());
     return tree;
-});
+}
 
 NODE_PROCESSOR(BoundIfStatement)
 {
@@ -418,14 +418,14 @@ NODE_PROCESSOR(BoundIfStatement)
             debug(parser, "if ({})", branch->condition()->to_string());
             ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string()));
             ctx.initialize_target_register();
-            auto cond = TRY_AND_CAST(Expression, ARM64Context_processor(branch->condition(), ctx));
+            auto cond = TRY_AND_CAST(Expression, process(branch->condition(), ctx));
             ctx.release_target_register();
             ctx.assembly().add_instruction("cmp", "w0,0x00");
             ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
         } else {
             ctx.assembly().add_comment("else");
         }
-        auto stmt = TRY_AND_CAST(Statement, ARM64Context_processor(branch->statement(), ctx));
+        auto stmt = TRY_AND_CAST(Statement, process(branch->statement(), ctx));
         if (count) {
             ctx.assembly().add_instruction("b", "lbl_{}", end_label);
             ctx.assembly().add_label(format("lbl_{}", else_label));
@@ -434,7 +434,7 @@ NODE_PROCESSOR(BoundIfStatement)
     }
     ctx.assembly().add_label(format("lbl_{}", end_label));
     return tree;
-});
+}
 
 ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& config, std::string const& file_name)
 {
@@ -445,7 +445,7 @@ ErrorOrNode output_arm64(std::shared_ptr<SyntaxNode> const& tree, Config const& 
         return processed;
 
     ARM64Context root;
-    auto ret = processor_for_context<ARM64Context>(processed, root);
+    auto ret = process(processed, root);
 
     if (ret.is_error()) {
         return ret;
