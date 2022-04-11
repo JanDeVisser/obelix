@@ -4,16 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-//
-// Created by Jan de Visser on 2021-09-18.
-//
-
 #pragma once
+
+#include <string>
+#include <vector>
 
 #include <core/StringBuffer.h>
 #include <core/StringUtil.h>
-#include <string>
-#include <vector>
 
 namespace Obelix {
 
@@ -678,23 +675,24 @@ static inline std::string format(std::string const& fmt)
 }
 
 template<typename T>
-std::string format_one(std::string const& fmt, T const& arg)
+std::pair<std::string,std::string> format_one(std::string const& fmt, T const& arg)
 {
     std::optional<FormatSpecifier> specifier_maybe = FormatSpecifier::first_specifier(fmt);
     if (!specifier_maybe.has_value()) {
-        fprintf(stderr, "format(\"%s\", ...): Not enough format specifiers\n", fmt.c_str());
+        auto a = Converter<T>().to_string(arg);
+        fprintf(stderr, "format(\"%s\", \"%s\", ...): Not enough format specifiers\n", fmt.c_str(), a.c_str());
         exit(1);
     }
     auto specifier = specifier_maybe.value();
     auto repl = specifier.format<T>(arg);
-    return specifier.prefix() + repl + fmt.substr(specifier.start() + specifier.length());
+    return { specifier.prefix() + repl, fmt.substr(specifier.start() + specifier.length()) };
 }
 
 template<typename T, typename... Args>
 std::string format(std::string const& fmt, T const& arg, Args&&... args)
 {
-    std::string fmt_first_substituted = format_one<T>(fmt, arg);
-    return format(fmt_first_substituted, std::forward<Args>(args)...);
+    auto fmt_first_substituted = format_one<T>(fmt, arg);
+    return fmt_first_substituted.first + format(fmt_first_substituted.second, std::forward<Args>(args)...);
 }
 
 template<typename... Args>

@@ -537,9 +537,12 @@ struct Converter<Ptr<ObjClass>> {
 
 static inline std::string format(std::string const& fmt, std::vector<Obj> args)
 {
-    std::string ret = fmt;
+    std::string remainder = fmt;
+    std::string ret;
     for (auto& arg : args) {
-        ret = format_one<Obj>(fmt, arg);
+        auto first_formatted = format_one<Obj>(remainder, arg);
+        ret += first_formatted.first;
+        remainder = first_formatted.second;
     }
     return ret;
 }
