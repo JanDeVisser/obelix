@@ -8,5 +8,5 @@ func main(argc: int, argv: ptr<ptr<char>>): int
   var a: A;
   a.foo = 2;
   a.bar = 5;
-  return a.foo;
+  return a.foo + a.bar;
 }
