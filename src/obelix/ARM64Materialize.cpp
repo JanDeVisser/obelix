@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "core/Error.h"
-#include "obelix/SyntaxNodeType.h"
 #include <memory>
 
 #include <obelix/ARM64.h>
@@ -125,6 +123,19 @@ NODE_PROCESSOR(BoundNativeFunctionCall)
     return make_node<BoundNativeFunctionCall>(call, arguments);
 }
 
+NODE_PROCESSOR(BoundIntrinsicCall)
+{
+    auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
+    BoundExpressions arguments;
+    for (auto& expr : call->arguments()) {
+        auto new_expr = process(expr, ctx);
+        if (new_expr.is_error())
+            return new_expr.error();
+        arguments.push_back(std::dynamic_pointer_cast<BoundExpression>(new_expr.value()));
+    }
+    return make_node<BoundIntrinsicCall>(call, arguments);
+}
+
 NODE_PROCESSOR(BoundUnaryExpression)
 {
     auto expr = std::dynamic_pointer_cast<BoundUnaryExpression>(tree);
@@ -158,19 +169,19 @@ NODE_PROCESSOR(BoundBinaryExpression)
 
     if (lhs->type()->type() == PrimitiveType::Pointer && (expr->op() == BinaryOperator::Add || expr->op() == BinaryOperator::Subtract)) {
         std::shared_ptr<BoundExpression> offset { nullptr };
-        auto target_type = (lhs->type()->is_template_instantiation()) ? lhs->type()->template_arguments()[0].as_type() : get_type<uint8_t>();
+        auto target_type = (lhs->type()->is_template_specialization()) ? lhs->type()->template_arguments()[0].as_type() : get_type<uint8_t>();
 
-        if (rhs->node_type() == SyntaxNodeType::BoundLiteral) {
-            auto offset_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
-            auto offset_val = offset_literal->int_value();
+        if (rhs->node_type() == SyntaxNodeType::BoundIntLiteral) {
+            auto offset_literal = std::dynamic_pointer_cast<BoundIntLiteral>(rhs);
+            auto offset_val = offset_literal->value();
             if (expr->op() == BinaryOperator::Subtract)
                 offset_val *= -1;
-            offset = make_node<BoundLiteral>(rhs->token(), make_obj<Integer>(target_type->size() * offset_val));
+            offset = make_node<BoundIntLiteral>(rhs->token(), target_type->size() * offset_val);
         } else {
             offset = rhs;
             if (expr->op() == BinaryOperator::Subtract)
                 offset = make_node<BoundUnaryExpression>(expr->token(), offset, UnaryOperator::Negate, expr->type());
-            auto size = make_node<BoundLiteral>(rhs->token(), target_type->size());
+            auto size = make_node<BoundIntLiteral>(rhs->token(), target_type->size());
             offset = make_node<BoundBinaryExpression>(expr->token(), size, BinaryOperator::Multiply, offset, get_type<int>());
             offset = TRY_AND_CAST(BoundExpression, process(offset, ctx));
         }
@@ -190,6 +201,23 @@ NODE_PROCESSOR(BoundBinaryExpression)
     return make_node<BoundIntrinsicCall>(expr->token(), BinaryOperator_name(expr->op()), intrinsic, BoundExpressions { lhs, rhs }, expr->type() );
 }
 
+std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> identifier, std::string label, int offset)
+{
+    switch (identifier->type()->type()) {
+    case PrimitiveType::Int:
+        return make_node<MaterializedIntIdentifier>(identifier, move(label), offset);
+    case PrimitiveType::Struct:
+        return make_node<MaterializedStructIdentifier>(identifier, move(label), offset);
+    default:
+        fatal("Cannot materialize identifiers of type '{}' yet", identifier->type());
+    }
+}
+
+std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<MaterializedDeclaration> decl, std::shared_ptr<BoundIdentifier> identifier)
+{
+    return make_materialized_identifier(identifier, decl->label(), decl->offset());
+}
+
 NODE_PROCESSOR(BoundIdentifier)
 {
     auto identifier = std::dynamic_pointer_cast<BoundIdentifier>(tree);
@@ -197,39 +225,24 @@ NODE_PROCESSOR(BoundIdentifier)
     if (!decl_maybe.has_value())
         return SyntaxError { ErrorCode::InternalError, identifier->token(), format("Undeclared variable '{}' during code generation", identifier->name()) };
     auto decl = decl_maybe.value();
-    auto var_decl = std::dynamic_pointer_cast<MaterializedVariableDecl>(decl);
-    if (var_decl != nullptr) {
-        if (var_decl->label().empty())
-            return make_node<MaterializedIdentifier>(identifier, var_decl->offset());
-        return make_node<MaterializedIdentifier>(identifier, var_decl->label(), var_decl->offset());
+    auto materialized_decl = std::dynamic_pointer_cast<MaterializedDeclaration>(decl);
+    if (materialized_decl != nullptr) {
+        return make_materialized_identifier(materialized_decl, identifier);
     }
-    auto param_decl = std::dynamic_pointer_cast<MaterializedFunctionParameter>(decl);
-    if (param_decl != nullptr) {
-        return make_node<MaterializedIdentifier>(identifier, param_decl->offset());
-    }
-    return SyntaxError { ErrorCode::InternalError, format("Identifier declaration has unexpected type '{}'", decl->node_type()) };
+    return SyntaxError { ErrorCode::InternalError, format("Identifier declaration has unexpected node type '{}'", decl->node_type()) };
 }
 
 NODE_PROCESSOR(BoundMemberAccess)
 {
     auto member_access = std::dynamic_pointer_cast<BoundMemberAccess>(tree);
     auto strukt = TRY_AND_CAST(MaterializedVariableAccess, process(member_access->structure(), ctx));
-    auto member = TRY_AND_CAST(BoundExpression, process(member_access->member(), ctx));
+    auto member = member_access->member();
     auto type = strukt->type();
-    std::string member_name;
-    switch (member->node_type()) {
-        case SyntaxNodeType::BoundLiteral: {
-            auto literal = std::dynamic_pointer_cast<BoundLiteral>(member);
-            member_name = literal->string_value();
-            break;
-        }
-        default:
-            fatal("Unreachable - Cannot access struct members through {} nodes", SyntaxNodeType_name(member->node_type()));
-    }
-    auto offset = type->offset_of(member_name);
+    auto offset = type->offset_of(member->name());
     if (offset < 0)
-        return SyntaxError { ErrorCode::InternalError, member_access->token(), format("Invalid member name '{}' for struct of type '{}'", member_name, type->name()) };
-    return make_node<MaterializedMemberAccess>(member_access, strukt, member, offset);
+        return SyntaxError { ErrorCode::InternalError, member_access->token(), format("Invalid member name '{}' for struct of type '{}'", member->name(), type->name()) };
+    auto materialized_member = make_materialized_identifier(member, "", strukt->offset() + offset);
+    return make_node<MaterializedMemberAccess>(member_access, strukt, materialized_member);
 }
 
 NODE_PROCESSOR(BoundArrayAccess)

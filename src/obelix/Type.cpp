@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "core/Object.h"
 #include <cstddef>
-#include <ios>
+#include <iostream>
 #include <memory>
 
 #include <core/Logging.h>
@@ -22,14 +21,8 @@ logging_category(type);
 
 std::optional<PrimitiveType> PrimitiveType_by_name(std::string const& t)
 {
-    if (t == "int" || t == "s32")
+    if (t == "int")
         return PrimitiveType::Int;
-    if (t == "unsigned" || t == "u32")
-        return PrimitiveType::Unsigned;
-    if (t == "byte" || t == "s8")
-        return PrimitiveType::Byte;
-    if (t == "char" || t == "u8")
-        return PrimitiveType::Char;
     if (t == "bool")
         return PrimitiveType::Boolean;
     if (t == "ptr")
@@ -52,6 +45,9 @@ size_t TemplateArgument::hash() const
         case TemplateParameterType::String:
             ret ^= std::hash<std::string> {}(std::get<std::string>(value));
             break;
+        case TemplateParameterType::Boolean:
+            ret ^= std::hash<bool> {}(std::get<bool>(value));
+            break;
     }
     return ret;
 }
@@ -65,6 +61,8 @@ std::string TemplateArgument::to_string() const
             return Obelix::to_string(std::get<long>(value));
         case TemplateParameterType::String:
             return std::get<std::string>(value);
+        case TemplateParameterType::Boolean:
+            return Obelix::to_string(std::get<bool>(value));
     }
 }
 
@@ -79,9 +77,10 @@ bool TemplateArgument::operator==(TemplateArgument const& other) const
             return std::get<long>(value) == std::get<long>(other.value);
         case TemplateParameterType::String:
             return std::get<std::string>(value) == std::get<std::string>(other.value);
+        case TemplateParameterType::Boolean:
+            return std::get<bool>(value) == std::get<bool>(other.value);
     }
 }
-
 
 MethodParameter::MethodParameter(char const* n, PrimitiveType t)
     : name(n)
@@ -187,7 +186,7 @@ FieldDef::FieldDef(std::string n, std::shared_ptr<ObjectType> t)
 
 std::unordered_map<PrimitiveType, std::shared_ptr<ObjectType>> ObjectType::s_types_by_id {};
 std::unordered_map<std::string, std::shared_ptr<ObjectType>> ObjectType::s_types_by_name {};
-std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {};
+std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations {};
 
 [[maybe_unused]] auto s_self = ObjectType::register_type(PrimitiveType::Self);
 [[maybe_unused]] auto s_argument = ObjectType::register_type(PrimitiveType::Argument);
@@ -210,8 +209,19 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
         type->add_method(MethodDescription { Operator::GreaterEquals, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
     });
 
+[[maybe_unused]] auto s_boolean = ObjectType::register_type(PrimitiveType::Boolean,
+    [](ObjectType* type) {
+        type->add_method(MethodDescription { Operator::LogicalInvert, PrimitiveType::Self, IntrinsicType::invert_bool });
+        type->add_method(MethodDescription { Operator::LogicalAnd, PrimitiveType::Self, IntrinsicType::and_bool_bool, { {  "other", PrimitiveType::Self }  } });
+        type->add_method(MethodDescription { Operator::LogicalOr, PrimitiveType::Self, IntrinsicType::or_bool_bool, { {  "other", PrimitiveType::Self }  } });
+        type->has_size(1);
+    });
+
 [[maybe_unused]] auto s_integer_number = ObjectType::register_type(PrimitiveType::IntegerNumber,
     [](ObjectType* type) {
+        type->has_template_parameter({ "signed", TemplateParameterType::Boolean });
+        type->has_template_parameter({ "size", TemplateParameterType::Integer });
+
         type->add_method(MethodDescription { Operator::Identity, PrimitiveType::Argument });
 
         type->add_method({ Operator::BitwiseInvert, PrimitiveType::Argument, IntrinsicType::invert_int });
@@ -219,67 +229,73 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
         type->add_method({ Operator::Subtract, PrimitiveType::Self, IntrinsicType::subtract_int_int, { {  "other", PrimitiveType::Compatible }  } });
         type->add_method({ Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_int_int, { {  "other", PrimitiveType::Compatible }  } });
         type->add_method({ Operator::Divide, PrimitiveType::Self, IntrinsicType::divide_int_int, { {  "other", PrimitiveType::Compatible }  } });
-        type->add_method({ Operator::BitwiseOr, PrimitiveType::Argument, IntrinsicType::bitwise_or_int_int, { {  "other", PrimitiveType::Compatible }  } });
-        type->add_method({ Operator::BitwiseAnd, PrimitiveType::Argument, IntrinsicType::bitwise_and_int_int, { {  "other", PrimitiveType::Compatible }  } });
-        type->add_method({ Operator::BitwiseXor, PrimitiveType::Argument, IntrinsicType::bitwise_xor_int_int, { {  "other", PrimitiveType::Compatible }  } });
-        type->add_method({ Operator::BitShiftLeft, PrimitiveType::Argument, IntrinsicType::shl_int, { {  "other", PrimitiveType::Unsigned }  } });
-        type->add_method({ Operator::BitShiftRight, PrimitiveType::Argument, IntrinsicType::shr_int, { {  "other", PrimitiveType::Unsigned }  } });
+        type->add_method({ Operator::BitwiseOr, PrimitiveType::Self, IntrinsicType::bitwise_or_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type->add_method({ Operator::BitwiseAnd, PrimitiveType::Self, IntrinsicType::bitwise_and_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type->add_method({ Operator::BitwiseXor, PrimitiveType::Self, IntrinsicType::bitwise_xor_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type->add_method({ Operator::BitShiftLeft, PrimitiveType::Self, IntrinsicType::shl_int, { {  "other", ObjectType::get("u8") }  } });
+        type->add_method({ Operator::BitShiftRight, PrimitiveType::Self, IntrinsicType::shr_int, { {  "other", ObjectType::get("u8") }  } });
         type->add_method({ Operator::Equals, PrimitiveType::Boolean, IntrinsicType::equals_int_int, { {  "other", PrimitiveType::Compatible }  } });
         type->add_method({ Operator::Less, PrimitiveType::Boolean, IntrinsicType::less_int_int, { {  "other", PrimitiveType::Compatible }  } });
         type->add_method({ Operator::Greater, PrimitiveType::Boolean, IntrinsicType::greater_int_int, { {  "other", PrimitiveType::Compatible }  } });
-        type->add_method(MethodDescription { Operator::Range, PrimitiveType::Range,IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
-        type->will_be_a(PrimitiveType::Comparable);
-        type->will_be_a(PrimitiveType::Incrementable);
+        type->add_method(MethodDescription { Operator::Range, PrimitiveType::Range, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type->will_be_a(s_comparable);
+        type->will_be_a(s_incrementable);
     });
 
 [[maybe_unused]] auto s_signed_integer_number = ObjectType::register_type(PrimitiveType::SignedIntegerNumber,
     [](ObjectType* type) {
-        type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Argument, IntrinsicType::negate_int });
-        type->will_be_a(PrimitiveType::IntegerNumber);
+        type->has_template_parameter({ "signed", TemplateParameterType::Boolean });
+        type->has_template_parameter({ "size", TemplateParameterType::Integer });
+
+        type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_int });
     });
 
-[[maybe_unused]] auto s_integer = ObjectType::register_type(PrimitiveType::Int,
+[[maybe_unused]] auto s_integer = ObjectType::register_type("s32", s_signed_integer_number, TemplateArguments { { true }, { 4 } },
     [](ObjectType* type) {
-        type->will_be_a(PrimitiveType::SignedIntegerNumber);
-        type->has_size(8);
-    });
-
-[[maybe_unused]] auto s_unsigned = ObjectType::register_type(PrimitiveType::Unsigned,
-    [](ObjectType* type) {
-        type->will_be_a(PrimitiveType::IntegerNumber);
+        type->has_alias("int");
         type->has_size(4);
     });
 
-[[maybe_unused]] auto s_byte = ObjectType::register_type(PrimitiveType::Byte,
+[[maybe_unused]] auto s_unsigned = ObjectType::register_type("u32", s_integer_number, TemplateArguments { { false }, { 4 } },
     [](ObjectType* type) {
-        type->will_be_a(PrimitiveType::SignedIntegerNumber);
+        type->has_alias("uint");
+        type->has_size(4);
+    });
+
+[[maybe_unused]] auto s_long = ObjectType::register_type("s64", s_signed_integer_number, TemplateArguments { { true }, { 8 } },
+    [](ObjectType* type) {
+        type->has_alias("long");
+        type->has_size(8);
+    });
+
+[[maybe_unused]] auto s_ulong = ObjectType::register_type("u64", s_integer_number, TemplateArguments { { false }, { 8 } },
+    [](ObjectType* type) {
+        type->has_alias("ulong");
+        type->has_size(8);
+    });
+
+[[maybe_unused]] auto s_byte = ObjectType::register_type("s8", s_signed_integer_number, TemplateArguments { { true }, { 1 } },
+    [](ObjectType* type) {
+        type->has_alias("byte");
         type->has_size(1);
     });
 
-[[maybe_unused]] auto s_char = ObjectType::register_type(PrimitiveType::Char,
+[[maybe_unused]] auto s_char = ObjectType::register_type("u8", s_integer_number, TemplateArguments { { false }, { 1 } },
     [](ObjectType* type) {
-        type->will_be_a(PrimitiveType::IntegerNumber);
+        type->has_alias("char");
         type->has_size(1);
     });
 
 [[maybe_unused]] auto s_float = ObjectType::register_type(PrimitiveType::Float,
     [](ObjectType* type) {
-        type->add_method(MethodDescription { Operator::Identity, PrimitiveType::Float, IntrinsicType::NotIntrinsic });
-        type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Float, IntrinsicType::NotIntrinsic });
-        type->add_method(MethodDescription { Operator::Add, PrimitiveType::Float, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Float }  } });
-        type->add_method(MethodDescription { Operator::Subtract, PrimitiveType::Float, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Float }  } });
-        type->add_method(MethodDescription { Operator::Multiply, PrimitiveType::Float, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Float }  } });
-        type->add_method(MethodDescription { Operator::Divide, PrimitiveType::Float, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Float }  } });
-        type->will_be_a(PrimitiveType::Comparable);
+        type->add_method(MethodDescription { Operator::Identity, PrimitiveType::Self, IntrinsicType::NotIntrinsic });
+        type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::NotIntrinsic });
+        type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type->add_method(MethodDescription { Operator::Subtract, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type->add_method(MethodDescription { Operator::Multiply, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type->add_method(MethodDescription { Operator::Divide, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
+        type->will_be_a(s_comparable);
         type->has_size(4);
-    });
-
-[[maybe_unused]] auto s_boolean = ObjectType::register_type(PrimitiveType::Boolean,
-    [](ObjectType* type) {
-        type->add_method(MethodDescription { Operator::LogicalInvert, PrimitiveType::Boolean, IntrinsicType::invert_bool });
-        type->add_method(MethodDescription { Operator::LogicalAnd, PrimitiveType::Boolean, IntrinsicType::and_bool_bool, { {  "other", PrimitiveType::Boolean }  } });
-        type->add_method(MethodDescription { Operator::LogicalOr, PrimitiveType::Boolean, IntrinsicType::or_bool_bool, { {  "other", PrimitiveType::Boolean }  } });
-        type->has_size(1);
     });
 
 [[maybe_unused]] auto s_null = ObjectType::register_type(PrimitiveType::Null,
@@ -289,15 +305,16 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 [[maybe_unused]] auto s_pointer = ObjectType::register_type(PrimitiveType::Pointer,
     [](ObjectType* type) {
         type->has_template_parameter({ "target", TemplateParameterType::Type });
+        type->has_alias("ptr");
         type->has_size(8);
-        type->add_method(MethodDescription { Operator::Dereference, PrimitiveType::Char });
+        type->add_method(MethodDescription { Operator::Dereference, ObjectType::get("u8") });
         type->add_method(MethodDescription { Operator::UnaryIncrement, PrimitiveType::Self });
         type->add_method(MethodDescription { Operator::UnaryDecrement, PrimitiveType::Self });
-        type->add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
-        type->add_method(MethodDescription { Operator::BinaryDecrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
-        type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
-        type->add_method(MethodDescription { Operator::Subtract, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Int }  } });
-        type->will_be_a(PrimitiveType::Comparable);
+        type->add_method(MethodDescription { Operator::BinaryIncrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", ObjectType::get("s32") }  } });
+        type->add_method(MethodDescription { Operator::BinaryDecrement, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", ObjectType::get("s32") }  } });
+        type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", ObjectType::get("s32") }  } });
+        type->add_method(MethodDescription { Operator::Subtract, PrimitiveType::Self, IntrinsicType::NotIntrinsic, { {  "other", ObjectType::get("s32") }  } });
+        type->will_be_a(s_comparable);
 
         type->has_template_stamp([](ObjectType* instantiation) {
             instantiation->add_method(MethodDescription { Operator::Dereference, instantiation->template_arguments()[0].as_type() });
@@ -312,20 +329,20 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
 
         type->has_template_stamp([](ObjectType* instantiation) {
             instantiation->add_method(MethodDescription { Operator::Subscript, instantiation->template_arguments()[0].as_type(),
-                IntrinsicType::NotIntrinsic, { { "subscript", PrimitiveType::Int } } });
+                IntrinsicType::NotIntrinsic, { { "subscript", ObjectType::get("s32") } } });
             instantiation->has_size(instantiation->template_arguments()[1].as_integer() * instantiation->template_arguments()[0].as_type()->size());
         });
     });
 
 [[maybe_unused]] auto s_string = ObjectType::register_struct_type("string", 
     FieldDefs {
-        FieldDef { std::string("length"), PrimitiveType::Int }, 
-        FieldDef { std::string("data"), ObjectType::resolve(ObjectType::get(PrimitiveType::Pointer), { ObjectType::get(PrimitiveType::Char) } ).value() }
+        FieldDef { std::string("length"), ObjectType::get("u32") }, 
+        FieldDef { std::string("data"), ObjectType::specialize(ObjectType::get(PrimitiveType::Pointer), { ObjectType::get("u8") } ).value() }
     },
     [](ObjectType* type) {
         type->add_method(MethodDescription { Operator::Add, PrimitiveType::Self, IntrinsicType::add_str_str, { {  "other", PrimitiveType::Self }  } });
-        type->add_method(MethodDescription { Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_str_int, { {  "other", PrimitiveType::Unsigned }  } });
-        type->will_be_a(PrimitiveType::Comparable);
+        type->add_method(MethodDescription { Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_str_int, { {  "other", ObjectType::get("u32") }  } });
+        type->will_be_a(s_comparable);
     });
 
 [[maybe_unused]] auto s_any = ObjectType::register_type(PrimitiveType::Any,
@@ -335,7 +352,7 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_instantiations {
         type->add_method(MethodDescription { Operator::NotEquals, PrimitiveType::Boolean, IntrinsicType::NotIntrinsic, { {  "other", PrimitiveType::Compatible }  } });
         type->add_method(MethodDescription { Operator::Dereference, PrimitiveType::Any, IntrinsicType::NotIntrinsic, { {  "attribute", get_type<std::string>() }  } });
         type->add_method(MethodDescription { "typename", s_string });
-        type->add_method(MethodDescription { "length", PrimitiveType::Int });
+        type->add_method(MethodDescription { "length", ObjectType::get("u32") });
         type->add_method(MethodDescription { "empty", PrimitiveType::Boolean });
     });
 
@@ -351,6 +368,12 @@ std::string ObjectType::to_string() const
     if (glue == ',')
         ret += '>';
     return ret;
+}
+
+MethodDescription& ObjectType::add_method(MethodDescription const& md)
+{
+    m_methods.push_back(md);
+    return m_methods.back();
 }
 
 bool ObjectType::operator==(ObjectType const& other) const
@@ -420,6 +443,18 @@ bool ObjectType::is_a(ObjectType const* other) const
     return std::any_of(m_is_a.begin(), m_is_a.end(), [&other](auto& super_type) { return super_type->is_a(other); });
 }
 
+bool ObjectType::has_template_argument(std::string const& arg) const
+{
+    if (!is_template_specialization())
+        return false;
+    for (auto ix = 0; ix < m_specializes_template->template_parameters().size(); ++ix) {
+        auto param = m_specializes_template->template_parameters()[ix];
+        if (param.name == arg)
+            return true;
+    }
+    return false;
+}
+
 bool ObjectType::is_compatible(MethodDescription const& mth, ObjectTypes const& argument_types) const
 {
     if (mth.parameters().size() != argument_types.size())
@@ -461,8 +496,8 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(std::strin
         for (auto& is_a : type->m_is_a) {
             types.push_back(is_a);
         }
-        if (type->is_template_instantiation())
-            types.push_back(type->instantiates_template());
+        if (type->is_template_specialization())
+            types.push_back(type->specializes_template());
         if (auto ret = check_methods_of(type.get()); *ret != *s_unknown)
             return ret;
     }
@@ -499,8 +534,8 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(Operator o
         for (auto& is_a : type->m_is_a) {
             types.push_back(is_a);
         }
-        if (type->is_template_instantiation())
-            types.push_back(type->instantiates_template());
+        if (type->is_template_specialization())
+            types.push_back(type->specializes_template());
         debug(type, "Checking operators of type {}", type->to_string());
         if (auto ret = check_operators_of(type.get()); *ret != *s_unknown) {
             debug(type, "Return type is {}", ret->to_string());
@@ -547,8 +582,8 @@ std::optional<MethodDescription> ObjectType::get_method(Operator op, ObjectTypes
         for (auto& is_a : type->m_is_a) {
             types.push_back(is_a);
         }
-        if (type->is_template_instantiation())
-            types.push_back(type->instantiates_template());
+        if (type->is_template_specialization())
+            types.push_back(type->specializes_template());
         debug(type, "Checking operators of type {}", type->to_string());
         if (auto ret = check_operators_of(type.get()); ret.has_value()) {
             debug(type, "Return method is {}", ret.value().name());
@@ -586,10 +621,10 @@ std::shared_ptr<ObjectType> const& ObjectType::get(std::string const& type)
 
 std::shared_ptr<ObjectType> const& ObjectType::get(ObjectType const* type)
 {
-    if (!type->is_template_instantiation())
+    if (!type->is_template_specialization())
         return get(type->name());
 
-    for (auto& instantiation : s_template_instantiations) {
+    for (auto& instantiation : s_template_specializations) {
         if (*type == *instantiation) {
             return instantiation;
         }
@@ -597,7 +632,43 @@ std::shared_ptr<ObjectType> const& ObjectType::get(ObjectType const* type)
     return s_unknown;
 }
 
-ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::shared_ptr<ObjectType> const& base_type, TemplateArguments const& template_args)
+std::shared_ptr<ObjectType> ObjectType::register_type(PrimitiveType type, ObjectTypeBuilder const& builder) noexcept
+{
+    auto ptr = std::make_shared<ObjectType>(type, PrimitiveType_name(type), builder);
+    register_type_in_caches(ptr);
+    return ptr;
+}
+
+std::shared_ptr<ObjectType> ObjectType::register_type(PrimitiveType type, char const* name, ObjectTypeBuilder const& builder) noexcept
+{
+    auto ptr = std::make_shared<ObjectType>(type, name, builder);
+    register_type_in_caches(ptr);
+    return ptr;
+}
+
+std::shared_ptr<ObjectType> ObjectType::register_type(char const* name, std::shared_ptr<ObjectType> specialization_of, TemplateArguments const& template_args, ObjectTypeBuilder const& builder) noexcept
+{
+    auto ret_or_error = ObjectType::specialize(specialization_of, move(template_args));
+    if (ret_or_error.is_error())
+        fatal("specialize '{}' failed: {}", name, ret_or_error.error());
+    auto type = ret_or_error.value();
+    type->m_name = name;
+    type->m_name_str = name;
+    builder(type.get());
+    register_type_in_caches(type);
+    return type;
+}
+
+std::shared_ptr<ObjectType> ObjectType::register_struct_type(std::string const& name, FieldDefs fields, ObjectTypeBuilder const& builder)
+{
+    auto ret_or_error = make_struct_type(name, move(fields), builder);
+    if (ret_or_error.is_error()) {
+        fatal("Could not register struct type '{}': {}", name, ret_or_error.error());
+    }
+    return ret_or_error.value();
+}
+
+ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::shared_ptr<ObjectType> const& base_type, TemplateArguments const& template_args)
 {
     if (base_type->is_parameterized() && (template_args.size() != base_type->template_parameters().size()))
         return Error<int> { ErrorCode::TemplateParameterMismatch, base_type, base_type->template_parameters().size(), template_args.size() };
@@ -605,38 +676,37 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::shared_ptr<ObjectT
         return Error<int> { ErrorCode::TypeNotParameterized, base_type };
     if (!base_type->is_parameterized())
         return base_type;
-    for (auto& template_instantiation : s_template_instantiations) {
-        if (template_instantiation->instantiates_template() == base_type) {
+    for (auto& template_specialization : s_template_specializations) {
+        if (template_specialization->specializes_template() == base_type) {
             size_t ix;
             for (ix = 0; ix < template_args.size(); ++ix) {
-                if (template_instantiation->template_arguments()[ix] != template_args[ix])
+                if (template_specialization->template_arguments()[ix] != template_args[ix])
                     break;
             }
             if (ix >= template_args.size())
-                return template_instantiation;
+                return template_specialization;
         }
     }
-    auto instantiation = std::make_shared<ObjectType>(base_type->type(), [&template_args, &base_type](ObjectType* new_type) {
-        new_type->m_instantiates_template = base_type;
+    auto specialization = std::make_shared<ObjectType>(base_type->type(), [&template_args, &base_type](ObjectType* new_type) {
+        new_type->m_specializes_template = base_type;
         new_type->m_template_arguments = template_args;
         if (base_type->m_stamp) {
             base_type->m_stamp(new_type);
         }
     });
-    s_template_instantiations.push_back(instantiation);
-    return instantiation;
+    s_template_specializations.push_back(specialization);
+    return specialization;
 }
 
-ErrorOr<std::shared_ptr<ObjectType>> ObjectType::resolve(std::string const& type_name, TemplateArguments const& template_args)
+ErrorOr<std::shared_ptr<ObjectType>> ObjectType::specialize(std::string const& base_type_name, TemplateArguments const& template_args)
 {
-    auto base_type = ObjectType::get(type_name);
+    auto base_type = ObjectType::get(base_type_name);
     if (base_type == nullptr || *base_type == *s_unknown)
-        return Error<int> { ErrorCode::NoSuchType, type_name };
-    return resolve(base_type, template_args);
+        return Error<int> { ErrorCode::NoSuchType, base_type_name };
+    return specialize(base_type, template_args);
 }
 
-
-ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_type(std::string name, FieldDefs fields)
+ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_struct_type(std::string name, FieldDefs fields, ObjectTypeBuilder const& builder)
 {
     std::shared_ptr<ObjectType> ret;
     if (s_types_by_name.contains(name)) {
@@ -656,8 +726,33 @@ ErrorOr<std::shared_ptr<ObjectType>> ObjectType::make_type(std::string name, Fie
     assert(!fields.empty()); // TODO return proper error
     ret = std::make_shared<ObjectType>(PrimitiveType::Struct, move(name));
     ret->m_fields = move(fields);
-    s_types_by_name[ret->name()] = ret;
+
+    if (builder != nullptr)
+        builder(ret.get());
+    register_type_in_caches(ret);
     return ret;
+}
+
+void ObjectType::register_type_in_caches(std::shared_ptr<ObjectType> const& type)
+{
+    if (!type->is_template_specialization() && !s_types_by_id.contains(type->type()))
+        s_types_by_id[type->type()] = type;
+    s_types_by_name[type->name()] = type;
+    for (auto const& alias : type->m_aliases) {
+        s_types_by_name[alias] = type;
+    }
+}
+
+void ObjectType::dump()
+{
+    auto dump_type = [](std::shared_ptr<ObjectType> const& type) {
+        return format("to_string: {} name: '{}', primitive type: {}, is_specialization: {}", 
+            type->to_string(), type->name(), type->type(), type->is_template_specialization());
+    };
+
+    for (auto const& t : s_types_by_name) {
+        std::cout << format("{}: {}", t.first, dump_type(t.second)) << "\n";
+    }
 }
 
 }

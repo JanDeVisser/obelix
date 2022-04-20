@@ -144,13 +144,17 @@ public:
     }
 
     void initialize_target_register();
+    void reset_registers();
     void release_target_register(PrimitiveType type = PrimitiveType::Unknown);
-    void inc_target_register();
+    int inc_target_register();
     [[nodiscard]] int target_register() const;
+    void reserve_on_stack(size_t);
+    void release_stack();
 
 private:
     Assembly* m_assembly { nullptr };
     std::vector<int> m_target_register {};
+    size_t m_stack_allocated { 0 };
     static std::vector<std::shared_ptr<MaterializedFunctionDef>> s_function_stack;
     static std::unordered_map<std::string, Assembly> s_assemblies;
 };

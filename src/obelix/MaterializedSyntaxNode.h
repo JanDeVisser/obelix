@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "obelix/Type.h"
 #include <memory>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Syntax.h>
@@ -14,15 +15,35 @@
 
 namespace Obelix {
 
-class MaterializedFunctionParameter : public BoundIdentifier {
+class MaterializedDeclaration {
 public:
-    MaterializedFunctionParameter(std::shared_ptr<BoundIdentifier> const& param, int offset)
-        : BoundIdentifier(param->token(), param->name(), param->type())
+    MaterializedDeclaration(std::string label, int offset)
+        : m_label(move(label))
         , m_offset(offset)
     {
     }
 
+    explicit MaterializedDeclaration(int offset)
+        : m_offset(offset)
+    {
+    }
+
+    [[nodiscard]] std::string const& label() const { return m_label; }
     [[nodiscard]] int offset() const { return m_offset; }
+    [[nodiscard]] virtual std::shared_ptr<ObjectType> const& declared_type() const = 0;
+private:
+    std::string m_label { "" };
+    int m_offset { 0 };
+};
+
+class MaterializedFunctionParameter : public BoundIdentifier, public MaterializedDeclaration {
+public:
+    MaterializedFunctionParameter(std::shared_ptr<BoundIdentifier> const& param, int offset)
+        : BoundIdentifier(param->token(), param->name(), param->type())
+        , MaterializedDeclaration(offset)
+    {
+    }
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedFunctionParameter; }
     [[nodiscard]] std::string attributes() const override
     {
@@ -30,13 +51,15 @@ public:
     }
     [[nodiscard]] std::string to_string() const override
     {
-        if (m_offset > 0)
-            return format("{} [{}]", BoundIdentifier::to_string(), m_offset);
+        if (offset() > 0)
+            return format("{} [{}]", BoundIdentifier::to_string(), offset());
         return BoundIdentifier::to_string();
     }
 
-private:
-    int m_offset;
+    [[nodiscard]] std::shared_ptr<ObjectType> const& declared_type() const override
+    {
+        return type();
+    }
 };
 
 using MaterializedFunctionParameters = std::vector<std::shared_ptr<MaterializedFunctionParameter>>;
@@ -177,24 +200,23 @@ protected:
     int m_stack_depth;
 };
 
-class MaterializedVariableDecl : public Statement {
+class MaterializedVariableDecl : public Statement, public MaterializedDeclaration {
 public:
     explicit MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, int offset, std::shared_ptr<BoundExpression> expression)
         : Statement(var_decl->token())
+        , MaterializedDeclaration(offset)
         , m_variable(var_decl->variable())
         , m_const(var_decl->is_const())
         , m_expression(move(expression))
-        , m_offset(offset)
     {
     }
 
     explicit MaterializedVariableDecl(std::shared_ptr<BoundVariableDeclaration> const& var_decl, std::string label, int offset, std::shared_ptr<BoundExpression> expression)
         : Statement(var_decl->token())
+        , MaterializedDeclaration(move(label), offset)
         , m_variable(var_decl->variable())
         , m_const(var_decl->is_const())
         , m_expression(move(expression))
-        , m_label(move(label))
-        , m_offset(offset)
     {
     }
 
@@ -215,8 +237,8 @@ public:
         auto keyword = (m_const) ? "const" : "var";
         if (label().empty()) {
             if (m_expression)
-                return format("{} {}: {} [{}]", keyword, m_variable, m_expression, m_offset);
-            return format("{} {} [{}]", keyword, m_variable, m_offset);
+                return format("{} {}: {} [{}]", keyword, m_variable, m_expression, offset());
+            return format("{} {} [{}]", keyword, m_variable, offset());
         }
         if (m_expression)
             return format("static {} {}: {} [{}]", keyword, m_variable, m_expression, label());
@@ -229,15 +251,16 @@ public:
     [[nodiscard]] std::shared_ptr<ObjectType> const& type() const { return variable()->type(); }
     [[nodiscard]] bool is_const() const { return m_const; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& expression() const { return m_expression; }
-    [[nodiscard]] std::string const& label() const { return m_label; }
-    [[nodiscard]] int offset() const { return m_offset; }
+
+    [[nodiscard]] std::shared_ptr<ObjectType> const& declared_type() const override
+    {
+        return type();
+    }
 
 private:
     std::shared_ptr<BoundIdentifier> m_variable;
     bool m_const { false };
     std::shared_ptr<BoundExpression> m_expression;
-    std::string m_label;
-    int m_offset;
 };
 
 class MaterializedVariableAccess : public BoundVariableAccess {
@@ -285,19 +308,41 @@ private:
     std::string m_identifier;
 };
 
-class MaterializedMemberAccess : public MaterializedVariableAccess {
+class MaterializedIntIdentifier : public MaterializedIdentifier {
 public:
-    MaterializedMemberAccess(std::shared_ptr<BoundMemberAccess> const& member_access,
-            std::shared_ptr<MaterializedVariableAccess> strukt, std::shared_ptr<BoundExpression> member, int offset)
-        : MaterializedVariableAccess(member_access, strukt->offset() + offset)
-        , m_struct(move(strukt))
-        , m_member(move(member))
+    MaterializedIntIdentifier(std::shared_ptr<BoundIdentifier> const& identifier, int offset)
+        : MaterializedIdentifier(identifier, offset)
     {
     }
 
+    MaterializedIntIdentifier(std::shared_ptr<BoundIdentifier> const& identifier, std::string label, int offset=0)
+        : MaterializedIdentifier(identifier, move(label), offset)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedIntIdentifier; }
+};
+
+class MaterializedStructIdentifier : public MaterializedIdentifier {
+public:
+    MaterializedStructIdentifier(std::shared_ptr<BoundIdentifier> const& identifier, int offset)
+        : MaterializedIdentifier(identifier, offset)
+    {
+    }
+
+    MaterializedStructIdentifier(std::shared_ptr<BoundIdentifier> const& identifier, std::string label, int offset=0)
+        : MaterializedIdentifier(identifier, move(label), offset)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedStructIdentifier; }
+};
+
+class MaterializedMemberAccess : public MaterializedVariableAccess {
+public:
     MaterializedMemberAccess(std::shared_ptr<BoundMemberAccess> const& member_access,
-            std::shared_ptr<MaterializedVariableAccess> strukt, std::shared_ptr<BoundExpression> member, std::string label, int offset=0)
-        : MaterializedVariableAccess(member_access, move(label), strukt->offset() + offset)
+            std::shared_ptr<MaterializedVariableAccess> strukt, std::shared_ptr<MaterializedIdentifier> member)
+        : MaterializedVariableAccess(member_access, move(strukt->label()), member->offset())
         , m_struct(move(strukt))
         , m_member(move(member))
     {
@@ -305,14 +350,14 @@ public:
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::MaterializedMemberAccess; }
     [[nodiscard]] std::shared_ptr<MaterializedVariableAccess> const& structure() const { return m_struct; }
-    [[nodiscard]] std::shared_ptr<BoundExpression> const& member() const { return m_member; }
+    [[nodiscard]] std::shared_ptr<MaterializedIdentifier> const& member() const { return m_member; }
     [[nodiscard]] std::string attributes() const override { return format(R"(type="{} offset={}")", type(), offset()); }
     [[nodiscard]] Nodes children() const override { return { m_struct, m_member }; }
     [[nodiscard]] std::string to_string() const override { return format("{}.{}: {} [{}]", structure(), member(), type()->to_string(), offset()); }
 
 private:
     std::shared_ptr<MaterializedVariableAccess> m_struct;
-    std::shared_ptr<BoundExpression> m_member;
+    std::shared_ptr<MaterializedIdentifier> m_member;
 };
 
 class MaterializedArrayAccess : public MaterializedVariableAccess {

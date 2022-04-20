@@ -127,8 +127,7 @@ INTRINSIC(putchar)
 
 INTRINSIC(puts)
 {
-    ctx.assembly().add_instruction("mov", "x2,x1");
-    ctx.assembly().add_instruction("mov", "x1,x0");
+    ctx.assembly().add_instruction("mov", "x2,x0");
     ctx.assembly().add_instruction("mov", "x0,#1");
     ctx.assembly().syscall(0x04);
     return {};

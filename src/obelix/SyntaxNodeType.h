@@ -21,7 +21,13 @@ namespace Obelix {
     S(StringTemplateArgument)           \
     S(IntegerTemplateArgument)          \
     S(Expression)                       \
-    S(Literal)                          \
+    S(IntLiteral)                       \
+    S(CharLiteral)                      \
+    S(FloatLiteral)                     \
+    S(StringLiteral)                    \
+    S(BooleanLiteral)                   \
+    S(StructLiteral)                    \
+    S(ArrayLiteral)                     \
     S(Identifier)                       \
     S(This)                             \
     S(BinaryExpression)                 \
@@ -59,6 +65,8 @@ namespace Obelix {
     S(MaterializedNativeFunctionDecl)   \
     S(MaterializedIntrinsicDecl)        \
     S(MaterializedIdentifier)           \
+    S(MaterializedIntIdentifier)        \
+    S(MaterializedStructIdentifier)     \
     S(MaterializedMemberAccess)         \
     S(MaterializedArrayAccess)          \
     S(MaterializedStaticVariableAccess) \
@@ -67,7 +75,10 @@ namespace Obelix {
     S(BoundIdentifier)                  \
     S(BoundMemberAccess)                \
     S(BoundArrayAccess)                 \
-    S(BoundLiteral)                     \
+    S(BoundIntLiteral)                  \
+    S(BoundFloatLiteral)                \
+    S(BoundStringLiteral)               \
+    S(BoundBooleanLiteral)              \
     S(BoundBinaryExpression)            \
     S(BoundUnaryExpression)             \
     S(BoundFunctionCall)                \

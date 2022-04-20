@@ -137,8 +137,8 @@ private:
                 if (err.is_error())
                     return err;
                 auto ret_val = err.value();
-                if (ret_val->node_type() != SyntaxNodeType::BoundLiteral)
-                    ret_val = std::make_shared<BoundLiteral>(Token {}, make_obj<Integer>(0));
+                if (ret_val->node_type() != SyntaxNodeType::BoundIntLiteral)
+                    ret_val = std::make_shared<BoundIntLiteral>(Token {}, 0);
                 return ret_val;
 #endif
             } else {

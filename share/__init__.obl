@@ -19,23 +19,23 @@
 
 intrinsic allocate(size: int) : ptr<char>;
 
-intrinsic eputs(s: string) : int;
-intrinsic fputs(fd: int, s: string) : int;
-intrinsic fsize(fd: int) : int;
-intrinsic putchar(c: int) : int;
-intrinsic puts(s: string) : int;
+intrinsic eputs(s: string) : u64;
+intrinsic fputs(fd: s32, s: string) : u64;
+intrinsic fsize(fd: s32) : u64;
+intrinsic putchar(c: u32) : u64;
+intrinsic puts(s: string) : u64;
 
-intrinsic int_to_string(i: int) : string;
+intrinsic int_to_string(i: s32) : string;
 
-func memset(buffer: ptr<char>, ch : int, len: int) : ptr<char> -> "memset";
-func memcpy(dst: ptr<char>, src: ptr<char>, len: int) : ptr<char> -> "memcpy";
-func open(path: string, flags: int) : int -> "open";
-func putint(i: int) : int -> "putint";
-func puthex(i: int) : int -> "puthex";
-func read(fd: int, buffer: ptr<char>, number_of_bytes: int) : int -> "read";
-func write(fd: int, buffer: ptr<char>, number_of_bytes: int) : int -> "write";
+func memset(buffer: ptr<char>, ch : u32, len: u32) : ptr<char> -> "memset";
+func memcpy(dst: ptr<char>, src: ptr<char>, len: u32) : ptr<char> -> "memcpy";
+func open(path: string, flags: s32) : s32 -> "open";
+func putint(i: s32) : int -> "putint";
+func puthex(i: u32) : int -> "puthex";
+func read(fd: s32, buffer: ptr<char>, number_of_bytes: u64) : u64 -> "read";
+func write(fd: int, buffer: ptr<char>, number_of_bytes: u64) : u64 -> "write";
 func cstr_to_str(s: ptr<char>) : string -> "cstr_to_str";
 
-const O_RDONLY: int = 0x0000;
-const O_RDWR: int = 0x0002;
-const O_WRONLY: int = 0x0001;
+const O_RDONLY: s32 = 0x0000;
+const O_RDWR: s32 = 0x0002;
+const O_WRONLY: s32 = 0x0001;

@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "core/Object.h"
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -26,33 +26,30 @@
 
 namespace Obelix {
 
-#define ENUMERATE_PRIMITIVE_TYPES(S) \
-    S(Unknown, -1)                   \
-    S(Void, 0)                       \
-    S(Null, 1)                       \
-    S(Int, 2)                        \
-    S(Unsigned, 3)                   \
-    S(Byte, 4)                       \
-    S(Char, 5)                       \
-    S(Boolean, 6)                    \
-    S(Float, 7)                      \
-    S(Pointer, 8)                    \
-    S(Struct, 9)                     \
-    S(Range, 10)                     \
-    S(Array, 11)                     \
-    S(Error, 9996)                   \
-    S(Self, 9997)                    \
-    S(Compatible, 9998)              \
-    S(Argument, 9999)                \
-    S(Any, 10000)                    \
-    S(Comparable, 10001)             \
-    S(Incrementable, 10002)          \
-    S(IntegerNumber, 10003)          \
-    S(SignedIntegerNumber, 10004)
+#define ENUMERATE_PRIMITIVE_TYPES(S)         \
+    S(Unknown, "unknown", -1)                \
+    S(Void, "void", 0)                       \
+    S(Null, "null", 1)                       \
+    S(Int, "int", 2)                         \
+    S(Boolean, "boolean", 6)                 \
+    S(Float, "float", 7)                     \
+    S(Pointer, "pointer", 8)                 \
+    S(Struct, "struct", 9)                   \
+    S(Range, "range", 10)                    \
+    S(Array, "array", 11)                    \
+    S(Error, "error", 9996)                  \
+    S(Self, "self", 9997)                    \
+    S(Compatible, "compatible", 9998)        \
+    S(Argument, "argument", 9999)            \
+    S(Any, "any", 10000)                     \
+    S(Comparable, "comparable", 10001)       \
+    S(Incrementable, "incementable", 10002)  \
+    S(IntegerNumber, "integernumber", 10003) \
+    S(SignedIntegerNumber, "signedintegernumber", 10004)
 
 enum class PrimitiveType {
 #undef __ENUM_PRIMITIVE_TYPE
-#define __ENUM_PRIMITIVE_TYPE(t, cardinal) t = cardinal,
+#define __ENUM_PRIMITIVE_TYPE(t, str, cardinal) t = cardinal,
     ENUMERATE_PRIMITIVE_TYPES(__ENUM_PRIMITIVE_TYPE)
 #undef __ENUM_PRIMITIVE_TYPE
 };
@@ -63,9 +60,9 @@ constexpr const char* PrimitiveType_name(PrimitiveType t)
 {
     switch (t) {
 #undef __ENUM_PRIMITIVE_TYPE
-#define __ENUM_PRIMITIVE_TYPE(t, cardinal) \
-    case PrimitiveType::t:                 \
-        return #t;
+#define __ENUM_PRIMITIVE_TYPE(t, str, cardinal) \
+    case PrimitiveType::t:                      \
+        return str;
         ENUMERATE_PRIMITIVE_TYPES(__ENUM_PRIMITIVE_TYPE)
 #undef __ENUM_PRIMITIVE_TYPE
     }
@@ -167,6 +164,7 @@ enum class TemplateParameterType {
     Type,
     String,
     Integer,
+    Boolean,
 };
 
 struct TemplateParameter {
@@ -189,14 +187,26 @@ struct TemplateArgument {
     {
     }
 
+    TemplateArgument(int integer)
+        : parameter_type(TemplateParameterType::Integer)
+        , value(integer)
+    {
+    }
+
     TemplateArgument(std::string string)
         : parameter_type(TemplateParameterType::String)
         , value(string)
     {
     }
     
+    TemplateArgument(bool boolean)
+        : parameter_type(TemplateParameterType::Boolean)
+        , value(boolean)
+    {
+    }
+    
     TemplateParameterType parameter_type;
-    std::variant<std::shared_ptr<ObjectType>, long, std::string> value;
+    std::variant<std::shared_ptr<ObjectType>, long, std::string, bool> value;
 
     [[nodiscard]] size_t hash() const;
     [[nodiscard]] std::string to_string() const;
@@ -207,15 +217,30 @@ struct TemplateArgument {
         assert(std::holds_alternative<std::shared_ptr<ObjectType>>(value));
         return std::get<std::shared_ptr<ObjectType>>(value);
     }
+
     [[nodiscard]] long as_integer() const
     {
         assert(std::holds_alternative<long>(value));
         return std::get<long>(value);
     }
-    [[nodiscard]] std::string as_string() const
+
+    [[nodiscard]] std::string const& as_string() const
     {
         assert(std::holds_alternative<std::string>(value));
         return std::get<std::string>(value);
+    }
+
+    [[nodiscard]] bool as_bool() const
+    {
+        assert(std::holds_alternative<bool>(value));
+        return std::get<bool>(value);
+    }
+
+    template <typename ArgType>
+    [[nodiscard]] ArgType const& get() const
+    {
+        assert(std::holds_alternative<ArgType>(value));
+        return std::get<ArgType>(value);
     }
 };
 
@@ -239,47 +264,57 @@ public:
     {
     }
 
-    ObjectType(PrimitiveType type, ObjectTypeBuilder const& builder) noexcept
+    ObjectType(PrimitiveType type, ObjectTypeBuilder const& builder = nullptr) noexcept
         : m_type(type)
     {
         m_name_str = std::string(PrimitiveType_name(type));
-        builder(this);
+        if (builder)
+            builder(this);
     }
 
     ObjectType(PrimitiveType type, char const* name, ObjectTypeBuilder const& builder) noexcept
-        : m_type(type)
-        , m_name(name)
+        : ObjectType(type, name)
     {
-        if (m_name)
-            m_name_str = std::string(m_name);
-        else
-            m_name_str = std::string(PrimitiveType_name(type));
-        builder(this);
+        if (builder)
+            builder(this);
     }
 
     [[nodiscard]] PrimitiveType type() const { return m_type; }
     [[nodiscard]] std::string const& name() const { return m_name_str; }
     [[nodiscard]] std::string to_string() const;
 
-    MethodDescription& add_method(MethodDescription const& md)
-    {
-        m_methods.push_back(md);
-        return m_methods.back();
-    }
-
-    void will_be_a(PrimitiveType type) { m_is_a.push_back(ObjectType::get(type)); }
+    MethodDescription& add_method(MethodDescription const&);
+    void will_be_a(std::shared_ptr<ObjectType> type) { m_is_a.push_back(type); }
     void has_template_parameter(TemplateParameter const& parameter) { m_template_parameters.push_back(parameter); }
     void has_size(size_t sz) { m_size = sz; }
     void has_template_stamp(ObjectTypeBuilder const& stamp) { m_stamp = stamp; }
+    void has_alias(std::string const& alias) { m_aliases.emplace_back(alias); }
 
     [[nodiscard]] bool is_parameterized() const { return !m_template_parameters.empty(); }
     [[nodiscard]] size_t size() const;
+    [[nodiscard]] std::vector<std::string> const& aliases() const { return m_aliases; }
     [[nodiscard]] ssize_t offset_of(std::string const&) const;
     [[nodiscard]] ssize_t offset_of(int) const;
     [[nodiscard]] TemplateParameters const& template_parameters() const { return m_template_parameters; }
-    [[nodiscard]] bool is_template_instantiation() const { return m_instantiates_template != nullptr; }
-    [[nodiscard]] std::shared_ptr<ObjectType> instantiates_template() const { return m_instantiates_template; }
+    [[nodiscard]] bool is_template_specialization() const { return m_specializes_template != nullptr; }
+    [[nodiscard]] std::shared_ptr<ObjectType> specializes_template() const { return m_specializes_template; }
     [[nodiscard]] TemplateArguments const& template_arguments() const { return m_template_arguments; }
+    [[nodiscard]] bool has_template_argument(std::string const&) const;
+
+    template <typename ArgType>
+    [[nodiscard]] ArgType const& template_argument(std::string const& arg_name) const
+    {
+        assert(is_template_specialization());
+        for (auto ix = 0; ix < specializes_template()->template_parameters().size(); ++ix) {
+            auto const& param = specializes_template()->template_parameters()[ix];
+            if (param.name == arg_name) {
+                return template_arguments()[ix].get<ArgType>();
+            }
+        }
+        fatal("Type '{}' instantiates template '{}' which has no template parameter named '{}'", 
+            name(), specializes_template()->name(), arg_name);
+    }
+
     [[nodiscard]] bool is_a(ObjectType const* other) const;
     [[nodiscard]] bool is_a(std::shared_ptr<ObjectType> other) const { return is_a(other.get()); }
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, ObjectTypes const& argument_types = {}) const;
@@ -319,82 +354,54 @@ public:
         return return_type_of(op, arg_types, std::forward<Args>(args)...);
     }
 
-    static std::shared_ptr<ObjectType> register_type(PrimitiveType type) noexcept
-    {
-        auto ptr = std::make_shared<ObjectType>(type, PrimitiveType_name(type));
-        s_types_by_id[type] = ptr;
-        s_types_by_name[ptr->name()] = ptr;
-        return ptr;
-    }
-
-    template<typename ObjectTypeBuilder>
-    static std::shared_ptr<ObjectType> register_type(PrimitiveType type, ObjectTypeBuilder const& builder) noexcept
-    {
-        auto ptr = std::make_shared<ObjectType>(type, PrimitiveType_name(type), builder);
-        s_types_by_id[type] = ptr;
-        s_types_by_name[ptr->name()] = ptr;
-        return ptr;
-    }
-
-    template<typename ObjectTypeBuilder>
-    static std::shared_ptr<ObjectType> register_type(PrimitiveType type, char const* name, ObjectTypeBuilder const& builder) noexcept
-    {
-        auto ptr = std::make_shared<ObjectType>(type, builder);
-        s_types_by_id[type] = ptr;
-        return ptr;
-    }
-
-    template<typename ObjectTypeBuilder>
-    static std::shared_ptr<ObjectType> register_struct_type(char const* name, FieldDefs fields, ObjectTypeBuilder const& builder) noexcept
-    {
-        auto type_maybe = ObjectType::make_type(name, move(fields));
-        if (type_maybe.is_error())
-            fatal("make_type '{}' failed: {}", name, type_maybe.error());
-        auto type = type_maybe.value();
-        builder(type.get());
-        return type;
-    }
+    static std::shared_ptr<ObjectType> register_type(PrimitiveType, ObjectTypeBuilder const& = nullptr) noexcept;
+    static std::shared_ptr<ObjectType> register_type(PrimitiveType, char const*, ObjectTypeBuilder const&) noexcept;
+    static std::shared_ptr<ObjectType> register_type(char const*, std::shared_ptr<ObjectType>, TemplateArguments const&, ObjectTypeBuilder const& = nullptr) noexcept;
 
     static std::shared_ptr<ObjectType> const& get(PrimitiveType);
     static std::shared_ptr<ObjectType> const& get(std::string const&);
     static std::shared_ptr<ObjectType> const& get(ObjectType const*);
-    static ErrorOr<std::shared_ptr<ObjectType>> resolve(std::shared_ptr<ObjectType> const&, TemplateArguments const&);
-    static ErrorOr<std::shared_ptr<ObjectType>> resolve(std::string const&, TemplateArguments const&);
+    static ErrorOr<std::shared_ptr<ObjectType>> specialize(std::shared_ptr<ObjectType> const&, TemplateArguments const&);
+    static ErrorOr<std::shared_ptr<ObjectType>> specialize(std::string const&, TemplateArguments const&);
 
     template<typename... Args>
-    static std::shared_ptr<ObjectType> resolve(std::string const& type_name, TemplateArguments& template_args, TemplateArgument template_arg, Args&&... args)
+    static std::shared_ptr<ObjectType> specialize(std::string const& type_name, std::string const& base_name, TemplateArguments& template_args, TemplateArgument template_arg, Args&&... args)
     {
         template_args.push_back(std::move(template_arg));
-        return resolve(type_name, template_args, std::forward<Args>(args)...);
+        return specialize(type_name, base_name, template_args, std::forward<Args>(args)...);
     }
 
     template<typename... Args>
-    static std::shared_ptr<ObjectType> resolve(std::string const& type_name, TemplateArgument template_arg, Args&&... args)
+    static std::shared_ptr<ObjectType> specialize(std::string const& type_name, std::string const& base_name, TemplateArgument template_arg, Args&&... args)
     {
         TemplateArguments template_args = { std::move(template_arg) };
-        return resolve(type_name, template_args, std::forward<Args>(args)...);
+        return specialize(type_name, base_name, template_args, std::forward<Args>(args)...);
     }
 
-    static ErrorOr<std::shared_ptr<ObjectType>> make_type(std::string, FieldDefs);
+    static ErrorOr<std::shared_ptr<ObjectType>> make_struct_type(std::string, FieldDefs, ObjectTypeBuilder const& = nullptr);
+    static std::shared_ptr<ObjectType> register_struct_type(std::string const&, FieldDefs, ObjectTypeBuilder const& = nullptr);
+    static void dump();
 
 private:
     [[nodiscard]] bool is_compatible(MethodDescription const&, ObjectTypes const&) const;
+    static void register_type_in_caches(std::shared_ptr<ObjectType> const&);
 
     PrimitiveType m_type { PrimitiveType::Unknown };
     char const* m_name { nullptr };
     std::string m_name_str;
     size_t m_size { 8 };
+    std::vector<std::string> m_aliases {};
     MethodDescriptions m_methods {};
     FieldDefs m_fields {};
     std::vector<std::shared_ptr<ObjectType>> m_is_a;
     TemplateParameters m_template_parameters {};
-    std::shared_ptr<ObjectType> m_instantiates_template { nullptr };
+    std::shared_ptr<ObjectType> m_specializes_template { nullptr };
     TemplateArguments m_template_arguments {};
     ObjectTypeBuilder m_stamp {};
 
     static std::unordered_map<PrimitiveType, std::shared_ptr<ObjectType>> s_types_by_id;
     static std::unordered_map<std::string, std::shared_ptr<ObjectType>> s_types_by_name;
-    static std::vector<std::shared_ptr<ObjectType>> s_template_instantiations;
+    static std::vector<std::shared_ptr<ObjectType>> s_template_specializations;
 };
 
 template <typename T>
@@ -406,25 +413,25 @@ inline std::shared_ptr<ObjectType> get_type()
 template<>
 inline std::shared_ptr<ObjectType> get_type<int>()
 {
-    return ObjectType::get(PrimitiveType::Int);
+    return ObjectType::get("s32");
 }
 
 template<>
 inline std::shared_ptr<ObjectType> get_type<long>()
 {
-    return ObjectType::get(PrimitiveType::Int);
+    return ObjectType::get("s64");
 }
 
 template<>
 inline std::shared_ptr<ObjectType> get_type<uint8_t>()
 {
-    return ObjectType::get(PrimitiveType::Char);
+    return ObjectType::get("u8");
 }
 
 template<>
 inline std::shared_ptr<ObjectType> get_type<int8_t>()
 {
-    return ObjectType::get(PrimitiveType::Byte);
+    return ObjectType::get("s8");
 }
 
 template<>
@@ -436,25 +443,25 @@ inline std::shared_ptr<ObjectType> get_type<std::string>()
 template<>
 inline std::shared_ptr<ObjectType> get_type<bool>()
 {
-    return ObjectType::get(PrimitiveType::Boolean);
+    return ObjectType::get("bool");
 }
 
 template<>
 inline std::shared_ptr<ObjectType> get_type<double>()
 {
-    return ObjectType::get(PrimitiveType::Float);
+    return ObjectType::get("float");
 }
 
 template<>
 inline std::shared_ptr<ObjectType> get_type<float>()
 {
-    return ObjectType::get(PrimitiveType::Float);
+    return ObjectType::get("float");
 }
 
 template<>
 inline std::shared_ptr<ObjectType> get_type<void*>()
 {
-    return ObjectType::get(PrimitiveType::Pointer);
+    return ObjectType::get("pointer");
 }
 
 template<>

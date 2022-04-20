@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/SyntaxNodeType.h"
 #include <memory>
+
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Context.h>
 #include <obelix/Intrinsics.h>
@@ -40,7 +40,7 @@ NODE_PROCESSOR(StructDefinition)
         bound_fields.push_back(make_node<BoundIdentifier>(field, field_type));
         field_defs.emplace_back(field->name(), field_type);
     }
-    auto type_maybe = ObjectType::make_type(struct_def->name(), field_defs);
+    auto type_maybe = ObjectType::make_struct_type(struct_def->name(), field_defs);
     if (type_maybe.is_error()) {
         auto err = type_maybe.error();
         return SyntaxError { err.code(), struct_def->token(), err.message() };
@@ -72,8 +72,12 @@ NODE_PROCESSOR(VariableDeclaration)
         }
         expr = std::dynamic_pointer_cast<BoundExpression>(processed_expr);
 
-        if (var_type && var_type->type() != PrimitiveType::Any && (*(expr->type()) != *var_type))
+        if (var_type && var_type->type() != PrimitiveType::Any && (*(expr->type()) != *var_type)) {
+            debug(parser, "var_type: {}", var_type);
+            debug(parser, "expr->type(): {}", expr->type());
+            ObjectType::dump();
             return SyntaxError { ErrorCode::TypeMismatch, var_decl->token(), var_decl->name(), var_decl->type(), expr->type() };
+        }
         if (!var_type)
             var_type = expr->type();
     } else if (!var_type) {
@@ -200,8 +204,8 @@ NODE_PROCESSOR(BinaryExpression)
         auto field = lhs->type()->field(ident->name());
         if (field.type->type() == PrimitiveType::Unknown)
             return SyntaxError { ErrorCode::NotMember, rhs->token(), rhs, lhs };
-        auto member_literal = make_node<BoundLiteral>(rhs->token(), ident->name());
-        return std::make_shared<BoundMemberAccess>(lhs, member_literal, field.type);
+        auto member_identifier = make_node<BoundIdentifier>(rhs->token(), ident->name(), field.type);
+        return std::make_shared<BoundMemberAccess>(lhs, member_identifier);
     }
 
     if (lhs == nullptr)
@@ -219,9 +223,9 @@ NODE_PROCESSOR(BinaryExpression)
             return SyntaxError { ErrorCode::CannotAccessMember, lhs->token(), lhs->to_string() };
         if (rhs_bound->type()->type() != PrimitiveType::Int)
             return SyntaxError { ErrorCode::TypeMismatch, rhs->token(), rhs, ObjectType::get(PrimitiveType::Int), rhs_bound->type() };
-        if (rhs_bound->node_type() == SyntaxNodeType::BoundLiteral) {
-            auto literal = std::dynamic_pointer_cast<BoundLiteral>(rhs_bound);
-            auto value = literal->int_value();
+        if (rhs_bound->node_type() == SyntaxNodeType::BoundIntLiteral) {
+            auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(rhs_bound);
+            auto value = literal->value<int>();
             if ((value < 0) || (lhs->type()->template_arguments()[1].as_integer() <= value))
                 return SyntaxError { ErrorCode::IndexOutOfBounds, rhs->token(), value, lhs->type()->template_arguments()[1].as_integer() };
         }
@@ -312,10 +316,19 @@ NODE_PROCESSOR(Identifier)
     return make_node<BoundIdentifier>(ident, var_decl->type());
 }
 
-NODE_PROCESSOR(Literal)
+NODE_PROCESSOR(IntLiteral)
 {
-    auto literal = std::dynamic_pointer_cast<Literal>(tree);
-    return make_node<BoundLiteral>(literal);
+    return make_node<BoundIntLiteral>(std::dynamic_pointer_cast<IntLiteral>(tree));
+}
+
+NODE_PROCESSOR(StringLiteral)
+{
+    return make_node<BoundStringLiteral>(std::dynamic_pointer_cast<StringLiteral>(tree));
+}
+
+NODE_PROCESSOR(BooleanLiteral)
+{
+    return make_node<BoundBooleanLiteral>(std::dynamic_pointer_cast<BooleanLiteral>(tree));
 }
 
 NODE_PROCESSOR(FunctionCall)

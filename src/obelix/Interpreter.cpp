@@ -46,7 +46,7 @@ bool register_interpreter_intrinsic(IntrinsicType type, FunctionType intrinsic)
 INTRINSIC(add_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() + ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -54,7 +54,7 @@ INTRINSIC(add_int_int)
 INTRINSIC(subtract_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() - ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -62,7 +62,7 @@ INTRINSIC(subtract_int_int)
 INTRINSIC(multiply_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() * ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -70,7 +70,7 @@ INTRINSIC(multiply_int_int)
 INTRINSIC(divide_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() / ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -78,7 +78,7 @@ INTRINSIC(divide_int_int)
 INTRINSIC(bitwise_or_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() | ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -86,7 +86,7 @@ INTRINSIC(bitwise_or_int_int)
 INTRINSIC(bitwise_and_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() & ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -94,7 +94,7 @@ INTRINSIC(bitwise_and_int_int)
 INTRINSIC(bitwise_xor_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() ^ ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -102,7 +102,7 @@ INTRINSIC(bitwise_xor_int_int)
 INTRINSIC(shl_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() << ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -110,7 +110,7 @@ INTRINSIC(shl_int)
 INTRINSIC(shr_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() >> ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -118,7 +118,7 @@ INTRINSIC(shr_int)
 INTRINSIC(equals_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() == ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -126,7 +126,7 @@ INTRINSIC(equals_int_int)
 INTRINSIC(greater_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() > ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -134,7 +134,7 @@ INTRINSIC(greater_int_int)
 INTRINSIC(less_int_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
             ctx.arguments()[0]->int_value() < ctx.arguments()[1]->int_value()));
     return {};
 }
@@ -142,84 +142,84 @@ INTRINSIC(less_int_int)
 INTRINSIC(negate_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(), -ctx.arguments()[0]->int_value()));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(), -ctx.arguments()[0]->int_value()));
     return {};
 }
 
 INTRINSIC(invert_int)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(), ~ctx.arguments()[0]->int_value()));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(), ~ctx.arguments()[0]->int_value()));
     return {};
 }
 
 INTRINSIC(add_byte_byte)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
-            static_cast<uint8_t>(ctx.arguments()[0]->char_value() + ctx.arguments()[1]->char_value())));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
+            static_cast<uint8_t>(ctx.arguments()[0]->int_value() + ctx.arguments()[1]->int_value())));
     return {};
 }
 
 INTRINSIC(subtract_byte_byte)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
-            static_cast<uint8_t>(ctx.arguments()[0]->char_value() - ctx.arguments()[1]->char_value())));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
+            static_cast<uint8_t>(ctx.arguments()[0]->int_value() - ctx.arguments()[1]->int_value())));
     return {};
 }
 
 INTRINSIC(multiply_byte_byte)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
-            static_cast<uint8_t>(ctx.arguments()[0]->char_value() * ctx.arguments()[1]->char_value())));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
+            static_cast<uint8_t>(ctx.arguments()[0]->int_value() * ctx.arguments()[1]->int_value())));
     return {};
 }
 
 INTRINSIC(divide_byte_byte)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
-            static_cast<uint8_t>(ctx.arguments()[0]->char_value() / ctx.arguments()[1]->char_value())));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
+            static_cast<uint8_t>(ctx.arguments()[0]->int_value() / ctx.arguments()[1]->int_value())));
     return {};
 }
 
 INTRINSIC(equals_byte_byte)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
-            ctx.arguments()[0]->char_value() == ctx.arguments()[1]->char_value()));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
+            ctx.arguments()[0]->int_value() == ctx.arguments()[1]->int_value()));
     return {};
 }
 
 INTRINSIC(greater_byte_byte)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
-            ctx.arguments()[0]->char_value() > ctx.arguments()[1]->char_value()));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
+            ctx.arguments()[0]->int_value() > ctx.arguments()[1]->int_value()));
     return {};
 }
 
 INTRINSIC(less_byte_byte)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(),
-            ctx.arguments()[0]->char_value() < ctx.arguments()[1]->char_value()));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(),
+            ctx.arguments()[0]->int_value() < ctx.arguments()[1]->int_value()));
     return {};
 }
 
 INTRINSIC(negate_byte)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(), static_cast<uint8_t>(-ctx.arguments()[0]->char_value())));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(), static_cast<uint8_t>(-ctx.arguments()[0]->int_value())));
     return {};
 }
 
 INTRINSIC(invert_byte)
 {
     ctx.set_return_value(
-        std::make_shared<BoundLiteral>(ctx.arguments()[0]->token(), static_cast<uint8_t>(~ctx.arguments()[0]->char_value())));
+        std::make_shared<BoundIntLiteral>(ctx.arguments()[0]->token(), static_cast<uint8_t>(~ctx.arguments()[0]->int_value())));
     return {};
 }
 
@@ -471,8 +471,8 @@ NODE_PROCESSOR(BoundBinaryExpression)
         return tree;
 
     ctx.reset();
-    ctx.add_argument(std::dynamic_pointer_cast<BoundLiteral>(lhs));
-    ctx.add_argument(std::dynamic_pointer_cast<BoundLiteral>(rhs));
+    ctx.add_argument(std::dynamic_pointer_cast<BoundIntLiteral>(lhs));
+    ctx.add_argument(std::dynamic_pointer_cast<BoundIntLiteral>(rhs));
     
     auto func = s_intrinsics[impl.intrinsic];
     if (auto err = func(ctx); err.is_error())
@@ -496,7 +496,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
         return tree;
 
     ctx.reset();
-    ctx.add_argument(std::dynamic_pointer_cast<BoundLiteral>(operand));
+    ctx.add_argument(std::dynamic_pointer_cast<BoundIntLiteral>(operand));
     
     auto func = s_intrinsics[impl.intrinsic];
     if (auto err = func(ctx); err.is_error())

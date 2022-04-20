@@ -157,6 +157,12 @@ public:
     {
     }
 
+    explicit ExpressionType(Token token, std::shared_ptr<ObjectType> const& type)
+        : TemplateArgumentNode(std::move(token))
+        , m_type_name(type->name())
+    {
+    }
+
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::ExpressionType; }
     [[nodiscard]] bool is_template_instantiation() const { return !m_template_args.empty(); }
     [[nodiscard]] std::string const& type_name() const { return m_type_name; }
@@ -185,7 +191,7 @@ public:
                 fatal("Unreachable: nodes of type '{}' can't be template arguments", arg->node_type());
             }
         }
-        return ObjectType::resolve(type_name(), args);
+        return ObjectType::specialize(type_name(), args);
     }
 
     [[nodiscard]] Nodes children() const override
@@ -600,46 +606,67 @@ private:
     std::shared_ptr<Expression> m_expression;
 };
 
+template <typename LiteralType>
 class Literal : public Expression {
-public:
-    enum class Type {
-        Unknown,
-        String,
-        Int,
-        Char,
-        Float,
-        Boolean,
-    };
-
-    static std::string get_type(Type type) {
-        switch (type) {
-        case Type::Unknown:
-            return "unknown";
-        case Type::String:
-            return "string";
-        case Type::Int:
-            return "int";
-        case Type::Char:
-            return "u8";
-        case Type::Float:
-            return "float";
-        case Type::Boolean:
-            return "bool";
-        }
-    }
-
-    Literal(Token const& t, Type type)
-        : Expression(t, std::make_shared<ExpressionType>(t, get_type(type)))
-        , m_literal_type(type)
+protected:
+    Literal(Token const& t)
+        : Expression(t, std::make_shared<ExpressionType>(t, get_type<LiteralType>()))
     {
     }
 
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::Literal; }
+public:
     [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", Expression::token().value(), type_name()); }
     [[nodiscard]] std::string to_string() const override { return format("{}: {}", Expression::token().value(), type()->to_string()); }
-    [[nodiscard]] Type literal_type() const { return m_literal_type; }
-private:
-    Type m_literal_type { Type::Unknown };
+};
+
+class IntLiteral : public Literal<long> {
+public:
+    IntLiteral(Token const& t)
+        : Literal(t)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::IntLiteral; }
+};
+
+class CharLiteral : public Literal<char> {
+public:
+    CharLiteral(Token const& t)
+        : Literal(t)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::CharLiteral; }
+};
+
+class FloatLiteral : public Literal<double> {
+public:
+    FloatLiteral(Token const& t)
+        : Literal(t)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::FloatLiteral; }
+};
+
+class StringLiteral : public Literal<std::string> {
+public:
+    StringLiteral(Token const& t)
+        : Literal(t)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::StringLiteral; }
+};
+
+class BooleanLiteral : public Literal<bool> {
+public:
+    BooleanLiteral(Token const& t)
+        : Literal(t)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BooleanLiteral; }
 };
 
 using Expressions = std::vector<std::shared_ptr<Expression>>;

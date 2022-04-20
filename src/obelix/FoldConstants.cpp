@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <memory>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Interpreter.h>
 #include <obelix/Parser.h>
@@ -21,8 +22,8 @@ NODE_PROCESSOR(BoundVariableDeclaration)
 {
     auto var_decl = std::dynamic_pointer_cast<BoundVariableDeclaration>(tree);
     auto expr = TRY_AND_CAST(BoundExpression, process(var_decl->expression(), ctx));
-    if (var_decl->is_const() && expr->node_type() == SyntaxNodeType::BoundLiteral) {
-        auto literal = std::dynamic_pointer_cast<BoundLiteral>(expr);
+    auto literal = std::dynamic_pointer_cast<BoundLiteral>(expr);
+    if (var_decl->is_const() && (literal != nullptr)) {
         ctx.declare(var_decl->name(), literal);
         return make_node<Pass>(var_decl);
     }
@@ -35,7 +36,7 @@ NODE_PROCESSOR(BoundBinaryExpression)
     auto lhs = TRY_AND_CAST(BoundExpression, process(expr->lhs(), ctx));
     auto rhs = TRY_AND_CAST(BoundExpression, process(expr->rhs(), ctx));
 
-    if (lhs->node_type() == SyntaxNodeType::BoundLiteral && rhs->node_type() == SyntaxNodeType::BoundLiteral && expr->op() != BinaryOperator::Range && !BinaryOperator_is_assignment(expr->op())) {
+    if (lhs->node_type() == SyntaxNodeType::BoundIntLiteral && rhs->node_type() == SyntaxNodeType::BoundIntLiteral && expr->op() != BinaryOperator::Range && !BinaryOperator_is_assignment(expr->op())) {
         return TRY(interpret(expr));
     }
 
@@ -54,13 +55,13 @@ NODE_PROCESSOR(BoundBinaryExpression)
     // FIXME: This implies that equals precedence implies that the operations are associative.
     // This is not necessarily true.
     //
-    if (lhs->node_type() == SyntaxNodeType::BoundLiteral && rhs->node_type() == SyntaxNodeType::BinaryExpression) {
-        auto lhs_literal = std::dynamic_pointer_cast<BoundLiteral>(lhs);
+    auto lhs_literal = std::dynamic_pointer_cast<BoundLiteral>(lhs);
+    if ((lhs_literal != nullptr) && rhs->node_type() == SyntaxNodeType::BinaryExpression) {
         auto rhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(rhs);
-        if (rhs_expr->lhs()->node_type() == SyntaxNodeType::BoundLiteral && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(rhs_expr->op())) {
+        if ((std::dynamic_pointer_cast<BoundLiteral>(rhs_expr->lhs()) != nullptr) && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(rhs_expr->op())) {
             std::shared_ptr<BoundExpression> new_lhs = make_node<BoundBinaryExpression>(lhs->token(), lhs, expr->op(), rhs_expr->lhs(), expr->type());
             new_lhs = TRY_AND_CAST(BoundExpression, interpret(new_lhs));
-            if (new_lhs->node_type() == SyntaxNodeType::BoundLiteral) {
+            if (std::dynamic_pointer_cast<BoundLiteral>(new_lhs) != nullptr) {
                 return std::make_shared<BoundBinaryExpression>(expr->token(),
                     new_lhs,
                     rhs_expr->op(),
@@ -70,13 +71,13 @@ NODE_PROCESSOR(BoundBinaryExpression)
         }
     }
 
-    if (rhs->node_type() == SyntaxNodeType::BoundLiteral && lhs->node_type() == SyntaxNodeType::BinaryExpression) {
-        auto rhs_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
+    auto rhs_literal = std::dynamic_pointer_cast<BoundLiteral>(rhs);
+    if ((rhs_literal != nullptr) && lhs->node_type() == SyntaxNodeType::BinaryExpression) {
         auto lhs_expr = std::dynamic_pointer_cast<BoundBinaryExpression>(lhs);
-        if (lhs_expr->rhs()->node_type() == SyntaxNodeType::BoundLiteral && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(lhs_expr->op())) {
+        if ((std::dynamic_pointer_cast<BoundLiteral>(lhs_expr->rhs()) != nullptr) && BinaryOperator_precedence(expr->op()) == BinaryOperator_precedence(lhs_expr->op())) {
             std::shared_ptr<BoundExpression> new_rhs = make_node<BoundBinaryExpression>(rhs->token(), lhs_expr->rhs(), expr->op(), rhs, expr->type());
             new_rhs = TRY_AND_CAST(BoundExpression, interpret(new_rhs));
-            if (new_rhs->node_type() == SyntaxNodeType::BoundLiteral) {
+            if (std::dynamic_pointer_cast<BoundLiteral>(new_rhs) != nullptr) {
                 return std::make_shared<BoundBinaryExpression>(expr->token(),
                     lhs_expr->lhs(),
                     lhs_expr->op(),
@@ -96,7 +97,7 @@ NODE_PROCESSOR(BoundUnaryExpression)
     if (expr->op() == UnaryOperator::Identity)
         return operand;
 
-    if (operand->node_type() == SyntaxNodeType::BoundLiteral) {
+    if (std::dynamic_pointer_cast<BoundLiteral>(operand) != nullptr) {
         return TRY(interpret(expr));
     }
     return std::make_shared<BoundUnaryExpression>(expr->token(), operand, expr->op(), expr->type());
@@ -119,9 +120,10 @@ NODE_PROCESSOR(BoundBranch)
     if (cond == nullptr)
         return stmt;
 
-    if (cond->node_type() == SyntaxNodeType::BoundLiteral) {
-        auto cond_literal = std::dynamic_pointer_cast<BoundLiteral>(cond);
-        auto cond_value = cond_literal->bool_value();
+
+    auto cond_literal = std::dynamic_pointer_cast<BoundBooleanLiteral>(cond);
+    if (cond_literal != nullptr) {
+        auto cond_value = cond_literal->value();
         if (cond_value) {
             return stmt;
         } else {

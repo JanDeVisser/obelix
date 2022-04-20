@@ -1,5 +1,6 @@
 func main() : int
 {
-   var x = puts("Hello, World!\n");
+   var s = "Hello, World!\n";
+   var x = puts(s);
    return 1;
 }

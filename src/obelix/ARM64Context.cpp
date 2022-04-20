@@ -106,12 +106,6 @@ void ARM64Context::release_target_register(PrimitiveType type)
         int current = m_target_register.back();
         if (current && (type != PrimitiveType::Unknown)) {
             assembly().add_instruction("mov", "x{},x0", current);
-#if 0
-            if (type == PrimitiveType::String) {
-                assembly().add_instruction("mov", "x{},x1", current + 1);
-                inc_target_register();
-            }
-#endif
         }
         for (auto ix = 0; ix < current; ++ix) {
             pop(*this, format("x{}", ix));
@@ -119,12 +113,13 @@ void ARM64Context::release_target_register(PrimitiveType type)
     }
 }
 
-void ARM64Context::inc_target_register()
+int ARM64Context::inc_target_register()
 {
     assert(!m_target_register.empty());
     int current = m_target_register.back();
     m_target_register.pop_back();
     m_target_register.push_back(++current);
+    return current;
 }
 
 int ARM64Context::target_register() const
@@ -132,5 +127,26 @@ int ARM64Context::target_register() const
     assert(!m_target_register.empty());
     return m_target_register.back();
 }
+
+void ARM64Context::reset_registers()
+{
+    while (!m_target_register.empty())
+        release_target_register();
+}
+
+void ARM64Context::reserve_on_stack(size_t bytes)
+{
+    if (bytes % 16)
+        bytes = bytes + (16 - (bytes % 16));
+    assembly().add_instruction("sub", "sp,sp,#{}", bytes);
+    m_stack_allocated += bytes;
+}
+
+void ARM64Context::release_stack()
+{
+    assembly().add_instruction("add", "sp,sp,#{}", m_stack_allocated);
+    m_stack_allocated = 0;
+}
+
 
 }

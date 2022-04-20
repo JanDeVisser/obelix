@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "core/StringUtil.h"
-#include "lexer/Token.h"
-#include "obelix/Type.h"
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Intrinsics.h>
 #include <obelix/Parser.h>
@@ -796,22 +793,21 @@ std::shared_ptr<Expression> Parser::parse_primary_expression()
         return make_node<UnaryExpression>(t, operand);
     }
     case TokenCode::Integer:
-        return make_node<Literal>(t, Literal::Type::Int);
     case TokenCode::HexNumber:
-        return make_node<Literal>(t, Literal::Type::Int);
+        return make_node<IntLiteral>(t);
     case TokenCode::Float:
-        return make_node<Literal>(t, Literal::Type::Float);
+        return make_node<FloatLiteral>(t);
     case TokenCode::DoubleQuotedString:
-        return make_node<Literal>(t, Literal::Type::String);
+        return make_node<StringLiteral>(t);
     case TokenCode::SingleQuotedString:
         if (t.value().length() != 1) {
             add_error(t, format("Syntax Error: Single-quoted string should only hold a single character, not '{}'", t.value()));
             return nullptr;
         }
-        return make_node<Literal>(t, Literal::Type::Char);
+        return make_node<CharLiteral>(t);
     case KeywordTrue:
     case KeywordFalse:
-        return make_node<Literal>(t, Literal::Type::Boolean);
+        return make_node<BooleanLiteral>(t);
     case TokenCode::Identifier: {
         return make_node<Identifier>(t, t.value());
     }

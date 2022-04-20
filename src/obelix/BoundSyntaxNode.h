@@ -99,8 +99,8 @@ using BoundIdentifiers = std::vector<std::shared_ptr<BoundIdentifier>>;
 
 class BoundMemberAccess : public BoundVariableAccess {
 public:
-    BoundMemberAccess(std::shared_ptr<BoundExpression> strukt, std::shared_ptr<BoundExpression> member, std::shared_ptr<ObjectType> type)
-        : BoundVariableAccess(strukt->token(), move(type))
+    BoundMemberAccess(std::shared_ptr<BoundExpression> strukt, std::shared_ptr<BoundIdentifier> member)
+        : BoundVariableAccess(strukt->token(), member->type())
         , m_struct(move(strukt))
         , m_member(move(member))
     {
@@ -108,14 +108,14 @@ public:
 
     [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundMemberAccess; }
     [[nodiscard]] std::shared_ptr<BoundExpression> const& structure() const { return m_struct; }
-    [[nodiscard]] std::shared_ptr<BoundExpression> const& member() const { return m_member; }
+    [[nodiscard]] std::shared_ptr<BoundIdentifier> const& member() const { return m_member; }
     [[nodiscard]] std::string attributes() const override { return format(R"(type="{}")", type()); }
     [[nodiscard]] Nodes children() const override { return { m_struct, m_member }; }
     [[nodiscard]] std::string to_string() const override { return format("{}.{}: {}", structure(), member(), type_name()); }
 
 private:
     std::shared_ptr<BoundExpression> m_struct;
-    std::shared_ptr<BoundExpression> m_member;
+    std::shared_ptr<BoundIdentifier> m_member;
 };
 
 class BoundArrayAccess : public BoundVariableAccess {
@@ -316,140 +316,110 @@ protected:
 
 class BoundLiteral : public BoundExpression {
 public:
-    explicit BoundLiteral(std::shared_ptr<Literal> const& literal)
-        : BoundExpression(literal, ObjectType::get(literal->type()->type_name()))
-    {
-        if (*type() == *get_type<std::string>()) {
-            m_string = token().value();
-            m_bool = !m_string.empty();
-            return;
-        }
-        switch (type()->type()) {
-        case PrimitiveType::Int:
-            m_int = token().to_long().value();
-            m_bool = m_int != 0;
-            break;
-        case PrimitiveType::Float:
-            m_float = token().to_double().value();
-            m_bool = m_float != 0.0;
-            break;
-        case PrimitiveType::Boolean:
-            m_bool = token().to_bool().value();
-            break;
-        default:
-            fatal("Unreachable");
-        }
-    }
-
-    explicit BoundLiteral(Token t, std::string value)
-        : BoundExpression(t, get_type<std::string>())
-        , m_string(move(value))
-        , m_bool(!m_string.empty())
+    BoundLiteral(Token token, std::shared_ptr<ObjectType> type)
+        : BoundExpression(std::move(token), move(type))
     {
     }
 
-    explicit BoundLiteral(Token t, long value)
-        : BoundExpression(t, ObjectType::get(PrimitiveType::Int))
-        , m_int(value)
-        , m_bool(value != 0)
+    [[nodiscard]] virtual long int_value() const
+    {
+        fatal("Called int_value() on '{}'", node_type());
+    }
+
+    [[nodiscard]] virtual std::string string_value() const
+    {
+        fatal("Called string_value() on '{}'", node_type());
+    }
+
+    [[nodiscard]] virtual bool bool_value() const
+    {
+        fatal("Called bool_value() on '{}'", node_type());
+    }
+};
+
+class BoundIntLiteral : public BoundLiteral {
+public:
+    explicit BoundIntLiteral(std::shared_ptr<IntLiteral> const& literal)
+        : BoundLiteral(literal->token(), get_type<int>())
+    {
+        m_int = token().token_value<long>();
+    }
+
+    template <typename IntType=int>
+    explicit BoundIntLiteral(Token t, IntType value)
+        : BoundLiteral(std::move(t), get_type<IntType>())
+        , m_int(static_cast<long>(value))
     {
     }
 
-    explicit BoundLiteral(Token t, int value)
-        : BoundExpression(t, ObjectType::get(PrimitiveType::Int))
-        , m_int(value)
-        , m_bool(value != 0)
-    {
-    }
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundIntLiteral; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", value(), type()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", value(), type()); }
 
-    explicit BoundLiteral(Token t, size_t value)
-        : BoundExpression(t, ObjectType::get(PrimitiveType::Int))
-        , m_int(value)
-        , m_bool(value != 0)
-    {
-    }
+    template <typename IntType=int>
+    [[nodiscard]] IntType value() const { return static_cast<IntType>(m_int); }
 
-    explicit BoundLiteral(Token t, uint8_t value)
-        : BoundExpression(t, ObjectType::get(PrimitiveType::Char))
-        , m_int(value)
-        , m_bool(value != 0)
+    [[nodiscard]] long int_value() const override
     {
+        return value<long>();
     }
-
-    explicit BoundLiteral(Token t, int8_t value)
-        : BoundExpression(t, ObjectType::get(PrimitiveType::Byte))
-        , m_int(value)
-        , m_bool(value != 0)
-    {
-    }
-
-    explicit BoundLiteral(Token t, double value)
-        : BoundExpression(t, ObjectType::get(PrimitiveType::Float))
-        , m_float(value)
-        , m_bool(value != 0.0)
-    {
-    }
-
-    explicit BoundLiteral(Token t, bool value)
-        : BoundExpression(t, ObjectType::get(PrimitiveType::Boolean))
-        , m_bool(value)
-    {
-    }
-
-    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundLiteral; }
-    [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", as_string(), type()); }
-    [[nodiscard]] std::string to_string() const override { return format("{}: {}", as_string(), type()); }
-
-    [[nodiscard]] std::string const& string_value() const
-    {
-        assert(type()->name() == "string");
-        return m_string;
-    }
-
-    [[nodiscard]] long int_value() const
-    {
-        assert(type()->type() == PrimitiveType::Int);
-        return m_int;
-    }
-
-    [[nodiscard]] double float_value() const
-    {
-        assert(type()->type() == PrimitiveType::Float);
-        return m_float;
-    }
-
-    [[nodiscard]] uint8_t char_value() const
-    {
-        assert(type()->type() == PrimitiveType::Char);
-        return static_cast<uint8_t>(m_int);
-    }
-    [[nodiscard]] bool bool_value() const { return m_bool; }
 
 private:
-    [[nodiscard]] std::string as_string() const
+    long m_int;
+};
+
+class BoundStringLiteral : public BoundLiteral {
+public:
+    explicit BoundStringLiteral(std::shared_ptr<StringLiteral> const& literal)
+        : BoundStringLiteral(literal->token(), literal->token().value())
     {
-        if (type()->name() == "string") {
-            return m_string;
-        }
-        switch (type()->type()) {
-            case PrimitiveType::Int:
-            case PrimitiveType::Unsigned:
-            case PrimitiveType::Byte:
-            case PrimitiveType::Char:
-                return Obelix::to_string(m_int);
-            case PrimitiveType::Float:
-                return Obelix::to_string(m_float);
-            case PrimitiveType::Boolean:
-                return Obelix::to_string(m_bool);
-            default:
-                return "???";
-        }
     }
 
+    explicit BoundStringLiteral(Token t, std::string value)
+        : BoundLiteral(std::move(t), get_type<std::string>())
+        , m_string(move(value))
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundStringLiteral; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", value(), type()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", value(), type()); }
+    [[nodiscard]] std::string const& value() const { return m_string; }
+
+    [[nodiscard]] std::string string_value() const override
+    {
+        return value();
+    }
+
+private:
     std::string m_string;
-    long m_int;
-    double m_float;
-    bool m_bool;
+};
+
+class BoundBooleanLiteral : public BoundLiteral {
+public:
+    explicit BoundBooleanLiteral(std::shared_ptr<BooleanLiteral> const& literal)
+        : BoundBooleanLiteral(literal->token(), literal->token().token_value<bool>())
+    {
+    }
+
+    explicit BoundBooleanLiteral(Token t, bool value)
+        : BoundLiteral(std::move(t), get_type<bool>())
+        , m_value(value)
+    {
+    }
+
+    [[nodiscard]] SyntaxNodeType node_type() const override { return SyntaxNodeType::BoundBooleanLiteral; }
+    [[nodiscard]] std::string attributes() const override { return format(R"(value="{}" type="{}")", value(), type()); }
+    [[nodiscard]] std::string to_string() const override { return format("{}: {}", value(), type()); }
+    [[nodiscard]] bool value() const { return m_value; }
+
+    [[nodiscard]] bool bool_value() const override
+    {
+        return value();
+    }
+
+private:
+    bool m_value;
 };
 
 class BoundBinaryExpression : public BoundExpression {
@@ -599,7 +569,7 @@ public:
 
 class BoundIntrinsicCall : public BoundExpression {
 public:
-    explicit BoundIntrinsicCall(std::shared_ptr<FunctionCall> const& call, IntrinsicType intrinsic, BoundExpressions arguments, std::shared_ptr<ObjectType> type)
+    BoundIntrinsicCall(std::shared_ptr<FunctionCall> const& call, IntrinsicType intrinsic, BoundExpressions arguments, std::shared_ptr<ObjectType> type)
         : BoundExpression(call->token(), move(type))
         , m_name(call->name())
         , m_arguments(move(arguments))
@@ -607,11 +577,19 @@ public:
     {
     }
 
-    explicit BoundIntrinsicCall(Token token, std::string name, IntrinsicType intrinsic, BoundExpressions arguments, std::shared_ptr<ObjectType> type)
+    BoundIntrinsicCall(Token token, std::string name, IntrinsicType intrinsic, BoundExpressions arguments, std::shared_ptr<ObjectType> type)
         : BoundExpression(std::move(token), move(type))
         , m_name(move(name))
         , m_arguments(move(arguments))
         , m_intrinsic(intrinsic)
+    {
+    }
+
+    BoundIntrinsicCall(std::shared_ptr<BoundIntrinsicCall> const& call, BoundExpressions arguments)
+        : BoundExpression(call->token(), call->type())
+        , m_name(call->name())
+        , m_arguments(move(arguments))
+        , m_intrinsic(call->intrinsic())
     {
     }
 

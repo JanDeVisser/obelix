@@ -1,0 +1,5 @@
+func main(): int
+{
+  var x: string = "Hello, World!";
+  return 0;
+}
