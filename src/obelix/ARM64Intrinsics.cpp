@@ -38,17 +38,18 @@ ARM64FunctionType const& get_arm64_intrinsic(IntrinsicType type)
 
 INTRINSIC(add_str_str)
 {
-    ctx.assembly().add_instruction("mov", "x4,x0");
-    ctx.assembly().add_instruction("mov", "w5,w1");
-    ctx.assembly().add_instruction("mov", "x6,x2");
-    ctx.assembly().add_instruction("mov", "w7,w3");
-    ctx.assembly().add_instruction("add", "w1,w1,w3");
+    ctx.assembly().add_instruction("mov", "w4,w0");
+    ctx.assembly().add_instruction("mov", "x5,x1");
+    ctx.assembly().add_instruction("mov", "w6,w2");
+    ctx.assembly().add_instruction("mov", "x7,x3");
+    ctx.assembly().add_instruction("add", "w0,w0,w2");
     ctx.assembly().add_instruction("bl", "string_alloc");
-    ctx.assembly().add_instruction("mov", "w1,w5");
-    ctx.assembly().add_instruction("mov", "x2,x6");
-    ctx.assembly().add_instruction("mov", "w3,w7");
+    ctx.assembly().add_instruction("mov", "w0,w4");
+    ctx.assembly().add_instruction("mov", "w2,w6");
+    ctx.assembly().add_instruction("mov", "x3,x7");
     ctx.assembly().add_instruction("bl", "string_concat");
-    ctx.assembly().add_instruction("add", "w1,w5,w7");
+    ctx.assembly().add_instruction("mov", "x1,x0");
+    ctx.assembly().add_instruction("add", "w0,w4,w6");
     return {};
 }
 
@@ -68,8 +69,7 @@ INTRINSIC(allocate)
 
 INTRINSIC(eputs)
 {
-    ctx.assembly().add_instruction("mov", "x2,x1");
-    ctx.assembly().add_instruction("mov", "x1,x0");
+    ctx.assembly().add_instruction("mov", "x2,x0");
     ctx.assembly().add_instruction("mov", "x0,#2");
     ctx.assembly().syscall(0x04);
     return {};
@@ -105,8 +105,8 @@ INTRINSIC(int_to_string)
 {
     ctx.assembly().add_instruction("mov", "x2,x0");
     ctx.assembly().add_instruction("sub", "sp,sp,32");
-    ctx.assembly().add_instruction("mov", "x0,sp");
-    ctx.assembly().add_instruction("mov", "x1,#32");
+    ctx.assembly().add_instruction("mov", "x1,sp");
+    ctx.assembly().add_instruction("mov", "x0,#32");
     ctx.assembly().add_instruction("mov", "w3,#10");
     ctx.assembly().add_instruction("bl", "to_string");
     ctx.assembly().add_instruction("bl", "string_alloc");

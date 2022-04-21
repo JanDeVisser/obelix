@@ -1,9 +1,14 @@
 .include "rt/syscalls.inc"
 .align 4
 
-// x0 - fd to read from (1=stdout, 2=stderr)
-// x1 points to start of string
-// x2 holds number of characters to read
+; In:
+fd  .req x0    ; fd to read from (1=stdout, 2=stderr)
+buffer .req x1 ; Buffer to read into
+len .req w2    ; Number of characters to read
+
+; Out
+; x0: >0: bytes read, <0: -errno
+
 read:
         mov     x16, syscall_read
         svc     #0x80

@@ -4,6 +4,7 @@ add_library(
         STATIC
         close.s
         cstr_to_str.s
+        cstrlen.s
         exit.s
         memcpy.s
         memset.s

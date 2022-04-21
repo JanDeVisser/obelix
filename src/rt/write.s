@@ -1,9 +1,14 @@
 .include "rt/syscalls.inc"
 .align 4
 
-// x0 - fd to print to (1=stdout, 2=stderr)
-// x1 points to start of string
-// x2 holds number of characters to print
+; In:
+fd  .req x0    ; fd to write to (0=stdin)
+buffer .req x1 ; Buffer to write from
+len .req w2    ; Number of characters to write
+
+; Out
+; x0: >0: bytes written, <0: -errno
+
 write:
         mov     x16,syscall_write // MacOS write system call
         svc     #0x80                  // Call MacOS to output the string

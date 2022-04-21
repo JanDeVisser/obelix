@@ -1,24 +1,30 @@
 .global strncpy
 .align 2
 
+; strncpy - Copy characters from src to dst up to len characters or the first \0
+;           character, whichever comes first.
+
+; In
 dst    .req x0
 src    .req x1
 len    .req w2
 
-char    .req w22
-char64  .req x22
-iter    .req x23
-target  .req x24
-count   .req w25
-count64 .req x25
-step    .req x26
+; Out
+; x0 - dst
+; x1 - dst + count + 1 - One past the end of the copied string.
+
+; Work
+char    .req w9
+char64  .req x10
+iter    .req x11
+target  .req x12
+count   .req w13
+count64 .req x14
+step    .req x15
 
 strncpy:
     stp     fp,lr,[sp,#-16]!
     mov     fp,sp
-    str     char64,[sp,#-16]!
-    stp     iter,target,[sp,#-16]!
-    stp     count64,step,[sp,#-16]!
 
     add     iter,src,len,uxtw               ; Find end of src buffer
     cmp     iter,dst                        ; Compare to dst
@@ -50,8 +56,5 @@ __strncpy_loop:
 
 __strncpy_done:
     add     src,dst,count,uxtw              ; Copy pointer to last byte +1 of dst in src (x1)
-    ldp     count64,step,[sp],#16          ; Restore registers
-    ldp     iter,target,[sp],#16
-    ldr     char64,[sp],#16
     ldp     fp,lr,[sp],#16
     ret                                     ; Return

@@ -1,30 +1,31 @@
 .global cstr_to_str
 .align 2
 
-cstr   .req x0
-len    .req x1
+; cstr_to_str - Allocates a new string buffer and copies a the passed-in null
+;               terminated string into it.
 
-char    .req w22
-char64  .req x22
-ptr     .req x23
+; In
+cstr       .req x0
+
+; Out
+len        .req w0
+data       .req x1
+
+; Work
+char       .req w9
+ptr        .req x10
+cstr_stash .req x11
 
 cstr_to_str:
     stp     fp,lr,[sp,#-16]!
     mov     fp,sp
-    stp     char64,ptr,[sp,#-16]!
 
-    mov     len,xzr
-    mov     ptr,cstr
+    mov     cstr_stash,cstr
+    bl      cstrlen             ; Returns len in w0 which we pass straight into string_alloc
 
-__cstr_to_str_loop:
-    ldrb    char,[ptr]
-    cmp     char,#0
-    b.eq    __cstr_to_str_done
-    add     len,len,#1
-    add     ptr,ptr,#1
-    b       __cstr_to_str_loop
+    mov     x1,cstr_stash
+    bl      string_alloc
 
 __cstr_to_str_done:
-    ldr     char64,[sp],#16
     ldp     fp,lr,[sp],#16
-    ret                                     ; Return
+    ret                         ; Return
