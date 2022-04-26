@@ -223,7 +223,21 @@ ErrorOrNode process_tree(std::shared_ptr<SyntaxNode> const& tree, Context& ctx, 
     case SyntaxNodeType::BoundFunctionCall: {
         auto func_call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
         auto arguments = TRY(xform_bound_expressions(func_call->arguments(), ctx, processor));
-        ret = std::make_shared<BoundFunctionCall>(func_call->token(), func_call->declaration(), arguments);
+        ret = std::make_shared<BoundFunctionCall>(func_call, arguments);
+        break;
+    }
+
+    case SyntaxNodeType::BoundNativeFunctionCall: {
+        auto func_call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
+        auto arguments = TRY(xform_bound_expressions(func_call->arguments(), ctx, processor));
+        ret = std::make_shared<BoundNativeFunctionCall>(func_call, arguments);
+        break;
+    }
+
+    case SyntaxNodeType::BoundIntrinsicCall: {
+        auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
+        auto arguments = TRY(xform_bound_expressions(call->arguments(), ctx, processor));
+        ret = std::make_shared<BoundIntrinsicCall>(call, arguments);
         break;
     }
 
@@ -425,10 +439,8 @@ ErrorOr<Expressions, SyntaxError> xform_expressions(Expressions const& expressio
 {
     Expressions ret;
     for (auto& expr : expressions) {
-        auto new_expr = processor(expr, ctx);
-        if (new_expr.is_error())
-            return new_expr.error();
-        ret.push_back(std::dynamic_pointer_cast<Expression>(new_expr.value()));
+        auto new_expr = TRY(processor(expr, ctx));
+        ret.push_back(std::dynamic_pointer_cast<Expression>(new_expr));
     }
     return ret;
 };

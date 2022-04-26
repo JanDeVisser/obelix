@@ -81,7 +81,7 @@ INTRINSIC(eputs)
 {
     ctx.assembly().add_text(
 R"(
-    mov     x2,x0"
+    mov     x2,x0
     mov     x0,#2
 )");
     ctx.assembly().syscall(0x04);
@@ -90,6 +90,12 @@ R"(
 
 INTRINSIC(fputs)
 {
+    ctx.assembly().add_text(
+R"(
+    mov     x4,x2
+    mov     x2,x1
+    mov     x2,x4
+)");
     ctx.assembly().syscall(0x04);
     return {};
 }
@@ -138,39 +144,6 @@ INTRINSIC(putchar)
     return {};
 }
 
-
-#if 0
-INTRINSIC(puts)
-{
-    ctx.assembly().add_text(
-R"(
-    cmp     x1,#0
-    b.ne    __puts_print
-    adrp    x8,__str_nullptr@PAGE
-    ldr     x1,[x8, __str_nullptr@PAGEOFF]           
-    adrp    x8,__str_nullptr_len@PAGE
-    ldr     x0,[x8, __str_nullptr_len@PAGEOFF]           
-__puts_print:
-    mov     x2,x0
-    mov     x0,#1;
-)");
-    ctx.assembly().syscall(0x04);
-    return {};
-}
-
-INTRINSIC(putln)
-{
-    TRY_RETURN(arm64_intrinsic_puts(ctx));
-    ctx.assembly().add_text(
-R"(
-    mov     x0,#1
-    mov     x1,#10
-    mov     x2,#1
-)");
-    ctx.assembly().syscall(0x04);
-    return {};
-}
-#endif
 
 INTRINSIC(ptr_math)
 {

@@ -204,7 +204,8 @@ NODE_PROCESSOR(BoundBinaryExpression)
 std::shared_ptr<MaterializedIdentifier> make_materialized_identifier(std::shared_ptr<BoundIdentifier> identifier, std::string label, int offset)
 {
     switch (identifier->type()->type()) {
-    case PrimitiveType::Int:
+    case PrimitiveType::IntegerNumber:
+    case PrimitiveType::SignedIntegerNumber:
         return make_node<MaterializedIntIdentifier>(identifier, move(label), offset);
     case PrimitiveType::Struct:
         return make_node<MaterializedStructIdentifier>(identifier, move(label), offset);

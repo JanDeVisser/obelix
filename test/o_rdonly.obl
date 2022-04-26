@@ -1,0 +1,4 @@
+func main(argc: int, argv: ptr<ptr<char>>) : int
+{
+  return O_RDONLY;
+}

@@ -554,7 +554,7 @@ private:
 
 class BoundNativeFunctionCall : public BoundFunctionCall {
 public:
-    explicit BoundNativeFunctionCall(std::shared_ptr<FunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundNativeFunctionDecl> decl)
+    BoundNativeFunctionCall(std::shared_ptr<FunctionCall> const& call, BoundExpressions arguments, std::shared_ptr<BoundNativeFunctionDecl> decl)
         : BoundFunctionCall(call, move(arguments), move(decl))
     {
     }

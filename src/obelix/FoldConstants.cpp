@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/SyntaxNodeType.h"
 #include <memory>
 #include <obelix/BoundSyntaxNode.h>
 #include <obelix/Interpreter.h>
@@ -27,8 +28,17 @@ NODE_PROCESSOR(BoundVariableDeclaration)
         ctx.declare(var_decl->name(), literal);
         return make_node<Pass>(var_decl);
     }
-    return make_node<BoundVariableDeclaration>(var_decl->token(), var_decl->variable(), var_decl->is_const(), expr);
+    switch (var_decl->node_type()) {
+    case SyntaxNodeType::BoundVariableDeclaration:
+        return make_node<BoundVariableDeclaration>(var_decl->token(), var_decl->variable(), var_decl->is_const(), expr);
+    case SyntaxNodeType::BoundStaticVariableDeclaration:
+        return make_node<BoundStaticVariableDeclaration>(var_decl->token(), var_decl->variable(), var_decl->is_const(), expr);
+    default:
+        fatal("Unreachable: node type = {}", var_decl->node_type());
+    }
 }
+
+ALIAS_NODE_PROCESSOR(BoundStaticVariableDeclaration, BoundVariableDeclaration);
 
 NODE_PROCESSOR(BoundBinaryExpression)
 {
@@ -119,7 +129,6 @@ NODE_PROCESSOR(BoundBranch)
     auto stmt = TRY_AND_CAST(Statement, process(elif->statement(), ctx));
     if (cond == nullptr)
         return stmt;
-
 
     auto cond_literal = std::dynamic_pointer_cast<BoundBooleanLiteral>(cond);
     if (cond_literal != nullptr) {

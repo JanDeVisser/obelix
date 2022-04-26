@@ -24,11 +24,6 @@ puthex:
     mov     w0,#32
     mov     w3,#16
     bl      to_string
-
-    ; Print the string we generated using to_string:
-    mov     x2,x0
-    mov     x0,#1
-    mov     x16,#0x04
-    svc     #0x00
+    bl      puts
     ldp     fp,lr,[sp],#48
     ret

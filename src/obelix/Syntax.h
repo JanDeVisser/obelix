@@ -440,7 +440,7 @@ public:
     [[nodiscard]] Modules const& modules() const { return m_modules; }
     [[nodiscard]] Nodes children() const override
     {
-        Nodes ret;
+        Nodes ret/* = Block::children() */;
         for (auto& module : m_modules) {
             ret.push_back(module);
         }
