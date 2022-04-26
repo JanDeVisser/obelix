@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Context.h"
 #include <sys/stat.h>
 
 #include <obelix/ARM64Intrinsics.h>
@@ -38,18 +37,26 @@ ARM64FunctionType const& get_arm64_intrinsic(IntrinsicType type)
 
 INTRINSIC(add_str_str)
 {
-    ctx.assembly().add_instruction("mov", "w4,w0");
-    ctx.assembly().add_instruction("mov", "x5,x1");
-    ctx.assembly().add_instruction("mov", "w6,w2");
-    ctx.assembly().add_instruction("mov", "x7,x3");
-    ctx.assembly().add_instruction("add", "w0,w0,w2");
-    ctx.assembly().add_instruction("bl", "string_alloc");
-    ctx.assembly().add_instruction("mov", "w0,w4");
-    ctx.assembly().add_instruction("mov", "w2,w6");
-    ctx.assembly().add_instruction("mov", "x3,x7");
-    ctx.assembly().add_instruction("bl", "string_concat");
-    ctx.assembly().add_instruction("mov", "x1,x0");
-    ctx.assembly().add_instruction("add", "w0,w4,w6");
+    ctx.assembly().add_text(
+R"(
+    stp     x20,x21,[sp,#-16]!
+    stp     x22,x23,[sp,#-16]!
+    mov     w20,w0
+    mov     x21,x1
+    mov     w22,w2
+    mov     x23,x3
+    add     w0,w0,w2
+    bl      string_alloc
+    cmp     x1,0
+    b.eq    __add_str_str_done
+    mov     w0,w20
+    mov     w2,w22
+    mov     x3,x23
+    bl      string_concat
+__add_str_str_done:
+    ldp     x22,x23,[sp],#16
+    ldp     x20,x21,[sp],#16
+)");
     return {};
 }
 
@@ -57,20 +64,26 @@ INTRINSIC(add_str_str)
 // This is a mmap syscall
 INTRINSIC(allocate)
 {
-    ctx.assembly().add_instruction("mov", "x1,x0");
-    ctx.assembly().add_instruction("mov", "x0,xzr");
-    ctx.assembly().add_instruction("mov", "w2,#3");
-    ctx.assembly().add_instruction("mov", "w3,#0x1002");
-    ctx.assembly().add_instruction("mov", "w4,#-1");
-    ctx.assembly().add_instruction("mov", "x5,xzr");
+    ctx.assembly().add_text(
+R"(
+    mov     x1,x0
+    mov     x0,xzr
+    mov     w2,#3
+    mov     w3,#0x1002
+    mov     w4,#-1
+    mov     x5,xzr
+)");
     ctx.assembly().syscall(0xC5);
     return {};
 }
 
 INTRINSIC(eputs)
 {
-    ctx.assembly().add_instruction("mov", "x2,x0");
-    ctx.assembly().add_instruction("mov", "x0,#2");
+    ctx.assembly().add_text(
+R"(
+    mov     x2,x0"
+    mov     x0,#2
+)");
     ctx.assembly().syscall(0x04);
     return {};
 }
@@ -125,13 +138,39 @@ INTRINSIC(putchar)
     return {};
 }
 
+
+#if 0
 INTRINSIC(puts)
 {
-    ctx.assembly().add_instruction("mov", "x2,x0");
-    ctx.assembly().add_instruction("mov", "x0,#1");
+    ctx.assembly().add_text(
+R"(
+    cmp     x1,#0
+    b.ne    __puts_print
+    adrp    x8,__str_nullptr@PAGE
+    ldr     x1,[x8, __str_nullptr@PAGEOFF]           
+    adrp    x8,__str_nullptr_len@PAGE
+    ldr     x0,[x8, __str_nullptr_len@PAGEOFF]           
+__puts_print:
+    mov     x2,x0
+    mov     x0,#1;
+)");
     ctx.assembly().syscall(0x04);
     return {};
 }
+
+INTRINSIC(putln)
+{
+    TRY_RETURN(arm64_intrinsic_puts(ctx));
+    ctx.assembly().add_text(
+R"(
+    mov     x0,#1
+    mov     x1,#10
+    mov     x2,#1
+)");
+    ctx.assembly().syscall(0x04);
+    return {};
+}
+#endif
 
 INTRINSIC(ptr_math)
 {

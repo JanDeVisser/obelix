@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "obelix/Context.h"
-#include "obelix/Type.h"
 #include <filesystem>
 #include <memory>
 
@@ -137,7 +135,6 @@ ErrorOr<void, SyntaxError> zero_initialize(ARM64Context &ctx, std::shared_ptr<Ob
         if (type->fields().size() > 4) {
             return SyntaxError { ErrorCode::NotYetImplemented, Token { }, format("Cannot assign structs with more than 4 fields yet") };
         }
-        auto reg = ctx.target_register();
         auto off = offset;
         for (auto const& field : type->fields()) {
             if (field.type->type() != PrimitiveType::Struct) {
@@ -145,8 +142,9 @@ ErrorOr<void, SyntaxError> zero_initialize(ARM64Context &ctx, std::shared_ptr<Ob
                 if (mm == nullptr)
                     return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot assign struct fields of type '{}' yet", field.type) };
                 auto offset = format("[fp,#{}]", off);
-                ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},{}", mm->reg_width, reg, offset);
-                ctx.assembly().add_instruction("str", "x{},[fp,#{}]", reg++, offset);
+                ctx.assembly().add_instruction("mov", "x{},xzr", ctx.target_register());
+                ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.target_register(), off);
+                ctx.inc_target_register();
                 off += mm->size;
             } else {
                 return SyntaxError { ErrorCode::NotYetImplemented, Token { }, format("Cannot assign structs with nested struct fields yet") };
@@ -227,7 +225,6 @@ NODE_PROCESSOR(BoundFunctionCall)
     ctx.initialize_target_register();
     for (auto& argument : call->arguments()) {
         TRY_RETURN(process(argument, ctx));
-        ctx.inc_target_register();
     }
 
     // Call function:
@@ -244,7 +241,6 @@ NODE_PROCESSOR(BoundNativeFunctionCall)
     ctx.initialize_target_register();
     for (auto& arg : native_func_call->arguments()) {
         TRY_RETURN(process<ContextType>(arg, ctx));
-        ctx.inc_target_register();
     }
 
     // Call the native function
@@ -260,7 +256,6 @@ NODE_PROCESSOR(BoundIntrinsicCall)
     ctx.initialize_target_register();
     for (auto& arg : call->arguments()) {
         TRY_RETURN(process(arg, ctx));
-        ctx.inc_target_register();
     }
     ARM64Implementation impl = get_arm64_intrinsic(call->intrinsic());
     if (!impl)
@@ -283,6 +278,7 @@ NODE_PROCESSOR(BoundIntLiteral)
             format("Cannot push values of variables of type {} yet", literal->type()) };
 
     ctx.assembly().add_instruction("mov", "{}{},#{}", mm->reg_width, target, literal->value());
+    ctx.inc_target_register();
     return tree;
 }
 
@@ -295,6 +291,7 @@ NODE_PROCESSOR(BoundStringLiteral)
     ctx.assembly().add_instruction("mov", "w{},#{}", target, literal->value().length());
     auto reg = ctx.inc_target_register();
     ctx.assembly().add_instruction("adr", "x{},str_{}", reg, str_id);
+    ctx.inc_target_register();
     return tree;
 }
 
@@ -316,6 +313,7 @@ NODE_PROCESSOR(MaterializedIntIdentifier)
             format("Cannot push values of variables of type {} yet", identifier->type()) };
 
     ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},{}", mm->reg_width, target, source);
+    ctx.inc_target_register();
     return tree;
 }
 

@@ -23,7 +23,6 @@ intrinsic eputs(s: string) : u64;
 intrinsic fputs(fd: s32, s: string) : u64;
 intrinsic fsize(fd: s32) : u64;
 intrinsic putchar(c: u32) : u64;
-intrinsic puts(s: string) : u64;
 
 intrinsic int_to_string(i: s32) : string;
 
@@ -33,6 +32,8 @@ func open(path: string, flags: s32) : s32 -> "open";
 func putint(i: s32) : int -> "putint";
 func puthex(i: u32) : int -> "puthex";
 func read(fd: s32, buffer: ptr<char>, number_of_bytes: u64) : u64 -> "read";
+func putln(s: string) : u64 -> "putln";
+func puts(s: string) : u64 -> "puts";
 func write(fd: int, buffer: ptr<char>, number_of_bytes: u64) : u64 -> "write";
 func cstr_to_str(s: ptr<char>) : string -> "cstr_to_str";
 

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "core/StringUtil.h"
 #include <bitset>
 #include <cstdio>
 #include <fstream>
@@ -17,6 +18,7 @@
 #include <obelix/Context.h>
 #include <obelix/MaterializedSyntaxNode.h>
 #include <obelix/Syntax.h>
+#include <string>
 
 namespace Obelix {
 
@@ -36,6 +38,37 @@ public:
     void add_instruction(std::string const& mnemonic, std::string const& param = "")
     {
         m_code = m_code + '\t' + mnemonic + '\t' + param + '\n';
+    }
+
+    void add_text(std::string const& text)
+    {
+        if (text.empty())
+            return;
+        auto t = strip(text);
+        for (auto const& line : split(strip(text), '\n')) {
+            if (line.empty()) {
+                m_code += '\n';
+                continue;
+            }
+            if (line[0] == ';') {
+                m_code += '\t' + line + '\n';
+                continue;
+            }
+            if (line[0] == '.') {
+                m_code += line + '\n';
+                continue;
+            }
+            auto parts = split(strip(line), ' ');
+            m_code += '\t' + parts[0];
+            if (parts.size() > 1) {
+                for (int ix = 1; ix < parts.size(); ++ix) {
+                    if (parts[ix].empty())
+                        continue;
+                    m_code += '\t' + parts[ix];
+                }
+            }
+            m_code += '\n';
+        }
     }
 
     void add_label(std::string const& label)

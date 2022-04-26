@@ -23,7 +23,6 @@ namespace Obelix {
     S(fputs)                   \
     S(fsize)                   \
     S(putchar)                 \
-    S(puts)                    \
     S(int_to_string)           \
     S(ptr_math)                \
     S(dereference)             \

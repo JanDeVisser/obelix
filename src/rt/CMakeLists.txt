@@ -11,6 +11,8 @@ add_library(
         open.s
         puthex.s
         putint.s
+        putln.s
+        puts.s
         read.s
         start.s
         string_alloc.s
