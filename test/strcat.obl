@@ -1,7 +1,7 @@
 func main() : int
 {
    var x : string = "Hello, ";
-   var y = "World!\n";
-   puts(x+y);
+   var y = "World!";
+   putln(x+y);
    return 42;
 }
