@@ -37,9 +37,10 @@ namespace Obelix {
     S(Struct, "struct", 9)                   \
     S(Range, "range", 10)                    \
     S(Array, "array", 11)                    \
-    S(Error, "error", 9996)                  \
-    S(Self, "self", 9997)                    \
-    S(Compatible, "compatible", 9998)        \
+    S(Error, "error", 9995)                  \
+    S(Self, "self", 9996)                    \
+    S(Compatible, "compatible", 9997)        \
+    S(AssignableTo, "assignable_to", 9998)   \
     S(Argument, "argument", 9999)            \
     S(Any, "any", 10000)                     \
     S(Comparable, "comparable", 10001)       \
@@ -325,6 +326,10 @@ public:
     [[nodiscard]] FieldDef const& field(std::string const&) const;
 
     bool operator==(ObjectType const&) const;
+    [[nodiscard]] bool is_assignable_to(std::shared_ptr<ObjectType> const& other) const { return is_assignable_to(*other); }
+    [[nodiscard]] bool is_assignable_to(ObjectType const&) const;
+    [[nodiscard]] bool can_assign(std::shared_ptr<ObjectType> const& other) const { return can_assign(*other); }
+    [[nodiscard]] bool can_assign(ObjectType const&) const;
 
     template<typename... Args>
     [[nodiscard]] std::optional<std::shared_ptr<ObjectType>> return_type_of(std::string_view method_name, ObjectTypes& arg_types, std::shared_ptr<ObjectType> arg_type, Args&&... args) const

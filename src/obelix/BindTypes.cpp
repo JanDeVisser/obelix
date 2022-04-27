@@ -356,7 +356,7 @@ NODE_PROCESSOR(FunctionCall)
     for (auto ix = 0; ix < args.size(); ix++) {
         auto& arg = args.at(ix);
         auto& param = func_decl->parameters().at(ix);
-        if (*(arg->type()) != *(param->type()))
+        if (!arg->type()->is_assignable_to(param->type()))
             return SyntaxError { ErrorCode::ArgumentTypeMismatch, param->token(), func_call->name(), arg->type(), param->name() };
     }
 

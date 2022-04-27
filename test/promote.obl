@@ -1,0 +1,12 @@
+func f(x: s64): s64
+{
+  return 2*x;
+}
+
+func main(): int
+{
+  var x: s32 = 43;
+  puts64(f(x));
+  putln("");
+  return 0;
+}

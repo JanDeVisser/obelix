@@ -191,6 +191,7 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations 
 [[maybe_unused]] auto s_self = ObjectType::register_type(PrimitiveType::Self);
 [[maybe_unused]] auto s_argument = ObjectType::register_type(PrimitiveType::Argument);
 [[maybe_unused]] auto s_compatible = ObjectType::register_type(PrimitiveType::Compatible);
+[[maybe_unused]] auto s_assignable_to = ObjectType::register_type(PrimitiveType::AssignableTo);
 [[maybe_unused]] auto s_unknown = ObjectType::register_type(PrimitiveType::Unknown);
 
 [[maybe_unused]] auto s_incrementable = ObjectType::register_type(PrimitiveType::Incrementable,
@@ -226,9 +227,13 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations 
 
         type->add_method({ Operator::BitwiseInvert, PrimitiveType::Argument, IntrinsicType::invert_int });
         type->add_method({ Operator::Add, PrimitiveType::Self, IntrinsicType::add_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type->add_method({ Operator::Add, PrimitiveType::Argument, IntrinsicType::add_int_int, { {  "other", PrimitiveType::AssignableTo }  } });
         type->add_method({ Operator::Subtract, PrimitiveType::Self, IntrinsicType::subtract_int_int, { {  "other", PrimitiveType::Compatible }  } });
-        type->add_method({ Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type->add_method({ Operator::Subtract, PrimitiveType::Argument, IntrinsicType::subtract_int_int, { {  "other", PrimitiveType::AssignableTo }  } });
+        type->add_method({ Operator::Multiply, PrimitiveType::Self, IntrinsicType::multiply_int_int, { {  "other", PrimitiveType::Compatible } } });
+        type->add_method({ Operator::Multiply, PrimitiveType::Argument, IntrinsicType::multiply_int_int, { {  "other", PrimitiveType::AssignableTo }  } });
         type->add_method({ Operator::Divide, PrimitiveType::Self, IntrinsicType::divide_int_int, { {  "other", PrimitiveType::Compatible }  } });
+        type->add_method({ Operator::Divide, PrimitiveType::Self, IntrinsicType::divide_int_int, { {  "other", PrimitiveType::AssignableTo }  } });
         type->add_method({ Operator::BitwiseOr, PrimitiveType::Self, IntrinsicType::bitwise_or_int_int, { {  "other", PrimitiveType::Compatible }  } });
         type->add_method({ Operator::BitwiseAnd, PrimitiveType::Self, IntrinsicType::bitwise_and_int_int, { {  "other", PrimitiveType::Compatible }  } });
         type->add_method({ Operator::BitwiseXor, PrimitiveType::Self, IntrinsicType::bitwise_xor_int_int, { {  "other", PrimitiveType::Compatible }  } });
@@ -248,6 +253,7 @@ std::vector<std::shared_ptr<ObjectType>> ObjectType::s_template_specializations 
         type->has_template_parameter({ "size", TemplateParameterType::Integer });
 
         type->add_method(MethodDescription { Operator::Negate, PrimitiveType::Self, IntrinsicType::negate_int });
+        type->will_be_a(s_integer_number);
     });
 
 [[maybe_unused]] auto s_integer = ObjectType::register_type("s32", s_signed_integer_number, TemplateArguments { { true }, { 4 } },
@@ -389,6 +395,21 @@ bool ObjectType::operator==(ObjectType const& other) const
     return true;
 }
 
+bool ObjectType::is_assignable_to(ObjectType const& other) const
+{
+    if (type() != PrimitiveType::Struct && type() != PrimitiveType::Array) {
+        bool ret = (type() == other.type()) && (size() <= other.size());
+        debug(type, "{}.is_assignable_to({}) = {}", to_string(), other.to_string(), ret);
+        return ret;
+    }
+    return *this == other;
+}
+
+bool ObjectType::can_assign(ObjectType const& other) const
+{
+    return other.is_assignable_to(*this);
+}
+
 size_t ObjectType::size() const
 {
     if (m_type != PrimitiveType::Struct)
@@ -463,8 +484,24 @@ bool ObjectType::is_compatible(MethodDescription const& mth, ObjectTypes const& 
     for (; ix < mth.parameters().size(); ++ix) {
         auto& param = mth.parameters()[ix];
         auto arg_type = argument_types[ix];
-        if (!arg_type->is_a(param.type) && (*param.type == *s_compatible && !arg_type->is_a(this)) && (*(param.type) == *s_self && *arg_type != *this))
-            break;
+        switch (param.type->type()) {
+            case PrimitiveType::Self:
+                if (*arg_type != *this)
+                    return false;
+                break;
+            case PrimitiveType::Compatible:
+                if (!can_assign(arg_type))
+                    return false;
+                break;
+            case PrimitiveType::AssignableTo:
+                if (!is_assignable_to(arg_type))
+                    return false;
+                break;
+            default:
+                if (*param.type != *arg_type)
+                    return false;
+                break;
+        }
     }
     return (ix == mth.parameters().size());
 }
@@ -516,16 +553,21 @@ std::optional<std::shared_ptr<ObjectType>> ObjectType::return_type_of(Operator o
                 debug(type, "Found operator but incompatible argument types");
                 continue;
             }
-            if (*(mth.return_type()) == *s_self)
+            if (mth.return_type()->type() == PrimitiveType::Self)
                 return ObjectType::get(this);
-            if (*(mth.return_type()) == *s_argument)
+            if (mth.return_type()->type() == PrimitiveType::Argument)
                 return argument_types[0];
             return mth.return_type();
         }
         return s_unknown;
     };
 
-    debug(type, "{}::return_type_of({})", this->to_string(), op);
+    std::string s = "";
+    for (auto const& arg : argument_types) {
+        s += ",";
+        s += arg->to_string();
+    }
+    debug(type, "{}::return_type_of({}{})", this->to_string(), op, s);
     auto self = get(this);
     ObjectTypes types { s_any, self };
     while (!types.empty()) {
