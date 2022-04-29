@@ -1,10 +1,10 @@
 func main(argc: int, argv: ptr<ptr<char>>): int
 {
-  puts("argc: "); putint(argc); putchar(10);
+  puts("argc: "); puti(argc); putchar(10);
   for (ix in 0 .. argc) {
     var arg: ptr<char> = *(argv + ix);
     var str: string = cstr_to_str(arg);
-    puts(str); putchar(10);
+    putln(str);
   }
   return 0;
 }

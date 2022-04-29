@@ -5,18 +5,18 @@
 func main() : int {
   var fd : int = open("read_file.obl", O_RDWR);
   if (fd < 0) {
-     puts("Error opening file!\n");
+     putln("Error opening file!");
      return fd;
   }
-  puts("fd: ");  putint(fd); puts("\n");
+  puts("fd: ");  puti(fd); putln("");
   var sz : int = fsize(fd);
   if (sz < 0) {
      puts("Error stat-ing file: ");
-     putint(sz);
-     puts("\n");
+     puti(sz);
+     putln("");
      return fd;
   }
-  puts("sz: ");  putint(sz); puts("\n");
+  puts("sz: ");  puti(sz); putln("");
 /*
   puts("3\n");
   var buffer : ptr = allocate(sz+1);

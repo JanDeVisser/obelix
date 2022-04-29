@@ -160,7 +160,7 @@ NODE_PROCESSOR(BoundForStatement)
     BoundBranches branches {
         make_node<BoundBranch>(for_stmt->token(),
             make_node<BoundBinaryExpression>(for_stmt->token(),
-                make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), ObjectType::get(PrimitiveType::Int)),
+                make_node<BoundIdentifier>(for_stmt->token(), for_stmt->variable(), variable_type),
                 BinaryOperator::GreaterEquals,
                 range_binary_expr->rhs(),
                 ObjectType::get(PrimitiveType::Boolean)),

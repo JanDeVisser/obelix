@@ -1,0 +1,7 @@
+func main(): int
+{
+  var x: int = 42;
+  puti(x);
+  putln("");
+  return 0;
+}
