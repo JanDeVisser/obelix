@@ -182,45 +182,37 @@ INTRINSIC(divide_int_int)
     return {};
 }
 
+void relational_op(ARM64Context& ctx, std::string branch)
+{
+    auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
+    auto done = format("lbl_{}", Obelix::Label::reserve_id());
+    ctx.assembly().add_text(format(
+R"(
+    cmp     x0,x1
+    {}      {}
+    mov     w0,wzr
+    b       {}
+{}:
+    mov     w0,#0x01
+{}:
+)", branch, set_true, done, set_true, done));
+}
+
 INTRINSIC(equals_int_int)
 {
-    ctx.assembly().add_instruction("cmp", "x0,x1");
-    auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("bne", set_false);
-    ctx.assembly().add_instruction("mov", "w0,#0x01");
-    auto done = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b", done);
-    ctx.assembly().add_label(set_false);
-    ctx.assembly().add_instruction("mov", "w0,wzr");
-    ctx.assembly().add_label(done);
+    relational_op(ctx, "b.eq");
     return {};
 }
 
 INTRINSIC(greater_int_int)
 {
-    ctx.assembly().add_instruction("cmp", "x0,x1");
-    auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b.le", set_false);
-    ctx.assembly().add_instruction("mov", "w0,#0x01");
-    auto done = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b", done);
-    ctx.assembly().add_label(set_false);
-    ctx.assembly().add_instruction("mov", "w0,wzr");
-    ctx.assembly().add_label(done);
+    relational_op(ctx, "b.gt");
     return {};
 }
 
 INTRINSIC(less_int_int)
 {
-    ctx.assembly().add_instruction("cmp", "x0,x1");
-    auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b.lt", set_true);
-    ctx.assembly().add_instruction("mov", "w0,wzr");
-    auto done = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b", done);
-    ctx.assembly().add_label(set_true);
-    ctx.assembly().add_instruction("mov", "w0,#0x01");
-    ctx.assembly().add_label(done);
+    relational_op(ctx, "b.lt");
     return {};
 }
 
