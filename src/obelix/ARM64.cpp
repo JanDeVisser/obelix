@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "obelix/Context.h"
+#include "obelix/Syntax.h"
+#include "obelix/Type.h"
 #include <filesystem>
 #include <memory>
 
@@ -59,7 +62,6 @@ TypeMnemonicMap const* get_type_mnemonic_map(std::shared_ptr<ObjectType> type)
 
 ErrorOr<void, SyntaxError> load_variable(ARM64Context &ctx, std::shared_ptr<ObjectType> type, int offset)
 {
-    auto target = ctx.target_register();
     if (type->type() != PrimitiveType::Struct) {
         auto mm = get_type_mnemonic_map(type);
         if (mm == nullptr)
@@ -67,20 +69,20 @@ ErrorOr<void, SyntaxError> load_variable(ARM64Context &ctx, std::shared_ptr<Obje
                 format("Cannot push values of array elements of type {} yet", type) };
 
         auto offset_str = format("[fp,#{}]", offset);
-        ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},{}", mm->reg_width, target, offset_str);
+        ctx.assembly().add_instruction(mm->load_mnemonic, "{}0,{}", mm->reg_width, offset_str);
     } else {
         if (type->fields().size() > 4) {
             return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot load structs with more than 4 fields yet") };
         }
         auto off = offset;
+        int target = 0;
         for (auto const& field : type->fields()) {
             if (field.type->type() != PrimitiveType::Struct) {
                 auto mm = get_type_mnemonic_map(field.type);
                 if (mm == nullptr)
                     return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot load struct fields of type '{}' yet", field.type) };
                 auto offset_str = format("[fp,#{}]", off);
-                ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},{}", mm->reg_width, target, offset_str);
-                target = ctx.inc_target_register();
+                ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},{}", mm->reg_width, target++, offset_str);
                 off += mm->size;
             } else {
                 return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot load structs with nested struct fields yet") };
@@ -90,7 +92,7 @@ ErrorOr<void, SyntaxError> load_variable(ARM64Context &ctx, std::shared_ptr<Obje
     return {};
 }
 
-ErrorOr<void, SyntaxError> assign_variable(ARM64Context &ctx, std::shared_ptr<ObjectType> type, int target, int offset)
+ErrorOr<void, SyntaxError> assign_variable(ARM64Context &ctx, std::shared_ptr<ObjectType> type, int offset)
 {
     if (type->type() != PrimitiveType::Struct) {
         auto mm = get_type_mnemonic_map(type);
@@ -99,12 +101,13 @@ ErrorOr<void, SyntaxError> assign_variable(ARM64Context &ctx, std::shared_ptr<Ob
                 format("Cannot push values of array elements of type {} yet", type) };
 
         auto offset_str = format("[fp,#{}]", offset);
-        ctx.assembly().add_instruction(mm->store_mnemonic, "{}{},{}", mm->reg_width, target, offset_str);
+        ctx.assembly().add_instruction(mm->store_mnemonic, "{}0,{}", mm->reg_width, offset_str);
     } else {
         if (type->fields().size() > 4) {
             return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot assign structs with more than 4 fields yet") };
         }
         auto off = offset;
+        auto target = 0;
         for (auto const& field : type->fields()) {
             if (field.type->type() != PrimitiveType::Struct) {
                 auto mm = get_type_mnemonic_map(field.type);
@@ -128,23 +131,22 @@ ErrorOr<void, SyntaxError> zero_initialize(ARM64Context &ctx, std::shared_ptr<Ob
     case PrimitiveType::SignedIntegerNumber:
     case PrimitiveType::IntegerNumber:
     case PrimitiveType::Boolean:
-        ctx.assembly().add_instruction("mov", "x{},xzr", ctx.target_register());
-        ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.target_register(), offset);
+        ctx.assembly().add_instruction("mov", "x0,xzr");
+        ctx.assembly().add_instruction("str", "x0,[fp,#{}]", offset);
         break;
     case PrimitiveType::Struct: {
         if (type->fields().size() > 4) {
             return SyntaxError { ErrorCode::NotYetImplemented, Token { }, format("Cannot assign structs with more than 4 fields yet") };
         }
         auto off = offset;
+        ctx.assembly().add_instruction("mov", "x0,xzr");
         for (auto const& field : type->fields()) {
             if (field.type->type() != PrimitiveType::Struct) {
                 auto mm = get_type_mnemonic_map(field.type);
                 if (mm == nullptr)
                     return SyntaxError { ErrorCode::NotYetImplemented, Token {}, format("Cannot assign struct fields of type '{}' yet", field.type) };
                 auto offset = format("[fp,#{}]", off);
-                ctx.assembly().add_instruction("mov", "x{},xzr", ctx.target_register());
-                ctx.assembly().add_instruction("str", "x{},[fp,#{}]", ctx.target_register(), off);
-                ctx.inc_target_register();
+                ctx.assembly().add_instruction("str", "x0,[fp,#{}]", off);
                 off += mm->size;
             } else {
                 return SyntaxError { ErrorCode::NotYetImplemented, Token { }, format("Cannot assign structs with nested struct fields yet") };
@@ -158,31 +160,30 @@ ErrorOr<void, SyntaxError> zero_initialize(ARM64Context &ctx, std::shared_ptr<Ob
     return {};
 }
 
-ErrorOr<int, SyntaxError> calculate_array_element_offset(ARM64Context &ctx, std::shared_ptr<MaterializedArrayAccess> array_access)
+ErrorOr<void, SyntaxError> calculate_array_element_offset(ARM64Context &ctx, std::shared_ptr<MaterializedArrayAccess> array_access)
 {
-    auto target = ctx.inc_target_register();
     TRY_RETURN(process(array_access->index(), ctx));
     switch (array_access->element_size()) {
         case 1:
-            ctx.assembly().add_instruction("add", "x{},x{},#{}", target, target, array_access->element_size());
+            ctx.assembly().add_instruction("add", "x8,x0,#{}", array_access->element_size());
             break;
         case 2:
-            ctx.assembly().add_instruction("lsl", "x{},x{},#1", target, target);
+            ctx.assembly().add_instruction("lsl", "x8,x0,#1");
             break;
         case 4:
-            ctx.assembly().add_instruction("lsl", "x{},x{},#2", target, target);
+            ctx.assembly().add_instruction("lsl", "x8,x0,#2");
             break;
         case 8:
-            ctx.assembly().add_instruction("lsl", "x{},x{},#3", target, target);
+            ctx.assembly().add_instruction("lsl", "x8,x0,#3");
             break;
         case 16:
-            ctx.assembly().add_instruction("lsl", "x{},x{},#4", target, target);
+            ctx.assembly().add_instruction("lsl", "x8,x0,#4");
             break;
         default:
             return SyntaxError { ErrorCode::InternalError, array_access->token(), "Cannot access arrays with elements of size {} yet", array_access->element_size()};
     }
-    ctx.assembly().add_instruction("add", "x{},x{},#{}", target, target, array_access->array()->offset());
-    return target;
+    ctx.assembly().add_instruction("add", "x8,x8,#{}", array_access->array()->offset());
+    return {};
 }
 
 INIT_NODE_PROCESSOR(ARM64Context);
@@ -217,19 +218,37 @@ NODE_PROCESSOR(MaterializedFunctionDef)
     return tree;
 }
 
+ErrorOr<void, SyntaxError> evaluate_arguments(ARM64Context& ctx, BoundExpressions const& arguments)
+{
+    int total_registers { 0 };
+    for (auto const& arg : arguments) {
+        total_registers += (arg->type()->type() == PrimitiveType::Struct) ? arg->type()->fields().size() : 1;
+    }
+
+    int pushed_registers { 0 };
+    for (auto iter = arguments.rbegin(); iter != arguments.rend(); ++iter) {
+        auto const& arg = *iter;
+        TRY_RETURN(process(arg, ctx));
+        int num_registers = (arg->type()->type() == PrimitiveType::Struct) ? arg->type()->fields().size() : 1;
+        if (pushed_registers + num_registers < total_registers) {
+            for (int r = num_registers - 1; r >= 0; --r) {
+                push(ctx, format("x{}", r));
+            }
+            pushed_registers += num_registers;
+        }
+    }
+    for (auto ix = 0; ix < pushed_registers; ++ix) {
+        auto reg = format("x{}", total_registers - ix - 1);
+        pop(ctx, reg);
+    }
+    return {};
+}
+
 NODE_PROCESSOR(BoundFunctionCall)
 {
     auto call = std::dynamic_pointer_cast<BoundFunctionCall>(tree);
-
-    // Load arguments in registers:
-    ctx.initialize_target_register();
-    for (auto& argument : call->arguments()) {
-        TRY_RETURN(process(argument, ctx));
-    }
-
-    // Call function:
+    TRY_RETURN(evaluate_arguments(ctx, call->arguments()));
     ctx.assembly().add_instruction("bl", call->name());
-    ctx.release_target_register(call->type()->type());
     return tree;
 }
 
@@ -237,15 +256,8 @@ NODE_PROCESSOR(BoundNativeFunctionCall)
 {
     auto native_func_call = std::dynamic_pointer_cast<BoundNativeFunctionCall>(tree);
     auto func_decl = std::dynamic_pointer_cast<BoundNativeFunctionDecl>(native_func_call->declaration());
-
-    ctx.initialize_target_register();
-    for (auto& arg : native_func_call->arguments()) {
-        TRY_RETURN(process<ContextType>(arg, ctx));
-    }
-
-    // Call the native function
+    TRY_RETURN(evaluate_arguments(ctx, native_func_call->arguments()));
     ctx.assembly().add_instruction("bl", func_decl->native_function_name());
-    ctx.release_target_register(native_func_call->type()->type());
     return tree;
 }
 
@@ -253,58 +265,44 @@ NODE_PROCESSOR(BoundIntrinsicCall)
 {
     auto call = std::dynamic_pointer_cast<BoundIntrinsicCall>(tree);
 
-    ctx.initialize_target_register();
-    for (auto& arg : call->arguments()) {
-        TRY_RETURN(process(arg, ctx));
-    }
+    TRY_RETURN(evaluate_arguments(ctx, call->arguments()));
     ARM64Implementation impl = get_arm64_intrinsic(call->intrinsic());
     if (!impl)
         return SyntaxError { ErrorCode::InternalError, call->token(), format("No ARM64 implementation for intrinsic {}", call->to_string()) };
     auto ret = impl(ctx);
     if (ret.is_error())
         return ret.error();
-    ctx.release_target_register(call->type()->type());
     return tree;
 }
 
 NODE_PROCESSOR(BoundIntLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundIntLiteral>(tree);
-    auto target = ctx.target_register();
-
     auto mm = get_type_mnemonic_map(literal->type());
     if (mm == nullptr)
         return SyntaxError { ErrorCode::NotYetImplemented, literal->token(), 
             format("Cannot push values of variables of type {} yet", literal->type()) };
 
-    ctx.assembly().add_instruction("mov", "{}{},#{}", mm->reg_width, target, literal->value());
-    ctx.inc_target_register();
+    ctx.assembly().add_instruction("mov", "{}0,#{}", mm->reg_width, literal->value());
     return tree;
 }
 
 NODE_PROCESSOR(BoundStringLiteral)
 {
     auto literal = std::dynamic_pointer_cast<BoundStringLiteral>(tree);
-    auto target = ctx.target_register();
-
     auto str_id = ctx.assembly().add_string(literal->value());
-    ctx.assembly().add_instruction("mov", "w{},#{}", target, literal->value().length());
-    auto reg = ctx.inc_target_register();
-    ctx.assembly().add_instruction("adr", "x{},str_{}", reg, str_id);
-    ctx.inc_target_register();
+    ctx.assembly().add_instruction("mov", "w0,#{}", literal->value().length());
+    ctx.assembly().add_instruction("adr", "x1,str_{}", str_id);
     return tree;
 }
 
 NODE_PROCESSOR(MaterializedIntIdentifier)
 {
     auto identifier = std::dynamic_pointer_cast<MaterializedVariableAccess>(tree);
-    auto target = ctx.target_register();
-
     std::string source = format("[fp,#{}]", identifier->offset());
     if (!identifier->label().empty()) {
-        auto ptr_reg = ctx.inc_target_register();
-        ctx.assembly().add_instruction("adrp", "x{},{}@PAGE", ptr_reg, identifier->label());
-        source = format("[x{},{}@PAGEOFF]", ptr_reg, identifier->label());
+        ctx.assembly().add_instruction("adrp", "x8,{}@PAGE", identifier->label());
+        source = format("[x8,{}@PAGEOFF]", identifier->label());
     }
 
     auto mm = get_type_mnemonic_map(identifier->type());
@@ -312,8 +310,7 @@ NODE_PROCESSOR(MaterializedIntIdentifier)
         return SyntaxError { ErrorCode::NotYetImplemented, identifier->token(), 
             format("Cannot push values of variables of type {} yet", identifier->type()) };
 
-    ctx.assembly().add_instruction(mm->load_mnemonic, "{}{},{}", mm->reg_width, target, source);
-    ctx.inc_target_register();
+    ctx.assembly().add_instruction(mm->load_mnemonic, "{}0,{}", mm->reg_width, source);
     return tree;
 }
 
@@ -343,9 +340,7 @@ ALIAS_NODE_PROCESSOR(MaterializedMemberAccess, MaterializedIdentifier);
 NODE_PROCESSOR(MaterializedArrayAccess)
 {
     auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(tree);
-    ctx.initialize_target_register();
-    auto target = ctx.target_register();
-    auto pointer = TRY(calculate_array_element_offset(ctx, array_access));
+    TRY_RETURN(calculate_array_element_offset(ctx, array_access));
 
     if (array_access->type()->type() != PrimitiveType::Struct) {
         auto mm = get_type_mnemonic_map(array_access->type());
@@ -353,11 +348,10 @@ NODE_PROCESSOR(MaterializedArrayAccess)
             return SyntaxError { ErrorCode::NotYetImplemented, array_access->token(), 
                 format("Cannot push values of array elements of type {} yet", array_access->type()) };
 
-        ctx.assembly().add_instruction(mm->load_mnemonic, "x{},[fp,x{}]", mm->reg_width, target, pointer);
+        ctx.assembly().add_instruction(mm->load_mnemonic, "{}0,[fp,x8]", mm->reg_width);
     } else {
-        ctx.assembly().add_instruction("add", "x{},fp,x{}", target, pointer);
+        ctx.assembly().add_instruction("add", "x0,fp,x8");
     }
-    ctx.release_target_register();
     return tree;
 }
 
@@ -367,19 +361,16 @@ NODE_PROCESSOR(BoundAssignment)
     auto assignee = std::dynamic_pointer_cast<MaterializedVariableAccess>(assignment->assignee());
     if (assignee == nullptr)
         return SyntaxError { ErrorCode::InternalError, assignment->token(), format("Variable access '{}' not materialized", assignment->assignee()) };
-    ctx.initialize_target_register();
 
-    auto target = ctx.target_register();
     TRY_RETURN(process(assignment->expression(), ctx));
 
     auto offset = format("[fp,#{}]", assignee->offset());
     auto array_access = std::dynamic_pointer_cast<MaterializedArrayAccess>(assignee);
     if (array_access) {
-        auto element = TRY(calculate_array_element_offset(ctx, array_access));
-        offset = format("[fp,x{}]", element);
+        TRY_RETURN(calculate_array_element_offset(ctx, array_access));
+        offset = "[fp,x8]";
     }
-    TRY_RETURN(assign_variable(ctx, assignee->type(), target, assignee->offset()));
-    ctx.release_target_register(assignment->type()->type());
+    TRY_RETURN(assign_variable(ctx, assignee->type(), assignee->offset()));
     return tree;
 }
 
@@ -400,15 +391,12 @@ NODE_PROCESSOR(MaterializedVariableDecl)
         return tree;
     }
 
-    ctx.initialize_target_register();
     if (var_decl->expression() != nullptr) {
-        auto target = ctx.target_register();
         TRY_RETURN(process(var_decl->expression(), ctx));
-        TRY_RETURN(assign_variable(ctx, var_decl->type(), target, var_decl->offset()));
+        TRY_RETURN(assign_variable(ctx, var_decl->type(), var_decl->offset()));
     } else {
         TRY_RETURN(zero_initialize(ctx, var_decl->type(), var_decl->offset()));
     }
-    ctx.release_target_register(var_decl->type()->type());
     return tree;
 }
 
@@ -417,9 +405,7 @@ NODE_PROCESSOR(BoundExpressionStatement)
     auto expr_stmt = std::dynamic_pointer_cast<BoundExpressionStatement>(tree);
     debug(parser, "{}", expr_stmt->to_string());
     ctx.assembly().add_comment(expr_stmt->to_string());
-    ctx.initialize_target_register();
     TRY_RETURN(process(expr_stmt->expression(), ctx));
-    ctx.release_target_register();
     return tree;
 }
 
@@ -428,9 +414,7 @@ NODE_PROCESSOR(BoundReturn)
     auto ret = std::dynamic_pointer_cast<BoundReturn>(tree);
     debug(parser, "{}", ret->to_string());
     ctx.assembly().add_comment(ret->to_string());
-    ctx.initialize_target_register();
     TRY_RETURN(process(ret->expression(), ctx));
-    ctx.release_target_register();
     ctx.function_return();
 
     return tree;
@@ -465,9 +449,7 @@ NODE_PROCESSOR(BoundIfStatement)
         if (branch->condition()) {
             debug(parser, "if ({})", branch->condition()->to_string());
             ctx.assembly().add_comment(format("if ({})", branch->condition()->to_string()));
-            ctx.initialize_target_register();
             auto cond = TRY_AND_CAST(Expression, process(branch->condition(), ctx));
-            ctx.release_target_register();
             ctx.assembly().add_instruction("cmp", "w0,0x00");
             ctx.assembly().add_instruction("b.eq", "lbl_{}", else_label);
         } else {
