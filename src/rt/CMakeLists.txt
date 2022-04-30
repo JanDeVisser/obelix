@@ -6,6 +6,7 @@ add_library(
         cstr_to_str.s
         cstrlen.s
         exit.s
+        fsize.s
         memcpy.s
         memset.s
         open.s

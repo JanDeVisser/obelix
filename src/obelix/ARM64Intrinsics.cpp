@@ -35,32 +35,6 @@ ARM64FunctionType const& get_arm64_intrinsic(IntrinsicType type)
 #define INTRINSIC_ALIAS(intrinsic, alias) \
     auto s_##intrinsic##_decl = register_arm64_intrinsic(intrinsic, arm64_intrinsic_##alias); \
 
-INTRINSIC(add_str_str)
-{
-    ctx.assembly().add_text(
-R"(
-    stp     x20,x21,[sp,#-16]!
-    stp     x22,x23,[sp,#-16]!
-    mov     w20,w0
-    mov     x21,x1
-    mov     w22,w2
-    mov     x23,x3
-    add     w0,w0,w2
-    bl      string_alloc
-    cmp     x1,0
-    b.eq    __add_str_str_done
-    mov     w0,w20
-    mov     w2,w22
-    mov     x3,x23
-    bl      string_concat
-__add_str_str_done:
-    ldp     x22,x23,[sp],#16
-    ldp     x20,x21,[sp],#16
-)");
-    return {};
-}
-
-
 // This is a mmap syscall
 INTRINSIC(allocate)
 {
@@ -72,8 +46,9 @@ R"(
     mov     w3,#0x1002
     mov     w4,#-1
     mov     x5,xzr
+    mov     x16,#0xC5
+    svc     #0x00
 )");
-    ctx.assembly().syscall(0xC5);
     return {};
 }
 
@@ -83,8 +58,9 @@ INTRINSIC(eputs)
 R"(
     mov     x2,x0
     mov     x0,#2
+    mov     x16,#0x04
+    svc     #0x00
 )");
-    ctx.assembly().syscall(0x04);
     return {};
 }
 
@@ -95,41 +71,25 @@ R"(
     mov     x4,x2
     mov     x2,x1
     mov     x2,x4
+    mov     x16,#0x04
+    svc     #0x00
 )");
-    ctx.assembly().syscall(0x04);
-    return {};
-}
-
-INTRINSIC(fsize)
-{
-    auto sz = sizeof(struct stat);
-    if (sz % 16)
-        sz += 16 - (sz % 16);
-    ctx.assembly().add_instruction("sub", "sp,sp,#{}", sz);
-    ctx.assembly().add_instruction("mov", "x1,sp");
-    ctx.assembly().syscall(339);
-    auto lbl_ok = format("lbl_{}", Label::reserve_id());
-    auto lbl_done = format("lbl_{}", Label::reserve_id());
-    ctx.assembly().add_instruction("b.lo", lbl_ok);
-    ctx.assembly().add_instruction("neg", "x0,x0");
-    ctx.assembly().add_instruction("b", lbl_done);
-    ctx.assembly().add_label(lbl_ok);
-    ctx.assembly().add_instruction("ldr", "x0,[sp,#{}]", offsetof(struct stat, st_size));
-    ctx.assembly().add_label(lbl_done);
-    ctx.assembly().add_instruction("add", "sp,sp,#{}", sz);
     return {};
 }
 
 INTRINSIC(int_to_string)
 {
-    ctx.assembly().add_instruction("mov", "x2,x0");
-    ctx.assembly().add_instruction("sub", "sp,sp,32");
-    ctx.assembly().add_instruction("mov", "x1,sp");
-    ctx.assembly().add_instruction("mov", "x0,#32");
-    ctx.assembly().add_instruction("mov", "w3,#10");
-    ctx.assembly().add_instruction("bl", "to_string");
-    ctx.assembly().add_instruction("bl", "string_alloc");
-    ctx.assembly().add_instruction("add", "sp,sp,32");
+    ctx.assembly().add_text(
+R"(
+    mov     x2,x0
+    sub     sp,sp,32
+    mov     x1,sp
+    mov     x0,#32
+    mov     w3,#10
+    bl      to_string
+    bl      string_alloc
+    add     sp,sp,32
+)");
     return {};
 }
 
@@ -259,81 +219,28 @@ INTRINSIC(equals_bool_bool)
     return {};
 }
 
-INTRINSIC(negate_byte)
+INTRINSIC(add_str_str)
 {
-    ctx.assembly().add_instruction("neg", "w0,w0");
-    return {};
-}
-
-INTRINSIC(invert_byte)
-{
-    ctx.assembly().add_instruction("mvn", "w0,w0");
-    return {};
-}
-
-INTRINSIC(add_byte_byte)
-{
-    ctx.assembly().add_instruction("add", "w0,w0,w1");
-    return {};
-}
-
-INTRINSIC(subtract_byte_byte)
-{
-    ctx.assembly().add_instruction("sub", "w0,w0,w1");
-    return {};
-}
-
-INTRINSIC(multiply_byte_byte)
-{
-    ctx.assembly().add_instruction("smull", "w0,w0,w1");
-    return {};
-}
-
-INTRINSIC(divide_byte_byte)
-{
-    ctx.assembly().add_instruction("sdiv", "w0,w0,w1");
-    return {};
-}
-
-INTRINSIC(equals_byte_byte)
-{
-    ctx.assembly().add_instruction("cmp", "w0,w1");
-    auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("bne", set_false);
-    ctx.assembly().add_instruction("mov", "w0,#0x01");
-    auto done = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b", done);
-    ctx.assembly().add_label(set_false);
-    ctx.assembly().add_instruction("mov", "w0,wzr");
-    ctx.assembly().add_label(done);
-    return {};
-}
-
-INTRINSIC(greater_byte_byte)
-{
-    ctx.assembly().add_instruction("cmp", "w0,w1");
-    auto set_false = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b.le", set_false);
-    ctx.assembly().add_instruction("mov", "w0,#0x01");
-    auto done = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b", done);
-    ctx.assembly().add_label(set_false);
-    ctx.assembly().add_instruction("mov", "w0,wzr");
-    ctx.assembly().add_label(done);
-    return {};
-}
-
-INTRINSIC(less_byte_byte)
-{
-    ctx.assembly().add_instruction("cmp", "w0,w1");
-    auto set_true = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b.lt", set_true);
-    ctx.assembly().add_instruction("mov", "w0,wzr");
-    auto done = format("lbl_{}", Obelix::Label::reserve_id());
-    ctx.assembly().add_instruction("b", done);
-    ctx.assembly().add_label(set_true);
-    ctx.assembly().add_instruction("mov", "w0,#0x01");
-    ctx.assembly().add_label(done);
+    ctx.assembly().add_text(
+R"(
+    stp     x20,x21,[sp,#-16]!
+    stp     x22,x23,[sp,#-16]!
+    mov     w20,w0
+    mov     x21,x1
+    mov     w22,w2
+    mov     x23,x3
+    add     w0,w0,w2
+    bl      string_alloc
+    cmp     x1,0
+    b.eq    __add_str_str_done
+    mov     w0,w20
+    mov     w2,w22
+    mov     x3,x23
+    bl      string_concat
+__add_str_str_done:
+    ldp     x22,x23,[sp],#16
+    ldp     x20,x21,[sp],#16
+)");
     return {};
 }
 

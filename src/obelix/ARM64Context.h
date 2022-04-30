@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include "core/StringUtil.h"
-#include <bitset>
 #include <cstdio>
 #include <fstream>
 #include <iostream>

@@ -2,7 +2,7 @@ func main(argc: int, argv: ptr<ptr<char>>): int
 {
    var fd = open("fsize.obl", O_RDONLY);
    var sz = fsize(fd);
-   putu64(sz);
+   putu(sz);
    putln("");
    return 0;
 }

@@ -21,11 +21,11 @@ intrinsic allocate(size: int) : ptr<char>;
 
 intrinsic eputs(s: string) : u64;
 intrinsic fputs(fd: s32, s: string) : u64;
-intrinsic fsize(fd: s32) : u64;
 intrinsic putchar(c: u32) : u64;
 
 intrinsic int_to_string(i: s32) : string;
 
+func fsize(fd: s32) : u64 -> "fsize";
 func memset(buffer: ptr<char>, ch : u32, len: u32) : ptr<char> -> "memset";
 func memcpy(dst: ptr<char>, src: ptr<char>, len: u32) : ptr<char> -> "memcpy";
 func open(path: string, flags: s32) : s32 -> "open";
