@@ -7,6 +7,8 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -20,6 +22,12 @@ extern_logging_category(parser);
 
 using SyntaxError = Error<Token>;
 
+template <typename T>
+std::string dump_value(T const& value)
+{
+    return format("{}", value);
+}
+
 template<typename T>
 class Context {
 public:
@@ -30,11 +38,22 @@ public:
     explicit Context(Context<T>* parent)
         : m_parent(parent)
     {
+        if (parent)
+            parent->m_children.push_back(this);
     }
 
     Context(Context<T>& parent)
         : m_parent(&parent)
     {
+        parent.m_children.push_back(this);
+    }
+
+    virtual ~Context()
+    {
+        if (m_parent) {
+            std::remove_if(m_parent->m_children.begin(), m_parent->m_children.end(),
+                [this](auto child) { return (this == child); });
+        }
     }
 
     [[nodiscard]] bool contains(std::string const& name) const
@@ -97,6 +116,24 @@ public:
             return m_parent->unset(name);
     }
 
+    [[nodiscard]] std::vector<Context<T>*> const& children() const
+    {
+        return m_children;
+    }
+
+    void dump(int level) const
+    {
+        std::string indent;
+        while (indent.length() < 2*level)
+            indent += ' ';
+        for (auto const& p : m_names) {
+            std::cout << indent << p.first << ": " << dump_value(p.second) << "\n";
+        }
+        for (auto const& child : children()) {
+            child->dump(level+1);
+        }
+    }
+
     template <typename Payload>
     ErrorOr<Payload, SyntaxError> add_if_error(ErrorOr<Payload, SyntaxError> maybe_error)
     {
@@ -121,6 +158,7 @@ protected:
 private:
     std::unordered_map<std::string, T> m_names {};
     Context<T>* m_parent { nullptr };
+    std::vector<Context<T>*> m_children {};
     std::vector<SyntaxError> m_errors {};
 };
 

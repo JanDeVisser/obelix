@@ -1,0 +1,15 @@
+func main(): int
+{
+  return a();
+}
+
+func a(): int
+{
+  return b();
+}
+
+func b(): int
+{
+  return 12;
+}
+
