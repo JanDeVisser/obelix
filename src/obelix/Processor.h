@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "obelix/SyntaxNodeType.h"
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
@@ -509,8 +508,6 @@ ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
     template<>                    \
     ErrorOrNode process_node<ContextType, SyntaxNodeType::node_type>(std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx)
 
-// [[maybe_unused]] static auto node_type ## _pracessor = NodeProcessor<ContextType>::the()->register_node_processor(SyntaxNodeType::node_type, \
-    //     [](NodeProcessor<ContextType>& processor, std::shared_ptr<SyntaxNode> const& tree, ContextType& ctx) -> ErrorOrNode
 
 #define ALIAS_NODE_PROCESSOR(node_type, alias_node_type)                                                                        \
     template<>                                                                                                                  \
@@ -518,8 +515,6 @@ ErrorOrNode process_node(std::shared_ptr<SyntaxNode> const& tree, Ctx& ctx)
     {                                                                                                                           \
         return process_node<ContextType, SyntaxNodeType::alias_node_type>(tree, ctx);                                           \
     }
-    // [[maybe_unused]] static auto node_type##_##__LINE__ = NodeProcessor<ContextType>::the()->alias_node_processor( \
-    //     SyntaxNodeType::node_type, SyntaxNodeType::alias_node_type);
 
 ErrorOrNode fold_constants(std::shared_ptr<SyntaxNode> const&);
 ErrorOrNode bind_types(std::shared_ptr<SyntaxNode> const&);
